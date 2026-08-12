@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { EditorContent, useEditorState, type Editor } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
 import DragHandle from "@tiptap/extension-drag-handle-react";
@@ -887,6 +887,13 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
         <PostPreview
           id={post.id}
           bodyHtml={editor?.getHTML() ?? ""}
+          // Pending-content preview (2026-08-12) — same `editor.getJSON()` idiom
+          // `use-post-editor.hooks.ts`'s own dirty comparison already uses, read fresh every render
+          // off the live editor rather than the last-saved `post.bodyJson`. `null` (not `editor?.getJSON()
+          // ?? {}`) when the editor hasn't mounted yet, matching `bodyHtml`'s own "nothing to show"
+          // fallback — `PostPreview` treats `null` as "no pending body to submit" rather than posting an
+          // empty document.
+          bodyJson={editor?.getJSON() ?? null}
           slug={slug}
           status={status}
           dirty={dirty}
@@ -973,36 +980,45 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
 
 /**
  * Renders the post the way the Preview tab shows it — mirrors `features/pages/PageEditor.tsx`'s
- * `PagePreview`, same three-way branching rule and same reasoning (see that function's own doc for
- * the full explanation; `ADS-memory/reports/implementation/2026-08-11-html-view-and-preview.md` has
- * the original decision record this repeats, and `2026-08-11-template-preview-render-bug.md` has the
- * template-preview fix below):
+ * `PagePreview` for branches 1 and 2 (see that function's own doc for the full explanation;
+ * `ADS-memory/reports/implementation/2026-08-11-html-view-and-preview.md` has the original decision
+ * record this repeats, and `2026-08-11-template-preview-render-bug.md` has the template-preview fix
+ * below). Posts add a fourth branch Pages has no equivalent of. Four branches, evaluated in this
+ * order:
  *
  * 1. **Live site** (`status === "published" && !dirty`): iframes the real public URL (`siteUrl`, the
  *    same helper the "view ↗" link already uses) — the exact response a visitor gets,
  *    template/theme CSS/nav/footer/widget resolution and all.
- * 2. **Template preview, own fix (2026-08-11)** (`status === "published" && !contentDirty`, i.e.
+ * 2. **Template preview** (2026-08-11 fix) (`status === "published" && !contentDirty`, i.e.
  *    title/slug/status/body/`overridesThemePage` all match what's saved and the post IS published —
- *    only `templateChoice` is pending): iframes `api.templatePreviewUrl`, the SAME real render
- *    pipeline as branch 1, looked up by id instead of by public slug. This is the fix, and exactly the
- *    reported bug's own repro: picking a template from the dropdown correctly marks `dirty`, which
- *    used to fall the preview all the way back to branch 3 regardless of which template was picked
- *    (that fallback never read `templateChoice` at all). Gated on `status === "published"` rather than
- *    just `!contentDirty` — a draft's own body does not survive this same render pipeline intact (a
- *    disclosed, separate limitation in the shared "content" marker resolver's visibility guard; see
- *    `ADS-memory/reports/implementation/2026-08-11-template-preview-render-bug.md` for the full
- *    root-cause writeup and why widening this to drafts was deliberately not attempted).
- * 3. **Raw fallback** (everything else — a draft, regardless of its own dirtiness, or a published post
- *    with `contentDirty`, i.e. the operator actually edited title/slug/status/body/
- *    `overridesThemePage`): nothing at the public URL or the template-preview endpoint reflects a
- *    draft or unsaved edits, so this renders the LIVE EDITOR BUFFER instead. Unlike Pages (whose body
- *    already IS raw HTML), a post's body is TipTap `bodyJson`, so `bodyHtml` comes from
- *    `editor.getHTML()` — TipTap's own client-side serializer, not the server's `renderDocNode` — fed
- *    into the same sandboxed `SrcDocSandbox` Pages' fallback uses. This is a deliberately shallower
- *    render than the real one (plain marks-to-tags only: no widget resolution, no media-transform
- *    URLs, no theme wrapper) — disclosed as a rough shape/content check, not parity, for the same
- *    reason the live-site branch exists: building a second `renderDocNode` here would be the
- *    duplication this whole approach is chosen to avoid.
+ *    only `templateChoice` is pending): `GET`s `api.templatePreviewUrl`, the SAME real render
+ *    pipeline as branch 1, looked up by id instead of by public slug.
+ * 3. **Pending-content preview** (2026-08-12 fix — the owner's own reported bug: formatting text on
+ *    an already-published post used to drop the preview straight to branch 4's unstyled fallback the
+ *    instant `contentDirty` went true, even though the post was still live at its public URL).
+ *    `status === "published" && contentDirty` — this also absorbs the branch-2 case where
+ *    `contentDirty` is combined with a pending `templateChoice`, since the `POST` below carries both
+ *    at once. Same `template-preview` endpoint as branch 2, but `POST`ed instead of `GET`ted so the
+ *    request can carry a BODY: a hidden `<form method="post" target="{iframe's name}">` submits
+ *    `bodyJson` — the live, UNSAVED `editor.getJSON()` — into the targeted iframe, landing a real
+ *    navigated document instead of a `srcDoc` string. `srcDoc` is rejected here for the same reason
+ *    `template-preview.ts`'s own file header gives: the rendered HTML's asset paths are root-relative
+ *    to `/theme-assets/{themeId}/...`, which only resolves once the browser believes it is looking at
+ *    a real navigated page. Debounced 500ms trailing in the effect below — a form submit is a full
+ *    iframe navigation, not a `fetch`, so firing one per keystroke would be unusable. Gated on
+ *    `status === "published"` for the same reason branch 2 is (see `2026-08-11-template-preview-
+ *    render-bug.md`): a draft's `{"type":"content"}` slot does not resolve through this pipeline.
+ * 4. **Raw fallback** (everything else — a draft, regardless of its own dirtiness): nothing at the
+ *    public URL or the template-preview endpoint reflects a draft, so this renders the LIVE EDITOR
+ *    BUFFER instead. Unlike Pages (whose body already IS raw HTML), a post's body is TipTap
+ *    `bodyJson`, so `bodyHtml` comes from `editor.getHTML()` — TipTap's own client-side serializer,
+ *    not the server's `renderDocNode` — fed into the same sandboxed `SrcDocSandbox` Pages' fallback
+ *    uses. This is a deliberately shallower render than the real one (plain marks-to-tags only: no
+ *    widget resolution, no media-transform URLs, no theme wrapper) — disclosed as a rough
+ *    shape/content check, not parity, for the same reason the live-site branch exists: building a
+ *    second `renderDocNode` here would be the duplication this whole approach is chosen to avoid.
+ *    Branch 3 means this is now ONLY reachable for a draft — a published post with `contentDirty` no
+ *    longer falls this far, which is exactly this fix's own point.
  *
  * No device-width scaling here (unlike `PagePreview`) — that machinery exists so an operator can
  * preview a page at Desktop/Tablet/Mobile widths, which nothing in this dispatch asked for on the
@@ -1012,6 +1028,7 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
 function PostPreview({
   id,
   bodyHtml,
+  bodyJson,
   slug,
   status,
   dirty,
@@ -1020,6 +1037,10 @@ function PostPreview({
 }: {
   id: string;
   bodyHtml: string;
+  /** Loosely typed like `PostFormState.bodyJson` (`use-post-editor.hooks.ts`) for the same stated
+   *  reason: this only ever gets `JSON.stringify`'d into a hidden form field below, never read for
+   *  its shape. `null` means the editor hasn't mounted yet — see the call site's own comment. */
+  bodyJson: unknown;
   slug: string;
   status: "draft" | "published";
   dirty: boolean;
@@ -1030,6 +1051,32 @@ function PostPreview({
   // Template-preview fix (2026-08-11) — see this function's own doc, branch 2, for why `status ===
   // "published"` is required here rather than just `!contentDirty`.
   const canShowTemplatePreview = status === "published" && !contentDirty && !canShowLiveSite;
+  // Pending-content preview (2026-08-12) — see this function's own doc, branch 3. `contentDirty`
+  // already implies `dirty` (`computeContentDirty` in `use-post-editor.hooks.ts` compares a strict
+  // subset of what `computeDirty` does), so this is naturally mutually exclusive with the two
+  // branches above without needing an explicit `!canShowLiveSite`/`!canShowTemplatePreview` guard.
+  const canShowPendingContentPreview = status === "published" && contentDirty;
+
+  // The iframe `target` a hidden form submit lands in must match the iframe's `name` attribute (not
+  // `id`) at submit time — stable per mount via `useRef` since it only needs to outlive one
+  // `PostPreview` instance, not survive remounts. `id` folded in so two editors for different posts
+  // can never resolve to the same target name.
+  const previewFormTargetRef = useRef(`post-preview-pending-${id}`);
+  const formRef = useRef<HTMLFormElement>(null);
+
+  // Debounced auto-submit (2026-08-12) — a form submit is a full iframe navigation, so firing one per
+  // keystroke would thrash the iframe on every character. Trailing-only, 500ms: the timer restarts on
+  // every `bodyJson`/`templateChoice` change. `clearTimeout` on cleanup is the complete cancellation
+  // here — unlike a `fetch` promise, which keeps running after a component stops caring and needs an
+  // effect-local `cancelled` flag checked in `.then`/`.catch`, a cleared `setTimeout` callback
+  // provably never fires, so no extra flag is needed on top of it.
+  useEffect(() => {
+    if (!canShowPendingContentPreview || bodyJson === null) return;
+    const timer = setTimeout(() => {
+      formRef.current?.submit();
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [canShowPendingContentPreview, bodyJson, templateChoice, id]);
 
   return (
     <>
@@ -1048,6 +1095,29 @@ function PostPreview({
             className="editor-preview-iframe"
             referrerPolicy="no-referrer"
           />
+        ) : canShowPendingContentPreview ? (
+          <>
+            {/* `hidden`, not left out of the DOM — a hidden form still submits fine, and this keeps
+                it out of layout without relying on CSS. Posts to the SAME endpoint branch 2's iframe
+                `src` above points `GET` at; `templateChoice` rides the query string exactly as it
+                does there, so a pending template choice AND pending content are both honored by one
+                submit. */}
+            <form
+              ref={formRef}
+              method="post"
+              target={previewFormTargetRef.current}
+              action={api.templatePreviewUrl(id, templateChoice)}
+              hidden
+            >
+              <input type="hidden" name="bodyJson" value={JSON.stringify(bodyJson)} />
+            </form>
+            <iframe
+              name={previewFormTargetRef.current}
+              title="Post preview"
+              className="editor-preview-iframe"
+              referrerPolicy="no-referrer"
+            />
+          </>
         ) : (
           <SrcDocSandbox html={bodyHtml} title="Post preview" className="editor-preview-iframe" />
         )}
@@ -1056,9 +1126,9 @@ function PostPreview({
         <p className="editor-preview-notice">
           {canShowTemplatePreview
             ? "Previewing your saved content through the newly selected template — save to update the live post."
-            : status !== "published"
-              ? "This is a rough render of the editor buffer only — publish this post to preview it with the theme's real template and CSS."
-              : "This is a rough render of the editor buffer only — save your changes to preview them with the theme's real template and CSS."}
+            : canShowPendingContentPreview
+              ? "Previewing your unsaved edits through the live template — this updates a moment after you stop typing."
+              : "This is a rough render of the editor buffer only — publish this post to preview it with the theme's real template and CSS."}
         </p>
       )}
     </>
