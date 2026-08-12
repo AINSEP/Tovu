@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 
 import type { AdminPost } from "../../../lib/api";
 import { navigate as defaultNavigate } from "../../../lib/router";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { t as defaultT } from "../page-editor-i18n";
+import { prettifyHtml } from "../lib/prettify-html";
 import { defaultPageEditorPort } from "./page-editor-dependencies.hooks";
 import type { PageEditorPort } from "./page-editor-port.hooks";
 
@@ -66,10 +67,29 @@ export interface PageEditorController {
   /** The working copy of the page's HTML — what the preview renders and what Save persists. */
   html: string;
   setHtml: (value: string) => void;
+  /**
+   * HTML tab's local, display-only pretty-printed copy of `html` (moved here from `PageEditor.tsx`,
+   * 2026-08-11 complexity-ceiling pass — see the reformat effect below for the full "why" this used
+   * to carry in that component). Reformats only on the transition INTO the HTML tab (never mid-edit,
+   * never on every keystroke) so the formatter can't fight the operator's cursor, and typing here
+   * writes straight through to `setHtml` too, so this is purely a display concern layered on top of
+   * `html` — it can never by itself affect `dirty`.
+   */
+  draftHtml: string;
+  setDraftHtml: (value: string) => void;
   view: PageEditorView;
   setView: (value: PageEditorView) => void;
   device: PagePreviewDevice;
   setDevice: (value: PagePreviewDevice) => void;
+  /**
+   * `PagePreview`'s own frame element and its live-measured width (moved here from `PagePreview`,
+   * 2026-08-11 complexity-ceiling pass — see the measuring effect below for the full "why ResizeObserver
+   * instead of a guessed constant" reasoning this used to carry in that component). `PageEditor.tsx`
+   * passes both straight through as props; `PagePreview` attaches `frameRef` to the element it wants
+   * measured and reads `paneWidth` back to compute its scale.
+   */
+  frameRef: RefObject<HTMLDivElement | null>;
+  paneWidth: number;
   saving: boolean;
   /**
    * Whether the working copy differs from what was last loaded or saved.
@@ -181,6 +201,58 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routeSlug, port]);
 
+  // HTML tab pretty-printing (owner-reported regression, 2026-08-11 — verified nothing formatted this
+  // view before either; see `lib/prettify-html.ts`'s file header). `draftHtml` is a LOCAL, display-only
+  // copy of `html`: merely switching to the HTML tab reformats and shows it here, but never calls
+  // `setHtml` itself, so `dirty` (computed above from `html !== savedHtml`) stays exactly what it was
+  // before the operator looked at this tab — a display concern must never by itself mark the page as
+  // having unsaved changes. `PageEditor.tsx`'s textarea writes straight through to BOTH `draftHtml` and
+  // the real `setHtml` on every keystroke, unchanged from how the textarea always worked, so the only
+  // way the prettified whitespace becomes part of the saved page is if the operator actually edits on
+  // top of it. `prevViewRef` is what makes this fire only on the TRANSITION into the HTML tab, never on
+  // every render while already on it — reformatting mid-edit would fight the operator's cursor position.
+  const [draftHtml, setDraftHtml] = useState(() => prettifyHtml(html));
+  const prevViewRef = useRef(view);
+  useEffect(() => {
+    if (view === "html" && prevViewRef.current !== "html") {
+      setDraftHtml(prettifyHtml(html));
+    }
+    prevViewRef.current = view;
+  }, [view, html]);
+
+  // `PagePreview`'s frame element and its REAL rendered width, measured live via `ResizeObserver`
+  // rather than a guessed constant — a flat `880` here would mean the scale computed once and stayed
+  // frozen across a window resize, a sidebar collapse, or the assistant dock opening/closing (this is
+  // the bug `ThemeExplore.tsx`'s own `ThemeExplorePreview` copied verbatim from here, then fixed live —
+  // see that file's `fd26d93`). `880` survives only as the pre-measurement default so the first paint
+  // still has a sane scale instead of `Infinity`/`NaN` from a zero-width ref.
+  //
+  // The effect depends on `[view]`, NOT `[]`: `PagePreview` (and the frame div `frameRef` attaches to)
+  // only renders while `view === "preview"` — `PageEditor.tsx` unmounts it entirely for the other two
+  // tabs — so `frameRef.current` goes back to `null` every time the operator tabs away, and a fresh DOM
+  // node is created every time they tab back. An empty dependency array would attach exactly one
+  // `ResizeObserver`, to whichever node existed at the FIRST mount, and silently stop re-measuring on
+  // every preview tab thereafter. Keying off `view` reruns the effect (disconnecting the stale observer,
+  // if any, then re-observing the current node) on every transition, reproducing the same "fresh
+  // observer per mount" lifecycle this had when the ref/state lived inside `PagePreview` itself.
+  //
+  // jsdom implements no `ResizeObserver` at all (`__tests__/setup.ts`'s own comment — deliberately left
+  // unstubbed, so a test can't pass without the measurement ever happening) — guarded exactly like
+  // `SeeMore.hooks.tsx`'s own `typeof ResizeObserver !== "function"` check, so this still renders (at
+  // the `880` default) in every existing/new unit test.
+  const frameRef = useRef<HTMLDivElement>(null);
+  const [paneWidth, setPaneWidth] = useState(880);
+  useEffect(() => {
+    const el = frameRef.current;
+    if (!el || typeof ResizeObserver !== "function") return;
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (entry) setPaneWidth(entry.contentRect.width);
+    });
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [view]);
+
   const save = useCallback(
     async (nextStatus?: "draft" | "published") => {
       // Save is only reachable once `page` has loaded — `PageEditor.tsx` shows a loading notice
@@ -278,10 +350,14 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     availableTemplates,
     html,
     setHtml,
+    draftHtml,
+    setDraftHtml,
     view,
     setView,
     device,
     setDevice,
+    frameRef,
+    paneWidth,
     saving,
     // HTML changes only count when they're actually savable (see `save()`'s `canSaveHtml`) — for a
     // doc-format Page, `html` never reflects real persisted content, so comparing it to `savedHtml`

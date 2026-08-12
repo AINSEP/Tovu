@@ -1,11 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import type { RefObject } from "react";
 import { ConfirmDialog, InteractiveHtmlEditor } from "@jini-ai/admin/react";
 import { SrcDocSandbox } from "@jini-ai/ui/renderers";
 
 import { api } from "../../lib/api";
 import { siteUrl } from "../../lib/site-url";
-import { navigate } from "../../lib/router";
-import { prettifyHtml } from "./lib/prettify-html";
 import {
   PAGE_PREVIEW_WIDTHS,
   useWiredPageEditor,
@@ -135,6 +133,97 @@ function PageEditorHeader({
   );
 }
 
+/**
+ * The toolbar's right-hand group — the device-width control (preview view only) and the template
+ * picker. Extracted out of `PageEditor` for the same reason `PageEditorHeader` above was: this is
+ * where nearly all of the remaining branching in that component's render lived (the preview-only
+ * visibility check, the html-format check, and the has-templates check nested inside it), and as a
+ * top-level function its branches are scored in their own scope instead of accumulating onto
+ * `PageEditor`'s.
+ *
+ * Device-width control and template picker share this one row (owner feedback, 2026-08-11: "move the
+ * UI for the template dropdown where the desktop tablet mobile is right now ... so it's all one row"
+ * — the picker's own standalone row above is gone). `.page-editor-toolbar-end` is a plain grouping
+ * wrapper (`pages.css`) so `.page-editor-toolbar`'s existing `justify-content: space-between` still
+ * only has to place two things: the view tabs on the left, this group on the right.
+ *
+ * The template picker mirrors `PostEditor.tsx`'s own `.editor-template-picker` markup/classes
+ * verbatim. Rendered only for an `"html"`-format Page: a `"doc"`-format Page (pre-conversion legacy
+ * row) has no render path that would honor a template choice yet (`isEligibleForTemplateBranch`
+ * requires `bodyFormat: "html"`), so showing the picker on one would let an operator set a value with
+ * no visible effect.
+ *
+ * UNLIKE the Post picker, the selected value is NOT defaulted to the theme's first template when
+ * unset — see `use-page-editor.hooks.ts`'s load effect and `isEligibleForTemplateBranch`'s doc for the
+ * full reasoning: "no template chosen" is a Page's normal, fully-working state (render its own body),
+ * not an absence-of-decision needing a UI default to stay honest.
+ */
+function PageEditorToolbarEnd({
+  view,
+  device,
+  setDevice,
+  bodyFormat,
+  availableTemplates,
+  templateChoice,
+  setTemplateChoice,
+}: {
+  view: PageEditorView;
+  device: PagePreviewDevice;
+  setDevice: (value: PagePreviewDevice) => void;
+  bodyFormat: "doc" | "html" | undefined;
+  availableTemplates: string[];
+  templateChoice: string | null;
+  setTemplateChoice: (value: string) => void;
+}) {
+  return (
+    <div className="page-editor-toolbar-end">
+      {view === "preview" ? (
+        <div className="segmented" role="group" aria-label="Preview width">
+          {DEVICES.map((entry) => (
+            <button
+              key={entry.key}
+              type="button"
+              aria-pressed={device === entry.key}
+              className={device === entry.key ? "is-active" : undefined}
+              onClick={() => setDevice(entry.key)}
+            >
+              {entry.label}
+            </button>
+          ))}
+          <span className="page-editor-width">{PAGE_PREVIEW_WIDTHS[device]}px</span>
+        </div>
+      ) : null}
+      {bodyFormat === "html" ? (
+        <div className="editor-template-picker">
+          <label className="a11y-label-wrap">
+            <span className="visually-hidden">Template</span>
+          </label>
+          {availableTemplates.length > 0 ? (
+            <select
+              value={templateChoice ?? ""}
+              // `e.target.value`, not `|| null` — `""` is a legitimate stored value here (though,
+              // unlike Posts, it behaves identically to `null` at render time — see
+              // `isEligibleForTemplateBranch`'s doc).
+              onChange={(e) => setTemplateChoice(e.target.value)}
+            >
+              {availableTemplates.map((template) => (
+                <option key={template} value={template}>
+                  {template}
+                </option>
+              ))}
+              <option value="">No template chosen</option>
+            </select>
+          ) : (
+            <select disabled value="">
+              <option value="">No templates for this theme</option>
+            </select>
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEditor }: PageEditorProps) {
   const {
     page,
@@ -151,10 +240,14 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
     availableTemplates,
     html,
     setHtml,
+    draftHtml,
+    setDraftHtml,
     view,
     setView,
     device,
     setDevice,
+    frameRef,
+    paneWidth,
     saving,
     dirty,
     contentDirty,
@@ -164,25 +257,6 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
     setConfirmingDelete,
     deleting,
   } = usePageEditorHook(routeSlug);
-
-  // HTML tab pretty-printing (owner-reported regression, 2026-08-11 — verified nothing formatted
-  // this view before either; see `lib/prettify-html.ts`'s file header). `draftHtml` is a LOCAL,
-  // display-only copy of `html`: merely switching to the HTML tab reformats and shows it here, but
-  // never calls `setHtml`, so `dirty` (computed as `html !== savedHtml` in the hook) stays exactly
-  // what it was before the operator looked at this tab — a display concern must never by itself mark
-  // the page as having unsaved changes. Typing in the textarea below writes straight through to
-  // BOTH `draftHtml` and the real `setHtml`, unchanged from how the textarea always worked, so the
-  // only way the prettified whitespace becomes part of the saved page is if the operator actually
-  // edits on top of it (the formatter's own safety rule makes that whitespace render-invisible
-  // either way — see the file header).
-  const [draftHtml, setDraftHtml] = useState(() => prettifyHtml(html));
-  const prevViewRef = useRef(view);
-  useEffect(() => {
-    if (view === "html" && prevViewRef.current !== "html") {
-      setDraftHtml(prettifyHtml(html));
-    }
-    prevViewRef.current = view;
-  }, [view, html]);
 
   if (error && !page) return <div className="notice error">{error}</div>;
   if (!page) return <div className="notice">Loading editor…</div>;
@@ -251,69 +325,17 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
             </button>
           ))}
         </div>
-        {/* Device-width control and template picker share the toolbar's right-hand side (owner
-            feedback, 2026-08-11: "move the UI for the template dropdown where the desktop tablet
-            mobile is right now ... so it's all one row" — the picker's own standalone row above is
-            gone). `.page-editor-toolbar-end` is a plain grouping wrapper (`pages.css`) so
-            `.page-editor-toolbar`'s existing `justify-content: space-between` still only has to
-            place two things: the view tabs on the left, this group on the right. */}
-        <div className="page-editor-toolbar-end">
-          {view === "preview" ? (
-            <div className="segmented" role="group" aria-label="Preview width">
-              {DEVICES.map((entry) => (
-                <button
-                  key={entry.key}
-                  type="button"
-                  aria-pressed={device === entry.key}
-                  className={device === entry.key ? "is-active" : undefined}
-                  onClick={() => setDevice(entry.key)}
-                >
-                  {entry.label}
-                </button>
-              ))}
-              <span className="page-editor-width">{PAGE_PREVIEW_WIDTHS[device]}px</span>
-            </div>
-          ) : null}
-          {/* Pages template picker (Task 4, 2026-08-11) — mirrors `PostEditor.tsx`'s own
-              `.editor-template-picker` markup/classes verbatim. Rendered only for an `"html"`-format
-              Page: a `"doc"`-format Page (pre-conversion legacy row) has no render path that would
-              honor a template choice yet (`isEligibleForTemplateBranch` requires
-              `bodyFormat: "html"`), so showing the picker on one would let an operator set a value
-              with no visible effect.
-
-              UNLIKE the Post picker, the selected value is NOT defaulted to the theme's first
-              template when unset — see `use-page-editor.hooks.ts`'s load effect and
-              `isEligibleForTemplateBranch`'s doc for the full reasoning: "no template chosen" is
-              a Page's normal, fully-working state (render its own body), not an absence-of-decision
-              needing a UI default to stay honest. */}
-          {page.bodyFormat === "html" ? (
-            <div className="editor-template-picker">
-              <label className="a11y-label-wrap">
-                <span className="visually-hidden">Template</span>
-              </label>
-              {availableTemplates.length > 0 ? (
-                <select
-                  value={templateChoice ?? ""}
-                  // `e.target.value`, not `|| null` — `""` is a legitimate stored value here (though,
-                  // unlike Posts, it behaves identically to `null` at render time — see
-                  // `isEligibleForTemplateBranch`'s doc).
-                  onChange={(e) => setTemplateChoice(e.target.value)}
-                >
-                  {availableTemplates.map((template) => (
-                    <option key={template} value={template}>
-                      {template}
-                    </option>
-                  ))}
-                  <option value="">No template chosen</option>
-                </select>
-              ) : (
-                <select disabled value="">
-                  <option value="">No templates for this theme</option>
-                </select>
-              )}
-            </div>
-          ) : null}
-        </div>
+        {/* Device-width control and template picker share the toolbar's right-hand side — see
+            `PageEditorToolbarEnd`'s own doc for the layout history and the template-picker's rules. */}
+        <PageEditorToolbarEnd
+          view={view}
+          device={device}
+          setDevice={setDevice}
+          bodyFormat={page.bodyFormat}
+          availableTemplates={availableTemplates}
+          templateChoice={templateChoice}
+          setTemplateChoice={setTemplateChoice}
+        />
       </div>
 
       {view === "preview" ? (
@@ -326,6 +348,8 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
           dirty={dirty}
           contentDirty={contentDirty}
           templateChoice={templateChoice}
+          frameRef={frameRef}
+          paneWidth={paneWidth}
         />
       ) : view === "interactive" ? (
         // Remounts with fresh `html` on every tab switch — see `InteractiveHtmlEditor`'s own file
@@ -440,6 +464,8 @@ function PagePreview({
   dirty,
   contentDirty,
   templateChoice,
+  frameRef,
+  paneWidth,
 }: {
   id: string;
   html: string;
@@ -449,31 +475,13 @@ function PagePreview({
   dirty: boolean;
   contentDirty: boolean;
   templateChoice: string | null;
+  /** Frame element to measure and its live-measured width — both owned by `usePageEditor`
+   *  (`hooks/use-page-editor.hooks.ts`), not local state, so they survive this component's own
+   *  mount/unmount as the operator switches tabs. See that hook's own comment on why the measuring
+   *  effect there is keyed on `view` rather than an empty dependency array. */
+  frameRef: RefObject<HTMLDivElement | null>;
+  paneWidth: number;
 }) {
-  const frameRef = useRef<HTMLDivElement>(null);
-  // The frame's REAL rendered width, measured live via `ResizeObserver` rather than a guessed
-  // constant — a flat `880` here previously meant the scale computed once at mount and stayed frozen
-  // across a window resize, a sidebar collapse, or the assistant dock opening/closing (this is the
-  // bug `ThemeExplore.tsx`'s own `ThemeExplorePreview` copied verbatim from here, then fixed live —
-  // see that file's `fd26d93`). `880` survives only as the pre-measurement default so the first
-  // paint still has a sane scale instead of `Infinity`/`NaN` from a zero-width ref.
-  //
-  // jsdom implements no `ResizeObserver` at all (`__tests__/setup.ts`'s own comment — deliberately
-  // left unstubbed, so a test can't pass without the measurement ever happening) — guarded exactly
-  // like `SeeMore.hooks.tsx`'s own `typeof ResizeObserver !== "function"` check, so this component
-  // still renders (at the `880` default) in every existing/new unit test.
-  const [paneWidth, setPaneWidth] = useState(880);
-  useEffect(() => {
-    const el = frameRef.current;
-    if (!el || typeof ResizeObserver !== "function") return;
-    const observer = new ResizeObserver((entries) => {
-      const entry = entries[0];
-      if (entry) setPaneWidth(entry.contentRect.width);
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
   const scale = Math.min(1, paneWidth / width);
   const canShowLiveSite = status === "published" && !dirty;
   // Template-preview fix (2026-08-11) — see this function's own doc, branch 2. Deliberately requires
@@ -494,34 +502,77 @@ function PagePreview({
           className="page-preview-scaler"
           style={{ width: `${width}px`, height: "900px", transform: `scale(${scale})` }}
         >
-          {canShowLiveSite ? (
-            <iframe
-              src={siteUrl(`/${slug}`)}
-              title="Page preview"
-              className="page-preview-iframe"
-              referrerPolicy="no-referrer"
-            />
-          ) : canShowTemplatePreview ? (
-            <iframe
-              src={api.templatePreviewUrl(id, templateChoice)}
-              title="Page preview"
-              className="page-preview-iframe"
-              referrerPolicy="no-referrer"
-            />
-          ) : (
-            <SrcDocSandbox html={html} title="Page preview" className="page-preview-iframe" />
-          )}
+          <PagePreviewFrame
+            canShowLiveSite={canShowLiveSite}
+            canShowTemplatePreview={canShowTemplatePreview}
+            id={id}
+            slug={slug}
+            html={html}
+            templateChoice={templateChoice}
+          />
         </div>
       </div>
       {canShowLiveSite ? null : (
         <p className="page-preview-notice">
-          {canShowTemplatePreview
-            ? "Previewing your saved content through the newly selected template — save to update the live page."
-            : status !== "published"
-              ? "This is the raw body only — publish this page to preview it with the theme's real template and CSS."
-              : "This is the raw body only — save your changes to preview them with the theme's real template and CSS."}
+          {pagePreviewNotice({ canShowTemplatePreview, status })}
         </p>
       )}
     </>
   );
+}
+
+/**
+ * The three-way surface choice from `PagePreview`'s own doc comment (live site / template preview /
+ * raw sandbox), as a top-level function so its branching scores independently of `PagePreview`'s own
+ * complexity — same pattern `PageEditorToolbarEnd` above uses for `PageEditor`'s own render branches.
+ */
+function PagePreviewFrame({
+  canShowLiveSite,
+  canShowTemplatePreview,
+  id,
+  slug,
+  html,
+  templateChoice,
+}: {
+  canShowLiveSite: boolean;
+  canShowTemplatePreview: boolean;
+  id: string;
+  slug: string;
+  html: string;
+  templateChoice: string | null;
+}) {
+  if (canShowLiveSite) {
+    return (
+      <iframe src={siteUrl(`/${slug}`)} title="Page preview" className="page-preview-iframe" referrerPolicy="no-referrer" />
+    );
+  }
+  if (canShowTemplatePreview) {
+    return (
+      <iframe
+        src={api.templatePreviewUrl(id, templateChoice)}
+        title="Page preview"
+        className="page-preview-iframe"
+        referrerPolicy="no-referrer"
+      />
+    );
+  }
+  return <SrcDocSandbox html={html} title="Page preview" className="page-preview-iframe" />;
+}
+
+/** The notice text under a preview that isn't the live site — one branch per `PagePreviewFrame` case
+ *  minus the live-site one (which shows no notice at all; `PagePreview` skips calling this then). */
+function pagePreviewNotice({
+  canShowTemplatePreview,
+  status,
+}: {
+  canShowTemplatePreview: boolean;
+  status: "draft" | "published";
+}): string {
+  if (canShowTemplatePreview) {
+    return "Previewing your saved content through the newly selected template — save to update the live page.";
+  }
+  if (status !== "published") {
+    return "This is the raw body only — publish this page to preview it with the theme's real template and CSS.";
+  }
+  return "This is the raw body only — save your changes to preview them with the theme's real template and CSS.";
 }
