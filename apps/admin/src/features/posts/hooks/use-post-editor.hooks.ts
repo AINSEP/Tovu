@@ -18,6 +18,7 @@ import { Table, TableRow, TableCell, TableHeader } from "@tiptap/extension-table
 import { TaskList, TaskItem } from "@tiptap/extension-list";
 
 import type { AdminPost, ThemeTier } from "../../../lib/api";
+import type { Translate } from "../../../lib/dictionary-translator";
 import { MediaImage } from "../../../lib/media-image-extension";
 import { WidgetEmbed } from "../../../lib/widget-embed-extension";
 import { PostTitleDocument, PostTitle } from "../../../lib/post-title-extension";
@@ -149,14 +150,14 @@ export interface PostEditorController {
   remove: () => Promise<void>;
   /** Bound translator — `key` already resolved against the caller's locale, so `PostEditor.tsx`
    *  never imports `useAdminLocale`/`POSTS_DICT` itself. See this file's header. */
-  t: (key: string) => string;
+  t: Translate;
 }
 
 /** {@link usePostEditor}'s injected second parameter — see this file's header for the conversion this belongs to. */
 export interface PostEditorDependencies {
   port: PostEditorPort;
   navigate: (path: string) => void;
-  t: (key: string) => string;
+  t: Translate;
 }
 
 /**

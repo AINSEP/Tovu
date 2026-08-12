@@ -8,6 +8,7 @@ import { SrcDocSandbox } from "@jini-ai/ui/renderers";
 
 import { EmbedInsertControl } from "../../components/EmbedInsertControl/EmbedInsertControl";
 import { api, type AdminPost } from "../../lib/api";
+import type { Translate } from "../../lib/dictionary-translator";
 import { siteUrl } from "../../lib/site-url";
 import { useWiredPostEditor, type PostEditorView } from "./hooks/use-post-editor.hooks";
 import { PostTemplateModal } from "./PostTemplateModal";
@@ -509,7 +510,7 @@ function PostEditorHeader({
   onPublish: () => void;
   onSave: () => void;
   onDeleteClick: () => void;
-  t: (key: string) => string;
+  t: Translate;
 }) {
   return (
     <div
