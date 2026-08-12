@@ -34,8 +34,7 @@
 import type { EntryRefsRepoPort } from "../core/entry-refs/ports";
 import type { AuthorizeFn, OutboxPort } from "@jini-ai/cms/core";
 import type { ContentTypeRepoPort } from "../features/content-types/write-service";
-import type { EntryListPort } from "../features/entries/list";
-import type { EntryRepoPort } from "../features/entries/write-service";
+import type { EntryListPort, EntryRepoPort } from "../features/entries";
 import type { WidgetRegionBindingRepoPort } from "./ports";
 
 /** The exact slice of a route/tool layer's own deps bag this domain's write-path needs. */

@@ -1,4 +1,4 @@
-import type { EntryListPort } from "../../features/entries/list";
+import type { EntryListPort } from "../../features/entries";
 import { getWidgetTypeRegistration } from "../registry";
 import type { WidgetResolveResult, WidgetResolver } from "../types";
 

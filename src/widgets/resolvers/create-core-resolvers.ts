@@ -1,4 +1,4 @@
-import type { EntryListPort } from "../../features/entries/list";
+import type { EntryListPort } from "../../features/entries";
 import type { FormDefinitionRepoPort } from "../../forms/ports";
 import type { NavMenuReadModel } from "../../navigation";
 import type { WidgetResolver, WidgetTypeKey } from "../types";

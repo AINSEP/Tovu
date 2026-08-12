@@ -268,7 +268,7 @@ test("admin widgets embeds: insert -> reorder -> remove against a real generic e
   // fixtures' own approach) — "article" avoids the "post"/"page" reserved-key collision.
   const { registerContentType } = await import("../../features/content-types/write-service");
   const { NoopContentTypeIndexProvisioner } = await import("../../features/content-types/repo.memory");
-  const { createEntry } = await import("../../features/entries/write-service");
+  const { createEntry } = await import("../../features/entries/index");
   const { PRE_AUTHORIZED } = await import("../../widgets/authorize-helper");
 
   await deps.identityReady;

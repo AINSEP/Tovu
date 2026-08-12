@@ -101,7 +101,7 @@ async function seedFixture(deps: RouteDeps): Promise<{ widgetInstanceId: string;
   const contentTypeRepo = (deps as unknown as { contentTypeRepo: InMemoryContentTypeRepo }).contentTypeRepo;
   const entryRepo = (deps as unknown as { entryRepo: InMemoryEntryRepo }).entryRepo;
   const { registerContentType } = await import("../../features/content-types/write-service");
-  const { createEntry } = await import("../../features/entries/write-service");
+  const { createEntry } = await import("../../features/entries/index");
   const { NoopContentTypeIndexProvisioner } = await import("../../features/content-types/repo.memory");
   const { PRE_AUTHORIZED } = await import("../../widgets/authorize-helper");
   await registerContentType({

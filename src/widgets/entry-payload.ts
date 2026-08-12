@@ -2,7 +2,7 @@ import type { ContentTypeRepoPort } from "../features/content-types/write-servic
 import { NoopContentTypeIndexProvisioner, toContentTypeOutbox } from "../features/content-types/repo.memory";
 import { registerContentType } from "../features/content-types/write-service";
 import type { ClockPort, JsonObject, OutboxPort } from "@jini-ai/cms/core";
-import type { EntryRecord } from "../features/entries/types";
+import type { EntryRecord } from "../features/entries";
 import { PRE_AUTHORIZED, WIDGETS_SYSTEM_ACTOR_ID } from "./authorize-helper";
 import {
   WIDGET_AREA_CONTENT_TYPE,

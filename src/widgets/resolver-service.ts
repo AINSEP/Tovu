@@ -20,8 +20,7 @@
  * `widgets` domain logic (implementation outline C-004).
  */
 import type { JsonObject, UUID } from "@jini-ai/cms/core";
-import type { EntryListPort } from "../features/entries/list";
-import type { EntryRepoPort } from "../features/entries/write-service";
+import type { EntryListPort, EntryRepoPort } from "../features/entries";
 import { CORE_PUBLIC_TRANSFORM_NAME } from "../media/bootstrap";
 import { getLatestTransformDefinition } from "../media/index";
 import type { MediaRepoPort, TransformDefinitionRepoPort } from "../media/index";
