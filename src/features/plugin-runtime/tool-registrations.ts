@@ -56,6 +56,8 @@ export interface PluginsToolDeps {
   outbox: OutboxPort;
   pluginActivationRepo: PluginActivationRepoPort;
   discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]>;
+  onPluginEnabled: (pluginId: string) => Promise<void>;
+  onPluginDisabled: (pluginId: string) => void;
 }
 
 /**
@@ -125,11 +127,26 @@ export function buildPluginsRegistrations(routeDeps: PluginsToolDeps): ToolRegis
           },
           execute: () =>
             setPluginEnabled({
-              deps: { clock: routeDeps.clock, repo: routeDeps.pluginActivationRepo, discovery },
+              deps: {
+                clock: routeDeps.clock,
+                repo: routeDeps.pluginActivationRepo,
+                discovery,
+                onEnabled: routeDeps.onPluginEnabled,
+                onDisabled: routeDeps.onPluginDisabled,
+              },
               input: { workspaceId: routeDeps.workspaceId, pluginId, enabled },
             }),
           rollback: async () => {
-            if (priorActivation) await routeDeps.pluginActivationRepo.save(priorActivation);
+            if (priorActivation) {
+              await routeDeps.pluginActivationRepo.save(priorActivation);
+            } else {
+              await routeDeps.pluginActivationRepo.deleteActivation({ workspaceId: routeDeps.workspaceId, pluginId });
+            }
+            if (priorActivation?.enabled) {
+              await routeDeps.onPluginEnabled(pluginId);
+            } else {
+              routeDeps.onPluginDisabled(pluginId);
+            }
           },
         },
       });

@@ -30,6 +30,8 @@ export interface PluginsRouteDeps {
   pluginActivationRepo: PluginActivationRepoPort;
   /** Pre-bound: `installDir`/`builtIns` already captured by the composition root. */
   discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]>;
+  onPluginEnabled: (pluginId: string) => Promise<void>;
+  onPluginDisabled: (pluginId: string) => void;
 }
 
 export type PluginsRouteRegistrar = (app: Express, deps: PluginsRouteDeps) => void;

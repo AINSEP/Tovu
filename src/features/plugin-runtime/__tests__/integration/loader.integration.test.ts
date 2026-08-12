@@ -6,8 +6,10 @@ import path from "node:path";
 import test from "node:test";
 
 import { loadPlugin } from "../../loader";
+import type { CapabilityScopedSdkCoreDeps } from "../../capability-sdk";
 import type { PluginDiscoveryRecord } from "../../discovery";
 import type { PluginManifest } from "../../manifest";
+import type { PluginSdk } from "../../../../../packages/sdk/src/index";
 
 /**
  * @file C-008 `loadPlugin()` — SPEC-005 REQ-03, AC-03/AC-04, INV-04. **CIC U-001 (Binding,
@@ -58,6 +60,27 @@ function manifest(overrides: Partial<PluginManifest> = {}): PluginManifest {
   };
 }
 
+function coreDeps(overrides: Partial<CapabilityScopedSdkCoreDeps> = {}): CapabilityScopedSdkCoreDeps {
+  return {
+    getCurrentEntry: () => ({
+      id: "entry-1",
+      workspaceId: "ws-1",
+      title: "Entry",
+      slug: "entry",
+      status: "draft",
+      bodyJson: {},
+      ext: {},
+    }),
+    writeExtField: () => {},
+    attachFilter: () => {},
+    ...overrides,
+  };
+}
+
+function definedPluginModule(setup: (sdk: PluginSdk) => void | Promise<void> = () => {}): unknown {
+  return { default: { definition: { setup } } };
+}
+
 test("CIC U-001-ORD1 (ESCALATE_SECURITY): a tampered plugin's code is NEVER import()-ed — integrity is checked before step (3)", async () => {
   const dir = await mkdtemp(path.join(tmpdir(), "tovu-loader-tampered-"));
   try {
@@ -72,11 +95,12 @@ test("CIC U-001-ORD1 (ESCALATE_SECURITY): a tampered plugin's code is NEVER impo
         record: record(),
         manifest: manifest({ integrity: { "server/index.mjs": wrongHash } }),
         entryPath,
+        coreDeps: coreDeps(),
       },
       {
         importModule: async () => {
           importCalls += 1;
-          return { default: { setup() {} } };
+          return definedPluginModule();
         },
       }
     );
@@ -105,12 +129,13 @@ test("CIC U-001-ORD1 (ESCALATE_SECURITY): an sdkRange-incompatible plugin's code
           sdkRange: ">=99.0.0", // unsatisfiable against any realistic runtime SDK version
         }),
         entryPath,
+        coreDeps: coreDeps(),
       },
       {
         runtimeSdkVersion: "1.0.0",
         importModule: async () => {
           importCalls += 1;
-          return { default: { setup() {} } };
+          return definedPluginModule();
         },
       }
     );
@@ -135,6 +160,7 @@ test("AC-03/INV-04: integrity verification runs BEFORE the sdkRange check — a 
         record: record(),
         manifest: manifest({ integrity: { "server/index.mjs": wrongHash }, sdkRange: ">=99.0.0" }),
         entryPath,
+        coreDeps: coreDeps(),
       },
       { runtimeSdkVersion: "1.0.0" }
     );
@@ -160,23 +186,28 @@ test("AC-03: a valid, compatible plugin whose bytes match their integrity hash a
     const correctHash = sha256(entryContents);
 
     let importCalls = 0;
+    let setupCalls = 0;
     const result = await loadPlugin(
       {
         record: record(),
         manifest: manifest({ integrity: { "server/index.mjs": correctHash }, sdkRange: "^1.0.0" }),
         entryPath,
+        coreDeps: coreDeps(),
       },
       {
         runtimeSdkVersion: "1.0.0",
         importModule: async (p) => {
           importCalls += 1;
           assert.equal(p, entryPath);
-          return { default: { setup() {} } };
+          return definedPluginModule(() => {
+            setupCalls += 1;
+          });
         },
       }
     );
 
     assert.equal(importCalls, 1, "a valid, compatible plugin must be imported exactly once");
+    assert.equal(setupCalls, 1, "the imported definePlugin export's setup() must run exactly once");
     assert.equal(result.loaded, true);
   } finally {
     await rm(dir, { recursive: true, force: true });
@@ -192,6 +223,7 @@ test("REQ-03/AC-12: a plugin whose entry file is missing on disk fails CODE_ENTR
         record: record(),
         manifest: manifest({ integrity: {} }),
         entryPath: missingEntryPath,
+        coreDeps: coreDeps(),
       },
       { runtimeSdkVersion: "1.0.0" }
     );
@@ -201,4 +233,64 @@ test("REQ-03/AC-12: a plugin whose entry file is missing on disk fails CODE_ENTR
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
+});
+
+test("REQ-03 step (4): setup receives a capability-scoped SDK whose granted addFilter delegates to the composition root's coreDeps", async () => {
+  let attachedHook: string | null = null;
+  const result = await loadPlugin(
+    {
+      record: record(),
+      manifest: manifest({ capabilities: ["hooks.attach"], hooks: ["content.entry.beforeSave"] }),
+      entryPath: "built-in:loader-fixture",
+      coreDeps: coreDeps({
+        attachFilter: (hookName) => {
+          attachedHook = hookName;
+        },
+      }),
+    },
+    {
+      runtimeSdkVersion: "1.0.0",
+      importModule: async () =>
+        definedPluginModule((sdk) => {
+          sdk.addFilter("content.entry.beforeSave", async () => ({}));
+        }),
+    }
+  );
+
+  assert.deepEqual(result, { loaded: true });
+  assert.equal(attachedHook, "content.entry.beforeSave");
+});
+
+test("REQ-03 step (4): a module without a valid definePlugin default export is rejected without running setup", async () => {
+  const result = await loadPlugin(
+    {
+      record: record(),
+      manifest: manifest(),
+      entryPath: "built-in:invalid-export",
+      coreDeps: coreDeps(),
+    },
+    { runtimeSdkVersion: "1.0.0", importModule: async () => ({ default: { setup() {} } }) }
+  );
+
+  assert.deepEqual(result, { loaded: false, reason: "PLUGIN_EXPORT_INVALID" });
+});
+
+test("REQ-03 step (4): a setup failure is returned to the enable caller instead of being swallowed", async () => {
+  const result = await loadPlugin(
+    {
+      record: record(),
+      manifest: manifest(),
+      entryPath: "built-in:throwing-setup",
+      coreDeps: coreDeps(),
+    },
+    {
+      runtimeSdkVersion: "1.0.0",
+      importModule: async () =>
+        definedPluginModule(() => {
+          throw new Error("setup exploded");
+        }),
+    }
+  );
+
+  assert.deepEqual(result, { loaded: false, reason: "PLUGIN_SETUP_FAILED" });
 });

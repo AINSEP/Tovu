@@ -4,6 +4,8 @@ import test from "node:test";
 import { getActivation, setPluginEnabled, PluginIncompatibleError, PluginInvalidError, PluginNotFoundError } from "../../activation";
 import { InMemoryPluginActivationRepo } from "../../repo.memory";
 import type { PluginDiscoveryRecord } from "../../discovery";
+import { createApp, createRouteDeps } from "#src/server/app";
+import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-server";
 
 /**
  * @file C-011/C-012 `setPluginEnabled()`/`getActivation()` — SPEC-005 REQ-07, BR-05, AC-02, AC-13
@@ -248,4 +250,50 @@ test("state.spec.md §5: getActivation returns null for a plugin that has never 
   const repo = new InMemoryPluginActivationRepo();
   const activation = await getActivation({ deps: { repo }, input: { workspaceId: WORKSPACE, pluginId: "never-enabled" } });
   assert.equal(activation, null);
+});
+
+test("AC-01 end to end: enabling word-count through the documented HTTP path runs setup, attaches its filter, and invokes it on content save", async (t) => {
+  const deps = createRouteDeps();
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const pluginsBase = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/plugins`;
+
+  const enableResponse = await fetch(`${pluginsBase}/word-count`, {
+    method: "PATCH",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ enabled: true }),
+  });
+  if (enableResponse.status !== 200) {
+    assert.fail(`enable returned ${enableResponse.status}: ${await enableResponse.text()}`);
+  }
+
+  const changeSetsAfterEnable = await deps.changeSets.listByWorkspace({ workspaceId: deps.workspaceId });
+  const saveResponse = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/posts`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({
+      title: "Plugin wire proof",
+      slug: "plugin-wire-proof",
+      status: "draft",
+      bodyJson: {
+        type: "doc",
+        content: [{ type: "paragraph", content: [{ type: "text", text: "one two three four five" }] }],
+      },
+    }),
+  });
+  if (saveResponse.status !== 201) {
+    assert.fail(`save returned ${saveResponse.status}: ${await saveResponse.text()}`);
+  }
+
+  const saved = (await saveResponse.json()) as {
+    post: { ext?: { "word-count"?: { count?: number } } };
+  };
+  assert.equal(
+    saved.post.ext?.["word-count"]?.count,
+    5,
+    "word-count's setup() must attach the filter that contributes ext.word-count.count"
+  );
+
+  const changeSetsAfterSave = await deps.changeSets.listByWorkspace({ workspaceId: deps.workspaceId });
+  assert.equal(changeSetsAfterSave.length, changeSetsAfterEnable.length + 1, "the content save must record one change set");
 });

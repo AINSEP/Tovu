@@ -52,6 +52,7 @@ export type ContentRouteDeps = Pick<
   | "clock"
   | "idGen"
   | "postRepo"
+  | "pluginBeforeSaveHook"
   | "pagesHtmlStore"
   | "changeSets"
   | "outbox"

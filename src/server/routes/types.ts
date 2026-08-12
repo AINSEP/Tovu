@@ -16,6 +16,7 @@ import type {
 } from "@jini-ai/cms/identity";
 import type { LipayApi } from "../../features/plugins/lipay/lipay-plugin";
 import type { PostRepoPort, PostSearchPort } from "../../features/post";
+import type { BeforeSaveHookPort } from "../../features/post/post";
 import type { PagesHtmlDocumentStoreFactory } from "../../features/pages";
 import type { ChatStoreFactory } from "../../assistant/persistence/tenant-scope";
 import type { PresentationSettingsRepoPort } from "../../features/presentation";
@@ -577,6 +578,12 @@ export interface RouteDeps {
    * surface itself does not know or care how many plugins exist.
    */
   discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]>;
+  /** BR-01/BR-05 lifecycle callbacks built once by the composition root and shared by the HTTP
+   * and agent-tool enable paths. Failures reject the enable operation. */
+  onPluginEnabled: (pluginId: string) => Promise<void>;
+  onPluginDisabled: (pluginId: string) => void;
+  /** The same process-lifetime hook registry's content-facing port. */
+  pluginBeforeSaveHook: BeforeSaveHookPort;
 }
 
 export type RouteRegistrar = (app: Express, deps: RouteDeps) => void;

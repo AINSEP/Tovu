@@ -86,10 +86,10 @@ import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "../fea
 import { InMemoryEntryRepo } from "../features/entries";
 import { InMemoryWidgetRegionBindingRepo } from "../widgets/repo.memory";
 import { InMemoryEntryRefsRepo } from "../core/entry-refs/repo.memory";
-import { discoverPlugins as discoverPluginRuntimePlugins } from "../features/plugin-runtime/discovery";
 import { InMemoryPluginActivationRepo } from "../features/plugin-runtime/repo.memory";
-import { WORD_COUNT_BUILT_IN } from "../features/plugin-runtime/built-ins/word-count";
+import { WORD_COUNT_RUNTIME_SOURCE } from "../features/plugin-runtime/built-ins/word-count";
 import { createPluginsModule } from "./modules/plugins";
+import { composePluginRuntime } from "./plugin-runtime";
 import { wireCoreResolvers } from "../widgets/resolvers/index";
 import { createNavMenuReadModel } from "../navigation";
 import { createCommentsModule, ensureCommentsSettingDefinitions } from "../comments";
@@ -197,6 +197,13 @@ export function createRouteDeps(): NewsletterRouteDeps {
   const settingsRepo = new InMemorySettingsRepo();
   const clock = { nowIso: () => new Date().toISOString() };
   const idGen = { newId: () => randomUUID() };
+  const pluginActivationRepo = new InMemoryPluginActivationRepo();
+  const pluginRuntime = composePluginRuntime({
+    workspaceId: seededWorkspace.id,
+    clock,
+    activationRepo: pluginActivationRepo,
+    sources: [WORD_COUNT_RUNTIME_SOURCE],
+  });
   const identity = createInMemoryIdentityRouteDeps({ workspaceId: seededWorkspace.id, clock, idGen });
   // Fire-and-forget, mirroring `identityReady` (see routes/types.ts's `settingsReady` doc) — this
   // composition root stays synchronous; consumers await `settingsReady` before relying on the
@@ -566,14 +573,13 @@ export function createRouteDeps(): NewsletterRouteDeps {
     commentsSettingsReady,
     widgetBindingRepo,
     entryRefsRepo,
-    // SPEC-005 (ADR-005-ARCH) — in-memory activation repo, same disclosed precedent as every other
-    // hermetic test/dev composition above. `builtIns: []` is accurate for this Phase 1 dispatch: the
-    // `word-count` is now discoverable (list/enable/disable testable end-to-end) — its *hook
-    // execution* (loader.ts steps 4-5: invoke setup(), attach to the hook registry) is still a
-    // separate, later, gated phase that has not landed; toggling it here flips a real activation
-    // record but does not make its `content.entry.beforeSave` hook actually run yet.
-    pluginActivationRepo: new InMemoryPluginActivationRepo(),
-    discoverPlugins: () => discoverPluginRuntimePlugins({ builtIns: [WORD_COUNT_BUILT_IN] }),
+    // SPEC-005 BR-01/BR-05 — the same in-memory runtime instance backs the enable route and every
+    // content save in this hermetic composition.
+    pluginActivationRepo,
+    discoverPlugins: pluginRuntime.discoverPlugins,
+    onPluginEnabled: pluginRuntime.onPluginEnabled,
+    onPluginDisabled: pluginRuntime.onPluginDisabled,
+    pluginBeforeSaveHook: pluginRuntime.beforeSaveHook,
   };
 }
 

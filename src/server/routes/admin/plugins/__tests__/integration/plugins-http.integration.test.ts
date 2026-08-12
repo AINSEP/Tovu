@@ -67,6 +67,8 @@ function buildTestApp(): { app: express.Express; pluginDeps: PluginsRouteDeps } 
     outbox: baseDeps.outbox,
     pluginActivationRepo: new InMemoryPluginActivationRepo(),
     discoverPlugins: async () => AC11_DISCOVERY,
+    onPluginEnabled: async () => {},
+    onPluginDisabled: () => {},
   };
 
   const app = express();

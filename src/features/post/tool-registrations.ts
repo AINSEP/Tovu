@@ -65,6 +65,7 @@ import {
   type PostRecord,
   type PostRepoPort,
   type PostStatus,
+  type BeforeSaveHookPort,
 } from "./post";
 import { searchAdminPosts, type PostSearchPort } from "./search";
 
@@ -88,6 +89,7 @@ export interface PostToolDeps {
   bus: EventBusPort;
   postRepo: PostRepoPort;
   postSearch: PostSearchPort;
+  pluginBeforeSaveHook: BeforeSaveHookPort;
 }
 
 /**
@@ -314,7 +316,11 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
             captureInverse: async () => null,
             execute: () =>
               createPost({
-                deps: { repo: routeDeps.postRepo, clock: routeDeps.clock },
+                deps: {
+                  repo: routeDeps.postRepo,
+                  clock: routeDeps.clock,
+                  beforeSaveHook: routeDeps.pluginBeforeSaveHook,
+                },
                 input: { workspaceId: routeDeps.workspaceId, id: postId, title, kind, slug, bodyJson, status },
               }),
             captureEntityVersion: (r) => r.post.version,
@@ -365,7 +371,12 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
             },
             execute: () =>
               updatePost({
-                deps: { repo: routeDeps.postRepo, clock: routeDeps.clock, outbox: routeDeps.outbox },
+                deps: {
+                  repo: routeDeps.postRepo,
+                  clock: routeDeps.clock,
+                  outbox: routeDeps.outbox,
+                  beforeSaveHook: routeDeps.pluginBeforeSaveHook,
+                },
                 input: { workspaceId: routeDeps.workspaceId, id, title, slug, bodyJson, status },
               }),
             captureEntityVersion: (r) => r.post.version,
