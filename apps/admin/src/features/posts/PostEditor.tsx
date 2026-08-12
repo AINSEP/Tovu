@@ -41,21 +41,24 @@ const VIEWS: ReadonlyArray<{ key: PostEditorView; label: string }> = [
 function Toolbar({ editor }: { editor: Editor }) {
   const s = useEditorState({
     editor,
-    // EXEMPTION (complexity ceiling, 2026-08-06, updated for the ≤9/≤9 bar): ESLint scores this
-    // selector's cyclomatic complexity at 27 against a 9 ceiling, but its cognitive complexity is
-    // 0 — not "low", not reported at all even at threshold 0. That gap is the signature of a
-    // measurement artifact, not real branching: this is a flat object literal of thirteen
-    // `editor?.isActive(...) ?? false` fallbacks with no control flow between them, and ESLint's
-    // cyclomatic rule counts each `?.` and `??` as its own decision point. There is nothing to
-    // extract — splitting the fields across multiple selectors would still evaluate the same
-    // thirteen fallbacks, just spread across more functions, and would break `useEditorState`'s
-    // single-selector re-render-batching contract for no complexity benefit. Kept as one object so
-    // `Toolbar` re-renders once per relevant editor state change instead of up to thirteen times.
+    // EXEMPTION (complexity ceiling, 2026-08-06, updated for the ≤9/≤9 bar; field count updated
+    // 2026-08-11 for the Link/Underline/TextAlign additions): ESLint scores this selector's
+    // cyclomatic complexity well past a 9 ceiling, but its cognitive complexity is 0 — not "low",
+    // not reported at all even at threshold 0. That gap is the signature of a measurement
+    // artifact, not real branching: this is a flat object literal of `editor?.isActive(...) ??
+    // false` fallbacks with no control flow between them, and ESLint's cyclomatic rule counts each
+    // `?.` and `??` as its own decision point. There is nothing to extract — splitting the fields
+    // across multiple selectors would still evaluate the same fallbacks, just spread across more
+    // functions, and would break `useEditorState`'s single-selector re-render-batching contract for
+    // no complexity benefit. Kept as one object so `Toolbar` re-renders once per relevant editor
+    // state change instead of once per field.
     selector: ({ editor }) => ({
       bold: editor?.isActive("bold") ?? false,
       italic: editor?.isActive("italic") ?? false,
       strike: editor?.isActive("strike") ?? false,
+      underline: editor?.isActive("underline") ?? false,
       code: editor?.isActive("code") ?? false,
+      link: editor?.isActive("link") ?? false,
       h1: editor?.isActive("heading", { level: 1 }) ?? false,
       h2: editor?.isActive("heading", { level: 2 }) ?? false,
       h3: editor?.isActive("heading", { level: 3 }) ?? false,
@@ -63,6 +66,10 @@ function Toolbar({ editor }: { editor: Editor }) {
       ordered: editor?.isActive("orderedList") ?? false,
       quote: editor?.isActive("blockquote") ?? false,
       codeBlock: editor?.isActive("codeBlock") ?? false,
+      alignLeft: editor?.isActive({ textAlign: "left" }) ?? false,
+      alignCenter: editor?.isActive({ textAlign: "center" }) ?? false,
+      alignRight: editor?.isActive({ textAlign: "right" }) ?? false,
+      alignJustify: editor?.isActive({ textAlign: "justify" }) ?? false,
       canUndo: editor?.can().undo() ?? false,
       canRedo: editor?.can().redo() ?? false,
     }),
@@ -76,7 +83,32 @@ function Toolbar({ editor }: { editor: Editor }) {
         <button className={toolbarBtnClass(s.bold)} title="Bold (⌘B)" aria-pressed={s.bold} onClick={() => chain().toggleBold().run()}><b>B</b></button>
         <button className={toolbarBtnClass(s.italic)} title="Italic (⌘I)" aria-pressed={s.italic} onClick={() => chain().toggleItalic().run()}><i>I</i></button>
         <button className={toolbarBtnClass(s.strike)} title="Strikethrough" aria-pressed={s.strike} onClick={() => chain().toggleStrike().run()}><s>S</s></button>
+        <button className={toolbarBtnClass(s.underline)} title="Underline (⌘U)" aria-pressed={s.underline} onClick={() => chain().toggleUnderline().run()}><u>U</u></button>
         <button className={toolbarBtnClass(s.code)} title="Inline code" aria-pressed={s.code} onClick={() => chain().toggleCode().run()}>&lt;/&gt;</button>
+        {/* Link (2026-08-11) — a prompt-based toggle, same "simplest thing that works" idiom as
+            "Insert image by URL" just below rather than a dedicated dialog: a click while the
+            selection already sits inside a link removes it (no second prompt needed to know the
+            operator's intent); otherwise it prompts for a URL and applies it to the current
+            selection. `extendMarkRange("link")` first so clicking anywhere inside an existing link
+            (not just an exact selection of its text) still targets the whole mark, matching how the
+            other toggle buttons on this row already read the mark/node at the cursor rather than
+            requiring an exact selection. */}
+        <button
+          className={toolbarBtnClass(s.link)}
+          title="Link"
+          aria-pressed={s.link}
+          onClick={() => {
+            if (s.link) {
+              chain().extendMarkRange("link").unsetLink().run();
+              return;
+            }
+            const url = window.prompt("Link URL:", "https://");
+            if (!url) return;
+            chain().extendMarkRange("link").setLink({ href: url }).run();
+          }}
+        >
+          Link
+        </button>
       </div>
       <div className="grp">
         <button className={toolbarBtnClass(s.h1)} title="Heading 1" aria-pressed={s.h1} onClick={() => chain().toggleHeading({ level: 1 }).run()}>H1</button>
@@ -89,6 +121,12 @@ function Toolbar({ editor }: { editor: Editor }) {
         <button className={toolbarBtnClass(s.quote)} title="Quote" aria-pressed={s.quote} onClick={() => chain().toggleBlockquote().run()}>&ldquo; Quote</button>
         <button className={toolbarBtnClass(s.codeBlock)} title="Code block" aria-pressed={s.codeBlock} onClick={() => chain().toggleCodeBlock().run()}>{"{ }"}</button>
         <button className="tb-btn" title="Divider" onClick={() => chain().setHorizontalRule().run()}>―</button>
+      </div>
+      <div className="grp">
+        <button className={toolbarBtnClass(s.alignLeft)} title="Align left" aria-pressed={s.alignLeft} onClick={() => chain().setTextAlign("left").run()}>Left</button>
+        <button className={toolbarBtnClass(s.alignCenter)} title="Align center" aria-pressed={s.alignCenter} onClick={() => chain().setTextAlign("center").run()}>Center</button>
+        <button className={toolbarBtnClass(s.alignRight)} title="Align right" aria-pressed={s.alignRight} onClick={() => chain().setTextAlign("right").run()}>Right</button>
+        <button className={toolbarBtnClass(s.alignJustify)} title="Justify" aria-pressed={s.alignJustify} onClick={() => chain().setTextAlign("justify").run()}>Justify</button>
       </div>
       <div className="grp">
         <button className="tb-btn" title="Undo (⌘Z)" disabled={!s.canUndo} onClick={() => chain().undo().run()}>↺</button>

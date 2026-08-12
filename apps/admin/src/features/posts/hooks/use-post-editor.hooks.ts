@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useEditor, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
+import TextAlign from "@tiptap/extension-text-align";
 
 import { api, type AdminPost, type ThemeTier } from "../../../lib/api";
 import { MediaImage } from "../../../lib/media-image-extension";
@@ -147,7 +148,10 @@ export function usePostEditor(postId: string): PostEditorController {
   const [view, setView] = useState<PostEditorView>("edit");
 
   const editor = useEditor({
-    extensions: [StarterKit, MediaImage, WidgetEmbed],
+    // Link and Underline ship as part of StarterKit already (verified against its own bundle) —
+    // only TextAlign needed adding. Configured against `heading`/`paragraph` only for now; task 3
+    // (the title node) adds `"title"` to this list once that node type exists.
+    extensions: [StarterKit, TextAlign.configure({ types: ["heading", "paragraph"] }), MediaImage, WidgetEmbed],
     content: "",
     editorProps: {
       handleDrop: (view, event, _slice, moved) => handleImageDrop(view, event, moved),
