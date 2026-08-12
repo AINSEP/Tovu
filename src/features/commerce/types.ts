@@ -14,6 +14,16 @@ export type CommerceProductKind = "one_time" | "membership" | "digital";
 export type CommerceProductStatus = "active" | "archived";
 
 /**
+ * One display attribute pair (theme example: `{label: "Material", value: "Thick premium weight
+ * combed cotton"}`). Variable-key, display-only — see `db/schema.ts`'s `commerceProducts.specsJson`
+ * doc for the column-vs-document call and its recorded promotion trigger.
+ */
+export interface CommerceProductSpec {
+  label: string;
+  value: string;
+}
+
+/**
  * A sellable thing. Deliberately separate from `MemberTierRecord` (`src/members/types.ts`) —
  * see `db/schema.ts`'s `commerceProducts` doc for why the two are not merged.
  */
@@ -27,9 +37,26 @@ export interface CommerceProductRecord {
   description?: string;
   /** Set only when purchasing this product is how a member obtains a `MemberTierRecord`. */
   grantsMemberTierId?: UUID;
+  /** Display-only spec pairs, in author-chosen order. `undefined` = none set. */
+  specs?: CommerceProductSpec[];
   createdAt: ISODateTime;
   updatedAt: ISODateTime;
   version: number;
+}
+
+/**
+ * One image in a product's gallery, linking to an existing `media` row (never a bespoke image
+ * store — see `db/schema.ts`'s `commerceProductImages` doc). Alt text, title, and caption live on
+ * the referenced `media` row itself, not duplicated here.
+ */
+export interface CommerceProductImageRecord {
+  id: UUID;
+  workspaceId: UUID;
+  productId: UUID;
+  mediaId: UUID;
+  /** Gallery display order, ascending. */
+  position: number;
+  createdAt: ISODateTime;
 }
 
 export type CommercePriceStatus = "active" | "archived";
@@ -41,6 +68,9 @@ export interface CommercePriceRecord {
   workspaceId: UUID;
   productId: UUID;
   unitAmountCents: number;
+  /** The struck-through "was" price, when set. `undefined` = not on sale. Always strictly greater
+   * than `unitAmountCents` when present (DB-enforced). */
+  compareAtAmountCents?: number;
   /** Lowercase ISO-4217 (e.g. `"usd"`), matching Stripe's own convention. */
   currency: string;
   /** `undefined` = one-time. `"month"` | `"year"` = recurring. */

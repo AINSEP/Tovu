@@ -4,6 +4,7 @@ import {
   commerceOrderItems,
   commerceOrders,
   commercePrices,
+  commerceProductImages,
   commerceProducts,
   commerceWebhookEvents,
 } from "../../db/schema";
@@ -13,6 +14,7 @@ import type {
   ApplyProviderEventResult,
   CommerceOrderRepoPort,
   CommercePriceRepoPort,
+  CommerceProductImageRepoPort,
   CommerceProductRepoPort,
   CommerceWebhookEventRepoPort,
 } from "./ports";
@@ -23,8 +25,10 @@ import type {
   CommerceOrderStatus,
   CommercePriceRecord,
   CommercePriceStatus,
+  CommerceProductImageRecord,
   CommerceProductKind,
   CommerceProductRecord,
+  CommerceProductSpec,
   CommerceProductStatus,
 } from "./types";
 
@@ -51,6 +55,7 @@ function toCommerceProductRecord(row: typeof commerceProducts.$inferSelect): Com
     status: row.status as CommerceProductStatus,
     description: row.description ?? undefined,
     grantsMemberTierId: row.grantsMemberTierId ?? undefined,
+    specs: row.specsJson == null ? undefined : (JSON.parse(row.specsJson) as CommerceProductSpec[]),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
     version: row.version,
@@ -88,11 +93,58 @@ export class SqliteCommerceProductRepo implements CommerceProductRepoPort {
       status: record.status,
       description: record.description ?? null,
       grantsMemberTierId: record.grantsMemberTierId ?? null,
+      specsJson: record.specs == null ? null : JSON.stringify(record.specs),
       createdAt: record.createdAt,
       updatedAt: record.updatedAt,
       version: record.version,
     };
     this.db.insert(commerceProducts).values(row).onConflictDoUpdate({ target: commerceProducts.id, set: row }).run();
+  }
+}
+
+function toCommerceProductImageRecord(row: typeof commerceProductImages.$inferSelect): CommerceProductImageRecord {
+  return {
+    id: row.id,
+    workspaceId: row.workspaceId,
+    productId: row.productId,
+    mediaId: row.mediaId,
+    position: row.position,
+    createdAt: row.createdAt,
+  };
+}
+
+export class SqliteCommerceProductImageRepo implements CommerceProductImageRepoPort {
+  constructor(private readonly db: ContentDb) {}
+
+  async listByProduct(required: { workspaceId: string; productId: string }): Promise<CommerceProductImageRecord[]> {
+    const rows = this.db
+      .select()
+      .from(commerceProductImages)
+      .where(
+        and(
+          eq(commerceProductImages.workspaceId, required.workspaceId),
+          eq(commerceProductImages.productId, required.productId)
+        )
+      )
+      .all()
+      .sort((a, b) => (a.position !== b.position ? a.position - b.position : a.id < b.id ? -1 : 1));
+    return rows.map(toCommerceProductImageRecord);
+  }
+
+  async save(record: CommerceProductImageRecord): Promise<void> {
+    const row = {
+      id: record.id,
+      workspaceId: record.workspaceId,
+      productId: record.productId,
+      mediaId: record.mediaId,
+      position: record.position,
+      createdAt: record.createdAt,
+    };
+    this.db
+      .insert(commerceProductImages)
+      .values(row)
+      .onConflictDoUpdate({ target: commerceProductImages.id, set: row })
+      .run();
   }
 }
 
@@ -102,6 +154,7 @@ function toCommercePriceRecord(row: typeof commercePrices.$inferSelect): Commerc
     workspaceId: row.workspaceId,
     productId: row.productId,
     unitAmountCents: row.unitAmountCents,
+    compareAtAmountCents: row.compareAtAmountCents ?? undefined,
     currency: row.currency,
     billingInterval: (row.billingInterval as CommerceBillingInterval | null) ?? undefined,
     status: row.status as CommercePriceStatus,
@@ -139,6 +192,7 @@ export class SqliteCommercePriceRepo implements CommercePriceRepoPort {
       workspaceId: record.workspaceId,
       productId: record.productId,
       unitAmountCents: record.unitAmountCents,
+      compareAtAmountCents: record.compareAtAmountCents ?? null,
       currency: record.currency,
       billingInterval: record.billingInterval ?? null,
       status: record.status,
