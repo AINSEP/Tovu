@@ -1,3 +1,5 @@
+import { siteUrl } from "./site-url";
+
 export const WORKSPACE_ID = "workspace-local";
 
 const BASE = "/api/admin/v1";
@@ -1101,16 +1103,34 @@ export const api = {
     request<{ post: AdminPost }>(`/workspaces/${WORKSPACE_ID}/posts/${id}`),
   // Template-preview fix (2026-08-11). Kind-blind like getPost/updatePost/deletePost above — one
   // route serves both editors' Preview tabs (`routes/admin/posts/template-preview.ts`'s own file
-  // header explains why). NOT run through `request()`: the caller points an `<iframe src>` directly
-  // at this URL rather than fetching+parsing JSON, so this only builds the string.
+  // header explains why). NOT run through `request()`: the caller points an `<iframe src>` (or a
+  // hidden form's `action`) directly at this URL rather than fetching+parsing JSON, so this only
+  // builds the string.
   //
   // `templateChoice`'s tri-state (see `resolveTemplate`'s doc) is preserved through the query string:
   // `null` omits the param entirely ("never chosen"), `""` sends `?templateChoice=` (the explicit
   // "No template chosen" opt-out), anything else sends that filename.
+  //
+  // `siteUrl(...)` wrapping (2026-08-12, owner-reported bug — mention links inside this preview
+  // navigated to a blank Vite dev-server error page): every OTHER `BASE`-prefixed path in this file
+  // is fetched via `request()`, so staying relative and letting `vite.config.ts`'s `/api` dev proxy
+  // forward the bytes is correct for those. This one is different — its caller loads the RESPONSE as
+  // a real navigated HTML document (an `<iframe src>` or a form `target`ed at one), which makes this
+  // URL's origin the document's own base URI for every relative link INSIDE it. A relative path here
+  // resolves against the ADMIN Vite dev server (:5173/:5173-equivalent), which proxies only a small
+  // explicit allowlist (`/api`, `/agent-icons`, `/theme-assets`) — so `/theme-assets/...` links in the
+  // rendered page happened to keep working while a post/page mention's `<a href="/{slug}">` (render.ts's
+  // `"mention"` case) did not: `/{slug}` isn't in that allowlist, so Vite's own dev server 404s it with
+  // its stock "did you mean /admin/{slug}?" page instead of ever reaching this route. `siteUrl` (already
+  // used by the live-site branch's own iframe `src` for exactly this "escape the admin origin in dev"
+  // reason) makes this absolute in dev and a no-op in production, where the admin SPA, this API, and the
+  // public site are already the same origin.
   templatePreviewUrl: (id: string, templateChoice: string | null) =>
-    `${BASE}/workspaces/${WORKSPACE_ID}/posts/${encodeURIComponent(id)}/template-preview${
-      templateChoice === null ? "" : `?templateChoice=${encodeURIComponent(templateChoice)}`
-    }`,
+    siteUrl(
+      `${BASE}/workspaces/${WORKSPACE_ID}/posts/${encodeURIComponent(id)}/template-preview${
+        templateChoice === null ? "" : `?templateChoice=${encodeURIComponent(templateChoice)}`
+      }`
+    ),
   updatePost: (
     { id }: { id: string },
     options: Partial<Pick<AdminPost, "title" | "slug" | "bodyJson" | "status" | "templateChoice" | "overridesThemePage">> = {}
