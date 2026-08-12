@@ -48,8 +48,15 @@ function evaluateGeneratedTable(source: string): unknown {
   const body = source.replace(/^export const \w+ = /, "return ");
   // Deliberately exercising the exact generated source text against the real pg-core builders it
   // will run under in schema.postgres.ts, not evaluating anything user- or database-controlled.
-  const factory = new Function("pgTable", "boolean", "check", "foreignKey", "index", "integer", "primaryKey", "sql", "text", "uniqueIndex", body);
-  return factory(pg.pgTable, pg.boolean, pg.check, pg.foreignKey, pg.index, pg.integer, pg.primaryKey, sql, pg.text, pg.uniqueIndex);
+  // `bigint` is in scope here (not just `integer`) because every fixture below declares its `id`
+  // column as a SQLite `SQLiteInteger` (via `integer("id").primaryKey()`), and the generator now
+  // renders every `SQLiteInteger` column as `bigint(..., { mode: "number" })` — see
+  // generate-postgres-schema.ts's columnBuilder() doc.
+  const factory = new Function(
+    "pgTable", "bigint", "boolean", "check", "foreignKey", "index", "integer", "primaryKey", "sql", "text", "uniqueIndex",
+    body
+  );
+  return factory(pg.pgTable, pg.bigint, pg.boolean, pg.check, pg.foreignKey, pg.index, pg.integer, pg.primaryKey, sql, pg.text, pg.uniqueIndex);
 }
 
 test("a partial unique index (.where(...)) is translated, not silently emitted unfiltered", () => {

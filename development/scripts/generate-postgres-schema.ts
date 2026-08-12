@@ -59,10 +59,32 @@ function collectTables(): Array<{ exportName: string; table: never }> {
 /**
  * Maps one SQLite column kind to its PostgreSQL builder call.
  *
- * `SQLiteInteger` becomes `integer` rather than `bigint` because every integer column here is
- * either an autoincrement surrogate key or a small counter/watermark — none stores a value beyond
- * 2^31. Widening them all to `bigint` would change the JavaScript type Drizzle infers from `number`
- * to `bigint` and break every call site that does arithmetic on one.
+ * `SQLiteInteger` becomes `bigint(..., { mode: "number" })`, not `integer`. An earlier version of
+ * this file argued `integer` was safe because Postgres is being introduced before any real data
+ * exists, and that widening to `bigint` "would change the JavaScript type Drizzle infers from
+ * `number` to `bigint` and break every call site that does arithmetic on one" — that reasoning was
+ * wrong and was refuted by measurement, not just re-argued: `bigint(name, { mode: "number" })`
+ * builds a `PgBigInt53` column, whose `dataType` is `'number'` and whose `mapFromDriverValue`
+ * (`drizzle-orm/pg-core/columns/bigint.js`) always returns a JS `number`
+ * (`typeof value === "number" ? value : Number(value)`), never a `bigint`. A standalone
+ * `tsc --strict` compile against a `bigint(..., { mode: "number" })` column confirms
+ * `$inferSelect` is `number`, and that plain `number` arithmetic on it compiles — so the "breaks
+ * every call site" premise for keeping `integer` never actually applied to this mode.
+ *
+ * Every one of the 65 `SQLiteInteger` columns is widened, not a hand-picked subset (e.g. only
+ * append-only tables and the write watermark, which is what a narrower audit recommended). Two
+ * reasons: first, this generator's own design already commits to kind-based mapping plus
+ * exhaustive structural gates specifically so that "someone has to remember to keep a list in
+ * sync" can never be the failure mode (see this file's module doc — that exact failure shape has
+ * already silently dropped output four times); a table/column allowlist for `bigint` would be
+ * precisely that kind of list. Second, 11 of these columns are autoincrement surrogate primary
+ * keys, and `serial`/`integer` identity exhaustion at 2^31 rows is a materially worse failure to
+ * hit in production than the storage cost of avoiding it — a narrower allowlist scoped to
+ * "append-only + watermark" would leave every PK unprotected. The storage cost is real but small:
+ * measured against a live Postgres 14 instance, indexing an `int8` column costs nothing extra
+ * over `int4` (btree entries are already 8-byte aligned on this platform) and heap growth was
+ * ~19% on a synthetic table where every column was integer-shaped; this schema is 513/580 text
+ * columns, so the true per-row cost across real tables is a smaller fraction than that.
  */
 function columnBuilder(col: SQLiteColumn): string {
   const name = JSON.stringify(col.name);
@@ -74,7 +96,7 @@ function columnBuilder(col: SQLiteColumn): string {
       // though the logical type does not. Row copying must convert, not pass the integer through.
       return `boolean(${name})`;
     case "SQLiteInteger":
-      return `integer(${name})`;
+      return `bigint(${name}, { mode: "number" })`;
     default:
       throw new Error(
         `unmapped column kind "${col.columnType}" on column "${col.name}". ` +
@@ -580,7 +602,7 @@ function generate(): string {
  *
  * Tables: ${tables.length}
  */
-import { sql } from "drizzle-orm";\nimport { boolean, check, foreignKey, index, integer, pgTable, primaryKey, text, uniqueIndex } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";\nimport { bigint, boolean, check, foreignKey, index, pgTable, primaryKey, text, uniqueIndex } from "drizzle-orm/pg-core";
 
 ${body}
 `;

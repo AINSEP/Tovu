@@ -108,6 +108,20 @@ test("every column-level unique() constraint survives generation — this is wha
   assert.equal(occurrences(".unique("), expected, "column-level unique() count differs");
 });
 
+test("every SQLiteInteger column is widened to bigint(mode:\"number\") — a plain integer() silently caps autoincrement PKs and counters at 2^31", () => {
+  const expectedBigint = sourceTables().reduce(
+    (n, { table }) => n + getTableConfig(table).columns.filter((c) => c.columnType === "SQLiteInteger").length,
+    0
+  );
+  assert.ok(expectedBigint > 0, "sanity: the source schema should declare SQLiteInteger columns");
+
+  // `bigint(` only matches the column-builder call, since the import line lists the identifier as
+  // `bigint,` with no immediately-following "(" — same reasoning the other count tests in this file
+  // rely on for "foreignKey({", "check(", etc.
+  assert.equal(occurrences("bigint("), expectedBigint, "bigint(...) count differs from the number of SQLiteInteger columns in schema.ts");
+  assert.equal(occurrences("integer("), 0, "a SQLiteInteger column rendered as plain integer(...) instead of being widened to bigint");
+});
+
 test("column count matches per table — a dropped column would not be caught by the drift test", () => {
   for (const { exportName, table } of sourceTables()) {
     const cfg = getTableConfig(table);
