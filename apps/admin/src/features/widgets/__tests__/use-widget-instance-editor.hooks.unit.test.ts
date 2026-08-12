@@ -3,7 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ApiError, api, type AdminWidget } from "../../../lib/api";
 import { navigate } from "../../../lib/router";
-import { staleVersionMessage, useWidgetInstanceEditor } from "../hooks/use-widget-instance-editor.hooks";
+import { createFakeWidgetsPort } from "../hooks/widgets-dependencies.hooks";
+import { staleVersionMessage, useWidgetInstanceEditor, useWiredWidgetInstanceEditor } from "../hooks/use-widget-instance-editor.hooks";
 
 /**
  * @file Characterization tests for `useWidgetInstanceEditor` — first direct test file for this
@@ -41,7 +42,7 @@ const WHERE_USED = { count: 1, references: [{ kind: "region" as const, sourceEnt
 
 describe("initial state — new widget (widgetId null)", () => {
   it("starts with widget null, blank title, the type's default config, and loading=false", () => {
-    const { result } = renderHook(() => useWidgetInstanceEditor({ widgetId: null, widgetType: "text" }));
+    const { result } = renderHook(() => useWiredWidgetInstanceEditor({ widgetId: null, widgetType: "text" }));
 
     expect(result.current.isNew).toBe(true);
     expect(result.current.widget).toBeNull();
@@ -53,7 +54,7 @@ describe("initial state — new widget (widgetId null)", () => {
   });
 
   it("defaults the config to the 'text' type's shape when widgetType is null (no ?type= at all)", () => {
-    const { result } = renderHook(() => useWidgetInstanceEditor({ widgetId: null, widgetType: null }));
+    const { result } = renderHook(() => useWiredWidgetInstanceEditor({ widgetId: null, widgetType: null }));
     // resolveEditorWidgetType(isNew=true, null, null) -> null, so the CONTROLLER's widgetType is
     // null — but the config-seeding effect independently falls back to "text" via `?? "text"`,
     // which is why config is non-empty even though widgetType itself reads null.
@@ -62,14 +63,14 @@ describe("initial state — new widget (widgetId null)", () => {
   });
 
   it("resolves widgetType from resolveEditorWidgetType for a known query type", () => {
-    const { result } = renderHook(() => useWidgetInstanceEditor({ widgetId: null, widgetType: "menu" }));
+    const { result } = renderHook(() => useWiredWidgetInstanceEditor({ widgetId: null, widgetType: "menu" }));
     expect(result.current.widgetType).toBe("menu");
     expect(result.current.config).toEqual({ menuRef: "" });
   });
 
   it("does not call api.getWidget for a new widget", () => {
     const getWidget = vi.spyOn(api, "getWidget");
-    renderHook(() => useWidgetInstanceEditor({ widgetId: null, widgetType: "text" }));
+    renderHook(() => useWiredWidgetInstanceEditor({ widgetId: null, widgetType: "text" }));
     expect(getWidget).not.toHaveBeenCalled();
   });
 });
@@ -77,14 +78,14 @@ describe("initial state — new widget (widgetId null)", () => {
 describe("initial load — existing widget (widgetId set)", () => {
   it("starts loading=true synchronously, before the fetch resolves", () => {
     vi.spyOn(api, "getWidget").mockReturnValue(new Promise(() => {})); // never resolves
-    const { result } = renderHook(() => useWidgetInstanceEditor({ widgetId: "w1", widgetType: null }));
+    const { result } = renderHook(() => useWiredWidgetInstanceEditor({ widgetId: "w1", widgetType: null }));
     expect(result.current.loading).toBe(true);
     expect(result.current.isNew).toBe(false);
   });
 
   it("seeds widget/title/config/whereUsed from the resolved response, and sets loading=false", async () => {
     vi.spyOn(api, "getWidget").mockResolvedValue({ widget: EXISTING_WIDGET, whereUsed: WHERE_USED });
-    const { result } = renderHook(() => useWidgetInstanceEditor({ widgetId: "w1", widgetType: null }));
+    const { result } = renderHook(() => useWiredWidgetInstanceEditor({ widgetId: "w1", widgetType: null }));
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.widget).toEqual(EXISTING_WIDGET);
@@ -97,13 +98,13 @@ describe("initial load — existing widget (widgetId set)", () => {
 
   it("calls api.getWidget with exactly the widgetId prop", async () => {
     const getWidget = vi.spyOn(api, "getWidget").mockResolvedValue({ widget: EXISTING_WIDGET, whereUsed: WHERE_USED });
-    renderHook(() => useWidgetInstanceEditor({ widgetId: "w1", widgetType: null }));
+    renderHook(() => useWiredWidgetInstanceEditor({ widgetId: "w1", widgetType: null }));
     await waitFor(() => expect(getWidget).toHaveBeenCalledWith("w1"));
   });
 
   it("sets a describable error and loading=false when the load rejects with an Error", async () => {
     vi.spyOn(api, "getWidget").mockRejectedValue(new Error("network down"));
-    const { result } = renderHook(() => useWidgetInstanceEditor({ widgetId: "w1", widgetType: null }));
+    const { result } = renderHook(() => useWiredWidgetInstanceEditor({ widgetId: "w1", widgetType: null }));
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.error).toBe("network down");
@@ -112,7 +113,7 @@ describe("initial load — existing widget (widgetId set)", () => {
 
   it("falls back to 'failed to load widget' when the rejection is not an Error/ApiError", async () => {
     vi.spyOn(api, "getWidget").mockRejectedValue("string rejection");
-    const { result } = renderHook(() => useWidgetInstanceEditor({ widgetId: "w1", widgetType: null }));
+    const { result } = renderHook(() => useWiredWidgetInstanceEditor({ widgetId: "w1", widgetType: null }));
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.error).toBe("failed to load widget");
@@ -124,7 +125,7 @@ describe("initial load — existing widget (widgetId set)", () => {
       .mockResolvedValueOnce({ widget: EXISTING_WIDGET, whereUsed: WHERE_USED })
       .mockResolvedValueOnce({ widget: { ...EXISTING_WIDGET, id: "w2", title: "Other widget" }, whereUsed: { count: 0, references: [] } });
 
-    const { result, rerender } = renderHook(({ widgetId }) => useWidgetInstanceEditor({ widgetId, widgetType: null }), {
+    const { result, rerender } = renderHook(({ widgetId }) => useWiredWidgetInstanceEditor({ widgetId, widgetType: null }), {
       initialProps: { widgetId: "w1" },
     });
     await waitFor(() => expect(result.current.title).toBe("Hero banner"));
@@ -141,7 +142,7 @@ describe("save — no-op guards", () => {
   it("does not call any api method when widgetType has not resolved (null)", async () => {
     const createWidget = vi.spyOn(api, "createWidget");
     const updateWidget = vi.spyOn(api, "updateWidget");
-    const { result } = renderHook(() => useWidgetInstanceEditor({ widgetId: null, widgetType: null }));
+    const { result } = renderHook(() => useWiredWidgetInstanceEditor({ widgetId: null, widgetType: null }));
 
     await act(async () => {
       await result.current.save();
@@ -154,7 +155,7 @@ describe("save — no-op guards", () => {
   it("does not call api.updateWidget when editing but the widget hasn't loaded yet", async () => {
     vi.spyOn(api, "getWidget").mockReturnValue(new Promise(() => {})); // never resolves -> widget stays null
     const updateWidget = vi.spyOn(api, "updateWidget");
-    const { result } = renderHook(() => useWidgetInstanceEditor({ widgetId: "w1", widgetType: "text" }));
+    const { result } = renderHook(() => useWiredWidgetInstanceEditor({ widgetId: "w1", widgetType: "text" }));
 
     await act(async () => {
       await result.current.save();
@@ -167,7 +168,7 @@ describe("save — no-op guards", () => {
 describe("save — create (isNew)", () => {
   it("calls api.createWidget with widgetType/title/config, and navigates to the new widget's id", async () => {
     const createWidget = vi.spyOn(api, "createWidget").mockResolvedValue({ widget: { ...EXISTING_WIDGET, id: "w9" } });
-    const { result } = renderHook(() => useWidgetInstanceEditor({ widgetId: null, widgetType: "text" }));
+    const { result } = renderHook(() => useWiredWidgetInstanceEditor({ widgetId: null, widgetType: "text" }));
     act(() => result.current.setTitle("New Text Widget"));
 
     await act(async () => {
@@ -181,7 +182,7 @@ describe("save — create (isNew)", () => {
   it("sets saving=true while the create is in flight, false after it settles", async () => {
     let resolveCreate: ((r: { widget: AdminWidget }) => void) | undefined;
     vi.spyOn(api, "createWidget").mockReturnValue(new Promise((resolve) => (resolveCreate = resolve)));
-    const { result } = renderHook(() => useWidgetInstanceEditor({ widgetId: null, widgetType: "text" }));
+    const { result } = renderHook(() => useWiredWidgetInstanceEditor({ widgetId: null, widgetType: "text" }));
 
     let promise!: Promise<void>;
     act(() => {
@@ -201,7 +202,7 @@ describe("save — create (isNew)", () => {
     // `Saved · version N`), the create path only calls `navigate` and returns — `message` is never
     // set at all on a successful create. Worth a look separately (see report), not changed here.
     vi.spyOn(api, "createWidget").mockResolvedValue({ widget: { ...EXISTING_WIDGET, id: "w9" } });
-    const { result } = renderHook(() => useWidgetInstanceEditor({ widgetId: null, widgetType: "text" }));
+    const { result } = renderHook(() => useWiredWidgetInstanceEditor({ widgetId: null, widgetType: "text" }));
 
     await act(async () => {
       await result.current.save();
@@ -214,7 +215,7 @@ describe("save — create (isNew)", () => {
 describe("save — update (existing widget)", () => {
   async function mountLoaded() {
     vi.spyOn(api, "getWidget").mockResolvedValue({ widget: EXISTING_WIDGET, whereUsed: WHERE_USED });
-    const view = renderHook(() => useWidgetInstanceEditor({ widgetId: "w1", widgetType: null }));
+    const view = renderHook(() => useWiredWidgetInstanceEditor({ widgetId: "w1", widgetType: null }));
     await waitFor(() => expect(view.result.current.loading).toBe(false));
     return view;
   }
@@ -315,5 +316,64 @@ describe("save — update (existing widget)", () => {
     });
     expect(view.result.current.error).toBeNull();
     expect(view.result.current.fieldErrors).toEqual([]);
+  });
+});
+
+/**
+ * The "injected port" half — every test above drives `useWiredWidgetInstanceEditor` and proves
+ * behavior via `vi.spyOn(api, ...)`, which is real coverage but doesn't itself prove the DEPENDENCY
+ * is injected rather than reached for (a spy on the module intercepts either way). These call
+ * `useWidgetInstanceEditor` directly with `createFakeWidgetsPort`/a fake `navigate` — no `api`
+ * spy, no `vi.mock("../../../lib/router")` — so a real network/router touch has nothing to land on.
+ */
+describe("useWidgetInstanceEditor — injected port (no api spy, no router mock)", () => {
+  it("loads from the injected port and never touches the real api client", async () => {
+    const getWidgetSpy = vi.spyOn(api, "getWidget");
+    const port = createFakeWidgetsPort({ widgets: [EXISTING_WIDGET] });
+    const { result } = renderHook(() =>
+      useWidgetInstanceEditor({ widgetId: "w1", widgetType: null }, { port, locale: "en", navigate: vi.fn() })
+    );
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.title).toBe("Hero banner");
+    expect(getWidgetSpy).not.toHaveBeenCalled();
+  });
+
+  it("routes create through the injected port and calls the injected navigate, never the real router", async () => {
+    const createWidgetSpy = vi.spyOn(api, "createWidget");
+    const port = createFakeWidgetsPort();
+    const fakeNavigate = vi.fn();
+    const { result } = renderHook(() =>
+      useWidgetInstanceEditor({ widgetId: null, widgetType: "text" }, { port, locale: "en", navigate: fakeNavigate })
+    );
+    act(() => result.current.setTitle("New Text Widget"));
+
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(port.widgets).toHaveLength(1);
+    expect(port.widgets[0]?.title).toBe("New Text Widget");
+    expect(fakeNavigate).toHaveBeenCalledWith(`/widgets/${port.widgets[0]?.id}`);
+    expect(createWidgetSpy).not.toHaveBeenCalled();
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  /**
+   * Negative verification (per this refactor's own required check): temporarily replacing
+   * `port.getWidget(...)`/`port.createWidget(...)`/`navigate(...)` in
+   * `use-widget-instance-editor.hooks.ts` with direct calls to the real `api`/`lib/router` imports
+   * and re-running this suite fails all three assertions above (the real `api` calls reject with no
+   * network in this test env, and the real `navigate` mock — not `fakeNavigate` — is what would
+   * receive the call) — see this feature's commit/handoff report for the recorded run.
+   */
+  it("does not resolve widget while the injected port's get call is still pending", () => {
+    const port = createFakeWidgetsPort();
+    port.getWidget = () => new Promise(() => {});
+    const { result } = renderHook(() =>
+      useWidgetInstanceEditor({ widgetId: "w1", widgetType: null }, { port, locale: "en", navigate: vi.fn() })
+    );
+    expect(result.current.loading).toBe(true);
+    expect(result.current.widget).toBeNull();
   });
 });

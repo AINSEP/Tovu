@@ -1,6 +1,6 @@
 import { WidgetConfigFields } from "../../components/WidgetConfigFields/WidgetConfigFields";
 import { isKnownWidgetType, widgetTypeLabel } from "./rules";
-import { useWidgetInstanceEditor } from "./hooks/use-widget-instance-editor.hooks";
+import { useWiredWidgetInstanceEditor } from "./hooks/use-widget-instance-editor.hooks";
 import type { AdminWidget, AdminWidgetWhereUsed } from "../../lib/api";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { WIDGETS_DICT } from "./widgets-i18n";
@@ -91,11 +91,11 @@ export interface WidgetInstanceEditorProps {
    * Dependency injection seam for tests — the same convention `Posts.tsx`'s `usePostsHook` uses.
    * Defaulted to the real hook, so production callers pass nothing and behave exactly as before.
    */
-  useWidgetInstanceEditorHook?: typeof useWidgetInstanceEditor;
+  useWidgetInstanceEditorHook?: typeof useWiredWidgetInstanceEditor;
 }
 
 export function WidgetInstanceEditor(props: WidgetInstanceEditorProps) {
-  const { widgetId, widgetType: queryWidgetType, useWidgetInstanceEditorHook = useWidgetInstanceEditor } = props;
+  const { widgetId, widgetType: queryWidgetType, useWidgetInstanceEditorHook = useWiredWidgetInstanceEditor } = props;
   const { isNew, widget, whereUsed, title, setTitle, config, setConfig, message, error, fieldErrors, loading, saving, widgetType, save } =
     useWidgetInstanceEditorHook({ widgetId, widgetType: queryWidgetType });
   const locale = useAdminLocale();
