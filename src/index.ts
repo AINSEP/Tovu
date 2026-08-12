@@ -10,8 +10,7 @@ import { runBootLifecycle } from "./server/boot-lifecycle";
 import { buildBootModules } from "./server/bootstrap";
 import { clearAssistantDaemonFailure, recordAssistantDaemonFailure, setReadinessSnapshot } from "./server/readiness-state";
 import { registerPluginSdkResolver } from "./server/boot/plugin-sdk-resolver";
-import { ensureAgentDaemonToken } from "./assistant/daemon-auth";
-import { AGENT_DAEMON_EXIT_CODE } from "./assistant/daemon-exit-codes";
+import { ensureAgentDaemonToken, AGENT_DAEMON_EXIT_CODE } from "./assistant";
 
 /**
  * @file Process entrypoint.

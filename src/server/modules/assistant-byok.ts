@@ -54,9 +54,11 @@ import {
   type ByokProviderTurnResult,
   type ByokTurnEvent,
   runByokProviderTurn,
-} from "../../assistant/byok-provider-turn";
-import { createStoredExecutionCredentialPort, type RequestSuppliedByokConfig } from "../../assistant/byok-credential";
-import { createByokToolSurface, type ByokToolSurface } from "../../assistant/byok-tool-surface";
+  createStoredExecutionCredentialPort,
+  type RequestSuppliedByokConfig,
+  createByokToolSurface,
+  type ByokToolSurface,
+} from "../../assistant";
 import { getAuthedPrincipal, requireAdminSession } from "../middleware/dev-auth";
 import type { RouteDeps } from "../routes/types";
 import type { ServerModuleHandle } from "./types";
