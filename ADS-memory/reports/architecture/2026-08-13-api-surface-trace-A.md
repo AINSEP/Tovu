@@ -242,3 +242,102 @@ says it "follows the exact precedent `src/server/routes/admin/members/deps.ts` e
   under ADR-030's locked decision; redirecting *where the type is imported from* doesn't touch that
   decision or the interface shape, only the specifier. Worth saying so in the commit message when
   this lands, since ADR-030 is cited by name in the file being touched.
+
+---
+
+## `site-dir` (8 files exposed, 10 edges)
+
+No `index.ts`. This is the module the dispatch brief flagged as starkest (10→8, ratio 1.25) — and
+the reason is structural, not a design defect: `site-dir` has exactly **one dedicated consumer**,
+the `cli` module, and `cli` is a second, independent composition root (same role as `server`, just
+for the CLI process rather than the HTTP process) — confirmed by reading `cli/commands/serve.ts`'s
+own docblock: *"Owns the one HTTP-listen side effect this feature introduces, isolated from
+`site-dir` (which has zero Express awareness)... `cli` layer."* `site-dir` also has an **enforced**
+one-way boundary: `.dependency-cruiser.cjs`'s `site-dir-no-server-express-or-cli-imports` rule,
+cited directly in `site-dir/errors.ts`'s own header ("No dependency on `cli/**` or `express`
+(INV-06)"). `site-dir` doesn't use the ports/adapter pattern at all (no `ports.ts` exists) because
+there's nothing to swap — one filesystem implementation, one caller.
+
+CLI has 3 subcommands (`serve`, `init`, `introspect`), each its own file, each needing a different
+slice of `site-dir` — the same "fragmented composition root" shape as `server`'s per-route handlers,
+just with 3 entries instead of dozens. `server/deps.ts` reaches in once too, for the same reason
+`server` reaches into every other module once at boot: it needs to resolve which workspace it's
+booting into.
+
+| File | Importers | What's imported | Category | Verdict |
+|---|---|---|---|---|
+| `errors.ts` | `cli/commands/introspect.ts`, `cli/commands/serve.ts`, `cli/errors.ts` | `ValidationError` + others (value imports, exit-code mapping — `cli/errors.ts`'s own docblock: "maps these 1:1 to the `errors.spec.md` exit-code registry") | **2 — missing API** | Same "data contract for HTTP/exit-code mapping" shape as the other three modules' `errors.ts`. |
+| `types.ts` | `cli/commands/serve.ts` | `ConfigJson` (type-only) | **2** | Small, but the same shape — bundle it with `errors.ts` into one door rather than leaving one lonely file exposed for the sake of "only propose the big ones." |
+| `boot-site-dir.ts` | `cli/commands/serve.ts` | `bootSiteDir`, called once at CLI boot | **3 — legitimate** | Single caller, the CLI's own boot sequence. |
+| `init-site.ts` | `cli/commands/init.ts` | The `init` subcommand's one function | **3** | Single caller, single subcommand. |
+| `read-site-dir.ts` | `cli/commands/init.ts` | Read helper `init` needs | **3** | Same. |
+| `resolve-install-dir-target.ts` | `cli/commands/serve.ts` | `resolveInstallDirTarget`, part of `serve`'s own boot sequence | **3** | Same. |
+| `resolve-workspace.ts` | `server/deps.ts` | `resolveWorkspace`, called once at server boot | **3** | The one edge from `server` rather than `cli` — same "composition root resolves which workspace it's running" pattern `server` uses for every other domain at boot. |
+| `schema-guard.ts` | `cli/commands/serve.ts` | `runtimeSchemaVersion` | **3** | Same. |
+
+**Category tally:** 2 → 2 files; 3 → 6 files.
+
+### Proposal S-1 — add `src/site-dir/index.ts`, re-export `errors.ts` + `types.ts` only
+
+- **Category:** 2 (missing API).
+- **New file (`src/site-dir/index.ts`, ~4 lines):** re-export the 6 error classes and `ConfigJson`.
+- **Files touched (4):** `cli/commands/introspect.ts`, `cli/commands/serve.ts`, `cli/errors.ts`
+  (errors + types combined into one import where a file needs both).
+- **Blast radius:** 4 files, import-specifier edits only.
+- **Result:** `site-dir` drops from 8 exposed files / 10 edges to **6 files / ~6 edges**.
+- **Sign-off needed:** Lightest of the four — smallest surface, smallest module. Still worth the
+  same one-line scope comment in the new file so a future contributor doesn't assume the boot-only
+  functions (`boot-site-dir.ts`, `init-site.ts`, etc.) belong there too.
+
+---
+
+## What I'd leave alone outright, and why that's not a cop-out
+
+Roughly two-thirds of the 39 files traced (27 of them, after the proposals above land) stay exactly
+where they are, for reasons specific to each file — not a blanket "composition roots get a pass."
+The recurring, verified reasons:
+
+- **Adapter selection is the composition root's job, definitionally.** `repo.memory.ts`/
+  `repo.sqlite.ts` are chosen once, by name, by the two files whose entire purpose is choosing
+  concrete implementations. This is the same shape in 14+ other modules across the codebase — fixing
+  it here without fixing it everywhere would be inconsistent, and fixing it everywhere is an
+  ADR-scale decision about whether the composition root should ever be allowed to import concrete
+  adapters directly, which is a different question than "does this module's public surface leak."
+- **Boot-time singletons are called once.** Rate limiters, hook registries, data-module installers —
+  one construction site, no repeat callers, nothing to consolidate into an "API" because there's no
+  second caller to serve.
+- **Per-route value functions are, correctly, one function per route.** Every `create.ts`/
+  `update.ts`/`archive-list.ts`/`send-campaign.ts`-shaped file imports the one function it calls.
+  Verified directly for every file in all four modules — none of them import more than they use, and
+  none of them duplicate a sibling route's import. A "narrow API" here would mean inventing a
+  dispatcher nobody asked for.
+- **The plugin-registration and tool-registration conventions are codebase-wide**, not module-local
+  design choices these four modules could opt out of unilaterally.
+
+None of this was assumed going in — every "leave alone" verdict above cites the actual importer and
+the actual symbol, checked with `grep -n` against the real import line, because this repo's own
+memory record (verified claims in code comments) flagged that long evidence-shaped narrative can be
+wrong. I found the file-name-based narrative ("all these route deps.ts files are the same") mostly
+held up once checked against real imports, with one correction along the way: I initially expected
+`admin/comments/deps.ts` to import `comments/ports.ts` directly, matching `newsletter/deps.ts`'s
+shape — it doesn't; it gets those types via the already-merged global `server/routes/types.ts`
+instead, which is actually *further along* the convergence newsletter's own `deps.ts` docblock
+describes as its eventual end state ("once `RouteDeps` is amended upstream... becomes provably
+redundant").
+
+## Cross-cutting caveat, explicitly out of scope for this trace
+
+All four proposals above are local, per-module edits. There is a bigger structural question sitting
+underneath all of them that I am **not** proposing to act on: every one of these modules' admin/site
+HTTP routes lives under `src/server/routes/admin/<module>/` rather than inside the module itself —
+verified this is universal (`find src -maxdepth 2 -type d -name routes` returns nothing outside
+`src/server/`). Under the file-based `moduleOf()` classifier, that means a route file that is, in
+every practical sense, "newsletter's own campaign-creation endpoint" counts as a `server`-module
+file reaching into `newsletter`, not as an intra-module edge. Relocating routes into their owning
+modules would eliminate most of the residual edges left after the proposals above — but it would be
+a repo-wide restructuring (dozens of modules, the composition root's entire routing convention,
+likely an ADR of its own), not a per-module fix, and it cuts directly against the deliberate
+hexagonal split this codebase already enforces (`server` = adapters + composition root;
+`site-dir`'s own `errors.ts` header names the enforced rule keeping it that way). I'm naming it so
+the owner has the option, not proposing it — it's the kind of move that needs its own decision, not
+a rider on this trace.
