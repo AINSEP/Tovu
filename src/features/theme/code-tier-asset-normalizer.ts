@@ -77,6 +77,23 @@
  * bundle's new location. Not exercised by any test here (the validated build config uses
  * `sourceMap: false`, so it never surfaced empirically); a theme build with source maps enabled needs
  * this module extended (relocate `*.map` alongside its bundle) before shipping.
+ *
+ * **This module has ZERO callers as of 2026-08-12.** Nothing in this repository invokes
+ * {@link normalizeBuildOutputDirectory} outside its own test file — there is no CLI entrypoint, no
+ * `package.json` script, no reference from `theme.ts`'s manifest/loader path, no wiring into
+ * `checkBuiltThemeConformance`'s install-time gate (which validates an ALREADY-normalized theme's output;
+ * it has no opinion on how that output got normalized). This is deliberate scoping, not an oversight — the
+ * task this module was built for was the gate and the transform's correctness, not deciding who runs it —
+ * but it means this module is inert until wired up. Wiring it would mean: (1) deciding WHO invokes it —
+ * most likely a standalone CLI/script an Angular theme author runs locally or in their own CI after
+ * `ng build`, consistent with this codebase's "Tovu never runs the build" decision
+ * (`build-conformance.ts`'s file header cites the same `worker_threads`-isn't-code-isolation reasoning);
+ * running it server-side inside Tovu's own process would be a different, larger architectural decision,
+ * not an extension of this module; (2) an entrypoint accepting (or deriving from `angular.json`/
+ * `theme.json`) the `outputDir`/`pageFileNames`/`primaryStylesheetFile` this module's functions currently
+ * require the caller to supply explicitly; (3) theme-authoring documentation describing the full
+ * `ng build` → normalize → compute `artifactHashes` → publish workflow end to end, since no such workflow
+ * is written down anywhere yet.
  */
 
 import { lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
