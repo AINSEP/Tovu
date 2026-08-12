@@ -1704,6 +1704,14 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    look. `height: auto` is required alongside `max-width` — without it, a node carrying an
    explicit `height` attribute would squash instead of scale once width is constrained. */
 .editor-body .tiptap img { max-width: 100%; height: auto; display: block; border-radius: 10px; margin: 20px 0; }
+/* Owner-reported (2026-08-12, same session as the fix immediately above): the media image node
+   view's "Replace"/"Remove" buttons (`lib/media-image-extension.tsx`'s `.media-image-node__actions`
+   wrapper) sat flush against each other — measured live, a 0px gap between their bounding boxes.
+   `gap` on the flex container, not a margin on one button, so this stays correct regardless of
+   which button (if either) is hidden/reordered later; `inline-flex` because the actions strip sits
+   inline below the image, not stretched full-width. 3px landed in the middle of the owner's stated
+   "2-3px" range. */
+.media-image-node__actions { display: inline-flex; gap: 3px; }
 /* `font-size`/`color` made explicit here (found while measuring the real default for the toolbar's
    font-size select, 2026-08-11) — without them, the FIRST paragraph of every post's body collided
    with the legacy `.admin-content h1 + p` rule (this file, "Page headings + intro copy"): the
