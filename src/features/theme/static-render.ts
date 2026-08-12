@@ -23,6 +23,8 @@ function tokensToRootCss(tokens: ThemeTokens, tokensLight: ThemeTokens): string 
   );
 }
 
+const TOKEN_STYLESHEET_SENTINEL = '<link rel="stylesheet" href="../css/styles.css" />';
+
 /**
  * A static page's `<link>`/`<script>` tags use `../css/`, `../js/` — correct only from inside the
  * theme's own `pages/` folder on disk. Rewritten generically (not per-filename, unlike the
@@ -399,11 +401,17 @@ export function renderStaticPage(
   const source = htmlOverride ?? theme.pages[pageId];
   if (source === undefined) return null;
 
-  let html = source.replace(
-    '<link rel="stylesheet" href="../css/styles.css" />',
-    () =>
-      `<style>\n${tokensToRootCss(theme.tokens, theme.tokensLight)}\n</style>\n<link rel="stylesheet" href="../css/styles.css" />`
-  );
+  let html = source;
+  if (!source.includes(TOKEN_STYLESHEET_SENTINEL)) {
+    console.warn(
+      `[theme] static page '${theme.manifest.id}/${pageId}' is missing the exact token stylesheet sentinel; design tokens were not injected`
+    );
+  } else {
+    html = source.replace(
+      TOKEN_STYLESHEET_SENTINEL,
+      () => `<style>\n${tokensToRootCss(theme.tokens, theme.tokensLight)}\n</style>\n${TOKEN_STYLESHEET_SENTINEL}`
+    );
+  }
   html = rewriteAssetPaths(html, theme.manifest.id);
   html = injectColorMode(html, theme.manifest.defaultMode);
   html = resolveSlots(html, theme.partials, theme.manifest.slots ?? DEFAULT_THEME_SLOTS);
