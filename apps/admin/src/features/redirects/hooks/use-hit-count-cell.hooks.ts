@@ -5,6 +5,7 @@ import { useFetchQuery } from "../../../lib/fetch-query";
 import { KEYS } from "../rules";
 import { defaultRedirectsPort } from "./redirects-dependencies.hooks";
 import type { RedirectsPort } from "./redirects-port.hooks";
+import type { Translate } from "../../../lib/dictionary-translator";
 
 /**
  * @file The lazy per-row hit-count cell (SPEC-037 REQ-03), so `HitCountCell` in `Redirects.tsx` is
@@ -43,13 +44,13 @@ export interface HitCountCellController {
   /** The same bound translator passed in — returned unchanged so a test asserting on
    *  `result.current.t` doesn't need to also hold onto the fake it passed in. See this file's
    *  header for why it arrives as a parameter rather than being resolved here. */
-  t: (key: string) => string;
+  t: Translate;
 }
 
 export function useHitCountCell(
   props: { redirectId: string },
   port: RedirectsPort,
-  t: (key: string) => string
+  t: Translate
 ): HitCountCellController {
   // `enabled` is what keeps this lazy: the query is declared for every row but
   // runs for none of them until its own button is pressed, preserving the
@@ -75,6 +76,6 @@ export function useHitCountCell(
  *  with the `t` it received as its own prop. See this file's header for why `t` is a parameter here
  *  rather than resolved via `useAdminLocale()` internally, unlike every other `useWiredX` in this
  *  feature. */
-export function useWiredHitCountCell(props: { redirectId: string; t: (key: string) => string }): HitCountCellController {
+export function useWiredHitCountCell(props: { redirectId: string; t: Translate }): HitCountCellController {
   return useHitCountCell({ redirectId: props.redirectId }, defaultRedirectsPort, props.t);
 }

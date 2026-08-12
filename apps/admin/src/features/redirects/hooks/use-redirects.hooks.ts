@@ -7,6 +7,7 @@ import { t as defaultT } from "../redirects-i18n";
 import { KEYS, buildCreateRedirectPayload, firstWriteError, isAnyWritePending, nextRedirectStatus, visibleRedirectsError } from "../rules";
 import { defaultRedirectsPort } from "./redirects-dependencies.hooks";
 import type { RedirectsPort } from "./redirects-port.hooks";
+import type { Translate } from "../../../lib/dictionary-translator";
 
 /**
  * @file Everything the Redirects LIST screen does, so `Redirects.tsx` is only markup.
@@ -60,14 +61,14 @@ export interface RedirectsController {
   onRequestDelete: (rule: AdminRedirect) => void;
   /** Bound translator — `key` already resolved against the caller's locale, so `Redirects.tsx`
    *  never imports `useAdminLocale`/`redirects-i18n` itself. See this file's header. */
-  t: (key: string) => string;
+  t: Translate;
   /** Raw resolved locale — needed alongside `t` because `rules.ts`/`redirects-i18n.tsx` expose a
    *  few helpers that take `(locale, ...)` directly rather than a bound translator. See this file's
    *  header. */
   locale: string;
 }
 
-export function useRedirects(port: RedirectsPort, t: (key: string) => string, locale: string): RedirectsController {
+export function useRedirects(port: RedirectsPort, t: Translate, locale: string): RedirectsController {
   const list = useFetchQuery({ key: KEYS.list, fetch: () => port.listRedirects() });
 
   // Each write names the cache it affects rather than calling a loader; the

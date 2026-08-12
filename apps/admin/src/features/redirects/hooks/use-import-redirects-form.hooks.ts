@@ -5,6 +5,7 @@ import { useFetchMutation } from "../../../lib/fetch-query";
 import { KEYS, parseImportPayload } from "../rules";
 import { defaultRedirectsPort } from "./redirects-dependencies.hooks";
 import type { RedirectsPort } from "./redirects-port.hooks";
+import type { Translate } from "../../../lib/dictionary-translator";
 
 /**
  * @file The bulk-import affordance (SPEC-037 REQ-04), so `ImportRedirectsForm` in `Redirects.tsx`
@@ -43,7 +44,7 @@ export interface ImportRedirectsFormController {
   submit: (e: React.FormEvent) => void;
   /** The same bound translator passed in — returned unchanged, same shape as
    *  `use-hit-count-cell.hooks.ts`'s identical field. See this file's header. */
-  t: (key: string) => string;
+  t: Translate;
   /** The same raw locale passed in — returned unchanged; several `redirects-i18n.tsx` helpers take
    *  `(locale, ...)` directly rather than a bound translator. See this file's header. */
   locale: string;
@@ -51,7 +52,7 @@ export interface ImportRedirectsFormController {
 
 export function useImportRedirectsForm(
   port: RedirectsPort,
-  t: (key: string) => string,
+  t: Translate,
   locale: string
 ): ImportRedirectsFormController {
   const [raw, setRaw] = useState("");
@@ -104,6 +105,6 @@ export function useImportRedirectsForm(
  *  `ImportRedirectsForm` composes this with the `t`/`locale` it received as its own props. See this
  *  file's header for why they're parameters here rather than resolved via `useAdminLocale()`
  *  internally. */
-export function useWiredImportRedirectsForm(deps: { t: (key: string) => string; locale: string }): ImportRedirectsFormController {
+export function useWiredImportRedirectsForm(deps: { t: Translate; locale: string }): ImportRedirectsFormController {
   return useImportRedirectsForm(defaultRedirectsPort, deps.t, deps.locale);
 }
