@@ -1530,6 +1530,16 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
   width: 20px; height: 20px; padding: 0; border: 1px solid var(--border); border-radius: 5px;
   cursor: pointer; background: none;
 }
+/* Font family/size/line-height `<select>`s (`Toolbar`, 2026-08-11) — sized to match `.tb-btn`'s own
+   30px height so the row stays visually level; width left to content (`width: auto`) rather than a
+   fixed value since "Sans-serif"/"Courier New" and "12"/"48" need very different widths and a
+   shared fixed width would either clip the longest or waste space on the shortest. */
+.tb-select {
+  height: 30px; padding: 0 6px; font-family: var(--font-ui); font-size: 12.5px;
+  color: var(--fg-2); background: transparent; border: 1px solid transparent; border-radius: 7px;
+  cursor: pointer; max-width: 9rem;
+}
+.tb-select:hover { background: var(--surface); border-color: var(--border); }
 /* `WidgetAddControl`'s `<span className="widget-add-control">` (its widget-type `<select>` plus
    the "Insert widget"/"+ Add widget" trigger button, `components/WidgetPickerDialog/WidgetPickerDialog.tsx`) had
    never had any CSS anywhere in the app — the two controls sat flush with zero gap between them.

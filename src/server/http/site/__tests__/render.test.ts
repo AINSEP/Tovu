@@ -112,6 +112,49 @@ test("an unsafe backgroundColor is dropped independently — a valid color attr 
   assert.equal(html, '<p><span style="color:#ff0000">hi</span></p>');
 });
 
+test("a textStyle mark with fontFamily/fontSize/lineHeight attrs combines all three into one style attribute", () => {
+  const html = renderDocNode(
+    textDoc({
+      type: "text",
+      text: "hi",
+      marks: [{ type: "textStyle", attrs: { fontFamily: "Georgia, serif", fontSize: "18px", lineHeight: "1.5" } }],
+    })
+  );
+  assert.equal(html, '<p><span style="font-family:Georgia, serif;font-size:18px;line-height:1.5">hi</span></p>');
+});
+
+test("fontFamily/fontSize/lineHeight compose with color/backgroundColor in the documented order", () => {
+  const html = renderDocNode(
+    textDoc({
+      type: "text",
+      text: "hi",
+      marks: [{ type: "textStyle", attrs: { color: "#111", backgroundColor: "#eee", fontFamily: "Arial, sans-serif", fontSize: "24px", lineHeight: "2" } }],
+    })
+  );
+  assert.equal(html, '<p><span style="color:#111;background-color:#eee;font-family:Arial, sans-serif;font-size:24px;line-height:2">hi</span></p>');
+});
+
+test("an unsafe fontFamily/fontSize/lineHeight is dropped independently, same as an unsafe color", () => {
+  const html = renderDocNode(
+    textDoc({
+      type: "text",
+      text: "hi",
+      marks: [
+        {
+          type: "textStyle",
+          attrs: {
+            color: "#111",
+            fontFamily: "Arial; } body { display:none",
+            fontSize: "18px; background:url(evil)",
+            lineHeight: "expression(alert(1))",
+          },
+        },
+      ],
+    })
+  );
+  assert.equal(html, '<p><span style="color:#111">hi</span></p>');
+});
+
 test("renderDocNode: subscript and superscript marks render (Posts toolbar, 2026-08-11)", () => {
   const html = renderDocNode(
     textDoc(

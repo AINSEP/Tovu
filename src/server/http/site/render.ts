@@ -170,6 +170,38 @@ function safeCssColor(value: JsonValue | undefined): string | null {
   return CSS_COLOR_PATTERN.test(color) ? color : null;
 }
 
+/**
+ * Allowlisted CSS `font-family` values (2026-08-11) — same "collapse anything unrecognized" rule
+ * {@link safeCssColor} states for itself, adapted for a font stack instead of a color: the admin
+ * toolbar's own control is a closed `<select>` of preset stacks, so this exists purely as
+ * defense-in-depth against `bodyJson` written some other way. Restricted to letters/digits/
+ * whitespace/comma/hyphen/single-or-double-quote — enough to express a real comma-separated font
+ * stack with quoted multi-word names (`"Courier New", monospace`) but no `(`, `;`, `<`, `>`, or
+ * backslash, so nothing here can break out of the `style=""` attribute value or smuggle a second
+ * declaration. The value is ALSO run through {@link escapeHtml} at the call site (same double-layer
+ * discipline the `link` case's `href` already gets) since a quoted font name legitimately contains
+ * `"`, which must become `&quot;` to stay valid inside the double-quoted HTML attribute.
+ */
+const CSS_FONT_FAMILY_PATTERN = /^[a-zA-Z0-9\s,'".-]{1,200}$/;
+function safeCssFontFamily(value: JsonValue | undefined): string | null {
+  if (typeof value !== "string") return null;
+  const fontFamily = value.trim();
+  return fontFamily.length > 0 && CSS_FONT_FAMILY_PATTERN.test(fontFamily) ? fontFamily : null;
+}
+
+/**
+ * Allowlisted CSS length values (2026-08-11) — `font-size`/`line-height`'s shared shape: a bare
+ * unitless number (`line-height`'s own idiomatic form, e.g. `"1.5"`) or a number with one of a
+ * small set of length units. Same defense-in-depth reasoning as {@link safeCssFontFamily} — the
+ * toolbar's own controls are closed `<select>` presets.
+ */
+const CSS_LENGTH_PATTERN = /^[0-9]{1,4}(\.[0-9]{1,3})?(px|em|rem|%|pt|vh|vw)?$/;
+function safeCssLength(value: JsonValue | undefined): string | null {
+  if (typeof value !== "string") return null;
+  const length = value.trim();
+  return CSS_LENGTH_PATTERN.test(length) ? length : null;
+}
+
 function renderMarks(text: string, marks: JsonValue[] | undefined): string {
   let html = escapeHtml(text);
   for (const mark of marks ?? []) {
@@ -202,6 +234,15 @@ function renderMarks(text: string, marks: JsonValue[] | undefined): string {
       if (color) styleParts.push(`color:${color}`);
       const backgroundColor = safeCssColor(attrs.backgroundColor);
       if (backgroundColor) styleParts.push(`background-color:${backgroundColor}`);
+      // Font family/size, line height (2026-08-11) — same shared `textStyle` mark, same
+      // `chain().setMark("textStyle", {...})` shape confirmed against each extension's own
+      // installed source (`FontFamily`/`FontSize`/`LineHeight`, `@tiptap/extension-text-style`).
+      const fontFamily = safeCssFontFamily(attrs.fontFamily);
+      if (fontFamily) styleParts.push(`font-family:${fontFamily}`);
+      const fontSize = safeCssLength(attrs.fontSize);
+      if (fontSize) styleParts.push(`font-size:${fontSize}`);
+      const lineHeight = safeCssLength(attrs.lineHeight);
+      if (lineHeight) styleParts.push(`line-height:${lineHeight}`);
       if (styleParts.length > 0) html = `<span style="${escapeHtml(styleParts.join(";"))}">${html}</span>`;
     } else if (type === "highlight") {
       // `@tiptap/extension-highlight`, `multicolor: true` (2026-08-11) — the admin toolbar button is
