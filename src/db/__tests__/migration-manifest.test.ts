@@ -299,6 +299,183 @@ test("REVIEWED_JSON_COLUMNS matches exactly the five columns the 2026-08-12 roun
   );
 });
 
+// --- round-4 audit (2026-08-12, R4-F1/C-1): heuristic fail-closed tripwire for the NEXT unreviewed
+// JSON column ------------------------------------------------------------------------------------
+//
+// REVIEWED_JSON_COLUMNS is a closed, hand-maintained allowlist (see its own doc), and nothing in
+// classifyCoreColumn's SQLiteText case forces a genuinely-JSON column that misses BOTH the *_json
+// naming convention AND a REVIEWED_JSON_COLUMNS entry to be caught — it silently falls through to
+// `{ kind: "plain-text" }`, and every test above stays green, exactly how `composio_config.auth_config_ids`
+// slipped through before the round-3 audit found it (LEDGER #14 comment above). None of the four
+// REVIEWED_JSON_COLUMNS tests above assert anything about a column NOT already in the registry, so none
+// of them can catch the next one.
+//
+// This is a HEURISTIC tripwire, not a completeness proof — the test below says so in its own comment.
+// It scans schema.ts for the same two signals the round-3 audit's manual scan used to find all five
+// current REVIEWED_JSON_COLUMNS entries, with zero false positives on this schema today, and FAILS the
+// run (not warns) if either fires on a text() column outside both isJsonColumnName and
+// REVIEWED_JSON_COLUMNS: (a) the column's own doc comment calls it a JSON object/array, or (b) it
+// defaults to the JSON literal "{}"/"[]". A genuinely-JSON column whose doc comment never says "JSON"
+// and has no {}/[] default still slips through this heuristic exactly as it slipped through the naming
+// convention before it — this narrows the miss window, it does not close it.
+
+/**
+ * Every `text(...)` core-schema column DECLARATION in schema.ts, paired with the doc comment (JSDoc
+ * block or `//` line comment(s)) immediately preceding it and its full builder chain — the declaration
+ * line plus any `.`-prefixed continuation lines folded in, so `declLine` carries a `.default(...)`
+ * whether it sits on the declaration line or wraps below it.
+ *
+ * Line-based, not one sprawling regex trying to pair a comment block with "its" column in a single
+ * pass — a block regex that drifts by one declaration would produce confident nonsense, which is
+ * exactly the risk this function is built to avoid. schema.ts declares every real text() column as
+ * `fieldName: text("sql_name")...,` entirely on one line (verified by the sanity test below), so
+ * walking backward from a declaration's own line through CONTIGUOUS comment-shaped lines (`/**`, `*`,
+ * `*\/`, `//`) cannot cross into a sibling column's code: a real declaration line never matches the
+ * comment-line pattern, so the backward walk stops there deterministically — and a blank line (also
+ * not comment-shaped) stops it too, so a multi-table section-header comment separated from the next
+ * field by a blank line is never misattributed to that field either.
+ */
+function textColumnDeclarations(
+  source: string = SCHEMA_SOURCE
+): Array<{ sqlColumnName: string; docComment: string; declLine: string }> {
+  const lines = source.split("\n");
+  const isCommentLine = (line: string) => /^\s*(\/\*\*|\*\/|\*|\/\/)/.test(line);
+  const declPattern = /^\s*\w+:\s*text\("([a-z0-9_]+)"\)(.*)$/;
+
+  const out: Array<{ sqlColumnName: string; docComment: string; declLine: string }> = [];
+  for (let i = 0; i < lines.length; i++) {
+    const m = declPattern.exec(lines[i]);
+    if (!m) continue;
+    const commentLines: string[] = [];
+    let j = i - 1;
+    while (j >= 0 && isCommentLine(lines[j])) {
+      commentLines.unshift(lines[j]);
+      j--;
+    }
+    // Walk FORWARD through chained continuation lines (`.notNull()`, `.default("{}")`, …) and fold them
+    // into declLine, so the tripwire's default-literal signal sees a wrapped chain exactly as it sees a
+    // single-line one. A continuation line starts with `.` after leading whitespace; a real declaration
+    // line never does (it starts `fieldName:`), so this cannot run on into the next column.
+    const chainLines: string[] = [lines[i]];
+    let k = i + 1;
+    while (k < lines.length && /^\s*\./.test(lines[k])) {
+      chainLines.push(lines[k].trim());
+      k++;
+    }
+    out.push({ sqlColumnName: m[1], docComment: commentLines.join("\n"), declLine: chainLines.join("") });
+  }
+  return out;
+}
+
+test("textColumnDeclarations(): declLine carries a `.default(...)` wrapped onto a continuation line, not just a same-line one", () => {
+  // REGRESSION (found 2026-08-12 by mutation-testing the tripwire below, NOT by reading it): planting a
+  // `.default("{}")` column into schema.ts with the chain wrapped across lines left the whole file green
+  // — the tripwire never saw the default. The sanity test below used to claim its count assertion would
+  // catch that case first; it does not, because declPattern's trailing `(.*)` matches the EMPTY string,
+  // so a wrapped declaration still counts as one declaration and `declaredCount === rawTextCallSites - 1`
+  // still holds. Both signals fire correctly on the two single-line shapes (also mutation-proven); this
+  // is the third shape, and it was the one silent hole.
+  const wrapped = ['  someTable: {', '  /** JSON object of settings. */', '  probeConfig: text("probe_config")', '    .notNull()', '    .default("{}"),', "  }"].join("\n");
+  const [decl] = textColumnDeclarations(wrapped);
+  assert.equal(decl?.sqlColumnName, "probe_config");
+  assert.match(
+    decl.declLine,
+    /\.default\("\{\}"\)/,
+    "declLine must absorb chained continuation lines, otherwise the tripwire's JSON-literal-default signal " +
+      "silently goes blind on any column whose chain wraps"
+  );
+});
+
+test("sanity: every text() column declaration in schema.ts is single-line — the assumption textColumnDeclarations() (and the JSON tripwire below) depends on", () => {
+  // schema.ts has 612 total `text("...")` call sites: 611 real single-line column declarations plus
+  // exactly one non-declaration mention (schema.ts's own `// SQLite JSON storage stays text("*_json")`
+  // convention comment at line ~1703).
+  //
+  // CORRECTED 2026-08-12: this comment used to claim that a column wrapping `.default(...)` onto its own
+  // continuation line would drop declaredCount below rawTextCallSites - 1 and fail HERE, before the
+  // tripwire could go blind on that default. That was false, and mutation-testing proved it: declPattern's
+  // trailing `(.*)` matches the empty string, so a wrapped declaration still counts as exactly one
+  // declaration and both sides of the equality move together. What this assertion actually catches is a
+  // `text("col", { … })` config-object form (raw goes up, declaredCount does not) and any new
+  // non-declaration `text("` mention. The wrapped-chain case is now handled for real by
+  // textColumnDeclarations() folding continuation lines into declLine — see its own regression test above.
+  const declaredCount = textColumnDeclarations().length;
+  const rawTextCallSites = (SCHEMA_SOURCE.match(/text\("/g) ?? []).length;
+  assert.ok(declaredCount > 500, `sanity: expected 500+ text() column declarations, got ${declaredCount}`);
+  assert.equal(
+    declaredCount,
+    rawTextCallSites - 1,
+    'expected exactly one text("...") call site that is not a single-line column declaration (this file\'s ' +
+      "own convention comment) — a multi-line declaration would break this count and the tripwire's " +
+      "default-literal detection"
+  );
+});
+
+test("JSON-completeness tripwire (R4-F1/C-1): no text() column outside isJsonColumnName/REVIEWED_JSON_COLUMNS has a doc comment naming it JSON, or a JSON-literal default", () => {
+  // HEURISTIC, not a completeness proof — see the round-4 audit comment above for the honest statement
+  // of what this cannot catch: a genuinely-JSON column whose doc comment never says "JSON" and has no
+  // `{}`/`[]` default slips through exactly as `auth_config_ids` did before the round-3 audit found it
+  // by hand. This test narrows that miss window; it does not close it.
+  //
+  // Two signals, the same ones the round-3 audit's manual scan used to find all five current
+  // REVIEWED_JSON_COLUMNS entries:
+  //   (a) the column's OWN immediately-preceding doc comment names it a JSON object/array/etc.
+  //   (b) it defaults to the JSON literal "{}" or "[]" on its own declaration line.
+  //
+  // `JSON.stringify`/`JSON.parse` mentions are excluded from signal (a) on purpose, not by oversight:
+  // several sealed-ciphertext columns (composio_connector_credentials.sealed_ciphertext is the real,
+  // live example, pinned by the sanity assertion at the end of this test) document that they encrypt
+  // the OUTPUT of `JSON.stringify(...)` — the column itself stores base64 AES-GCM ciphertext, not
+  // plaintext JSON, and verifyJsonText would fail on every real row if this heuristic treated that
+  // mention as a JSON signal. Flagging that column would be the heuristic being wrong, not the schema.
+  //
+  // Column identity here is by bare SQL column name, not "table.column" — the same simplification
+  // REVIEWED_JSON_COLUMNS's own non-redundancy test above uses. Safe today because no bare column name
+  // in REVIEWED_JSON_COLUMNS ("ext", "auth_config_ids", "args", "allowed_tool_names", "env_names")
+  // repeats on any other table in schema.ts; a future column reusing one of those exact names on a
+  // different, actually-plain-text table would be silently exempted by this check, same as the
+  // existing non-redundancy test would silently misjudge it.
+  const reviewedByBareName = new Set(Object.keys(REVIEWED_JSON_COLUMNS).map((key) => key.split(".")[1]));
+  const jsonMentionInOwnComment = /\bJSON\b(?!\.(?:stringify|parse)\b)/;
+  const jsonLiteralDefault = /\.default\((["'])(\{\}|\[\])\1\)/;
+
+  const offenders: string[] = [];
+  for (const { sqlColumnName, docComment, declLine } of textColumnDeclarations()) {
+    if (isJsonColumnName(sqlColumnName) || reviewedByBareName.has(sqlColumnName)) continue;
+    const commentSignal = jsonMentionInOwnComment.test(docComment);
+    const defaultSignal = jsonLiteralDefault.test(declLine);
+    if (!commentSignal && !defaultSignal) continue;
+    const reason = [commentSignal ? "doc comment mentions JSON" : null, defaultSignal ? 'defaults to a JSON literal ("{}" or "[]")' : null]
+      .filter(Boolean)
+      .join(" and ");
+    offenders.push(`${sqlColumnName} (${reason})`);
+  }
+
+  assert.deepEqual(
+    offenders,
+    [],
+    `found text() column(s) that look like JSON by heuristic but are classified plain-text by neither the ` +
+      `*_json naming convention nor REVIEWED_JSON_COLUMNS: ${offenders.join(", ")}. If genuinely JSON, add an ` +
+      `entry (with rationale) to REVIEWED_JSON_COLUMNS in manifest.ts; if not, this heuristic has a false ` +
+      `positive and needs its own fix.`
+  );
+
+  // Confirm the JSON.stringify/parse exclusion is doing real work, not a dead branch that happens to
+  // never fire: composio_connector_credentials.sealed_ciphertext's own doc comment DOES mention "JSON"
+  // (via "JSON.stringify(credentials)") and the column is neither *_json-named nor in
+  // REVIEWED_JSON_COLUMNS — it is the live column that would turn into a false positive above if the
+  // exclusion regressed.
+  const sealedCiphertextDecl = textColumnDeclarations().find(
+    (d) => d.sqlColumnName === "sealed_ciphertext" && /JSON\.stringify/.test(d.docComment)
+  );
+  assert.ok(
+    sealedCiphertextDecl,
+    "sanity: expected to find the sealed_ciphertext column whose comment mentions JSON.stringify — if this " +
+      "fails, the trap case this test guards against no longer exists in schema.ts in this exact shape and " +
+      "should be replaced with a live one"
+  );
+});
+
 // LOW #14 (2026-08-12 audit): this "independent" oracle filters with `name === "at" || name.endsWith("_at")`
 // — the SAME predicate isTimestampColumnName() itself encodes, just re-typed by hand rather than
 // called. That proves classifyAllCoreColumns() faithfully APPLIES the rule to every real column (a
