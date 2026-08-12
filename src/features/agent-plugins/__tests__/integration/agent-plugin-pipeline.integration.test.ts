@@ -1,0 +1,136 @@
+import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { chmod, mkdtemp, readdir, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import test from "node:test";
+
+import { projectInstalledAgentPluginCapabilities, readInstalledSkillMarkdown } from "../../capability-projection";
+import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "../../install";
+import { resolveAgentPluginLayout } from "../../layout";
+import { parseAgentPluginMcpConfig } from "../../manifest";
+
+/**
+ * @file End-to-end proof that layout + install + manifest + capability-projection compose into one
+ * coherent slice, not four units that only pass in isolation. Mirrors a real caller's own sequence:
+ * resolve where bytes go, extract+verify an archive, parse its optional `mcp.json`, and project the
+ * result into capability descriptors — no step here reaches around another (no direct disk reads
+ * bypassing `package-paths.ts`'s containment check, no hand-built `InstalledAgentPlugin` fixture).
+ */
+
+function fileEntry(entryPath: string, content: string): AgentPluginArchiveEntry {
+  const bytes = Buffer.from(content, "utf8");
+  return {
+    kind: "file",
+    entryPath,
+    declaredSize: bytes.byteLength,
+    executable: false,
+    async *openReadStream() {
+      yield bytes;
+    },
+  };
+}
+
+function reader(entries: readonly AgentPluginArchiveEntry[]): AgentPluginArchiveReaderPort {
+  return {
+    async *entries() {
+      yield* entries;
+    },
+  };
+}
+
+async function forceRemove(root: string): Promise<void> {
+  async function makeWritable(dir: string): Promise<void> {
+    let entries;
+    try {
+      entries = await readdir(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+    await chmod(dir, 0o700).catch(() => undefined);
+    for (const entry of entries) {
+      const absolute = path.join(dir, entry.name);
+      if (entry.isDirectory()) await makeWritable(absolute);
+      else await chmod(absolute, 0o600).catch(() => undefined);
+    }
+  }
+  await makeWritable(root);
+  await rm(root, { recursive: true, force: true });
+}
+
+test("install -> parse mcp.json -> project capabilities, end to end, for a plugin with both a skill and an MCP server", async () => {
+  const cwd = await mkdtemp(path.join(tmpdir(), "tovu-agent-plugin-pipeline-test-"));
+  try {
+    const layout = resolveAgentPluginLayout({ cwd, env: {} });
+
+    const manifest = JSON.stringify({
+      $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+      name: "ui-ux-design",
+      version: "1.1.0",
+      description: "AI Dev Shop UI/UX and interface design guidance.",
+    });
+    const mcpConfig = JSON.stringify({
+      $schema: "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+      mcpServers: { main: { type: "stdio", command: "./server/index.js" } },
+    });
+    const skillMarkdown = "# UI/UX Design\n\nGuidance for interface work.";
+
+    const archive = new Uint8Array(Buffer.from("integration-fixture-archive"));
+    const digest = createHash("sha256").update(archive).digest("hex");
+
+    const installed = await installAgentPlugin({
+      archive,
+      expectedSha256: digest,
+      archiveReader: reader([
+        fileEntry("plugin.json", manifest),
+        fileEntry("mcp.json", mcpConfig),
+        fileEntry("skills/ui-ux-design/SKILL.md", skillMarkdown),
+      ]),
+      layout,
+    });
+
+    assert.equal(installed.pluginId, "ui-ux-design");
+
+    // A real caller reads mcp.json THROUGH the same containment guarantee installed skills use —
+    // proving `readInstalledSkillMarkdown`'s containment primitive generalizes to any installed file,
+    // not only the one path shape its own unit tests exercise.
+    const mcpConfigRaw = await readInstalledSkillMarkdown(installed.packageRoot, "mcp.json");
+    const parsedMcp = parseAgentPluginMcpConfig(JSON.parse(mcpConfigRaw));
+    assert.equal(parsedMcp.ok, true);
+    const mcpServerIds = parsedMcp.ok ? parsedMcp.config.serverIds : [];
+    assert.deepEqual(mcpServerIds, ["main"]);
+
+    const descriptors = await projectInstalledAgentPluginCapabilities({
+      installed,
+      readSkillMarkdown: (skillPath) => readInstalledSkillMarkdown(installed.packageRoot, skillPath),
+      mcpServerIds,
+    });
+
+    const skillDescriptor = descriptors.find((d) => d.kind === "agent-plugin-skill");
+    const mcpDescriptor = descriptors.find((d) => d.kind === "agent-plugin-mcp-server");
+
+    assert.equal(skillDescriptor?.execute.kind, "context-injection");
+    if (skillDescriptor?.execute.kind === "context-injection") {
+      assert.equal(skillDescriptor.execute.markdown, skillMarkdown);
+    }
+
+    // The end-to-end proof of the FINAL decision's core rule: even after a real mcp.json round-trips
+    // through parsing and the server id reaches the projector, the descriptor it produces is still
+    // structurally inert — this is not a unit-level assertion about a fixture, it is the same
+    // guarantee holding across the real install -> parse -> project pipeline.
+    assert.equal(mcpDescriptor?.execute.kind, "unavailable");
+
+    // Re-installing the SAME archive bytes (as a second workspace "installing" the same plugin@version
+    // would) must not re-extract — the content-addressed dedup property holds across the pipeline,
+    // not just inside install.ts's own unit tests.
+    const secondInstall = await installAgentPlugin({
+      archive,
+      expectedSha256: digest,
+      archiveReader: reader([fileEntry("SHOULD_NOT_BE_READ", "x")]),
+      layout,
+    });
+    assert.equal(secondInstall.packageRoot, installed.packageRoot);
+  } finally {
+    await forceRemove(cwd);
+  }
+});
