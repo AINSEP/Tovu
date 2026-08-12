@@ -1,6 +1,8 @@
-import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
-import { describeApiError, type AdminTaxonomy, type AdminTaxonomyWithTerms, type AdminTerm } from "../../../lib/api";
-import { describeDeleteBlocked, findSelectedTerm, type DeleteBlockedState } from "../rules";
+import { useMemo, useState } from "react";
+import { type AdminTaxonomy, type AdminTaxonomyWithTerms, type AdminTerm } from "../../../lib/api";
+import { describeApiError } from "../../../lib/api";
+import { useFetchMutation, useFetchQuery } from "../../../lib/fetch-query";
+import { describeDeleteBlocked, findSelectedTerm, KEYS, type DeleteBlockedState } from "../rules";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { TAXONOMY_DICT, t as translate } from "../taxonomy-i18n";
 import { defaultTaxonomyPort } from "./taxonomy-dependencies.hooks";
@@ -47,6 +49,15 @@ import type { TaxonomyPort } from "./taxonomy-port.hooks";
  * to avoid colliding with the new bound `(key) => string` argument of the same name — stays a
  * direct import for this hook's OWN error strings: a pure lookup that already takes `locale`
  * explicitly, not a host reach.
+ *
+ * `lib/fetch-query` migration (2026-08-12): the list read is now `useFetchQuery({ key: KEYS.list,
+ * ... })`, and `deleteTerm`/`deleteTaxonomy` are `useFetchMutation`s that `invalidates: [KEYS.list]`
+ * instead of calling `load()` by hand on success — see `rules.ts`'s `KEYS` doc. `error`'s precedence
+ * (an active delete's own hard failure over a background list-refresh failure) mirrors
+ * `redirects/rules.ts`'s `visibleRedirectsError`, with one addition that screen doesn't have: a
+ * *blocked* (409) delete outcome is excluded from this banner entirely — it already has its own
+ * scoped `deleteTermBlocked`/`deleteTaxonomyBlocked` slot (see the controller doc comment below), so
+ * showing the same refusal twice would be a second, redundant channel for the identical fact.
  */
 
 export interface TaxonomyController {
@@ -83,72 +94,71 @@ export interface TaxonomyController {
   t: (key: string) => string;
 }
 
-/** The shape `confirmDeleteTerm`/`confirmDeleteTaxonomy` both repeat: guard on nothing pending, set
- *  a busy flag, delete, and on failure split a 409 "blocked" refusal (its own recoverable state,
- *  see the controller doc comment) from a hard error — the "whole-hook" complexity view (brief §2)
- *  counts both ~20-line blocks against `useTaxonomy` even though each is individually small under
- *  ESLint's own per-function view. `onSuccess` carries the one thing that genuinely differs beyond
- *  which id/state pair is involved: term-delete clears `selectedTermId` when the deleted term WAS
- *  selected, taxonomy-delete clears it when the selected term belonged to the deleted taxonomy. */
+/** The shape `confirmDeleteTerm`/`confirmDeleteTaxonomy` both repeat: guard on nothing pending,
+ *  delete, and on failure split a 409 "blocked" refusal (its own recoverable state, see the
+ *  controller doc comment) from a hard error — a hard error needs no handling here at all, since it
+ *  is already surfaced through the mutation's own `.error`, read by `useTaxonomy`'s `error`
+ *  derivation below. `onSuccess` carries the one thing that genuinely differs beyond which id/state
+ *  pair is involved: term-delete clears `selectedTermId` when the deleted term WAS selected,
+ *  taxonomy-delete clears it when the selected term belonged to the deleted taxonomy. */
 async function runGuardedDelete(
   id: string,
-  deleteCall: (id: string) => Promise<unknown>,
-  setBusy: Dispatch<SetStateAction<boolean>>,
+  mutate: (id: string) => Promise<unknown>,
   clearPending: () => void,
   onSuccess: () => void,
   onBlocked: (blocked: DeleteBlockedState) => void,
-  setError: Dispatch<SetStateAction<string | null>>,
-  load: () => void,
-  failureFallback: string,
 ): Promise<void> {
-  setBusy(true);
   try {
-    await deleteCall(id);
+    await mutate(id);
     clearPending();
     onSuccess();
-    load();
   } catch (e) {
     clearPending();
     const blocked = describeDeleteBlocked(e);
-    if (blocked) {
-      onBlocked(blocked);
-    } else {
-      setError(describeApiError(e, failureFallback));
-    }
-  } finally {
-    setBusy(false);
+    if (blocked) onBlocked(blocked);
+    // else: already surfaced through the mutation's own `.error` -> `error` below.
   }
 }
 
 export function useTaxonomy(port: TaxonomyPort, locale: string, t: (key: string) => string): TaxonomyController {
-  const [taxonomies, setTaxonomies] = useState<AdminTaxonomyWithTerms[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const list = useFetchQuery({ key: KEYS.list, fetch: () => port.listTaxonomies() });
+  const taxonomies = list.data?.items ?? null;
+
   const [selectedTermId, setSelectedTermId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
 
   const [pendingDeleteTerm, setPendingDeleteTermState] = useState<AdminTerm | null>(null);
-  const [deleteTermBusy, setDeleteTermBusy] = useState(false);
   const [deleteTermBlocked, setDeleteTermBlocked] = useState<{ termId: string; state: DeleteBlockedState } | null>(
     null
   );
+  const deleteTermMutation = useFetchMutation({
+    run: (termId: string) => port.deleteTerm(termId),
+    invalidates: [KEYS.list],
+  });
 
   const [pendingDeleteTaxonomy, setPendingDeleteTaxonomyState] = useState<AdminTaxonomy | null>(null);
-  const [deleteTaxonomyBusy, setDeleteTaxonomyBusy] = useState(false);
   const [deleteTaxonomyBlocked, setDeleteTaxonomyBlocked] = useState<{
     taxonomyId: string;
     state: DeleteBlockedState;
   } | null>(null);
-
-  function load() {
-    port
-      .listTaxonomies()
-      .then((r) => setTaxonomies(r.items))
-      .catch((e) => setError(describeApiError(e, translate(locale, "failed to load taxonomies"))));
-  }
-
-  useEffect(load, [port]);
+  const deleteTaxonomyMutation = useFetchMutation({
+    run: (taxonomyId: string) => port.deleteTaxonomy(taxonomyId),
+    invalidates: [KEYS.list],
+  });
 
   const selected = useMemo(() => findSelectedTerm(taxonomies, selectedTermId), [taxonomies, selectedTermId]);
+
+  // Precedence: an active delete's own hard failure outranks a background list-refresh failure —
+  // same reasoning as `redirects/rules.ts`'s `visibleRedirectsError` (a stale list-refresh error
+  // should not read as "your delete failed"). A *blocked* (409) delete is excluded entirely — it
+  // already has its own scoped `deleteTermBlocked`/`deleteTaxonomyBlocked` slot, so folding it into
+  // this banner too would show the identical refusal twice.
+  const error =
+    (deleteTermBlocked ? null : deleteTermMutation.error && describeApiError(deleteTermMutation.error, translate(locale, "Failed to delete term"))) ??
+    (deleteTaxonomyBlocked
+      ? null
+      : deleteTaxonomyMutation.error && describeApiError(deleteTaxonomyMutation.error, translate(locale, "Failed to delete taxonomy"))) ??
+    (list.error ? describeApiError(list.error, translate(locale, "failed to load taxonomies")) : null);
 
   function requestDeleteTerm(term: AdminTerm | null) {
     setPendingDeleteTermState(term);
@@ -166,17 +176,13 @@ export function useTaxonomy(port: TaxonomyPort, locale: string, t: (key: string)
     const term = pendingDeleteTerm;
     await runGuardedDelete(
       term.id,
-      port.deleteTerm,
-      setDeleteTermBusy,
+      deleteTermMutation.mutate,
       () => setPendingDeleteTermState(null),
       // A deleted term can no longer own the detail panel it might currently be selected into.
       () => {
         if (selectedTermId === term.id) setSelectedTermId(null);
       },
       (blocked) => setDeleteTermBlocked({ termId: term.id, state: blocked }),
-      setError,
-      load,
-      translate(locale, "Failed to delete term"),
     );
   }
 
@@ -190,8 +196,7 @@ export function useTaxonomy(port: TaxonomyPort, locale: string, t: (key: string)
     const taxonomy = pendingDeleteTaxonomy;
     await runGuardedDelete(
       taxonomy.id,
-      port.deleteTaxonomy,
-      setDeleteTaxonomyBusy,
+      deleteTaxonomyMutation.mutate,
       () => setPendingDeleteTaxonomyState(null),
       // A deleted taxonomy takes every one of its terms with it (the route's own cascade) —
       // whatever was selected can't still exist if it belonged to this taxonomy.
@@ -199,9 +204,6 @@ export function useTaxonomy(port: TaxonomyPort, locale: string, t: (key: string)
         if (selected?.taxonomy.taxonomy.id === taxonomy.id) setSelectedTermId(null);
       },
       (blocked) => setDeleteTaxonomyBlocked({ taxonomyId: taxonomy.id, state: blocked }),
-      setError,
-      load,
-      translate(locale, "Failed to delete taxonomy"),
     );
   }
 
@@ -211,17 +213,17 @@ export function useTaxonomy(port: TaxonomyPort, locale: string, t: (key: string)
     selectedTermId,
     setSelectedTermId,
     selected,
-    load,
+    load: list.refetch,
     formOpen,
     setFormOpen,
     pendingDeleteTerm,
     requestDeleteTerm,
-    deleteTermBusy,
+    deleteTermBusy: deleteTermMutation.status === "pending",
     deleteTermBlocked,
     confirmDeleteTerm,
     pendingDeleteTaxonomy,
     requestDeleteTaxonomy,
-    deleteTaxonomyBusy,
+    deleteTaxonomyBusy: deleteTaxonomyMutation.status === "pending",
     deleteTaxonomyBlocked,
     confirmDeleteTaxonomy,
     t,

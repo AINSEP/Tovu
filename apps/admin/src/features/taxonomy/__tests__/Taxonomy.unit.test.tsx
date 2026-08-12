@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminTaxonomyWithTerms, AdminTerm } from "../../../lib/api";
+import { FetchQueryProvider } from "../../../lib/fetch-query";
 import { Taxonomy } from "../Taxonomy";
 import type { TaxonomyController } from "../hooks/use-taxonomy.hooks";
 
@@ -14,6 +15,13 @@ import type { TaxonomyController } from "../hooks/use-taxonomy.hooks";
  * resets in a `useEffect`), so rendering them through `<Taxonomy>` with a stubbed top-level
  * controller exercises their real markup/state without needing to mock `fetch` for anything that
  * does not actually submit a form.
+ *
+ * `FetchQueryProvider` wraps every render below (2026-08-12, `lib/fetch-query` migration): only the
+ * top-level `useTaxonomy` is stubbed via `useTaxonomyHook` — `NewTaxonomyForm`/`NewTermForm`/
+ * `MergeTermSection`/`TermDetailPanel` still compose their OWN real `useWiredX` hooks (no injected
+ * seam of their own in these tests), each now backed by `useFetchQuery`/`useFetchMutation`, which
+ * throw without a `QueryClientProvider` ancestor. `main.tsx` provides this in production; here it is
+ * one `FetchQueryProvider` per render, matching `redirects`'s own hook tests.
  */
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -82,7 +90,11 @@ function baseController(overrides: Partial<TaxonomyController> = {}): TaxonomyCo
 
 function renderTaxonomy(overrides: Partial<TaxonomyController> = {}) {
   const controller = baseController(overrides);
-  render(<Taxonomy useTaxonomyHook={() => controller} />);
+  render(
+    <FetchQueryProvider>
+      <Taxonomy useTaxonomyHook={() => controller} />
+    </FetchQueryProvider>
+  );
   return controller;
 }
 
@@ -396,11 +408,19 @@ describe("delete UI — RowMenu + ConfirmDialog (web-design pass, 2026-08-05)", 
   it("the term ConfirmDialog is closed by default and opens (naming the term) once pendingDeleteTerm is set", () => {
     const t = term({ name: "Breakfast" });
     const group: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta(), terms: [t] };
-    const { rerender } = render(<Taxonomy useTaxonomyHook={() => baseController({ taxonomies: [group] })} />);
+    const { rerender } = render(
+      <FetchQueryProvider>
+        <Taxonomy useTaxonomyHook={() => baseController({ taxonomies: [group] })} />
+      </FetchQueryProvider>
+    );
     const closedDialog = screen.getByText("Delete term?").closest("dialog")!;
     expect(closedDialog.hasAttribute("open")).toBe(false);
 
-    rerender(<Taxonomy useTaxonomyHook={() => baseController({ taxonomies: [group], pendingDeleteTerm: t })} />);
+    rerender(
+      <FetchQueryProvider>
+        <Taxonomy useTaxonomyHook={() => baseController({ taxonomies: [group], pendingDeleteTerm: t })} />
+      </FetchQueryProvider>
+    );
     const openDialog = screen.getByText("Delete term?").closest("dialog")!;
     expect(openDialog.hasAttribute("open")).toBe(true);
     expect(within(openDialog).getByText(/delete term "breakfast".*cannot be undone/i)).toBeInTheDocument();
@@ -422,12 +442,18 @@ describe("delete UI — RowMenu + ConfirmDialog (web-design pass, 2026-08-05)", 
 
   it("the taxonomy ConfirmDialog is closed by default and opens (naming the taxonomy) once pendingDeleteTaxonomy is set", () => {
     const group: AdminTaxonomyWithTerms = { taxonomy: taxonomyMeta({ name: "Category" }), terms: [] };
-    const { rerender } = render(<Taxonomy useTaxonomyHook={() => baseController({ taxonomies: [group] })} />);
+    const { rerender } = render(
+      <FetchQueryProvider>
+        <Taxonomy useTaxonomyHook={() => baseController({ taxonomies: [group] })} />
+      </FetchQueryProvider>
+    );
     const closedDialog = screen.getByText("Delete taxonomy?").closest("dialog")!;
     expect(closedDialog.hasAttribute("open")).toBe(false);
 
     rerender(
-      <Taxonomy useTaxonomyHook={() => baseController({ taxonomies: [group], pendingDeleteTaxonomy: group.taxonomy })} />
+      <FetchQueryProvider>
+        <Taxonomy useTaxonomyHook={() => baseController({ taxonomies: [group], pendingDeleteTaxonomy: group.taxonomy })} />
+      </FetchQueryProvider>
     );
     const openDialog = screen.getByText("Delete taxonomy?").closest("dialog")!;
     expect(openDialog.hasAttribute("open")).toBe(true);

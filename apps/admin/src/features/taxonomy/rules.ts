@@ -1,4 +1,5 @@
 import { ApiError, type AdminTaxonomyWithTerms, type AdminTerm } from "../../lib/api";
+import type { QueryKey } from "../../lib/fetch-query";
 
 /**
  * @file Pure logic for the `taxonomy` feature — everything that computes a value rather than
@@ -15,7 +16,17 @@ import { ApiError, type AdminTaxonomyWithTerms, type AdminTerm } from "../../lib
  * that started this pass was a UI mistake — no delete affordance at all — so a blocked state that
  * just greys out a button with no explanation would be the same mistake in a new shape. This turns
  * the route's `code`/`assignedCount`/`childCount` into copy that names the remedy.
+ *
+ * `KEYS` (fetch-query migration, 2026-08-12): one cache identity for the whole taxonomy list. Every
+ * write on this screen — create taxonomy, create term, rename term, delete term, delete taxonomy,
+ * merge-execute — used to call the same shared `load()` by hand; each now invalidates this single
+ * key instead, per `lib/fetch-query/types.ts`'s `QueryKey` doc. Defined once here (not per hook file)
+ * for the same reason `redirects/rules.ts`'s `KEYS` is: a hand-typed second `["taxonomies"]` in one
+ * of the five hook files would silently stop matching this one the moment either is edited.
  */
+export const KEYS = {
+  list: ["taxonomies"] as QueryKey,
+};
 
 /** Depth of `term` within its taxonomy's `parentId` chain, bounded against cycles by a visited
  * set (server-side cycle detection should prevent one, but this render helper never trusts that

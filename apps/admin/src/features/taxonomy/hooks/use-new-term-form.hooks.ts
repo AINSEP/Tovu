@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { describeApiError, type AdminTaxonomyWithTerms } from "../../../lib/api";
+import { useFetchMutation } from "../../../lib/fetch-query";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { t } from "../taxonomy-i18n";
+import { KEYS } from "../rules";
 import { defaultNewTermFormPort } from "./new-term-form-dependencies.hooks";
 import type { NewTermFormPort } from "./new-term-form-port.hooks";
 
@@ -22,6 +24,10 @@ import type { NewTermFormPort } from "./new-term-form-port.hooks";
  * directly, so a test can describe the create outcome against `createFakeNewTermFormPort` instead
  * of stubbing global `fetch`. `useWiredNewTermForm` below is the zero-argument pair `Taxonomy.tsx`
  * actually mounts.
+ *
+ * `lib/fetch-query` migration (2026-08-12): `createTerm` is a `useFetchMutation` that
+ * `invalidates: [KEYS.list]` instead of the parent's `onCreated` calling `load()` by hand — same
+ * client-side-validation-vs-request-error precedence as `use-new-taxonomy-form.hooks.ts`.
  */
 
 export interface NewTermFormOptions {
@@ -49,32 +55,37 @@ export function useNewTermForm(
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [parentId, setParentId] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
+
+  const createMutation = useFetchMutation({
+    run: (input: { name: string; parentId: string | null }) =>
+      port.createTerm({ taxonomyId: options.taxonomy.taxonomy.id, name: input.name }, { parentId: input.parentId }),
+    invalidates: [KEYS.list],
+  });
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) {
-      setError(t(locale, "Name is required."));
+      setValidationError(t(locale, "Name is required."));
       return;
     }
-    setSaving(true);
-    setError(null);
+    setValidationError(null);
     try {
-      await port.createTerm(
-        { taxonomyId: options.taxonomy.taxonomy.id, name: name.trim() },
-        { parentId: options.taxonomy.taxonomy.hierarchical && parentId ? parentId : null }
-      );
+      await createMutation.mutate({
+        name: name.trim(),
+        parentId: options.taxonomy.taxonomy.hierarchical && parentId ? parentId : null,
+      });
       setName("");
       setParentId("");
       setOpen(false);
       options.onCreated();
-    } catch (e) {
-      setError(describeApiError(e, t(locale, "Failed to create term")));
-    } finally {
-      setSaving(false);
+    } catch {
+      // already surfaced through createMutation.error -> error below
     }
   }
+
+  const saving = createMutation.status === "pending";
+  const error = validationError ?? (createMutation.error ? describeApiError(createMutation.error, t(locale, "Failed to create term")) : null);
 
   return { open, setOpen, name, setName, parentId, setParentId, error, saving, submit };
 }
