@@ -33,9 +33,50 @@ export interface VerificationFailure {
 const UTC_DESIGNATOR = /(Z|[+-]\d{2}:\d{2})$/;
 
 /**
+ * A strict RFC3339 date-time SHAPE: a literal `T` separator between date and time (rejects the
+ * looser space-separated form `Date.parse`/`new Date(string)` accept on their own, e.g.
+ * `"2026-08-12 10:00:00Z"`), optional fractional seconds, then the trailing UTC designator
+ * `UTC_DESIGNATOR` above already requires. This regex says nothing about CALENDAR validity (month
+ * 13, February 30th, hour 24, ...) — `isValidCalendarInstant` below handles that half separately,
+ * because `Date.parse`'s failure mode there is not "reject", it is "silently normalize":
+ * `"2026-02-30T00:00:00Z"` parses successfully as March 2nd rather than failing, which is worse than
+ * an outright parse failure because nothing about the return value signals that anything happened.
+ */
+const STRICT_RFC3339_SHAPE = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
+
+/**
+ * Re-derives the instant via `Date.UTC` and confirms every field survives the round trip unchanged —
+ * the standard technique for exact calendar validation without a date library. `Date.UTC` normalizes
+ * an out-of-range field exactly the way `Date.parse` does (day 30 in a 28-day February rolls forward
+ * into March), so reading the fields back off the constructed `Date` and comparing them against what
+ * was actually written catches precisely the silent normalization `Date.parse` alone hides.
+ */
+function isValidCalendarInstant(year: number, month: number, day: number, hour: number, minute: number, second: number): boolean {
+  const ms = Date.UTC(year, month - 1, day, hour, minute, second);
+  const roundTripped = new Date(ms);
+  return (
+    roundTripped.getUTCFullYear() === year &&
+    roundTripped.getUTCMonth() === month - 1 &&
+    roundTripped.getUTCDate() === day &&
+    roundTripped.getUTCHours() === hour &&
+    roundTripped.getUTCMinutes() === minute &&
+    roundTripped.getUTCSeconds() === second
+  );
+}
+
+/**
  * Verifies a value classified `utc-timestamp-text`. `null` passes — several timestamp columns in
  * this schema are nullable (e.g. `revoked_at`, `deleted_at`), and absence is not a violation of the
  * UTC contract, only a value would be.
+ *
+ * Deliberately stricter than a bare `Date.parse`/`new Date(string)` check: both accept a
+ * space-separated date-time and silently normalize an impossible calendar date instead of rejecting
+ * it (see `STRICT_RFC3339_SHAPE`'s own doc). Verified against the live `infra/content.db` before this
+ * tightened — every `schema.ts`-declared timestamp column's stored values already match the literal
+ * `T`-separated, calendar-valid shape this enforces, so tightening does not retroactively flag any
+ * value this manifest's scope actually covers (the handful of anomalous `*_at`-named columns holding
+ * epoch-millisecond integers live in `__drizzle_migrations`/`_plugin_*`/`ai_chat*` tables, none of
+ * which are exported from `schema.ts` — out of `classifyAllCoreColumns()`'s scope entirely).
  */
 export function verifyUtcTimestampText(value: string | null): VerificationFailure | null {
   if (value === null) return null;
@@ -48,8 +89,25 @@ export function verifyUtcTimestampText(value: string | null): VerificationFailur
         `different instant depending on who reads it and when.`,
     };
   }
-  if (Number.isNaN(Date.parse(value))) {
-    return { code: "UNPARSEABLE_TIMESTAMP", message: `"${value}" carries a UTC designator but is not a parseable date.` };
+  const match = STRICT_RFC3339_SHAPE.exec(value);
+  if (!match) {
+    return {
+      code: "UNPARSEABLE_TIMESTAMP",
+      message:
+        `"${value}" carries a UTC designator but is not a strict RFC3339 date-time — a literal "T" must separate ` +
+        `the date and time (the looser space-separated form Date.parse alone would accept is rejected here).`,
+    };
+  }
+  const [, yearStr, monthStr, dayStr, hourStr, minuteStr, secondStr] = match;
+  const [year, month, day, hour, minute, second] = [yearStr, monthStr, dayStr, hourStr, minuteStr, secondStr].map(Number);
+  if (!isValidCalendarInstant(year, month, day, hour, minute, second)) {
+    return {
+      code: "INVALID_CALENDAR_DATE",
+      message:
+        `"${value}" has the right shape but names a calendar date/time that does not exist (e.g. a day past the ` +
+        `end of its month). Date.parse would silently normalize this to a different, unrelated date instead of ` +
+        `rejecting it.`,
+    };
   }
   return null;
 }
@@ -93,23 +151,71 @@ export function verifyBooleanCopy(sourceSqliteValue: number, copiedPostgresValue
 }
 
 /**
- * Dispatches one column's copied value to the check its `manifest.ts` classification implies.
- * Classes with no copy-time semantic to check (`plain-integer`, `plain-text`, `reviewed-id` —
- * regardless of growth class) pass unconditionally here — an id column's *value* needs no per-row
- * check, only the identity-reseed step (`manifest.ts`'s `reseedSequenceSql`) and the live capacity
- * proof (`migration-manifest-postgres.test.ts`), neither of which is a per-row concern.
+ * Verifies copy FIDELITY for `plain-text`, `json-text`, and `utc-timestamp-text` — the three classes
+ * this round's no-transform TEXT policy applies to (see `manifest.ts`'s `JSON_TEXT_NOTE` /
+ * `TIMESTAMP_REPRESENTATION`: both dialects store these as TEXT, byte-for-byte, this round, no
+ * conversion of any kind). Exact string equality, not a semantic/structural comparison — no
+ * `JSON.parse` + deep-equal that would tolerate key reordering or whitespace differences — because
+ * the declared contract is "no transform at all", not "no transform that changes meaning". A future
+ * transform (JSON reformatting, timestamp canonicalization to `Z`) must be added here as its own
+ * DECLARED, versioned case this dispatcher is taught about, never as a silent exemption from this
+ * check.
+ *
+ * Exists because a shape-only check (valid JSON, a UTC-designated string) cannot catch a copier bug
+ * that silently substitutes a DIFFERENT but equally well-shaped value — the audited example:
+ * `{"role":"admin"}` copied as `{"role":"member"}` is valid JSON on the destination side and would
+ * pass a shape-only check with no complaint at all.
+ */
+export function verifyExactTextCopy(sqliteValue: unknown, postgresValue: unknown): VerificationFailure | null {
+  if (sqliteValue === postgresValue) return null;
+  return {
+    code: "TEXT_COPY_FIDELITY_MISMATCH",
+    message:
+      `source value ${JSON.stringify(sqliteValue)} does not exactly match the copied value ` +
+      `${JSON.stringify(postgresValue)}. plain-text/json-text/utc-timestamp-text columns have no transform this ` +
+      `round — a byte-for-byte copy is the entire contract, and this pair fails it.`,
+  };
+}
+
+/**
+ * Dispatches one column's copied value to the check(s) its `manifest.ts` classification implies.
+ *
+ * `json-text` and `utc-timestamp-text` run TWO checks, in order: `verifyExactTextCopy` first (does
+ * the copy match the source at all?), then the destination-shape check (is the matched value
+ * well-formed?) — shape alone was the BLOCKER this dispatcher used to ship: it validated only
+ * `postgresValue`, so a copier that silently substituted a different-but-valid value for either kind
+ * passed verification. `plain-text` gets only the fidelity check — it has no shape of its own to
+ * validate beyond matching the source.
+ *
+ * `reviewed-id` and `plain-integer` pass unconditionally, on purpose, NOT as an oversight carried
+ * over from before this fix: their physical-type story (int4-vs-int8 capacity) is proven once,
+ * structurally, by "GATE A" in migration-manifest.test.ts and the live capacity proof in
+ * migration-manifest-postgres.test.ts, not per-row here — and per-row numeric equality for these
+ * would need its own explicit design (e.g. how it should treat a `mode:"number"` bigint column that
+ * has already lost precision past 2^53, see `manifest.ts`'s `PG_BIGINT53_SAFE_INTEGER_CEILING`),
+ * which was not in this round's scope. `boolean-flag` also keeps its own dedicated path
+ * (`verifyBooleanCopy`) unconditionally — it already checks a source/destination pair, just via an
+ * explicit 0/1-to-boolean TRANSFORM rather than exact equality, which is the correct check for a
+ * column whose representation genuinely changes across dialects.
  */
 export function verifyClassifiedValue(columnClass: SemanticColumnClass, sqliteValue: unknown, postgresValue: unknown): VerificationFailure | null {
   switch (columnClass.kind) {
-    case "utc-timestamp-text":
+    case "utc-timestamp-text": {
+      const fidelity = verifyExactTextCopy(sqliteValue, postgresValue);
+      if (fidelity) return fidelity;
       return verifyUtcTimestampText(postgresValue as string | null);
-    case "json-text":
+    }
+    case "json-text": {
+      const fidelity = verifyExactTextCopy(sqliteValue, postgresValue);
+      if (fidelity) return fidelity;
       return verifyJsonText(postgresValue as string | null);
+    }
+    case "plain-text":
+      return verifyExactTextCopy(sqliteValue, postgresValue);
     case "boolean-flag":
       return verifyBooleanCopy(sqliteValue as number, postgresValue as boolean);
     case "reviewed-id":
     case "plain-integer":
-    case "plain-text":
       return null;
   }
 }

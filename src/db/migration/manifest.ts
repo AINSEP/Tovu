@@ -148,6 +148,41 @@ function coreColumnsOf(cfg: ReturnType<typeof getTableConfig>): readonly SQLiteC
  */
 export type IdGrowthClass = "unbounded" | "bounded";
 
+/**
+ * The safe-integer ceiling `PgBigInt53` columns are actually subject to, carried as data for the same
+ * reason `TIMESTAMP_REPRESENTATION` below is: a fact someone must not have to remember from a handoff
+ * document alone.
+ *
+ * `bigint(..., { mode: "number" })` (what every `SQLiteInteger` column generates as — see this
+ * section's own note above and "GATE A" in migration-manifest.test.ts) routes every value through
+ * `Number(value)`. Postgres's `int8` itself can hold up to ~9.2×10^18, but the JS `number` this
+ * manifest's own generated schema chose to read it back as cannot represent every int8 value exactly
+ * past 2^53 — `9007199254740993` round-trips as `...992`.
+ *
+ * The fix is NOT `mode: "bigint"`. Two independent auditors flagged that switching modes would make
+ * Drizzle return a native JS `BigInt` for these columns instead of `number`, which breaks two things
+ * across the API layer, not just here: `JSON.stringify` throws on a `BigInt` with no replacer (every
+ * response serializing one of these ids breaks), and JS refuses mixed `Number`/`BigInt` arithmetic
+ * (`1n + 1` throws `TypeError`) — every existing call site doing arithmetic on one of these ids would
+ * need an audited rewrite. Not attempted this round; `mode: "number"` stays.
+ *
+ * Instead: document the ceiling as an explicit, monitorable invariant. At 1,000,000 ids/sec sustained
+ * — a rate this schema's actual write paths (gated mutations, one row per HTTP-triggered save) are
+ * nowhere near — `2^53 / (1_000_000 * 86_400 * 365)` ≈ 285.6 years. That is not a proof the ceiling can
+ * never matter; a future append-only table fed by a genuinely different growth mechanism (e.g. an
+ * import job replaying an external system's own id space) must be re-evaluated against this constant
+ * explicitly, not assumed safe by association with the tables reviewed here.
+ */
+export const PG_BIGINT53_SAFE_INTEGER_CEILING = {
+  representation: 'bigint(..., { mode: "number" }) — PgBigInt53, routes every read through Number(value)',
+  ceiling: Number.MAX_SAFE_INTEGER, // 2^53 - 1 = 9_007_199_254_740_991
+  yearsToExhaustAt1MPerSecond: Number.MAX_SAFE_INTEGER / (1_000_000 * 86_400 * 365),
+  doNotFixBySwitchingMode:
+    'mode: "bigint" would make Drizzle return a native BigInt instead of number for every one of these columns — ' +
+    "JSON.stringify throws on an un-replaced BigInt, and JS rejects mixed Number/BigInt arithmetic. Both are " +
+    "real breakage across the API layer, confirmed independently by two auditors, not a hypothetical risk.",
+} as const;
+
 export interface AutoIncrementReview {
   readonly growthClass: IdGrowthClass;
   readonly rationale: string;
@@ -188,7 +223,11 @@ export const REVIEWED_INTEGER_ID_COLUMNS: Readonly<Record<string, AutoIncrementR
   },
   "entry_revisions.seq": {
     growthClass: "unbounded",
-    rationale: "append-only entry-revision log — the highest-volume revision table (every entry/post save)",
+    rationale:
+      "append-only entry-revision log — one row per gated entry save, written exclusively by " +
+      "features/entries/repo.sqlite.ts. Posts are a structurally distinct repo (features/post/repo.sqlite.ts) " +
+      "and never write here — corrected 2026-08-12 (audit LOW #12) after a prior version of this rationale " +
+      "claimed posts wrote here too.",
   },
   "taxonomy_revisions.seq": {
     growthClass: "unbounded",
@@ -249,6 +288,45 @@ export const TIMESTAMP_REPRESENTATION = {
     "text column. The ambiguity is invisible until the column is cast to timestamptz, at which point Postgres " +
     "applies the CURRENT SESSION's timezone to any string with no explicit offset — silently reinterpreting the " +
     "identical stored string differently depending on who runs the cast and when.",
+} as const;
+
+/**
+ * A SEPARATE hazard from `TIMESTAMP_REPRESENTATION` above, carried as its own invariant because the
+ * two have different triggers and different fixes: that constant is about a naive-local string being
+ * ambiguous once cast to `timestamptz`; this one is about two forms `verifyUtcTimestampText` BOTH
+ * treat as fully valid — a trailing `Z` and an explicit `+HH:MM`/`-HH:MM` offset — sorting WRONG
+ * against each other under plain string collation, even though neither is ambiguous on its own.
+ *
+ * `"...T10:00:00-05:00"` (15:00 UTC) sorts BEFORE `"...T12:00:00Z"` (12:00 UTC) under byte/string
+ * comparison, because collation compares characters left-to-right with no awareness that `-05:00`
+ * shifts the instant later — it only sees the digit `1` at the hour position of one string beating the
+ * digit `1`...`2` at the same position of the other. Confirmed live in
+ * migration-manifest-postgres.test.ts: a real `ORDER BY` on a Postgres `text` column disagrees with
+ * `ORDER BY ...::timestamptz` on the identical two rows.
+ *
+ * This app sorts these columns by plain string collation at multiple call sites — confirmed at
+ * `features/entries/repo.sqlite.ts`'s `.orderBy(... entries.updatedAt)` or `desc(entries.updatedAt)`,
+ * and other `.orderBy()`/raw `ORDER BY` calls over `*_at` text columns follow the same pattern — none
+ * of which cast to `timestamptz` first.
+ *
+ * NOT broken today: the app writes only `toISOString()` (always `Z`), and a live scan of
+ * `infra/content.db` found zero non-`Z` text timestamps in any `schema.ts`-declared table — see this
+ * manifest's own 2026-08-12 audit. `verifyUtcTimestampText` deliberately keeps accepting BOTH forms
+ * (both are valid UTC-designated instants; rejecting the offset form would be a false rejection, not a
+ * fix for this). The obligation this invariant records is forward-looking: any importer capable of
+ * introducing the offset form — a WordPress import is exactly such a path — MUST normalize to
+ * canonical `Z` before insert, because passing `verifyUtcTimestampText` proves the value is a valid
+ * instant, not that it will sort correctly next to the `Z`-form values already present.
+ */
+export const TIMESTAMP_ORDERING_REQUIRES_CANONICAL_Z = {
+  hazard:
+    'a UTC-offset form ("+HH:MM"/"-HH:MM") and the "Z" form both pass verifyUtcTimestampText as equally valid, ' +
+    "but they do not sort consistently against each other under the plain string collation this app's " +
+    "ORDER BY / .orderBy() calls use on these text columns.",
+  currentState: "not broken today — the app writes only toISOString() (always Z); zero non-Z values found live.",
+  requirement:
+    "any importer or migration path capable of introducing the offset form must normalize to canonical Z before " +
+    "insert. verifyUtcTimestampText accepting the offset form is not a substitute for that normalization.",
 } as const;
 
 /** Matches this schema's timestamp naming convention: `*_at`, or the bare column literally named
@@ -404,18 +482,196 @@ export function collectIdentityColumns(): IdentityColumn[] {
  * Postgres's identity sequence is still at its default starting position and the first ordinary
  * insert collides with (or silently duplicates ahead of) an id the copy already placed.
  *
- * The empty-table case is handled correctly by the 3-argument form of `setval`:
- * `is_called = false` when the table is empty makes the NEXT `nextval()` return `1`, not `2` —
- * proven live in migration-manifest-postgres.test.ts, including that exact edge case.
+ * Three cases, all proven live in migration-manifest-postgres.test.ts:
+ * - Empty table: next `nextval()` must return `1`.
+ * - `max(id) >= 1`: next `nextval()` must return `max(id) + 1` (the ordinary case).
+ * - `max(id) < 1` (SQLite's `INTEGER PRIMARY KEY AUTOINCREMENT` accepts `0` and negative ids, unlike
+ *   Postgres's default sequence, whose minimum value is `1`): next `nextval()` must STILL return `1`,
+ *   the same as the empty-table case — NOT `max(id) + 1` (which `setval` would reject outright, since
+ *   a value below the sequence's minimum is out of bounds) and NOT `2` (a fixed value that would be
+ *   wrong for a table that, coincidentally, also has no positive ids yet needs headroom above 1).
+ *   Copied rows keep their original non-positive ids untouched either way — only the sequence's
+ *   future-allocation position changes, never a stored value.
+ *
+ * All three cases reduce to one `setval` call: `is_called` is true (allocate strictly above the
+ * value passed) only when a real max exists and it is >= 1; otherwise the value passed is `1` and
+ * `is_called` is false, so the 3-argument form's `is_called = false` semantics make the NEXT
+ * `nextval()` return exactly that `1`, not `2` — the same mechanism the empty-table case already
+ * relied on before this function handled non-positive ids too.
  */
 export function reseedSequenceSql(sqlTableName: string, sqlColumnName: string): string {
   assertIdentifierFits(sqlTableName, `table name`);
   assertIdentifierFits(sqlColumnName, `column name`);
   const maxExpr = `(SELECT max(${sqlColumnName}) FROM ${sqlTableName})`;
+  // NULL (empty table) and any non-positive max both collapse to 0 here, so both take the same
+  // "start fresh at 1" path below — the sequence's minimum value is 1, so nothing lower is a legal
+  // setval() target regardless of which of those two cases produced it.
+  const effectiveMaxExpr = `COALESCE(${maxExpr}, 0)`;
   return (
     `SELECT setval(pg_get_serial_sequence('${sqlTableName}', '${sqlColumnName}'), ` +
-    `COALESCE(${maxExpr}, 1), ${maxExpr} IS NOT NULL);`
+    `GREATEST(${effectiveMaxExpr}, 1), ${effectiveMaxExpr} >= 1);`
   );
+}
+
+/**
+ * The exact clause an INSERT-based bulk copier must add before any INSERT that names an explicit
+ * value for a `generatedAlwaysAsIdentity` column (every column `collectIdentityColumns()` returns) —
+ * without it, Postgres rejects the INSERT outright: `cannot insert a non-DEFAULT value into column
+ * "id" ... Column "id" is an identity column defined as GENERATED ALWAYS`. Live-verified in
+ * migration-manifest-postgres.test.ts.
+ *
+ * SCOPED TO INSERT-BASED COPIERS ONLY — this is the load-bearing half of this constant, not a
+ * footnote. `COPY <table> (id, ...) FROM STDIN` needs NO override syntax at all: `COPY` has no
+ * `OVERRIDING SYSTEM VALUE` clause to offer, and none is needed — it writes explicit identity-column
+ * values without complaint, live-verified in the same test file. A copier built around `COPY` (the
+ * textbook choice for a one-time bulk migration, and the more likely one) that "helpfully" prepends
+ * this clause to a COPY statement gets a syntax error, not a safety improvement. Both paths are
+ * proven side by side specifically so this asymmetry cannot be rediscovered the hard way by whoever
+ * writes the actual copier.
+ */
+export const IDENTITY_COLUMN_INSERT_OVERRIDE = "OVERRIDING SYSTEM VALUE" as const;
+
+// ---------------------------------------------------------------------------
+// 4b. Copy ordering — a topological order derived from the FK graph, so a copier does not have to
+// invent one
+// ---------------------------------------------------------------------------
+
+export interface ForeignKeyEdge {
+  /** The table that DECLARES the foreign key (must be copied AFTER `toExportName`). */
+  readonly fromExportName: string;
+  readonly fromSqlTableName: string;
+  /** The table the foreign key POINTS AT (must be copied BEFORE `fromExportName`). */
+  readonly toExportName: string;
+  readonly toSqlTableName: string;
+  /** `true` when a table's own foreign key targets itself (a parent/child hierarchy stored in one
+   * table). See `topologicalTableCopyOrder`'s doc for why this is excluded from the returned order
+   * rather than resolved by it. */
+  readonly selfReferencing: boolean;
+}
+
+/**
+ * Every foreign key in the core schema, as an edge from the table declaring it to the table it
+ * targets — the same `getTableConfig().foreignKeys` / `.reference()` introspection
+ * `generate-postgres-schema.ts` already uses for the identical purpose (deliberately reimplemented,
+ * not imported — see this file's module doc on why product code and the `development/scripts/`
+ * generator stay decoupled).
+ */
+export function collectForeignKeyEdges(): ForeignKeyEdge[] {
+  const tables = collectCoreTables();
+  const exportNameByTable = new Map<object, string>(tables.map(({ exportName, table }) => [table as object, exportName]));
+  const edges: ForeignKeyEdge[] = [];
+  for (const { exportName, table } of tables) {
+    const cfg = getTableConfig(table);
+    for (const fk of cfg.foreignKeys) {
+      const ref = (fk as unknown as { reference: () => { foreignTable: object } }).reference();
+      const toExportName = exportNameByTable.get(ref.foreignTable);
+      if (!toExportName) {
+        throw new Error(
+          `foreign key on "${exportName}" targets a table that is not exported from schema.ts. A copy order ` +
+            `cannot be derived without every foreign-key target being a known, exported table.`
+        );
+      }
+      edges.push({
+        fromExportName: exportName,
+        fromSqlTableName: cfg.name,
+        toExportName,
+        toSqlTableName: getTableConfig(ref.foreignTable as never).name,
+        selfReferencing: toExportName === exportName,
+      });
+    }
+  }
+  return edges;
+}
+
+/** Thrown by `topologicalTableCopyOrder` when the FK graph (excluding self-referencing edges) has a
+ * cycle across two or more DIFFERENT tables — no single copy order can then satisfy every constraint,
+ * and a copier must break the cycle explicitly (e.g. a deferred/dropped-and-revalidated constraint on
+ * one edge of it) rather than have this function guess which edge to ignore. */
+export class TableCopyOrderCycleError extends Error {
+  constructor(readonly stuckExportNames: readonly string[]) {
+    super(
+      `foreign-key graph has a cycle across tables ${stuckExportNames.join(", ")} — no single copy order can ` +
+        `satisfy every constraint. This is a schema fact a copier must resolve explicitly, not something this ` +
+        `function can order its way out of.`
+    );
+    this.name = "TableCopyOrderCycleError";
+  }
+}
+
+/**
+ * Kahn's-algorithm topological sort over an FK graph: table A is ordered before table B whenever B
+ * declares a foreign key pointing at A ("referenced tables first"). Pure and synchronous over its
+ * inputs — no import-time computation, no module-level constant — so a genuine cycle in the real
+ * schema throws only for whichever caller (a test, a future copier) actually asks for the order, not
+ * for every consumer of this module the moment it is imported. `computeCoreTableCopyOrder()` below is
+ * the schema-derived convenience wrapper; this function is kept separately exported and testable
+ * against synthetic edges so a cycle can be proven to throw without needing schema.ts to contain one.
+ *
+ * Self-referencing edges (`edge.selfReferencing`) are excluded from the ordering graph — a table
+ * cannot be sequenced "before itself" — but that exclusion does NOT mean a self-referencing table
+ * needs no special handling. It still appears exactly once in the returned order, and this function
+ * says nothing about the ROW order WITHIN that one table's own copy: a copier must still insert that
+ * table's rows in an order that satisfies its own FK (typically: parents before children, e.g. by
+ * sorting on the referenced column), or defer/drop-and-revalidate just that one constraint for the
+ * duration of that table's copy. That per-table obligation is real and is not discharged by this
+ * function returning a table-level order at all.
+ */
+export function topologicalTableCopyOrder(allExportNames: readonly string[], edges: readonly ForeignKeyEdge[]): string[] {
+  const dependents = new Map<string, Set<string>>(); // referenced table -> tables that depend on it
+  const inDegree = new Map<string, number>(allExportNames.map((name) => [name, 0]));
+  for (const edge of edges) {
+    if (edge.selfReferencing) continue;
+    if (!inDegree.has(edge.fromExportName) || !inDegree.has(edge.toExportName)) {
+      throw new Error(
+        `edge references "${edge.fromExportName}" -> "${edge.toExportName}", but allExportNames does not list ` +
+          `both — topologicalTableCopyOrder() requires every edge endpoint to be one of the named tables.`
+      );
+    }
+    let targets = dependents.get(edge.toExportName);
+    if (!targets) {
+      targets = new Set();
+      dependents.set(edge.toExportName, targets);
+    }
+    if (!targets.has(edge.fromExportName)) {
+      targets.add(edge.fromExportName);
+      inDegree.set(edge.fromExportName, (inDegree.get(edge.fromExportName) ?? 0) + 1);
+    }
+  }
+
+  const ready = [...allExportNames].filter((name) => inDegree.get(name) === 0).sort();
+  const order: string[] = [];
+  const remaining = new Map(inDegree);
+  while (ready.length) {
+    const next = ready.shift()!; // already sorted; shifting keeps output deterministic
+    order.push(next);
+    for (const dependent of dependents.get(next) ?? []) {
+      const updated = (remaining.get(dependent) ?? 0) - 1;
+      remaining.set(dependent, updated);
+      if (updated === 0) {
+        // Re-sort on insert rather than sorting once at the end: keeps the "process alphabetically
+        // among currently-ready tables" tie-break correct at every step, not just among the initial
+        // zero-in-degree set.
+        const insertAt = ready.findIndex((n) => n > dependent);
+        if (insertAt === -1) ready.push(dependent);
+        else ready.splice(insertAt, 0, dependent);
+      }
+    }
+  }
+
+  if (order.length !== allExportNames.length) {
+    const stuck = allExportNames.filter((name) => !order.includes(name));
+    throw new TableCopyOrderCycleError(stuck);
+  }
+  return order;
+}
+
+/** Convenience wrapper: the real core schema's tables, in an order safe for an INSERT/COPY-based
+ * bulk copier to walk (referenced tables first). A function, not a module-level constant — see
+ * `topologicalTableCopyOrder`'s doc for why a real cycle must fail only the caller that asks for this,
+ * never every importer of this module. */
+export function computeCoreTableCopyOrder(): string[] {
+  const allExportNames = collectCoreTables().map(({ exportName }) => exportName);
+  return topologicalTableCopyOrder(allExportNames, collectForeignKeyEdges());
 }
 
 // ---------------------------------------------------------------------------
@@ -487,7 +743,7 @@ export function classifyPluginColumn(decl: ColumnDecl): PluginSemanticColumnClas
 
 export interface DerivedObject {
   readonly name: string;
-  readonly kind: "fts5-virtual-table";
+  readonly kind: "fts5-virtual-table" | "fts5-content-table";
   readonly sourceOfTruth: string;
   readonly copyPolicy: "never-copy-rows";
   readonly rebuildStrategy: string;
@@ -498,16 +754,43 @@ export interface DerivedObject {
  * rebuild step for afterward — copying their rows across dialects is either meaningless (a
  * different index structure entirely) or actively dangerous (silently perpetuating a stale index
  * that looks present but was never built the Postgres way).
+ *
+ * TWO objects here, not one, and the split matters — see `src/db/drizzle/0022_posts_fts_search_index.sql`'s
+ * own doc for the full account. `post_search_fts` is the FTS5 virtual table itself, but it does not
+ * index `posts` directly: `post_search_document` is an intermediate ORDINARY table (real rows:
+ * `post_id`, `title`, `slug`, `body_text`) that the FTS5 index runs in external-content mode against.
+ * Both are raw-SQL objects with no `sqliteTable` declaration, so both are equally invisible to
+ * `generate-postgres-schema.ts` and to this manifest's own classifier — omitting either one from this
+ * list would silently understate what a migration runner has to account for.
  */
 export const DERIVED_OBJECTS: readonly DerivedObject[] = [
   {
-    name: "post_search_fts",
-    kind: "fts5-virtual-table",
-    sourceOfTruth: "posts (title + body_json/body_html)",
+    name: "post_search_document",
+    kind: "fts5-content-table",
+    sourceOfTruth: "posts (title, slug, body_json) via features/post/search.ts's extractPostPlainText()",
     copyPolicy: "never-copy-rows",
     rebuildStrategy:
-      "Rebuild via Postgres tsvector + GIN from canonical post data after the row copy completes. It is a raw-SQL " +
-      "SQLite virtual table (drizzle/0022_posts_fts_search_index.sql) with three sync triggers, not a `sqliteTable` " +
+      "An ORDINARY table, not a virtual one — but still fully derived, not authored: every row is a " +
+      "TypeScript-computed projection of the matching posts row (extractPostPlainText() walks body_json's " +
+      "TipTap/ProseMirror node tree; that walk is not expressible in SQL, see " +
+      "src/db/drizzle/0022_posts_fts_search_index.sql's own doc). Copying its rows would also carry over a " +
+      "SQLite-specific coupling that has no Postgres equivalent: the FTS5 index syncs via " +
+      "`content_rowid='rowid'`, SQLite's own implicit rowid, which Postgres has no matching concept of. " +
+      "Rebuild by re-running extractPostPlainText() against the already-copied `posts` rows — the same " +
+      "single path that produces this table's contents today — never by copying this table's own rows.",
+  },
+  {
+    name: "post_search_fts",
+    kind: "fts5-virtual-table",
+    sourceOfTruth: "post_search_document (FTS5 external-content index, content='post_search_document')",
+    copyPolicy: "never-copy-rows",
+    rebuildStrategy:
+      "Rebuild via Postgres tsvector + GIN from canonical post data after the row copy completes — NOT a single " +
+      "SQL projection straight off posts: the real chain is posts.body_json -> (TypeScript) " +
+      "extractPostPlainText() -> post_search_document (see that object's own entry above) -> three AFTER " +
+      "INSERT/UPDATE/DELETE triggers (post_search_document_ai/ad/au) keeping this FTS5 index incrementally in " +
+      "sync, none of which have any Drizzle representation. It is a raw-SQL SQLite virtual table " +
+      "(src/db/drizzle/0022_posts_fts_search_index.sql) with three sync triggers, not a `sqliteTable` " +
       "declaration — invisible to schema generation by construction (see generate-postgres-schema.ts's own doc) " +
       "and to this manifest's classifier for the same reason. Matches the handoff's endorsed roadmap item #5: " +
       "'Add Postgres search last, rebuilt from canonical post data, never copied.'",
