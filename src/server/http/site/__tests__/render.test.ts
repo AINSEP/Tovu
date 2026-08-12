@@ -76,6 +76,16 @@ test("C7: link composes with an emphasis mark on the same text", () => {
   assert.equal(html, '<p><a href="/x"><strong>here</strong></a></p>');
 });
 
+test("renderDocNode: subscript and superscript marks render (Posts toolbar, 2026-08-11)", () => {
+  const html = renderDocNode(
+    textDoc(
+      { type: "text", text: "2", marks: [{ type: "subscript" }] },
+      { type: "text", text: "2", marks: [{ type: "superscript" }] }
+    )
+  );
+  assert.equal(html, "<p><sub>2</sub><sup>2</sup></p>");
+});
+
 test("renderDocNode: hardBreak renders <br/> (Shift-Enter, 2026-08-11) — before this case existed, an unrecognized hardBreak fell through to `default`'s `renderNodes(content, ...)`, and since a leaf node's `content` is always undefined, that resolved to \"\": the line break silently vanished on the public site with no error", () => {
   const html = renderDocNode(
     textDoc({ type: "text", text: "line one" }, { type: "hardBreak" }, { type: "text", text: "line two" })

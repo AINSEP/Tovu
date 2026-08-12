@@ -56,6 +56,8 @@ function Toolbar({ editor }: { editor: Editor }) {
       strike: editor?.isActive("strike") ?? false,
       underline: editor?.isActive("underline") ?? false,
       highlight: editor?.isActive("highlight") ?? false,
+      subscript: editor?.isActive("subscript") ?? false,
+      superscript: editor?.isActive("superscript") ?? false,
       code: editor?.isActive("code") ?? false,
       link: editor?.isActive("link") ?? false,
       h1: editor?.isActive("heading", { level: 1 }) ?? false,
@@ -84,6 +86,8 @@ function Toolbar({ editor }: { editor: Editor }) {
         <button className={toolbarBtnClass(s.strike)} title="Strikethrough" aria-pressed={s.strike} onClick={() => chain().toggleStrike().run()}><s>S</s></button>
         <button className={toolbarBtnClass(s.underline)} title="Underline (⌘U)" aria-pressed={s.underline} onClick={() => chain().toggleUnderline().run()}><u>U</u></button>
         <button className={toolbarBtnClass(s.highlight)} title="Highlight" aria-pressed={s.highlight} onClick={() => chain().toggleHighlight().run()}><mark>H</mark></button>
+        <button className={toolbarBtnClass(s.subscript)} title="Subscript" aria-pressed={s.subscript} onClick={() => chain().toggleSubscript().run()}>X₂</button>
+        <button className={toolbarBtnClass(s.superscript)} title="Superscript" aria-pressed={s.superscript} onClick={() => chain().toggleSuperscript().run()}>X²</button>
         <button className={toolbarBtnClass(s.code)} title="Inline code" aria-pressed={s.code} onClick={() => chain().toggleCode().run()}>&lt;/&gt;</button>
         {/* Link (2026-08-11) — a prompt-based toggle, same "simplest thing that works" idiom as
             "Insert image by URL" just below rather than a dedicated dialog: a click while the

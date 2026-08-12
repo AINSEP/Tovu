@@ -3,6 +3,8 @@ import { useEditor, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import TextAlign from "@tiptap/extension-text-align";
 import Highlight from "@tiptap/extension-highlight";
+import Subscript from "@tiptap/extension-subscript";
+import Superscript from "@tiptap/extension-superscript";
 
 import type { AdminPost, ThemeTier } from "../../../lib/api";
 import { MediaImage } from "../../../lib/media-image-extension";
@@ -205,6 +207,8 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
       // (pasted content, a future richer picker) round-trips instead of being schema-rejected. See
       // `render.ts`'s `"highlight"` mark case for the public-render half.
       Highlight.configure({ multicolor: true }),
+      Subscript,
+      Superscript,
       MediaImage,
       WidgetEmbed,
     ],

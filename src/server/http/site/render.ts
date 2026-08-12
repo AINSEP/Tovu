@@ -180,6 +180,8 @@ function renderMarks(text: string, marks: JsonValue[] | undefined): string {
     else if (type === "code") html = `<code>${html}</code>`;
     else if (type === "underline") html = `<u>${html}</u>`;
     else if (type === "strike") html = `<s>${html}</s>`;
+    else if (type === "subscript") html = `<sub>${html}</sub>`;
+    else if (type === "superscript") html = `<sup>${html}</sup>`;
     else if (type === "highlight") {
       // `@tiptap/extension-highlight`, `multicolor: true` (2026-08-11) — the admin toolbar button is
       // a plain toggle (no color picker), so `attrs.color` is normally absent and this renders a bare
