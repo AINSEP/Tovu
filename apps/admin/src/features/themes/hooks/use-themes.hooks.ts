@@ -5,6 +5,7 @@ import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { t as translateThemes } from "../themes-i18n";
 import { defaultThemesPort } from "./themes-dependencies.hooks";
 import type { ThemesPort } from "./themes-port.hooks";
+import type { Translate } from "../../../lib/dictionary-translator";
 
 /**
  * @file Everything the Themes screen does, so `Themes.tsx` is only markup.
@@ -27,7 +28,7 @@ import type { ThemesPort } from "./themes-port.hooks";
 
 export interface ThemesDependencies {
   port: ThemesPort;
-  t: (key: string) => string;
+  t: Translate;
 }
 
 export interface ThemesController {
@@ -74,7 +75,7 @@ export interface ThemesController {
   downloading?: string | null;
   download?: (themeId: string) => Promise<void>;
   /** Bound translator — `Themes.tsx`'s only source of UI copy; see this file's own header. */
-  t: (key: string) => string;
+  t: Translate;
 }
 
 export interface MarketplaceItem {

@@ -6,6 +6,7 @@ import { siteUrl } from "../../lib/site-url";
 import { navigate } from "../../lib/router";
 import { TabBar, type TabBarTab } from "../../components/TabBar";
 import { ImagePreviewModal } from "../../components/ImagePreviewModal";
+import type { Translate } from "../../lib/dictionary-translator";
 import { useWiredThemes, type ThemesController, type MarketplaceItem } from "./hooks/use-themes.hooks";
 import {
   isActiveTheme,
@@ -38,7 +39,7 @@ const MARKETPLACE_TAB_ID = "marketplace";
  *  (same pattern as the "Marketplace (soon)" label right next to it) so these translate instead of
  *  always rendering the raw English capitalization — the capitalized form is also the dictionary
  *  key, so an untranslated locale still falls back to the correct English label. */
-function tabGroupLabel(t: (key: string) => string, group: ThemeTabGroup): string {
+function tabGroupLabel(t: Translate, group: ThemeTabGroup): string {
   return t(group.charAt(0).toUpperCase() + group.slice(1));
 }
 
@@ -128,7 +129,7 @@ function withThemeDefaults(controller: ThemesController) {
  *  placeholder. Extracted to a top-level function (complexity-ceiling pass) so the marketplace tab's
  *  `||` fallback scores independently of `Themes`'s own complexity. */
 function buildThemeTabs(
-  t: (key: string) => string,
+  t: Translate,
   grouped: Record<ThemeTabGroup, string[]>,
   marketplace: MarketplaceItem[],
 ): TabBarTab[] {
@@ -184,7 +185,7 @@ function ThemesBanners({
   error: string | null;
   settings: PresentationSettings;
   themes: string[];
-  t: (key: string) => string;
+  t: Translate;
 }) {
   return (
     <>
@@ -214,7 +215,7 @@ function MarketplaceGrid({
   marketplace: MarketplaceItem[];
   downloading: string | null;
   download: ((themeId: string) => Promise<void>) | undefined;
-  t: (key: string) => string;
+  t: Translate;
 }) {
   if (marketplaceLoading) {
     return <div className="notice">{t("Loading the marketplace…")}</div>;
@@ -269,7 +270,7 @@ function ThemeGrid({
   settings: PresentationSettings;
   busyTheme: string | null;
   activate: (themeId: string) => Promise<void>;
-  t: (key: string) => string;
+  t: Translate;
 }) {
   if (visibleThemes.length === 0) {
     return (
