@@ -189,12 +189,43 @@ function basenameOf(path: string): string {
   return path.slice(path.lastIndexOf("/") + 1);
 }
 
+/**
+ * Whether `path` names a Liquid template file — case-insensitive, matching every other extension
+ * check in this file's server counterpart (`explore.ts`'s `isTextReadable`/`isAssetExtension`).
+ *
+ * @complexity O(1).
+ */
+function isLiquidTemplatePath(path: string): boolean {
+  return path.toLowerCase().endsWith(".liquid");
+}
+
+/**
+ * Owner-reported bug (2026-08-12): clicking a `.liquid` template in Explore downloaded it instead of
+ * previewing it. The server's theme-detail listing route (`explore.ts`'s
+ * `TEXT_READABLE_EXTENSIONS`) predates `.liquid` templates being explorable at all, so every
+ * templated-tier `.liquid` file arrives here with `readable: false` — which sends
+ * `ThemeExplore.tsx`'s `previewSrcFor` down its "not readable" branch, pointing an `<iframe>`
+ * straight at the raw `/theme-assets/{theme}/{path}` URL. `express.static` serves `.liquid` as
+ * `application/octet-stream` (a deliberate, security-reviewed choice — see
+ * `theme-static-assets.ts`'s own doc comment; not something this fix touches or should touch), so
+ * the browser downloads that URL instead of rendering anything inside the frame.
+ *
+ * Corrected HERE, client-side, rather than in `explore.ts`'s own allowlist: the GET-file route
+ * (`readThemeFile`, `theme-files.ts`) already returns ANY file's content as UTF-8 text
+ * unconditionally, gated on nothing but path containment — only the LISTING route's classification
+ * was stale, so `.liquid` source was always one JSON round trip away. `editable` is deliberately
+ * left untouched: the server's PUT route still refuses to write a `.liquid` file
+ * (`isThemeFileWritable`'s same extension gate), so this stays a read-only SOURCE preview, not a new
+ * edit surface — matching how `script`/`other`-group files are already readable-but-not-editable.
+ *
+ * @complexity O(n) in `entries.length` — one pass, each file mapped independently.
+ */
 function mapDetailFiles(entries: ThemeExploreFileEntry[]): ThemeExploreFile[] {
   return entries.map((f) => ({
     path: f.path,
     label: fileLabel(f.path, f.group),
     kind: f.group,
-    readable: f.readable,
+    readable: f.readable || isLiquidTemplatePath(f.path),
     editable: f.editable,
     resettable: f.resettable,
   }));
