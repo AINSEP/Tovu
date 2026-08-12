@@ -1,4 +1,4 @@
-import { and, eq, isNull, lt, or, sql } from "drizzle-orm";
+import { and, asc, eq, isNull, lt, or, sql } from "drizzle-orm";
 
 import {
   commerceOrderItems,
@@ -81,6 +81,26 @@ export class SqliteCommerceProductRepo implements CommerceProductRepoPort {
       [eq(commerceProducts.workspaceId, required.workspaceId), eq(commerceProducts.slug, required.slug)],
       toCommerceProductRecord
     );
+  }
+
+  /**
+   * Powers the public storefront grid — `status: "active"` only, so an archived product never
+   * appears to a visitor even though the row still exists for historical orders to reference.
+   *
+   * @complexity Time: O(min(limit, 100)) rows scanned via `idx_...` — no covering index exists
+   * for `(workspaceId, status, name)` yet; adequate for this slice's catalog sizes, flagged rather
+   * than silently assumed to scale.
+   */
+  async listActive(required: { workspaceId: string; limit?: number }): Promise<CommerceProductRecord[]> {
+    const limit = Math.min(required.limit ?? 100, 100);
+    const rows = this.db
+      .select()
+      .from(commerceProducts)
+      .where(and(eq(commerceProducts.workspaceId, required.workspaceId), eq(commerceProducts.status, "active")))
+      .orderBy(asc(commerceProducts.name))
+      .limit(limit)
+      .all();
+    return rows.map(toCommerceProductRecord);
   }
 
   async save(record: CommerceProductRecord): Promise<void> {

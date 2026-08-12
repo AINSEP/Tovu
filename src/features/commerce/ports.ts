@@ -21,6 +21,9 @@ import type {
 export interface CommerceProductRepoPort {
   findById(required: { workspaceId: string; id: string }): Promise<CommerceProductRecord | null>;
   findBySlug(required: { workspaceId: string; slug: string }): Promise<CommerceProductRecord | null>;
+  /** `status: "active"` products only, ordered by name. Capped at 100 regardless of `limit` — see
+   * `list()`'s implementation doc for why an uncapped storefront-facing catalog query is unsafe. */
+  listActive(required: { workspaceId: string; limit?: number }): Promise<CommerceProductRecord[]>;
   save(record: CommerceProductRecord): Promise<void>;
 }
 
