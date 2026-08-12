@@ -12,10 +12,22 @@
  */
 import { spawnSync } from "node:child_process";
 
-/** Matches the fixture Postgres this repo's dispatch brief describes: Homebrew Postgres 14 listening
- * on the Unix socket in `/tmp`, role `la`, no password (peer/trust auth on the socket). */
-const PG_HOST = "/tmp";
-const PG_USER = "la";
+/** Defaults match the fixture Postgres this repo's dispatch brief describes: Homebrew Postgres 14
+ * listening on the Unix socket in `/tmp`, role `la`, no password (peer/trust auth on the socket).
+ * `PGHOST`/`PGPORT`/`PGUSER` (standard libpq env var names) override these defaults so CI can point
+ * this at a TCP service container instead of a developer's local socket. When unset, behavior is
+ * byte-for-byte identical to before this file read the environment — every local dev run is
+ * unaffected. `PGPASSWORD`, if set, needs no code here: `spawnSync` inherits the parent process's
+ * environment by default, and `psql` itself already honors `PGPASSWORD` natively.
+ *
+ * Deliberately NOT overridable via env: `ADMIN_DATABASE` below stays a hardcoded `"postgres"` so a
+ * stray or misconfigured env var can never redirect the *admin* connection target. Only the *server*
+ * address (host/port/user) is configurable here — never which database on that server gets dropped by
+ * `recreateDatabase()`/`dropDatabase()` (that's always the caller-supplied `database` argument, e.g.
+ * the distinctively-named `tovu_migration_fixture`, not this constant). */
+const PG_HOST = process.env.PGHOST ?? "/tmp";
+const PG_USER = process.env.PGUSER ?? "la";
+const PG_PORT = process.env.PGPORT;
 const ADMIN_DATABASE = "postgres";
 
 export interface PsqlResult {
@@ -34,9 +46,11 @@ export function psql(database: string, sql: string): PsqlResult {
   // `-q` (quiet) suppresses command-completion tags ("INSERT 0 1", "CREATE TABLE", …) that would
   // otherwise interleave with `-t -A`'s unaligned tuple output and corrupt a caller's parse of the
   // actual returned value(s).
-  const result = spawnSync("psql", ["-h", PG_HOST, "-U", PG_USER, "-d", database, "-v", "ON_ERROR_STOP=1", "-q", "-t", "-A", "-c", sql], {
-    encoding: "utf8",
-  });
+  const result = spawnSync(
+    "psql",
+    ["-h", PG_HOST, "-U", PG_USER, ...(PG_PORT ? ["-p", PG_PORT] : []), "-d", database, "-v", "ON_ERROR_STOP=1", "-q", "-t", "-A", "-c", sql],
+    { encoding: "utf8" }
+  );
   if (result.error) {
     throw new Error(
       `psql could not be run (${result.error.message}). This test suite requires a local psql binary on PATH ` +
