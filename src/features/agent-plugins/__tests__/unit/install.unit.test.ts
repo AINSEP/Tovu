@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { chmod, mkdtemp, readdir, readFile, rm, stat } from "node:fs/promises";
+import { mkdtemp, readdir, readFile, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
+import { forceRemove } from "../fixtures/force-remove";
 import { resolveAgentPluginLayout } from "../../layout";
 import {
   AgentPluginInstallError,
@@ -21,14 +22,19 @@ import {
  * class rather than invented: symlink-entry escape and lexical zip-slip are the two independent
  * zip-slip vectors (Snyk's zip-slip research, JFrog's `archiver` writeup); the decompression-bomb
  * and entry-count caps guard the "declared size lies" and "million small files" variants of the same
- * resource-exhaustion class.
+ * resource-exhaustion class. A dedicated cross-workspace isolation test proves the tenant-grade
+ * layout decision (`layout.ts`'s header, 2026-08-12) end to end at the install level, not only at
+ * the pure path-computation level `layout.unit.test.ts` already covers.
  *
  * The archive format itself is abstracted behind `AgentPluginArchiveReaderPort` (this repo's own
  * port+adapter discipline — `mcp-federation/ports.ts`'s `McpSessionPort`/`McpStdioChannel` split is
  * the precedent) so these tests drive real extraction/containment/limit logic with a scripted
- * in-memory archive and no zip/tar library dependency. See `install.ts`'s header for why a REAL
- * archive-reader adapter (wrapping an actual zip/tar library) is explicitly out of this slice.
+ * in-memory archive. The identical adversarial suite is re-run against the REAL `yauzl`-backed
+ * reader in `yauzl-archive-reader.unit.test.ts` — per the team directive, that file is the
+ * acceptance criteria for the real archive library, not a duplicate of this one.
  */
+
+const WORKSPACE_ID = "11111111-1111-4111-8111-111111111111";
 
 function reader(entries: readonly AgentPluginArchiveEntry[]): AgentPluginArchiveReaderPort {
   return {
@@ -67,30 +73,7 @@ function validPackageEntries(): AgentPluginArchiveEntry[] {
 
 async function freshLayout() {
   const cwd = await mkdtemp(path.join(tmpdir(), "tovu-agent-plugin-install-test-"));
-  return { cwd, layout: resolveAgentPluginLayout({ cwd, env: {} }) };
-}
-
-/** Test-only cleanup: a successful install deliberately freezes its published package root
- * read-only (`install.ts`'s `freezeTree`), so a plain recursive `rm` on the enclosing temp dir fails
- * EACCES trying to unlink/rmdir inside it — that failure is proof the freeze worked, not a bug.
- * Restores write permission everywhere under `root` first, then removes it. */
-async function forceRemove(root: string): Promise<void> {
-  async function makeWritable(dir: string): Promise<void> {
-    let entries;
-    try {
-      entries = await readdir(dir, { withFileTypes: true });
-    } catch {
-      return;
-    }
-    await chmod(dir, 0o700).catch(() => undefined);
-    for (const entry of entries) {
-      const absolute = path.join(dir, entry.name);
-      if (entry.isDirectory()) await makeWritable(absolute);
-      else await chmod(absolute, 0o600).catch(() => undefined);
-    }
-  }
-  await makeWritable(root);
-  await rm(root, { recursive: true, force: true });
+  return { cwd, layout: resolveAgentPluginLayout({ cwd, env: {} }).forWorkspace(WORKSPACE_ID) };
 }
 
 test("installs a valid package and indexes its skills", async () => {
@@ -403,6 +386,44 @@ test("a published package root is frozen read-only", async () => {
 
     const rootMode = (await stat(installed.packageRoot)).mode & 0o777;
     assert.equal(rootMode, 0o555, "package root must carry no write bit after publication");
+  } finally {
+    await forceRemove(cwd);
+  }
+});
+
+test("TENANT-GRADE: two workspaces installing the identical archive extract INDEPENDENTLY -- no sharing", async () => {
+  const cwd = await mkdtemp(path.join(tmpdir(), "tovu-agent-plugin-install-test-"));
+  try {
+    const instanceLayout = resolveAgentPluginLayout({ cwd, env: {} });
+    const workspaceA = instanceLayout.forWorkspace("11111111-1111-4111-8111-111111111111");
+    const workspaceB = instanceLayout.forWorkspace("22222222-2222-4222-8222-222222222222");
+
+    const archive = new Uint8Array(Buffer.from("archive-bytes-shared-by-two-workspaces"));
+    const digest = createHash("sha256").update(archive).digest("hex");
+
+    let extractCount = 0;
+    const countingReader: AgentPluginArchiveReaderPort = {
+      async *entries() {
+        extractCount += 1;
+        yield* validPackageEntries();
+      },
+    };
+
+    const installedA = await installAgentPlugin({ archive, expectedSha256: digest, archiveReader: countingReader, layout: workspaceA });
+    const installedB = await installAgentPlugin({ archive, expectedSha256: digest, archiveReader: countingReader, layout: workspaceB });
+
+    // The tenancy property itself: byte-identical content installed by two DIFFERENT workspaces
+    // is extracted TWICE, into two entirely disjoint package roots -- the opposite of
+    // install.ts's own within-one-workspace dedup test above, and that contrast is the point.
+    assert.equal(extractCount, 2, "a second workspace's install must not be satisfied by the first workspace's bytes");
+    assert.notEqual(installedA.packageRoot, installedB.packageRoot);
+    assert.equal(path.relative(workspaceB.root, installedA.packageRoot).startsWith(".."), true);
+
+    // Deleting workspace A's entire tree must not touch workspace B's copy -- proves the two
+    // package roots are not merely different paths but structurally independent on disk.
+    await forceRemove(workspaceA.root);
+    const stillThere = await readFile(path.join(installedB.packageRoot, "plugin.json"), "utf8");
+    assert.equal(stillThere, VALID_MANIFEST);
   } finally {
     await forceRemove(cwd);
   }

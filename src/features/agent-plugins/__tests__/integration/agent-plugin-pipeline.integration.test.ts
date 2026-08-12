@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { chmod, mkdtemp, readdir, rm } from "node:fs/promises";
+import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
+import { forceRemove } from "../fixtures/force-remove";
 import { projectInstalledAgentPluginCapabilities, readInstalledSkillMarkdown } from "../../capability-projection";
 import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "../../install";
 import { resolveAgentPluginLayout } from "../../layout";
@@ -39,29 +40,10 @@ function reader(entries: readonly AgentPluginArchiveEntry[]): AgentPluginArchive
   };
 }
 
-async function forceRemove(root: string): Promise<void> {
-  async function makeWritable(dir: string): Promise<void> {
-    let entries;
-    try {
-      entries = await readdir(dir, { withFileTypes: true });
-    } catch {
-      return;
-    }
-    await chmod(dir, 0o700).catch(() => undefined);
-    for (const entry of entries) {
-      const absolute = path.join(dir, entry.name);
-      if (entry.isDirectory()) await makeWritable(absolute);
-      else await chmod(absolute, 0o600).catch(() => undefined);
-    }
-  }
-  await makeWritable(root);
-  await rm(root, { recursive: true, force: true });
-}
-
 test("install -> parse mcp.json -> project capabilities, end to end, for a plugin with both a skill and an MCP server", async () => {
   const cwd = await mkdtemp(path.join(tmpdir(), "tovu-agent-plugin-pipeline-test-"));
   try {
-    const layout = resolveAgentPluginLayout({ cwd, env: {} });
+    const layout = resolveAgentPluginLayout({ cwd, env: {} }).forWorkspace("11111111-1111-4111-8111-111111111111");
 
     const manifest = JSON.stringify({
       $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
