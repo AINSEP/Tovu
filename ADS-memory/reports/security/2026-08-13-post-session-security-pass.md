@@ -214,6 +214,64 @@ verified. Flag the template landmine for cleanup, not urgent).
 
 ---
 
+### Note — deployments HTTP chokepoint + GitHub App adapter (priority #5): SSRF-hardened, credentials handled correctly
+
+**Component:** `src/http/client.ts`, `src/http/transport.fetch.ts`, `src/features/deployments/providers/github.ts`
+
+**SSRF defenses, checked against the full dispatch checklist and found sound:**
+- `resolvePinnedPeer` (`client.ts:76-119`) explicitly resolves DNS via `node:dns/promises.lookup`
+  (never relies on the transport's own resolution) and classifies EVERY resolved address —
+  `classifyAddress`/`classifyIpv4`/`classifyIpv6` — against loopback/private/link-local/reserved
+  ranges, before any connection is attempted. `169.254.169.254` (cloud metadata) is explicitly covered
+  (`a === 169 && b === 254` → `"link-local"`), `0.0.0.0` is covered (`a === 0` → `"reserved"`), and
+  IPv4-mapped IPv6 (`::ffff:a.b.c.d`) is normalized to its IPv4 form BEFORE classification — the
+  specific bypass that classifying only the IPv6 literal form would miss.
+- **DNS rebinding is actually defeated, not just checked-then-hoped:** `transport.fetch.ts`'s
+  `requestPinned` connects to `peer.ip` directly (`options.host = peer.ip`, raw `node:http`/`node:https`,
+  never `fetch`, which would re-resolve DNS at connect time) while still sending the original `Host`
+  header and TLS `servername` for correct virtual-hosting/cert validation. This is the detail that most
+  guarded-fetch implementations get wrong — checking a resolved address, then letting the actual HTTP
+  library re-resolve the hostname a moment later, reopening exactly the rebinding window the check was
+  meant to close. This implementation does not have that gap.
+- **Redirects are re-verified, not merely followed:** each redirect hop calls `resolvePinnedPeer` again
+  on the new target (`sendWithPolicy` recurses), and `Authorization`/`Cookie` headers are stripped on any
+  cross-origin hop (`withStrippedSensitiveHeaders`, `client.ts:121-128, 168-170`).
+- Credentials-in-URL (`user:pass@host`) and disallowed schemes are rejected before any DNS lookup.
+- `devHostAllowlist` (the one bypass of the private-address check) is a policy field with no production
+  construction site found anywhere in `src/` for this session's new deployments surface — it exists for
+  test/dev composition, not something a request or workspace config can populate.
+
+**GitHub App adapter — also sound:**
+- `sendPinned` (github.ts:98-106) is the sole `http.send` call site and hard-pins the origin to
+  `https://api.github.com`, independent of and in addition to the `EgressPolicy` layer — explicitly
+  defense-in-depth against "a future workspace-supplied GitHub Enterprise base URL" per its own
+  (verified-accurate, not just asserted) comment.
+- `githubApiUrl` builds every request via `new URL(path, GITHUB_API_ORIGIN)`, requiring every
+  caller-influenced segment (`owner`/`repo`/`installationId`/`providerRunRef`) to be
+  `encodeURIComponent`-encoded first. Verified this actually defeats path-based escape: `encodeURIComponent`
+  escapes `/` to `%2F` but leaves `.` unescaped, so `"../../app/installations/1"` becomes one literal
+  segment `"..%2F..%2Fapp%2Finstallations%2F1"` — no unescaped `/../` sequence exists for RFC 3986
+  dot-segment removal to act on, so it cannot resolve outside the intended endpoint. (Moot in practice
+  today since `owner`/`repo`/`environmentName` come from an authenticated admin's own target config, not
+  cross-tenant input — but correctly implemented regardless.)
+- The GitHub App private key never leaves the process (RS256 JWT signed locally, `signGitHubAppJwt`), the
+  installation token is minted fresh per call rather than cached (smaller exposure window, explicitly
+  disclosed tradeoff), and `sanitizeMessage` strips CR/LF/NUL from GitHub's own response text before it
+  ever reaches a `DeploymentError.message` — log-injection-safe. No credential or token value appears in
+  any error path traced (`TRANSPORT_ERROR`/`PROVIDER_ERROR`/`PROVIDER_RESPONSE_INVALID` all carry only
+  status codes or GitHub's own sanitized description).
+
+**Same "not yet reachable" pattern as Findings 2/3:** `createGitHubDeploymentProvider`/`startRun`/`pollRun`
+have no caller outside `src/features/deployments/` itself — no admin route, no scheduled job, no webhook
+handler triggers a real deployment run yet. The commit's own message calls this "first vertical slice."
+This does not change the code-quality assessment above (it is correct on its own terms) but means, like
+Findings 2/3 above, there is no live network exploit to demonstrate today.
+
+**Human sign-off required:** No (no exploitable finding; both the guarded client and the GitHub adapter
+pass the full SSRF/credential checklist on inspection).
+
+---
+
 ### Note — untrusted archive extraction (priority #2): hardened, but not yet reachable
 
 **Component:** `src/features/agent-plugins/install.ts`, `yauzl-archive-reader.ts`, `package-paths.ts`
