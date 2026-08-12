@@ -29,6 +29,20 @@
 >    `classifyPluginColumn`; a copy-runner calling `reseedSequenceSql` per `collectIdentityColumns()`
 >    entry after bulk copy; and `verifyClassifiedValue` running per-column during copy.
 >
+> **⛔ DO NOT PUSH until the CI blocker is fixed.** Terra 5.6 (xhigh) audited all four commits and
+> returned **FAIL**: `.github/workflows/ci.yml:39` runs `npm test` (glob `src/**/*.test.ts`, which
+> includes `migration-manifest-postgres.test.ts`) with **no Postgres service**, while
+> `pg-fixture.ts:17` hard-codes socket `/tmp` and role `la`. Those tests fail closed by design, so
+> the build breaks on push. Fix = provision a PG 14.18 CI service + read connection settings from
+> test-only env vars; **keep them fail-closed, do not make them skip.**
+> Full audit: `ADS-memory/reports/external-audit/runs/2026-08-12-terra-xhigh-postgres-manifest-audit.md`
+> (all findings independently re-verified). Five other gaps, ranked: identity-insert policy
+> (`OVERRIDING SYSTEM VALUE`) exists only in the fixture, never exported for a copier — 11
+> `generatedAlwaysAsIdentity` columns will reject id-preserving inserts; the ceiling is **2⁵³, not
+> 2⁶³** (`PgBigInt53` → `Number(value)`) and nothing pins it; `post_search_document` is unmodelled so
+> the search rebuild is incomplete; GATE A routes through the classifier so it is not independent of
+> GATE B for an unreviewed new PK; timestamp verification accepts `2026-02-30T00:00:00Z`.
+>
 > **Next unstarted item is step 2 (write quiescence).** Steps 3–5 unchanged. Trap #1 (the watermark)
 > is now enforced in code as the exported `WATERMARK_IS_NOT_A_MIGRATION_BOUNDARY` constant.
 >
