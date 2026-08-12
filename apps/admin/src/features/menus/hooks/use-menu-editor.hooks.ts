@@ -162,7 +162,18 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t }: Menu
   // against), and refreshed after every successful save so a saved edit stops reading as dirty.
   const [original, setOriginal] = useState<MenuFormState | null>(null);
 
+  // Stale-response guard (2026-08-12 audit finding): this is a route-param loader — the panel
+  // router reuses this same component/hook across `/new` and every `/:id`, so navigating from one
+  // menu to another (or from an existing menu to `/new`) can let an OLDER `getMenu` response land
+  // after a NEWER one, overwriting the currently-viewed menu with a previous one's data (or, for
+  // `/new`, populating a blank editor with a stale record — the operator would then be editing and
+  // saving over the wrong menu). `cancelled` is flipped by this same effect's own cleanup the
+  // instant `menuId`/`isNew` changes again, before the new run starts — guarded on every completion
+  // path (`then`/`catch`/`finally`), not just the success path, since an unguarded `finally`
+  // clearing `loading` is the one most likely to leave stale data on screen with no spinner to flag
+  // it.
   useEffect(() => {
+    let cancelled = false;
     if (isNew) {
       setMenu(null);
       setTitle("");
@@ -177,14 +188,24 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t }: Menu
     port
       .getMenu(menuId as string)
       .then(({ menu }) => {
+        if (cancelled) return;
         setMenu(menu);
         setTitle(menu.title);
         setSlug(menu.slug);
         setItems(menu.items);
         setOriginal({ title: menu.title, slug: menu.slug, items: menu.items });
       })
-      .catch((e) => setError(e instanceof Error ? e.message : "failed to load menu"))
-      .finally(() => setLoading(false));
+      .catch((e) => {
+        if (cancelled) return;
+        setError(e instanceof Error ? e.message : "failed to load menu");
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [menuId, isNew]);
 
