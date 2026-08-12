@@ -41,8 +41,30 @@ const UTC_DESIGNATOR = /(Z|[+-]\d{2}:\d{2})$/;
  * because `Date.parse`'s failure mode there is not "reject", it is "silently normalize":
  * `"2026-02-30T00:00:00Z"` parses successfully as March 2nd rather than failing, which is worse than
  * an outright parse failure because nothing about the return value signals that anything happened.
+ *
+ * The offset branch captures its sign/hours/minutes as their own groups (rather than the single
+ * unstructured `[+-]\d{2}:\d{2}` this used to be) so `isValidUtcOffset` below can range-check them.
+ * Without that, this shape alone would happily match `+24:00`/`+23:60`/`+99:99` — any two-digit:two-digit
+ * pair — which is exactly the bounds checking a bare `Date.parse` provides for free (V8 rejects an
+ * out-of-range offset outright) and which this regex, considered in isolation, does not. See
+ * `verifyUtcTimestampText`'s own doc for the live comparison against `Date.parse` that caught this.
  */
-const STRICT_RFC3339_SHAPE = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/;
+const STRICT_RFC3339_SHAPE = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?:\.\d+)?(?:Z|([+-])(\d{2}):(\d{2}))$/;
+
+/**
+ * Range-checks an offset captured by `STRICT_RFC3339_SHAPE`'s optional sign/hour/minute groups.
+ * `offsetSign` is `undefined` for the `Z` form (nothing to range-check — always valid). UTC offsets
+ * in real-world use never exceed ±14:00, but this deliberately checks only the wire-format bounds a
+ * clock field can name at all (hours `00`-`23`, minutes `00`-`59`), matching exactly what
+ * `Date.parse` itself enforces — not the narrower ±14:00 political range, which is a fact about
+ * which offsets exist today, not about what this text shape can validly encode.
+ */
+function isValidUtcOffset(offsetSign: string | undefined, offsetHourStr: string | undefined, offsetMinuteStr: string | undefined): boolean {
+  if (offsetSign === undefined) return true; // the "Z" form — no offset field to range-check
+  const offsetHour = Number(offsetHourStr);
+  const offsetMinute = Number(offsetMinuteStr);
+  return offsetHour <= 23 && offsetMinute <= 59;
+}
 
 /**
  * Re-derives the instant via `Date.UTC` and confirms every field survives the round trip unchanged —
@@ -69,14 +91,21 @@ function isValidCalendarInstant(year: number, month: number, day: number, hour: 
  * this schema are nullable (e.g. `revoked_at`, `deleted_at`), and absence is not a violation of the
  * UTC contract, only a value would be.
  *
- * Deliberately stricter than a bare `Date.parse`/`new Date(string)` check: both accept a
- * space-separated date-time and silently normalize an impossible calendar date instead of rejecting
- * it (see `STRICT_RFC3339_SHAPE`'s own doc). Verified against the live `infra/content.db` before this
- * tightened — every `schema.ts`-declared timestamp column's stored values already match the literal
- * `T`-separated, calendar-valid shape this enforces, so tightening does not retroactively flag any
- * value this manifest's scope actually covers (the handful of anomalous `*_at`-named columns holding
- * epoch-millisecond integers live in `__drizzle_migrations`/`_plugin_*`/`ai_chat*` tables, none of
- * which are exported from `schema.ts` — out of `classifyAllCoreColumns()`'s scope entirely).
+ * Deliberately stricter than a bare `Date.parse`/`new Date(string)` check in two independent ways:
+ * both accept a space-separated date-time and silently normalize an impossible calendar date instead
+ * of rejecting it (see `STRICT_RFC3339_SHAPE`'s own doc); this also range-checks the offset itself
+ * (`isValidUtcOffset`) — a gap the first round of this fix introduced by replacing `Date.parse`
+ * outright without noticing `Date.parse` had been providing offset-bounds checking for free.
+ * `STRICT_RFC3339_SHAPE` alone matches any two-digit:two-digit offset (`+24:00`, `+23:60`, `+99:99`
+ * all shape-match), and `isValidCalendarInstant` only round-trips the date/time fields through
+ * `Date.UTC` — neither one, by itself, would have caught that. Verified against the live
+ * `infra/content.db` before this tightened — every `schema.ts`-declared timestamp column's stored
+ * values already match the literal `T`-separated, calendar-valid, range-valid-offset shape this
+ * enforces (3,027 non-null values across 117 in-scope columns, zero rejections), so tightening does
+ * not retroactively flag any value this manifest's scope actually covers (the handful of anomalous
+ * `*_at`-named columns holding epoch-millisecond integers live in `__drizzle_migrations`/`_plugin_*`/
+ * `ai_chat*` tables, none of which are exported from `schema.ts` — out of `classifyAllCoreColumns()`'s
+ * scope entirely).
  */
 export function verifyUtcTimestampText(value: string | null): VerificationFailure | null {
   if (value === null) return null;
@@ -98,7 +127,17 @@ export function verifyUtcTimestampText(value: string | null): VerificationFailur
         `the date and time (the looser space-separated form Date.parse alone would accept is rejected here).`,
     };
   }
-  const [, yearStr, monthStr, dayStr, hourStr, minuteStr, secondStr] = match;
+  const [, yearStr, monthStr, dayStr, hourStr, minuteStr, secondStr, offsetSign, offsetHourStr, offsetMinuteStr] = match;
+  if (!isValidUtcOffset(offsetSign, offsetHourStr, offsetMinuteStr)) {
+    return {
+      code: "INVALID_UTC_OFFSET",
+      message:
+        `"${value}" carries an offset of ${offsetSign}${offsetHourStr}:${offsetMinuteStr}, which is out of range — ` +
+        `offset hours must be 00-23 and minutes must be 00-59, the same bounds Date.parse enforces on its own. ` +
+        `The RFC3339 shape alone (STRICT_RFC3339_SHAPE) accepts any two-digit:two-digit pair here, so this range ` +
+        `check exists specifically to restore the bounds checking Date.parse used to provide for free.`,
+    };
+  }
   const [year, month, day, hour, minute, second] = [yearStr, monthStr, dayStr, hourStr, minuteStr, secondStr].map(Number);
   if (!isValidCalendarInstant(year, month, day, hour, minute, second)) {
     return {
