@@ -1,6 +1,7 @@
 import { agentHandle } from "@jini-ai/agentic";
 
 import type { AdminMenuItem, AdminMenuTarget } from "../../lib/api";
+import type { Translate } from "../../lib/dictionary-translator";
 import { useWiredMenuEditor } from "./hooks/use-menu-editor.hooks";
 
 type AdminMenuTargetKind = AdminMenuTarget["kind"];
@@ -139,7 +140,7 @@ function ItemRow(props: {
   onRemove: (path: number[]) => void;
   onAddChild: (path: number[]) => void;
   onMove: (path: number[], direction: -1 | 1) => void;
-  t: (key: string) => string;
+  t: Translate;
 }) {
   const { item, path, onChange, onRemove, onAddChild, onMove, t } = props;
 

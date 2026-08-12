@@ -6,6 +6,7 @@ import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { MENUS_DICT } from "../menus-i18n";
 import { defaultMenusPort } from "./menus-dependencies.hooks";
 import type { MenusPort } from "./menus-port.hooks";
+import type { Translate } from "../../../lib/dictionary-translator";
 
 /**
  * @file Everything the per-menu tree editor does, so `MenuEditor.tsx` is only markup.
@@ -38,7 +39,7 @@ import type { MenusPort } from "./menus-port.hooks";
 export interface MenuEditorDependencies {
   port: MenusPort;
   navigate: (path: string) => void;
-  t: (key: string) => string;
+  t: Translate;
 }
 
 function newItemId(): string {
@@ -144,7 +145,7 @@ export interface MenuEditorController {
   addRootItem: () => void;
   save: () => Promise<void>;
   /** Bound translator — `MenuEditor.tsx`'s only source of UI copy; see this file's own header. */
-  t: (key: string) => string;
+  t: Translate;
 }
 
 export function useMenuEditor(menuId: string | null, { port, navigate, t }: MenuEditorDependencies): MenuEditorController {
