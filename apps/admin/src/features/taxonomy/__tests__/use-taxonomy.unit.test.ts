@@ -277,7 +277,7 @@ describe("useTaxonomy — injected port", () => {
     vi.stubGlobal("fetch", networkMock);
     const port = createFakeTaxonomyPort({ groups: [GROUP] });
 
-    const { result } = renderHook(() => useTaxonomy(port, "en"));
+    const { result } = renderHook(() => useTaxonomy(port, "en", (k) => k));
 
     await waitFor(() => expect(result.current.taxonomies).not.toBeNull());
     expect(result.current.taxonomies).toEqual([GROUP]);
@@ -289,7 +289,7 @@ describe("useTaxonomy — injected port", () => {
       groups: [GROUP],
       onDeleteTermBlocked: () => ({ code: "TERM_HAS_ASSIGNMENTS", assignedCount: 2 }),
     });
-    const { result } = renderHook(() => useTaxonomy(port, "en"));
+    const { result } = renderHook(() => useTaxonomy(port, "en", (k) => k));
     await waitFor(() => expect(result.current.taxonomies).not.toBeNull());
 
     act(() => result.current.requestDeleteTerm(TERM_A));

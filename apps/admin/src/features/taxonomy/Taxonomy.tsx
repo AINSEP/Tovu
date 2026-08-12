@@ -6,8 +6,6 @@ import { useWiredNewTaxonomyForm } from "./hooks/use-new-taxonomy-form.hooks";
 import { useWiredMergeTermSection } from "./hooks/use-merge-term-section.hooks";
 import { useWiredTermDetailPanel } from "./hooks/use-term-detail-panel.hooks";
 import { useWiredTaxonomy } from "./hooks/use-taxonomy.hooks";
-import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import { TAXONOMY_DICT } from "./taxonomy-i18n";
 
 /**
  * @file Categories & Tags screen (design-spec.md §2, ADR-044) — the `/admin/taxonomy` route.
@@ -479,10 +477,9 @@ export function Taxonomy({ useTaxonomyHook = useWiredTaxonomy }: TaxonomyProps =
     deleteTaxonomyBusy,
     deleteTaxonomyBlocked,
     confirmDeleteTaxonomy,
+    t,
   } = useTaxonomyHook();
   const deleteState = { requestDeleteTerm, deleteTermBlocked, requestDeleteTaxonomy, deleteTaxonomyBlocked };
-  const locale = useAdminLocale();
-  const t = (key: string): string => TAXONOMY_DICT[locale]?.[key] ?? key;
 
   if (error && !taxonomies) return <div className="notice error">{error}</div>;
   if (!taxonomies) return <div className="notice">Loading taxonomies…</div>;
