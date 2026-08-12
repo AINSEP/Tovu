@@ -43,7 +43,8 @@ function reader(entries: readonly AgentPluginArchiveEntry[]): AgentPluginArchive
 test("install -> parse mcp.json -> project capabilities, end to end, for a plugin with both a skill and an MCP server", async () => {
   const cwd = await mkdtemp(path.join(tmpdir(), "tovu-agent-plugin-pipeline-test-"));
   try {
-    const layout = resolveAgentPluginLayout({ cwd, env: {} }).forWorkspace("11111111-1111-4111-8111-111111111111");
+    const instanceLayout = resolveAgentPluginLayout({ cwd, env: {} });
+    const workspaceId = "11111111-1111-4111-8111-111111111111";
 
     const manifest = JSON.stringify({
       $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
@@ -68,7 +69,8 @@ test("install -> parse mcp.json -> project capabilities, end to end, for a plugi
         fileEntry("mcp.json", mcpConfig),
         fileEntry("skills/ui-ux-design/SKILL.md", skillMarkdown),
       ]),
-      layout,
+      layout: instanceLayout,
+      workspaceId,
     });
 
     assert.equal(installed.pluginId, "ui-ux-design");
@@ -109,7 +111,8 @@ test("install -> parse mcp.json -> project capabilities, end to end, for a plugi
       archive,
       expectedSha256: digest,
       archiveReader: reader([fileEntry("SHOULD_NOT_BE_READ", "x")]),
-      layout,
+      layout: instanceLayout,
+      workspaceId,
     });
     assert.equal(secondInstall.packageRoot, installed.packageRoot);
   } finally {

@@ -45,10 +45,12 @@
  * and "bytes this process is willing to run a parser over". A second install of byte-identical
  * content BY THE SAME WORKSPACE is recognized from the digest alone and short-circuits without a
  * second extraction. Deliberately NOT shared across workspaces — see `layout.ts`'s header (owner
- * decision, tenant-grade isolation, 2026-08-12): this function is handed an already
- * workspace-scoped `AgentPluginWorkspaceLayout` and has no notion of "workspace" itself; the caller
- * is what makes two different workspaces' installs land in disjoint trees, simply by resolving a
- * different `AgentPluginWorkspaceLayout` for each.
+ * decision, tenant-grade isolation, 2026-08-12): this function resolves the workspace-scoped layout
+ * itself, exactly once, from an instance-level `AgentPluginLayout` plus one `workspaceId` (see the
+ * SECURITY note on {@link InstallAgentPluginRequired} below) — the caller is what makes two
+ * different workspaces' installs land in disjoint trees, simply by supplying a different
+ * `workspaceId` for each; this function's own internal `forWorkspace()` call is what turns that into
+ * disjoint, internally-consistent paths.
  *
  * Architectural role:
  * The one place this feature performs filesystem writes for installed package bytes. No network I/O
@@ -60,7 +62,7 @@ import { constants } from "node:fs";
 import { chmod, mkdir, mkdtemp, open, readdir, readFile, rename, rm, stat } from "node:fs/promises";
 import path from "node:path";
 
-import type { AgentPluginWorkspaceLayout } from "./layout";
+import type { AgentPluginLayout } from "./layout";
 import { parseAgentPluginManifest } from "./manifest";
 import { assertContainedOnDisk, normalizePackageEntryPath, PackagePathViolation } from "./package-paths";
 
@@ -145,10 +147,40 @@ export interface InstallAgentPluginRequired {
    * itself. */
   readonly expectedSha256: string;
   readonly archiveReader: AgentPluginArchiveReaderPort;
-  /** Already resolved to ONE workspace (`AgentPluginLayout.forWorkspace(workspaceId)`, `layout.ts`)
-   * — this function has no notion of "workspace" of its own; isolation is entirely a property of
-   * which layout the caller hands it. */
-  readonly layout: AgentPluginWorkspaceLayout;
+  /**
+   * SECURITY (2026-08-13, security pass Finding 2 — tenant isolation, `ADS-memory/reports/security/
+   * 2026-08-13-post-session-security-pass.md`): this field used to be an already-resolved
+   * `AgentPluginWorkspaceLayout` (`{ root, packages, staging, pluginDataDir }`) — a plain interface
+   * of four independently-typed string/function fields with no tag identifying which workspace it
+   * came from. Nothing stopped a caller from hand-assembling one from two DIFFERENT real
+   * `forWorkspace()` results (wrong variable capture, a stale cached layout, a future code path that
+   * builds one by hand instead of calling `forWorkspace`) — such a value type-checked identically to
+   * a correctly-resolved one, and `installAgentPlugin` published into whatever `packages`/`staging`
+   * it was handed with no consistency check. Proven at the unit level in `install.unit.test.ts`
+   * (a layout stitching workspace A's `root`/`pluginDataDir` onto workspace B's real `packages`/
+   * `staging` published into workspace B's real, on-disk store with no error).
+   *
+   * The fix: `installAgentPlugin` no longer accepts a pre-resolved workspace layout as input AT ALL.
+   * It takes the RAW MATERIALS instead — the INSTANCE-level layout (`resolveAgentPluginLayout()`,
+   * carries no workspace-scoped path of its own) plus one `workspaceId` — and calls
+   * `layout.forWorkspace(workspaceId)` itself, exactly once, internally. There is no longer any
+   * `AgentPluginWorkspaceLayout`-shaped parameter here for a caller to stitch fields into: the one
+   * and only path from these two inputs to `packages`/`staging`/`pluginDataDir` is the real
+   * `forWorkspace()` closure, called atomically, so the four resulting paths can never disagree with
+   * each other about which workspace they belong to. Passing a hand-built `{ packages, staging, ... }`
+   * literal where this field is expected is now a compile-time type error, not a runtime hazard.
+   *
+   * `workspaceId` must still come from the authenticated principal's own request context, never
+   * derived from `layout` itself (a hand-built or malicious `AgentPluginLayout` could fake a
+   * `forWorkspace` implementation identically) — that half of the guarantee is a caller obligation
+   * this type cannot enforce, the same way `archiveReader` above is a fully caller-trusted port. What
+   * IS closed is the specific, demonstrated bug class: stitching or hand-assembling an
+   * already-resolved workspace layout from parts.
+   */
+  readonly layout: AgentPluginLayout;
+  /** The workspace this install is for. Combined with {@link layout} via `layout.forWorkspace(workspaceId)`
+   * — see the SECURITY note on {@link layout} above. */
+  readonly workspaceId: string;
 }
 
 export type InstallAgentPluginOptional = {};
@@ -166,7 +198,13 @@ export async function installAgentPlugin(
   required: InstallAgentPluginRequired,
   _optional: InstallAgentPluginOptional = {}
 ): Promise<InstalledAgentPlugin> {
-  const { archive, expectedSha256, archiveReader, layout } = required;
+  const { archive, expectedSha256, archiveReader, layout, workspaceId } = required;
+
+  // The ONE call that turns (instance layout, workspaceId) into real, internally-consistent
+  // packages/staging/pluginDataDir paths — see the SECURITY note on `InstallAgentPluginRequired.layout`
+  // above for why this replaces accepting an already-resolved `AgentPluginWorkspaceLayout` directly.
+  // `forWorkspace` itself still throws for a syntactically invalid `workspaceId`, unchanged.
+  const workspaceLayout = layout.forWorkspace(workspaceId);
 
   if (archive.byteLength > LIMITS.maxArchiveBytes) {
     throw new AgentPluginInstallError("ARCHIVE_TOO_LARGE", `archive is ${archive.byteLength} bytes, over the ${LIMITS.maxArchiveBytes}-byte cap`);
@@ -180,21 +218,22 @@ export async function installAgentPlugin(
     );
   }
 
-  await mkdir(layout.packages, { recursive: true, mode: 0o700 });
+  await mkdir(workspaceLayout.packages, { recursive: true, mode: 0o700 });
 
-  const finalRoot = path.join(layout.packages, digest);
+  const finalRoot = path.join(workspaceLayout.packages, digest);
   const alreadyPublished = await isRealDirectory(finalRoot);
   if (alreadyPublished) {
-    // Content-addressed dedup, scoped to THIS workspace's own tree (`layout` is already
-    // workspace-resolved by the caller): identical bytes were already extracted, verified, and
-    // frozen by a prior install of this same workspace's — never re-extracted for a different
-    // workspace, by construction, since a different workspace's `layout.packages` is a different
-    // path entirely. `archiveReader.entries()` is never called on this path.
+    // Content-addressed dedup, scoped to THIS workspace's own tree (`workspaceLayout` was just
+    // resolved above, atomically, from this same `workspaceId`): identical bytes were already
+    // extracted, verified, and frozen by a prior install of this same workspace's — never
+    // re-extracted for a different workspace, by construction, since a different workspace's
+    // `workspaceLayout.packages` is a different path entirely. `archiveReader.entries()` is never
+    // called on this path.
     return indexInstalledRoot(finalRoot, digest);
   }
 
-  await mkdir(layout.staging, { recursive: true, mode: 0o700 });
-  const transactionRoot = await mkdtemp(path.join(layout.staging, "install-"));
+  await mkdir(workspaceLayout.staging, { recursive: true, mode: 0o700 });
+  const transactionRoot = await mkdtemp(path.join(workspaceLayout.staging, "install-"));
   const extractionRoot = path.join(transactionRoot, "root");
   await mkdir(extractionRoot, { mode: 0o700 });
 

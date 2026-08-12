@@ -60,16 +60,24 @@ const VALID_MANIFEST = JSON.stringify({
  * reads on the way back in. */
 const SYMLINK_MODE = 0o120777;
 
+const WORKSPACE_ID = "11111111-1111-4111-8111-111111111111";
+
+/**
+ * Returns both the INSTANCE-level layout (`instanceLayout`, what `installAgentPlugin` now takes
+ * directly — security pass 2026-08-13 Finding 2 fix, `install.ts`) and the already-resolved
+ * workspace layout (`workspaceLayout`, kept only for this file's own `.packages` assertions below —
+ * never fed back into `installAgentPlugin` itself anymore).
+ */
 async function freshWorkspaceLayout() {
   const cwd = await mkdtemp(path.join(tmpdir(), "tovu-agent-plugin-yauzl-test-"));
-  const layout = resolveAgentPluginLayout({ cwd, env: {} });
-  const workspaceLayout = layout.forWorkspace("11111111-1111-4111-8111-111111111111");
-  return { cwd, workspaceLayout };
+  const instanceLayout = resolveAgentPluginLayout({ cwd, env: {} });
+  const workspaceLayout = instanceLayout.forWorkspace(WORKSPACE_ID);
+  return { cwd, instanceLayout, workspaceLayout };
 }
 
 
 test("real zip: installs a valid package end to end (real yazl-built archive, real yauzl reader)", async () => {
-  const { cwd, workspaceLayout } = await freshWorkspaceLayout();
+  const { cwd, instanceLayout, workspaceLayout } = await freshWorkspaceLayout();
   try {
     const archive = await buildZipFixture([
       { path: "plugin.json", content: VALID_MANIFEST },
@@ -81,7 +89,8 @@ test("real zip: installs a valid package end to end (real yazl-built archive, re
       archive,
       expectedSha256: digest,
       archiveReader: yauzlAgentPluginArchiveReader,
-      layout: workspaceLayout,
+      layout: instanceLayout,
+      workspaceId: WORKSPACE_ID,
     });
 
     assert.equal(installed.pluginId, "ui-ux-design");
@@ -92,7 +101,7 @@ test("real zip: installs a valid package end to end (real yazl-built archive, re
 });
 
 test("real zip: a real duplicate-named entry (yazl allows writing one; a real reader/attacker could too) is rejected", async () => {
-  const { cwd, workspaceLayout } = await freshWorkspaceLayout();
+  const { cwd, instanceLayout, workspaceLayout } = await freshWorkspaceLayout();
   try {
     // Unlike a traversal path, yazl does NOT refuse a repeated metadataPath -- so this one needs no
     // byte-patching to be a genuine, ordinarily-constructible real zip.
@@ -108,7 +117,8 @@ test("real zip: a real duplicate-named entry (yazl allows writing one; a real re
           archive,
           expectedSha256: digest,
           archiveReader: yauzlAgentPluginArchiveReader,
-          layout: workspaceLayout,
+          layout: instanceLayout,
+          workspaceId: WORKSPACE_ID,
         }),
       (error: unknown) => error instanceof AgentPluginInstallError && error.code === "DUPLICATE_ENTRY",
     );
@@ -120,7 +130,7 @@ test("real zip: a real duplicate-named entry (yazl allows writing one; a real re
 });
 
 test("real zip: a symlink entry (real Unix mode bits, S_IFLNK) is rejected outright", async () => {
-  const { cwd, workspaceLayout } = await freshWorkspaceLayout();
+  const { cwd, instanceLayout, workspaceLayout } = await freshWorkspaceLayout();
   try {
     const archive = await buildZipFixture([
       { path: "plugin.json", content: VALID_MANIFEST },
@@ -137,7 +147,8 @@ test("real zip: a symlink entry (real Unix mode bits, S_IFLNK) is rejected outri
           archive,
           expectedSha256: digest,
           archiveReader: yauzlAgentPluginArchiveReader,
-          layout: workspaceLayout,
+          layout: instanceLayout,
+          workspaceId: WORKSPACE_ID,
         }),
       (error: unknown) => error instanceof AgentPluginInstallError && error.code === "SYMLINK_ENTRY_REJECTED",
     );
@@ -149,7 +160,7 @@ test("real zip: a symlink entry (real Unix mode bits, S_IFLNK) is rejected outri
 });
 
 test("real zip: an ordinary file with the executable bit set is preserved as executable", async () => {
-  const { cwd, workspaceLayout } = await freshWorkspaceLayout();
+  const { cwd, instanceLayout, workspaceLayout } = await freshWorkspaceLayout();
   try {
     const archive = await buildZipFixture([
       { path: "plugin.json", content: VALID_MANIFEST },
@@ -161,7 +172,8 @@ test("real zip: an ordinary file with the executable bit set is preserved as exe
       archive,
       expectedSha256: digest,
       archiveReader: yauzlAgentPluginArchiveReader,
-      layout: workspaceLayout,
+      layout: instanceLayout,
+      workspaceId: WORKSPACE_ID,
     });
 
     const { stat } = await import("node:fs/promises");
@@ -180,7 +192,7 @@ test("real zip: yazl itself refuses to WRITE a traversal entry name (no well-beh
 });
 
 test("real zip: a genuinely malicious archive (byte-patched, not yazl-written) with a traversal entry name is rejected end to end", async () => {
-  const { cwd, workspaceLayout } = await freshWorkspaceLayout();
+  const { cwd, instanceLayout, workspaceLayout } = await freshWorkspaceLayout();
   try {
     // The test above proves a well-behaved WRITER can't produce this archive -- it does not prove
     // the READER refuses one. A real attacker doesn't use yazl's validated addBuffer(); they patch
@@ -213,7 +225,8 @@ test("real zip: a genuinely malicious archive (byte-patched, not yazl-written) w
         archive: patched,
         expectedSha256: digest,
         archiveReader: yauzlAgentPluginArchiveReader,
-        layout: workspaceLayout,
+        layout: instanceLayout,
+        workspaceId: WORKSPACE_ID,
       }),
     );
 
@@ -224,7 +237,7 @@ test("real zip: a genuinely malicious archive (byte-patched, not yazl-written) w
 });
 
 test("real zip: a large real file exceeding the per-file cap is rejected via its true declared size", async () => {
-  const { cwd, workspaceLayout } = await freshWorkspaceLayout();
+  const { cwd, instanceLayout, workspaceLayout } = await freshWorkspaceLayout();
   try {
     // Real, honestly-declared size: 20MiB of zero bytes. Highly compressible (tiny on disk), but
     // yauzl reports the entry's TRUE uncompressed size from the central directory regardless of how
@@ -243,7 +256,8 @@ test("real zip: a large real file exceeding the per-file cap is rejected via its
           archive,
           expectedSha256: digest,
           archiveReader: yauzlAgentPluginArchiveReader,
-          layout: workspaceLayout,
+          layout: instanceLayout,
+          workspaceId: WORKSPACE_ID,
         }),
       (error: unknown) => error instanceof AgentPluginInstallError && error.code === "FILE_TOO_LARGE",
     );
@@ -253,7 +267,7 @@ test("real zip: a large real file exceeding the per-file cap is rejected via its
 });
 
 test("real zip: the total-extracted-bytes cap fires against real, incrementally-streamed bytes across many files", async () => {
-  const { cwd, workspaceLayout } = await freshWorkspaceLayout();
+  const { cwd, instanceLayout, workspaceLayout } = await freshWorkspaceLayout();
   try {
     // Each file is honestly declared and genuinely under the PER-FILE cap (1MiB < 16MiB) — only the
     // real, actually-streamed RUNNING TOTAL across ~70 real files (each read through its own real
@@ -274,7 +288,8 @@ test("real zip: the total-extracted-bytes cap fires against real, incrementally-
           archive,
           expectedSha256: digest,
           archiveReader: yauzlAgentPluginArchiveReader,
-          layout: workspaceLayout,
+          layout: instanceLayout,
+          workspaceId: WORKSPACE_ID,
         }),
       (error: unknown) => error instanceof AgentPluginInstallError && error.code === "TOTAL_SIZE_EXCEEDED",
     );
@@ -284,7 +299,7 @@ test("real zip: the total-extracted-bytes cap fires against real, incrementally-
 });
 
 test("real zip: a SHA-256 digest mismatch is rejected before the real archive is ever opened", async () => {
-  const { cwd, workspaceLayout } = await freshWorkspaceLayout();
+  const { cwd, instanceLayout, workspaceLayout } = await freshWorkspaceLayout();
   try {
     const archive = await buildZipFixture([{ path: "plugin.json", content: VALID_MANIFEST }]);
 
@@ -294,7 +309,8 @@ test("real zip: a SHA-256 digest mismatch is rejected before the real archive is
           archive,
           expectedSha256: "0".repeat(64),
           archiveReader: yauzlAgentPluginArchiveReader,
-          layout: workspaceLayout,
+          layout: instanceLayout,
+          workspaceId: WORKSPACE_ID,
         }),
       (error: unknown) => error instanceof AgentPluginInstallError && error.code === "DIGEST_MISMATCH",
     );
@@ -304,7 +320,7 @@ test("real zip: a SHA-256 digest mismatch is rejected before the real archive is
 });
 
 test("real zip: a missing plugin.json is rejected", async () => {
-  const { cwd, workspaceLayout } = await freshWorkspaceLayout();
+  const { cwd, instanceLayout, workspaceLayout } = await freshWorkspaceLayout();
   try {
     const archive = await buildZipFixture([{ path: "skills/a/SKILL.md", content: "# A" }]);
     const digest = createHash("sha256").update(archive).digest("hex");
@@ -315,7 +331,8 @@ test("real zip: a missing plugin.json is rejected", async () => {
           archive,
           expectedSha256: digest,
           archiveReader: yauzlAgentPluginArchiveReader,
-          layout: workspaceLayout,
+          layout: instanceLayout,
+          workspaceId: WORKSPACE_ID,
         }),
       (error: unknown) => error instanceof AgentPluginInstallError && error.code === "MANIFEST_MISSING",
     );
