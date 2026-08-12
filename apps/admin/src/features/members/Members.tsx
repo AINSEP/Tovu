@@ -3,10 +3,8 @@ import { RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
 import type { AdminMember } from "../../lib/api";
 import { formatTimestamp } from "../../lib/format-timestamp";
 
-import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { memberRowMenuItems, type RowActionState } from "./rules";
 import { useMembers } from "./hooks/use-members.hooks";
-import { t as translateMembers } from "./members-i18n";
 
 /**
  * @file Admin "Members" screen (ADR-030, ADR-PIPE-013 Decision §7) — markup only.
@@ -167,9 +165,9 @@ export function Members({ useMembersHook = useMembers }: MembersProps = {}) {
     confirmingDisable,
     setConfirmingDisable,
     confirmDisable,
+    t,
+    locale,
   } = useMembersHook();
-  const locale = useAdminLocale();
-  const t = (key: string): string => translateMembers(locale, key);
 
   if (error) return <div className="notice error">{error}</div>;
   if (!members) return <div className="notice">{t("Loading members…")}</div>;

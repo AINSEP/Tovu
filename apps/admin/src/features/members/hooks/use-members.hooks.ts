@@ -15,6 +15,14 @@ import { t } from "../members-i18n";
  *
  * Naming follows `hooks/use-settings-slice.hooks.ts` and `posts/hooks/use-posts.hooks.ts`:
  * `use-<thing>.hooks.ts`. Feature-local because nothing outside `features/members` needs it.
+ *
+ * `t`/`locale` (2026-08-11, standing i18n rule — a component with a hook gets a BOUND `t` from that
+ * hook, not its own `useAdminLocale()`/dictionary import): this hook already called
+ * `useAdminLocale()` for its own error-string translations, so exposing that SAME already-resolved
+ * `locale` as a bound `t` (plus the raw value, still needed for `rules.ts`'s `memberRowMenuItems`,
+ * which takes `locale` directly) on the return value adds no new fetch — `Members.tsx` used to call
+ * `useAdminLocale()` a second time and rebuild its own `translateMembers(locale, key)` closure,
+ * entirely redundant with the resolution this hook was already doing internally.
  */
 
 export interface MembersController {
@@ -42,10 +50,18 @@ export interface MembersController {
   confirmingDisable: AdminMember | null;
   setConfirmingDisable: Dispatch<SetStateAction<AdminMember | null>>;
   confirmDisable: () => Promise<void>;
+
+  /** Bound translator — `key` already resolved against the caller's locale, so `Members.tsx` never
+   *  imports `useAdminLocale`/`members-i18n` itself. See this file's header. */
+  t: (key: string) => string;
+  /** Raw resolved locale — `rules.ts`'s `memberRowMenuItems` takes `locale` directly rather than a
+   *  bound translator. See this file's header. */
+  locale: string;
 }
 
 export function useMembers(): MembersController {
   const locale = useAdminLocale();
+  const boundT = (key: string): string => t(locale, key);
   const [members, setMembers] = useState<AdminMember[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [rowState, setRowState] = useState<Record<string, RowActionState>>({});
@@ -146,5 +162,8 @@ export function useMembers(): MembersController {
     confirmingDisable,
     setConfirmingDisable,
     confirmDisable,
+
+    t: boundT,
+    locale,
   };
 }
