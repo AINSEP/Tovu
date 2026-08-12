@@ -8,7 +8,6 @@
     { "file": "apps/admin/src/features/ai-assistant/AiAssistant.tsx", "note": "AdminExecutionMode: cyclomatic 11; VisitorCredentialKeyFooter: cyclomatic 10" },
     { "file": "apps/admin/src/features/media/Media.tsx", "note": "Media: cyclomatic 12, cognitive 21" },
     { "file": "apps/admin/src/features/pages/Pages.tsx", "note": "Pages: cyclomatic 13" },
-    { "file": "apps/admin/src/features/pages/hooks/use-page-editor.hooks.ts", "note": "async arrow (line 121): cyclomatic 10" },
     { "file": "apps/admin/src/features/posts/PostEditor.tsx", "note": "selector: cyclomatic 27; PostEditor: cyclomatic 14, cognitive 11" },
     { "file": "apps/admin/src/features/seo/Seo.tsx", "note": "SeoEntryPanel: cyclomatic 25" },
     { "file": "apps/admin/src/features/settings/ComposioKeyField.tsx", "note": "ComposioKeyField: cyclomatic 12" },

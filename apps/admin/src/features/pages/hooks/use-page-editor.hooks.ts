@@ -5,6 +5,7 @@ import { navigate as defaultNavigate } from "../../../lib/router";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { t as defaultT } from "../page-editor-i18n";
 import { prettifyHtml } from "../lib/prettify-html";
+import { buildPageSavePlan, pageSaveSuccessMessage } from "../rules";
 import { defaultPageEditorPort } from "./page-editor-dependencies.hooks";
 import type { PageEditorPort } from "./page-editor-port.hooks";
 
@@ -262,7 +263,6 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
       setSaving(true);
       setError(null);
       setMessage(null);
-      const statusToWrite = nextStatus ?? status;
       // `updatePageHtml` is the bespoke-HTML writer (`routes/admin/pages/update-html.ts`) and its
       // FIRST call on a still-`doc`-format Page converts it to `html` format and drops `body_json`
       // — see that route's own doc comment. This editor has no way to render a doc-format body (it
@@ -270,12 +270,15 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
       // page's real, already-authored content with an empty string on every ordinary Save/Publish.
       // Only call it for a Page already in `html` format; a doc-format Page saves title/slug/status
       // only, until the separately-scoped dual-mode editor (task #30) can represent its real body.
-      const canSaveHtml = page.bodyFormat === "html";
+      // What to send each route, and whether `updatePageHtml` fires at all, is `buildPageSavePlan`'s
+      // decision (`../rules.ts`) — see that function's own doc for the full reasoning, moved there
+      // verbatim under the 2026-08-12 complexity-ceiling pass.
+      const plan = buildPageSavePlan(page, { title, slug, status, templateChoice }, nextStatus);
       try {
         // Two writes, in this order, because they are two different server-side paths and only the
         // second one can create the html row. Body first: if the metadata write fails on a slug
         // conflict, the operator's actual content is already safe.
-        if (canSaveHtml) {
+        if (plan.canSaveHtml) {
           await port.updatePageHtml(page.id, html);
         }
         // `updatePost` (`features/post/post.ts`'s own `updatePost`) requires `bodyJson` to be a JSON
@@ -286,24 +289,14 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
         // it unchanged satisfies the requirement without touching the real content — the alternative
         // (omitting it) throws "bodyJson must be a JSON object" and leaves title/slug/status stuck
         // un-editable for every doc-format Page, which is worse than a no-op round-trip.
-        const { post: updated } = await port.updatePost(
-          { id: page.id },
-          { title, slug, status: statusToWrite, templateChoice, ...(canSaveHtml ? {} : { bodyJson: page.bodyJson }) }
-        );
+        const { post: updated } = await port.updatePost({ id: page.id }, plan.updatePostPayload);
         setPage(updated);
         setSlug(updated.slug);
         setStatus(updated.status);
         setSavedTemplateChoice(templateChoice);
-        if (canSaveHtml) setSavedHtml(html);
+        if (plan.canSaveHtml) setSavedHtml(html);
         if (nextStatus) setStatus(nextStatus);
-        setMessage(
-          canSaveHtml
-            ? t(locale, "Saved")
-            : t(
-                locale,
-                "Saved title, slug, and status. This page's body uses the document editor and can't be edited here yet."
-              )
-        );
+        setMessage(pageSaveSuccessMessage(t, locale, plan.canSaveHtml));
       } catch (e) {
         setError(e instanceof Error ? e.message : t(locale, "failed to save page"));
       } finally {
