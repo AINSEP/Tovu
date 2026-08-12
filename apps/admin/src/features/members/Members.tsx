@@ -2,9 +2,10 @@ import { Fragment } from "react";
 import { RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
 import type { AdminMember } from "../../lib/api";
 import { formatTimestamp } from "../../lib/format-timestamp";
+import type { Translate } from "../../lib/dictionary-translator";
 
 import { memberRowMenuItems, type RowActionState } from "./rules";
-import { useMembers } from "./hooks/use-members.hooks";
+import { useWiredMembers } from "./hooks/use-members.hooks";
 
 /**
  * @file Admin "Members" screen (ADR-030, ADR-PIPE-013 Decision §7) — markup only.
@@ -32,7 +33,7 @@ export interface MembersProps {
    * for `useCustomSelect`. Defaulted to the real hook, so production callers (`panels.tsx`) pass
    * nothing and behave exactly as before.
    */
-  useMembersHook?: typeof useMembers;
+  useMembersHook?: typeof useWiredMembers;
 }
 
 interface MemberDetailPanelProps {
@@ -40,7 +41,7 @@ interface MemberDetailPanelProps {
   detailLoadingId: string | null;
   detailError: string | null;
   detail: AdminMember | undefined;
-  t: (key: string) => string;
+  t: Translate;
 }
 
 /** The expanded row's detail panel — one of "loading" / "error" / the fetched fields / nothing
@@ -75,7 +76,7 @@ interface MemberRowProps {
   onToggleDetail: (member: AdminMember) => Promise<void>;
   onResendSignInLink: (member: AdminMember) => Promise<void>;
   setConfirmingDisable: (member: AdminMember) => void;
-  t: (key: string) => string;
+  t: Translate;
   locale: string;
 }
 
@@ -151,7 +152,7 @@ function MemberRow({
   );
 }
 
-export function Members({ useMembersHook = useMembers }: MembersProps = {}) {
+export function Members({ useMembersHook = useWiredMembers }: MembersProps = {}) {
   const {
     members,
     error,

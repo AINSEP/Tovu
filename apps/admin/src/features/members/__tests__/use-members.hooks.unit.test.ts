@@ -1,7 +1,7 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { useMembers } from "../hooks/use-members.hooks";
+import { useWiredMembers } from "../hooks/use-members.hooks";
 
 /**
  * @file `useMembers`'s own `t`/`locale` fields (2026-08-11, standing i18n rule — see this hook's
@@ -35,7 +35,7 @@ afterEach(() => {
 describe("useMembers — t/locale reflect the resolved locale", () => {
   it("t falls back to the English source string for the default locale", async () => {
     vi.stubGlobal("fetch", stubFetchWithLocale("en"));
-    const { result } = renderHook(() => useMembers());
+    const { result } = renderHook(() => useWiredMembers());
 
     await waitFor(() => expect(result.current.t("Members")).toBe("Members"));
     expect(result.current.locale).toBe("en");
@@ -43,7 +43,7 @@ describe("useMembers — t/locale reflect the resolved locale", () => {
 
   it("t returns the Spanish translation and locale reflects 'es' once the locale settings fetch resolves", async () => {
     vi.stubGlobal("fetch", stubFetchWithLocale("es"));
-    const { result } = renderHook(() => useMembers());
+    const { result } = renderHook(() => useWiredMembers());
 
     await waitFor(() => expect(result.current.locale).toBe("es"));
     expect(result.current.t("Members")).toBe("Miembros");
