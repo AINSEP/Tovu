@@ -296,7 +296,17 @@ section.band { padding: 72px 0; border-top: 1px solid var(--border); }
 .post-detail-body code { font: 13px/1 var(--font-mono); background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; }
 .post-detail-body pre { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; overflow-x: auto; margin: 20px 0; }
 .post-detail-body pre code { border: none; background: none; padding: 0; }
-.post-detail-body img { max-width: 100%; border-radius: 10px; margin: 20px 0; }
+/* `height: auto` added (2026-08-12, same dispatch as the admin editor's `.editor-body .tiptap
+   img` fix) — confirmed live (headless Chromium against this exact stylesheet, a real PNG
+   carrying `width`/`height` HTML attributes) that WITHOUT it, an image squashes instead of
+   scaling: `max-width: 100%` alone shrinks the rendered width, but the HTML `height` attribute
+   `render.ts` emits (from stored media metadata) still wins as a presentational hint and pins
+   the pixel height, distorting the aspect ratio. `renderImageTag` (`src/server/http/site/
+   render.ts`) emits `width`/`height` independently whenever an asset has that metadata stored —
+   this is a real, reachable shape, not a hypothetical one. This same rule, byte-identical, is
+   copied (not inherited — ADR/decision: Tovu themes are copies, see `project_tovu_theme_copy_
+   model`) into 5 other themes; all 6 got this same one-line fix in this dispatch. */
+.post-detail-body img { max-width: 100%; height: auto; border-radius: 10px; margin: 20px 0; }
 /* Highlight mark (`renderDocNode`'s `"highlight"` case, 2026-08-11) — the browser's own UA default
    for `<mark>` (yellow background, black text) is legible on its own, but a bare square block reads
    out of place next to every other inline element here that already carries this theme's own
