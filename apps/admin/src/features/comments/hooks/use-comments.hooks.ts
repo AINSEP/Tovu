@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
-
 import { describeApiError } from "../../../lib/api";
+import { useFetchQuery } from "../../../lib/fetch-query";
+import { KEYS } from "../rules";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { defaultCommentsPort } from "./comments-dependencies.hooks";
 import type { CommentsPort } from "./comments-port.hooks";
@@ -29,6 +29,9 @@ import type { CommentsPort } from "./comments-port.hooks";
  * rebuilding a dictionary lookup inline), so there is no bound closure to inject here, only the
  * raw string those calls need. Same "pure, no-I/O rule stays a direct import" carve-out
  * `pageRowMenuItems` gets in `use-pages.hooks.ts`.
+ *
+ * `lib/fetch-query` migration (2026-08-12): the permissions load is one `useFetchQuery` keyed on
+ * `KEYS.permissions`.
  */
 
 export interface CommentsController {
@@ -47,15 +50,10 @@ export interface CommentsDependencies {
 
 export function useComments(deps: CommentsDependencies): CommentsController {
   const { port, locale } = deps;
-  const [permissions, setPermissions] = useState<string[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const list = useFetchQuery({ key: KEYS.permissions, fetch: () => port.me() });
 
-  useEffect(() => {
-    port
-      .me()
-      .then((r) => setPermissions(r.effectivePermissions ?? []))
-      .catch((e) => setError(describeApiError(e, "failed to load permissions")));
-  }, [port]);
+  const permissions = list.data ? (list.data.effectivePermissions ?? []) : null;
+  const error = list.error ? describeApiError(list.error, "failed to load permissions") : null;
 
   return { permissions, error, locale };
 }
