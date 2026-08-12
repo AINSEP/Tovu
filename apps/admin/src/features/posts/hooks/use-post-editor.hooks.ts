@@ -6,9 +6,10 @@ import TextAlign from "@tiptap/extension-text-align";
 import { api, type AdminPost, type ThemeTier } from "../../../lib/api";
 import { MediaImage } from "../../../lib/media-image-extension";
 import { WidgetEmbed } from "../../../lib/widget-embed-extension";
+import { PostTitleDocument, PostTitle } from "../../../lib/post-title-extension";
 import { navigate } from "../../../lib/router";
 import { useDirtyGuard } from "../../../hooks/use-dirty-guard.hooks";
-import { handleImageDrop } from "../rules";
+import { handleImageDrop, titleNodeText, withTitleNode } from "../rules";
 
 /**
  * @file Everything the post/page EDITOR does, so `PostEditor.tsx` is only markup.
@@ -149,14 +150,33 @@ export function usePostEditor(postId: string): PostEditorController {
 
   const editor = useEditor({
     // Link and Underline ship as part of StarterKit already (verified against its own bundle) —
-    // only TextAlign needed adding. Configured against `heading`/`paragraph` only for now; task 3
-    // (the title node) adds `"title"` to this list once that node type exists.
-    extensions: [StarterKit, TextAlign.configure({ types: ["heading", "paragraph"] }), MediaImage, WidgetEmbed],
+    // only TextAlign needed adding. `document: false` turns off StarterKit's own `doc` node so
+    // `PostTitleDocument` (`title block+`) can take over that slot — see `lib/post-title-extension.ts`'s
+    // file header for the post-title-in-document feature this pair belongs to and why the title lives
+    // in `bodyJson` as a real node instead of a theme-level-only field.
+    extensions: [
+      StarterKit.configure({ document: false }),
+      PostTitleDocument,
+      PostTitle,
+      TextAlign.configure({ types: ["heading", "paragraph", "title"] }),
+      MediaImage,
+      WidgetEmbed,
+    ],
     content: "",
     editorProps: {
       handleDrop: (view, event, _slice, moved) => handleImageDrop(view, event, moved),
     },
-    onUpdate: () => setBodyVersion((v) => v + 1),
+    // The title-node half of the title's two-way sync with the standalone title `<input>` (see
+    // `setTitleAndSyncEditor` below for the input's own half): every keystroke anywhere in the doc
+    // re-extracts the title node's current text and re-baselines `title` state from it, so typing
+    // directly into the canvas (centering it, etc.) keeps the slug/list/`<title>`-tag-feeding `title`
+    // field in sync without an author ever touching the input. Also fires once for the load effect's
+    // own `setContent` call below — `titleNodeText` there returns exactly the same text `setTitle
+    // (post.title)` already set, so that extra call is an idempotent no-op, not a race.
+    onUpdate: ({ editor: current }) => {
+      setBodyVersion((v) => v + 1);
+      setTitle(titleNodeText(current.getJSON()));
+    },
   });
 
   useEffect(() => {
@@ -187,7 +207,14 @@ export function usePostEditor(postId: string): PostEditorController {
         setTemplateChoice(defaultedTemplateChoice);
         setOverridesThemePage(post.overridesThemePage ?? false);
         if (editor) {
-          editor.commands.setContent(post.bodyJson as never);
+          // `withTitleNode` (post-title-in-document feature, 2026-08-11) is the back-compat seam:
+          // every post saved before this feature has a `bodyJson` with no `title` node, which the
+          // editor's own custom `doc` schema (`content: "title block+"`) would otherwise reject on
+          // load. Already-migrated posts pass through unchanged; anything else gets a title node
+          // synthesized from this SAME `post.title` just set above, so `original.title` (below) and
+          // the doc's own title node agree from the first render — no false-dirty on an untouched,
+          // freshly-opened pre-migration post.
+          editor.commands.setContent(withTitleNode(post.bodyJson, post.title) as never);
           // Captured via `editor.getJSON()` right after `setContent`, not `post.bodyJson` as
           // loaded — both sides of the later dirty comparison are then produced by the exact same
           // serialization, so a schema-normalization difference between the server's stored JSON
@@ -298,11 +325,28 @@ export function usePostEditor(postId: string): PostEditorController {
     }
   }
 
+  /**
+   * The standalone title `<input>`'s own half of the title's two-way sync with the in-document title
+   * node (the canvas's own half is the `onUpdate` handler above). Pushes the typed value into the
+   * title node via `setPostTitleText` (`lib/post-title-extension.ts`) in the SAME call that updates
+   * `title` state, so the input and the canvas can never visibly disagree even for one render — the
+   * `onUpdate` this triggers then re-extracts the identical text and re-sets `title` to the same
+   * value, an idempotent no-op rather than a second source of truth fighting this one.
+   *
+   * Kept under the PUBLIC name `setTitle` (returned as `setTitle` below) so `PostEditor.tsx`'s
+   * existing `<input onChange={(e) => setTitle(e.target.value)}>` needs no change at all — the sync
+   * is an internal wiring change, not a new prop this screen's markup has to know about.
+   */
+  function setTitleAndSyncEditor(next: string): void {
+    setTitle(next);
+    editor?.commands.setPostTitleText(next);
+  }
+
   return {
     post,
     editor,
     title,
-    setTitle,
+    setTitle: setTitleAndSyncEditor,
     slug,
     setSlug,
     status,

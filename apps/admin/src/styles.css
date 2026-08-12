@@ -1578,6 +1578,16 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .editor-body .tiptap p { line-height: 1.6; }
 .editor-body .tiptap pre { background: var(--surface-3); color: var(--fg); font-family: var(--font-mono); font-size: 0.85rem; padding: 1rem; border-radius: var(--r-md); overflow-x: auto; }
 .editor-body .tiptap blockquote { border-left: 3px solid var(--border-strong); margin: 1rem 0; padding-left: 1rem; color: var(--muted); }
+/* Post-title-in-document feature (2026-08-11) — the doc's own first node
+   (`lib/post-title-extension.ts`), rendered as a real `<h1 data-post-title>` so an author can click
+   directly into it and use the toolbar's TextAlign buttons on it, same as any other block. Deliberately
+   NOT styled as large/bold as `.editor-title` above (the standalone title input the owner asked to
+   keep right next to the slug, same day) — both surfaces show the same text, kept in sync
+   (`use-post-editor.hooks.ts`), and doubling that input's giant-bold treatment here would read as the
+   title appearing twice rather than once in two editable places. Sized just enough above body
+   paragraphs to read as a heading. */
+.editor-body .tiptap [data-post-title] { font-family: var(--font-display); font-size: 1.2rem; font-weight: 700; margin: 0 0 0.75rem; }
+.editor-body .tiptap [data-post-title]:empty::before { content: "Untitled"; color: var(--faint); font-weight: 500; }
 
 /* Appearance — the card backgrounds are intentional theme swatches (a preview of
    each theme's palette); tokens drive the frame, active state, and tag only.
