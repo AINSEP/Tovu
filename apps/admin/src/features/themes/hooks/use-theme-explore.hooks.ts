@@ -5,6 +5,7 @@ import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { t as translateThemes } from "../themes-i18n";
 import { defaultThemeExplorePort } from "./theme-explore-dependencies.hooks";
 import type { ThemeExploreFileEntry, ThemeExplorePort, ThemeFileGroup } from "./theme-explore-port.hooks";
+import type { Translate } from "../../../lib/dictionary-translator";
 
 /**
  * @file State for the Explore screen, so `ThemeExplore.tsx` is only markup — same split as
@@ -168,7 +169,7 @@ export interface ThemeExploreController {
   copyingPath: string | null;
   copyFile: (path: string) => Promise<void>;
   /** Bound translator — `ThemeExplore.tsx`'s only source of UI copy; see this file's own header. */
-  t: (key: string) => string;
+  t: Translate;
 }
 
 /**
@@ -226,7 +227,7 @@ async function fetchThemeExploreState(
 
 export interface ThemeExploreDependencies {
   port: ThemeExplorePort;
-  t: (key: string) => string;
+  t: Translate;
 }
 
 export function useThemeExplore(themeId: string, { port, t }: ThemeExploreDependencies): ThemeExploreController {

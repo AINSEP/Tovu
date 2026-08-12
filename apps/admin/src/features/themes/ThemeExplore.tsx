@@ -13,6 +13,7 @@ import { Toast } from "@jini-ai/ui";
 import { InfoTip } from "../../components/InfoTip";
 import { siteUrl } from "../../lib/site-url";
 import { navigate } from "../../lib/router";
+import type { Translate } from "../../lib/dictionary-translator";
 import { PAGE_PREVIEW_WIDTHS, type PagePreviewDevice } from "../pages/hooks/use-page-editor.hooks";
 import {
   THEME_FILE_GROUPS,
@@ -178,7 +179,7 @@ function ThemeExploreHtmlPane({
   file: ThemeExploreFile | undefined;
   source: string;
   setSource: (value: string) => void;
-  t: (key: string) => string;
+  t: Translate;
 }) {
   const mode = themeExploreHtmlMode(file);
 
@@ -286,7 +287,7 @@ function ThemeExploreFileRow({
   commitRename: () => void;
   copyingPath: string | null;
   copyFile: (path: string) => Promise<void>;
-  t: (key: string) => string;
+  t: Translate;
 }) {
   const isSelected = selected === file.path;
 
@@ -378,7 +379,7 @@ function ThemeExploreFileList({
   commitRename: () => void;
   copyingPath: string | null;
   copyFile: (path: string) => Promise<void>;
-  t: (key: string) => string;
+  t: Translate;
 }) {
   return (
     // `.theme-explore-files-wrap` is the actual grid item (see `.theme-explore`'s own CSS comment for
@@ -436,7 +437,7 @@ function ThemeExploreDirectionsNotice({
   t,
 }: {
   detail: ThemeExploreDetail;
-  t: (key: string) => string;
+  t: Translate;
 }) {
   if (detail.hasOriginal) return null;
   return (
@@ -473,7 +474,7 @@ function ThemeExploreCopyTip({
   t,
 }: {
   detail: ThemeExploreDetail;
-  t: (key: string) => string;
+  t: Translate;
 }) {
   if (!detail.hasOriginal) return null;
   const lineage = detail.lineage?.from
@@ -503,7 +504,7 @@ function ThemeExploreStatusNotice({
   t,
 }: {
   detail: ThemeExploreDetail;
-  t: (key: string) => string;
+  t: Translate;
 }) {
   if (detail.status === "valid") return null;
   return (
@@ -525,7 +526,7 @@ function PageRenameWarningBody({
   t,
 }: {
   pageRenameWarning: { path: string; name: string } | null;
-  t: (key: string) => string;
+  t: Translate;
 }) {
   return (
     <p>
@@ -549,7 +550,7 @@ function PageRenameWarningBody({
  */
 function themeExploreSaveLabel(
   state: { saving: boolean; dirty: boolean; file: ThemeExploreFile | undefined },
-  t: (key: string) => string
+  t: Translate
 ): string {
   if (state.saving) return t("Saving…");
   if (!state.dirty) return t("Saved");
@@ -560,7 +561,7 @@ function themeExploreSaveLabel(
  *  reason. @complexity O(1). */
 function themeExploreResetLabel(
   state: { resetting: boolean; file: ThemeExploreFile | undefined },
-  t: (key: string) => string
+  t: Translate
 ): string {
   if (state.resetting) return t("Resetting…");
   return state.file ? `${t("Reset")} ${state.file.label}` : t("Reset");
@@ -604,7 +605,7 @@ function ThemeExploreToolbarButtons({
   dirty: boolean;
   saving: boolean;
   save: () => Promise<void>;
-  t: (key: string) => string;
+  t: Translate;
 }) {
   return (
     <>
@@ -664,7 +665,7 @@ function ThemeExplorePreviewControls({
   previewSrc: string | null;
   fullscreenTriggerRef: RefObject<HTMLButtonElement | null>;
   setFullscreen: (value: boolean) => void;
-  t: (key: string) => string;
+  t: Translate;
 }) {
   return (
     <>
@@ -724,7 +725,7 @@ function ThemeExploreMainPane({
   selectedFile: ThemeExploreFile | undefined;
   source: string;
   setSource: (value: string) => void;
-  t: (key: string) => string;
+  t: Translate;
 }) {
   if (view === "html") {
     return <ThemeExploreHtmlPane file={selectedFile} source={source} setSource={setSource} t={t} />;
@@ -794,7 +795,7 @@ function ThemeExploreFullscreenDialog({
   onClose: () => void;
   onCancel: (e: SyntheticEvent<HTMLDialogElement>) => void;
   onBackdropClick: (e: MouseEvent<HTMLDialogElement>) => void;
-  t: (key: string) => string;
+  t: Translate;
 }) {
   return (
     <dialog
