@@ -369,6 +369,19 @@ function pad(label: string, width: number): string {
   return label.length >= width ? label : label + " ".repeat(width - label.length);
 }
 
+/** Formats a metric's baseline→current move for the trade report: the raw delta in the metric's
+ * own unit, plus the relative percent change. Both are shown because they read very differently
+ * on the same number — "+5 points" on a percentage metric is a much bigger deal than "+5%" on a
+ * count, and only the relative figure makes that comparable across metrics of different units. */
+function formatDelta(current: number, baseline: number, unit: "pct" | "count"): string {
+  const rawDelta = unit === "pct" ? roundPct(current - baseline) : current - baseline;
+  const deltaStr = `${rawDelta > 0 ? "+" : ""}${rawDelta}${unit === "pct" ? " pts" : ""}`;
+  const relPct = baseline === 0 ? null : roundPct((rawDelta / Math.abs(baseline)) * 100);
+  const relStr = relPct === null ? "n/a" : `${relPct > 0 ? "+" : ""}${relPct}%`;
+  const valueStr = unit === "pct" ? `${baseline.toFixed(2)} → ${current.toFixed(2)}` : `${baseline} → ${current}`;
+  return `${valueStr}  (${deltaStr}, ${relStr})`;
+}
+
 function main(): void {
   const modules = cruise();
   const forward = buildFileGraph(modules);
@@ -457,15 +470,25 @@ function main(): void {
   const cyclesRegressed = introducedPairs.length > 0 || sccVerdict === "regressed";
   const cyclesImproved = (removedPairs.length > 0 || sccVerdict === "improved") && !cyclesRegressed;
 
-  const checks: { label: string; verdict: Verdict; current: number; baseline: number }[] = [
-    { label: "propagation cost", verdict: compare(propagationCostPct, baseline.propagationCostPct), current: propagationCostPct, baseline: baseline.propagationCostPct },
-    { label: "back-edges into composition root", verdict: compare(backEdges.total, baseline.backEdgesIntoServer), current: backEdges.total, baseline: baseline.backEdgesIntoServer },
+  const cyclesLabel = "module cycles / SCC";
+  const cyclesTradeDetail =
+    [
+      introducedPairs.length > 0 ? `+${introducedPairs.length} cycle pair(s)` : null,
+      removedPairs.length > 0 ? `-${removedPairs.length} cycle pair(s)` : null,
+      sccVerdict !== "same" ? `largest SCC ${baseline.moduleCycles.largestScc} → ${largestScc}` : null,
+    ]
+      .filter((s): s is string => s !== null)
+      .join(", ") || "no change";
+
+  const checks: { label: string; verdict: Verdict; current: number; baseline: number; unit: "pct" | "count" }[] = [
+    { label: "propagation cost", verdict: compare(propagationCostPct, baseline.propagationCostPct), current: propagationCostPct, baseline: baseline.propagationCostPct, unit: "pct" },
+    { label: "back-edges into composition root", verdict: compare(backEdges.total, baseline.backEdgesIntoServer), current: backEdges.total, baseline: baseline.backEdgesIntoServer, unit: "count" },
     // The API-surface metric ratchets on DISTINCT EXPOSED FILES, not on edge count. Adding a
     // second import to an already-exposed file does not widen a module's public surface and must
     // not fail the build; exposing a file that was previously private must. `deepImportsBypassing-
     // Index` is recorded in the baseline and printed, but deliberately not checked here.
-    { label: "module API surface (files exposed)", verdict: compare(apiSurfaceFiles, baseline.moduleApiSurfaceFiles), current: apiSurfaceFiles, baseline: baseline.moduleApiSurfaceFiles },
-    { label: "core size", verdict: compare(coreSize.pct, baseline.coreSize.pct), current: coreSize.pct, baseline: baseline.coreSize.pct },
+    { label: "module API surface (files exposed)", verdict: compare(apiSurfaceFiles, baseline.moduleApiSurfaceFiles), current: apiSurfaceFiles, baseline: baseline.moduleApiSurfaceFiles, unit: "count" },
+    { label: "core size", verdict: compare(coreSize.pct, baseline.coreSize.pct), current: coreSize.pct, baseline: baseline.coreSize.pct, unit: "pct" },
   ];
 
   const regressed = checks.filter((c) => c.verdict === "regressed");
@@ -491,6 +514,30 @@ function main(): void {
   }
   for (const check of improved) {
     console.log(`\n  ${check.label} improved: ${check.baseline} → ${check.current}`);
+  }
+
+  // TRADE DETECTED: this run moved metrics in both directions. This is easy to miss in the
+  // per-metric lines above — e.g. a barrel-file cleanup that shrinks API surface while raising
+  // propagation cost is a net loss on the metric that actually costs something, but reads as
+  // "3 improved, 1 regressed" if you're skimming. Make that unmissable.
+  const hasTrade = (regressed.length > 0 || cyclesRegressed) && (improved.length > 0 || cyclesImproved);
+  if (hasTrade) {
+    const tradeLines: { verdict: "regressed" | "improved"; label: string; detail: string }[] = [
+      ...regressed.map((c) => ({ verdict: "regressed" as const, label: c.label, detail: formatDelta(c.current, c.baseline, c.unit) })),
+      ...(cyclesRegressed ? [{ verdict: "regressed" as const, label: cyclesLabel, detail: cyclesTradeDetail }] : []),
+      ...improved.map((c) => ({ verdict: "improved" as const, label: c.label, detail: formatDelta(c.current, c.baseline, c.unit) })),
+      ...(cyclesImproved ? [{ verdict: "improved" as const, label: cyclesLabel, detail: cyclesTradeDetail }] : []),
+    ];
+    const tradeLabelWidth = Math.max(...tradeLines.map((l) => l.label.length)) + 2;
+    const bar = "=".repeat(72);
+    console.error(`\n${bar}`);
+    console.error(`  TRADE DETECTED — this run bought improvement on one metric with regression on another`);
+    console.error(bar);
+    for (const line of tradeLines) {
+      const tag = line.verdict === "regressed" ? "regressed:" : "improved: ";
+      console.error(`  ${tag} ${pad(line.label, tradeLabelWidth)}${line.detail}`);
+    }
+    console.error(bar);
   }
 
   if (regressed.length > 0 || cyclesRegressed) {
