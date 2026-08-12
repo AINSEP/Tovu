@@ -10,6 +10,7 @@ import {
 import { ConfirmDialog, RowMenu } from "@jini-ai/admin/react";
 import { Toast } from "@jini-ai/ui";
 
+import { InfoTip } from "../../components/InfoTip";
 import { siteUrl } from "../../lib/site-url";
 import { navigate } from "../../lib/router";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
@@ -424,14 +425,11 @@ function ThemeExploreFileList({
 }
 
 /**
- * The "you're editing your own copy" directions, or the no-original warning when there is nothing to
- * fall back to. Deliberately NOT the words "child theme" — there is no runtime relationship between
- * this theme and the one it came from, and calling it a child would teach that changing the original
- * still feeds into this one, which it does not.
- *
- * Extracted to top level for the complexity-drift reason this file's own header comment documents:
- * three conditionals (`hasOriginal`, `lineage?.from`, `lineage.version`), two of them nested inside
- * each other, is exactly the shape that inflates cognitive complexity fastest once left inline.
+ * The no-original warning — the only case with nothing to fall back to if an edit goes wrong.
+ * Deliberately NOT folded into `ThemeExploreCopyTip` below even though both start from the same
+ * `hasOriginal` check: this is an actionable limitation ("edits here cannot be reset"), not
+ * reassurance, so it stays a full, un-collapsed `.notice` rather than being tucked into a tooltip
+ * an operator might not open before they start editing.
  *
  * @complexity O(1).
  */
@@ -442,29 +440,56 @@ function ThemeExploreDirectionsNotice({
   detail: ThemeExploreDetail;
   t: (key: string) => string;
 }) {
-  if (!detail.hasOriginal) {
-    return (
-      <div className="notice warning">
-        {t(
-          "No stored original for this theme, so edits here cannot be reset. Copy it first if you want a fallback."
-        )}
-      </div>
-    );
-  }
+  if (detail.hasOriginal) return null;
   return (
-    <div className="notice theme-explore-directions">
-      <strong>{t("You're editing your own copy.")}</strong>{" "}
+    <div className="notice warning">
       {t(
-        "An untouched original is kept separately, so you can change anything here without losing what you started from."
+        "No stored original for this theme, so edits here cannot be reset. Copy it first if you want a fallback."
       )}
-      {detail.lineage?.from ? (
-        <>
-          {" "}
-          {t("Copied from")} <code>{detail.lineage.from}</code>
-          {detail.lineage.version ? ` v${detail.lineage.version}` : null}.
-        </>
-      ) : null}
     </div>
+  );
+}
+
+/**
+ * The "you're editing your own copy" reassurance, collapsed to a single line with an `InfoTip`
+ * carrying the explanation (owner feedback, 2026-08-11 — see the JSX comment above this screen's
+ * `.page-header` for the full quote and the space-reclaiming reason it now renders in the header's
+ * actions column instead of as its own full-width block). Deliberately NOT the words "child theme"
+ * in either the visible line or the tooltip — there is no runtime relationship between this theme
+ * and the one it came from, and calling it a child would teach that changing the original still
+ * feeds into this one, which it does not.
+ *
+ * Reuses `InfoTip` (`components/InfoTip.tsx`) rather than a second bespoke tooltip — it already
+ * opens on hover AND focus and is keyboard-reachable (`tabIndex={0}` + `aria-label`), which is the
+ * actual accessibility bar here: the native `title` attribute was rejected for this exact component
+ * already (see `InfoTip`'s own doc), and touch devices can't hover at all.
+ *
+ * The copy-lineage sentence ("Copied from X vY.") folds into the SAME tooltip rather than staying
+ * its own visible clause — it's supporting detail for the same reassurance, not a fact the operator
+ * needs at a glance, so it doesn't earn a place on the one visible line.
+ *
+ * @complexity O(1).
+ */
+function ThemeExploreCopyTip({
+  detail,
+  t,
+}: {
+  detail: ThemeExploreDetail;
+  t: (key: string) => string;
+}) {
+  if (!detail.hasOriginal) return null;
+  const lineage = detail.lineage?.from
+    ? ` ${t("Copied from")} ${detail.lineage.from}${detail.lineage.version ? ` v${detail.lineage.version}` : ""}.`
+    : "";
+  return (
+    <p className="theme-explore-copy-tip">
+      {t("You're editing your own copy.")}
+      <InfoTip
+        label={`${t(
+          "An untouched original is kept separately, so you can change anything here without losing what you started from."
+        )}${lineage}`}
+      />
+    </p>
   );
 }
 
@@ -883,16 +908,22 @@ export function ThemeExplore({ themeId, useThemeExploreHook = useThemeExplore }:
   return (
     <div className="page">
       {/* 2026-08-11: header row matches `PageEditor.tsx`'s own header exactly — `.page-header-text`
-          (kicker/title/description) and `.page-actions` (← All themes / Save / Reset) as SIBLINGS
-          inside the same `.page-header`, not stacked as two separate blocks. `.page-header`'s own
-          `display: flex; justify-content: space-between` (shared, styles.css) is what puts the title
-          on the left and the button row on the right of the SAME line — that rule already does the
-          work for Pages, so this screen only needed to adopt the same DOM shape, not new CSS. The
-          previous layout had `.page-actions` as a second row below `.page-header`, which is also why
-          the "You're editing your own copy" banner used to read as sitting directly under an empty
-          second header row — it now sits in the space that row vacated, immediately under the
-          title/actions line, which is the position `.theme-explore-directions`'s own width cap
-          (below) was designed against. */}
+          (kicker/title/description) and the actions column as SIBLINGS inside the same
+          `.page-header`, not stacked as two separate blocks. `.page-header`'s own `display: flex;
+          justify-content: space-between` (shared, styles.css) is what puts the title on the left
+          and the actions column on the right of the SAME line — that rule already does the work for
+          Pages, so this screen only needed to adopt the same DOM shape, not new CSS.
+
+          The actions column (`.theme-explore-header-actions`) wraps TWO stacked rows now, not one:
+          the ← All themes / Save / Reset button row (`.page-actions`, unchanged), and below it the
+          collapsed "You're editing your own copy" line. That line used to be its own full-width
+          `.notice` block between the header and the file list, up to half the page wide (owner
+          feedback, 2026-08-11: "it's taking up too much space... just show 'You're editing your own
+          copy' and then a tooltip icon ... put that on the right hand side under the All themes").
+          Moving it into the header's own actions column, rather than leaving it as a sibling of
+          `.page-header` styled to float right, means the file list below gets ALL of the reclaimed
+          vertical space for free — one fewer full-width block in `.page`'s flex column, no
+          compensating negative margin needed. */}
       <div className="page-header theme-explore-header">
         <div className="page-header-text">
           <p className="page-kicker">{t("Studio")}</p>
@@ -901,27 +932,30 @@ export function ThemeExplore({ themeId, useThemeExploreHook = useThemeExplore }:
             {t("Edit this theme and see it rendered. Nothing here changes your live site until you activate it.")}
           </p>
         </div>
-        <div className="page-actions">
-          <a
-            href="/admin/themes"
-            onClick={(e) => {
-              e.preventDefault();
-              navigate("/themes");
-            }}
-          >
-            <button type="button" className="btn-secondary">
-              {t("← All themes")}
-            </button>
-          </a>
-          <ThemeExploreToolbarButtons
-            selectedFile={selectedFile}
-            resetting={resetting}
-            openResetConfirm={openResetConfirm}
-            dirty={dirty}
-            saving={saving}
-            save={save}
-            t={t}
-          />
+        <div className="theme-explore-header-actions">
+          <div className="page-actions">
+            <a
+              href="/admin/themes"
+              onClick={(e) => {
+                e.preventDefault();
+                navigate("/themes");
+              }}
+            >
+              <button type="button" className="btn-secondary">
+                {t("← All themes")}
+              </button>
+            </a>
+            <ThemeExploreToolbarButtons
+              selectedFile={selectedFile}
+              resetting={resetting}
+              openResetConfirm={openResetConfirm}
+              dirty={dirty}
+              saving={saving}
+              save={save}
+              t={t}
+            />
+          </div>
+          <ThemeExploreCopyTip detail={detail} t={t} />
         </div>
       </div>
 
