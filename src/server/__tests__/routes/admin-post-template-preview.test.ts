@@ -113,6 +113,15 @@ function previewUrl(baseUrl: string, id: string, templateChoice: string | null):
   return `${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/posts/${id}/template-preview${query}`;
 }
 
+const PENDING_BODY_TEXT = "Pending, unsaved body text the operator is looking at right now";
+
+/** Builds a TipTap `bodyJson` doc containing `text` as its sole paragraph — same minimal shape
+ * `savePost`'s own fixture uses for {@link POST_BODY_TEXT}, so a passing assertion on the rendered
+ * HTML's text content is comparing like with like. */
+function docBody(text: string): unknown {
+  return { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text }] }] };
+}
+
 test("renders the PENDING template override, not the row's saved templateChoice", async (t) => {
   const { app, deps } = buildTestApp(staticThemeWithTemplates());
   const post = await savePost(deps, { slug: "contact", templateChoice: "blog-post.html" });
@@ -137,6 +146,61 @@ test("never persists the override — the row's stored templateChoice is unchang
   const getRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/posts/${post.id}`, { headers: { cookie } });
   const { post: reloaded } = (await getRes.json()) as { post: PostRecord };
   assert.equal(reloaded.templateChoice, "blog-post.html", "the preview request must not have written anything back");
+});
+
+// 2026-08-12 pending-body fix: the owner's own reported bug — any content edit used to fall the
+// preview all the way back to the raw, unstyled `SrcDocSandbox` because there was no way to hand this
+// route the operator's unsaved `bodyJson`. `POST` (new) accepts one; `GET` (unchanged, exercised by
+// every test above) never does.
+test("POST with a pending bodyJson renders the PENDING body, not the row's saved body", async (t) => {
+  const { app, deps } = buildTestApp(staticThemeWithTemplates());
+  const post = await savePost(deps, { slug: "contact", templateChoice: "blog-post.html" });
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(previewUrl(baseUrl, post.id, "blog-post.html"), {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ bodyJson: docBody(PENDING_BODY_TEXT) }),
+  });
+  const html = await res.text();
+
+  assert.equal(res.status, 200);
+  assert.ok(html.includes(PENDING_BODY_TEXT), "the PENDING body must reach the page");
+  assert.ok(!html.includes(POST_BODY_TEXT), "the SAVED body must not reach the page once a pending override was supplied");
+});
+
+test("POST never persists the pending body — the row's stored bodyJson is unchanged afterward", async (t) => {
+  const { app, deps } = buildTestApp(staticThemeWithTemplates());
+  const post = await savePost(deps, { slug: "contact", templateChoice: "blog-post.html" });
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  await fetch(previewUrl(baseUrl, post.id, "blog-post.html"), {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ bodyJson: docBody(PENDING_BODY_TEXT) }),
+  });
+
+  const getRes = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/posts/${post.id}`, { headers: { cookie } });
+  const { post: reloaded } = (await getRes.json()) as { post: PostRecord };
+  assert.equal(JSON.stringify(reloaded.bodyJson), JSON.stringify(post.bodyJson), "the preview request must not have written anything back");
+});
+
+// Negative/spot verification (per dispatch): a malformed override (not a JSON object) must not reach
+// `renderDocNode` — degrades to the pre-existing saved-body render rather than crashing the request.
+test("POST with a malformed bodyJson (not an object) falls back to the saved body instead of erroring", async (t) => {
+  const { app, deps } = buildTestApp(staticThemeWithTemplates());
+  const post = await savePost(deps, { slug: "contact", templateChoice: "blog-post.html" });
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(previewUrl(baseUrl, post.id, "blog-post.html"), {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ bodyJson: "not-an-object" }),
+  });
+  const html = await res.text();
+
+  assert.equal(res.status, 200);
+  assert.ok(html.includes(POST_BODY_TEXT), "an invalid override shape must fall back to the saved body, never crash");
 });
 
 // Found while writing this suite, not assumed: the lookup here is by id (any status), unlike the

@@ -1,4 +1,5 @@
 import type { Response } from "express";
+import type { JsonObject } from "@jini-ai/cms/core";
 
 import type { PostRecord } from "#src/features/post/index";
 import { getPresentationSettings } from "#src/features/presentation/index";
@@ -449,12 +450,24 @@ export async function resolveHtmlFormatContentMarkers(
  * real record with only `templateChoice` overridden, never persisting the override. Reusing this
  * function directly (rather than a second implementation) is the same "one render pipeline, zero
  * drift" reasoning the file header above gives for the live-site iframe branch in both editors.
+ *
+ * `pendingBodyJson` (2026-08-12, same fix's `bodyJson` half) — an optional, explicitly-passed
+ * override for `post`'s OWN body, threaded into `resolveHtmlPageEmbeds` as a
+ * {@link ResolveHtmlPageEmbedsDeps.pendingContentOverride} keyed to `post.id`. Without this, the
+ * current entity's own `{"type":"content"}` slot (`injectCurrentEntityContentId`, immediately below)
+ * re-fetches `post.id` from `postRepo` regardless of what `post.bodyJson` the caller passed in here —
+ * `post`'s OTHER fields (title via `injectPageTitle` two lines below, `templateChoice` via
+ * `resolveTemplate` above) already flow through because this function reads them directly, but the
+ * BODY only ever reaches the page through that separate marker-resolution round trip. `undefined`
+ * (every pre-existing call site) is byte-identical to before this parameter existed — see the
+ * override field's own doc for why this is scoped to one id and never ambient state.
  */
 export async function renderViaTemplate(
   deps: TemplateRenderDeps,
   theme: DiscoveredTheme,
   post: PostRecord,
-  staticMenus: Readonly<Record<string, readonly StaticMenuItem[]>> | undefined
+  staticMenus: Readonly<Record<string, readonly StaticMenuItem[]>> | undefined,
+  pendingBodyJson?: JsonObject
 ): Promise<string> {
   const resolution = resolveTemplate({ theme, templateChoice: post.templateChoice });
   if (resolution.kind === "diagnostic") {
@@ -473,7 +486,15 @@ export async function renderViaTemplate(
   const withCurrentId = injectCurrentEntityContentId(withTitle, post.id);
   const withNestedContent = await resolveHtmlFormatContentMarkers(deps, withCurrentId, 0, { remaining: MAX_CONTENT_EMBED_FETCHES });
   const resolved = await resolveHtmlPageEmbeds({
-    deps: { entryRepo: deps.entryRepo, postRepo: deps.postRepo, mediaRepo: deps.mediaRepo, transformRepo: deps.transformDefinitionRepo },
+    deps: {
+      entryRepo: deps.entryRepo,
+      postRepo: deps.postRepo,
+      mediaRepo: deps.mediaRepo,
+      transformRepo: deps.transformDefinitionRepo,
+      ...(pendingBodyJson !== undefined
+        ? { pendingContentOverride: { id: post.id, title: post.title, slug: post.slug, updatedAt: post.updatedAt, bodyJson: pendingBodyJson } }
+        : {}),
+    },
     input: { workspaceId: deps.workspaceId, html: withNestedContent },
   });
   const bodyResolvedHtml = renderHtmlPageBody(withNestedContent, resolved);

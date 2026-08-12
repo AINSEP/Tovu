@@ -268,6 +268,33 @@ export interface ResolveHtmlPageEmbedsDeps extends WidgetInstanceResolutionDeps 
   readonly mediaRepo?: MediaRepoPort;
   readonly transformRepo?: TransformDefinitionRepoPort;
   readonly postRepo?: PostRepoPort;
+  /**
+   * Template-preview pending-body fix (2026-08-12) — an explicitly-passed, per-call override for
+   * exactly one entity id's content, consulted ONLY by {@link resolveContentTypeEmbeds}. Lets
+   * `routes/admin/posts/template-preview.ts` preview the operator's unsaved, in-editor `bodyJson`
+   * through the real render pipeline: without this, the current entity's own `{"type":"content"}`
+   * slot (`injectCurrentEntityContentId`) always re-fetches by id via {@link findPublishedPostById},
+   * which returns the last-SAVED row and silently discards any in-memory override the caller built
+   * (`ADS-memory/reports/implementation/2026-08-11-template-preview-render-bug.md` documents the
+   * sibling `templateChoice`-only bug this closes the `bodyJson` half of).
+   *
+   * Deliberately per-call, never a shared/global/module-level cache — threaded fresh through this
+   * `deps` object on every `resolveHtmlPageEmbeds` call, so two concurrent preview requests for
+   * different posts (or the same post from two browser tabs) can never observe each other's pending
+   * body. `undefined` for every pre-existing call site; behavior for those is byte-identical to
+   * before this field existed.
+   *
+   * `title`/`slug`/`updatedAt` are carried alongside `bodyJson` because {@link resolveContentTypeEmbeds}'s
+   * resolved `"post-content"` IR needs all four regardless of source — this is the same shape a real
+   * `findPublishedPostById` result already provides, just supplied directly instead of fetched.
+   */
+  readonly pendingContentOverride?: {
+    readonly id: UUID;
+    readonly title: string;
+    readonly slug: string;
+    readonly updatedAt: string;
+    readonly bodyJson: JsonObject;
+  };
 }
 
 type HtmlEmbedResolver = (
@@ -522,9 +549,18 @@ async function resolvePostTypeEmbeds(
  * for the entity the route already resolved, can in principle name ANY row — this is the one place in
  * the new marker's resolution chain that decides whether that row is allowed to reach the public page.
  *
+ * `pendingContentOverride` (2026-08-12) bypasses this specific `findPublishedPostById` call, but NOT
+ * the visibility guard's intent: it only ever matches ONE id — the exact row
+ * `routes/admin/posts/template-preview.ts` already fetched (any status, but through its own
+ * `content.read`-authorized, session-gated lookup) and is previewing back to the SAME authenticated
+ * operator who owns that unsaved edit. It can never be used to inject content for a DIFFERENT id than
+ * the one the caller resolved and authorized — see the override's own doc on
+ * {@link ResolveHtmlPageEmbedsDeps.pendingContentOverride}.
+ *
  * @complexity O(e) over the `content` refs present (already capped upstream at
- * `MAX_HTML_EMBEDS_PER_PAGE`) — one `findPublishedPostById` call per ref, run concurrently via
- * `Promise.all`, mirroring every other resolver in this registry.
+ * `MAX_HTML_EMBEDS_PER_PAGE`) — one `findPublishedPostById` call per ref not satisfied by
+ * {@link ResolveHtmlPageEmbedsDeps.pendingContentOverride}, run concurrently via `Promise.all`,
+ * mirroring every other resolver in this registry.
  */
 async function resolveContentTypeEmbeds(
   refs: readonly PageHtmlEmbedRef[],
@@ -532,8 +568,8 @@ async function resolveContentTypeEmbeds(
   context: WidgetResolveContext
 ): Promise<ReadonlyMap<string, WidgetRenderIR>> {
   const resolved = new Map<string, WidgetRenderIR>();
-  const { postRepo } = deps;
-  if (!postRepo) {
+  const { postRepo, pendingContentOverride } = deps;
+  if (!postRepo && !pendingContentOverride) {
     if (refs.length > 0) {
       console.warn(
         '[widgets] resolveHtmlPageEmbeds: "content" embeds present but no postRepo dependency was supplied — every occurrence degrades to the placeholder',
@@ -551,6 +587,30 @@ async function resolveContentTypeEmbeds(
         });
         return;
       }
+
+      // Preview override, checked BEFORE any DB call (see `pendingContentOverride`'s own doc):
+      // the operator's pending, unsaved body for this exact id, never a fetch. Routes through the
+      // identical `"post-content"` IR/props shape the DB branch below builds, so this substitutes
+      // only the DATA SOURCE — every downstream render/sanitization step (`render.ts`'s
+      // `renderWidgetPostContent` -> `renderDocNode`) is the SAME code the saved-body path runs,
+      // never a second, parallel render path with its own escaping rules.
+      if (pendingContentOverride && ref.id === pendingContentOverride.id) {
+        resolved.set(ref.id, {
+          componentId: "post-content",
+          props: {
+            title: pendingContentOverride.title,
+            slug: pendingContentOverride.slug,
+            updatedAt: pendingContentOverride.updatedAt,
+            bodyJson: pendingContentOverride.bodyJson,
+          },
+        });
+        return;
+      }
+
+      // No DB source for this id (postRepo absent) and it didn't match the override above: nothing
+      // safe to do but leave it unresolved — degrades to the REQ-28 placeholder like any other miss.
+      if (!postRepo) return;
+
       const entity = await findPublishedPostById({ deps: { repo: postRepo }, input: { workspaceId: context.workspaceId, id: ref.id } });
       if (!entity) {
         console.warn('[widgets] resolveHtmlPageEmbeds: unresolved "content" reference — no such published entity', {
