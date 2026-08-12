@@ -131,6 +131,77 @@ interface TableExtras {
   indexes: string[];
   composite: string[];
   checks: string[];
+  foreignKeys: string[];
+}
+
+interface ForeignKeyRef {
+  columns: readonly unknown[];
+  foreignTable: object;
+  foreignColumns: readonly unknown[];
+}
+
+/**
+ * Table object -> the export name it is bound to in `schema.ts`.
+ *
+ * A foreign key names its target by table *object*, but the generated file must reference it by
+ * the export name the generated file itself declares. Resolving through identity keeps the two in
+ * step even if a table's SQL name and its export name diverge.
+ */
+const EXPORT_NAME_BY_TABLE: Map<object, string> = new Map(
+  collectTables().map(({ exportName, table }) => [table as object, exportName])
+);
+
+function exportNameOfTable(table: object): string {
+  const name = EXPORT_NAME_BY_TABLE.get(table);
+  if (!name) {
+    throw new Error(
+      `a foreign key targets a table that is not exported from schema.ts (SQL name "${getTableConfig(table as never).name}"). ` +
+        `The generated file cannot reference it. Export the table or drop the constraint.`
+    );
+  }
+  return name;
+}
+
+/** The TypeScript property name of one column on another table, for rendering an FK target. */
+function foreignTsName(table: object, column: SQLiteColumn): string {
+  const cfg = getTableConfig(table as never);
+  const name = tsPropertyNames(table, cfg.columns).get(column);
+  if (!name) throw new Error(`could not resolve the TypeScript name of foreign column "${column.name}"`);
+  return name;
+}
+
+/**
+ * Renders a CHECK constraint's SQL by walking Drizzle's query chunks.
+ *
+ * These are NOT decorative. Seven of the eight checks in this schema are `*_sealed_shape`
+ * constraints on credential tables, asserting that the sealed columns are either all NULL or all
+ * populated — i.e. that a half-sealed credential row cannot exist. Dropping them on PostgreSQL
+ * would silently permit exactly the state SQLite forbids, on the tables where it matters most.
+ *
+ * A chunk is either a literal string fragment or a column reference. Column names in this schema
+ * are all lowercase snake_case, so they need no quoting; a name requiring quotes would be a new
+ * situation this function should be taught about rather than silently mangling.
+ */
+function checkSql(value: unknown): string {
+  const chunks = (value as { queryChunks?: unknown[] })?.queryChunks;
+  if (!Array.isArray(chunks)) {
+    throw new Error('a CHECK constraint exposed no queryChunks — Drizzle internals changed; revisit checkSql()');
+  }
+  return chunks
+    .map((chunk) => {
+      if (typeof chunk === 'string') return chunk;
+      const literal = (chunk as { value?: unknown }).value;
+      if (literal !== undefined) return Array.isArray(literal) ? literal.join('') : String(literal);
+      const columnName = (chunk as { name?: string }).name;
+      if (typeof columnName === 'string') {
+        if (!/^[a-z_][a-z0-9_]*$/.test(columnName)) {
+          throw new Error(`CHECK references column "${columnName}", which needs quoting — teach checkSql() first`);
+        }
+        return columnName;
+      }
+      throw new Error('unrecognised CHECK query chunk — revisit checkSql()');
+    })
+    .join('');
 }
 
 function renderExtras(
@@ -150,24 +221,40 @@ function renderExtras(
     return `    primaryKey({ columns: [${cols}] }),`;
   });
 
-  // CHECK constraints are carried across verbatim as SQL text. Every check in this schema today is
-  // a portable value assertion (an IN-list or a comparison), but that is a fact about the current
-  // schema rather than a guarantee — so each one is emitted with a marker requiring a human to
-  // confirm portability rather than being silently trusted.
-  const checks = cfg.checks.map(
-    (_, i) =>
-      `    // REVIEW-PORTABILITY: check #${i} on ${exportName} is not auto-translated — see schema.ts`
-  );
+  // CHECK constraints are emitted as real constraints, not comments. Their SQL here is portable
+  // (IS NULL / AND / OR / comparisons / string literals), and checkSql throws rather than guessing
+  // if it ever meets a chunk shape it does not recognise.
+  const checks = cfg.checks.map((ch) => {
+    const c = ch as unknown as { name: string; value: unknown };
+    return `    check(${JSON.stringify(c.name)}, sql\`${checkSql(c.value)}\`),`;
+  });
 
-  return { indexes, composite, checks };
+  // Foreign keys carry ON DELETE semantics (cascade/restrict here) that are load-bearing for
+  // referential integrity. Emitting the table without them would produce a PostgreSQL schema that
+  // silently permits orphans the SQLite schema rejects.
+  const foreignKeys = cfg.foreignKeys.map((fk) => {
+    const ref = (fk as unknown as { reference: () => ForeignKeyRef; onDelete?: string; onUpdate?: string }).reference();
+    const meta = fk as unknown as { onDelete?: string; onUpdate?: string };
+    const localCols = ref.columns.map(ref2 => `t.${tsNames.get(ref2 as SQLiteColumn) ?? (ref2 as SQLiteColumn).name}`).join(", ");
+    const foreignExport = exportNameOfTable(ref.foreignTable);
+    const foreignCols = ref.foreignColumns
+      .map((c) => `${foreignExport}.${foreignTsName(ref.foreignTable, c as SQLiteColumn)}`)
+      .join(", ");
+    const actions =
+      (meta.onDelete ? `.onDelete(${JSON.stringify(meta.onDelete)})` : "") +
+      (meta.onUpdate ? `.onUpdate(${JSON.stringify(meta.onUpdate)})` : "");
+    return `    foreignKey({ columns: [${localCols}], foreignColumns: [${foreignCols}] })${actions},`;
+  });
+
+  return { indexes, composite, checks, foreignKeys };
 }
 
 function renderTable(exportName: string, table: never): string {
   const cfg = getTableConfig(table);
   const tsNames = tsPropertyNames(table, cfg.columns);
   const columns = cfg.columns.map((c) => renderColumn(tsNames.get(c)!, c)).join("\n");
-  const { indexes, composite, checks } = renderExtras(cfg, exportName, tsNames);
-  const extras = [...composite, ...indexes, ...checks];
+  const { indexes, composite, checks, foreignKeys } = renderExtras(cfg, exportName, tsNames);
+  const extras = [...composite, ...foreignKeys, ...checks, ...indexes];
 
   const tail = extras.length ? `, (t) => [\n${extras.join("\n")}\n  ]` : "";
   return `export const ${exportName} = pgTable(${JSON.stringify(cfg.name)}, {\n${columns}\n}${tail});`;
@@ -189,7 +276,7 @@ function generate(): string {
  *
  * Tables: ${tables.length}
  */
-import { boolean, index, integer, pgTable, primaryKey, text, uniqueIndex } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";\nimport { boolean, check, foreignKey, index, integer, pgTable, primaryKey, text, uniqueIndex } from "drizzle-orm/pg-core";
 
 ${body}
 `;
