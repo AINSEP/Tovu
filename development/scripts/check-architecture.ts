@@ -55,6 +55,62 @@ function roundPct(value: number): number {
   return Math.round(value * 10 ** PCT_PRECISION) / 10 ** PCT_PRECISION;
 }
 
+/**
+ * HARD CONSTRAINTS vs RATCHETS.
+ *
+ * Every ratcheted metric is currently gated identically: any regression fails the build, and
+ * the only way out is `--update`, which just moves the baseline and launders the regression.
+ * That treats "propagation cost got worse" and "API surface got worse" as equally serious,
+ * which they are not for this repo:
+ *
+ *   - HARD CONSTRAINTS measure coupling — the real cost paid on every future change to this
+ *     codebase (propagation cost, module cycles, largest strongly-connected component). These
+ *     must never regress; regressing them makes the codebase measurably harder to change.
+ *   - RATCHETS measure hygiene — module API surface and core size are a proxy for discipline,
+ *     not a cost anyone pays today, because nothing under `src/` is a published package: nobody
+ *     imports `src/forms/` the way an npm consumer imports a package's `exports` map. A
+ *     regression here is a signal worth fixing, not a reason to break the build.
+ *
+ * NOTE — this classification is specific to Tovu's `src/`. For the Jini packages (a separate
+ * repo, published as real npm packages), the inversion holds: there, API surface *is* the
+ * public contract callers depend on, so it would belong in the hard-constraint set instead.
+ * Do not copy this classification into a check-architecture script for a published package
+ * without re-deriving it for that repo.
+ *
+ * "back-edges into composition root" is classified HARD below by inference, not by explicit
+ * instruction — flag this for confirmation before relying on it. It is not a surface-hygiene
+ * concern like API surface or core size; this file's own top-of-file comment already calls it
+ * "the actual defect" (an import reaching into `src/server/**` from outside it), which is a
+ * structural coupling violation in the same family as propagation cost and module cycles.
+ *
+ * Flip `ENFORCE_HARD_CONSTRAINT_TIERS` to `true` to make only `HARD_CONSTRAINT_METRICS` able to
+ * fail the build; a `RATCHET_METRICS` regression then prints as a non-blocking WARNING instead
+ * of failing. Left `false`, every metric below is equally load-bearing — today's behavior,
+ * unchanged, so turning tiers on is an explicit opt-in rather than a silent side effect of this
+ * change.
+ */
+const ENFORCE_HARD_CONSTRAINT_TIERS = false;
+
+type MetricTier = "hard" | "ratchet";
+
+const HARD_CONSTRAINT_METRICS = new Set<string>([
+  "propagation cost",
+  "back-edges into composition root",
+  "module cycles / SCC",
+]);
+
+const RATCHET_METRICS = new Set<string>(["module API surface (files exposed)", "core size"]);
+
+/** Fail-safe default: a metric absent from both sets above is treated as `"hard"` so a newly
+ * added ratcheted metric can't silently stop blocking the build just because nobody classified
+ * it yet — the omission is loud (a printed warning on every run), not silent. */
+function tierOf(label: string): MetricTier {
+  if (HARD_CONSTRAINT_METRICS.has(label)) return "hard";
+  if (RATCHET_METRICS.has(label)) return "ratchet";
+  console.error(`  [check:architecture] "${label}" is not classified as hard or ratchet — defaulting to hard.`);
+  return "hard";
+}
+
 interface Baseline {
   meta: { fileCount: number; moduleCount: number };
   propagationCostPct: number;
@@ -471,6 +527,7 @@ function main(): void {
   const cyclesImproved = (removedPairs.length > 0 || sccVerdict === "improved") && !cyclesRegressed;
 
   const cyclesLabel = "module cycles / SCC";
+  const cyclesTier = tierOf(cyclesLabel);
   const cyclesTradeDetail =
     [
       introducedPairs.length > 0 ? `+${introducedPairs.length} cycle pair(s)` : null,
@@ -480,19 +537,26 @@ function main(): void {
       .filter((s): s is string => s !== null)
       .join(", ") || "no change";
 
-  const checks: { label: string; verdict: Verdict; current: number; baseline: number; unit: "pct" | "count" }[] = [
-    { label: "propagation cost", verdict: compare(propagationCostPct, baseline.propagationCostPct), current: propagationCostPct, baseline: baseline.propagationCostPct, unit: "pct" },
-    { label: "back-edges into composition root", verdict: compare(backEdges.total, baseline.backEdgesIntoServer), current: backEdges.total, baseline: baseline.backEdgesIntoServer, unit: "count" },
+  const checks: { label: string; verdict: Verdict; current: number; baseline: number; unit: "pct" | "count"; tier: MetricTier }[] = [
+    { label: "propagation cost", verdict: compare(propagationCostPct, baseline.propagationCostPct), current: propagationCostPct, baseline: baseline.propagationCostPct, unit: "pct", tier: tierOf("propagation cost") },
+    { label: "back-edges into composition root", verdict: compare(backEdges.total, baseline.backEdgesIntoServer), current: backEdges.total, baseline: baseline.backEdgesIntoServer, unit: "count", tier: tierOf("back-edges into composition root") },
     // The API-surface metric ratchets on DISTINCT EXPOSED FILES, not on edge count. Adding a
     // second import to an already-exposed file does not widen a module's public surface and must
     // not fail the build; exposing a file that was previously private must. `deepImportsBypassing-
     // Index` is recorded in the baseline and printed, but deliberately not checked here.
-    { label: "module API surface (files exposed)", verdict: compare(apiSurfaceFiles, baseline.moduleApiSurfaceFiles), current: apiSurfaceFiles, baseline: baseline.moduleApiSurfaceFiles, unit: "count" },
-    { label: "core size", verdict: compare(coreSize.pct, baseline.coreSize.pct), current: coreSize.pct, baseline: baseline.coreSize.pct, unit: "pct" },
+    { label: "module API surface (files exposed)", verdict: compare(apiSurfaceFiles, baseline.moduleApiSurfaceFiles), current: apiSurfaceFiles, baseline: baseline.moduleApiSurfaceFiles, unit: "count", tier: tierOf("module API surface (files exposed)") },
+    { label: "core size", verdict: compare(coreSize.pct, baseline.coreSize.pct), current: coreSize.pct, baseline: baseline.coreSize.pct, unit: "pct", tier: tierOf("core size") },
   ];
 
   const regressed = checks.filter((c) => c.verdict === "regressed");
   const improved = checks.filter((c) => c.verdict === "improved");
+
+  // Under ENFORCE_HARD_CONSTRAINT_TIERS=false (today's default) these are identical to
+  // `regressed`/`cyclesRegressed` — nothing here changes gating unless the owner opts in.
+  const blockingRegressed = ENFORCE_HARD_CONSTRAINT_TIERS ? regressed.filter((c) => c.tier === "hard") : regressed;
+  const warnOnlyRegressed = ENFORCE_HARD_CONSTRAINT_TIERS ? regressed.filter((c) => c.tier === "ratchet") : [];
+  const blockingCyclesRegressed = ENFORCE_HARD_CONSTRAINT_TIERS ? cyclesRegressed && cyclesTier === "hard" : cyclesRegressed;
+  const warnOnlyCyclesRegressed = ENFORCE_HARD_CONSTRAINT_TIERS ? cyclesRegressed && cyclesTier === "ratchet" : false;
 
   if (introducedPairs.length > 0) {
     console.error(`\n  module cycles — ${introducedPairs.length} new pair(s) introduced:`);
@@ -510,7 +574,11 @@ function main(): void {
   }
 
   for (const check of regressed) {
-    console.error(`\n  ${check.label} regressed: ${check.baseline} → ${check.current}`);
+    if (warnOnlyRegressed.includes(check)) {
+      console.warn(`\n  WARNING (ratchet, non-blocking): ${check.label} regressed: ${check.baseline} → ${check.current}`);
+    } else {
+      console.error(`\n  ${check.label} regressed: ${check.baseline} → ${check.current}`);
+    }
   }
   for (const check of improved) {
     console.log(`\n  ${check.label} improved: ${check.baseline} → ${check.current}`);
@@ -540,12 +608,22 @@ function main(): void {
     console.error(bar);
   }
 
-  if (regressed.length > 0 || cyclesRegressed) {
+  const totalBlocking = blockingRegressed.length + (blockingCyclesRegressed ? 1 : 0);
+
+  if (totalBlocking > 0) {
     console.error(
-      `\ncheck:architecture — FAILED: ${regressed.length + (cyclesRegressed ? 1 : 0)} metric(s) regressed against the baseline.`,
+      `\ncheck:architecture — FAILED: ${totalBlocking} metric(s) regressed against ${ENFORCE_HARD_CONSTRAINT_TIERS ? "a hard constraint" : "the baseline"}.`,
     );
     console.error(`Either fix the regression or, if genuinely intended, run with --update to move the baseline.`);
     process.exit(1);
+  }
+
+  if (ENFORCE_HARD_CONSTRAINT_TIERS && (warnOnlyRegressed.length > 0 || warnOnlyCyclesRegressed)) {
+    const warnCount = warnOnlyRegressed.length + (warnOnlyCyclesRegressed ? 1 : 0);
+    console.warn(
+      `\ncheck:architecture — OK: hard constraints hold, but ${warnCount} ratchet metric(s) regressed. Not blocking, but worth fixing before it compounds.`,
+    );
+    return;
   }
 
   if (improved.length > 0 || cyclesImproved) {
