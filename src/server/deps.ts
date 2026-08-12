@@ -190,6 +190,8 @@ export function defaultDatabaseJournalDbPath(contentDbPath: string = defaultCont
 export interface CreateSqliteRouteDepsOverrides {
   db: ContentDb;
   workspaceId: string;
+  /** Consecutive plugin hook failures before automatic quarantine. */
+  pluginFailureThreshold: number;
   /**
    * Install-dir-relative uploads path — `cli/commands/serve.ts` supplies `<dir>/uploads` (CR-R01
    * fix: uploads used to always default to `mediaUploadsDir()`, which is `process.cwd()`-relative
@@ -254,6 +256,9 @@ export function createSqliteRouteDeps(
     clock,
     activationRepo: pluginActivationRepo,
     sources: [WORD_COUNT_RUNTIME_SOURCE],
+    ...(overrides?.pluginFailureThreshold === undefined
+      ? {}
+      : { failureThreshold: overrides.pluginFailureThreshold }),
   });
   // SQLite-backed identity (principals/users/sessions/roles/policies persist in content.db) so a
   // login survives a `tsx watch` restart instead of being silently wiped every file save.

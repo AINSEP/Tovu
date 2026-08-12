@@ -32,6 +32,11 @@ export interface PluginActivationRecord {
   readonly version: string;
   readonly enabled: boolean;
   readonly updatedAt: string;
+  /** Present only while automatic quarantine is active. A normal enable/disable save omits these
+   * fields, which clears the durable marker and makes re-enable the operator recovery action. */
+  readonly quarantinedAt?: string;
+  readonly quarantineReason?: string;
+  readonly quarantineFailureCount?: number;
 }
 
 /** Persistence contract — shaped identically to `PresentationSettingsRepoPort` (rule-of-two, two

@@ -189,8 +189,12 @@ import type { RouteDeps } from "./routes/types";
  * domain logic. Feature code remains reusable outside Express.
  */
 
+export interface CreateRouteDepsOptions {
+  readonly pluginFailureThreshold?: number;
+}
+
 /** In-memory route deps seeded from `./seed`. Default for tests/dev. */
-export function createRouteDeps(): NewsletterRouteDeps {
+export function createRouteDeps(options: CreateRouteDepsOptions = {}): NewsletterRouteDeps {
   const workspaceRepo = new InMemoryWorkspaceRepo([seededWorkspace]);
   const postRepo = new InMemoryPostRepo(seededPosts);
   const presentationRepo = new InMemoryPresentationSettingsRepo([seededPresentation]);
@@ -203,6 +207,9 @@ export function createRouteDeps(): NewsletterRouteDeps {
     clock,
     activationRepo: pluginActivationRepo,
     sources: [WORD_COUNT_RUNTIME_SOURCE],
+    ...(options.pluginFailureThreshold === undefined
+      ? {}
+      : { failureThreshold: options.pluginFailureThreshold }),
   });
   const identity = createInMemoryIdentityRouteDeps({ workspaceId: seededWorkspace.id, clock, idGen });
   // Fire-and-forget, mirroring `identityReady` (see routes/types.ts's `settingsReady` doc) — this

@@ -909,6 +909,11 @@ export interface AdminPlugin {
   tier: "tier-1" | "tier-2" | "tier-3";
   status: "valid" | "invalid" | "incompatible";
   enabled: boolean;
+  quarantine: null | {
+    at: string;
+    reason: string;
+    consecutiveFailures: number;
+  };
   errors: Array<{ code: string; file: string | null; message: string }>;
 }
 

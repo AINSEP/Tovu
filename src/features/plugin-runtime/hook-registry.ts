@@ -65,6 +65,24 @@ export interface HookRegistryFieldDecl {
   readonly type: "string" | "integer" | "number" | "boolean";
 }
 
+/** Default recovery policy: tolerate two transient failures, quarantine on the third consecutive
+ * failure. Composition may inject a different positive integer per runtime instance. */
+export const DEFAULT_PLUGIN_FAILURE_THRESHOLD = 3;
+
+export interface PluginQuarantineEvent {
+  readonly pluginId: string;
+  readonly workspaceId: string;
+  readonly consecutiveFailures: number;
+  readonly reason: string;
+}
+
+export interface CreateHookRegistryOptions {
+  readonly failureThreshold?: number;
+  /** Persistence/action port supplied by composition. Absent keeps the registry's legacy
+   * fail-closed-only behavior (used by isolated consumers that have no activation repository). */
+  readonly onQuarantine?: (event: PluginQuarantineEvent) => Promise<void>;
+}
+
 export interface HookRegistry {
   /** Registers one currently-enabled, successfully-loaded plugin's filter (BR-01 step 5). Safe to
    * call again for the same `pluginId` — a second `attach` for an id already attached replaces
@@ -139,8 +157,61 @@ function fieldNameOf(declaredPath: string): string {
  * axis, a disclosed gap).
  * @overallScore 100/100
  */
-export function createHookRegistry(): HookRegistry {
+export function createHookRegistry(options: CreateHookRegistryOptions = {}): HookRegistry {
+  const failureThreshold = options.failureThreshold ?? DEFAULT_PLUGIN_FAILURE_THRESHOLD;
+  if (!Number.isInteger(failureThreshold) || failureThreshold < 1) {
+    throw new RangeError("plugin failure threshold must be a positive integer");
+  }
+
   const attachments = new Map<string, Attachment>();
+  const consecutiveFailures = new Map<string, Map<string, number>>();
+
+  function clearFailures(pluginId: string, workspaceId?: string): void {
+    if (workspaceId !== undefined) {
+      const workspaceFailures = consecutiveFailures.get(workspaceId);
+      workspaceFailures?.delete(pluginId);
+      if (workspaceFailures?.size === 0) consecutiveFailures.delete(workspaceId);
+      return;
+    }
+    for (const [workspace, workspaceFailures] of consecutiveFailures) {
+      workspaceFailures.delete(pluginId);
+      if (workspaceFailures.size === 0) consecutiveFailures.delete(workspace);
+    }
+  }
+
+  async function recordFailure(
+    pluginId: string,
+    workspaceId: string,
+    failure: PluginHookFailedError
+  ): Promise<void> {
+    if (!options.onQuarantine) return;
+
+    const workspaceFailures = consecutiveFailures.get(workspaceId) ?? new Map<string, number>();
+    const next = (workspaceFailures.get(pluginId) ?? 0) + 1;
+    workspaceFailures.set(pluginId, next);
+    consecutiveFailures.set(workspaceId, workspaceFailures);
+    if (next < failureThreshold) return;
+
+    // Recover the process first: the triggering save remains fail-closed, but all later saves see
+    // the attachment gone even while durable activation state is being recorded.
+    detach(pluginId);
+    try {
+      await options.onQuarantine({
+        pluginId,
+        workspaceId,
+        consecutiveFailures: next,
+        reason: failure.message,
+      });
+    } catch (error) {
+      throw new PluginHookFailedError(
+        pluginId,
+        `${failure.message}; automatic quarantine persistence failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        { cause: error }
+      );
+    }
+  }
 
   function attach(
     pluginId: string,
@@ -148,11 +219,13 @@ export function createHookRegistry(): HookRegistry {
     filter: BeforeSaveFilter,
     declaredFields: readonly HookRegistryFieldDecl[]
   ): void {
+    clearFailures(pluginId);
     attachments.set(pluginId, { source, filter, declaredFields });
   }
 
   function detach(pluginId: string): void {
     attachments.delete(pluginId);
+    clearFailures(pluginId);
   }
 
   async function runBeforeSave(entry: Readonly<ContentEntryDraft>): Promise<JsonObject> {
@@ -166,47 +239,57 @@ export function createHookRegistry(): HookRegistry {
       });
       const ctx = { pluginId, workspaceId: entry.workspaceId };
 
-      let patch: unknown;
       try {
-        patch = await attachment.filter(snapshot, ctx);
+        let patch: unknown;
+        try {
+          patch = await attachment.filter(snapshot, ctx);
+        } catch (error) {
+          throw new PluginHookFailedError(
+            pluginId,
+            `plugin '${pluginId}' content.entry.beforeSave filter failed: ${
+              error instanceof Error ? error.message : String(error)
+            }`,
+            { cause: error }
+          );
+        }
+
+        if (typeof patch !== "object" || patch === null || Array.isArray(patch)) {
+          throw new PluginHookFailedError(
+            pluginId,
+            `plugin '${pluginId}' returned a non-object ext patch from its beforeSave filter`
+          );
+        }
+
+        const declaredByField = new Map(attachment.declaredFields.map((f) => [fieldNameOf(f.path), f]));
+        const pluginPatch: Record<string, JsonObject[string]> = {};
+
+        for (const [field, value] of Object.entries(patch as Record<string, unknown>)) {
+          const decl = declaredByField.get(field);
+          if (!decl) {
+            throw new PluginHookFailedError(
+              pluginId,
+              `plugin '${pluginId}' returned undeclared ext field '${field}' (FIELD_PATH_INVALID)`
+            );
+          }
+          if (!matchesDeclaredType(value, decl.type)) {
+            throw new PluginHookFailedError(
+              pluginId,
+              `plugin '${pluginId}' returned ext field '${field}' with a value not matching its declared type '${decl.type}' (FIELD_TYPE_MISMATCH)`
+            );
+          }
+          pluginPatch[field] = value as JsonObject[string];
+        }
+
+        merged[pluginId] = pluginPatch;
+        clearFailures(pluginId, entry.workspaceId);
       } catch (error) {
-        throw new PluginHookFailedError(
-          pluginId,
-          `plugin '${pluginId}' content.entry.beforeSave filter failed: ${
-            error instanceof Error ? error.message : String(error)
-          }`,
-          { cause: error }
-        );
+        const failure =
+          error instanceof PluginHookFailedError
+            ? error
+            : new PluginHookFailedError(pluginId, `plugin '${pluginId}' beforeSave hook failed`, { cause: error });
+        await recordFailure(pluginId, entry.workspaceId, failure);
+        throw failure;
       }
-
-      if (typeof patch !== "object" || patch === null || Array.isArray(patch)) {
-        throw new PluginHookFailedError(
-          pluginId,
-          `plugin '${pluginId}' returned a non-object ext patch from its beforeSave filter`
-        );
-      }
-
-      const declaredByField = new Map(attachment.declaredFields.map((f) => [fieldNameOf(f.path), f]));
-      const pluginPatch: Record<string, JsonObject[string]> = {};
-
-      for (const [field, value] of Object.entries(patch as Record<string, unknown>)) {
-        const decl = declaredByField.get(field);
-        if (!decl) {
-          throw new PluginHookFailedError(
-            pluginId,
-            `plugin '${pluginId}' returned undeclared ext field '${field}' (FIELD_PATH_INVALID)`
-          );
-        }
-        if (!matchesDeclaredType(value, decl.type)) {
-          throw new PluginHookFailedError(
-            pluginId,
-            `plugin '${pluginId}' returned ext field '${field}' with a value not matching its declared type '${decl.type}' (FIELD_TYPE_MISMATCH)`
-          );
-        }
-        pluginPatch[field] = value as JsonObject[string];
-      }
-
-      merged[pluginId] = pluginPatch;
     }
 
     return merged;
