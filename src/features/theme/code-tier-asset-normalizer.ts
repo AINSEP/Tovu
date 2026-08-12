@@ -37,6 +37,9 @@
  * attempt to.
  */
 
+import { lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+
 import { TOKEN_STYLESHEET_SENTINEL } from "./static-asset-contract";
 
 /** One top-level output file's relocation: `from` is its original flat filename (no path separators —
@@ -166,4 +169,62 @@ export function rewriteBundlerHtml(
   }
 
   return html;
+}
+
+/** {@link normalizeBuildOutputDirectory}'s result: what moved, and which on-disk page files were
+ * rewritten in place. Returned rather than left implicit so a caller (a CLI, a build script) can log or
+ * verify exactly what changed, instead of re-deriving it by diffing the directory itself. */
+export interface NormalizeBuildOutputResult {
+  readonly plan: AssetRelocationPlan;
+  readonly rewrittenPageFiles: readonly string[];
+}
+
+/**
+ * The thin filesystem-effectful wrapper around {@link planAssetRelocation} and {@link rewriteBundlerHtml}:
+ * reads `outputDir`'s flat top-level listing, decides the relocation plan (pure), physically moves each
+ * relocated file, then rewrites every named page file's HTML in place on disk (pure decision, effectful
+ * write). All of this repository's actual matching/rewriting LOGIC lives in the two pure functions this
+ * wraps — this function's own job is only sequencing real I/O around them, which is why it has no
+ * dedicated unit tests of its own rewrite correctness (those live on the pure functions); its own tests
+ * only need to prove the sequencing (files really moved, pages really got rewritten on disk).
+ *
+ * Directory entries are skipped, not relocated, even if their name happens to end in `.css`/`.js`/`.mjs`
+ * — {@link planAssetRelocation}'s flat-output precondition is about FILES, and a same-named directory is
+ * never something a real bundler emits, but skipping it here (via `lstatSync`) rather than deferring to
+ * {@link planAssetRelocation}'s own path-separator check keeps this function's own contract (it hands
+ * that function a flat FILE listing) honest without a special case leaking into the pure layer.
+ *
+ * @param required.outputDir - Absolute path to the build's flat output root (e.g. Angular's
+ * `dist/<project>/browser/`). Mutated in place — files move, page files are overwritten.
+ * @param required.pageFileNames - Which top-level `.html` files in `outputDir` are pages to rewrite (an
+ * Angular SPA build emits exactly one, `index.html`; a prerendered multi-route build emits one per route).
+ * @param required.primaryStylesheetFile - Passed through to {@link rewriteBundlerHtml} for every page.
+ * @throws Whatever {@link planAssetRelocation} or {@link rewriteBundlerHtml} throw — a precondition
+ * violation must stop the normalization, not leave the output directory partially rewritten and silently
+ * declared done.
+ * @complexity O(f + p·n) — f = top-level file count (one `readdirSync` + one move per relocated file), p
+ * = page count, n = average page HTML length (one rewrite pass per page).
+ */
+export function normalizeBuildOutputDirectory(
+  required: { outputDir: string; pageFileNames: readonly string[]; primaryStylesheetFile: string },
+  _optional: Record<string, never> = {}
+): NormalizeBuildOutputResult {
+  const { outputDir, pageFileNames, primaryStylesheetFile } = required;
+
+  const fileNames = readdirSync(outputDir).filter((name) => !lstatSync(join(outputDir, name)).isDirectory());
+  const plan = planAssetRelocation({ fileNames });
+
+  for (const relocation of plan.relocations) {
+    const destination = join(outputDir, relocation.to);
+    mkdirSync(dirname(destination), { recursive: true });
+    renameSync(join(outputDir, relocation.from), destination);
+  }
+
+  for (const pageFileName of pageFileNames) {
+    const pagePath = join(outputDir, pageFileName);
+    const rewritten = rewriteBundlerHtml({ html: readFileSync(pagePath, "utf8"), plan, primaryStylesheetFile });
+    writeFileSync(pagePath, rewritten, "utf8");
+  }
+
+  return { plan, rewrittenPageFiles: pageFileNames };
 }

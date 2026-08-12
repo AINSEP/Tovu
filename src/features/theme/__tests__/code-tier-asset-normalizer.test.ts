@@ -1,8 +1,11 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import test from "node:test";
 
 import { checkBuiltThemeConformance } from "../build-conformance";
-import { planAssetRelocation, rewriteBundlerHtml } from "../code-tier-asset-normalizer";
+import { normalizeBuildOutputDirectory, planAssetRelocation, rewriteBundlerHtml } from "../code-tier-asset-normalizer";
 import { TOKEN_STYLESHEET_SENTINEL } from "../static-asset-contract";
 
 /**
@@ -127,4 +130,62 @@ test("end-to-end: normalizing a REAL Angular build's index.html produces output 
 
   const relevantIssues = issues.filter((issue) => issue.rule === "stylesheet-sentinel" || issue.rule === "asset-path");
   assert.deepEqual(relevantIssues, []);
+});
+
+test("normalizeBuildOutputDirectory physically moves css/js files on disk and rewrites the page file in place", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-normalizer-fs-"));
+  fs.writeFileSync(path.join(root, "styles.css"), "body{margin:0}", "utf8");
+  fs.writeFileSync(path.join(root, "main.js"), "console.log(1)", "utf8");
+  fs.writeFileSync(path.join(root, "favicon.ico"), "not-a-real-icon", "utf8");
+  fs.writeFileSync(
+    path.join(root, "index.html"),
+    '<head><link rel="stylesheet" href="styles.css"></head><body><script src="main.js" type="module"></script></body>',
+    "utf8"
+  );
+
+  const result = normalizeBuildOutputDirectory({
+    outputDir: root,
+    pageFileNames: ["index.html"],
+    primaryStylesheetFile: "styles.css",
+  });
+
+  assert.deepEqual(result.rewrittenPageFiles, ["index.html"]);
+  assert.deepEqual(
+    [...result.plan.relocations].sort((a, b) => a.from.localeCompare(b.from)),
+    [
+      { from: "main.js", to: "js/main.js" },
+      { from: "styles.css", to: "css/styles.css" },
+    ]
+  );
+
+  // The files really moved -- gone from the root, present at their relocated path with unchanged bytes.
+  assert.ok(!fs.existsSync(path.join(root, "styles.css")));
+  assert.ok(!fs.existsSync(path.join(root, "main.js")));
+  assert.equal(fs.readFileSync(path.join(root, "css", "styles.css"), "utf8"), "body{margin:0}");
+  assert.equal(fs.readFileSync(path.join(root, "js", "main.js"), "utf8"), "console.log(1)");
+  // Untouched: not a relocation target.
+  assert.ok(fs.existsSync(path.join(root, "favicon.ico")));
+
+  // The page file was rewritten in place on disk to the exact sentinel plus the relocated script src.
+  const rewrittenIndex = fs.readFileSync(path.join(root, "index.html"), "utf8");
+  assert.ok(rewrittenIndex.includes(TOKEN_STYLESHEET_SENTINEL));
+  assert.ok(rewrittenIndex.includes('<script src="../js/main.js" type="module"></script>'));
+});
+
+test("normalizeBuildOutputDirectory does not treat a same-named subdirectory as a file to relocate", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-normalizer-fs-dir-"));
+  fs.mkdirSync(path.join(root, "media.js")); // pathological: a DIRECTORY whose name ends in .js
+  fs.writeFileSync(path.join(root, "media.js", "inner.txt"), "leave me alone", "utf8");
+  fs.writeFileSync(path.join(root, "styles.css"), "body{margin:0}", "utf8");
+  fs.writeFileSync(path.join(root, "index.html"), '<link rel="stylesheet" href="styles.css">', "utf8");
+
+  const result = normalizeBuildOutputDirectory({
+    outputDir: root,
+    pageFileNames: ["index.html"],
+    primaryStylesheetFile: "styles.css",
+  });
+
+  assert.deepEqual(result.plan.relocations, [{ from: "styles.css", to: "css/styles.css" }]);
+  // The directory was never handed to planAssetRelocation, so it was never a candidate to move at all.
+  assert.ok(fs.existsSync(path.join(root, "media.js", "inner.txt")));
 });
