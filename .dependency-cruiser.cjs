@@ -160,6 +160,24 @@ const TOOL_REGISTRATION_SEAM_FROM = "^src/assistant/tool-registrations\\.ts$";
 const TOOL_REGISTRATION_SEAM_TO = "(^|/)(tool-registrations|agent-tools)\\.ts$";
 const TOOL_REGISTRATION_TEST_FROM = "^src/assistant/__tests__/tool-registrations\\..+\\.test\\.ts$";
 
+// Three more assistant test files do the identical job as the naming-convention match above (build
+// fixtures against a domain's real tool-registrations.ts/agent-tools.ts seam rather than a synthetic
+// stand-in) but don't follow the `tool-registrations.<module>.test.ts` name —
+// `2026-08-13-features-post-deep-import-trace.md` Job 1 Category 3 verified each individually:
+// `byok-provider-turn.test.ts` is the regression test for the 2026-08-04 Gemini BYOK schema bug and
+// needs `features/post/agent-tools.ts`'s real recursive schema, not a fixture; the two
+// `mcp-ui-tool-calls-route.*.test.ts` files are route integration tests needing `buildPostRegistrations`
+// wired for real. Listed by name rather than folded into `TOOL_REGISTRATION_TEST_FROM`'s regex:
+// broadening that regex to match any `assistant/__tests__/*.test.ts` would also stop enforcing the
+// naming discipline for every future assistant test file, not just these three already-audited ones —
+// a name list that only blesses what was actually reviewed is more honest than a regex that would
+// quietly bless more than intended.
+const TOOL_REGISTRATION_TEST_FROM_EXTRA = [
+  "^src/assistant/__tests__/byok-provider-turn\\.test\\.ts$",
+  "^src/assistant/__tests__/mcp-ui-tool-calls-route\\.integration\\.test\\.ts$",
+  "^src/assistant/__tests__/mcp-ui-tool-calls-route\\.content-search\\.integration\\.test\\.ts$",
+];
+
 // Per-module extra exceptions beyond the generic carve-outs above, each sourced directly from the
 // already-reviewed 2026-08-13 API-surface trace reports rather than re-derived. Modules not in
 // this map either have no exceptions beyond the generic ones (comments, entries — their trace
@@ -203,6 +221,18 @@ const EXTRA_TO_EXEMPT = {
   ],
 };
 
+// Modules whose `no-deep-imports:<mod>` rule has had its full per-file Category 1/2/3 triage done
+// (every violation resolved to a mechanical redirect, a barrel export, or a named config exemption —
+// no open design question) and re-verified at 0 violations are promoted from `warn` to `error` here.
+// Promotion is per-module and applies only to the primary `no-deep-imports` rule; the two companion
+// rule families (`no-deep-value-imports-from-db-sqlite`, `no-non-seam-deep-imports-from-tool-
+// registration-caller`) stay `warn` until they get the same triage.
+const PROMOTED_NO_DEEP_IMPORTS = new Set([
+  // 2026-08-13-features-post-deep-import-trace.md — 25 violations (20 wrong-door redirects, 2
+  // barrel additions, 3 tool-registration-seam exemptions), re-verified at 0 after the fix.
+  "features/post",
+]);
+
 function noDeepImportRules(mod) {
   const modPath = `^src/${mod}`;
   const internals = `^src/${mod}/(?!index\\.ts$).+`;
@@ -211,9 +241,19 @@ function noDeepImportRules(mod) {
   return [
     {
       name: `no-deep-imports:${mod}`,
-      severity: "warn", // pending promotion decision — see plan doc §5
+      severity: PROMOTED_NO_DEEP_IMPORTS.has(mod) ? "error" : "warn", // see plan doc §5 for the promotion criteria
       comment: `ADR-009 Decision §1 — ${mod}'s public surface is its index.ts; nothing outside the module (or db/sqlite reaching for a value rather than a type, or the tool-registration seam reaching anything other than tool-registrations.ts/agent-tools.ts) may import its internals directly.`,
-      from: { path: "^src", pathNot: [modPath, DB_SQLITE, ...COMPOSITION_ROOTS, TOOL_REGISTRATION_SEAM_FROM, TOOL_REGISTRATION_TEST_FROM] },
+      from: {
+        path: "^src",
+        pathNot: [
+          modPath,
+          DB_SQLITE,
+          ...COMPOSITION_ROOTS,
+          TOOL_REGISTRATION_SEAM_FROM,
+          TOOL_REGISTRATION_TEST_FROM,
+          ...TOOL_REGISTRATION_TEST_FROM_EXTRA,
+        ],
+      },
       to: { path: internals, pathNot: extraToExempt },
     },
     {
