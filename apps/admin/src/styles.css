@@ -487,23 +487,28 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); o
   gap: var(--space-4);
 }
 @media (max-width: 720px) { .theme-explore { grid-template-columns: minmax(0, 1fr); } }
-/* `max-width: 50%` (of `.page`, the nearest sized ancestor) — owner: "it spans the whole page, which
-   is just unnecessary and disgusting." Percentage rather than `ch` here, unlike the subtitle rule
-   above: the ask was explicitly "half the page," a relationship to the CONTAINER, not a fixed prose
-   measure, and a `ch` cap would drift away from actually being half as the container itself resizes. */
-.theme-explore-directions { border-left: 3px solid var(--link); max-width: 50%; }
-/* The 50% cap above is a DESKTOP-only ask ("it's unnecessary and disgusting" AT FULL WIDTH) — it
-   was never meant to survive down to phone width, where halving an already-narrow viewport squeezes
-   this one-sentence-plus-lineage callout into a column roughly a quarter of the screen's width and
-   it wraps to seven-plus short lines with dead space beside it. `.theme-explore-directions` is a
-   sibling of `.theme-explore` (the file-list/editor grid), not a grid item itself, so it doesn't
-   pick up that grid's own `max-width: 720px` column collapse for free — it needs its own release.
-   Same breakpoint the rest of this file's component-level (not grid-level) mobile rules use
-   (`.editor-slug` and others above), rather than reusing 720px: 720px is where `.theme-explore`'s
-   two-column grid collapses to one, a wider "tablet" cutoff than this callout needs — at 768px, for
-   instance, the halved column is still wide enough to read as two or three lines, not stacked
-   trash, so there is no reason to release the cap that early. */
-@media (max-width: 640px) { .theme-explore-directions { max-width: 100%; } }
+/* SUPERSEDED 2026-08-11 (owner: "it's taking up too much space... just show 'You're editing your
+   own copy' and then a tooltip icon"): `.theme-explore-directions` used to be a bordered `.notice`
+   block here, capped to half the page ("it spans the whole page, which is just unnecessary and
+   disgusting"), sitting full-width between the header and the file list. It's gone — the same
+   reassurance now renders as `.theme-explore-copy-tip` inside the header's own actions column (see
+   `.theme-explore-header-actions` below, and the JSX comment above `ThemeExplore`'s `.page-header`
+   for the full quote). No width cap needed on the replacement: it's one line of text plus an icon,
+   not a wrapping paragraph. */
+
+/* Stacks the ← All themes / Save / Reset button row (`.page-actions`, unchanged) above the collapsed
+   copy-tip line, both right-aligned under the header. `margin-left: auto` (not just the parent
+   `.page-header`'s `justify-content: space-between`) is what keeps this column pinned to the right
+   edge even when `.page-header` wraps it onto its own line below the title at narrow widths — with
+   only one flex item left on that wrapped line, `space-between` alone has nothing to distribute it
+   against and would otherwise leave it flush left. Auto margins are resolved per flex LINE, so this
+   keeps working whether the column shares a row with the title or has fallen to a row of its own. */
+.theme-explore-header-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 0.4rem; margin-left: auto; }
+/* `white-space: nowrap` makes "one line" a guarantee rather than a hope: the visible text plus icon
+   ("You're editing your own copy. ⓘ") is short enough to fit even at the narrowest viewport this
+   header supports (measured at 390px), so there's no wrap-vs-truncate tradeoff to weigh here the way
+   there was for the old block's full sentence. */
+.theme-explore-copy-tip { margin: 0; font-size: 0.82rem; color: var(--muted); white-space: nowrap; }
 /* 2026-08-11: the sidebar needs to span the SAME height as `.theme-explore-main` (its toolbar row
    plus the preview/HTML pane) — but ONE direction only: matching `.theme-explore-main`'s own natural
    height, never the other way around. A first attempt just gave both grid items `align-items: stretch`
