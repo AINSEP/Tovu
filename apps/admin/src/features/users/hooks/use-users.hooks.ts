@@ -30,6 +30,14 @@ import { passwordResetNotice, t } from "../users-i18n";
  * for one "Manage" panel error slot) and `toggleSavingId`/`toggleError` (`toggleSavingId` is the
  * BUSY ROW'S id, not a boolean) stay hand-rolled — see `useAsyncAction`'s own header for why forcing
  * either shape onto that primitive would change behavior rather than just deduplicate it.
+ *
+ * `t`/`locale` (2026-08-11, standing i18n rule — a component with a hook gets a BOUND `t` from that
+ * hook, not its own `useAdminLocale()`/dictionary import): this hook already called
+ * `useAdminLocale()` for its own error-string translations, so exposing that SAME already-resolved
+ * `locale` as a bound `t` (plus the raw value, still needed for `rules.ts`'s `userRowMenuItems`,
+ * which takes `locale` directly) on the return value adds no new fetch — `Users.tsx` used to call
+ * `useAdminLocale()` a second time and rebuild its own `translateUsers(locale, key)` closure,
+ * entirely redundant with the resolution this hook was already doing internally.
  */
 
 export interface UsersController {
@@ -99,6 +107,13 @@ export interface UsersController {
   setPasswordError: Dispatch<SetStateAction<string | null>>;
   openResetPassword: (user: AdminIdentityUser) => void;
   confirmResetPassword: () => Promise<void>;
+
+  /** Bound translator — `key` already resolved against the caller's locale, so `Users.tsx` never
+   *  imports `useAdminLocale`/`users-i18n` itself. See this file's header. */
+  t: (key: string) => string;
+  /** Raw resolved locale — `rules.ts`'s `userRowMenuItems` takes `locale` directly rather than a
+   *  bound translator. See this file's header. */
+  locale: string;
 }
 
 /** The shape `onAssignRole`/`onAttachPolicy`/`onSaveEmail` all repeat: set the shared
@@ -133,6 +148,7 @@ async function runGrantMutation(
 
 export function useUsers(): UsersController {
   const locale = useAdminLocale();
+  const boundT = (key: string): string => t(locale, key);
   const [users, setUsers] = useState<AdminIdentityUser[] | null>(null);
   const [roles, setRoles] = useState<AdminRole[] | null>(null);
   const [policies, setPolicies] = useState<AdminPolicy[] | null>(null);
@@ -356,5 +372,8 @@ export function useUsers(): UsersController {
     setPasswordError: resetPassword.setError,
     openResetPassword,
     confirmResetPassword,
+
+    t: boundT,
+    locale,
   };
 }

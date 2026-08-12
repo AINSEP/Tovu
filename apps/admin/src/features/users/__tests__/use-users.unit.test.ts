@@ -427,3 +427,26 @@ describe("openResetPassword / confirmResetPassword", () => {
     expect(result.current.passwordSaving).toBe(false);
   });
 });
+
+describe("t/locale (2026-08-11, standing i18n rule)", () => {
+  /** `Users.tsx` no longer imports `useAdminLocale`/`users-i18n` itself — `t`/`locale` must reflect
+   *  this hook's OWN already-resolved locale (the same one it already used for its own error
+   *  strings), not a hardcoded English pass-through. */
+  it("t/locale reflect the locale settings fetch's resolved value, not the DEFAULT_LOCALE this hook starts with", async () => {
+    const network = fetchMock as unknown as (url: string, init?: RequestInit) => Promise<Response>;
+    vi.stubGlobal("fetch", (url: string, init?: RequestInit) => {
+      if (String(url).includes("/settings/effective") && String(url).includes("namespace=core.language")) {
+        return Promise.resolve(jsonResponse({ data: [{ key: "locale", value: "es" }] }));
+      }
+      return network(url, init);
+    });
+    fetchMock.mockResolvedValueOnce(jsonResponse({ users: [USER_A] }));
+    fetchMock.mockResolvedValueOnce(jsonResponse({ roles: [ROLE] }));
+    fetchMock.mockResolvedValueOnce(jsonResponse({ policies: [POLICY] }));
+
+    const { result } = renderHook(() => useUsers());
+
+    await waitFor(() => expect(result.current.locale).toBe("es"));
+    expect(result.current.t("Users")).toBe("Usuarios");
+  });
+});
