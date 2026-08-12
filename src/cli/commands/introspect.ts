@@ -1,4 +1,4 @@
-import { ValidationError } from "../../site-dir/errors";
+import { ValidationError } from "../../site-dir";
 import type { CliManifest } from "../introspect";
 import { toMcpTools } from "../introspect";
 
