@@ -1,17 +1,7 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { createFrontendSessionBridge, type FrontendSessionBridge } from "@jini-ai/chat/react";
-import { createDomPageDriver } from "@jini-ai/agentic/dom";
+import { useMemo, type ReactNode } from "react";
 import { matchRoute, resolveAgentPageId, type AdminRoute } from "@jini-ai/admin/core";
 import { Sidebar, useSidebar } from "@jini-ai/admin/react";
-import { buildAdminAgentPages } from "./lib/agent-pages";
-import { installInternalLinkInterceptor, useRouteLocation } from "./lib/router";
-import { WORKSPACE_ID, api, type AdminUser } from "./lib/api";
-import { subscribeToSettingsChanges } from "./lib/settings-events";
-import { publishSettingsRefresh } from "./lib/settings-refresh-bus";
-import {
-  publishAssistantDockState,
-  subscribeToAssistantDockRequests,
-} from "./lib/assistant-dock-bus";
+import { useRouteLocation } from "./lib/router";
 import { getNav } from "./nav";
 import { Login } from "./features/auth";
 import { Placeholder } from "./components/Placeholder";
@@ -21,6 +11,13 @@ import { useAdminLocale } from "./hooks/use-admin-locale.hooks";
 import { AssistantDock } from "./components/AssistantDock/AssistantDock";
 import { ChatFab } from "./components/ChatFab/ChatFab";
 import { ASSISTANT_DOCK_DICT } from "./components/AssistantDock/assistant-dock-i18n";
+import {
+  useAdminSession,
+  useAgentPageBridge,
+  useChatDockLayout,
+  useInternalLinkInterceptor,
+  useSidebarDrawer,
+} from "./App.hooks";
 
 /**
  * A resolved route, plus the one Tovu-local wrinkle `@jini-ai/admin/core`'s generic matcher does
@@ -154,130 +151,41 @@ function SidebarLogoutButton(props: { onLogout: () => void; locale: string }) {
   );
 }
 
-export function App() {
-  const [user, setUser] = useState<AdminUser | null>(null);
-  const [checking, setChecking] = useState(true);
+export interface AppProps {
+  /**
+   * Injectable seam for the boot-time auth check — defaults to the real {@link useAdminSession}.
+   * `App`'s one seam (see `App.hooks.tsx`'s own header for why only this one of the four hooks
+   * extracted there is injected): every existing test of `App` pays for mocking `fetch`/
+   * `EventSource` and awaiting the boot screen's exit before it can assert anything about routing
+   * or the shell, because there was no way to skip the real `api.me()` round trip. A fake here lets
+   * a future test render `App` already authenticated instead.
+   */
+  useSession?: typeof useAdminSession;
+}
+
+export function App({ useSession = useAdminSession }: AppProps = {}) {
+  const { user, checking, handleLogin, logout } = useSession();
   const routePath = useRouteLocation();
   const route = useMemo(() => parseRoute(routePath), [routePath]);
-  const [chatOpen, setChatOpen] = useState(false);
-  // Off-canvas sidebar drawer, mobile only (`styles.css`'s `@media (max-width: 900px)`; inert
-  // at desktop widths since `.cms-nav` stays in-flow there regardless of this state).
-  const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // --- Mobile chat sheet (MSG-06) ---
-  // Default↔full-height toggle for the bottom sheet at ≤640px (`styles.css`'s `.is-expanded`).
-  // Session-only (not persisted like the sidebar rail) — this is a per-conversation reading
-  // preference, not a durable layout choice the way the rail collapse is.
-  const [sheetExpanded, setSheetExpanded] = useState(false);
-  const chatDockRef = useRef<HTMLElement | null>(null);
-  const chatFabRef = useRef<HTMLButtonElement | null>(null);
+  const { sidebarOpen, setSidebarOpen } = useSidebarDrawer({ routePath });
+  useInternalLinkInterceptor();
 
-  // Tracks the same breakpoint as `styles.css`'s `@media (max-width: 640px)` — needed in JS so
-  // `avoidBottomPx` below only measures/holds clearance for a *bottom* sheet, never for the
-  // desktop docked panel (which sits beside `.admin-content`, not below it, so 0 clearance is
-  // correct there regardless of the dock's own height).
-  const [isSheetMode, setIsSheetMode] = useState(() => window.matchMedia("(max-width: 640px)").matches);
-  useEffect(() => {
-    const mq = window.matchMedia("(max-width: 640px)");
-    function onChange(e: MediaQueryListEvent) {
-      setIsSheetMode(e.matches);
-    }
-    mq.addEventListener("change", onChange);
-    return () => mq.removeEventListener("change", onChange);
-  }, []);
+  // --- Assistant dock/sheet chrome (MSG-06/MSG-09) — see `useChatDockLayout`'s own doc for why
+  // this is one hook rather than several: every value here reads or reacts to at least one other.
+  const {
+    chatOpen,
+    setChatOpen,
+    sheetExpanded,
+    setSheetExpanded,
+    isSheetMode,
+    sheetHeightPx,
+    dockWidthPx,
+    chatDockRef,
+    chatFabRef,
+  } = useChatDockLayout();
 
-  // Measures the sheet's actual rendered height (not a guessed `58vh`/`92vh` in px) so
-  // `ChatFab`'s `avoidBottomPx` tracks reality — including mid-transition, since `ResizeObserver`
-  // fires on every frame of the `height` CSS transition between default and expanded.
-  const [sheetHeightPx, setSheetHeightPx] = useState(0);
-  useEffect(() => {
-    if (!isSheetMode || !chatOpen) {
-      setSheetHeightPx(0);
-      return;
-    }
-    const el = chatDockRef.current;
-    if (!el) return;
-    const observer = new ResizeObserver((entries) => {
-      const entry = entries[0];
-      if (entry) setSheetHeightPx(entry.contentRect.height);
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [isSheetMode, chatOpen]);
-
-  // The desktop counterpart: measures the docked panel's actual rendered WIDTH, for the same
-  // reason and by the same means. The FAB offsets from the right edge and the desktop dock is
-  // pinned to the right edge, so with the dock open the FAB landed squarely on the composer's send
-  // button and swallowed its clicks — Playwright caught it as "chat-fab intercepts pointer
-  // events". Measured rather than hard-coded to the dock's 380px, so a future width change (or a
-  // themed/resized dock) cannot silently re-open the same overlap.
-  const [dockWidthPx, setDockWidthPx] = useState(0);
-  useEffect(() => {
-    if (isSheetMode || !chatOpen) {
-      setDockWidthPx(0);
-      return;
-    }
-    const el = chatDockRef.current;
-    if (!el) return;
-    const observer = new ResizeObserver((entries) => {
-      const entry = entries[0];
-      if (entry) setDockWidthPx(entry.contentRect.width);
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [isSheetMode, chatOpen]);
-
-  // Escape-to-dismiss for the sheet — same pattern as the sidebar drawer's own handler below.
-  // Harmless at desktop widths too (closing the docked panel via Escape is a reasonable universal
-  // affordance, not sheet-specific), so this is not gated on `isSheetMode`.
-  useEffect(() => {
-    if (!chatOpen) return;
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") setChatOpen(false);
-    }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [chatOpen]);
-
-  /**
-   * The dock's half of `lib/assistant-dock-bus.ts` — a section that cannot reach `setChatOpen`
-   * (`renderRoute` passes no props) can still ask for the dock, and any control that mirrors its
-   * state stays honest when the FAB is what toggled it.
-   *
-   * Both directions are wired here, in the component that owns the boolean, so every open still
-   * runs the same focus/escape/sheet-sizing effects above rather than a second, divergent path.
-   */
-  useEffect(() => subscribeToAssistantDockRequests(setChatOpen), []);
-  useEffect(() => publishAssistantDockState(chatOpen), [chatOpen]);
-
-  // Focus into the dock on open, back to the FAB on close (MSG-06). `tabIndex={-1}` on the
-  // `<aside>` below makes it a valid programmatic focus target without adding it to the normal
-  // Tab sequence. Keyed off the open/closed *transition*, not `chatOpen` alone, so this does not
-  // fight the user's own focus once the dock has been open for a while.
-  const chatWasOpen = useRef(false);
-  useEffect(() => {
-    if (chatOpen && !chatWasOpen.current) {
-      chatDockRef.current?.focus();
-    } else if (!chatOpen && chatWasOpen.current) {
-      chatFabRef.current?.focus();
-    }
-    chatWasOpen.current = chatOpen;
-  }, [chatOpen]);
-  /**
-   * State, not a `useRef`, and attached as a callback ref below — because the effect that builds
-   * the page driver needs to run *when this node appears*, and a ref being populated is not a
-   * dependency change.
-   *
-   * The concrete failure that forced this (caught live, not in review): `api.me()` resolves
-   * `setUser` in a `.then` and `setChecking(false)` in a `.finally`, which are separate
-   * microtasks and therefore separate renders. On the first of them `user` is set but the layout
-   * is still showing the boot screen, so `<main>` is not mounted — a `useRef` would read `null`,
-   * the effect would bail, and the render that actually mounts `<main>` would not re-run it,
-   * because nothing in its dependency list changed. Page control would then be silently dead for
-   * the whole session with no error anywhere.
-   */
-  const [contentEl, setContentEl] = useState<HTMLElement | null>(null);
-  const [agentBridge, setAgentBridge] = useState<FrontendSessionBridge | null>(null);
+  const { contentEl, setContentEl, agentBridge } = useAgentPageBridge();
 
   /**
    * Read once per render rather than at each of the two `<Sidebar.Nav>` call sites below, so both
@@ -314,118 +222,6 @@ export function App() {
    * own terms rather than relying on that.
    */
   const collapsibleGroups = navGroups.map((group) => group.label).filter((label): label is string => Boolean(label));
-
-  // Plain `<a href="/admin/...">` links stay plain anchors and become SPA navigations here — see
-  // `installInternalLinkInterceptor` for why this is a document listener and not a <Link>.
-  useEffect(() => installInternalLinkInterceptor(), []);
-
-  // Auto-close the mobile drawer on navigation — every `.cms-item` click is itself a route
-  // change, so without this the drawer would stay open (covering the page it just navigated to)
-  // until the user separately dismissed it.
-  useEffect(() => setSidebarOpen(false), [routePath]);
-
-  // Escape-to-dismiss for the drawer (frontend-accessibility: "keyboard-dismissible"). Scoped to
-  // only listen while open, so this never fights other Escape handlers (e.g. a dialog) elsewhere
-  // in the app.
-  useEffect(() => {
-    if (!sidebarOpen) return;
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") setSidebarOpen(false);
-    }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [sidebarOpen]);
-
-  // Stable for the app's lifetime: rebuilding it would tear down the driver (and with it the SSE
-  // connection) on every render.
-  const agentPages = useMemo(() => buildAdminAgentPages(), []);
-
-  /**
-   * Agent-driven control of this tab. The daemon relays each `page.*` invocation down the
-   * frontend-session SSE stream (proxied by `src/server/modules/assistant.ts`), having already
-   * passed `ToolExecutor`'s authorization, timeout and audit on the way in — this side only
-   * executes what arrives.
-   *
-   * Scoped to `contentRef`, never `document`. Scanning the whole page would make any markup
-   * anywhere — including rendered post content an author or a commenter wrote — into an
-   * authorization decision, which is the opposite of an explicit allowlist. The chat pane itself
-   * sits outside this subtree on purpose, so a page verb cannot reach into the assistant's own UI.
-   *
-   * No `currentPage`: the driver reads `data-agent-page` off the live DOM on every call, so a
-   * navigation actually changes what elements report themselves as belonging to. Pinning it here
-   * would freeze it at whatever was mounted when this effect ran.
-   *
-   * Outlives every route change — the connection belongs to the tab, not to a view. `contentEl`
-   * is stable across navigations (the same `<main>` is reused; only its children swap), so this
-   * does not reconnect on every section change.
-   */
-  useEffect(() => {
-    if (!contentEl) return;
-
-    const bridge = createFrontendSessionBridge({
-      pageDriver: createDomPageDriver({ root: contentEl, pages: agentPages }),
-      onError: (error) => console.error("[admin] frontend session", error),
-    });
-    // Attach failure is not fatal: the assistant still works, it just cannot drive the page, and
-    // every `page.*` call it makes is refused by name rather than hanging.
-    bridge.ready.catch((error: unknown) => console.error("[admin] page control never attached", error));
-    setAgentBridge(bridge);
-
-    return () => {
-      bridge.close();
-      setAgentBridge((current) => (current === bridge ? null : current));
-    };
-  }, [contentEl, agentPages]);
-
-  useEffect(() => {
-    api
-      .me()
-      .then((r) => setUser(r.user))
-      .catch(() => setUser(null))
-      .finally(() => setChecking(false));
-  }, []);
-
-  /**
-   * The settings change feed, open for as long as an operator is signed in.
-   *
-   * Mounted here rather than inside `SettingsUi` on purpose. The subscribers are the settings
-   * slices, but a change can arrive while the operator is on any page, and the panel that would
-   * have opened the connection is frequently not mounted — a feed that only runs while you are
-   * already looking at Settings would miss precisely the changes worth telling you about.
-   *
-   * Gated on `user` so it opens only once authenticated: before login the request has no session
-   * and would 401, and `EventSource` would then retry that 401 forever.
-   */
-  useEffect(() => {
-    if (!user) return;
-    return subscribeToSettingsChanges(WORKSPACE_ID);
-  }, [user]);
-
-  /**
-   * Signing in changes what this tab is allowed to READ, not just who it is — so every settings
-   * reader already mounted has to re-read.
-   *
-   * `useAdminLocale()` above is the visible casualty. It is called from this component, which
-   * mounts while the login screen is still showing, so its one-shot fetch resolves against a 401
-   * (no session yet), swallows it, and keeps `DEFAULT_LOCALE`. Its effect has no dependency that
-   * changes at login, so it never retries: the sidebar stayed English for the whole session no
-   * matter what `core.language.locale` said, and an operator who set another language — through
-   * the Settings dialog or by asking the assistant — saw the admin ignore it.
-   *
-   * The bus's unscoped "something moved, re-read" notification is exactly the right signal, and
-   * fixes the whole class rather than the locale alone: any settings reader that mounts before
-   * authentication has the same 401-at-mount problem. Same reasoning that already gates the change
-   * feed below on `user`; this is the read side of it.
-   */
-  function handleLogin(next: AdminUser) {
-    setUser(next);
-    publishSettingsRefresh();
-  }
-
-  async function logout() {
-    await api.logout().catch(() => undefined);
-    setUser(null);
-  }
 
   if (checking) return <div className="boot-screen">Loading Tovu…</div>;
   if (!user) return <Login onLogin={handleLogin} />;
@@ -521,9 +317,9 @@ export function App() {
           this to `display: none`, which removes it from the tab order and accessibility tree on
           its own, but `inert` states that intent explicitly rather than leaving it as a side
           effect of a display value. `tabIndex={-1}` makes the element a valid *programmatic*
-          focus target (the open-focus effect above) without adding it to the normal Tab order —
-          the sheet's own close button and the assistant's composer are what Tab should reach,
-          not the `<aside>` wrapper itself. */}
+          focus target (the open-focus effect in `useChatDockLayout`) without adding it to the
+          normal Tab order — the sheet's own close button and the assistant's composer are what Tab
+          should reach, not the `<aside>` wrapper itself. */}
       {/*
         `data-theme="light"` is REQUIRED, not cosmetic, for the same reason `features/settings/SettingsUi.tsx`
         and `features/ai-assistant/AiAssistant.tsx` pin it — and it must live on THIS element, not on a wrapper
