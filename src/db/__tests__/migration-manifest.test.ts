@@ -13,6 +13,7 @@ import path from "node:path";
 import test from "node:test";
 
 import { getTableConfig } from "drizzle-orm/sqlite-core";
+import { getTableConfig as getPgTableConfig } from "drizzle-orm/pg-core";
 
 import type { ColumnDecl } from "../../features/plugins/data-module";
 import {
@@ -29,6 +30,7 @@ import {
   WATERMARK_IS_NOT_A_MIGRATION_BOUNDARY,
 } from "../migration/manifest";
 import { verifyBooleanCopy, verifyClassifiedValue, verifyJsonText, verifyUtcTimestampText } from "../migration/verify";
+import * as pgSchema from "../schema.postgres";
 
 const SCHEMA_SOURCE = fs.readFileSync(path.resolve(__dirname, "../schema.ts"), "utf8");
 
@@ -37,18 +39,74 @@ test("classifying every column of every core table does not throw — the real s
   assert.ok(all.length > 500, `sanity: expected several hundred columns, got ${all.length}`);
 });
 
-test("REVIEWED_INTEGER_ID_COLUMNS has no stale entries — every key names a real column in schema.ts today", () => {
+// --- GATE A: physical-type completeness, checked against the generated schema.postgres.ts --------
+// Two independent gates prove the 64-bit-ID story, deliberately not covering for each other: GATE A
+// (below) proves the ACTUAL Postgres output is universally safe (bigint, zero exceptions), and GATE B
+// (further down) proves this manifest's growth-class review is complete. Either could pass while the
+// other fails — e.g. a generator regression could reintroduce an `integer` column while every PK is
+// still correctly reviewed here, or a new autoincrement PK could land unreviewed while the generator
+// still happens to widen it anyway. Neither gate is redundant with the other.
+
+const DRIZZLE_IS_TABLE = Symbol.for("drizzle:IsDrizzleTable");
+
+function pgTablesByExportName(): Map<string, object> {
+  return new Map(
+    Object.entries(pgSchema)
+      .filter(([, v]) => Boolean(v && typeof v === "object" && (v as Record<symbol, unknown>)[DRIZZLE_IS_TABLE]))
+      .map(([exportName, table]) => [exportName, table as object])
+  );
+}
+
+test("GATE A: every SQLiteInteger column in schema.ts maps to a bigint column in the generated schema.postgres.ts, with zero exceptions", () => {
+  const all = classifyAllCoreColumns();
+  // Every SQLiteInteger column, growth-reviewed or not — this gate is about physical type, not risk.
+  const sqliteIntegerColumns = all.filter((c) => c.columnClass.kind === "reviewed-id" || c.columnClass.kind === "plain-integer");
+  assert.ok(sqliteIntegerColumns.length > 60, `sanity: expected 60+ SQLiteInteger columns, got ${sqliteIntegerColumns.length}`);
+
+  const pgTables = pgTablesByExportName();
+  const violations: string[] = [];
+  for (const col of sqliteIntegerColumns) {
+    const pgTable = pgTables.get(col.exportName);
+    if (!pgTable) {
+      violations.push(`${col.sqlTableName}: no generated Postgres table found for export "${col.exportName}"`);
+      continue;
+    }
+    const pgCol = getPgTableConfig(pgTable as never).columns.find((c) => c.name === col.sqlColumnName);
+    if (!pgCol) {
+      violations.push(`${col.sqlTableName}.${col.sqlColumnName}: missing from the generated table entirely`);
+    } else if (pgCol.columnType !== "PgBigInt53") {
+      violations.push(`${col.sqlTableName}.${col.sqlColumnName}: generated as ${pgCol.columnType}, not bigint`);
+    }
+  }
+  assert.deepEqual(violations, [], "every SQLiteInteger column must generate as bigint in schema.postgres.ts, with zero exceptions");
+});
+
+// --- GATE B: growth-class review completeness, independent of the generated schema ----------------
+
+test("GATE B: REVIEWED_INTEGER_ID_COLUMNS has no stale entries — every key names a real column in schema.ts today", () => {
   const all = classifyAllCoreColumns();
   const real = new Set(all.map((c) => `${c.sqlTableName}.${c.sqlColumnName}`));
   const stale = Object.keys(REVIEWED_INTEGER_ID_COLUMNS).filter((key) => !real.has(key));
   assert.deepEqual(stale, [], "REVIEWED_INTEGER_ID_COLUMNS names a column that no longer exists — update the registry");
 });
 
-test("bigint-id classification matches exactly the handoff's named categories: 7 revision logs, tool attempts, analytics events, the watermark", () => {
+test("GATE B: every autoincrement PK in schema.ts is assigned exactly one growth class ('unbounded' or 'bounded') — none unreviewed", () => {
+  const identityKeys = collectIdentityColumns().map((c) => `${c.sqlTableName}.${c.sqlColumnName}`);
+  assert.ok(identityKeys.length > 0, "sanity: expected at least one autoincrement PK");
+  for (const key of identityKeys) {
+    const review = REVIEWED_INTEGER_ID_COLUMNS[key];
+    assert.ok(review, `autoincrement PK "${key}" has no growth-class review in REVIEWED_INTEGER_ID_COLUMNS`);
+    assert.ok(review.growthClass === "unbounded" || review.growthClass === "bounded", `"${key}" has an invalid growth class`);
+  }
+});
+
+test("growth class 'unbounded' matches exactly the handoff's named risk categories: 7 revision logs, tool attempts, analytics events, the watermark", () => {
   const all = classifyAllCoreColumns();
-  const bigintIds = all.filter((c) => c.columnClass.kind === "bigint-id").map((c) => `${c.sqlTableName}.${c.sqlColumnName}`);
+  const unbounded = all
+    .filter((c) => c.columnClass.kind === "reviewed-id" && c.columnClass.growthClass === "unbounded")
+    .map((c) => `${c.sqlTableName}.${c.sqlColumnName}`);
   assert.deepEqual(
-    new Set(bigintIds),
+    new Set(unbounded),
     new Set([
       "setting_revisions.seq",
       "redirect_revisions.id",
@@ -64,16 +122,18 @@ test("bigint-id classification matches exactly the handoff's named categories: 7
   );
 });
 
-test("int4-safe-id classification covers exactly the two bounded join/reference tables, not silently omitted", () => {
+test("growth class 'bounded' covers exactly the two bounded join/reference tables, not silently omitted", () => {
   const all = classifyAllCoreColumns();
-  const int4SafeIds = all.filter((c) => c.columnClass.kind === "int4-safe-id").map((c) => `${c.sqlTableName}.${c.sqlColumnName}`);
-  assert.deepEqual(new Set(int4SafeIds), new Set(["entry_refs.id", "entry_terms.id"]));
+  const bounded = all
+    .filter((c) => c.columnClass.kind === "reviewed-id" && c.columnClass.growthClass === "bounded")
+    .map((c) => `${c.sqlTableName}.${c.sqlColumnName}`);
+  assert.deepEqual(new Set(bounded), new Set(["entry_refs.id", "entry_terms.id"]));
 });
 
-test("every autoincrement identity column is covered by identity reseeding, independent of its bigint-vs-int4 classification", () => {
+test("every autoincrement identity column is covered by identity reseeding, independent of its growth class or generated column width", () => {
   const identity = collectIdentityColumns().map((c) => `${c.sqlTableName}.${c.sqlColumnName}`);
-  // The union of bigint-id + int4-safe-id autoincrement PKs (database_write_watermark.value is a
-  // reviewed bigint-id but NOT an autoincrement PK, so it is deliberately excluded here).
+  // The union of unbounded + bounded autoincrement PKs (database_write_watermark.value is a
+  // reviewed "unbounded" column but NOT an autoincrement PK, so it is deliberately excluded here).
   const expected = new Set([
     "setting_revisions.seq",
     "redirect_revisions.id",
@@ -237,8 +297,8 @@ test("verifyClassifiedValue dispatches to the right check per column kind, and p
   assert.equal(verifyClassifiedValue({ kind: "json-text" }, null, "{bad")?.code, "INVALID_JSON");
   assert.equal(verifyClassifiedValue({ kind: "utc-timestamp-text" }, null, "2026-08-12T10:00:00Z"), null);
   assert.equal(verifyClassifiedValue({ kind: "boolean-flag" }, 1, true), null);
-  assert.equal(verifyClassifiedValue({ kind: "bigint-id", rationale: "x" }, 1, 1), null);
-  assert.equal(verifyClassifiedValue({ kind: "int4-safe-id", rationale: "x" }, 1, 1), null);
+  assert.equal(verifyClassifiedValue({ kind: "reviewed-id", growthClass: "unbounded", rationale: "x" }, 1, 1), null);
+  assert.equal(verifyClassifiedValue({ kind: "reviewed-id", growthClass: "bounded", rationale: "x" }, 1, 1), null);
   assert.equal(verifyClassifiedValue({ kind: "plain-integer" }, 1, 1), null);
   assert.equal(verifyClassifiedValue({ kind: "plain-text" }, "x", "x"), null);
 });
