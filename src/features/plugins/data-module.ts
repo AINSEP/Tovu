@@ -202,33 +202,62 @@ function assertIdentifierFits(identifier: string, what: string): void {
   );
 }
 
+/**
+ * Validates one table's columns and returns the set of names its indexes are allowed to reference.
+ *
+ * Returning the set rather than recomputing it in the index pass is what keeps the two loops
+ * independent — an index can only be checked against columns this same table declared, and pulling
+ * that dependency out into a return value is what allows both loops to be top-level functions
+ * rather than nested inside `validate`.
+ */
+function validateColumns(table: TableDecl): Set<string> {
+  if (table.columns.length === 0) throw new DeclError("NO_COLUMNS", `table ${table.name} declares no columns`);
+  const declaredColumns = new Set<string>();
+  for (const col of table.columns) {
+    if (!IDENT.test(col.name)) throw new DeclError("BAD_COLUMN", `invalid column name: ${col.name}`);
+    if (!TYPES.has(col.type)) throw new DeclError("BAD_TYPE", `unsupported column type for ${col.name}: ${col.type}`);
+    declaredColumns.add(col.name);
+  }
+  return declaredColumns;
+}
+
+/** Validates one table's index declarations against the columns that table actually declared. */
+function validateIndexes(pluginId: string, table: TableDecl, declaredColumns: Set<string>): void {
+  for (const idx of table.indexes ?? []) {
+    if (!IDENT.test(idx.name)) throw new DeclError("BAD_INDEX_NAME", `invalid index name: ${idx.name}`);
+    assertIdentifierFits(`idx_${fqName(pluginId, table.name)}__${idx.name}`, `index ${idx.name} on table ${table.name}`);
+    if (idx.columns.length === 0) throw new DeclError("EMPTY_INDEX", `index ${idx.name} on table ${table.name} declares no columns`);
+    for (const col of idx.columns) {
+      if (!declaredColumns.has(col)) {
+        throw new DeclError("INDEX_UNKNOWN_COLUMN", `index ${idx.name} on table ${table.name} references undeclared column: ${col}`);
+      }
+    }
+  }
+}
+
+/** Validates one table declaration end to end: name, generated identifier length, columns, indexes. */
+function validateTable(pluginId: string, table: TableDecl): void {
+  if (!IDENT.test(table.name)) throw new DeclError("BAD_TABLE_NAME", `invalid table name: ${table.name}`);
+  assertIdentifierFits(fqName(pluginId, table.name), `table ${table.name}`);
+  validateIndexes(pluginId, table, validateColumns(table));
+}
+
+/**
+ * Every declaration check, run before any I/O so the whole engine fails closed on a bad manifest.
+ *
+ * Split into `validateTable`/`validateColumns`/`validateIndexes` rather than one nested triple
+ * loop: as a single function this measured cyclomatic 16 / cognitive 31 against this repo's
+ * ceiling of 10 for both. The nesting was the cognitive driver — SonarJS charges depth to every
+ * control-flow structure inside an enclosing loop, so extraction has to be to **top level** to pay
+ * off. A closure declared inside the loop body would inherit the loop's nesting and change nothing.
+ */
 function validate(decl: DataModuleDecl): void {
   if (!IDENT.test(decl.pluginId)) throw new DeclError("BAD_PLUGIN_ID", `invalid pluginId: ${decl.pluginId}`);
   if (decl.pluginTier === "tier-1") {
     throw new DeclError("TIER1_NOT_ALLOWED", "dataModule requires executable code (Tier-2 or Tier-3); Tier-1 plugins cannot request it");
   }
   if (decl.tables.length === 0) throw new DeclError("EMPTY", "declaration lists no tables");
-  for (const table of decl.tables) {
-    if (!IDENT.test(table.name)) throw new DeclError("BAD_TABLE_NAME", `invalid table name: ${table.name}`);
-    assertIdentifierFits(fqName(decl.pluginId, table.name), `table ${table.name}`);
-    if (table.columns.length === 0) throw new DeclError("NO_COLUMNS", `table ${table.name} declares no columns`);
-    const declaredColumns = new Set<string>();
-    for (const col of table.columns) {
-      if (!IDENT.test(col.name)) throw new DeclError("BAD_COLUMN", `invalid column name: ${col.name}`);
-      if (!TYPES.has(col.type)) throw new DeclError("BAD_TYPE", `unsupported column type for ${col.name}: ${col.type}`);
-      declaredColumns.add(col.name);
-    }
-    for (const idx of table.indexes ?? []) {
-      if (!IDENT.test(idx.name)) throw new DeclError("BAD_INDEX_NAME", `invalid index name: ${idx.name}`);
-      assertIdentifierFits(`idx_${fqName(decl.pluginId, table.name)}__${idx.name}`, `index ${idx.name} on table ${table.name}`);
-      if (idx.columns.length === 0) throw new DeclError("EMPTY_INDEX", `index ${idx.name} on table ${table.name} declares no columns`);
-      for (const col of idx.columns) {
-        if (!declaredColumns.has(col)) {
-          throw new DeclError("INDEX_UNKNOWN_COLUMN", `index ${idx.name} on table ${table.name} references undeclared column: ${col}`);
-        }
-      }
-    }
-  }
+  for (const table of decl.tables) validateTable(decl.pluginId, table);
 }
 
 function columnSql(col: ColumnDecl): string {
