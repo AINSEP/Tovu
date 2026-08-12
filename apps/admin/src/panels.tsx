@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { AdminPanel } from "@jini-ai/admin/core";
-import { Appearance } from "./features/appearance";
+import { Themes, ThemeExplore } from "./features/themes";
 import { Dashboard } from "./features/dashboard";
 import { Placeholder } from "./components/Placeholder";
 import { PlaceholderTabs } from "./components/PlaceholderTabs";
@@ -13,6 +13,8 @@ import { Media } from "./features/media";
 import { Menus, MenuEditor } from "./features/menus";
 import { Integrations, IntegrationDeliveries } from "./features/integrations";
 import { Users } from "./features/users";
+import { Authentication } from "./features/authentication";
+import { Payments } from "./features/commerce";
 import { Roles } from "./features/roles";
 import { Settings } from "./features/settings-raw";
 import { SettingsUi } from "./features/settings";
@@ -328,17 +330,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
     // which fails the moment this stops being consecutive with them — confirmed by temporarily
     // moving this block after `roles` and watching that test go red (mutation-proof per the
     // owner's 2026-08-05 requirement), then restoring this exact position.
-    render: () => (
-      <PlaceholderTabs
-        sectionId="authentication"
-        tabs={[
-          { id: "home", label: "Home" },
-          { id: "google", label: "Google" },
-          { id: "facebook", label: "Facebook" },
-          { id: "linkedin", label: "LinkedIn" },
-        ]}
-      />
-    ),
+    render: () => <Authentication />,
     nav: {
       label: "Authentication",
       group: "People",
@@ -398,11 +390,25 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   // --- Studio ---
   {
     id: "themes",
-    // `themes` and `appearance` below both render `Appearance`: two accepted spellings, one
-    // screen, kept as two panel ids (rather than one panel with two routes) because they are two
+    // `themes` and `appearance` below both render `Themes`: two accepted spellings, one screen,
+    // kept as two panel ids (rather than one panel with two routes) because they are two
     // independently agent-reachable pages at two independent URLs, exactly as `SECTIONS` and
-    // `ADMIN_AGENT_PAGE_PATHS` both treated them before.
-    render: () => <Appearance />,
+    // `ADMIN_AGENT_PAGE_PATHS` both treated them before. The `appearance` SPELLING is legacy here
+    // and should not grow: `admin-appearance` below is the real Appearance feature (restyling the
+    // admin's own chrome), and this screen is about SITE themes — which is why the module it lives
+    // in is `features/themes/`, not `features/appearance/`.
+    render: (ctx) => {
+      switch (ctx.view) {
+        case "theme-explore":
+          // The theme id rides in `?theme=` rather than the path because it names a theme, not a
+          // resource in this app's own URL space. Read here from the router's own parsed `query`
+          // rather than off `window` so the component stays a pure function of its props.
+          return <ThemeExplore themeId={ctx.query.get("theme") ?? ""} />;
+        default:
+          return <Themes />;
+      }
+    },
+    routes: [{ pattern: "/explore", view: "theme-explore" }],
     nav: {
       label: "Themes",
       group: "Studio",
@@ -442,15 +448,16 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   {
     // No screen yet — `soon: true` + `Placeholder`, the same shape `skills`/`design-system` above
     // use. `id: "admin-appearance"`, NOT `"appearance"` — that id is already taken (see the
-    // nav-less `id: "appearance"` entry further down, which renders the SITE-themes `<Appearance>`
+    // nav-less `id: "appearance"` entry further down, which renders the SITE-themes `<Themes>`
     // screen, same component `id: "themes"` above also renders under its own label). This entry is
     // for a genuinely different, not-yet-built thing: letting the OPERATOR restyle Tovu's own admin
     // chrome (CSS/motifs for this panel, not the public site) — labelled "Appearance" per the
     // owner's own wording, deliberately placed in Studio next to `themes` where an operator would
     // look for either. The `note` below is what stops that placement reading as a duplicate of
     // `themes`: `ComingSoonNotice`'s one generic "X is coming soon." sentence alone doesn't say
-    // WHICH X, and "Appearance" sitting one row below "Themes" (which itself renders a component
-    // literally named `Appearance`) is exactly the ambiguity an operator would hit cold.
+    // WHICH X, and "Appearance" sitting one row below "Themes" is exactly the ambiguity an operator
+    // would hit cold. (The screens' own modules no longer collide: site themes live in
+    // `features/themes/`, leaving the `appearance` name free for whatever this grows into.)
     id: "admin-appearance",
     render: () => (
       <Placeholder
@@ -546,16 +553,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
     // own `subscriptions` entry below. Commerce groups the two together with Orders and Products
     // because all four are the same business function (running a storefront), which is a
     // meaningfully different concern from People's identity/access management.
-    render: () => (
-      <PlaceholderTabs
-        sectionId="payments"
-        tabs={[
-          { id: "home", label: "Home" },
-          { id: "stripe", label: "Stripe" },
-          { id: "paypal", label: "PayPal" },
-        ]}
-      />
-    ),
+    render: () => <Payments />,
     nav: {
       label: "Payments",
       group: "Commerce",
@@ -871,7 +869,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   // --- Routable, no sidebar row (deliberate opt-out — see INFO.md "Adding a new admin section") ---
   {
     id: "appearance",
-    render: () => <Appearance />,
+    render: () => <Themes />,
     agentReachable: true,
   },
 ];
