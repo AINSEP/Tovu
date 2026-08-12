@@ -1499,6 +1499,16 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .menu-item-row[style*="margin-left"] { padding-left: 0.9rem; border-left: 2px solid var(--border); margin-top: 0.6rem; }
 .editor-shell { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--surface); box-shadow: var(--shadow-sm); }
 .editor-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 3px 8px; padding: 8px 10px; background: var(--surface-2); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 2; }
+/* Selection bubble menu (`BubbleFormattingMenu`, 2026-08-11) — `@tiptap/react/menus`' `BubbleMenu`
+   positions this `<div>` itself (Floating UI under the hood); this rule only styles its contents,
+   same `.tb-btn` row shape `.editor-toolbar .grp` already uses, just without that row's own
+   border/background/sticky-positioning (a floating popover needs its OWN surface + shadow, not the
+   toolbar's docked-bar chrome). `z-index` above `.editor-toolbar`'s own `2` since a selection near
+   the top of the editor can float the bubble close to the sticky toolbar's edge. */
+.bubble-formatting-menu {
+  display: flex; gap: 2px; padding: 4px; background: var(--surface); border: 1px solid var(--border);
+  border-radius: 9px; box-shadow: var(--shadow-md, var(--shadow-sm)); z-index: 3;
+}
 .editor-toolbar .grp { display: flex; gap: 2px; padding-right: 8px; margin-right: 0; border-right: 1px solid var(--border); }
 .editor-toolbar .grp:last-child { border-right: none; padding-right: 0; }
 .tb-btn {
