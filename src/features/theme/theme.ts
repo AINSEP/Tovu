@@ -245,11 +245,13 @@ function readJson(path: string): JsonValue {
   return JSON.parse(readFileSync(path, "utf8")) as JsonValue;
 }
 
-/** Coerce `theme.json.tier` to a known tier, defaulting to `declarative`. */
+/** Default an absent/empty `theme.json.tier`; reject a present value this build cannot render. */
 function parseTier(value: JsonValue | undefined): ThemeTier {
-  return typeof value === "string" && (THEME_TIERS as readonly string[]).includes(value)
-    ? (value as ThemeTier)
-    : "declarative";
+  if (value === undefined || value === "") return "declarative";
+  if (typeof value === "string" && (THEME_TIERS as readonly string[]).includes(value)) {
+    return value as ThemeTier;
+  }
+  throw new Error(`unrecognized theme tier '${String(value)}'`);
 }
 
 /**
