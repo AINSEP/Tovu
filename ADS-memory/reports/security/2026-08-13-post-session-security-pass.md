@@ -15,7 +15,7 @@ UNPROVEN and ranked below proven findings, per the security-review skill's evide
 
 | # | Severity | Finding | Status |
 |---|----------|---------|--------|
-| 1 | **Critical** | `.svg`/`.html` stored XSS survives `d822d87` outside a compiled theme's `sourceDir` | **PROVEN**, live today, no route wiring needed |
+| 1 | **Critical** | `.svg`/`.html` stored XSS survives `d822d87` outside a compiled theme's `sourceDir` | **PROVEN, then FIXED 2026-08-12** — see FIX addendum in Finding 1 below |
 | 2 | **High** | Agent Plugins tenant isolation is caller convention, not enforced by the layout type | **PROVEN as architectural gap**; not network-reachable today (no caller wired) |
 
 Five priority surfaces (archive extraction, deployments/GitHub SSRF, commerce checkout/webhook,
@@ -125,6 +125,69 @@ with `Content-Type: text/html` and the script unescaped.
 
 **Human sign-off required:** Yes (Critical, XSS, no clear one-line mitigation without touching the
 allowlist contract Explore's UI depends on for "what can I save").
+
+---
+
+## FIX addendum (2026-08-12) — Finding 1 closed, team-lead-authorized
+
+**Fix chosen: serve-side, not write-side.** `isThemeFileWritable`/`TEXT_READABLE_EXTENSIONS`/
+`ASSET_EXTENSIONS`/`READ_ONLY_GROUPS` are UNCHANGED — `.svg` and top-level `.html` stay exactly as
+writable as before this fix; theme authoring is unaffected. New shared middleware,
+`src/server/middleware/theme-content-security-headers.ts`, sets `X-Content-Type-Options: nosniff` and
+`Content-Security-Policy: default-src 'none'; sandbox` on every response served by theme-file mounts.
+`sandbox` (no `allow-scripts`) disables script execution for any document a browser would construct FROM
+the response — direct navigation, `<iframe>`, `<object>`/`<embed>` — regardless of extension, while
+`<img src>`/`<link rel=stylesheet>`/`<script src>` sub-resource fetches are completely unaffected (those
+are governed by the REFERENCING page's own CSP, never the fetched resource's own headers). This is a
+blanket, mount-wide policy, not a per-extension allowlist — there is no branch to narrow, so it cannot
+repeat `d822d87`'s "narrowed one side of an OR, the other side still admits" mistake.
+
+**Enumeration performed before implementing (per the team lead's explicit requirement):**
+- Write-side: `isThemeFileWritable`/`isInsideCompiledSourceDir`/`isSourceDirWritableExtension`
+  (explore.ts PUT), `resolveThemeFileWriteScope` (ADR-020 generated-tree check), the rename route's
+  inline `sourceRenamable` check, and the copy route (copies existing, already-vetted bytes only — no
+  new content introduced, left unchanged).
+- Serve-side: `theme-static-assets.ts` (`/theme-assets/…`) — the one this report's original Finding 1
+  named — AND `theme-preview-static.ts` (`/theme-preview/…`), a SECOND, independent `express.static`
+  mount found during this enumeration, serving a theme's `preview/` build output, previously untested
+  and independently vulnerable to the identical class. `theme-page-preview.ts` (`/theme-explore/…`) was
+  reviewed and is a different mechanism (renders through the real theme loader, not a raw file serve) —
+  out of scope for this vulnerability class, left untouched.
+- **A related gap found during enumeration, also closed:** `isGeneratedThemePath` (theme-files.ts)
+  already excluded `preview/` from the Explore file LIST, but PUT never consulted it — the list filter
+  and the write gate were two independent predicates that had drifted apart, so `preview/evil.svg` was
+  writable despite being hidden from the UI. Closed in `isThemeFileWritable` and the rename route's
+  inline check, so both gates now agree.
+
+**Options considered and rejected** (full reasoning in `theme-content-security-headers.ts`'s own header):
+sanitizing content at write time (SVG XSS sanitization is a long-running, evasion-prone problem with no
+vetted library in this codebase, and would need to handle arbitrary author HTML for the `.html` case
+too); isolating theme-asset serving on its own origin (architecturally correct long-term, but needs new
+DNS/TLS/deployment infrastructure out of scope for this pass); banning `.svg`/top-level `.html` from the
+write allowlist (explicitly rejected by the team lead — real theme assets, and unnecessary once the
+actual risk is removed).
+
+**Red-before/green-after, verified explicitly:** the rewritten `explore-svg-xss.test.ts` (3 tests
+asserting the fixed behavior) was run against the pre-fix code and failed all 3 with `expected a
+sandboxing CSP directive, got ""` — committed at `10900da` in that failing state. The fix landed in the
+next commit (`d01e142`); re-running the identical tests against post-fix code passes all 3, plus a 4th
+(`preview/` write-gap) and 2 new tests for the `theme-preview-static.ts` mount (`theme-preview-static.test.ts`,
+committed alongside the 4th test at `c63efbe`, also verified red beforehand). 32/32 in the full scoped
+suite (`theme-static-assets.test.ts`, `theme-preview-static.test.ts`, `explore-built-theme-gate.test.ts`,
+`explore-svg-xss.test.ts`) pass at HEAD. No existing test was weakened or deleted.
+
+`npx tsc -p tsconfig.json --noEmit`: zero errors attributable to any file this fix touched (confirmed by
+grepping the touched filenames out of the full error list). A concurrent agent's in-progress,
+**uncommitted** taxonomy refactor (`content-lookup.ts` and others showing `D` in `git status` at the time
+of this check) transiently breaks `createApp()`'s import chain and therefore the LAST few tests in
+`theme-static-assets.test.ts` plus `tsc`'s taxonomy-route output — verified NOT attributable to this fix
+by checking the committed HEAD directly (`git cat-file -e HEAD:src/features/taxonomy/content-lookup.ts`
+→ exists; `git show HEAD:.../tool-registrations.ts` → correctly imports it) — this is the other agent's
+working tree, not this repository's committed state.
+
+**Commits:** test (RED) `10900da`, fix `d01e142`, test (RED, second gap + new mount coverage) `c63efbe`
+— test-before-fix ordering preserved in git history as requested, even though the second gap's test and
+its fix were verified red→green locally before either was committed.
 
 ---
 
