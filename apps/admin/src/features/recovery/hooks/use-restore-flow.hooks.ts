@@ -14,6 +14,12 @@ import { t } from "../recovery-i18n";
  *
  * Naming follows `hooks/use-settings-slice.hooks.ts`: `use-<thing>.hooks.ts`. Feature-local because
  * nothing outside `features/recovery` needs it.
+ *
+ * `t`/`locale` (2026-08-11, standing i18n rule — see `use-recovery.hooks.ts`'s own file header for
+ * the full rationale): this hook already called `useAdminLocale()` for its own error-string
+ * translations, so exposing that same already-resolved `locale` as a bound `t` (plus the raw value,
+ * still needed for `RestoreFlow`'s own local step subcomponents and the several `recovery-i18n.tsx`
+ * helpers that take `locale` directly) on the return value adds no new fetch.
  */
 
 export type CeremonyStep = "idle" | "planned" | "confirmed" | "done";
@@ -32,10 +38,18 @@ export interface RestoreFlowController {
   startPlan: () => Promise<void>;
   doConfirm: () => Promise<void>;
   doExecute: () => Promise<void>;
+  /** Bound translator — `key` already resolved against the caller's locale, so `RestoreFlow` never
+   *  imports `useAdminLocale`/`recovery-i18n` itself. See this file's header. */
+  t: (key: string) => string;
+  /** Raw resolved locale — `RestoreFlow`'s own local step subcomponents and several
+   *  `recovery-i18n.tsx` helpers take `locale` directly rather than a bound translator. See this
+   *  file's header. */
+  locale: string;
 }
 
 export function useRestoreFlow(props: { point: AdminRestorePoint }): RestoreFlowController {
   const locale = useAdminLocale();
+  const boundT = (key: string): string => t(locale, key);
   const [disclosure, setDisclosure] = useState<AdminDisclosureResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [acknowledged, setAcknowledged] = useState(false);
@@ -127,5 +141,7 @@ export function useRestoreFlow(props: { point: AdminRestorePoint }): RestoreFlow
     startPlan,
     doConfirm,
     doExecute,
+    t: boundT,
+    locale,
   };
 }

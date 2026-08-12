@@ -5,7 +5,6 @@ import type { AdminDisclosureResult, AdminRecoveryStatus, AdminRestorePoint } fr
 import { categoryLabel, isAssertiveRecoveryBanner } from "./rules";
 import { useRecovery } from "./hooks/use-recovery.hooks";
 import { useRestoreFlow, type CeremonyStep } from "./hooks/use-restore-flow.hooks";
-import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import {
   t,
   sinceDiscardMessage,
@@ -43,8 +42,13 @@ import {
  * (`readFileSync`) to assert AC-32 against the `page-description` copy below — keep that
  * `className="page-description">...</p>` line intact if editing the header copy.
  *
- * `locale` is fetched once in `Recovery` via `useAdminLocale()` and threaded down as a prop —
- * see `Database.tsx`'s file header for why (the hook's `loadLanguage()` isn't memoized).
+ * `locale`/`t`: `Recovery` and `RestoreFlow` each have their own hook (`useRecovery`,
+ * `useRestoreFlow`), and each hook already independently calls `useAdminLocale()` for its own
+ * error-string translations — so each component now gets `t`/`locale` from its OWN hook rather than
+ * `Recovery` threading a single resolved `locale` down as a prop, per the standing i18n rule. This
+ * adds no new fetch (see each hook's own file header). `DegradedBannerView`/`RestorePointsList`
+ * have no hook of their own, so they keep receiving `locale` as a prop from `Recovery` and import
+ * `t` directly — same carve-out `Database.tsx`'s local subcomponents use.
  */
 
 function DegradedBannerView(props: { locale: string; status: AdminRecoveryStatus }) {
@@ -277,7 +281,6 @@ function RestoreCeremonySteps(props: {
 }
 
 export interface RestoreFlowProps {
-  locale: string;
   point: AdminRestorePoint;
   onBack: () => void;
   /** Dependency injection seam for tests — see `PostsProps.usePostsHook` for the convention. */
@@ -285,7 +288,6 @@ export interface RestoreFlowProps {
 }
 
 function RestoreFlow({
-  locale,
   point,
   onBack,
   useRestoreFlowHook = useRestoreFlow
@@ -304,28 +306,30 @@ function RestoreFlow({
     startPlan,
     doConfirm,
     doExecute,
+    t,
+    locale,
   } = useRestoreFlowHook({ point });
 
   return (
     <div>
       <button type="button" className="btn-ghost" onClick={onBack}>
-        {t(locale, "← Restore points")}
+        {t("← Restore points")}
       </button>
       <h2>
-        {t(locale, "Restore to")} {formatTimestamp(point.createdAt)}
+        {t("Restore to")} {formatTimestamp(point.createdAt)}
       </h2>
 
       <div className="settings-layer-grid">
         <div className="settings-layer-cell">
-          <span className="settings-layer-label">{t(locale, "Trigger")}</span>
+          <span className="settings-layer-label">{t("Trigger")}</span>
           <span>{point.trigger}</span>
         </div>
         <div className="settings-layer-cell">
-          <span className="settings-layer-label">{t(locale, "Cost class")}</span>
+          <span className="settings-layer-label">{t("Cost class")}</span>
           <span className={`status status-${point.costClass}`}>{point.costClass}</span>
         </div>
         <div className="settings-layer-cell">
-          <span className="settings-layer-label">{t(locale, "Kind")}</span>
+          <span className="settings-layer-label">{t("Kind")}</span>
           <span>{point.kind}</span>
         </div>
       </div>
@@ -359,29 +363,28 @@ export interface RecoveryProps {
 }
 
 export function Recovery({ useRecoveryHook = useRecovery }: RecoveryProps = {}) {
-  const locale = useAdminLocale();
-  const { status, points, error, selected, setSelected } = useRecoveryHook();
+  const { status, points, error, selected, setSelected, t, locale } = useRecoveryHook();
 
   if (error && !points) return <div className="notice error">{error}</div>;
-  if (!points || !status) return <div className="notice">{t(locale, "Loading restore points…")}</div>;
+  if (!points || !status) return <div className="notice">{t("Loading restore points…")}</div>;
 
   return (
     <div className="page">
       <div className="page-header">
         <div className="page-header-text">
-          <p className="page-kicker">{t(locale, "Operations")}</p>
-          <h1 className="page-title">{t(locale, "Recovery")}</h1>
-          <p className="page-description">{t(locale, "Restore this site to a previous point in time using a captured restore point.")}</p>
+          <p className="page-kicker">{t("Operations")}</p>
+          <h1 className="page-title">{t("Recovery")}</h1>
+          <p className="page-description">{t("Restore this site to a previous point in time using a captured restore point.")}</p>
         </div>
       </div>
       {error ? <div className="notice error">{error}</div> : null}
       <div className="notice">
-        {t(locale, "Restore capability:")} <span className={`status status-${status.costClass}`}>{status.costClass}</span>
+        {t("Restore capability:")} <span className={`status status-${status.costClass}`}>{status.costClass}</span>
       </div>
       <DegradedBannerView locale={locale} status={status} />
 
       {selected ? (
-        <RestoreFlow locale={locale} point={selected} onBack={() => setSelected(null)} />
+        <RestoreFlow point={selected} onBack={() => setSelected(null)} />
       ) : (
         <RestorePointsList locale={locale} points={points} onSelect={setSelected} />
       )}
