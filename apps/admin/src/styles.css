@@ -1566,17 +1566,19 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    ... }` reset ("Shared page primitives" section, this file) floors every native `<input>`
    including `type="color"`, and `min-height` always wins over a smaller `height` regardless of
    selector specificity (used value is `max(height, min-height)` per spec). Re-declaring
-   `min-height` here, not just `height`, is what actually un-clamps it. Half of the value the
-   stylesheet already claimed (17px) is 8.5px — halving the AUTHORED number, not the previously
-   wrong 37px rendered one, since 17px was always the intended baseline the owner was looking at
-   in spirit even though the browser never actually honored it. Verified after the fix: computed
-   height 8.5px, fits inside the unchanged 26px `.tb-color` frame with no overflow, toolbar row
-   stays level. `width` is untouched (17px) — only height was asked for; this reads as a short flat
-   swatch rather than a smaller square, flagged in the handoff in case a square (both dimensions
-   halved) is what was actually wanted. */
+   `min-height` here, not just `height`, is what actually un-clamps it.
+
+   ⚠️ CORRECTED 2026-08-12, second pass. The first attempt halved the AUTHORED 17px to 8.5px and
+   produced two thin horizontal dashes — the owner's words: "you made the color boxes lines, that's
+   ridiculous." The brief was wrong, not the execution. He asked for half the size of *what he could
+   see*, and what he could see was the clamped 37px. So the target is ~18px, not 8.5px. Halve the
+   RENDERED value, never the authored one, whenever the two disagree — the owner is describing
+   pixels on his screen, not a number in this file. At 17x18 the swatch reads as a proper square-ish
+   colour chip that fits inside the 26px `.tb-color` frame instead of overflowing it, which is what
+   "half as tall" was always asking for. */
 .tb-color { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 6px; cursor: pointer; }
 .tb-color input[type="color"] {
-  width: 17px; height: 8.5px; min-height: 8.5px; padding: 0; border: 1px solid var(--border); border-radius: 4px;
+  width: 17px; height: 18px; min-height: 18px; padding: 0; border: 1px solid var(--border); border-radius: 4px;
   cursor: pointer; background: none;
 }
 /* Font family/size/line-height `<select>`s (`Toolbar`, 2026-08-11) — sized to match `.tb-btn`'s own
