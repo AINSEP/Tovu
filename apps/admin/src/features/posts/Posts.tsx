@@ -6,7 +6,7 @@ import { siteUrl } from "../../lib/site-url";
 import { formatTimestamp } from "../../lib/format-timestamp";
 import { navigate } from "../../lib/router";
 import { postRowMenuItems, sortPostsByUpdated, updatedSortButtonLabel, type PostUpdatedSortDirection } from "./rules";
-import { usePosts } from "./hooks/use-posts.hooks";
+import { useWiredPosts } from "./hooks/use-posts.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { POSTS_DICT } from "./posts-i18n";
 
@@ -28,7 +28,7 @@ export interface PostsProps {
    * real request. That matters here specifically: this screen has no unit test today, and the
    * reason it is awkward to write one is that every state is behind an un-substitutable `api` call.
    */
-  usePostsHook?: typeof usePosts;
+  usePostsHook?: typeof useWiredPosts;
 }
 
 /**
@@ -45,7 +45,7 @@ export function postsListNotice(posts: AdminPost[] | null, error: string | null)
   return null;
 }
 
-export function Posts({ usePostsHook = usePosts }: PostsProps) {
+export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
   const {
     posts,
     error,
