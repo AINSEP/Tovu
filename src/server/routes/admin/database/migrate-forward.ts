@@ -1,7 +1,7 @@
 import type { Express } from "express";
 
 import { acquireOperationLock, releaseOperationLock } from "#src/core/operation-lock";
-import { confirm, execute, ForbiddenError, PlanStaleError, plan, type GatedMutationHooks } from "#src/core/gated-mutations/gateway";
+import { authorizeForHooks, confirm, execute, ForbiddenError, PlanStaleError, plan, type GatedMutationHooks } from "#src/core/gated-mutations/gateway";
 import { TokenAlreadyRedeemedError, TokenExpiredError } from "#src/core/gated-mutations/token";
 import {
   executeMigrateForward,
@@ -73,6 +73,7 @@ export function registerAdminDatabaseMigrateForwardRoutes(app: Express, deps: Ro
         readPermission: "database.read",
         mutatePermission: "database.migrate",
         scopeId: deps.workspaceId,
+        scopeKind: "instance",
       });
 
       const record = await confirm({
@@ -103,11 +104,25 @@ export function registerAdminDatabaseMigrateForwardRoutes(app: Express, deps: Ro
       // with a concurrent authorized migration. Authorize inline, before any lock acquisition; the
       // gateway's fresh authorize() re-check at execute time (CIC U-001) remains the authoritative
       // check and is unchanged by this.
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "database.migrate",
-        workspaceId: deps.workspaceId,
-      });
+      //
+      // Routed through `authorizeForHooks` (not a hardcoded `deps.authorize` workspace-scoped
+      // call) with `scopeKind: "instance"` -- `database.migrate`'s real scope, per
+      // `features/database/gated-hooks.ts`'s `buildMigrateForwardHooks` doc comment -- so this
+      // pre-check agrees with what `execute()`'s own internal check will decide. A hardcoded
+      // workspace-scoped check here would let a workspace-scoped-but-not-instance-authorized
+      // caller pass this gate, briefly hold the lock, and only then be rejected deeper inside
+      // `execute()` -- reopening the very race AUD-001 closed, one layer up.
+      const authResult = await authorizeForHooks(
+        deps.gatedMutations.gatewayDeps,
+        buildConfirmOnlyHooks({
+          domain: "database.migrate",
+          readPermission: "database.read",
+          mutatePermission: "database.migrate",
+          scopeId: deps.workspaceId,
+          scopeKind: "instance",
+        }),
+        { principalId: principal.id, permission: "database.migrate" }
+      );
       if (!authResult.allowed) {
         res.status(403).json({
           error: `principal '${principal.id}' is not authorized for 'database.migrate' (${authResult.reason})`,

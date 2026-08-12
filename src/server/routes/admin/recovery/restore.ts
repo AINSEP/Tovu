@@ -1,7 +1,7 @@
 import type { Express } from "express";
 
 import { acquireOperationLock, releaseOperationLock } from "#src/core/operation-lock";
-import { confirm, execute, plan } from "#src/core/gated-mutations/gateway";
+import { authorizeForHooks, confirm, execute, plan } from "#src/core/gated-mutations/gateway";
 import { confirmRestore, executeRestore, planRestore } from "#src/features/recovery/recovery-orchestrator";
 import { buildConfirmOnlyHooks } from "#src/core/gated-mutations/composition";
 import { buildRestoreHooks, toRecoveryResult, type RecoveryErrorPayload } from "#src/features/recovery/gated-hooks";
@@ -116,6 +116,7 @@ export function registerAdminRecoveryRestoreRoutes(app: Express, deps: RouteDeps
                   readPermission: "backup.read",
                   mutatePermission: "backup.restore",
                   scopeId: deps.workspaceId,
+                  scopeKind: "instance",
                 });
                 const record = await confirm({
                   deps: deps.gatedMutations.gatewayDeps,
@@ -154,11 +155,25 @@ export function registerAdminRecoveryRestoreRoutes(app: Express, deps: RouteDeps
       // concurrent authorized restore. Authorize inline, before any lock acquisition; the
       // gateway's fresh authorize() re-check at execute time (CIC U-001) remains the authoritative
       // check and is unchanged by this.
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: "backup.restore",
-        workspaceId: deps.workspaceId,
-      });
+      //
+      // Routed through `authorizeForHooks` (not a hardcoded `deps.authorize` workspace-scoped
+      // call) with `scopeKind: "instance"` -- `backup.restore`'s real scope, per
+      // `features/recovery/gated-hooks.ts`'s `buildRestoreHooks` doc comment -- so this pre-check
+      // agrees with what `execute()`'s own internal check will decide. A hardcoded workspace-scoped
+      // check here would let a workspace-scoped-but-not-instance-authorized caller pass this gate,
+      // briefly hold the lock, and only then be rejected deeper inside `execute()` -- reopening the
+      // very race AUD-001 closed, one layer up.
+      const authResult = await authorizeForHooks(
+        deps.gatedMutations.gatewayDeps,
+        buildConfirmOnlyHooks({
+          domain: "backup.restore",
+          readPermission: "backup.read",
+          mutatePermission: "backup.restore",
+          scopeId: deps.workspaceId,
+          scopeKind: "instance",
+        }),
+        { principalId: principal.id, permission: "backup.restore" }
+      );
       if (!authResult.allowed) {
         res.status(403).json({
           error: `principal '${principal.id}' is not authorized for 'backup.restore' (${authResult.reason})`,
