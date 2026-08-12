@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 
-import { api, type AdminWorkspace } from "../../../lib/api";
+import type { AdminWorkspace } from "../../../lib/api";
 import { describeApiError } from "../rules";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { t } from "../workspace-i18n";
 import type { Translate } from "../../../lib/dictionary-translator";
+import { defaultWorkspacePort } from "./workspace-dependencies.hooks";
+import type { WorkspacePort } from "./workspace-port.hooks";
 
 /**
  * @file Everything the Workspace screen does, so `Workspace.tsx` is only markup.
@@ -12,6 +14,10 @@ import type { Translate } from "../../../lib/dictionary-translator";
  * Extracted verbatim — same state, same order, same effect, same error handling. Naming follows
  * `hooks/use-settings-slice.hooks.ts`: `use-<thing>.hooks.ts`. Feature-local because nothing
  * outside `features/workspace` needs it.
+ *
+ * `deps.port` is injected (see `workspace-port.hooks.ts`) rather than reaching for `lib/api`'s
+ * `api` directly — the same `useX(dependencies)` / `useWiredX()` split `redirects`/`widgets`/
+ * `plugins`/`members` use.
  *
  * `t` (2026-08-11, standing i18n rule — a component with a hook gets a BOUND `t` from that hook,
  * not its own `useAdminLocale()`/dictionary import): this hook already called `useAdminLocale()`
@@ -22,6 +28,10 @@ import type { Translate } from "../../../lib/dictionary-translator";
  * `locale` as its own prop (carve-out — no hook file of its own), but the value it receives can now
  * come from the same `useWorkspace()` return rather than a second `useAdminLocale()` call.
  */
+
+export interface WorkspaceDependencies {
+  port: WorkspacePort;
+}
 
 export interface WorkspaceController {
   /** `null` until the initial load settles — the caller renders a loading state. */
@@ -46,7 +56,7 @@ export interface WorkspaceController {
 /**
  * @complexity Time/space: O(1) per call — one workspace round trip on mount, one per save.
  */
-export function useWorkspace(): WorkspaceController {
+export function useWorkspace({ port }: WorkspaceDependencies): WorkspaceController {
   const locale = useAdminLocale();
   const boundT = (key: string): string => t(locale, key);
   const [workspace, setWorkspace] = useState<AdminWorkspace | null>(null);
@@ -59,7 +69,7 @@ export function useWorkspace(): WorkspaceController {
   const [saved, setSaved] = useState(false);
 
   function reload(): Promise<void> {
-    return api
+    return port
       .getWorkspace()
       .then((r) => {
         setWorkspace(r.workspace);
@@ -80,7 +90,7 @@ export function useWorkspace(): WorkspaceController {
     setSaveError(null);
     setSaved(false);
     try {
-      const { workspace: updated } = await api.updateWorkspace({ name, slug });
+      const { workspace: updated } = await port.updateWorkspace({ name, slug });
       setWorkspace(updated);
       setSaved(true);
     } catch (e) {
@@ -91,4 +101,15 @@ export function useWorkspace(): WorkspaceController {
   }
 
   return { workspace, error, name, setName, slug, setSlug, saving, saveError, saved, onSave, t: boundT, locale };
+}
+
+/**
+ * Binds the real `/api/.../workspaces/{id}` client — see `workspace-dependencies.hooks.ts`.
+ *
+ * The zero-argument-dependencies half of the `useX(dependencies)` / `useWiredX()` pair, so
+ * `Workspace.tsx` composes this and a test composes {@link useWorkspace} with
+ * `createFakeWorkspacePort`.
+ */
+export function useWiredWorkspace(): WorkspaceController {
+  return useWorkspace({ port: defaultWorkspacePort });
 }

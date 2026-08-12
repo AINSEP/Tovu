@@ -1,5 +1,5 @@
 import { isWorkspaceDirty } from "./rules";
-import { useWorkspace } from "./hooks/use-workspace.hooks";
+import { useWiredWorkspace } from "./hooks/use-workspace.hooks";
 import { t } from "./workspace-i18n";
 
 /**
@@ -31,7 +31,7 @@ export interface WorkspaceProps {
    * Dependency injection seam for tests — the same convention `Posts.tsx`'s `usePostsHook` uses.
    * Defaulted to the real hook, so production callers pass nothing and behave exactly as before.
    */
-  useWorkspaceHook?: typeof useWorkspace;
+  useWorkspaceHook?: typeof useWiredWorkspace;
 }
 
 /** The rename form's own status pair — a save error, or a "Saved." confirmation once the form is
@@ -47,7 +47,7 @@ function WorkspaceFormStatus(props: { locale: string; saveError: string | null; 
   );
 }
 
-export function Workspace({ useWorkspaceHook = useWorkspace }: WorkspaceProps = {}) {
+export function Workspace({ useWorkspaceHook = useWiredWorkspace }: WorkspaceProps = {}) {
   const { workspace, error, name, setName, slug, setSlug, saving, saveError, saved, onSave, t, locale } = useWorkspaceHook();
 
   if (error) return <div className="notice error">{error}</div>;
