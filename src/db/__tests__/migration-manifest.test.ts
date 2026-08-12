@@ -559,9 +559,37 @@ test("verifyUtcTimestampText: rejects an out-of-range UTC offset — the regress
 });
 
 test("verifyUtcTimestampText: accepts boundary-VALID offsets — the fix must not reject the legitimate edge of the range along with the illegitimate one", () => {
-  assert.equal(verifyUtcTimestampText("2026-08-12T10:00:00+23:59"), null, "+23:59 is the maximum valid positive offset");
-  assert.equal(verifyUtcTimestampText("2026-08-12T10:00:00-23:59"), null, "-23:59 is the maximum valid negative offset");
+  // ±15:59, not ±23:59 — Postgres's own timezone-displacement cap (2026-08-12 round-3 fix), see
+  // isValidUtcOffset's own doc and the live proof in migration-manifest-postgres.test.ts.
+  assert.equal(verifyUtcTimestampText("2026-08-12T10:00:00+15:59"), null, "+15:59 is the maximum valid positive offset (Postgres's own cap)");
+  assert.equal(verifyUtcTimestampText("2026-08-12T10:00:00-15:59"), null, "-15:59 is the maximum valid negative offset (Postgres's own cap)");
   assert.equal(verifyUtcTimestampText("2026-08-12T10:00:00+00:00"), null, "+00:00 is a valid (if redundant with Z) offset");
+});
+
+// --- round-3 audit (2026-08-12): the ±23:59 bound above was itself wrong — Postgres genuinely
+// rejects +16:00 through +23:59, so the PREVIOUS round's fix let values through this validator that
+// its own destination database can never accept -----------------------------------------------------
+
+test("verifyUtcTimestampText: rejects offsets Postgres itself rejects (+16:00 through +23:59) even though Date.parse alone accepts every one of them — this was the round-3 regression: the ±23:59 bound matched Date.parse, not Postgres, the actual authority this validator answers to", () => {
+  // Live Postgres 14.18 proof (migration-manifest-postgres.test.ts): '...+16:00'::timestamptz ->
+  // ERROR: time zone displacement out of range. '...+15:59'::timestamptz -> OK. The cap is exactly
+  // ±15:59, so +16:00 is the smallest value that must now be rejected, and +23:59 (the OLD bound's own
+  // "valid" boundary case) must be rejected too.
+  const justOverNewBoundary = verifyUtcTimestampText("2026-08-12T10:00:00+16:00");
+  assert.equal(justOverNewBoundary?.code, "INVALID_UTC_OFFSET");
+  const oldBoundaryNowInvalid = verifyUtcTimestampText("2026-08-12T10:00:00+23:59");
+  assert.equal(oldBoundaryNowInvalid?.code, "INVALID_UTC_OFFSET");
+  const negativeJustOverNewBoundary = verifyUtcTimestampText("2026-08-12T10:00:00-16:00");
+  assert.equal(negativeJustOverNewBoundary?.code, "INVALID_UTC_OFFSET");
+  const negativeOldBoundaryNowInvalid = verifyUtcTimestampText("2026-08-12T10:00:00-23:59");
+  assert.equal(negativeOldBoundaryNowInvalid?.code, "INVALID_UTC_OFFSET");
+
+  // Confirm Date.parse genuinely accepts all four — otherwise this would not be exercising the gap
+  // between "what Date.parse allows" and "what Postgres allows" that this fix closes.
+  assert.ok(!Number.isNaN(Date.parse("2026-08-12T10:00:00+16:00")), "sanity: Date.parse accepts +16:00 (Postgres does not)");
+  assert.ok(!Number.isNaN(Date.parse("2026-08-12T10:00:00+23:59")), "sanity: Date.parse accepts +23:59 (Postgres does not)");
+  assert.ok(!Number.isNaN(Date.parse("2026-08-12T10:00:00-16:00")), "sanity: Date.parse accepts -16:00 (Postgres does not)");
+  assert.ok(!Number.isNaN(Date.parse("2026-08-12T10:00:00-23:59")), "sanity: Date.parse accepts -23:59 (Postgres does not)");
 });
 
 test("verifyJsonText: accepts valid JSON and null, rejects malformed JSON", () => {
