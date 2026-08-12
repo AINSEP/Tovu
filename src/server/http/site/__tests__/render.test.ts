@@ -24,6 +24,26 @@ test("renderDocNode: bold/italic/code marks still render (regression)", () => {
   assert.equal(html, "<p><strong>b</strong><em>i</em><code>c</code></p>");
 });
 
+test("renderDocNode: underline and strike marks render (Posts toolbar, 2026-08-11 — underline was silently dropped before this fix, strike had never rendered)", () => {
+  const html = renderDocNode(
+    textDoc(
+      { type: "text", text: "u", marks: [{ type: "underline" }] },
+      { type: "text", text: "s", marks: [{ type: "strike" }] }
+    )
+  );
+  assert.equal(html, "<p><u>u</u><s>s</s></p>");
+});
+
+test("underline/strike compose with bold and with each other — the mark loop wraps progressively, so nesting order must match the marks array", () => {
+  const html = renderDocNode(
+    textDoc(
+      { type: "text", text: "bu", marks: [{ type: "bold" }, { type: "underline" }] },
+      { type: "text", text: "us", marks: [{ type: "underline" }, { type: "strike" }] }
+    )
+  );
+  assert.equal(html, "<p><u><strong>bu</strong></u><s><u>us</u></s></p>");
+});
+
 test("C7: a link mark renders an anchor with its href", () => {
   const html = renderDocNode(
     textDoc({ type: "text", text: "plugins", marks: [{ type: "link", attrs: { href: "/how-plugins-work" } }] })
