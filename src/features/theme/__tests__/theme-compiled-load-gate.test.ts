@@ -56,6 +56,11 @@ function writeCompiledTheme(
   const artifactHashes = options.artifactHashesOverride ?? {
     "pages/index.html": sha256(pageHtml),
     "css/styles.css": sha256(cssContent),
+    // tokens.json (written above) is neither "theme.json" nor under sourceDir, so it counts as
+    // generated too (resolveThemeFileWriteScope has no special case for it, see explore-built-theme-
+    // gate.test.ts's own comment on the identical fixture shape) -- the full-tree inventory now flags
+    // it as an unlisted file if it's left out here.
+    "tokens.json": sha256("{}"),
   };
 
   fs.writeFileSync(
@@ -210,6 +215,7 @@ test("a sha256:-prefixed digest in theme.json is accepted the same as a bare hex
     artifactHashesOverride: {
       "pages/index.html": `sha256:${sha256(pageHtml)}`,
       "css/styles.css": `sha256:${sha256(cssContent)}`,
+      "tokens.json": `sha256:${sha256("{}")}`,
     },
   });
 

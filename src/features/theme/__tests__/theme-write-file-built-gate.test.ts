@@ -64,7 +64,10 @@ function makeThemesRoot(): string {
       build: {
         source: "compiled",
         sourceDir: "src",
-        artifactHashes: { "pages/index.html": sha256(pageHtml), "css/styles.css": sha256(cssContent) },
+        // tokens.json (written above) is generated too, same as pages/css -- see explore-built-theme-
+        // gate.test.ts's own comment on this identical fixture shape; the full-tree inventory flags it
+        // as unlisted otherwise.
+        artifactHashes: { "pages/index.html": sha256(pageHtml), "css/styles.css": sha256(cssContent), "tokens.json": sha256("{}") },
       },
     })
   );
