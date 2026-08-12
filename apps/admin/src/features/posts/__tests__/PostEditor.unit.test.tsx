@@ -193,6 +193,25 @@ describe("Formatting toolbar — alignment icons", () => {
   });
 });
 
+describe("CharacterCount readout", () => {
+  /**
+   * Owner's "anything and everything" extension list (2026-08-11) — a live character count in the
+   * toolbar. Mounts the real editor (same reasoning as the alignment-icons describe block above):
+   * `editor.storage.characterCount` only exists once TipTap has actually mounted with the
+   * extension registered. `DRAFT_POST`'s title, "Hello world", is 11 characters — synthesized into
+   * the doc's title node by `withTitleNode` on load, with the fixture's own empty paragraph
+   * contributing nothing — so this also incidentally proves the count reflects the WHOLE doc
+   * (title node included), not just the body paragraphs.
+   */
+  it("shows the live character count once the editor has mounted", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST }));
+
+    render(<PostEditor postId="p1" />);
+
+    expect(await screen.findByText("11 characters")).toBeInTheDocument();
+  });
+});
+
 describe("Back-to-list link", () => {
   it("points at the Posts list for a post", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST }));

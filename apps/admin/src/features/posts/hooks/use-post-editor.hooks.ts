@@ -7,6 +7,7 @@ import Subscript from "@tiptap/extension-subscript";
 import Superscript from "@tiptap/extension-superscript";
 import { TextStyle, Color, BackgroundColor, FontFamily, FontSize, LineHeight } from "@tiptap/extension-text-style";
 import Typography from "@tiptap/extension-typography";
+import { Placeholder, CharacterCount } from "@tiptap/extensions";
 
 import type { AdminPost, ThemeTier } from "../../../lib/api";
 import { MediaImage } from "../../../lib/media-image-extension";
@@ -235,6 +236,15 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
       // The result is plain text in a `text` node — `render.ts` needed no new case, since its
       // existing `"text"` case already `escapeHtml`s and emits whatever Unicode the doc carries.
       Typography,
+      // Placeholder/CharacterCount (2026-08-11) — editor-only chrome, no doc vocabulary of their own
+      // (Placeholder is a ProseMirror DECORATION on an empty node, never written into `bodyJson`;
+      // CharacterCount only reads `state.doc`, never writes to it), so neither needs a `render.ts`
+      // case — same reasoning `Typography` above already gives for skipping one. Default class
+      // names (`is-empty`/`is-editor-empty`) and data attribute (`data-placeholder`) kept as-is
+      // rather than renamed via `.configure()`, since `styles.css`'s `.editor-body .is-empty::before`
+      // rule (2026-08-11) targets them directly.
+      Placeholder.configure({ placeholder: "Start writing…" }),
+      CharacterCount,
       MediaImage,
       WidgetEmbed,
     ],

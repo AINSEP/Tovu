@@ -1540,6 +1540,17 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
   cursor: pointer; max-width: 9rem;
 }
 .tb-select:hover { background: var(--surface); border-color: var(--border); }
+/* CharacterCount readout (`Toolbar`, 2026-08-11) — `margin-left: auto` pushes it to the far end of
+   the flex-wrap row, trailing every button/select group rather than sitting between them. */
+.editor-toolbar-count { margin-left: auto; padding: 0 4px; font-size: 12px; color: var(--faint); white-space: nowrap; }
+/* Placeholder (`Toolbar`, 2026-08-11) — the extension's own default class/attribute names
+   (`is-empty`, `data-placeholder`) kept as-is rather than renamed via `.configure()`, so this rule
+   targets them directly. `float: left` + `height: 0` is the standard Tiptap placeholder recipe: the
+   pseudo-element overlays the empty block without adding to its layout height (an empty node would
+   otherwise briefly grow taller than a populated one while the placeholder is showing). */
+.editor-body .is-empty::before {
+  content: attr(data-placeholder); float: left; height: 0; color: var(--faint); pointer-events: none;
+}
 /* `WidgetAddControl`'s `<span className="widget-add-control">` (its widget-type `<select>` plus
    the "Insert widget"/"+ Add widget" trigger button, `components/WidgetPickerDialog/WidgetPickerDialog.tsx`) had
    never had any CSS anywhere in the app — the two controls sat flush with zero gap between them.
