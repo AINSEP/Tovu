@@ -11,6 +11,26 @@ This report reviews the CODE AS IT NOW STANDS, using the commit list to scope wh
 are ordered by severity. Every finding has a concrete exploit path; anything without one is labeled
 UNPROVEN and ranked below proven findings, per the security-review skill's evidence bar.
 
+## Summary
+
+| # | Severity | Finding | Status |
+|---|----------|---------|--------|
+| 1 | **Critical** | `.svg`/`.html` stored XSS survives `d822d87` outside a compiled theme's `sourceDir` | **PROVEN**, live today, no route wiring needed |
+| 2 | **High** | Agent Plugins tenant isolation is caller convention, not enforced by the layout type | **PROVEN as architectural gap**; not network-reachable today (no caller wired) |
+
+Five priority surfaces (archive extraction, deployments/GitHub SSRF, commerce checkout/webhook,
+storefront XSS omission, static-asset re-judgment, capability/tool-execution boundary) were reviewed in
+full and found either sound or not currently exploitable — see their own sections below for what was
+specifically checked and why. A recurring pattern across this session's NEW feature slices (Agent
+Plugins, deployments, commerce checkout/webhook) is real: each is well-hardened on its own terms but has
+**zero HTTP route or agent-tool caller wired yet** — confirmed by grep, not assumed, for each one
+individually. That is why Finding 2 is High rather than Critical, and why several sections below end
+"no live exploit, re-check the day a route lands" rather than "clean."
+
+**Is the `.svg` XSS class actually closed? No — only the one location the previous session's fix
+targeted (`build.sourceDir`) is closed. Finding 1 is the same class, still open, in the far more common
+location (every ordinary theme).**
+
 ---
 
 ## Findings
@@ -465,3 +485,41 @@ hardening above should be the template for it — it is not yet built for themes
 **Human sign-off required:** No (no exploitable finding; informational for planning).
 
 ---
+
+## Surfaces reviewed and found clean (or not currently reachable)
+
+For the owner's benefit, distinguishing "checked and sound" from "not checked at all":
+
+- **Media upload/serving** (`src/server/routes/admin/media/original.ts`) — content-sniffs bytes at
+  serve time regardless of client-claimed type; forces `application/octet-stream` +
+  `Content-Disposition: attachment` + `X-Content-Type-Options: nosniff` for any sniffed
+  `text/html`/`image/svg+xml`. This is the correct pattern Finding 1's fix should borrow from.
+- **Public media rendition route** (`routes/site/media-rendition.ts`) — `Content-Type` is derived from a
+  fixed transform-format enum (`mimeForTransformFormat`), never from uploaded bytes or client input.
+- **Agent Plugins archive extraction** (`install.ts`/`yauzl-archive-reader.ts`/`package-paths.ts`) —
+  zip-slip, symlink entries, decompression bombs (single-file and many-small-files), TOCTOU, digest
+  verification: all checked against the real code and found correctly implemented (P2 section above).
+- **Guarded HTTP egress client + GitHub App adapter** (`src/http/client.ts`, `transport.fetch.ts`,
+  `deployments/providers/github.ts`) — SSRF (DNS rebinding, cloud metadata, private/link-local/reserved
+  ranges, redirect re-verification), credential handling, and log-injection all checked (P5 section
+  above).
+- **Commerce checkout pricing** (`checkout.ts`) — price and total are server-computed, never trusted
+  from the client; quantity is bounded (P6 section above).
+- **Commerce webhook idempotency/ordering** (`repo.sqlite.ts`'s `applyProviderEvent`) — traced against
+  the real SQL, not just its doc comment; both guards are genuinely atomic (P6 section above).
+- **Storefront `description` XSS omission** (`storefront.ts` → `render.ts`'s `siteProductRenderShape`)
+  — traced end to end through the one real choke point; the existing regression test genuinely proves
+  what it claims (P4 section above).
+- **`post.content | raw`** (`render.ts`'s `renderDocNode`) — a closed AST `switch` over TipTap node
+  types with `escapeHtml`/`safeHref` throughout, no default pass-through of unknown content or
+  attributes (P4 section above).
+- **Tool name-enumeration vs. tool-execution boundary** — verified structurally separate at three
+  independent layers, including server-side re-enforcement at the actual `ToolExecutor.execute` call
+  site (P8 section above).
+- **Theme marketplace "download"** (`marketplace.ts`'s `downloadMarketplaceTheme`) — not an
+  archive-extraction or network-fetch surface at all; a validated-id local fixture copy (P2 section
+  above).
+
+**Not reviewed / out of scope for this pass:** the admin RBAC/permission catalog itself (`identity`
+package, out of this session's commit scope); the widgets/menus rendering path beyond what Finding 4's
+sweep covered; any commit outside the stated 2026-08-12 Tovu + 6 named Jini commits window.
