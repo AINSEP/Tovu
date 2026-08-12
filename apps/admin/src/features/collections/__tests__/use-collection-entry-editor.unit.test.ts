@@ -3,7 +3,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminContentType, AdminEntry, AdminTaxonomyWithTerms } from "../../../lib/api";
 import { navigate } from "../../../lib/router";
-import { useCollectionEntryEditor } from "../hooks/use-collection-entry-editor.hooks";
+import { createFakeCollectionEntryEditorPort } from "../hooks/collection-entry-editor-dependencies.hooks";
+import { useCollectionEntryEditor, useWiredCollectionEntryEditor } from "../hooks/use-collection-entry-editor.hooks";
 
 /**
  * @file `useCollectionEntryEditor` — the collection entry editor's load + save + lifecycle-toggle
@@ -86,7 +87,7 @@ function queueLoad(opts: {
 
 async function mountLoaded(opts: Parameters<typeof queueLoad>[0]) {
   queueLoad(opts);
-  const view = renderHook(() => useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: opts.entryId }));
+  const view = renderHook(() => useWiredCollectionEntryEditor({ contentTypeKey: "recipe", entryId: opts.entryId }));
   await waitFor(() => expect(view.result.current.loaded).toBe(true));
   return view;
 }
@@ -102,7 +103,7 @@ describe("initial load — new entry (entryId null)", () => {
 
   it("starts contentType as undefined (the not-yet-resolved sentinel) before the load settles", () => {
     queueLoad({ entryId: null });
-    const { result } = renderHook(() => useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: null }));
+    const { result } = renderHook(() => useWiredCollectionEntryEditor({ contentTypeKey: "recipe", entryId: null }));
     expect(result.current.contentType).toBeUndefined();
     expect(result.current.loaded).toBe(false);
   });
@@ -144,7 +145,7 @@ describe("initial load — failure", () => {
   it("sets the fallback loadError when listContentTypes fails, and still sets loaded=true", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ error: "" }, 500));
     fetchMock.mockResolvedValueOnce(jsonResponse({ items: [] })); // listTaxonomies
-    const { result } = renderHook(() => useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: null }));
+    const { result } = renderHook(() => useWiredCollectionEntryEditor({ contentTypeKey: "recipe", entryId: null }));
     await waitFor(() => expect(result.current.loaded).toBe(true));
     expect(result.current.loadError).toBe("failed to load entry");
   });
@@ -152,7 +153,7 @@ describe("initial load — failure", () => {
   it("tolerates a failing listTaxonomies call — falls back to an empty taxonomies list, no loadError", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ items: [RECIPE_TYPE] }));
     fetchMock.mockResolvedValueOnce(jsonResponse({ error: "" }, 500)); // listTaxonomies fails
-    const { result } = renderHook(() => useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: null }));
+    const { result } = renderHook(() => useWiredCollectionEntryEditor({ contentTypeKey: "recipe", entryId: null }));
     await waitFor(() => expect(result.current.loaded).toBe(true));
     expect(result.current.taxonomies).toEqual([]);
     expect(result.current.loadError).toBeNull();
@@ -163,7 +164,7 @@ describe("initial load — failure", () => {
 describe("save — new entry", () => {
   it("is a no-op (no fetch call) when contentType hasn't resolved yet", async () => {
     fetchMock.mockResolvedValueOnce(new Promise(() => {})); // listContentTypes never resolves
-    const { result } = renderHook(() => useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: null }));
+    const { result } = renderHook(() => useWiredCollectionEntryEditor({ contentTypeKey: "recipe", entryId: null }));
     const callsBefore = fetchMock.mock.calls.length;
     await act(async () => {
       await result.current.save();
@@ -357,5 +358,94 @@ describe("toggleLifecycle", () => {
       await view.result.current.toggleLifecycle("publish");
     });
     expect(view.result.current.error).toBeNull();
+  });
+});
+
+describe("injected port (useWiredX conversion coverage)", () => {
+  it("loads contentType/entry/taxonomies through the injected port, without touching fetch", async () => {
+    const localFetchMock = vi.fn();
+    vi.stubGlobal("fetch", localFetchMock);
+    try {
+      const port = createFakeCollectionEntryEditorPort({ types: [RECIPE_TYPE], entries: [ENTRY] });
+      const { result } = renderHook(() =>
+        useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: "e1" }, { port, navigate: vi.fn(), locale: "en" })
+      );
+      await waitFor(() => expect(result.current.loaded).toBe(true));
+
+      expect(result.current.contentType).toEqual(RECIPE_TYPE);
+      expect(result.current.entry).toEqual(ENTRY);
+      expect(result.current.title).toBe("My Recipe");
+      expect(localFetchMock).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("save (existing entry) writes through the injected port and sets entry + message", async () => {
+    const port = createFakeCollectionEntryEditorPort({ types: [RECIPE_TYPE], entries: [ENTRY] });
+    const navigateSpy = vi.fn();
+    const { result } = renderHook(() =>
+      useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: "e1" }, { port, navigate: navigateSpy, locale: "en" })
+    );
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+
+    act(() => result.current.setTitle("Updated Title"));
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(port.entries[0]!.title).toBe("Updated Title");
+    expect(result.current.entry?.title).toBe("Updated Title");
+    expect(result.current.message).toBe(`Saved · version ${ENTRY.version + 1}`);
+    expect(navigateSpy).not.toHaveBeenCalled();
+  });
+
+  it("save (new entry) creates through the injected port and navigates via the injected navigate", async () => {
+    const port = createFakeCollectionEntryEditorPort({ types: [RECIPE_TYPE], entries: [] });
+    const navigateSpy = vi.fn();
+    const { result } = renderHook(() =>
+      useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: null }, { port, navigate: navigateSpy, locale: "en" })
+    );
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+
+    act(() => result.current.setTitle("Brand New"));
+    act(() => result.current.setSlug("brand-new"));
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(port.entries).toHaveLength(1);
+    expect(port.entries[0]!.title).toBe("Brand New");
+    expect(navigateSpy).toHaveBeenCalledWith(`/collections/recipe/${port.entries[0]!.id}`);
+  });
+
+  it("sets the fallback error when the injected port's save call rejects", async () => {
+    const port = createFakeCollectionEntryEditorPort({ types: [RECIPE_TYPE], entries: [ENTRY], saveError: new Error("save exploded") });
+    const { result } = renderHook(() =>
+      useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: "e1" }, { port, navigate: vi.fn(), locale: "en" })
+    );
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(result.current.error).toBe("save exploded");
+  });
+
+  it("toggleLifecycle publishes through the injected port and sets entry + message", async () => {
+    const port = createFakeCollectionEntryEditorPort({ types: [RECIPE_TYPE], entries: [ENTRY] });
+    const { result } = renderHook(() =>
+      useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: "e1" }, { port, navigate: vi.fn(), locale: "en" })
+    );
+    await waitFor(() => expect(result.current.loaded).toBe(true));
+
+    await act(async () => {
+      await result.current.toggleLifecycle("publish");
+    });
+
+    expect(port.entries[0]!.status).toBe("published");
+    expect(result.current.entry?.status).toBe("published");
+    expect(result.current.message).toBe(`Entry published · version ${ENTRY.version + 1}`);
   });
 });

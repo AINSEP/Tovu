@@ -31,7 +31,10 @@ const { editorControllerRef, termPickerControllerRef } = vi.hoisted(() => ({
 
 vi.mock("../hooks/use-collection-entry-editor.hooks", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../hooks/use-collection-entry-editor.hooks")>();
-  return { ...actual, useCollectionEntryEditor: () => editorControllerRef.current };
+  // Mocks the zero-deps wrapper `CollectionEntryEditor.tsx` now calls by default post-`useWiredX`
+  // conversion — was `useCollectionEntryEditor` (the pure, deps-taking hook) before; a call-site
+  // rename of what gets intercepted, not a behavior or assertion change.
+  return { ...actual, useWiredCollectionEntryEditor: () => editorControllerRef.current };
 });
 vi.mock("../hooks/use-term-picker.hooks", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../hooks/use-term-picker.hooks")>();

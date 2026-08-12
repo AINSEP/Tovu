@@ -1,7 +1,7 @@
 import { EditorContent, type Editor } from "@tiptap/react";
 import { type AdminTaxonomyWithTerms, type ContentTypeFieldDef } from "../../lib/api";
 import { WidgetEmbedInsertControl } from "../../lib/widget-embed-extension";
-import { useCollectionEntryEditor } from "./hooks/use-collection-entry-editor.hooks";
+import { useWiredCollectionEntryEditor } from "./hooks/use-collection-entry-editor.hooks";
 import { useWiredTermPicker } from "./hooks/use-term-picker.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { COLLECTIONS_DICT } from "./collections-i18n";
@@ -318,7 +318,7 @@ export function CollectionEntryEditor(props: { contentTypeKey: string; entryId: 
     editor,
     save,
     toggleLifecycle,
-  } = useCollectionEntryEditor({ contentTypeKey: props.contentTypeKey, entryId: props.entryId });
+  } = useWiredCollectionEntryEditor({ contentTypeKey: props.contentTypeKey, entryId: props.entryId });
   const locale = useAdminLocale();
   const t = (key: string): string => COLLECTIONS_DICT[locale]?.[key] ?? key;
 
