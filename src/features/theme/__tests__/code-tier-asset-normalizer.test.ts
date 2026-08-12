@@ -81,6 +81,21 @@ test("planAssetRelocation rejects a fileName that is already nested -- flat outp
   assert.throws(() => planAssetRelocation({ fileNames: ["css/already-nested.css"] }), RangeError);
 });
 
+test("planAssetRelocation relocates a .js.map/.css.map sourcemap into the SAME directory as its bundle", () => {
+  const plan = planAssetRelocation({ fileNames: ["main.js", "main.js.map", "polyfills.mjs.map", "styles.css", "styles.css.map"] });
+
+  assert.deepEqual(
+    [...plan.relocations].sort((a, b) => a.from.localeCompare(b.from)),
+    [
+      { from: "main.js", to: "js/main.js" },
+      { from: "main.js.map", to: "js/main.js.map" },
+      { from: "polyfills.mjs.map", to: "js/polyfills.mjs.map" },
+      { from: "styles.css", to: "css/styles.css" },
+      { from: "styles.css.map", to: "css/styles.css.map" },
+    ]
+  );
+});
+
 test("rewriteBundlerHtml replaces the plain build-output stylesheet tag with the EXACT sentinel constant, not a hand-reconstructed copy", () => {
   const plan = planAssetRelocation({ fileNames: ["styles.css"] });
   const html = '<head><link rel="stylesheet" href="styles.css"></head>';
@@ -254,6 +269,51 @@ test("normalizeBuildOutputDirectory rewrites a relocated CSS file's own url() re
   assert.ok(relocatedCss.includes("url(../../fonts/x.woff2)"), relocatedCss);
   // Absolute URL is scheme-prefixed -- unaffected by the directory shift, left exactly as the build emitted it.
   assert.ok(relocatedCss.includes("url(https://cdn.example.com/x.png)"), relocatedCss);
+});
+
+test("normalizeBuildOutputDirectory relocates a bundle's .js.map/.css.map alongside it, preserving the sourceMappingURL reference", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-normalizer-fs-sourcemap-"));
+  fs.writeFileSync(path.join(root, "main.js"), "console.log(1);\n//# sourceMappingURL=main.js.map", "utf8");
+  fs.writeFileSync(path.join(root, "main.js.map"), '{"version":3,"file":"main.js"}', "utf8");
+  fs.writeFileSync(path.join(root, "styles.css"), "body{margin:0}\n/*# sourceMappingURL=styles.css.map */", "utf8");
+  fs.writeFileSync(path.join(root, "styles.css.map"), '{"version":3,"file":"styles.css"}', "utf8");
+  fs.writeFileSync(
+    path.join(root, "index.html"),
+    '<link rel="stylesheet" href="styles.css"><script src="main.js" type="module"></script>',
+    "utf8"
+  );
+
+  const result = normalizeBuildOutputDirectory({
+    outputDir: root,
+    pageFileNames: ["index.html"],
+    primaryStylesheetFile: "styles.css",
+  });
+
+  assert.deepEqual(
+    [...result.plan.relocations].sort((a, b) => a.from.localeCompare(b.from)),
+    [
+      { from: "main.js", to: "js/main.js" },
+      { from: "main.js.map", to: "js/main.js.map" },
+      { from: "styles.css", to: "css/styles.css" },
+      { from: "styles.css.map", to: "css/styles.css.map" },
+    ]
+  );
+
+  // Both halves of each bundle/map pair really moved, to the SAME directory as each other.
+  assert.ok(fs.existsSync(path.join(root, "js", "main.js")));
+  assert.ok(fs.existsSync(path.join(root, "js", "main.js.map")));
+  assert.ok(fs.existsSync(path.join(root, "css", "styles.css")));
+  assert.ok(fs.existsSync(path.join(root, "css", "styles.css.map")));
+  assert.ok(!fs.existsSync(path.join(root, "main.js.map")), "must not still be at the old location");
+  assert.ok(!fs.existsSync(path.join(root, "styles.css.map")), "must not still be at the old location");
+
+  // The bundle's own sourceMappingURL comment is untouched text -- because the map moved into the SAME
+  // directory as the bundle, the bare relative filename it already names still resolves correctly with
+  // no rewrite needed (the fix this test pins is relocation coverage, not comment rewriting).
+  const relocatedJs = fs.readFileSync(path.join(root, "js", "main.js"), "utf8");
+  assert.ok(relocatedJs.includes("//# sourceMappingURL=main.js.map"));
+  const relocatedCssWithMap = fs.readFileSync(path.join(root, "css", "styles.css"), "utf8");
+  assert.ok(relocatedCssWithMap.includes("/*# sourceMappingURL=styles.css.map */"));
 });
 
 test("normalizeBuildOutputDirectory deletes index.csr.html -- Tovu's serving model has no client-side router to fall back to", () => {
