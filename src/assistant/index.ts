@@ -143,7 +143,8 @@ export { RUN_PRINCIPAL_HEADER } from "./run-ownership";
 // item is about to move, not this module's own barrel. Once item 7 lands, this line's source simply
 // changes (`export { SURFACE_EXCHANGE_ID_PARAM, type SurfaceExchangeStore } from "../core/
 // surface-exchanges"` or wherever it ends up) and `server/modules/assistant.ts`'s import stays
-// byte-identical (`from "#src/assistant"`). Whoever executes item 7 should update this comment.
+// byte-identical (`from "#src/assistant/index"` or `"../../assistant"`). Whoever executes item 7
+// should update this comment.
 export { SURFACE_EXCHANGE_ID_PARAM } from "./surface-exchanges";
 export type { SurfaceExchangeStore } from "./surface-exchanges";
 
