@@ -100,6 +100,27 @@ async function tryRedirectPhase(
 const SITE_TITLE = "Tovu Demo Site";
 
 /**
+ * Owner decision (TM-TOVU-2026-08-12-A request-cost audit, Phase 2 change 2 of 2). Applied to every
+ * success response this file sends — home, the static-theme-page short-circuit, the template
+ * branch, and the generic dynamic post render — because all four share the SAME cacheability
+ * property the audit's deliverable A proved empirically: none of `resolveWidgetsForRender`/
+ * `buildExtraHead`/`resolveStaticMenusForRender`/`renderViaTemplate`/`renderSite` even receive `req`
+ * as an argument, so the output is identical for every anonymous visitor requesting the same URL —
+ * confirmed by diffing real responses across different cookies/Accept-Language headers, not assumed.
+ *
+ * `max-age=60`: an edit becomes publicly visible within a minute. `stale-while-revalidate=300`: a
+ * CDN can serve a slightly-stale copy while it revalidates in the background, absorbing traffic
+ * spikes without a thundering-herd re-render. 5 minutes (rather than 60s) for the base `max-age` was
+ * considered and rejected — long enough that an author fixing a typo would reasonably think their
+ * edit hadn't saved.
+ *
+ * Deliberately NOT applied to error responses (404/500) in this file — a fresh render is generally
+ * the same page again, but a 500 is exactly the response a CDN must never cache as if it were
+ * durable, and 404 caching wasn't part of what the audit measured or the owner decided on.
+ */
+const CACHE_CONTROL_PUBLIC_PAGE = "public, max-age=60, stale-while-revalidate=300";
+
+/**
  * Resolve the theme to render with: the active theme when discovered and valid,
  * otherwise the first valid theme, otherwise the first discovered theme. This is
  * the render-time fallback that keeps the public site from 500-ing when the
@@ -628,7 +649,7 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
         buildExtraHead(deps, "home", SITE_TITLE, undefined),
         resolveStaticMenusForRender(deps, theme, "/"),
       ]);
-      res.type("html").send(
+      res.set("Cache-Control", CACHE_CONTROL_PUBLIC_PAGE).type("html").send(
         await renderSite({
           theme,
           route: "home",
@@ -706,7 +727,7 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
         } else {
           const staticHtml = renderStaticPage({ theme, pageId: slug, menus: staticMenus });
           if (staticHtml) {
-            res.type("html").send(staticHtml);
+            res.set("Cache-Control", CACHE_CONTROL_PUBLIC_PAGE).type("html").send(staticHtml);
             return;
           }
         }
@@ -729,7 +750,7 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
       // rendering under the theme's first template (`<title>Blog post — Basic</title>`) on the live
       // site — fixed by gating on `kind`, not just `bodyFormat`.
       if (isEligibleForTemplateBranch({ theme, post })) {
-        res.type("html").send(await renderViaTemplate(deps, theme, post, staticMenus));
+        res.set("Cache-Control", CACHE_CONTROL_PUBLIC_PAGE).type("html").send(await renderViaTemplate(deps, theme, post, staticMenus));
         return;
       }
 
@@ -740,7 +761,7 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
         resolveMediaAssetMetadataForRender(deps, post),
         buildExtraHead(deps, "post", SITE_TITLE, post),
       ]);
-      res.type("html").send(
+      res.set("Cache-Control", CACHE_CONTROL_PUBLIC_PAGE).type("html").send(
         await renderSite({
           theme,
           route: "post",
