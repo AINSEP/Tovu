@@ -10,7 +10,7 @@ import type { NextFunction, Request, Response } from "express";
 import { discoverAllBuiltInThemes } from "#src/features/theme/index";
 import { registerThemeStaticAssets } from "#src/server/middleware/theme-static-assets";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminThemeFilePutRoute } from "../explore";
+import { registerAdminThemeFileCopyRoute, registerAdminThemeFilePutRoute } from "../explore";
 import type { ContentRouteDeps } from "../../content/deps";
 
 /**
@@ -84,6 +84,7 @@ function buildTestApp(themesDir: string): express.Express {
     next();
   });
   registerAdminThemeFilePutRoute(app, deps);
+  registerAdminThemeFileCopyRoute(app, deps);
   // Same-origin static mount every real deployment runs (server/app.ts), wired here so the write and
   // the serve happen through the identical two code paths a real request would take.
   registerThemeStaticAssets(app, { themeRoots: [path.join(themesDir, "static")] });
@@ -196,4 +197,36 @@ test("FIXED (defense in depth): a SECOND path found while enumerating this class
 
   assert.equal(put.status, 403, "preview/ is generated output and must be refused at write time, not merely hidden from the file list");
   assert.equal(fs.existsSync(path.join(themesDir, "static", "authored", "preview", "evil.svg")), false);
+});
+
+test("FIXED (defense in depth, continuation agent, 2026-08-13): a THIRD path into preview/ found while re-verifying this fix -- COPY of an already-existing preview/ file is now refused too, not only a direct PUT", async (t) => {
+  const themesDir = makeThemesRoot();
+  // Seed a file inside preview/ the way build-preview.mjs actually would -- COPY only ever
+  // duplicates BYTES ALREADY ON DISK (never attacker-supplied content; `copyThemeFile` is a plain
+  // `copyFileSync`), so this is not itself an injection vector -- but `resolveAdminThemeFileCopyRoute`
+  // used `resolveThemeFileWriteScope` (the ADR-020 compiled-tree/generated-readonly question) as its
+  // ONLY write-scope gate, which has nothing to do with `isGeneratedThemePath`/`preview/` at all and
+  // resolves "editable" for every non-compiled theme regardless of path. Unlike PUT and rename (both
+  // fixed above), COPY never consulted `isGeneratedThemePath`, so `preview/`'s own "nobody
+  // hand-mutates generated output" invariant was still violable through this one remaining route --
+  // proven here BEFORE the fix (this test is RED against pre-fix explore.ts), closed alongside it.
+  const previewDir = path.join(themesDir, "static", "authored", "preview", "dark");
+  fs.mkdirSync(previewDir, { recursive: true });
+  fs.writeFileSync(path.join(previewDir, "index.html"), "<html><body>real build-preview.mjs output</body></html>", "utf8");
+
+  const app = buildTestApp(themesDir);
+  const baseUrl = await startTestServer(app, t);
+
+  const copy = await fetch(`${baseUrl}${BASE("authored")}/file/copy`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ path: "preview/dark/index.html" }),
+  });
+
+  assert.equal(copy.status, 409, "preview/ is generated output and must be refused as a copy SOURCE too, matching PUT and rename");
+  assert.deepEqual(
+    fs.readdirSync(previewDir).sort(),
+    ["index.html"],
+    "no duplicate may be created inside preview/ via copy",
+  );
 });
