@@ -23,6 +23,7 @@ export {
   type PostBodyFormat,
   type PostKind,
   type PostStatus,
+  type BeforeSaveHookPort,
 } from "./post";
 // Pages live in `features/pages`, not here. A Page is a bespoke HTML document and a Post is a
 // Tiptap one; they are separate features that happen to share a table. Nothing Pages-specific
@@ -44,3 +45,4 @@ export { InMemoryPostRepo } from "./repo.memory";
 export { SqlitePostRepo } from "./repo.sqlite";
 export { InMemoryPostSearchIndex } from "./search-index.memory";
 export { backfillPostSearchIndex, SqlitePostSearchIndex } from "./search-index.sqlite";
+export { CONTENT_POST_DELETE_TOOL_ID } from "./delete-confirmation-ui";
