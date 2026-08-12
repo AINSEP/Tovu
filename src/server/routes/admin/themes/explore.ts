@@ -208,29 +208,57 @@ function isThemeFileWritable(relativePath: string): boolean {
 }
 
 /**
+ * Extensions a BUILT theme's own hand-authored `build.sourceDir` may plausibly ship, beyond what
+ * {@link TEXT_READABLE_EXTENSIONS} already covers for the static file layout (`.html`, `.css`, `.js`,
+ * `.mjs`, `.cjs`, `.json`, `.md`, `.txt`, `.svg`, `.webmanifest`). Framework source is open-ended —
+ * a new framework brings a new extension — but this list stays a fixed allowlist rather than "any
+ * extension," and deliberately excludes anything a server/shell could execute (`.php`, `.sh`, `.py`,
+ * `.rb`, …) or that carries operational secrets (`.env`, `.pem`), because `build.sourceDir`, unlike
+ * `pages/`/`css/`/`js/`'s OWN files, is not merely edited here — see {@link isCompiledSourceFile}'s
+ * own doc for why that distinction matters for this specific directory.
+ */
+const FRAMEWORK_SOURCE_EXTENSIONS = new Set([".tsx", ".ts", ".jsx", ".vue", ".svelte", ".astro", ".scss", ".less"]);
+
+/**
  * Whether `relativePath` is a BUILT theme's real, hand-authored source (ADR-020 §5,
- * `build.sourceDir`) rather than any of the file kinds {@link isThemeFileWritable}'s
- * page/partial/style/script/config/asset vocabulary was built to classify.
+ * `build.sourceDir`) — bounded by an EXPLICIT extension allowlist ({@link TEXT_READABLE_EXTENSIONS} ∪
+ * {@link FRAMEWORK_SOURCE_EXTENSIONS}), not "every file `resolveThemeFileWriteScope` calls editable."
  *
- * Why this carve-out exists: {@link resolveThemeFileWriteScope} already proved `relativePath`
- * editable for this theme by the time either caller below checks this — but a framework's own source
- * tree ships extensions {@link TEXT_READABLE_EXTENSIONS}/{@link READ_ONLY_GROUPS} were never designed
- * to see (`.tsx`, `.jsx`, `.vue`, `.ts`, `.svelte`, `.astro`, …, an open-ended, framework-dependent
- * set no hardcoded allowlist should try to enumerate). Without this, a compiled theme's sourceDir
- * would be READABLE per `resolveThemeFileWriteScope` but silently blocked from being SAVED or
- * RENAMED by an unrelated extension check meant for a static theme's own `pages/css/js` layout —
- * exactly the "claims to be editable, isn't really" gap this whole pass exists to close.
+ * Why the bound matters, verified rather than assumed: `build.sourceDir` is NOT build-input-only.
+ * `registerThemeStaticAssets` (`server/middleware/theme-static-assets.ts:29-37`) mounts
+ * `express.static(themeDir)` on a static theme's ENTIRE folder at `/theme-assets/{themeId}/...` — that
+ * file's own doc comment claims it serves only `css/`/`js/`, but the actual `express.static` call is
+ * unscoped to any subpath, so `build.sourceDir` is served identically to every other file in the
+ * theme, confirmed by reading the mount, not inferred from the (misleading) comment above it. An
+ * unbounded "anything that isn't theme.json" carve-out would therefore let a `theme.edit`-permitted
+ * admin write an arbitrary-extension file (`.php`, `.sh`, `.env`) into a publicly fetchable path —
+ * Tovu never executes it server-side, but serving it as static content is still a materially wider
+ * surface than {@link isThemeFileWritable}'s allowlist was permitting a moment earlier, for every
+ * OTHER location in a theme.
  *
- * `theme.json` is deliberately excluded: it already passes the group vocabulary on its own (the
- * `config` group), so it never needs this carve-out, and excluding it here keeps the carve-out
- * scoped to exactly `build.sourceDir` — nothing wider.
+ * Why a carve-out is still needed at all (not just tightening the extension set in place):
+ * {@link resolveThemeFileWriteScope} already proved `relativePath` editable for this theme by the time
+ * either caller below checks this, but {@link isThemeFileWritable}'s GROUP half
+ * ({@link READ_ONLY_GROUPS}) classifies almost anything outside `pages/`/`css/`/root-`.html` as
+ * `"other"` — read-only — which is correct for a static theme's OWN layout and simply inapplicable to
+ * a framework source tree with its own, different, layout conventions. This function bypasses only
+ * that group classification, never the extension allowlist.
+ *
+ * `theme.json` is deliberately excluded: it already passes both halves of
+ * {@link isThemeFileWritable} on its own (the `config` group, and `.json` is text-readable), so it
+ * never needs this carve-out — keeping the carve-out scoped to exactly `build.sourceDir`.
  */
 function isCompiledSourceFile(
   theme: Pick<DiscoveredTheme, "manifest">,
   relativePath: string,
   writeScope: ThemeFileWriteScope
 ): boolean {
-  return theme.manifest.build?.source === "compiled" && writeScope.kind === "editable" && relativePath !== "theme.json";
+  if (theme.manifest.build?.source !== "compiled" || writeScope.kind !== "editable" || relativePath === "theme.json") {
+    return false;
+  }
+  const dot = relativePath.lastIndexOf(".");
+  const extension = dot === -1 ? "" : relativePath.slice(dot).toLowerCase();
+  return TEXT_READABLE_EXTENSIONS.has(extension) || FRAMEWORK_SOURCE_EXTENSIONS.has(extension);
 }
 
 /**
