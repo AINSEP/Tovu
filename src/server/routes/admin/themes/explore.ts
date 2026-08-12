@@ -200,11 +200,25 @@ const READ_ONLY_GROUPS: ReadonlySet<ThemeExploreFileGroup> = new Set(["script", 
 /**
  * Whether a file can be saved (PUT) or reset — the narrower of the two questions
  * {@link isTextReadable} used to answer alone. A file must be text-readable AND not in a
- * {@link READ_ONLY_GROUPS} group to be writable: `.svg` (asset group, text-readable) stays writable
- * exactly as before, `.js` (script group, text-readable) does not.
+ * {@link READ_ONLY_GROUPS} group AND not inside a generated directory to be writable: `.svg` (asset
+ * group, text-readable) stays writable exactly as before, `.js` (script group, text-readable) does not.
+ *
+ * 2026-08-13 (security pass Finding 1, defense in depth): also refuses anything
+ * {@link isGeneratedThemePath} claims — `preview/`, `build-preview.mjs`'s own output. That directory
+ * was already excluded from the Explore file LIST (below, in the detail route) on the grounds that it
+ * is generated output nobody should hand-edit, but the LIST filter and this WRITABILITY check used to
+ * be two independent predicates that had drifted apart: PUT never consulted the list's own exclusion,
+ * so a path merely hidden from the UI was still fully writable by hand (or by a client that cached an
+ * older file list). Folded in here rather than left as a second, easy-to-forget check at each of PUT's
+ * three call sites, matching the "one definition, not two that can disagree" reasoning
+ * {@link isGeneratedThemePath}'s own doc already gives for existing.
  */
 function isThemeFileWritable(relativePath: string): boolean {
-  return isTextReadable(relativePath) && !READ_ONLY_GROUPS.has(fileGroup(relativePath));
+  return (
+    isTextReadable(relativePath) &&
+    !READ_ONLY_GROUPS.has(fileGroup(relativePath)) &&
+    !isGeneratedThemePath(relativePath)
+  );
 }
 
 /**
@@ -758,9 +772,15 @@ export const registerAdminThemeFileRenameRoute: ContentRouteRegistrar = (app, de
         res.status(409).json({ error: `'${sourcePath}' is read-only: ${writeScope.reason}`, code: "GENERATED_READONLY" });
         return;
       }
-      const sourceRenamable = isInsideCompiledSourceDir(theme, sourcePath, writeScope)
-        ? isSourceDirWritableExtension(sourcePath)
-        : !READ_ONLY_GROUPS.has(fileGroup(sourcePath));
+      // 2026-08-13 (security pass Finding 1, defense in depth): same `isGeneratedThemePath` refusal
+      // `isThemeFileWritable` now applies to PUT — a generated-output path (`preview/…`) has no
+      // meaningful "name" to change either, so rename is refused the same way, not left as a second
+      // spot this check could be forgotten.
+      const sourceRenamable =
+        !isGeneratedThemePath(sourcePath) &&
+        (isInsideCompiledSourceDir(theme, sourcePath, writeScope)
+          ? isSourceDirWritableExtension(sourcePath)
+          : !READ_ONLY_GROUPS.has(fileGroup(sourcePath)));
       if (!sourceRenamable) {
         res.status(409).json({
           error: `'${sourcePath}' is read-only in Explore and cannot be renamed`,

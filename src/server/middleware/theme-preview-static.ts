@@ -3,6 +3,8 @@ import path from "node:path";
 import express from "express";
 import type { Express } from "express";
 
+import { themeAssetSecurityHeaders } from "./theme-content-security-headers";
+
 /**
  * @file SPIKE — serves each `static`-tier theme's own preview build (under its `preview` folder in
  * `src/themes/static`) at `/theme-preview/{themeId}/{dark or light}/...`, so a `static` theme can be
@@ -17,6 +19,15 @@ import type { Express } from "express";
  * existence-gated, no-SPA-fallback convention: if a theme's `preview/` directory hasn't been built
  * yet, nothing is mounted for it and the request falls through to a normal 404 — same failure mode
  * as any other missing static asset, not a 503.
+ *
+ * SECURITY (2026-08-13, security pass Finding 1): a SEPARATE `express.static` mount from
+ * `theme-static-assets.ts`, found while enumerating every path that serves a theme's raw files — this
+ * one was independently exposed to the identical `.svg`/`.html` script-execution risk (an admin can PUT
+ * into `preview/…` via Explore's PUT route today; `isGeneratedThemePath` only filters that folder out
+ * of the Explore file LISTING, not out of what PUT will accept — see `explore.ts`'s own note on this).
+ * Carries the same `themeAssetSecurityHeaders` fix as that mount, for the same reasoning — see that
+ * module's header. Two independent mounts serving the same class of content is exactly why that fix
+ * lives in one shared function both call, rather than being reimplemented here.
  */
 export function registerThemePreviewStatic(app: Express, required: { themesStaticDir: string }): void {
   const { themesStaticDir } = required;
@@ -25,7 +36,7 @@ export function registerThemePreviewStatic(app: Express, required: { themesStati
   for (const themeId of readdirSync(themesStaticDir)) {
     const previewDir = path.join(themesStaticDir, themeId, "preview");
     if (existsSync(previewDir)) {
-      app.use(`/theme-preview/${themeId}`, express.static(previewDir));
+      app.use(`/theme-preview/${themeId}`, themeAssetSecurityHeaders, express.static(previewDir));
     }
   }
 }
