@@ -10,7 +10,15 @@ import type { AdminWebhookDelivery } from "../../../lib/api";
  * `IntegrationDeliveries.unit.test.tsx` already exercises the full UI flow via the component-level
  * DI prop; this file is the hook's own injected-port coverage — see `integration-deliveries-
  * port.hooks.ts` for why the injection exists.
+ *
+ * `t` (2026-08-11, standing i18n rule — see `use-integration-deliveries.hooks.ts`'s own file
+ * header): every `useIntegrationDeliveries(id, port, ...)` call below passes `fakeT`, the identity
+ * function, matching `wired-hooks-convention.md`'s own `t: (k) => k` example — except the dedicated
+ * "injected t is genuinely returned" group, which uses a distinctive fake.
  */
+
+/** Identity translator for tests that don't care about `t`'s own behavior — see this file's header. */
+const fakeT = (key: string): string => key;
 
 function deliveryFixture(overrides: Partial<AdminWebhookDelivery> = {}): AdminWebhookDelivery {
   return {
@@ -41,7 +49,7 @@ describe("useIntegrationDeliveries — injected port", () => {
     vi.stubGlobal("fetch", networkMock);
     const port = createFakeIntegrationDeliveriesPort({ deliveries: [deliveryFixture()] });
 
-    const { result } = renderHook(() => useIntegrationDeliveries("sub1", port));
+    const { result } = renderHook(() => useIntegrationDeliveries("sub1", port, fakeT));
 
     await waitFor(() => expect(result.current.deliveries).not.toBeNull());
     expect(result.current.deliveries).toEqual([deliveryFixture()]);
@@ -53,7 +61,7 @@ describe("useIntegrationDeliveries — injected port", () => {
     const port = createFakeIntegrationDeliveriesPort();
     port.listIntegrationDeliveries = () => Promise.reject(new Error("deliveries table locked"));
 
-    const { result } = renderHook(() => useIntegrationDeliveries("sub1", port));
+    const { result } = renderHook(() => useIntegrationDeliveries("sub1", port, fakeT));
 
     await waitFor(() => expect(result.current.error).toBe("deliveries table locked"));
     expect(result.current.deliveries).toBeNull();
@@ -61,7 +69,7 @@ describe("useIntegrationDeliveries — injected port", () => {
 
   it("re-fetches when subscriptionId changes", async () => {
     const port = createFakeIntegrationDeliveriesPort({ deliveries: [deliveryFixture({ id: "del-for-sub1" })] });
-    const { result, rerender } = renderHook(({ subscriptionId }) => useIntegrationDeliveries(subscriptionId, port), {
+    const { result, rerender } = renderHook(({ subscriptionId }) => useIntegrationDeliveries(subscriptionId, port, fakeT), {
       initialProps: { subscriptionId: "sub1" },
     });
     await waitFor(() => expect(result.current.deliveries).toEqual([deliveryFixture({ id: "del-for-sub1" })]));
@@ -72,5 +80,25 @@ describe("useIntegrationDeliveries — injected port", () => {
     await waitFor(() =>
       expect(result.current.deliveries).toEqual([deliveryFixture({ id: "del-for-sub2", subscriptionId: "sub2" })])
     );
+  });
+});
+
+describe("useIntegrationDeliveries — injected t is genuinely returned, not built internally", () => {
+  /**
+   * Standing i18n rule (2026-08-11, `IntegrationDeliveries.tsx` no longer imports `useAdminLocale`/
+   * `integrations-i18n` itself): `t` must come from the hook's own third parameter, not something
+   * this hook quietly rebuilds internally. A DISTINCTIVE fake (not the identity `fakeT` every other
+   * test in this file uses) proves the returned `t` is literally the same function reference passed
+   * in. Mirrors `use-post-editor.hooks.unit.test.tsx`'s identical negative-verification group.
+   */
+  it("result.current.t is exactly the injected function, not a hook-internal one", async () => {
+    const port = createFakeIntegrationDeliveriesPort({ deliveries: [deliveryFixture()] });
+    const distinctiveT = (key: string): string => `TRANSLATED[${key}]`;
+
+    const { result } = renderHook(() => useIntegrationDeliveries("sub1", port, distinctiveT));
+
+    await waitFor(() => expect(result.current.deliveries).not.toBeNull());
+    expect(result.current.t("Delivery log")).toBe("TRANSLATED[Delivery log]");
+    expect(result.current.t).toBe(distinctiveT);
   });
 });

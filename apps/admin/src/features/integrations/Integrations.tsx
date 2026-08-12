@@ -2,7 +2,6 @@ import { DataTable, RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
 
 import { integrationRowMenuItems } from "./rules";
 import { useWiredIntegrations } from "./hooks/use-integrations.hooks";
-import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { t, deleteWebhookBody, actionsForWebhookLabel } from "./integrations-i18n";
 
 /**
@@ -95,7 +94,6 @@ function IntegrationDeleteDialog(props: {
 }
 
 export function Integrations({ useIntegrationsHook = useWiredIntegrations }: IntegrationsProps = {}) {
-  const locale = useAdminLocale();
   const {
     subscriptions,
     error,
@@ -115,24 +113,26 @@ export function Integrations({ useIntegrationsHook = useWiredIntegrations }: Int
     onCreate,
     onTogglePause,
     onDelete,
+    t,
+    locale,
   } = useIntegrationsHook();
 
   if (error) return <div className="notice error">{error}</div>;
-  if (!subscriptions) return <div className="notice">{t(locale, "Loading integrations…")}</div>;
+  if (!subscriptions) return <div className="notice">{t("Loading integrations…")}</div>;
 
   return (
     <div className="page">
       <div className="page-header">
         <div className="page-header-text">
-          <p className="page-kicker">{t(locale, "Operations")}</p>
-          <h1 className="page-title">{t(locale, "Integrations")}</h1>
+          <p className="page-kicker">{t("Operations")}</p>
+          <h1 className="page-title">{t("Integrations")}</h1>
           <p className="page-description">
-            {t(locale, "Send webhook notifications to external services when content on this site changes.")}
+            {t("Send webhook notifications to external services when content on this site changes.")}
           </p>
         </div>
         <div className="page-actions">
           <button className={formOpen ? "btn-secondary" : undefined} onClick={() => setFormOpen((v) => !v)}>
-            {formOpen ? t(locale, "Cancel") : t(locale, "Add webhook")}
+            {formOpen ? t("Cancel") : t("Add webhook")}
           </button>
         </div>
       </div>
@@ -158,40 +158,40 @@ export function Integrations({ useIntegrationsHook = useWiredIntegrations }: Int
         empty={
           <div className="card">
             <div className="empty-state">
-              <p>{t(locale, "No webhooks yet.")}</p>
-              <p className="page-description">{t(locale, "Add one above to start sending event notifications.")}</p>
+              <p>{t("No webhooks yet.")}</p>
+              <p className="page-description">{t("Add one above to start sending event notifications.")}</p>
             </div>
           </div>
         }
         columns={[
           {
             key: "label",
-            header: t(locale, "Label"),
+            header: t("Label"),
             cell: (subscription) => <a href={`/admin/integrations/${subscription.id}`}>{subscription.label}</a>,
           },
-          { key: "target-url", header: t(locale, "Target URL"), cell: (subscription) => subscription.targetUrl },
+          { key: "target-url", header: t("Target URL"), cell: (subscription) => subscription.targetUrl },
           {
             key: "status",
-            header: t(locale, "Status"),
+            header: t("Status"),
             cell: (subscription) => (
               <span className={`status status-sub-${subscription.status}`}>{subscription.status}</span>
             ),
           },
           {
             key: "last-delivery",
-            header: t(locale, "Last delivery"),
+            header: t("Last delivery"),
             cell: (subscription) =>
               subscription.lastDelivery ? (
                 <span className={`status status-delivery-${subscription.lastDelivery.status}`}>
                   {subscription.lastDelivery.status}
                 </span>
               ) : (
-                <span className="muted-cell">{t(locale, "never")}</span>
+                <span className="muted-cell">{t("never")}</span>
               ),
           },
           {
             key: "actions",
-            headerLabel: t(locale, "Actions"),
+            headerLabel: t("Actions"),
             cell: (subscription) =>
               subscription.status === "disabled" ? (
                 // `disabled` on both old inline buttons for a `status === "disabled"` row — a
