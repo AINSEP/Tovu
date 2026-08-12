@@ -294,12 +294,27 @@ describe("Marketplace tab", () => {
 });
 
 describe("theme card preview", () => {
-  it("shows a screenshot image before it errors, falling back to a placeholder on load failure", () => {
+  it("tries the compressed JPEG first", () => {
     render(<Themes useThemesHook={() => baseController()} />);
     const img = screen.getByText("signal").closest(".theme-card")!.querySelector("img") as HTMLImageElement;
-    expect(img).toHaveAttribute("src", "/theme-assets/signal/screenshots/index.png");
-    fireEvent.error(img);
+    expect(img).toHaveAttribute("src", "/theme-assets/signal/screenshots/index.jpg");
+  });
+
+  it("falls back to the PNG when the JPEG 404s (theme not yet converted), staying an image not a placeholder", () => {
+    render(<Themes useThemesHook={() => baseController()} />);
     const card = screen.getByText("signal").closest(".theme-card") as HTMLElement;
+    fireEvent.error(card.querySelector("img") as HTMLImageElement);
+    const img = card.querySelector("img") as HTMLImageElement;
+    expect(img).toBeInTheDocument();
+    expect(img).toHaveAttribute("src", "/theme-assets/signal/screenshots/index.png");
+    expect(card.querySelector(".theme-card-preview-placeholder")).not.toBeInTheDocument();
+  });
+
+  it("falls back to the placeholder only once both the JPEG and the PNG have failed", () => {
+    render(<Themes useThemesHook={() => baseController()} />);
+    const card = screen.getByText("signal").closest(".theme-card") as HTMLElement;
+    fireEvent.error(card.querySelector("img") as HTMLImageElement); // jpg -> png
+    fireEvent.error(card.querySelector("img") as HTMLImageElement); // png -> failed
     expect(card.querySelector("img")).not.toBeInTheDocument();
     expect(card.querySelector(".theme-card-preview-placeholder")).toBeInTheDocument();
   });
@@ -314,7 +329,7 @@ describe("theme card preview", () => {
     await user.click(within(card).getByRole("button", { name: "Expand preview for signal" }));
     const dialog = card.querySelector("dialog.image-preview-modal")!;
     expect(dialog.hasAttribute("open")).toBe(true);
-    expect(dialog.querySelector("img")).toHaveAttribute("src", "/theme-assets/signal/screenshots/index.png");
+    expect(dialog.querySelector("img")).toHaveAttribute("src", "/theme-assets/signal/screenshots/index.jpg");
   });
 
   it("closes the modal on the close button, dropping the dialog's open attribute", async () => {
@@ -330,7 +345,8 @@ describe("theme card preview", () => {
   it("gives a failed (placeholder) card no click-to-expand trigger", () => {
     render(<Themes useThemesHook={() => baseController()} />);
     const card = screen.getByText("signal").closest(".theme-card") as HTMLElement;
-    fireEvent.error(card.querySelector("img") as HTMLImageElement);
+    fireEvent.error(card.querySelector("img") as HTMLImageElement); // jpg -> png
+    fireEvent.error(card.querySelector("img") as HTMLImageElement); // png -> failed
     expect(card.querySelector(".theme-card-preview-trigger")).not.toBeInTheDocument();
   });
 });
