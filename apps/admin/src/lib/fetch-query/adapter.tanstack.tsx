@@ -44,7 +44,7 @@ function toError(value: unknown, fallback: string): Error {
  * Defaults chosen for a multi-operator admin, where the server is the source
  * of truth and someone else may have changed a record in another tab.
  *
- * `staleTime: 30_000` (owner decision, TM-TOVU-2026-08-12-A request-volume audit,
+ * `staleTime: 10_000` (owner decision, TM-TOVU-2026-08-12-A request-volume audit,
  * 2026-08-12 — was `0` from this module's original authoring; changed here, not
  * per-query, because the owner wants the DEFAULT changed, not an opt-in). `0`
  * meant every query was stale the instant it mounted, so navigating away from a
@@ -55,17 +55,34 @@ function toError(value: unknown, fallback: string): Error {
  * entry-editor reopen 3->3 requests under the old default). That is very likely
  * what the operator-facing "admin keeps re-requesting things" complaint this
  * audit was answering was actually observing post-migration, not the request-
- * amplification the migration itself already fixed. `30_000` does NOT weaken
- * write-driven correctness: `invalidateQueries` (every `invalidates`/
- * `useInvalidate()` site) calls `refetchQueries({ type: "active" })`
- * immediately and never consults `staleTime` — confirmed both by reading
- * `query-core`'s `queryClient.js`/`query.js` and by re-running deliverable A's
- * per-action request counts unchanged after this edit (see the commit that
- * made this change for the verification record). A read that genuinely must
- * show fresh data on every single mount, not just after a write, should opt
- * OUT via a per-query `staleTime: 0` rather than this default being lowered
- * back — none needed that as of this change (verified: zero call sites passed
- * `staleTime` at all before this edit).
+ * amplification the migration itself already fixed.
+ *
+ * Why ten seconds specifically: it covers the pattern this is meant to fix —
+ * open a record, read it, close it, reopen it; or bounce to another screen and
+ * straight back. 5s was considered and rejected as too short to reliably span
+ * "read it, then come back," which would forfeit most of the benefit at nearly
+ * identical freshness cost. 30s was the owner's first instinct and was pulled
+ * back deliberately: this is a global default across all 11 migrated features
+ * that has never run against real operator behaviour, so the conservative first
+ * move keeps the exposure window to ten seconds. Raising it later is cheap now
+ * that the harness measures the before/after directly. The exposure being
+ * bounded is what makes any of these values defensible — the app already shows
+ * no other-operator change while a screen stays mounted (no polling,
+ * `refetchOnWindowFocus: false`), so the only window this opens is "someone
+ * else changed X and you navigate back to X within it."
+ *
+ * `10_000` does NOT weaken write-driven correctness: `invalidateQueries`
+ * (every `invalidates`/`useInvalidate()` site) calls `refetchQueries({ type:
+ * "active" })` immediately and never consults `staleTime` — confirmed both by
+ * reading `query-core`'s `queryClient.js`/`query.js` and by re-running
+ * deliverable A's per-action request counts unchanged after this edit (see
+ * the commit that made this change for the verification record). A read that
+ * genuinely must show fresh data on every single mount, not just after a
+ * write, should opt OUT via a per-query `staleTime: 0` rather than this
+ * default being lowered back for everyone. Nothing needs that today — zero
+ * call sites pass a per-query `staleTime` anywhere in this codebase as of
+ * this change, so the first screen that ever does will be the FIRST call
+ * site, not a continuation of an existing pattern.
  *
  * `retry: false` — deliberate. `api.ts`'s `request()` throws a typed `ApiError`
  * carrying the server's own status and code, and the admin's screens report
@@ -76,7 +93,7 @@ function toError(value: unknown, fallback: string): Error {
 function createClient(): QueryClient {
   return new QueryClient({
     defaultOptions: {
-      queries: { staleTime: 30_000, retry: false, refetchOnWindowFocus: false },
+      queries: { staleTime: 10_000, retry: false, refetchOnWindowFocus: false },
       mutations: { retry: false },
     },
   });
