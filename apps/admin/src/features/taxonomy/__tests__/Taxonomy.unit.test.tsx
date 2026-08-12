@@ -71,6 +71,11 @@ function baseController(overrides: Partial<TaxonomyController> = {}): TaxonomyCo
     deleteTaxonomyBusy: false,
     deleteTaxonomyBlocked: null,
     confirmDeleteTaxonomy: vi.fn(),
+    // Identity `t` — matches what this screen got from a real, unmocked `useAdminLocale()` call
+    // before this hook's own `useWiredX` i18n pass (defaults to "en", and TAXONOMY_DICT has no
+    // "en" entries, so every lookup already fell through to `?? key`), so every existing
+    // literal-English-string assertion below stays valid unchanged.
+    t: (key: string) => key,
     ...overrides,
   };
 }

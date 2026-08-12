@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from
 import { describeApiError, type AdminTaxonomy, type AdminTaxonomyWithTerms, type AdminTerm } from "../../../lib/api";
 import { describeDeleteBlocked, findSelectedTerm, type DeleteBlockedState } from "../rules";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
-import { t } from "../taxonomy-i18n";
+import { TAXONOMY_DICT, t as translate } from "../taxonomy-i18n";
 import { defaultTaxonomyPort } from "./taxonomy-dependencies.hooks";
 import type { TaxonomyPort } from "./taxonomy-port.hooks";
 
@@ -38,6 +38,15 @@ import type { TaxonomyPort } from "./taxonomy-port.hooks";
  * directly, so a test can describe load/delete outcomes against `createFakeTaxonomyPort` instead
  * of stubbing global `fetch`. `useWiredTaxonomy` below is the zero-argument pair `Taxonomy.tsx`
  * actually mounts.
+ *
+ * `t` (standing i18n rule, 2026-08-11 — a component with a hook gets a BOUND `t` from that hook,
+ * not its own `useAdminLocale()`/dictionary import, same shape `use-pages.hooks.ts` established) is
+ * now ALSO a third positional argument, alongside the existing `port`/`locale` pair — kept
+ * positional rather than folded into an object to match this hook's own existing call shape rather
+ * than inventing a second one. `taxonomy-i18n.ts`'s own `t(locale, key)` — aliased `translate` here
+ * to avoid colliding with the new bound `(key) => string` argument of the same name — stays a
+ * direct import for this hook's OWN error strings: a pure lookup that already takes `locale`
+ * explicitly, not a host reach.
  */
 
 export interface TaxonomyController {
@@ -70,6 +79,8 @@ export interface TaxonomyController {
   deleteTaxonomyBusy: boolean;
   deleteTaxonomyBlocked: { taxonomyId: string; state: DeleteBlockedState } | null;
   confirmDeleteTaxonomy: () => Promise<void>;
+  /** Bound translator — `Taxonomy.tsx`'s only source of UI copy; see this file's own header. */
+  t: (key: string) => string;
 }
 
 /** The shape `confirmDeleteTerm`/`confirmDeleteTaxonomy` both repeat: guard on nothing pending, set
@@ -109,7 +120,7 @@ async function runGuardedDelete(
   }
 }
 
-export function useTaxonomy(port: TaxonomyPort, locale: string): TaxonomyController {
+export function useTaxonomy(port: TaxonomyPort, locale: string, t: (key: string) => string): TaxonomyController {
   const [taxonomies, setTaxonomies] = useState<AdminTaxonomyWithTerms[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedTermId, setSelectedTermId] = useState<string | null>(null);
@@ -132,7 +143,7 @@ export function useTaxonomy(port: TaxonomyPort, locale: string): TaxonomyControl
     port
       .listTaxonomies()
       .then((r) => setTaxonomies(r.items))
-      .catch((e) => setError(describeApiError(e, t(locale, "failed to load taxonomies"))));
+      .catch((e) => setError(describeApiError(e, translate(locale, "failed to load taxonomies"))));
   }
 
   useEffect(load, [port]);
@@ -165,7 +176,7 @@ export function useTaxonomy(port: TaxonomyPort, locale: string): TaxonomyControl
       (blocked) => setDeleteTermBlocked({ termId: term.id, state: blocked }),
       setError,
       load,
-      t(locale, "Failed to delete term"),
+      translate(locale, "Failed to delete term"),
     );
   }
 
@@ -190,7 +201,7 @@ export function useTaxonomy(port: TaxonomyPort, locale: string): TaxonomyControl
       (blocked) => setDeleteTaxonomyBlocked({ taxonomyId: taxonomy.id, state: blocked }),
       setError,
       load,
-      t(locale, "Failed to delete taxonomy"),
+      translate(locale, "Failed to delete taxonomy"),
     );
   }
 
@@ -213,16 +224,19 @@ export function useTaxonomy(port: TaxonomyPort, locale: string): TaxonomyControl
     deleteTaxonomyBusy,
     deleteTaxonomyBlocked,
     confirmDeleteTaxonomy,
+    t,
   };
 }
 
 /**
- * Binds the real `/api/.../taxonomy` client — see `taxonomy-dependencies.hooks.ts`.
+ * Binds the real `/api/.../taxonomy` client and a `TAXONOMY_DICT`-bound translator — see
+ * `taxonomy-dependencies.hooks.ts`.
  *
  * The zero-argument half of the `useX(dependencies)` / `useWiredX()` pair, so `Taxonomy.tsx`
  * composes this and a test composes {@link useTaxonomy} with `createFakeTaxonomyPort`.
  */
 export function useWiredTaxonomy(): TaxonomyController {
   const locale = useAdminLocale();
-  return useTaxonomy(defaultTaxonomyPort, locale);
+  const t = (key: string): string => TAXONOMY_DICT[locale]?.[key] ?? key;
+  return useTaxonomy(defaultTaxonomyPort, locale, t);
 }
