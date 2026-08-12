@@ -10,13 +10,18 @@
  * artifact. A reviewer diffs the generated file; they never edit it.
  *
  * Why this is tractable here, specifically:
- * the mapping surface was measured, not assumed. Across all 63 tables and 580 columns there are
- * exactly three column kinds in use — `SQLiteText` (513), `SQLiteInteger` (64), `SQLiteBoolean`
- * (3) — plus 11 autoincrement primary keys, 31 defaults, 7 CHECK constraints, 9 foreign keys, 4
+ * the mapping surface was measured, not assumed. Across all 63 tables and 583 columns there are
+ * exactly three column kinds in use — `SQLiteText` (515), `SQLiteInteger` (65), `SQLiteBoolean`
+ * (3) — plus 11 autoincrement primary keys, 19 defaults, 7 CHECK constraints, 9 foreign keys, 4
  * composite primary keys, 65 indexes (27 unique), and 1 column-level `.unique()` constraint
  * (`workspaces.slug`). There are no JSON columns, no BLOB columns, no `mode: "timestamp"` columns
  * (every timestamp is `text` holding ISO-8601), and no table-level multi-column `unique().on(...)`
  * constraints. A generator covering that surface is a few hundred lines, not a second ORM.
+ *
+ * Those tallies are a point-in-time census and go stale whenever a column lands — they document why
+ * the approach is tractable, they are not a contract. The enforced invariants live in
+ * `src/db/__tests__/schema-postgres-parity.test.ts`, which derives every count from `schema.ts` at
+ * run time; re-measure with `getTableConfig()` rather than trusting a number in this paragraph.
  *
  * Every one of those 65 indexes is a plain ascending column list today — no partial-index `WHERE`,
  * no `.asc()`/`.desc()` ordering, no expression index. The generator translates all three anyway
