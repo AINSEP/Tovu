@@ -3,6 +3,8 @@ import path from "node:path";
 import express from "express";
 import type { Express } from "express";
 
+import { themeAssetSecurityHeaders } from "./theme-content-security-headers";
+
 /**
  * @file Serves a theme's own files at `/theme-assets/{themeId}/...` — originally `static`-tier only
  * (`css/`/`js/`, for `server/http/site/render.ts`'s static-tier branch, which rewrites a page's
@@ -26,12 +28,15 @@ import type { Express } from "express";
  * from a bare GET on liquid source; and (c) theme markup is author content the theme's own installer
  * already accepted, not a secret. What this extension does NOT do: it does not touch, narrow, or
  * widen `explore.ts`'s WRITE-time file-extension gate (`isThemeFileWritable`/
- * `SOURCE_DIR_WRITABLE_EXTENSIONS`) — an `.svg` asset with embedded `<script>` was already writable
- * into ANY theme's (any tier's) plain asset folder before this change (per `d822d87`'s own commit
- * message: `fileGroup` classifies `.svg` "asset", "a group that has never been read-only") and is
- * still writable after it; this file only decides what's *servable* once written, and that risk
- * already existed, unwidened, for the `static` tier this mount has served since it existed. Closing
- * the underlying write-time gap is `explore.ts`'s call, not this file's.
+ * `SOURCE_DIR_WRITABLE_EXTENSIONS`) — an `.svg` asset with embedded `<script>` was, and remains,
+ * writable into ANY theme's (any tier's) plain asset folder (`fileGroup` classifies `.svg` "asset", "a
+ * group that has never been read-only"). UPDATE 2026-08-13 (security pass Finding 1): the SERVE-side
+ * risk that write-time gap used to carry — a direct GET on such a file executing its script,
+ * same-origin with `/api/admin/*` — is now closed here, not in `explore.ts`: every response below
+ * carries `themeAssetSecurityHeaders`' `Content-Security-Policy: sandbox` + `X-Content-Type-Options:
+ * nosniff` (see that module's own header for the full reasoning and the options rejected). Write access
+ * still means "the bytes land in the theme's folder," but no longer means "a direct request to them
+ * executes as a document" — see `theme-content-security-headers.ts`.
  *
  * Anyone reasoning about what write access to a theme's files can expose over HTTP must start from
  * "every root passed to `themeRoots` is fully public, whole-folder," not from a narrower claim.
@@ -57,7 +62,7 @@ import type { Express } from "express";
 export function registerThemeStaticAssets(app: Express, required: { themeRoots: readonly string[] }): void {
   const roots = required.themeRoots.map((dir) => path.resolve(dir));
 
-  app.use("/theme-assets/:themeId", (req, res, next) => {
+  app.use("/theme-assets/:themeId", themeAssetSecurityHeaders, (req, res, next) => {
     const themeId = String(req.params.themeId ?? "");
     const themeDir = resolveThemeDir(roots, themeId);
     if (themeDir === null) {
