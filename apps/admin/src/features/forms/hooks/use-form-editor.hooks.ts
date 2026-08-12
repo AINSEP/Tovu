@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 
-import { api, type AdminFormDefinition, type AdminFormField, type AdminFormNotify } from "../../../lib/api";
-import { navigate } from "../../../lib/router";
+import type { AdminFormDefinition, AdminFormField, AdminFormNotify } from "../../../lib/api";
+import { navigate as defaultNavigate } from "../../../lib/router";
 import { FORM_TABS, blankField, existingFieldIdsOf, nextTabIndex, parseRecipients } from "../rules";
+import { defaultFormsPort } from "./forms-dependencies.hooks";
+import type { FormsPort } from "./forms-port.hooks";
 
 /**
  * @file Everything the FormEditor SCREEN does — load, save, status toggle, and the Fields/
@@ -21,6 +23,14 @@ import { FORM_TABS, blankField, existingFieldIdsOf, nextTabIndex, parseRecipient
  *
  * Naming follows `hooks/use-settings-slice.hooks.ts`: `use-<thing>.hooks.ts`. Feature-local because
  * nothing outside `features/forms` needs it.
+ *
+ * `port`/`navigate` are injected — see `forms-port.hooks.ts` (shared with `use-forms-list.hooks.ts`,
+ * since both read/write the same `AdminFormDefinition` resource) — rather than reaching `lib/api`/
+ * `lib/router` directly, so a test can describe load/save outcomes against `createFakeFormsPort`
+ * instead of stubbing global `fetch`. `useWiredFormEditor` below is the zero-argument pair
+ * `FormEditor.tsx` actually mounts. No `t`/`locale` injection here — every message in this file is
+ * hardcoded English, unlike `features/pages`' `usePageEditor`; adding locale injection that was
+ * never there would be a scope-creeping behavior addition, not a refactor.
  */
 
 export interface FormEditorController {
@@ -57,7 +67,11 @@ export interface FormEditorController {
   handleStatusToggle: () => void;
 }
 
-export function useFormEditor(props: { formId: string }): FormEditorController {
+export function useFormEditor(
+  props: { formId: string },
+  deps: { port: FormsPort; navigate: (path: string) => void }
+): FormEditorController {
+  const { port, navigate } = deps;
   const isNew = props.formId === "new";
   const [form, setForm] = useState<AdminFormDefinition | null>(null);
   const [name, setName] = useState("");
@@ -74,7 +88,7 @@ export function useFormEditor(props: { formId: string }): FormEditorController {
 
   function load() {
     if (isNew) return;
-    api
+    port
       .getForm(props.formId)
       .then((r) => {
         setForm(r.data);
@@ -87,7 +101,7 @@ export function useFormEditor(props: { formId: string }): FormEditorController {
       .catch((e) => setError(e instanceof Error ? e.message : "failed to load form"));
   }
 
-  useEffect(load, [props.formId]);
+  useEffect(load, [props.formId, port]);
 
   async function handleSave() {
     setSaving(true);
@@ -95,10 +109,10 @@ export function useFormEditor(props: { formId: string }): FormEditorController {
     const notifyPayload = { ...notify, recipients: parseRecipients(recipientsText) };
     try {
       if (isNew) {
-        const created = await api.createForm({ name, slug, fields }, { notify: notifyPayload });
+        const created = await port.createForm({ name, slug, fields }, { notify: notifyPayload });
         navigate(`/forms/${created.data.id}`);
       } else {
-        await api.updateForm({ id: props.formId }, { name, fields, notify: notifyPayload });
+        await port.updateForm({ id: props.formId }, { name, fields, notify: notifyPayload });
         load();
       }
     } catch (e) {
@@ -113,7 +127,7 @@ export function useFormEditor(props: { formId: string }): FormEditorController {
     setSaving(true);
     setError(null);
     try {
-      await api.updateForm({ id: form.id }, { status: form.status === "active" ? "disabled" : "active" });
+      await port.updateForm({ id: form.id }, { status: form.status === "active" ? "disabled" : "active" });
       load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "status update failed");
@@ -155,4 +169,16 @@ export function useFormEditor(props: { formId: string }): FormEditorController {
     handleSave,
     handleStatusToggle,
   };
+}
+
+/**
+ * Binds the real `/api/.../forms` client and `lib/router`'s `navigate` — see
+ * `forms-dependencies.hooks.ts`.
+ *
+ * The zero-argument-deps half of the `useX(dependencies)` / `useWiredX()` pair, so
+ * `FormEditor.tsx` composes this and a test composes {@link useFormEditor} with
+ * `createFakeFormsPort` and a fake `navigate`.
+ */
+export function useWiredFormEditor(props: { formId: string }): FormEditorController {
+  return useFormEditor(props, { port: defaultFormsPort, navigate: defaultNavigate });
 }

@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 
-import { api, type AdminFormSubmission } from "../../../lib/api";
+import type { AdminFormSubmission } from "../../../lib/api";
+import { defaultFormSubmissionsPort } from "./form-submissions-dependencies.hooks";
+import type { FormSubmissionsPort } from "./form-submissions-port.hooks";
 
 /**
  * @file `FormSubmissions`'s own state and paginated load, so the submissions list in
@@ -13,6 +15,12 @@ import { api, type AdminFormSubmission } from "../../../lib/api";
  *
  * Naming follows `hooks/use-settings-slice.hooks.ts`: `use-<thing>.hooks.ts`. Feature-local because
  * nothing outside `features/forms` needs it.
+ *
+ * `port` is injected — see `form-submissions-port.hooks.ts` (shared with `use-form-submission-
+ * detail.hooks.ts`, since both read/write the same submissions list for a form) — rather than
+ * importing `lib/api` directly, so a test can describe list outcomes against
+ * `createFakeFormSubmissionsPort` instead of stubbing global `fetch`. `useWiredFormSubmissions`
+ * below is the zero-argument pair `FormEditor.tsx` actually mounts.
  */
 
 export interface FormSubmissionsController {
@@ -29,14 +37,14 @@ export interface FormSubmissionsController {
   load: (cursor?: string) => void;
 }
 
-export function useFormSubmissions(props: { formId: string }): FormSubmissionsController {
+export function useFormSubmissions(props: { formId: string }, port: FormSubmissionsPort): FormSubmissionsController {
   const [submissions, setSubmissions] = useState<AdminFormSubmission[] | null>(null);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   function load(cursor?: string) {
-    api
+    port
       .listFormSubmissions({ formId: props.formId }, cursor ? { cursor } : {})
       .then((r) => {
         setSubmissions((prev) => (cursor ? [...(prev ?? []), ...r.data] : r.data));
@@ -45,7 +53,19 @@ export function useFormSubmissions(props: { formId: string }): FormSubmissionsCo
       .catch((e) => setError(e instanceof Error ? e.message : "failed to load submissions"));
   }
 
-  useEffect(() => load(), [props.formId]);
+  useEffect(() => load(), [props.formId, port]);
 
   return { submissions, nextCursor, error, selectedId, setSelectedId, load };
+}
+
+/**
+ * Binds the real `/api/.../forms/:id/submissions` client — see
+ * `form-submissions-dependencies.hooks.ts`.
+ *
+ * The zero-argument half of the `useX(dependencies)` / `useWiredX()` pair, so `FormEditor.tsx`
+ * composes this and a test composes {@link useFormSubmissions} with
+ * `createFakeFormSubmissionsPort`.
+ */
+export function useWiredFormSubmissions(props: { formId: string }): FormSubmissionsController {
+  return useFormSubmissions(props, defaultFormSubmissionsPort);
 }

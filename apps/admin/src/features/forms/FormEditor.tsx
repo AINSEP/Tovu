@@ -6,9 +6,9 @@ import type { AdminFormDefinition, AdminFormField, AdminFormNotify } from "../..
 import { ATTRIBUTE_NAME_SUGGESTIONS, FIELD_TYPES, FORM_TABS, fieldDisplayName } from "./rules";
 import { useFieldAttributesDialog } from "./hooks/use-field-attributes-dialog.hooks";
 import { useFormFieldsEditor } from "./hooks/use-form-fields-editor.hooks";
-import { useFormSubmissionDetail } from "./hooks/use-form-submission-detail.hooks";
-import { useFormSubmissions } from "./hooks/use-form-submissions.hooks";
-import { useFormEditor } from "./hooks/use-form-editor.hooks";
+import { useWiredFormSubmissionDetail } from "./hooks/use-form-submission-detail.hooks";
+import { useWiredFormSubmissions } from "./hooks/use-form-submissions.hooks";
+import { useWiredFormEditor } from "./hooks/use-form-editor.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { FORMS_DICT } from "./forms-i18n";
 
@@ -379,7 +379,7 @@ export interface FormSubmissionDetailProps {
   onBack: () => void;
   onDeleted: () => void;
   /** Dependency injection seam for tests — see `PostsProps.usePostsHook` for the convention. */
-  useFormSubmissionDetailHook?: typeof useFormSubmissionDetail;
+  useFormSubmissionDetailHook?: typeof useWiredFormSubmissionDetail;
   /** Translator closure — see `FormEditor()`'s own `t`. */
   t: (key: string) => string;
 }
@@ -389,7 +389,7 @@ function FormSubmissionDetail({
   submissionId,
   onBack,
   onDeleted,
-  useFormSubmissionDetailHook = useFormSubmissionDetail,
+  useFormSubmissionDetailHook = useWiredFormSubmissionDetail,
   t,
 }: FormSubmissionDetailProps) {
   const { submission, error, confirming, deleting, handleDelete } = useFormSubmissionDetailHook({
@@ -437,12 +437,12 @@ function FormSubmissionDetail({
 export interface FormSubmissionsProps {
   formId: string;
   /** Dependency injection seam for tests — see `PostsProps.usePostsHook` for the convention. */
-  useFormSubmissionsHook?: typeof useFormSubmissions;
+  useFormSubmissionsHook?: typeof useWiredFormSubmissions;
   /** Translator closure — see `FormEditor()`'s own `t`. */
   t: (key: string) => string;
 }
 
-function FormSubmissions({ formId, useFormSubmissionsHook = useFormSubmissions, t }: FormSubmissionsProps) {
+function FormSubmissions({ formId, useFormSubmissionsHook = useWiredFormSubmissions, t }: FormSubmissionsProps) {
   const { submissions, nextCursor, error, selectedId, setSelectedId, load } = useFormSubmissionsHook({ formId });
 
   if (selectedId) {
@@ -495,7 +495,7 @@ function FormSubmissions({ formId, useFormSubmissionsHook = useFormSubmissions, 
 export interface FormEditorProps {
   formId: string;
   /** Dependency injection seam for tests — see `PostsProps.usePostsHook` for the convention. */
-  useFormEditorHook?: typeof useFormEditor;
+  useFormEditorHook?: typeof useWiredFormEditor;
 }
 
 /** The name/slug fields, the field-definition table, the notify checkbox + recipients, and the
@@ -702,7 +702,7 @@ function FormEditorMainPanel(props: {
   );
 }
 
-export function FormEditor({ formId, useFormEditorHook = useFormEditor }: FormEditorProps) {
+export function FormEditor({ formId, useFormEditorHook = useWiredFormEditor }: FormEditorProps) {
   const {
     isNew,
     form,
