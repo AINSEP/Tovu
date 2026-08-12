@@ -1,6 +1,6 @@
 /**
  * @file `installAgentPlugin()` — content-addressed, adversarially-hardened extraction of one Agent
- * Plugin (agent-plugins.org) archive into `AgentPluginLayout.packages`.
+ * Plugin (agent-plugins.org) archive into one workspace's own `AgentPluginWorkspaceLayout.packages`.
  *
  * This is the highest-risk unit in the whole feature. Extraction is where containment actually
  * breaks — everything downstream (capability projection, a future MCP admission gate) trusts that a
@@ -39,13 +39,16 @@
  * the seam and is exercised end-to-end by a scripted double, so a real adapter is a pure addition
  * with zero change to the hardening logic here. See the handoff's REMAINING section.
  *
- * Content-addressing (`packages/sha256/<archiveDigest>/`): the digest is verified BEFORE extraction
- * ever touches the archive reader, so an install with a mismatched digest never even attempts to
- * unpack — the digest is the trust boundary between "bytes a marketplace claimed" and "bytes this
- * process is willing to run a parser over". A second install of byte-identical content is recognized
- * from the digest alone and short-circuits without a second extraction — one archive, one parse,
- * however many workspaces later "install" the same plugin@version (see `layout.ts`'s header for why
- * package bytes are per-instance, not per-workspace).
+ * Content-addressing (`ws/<workspaceId>/packages/sha256/<archiveDigest>/`): the digest is verified
+ * BEFORE extraction ever touches the archive reader, so an install with a mismatched digest never
+ * even attempts to unpack — the digest is the trust boundary between "bytes a marketplace claimed"
+ * and "bytes this process is willing to run a parser over". A second install of byte-identical
+ * content BY THE SAME WORKSPACE is recognized from the digest alone and short-circuits without a
+ * second extraction. Deliberately NOT shared across workspaces — see `layout.ts`'s header (owner
+ * decision, tenant-grade isolation, 2026-08-12): this function is handed an already
+ * workspace-scoped `AgentPluginWorkspaceLayout` and has no notion of "workspace" itself; the caller
+ * is what makes two different workspaces' installs land in disjoint trees, simply by resolving a
+ * different `AgentPluginWorkspaceLayout` for each.
  *
  * Architectural role:
  * The one place this feature performs filesystem writes for installed package bytes. No network I/O
@@ -57,7 +60,7 @@ import { constants } from "node:fs";
 import { chmod, mkdir, mkdtemp, open, readdir, readFile, rename, rm, stat } from "node:fs/promises";
 import path from "node:path";
 
-import type { AgentPluginLayout } from "./layout";
+import type { AgentPluginWorkspaceLayout } from "./layout";
 import { parseAgentPluginManifest } from "./manifest";
 import { assertContainedOnDisk, normalizePackageEntryPath, PackagePathViolation } from "./package-paths";
 
@@ -142,7 +145,10 @@ export interface InstallAgentPluginRequired {
    * itself. */
   readonly expectedSha256: string;
   readonly archiveReader: AgentPluginArchiveReaderPort;
-  readonly layout: AgentPluginLayout;
+  /** Already resolved to ONE workspace (`AgentPluginLayout.forWorkspace(workspaceId)`, `layout.ts`)
+   * — this function has no notion of "workspace" of its own; isolation is entirely a property of
+   * which layout the caller hands it. */
+  readonly layout: AgentPluginWorkspaceLayout;
 }
 
 export type InstallAgentPluginOptional = {};
@@ -179,9 +185,11 @@ export async function installAgentPlugin(
   const finalRoot = path.join(layout.packages, digest);
   const alreadyPublished = await isRealDirectory(finalRoot);
   if (alreadyPublished) {
-    // Content-addressed dedup: identical bytes were already extracted, verified, and frozen by a
-    // prior install (this workspace's or another's) — re-extracting would only re-run the same
-    // parser over the same bytes for no new information. `archiveReader.entries()` is never called.
+    // Content-addressed dedup, scoped to THIS workspace's own tree (`layout` is already
+    // workspace-resolved by the caller): identical bytes were already extracted, verified, and
+    // frozen by a prior install of this same workspace's — never re-extracted for a different
+    // workspace, by construction, since a different workspace's `layout.packages` is a different
+    // path entirely. `archiveReader.entries()` is never called on this path.
     return indexInstalledRoot(finalRoot, digest);
   }
 
