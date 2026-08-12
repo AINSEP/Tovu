@@ -1,0 +1,10 @@
+{
+  "id": "fashion-modern",
+  "name": "Fashion Modern",
+  "version": "1.0.0",
+  "tier": "templated",
+  "engine": 1,
+  "author": "Converted for Tovu from \"Wearix\" — a free Framer fashion e-commerce template (Framer Marketplace export, free to redistribute; see templates/product.liquid for the conversion's product-data contract).",
+  "description": "A modern minimalist fashion storefront: black-and-white editorial styling, a home page with a photographic hero, a real product grid and single-product detail page (both driven by Tovu's live products/product data, not hardcoded), and a journal for regular posts. Converted from a Framer export — the exported markup was rebuilt as clean semantic Liquid/CSS rather than carried over verbatim (see the theme's own README-equivalent notes in each template's header comment).",
+  "fonts": ["Inter:wght@400;500;600;700"]
+}
