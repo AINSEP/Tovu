@@ -4,6 +4,7 @@ import { api, describeApiError, type AdminRecoveryStatus, type AdminRestorePoint
 import { parseDeepLinkEnvelope } from "../rules";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { t } from "../recovery-i18n";
+import type { Translate } from "../../../lib/dictionary-translator";
 
 /**
  * @file Everything the Recovery SCREEN (the restore-points list + status/banner) does, so
@@ -38,7 +39,7 @@ export interface RecoveryController {
   setSelected: (point: AdminRestorePoint | null) => void;
   /** Bound translator — `key` already resolved against the caller's locale, so `Recovery.tsx` never
    *  imports `useAdminLocale`/`recovery-i18n` for the top-level screen. See this file's header. */
-  t: (key: string) => string;
+  t: Translate;
   /** Raw resolved locale — `Recovery.tsx`'s local `DegradedBannerView`/`RestorePointsList`
    *  subcomponents take `locale` directly rather than a bound translator. See this file's header. */
   locale: string;
