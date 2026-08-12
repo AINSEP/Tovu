@@ -119,6 +119,7 @@ import { registerAdminStatic } from "./middleware/admin-static";
 import { registerSiteChatStatic } from "./middleware/site-chat-static";
 import { registerThemePreviewStatic } from "./middleware/theme-preview-static";
 import { registerThemeStaticAssets } from "./middleware/theme-static-assets";
+import { registerThemePagePreview } from "./middleware/theme-page-preview";
 import { registerSiteRoutes } from "./routes/site/pages";
 import { registerStoreRoutes } from "./routes/site/store";
 import { registerPaymentsWebhookRoute } from "./routes/site/payments-webhook";
@@ -151,6 +152,7 @@ import {
   SITE_ASSISTANT_PER_IP,
 } from "./middleware/rate-limit";
 import { createAnalyticsModule } from "./modules/analytics";
+import { createCommerceModule } from "./modules/commerce";
 import { registerAdminModuleStatusRoute } from "./routes/admin/system/module-status";
 import { createFormsAdminModule } from "./modules/forms-admin";
 import { registerFormsSubmitRoute } from "./routes/site/forms-submit";
@@ -706,6 +708,9 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // ADR-046 Phase 3 (SPEC-041): the `analytics` server module — the single admin "recent hits"
   // read route (ADR-035/ADR-PIPE-014).
   createAnalyticsModule(routeDeps).registerRoutes?.(app);
+  // ADR-001 bounded operational read: provider discovery reflects only the optional composed
+  // payment runtime; configuration and downstream Commerce capabilities remain explicitly absent.
+  createCommerceModule(routeDeps).registerRoutes?.(app);
   // ADR-054: the PUBLIC visitor assistant. Deliberately NOT behind `requireAdminSession` — it is
   // the one assistant surface anonymous traffic may reach, which is why it runs on its own
   // in-process provider relay with a read-only published-content tool surface rather than the
@@ -898,6 +903,13 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   registerThemeStaticAssets(app, {
     themesStaticDir: path.resolve(__dirname, "../themes/static"),
   });
+
+  // Admin Explore screen's preview iframe: any static theme's page, fully rendered, at
+  // /theme-explore/<theme-id>/<page-id>. Registered AFTER the asset route above so the rendered
+  // page's own `/theme-assets/...` references are already being served when it loads. `getThemes`
+  // rather than the array itself — `rescanThemes` refills that array in place, and a theme
+  // downloaded after boot has to be previewable without a restart.
+  registerThemePagePreview(app, { getThemes: () => routeDeps.themes });
 
   // SPEC-044: the `workspace` server module (list/create/get/update/delete) is registered near the
   // other ADR-046 Phase 3 module calls above (`createUsersModule`); the original inline
