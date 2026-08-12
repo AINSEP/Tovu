@@ -334,6 +334,21 @@ function Toolbar({ editor }: { editor: Editor }) {
         >
           Img by URL
         </button>
+        {/* YouTube (coordinator MSG #1 licensing sweep, 2026-08-11) — same "prompt for a URL"
+            idiom as "Img by URL" just above. `setYoutubeVideo` itself rejects an unrecognized URL
+            (returns `false`, no-ops) before insertion — the render.ts side independently
+            re-validates anyway, see `extractYoutubeVideoId`'s own doc for why. */}
+        <button
+          className="tb-btn"
+          title="Insert YouTube video"
+          onClick={() => {
+            const src = window.prompt("YouTube video URL:");
+            if (!src) return;
+            chain().setYoutubeVideo({ src }).run();
+          }}
+        >
+          YouTube
+        </button>
       </div>
       {/* CharacterCount (owner, 2026-08-11: "anything and everything") — a plain readout, not a
           button: nothing to click, just the live count `editor.storage.characterCount` already

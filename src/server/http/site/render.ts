@@ -222,6 +222,32 @@ function safeLanguageClass(value: JsonValue | undefined): string | null {
   return LANGUAGE_CLASS_PATTERN.test(language) ? language : null;
 }
 
+/**
+ * A YouTube video id extracted from a `youtube` node's `attrs.src` (`@tiptap/extension-youtube`,
+ * 2026-08-11 — coordinator-approved, license-verified) and independently re-derived here rather than
+ * trusted — the SAME "never trust attrs a direct API write could set to anything" discipline every
+ * other node/mark case in this file follows, sharper here because the payoff for an attacker is
+ * bigger: `attrs.src` feeds an `<iframe src>`, and the editor's own conversion to a safe embed URL
+ * (`getEmbedUrlFromYoutubeUrl`, confirmed against the installed dist) runs client-side at RENDER
+ * time, not at insert time — `bodyJson` stores whatever URL shape the author pasted (`watch?v=`,
+ * `youtu.be/`, already-`/embed/`, …), so this renderer cannot skip re-deriving it.
+ *
+ * Deliberately narrower than the editor's own URL matcher: extracts only an id from one of the four
+ * URL shapes the extension itself recognizes, validated against a conservative `[\w-]{1,32}`
+ * (real ids are 11 chars; the slack is for future format changes, not because a longer value is
+ * trusted). Anything else — a non-YouTube host, a bare id with no recognizable URL shape,
+ * `javascript:`, `data:` — returns `null`, and the caller degrades to the ordinary media placeholder
+ * rather than ever building an `<iframe>` from an unrecognized string.
+ */
+const YOUTUBE_ID_PATTERN = /^[\w-]{1,32}$/;
+const YOUTUBE_URL_PATTERN = /(?:youtube(?:-nocookie)?\.com\/(?:watch\?v=|embed\/|shorts\/)|youtu\.be\/)([\w-]+)/;
+function extractYoutubeVideoId(value: JsonValue | undefined): string | null {
+  if (typeof value !== "string") return null;
+  const match = value.trim().match(YOUTUBE_URL_PATTERN);
+  const id = match?.[1];
+  return id && YOUTUBE_ID_PATTERN.test(id) ? id : null;
+}
+
 function renderMarks(text: string, marks: JsonValue[] | undefined): string {
   let html = escapeHtml(text);
   for (const mark of marks ?? []) {
@@ -647,6 +673,22 @@ export function renderDocNode(
         }
       }
       return mediaPlaceholder({ label: alt || "Image" });
+    }
+    case "youtube": {
+      // See `extractYoutubeVideoId`'s own doc for why `attrs.src` is re-derived rather than
+      // trusted. `start` (seconds into the video) is the only other attr this renders — `width`/
+      // `height` are deliberately ignored: `.post-detail-body .youtube-embed` (styles.css) makes
+      // every embed a responsive 16:9 box instead, which is both simpler than validating two more
+      // numeric attrs and better UX than reproducing the editor's fixed-pixel default on a public
+      // page that also has to work on a phone. `youtube-nocookie.com` (privacy-enhanced mode) is
+      // used unconditionally rather than reading `nocookie` off attrs — a deliberate simplification,
+      // not something the toolbar's own plain "paste a URL" control offers a way to opt out of.
+      const attrs = isObject(node.attrs) ? node.attrs : {};
+      const videoId = extractYoutubeVideoId(attrs.src);
+      if (!videoId) return mediaPlaceholder({ label: "Video unavailable", ratio: "16 / 9" });
+      const start = typeof attrs.start === "number" && Number.isInteger(attrs.start) && attrs.start > 0 && attrs.start <= 999999 ? attrs.start : 0;
+      const embedSrc = `https://www.youtube-nocookie.com/embed/${videoId}${start > 0 ? `?start=${start}` : ""}`;
+      return `<div class="youtube-embed"><iframe src="${escapeHtml(embedSrc)}" title="YouTube video" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe></div>`;
     }
     case "widgetEmbed": {
       // REQ-18/REQ-21: a block-level atom node carrying a single widget-instance reference,
