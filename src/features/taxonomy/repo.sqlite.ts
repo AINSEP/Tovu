@@ -1,7 +1,7 @@
 import type Database from "better-sqlite3";
 import { and, eq } from "drizzle-orm";
 
-import { stampWatermarkTx, type ContentDbTransaction } from "../../core/gated-mutations/watermark";
+import { stampWatermarkTx, type ContentDbTransaction } from "../../db/sqlite/watermark";
 import { entryTerms, taxonomies, taxonomyRevisions, terms } from "../../db/schema";
 import type { ContentDb } from "../../db/sqlite/content-db";
 import { findOneBy } from "../../db/sqlite/repo-helpers";
@@ -343,7 +343,7 @@ export class SqliteTaxonomyRevisionRepo implements TaxonomyRevisionRepoPort {
 }
 
 /** Sync `WriteServiceDeps.stampWatermark` binding over the real `content.db` watermark
- * (`core/gated-mutations/watermark.ts`'s certified `stampWatermarkTx`) — see that module's own
+ * (`db/sqlite/watermark.ts`'s certified `stampWatermarkTx`) — see that module's own
  * doc comment for why passing the plain `db` handle is safe here (no `db.transaction()` wraps
  * `taxonomy/write-service.ts`'s own mutations, so each call is its own implicit autocommit
  * statement; this stamp call is likewise its own autocommit statement, same atomicity envelope

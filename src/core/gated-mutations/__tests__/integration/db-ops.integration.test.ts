@@ -9,7 +9,7 @@ import Database from "better-sqlite3";
 import { openContentDb } from "#src/db/sqlite/content-db";
 import { SqliteDbOpsAdapter } from "#src/db/sqlite/db-ops";
 import { evaluatePostgresRestoreCapability } from "#src/db/postgres/db-ops";
-import { stampWatermarkTx } from "../../watermark";
+import { stampWatermarkTx } from "#src/db/sqlite/watermark";
 
 /**
  * @file SPEC-016 C-007 / REQ-19–REQ-21 — the dialect-neutral `db-ops` restore-point capability

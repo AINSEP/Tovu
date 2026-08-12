@@ -1,8 +1,8 @@
-import { stampWatermarkTx, type ContentDbTransaction } from "../../core/gated-mutations/watermark";
+import { stampWatermarkTx, type ContentDbTransaction } from "./watermark";
 import type { ContentDb } from "./content-db";
 
 /**
- * @file Adapts `core/gated-mutations/watermark.ts`'s certified `stampWatermarkTx` to the narrower
+ * @file Adapts `db/sqlite/watermark.ts`'s certified `stampWatermarkTx` to the narrower
  * `WatermarkPort` shapes `features/content-types/write-service.ts` and
  * `features/entries/write-service.ts` each declare locally (`stampWatermark(input): Promise<number>`).
  *

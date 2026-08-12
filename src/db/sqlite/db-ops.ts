@@ -1,7 +1,7 @@
 import { SqliteDbOpsAdapter as InfraSqliteDbOpsAdapter } from "@jini-ai/infra/db/sqlite";
 
 import type { DbOpsPort, RestoreCapability } from "../../core/gated-mutations/ports";
-import { getCurrentWatermark } from "../../core/gated-mutations/watermark";
+import { getCurrentWatermark } from "./watermark";
 import type { ContentDb } from "./content-db";
 
 /**

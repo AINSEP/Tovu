@@ -7,7 +7,7 @@ import test from "node:test";
 import Database from "better-sqlite3";
 
 import { openContentDb } from "#src/db/sqlite/content-db";
-import { getCurrentWatermark, reconcileMirror, stampWatermarkTx } from "../../watermark";
+import { getCurrentWatermark, reconcileMirror, stampWatermarkTx } from "../watermark";
 
 /**
  * @file SPEC-016 C-004 / U-002 / INV-01 / EC-01 / AC-01 / AC-03 — same-transaction watermark
