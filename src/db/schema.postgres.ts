@@ -11,7 +11,8 @@
  *
  * Tables: 63
  */
-import { boolean, index, integer, pgTable, primaryKey, text, uniqueIndex } from "drizzle-orm/pg-core";
+import { sql } from "drizzle-orm";
+import { boolean, check, foreignKey, index, integer, pgTable, primaryKey, text, uniqueIndex } from "drizzle-orm/pg-core";
 
 export const adminExecutionCredentials = pgTable("admin_execution_credentials", {
   workspaceId: text("workspace_id").notNull(),
@@ -30,7 +31,9 @@ export const adminExecutionCredentials = pgTable("admin_execution_credentials", 
   updatedAt: text("updated_at").notNull(),
 }, (t) => [
     primaryKey({ columns: [t.workspaceId, t.principalId] }),
-    // REVIEW-PORTABILITY: check #0 on adminExecutionCredentials is not auto-translated — see schema.ts
+    foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("cascade"),
+    foreignKey({ columns: [t.principalId], foreignColumns: [principals.id] }).onDelete("cascade"),
+    check("admin_execution_credentials_sealed_shape", sql`(sealed_key_id IS NULL AND sealed_ciphertext IS NULL AND sealed_nonce IS NULL AND sealed_alg IS NULL AND masked IS NULL) OR (sealed_key_id IS NOT NULL AND sealed_ciphertext IS NOT NULL AND sealed_nonce IS NOT NULL AND sealed_alg IS NOT NULL AND masked IS NOT NULL)`),
   ]);
 
 export const agentToolAttempts = pgTable("agent_tool_attempts", {
@@ -143,7 +146,8 @@ export const composioConfig = pgTable("composio_config", {
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 }, (t) => [
-    // REVIEW-PORTABILITY: check #0 on composioConfig is not auto-translated — see schema.ts
+    foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("cascade"),
+    check("composio_config_sealed_shape", sql`(sealed_key_id IS NULL AND sealed_ciphertext IS NULL AND sealed_nonce IS NULL AND sealed_alg IS NULL AND key_tail IS NULL) OR (sealed_key_id IS NOT NULL AND sealed_ciphertext IS NOT NULL AND sealed_nonce IS NOT NULL AND sealed_alg IS NOT NULL AND key_tail IS NOT NULL)`),
   ]);
 
 export const composioConnectorCredentials = pgTable("composio_connector_credentials", {
@@ -158,7 +162,8 @@ export const composioConnectorCredentials = pgTable("composio_connector_credenti
   updatedAt: text("updated_at").notNull(),
 }, (t) => [
     primaryKey({ columns: [t.workspaceId, t.connectorId] }),
-    // REVIEW-PORTABILITY: check #0 on composioConnectorCredentials is not auto-translated — see schema.ts
+    foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("cascade"),
+    check("composio_connector_credentials_sealed_shape", sql`(sealed_key_id IS NULL AND sealed_ciphertext IS NULL AND sealed_nonce IS NULL AND sealed_alg IS NULL) OR (sealed_key_id IS NOT NULL AND sealed_ciphertext IS NOT NULL AND sealed_nonce IS NOT NULL AND sealed_alg IS NOT NULL)`),
   ]);
 
 export const contentTypeRevisions = pgTable("content_type_revisions", {
@@ -270,7 +275,8 @@ export const externalMcpServers = pgTable("external_mcp_servers", {
   updatedAt: text("updated_at").notNull(),
 }, (t) => [
     primaryKey({ columns: [t.workspaceId, t.serverId] }),
-    // REVIEW-PORTABILITY: check #0 on externalMcpServers is not auto-translated — see schema.ts
+    foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("cascade"),
+    check("external_mcp_servers_sealed_shape", sql`(sealed_key_id IS NULL AND sealed_ciphertext IS NULL AND sealed_nonce IS NULL AND sealed_alg IS NULL) OR (sealed_key_id IS NOT NULL AND sealed_ciphertext IS NOT NULL AND sealed_nonce IS NOT NULL AND sealed_alg IS NOT NULL)`),
   ]);
 
 export const formDefinitions = pgTable("form_definitions", {
@@ -296,6 +302,7 @@ export const formSubmissions = pgTable("form_submissions", {
   sourceIp: text("source_ip").notNull(),
   submittedAt: text("submitted_at").notNull(),
 }, (t) => [
+    foreignKey({ columns: [t.formDefinitionId], foreignColumns: [formDefinitions.id] }).onDelete("restrict"),
     index("idx_form_submissions_definition").on(t.formDefinitionId, t.submittedAt),
     index("idx_form_submissions_workspace").on(t.workspaceId),
   ]);
@@ -342,7 +349,8 @@ export const mediaProviderCredentials = pgTable("media_provider_credentials", {
   updatedAt: text("updated_at").notNull(),
 }, (t) => [
     primaryKey({ columns: [t.workspaceId, t.providerId] }),
-    // REVIEW-PORTABILITY: check #0 on mediaProviderCredentials is not auto-translated — see schema.ts
+    foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("cascade"),
+    check("media_provider_credentials_sealed_shape", sql`(sealed_key_id IS NULL AND sealed_ciphertext IS NULL AND sealed_nonce IS NULL AND sealed_alg IS NULL AND key_tail IS NULL) OR (sealed_key_id IS NOT NULL AND sealed_ciphertext IS NOT NULL AND sealed_nonce IS NOT NULL AND sealed_alg IS NOT NULL AND key_tail IS NOT NULL)`),
   ]);
 
 export const memberConsents = pgTable("member_consents", {
@@ -593,9 +601,9 @@ export const posts = pgTable("posts", {
   templateChoice: text("template_choice"),
   overridesThemePage: boolean("overrides_theme_page").notNull().default(false),
 }, (t) => [
+    check("posts_body_format_shape", sql`(body_format = 'doc' AND body_json IS NOT NULL AND body_html IS NULL) OR (body_format = 'html' AND body_html IS NOT NULL AND body_json IS NULL)`),
     uniqueIndex("posts_workspace_slug_unique").on(t.workspaceId, t.slug),
     index("idx_posts_workspace").on(t.workspaceId),
-    // REVIEW-PORTABILITY: check #0 on posts is not auto-translated — see schema.ts
   ]);
 
 export const presentationSettings = pgTable("presentation_settings", {
@@ -774,6 +782,7 @@ export const settingValuesUser = pgTable("setting_values_user", {
   updatedAt: text("updated_at").notNull(),
   originPluginId: text("origin_plugin_id"),
 }, (t) => [
+    foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("restrict"),
     uniqueIndex("pk_setting_values_user").on(t.workspaceId, t.principalId, t.settingId),
   ]);
 
@@ -788,6 +797,7 @@ export const settingValuesWorkspace = pgTable("setting_values_workspace", {
   updatedAt: text("updated_at").notNull(),
   originPluginId: text("origin_plugin_id"),
 }, (t) => [
+    foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("restrict"),
     uniqueIndex("pk_setting_values_workspace").on(t.workspaceId, t.settingId),
   ]);
 
@@ -804,7 +814,7 @@ export const siteAssistantCredentials = pgTable("site_assistant_credentials", {
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 }, (t) => [
-    // REVIEW-PORTABILITY: check #0 on siteAssistantCredentials is not auto-translated — see schema.ts
+    check("site_assistant_credentials_sealed_shape", sql`(sealed_key_id IS NULL AND sealed_ciphertext IS NULL AND sealed_nonce IS NULL AND sealed_alg IS NULL AND masked IS NULL) OR (sealed_key_id IS NOT NULL AND sealed_ciphertext IS NOT NULL AND sealed_nonce IS NOT NULL AND sealed_alg IS NOT NULL AND masked IS NOT NULL)`),
   ]);
 
 export const taxonomies = pgTable("taxonomies", {
