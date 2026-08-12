@@ -150,7 +150,7 @@ import {
   MAGIC_LINK_PER_EMAIL,
   MAGIC_LINK_PER_IP,
   SITE_ASSISTANT_PER_IP,
-} from "./middleware/rate-limit";
+} from "#src/core/rate-limit/rate-limit";
 import { createAnalyticsModule } from "./modules/analytics";
 import { createCommerceModule } from "./modules/commerce";
 import { registerAdminModuleStatusRoute } from "./routes/admin/system/module-status";
@@ -911,10 +911,13 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
     themesStaticDir: path.resolve(__dirname, "../themes/static"),
   });
 
-  // Real (non-spike) asset serving for static-tier themes' css/js, used by
-  // render.ts's static-tier branch when actually rendering one as the live site.
+  // Real (non-spike) asset serving for a theme's own files at /theme-assets/{id}/...: static-tier
+  // css/js (used by render.ts's static-tier branch when actually rendering one as the live site),
+  // EXTENDED 2026-08-12 to also cover templated-tier theme folders so a Liquid theme's own images/
+  // screenshots are reachable (see theme-static-assets.ts's own header for why declarative/handlebars
+  // are not listed here yet, and why templates/*.liquid source being servable is deliberate).
   registerThemeStaticAssets(app, {
-    themesStaticDir: path.resolve(__dirname, "../themes/static"),
+    themeRoots: [path.resolve(__dirname, "../themes/static"), path.resolve(__dirname, "../themes/templated")],
   });
 
   // Admin Explore screen's preview iframe: any static theme's page, fully rendered, at
