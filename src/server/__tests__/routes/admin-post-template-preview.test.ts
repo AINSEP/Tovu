@@ -169,6 +169,30 @@ test("POST with a pending bodyJson renders the PENDING body, not the row's saved
   assert.ok(!html.includes(POST_BODY_TEXT), "the SAVED body must not reach the page once a pending override was supplied");
 });
 
+// The real browser transport a `<form method="post" target="{iframe}">` submit uses (see this file's
+// header) — always `application/x-www-form-urlencoded`, where `bodyJson` arrives as a
+// JSON-STRINGIFIED STRING form field, not a parsed object. Proves the route's own
+// `express.urlencoded()` mount (POST-registration-scoped) plus `extractPendingBodyJson`'s string-parse
+// branch actually work together, not just the `fetch`+JSON transport the tests above exercise.
+test("POST with a form-urlencoded, JSON-stringified bodyJson field also renders the PENDING body", async (t) => {
+  const { app, deps } = buildTestApp(staticThemeWithTemplates());
+  const post = await savePost(deps, { slug: "contact", templateChoice: "blog-post.html" });
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const form = new URLSearchParams();
+  form.set("bodyJson", JSON.stringify(docBody(PENDING_BODY_TEXT)));
+  const res = await fetch(previewUrl(baseUrl, post.id, "blog-post.html"), {
+    method: "POST",
+    headers: { cookie, "content-type": "application/x-www-form-urlencoded" },
+    body: form.toString(),
+  });
+  const html = await res.text();
+
+  assert.equal(res.status, 200);
+  assert.ok(html.includes(PENDING_BODY_TEXT), "the PENDING body must reach the page via the form-encoded transport too");
+  assert.ok(!html.includes(POST_BODY_TEXT), "the SAVED body must not reach the page once a pending override was supplied");
+});
+
 test("POST never persists the pending body — the row's stored bodyJson is unchanged afterward", async (t) => {
   const { app, deps } = buildTestApp(staticThemeWithTemplates());
   const post = await savePost(deps, { slug: "contact", templateChoice: "blog-post.html" });
