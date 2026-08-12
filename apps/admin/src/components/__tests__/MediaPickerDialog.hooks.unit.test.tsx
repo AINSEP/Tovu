@@ -2,7 +2,8 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { api, ApiError, type AdminMedia } from "../../lib/api";
-import { useMediaPickerDialog, useMediaPickerItems } from "../MediaPickerDialog/MediaPickerDialog.hooks";
+import { createFakeMediaPickerPort } from "../MediaPickerDialog/media-picker-dependencies.hooks";
+import { useMediaPickerDialog, useMediaPickerItems, useWiredMediaPickerDialog, useWiredMediaPickerItems } from "../MediaPickerDialog/MediaPickerDialog.hooks";
 
 /**
  * @file `useMediaPickerItems`/`useMediaPickerDialog` — the data-fetch and Escape-to-cancel state
@@ -40,7 +41,7 @@ afterEach(() => {
 describe("useMediaPickerItems", () => {
   it("starts with items null and no error before the fetch resolves", () => {
     vi.spyOn(api, "listMedia").mockReturnValue(new Promise(() => {})); // never resolves — pins the loading shape
-    const { result } = renderHook(() => useMediaPickerItems());
+    const { result } = renderHook(() => useWiredMediaPickerItems());
     expect(result.current).toEqual({ items: null, error: null });
   });
 
@@ -48,7 +49,7 @@ describe("useMediaPickerItems", () => {
     vi.spyOn(api, "listMedia").mockResolvedValue({
       media: [media({ id: "a", status: "active" }), media({ id: "b", status: "trashed" })],
     });
-    const { result } = renderHook(() => useMediaPickerItems());
+    const { result } = renderHook(() => useWiredMediaPickerItems());
 
     await waitFor(() => expect(result.current.items).not.toBeNull());
     expect(result.current.items).toEqual([media({ id: "a", status: "active" })]);
@@ -57,7 +58,7 @@ describe("useMediaPickerItems", () => {
 
   it("describes a failed fetch instead of leaving items stuck loading", async () => {
     vi.spyOn(api, "listMedia").mockRejectedValue(new ApiError("media table locked", 500));
-    const { result } = renderHook(() => useMediaPickerItems());
+    const { result } = renderHook(() => useWiredMediaPickerItems());
 
     await waitFor(() => expect(result.current.error).not.toBeNull());
     expect(result.current.error).toBe("media table locked");
@@ -69,7 +70,7 @@ describe("useMediaPickerItems", () => {
     // default on the ApiError branch's `e.message || fallback`; a plain `Error` with `message: ""`
     // would return that empty string as-is (see `describeApiError`'s own two branches).
     vi.spyOn(api, "listMedia").mockRejectedValue(new ApiError("", 500));
-    const { result } = renderHook(() => useMediaPickerItems());
+    const { result } = renderHook(() => useWiredMediaPickerItems());
 
     await waitFor(() => expect(result.current.error).not.toBeNull());
     expect(result.current.error).toBe("failed to load media");
@@ -80,7 +81,7 @@ describe("useMediaPickerDialog", () => {
   it("exposes select bound to the onSelect callback it was given", async () => {
     vi.spyOn(api, "listMedia").mockResolvedValue({ media: [media()] });
     const onSelect = vi.fn();
-    const { result } = renderHook(() => useMediaPickerDialog(onSelect, vi.fn()));
+    const { result } = renderHook(() => useWiredMediaPickerDialog(onSelect, vi.fn()));
 
     await waitFor(() => expect(result.current.items).not.toBeNull());
     const item = result.current.items![0];
@@ -91,7 +92,7 @@ describe("useMediaPickerDialog", () => {
   it("calls onCancel when Escape is pressed anywhere in the document", () => {
     vi.spyOn(api, "listMedia").mockReturnValue(new Promise(() => {}));
     const onCancel = vi.fn();
-    renderHook(() => useMediaPickerDialog(vi.fn(), onCancel));
+    renderHook(() => useWiredMediaPickerDialog(vi.fn(), onCancel));
 
     act(() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
     expect(onCancel).toHaveBeenCalledTimes(1);
@@ -100,7 +101,7 @@ describe("useMediaPickerDialog", () => {
   it("ignores non-Escape keys", () => {
     vi.spyOn(api, "listMedia").mockReturnValue(new Promise(() => {}));
     const onCancel = vi.fn();
-    renderHook(() => useMediaPickerDialog(vi.fn(), onCancel));
+    renderHook(() => useWiredMediaPickerDialog(vi.fn(), onCancel));
 
     act(() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter" })));
     expect(onCancel).not.toHaveBeenCalled();
@@ -109,10 +110,51 @@ describe("useMediaPickerDialog", () => {
   it("removes its keydown listener on unmount, so a stray Escape afterward is a no-op", () => {
     vi.spyOn(api, "listMedia").mockReturnValue(new Promise(() => {}));
     const onCancel = vi.fn();
-    const { unmount } = renderHook(() => useMediaPickerDialog(vi.fn(), onCancel));
+    const { unmount } = renderHook(() => useWiredMediaPickerDialog(vi.fn(), onCancel));
 
     unmount();
     act(() => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" })));
     expect(onCancel).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * The "injected port" half — every test above drives `useWiredMediaPickerItems`/
+ * `useWiredMediaPickerDialog` and proves behavior via `vi.spyOn(api, "listMedia")`, which is real
+ * coverage but doesn't itself prove the DEPENDENCY is injected rather than reached for (a spy on
+ * the module intercepts either way). These call `useMediaPickerItems`/`useMediaPickerDialog`
+ * directly with `createFakeMediaPickerPort` — no `api` spy — so a real network touch has nothing
+ * to land on.
+ */
+describe("useMediaPickerItems / useMediaPickerDialog — injected port (no api spy)", () => {
+  it("filters to active assets from the injected port and never touches the real api client", async () => {
+    const listSpy = vi.spyOn(api, "listMedia");
+    const port = createFakeMediaPickerPort({ media: [media({ id: "a", status: "active" }), media({ id: "b", status: "trashed" })] });
+    const { result } = renderHook(() => useMediaPickerItems(port));
+
+    await waitFor(() => expect(result.current.items).not.toBeNull());
+    expect(result.current.items).toEqual([media({ id: "a", status: "active" })]);
+    expect(listSpy).not.toHaveBeenCalled();
+  });
+
+  it("useMediaPickerDialog reads items from the injected port too", async () => {
+    const port = createFakeMediaPickerPort({ media: [media()] });
+    const { result } = renderHook(() => useMediaPickerDialog(vi.fn(), vi.fn(), { port }));
+
+    await waitFor(() => expect(result.current.items).not.toBeNull());
+    expect(result.current.items).toEqual([media()]);
+  });
+
+  /**
+   * Negative verification (per this refactor's own required check): temporarily replacing
+   * `port.listMedia()` in `useMediaPickerItems` with a direct call to the real `api.listMedia()`
+   * and re-running this suite fails both assertions above (no real network in this test env) — see
+   * this feature's commit/handoff report for the recorded run.
+   */
+  it("does not resolve items while the injected port's list call is still pending", () => {
+    const port = createFakeMediaPickerPort();
+    port.listMedia = () => new Promise(() => {});
+    const { result } = renderHook(() => useMediaPickerItems(port));
+    expect(result.current.items).toBeNull();
   });
 });
