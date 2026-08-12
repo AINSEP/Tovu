@@ -40,7 +40,7 @@ describe("useMedia — injected port (no fetch stub)", () => {
         },
       ],
     });
-    const { result } = renderHook(() => useMedia({ port, locale: "en" }));
+    const { result } = renderHook(() => useMedia({ port, locale: "en", t: (k) => k }));
 
     await waitFor(() => expect(result.current.media).toHaveLength(1));
     expect(result.current.media?.[0]?.id).toBe("m1");
@@ -68,7 +68,7 @@ describe("useMedia — injected port (no fetch stub)", () => {
         },
       ],
     });
-    const { result } = renderHook(() => useMedia({ port, locale: "en" }));
+    const { result } = renderHook(() => useMedia({ port, locale: "en", t: (k) => k }));
     await waitFor(() => expect(result.current.media).toHaveLength(1));
 
     await act(async () => {
@@ -89,7 +89,7 @@ describe("useMedia — injected port (no fetch stub)", () => {
   it("does not resolve `media` while the injected port's list call is still pending", () => {
     const port = createFakeMediaPort();
     port.listMedia = () => new Promise(() => {});
-    const { result } = renderHook(() => useMedia({ port, locale: "en" }));
+    const { result } = renderHook(() => useMedia({ port, locale: "en", t: (k) => k }));
     expect(result.current.media).toBeNull();
   });
 });
