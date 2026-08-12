@@ -6,6 +6,7 @@ import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { PAGES_DICT } from "../pages-i18n";
 import { defaultPagesPort } from "./pages-dependencies.hooks";
 import type { PagesPort } from "./pages-port.hooks";
+import type { Translate } from "../../../lib/dictionary-translator";
 
 /**
  * @file Everything the Pages LIST does, so `Pages.tsx` is only markup.
@@ -51,7 +52,7 @@ export interface PagesController {
   disablePage: (page: AdminPost) => Promise<void>;
   removePage: () => Promise<void>;
   /** Bound translator — `Pages.tsx`'s only source of UI copy; see this file's own header. */
-  t: (key: string) => string;
+  t: Translate;
   /** The raw resolved locale — exposed only because `pageRowMenuItems` (`../rules.ts`) genuinely
    *  needs it, not `t`. */
   locale: string;
@@ -60,7 +61,7 @@ export interface PagesController {
 export interface PagesDependencies {
   port: PagesPort;
   navigate: (path: string) => void;
-  t: (key: string) => string;
+  t: Translate;
   locale: string;
 }
 
