@@ -146,6 +146,30 @@ function safeHref(value: JsonValue | undefined): string {
   return "#";
 }
 
+/**
+ * Allowlisted CSS color forms an author-supplied `color` (highlight/text-color/background-color
+ * marks, 2026-08-11) may take before it reaches public HTML inside a `style=""` attribute — the
+ * same "collapse anything unrecognized rather than splice an arbitrary string into markup"
+ * discipline {@link safeHref} applies to link hrefs (C7), adapted for CSS instead of a URL scheme.
+ *
+ * Accepts: 3/4/6/8-digit hex (`#abc`, `#aabbcc`, `#aabbccdd`); a bare alphabetic keyword up to 20
+ * chars (`red`, `transparent`, `currentcolor` — an unrecognized keyword is simply invalid CSS the
+ * browser ignores, not an injection vector, so this doesn't need a fixed keyword allowlist); or one
+ * of the five functional notations Tiptap's own Color/Highlight pickers can produce (`rgb`/`rgba`/
+ * `hsl`/`hsla`/`oklch`), with the characters INSIDE the parens restricted to digits/`%`/`.`/`,`/
+ * whitespace/`/` (the last for `oklch(l c h / a)`'s alpha slot) — no nested `(`, no `url(`, no `;`,
+ * no backslash, so nothing here can break out of the `style` attribute's value or smuggle a second
+ * CSS declaration. Returns `null` (not `"#"` — there is no safe placeholder color to fall back to)
+ * so every caller omits the attribute entirely on a rejected value, same as {@link renderImageTag}'s
+ * own "omit rather than emit a malformed/placeholder attribute" rule.
+ */
+const CSS_COLOR_PATTERN = /^(#[0-9a-fA-F]{3,8}|[a-zA-Z]{1,20}|(?:rgb|rgba|hsl|hsla|oklch)\([0-9.%,\s/]{1,80}\))$/;
+function safeCssColor(value: JsonValue | undefined): string | null {
+  if (typeof value !== "string") return null;
+  const color = value.trim();
+  return CSS_COLOR_PATTERN.test(color) ? color : null;
+}
+
 function renderMarks(text: string, marks: JsonValue[] | undefined): string {
   let html = escapeHtml(text);
   for (const mark of marks ?? []) {
@@ -156,7 +180,17 @@ function renderMarks(text: string, marks: JsonValue[] | undefined): string {
     else if (type === "code") html = `<code>${html}</code>`;
     else if (type === "underline") html = `<u>${html}</u>`;
     else if (type === "strike") html = `<s>${html}</s>`;
-    else if (type === "link") {
+    else if (type === "highlight") {
+      // `@tiptap/extension-highlight`, `multicolor: true` (2026-08-11) — the admin toolbar button is
+      // a plain toggle (no color picker), so `attrs.color` is normally absent and this renders a bare
+      // `<mark>`, styled by `.post-detail-body mark` (styles.css). A `color` attr from anywhere else
+      // (pasted content, a future picker) still round-trips as an inline `background-color` as long
+      // as it passes {@link safeCssColor}'s allowlist — an unsafe/malformed value degrades to the
+      // bare `<mark>` rather than a malformed or unsafe style attribute.
+      const attrs = isObject(mark.attrs) ? mark.attrs : {};
+      const color = safeCssColor(attrs.color);
+      html = color ? `<mark style="background-color:${escapeHtml(color)}">${html}</mark>` : `<mark>${html}</mark>`;
+    } else if (type === "link") {
       const attrs = isObject(mark.attrs) ? mark.attrs : {};
       html = `<a href="${escapeHtml(safeHref(attrs.href))}">${html}</a>`;
     }

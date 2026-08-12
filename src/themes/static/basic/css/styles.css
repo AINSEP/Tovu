@@ -297,6 +297,15 @@ section.band { padding: 72px 0; border-top: 1px solid var(--border); }
 .post-detail-body pre { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; overflow-x: auto; margin: 20px 0; }
 .post-detail-body pre code { border: none; background: none; padding: 0; }
 .post-detail-body img { max-width: 100%; border-radius: 10px; margin: 20px 0; }
+/* Highlight mark (`renderDocNode`'s `"highlight"` case, 2026-08-11) — the browser's own UA default
+   for `<mark>` (yellow background, black text) is legible on its own, but a bare square block reads
+   out of place next to every other inline element here that already carries this theme's own
+   rounding (`code` two lines up, `img` just above). An explicit `background`/`color` here also stops
+   an author-supplied `background-color` inline style (`safeCssColor`, render.ts) from ever landing
+   on illegible black-on-black — the inline style, when present, still wins over this class rule
+   (equal-ish specificity but source order + `style=""` beats a stylesheet class), this is only the
+   fallback for the toolbar's plain, colorless toggle. */
+.post-detail-body mark { background: #fef08a; color: #422006; border-radius: 3px; padding: 0 3px; }
 
 /* ---------- about ---------- */
 .about-hero { padding: 88px 0 56px; }
