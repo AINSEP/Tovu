@@ -27,6 +27,21 @@ import { findUnrewrittenAssetPaths, rewriteAssetPaths, TOKEN_STYLESHEET_SENTINEL
  * Only ever called from `loadTheme()` for a `manifest.build?.source === "compiled"` theme (see that
  * function's own call site). An authored theme (every theme on disk today, `build` absent) never runs
  * these checks — this module changes nothing about the 7 live themes' validation.
+ *
+ * Scope decision, deliberate and recorded rather than deferred silently: {@link checkArtifactHashes}
+ * verifies only the files `build.artifactHashes` LISTS, not a full-tree inventory (every generated
+ * file present with a hash, no untracked extras, symlink rejection) the way a marketplace-grade
+ * integrity check would. This is proportionate, not an oversight — its correctness depends on an
+ * unresolved product question the FINAL debate report leaves to the owner: *who authors a built
+ * theme?* If it is the site's own CI/publisher, listed-file hashing already closes the failure mode
+ * that matters (drift after the fact). If a built theme can ever be a marketplace fetch from an
+ * unrelated third party, listed-file hashing is not the floor — an untrusted publisher could ship an
+ * extra unhashed file (a symlink escape, a payload never covered by `artifactHashes`) and this gate
+ * would not see it. **Trigger for promotion:** the day a built theme can originate from an untrusted
+ * publisher, promote {@link checkArtifactHashes} to a full-tree inventory (every file under the
+ * generated region has a listed hash, every listed hash has a file, symlink entries rejected outright)
+ * — the same posture `mcp-federation`'s plugin-extraction hardening already uses for the identical
+ * "content from someone other than the operator" threat model.
  */
 
 /**

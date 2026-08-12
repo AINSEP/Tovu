@@ -17,8 +17,8 @@ import { buildThemesRegistrations, type ThemeToolDeps } from "../tool-registrati
  * before. Exercised through the real tool handler (not the bare pure function) so this proves the wire,
  * not just the policy.
  *
- * Note: this does not cover `src/server/routes/admin/themes/explore.ts` (the human-editor PUT/reset/
- * rename routes) — that file is outside this pass's scope; see the handoff report for why.
+ * The human-editor half — `src/server/routes/admin/themes/explore.ts`'s PUT/reset/copy/rename routes —
+ * is covered separately in `src/server/routes/admin/themes/__tests__/explore-built-theme-gate.test.ts`.
  */
 
 const SENTINEL = '<link rel="stylesheet" href="../css/styles.css" />';
