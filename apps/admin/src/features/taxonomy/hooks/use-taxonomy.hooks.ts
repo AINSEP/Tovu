@@ -1,8 +1,7 @@
 import { useMemo, useState } from "react";
 import { type AdminTaxonomy, type AdminTaxonomyWithTerms, type AdminTerm } from "../../../lib/api";
-import { describeApiError } from "../../../lib/api";
 import { useFetchMutation, useFetchQuery } from "../../../lib/fetch-query";
-import { describeDeleteBlocked, findSelectedTerm, KEYS, type DeleteBlockedState } from "../rules";
+import { describeDeleteBlocked, findSelectedTerm, KEYS, visibleTaxonomyError, type DeleteBlockedState } from "../rules";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { TAXONOMY_DICT, t as translate } from "../taxonomy-i18n";
 import { defaultTaxonomyPort } from "./taxonomy-dependencies.hooks";
@@ -148,17 +147,19 @@ export function useTaxonomy(port: TaxonomyPort, locale: string, t: (key: string)
 
   const selected = useMemo(() => findSelectedTerm(taxonomies, selectedTermId), [taxonomies, selectedTermId]);
 
-  // Precedence: an active delete's own hard failure outranks a background list-refresh failure —
-  // same reasoning as `redirects/rules.ts`'s `visibleRedirectsError` (a stale list-refresh error
-  // should not read as "your delete failed"). A *blocked* (409) delete is excluded entirely — it
-  // already has its own scoped `deleteTermBlocked`/`deleteTaxonomyBlocked` slot, so folding it into
-  // this banner too would show the identical refusal twice.
-  const error =
-    (deleteTermBlocked ? null : deleteTermMutation.error && describeApiError(deleteTermMutation.error, translate(locale, "Failed to delete term"))) ??
-    (deleteTaxonomyBlocked
-      ? null
-      : deleteTaxonomyMutation.error && describeApiError(deleteTaxonomyMutation.error, translate(locale, "Failed to delete taxonomy"))) ??
-    (list.error ? describeApiError(list.error, translate(locale, "failed to load taxonomies")) : null);
+  // Precedence logic lives in `rules.ts`'s `visibleTaxonomyError` — extracted out of this hook (not
+  // just for the usual "computes a value" reason, but because the branching here pushed the hook's
+  // own complexity over ESLint's ceiling).
+  const error = visibleTaxonomyError({
+    deleteTermBlocked: deleteTermBlocked !== null,
+    deleteTermError: deleteTermMutation.error,
+    deleteTermFallback: translate(locale, "Failed to delete term"),
+    deleteTaxonomyBlocked: deleteTaxonomyBlocked !== null,
+    deleteTaxonomyError: deleteTaxonomyMutation.error,
+    deleteTaxonomyFallback: translate(locale, "Failed to delete taxonomy"),
+    listError: list.error,
+    listFallback: translate(locale, "failed to load taxonomies"),
+  });
 
   function requestDeleteTerm(term: AdminTerm | null) {
     setPendingDeleteTermState(term);

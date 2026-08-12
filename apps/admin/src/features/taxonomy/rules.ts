@@ -1,4 +1,4 @@
-import { ApiError, type AdminTaxonomyWithTerms, type AdminTerm } from "../../lib/api";
+import { ApiError, describeApiError, type AdminTaxonomyWithTerms, type AdminTerm } from "../../lib/api";
 import type { QueryKey } from "../../lib/fetch-query";
 
 /**
@@ -27,6 +27,37 @@ import type { QueryKey } from "../../lib/fetch-query";
 export const KEYS = {
   list: ["taxonomies"] as QueryKey,
 };
+
+/**
+ * `useTaxonomy`'s page-level error banner, extracted out of that hook (`refactor/fetch-query`
+ * complexity pass, 2026-08-12 — the hook's own precedence chain over three sources pushed it to
+ * complexity 10 against a ceiling of 9). Precedence: an active delete's own hard failure outranks a
+ * background list-refresh failure — same reasoning as `redirects/rules.ts`'s `visibleRedirectsError`
+ * (a stale list-refresh error should not read as "your delete failed"). A *blocked* (409) delete is
+ * excluded entirely — it already has its own scoped `deleteTermBlocked`/`deleteTaxonomyBlocked` slot
+ * in `useTaxonomy`, so folding it into this banner too would show the identical refusal twice.
+ *
+ * @complexity Time/space: O(1) — three fixed checks, no iteration.
+ */
+export function visibleTaxonomyError(params: {
+  deleteTermBlocked: boolean;
+  deleteTermError: Error | null;
+  deleteTermFallback: string;
+  deleteTaxonomyBlocked: boolean;
+  deleteTaxonomyError: Error | null;
+  deleteTaxonomyFallback: string;
+  listError: Error | null;
+  listFallback: string;
+}): string | null {
+  if (!params.deleteTermBlocked && params.deleteTermError) {
+    return describeApiError(params.deleteTermError, params.deleteTermFallback);
+  }
+  if (!params.deleteTaxonomyBlocked && params.deleteTaxonomyError) {
+    return describeApiError(params.deleteTaxonomyError, params.deleteTaxonomyFallback);
+  }
+  if (params.listError) return describeApiError(params.listError, params.listFallback);
+  return null;
+}
 
 /** Depth of `term` within its taxonomy's `parentId` chain, bounded against cycles by a visited
  * set (server-side cycle detection should prevent one, but this render helper never trusts that

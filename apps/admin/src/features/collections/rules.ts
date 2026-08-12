@@ -45,6 +45,32 @@ export const KEYS = {
   ],
 };
 
+/**
+ * `useCollectionEntryEditor`'s `error` banner, extracted out of that hook (`refactor/fetch-query`
+ * complexity pass, 2026-08-12 — the hook's own precedence chain over three independent mutations
+ * pushed it to complexity 12 against a ceiling of 9). `update`/`create` share ONE fallback string,
+ * matching the pre-migration `save()`'s single `translate(locale, "save failed")` for both branches;
+ * `lifecycleFallback` is `null` whenever there is no `lastLifecycleOp` to describe the failure with
+ * (nothing has been attempted yet), which this treats as "no lifecycle error to show" even if
+ * `lifecycleError` is somehow set.
+ *
+ * @complexity Time/space: O(1) — three fixed checks, no iteration.
+ */
+export function visibleEntryEditorError(params: {
+  updateError: Error | null;
+  createError: Error | null;
+  lifecycleError: Error | null;
+  saveFallback: string;
+  lifecycleFallback: string | null;
+}): string | null {
+  if (params.updateError) return describeApiError(params.updateError, params.saveFallback);
+  if (params.createError) return describeApiError(params.createError, params.saveFallback);
+  if (params.lifecycleError && params.lifecycleFallback) {
+    return describeApiError(params.lifecycleError, params.lifecycleFallback);
+  }
+  return null;
+}
+
 const KEY_GRAMMAR = /^[a-z][a-z0-9_]{0,63}$/;
 const RESERVED_KEYS = new Set(["post", "page"]);
 

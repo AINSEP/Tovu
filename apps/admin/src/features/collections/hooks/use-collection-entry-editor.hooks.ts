@@ -8,7 +8,7 @@ import {
   type AdminTaxonomyWithTerms,
 } from "../../../lib/api";
 import { useFetchMutation, useFetchQuery } from "../../../lib/fetch-query";
-import { KEYS } from "../rules";
+import { KEYS, visibleEntryEditorError } from "../rules";
 import { WidgetEmbed } from "../../../lib/widget-embed-extension";
 import { navigate as defaultNavigate } from "../../../lib/router";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
@@ -222,12 +222,16 @@ export function useCollectionEntryEditor(
   }
 
   const saving = updateMutation.status === "pending" || createMutation.status === "pending";
-  const error =
-    (updateMutation.error && describeApiError(updateMutation.error, translate(locale, "save failed"))) ??
-    (createMutation.error && describeApiError(createMutation.error, translate(locale, "save failed"))) ??
-    (lifecycleMutation.error && lastLifecycleOp
-      ? describeApiError(lifecycleMutation.error, entryLifecycleFailureMessage(locale, lastLifecycleOp))
-      : null);
+  // Precedence logic lives in `rules.ts`'s `visibleEntryEditorError` — extracted out of this hook
+  // (not just for the usual "computes a value" reason, but because the branching here pushed the
+  // hook's own complexity over ESLint's ceiling).
+  const error = visibleEntryEditorError({
+    updateError: updateMutation.error,
+    createError: createMutation.error,
+    lifecycleError: lifecycleMutation.error,
+    saveFallback: translate(locale, "save failed"),
+    lifecycleFallback: lastLifecycleOp ? entryLifecycleFailureMessage(locale, lastLifecycleOp) : null,
+  });
 
   return {
     contentType,
