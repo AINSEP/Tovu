@@ -354,6 +354,58 @@ export function isJsonColumnName(sqlColumnName: string): boolean {
   return sqlColumnName.endsWith("_json");
 }
 
+/**
+ * Columns that ARE genuinely JSON but whose SQL/TS names do not follow this schema's `_json`/`Json`
+ * naming convention (`isJsonColumnName`) — so the convention-based check in `classifyCoreColumn` below
+ * cannot see them at all, on its own. Keyed by `"{sql_table_name}.{sql_column_name}"`, the same idiom
+ * as `REVIEWED_INTEGER_ID_COLUMNS` above: this map IS the review, not a cache of one performed
+ * elsewhere, so each entry carries its own rationale rather than being a bare name list.
+ *
+ * Found by the 2026-08-12 round-3 audit: `composio_config.auth_config_ids` is a JSON object per its
+ * own schema.ts doc comment ("a JSON object mapping connector id → Composio auth-config id"), but
+ * neither its SQL name (`auth_config_ids` — no `_json` suffix) nor its TS name (`authConfigIds` — ends
+ * `Ids`, not `Json`) matches the convention, so it silently classified `plain-text` and `verifyJsonText`
+ * never ran on it (see `classifyCoreColumn`'s `SQLiteText` case). Both of this schema's `_json`-scan
+ * regression tests in `migration-manifest.test.ts` stayed green right alongside the gap, because both
+ * read one of the two naming conventions this column fails on both sides of — see that file's own
+ * LEDGER #14 comment for exactly what those tests do and do not prove. A follow-up scan of every
+ * `text()` column in `schema.ts` whose doc comment mentions "JSON" (or defaults to the JSON literal
+ * `"{}"`/`"[]"`) found four more instances of the identical gap — five total, none renamed here (a
+ * rename touches every reader/writer of the column and is a separate change with its own blast
+ * radius).
+ *
+ * Deliberately an ALLOWLIST, not a broader heuristic (e.g. "any text column whose doc comment mentions
+ * JSON") — a hand-reviewed, hand-maintained list is exactly the failure mode
+ * `REVIEWED_INTEGER_ID_COLUMNS`'s own doc rejected for the bigint policy, so this one is paired with
+ * the same kind of gate that registry has: `migration-manifest.test.ts`'s own staleness test asserts
+ * every key here still names a real column in `schema.ts` today, and a separate test asserts no entry
+ * here is redundant with `isJsonColumnName` (which would mean the allowlist grew a stale duplicate
+ * instead of staying exactly the columns the naming convention cannot see).
+ */
+export const REVIEWED_JSON_COLUMNS: Readonly<Record<string, { readonly rationale: string }>> = {
+  "posts.ext": {
+    rationale:
+      'the plugin extension-field bag, `{ [pluginId]: { ...fields } }` per schema.ts\'s own doc comment on this ' +
+      'column; defaults to the literal JSON object \'{}\', not an empty string',
+  },
+  "composio_config.auth_config_ids": {
+    rationale:
+      "a JSON object mapping connector id → Composio auth-config id, per schema.ts's own table-header and " +
+      "column doc comments — the column this gap was originally found on",
+  },
+  "external_mcp_servers.args": {
+    rationale: "a JSON array of argv strings for the federated MCP server's launch command, per schema.ts's own doc comment",
+  },
+  "external_mcp_servers.allowed_tool_names": {
+    rationale:
+      "a JSON array of admissible remote tool names — a SECURITY column per schema.ts's own doc comment " +
+      "(default-deny federation: an empty array correctly yields zero tools), not merely a convenience field",
+  },
+  "external_mcp_servers.env_names": {
+    rationale: "a JSON array of environment-variable NAMES (plaintext; the values themselves are sealed separately), per schema.ts's own doc comment",
+  },
+};
+
 // ---------------------------------------------------------------------------
 // 5. Copy transforms — boolean is the one real case in the core schema today
 // ---------------------------------------------------------------------------
@@ -409,7 +461,15 @@ export function classifyCoreColumn(sqlTableName: string, col: SQLiteColumn): Sem
       return { kind: "plain-integer" };
     }
     case "SQLiteText": {
-      if (isJsonColumnName(col.name)) return { kind: "json-text" };
+      // REVIEWED_JSON_COLUMNS checked ALONGSIDE the naming convention, not only as a fallback after it
+      // — a column can be genuinely JSON while matching neither `isJsonColumnName` nor
+      // `isTimestampColumnName`, which is exactly the round-3-audit gap that registry closes (see its
+      // own doc). Order between the two checks does not matter (either can be genuinely JSON on its
+      // own), but JSON is checked before the timestamp convention so a hypothetical future registry
+      // entry could never be shadowed by a column also matching `_at`/`at` — not possible for any
+      // column in `schema.ts` today (no name both ends `_json`-or-registry AND `_at`), but the ordering
+      // documents the intended precedence regardless.
+      if (isJsonColumnName(col.name) || REVIEWED_JSON_COLUMNS[key]) return { kind: "json-text" };
       if (isTimestampColumnName(col.name)) return { kind: "utc-timestamp-text" };
       return { kind: "plain-text" };
     }
