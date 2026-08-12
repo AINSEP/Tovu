@@ -1,6 +1,6 @@
 import { mapFormsWriteError, toAdminFormDefinitionResponse } from "#src/server/http/admin/forms";
 import { createFormDefinition } from "#src/forms/write-service";
-import type { FieldDescriptor, NotifyConfig } from "#src/forms/types";
+import type { FieldDescriptor, NotifyConfig } from "#src/forms/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { FormsRouteRegistrar } from "./deps";
 

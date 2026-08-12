@@ -4,7 +4,7 @@ import {
   FormDefinitionNotFoundError,
   FormRateLimitExceededError,
   FormSubmissionValidationError,
-} from "#src/forms/errors";
+} from "#src/forms/index";
 import { submitForm, type SubmitFormDeps } from "#src/forms/submit-service";
 import { resolveClientIp } from "#src/core/rate-limit/rate-limit";
 
