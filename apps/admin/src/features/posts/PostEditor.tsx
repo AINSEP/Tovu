@@ -5,6 +5,7 @@ import { ConfirmDialog } from "@jini-ai/admin/react";
 import { SrcDocSandbox } from "@jini-ai/ui/renderers";
 
 import { EmbedInsertControl } from "../../components/EmbedInsertControl/EmbedInsertControl";
+import { api } from "../../lib/api";
 import { siteUrl } from "../../lib/site-url";
 import { usePostEditor, type PostEditorView } from "./hooks/use-post-editor.hooks";
 import { PostTemplateModal } from "./PostTemplateModal";
@@ -300,6 +301,7 @@ export function PostEditor({ postId, usePostEditorHook = usePostEditor }: PostEd
     deleting,
     confirmLeave,
     dirty,
+    contentDirty,
     save,
     remove,
   } = usePostEditorHook(postId);
@@ -523,7 +525,15 @@ export function PostEditor({ postId, usePostEditorHook = usePostEditor }: PostEd
         // `editor.getJSON()` in its own dirty comparison — TipTap's content lives in the editor's
         // own imperative state, and `onUpdate`'s `bodyVersion` bump is what makes this re-evaluate
         // after a keystroke rather than going stale.
-        <PostPreview bodyHtml={editor?.getHTML() ?? ""} slug={slug} status={status} dirty={dirty} />
+        <PostPreview
+          id={post.id}
+          bodyHtml={editor?.getHTML() ?? ""}
+          slug={slug}
+          status={status}
+          dirty={dirty}
+          contentDirty={contentDirty}
+          templateChoice={templateChoice}
+        />
       ) : (
         <div
           className="editor-shell post-editor-pane"
@@ -584,25 +594,36 @@ export function PostEditor({ postId, usePostEditorHook = usePostEditor }: PostEd
 
 /**
  * Renders the post the way the Preview tab shows it — mirrors `features/pages/PageEditor.tsx`'s
- * `PagePreview` exactly, same branching rule and same reasoning, reused rather than reinvented (see
- * `ADS-memory/reports/implementation/2026-08-11-html-view-and-preview.md` for the original decision
- * record this repeats): a PUBLISHED, un-dirtied post is shown by iframing its own real public URL
- * (`siteUrl`, the same helper the "view ↗" link already uses) directly — the exact response a
- * visitor gets, template/theme CSS/nav/footer/widget resolution and all, with zero risk of a second
- * render path drifting from the real one (`renderDocNode`, `src/server/http/site/render.ts` — out
- * of this change's scope, and reimplementing it here would be exactly that drift risk).
+ * `PagePreview`, same three-way branching rule and same reasoning (see that function's own doc for
+ * the full explanation; `ADS-memory/reports/implementation/2026-08-11-html-view-and-preview.md` has
+ * the original decision record this repeats, and `2026-08-11-template-preview-render-bug.md` has the
+ * template-preview fix below):
  *
- * A draft, or a published post with unsaved edits, has nothing (or stale content) at that public
- * URL yet — `getPublishedPostBySlug` 404s on anything not `status: "published"`, and unsaved edits
- * are by definition not saved there until Save runs — so both fall back to a rendering of the LIVE
- * EDITOR BUFFER instead, with a notice explaining why the theme isn't applied. Unlike Pages (whose
- * body already IS raw HTML), a post's body is TipTap `bodyJson`, so the fallback's `bodyHtml` comes
- * from `editor.getHTML()` — TipTap's own client-side serializer, not the server's `renderDocNode` —
- * fed into the same sandboxed `SrcDocSandbox` Pages' fallback uses. This is a deliberately shallower
- * render than the real one (plain marks-to-tags only: no widget resolution, no media-transform
- * URLs, no theme wrapper) — disclosed as a rough shape/content check, not parity, for the same
- * reason the live-site branch above exists: building a second `renderDocNode` here would be the
- * duplication this whole approach is chosen to avoid.
+ * 1. **Live site** (`status === "published" && !dirty`): iframes the real public URL (`siteUrl`, the
+ *    same helper the "view ↗" link already uses) — the exact response a visitor gets,
+ *    template/theme CSS/nav/footer/widget resolution and all.
+ * 2. **Template preview, own fix (2026-08-11)** (`status === "published" && !contentDirty`, i.e.
+ *    title/slug/status/body/`overridesThemePage` all match what's saved and the post IS published —
+ *    only `templateChoice` is pending): iframes `api.templatePreviewUrl`, the SAME real render
+ *    pipeline as branch 1, looked up by id instead of by public slug. This is the fix, and exactly the
+ *    reported bug's own repro: picking a template from the dropdown correctly marks `dirty`, which
+ *    used to fall the preview all the way back to branch 3 regardless of which template was picked
+ *    (that fallback never read `templateChoice` at all). Gated on `status === "published"` rather than
+ *    just `!contentDirty` — a draft's own body does not survive this same render pipeline intact (a
+ *    disclosed, separate limitation in the shared "content" marker resolver's visibility guard; see
+ *    `ADS-memory/reports/implementation/2026-08-11-template-preview-render-bug.md` for the full
+ *    root-cause writeup and why widening this to drafts was deliberately not attempted).
+ * 3. **Raw fallback** (everything else — a draft, regardless of its own dirtiness, or a published post
+ *    with `contentDirty`, i.e. the operator actually edited title/slug/status/body/
+ *    `overridesThemePage`): nothing at the public URL or the template-preview endpoint reflects a
+ *    draft or unsaved edits, so this renders the LIVE EDITOR BUFFER instead. Unlike Pages (whose body
+ *    already IS raw HTML), a post's body is TipTap `bodyJson`, so `bodyHtml` comes from
+ *    `editor.getHTML()` — TipTap's own client-side serializer, not the server's `renderDocNode` — fed
+ *    into the same sandboxed `SrcDocSandbox` Pages' fallback uses. This is a deliberately shallower
+ *    render than the real one (plain marks-to-tags only: no widget resolution, no media-transform
+ *    URLs, no theme wrapper) — disclosed as a rough shape/content check, not parity, for the same
+ *    reason the live-site branch exists: building a second `renderDocNode` here would be the
+ *    duplication this whole approach is chosen to avoid.
  *
  * No device-width scaling here (unlike `PagePreview`) — that machinery exists so an operator can
  * preview a page at Desktop/Tablet/Mobile widths, which nothing in this dispatch asked for on the
@@ -610,17 +631,26 @@ export function PostEditor({ postId, usePostEditorHook = usePostEditor }: PostEd
  * it always has.
  */
 function PostPreview({
+  id,
   bodyHtml,
   slug,
   status,
   dirty,
+  contentDirty,
+  templateChoice,
 }: {
+  id: string;
   bodyHtml: string;
   slug: string;
   status: "draft" | "published";
   dirty: boolean;
+  contentDirty: boolean;
+  templateChoice: string | null;
 }) {
   const canShowLiveSite = status === "published" && !dirty;
+  // Template-preview fix (2026-08-11) — see this function's own doc, branch 2, for why `status ===
+  // "published"` is required here rather than just `!contentDirty`.
+  const canShowTemplatePreview = status === "published" && !contentDirty && !canShowLiveSite;
 
   return (
     <>
@@ -632,15 +662,24 @@ function PostPreview({
             className="editor-preview-iframe"
             referrerPolicy="no-referrer"
           />
+        ) : canShowTemplatePreview ? (
+          <iframe
+            src={api.templatePreviewUrl(id, templateChoice)}
+            title="Post preview"
+            className="editor-preview-iframe"
+            referrerPolicy="no-referrer"
+          />
         ) : (
           <SrcDocSandbox html={bodyHtml} title="Post preview" className="editor-preview-iframe" />
         )}
       </div>
       {canShowLiveSite ? null : (
         <p className="editor-preview-notice">
-          {status !== "published"
-            ? "This is a rough render of the editor buffer only — publish this post to preview it with the theme's real template and CSS."
-            : "This is a rough render of the editor buffer only — save your changes to preview them with the theme's real template and CSS."}
+          {canShowTemplatePreview
+            ? "Previewing your saved content through the newly selected template — save to update the live post."
+            : status !== "published"
+              ? "This is a rough render of the editor buffer only — publish this post to preview it with the theme's real template and CSS."
+              : "This is a rough render of the editor buffer only — save your changes to preview them with the theme's real template and CSS."}
         </p>
       )}
     </>

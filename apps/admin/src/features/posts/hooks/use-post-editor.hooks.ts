@@ -88,6 +88,16 @@ export interface PostEditorController {
    *  (`useDirtyGuard`'s `isDirty`), exposed directly so the Preview tab can decide whether the
    *  saved, published post at its public URL still matches what's in the editor right now. */
   dirty: boolean;
+  /**
+   * Template-preview fix (2026-08-11) — `dirty` MINUS the `templateChoice` comparison: whether
+   * title/slug/status/body/`overridesThemePage` differ from what's saved. A post can be `dirty`
+   * (Save button lit) while `contentDirty` is `false` — that's exactly "only the template picker
+   * moved" — which is what lets `PostPreview` show a real template-applied render for the pending
+   * choice instead of falling all the way back to a rendering of the raw TipTap buffer. Mirrors
+   * `features/pages/hooks/use-page-editor.hooks.ts`'s identical field. See `ADS-memory/reports/
+   * implementation/2026-08-11-template-preview-render-bug.md` for the bug this fixes.
+   */
+  contentDirty: boolean;
   save: (statusOverride?: "draft" | "published") => Promise<void>;
   remove: () => Promise<void>;
 }
@@ -202,6 +212,19 @@ export function usePostEditor(postId: string): PostEditorController {
     original,
   );
 
+  // Template-preview fix (2026-08-11) — see `contentDirty`'s doc on `PostEditorController`. Same
+  // `JSON.stringify` comparison `useDirtyGuard`'s own `shallowJsonEqual` uses for `bodyJson` (a fresh
+  // object reference from `editor.getJSON()` every call, so `!==` alone would always report dirty),
+  // inlined here rather than a second `useDirtyGuard` call so this doesn't register its own redundant
+  // `beforeunload` listener for a value nothing reads for that purpose.
+  const contentDirty =
+    original !== null &&
+    (title !== original.title ||
+      slug !== original.slug ||
+      status !== original.status ||
+      JSON.stringify(editor?.getJSON() ?? null) !== JSON.stringify(original.bodyJson) ||
+      overridesThemePage !== original.overridesThemePage);
+
   /**
    * Persists title/slug/body, optionally forcing `status` to a specific value first —
    * `statusOverride` is omitted for the plain Save button (keeps whatever the status select is
@@ -297,6 +320,7 @@ export function usePostEditor(postId: string): PostEditorController {
     deleting,
     confirmLeave,
     dirty: isDirty,
+    contentDirty,
     save,
     remove,
   };

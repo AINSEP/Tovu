@@ -1,6 +1,7 @@
 import { registerAdminPostListRoute } from "../routes/admin/posts/list";
 import { registerAdminPostCreateRoute } from "../routes/admin/posts/create";
 import { registerAdminPostGetRoute } from "../routes/admin/posts/get-by-id";
+import { registerAdminPostTemplatePreviewRoute } from "../routes/admin/posts/template-preview";
 import { registerAdminPostUpdateRoute } from "../routes/admin/posts/update";
 import { registerAdminPostDeleteRoute } from "../routes/admin/posts/delete";
 import { registerAdminPageListRoute } from "../routes/admin/pages/list";
@@ -57,6 +58,11 @@ import type { ServerModuleHandle } from "./types";
  * `deps.themes`/`deps.themesDir` the theme-rescan/list registrations already read, and the download
  * route ends by calling the same `rescanThemes` `rescan-themes.ts` already exposes as its own route —
  * now 16 registrations total.
+ *
+ * Template-preview fix (2026-08-11, `ADS-memory/reports/implementation/
+ * 2026-08-11-template-preview-render-bug.md`): added `registerAdminPostTemplatePreviewRoute` — reuses
+ * `routes/site/pages.ts`'s exported `renderViaTemplate` (why `ContentRouteDeps` grew the four render-
+ * pipeline repos, see that type's own doc), no new dependency shape of its own.
  */
 export function createContentModule(deps: ContentRouteDeps): ServerModuleHandle {
   return {
@@ -65,6 +71,7 @@ export function createContentModule(deps: ContentRouteDeps): ServerModuleHandle 
       registerAdminPostListRoute(app, deps);
       registerAdminPostCreateRoute(app, deps);
       registerAdminPostGetRoute(app, deps);
+      registerAdminPostTemplatePreviewRoute(app, deps);
       registerAdminPostUpdateRoute(app, deps);
       registerAdminPostDeleteRoute(app, deps);
       registerAdminPageListRoute(app, deps);

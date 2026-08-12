@@ -70,6 +70,15 @@ export interface PageEditorController {
    * page mid-edit asks first instead of discarding work.
    */
   dirty: boolean;
+  /**
+   * Template-preview fix (2026-08-11) — `dirty` MINUS the `templateChoice` comparison: whether
+   * title/slug/status/body differ from what's saved. A page can be `dirty` (Save button lit) while
+   * `contentDirty` is `false` — that's exactly "only the template picker moved" — which is what lets
+   * `PagePreview` show a real template-applied render for the pending choice instead of falling all
+   * the way back to the raw, unstyled body. See `ADS-memory/reports/implementation/
+   * 2026-08-11-template-preview-render-bug.md` for the bug this fixes.
+   */
+  contentDirty: boolean;
   save: (nextStatus?: "draft" | "published") => Promise<void>;
   remove: () => Promise<void>;
   confirmingDelete: boolean;
@@ -217,6 +226,14 @@ export function usePageEditor(routeSlug: string): PageEditorController {
     }
   }, [page, locale]);
 
+  // Template-preview fix (2026-08-11) — see `contentDirty`'s doc on `PageEditorController`.
+  const contentDirty =
+    page !== null &&
+    (title !== page.title ||
+      slug !== page.slug ||
+      status !== page.status ||
+      (page.bodyFormat === "html" && html !== savedHtml));
+
   return {
     page,
     error,
@@ -240,13 +257,13 @@ export function usePageEditor(routeSlug: string): PageEditorController {
     // HTML changes only count when they're actually savable (see `save()`'s `canSaveHtml`) — for a
     // doc-format Page, `html` never reflects real persisted content, so comparing it to `savedHtml`
     // would report edits as dirty (or, worse, as clean) independent of anything actually saveable.
-    dirty:
-      page !== null &&
-      (title !== page.title ||
-        slug !== page.slug ||
-        status !== page.status ||
-        templateChoice !== savedTemplateChoice ||
-        (page.bodyFormat === "html" && html !== savedHtml)),
+    //
+    // Split into `contentDirty` (title/slug/status/body) plus the `templateChoice` comparison, rather
+    // than one combined expression, so `PagePreview` can tell "only the template picker moved" apart
+    // from "the operator actually edited something" — see `contentDirty`'s own doc on
+    // `PageEditorController` for why that distinction exists.
+    contentDirty,
+    dirty: contentDirty || templateChoice !== savedTemplateChoice,
     save,
     remove,
     confirmingDelete,

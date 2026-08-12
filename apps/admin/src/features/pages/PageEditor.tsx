@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { ConfirmDialog, InteractiveHtmlEditor } from "@jini-ai/admin/react";
 import { SrcDocSandbox } from "@jini-ai/ui/renderers";
 
+import { api } from "../../lib/api";
 import { siteUrl } from "../../lib/site-url";
 import { navigate } from "../../lib/router";
 import { prettifyHtml } from "./lib/prettify-html";
@@ -156,6 +157,7 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = usePageEditor 
     setDevice,
     saving,
     dirty,
+    contentDirty,
     save,
     remove,
     confirmingDelete,
@@ -315,7 +317,16 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = usePageEditor 
       </div>
 
       {view === "preview" ? (
-        <PagePreview html={html} width={PAGE_PREVIEW_WIDTHS[device]} slug={slug} status={status} dirty={dirty} />
+        <PagePreview
+          id={page.id}
+          html={html}
+          width={PAGE_PREVIEW_WIDTHS[device]}
+          slug={slug}
+          status={status}
+          dirty={dirty}
+          contentDirty={contentDirty}
+          templateChoice={templateChoice}
+        />
       ) : view === "interactive" ? (
         // Remounts with fresh `html` on every tab switch — see `InteractiveHtmlEditor`'s own file
         // header for why it reads `html` once at mount rather than reacting to later prop changes.
@@ -372,43 +383,72 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = usePageEditor 
  * `renderViaTemplate`/`renderStaticPage`.
  *
  * Rather than reimplement that whole server-side render pipeline a second time in the admin (a
- * second source of truth that would drift from `src/server/routes/site/pages.ts`'s real one), a
- * PUBLISHED, un-dirtied page is shown by iframing the real public URL (`siteUrl`) directly — the
- * exact same response a visitor gets, template, theme CSS, nav/footer and all, with zero risk of the
- * two ever disagreeing. This is deliberately a preview of the SAVED page, not the live editor
- * buffer: `getPublishedPostBySlug` (`features/post/post.ts`) 404s on anything not `status:
- * "published"`, so a draft has nothing at that URL to show yet, and unsaved edits in the buffer
- * are, by definition, not at that URL either until Save runs. Both cases fall back to the previous
- * raw-body-in-sandbox view (still useful for a rough shape/content check) with a notice explaining
- * why the theme isn't applied, instead of failing to explain the gap the way the unconditional
- * raw view silently did before.
+ * second source of truth that would drift from `src/server/routes/site/pages.ts`'s real one), THREE
+ * branches share the real pipeline instead of one:
  *
- * The public URL is cross-origin from the admin (`:5173` vs. `:3000` in dev) — by design, since it
- * has to be the real site, not a re-hosted copy. `<iframe src>` embedding does not require CORS (only
- * script-driven cross-origin reads do), and this codebase sets no `X-Frame-Options`/
- * `frame-ancestors` anywhere that would block it (checked `src/server/app.ts`). The cross-origin
- * document's `contentDocument` is therefore unreachable from here — nothing in this component (or
- * the raw-view fallback) depends on reaching into it.
+ * 1. **Live site** (`status === "published" && !dirty`, i.e. nothing pending at all): iframes the
+ *    real public URL (`siteUrl`) directly — the exact same response a visitor gets.
+ * 2. **Template preview, own fix (2026-08-11)** (`status === "published" && !contentDirty`, i.e.
+ *    title/slug/status/body all match what's saved and the row IS published — only `templateChoice`
+ *    is pending): iframes `api.templatePreviewUrl`, an admin-only render of this SAME saved content
+ *    through the PENDING template choice — same render pipeline as branch 1 (`renderViaTemplate`,
+ *    `routes/admin/posts/template-preview.ts`), just looked up by id instead of by public slug. This
+ *    is the fix, and exactly the reported bug's own repro: picking a template from the dropdown marks
+ *    `dirty` (correctly — it IS an unsaved change to `templateChoice`), which used to fall the preview
+ *    all the way back to branch 3 below — raw, unstyled, and blind to which template was even
+ *    selected, which is why re-picking a DIFFERENT template while already dirty used to look like
+ *    nothing happened (branch 3 never reads `templateChoice` at all). See `ADS-memory/reports/
+ *    implementation/2026-08-11-template-preview-render-bug.md` for the full root-cause writeup AND why
+ *    this branch is gated on `status === "published"` rather than just `!contentDirty` — a draft's own
+ *    body does not survive this same render pipeline intact (a disclosed, separate limitation in the
+ *    shared "content" marker resolver, not something worth widening this fix to work around).
+ * 3. **Raw fallback** (everything else — a draft, regardless of its own dirtiness, or a published page
+ *    with `contentDirty`, i.e. the operator actually edited title/slug/status/body): `SrcDocSandbox`
+ *    over the raw, un-templated buffer. For a draft this is unchanged from before this fix. For a
+ *    dirty published page, it's genuinely the best available preview, since neither the public URL nor
+ *    the template-preview endpoint can see edits that were never saved.
  *
- * `SrcDocSandbox` (`@jini-ai/ui/renderers`) gives the raw-view fallback's document an opaque origin:
- * its `sandbox` attribute omits `allow-same-origin`, which is asserted by that component's own
- * regression test, so generated markup cannot reach the admin's cookies, storage or DOM even though
- * scripts run in it. The live-site branch below does not need that same sandboxing — it is the same
- * origin-appropriate, unsandboxed load any real site visitor already gets, and adding `sandbox`
- * there would only break the theme's own scripts (nav toggle, reveal-on-scroll) for no security gain.
+ * All three branches fill the same scaled box identically (`.page-preview-iframe` sets
+ * `width/height: 100%` on every element), so `3ac885e`'s live pane-width tracking and the
+ * toolbar-to-preview spacing are unaffected by which one renders.
+ *
+ * The public URL and the template-preview endpoint are both cross-origin from the admin in dev
+ * (`:5173` vs. `:3000`) — by design for branch 1 (it has to be the real site, not a re-hosted copy);
+ * branch 2 goes through the SAME `/api` dev-proxy rule (`apps/admin/vite.config.ts`) every other
+ * admin API call already uses, so the `tovu_session` cookie (`SameSite=Strict`) travels with it the
+ * same way — see `template-preview.ts`'s own file header for why a real URL (not `srcDoc`) is
+ * required for the theme's `/theme-assets/...` CSS to resolve at all. `<iframe src>` embedding does
+ * not require CORS (only script-driven cross-origin reads do), and this codebase sets no
+ * `X-Frame-Options`/`frame-ancestors` anywhere that would block it (checked `src/server/app.ts`). The
+ * cross-origin document's `contentDocument` is therefore unreachable from here — nothing in this
+ * component (or the raw-view fallback) depends on reaching into it.
+ *
+ * `SrcDocSandbox` (`@jini-ai/ui/renderers`) gives branch 3's document an opaque origin: its `sandbox`
+ * attribute omits `allow-same-origin`, which is asserted by that component's own regression test, so
+ * generated markup cannot reach the admin's cookies, storage or DOM even though scripts run in it.
+ * Branches 1 and 2 do not need that same sandboxing — both are same-origin-appropriate, unsandboxed
+ * loads (a real visitor's load, or an authenticated admin's own content through the real theme), and
+ * adding `sandbox` there would only break the theme's own scripts (nav toggle, reveal-on-scroll) for
+ * no security gain.
  */
 function PagePreview({
+  id,
   html,
   width,
   slug,
   status,
   dirty,
+  contentDirty,
+  templateChoice,
 }: {
+  id: string;
   html: string;
   width: number;
   slug: string;
   status: "draft" | "published";
   dirty: boolean;
+  contentDirty: boolean;
+  templateChoice: string | null;
 }) {
   const frameRef = useRef<HTMLDivElement>(null);
   // The frame's REAL rendered width, measured live via `ResizeObserver` rather than a guessed
@@ -436,6 +476,16 @@ function PagePreview({
 
   const scale = Math.min(1, paneWidth / width);
   const canShowLiveSite = status === "published" && !dirty;
+  // Template-preview fix (2026-08-11) — see this function's own doc, branch 2. Deliberately requires
+  // `status === "published"`, NOT just `!contentDirty`: a draft's own `{"type":"content"}` slot still
+  // resolves through `resolveHtmlPageEmbeds`'s visibility-filtered "content" resolver
+  // (`resolver-service.ts`'s guard 2, `findPublishedPostById`), which returns nothing for an
+  // unpublished row — confirmed live in this fix's own integration test
+  // (`admin-post-template-preview.test.ts`'s draft case). Widening this to drafts would show styled
+  // chrome around an EMPTY body (the REQ-28 placeholder), which reads as "my content disappeared" —
+  // worse than the honest raw-body fallback a draft already gets. So this is exactly the reported
+  // bug's own scenario: published, body/title/slug all saved, only `templateChoice` is pending.
+  const canShowTemplatePreview = status === "published" && !contentDirty && !canShowLiveSite;
 
   return (
     <>
@@ -451,6 +501,13 @@ function PagePreview({
               className="page-preview-iframe"
               referrerPolicy="no-referrer"
             />
+          ) : canShowTemplatePreview ? (
+            <iframe
+              src={api.templatePreviewUrl(id, templateChoice)}
+              title="Page preview"
+              className="page-preview-iframe"
+              referrerPolicy="no-referrer"
+            />
           ) : (
             <SrcDocSandbox html={html} title="Page preview" className="page-preview-iframe" />
           )}
@@ -458,9 +515,11 @@ function PagePreview({
       </div>
       {canShowLiveSite ? null : (
         <p className="page-preview-notice">
-          {status !== "published"
-            ? "This is the raw body only — publish this page to preview it with the theme's real template and CSS."
-            : "This is the raw body only — save your changes to preview them with the theme's real template and CSS."}
+          {canShowTemplatePreview
+            ? "Previewing your saved content through the newly selected template — save to update the live page."
+            : status !== "published"
+              ? "This is the raw body only — publish this page to preview it with the theme's real template and CSS."
+              : "This is the raw body only — save your changes to preview them with the theme's real template and CSS."}
         </p>
       )}
     </>

@@ -313,6 +313,7 @@ function postController(overrides: Partial<PostEditorController> = {}): PostEdit
     deleting: false,
     confirmLeave: () => true,
     dirty: false,
+    contentDirty: false,
     save: vi.fn(),
     remove: vi.fn(),
     ...overrides,
@@ -363,27 +364,63 @@ describe("Edit/Preview toolbar", () => {
   // doc comment in `PostEditor.tsx`) — a published, un-dirtied post iframes its real public URL;
   // anything else falls back to a rendering of the editor buffer with a notice explaining why.
   it("preview iframes the real public URL when the post is published and has no unsaved changes", () => {
-    renderPostEditor({ view: "preview", status: "published", dirty: false, slug: "hello-world" });
+    renderPostEditor({ view: "preview", status: "published", dirty: false, contentDirty: false, slug: "hello-world" });
     const preview = screen.getByTitle("Post preview");
     expect(preview).toHaveAttribute("src", expect.stringContaining("/hello-world"));
     expect(screen.queryByText(/preview them with the theme/i)).not.toBeInTheDocument();
   });
 
-  // `SrcDocSandbox` also renders an `<iframe title="Post preview">` (via `srcDoc`, not `src`) — the
-  // fallback is distinguished by the ABSENCE of a `src` attribute, same idiom `PageEditor.unit.test.tsx`
-  // uses for its own equivalent branch.
-  it("preview falls back to a rendering of the editor buffer, with a notice, for a draft post", () => {
-    renderPostEditor({ view: "preview", status: "draft", dirty: false });
+  // Template-preview fix (2026-08-11, `ADS-memory/reports/implementation/
+  // 2026-08-11-template-preview-render-bug.md`) — deliberately UNCHANGED for a draft, even a clean one
+  // (`contentDirty` false): a draft's own `{"type":"content"}` slot does not survive the shared render
+  // pipeline's visibility-filtered "content" resolver (confirmed live in `admin-post-template-preview
+  // .test.ts`'s own draft case — the body degrades to an empty placeholder, which would read as "my
+  // content disappeared"), so `canShowTemplatePreview` requires `status === "published"` and a draft
+  // keeps the pre-existing editor-buffer fallback.
+  it("preview still falls back to the editor-buffer sandbox for a clean draft post (drafts are out of this fix's scope)", () => {
+    renderPostEditor({ view: "preview", status: "draft", dirty: false, contentDirty: false });
     const preview = screen.getByTitle("Post preview");
     expect(preview).not.toHaveAttribute("src");
     expect(screen.getByText(/publish this post to preview it with the theme/i)).toBeInTheDocument();
   });
 
-  it("preview falls back to a rendering of the editor buffer, with a notice, when a published post has unsaved changes", () => {
-    renderPostEditor({ view: "preview", status: "published", dirty: true });
+  // Template-preview fix (2026-08-11) — the reported bug's exact repro: picking a DIFFERENT template
+  // on an otherwise-untouched published post. `dirty` is correctly `true` (an unsaved `templateChoice`
+  // change), but `contentDirty` stays `false` — this must show a real templated render, not the
+  // editor-buffer sandbox. Before the fix, `dirty` alone gated the fallback, so switching templates
+  // rendered unstyled and looked identical across every template (the fallback never read
+  // `templateChoice`).
+  it("preview shows a real templated render, with the pending template in the URL, when only the template choice is dirty on a published post", () => {
+    renderPostEditor({
+      view: "preview",
+      status: "published",
+      dirty: true,
+      contentDirty: false,
+      templateChoice: "blog-post.html",
+    });
+    const preview = screen.getByTitle("Post preview");
+    expect(preview).toHaveAttribute("src", expect.stringContaining("/p1/template-preview"));
+    expect(preview).toHaveAttribute("src", expect.stringContaining("templateChoice=blog-post.html"));
+    expect(screen.getByText(/save to update the live post/i)).toBeInTheDocument();
+  });
+
+  // `SrcDocSandbox` also renders an `<iframe title="Post preview">` (via `srcDoc`, not `src`) — the
+  // fallback is distinguished by the ABSENCE of a `src` attribute, same idiom `PageEditor.unit.test.tsx`
+  // uses for its own equivalent branch. Reachable when a published post's body/title/slug/status
+  // itself has unsaved edits (`contentDirty: true`). Same notice wording as before this fix; only the
+  // branching condition changed.
+  it("preview falls back to a rendering of the editor buffer, with a notice, when the post body itself has unsaved edits", () => {
+    renderPostEditor({ view: "preview", status: "published", dirty: true, contentDirty: true });
     const preview = screen.getByTitle("Post preview");
     expect(preview).not.toHaveAttribute("src");
     expect(screen.getByText(/save your changes to preview them with the theme/i)).toBeInTheDocument();
+  });
+
+  it("preview falls back to a rendering of the editor buffer, with a notice, for a draft post with unsaved edits", () => {
+    renderPostEditor({ view: "preview", status: "draft", dirty: true, contentDirty: true });
+    const preview = screen.getByTitle("Post preview");
+    expect(preview).not.toHaveAttribute("src");
+    expect(screen.getByText(/publish this post to preview it with the theme/i)).toBeInTheDocument();
   });
 
   // The template picker is a publish-time setting, not tab-specific content — it has to survive the

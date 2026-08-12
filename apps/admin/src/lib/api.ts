@@ -1099,6 +1099,18 @@ export const api = {
     }),
   getPost: (id: string) =>
     request<{ post: AdminPost }>(`/workspaces/${WORKSPACE_ID}/posts/${id}`),
+  // Template-preview fix (2026-08-11). Kind-blind like getPost/updatePost/deletePost above — one
+  // route serves both editors' Preview tabs (`routes/admin/posts/template-preview.ts`'s own file
+  // header explains why). NOT run through `request()`: the caller points an `<iframe src>` directly
+  // at this URL rather than fetching+parsing JSON, so this only builds the string.
+  //
+  // `templateChoice`'s tri-state (see `resolveTemplate`'s doc) is preserved through the query string:
+  // `null` omits the param entirely ("never chosen"), `""` sends `?templateChoice=` (the explicit
+  // "No template chosen" opt-out), anything else sends that filename.
+  templatePreviewUrl: (id: string, templateChoice: string | null) =>
+    `${BASE}/workspaces/${WORKSPACE_ID}/posts/${encodeURIComponent(id)}/template-preview${
+      templateChoice === null ? "" : `?templateChoice=${encodeURIComponent(templateChoice)}`
+    }`,
   updatePost: (
     { id }: { id: string },
     options: Partial<Pick<AdminPost, "title" | "slug" | "bodyJson" | "status" | "templateChoice" | "overridesThemePage">> = {}
