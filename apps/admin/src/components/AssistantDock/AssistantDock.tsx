@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   A2uiSurfaceCard,
   ChatPane,
@@ -9,6 +9,7 @@ import {
   registerExtEventRenderer,
   registerMcpUiSurfaceRenderer,
   type ChatPaneAgent,
+  type ComposerDiscoveryOutcome,
   type ComposerDiscoverySelection,
   type FrontendSessionBridge,
 } from "@jini-ai/chat/react";
@@ -23,9 +24,12 @@ import { useWiredAssistantChats, type UseAssistantChats } from "../../hooks/use-
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { ASSISTANT_DOCK_DICT, createChatI18nAdapter } from "./assistant-dock-i18n";
 import {
-  TOVU_COMPOSER_DISCOVERY_GROUPS,
+  createBundledComposerCapabilitySource,
+  emptyComposerCapabilityProjection,
+  projectComposerCapabilities,
   resolveTovuComposerDiscoveryRoute,
-} from "../../features/plugins/agent-plugin-catalog";
+  type ComposerCapabilityProjection,
+} from "../../features/plugins/composer-capabilities";
 import "../../styles/assistant.css";
 // The runtime picker's BYOK model row renders `@jini-ai/ui`'s `SearchableModelSelect`, whose
 // styles (including the body-portaled `.jini-select-menu`) live in this sheet. The settings
@@ -67,10 +71,17 @@ import {
  * unwraps the wire envelope to the bare `EmbeddedResource` this renderer's `parseUIResource`
  * requires. All three pieces are needed; any one missing renders an empty frame or a dialog that
  * cannot complete its action.
+ *
+ * Hoisted to a named binding (`mcpUiToolCaller`), not passed inline, because it has a second
+ * caller: `resolveComposerHostBinding` below reuses the exact same allowlisted, session-cookie
+ * route for a composer capability's `'allowlisted-tool-call'` binding (debate 2, "Composer slash
+ * commands" — that binding is real infrastructure, unwired to any capability in the bundled
+ * catalog today, since nothing is on `MCP_UI_REDEEMABLE_TOOL_IDS`'s allowlist for that purpose;
+ * see `composer-capabilities.ts`'s module doc). One instance, one endpoint, one allowlist gate —
+ * never a second POST path to the same route.
  */
-registerMcpUiSurfaceRenderer({
-  onToolCall: createMcpUiToolCaller("", { path: "/api/admin/v1/mcp-ui/tool-calls" }),
-});
+const mcpUiToolCaller = createMcpUiToolCaller("", { path: "/api/admin/v1/mcp-ui/tool-calls" });
+registerMcpUiSurfaceRenderer({ onToolCall: mcpUiToolCaller });
 
 /**
  * A2UI's counterpart to the MCP-UI wiring above — same module-scope-once posture, same "one line
@@ -146,6 +157,55 @@ async function fetchAgents(): Promise<ChatPaneAgent[]> {
   if (!response.ok) return [];
   const { agents } = (await response.json()) as { agents: ChatPaneAgent[] };
   return agents;
+}
+
+export interface ResolveComposerDiscoveryOutcomeDeps {
+  readonly capabilities: ComposerCapabilityProjection;
+  readonly navigate: (path: string) => void;
+  /** Structurally `@jini-ai/chat/react`'s `McpUiToolCallHandler` — the same instance registered
+   * for MCP-UI surface rendering above (`mcpUiToolCaller`), reused rather than re-instantiated. */
+  readonly callAllowlistedTool: (call: { name: string; arguments: Record<string, unknown> }) => Promise<unknown> | unknown;
+}
+
+/**
+ * Resolves one composer selection into its effect — the host half of debate 2's projection
+ * ("Composer slash commands"). Checks the existing client-local route first (`/mcp`'s settings
+ * navigation, unchanged since before this projection existed), then falls through to a projected
+ * capability's own {@link ComposerHostBinding} (see `composer-capabilities.ts`'s module doc for
+ * what each binding kind means and why there are only two). Returns the `ComposerDiscoveryOutcome`
+ * Jini's `Composer` applies to the draft, or `undefined` when nothing should change it — e.g. `/mcp`
+ * navigating away, or an unresolvable item id (never true for a live selection, but not assumed).
+ *
+ * A free function rather than inline in the component: every dependency is explicit and injected,
+ * so the resolution logic (including the `'allowlisted-tool-call'` branch, unreachable through any
+ * bundled capability today) is provable without rendering `AssistantDock` at all.
+ *
+ * @complexity O(1) plus the cost of `callAllowlistedTool` when a tool-call binding is resolved.
+ * @overallScore 100
+ */
+export async function resolveComposerDiscoveryOutcome(
+  selection: ComposerDiscoverySelection,
+  deps: ResolveComposerDiscoveryOutcomeDeps,
+): Promise<ComposerDiscoveryOutcome | void> {
+  const route = resolveTovuComposerDiscoveryRoute(selection.item.id);
+  if (route) {
+    deps.navigate(route);
+    return;
+  }
+
+  const capability = deps.capabilities.byItemId.get(selection.item.id);
+  if (!capability?.resolve) return;
+
+  const binding = capability.resolve(selection.argument);
+  if (binding.kind === "compose-text") return { draft: binding.text };
+
+  // 'allowlisted-tool-call': POSTs through the same session-authenticated, allowlist-gated route
+  // MCP-UI surface confirmations already use. Rejects with `TOOL_NOT_ALLOWLISTED` (403) for any
+  // tool id not on `MCP_UI_REDEEMABLE_TOOL_IDS` — true for every binding in the bundled catalog
+  // today, since none is wired to this kind yet. The rejection propagates to the caller, where
+  // Jini's `runComposerHostEffect` reports it and leaves the draft untouched.
+  await Promise.resolve(deps.callAllowlistedTool({ name: binding.toolName, arguments: binding.params }));
+  return { draft: "" };
 }
 
 export interface AssistantDockProps {
@@ -267,10 +327,46 @@ export function AssistantDock({
     [],
   );
   const chats = useChats();
-  const handleComposerDiscoverySelect = useCallback((selection: ComposerDiscoverySelection) => {
-    const route = resolveTovuComposerDiscoveryRoute(selection.item.id);
-    if (route) navigate(route);
+  /**
+   * The composer's discovery catalog, projected asynchronously (debate 2, "Composer slash
+   * commands") — replaces the pre-2026-08-12 static `TOVU_COMPOSER_DISCOVERY_GROUPS` import.
+   * Starts empty rather than pre-seeded: the whole point of `ComposerCapabilitySource.list()`
+   * being a `Promise` is that a source may genuinely need a round trip (a future tool-registry-
+   * backed source, or the Agent Plugins adapter another workstream is building against this same
+   * contract), so this component makes no assumption that resolution is instant even though
+   * today's only source (`createBundledComposerCapabilitySource`) happens to be.
+   *
+   * Mirrors this file's own `fetchAgents()`/`runtimeAccess` pattern: fetched once per mount, and
+   * a failed projection (a future live source's fetch failing, or a duplicate-id contract
+   * violation) falls back to the empty catalog rather than crashing the dock — same "MCP
+   * navigation remains available; the failure is contained" posture `fetchAgents` already uses for
+   * its own `!response.ok` branch.
+   */
+  const [composerCapabilities, setComposerCapabilities] = useState<ComposerCapabilityProjection>(
+    emptyComposerCapabilityProjection,
+  );
+  useEffect(() => {
+    let cancelled = false;
+    projectComposerCapabilities([createBundledComposerCapabilitySource()])
+      .then((projection) => {
+        if (!cancelled) setComposerCapabilities(projection);
+      })
+      .catch((error: unknown) => {
+        console.error("[AssistantDock] composer capability projection failed", error);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
+  const handleComposerDiscoverySelect = useCallback(
+    (selection: ComposerDiscoverySelection) =>
+      resolveComposerDiscoveryOutcome(selection, {
+        capabilities: composerCapabilities,
+        navigate,
+        callAllowlistedTool: mcpUiToolCaller,
+      }),
+    [composerCapabilities],
+  );
 
   /**
    * Last assistant message id seen in a terminal state, so a run's completion fires the settings
@@ -423,11 +519,12 @@ export function AssistantDock({
         onMessagesChange={handleMessagesChange}
         runContext={runContext}
         uploadAttachments={uploadAttachments}
-        // Host-owned, data-only inventory. Jini renders/filter/selects it generically; these rows
-        // describe source-backed resources and do not claim that Agent Plugin installation or
-        // execution exists. The same catalog drives the grouped plus menu and `/` autocomplete.
+        // Host-owned, data-only inventory, now an async projection (debate 2) instead of a static
+        // import. Jini renders/filter/selects it generically; these rows describe source-backed
+        // resources and do not claim that Agent Plugin installation or execution exists. The same
+        // catalog drives the grouped plus menu and `/` autocomplete.
         composerSlots={{
-          discoveryGroups: TOVU_COMPOSER_DISCOVERY_GROUPS,
+          discoveryGroups: composerCapabilities.groups,
           onDiscoverySelect: handleComposerDiscoverySelect,
         }}
         // Restricts the composer's file picker to image MIME types. Not a security boundary —
