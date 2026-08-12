@@ -1,9 +1,7 @@
 import { DataTable } from "@jini-ai/admin/react";
 
-import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { pluginToggleControl } from "./rules";
-import { usePlugins } from "./hooks/use-plugins.hooks";
-import { t as translatePlugins } from "./plugins-i18n";
+import { useWiredPlugins } from "./hooks/use-plugins.hooks";
 
 /**
  * @file `Plugins` — the admin plugins list + enable/disable screen (SPEC-005 REQ-12..18,
@@ -30,7 +28,7 @@ export interface PluginsProps {
    * for `useCustomSelect`. Defaulted to the real hook, so production callers (`panels.tsx`) pass
    * nothing and behave exactly as before.
    */
-  usePluginsHook?: typeof usePlugins;
+  usePluginsHook?: typeof useWiredPlugins;
 }
 
 /**
@@ -40,10 +38,8 @@ export interface PluginsProps {
  * @complexity O(n) render in the number of discovered plugins.
  * @overallScore 100
  */
-export function Plugins({ usePluginsHook = usePlugins }: PluginsProps = {}) {
-  const { plugins, error, rowError, rowSavingId, onToggleEnabled } = usePluginsHook();
-  const locale = useAdminLocale();
-  const t = (key: string): string => translatePlugins(locale, key);
+export function Plugins({ usePluginsHook = useWiredPlugins }: PluginsProps = {}) {
+  const { plugins, error, rowError, rowSavingId, onToggleEnabled, t, locale } = usePluginsHook();
 
   if (error) return <div className="notice error">{error}</div>;
   if (!plugins) return <div className="notice">{t("Loading plugins…")}</div>;
