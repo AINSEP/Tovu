@@ -69,11 +69,20 @@ function findViolatingFiles(): Set<string> {
   const violating = new Set<string>();
   for (const result of results) {
     const relPath = path.relative(REPO_ROOT, result.filePath);
-    // Mirrors `eslint.config.mjs`'s own `ignores: ['apps/admin/src/**/__tests__/**']` on its error/9
-    // block: test files are excluded from this gate entirely, not tracked as debt, so they must be
-    // excluded here too or a violating test file would be reported as a "new" violation forever
-    // (it can never be added to `admin-complexity-debt.json` — see that file's `_comment`).
-    if (relPath.includes(`${path.sep}__tests__${path.sep}`)) continue;
+    // Mirrors `eslint.config.mjs`'s own `ignores` on its error/9 block: test files are excluded
+    // from this gate entirely, not tracked as debt, so they must be excluded here too or a
+    // violating test file would be reported as a "new" violation forever (it can never be added to
+    // `admin-complexity-debt.json` — see that file's `_comment`).
+    //
+    // `__measurements__/` is the same category under a different name — vitest files asserting
+    // request counts and render costs rather than correctness. It is a SEPARATE directory, not a
+    // child of `__tests__/`, so the original single-pattern check missed it and reported the
+    // render-churn harness as a permanently-unfixable new violation the moment it landed.
+    if (
+      relPath.includes(`${path.sep}__tests__${path.sep}`) ||
+      relPath.includes(`${path.sep}__measurements__${path.sep}`)
+    )
+      continue;
     const hasComplexityFinding = result.messages.some(
       (m) => m.ruleId === "complexity" || m.ruleId === "sonarjs/cognitive-complexity"
     );
