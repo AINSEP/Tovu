@@ -1,7 +1,8 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { useTaxonomy } from "../hooks/use-taxonomy.hooks";
+import { useTaxonomy, useWiredTaxonomy } from "../hooks/use-taxonomy.hooks";
+import { createFakeTaxonomyPort } from "../hooks/taxonomy-dependencies.hooks";
 
 /**
  * @file `useTaxonomy` — the top-level "Categories & Tags" screen state, extracted so it is
@@ -40,7 +41,7 @@ afterEach(() => {
 
 it("loads taxonomies on mount and exposes them", async () => {
   fetchMock.mockResolvedValueOnce(jsonResponse({ items: [GROUP] }));
-  const { result } = renderHook(() => useTaxonomy());
+  const { result } = renderHook(() => useWiredTaxonomy());
   await waitFor(() => expect(result.current.taxonomies).not.toBeNull());
   expect(result.current.taxonomies).toEqual([GROUP]);
   expect(result.current.error).toBeNull();
@@ -48,7 +49,7 @@ it("loads taxonomies on mount and exposes them", async () => {
 
 it("sets a translated error and leaves taxonomies null when the load fails", async () => {
   fetchMock.mockResolvedValueOnce(jsonResponse({ error: "boom" }, 500));
-  const { result } = renderHook(() => useTaxonomy());
+  const { result } = renderHook(() => useWiredTaxonomy());
   await waitFor(() => expect(result.current.error).not.toBeNull());
   expect(result.current.error).toBe("boom");
   expect(result.current.taxonomies).toBeNull();
@@ -58,7 +59,7 @@ it("load() re-fetches and replaces taxonomies (used as onCreated/onRenamed/onMer
   fetchMock
     .mockResolvedValueOnce(jsonResponse({ items: [GROUP] }))
     .mockResolvedValueOnce(jsonResponse({ items: [] }));
-  const { result } = renderHook(() => useTaxonomy());
+  const { result } = renderHook(() => useWiredTaxonomy());
   await waitFor(() => expect(result.current.taxonomies).toEqual([GROUP]));
 
   act(() => result.current.load());
@@ -68,14 +69,14 @@ it("load() re-fetches and replaces taxonomies (used as onCreated/onRenamed/onMer
 describe("selected", () => {
   it("stays null until a term id is selected", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ items: [GROUP] }));
-    const { result } = renderHook(() => useTaxonomy());
+    const { result } = renderHook(() => useWiredTaxonomy());
     await waitFor(() => expect(result.current.taxonomies).not.toBeNull());
     expect(result.current.selected).toBeNull();
   });
 
   it("resolves to the matching taxonomy+term once setSelectedTermId is called — wires findSelectedTerm", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ items: [GROUP] }));
-    const { result } = renderHook(() => useTaxonomy());
+    const { result } = renderHook(() => useWiredTaxonomy());
     await waitFor(() => expect(result.current.taxonomies).not.toBeNull());
 
     act(() => result.current.setSelectedTermId("a"));
@@ -85,7 +86,7 @@ describe("selected", () => {
 
   it("clears back to null when setSelectedTermId(null) is called", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ items: [GROUP] }));
-    const { result } = renderHook(() => useTaxonomy());
+    const { result } = renderHook(() => useWiredTaxonomy());
     await waitFor(() => expect(result.current.taxonomies).not.toBeNull());
 
     act(() => result.current.setSelectedTermId("a"));
@@ -100,14 +101,14 @@ describe("formOpen", () => {
   // `Integrations.tsx`'s `formOpen` idiom — see this hook's own comment.
   it("starts closed", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ items: [GROUP] }));
-    const { result } = renderHook(() => useTaxonomy());
+    const { result } = renderHook(() => useWiredTaxonomy());
     await waitFor(() => expect(result.current.taxonomies).not.toBeNull());
     expect(result.current.formOpen).toBe(false);
   });
 
   it("toggles via the functional setter, same signature as useIntegrations' formOpen", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ items: [GROUP] }));
-    const { result } = renderHook(() => useTaxonomy());
+    const { result } = renderHook(() => useWiredTaxonomy());
     await waitFor(() => expect(result.current.taxonomies).not.toBeNull());
 
     act(() => result.current.setFormOpen((v) => !v));
@@ -127,7 +128,7 @@ describe("delete term", () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ items: [GROUP] }))
       .mockResolvedValueOnce(jsonResponse({ error: "still assigned", code: "TERM_HAS_ASSIGNMENTS", assignedCount: 2 }, 409));
-    const { result } = renderHook(() => useTaxonomy());
+    const { result } = renderHook(() => useWiredTaxonomy());
     await waitFor(() => expect(result.current.taxonomies).not.toBeNull());
 
     act(() => result.current.requestDeleteTerm(TERM_A));
@@ -141,7 +142,7 @@ describe("delete term", () => {
 
   it("confirmDeleteTerm is a no-op when nothing is pending", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ items: [GROUP] }));
-    const { result } = renderHook(() => useTaxonomy());
+    const { result } = renderHook(() => useWiredTaxonomy());
     await waitFor(() => expect(result.current.taxonomies).not.toBeNull());
 
     await act(() => result.current.confirmDeleteTerm());
@@ -159,7 +160,7 @@ describe("delete term", () => {
       .mockResolvedValueOnce(jsonResponse({ items: [GROUP] }))
       .mockResolvedValueOnce(jsonResponse({ deletedTermId: "a" }))
       .mockResolvedValueOnce(jsonResponse({ items: [] }));
-    const { result } = renderHook(() => useTaxonomy());
+    const { result } = renderHook(() => useWiredTaxonomy());
     await waitFor(() => expect(result.current.taxonomies).not.toBeNull());
     act(() => result.current.setSelectedTermId("a"));
 
@@ -180,7 +181,7 @@ describe("delete term", () => {
       .mockResolvedValueOnce(jsonResponse({ items: [groupWithTwo] }))
       .mockResolvedValueOnce(jsonResponse({ deletedTermId: "b" }))
       .mockResolvedValueOnce(jsonResponse({ items: [groupWithTwo] }));
-    const { result } = renderHook(() => useTaxonomy());
+    const { result } = renderHook(() => useWiredTaxonomy());
     await waitFor(() => expect(result.current.taxonomies).not.toBeNull());
     act(() => result.current.setSelectedTermId("a"));
 
@@ -194,7 +195,7 @@ describe("delete term", () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ items: [GROUP] }))
       .mockResolvedValueOnce(jsonResponse({ error: "still assigned", code: "TERM_HAS_ASSIGNMENTS", assignedCount: 3 }, 409));
-    const { result } = renderHook(() => useTaxonomy());
+    const { result } = renderHook(() => useWiredTaxonomy());
     await waitFor(() => expect(result.current.taxonomies).not.toBeNull());
 
     act(() => result.current.requestDeleteTerm(TERM_A));
@@ -216,7 +217,7 @@ describe("delete term", () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ items: [GROUP] }))
       .mockResolvedValueOnce(jsonResponse({ error: "server exploded" }, 500));
-    const { result } = renderHook(() => useTaxonomy());
+    const { result } = renderHook(() => useWiredTaxonomy());
     await waitFor(() => expect(result.current.taxonomies).not.toBeNull());
 
     act(() => result.current.requestDeleteTerm(TERM_A));
@@ -233,7 +234,7 @@ describe("delete taxonomy", () => {
       .mockResolvedValueOnce(jsonResponse({ items: [GROUP] }))
       .mockResolvedValueOnce(jsonResponse({ deletedTaxonomyId: "tax1", deletedTermIds: ["a"] }))
       .mockResolvedValueOnce(jsonResponse({ items: [] }));
-    const { result } = renderHook(() => useTaxonomy());
+    const { result } = renderHook(() => useWiredTaxonomy());
     await waitFor(() => expect(result.current.taxonomies).not.toBeNull());
     act(() => result.current.setSelectedTermId("a"));
 
@@ -250,7 +251,7 @@ describe("delete taxonomy", () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ items: [GROUP] }))
       .mockResolvedValueOnce(jsonResponse({ error: "blocked", code: "TAXONOMY_HAS_ASSIGNMENTS", assignedCount: 1 }, 409));
-    const { result } = renderHook(() => useTaxonomy());
+    const { result } = renderHook(() => useWiredTaxonomy());
     await waitFor(() => expect(result.current.taxonomies).not.toBeNull());
 
     act(() => result.current.requestDeleteTaxonomy(GROUP.taxonomy));
@@ -262,10 +263,39 @@ describe("delete taxonomy", () => {
 
   it("confirmDeleteTaxonomy is a no-op when nothing is pending", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ items: [GROUP] }));
-    const { result } = renderHook(() => useTaxonomy());
+    const { result } = renderHook(() => useWiredTaxonomy());
     await waitFor(() => expect(result.current.taxonomies).not.toBeNull());
 
     await act(() => result.current.confirmDeleteTaxonomy());
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("useTaxonomy — injected port", () => {
+  it("loads taxonomies on mount from the fake port's seed, with no fetch involved", async () => {
+    const networkMock = vi.fn();
+    vi.stubGlobal("fetch", networkMock);
+    const port = createFakeTaxonomyPort({ groups: [GROUP] });
+
+    const { result } = renderHook(() => useTaxonomy(port, "en"));
+
+    await waitFor(() => expect(result.current.taxonomies).not.toBeNull());
+    expect(result.current.taxonomies).toEqual([GROUP]);
+    expect(networkMock).not.toHaveBeenCalled();
+  });
+
+  it("a 409 from the fake port sets deleteTermBlocked, not the page error banner", async () => {
+    const port = createFakeTaxonomyPort({
+      groups: [GROUP],
+      onDeleteTermBlocked: () => ({ code: "TERM_HAS_ASSIGNMENTS", assignedCount: 2 }),
+    });
+    const { result } = renderHook(() => useTaxonomy(port, "en"));
+    await waitFor(() => expect(result.current.taxonomies).not.toBeNull());
+
+    act(() => result.current.requestDeleteTerm(TERM_A));
+    await act(() => result.current.confirmDeleteTerm());
+
+    expect(result.current.deleteTermBlocked?.state.code).toBe("TERM_HAS_ASSIGNMENTS");
+    expect(result.current.error).toBeNull();
   });
 });

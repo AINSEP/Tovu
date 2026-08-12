@@ -1,11 +1,11 @@
 import type { AdminTaxonomy, AdminTaxonomyWithTerms, AdminTerm } from "../../lib/api";
 import { ConfirmDialog, RowMenu } from "@jini-ai/admin/react";
 import { termDepth, otherMergeTargets, type DeleteBlockedState } from "./rules";
-import { useNewTermForm } from "./hooks/use-new-term-form.hooks";
-import { useNewTaxonomyForm } from "./hooks/use-new-taxonomy-form.hooks";
-import { useMergeTermSection } from "./hooks/use-merge-term-section.hooks";
-import { useTermDetailPanel } from "./hooks/use-term-detail-panel.hooks";
-import { useTaxonomy } from "./hooks/use-taxonomy.hooks";
+import { useWiredNewTermForm } from "./hooks/use-new-term-form.hooks";
+import { useWiredNewTaxonomyForm } from "./hooks/use-new-taxonomy-form.hooks";
+import { useWiredMergeTermSection } from "./hooks/use-merge-term-section.hooks";
+import { useWiredTermDetailPanel } from "./hooks/use-term-detail-panel.hooks";
+import { useWiredTaxonomy } from "./hooks/use-taxonomy.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { TAXONOMY_DICT } from "./taxonomy-i18n";
 
@@ -78,12 +78,12 @@ export interface NewTermFormProps {
   onCreated: () => void;
   /** Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
    *  for `useCustomSelect`. */
-  useNewTermFormHook?: typeof useNewTermForm;
+  useNewTermFormHook?: typeof useWiredNewTermForm;
   /** Translator closure — see `Taxonomy()`'s own `t`. */
   t: (key: string) => string;
 }
 
-function NewTermForm({ taxonomy, onCreated, useNewTermFormHook = useNewTermForm, t }: NewTermFormProps) {
+function NewTermForm({ taxonomy, onCreated, useNewTermFormHook = useWiredNewTermForm, t }: NewTermFormProps) {
   const { open, setOpen, name, setName, parentId, setParentId, error, saving, submit } = useNewTermFormHook({
     taxonomy,
     onCreated,
@@ -144,14 +144,14 @@ function NewTermForm({ taxonomy, onCreated, useNewTermFormHook = useNewTermForm,
 
 export interface NewTaxonomyFormProps {
   onCreated: () => void;
-  useNewTaxonomyFormHook?: typeof useNewTaxonomyForm;
+  useNewTaxonomyFormHook?: typeof useWiredNewTaxonomyForm;
   /** Translator closure — see `Taxonomy()`'s own `t`. */
   t: (key: string) => string;
 }
 
 /** New-taxonomy form (REQ-02) — name + hierarchical toggle, calling `api.createTaxonomy`. Mirrors
  * `NewTermForm`'s local-state/submit/error shape. */
-function NewTaxonomyForm({ onCreated, useNewTaxonomyFormHook = useNewTaxonomyForm, t }: NewTaxonomyFormProps) {
+function NewTaxonomyForm({ onCreated, useNewTaxonomyFormHook = useWiredNewTaxonomyForm, t }: NewTaxonomyFormProps) {
   const { name, setName, hierarchical, setHierarchical, error, saving, submit } = useNewTaxonomyFormHook({ onCreated });
 
   return (
@@ -188,7 +188,7 @@ export interface MergeTermSectionProps {
   taxonomy: AdminTaxonomyWithTerms;
   term: AdminTerm;
   onMerged: () => void;
-  useMergeTermSectionHook?: typeof useMergeTermSection;
+  useMergeTermSectionHook?: typeof useWiredMergeTermSection;
   /** Translator closure — see `Taxonomy()`'s own `t`. */
   t: (key: string) => string;
 }
@@ -273,7 +273,7 @@ function MergeConfirmedStep({ busy, doExecute, t }: MergeConfirmedStepProps) {
   );
 }
 
-function MergeTermSection({ taxonomy, term, onMerged, useMergeTermSectionHook = useMergeTermSection, t }: MergeTermSectionProps) {
+function MergeTermSection({ taxonomy, term, onMerged, useMergeTermSectionHook = useWiredMergeTermSection, t }: MergeTermSectionProps) {
   const otherTerms = otherMergeTargets(taxonomy, term.id);
   const { intoTermId, setIntoTermId, step, busy, error, plan, confirmationToken, startPlan, doConfirm, doExecute } = useMergeTermSectionHook({
     term,
@@ -311,12 +311,12 @@ export interface TermDetailPanelProps {
   term: AdminTerm;
   onRenamed: () => void;
   onMerged: () => void;
-  useTermDetailPanelHook?: typeof useTermDetailPanel;
+  useTermDetailPanelHook?: typeof useWiredTermDetailPanel;
   /** Translator closure — see `Taxonomy()`'s own `t`. */
   t: (key: string) => string;
 }
 
-function TermDetailPanel({ taxonomy, term, onRenamed, onMerged, useTermDetailPanelHook = useTermDetailPanel, t }: TermDetailPanelProps) {
+function TermDetailPanel({ taxonomy, term, onRenamed, onMerged, useTermDetailPanelHook = useWiredTermDetailPanel, t }: TermDetailPanelProps) {
   const { newName, setNewName, saving, message, error, rename } = useTermDetailPanelHook({ term, onRenamed });
 
   return (
@@ -359,7 +359,7 @@ export interface TaxonomyProps {
   /** Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
    *  for `useCustomSelect`. Defaulted to the real hook, so production callers (`panels.tsx`) pass
    *  nothing and behave exactly as before. */
-  useTaxonomyHook?: typeof useTaxonomy;
+  useTaxonomyHook?: typeof useWiredTaxonomy;
 }
 
 interface TaxonomyPageHeaderProps {
@@ -459,7 +459,7 @@ function TaxonomyDeleteDialog({
   );
 }
 
-export function Taxonomy({ useTaxonomyHook = useTaxonomy }: TaxonomyProps = {}) {
+export function Taxonomy({ useTaxonomyHook = useWiredTaxonomy }: TaxonomyProps = {}) {
   const {
     taxonomies,
     error,

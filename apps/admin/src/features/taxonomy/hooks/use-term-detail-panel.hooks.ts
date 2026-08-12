@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
-import { api, describeApiError, type AdminTerm } from "../../../lib/api";
+import { describeApiError, type AdminTerm } from "../../../lib/api";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { t } from "../taxonomy-i18n";
+import { defaultTaxonomyPort } from "./taxonomy-dependencies.hooks";
+import type { TaxonomyPort } from "./taxonomy-port.hooks";
 
 /**
  * @file Everything `TermDetailPanel`'s own rename form does, so it can stay markup only.
@@ -9,6 +11,12 @@ import { t } from "../taxonomy-i18n";
  * Extracted verbatim — same state, same effect (reset on term change), same handler, same error
  * string. `MergeTermSection` (rendered inside this panel) owns its own state via
  * `use-merge-term-section.hooks.ts`; this hook does not reach into it.
+ *
+ * `port` is injected — see `taxonomy-port.hooks.ts` (shared with `use-taxonomy.hooks.ts`, since
+ * both read/write the same taxonomy/term resource) — rather than importing `lib/api` directly, so
+ * a test can describe the rename outcome against `createFakeTaxonomyPort` instead of stubbing
+ * global `fetch`. `useWiredTermDetailPanel` below is the zero-argument pair `Taxonomy.tsx` actually
+ * mounts.
  */
 
 export interface TermDetailPanelOptions {
@@ -25,8 +33,11 @@ export interface TermDetailPanelController {
   rename: (e: React.FormEvent) => Promise<void>;
 }
 
-export function useTermDetailPanel(options: TermDetailPanelOptions): TermDetailPanelController {
-  const locale = useAdminLocale();
+export function useTermDetailPanel(
+  options: TermDetailPanelOptions,
+  port: TaxonomyPort,
+  locale: string
+): TermDetailPanelController {
   const { term, onRenamed } = options;
   const [newName, setNewName] = useState(term.name);
   const [saving, setSaving] = useState(false);
@@ -46,7 +57,7 @@ export function useTermDetailPanel(options: TermDetailPanelOptions): TermDetailP
     setError(null);
     setMessage(null);
     try {
-      await api.renameTerm({ termId: term.id, newName: newName.trim() });
+      await port.renameTerm({ termId: term.id, newName: newName.trim() });
       setMessage(t(locale, "Renamed."));
       onRenamed();
     } catch (e) {
@@ -57,4 +68,15 @@ export function useTermDetailPanel(options: TermDetailPanelOptions): TermDetailP
   }
 
   return { newName, setNewName, saving, message, error, rename };
+}
+
+/**
+ * Binds the real `/api/.../taxonomy/terms` client — see `taxonomy-dependencies.hooks.ts`.
+ *
+ * The zero-argument half of the `useX(dependencies)` / `useWiredX()` pair, so `Taxonomy.tsx`
+ * composes this and a test composes {@link useTermDetailPanel} with `createFakeTaxonomyPort`.
+ */
+export function useWiredTermDetailPanel(options: TermDetailPanelOptions): TermDetailPanelController {
+  const locale = useAdminLocale();
+  return useTermDetailPanel(options, defaultTaxonomyPort, locale);
 }
