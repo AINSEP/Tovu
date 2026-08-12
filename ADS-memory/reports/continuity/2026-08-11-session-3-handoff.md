@@ -1,11 +1,41 @@
 # Handoff — session 3, 2026-08-11 (Explore/Pages/Posts UI + templates unification)
 
-**Status: IN PROGRESS — session may have been disconnected mid-flight.** Branch `general-work`.
-**Nothing pushed.**
+**Status: ALL AGENTS FINISHED AND COMMITTED.** Branch `general-work`. **Nothing pushed.**
 
 ## FIRST THING TO DO ON RESUME
 
-Two agents were live when this was written and their work may be half-finished:
+**Nothing is half-finished.** Every dispatched agent completed and committed. The "two agents were
+live" section below is kept for the record of what they were told; both have since landed:
+
+- **`TemplateRenderBug` → DONE, `6a20902`.** The hypothesis below was right in mechanism but
+  incomplete in cause: picking a template *does* mark the row dirty, but the real defect was that
+  **the fallback view never read `templateChoice` at all**, so it showed the same raw unstyled body
+  whichever template was picked. "No CSS" and "doesn't re-render" were one bug. Fixed with an
+  admin-only `/template-preview` endpoint that renders a **pending, unsaved** template choice through
+  the real pipeline without persisting it, plus a new `contentDirty` on both hooks (dirty minus the
+  template comparison) so the preview can distinguish "only the template moved" from "the operator
+  edited content". **Known limitation, disclosed not hidden: published rows only** — a draft's body
+  does not survive the content-marker resolver's visibility guard, so widening it would render styled
+  chrome around an empty body. Left for a future pass.
+- **`HeaderPolish` → DONE, `760e615` + `0ad812b`.** Title underline back under the title only, as a
+  left-to-right fade rather than a hard edge (a plain revert had already been tried and rejected live
+  for looking truncated); same rule on both editors. Explore callout collapsed to one line plus an
+  info icon, right-aligned under the button row, reclaiming ~110px. It reused the existing (and
+  previously unused) `InfoTip` component rather than building one — and found a real bug doing so:
+  the tooltip opened upward by default and clipped off-screen at `top:-5px` at this call site, now
+  flipped by a headroom check, with Escape-to-dismiss added. 183/183 tests green.
+
+Coordinator checkpoint commits `607a412` and `a7eedab` captured that agent's in-flight state before it
+finished; they are superseded by its own commits and need no action.
+
+**Two environment notes worth carrying forward:** Playwright was badly contended for a stretch —
+repeated timeouts and hangs while `curl` to the same URLs was instant — when several agents shared the
+default browser tab. Agents should open their own tab. And the shared Playwright session meant one
+agent's navigation landed in another's screenshots.
+
+### Historical — what the two agents were told (kept for context)
+
+Two agents were live when this was first written and their work may be half-finished:
 
 1. **`TemplateRenderBug`** — investigating why switching a template renders with no CSS (Posts) and
    why the preview does not re-render (Pages). **Owner-facing bug, highest priority.** Brief and
