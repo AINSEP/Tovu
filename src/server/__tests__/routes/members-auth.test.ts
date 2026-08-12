@@ -8,7 +8,7 @@ import express from "express";
 import type { MemberRecord } from "#src/members/index";
 import { createRouteDeps } from "../../app";
 import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth";
-import { createRateLimiter, MAGIC_LINK_PER_EMAIL } from "../../middleware/rate-limit";
+import { createRateLimiter, MAGIC_LINK_PER_EMAIL } from "#src/core/rate-limit/rate-limit";
 import type { MembersRouteDeps } from "../../routes/admin/members/deps";
 import { registerAdminMemberDisableRoute } from "../../routes/admin/members/disable";
 import { registerAdminMemberGetRoute } from "../../routes/admin/members/get-by-id";

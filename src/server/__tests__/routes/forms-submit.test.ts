@@ -10,7 +10,7 @@ import { InMemoryEventBus, InMemoryOutbox } from "#src/core/events/index";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "#src/forms/repo.memory";
 import { FORMS_SUBMIT_PROFILE } from "#src/forms/rate-limit-profile";
 import type { FormDefinitionRecord } from "#src/forms/types";
-import { createRateLimiter } from "../../middleware/rate-limit";
+import { createRateLimiter } from "#src/core/rate-limit/rate-limit";
 import { registerFormsSubmitRoute } from "../../routes/site/forms-submit";
 
 /**

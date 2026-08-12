@@ -1,7 +1,7 @@
 import type { Express } from "express";
 
 import { MemberValidationError, requestSignInLink } from "#src/members/index";
-import { resolveClientIp } from "../../middleware/rate-limit";
+import { resolveClientIp } from "#src/core/rate-limit/rate-limit";
 import { toPublicMembersWriteServiceDeps, type MemberPublicRouteDeps } from "./deps";
 
 /**

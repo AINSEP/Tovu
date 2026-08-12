@@ -1,7 +1,7 @@
 import { processOutbox } from "../core/events";
 import type { ClockPort, EventBusPort, IdGeneratorPort, OutboxPort, UUID } from "@jini-ai/cms/core";
 import { buildFormsRateLimitKey } from "./rate-limit-profile";
-import type { RateLimiter } from "../server/middleware/rate-limit";
+import type { RateLimiter } from "#src/core/rate-limit/rate-limit";
 import {
   FormDefinitionNotFoundError,
   FormRateLimitExceededError,

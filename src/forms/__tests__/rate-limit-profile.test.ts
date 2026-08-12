@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { buildFormsRateLimitKey, FORMS_SUBMIT_PROFILE } from "../rate-limit-profile";
-import { createRateLimiter } from "../../server/middleware/rate-limit";
+import { createRateLimiter } from "#src/core/rate-limit/rate-limit";
 
 /**
  * @file Unit tests for `buildFormsRateLimitKey`/`FORMS_SUBMIT_PROFILE` (C-010/C-011, REQ-09,

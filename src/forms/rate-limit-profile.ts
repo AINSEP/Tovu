@@ -1,10 +1,10 @@
-import type { RateLimitProfile } from "../server/middleware/rate-limit";
+import type { RateLimitProfile } from "#src/core/rate-limit/rate-limit";
 
 /**
  * @file `FORMS_SUBMIT` rate-limit profile + composite key builder (SPEC-010 REQ-09, C-010/C-011).
  *
  * Purpose:
- * Wraps the EXISTING `server/middleware/rate-limit.ts` `createRateLimiter`/`resolveClientIp`
+ * Wraps the EXISTING `core/rate-limit/rate-limit.ts` `createRateLimiter`/`resolveClientIp`
  * (Article I reuse, ADR-PIPE-010 Pattern Evaluation) — does not reimplement the fixed-window
  * algorithm. This file only pins the profile constant and composes the `(sourceIp, formId)` key
  * `createRateLimiter` expects as a plain string.

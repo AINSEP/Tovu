@@ -8,7 +8,7 @@ import { resolveBoundedHistory } from "../../assistant/site/history";
 import { resolveSiteAssistantMode } from "../../assistant/site/mode";
 import { isPublicAssistantEnabled } from "../../assistant/public-assistant-settings";
 import { resolveSiteAssistantApiKey } from "../../assistant/site-credential-store";
-import { resolveClientIp } from "../middleware/rate-limit";
+import { resolveClientIp } from "#src/core/rate-limit/rate-limit";
 import type { RouteDeps } from "../routes/types";
 import type { ServerModuleHandle } from "./types";
 
@@ -41,7 +41,7 @@ import type { ServerModuleHandle } from "./types";
  *    disabled workspace answers exactly as if this route were never registered.
  *
  * 5. **Rate-limited by IP** (SPEC-046 REQ-7). `deps.siteAssistantRateLimiter` (`SITE_ASSISTANT_PER_IP`
- *    — 10 requests / 5 minutes / IP, `server/middleware/rate-limit.ts`) is checked before any
+ *    — 10 requests / 5 minutes / IP, `core/rate-limit/rate-limit.ts`) is checked before any
  *    mode/config branch below, so a caller over budget gets a cheap 429 without touching the model
  *    provider. This closes what used to be an open item tracked against ADR-054: an anonymous
  *    endpoint in front of a paid API is a cost-attack surface without it.

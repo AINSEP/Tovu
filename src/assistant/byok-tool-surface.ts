@@ -39,7 +39,7 @@ import {
 } from "@jini-ai/core";
 import { createToolExecutor, type ToolExecutor } from "@jini-ai/daemon";
 
-import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "../server/middleware/rate-limit";
+import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/core/rate-limit/rate-limit";
 import type { RouteDeps } from "../server/routes/types";
 import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "./surface-exchanges";
 import { buildToolCatalogQuery } from "./tool-catalog-query";

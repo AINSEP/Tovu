@@ -36,7 +36,7 @@ const CATALOG_BY_ID = indexCatalogById(membersAgentToolCatalog);
 
 /**
  * The rate-limiter shape `members_request_magic_link` actually calls (`.check(key)`), declared
- * structurally instead of importing `server/middleware/rate-limit`'s nominal `RateLimiter` type.
+ * structurally instead of importing `core/rate-limit/rate-limit`'s nominal `RateLimiter` type.
  *
  * This is the one field in this file that would otherwise cost Members its whole architectural win:
  * unlike every other domain wired here, Members has no OTHER file that reaches into `server/*`

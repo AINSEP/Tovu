@@ -10,7 +10,7 @@ import {
   type PrincipalRecord,
 } from "@jini-ai/cms/identity";
 import type { RouteDeps } from "../routes/types";
-import { createRateLimiter, LOGIN_STRICT, resolveClientIp } from "./rate-limit";
+import { createRateLimiter, LOGIN_STRICT, resolveClientIp } from "#src/core/rate-limit/rate-limit";
 
 /**
  * @file Real session auth for the admin origin (ADR-021 / SPEC-006).
@@ -33,7 +33,7 @@ import { createRateLimiter, LOGIN_STRICT, resolveClientIp } from "./rate-limit";
  * - Route handlers that need "who is calling" read `getAuthedPrincipal(res)`
  *   (set here once per request) rather than re-parsing the cookie.
  * - The login route is additionally guarded by the `LOGIN_STRICT` rate-limit
- *   profile (REQ-14/AC-18, `./rate-limit.ts`) before credentials are checked.
+ *   profile (REQ-14/AC-18, `core/rate-limit/rate-limit.ts`) before credentials are checked.
  *
  * Architectural role:
  * `requireAdminSession`/`registerAuthRoutes` are middleware/route factories

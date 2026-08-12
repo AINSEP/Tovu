@@ -15,7 +15,7 @@
  * from 47 files / 7 modules to 162 files / 31 modules, which is the entire reason widgets looked
  * unextractable. A host importing a domain's projection is the correct direction; a domain
  * importing its host's transport module is not. Same misplacement species as
- * `server/middleware/rate-limit.ts` and `server/http/site/page-head.ts`, both already relocated.
+ * `core/rate-limit/rate-limit.ts` and `server/http/site/page-head.ts`, both already relocated.
  * The HTTP layer re-exports this symbol so its own consumers keep their existing import site.
  */
 import type { EntryRefRow } from "../core/entry-refs/types";

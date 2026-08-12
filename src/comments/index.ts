@@ -20,8 +20,8 @@
 import type { ClockPort, IdGeneratorPort, OutboxPort, UUID } from "@jini-ai/cms/core";
 import type { EntryRepoPort } from "../features/entries";
 import type { SettingsRepoPort } from "../features/settings";
-import { createRateLimiter } from "../server/middleware/rate-limit";
-import type { RateLimitProfile } from "../server/middleware/rate-limit";
+import { createRateLimiter } from "#src/core/rate-limit/rate-limit";
+import type { RateLimitProfile } from "#src/core/rate-limit/rate-limit";
 import { createCommentHookRegistry } from "./hooks";
 import { createCommentIngressPolicy } from "./ingress";
 import type { EntryLookupResult } from "./ingress";
@@ -82,7 +82,7 @@ export function createCommentsModule(deps: CommentsModuleDeps): CommentsModule {
   // fixed at `COMMENTS_SUBMIT_PROFILE.max` (= the same value as `DEFAULT_COMMENTS_SETTINGS.
   // maxPerIpPerHour`) — an operator changing it via the admin settings route updates the STORED
   // value but does not yet reconfigure the live limiter. Making the limiter itself dynamically
-  // reconfigurable per-workspace is a larger change to `server/middleware/rate-limit.ts`'s
+  // reconfigurable per-workspace is a larger change to `core/rate-limit/rate-limit.ts`'s
   // fixed-window counter store, out of this slice's scope (mirrors the task's own "don't build a
   // large amount of new plumbing beyond what already exists for SEO's pattern" guidance).
   const rateLimiter = createRateLimiter({ profile: COMMENTS_SUBMIT_PROFILE, clock: deps.clock });
