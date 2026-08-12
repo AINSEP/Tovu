@@ -376,4 +376,54 @@ describe("useWidgetInstanceEditor — injected port (no api spy, no router mock)
     expect(result.current.loading).toBe(true);
     expect(result.current.widget).toBeNull();
   });
+
+  /**
+   * Stale-response race (2026-08-12 audit finding, fixed alongside `use-widget-region-editor
+   * .hooks.ts` and `use-menu-editor.hooks.ts` — same commit series): this is a route-param loader
+   * the panel router reuses across every `:id`, so navigating from widget A to widget B while A's
+   * `getWidget` is still in flight must not let A's (now-stale) response land after B's — that would
+   * silently show A's title/config under B's URL, and a subsequent save would then write over the
+   * WRONG widget. Negatively verified live per this fix's own commit message: removing the
+   * `cancelled` guard from the hook's effect (restoring the pre-fix body) makes this test fail —
+   * `title` ends up `"Widget A"` instead of `"Widget B"` once A's deferred promise resolves last.
+   */
+  it("does not let a stale getWidget response (for a widget navigated away from) overwrite the currently-viewed widget", async () => {
+    let resolveA!: (value: { widget: AdminWidget; whereUsed: { count: 0; references: [] } }) => void;
+    let resolveB!: (value: { widget: AdminWidget; whereUsed: { count: 0; references: [] } }) => void;
+    const pendingA = new Promise<{ widget: AdminWidget; whereUsed: { count: 0; references: [] } }>((resolve) => {
+      resolveA = resolve;
+    });
+    const pendingB = new Promise<{ widget: AdminWidget; whereUsed: { count: 0; references: [] } }>((resolve) => {
+      resolveB = resolve;
+    });
+    const WIDGET_A: AdminWidget = { ...EXISTING_WIDGET, id: "widget-a", title: "Widget A" };
+    const WIDGET_B: AdminWidget = { ...EXISTING_WIDGET, id: "widget-b", title: "Widget B" };
+
+    const port = createFakeWidgetsPort({ widgets: [WIDGET_A, WIDGET_B] });
+    port.getWidget = (id: string) => (id === "widget-a" ? pendingA : pendingB);
+
+    const { result, rerender } = renderHook(
+      (props: { widgetId: string }) =>
+        useWidgetInstanceEditor({ widgetId: props.widgetId, widgetType: null }, { port, locale: "en", navigate: vi.fn(), t: (key: string) => key }),
+      { initialProps: { widgetId: "widget-a" } }
+    );
+
+    // Navigate to widget B before A's own request has resolved — this fires the effect's cleanup,
+    // flipping A's `cancelled` flag, and starts a fresh request for B.
+    rerender({ widgetId: "widget-b" });
+
+    // Resolve B first (the current, wanted response), then A last (the stale one) — the exact
+    // out-of-order arrival the panel router can produce on a slow/uneven connection.
+    resolveB({ widget: WIDGET_B, whereUsed: { count: 0, references: [] } });
+    await waitFor(() => expect(result.current.title).toBe("Widget B"));
+
+    resolveA({ widget: WIDGET_A, whereUsed: { count: 0, references: [] } });
+    // Give A's now-resolved (but cancelled) promise a microtask turn to attempt its (guarded) write.
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(result.current.title).toBe("Widget B");
+    expect(result.current.widget?.id).toBe("widget-b");
+  });
 });
