@@ -214,6 +214,52 @@ verified. Flag the template landmine for cleanup, not urgent).
 
 ---
 
+### Note — commerce checkout + webhook (priority #6): price is server-computed, idempotency/ordering verified correct, signature verification honestly deferred
+
+**Component:** `src/features/commerce/checkout.ts`, `src/features/commerce/webhook-inbox.ts`,
+`src/features/commerce/repo.sqlite.ts`
+
+**Price/total is never trusted from the client.** `checkout()` (`checkout.ts:78-133`) takes only
+`priceId` + `quantity` from the caller. `price.unitAmountCents` is looked up server-side via
+`deps.prices.findById({ workspaceId, id: input.priceId })` — the client cannot supply a price directly —
+and `order.totalAmountCents = price.unitAmountCents * quantity` is computed entirely from that
+server-fetched value. `quantity` is bounded `1..MAX_CHECKOUT_QUANTITY` (100) and validated as an integer
+before use, closing the "unbounded multiplier into a financial figure" class named in the code's own
+comment. A price belonging to a different workspace is indistinguishable from nonexistent
+(`findById` is workspace-scoped), so there is no cross-tenant price/product read here either.
+
+**Idempotency and ordering, verified against the actual SQL, not just the doc comment:**
+`applyProviderEvent` (`repo.sqlite.ts:339-406`) runs two statements inside one `db.transaction`:
+1. `INSERT ... ON CONFLICT (provider, eventId) DO NOTHING` — genuine DB-level replay protection (a
+   UNIQUE constraint, not an application-level check-then-insert race).
+2. `UPDATE commerceOrders SET status=... WHERE id=? AND workspaceId=? AND (providerEventAt IS NULL OR
+   providerEventAt < ?)` — a single atomic UPDATE, not a SELECT-then-UPDATE, so "is this event newer"
+   and "apply it" cannot race against a concurrent webhook delivery for the same order.
+
+Both mechanisms were traced end-to-end against the real SQL (not merely the file header's prose
+description of them) and match exactly what the comments claim.
+
+**Signature verification is honestly absent, not silently missing.** `webhook-inbox.ts`'s own header
+states outright: *"Deliberately excludes signature verification... A real provider adapter MUST verify
+the request signature before calling this function — `ingestProviderEvent` trusts `event` completely."*
+This is accurate, not aspirational: `ingestProviderEvent` has no HTTP route calling it anywhere in
+`src/server/` (grepped `applyProviderEvent`/`webhook-inbox` across `src/server/` — zero matches), so
+there is no live endpoint today that accepts an unverified webhook body. The gap to track is a REQUIRED
+item for whenever a real Stripe-or-other adapter is wired: that adapter must verify the provider's HMAC
+signature BEFORE calling `ingestProviderEvent`, since this function has no way to do it itself (it never
+sees the raw signing secret, by design — provider-specific).
+
+**Same "not yet reachable" pattern as Findings 2/3/5:** `checkout()` also has no HTTP route caller
+(`src/server/routes/site/store.ts`'s own `checkout` call is the unrelated sample `store` PLUGIN's
+in-memory demo, not `features/commerce/checkout.ts` — confirmed by reading that route file directly, not
+assumed from the name match). Both `commerce/checkout.ts` and `commerce/webhook-inbox.ts` are, like
+deployments and agent-plugins, hardened-but-unwired vertical slices from this session.
+
+**Human sign-off required:** No (no exploitable finding). Track as a REQUIRED gate: signature
+verification must land before any provider adapter is wired to `ingestProviderEvent` in production.
+
+---
+
 ### Note — deployments HTTP chokepoint + GitHub App adapter (priority #5): SSRF-hardened, credentials handled correctly
 
 **Component:** `src/http/client.ts`, `src/http/transport.fetch.ts`, `src/features/deployments/providers/github.ts`
