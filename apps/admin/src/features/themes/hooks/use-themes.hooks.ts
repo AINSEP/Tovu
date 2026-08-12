@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 
-import { api, type PresentationSettings, type ThemeTier } from "../../../lib/api";
+import { type PresentationSettings, type ThemeTier } from "../../../lib/api";
+import { defaultThemesPort } from "./themes-dependencies.hooks";
+import type { ThemesPort } from "./themes-port.hooks";
 
 /**
  * @file Everything the Themes screen does, so `Themes.tsx` is only markup.
@@ -8,7 +10,14 @@ import { api, type PresentationSettings, type ThemeTier } from "../../../lib/api
  * Extracted verbatim — same state, same effect, same error strings. Naming follows
  * `hooks/use-settings-slice.hooks.ts`: `use-<thing>.hooks.ts`. Feature-local because nothing
  * outside `features/themes` needs it.
+ *
+ * `deps.port` is injected (see `themes-port.hooks.ts`) rather than reaching for `lib/api`'s `api`
+ * directly.
  */
+
+export interface ThemesDependencies {
+  port: ThemesPort;
+}
 
 export interface ThemesController {
   /** `null` until the initial load settles — the caller renders a loading state. */
@@ -67,7 +76,7 @@ export interface MarketplaceItem {
 /**
  * @complexity Time/space: O(1) per call — one settings round trip on mount, one per `activate`.
  */
-export function useThemes(): ThemesController {
+export function useThemes({ port }: ThemesDependencies): ThemesController {
   const [settings, setSettings] = useState<PresentationSettings | null>(null);
   const [themes, setThemes] = useState<string[]>([]);
   const [themeTiers, setThemeTiers] = useState<Record<string, ThemeTier>>({});
@@ -80,7 +89,7 @@ export function useThemes(): ThemesController {
   const [downloading, setDownloading] = useState<string | null>(null);
 
   useEffect(() => {
-    api
+    port
       .getPresentation()
       .then((r) => {
         setSettings(r.settings);
@@ -103,8 +112,8 @@ export function useThemes(): ThemesController {
     setError(null);
     setRescanNotice(null);
     try {
-      const r = await api.rescanThemes();
-      const fresh = await api.getPresentation();
+      const r = await port.rescanThemes();
+      const fresh = await port.getPresentation();
       setSettings(fresh.settings);
       setThemes(fresh.availableThemeIds);
       setThemeTiers(Object.fromEntries(fresh.availableThemes.map((t) => [t.id, t.tier])));
@@ -120,7 +129,7 @@ export function useThemes(): ThemesController {
     setBusyTheme(themeId);
     setError(null);
     try {
-      const r = await api.setActiveTheme(themeId);
+      const r = await port.setActiveTheme(themeId);
       setSettings(r.settings);
     } catch (e) {
       setError(e instanceof Error ? e.message : "failed to switch theme");
@@ -132,7 +141,7 @@ export function useThemes(): ThemesController {
   async function loadMarketplace() {
     setMarketplaceLoading(true);
     try {
-      const r = await api.listMarketplaceThemes();
+      const r = await port.listMarketplaceThemes();
       setMarketplace(r.themes);
     } catch (e) {
       setError(e instanceof Error ? e.message : "failed to load the marketplace");
@@ -153,8 +162,8 @@ export function useThemes(): ThemesController {
     setError(null);
     setRescanNotice(null);
     try {
-      const r = await api.downloadMarketplaceTheme(themeId);
-      const fresh = await api.getPresentation();
+      const r = await port.downloadMarketplaceTheme(themeId);
+      const fresh = await port.getPresentation();
       setSettings(fresh.settings);
       setThemes(fresh.availableThemeIds);
       setThemeTiers(Object.fromEntries(fresh.availableThemes.map((t) => [t.id, t.tier])));
@@ -188,6 +197,16 @@ export function useThemes(): ThemesController {
     downloading,
     download,
   };
+}
+
+/**
+ * Binds the real `/api/.../presentation` + `/marketplace` client — see `themes-dependencies.hooks.ts`.
+ *
+ * The zero-argument half of the `useX(dependencies)` / `useWiredX()` pair, so `Themes.tsx` composes
+ * this and a test composes {@link useThemes} with `createFakeThemesPort`.
+ */
+export function useWiredThemes(): ThemesController {
+  return useThemes({ port: defaultThemesPort });
 }
 
 /**

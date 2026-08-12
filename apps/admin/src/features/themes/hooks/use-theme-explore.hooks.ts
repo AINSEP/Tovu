@@ -1,15 +1,21 @@
 import { useCallback, useEffect, useState } from "react";
 
-import { api, ApiError } from "../../../lib/api";
+import { ApiError } from "../../../lib/api";
+import { defaultThemeExplorePort } from "./theme-explore-dependencies.hooks";
+import type { ThemeExploreFileEntry, ThemeExplorePort, ThemeFileGroup } from "./theme-explore-port.hooks";
 
 /**
  * @file State for the Explore screen, so `ThemeExplore.tsx` is only markup — same split as
  * `use-themes.hooks.ts` / `Themes.tsx`.
+ *
+ * `deps.port` is injected (see `theme-explore-port.hooks.ts`) rather than reaching for `lib/api`'s
+ * `api` directly. `ApiError` stays a direct import — pure error-classification, no I/O, same
+ * reasoning as `redirects-port.hooks.ts`'s own exclusion of `describeApiError`.
  */
 
 export type ThemeExploreView = "preview" | "html";
 
-export type ThemeFileGroup = "page" | "partial" | "style" | "script" | "config" | "asset" | "other";
+export type { ThemeFileGroup };
 
 /** One entry in the Explore file list. */
 export interface ThemeExploreFile {
@@ -171,16 +177,7 @@ function basenameOf(path: string): string {
   return path.slice(path.lastIndexOf("/") + 1);
 }
 
-/** Server file-list entry shape, as returned by `getThemeDetail`/`copyThemeFile`/`renameThemeFile`. */
-interface ServerFileEntry {
-  path: string;
-  group: ThemeFileGroup;
-  readable: boolean;
-  editable: boolean;
-  resettable: boolean;
-}
-
-function mapDetailFiles(entries: ServerFileEntry[]): ThemeExploreFile[] {
+function mapDetailFiles(entries: ThemeExploreFileEntry[]): ThemeExploreFile[] {
   return entries.map((f) => ({
     path: f.path,
     label: fileLabel(f.path, f.group),
@@ -198,9 +195,10 @@ function mapDetailFiles(entries: ServerFileEntry[]): ThemeExploreFile[] {
  * instead of two `.map()`s drifting apart.
  */
 async function fetchThemeExploreState(
-  themeId: string
+  themeId: string,
+  port: ThemeExplorePort
 ): Promise<{ detail: ThemeExploreDetail; files: ThemeExploreFile[] }> {
-  const r = await api.getThemeDetail(themeId);
+  const r = await port.getThemeDetail(themeId);
   return {
     detail: {
       id: r.id,
@@ -215,7 +213,11 @@ async function fetchThemeExploreState(
   };
 }
 
-export function useThemeExplore(themeId: string): ThemeExploreController {
+export interface ThemeExploreDependencies {
+  port: ThemeExplorePort;
+}
+
+export function useThemeExplore(themeId: string, { port }: ThemeExploreDependencies): ThemeExploreController {
   const [detail, setDetail] = useState<ThemeExploreDetail | null>(null);
   const [files, setFiles] = useState<ThemeExploreFile[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
@@ -236,7 +238,7 @@ export function useThemeExplore(themeId: string): ThemeExploreController {
 
   useEffect(() => {
     let cancelled = false;
-    fetchThemeExploreState(themeId)
+    fetchThemeExploreState(themeId, port)
       .then(({ detail: nextDetail, files: nextFiles }) => {
         if (cancelled) return;
         setDetail(nextDetail);
@@ -256,7 +258,7 @@ export function useThemeExplore(themeId: string): ThemeExploreController {
     return () => {
       cancelled = true;
     };
-  }, [themeId]);
+  }, [themeId, port]);
 
   useEffect(() => {
     if (selected === null) return;
@@ -270,7 +272,7 @@ export function useThemeExplore(themeId: string): ThemeExploreController {
       return;
     }
     let cancelled = false;
-    api
+    port
       .getThemeFile(themeId, selected)
       .then((r) => {
         if (cancelled) return;
@@ -283,14 +285,14 @@ export function useThemeExplore(themeId: string): ThemeExploreController {
     return () => {
       cancelled = true;
     };
-  }, [themeId, selected, files]);
+  }, [themeId, selected, files, port]);
 
   const save = useCallback(async () => {
     if (selected === null) return;
     setSaving(true);
     setError(null);
     try {
-      await api.putThemeFile(themeId, selected, source);
+      await port.putThemeFile(themeId, selected, source);
       setSavedSource(source);
       setNotice(`Saved ${selected}`);
       setPreviewNonce((n) => n + 1);
@@ -299,7 +301,7 @@ export function useThemeExplore(themeId: string): ThemeExploreController {
     } finally {
       setSaving(false);
     }
-  }, [themeId, selected, source]);
+  }, [themeId, selected, source, port]);
 
   /**
    * Restore the open file to its catalog original.
@@ -313,7 +315,7 @@ export function useThemeExplore(themeId: string): ThemeExploreController {
     setResetting(true);
     setError(null);
     try {
-      const r = await api.resetThemeFile(themeId, selected);
+      const r = await port.resetThemeFile(themeId, selected);
       // Adopt the server's returned content rather than re-fetching: it is the exact bytes just
       // written, so the editor cannot briefly show the pre-reset source.
       setSource(r.content);
@@ -326,7 +328,7 @@ export function useThemeExplore(themeId: string): ThemeExploreController {
     } finally {
       setResetting(false);
     }
-  }, [themeId, selected]);
+  }, [themeId, selected, port]);
 
   /**
    * Actually perform a rename against the server and reconcile local state — the one place both the
@@ -343,9 +345,9 @@ export function useThemeExplore(themeId: string): ThemeExploreController {
       setRenaming(true);
       setError(null);
       try {
-        const r = await api.renameThemeFile(themeId, sourcePath, name);
+        const r = await port.renameThemeFile(themeId, sourcePath, name);
         const nextSelected = selected === sourcePath ? r.path : selected;
-        const { detail: nextDetail, files: nextFiles } = await fetchThemeExploreState(themeId);
+        const { detail: nextDetail, files: nextFiles } = await fetchThemeExploreState(themeId, port);
         setDetail(nextDetail);
         setFiles(nextFiles);
         setSelected(nextSelected);
@@ -365,7 +367,7 @@ export function useThemeExplore(themeId: string): ThemeExploreController {
         setRenameDraft("");
       }
     },
-    [themeId, selected]
+    [themeId, selected, port]
   );
 
   const startRename = useCallback(
@@ -443,8 +445,8 @@ export function useThemeExplore(themeId: string): ThemeExploreController {
       setCopyingPath(path);
       setError(null);
       try {
-        const r = await api.copyThemeFile(themeId, path);
-        const { detail: nextDetail, files: nextFiles } = await fetchThemeExploreState(themeId);
+        const r = await port.copyThemeFile(themeId, path);
+        const { detail: nextDetail, files: nextFiles } = await fetchThemeExploreState(themeId, port);
         setDetail(nextDetail);
         setFiles(nextFiles);
         setSelected(r.path);
@@ -455,7 +457,7 @@ export function useThemeExplore(themeId: string): ThemeExploreController {
         setCopyingPath(null);
       }
     },
-    [themeId, copyingPath]
+    [themeId, copyingPath, port]
   );
 
   const dirty = source !== savedSource;
@@ -518,4 +520,16 @@ export function useThemeExplore(themeId: string): ThemeExploreController {
     copyingPath,
     copyFile,
   };
+}
+
+/**
+ * Binds the real `/api/.../themes/:id` file-editing client — see
+ * `theme-explore-dependencies.hooks.ts`.
+ *
+ * The zero-argument-dependencies half of the `useX(dependencies)` / `useWiredX()` pair, so
+ * `ThemeExplore.tsx` composes this and a test composes {@link useThemeExplore} with
+ * `createFakeThemeExplorePort`.
+ */
+export function useWiredThemeExplore(themeId: string): ThemeExploreController {
+  return useThemeExplore(themeId, { port: defaultThemeExplorePort });
 }
