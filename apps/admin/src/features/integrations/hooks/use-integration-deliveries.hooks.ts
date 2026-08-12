@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 
 import type { AdminWebhookDelivery } from "../../../lib/api";
+import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { t as defaultT } from "../integrations-i18n";
 import { defaultIntegrationDeliveriesPort } from "./integration-deliveries-dependencies.hooks";
 import type { IntegrationDeliveriesPort } from "./integration-deliveries-port.hooks";
 
@@ -17,16 +19,26 @@ import type { IntegrationDeliveriesPort } from "./integration-deliveries-port.ho
  * `createFakeIntegrationDeliveriesPort` instead of stubbing global `fetch`.
  * `useWiredIntegrationDeliveries` below is the zero-argument pair `IntegrationDeliveries.tsx`
  * actually mounts.
+ *
+ * `t` (2026-08-11, standing i18n rule — see `use-integrations.hooks.ts`'s own file header for the
+ * full rationale): injected as this hook's third parameter. UNLIKE `useIntegrations`, no raw
+ * `locale` is threaded — `IntegrationDeliveries.tsx` only ever calls `t(locale, key)` bound-style,
+ * it never passes `locale` to a helper that needs it directly.
  */
 
 export interface IntegrationDeliveriesController {
   deliveries: AdminWebhookDelivery[] | null;
   error: string | null;
+  /** Bound translator — `key` already resolved against the caller's locale, so
+   *  `IntegrationDeliveries.tsx` never imports `useAdminLocale`/`integrations-i18n` itself. See
+   *  this file's header. */
+  t: (key: string) => string;
 }
 
 export function useIntegrationDeliveries(
   subscriptionId: string,
-  port: IntegrationDeliveriesPort
+  port: IntegrationDeliveriesPort,
+  t: (key: string) => string
 ): IntegrationDeliveriesController {
   const [deliveries, setDeliveries] = useState<AdminWebhookDelivery[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -40,17 +52,20 @@ export function useIntegrationDeliveries(
       .catch((e) => setError(e instanceof Error ? e.message : "failed to load deliveries"));
   }, [subscriptionId, port]);
 
-  return { deliveries, error };
+  return { deliveries, error, t };
 }
 
 /**
- * Binds the real `/api/.../integrations/subscriptions/:id/deliveries` client — see
- * `integration-deliveries-dependencies.hooks.ts`.
+ * Binds the real `/api/.../integrations/subscriptions/:id/deliveries` client, and a `t` bound to
+ * the real resolved locale (`useAdminLocale()`, called here and ONLY here — see this file's
+ * header) — see `integration-deliveries-dependencies.hooks.ts`.
  *
  * The zero-argument half of the `useX(dependencies)` / `useWiredX()` pair, so
  * `IntegrationDeliveries.tsx` composes this and a test composes {@link useIntegrationDeliveries}
- * with `createFakeIntegrationDeliveriesPort`.
+ * with `createFakeIntegrationDeliveriesPort` and a fake `t`.
  */
 export function useWiredIntegrationDeliveries(subscriptionId: string): IntegrationDeliveriesController {
-  return useIntegrationDeliveries(subscriptionId, defaultIntegrationDeliveriesPort);
+  const locale = useAdminLocale();
+  const t = (key: string): string => defaultT(locale, key);
+  return useIntegrationDeliveries(subscriptionId, defaultIntegrationDeliveriesPort, t);
 }

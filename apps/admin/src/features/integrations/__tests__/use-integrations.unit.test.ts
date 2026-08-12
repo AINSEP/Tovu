@@ -10,7 +10,17 @@ import type { AdminWebhookSubscription } from "../../../lib/api";
  * `Integrations.unit.test.tsx` already exercises the full UI flow through a stubbed `fetch`; this
  * file is the hook's own injected-port coverage — see `integrations-port.hooks.ts` for why the
  * injection exists.
+ *
+ * `t`/`locale` (2026-08-11, standing i18n rule — see `use-integrations.hooks.ts`'s own file
+ * header): every `useIntegrations(port, ...)` call below passes `fakeT`/`fakeLocale`, matching
+ * `wired-hooks-convention.md`'s own `t: (k) => k` example — except the dedicated "injected t/locale
+ * are genuinely returned" group, which uses distinctive fakes to prove the values are not built
+ * internally.
  */
+
+/** Identity translator for tests that don't care about `t`'s own behavior — see this file's header. */
+const fakeT = (key: string): string => key;
+const fakeLocale = "en";
 
 function subscriptionFixture(overrides: Partial<AdminWebhookSubscription> = {}): AdminWebhookSubscription {
   return {
@@ -39,7 +49,7 @@ describe("useIntegrations — injected port", () => {
     vi.stubGlobal("fetch", networkMock);
     const port = createFakeIntegrationsPort({ subscriptions: [subscriptionFixture()] });
 
-    const { result } = renderHook(() => useIntegrations(port));
+    const { result } = renderHook(() => useIntegrations(port, fakeT, fakeLocale));
 
     await waitFor(() => expect(result.current.subscriptions).not.toBeNull());
     expect(result.current.subscriptions).toEqual([subscriptionFixture()]);
@@ -53,7 +63,7 @@ describe("useIntegrations — injected port", () => {
     const networkMock = vi.fn();
     vi.stubGlobal("fetch", networkMock);
     const port = createFakeIntegrationsPort();
-    const { result } = renderHook(() => useIntegrations(port));
+    const { result } = renderHook(() => useIntegrations(port, fakeT, fakeLocale));
     await waitFor(() => expect(result.current.subscriptions).toEqual([]));
 
     act(() => {
@@ -74,7 +84,7 @@ describe("useIntegrations — injected port", () => {
 
   it("onTogglePause flips status through the port", async () => {
     const port = createFakeIntegrationsPort({ subscriptions: [subscriptionFixture({ status: "active" })] });
-    const { result } = renderHook(() => useIntegrations(port));
+    const { result } = renderHook(() => useIntegrations(port, fakeT, fakeLocale));
     await waitFor(() => expect(result.current.subscriptions).toHaveLength(1));
 
     await act(async () => {
@@ -86,7 +96,7 @@ describe("useIntegrations — injected port", () => {
 
   it("onDelete removes the pending subscription through the port", async () => {
     const port = createFakeIntegrationsPort({ subscriptions: [subscriptionFixture()] });
-    const { result } = renderHook(() => useIntegrations(port));
+    const { result } = renderHook(() => useIntegrations(port, fakeT, fakeLocale));
     await waitFor(() => expect(result.current.subscriptions).toHaveLength(1));
 
     act(() => result.current.setPendingDelete(subscriptionFixture()));
@@ -96,5 +106,28 @@ describe("useIntegrations — injected port", () => {
 
     expect(result.current.subscriptions).toEqual([]);
     expect(result.current.pendingDelete).toBeNull();
+  });
+});
+
+describe("useIntegrations — injected t/locale are genuinely returned, not built internally", () => {
+  /**
+   * Standing i18n rule (2026-08-11, `Integrations.tsx` no longer imports `useAdminLocale` itself):
+   * `t`/`locale` must come from the hook's own second/third parameters, not something this hook
+   * quietly rebuilds internally. Distinctive fakes (not the identity `fakeT`/`"en"` every other
+   * test in this file uses) prove the returned values are literally the ones passed in — an
+   * identity `t` or the same `fakeLocale` value would pass this same assertion even if the hook
+   * silently ignored its arguments. Mirrors `use-post-editor.hooks.unit.test.tsx`'s identical
+   * negative-verification group.
+   */
+  it("result.current.t/locale are exactly the injected values, not hook-internal ones", async () => {
+    const port = createFakeIntegrationsPort({ subscriptions: [subscriptionFixture()] });
+    const distinctiveT = (key: string): string => `TRANSLATED[${key}]`;
+
+    const { result } = renderHook(() => useIntegrations(port, distinctiveT, "fr"));
+
+    await waitFor(() => expect(result.current.subscriptions).toHaveLength(1));
+    expect(result.current.t("Integrations")).toBe("TRANSLATED[Integrations]");
+    expect(result.current.t).toBe(distinctiveT);
+    expect(result.current.locale).toBe("fr");
   });
 });

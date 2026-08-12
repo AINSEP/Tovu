@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 
 import type { AdminWebhookSubscription } from "../../../lib/api";
+import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { t as defaultT } from "../integrations-i18n";
 import { parseTopics } from "../rules";
 import { defaultIntegrationsPort } from "./integrations-dependencies.hooks";
 import type { IntegrationsPort } from "./integrations-port.hooks";
@@ -16,6 +18,16 @@ import type { IntegrationsPort } from "./integrations-port.hooks";
  * directly, so a test can describe list/write outcomes against `createFakeIntegrationsPort`
  * instead of stubbing global `fetch`. `useWiredIntegrations` below is the zero-argument pair
  * `Integrations.tsx` actually mounts.
+ *
+ * `t`/`locale` (2026-08-11, standing i18n rule — a component with a hook gets a BOUND `t` from
+ * that hook, not its own `useAdminLocale()`/dictionary import): injected as this hook's second and
+ * third parameters. Unlike `use-analytics.hooks.ts`'s `t`-only case, `locale` is ALSO threaded
+ * through here — `Integrations.tsx` passes raw `locale` (not just `t`) into `integrationRowMenuItems`
+ * (`rules.ts`) and `actionsForWebhookLabel`/`deleteWebhookBody` (`integrations-i18n.tsx`), all three
+ * of which take `(locale, ...)` directly rather than a bound translator, so the component still
+ * needs the raw value — see `wired-hooks-convention.md`'s own "locale only where genuinely needed"
+ * phrasing. `useIntegrations` itself never calls `t`/reads `locale` internally — both exist solely
+ * to hand through to the component, same as the port.
  */
 
 export interface IntegrationsController {
@@ -39,9 +51,16 @@ export interface IntegrationsController {
   onCreate: (e: React.FormEvent) => Promise<void>;
   onTogglePause: (subscription: AdminWebhookSubscription) => Promise<void>;
   onDelete: () => Promise<void>;
+  /** Bound translator — `key` already resolved against the caller's locale, so `Integrations.tsx`
+   *  never imports `useAdminLocale`/`integrations-i18n` itself. See this file's header. */
+  t: (key: string) => string;
+  /** Raw resolved locale — needed alongside `t` because `rules.ts`/`integrations-i18n.tsx` expose
+   *  a few helpers that take `(locale, ...)` directly rather than a bound translator. See this
+   *  file's header. */
+  locale: string;
 }
 
-export function useIntegrations(port: IntegrationsPort): IntegrationsController {
+export function useIntegrations(port: IntegrationsPort, t: (key: string) => string, locale: string): IntegrationsController {
   const [subscriptions, setSubscriptions] = useState<AdminWebhookSubscription[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
@@ -132,16 +151,22 @@ export function useIntegrations(port: IntegrationsPort): IntegrationsController 
     onCreate,
     onTogglePause,
     onDelete,
+    t,
+    locale,
   };
 }
 
 /**
- * Binds the real `/api/.../integrations/subscriptions` client — see
+ * Binds the real `/api/.../integrations/subscriptions` client, and a `t` bound to the real
+ * resolved locale (`useAdminLocale()`, called here and ONLY here — see this file's header) — see
  * `integrations-dependencies.hooks.ts`.
  *
  * The zero-argument half of the `useX(dependencies)` / `useWiredX()` pair, so `Integrations.tsx`
- * composes this and a test composes {@link useIntegrations} with `createFakeIntegrationsPort`.
+ * composes this and a test composes {@link useIntegrations} with `createFakeIntegrationsPort` and
+ * a fake `t`/`locale`.
  */
 export function useWiredIntegrations(): IntegrationsController {
-  return useIntegrations(defaultIntegrationsPort);
+  const locale = useAdminLocale();
+  const t = (key: string): string => defaultT(locale, key);
+  return useIntegrations(defaultIntegrationsPort, t, locale);
 }
