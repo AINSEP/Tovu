@@ -1,5 +1,5 @@
 import type { JsonObject, JsonValue } from "@jini-ai/cms/core";
-import type { PostRecord } from "#src/features/post/index";
+import { MAX_SLUG_LENGTH, SLUG_FORMAT_PATTERN, type PostRecord } from "#src/features/post/index";
 import type { DiscoveredTheme, StaticMenuItem, TemplateNode } from "#src/features/theme/index";
 import {
   resolveTemplateId,
@@ -689,6 +689,36 @@ export function renderDocNode(
       const start = typeof attrs.start === "number" && Number.isInteger(attrs.start) && attrs.start > 0 && attrs.start <= 999999 ? attrs.start : 0;
       const embedSrc = `https://www.youtube-nocookie.com/embed/${videoId}${start > 0 ? `?start=${start}` : ""}`;
       return `<div class="youtube-embed"><iframe src="${escapeHtml(embedSrc)}" title="YouTube video" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe></div>`;
+    }
+    case "mention": {
+      // Mention (`@tiptap/extension-mention`, toolbar-polish pass 2026-08-11) — the toolbar's
+      // "Mention a post" picker (`PostEditor.tsx`) inserts `{ id: <mentioned post's slug>, label:
+      // <its title> }` (see `rules.ts`'s own comment, which already documents this case's contract
+      // before this case existed). Before this case existed, the node fell through to `default`'s
+      // `renderNodes(content, ...)`: `mention` is an atom/leaf node (`atom: true`, no content hole
+      // — confirmed against the installed `@tiptap/extension-mention` dist), so `content` is always
+      // `undefined` and that resolved to `""` — the whole mention silently vanished on the public
+      // site with no error, same shape as the historical `textAlign`/`underline`/`strike`/
+      // `hardBreak` bugs this file's own header warns about.
+      //
+      // `id` is re-validated against the SAME `SLUG_FORMAT_PATTERN`/`MAX_SLUG_LENGTH` the post
+      // feature itself enforces at write time (`#src/features/post/index`) before it is trusted
+      // into an `href` — defense-in-depth against `bodyJson` written some OTHER way (a direct API
+      // call, pasted content), the same reasoning `safeCssColor`/`safeCssFontFamily`/
+      // `safeCssLength` already state for their own allowlists above. Anything that fails
+      // validation, or has no `label`, renders nothing rather than a dead or malformed link — never
+      // a raw, unescaped attribute dump.
+      //
+      // Link text is `"@" + label`, matching the editor's own default `renderText`
+      // (`${suggestion?.char ?? '@'}${node.attrs.label ?? node.attrs.id}`) so the public page shows
+      // the identical text an author saw while writing, not a divergent public-only presentation.
+      const attrs = isObject(node.attrs) ? node.attrs : {};
+      const id = typeof attrs.id === "string" ? attrs.id : "";
+      const label = typeof attrs.label === "string" ? attrs.label : "";
+      if (id.length === 0 || id.length > MAX_SLUG_LENGTH || !SLUG_FORMAT_PATTERN.test(id) || label.length === 0) {
+        return "";
+      }
+      return `<a class="post-mention" href="/${escapeHtml(id)}">@${escapeHtml(label)}</a>`;
     }
     case "widgetEmbed": {
       // REQ-18/REQ-21: a block-level atom node carrying a single widget-instance reference,
