@@ -1,6 +1,6 @@
 import { formatTimestamp } from "../../lib/format-timestamp";
 import { DataTable } from "@jini-ai/admin/react";
-import { useCollectionEntries } from "./hooks/use-collection-entries.hooks";
+import { useWiredCollectionEntries } from "./hooks/use-collection-entries.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { COLLECTIONS_DICT } from "./collections-i18n";
 
@@ -13,7 +13,7 @@ import { COLLECTIONS_DICT } from "./collections-i18n";
  */
 
 export function CollectionEntries(props: { contentTypeKey: string }) {
-  const { contentType, entries, error } = useCollectionEntries({ contentTypeKey: props.contentTypeKey });
+  const { contentType, entries, error } = useWiredCollectionEntries({ contentTypeKey: props.contentTypeKey });
   const locale = useAdminLocale();
   const t = (key: string): string => COLLECTIONS_DICT[locale]?.[key] ?? key;
 
