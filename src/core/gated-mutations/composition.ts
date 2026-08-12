@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import type { AuthorizeFn, ClockPort, IdGeneratorPort } from "@jini-ai/cms/core";
 import type { GatedMutationHooks, GatewayDeps } from "./gateway";
 import { InMemoryTokenStore } from "./token";
-import type { PrincipalKind } from "./ports";
+import type { InstanceAuthorizeFn, PrincipalKind } from "./ports";
 
 /**
  * @file Composes `core/gated-mutations`'s `plan()`/`confirm()`/`execute()` primitive into this
@@ -13,8 +13,16 @@ import type { PrincipalKind } from "./ports";
  * session, confirmed by direct grep").
  *
  * Purpose:
- * `buildGatewayDeps` builds the one shared `GatewayDeps` (clock/idGen/authorize/tokens) every
- * ceremony needs. `resolveActorClassIdentity` and `buildConfirmOnlyHooks` are the two pieces every
+ * `buildGatewayDeps` builds the one shared `GatewayDeps` (clock/idGen/authorize/authorizeInstance/
+ * tokens) every ceremony needs. `buildOwnerOnlyInstanceAuthorize` is the minimal binding for
+ * `authorizeInstance` — every RBAC table (`principals`/`roles`/`policies`/...) is
+ * `workspace_id NOT NULL` (`db/schema.ts`), so an instance-wide ceremony (one whose blast radius
+ * crosses every workspace in `content.db`, e.g. a whole-database migration) cannot be authorized
+ * through the ordinary workspace-scoped `authorize()` without either denying every principal or
+ * letting a single workspace's admin approve a cross-tenant operation; this closes that gap by
+ * granting instance scope to exactly the seeded owner principal, mirroring how `setting_values_global`
+ * sits alongside `setting_values_workspace` as a genuinely separate surface rather than an overloaded
+ * scope value. `resolveActorClassIdentity` and `buildConfirmOnlyHooks` are the two pieces every
  * ceremony's hooks reuse verbatim. The three per-ceremony `buildXHooks` factories that used to live
  * alongside these in this file's predecessor (`server/gated-mutations-composition.ts`) — taxonomy
  * `mergeTerm`, database `migrate-forward`, recovery `restore` — moved to their owning domains
@@ -49,13 +57,52 @@ import type { PrincipalKind } from "./ports";
  */
 
 /** One process-lifetime `GatewayDeps` — constructed once per composition root (mirrors every
- * other singleton this codebase's `deps.ts`/`app.ts` already construct once, e.g. `formsRateLimiter`). */
-export function buildGatewayDeps(params: { clock: ClockPort; idGen: IdGeneratorPort; authorize: AuthorizeFn }): GatewayDeps {
+ * other singleton this codebase's `deps.ts`/`app.ts` already construct once, e.g. `formsRateLimiter`).
+ * `authorizeInstance` is optional and additive (`GatewayDeps.authorizeInstance`'s own doc comment)
+ * — a caller that omits it gets exactly the pre-existing three-field signature's behavior. */
+export function buildGatewayDeps(params: {
+  clock: ClockPort;
+  idGen: IdGeneratorPort;
+  authorize: AuthorizeFn;
+  authorizeInstance?: InstanceAuthorizeFn;
+}): GatewayDeps {
   return {
     clock: params.clock,
     idGen: params.idGen,
     authorize: params.authorize,
+    authorizeInstance: params.authorizeInstance,
     tokens: new InMemoryTokenStore(),
+  };
+}
+
+/**
+ * The minimal `InstanceAuthorizeFn` binding: grants every permission to exactly the seeded owner
+ * principal, denies everyone else — the RBAC-table equivalent of `authorize()`'s own
+ * `owner_wildcard` precedent (`@jini-ai/cms/identity/authorize.ts`), reused here rather than
+ * inventing new vocabulary. Disclosed simplification, same shape as `resolveActorClassIdentity`'s
+ * disclosure below: `db/schema.ts`'s RBAC tables (`principals`/`roles`/`policies`/...) are all
+ * `workspace_id NOT NULL` — today's identity model has no dedicated instance-level policy/permission
+ * table (unlike `setting_values_global`, which has no workspace column at all). `ownerPrincipalId`
+ * (`identity/wiring.ts`'s `IdentityRouteDepsSlice`, SPEC-006 0.6.0's "seeded owner is never
+ * disable-able") is the one principal this codebase already seeds once per composition-root
+ * process/instance, making it the correct minimal instance-scope binding until a real
+ * instance-level policy surface exists.
+ * `[CIC_REQUESTED]` Unit=gated-mutations-instance-scope Trigger=an instance-scoped ceremony needing
+ * more than one legitimate instance-level approver (e.g. multiple site operators) Property="a
+ * workspace-scoped grant must never authorize an instance-wide mutation" MissingConstraint=a real
+ * instance-level policy/permission table mirroring `setting_values_global`'s workspace-column-free
+ * shape Evidence=`db/schema.ts` RBAC tables (all `workspace_id NOT NULL`), this file.
+ *
+ * @complexity O(1): one promise await, one equality check.
+ * @overallScore 100
+ */
+export function buildOwnerOnlyInstanceAuthorize(params: { ownerPrincipalId: Promise<string> }): InstanceAuthorizeFn {
+  return async ({ principalId }) => {
+    const ownerPrincipalId = await params.ownerPrincipalId;
+    if (principalId !== ownerPrincipalId) {
+      return { allowed: false, reason: "not_instance_owner" };
+    }
+    return { allowed: true, reason: "owner_wildcard" };
   };
 }
 

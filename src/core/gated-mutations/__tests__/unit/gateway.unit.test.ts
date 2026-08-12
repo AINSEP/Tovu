@@ -397,3 +397,133 @@ test("execute() succeeds exactly once for a valid token satisfying every check, 
   assert.deepEqual(result, { migrated: true });
   assert.equal(hooks.mutationRuns, 1);
 });
+
+// ---------------------------------------------------------------------------
+// Instance scope (gap closure) — GatedMutationHooks.scopeKind: "instance".
+//
+// An instance-wide mutation (one whose blast radius crosses every workspace in `content.db` at
+// once, e.g. a whole-database migration) has no single owning workspace, so it must never be
+// authorized through the ordinary workspace-scoped `deps.authorize` — that would either deny
+// every principal (no real workspace matches `hooks.scopeId`) or let a single workspace's admin
+// approve a cross-tenant operation (an authorization bypass). These tests prove both directions:
+// a principal `deps.authorizeInstance` grants IS approvable, and a workspace-scoped admin (for
+// whom `deps.authorize` always allows) is REFUSED — the refusal is the load-bearing case.
+// ---------------------------------------------------------------------------
+
+function makeInstanceHooks(overrides: Partial<Record<string, unknown>> = {}) {
+  return makeHooks({ scopeKind: "instance", scopeId: "instance", ...overrides });
+}
+
+test("instance scope: full plan()->confirm()->execute() ceremony succeeds for a principal authorizeInstance grants, and the workspace-scoped evaluator is never consulted", async () => {
+  const hooks = makeInstanceHooks();
+  let workspaceAuthorizeCalls = 0;
+  const deps = makeDeps({
+    authorize: (async () => {
+      workspaceAuthorizeCalls += 1;
+      return { allowed: true, reason: "matched" };
+    }) as AuthorizeFn,
+    authorizeInstance: async ({ principalId }: { principalId: string; permission: string }) =>
+      principalId === "owner-1" ? { allowed: true, reason: "owner_wildcard" } : { allowed: false, reason: "not_instance_owner" },
+  });
+
+  const planResult = await plan({ deps, principalId: "owner-1", principalKind: "user", hooks });
+  const token = await confirm({
+    deps,
+    principalId: "owner-1",
+    principalKind: "user",
+    hooks,
+    planId: planResult.planId,
+    planHash: planResult.planHash,
+  });
+  const result = await execute({ deps, principalId: "owner-1", principalKind: "user", hooks, confirmationToken: token.confirmationToken });
+
+  assert.deepEqual(result, { migrated: true });
+  assert.equal(workspaceAuthorizeCalls, 0, "an instance-scoped check must never fall through to the workspace-scoped evaluator");
+});
+
+test("instance scope: a workspace-scoped admin (deps.authorize always allows) is REFUSED at plan(), even though it holds the workspace permission", async () => {
+  const hooks = makeInstanceHooks();
+  const deps = makeDeps({
+    authorize: alwaysAllow(), // this principal has full workspace permission — must still be denied
+    authorizeInstance: async () => ({ allowed: false, reason: "not_instance_owner" }),
+  });
+
+  await assert.rejects(
+    plan({ deps, principalId: "workspace-admin-1", principalKind: "user", hooks }),
+    (err: unknown) => {
+      assert.ok(err instanceof ForbiddenError, "a workspace-scoped grant must never authorize an instance-scoped mutation");
+      return true;
+    }
+  );
+});
+
+test("instance scope: a workspace-scoped admin is REFUSED at confirm() too, and no token is minted for it", async () => {
+  const hooks = makeInstanceHooks();
+  const tokens = new InMemoryTokenStore();
+  const deps = makeDeps({
+    authorize: alwaysAllow(),
+    authorizeInstance: async () => ({ allowed: false, reason: "not_instance_owner" }),
+    tokens,
+  });
+
+  await assert.rejects(
+    confirm({
+      deps,
+      principalId: "workspace-admin-1",
+      principalKind: "user",
+      hooks,
+      planId: "p1",
+      planHash: "sha256:" + "1".repeat(64),
+    }),
+    (err: unknown) => err instanceof ForbiddenError
+  );
+  assert.equal(await tokens.count(), 0, "no token may exist for a principal authorizeInstance refused");
+});
+
+test("instance scope: execute() re-checks the instance evaluator fresh and refuses a workspace-scoped admin even for an otherwise-valid token", async () => {
+  const { tokens, record } = await mintValidToken({ scopeId: "instance", confirmerPrincipalId: "workspace-admin-1" });
+  const hooks = makeInstanceHooks({
+    async resolveActorClassIdentity() {
+      return "workspace-admin-1";
+    },
+  });
+  const deps = makeDeps({
+    tokens,
+    authorize: alwaysAllow(),
+    authorizeInstance: async () => ({ allowed: false, reason: "not_instance_owner" }),
+  });
+
+  await assert.rejects(
+    execute({ deps, principalId: "workspace-admin-1", principalKind: "user", hooks, confirmationToken: record.confirmationToken }),
+    (err: unknown) => err instanceof ForbiddenError
+  );
+});
+
+test("instance scope: fails closed with INSTANCE_AUTHORIZATION_NOT_CONFIGURED when deps.authorizeInstance is not bound at all", async () => {
+  const hooks = makeInstanceHooks();
+  const deps = makeDeps({ authorize: alwaysAllow() }); // no authorizeInstance — must not fall back to it
+
+  await assert.rejects(
+    plan({ deps, principalId: "owner-1", principalKind: "user", hooks }),
+    (err: unknown) => {
+      assert.ok(err instanceof ForbiddenError);
+      assert.match((err as Error).message, /INSTANCE_AUTHORIZATION_NOT_CONFIGURED/);
+      return true;
+    }
+  );
+});
+
+test("workspace scope (default, regression guard): omitting scopeKind still routes through deps.authorize with the hooks' scopeId as workspaceId, unaffected by the instance-scope addition", async () => {
+  const hooks = makeHooks(); // scopeKind omitted -> "workspace" default
+  let capturedWorkspaceId: string | undefined;
+  const deps = makeDeps({
+    authorize: (async (params: { workspaceId: string }) => {
+      capturedWorkspaceId = params.workspaceId;
+      return { allowed: true, reason: "matched" };
+    }) as AuthorizeFn,
+  });
+
+  await plan({ deps, principalId: "u-1", principalKind: "user", hooks });
+
+  assert.equal(capturedWorkspaceId, "workspace-1");
+});

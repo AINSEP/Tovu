@@ -1,5 +1,5 @@
 import type { ClockPort, IdGeneratorPort } from "@jini-ai/cms/core";
-import type { AuthorizeFn, PrincipalKind } from "./ports";
+import type { AuthorizeFn, InstanceAuthorizeFn, PrincipalKind } from "./ports";
 import {
   type ConfirmationTokenRecord,
   type TokenStorePort,
@@ -43,8 +43,23 @@ export interface GatedMutationHooks<TDetails, TResult> {
   readPermission: string;
   /** Permission `confirm()` and `execute()` check, e.g. `"{domain}.migrate"`. */
   mutatePermission: string;
-  /** The workspace/site the mutation is scoped to; passed as `authorize()`'s `workspaceId`. */
+  /**
+   * The workspace/site the mutation is scoped to. For `scopeKind: "workspace"` (the default),
+   * passed as `authorize()`'s `workspaceId` — unchanged from before `scopeKind` existed. For
+   * `scopeKind: "instance"`, `scopeId` is no longer fed to `authorize()` (an instance-wide
+   * mutation has no single owning workspace); it is still recorded onto the minted
+   * `ConfirmationTokenRecord` as an opaque audit label (e.g. `"instance"`).
+   */
   scopeId: string;
+  /**
+   * `"workspace"` (default when omitted — every ceremony wired before this field existed keeps
+   * its exact prior behavior) authorizes `readPermission`/`mutatePermission` against `scopeId` via
+   * `deps.authorize`, the ordinary workspace-scoped RBAC evaluator. `"instance"` is for a mutation
+   * whose blast radius crosses every workspace in `content.db` at once (e.g. a whole-database
+   * migration) — it authorizes via `deps.authorizeInstance` instead, so a grant scoped to one
+   * workspace can never stand in for instance-wide authority. See `authorizeForHooks` below.
+   */
+  scopeKind?: "workspace" | "instance";
   /** Recomputes the plan; `execute()` compares its `planHash` against the redeemed token's. */
   computePlan(): Promise<{ planHash: string; details: TDetails }>;
   /** The actual domain mutation. Runs only after every gate in `execute()`'s check-sequence passes. */
@@ -62,6 +77,15 @@ export interface GatewayDeps {
   clock: ClockPort;
   idGen: IdGeneratorPort;
   authorize: AuthorizeFn;
+  /**
+   * Backs `scopeKind: "instance"` hooks (see `GatedMutationHooks.scopeKind`). Optional and
+   * additive — every `GatewayDeps` built before this field existed (`buildGatewayDeps`'s prior
+   * signature) omits it and is unaffected, because no pre-existing hooks ever set
+   * `scopeKind: "instance"`. Left unset, an instance-scoped mutation fails closed
+   * (`authorizeForHooks` denies with `INSTANCE_AUTHORIZATION_NOT_CONFIGURED`) rather than the
+   * gap this field closes: silently reusing `hooks.scopeId` as a workspace id.
+   */
+  authorizeInstance?: InstanceAuthorizeFn;
   tokens: TokenStorePort;
 }
 
@@ -94,6 +118,36 @@ export class PlanStaleError extends Error {}
 export class UnauthenticatedError extends Error {}
 
 /**
+ * Routes a single authorize check to the workspace-scoped evaluator (`deps.authorize`, the
+ * default/unchanged path) or the instance-scoped one (`deps.authorizeInstance`) depending on
+ * `hooks.scopeKind`. Factored out to one place rather than inlined at each of `plan()`/
+ * `confirm()`/`execute()`'s three call sites, so the branch — and its fail-closed rule — exists
+ * exactly once; this changes only WHICH evaluator backs a check, never the fixed check-sequence
+ * documented in this file's header.
+ *
+ * Fail-closed by construction: an `"instance"`-scoped hook with no `deps.authorizeInstance` bound
+ * denies (`INSTANCE_AUTHORIZATION_NOT_CONFIGURED`) rather than falling back to
+ * `deps.authorize(hooks.scopeId)` — that fallback is exactly the authorization-bypass gap this
+ * scope exists to close (see `InstanceAuthorizeFn`'s doc comment in `./ports`).
+ *
+ * @complexity O(1) plus one downstream `authorize`/`authorizeInstance` call.
+ * @overallScore 100
+ */
+async function authorizeForHooks(
+  deps: GatewayDeps,
+  hooks: GatedMutationHooks<unknown, unknown>,
+  params: { principalId: string; permission: string }
+): Promise<{ allowed: boolean; reason: string }> {
+  if (hooks.scopeKind !== "instance") {
+    return deps.authorize({ principalId: params.principalId, permission: params.permission, workspaceId: hooks.scopeId });
+  }
+  if (!deps.authorizeInstance) {
+    return { allowed: false, reason: "INSTANCE_AUTHORIZATION_NOT_CONFIGURED" };
+  }
+  return deps.authorizeInstance({ principalId: params.principalId, permission: params.permission });
+}
+
+/**
  * Checks `{domain}.read`, then returns a plan (its own `planId`, plus `hooks.computePlan()`'s
  * `planHash`/`details`). Never invokes `hooks.executeMutation()` — a plan is read-only by
  * construction (AC-10).
@@ -107,11 +161,7 @@ export async function plan(
 ): Promise<GatewayPlan> {
   const { deps, principalId, hooks } = required;
 
-  const authResult = await deps.authorize({
-    principalId,
-    permission: hooks.readPermission,
-    workspaceId: hooks.scopeId,
-  });
+  const authResult = await authorizeForHooks(deps, hooks, { principalId, permission: hooks.readPermission });
   if (!authResult.allowed) {
     throw new ForbiddenError(
       `principal '${principalId}' is not authorized for '${hooks.readPermission}' (${authResult.reason})`,
@@ -149,11 +199,7 @@ export async function confirm(
     throw new ForbiddenError(`agent principals may not confirm a gated mutation`, "AGENT_CANNOT_CONFIRM");
   }
 
-  const authResult = await deps.authorize({
-    principalId,
-    permission: hooks.mutatePermission,
-    workspaceId: hooks.scopeId,
-  });
+  const authResult = await authorizeForHooks(deps, hooks, { principalId, permission: hooks.mutatePermission });
   if (!authResult.allowed) {
     throw new ForbiddenError(
       `principal '${principalId}' is not authorized for '${hooks.mutatePermission}' (${authResult.reason})`,
@@ -195,11 +241,7 @@ export async function execute<TResult>(
   const { deps, principalId, principalKind, hooks, confirmationToken } = required;
 
   // 1. authorize() re-evaluated fresh — U-001-B1/ORD1. Never cached from confirm()-time (REQ-15).
-  const authResult = await deps.authorize({
-    principalId,
-    permission: hooks.mutatePermission,
-    workspaceId: hooks.scopeId,
-  });
+  const authResult = await authorizeForHooks(deps, hooks, { principalId, permission: hooks.mutatePermission });
   if (!authResult.allowed) {
     throw new ForbiddenError(
       `principal '${principalId}' is not authorized for '${hooks.mutatePermission}' (${authResult.reason})`,

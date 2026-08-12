@@ -106,7 +106,7 @@ import {
   noopStampWatermark,
 } from "../features/taxonomy/repo.memory";
 import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "../features/recovery/repo.memory";
-import { buildGatewayDeps } from "../core/gated-mutations/composition";
+import { buildGatewayDeps, buildOwnerOnlyInstanceAuthorize } from "../core/gated-mutations/composition";
 import { resolveRuntimeMode } from "./runtime-mode";
 import { wrapMailerWithPurposeGate } from "../mail/purpose-scoped-mailer";
 import { registerAdminTaxonomyMergeTermRoutes } from "./routes/admin/taxonomy/merge-term";
@@ -545,8 +545,16 @@ export function createRouteDeps(): NewsletterRouteDeps {
     // SPEC-016 (`core/gated-mutations`'s gateway, ADR-041 §5) — same composition `server/deps.ts`
     // wires for the real server, mirrored here for the hermetic test/dev composition (its own
     // `InMemoryTokenStore` instance — see `core/gated-mutations/composition.ts`'s file header for
-    // the disclosed `TokenStorePort` decision).
-    gatedMutations: { gatewayDeps: buildGatewayDeps({ clock, idGen, authorize: identity.authorize }) },
+    // the disclosed `TokenStorePort` decision). `authorizeInstance` mirrors `server/deps.ts`'s own
+    // owner-only instance-scope binding (`GatewayDeps.authorizeInstance`'s doc comment).
+    gatedMutations: {
+      gatewayDeps: buildGatewayDeps({
+        clock,
+        idGen,
+        authorize: identity.authorize,
+        authorizeInstance: buildOwnerOnlyInstanceAuthorize({ ownerPrincipalId: identity.ownerPrincipalId }),
+      }),
+    },
     commentRepo: commentsModule.commentRepo,
     commentIngressPolicy: commentsModule.ingressPolicy,
     commentWriteService: commentsModule.writeService,

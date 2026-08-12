@@ -34,6 +34,25 @@ export type AuthorizeFn = (params: {
 }) => Promise<{ allowed: boolean; reason: string }>;
 
 /**
+ * The instance-scope counterpart to `AuthorizeFn` — deliberately has no `workspaceId` param.
+ * `db/schema.ts`'s RBAC tables (`principals`/`roles`/`policies`/`policy_permissions`/...) are all
+ * `workspace_id NOT NULL`, so `AuthorizeFn`'s underlying evaluator (`@jini-ai/cms/identity`'s
+ * `authorize()`) can only ever resolve a principal within one specific workspace: passing it any
+ * `workspaceId` value for an instance-wide mutation (one that touches every workspace in
+ * `content.db` at once, e.g. a whole-database migration) either matches no principal (nobody can
+ * ever approve it) or matches a real single workspace (a workspace-scoped admin can approve an
+ * operation whose blast radius crosses every tenant — an authorization bypass). This type exists
+ * so `GatedMutationHooks.scopeKind: "instance"` (`gateway.ts`) routes to a genuinely separate
+ * evaluator instead of overloading the workspace-scoped one with a value it was never designed to
+ * accept — the same "separate global surface, not an overloaded scope column" shape
+ * `setting_values_global`/`setting_values_workspace` already use in `db/schema.ts`.
+ */
+export type InstanceAuthorizeFn = (params: {
+  principalId: UUID;
+  permission: string;
+}) => Promise<{ allowed: boolean; reason: string }>;
+
+/**
  * A site's restore-point mechanism, evaluated per dialect (SQLite: always cheap file-snapshot;
  * Postgres: dump/blue-green tooling, or an externally-managed PITR system, or nothing at all).
  */

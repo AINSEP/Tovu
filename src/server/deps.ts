@@ -118,7 +118,7 @@ import {
   sqliteStampWatermark,
 } from "../features/taxonomy/repo.sqlite";
 import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "../features/recovery/repo.memory";
-import { buildGatewayDeps } from "../core/gated-mutations/composition";
+import { buildGatewayDeps, buildOwnerOnlyInstanceAuthorize } from "../core/gated-mutations/composition";
 import { resolveRuntimeMode } from "./runtime-mode";
 import { wrapMailerWithPurposeGate } from "../mail/purpose-scoped-mailer";
 
@@ -731,8 +731,18 @@ export function createSqliteRouteDeps(
     // primitive composed into ZERO composition roots in this codebase as of this session"). One
     // process-lifetime `GatewayDeps` (in-process `InMemoryTokenStore` — see
     // `core/gated-mutations/composition.ts`'s file header for the disclosed TokenStorePort
-    // decision).
-    gatedMutations: { gatewayDeps: buildGatewayDeps({ clock, idGen, authorize: identity.authorize }) },
+    // decision). `authorizeInstance` closes the instance-scope authorization gap
+    // (`GatewayDeps.authorizeInstance`'s doc comment): bound to `buildOwnerOnlyInstanceAuthorize`
+    // over `identity.ownerPrincipalId`, the seeded owner already treated as this instance's sole
+    // never-disable-able principal (SPEC-006 0.6.0).
+    gatedMutations: {
+      gatewayDeps: buildGatewayDeps({
+        clock,
+        idGen,
+        authorize: identity.authorize,
+        authorizeInstance: buildOwnerOnlyInstanceAuthorize({ ownerPrincipalId: identity.ownerPrincipalId }),
+      }),
+    },
     commentRepo: commentsModule.commentRepo,
     commentIngressPolicy: commentsModule.ingressPolicy,
     commentWriteService: commentsModule.writeService,
