@@ -22,6 +22,7 @@ import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { translateAdminNavLabel } from "../../lib/admin-nav-i18n";
 import { AI_ASSISTANT_DICT } from "./ai-assistant-i18n";
 import { useWiredAiAssistantLocaleSync } from "./hooks/use-ai-assistant-locale-sync.hooks";
+import type { Translate } from "../../lib/dictionary-translator";
 
 /**
  * @file "AI Assistant" admin screen — the `/admin/ai-assistant` route. Markup only.
@@ -351,7 +352,7 @@ type VisitorCredentialKeyFooterProps = Pick<
  */
 export function visitorCredentialKeyStatusMessage(
   discovery: VisitorCredentialFormController["discovery"],
-  t: (key: string) => string = (key) => key,
+  t: Translate = (key) => key,
 ): string | null {
   if (discovery.status === "ok") {
     return t("Key works — {count} models available.").replace("{count}", String(discovery.models.length));
@@ -380,7 +381,7 @@ export function visitorCredentialSaveStatusMessage(
   saveState: VisitorCredentialFormController["saveState"],
   dirty: boolean,
   stored: VisitorCredentialFormController["stored"],
-  t: (key: string) => string = (key) => key,
+  t: Translate = (key) => key,
 ): string | null {
   if (saveState.status === "saving") return t("Saving…");
   if (saveState.status === "saved") return t("Saved to the server, encrypted.");
