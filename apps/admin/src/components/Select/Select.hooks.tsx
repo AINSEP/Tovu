@@ -23,10 +23,20 @@ import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "re
  * in (Rules of Hooks — hooks calling hooks is ordinary React, not a new pattern), and
  * `useSelectDropdown`'s own exported signature and return shape are byte-identical to before, so
  * the `useDropdown` injectable seam on `SelectProps` and every existing test against it are
- * unaffected. `handlePanelKeyDown` specifically is untouched internally — same flat `switch`, no
- * lookup-table conversion (that would trade a genuinely-clear form for a lower number) — it simply
- * now lives inside the small `useSelectKeyboardHandlers` hook instead of the mega-hook's own body,
- * which is what "cut the nesting around it" meant for this pass.
+ * unaffected. `handlePanelKeyDown` moved as-is in this pass (same flat `switch`, no internal
+ * change) — it simply now lives inside the small `useSelectKeyboardHandlers` hook instead of the
+ * mega-hook's own body. Moving a function doesn't change its own complexity score, so this pass
+ * left `handlePanelKeyDown` over the file's 9-cyclomatic ceiling; see the 2026-08-12 note below.
+ *
+ * **2026-08-12 complexity pass:** `handlePanelKeyDown` was the one function the 2026-08-06 pass
+ * didn't fix — cyclomatic complexity 13 (limit 9), from the seven `case`s themselves plus the
+ * `Home`/`End` ternaries and `Enter`'s `if`/`&&`, none of which relocating the function touched.
+ * `"Escape"` and `"Tab"` stay inline in `handlePanelKeyDown`: both do something that has to run
+ * against the live event/DOM (`stopPropagation`; `resolveTabTarget` + `.focus()`) rather than a
+ * plain calculation. The other five keys (`ArrowDown`/`ArrowUp`/`Home`/`End`/`Enter`) moved to
+ * `applyHighlightKey`, a plain top-level function — callable with spies and no `renderHook`, which
+ * is also the answer to this pass's second ask ("a regular function inside the hooks... export and
+ * test it"). `Select.hooks.unit.test.tsx` covers every key directly.
  */
 
 /** A search box over a handful of options looks silly (the design ask, not a guess) — below this
@@ -304,16 +314,95 @@ export function resolveTabTarget(
   return nodes[triggerIndex + (shiftKey ? -1 : 1)] ?? null;
 }
 
+/** Home/End's highlight target within `filtered` — the first or last index, or `-1` when the list
+ *  is empty (nothing to highlight). Extracted from `handlePanelKeyDown`'s own `"Home"`/`"End"` cases
+ *  under the 2026-08-12 complexity pass: each case's own `filtered.length ? … : -1` ternary was one
+ *  of the branch points pushing that function's cyclomatic complexity to 13 (limit 9). Both cases'
+ *  behavior is unchanged — same guard, same values, just called instead of inlined. */
+export function edgeHighlightIndex(filteredLength: number, edge: "first" | "last"): number {
+  if (filteredLength === 0) return -1;
+  return edge === "first" ? 0 : filteredLength - 1;
+}
+
+/** The option Enter should select — the currently-highlighted row, or `null` when nothing valid is
+ *  highlighted (highlight reset to `-1`, or stale after `filtered` shrank out from under it, e.g. a
+ *  search query narrowing the list). Extracted from `handlePanelKeyDown`'s own `"Enter"` case
+ *  (`if (highlightedIndex >= 0 && filtered[highlightedIndex]) …`) under the same 2026-08-12 pass —
+ *  same guard, same value, just called instead of inlined. */
+export function highlightedOptionOrNull(filtered: SelectOption[], highlightedIndex: number): SelectOption | null {
+  return highlightedIndex >= 0 ? (filtered[highlightedIndex] ?? null) : null;
+}
+
 /**
- * `Select`'s two keyboard handlers, extracted from `useSelectDropdown` verbatim — neither body
- * changed, including `handlePanelKeyDown`'s own flat `switch` over `e.key` (kept exactly as-is per
- * this pass's explicit guidance: a keyboard handler written as a flat switch is the clearest form
- * available, and converting the dispatch into a lookup table would trade that clarity for a lower
- * number). Pulled into its own hook purely so neither handler sits directly inside the much larger
- * `useSelectDropdown` body anymore. The `"Tab"` case's own focus-walking math is now
- * `resolveTabTarget`, above — the 2026-08-06 complexity pass's fix for the case that carried the
- * hook's actual complexity load (16/15): not the switch, the nested `if` + `indexOf` + `shiftKey`
- * ternary inside one of its cases.
+ * The five highlight-navigation/selection keys — `ArrowDown`/`ArrowUp`/`Home`/`End`/`Enter`.
+ * `handlePanelKeyDown`'s `"Escape"` and `"Tab"` cases deliberately stay in the handler itself
+ * instead of coming here too: both do something that has to run against the live event/DOM
+ * (`stopPropagation()`; `resolveTabTarget` + `.focus()`) rather than a plain calculation, the same
+ * "DOM handles stay in the handler" line this pass's brief draws for refs.
+ *
+ * `preventDefault` is injected as a callback rather than left to the caller based on this
+ * function's return value, so every case keeps the exact call order `handlePanelKeyDown` used
+ * before this split — `preventDefault()` immediately before the state change it goes with, not
+ * after. A boolean-return design can't do that: `Enter` needs `preventDefault()` unconditionally
+ * regardless of whether `highlightedOptionOrNull` finds a row to select, so the caller would have to
+ * call it *after* resolving the action, reordering that case relative to the other four.
+ *
+ * Split out under the 2026-08-12 complexity pass to fix `handlePanelKeyDown`'s cyclomatic
+ * complexity of 13 (limit 9) — see `Select.hooks.unit.test.tsx` for the direct coverage this
+ * unlocks: every branch below is asserted with plain arguments and `vi.fn()` spies, no
+ * `renderHook`. Every case's behavior is unchanged from the switch it was pulled out of. Returns
+ * whether the key was recognized (`false` for the `default` case, matching the original switch's
+ * own no-op fallthrough) — `handlePanelKeyDown` doesn't currently use this, but it makes "did this
+ * key do anything" directly assertable instead of only inferable from which spy fired.
+ */
+export function applyHighlightKey(
+  key: string,
+  filtered: SelectOption[],
+  highlightedIndex: number,
+  actions: {
+    preventDefault: () => void;
+    moveHighlight: (delta: 1 | -1) => void;
+    setHighlightedIndex: (index: number) => void;
+    selectOption: (option: SelectOption) => void;
+  }
+): boolean {
+  switch (key) {
+    case "ArrowDown":
+      actions.preventDefault();
+      actions.moveHighlight(1);
+      return true;
+    case "ArrowUp":
+      actions.preventDefault();
+      actions.moveHighlight(-1);
+      return true;
+    case "Home":
+      actions.preventDefault();
+      actions.setHighlightedIndex(edgeHighlightIndex(filtered.length, "first"));
+      return true;
+    case "End":
+      actions.preventDefault();
+      actions.setHighlightedIndex(edgeHighlightIndex(filtered.length, "last"));
+      return true;
+    case "Enter": {
+      actions.preventDefault();
+      const option = highlightedOptionOrNull(filtered, highlightedIndex);
+      if (option) actions.selectOption(option);
+      return true;
+    }
+    default:
+      return false;
+  }
+}
+
+/**
+ * `Select`'s two keyboard handlers. `handleTriggerKeyDown` is unchanged since the 2026-08-06
+ * extraction — still the same body, just relocated. `handlePanelKeyDown` picked up a real
+ * restructure in the 2026-08-12 pass (see its own doc comment and `applyHighlightKey`, above):
+ * the flat switch the 2026-08-06 pass preserved verbatim was still over the file's 9-cyclomatic
+ * ceiling, since relocating a function doesn't change its own score. The `"Tab"` case's own
+ * focus-walking math is `resolveTabTarget`, above — the 2026-08-06 pass's fix for the *other*
+ * complexity load on this same function (16/15 before that pass, 13/8 after): the nested
+ * `if` + `indexOf` + `shiftKey` ternary inside one case, not the switch itself.
  */
 function useSelectKeyboardHandlers({
   disabled,
@@ -356,66 +445,41 @@ function useSelectKeyboardHandlers({
   }
 
   /**
-   * @complexity 13 cyclomatic / 8 cognitive, measured after the 2026-08-06 `resolveTabTarget`
-   * extraction dropped cognitive from 15 to 8 (the nested `if`/`indexOf`/ternary that used to sit in
-   * the `"Tab"` case is gone from this body). Cyclomatic exceeds both the ≤10 ceiling this pass
-   * started under and the ≤9/≤9 bar it was later tightened to — under either bar, for the same
-   * reason: ESLint's `complexity` rule charges one branch per `case` label, so the 13 is a count of
-   * the seven keys this handler answers to (Escape/ArrowDown/ArrowUp/Home/End/Enter/Tab) plus the
-   * `Enter` case's own `if`/`&&` — not nested branching, which is what cognitive complexity models
-   * and which stays at 8, under both bars. Tried: moving the `"Tab"` case body out (done, above) —
-   * it lowered cognitive but a switch's cyclomatic score doesn't fall by moving case *bodies*
-   * elsewhere, only by removing cases. The remaining way to lower it is to stop being a switch —
-   * collapse it into a key -> handler lookup table — which both this file's header and this pass's
-   * own dispatch brief reject explicitly for this function: "a keyboard handler written as a flat
-   * switch is the clearest form available, and converting the dispatch into a lookup table would
-   * trade that clarity for a lower number." Documented exemption under this pass's acceptance
-   * criterion (≤9/≤9 OR a documented reason, tightened 2026-08-06 from the original ≤10/≤10), not an
-   * oversight.
+   * Dispatches on `e.key`. `"Escape"` and `"Tab"` are handled inline — each needs something that
+   * has to run against the live event/DOM (`stopPropagation()`; `resolveTabTarget` + `.focus()`)
+   * rather than a plain calculation. The other five keys (`ArrowDown`/`ArrowUp`/`Home`/`End`/
+   * `Enter`) are `applyHighlightKey`, above — extracted under the 2026-08-12 complexity pass
+   * because this function's own cyclomatic complexity (13: the seven `case`s, the `Home`/`End`
+   * ternaries, and `Enter`'s `if`/`&&`) exceeded the file's 9 ceiling; that extraction drops it to
+   * 4. See `applyHighlightKey`'s own doc comment for why `preventDefault` is injected there rather
+   * than decided by return value here.
    */
   function handlePanelKeyDown(e: React.KeyboardEvent<HTMLDivElement>) {
-    switch (e.key) {
-      case "Escape":
-        // Must not bubble: a host dialog (`WidgetPickerDialog`) listens for Escape on `document`
-        // to cancel the whole modal. Without stopping propagation here, closing just this dropdown
-        // would also close the dialog underneath it — the regression `Select.unit.test.tsx` pins.
-        e.preventDefault();
-        e.stopPropagation();
-        closePanel({ refocusTrigger: true });
-        break;
-      case "ArrowDown":
-        e.preventDefault();
-        moveHighlight(1);
-        break;
-      case "ArrowUp":
-        e.preventDefault();
-        moveHighlight(-1);
-        break;
-      case "Home":
-        e.preventDefault();
-        setHighlightedIndex(filtered.length ? 0 : -1);
-        break;
-      case "End":
-        e.preventDefault();
-        setHighlightedIndex(filtered.length ? filtered.length - 1 : -1);
-        break;
-      case "Enter":
-        e.preventDefault();
-        if (highlightedIndex >= 0 && filtered[highlightedIndex]) selectOption(filtered[highlightedIndex]);
-        break;
-      case "Tab": {
-        // See `resolveTabTarget`'s own comment: walk the trigger's real DOM-order neighbours rather
-        // than let native Tab handling run, since this event is bubbling from a panel portaled to
-        // the end of `document.body`, not sitting next to the trigger in the DOM.
-        const target = resolveTabTarget(panelRef.current, triggerRef.current, e.shiftKey);
-        e.preventDefault();
-        closePanel({ refocusTrigger: false });
-        target?.focus();
-        break;
-      }
-      default:
-        break;
+    if (e.key === "Escape") {
+      // Must not bubble: a host dialog (`WidgetPickerDialog`) listens for Escape on `document`
+      // to cancel the whole modal. Without stopping propagation here, closing just this dropdown
+      // would also close the dialog underneath it — the regression `Select.unit.test.tsx` pins.
+      e.preventDefault();
+      e.stopPropagation();
+      closePanel({ refocusTrigger: true });
+      return;
     }
+    if (e.key === "Tab") {
+      // See `resolveTabTarget`'s own comment: walk the trigger's real DOM-order neighbours rather
+      // than let native Tab handling run, since this event is bubbling from a panel portaled to
+      // the end of `document.body`, not sitting next to the trigger in the DOM.
+      const target = resolveTabTarget(panelRef.current, triggerRef.current, e.shiftKey);
+      e.preventDefault();
+      closePanel({ refocusTrigger: false });
+      target?.focus();
+      return;
+    }
+    applyHighlightKey(e.key, filtered, highlightedIndex, {
+      preventDefault: () => e.preventDefault(),
+      moveHighlight,
+      setHighlightedIndex,
+      selectOption,
+    });
   }
 
   return { handleTriggerKeyDown, handlePanelKeyDown };
