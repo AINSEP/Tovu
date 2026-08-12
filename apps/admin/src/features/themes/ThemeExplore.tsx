@@ -13,7 +13,6 @@ import { Toast } from "@jini-ai/ui";
 import { InfoTip } from "../../components/InfoTip";
 import { siteUrl } from "../../lib/site-url";
 import { navigate } from "../../lib/router";
-import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { PAGE_PREVIEW_WIDTHS, type PagePreviewDevice } from "../pages/hooks/use-page-editor.hooks";
 import {
   THEME_FILE_GROUPS,
@@ -22,7 +21,6 @@ import {
   type ThemeExploreFile,
   type ThemeExploreView,
 } from "./hooks/use-theme-explore.hooks";
-import { t as translateThemes } from "./themes-i18n";
 
 /**
  * @file Explore — edit any theme, active or not, and see it rendered.
@@ -828,8 +826,6 @@ function ThemeExploreFullscreenDialog({
 }
 
 export function ThemeExplore({ themeId, useThemeExploreHook = useWiredThemeExplore }: ThemeExploreProps) {
-  const locale = useAdminLocale();
-  const t = (key: string): string => translateThemes(locale, key);
   const {
     detail,
     files,
@@ -864,6 +860,7 @@ export function ThemeExplore({ themeId, useThemeExploreHook = useWiredThemeExplo
     cancelPageRenameWarning,
     copyingPath,
     copyFile,
+    t,
   } = useThemeExploreHook(themeId);
 
   const [device, setDevice] = useState<PagePreviewDevice>("desktop");

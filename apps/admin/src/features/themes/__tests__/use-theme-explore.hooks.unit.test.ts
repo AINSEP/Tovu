@@ -24,7 +24,7 @@ describe("useThemeExplore — injected port (no fetch stub, no api spy)", () => 
       files: [{ path: "pages/index.html", group: "page", readable: true, editable: true, resettable: true }],
       contents: { "pages/index.html": "<h1>Home</h1>" },
     });
-    const { result } = renderHook(() => useThemeExplore("basic", { port }));
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
 
     await waitFor(() => expect(result.current.detail?.name).toBe("Basic"));
     await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
@@ -38,7 +38,7 @@ describe("useThemeExplore — injected port (no fetch stub, no api spy)", () => 
       files: [{ path: "pages/index.html", group: "page", readable: true, editable: true, resettable: true }],
       contents: { "pages/index.html": "<h1>Home</h1>" },
     });
-    const { result } = renderHook(() => useThemeExplore("basic", { port }));
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
     await waitFor(() => expect(result.current.source).toBe("<h1>Home</h1>"));
 
     act(() => result.current.setSource("<h1>Changed</h1>"));
@@ -62,7 +62,7 @@ describe("useThemeExplore — injected port (no fetch stub, no api spy)", () => 
   it("stays with detail null while the injected port's detail call is still pending", () => {
     const port = createFakeThemeExplorePort();
     port.getThemeDetail = () => new Promise(() => {});
-    const { result } = renderHook(() => useThemeExplore("basic", { port }));
+    const { result } = renderHook(() => useThemeExplore("basic", { port, t: (k) => k }));
     expect(result.current.detail).toBeNull();
     expect(result.current.files).toEqual([]);
   });

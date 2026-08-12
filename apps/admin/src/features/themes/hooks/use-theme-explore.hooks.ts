@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { ApiError } from "../../../lib/api";
+import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { t as translateThemes } from "../themes-i18n";
 import { defaultThemeExplorePort } from "./theme-explore-dependencies.hooks";
 import type { ThemeExploreFileEntry, ThemeExplorePort, ThemeFileGroup } from "./theme-explore-port.hooks";
 
@@ -11,6 +13,13 @@ import type { ThemeExploreFileEntry, ThemeExplorePort, ThemeFileGroup } from "./
  * `deps.port` is injected (see `theme-explore-port.hooks.ts`) rather than reaching for `lib/api`'s
  * `api` directly. `ApiError` stays a direct import — pure error-classification, no I/O, same
  * reasoning as `redirects-port.hooks.ts`'s own exclusion of `describeApiError`.
+ *
+ * `deps.t` (standing i18n rule, 2026-08-11 — a component with a hook gets a BOUND `t` from that
+ * hook, not its own `useAdminLocale()`/dictionary import, same shape `use-themes.hooks.ts`
+ * established): injected so `ThemeExplore.tsx` sources its UI copy from this hook instead of
+ * building its own `(key) => translateThemes(locale, key)` closure. This hook's OWN error strings
+ * stay hardcoded English (unchanged) — `useAdminLocale()`/`themes-i18n.ts`'s `t` (aliased
+ * `translateThemes`) are read only inside {@link useWiredThemeExplore}.
  */
 
 export type ThemeExploreView = "preview" | "html";
@@ -158,6 +167,8 @@ export interface ThemeExploreController {
    *  firing the request twice. */
   copyingPath: string | null;
   copyFile: (path: string) => Promise<void>;
+  /** Bound translator — `ThemeExplore.tsx`'s only source of UI copy; see this file's own header. */
+  t: (key: string) => string;
 }
 
 /**
@@ -215,9 +226,10 @@ async function fetchThemeExploreState(
 
 export interface ThemeExploreDependencies {
   port: ThemeExplorePort;
+  t: (key: string) => string;
 }
 
-export function useThemeExplore(themeId: string, { port }: ThemeExploreDependencies): ThemeExploreController {
+export function useThemeExplore(themeId: string, { port, t }: ThemeExploreDependencies): ThemeExploreController {
   const [detail, setDetail] = useState<ThemeExploreDetail | null>(null);
   const [files, setFiles] = useState<ThemeExploreFile[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
@@ -519,17 +531,20 @@ export function useThemeExplore(themeId: string, { port }: ThemeExploreDependenc
     cancelPageRenameWarning,
     copyingPath,
     copyFile,
+    t,
   };
 }
 
 /**
- * Binds the real `/api/.../themes/:id` file-editing client — see
- * `theme-explore-dependencies.hooks.ts`.
+ * Binds the real `/api/.../themes/:id` file-editing client and a `themes-i18n.ts`-bound
+ * translator — see `theme-explore-dependencies.hooks.ts`.
  *
  * The zero-argument-dependencies half of the `useX(dependencies)` / `useWiredX()` pair, so
  * `ThemeExplore.tsx` composes this and a test composes {@link useThemeExplore} with
  * `createFakeThemeExplorePort`.
  */
 export function useWiredThemeExplore(themeId: string): ThemeExploreController {
-  return useThemeExplore(themeId, { port: defaultThemeExplorePort });
+  const locale = useAdminLocale();
+  const t = (key: string): string => translateThemes(locale, key);
+  return useThemeExplore(themeId, { port: defaultThemeExplorePort, t });
 }
