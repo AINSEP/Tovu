@@ -13,10 +13,19 @@
  * the mapping surface was measured, not assumed. Across all 63 tables and 580 columns there are
  * exactly three column kinds in use — `SQLiteText` (513), `SQLiteInteger` (64), `SQLiteBoolean`
  * (3) — plus 11 autoincrement primary keys, 31 defaults, 7 CHECK constraints, 9 foreign keys, 4
- * composite primary keys, and 1 column-level `.unique()` constraint (`workspaces.slug`). There
- * are no JSON columns, no BLOB columns, no `mode: "timestamp"` columns (every timestamp is `text`
- * holding ISO-8601), and no table-level multi-column `unique().on(...)` constraints. A generator
- * covering that surface is a few hundred lines, not a second ORM.
+ * composite primary keys, 65 indexes (27 unique), and 1 column-level `.unique()` constraint
+ * (`workspaces.slug`). There are no JSON columns, no BLOB columns, no `mode: "timestamp"` columns
+ * (every timestamp is `text` holding ISO-8601), and no table-level multi-column `unique().on(...)`
+ * constraints. A generator covering that surface is a few hundred lines, not a second ORM.
+ *
+ * Every one of those 65 indexes is a plain ascending column list today — no partial-index `WHERE`,
+ * no `.asc()`/`.desc()` ordering, no expression index. The generator translates all three anyway
+ * (`renderIndexColumnExpr`/`renderSqlText`) rather than refusing them outright: SQLite's Drizzle
+ * represents ordering and expressions as the exact same `SQL`-chunk shape CHECK bodies already use
+ * (`asc(col)`/`desc(col)` literally expand to `` sql`${col} asc` ``), so the hardened renderer that
+ * shape needs already exists. `src/db/__tests__/schema-postgres-generator-fixtures.test.ts` proves
+ * the translation against hand-built fixture tables, since `schema.ts` has no live case to prove it
+ * against — read that file's own doc before assuming this paragraph is aspirational.
  *
  * What this deliberately does NOT handle:
  * FTS5. `post_search_fts` is a virtual table in external-content mode with three sync triggers,
@@ -32,6 +41,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
+import { Column, is, Param, SQL, StringChunk } from "drizzle-orm";
 import { getTableConfig, type SQLiteColumn } from "drizzle-orm/sqlite-core";
 
 import * as schema from "../../src/db/schema";
@@ -115,7 +125,8 @@ function tsPropertyNames(table: object, columns: readonly SQLiteColumn[]): Map<S
 }
 
 /**
- * Generic "no unrecognised own property" gate, shared by every completeness check in this file.
+ * Generic "no unrecognised, POPULATED own property" gate, shared by every completeness check in
+ * this file.
  *
  * Why a shared helper rather than one bespoke check per structural element: the failure mode this
  * guards against is the same shape everywhere — a Drizzle object exposes a property this generator
@@ -128,16 +139,31 @@ function tsPropertyNames(table: object, columns: readonly SQLiteColumn[]): Map<S
  * an *unknown* unknown: a future Drizzle upgrade that adds a wholly new property trips this the
  * first time the generator runs against it, before a single line of output is produced, rather than
  * requiring someone to have already anticipated that property's name.
+ *
+ * Unrecognised-but-EMPTY is deliberately not an error. Two ways this guard could have been written:
+ * reject any key it doesn't recognise, or reject only a key it doesn't recognise AND that actually
+ * holds data. The first is what shipped originally, and it is too strict in a way this generator has
+ * not yet been bitten by but will be: a routine Drizzle patch that adds a new, still-`undefined`
+ * internal metadata field (a common pattern — see `hasDefault`/`uniqueType` already living on
+ * `Column` today, both unset in this schema) would fail the Tovu build on an upgrade that changed
+ * nothing this generator emits. The second keeps the actual invariant — a Drizzle object must never
+ * carry PostgreSQL-relevant data this generator doesn't know it is dropping — while not treating
+ * "Drizzle's shape grew" and "Drizzle's shape grew AND now this table uses the new thing" as the same
+ * event. `undefined`/`null`/an empty array are the only values treated as "carries no semantics to
+ * drop"; `false`, `0`, and `""` are left alone because a newly-added boolean/numeric/string property
+ * set to a falsy-looking value is still a value someone explicitly set, not an absence.
  */
 function assertKnownShape(subject: object, known: ReadonlySet<string>, describe: () => string): void {
   for (const key of Object.keys(subject)) {
-    if (!known.has(key)) {
-      throw new Error(
-        `${describe()} exposes an unrecognised property "${key}". Drizzle's structural surface has grown ` +
-          `since this generator was measured against it — teach the relevant render function about "${key}" ` +
-          `(or confirm it is dialect-irrelevant), then add it to the allowlist that rejected it.`
-      );
-    }
+    if (known.has(key)) continue;
+    const value = (subject as Record<string, unknown>)[key];
+    if (value === undefined || value === null || (Array.isArray(value) && value.length === 0)) continue;
+    throw new Error(
+      `${describe()} exposes an unrecognised property "${key}" set to a non-empty value (${JSON.stringify(value)}). ` +
+        `Drizzle's structural surface has grown since this generator was measured against it — teach the relevant ` +
+        `render function about "${key}" (or confirm it is dialect-irrelevant), then add it to the allowlist that ` +
+        `rejected it.`
+    );
   }
 }
 
@@ -173,6 +199,24 @@ function assertKnownTableConfigShape(cfg: ReturnType<typeof getTableConfig>, exp
     );
   }
 }
+
+/**
+ * Keys the nested per-element objects `renderExtras()` renders are measured to expose: an `Index`'s
+ * `.config` (SQLite's `IndexConfig` plus the `table` back-reference the `Index` constructor bolts
+ * on), a `ForeignKey` instance and the plain object its `.reference()` returns, a `PrimaryKey`
+ * instance, and a `Check` instance. `HANDLED_TABLE_CONFIG_KEYS` above only guards the *arrays* these
+ * live in (`cfg.indexes`, `cfg.foreignKeys`, ...) — it says nothing about what each element of those
+ * arrays itself exposes. That gap is exactly how index configuration went silently unguarded: a
+ * partial index's `where` and an ordered/expression column's `SQL` shape inside `columns` are both
+ * real, now-handled cases (see `renderIndexColumnExpr`/`renderSqlText`), but nothing forced a new,
+ * un-handled key on `Index.config` itself to fail loudly instead of being silently absent from the
+ * generated file. These four sets close that one level down, mirroring the table-level guard.
+ */
+const HANDLED_INDEX_CONFIG_KEYS = new Set(["name", "columns", "unique", "where", "table"]);
+const HANDLED_FOREIGN_KEY_KEYS = new Set(["table", "reference", "onUpdate", "onDelete"]);
+const HANDLED_FOREIGN_KEY_REFERENCE_KEYS = new Set(["name", "columns", "foreignTable", "foreignColumns"]);
+const HANDLED_PRIMARY_KEY_KEYS = new Set(["table", "columns", "name"]);
+const HANDLED_CHECK_KEYS = new Set(["table", "name", "value"]);
 
 /** Column properties this generator reads and actually encodes into the emitted PostgreSQL column. */
 const TRANSLATED_COLUMN_PROPS = new Set([
@@ -285,6 +329,7 @@ interface TableExtras {
 }
 
 interface ForeignKeyRef {
+  name?: string;
   columns: readonly unknown[];
   foreignTable: object;
   foreignColumns: readonly unknown[];
@@ -320,75 +365,183 @@ function foreignTsName(table: object, column: SQLiteColumn): string {
   return name;
 }
 
+/** `t.<TS property name>` reference for a column already belonging to the table being rendered — the
+ * shape pg-core's builders expect wherever an actual column value (not a bare SQL name) is required:
+ * `.on(...)` index arguments, composite primary key members, and foreign key column lists. One shared
+ * implementation means the "fall back to the SQL name if the TS lookup somehow misses" behavior, and
+ * the choice of fallback, only has to be right once. */
+function columnRef(col: SQLiteColumn, tsNames: Map<SQLiteColumn, string>): string {
+  return `t.${tsNames.get(col) ?? col.name}`;
+}
+
+/** Identifies a rejected chunk by its constructor name for error messages, without assuming the chunk
+ * is even an object — a bare interpolated primitive (see `renderSqlText`'s doc) has no `.constructor`
+ * of its own until JS autoboxes it, which `typeof` handles as a fallback. */
+function describeChunkKind(chunk: unknown): string {
+  return (chunk as { constructor?: { name?: string } })?.constructor?.name ?? typeof chunk;
+}
+
 /**
- * Renders a CHECK constraint's SQL by walking Drizzle's query chunks.
+ * Renders a Drizzle `SQL` value into portable, bare SQL text: literal fragments exactly as authored,
+ * and column references as unquoted identifiers belonging to `owningTable`. Used for both CHECK
+ * constraint bodies and partial-index `WHERE` predicates — both are SQL text scoped to exactly one
+ * table, and PostgreSQL accepts the identical bare-identifier syntax SQLite does for both.
  *
- * These are NOT decorative. Seven of the eight checks in this schema are `*_sealed_shape`
+ * These are NOT decorative. Seven of the eight CHECK constraints in this schema are `*_sealed_shape`
  * constraints on credential tables, asserting that the sealed columns are either all NULL or all
- * populated — i.e. that a half-sealed credential row cannot exist. Dropping them on PostgreSQL
- * would silently permit exactly the state SQLite forbids, on the tables where it matters most.
+ * populated — i.e. that a half-sealed credential row cannot exist. Dropping them on PostgreSQL would
+ * silently permit exactly the state SQLite forbids, on the tables where it matters most.
  *
- * A chunk is either a literal string fragment or a column reference. Column names in this schema
- * are all lowercase snake_case, so they need no quoting; a name requiring quotes would be a new
- * situation this function should be taught about rather than silently mangling.
+ * Only two chunk kinds are accepted, and everything else is rejected rather than guessed at:
+ *  - `StringChunk` — the tagged template's own static text, authored directly in `schema.ts` and
+ *    therefore as trustworthy as any other line of source code.
+ *  - `Column` belonging to `owningTable` — resolved to its bare SQL name (validated as an unquoted
+ *    identifier, matching this schema's lowercase-snake_case convention; a name that needed quoting
+ *    would be a new situation to teach this function about, not silently mangle).
+ * A bound `Param` and a nested `SQL` value both get a dedicated rejection message. Everything else —
+ * critically, a bare JS value interpolated straight into a `sql\` \`` template (`` sql`${col} = ${x}` ``
+ * pushes `x` onto `queryChunks` completely unwrapped when `x` isn't itself a Drizzle value; confirmed
+ * against this project's pinned `drizzle-orm@0.44.7`) — falls through the same generic rejection. That
+ * unwrapped-primitive case is exactly the bug this function replaces: the previous version matched it
+ * via `typeof chunk === "string"` and spliced it into the emitted SQL as if it were trusted, authored
+ * text, which is indistinguishable from treating runtime data as SQL syntax.
  */
-function checkSql(value: unknown): string {
-  const chunks = (value as { queryChunks?: unknown[] })?.queryChunks;
-  if (!Array.isArray(chunks)) {
-    throw new Error('a CHECK constraint exposed no queryChunks — Drizzle internals changed; revisit checkSql()');
+function renderSqlText(value: unknown, owningTable: object, describe: () => string): string {
+  if (!is(value, SQL)) {
+    throw new Error(`${describe()} did not produce a Drizzle SQL value — Drizzle internals changed; revisit renderSqlText()`);
   }
-  return chunks
+  return value.queryChunks
     .map((chunk) => {
-      if (typeof chunk === 'string') return chunk;
-      const literal = (chunk as { value?: unknown }).value;
-      if (literal !== undefined) return Array.isArray(literal) ? literal.join('') : String(literal);
-      const columnName = (chunk as { name?: string }).name;
-      if (typeof columnName === 'string') {
-        if (!/^[a-z_][a-z0-9_]*$/.test(columnName)) {
-          throw new Error(`CHECK references column "${columnName}", which needs quoting — teach checkSql() first`);
-        }
-        return columnName;
+      if (is(chunk, StringChunk)) return chunk.value.join("");
+      if (is(chunk, Column)) return renderColumnIdentifier(chunk as unknown as SQLiteColumn, owningTable, describe);
+      if (is(chunk, Param) || is(chunk, SQL)) {
+        throw new Error(
+          `${describe()} interpolates a ${is(chunk, Param) ? "bound Param" : "nested SQL"} value. Runtime data ` +
+            `must never be spliced into emitted SQL as trusted text — express it as static template text or a ` +
+            `column reference, or teach renderSqlText() an explicit, reviewed translation.`
+        );
       }
-      throw new Error('unrecognised CHECK query chunk — revisit checkSql()');
+      throw new Error(
+        `${describe()} contains an unrecognised chunk (${describeChunkKind(chunk)}). A bare value interpolated ` +
+          `directly into a sql\` \` template (a string, number, or other primitive) produces exactly this shape — ` +
+          `it is rejected rather than inlined as literal SQL, because runtime data is not trusted SQL syntax.`
+      );
     })
-    .join('');
+    .join("");
+}
+
+/** Resolves one CHECK/WHERE column reference to its bare, unquoted SQL identifier — the single place
+ * both the cross-table rejection and the quoting check happen, so `renderSqlText` stays a plain walk. */
+function renderColumnIdentifier(col: SQLiteColumn, owningTable: object, describe: () => string): string {
+  if ((col as unknown as { table?: object }).table !== owningTable) {
+    throw new Error(
+      `${describe()} references column "${col.name}" from a different table. CHECK bodies and partial-index ` +
+        `predicates are single-table constructs in both dialects, so a cross-table reference here means an ` +
+        `assumption renderSqlText() relies on no longer holds.`
+    );
+  }
+  if (!/^[a-z_][a-z0-9_]*$/.test(col.name)) {
+    throw new Error(`${describe()} references column "${col.name}", which needs quoting — teach renderSqlText() first`);
+  }
+  return col.name;
+}
+
+/**
+ * Renders one `IndexColumn` entry: a plain column, or an `SQL` expression. SQLite's Drizzle has no
+ * separate "ordered column" wrapper the way PostgreSQL's `ExtraConfigColumn` does — `asc()`/`desc()`
+ * literally expand to `` sql`${col} asc` ``, confirmed against this project's pinned `drizzle-orm`, so
+ * column ordering and true expression indexes (`sql\`lower(${col})\``) are the exact same shape here:
+ * an `SQL` value where every chunk is either static text or a column belonging to this table.
+ *
+ * The rendering target differs from `renderSqlText`: a `.on(...)` argument is a real Drizzle value at
+ * the GENERATED FILE's own runtime, not embedded query text, so a column reference has to reconstruct
+ * an actual `t.<column>` builder reference — a JS expression — while literal fragments (`" asc"`,
+ * `"lower("`, `")"`) are spliced as source text between the backticks of a new `sql` tagged template
+ * this function emits into that generated file. `escapeTemplateText` exists because that splice target
+ * is TypeScript source, not a string value: an unescaped backtick/`${`/backslash from authored index
+ * text would corrupt the generated file's syntax, not just mis-render one value.
+ */
+function renderIndexColumnExpr(
+  entry: unknown,
+  owningTable: object,
+  tsNames: Map<SQLiteColumn, string>,
+  describe: () => string
+): string {
+  if (is(entry, Column)) return columnRef(entry as unknown as SQLiteColumn, tsNames);
+  if (!is(entry, SQL)) {
+    throw new Error(`${describe()} has a column entry that is neither a column nor a SQL expression (${describeChunkKind(entry)}).`);
+  }
+  const pieces = entry.queryChunks.map((chunk) => {
+    if (is(chunk, StringChunk)) return escapeTemplateText(chunk.value.join(""));
+    if (is(chunk, Column)) {
+      const col = chunk as unknown as SQLiteColumn;
+      if ((col as unknown as { table?: object }).table !== owningTable) {
+        throw new Error(`${describe()} references a column from a different table inside an expression/ordered entry.`);
+      }
+      return "${" + columnRef(col, tsNames) + "}";
+    }
+    throw new Error(
+      `${describe()} has an expression/ordered column containing an unrecognised chunk (${describeChunkKind(chunk)}). ` +
+        `Bound parameters and nested SQL cannot be translated into a PostgreSQL index expression here — teach this ` +
+        `function about the shape only after confirming it is safe.`
+    );
+  });
+  return "sql`" + pieces.join("") + "`";
+}
+
+function escapeTemplateText(text: string): string {
+  return text.replace(/\\/g, "\\\\").replace(/`/g, "\\`").replace(/\$\{/g, "\\${");
 }
 
 function renderExtras(
   cfg: ReturnType<typeof getTableConfig>,
   exportName: string,
-  tsNames: Map<SQLiteColumn, string>
+  tsNames: Map<SQLiteColumn, string>,
+  table: object
 ): TableExtras {
-  const ref = (c: unknown): string => `t.${tsNames.get(c as SQLiteColumn) ?? (c as SQLiteColumn).name}`;
+  // A partial index's WHERE predicate silently becoming an unfiltered index is the exact bug class
+  // this generator has already shipped four times over: an index-level completeness gate (below) plus
+  // rendering the predicate through the SAME hardened renderer CHECK bodies use, rather than dropping
+  // it, is what closes it — see renderSqlText's doc for why that renderer refuses rather than guesses.
   const indexes = cfg.indexes.map((idx) => {
-    const cols = idx.config.columns.map(ref).join(", ");
+    const describe = () => `table "${exportName}"'s index "${idx.config.name}"`;
+    assertKnownShape(idx.config, HANDLED_INDEX_CONFIG_KEYS, describe);
+    const cols = idx.config.columns.map((c) => renderIndexColumnExpr(c, table, tsNames, describe)).join(", ");
     const builder = idx.config.unique ? "uniqueIndex" : "index";
-    return `    ${builder}(${JSON.stringify(idx.config.name)}).on(${cols}),`;
+    const where =
+      idx.config.where === undefined
+        ? ""
+        : `.where(sql\`${renderSqlText(idx.config.where, table, () => `${describe()}'s WHERE predicate`)}\`)`;
+    return `    ${builder}(${JSON.stringify(idx.config.name)}).on(${cols})${where},`;
   });
 
   const composite = cfg.primaryKeys.map((pk) => {
-    const cols = pk.columns.map(ref).join(", ");
+    assertKnownShape(pk, HANDLED_PRIMARY_KEY_KEYS, () => `table "${exportName}"'s primary key`);
+    const cols = pk.columns.map((c) => columnRef(c, tsNames)).join(", ");
     return `    primaryKey({ columns: [${cols}] }),`;
   });
 
-  // CHECK constraints are emitted as real constraints, not comments. Their SQL here is portable
-  // (IS NULL / AND / OR / comparisons / string literals), and checkSql throws rather than guessing
-  // if it ever meets a chunk shape it does not recognise.
+  // CHECK constraints are emitted as real constraints, not comments. renderSqlText throws rather than
+  // guessing if it ever meets a chunk shape it does not recognise — see its own doc.
   const checks = cfg.checks.map((ch) => {
     const c = ch as unknown as { name: string; value: unknown };
-    return `    check(${JSON.stringify(c.name)}, sql\`${checkSql(c.value)}\`),`;
+    assertKnownShape(ch, HANDLED_CHECK_KEYS, () => `table "${exportName}"'s check "${c.name}"`);
+    const sqlText = renderSqlText(c.value, table, () => `table "${exportName}"'s check "${c.name}"`);
+    return `    check(${JSON.stringify(c.name)}, sql\`${sqlText}\`),`;
   });
 
   // Foreign keys carry ON DELETE semantics (cascade/restrict here) that are load-bearing for
   // referential integrity. Emitting the table without them would produce a PostgreSQL schema that
   // silently permits orphans the SQLite schema rejects.
   const foreignKeys = cfg.foreignKeys.map((fk) => {
-    const ref = (fk as unknown as { reference: () => ForeignKeyRef; onDelete?: string; onUpdate?: string }).reference();
+    assertKnownShape(fk, HANDLED_FOREIGN_KEY_KEYS, () => `table "${exportName}"'s foreign key`);
+    const target = (fk as unknown as { reference: () => ForeignKeyRef }).reference();
+    assertKnownShape(target, HANDLED_FOREIGN_KEY_REFERENCE_KEYS, () => `table "${exportName}"'s foreign key reference`);
     const meta = fk as unknown as { onDelete?: string; onUpdate?: string };
-    const localCols = ref.columns.map(ref2 => `t.${tsNames.get(ref2 as SQLiteColumn) ?? (ref2 as SQLiteColumn).name}`).join(", ");
-    const foreignExport = exportNameOfTable(ref.foreignTable);
-    const foreignCols = ref.foreignColumns
-      .map((c) => `${foreignExport}.${foreignTsName(ref.foreignTable, c as SQLiteColumn)}`)
+    const localCols = target.columns.map((c) => columnRef(c as SQLiteColumn, tsNames)).join(", ");
+    const foreignExport = exportNameOfTable(target.foreignTable);
+    const foreignCols = target.foreignColumns
+      .map((c) => `${foreignExport}.${foreignTsName(target.foreignTable, c as SQLiteColumn)}`)
       .join(", ");
     const actions =
       (meta.onDelete ? `.onDelete(${JSON.stringify(meta.onDelete)})` : "") +
@@ -404,7 +557,7 @@ function renderTable(exportName: string, table: never): string {
   assertKnownTableConfigShape(cfg, exportName);
   const tsNames = tsPropertyNames(table, cfg.columns);
   const columns = cfg.columns.map((c) => renderColumn(tsNames.get(c)!, c, cfg.name)).join("\n");
-  const { indexes, composite, checks, foreignKeys } = renderExtras(cfg, exportName, tsNames);
+  const { indexes, composite, checks, foreignKeys } = renderExtras(cfg, exportName, tsNames, table);
   const extras = [...composite, ...foreignKeys, ...checks, ...indexes];
 
   const tail = extras.length ? `, (t) => [\n${extras.join("\n")}\n  ]` : "";
@@ -455,4 +608,14 @@ function main(): void {
   process.exit(1);
 }
 
-main();
+// Only run when invoked directly (`npx tsx generate-postgres-schema.ts[, --check]`), never as a side
+// effect of import. The negative-fixture tests below import renderTable()/renderSqlText() etc. against
+// hand-built tables that are NOT part of schema.ts, specifically so a fixture proving the generator
+// rejects a bad shape can never itself write or drift-check the real src/db/schema.postgres.ts.
+if (require.main === module) {
+  main();
+}
+
+// Exported strictly for `src/db/__tests__/schema-postgres-*.test.ts`: this file's own module doc
+// promises a generator, not a library, so nothing here is meant to be imported by production code.
+export { assertKnownShape, columnRef, renderIndexColumnExpr, renderSqlText, renderTable, tsPropertyNames };
