@@ -20,6 +20,7 @@ type SourceUpdateInput = Parameters<
 >[1];
 
 import { api, describeApiError, type AdminExternalMcpServer, type AdminExternalMcpServerInput } from "../../../lib/api";
+import { mergeSourceUpdate } from "../rules";
 
 /**
  * @file The real transport behind Settings → External MCP, replacing the empty in-memory fake that
@@ -189,11 +190,9 @@ export function useExternalMcp(): ExternalMcpController {
 
         async updateSource(id: string, patch: SourceUpdateInput) {
           const previous = lastKnown.current.get(id);
-          const fields = { ...(previous?.fields ?? {}), ...(patch.fields ?? {}) };
-          const enabled = patch.enabled ?? previous?.enabled ?? true;
-          const label = patch.label ?? previous?.label;
+          const merged = mergeSourceUpdate(previous, patch);
           try {
-            const { server } = await api.saveExternalMcpServer(id, toWriteBody(fields, enabled, label));
+            const { server } = await api.saveExternalMcpServer(id, toWriteBody(merged.fields, merged.enabled, merged.label));
             setRestartRequired(true);
             const item = toItem(server);
             lastKnown.current.set(item.id, item);

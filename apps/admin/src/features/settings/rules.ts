@@ -12,7 +12,59 @@ import type { SaveState } from "../../hooks/use-settings-slice.hooks";
  * Notifications, Privacy, Dialog appearance, Language); the functions below all operate on that
  * homogeneous `{ value, loadError, saveState }` shape rather than on any one slice's own type, so
  * they don't need to know which of the six they're being called with.
+ *
+ * `mergeSourceUpdate` below serves a different hook in this same feature
+ * (`hooks/use-external-mcp.hooks.ts`'s `updateSource`) — landed here rather than a second file
+ * because it is the same "pure decision, no React, directly testable" shape as everything else in
+ * this module, just for a different screen within `settings`.
  */
+
+/** The subset of `SourceConfigItem`'s shape {@link mergeSourceUpdate} actually reads — kept
+ *  narrow and local rather than importing `@jini-ai/ui`'s full `SourceConfigItem` type here, so
+ *  this module stays free of that package's own type surface. */
+interface PreviousSourceFields {
+  fields?: Record<string, string>;
+  enabled?: boolean;
+  label?: string;
+}
+
+/** Mirrors the shape `use-external-mcp.hooks.ts`'s local `SourceUpdateInput` type describes (a
+ *  partial patch: `fields`/`enabled`/`label`, each optional). */
+interface SourceUpdatePatch {
+  fields?: Record<string, string>;
+  enabled?: boolean;
+  label?: string;
+}
+
+/** What `updateSource` sends to `toWriteBody` — the merged result of a partial patch over the
+ *  last-known values for a source that a write route replaces wholesale (see
+ *  `use-external-mcp.hooks.ts`'s own comment on `lastKnown` for why the merge is needed at all:
+ *  the route replaces the whole row, so an unmerged patch would blank out every field it doesn't
+ *  mention). */
+export interface MergedSourceUpdate {
+  fields: Record<string, string>;
+  enabled: boolean;
+  label: string | undefined;
+}
+
+/**
+ * `updateSource`'s own decision, pulled out to a top-level pure function per the 2026-08-12
+ * complexity-ceiling pass: every `?.`/`??` in the three merged fields below is its own branch under
+ * ESLint's `complexity` rule, and moving them out of `updateSource`'s own scope is what actually
+ * lowers that function's score (unlike a switch, where moving CASE BODIES out doesn't reduce the
+ * case count — this is a flat expression, so extracting the whole computation removes the branches
+ * entirely from the caller). Also now directly testable with plain object literals, no port, no
+ * `useRef`, no `await`.
+ *
+ * @complexity Time/space: O(k) in the patch's own field count — one shallow merge, no iteration.
+ */
+export function mergeSourceUpdate(previous: PreviousSourceFields | undefined, patch: SourceUpdatePatch): MergedSourceUpdate {
+  return {
+    fields: { ...(previous?.fields ?? {}), ...(patch.fields ?? {}) },
+    enabled: patch.enabled ?? previous?.enabled ?? true,
+    label: patch.label ?? previous?.label,
+  };
+}
 
 /** The subset of `SettingsSlice<T>` these functions actually read, kept generic-free so callers
  *  don't have to reconcile six different `T`s into one array type. */
