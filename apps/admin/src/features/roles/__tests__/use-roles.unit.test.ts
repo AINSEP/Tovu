@@ -313,3 +313,25 @@ describe("onWritePermission", () => {
     expect(result.current.permissionInput).toBe("bogus.permission");
   });
 });
+
+describe("t/locale (2026-08-11, standing i18n rule)", () => {
+  /** `Roles.tsx` no longer imports `useAdminLocale`/`roles-i18n` itself — `t`/`locale` must reflect
+   *  this hook's OWN already-resolved locale (the same one it already used for its own error
+   *  strings), not a hardcoded English pass-through. */
+  it("t/locale reflect the locale settings fetch's resolved value, not the DEFAULT_LOCALE this hook starts with", async () => {
+    const network = fetchMock as unknown as (url: string, init?: RequestInit) => Promise<Response>;
+    vi.stubGlobal("fetch", (url: string, init?: RequestInit) => {
+      if (String(url).includes("/settings/effective") && String(url).includes("namespace=core.language")) {
+        return Promise.resolve(jsonResponse({ data: [{ key: "locale", value: "es" }] }));
+      }
+      return network(url, init);
+    });
+    fetchMock.mockResolvedValueOnce(jsonResponse({ roles: [ROLE] }));
+    fetchMock.mockResolvedValueOnce(jsonResponse({ policies: [POLICY] }));
+
+    const { result } = renderHook(() => useRoles());
+
+    await waitFor(() => expect(result.current.locale).toBe("es"));
+    expect(result.current.t("Roles & Permissions")).toBe("Roles y permisos");
+  });
+});

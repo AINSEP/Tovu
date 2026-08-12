@@ -2,15 +2,9 @@ import { Fragment, type FormEvent } from "react";
 import { DataTable, RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
 import type { AdminPolicy, AdminRole } from "../../lib/api";
 
-import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { roleMenuItems, policyMenuItems } from "./rules";
 import { useRoles } from "./hooks/use-roles.hooks";
-import {
-  t as translateRoles,
-  rolesDescriptionParts,
-  roleDeleteBodyParts,
-  policyDeleteBodyParts,
-} from "./roles-i18n";
+import { rolesDescriptionParts, roleDeleteBodyParts, policyDeleteBodyParts } from "./roles-i18n";
 
 /**
  * @file "Roles & Permissions" screen (SPEC-006 + 0.6.0 CRUD-completion amendment) — the
@@ -515,9 +509,10 @@ export function Roles({ useRolesHook = useRoles }: RolesProps = {}) {
     pendingPolicyDelete,
     setPendingPolicyDelete,
     onDeletePolicy,
+
+    t,
+    locale,
   } = useRolesHook();
-  const locale = useAdminLocale();
-  const t = (key: string): string => translateRoles(locale, key);
   const { prefix: descriptionPrefix, linkLabel: descriptionLinkLabel, suffix: descriptionSuffix } =
     rolesDescriptionParts(locale);
 

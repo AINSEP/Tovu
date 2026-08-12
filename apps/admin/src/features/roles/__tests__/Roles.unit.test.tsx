@@ -95,6 +95,9 @@ function baseController(overrides: Partial<RolesController> = {}): RolesControll
     setPendingPolicyDelete: vi.fn(),
     onDeletePolicy: vi.fn(),
 
+    t: (key: string) => key,
+    locale: "en",
+
     ...overrides,
   };
 }
