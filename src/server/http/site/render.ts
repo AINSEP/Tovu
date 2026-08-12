@@ -147,6 +147,47 @@ function safeHref(value: JsonValue | undefined): string {
 }
 
 /**
+ * {@link safeHref}'s image-shaped sibling — the allowlist an author-supplied `attrs.src` must pass
+ * before it reaches public HTML. Returns `null` when the value is not safe to emit, and the caller
+ * degrades to {@link mediaPlaceholder} exactly as it did when `src` was refused unconditionally.
+ *
+ * ## Why this exists rather than the old blanket refusal
+ *
+ * Until 2026-08-12 the `"image"` case never read `src` at all. That was safe but blunt: it silently
+ * broke the toolbar's own "Img by URL" control, which produced content that could never render. The
+ * owner's objection was the right one — *"why is that even bad to refuse an attribute source? If the
+ * user is saying they want it, why bar it?"* — and `safeHref` two functions up already demonstrates
+ * the correct answer for the identical problem class: validate the scheme, do not ban the feature.
+ *
+ * ## What is rejected, and why each one matters
+ *
+ * - **`data:` / `blob:` / `file:` / `javascript:` and every other scheme.** Only `http(s)` is
+ *   allowed, by allowlist rather than denylist, so a scheme nobody thought of fails closed.
+ * - **The authenticated admin media URL** (`/workspaces/{ws}/media/{id}/original`, `api.ts`'s
+ *   `mediaOriginalUrl`). This is the non-obvious one and the reason the blanket refusal existed at
+ *   all: the editor's own node view legitimately previews via that URL on an authenticated admin
+ *   surface, so it can genuinely end up in `attrs.src`. Emitting it publicly gives every reader a
+ *   broken image and discloses internal routing. A ref-based node is the supported way to publish
+ *   managed media — that path is untouched above.
+ * - **Root-relative and protocol-relative paths.** Unlike a link, a root-relative *image* is either
+ *   a managed asset (which must go through the ref path so its transform version is resolved) or a
+ *   mistake; `//host/x` additionally inherits the page scheme, which is not a decision an author
+ *   should make implicitly here.
+ *
+ * Note there is deliberately no server-side fetch anywhere in this path: the emitted URL is loaded
+ * by the READER's browser, so this introduces no SSRF surface. Ingesting the URL server-side to
+ * mint a real ref would — and would also have to solve `src/http`'s (ADR-038) UTF-8 text buffering,
+ * which corrupts binary bytes. See `PostEditor.tsx`'s toolbar comment for that full trade-off.
+ */
+function safeImageSrc(value: JsonValue | undefined): string | null {
+  if (typeof value !== "string") return null;
+  const src = value.trim();
+  if (!/^https?:\/\/[^\s/$.?#][^\s]*$/i.test(src)) return null;
+  if (/\/workspaces\/[^/]+\/media\/[^/]+\/original\b/i.test(src)) return null;
+  return src;
+}
+
+/**
  * Allowlisted CSS color forms an author-supplied `color` (highlight/text-color/background-color
  * marks, 2026-08-11) may take before it reaches public HTML inside a `style=""` attribute — the
  * same "collapse anything unrecognized rather than splice an arbitrary string into markup"
@@ -672,6 +713,15 @@ export function renderDocNode(
           });
         }
       }
+      // LEGACY `src`-only node (the toolbar's "Img by URL", and anything authored before refs
+      // existed). Historically this fell straight through to the placeholder — `src` was never read
+      // at all. The owner reversed that on 2026-08-12: refusing every `src` is a blunt instrument,
+      // and this file already had the right shape for the problem in {@link safeHref}, which does
+      // not refuse link hrefs but validates their scheme. {@link safeImageSrc} is that same
+      // discipline for an image URL: an allowlist, not a ban. Anything it rejects still degrades to
+      // the identical placeholder below, so invariant I2 (never silently empty) is unchanged.
+      const legacySrc = safeImageSrc(attrs.src);
+      if (legacySrc) return `<img src="${escapeHtml(legacySrc)}" alt="${escapeHtml(alt)}" loading="lazy" />`;
       return mediaPlaceholder({ label: alt || "Image" });
     }
     case "youtube": {

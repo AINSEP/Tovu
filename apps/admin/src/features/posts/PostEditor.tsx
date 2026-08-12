@@ -184,7 +184,7 @@ function Toolbar({
         </select>
         <button className="tb-btn" title="Divider" onClick={() => chain().setHorizontalRule().run()}>―</button>
         {/* Table (owner, 2026-08-11: "anything and everything") — same "quickest thing that
-            works" idiom as "Divider" just above: a fixed 3x3-with-header-row insert,
+            works" idiom as "Img by URL"/"Divider" just above: a fixed 3x3-with-header-row insert,
             no rows/cols prompt. `insertTable`'s own defaults (`rows: 3, cols: 3,
             withHeaderRow: true`) are passed explicitly rather than relied on implicitly. */}
         <button
@@ -365,26 +365,38 @@ function Toolbar({
             composing the same `MediaPickerDialog`/`WidgetPickerDialog`/`WidgetAddControl` pieces
             `CollectionEntryEditor.tsx`/`WidgetRegionEditor.tsx` still use directly and unchanged. */}
         <EmbedInsertControl editor={editor} />
-        {/* "Insert image by URL" (the `chain().setImage({ src, alt })` button that used to live here)
-            REMOVED 2026-08-12 — owner-reported bug: it wrote a node carrying only `attrs.src`, which
-            `render.ts`'s `"image"` case has NEVER read (ADR-027 §4/D7 — see that case's own comment: a
-            legacy `src`-only node may hold a `data:` blob, an arbitrary external URL, or the
-            *authenticated* admin media-preview URL, none of which are safe to embed unescaped on
-            public HTML, so it always degrades to the placeholder there instead). The control looked
-            like it worked (the in-editor `MediaImageNodeView` renders `attrs.src` directly for its own
-            "legacy" preview branch — an authenticated admin surface, where doing so is safe) and then
-            silently never rendered on the live site — exactly the "worked in the editor, dead on
-            publish" shape this file's own toolbar-button bugs have repeatedly taken. A same-session fix
-            that made this write a real `{assetId, transformName}` ref instead (fetching the URL
-            server-side, the only way to do that without trusting an admin-authenticated `src`) was
-            considered and rejected: the one guarded outbound-HTTP seam this repo has (`src/http`,
-            ADR-038) buffers responses as UTF-8 TEXT (`transport.fetch.ts`'s `bodyText`), which would
-            corrupt binary image bytes, so reusing it isn't a same-size change, and hand-rolling a
-            second, independently-unreviewed SSRF guard for this one path is a worse trade than
-            removing a redundant control — `EmbedInsertControl` just above (Media picker: upload a file)
-            and drag/paste onto the canvas (`FileHandler`, `use-post-editor.hooks.ts`) both already
-            insert the SAME ref-based node type and both already work end-to-end, so nothing an operator
-            could actually do got worse. */}
+        {/* "Insert image by URL" — REMOVED and then RESTORED on 2026-08-12, same day. Read this before
+            removing it again.
+            It writes a node carrying only `attrs.src`. `render.ts`'s `"image"` case historically never
+            read `src` (ADR-027 §4/D7), so the control looked like it worked in the editor and silently
+            rendered a placeholder on the live site — that part of the bug report was real.
+            The first fix removed the control. The owner reversed that: *"I don't wanna remove the image
+            by URL… why is that even bad to refuse an attribute source? If the user is saying they want
+            it, why bar it?"* He is right, and the blanket refusal was the actual defect. This file
+            already had the correct pattern for exactly this problem — `safeHref` (render.ts) does not
+            REFUSE link hrefs, it validates the scheme and passes good ones through. The image case was
+            the outlier in refusing everything.
+            So `render.ts` now has `safeImageSrc`, the image-shaped sibling of `safeHref`: an `https?:`
+            allowlist that rejects `javascript:`/`data:`/`blob:`/`file:` and the app's own authenticated
+            admin media URLs, degrading anything else to the same visible placeholder as before.
+            NOTE the rejected alternative and why it is NOT the cheap option it sounds like: fetching
+            the URL server-side to mint a real `{assetId, transformName}` ref would need `src/http`
+            (ADR-038), which buffers responses as UTF-8 TEXT (`transport.fetch.ts`'s `bodyText`) and
+            would corrupt binary image bytes. It would also introduce SSRF surface that scheme
+            validation does not — because with validation the SERVER never fetches anything; the
+            reader's browser loads the URL directly. */}
+        <button
+          className="tb-btn"
+          title="Insert image by URL"
+          onClick={() => {
+            const src = window.prompt("Image URL:");
+            if (!src) return;
+            const alt = window.prompt("Alt text (optional):") ?? "";
+            chain().setImage({ src, alt: alt || undefined }).run();
+          }}
+        >
+          Img by URL
+        </button>
         {/* YouTube (coordinator MSG #1 licensing sweep, 2026-08-11) — a "prompt for a URL" idiom, the
             same shape "Insert image by URL" used before its removal above.
             `setYoutubeVideo` itself rejects an unrecognized URL
