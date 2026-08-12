@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { api, describeApiError, type AdminDisclosureResult, type AdminRestorePoint } from "../../../lib/api";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { t } from "../recovery-i18n";
+import type { Translate } from "../../../lib/dictionary-translator";
 
 /**
  * @file The restore ceremony (`plan`/`confirm`/`execute`, SPEC-019 C-301/C-302/C-303) plus the
@@ -40,7 +41,7 @@ export interface RestoreFlowController {
   doExecute: () => Promise<void>;
   /** Bound translator — `key` already resolved against the caller's locale, so `RestoreFlow` never
    *  imports `useAdminLocale`/`recovery-i18n` itself. See this file's header. */
-  t: (key: string) => string;
+  t: Translate;
   /** Raw resolved locale — `RestoreFlow`'s own local step subcomponents and several
    *  `recovery-i18n.tsx` helpers take `locale` directly rather than a bound translator. See this
    *  file's header. */
