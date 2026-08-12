@@ -1,7 +1,7 @@
 import { DataTable, RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
 
 import { integrationRowMenuItems } from "./rules";
-import { useIntegrations } from "./hooks/use-integrations.hooks";
+import { useWiredIntegrations } from "./hooks/use-integrations.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { t, deleteWebhookBody, actionsForWebhookLabel } from "./integrations-i18n";
 
@@ -25,7 +25,7 @@ export interface IntegrationsProps {
    * exactly as before. A test supplies a stub and drives this component through any state without
    * module mocking or a fake `fetch`.
    */
-  useIntegrationsHook?: typeof useIntegrations;
+  useIntegrationsHook?: typeof useWiredIntegrations;
 }
 
 /** The "Add webhook" form — only rendered while `formOpen`. Top-level rather than an inline
@@ -94,7 +94,7 @@ function IntegrationDeleteDialog(props: {
   );
 }
 
-export function Integrations({ useIntegrationsHook = useIntegrations }: IntegrationsProps = {}) {
+export function Integrations({ useIntegrationsHook = useWiredIntegrations }: IntegrationsProps = {}) {
   const locale = useAdminLocale();
   const {
     subscriptions,
