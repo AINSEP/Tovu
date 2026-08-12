@@ -81,6 +81,10 @@ function Toolbar({ editor }: { editor: Editor }) {
       lineHeight: (editor?.getAttributes("textStyle").lineHeight as string | undefined) ?? "",
       canUndo: editor?.can().undo() ?? false,
       canRedo: editor?.can().redo() ?? false,
+      // CharacterCount (2026-08-11) — `storage`, not a command/attr: the extension only tracks
+      // `state.doc`, so this reads its live count the same way `canUndo`/`canRedo` read
+      // `editor.can()` rather than `isActive`.
+      characterCount: editor?.storage.characterCount?.characters() ?? 0,
     }),
   });
 
@@ -287,6 +291,13 @@ function Toolbar({ editor }: { editor: Editor }) {
           Img by URL
         </button>
       </div>
+      {/* CharacterCount (owner, 2026-08-11: "anything and everything") — a plain readout, not a
+          button: nothing to click, just the live count `editor.storage.characterCount` already
+          tracks. Right-aligned via `margin-left: auto` (styles.css) so it reads as status text
+          trailing the row rather than one more control competing with the buttons before it. */}
+      <span className="editor-toolbar-count" aria-live="polite">
+        {s.characterCount} {s.characterCount === 1 ? "character" : "characters"}
+      </span>
     </div>
   );
 }
