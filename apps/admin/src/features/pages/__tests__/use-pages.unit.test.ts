@@ -1,7 +1,8 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { usePages } from "../hooks/use-pages.hooks";
+import { createFakePagesPort } from "../hooks/pages-dependencies.hooks";
+import { usePages, useWiredPages } from "../hooks/use-pages.hooks";
 
 /**
  * @file `usePages` — everything the Pages LIST screen does, extracted so it is reachable from
@@ -12,6 +13,11 @@ import { usePages } from "../hooks/use-pages.hooks";
  * Error strings are asserted verbatim — this hook's own doc comment says they moved off `Pages.tsx`
  * unchanged, and a drifted string here is the bug class this migration has already produced twice
  * elsewhere.
+ *
+ * The bodies above drive the wired hook (real `fetch`) — unchanged from before the `useWiredX`
+ * conversion, just a call-site swap. The "injected port" describe block at the bottom is new
+ * coverage added alongside that conversion, proving the pure hook is independently testable
+ * against `createFakePagesPort` with no `fetch` stub at all.
  */
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -53,7 +59,7 @@ afterEach(() => {
 
 async function renderLoaded() {
   fetchMock.mockResolvedValueOnce(jsonResponse({ posts: [{ post: PAGE }] }));
-  const view = renderHook(() => usePages());
+  const view = renderHook(() => useWiredPages());
   await waitFor(() => expect(view.result.current.pages).not.toBeNull());
   return view;
 }
@@ -61,7 +67,7 @@ async function renderLoaded() {
 describe("initial load", () => {
   it("starts with pages=null, then resolves to the unwrapped list", async () => {
     fetchMock.mockImplementation(() => new Promise(() => {})); // never resolves
-    const { result } = renderHook(() => usePages());
+    const { result } = renderHook(() => useWiredPages());
     expect(result.current.pages).toBeNull();
     expect(result.current.error).toBeNull();
   });
@@ -73,7 +79,7 @@ describe("initial load", () => {
 
   it("sets the ApiError's own message on a failed load", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ error: "not allowed" }, 403));
-    const { result } = renderHook(() => usePages());
+    const { result } = renderHook(() => useWiredPages());
     await waitFor(() => expect(result.current.error).not.toBeNull());
     expect(result.current.error).toBe("not allowed");
     expect(result.current.pages).toBeNull();
@@ -81,7 +87,7 @@ describe("initial load", () => {
 
   it("falls back to 'failed to load pages' for a non-Error rejection", async () => {
     fetchMock.mockRejectedValueOnce("network exploded");
-    const { result } = renderHook(() => usePages());
+    const { result } = renderHook(() => useWiredPages());
     await waitFor(() => expect(result.current.error).not.toBeNull());
     expect(result.current.error).toBe("failed to load pages");
   });
@@ -165,7 +171,7 @@ describe("disablePage", () => {
   it("replaces only the matching row in local state with the server's response, on success", async () => {
     const OTHER_PAGE = { ...PAGE, id: "pg-other", title: "Other" };
     fetchMock.mockResolvedValueOnce(jsonResponse({ posts: [{ post: PAGE }, { post: OTHER_PAGE }] }));
-    const { result } = renderHook(() => usePages());
+    const { result } = renderHook(() => useWiredPages());
     await waitFor(() => expect(result.current.pages).not.toBeNull());
 
     const updated = { ...PAGE, status: "draft" as const };
@@ -233,5 +239,68 @@ describe("removePage", () => {
     expect(result.current.error).toBe("failed to delete page");
     // The row must still be present — a failed delete does not optimistically drop it.
     expect(result.current.pages).toEqual([PAGE]);
+  });
+});
+
+describe("injected port (useWiredX conversion coverage)", () => {
+  it("loads pages through the injected port and navigates on create, without touching fetch", async () => {
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      const port = createFakePagesPort({ pages: [PAGE] });
+      const navigate = vi.fn();
+      const { result } = renderHook(() => usePages({ port, navigate }));
+      await waitFor(() => expect(result.current.pages).not.toBeNull());
+      expect(result.current.pages).toEqual([PAGE]);
+
+      await act(async () => {
+        await result.current.createPage();
+      });
+
+      expect(port.pages).toHaveLength(2);
+      expect(navigate).toHaveBeenCalledWith(`/pages/${port.pages[1]!.id}`);
+      expect(fetchMock).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("disablePage patches the page through the injected port", async () => {
+    const port = createFakePagesPort({ pages: [PAGE] });
+    const { result } = renderHook(() => usePages({ port, navigate: vi.fn() }));
+    await waitFor(() => expect(result.current.pages).not.toBeNull());
+
+    await act(async () => {
+      await result.current.disablePage(PAGE);
+    });
+
+    expect(port.pages[0]!.status).toBe("draft");
+    expect(result.current.pages?.[0]!.status).toBe("draft");
+  });
+
+  it("removePage deletes the pending page through the injected port", async () => {
+    const port = createFakePagesPort({ pages: [PAGE] });
+    const { result } = renderHook(() => usePages({ port, navigate: vi.fn() }));
+    await waitFor(() => expect(result.current.pages).not.toBeNull());
+
+    act(() => result.current.setPendingDelete(PAGE));
+    await act(async () => {
+      await result.current.removePage();
+    });
+
+    expect(port.pages).toEqual([]);
+    expect(result.current.pages).toEqual([]);
+  });
+
+  it("sets the fallback error when the injected port's create call rejects", async () => {
+    const port = createFakePagesPort({ pages: [], createError: new Error("quota exceeded") });
+    const { result } = renderHook(() => usePages({ port, navigate: vi.fn() }));
+    await waitFor(() => expect(result.current.pages).not.toBeNull());
+
+    await act(async () => {
+      await result.current.createPage();
+    });
+
+    expect(result.current.error).toBe("quota exceeded");
+    expect(result.current.creating).toBe(false);
   });
 });

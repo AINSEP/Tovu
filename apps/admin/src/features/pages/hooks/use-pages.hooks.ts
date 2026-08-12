@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 
-import { api, type AdminPost } from "../../../lib/api";
-import { navigate } from "../../../lib/router";
+import { type AdminPost } from "../../../lib/api";
+import { navigate as defaultNavigate } from "../../../lib/router";
+import { defaultPagesPort } from "./pages-dependencies.hooks";
+import type { PagesPort } from "./pages-port.hooks";
 
 /**
  * @file Everything the Pages LIST does, so `Pages.tsx` is only markup.
@@ -18,6 +20,13 @@ import { navigate } from "../../../lib/router";
  *
  * Naming follows `hooks/use-settings-slice.hooks.ts` and `hooks/use-dirty-guard.hooks.ts`:
  * `use-<thing>.hooks.ts`. Feature-local because nothing outside `features/pages` needs it.
+ *
+ * `port`/`navigate` are injected — see `pages-port.hooks.ts` — rather than reaching `lib/api`/
+ * `lib/router` directly, so a test can describe load/create/disable/delete outcomes against
+ * `createFakePagesPort` instead of stubbing global `fetch`. `useWiredPages` below is the
+ * zero-argument pair `Pages.tsx` actually mounts. No `locale`/`useAdminLocale` here — every error
+ * string in this file is hardcoded English, unlike `use-collections.hooks.ts`'s locale-aware
+ * fallbacks.
  */
 
 export interface PagesController {
@@ -35,7 +44,13 @@ export interface PagesController {
   removePage: () => Promise<void>;
 }
 
-export function usePages(): PagesController {
+export interface PagesDependencies {
+  port: PagesPort;
+  navigate: (path: string) => void;
+}
+
+export function usePages(deps: PagesDependencies): PagesController {
+  const { port, navigate } = deps;
   const [pages, setPages] = useState<AdminPost[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -48,17 +63,21 @@ export function usePages(): PagesController {
   const [pendingDelete, setPendingDelete] = useState<AdminPost | null>(null);
 
   useEffect(() => {
-    api
+    port
       .listPages()
       .then((r) => setPages(r.posts.map((entry) => entry.post)))
       .catch((e) => setError(e instanceof Error ? e.message : "failed to load pages"));
-  }, []);
+    // `port` is added — see `use-page-editor.hooks.ts`'s identical note: a function-scoped value
+    // ESLint's exhaustive-deps rule can see, referentially stable in production, so this changes
+    // nothing about when the effect re-runs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [port]);
 
   async function createPage() {
     setCreating(true);
     setError(null);
     try {
-      const { post } = await api.createPage("Untitled");
+      const { post } = await port.createPage("Untitled");
       // The Pages editor, not the Posts one. "New Page" and "ask the assistant to build me a page"
       // are two doors to the same destination — neither of them is a Tiptap screen.
       navigate(`/pages/${post.id}`);
@@ -77,7 +96,7 @@ export function usePages(): PagesController {
     setRowSavingId(page.id);
     setError(null);
     try {
-      const { post: updated } = await api.updatePost({ id: page.id }, { status: "draft" });
+      const { post: updated } = await port.updatePost({ id: page.id }, { status: "draft" });
       setPages((prev) => (prev ? prev.map((p) => (p.id === updated.id ? updated : p)) : prev));
     } catch (e) {
       setError(e instanceof Error ? e.message : "failed to disable page");
@@ -112,7 +131,7 @@ export function usePages(): PagesController {
     setRowSavingId(page.id);
     setError(null);
     try {
-      await api.deletePage(page.id);
+      await port.deletePage(page.id);
       setPages((prev) => (prev ? prev.filter((p) => p.id !== page.id) : prev));
     } catch (e) {
       setError(e instanceof Error ? e.message : "failed to delete page");
@@ -133,4 +152,14 @@ export function usePages(): PagesController {
     disablePage,
     removePage,
   };
+}
+
+/**
+ * Binds the real `/api/.../pages` client and `lib/router`'s `navigate` — see
+ * `pages-dependencies.hooks.ts`. The zero-argument half of the `useX(dependencies)` /
+ * `useWiredX()` pair, so `Pages.tsx` composes this and a test composes {@link usePages} with
+ * `createFakePagesPort`.
+ */
+export function useWiredPages(): PagesController {
+  return usePages({ port: defaultPagesPort, navigate: defaultNavigate });
 }
