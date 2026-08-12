@@ -1,12 +1,19 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { useNewContentTypeDialog } from "../hooks/use-new-content-type-dialog.hooks";
+import { ApiError } from "../../../lib/api";
+import { createFakeNewContentTypeDialogPort } from "../hooks/new-content-type-dialog-dependencies.hooks";
+import { useNewContentTypeDialog, useWiredNewContentTypeDialog } from "../hooks/use-new-content-type-dialog.hooks";
 
 /**
  * @file `useNewContentTypeDialog` — `NewContentTypeDialog`'s own state and submit action
  * (design-spec.md §1.3). Follows the fetch-mocking harness `use-migrate-forward-section.unit.test.ts`
  * established for this package.
+ *
+ * `mount()` below drives the wired hook (real `fetch`) — unchanged from before the `useWiredX`
+ * conversion, just a call-site swap. The "injected port" describe block at the bottom is new
+ * coverage added alongside that conversion, proving the pure hook is independently testable
+ * against `createFakeNewContentTypeDialogPort` with no `fetch` stub at all.
  */
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -37,7 +44,7 @@ afterEach(() => {
 });
 
 function mount(onCreated = vi.fn(), onCancel = vi.fn()) {
-  const view = renderHook(() => useNewContentTypeDialog({ onCreated, onCancel }));
+  const view = renderHook(() => useWiredNewContentTypeDialog({ onCreated, onCancel }));
   return { view, onCreated, onCancel };
 }
 
@@ -193,5 +200,52 @@ describe("Escape-to-cancel", () => {
     const { onCancel } = mount();
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
     expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("injected port (useWiredX conversion coverage)", () => {
+  it("submits the trimmed key/label and row-id-stripped fields through the injected port, without touching fetch", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const onCreated = vi.fn();
+    try {
+      const port = createFakeNewContentTypeDialogPort();
+      const { result } = renderHook(() => useNewContentTypeDialog({ onCreated, onCancel: vi.fn() }, { port, locale: "en" }));
+
+      act(() => result.current.setKey("  recipe  "));
+      act(() => result.current.setLabel("  Recipe  "));
+      act(() => result.current.updateField(result.current.fields[0]._rowId, { name: "prep_time" }));
+
+      await act(async () => {
+        await result.current.submit({ preventDefault: vi.fn() } as unknown as React.FormEvent);
+      });
+
+      expect(port.lastCreate).toEqual({
+        key: "recipe",
+        label: "Recipe",
+        fields: [{ name: "prep_time", kind: "text", required: false, queryable: false }],
+      });
+      expect(onCreated).toHaveBeenCalledTimes(1);
+      expect(fetchMock).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("sets the locale-aware fallback error when the injected port rejects with an ApiError-shaped empty message", async () => {
+    const port = createFakeNewContentTypeDialogPort({ createError: new ApiError("", 500) });
+    const onCreated = vi.fn();
+    const { result } = renderHook(() => useNewContentTypeDialog({ onCreated, onCancel: vi.fn() }, { port, locale: "en" }));
+
+    act(() => result.current.setKey("recipe"));
+    act(() => result.current.setLabel("Recipe"));
+    act(() => result.current.updateField(result.current.fields[0]._rowId, { name: "prep_time" }));
+
+    await act(async () => {
+      await result.current.submit({ preventDefault: vi.fn() } as unknown as React.FormEvent);
+    });
+
+    expect(result.current.error).toBe("Failed to create content type");
+    expect(onCreated).not.toHaveBeenCalled();
   });
 });

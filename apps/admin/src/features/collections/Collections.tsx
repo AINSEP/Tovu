@@ -2,7 +2,7 @@ import { CONTENT_TYPE_FIELD_KINDS, type AdminContentType, type ContentTypeFieldK
 import { DataTable, RowMenu } from "@jini-ai/admin/react";
 import { contentTypeMenuItems, type LifecycleConfirmOp } from "./rules";
 import { useCollections } from "./hooks/use-collections.hooks";
-import { useNewContentTypeDialog } from "./hooks/use-new-content-type-dialog.hooks";
+import { useWiredNewContentTypeDialog } from "./hooks/use-new-content-type-dialog.hooks";
 import { useWiredEditFieldsDialog } from "./hooks/use-edit-fields-dialog.hooks";
 import { useLifecycleConfirmDialog } from "./hooks/use-lifecycle-confirm-dialog.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
@@ -44,7 +44,7 @@ export interface NewContentTypeDialogProps {
   onCreated: () => void;
   onCancel: () => void;
   /** Dependency injection seam for tests — see `PostsProps.usePostsHook` for the convention. */
-  useNewContentTypeDialogHook?: typeof useNewContentTypeDialog;
+  useNewContentTypeDialogHook?: typeof useWiredNewContentTypeDialog;
   /** Translator closure — see `Collections()`'s own `t`. */
   t: (key: string) => string;
 }
@@ -52,7 +52,7 @@ export interface NewContentTypeDialogProps {
 function NewContentTypeDialog({
   onCreated,
   onCancel,
-  useNewContentTypeDialogHook = useNewContentTypeDialog,
+  useNewContentTypeDialogHook = useWiredNewContentTypeDialog,
   t,
 }: NewContentTypeDialogProps) {
   const { label, setLabel, key, setKey, fields, updateField, removeField, addField, error, saving, submit } =

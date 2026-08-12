@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { api, describeApiError } from "../../../lib/api";
+import { describeApiError } from "../../../lib/api";
 import {
   addDraftField,
   emptyField,
@@ -13,6 +13,8 @@ import {
 import { useEscapeToCancel } from "./use-escape-to-cancel.hooks";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { t } from "../collections-i18n";
+import { defaultNewContentTypeDialogPort } from "./new-content-type-dialog-dependencies.hooks";
+import type { NewContentTypeDialogPort } from "./new-content-type-dialog-port.hooks";
 
 /**
  * @file `NewContentTypeDialog`'s own state and submit action (design-spec.md §1.3), so the dialog
@@ -25,6 +27,11 @@ import { t } from "../collections-i18n";
  *
  * Naming follows `hooks/use-settings-slice.hooks.ts`: `use-<thing>.hooks.ts`. Feature-local because
  * nothing outside `features/collections` needs it.
+ *
+ * `port`/`locale` are injected — see `new-content-type-dialog-port.hooks.ts` — rather than reaching
+ * `lib/api`/`useAdminLocale()` directly, so a test can describe the submit outcome against
+ * `createFakeNewContentTypeDialogPort` instead of stubbing global `fetch`.
+ * `useWiredNewContentTypeDialog` below is the pair `Collections.tsx` actually mounts.
  */
 
 export interface NewContentTypeDialogController {
@@ -41,11 +48,19 @@ export interface NewContentTypeDialogController {
   submit: (e: React.FormEvent) => void;
 }
 
-export function useNewContentTypeDialog(props: {
-  onCreated: () => void;
-  onCancel: () => void;
-}): NewContentTypeDialogController {
-  const locale = useAdminLocale();
+export interface NewContentTypeDialogDependencies {
+  port: NewContentTypeDialogPort;
+  locale: string;
+}
+
+export function useNewContentTypeDialog(
+  props: {
+    onCreated: () => void;
+    onCancel: () => void;
+  },
+  deps: NewContentTypeDialogDependencies
+): NewContentTypeDialogController {
+  const { port, locale } = deps;
   const [label, setLabel] = useState("");
   const [key, setKey] = useState("");
   const [fields, setFields] = useState<DraftField[]>([emptyField()]);
@@ -78,7 +93,7 @@ export function useNewContentTypeDialog(props: {
 
     setSaving(true);
     try {
-      await api.createContentType({
+      await port.createContentType({
         key: key.trim(),
         label: label.trim(),
         fields: stripDraftFieldRowIds(fields),
@@ -92,4 +107,18 @@ export function useNewContentTypeDialog(props: {
   }
 
   return { label, setLabel, key, setKey, fields, updateField, removeField, addField, error, saving, submit };
+}
+
+/**
+ * Binds the real `/api/.../content-types` client and the resolved `useAdminLocale()` value — see
+ * `new-content-type-dialog-dependencies.hooks.ts`. The zero-argument-deps half of the
+ * `useX(dependencies)` / `useWiredX()` pair, so `Collections.tsx` composes this and a test composes
+ * {@link useNewContentTypeDialog} with `createFakeNewContentTypeDialogPort`.
+ */
+export function useWiredNewContentTypeDialog(props: {
+  onCreated: () => void;
+  onCancel: () => void;
+}): NewContentTypeDialogController {
+  const locale = useAdminLocale();
+  return useNewContentTypeDialog(props, { port: defaultNewContentTypeDialogPort, locale });
 }
