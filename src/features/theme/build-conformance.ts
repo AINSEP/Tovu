@@ -102,14 +102,35 @@ function checkStylesheetSentinel(pageId: string, html: string): ConformanceIssue
  * or `../js/` reference the runtime rewrite cannot recognize and that will 404 in the browser — exactly
  * the failure `static-render.ts` currently only reports as a `console.warn` at serve time. Here it fails
  * the install instead.
+ *
+ * Also reports a page that references NO `../css/`/`../js/` asset at all (checked against the RAW html,
+ * before rewriting) as its own finding — found empirically (`astro-real-bundler-conformance.test.ts`):
+ * real Astro output with inlined CSS and no client JS made this function return `[]`, which reads
+ * identically to "every asset reference on this page was verified correct." Those are not the same
+ * claim — the difference between "nothing to check" and "checked, and it's fine" would otherwise be
+ * lost the moment this function's result is read as a boolean pass/fail. A compliant page always carries
+ * at least the mandatory stylesheet sentinel (itself a `../css/` reference — see
+ * {@link checkStylesheetSentinel}), so this can only fire in tandem with that rule already failing; it
+ * exists so a reader filtering issues down to just the `asset-path` rule still sees that this page's
+ * assets were never actually verified, rather than reading silence as a clean bill of health.
  */
 function checkAssetPaths(pageId: string, html: string, themeId: string): ConformanceIssue[] {
+  const totalReferences = findUnrewrittenAssetPaths(html).length; // count BEFORE rewriting -- rewritable or not
   const unrewritten = findUnrewrittenAssetPaths(rewriteAssetPaths(html, themeId));
-  return unrewritten.map((reference) => ({
+  const issues: ConformanceIssue[] = unrewritten.map((reference) => ({
     page: pageId,
     rule: "asset-path",
     message: `asset reference '${reference}' cannot be rewritten to the served theme-assets route and will 404 in the browser`,
   }));
+  if (totalReferences === 0) {
+    issues.push({
+      page: pageId,
+      rule: "asset-path",
+      message:
+        "page ships no '../css/' or '../js/' asset references at all — this check has nothing to verify, which is not the same as verifying the page's assets are correct",
+    });
+  }
+  return issues;
 }
 
 /**
