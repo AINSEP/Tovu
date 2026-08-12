@@ -190,3 +190,55 @@ scattershot access, it's that the one place designed to draw the line was never 
   proposed file states the boundary explicitly so the next person doesn't assume "just add whatever
   needs exposing" applies. Worth a quick owner nod before landing, not a full ADR — it doesn't
   change any port contract or wire-format, only which file re-exports it.
+
+---
+
+## `newsletter` (13 files exposed, 45 edges)
+
+Also has **no `index.ts`**. `newsletter` is the largest of the four by both file count and edge
+count, but its convergence (45 edges / 13 files ≈ 3.5) is already the best of the four — it isn't
+the "stark" case the dispatch brief flagged forms/site-dir as. That tracks: newsletter genuinely has
+more independent sub-concerns (campaigns, lists, subscriptions, confirmation, unsubscribe, send
+pipeline) than the other three modules, each legitimately needing its own file, and each already
+funneled through a scoped local composition file
+(`server/routes/admin/newsletter/deps.ts` — verified: every one of its 8 newsletter imports is
+`import type`, assembling narrower deps bundles like `toCampaignWriteServiceDeps`,
+`toListsDeps`, `toConfirmationDeps` for the domain functions to consume; this file's own docblock
+says it "follows the exact precedent `src/server/routes/admin/members/deps.ts` established").
+
+| File | Importers | What's imported | Category | Verdict |
+|---|---|---|---|---|
+| `errors.ts` | 8 route/HTTP files (`server/http/admin/newsletter.ts`, `get-campaign.ts`, `list-send-log.ts`, `remove-subscription.ts`, `resend-confirmation.ts`, `update-campaign.ts`, `newsletter-confirm.ts`, `newsletter-unsubscribe.ts`) | Typed error classes (value imports, `instanceof` HTTP mapping) | **2 — missing API** | Same shape as `comments/errors.ts` (already barreled) and the `forms/errors.ts` proposal above. Highest-count single file in the whole trace (8 importers) — the clearest case for a door. |
+| `ports.ts` | `server/app.ts` (`SendBatchJob` type), `members/subscriber-directory.ts:43` (`SubscriberContact`, `SubscriberDirectoryPort`), `server/routes/admin/newsletter/deps.ts`, `server/routes/site/newsletter-deps.ts` | Port interfaces + the cross-module DI seam (`SubscriberDirectoryPort`) | **2** | `members/subscriber-directory.ts`'s own docblock: "Newsletter's `src/newsletter/ports.ts` declares `SubscriberDirectoryPort` as the read-only seam it needs into Members... Single-evaluator typed dependency per `src/newsletter/ports.ts`'s header comment" (cites ADR-030 §4). Textbook dependency inversion, same pattern as `forms`' widgets seam — genuinely the module's contract, just no front door. |
+| `campaign-write-service.ts` | `deps.ts` (type) + 4 route handlers (`saveCampaign`, `cancelCampaign`, `scheduleCampaign` value imports — verified each route calls a distinct function) | **3 — legitimate** | Each route calls a different function; `deps.ts` already isolates the type-shaping concern. Nothing to consolidate. |
+| `confirmation.ts` | `deps.ts` (type) + `resend-confirmation.ts` (`issueConfirmationToken`) + `newsletter-confirm.ts` (`consumeConfirmationToken`) + `site/newsletter-deps.ts` (type) | **3** | Same pattern. |
+| `hooks.ts` | `deps.ts` (type) + `routes/admin/newsletter/deps.ts` (type) | `HookRegistry` type, one process-lifetime instance per `deps.ts`'s own docblock | **3** | Boot-time singleton type, not a repeatable call. |
+| `lists.ts` | `server/app.ts`, `server/deps.ts`, `deps.ts` (types) + `archive-list.ts` (`archiveList`) + `create-list.ts` (`saveList`) (values) | **3** | Same value-import-per-route pattern verified directly. |
+| `send-pipeline.ts` | `server/app.ts` (`createHookRegistry`, `handleSendBatchClaimed`, `SEND_BATCH_CLAIMED_EVENT`), `send-campaign.ts` (`authorizeSend`, `claimBatch`, `freezeAudience`), `pause-campaign.ts` (`pauseCampaign`), `resume-campaign.ts` (`resumeCampaign`), `send-test-campaign.ts` (`sendTestCampaign`) | **3** | 5 distinct call sites, 5 distinct functions each, verified with `grep`. This is the busiest "legitimate" file in the trace and it's still one-function-one-caller throughout. |
+| `subscriptions.ts` | `deps.ts` (type) + `create-subscription.ts` (`saveSubscription`) + `import-subscriptions.ts` (`importSubscriptions`) + `remove-subscription.ts` (`unsubscribeSubscription`) | **3** | Same pattern. |
+| `unsubscribe.ts` | `deps.ts` (type) + `site/newsletter-deps.ts` (type) + `newsletter-unsubscribe.ts` (`processUnsubscribe`) | **3** | Same pattern. |
+| `data-module-manifest.ts` | `server/deps.ts` | Single boot-time table-declaration call | **3** | Same shape as `comments/data-module-install.ts` — this is in fact the file that one's own docblock says it mirrors. |
+| `repo.memory.ts` / `repo.sqlite.ts` | `server/app.ts` / `server/deps.ts` | Concrete adapters | **3** | Systemic pattern (14+ modules). |
+| `tool-registrations.ts` | `assistant/tool-registrations.ts` | Plugin tool registry entry | **3** | Systemic (12 modules). |
+
+**Category tally:** 2 → 2 files; 3 → 11 files.
+
+### Proposal N-1 — add `src/newsletter/index.ts`, re-export `errors.ts` + `ports.ts` only
+
+- **Category:** 2 (missing API).
+- **New file (`src/newsletter/index.ts`, ~10 lines):** re-export every class from `errors.ts` and
+  the port interfaces + `SubscriberContact`/`SubscriberDirectoryPort`/`SendBatchJob` types from
+  `ports.ts`. Same "why this line and not that one" header comment as the `forms` proposal, pointing
+  at this report.
+- **Files touched (12, import-specifier edits only):** the 8 `errors.ts` importers +
+  `members/subscriber-directory.ts`, `server/app.ts`, `server/routes/admin/newsletter/deps.ts`,
+  `server/routes/site/newsletter-deps.ts`.
+- **Blast radius:** 12 files, all type-only or `instanceof`-only value imports. Every symbol
+  verified 1:1 against the real import line, same method as C-1/F-1.
+- **Result:** `newsletter` drops from 13 exposed files / 45 edges to **11 files / ~33 edges** — the
+  single biggest edge-count reduction of the four (12 edges), because `errors.ts` alone carries 8.
+- **Sign-off needed:** Same level as F-1 — a quick owner nod on the new file's scope, not an ADR.
+  Flagging one thing explicitly: `members/subscriber-directory.ts` implements `SubscriberDirectoryPort`
+  under ADR-030's locked decision; redirecting *where the type is imported from* doesn't touch that
+  decision or the interface shape, only the specifier. Worth saying so in the commit message when
+  this lands, since ADR-030 is cited by name in the file being touched.
