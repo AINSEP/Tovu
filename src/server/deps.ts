@@ -46,6 +46,7 @@ import {
   SqliteMemberSubscriptionRepo,
   SqliteMemberTierRepo,
 } from "../members";
+import { SqliteCommercePriceRepo, SqliteCommerceProductRepo } from "../features/commerce/repo.sqlite";
 import { rebuildNavLocationBindings } from "../navigation";
 import { SqliteMenuRepo, SqliteNavLocationBindingRepo } from "../navigation/repo.sqlite";
 import { SqliteWebhookDeliveryRepo, SqliteWebhookSubscriptionRepo } from "../integrations";
@@ -679,6 +680,12 @@ export function createSqliteRouteDeps(
     mediaRepo: new SqliteMediaRepo(db),
     assetBlobRepo: new SqliteAssetBlobRepo(db),
     assetRenditionRepo: new SqliteAssetRenditionRepo(db),
+    // 2026-08-12: wiring products into template render data. Plain Drizzle repos over the SAME
+    // `db` every other adapter above already shares — no plugin/`declareDataModule()` bootstrap
+    // needed (unlike `store`/`lipay`), so this is as cheap as `mediaRepo` above, not a `store`-
+    // style special case.
+    commerceProductRepo: new SqliteCommerceProductRepo(db),
+    commercePriceRepo: new SqliteCommercePriceRepo(db),
     blobStore: new LocalFsBlobStore({ rootDir: overrides?.uploadsDir ?? mediaUploadsDir() }),
     // ADR-027 §4 transform registry + rendition generation: registry rows are now durable too
     // (ADR-046 Phase 1). The real running server gets `SharpImageTransformer` (unlike
