@@ -259,6 +259,73 @@ for Agent Plugin install is proposed — this finding's severity is contingent o
 
 ---
 
+## FIX addendum (2026-08-13) — Finding 2 closed
+
+**Independent re-verification of Finding 1 first (continuation agent, before touching Finding 2):** ran
+`explore-svg-xss.test.ts` (4 tests) and the two `theme-*-static.test.ts` middleware files (12 tests)
+directly — all 16 pass at HEAD. Independently re-enumerated every mount that serves a theme's raw files
+(`grep`'d `express.static`/`sendFile`/`createReadStream` across `src/server`, not trusted from the
+addendum's own list) and found exactly the same two: `theme-static-assets.ts` and
+`theme-preview-static.ts`, both wired through `themeAssetSecurityHeaders` before `express.static` runs,
+unconditionally. Confirmed `explore.ts`'s file-content GET route only ever `res.json()`s (never raw
+bytes with a sniffable content-type), and confirmed `theme-page-preview.ts` is genuinely a different
+mechanism (renders through the real `renderStaticPage` loader, not a raw file serve) — the prior agent's
+call on both stands, independently re-derived rather than accepted on trust. The `.svg`/`.html` XSS fix
+holds.
+
+**Fix chosen for Finding 2: structural, not conventional.** `installAgentPlugin` no longer accepts a
+pre-resolved `AgentPluginWorkspaceLayout` at all — it now takes the instance-level `AgentPluginLayout`
+plus one `workspaceId`, and calls `layout.forWorkspace(workspaceId)` itself, exactly once, internally.
+There is no longer any workspace-shaped parameter for a caller to stitch together from two different
+`forWorkspace()` results. Considered and rejected: (a) a branded/opaque `workspaceId` field carried on
+`AgentPluginWorkspaceLayout` plus an equality check inside `installAgentPlugin` — works, but still
+accepts a workspace-shaped value as input, leaving a stitched-object surface to defend against with an
+equality check that could itself be gotten wrong (e.g. forgetting to compare one field); (b) a runtime
+assertion that re-derives and compares `packages`/`staging` against an independently-resolved value —
+same weakness as (a), plus doubles the resolution work. The chosen design removes the confusable value's
+entry point entirely rather than validating it after the fact, matching the "factory that is the only
+way to construct a layout" option named in the dispatch.
+
+**Two-proof closure, not one:** each of the two negative tests in `install.unit.test.ts` now proves
+closure two independent ways — (1) a compile-time `@ts-expect-error` showing honest TypeScript usage
+cannot construct the old exploit call anymore, verified load-bearing by direct `tsc` invocation with the
+project's own compiler options (this repo's `tsconfig.json` excludes `**/__tests__/**`/`*.test.ts`, so
+this is not gate-enforced by `npm run typecheck` today — confirmed by inspection, flagged rather than
+assumed); and (2) a cast-bypassed runtime call (`as unknown as AgentPluginLayout`) proving that even a
+caller who defeats the type system gets a hard `TypeError` (`forWorkspace is not a function`) instead of
+silent cross-workspace publication, since the hostile object was never produced by the real resolver.
+
+**How the negative test was changed, explicitly:** the two tests that used to be named "PROVEN GAP" and
+assert the exploit *succeeds* (`installed.packageRoot` lands in workspace B's tree, bytes readable back
+from workspace B's real store) are now named "CLOSED" and assert the *identical* hostile object literals
+(unchanged, so this is still evidence against the same exploit attempt) now fail both ways described
+above. Nothing was deleted or weakened — the exploit construction is preserved verbatim; only the
+expected outcome changed, deliberately, to match the fixed behavior.
+
+**Explicitly NOT claimed closed:** a caller could still hand `installAgentPlugin` a fully-fabricated
+`AgentPluginLayout` whose own `forWorkspace` implementation is malicious (returns mismatched paths on
+purpose). That is no longer "stitching two real, already-resolved values together" — the demonstrated
+bug class this fix targets (wrong variable capture, a stale cached layout, hand-assembly for
+convenience) — but "reimplementing the trusted resolver itself," a materially more deliberate act, and
+carries the same residual trust every caller-supplied port in this module already has (`archiveReader`
+is equally free to lie about archive contents). Recorded here rather than silently assumed away.
+
+**Red-before/green-after, verified explicitly:** the two rewritten tests were committed first in a
+state that fails against pre-fix `install.ts` (`AssertionError: Missing expected rejection` — the
+hostile layout is silently honored, exactly the original gap) — committed at `febb2a8` with only that
+one file staged (`git diff --cached --stat` verified before commit). The fix landed in the next commit,
+`3bd2101`, alongside the necessary mechanical call-site updates to `yauzl-archive-reader.unit.test.ts`
+and `agent-plugin-pipeline.integration.test.ts` (signature change, no behavior change) — re-running the
+same two tests afterward passes, and the full `agent-plugins` test tree is 78/78. `installAgentPlugin`
+still has zero callers in `src/` (unchanged by this fix) — this is what kept the fix cheap: no call site
+to migrate.
+
+`npx tsc -p tsconfig.json --noEmit`: zero errors attributable to `agent-plugins`.
+
+**Commits:** test (RED) `febb2a8`, fix (GREEN) `3bd2101`.
+
+---
+
 ### Note — XSS in rendered output (priority #4): the `description` omission holds; one dead-but-dangerous template landmine found
 
 **Component:** `src/features/commerce/storefront.ts`, `src/server/http/site/render.ts`, theme `.liquid` templates
