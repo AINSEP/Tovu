@@ -1509,6 +1509,13 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
   display: flex; gap: 2px; padding: 4px; background: var(--surface); border: 1px solid var(--border);
   border-radius: 9px; box-shadow: var(--shadow-md, var(--shadow-sm)); z-index: 3;
 }
+/* Drag handle (`PostEditor.tsx`, 2026-08-11) — `@tiptap/extension-drag-handle-react`'s own plugin
+   positions the wrapping element itself (absolute, tracking whichever block is under the cursor);
+   this only styles the grip icon inside it. `cursor: grab` signals the affordance since nothing
+   else about a small dot-grid icon reads as draggable on its own. */
+.editor-drag-handle { display: grid; place-items: center; width: 20px; height: 20px; color: var(--faint); cursor: grab; border-radius: 5px; }
+.editor-drag-handle:hover { color: var(--fg-2); background: var(--surface-2); }
+.editor-drag-handle svg { width: 16px; height: 16px; }
 .editor-toolbar .grp { display: flex; gap: 2px; padding-right: 8px; margin-right: 0; border-right: 1px solid var(--border); }
 .editor-toolbar .grp:last-child { border-right: none; padding-right: 0; }
 .tb-btn {
