@@ -4,7 +4,7 @@ Generated: 2026-08-12, end of session
 Source: Claude Code, Opus 5 (1M context), Coordinator + 11 Sonnet 5 subagents + 3 external peer models
 Target: Claude Code (Opus for routing, Sonnet subagents for implementation)
 
-**Status: 91 commits today. 164 UNPUSHED. Audit round 2 in flight at cutoff.**
+**Status: 93 commits today. ALL PUSHED to `origin/general-work`. Audit round 2 complete except Codex.**
 
 ---
 
@@ -21,13 +21,10 @@ The save-guard blocker existed precisely because the first fix shipped without a
 
 ---
 
-## ⚠️ 164 commits UNPUSHED
+## ✅ PUSHED — `8a40f62..6e0f73b`, 165 commits
 
-```
-git push origin general-work
-```
-
-Raised ~8 times this session and never actioned. Two full sessions of work exist on one machine.
+Two sessions of work is off the machine. Verified by re-fetching, not by trusting the push output.
+Anything committed after that point still needs a push — check `git log origin/general-work..HEAD`.
 
 ---
 
