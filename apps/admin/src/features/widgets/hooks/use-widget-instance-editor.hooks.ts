@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react";
 
-import { ApiError, api, describeApiError, type AdminWidget, type AdminWidgetType, type AdminWidgetWhereUsed } from "../../../lib/api";
-import { navigate } from "../../../lib/router";
+import { ApiError, describeApiError, type AdminWidget, type AdminWidgetType, type AdminWidgetWhereUsed } from "../../../lib/api";
+import { navigate as realNavigate } from "../../../lib/router";
 import { defaultWidgetConfig } from "../../../components/WidgetConfigFields/WidgetConfigFields";
 import { resolveEditorWidgetType, widgetConfigFieldErrors } from "../rules";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { t } from "../widgets-i18n";
+import { defaultWidgetsPort } from "./widgets-dependencies.hooks";
+import type { WidgetsPort } from "./widgets-port.hooks";
 
 /**
  * @file Everything the `WidgetInstanceEditor` screen does, so `WidgetInstanceEditor.tsx` is only
@@ -14,7 +16,20 @@ import { t } from "../widgets-i18n";
  * Extracted verbatim — same state, same effect deps, same error handling. The doc comments below
  * moved WITH the functions they describe. Naming follows `hooks/use-settings-slice.hooks.ts`:
  * `use-<thing>.hooks.ts`. Feature-local because nothing outside `features/widgets` needs it.
+ *
+ * `deps.port`/`deps.locale`/`deps.navigate` are injected (see `widgets-port.hooks.ts`) rather than
+ * reaching for `lib/api`'s `api`, `useAdminLocale()`, and `lib/router`'s `navigate` directly,
+ * sharing the `WidgetsPort` `use-widgets-library.hooks.ts` also injects — both read/write the same
+ * widget-instance resource. `t(locale, …)` stays a direct import: a pure `DICT[locale]?.[key] ??
+ * key` lookup with no host boundary, same "pure, no-I/O" category the convention doc names for
+ * `describeApiError`.
  */
+
+export interface WidgetInstanceEditorDependencies {
+  port: WidgetsPort;
+  locale: string;
+  navigate: (path: string) => void;
+}
 
 /** Locale-aware replacement for the old `STALE_VERSION_MESSAGE` constant — this string is only
  *  ever read inside this hook itself (after a `WIDGETS_VERSION_CONFLICT` 409), so it can be a
@@ -49,8 +64,10 @@ export interface WidgetInstanceEditorController {
   save: () => Promise<void>;
 }
 
-export function useWidgetInstanceEditor(props: WidgetInstanceEditorHookProps): WidgetInstanceEditorController {
-  const locale = useAdminLocale();
+export function useWidgetInstanceEditor(
+  props: WidgetInstanceEditorHookProps,
+  { port, locale, navigate }: WidgetInstanceEditorDependencies
+): WidgetInstanceEditorController {
   const isNew = props.widgetId === null;
   const [widget, setWidget] = useState<AdminWidget | null>(null);
   const [whereUsed, setWhereUsed] = useState<AdminWidgetWhereUsed>({ count: 0, references: [] });
@@ -75,7 +92,7 @@ export function useWidgetInstanceEditor(props: WidgetInstanceEditorHookProps): W
     }
     setLoading(true);
     setError(null);
-    api
+    port
       .getWidget(props.widgetId as string)
       .then((r) => {
         setWidget(r.widget);
@@ -96,12 +113,12 @@ export function useWidgetInstanceEditor(props: WidgetInstanceEditorHookProps): W
     setFieldErrors([]);
     try {
       if (isNew) {
-        const { widget: created } = await api.createWidget({ widgetType, title, config });
+        const { widget: created } = await port.createWidget({ widgetType, title, config });
         navigate(`/widgets/${created.id}`);
         return;
       }
       if (!widget) return;
-      const { widget: saved } = await api.updateWidget({ id: widget.id, baseVersion: widget.version, config });
+      const { widget: saved } = await port.updateWidget({ id: widget.id, baseVersion: widget.version, config });
       setWidget(saved);
       setConfig(saved.config);
       setMessage(`Saved · version ${saved.version}`);
@@ -135,4 +152,17 @@ export function useWidgetInstanceEditor(props: WidgetInstanceEditorHookProps): W
     widgetType,
     save,
   };
+}
+
+/**
+ * Binds the real `/api/.../widgets` client, the real `useAdminLocale()`, and the real
+ * `lib/router` `navigate` — see `widgets-dependencies.hooks.ts`.
+ *
+ * The zero-argument-dependencies half of the `useX(dependencies)` / `useWiredX()` pair, so
+ * `WidgetInstanceEditor.tsx` composes this and a test composes {@link useWidgetInstanceEditor}
+ * with `createFakeWidgetsPort`.
+ */
+export function useWiredWidgetInstanceEditor(props: WidgetInstanceEditorHookProps): WidgetInstanceEditorController {
+  const locale = useAdminLocale();
+  return useWidgetInstanceEditor(props, { port: defaultWidgetsPort, locale, navigate: realNavigate });
 }

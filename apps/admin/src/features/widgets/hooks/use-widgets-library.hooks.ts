@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 
-import { ApiError, api, describeApiError, type AdminWidget, type AdminWidgetType } from "../../../lib/api";
+import { ApiError, describeApiError, type AdminWidget, type AdminWidgetType } from "../../../lib/api";
 import { describeReferencingLocations } from "../rules";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { t } from "../widgets-i18n";
+import { defaultWidgetsPort } from "./widgets-dependencies.hooks";
+import type { WidgetsPort } from "./widgets-port.hooks";
 
 /**
  * @file Everything the `WidgetsLibrary` screen does, so `WidgetsLibrary.tsx` is only markup.
@@ -15,7 +17,19 @@ import { t } from "../widgets-i18n";
  *
  * Naming follows `hooks/use-settings-slice.hooks.ts`: `use-<thing>.hooks.ts`. Feature-local
  * because nothing outside `features/widgets` needs it.
+ *
+ * `deps.port`/`deps.locale` are injected (see `widgets-port.hooks.ts`) rather than reaching for
+ * `lib/api`'s `api` and `useAdminLocale()` directly, sharing the `WidgetsPort`
+ * `use-widget-instance-editor.hooks.ts` also injects — both hooks read/write the same widget-
+ * instance resource. `t(locale, …)` stays a direct import: a pure `DICT[locale]?.[key] ?? key`
+ * lookup with no host boundary, same "pure, no-I/O" category the convention doc names for
+ * `describeApiError`.
  */
+
+export interface WidgetsLibraryDependencies {
+  port: WidgetsPort;
+  locale: string;
+}
 
 export interface WidgetsLibraryController {
   /** `null` until the initial load settles — the caller renders a loading state. */
@@ -36,8 +50,7 @@ export interface WidgetsLibraryController {
   trashOrPurge: (widget: AdminWidget) => Promise<void>;
 }
 
-export function useWidgetsLibrary(): WidgetsLibraryController {
-  const locale = useAdminLocale();
+export function useWidgetsLibrary({ port, locale }: WidgetsLibraryDependencies): WidgetsLibraryController {
   const [widgets, setWidgets] = useState<AdminWidget[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   // Dossier C5 follow-up (2026-08-03): `listWidgetInstances` silently skips a widget-instance row
@@ -54,7 +67,7 @@ export function useWidgetsLibrary(): WidgetsLibraryController {
   const [forcePurging, setForcePurging] = useState(false);
 
   function load() {
-    api
+    port
       .listWidgets({ includeInactive: true })
       .then((r) => {
         // `includeInactive: true` deliberately asks the server for both `trash` and `purged` rows
@@ -83,7 +96,7 @@ export function useWidgetsLibrary(): WidgetsLibraryController {
   async function purge(widget: AdminWidget) {
     setError(null);
     try {
-      await api.purgeWidget({ id: widget.id }, { force: false });
+      await port.purgeWidget({ id: widget.id }, { force: false });
       load();
     } catch (e) {
       if (e instanceof ApiError && e.code === "WIDGETS_REFERENCED") {
@@ -101,7 +114,7 @@ export function useWidgetsLibrary(): WidgetsLibraryController {
     const { widget } = pendingForcePurge;
     setForcePurging(true);
     try {
-      await api.purgeWidget({ id: widget.id }, { force: true });
+      await port.purgeWidget({ id: widget.id }, { force: true });
       load();
     } catch (e2) {
       setError(describeApiError(e2, t(locale, "force-purge failed")));
@@ -115,7 +128,7 @@ export function useWidgetsLibrary(): WidgetsLibraryController {
     setError(null);
     try {
       if (widget.status === "active") {
-        await api.trashWidget(widget.id);
+        await port.trashWidget(widget.id);
         load();
         return;
       }
@@ -141,4 +154,17 @@ export function useWidgetsLibrary(): WidgetsLibraryController {
     confirmForcePurge,
     trashOrPurge,
   };
+}
+
+/**
+ * Binds the real `/api/.../widgets` client and the real `useAdminLocale()` — see
+ * `widgets-dependencies.hooks.ts`.
+ *
+ * The zero-argument-dependencies half of the `useX(dependencies)` / `useWiredX()` pair, so
+ * `WidgetsLibrary.tsx` composes this and a test composes {@link useWidgetsLibrary} with
+ * `createFakeWidgetsPort`.
+ */
+export function useWiredWidgetsLibrary(): WidgetsLibraryController {
+  const locale = useAdminLocale();
+  return useWidgetsLibrary({ port: defaultWidgetsPort, locale });
 }

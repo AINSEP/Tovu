@@ -2,7 +2,7 @@ import { type AdminWidgetType } from "../../lib/api";
 import { WIDGET_TYPE_OPTIONS } from "../../components/WidgetConfigFields/WidgetConfigFields";
 import { ConfirmDialog, DataTable } from "@jini-ai/admin/react";
 import { widgetTypeLabel } from "./rules";
-import { useWidgetsLibrary } from "./hooks/use-widgets-library.hooks";
+import { useWiredWidgetsLibrary } from "./hooks/use-widgets-library.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { WIDGETS_DICT } from "./widgets-i18n";
 
@@ -20,7 +20,7 @@ export interface WidgetsLibraryProps {
    * Dependency injection seam for tests — the same convention `Posts.tsx`'s `usePostsHook` uses.
    * Defaulted to the real hook, so production callers pass nothing and behave exactly as before.
    */
-  useWidgetsLibraryHook?: typeof useWidgetsLibrary;
+  useWidgetsLibraryHook?: typeof useWiredWidgetsLibrary;
 }
 
 /** The list screen's two independent notices — a fetch/action error, and how many rows the server
@@ -53,7 +53,7 @@ export function WidgetsLibraryNotices({
   );
 }
 
-export function WidgetsLibrary({ useWidgetsLibraryHook = useWidgetsLibrary }: WidgetsLibraryProps = {}) {
+export function WidgetsLibrary({ useWidgetsLibraryHook = useWiredWidgetsLibrary }: WidgetsLibraryProps = {}) {
   const {
     widgets,
     error,
