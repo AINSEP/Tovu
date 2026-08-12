@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 import type { AdminMedia } from "../../../lib/api";
-import { describeApiError, findEditingItem, readFileAsBase64 } from "../rules";
+import { useFetchMutation, useFetchQuery } from "../../../lib/fetch-query";
+import { KEYS, findEditingItem, readFileAsBase64, visibleMediaError } from "../rules";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { MEDIA_DICT, t as translate } from "../media-i18n";
 import { defaultMediaPort } from "./media-dependencies.hooks";
@@ -39,6 +40,17 @@ import type { MediaPort } from "./media-port.hooks";
  * (`../rules.ts`), which keeps its own independent `MEDIA_DICT[locale]?.[key] ?? key` closure
  * unchanged — same "row-menu builder is a different, out-of-scope thing" precedent
  * `use-pages.hooks.ts` cites for `pageRowMenuItems`.
+ *
+ * `lib/fetch-query` migration (2026-08-12): the list read is `useFetchQuery({ key: KEYS.list, ...
+ * })`; `upload`/`trash`/`purge` are three independent `useFetchMutation`s that each `invalidates:
+ * [KEYS.list]` instead of calling `load()` by hand. `rules.ts`'s `KEYS` doc explains why there is no
+ * separate "detail" key for `EditMediaPanel` to trip over the sibling-vs-nested trap
+ * `forms`/`collections` both hit — it has no read of its own. `clearOtherWriteErrors` mirrors
+ * `redirects/rules.ts`'s identical-purpose helper: three independent mutations each keep their OWN
+ * error until reset, so starting one must clear the other two or a stale failure could survive past
+ * a later, unrelated success. `pendingPurge`/`rowSavingId` stay local `useState` per this migration's
+ * own dispatch brief (`media` has per-row action state — a shared mutation object cannot carry
+ * "which row" on its own).
  */
 
 export interface MediaDependencies {
@@ -93,9 +105,7 @@ export interface MediaController {
  * @complexity Time/space: O(1) per call — one list round trip on mount, one per mutation.
  */
 export function useMedia({ port, locale, t }: MediaDependencies): MediaController {
-  const [media, setMedia] = useState<AdminMedia[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
+  const list = useFetchQuery({ key: KEYS.list, fetch: () => port.listMedia() });
   const [altDraft, setAltDraft] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [pendingPurge, setPendingPurge] = useState<AdminMedia | null>(null);
@@ -103,44 +113,44 @@ export function useMedia({ port, locale, t }: MediaDependencies): MediaControlle
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  function load() {
-    port
-      .listMedia()
-      .then((r) => setMedia(r.media))
-      .catch((e) => setError(e instanceof Error ? e.message : translate(locale, "failed to load media")));
-  }
+  const uploadMutation = useFetchMutation({
+    run: (input: { filename: string; contentType: string; dataBase64: string; alt?: string }) =>
+      port.uploadMedia({ filename: input.filename, contentType: input.contentType, dataBase64: input.dataBase64 }, { alt: input.alt }),
+    invalidates: [KEYS.list],
+  });
+  const trashMutation = useFetchMutation({ run: (id: string) => port.trashMedia(id), invalidates: [KEYS.list] });
+  const purgeMutation = useFetchMutation({ run: (id: string) => port.deleteMedia(id), invalidates: [KEYS.list] });
 
-  useEffect(load, []);
+  const writes = [uploadMutation, trashMutation, purgeMutation];
+  /** Clears the OTHER writes' failures before starting one — same shape/reasoning as
+   *  `redirects/rules.ts`'s `clearOtherWriteErrors` (see `use-redirects.hooks.ts`'s own copy): three
+   *  independent mutations each keep their own error until reset, so a stale failure from one must
+   *  not survive past the start of an unrelated one. */
+  function clearOtherWriteErrors(active: { reset: () => void }) {
+    for (const write of writes) if (write !== active) write.reset();
+  }
 
   async function upload() {
     const file = fileInputRef.current?.files?.[0];
     if (!file) return;
-    setUploading(true);
-    setError(null);
+    clearOtherWriteErrors(uploadMutation);
     try {
       const dataBase64 = await readFileAsBase64(file);
-      await port.uploadMedia(
-        { filename: file.name, contentType: file.type, dataBase64 },
-        { alt: altDraft.trim() || undefined }
-      );
+      await uploadMutation.mutate({ filename: file.name, contentType: file.type, dataBase64, alt: altDraft.trim() || undefined });
       setAltDraft("");
       if (fileInputRef.current) fileInputRef.current.value = "";
-      load();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : translate(locale, "upload failed"));
-    } finally {
-      setUploading(false);
+    } catch {
+      // already surfaced through uploadMutation.error -> error below
     }
   }
 
   async function trash(item: AdminMedia) {
-    setError(null);
+    clearOtherWriteErrors(trashMutation);
     setRowSavingId(item.id);
     try {
-      await port.trashMedia(item.id);
-      load();
-    } catch (e) {
-      setError(describeApiError(e, translate(locale, "delete failed")));
+      await trashMutation.mutate(item.id);
+    } catch {
+      // already surfaced through trashMutation.error -> error below
     } finally {
       setRowSavingId(null);
     }
@@ -149,13 +159,12 @@ export function useMedia({ port, locale, t }: MediaDependencies): MediaControlle
   async function purge() {
     if (!pendingPurge) return;
     const item = pendingPurge;
+    clearOtherWriteErrors(purgeMutation);
     setRowSavingId(item.id);
-    setError(null);
     try {
-      await port.deleteMedia(item.id);
-      load();
-    } catch (e) {
-      setError(describeApiError(e, translate(locale, "delete failed")));
+      await purgeMutation.mutate(item.id);
+    } catch {
+      // already surfaced through purgeMutation.error -> error below
     } finally {
       setRowSavingId(null);
       setPendingPurge(null);
@@ -168,13 +177,24 @@ export function useMedia({ port, locale, t }: MediaDependencies): MediaControlle
 
   function onMetadataSaved() {
     setEditingId(null);
-    load();
   }
+
+  const media = list.data?.media ?? null;
+  const error = visibleMediaError({
+    uploadError: uploadMutation.error,
+    uploadFallback: translate(locale, "upload failed"),
+    trashError: trashMutation.error,
+    purgeError: purgeMutation.error,
+    deleteFallback: translate(locale, "delete failed"),
+    listError: list.error,
+    listFallback: translate(locale, "failed to load media"),
+    hasMedia: media !== null,
+  });
 
   return {
     media,
     error,
-    uploading,
+    uploading: uploadMutation.status === "pending",
     altDraft,
     setAltDraft,
     fileInputRef,

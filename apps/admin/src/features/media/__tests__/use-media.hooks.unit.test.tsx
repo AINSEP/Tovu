@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { api } from "../../../lib/api";
+import { FetchQueryProvider } from "../../../lib/fetch-query";
 import { createFakeMediaPort } from "../hooks/media-dependencies.hooks";
 import { useMedia } from "../hooks/use-media.hooks";
 
@@ -11,7 +12,15 @@ import { useMedia } from "../hooks/use-media.hooks";
  * the real-client path end to end (`useWiredMedia` via `Media.tsx`'s default prop); this file is
  * the "injected port" half `use-redirects.hooks.unit.test.tsx`'s own file header describes —
  * proof the hook actually reads its dependency from the injected `port`, not from `lib/api`.
+ *
+ * `fetch-query` migration (2026-08-12): every `renderHook` now needs `wrapper: FetchQueryProvider`
+ * — see `redirects/__tests__/use-redirects.hooks.unit.test.tsx`'s identical wrapper for the pilot
+ * precedent.
  */
+
+function wrapper({ children }: { children: React.ReactNode }) {
+  return <FetchQueryProvider>{children}</FetchQueryProvider>;
+}
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -40,7 +49,7 @@ describe("useMedia — injected port (no fetch stub)", () => {
         },
       ],
     });
-    const { result } = renderHook(() => useMedia({ port, locale: "en", t: (k) => k }));
+    const { result } = renderHook(() => useMedia({ port, locale: "en", t: (k) => k }), { wrapper });
 
     await waitFor(() => expect(result.current.media).toHaveLength(1));
     expect(result.current.media?.[0]?.id).toBe("m1");
@@ -68,7 +77,7 @@ describe("useMedia — injected port (no fetch stub)", () => {
         },
       ],
     });
-    const { result } = renderHook(() => useMedia({ port, locale: "en", t: (k) => k }));
+    const { result } = renderHook(() => useMedia({ port, locale: "en", t: (k) => k }), { wrapper });
     await waitFor(() => expect(result.current.media).toHaveLength(1));
 
     await act(async () => {
@@ -89,7 +98,7 @@ describe("useMedia — injected port (no fetch stub)", () => {
   it("does not resolve `media` while the injected port's list call is still pending", () => {
     const port = createFakeMediaPort();
     port.listMedia = () => new Promise(() => {});
-    const { result } = renderHook(() => useMedia({ port, locale: "en", t: (k) => k }));
+    const { result } = renderHook(() => useMedia({ port, locale: "en", t: (k) => k }), { wrapper });
     expect(result.current.media).toBeNull();
   });
 });
