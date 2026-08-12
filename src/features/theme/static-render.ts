@@ -29,11 +29,42 @@ const TOKEN_STYLESHEET_SENTINEL = '<link rel="stylesheet" href="../css/styles.cs
  * A static page's `<link>`/`<script>` tags use `../css/`, `../js/` — correct only from inside the
  * theme's own `pages/` folder on disk. Rewritten generically (not per-filename, unlike the
  * per-theme build script) so the engine never needs updating when a theme adds a new script.
+ *
+ * Matches both double- and single-quoted attribute values (`href="../css/x.css"` and
+ * `href='../css/x.css'`) — HTML permits either, and nothing upstream of this function normalizes a
+ * theme author's (or their formatter's) quote-style choice before it reaches here. The captured quote
+ * character is echoed back verbatim so `'` is never silently normalized to `"`.
+ *
+ * Deliberately does NOT match an unquoted value (`href=../css/x.css`) or whitespace around `=`
+ * (`href = "../css/x.css"`) — both are valid HTML5, but neither is emitted by any formatter or
+ * template engine in this codebase's toolchain, and none of the 7 shipped static themes use them
+ * (verified by grep across every `pages/*.html` file in each of the 7 themes under `src/themes/static`).
+ * Handling every HTML attribute-syntax
+ * variant here would trade a real, observed bug (quote style) for defense against a hypothetical one.
+ * Any `../css/`/`../js/` reference this function still can't rewrite — for that reason or any other —
+ * is caught by {@link findUnrewrittenAssetPaths} and reported the same way {@link renderStaticPage}'s
+ * missing-token-sentinel case already is: loudly, not silently. A silently-unrewritten asset path is
+ * exactly the bug class this whole function exists to close, so leaving a residual case undetectable
+ * would just relocate it rather than fix it.
  */
 function rewriteAssetPaths(html: string, themeId: string): string {
   return html
-    .replace(/href="\.\.\/css\//g, `href="/theme-assets/${themeId}/css/`)
-    .replace(/src="\.\.\/js\//g, `src="/theme-assets/${themeId}/js/`);
+    .replace(/href=(["'])\.\.\/css\//g, (_match, quote: string) => `href=${quote}/theme-assets/${themeId}/css/`)
+    .replace(/src=(["'])\.\.\/js\//g, (_match, quote: string) => `src=${quote}/theme-assets/${themeId}/js/`);
+}
+
+/**
+ * Any `href`/`src` reference into `../css/` or `../js/` still present after
+ * {@link rewriteAssetPaths} has run — an unquoted attribute, whitespace around `=`, or any other
+ * syntax that rewrite doesn't recognize. Run AFTER the rewrite, so a match here can only be a
+ * genuine miss: every quoted occurrence the rewrite is supposed to handle is already gone by this
+ * point. Scoped to `href=`/`src=` specifically (not a bare `../css/` substring search) to avoid
+ * false positives from incidental text elsewhere in the page (a comment, authored copy).
+ *
+ * @complexity O(n) over `html`'s length — one regex scan.
+ */
+function findUnrewrittenAssetPaths(html: string): string[] {
+  return Array.from(html.matchAll(/(?:href|src)\s*=\s*(['"]?)\.\.\/(?:css|js)\//g), (m) => m[0]);
 }
 
 /**
@@ -413,6 +444,12 @@ export function renderStaticPage(
     );
   }
   html = rewriteAssetPaths(html, theme.manifest.id);
+  const unrewrittenAssetPaths = findUnrewrittenAssetPaths(html);
+  if (unrewrittenAssetPaths.length > 0) {
+    console.warn(
+      `[theme] static page '${theme.manifest.id}/${pageId}' has ${unrewrittenAssetPaths.length} unrewritten ../css//../js/ asset reference(s) that will 404 in the browser: ${unrewrittenAssetPaths.join(", ")}`
+    );
+  }
   html = injectColorMode(html, theme.manifest.defaultMode);
   html = resolveSlots(html, theme.partials, theme.manifest.slots ?? DEFAULT_THEME_SLOTS);
   html = injectMenuEmbeds(html, menus ?? {});
