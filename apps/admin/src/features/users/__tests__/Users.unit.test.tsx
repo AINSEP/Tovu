@@ -2,6 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { FetchQueryProvider } from "../../../lib/fetch-query";
 import { UserManagePanel, Users, type UserManageController } from "../Users";
 
 /**
@@ -23,6 +24,10 @@ import { UserManagePanel, Users, type UserManageController } from "../Users";
  * presence. Same pattern `PostEditor.unit.test.tsx` already uses for its own delete `ConfirmDialog`.
  * Follows the RTL harness `MenuEditor.unit.test.tsx`/`Comments.unit.test.tsx` established for this
  * package's `RowMenu` screens.
+ *
+ * `Users` has no injectable hook seam used here (`useUsersHook` defaults to the real `useUsers`), so
+ * every `render(<Users />)` below needs a `FetchQueryProvider` ancestor (2026-08-12, `lib/fetch-query`
+ * migration).
  */
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -83,7 +88,7 @@ describe("Manage — moved into the RowMenu, per the corrected spec (no standalo
       .mockResolvedValueOnce(jsonResponse({ users: [ACTIVE_USER] }))
       .mockResolvedValueOnce(jsonResponse({ roles: [] }))
       .mockResolvedValueOnce(jsonResponse({ policies: [] }));
-    render(<Users />);
+    render(<FetchQueryProvider><Users /></FetchQueryProvider>);
 
     await screen.findByText("alice");
     expect(screen.queryByRole("button", { name: "Manage" })).not.toBeInTheDocument();
@@ -107,7 +112,7 @@ describe("Manage — moved into the RowMenu, per the corrected spec (no standalo
       .mockResolvedValueOnce(jsonResponse({ users: [ACTIVE_USER] }))
       .mockResolvedValueOnce(jsonResponse({ roles: [] }))
       .mockResolvedValueOnce(jsonResponse({ policies: [] }));
-    render(<Users />);
+    render(<FetchQueryProvider><Users /></FetchQueryProvider>);
 
     await screen.findByText("alice");
     await user.click(within(await openMenu(user, "alice")).getByRole("menuitem", { name: "Manage" }));
@@ -131,7 +136,7 @@ describe("Username link — a second affordance for the same Manage behavior", (
       .mockResolvedValueOnce(jsonResponse({ users: [ACTIVE_USER] }))
       .mockResolvedValueOnce(jsonResponse({ roles: [] }))
       .mockResolvedValueOnce(jsonResponse({ policies: [] }));
-    render(<Users />);
+    render(<FetchQueryProvider><Users /></FetchQueryProvider>);
 
     const usernameLink = await screen.findByRole("button", { name: "alice" });
     expect(usernameLink.tagName).toBe("BUTTON");
@@ -144,7 +149,7 @@ describe("Username link — a second affordance for the same Manage behavior", (
       .mockResolvedValueOnce(jsonResponse({ users: [ACTIVE_USER] }))
       .mockResolvedValueOnce(jsonResponse({ roles: [] }))
       .mockResolvedValueOnce(jsonResponse({ policies: [] }));
-    render(<Users />);
+    render(<FetchQueryProvider><Users /></FetchQueryProvider>);
 
     const usernameLink = await screen.findByRole("button", { name: "alice" });
     expect(screen.queryByText("Assign role")).not.toBeInTheDocument();
@@ -166,7 +171,7 @@ describe("Username link — a second affordance for the same Manage behavior", (
       .mockResolvedValueOnce(jsonResponse({ users: [ACTIVE_USER] }))
       .mockResolvedValueOnce(jsonResponse({ roles: [] }))
       .mockResolvedValueOnce(jsonResponse({ policies: [] }));
-    render(<Users />);
+    render(<FetchQueryProvider><Users /></FetchQueryProvider>);
 
     await screen.findByText("alice");
     const menu = await openMenu(user, "alice");
@@ -192,7 +197,7 @@ describe("Disable — via RowMenu, still confirm-gated", () => {
       .mockResolvedValueOnce(jsonResponse({ users: [{ ...ACTIVE_USER, status: "disabled" }] })) // reload
       .mockResolvedValueOnce(jsonResponse({ roles: [] }))
       .mockResolvedValueOnce(jsonResponse({ policies: [] }));
-    render(<Users />);
+    render(<FetchQueryProvider><Users /></FetchQueryProvider>);
 
     await screen.findByText("alice");
     const menu = await openMenu(user, "alice");
@@ -216,7 +221,7 @@ describe("Disable — via RowMenu, still confirm-gated", () => {
       .mockResolvedValueOnce(jsonResponse({ users: [ACTIVE_USER] }))
       .mockResolvedValueOnce(jsonResponse({ roles: [] }))
       .mockResolvedValueOnce(jsonResponse({ policies: [] }));
-    render(<Users />);
+    render(<FetchQueryProvider><Users /></FetchQueryProvider>);
 
     await screen.findByText("alice");
     const menu = await openMenu(user, "alice");
@@ -243,7 +248,7 @@ describe("Enable — via RowMenu, immediate (no confirm, matching prior behavior
       .mockResolvedValueOnce(jsonResponse({ users: [{ ...DISABLED_USER, status: "active" }] })) // reload
       .mockResolvedValueOnce(jsonResponse({ roles: [] }))
       .mockResolvedValueOnce(jsonResponse({ policies: [] }));
-    render(<Users />);
+    render(<FetchQueryProvider><Users /></FetchQueryProvider>);
 
     await screen.findByText("bob");
     const menu = await openMenu(user, "bob");
@@ -264,7 +269,7 @@ describe("Reset password — via RowMenu, opens a dialog with a password field",
       .mockResolvedValueOnce(jsonResponse({ roles: [] }))
       .mockResolvedValueOnce(jsonResponse({ policies: [] }))
       .mockResolvedValueOnce(jsonResponse({})); // POST reset-password (void response)
-    render(<Users />);
+    render(<FetchQueryProvider><Users /></FetchQueryProvider>);
 
     await screen.findByText("alice");
     const menu = await openMenu(user, "alice");
@@ -287,7 +292,7 @@ describe("Reset password — via RowMenu, opens a dialog with a password field",
       .mockResolvedValueOnce(jsonResponse({ roles: [] }))
       .mockResolvedValueOnce(jsonResponse({ policies: [] }))
       .mockResolvedValueOnce(jsonResponse({ error: "server exploded" }, 500));
-    render(<Users />);
+    render(<FetchQueryProvider><Users /></FetchQueryProvider>);
 
     await screen.findByText("alice");
     const menu = await openMenu(user, "alice");
@@ -310,7 +315,7 @@ describe("Reset password — via RowMenu, opens a dialog with a password field",
       .mockResolvedValueOnce(jsonResponse({ roles: [] }))
       .mockResolvedValueOnce(jsonResponse({ policies: [] }))
       .mockResolvedValueOnce(jsonResponse({ error: "server exploded" }, 500));
-    render(<Users />);
+    render(<FetchQueryProvider><Users /></FetchQueryProvider>);
 
     await screen.findByText("alice");
     const menu = await openMenu(user, "alice");

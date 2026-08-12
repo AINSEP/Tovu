@@ -1,5 +1,6 @@
 import { ApiError, describeApiError as describeApiErrorDefault, type AdminIdentityUser } from "../../lib/api";
 import type { RowMenuItem } from "@jini-ai/admin/react";
+import type { QueryKey } from "../../lib/fetch-query";
 import { t } from "./users-i18n";
 
 /**
@@ -12,7 +13,13 @@ import { t } from "./users-i18n";
  * split for Disable/Enable), and the role/policy grant label formatter (a branch on whether the
  * user holds any grants of that kind). All three were previously closures or free functions inside
  * the component, reachable only by rendering the full screen.
+ *
+ * `KEYS` (fetch-query migration, 2026-08-12): one identity for the combined users+roles+policies
+ * read — matches the pre-migration `reload()`, which always refetched all three together.
  */
+export const KEYS = {
+  list: ["users-roles-policies"] as QueryKey,
+};
 
 /** Server error `code` -> a plain-language prefix, for every code on this screen whose message is
  *  a fixed string. Keyed by the same closed set of `ApiError` codes the old if-chain checked, in a
