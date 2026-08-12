@@ -165,6 +165,39 @@ test("renderDocNode: subscript and superscript marks render (Posts toolbar, 2026
   assert.equal(html, "<p><sub>2</sub><sup>2</sup></p>");
 });
 
+test("renderDocNode: a task list renders checkbox/label structure, unchecked and checked", () => {
+  const html = renderDocNode({
+    type: "doc",
+    content: [
+      {
+        type: "taskList",
+        content: [
+          { type: "taskItem", attrs: { checked: false }, content: [{ type: "paragraph", content: [{ type: "text", text: "Buy milk" }] }] },
+          { type: "taskItem", attrs: { checked: true }, content: [{ type: "paragraph", content: [{ type: "text", text: "Walk dog" }] }] },
+        ],
+      },
+    ],
+  });
+  assert.equal(
+    html,
+    '<ul data-type="taskList">' +
+      '<li data-type="taskItem"><label><input type="checkbox" disabled/><span></span></label><div><p>Buy milk</p></div></li>' +
+      '<li data-type="taskItem"><label><input type="checkbox" checked disabled/><span></span></label><div><p>Walk dog</p></div></li>' +
+      "</ul>"
+  );
+});
+
+test("a taskItem with a non-boolean/missing checked attr renders unchecked (defaults safe)", () => {
+  const html = renderDocNode({
+    type: "doc",
+    content: [{ type: "taskList", content: [{ type: "taskItem", content: [{ type: "paragraph", content: [{ type: "text", text: "x" }] }] }] }],
+  });
+  assert.equal(
+    html,
+    '<ul data-type="taskList"><li data-type="taskItem"><label><input type="checkbox" disabled/><span></span></label><div><p>x</p></div></li></ul>'
+  );
+});
+
 test("renderDocNode: a table renders table/tr/td structure", () => {
   const html = renderDocNode({
     type: "doc",
