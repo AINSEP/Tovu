@@ -68,15 +68,24 @@
  *   per route) — this file is dead weight that would otherwise trip `checkArtifactHashes`'s full-tree
  *   inventory rule as an unlisted file with no reason to be hashed and shipped.
  *   {@link normalizeBuildOutputDirectory} deletes it (see {@link DISCARDED_FRAMEWORK_ARTIFACTS}).
+ * - **`.js.map`/`.css.map` sourcemaps** — a `.js.map` file doesn't end in `.js` (it ends in `.map`), so
+ *   without explicit handling {@link planAssetRelocation} would leave it at the output root while its
+ *   bundle moves into `js/`/`css/`; the bundle's own `//# sourceMappingURL=` comment (a bare relative
+ *   filename) would then point at a file that no longer exists at that location — a 404 for the map,
+ *   invisible until a theme author actually opens dev tools, and looking nothing like its cause
+ *   (compiled-output-only debugging with no diagnostic pointing at "the map moved"). This class of
+ *   failure — latent, silent, armed by a future config change nobody sees today — is exactly what this
+ *   whole session went looking for, so it is fixed rather than left as a caveat: `.js.map`/`.mjs.map`
+ *   relocate into `js/` alongside their bundle, `.css.map` into `css/` alongside its stylesheet, as part
+ *   of the SAME relocation entries `planAssetRelocation` already produces (see its own doc). Because a
+ *   bundle and its map always move together into the same target directory, their relative relationship
+ *   to EACH OTHER is unchanged — no rewrite of the `sourceMappingURL` comment's text is needed, the same
+ *   reasoning already documented for JS chunk-to-chunk relative imports. NOT handled: a sourcemap's own
+ *   internal `sources`/`sourceRoot` JSON fields (build-time-absolute paths to original `.ts` sources) —
+ *   unrelated to the 404 this fixes, a pre-existing property of every bundler's sourcemap output in every
+ *   toolchain, and never something Tovu serves back to a browser regardless.
  *
  * ## Still open
- *
- * A `.js.map`/`.css.map` sourcemap file does not end in `.js`/`.css`, so {@link planAssetRelocation}
- * leaves it at the output root while its corresponding bundle moves into `js/`/`css/` — the bundle's own
- * `//# sourceMappingURL=` comment then points at a relative filename that no longer resolves from the
- * bundle's new location. Not exercised by any test here (the validated build config uses
- * `sourceMap: false`, so it never surfaced empirically); a theme build with source maps enabled needs
- * this module extended (relocate `*.map` alongside its bundle) before shipping.
  *
  * **This module has ZERO callers as of 2026-08-12.** Nothing in this repository invokes
  * {@link normalizeBuildOutputDirectory} outside its own test file — there is no CLI entrypoint, no
@@ -125,9 +134,13 @@ export interface AssetRelocationPlan {
 
 /**
  * Classifies a flat build-output file listing into what needs to move where. A file only moves if its
- * name ends in `.css`, `.js`, or `.mjs` — everything else (HTML pages, `favicon.ico`, an already-nested
- * `media/` asset) is left exactly where the build put it; Tovu's asset-path contract only ever concerns
- * itself with `../css/`/`../js/` references, so only those two extensions are this function's business.
+ * name ends in `.css`, `.js`, `.mjs`, or one of those three's `.map` sourcemap counterpart (`.css.map`,
+ * `.js.map`, `.mjs.map`) — everything else (HTML pages, `favicon.ico`, an already-nested `media/` asset)
+ * is left exactly where the build put it; Tovu's asset-path contract only ever concerns itself with
+ * `../css/`/`../js/` references, so only those extensions are this function's business. A sourcemap
+ * relocates to the SAME target directory as its bundle (`main.js.map` → `js/main.js.map`, right alongside
+ * `main.js` → `js/main.js`) purely from its own filename's extension — it does not need to look up which
+ * bundle it belongs to, because every bundle/map pair lands in the same directory either way.
  *
  * @param required.fileNames - Every file sitting directly in the build's flat output root (e.g. Angular's
  * `dist/<project>/browser/`). Subdirectory entries (already-nested paths containing `/`) are rejected —
@@ -147,9 +160,9 @@ export function planAssetRelocation(required: { fileNames: readonly string[] }, 
         `planAssetRelocation expects a FLAT build-output root, but got '${name}' — a build whose output already has subdirectories is not the flat-output case this normalizer exists to fix; verify the build config (see this module's file header)`
       );
     }
-    if (name.endsWith(".css")) {
+    if (name.endsWith(".css") || name.endsWith(".css.map")) {
       relocations.push({ from: name, to: `css/${name}` });
-    } else if (name.endsWith(".js") || name.endsWith(".mjs")) {
+    } else if (name.endsWith(".js") || name.endsWith(".mjs") || name.endsWith(".js.map") || name.endsWith(".mjs.map")) {
       relocations.push({ from: name, to: `js/${name}` });
     }
   }
@@ -230,7 +243,12 @@ export function rewriteBundlerHtml(
 
   for (const relocation of plan.relocations) {
     if (relocation.from === primaryStylesheetFile) continue; // already handled above, as the sentinel
-    const attr = relocation.from.endsWith(".css") ? "href" : "src";
+    // Derived from the relocation's TARGET directory, not from re-parsing `from`'s extension a second
+    // time — correct uniformly for `.css`/`.js`/`.mjs` and their `.map` counterparts alike, none of which
+    // any real page HTML ever references by tag anyway (a sourcemap is reached only via its bundle's own
+    // `//# sourceMappingURL=` comment, never an `href=`/`src=` attribute), so this is a harmless no-op for
+    // `.map` entries rather than a load-bearing rewrite.
+    const attr = relocation.to.startsWith("css/") ? "href" : "src";
     html = rewriteExactBareAttributeValue(html, attr, relocation.from, `../${relocation.to}`);
   }
 
