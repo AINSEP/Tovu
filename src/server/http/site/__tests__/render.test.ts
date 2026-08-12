@@ -76,6 +76,25 @@ test("C7: link composes with an emphasis mark on the same text", () => {
   assert.equal(html, '<p><a href="/x"><strong>here</strong></a></p>');
 });
 
+test("renderDocNode: hardBreak renders <br/> (Shift-Enter, 2026-08-11) — before this case existed, an unrecognized hardBreak fell through to `default`'s `renderNodes(content, ...)`, and since a leaf node's `content` is always undefined, that resolved to \"\": the line break silently vanished on the public site with no error", () => {
+  const html = renderDocNode(
+    textDoc({ type: "text", text: "line one" }, { type: "hardBreak" }, { type: "text", text: "line two" })
+  );
+  assert.equal(html, "<p>line one<br/>line two</p>");
+});
+
+test("hardBreak composes with surrounding marked text and can appear more than once", () => {
+  const html = renderDocNode(
+    textDoc(
+      { type: "text", text: "bold", marks: [{ type: "bold" }] },
+      { type: "hardBreak" },
+      { type: "hardBreak" },
+      { type: "text", text: "plain" }
+    )
+  );
+  assert.equal(html, "<p><strong>bold</strong><br/><br/>plain</p>");
+});
+
 // ---------------------------------------------------------------------------
 // ADR-020 §3 (C6) — end-to-end `renderSite` through the real `themes/dispatch`
 // Tier-2 demonstrator, exercising the full path: `loadTheme`'s lint,
