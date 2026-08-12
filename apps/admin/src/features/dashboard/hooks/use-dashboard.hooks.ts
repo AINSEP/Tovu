@@ -28,6 +28,20 @@ import { t } from "../dashboard-i18n";
  * those endpoints return. Correct for the scale this admin targets today; if any list grows past a
  * single page the count silently becomes "items on the first page" and would need a real count
  * endpoint. Flagged rather than pre-solved.
+ *
+ * `t` (2026-08-11, standing i18n rule — a component with a hook gets a BOUND `t` from that hook,
+ * not its own `useAdminLocale()`/dictionary import): `Dashboard.tsx` used to call `useAdminLocale()`
+ * a SECOND time and rebuild its own `DASHBOARD_DICT[locale]?.[key] ?? key` closure, duplicating the
+ * `useAdminLocale()` call this hook already makes for its own error strings below. Exposing this
+ * hook's own already-resolved `locale` as a bound `t` on the return value removes that duplicate
+ * fetch entirely, rather than merely avoiding adding a new one.
+ *
+ * NOT converted to the full `useX(dependencies)`/`useWiredX()` port pattern this sweep uses
+ * elsewhere (`api` is still a direct import, 5 concurrent reads): scoped as i18n-only per this
+ * task's own dispatch — a full port conversion here is a materially larger change (new port
+ * interface + fake covering 5 endpoints) than the rest of this sweep's per-file diff, and doing it
+ * as a drive-by risks conflating an API-shape refactor with a copy/locale one. Left as a disclosed
+ * gap, not silently expanded.
  */
 
 export interface StatState {
@@ -49,10 +63,14 @@ export interface DashboardController {
   /** `null` until at least one of `listPosts`/`listPages` settles — the caller renders a loading
    *  state for the "Recently updated" panel. */
   recent: AdminPost[] | null;
+  /** Bound translator — `key` already resolved against the caller's locale, so `Dashboard.tsx`
+   *  never imports `useAdminLocale`/`DASHBOARD_DICT` itself. See this file's header. */
+  t: (key: string) => string;
 }
 
 export function useDashboard(): DashboardController {
   const locale = useAdminLocale();
+  const boundT = (key: string): string => t(locale, key);
   const [posts, setPosts] = useState<StatState>(PENDING);
   const [published, setPublished] = useState<number | null>(null);
   const [pages, setPages] = useState<StatState>(PENDING);
@@ -103,5 +121,5 @@ export function useDashboard(): DashboardController {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return { posts, published, pages, drafts, media, comments, themeId, themeError, recent };
+  return { posts, published, pages, drafts, media, comments, themeId, themeError, recent, t: boundT };
 }
