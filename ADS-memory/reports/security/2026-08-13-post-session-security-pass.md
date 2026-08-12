@@ -176,6 +176,44 @@ for Agent Plugin install is proposed — this finding's severity is contingent o
 
 ---
 
+### Note — XSS in rendered output (priority #4): the `description` omission holds; one dead-but-dangerous template landmine found
+
+**Component:** `src/features/commerce/storefront.ts`, `src/server/http/site/render.ts`, theme `.liquid` templates
+
+**The `product.description` omission is verified airtight, not merely asserted.** Traced the full chain:
+- `toSiteProduct` (`storefront.ts:92-104`) builds its return object as an explicit field list —
+  `id`/`title`/`price`/`compareAtPrice`/`currency`/`specs` — never spreading `input.product`, so
+  `description` cannot leak through by accident even if a future field is added to
+  `CommerceProductRecord`.
+- The render pipeline's OWN single choke point, `siteProductRenderShape` (`render.ts:1673-1683`), which
+  is the ONE function that maps `SiteProduct` → every Liquid/Handlebars template's `product`/`products`
+  context (both the Commerce-sourced path and the sample `store` plugin path converge here), likewise
+  builds an explicit field list with no `description`.
+- The regression test (`storefront.unit.test.ts:111-116`) genuinely proves what it claims: it feeds
+  `product({ description: "<script>alert(1)</script>" })` through `toSiteProducts` and asserts
+  `"description" in result === false` — a real negative assertion, not a smoke test.
+- `post.content | raw` (the other `| raw` sink, `entry.liquid` in both `storefront` and `fashion-modern`)
+  is likewise verified safe, not merely trusted: `render.ts:1661` sets `content: renderPostBody(ctx)`,
+  and `renderPostBody` → `renderDocNode` is a closed `switch` over TipTap node types that maps each to a
+  fixed HTML tag with `escapeHtml`'d text and `safeHref`-scheme-checked link `href`s (`render.ts:682` on)
+  — there is no default case that passes an unknown node's raw content or attributes through, and no path
+  from a database string straight into this output.
+
+**One LOW/UNPROVEN residual finding:** `src/themes/templated/fashion-modern/templates/product.liquid:118`
+still contains `{{ product.description | raw }}`. Today this is inert — `description` is never a key on
+the object `siteProductRenderShape` hands to Liquid, so the expression evaluates to empty — but it is a
+landmine, not a closed gap: the day any future code path adds `description` back onto `SiteProduct` (which
+`storefront.ts`'s own header explicitly frames as a "revisit later, once sanitized" item) without ALSO
+touching this template line, the XSS the current design carefully avoids reopens immediately, silently,
+with no code change needed in the render pipeline itself. Recommend either removing the dead `| raw`
+line now (there is nothing for it to render) or converting it to escaped output so a future data wire-up
+fails safe by default instead of fail-open.
+
+**Human sign-off required:** No (informational; the live-omission design is sound and independently
+verified. Flag the template landmine for cleanup, not urgent).
+
+---
+
 ### Note — untrusted archive extraction (priority #2): hardened, but not yet reachable
 
 **Component:** `src/features/agent-plugins/install.ts`, `yauzl-archive-reader.ts`, `package-paths.ts`
