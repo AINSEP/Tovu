@@ -387,6 +387,15 @@ export function renderDocNode(
       return `<pre><code>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata)}</code></pre>`;
     case "horizontalRule":
       return "<hr/>";
+    // Leaf/atom node, `@tiptap/extension-hard-break` (Shift-Enter / Mod-Enter) — bundled by
+    // StarterKit v3.27, no toolbar button needed to reach it. Its own `renderHTML` emits a bare
+    // `["br", ...attrs]` with no content hole (verified against the installed dist), same
+    // childless-leaf shape `horizontalRule` above already renders self-closed. Before this case
+    // existed, an unrecognized `hardBreak` fell through to `default`'s `renderNodes(content, ...)`
+    // — since a leaf node's `content` is always `undefined`, that resolved to `""`: the line break
+    // silently vanished on the public site with no error and no visible difference in the editor.
+    case "hardBreak":
+      return "<br/>";
     case "image": {
       // D7 (original), extended under ADR-027 §4 and this task's quick-and-dirty sizing fix: a
       // TipTap image node reaches this renderer in one of two shapes. LEGACY nodes carry only
