@@ -1,6 +1,6 @@
 import { useId } from "react";
 import { api, type AdminMedia } from "../../lib/api";
-import { useMediaPickerDialog } from "./MediaPickerDialog.hooks";
+import { useWiredMediaPickerDialog } from "./MediaPickerDialog.hooks";
 
 /**
  * @file `MediaPickerDialog` — lets an operator choose an EXISTING asset from the Media library
@@ -34,12 +34,12 @@ export interface MediaPickerDialogProps {
   onSelect: (item: AdminMedia) => void;
   onCancel: () => void;
   /** Injectable seam for the dialog's data-fetch and Escape-to-cancel hook. Defaults to the real
-   *  {@link useMediaPickerDialog}; a test can pass a fake here to exercise `MediaPickerDialog`'s
+   *  {@link useWiredMediaPickerDialog}; a test can pass a fake here to exercise `MediaPickerDialog`'s
    *  rendering without invoking `api.listMedia()` or a real `document` keydown listener at all. */
-  useDialog?: typeof useMediaPickerDialog;
+  useDialog?: typeof useWiredMediaPickerDialog;
 }
 
-export function MediaPickerDialog({ useDialog = useMediaPickerDialog, ...props }: MediaPickerDialogProps) {
+export function MediaPickerDialog({ useDialog = useWiredMediaPickerDialog, ...props }: MediaPickerDialogProps) {
   const { items, error, select } = useDialog(props.onSelect, props.onCancel);
   const titleId = useId();
 

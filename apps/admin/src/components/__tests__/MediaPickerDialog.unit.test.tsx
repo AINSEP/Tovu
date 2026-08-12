@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { api, ApiError, type AdminMedia } from "../../lib/api";
 import { MediaPickerDialog } from "../MediaPickerDialog/MediaPickerDialog";
-import type { useMediaPickerDialog } from "../MediaPickerDialog/MediaPickerDialog.hooks";
+import type { useWiredMediaPickerDialog } from "../MediaPickerDialog/MediaPickerDialog.hooks";
 
 /**
  * @file First test file for `MediaPickerDialog` (0% before this refactor pass — no test file
@@ -136,7 +136,7 @@ describe("MediaPickerDialog — useDialog injection", () => {
   it("renders entirely off an injected useDialog — api.listMedia is never called", () => {
     const listMedia = vi.spyOn(api, "listMedia");
     const select = vi.fn();
-    const fakeUseDialog: typeof useMediaPickerDialog = (onSelect) => ({
+    const fakeUseDialog: typeof useWiredMediaPickerDialog = (onSelect) => ({
       items: [mediaItem({ id: "fake-1", title: "Fake asset" })],
       error: null,
       select: (item) => {
