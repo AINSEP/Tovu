@@ -34,6 +34,10 @@ const FILES: ThemeExploreFile[] = [
   // Binary + author-added: the two cases that must NOT offer an editor or a Reset respectively.
   { path: "screenshots/index.png", label: "index.png", kind: "asset", readable: false, editable: false, resettable: true },
   { path: "pages/mine.html", label: "mine", kind: "page", readable: true, editable: true, resettable: false },
+  // A templated-tier Liquid source file — `other` group (no `templates/` case in `fileGroup`), but
+  // readable (2026-08-12, `TEXT_READABLE_EXTENSIONS`) and, unlike `NOTICE.md` below, gets its own
+  // specific Preview-tab notice — see the "preview notice" describe block.
+  { path: "templates/home.liquid", label: "home.liquid", kind: "other", readable: true, editable: false, resettable: true },
 ];
 
 function controller(overrides: Partial<ThemeExploreController> = {}): ThemeExploreController {
@@ -136,6 +140,35 @@ describe("preview src — pages vs. partials", () => {
     });
     const iframe = screen.getByTitle("Theme preview") as HTMLIFrameElement;
     expect(iframe.src).toContain("/theme-assets/novice/vendor.bin");
+  });
+});
+
+/**
+ * Owner-reported (2026-08-12): "I still don't see a preview of the liquid with the styles at all."
+ * A `.liquid` template is `readable` (see the FILES fixture above) but not `kind === "page"`/
+ * `"partial"`, so `previewSrcFor` returns `null` and the Preview tab used to fall through to the
+ * exact same generic "Select a file to preview." copy shown for a totally different situation
+ * (nothing selected yet, or a CSS/JS/JSON file). That made a genuinely-missing capability read as a
+ * bug. This does not add rendering — Explore still has no templated-tier preview pipeline — it only
+ * makes the honest reason visible instead of the generic placeholder.
+ */
+describe("preview notice — no rendered preview available", () => {
+  it("shows a specific 'no rendered preview yet' message for a .liquid template, not the generic placeholder", () => {
+    renderExplore({ view: "preview", selected: "templates/home.liquid" });
+    expect(screen.getByText(/templated themes don't have a rendered preview yet/i)).toBeInTheDocument();
+    expect(screen.getByText(/use the html tab/i)).toBeInTheDocument();
+    expect(screen.queryByText(/^select a file to preview\.?$/i)).not.toBeInTheDocument();
+  });
+
+  it("keeps the generic message for an ordinary readable other-group file (e.g. NOTICE.md) — the split is by file, not a blanket change", () => {
+    renderExplore({ view: "preview", selected: "NOTICE.md" });
+    expect(screen.getByText(/^select a file to preview\.?$/i)).toBeInTheDocument();
+    expect(screen.queryByText(/rendered preview yet/i)).not.toBeInTheDocument();
+  });
+
+  it("keeps the generic message when nothing is selected", () => {
+    renderExplore({ view: "preview", selected: null });
+    expect(screen.getByText(/^select a file to preview\.?$/i)).toBeInTheDocument();
   });
 });
 

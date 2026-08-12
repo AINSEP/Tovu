@@ -138,6 +138,45 @@ function readOnlyReason(file: ThemeExploreFile): string {
 }
 
 /**
+ * Whether `file` is a `templated`-tier Liquid source file — case-insensitive, matching every other
+ * extension check in this screen's server counterpart (`explore.ts`'s
+ * `isTextReadable`/`isAssetExtension`). A plain extension check rather than reading `file.kind`:
+ * `fileGroup` (`explore.ts`) has no `templates/` case, so every `.liquid` file lands in the generic
+ * `"other"` group today — indistinguishable from `NOTICE.md` by `kind` alone, but NOT
+ * indistinguishable by what the Preview tab owes the operator (see {@link themeExplorePreviewNotice}).
+ *
+ * @complexity O(1).
+ */
+function isLiquidTemplateFile(file: ThemeExploreFile): boolean {
+  return file.path.toLowerCase().endsWith(".liquid");
+}
+
+/**
+ * The Preview tab's "nothing to show" message for the currently selected file — deliberately not one
+ * fixed string for every case {@link previewSrcFor} returns `null` for.
+ *
+ * Owner-reported (2026-08-12): the generic "Select a file to preview." read as "this is broken" when
+ * shown for a `.liquid` template, because a `.liquid` file genuinely has no rendered preview today —
+ * Explore has no templated-tier render pipeline (`previewSrcFor`'s own doc; `theme-page-preview.ts`
+ * only renders `static`-tier pages) — which is a materially different situation from "you haven't
+ * picked a file yet" or "this is CSS/JS, switch to the page that consumes it". Naming the real reason
+ * (and pointing at the one place a `.liquid` file's content IS visible, the HTML tab) is the smallest
+ * fix that closes the "is this broken?" reading without building the rendering this doesn't attempt.
+ *
+ * Every OTHER `previewSrc === null` case (CSS/JS/JSON, an ordinary `other`-group file like
+ * `NOTICE.md`) keeps the original generic copy — that copy is still accurate for those, per
+ * `previewSrcFor`'s own doc: there is genuinely nothing narrower to say.
+ *
+ * @complexity O(1).
+ */
+function themeExplorePreviewNotice(file: ThemeExploreFile | undefined, t: Translate): string {
+  if (file && isLiquidTemplateFile(file)) {
+    return t("Templated themes don't have a rendered preview yet — use the HTML tab to read the template source.");
+  }
+  return t("Select a file to preview.");
+}
+
+/**
  * Whether the Save button should be offered at all for the selected file — `undefined` (nothing
  * selected yet) defaults to showing it, matching the pre-existing behavior before per-file
  * editability existed.
@@ -731,7 +770,7 @@ function ThemeExploreMainPane({
     return <ThemeExploreHtmlPane file={selectedFile} source={source} setSource={setSource} t={t} />;
   }
   if (previewSrc === null) {
-    return <div className="notice">{t("Select a file to preview.")}</div>;
+    return <div className="notice">{themeExplorePreviewNotice(selectedFile, t)}</div>;
   }
   return <ThemeExplorePreview src={previewSrc} width={previewWidth} title={t("Theme preview")} />;
 }
