@@ -1,7 +1,6 @@
 import type { Express } from "express";
 
-import type { CommentWriteService } from "#src/comments/write-service";
-import type { CommentStatus, ModerationAction } from "#src/comments/types";
+import type { CommentWriteService, CommentStatus, ModerationAction } from "#src/comments/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 
