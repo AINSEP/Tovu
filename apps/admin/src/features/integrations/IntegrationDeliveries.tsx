@@ -1,7 +1,7 @@
 import { DataTable } from "@jini-ai/admin/react";
 
 import { displayTimestamp } from "./rules";
-import { useIntegrationDeliveries } from "./hooks/use-integration-deliveries.hooks";
+import { useWiredIntegrationDeliveries } from "./hooks/use-integration-deliveries.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { t } from "./integrations-i18n";
 
@@ -18,12 +18,12 @@ export interface IntegrationDeliveriesProps {
    * Dependency injection seam for tests — see `Integrations.tsx`'s `useIntegrationsHook` for the
    * house convention this follows.
    */
-  useIntegrationDeliveriesHook?: typeof useIntegrationDeliveries;
+  useIntegrationDeliveriesHook?: typeof useWiredIntegrationDeliveries;
 }
 
 export function IntegrationDeliveries({
   subscriptionId,
-  useIntegrationDeliveriesHook = useIntegrationDeliveries,
+  useIntegrationDeliveriesHook = useWiredIntegrationDeliveries,
 }: IntegrationDeliveriesProps) {
   const locale = useAdminLocale();
   const { deliveries, error } = useIntegrationDeliveriesHook(subscriptionId);
