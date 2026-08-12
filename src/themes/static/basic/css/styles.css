@@ -306,6 +306,15 @@ section.band { padding: 72px 0; border-top: 1px solid var(--border); }
    (equal-ish specificity but source order + `style=""` beats a stylesheet class), this is only the
    fallback for the toolbar's plain, colorless toggle. */
 .post-detail-body mark { background: #fef08a; color: #422006; border-radius: 3px; padding: 0 3px; }
+/* Table (`renderDocNode`'s `"table"`/`"tableRow"`/`"tableCell"`/`"tableHeader"` cases, 2026-08-11) —
+   an unstyled `<table>` has no visible cell boundaries at all, which is what "renders as unstyled
+   garbage publicly" (the brief's own phrase for structural nodes) looks like in practice: `border-
+   collapse` alone leaves every cell edge invisible until a border is declared explicitly. `overflow-
+   x: auto` on the wrapper block handles a table wider than the reading column (66ch, `.post-detail-
+   body`'s own max-width above) without it blowing out the page's horizontal scroll. */
+.post-detail-body table { width: 100%; border-collapse: collapse; margin: 24px 0; display: block; overflow-x: auto; }
+.post-detail-body th, .post-detail-body td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; vertical-align: top; }
+.post-detail-body th { background: var(--surface); font-weight: 600; }
 
 /* ---------- about ---------- */
 .about-hero { padding: 88px 0 56px; }
