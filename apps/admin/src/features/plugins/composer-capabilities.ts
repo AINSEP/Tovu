@@ -57,9 +57,25 @@ export type ComposerHostBinding =
     };
 
 /**
+ * A previewable capability's content, carried through the projection ahead of any UI that renders
+ * it. Added reconciling the Agent Plugins adapter's candidate descriptor shape
+ * (`src/features/agent-plugins/capability-projection.ts`'s `AgentPluginCapabilityPreview`) — a
+ * Skill's real markdown is genuinely previewable data today, even though `AssistantDock` has no
+ * preview surface yet to show it in (debate 3's "previewable but structurally inert" applies to
+ * execution, not to whether the data exists to preview).
+ */
+export interface TovuComposerCapabilityPreview {
+  readonly kind: "markdown";
+  readonly content: string;
+}
+
+/**
  * One capability the composer can discover, paired with how to resolve a selection of it into an
  * effect. `resolve` is omitted for an item with no execution beyond its own `insertText`/`label`
- * macro or an existing client-local route (e.g. `/mcp`) — nothing in this catalog needs it yet.
+ * macro, an existing client-local route (e.g. `/mcp`), or a source-level decision that the item is
+ * structurally inert (see `agent-plugin-capability-adapter.ts`'s handling of an MCP-server
+ * descriptor's `execute: { kind: "unavailable" }`) — selecting such an item resolves to `undefined`
+ * through `resolveComposerDiscoveryOutcome`, a documented no-op, not a silent bug.
  *
  * `resolve` receives the invocation's `argument` exactly as `ComposerDiscoverySelection` carries
  * it (`undefined` for a plain item, `null` | `""` | the typed text for a `command`-bearing one) so
@@ -70,6 +86,15 @@ export interface TovuComposerCapability {
   readonly groupLabel: string;
   readonly item: ComposerDiscoveryItem;
   readonly resolve?: (argument: string | null | undefined) => ComposerHostBinding;
+  /** See {@link TovuComposerCapabilityPreview}. Absent for a capability with nothing to preview. */
+  readonly preview?: TovuComposerCapabilityPreview;
+  /**
+   * A source-specific cache/invalidation key — e.g. an Agent Plugin's content digest
+   * (`AgentPluginCapabilityDescriptor.revision`, "a projection consumer's natural cache/
+   * invalidation key" per that module's own doc). Unused by `projectComposerCapabilities` today;
+   * carried through so a future source doesn't need a second contract change to add one.
+   */
+  readonly revision?: string;
 }
 
 /**
