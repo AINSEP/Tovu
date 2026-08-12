@@ -493,6 +493,46 @@ const CONTRACT_TABLE: readonly ContractRow[] = [
     html: '<figure class="media-ph" style="aspect-ratio:16 / 9"><span class="media-ph__label">leak</span></figure>',
   },
   {
+    label:
+      "image security guard, round 2 (TM-TOVU-2026-08-12-A): a `/./` dot-segment interposed in the admin media path is STILL rejected — the old check tested the raw string, and `[^/]+` cannot span a `/`, so this exact shape evaded it while a browser resolves the `.` away and lands on the real blocked route anyway (confirmed with `new URL()` before the fix). Proves the check now tests the WHATWG-normalized pathname.",
+    types: ["image"],
+    doc: {
+      type: "doc",
+      content: [
+        {
+          type: "image",
+          attrs: { src: "https://admin.example.com/api/admin/v1/workspaces/workspace-local/media/abc123/./original", alt: "leak-dotseg" },
+        },
+      ],
+    },
+    html: '<figure class="media-ph" style="aspect-ratio:16 / 9"><span class="media-ph__label">leak-dotseg</span></figure>',
+  },
+  {
+    label:
+      "image security guard, round 2 (TM-TOVU-2026-08-12-A): a `/../` dot-segment traversal is STILL rejected — same mechanism as the `/./` row above, the other direction a raw-string regex cannot see across a `/`.",
+    types: ["image"],
+    doc: {
+      type: "doc",
+      content: [
+        {
+          type: "image",
+          attrs: {
+            src: "https://admin.example.com/api/admin/v1/workspaces/workspace-local/media/other/../abc123/original",
+            alt: "leak-dotdot",
+          },
+        },
+      ],
+    },
+    html: '<figure class="media-ph" style="aspect-ratio:16 / 9"><span class="media-ph__label">leak-dotdot</span></figure>',
+  },
+  {
+    label:
+      "image security guard, round 2 (TM-TOVU-2026-08-12-A): embedded userinfo credentials are rejected — unlike a link href, an <img> auto-fires the request with no reader click and no address-bar text to warn them, so whatever an author pasted as user:pass would silently ship to a third-party host on every page view.",
+    types: ["image"],
+    doc: { type: "doc", content: [{ type: "image", attrs: { src: "https://user:pass@evil.example/x.png", alt: "creds" } }] },
+    html: '<figure class="media-ph" style="aspect-ratio:16 / 9"><span class="media-ph__label">creds</span></figure>',
+  },
+  {
     label: "horizontalRule — GAP CLOSED",
     types: ["horizontalRule"],
     doc: { type: "doc", content: [{ type: "horizontalRule" }] },

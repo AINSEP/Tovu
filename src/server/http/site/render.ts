@@ -179,11 +179,62 @@ function safeHref(value: JsonValue | undefined): string {
  * mint a real ref would — and would also have to solve `src/http`'s (ADR-038) UTF-8 text buffering,
  * which corrupts binary bytes. See `PostEditor.tsx`'s toolbar comment for that full trade-off.
  */
+
+/**
+ * TM-TOVU-2026-08-12-A round 2 (two auditors, chased empirically — see
+ * `tiptap-render-contract.test.ts`'s image-security rows for the probe evidence this fix is
+ * built from): the admin-media rejection above used to test the RAW string. `[^/]+` cannot span a
+ * `/`, so an interposed dot-segment defeats it while a real browser resolves the segment away
+ * before requesting — `.../media/id/./original` and `.../media/x/../id/original` BOTH evaded the
+ * old regex and landed on the exact blocked admin route. Testing `new URL(src).pathname` instead
+ * closes this: WHATWG's URL parser removes `.`/`..` path segments (and folds a stray `\` into `/`
+ * in the process) during parsing, so the check now sees exactly what a browser will request.
+ *
+ * Userinfo credentials (`https://user:pass@host/x.png`) are rejected too, and deliberately NOT
+ * folded into {@link safeHref}: an `<img>` auto-fires the request on page load, with no reader
+ * click and no address-bar/status-bar text for them to notice — unlike a link, which requires a
+ * navigation gesture first. Silently shipping whatever an author pasted as embedded Basic-Auth
+ * credentials to a third-party host on every single page view is a materially different risk than
+ * the same string sitting inert in an `href` until clicked, so it is rejected here even though
+ * `safeHref`'s identical-looking allowance stays untouched (pre-existing, accepted, out of scope).
+ *
+ * Two other vectors were investigated and are NOT fixed, for stated reasons rather than left
+ * silently unconsidered:
+ *  - **Punycode/IDN homographs** (`https://xn--.../x.png`): not actionable at this layer. The
+ *    homograph-phishing threat model is about deceiving a user who is shown a host string and
+ *    makes a trust decision on it (address bar, link hover) — an `<img src>` fetch shows the
+ *    reader no URL text at all, so there is nothing here for a confusable domain to spoof.
+ *  - **Backslash/authority-delimiter confusion**: probed directly against Node's real WHATWG `URL`
+ *    parser rather than reasoned about — no input was found where the parsed host differs from
+ *    what the raw string suggests. The admin-media check above is host-agnostic BY DESIGN (it
+ *    matches the path shape on any host, since this pure function is never given the admin
+ *    origin), so host confusion has no distinct surface to exploit here; a backslash-based
+ *    dot-segment attempt against the admin path is closed by the same `.pathname` fix above, since
+ *    WHATWG folds `\` to `/` before resolving dot-segments.
+ *
+ * Residual, not closed: a `%2F`-encoded or doubled `/` inside the admin path both still evade this
+ * check (`.pathname` does not decode `%2F`, and does not collapse consecutive slashes). Traced —
+ * not curled end-to-end against a running server — to Express's router matching route segments on
+ * the raw, undecoded path before decoding each one, so a segment containing a literal `%2F` does
+ * not functionally reach the same route as the real `/workspaces/{id}/media/{id}/original`, and an
+ * empty segment from `//` is not a valid id for any real workspace/asset either. Left unfixed
+ * rather than guessed at further; flagged here so it is a known, reasoned gap and not an
+ * unconsidered one.
+ */
+const ADMIN_MEDIA_ORIGINAL_PATH = /\/workspaces\/[^/]+\/media\/[^/]+\/original\b/i;
+
 function safeImageSrc(value: JsonValue | undefined): string | null {
   if (typeof value !== "string") return null;
   const src = value.trim();
   if (!/^https?:\/\/[^\s/$.?#][^\s]*$/i.test(src)) return null;
-  if (/\/workspaces\/[^/]+\/media\/[^/]+\/original\b/i.test(src)) return null;
+  let parsed: URL;
+  try {
+    parsed = new URL(src);
+  } catch {
+    return null;
+  }
+  if (ADMIN_MEDIA_ORIGINAL_PATH.test(parsed.pathname)) return null;
+  if (parsed.username || parsed.password) return null;
   return src;
 }
 
