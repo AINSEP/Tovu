@@ -2,9 +2,12 @@ import { act, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  applyHighlightKey,
   buildOptionId,
   computePosition,
+  edgeHighlightIndex,
   focusableInDomOrder,
+  highlightedOptionOrNull,
   repositionOrClose,
   resolveTabTarget,
   useSelectDropdown,
@@ -207,6 +210,116 @@ describe("resolveTabTarget", () => {
     document.body.innerHTML = `<button id="only">only</button>`;
     const trigger = document.createElement("button"); // never attached to the DOM
     expect(resolveTabTarget(null, trigger, false)).toBeNull();
+  });
+});
+
+describe("edgeHighlightIndex", () => {
+  // Direct coverage of the ternary extracted out of `handlePanelKeyDown`'s `"Home"`/`"End"` cases
+  // under the 2026-08-12 ≤9/≤9 pass. `Select.unit.test.tsx`'s "Home/End jump the highlight..." and
+  // "...are all safe no-ops" tests already pin this end-to-end; these exercise the function directly.
+  it("returns 0 for the first edge when the list is non-empty", () => {
+    expect(edgeHighlightIndex(3, "first")).toBe(0);
+  });
+
+  it("returns the last index for the last edge when the list is non-empty", () => {
+    expect(edgeHighlightIndex(3, "last")).toBe(2);
+  });
+
+  it("returns -1 for either edge when the list is empty", () => {
+    expect(edgeHighlightIndex(0, "first")).toBe(-1);
+    expect(edgeHighlightIndex(0, "last")).toBe(-1);
+  });
+});
+
+describe("highlightedOptionOrNull", () => {
+  // Direct coverage of the guard extracted out of `handlePanelKeyDown`'s `"Enter"` case.
+  it("returns the option at a valid highlighted index", () => {
+    expect(highlightedOptionOrNull(FEW_OPTIONS, 1)).toEqual(FEW_OPTIONS[1]);
+  });
+
+  it("returns null when nothing is highlighted (-1)", () => {
+    expect(highlightedOptionOrNull(FEW_OPTIONS, -1)).toBeNull();
+  });
+
+  it("returns null when the highlighted index is stale — past the end of a shrunk list", () => {
+    expect(highlightedOptionOrNull(FEW_OPTIONS, 99)).toBeNull();
+  });
+});
+
+describe("applyHighlightKey", () => {
+  // Direct coverage of the five-key dispatcher extracted out of `handlePanelKeyDown` to bring its
+  // cyclomatic complexity from 13 down to 9 — plain arguments and `vi.fn()` spies, no `renderHook`,
+  // no DOM. `Select.unit.test.tsx` already pins all of this end-to-end through real keydown events;
+  // these assert each branch's own decision directly, including the ones the full-component tests
+  // can't isolate (e.g. that `preventDefault` fires even when Enter has nothing to select).
+  function spyActions() {
+    return {
+      preventDefault: vi.fn(),
+      moveHighlight: vi.fn(),
+      setHighlightedIndex: vi.fn(),
+      selectOption: vi.fn(),
+    };
+  }
+
+  it("ArrowDown prevents default and moves the highlight forward", () => {
+    const actions = spyActions();
+    const handled = applyHighlightKey("ArrowDown", FEW_OPTIONS, 0, actions);
+    expect(handled).toBe(true);
+    expect(actions.preventDefault).toHaveBeenCalledTimes(1);
+    expect(actions.moveHighlight).toHaveBeenCalledWith(1);
+  });
+
+  it("ArrowUp prevents default and moves the highlight backward", () => {
+    const actions = spyActions();
+    applyHighlightKey("ArrowUp", FEW_OPTIONS, 0, actions);
+    expect(actions.preventDefault).toHaveBeenCalledTimes(1);
+    expect(actions.moveHighlight).toHaveBeenCalledWith(-1);
+  });
+
+  it("Home prevents default and jumps the highlight to the first row", () => {
+    const actions = spyActions();
+    applyHighlightKey("Home", FEW_OPTIONS, 2, actions);
+    expect(actions.preventDefault).toHaveBeenCalledTimes(1);
+    expect(actions.setHighlightedIndex).toHaveBeenCalledWith(0);
+  });
+
+  it("End prevents default and jumps the highlight to the last row", () => {
+    const actions = spyActions();
+    applyHighlightKey("End", FEW_OPTIONS, 0, actions);
+    expect(actions.preventDefault).toHaveBeenCalledTimes(1);
+    expect(actions.setHighlightedIndex).toHaveBeenCalledWith(2);
+  });
+
+  it("Home/End on an empty list still prevent default but highlight nothing (-1)", () => {
+    const actions = spyActions();
+    applyHighlightKey("Home", [], -1, actions);
+    expect(actions.preventDefault).toHaveBeenCalledTimes(1);
+    expect(actions.setHighlightedIndex).toHaveBeenCalledWith(-1);
+  });
+
+  it("Enter prevents default and selects the highlighted option", () => {
+    const actions = spyActions();
+    applyHighlightKey("Enter", FEW_OPTIONS, 1, actions);
+    expect(actions.preventDefault).toHaveBeenCalledTimes(1);
+    expect(actions.selectOption).toHaveBeenCalledWith(FEW_OPTIONS[1]);
+  });
+
+  it("Enter prevents default but selects nothing when no row is highlighted", () => {
+    const actions = spyActions();
+    const handled = applyHighlightKey("Enter", FEW_OPTIONS, -1, actions);
+    expect(handled).toBe(true);
+    expect(actions.preventDefault).toHaveBeenCalledTimes(1);
+    expect(actions.selectOption).not.toHaveBeenCalled();
+  });
+
+  it("an unrecognized key is a no-op and reports itself unhandled", () => {
+    const actions = spyActions();
+    const handled = applyHighlightKey("a", FEW_OPTIONS, 0, actions);
+    expect(handled).toBe(false);
+    expect(actions.preventDefault).not.toHaveBeenCalled();
+    expect(actions.moveHighlight).not.toHaveBeenCalled();
+    expect(actions.setHighlightedIndex).not.toHaveBeenCalled();
+    expect(actions.selectOption).not.toHaveBeenCalled();
   });
 });
 

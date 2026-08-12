@@ -4,7 +4,6 @@
     { "file": "apps/admin/src/App.tsx", "note": "App: cyclomatic 13, cognitive 12 (limit 9/9)" },
     { "file": "apps/admin/src/components/AssistantDock/AssistantDock.tsx", "note": "AssistantDock: cyclomatic 10" },
     { "file": "apps/admin/src/components/ImagePreviewModal.tsx", "note": "cognitive 15" },
-    { "file": "apps/admin/src/components/Select/Select.hooks.tsx", "note": "handlePanelKeyDown: cyclomatic 13" },
     { "file": "apps/admin/src/features/ai-assistant/AiAssistant.tsx", "note": "AdminExecutionMode: cyclomatic 11; VisitorCredentialKeyFooter: cyclomatic 10" },
     { "file": "apps/admin/src/features/media/Media.tsx", "note": "Media: cyclomatic 12, cognitive 21" },
     { "file": "apps/admin/src/features/pages/Pages.tsx", "note": "Pages: cyclomatic 13" },
