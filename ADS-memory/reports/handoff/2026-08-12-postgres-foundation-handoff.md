@@ -29,7 +29,27 @@
 >    `classifyPluginColumn`; a copy-runner calling `reseedSequenceSql` per `collectIdentityColumns()`
 >    entry after bulk copy; and `verifyClassifiedValue` running per-column during copy.
 >
-> **⛔ DO NOT PUSH until the CI blocker is fixed.** Terra 5.6 (xhigh) audited all four commits and
+> ## ✅ RESOLVED — the CI blocker below is FIXED. Safe to push.
+>
+> A 5-auditor audit (round 1) + 4-auditor compliance re-audit (round 2) ran after the text below was
+> written. **All 15 findings are fixed and verified; zero blocking findings remain.** Round-2 scores:
+> Sonnet 9.5, Flash 9.2, Gemini Pro 8.5, Terra 8.1 (from 3, 6.5, 5, 3.5). 77/77 tests, typecheck 0.
+> Fix commits: `d51ddb7` `404baad` `d214e39` `d36081a` `42f3d5a`.
+> Full results: `ADS-memory/reports/external-audit/runs/2026-08-12-five-auditor-postgres-manifest-audit.md`
+> and `…/2026-08-12-round2-compliance-result.md`.
+>
+> **The one result worth carrying forward:** round 2 caught a regression the *fix* introduced — making
+> timestamp validation strict about calendars silently lost the timezone-offset bounds check
+> `Date.parse` had provided. Sonnet scanned 3,431 values for over-rejection and found nothing; Terra
+> probed under-rejection and found it. **Probe direction is a coverage dimension** — "does it wrongly
+> reject?" and "does it wrongly accept?" are different tests, and round 1 only wrote the first kind.
+>
+> Still deliberately open: the live fixture hand-builds tables instead of applying `schema.postgres.ts`;
+> and **no production code consumes the manifest yet** — that integration risk lands on the copier build.
+>
+> The strikethrough banner below is retained for history only.
+>
+> ~~**⛔ DO NOT PUSH until the CI blocker is fixed.**~~ Terra 5.6 (xhigh) audited all four commits and
 > returned **FAIL**: `.github/workflows/ci.yml:39` runs `npm test` (glob `src/**/*.test.ts`, which
 > includes `migration-manifest-postgres.test.ts`) with **no Postgres service**, while
 > `pg-fixture.ts:17` hard-codes socket `/tmp` and role `la`. Those tests fail closed by design, so
