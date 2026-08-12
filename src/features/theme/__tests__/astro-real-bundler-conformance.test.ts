@@ -34,13 +34,14 @@ import { checkBuiltThemeConformance } from "../build-conformance";
  * Astro starts emitting an external stylesheet by default, or if the gate's sentinel rule changes, this
  * test breaks and must be re-diagnosed, not silently re-tuned.
  *
- * A second finding this test surfaces, informational rather than assertable as a "failure" in the same
- * sense: `checkAssetPaths` (via `findUnrewrittenAssetPaths`) only ever flags a `href=`/`src=` reference
- * that STARTS WITH `../css/` or `../js/` and can't be rewritten — it has no rule for "a page ships zero
- * external asset references at all, when a real build might reasonably be expected to have some." A
- * page with no `<link>`/`<script>` referencing an external asset passes the asset-path check completely
- * silently, which is exactly what happens here — not a bug in this test, but a real gap in what that
- * check can detect, worth naming for whoever revisits the gate's design.
+ * A second finding this test originally surfaced as informational only: `checkAssetPaths` (via
+ * `findUnrewrittenAssetPaths`) only ever flagged a `href=`/`src=` reference that STARTS WITH `../css/`
+ * or `../js/` and can't be rewritten — it had no rule for "a page ships zero external asset references
+ * at all, when a real build might reasonably be expected to have some." A page with no `<link>`/`<script>`
+ * referencing an external asset passed the asset-path check completely silently, indistinguishable from
+ * a page whose assets were actually verified and found correct. `checkAssetPaths` (`build-conformance.ts`)
+ * was fixed to report this as its own explicit `asset-path` finding rather than staying silent — this
+ * test now asserts on BOTH real findings Astro's default output produces, not just the sentinel one.
  */
 
 const FIXTURE_ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), "fixtures", "astro-bundler-probe");
@@ -99,19 +100,26 @@ test(
     });
 
     // THE FALSIFYING RESULT: real, unmodified `astro build` output fails the install-time gate.
-    // Exactly one issue, and it is the stylesheet-sentinel rule -- not a hashing or asset-path problem,
-    // a fundamental "Astro's per-page CSS model has nowhere for the sentinel to exist" problem.
-    assert.equal(issues.length, 1, `expected exactly one conformance issue, got: ${JSON.stringify(issues, null, 2)}`);
-    assert.equal(issues[0]!.rule, "stylesheet-sentinel");
-    assert.equal(issues[0]!.page, "index");
-    assert.match(issues[0]!.message, /missing the literal stylesheet tag/);
+    // Exactly two issues: the fundamental "Astro's per-page CSS model has nowhere for the sentinel to
+    // exist" problem (stylesheet-sentinel), AND the corollary of that same fact -- a page with its CSS
+    // inlined and no client JS makes zero '../css/'/'../js/' references at all, which checkAssetPaths
+    // now names explicitly (see this file's header) instead of reporting nothing.
+    assert.equal(issues.length, 2, `expected exactly two conformance issues, got: ${JSON.stringify(issues, null, 2)}`);
 
-    // Named explicitly, not just implied by the single-issue count above: asset-path and island-content
-    // both report nothing, but NOT because the page positively satisfies either rule -- there is simply
-    // no external asset reference and no data-tovu-island element anywhere in Astro's output for either
-    // rule to have an opinion about. See this file's header for why that's a real detection gap, not a
-    // clean bill of health.
-    assert.ok(!issues.some((issue) => issue.rule === "asset-path"));
+    const sentinelIssue = issues.find((issue) => issue.rule === "stylesheet-sentinel");
+    assert.ok(sentinelIssue, "expected a stylesheet-sentinel issue");
+    assert.equal(sentinelIssue!.page, "index");
+    assert.match(sentinelIssue!.message, /missing the literal stylesheet tag/);
+
+    const assetPathIssue = issues.find((issue) => issue.rule === "asset-path");
+    assert.ok(assetPathIssue, "expected an asset-path issue naming the zero-references vacuity gap");
+    assert.equal(assetPathIssue!.page, "index");
+    assert.match(assetPathIssue!.message, /no .* asset references/);
+
+    // island-content still reports nothing, and legitimately so: Astro's islands architecture makes zero
+    // client JS a valid, celebrated outcome for a page with no interactive elements at all -- unlike the
+    // asset-path case, there is no mandatory-per-page island the way there is a mandatory stylesheet link,
+    // so an island-less page is not a vacuity gap.
     assert.ok(!issues.some((issue) => issue.rule === "island-content"));
   }
 );
