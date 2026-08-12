@@ -24,6 +24,11 @@ function baseController(overrides: Partial<ThemesController> = {}): ThemesContro
     error: null,
     busyTheme: null,
     activate: vi.fn(async () => {}),
+    // Identity `t` — matches what this screen got from a real, unmocked `useAdminLocale()` call
+    // before this hook's own i18n pass (defaults to "en", and THEMES_DICT has no "en" entries, so
+    // every lookup already fell through to `?? key`), so every existing literal-English-string
+    // assertion below stays valid unchanged.
+    t: (key: string) => key,
     ...overrides,
   };
 }

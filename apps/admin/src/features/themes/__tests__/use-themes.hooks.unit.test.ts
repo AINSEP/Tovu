@@ -23,7 +23,7 @@ describe("useThemes — injected port (no fetch stub, no api spy)", () => {
       availableThemeIds: ["basic", "quartz"],
       availableThemes: [{ id: "basic", tier: "declarative" }, { id: "quartz", tier: "static" }],
     });
-    const { result } = renderHook(() => useThemes({ port }));
+    const { result } = renderHook(() => useThemes({ port, t: (k) => k }));
 
     await waitFor(() => expect(result.current.themes).toEqual(["basic", "quartz"]));
     expect(result.current.themeTiers).toEqual({ basic: "declarative", quartz: "static" });
@@ -33,7 +33,7 @@ describe("useThemes — injected port (no fetch stub, no api spy)", () => {
   it("routes activate through the injected port and updates settings from its response", async () => {
     const setActiveSpy = vi.spyOn(api, "setActiveTheme");
     const port = createFakeThemesPort({ availableThemeIds: ["basic", "quartz"] });
-    const { result } = renderHook(() => useThemes({ port }));
+    const { result } = renderHook(() => useThemes({ port, t: (k) => k }));
     await waitFor(() => expect(result.current.themes).toEqual(["basic", "quartz"]));
 
     await act(async () => {
@@ -53,7 +53,7 @@ describe("useThemes — injected port (no fetch stub, no api spy)", () => {
   it("stays with themes empty while the injected port's presentation call is still pending", () => {
     const port = createFakeThemesPort();
     port.getPresentation = () => new Promise(() => {});
-    const { result } = renderHook(() => useThemes({ port }));
+    const { result } = renderHook(() => useThemes({ port, t: (k) => k }));
     expect(result.current.themes).toEqual([]);
     expect(result.current.settings).toBeNull();
   });
