@@ -13,11 +13,10 @@ import type { PluginsRouteRegistrar } from "./deps";
  * (discovery itself does not know activation state).
  *
  * Architectural role:
- * TDD-certified stub (implementation outline C-016). Route registration is real (so the certified
- * HTTP-level test suite can issue real requests against it); the handler body intentionally
- * throws until the Programmer stage implements it against
- * `__tests__/integration/plugins-http.integration.test.ts`. Do not implement ahead of that suite
- * being reviewed.
+ * TDD-certified implementation (implementation outline C-016). Route registration and handler body
+ * are both real: authorizes `admin.plugins.read`, runs discovery, and projects each record through
+ * `toAdminPluginResponse()` alongside its activation row. Verified against
+ * `__tests__/integration/plugins-http.integration.test.ts`.
  */
 export const registerPluginsListRoute: PluginsRouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/plugins", async (req, res) => {

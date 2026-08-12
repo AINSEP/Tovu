@@ -24,10 +24,11 @@
  * plugin code, not by core").
  *
  * Architectural role:
- * TDD-certified stub (implementation outline C-001…C-004). Signatures and JSDoc are
- * design-frozen; `definePlugin`'s body intentionally throws until the Programmer stage implements
- * it against `__tests__/unit/sdk-public-api.unit.test.ts`. Do not implement ahead of that suite
- * being reviewed — this file exists so the snapshot test compiles and fails red, not green.
+ * TDD-certified implementation (implementation outline C-001…C-004). Signatures and JSDoc are
+ * design-frozen; `definePlugin()` is a pure identity wrap — no side effects, no I/O — that exists
+ * for the plugin author's type inference; `loadPlugin()` in `plugin-runtime/loader.ts` is what
+ * actually invokes the wrapped `definition.setup(sdk)`. Verified against
+ * `__tests__/unit/sdk-public-api.unit.test.ts`.
  */
 
 /** C-004 — the exactly-three v1 capability tokens (REQ-04). A manifest declaring any other

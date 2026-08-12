@@ -25,10 +25,11 @@
  * `reports/pipeline/005-plugin-system/critical-internal-constraints.md` U-002.
  *
  * Architectural role:
- * TDD-certified stub (implementation outline C-015, CIC U-002). Signature and JSDoc are
- * design-frozen; the body intentionally throws until the Programmer stage implements it against
- * `__tests__/integration/plugin-sdk-resolver.integration.test.ts`. Do not implement ahead of that
- * suite being reviewed — this file exists so the test suite compiles and fails red, not green.
+ * TDD-certified implementation (implementation outline C-015, CIC U-002). Signature and JSDoc are
+ * design-frozen; `registerPluginSdkResolver()` registers Node's `module.register()` customization
+ * hook exactly once per process (throwing `PluginSdkResolverAlreadyRegisteredError` on a second
+ * call), redirecting `@tovu/sdk` resolution to the runtime's bundled build. Verified against
+ * `__tests__/integration/plugin-sdk-resolver.integration.test.ts`.
  */
 
 import { register } from "node:module";

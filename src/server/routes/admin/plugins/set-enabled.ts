@@ -24,11 +24,12 @@ import type { PluginsRouteRegistrar } from "./deps";
  * gateway-wrapped route in this codebase maps its feature function's typed errors.
  *
  * Architectural role:
- * TDD-certified stub (implementation outline C-016). Route registration is real (so the certified
- * HTTP-level test suite can issue real requests against it); the handler body intentionally
- * throws until the Programmer stage implements it against
- * `__tests__/integration/plugins-http.integration.test.ts`. Do not implement ahead of that suite
- * being reviewed.
+ * TDD-certified implementation (implementation outline C-016). Route registration and handler body
+ * are both real: `execute` calls `setPluginEnabled()`; on a later gateway failure, `rollback`
+ * restores the captured prior activation row (or deletes it, for a first-time enable/disable) via
+ * `pluginActivationRepo`, then re-invokes the matching `onPluginEnabled`/`onPluginDisabled` side
+ * effect so hook attachment stays consistent with the restored row. Verified against
+ * `__tests__/integration/plugins-http.integration.test.ts`.
  */
 export const registerPluginSetEnabledRoute: PluginsRouteRegistrar = (app, deps) => {
   app.patch("/api/admin/v1/workspaces/:workspaceId/plugins/:pluginId", async (req, res) => {

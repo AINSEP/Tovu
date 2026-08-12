@@ -12,9 +12,11 @@
  * propagate past a widget's placement boundary (REQ-27, INV-05).
  *
  * Architectural role:
- * TDD-certified stub (implementation outline C-003). The dispatcher's failure-isolation
- * contract is design-frozen from SPEC-043; the body throws until the Programmer stage implements
- * against `__tests__/integration/resolver-service.integration.test.ts`.
+ * TDD-certified implementation (implementation outline C-003). The dispatcher's failure-isolation
+ * contract is design-frozen from SPEC-043; `resolveWidgetType()` dispatches to the closed
+ * `CORE_RESOLVERS` map (or the static path for a resolver-less type), wrapping every call in the
+ * shared try/catch + timeout boundary so a resolver failure never propagates past REQ-27/INV-05.
+ * Verified against `__tests__/integration/resolver-service.integration.test.ts`.
  */
 import type { UUID } from "@jini-ai/cms/core";
 import { getWidgetTypeRegistration } from "../registry";

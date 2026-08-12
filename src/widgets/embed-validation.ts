@@ -10,11 +10,10 @@
  * silently diverge (the exact gap Amendment 6 exists to close).
  *
  * Architectural role:
- * TDD-certified stub (SPEC-043 / implementation outline C-008). Signature and JSDoc are
- * design-frozen; the body intentionally throws until the Programmer stage implements it against
- * the certified test suite in `__tests__/unit/embed-validation.unit.test.ts`. Do not implement
- * ahead of that suite being reviewed — this file exists so the test suite compiles and fails red,
- * not green.
+ * TDD-certified implementation (SPEC-043 / implementation outline C-008). Signature and JSDoc are
+ * design-frozen; `validateWidgetEmbedMutation()` is a pure decision function — no I/O — rejecting a
+ * mutation that would place a `widgetEmbed` inside a widget's own body (REQ-19/INV-04) or exceed
+ * `maxEmbedsPerDocument` (REQ-20). Verified against `__tests__/unit/embed-validation.unit.test.ts`.
  */
 import { WIDGET_CONTENT_TYPE } from "./types";
 import type { WidgetEmbedNode } from "./types";

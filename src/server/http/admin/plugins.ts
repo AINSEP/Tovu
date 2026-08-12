@@ -10,10 +10,10 @@
  * `admin/posts.ts`'s `toAdminPostResponse()` shape.
  *
  * Architectural role:
- * TDD-certified stub (implementation outline C-017). Signature and JSDoc are design-frozen;
- * `toAdminPluginResponse`'s body intentionally throws until the Programmer stage implements it
- * against `__tests__/unit/plugins-dto.unit.test.ts`. Do not implement ahead of that suite being
- * reviewed — this file exists so the test suite compiles and fails red, not green.
+ * TDD-certified implementation (implementation outline C-017). Signature and JSDoc are
+ * design-frozen; `toAdminPluginResponse()` is a pure projection — no I/O — that folds discovery's
+ * `tier`/`status`/`errors` with activation's `enabled`/quarantine fields into the wire envelope.
+ * Verified against `__tests__/unit/plugins-dto.unit.test.ts`.
  */
 import type { PluginActivationRecord } from "#src/features/plugin-runtime/activation";
 import type { PluginDiscoveryRecord } from "#src/features/plugin-runtime/discovery";
