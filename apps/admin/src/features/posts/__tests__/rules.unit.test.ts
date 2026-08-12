@@ -6,8 +6,10 @@ import {
   postRowMenuItems,
   readFileAsDataUrl,
   sortPostsByUpdated,
+  titleNodeText,
   toolbarBtnClass,
   updatedSortButtonLabel,
+  withTitleNode,
 } from "../rules";
 import type { AdminPost } from "../../../lib/api";
 
@@ -431,5 +433,124 @@ describe("handleImageDrop", () => {
     const result = handleImageDrop(view as never, event, false);
 
     expect(result).toBe(false);
+  });
+});
+
+describe("withTitleNode", () => {
+  it("prepends a title node synthesized from `title`, appending nothing extra, when the doc already has block content", () => {
+    const bodyJson = { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Body." }] }] };
+
+    const result = withTitleNode(bodyJson, "My Post");
+
+    expect(result).toEqual({
+      type: "doc",
+      content: [
+        { type: "title", content: [{ type: "text", text: "My Post" }] },
+        { type: "paragraph", content: [{ type: "text", text: "Body." }] },
+      ],
+    });
+  });
+
+  it("appends one empty paragraph when the source has no block content at all — the schema requires at least one block", () => {
+    const result = withTitleNode({ type: "doc", content: [] }, "My Post");
+
+    expect(result).toEqual({
+      type: "doc",
+      content: [{ type: "title", content: [{ type: "text", text: "My Post" }] }, { type: "paragraph" }],
+    });
+  });
+
+  it("passes an already-migrated doc through unchanged, ignoring `title` entirely (the node, not the field, is authoritative once one exists)", () => {
+    const bodyJson = {
+      type: "doc",
+      content: [
+        { type: "title", attrs: { textAlign: "center" }, content: [{ type: "text", text: "Existing" }] },
+        { type: "paragraph" },
+      ],
+    };
+
+    const result = withTitleNode(bodyJson, "Stale Field Value");
+
+    expect(result).toBe(bodyJson); // same reference — no copy made when nothing needs changing
+  });
+
+  it("treats null/undefined bodyJson (a brand-new post) the same as an empty doc", () => {
+    expect(withTitleNode(null, "New Post")).toEqual({
+      type: "doc",
+      content: [{ type: "title", content: [{ type: "text", text: "New Post" }] }, { type: "paragraph" }],
+    });
+    expect(withTitleNode(undefined, "New Post")).toEqual({
+      type: "doc",
+      content: [{ type: "title", content: [{ type: "text", text: "New Post" }] }, { type: "paragraph" }],
+    });
+  });
+
+  it("synthesizes a title node with empty content (not a text node with an empty string) when `title` is empty", () => {
+    const result = withTitleNode({ type: "doc", content: [{ type: "paragraph" }] }, "");
+
+    expect(result).toEqual({ type: "doc", content: [{ type: "title", content: [] }, { type: "paragraph" }] });
+  });
+
+  it("treats a non-object bodyJson (malformed/corrupt) the same as an empty doc, never throwing", () => {
+    expect(withTitleNode("not a doc", "T")).toEqual({
+      type: "doc",
+      content: [{ type: "title", content: [{ type: "text", text: "T" }] }, { type: "paragraph" }],
+    });
+  });
+
+  it("multiple pre-existing blocks are all preserved, in order, after the synthesized title", () => {
+    const bodyJson = {
+      type: "doc",
+      content: [{ type: "heading", attrs: { level: 2 } }, { type: "paragraph" }, { type: "bulletList" }],
+    };
+
+    const result = withTitleNode(bodyJson, "T");
+
+    expect((result.content as unknown[]).map((n) => (n as { type: string }).type)).toEqual([
+      "title",
+      "heading",
+      "paragraph",
+      "bulletList",
+    ]);
+  });
+});
+
+describe("titleNodeText", () => {
+  it("joins the title node's text children into one plain string", () => {
+    const bodyJson = {
+      type: "doc",
+      content: [
+        { type: "title", content: [{ type: "text", text: "Fresh " }, { type: "text", text: "Title" }] },
+        { type: "paragraph" },
+      ],
+    };
+
+    expect(titleNodeText(bodyJson)).toBe("Fresh Title");
+  });
+
+  it("returns '' for an empty title node (not undefined, not a crash)", () => {
+    expect(titleNodeText({ type: "doc", content: [{ type: "title", content: [] }] })).toBe("");
+  });
+
+  it("returns '' when the doc has no title node at all (pre-migration shape, before withTitleNode has run)", () => {
+    expect(titleNodeText({ type: "doc", content: [{ type: "paragraph" }] })).toBe("");
+  });
+
+  it("returns '' for null/undefined/malformed input, never throwing", () => {
+    expect(titleNodeText(null)).toBe("");
+    expect(titleNodeText(undefined)).toBe("");
+    expect(titleNodeText("not a doc")).toBe("");
+    expect(titleNodeText({ type: "doc" })).toBe("");
+  });
+
+  it("ignores a non-text inline child (e.g. a future inline node type) rather than throwing", () => {
+    const bodyJson = { type: "doc", content: [{ type: "title", content: [{ type: "text", text: "A" }, { type: "hardBreak" }] }] };
+
+    expect(titleNodeText(bodyJson)).toBe("A");
+  });
+
+  it("round-trips through withTitleNode: extracting the text back out of a freshly synthesized doc returns the original title", () => {
+    const synthesized = withTitleNode({ type: "doc", content: [] }, "Round Trip");
+    expect(titleNodeText(synthesized)).toBe("Round Trip");
   });
 });

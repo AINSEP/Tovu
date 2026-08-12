@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -120,13 +120,18 @@ describe("Delete confirmation", () => {
 
     expect(confirmSpy).not.toHaveBeenCalled();
     expect(await screen.findByText(/move to trash\?/i)).toBeInTheDocument();
-    expect(screen.getByText(/hello world/i)).toBeInTheDocument();
+    // Scoped to the dialog itself (post-title-in-document feature, 2026-08-11): the post's title
+    // now ALSO renders inside the canvas as the doc's own title node
+    // (`use-post-editor.hooks.ts`/`lib/post-title-extension.ts`), so a page-wide `getByText` for
+    // "hello world" is ambiguous — there are legitimately two matches now, not a regression in the
+    // dialog's own copy, which is what this assertion actually means to check.
+    const dialog = document.querySelector(".confirm-dialog") as HTMLElement;
+    expect(within(dialog).getByText(/hello world/i)).toBeInTheDocument();
 
     // Cancel leaves the post untouched — no DELETE fetched. `ConfirmDialog` stays mounted (its own
     // doc comment: the caller toggles `open`, never conditionally renders it), so "closed" here
     // means the `<dialog>` loses its `open` attribute, not that its text leaves the DOM.
     await user.click(screen.getByRole("button", { name: /^cancel$/i }));
-    const dialog = document.querySelector(".confirm-dialog");
     await waitFor(() => expect(dialog).not.toHaveAttribute("open"));
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });

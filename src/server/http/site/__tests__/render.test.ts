@@ -7,7 +7,7 @@ import type { PostRecord } from "#src/features/post/index";
 import { loadTheme, type DiscoveredTheme } from "#src/features/theme/index";
 import type { ResolveHtmlPageEmbedsResult, ResolvePageWidgetsResult } from "#src/widgets/resolver-service";
 import type { WidgetRenderIR } from "#src/widgets/types";
-import { renderDocNode, renderSite } from "../render";
+import { renderDocNode, renderSite, renderWidgetIr } from "../render";
 
 function textDoc(...content: JsonObject[]): JsonObject {
   return { type: "doc", content: [{ type: "paragraph", content }] };
@@ -867,4 +867,113 @@ test("renderDocNode: the slug comes from the heading's text, ignoring inline mar
   });
   assert.ok(html.includes('<h2 id="design-tokens">'), html);
   assert.ok(html.includes("<strong>Design </strong>"), "the visible markup is untouched");
+});
+
+// ---------------------------------------------------------------------------
+// TextAlign (@tiptap/extension-text-align, admin PostEditor.tsx Toolbar, 2026-08-11)
+// ---------------------------------------------------------------------------
+
+test("renderDocNode: a paragraph's textAlign attr renders as an inline style", () => {
+  const html = renderDocNode({
+    type: "doc",
+    content: [{ type: "paragraph", attrs: { textAlign: "center" }, content: [{ type: "text", text: "Hi" }] }],
+  });
+  assert.ok(html.includes('<p style="text-align:center">Hi</p>'), html);
+});
+
+test("renderDocNode: a heading's textAlign attr renders alongside its own id attribute, id first", () => {
+  const html = renderDocNode({
+    type: "doc",
+    content: [{ type: "heading", attrs: { level: 2, textAlign: "right" }, content: [{ type: "text", text: "Overview" }] }],
+  });
+  assert.ok(html.includes('<h2 id="overview" style="text-align:right">Overview</h2>'), html);
+});
+
+test("renderDocNode: textAlign 'left' (the CSS default) never emits an explicit style attribute", () => {
+  const html = renderDocNode({
+    type: "doc",
+    content: [{ type: "paragraph", attrs: { textAlign: "left" }, content: [{ type: "text", text: "Hi" }] }],
+  });
+  assert.equal(html, "<p>Hi</p>");
+});
+
+test("renderDocNode: no textAlign attr at all renders exactly as before this feature (regression)", () => {
+  const html = renderDocNode({ type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Hi" }] }] });
+  assert.equal(html, "<p>Hi</p>");
+});
+
+// ---------------------------------------------------------------------------
+// Post-title-in-document (apps/admin/src/lib/post-title-extension.ts, 2026-08-11)
+// ---------------------------------------------------------------------------
+
+test("renderDocNode: a 'title' node contributes nothing to a generic doc walk — every OTHER render path prints post.title separately, so this node rendering text too would duplicate it", () => {
+  const html = renderDocNode({
+    type: "doc",
+    content: [
+      { type: "title", content: [{ type: "text", text: "My Post" }] },
+      { type: "paragraph", content: [{ type: "text", text: "Body." }] },
+    ],
+  });
+  assert.equal(html, "<p>Body.</p>", "the title node's own text must not leak into the generic body render");
+});
+
+test("renderWidgetIr('post-content'): a body with NO title node falls back to props.title exactly as before this feature (back-compat for every pre-existing post)", () => {
+  const html = renderWidgetIr({
+    componentId: "post-content",
+    props: { title: "Legacy Post", bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Body." }] }] } },
+  });
+  assert.ok(html.includes("<h1>Legacy Post</h1>"), html);
+  assert.equal((html.match(/<h1/g) ?? []).length, 1, "exactly one <h1>, never two");
+  assert.ok(html.includes("<p>Body.</p>"));
+});
+
+test("renderWidgetIr('post-content'): a body WITH a title node renders the node's own text/marks as the <h1>, not props.title", () => {
+  const html = renderWidgetIr({
+    componentId: "post-content",
+    props: {
+      // Deliberately a STALE props.title, proving the title node — not this field — drives the <h1>
+      // once one is present (props.title still feeds the admin list/slug/search elsewhere; it just
+      // isn't what renders here anymore).
+      title: "Stale Title",
+      bodyJson: {
+        type: "doc",
+        content: [
+          { type: "title", content: [{ type: "text", text: "Fresh " }, { type: "text", text: "Title", marks: [{ type: "bold" }] }] },
+          { type: "paragraph", content: [{ type: "text", text: "Body." }] },
+        ],
+      },
+    },
+  });
+  assert.ok(html.includes("<h1>Fresh <strong>Title</strong></h1>"), html);
+  assert.ok(!html.includes("Stale Title"));
+  assert.equal((html.match(/<h1/g) ?? []).length, 1, "exactly one <h1>, never two");
+});
+
+test("renderWidgetIr('post-content'): the title node's textAlign attr renders on the <h1> — centering it in the editor must center it here", () => {
+  const html = renderWidgetIr({
+    componentId: "post-content",
+    props: {
+      title: "Ignored",
+      bodyJson: {
+        type: "doc",
+        content: [
+          { type: "title", attrs: { textAlign: "center" }, content: [{ type: "text", text: "Centered" }] },
+          { type: "paragraph", content: [{ type: "text", text: "Body." }] },
+        ],
+      },
+    },
+  });
+  assert.ok(html.includes('<h1 style="text-align:center">Centered</h1>'), html);
+});
+
+test("renderWidgetIr('post-content'): an empty title node (freshly synthesized, not yet typed into) renders a real but empty <h1>, never the placeholder or a crash", () => {
+  const html = renderWidgetIr({
+    componentId: "post-content",
+    props: {
+      title: "",
+      bodyJson: { type: "doc", content: [{ type: "title", content: [] }, { type: "paragraph", content: [{ type: "text", text: "Body." }] }] },
+    },
+  });
+  assert.ok(html.includes("<h1></h1>"), html);
+  assert.ok(!html.includes("widget-placeholder"));
 });

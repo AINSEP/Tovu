@@ -154,3 +154,70 @@ export function handleImageDrop(view: EditorView, event: DragEvent, moved: boole
 
   return false;
 }
+
+// ---------------------------------------------------------------------------
+// Post-title-in-document (2026-08-11) — see `lib/post-title-extension.ts`'s file header for the
+// feature this pair of pure functions belongs to and why the title lives in `bodyJson` at all.
+// ---------------------------------------------------------------------------
+
+/** Loose TipTap JSON node shape — same "typed loosely, never TipTap's `JSONContent`" convention
+ *  `PostFormState.bodyJson`'s own doc states, since these two functions only ever read/build a few
+ *  known keys, never the full node vocabulary. */
+type LooseNode = { type?: unknown; content?: unknown; attrs?: unknown; text?: unknown };
+
+function isLooseNode(value: unknown): value is LooseNode {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** A `title`-type node carrying `text` as its sole content — `[]` (no text child) when `text` is
+ *  empty, matching how TipTap represents an empty node (an empty `content` array, never a text node
+ *  with `text: ""`, which ProseMirror's own schema rejects). */
+function titleNode(text: string): LooseNode {
+  return { type: "title", content: text ? [{ type: "text", text }] : [] };
+}
+
+/**
+ * Ensures `bodyJson` starts with a `title` node — the post-title-in-document feature's back-compat
+ * seam. Every post saved before this feature has a `bodyJson` with no `title` node at all (the
+ * editor's custom `doc` schema, `content: "title block+"`, would reject loading it as-is), so the
+ * editor's load effect (`use-post-editor.hooks.ts`) runs every `bodyJson` through this FIRST:
+ *
+ *  - Already migrated (first content node is already `type: "title"`): passed through unchanged.
+ *  - Anything else: a title node synthesized from the post's own (pre-existing) `title` field is
+ *    prepended, with a single empty paragraph appended when the source had no block content at all
+ *    (a brand-new post's empty `bodyJson`, or any other doc with no blocks) — `"title block+"`
+ *    requires at least one block, and a post can otherwise be entirely blank.
+ *
+ * Idempotent and side-effect-free — safe to call on every load regardless of whether migration is
+ * actually needed, so the caller never has to detect that itself.
+ *
+ * @complexity O(n) in `bodyJson`'s own top-level content length (one array copy/prepend, no
+ * recursion into nested content).
+ */
+export function withTitleNode(bodyJson: unknown, title: string): LooseNode {
+  const doc = isLooseNode(bodyJson) ? bodyJson : null;
+  const content = doc && Array.isArray(doc.content) ? doc.content : [];
+  const first = content[0];
+  if (isLooseNode(first) && first.type === "title") return doc as LooseNode;
+
+  const blocks = content.length > 0 ? content : [{ type: "paragraph" }];
+  return { type: "doc", content: [titleNode(title), ...blocks] };
+}
+
+/**
+ * The current title node's plain text, read out of a live `editor.getJSON()` snapshot — the
+ * in-canvas-edit half of the title's two-way sync with the standalone title `<input>` (see
+ * `use-post-editor.hooks.ts`'s `onUpdate`). `""` when the doc's first child isn't a `title` node —
+ * not expected once `withTitleNode` has run once, but kept total rather than throwing on a malformed
+ * snapshot, same defensive posture every other reader in this module takes on `bodyJson`.
+ *
+ * @complexity O(t) in the title node's own inline content length.
+ */
+export function titleNodeText(bodyJson: unknown): string {
+  const doc = isLooseNode(bodyJson) ? bodyJson : null;
+  const content = doc && Array.isArray(doc.content) ? doc.content : [];
+  const first = content[0];
+  if (!isLooseNode(first) || first.type !== "title") return "";
+  const inner = Array.isArray(first.content) ? first.content : [];
+  return inner.map((n) => (isLooseNode(n) && typeof n.text === "string" ? n.text : "")).join("");
+}

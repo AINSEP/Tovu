@@ -281,6 +281,27 @@ function dedupeHeadingIds(html: string): string {
   });
 }
 
+/**
+ * `text-align` inline style for a `textAlign` attr value (`@tiptap/extension-text-align`, admin
+ * `PostEditor.tsx`'s `Toolbar`, 2026-08-11). `"left"` (the CSS/HTML default), `null`, and any other
+ * value this renderer doesn't recognize are never emitted as an explicit attribute — same "optional,
+ * omit rather than emit a no-op" convention {@link renderImageTag}'s width/height/class already
+ * follow.
+ *
+ * @complexity O(1).
+ */
+function styleForAlign(align: string | null): string {
+  return align && align !== "left" ? ` style="text-align:${escapeHtml(align)}"` : "";
+}
+
+/** {@link styleForAlign} read directly off a doc node's own `attrs.textAlign` — the `paragraph` and
+ *  `heading` cases below share this shape; {@link extractTitleNode}'s caller reads the same attr off
+ *  an already-extracted node instead, since it needs the node's inline content too. */
+function alignStyleAttr(node: JsonObject): string {
+  const align = isObject(node.attrs) && typeof node.attrs.textAlign === "string" ? node.attrs.textAlign : null;
+  return styleForAlign(align);
+}
+
 function renderNodes(
   nodes: JsonValue[] | undefined,
   inlineResolved: ReadonlyMap<string, WidgetRenderIR>,
@@ -325,7 +346,7 @@ export function renderDocNode(
       // string rather than state threaded through the recursion.
       return dedupeHeadingIds(renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata));
     case "paragraph":
-      return `<p>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata)}</p>`;
+      return `<p${alignStyleAttr(node)}>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata)}</p>`;
     case "heading": {
       const level = isObject(node.attrs) && typeof node.attrs.level === "number" ? node.attrs.level : 2;
       const h = Math.min(Math.max(level, 1), 6);
@@ -334,8 +355,19 @@ export function renderDocNode(
       // relies on. Omitted entirely when the text slugifies to nothing.
       const anchor = headingAnchorId(node);
       const idAttr = anchor === "" ? "" : ` id="${escapeHtml(anchor)}"`;
-      return `<h${h}${idAttr}>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata)}</h${h}>`;
+      return `<h${h}${idAttr}${alignStyleAttr(node)}>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata)}</h${h}>`;
     }
+    case "title":
+      // Post-title-in-document feature (2026-08-11) — a dedicated first `doc` node an author can
+      // center/style per post (`apps/admin/src/lib/post-title-extension.ts`). Renders empty in every
+      // GENERIC doc walk: `entryContent`, `renderSlot("title")`, and `buildTemplateRenderData`'s
+      // `post.content` already each print `post.title`/`ctx.post.title` (kept in sync with this
+      // node — see `withTitleNode`/`titleNodeText`, `apps/admin/.../features/posts/rules.ts`) as
+      // their OWN separate heading; letting this node ALSO emit its text here would duplicate the
+      // title on every one of those render paths. `renderWidgetPostContent` is the one caller that
+      // needs this node directly (for its alignment) and reads it via its own `extractTitleNode`,
+      // bypassing this generic walk entirely for that one field.
+      return "";
     case "text":
       return renderMarks(
         typeof node.text === "string" ? node.text : "",
@@ -870,15 +902,52 @@ function renderWidgetMediaImage(props: JsonObject): string {
  * recursively. Disclosed scope limit, not an oversight: no other embed resolver in this codebase
  * resolves nested references either (see `resolveMediaTypeEmbeds`'s own disclosed mime-type gap).
  */
+/**
+ * Reads `bodyJson`'s leading `title` node (post-title-in-document feature, 2026-08-11 — see the
+ * `"title"` case in {@link renderDocNode} for the rest of this feature's server-side half) — present
+ * on any post/page saved after the admin editor started synthesizing one (`withTitleNode`, `apps/
+ * admin/src/features/posts/rules.ts`), absent on every row saved before that.
+ *
+ * Returns the node's own inline content, rendered through the SAME `renderNodes` every other doc node
+ * uses (marks/escaping included, not a second implementation), plus its `textAlign` attr — or `null`
+ * when `bodyJson` doesn't start with a `title` node, which is {@link renderWidgetPostContent}'s
+ * back-compat signal to fall back to `props.title` exactly as it did before this feature existed.
+ *
+ * @complexity O(t) in the title node's own inline content length — no recursion beyond it, and no
+ * work at all over the rest of `bodyJson`.
+ */
+function extractTitleNode(
+  bodyJson: JsonValue
+): { html: string; align: string | null } | null {
+  if (!isObject(bodyJson)) return null;
+  const content = Array.isArray(bodyJson.content) ? bodyJson.content : undefined;
+  const first = content?.[0];
+  if (!isObject(first) || first.type !== "title") return null;
+  const align = isObject(first.attrs) && typeof first.attrs.textAlign === "string" ? first.attrs.textAlign : null;
+  const innerContent = Array.isArray(first.content) ? first.content : undefined;
+  return {
+    html: renderNodes(innerContent, EMPTY_INLINE_RESOLVED, EMPTY_MEDIA_TRANSFORM_VERSIONS, EMPTY_MEDIA_ASSET_METADATA),
+    align,
+  };
+}
+
 function renderWidgetPostContent(props: JsonObject): string {
   const title = props.title;
   const bodyJson = props.bodyJson;
   if (typeof title !== "string" || bodyJson === undefined) return renderWidgetPlaceholder();
   const updatedAt = typeof props.updatedAt === "string" ? props.updatedAt : "";
   const dateLabel = updatedAt ? new Date(updatedAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" }) : "";
+  // Back-compat fork (post-title-in-document feature, 2026-08-11): a migrated body's OWN title node
+  // drives the `<h1>` (text AND alignment) so centering it in the editor actually centers it here;
+  // a pre-migration body (no title node yet — every row saved before this feature landed) falls back
+  // to the plain `props.title` string exactly as this rendered before the feature existed. Exactly
+  // one `<h1>` either way — never two, never zero.
+  const titleNode = extractTitleNode(bodyJson as JsonValue);
+  const titleHtml =
+    titleNode !== null ? `<h1${styleForAlign(titleNode.align)}>${titleNode.html}</h1>` : `<h1>${escapeHtml(title)}</h1>`;
   return (
     `<div class="post-detail-header">` +
-    `<h1>${escapeHtml(title)}</h1>` +
+    titleHtml +
     (dateLabel ? `<div class="post-meta"><time datetime="${escapeHtml(updatedAt)}">${escapeHtml(dateLabel)}</time></div>` : "") +
     `</div>` +
     `<div class="post-detail-body">${renderDocNode(bodyJson)}</div>`
