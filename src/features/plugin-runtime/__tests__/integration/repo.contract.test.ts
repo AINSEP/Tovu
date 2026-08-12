@@ -58,6 +58,17 @@ function runSuite(adapterName: string, makeRepo: () => PluginActivationRepoPort)
     assert.equal(all.filter((r) => r.workspaceId === WS && r.pluginId === "word-count").length, 1);
   });
 
+  test(`[${adapterName}] deleteActivation() removes only the requested activation`, async () => {
+    const repo = makeRepo();
+    await repo.save(record({ workspaceId: WS, pluginId: "word-count" }));
+    await repo.save(record({ workspaceId: WS2, pluginId: "word-count" }));
+
+    await repo.deleteActivation({ workspaceId: WS, pluginId: "word-count" });
+
+    assert.equal(await repo.getActivation({ workspaceId: WS, pluginId: "word-count" }), null);
+    assert.notEqual(await repo.getActivation({ workspaceId: WS2, pluginId: "word-count" }), null);
+  });
+
   test(`[${adapterName}] activation state is scoped per workspace — the same pluginId in two workspaces are independent rows`, async () => {
     const repo = makeRepo();
     await repo.save(record({ workspaceId: WS, enabled: true }));

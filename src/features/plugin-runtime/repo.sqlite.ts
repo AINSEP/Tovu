@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import { pluginActivations } from "../../db/schema";
 import type { ContentDb } from "../../db/sqlite/content-db";
@@ -48,6 +48,18 @@ export class SqlitePluginActivationRepo implements PluginActivationRepoPort {
         target: [pluginActivations.workspaceId, pluginActivations.pluginId],
         set: { version: record.version, enabled: record.enabled, updatedAt: record.updatedAt },
       })
+      .run();
+  }
+
+  async deleteActivation(required: { workspaceId: string; pluginId: string }): Promise<void> {
+    this.db
+      .delete(pluginActivations)
+      .where(
+        and(
+          eq(pluginActivations.workspaceId, required.workspaceId),
+          eq(pluginActivations.pluginId, required.pluginId)
+        )
+      )
       .run();
   }
 
