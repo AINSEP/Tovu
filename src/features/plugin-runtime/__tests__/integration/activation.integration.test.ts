@@ -9,7 +9,7 @@ import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-serve
 import { composePluginRuntime, type PluginRuntimeSource } from "#src/server/plugin-runtime";
 import { definePlugin, HOOK_CONTENT_ENTRY_BEFORE_SAVE } from "../../../../../packages/sdk/src/index";
 import { PluginHookFailedError } from "../../hook-registry";
-import { toAdminPluginResponse } from "#src/server/http/admin/plugins";
+import { toAdminPluginResponse } from "#src/features/plugin-runtime/admin-response";
 
 /**
  * @file C-011/C-012 `setPluginEnabled()`/`getActivation()` — SPEC-005 REQ-07, BR-05, AC-02, AC-13
