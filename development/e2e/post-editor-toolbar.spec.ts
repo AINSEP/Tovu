@@ -350,25 +350,22 @@ test.describe("Post editor toolbar — click-to-persisted-JSON contract", () => 
     expect(["left", null, undefined]).toContain(finalParagraph?.attrs?.textAlign ?? null);
   });
 
-  test("Insert image by URL writes an image node carrying the exact URL and alt text typed into the prompts", async ({ page }) => {
-    const { id } = await openFreshPost(page);
-    const imageUrl = "https://example.com/cat.png";
-    const altText = "A cat";
-
-    page.on("dialog", (dialog) => {
-      if (dialog.message().startsWith("Image URL")) void dialog.accept(imageUrl);
-      else void dialog.accept(altText);
-    });
-
-    await bodyParagraph(page).click();
-    await clickToolbar(page, "Insert image by URL");
-
-    await saveAndWaitForConfirmation(page);
-    const doc = await fetchBodyJson(page, id);
-
-    const image = findNode(doc, (n) => n.type === "image" && n.attrs?.src === imageUrl);
-    expect(image, "the image node must carry exactly the URL typed into the prompt").not.toBeNull();
-    expect(image!.attrs?.alt).toBe(altText);
+  test("REGRESSION (2026-08-12, owner-reported bug): the toolbar no longer offers 'Insert image by URL' — it wrote a src-only node render.ts never renders publicly", async ({ page }) => {
+    // Was: click the button, accept two `window.prompt`s, assert the resulting node carried the
+    // typed `src`. That node shape is exactly ADR-027 §4's "legacy" case — `render.ts`'s own `image`
+    // case comment states plainly it never reads `src`, so this control produced an image that
+    // looked fine in the editor and rendered as a permanent grey placeholder on the live site, with
+    // no warning to the operator. See `PostEditor.tsx`'s own removal comment for the full reasoning,
+    // including why a same-session "fetch the URL server-side, store a real ref" fix was rejected
+    // (this repo's one guarded outbound-HTTP seam buffers responses as text, which would corrupt
+    // binary image bytes) rather than half-done. The Media picker (`EmbedInsertControl` -> upload a
+    // file) and drag/paste (`FileHandler`) both still insert a real `{assetId, transformName}` ref
+    // that DOES render publicly — covered by `use-post-editor.hooks.unit.test.tsx` (upload wiring)
+    // and `tiptap-render-contract.test.ts`'s "image, ref-based" row (the render side) — and
+    // `post-editor-image-sizing.spec.ts` still exercises the legacy `src`-only render path itself
+    // (now reachable only via a pre-existing/legacy post, not a fresh toolbar insert).
+    await openFreshPost(page);
+    await expect(page.locator('button[title="Insert image by URL"]')).toHaveCount(0);
   });
 
   test("full chain: formatting applied through the toolbar, published, is present in the served public HTML", async ({ page, request }) => {

@@ -19,6 +19,7 @@ import {
   FONT_SIZE_OPTIONS,
   LINE_HEIGHT_OPTIONS,
   CODE_LANGUAGE_OPTIONS,
+  degradeUnplayableEmbedsForRawPreview,
 } from "./rules";
 
 /**
@@ -183,7 +184,7 @@ function Toolbar({
         </select>
         <button className="tb-btn" title="Divider" onClick={() => chain().setHorizontalRule().run()}>―</button>
         {/* Table (owner, 2026-08-11: "anything and everything") — same "quickest thing that
-            works" idiom as "Img by URL"/"Divider" just above: a fixed 3x3-with-header-row insert,
+            works" idiom as "Divider" just above: a fixed 3x3-with-header-row insert,
             no rows/cols prompt. `insertTable`'s own defaults (`rows: 3, cols: 3,
             withHeaderRow: true`) are passed explicitly rather than relied on implicitly. */}
         <button
@@ -364,20 +365,29 @@ function Toolbar({
             composing the same `MediaPickerDialog`/`WidgetPickerDialog`/`WidgetAddControl` pieces
             `CollectionEntryEditor.tsx`/`WidgetRegionEditor.tsx` still use directly and unchanged. */}
         <EmbedInsertControl editor={editor} />
-        <button
-          className="tb-btn"
-          title="Insert image by URL"
-          onClick={() => {
-            const src = window.prompt("Image URL:");
-            if (!src) return;
-            const alt = window.prompt("Alt text (optional):") ?? "";
-            chain().setImage({ src, alt: alt || undefined }).run();
-          }}
-        >
-          Img by URL
-        </button>
-        {/* YouTube (coordinator MSG #1 licensing sweep, 2026-08-11) — same "prompt for a URL"
-            idiom as "Img by URL" just above. `setYoutubeVideo` itself rejects an unrecognized URL
+        {/* "Insert image by URL" (the `chain().setImage({ src, alt })` button that used to live here)
+            REMOVED 2026-08-12 — owner-reported bug: it wrote a node carrying only `attrs.src`, which
+            `render.ts`'s `"image"` case has NEVER read (ADR-027 §4/D7 — see that case's own comment: a
+            legacy `src`-only node may hold a `data:` blob, an arbitrary external URL, or the
+            *authenticated* admin media-preview URL, none of which are safe to embed unescaped on
+            public HTML, so it always degrades to the placeholder there instead). The control looked
+            like it worked (the in-editor `MediaImageNodeView` renders `attrs.src` directly for its own
+            "legacy" preview branch — an authenticated admin surface, where doing so is safe) and then
+            silently never rendered on the live site — exactly the "worked in the editor, dead on
+            publish" shape this file's own toolbar-button bugs have repeatedly taken. A same-session fix
+            that made this write a real `{assetId, transformName}` ref instead (fetching the URL
+            server-side, the only way to do that without trusting an admin-authenticated `src`) was
+            considered and rejected: the one guarded outbound-HTTP seam this repo has (`src/http`,
+            ADR-038) buffers responses as UTF-8 TEXT (`transport.fetch.ts`'s `bodyText`), which would
+            corrupt binary image bytes, so reusing it isn't a same-size change, and hand-rolling a
+            second, independently-unreviewed SSRF guard for this one path is a worse trade than
+            removing a redundant control — `EmbedInsertControl` just above (Media picker: upload a file)
+            and drag/paste onto the canvas (`FileHandler`, `use-post-editor.hooks.ts`) both already
+            insert the SAME ref-based node type and both already work end-to-end, so nothing an operator
+            could actually do got worse. */}
+        {/* YouTube (coordinator MSG #1 licensing sweep, 2026-08-11) — a "prompt for a URL" idiom, the
+            same shape "Insert image by URL" used before its removal above.
+            `setYoutubeVideo` itself rejects an unrecognized URL
             (returns `false`, no-ops) before insertion — the render.ts side independently
             re-validates anyway, see `extractYoutubeVideoId`'s own doc for why. */}
         <button
@@ -886,7 +896,7 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
         // after a keystroke rather than going stale.
         <PostPreview
           id={post.id}
-          bodyHtml={editor?.getHTML() ?? ""}
+          bodyHtml={degradeUnplayableEmbedsForRawPreview(editor?.getHTML() ?? "")}
           // Pending-content preview (2026-08-12) — same `editor.getJSON()` idiom
           // `use-post-editor.hooks.ts`'s own dirty comparison already uses, read fresh every render
           // off the live editor rather than the last-saved `post.bodyJson`. `null` (not `editor?.getJSON()
@@ -1017,6 +1027,12 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
  *    widget resolution, no media-transform URLs, no theme wrapper) — disclosed as a rough
  *    shape/content check, not parity, for the same reason the live-site branch exists: building a
  *    second `renderDocNode` here would be the duplication this whole approach is chosen to avoid.
+ *    `degradeUnplayableEmbedsForRawPreview` (`rules.ts`) runs on that raw HTML before it reaches
+ *    `SrcDocSandbox` (2026-08-12, owner-reported bug — see that function's own doc): a YouTube embed
+ *    rendered a solid black box here because `SrcDocSandbox`'s deliberate no-`allow-same-origin`
+ *    sandbox breaks the embed player's own same-origin storage access, so this swaps it for a
+ *    labelled placeholder instead of a silently broken iframe — this branch's own "rough render, not
+ *    parity" disclosure already covers exactly this kind of gap.
  *    Branch 3 means this is now ONLY reachable for a draft — a published post with `contentDirty` no
  *    longer falls this far, which is exactly this fix's own point.
  *
