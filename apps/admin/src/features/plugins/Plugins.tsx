@@ -111,6 +111,19 @@ export function Plugins({ usePluginsHook = useWiredPlugins }: PluginsProps = {})
             },
           },
           {
+            key: "quarantine",
+            header: t("Quarantine"),
+            cell: (plugin) =>
+              plugin.quarantine ? (
+                <div className="plugin-errors">
+                  <span className="save-error">
+                    {t("Quarantined after")} {plugin.quarantine.consecutiveFailures} {t("consecutive failures")}
+                  </span>
+                  <div>{plugin.quarantine.reason}</div>
+                </div>
+              ) : null,
+          },
+          {
             key: "errors",
             header: t("Errors"),
             cell: (plugin) =>

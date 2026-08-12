@@ -32,6 +32,11 @@ export interface AdminPluginEnvelope {
   readonly tier: "tier-1" | "tier-2" | "tier-3";
   readonly status: "valid" | "invalid" | "incompatible";
   readonly enabled: boolean;
+  readonly quarantine: null | {
+    readonly at: string;
+    readonly reason: string;
+    readonly consecutiveFailures: number;
+  };
   readonly errors: readonly { code: string; file: string | null; message: string }[];
 }
 
@@ -55,6 +60,16 @@ export function toAdminPluginResponse(
     tier: (discovery.tier ?? "tier-3") as AdminPluginEnvelope["tier"],
     status: discovery.status,
     enabled: activation?.enabled ?? false,
+    quarantine:
+      activation?.quarantinedAt !== undefined &&
+      activation.quarantineReason !== undefined &&
+      activation.quarantineFailureCount !== undefined
+        ? {
+            at: activation.quarantinedAt,
+            reason: activation.quarantineReason,
+            consecutiveFailures: activation.quarantineFailureCount,
+          }
+        : null,
     errors: discovery.errors,
   };
 }

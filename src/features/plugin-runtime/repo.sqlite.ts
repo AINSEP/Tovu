@@ -25,6 +25,9 @@ function toRecord(row: PluginActivationRow): PluginActivationRecord {
     version: row.version,
     enabled: row.enabled,
     updatedAt: row.updatedAt,
+    ...(row.quarantinedAt === null ? {} : { quarantinedAt: row.quarantinedAt }),
+    ...(row.quarantineReason === null ? {} : { quarantineReason: row.quarantineReason }),
+    ...(row.quarantineFailureCount === null ? {} : { quarantineFailureCount: row.quarantineFailureCount }),
   };
 }
 
@@ -41,12 +44,25 @@ export class SqlitePluginActivationRepo implements PluginActivationRepoPort {
   }
 
   async save(record: PluginActivationRecord): Promise<void> {
+    const values = {
+      ...record,
+      quarantinedAt: record.quarantinedAt ?? null,
+      quarantineReason: record.quarantineReason ?? null,
+      quarantineFailureCount: record.quarantineFailureCount ?? null,
+    };
     this.db
       .insert(pluginActivations)
-      .values(record)
+      .values(values)
       .onConflictDoUpdate({
         target: [pluginActivations.workspaceId, pluginActivations.pluginId],
-        set: { version: record.version, enabled: record.enabled, updatedAt: record.updatedAt },
+        set: {
+          version: record.version,
+          enabled: record.enabled,
+          updatedAt: record.updatedAt,
+          quarantinedAt: values.quarantinedAt,
+          quarantineReason: values.quarantineReason,
+          quarantineFailureCount: values.quarantineFailureCount,
+        },
       })
       .run();
   }

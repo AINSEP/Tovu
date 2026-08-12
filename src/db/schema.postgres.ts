@@ -557,6 +557,9 @@ export const pluginActivations = pgTable("plugin_activations", {
   version: text("version").notNull(),
   enabled: boolean("enabled").notNull(),
   updatedAt: text("updated_at").notNull(),
+  quarantinedAt: text("quarantined_at"),
+  quarantineReason: text("quarantine_reason"),
+  quarantineFailureCount: integer("quarantine_failure_count"),
 }, (t) => [
     uniqueIndex("pk_plugin_activations").on(t.workspaceId, t.pluginId),
   ]);

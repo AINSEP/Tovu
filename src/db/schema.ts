@@ -155,6 +155,9 @@ export const pluginActivations = sqliteTable(
     version: text("version").notNull(),
     enabled: integer("enabled", { mode: "boolean" }).notNull(),
     updatedAt: text("updated_at").notNull(),
+    quarantinedAt: text("quarantined_at"),
+    quarantineReason: text("quarantine_reason"),
+    quarantineFailureCount: integer("quarantine_failure_count"),
   },
   (table) => [uniqueIndex("pk_plugin_activations").on(table.workspaceId, table.pluginId)]
 );

@@ -246,6 +246,13 @@
       "when": 1786383045579,
       "tag": "0034_bouncy_dakota_north",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "6",
+      "when": 1786557880838,
+      "tag": "0035_demonic_white_tiger",
+      "breakpoints": true
     }
   ]
 }

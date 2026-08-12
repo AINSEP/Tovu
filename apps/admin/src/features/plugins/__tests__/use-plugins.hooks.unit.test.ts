@@ -21,7 +21,7 @@ describe("usePlugins — injected port (no fetch stub, no api spy)", () => {
   it("loads the list from the injected port and never touches the real api client", async () => {
     const listSpy = vi.spyOn(api, "listPlugins");
     const port = createFakePluginsPort({
-      plugins: [{ id: "p1", name: "Word Count", version: "1.0.0", source: "built-in", tier: "tier-3", status: "valid", enabled: true, errors: [] }],
+      plugins: [{ id: "p1", name: "Word Count", version: "1.0.0", source: "built-in", tier: "tier-3", status: "valid", enabled: true, quarantine: null, errors: [] }],
     });
     const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
 
@@ -33,7 +33,7 @@ describe("usePlugins — injected port (no fetch stub, no api spy)", () => {
   it("routes onToggleEnabled through the injected port and never touches the real api client", async () => {
     const setEnabledSpy = vi.spyOn(api, "setPluginEnabled");
     const port = createFakePluginsPort({
-      plugins: [{ id: "p1", name: "Word Count", version: "1.0.0", source: "built-in", tier: "tier-3", status: "valid", enabled: false, errors: [] }],
+      plugins: [{ id: "p1", name: "Word Count", version: "1.0.0", source: "built-in", tier: "tier-3", status: "valid", enabled: false, quarantine: null, errors: [] }],
     });
     const { result } = renderHook(() => usePlugins({ port, locale: "en", t: (key: string) => key }));
     await waitFor(() => expect(result.current.plugins).toHaveLength(1));

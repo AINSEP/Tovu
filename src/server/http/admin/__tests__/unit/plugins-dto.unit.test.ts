@@ -40,6 +40,25 @@ test("REQ-10: a plugin with an activation row projects its enabled flag verbatim
   assert.equal(response.enabled, true);
 });
 
+test("automatic quarantine is inspectable through the existing plugin response", () => {
+  const response = toAdminPluginResponse(discovery(), {
+    pluginId: "word-count",
+    workspaceId: "ws-1",
+    version: "1.0.0",
+    enabled: false,
+    updatedAt: "2026-08-12T12:00:00.000Z",
+    quarantinedAt: "2026-08-12T12:00:00.000Z",
+    quarantineReason: "plugin 'word-count' filter failed",
+    quarantineFailureCount: 3,
+  });
+
+  assert.deepEqual(response.quarantine, {
+    at: "2026-08-12T12:00:00.000Z",
+    reason: "plugin 'word-count' filter failed",
+    consecutiveFailures: 3,
+  });
+});
+
 test("REQ-10: id/name/version/source/status/errors pass through unchanged from the discovery record", () => {
   const record = discovery({
     id: "invalid-site-plugin",

@@ -129,6 +129,34 @@ describe("REQ-16/AC-24: per-row inline error display", () => {
   });
 });
 
+describe("automatic plugin quarantine", () => {
+  it("shows the durable reason/count and leaves Enable as the recovery control", async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        plugins: AC11_PLUGINS_RESPONSE.plugins.map((plugin) =>
+          plugin.id === "word-count"
+            ? {
+                ...plugin,
+                enabled: false,
+                quarantine: {
+                  at: "2026-08-12T12:00:00.000Z",
+                  reason: "plugin 'word-count' content.entry.beforeSave filter failed: save blocker",
+                  consecutiveFailures: 3,
+                },
+              }
+            : plugin
+        ),
+      })
+    );
+
+    render(<Plugins />);
+    const row = within(await screen.findByRole("table")).getByText("Word Count").closest("tr")!;
+    expect(within(row).getByText("Quarantined after 3 consecutive failures")).toBeInTheDocument();
+    expect(within(row).getByText(/save blocker/)).toBeInTheDocument();
+    expect(within(row).getByRole("button", { name: /enable/i })).toBeInTheDocument();
+  });
+});
+
 describe("REQ-18/AC-26 (1.1.2): per-row trust-tier badge", () => {
   // Small addition alongside the rest of this certified suite (SPEC-005 1.1.2, resolves RT-010).
   // Synthetic fixture with THREE DIFFERENT `tier` values, exactly as AC-26 explicitly permits ("no

@@ -273,3 +273,100 @@ test("ADR-024 §3: each filter receives a deeply isolated snapshot", async () =>
     items: ["original"],
   });
 });
+
+test("auto-quarantine: the injected consecutive-failure threshold detaches the filter immediately and reports the durable-state event", async () => {
+  const quarantines: Array<{
+    pluginId: string;
+    workspaceId: string;
+    consecutiveFailures: number;
+    reason: string;
+  }> = [];
+  const registry = createHookRegistry({
+    failureThreshold: 2,
+    onQuarantine: async (event: (typeof quarantines)[number]) => {
+      quarantines.push(event);
+    },
+  });
+  registry.attach("thrower", "site", async () => {
+    throw new Error("deterministic boom");
+  }, []);
+
+  await assert.rejects(() => registry.runBeforeSave(draft()), PluginHookFailedError);
+  assert.equal(quarantines.length, 0, "one failure is below the injected threshold");
+
+  await assert.rejects(() => registry.runBeforeSave(draft()), PluginHookFailedError);
+  assert.equal(quarantines.length, 1);
+  assert.deepEqual(quarantines[0], {
+    pluginId: "thrower",
+    workspaceId: "ws-1",
+    consecutiveFailures: 2,
+    reason: "plugin 'thrower' content.entry.beforeSave filter failed: deterministic boom",
+  });
+
+  assert.deepEqual(
+    await registry.runBeforeSave(draft()),
+    {},
+    "the thresholding save still fails closed, but the next save recovers because the filter is detached"
+  );
+});
+
+test("auto-quarantine: the default policy quarantines on the third consecutive failure", async () => {
+  const quarantines: unknown[] = [];
+  const registry = createHookRegistry({
+    onQuarantine: async (event) => {
+      quarantines.push(event);
+    },
+  });
+  registry.attach("default-threshold", "site", async () => {
+    throw new Error("boom");
+  }, []);
+
+  await assert.rejects(() => registry.runBeforeSave(draft()), PluginHookFailedError);
+  await assert.rejects(() => registry.runBeforeSave(draft()), PluginHookFailedError);
+  assert.equal(quarantines.length, 0);
+  await assert.rejects(() => registry.runBeforeSave(draft()), PluginHookFailedError);
+  assert.equal(quarantines.length, 1);
+});
+
+test("auto-quarantine: a successful invocation resets the consecutive-failure counter", async () => {
+  const quarantines: unknown[] = [];
+  const outcomes: Array<"fail" | "success"> = ["fail", "success", "fail", "fail"];
+  const registry = createHookRegistry({
+    failureThreshold: 2,
+    onQuarantine: async (event: unknown) => {
+      quarantines.push(event);
+    },
+  });
+  registry.attach("flaky", "site", async () => {
+    const outcome = outcomes.shift();
+    if (outcome === "fail") throw new Error("flaky boom");
+    return { ok: true };
+  }, [{ path: "ext.flaky.ok", type: "boolean" }]);
+
+  await assert.rejects(() => registry.runBeforeSave(draft()), PluginHookFailedError);
+  assert.deepEqual(await registry.runBeforeSave(draft()), { flaky: { ok: true } });
+  await assert.rejects(() => registry.runBeforeSave(draft()), PluginHookFailedError);
+  assert.equal(quarantines.length, 0, "the failure after a success must restart at one");
+  await assert.rejects(() => registry.runBeforeSave(draft()), PluginHookFailedError);
+  assert.equal(quarantines.length, 1);
+});
+
+test("auto-quarantine: counters are scoped by workspace as well as plugin", async () => {
+  const quarantines: Array<{ workspaceId: string }> = [];
+  const registry = createHookRegistry({
+    failureThreshold: 2,
+    onQuarantine: async (event: { workspaceId: string }) => {
+      quarantines.push(event);
+    },
+  });
+  registry.attach("thrower", "site", async () => {
+    throw new Error("boom");
+  }, []);
+
+  await assert.rejects(() => registry.runBeforeSave(draft({ workspaceId: "ws-a" })), PluginHookFailedError);
+  await assert.rejects(() => registry.runBeforeSave(draft({ workspaceId: "ws-b" })), PluginHookFailedError);
+  assert.deepEqual(quarantines, [], "one failure in each workspace is not two consecutive failures in either workspace");
+
+  await assert.rejects(() => registry.runBeforeSave(draft({ workspaceId: "ws-a" })), PluginHookFailedError);
+  assert.deepEqual(quarantines.map((event) => event.workspaceId), ["ws-a"]);
+});

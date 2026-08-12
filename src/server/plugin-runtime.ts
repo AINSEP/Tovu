@@ -6,6 +6,7 @@ import type { PluginActivationRepoPort } from "../features/plugin-runtime/activa
 import type { BuiltInPluginSource, PluginDiscoveryRecord } from "../features/plugin-runtime/discovery";
 import { discoverPlugins as discoverPluginRuntimePlugins } from "../features/plugin-runtime/discovery";
 import { createHookRegistry, type HookRegistry } from "../features/plugin-runtime/hook-registry";
+import { quarantinePlugin } from "../features/plugin-runtime/quarantine";
 import {
   attachLoadedPlugin,
   loadPlugin,
@@ -36,6 +37,8 @@ export interface ComposePluginRuntimeRequired {
   readonly clock: ClockPort;
   readonly activationRepo: PluginActivationRepoPort;
   readonly sources: readonly PluginRuntimeSource[];
+  /** Consecutive hook failures before quarantine. Omitted uses the registry default. */
+  readonly failureThreshold?: number;
 }
 
 export interface PluginRuntimeBindings {
@@ -53,8 +56,13 @@ export interface PluginRuntimeBindings {
  * has completed successfully.
  */
 export function composePluginRuntime(required: ComposePluginRuntimeRequired): PluginRuntimeBindings {
-  const { sources } = required;
-  const hookRegistry = createHookRegistry();
+  const { activationRepo, clock, sources } = required;
+  const hookRegistry = createHookRegistry({
+    ...(required.failureThreshold === undefined ? {} : { failureThreshold: required.failureThreshold }),
+    onQuarantine: async (input) => {
+      await quarantinePlugin({ deps: { clock, repo: activationRepo }, input });
+    },
+  });
   const discoverPlugins = () => discoverPluginRuntimePlugins({ builtIns: sources });
 
   async function onPluginEnabled(pluginId: string): Promise<void> {

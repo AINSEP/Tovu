@@ -6,6 +6,10 @@ import { InMemoryPluginActivationRepo } from "../../repo.memory";
 import type { PluginDiscoveryRecord } from "../../discovery";
 import { createApp, createRouteDeps } from "#src/server/app";
 import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-server";
+import { composePluginRuntime, type PluginRuntimeSource } from "#src/server/plugin-runtime";
+import { definePlugin, HOOK_CONTENT_ENTRY_BEFORE_SAVE } from "../../../../../packages/sdk/src/index";
+import { PluginHookFailedError } from "../../hook-registry";
+import { toAdminPluginResponse } from "#src/server/http/admin/plugins";
 
 /**
  * @file C-011/C-012 `setPluginEnabled()`/`getActivation()` — SPEC-005 REQ-07, BR-05, AC-02, AC-13
@@ -296,4 +300,95 @@ test("AC-01 end to end: enabling word-count through the documented HTTP path run
 
   const changeSetsAfterSave = await deps.changeSets.listByWorkspace({ workspaceId: deps.workspaceId });
   assert.equal(changeSetsAfterSave.length, changeSetsAfterEnable.length + 1, "the content save must record one change set");
+});
+
+test("auto-quarantine end to end: repeated hook failures persist disabled metadata, detach immediately, and operator re-enable clears it", async () => {
+  const repo = new InMemoryPluginActivationRepo();
+  const testClock = clock("2026-08-12T12:00:00.000Z");
+  let shouldThrow = true;
+  const source: PluginRuntimeSource = {
+    source: "built-in",
+    entryPath: "built-in:throwing-plugin",
+    manifest: {
+      id: "throwing-plugin",
+      name: "Throwing Plugin",
+      version: "1.0.0",
+      sdkRange: "^0.1.0",
+      engine: 1,
+      tier: "tier-3",
+      capabilities: ["hooks.attach"],
+      hooks: [HOOK_CONTENT_ENTRY_BEFORE_SAVE],
+      fields: [{ path: "ext.throwing-plugin.ok", type: "boolean", queryable: false }],
+      integrity: {},
+    },
+    importModule: async () => ({
+      default: definePlugin({
+        setup(sdk) {
+          sdk.addFilter(HOOK_CONTENT_ENTRY_BEFORE_SAVE, async () => {
+            if (shouldThrow) throw new Error("save blocker");
+            return { ok: true };
+          });
+        },
+      }),
+    }),
+  };
+  const runtime = composePluginRuntime({
+    workspaceId: WORKSPACE,
+    clock: testClock,
+    activationRepo: repo,
+    sources: [source],
+    failureThreshold: 2,
+  });
+  const discovery = await runtime.discoverPlugins();
+
+  await setPluginEnabled({
+    deps: {
+      clock: testClock,
+      repo,
+      discovery,
+      onEnabled: runtime.onPluginEnabled,
+      onDisabled: runtime.onPluginDisabled,
+    },
+    input: { workspaceId: WORKSPACE, pluginId: source.manifest.id, enabled: true },
+  });
+
+  const entry = {
+    id: "entry-1",
+    workspaceId: WORKSPACE,
+    title: "Entry",
+    slug: "entry",
+    status: "draft" as const,
+    bodyJson: {},
+    ext: {},
+  };
+  await assert.rejects(() => runtime.beforeSaveHook(entry), PluginHookFailedError);
+  await assert.rejects(() => runtime.beforeSaveHook(entry), PluginHookFailedError);
+
+  const quarantined = await repo.getActivation({ workspaceId: WORKSPACE, pluginId: source.manifest.id });
+  assert.equal(quarantined?.enabled, false);
+  assert.equal(quarantined?.quarantinedAt, "2026-08-12T12:00:00.000Z");
+  assert.equal(quarantined?.quarantineFailureCount, 2);
+  assert.match(quarantined?.quarantineReason ?? "", /save blocker/);
+  assert.deepEqual(toAdminPluginResponse(discovery[0]!, quarantined).quarantine, {
+    at: "2026-08-12T12:00:00.000Z",
+    reason: "plugin 'throwing-plugin' content.entry.beforeSave filter failed: save blocker",
+    consecutiveFailures: 2,
+  });
+  assert.deepEqual(await runtime.beforeSaveHook(entry), {}, "the detached filter must stop blocking the next save");
+
+  shouldThrow = false;
+  const { activation: reEnabled } = await setPluginEnabled({
+    deps: {
+      clock: testClock,
+      repo,
+      discovery,
+      onEnabled: runtime.onPluginEnabled,
+      onDisabled: runtime.onPluginDisabled,
+    },
+    input: { workspaceId: WORKSPACE, pluginId: source.manifest.id, enabled: true },
+  });
+  assert.equal(reEnabled.enabled, true);
+  assert.equal(reEnabled.quarantinedAt ?? null, null);
+  assert.equal(toAdminPluginResponse(discovery[0]!, reEnabled).quarantine, null);
+  assert.deepEqual(await runtime.beforeSaveHook(entry), { "throwing-plugin": { ok: true } });
 });

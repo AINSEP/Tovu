@@ -90,6 +90,33 @@ function runSuite(adapterName: string, makeRepo: () => PluginActivationRepoPort)
       [`${WS}:word-count`, `${WS2}:other-plugin`]
     );
   });
+
+  test(`[${adapterName}] quarantine metadata round-trips durably and an ordinary activation save clears it`, async () => {
+    const repo = makeRepo();
+    await repo.save(record({
+      enabled: false,
+      quarantinedAt: "2026-08-12T12:00:00.000Z",
+      quarantineReason: "plugin failed twice",
+      quarantineFailureCount: 2,
+    }));
+
+    assert.deepEqual(
+      await repo.getActivation({ workspaceId: WS, pluginId: "word-count" }),
+      record({
+        enabled: false,
+        quarantinedAt: "2026-08-12T12:00:00.000Z",
+        quarantineReason: "plugin failed twice",
+        quarantineFailureCount: 2,
+      })
+    );
+
+    await repo.save(record({ enabled: true, updatedAt: "2026-08-12T12:05:00.000Z" }));
+    assert.deepEqual(
+      await repo.getActivation({ workspaceId: WS, pluginId: "word-count" }),
+      record({ enabled: true, updatedAt: "2026-08-12T12:05:00.000Z" }),
+      "operator re-enable must clear the prior quarantine marker"
+    );
+  });
 }
 
 runSuite("InMemoryPluginActivationRepo", () => new InMemoryPluginActivationRepo());
