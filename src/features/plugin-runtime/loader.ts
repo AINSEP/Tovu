@@ -3,14 +3,16 @@
  *
  * Purpose:
  * The single most security-critical unit in this feature (Implementation Outline C-008's own File
- * Map note). Executes, for one candidate plugin, in this EXACT order, short-circuiting on the
- * first failure (BR-01):
+ * Map note). BR-01 defines the following five steps; `loadPlugin()` currently implements steps
+ * (1)-(3) in this EXACT order, short-circuiting on the first failure:
  *   (1) verify every packaged file against `manifest.integrity` (mismatch ⇒ `INTEGRITY_FAILED`)
  *   (2) check `manifest.sdkRange` is satisfied by the runtime `@tovu/sdk` version
  *       (miss ⇒ `SDK_RANGE_UNSATISFIED`, status `incompatible`)
  *   (3) dynamic `import()` the entry file (absent/unresolvable ⇒ `CODE_ENTRY_MISSING`)
- *   (4) build a capability-scoped SDK (`capability-sdk.ts`) and invoke the plugin's `setup()`
- *   (5) attach the plugin's declared hooks via `hook-registry.ts`
+ *   (4) build a capability-scoped SDK (`capability-sdk.ts`) and invoke the plugin's `setup()` —
+ *       not yet called from `loadPlugin()`
+ *   (5) attach the plugin's declared hooks via `hook-registry.ts` — not yet called from
+ *       `loadPlugin()`; the attach half is implemented separately as `attachLoadedPlugin()`
  *
  * **CIC U-001 (Binding, ESCALATE_SECURITY):** steps (1) and (2) must BOTH complete successfully
  * before step (3) ever runs. A tampered or `sdkRange`-incompatible plugin's code must NEVER be
@@ -27,11 +29,10 @@
  * behavior.
  *
  * Architectural role:
- * TDD-certified stub (implementation outline C-008, CIC U-001). Signature and JSDoc are
- * design-frozen; `loadPlugin`'s body intentionally throws until the Programmer stage implements
- * it against `__tests__/integration/loader.integration.test.ts`. Do not implement ahead of that
- * suite being reviewed — this file exists so the test suite compiles and fails red, not green,
- * and so the ordering constraint above is visible to whoever implements it.
+ * TDD-certified implementation of steps (1)-(3) (implementation outline C-008, CIC U-001).
+ * Signature and JSDoc are design-frozen; `loadPlugin()` verifies integrity and SDK compatibility
+ * before importing code, returning classified expected failures. Steps (4)-(5) remain the
+ * documented wiring gap described above and at the successful return path below.
  *
  * **Added 2026-08-04 (ADR-057 Decision 2.1):** `attachLoadedPlugin()`, below `loadPlugin()` in this
  * file, is the real (not stub) extraction of step (5)'s previously-dead attach logic, widened to a

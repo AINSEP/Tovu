@@ -12,10 +12,10 @@
  * supports that target kind (REQ-32) — not claimed as safe-delete-protected.
  *
  * Architectural role:
- * TDD-certified stub (implementation outline C-009). Called from the single entries chokepoint —
- * this function itself performs no I/O; the caller writes the returned rows inside its own
- * transaction. Body throws until the Programmer stage implements against
- * `__tests__/integration/extractor.integration.test.ts`.
+ * TDD-certified implementation (implementation outline C-009). Called from the single entries
+ * chokepoint — this function performs no I/O; the caller writes the returned rows inside its own
+ * transaction. `extractEntryRefs()` handles structured entry bodies/config, while the later
+ * `extractHtmlEntryRefs()` sibling indexes supported markers in HTML page bodies.
  */
 import type { UUID } from "@jini-ai/cms/core";
 import { describeRejection, scanEmbedMarkers, type EmbedMarkerRejection } from "#src/core/embeds/marker";
