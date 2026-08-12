@@ -9,7 +9,7 @@ import { api } from "../../lib/api";
 import { siteUrl } from "../../lib/site-url";
 import { useWiredPostEditor, type PostEditorView } from "./hooks/use-post-editor.hooks";
 import { PostTemplateModal } from "./PostTemplateModal";
-import { toolbarBtnClass, hexOrDefault } from "./rules";
+import { toolbarBtnClass, hexOrDefault, FONT_FAMILY_OPTIONS, FONT_SIZE_OPTIONS, LINE_HEIGHT_OPTIONS } from "./rules";
 
 /**
  * @file The post/page editor screen — markup only.
@@ -76,6 +76,9 @@ function Toolbar({ editor }: { editor: Editor }) {
       // the two color-input swatches below need to reflect the right swatch as the selection moves.
       color: (editor?.getAttributes("textStyle").color as string | undefined) ?? null,
       backgroundColor: (editor?.getAttributes("textStyle").backgroundColor as string | undefined) ?? null,
+      fontFamily: (editor?.getAttributes("textStyle").fontFamily as string | undefined) ?? "",
+      fontSize: (editor?.getAttributes("textStyle").fontSize as string | undefined) ?? "",
+      lineHeight: (editor?.getAttributes("textStyle").lineHeight as string | undefined) ?? "",
       canUndo: editor?.can().undo() ?? false,
       canRedo: editor?.can().redo() ?? false,
     }),
@@ -220,6 +223,46 @@ function Toolbar({ editor }: { editor: Editor }) {
           />
         </label>
         <button className="tb-btn" title="Clear background color" aria-label="Clear background color" onClick={() => chain().unsetBackgroundColor().run()}>×</button>
+      </div>
+      {/* Font family/size, line height (owner, 2026-08-11: "anything and everything") — closed
+          preset `<select>`s (`rules.ts`'s `FONT_FAMILY_OPTIONS`/`FONT_SIZE_OPTIONS`/
+          `LINE_HEIGHT_OPTIONS`), not free-text inputs: every value they can produce already passes
+          `render.ts`'s own allowlist by construction. `""` (the shared "Default" option every list
+          leads with) unsets the attribute entirely rather than setting it to an empty string. */}
+      <div className="grp">
+        <select
+          className="tb-select"
+          title="Font family"
+          aria-label="Font family"
+          value={s.fontFamily}
+          onChange={(e) => (e.target.value ? chain().setFontFamily(e.target.value).run() : chain().unsetFontFamily().run())}
+        >
+          {FONT_FAMILY_OPTIONS.map((opt) => (
+            <option key={opt.label} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
+        <select
+          className="tb-select"
+          title="Font size"
+          aria-label="Font size"
+          value={s.fontSize}
+          onChange={(e) => (e.target.value ? chain().setFontSize(e.target.value).run() : chain().unsetFontSize().run())}
+        >
+          {FONT_SIZE_OPTIONS.map((opt) => (
+            <option key={opt.label} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
+        <select
+          className="tb-select"
+          title="Line height"
+          aria-label="Line height"
+          value={s.lineHeight}
+          onChange={(e) => (e.target.value ? chain().setLineHeight(e.target.value).run() : chain().unsetLineHeight().run())}
+        >
+          {LINE_HEIGHT_OPTIONS.map((opt) => (
+            <option key={opt.label} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
       </div>
       <div className="grp">
         {/* Single "Embed" control (quick-and-dirty pass, 2026-08-05 — owner explicitly skipped

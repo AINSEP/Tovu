@@ -97,6 +97,55 @@ export function hexOrDefault(value: string | null, fallback: string): string {
   return value !== null && HEX_COLOR_PATTERN.test(value) ? value : fallback;
 }
 
+// ---------------------------------------------------------------------------
+// Font family/size, line height (2026-08-11) — closed preset lists for `Toolbar`'s three
+// `<select>` controls. A fixed list rather than free text: it's easier to use than typing a raw
+// CSS value, and every value it can produce already passes `render.ts`'s own
+// `safeCssFontFamily`/`safeCssLength` allowlist by construction, so an author can never end up
+// with a "valid in the editor, silently dropped on publish" surprise from a typo. `""` is the
+// shared "Default" sentinel across all three — `Toolbar`'s onChange treats it as "unset the attr",
+// not "set it to an empty string".
+// ---------------------------------------------------------------------------
+
+/** One `<option>` for a `Toolbar` preset `<select>` — `value: ""` is always the leading "Default"
+ *  entry, matching `PostEditor.tsx`'s own template-picker precedent (`availableTemplates.map`'s
+ *  "No template chosen" as the deliberate final/first option, not a coerced `null`). */
+export interface ToolbarSelectOption {
+  label: string;
+  value: string;
+}
+
+export const FONT_FAMILY_OPTIONS: readonly ToolbarSelectOption[] = [
+  { label: "Default", value: "" },
+  { label: "Sans-serif", value: "ui-sans-serif, system-ui, sans-serif" },
+  { label: "Serif", value: "ui-serif, Georgia, serif" },
+  { label: "Monospace", value: "ui-monospace, 'SF Mono', monospace" },
+  { label: "Georgia", value: "Georgia, serif" },
+  { label: "Arial", value: "Arial, sans-serif" },
+  { label: "Courier New", value: "'Courier New', monospace" },
+];
+
+export const FONT_SIZE_OPTIONS: readonly ToolbarSelectOption[] = [
+  { label: "Default", value: "" },
+  { label: "12", value: "12px" },
+  { label: "14", value: "14px" },
+  { label: "16", value: "16px" },
+  { label: "18", value: "18px" },
+  { label: "20", value: "20px" },
+  { label: "24", value: "24px" },
+  { label: "32", value: "32px" },
+  { label: "48", value: "48px" },
+];
+
+export const LINE_HEIGHT_OPTIONS: readonly ToolbarSelectOption[] = [
+  { label: "Default", value: "" },
+  { label: "1", value: "1" },
+  { label: "1.15", value: "1.15" },
+  { label: "1.5", value: "1.5" },
+  { label: "1.75", value: "1.75" },
+  { label: "2", value: "2" },
+];
+
 /** Which end of `updatedAt` the Posts list's "Updated" column header currently sorts toward. */
 export type PostUpdatedSortDirection = "newest" | "oldest";
 

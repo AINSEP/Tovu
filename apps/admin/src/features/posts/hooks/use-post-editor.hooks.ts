@@ -5,7 +5,7 @@ import TextAlign from "@tiptap/extension-text-align";
 import Highlight from "@tiptap/extension-highlight";
 import Subscript from "@tiptap/extension-subscript";
 import Superscript from "@tiptap/extension-superscript";
-import { TextStyle, Color, BackgroundColor } from "@tiptap/extension-text-style";
+import { TextStyle, Color, BackgroundColor, FontFamily, FontSize, LineHeight } from "@tiptap/extension-text-style";
 
 import type { AdminPost, ThemeTier } from "../../../lib/api";
 import { MediaImage } from "../../../lib/media-image-extension";
@@ -218,6 +218,16 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
       TextStyle,
       Color,
       BackgroundColor,
+      // Same shared-`textStyle`-mark shape as Color/BackgroundColor just above — all five style
+      // extensions default `types: ["textStyle"]`, so no `.configure()` call is needed for any of
+      // them. The toolbar's font-family/size/line-height controls are closed `<select>` dropdowns
+      // (not free text), so every value they can produce is one of a small preset list — the
+      // renderer's own allowlist (`safeCssFontFamily`/`safeCssLength`, render.ts) still exists as
+      // defense-in-depth against `bodyJson` written some other way, same reasoning `safeCssColor`'s
+      // own doc gives.
+      FontFamily,
+      FontSize,
+      LineHeight,
       MediaImage,
       WidgetEmbed,
     ],
