@@ -128,3 +128,24 @@ alarming, but the one metric in this report not cleanly reducible to "new module
 a light look (§5) rather than a baseline move on faith.
 
 ---
+
+## 3. Baseline recommendation
+
+A ratchet moved every time it fires stops being a ratchet — so this is not a blanket "run `--update`."
+Per-metric, with the reasoning that would make a future reader trust the call:
+
+| metric | move it, or fix it | reasoning |
+|---|---|---|
+| **Largest SCC (33→35)** | **Move it.** | §2.1 shows this is arithmetically forced by any new domain that both gets wired by `server` and persists via `db` — the standard, required shape for a domain module in this codebase. The only way to *not* trip this metric on the next new domain is to first fix the pre-existing `server`/`db` entanglement (§4), which is real work already in progress, not something this baseline update should be gated behind. Moving it now is honest: it records "we added 2 legitimate domains," not "we let the SCC rot." |
+| **Module API surface (220→228)** | **Move it.** | §2.2: the raw count grew slower than the codebase did. A baseline that stayed at 220 would be *tighter* than proportional, which was never the ratchet's intent (it exists to catch newly-exposed private files, not to freeze the surface while the codebase grows). Moving it locks in a number that's still doing its job on the next regression. |
+| **Core size (15.21%→15.82%)** | **Investigate first, then move.** | §2.3 is the one genuinely mixed case. Recommend: confirm (quick, cheap — see §5 item 1) that the newly-core-qualifying files beyond `rate-limit.ts`/`runtime-mode.ts` are legitimate core infrastructure (gated-mutations, embeds) and not a feature-specific file that leaked into core-like fan-in/fan-out by accident. If confirmed legitimate, move the baseline in the same `--update` pass as the other two. Do not move it silently without that five-minute check — this is the metric most able to hide real decay behind "the codebase grew" framing, and it is the one the owner explicitly asked this audit to not paper over. |
+| **Module cycles (13→8) and back-edges (26→16)** | **Not regressed — no baseline action needed.** | Both *improved* this session and are printed as improvements, not failures, by the tool itself. Listed here only to be explicit that the baseline update should not touch these fields with anything other than the genuinely-better numbers already computed. |
+
+**Net recommendation:** run `npm run check:architecture -- --update` after a five-minute look at which
+specific files pushed core size (§5 item 1) confirms they're legitimate. All three regressions are
+either fully explained by legitimate growth (SCC, API surface) or very likely to be (core size, pending
+the one cheap check) — none of the three is "real decay being laundered through a baseline bump" as
+written. If that check instead surfaces a feature-specific file wrongly sitting in the core-shaped
+fan-in/fan-out band, fix that placement first, then update.
+
+---
