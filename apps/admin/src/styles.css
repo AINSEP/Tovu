@@ -386,6 +386,15 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); o
   content: ""; position: absolute; top: 100%; left: 50%; transform: translateX(-50%);
   border: 5px solid transparent; border-top-color: #fff;
 }
+/* Below-placement variant (`InfoTip.tsx`'s `ABOVE_HEADROOM_PX` fallback, 2026-08-11) — a trigger too
+   close to the viewport top for the default above-opening bubble to fit flips to this instead. Same
+   box, mirrored: `top: coords.bottom` (component) + `translateY(8px)` here opens downward with the
+   same 8px gap the default has, and the arrow moves from the bubble's bottom edge to its top edge,
+   pointing back up at the icon it flipped away from. */
+.info-tip-bubble-below { transform: translate(-50%, 8px); }
+.info-tip-bubble-below::after {
+  top: auto; bottom: 100%; border-top-color: transparent; border-bottom-color: #fff;
+}
 
 /* Page headings + intro copy */
 .admin-content h1 { font-family: var(--font-display); font-size: 1.65rem; font-weight: 700; letter-spacing: -0.01em; color: var(--fg); margin: 0 0 0.4rem; }
