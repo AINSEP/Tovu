@@ -14,7 +14,7 @@ import {
   NewsletterSubscriberNotFoundError,
   NewsletterSubscriptionNotFoundError,
   NewsletterValidationError,
-} from "#src/newsletter/errors";
+} from "#src/newsletter/index";
 
 /**
  * @file Response DTOs + typed-error -> HTTP mapping for the admin `newsletter` HTTP surface

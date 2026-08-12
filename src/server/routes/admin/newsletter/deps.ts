@@ -22,7 +22,7 @@ import type {
   NewsletterSendRepoPort,
   NewsletterConfirmationTokenRepoPort,
   SubscriberDirectoryPort,
-} from "#src/newsletter/ports";
+} from "#src/newsletter/index";
 import type { CampaignWriteServiceDeps } from "#src/newsletter/campaign-write-service";
 import type { ConfirmationDeps } from "#src/newsletter/confirmation";
 import type { HookRegistry } from "#src/newsletter/hooks";

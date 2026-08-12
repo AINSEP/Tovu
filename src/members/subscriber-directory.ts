@@ -40,7 +40,7 @@
  * `MemberRepoPort.findByIds` method should be added instead of parallelizing unbounded
  * `Promise.all` fan-out here. Flagged as a future N+1 concern, not fixed in this task.
  */
-import type { SubscriberContact, SubscriberDirectoryPort } from "../newsletter/ports";
+import type { SubscriberContact, SubscriberDirectoryPort } from "../newsletter";
 import type { MemberRepoPort } from "./ports";
 import type { MemberRecord } from "./types";
 
