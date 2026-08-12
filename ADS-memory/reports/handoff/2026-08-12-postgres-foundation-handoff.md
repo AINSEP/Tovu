@@ -9,6 +9,33 @@
 
 ---
 
+> ## AMENDED 2026-08-12 (later session) — read before acting on the list below
+>
+> **Step 1 is DONE** (`de33c90`) and **the bigint item is DONE** (`b393752`, `bb14044`). Reports:
+> `2026-08-12-migration-manifest-agent-report.md`, `2026-08-12-bigint-widening-agent-report.md`.
+>
+> Two things below are now **wrong**, not merely stale:
+>
+> 1. **The bigint recommendation was under-scoped.** "Append-only tables + the write watermark"
+>    excludes all **11 autoincrement surrogate primary keys**. PK exhaustion at 2³¹ is far worse to
+>    hit late than an events table — a PK and every FK referencing it cannot be rewritten in place.
+>    Shipped policy is **widen ALL 65 `SQLiteInteger` columns**; the generated schema now has zero
+>    `integer(`. Measured cost on live PG 14: index size **identical** int4 vs int8 (btree entries
+>    already 8-byte aligned), heap +19% only on a synthetic all-integer table — the real schema is
+>    515/583 text columns.
+> 2. **"Both schema generation and migration verification should consume it" overstates the
+>    remaining work.** With widen-all shipped, nothing is left for schema generation to consume on
+>    the 64-bit-ID axis. Remaining integration is: plugin-table Postgres DDL calling
+>    `classifyPluginColumn`; a copy-runner calling `reseedSequenceSql` per `collectIdentityColumns()`
+>    entry after bulk copy; and `verifyClassifiedValue` running per-column during copy.
+>
+> **Next unstarted item is step 2 (write quiescence).** Steps 3–5 unchanged. Trap #1 (the watermark)
+> is now enforced in code as the exported `WATERMARK_IS_NOT_A_MIGRATION_BOUNDARY` constant.
+>
+> Timestamps still `text` ISO-8601 by explicit decision. The reversibility deadline is no longer
+> prose — it is proven in `migration-manifest-postgres.test.ts`: the identical naive-local timestamp
+> string resolves to different epochs under different session timezones.
+
 ## START HERE — the ranked next steps
 
 From an external forward-risk analysis (`gpt-5.6-sol` at `max`), full text at
