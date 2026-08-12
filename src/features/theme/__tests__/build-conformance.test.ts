@@ -16,7 +16,7 @@ import { checkBuiltThemeConformance } from "../build-conformance";
 
 const SENTINEL = '<link rel="stylesheet" href="../css/styles.css" />';
 
-function sha256(content: string): string {
+function sha256(content: string | Buffer): string {
   return createHash("sha256").update(content).digest("hex");
 }
 
@@ -116,4 +116,157 @@ test("a well-formed page (sentinel present once, only rewritable asset refs, fil
     artifactHashes: {},
   });
   assert.deepEqual(issues, []);
+});
+
+/**
+ * @file (continued) Full-tree inventory + symlink rejection, promoted 2026-08-12 (see this module's
+ * file header): the day untrusted publishers came into scope for themes, `checkArtifactHashes` stopped
+ * verifying only the files `build.artifactHashes` LISTS and started accounting for every real file
+ * under the generated region. These tests exercise that promotion directly — every one of them would
+ * have reported ZERO issues under the prior "listed-file-only" implementation, since none of these
+ * scenarios involve a listed hash that's missing or wrong.
+ */
+
+test("a real file present in the generated tree but NOT listed in artifactHashes is flagged as unlisted", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-conformance-unit-"));
+  fs.mkdirSync(path.join(root, "js"), { recursive: true });
+  fs.writeFileSync(path.join(root, "js", "main.js"), "console.log(1)", "utf8");
+  fs.writeFileSync(path.join(root, "js", "vendor.js"), "console.log(2)", "utf8"); // never hashed below
+
+  const issues = checkBuiltThemeConformance({
+    themeId: "t",
+    themeDir: root,
+    pages: {},
+    partials: {},
+    artifactHashes: { "js/main.js": sha256("console.log(1)") },
+  });
+
+  assert.equal(issues.length, 1);
+  assert.equal(issues[0].rule, "artifact-hash");
+  assert.equal(issues[0].page, "js/vendor.js");
+  assert.match(issues[0].message, /has no entry in build\.artifactHashes/);
+});
+
+test("a symlink anywhere in the generated tree is refused outright -- never followed, never hashed", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-conformance-unit-"));
+  fs.mkdirSync(path.join(root, "js"), { recursive: true });
+  const outsideTarget = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-conformance-outside-"));
+  fs.writeFileSync(path.join(outsideTarget, "secret.js"), "top secret", "utf8");
+  fs.symlinkSync(path.join(outsideTarget, "secret.js"), path.join(root, "js", "main.js"));
+
+  const issues = checkBuiltThemeConformance({
+    themeId: "t",
+    themeDir: root,
+    pages: {},
+    partials: {},
+    // Even a hash that would match the symlink TARGET's real bytes must not let it through --
+    // the entry is refused by kind, before any hashing is attempted.
+    artifactHashes: { "js/main.js": sha256("top secret") },
+  });
+
+  assert.equal(issues.length, 1);
+  assert.equal(issues[0].rule, "artifact-hash");
+  assert.equal(issues[0].page, "js/main.js");
+  assert.match(issues[0].message, /symbolic link/);
+});
+
+test("a symlinked DIRECTORY in the generated tree is refused and never descended into", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-conformance-unit-"));
+  const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-conformance-outside-dir-"));
+  fs.writeFileSync(path.join(outsideDir, "leaked.js"), "leaked", "utf8");
+  fs.symlinkSync(outsideDir, path.join(root, "js"));
+
+  const issues = checkBuiltThemeConformance({
+    themeId: "t",
+    themeDir: root,
+    pages: {},
+    partials: {},
+    artifactHashes: {},
+  });
+
+  assert.equal(issues.length, 1);
+  assert.equal(issues[0].rule, "artifact-hash");
+  assert.equal(issues[0].page, "js");
+  assert.match(issues[0].message, /symbolic link/);
+  // Nothing under the symlinked directory was walked, so `leaked.js` was never reported at all --
+  // neither as a hash mismatch nor as an unlisted file.
+  assert.ok(!issues.some((i) => i.page.includes("leaked.js")));
+});
+
+test("files inside build.sourceDir are excluded from the full-tree inventory -- not required to be listed", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-conformance-unit-"));
+  fs.mkdirSync(path.join(root, "src"), { recursive: true });
+  fs.writeFileSync(path.join(root, "src", "Header.tsx"), "export const Header = () => null;", "utf8");
+
+  const issues = checkBuiltThemeConformance({
+    themeId: "t",
+    themeDir: root,
+    sourceDir: "src",
+    pages: {},
+    partials: {},
+    artifactHashes: {}, // src/Header.tsx deliberately has no entry
+  });
+
+  assert.deepEqual(issues, []);
+});
+
+test("theme.json itself is excluded from the full-tree inventory", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-conformance-unit-"));
+  fs.writeFileSync(path.join(root, "theme.json"), '{"id":"t"}', "utf8");
+
+  const issues = checkBuiltThemeConformance({
+    themeId: "t",
+    themeDir: root,
+    pages: {},
+    partials: {},
+    artifactHashes: {}, // theme.json deliberately has no entry
+  });
+
+  assert.deepEqual(issues, []);
+});
+
+test("an artifactHashes key shaped like a path-traversal string never reaches the filesystem outside themeDir", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-conformance-unit-"));
+  const outsideDir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-conformance-traversal-"));
+  fs.writeFileSync(path.join(outsideDir, "passwd"), "root:x:0:0", "utf8");
+
+  // Prior to the full-tree-inventory rewrite, checkArtifactHashes resolved this key with
+  // `join(themeDir, relativePath)` and called `readFileSync` on the result directly -- a `../`-shaped
+  // key would have been read (and hash-compared) with no containment check at all. The rewrite walks
+  // the tree itself and looks keys up in what it found, so a key that no real directory-entry chain
+  // could ever produce simply reports "does not exist", the same as any other unmatched key.
+  const traversalKey = "../".repeat(6) + path.relative(root, path.join(outsideDir, "passwd")).split(path.sep).join("/");
+
+  const issues = checkBuiltThemeConformance({
+    themeId: "t",
+    themeDir: root,
+    pages: {},
+    partials: {},
+    artifactHashes: { [traversalKey]: sha256("root:x:0:0") },
+  });
+
+  assert.equal(issues.length, 1);
+  assert.equal(issues[0].rule, "artifact-hash");
+  assert.equal(issues[0].page, traversalKey);
+  assert.match(issues[0].message, /does not exist on disk/);
+});
+
+test("a generated file over the per-file hash-verification byte cap is flagged rather than fully read into memory", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-conformance-unit-"));
+  fs.mkdirSync(path.join(root, "js"), { recursive: true });
+  const oversized = Buffer.alloc(16 * 1024 * 1024 + 1, "a");
+  fs.writeFileSync(path.join(root, "js", "huge.js"), oversized);
+
+  const issues = checkBuiltThemeConformance({
+    themeId: "t",
+    themeDir: root,
+    pages: {},
+    partials: {},
+    artifactHashes: { "js/huge.js": sha256(oversized) },
+  });
+
+  assert.equal(issues.length, 1);
+  assert.equal(issues[0].rule, "artifact-hash");
+  assert.equal(issues[0].page, "js/huge.js");
+  assert.match(issues[0].message, /per-file verification cap/);
 });

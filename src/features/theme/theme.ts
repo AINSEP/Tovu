@@ -684,6 +684,7 @@ export function loadTheme(
       ...checkBuiltThemeConformance({
         themeId: manifest.id,
         themeDir,
+        sourceDir: manifest.build.sourceDir,
         pages,
         partials,
         artifactHashes: manifest.build.artifactHashes ?? {},
