@@ -3,8 +3,6 @@ import { siteUrl } from "../../lib/site-url";
 import { formatTimestamp } from "../../lib/format-timestamp";
 import { useDashboard, type StatState } from "./hooks/use-dashboard.hooks";
 import { activityRowHref, commentsStatMeta, pagesStatMeta, postsStatMeta } from "./rules";
-import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import { DASHBOARD_DICT } from "./dashboard-i18n";
 
 /**
  * @file Admin landing screen — markup only.
@@ -114,9 +112,7 @@ function AppearanceBody(props: { themeError: string | null; themeId: string | nu
 }
 
 export function Dashboard({ useDashboardHook = useDashboard }: DashboardProps = {}) {
-  const { posts, published, pages, drafts, media, comments, themeId, themeError, recent } = useDashboardHook();
-  const locale = useAdminLocale();
-  const t = (key: string): string => DASHBOARD_DICT[locale]?.[key] ?? key;
+  const { posts, published, pages, drafts, media, comments, themeId, themeError, recent, t } = useDashboardHook();
 
   return (
     <div className="page">
