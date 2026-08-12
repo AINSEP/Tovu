@@ -1,6 +1,8 @@
 import { useEffect, useId, useRef, useState } from "react";
-import { api, ApiError, describeApiError, type AdminWidget, type AdminWidgetType } from "../../lib/api";
+import { describeApiError, type AdminWidget, type AdminWidgetType } from "../../lib/api";
 import { defaultWidgetConfig, WIDGET_TYPE_OPTIONS } from "../WidgetConfigFields/WidgetConfigFields";
+import { defaultWidgetPickerPort } from "./widget-picker-dependencies.hooks";
+import type { WidgetPickerPort } from "./widget-picker-port.hooks";
 import type { WidgetAddControlProps, WidgetPickerDialogProps } from "./WidgetPickerDialog";
 
 /**
@@ -15,6 +17,20 @@ import type { WidgetAddControlProps, WidgetPickerDialogProps } from "./WidgetPic
  * import) from `./WidgetPickerDialog` — the hooks need the full props shape, but the component file
  * is still the one importing this file's runtime exports, not the other way around, so there is no
  * runtime circular dependency between the two.
+ *
+ * `port` is injected (see `widget-picker-port.hooks.ts`) rather than reaching `lib/api`'s `api`
+ * directly — same shape `MediaPickerDialog.hooks.tsx` uses. Unlike that file, the three functions
+ * below take `port` as an OPTIONAL, defaulted parameter rather than splitting into a separate
+ * `useWiredX()` pair: `useWidgetAddControl` has a real out-of-slice consumer —
+ * `EmbedInsertControl.hooks.tsx` calls `useWidgetAddControl(props)` with one argument, twice, for
+ * its pinned Form/Menu controls — and `WidgetPickerDialog.tsx`/`WidgetAddControl` both default
+ * their own `useDialog`/`useAddControl` props straight to these same exported names. An optional,
+ * defaulted second parameter keeps every existing call site (in-slice and out-of-slice alike)
+ * compiling and behaving identically, while still giving tests a real seam:
+ * `useWidgetAddControl(props, { port: createFakeWidgetPickerPort(...) })`. Per
+ * `development/docs/architecture/wired-hooks-convention.md`'s "narrow to the actual pain point"
+ * guidance — renaming to a strict `useWiredX` pair would ripple into a file this pass is explicitly
+ * scoped to leave untouched (flagged, not edited, per this dispatch's own task note).
  */
 
 /**
@@ -22,21 +38,27 @@ import type { WidgetAddControlProps, WidgetPickerDialogProps } from "./WidgetPic
  * `widgetType`.
  *
  * @param widgetType - The widget type to list instances for.
+ * @param port - Injected {@link WidgetPickerPort} — see this file's own header for why it's an
+ *   optional, defaulted parameter rather than a separate `useWiredX()` export.
  * @returns `instances` (`null` while the fetch is in flight, otherwise the loaded list) and
  *   `error` (a describable failure message, or `null`).
  * @example
  * const { instances, error } = useExistingInstances("text");
  */
-export function useExistingInstances(widgetType: AdminWidgetType) {
+export function useExistingInstances(widgetType: AdminWidgetType, port: WidgetPickerPort = defaultWidgetPickerPort) {
   const [instances, setInstances] = useState<AdminWidget[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {
-    api
+    port
       .listWidgets({ widgetType })
       .then((r) => setInstances(r.widgets))
       .catch((e) => setError(describeApiError(e, "failed to load existing widgets")));
+    // `port` is added to the array below — a function-scoped value ESLint's exhaustive-deps rule
+    // can see, referentially stable in production (the default parameter always resolves to the
+    // same module-level singleton), so this changes nothing about when the effect re-runs. Same
+    // note as `use-pages.hooks.ts`'s identical `port` addition.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [widgetType]);
+  }, [widgetType, port]);
   return { instances, error };
 }
 
@@ -50,11 +72,15 @@ export function useExistingInstances(widgetType: AdminWidgetType) {
  * @returns Everything the dialog's JSX renders from: loaded instances/`loadError`, the "use
  *   existing" and "create new" form state plus their submit handlers, the three `useId()` values,
  *   the new-title input ref, the resolved type label, and `hasExisting`.
+ * @param deps - Injected `{ port }` — see this file's own header for why it's optional/defaulted.
  * @example
  * const { instances, hasExisting, submitCreateNew } = useWidgetPickerDialog(props);
  */
-export function useWidgetPickerDialog(props: WidgetPickerDialogProps) {
-  const { instances, error: loadError } = useExistingInstances(props.widgetType);
+export function useWidgetPickerDialog(
+  props: WidgetPickerDialogProps,
+  deps: { port: WidgetPickerPort } = { port: defaultWidgetPickerPort }
+) {
+  const { instances, error: loadError } = useExistingInstances(props.widgetType, deps.port);
   const [selectedExistingId, setSelectedExistingId] = useState("");
   const [newTitle, setNewTitle] = useState("");
   const [newConfig, setNewConfig] = useState<Record<string, unknown>>(() => defaultWidgetConfig(props.widgetType));
@@ -149,10 +175,17 @@ export function useWidgetPickerDialog(props: WidgetPickerDialogProps) {
  *   props) and `onResolved`, invoked once a widget instance id is settled.
  * @returns `pickerType`/`setPickerType`, `selectedType`/`setSelectedType`, the create/use-existing
  *   `error` message (or `null`), and the `handleCreateNew`/`handleUseExisting` submit handlers.
+ * @param deps - Injected `{ port }` — see this file's own header for why it's optional/defaulted.
+ *   `EmbedInsertControl.hooks.tsx`'s two pinned instances call this with one argument, so this
+ *   parameter must stay optional — see this file's own header.
  * @example
  * const { pickerType, handleCreateNew } = useWidgetAddControl({ triggerLabel: "+ Add widget", onResolved });
  */
-export function useWidgetAddControl(props: WidgetAddControlProps) {
+export function useWidgetAddControl(
+  props: WidgetAddControlProps,
+  deps: { port: WidgetPickerPort } = { port: defaultWidgetPickerPort }
+) {
+  const { port } = deps;
   const [pickerType, setPickerType] = useState<AdminWidgetType | null>(null);
   const [selectedType, setSelectedType] = useState<AdminWidgetType>("text");
   const [error, setError] = useState<string | null>(null);
@@ -160,7 +193,7 @@ export function useWidgetAddControl(props: WidgetAddControlProps) {
   async function handleCreateNew(title: string, config: Record<string, unknown>) {
     if (!pickerType) return;
     try {
-      const { widget } = await api.createWidget({ widgetType: pickerType, title, config });
+      const { widget } = await port.createWidget({ widgetType: pickerType, title, config });
       setPickerType(null);
       await props.onResolved(widget.id);
     } catch (e) {

@@ -1,6 +1,7 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { createFakeWidgetPickerPort } from "../WidgetPickerDialog/widget-picker-dependencies.hooks";
 import { useExistingInstances, useWidgetAddControl, useWidgetPickerDialog } from "../WidgetPickerDialog/WidgetPickerDialog.hooks";
 
 /**
@@ -10,6 +11,13 @@ import { useExistingInstances, useWidgetAddControl, useWidgetPickerDialog } from
  * `use-fab-position.hooks.test.ts`. `WidgetPickerDialog.unit.test.tsx` keeps the tests that render
  * the actual `<WidgetPickerDialog>` component; this file exercises the three hooks directly via
  * `renderHook`.
+ *
+ * All three `describe` blocks above drive the hooks with NO deps argument, so they exercise the
+ * default-parameter fallback to `defaultWidgetPickerPort` — same shape as before this file's
+ * `useWiredX` conversion pass, via the raw `fetch` stub already set up below. The "injected port"
+ * block at the bottom is the new coverage that pass adds, proving `port` is a genuine seam rather
+ * than a hardcoded reach for `lib/api`'s `api` — see `WidgetPickerDialog.hooks.tsx`'s own header
+ * for why it's an optional second parameter rather than a separate `useWiredX()` export.
  */
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -197,5 +205,88 @@ describe("useWidgetAddControl", () => {
 
     expect(result.current.pickerType).toBeNull();
     expect(props.onResolved).toHaveBeenCalledWith("w1");
+  });
+});
+
+/**
+ * The "injected port" half — every test above drives the hooks via their default-parameter
+ * fallback and proves behavior via a stubbed global `fetch`, real coverage but not itself proof
+ * that the dependency is INJECTED rather than reached for (a `fetch` stub intercepts either way).
+ * These pass `{ port: createFakeWidgetPickerPort(...) }` explicitly — no `fetch` stub active at
+ * all (`fetchMock` from `beforeEach` above sits unused in these three) — so a real network touch
+ * has nothing to land on.
+ *
+ * Negative verification (per this refactor's own required check): temporarily reverting
+ * `useExistingInstances`/`useWidgetAddControl` to call `defaultWidgetPickerPort` unconditionally
+ * (ignoring the `port`/`deps` parameter) and re-running this block fails every assertion below —
+ * `fetchMock` throws on the unmocked default `vi.fn()` return (`Cannot read properties of
+ * undefined`), which the fake port never touches. Confirmed, then reverted back to the injected
+ * read — see this feature's commit/handoff report for the recorded run.
+ */
+/** Typed `AdminWidget` builder — `EXISTING_WIDGET` above has no type annotation (it only ever
+ *  feeds `jsonResponse`'s `unknown` body), so its `status`/`widgetType` fields infer as plain
+ *  `string`, too wide for {@link createFakeWidgetPickerPort}'s `AdminWidget[]`. */
+function widget(overrides: Partial<import("../../lib/api").AdminWidget> = {}): import("../../lib/api").AdminWidget {
+  return { ...EXISTING_WIDGET, status: "active", widgetType: "text", ...overrides };
+}
+
+describe("useExistingInstances / useWidgetPickerDialog / useWidgetAddControl — injected port (no fetch stub)", () => {
+  it("useExistingInstances reads from the injected port, filtered to the requested widgetType", async () => {
+    const port = createFakeWidgetPickerPort({
+      widgets: [
+        widget({ id: "w-text", widgetType: "text" }),
+        widget({ id: "w-menu", widgetType: "menu", slug: "menu-widget" }),
+      ],
+    });
+    const { result } = renderHook(() => useExistingInstances("text", port));
+
+    await flush();
+    expect(result.current.instances).toEqual([widget({ id: "w-text", widgetType: "text" })]);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("useWidgetPickerDialog's submitUseExisting reads existing instances from the injected port", async () => {
+    const port = createFakeWidgetPickerPort({ widgets: [widget({ id: "w-text", widgetType: "text" })] });
+    const props = { widgetType: "text" as const, onUseExisting: vi.fn(), onCreateNew: vi.fn(), onCancel: vi.fn() };
+    const { result } = renderHook(() => useWidgetPickerDialog(props, { port }));
+    await flush();
+
+    act(() => result.current.setSelectedExistingId("w-text"));
+    act(() => result.current.submitUseExisting(fakeFormEvent()));
+
+    expect(props.onUseExisting).toHaveBeenCalledWith("w-text");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("useWidgetAddControl's handleCreateNew creates the widget through the injected port, never touching fetch", async () => {
+    const port = createFakeWidgetPickerPort();
+    const props = { triggerLabel: "+ Add widget", onResolved: vi.fn() };
+    const { result } = renderHook(() => useWidgetAddControl(props, { port }));
+    act(() => result.current.setPickerType("text"));
+
+    await act(async () => {
+      await result.current.handleCreateNew("Hero", { body: "" });
+    });
+
+    expect(port.widgets).toHaveLength(1);
+    expect(port.widgets[0]!.title).toBe("Hero");
+    expect(result.current.pickerType).toBeNull();
+    expect(props.onResolved).toHaveBeenCalledWith(port.widgets[0]!.id);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("useWidgetAddControl's handleCreateNew surfaces the injected port's create error", async () => {
+    const port = createFakeWidgetPickerPort({ createError: new Error("quota exceeded") });
+    const props = { triggerLabel: "+ Add widget", onResolved: vi.fn() };
+    const { result } = renderHook(() => useWidgetAddControl(props, { port }));
+    act(() => result.current.setPickerType("text"));
+
+    await act(async () => {
+      await result.current.handleCreateNew("Hero", { body: "" });
+    });
+
+    expect(result.current.error).toBe("quota exceeded");
+    expect(result.current.pickerType).toBe("text");
+    expect(props.onResolved).not.toHaveBeenCalled();
   });
 });
