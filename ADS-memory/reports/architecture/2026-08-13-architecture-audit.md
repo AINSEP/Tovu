@@ -43,3 +43,88 @@ baseline silently drift. §3 recommends moving the baseline for two of the three
 the SCC/core-size growth an honest accounting rather than either laundering it or over-reacting to it.
 
 ---
+
+## 2. Why CI is red, metric by metric
+
+The baseline was calibrated at commit `e8688e1` (730 files / 42 modules). HEAD is 784 files / 45
+modules — confirmed by diffing `src/` directory structure between that commit and the working tree
+(`git ls-tree -d --name-only e8688e1 src/features/` vs. the current tree). The three new modules are
+exactly `features/agent-plugins`, `features/commerce`, `features/deployments` — no other module was
+added or removed. This matches the handoff's "+3 modules" claim and grounds it in a specific diff
+rather than the round-number coincidence it could have been.
+
+### 2.1 Largest SCC grew 33 → 35 — caused by `features/commerce` joining the pre-existing giant SCC
+
+Traced directly, not inferred from the SCC list alone:
+
+- `features/commerce` imports only `db` (`db/sqlite/content-db`, `db/sqlite/repo-helpers`) and framework
+  packages — no other domain module.
+- `server` imports `features/commerce` in four places: `server/deps.ts`, `server/routes/types.ts`,
+  `server/routes/admin/commerce/status.ts`, `server/routes/site/products.ts`.
+
+That's it: `server → commerce → db`. `server` and `db` are **already** both members of the 33-module
+baseline SCC (both were named in the 2026-08-02 report's own instability table and are still central
+today — `db` has Ce=20 in today's `--list` output, `server` has Ce=517). Because the giant SCC already
+has a path from `db` back to `server` (through the existing `db ↔ features/database ↔ features/recovery`
+knot and the many other members), any new module that (a) `server` imports to wire its routes and (b)
+imports `db` to persist anything gets swept into the SCC for free — it doesn't need to introduce any new
+back-edge or violate any rule itself. `features/commerce` did nothing wrong; it followed the exact same
+"server wires my routes, I read/write db" shape every other domain module already uses, and that shape
+was already inside the SCC before commerce existed.
+
+`features/agent-plugins` (Ca=0, Ce=0 — literally zero cross-module edges, confirmed in the `--list`
+Martin-instability table) and `features/deployments` (Ca=0, Ce=2 — outgoing only, no incoming) are the
+other two new modules. Neither can join a cycle: a strongly-connected component requires mutual
+reachability, and a module with no incoming edge (or no edge at all) can't be reached back. They add to
+the "45 modules" count and to `features/deployments`'s two outgoing edges' contribution to deep-import
+totals, but they contribute **zero** to the SCC or cycle-pair metrics. Worth naming because it rules out
+"the two other new modules are also part of the decay" as a hypothesis — they aren't.
+
+**Verdict on this one:** mechanical consequence of a new domain following the established (already
+broken) pattern. Not a new design mistake. Fixing it for real means fixing the pre-existing `server`/`db`
+entanglement (§4), which is already tracked and already improving (26 → 16 back-edges this session).
+
+### 2.2 Module API surface (files exposed) — 220 → 228, but this is smaller than proportional
+
++8 files against a codebase that grew by 54 files (+7.4%) is a +3.6% surface increase — *below* the
+file-growth rate. Read as a percentage of the codebase rather than a raw count, the API surface actually
+tightened slightly. The ratchet checks the raw count (by design — see the code comment at
+`development/scripts/check-architecture.ts:463-466`: it deliberately ratchets distinct exposed files,
+not edge count, so that a second import into an already-exposed file can't fail the build). That design
+choice is correct for what it protects (new privacy violations), but it means a raw-count ratchet will
+always fire when the codebase grows and even one genuinely-new domain adds any cross-module reads at
+all — which three new domains landing at once do. This is the flagged case in §3: recommend moving the
+baseline, this is not decay.
+
+### 2.3 Core size — 15.21% → 15.82% (111/730 → 124/784) — partially explained, partially real
+
+File-count growth alone would predict core staying flat as a *percentage* (proportional growth cancels
+out) or moving only with genuine change in shared-utility shape. It moved 0.61 points, and the raw count
+grew faster (+11.7%) than the file count did (+7.4%) — this one is not fully absorbed by "the codebase
+got bigger."
+
+Two real, traceable contributors, both `core/`-scoped:
+
+- `src/core/rate-limit/rate-limit.ts` (326 lines, new since baseline) and `src/core/runtime-mode.ts`
+  (26 lines, new since baseline) are **relocations the 2026-08-02 report itself recommended** —
+  `server/middleware/rate-limit.ts → core/` and `server/runtime-mode.ts → core/`, both listed as
+  Phase-3 items in that report's plan (§5, rows 3). Both moves happened this session (confirmed via
+  `git diff --stat e8688e1 -- src/core/`). A file that is genuinely a cross-cutting policy primitive,
+  once moved into `core/`, will tend to have both wide fan-in (many callers) and moderate fan-out —
+  exactly the shape the "core" metric measures. This is the plan working as intended, not decay: two of
+  the seven items on record's own remediation list executed, and the metric that specifically watches
+  "how much stuff lives in the shared kernel" moved in response, because that's what it's built to catch.
+- `src/core/gated-mutations/{composition,gateway,ports,watermark}.ts` grew substantially this session
+  (part of the write-quiescence/Postgres-migration workstream) and `src/core/embeds/marker.ts` (269
+  lines) is wholly new. These are core-owned infrastructure additions, not misplaced feature code, but
+  they still add fan-in/fan-out mass to the median computation the metric uses — some previously
+  borderline files may cross the median threshold purely because the median itself shifted, independent
+  of any change to those files. This is a real but partly artifactual effect of the metric's own
+  definition (files *above-median* in both directions — adding mass near the median moves the median).
+
+**Verdict on this one:** roughly half "the plan's own recommended moves executing, correctly, and the
+metric doing its job," half "core-infrastructure growth that's arguably supposed to live in core." Not
+alarming, but the one metric in this report not cleanly reducible to "new modules, mechanically." Worth
+a light look (§5) rather than a baseline move on faith.
+
+---
