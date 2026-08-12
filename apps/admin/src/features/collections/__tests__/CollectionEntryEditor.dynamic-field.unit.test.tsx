@@ -93,6 +93,11 @@ function editorController(overrides: Partial<CollectionEntryEditorController> = 
     editor: null,
     save: vi.fn(async () => {}),
     toggleLifecycle: vi.fn(async () => {}),
+    // Identity `t` — matches what the pre-`useWiredX` component got from a real, unmocked
+    // `useAdminLocale()` call in this render-only test (defaults to "en", and `COLLECTIONS_DICT`
+    // has no "en" entries, so every lookup already fell through to `?? key`), so every existing
+    // literal-English-string assertion below stays valid unchanged.
+    t: (key: string) => key,
     ...overrides,
   };
 }

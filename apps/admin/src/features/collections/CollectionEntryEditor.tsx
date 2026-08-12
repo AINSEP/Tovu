@@ -3,8 +3,6 @@ import { type AdminTaxonomyWithTerms, type ContentTypeFieldDef } from "../../lib
 import { WidgetEmbedInsertControl } from "../../lib/widget-embed-extension";
 import { useWiredCollectionEntryEditor } from "./hooks/use-collection-entry-editor.hooks";
 import { useWiredTermPicker } from "./hooks/use-term-picker.hooks";
-import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import { COLLECTIONS_DICT } from "./collections-i18n";
 
 /**
  * @file Collections' entry editor (design-spec.md §1.5/§1.6) — the
@@ -318,9 +316,8 @@ export function CollectionEntryEditor(props: { contentTypeKey: string; entryId: 
     editor,
     save,
     toggleLifecycle,
+    t,
   } = useWiredCollectionEntryEditor({ contentTypeKey: props.contentTypeKey, entryId: props.entryId });
-  const locale = useAdminLocale();
-  const t = (key: string): string => COLLECTIONS_DICT[locale]?.[key] ?? key;
 
   if (loadError) return <div className="notice error">{loadError}</div>;
   if (!loaded || contentType === undefined) return <div className="notice">Loading entry…</div>;

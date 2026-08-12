@@ -368,7 +368,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
     try {
       const port = createFakeCollectionEntryEditorPort({ types: [RECIPE_TYPE], entries: [ENTRY] });
       const { result } = renderHook(() =>
-        useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: "e1" }, { port, navigate: vi.fn(), locale: "en" })
+        useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: "e1" }, { port, navigate: vi.fn(), locale: "en", t: (k) => k })
       );
       await waitFor(() => expect(result.current.loaded).toBe(true));
 
@@ -385,7 +385,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
     const port = createFakeCollectionEntryEditorPort({ types: [RECIPE_TYPE], entries: [ENTRY] });
     const navigateSpy = vi.fn();
     const { result } = renderHook(() =>
-      useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: "e1" }, { port, navigate: navigateSpy, locale: "en" })
+      useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: "e1" }, { port, navigate: navigateSpy, locale: "en", t: (k) => k })
     );
     await waitFor(() => expect(result.current.loaded).toBe(true));
 
@@ -404,7 +404,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
     const port = createFakeCollectionEntryEditorPort({ types: [RECIPE_TYPE], entries: [] });
     const navigateSpy = vi.fn();
     const { result } = renderHook(() =>
-      useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: null }, { port, navigate: navigateSpy, locale: "en" })
+      useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: null }, { port, navigate: navigateSpy, locale: "en", t: (k) => k })
     );
     await waitFor(() => expect(result.current.loaded).toBe(true));
 
@@ -422,7 +422,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
   it("sets the fallback error when the injected port's save call rejects", async () => {
     const port = createFakeCollectionEntryEditorPort({ types: [RECIPE_TYPE], entries: [ENTRY], saveError: new Error("save exploded") });
     const { result } = renderHook(() =>
-      useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: "e1" }, { port, navigate: vi.fn(), locale: "en" })
+      useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: "e1" }, { port, navigate: vi.fn(), locale: "en", t: (k) => k })
     );
     await waitFor(() => expect(result.current.loaded).toBe(true));
 
@@ -436,7 +436,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
   it("toggleLifecycle publishes through the injected port and sets entry + message", async () => {
     const port = createFakeCollectionEntryEditorPort({ types: [RECIPE_TYPE], entries: [ENTRY] });
     const { result } = renderHook(() =>
-      useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: "e1" }, { port, navigate: vi.fn(), locale: "en" })
+      useCollectionEntryEditor({ contentTypeKey: "recipe", entryId: "e1" }, { port, navigate: vi.fn(), locale: "en", t: (k) => k })
     );
     await waitFor(() => expect(result.current.loaded).toBe(true));
 
