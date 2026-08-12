@@ -119,9 +119,22 @@ function reloadTheme(deps: ContentRouteDeps, themeId: string): void {
  * that, not "invisible"). Conflating the two here is the bug this split fixes: the file list's old
  * single `editable` flag used to mean both "fetch as text" and "show a Save button", so making
  * scripts read-only would have hidden their source entirely — a regression, not the ask.
+ *
+ * `.liquid` (2026-08-12, owner-reported): a `templated`-tier theme's `templates/*.liquid` files are
+ * UTF-8 source same as everything else here — this set predates `.liquid` templates being explorable
+ * at all, so it never listed them, and the theme-detail LISTING route reported `readable: false` for
+ * every one while the GET-file route (`readThemeFile`, unconditioned on extension) already returned
+ * their content correctly. That mismatch was patched client-side first
+ * (`use-theme-explore.hooks.ts`'s now-removed `mapDetailFiles` override) as the fastest fix for the
+ * reported symptom (a `.liquid` click downloading instead of previewing); moved here once the owner
+ * confirmed the server should be the single source of truth, so every consumer of this listing route
+ * — not just `ThemeExplore.tsx` — agrees a `.liquid` file is readable. `.liquid` stays OUT of
+ * {@link isThemeFileWritable}'s allowlist unchanged: it lands in the `other` group ({@link fileGroup}
+ * has no `templates/` case), and `other` is one of {@link READ_ONLY_GROUPS} — this only fixes
+ * READABILITY, never PUT.
  */
 const TEXT_READABLE_EXTENSIONS = new Set([
-  ".html", ".css", ".js", ".mjs", ".cjs", ".json", ".md", ".txt", ".svg", ".webmanifest",
+  ".html", ".css", ".js", ".mjs", ".cjs", ".json", ".md", ".txt", ".svg", ".webmanifest", ".liquid",
 ]);
 
 function isTextReadable(relativePath: string): boolean {
