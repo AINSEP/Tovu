@@ -25,10 +25,11 @@ import {
   type OutboxPort,
 } from "@jini-ai/cms/core";
 import { executeCommand, type AuthorizeFn, type ChangeSetRepoPort } from "../../core/commands";
-// `toAdminPluginResponse` stays sourced from the HTTP admin layer — an explicitly out-of-scope
-// back-edge for this pass (see the dispatch notes this file's narrowing was reported under); this
-// domain's own model-facing projection lives there today, not in `features/plugin-runtime`.
-import { toAdminPluginResponse } from "../../server/http/admin/plugins";
+// Now sourced from this same module — `toAdminPluginResponse` moved to
+// `features/plugin-runtime/admin-response.ts` (this domain's own projection), closing the back-edge
+// into `server/http/admin` this file used to carry. `server/http/admin/plugins.ts` re-exports the
+// same symbol so its own HTTP-route consumers are unaffected.
+import { toAdminPluginResponse } from "./admin-response";
 import {
   setPluginEnabled,
   type PluginActivationRecord,
