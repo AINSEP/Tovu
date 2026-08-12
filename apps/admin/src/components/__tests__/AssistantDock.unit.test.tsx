@@ -204,18 +204,35 @@ describe("AssistantDock", () => {
     expect(container.firstElementChild).toBe(screen.getByTestId("chat-pane"));
   });
 
-  it("injects the source-backed plugin, Agent Plugin, skill, and MCP catalog into ChatPane", () => {
+  /**
+   * Starts empty and populates once `projectComposerCapabilities` resolves — the composer
+   * discovery catalog is now an async projection (debate 2, "Composer slash commands"), replacing
+   * the pre-2026-08-12 synchronous `TOVU_COMPOSER_DISCOVERY_GROUPS` import. `waitFor` is what
+   * proves the empty-then-populated sequence rather than assuming a same-tick synchronous result.
+   */
+  it("injects the source-backed plugin, Agent Plugin, skill, and MCP catalog into ChatPane, asynchronously", async () => {
     render(<AssistantDock useChats={() => fakeChats()} />);
+
+    const initialProps = chatPaneSpy.mock.calls.at(-1)?.[0] as {
+      composerSlots: { discoveryGroups: readonly unknown[] };
+    };
+    expect(initialProps.composerSlots.discoveryGroups).toEqual([]);
+
+    await waitFor(() => {
+      const props = chatPaneSpy.mock.calls.at(-1)?.[0] as {
+        composerSlots: { discoveryGroups: Array<{ id: string; items: Array<{ id: string; kind: string }> }> };
+      };
+      expect(props.composerSlots.discoveryGroups.map((group) => group.id)).toEqual([
+        "regular-plugins",
+        "agent-plugins",
+        "skills",
+        "mcp",
+      ]);
+    });
+
     const props = chatPaneSpy.mock.calls.at(-1)?.[0] as {
       composerSlots: { discoveryGroups: Array<{ id: string; items: Array<{ id: string; kind: string }> }> };
     };
-
-    expect(props.composerSlots.discoveryGroups.map((group) => group.id)).toEqual([
-      "regular-plugins",
-      "agent-plugins",
-      "skills",
-      "mcp",
-    ]);
     expect(props.composerSlots.discoveryGroups.flatMap((group) => group.items.map((item) => item.id))).toEqual([
       "regular-plugin:word-count",
       "agent-plugin:ui-ux-design",
@@ -230,12 +247,22 @@ describe("AssistantDock", () => {
     ]);
   });
 
-  it("routes the truthful MCP navigation command to existing External MCP settings", () => {
+  it("routes the truthful MCP navigation command to existing External MCP settings", async () => {
     render(<AssistantDock useChats={() => fakeChats()} />);
+    await waitFor(() => {
+      const props = chatPaneSpy.mock.calls.at(-1)?.[0] as {
+        composerSlots: { discoveryGroups: Array<{ items: unknown[] }> };
+      };
+      expect(props.composerSlots.discoveryGroups.length).toBeGreaterThan(0);
+    });
+
     const props = chatPaneSpy.mock.calls.at(-1)?.[0] as {
       composerSlots: {
         discoveryGroups: Array<{ items: Array<{ id: string }> }>;
-        onDiscoverySelect: (selection: { item: { id: string }; source: "slash" }) => void;
+        onDiscoverySelect: (selection: {
+          item: { id: string };
+          source: "slash";
+        }) => void | Promise<{ draft?: string } | void>;
       };
     };
     const mcpItem = props.composerSlots.discoveryGroups.flatMap((group) => group.items)
@@ -243,7 +270,7 @@ describe("AssistantDock", () => {
 
     expect(mcpItem).toEqual(expect.objectContaining({ id: "mcp:settings" }));
     expect(mcpItem).not.toHaveProperty("argumentHint");
-    props.composerSlots.onDiscoverySelect({ item: mcpItem!, source: "slash" });
+    await props.composerSlots.onDiscoverySelect({ item: mcpItem!, source: "slash" });
     expect(navigate).toHaveBeenCalledWith("/settings?tab=external-mcp");
   });
 
