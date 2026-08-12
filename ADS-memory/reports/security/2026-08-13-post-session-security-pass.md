@@ -214,6 +214,48 @@ verified. Flag the template landmine for cleanup, not urgent).
 
 ---
 
+### Note — capability/tool exposure boundary (priority #8): name-visibility and executability stay structurally separate
+
+**Component:** `src/server/modules/assistant.ts`, `apps/admin/src/features/plugins/tool-catalog-composer-source.ts`,
+`apps/admin/src/features/plugins/composer-capabilities.ts`, `src/assistant/mcp-ui-tool-calls.ts`,
+`src/assistant/mcp-ui-tool-calls-route.ts`, `src/features/post/tool-registrations.ts`
+
+**Verified the boundary holds at three independent layers, not just documented:**
+1. **The enumeration route itself cannot execute anything.** `/api/tools` (`assistant.ts:524-526`) is
+   mounted with `app.get` only — no `POST`/`PUT`/`DELETE` on that path — so a request that isn't a GET
+   never reaches `proxyPassthrough` at all; this is enforced by Express's own routing, not by a check
+   inside the handler that could be bypassed. Gated by `requireAdminSession`.
+2. **A server-enumerated tool name cannot become a client-side execution binding.** The browser-side
+   `ComposerCapabilitySource` built from `/api/tools/search` results (`tool-catalog-composer-source.ts`'s
+   `toCapability()`) constructs items with no `resolve` field at all. `ComposerHostBinding`'s `resolve` is
+   optional by type (`composer-capabilities.ts:88`), and the ONE capability that does carry a `resolve`
+   producing `kind: "allowlisted-tool-call"` (`tool:content-search`, the `/search` item) has its
+   `toolName: "content_post_search"` hardcoded as a source-code string literal (`composer-capabilities.ts:264`)
+   — never derived from server-returned data. There is no code path from "a name appeared in the
+   enumerated catalog" to "that name became callable."
+3. **The actual execution call site re-checks the allowlist independently of the browser-facing proxy,
+   and says so.** `mcp-ui-tool-calls-route.ts:184` calls `isMcpUiToolCallAllowed(toolName)` immediately
+   before touching `SurfaceExchangeStore`/`ToolExecutor`, with an explicit comment: *"Checked again here
+   even though Tovu's proxy already checks it, because this route — not the proxy — is the one call site
+   that can actually reach `toolExecutor.execute`. A proxy-only check would be a suggestion, not a
+   boundary."* This is the correct place to enforce it, and it is enforced there, not only upstream.
+
+**`content_post_search`'s allowlisting is a settled decision (per the dispatch), verified sound rather
+than re-litigated:** its handler (`tool-registrations.ts:236-259`) calls
+`requireToolPermission(routeDeps, { principalId, permission: "content.read", entityType: "post" })`
+before running `searchAdminPosts`, which performs one read-only `SELECT` against the FTS5 index with no
+repo save, command gateway, outbox, or bus call — matching the allowlist comment's claim exactly, checked
+against the real handler rather than trusted from the comment.
+
+**Jini commits `8e0a437b`/`0d5f25d0`:** reviewed and found unrelated to this boundary — both are
+composer-UI async-race-condition fixes (an in-flight host effect no longer silently overwrites live
+keystrokes; a slash-command's argument grammar). Neither touches tool registration, execution, or the
+allowlist. No finding.
+
+**Human sign-off required:** No.
+
+---
+
 ### Note — static asset serving re-judgment (priority #7): `068a4e2`'s call stands, one LOW info-disclosure note
 
 **Component:** `src/server/middleware/theme-static-assets.ts`, `src/themes/templated/*/templates/*.liquid`
