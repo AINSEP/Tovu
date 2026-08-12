@@ -99,6 +99,9 @@ function seoController(overrides: Partial<SeoController> = {}): SeoController {
     notice: null,
     save: vi.fn(async () => {}),
     regenerateSitemap: vi.fn(async () => {}),
+    // Matches what this screen got from a real, unmocked `useAdminLocale()` call before this
+    // hook's own i18n pass (defaults to "en" synchronously).
+    locale: "en",
     ...overrides,
   };
 }

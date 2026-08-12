@@ -20,6 +20,14 @@ import type { SeoPort } from "./seo-port.hooks";
  * `createFakeSeoPort` instead of stubbing global `fetch`. `useWiredSeo` below is the zero-argument
  * pair `Seo.tsx` actually mounts. `useAdminLocale()` itself is called only inside `useWiredSeo` —
  * its resolved `locale` string is what gets injected, not the hook reference.
+ *
+ * `locale` is ALSO returned from {@link useSeo} (standing i18n rule, 2026-08-11 — a component with
+ * a hook gets its locale-derived UI copy FROM that hook, not its own `useAdminLocale()` call) so
+ * `Seo.tsx` sources it from here instead of calling `useAdminLocale()` itself, then keeps threading
+ * the raw string down to `EntryPicker`/`SeoEntryPanel`/`SeoEntrySection` as before — this file's own
+ * header already explains why those get `locale` as a prop rather than a bound `t`: `seo-i18n.ts`'s
+ * own `t(locale, key)` is a pure function every one of them calls directly, never rebuilding a
+ * dictionary lookup inline, so there is no bound closure to inject, only the raw string.
  */
 
 export interface SeoController {
@@ -29,6 +37,9 @@ export interface SeoController {
   notice: string | null;
   save: (patch: Partial<SeoSettings>) => Promise<void>;
   regenerateSitemap: () => Promise<void>;
+  /** The raw resolved locale — see this file's own header for why `Seo.tsx` gets this instead of
+   *  calling `useAdminLocale()` itself. */
+  locale: string;
 }
 
 export function useSeo(port: SeoPort, locale: string): SeoController {
@@ -78,7 +89,7 @@ export function useSeo(port: SeoPort, locale: string): SeoController {
     }
   }
 
-  return { settings, error, saving, notice, save, regenerateSitemap };
+  return { settings, error, saving, notice, save, regenerateSitemap, locale };
 }
 
 /**
