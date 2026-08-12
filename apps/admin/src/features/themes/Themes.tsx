@@ -43,30 +43,44 @@ function tabGroupLabel(t: Translate, group: ThemeTabGroup): string {
   return t(group.charAt(0).toUpperCase() + group.slice(1));
 }
 
+/** Preview-image resolution state: try the compressed JPEG first, fall back to PNG if a theme
+ *  hasn't been converted, fall back to the placeholder glyph if neither file exists. */
+type PreviewStage = "jpg" | "png" | "failed";
+
 /**
- * A theme card's visual preview (2026-08-10) — `static`-tier themes ship a `screenshots/index.png`
- * (or `index-light.png`, this session's Basic theme) already servable at
- * `/theme-assets/{id}/screenshots/...` via `theme-static-assets.ts`'s existing `express.static`
- * mount, so no new backend endpoint is needed. There is no API field naming which filename (if any)
- * a theme's screenshots folder actually contains, so this tries the one canonical path every
- * screenshot-bearing theme in this session used (`index.png`) and falls back to a placeholder glyph
- * on `onError` — covers both "theme has no screenshots dir at all" (immediate 404) and "theme has
- * a dir but not that exact file" identically, with no per-theme special-casing.
+ * A theme card's visual preview (2026-08-10, JPEG fallback added 2026-08-12) — `static`-tier themes
+ * ship a `screenshots/index.{jpg,png}` already servable at `/theme-assets/{id}/screenshots/...` via
+ * `theme-static-assets.ts`'s existing `express.static` mount, so no new backend endpoint is needed.
+ * There is no API field naming which filename (if any) a theme's screenshots folder actually
+ * contains, so this tries `index.jpg` first, falls back to `index.png` on `onError`, and falls back
+ * to a placeholder glyph if that also errors — covers "theme has no screenshots dir at all"
+ * (immediate 404 on both), "theme ships only PNG" (jpg 404s, png loads), and "theme ships only JPEG"
+ * identically, with no per-theme special-casing. JPEG isn't a blanket win: measured against every
+ * `static`-tier screenshot on disk, only content with real photographic/gradient detail (e.g.
+ * `fuel`'s hero photo) compresses meaningfully smaller as JPEG at quality 85 — flat, text-heavy UI
+ * screenshots (most of this theme set) are already near-optimal as PNG and came out the same size or
+ * *larger* as JPEG, so those stay PNG-only rather than shipping a same-size-or-bigger JPEG plus an
+ * extra failed request on every load.
  *
  * Click-to-expand (2026-08-10 owner feedback: the thumbnail alone is too small to read) opens
  * `ImagePreviewModal` at a real size. Only wired for the real-screenshot branch — a placeholder
  * glyph has nothing worth expanding, so it stays a plain non-interactive `<div>`.
  *
- * @complexity Time/space: O(1) — one `<img>`, two booleans (fallback swap, modal open/closed).
+ * @complexity Time/space: O(1) — one `<img>`, one three-state fallback stage, one modal-open boolean.
  */
 function ThemeCardPreview({ themeId }: { themeId: string }) {
-  const [failed, setFailed] = useState(false);
+  const [stage, setStage] = useState<PreviewStage>("jpg");
   const [expanded, setExpanded] = useState(false);
-  const src = `/theme-assets/${themeId}/screenshots/index.png`;
+  const ext = stage === "png" ? "png" : "jpg";
+  const src = `/theme-assets/${themeId}/screenshots/index.${ext}`;
+
+  function handleError() {
+    setStage((current) => (current === "jpg" ? "png" : "failed"));
+  }
 
   return (
     <div className="theme-card-preview">
-      {failed ? (
+      {stage === "failed" ? (
         <div className="theme-card-preview-placeholder" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
             <rect x="3" y="4" width="18" height="14" rx="2" />
@@ -82,7 +96,7 @@ function ThemeCardPreview({ themeId }: { themeId: string }) {
             onClick={() => setExpanded(true)}
             aria-label={`Expand preview for ${themeId}`}
           >
-            <img src={src} alt="" loading="lazy" onError={() => setFailed(true)} />
+            <img src={src} alt="" loading="lazy" onError={handleError} />
           </button>
           <ImagePreviewModal
             open={expanded}
