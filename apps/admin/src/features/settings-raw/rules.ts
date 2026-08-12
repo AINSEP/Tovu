@@ -4,6 +4,7 @@ import {
   type SettingResolvedValue,
   type SettingScope,
 } from "../../lib/api";
+import type { QueryKey } from "../../lib/fetch-query";
 
 /**
  * @file Pure logic for the `settings-raw` feature (SPEC-007 `ui.spec.md`) — everything that
@@ -17,7 +18,19 @@ import {
  * rule that a comment separated from its code stops being read. `Settings.tsx`'s own header still
  * carries the full spec crosswalk (§1-§3); the pointers below name the section relevant to that
  * specific function.
+ *
+ * `KEYS` (fetch-query migration, 2026-08-12): only `useSettings`' self/permissions/users bootstrap
+ * migrated — see that hook's own file header for why `useSettingsContainer`'s per-namespace
+ * accumulator did NOT: it loads an operator-driven, unbounded SET of namespaces (one `loadNamespace`
+ * call per namespace visited, plus a re-load of every already-visited one on principal change), which
+ * has no single cache key — `useFetchQuery` is one hook call per fixed key, not a dynamic map keyed
+ * by however many namespaces happen to be open. Forcing it onto this shape would mean N conditional
+ * hook calls (a Rules of Hooks violation) or a fundamentally different, keyed-by-namespace child-
+ * component split — real work, not a one-file swap the way every other migrated hook has been.
  */
+export const KEYS = {
+  self: ["settings", "self"] as QueryKey,
+};
 
 // ---------------------------------------------------------------------------
 // Types (ui.spec.md §1/§2)

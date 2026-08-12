@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { FetchQueryProvider } from "../../../lib/fetch-query";
 import { PrincipalSelectorStatus, Settings } from "../Settings";
 
 /**
@@ -9,6 +10,10 @@ import { PrincipalSelectorStatus, Settings } from "../Settings";
  * `has("settings.user.read")`. That `has()` used to be a bare `permissions.includes(...)`, so an
  * owner whose only grant is the literal wildcard `["*"]` (never the expanded string
  * `"settings.user.read"` itself) never saw the selector despite holding every permission.
+ *
+ * `Settings` has no injectable hook seam used here, so every `render(<Settings />)` below needs a
+ * `FetchQueryProvider` ancestor (2026-08-12, `lib/fetch-query` migration — `useSettings` only;
+ * `SettingsContainer`'s own `useSettingsContainer` did not migrate, see `rules.ts`'s `KEYS` doc).
  */
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -42,7 +47,11 @@ function mockMountSequence(effectivePermissions: string[]) {
 it("shows the cross-principal selector for an owner holding only the wildcard grant", async () => {
   mockMountSequence(["*"]);
 
-  render(<Settings />);
+  render(
+    <FetchQueryProvider>
+      <Settings />
+    </FetchQueryProvider>
+  );
 
   expect(await screen.findByLabelText(/manage another principal's settings/i)).toBeInTheDocument();
 });
@@ -50,7 +59,11 @@ it("shows the cross-principal selector for an owner holding only the wildcard gr
 it("hides the cross-principal selector for a principal without settings.user.read (even holding other settings grants)", async () => {
   mockMountSequence(["settings.global.write"]);
 
-  render(<Settings />);
+  render(
+    <FetchQueryProvider>
+      <Settings />
+    </FetchQueryProvider>
+  );
 
   // Wait for the screen to finish its initial render/load before asserting an absence.
   expect(await screen.findByLabelText(/namespace/i)).toBeInTheDocument();
