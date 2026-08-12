@@ -76,6 +76,46 @@ The agent's checkpoint said the bigint set was 9 columns; the real figure is **1
 tables + `agentToolAttempts.id` + `analyticsEvents.id` + `databaseWriteWatermark.value`). It caught
 this by running its own classifier rather than recounting by hand, and said so unprompted.
 
+## Addendum — `fe53825`: widen-all reframing + the two independent gates
+
+Applied after the Coordinator's correction. Vocabulary renamed to what the registry actually is now:
+`IdGrowthClass: "unbounded" | "bounded"` (was `IntegerIdClassification: "bigint-id" | "int4-safe-id"`),
+with one `"reviewed-id"` semantic kind carrying a `growthClass` field instead of two id-shaped kinds.
+Every doc comment implying a column stays `int4` is corrected. The `entryRefs.id`/`entryTerms.id`
+reasoning is kept verbatim — still valuable, just not as a type decision.
+
+- **GATE A** — every `SQLiteInteger` in `schema.ts` is `PgBigInt53` in the **actual generated**
+  `schema.postgres.ts` (imported, read via `getTableConfig()`), zero exceptions. Proven non-vacuous
+  by flipping the expected type to `PgInteger` and watching all 65 fail, then reverting.
+- **GATE B** — every autoincrement PK carries exactly one growth class, asserted independently of the
+  generated output, plus a staleness gate that every registry key names a real column.
+
+A generator regression and an unreviewed new PK are now two distinct failures. Verified: typecheck
+exit 0, 30/30 green, **zero** `as any` / `@ts-expect-error` / `@ts-ignore` anywhere in
+`src/db/migration/`.
+
+## Coordinator error — "typecheck is red at HEAD" was wrong
+
+The Coordinator reported 4 typecheck errors "at HEAD" in `src/db/migration/manifest.ts` and
+attributed them to the documented ESM-vs-CJS drizzle dual-module wall. Both halves were wrong, and
+the timeline proves it:
+
+- `bb14044` (when the errors were observed) — **`manifest.ts` was not tracked at all.** It was an
+  untracked, in-flight file sitting in the shared working tree.
+- `de33c90` (when the agent committed it, already clean) — **30 minutes later.**
+
+So `npm run typecheck` was measuring another agent's work-in-progress, not branch state. The errors
+were real in the tree at that instant; describing them as "red at HEAD" was not. The agent's own
+diagnosis was also the correct one: ordinary generic-instantiation friction, fixed with an
+`unknown`-first `coreColumnsOf()` cast helper in the same idiom as `data-module.ts` — **not** the
+dual-module wall, despite the `resolution-mode: import` text in the raw error that prompted the
+Coordinator's guess.
+
+**Lesson: on a shared working tree, a repo-wide check measures the TREE, not HEAD and not your own
+work.** Before reporting a repo-wide gate as broken, confirm the offending file is actually committed
+(`git cat-file -e HEAD:<path>`). Otherwise you report someone's in-flight state as branch state — and
+a confident wrong diagnosis attached to it can send them hunting the wrong bug.
+
 ## Shared-index hazard, hit and survived
 
 A concurrent commit emptied the shared git index between the agent's `git add` and its `commit`. It
