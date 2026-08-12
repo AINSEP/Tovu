@@ -3,15 +3,18 @@ import { join } from "node:path";
 
 import type { Response } from "express";
 
-import { findTheme, loadTheme, THEME_CATALOG_DIR } from "#src/features/theme/index";
+import { findTheme, loadTheme, THEME_CATALOG_DIR, type DiscoveredTheme } from "#src/features/theme/index";
 import {
   copyThemeFile,
   isGeneratedThemePath,
   listThemeFiles,
   readThemeFile,
   renameThemeFile,
+  resolveThemeFileWriteScope,
+  restoreBuiltThemeGeneratedTree,
   writeThemeFile,
   ThemePathError,
+  type ThemeFileWriteScope,
 } from "#src/features/theme/theme-files";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { ContentRouteDeps } from "../content/deps";
@@ -205,6 +208,32 @@ function isThemeFileWritable(relativePath: string): boolean {
 }
 
 /**
+ * Whether `relativePath` is a BUILT theme's real, hand-authored source (ADR-020 §5,
+ * `build.sourceDir`) rather than any of the file kinds {@link isThemeFileWritable}'s
+ * page/partial/style/script/config/asset vocabulary was built to classify.
+ *
+ * Why this carve-out exists: {@link resolveThemeFileWriteScope} already proved `relativePath`
+ * editable for this theme by the time either caller below checks this — but a framework's own source
+ * tree ships extensions {@link TEXT_READABLE_EXTENSIONS}/{@link READ_ONLY_GROUPS} were never designed
+ * to see (`.tsx`, `.jsx`, `.vue`, `.ts`, `.svelte`, `.astro`, …, an open-ended, framework-dependent
+ * set no hardcoded allowlist should try to enumerate). Without this, a compiled theme's sourceDir
+ * would be READABLE per `resolveThemeFileWriteScope` but silently blocked from being SAVED or
+ * RENAMED by an unrelated extension check meant for a static theme's own `pages/css/js` layout —
+ * exactly the "claims to be editable, isn't really" gap this whole pass exists to close.
+ *
+ * `theme.json` is deliberately excluded: it already passes the group vocabulary on its own (the
+ * `config` group), so it never needs this carve-out, and excluding it here keeps the carve-out
+ * scoped to exactly `build.sourceDir` — nothing wider.
+ */
+function isCompiledSourceFile(
+  theme: Pick<DiscoveredTheme, "manifest">,
+  relativePath: string,
+  writeScope: ThemeFileWriteScope
+): boolean {
+  return theme.manifest.build?.source === "compiled" && writeScope.kind === "editable" && relativePath !== "theme.json";
+}
+
+/**
  * Files `loadTheme` treats as REQUIRED — their absence pushes a load error and flips the theme's
  * `status` to `"invalid"` (`theme.ts`: `pages.index` at the `pages/index.html` check, and the
  * `theme.json`/`tokens.json` `readJson` calls each wrapped in a try/catch that pushes an error on
@@ -394,10 +423,23 @@ export const registerAdminThemeFilePutRoute: ContentRouteRegistrar = (app, deps)
         return;
       }
 
+      // ADR-020 §5: a built theme's generated tree is editor-read-only, checked BEFORE the
+      // group-based `isThemeFileWritable` gate below — this is a lifecycle-class refusal (nothing
+      // about `path`'s extension or group changes it), not a content-type one. See
+      // `resolveThemeFileWriteScope`'s own doc for the authored-vs-built distinction. A theme with no
+      // `build` field (every theme on disk today) always resolves `"editable"` here, unchanged.
+      const writeScope = resolveThemeFileWriteScope({ manifest: theme.manifest, relativePath: path });
+      if (writeScope.kind === "generated-readonly") {
+        res.status(403).json({ error: `'${path}' is read-only: ${writeScope.reason}`, code: "GENERATED_READONLY" });
+        return;
+      }
+
       // Enforced here, not only by the client hiding the Save button — a PUT built by hand (or by an
       // older cached client) must be refused the same way. `isThemeFileWritable` is the ONE place
       // this policy is decided; see its doc comment for why scripts and `other`-group files fail it.
-      if (!isThemeFileWritable(path)) {
+      // A compiled theme's OWN sourceDir bypasses it — see `isCompiledSourceFile`'s own doc for why
+      // that vocabulary has no opinion worth applying to a framework's uncompiled source.
+      if (!isCompiledSourceFile(theme, path, writeScope) && !isThemeFileWritable(path)) {
         res.status(403).json({
           error: `'${path}' is read-only in Explore and cannot be saved`,
           code: "READ_ONLY_FILE",
@@ -419,18 +461,26 @@ export const registerAdminThemeFilePutRoute: ContentRouteRegistrar = (app, deps)
 };
 
 /**
- * POST — restore ONE file to the pristine copy in the originals catalog.
+ * POST — restore file(s) to the pristine copy in the originals catalog.
  *
  * This is the payoff for the whole copy-not-inherit model, and the reason the catalog has to be
  * genuinely untouched rather than a hash or a manifest note: "put it back" is a file copy, needing
  * no diff, no history, and no tooling anybody has to build. It is only possible because the original
  * still exists byte-for-byte.
  *
- * Refuses in two distinct cases, kept distinct because they mean opposite things to the operator:
- * the theme has NO stored original at all (nothing anywhere to restore from — a hand-made theme), or
- * the theme has one but this particular file is not in it (a file the AUTHOR added; restoring it
- * would mean deleting their file, which is a different and more destructive operation than "reset",
- * and is not what a button labelled Reset should silently do).
+ * ADR-020 §5 split, checked FIRST via {@link resolveThemeFileWriteScope}: for an authored theme (no
+ * `build` field — every theme on disk today) or a built theme's own `theme.json`/`build.sourceDir`,
+ * `path` resolves ONE file, unchanged from before this split existed. For a BUILT theme's generated
+ * tree, reset is never a single file — the whole generated tree restores as ONE atomic operation via
+ * {@link restoreBuiltThemeGeneratedTree}, and the response reports every file that changed rather than
+ * just the one `path` the request named (see that function's own doc for why a generated tree cannot
+ * be restored file-by-file without risking desync between files the same build produced together).
+ *
+ * The per-file path refuses in two distinct cases, kept distinct because they mean opposite things to
+ * the operator: the theme has NO stored original at all (nothing anywhere to restore from — a
+ * hand-made theme), or the theme has one but this particular file is not in it (a file the AUTHOR
+ * added; restoring it would mean deleting their file, which is a different and more destructive
+ * operation than "reset", and is not what a button labelled Reset should silently do).
  *
  * DESTRUCTIVE and deliberately not undoable here: it overwrites the working copy with no backup.
  * The confirmation belongs in the UI, where the operator can be told what they are about to lose in
@@ -449,6 +499,27 @@ export const registerAdminThemeFileResetRoute: ContentRouteRegistrar = (app, dep
       }
 
       const path = String(((req.body ?? {}) as Record<string, unknown>).path ?? "");
+
+      const writeScope = resolveThemeFileWriteScope({ manifest: theme.manifest, relativePath: path });
+      if (writeScope.kind === "generated-readonly") {
+        try {
+          const { restoredFiles } = restoreBuiltThemeGeneratedTree({
+            themeDir: theme.dir,
+            themesRoot: deps.themesDir,
+            manifest: theme.manifest,
+          });
+          reloadTheme(deps, theme.manifest.id);
+          res.json({ scope: "release", restoredFiles });
+        } catch (err) {
+          if (err instanceof ThemePathError) {
+            res.status(409).json({ error: err.message, code: "NO_ORIGINAL" });
+            return;
+          }
+          throw err;
+        }
+        return;
+      }
+
       const catalogDir = join(deps.themesDir, THEME_CATALOG_DIR, theme.manifest.tier, theme.manifest.id);
       if (!existsSync(catalogDir)) {
         res.status(409).json({
@@ -478,7 +549,7 @@ export const registerAdminThemeFileResetRoute: ContentRouteRegistrar = (app, dep
       writeThemeFile({ themeDir: theme.dir, themesRoot: deps.themesDir, relativePath: path, content: original });
       reloadTheme(deps, theme.manifest.id);
 
-      res.json({ path, bytes: Buffer.byteLength(original, "utf8"), content: original });
+      res.json({ scope: "file", path, bytes: Buffer.byteLength(original, "utf8"), content: original });
     } catch (err) {
       sendThemeFileError(res, err);
     }
@@ -512,6 +583,18 @@ export const registerAdminThemeFileCopyRoute: ContentRouteRegistrar = (app, deps
       }
 
       const sourcePath = String(((req.body ?? {}) as Record<string, unknown>).path ?? "");
+
+      // ADR-020 §5: duplicating a file INTO a built theme's generated tree would add an untracked
+      // extra to a region `build.artifactHashes` is supposed to fully account for — a write, same as
+      // PUT, just phrased as "copy" instead of "edit". `resolveThemeFileWriteScope`'s destination is
+      // always the SAME folder as `sourcePath` (`nextAvailableFileName` only suffixes the filename,
+      // never changes directory), so checking the source path's scope covers the destination too.
+      const writeScope = resolveThemeFileWriteScope({ manifest: theme.manifest, relativePath: sourcePath });
+      if (writeScope.kind === "generated-readonly") {
+        res.status(409).json({ error: `'${sourcePath}' is read-only: ${writeScope.reason}`, code: "GENERATED_READONLY" });
+        return;
+      }
+
       const existingPaths = new Set(listThemeFiles({ themeDir: theme.dir, themesRoot: deps.themesDir }));
       if (!existingPaths.has(sourcePath)) {
         res.status(404).json({ error: `file '${sourcePath}' was not found in this theme`, code: "FILE_NOT_FOUND" });
@@ -588,7 +671,16 @@ export const registerAdminThemeFileRenameRoute: ContentRouteRegistrar = (app, de
         });
         return;
       }
-      if (READ_ONLY_GROUPS.has(fileGroup(sourcePath))) {
+      // ADR-020 §5: a built theme's generated tree has no per-file identity to rename — it restores
+      // or stays exactly as shipped, atomically. See `resolveThemeFileWriteScope`'s own doc. Computed
+      // before the READ_ONLY_GROUPS check below so a compiled theme's sourceDir file (`isCompiledSourceFile`)
+      // can bypass that unrelated static-file-layout vocabulary the same way the PUT route does.
+      const writeScope = resolveThemeFileWriteScope({ manifest: theme.manifest, relativePath: sourcePath });
+      if (writeScope.kind === "generated-readonly") {
+        res.status(409).json({ error: `'${sourcePath}' is read-only: ${writeScope.reason}`, code: "GENERATED_READONLY" });
+        return;
+      }
+      if (!isCompiledSourceFile(theme, sourcePath, writeScope) && READ_ONLY_GROUPS.has(fileGroup(sourcePath))) {
         res.status(409).json({
           error: `'${sourcePath}' is read-only in Explore and cannot be renamed`,
           code: "READ_ONLY_FILE",
