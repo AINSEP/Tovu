@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useState } from "react";
 
-import { api, type AdminComposioConfig } from "../../../lib/api";
+import type { AdminComposioConfig } from "../../../lib/api";
+import { defaultComposioConfigPort } from "./composio-config-dependencies.hooks";
+import type { ComposioConfigPort } from "./composio-config-port.hooks";
 
 /**
  * @file State for the Settings → Connectors tab's Composio API key field.
@@ -10,7 +12,18 @@ import { api, type AdminComposioConfig } from "../../../lib/api";
  * own sealed `composio_config` row reached through two dedicated routes, with no namespace, no
  * debounce, and no diff base. Folding it in would mean threading a seventh slice-shaped thing
  * through a mechanism none of its behavior fits.
+ *
+ * `deps.port` is injected (see `composio-config-port.hooks.ts`) rather than reaching for
+ * `lib/api`'s `api` directly — the same `useX(dependencies)` / `useWiredX()` split `redirects`/
+ * `widgets`/`plugins`/`members`/`workspace` use. `use-settings-ui.hooks.ts` composes
+ * {@link useWiredComposioConfig} internally rather than growing its own zero-arg `useSettingsUi()`
+ * a dependencies parameter — this hook becomes independently fakeable without restructuring the
+ * seven-hook composition it lives inside.
  */
+
+export interface ComposioConfigDependencies {
+  port: ComposioConfigPort;
+}
 
 export type ComposioSaveState = "idle" | "saving" | "saved" | "error";
 
@@ -39,7 +52,7 @@ export interface ComposioConfigController {
  * @complexity O(1) plus one request per call.
  * @overallScore 100
  */
-export function useComposioConfig(): ComposioConfigController {
+export function useComposioConfig({ port }: ComposioConfigDependencies): ComposioConfigController {
   const [config, setConfig] = useState<AdminComposioConfig | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<ComposioSaveState>("idle");
@@ -48,7 +61,7 @@ export function useComposioConfig(): ComposioConfigController {
 
   useEffect(() => {
     let cancelled = false;
-    api
+    port
       .getComposioConfig()
       .then((next) => {
         if (!cancelled) setConfig(next);
@@ -59,20 +72,24 @@ export function useComposioConfig(): ComposioConfigController {
     return () => {
       cancelled = true;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const write = useCallback(async (apiKey: string | null) => {
-    setSaveState("saving");
-    setSaveError(null);
-    try {
-      setConfig(await api.saveComposioConfig(apiKey));
-      setCatalogRefreshKey((key) => key + 1);
-      setSaveState("saved");
-    } catch (err) {
-      setSaveError(err instanceof Error ? err.message : String(err));
-      setSaveState("error");
-    }
-  }, []);
+  const write = useCallback(
+    async (apiKey: string | null) => {
+      setSaveState("saving");
+      setSaveError(null);
+      try {
+        setConfig(await port.saveComposioConfig(apiKey));
+        setCatalogRefreshKey((key) => key + 1);
+        setSaveState("saved");
+      } catch (err) {
+        setSaveError(err instanceof Error ? err.message : String(err));
+        setSaveState("error");
+      }
+    },
+    [port],
+  );
 
   return {
     config,
@@ -84,4 +101,15 @@ export function useComposioConfig(): ComposioConfigController {
     save: useCallback((apiKey: string) => write(apiKey), [write]),
     clear: useCallback(() => write(null), [write]),
   };
+}
+
+/**
+ * Binds the real `/api/.../connectors/config` client — see `composio-config-dependencies.hooks.ts`.
+ *
+ * The zero-argument-dependencies half of the `useX(dependencies)` / `useWiredX()` pair, so
+ * `use-settings-ui.hooks.ts` composes this and a test composes {@link useComposioConfig} with
+ * `createFakeComposioConfigPort`.
+ */
+export function useWiredComposioConfig(): ComposioConfigController {
+  return useComposioConfig({ port: defaultComposioConfigPort });
 }
