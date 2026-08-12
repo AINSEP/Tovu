@@ -4,6 +4,7 @@ import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { MENUS_DICT } from "../menus-i18n";
 import { defaultMenusPort } from "./menus-dependencies.hooks";
 import type { MenusPort } from "./menus-port.hooks";
+import type { Translate } from "../../../lib/dictionary-translator";
 
 /**
  * @file Everything the Menus LIST does, so `Menus.tsx` is only markup.
@@ -25,7 +26,7 @@ import type { MenusPort } from "./menus-port.hooks";
 
 export interface MenusDependencies {
   port: MenusPort;
-  t: (key: string) => string;
+  t: Translate;
 }
 
 export interface MenusController {
@@ -40,7 +41,7 @@ export interface MenusController {
   trashOrPurge: (menu: AdminMenu) => Promise<void>;
   confirmForceDelete: () => Promise<void>;
   /** Bound translator — `Menus.tsx`'s only source of UI copy; see this file's own header. */
-  t: (key: string) => string;
+  t: Translate;
 }
 
 export function useMenus({ port, t }: MenusDependencies): MenusController {
