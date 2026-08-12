@@ -16,10 +16,13 @@
  * dependency on `posts.ext` at all, by construction (it only ever touches `plugin_activations`).
  *
  * Architectural role:
- * TDD-certified stub (implementation outline C-011/C-012). Signatures and JSDoc are design-frozen;
- * bodies intentionally throw until the Programmer stage implements them against
- * `__tests__/integration/activation.integration.test.ts`. Do not implement ahead of that suite
- * being reviewed — this file exists so the test suite compiles and fails red, not green.
+ * TDD-certified implementation (implementation outline C-011/C-012). Signatures and JSDoc are
+ * design-frozen; `setPluginEnabled()` runs BR-05's three-step evaluation, upserts the activation
+ * row, then invokes the injected `onEnabled`/`onDisabled` side effect. If that side effect throws
+ * after the row was saved, `restoreOnSideEffectFailure()` compensates — restoring the prior record,
+ * or deleting it for a first-time enable/disable — best-effort, before rethrowing the original
+ * error unmasked. `getActivation()` is a thin read. Both satisfy
+ * `__tests__/integration/activation.integration.test.ts`.
  */
 import type { ClockPort, UUID } from "@jini-ai/cms/core";
 import type { PluginDiscoveryRecord } from "./discovery";
@@ -48,6 +51,31 @@ export interface PluginActivationRepoPort {
   /** Every row across every workspace — used by discovery's `enabled` projection and by any
    * future migration, mirrors `PresentationSettingsRepoPort.listAll`. */
   listAll(): Promise<PluginActivationRecord[]>;
+}
+
+/**
+ * Restores the repo to its pre-transition state after a side-effect hook (`onEnabled`/
+ * `onDisabled`) throws: writes back the record that existed before this transition, or — for a
+ * first-time enable/disable where no prior record existed — deletes the row `setPluginEnabled`
+ * just created. Best-effort: a compensation failure must never mask the original side-effect
+ * error, so this swallows its own failure and lets the caller rethrow the original.
+ *
+ * @complexity O(1) — one repo write.
+ */
+async function restoreOnSideEffectFailure(
+  repo: PluginActivationRepoPort,
+  existing: PluginActivationRecord | null,
+  target: { workspaceId: UUID; pluginId: string }
+): Promise<void> {
+  try {
+    if (existing) {
+      await repo.save(existing);
+    } else {
+      await repo.deleteActivation(target);
+    }
+  } catch {
+    // Compensation is best-effort; its failure must not mask the original side-effect error.
+  }
 }
 
 export class PluginNotFoundError extends Error {}
@@ -132,26 +160,22 @@ export async function setPluginEnabled(
 
   await deps.repo.save(activation);
 
+  const target = { workspaceId: input.workspaceId, pluginId: input.pluginId };
+
   if (input.enabled) {
     try {
       await deps.onEnabled?.(input.pluginId);
     } catch (error) {
-      try {
-        if (existing) {
-          await deps.repo.save(existing);
-        } else {
-          await deps.repo.deleteActivation({
-            workspaceId: input.workspaceId,
-            pluginId: input.pluginId,
-          });
-        }
-      } catch {
-        // Compensation is best-effort; its failure must not mask the enable side effect's error.
-      }
+      await restoreOnSideEffectFailure(deps.repo, existing, target);
       throw error;
     }
   } else {
-    deps.onDisabled?.(input.pluginId);
+    try {
+      deps.onDisabled?.(input.pluginId);
+    } catch (error) {
+      await restoreOnSideEffectFailure(deps.repo, existing, target);
+      throw error;
+    }
   }
 
   return { activation };
