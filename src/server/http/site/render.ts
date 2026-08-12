@@ -202,6 +202,26 @@ function safeCssLength(value: JsonValue | undefined): string | null {
   return CSS_LENGTH_PATTERN.test(length) ? length : null;
 }
 
+/**
+ * Allowlisted `language-*` class token for a `codeBlock` node's `attrs.language`
+ * (`@tiptap/extension-code-block-lowlight`, 2026-08-11 — coordinator-approved addition, option (c)
+ * of three: store only the language name, emit it as a class, no server-side highlighter
+ * dependency; a theme MAY load a client-side highlighter that reads this class, or may not — either
+ * way the code still renders as readable monospace). Not validated against lowlight's own
+ * registered-language list (unlike the editor's language `<select>`, which only offers names
+ * lowlight's `common` grammar set actually registers) — an unrecognized-but-safe token is harmless
+ * here, it just never matches a highlighter's own CSS/JS on the public side. Restricted to
+ * alphanumeric + hyphen only (matches every real `highlight.js` language/alias name, e.g.
+ * `objective-c`, `python-repl`) purely to keep this an inert class token: nothing in this pattern
+ * can carry a quote, space, or `<`/`>` that would break out of the `class=""` attribute.
+ */
+const LANGUAGE_CLASS_PATTERN = /^[a-zA-Z0-9-]{1,32}$/;
+function safeLanguageClass(value: JsonValue | undefined): string | null {
+  if (typeof value !== "string") return null;
+  const language = value.trim();
+  return LANGUAGE_CLASS_PATTERN.test(language) ? language : null;
+}
+
 function renderMarks(text: string, marks: JsonValue[] | undefined): string {
   let html = escapeHtml(text);
   for (const mark of marks ?? []) {
@@ -554,8 +574,17 @@ export function renderDocNode(
     }
     case "blockquote":
       return `<blockquote>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata)}</blockquote>`;
-    case "codeBlock":
-      return `<pre><code>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata)}</code></pre>`;
+    case "codeBlock": {
+      // `attrs.language` (`@tiptap/extension-code-block-lowlight`, 2026-08-11) — see
+      // `safeLanguageClass`'s own doc for why this stays a class token with no server-side
+      // highlighting: the editor gets real in-browser highlighting (lowlight), this renderer stays
+      // dependency-free, and a theme can opt into a client-side highlighter later without any change
+      // here. Omitted entirely (bare `<code>`, exactly the prior behavior) when absent or unsafe.
+      const attrs = isObject(node.attrs) ? node.attrs : {};
+      const language = safeLanguageClass(attrs.language);
+      const classAttr = language ? ` class="language-${escapeHtml(language)}"` : "";
+      return `<pre><code${classAttr}>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata)}</code></pre>`;
+    }
     case "horizontalRule":
       return "<hr/>";
     // Leaf/atom node, `@tiptap/extension-hard-break` (Shift-Enter / Mod-Enter) — bundled by

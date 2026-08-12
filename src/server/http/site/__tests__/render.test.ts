@@ -165,6 +165,29 @@ test("renderDocNode: subscript and superscript marks render (Posts toolbar, 2026
   assert.equal(html, "<p><sub>2</sub><sup>2</sup></p>");
 });
 
+test("renderDocNode: a codeBlock with a language attr emits a language-X class on <code>", () => {
+  const html = renderDocNode({
+    type: "doc",
+    content: [{ type: "codeBlock", attrs: { language: "typescript" }, content: [{ type: "text", text: "const x = 1;" }] }],
+  });
+  assert.equal(html, '<pre><code class="language-typescript">const x = 1;</code></pre>');
+});
+
+test("a codeBlock with no language attr renders the plain bare <code> from before this feature existed", () => {
+  const html = renderDocNode({ type: "doc", content: [{ type: "codeBlock", content: [{ type: "text", text: "x" }] }] });
+  assert.equal(html, "<pre><code>x</code></pre>");
+});
+
+test("a codeBlock with an unsafe language value (quote/space/angle-bracket) drops the class rather than emitting a malformed attribute", () => {
+  for (const language of ['ts"><script>alert(1)</script>', "type script", "a<b", 42, null]) {
+    const html = renderDocNode({
+      type: "doc",
+      content: [{ type: "codeBlock", attrs: { language } as never, content: [{ type: "text", text: "x" }] }],
+    });
+    assert.equal(html, "<pre><code>x</code></pre>");
+  }
+});
+
 test("renderDocNode: a task list renders checkbox/label structure, unchecked and checked", () => {
   const html = renderDocNode({
     type: "doc",

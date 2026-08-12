@@ -11,7 +11,14 @@ import { api } from "../../lib/api";
 import { siteUrl } from "../../lib/site-url";
 import { useWiredPostEditor, type PostEditorView } from "./hooks/use-post-editor.hooks";
 import { PostTemplateModal } from "./PostTemplateModal";
-import { toolbarBtnClass, hexOrDefault, FONT_FAMILY_OPTIONS, FONT_SIZE_OPTIONS, LINE_HEIGHT_OPTIONS } from "./rules";
+import {
+  toolbarBtnClass,
+  hexOrDefault,
+  FONT_FAMILY_OPTIONS,
+  FONT_SIZE_OPTIONS,
+  LINE_HEIGHT_OPTIONS,
+  CODE_LANGUAGE_OPTIONS,
+} from "./rules";
 
 /**
  * @file The post/page editor screen — markup only.
@@ -70,6 +77,11 @@ function Toolbar({ editor }: { editor: Editor }) {
       taskList: editor?.isActive("taskList") ?? false,
       quote: editor?.isActive("blockquote") ?? false,
       codeBlock: editor?.isActive("codeBlock") ?? false,
+      // `getAttributes`, not `isActive` — same `color`/`fontFamily` shape above: the language
+      // picker below needs to know WHICH language is active, not just whether a code block is.
+      // Defaults to `"plaintext"` (a real registered lowlight language, not an empty sentinel)
+      // since that's also `CodeBlockLowlight`'s own default when a code block has no language set.
+      codeBlockLanguage: (editor?.getAttributes("codeBlock").language as string | undefined) ?? "plaintext",
       alignLeft: editor?.isActive({ textAlign: "left" }) ?? false,
       alignCenter: editor?.isActive({ textAlign: "center" }) ?? false,
       alignRight: editor?.isActive({ textAlign: "right" }) ?? false,
@@ -140,6 +152,23 @@ function Toolbar({ editor }: { editor: Editor }) {
         <button className={toolbarBtnClass(s.taskList)} title="Task list" aria-pressed={s.taskList} onClick={() => chain().toggleTaskList().run()}>☐ List</button>
         <button className={toolbarBtnClass(s.quote)} title="Quote" aria-pressed={s.quote} onClick={() => chain().toggleBlockquote().run()}>&ldquo; Quote</button>
         <button className={toolbarBtnClass(s.codeBlock)} title="Code block" aria-pressed={s.codeBlock} onClick={() => chain().toggleCodeBlock().run()}>{"{ }"}</button>
+        {/* Code block language (coordinator MSG #1, 2026-08-11) — every option is one of lowlight's
+            own registered `common` grammar keys (`rules.ts`'s `CODE_LANGUAGE_OPTIONS`), so picking
+            one always produces real in-editor highlighting. `setCodeBlock` both converts the
+            current block to a code block (if it wasn't already one) AND sets its language in one
+            call — the same `chain().setCodeBlock({...})` call works whether or not the cursor was
+            already inside a code block, so this needs no separate "am I in one?" branch. */}
+        <select
+          className="tb-select"
+          title="Code language"
+          aria-label="Code language"
+          value={s.codeBlockLanguage}
+          onChange={(e) => chain().setCodeBlock({ language: e.target.value }).run()}
+        >
+          {CODE_LANGUAGE_OPTIONS.map((opt) => (
+            <option key={opt.label} value={opt.value}>{opt.label}</option>
+          ))}
+        </select>
         <button className="tb-btn" title="Divider" onClick={() => chain().setHorizontalRule().run()}>―</button>
         {/* Table (owner, 2026-08-11: "anything and everything") — same "quickest thing that
             works" idiom as "Img by URL"/"Divider" just above: a fixed 3x3-with-header-row insert,
