@@ -2,10 +2,8 @@ import { Fragment, type Dispatch, type FormEvent, type SetStateAction } from "re
 import type { AdminIdentityUser, AdminPolicy, AdminRole } from "../../lib/api";
 import { RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
 
-import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { formatGrantLabel, userRowMenuItems } from "./rules";
 import { useUsers } from "./hooks/use-users.hooks";
-import { t as translateUsers } from "./users-i18n";
 
 /**
  * @file Admin "Users" screen (SPEC-006 §3 human grant-writing transitions + 0.6.0 CRUD-completion
@@ -575,9 +573,10 @@ export function Users({ useUsersHook = useUsers }: UsersProps = {}) {
     setPasswordError,
     openResetPassword,
     confirmResetPassword,
+
+    t,
+    locale,
   } = useUsersHook();
-  const locale = useAdminLocale();
-  const t = (key: string): string => translateUsers(locale, key);
 
   if (error) return <div className="notice error">{error}</div>;
   if (!users || !roles || !policies) return <div className="notice">{t("Loading users…")}</div>;
