@@ -2,13 +2,22 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminRestorePoint } from "../../../lib/api";
+import { FetchQueryProvider } from "../../../lib/fetch-query";
 import { useRestorePointsSection } from "../hooks/use-restore-points-section.hooks";
 
 /**
  * @file `useRestorePointsSection` (the Database screen's restore-point list + create action).
  * Follows the fetch-mocking harness `Comments.unit.test.tsx`/`use-roles.unit.test.ts` established
  * for this package.
+ *
+ * `fetch-query` migration (2026-08-12): every `renderHook` now needs `wrapper: FetchQueryProvider`
+ * — see `redirects/__tests__/use-redirects.hooks.unit.test.tsx`'s identical wrapper for the pilot
+ * precedent.
  */
+
+function wrapper({ children }: { children: React.ReactNode }) {
+  return <FetchQueryProvider>{children}</FetchQueryProvider>;
+}
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
@@ -48,7 +57,7 @@ afterEach(() => {
 
 async function renderLoaded() {
   fetchMock.mockResolvedValueOnce(jsonResponse({ items: [POINT] }));
-  const view = renderHook(() => useRestorePointsSection());
+  const view = renderHook(() => useRestorePointsSection(), { wrapper });
   await waitFor(() => expect(view.result.current.points).not.toBeNull());
   return view;
 }
@@ -62,7 +71,7 @@ describe("initial load", () => {
 
   it("sets the Database-specific fallback message on a failed load with no server message", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ error: "" }, 500));
-    const { result } = renderHook(() => useRestorePointsSection());
+    const { result } = renderHook(() => useRestorePointsSection(), { wrapper });
     await waitFor(() => expect(result.current.error).not.toBeNull());
     expect(result.current.error).toBe("failed to load restore points");
     expect(result.current.points).toBeNull();
@@ -93,7 +102,10 @@ describe("createRestorePoint", () => {
     act(() => {
       createPromise = result.current.createRestorePoint();
     });
-    expect(result.current.creating).toBe(true);
+    // `creating` reads TanStack's own `mutation.status`, whose observer notification is scheduled
+    // via a real `setTimeout(0)` (`notifyManager`'s `flush`) rather than a microtask — a bare read
+    // here races that timer. `waitFor` polls with real timers, so it reliably sees the flip.
+    await waitFor(() => expect(result.current.creating).toBe(true));
 
     fetchMock.mockResolvedValueOnce(jsonResponse({ items: [POINT, { ...POINT, id: "rp2" }] })); // reload
     await act(async () => {
@@ -101,7 +113,9 @@ describe("createRestorePoint", () => {
       await createPromise;
     });
 
-    expect(result.current.creating).toBe(false);
+    // Same deferred-notification race as the `creating=true` wait above — the pending -> success
+    // transition is also observed through `mutation.status`, not local state.
+    await waitFor(() => expect(result.current.creating).toBe(false));
     expect(result.current.points).toHaveLength(2);
   });
 
@@ -114,8 +128,11 @@ describe("createRestorePoint", () => {
       await result.current.createRestorePoint();
     });
 
+    // `error`/`creating` both read TanStack's own `mutation.error`/`.status` — same deferred
+    // observer-notification race as the `creating=true` assertion above, so `waitFor` on the value
+    // that only settles once the mutation reaches `error` status, then plain reads once settled.
+    await waitFor(() => expect(result.current.error).toBe("Failed to create restore point"));
     expect(result.current.creating).toBe(false);
-    expect(result.current.error).toBe("Failed to create restore point");
     // Only the failed create call — no follow-up reload GET.
     expect(fetchMock.mock.calls.length).toBe(callsBefore + 1);
   });
@@ -128,7 +145,7 @@ describe("createRestorePoint", () => {
       await result.current.createRestorePoint();
     });
 
-    expect(result.current.error).toBe("site is unavailable for snapshots");
+    await waitFor(() => expect(result.current.error).toBe("site is unavailable for snapshots"));
   });
 });
 
@@ -149,7 +166,7 @@ describe("t (2026-08-11, standing i18n rule)", () => {
       return network(url, init);
     });
 
-    const { result } = renderHook(() => useRestorePointsSection());
+    const { result } = renderHook(() => useRestorePointsSection(), { wrapper });
 
     await waitFor(() => expect(result.current.t("Restore points")).toBe("Puntos de restauración"));
   });

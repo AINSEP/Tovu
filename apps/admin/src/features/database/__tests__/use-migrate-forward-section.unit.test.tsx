@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { FetchQueryProvider } from "../../../lib/fetch-query";
 import { useMigrateForwardSection } from "../hooks/use-migrate-forward-section.hooks";
 
 /**
@@ -12,7 +13,16 @@ import { useMigrateForwardSection } from "../hooks/use-migrate-forward-section.h
  * The ordering guard worth pinning here: `doConfirm`/`doExecute` are no-ops without their
  * predecessor's output (`plan`/`confirmationToken`) — the ceremony cannot be driven out of order
  * even if a caller invoked the later step directly.
+ *
+ * `fetch-query` migration (2026-08-12): every `renderHook` now needs `wrapper: FetchQueryProvider`
+ * — see `redirects/__tests__/use-redirects.hooks.unit.test.tsx`'s identical wrapper for the pilot
+ * precedent. The three ceremony mutations have no `invalidates` (see the hook file's own header),
+ * but `useFetchMutation` still needs a `QueryClient` in context to call `useMutation` at all.
  */
+
+function wrapper({ children }: { children: React.ReactNode }) {
+  return <FetchQueryProvider>{children}</FetchQueryProvider>;
+}
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
@@ -43,7 +53,7 @@ afterEach(() => {
 
 describe("initial state", () => {
   it("starts idle, with no fetch call on mount", () => {
-    const { result } = renderHook(() => useMigrateForwardSection());
+    const { result } = renderHook(() => useMigrateForwardSection(), { wrapper });
     expect(result.current.step).toBe("idle");
     expect(result.current.busy).toBe(false);
     expect(result.current.plan).toBeNull();
@@ -55,7 +65,7 @@ describe("initial state", () => {
 
 describe("startPlan", () => {
   it("sets busy during the request, then plan + step='planned' on success, and busy=false", async () => {
-    const { result } = renderHook(() => useMigrateForwardSection());
+    const { result } = renderHook(() => useMigrateForwardSection(), { wrapper });
     let resolvePlan: ((r: Response) => void) | undefined;
     fetchMock.mockImplementationOnce(() => new Promise((resolve) => (resolvePlan = resolve)));
 
@@ -63,7 +73,10 @@ describe("startPlan", () => {
     act(() => {
       promise = result.current.startPlan();
     });
-    expect(result.current.busy).toBe(true);
+    // `busy` reads TanStack's own `mutation.status`, whose observer notification is scheduled via
+    // a real `setTimeout(0)` (`notifyManager`'s `flush`) rather than a microtask — a bare read here
+    // races that timer. `waitFor` polls with real timers, so it reliably sees the flip.
+    await waitFor(() => expect(result.current.busy).toBe(true));
 
     await act(async () => {
       resolvePlan?.(jsonResponse({ planId: "plan1", planHash: "hash1" }));
@@ -76,7 +89,7 @@ describe("startPlan", () => {
   });
 
   it("POSTs to the plan endpoint with no body", async () => {
-    const { result } = renderHook(() => useMigrateForwardSection());
+    const { result } = renderHook(() => useMigrateForwardSection(), { wrapper });
     fetchMock.mockResolvedValueOnce(jsonResponse({ planId: "plan1", planHash: "hash1" }));
     await act(async () => {
       await result.current.startPlan();
@@ -88,14 +101,16 @@ describe("startPlan", () => {
   });
 
   it("on failure, sets the migrate-forward-specific fallback error and leaves step at idle", async () => {
-    const { result } = renderHook(() => useMigrateForwardSection());
+    const { result } = renderHook(() => useMigrateForwardSection(), { wrapper });
     fetchMock.mockResolvedValueOnce(jsonResponse({ error: "" }, 500));
 
     await act(async () => {
       await result.current.startPlan();
     });
 
-    expect(result.current.error).toBe("Failed to plan the forward migration");
+    // Same deferred-notification race as `busy` above — `error` is also read off
+    // `startPlanMutation.error`, not local state, so it needs the same `waitFor`.
+    await waitFor(() => expect(result.current.error).toBe("Failed to plan the forward migration"));
     expect(result.current.step).toBe("idle");
     expect(result.current.busy).toBe(false);
   });
@@ -103,7 +118,7 @@ describe("startPlan", () => {
 
 describe("doConfirm", () => {
   it("is a no-op with no plan yet — no fetch call, step unchanged", async () => {
-    const { result } = renderHook(() => useMigrateForwardSection());
+    const { result } = renderHook(() => useMigrateForwardSection(), { wrapper });
     await act(async () => {
       await result.current.doConfirm();
     });
@@ -112,7 +127,7 @@ describe("doConfirm", () => {
   });
 
   async function planned() {
-    const view = renderHook(() => useMigrateForwardSection());
+    const view = renderHook(() => useMigrateForwardSection(), { wrapper });
     fetchMock.mockResolvedValueOnce(jsonResponse({ planId: "plan1", planHash: "hash1" }));
     await act(async () => {
       await view.result.current.startPlan();
@@ -142,7 +157,8 @@ describe("doConfirm", () => {
       await result.current.doConfirm();
     });
 
-    expect(result.current.error).toBe("Failed to confirm the forward migration");
+    // Same deferred-notification race as `startPlan`'s failure test above.
+    await waitFor(() => expect(result.current.error).toBe("Failed to confirm the forward migration"));
     expect(result.current.step).toBe("planned");
     expect(result.current.confirmationToken).toBeNull();
   });
@@ -150,7 +166,7 @@ describe("doConfirm", () => {
 
 describe("doExecute", () => {
   it("is a no-op with no confirmationToken yet — no fetch call even if a plan exists", async () => {
-    const view = renderHook(() => useMigrateForwardSection());
+    const view = renderHook(() => useMigrateForwardSection(), { wrapper });
     fetchMock.mockResolvedValueOnce(jsonResponse({ planId: "plan1", planHash: "hash1" }));
     await act(async () => {
       await view.result.current.startPlan();
@@ -166,7 +182,7 @@ describe("doExecute", () => {
   });
 
   async function confirmed() {
-    const view = renderHook(() => useMigrateForwardSection());
+    const view = renderHook(() => useMigrateForwardSection(), { wrapper });
     fetchMock.mockResolvedValueOnce(jsonResponse({ planId: "plan1", planHash: "hash1" }));
     await act(async () => {
       await view.result.current.startPlan();
@@ -200,7 +216,8 @@ describe("doExecute", () => {
       await result.current.doExecute();
     });
 
-    expect(result.current.error).toBe("Failed to execute the forward migration");
+    // Same deferred-notification race as `startPlan`'s failure test above.
+    await waitFor(() => expect(result.current.error).toBe("Failed to execute the forward migration"));
     expect(result.current.done).toBe(false);
     expect(result.current.step).toBe("confirmed");
   });
@@ -208,7 +225,7 @@ describe("doExecute", () => {
 
 describe("reset", () => {
   it("clears step, error, plan, confirmationToken, and done back to their initial values from any point in the ceremony", async () => {
-    const view = renderHook(() => useMigrateForwardSection());
+    const view = renderHook(() => useMigrateForwardSection(), { wrapper });
     fetchMock.mockResolvedValueOnce(jsonResponse({ planId: "plan1", planHash: "hash1" }));
     await act(async () => {
       await view.result.current.startPlan();
@@ -244,7 +261,7 @@ describe("t/locale (2026-08-11, standing i18n rule)", () => {
       return network(url, init);
     });
 
-    const { result } = renderHook(() => useMigrateForwardSection());
+    const { result } = renderHook(() => useMigrateForwardSection(), { wrapper });
 
     await waitFor(() => expect(result.current.locale).toBe("es"));
     expect(result.current.t("Migrate forward")).toBe("Migrar hacia adelante");
