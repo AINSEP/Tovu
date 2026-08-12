@@ -154,6 +154,8 @@ function renderMarks(text: string, marks: JsonValue[] | undefined): string {
     if (type === "bold") html = `<strong>${html}</strong>`;
     else if (type === "italic") html = `<em>${html}</em>`;
     else if (type === "code") html = `<code>${html}</code>`;
+    else if (type === "underline") html = `<u>${html}</u>`;
+    else if (type === "strike") html = `<s>${html}</s>`;
     else if (type === "link") {
       const attrs = isObject(mark.attrs) ? mark.attrs : {};
       html = `<a href="${escapeHtml(safeHref(attrs.href))}">${html}</a>`;
