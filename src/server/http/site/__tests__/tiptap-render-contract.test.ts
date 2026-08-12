@@ -457,6 +457,42 @@ const CONTRACT_TABLE: readonly ContractRow[] = [
     html: "<pre><code>x = 1</code></pre>",
   },
   {
+    label:
+      "image, LEGACY src-only node: a plain https URL now RENDERS (safeImageSrc allowlist, 2026-08-12) — the 'Img by URL' toolbar control was removed and then restored the same day, and this row is what proves the restored control actually reaches the public page",
+    types: ["image"],
+    doc: { type: "doc", content: [{ type: "image", attrs: { src: "https://example.com/cat.png", alt: "A cat" } }] },
+    html: '<img src="https://example.com/cat.png" alt="A cat" loading="lazy" />',
+  },
+  {
+    label:
+      "image security guard: a javascript: src is rejected by safeImageSrc's http(s)-only ALLOWLIST (not a denylist, so an unforeseen scheme fails closed) and degrades to the same placeholder an unresolvable ref gets",
+    types: ["image"],
+    doc: { type: "doc", content: [{ type: "image", attrs: { src: "javascript:alert(1)", alt: "x" } }] },
+    html: '<figure class="media-ph" style="aspect-ratio:16 / 9"><span class="media-ph__label">x</span></figure>',
+  },
+  {
+    label:
+      "image security guard: a data: blob src is rejected — this is the base64-inlining shape the FileHandler upload path exists to avoid, and it must never reach a public page",
+    types: ["image"],
+    doc: {
+      type: "doc",
+      content: [{ type: "image", attrs: { src: "data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=", alt: "x" } }],
+    },
+    html: '<figure class="media-ph" style="aspect-ratio:16 / 9"><span class="media-ph__label">x</span></figure>',
+  },
+  {
+    label:
+      "image security guard: the AUTHENTICATED admin media URL is rejected — the editor's own node view legitimately previews via /workspaces/{ws}/media/{id}/original, so it really can land in attrs.src; emitting it publicly would give every reader a broken image and disclose internal routing. This is the specific case the old blanket src refusal existed to stop.",
+    types: ["image"],
+    doc: {
+      type: "doc",
+      content: [
+        { type: "image", attrs: { src: "https://admin.example.com/api/admin/v1/workspaces/workspace-local/media/abc123/original", alt: "leak" } },
+      ],
+    },
+    html: '<figure class="media-ph" style="aspect-ratio:16 / 9"><span class="media-ph__label">leak</span></figure>',
+  },
+  {
     label: "horizontalRule — GAP CLOSED",
     types: ["horizontalRule"],
     doc: { type: "doc", content: [{ type: "horizontalRule" }] },

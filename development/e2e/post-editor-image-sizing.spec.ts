@@ -367,10 +367,14 @@ test.describe("media image node — Replace/Remove button spacing (owner-reporte
     const removeBox = await buttons.nth(1).boundingBox();
     if (!replaceBox || !removeBox) throw new Error("Replace/Remove buttons did not render a bounding box");
 
-    // Pre-fix this gap was 0 — the two buttons' edges touched exactly.
+    // Pre-fix this gap was 0 — the two buttons' edges touched exactly. First shipped at 3px (the
+    // middle of the owner's initial "2-3px" ask); he then looked at it live and asked to double it,
+    // so 6px is the signed-off value and this assertion tracks `.media-image-node__actions`'s `gap`
+    // in styles.css. If you are widening this range to make a red test pass, check that rule first —
+    // a drift between the two means someone changed the CSS without re-asking.
     const gap = removeBox.x - (replaceBox.x + replaceBox.width);
-    expect(gap).toBeGreaterThanOrEqual(2);
-    expect(gap).toBeLessThanOrEqual(3);
+    expect(gap).toBeGreaterThanOrEqual(5);
+    expect(gap).toBeLessThanOrEqual(7);
 
     await page.request.delete(`${API_BASE_URL}/api/admin/v1/workspaces/workspace-local/posts/${postId}`);
   });
