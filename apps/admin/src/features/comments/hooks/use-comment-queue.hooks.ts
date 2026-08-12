@@ -1,9 +1,11 @@
 import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
 
-import { api, describeApiError, type AdminComment, type CommentModerationAction, type CommentStatus } from "../../../lib/api";
+import { describeApiError, type AdminComment, type CommentModerationAction, type CommentStatus } from "../../../lib/api";
 import { describeModerationError, emptyRowState, type RowActionState } from "../rules";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { t } from "../comments-i18n";
+import { defaultCommentQueuePort } from "./comment-queue-dependencies.hooks";
+import type { CommentQueuePort } from "./comment-queue-port.hooks";
 
 /**
  * @file `QueueSection`'s moderation-queue state — status filter, keyset-cursor paging, per-row
@@ -14,6 +16,11 @@ import { t } from "../comments-i18n";
  * Does not take `permissions` — the only thing that used it (the row-menu item builder) moved to
  * `rules.ts`'s `commentRowMenuItems`, called directly by the view, which already has `permissions`
  * in scope as `QueueSection`'s own prop. This hook has no use for it.
+ *
+ * `port`/`locale` are injected — see `comment-queue-port.hooks.ts` — rather than reaching
+ * `lib/api`/`useAdminLocale()` directly, so a test can describe load/moderate/purge outcomes
+ * against `createFakeCommentQueuePort` instead of stubbing global `fetch`. `useWiredCommentQueue`
+ * below is the pair `Comments.tsx`'s `QueueSection` actually mounts.
  */
 
 export interface CommentQueueController {
@@ -37,8 +44,13 @@ export interface CommentQueueController {
   onPurge: () => Promise<void>;
 }
 
-export function useCommentQueue(): CommentQueueController {
-  const locale = useAdminLocale();
+export interface CommentQueueDependencies {
+  port: CommentQueuePort;
+  locale: string;
+}
+
+export function useCommentQueue(deps: CommentQueueDependencies): CommentQueueController {
+  const { port, locale } = deps;
   const [status, setStatus] = useState<CommentStatus>("pending");
   const [items, setItems] = useState<AdminComment[] | null>(null);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
@@ -62,7 +74,7 @@ export function useCommentQueue(): CommentQueueController {
 
   function load(reset: boolean, forStatus: CommentStatus, cursor: string | null) {
     setError(null);
-    api
+    port
       .listCommentsQueue({ status: forStatus, cursor: cursor ?? undefined })
       .then((r) => {
         setItems((current) => (reset || !current ? r.items : [...current, ...r.items]));
@@ -75,8 +87,12 @@ export function useCommentQueue(): CommentQueueController {
   useEffect(() => {
     setItems(null);
     load(true, status, null);
+    // `port` is added — see `use-page-editor.hooks.ts`'s identical note: a function-scoped value
+    // ESLint's exhaustive-deps rule can see, referentially stable in production, so this changes
+    // nothing about when the effect re-runs. The rest of the pre-existing gap (`load` itself isn't
+    // listed) predates this conversion — not this refactor's scope to fix.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [status]);
+  }, [status, port]);
 
   function loadMore() {
     setLoadingMore(true);
@@ -95,7 +111,7 @@ export function useCommentQueue(): CommentQueueController {
     if (stateFor(comment.id).busy) return;
     patchRowState(comment.id, { busy: true, error: null });
     try {
-      await api.moderateComment({ commentId: comment.id, action, expectedVersion: comment.version });
+      await port.moderateComment({ commentId: comment.id, action, expectedVersion: comment.version });
       reloadFirstPage();
     } catch (e) {
       patchRowState(comment.id, { busy: false, error: describeModerationError(e) });
@@ -115,7 +131,7 @@ export function useCommentQueue(): CommentQueueController {
     if (stateFor(comment.id).busy) return;
     patchRowState(comment.id, { busy: true, error: null });
     try {
-      await api.purgeComment({ commentId: comment.id });
+      await port.purgeComment({ commentId: comment.id });
       reloadFirstPage();
     } catch (e) {
       patchRowState(comment.id, { busy: false, error: describeApiError(e, t(locale, "Failed to purge comment.")) });
@@ -138,4 +154,15 @@ export function useCommentQueue(): CommentQueueController {
     setPendingPurge,
     onPurge,
   };
+}
+
+/**
+ * Binds the real `/api/.../comments/queue` client and the resolved `useAdminLocale()` value — see
+ * `comment-queue-dependencies.hooks.ts`. The zero-argument-deps half of the `useX(dependencies)` /
+ * `useWiredX()` pair, so `Comments.tsx`'s `QueueSection` composes this and a test composes
+ * {@link useCommentQueue} with `createFakeCommentQueuePort`.
+ */
+export function useWiredCommentQueue(): CommentQueueController {
+  const locale = useAdminLocale();
+  return useCommentQueue({ port: defaultCommentQueuePort, locale });
 }

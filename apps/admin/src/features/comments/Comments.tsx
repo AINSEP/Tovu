@@ -5,7 +5,7 @@ import { DataTable, RowMenu, ConfirmDialog, type DataTableColumn } from "@jini-a
 import { commentRowMenuItems, truncate, type RowActionState } from "./rules";
 import { formatTimestamp } from "../../lib/format-timestamp";
 import { useWiredComments } from "./hooks/use-comments.hooks";
-import { useCommentQueue } from "./hooks/use-comment-queue.hooks";
+import { useWiredCommentQueue } from "./hooks/use-comment-queue.hooks";
 import { useCommentSettings } from "./hooks/use-comment-settings.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { t } from "./comments-i18n";
@@ -250,7 +250,7 @@ function QueueSection(props: { permissions: string[]; locale: string }) {
     pendingPurge,
     setPendingPurge,
     onPurge,
-  } = useCommentQueue();
+  } = useWiredCommentQueue();
 
   if (error && !items) return <div className="notice error">{error}</div>;
 
