@@ -1,6 +1,6 @@
 import { formatTimestamp } from "../../lib/format-timestamp";
 import { DataTable } from "@jini-ai/admin/react";
-import { useAnalytics } from "./hooks/use-analytics.hooks";
+import { useWiredAnalytics } from "./hooks/use-analytics.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { t } from "./analytics-i18n";
 
@@ -20,10 +20,10 @@ export interface AnalyticsProps {
    * Dependency injection seam for tests — the same convention `Posts.tsx`'s `usePostsHook` uses.
    * Defaulted to the real hook, so production callers pass nothing and behave exactly as before.
    */
-  useAnalyticsHook?: typeof useAnalytics;
+  useAnalyticsHook?: typeof useWiredAnalytics;
 }
 
-export function Analytics({ useAnalyticsHook = useAnalytics }: AnalyticsProps = {}) {
+export function Analytics({ useAnalyticsHook = useWiredAnalytics }: AnalyticsProps = {}) {
   const locale = useAdminLocale();
   const { hits, error } = useAnalyticsHook();
 
