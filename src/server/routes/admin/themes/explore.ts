@@ -610,6 +610,19 @@ export const registerAdminThemeFileResetRoute: ContentRouteRegistrar = (app, dep
         }
         return;
       }
+      // 2026-08-13 (security pass Finding 1, defense in depth, continuation agent): `writeScope`
+      // above answers the ADR-020 compiled-tree question, orthogonal to `isGeneratedThemePath` (the
+      // `preview/` question PUT/copy/rename already enforce). Without this, a single-file reset would
+      // read the theme's own catalog snapshot and write it straight back into `preview/`, unchecked —
+      // not attacker-content injection, but still a write outside the "only `build-preview.mjs`
+      // regenerates this folder" invariant every other write route here now honors.
+      if (isGeneratedThemePath(path)) {
+        res.status(409).json({
+          error: `'${path}' is generated output and cannot be reset here`,
+          code: "READ_ONLY_FILE",
+        });
+        return;
+      }
 
       const catalogDir = join(deps.themesDir, THEME_CATALOG_DIR, theme.manifest.tier, theme.manifest.id);
       if (!existsSync(catalogDir)) {
