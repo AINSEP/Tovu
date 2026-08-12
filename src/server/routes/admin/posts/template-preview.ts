@@ -1,4 +1,4 @@
-import type { RequestHandler } from "express";
+import express, { type RequestHandler } from "express";
 import type { JsonObject } from "@jini-ai/cms/core";
 
 import { getAdminPostByIdOrSlug, PostNotFoundError, type PostRecord } from "#src/features/post/index";
@@ -49,14 +49,23 @@ import type { ContentRouteRegistrar } from "../content/deps";
  * unchanged.
  *
  * `POST`, not a widened `GET` query string, because a TipTap `bodyJson` document has no realistic
- * upper bound the way a `templateChoice` filename does — `app.ts`'s global `express.json({limit:
- * "15mb"})` already parses a JSON body for every other admin write route, so no new body-parser wiring
- * is needed. The admin client cannot simply point an `<iframe src>` at a `POST` URL (this file's own
- * `GET`-era doc, below, explains why the iframe needs a REAL URL rather than `srcDoc` — root-relative
- * `/theme-assets/...` paths); the admin-side follow-up (out of this dispatch's scope — see the
- * implementation report / handoff) needs a hidden `<form method="post" target="{iframe name}">`
- * navigation instead of `iframe.src = url`, which preserves both the real-URL requirement AND
- * uncapped payload size, exactly like a normal HTML form-submit-into-an-iframe always has.
+ * upper bound the way a `templateChoice` filename does. The admin client cannot simply point an
+ * `<iframe src>` at a `POST` URL (this file's own `GET`-era doc, below, explains why the iframe needs
+ * a REAL URL rather than `srcDoc` — root-relative `/theme-assets/...` paths); the real browser
+ * mechanism for "POST a body, land on a real URL, inside a specific iframe" is a hidden `<form
+ * method="post" target="{iframe name}">` submit — NOT `fetch()` (a `fetch` response is just a string in
+ * JS; landing it in the iframe as a REAL document again means either `srcDoc` — the exact thing this
+ * route exists to avoid — or a `blob:` URL, whose relative-URL resolution against `/theme-assets/...`
+ * is unverified here and would need its own live check before relying on it).
+ *
+ * A plain HTML form POST always encodes as `application/x-www-form-urlencoded`, never
+ * `application/json` — this route accepts BOTH: `app.ts`'s global `express.json({limit: "15mb"})`
+ * handles a `fetch`-style JSON POST (if the admin-side implementation ever prefers that transport for
+ * something other than the iframe itself), and this route ADDITIONALLY mounts its own
+ * `express.urlencoded` on the `POST` registration only (scoped here, not globally in `app.ts`, since no
+ * other route needs it) for the classic form-submit case — where `bodyJson` arrives as a
+ * JSON-stringified STRING form field, not a parsed object, so {@link isJsonObject}'s check on the raw
+ * value is followed by one `JSON.parse` attempt for exactly that shape (see the handler below).
  *
  * Mounted under `/api/admin/v1/workspaces/:workspaceId/posts/:postId/...`, the same URL family
  * `get-by-id.ts`/`update.ts` already use for both Posts and Pages (`PostEditor.tsx`'s own header:
@@ -82,6 +91,31 @@ import type { ContentRouteRegistrar } from "../content/deps";
  * to a SAVED body, just re-applied here for a PENDING one (never persisted either way). */
 function isJsonObject(value: unknown): value is JsonObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Extracts a validated pending-body override from `req.body.bodyJson`, accepting it in either shape a
+ * real caller can produce (see this file's header for why both transports are supported): already a
+ * parsed object (`express.json()` — a `fetch`-style JSON POST), or a JSON-stringified STRING
+ * (`express.urlencoded()` — a classic `<form>` submit, where every field is a string regardless of
+ * what it encodes). A `JSON.parse` failure on the string form, or any other shape (number, boolean,
+ * array, already-invalid parsed object), returns `undefined` — the same "malformed input degrades to
+ * the saved-body render, never a 400/crash" contract this file's read-only-preview reasoning states
+ * elsewhere, since this endpoint has nothing to reject a bad request FOR (it writes nothing).
+ */
+function extractPendingBodyJson(body: unknown): JsonObject | undefined {
+  if (!isJsonObject(body)) return undefined;
+  const raw = body.bodyJson;
+  if (isJsonObject(raw)) return raw;
+  if (typeof raw === "string") {
+    try {
+      const parsed: unknown = JSON.parse(raw);
+      return isJsonObject(parsed) ? parsed : undefined;
+    } catch {
+      return undefined;
+    }
+  }
+  return undefined;
 }
 
 export const registerAdminPostTemplatePreviewRoute: ContentRouteRegistrar = (app, deps) => {
@@ -126,15 +160,12 @@ export const registerAdminPostTemplatePreviewRoute: ContentRouteRegistrar = (app
       const rawTemplateChoice = req.query.templateChoice;
       const overrideTemplateChoice = rawTemplateChoice === undefined ? null : String(rawTemplateChoice);
 
-      // Pending body override (2026-08-12) — POST-only. `req.body` is `express.json()`-parsed
-      // (`app.ts`'s global mount); a `GET` request never carries a body, so `rawPendingBodyJson` is
-      // always `undefined` there and `pendingBodyJson` stays `undefined` too — the exact
-      // "byte-identical to before this existed" behavior this file's header promises for `GET`. An
-      // invalid shape (present but not a JSON object) is treated the same as absent — malformed input
-      // degrades to the pre-existing saved-body render rather than a 400, since this is a read-only
-      // preview endpoint, not a save: worst case is a stale-looking preview, never a crash or a write.
-      const rawPendingBodyJson = isJsonObject(req.body) ? req.body.bodyJson : undefined;
-      const pendingBodyJson = isJsonObject(rawPendingBodyJson) ? rawPendingBodyJson : undefined;
+      // Pending body override (2026-08-12) — POST-only. `req.body` is parsed by whichever of
+      // `express.json()` (`app.ts`'s global mount) or this route's own `express.urlencoded()` (below)
+      // matched the request's `Content-Type`; a `GET` request never carries a body, so `req.body` is
+      // empty there and `pendingBodyJson` stays `undefined` — the exact "byte-identical to before this
+      // existed" behavior this file's header promises for `GET`.
+      const pendingBodyJson = extractPendingBodyJson(req.body);
 
       // Never persisted — a shallow clone rendered once for this response and discarded.
       const previewPost: PostRecord = {
@@ -161,5 +192,11 @@ export const registerAdminPostTemplatePreviewRoute: ContentRouteRegistrar = (app
 
   const path = "/api/admin/v1/workspaces/:workspaceId/posts/:postId/template-preview";
   app.get(path, handlePreviewRequest);
-  app.post(path, handlePreviewRequest);
+  // `express.urlencoded` scoped to this ONE route's POST registration (not a global `app.ts` mount —
+  // no other route needs it) so a classic `<form method="post" target="{iframe}">` submit, which
+  // browsers always encode as `application/x-www-form-urlencoded`, populates `req.body` too. A
+  // `fetch`-style JSON POST still works unchanged via `app.ts`'s global `express.json()`; Express
+  // dispatches to whichever parser matches the request's actual `Content-Type`, so mounting both here
+  // is additive, never a double-parse of the same request.
+  app.post(path, express.urlencoded({ extended: false, limit: "15mb" }), handlePreviewRequest);
 };
