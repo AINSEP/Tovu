@@ -470,16 +470,31 @@ describe("Edit/Preview toolbar", () => {
     expect(screen.getByText(/save to update the live post/i)).toBeInTheDocument();
   });
 
-  // `SrcDocSandbox` also renders an `<iframe title="Post preview">` (via `srcDoc`, not `src`) — the
-  // fallback is distinguished by the ABSENCE of a `src` attribute, same idiom `PageEditor.unit.test.tsx`
-  // uses for its own equivalent branch. Reachable when a published post's body/title/slug/status
-  // itself has unsaved edits (`contentDirty: true`). Same notice wording as before this fix; only the
-  // branching condition changed.
-  it("preview falls back to a rendering of the editor buffer, with a notice, when the post body itself has unsaved edits", () => {
+  // Pending-content preview fix (2026-08-12, the owner's own reported bug) — a published post with
+  // unsaved BODY edits (`contentDirty: true`) used to fall all the way to the raw `SrcDocSandbox`
+  // fallback (no `src`, a `srcDoc` string instead). It now gets its OWN themed branch: neither `src`
+  // nor `srcDoc` is set directly (see `PostPreview`'s own doc, branch 3) — instead a hidden
+  // `<form method="post" target="{iframe name}">` is rendered alongside the iframe, ready to carry
+  // `bodyJson` into it. `editor: null` in this DI harness means the debounced auto-submit effect
+  // never fires (it bails out on a `null` `bodyJson` — see `PostPreview`'s effect), so this only
+  // asserts the static markup shape, not a real navigation; `post-editor-preview-branches.spec.ts`
+  // covers the real submit+navigate behavior end to end in a browser.
+  it("preview shows a themed live-template render, carried via a hidden form POST, when the post body itself has unsaved edits", () => {
     renderPostEditor({ view: "preview", status: "published", dirty: true, contentDirty: true });
     const preview = screen.getByTitle("Post preview");
     expect(preview).not.toHaveAttribute("src");
-    expect(screen.getByText(/save your changes to preview them with the theme/i)).toBeInTheDocument();
+    expect(preview).not.toHaveAttribute("srcdoc");
+    const previewName = preview.getAttribute("name");
+    expect(previewName).toBeTruthy();
+
+    // The hidden form's `target` must match the iframe's `name` exactly — that's what routes a form
+    // submit into it instead of the top-level document.
+    const form = document.querySelector("form[method='post']");
+    expect(form).not.toBeNull();
+    expect(form).toHaveAttribute("target", previewName as string);
+    expect(form).toHaveAttribute("action", expect.stringContaining("/p1/template-preview"));
+
+    expect(screen.getByText(/previewing your unsaved edits through the live template/i)).toBeInTheDocument();
   });
 
   it("preview falls back to a rendering of the editor buffer, with a notice, for a draft post with unsaved edits", () => {
