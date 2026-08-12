@@ -1,5 +1,5 @@
 import { WidgetAddControl } from "../../components/WidgetPickerDialog/WidgetPickerDialog";
-import { useWidgetRegionEditor } from "./hooks/use-widget-region-editor.hooks";
+import { useWiredWidgetRegionEditor } from "./hooks/use-widget-region-editor.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { WIDGETS_DICT } from "./widgets-i18n";
 
@@ -18,7 +18,7 @@ export interface WidgetRegionEditorProps {
    * Dependency injection seam for tests — the same convention `Posts.tsx`'s `usePostsHook` uses.
    * Defaulted to the real hook, so production callers pass nothing and behave exactly as before.
    */
-  useWidgetRegionEditorHook?: typeof useWidgetRegionEditor;
+  useWidgetRegionEditorHook?: typeof useWiredWidgetRegionEditor;
 }
 
 /** The page header's actions cluster — the "back to regions" link, the save-status message/error,
@@ -62,7 +62,7 @@ export function WidgetRegionEditorHeaderActions({
 }
 
 export function WidgetRegionEditor(props: WidgetRegionEditorProps) {
-  const { regionKey, useWidgetRegionEditorHook = useWidgetRegionEditor } = props;
+  const { regionKey, useWidgetRegionEditorHook = useWiredWidgetRegionEditor } = props;
   const { area, placements, message, error, loading, saving, removeAt, moveAt, toggleEnabled, addPlacement, save } =
     useWidgetRegionEditorHook(regionKey);
   const locale = useAdminLocale();

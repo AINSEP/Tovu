@@ -34,15 +34,15 @@ const { seoRef, entryPickerRef, seoEntryPanelRef, seoEntrySectionRef } = vi.hois
 
 vi.mock("../hooks/use-seo.hooks", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../hooks/use-seo.hooks")>();
-  return { ...actual, useSeo: () => seoRef.current };
+  return { ...actual, useWiredSeo: () => seoRef.current };
 });
 vi.mock("../hooks/use-entry-picker.hooks", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../hooks/use-entry-picker.hooks")>();
-  return { ...actual, useEntryPicker: () => entryPickerRef.current };
+  return { ...actual, useWiredEntryPicker: () => entryPickerRef.current };
 });
 vi.mock("../hooks/use-seo-entry-panel.hooks", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../hooks/use-seo-entry-panel.hooks")>();
-  return { ...actual, useSeoEntryPanel: () => seoEntryPanelRef.current };
+  return { ...actual, useWiredSeoEntryPanel: () => seoEntryPanelRef.current };
 });
 vi.mock("../hooks/use-seo-entry-section.hooks", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../hooks/use-seo-entry-section.hooks")>();

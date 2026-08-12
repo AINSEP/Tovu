@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
-import { api, type SeoSettings } from "../../../lib/api";
+import type { SeoSettings } from "../../../lib/api";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { t } from "../seo-i18n";
+import { defaultSeoPort } from "./seo-dependencies.hooks";
+import type { SeoPort } from "./seo-port.hooks";
 
 /**
  * @file Everything the top-level `Seo` screen does (the site-wide defaults form + sitemap
@@ -11,6 +13,13 @@ import { t } from "../seo-i18n";
  * `SeoSettingsScreen`'s per-section state (`EntryPicker`, `SeoEntryPanel`, `SeoEntrySection`) lives
  * in its own sibling hook files, not here — each section is independent and this hook only owns
  * what the top-level component itself renders.
+ *
+ * `port` is injected — see `seo-port.hooks.ts` (shared with `use-seo-entry-panel.hooks.ts` and
+ * `use-entry-picker.hooks.ts`, since all three read/write the same SEO surface) — rather than
+ * importing `lib/api` directly, so a test can describe load/save outcomes against
+ * `createFakeSeoPort` instead of stubbing global `fetch`. `useWiredSeo` below is the zero-argument
+ * pair `Seo.tsx` actually mounts. `useAdminLocale()` itself is called only inside `useWiredSeo` —
+ * its resolved `locale` string is what gets injected, not the hook reference.
  */
 
 export interface SeoController {
@@ -22,27 +31,30 @@ export interface SeoController {
   regenerateSitemap: () => Promise<void>;
 }
 
-export function useSeo(): SeoController {
-  const locale = useAdminLocale();
+export function useSeo(port: SeoPort, locale: string): SeoController {
   const [settings, setSettings] = useState<SeoSettings | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
   useEffect(() => {
-    api
+    port
       .getSeoSettings()
       .then((r) => setSettings(r.data))
       .catch((e) => setError(e instanceof Error ? e.message : t(locale, "failed to load SEO settings")));
+    // `locale`/`t` are deliberately not listed — same pre-existing gap `use-page-editor.hooks.ts`
+    // documents (this effect only ever ran off `[]` even when `locale` came from `useAdminLocale()`
+    // directly); `port` is referentially stable in production (`useWiredSeo` always passes the same
+    // module-level singleton).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [port]);
 
   async function save(patch: Partial<SeoSettings>) {
     setSaving(true);
     setError(null);
     setNotice(null);
     try {
-      const r = await api.setSeoSettings(patch);
+      const r = await port.setSeoSettings(patch);
       setSettings(r.data);
       setNotice(t(locale, "Saved."));
     } catch (e) {
@@ -57,7 +69,7 @@ export function useSeo(): SeoController {
     setError(null);
     setNotice(null);
     try {
-      await api.regenerateSitemap();
+      await port.regenerateSitemap();
       setNotice(t(locale, "Sitemap regeneration accepted."));
     } catch (e) {
       setError(e instanceof Error ? e.message : t(locale, "failed to regenerate sitemap"));
@@ -67,4 +79,15 @@ export function useSeo(): SeoController {
   }
 
   return { settings, error, saving, notice, save, regenerateSitemap };
+}
+
+/**
+ * Binds the real `/api/.../seo/settings` client — see `seo-dependencies.hooks.ts`.
+ *
+ * The zero-argument half of the `useX(dependencies)` / `useWiredX()` pair, so `Seo.tsx` composes
+ * this and a test composes {@link useSeo} with `createFakeSeoPort`.
+ */
+export function useWiredSeo(): SeoController {
+  const locale = useAdminLocale();
+  return useSeo(defaultSeoPort, locale);
 }
