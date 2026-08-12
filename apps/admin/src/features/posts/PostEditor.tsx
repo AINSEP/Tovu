@@ -55,6 +55,7 @@ function Toolbar({ editor }: { editor: Editor }) {
       italic: editor?.isActive("italic") ?? false,
       strike: editor?.isActive("strike") ?? false,
       underline: editor?.isActive("underline") ?? false,
+      highlight: editor?.isActive("highlight") ?? false,
       code: editor?.isActive("code") ?? false,
       link: editor?.isActive("link") ?? false,
       h1: editor?.isActive("heading", { level: 1 }) ?? false,
@@ -82,6 +83,7 @@ function Toolbar({ editor }: { editor: Editor }) {
         <button className={toolbarBtnClass(s.italic)} title="Italic (⌘I)" aria-pressed={s.italic} onClick={() => chain().toggleItalic().run()}><i>I</i></button>
         <button className={toolbarBtnClass(s.strike)} title="Strikethrough" aria-pressed={s.strike} onClick={() => chain().toggleStrike().run()}><s>S</s></button>
         <button className={toolbarBtnClass(s.underline)} title="Underline (⌘U)" aria-pressed={s.underline} onClick={() => chain().toggleUnderline().run()}><u>U</u></button>
+        <button className={toolbarBtnClass(s.highlight)} title="Highlight" aria-pressed={s.highlight} onClick={() => chain().toggleHighlight().run()}><mark>H</mark></button>
         <button className={toolbarBtnClass(s.code)} title="Inline code" aria-pressed={s.code} onClick={() => chain().toggleCode().run()}>&lt;/&gt;</button>
         {/* Link (2026-08-11) — a prompt-based toggle, same "simplest thing that works" idiom as
             "Insert image by URL" just below rather than a dedicated dialog: a click while the

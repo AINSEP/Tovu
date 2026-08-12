@@ -83,6 +83,25 @@ test("renderDocNode: hardBreak renders <br/> (Shift-Enter, 2026-08-11) — befor
   assert.equal(html, "<p>line one<br/>line two</p>");
 });
 
+test("renderDocNode: a highlight mark with no color attr renders a bare <mark> (the admin toolbar's plain toggle button)", () => {
+  const html = renderDocNode(textDoc({ type: "text", text: "hi", marks: [{ type: "highlight" }] }));
+  assert.equal(html, "<p><mark>hi</mark></p>");
+});
+
+test("a highlight mark with an allowlisted color attr renders an inline background-color style", () => {
+  for (const color of ["#f0a", "#ff00aa", "red", "rgb(255, 0, 170)", "oklch(88.5% 0.062 18.334)"]) {
+    const html = renderDocNode(textDoc({ type: "text", text: "hi", marks: [{ type: "highlight", attrs: { color } }] }));
+    assert.equal(html, `<p><mark style="background-color:${color}">hi</mark></p>`);
+  }
+});
+
+test("a highlight mark with an unsafe/malformed color attr degrades to a bare <mark> (no CSS injection)", () => {
+  for (const color of ["red; } body { display:none", "url(javascript:alert(1))", "expression(alert(1))", "red;color:blue", 42, null]) {
+    const html = renderDocNode(textDoc({ type: "text", text: "hi", marks: [{ type: "highlight", attrs: { color } as never }] }));
+    assert.equal(html, "<p><mark>hi</mark></p>");
+  }
+});
+
 test("hardBreak composes with surrounding marked text and can appear more than once", () => {
   const html = renderDocNode(
     textDoc(

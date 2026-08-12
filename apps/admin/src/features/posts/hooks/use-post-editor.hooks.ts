@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useEditor, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import TextAlign from "@tiptap/extension-text-align";
+import Highlight from "@tiptap/extension-highlight";
 
 import type { AdminPost, ThemeTier } from "../../../lib/api";
 import { MediaImage } from "../../../lib/media-image-extension";
@@ -196,6 +197,14 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
       PostTitleDocument,
       PostTitle,
       TextAlign.configure({ types: ["heading", "paragraph", "title"] }),
+      // `multicolor: true` (2026-08-11, owner: "anything and everything i can get") — allows a
+      // `color` attr on the mark rather than a single fixed highlight color. The toolbar button
+      // below is a plain toggle only (no color picker, matching Bold/Italic's own simplicity), so
+      // in practice this ships with NO `color` attr and renders through the browser's own `<mark>`
+      // default (yellow) — `multicolor: true` is still set so a `color` attr from anywhere else
+      // (pasted content, a future richer picker) round-trips instead of being schema-rejected. See
+      // `render.ts`'s `"highlight"` mark case for the public-render half.
+      Highlight.configure({ multicolor: true }),
       MediaImage,
       WidgetEmbed,
     ],
