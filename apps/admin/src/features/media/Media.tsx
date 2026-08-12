@@ -12,8 +12,6 @@ import { useMediaPreview } from "./hooks/use-media-preview.hooks";
 import { useWiredEditMediaPanel } from "./hooks/use-edit-media-panel.hooks";
 import { useMediaLightbox } from "./hooks/use-media-lightbox.hooks";
 import { useMediaTabs, MEDIA_TABS } from "./hooks/use-media-tabs.hooks";
-import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import { MEDIA_DICT } from "./media-i18n";
 
 /**
  * @file Media admin screen — list + upload + trash/purge ladder, wiring the `media` backend into
@@ -608,10 +606,10 @@ export function Media({ useMediaHook = useWiredMedia }: MediaProps = {}) {
     purge,
     lightboxIndex,
     setLightboxIndex,
+    t,
+    locale,
   } = useMediaHook();
   const { activeTab, setActiveTab } = useMediaTabs();
-  const locale = useAdminLocale();
-  const t = (key: string): string => MEDIA_DICT[locale]?.[key] ?? key;
 
   if (error && !media) return <div className="notice error">{error}</div>;
   if (!media) return <div className="notice">Loading media…</div>;
