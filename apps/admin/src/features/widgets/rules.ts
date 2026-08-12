@@ -1,6 +1,6 @@
-import { ApiError, type AdminWidget, type AdminWidgetPlacement, type AdminWidgetType } from "../../lib/api";
+import { ApiError, describeApiError, type AdminWidget, type AdminWidgetPlacement, type AdminWidgetType } from "../../lib/api";
 import { WIDGET_TYPE_OPTIONS } from "../../components/WidgetConfigFields/WidgetConfigFields";
-import { WIDGETS_DICT } from "./widgets-i18n";
+import { WIDGETS_DICT, t as translate } from "./widgets-i18n";
 
 /**
  * @file Pure logic shared by the four `widgets` feature screens (`WidgetsLibrary`,
@@ -116,4 +116,35 @@ export function buildDraftPlacement(widgetInstanceId: string): AdminWidgetPlacem
     widgetType: null,
     broken: false,
   };
+}
+
+/** What `WidgetInstanceEditor`'s `save` sets on a caught error — the message plus any field-level
+ *  errors the `WIDGETS_CONFIG_VALIDATION_ERROR` case carries. */
+export interface WidgetSaveErrorOutcome {
+  error: string;
+  fieldErrors: Array<{ field: string; reason: string }>;
+}
+
+/**
+ * `save`'s catch-block decision, pulled out to a top-level pure function per the 2026-08-12
+ * complexity-ceiling pass: classifies a caught error into the message/field-errors combination the
+ * save path shows, so the three-way `instanceof`/`.code` branching doesn't count against `save`'s
+ * own scope. `staleVersionMessage` is injected rather than imported so this module doesn't need to
+ * know which resource's own stale-version copy applies — `WidgetRegionEditor`'s save path has its
+ * own, differently-worded one.
+ *
+ * @complexity Time/space: O(1).
+ */
+export function resolveWidgetSaveError(
+  e: unknown,
+  locale: string,
+  staleVersionMessage: (locale: string) => string
+): WidgetSaveErrorOutcome {
+  if (e instanceof ApiError && e.code === "WIDGETS_VERSION_CONFLICT") {
+    return { error: staleVersionMessage(locale), fieldErrors: [] };
+  }
+  if (e instanceof ApiError && e.code === "WIDGETS_CONFIG_VALIDATION_ERROR") {
+    return { error: describeApiError(e, translate(locale, "save failed")), fieldErrors: widgetConfigFieldErrors(e) };
+  }
+  return { error: describeApiError(e, translate(locale, "save failed")), fieldErrors: [] };
 }
