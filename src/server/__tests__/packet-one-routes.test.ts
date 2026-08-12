@@ -665,9 +665,10 @@ test("GET themes lists discovered built-in themes, TB-01 ordered, exactly one ma
   };
 
   // The seeded built-in theme folders (`themes/` top level + `themes/templated/` + the Handlebars
-  // tier under `themes/handlebars/`), TB-01 ordered (built-in first, id asc). `storefront` is a
-  // genuine WIP theme (missing templates/entry.liquid), included here with the rest — this endpoint
-  // reports every discovered theme regardless of validity, not just the valid ones.
+  // tier under `themes/handlebars/`), TB-01 ordered (built-in first, id asc). `storefront` shipped
+  // templates/home.liquid and templates/products.liquid but no templates/entry.liquid for a while
+  // (a genuine WIP gap, since fixed) — this endpoint reports every discovered theme regardless of
+  // validity, not just the valid ones, so a still-invalid theme would appear here too.
   //
   // Adding a theme folder means updating this list; it is an exact match on purpose, so a theme
   // that silently stops being discovered fails here rather than going unnoticed.
