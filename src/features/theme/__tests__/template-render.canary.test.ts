@@ -177,11 +177,19 @@ test("canary: a Post and a Page resolve to DIFFERENT templates by explicit choic
   // don't; the templates differ), but that reaching that output takes the same function calls
   // (resolveTemplate -> injectPageTitle -> injectCurrentEntityContentId -> resolveHtmlPageEmbeds ->
   // renderHtmlPageBody -> renderStaticPage) regardless of which kind the row is.
+  //
+  // Per-post `<title>` fix (2026-08-11): `blog-post.html`/`blog-sidebar-template.html` used to carry
+  // one hardcoded fixed string apiece (a disclosed limitation, asserted here as expected behavior
+  // until this date) — every post sharing either template shared one tab/SEO title. Both now carry the
+  // same `{{title}}` placeholder `page-shell.html` already used, so BOTH templates substitute the
+  // real entity title through the identical `injectPageTitle` call — the assertion below changed from
+  // "kept its own fixed title" to "substitutes", which is the exact property this test's own docstring
+  // says it exists to prove.
   const theme = basicTheme();
   const postHtml = renderThroughTemplate(theme, "blog-post.html", "A Post", {});
   const pageHtml = renderThroughTemplate(theme, "page-shell.html", "A Page", {});
 
-  assert.ok(postHtml.includes("<title>Blog post — Basic</title>"), "blog-post.html keeps its own disclosed fixed title");
+  assert.ok(postHtml.includes("<title>A Post</title>"), "blog-post.html now substitutes the real title, same as page-shell.html");
   assert.ok(pageHtml.includes("<title>A Page</title>"), "page-shell.html substitutes the real title");
   assert.ok(!postHtml.includes("widget-placeholder") && !pageHtml.includes("widget-placeholder"));
 });
