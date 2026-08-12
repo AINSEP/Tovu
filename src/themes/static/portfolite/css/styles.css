@@ -528,7 +528,7 @@ section { padding: 96px 0; }
 .post-detail-body code { font: 13px/1 var(--font-mono); background: var(--surface); border: 1px solid var(--border); border-radius: 4px; padding: 2px 6px; color: var(--fg); }
 .post-detail-body pre { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; overflow-x: auto; margin: 20px 0; }
 .post-detail-body pre code { border: none; background: none; padding: 0; }
-.post-detail-body img { max-width: 100%; border-radius: 10px; margin: 20px 0; }
+.post-detail-body img { max-width: 100%; height: auto; border-radius: 10px; margin: 20px 0; }
 /* Rich-text capability CSS (2026-08-12) — the same `.post-detail-body` selectors
    `basic/css/styles.css` carries for the 2026-08-11/-12 editor additions (highlight, table, task
    list, YouTube embed, post mention); see
