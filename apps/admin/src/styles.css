@@ -1620,13 +1620,13 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .editor-body .is-empty::before {
   content: attr(data-placeholder); float: left; height: 0; color: var(--faint); pointer-events: none;
 }
-/* Focus (`use-post-editor.hooks.ts`, 2026-08-12, B2 low-priority free extra) — the extension's own
-   default class (`has-focus`) kept as-is, matching `.is-empty` just above; the extension itself ships
-   no CSS at all, so without this rule the class is added/removed in the DOM with zero visible effect.
-   A soft left rule rather than a background fill — a filled block would visually compete with
-   `mark`/`.tb-color` swatches and selection highlighting already in this editor; a rule reads as "you
-   are here" without adding contrast noise to the text itself. */
-.editor-body .tiptap .has-focus { border-left: 2px solid var(--accent); padding-left: 0.6rem; margin-left: -0.65rem; }
+/* Focus extension — REMOVED 2026-08-12, same day it was added. It shipped a `.has-focus` left rule
+   ("you are here" on the focused block); the owner saw it in the editor and asked what the black
+   lines were for, which is the answer to whether a focus affordance was wanted. It was a
+   "low-priority free extra" nobody requested, and a caret already marks the focused block.
+   Do not reintroduce the rule without also reintroducing a reason for it. The `Focus` registration
+   in `use-post-editor.hooks.ts` goes with it — a class toggling in the DOM with no CSS is dead
+   weight, exactly the argument that got UniqueID and TableOfContents dropped the same day. */
 /* `WidgetAddControl`'s `<span className="widget-add-control">` (its widget-type `<select>` plus
    the "Insert widget"/"+ Add widget" trigger button, `components/WidgetPickerDialog/WidgetPickerDialog.tsx`) had
    never had any CSS anywhere in the app — the two controls sat flush with zero gap between them.
