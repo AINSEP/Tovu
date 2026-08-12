@@ -1,7 +1,7 @@
 import { CONTENT_TYPE_FIELD_KINDS, type AdminContentType, type ContentTypeFieldKind } from "../../lib/api";
 import { DataTable, RowMenu } from "@jini-ai/admin/react";
 import { contentTypeMenuItems, type LifecycleConfirmOp } from "./rules";
-import { useCollections } from "./hooks/use-collections.hooks";
+import { useWiredCollections } from "./hooks/use-collections.hooks";
 import { useWiredNewContentTypeDialog } from "./hooks/use-new-content-type-dialog.hooks";
 import { useWiredEditFieldsDialog } from "./hooks/use-edit-fields-dialog.hooks";
 import { useLifecycleConfirmDialog } from "./hooks/use-lifecycle-confirm-dialog.hooks";
@@ -336,7 +336,7 @@ export interface CollectionsProps {
    * for `useCustomSelect`. Defaulted to the real hook, so production callers (`panels.tsx`) pass
    * nothing and behave exactly as before. See `PostsProps.usePostsHook` for the full rationale.
    */
-  useCollectionsHook?: typeof useCollections;
+  useCollectionsHook?: typeof useWiredCollections;
 }
 
 /** The three modals `Collections` can have open at once (mutually exclusive in practice, but not
@@ -387,7 +387,7 @@ function CollectionsDialogs(props: {
   );
 }
 
-export function Collections({ useCollectionsHook = useCollections }: CollectionsProps = {}) {
+export function Collections({ useCollectionsHook = useWiredCollections }: CollectionsProps = {}) {
   const {
     types,
     error,

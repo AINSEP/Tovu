@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 
-import { api, describeApiError, type AdminContentType } from "../../../lib/api";
+import { describeApiError, type AdminContentType } from "../../../lib/api";
 import type { LifecycleConfirmOp } from "../rules";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { lifecycleFailureMessage, t } from "../collections-i18n";
+import { defaultCollectionsPort } from "./collections-dependencies.hooks";
+import type { CollectionsPort } from "./collections-port.hooks";
 
 /**
  * @file Everything the Collections LIST screen (content-type registry + the three dialogs' open/
@@ -16,6 +18,11 @@ import { lifecycleFailureMessage, t } from "../collections-i18n";
  *
  * Naming follows `hooks/use-settings-slice.hooks.ts`: `use-<thing>.hooks.ts`. Feature-local because
  * nothing outside `features/collections` needs it.
+ *
+ * `port`/`locale` are injected — see `collections-port.hooks.ts` — rather than reaching `lib/api`/
+ * `useAdminLocale()` directly, so a test can describe load/lifecycle outcomes against
+ * `createFakeCollectionsPort` instead of stubbing global `fetch`. `useWiredCollections` below is
+ * the pair `Collections.tsx` actually mounts.
  */
 
 export interface CollectionsController {
@@ -37,8 +44,13 @@ export interface CollectionsController {
   runLifecycle: (contentType: AdminContentType, op: "deprecate" | "reactivate" | "tombstone") => Promise<void>;
 }
 
-export function useCollections(): CollectionsController {
-  const locale = useAdminLocale();
+export interface CollectionsDependencies {
+  port: CollectionsPort;
+  locale: string;
+}
+
+export function useCollections(deps: CollectionsDependencies): CollectionsController {
+  const { port, locale } = deps;
   const [types, setTypes] = useState<AdminContentType[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [showNewDialog, setShowNewDialog] = useState(false);
@@ -47,18 +59,23 @@ export function useCollections(): CollectionsController {
   const [actionError, setActionError] = useState<string | null>(null);
 
   function load() {
-    api
+    port
       .listContentTypes()
       .then((r) => setTypes(r.items))
       .catch((e) => setError(describeApiError(e, t(locale, "failed to load content types"))));
   }
 
-  useEffect(load, []);
+  // `port` is added to the effect's dependency array — see `use-page-editor.hooks.ts`'s identical
+  // note: it's a function-scoped value ESLint's exhaustive-deps rule can see, and it is
+  // referentially stable in production (`useWiredCollections` always passes the same module-level
+  // singleton), so this changes nothing about when the effect re-runs.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(load, [port]);
 
   async function runLifecycle(contentType: AdminContentType, op: "deprecate" | "reactivate" | "tombstone") {
     setActionError(null);
     try {
-      await api.contentTypeLifecycle({ key: contentType.key, op, expectedVersion: contentType.version });
+      await port.contentTypeLifecycle({ key: contentType.key, op, expectedVersion: contentType.version });
       load();
     } catch (e) {
       setActionError(describeApiError(e, lifecycleFailureMessage(locale, op, contentType.label)));
@@ -78,4 +95,15 @@ export function useCollections(): CollectionsController {
     load,
     runLifecycle,
   };
+}
+
+/**
+ * Binds the real `/api/.../content-types` client and the resolved `useAdminLocale()` value — see
+ * `collections-dependencies.hooks.ts`. The zero-argument-deps half of the `useX(dependencies)` /
+ * `useWiredX()` pair, so `Collections.tsx` composes this and a test composes {@link useCollections}
+ * with `createFakeCollectionsPort`.
+ */
+export function useWiredCollections(): CollectionsController {
+  const locale = useAdminLocale();
+  return useCollections({ port: defaultCollectionsPort, locale });
 }

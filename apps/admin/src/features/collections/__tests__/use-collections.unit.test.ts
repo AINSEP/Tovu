@@ -1,13 +1,19 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminContentType } from "../../../lib/api";
-import { useCollections } from "../hooks/use-collections.hooks";
+import { ApiError, type AdminContentType } from "../../../lib/api";
+import { createFakeCollectionsPort } from "../hooks/collections-dependencies.hooks";
+import { useCollections, useWiredCollections } from "../hooks/use-collections.hooks";
 
 /**
  * @file `useCollections` — the Collections list screen's content-type registry load + dialog
  * open/close state + the shared `runLifecycle` action. Follows the fetch-mocking harness
  * `use-restore-points-section.unit.test.ts` established for this package.
+ *
+ * `loaded()` below drives the wired hook (real `fetch`) — unchanged from before the `useWiredX`
+ * conversion, just a call-site swap. The "injected port" describe block at the bottom is new
+ * coverage added alongside that conversion, proving the pure hook is independently testable
+ * against `createFakeCollectionsPort` with no `fetch` stub at all.
  */
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -48,7 +54,7 @@ afterEach(() => {
 
 async function loaded() {
   fetchMock.mockResolvedValueOnce(jsonResponse({ items: [TYPE] }));
-  const view = renderHook(() => useCollections());
+  const view = renderHook(() => useWiredCollections());
   await waitFor(() => expect(view.result.current.types).not.toBeNull());
   return view;
 }
@@ -62,7 +68,7 @@ describe("initial load", () => {
 
   it("sets the Collections-specific fallback error on a failed load", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ error: "" }, 500));
-    const { result } = renderHook(() => useCollections());
+    const { result } = renderHook(() => useWiredCollections());
     await waitFor(() => expect(result.current.error).not.toBeNull());
     expect(result.current.error).toBe("failed to load content types");
     expect(result.current.types).toBeNull();
@@ -147,5 +153,49 @@ describe("runLifecycle", () => {
       await result.current.runLifecycle(TYPE, "deprecate");
     });
     expect(result.current.actionError).toBeNull();
+  });
+});
+
+describe("injected port (useWiredX conversion coverage)", () => {
+  it("loads content types through the injected port, without touching fetch", async () => {
+    vi.stubGlobal("fetch", fetchMock);
+    try {
+      const port = createFakeCollectionsPort({ types: [TYPE] });
+      const { result } = renderHook(() => useCollections({ port, locale: "en" }));
+      await waitFor(() => expect(result.current.types).not.toBeNull());
+
+      expect(result.current.types).toEqual([TYPE]);
+      expect(fetchMock).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("runLifecycle deprecates through the injected port and reloads the list, reflecting the update", async () => {
+    const port = createFakeCollectionsPort({ types: [TYPE] });
+    const { result } = renderHook(() => useCollections({ port, locale: "en" }));
+    await waitFor(() => expect(result.current.types).not.toBeNull());
+
+    await act(async () => {
+      await result.current.runLifecycle(TYPE, "deprecate");
+    });
+
+    expect(result.current.types?.[0]?.status).toBe("deprecated");
+    expect(result.current.actionError).toBeNull();
+  });
+
+  it("sets the locale-aware fallback actionError when the injected port's lifecycle call rejects", async () => {
+    // An empty-message ApiError, not a plain Error — describeApiError only substitutes the
+    // fallback for ApiError.message === "" (matching what a real 500-with-no-body response
+    // becomes via `request()`); a plain Error's own (even empty) `.message` always wins.
+    const port = createFakeCollectionsPort({ types: [TYPE], lifecycleError: new ApiError("", 500) });
+    const { result } = renderHook(() => useCollections({ port, locale: "en" }));
+    await waitFor(() => expect(result.current.types).not.toBeNull());
+
+    await act(async () => {
+      await result.current.runLifecycle(TYPE, "tombstone");
+    });
+
+    expect(result.current.actionError).toBe('Failed to tombstone "Recipe"');
   });
 });
