@@ -34,9 +34,9 @@
  * nothing. A "six narrow doors" split (one file per section below) was also measured and rejected:
  * 11.79% propagation / 7 exposed files — worse on both axes than reverting just these 3 lines, because
  * `routes/types.ts` alone needs symbols spanning 4 of the 6 sections regardless of door width. Full
- * writeup: `ADS-memory/reports/architecture/2026-08-12-assistant-barrel-propagation-cost-findings.md`.
- * If `routes/types.ts` is ever split or its god-type status resolved, re-evaluate whether these 4
- * symbols can safely route through this barrel again.
+ * writeup: `ADS-memory/reports/architecture/2026-08-13-propagation-cost-barrel-attribution.md`
+ * (Result 2 + the FixAssistant addendum). If `routes/types.ts` is ever split or its god-type status
+ * resolved, re-evaluate whether these 4 symbols can safely route through this barrel again.
  */
 
 // ---------------------------------------------------------------------------------------------
