@@ -6,7 +6,7 @@ import { navigate } from "../../lib/router";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { TabBar, type TabBarTab } from "../../components/TabBar";
 import { ImagePreviewModal } from "../../components/ImagePreviewModal";
-import { useThemes } from "./hooks/use-themes.hooks";
+import { useWiredThemes } from "./hooks/use-themes.hooks";
 import {
   isActiveTheme,
   isStrandedActiveTheme,
@@ -101,10 +101,10 @@ export interface ThemesProps {
    * Dependency injection seam for tests — the same convention `Posts.tsx`'s `usePostsHook` uses.
    * Defaulted to the real hook, so production callers pass nothing and behave exactly as before.
    */
-  useThemesHook?: typeof useThemes;
+  useThemesHook?: typeof useWiredThemes;
 }
 
-export function Themes({ useThemesHook = useThemes }: ThemesProps = {}) {
+export function Themes({ useThemesHook = useWiredThemes }: ThemesProps = {}) {
   const {
     settings,
     themes,

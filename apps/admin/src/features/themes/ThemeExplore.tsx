@@ -17,7 +17,7 @@ import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { PAGE_PREVIEW_WIDTHS, type PagePreviewDevice } from "../pages/hooks/use-page-editor.hooks";
 import {
   THEME_FILE_GROUPS,
-  useThemeExplore,
+  useWiredThemeExplore,
   type ThemeExploreDetail,
   type ThemeExploreFile,
   type ThemeExploreView,
@@ -67,7 +67,7 @@ export interface ThemeExploreProps {
   /** Theme id from `?theme=`. */
   themeId: string;
   /** DI seam for tests — same convention as `Themes.tsx`'s `useThemesHook`. */
-  useThemeExploreHook?: typeof useThemeExplore;
+  useThemeExploreHook?: typeof useWiredThemeExplore;
 }
 
 /**
@@ -827,7 +827,7 @@ function ThemeExploreFullscreenDialog({
   );
 }
 
-export function ThemeExplore({ themeId, useThemeExploreHook = useThemeExplore }: ThemeExploreProps) {
+export function ThemeExplore({ themeId, useThemeExploreHook = useWiredThemeExplore }: ThemeExploreProps) {
   const locale = useAdminLocale();
   const t = (key: string): string => translateThemes(locale, key);
   const {
