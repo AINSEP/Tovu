@@ -128,8 +128,9 @@ reached it.** Verified independently before accepting:
 - `save()` then PATCHes **B's id** with **A's** title/alt/caption/credit/dimensions.
 
 **Two ordinary clicks silently overwrite a different asset's metadata.** Domain 4 + domain 3. Zero
-test coverage. **Fixed** with `key={editingItem.id}`; a regression test with mandatory negative
-verification was dispatched (`MediaGuardTest`) — confirm it landed.
+test coverage. **FIXED AND COMMITTED — `91b83fa`.** `key={editingItem.id}` plus the regression test
+the audit noted was missing (open A, edit a field, switch directly to B unsaved, assert B's values
+render and the PATCH carries only B-derived values). Media suite 42/42.
 
 This is the protocol earning its cost: the rule that *an unverifiable `fixed` claim is itself a
 blocker* is what converted my unchecked assertion into a finding instead of letting it through.
@@ -195,9 +196,10 @@ same pre-existing, accepted behaviour `safeHref` already has.
 
 ## TABLED FOR NEXT SESSION — prioritized
 
-1. **Confirm `MediaGuardTest` landed** the regression test for the round-2 media blocker, with its
-   negative verification. The fix (`key={editingItem.id}` in `Media.tsx`) is applied; the test may
-   not have committed before cutoff.
+1. **⚠️ FIX THE OPEN BLOCKER: the Comments concurrent lost-update** (Codex round 2). Details in the
+   audit section above. This is the only unfixed blocker. Then audit the same shape across the other
+   10 migrated features — any screen pairing uncontrolled inputs with a fetch-query invalidation
+   refetch and a diff-against-state patch builder.
 2. **Audit the rest of `media` for the same shape** — any component taking an entity as a prop and
    seeding state from it in a `useState` initializer with no `key` and no `item.id` reset effect.
    `Verifier2` was asked to enumerate these; check its report. Consider whether
