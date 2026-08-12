@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 
-import { api, type AdminMedia } from "../../../lib/api";
+import type { AdminMedia } from "../../../lib/api";
 import { describeApiError, findEditingItem, readFileAsBase64 } from "../rules";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { t } from "../media-i18n";
+import { defaultMediaPort } from "./media-dependencies.hooks";
+import type { MediaPort } from "./media-port.hooks";
 
 /**
  * @file Everything the top-level Media grid screen does, so `Media()` in `Media.tsx` is only
@@ -16,7 +18,21 @@ import { t } from "../media-i18n";
  *
  * Naming follows `hooks/use-settings-slice.hooks.ts`: `use-<thing>.hooks.ts`. Feature-local
  * because nothing outside `features/media` needs it.
+ *
+ * `port`/`locale` are injected (see `media-port.hooks.ts` and the `useWiredX` convention doc at
+ * `development/docs/architecture/wired-hooks-convention.md`) rather than reaching for `lib/api`'s
+ * `api` and `useAdminLocale()` directly, so a test can describe list/write outcomes against
+ * `createFakeMediaPort` instead of stubbing global `fetch`. `t(locale, …)` stays a direct import —
+ * it is a pure `DICT[locale]?.[key] ?? key` lookup with no host boundary, same category as
+ * `describeApiError` (see `media-port.hooks.ts`'s own doc comment for the identical reasoning
+ * about `api.mediaOriginalUrl`). `useWiredMedia` below is the zero-argument pair `Media.tsx`
+ * actually mounts.
  */
+
+export interface MediaDependencies {
+  port: MediaPort;
+  locale: string;
+}
 
 export interface MediaController {
   /** `null` until the initial load settles — the caller renders a loading state. */
@@ -57,8 +73,7 @@ export interface MediaController {
 /**
  * @complexity Time/space: O(1) per call — one list round trip on mount, one per mutation.
  */
-export function useMedia(): MediaController {
-  const locale = useAdminLocale();
+export function useMedia({ port, locale }: MediaDependencies): MediaController {
   const [media, setMedia] = useState<AdminMedia[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -70,7 +85,7 @@ export function useMedia(): MediaController {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   function load() {
-    api
+    port
       .listMedia()
       .then((r) => setMedia(r.media))
       .catch((e) => setError(e instanceof Error ? e.message : t(locale, "failed to load media")));
@@ -85,7 +100,7 @@ export function useMedia(): MediaController {
     setError(null);
     try {
       const dataBase64 = await readFileAsBase64(file);
-      await api.uploadMedia(
+      await port.uploadMedia(
         { filename: file.name, contentType: file.type, dataBase64 },
         { alt: altDraft.trim() || undefined }
       );
@@ -103,7 +118,7 @@ export function useMedia(): MediaController {
     setError(null);
     setRowSavingId(item.id);
     try {
-      await api.trashMedia(item.id);
+      await port.trashMedia(item.id);
       load();
     } catch (e) {
       setError(describeApiError(e, t(locale, "delete failed")));
@@ -118,7 +133,7 @@ export function useMedia(): MediaController {
     setRowSavingId(item.id);
     setError(null);
     try {
-      await api.deleteMedia(item.id);
+      await port.deleteMedia(item.id);
       load();
     } catch (e) {
       setError(describeApiError(e, t(locale, "delete failed")));
@@ -158,4 +173,16 @@ export function useMedia(): MediaController {
     lightboxIndex,
     setLightboxIndex,
   };
+}
+
+/**
+ * Binds the real `/api/.../media` client and the real `useAdminLocale()` — see
+ * `media-dependencies.hooks.ts`.
+ *
+ * The zero-argument half of the `useX(dependencies)` / `useWiredX()` pair, so `Media.tsx` composes
+ * this and a test composes {@link useMedia} with `createFakeMediaPort`.
+ */
+export function useWiredMedia(): MediaController {
+  const locale = useAdminLocale();
+  return useMedia({ port: defaultMediaPort, locale });
 }

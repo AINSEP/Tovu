@@ -7,9 +7,9 @@ import { MEDIA_PROVIDER_CATALOG } from "./media-provider-catalog";
 import { mediaProvidersPort } from "./media-providers-port";
 import "@jini-ai/ui/settings-dialog.css";
 import { mediaRowMenuItems } from "./rules";
-import { useMedia } from "./hooks/use-media.hooks";
+import { useWiredMedia } from "./hooks/use-media.hooks";
 import { useMediaPreview } from "./hooks/use-media-preview.hooks";
-import { useEditMediaPanel } from "./hooks/use-edit-media-panel.hooks";
+import { useWiredEditMediaPanel } from "./hooks/use-edit-media-panel.hooks";
 import { useMediaLightbox } from "./hooks/use-media-lightbox.hooks";
 import { useMediaTabs, MEDIA_TABS } from "./hooks/use-media-tabs.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
@@ -217,7 +217,7 @@ interface EditMediaPanelProps {
    * Dependency injection seam for tests — the same convention `Posts.tsx`'s `usePostsHook` uses.
    * Defaulted to the real hook, so production callers pass nothing and behave exactly as before.
    */
-  useEditMediaPanelHook?: typeof useEditMediaPanel;
+  useEditMediaPanelHook?: typeof useWiredEditMediaPanel;
   /** Translator closure — see `Media()`'s own `t`. */
   t: (key: string) => string;
 }
@@ -227,7 +227,7 @@ interface EditMediaPanelProps {
  *  in-progress edit is never squeezed into one grid cell's width, and expanding it never reflows
  *  its siblings' cells. */
 function EditMediaPanel(props: EditMediaPanelProps) {
-  const { item, onSaved, onCancel, useEditMediaPanelHook = useEditMediaPanel, t } = props;
+  const { item, onSaved, onCancel, useEditMediaPanelHook = useWiredEditMediaPanel, t } = props;
   const {
     draft,
     setTitle,
@@ -567,7 +567,7 @@ export interface MediaProps {
    * Dependency injection seam for tests — the same convention `Posts.tsx`'s `usePostsHook` uses.
    * Defaulted to the real hook, so production callers pass nothing and behave exactly as before.
    */
-  useMediaHook?: typeof useMedia;
+  useMediaHook?: typeof useWiredMedia;
 }
 
 /** "Images"/"Videos" tab body — see `Media()`'s own comment at the tab-bar mount site for why
@@ -587,7 +587,7 @@ function MediaTypeFilterPlaceholder({ kind, t }: { kind: "images" | "videos"; t:
   );
 }
 
-export function Media({ useMediaHook = useMedia }: MediaProps = {}) {
+export function Media({ useMediaHook = useWiredMedia }: MediaProps = {}) {
   const {
     media,
     error,
