@@ -74,11 +74,12 @@ function validPackageEntries(): AgentPluginArchiveEntry[] {
 
 async function freshLayout() {
   const cwd = await mkdtemp(path.join(tmpdir(), "tovu-agent-plugin-install-test-"));
-  return { cwd, layout: resolveAgentPluginLayout({ cwd, env: {} }).forWorkspace(WORKSPACE_ID) };
+  const instanceLayout = resolveAgentPluginLayout({ cwd, env: {} });
+  return { cwd, instanceLayout, layout: instanceLayout.forWorkspace(WORKSPACE_ID) };
 }
 
 test("installs a valid package and indexes its skills", async () => {
-  const { cwd, layout } = await freshLayout();
+  const { cwd, instanceLayout, layout } = await freshLayout();
   try {
     const entries = validPackageEntries();
     const archive = new Uint8Array(Buffer.from("archive-bytes-1"));
@@ -88,7 +89,8 @@ test("installs a valid package and indexes its skills", async () => {
       archive,
       expectedSha256: digest,
       archiveReader: reader(entries),
-      layout,
+      layout: instanceLayout,
+      workspaceId: WORKSPACE_ID,
     });
 
     assert.equal(installed.pluginId, "ui-ux-design");
@@ -104,7 +106,7 @@ test("installs a valid package and indexes its skills", async () => {
 });
 
 test("a symlink ENTRY is rejected outright, and no package is published", async () => {
-  const { cwd, layout } = await freshLayout();
+  const { cwd, instanceLayout, layout } = await freshLayout();
   try {
     const archive = new Uint8Array(Buffer.from("archive-bytes-symlink"));
     const digest = createHash("sha256").update(archive).digest("hex");
@@ -118,7 +120,8 @@ test("a symlink ENTRY is rejected outright, and no package is published", async 
             { kind: "symlink", entryPath: "skills", linkTarget: "/etc" } as AgentPluginArchiveEntry,
             fileEntry("skills/a/SKILL.md", "# A"),
           ]),
-          layout,
+          layout: instanceLayout,
+          workspaceId: WORKSPACE_ID,
         }),
       (error: unknown) => error instanceof AgentPluginInstallError && error.code === "SYMLINK_ENTRY_REJECTED",
     );
@@ -131,7 +134,7 @@ test("a symlink ENTRY is rejected outright, and no package is published", async 
 });
 
 test("a lexical zip-slip path ('../../..') is rejected", async () => {
-  const { cwd, layout } = await freshLayout();
+  const { cwd, instanceLayout, layout } = await freshLayout();
   try {
     const archive = new Uint8Array(Buffer.from("archive-bytes-traversal"));
     const digest = createHash("sha256").update(archive).digest("hex");
@@ -142,7 +145,8 @@ test("a lexical zip-slip path ('../../..') is rejected", async () => {
           archive,
           expectedSha256: digest,
           archiveReader: reader([fileEntry("../../../outside.txt", "leaked")]),
-          layout,
+          layout: instanceLayout,
+          workspaceId: WORKSPACE_ID,
         }),
       (error: unknown) => error instanceof AgentPluginInstallError && error.code === "UNSAFE_ENTRY_PATH",
     );
@@ -154,7 +158,7 @@ test("a lexical zip-slip path ('../../..') is rejected", async () => {
 });
 
 test("a duplicate archive entry path is rejected (never silently overwritten)", async () => {
-  const { cwd, layout } = await freshLayout();
+  const { cwd, instanceLayout, layout } = await freshLayout();
   try {
     const archive = new Uint8Array(Buffer.from("archive-bytes-duplicate"));
     const digest = createHash("sha256").update(archive).digest("hex");
@@ -165,7 +169,8 @@ test("a duplicate archive entry path is rejected (never silently overwritten)", 
           archive,
           expectedSha256: digest,
           archiveReader: reader([fileEntry("plugin.json", VALID_MANIFEST), fileEntry("plugin.json", "{}")]),
-          layout,
+          layout: instanceLayout,
+          workspaceId: WORKSPACE_ID,
         }),
       (error: unknown) => error instanceof AgentPluginInstallError && error.code === "DUPLICATE_ENTRY",
     );
@@ -175,7 +180,7 @@ test("a duplicate archive entry path is rejected (never silently overwritten)", 
 });
 
 test("a file exceeding the declared per-file size cap is rejected", async () => {
-  const { cwd, layout } = await freshLayout();
+  const { cwd, instanceLayout, layout } = await freshLayout();
   try {
     const archive = new Uint8Array(Buffer.from("archive-bytes-oversized-declared"));
     const digest = createHash("sha256").update(archive).digest("hex");
@@ -189,7 +194,8 @@ test("a file exceeding the declared per-file size cap is rejected", async () => 
             fileEntry("plugin.json", VALID_MANIFEST),
             fileEntry("skills/a/SKILL.md", "x", { declaredSize: 999_999_999 } as Partial<AgentPluginArchiveEntry>),
           ]),
-          layout,
+          layout: instanceLayout,
+          workspaceId: WORKSPACE_ID,
         }),
       (error: unknown) => error instanceof AgentPluginInstallError && error.code === "FILE_TOO_LARGE",
     );
@@ -199,7 +205,7 @@ test("a file exceeding the declared per-file size cap is rejected", async () => 
 });
 
 test("a decompression bomb (actual bytes exceed the declared size) is caught while streaming, not after", async () => {
-  const { cwd, layout } = await freshLayout();
+  const { cwd, instanceLayout, layout } = await freshLayout();
   try {
     const archive = new Uint8Array(Buffer.from("archive-bytes-bomb"));
     const digest = createHash("sha256").update(archive).digest("hex");
@@ -224,7 +230,8 @@ test("a decompression bomb (actual bytes exceed the declared size) is caught whi
           archive,
           expectedSha256: digest,
           archiveReader: reader([fileEntry("plugin.json", VALID_MANIFEST), bomb]),
-          layout,
+          layout: instanceLayout,
+          workspaceId: WORKSPACE_ID,
         }),
       (error: unknown) => error instanceof AgentPluginInstallError && error.code === "DECOMPRESSION_BOMB",
     );
@@ -234,7 +241,7 @@ test("a decompression bomb (actual bytes exceed the declared size) is caught whi
 });
 
 test("the total-extracted-bytes cap is enforced across many small files (the 'many files' bomb variant)", async () => {
-  const { cwd, layout } = await freshLayout();
+  const { cwd, instanceLayout, layout } = await freshLayout();
   try {
     const archive = new Uint8Array(Buffer.from("archive-bytes-many-files"));
     const digest = createHash("sha256").update(archive).digest("hex");
@@ -249,7 +256,8 @@ test("the total-extracted-bytes cap is enforced across many small files (the 'ma
           archive,
           expectedSha256: digest,
           archiveReader: reader(manyEntries),
-          layout,
+          layout: instanceLayout,
+          workspaceId: WORKSPACE_ID,
         }),
       (error: unknown) => error instanceof AgentPluginInstallError && error.code === "TOTAL_SIZE_EXCEEDED",
     );
@@ -259,7 +267,7 @@ test("the total-extracted-bytes cap is enforced across many small files (the 'ma
 });
 
 test("the entry-count cap is enforced", async () => {
-  const { cwd, layout } = await freshLayout();
+  const { cwd, instanceLayout, layout } = await freshLayout();
   try {
     const archive = new Uint8Array(Buffer.from("archive-bytes-many-entries"));
     const digest = createHash("sha256").update(archive).digest("hex");
@@ -273,7 +281,8 @@ test("the entry-count cap is enforced", async () => {
           archive,
           expectedSha256: digest,
           archiveReader: reader(manyEntries),
-          layout,
+          layout: instanceLayout,
+          workspaceId: WORKSPACE_ID,
         }),
       (error: unknown) => error instanceof AgentPluginInstallError && error.code === "TOO_MANY_ENTRIES",
     );
@@ -283,7 +292,7 @@ test("the entry-count cap is enforced", async () => {
 });
 
 test("a SHA-256 digest mismatch is rejected before any extraction is attempted", async () => {
-  const { cwd, layout } = await freshLayout();
+  const { cwd, instanceLayout, layout } = await freshLayout();
   let extractionAttempted = false;
   try {
     const archive = new Uint8Array(Buffer.from("archive-bytes-digest-mismatch"));
@@ -297,7 +306,14 @@ test("a SHA-256 digest mismatch is rejected before any extraction is attempted",
     };
 
     await assert.rejects(
-      () => installAgentPlugin({ archive, expectedSha256: wrongDigest, archiveReader: spyReader, layout }),
+      () =>
+        installAgentPlugin({
+          archive,
+          expectedSha256: wrongDigest,
+          archiveReader: spyReader,
+          layout: instanceLayout,
+          workspaceId: WORKSPACE_ID,
+        }),
       (error: unknown) => error instanceof AgentPluginInstallError && error.code === "DIGEST_MISMATCH",
     );
     assert.equal(extractionAttempted, false, "extraction must never run against unverified bytes");
@@ -307,7 +323,7 @@ test("a SHA-256 digest mismatch is rejected before any extraction is attempted",
 });
 
 test("installing the identical archive twice extracts only once (content-addressed dedup)", async () => {
-  const { cwd, layout } = await freshLayout();
+  const { cwd, instanceLayout, layout } = await freshLayout();
   try {
     const archive = new Uint8Array(Buffer.from("archive-bytes-dedup"));
     const digest = createHash("sha256").update(archive).digest("hex");
@@ -320,8 +336,20 @@ test("installing the identical archive twice extracts only once (content-address
       },
     };
 
-    const first = await installAgentPlugin({ archive, expectedSha256: digest, archiveReader: countingReader, layout });
-    const second = await installAgentPlugin({ archive, expectedSha256: digest, archiveReader: countingReader, layout });
+    const first = await installAgentPlugin({
+      archive,
+      expectedSha256: digest,
+      archiveReader: countingReader,
+      layout: instanceLayout,
+      workspaceId: WORKSPACE_ID,
+    });
+    const second = await installAgentPlugin({
+      archive,
+      expectedSha256: digest,
+      archiveReader: countingReader,
+      layout: instanceLayout,
+      workspaceId: WORKSPACE_ID,
+    });
 
     assert.equal(extractCount, 1, "the second install of byte-identical content must not re-extract");
     assert.equal(first.packageRoot, second.packageRoot);
@@ -331,7 +359,7 @@ test("installing the identical archive twice extracts only once (content-address
 });
 
 test("a missing plugin.json is rejected", async () => {
-  const { cwd, layout } = await freshLayout();
+  const { cwd, instanceLayout, layout } = await freshLayout();
   try {
     const archive = new Uint8Array(Buffer.from("archive-bytes-no-manifest"));
     const digest = createHash("sha256").update(archive).digest("hex");
@@ -342,7 +370,8 @@ test("a missing plugin.json is rejected", async () => {
           archive,
           expectedSha256: digest,
           archiveReader: reader([fileEntry("skills/a/SKILL.md", "# A")]),
-          layout,
+          layout: instanceLayout,
+          workspaceId: WORKSPACE_ID,
         }),
       (error: unknown) => error instanceof AgentPluginInstallError && error.code === "MANIFEST_MISSING",
     );
@@ -352,7 +381,7 @@ test("a missing plugin.json is rejected", async () => {
 });
 
 test("a manifest that fails Agent Plugins grammar validation is rejected", async () => {
-  const { cwd, layout } = await freshLayout();
+  const { cwd, instanceLayout, layout } = await freshLayout();
   try {
     const archive = new Uint8Array(Buffer.from("archive-bytes-bad-manifest"));
     const digest = createHash("sha256").update(archive).digest("hex");
@@ -363,7 +392,8 @@ test("a manifest that fails Agent Plugins grammar validation is rejected", async
           archive,
           expectedSha256: digest,
           archiveReader: reader([fileEntry("plugin.json", JSON.stringify({ name: "Not Valid!" }))]),
-          layout,
+          layout: instanceLayout,
+          workspaceId: WORKSPACE_ID,
         }),
       (error: unknown) => error instanceof AgentPluginInstallError && error.code === "MANIFEST_INVALID",
     );
@@ -373,7 +403,7 @@ test("a manifest that fails Agent Plugins grammar validation is rejected", async
 });
 
 test("a published package root is frozen read-only", async () => {
-  const { cwd, layout } = await freshLayout();
+  const { cwd, instanceLayout, layout } = await freshLayout();
   try {
     const archive = new Uint8Array(Buffer.from("archive-bytes-freeze"));
     const digest = createHash("sha256").update(archive).digest("hex");
@@ -382,7 +412,8 @@ test("a published package root is frozen read-only", async () => {
       archive,
       expectedSha256: digest,
       archiveReader: reader(validPackageEntries()),
-      layout,
+      layout: instanceLayout,
+      workspaceId: WORKSPACE_ID,
     });
 
     const rootMode = (await stat(installed.packageRoot)).mode & 0o777;
@@ -410,8 +441,14 @@ test("TENANT-GRADE: two workspaces installing the identical archive extract INDE
       },
     };
 
-    const installedA = await installAgentPlugin({ archive, expectedSha256: digest, archiveReader: countingReader, layout: workspaceA });
-    const installedB = await installAgentPlugin({ archive, expectedSha256: digest, archiveReader: countingReader, layout: workspaceB });
+    const idA = "11111111-1111-4111-8111-111111111111";
+    const idB = "22222222-2222-4222-8222-222222222222";
+    // Both installs share the SAME `instanceLayout` object -- only `workspaceId` differs -- proving
+    // disjointness comes from `installAgentPlugin`'s own internal `forWorkspace()` call, not from the
+    // caller resolving two separate layout values (which is what `workspaceA`/`workspaceB` below are
+    // now used for: independent expectations to assert against, not inputs fed back into the call).
+    const installedA = await installAgentPlugin({ archive, expectedSha256: digest, archiveReader: countingReader, layout: instanceLayout, workspaceId: idA });
+    const installedB = await installAgentPlugin({ archive, expectedSha256: digest, archiveReader: countingReader, layout: instanceLayout, workspaceId: idB });
 
     // The tenancy property itself: byte-identical content installed by two DIFFERENT workspaces
     // is extracted TWICE, into two entirely disjoint package roots -- the opposite of
@@ -431,18 +468,44 @@ test("TENANT-GRADE: two workspaces installing the identical archive extract INDE
 });
 
 // ---------------------------------------------------------------------------
-// RED, security pass 2026-08-13 (ADS-memory/reports/security/2026-08-13-post-session-security-pass.md,
-// Finding 2 -- fix follows in the next commit). The tenant-isolation guarantee above holds only when
-// every caller derives `layout` via `instanceLayout.forWorkspace(workspaceId)` and never mixes the
-// results of two different calls. `AgentPluginWorkspaceLayout` (layout.ts) is a plain interface of
-// four string/function fields with no `workspaceId` tag and no back-reference to the instance root it
-// came from -- `installAgentPlugin` never re-derives or re-validates `layout` against any expected
-// workspace. The two tests below describe the INTENDED, post-fix contract -- `installAgentPlugin`
-// taking the instance-level `AgentPluginLayout` plus a `workspaceId` instead of a pre-resolved
-// workspace layout -- and are RED against `install.ts` as it stands in this commit: `installAgentPlugin`
-// does not accept a `workspaceId` field yet, and a hand-stitched/rogue layout object still
-// type-checks and is honored uncritically. See the follow-up fix commit for `install.ts`'s change and
-// this section's own updated header once it lands.
+// CLOSED, security pass 2026-08-13 (ADS-memory/reports/security/2026-08-13-post-session-security-pass.md,
+// Finding 2 -- fixed same day). The tenant-isolation guarantee above used to hold only when every
+// caller derived `layout` via `instanceLayout.forWorkspace(workspaceId)` and never mixed the results
+// of two different calls. `AgentPluginWorkspaceLayout` (layout.ts) was a plain interface of four
+// string/function fields with no `workspaceId` tag and no back-reference to the instance root it came
+// from -- `installAgentPlugin` never re-derived or re-validated `layout` against any expected
+// workspace. The two tests below USED TO prove that gap (a hand-stitched layout mixing two real
+// workspaces' own directories; a layout never derived from `forWorkspace` at all) -- both installed
+// with no error, into the wrong tree, exactly as the original PROVEN GAP test names below still say
+// in this section's git history.
+//
+// THE FIX (`install.ts`): `installAgentPlugin` no longer accepts a pre-resolved
+// `AgentPluginWorkspaceLayout` as an input at all. It takes the INSTANCE-level `AgentPluginLayout`
+// plus one `workspaceId` string, and calls `layout.forWorkspace(workspaceId)` itself, exactly once,
+// internally -- there is no longer any workspace-shaped parameter here for a caller to stitch
+// together. The two tests below are DELIBERATELY REWRITTEN, not deleted or silently renamed, to prove
+// the hole is closed rather than merely retired: each keeps the IDENTICAL hostile object literal from
+// the original exploit (so this is still evidence against the same attack, not a weaker substitute),
+// and proves it now fails two independent ways:
+//   1. Honest TypeScript usage cannot even construct the call anymore -- verified with
+//      `@ts-expect-error` on a synchronous, side-effect-free type check (never calls
+//      `installAgentPlugin`, so there is no runtime behavior riding on this half of the proof; this is
+//      confirmed for real by `npx tsc --noEmit`, not merely asserted by a comment).
+//   2. Even a caller who defeats the type system with an explicit cast (the realistic worst case:
+//      transpiled/loosely-typed JS, or a deliberate `as unknown as`) gets a hard runtime `TypeError`
+//      instead of silent cross-workspace publication, because the hostile object has no
+//      `forWorkspace` method for `installAgentPlugin`'s first line to call -- this is what actually
+//      protects a workspace's data if the type system is bypassed, not merely "the honest path is
+//      inconvenient."
+//
+// Explicitly NOT claimed closed: a caller could still hand `installAgentPlugin` a fully-fabricated
+// `AgentPluginLayout` whose OWN `forWorkspace` implementation is malicious (returns mismatched paths
+// on purpose). That is no longer "stitching two real, already-resolved values together" (the
+// demonstrated bug class this fix targets -- wrong variable capture, a stale cached layout,
+// hand-assembly for convenience) but "reimplementing the trusted resolver itself," a materially more
+// deliberate act -- the same residual trust every caller-supplied port in this module already carries
+// (`archiveReader` is equally free to lie about archive contents). Recorded here rather than silently
+// assumed away.
 // ---------------------------------------------------------------------------
 
 test("CLOSED: a layout literal stitching workspace A's `packages` onto workspace B's `staging` is now a compile-time type error, and a cast-bypassed call fails at runtime instead of publishing into the wrong tree", async () => {
