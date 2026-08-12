@@ -12,7 +12,7 @@ import { createLowlight, common } from "lowlight";
 import Youtube from "@tiptap/extension-youtube";
 import Mention from "@tiptap/extension-mention";
 import FileHandler from "@tiptap/extension-file-handler";
-import { Placeholder, CharacterCount, Focus } from "@tiptap/extensions";
+import { Placeholder, CharacterCount } from "@tiptap/extensions";
 import InvisibleCharacters from "@tiptap/extension-invisible-characters";
 import { Table, TableRow, TableCell, TableHeader } from "@tiptap/extension-table";
 import { TaskList, TaskItem } from "@tiptap/extension-list";
@@ -399,14 +399,12 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
       // rule (2026-08-11) targets them directly.
       Placeholder.configure({ placeholder: "Start writing…" }),
       CharacterCount,
-      // Focus (2026-08-12, B2 low-priority free extra — confirmed MIT, bundled in `@tiptap/extensions`
-      // itself, no new package install needed) — editor-only chrome, same "no doc vocabulary, no
-      // render.ts case" reasoning Placeholder/CharacterCount already state: it adds/removes a plain
-      // `class="has-focus"` ProseMirror DECORATION on whichever block the cursor is currently inside,
-      // never written to `bodyJson`. Default `className`/`mode` kept (no `.configure()` call) — see
-      // `styles.css`'s own `.editor-body .has-focus` rule for the actual visual treatment; the
-      // extension itself ships with none.
-      Focus,
+      // Focus: REMOVED 2026-08-12, the same day it was added as a "low-priority free extra". Its
+      // `.has-focus` decoration rendered a left rule on the focused block; the owner saw it live and
+      // asked what the black lines were for, which answers whether the affordance was wanted. The
+      // caret already marks the focused block. Registering it without the CSS would leave a class
+      // toggling in the DOM with no effect — the same dead-weight argument that got UniqueID and
+      // TableOfContents dropped in that same pass — so the extension goes with the rule.
       // InvisibleCharacters (2026-08-12, B2 — confirmed MIT) — same editor-only-chrome, no-doc-
       // vocabulary shape as Focus just above (a DECORATION showing a middle-dot for spaces/a pilcrow
       // for paragraph breaks, never written to `bodyJson`). `visible: false` overrides the
