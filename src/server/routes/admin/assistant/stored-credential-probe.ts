@@ -1,4 +1,4 @@
-import { resolveSiteAssistantApiKey } from "#src/assistant/site-credential-store";
+import { resolveSiteAssistantApiKey } from "#src/assistant/index";
 import type { AssistantExecutionRouteDeps } from "./execution-deps";
 
 /**

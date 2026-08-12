@@ -1,5 +1,4 @@
-import { ADMIN_ASSISTANT_PERMISSION } from "#src/assistant/public-assistant-settings";
-import { deleteSiteAssistantCredential } from "#src/assistant/site-credential-store";
+import { ADMIN_ASSISTANT_PERMISSION, deleteSiteAssistantCredential } from "#src/assistant/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { AssistantSettingsRouteRegistrar } from "./deps";
 

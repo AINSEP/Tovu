@@ -1,4 +1,4 @@
-import { deleteExternalMcpServer } from "#src/assistant/external-mcp-store";
+import { deleteExternalMcpServer } from "#src/assistant/index";
 import type { ExternalMcpRouteRegistrar } from "./deps";
 import { guardExternalMcpRequest } from "./guard";
 

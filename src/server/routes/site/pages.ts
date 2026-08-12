@@ -4,7 +4,7 @@ import type { JsonObject } from "@jini-ai/cms/core";
 import type { PostRecord } from "#src/features/post/index";
 import { getPresentationSettings } from "#src/features/presentation/index";
 import { getPublishedPostBySlug, findPublishedPostById, listPublishedPosts, PostNotFoundError } from "#src/features/post/index";
-import { isPublicAssistantEnabled } from "#src/assistant/public-assistant-settings";
+import { isPublicAssistantEnabled } from "#src/assistant/index";
 import {
   findTheme,
   renderStaticPage,

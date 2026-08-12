@@ -2,7 +2,7 @@ import {
   ADMIN_ASSISTANT_PERMISSION,
   PublicAssistantSettingsValidationError,
   setPublicAssistantSettings,
-} from "#src/assistant/public-assistant-settings";
+} from "#src/assistant/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { AssistantSettingsRouteRegistrar } from "./deps";
 

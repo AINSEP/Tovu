@@ -2,7 +2,7 @@ import {
   ExternalMcpSecretStoreUnconfiguredError,
   ExternalMcpValidationError,
   saveExternalMcpServer,
-} from "#src/assistant/external-mcp-store";
+} from "#src/assistant/index";
 import type { ExternalMcpRouteRegistrar } from "./deps";
 import { guardExternalMcpRequest } from "./guard";
 

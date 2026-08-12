@@ -4,8 +4,8 @@ import {
   parseAllowedToolNames,
   positiveIntOrDefault,
   type ResolvedFederatedConnection,
-} from "#src/assistant/mcp-federation/config";
-import { registerFederatedMcpPreset } from "#src/assistant/mcp-federation/presets";
+  registerFederatedMcpPreset,
+} from "#src/assistant/index";
 
 /**
  * @file The Supabase MCP preset — a Tier-2 first-party module (ADR-024), built the same way as

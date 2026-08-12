@@ -1,4 +1,4 @@
-import { deleteExecutionCredential } from "#src/assistant/execution-credential-store";
+import { deleteExecutionCredential } from "#src/assistant/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { AssistantSettingsRouteRegistrar } from "./deps";
 
