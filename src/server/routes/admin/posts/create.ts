@@ -66,7 +66,7 @@ export const registerAdminPostCreateRoute: ContentRouteRegistrar = (app, deps) =
             captureInverse: async () => null,
             execute: () =>
               createPost({
-                deps: { repo: deps.postRepo, clock: deps.clock },
+                deps: { repo: deps.postRepo, clock: deps.clock, beforeSaveHook: deps.pluginBeforeSaveHook },
                 input: {
                   workspaceId: deps.workspaceId,
                   id: postId,

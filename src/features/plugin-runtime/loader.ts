@@ -45,10 +45,11 @@ import path from "node:path";
 
 import * as semver from "semver";
 
+import { buildCapabilityScopedSdk, type CapabilityScopedSdkCoreDeps } from "./capability-sdk";
 import type { PluginDiscoveryRecord } from "./discovery";
 import type { AttachmentSource, HookRegistry, HookRegistryFieldDecl } from "./hook-registry";
 import type { PluginManifest } from "./manifest";
-import type { BeforeSaveFilter } from "../../../packages/sdk/src/index";
+import type { BeforeSaveFilter, Plugin } from "../../../packages/sdk/src/index";
 
 /**
  * The runtime's own installed `@tovu/sdk` version, used for the sdkRange check (step 2) when a
@@ -81,6 +82,10 @@ export interface LoadPluginRequired {
   /** Absolute filesystem path (or, for a built-in, an in-process module identifier) to the
    * plugin's entry point — the exact thing step (3) `import()`s. */
   readonly entryPath: string;
+  /** Per-load core handles composed by the application root. `loadPlugin()` owns the imported
+   * module and therefore owns building the capability-scoped SDK passed to its `setup()` call;
+   * the root owns what each granted handle actually delegates to. */
+  readonly coreDeps: CapabilityScopedSdkCoreDeps;
 }
 
 export interface LoadPluginOptional {
@@ -95,9 +100,47 @@ export interface LoadPluginOptional {
   readonly computeFileHash?: (absoluteFilePath: string) => Promise<string>;
 }
 
+export type PluginLoadFailureReason =
+  | "INTEGRITY_FAILED"
+  | "SDK_RANGE_UNSATISFIED"
+  | "CODE_ENTRY_MISSING"
+  | "PLUGIN_EXPORT_INVALID"
+  | "PLUGIN_SETUP_FAILED";
+
+export type PluginEnableFailureReason = PluginLoadFailureReason | "PLUGIN_HOOK_NOT_ATTACHED" | "PLUGIN_HOOK_ATTACH_FAILED";
+
+/** Raised by the composition root after converting `loadPlugin()`'s expected early-return result
+ * into the enable path's error channel. HTTP maps this to `PLUGIN_LOAD_FAILED`; agent tools receive
+ * the same typed error directly. */
+export class PluginLoadError extends Error {
+  readonly pluginId: string;
+  readonly reason: PluginEnableFailureReason;
+
+  constructor(pluginId: string, reason: PluginEnableFailureReason, options?: { cause?: unknown }) {
+    super(`plugin '${pluginId}' failed to load (${reason})`, options);
+    this.name = "PluginLoadError";
+    this.pluginId = pluginId;
+    this.reason = reason;
+  }
+}
+
 export type LoadPluginResult =
   | { readonly loaded: true }
-  | { readonly loaded: false; readonly reason: "INTEGRITY_FAILED" | "SDK_RANGE_UNSATISFIED" | "CODE_ENTRY_MISSING" };
+  | {
+      readonly loaded: false;
+      readonly reason: PluginLoadFailureReason;
+    };
+
+/** `definePlugin()`'s runtime return shape. A plain `{ setup() {} }` export is deliberately not
+ * accepted: only the SDK helper's opaque `{ definition }` wrapper is a valid plugin ABI value. */
+function readDefinedPlugin(moduleValue: unknown): Plugin | null {
+  if (typeof moduleValue !== "object" || moduleValue === null) return null;
+  const candidate = (moduleValue as { default?: unknown }).default;
+  if (typeof candidate !== "object" || candidate === null) return null;
+  const definition = (candidate as { definition?: unknown }).definition;
+  if (typeof definition !== "object" || definition === null) return null;
+  return typeof (definition as { setup?: unknown }).setup === "function" ? (candidate as Plugin) : null;
+}
 
 /**
  * Executes BR-01's 5-step ordered pipeline for one plugin. See CIC U-001 above for the binding
@@ -114,7 +157,7 @@ export async function loadPlugin(
   required: LoadPluginRequired,
   _optional: LoadPluginOptional = {}
 ): Promise<LoadPluginResult> {
-  const { manifest, entryPath } = required;
+  const { record, manifest, entryPath, coreDeps } = required;
   const importModule = _optional.importModule ?? ((p: string) => import(p));
   const computeFileHash = _optional.computeFileHash ?? defaultComputeFileHash;
   const runtimeSdkVersion = _optional.runtimeSdkVersion ?? DEFAULT_RUNTIME_SDK_VERSION;
@@ -139,23 +182,34 @@ export async function loadPlugin(
   }
 
   // --- Step (3): only now, after both prior checks pass, is the plugin's code ever evaluated. ---
+  let importedModule: unknown;
   try {
-    await importModule(entryPath);
+    importedModule = await importModule(entryPath);
   } catch {
     return { loaded: false, reason: "CODE_ENTRY_MISSING" };
   }
 
-  // Steps (4)-(5) (invoke `definePlugin`'s `setup()` with a capability-scoped SDK, then attach its
-  // declared hooks via `hook-registry.ts`) are still NOT called from inside this function: they
-  // need a live hook-registry instance and per-load core deps (workspaceId, the "current entry"
-  // accessor) that this function's certified signature has no parameter for, and `loadPlugin()`'s
-  // own statement order is unchanged by ADR-057 (Site Glue is additive, not a rewrite of this
-  // function). What DID change (ADR-057 Decision 2.1): step (5)'s attach half — previously dead,
-  // documented-but-never-called code (`hook-registry.ts`'s own doc comment falsely claimed a
-  // caller existed; verified false, see that file's corrected header) — is now `attachLoadedPlugin`
-  // below, a real, callable, shared extraction. A future caller (this function's own eventual fix,
-  // or any other loader) supplies the filter obtained from step (4)'s `setup()` call and gets a
-  // tested, single attach path instead of reinventing `hookRegistry.attach()` wiring per caller.
+  // --- Step (4): validate the `definePlugin()` export, build the per-load gated SDK, run setup. ---
+  const plugin = readDefinedPlugin(importedModule);
+  if (!plugin) {
+    return { loaded: false, reason: "PLUGIN_EXPORT_INVALID" };
+  }
+
+  const sdk = buildCapabilityScopedSdk({
+    pluginId: record.id,
+    capabilities: manifest.capabilities as readonly import("./manifest").PluginCapability[],
+    coreDeps,
+  });
+  try {
+    await plugin.definition.setup(sdk);
+  } catch {
+    return { loaded: false, reason: "PLUGIN_SETUP_FAILED" };
+  }
+
+  // Step (5) remains composition-owned: setup's gated `addFilter()` handle captures the filter in
+  // the caller's `coreDeps`; only after this successful return does the root call the shared
+  // `attachLoadedPlugin()` path below. That split prevents a late setup failure from leaving a
+  // partially-attached filter behind.
   return { loaded: true };
 }
 

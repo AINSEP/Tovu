@@ -101,7 +101,12 @@ export const registerAdminPageUpdateRoute: ContentRouteRegistrar = (app, deps) =
             },
             execute: () =>
               updatePost({
-                deps: { repo: deps.postRepo, clock: deps.clock, outbox: deps.outbox },
+                deps: {
+                  repo: deps.postRepo,
+                  clock: deps.clock,
+                  outbox: deps.outbox,
+                  beforeSaveHook: deps.pluginBeforeSaveHook,
+                },
                 input: {
                   workspaceId: deps.workspaceId,
                   id: pageId,

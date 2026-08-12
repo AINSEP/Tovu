@@ -6,6 +6,7 @@ import {
   setPluginEnabled,
   type PluginActivationRecord,
 } from "#src/features/plugin-runtime/activation";
+import { PluginLoadError } from "#src/features/plugin-runtime/loader";
 import { toAdminPluginResponse } from "#src/server/http/admin/plugins";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { PluginsRouteRegistrar } from "./deps";
@@ -78,11 +79,26 @@ export const registerPluginSetEnabledRoute: PluginsRouteRegistrar = (app, deps) 
           },
           execute: () =>
             setPluginEnabled({
-              deps: { clock: deps.clock, repo: deps.pluginActivationRepo, discovery },
+              deps: {
+                clock: deps.clock,
+                repo: deps.pluginActivationRepo,
+                discovery,
+                onEnabled: deps.onPluginEnabled,
+                onDisabled: deps.onPluginDisabled,
+              },
               input: { workspaceId: deps.workspaceId, pluginId, enabled },
             }),
           rollback: async () => {
-            if (priorActivation) await deps.pluginActivationRepo.save(priorActivation);
+            if (priorActivation) {
+              await deps.pluginActivationRepo.save(priorActivation);
+            } else {
+              await deps.pluginActivationRepo.deleteActivation({ workspaceId: deps.workspaceId, pluginId });
+            }
+            if (priorActivation?.enabled) {
+              await deps.onPluginEnabled(pluginId);
+            } else {
+              deps.onPluginDisabled(pluginId);
+            }
           },
         },
       });
@@ -119,6 +135,15 @@ export const registerPluginSetEnabledRoute: PluginsRouteRegistrar = (app, deps) 
 
       if (err instanceof PluginInvalidError) {
         res.status(422).json({ error: err.message, code: "PLUGIN_INVALID" });
+        return;
+      }
+
+      if (err instanceof PluginLoadError) {
+        res.status(500).json({
+          error: err.message,
+          code: "PLUGIN_LOAD_FAILED",
+          details: { pluginId: err.pluginId, reason: err.reason },
+        });
         return;
       }
 

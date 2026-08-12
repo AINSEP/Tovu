@@ -98,9 +98,9 @@ import { SqliteContentTypeRepo } from "../features/content-types/repo.sqlite";
 import { SqliteEntryRepo } from "../features/entries/repo.sqlite";
 import { SqliteWidgetRegionBindingRepo } from "../widgets/repo.sqlite";
 import { SqliteEntryRefsRepo } from "../core/entry-refs/repo.sqlite";
-import { discoverPlugins as discoverPluginRuntimePlugins } from "../features/plugin-runtime/discovery";
 import { SqlitePluginActivationRepo } from "../features/plugin-runtime/repo.sqlite";
-import { WORD_COUNT_BUILT_IN } from "../features/plugin-runtime/built-ins/word-count";
+import { WORD_COUNT_RUNTIME_SOURCE } from "../features/plugin-runtime/built-ins/word-count";
+import { composePluginRuntime } from "./plugin-runtime";
 import { wireCoreResolvers } from "../widgets/resolvers/index";
 import { createNavMenuReadModel } from "../navigation";
 import { createCommentsModule, ensureCommentsSettingDefinitions } from "../comments";
@@ -248,6 +248,13 @@ export function createSqliteRouteDeps(
   backfillPostSearchIndex(db.$client);
   const clock = { nowIso: () => new Date().toISOString() };
   const idGen = { newId: () => randomUUID() };
+  const pluginActivationRepo = new SqlitePluginActivationRepo(db);
+  const pluginRuntime = composePluginRuntime({
+    workspaceId,
+    clock,
+    activationRepo: pluginActivationRepo,
+    sources: [WORD_COUNT_RUNTIME_SOURCE],
+  });
   // SQLite-backed identity (principals/users/sessions/roles/policies persist in content.db) so a
   // login survives a `tsx watch` restart instead of being silently wiped every file save.
   const identity = createSqliteIdentityRouteDeps({ db, workspaceId, clock, idGen });
@@ -750,12 +757,14 @@ export function createSqliteRouteDeps(
     commentsSettingsReady,
     widgetBindingRepo,
     entryRefsRepo,
-    // SPEC-005 (ADR-005-ARCH) — real SQLite activation repo (mirrors `presentationRepo`'s adapter
-    // choice). `word-count` is now discoverable (list/enable/disable testable end-to-end) — see
-    // `server/app.ts`'s identical note: its *hook execution* (loader.ts steps 4-5) is still a
-    // separate, later, gated phase that has not landed.
-    pluginActivationRepo: new SqlitePluginActivationRepo(db),
-    discoverPlugins: () => discoverPluginRuntimePlugins({ builtIns: [WORD_COUNT_BUILT_IN] }),
+    // SPEC-005 BR-01/BR-05 — one process-lifetime runtime instance shared by activation and every
+    // content save. The root owns concrete adapters; `plugin-runtime.ts` owns capability-handle
+    // composition and the load/setup/attach sequence.
+    pluginActivationRepo,
+    discoverPlugins: pluginRuntime.discoverPlugins,
+    onPluginEnabled: pluginRuntime.onPluginEnabled,
+    onPluginDisabled: pluginRuntime.onPluginDisabled,
+    pluginBeforeSaveHook: pluginRuntime.beforeSaveHook,
   };
 }
 

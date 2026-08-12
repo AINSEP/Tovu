@@ -19,13 +19,14 @@
  */
 import type { BuiltInPluginSource } from "../../discovery";
 import type { PluginManifest } from "../../manifest";
+import { definePlugin, HOOK_CONTENT_ENTRY_BEFORE_SAVE } from "../../../../../packages/sdk/src/index";
 
 /** The built-in's in-code manifest-equivalent (ADR Decision item 4). */
 export const WORD_COUNT_MANIFEST: PluginManifest = {
   id: "word-count",
   name: "Word Count",
   version: "1.0.0",
-  sdkRange: "^1.0.0",
+  sdkRange: "^0.1.0",
   engine: 1,
   tier: "tier-3", // v1's in-process ESM loader is exactly ADR-024's Tier-3 (feature.spec.md REQ-01 revision note).
   capabilities: ["content.read", "content.extend", "hooks.attach"],
@@ -75,3 +76,22 @@ export function countWords(bodyJson: unknown): number {
   if (joined === "") return 0;
   return joined.split(/\s+/).filter((token) => token !== "").length;
 }
+
+/** The executable half of the bundled artifact. Registration occurs only inside `setup()` so the
+ * end-to-end enable test proves `loadPlugin()` reached BR-01 step (4), not merely that the module
+ * happened to be statically imported by the server bundle. */
+export const WORD_COUNT_PLUGIN = definePlugin({
+  setup(sdk) {
+    sdk.addFilter(HOOK_CONTENT_ENTRY_BEFORE_SAVE, async (entry) => ({ count: countWords(entry.bodyJson) }));
+  },
+});
+
+/** Load metadata consumed by the server composition root. The built-in has no on-disk artifact,
+ * so its dynamic-import seam returns the already-bundled module namespace after the loader's
+ * integrity/sdkRange gates have run. */
+export const WORD_COUNT_RUNTIME_SOURCE = {
+  manifest: WORD_COUNT_MANIFEST,
+  source: "built-in" as const,
+  entryPath: "built-in:word-count",
+  importModule: async () => ({ default: WORD_COUNT_PLUGIN }),
+};
