@@ -3,7 +3,8 @@ import { useEffect, useState } from "react";
 import { ApiError, describeApiError, type AdminWidgetArea, type AdminWidgetPlacement } from "../../../lib/api";
 import { buildDraftPlacement, movePlacement } from "../rules";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
-import { t } from "../widgets-i18n";
+import { WIDGETS_DICT, t as translate } from "../widgets-i18n";
+import type { Translate } from "../../../lib/dictionary-translator";
 import { defaultWidgetRegionsPort } from "./widget-regions-dependencies.hooks";
 import type { WidgetRegionsPort } from "./widget-regions-port.hooks";
 
@@ -18,20 +19,27 @@ import type { WidgetRegionsPort } from "./widget-regions-port.hooks";
  * `deps.port`/`deps.locale` are injected (see `widget-regions-port.hooks.ts`) rather than reaching
  * for `lib/api`'s `api` and `useAdminLocale()` directly, sharing the `WidgetRegionsPort`
  * `use-widget-regions.hooks.ts` also injects — both read/write the region/placement resource.
- * `t(locale, …)` stays a direct import: a pure `DICT[locale]?.[key] ?? key` lookup with no host
- * boundary, same "pure, no-I/O" category the convention doc names for `describeApiError`.
+ * `widgets-i18n.ts`'s own `t(locale, key)` — aliased `translate` here to avoid colliding with this
+ * file's own bound `(key) => string` closure — stays a direct import for this hook's OWN error
+ * strings: a pure `DICT[locale]?.[key] ?? key` lookup with no host boundary, same "pure, no-I/O"
+ * category the convention doc names for `describeApiError`.
+ *
+ * `deps.t` (standing i18n rule, 2026-08-11 — see `use-widgets-library.hooks.ts`'s identical note):
+ * injected so `WidgetRegionEditor.tsx` sources its UI copy from this hook instead of its own
+ * `useAdminLocale()`/`WIDGETS_DICT` import.
  */
 
 export interface WidgetRegionEditorDependencies {
   port: WidgetRegionsPort;
   locale: string;
+  t: Translate;
 }
 
 /** Locale-aware replacement for the old `STALE_VERSION_MESSAGE` constant — this string is only
  *  ever read inside this hook itself (after a `WIDGETS_AREA_CONFLICT` 409), so it can be a
  *  function of `locale` instead of a locale-blind module constant. */
 export function staleVersionMessage(locale: string): string {
-  return t(locale, "This region changed since you loaded it, refresh and try again.");
+  return translate(locale, "This region changed since you loaded it, refresh and try again.");
 }
 
 export interface WidgetRegionEditorController {
@@ -46,9 +54,12 @@ export interface WidgetRegionEditorController {
   toggleEnabled: (placementId: string) => void;
   addPlacement: (widgetInstanceId: string) => void;
   save: () => Promise<void>;
+  /** Bound translator — `WidgetRegionEditor.tsx`'s only source of UI copy; see this file's own
+   *  header. */
+  t: Translate;
 }
 
-export function useWidgetRegionEditor(regionKey: string, { port, locale }: WidgetRegionEditorDependencies): WidgetRegionEditorController {
+export function useWidgetRegionEditor(regionKey: string, { port, locale, t }: WidgetRegionEditorDependencies): WidgetRegionEditorController {
   const [area, setArea] = useState<AdminWidgetArea | null>(null);
   const [placements, setPlacements] = useState<AdminWidgetPlacement[]>([]);
   const [message, setMessage] = useState<string | null>(null);
@@ -65,7 +76,7 @@ export function useWidgetRegionEditor(regionKey: string, { port, locale }: Widge
         setArea(r.area);
         setPlacements(r.placements);
       })
-      .catch((e) => setError(describeApiError(e, t(locale, "failed to load region"))))
+      .catch((e) => setError(describeApiError(e, translate(locale, "failed to load region"))))
       .finally(() => setLoading(false));
   }
 
@@ -102,19 +113,19 @@ export function useWidgetRegionEditor(regionKey: string, { port, locale }: Widge
       if (e instanceof ApiError && e.code === "WIDGETS_AREA_CONFLICT") {
         setError(staleVersionMessage(locale));
       } else {
-        setError(describeApiError(e, t(locale, "save failed")));
+        setError(describeApiError(e, translate(locale, "save failed")));
       }
     } finally {
       setSaving(false);
     }
   }
 
-  return { area, placements, message, error, loading, saving, removeAt, moveAt, toggleEnabled, addPlacement, save };
+  return { area, placements, message, error, loading, saving, removeAt, moveAt, toggleEnabled, addPlacement, save, t };
 }
 
 /**
- * Binds the real `/api/.../widgets/regions` client and the real `useAdminLocale()` — see
- * `widget-regions-dependencies.hooks.ts`.
+ * Binds the real `/api/.../widgets/regions` client, the real `useAdminLocale()`, and a
+ * `WIDGETS_DICT`-bound translator — see `widget-regions-dependencies.hooks.ts`.
  *
  * The zero-argument-dependencies half of the `useX(dependencies)` / `useWiredX()` pair, so
  * `WidgetRegionEditor.tsx` composes this and a test composes {@link useWidgetRegionEditor} with
@@ -122,5 +133,6 @@ export function useWidgetRegionEditor(regionKey: string, { port, locale }: Widge
  */
 export function useWiredWidgetRegionEditor(regionKey: string): WidgetRegionEditorController {
   const locale = useAdminLocale();
-  return useWidgetRegionEditor(regionKey, { port: defaultWidgetRegionsPort, locale });
+  const t = (key: string): string => WIDGETS_DICT[locale]?.[key] ?? key;
+  return useWidgetRegionEditor(regionKey, { port: defaultWidgetRegionsPort, locale, t });
 }

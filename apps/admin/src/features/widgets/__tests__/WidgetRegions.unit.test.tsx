@@ -27,6 +27,7 @@ function baseController(overrides: Partial<WidgetRegionsController> = {}): Widge
     setNewRegionKey: vi.fn(),
     binding: false,
     bind: vi.fn(async () => {}),
+    t: (key: string) => key,
     ...overrides,
   };
 }

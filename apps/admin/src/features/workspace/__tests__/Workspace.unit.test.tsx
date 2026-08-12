@@ -31,6 +31,8 @@ function baseController(overrides: Partial<WorkspaceController> = {}): Workspace
     saveError: null,
     saved: false,
     onSave: vi.fn(async (e) => e.preventDefault()),
+    t: (key: string) => key,
+    locale: "en",
     ...overrides,
   };
 }

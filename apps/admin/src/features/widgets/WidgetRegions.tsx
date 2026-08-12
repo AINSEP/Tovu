@@ -1,7 +1,5 @@
 import { DataTable } from "@jini-ai/admin/react";
 import { useWiredWidgetRegions } from "./hooks/use-widget-regions.hooks";
-import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import { WIDGETS_DICT } from "./widgets-i18n";
 
 /**
  * @file `WidgetRegionsScreen` (`ui.spec.md` §2.4/§3.6/§4.5/§9) — `/admin/widgets/regions` — markup
@@ -22,9 +20,7 @@ export interface WidgetRegionsProps {
 }
 
 export function WidgetRegions({ useWidgetRegionsHook = useWiredWidgetRegions }: WidgetRegionsProps = {}) {
-  const { regions, error, newRegionKey, setNewRegionKey, binding, bind } = useWidgetRegionsHook();
-  const locale = useAdminLocale();
-  const t = (key: string): string => WIDGETS_DICT[locale]?.[key] ?? key;
+  const { regions, error, newRegionKey, setNewRegionKey, binding, bind, t } = useWidgetRegionsHook();
 
   if (error && !regions) return <div className="notice error">{error}</div>;
   if (!regions) return <div className="notice">Loading regions…</div>;

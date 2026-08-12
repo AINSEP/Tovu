@@ -22,7 +22,7 @@ describe("useWidgetRegions — injected port (no fetch stub, no api spy)", () =>
   it("loads the list from the injected port and never touches the real api client", async () => {
     const listSpy = vi.spyOn(api, "listWidgetRegions");
     const port = createFakeWidgetRegionsPort({ regions: [REGION] });
-    const { result } = renderHook(() => useWidgetRegions({ port, locale: "en", navigate: vi.fn() }));
+    const { result } = renderHook(() => useWidgetRegions({ port, locale: "en", navigate: vi.fn(), t: (key: string) => key }));
 
     await waitFor(() => expect(result.current.regions).toEqual([REGION]));
     expect(listSpy).not.toHaveBeenCalled();
@@ -32,7 +32,7 @@ describe("useWidgetRegions — injected port (no fetch stub, no api spy)", () =>
     const bindSpy = vi.spyOn(api, "bindWidgetRegion");
     const port = createFakeWidgetRegionsPort();
     const fakeNavigate = vi.fn();
-    const { result } = renderHook(() => useWidgetRegions({ port, locale: "en", navigate: fakeNavigate }));
+    const { result } = renderHook(() => useWidgetRegions({ port, locale: "en", navigate: fakeNavigate, t: (key: string) => key }));
     await waitFor(() => expect(result.current.regions).toEqual([]));
 
     act(() => result.current.setNewRegionKey("sidebar"));
@@ -57,7 +57,7 @@ describe("useWidgetRegions — injected port (no fetch stub, no api spy)", () =>
   it("does not resolve `regions` while the injected port's list call is still pending", () => {
     const port = createFakeWidgetRegionsPort();
     port.listWidgetRegions = () => new Promise(() => {});
-    const { result } = renderHook(() => useWidgetRegions({ port, locale: "en", navigate: vi.fn() }));
+    const { result } = renderHook(() => useWidgetRegions({ port, locale: "en", navigate: vi.fn(), t: (key: string) => key }));
     expect(result.current.regions).toBeNull();
   });
 });

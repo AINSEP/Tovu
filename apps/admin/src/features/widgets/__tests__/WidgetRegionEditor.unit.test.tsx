@@ -51,6 +51,7 @@ function baseController(overrides: Partial<WidgetRegionEditorController> = {}): 
     toggleEnabled: vi.fn(),
     addPlacement: vi.fn(),
     save: vi.fn(async () => {}),
+    t: (key: string) => key,
     ...overrides,
   };
 }

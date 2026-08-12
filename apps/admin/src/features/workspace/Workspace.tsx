@@ -1,6 +1,5 @@
 import { isWorkspaceDirty } from "./rules";
 import { useWorkspace } from "./hooks/use-workspace.hooks";
-import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { t } from "./workspace-i18n";
 
 /**
@@ -49,11 +48,10 @@ function WorkspaceFormStatus(props: { locale: string; saveError: string | null; 
 }
 
 export function Workspace({ useWorkspaceHook = useWorkspace }: WorkspaceProps = {}) {
-  const locale = useAdminLocale();
-  const { workspace, error, name, setName, slug, setSlug, saving, saveError, saved, onSave } = useWorkspaceHook();
+  const { workspace, error, name, setName, slug, setSlug, saving, saveError, saved, onSave, t, locale } = useWorkspaceHook();
 
   if (error) return <div className="notice error">{error}</div>;
-  if (!workspace) return <div className="notice">{t(locale, "Loading workspace…")}</div>;
+  if (!workspace) return <div className="notice">{t("Loading workspace…")}</div>;
 
   const dirty = isWorkspaceDirty(workspace, name, slug);
 
@@ -61,42 +59,42 @@ export function Workspace({ useWorkspaceHook = useWorkspace }: WorkspaceProps = 
     <div className="page">
       <div className="page-header">
         <div className="page-header-text">
-          <p className="page-kicker">{t(locale, "Administration")}</p>
-          <h1 className="page-title">{t(locale, "Workspace")}</h1>
-          <p className="page-description">{t(locale, "This site's identity — its name, URL slug, and creation date.")}</p>
+          <p className="page-kicker">{t("Administration")}</p>
+          <h1 className="page-title">{t("Workspace")}</h1>
+          <p className="page-description">{t("This site's identity — its name, URL slug, and creation date.")}</p>
         </div>
       </div>
 
       <form onSubmit={onSave} className="notice integrations-form">
         <WorkspaceFormStatus locale={locale} saveError={saveError} saved={saved} dirty={dirty} />
         <label>
-          {t(locale, "Name")}
+          {t("Name")}
           <input value={name} onChange={(e) => setName(e.target.value)} required />
         </label>
         <label>
-          {t(locale, "Slug")}
+          {t("Slug")}
           <input value={slug} onChange={(e) => setSlug(e.target.value)} required />
         </label>
         <button type="submit" disabled={saving || !dirty}>
-          {saving ? t(locale, "Saving…") : t(locale, "Save changes")}
+          {saving ? t("Saving…") : t("Save changes")}
         </button>
       </form>
 
       <div className="settings-layer-grid">
         <div className="settings-layer-cell">
-          <span className="settings-layer-label">{t(locale, "Workspace ID")}</span>
+          <span className="settings-layer-label">{t("Workspace ID")}</span>
           <span>{workspace.id}</span>
         </div>
         <div className="settings-layer-cell">
-          <span className="settings-layer-label">{t(locale, "Created")}</span>
+          <span className="settings-layer-label">{t("Created")}</span>
           <span>{workspace.createdAt}</span>
         </div>
       </div>
 
-      <h2>{t(locale, "Delete workspace")}</h2>
+      <h2>{t("Delete workspace")}</h2>
       <div className="notice">
         <p>
-          {t(locale, "Every Tovu install must always have at least one workspace, so deleting your only workspace is not available. This becomes available once this install supports more than one workspace.")}
+          {t("Every Tovu install must always have at least one workspace, so deleting your only workspace is not available. This becomes available once this install supports more than one workspace.")}
         </p>
         {/* `.btn-danger` at rest, not just on some future enabled state — genuinely destructive by
             nature even while `:disabled` (which already desaturates it); staying `.btn-danger`
@@ -105,9 +103,9 @@ export function Workspace({ useWorkspaceHook = useWorkspace }: WorkspaceProps = 
           type="button"
           className="btn-danger"
           disabled
-          title={t(locale, "Not available — this install has only one workspace")}
+          title={t("Not available — this install has only one workspace")}
         >
-          {t(locale, "Delete workspace")}
+          {t("Delete workspace")}
         </button>
       </div>
     </div>

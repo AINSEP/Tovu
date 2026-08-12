@@ -331,7 +331,7 @@ describe("useWidgetInstanceEditor — injected port (no api spy, no router mock)
     const getWidgetSpy = vi.spyOn(api, "getWidget");
     const port = createFakeWidgetsPort({ widgets: [EXISTING_WIDGET] });
     const { result } = renderHook(() =>
-      useWidgetInstanceEditor({ widgetId: "w1", widgetType: null }, { port, locale: "en", navigate: vi.fn() })
+      useWidgetInstanceEditor({ widgetId: "w1", widgetType: null }, { port, locale: "en", navigate: vi.fn(), t: (key: string) => key })
     );
 
     await waitFor(() => expect(result.current.loading).toBe(false));
@@ -344,7 +344,7 @@ describe("useWidgetInstanceEditor — injected port (no api spy, no router mock)
     const port = createFakeWidgetsPort();
     const fakeNavigate = vi.fn();
     const { result } = renderHook(() =>
-      useWidgetInstanceEditor({ widgetId: null, widgetType: "text" }, { port, locale: "en", navigate: fakeNavigate })
+      useWidgetInstanceEditor({ widgetId: null, widgetType: "text" }, { port, locale: "en", navigate: fakeNavigate, t: (key: string) => key })
     );
     act(() => result.current.setTitle("New Text Widget"));
 
@@ -371,7 +371,7 @@ describe("useWidgetInstanceEditor — injected port (no api spy, no router mock)
     const port = createFakeWidgetsPort();
     port.getWidget = () => new Promise(() => {});
     const { result } = renderHook(() =>
-      useWidgetInstanceEditor({ widgetId: "w1", widgetType: null }, { port, locale: "en", navigate: vi.fn() })
+      useWidgetInstanceEditor({ widgetId: "w1", widgetType: null }, { port, locale: "en", navigate: vi.fn(), t: (key: string) => key })
     );
     expect(result.current.loading).toBe(true);
     expect(result.current.widget).toBeNull();

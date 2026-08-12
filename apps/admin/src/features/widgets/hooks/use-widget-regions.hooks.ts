@@ -3,7 +3,8 @@ import { useEffect, useState } from "react";
 import { describeApiError, type AdminWidgetRegionBinding } from "../../../lib/api";
 import { navigate as realNavigate } from "../../../lib/router";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
-import { t } from "../widgets-i18n";
+import { WIDGETS_DICT, t as translate } from "../widgets-i18n";
+import type { Translate } from "../../../lib/dictionary-translator";
 import { defaultWidgetRegionsPort } from "./widget-regions-dependencies.hooks";
 import type { WidgetRegionsPort } from "./widget-regions-port.hooks";
 
@@ -17,14 +18,21 @@ import type { WidgetRegionsPort } from "./widget-regions-port.hooks";
  * `deps.port`/`deps.locale`/`deps.navigate` are injected (see `widget-regions-port.hooks.ts`)
  * rather than reaching for `lib/api`'s `api`, `useAdminLocale()`, and `lib/router`'s `navigate`
  * directly, sharing the `WidgetRegionsPort` `use-widget-region-editor.hooks.ts` also injects.
- * `t(locale, …)` stays a direct import: a pure `DICT[locale]?.[key] ?? key` lookup with no host
- * boundary, same "pure, no-I/O" category the convention doc names for `describeApiError`.
+ * `widgets-i18n.ts`'s own `t(locale, key)` — aliased `translate` here to avoid colliding with this
+ * file's own bound `(key) => string` closure — stays a direct import for this hook's OWN error
+ * strings: a pure `DICT[locale]?.[key] ?? key` lookup with no host boundary, same "pure, no-I/O"
+ * category the convention doc names for `describeApiError`.
+ *
+ * `deps.t` (standing i18n rule, 2026-08-11 — see `use-widgets-library.hooks.ts`'s identical note):
+ * injected so `WidgetRegions.tsx` sources its UI copy from this hook instead of its own
+ * `useAdminLocale()`/`WIDGETS_DICT` import.
  */
 
 export interface WidgetRegionsDependencies {
   port: WidgetRegionsPort;
   locale: string;
   navigate: (path: string) => void;
+  t: Translate;
 }
 
 export interface WidgetRegionsController {
@@ -35,9 +43,11 @@ export interface WidgetRegionsController {
   setNewRegionKey: (value: string) => void;
   binding: boolean;
   bind: () => Promise<void>;
+  /** Bound translator — `WidgetRegions.tsx`'s only source of UI copy; see this file's own header. */
+  t: Translate;
 }
 
-export function useWidgetRegions({ port, locale, navigate }: WidgetRegionsDependencies): WidgetRegionsController {
+export function useWidgetRegions({ port, locale, navigate, t }: WidgetRegionsDependencies): WidgetRegionsController {
   const [regions, setRegions] = useState<AdminWidgetRegionBinding[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [newRegionKey, setNewRegionKey] = useState("");
@@ -47,7 +57,7 @@ export function useWidgetRegions({ port, locale, navigate }: WidgetRegionsDepend
     port
       .listWidgetRegions()
       .then((r) => setRegions(r.regions))
-      .catch((e) => setError(describeApiError(e, t(locale, "failed to load regions"))));
+      .catch((e) => setError(describeApiError(e, translate(locale, "failed to load regions"))));
   }
 
   useEffect(load, []);
@@ -62,23 +72,25 @@ export function useWidgetRegions({ port, locale, navigate }: WidgetRegionsDepend
       setNewRegionKey("");
       navigate(`/widgets/regions/${regionKey}`);
     } catch (e) {
-      setError(describeApiError(e, t(locale, "bind failed")));
+      setError(describeApiError(e, translate(locale, "bind failed")));
     } finally {
       setBinding(false);
     }
   }
 
-  return { regions, error, newRegionKey, setNewRegionKey, binding, bind };
+  return { regions, error, newRegionKey, setNewRegionKey, binding, bind, t };
 }
 
 /**
- * Binds the real `/api/.../widgets/regions` client, the real `useAdminLocale()`, and the real
- * `lib/router` `navigate` — see `widget-regions-dependencies.hooks.ts`.
+ * Binds the real `/api/.../widgets/regions` client, the real `useAdminLocale()`, the real
+ * `lib/router` `navigate`, and a `WIDGETS_DICT`-bound translator — see
+ * `widget-regions-dependencies.hooks.ts`.
  *
  * The zero-argument half of the `useX(dependencies)` / `useWiredX()` pair, so `WidgetRegions.tsx`
  * composes this and a test composes {@link useWidgetRegions} with `createFakeWidgetRegionsPort`.
  */
 export function useWiredWidgetRegions(): WidgetRegionsController {
   const locale = useAdminLocale();
-  return useWidgetRegions({ port: defaultWidgetRegionsPort, locale, navigate: realNavigate });
+  const t = (key: string): string => WIDGETS_DICT[locale]?.[key] ?? key;
+  return useWidgetRegions({ port: defaultWidgetRegionsPort, locale, navigate: realNavigate, t });
 }
