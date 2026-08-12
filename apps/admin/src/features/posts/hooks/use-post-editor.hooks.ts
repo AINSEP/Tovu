@@ -3,13 +3,15 @@ import { useEditor, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import TextAlign from "@tiptap/extension-text-align";
 
-import { api, type AdminPost, type ThemeTier } from "../../../lib/api";
+import type { AdminPost, ThemeTier } from "../../../lib/api";
 import { MediaImage } from "../../../lib/media-image-extension";
 import { WidgetEmbed } from "../../../lib/widget-embed-extension";
 import { PostTitleDocument, PostTitle } from "../../../lib/post-title-extension";
-import { navigate } from "../../../lib/router";
+import { navigate as realNavigate } from "../../../lib/router";
 import { useDirtyGuard } from "../../../hooks/use-dirty-guard.hooks";
 import { handleImageDrop, titleNodeText, withTitleNode } from "../rules";
+import { defaultPostEditorPort } from "./post-editor-dependencies.hooks";
+import type { PostEditorPort } from "./post-editor-port.hooks";
 
 /**
  * @file Everything the post/page EDITOR does, so `PostEditor.tsx` is only markup.
@@ -22,6 +24,16 @@ import { handleImageDrop, titleNodeText, withTitleNode } from "../rules";
  *
  * Naming follows `src/hooks/use-settings-slice.hooks.ts`. Feature-local: nothing outside
  * `features/posts` needs it.
+ *
+ * `useWiredX` conversion (2026-08-11, per `ADS-memory/reports/implementation/
+ * 2026-08-11-wired-hooks-audit.md`'s own written-out plan for this file): `port` (`PostEditorPort`,
+ * `post-editor-port.hooks.ts`) and `navigate` are now injected via {@link usePostEditor}'s second
+ * parameter rather than reached for directly, so a test can describe load/save/delete outcomes
+ * against `createFakePostEditorPort` instead of stubbing `fetch`. {@link useWiredPostEditor} is the
+ * zero-argument pair `PostEditor.tsx` actually mounts — copies `features/redirects`'s conversion
+ * shape (commit `2ea11f4`). `withTitleNode`/`titleNodeText` (pure rules, `../rules.ts`) and TipTap's
+ * own `useEditor` stay direct imports, same as that conversion's own `describeApiError`/
+ * `useFetchQuery` precedent — see `post-editor-port.hooks.ts`'s file header for why.
  */
 
 /** What `useDirtyGuard` compares — every field this editor lets an operator change. `bodyJson` is
@@ -104,7 +116,14 @@ export interface PostEditorController {
   remove: () => Promise<void>;
 }
 
-export function usePostEditor(postId: string): PostEditorController {
+/** {@link usePostEditor}'s injected second parameter — see this file's header for the conversion this belongs to. */
+export interface PostEditorDependencies {
+  port: PostEditorPort;
+  navigate: (path: string) => void;
+}
+
+export function usePostEditor(postId: string, deps: PostEditorDependencies): PostEditorController {
+  const { port, navigate } = deps;
   const [post, setPost] = useState<AdminPost | null>(null);
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
@@ -188,7 +207,7 @@ export function usePostEditor(postId: string): PostEditorController {
     // read, or a fast post-load racing a slow presentation-settings load could default to "" before
     // the real list arrives. Costs one extra GET per post switch (presentation settings re-fetched
     // even though it rarely changes) — an acceptable trade for a local admin panel.
-    Promise.all([api.getPost(postId), api.getPresentation()])
+    Promise.all([port.getPost(postId), port.getPresentation()])
       .then(([{ post }, { settings, availableThemes, activeThemeTemplates, activeThemeStaticPageIds }]) => {
         setAvailableTemplates(activeThemeTemplates);
         setStaticPageIds(activeThemeStaticPageIds);
@@ -272,7 +291,7 @@ export function usePostEditor(postId: string): PostEditorController {
     const nextStatus = statusOverride ?? status;
     try {
       const bodyJson = editor.getJSON() as Record<string, unknown>;
-      const { post: saved } = await api.updatePost(
+      const { post: saved } = await port.updatePost(
         { id: postId },
         { title, slug, status: nextStatus, bodyJson, templateChoice, overridesThemePage },
       );
@@ -301,8 +320,9 @@ export function usePostEditor(postId: string): PostEditorController {
    * the opposite lie, since the row genuinely is recoverable server-side, just not from here. Do
    * not add either claim back in without first building/removing the corresponding capability.
    *
-   * Calls `api.deletePost` (kind-blind), not `api.deletePage`, matching every other call this
-   * editor already makes (`getPost`/`updatePost`) — this component is shared between posts and
+   * Calls `port.deletePost` (kind-blind, `defaultPostEditorPort` wraps `api.deletePost`), not
+   * `api.deletePage`, matching every other call this editor already makes (`getPost`/`updatePost`)
+   * — this component is shared between posts and
    * pages via the same `/admin/posts/{id}` route (Pages.tsx's own file header), so it deletes
    * whatever row `postId` names rather than assuming its kind. `post.kind` (loaded from the server
    * response) is used only for display copy and for choosing which list to return to.
@@ -316,7 +336,7 @@ export function usePostEditor(postId: string): PostEditorController {
     setError(null);
     setDeleting(true);
     try {
-      await api.deletePost(postId);
+      await port.deletePost(postId);
       navigate(post.kind === "page" ? "/pages" : "/posts");
     } catch (e) {
       setError(e instanceof Error ? e.message : "delete failed");
@@ -372,4 +392,16 @@ export function usePostEditor(postId: string): PostEditorController {
     save,
     remove,
   };
+}
+
+/**
+ * Binds the real `/api/.../posts` client and the real router — see `post-editor-dependencies
+ * .hooks.ts` and `lib/router.ts`.
+ *
+ * The zero-argument half of the `useX(dependencies)` / `useWiredX()` pair, so `PostEditor.tsx`
+ * composes this and a test composes {@link usePostEditor} with `createFakePostEditorPort` and a fake
+ * `navigate`.
+ */
+export function useWiredPostEditor(postId: string): PostEditorController {
+  return usePostEditor(postId, { port: defaultPostEditorPort, navigate: realNavigate });
 }
