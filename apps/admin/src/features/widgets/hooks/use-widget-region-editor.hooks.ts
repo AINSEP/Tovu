@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
-import { ApiError, describeApiError, type AdminWidgetArea, type AdminWidgetPlacement } from "../../../lib/api";
-import { buildDraftPlacement, movePlacement } from "../rules";
+import { describeApiError, type AdminWidgetArea, type AdminWidgetPlacement } from "../../../lib/api";
+import { buildDraftPlacement, movePlacement, resolveWidgetRegionSaveError } from "../rules";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { WIDGETS_DICT, t as translate } from "../widgets-i18n";
 import type { Translate } from "../../../lib/dictionary-translator";
@@ -84,6 +84,12 @@ export function useWidgetRegionEditor(regionKey: string, { port, locale, t }: Wi
     const requestId = ++loadRequestIdRef.current;
     setLoading(true);
     setError(null);
+    // A freshly-loading region, by definition, has no save of its OWN in flight yet — clears
+    // `saving` so a save started against the region navigated away FROM (guarded no-op below once
+    // it resolves) can't leave this region's spinner stuck on indefinitely. Also fires (harmlessly,
+    // to the same value) when THIS call is save()'s own post-success reload, since `saving` is about
+    // to read false either way once that save's own `finally` runs.
+    setSaving(false);
     port
       .getWidgetRegion(regionKey)
       .then((r) => {
@@ -116,28 +122,37 @@ export function useWidgetRegionEditor(regionKey: string, { port, locale, t }: Wi
     setPlacements((prev) => [...prev, buildDraftPlacement(widgetInstanceId)]);
   }
 
+  // Stale-response guard, save() half (2026-08-12 audit finding): reuses `loadRequestIdRef` rather
+  // than adding a second mechanism — save() snapshots the request id in flight when it STARTS, and
+  // a completion only commits if no `load()` (from the `regionKey`-change effect below, i.e. the
+  // operator navigating to a different region) has minted a newer one since. This also fixes the
+  // interaction the audit flagged: an unguarded save used to call `load()` on completion even after
+  // going stale, and THAT trailing `load()` would mint a newer request id than the new region's own
+  // in-flight load — discarding the new region's correct response as "stale" by comparison. Skipping
+  // the trailing `load()` entirely once `save()` itself is known-stale removes that interaction.
   async function save() {
     if (!area) return;
+    const requestId = loadRequestIdRef.current;
     setSaving(true);
     setMessage(null);
     setError(null);
+    let stale = false;
     try {
       const { area: saved } = await port.mutateWidgetRegionPlacements({
         regionKey,
         baseVersion: area.version,
         placements: placements.map((p) => ({ placementId: p.placementId, widgetEntryId: p.widgetEntryId, enabled: p.enabled })),
       });
+      stale = loadRequestIdRef.current !== requestId;
+      if (stale) return;
       setArea(saved);
       setMessage(`Saved · version ${saved.version}`);
       load();
     } catch (e) {
-      if (e instanceof ApiError && e.code === "WIDGETS_AREA_CONFLICT") {
-        setError(staleVersionMessage(locale));
-      } else {
-        setError(describeApiError(e, translate(locale, "save failed")));
-      }
+      stale = loadRequestIdRef.current !== requestId;
+      if (!stale) setError(resolveWidgetRegionSaveError(e, locale, staleVersionMessage));
     } finally {
-      setSaving(false);
+      if (!stale) setSaving(false);
     }
   }
 

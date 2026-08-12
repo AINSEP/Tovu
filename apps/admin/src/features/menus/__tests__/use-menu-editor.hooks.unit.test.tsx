@@ -73,4 +73,57 @@ describe("useMenuEditor — injected port (no fetch stub, no api spy)", () => {
     expect(result.current.loading).toBe(true);
     expect(result.current.menu).toBeNull();
   });
+
+  /**
+   * Stale-response race, save() half (2026-08-12 audit finding): clicking Save on menu A, then
+   * navigating to menu B before `updateMenuTree` resolves, must not let A's (now-stale) response
+   * overwrite B's state — that would silently show A's saved title/items under B's URL, and a
+   * SECOND save from there would then write to the wrong record (`menu.id` would still read A's
+   * id). Negatively verified per this fix's own commit: reverting the `activeMenuIdRef` guard in
+   * `save()` (restoring the pre-fix body) makes this test fail — `title`/`items` end up A's
+   * post-save values instead of B's.
+   */
+  it("does not let a stale updateMenuTree response (for a menu navigated away from while saving) overwrite the currently-viewed menu", async () => {
+    const MENU_A: AdminMenu = { ...MENU, id: "menu-a", title: "Menu A", version: 2 };
+    const MENU_B: AdminMenu = {
+      ...MENU,
+      id: "menu-b",
+      title: "Menu B",
+      version: 7,
+      items: [{ id: "i2", label: "About", target: { kind: "url", href: "/about" } }],
+    };
+    const port = createFakeMenusPort({ menus: [MENU_A, MENU_B] });
+
+    let resolveSaveA!: (value: { menu: AdminMenu }) => void;
+    const pendingSaveA = new Promise<{ menu: AdminMenu }>((resolve) => {
+      resolveSaveA = resolve;
+    });
+    port.updateMenuTree = (target) => (target.id === "menu-a" ? pendingSaveA : Promise.reject(new Error("unexpected updateMenuTree call")));
+
+    const { result, rerender } = renderHook(
+      (props: { menuId: string }) => useMenuEditor(props.menuId, { port, navigate: vi.fn(), t: (k) => k }),
+      { initialProps: { menuId: "menu-a" } }
+    );
+    await waitFor(() => expect(result.current.title).toBe("Menu A"));
+
+    // Click Save on menu A — updateMenuTree("menu-a") is now in flight.
+    act(() => {
+      void result.current.save();
+    });
+
+    // Navigate to menu B before A's save resolves.
+    rerender({ menuId: "menu-b" });
+    await waitFor(() => expect(result.current.title).toBe("Menu B"));
+
+    // Resolve A's save last — the exact out-of-order arrival a slow connection can produce.
+    await act(async () => {
+      resolveSaveA({ menu: { ...MENU_A, version: 3, title: "Menu A edited after navigating away" } });
+      await Promise.resolve();
+    });
+
+    expect(result.current.menu?.id).toBe("menu-b");
+    expect(result.current.title).toBe("Menu B");
+    expect(result.current.items).toEqual(MENU_B.items);
+    expect(result.current.message).toBeNull();
+  });
 });

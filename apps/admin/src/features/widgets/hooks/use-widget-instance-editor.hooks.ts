@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { describeApiError, type AdminWidget, type AdminWidgetType, type AdminWidgetWhereUsed } from "../../../lib/api";
 import { navigate as realNavigate } from "../../../lib/router";
@@ -45,6 +45,13 @@ export interface WidgetInstanceEditorDependencies {
  *  function of `locale` instead of a locale-blind module constant. */
 export function staleVersionMessage(locale: string): string {
   return translate(locale, "This widget changed since you loaded it, refresh and try again.");
+}
+
+/** Identity of "which widget this hook is currently pointed at", matching the load effect's own
+ *  `[props.widgetId, props.widgetType, isNew]` dependency list exactly. Collapsed to a single string
+ *  so `save()`'s completion handlers can compare it with `!==` instead of a three-field object diff. */
+function widgetEntityKey(widgetId: string | null, widgetType: string | null, isNew: boolean): string {
+  return `${widgetId ?? ""}::${widgetType ?? ""}::${isNew}`;
 }
 
 /** The subset of `WidgetInstanceEditor`'s props this hook needs — the DI seam prop itself stays
@@ -107,6 +114,10 @@ export function useWidgetInstanceEditor(
   // leave stale data on screen with no spinner to flag it.
   useEffect(() => {
     let cancelled = false;
+    // A freshly-loading entity, by definition, has no save of its OWN in flight yet — clears
+    // `saving` so a save started against the widget navigated away FROM (guarded no-op below once
+    // it resolves) can't leave this new widget's spinner stuck on indefinitely.
+    setSaving(false);
     if (isNew) {
       setWidget(null);
       setTitle("");
@@ -140,8 +151,23 @@ export function useWidgetInstanceEditor(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.widgetId, props.widgetType, isNew]);
 
+  // Stale-response guard, save() half (2026-08-12 audit finding): the load effect's `cancelled`
+  // flag above is scoped to a single effect run and flipped by that SAME effect's own cleanup — but
+  // save() isn't an effect, so a route change mid-save never flips it. `activeEntityRef` always
+  // holds the latest widget identity this hook was RENDERED with (updated every render, not just on
+  // effect re-run), so save()'s completion handlers can tell whether the operator has already
+  // navigated to a different widget by the time an update/create call resolves, and skip committing
+  // — including clearing `saving` — onto whatever widget is on screen now. (The load effect's own
+  // `setSaving(false)` is the other half of that: it's what actually clears the spinner for the
+  // NEWLY-viewed widget, since a stale save is no longer allowed to.) The `isNew` branch's own
+  // `navigate()` + early `return` stays unguarded on purpose: it must always fire to land the
+  // operator on the widget they just created, staleness or not.
+  const activeEntityRef = useRef(widgetEntityKey(props.widgetId, props.widgetType, isNew));
+  activeEntityRef.current = widgetEntityKey(props.widgetId, props.widgetType, isNew);
+
   async function save() {
     if (!widgetType) return;
+    const savingForEntity = widgetEntityKey(props.widgetId, props.widgetType, isNew);
     setSaving(true);
     setMessage(null);
     setError(null);
@@ -154,15 +180,17 @@ export function useWidgetInstanceEditor(
       }
       if (!widget) return;
       const { widget: saved } = await port.updateWidget({ id: widget.id, baseVersion: widget.version, config });
+      if (activeEntityRef.current !== savingForEntity) return;
       setWidget(saved);
       setConfig(saved.config);
       setMessage(`Saved · version ${saved.version}`);
     } catch (e) {
+      if (activeEntityRef.current !== savingForEntity) return;
       const outcome = resolveWidgetSaveError(e, locale, staleVersionMessage);
       setError(outcome.error);
       setFieldErrors(outcome.fieldErrors);
     } finally {
-      setSaving(false);
+      if (activeEntityRef.current === savingForEntity) setSaving(false);
     }
   }
 

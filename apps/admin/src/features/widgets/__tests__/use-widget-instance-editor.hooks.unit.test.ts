@@ -426,4 +426,58 @@ describe("useWidgetInstanceEditor — injected port (no api spy, no router mock)
     expect(result.current.title).toBe("Widget B");
     expect(result.current.widget?.id).toBe("widget-b");
   });
+
+  /**
+   * Stale-response race, save() half (2026-08-12 audit finding — the load-side guard above closes
+   * one half of this bug class, but `save()` had no guard of its own until this fix): clicking Save
+   * on widget A, then navigating to widget B before A's `updateWidget` resolves, must not let A's
+   * (now-stale) response overwrite B's state — that would silently show A's saved title/config under
+   * B's URL, and a SECOND save from there would then write to the wrong record (`widget.id` would
+   * still read A's id). Negatively verified per this fix's own commit: reverting the `activeEntityRef`
+   * guard in `save()` (restoring the pre-fix body) makes this test fail — `title`/`config` end up
+   * A's post-save values instead of B's, and `saving` gets stuck reflecting A's completion.
+   */
+  it("does not let a stale updateWidget response (for a widget navigated away from while saving) overwrite the currently-viewed widget", async () => {
+    const WIDGET_A: AdminWidget = { ...EXISTING_WIDGET, id: "widget-a", title: "Widget A", version: 2, config: { body: "a-original" } };
+    const WIDGET_B: AdminWidget = { ...EXISTING_WIDGET, id: "widget-b", title: "Widget B", version: 5, config: { body: "b-original" } };
+    const port = createFakeWidgetsPort({ widgets: [WIDGET_A, WIDGET_B] });
+
+    let resolveSaveA!: (value: { widget: AdminWidget }) => void;
+    const pendingSaveA = new Promise<{ widget: AdminWidget }>((resolve) => {
+      resolveSaveA = resolve;
+    });
+    port.updateWidget = (target) => (target.id === "widget-a" ? pendingSaveA : Promise.reject(new Error("unexpected updateWidget call")));
+
+    const { result, rerender } = renderHook(
+      (props: { widgetId: string }) =>
+        useWidgetInstanceEditor({ widgetId: props.widgetId, widgetType: null }, { port, locale: "en", navigate: vi.fn(), t: (key: string) => key }),
+      { initialProps: { widgetId: "widget-a" } }
+    );
+    await waitFor(() => expect(result.current.title).toBe("Widget A"));
+
+    // Click Save on widget A — updateWidget("widget-a") is now in flight.
+    act(() => {
+      void result.current.save();
+    });
+    expect(result.current.saving).toBe(true);
+
+    // Navigate to widget B before A's save resolves.
+    rerender({ widgetId: "widget-b" });
+    await waitFor(() => expect(result.current.title).toBe("Widget B"));
+    // The load effect's own reset clears the spinner for the newly-viewed widget rather than
+    // leaving it stuck on A's still-pending save.
+    expect(result.current.saving).toBe(false);
+
+    // Resolve A's save last — the exact out-of-order arrival a slow connection can produce.
+    await act(async () => {
+      resolveSaveA({ widget: { ...WIDGET_A, version: 3, config: { body: "a-edited-after-navigating-away" } } });
+      await Promise.resolve();
+    });
+
+    expect(result.current.widget?.id).toBe("widget-b");
+    expect(result.current.title).toBe("Widget B");
+    expect(result.current.config).toEqual({ body: "b-original" });
+    expect(result.current.message).toBeNull();
+    expect(result.current.saving).toBe(false);
+  });
 });

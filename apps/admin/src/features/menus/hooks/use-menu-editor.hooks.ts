@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { type AdminMenu, type AdminMenuItem } from "../../../lib/api";
 import { navigate as realNavigate } from "../../../lib/router";
 import { useDirtyGuard } from "../../../hooks/use-dirty-guard.hooks";
@@ -212,6 +212,17 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t }: Menu
 
   const { confirmLeave } = useDirtyGuard<MenuFormState>({ title, slug, items }, original);
 
+  // Stale-response guard, save() half (2026-08-12 audit finding): the load effect's `cancelled`
+  // flag above is scoped to a single effect run and flipped by that SAME effect's own cleanup — but
+  // save() isn't an effect, so a route change mid-save never flips it. `activeMenuIdRef` always
+  // holds the latest `menuId` this hook was RENDERED with (updated every render, not just on effect
+  // re-run), so save()'s completion handlers can tell whether the operator has already navigated to
+  // a different menu by the time create/update resolves, and skip committing state that belongs to
+  // a menu no longer on screen. The `isNew` branch's own `navigate()` + early `return` stays
+  // unguarded on purpose: it must always fire to land the operator on the menu they just created.
+  const activeMenuIdRef = useRef(menuId);
+  activeMenuIdRef.current = menuId;
+
   function changeAt(path: number[], fn: (item: AdminMenuItem) => AdminMenuItem) {
     setItems((prev) => mapAtPath(prev, path, fn));
   }
@@ -229,6 +240,7 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t }: Menu
   }
 
   async function save() {
+    const savingForMenuId = menuId;
     setMessage(null);
     setError(null);
     try {
@@ -242,6 +254,7 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t }: Menu
         { id: menu.id, expectedVersion: menu.version, items },
         { title, slug }
       );
+      if (activeMenuIdRef.current !== savingForMenuId) return;
       setMenu(saved);
       setItems(saved.items);
       // A saved edit is no longer "unsaved" — re-baseline what the dirty check compares against,
@@ -249,6 +262,7 @@ export function useMenuEditor(menuId: string | null, { port, navigate, t }: Menu
       setOriginal({ title, slug, items: saved.items });
       setMessage(`Saved · version ${saved.version}`);
     } catch (e) {
+      if (activeMenuIdRef.current !== savingForMenuId) return;
       setError(e instanceof Error ? e.message : "save failed");
     }
   }

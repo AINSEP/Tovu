@@ -148,3 +148,23 @@ export function resolveWidgetSaveError(
   }
   return { error: describeApiError(e, translate(locale, "save failed")), fieldErrors: [] };
 }
+
+/**
+ * `WidgetRegionEditor`'s save catch-block decision, pulled out for the same reason as
+ * {@link resolveWidgetSaveError} (2026-08-12 stale-save-guard pass pushed `save`'s own cognitive
+ * complexity over the 9/9 ceiling): the `WIDGETS_AREA_CONFLICT`/generic two-way branch doesn't need
+ * to count against `save`'s own scope. Only an error string — unlike the instance editor's version,
+ * this screen's save path has no per-field validation errors to carry.
+ *
+ * @complexity Time/space: O(1).
+ */
+export function resolveWidgetRegionSaveError(
+  e: unknown,
+  locale: string,
+  staleVersionMessage: (locale: string) => string
+): string {
+  if (e instanceof ApiError && e.code === "WIDGETS_AREA_CONFLICT") {
+    return staleVersionMessage(locale);
+  }
+  return describeApiError(e, translate(locale, "save failed"));
+}
