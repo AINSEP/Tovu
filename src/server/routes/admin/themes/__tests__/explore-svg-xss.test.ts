@@ -7,10 +7,14 @@ import test from "node:test";
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
-import { discoverAllBuiltInThemes } from "#src/features/theme/index";
+import { discoverAllBuiltInThemes, THEME_CATALOG_DIR } from "#src/features/theme/index";
 import { registerThemeStaticAssets } from "#src/server/middleware/theme-static-assets";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminThemeFileCopyRoute, registerAdminThemeFilePutRoute } from "../explore";
+import {
+  registerAdminThemeFileCopyRoute,
+  registerAdminThemeFilePutRoute,
+  registerAdminThemeFileResetRoute,
+} from "../explore";
 import type { ContentRouteDeps } from "../../content/deps";
 
 /**
@@ -85,6 +89,7 @@ function buildTestApp(themesDir: string): express.Express {
   });
   registerAdminThemeFilePutRoute(app, deps);
   registerAdminThemeFileCopyRoute(app, deps);
+  registerAdminThemeFileResetRoute(app, deps);
   // Same-origin static mount every real deployment runs (server/app.ts), wired here so the write and
   // the serve happen through the identical two code paths a real request would take.
   registerThemeStaticAssets(app, { themeRoots: [path.join(themesDir, "static")] });
@@ -228,5 +233,38 @@ test("FIXED (defense in depth, continuation agent, 2026-08-13): a THIRD path int
     fs.readdirSync(previewDir).sort(),
     ["index.html"],
     "no duplicate may be created inside preview/ via copy",
+  );
+});
+
+test("FIXED (defense in depth, continuation agent, 2026-08-13): a FOURTH path into preview/ found while re-verifying this fix -- RESET of a preview/ file (restoring it from the theme's own catalog snapshot) is now refused too", async (t) => {
+  const themesDir = makeThemesRoot();
+  // RESET's write-scope check (`resolveThemeFileWriteScope`) is the same ADR-020 compiled-tree
+  // question copy's was -- orthogonal to `isGeneratedThemePath` -- so it also fell through to
+  // `readThemeFile`/`writeThemeFile` against `preview/…` unchecked. Content here comes from the
+  // theme's OWN pristine catalog snapshot, not attacker input (same non-injection nuance as copy),
+  // but it is still a live write into `preview/` outside the "only `build-preview.mjs` regenerates
+  // this folder" invariant PUT/copy/rename all now honor -- proven here BEFORE the fix (RED).
+  const previewDir = path.join(themesDir, "static", "authored", "preview", "dark");
+  fs.mkdirSync(previewDir, { recursive: true });
+  fs.writeFileSync(path.join(previewDir, "index.html"), "LIVE current preview content", "utf8");
+
+  const catalogDir = path.join(themesDir, THEME_CATALOG_DIR, "static", "authored", "preview", "dark");
+  fs.mkdirSync(catalogDir, { recursive: true });
+  fs.writeFileSync(path.join(catalogDir, "index.html"), "ORIGINAL catalog preview content", "utf8");
+
+  const app = buildTestApp(themesDir);
+  const baseUrl = await startTestServer(app, t);
+
+  const reset = await fetch(`${baseUrl}${BASE("authored")}/file/reset`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ path: "preview/dark/index.html" }),
+  });
+
+  assert.equal(reset.status, 409, "preview/ is generated output and must be refused as a reset target too, matching PUT/copy/rename");
+  assert.equal(
+    fs.readFileSync(path.join(previewDir, "index.html"), "utf8"),
+    "LIVE current preview content",
+    "the live preview/ file must be untouched by a refused reset",
   );
 });
