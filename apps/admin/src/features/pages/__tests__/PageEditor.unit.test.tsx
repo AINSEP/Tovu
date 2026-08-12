@@ -54,6 +54,11 @@ const BASE_PAGE: AdminPost = {
 };
 
 function controller(overrides: Partial<PageEditorController> = {}): PageEditorController {
+  // `draftHtml` defaults to whatever `html` resolves to (own override or the base default) rather
+  // than a fixed literal — same passthrough the real hook's initial `prettifyHtml(html)` gives, so a
+  // test that overrides `html` alone (without also overriding `draftHtml`) still sees the HTML tab
+  // show that same value, matching pre-refactor behavior.
+  const html = overrides.html ?? "<p>Hello</p>";
   return {
     page: BASE_PAGE,
     error: null,
@@ -67,12 +72,16 @@ function controller(overrides: Partial<PageEditorController> = {}): PageEditorCo
     templateChoice: null,
     setTemplateChoice: vi.fn(),
     availableTemplates: [],
-    html: "<p>Hello</p>",
+    html,
     setHtml: vi.fn(),
+    draftHtml: html,
+    setDraftHtml: vi.fn(),
     view: "preview",
     setView: vi.fn(),
     device: "desktop",
     setDevice: vi.fn(),
+    frameRef: { current: null },
+    paneWidth: 880,
     saving: false,
     dirty: false,
     contentDirty: false,
