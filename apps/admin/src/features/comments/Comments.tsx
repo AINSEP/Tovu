@@ -4,7 +4,7 @@ import { DataTable, RowMenu, ConfirmDialog, type DataTableColumn } from "@jini-a
 
 import { commentRowMenuItems, truncate, type RowActionState } from "./rules";
 import { formatTimestamp } from "../../lib/format-timestamp";
-import { useComments } from "./hooks/use-comments.hooks";
+import { useWiredComments } from "./hooks/use-comments.hooks";
 import { useCommentQueue } from "./hooks/use-comment-queue.hooks";
 import { useCommentSettings } from "./hooks/use-comment-settings.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
@@ -394,10 +394,10 @@ export interface CommentsProps {
    * for `useCustomSelect`. Defaulted to the real hook, so production callers (`panels.tsx`) pass
    * nothing and behave exactly as before.
    */
-  useCommentsHook?: typeof useComments;
+  useCommentsHook?: typeof useWiredComments;
 }
 
-export function Comments({ useCommentsHook = useComments }: CommentsProps = {}) {
+export function Comments({ useCommentsHook = useWiredComments }: CommentsProps = {}) {
   const { permissions, error } = useCommentsHook();
   const locale = useAdminLocale();
 

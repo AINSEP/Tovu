@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 
-import { api, describeApiError } from "../../../lib/api";
+import { describeApiError } from "../../../lib/api";
+import { defaultCommentsPort } from "./comments-dependencies.hooks";
+import type { CommentsPort } from "./comments-port.hooks";
 
 /**
  * @file The top-level `Comments()` component's own state: loading the operator's effective
@@ -12,6 +14,10 @@ import { api, describeApiError } from "../../../lib/api";
  * matching the `posts`/`users`/`members` precedent of seaming the exported, tested screen. Each
  * still gets its own hook file (`use-comment-queue.hooks.ts`, `use-comment-settings.hooks.ts`)
  * because each owns independent state.
+ *
+ * `port` is injected — see `comments-port.hooks.ts` — rather than importing `lib/api` directly, so
+ * a test can describe the permissions load against `createFakeCommentsPort` instead of stubbing
+ * global `fetch`. `useWiredComments` below is the zero-argument pair `Comments.tsx` actually mounts.
  */
 
 export interface CommentsController {
@@ -20,16 +26,26 @@ export interface CommentsController {
   error: string | null;
 }
 
-export function useComments(): CommentsController {
+export function useComments(port: CommentsPort): CommentsController {
   const [permissions, setPermissions] = useState<string[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api
+    port
       .me()
       .then((r) => setPermissions(r.effectivePermissions ?? []))
       .catch((e) => setError(describeApiError(e, "failed to load permissions")));
-  }, []);
+  }, [port]);
 
   return { permissions, error };
+}
+
+/**
+ * Binds the real `/api/.../auth/me` client — see `comments-dependencies.hooks.ts`.
+ *
+ * The zero-argument half of the `useX(dependencies)` / `useWiredX()` pair, so `Comments.tsx`
+ * composes this and a test composes {@link useComments} with `createFakeCommentsPort`.
+ */
+export function useWiredComments(): CommentsController {
+  return useComments(defaultCommentsPort);
 }
