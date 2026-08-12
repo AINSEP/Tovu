@@ -253,6 +253,13 @@
       "when": 1786557880838,
       "tag": "0035_demonic_white_tiger",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "6",
+      "when": 1786564325760,
+      "tag": "0036_warm_major_mapleleaf",
+      "breakpoints": true
     }
   ]
 }

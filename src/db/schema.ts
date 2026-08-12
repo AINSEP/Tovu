@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { check, index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { check, foreignKey, index, integer, primaryKey, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 /**
  * @file Drizzle schema for the per-site content.db (code-first, ADR-006/ADR-012).
@@ -504,7 +504,19 @@ export const memberTiers = sqliteTable(
     updatedAt: text("updated_at").notNull(),
     version: integer("version").notNull(),
   },
-  (table) => [uniqueIndex("member_tiers_workspace_slug_unique").on(table.workspaceId, table.slug)]
+  (table) => [
+    uniqueIndex("member_tiers_workspace_slug_unique").on(table.workspaceId, table.slug),
+    /**
+     * Commerce (2026-08-12 debate, section 5) — the target half of `commerceProducts`'
+     * `grantsMemberTierId` composite FK below. SQLite (and Postgres) require a composite FK's
+     * target columns to be a PK or carry a UNIQUE index; `id` alone is already unique (it's the
+     * PK) but the pair `(workspace_id, id)` is not, so a same-`id` row can otherwise only be
+     * looked up, never enforced as "and it belongs to this workspace" at the DB level. Additive:
+     * a new unique index over an already-unique column plus workspace_id can never reject a row
+     * that the existing PK already accepted.
+     */
+    uniqueIndex("member_tiers_workspace_id_unique").on(table.workspaceId, table.id),
+  ]
 );
 
 export const memberSubscriptions = sqliteTable(
@@ -1673,4 +1685,402 @@ export const analyticsEvents = sqliteTable(
     eventPropsJson: text("event_props_json"),
   },
   (table) => [index("idx_analytics_events_workspace_list").on(table.workspaceId, table.id)]
+);
+
+// ---------------------------------------------------------------------------
+// Commerce (2026-08-12 swarm-consensus debate, section 5 — "Commerce and the tri-dialect data
+// model"). First vertical slice only: catalog (products/prices), orders/order_items, and the
+// webhook inbox that makes provider event ingestion idempotent AND ordered. Refunds, proration,
+// carts, and multi-provider reconciliation are explicitly next-slice work — see each table's doc.
+//
+// Column-vs-document rule applied throughout (converged unanimously across the debate): if a
+// query, index, constraint, join, or sort ever touches a field, it is a column; if it is read
+// back whole by id and only ever rendered, it is JSON, never indexed. The only JSON column in
+// this slice is `commerceWebhookEvents.payloadJson` — a provider-owned payload Tovu never
+// queries into. Every other field the debate looked at (currency, amounts, status, timestamps,
+// the ordering cursor) is a real column, per that rule.
+//
+// SQLite JSON storage stays `text("*_json")`, matching every other JSON column in this file
+// (see this file's own module doc: "portable to Postgres `jsonb` later"). `jsonb()` is NOT a
+// `drizzle-orm/sqlite-core` column builder — verified against the installed `drizzle-orm`
+// package (`integer`, `real`, `text`, `blob`, `numeric` is the complete list) — and SQLite's own
+// docs (sqlite.org/json1.html) say applications must not persist its internal JSONB format
+// outside SQLite. See `src/db/sqlite/jsonb-column.ts` for the (deliberately unwired) reference
+// material this decision is grounded in.
+// ---------------------------------------------------------------------------
+
+/**
+ * Commerce products — the sellable thing. Deliberately NOT folded into `memberTiers` above:
+ * that table carries `welcomePagePath`/`visibleInPortal` (portal-presentation fields, meaningless
+ * for a one-time digital good) and locks pricing to exactly two recurring slots
+ * (`monthlyPriceCents`/`yearlyPriceCents`, no one-time representation at all). `grantsMemberTierId`
+ * is the one bridge column: set only when purchasing this product is how a member obtains a tier.
+ * Commerce owns financial truth; `memberSubscriptions` stays the access-entitlement projection —
+ * this slice does not yet derive one from an order (see the commerce feature's own README/report
+ * for what remains).
+ */
+export const commerceProducts = sqliteTable(
+  "commerce_products",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "restrict" }),
+    name: text("name").notNull(),
+    slug: text("slug").notNull(),
+    /** Open string, not a DB enum — matches this file's existing convention (e.g. `posts.status`). */
+    kind: text("kind").notNull(), // 'one_time' | 'membership' | 'digital' ...
+    status: text("status").notNull(), // 'active' | 'archived'
+    description: text("description"),
+    /**
+     * Set only when this product's purchase grants a `memberTiers` row. The composite FK below
+     * targets `(memberTiers.workspaceId, memberTiers.id)`, not just `.id` — a plain single-column
+     * FK to `memberTiers.id` would accept a tier id that belongs to a DIFFERENT workspace, which
+     * is exactly the cross-tenant mistake C2 (every table workspace-scoped) exists to prevent.
+     * NULL is exempt from FK enforcement by SQL's ordinary MATCH SIMPLE semantics, so a product
+     * with no tier bridge needs no special-casing here.
+     */
+    grantsMemberTierId: text("grants_member_tier_id"),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+    version: integer("version").notNull(),
+  },
+  (table) => [
+    uniqueIndex("commerce_products_workspace_slug_unique").on(table.workspaceId, table.slug),
+    foreignKey({
+      name: "commerce_products_grants_member_tier_fk",
+      columns: [table.workspaceId, table.grantsMemberTierId],
+      foreignColumns: [memberTiers.workspaceId, memberTiers.id],
+    }).onDelete("restrict"),
+    check("commerce_products_status_check", sql`${table.status} IN ('active', 'archived')`),
+  ]
+);
+
+/**
+ * Commerce prices — one or more price points per product. Rows are never mutated once referenced
+ * by an order: `commerceOrderItems` snapshots `unitAmountCents`/`currency`/`description` at
+ * purchase time instead of joining live (Stripe's own Invoice Line Item object does the same —
+ * verified against `docs.stripe.com/api/invoice-line-item/object` during the 2026-08-12 debate),
+ * so a later price change never rewrites history. `status: 'archived'` retires a price without
+ * deleting it; `onDelete: "restrict"` on `commerceOrderItems.priceId` enforces that a referenced
+ * price can never be hard-deleted out from under a historical order.
+ */
+export const commercePrices = sqliteTable(
+  "commerce_prices",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "restrict" }),
+    productId: text("product_id")
+      .notNull()
+      .references(() => commerceProducts.id, { onDelete: "restrict" }),
+    unitAmountCents: integer("unit_amount_cents").notNull(),
+    /** Lowercase ISO-4217, matching Stripe's own convention — enforced by the CHECK below. */
+    currency: text("currency").notNull(),
+    /** NULL = one-time. 'month' | 'year' = recurring, mirroring `memberTiers`' monthly/yearly split. */
+    billingInterval: text("billing_interval"),
+    status: text("status").notNull(), // 'active' | 'archived'
+    createdAt: text("created_at").notNull(),
+    version: integer("version").notNull(),
+  },
+  (table) => [
+    index("idx_commerce_prices_product").on(table.productId),
+    check("commerce_prices_unit_amount_cents_check", sql`${table.unitAmountCents} >= 0`),
+    check(
+      "commerce_prices_currency_check",
+      sql`length(${table.currency}) = 3 AND ${table.currency} = lower(${table.currency})`
+    ),
+    check("commerce_prices_status_check", sql`${table.status} IN ('active', 'archived')`),
+    check(
+      "commerce_prices_billing_interval_check",
+      sql`${table.billingInterval} IS NULL OR ${table.billingInterval} IN ('month', 'year')`
+    ),
+  ]
+);
+
+/**
+ * Orders — the financial-truth header row for one checkout. `providerEventAt` is the ordering
+ * cursor: the provider's own event timestamp for the last webhook event actually applied to this
+ * row, compared — never blindly overwritten — on every subsequent delivery by
+ * `features/commerce/webhook-inbox.ts`'s single atomic `UPDATE ... WHERE`. `totalAmountCents` is
+ * denormalized from `commerceOrderItems` (computed once at checkout, not DB-enforced — SQLite
+ * CHECK cannot aggregate across rows): the column-vs-document rule makes it a column anyway
+ * because it is reported/sorted on, the same reasoning this file already applies denormalizing
+ * `workspaceId` into `outboxEvents` above.
+ */
+export const commerceOrders = sqliteTable(
+  "commerce_orders",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "restrict" }),
+    memberId: text("member_id")
+      .notNull()
+      .references(() => members.id, { onDelete: "restrict" }),
+    status: text("status").notNull(), // 'pending' | 'paid' | 'failed' | 'canceled'
+    currency: text("currency").notNull(),
+    totalAmountCents: integer("total_amount_cents").notNull(),
+    provider: text("provider").notNull(),
+    providerCustomerRef: text("provider_customer_ref"),
+    providerPaymentRef: text("provider_payment_ref"),
+    /** Ordering cursor — see table header. NULL until the first webhook event is applied. */
+    providerEventAt: text("provider_event_at"),
+    placedAt: text("placed_at").notNull(),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+    version: integer("version").notNull(),
+  },
+  (table) => [
+    index("idx_commerce_orders_workspace_member").on(table.workspaceId, table.memberId),
+    check("commerce_orders_total_amount_cents_check", sql`${table.totalAmountCents} >= 0`),
+    check(
+      "commerce_orders_currency_check",
+      sql`length(${table.currency}) = 3 AND ${table.currency} = lower(${table.currency})`
+    ),
+    check(
+      "commerce_orders_status_check",
+      sql`${table.status} IN ('pending', 'paid', 'failed', 'canceled')`
+    ),
+  ]
+);
+
+/**
+ * Order line items — one row per priced item, snapshotted (see `commercePrices`' header).
+ * `productId` is denormalized off `priceId` for reporting without a join, same pattern as
+ * `outboxEvents.workspaceId` above. `orderId` cascades with its parent order; `priceId`/
+ * `productId` are `onDelete: "restrict"` so a historical line item can never be orphaned by
+ * deleting the catalog row it snapshot from.
+ */
+export const commerceOrderItems = sqliteTable(
+  "commerce_order_items",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "restrict" }),
+    orderId: text("order_id")
+      .notNull()
+      .references(() => commerceOrders.id, { onDelete: "cascade" }),
+    priceId: text("price_id")
+      .notNull()
+      .references(() => commercePrices.id, { onDelete: "restrict" }),
+    productId: text("product_id")
+      .notNull()
+      .references(() => commerceProducts.id, { onDelete: "restrict" }),
+    description: text("description").notNull(),
+    unitAmountCents: integer("unit_amount_cents").notNull(),
+    quantity: integer("quantity").notNull().default(1),
+    currency: text("currency").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [
+    index("idx_commerce_order_items_order").on(table.orderId),
+    check("commerce_order_items_unit_amount_cents_check", sql`${table.unitAmountCents} >= 0`),
+    check("commerce_order_items_quantity_check", sql`${table.quantity} > 0`),
+  ]
+);
+
+/**
+ * Webhook inbox — idempotency AND the audit trail for provider events (2026-08-12 debate: "these
+ * are different problems"). `payloadJson` stores the full, opaque provider payload whole,
+ * unindexed — the one legitimate JSON-document field in this slice (see file-level note above);
+ * every field a query/constraint touches (`workspaceId`, `provider`, `eventId`, `status`,
+ * `receivedAt`) is a real column instead.
+ *
+ * `UNIQUE(provider, eventId)` — deliberately NOT scoped by `workspaceId` — is the replay guard: a
+ * provider's `eventId` is already globally unique per provider, and narrowing the constraint by
+ * workspace would let the same event double-process if a provider ever misrouted it across
+ * workspaces. That constraint stops replay; it does NOT stop out-of-order delivery by itself —
+ * `features/commerce/webhook-inbox.ts`'s single atomic `UPDATE ... WHERE providerEventAt < ?`
+ * against `commerceOrders` is the ordering half.
+ */
+export const commerceWebhookEvents = sqliteTable(
+  "commerce_webhook_events",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "restrict" }),
+    provider: text("provider").notNull(),
+    eventId: text("event_id").notNull(),
+    eventType: text("event_type").notNull(),
+    /** The provider's own event timestamp (e.g. Stripe's `event.created`), NOT `receivedAt`. */
+    eventOccurredAt: text("event_occurred_at").notNull(),
+    payloadJson: text("payload_json").notNull(),
+    status: text("status").notNull(), // 'received' | 'applied' | 'ignored' | 'failed'
+    receivedAt: text("received_at").notNull(),
+    processedAt: text("processed_at"),
+    lastError: text("last_error"),
+  },
+  (table) => [
+    uniqueIndex("commerce_webhook_events_provider_event_unique").on(table.provider, table.eventId),
+    index("idx_commerce_webhook_events_claim").on(table.status, table.receivedAt),
+    check(
+      "commerce_webhook_events_status_check",
+      sql`${table.status} IN ('received', 'applied', 'ignored', 'failed')`
+    ),
+  ]
+);
+
+// ---------------------------------------------------------------------------
+// Deployments (ADS-memory swarm-consensus debate 6, 2026-08-12) — FIRST VERTICAL SLICE.
+// `src/features/deployments/` domain types map 1:1 to these five tables. No repository or route
+// wiring reads/writes them yet (see that feature's `index.ts` header for what remains).
+// ---------------------------------------------------------------------------
+
+/** A named promotion slot within a workspace — "staging", "production". Holds no content of its
+ * own; a `deploymentTargets` row is what points one at a provider. */
+export const deploymentEnvironments = sqliteTable(
+  "deployment_environments",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "restrict" }),
+    name: text("name").notNull(),
+    slug: text("slug").notNull(),
+    isProduction: integer("is_production").notNull(),
+    createdAt: text("created_at").notNull(),
+    version: integer("version").notNull().default(1),
+  },
+  (table) => [
+    uniqueIndex("idx_deployment_environments_workspace_slug").on(table.workspaceId, table.slug),
+    check("deployment_environments_is_production_check", sql`${table.isProduction} IN (0, 1)`),
+  ]
+);
+
+/** One provider connection, scoped to a single environment. `configJson` carries non-secret
+ * provider config only (repo owner/name, GitHub environment name) — credential storage is not
+ * wired up in this slice. */
+export const deploymentTargets = sqliteTable(
+  "deployment_targets",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "restrict" }),
+    environmentId: text("environment_id")
+      .notNull()
+      .references(() => deploymentEnvironments.id, { onDelete: "restrict" }),
+    providerId: text("provider_id").notNull(),
+    label: text("label").notNull(),
+    configJson: text("config_json").notNull(),
+    enabled: integer("enabled").notNull(),
+    createdAt: text("created_at").notNull(),
+    version: integer("version").notNull().default(1),
+  },
+  (table) => [
+    index("idx_deployment_targets_workspace_env").on(table.workspaceId, table.environmentId),
+    check("deployment_targets_enabled_check", sql`${table.enabled} IN (0, 1)`),
+  ]
+);
+
+/** An immutable, workspace-scoped artifact IDENTITY — "this is the thing that gets promoted". It
+ * records a reference to an artifact that already exists; Tovu's CLI (`init`/`serve`/`introspect`
+ * only) has no build or export command, so this table never represents something Tovu constructed. */
+export const releases = sqliteTable(
+  "releases",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "restrict" }),
+    label: text("label").notNull(),
+    sourceKind: text("source_kind").notNull(),
+    sourceRepoUrl: text("source_repo_url"),
+    sourceCommitSha: text("source_commit_sha"),
+    sourceUri: text("source_uri"),
+    sourceChecksum: text("source_checksum"),
+    createdByPrincipalId: text("created_by_principal_id").notNull(),
+    createdAt: text("created_at").notNull(),
+    version: integer("version").notNull().default(1),
+  },
+  (table) => [
+    index("idx_releases_workspace_created").on(table.workspaceId, table.createdAt),
+    check("releases_source_kind_check", sql`${table.sourceKind} IN ('git-revision', 'external-artifact')`),
+  ]
+);
+
+/**
+ * One attempt to promote a `releases` row to a `deploymentEnvironments` row through a
+ * `deploymentTargets` row — the durable execution record. `system/module-status.ts` is a
+ * boot-readiness snapshot (one row, overwritten every boot), not a per-run table; this is not that.
+ *
+ * `providerId` is MATERIALIZED here rather than resolved by joining through `targetId` — the
+ * busiest lookup path (an inbound provider callback, or a poll-worker pass) must resolve
+ * `(providerId, providerRunRef)` to a row in one indexed lookup, without depending on
+ * `deploymentTargets`'s current state.
+ *
+ * `targetId`/`environmentId`/`releaseId` ARE foreign-keyed, but with `ON DELETE SET NULL` rather
+ * than the `restrict` used everywhere else in this file — deliberately, not an oversight.
+ * `restrict` would block deleting a target/environment/release for as long as any run references
+ * it, which is the opposite of what a run history needs (a run is a standalone historical record
+ * of what was requested and what happened, and must remain queryable even after the thing it
+ * targeted is gone). No FK at all would lose the one guarantee worth keeping: that a run can never
+ * be created pointing at a target/environment/release that never existed. `SET NULL` gives both —
+ * creation is validated, deletion is permitted, and the row survives with `providerId` +
+ * `providerRunRef` intact, which is exactly what the callback/poll path needs. `workspaceId` stays
+ * a hard `restrict` FK — workspace deletion is an intentional, cascading admin operation, not
+ * something a run needs to survive.
+ */
+export const deploymentRuns = sqliteTable(
+  "deployment_runs",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "restrict" }),
+    providerId: text("provider_id").notNull(),
+    targetId: text("target_id").references(() => deploymentTargets.id, { onDelete: "set null" }),
+    environmentId: text("environment_id").references(() => deploymentEnvironments.id, { onDelete: "set null" }),
+    releaseId: text("release_id").references(() => releases.id, { onDelete: "set null" }),
+    status: text("status").notNull(),
+    /** The provider's own identifier for this run. `NULL` until the provider accepts it. The ONLY
+     * key an inbound callback or poll pass may use to find this row — never a caller-supplied
+     * `workspaceId` (a webhook payload has no notion of a Tovu workspace). */
+    providerRunRef: text("provider_run_ref"),
+    reconciliation: text("reconciliation").notNull(),
+    requestedByPrincipalId: text("requested_by_principal_id").notNull(),
+    requestedAt: text("requested_at").notNull(),
+    startedAt: text("started_at"),
+    finishedAt: text("finished_at"),
+    /** Sanitized only — never raw provider response text (may contain reflected request fragments). */
+    errorSummary: text("error_summary"),
+    version: integer("version").notNull().default(1),
+  },
+  (table) => [
+    // SQLite treats each NULL as distinct in a UNIQUE index, so multiple not-yet-submitted runs
+    // (providerRunRef IS NULL) never collide here.
+    uniqueIndex("idx_deployment_runs_provider_ref").on(table.providerId, table.providerRunRef),
+    index("idx_deployment_runs_workspace").on(table.workspaceId, table.requestedAt),
+    check(
+      "deployment_runs_status_check",
+      sql`${table.status} IN ('queued', 'running', 'succeeded', 'failed', 'cancelled')`
+    ),
+    check("deployment_runs_reconciliation_check", sql`${table.reconciliation} IN ('poll', 'callback', 'manual')`),
+  ]
+);
+
+/** One log line on a `deploymentRuns` row, for a future run-detail view. */
+export const deploymentRunEvents = sqliteTable(
+  "deployment_run_events",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "restrict" }),
+    runId: text("run_id")
+      .notNull()
+      .references(() => deploymentRuns.id, { onDelete: "restrict" }),
+    at: text("at").notNull(),
+    level: text("level").notNull(),
+    /** Sanitized before insert — same discipline as `deploymentRuns.errorSummary`. */
+    message: text("message").notNull(),
+  },
+  (table) => [
+    index("idx_deployment_run_events_run").on(table.runId, table.at),
+    check("deployment_run_events_level_check", sql`${table.level} IN ('info', 'warning', 'error')`),
+  ]
 );
