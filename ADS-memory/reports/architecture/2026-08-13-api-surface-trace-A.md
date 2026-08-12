@@ -131,3 +131,62 @@ existing door for no reason evidenced in the code — not a design gap, an incon
 - **Blast radius:** 4 files, all `import type`/named-type edits. No runtime behavior changes (TypeScript erases type-only imports; the re-exported types are structurally identical, same declarations, just reached via a different specifier).
 - **Result:** `comments` drops from 7 exposed files / 11 edges to **4 files / 4 edges**.
 - **Sign-off needed:** None beyond the owner's usual review — this is a mechanical, zero-risk cleanup, not a design decision. Safe to batch with C-2/C-3/C-4 below or land alone.
+
+---
+
+## `forms` (11 files exposed, 19 edges)
+
+Unlike `comments`, `forms` has **no `index.ts` at all** — confirmed by directory listing, not
+inferred from the metric. Every cross-module import is a "deep import" by definition, because
+there is no barrel to bypass in the first place. This is the more consequential half of the
+"stark" 19→11 ratio the dispatch brief called out: it isn't that the module's design invites
+scattershot access, it's that the one place designed to draw the line was never built.
+
+| File | Importers | What's imported | Category | Verdict |
+|---|---|---|---|---|
+| `ports.ts` | `widgets/resolvers/create-core-resolvers.ts:2`, `widgets/resolvers/contact-form.ts:2`, `server/routes/types.ts:55` | `FormDefinitionRepoPort` (×2, type-only), `FormDefinitionRepoPort`+`FormSubmissionRepoPort` (type-only) | **2 — missing API** | This IS the module's real cross-feature contract (`contact-form.ts`'s docblock: "Imports ONLY the read-only `forms/ports.ts` module... never the Forms library's own submission write path... INV-08, hard invariant, verified by a code-review-level grep"). The seam is correct; it just has no front door. |
+| `errors.ts` | `server/http/admin/forms.ts:8`, `server/routes/admin/forms/update.ts:2`, `server/routes/site/forms-submit.ts:7` | Typed error classes, all value imports (used in `instanceof` HTTP-status mapping) | **2** | Same shape as `comments/errors.ts`, which is already re-exported through `comments/index.ts`. |
+| `types.ts` | `server/routes/admin/forms/create.ts:3`, `server/http/admin/forms.ts:9`, `server/routes/admin/forms/update.ts:4` | `FieldDescriptor`, `NotifyConfig`, `FormDefinitionRecord`, `FormSubmissionRecord`, `FormDefinitionStatus` (all type-only) | **2** | Same shape as `comments/types.ts`. |
+| `forms.ts` | `server/http/site/render.ts:13` | `ATTRIBUTE_NAME_PATTERN` (a regex constant) | **3 — legitimate, narrow** | The public-site renderer needs Forms' own attribute-name allowlist so a rendered form field can't diverge from what Forms itself validates on submit — single, precise, single-purpose reuse. Barreling a rendering-adjacent constant into the same door as the domain contract would blur what the contract actually is; leave as a direct, load-bearing import. |
+| `notify-subscriber.ts` | `server/modules/forms.ts` (×2: `registerFormNotifySubscriber` value + `RegisterFormNotifySubscriberDeps` type) | Boot-time outbox subscriber registration | **3** | Single caller, single purpose, mirrors 31 other `server/modules/*.ts` per-domain wiring files. |
+| `rate-limit-profile.ts` | `server/app.ts`, `server/deps.ts` | `FORMS_SUBMIT_PROFILE` constant, constructed into a rate limiter at boot | **3** | Both global composition roots need it once, at boot, to build the limiter. Not a repeatable "API" call — a boot-time constant. |
+| `repo.memory.ts` / `repo.sqlite.ts` | `server/app.ts` / `server/deps.ts` | Concrete adapters | **3** | Same systemic composition-root pattern as `comments` (14+ other modules). |
+| `submit-service.ts` | `server/routes/site/forms-submit.ts` | `submitForm` (value import, the one function this route calls) | **3** | Single route, single function, direct call — same shape as every other per-route value import below. |
+| `tool-registrations.ts` | `assistant/tool-registrations.ts` | Plugin tool registry entry | **3** | Systemic (12 modules). |
+| `write-service.ts` | `server/routes/admin/forms/create.ts:2`, `server/routes/admin/forms/update.ts:3` | `createFormDefinition`; `setFormDefinitionStatus`, `updateFormDefinition` (value imports — the exact functions each route calls) | **3** | Each route handler calls a different function; nothing to consolidate without inventing an unused abstraction. |
+
+**Category tally:** 2 → 3 files; 3 → 8 files.
+
+### Proposal F-1 — add `src/forms/index.ts`, re-export the data contract only
+
+- **Category:** 2 (missing API — a narrow, intentional door that doesn't exist yet).
+- **New file (`src/forms/index.ts`, ~6 lines):**
+  ```ts
+  /** Barrel for forms' cross-module data contract. Composition-root wiring
+   * (repo adapters, rate-limit profile, boot subscribers, write/submit
+   * services) is deliberately NOT re-exported here — see
+   * ADS-memory/reports/architecture/2026-08-13-api-surface-trace-A.md. */
+  export type { FormDefinitionRepoPort, FormSubmissionRepoPort } from "./ports";
+  export type {
+    FieldDescriptor, FieldType, NotifyConfig, FormDefinitionStatus,
+    FormDefinitionRecord, FormSubmissionRecord, FormSubmissionPage,
+  } from "./types";
+  export {
+    FormFieldValidationError, FormSlugConflictError, FormDefinitionNotFoundError,
+    FormSubmissionValidationError, FormSubmissionNotFoundError, FormRateLimitExceededError,
+  } from "./errors";
+  ```
+- **Files touched (7, import-specifier edits only):** `widgets/resolvers/create-core-resolvers.ts`,
+  `widgets/resolvers/contact-form.ts`, `server/routes/types.ts`, `server/http/admin/forms.ts`,
+  `server/routes/admin/forms/update.ts`, `server/routes/site/forms-submit.ts`,
+  `server/routes/admin/forms/create.ts`.
+- **Blast radius:** 7 files, every edit an import-specifier swap for a type or an already-thrown
+  error class. No behavior change — verified the exact symbols imported match 1:1 with what the new
+  barrel exports (checked every call site with `grep -n` against the real import lines, not
+  assumed).
+- **Result:** `forms` drops from 11 exposed files / 19 edges to **8 files / ~10 edges**.
+- **Sign-off needed:** This is a new public-contract decision (unlike C-1, which used a door that
+  already existed), so it's a genuine "leave a comment trail" moment — the header comment in the
+  proposed file states the boundary explicitly so the next person doesn't assume "just add whatever
+  needs exposing" applies. Worth a quick owner nod before landing, not a full ADR — it doesn't
+  change any port contract or wire-format, only which file re-exports it.
