@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import type { CommentsSettings } from "../../../lib/api";
 import { useFetchMutation, useFetchQuery } from "../../../lib/fetch-query";
@@ -29,11 +29,29 @@ import type { CommentSettingsPort } from "./comment-settings-port.hooks";
  * `save()` (see that file's header): a caller reading `settings` right after `await save(...)`
  * resolves must see the new value immediately, and `invalidateQueries` is deliberately NOT awaited
  * inside `useFetchMutation` (`adapter.tanstack.tsx`'s own comment), so the invalidated query's
- * background refetch is not guaranteed to have landed by then. No per-identity seed guard is needed
- * here (unlike `use-form-editor.hooks.ts`'s `seededFormIdRef`) — this hook has exactly one identity
- * for its whole lifetime, and the form itself is uncontrolled (`defaultChecked`/`defaultValue`,
- * read via `FormData` on submit), so a later re-seed from a background refetch cannot clobber an
- * in-progress edit the way a controlled draft could.
+ * background refetch is not guaranteed to have landed by then.
+ *
+ * `seededRef` below is a mandatory ONE-SHOT seed guard (round-2 fix for TM-TOVU-2026-08-12-A: a
+ * concurrent two-operator lost update, confirmed against source and against a JSDOM probe). An
+ * earlier revision of this comment argued no guard was needed because the form is uncontrolled
+ * (`defaultChecked`/`defaultValue`, read via `FormData` on submit) — reasoning that a re-seed
+ * "cannot clobber an in-progress edit the way a controlled draft could". That is true of the
+ * visible DOM and irrelevant to the actual hazard: `settings` is not just render state, it is
+ * `buildSettingsPatch`'s diff BASELINE (`save`, below, calls `buildSettingsPatch({ form, current:
+ * settings })`). Changing `defaultValue`/`defaultChecked` on an ALREADY-MOUNTED uncontrolled input
+ * does NOT change the input's current value — so when a background refetch re-seeds `settings`
+ * (routine here: `saveMutation`'s own `invalidates: [KEYS.settings]` triggers exactly this on
+ * every save, including saves made by OTHER operators against the same resource), the baseline
+ * moves while the DOM does not. A later save then diffs the operator's still-unchanged, still-
+ * visible field against a baseline that quietly moved out from under it, includes that stale value
+ * in the patch, and silently reverts whatever another operator just committed — no error, no
+ * warning. `seededRef` seeds `settings` once from the first successful load and never advances it
+ * again on its own; `save`'s own `setSettings(updated)` below is unaffected by this guard — that
+ * is this operator's own just-committed write coming back from the server, which correctly
+ * advances the baseline to match what they just sent. The accepted trade (owner-approved,
+ * 2026-08-12): this operator's view goes stale until they reload rather than silently reverting a
+ * concurrent write; controlled draft state and server-side compare-and-swap were both considered
+ * and deliberately deferred.
  */
 
 export interface CommentSettingsController {
@@ -60,11 +78,18 @@ export function useCommentSettings(canConfigure: boolean, deps: CommentSettingsD
   const [settings, setSettings] = useState<CommentsSettings | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [validationError, setValidationError] = useState<string | null>(null);
+  // One-shot seed guard — see this file's own header for why re-seeding on every load (not just
+  // the first) is the actual lost-update bug, not a redundant precaution.
+  const seededRef = useRef(false);
 
-  // Seeds local `settings` from every successful load — see this file's own header for why this
-  // stays local state rather than reading `list.data` directly.
+  // Seeds local `settings` from the FIRST successful load only — see this file's own header for
+  // why a later re-seed (from a background refetch invalidated by anyone's save, not just this
+  // operator's own) must not move this baseline again on its own.
   useEffect(() => {
-    if (list.data) setSettings(list.data.data);
+    if (list.data && !seededRef.current) {
+      seededRef.current = true;
+      setSettings(list.data.data);
+    }
   }, [list.data]);
 
   const saveMutation = useFetchMutation({
