@@ -165,6 +165,61 @@ test("renderDocNode: subscript and superscript marks render (Posts toolbar, 2026
   assert.equal(html, "<p><sub>2</sub><sup>2</sup></p>");
 });
 
+test("renderDocNode: a table renders table/tr/td structure", () => {
+  const html = renderDocNode({
+    type: "doc",
+    content: [
+      {
+        type: "table",
+        content: [
+          {
+            type: "tableRow",
+            content: [
+              { type: "tableHeader", content: [{ type: "paragraph", content: [{ type: "text", text: "Name" }] }] },
+              { type: "tableHeader", content: [{ type: "paragraph", content: [{ type: "text", text: "Age" }] }] },
+            ],
+          },
+          {
+            type: "tableRow",
+            content: [
+              { type: "tableCell", content: [{ type: "paragraph", content: [{ type: "text", text: "Ada" }] }] },
+              { type: "tableCell", content: [{ type: "paragraph", content: [{ type: "text", text: "36" }] }] },
+            ],
+          },
+        ],
+      },
+    ],
+  });
+  assert.equal(
+    html,
+    "<table><tr><th><p>Name</p></th><th><p>Age</p></th></tr><tr><td><p>Ada</p></td><td><p>36</p></td></tr></table>"
+  );
+});
+
+test("a table cell's colspan/rowspan render only when not the HTML default of 1, bounds-checked", () => {
+  const cell = (attrs: Record<string, unknown>) => ({
+    type: "tableCell",
+    attrs,
+    content: [{ type: "paragraph", content: [{ type: "text", text: "x" }] }],
+  });
+  assert.equal(renderDocNode({ type: "doc", content: [cell({ colspan: 1, rowspan: 1 })] }), "<td><p>x</p></td>");
+  assert.equal(renderDocNode({ type: "doc", content: [cell({ colspan: 2, rowspan: 3 })] }), '<td colspan="2" rowspan="3"><p>x</p></td>');
+  // Out-of-bounds / non-numeric values collapse to the default rather than an unbounded attribute.
+  assert.equal(renderDocNode({ type: "doc", content: [cell({ colspan: 999999 })] }), "<td><p>x</p></td>");
+  assert.equal(renderDocNode({ type: "doc", content: [cell({ colspan: "3" as never })] }), "<td><p>x</p></td>");
+});
+
+test("a table cell's align attr only accepts left/center/right — never justify, never an unsafe value", () => {
+  const cell = (align: unknown) => ({
+    type: "tableCell",
+    attrs: { align },
+    content: [{ type: "paragraph", content: [{ type: "text", text: "x" }] }],
+  });
+  assert.equal(renderDocNode({ type: "doc", content: [cell("center")] }), '<td style="text-align:center"><p>x</p></td>');
+  assert.equal(renderDocNode({ type: "doc", content: [cell("justify")] }), "<td><p>x</p></td>");
+  assert.equal(renderDocNode({ type: "doc", content: [cell("left; } body { display:none")] }), "<td><p>x</p></td>");
+});
+
 test("renderDocNode: hardBreak renders <br/> (Shift-Enter, 2026-08-11) — before this case existed, an unrecognized hardBreak fell through to `default`'s `renderNodes(content, ...)`, and since a leaf node's `content` is always undefined, that resolved to \"\": the line break silently vanished on the public site with no error", () => {
   const html = renderDocNode(
     textDoc({ type: "text", text: "line one" }, { type: "hardBreak" }, { type: "text", text: "line two" })

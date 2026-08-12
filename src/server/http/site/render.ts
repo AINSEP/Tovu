@@ -402,6 +402,40 @@ function alignStyleAttr(node: JsonObject): string {
   return styleForAlign(align);
 }
 
+/**
+ * `text-align` inline style for a `tableCell`/`tableHeader` node's own `attrs.align`
+ * (`@tiptap/extension-table`, 2026-08-11) — narrower than {@link alignStyleAttr}: a table cell's own
+ * `normalizeTableCellAlign` (confirmed against the installed dist) only ever produces `"left"`,
+ * `"center"`, `"right"`, or `null` — never `"justify"`, which makes little sense for a single cell's
+ * content anyway. Re-checked here rather than trusted, same defense-in-depth reasoning every other
+ * attrs-derived value in this file gets: `bodyJson` can be written by a direct API call, not only by
+ * the editor UI that happens to constrain it client-side.
+ */
+function tableCellAlignAttr(node: JsonObject): string {
+  const align = isObject(node.attrs) && typeof node.attrs.align === "string" ? node.attrs.align : null;
+  return align === "left" || align === "center" || align === "right" ? styleForAlign(align) : "";
+}
+
+/**
+ * `colspan`/`rowspan` HTML attributes for a `tableCell`/`tableHeader` node, each independently
+ * bounds-checked and defaulted to `1` (both nodes' own `addAttributes` default, confirmed against
+ * the installed dist) — omitted entirely when `1`, since `colspan="1"`/`rowspan="1"` is the HTML
+ * default and writing it out is noise, matching this file's own "omit rather than emit a no-op"
+ * convention ({@link styleForAlign}, {@link renderImageTag}'s width/height/class). The `<= 1000`
+ * ceiling is a defensive bound, not a real table's expected shape — `bodyJson` is written by a
+ * direct API call as easily as by the editor, and an unbounded `colspan` is a cheap way to force a
+ * huge rendered table.
+ */
+function tableSpanAttrs(attrs: JsonObject): string {
+  const colspan = typeof attrs.colspan === "number" && Number.isInteger(attrs.colspan) && attrs.colspan >= 1 && attrs.colspan <= 1000
+    ? attrs.colspan
+    : 1;
+  const rowspan = typeof attrs.rowspan === "number" && Number.isInteger(attrs.rowspan) && attrs.rowspan >= 1 && attrs.rowspan <= 1000
+    ? attrs.rowspan
+    : 1;
+  return `${colspan !== 1 ? ` colspan="${colspan}"` : ""}${rowspan !== 1 ? ` rowspan="${rowspan}"` : ""}`;
+}
+
 function renderNodes(
   nodes: JsonValue[] | undefined,
   inlineResolved: ReadonlyMap<string, WidgetRenderIR>,
@@ -479,6 +513,27 @@ export function renderDocNode(
       return `<ol>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata)}</ol>`;
     case "listItem":
       return `<li>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata)}</li>`;
+    // Table (`@tiptap/extension-table`, 2026-08-11) — four node types confirmed against the
+    // installed dist: `table` (content `"tableRow+"`), `tableRow` (`<tr>`), `tableCell` (`<td>`),
+    // `tableHeader` (`<th>`). No `<colgroup>`/column-resize markup: the editor mounts `Table` with
+    // `resizable: false` (the extension's own default), so there is no column-width state to
+    // reproduce here — `.post-detail-body table` (styles.css) sizes columns with plain
+    // `table-layout: auto`, same as an ordinary unstyled HTML table. Disclosed scope limit, not an
+    // oversight: widening this to resizable columns would need `colwidth` threaded through both the
+    // editor config and this renderer's own `<colgroup>` emission, and nothing in this task asked
+    // for resizable tables specifically.
+    case "table":
+      return `<table>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata)}</table>`;
+    case "tableRow":
+      return `<tr>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata)}</tr>`;
+    case "tableCell": {
+      const attrs = isObject(node.attrs) ? node.attrs : {};
+      return `<td${tableSpanAttrs(attrs)}${tableCellAlignAttr(node)}>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata)}</td>`;
+    }
+    case "tableHeader": {
+      const attrs = isObject(node.attrs) ? node.attrs : {};
+      return `<th${tableSpanAttrs(attrs)}${tableCellAlignAttr(node)}>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata)}</th>`;
+    }
     case "blockquote":
       return `<blockquote>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata)}</blockquote>`;
     case "codeBlock":

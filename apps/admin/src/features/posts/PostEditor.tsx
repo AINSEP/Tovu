@@ -137,6 +137,17 @@ function Toolbar({ editor }: { editor: Editor }) {
         <button className={toolbarBtnClass(s.quote)} title="Quote" aria-pressed={s.quote} onClick={() => chain().toggleBlockquote().run()}>&ldquo; Quote</button>
         <button className={toolbarBtnClass(s.codeBlock)} title="Code block" aria-pressed={s.codeBlock} onClick={() => chain().toggleCodeBlock().run()}>{"{ }"}</button>
         <button className="tb-btn" title="Divider" onClick={() => chain().setHorizontalRule().run()}>―</button>
+        {/* Table (owner, 2026-08-11: "anything and everything") — same "quickest thing that
+            works" idiom as "Img by URL"/"Divider" just above: a fixed 3x3-with-header-row insert,
+            no rows/cols prompt. `insertTable`'s own defaults (`rows: 3, cols: 3,
+            withHeaderRow: true`) are passed explicitly rather than relied on implicitly. */}
+        <button
+          className="tb-btn"
+          title="Insert table"
+          onClick={() => chain().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
+        >
+          Table
+        </button>
       </div>
       {/* Icons, not word labels (owner, 2026-08-11: "How come it just doesn't use the icons? ...
           Not a huge deal, but would be nice to have") — house SVG convention (`viewBox="0 0 18 18"`,

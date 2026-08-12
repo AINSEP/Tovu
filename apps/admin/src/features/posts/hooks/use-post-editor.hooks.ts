@@ -8,6 +8,7 @@ import Superscript from "@tiptap/extension-superscript";
 import { TextStyle, Color, BackgroundColor, FontFamily, FontSize, LineHeight } from "@tiptap/extension-text-style";
 import Typography from "@tiptap/extension-typography";
 import { Placeholder, CharacterCount } from "@tiptap/extensions";
+import { Table, TableRow, TableCell, TableHeader } from "@tiptap/extension-table";
 
 import type { AdminPost, ThemeTier } from "../../../lib/api";
 import { MediaImage } from "../../../lib/media-image-extension";
@@ -245,6 +246,15 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
       // rule (2026-08-11) targets them directly.
       Placeholder.configure({ placeholder: "Start writing…" }),
       CharacterCount,
+      // Table (2026-08-11) — `resizable: false` (the extension's own default, kept explicit here
+      // rather than relied on implicitly) since `render.ts`'s `"table"` case emits a plain
+      // `<table>` with no `<colgroup>`; a resizable editor would let an author set column widths
+      // this renderer then silently drops, a worse gap than not offering resize at all. See that
+      // case's own comment for the full scope-limit disclosure.
+      Table.configure({ resizable: false }),
+      TableRow,
+      TableCell,
+      TableHeader,
       MediaImage,
       WidgetEmbed,
     ],
