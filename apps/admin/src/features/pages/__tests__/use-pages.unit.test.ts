@@ -1,6 +1,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { api } from "../../../lib/api";
 import { createFakePagesPort } from "../hooks/pages-dependencies.hooks";
 import { usePages, useWiredPages } from "../hooks/use-pages.hooks";
 
@@ -18,7 +19,22 @@ import { usePages, useWiredPages } from "../hooks/use-pages.hooks";
  * conversion, just a call-site swap. The "injected port" describe block at the bottom is new
  * coverage added alongside that conversion, proving the pure hook is independently testable
  * against `createFakePagesPort` with no `fetch` stub at all.
+ *
+ * `useWiredPages()` now also calls `useAdminLocale()` internally (this file's own i18n pass —
+ * see `use-pages.hooks.ts`'s header), which fires its own `api.getSettingsEffective({ namespace:
+ * "core.language" })` call on mount, ahead of `port.listPages()`'s own fetch (hook-call order:
+ * `useAdminLocale()` runs first in `useWiredPages()`, so its effect registers, and fires, first).
+ * Left as a raw `fetch` call, that call would consume the very `fetchMock.mockResolvedValueOnce(...)`
+ * each test below queues for the PAGES request, handing `port.listPages()` the default empty mock
+ * instead and breaking every scripted response. `vi.spyOn(api, "getSettingsEffective")` below
+ * intercepts it at the `api` layer instead — same fix `use-settings-container.hooks.unit.test.ts`'s
+ * `queueLocale()` uses for the identical race — so it never touches `fetchMock`'s queue at all and
+ * every existing scripted `fetch` response still lands on the call it was written for.
  */
+
+beforeEach(() => {
+  vi.spyOn(api, "getSettingsEffective").mockResolvedValue({ data: [] });
+});
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
@@ -55,6 +71,7 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 async function renderLoaded() {
@@ -248,7 +265,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
     try {
       const port = createFakePagesPort({ pages: [PAGE] });
       const navigate = vi.fn();
-      const { result } = renderHook(() => usePages({ port, navigate }));
+      const { result } = renderHook(() => usePages({ port, navigate, t: (k) => k, locale: "en" }));
       await waitFor(() => expect(result.current.pages).not.toBeNull());
       expect(result.current.pages).toEqual([PAGE]);
 
@@ -266,7 +283,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
 
   it("disablePage patches the page through the injected port", async () => {
     const port = createFakePagesPort({ pages: [PAGE] });
-    const { result } = renderHook(() => usePages({ port, navigate: vi.fn() }));
+    const { result } = renderHook(() => usePages({ port, navigate: vi.fn(), t: (k) => k, locale: "en" }));
     await waitFor(() => expect(result.current.pages).not.toBeNull());
 
     await act(async () => {
@@ -279,7 +296,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
 
   it("removePage deletes the pending page through the injected port", async () => {
     const port = createFakePagesPort({ pages: [PAGE] });
-    const { result } = renderHook(() => usePages({ port, navigate: vi.fn() }));
+    const { result } = renderHook(() => usePages({ port, navigate: vi.fn(), t: (k) => k, locale: "en" }));
     await waitFor(() => expect(result.current.pages).not.toBeNull());
 
     act(() => result.current.setPendingDelete(PAGE));
@@ -293,7 +310,7 @@ describe("injected port (useWiredX conversion coverage)", () => {
 
   it("sets the fallback error when the injected port's create call rejects", async () => {
     const port = createFakePagesPort({ pages: [], createError: new Error("quota exceeded") });
-    const { result } = renderHook(() => usePages({ port, navigate: vi.fn() }));
+    const { result } = renderHook(() => usePages({ port, navigate: vi.fn(), t: (k) => k, locale: "en" }));
     await waitFor(() => expect(result.current.pages).not.toBeNull());
 
     await act(async () => {

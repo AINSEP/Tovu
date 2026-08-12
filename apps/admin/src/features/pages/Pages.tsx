@@ -9,8 +9,6 @@ import { TabBar } from "../../components/TabBar";
 import { pageRowMenuItems } from "./rules";
 import { useWiredPages } from "./hooks/use-pages.hooks";
 import { useWiredThemePages } from "./hooks/use-theme-pages.hooks";
-import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import { PAGES_DICT } from "./pages-i18n";
 
 /**
  * @file The Pages list screen — markup only.
@@ -146,11 +144,11 @@ export function Pages({ usePagesHook = useWiredPages, useThemePagesHook = useWir
     createPage,
     disablePage,
     removePage,
+    t,
+    locale,
   } = usePagesHook();
   const { pageIds: themePageIds, error: themePagesError } = useThemePagesHook();
   const [activeTab, setActiveTab] = useState<"mine" | "theme">("mine");
-  const locale = useAdminLocale();
-  const t = (key: string): string => PAGES_DICT[locale]?.[key] ?? key;
 
   const notice = pagesListNotice(pages, error);
   if (notice) return notice;
