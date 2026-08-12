@@ -112,34 +112,66 @@ Fixed in `53b8d6f` + `6d3e9c4`.
 
 | Auditor | Score | Gate | Ledger |
 |---|---|---|---|
-| Gemini 3.6 Flash | 9.2 | PASS | 10/10 verified |
-| Gemini 3.1 Pro | **7.5** | **FAIL** | 10/10 verified — **1 blocker** |
-| Codex `gpt-5.6-sol` xhigh (repo access) | **pending** | | |
-| Internal verifier (`Verifier2`) | **pending** | | |
+| Gemini 3.6 Flash (packet-only) | 9.2 | PASS | 10/10 verified |
+| Gemini 3.1 Pro (packet-only) | 7.5 | FAIL | 10/10 verified — 1 blocker, **not corroborated** |
+| **`Verifier2`** (Sonnet, repo access) | **6.0** | **FAIL** | **9/10 — one FALSIFIED** |
+| Codex `gpt-5.6-sol` xhigh (repo access) | **still running at cutoff** | | |
 
-**Both Geminis reconciled all 10 ledger entries as verified** — the round-1 blocker fix is
-independently confirmed closed.
+### ⚠️ The round-2 blocker — a ledger claim of MINE was false. FOUND AND FIXED.
 
-**⚠️ Pro's round-2 blocker — UNRESOLVED, the top item for next session:**
-> Inserting a mention immediately after a still-selected YouTube atom **silently deletes the YouTube
-> node** from persisted `bodyJson`. Domain 3, silent content loss.
+`Verifier2` falsified disposition `CX-F3/GP-F2`. I recorded that the `media` surface was covered by
+the `panels.tsx` `key=` sweep. **It is not — `Media.tsx` is not router-driven, so that sweep never
+reached it.** Verified independently before accepting:
 
-Observed **once** by an agent, never reproduced, disclosed in the packet — Pro escalated it to
-blocker on that disclosure; Flash flagged it at medium. **It needs an isolated repro before it is
-trustworthy as a real bug.** That is the single highest-value next task.
+- `<EditMediaPanel item={editingItem}>` had **no `key`** → React re-renders one instance rather than remounting.
+- `toggleEditing` is `setEditingId((id) => id === item.id ? null : item.id)` — switching A→B goes
+  **straight from A's id to B's id**; only re-clicking the *same* row passes through `null`. And
+  `mediaRowMenuItems` leaves every other row's Edit action enabled.
+- `useEditMediaPanel` seeds `draft` in a **`useState` initializer** — runs once per mount, never re-reads `item`.
+- `save()` then PATCHes **B's id** with **A's** title/alt/caption/credit/dimensions.
 
-**Pro's second finding (high):** `key=` remounts may discard in-progress editor state on navigation.
-The keys chosen are stable route params, so they should only change on genuine entity navigation —
-**but this was never verified.** Check it before trusting the remount fix.
+**Two ordinary clicks silently overwrite a different asset's metadata.** Domain 4 + domain 3. Zero
+test coverage. **Fixed** with `key={editingItem.id}`; a regression test with mandatory negative
+verification was dispatched (`MediaGuardTest`) — confirm it landed.
+
+This is the protocol earning its cost: the rule that *an unverifiable `fixed` claim is itself a
+blocker* is what converted my unchecked assertion into a finding instead of letting it through.
+
+### Gemini Pro's blocker was NOT corroborated
+
+`Verifier2`, with repo access, checked both of Pro's claims against source and declined both:
+- **mention/YouTube node deletion** — standard ProseMirror `NodeSelection`-replace behaviour, not
+  introduced by this diff. Pro escalated it from my packet's own disclosure, without repo access.
+- **`key=` discards unsaved work** — expected behaviour for any router-driven editor with no
+  autosave; no invariant in I1–I6 requires one.
+
+Treat Pro's blocker as **downgraded but not dismissed** — an isolated repro would still settle it.
+
+### What round 2 affirmatively cleared
+
+No scheme or XSS bypass in `safeImageSrc`; all 7 `panels.tsx` keys stable (string-valued route
+params, no remount-storm risk); media-context threading reaches identical sanitisation; and
+`Youtube` is the **only** registered extension emitting an `<iframe>`, so scoping the preview
+degradation to it is correct. Two low advisories remain: the admin-media rejection is a **path
+substring regex** (prefer `new URL(src).origin`), and `safeImageSrc` accepts userinfo URLs — the
+same pre-existing, accepted behaviour `safeHref` already has.
 
 ---
 
 ## TABLED FOR NEXT SESSION — prioritized
 
-1. **Reproduce or refute the mention/YouTube node deletion.** Round-2 blocker. Isolated repro first.
-2. **Verify `key=` does not lose unsaved edits** on navigation (Pro's high finding).
-3. **Finish audit round 2** — Codex and `Verifier2` were still running at cutoff; their raw output
-   may be recoverable from the task files. If not, re-dispatch from
+1. **Confirm `MediaGuardTest` landed** the regression test for the round-2 media blocker, with its
+   negative verification. The fix (`key={editingItem.id}` in `Media.tsx`) is applied; the test may
+   not have committed before cutoff.
+2. **Audit the rest of `media` for the same shape** — any component taking an entity as a prop and
+   seeding state from it in a `useState` initializer with no `key` and no `item.id` reset effect.
+   `Verifier2` was asked to enumerate these; check its report. Consider whether
+   `use-form-editor.hooks.ts`'s `seededFormIdRef` pattern is more robust than `key=` here.
+3. **Reproduce or refute the mention/YouTube node deletion** — Pro called it a blocker, `Verifier2`
+   did not corroborate it. An isolated repro settles it either way.
+4. **Recover Codex's round-2 verdict** — it was still running at cutoff after 130 commands (it stood
+   up JSDOM + React to test behaviour empirically, not just read source). Raw JSONL may be
+   recoverable from the session task files. If not, re-dispatch from
    `ADS-memory/reports/external-audit/packets/2026-08-12-round2-packet.md`.
 4. **`safeImageSrc` bypass hunt** — userinfo (`https://good@evil/`), punycode homographs, and whether
    the admin-media rejection can be evaded by case/encoding/query string. Two auditors raised it.
