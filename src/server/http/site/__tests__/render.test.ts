@@ -76,6 +76,42 @@ test("C7: link composes with an emphasis mark on the same text", () => {
   assert.equal(html, '<p><a href="/x"><strong>here</strong></a></p>');
 });
 
+test("renderDocNode: a textStyle mark with a color attr renders an inline color style", () => {
+  const html = renderDocNode(textDoc({ type: "text", text: "hi", marks: [{ type: "textStyle", attrs: { color: "#ff0000" } }] }));
+  assert.equal(html, '<p><span style="color:#ff0000">hi</span></p>');
+});
+
+test("a textStyle mark with a backgroundColor attr renders an inline background-color style", () => {
+  const html = renderDocNode(textDoc({ type: "text", text: "hi", marks: [{ type: "textStyle", attrs: { backgroundColor: "#00ff00" } }] }));
+  assert.equal(html, '<p><span style="background-color:#00ff00">hi</span></p>');
+});
+
+test("a textStyle mark with both color and backgroundColor combines into one style attribute on one span", () => {
+  const html = renderDocNode(
+    textDoc({ type: "text", text: "hi", marks: [{ type: "textStyle", attrs: { color: "#ff0000", backgroundColor: "#00ff00" } }] })
+  );
+  assert.equal(html, '<p><span style="color:#ff0000;background-color:#00ff00">hi</span></p>');
+});
+
+test("a textStyle mark with no recognized attrs (or attrs that all fail the color allowlist) renders no <span> at all", () => {
+  assert.equal(renderDocNode(textDoc({ type: "text", text: "hi", marks: [{ type: "textStyle" }] })), "<p>hi</p>");
+  assert.equal(
+    renderDocNode(textDoc({ type: "text", text: "hi", marks: [{ type: "textStyle", attrs: { color: "red; } body { display:none" } }] })),
+    "<p>hi</p>"
+  );
+});
+
+test("an unsafe backgroundColor is dropped independently — a valid color attr alongside it still renders", () => {
+  const html = renderDocNode(
+    textDoc({
+      type: "text",
+      text: "hi",
+      marks: [{ type: "textStyle", attrs: { color: "#ff0000", backgroundColor: "url(javascript:alert(1))" } }],
+    })
+  );
+  assert.equal(html, '<p><span style="color:#ff0000">hi</span></p>');
+});
+
 test("renderDocNode: subscript and superscript marks render (Posts toolbar, 2026-08-11)", () => {
   const html = renderDocNode(
     textDoc(
