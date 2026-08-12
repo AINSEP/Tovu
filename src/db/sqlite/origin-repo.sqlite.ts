@@ -9,7 +9,7 @@ import {
   type OriginScheme,
   type OriginSource,
   type VerifiedOrigin,
-} from "../../origin/types";
+} from "../../origin";
 
 /**
  * @file ADR-046 Phase 1 — real SQLite `OriginSettingRepoPort` adapter (ADR-006 rule-of-two
