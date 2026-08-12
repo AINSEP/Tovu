@@ -46,6 +46,47 @@
  * change than this fix and stays explicitly out of scope — so this fails closed with
  * `COLUMN_ADD_PRIMARY_KEY`. A live column whose type no longer matches its declaration also fails
  * closed (`COLUMN_TYPE_MISMATCH`) for the same reason: a type change is a rebuild, not an `ALTER`.
+ *
+ * CONSTRAINT-LEVEL RECONCILIATION (BUG FIX, 2026-08-12): the reconciliation above diffed an
+ * existing column's `type` but not its `notNull`/`primaryKey` declarations — a plugin author
+ * tightening either constraint on an already-existing column (e.g. a v2 manifest marking a
+ * previously-nullable column `notNull: true`) got `{ ok: true, altered: [] }` back with the live
+ * column completely unchanged: the identical silent-non-enforcement bug class the type-mismatch
+ * fix above closed, just for two different fields on the same struct. `assertColumnNotNullMatches`
+ * and `assertColumnPrimaryKeyMatches` now run alongside `assertColumnTypeMatches` for every
+ * existing column a declaration mentions, each failing closed (`COLUMN_NOT_NULL_MISMATCH` /
+ * `COLUMN_PRIMARY_KEY_MISMATCH`) on disagreement, for the same reason as the type case: SQLite's
+ * `ALTER TABLE` cannot change either constraint on an existing column — no `ALTER COLUMN`, no way
+ * to add or drop a `NOT NULL` or `PRIMARY KEY` short of the same create-copy-drop-rename rebuild
+ * this file stays out of scope of everywhere else.
+ *
+ * Both checks are DIRECTION-AGNOSTIC — declared-stricter-than-live and declared-looser-than-live
+ * both fail closed — deliberately mirroring `COLUMN_TYPE_MISMATCH`'s own symmetric behavior rather
+ * than only catching the tightening direction the bug report above led with. The two directions
+ * are not equally *dangerous* (tightening risks silent bad data creeping in past a constraint the
+ * app believes SQLite is enforcing; loosening at most risks a write later hitting a live
+ * constraint the current manifest doesn't mention, which SQLite itself rejects loudly at write
+ * time, not silently) — but both are still a manifest that disagrees with the database it
+ * describes, and this module's whole job is to surface that disagreement at `declare()` time,
+ * next to the manifest, rather than let either direction surface later at some unrelated write
+ * site with no link back to the manifest. `COLUMN_TYPE_MISMATCH` never special-cased "safe"
+ * directions either (e.g. widening `INTEGER` to `REAL` isn't unsafe the way `TEXT`→`INTEGER` is)
+ * for the same underlying reason, so this stays consistent with the established fail-closed
+ * default rather than inventing a narrower rule for these two fields alone.
+ *
+ * `assertColumnPrimaryKeyMatches` compares against `getExistingColumns`'s already-boolean
+ * `primaryKey` field (`pk !== 0`, not `pk === 1`) so a column that is part of a *composite*
+ * primary key (`PRAGMA table_info`'s `pk` is an ordinal position, 1-based, not a 0/1 flag) is
+ * still read correctly as "is a primary key column" rather than only the first component
+ * matching. Whether that scenario can even arise given this engine's own DDL is a separate
+ * question: `ColumnDecl.primaryKey` is a single-column boolean with no table-level composite-key
+ * grammar, and `CREATE TABLE` with two columns each carrying a column-level `PRIMARY KEY`
+ * constraint is rejected by SQLite itself ("table has more than one primary key") before this
+ * code ever runs — so this engine cannot *create* a composite-PK table through its own DDL. A
+ * live table could still carry one from outside this engine's DDL entirely (the §0 access-control
+ * caveat below: a Tier-3 plugin holding a raw handle, or a table that predates this engine) — the
+ * ordinal-aware read guards against exactly that case rather than assuming it can't happen.
+ *
  * A live column the CURRENT declaration no longer mentions is deliberately left alone rather than
  * dropped — this engine never authors a `DROP COLUMN` on a plugin's behalf; an operator who rolled
  * a plugin back to an older manifest, or a manifest that stopped mentioning a column on purpose,
@@ -375,6 +416,45 @@ function assertColumnTypeMatches(tableName: string, col: ColumnDecl, existingCol
 }
 
 /**
+ * Fails closed when a column that already exists on the live table no longer matches its
+ * declared `NOT NULL` constraint, in EITHER direction (see this file's header comment,
+ * CONSTRAINT-LEVEL RECONCILIATION, for why this is deliberately symmetric rather than only
+ * catching the tightening direction). SQLite's `ALTER TABLE` cannot flip `NOT NULL` on an
+ * existing column either way without a table rebuild, the same reason `assertColumnTypeMatches`
+ * fails closed on a type change.
+ */
+function assertColumnNotNullMatches(tableName: string, col: ColumnDecl, existingCol: ExistingColumnInfo): void {
+  const declaredNotNull = col.notNull ?? false;
+  if (existingCol.notNull === declaredNotNull) return;
+  throw new DeclError(
+    "COLUMN_NOT_NULL_MISMATCH",
+    `table ${tableName} column "${col.name}" is declared ${declaredNotNull ? "NOT NULL" : "nullable"} but ` +
+      `the live column is ${existingCol.notNull ? "NOT NULL" : "nullable"}. Changing a column's NOT NULL ` +
+      `constraint needs a table rebuild, which this engine does not perform.`
+  );
+}
+
+/**
+ * Fails closed when a column that already exists on the live table no longer matches its
+ * declared `PRIMARY KEY` membership, in EITHER direction (same symmetric reasoning as
+ * `assertColumnNotNullMatches`). Compares against `existingCol.primaryKey`, which
+ * `getExistingColumns` already normalizes from `PRAGMA table_info`'s ordinal `pk` column via
+ * `pk !== 0` — see this file's header comment for why that read is what keeps a composite primary
+ * key from producing a false positive here.
+ */
+function assertColumnPrimaryKeyMatches(tableName: string, col: ColumnDecl, existingCol: ExistingColumnInfo): void {
+  const declaredPrimaryKey = col.primaryKey ?? false;
+  if (existingCol.primaryKey === declaredPrimaryKey) return;
+  throw new DeclError(
+    "COLUMN_PRIMARY_KEY_MISMATCH",
+    `table ${tableName} column "${col.name}" is declared ${declaredPrimaryKey ? "a PRIMARY KEY" : "not a PRIMARY KEY"} ` +
+      `but the live column ${existingCol.primaryKey ? "is" : "is not"} part of the table's primary key. SQLite's ` +
+      `ALTER TABLE cannot add or remove a primary key on an existing table — only a full table rebuild can, ` +
+      `and this engine does not perform rebuilds.`
+  );
+}
+
+/**
  * Diffs one already-existing table's declared columns against its live shape (§2's own text:
  * "diffs declared-state against live-state"). A live column absent from `table.columns` is
  * deliberately not inspected here at all — see this file's header comment for why that drift is
@@ -390,6 +470,8 @@ function planColumnReconciliation(db: Database.Database, table: TableDecl, fqTab
       continue;
     }
     assertColumnTypeMatches(table.name, col, existingCol);
+    assertColumnNotNullMatches(table.name, col, existingCol);
+    assertColumnPrimaryKeyMatches(table.name, col, existingCol);
   }
   return columnsToAdd;
 }
