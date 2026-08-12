@@ -15,6 +15,58 @@ UNPROVEN and ranked below proven findings, per the security-review skill's evide
 
 ## Findings
 
+### Note — untrusted archive extraction (priority #2): hardened, but not yet reachable
+
+**Component:** `src/features/agent-plugins/install.ts`, `yauzl-archive-reader.ts`, `package-paths.ts`
+
+`installAgentPlugin()` is genuinely well-hardened against every zip-slip/decompression-bomb/TOCTOU
+vector in scope: symlink entries are refused categorically (not validated-then-allowed); path
+containment (`assertContainedOnDisk`) re-`realpath`s BOTH the root and the deepest existing ancestor on
+every single entry, catching a symlinked-parent-directory-planted-by-an-earlier-entry attack, not just a
+lexical `../` check; size is bounded on bytes ACTUALLY streamed off `openReadStream()`, never the
+archive's own declared size (defeats the classic "declared size lies" bomb); entry count, per-file size,
+and running total are all capped (`LIMITS`, install.ts:115-120); writes use `O_EXCL|O_NOFOLLOW`; publish
+is an atomic same-filesystem `rename`; the digest is verified BEFORE the archive reader ever touches the
+bytes, so a mismatched-digest archive is never even parsed. I tried to refute this by hand-tracing each
+of the checklist items in the dispatch brief (zip-slip, absolute paths, symlinks, zip-bomb,
+declared-vs-actual size, TOCTOU, entry-name normalization) against the code above and could not find a
+bypass.
+
+**One LOW/UNPROVEN note:** `normalizePackageEntryPath` does not apply Unicode normalization (NFC/NFD).
+Two entries that are visually identical but differ in Unicode normalization form both pass the lexical
+`seen`-based `DUPLICATE_ENTRY` check as "different," even though some filesystems (historically HFS+)
+normalize on write and would collide on disk. This does **not** break containment — `assertContainedOnDisk`
+re-resolves the real filesystem path independently for every entry, so nothing escapes the package root
+this way — worst case is a silently-dropped `DUPLICATE_ENTRY` refusal on a platform where the two forms
+collide on disk, which is a robustness gap, not a security one on the file systems Tovu actually deploys
+to (Linux, not HFS+). Not pursued further given the severity ceiling.
+
+**Material finding, not a vulnerability but changes urgency:** `installAgentPlugin` has **zero callers**
+anywhere in `src/` outside its own file and its own tests — no HTTP route, no agent-tool registration.
+`src/server/routes/admin/plugins/{list.ts,set-enabled.ts}` is a different, unrelated "plugins" surface
+(the `.tovu-plugin`/`plugin-runtime` loader, explicitly distinguished in `install.ts`'s own header). This
+hardening is real and correct, but the archive-extraction attack surface it defends is **not yet
+reachable from the network or from any agent tool** — worth confirming with the owner whether a route is
+coming in a follow-up session, since that is the day this review's assumptions need re-checking (e.g.
+whether the eventual route re-validates `expectedSha256` server-side rather than trusting a client-supplied
+value, which `install.ts`'s own doc comment already flags as "a real marketplace flow would supply this
+from the server's own metadata" — i.e. today's function signature accepts it as a parameter with no
+opinion on where the caller gets it from).
+
+**The theme install path is not an archive-extraction surface at all.** `downloadMarketplaceTheme`
+(`src/features/theme/marketplace.ts:247`) copies a THEME directory via `cpSync`, sourced only from a
+local, repo-shipped `__marketplace__` fixture folder — not from an uploaded or fetched archive. The
+`marketplaceId` request parameter is validated against `SAFE_THEME_ID` (a regex) before any path is
+built from it, and the fixture directory itself is looked up by iterating a fixed, small set of
+`ENGINE_SUBFOLDERS` under a trusted root — no network fetch, no user-supplied bytes, no zip parsing.
+There is currently no code path where an external theme package (zip, tarball, or otherwise) is
+ingested. If "anyone can author themes" is meant to describe a near-term feature, the archive-extraction
+hardening above should be the template for it — it is not yet built for themes.
+
+**Human sign-off required:** No (no exploitable finding; informational for planning).
+
+---
+
 ### FINDING 1 — CRITICAL — PROVEN — Stored XSS via `.svg` upload survives outside a compiled theme's `sourceDir`
 
 **Type:** Stored XSS (CWE-79) via content-type/extension allowlist gap
