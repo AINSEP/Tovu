@@ -19,10 +19,10 @@
  * error sets into one `PluginDiscoveryRecord.errors[]` array before listing/enabling a plugin.
  *
  * Architectural role:
- * TDD-certified stub (implementation outline C-005/C-006). Signature and JSDoc are design-frozen;
- * `validateManifest`'s body intentionally throws until the Programmer stage implements it against
- * `__tests__/unit/manifest.unit.test.ts`. Do not implement ahead of that suite being reviewed —
- * this file exists so the test suite compiles and fails red, not green.
+ * TDD-certified implementation (implementation outline C-005/C-006). Signature and JSDoc are
+ * design-frozen; `validateManifest()` collects every BR-02 steps (2)-(6) violation (identity,
+ * engine/tier, capabilities, hooks, fields) rather than stopping at the first, returning them in
+ * `errors[]` — it never throws. Verified against `__tests__/unit/manifest.unit.test.ts`.
  */
 
 /** ADR-024 §1 trust-tier vocabulary (1.1.1 REQ-01 fix). Literal encoding reused verbatim from the
