@@ -162,7 +162,10 @@ export function createHookRegistry(): HookRegistry {
     const merged: Record<string, JsonObject> = {};
 
     for (const [pluginId, attachment] of ordered) {
-      const snapshot: ContentEntryDraft = { ...entry, ext: { ...entry.ext, ...merged } };
+      const snapshot: ContentEntryDraft = structuredClone({
+        ...entry,
+        ext: { ...entry.ext, ...merged },
+      });
       const ctx = { pluginId, workspaceId: entry.workspaceId };
 
       let patch: unknown;
