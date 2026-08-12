@@ -355,6 +355,62 @@ real `.dependency-cruiser.cjs` this session.**
 
 ---
 
+## 4a. Phase 2 — implemented (tree cleared mid-session)
+
+By the time §3's design was finished, `FixLeakyA`/`FixLeakyB`/`FixAssistant` had committed enough
+that the §4 gate re-checked clean: `comments` (`3d317da`), `forms` (`cd449eb`), `newsletter`
+(`e1a5d33`), `site-dir` (`5f90110`) all landed their redirects/barrels, and `assistant` made major
+(not yet complete) progress (`3e67fa5`). Re-verified live via `git status` immediately before
+proceeding, per the dispatch's explicit instruction — proceeded only once none of the 7 named paths
+showed uncommitted modifications.
+
+**Implemented in the real `.dependency-cruiser.cjs`**, generated (not hand-duplicated — 30 modules
+× 3 rules = 90 rules): `GUARDED_MODULES` extended to 30 (adding `forms`/`newsletter`/`site-dir` now
+that they have doors), `COMPOSITION_ROOTS` extended with `cli/commands/{serve,init,introspect}.ts`
+per trace-A's own "second, independent composition root" framing, and `EXTRA_TO_EXEMPT` populated
+for `forms`/`newsletter` from trace-A's F-1/N-1 Category-3 lists exactly as §3.8 described. All
+rules stayed `severity: "warn"` — per the dispatch's explicit instruction not to set `error` if that
+would leave CI red, and per §5 item 4 below, most of the 30 modules still need per-file triage
+before that would be responsible.
+
+**Ran `npx depcruise --config .dependency-cruiser.cjs --output-type json src` directly** (not
+`npm run check:boundaries`, whose npm banner corrupts JSON output) against the live working tree:
+
+- **220 total violations, 0 errors, 220 warnings.** Exit code 0 — REQ-11's "always exits 0 for
+  ordinary rule violations" is preserved.
+- **51 from the 4 existing rules** (unchanged from §1 — confirms this work didn't touch them).
+- **169 from the new rule family**, across 17 of 30 guarded modules: `integrations` (53),
+  `assistant` (31 — up from the snapshot's 27; `FixAssistant` was still committing during this
+  report), `features/post` (25), `features/content-types` (13), `forms` (11), `analytics` (10),
+  `media` (7), `origin` (5), `widgets/resolvers` (3), `features/commerce` (2), `features/theme`
+  (2), `features/settings` (1), `members` (1), `redirects` (1), `routing` (1), `seo` (1),
+  `site-dir` (1). `comments`, `entries`, `taxonomy`, `newsletter` — **0**, confirming the
+  trace-sourced exemptions hold against the live tree, not just the snapshot.
+- **One transcription mistake caught and fixed before this count was final:** the first attempt at
+  the real config dropped the `newsletter` `EXTRA_TO_EXEMPT` entry that the prototype had validated
+  (§3.8 said 0; the first real run showed 26). Comparing the live result against the
+  prototype-verified expectation caught it immediately — restored from the prototype, re-ran,
+  confirmed 0. Recorded here because a design that was correct in the scratch prototype and wrong
+  in the real file on first transcription is exactly the kind of error a single "looks done" pass
+  would have shipped.
+- **One genuinely new finding, not in §3's design, found only by running against the real tree:**
+  `src/db/sqlite/origin-repo.sqlite.ts` imports `createVerifiedOrigin` — a **value**, not a type —
+  in the same specifier as three type-only names, from `origin/types.ts`. §3.4's characterization
+  ("every one of these is `import type`") was accurate for the other five files cited but not this
+  one; the mixed import means `dependencyTypesNot: ["type-only"]` correctly classifies the whole
+  edge as non-type-only and flags it. Checked `origin/index.ts`: it already exports
+  `createVerifiedOrigin` — this is a plain "wrong door" bypass (Category 1), the same shape as the
+  `comments`/`taxonomy`/`entries` fixes already landed, not a new design question. One-line fix
+  (redirect that import to `../../origin`), not made here (no production source changes in this
+  report's surface).
+
+**Not done:** promoting any rule past `warn`, and not touching the 4 existing hand-written rules
+(the test-exclusion + two-file exemption recommended in §1.2/§1.3 remain a recommendation, not
+applied — that wasn't Phase 2's scope, which was specifically "implement the rule," singular,
+referring to `no-deep-imports`).
+
+---
+
 ## 5. What's next (not started, for whoever picks this up)
 
 1. **Land `FixLeakyA`/`FixAssistant`**, then re-run the §3.8 prototype against the new HEAD.
