@@ -96,7 +96,17 @@ export function useWidgetInstanceEditor(
 
   const widgetType = resolveEditorWidgetType(isNew, props.widgetType, widget);
 
+  // Stale-response guard (2026-08-12 audit finding): this is a route-param loader — the panel
+  // router reuses this same component/hook for `/new` and every `/:id`, so navigating from one
+  // widget to another (or from an existing widget to `/new`) can let an OLDER `getWidget` response
+  // land after a NEWER one, overwriting the currently-viewed widget with a previous one's data (or,
+  // for `/new`, populating a blank editor with a stale record). `cancelled` is flipped by this same
+  // effect's own cleanup the instant `props.widgetId`/`props.widgetType`/`isNew` changes again,
+  // before the new run starts — guarded on every completion path (`then`/`catch`/`finally`), not
+  // just the success path, since an unguarded `finally` clearing `loading` is the one most likely to
+  // leave stale data on screen with no spinner to flag it.
   useEffect(() => {
+    let cancelled = false;
     if (isNew) {
       setWidget(null);
       setTitle("");
@@ -110,13 +120,23 @@ export function useWidgetInstanceEditor(
     port
       .getWidget(props.widgetId as string)
       .then((r) => {
+        if (cancelled) return;
         setWidget(r.widget);
         setTitle(r.widget.title);
         setConfig(r.widget.config);
         setWhereUsed(r.whereUsed);
       })
-      .catch((e) => setError(describeApiError(e, translate(locale, "failed to load widget"))))
-      .finally(() => setLoading(false));
+      .catch((e) => {
+        if (cancelled) return;
+        setError(describeApiError(e, translate(locale, "failed to load widget")));
+      })
+      .finally(() => {
+        if (cancelled) return;
+        setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.widgetId, props.widgetType, isNew]);
 

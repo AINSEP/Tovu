@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { ApiError, describeApiError, type AdminWidgetArea, type AdminWidgetPlacement } from "../../../lib/api";
 import { buildDraftPlacement, movePlacement } from "../rules";
@@ -67,17 +67,38 @@ export function useWidgetRegionEditor(regionKey: string, { port, locale, t }: Wi
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  // Stale-response guard (2026-08-12 audit finding): `load` has two call sites — the mount/
+  // `regionKey`-change effect below, AND `save()`'s own post-mutation re-read — so a per-effect-run
+  // closure flag (fine when there is only one call site) can't track staleness here: a `save()`-
+  // triggered reload has no effect run of its own to flip a flag on cleanup. A monotonic request id
+  // does: every `load()` call — from either site — mints the next id, and a completion only commits
+  // if it is still the most recent one. Without this, navigating from one region to another while an
+  // older `getWidgetRegion` is still in flight (or a `save()`-triggered reload racing a nav away) can
+  // overwrite the currently-viewed region with a previous one's placements. Guarded on every
+  // completion path (`then`/`catch`/`finally`), not just the success path — an unguarded `finally`
+  // clearing `loading` is the one most likely to leave stale data on screen with no spinner to flag
+  // it.
+  const loadRequestIdRef = useRef(0);
+
   function load() {
+    const requestId = ++loadRequestIdRef.current;
     setLoading(true);
     setError(null);
     port
       .getWidgetRegion(regionKey)
       .then((r) => {
+        if (loadRequestIdRef.current !== requestId) return;
         setArea(r.area);
         setPlacements(r.placements);
       })
-      .catch((e) => setError(describeApiError(e, translate(locale, "failed to load region"))))
-      .finally(() => setLoading(false));
+      .catch((e) => {
+        if (loadRequestIdRef.current !== requestId) return;
+        setError(describeApiError(e, translate(locale, "failed to load region")));
+      })
+      .finally(() => {
+        if (loadRequestIdRef.current !== requestId) return;
+        setLoading(false);
+      });
   }
 
   useEffect(load, [regionKey]);
