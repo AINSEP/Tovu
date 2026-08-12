@@ -6,6 +6,7 @@ import Highlight from "@tiptap/extension-highlight";
 import Subscript from "@tiptap/extension-subscript";
 import Superscript from "@tiptap/extension-superscript";
 import { TextStyle, Color, BackgroundColor, FontFamily, FontSize, LineHeight } from "@tiptap/extension-text-style";
+import Typography from "@tiptap/extension-typography";
 
 import type { AdminPost, ThemeTier } from "../../../lib/api";
 import { MediaImage } from "../../../lib/media-image-extension";
@@ -228,6 +229,12 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
       FontFamily,
       FontSize,
       LineHeight,
+      // Typography (2026-08-11) — an `Extension`, not a mark or node: pure `textInputRule`s that
+      // replace a typed pattern (`--`, `...`, a straight quote after whitespace, `(c)`, …) with the
+      // matching Unicode character (em dash, ellipsis, curly quote, ©, …) AS THE AUTHOR TYPES IT.
+      // The result is plain text in a `text` node — `render.ts` needed no new case, since its
+      // existing `"text"` case already `escapeHtml`s and emits whatever Unicode the doc carries.
+      Typography,
       MediaImage,
       WidgetEmbed,
     ],
