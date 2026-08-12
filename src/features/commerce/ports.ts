@@ -3,6 +3,7 @@ import type {
   CommerceOrderRecord,
   CommerceOrderStatus,
   CommercePriceRecord,
+  CommerceProductImageRecord,
   CommerceProductRecord,
   CommerceWebhookEventRecord,
 } from "./types";
@@ -27,6 +28,12 @@ export interface CommercePriceRepoPort {
   findById(required: { workspaceId: string; id: string }): Promise<CommercePriceRecord | null>;
   listByProduct(required: { workspaceId: string; productId: string }): Promise<CommercePriceRecord[]>;
   save(record: CommercePriceRecord): Promise<void>;
+}
+
+export interface CommerceProductImageRepoPort {
+  /** Ordered ascending by `position`, ties broken by `id`. */
+  listByProduct(required: { workspaceId: string; productId: string }): Promise<CommerceProductImageRecord[]>;
+  save(record: CommerceProductImageRecord): Promise<void>;
 }
 
 export interface CommerceOrderRepoPort {

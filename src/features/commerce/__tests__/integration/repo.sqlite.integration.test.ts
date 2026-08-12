@@ -2,10 +2,11 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { openContentDb, type ContentDb } from "#src/db/sqlite/content-db";
-import { members, memberTiers, workspaces } from "#src/db/schema";
+import { media, members, memberTiers, workspaces } from "#src/db/schema";
 import {
   SqliteCommerceOrderRepo,
   SqliteCommercePriceRepo,
+  SqliteCommerceProductImageRepo,
   SqliteCommerceProductRepo,
 } from "../../repo.sqlite";
 import type { CommerceOrderItemRecord, CommerceOrderRecord, CommercePriceRecord, CommerceProductRecord } from "../../types";
@@ -50,6 +51,25 @@ function seedMemberTier(db: ContentDb, workspaceId: string, id: string): void {
       name: id,
       slug: id,
       type: "paid",
+      status: "active",
+      createdAt: NOW,
+      updatedAt: NOW,
+      version: 1,
+    })
+    .onConflictDoNothing()
+    .run();
+}
+
+function seedMedia(db: ContentDb, workspaceId: string, id: string): void {
+  db.insert(media)
+    .values({
+      id,
+      workspaceId,
+      title: id,
+      alt: id,
+      caption: "",
+      credit: "",
+      sourceSha256: `sha-${id}`,
       status: "active",
       createdAt: NOW,
       updatedAt: NOW,
@@ -145,6 +165,76 @@ test("commerce_products: a same-workspace grants_member_tier_id is accepted", as
   await assert.doesNotReject(() => repo.save(sampleProduct({ grantsMemberTierId: "tier-pro" })));
 });
 
+test("SqliteCommerceProductRepo: specs round-trip as an ordered array of label/value pairs (migration 0038)", async () => {
+  const db = openTestDb();
+  seedWorkspace(db, "ws-1");
+  const repo = new SqliteCommerceProductRepo(db);
+  const specs = [
+    { label: "Material", value: "Thick premium weight combed cotton" },
+    { label: "Care", value: "Cool wash with similar colors" },
+    { label: "Warranty", value: "Color fastness and shape guarantee" },
+  ];
+
+  await repo.save(sampleProduct({ specs }));
+
+  const found = await repo.findById({ workspaceId: "ws-1", id: "product-1" });
+  assert.deepEqual(found?.specs, specs);
+});
+
+test("SqliteCommerceProductRepo: a product with no specs round-trips specs as undefined, not an empty array", async () => {
+  const db = openTestDb();
+  seedWorkspace(db, "ws-1");
+  const repo = new SqliteCommerceProductRepo(db);
+
+  await repo.save(sampleProduct());
+
+  const found = await repo.findById({ workspaceId: "ws-1", id: "product-1" });
+  assert.equal(found?.specs, undefined);
+});
+
+// ---------------------------------------------------------------------------
+// SqliteCommerceProductImageRepo (migration 0038)
+// ---------------------------------------------------------------------------
+
+test("SqliteCommerceProductImageRepo: save + listByProduct returns images ordered by position", async () => {
+  const db = openTestDb();
+  seedWorkspace(db, "ws-1");
+  await new SqliteCommerceProductRepo(db).save(sampleProduct());
+  seedMedia(db, "ws-1", "media-1");
+  seedMedia(db, "ws-1", "media-2");
+  const repo = new SqliteCommerceProductImageRepo(db);
+
+  await repo.save({ id: "img-2", workspaceId: "ws-1", productId: "product-1", mediaId: "media-2", position: 1, createdAt: NOW });
+  await repo.save({ id: "img-1", workspaceId: "ws-1", productId: "product-1", mediaId: "media-1", position: 0, createdAt: NOW });
+
+  const images = await repo.listByProduct({ workspaceId: "ws-1", productId: "product-1" });
+  assert.deepEqual(images.map((i) => i.mediaId), ["media-1", "media-2"]);
+});
+
+test("commerce_product_images: the same media cannot be linked to one product twice (unique constraint)", async () => {
+  const db = openTestDb();
+  seedWorkspace(db, "ws-1");
+  await new SqliteCommerceProductRepo(db).save(sampleProduct());
+  seedMedia(db, "ws-1", "media-1");
+  const repo = new SqliteCommerceProductImageRepo(db);
+  await repo.save({ id: "img-1", workspaceId: "ws-1", productId: "product-1", mediaId: "media-1", position: 0, createdAt: NOW });
+
+  await assert.rejects(() =>
+    repo.save({ id: "img-2", workspaceId: "ws-1", productId: "product-1", mediaId: "media-1", position: 1, createdAt: NOW })
+  );
+});
+
+test("commerce_product_images: a nonexistent media_id is rejected by the FK", async () => {
+  const db = openTestDb();
+  seedWorkspace(db, "ws-1");
+  await new SqliteCommerceProductRepo(db).save(sampleProduct());
+  const repo = new SqliteCommerceProductImageRepo(db);
+
+  await assert.rejects(() =>
+    repo.save({ id: "img-1", workspaceId: "ws-1", productId: "product-1", mediaId: "no-such-media", position: 0, createdAt: NOW })
+  );
+});
+
 // ---------------------------------------------------------------------------
 // SqliteCommercePriceRepo
 // ---------------------------------------------------------------------------
@@ -161,6 +251,33 @@ test("SqliteCommercePriceRepo: save + listByProduct round-trips a price", async 
   assert.equal(prices.length, 1);
   assert.equal(prices[0].unitAmountCents, 1000);
   assert.equal(prices[0].currency, "usd");
+});
+
+test("SqliteCommercePriceRepo: compare_at_amount_cents round-trips when set (migration 0038)", async () => {
+  const db = openTestDb();
+  seedWorkspace(db, "ws-1");
+  await new SqliteCommerceProductRepo(db).save(sampleProduct());
+  const repo = new SqliteCommercePriceRepo(db);
+
+  await repo.save(samplePrice({ unitAmountCents: 3500, compareAtAmountCents: 4500 }));
+
+  const [price] = await repo.listByProduct({ workspaceId: "ws-1", productId: "product-1" });
+  assert.equal(price.unitAmountCents, 3500);
+  assert.equal(price.compareAtAmountCents, 4500);
+});
+
+test("commerce_prices: a compare_at_amount_cents that is not strictly greater than unit_amount_cents is rejected (no fake discount)", async () => {
+  const db = openTestDb();
+  seedWorkspace(db, "ws-1");
+  await new SqliteCommerceProductRepo(db).save(sampleProduct());
+  const repo = new SqliteCommercePriceRepo(db);
+
+  await assert.rejects(() =>
+    repo.save(samplePrice({ id: "equal-compare-at", unitAmountCents: 3500, compareAtAmountCents: 3500 }))
+  );
+  await assert.rejects(() =>
+    repo.save(samplePrice({ id: "lower-compare-at", unitAmountCents: 3500, compareAtAmountCents: 3000 }))
+  );
 });
 
 test("commerce_prices: a negative unit_amount_cents is rejected by the CHECK constraint", async () => {
