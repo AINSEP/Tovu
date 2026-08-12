@@ -1,8 +1,6 @@
 import { formatTimestamp } from "../../lib/format-timestamp";
 import { DataTable } from "@jini-ai/admin/react";
 import { useWiredAnalytics } from "./hooks/use-analytics.hooks";
-import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import { t } from "./analytics-i18n";
 
 /**
  * @file Admin "Analytics" screen (ADR-035 ingest half only) — markup only.
@@ -24,23 +22,22 @@ export interface AnalyticsProps {
 }
 
 export function Analytics({ useAnalyticsHook = useWiredAnalytics }: AnalyticsProps = {}) {
-  const locale = useAdminLocale();
-  const { hits, error } = useAnalyticsHook();
+  const { hits, error, t } = useAnalyticsHook();
 
   if (error) return <div className="notice error">{error}</div>;
-  if (!hits) return <div className="notice">{t(locale, "Loading recent hits…")}</div>;
+  if (!hits) return <div className="notice">{t("Loading recent hits…")}</div>;
 
   return (
     <div className="page">
       <div className="page-header">
         <div className="page-header-text">
-          <p className="page-kicker">{t(locale, "Marketing")}</p>
-          <h1 className="page-title">{t(locale, "Analytics")}</h1>
-          <p className="page-description">{t(locale, "The most recent pageviews and events captured on this site.")}</p>
+          <p className="page-kicker">{t("Marketing")}</p>
+          <h1 className="page-title">{t("Analytics")}</h1>
+          <p className="page-description">{t("The most recent pageviews and events captured on this site.")}</p>
         </div>
       </div>
       <div className="notice">
-        {t(locale, "Raw ingest data only — the most recent hits currently sitting in memory. There is no aggregation/rollup layer yet, so there are no totals, trends, or breakdowns here; that is a later build.")}
+        {t("Raw ingest data only — the most recent hits currently sitting in memory. There is no aggregation/rollup layer yet, so there are no totals, trends, or breakdowns here; that is a later build.")}
       </div>
 
       <DataTable
@@ -49,17 +46,17 @@ export function Analytics({ useAnalyticsHook = useWiredAnalytics }: AnalyticsPro
         empty={
           <div className="card">
             <div className="empty-state">
-              <p>{t(locale, "No hits recorded yet.")}</p>
-              <p className="page-description">{t(locale, "Once the site beacon starts sending traffic, recent hits will appear here.")}</p>
+              <p>{t("No hits recorded yet.")}</p>
+              <p className="page-description">{t("Once the site beacon starts sending traffic, recent hits will appear here.")}</p>
             </div>
           </div>
         }
         columns={[
-          { key: "path", header: t(locale, "Path"), cell: (hit) => hit.path },
-          { key: "referrer", header: t(locale, "Referrer"), cell: (hit) => hit.referrerHost ?? t(locale, "(direct)") },
+          { key: "path", header: t("Path"), cell: (hit) => hit.path },
+          { key: "referrer", header: t("Referrer"), cell: (hit) => hit.referrerHost ?? t("(direct)") },
           {
             key: "device",
-            header: t(locale, "Device / Browser"),
+            header: t("Device / Browser"),
             cell: (hit) => (
               <>
                 {hit.deviceClass}
@@ -67,8 +64,8 @@ export function Analytics({ useAnalyticsHook = useWiredAnalytics }: AnalyticsPro
               </>
             ),
           },
-          { key: "kind", header: t(locale, "Kind"), cell: (hit) => (hit.eventName ? `${t(locale, "event:")} ${hit.eventName}` : hit.kind) },
-          { key: "time", header: t(locale, "Time"), cell: (hit) => formatTimestamp(hit.occurredAt) },
+          { key: "kind", header: t("Kind"), cell: (hit) => (hit.eventName ? `${t("event:")} ${hit.eventName}` : hit.kind) },
+          { key: "time", header: t("Time"), cell: (hit) => formatTimestamp(hit.occurredAt) },
         ]}
       />
     </div>
