@@ -8,11 +8,15 @@
  * them consistently, and drift stays "in sync" while the PostgreSQL schema quietly loses
  * referential integrity.
  *
- * That is not hypothetical. The first version of the generator dropped **all 9 foreign keys and all
- * 7 CHECK constraints** and produced a file that typechecked cleanly and passed the drift test. The
- * CHECKs are the `*_sealed_shape` constraints on credential tables asserting that sealed columns
- * are either all NULL or all populated; losing them on PostgreSQL would silently permit half-sealed
- * credential rows that SQLite rejects.
+ * That is not hypothetical, and it has happened twice. The first version of the generator dropped
+ * **all 9 foreign keys and all 7 CHECK constraints** and produced a file that typechecked cleanly
+ * and passed the drift test. The CHECKs are the `*_sealed_shape` constraints on credential tables
+ * asserting that sealed columns are either all NULL or all populated; losing them on PostgreSQL
+ * would silently permit half-sealed credential rows that SQLite rejects. The second time, it dropped
+ * column-level `.unique()` — surviving the FK/CHECK fix because neither the table-level
+ * `uniqueConstraints` array nor `uniqueIndex(` (both already covered below) is what a column's own
+ * `.unique()` modifier shows up as; it lives on the column's `isUnique` flag instead. A dropped
+ * `.unique()` means PostgreSQL silently accepts duplicate rows that SQLite rejects.
  *
  * So this test compares against the SOURCE OF TRUTH — `schema.ts` introspected via Drizzle — rather
  * than against the generator's own output. Counts, not exact SQL, because the two dialects legibly
@@ -76,6 +80,18 @@ test("every index survives generation, unique and non-unique alike", () => {
   // would silently accept, and which would let duplicate rows into a table SQLite keeps unique.
   assert.equal(occurrences("uniqueIndex("), expectedUnique, "unique index count differs");
   assert.equal(occurrences("index("), expectedPlain, "non-unique index count differs");
+});
+
+test("every column-level unique() constraint survives generation — this is what SQLite rejects duplicate rows on", () => {
+  const expected = sourceTables().reduce(
+    (n, { table }) => n + getTableConfig(table).columns.filter((c) => c.isUnique).length,
+    0
+  );
+  assert.ok(expected > 0, "sanity: the source schema should declare at least one unique column");
+
+  // `.unique(` (with the leading dot) only matches the column-modifier call, not `uniqueIndex(` —
+  // that builder's name has no dot immediately before "unique", so the two never collide here.
+  assert.equal(occurrences(".unique("), expected, "column-level unique() count differs");
 });
 
 test("column count matches per table — a dropped column would not be caught by the drift test", () => {

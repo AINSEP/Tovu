@@ -12,9 +12,10 @@
  * Why this is tractable here, specifically:
  * the mapping surface was measured, not assumed. Across all 63 tables and 580 columns there are
  * exactly three column kinds in use — `SQLiteText` (513), `SQLiteInteger` (64), `SQLiteBoolean`
- * (3) — plus 11 autoincrement primary keys, 31 defaults, 7 CHECK constraints, 9 foreign keys and
- * 4 composite primary keys. There are no JSON columns, no BLOB columns, no `mode: "timestamp"`
- * columns (every timestamp is `text` holding ISO-8601), and no unique constraints. A generator
+ * (3) — plus 11 autoincrement primary keys, 31 defaults, 7 CHECK constraints, 9 foreign keys, 4
+ * composite primary keys, and 1 column-level `.unique()` constraint (`workspaces.slug`). There
+ * are no JSON columns, no BLOB columns, no `mode: "timestamp"` columns (every timestamp is `text`
+ * holding ISO-8601), and no table-level multi-column `unique().on(...)` constraints. A generator
  * covering that surface is a few hundred lines, not a second ORM.
  *
  * What this deliberately does NOT handle:
@@ -113,7 +114,139 @@ function tsPropertyNames(table: object, columns: readonly SQLiteColumn[]): Map<S
   return byColumn;
 }
 
-function renderColumn(tsName: string, col: SQLiteColumn): string {
+/**
+ * Generic "no unrecognised own property" gate, shared by every completeness check in this file.
+ *
+ * Why a shared helper rather than one bespoke check per structural element: the failure mode this
+ * guards against is the same shape everywhere — a Drizzle object exposes a property this generator
+ * was never taught about, so it is silently absent from the PostgreSQL output. Centralising the
+ * walk-and-compare means every call site is "declare what's known, list what to reject", not a
+ * hand-rolled loop that could itself go stale.
+ *
+ * `Object.keys(subject)` walks the object's actual own enumerable properties at generation time —
+ * it does not depend on this file's own idea of what Drizzle exposes. That is what makes this catch
+ * an *unknown* unknown: a future Drizzle upgrade that adds a wholly new property trips this the
+ * first time the generator runs against it, before a single line of output is produced, rather than
+ * requiring someone to have already anticipated that property's name.
+ */
+function assertKnownShape(subject: object, known: ReadonlySet<string>, describe: () => string): void {
+  for (const key of Object.keys(subject)) {
+    if (!known.has(key)) {
+      throw new Error(
+        `${describe()} exposes an unrecognised property "${key}". Drizzle's structural surface has grown ` +
+          `since this generator was measured against it — teach the relevant render function about "${key}" ` +
+          `(or confirm it is dialect-irrelevant), then add it to the allowlist that rejected it.`
+      );
+    }
+  }
+}
+
+/** Keys `getTableConfig()` is measured to return. Kept in its own set so a newly-added category of
+ * table-level extras (alongside indexes/foreignKeys/checks/primaryKeys/uniqueConstraints) fails the
+ * generator run instead of being silently omitted from every generated table. */
+const HANDLED_TABLE_CONFIG_KEYS = new Set([
+  "columns",
+  "indexes",
+  "foreignKeys",
+  "checks",
+  "primaryKeys",
+  "uniqueConstraints",
+  "name",
+]);
+
+/**
+ * Table-level completeness gate, run once per table before any of its columns or extras render.
+ *
+ * `uniqueConstraints` gets its own explicit rejection rather than being left to fall out of the
+ * allowlist check: it is a real, currently-empty (0 across all 63 tables) array for the table-level
+ * `unique(name).on(colA, colB)` builder — a *different* Drizzle feature from the column-level
+ * `.unique()` modifier `renderColumn` now handles. Both silently drop a uniqueness guarantee if
+ * ignored, so both get a guard, even though only the column-level one has a live case today.
+ */
+function assertKnownTableConfigShape(cfg: ReturnType<typeof getTableConfig>, exportName: string): void {
+  assertKnownShape(cfg, HANDLED_TABLE_CONFIG_KEYS, () => `table "${exportName}"'s config`);
+  if (cfg.uniqueConstraints.length > 0) {
+    throw new Error(
+      `table "${exportName}" declares ${cfg.uniqueConstraints.length} table-level unique(...).on(...) ` +
+        `constraint(s). This generator only translates column-level ".unique()" — teach renderExtras() ` +
+        `about multi-column uniqueness before regenerating.`
+    );
+  }
+}
+
+/** Column properties this generator reads and actually encodes into the emitted PostgreSQL column. */
+const TRANSLATED_COLUMN_PROPS = new Set([
+  "columnType",
+  "primary",
+  "autoIncrement",
+  "notNull",
+  "default",
+  "isUnique",
+  "uniqueName",
+]);
+
+/**
+ * Column properties that are pure identity/plumbing (or fully redundant with an already-checked
+ * property) and so carry no PostgreSQL-relevant meaning of their own:
+ *  - `name`/`table`/`keyAsName`/`config` are bookkeeping, not modifiers.
+ *  - `dataType` and `mode` are redundant with `columnType`: SQLite's `text(..., {mode:"json"})` and
+ *    `integer(..., {mode:"timestamp"})` each produce a *different* `columnType` ("SQLiteTextJson",
+ *    "SQLiteTimestamp") rather than changing `mode` on the plain kind — so `columnBuilder()`'s
+ *    already-exhaustive switch on `columnType` throwing on an unmapped kind is what actually guards
+ *    those, not a separate check here (verified against `drizzle-orm`'s sqlite-core column sources).
+ *  - `hasDefault` is derived from `default`/`defaultFn`, both already covered elsewhere.
+ */
+const INERT_COLUMN_PROPS = new Set(["name", "table", "keyAsName", "dataType", "config", "mode", "hasDefault"]);
+
+/**
+ * Column properties that ARE dialect-relevant modifiers this generator does not yet translate.
+ * None has a live case in `schema.ts` today (each is confirmed `undefined` across all 580 columns),
+ * so requiring them to stay unset costs nothing now and turns "someone adds one" into a loud failure
+ * instead of a silently incomplete PostgreSQL column:
+ *  - `length` — SQLite text length (e.g. `text("x", { length: 20 })`); does not change `columnType`.
+ *  - `defaultFn`/`onUpdateFn` — function-valued defaults; only literal `default` is translated.
+ *  - `uniqueType` — a dialect-specific unique sub-kind; SQLite's `.unique()` builder cannot set it
+ *    today, but it is inherited from the shared `Column` base class, so a future Drizzle version
+ *    could start populating it.
+ *  - `enumValues` — SQLite's `text("x", { enum: [...] })` restricted-value columns.
+ *  - `generated`/`generatedIdentity` — generated-always columns (`.generatedAlwaysAs()`).
+ */
+const UNTRANSLATED_COLUMN_PROPS = [
+  "length",
+  "defaultFn",
+  "onUpdateFn",
+  "uniqueType",
+  "enumValues",
+  "generated",
+  "generatedIdentity",
+] as const;
+
+/**
+ * Column-level completeness gate, run once per column before it is rendered.
+ *
+ * Two-part check: first, every own property on the column must be recognised at all (translated,
+ * inert, or untranslated-but-tracked) — an entirely new property fails here. Second, every tracked
+ * untranslated property must still be at its measured-unset default — a schema author turning one
+ * of them on (e.g. adding `{ length: 20 }` to a `text()` column) fails here instead of generating a
+ * PostgreSQL column that quietly drops what they asked for.
+ */
+function assertKnownColumnShape(col: SQLiteColumn): void {
+  const known = new Set<string>([...TRANSLATED_COLUMN_PROPS, ...INERT_COLUMN_PROPS, ...UNTRANSLATED_COLUMN_PROPS]);
+  assertKnownShape(col, known, () => `column "${col.name}"`);
+  for (const prop of UNTRANSLATED_COLUMN_PROPS) {
+    const value = (col as unknown as Record<string, unknown>)[prop];
+    if (value !== undefined) {
+      throw new Error(
+        `column "${col.name}" sets "${prop}" (${JSON.stringify(value)}), which this generator does not yet ` +
+          `translate to PostgreSQL. Teach columnBuilder()/renderColumn() about it, then move "${prop}" from ` +
+          `UNTRANSLATED_COLUMN_PROPS to TRANSLATED_COLUMN_PROPS.`
+      );
+    }
+  }
+}
+
+function renderColumn(tsName: string, col: SQLiteColumn, tableSqlName: string): string {
+  assertKnownColumnShape(col);
   let out = columnBuilder(col);
   if (col.primary) {
     // A composite primary key is emitted at table level instead; `.primary` is only true for a
@@ -123,6 +256,23 @@ function renderColumn(tsName: string, col: SQLiteColumn): string {
       : ".primaryKey()";
   }
   if (col.notNull && !col.primary) out += ".notNull()";
+  // `uniqueName` is NOT a reliable "was .unique() called?" signal on its own: SQLiteColumn's
+  // constructor unconditionally backfills a default-computed uniqueName onto every column — unique
+  // or not — the moment none was supplied (`drizzle-orm/sqlite-core/columns/common.js`). `isUnique`
+  // is the only property that reflects whether `.unique()` was actually called; `uniqueName` is only
+  // meaningful once `isUnique` is true.
+  //
+  // Once it is true, `uniqueName` holds the resolved name — but not necessarily an *authored* one:
+  // SQLite and PostgreSQL derive the exact same default constraint name from the exact same inputs
+  // (`` `${table}_${column}_unique` ``, confirmed identical in both `drizzle-orm/sqlite-core/unique-
+  // constraint.js` and `drizzle-orm/pg-core/unique-constraint.js`), so a bare `.unique()` in the
+  // source needs no name carried across at all — PostgreSQL's own default lands on the identical
+  // string. Only a name that does NOT match that computed default can be a deliberately custom one,
+  // and that is the only case worth spelling out explicitly.
+  if (col.isUnique) {
+    const defaultUniqueName = `${tableSqlName}_${col.name}_unique`;
+    out += col.uniqueName === defaultUniqueName ? ".unique()" : `.unique(${JSON.stringify(col.uniqueName)})`;
+  }
   out += renderDefault(col);
   return `  ${tsName}: ${out},`;
 }
@@ -251,8 +401,9 @@ function renderExtras(
 
 function renderTable(exportName: string, table: never): string {
   const cfg = getTableConfig(table);
+  assertKnownTableConfigShape(cfg, exportName);
   const tsNames = tsPropertyNames(table, cfg.columns);
-  const columns = cfg.columns.map((c) => renderColumn(tsNames.get(c)!, c)).join("\n");
+  const columns = cfg.columns.map((c) => renderColumn(tsNames.get(c)!, c, cfg.name)).join("\n");
   const { indexes, composite, checks, foreignKeys } = renderExtras(cfg, exportName, tsNames);
   const extras = [...composite, ...foreignKeys, ...checks, ...indexes];
 
