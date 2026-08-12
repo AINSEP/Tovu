@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { type AdminMenu } from "../../../lib/api";
+import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { MENUS_DICT } from "../menus-i18n";
 import { defaultMenusPort } from "./menus-dependencies.hooks";
 import type { MenusPort } from "./menus-port.hooks";
 
@@ -13,10 +15,17 @@ import type { MenusPort } from "./menus-port.hooks";
  *
  * `deps.port` is injected (see `menus-port.hooks.ts`) rather than reaching for `lib/api`'s `api`
  * directly, sharing the `MenusPort` `use-menu-editor.hooks.ts` also injects.
+ *
+ * `t` (standing i18n rule, 2026-08-11 — a component with a hook gets a BOUND `t` from that hook,
+ * not its own `useAdminLocale()`/dictionary import, same shape `use-pages.hooks.ts` established):
+ * injected alongside `port` purely so `Menus.tsx` has somewhere to source the UI copy it renders.
+ * This hook's OWN error strings stay hardcoded English (unchanged) — `useAdminLocale()` and
+ * `MENUS_DICT` are read only inside {@link useWiredMenus}.
  */
 
 export interface MenusDependencies {
   port: MenusPort;
+  t: (key: string) => string;
 }
 
 export interface MenusController {
@@ -30,9 +39,11 @@ export interface MenusController {
   forceDeleting: boolean;
   trashOrPurge: (menu: AdminMenu) => Promise<void>;
   confirmForceDelete: () => Promise<void>;
+  /** Bound translator — `Menus.tsx`'s only source of UI copy; see this file's own header. */
+  t: (key: string) => string;
 }
 
-export function useMenus({ port }: MenusDependencies): MenusController {
+export function useMenus({ port, t }: MenusDependencies): MenusController {
   const [menus, setMenus] = useState<AdminMenu[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pendingForceDelete, setPendingForceDelete] = useState<AdminMenu | null>(null);
@@ -89,15 +100,19 @@ export function useMenus({ port }: MenusDependencies): MenusController {
     forceDeleting,
     trashOrPurge,
     confirmForceDelete,
+    t,
   };
 }
 
 /**
- * Binds the real `/api/.../menus` client — see `menus-dependencies.hooks.ts`.
+ * Binds the real `/api/.../menus` client and a `MENUS_DICT`-bound translator — see
+ * `menus-dependencies.hooks.ts`.
  *
  * The zero-argument half of the `useX(dependencies)` / `useWiredX()` pair, so `Menus.tsx` composes
  * this and a test composes {@link useMenus} with `createFakeMenusPort`.
  */
 export function useWiredMenus(): MenusController {
-  return useMenus({ port: defaultMenusPort });
+  const locale = useAdminLocale();
+  const t = (key: string): string => MENUS_DICT[locale]?.[key] ?? key;
+  return useMenus({ port: defaultMenusPort, t });
 }

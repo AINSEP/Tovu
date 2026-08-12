@@ -1,7 +1,5 @@
 import { ConfirmDialog, DataTable } from "@jini-ai/admin/react";
 import { useWiredMenus } from "./hooks/use-menus.hooks";
-import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import { MENUS_DICT } from "./menus-i18n";
 
 /**
  * @file Menus admin screens: list view (this file) + tree editor
@@ -21,9 +19,8 @@ export function Menus() {
     forceDeleting,
     trashOrPurge,
     confirmForceDelete,
+    t,
   } = useWiredMenus();
-  const locale = useAdminLocale();
-  const t = (key: string): string => MENUS_DICT[locale]?.[key] ?? key;
 
   if (error && !menus) return <div className="notice error">{error}</div>;
   if (!menus) return <div className="notice">Loading menus…</div>;
