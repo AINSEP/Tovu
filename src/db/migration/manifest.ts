@@ -47,12 +47,14 @@
  * on `int4`. That reasoning is sound and already live — `REVIEWED_INTEGER_ID_COLUMNS` is NOT
  * something the generator still needs to consume; the schema-generation question it was meant to
  * answer is already settled, more conservatively than this registry alone would have required.
- * The registry is kept, with its role changed: it is retained as a RISK NARRATIVE (which specific
- * columns are genuinely expected to approach large values, and why, for monitoring/prioritisation
- * purposes) and as the source for identity-reseed reasoning (`collectIdentityColumns` below is
- * structural and unaffected by which bigint policy shipped). Its `int4-safe-id` classification label
- * describes a column's RISK PROFILE (would have stayed safe even under the narrower policy this
- * manifest first proposed), not its actual generated Postgres type, which is `bigint` for it too.
+ * The registry is kept, with its role changed and its vocabulary corrected to match: it is no longer
+ * framed as a bigint-vs-int4 CLASSIFICATION (misleading now — nothing in the generated schema is
+ * `int4`), it is a GROWTH-CLASS annotation (`IdGrowthClass`: `"unbounded"` | `"bounded"`) — which
+ * columns are genuinely expected to approach large values and need range-aware copy handling and
+ * reseed prioritisation vs. which are bounded by content/reference volume, for monitoring and
+ * prioritisation purposes. `collectIdentityColumns` below (identity-reseed reasoning) is structural
+ * and draws on neither this registry nor the shipped bigint policy — every autoincrement PK needs
+ * reseeding regardless of growth class or column width.
  *
  * What this manifest deliberately does NOT do:
  * - It is not a migration completeness signal. See `WATERMARK_IS_NOT_A_MIGRATION_BOUNDARY` below —
@@ -128,23 +130,26 @@ function coreColumnsOf(cfg: ReturnType<typeof getTableConfig>): readonly SQLiteC
 // was designed as the input generate-postgres-schema.ts's columnBuilder() should consume for its
 // bigint-vs-integer choice. Commit b393752 shipped a broader, already-merged policy instead — EVERY
 // SQLiteInteger column is bigint(..., {mode:"number"}) now, deliberately not a hand-picked subset.
-// That decision is sound and live; this registry is no longer something schema generation needs. It
-// is kept as a RISK NARRATIVE — which columns are genuinely expected to approach large values, and
-// why — and as the source `collectIdentityColumns` below draws on for reseed reasoning, which is
-// structural and unaffected by which bigint policy shipped.
+// That decision is sound and live and is asserted directly against the generated schema by the "GATE
+// A" test in migration-manifest.test.ts, not re-derived here. This registry is no longer something
+// schema generation needs; it is kept as a GROWTH-CLASS annotation (which columns are genuinely
+// expected to approach large values, and why) for monitoring/prioritisation and as the source
+// `collectIdentityColumns` below draws reseed reasoning from — that reasoning is structural and
+// applies to every autoincrement PK regardless of growth class or generated column width.
 // ---------------------------------------------------------------------------
 
 /**
- * `bigint-id`: reviewed and expected to genuinely approach values an `int4` could not hold.
- * `int4-safe-id`: reviewed and judged bounded by content/reference volume rather than event-log
- * growth — NOT a claim about the column's actual generated Postgres type, which is `bigint` for
- * both classifications today (see the section note above). This label describes risk profile, not
- * DDL output.
+ * `"unbounded"`: reviewed and expected to genuinely grow without a natural ceiling tied to authored
+ * content (event/attempt/revision logs, or a counter incremented on every gated write).
+ * `"bounded"`: reviewed and judged bounded by content/reference volume rather than by traffic or
+ * time. NOT a claim about the column's actual generated Postgres type — every SQLiteInteger column,
+ * `"bounded"` or not, is `bigint` in the generated schema today (see the section note above and
+ * "GATE A" in migration-manifest.test.ts). This is a risk/monitoring label, not a DDL decision.
  */
-export type IntegerIdClassification = "bigint-id" | "int4-safe-id";
+export type IdGrowthClass = "unbounded" | "bounded";
 
 export interface AutoIncrementReview {
-  readonly classification: IntegerIdClassification;
+  readonly growthClass: IdGrowthClass;
   readonly rationale: string;
 }
 
@@ -157,61 +162,61 @@ export interface AutoIncrementReview {
  * This map IS the review, not a cache of one performed elsewhere. `classifyCoreColumn`'s
  * completeness gate below throws for any autoincrement PK not present here — a newly added
  * autoincrement table can never silently fall through into "must be fine, nobody said otherwise."
- * `migration-manifest.test.ts` separately asserts every key here still names a real column, so a
- * renamed or removed column cannot leave a stale, misleading entry behind either.
+ * `migration-manifest.test.ts` separately asserts every key here still names a real column ("GATE
+ * B"), so a renamed or removed column cannot leave a stale, misleading entry behind either.
  */
 export const REVIEWED_INTEGER_ID_COLUMNS: Readonly<Record<string, AutoIncrementReview>> = {
   "setting_revisions.seq": {
-    classification: "bigint-id",
+    growthClass: "unbounded",
     rationale: "append-only settings-revision log — one row per gated setting write, unbounded over an install's life",
   },
   "redirect_revisions.id": {
-    classification: "bigint-id",
+    growthClass: "unbounded",
     rationale: "append-only redirect-revision log",
   },
   "member_revisions.seq": {
-    classification: "bigint-id",
+    growthClass: "unbounded",
     rationale: "append-only member-revision log",
   },
   "newsletter_campaign_revisions.seq": {
-    classification: "bigint-id",
+    growthClass: "unbounded",
     rationale: "append-only newsletter-campaign-revision log",
   },
   "content_type_revisions.seq": {
-    classification: "bigint-id",
+    growthClass: "unbounded",
     rationale: "append-only content-type-revision log",
   },
   "entry_revisions.seq": {
-    classification: "bigint-id",
+    growthClass: "unbounded",
     rationale: "append-only entry-revision log — the highest-volume revision table (every entry/post save)",
   },
   "taxonomy_revisions.seq": {
-    classification: "bigint-id",
+    growthClass: "unbounded",
     rationale: "append-only taxonomy-revision log",
   },
   "agent_tool_attempts.id": {
-    classification: "bigint-id",
+    growthClass: "unbounded",
     rationale: "append-only agent tool-call attempt log — one row per tool invocation, unbounded by design",
   },
   "analytics_events.id": {
-    classification: "bigint-id",
+    growthClass: "unbounded",
     rationale: "append-only analytics-event log — the single highest-volume table in this schema by construction",
   },
   "database_write_watermark.value": {
-    classification: "bigint-id",
+    growthClass: "unbounded",
     rationale:
       "monotonically incremented by exactly 1 inside every gated mutation for the life of the install — not a row " +
       "id, but the identical overflow shape, and named explicitly in the 2026-08-12 handoff's 'cheap now, expensive " +
       "later' list",
   },
   "entry_refs.id": {
-    classification: "int4-safe-id",
+    growthClass: "bounded",
     rationale:
       "bounded by (entries × outbound references per entry) — grows with authored content volume, not with " +
       "traffic or time, unlike the append-only logs above",
   },
   "entry_terms.id": {
-    classification: "int4-safe-id",
+    growthClass: "bounded",
     rationale:
       "bounded by (entries × terms assigned), deduplicated by entry_terms_unique — grows with authored content " +
       "volume, not with traffic or time",
@@ -294,8 +299,7 @@ export const BOOLEAN_COPY_TRANSFORM = {
 // ---------------------------------------------------------------------------
 
 export type SemanticColumnClass =
-  | { readonly kind: "bigint-id"; readonly rationale: string }
-  | { readonly kind: "int4-safe-id"; readonly rationale: string }
+  | { readonly kind: "reviewed-id"; readonly growthClass: IdGrowthClass; readonly rationale: string }
   | { readonly kind: "plain-integer" }
   | { readonly kind: "boolean-flag" }
   | { readonly kind: "json-text" }
@@ -315,13 +319,13 @@ export function classifyCoreColumn(sqlTableName: string, col: SQLiteColumn): Sem
       return { kind: "boolean-flag" };
     case "SQLiteInteger": {
       const review = REVIEWED_INTEGER_ID_COLUMNS[key];
-      if (review) return { kind: review.classification, rationale: review.rationale };
+      if (review) return { kind: "reviewed-id", growthClass: review.growthClass, rationale: review.rationale };
       const isAutoIncrementPk = Boolean(col.primary) && Boolean((col as unknown as { autoIncrement?: boolean }).autoIncrement);
       if (isAutoIncrementPk) {
         throw new Error(
           `autoincrement primary key "${key}" has no entry in REVIEWED_INTEGER_ID_COLUMNS. A new autoincrement ` +
-            `column must be explicitly reviewed and classified bigint-id or int4-safe-id before this manifest can ` +
-            `vouch for it — see that registry's doc for why this fails closed instead of guessing.`
+            `column must be explicitly reviewed and assigned a growth class ("unbounded" or "bounded") before this ` +
+            `manifest can vouch for it — see that registry's doc for why this fails closed instead of guessing.`
         );
       }
       return { kind: "plain-integer" };
@@ -381,7 +385,7 @@ export interface IdentityColumn {
 
 /** Every autoincrement primary key in the core schema — purely structural, derived from `schema.ts`
  * (no manual review needed: EVERY autoincrement PK needs reseeding after a bulk copy that preserves
- * original row ids, regardless of its bigint-vs-int4 classification above). */
+ * original row ids, regardless of its growth-class annotation above or its generated column width). */
 export function collectIdentityColumns(): IdentityColumn[] {
   const out: IdentityColumn[] = [];
   for (const { exportName, table } of collectCoreTables()) {

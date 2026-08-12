@@ -94,10 +94,10 @@ export function verifyBooleanCopy(sourceSqliteValue: number, copiedPostgresValue
 
 /**
  * Dispatches one column's copied value to the check its `manifest.ts` classification implies.
- * Classes with no copy-time semantic to check (`plain-integer`, `plain-text`, `bigint-id`,
- * `int4-safe-id`) pass unconditionally here — an id column's *value* needs no per-row check, only
- * the identity-reseed step (`manifest.ts`'s `reseedSequenceSql`) and the live capacity proof
- * (`migration-manifest-postgres.test.ts`), neither of which is a per-row concern.
+ * Classes with no copy-time semantic to check (`plain-integer`, `plain-text`, `reviewed-id` —
+ * regardless of growth class) pass unconditionally here — an id column's *value* needs no per-row
+ * check, only the identity-reseed step (`manifest.ts`'s `reseedSequenceSql`) and the live capacity
+ * proof (`migration-manifest-postgres.test.ts`), neither of which is a per-row concern.
  */
 export function verifyClassifiedValue(columnClass: SemanticColumnClass, sqliteValue: unknown, postgresValue: unknown): VerificationFailure | null {
   switch (columnClass.kind) {
@@ -107,8 +107,7 @@ export function verifyClassifiedValue(columnClass: SemanticColumnClass, sqliteVa
       return verifyJsonText(postgresValue as string | null);
     case "boolean-flag":
       return verifyBooleanCopy(sqliteValue as number, postgresValue as boolean);
-    case "bigint-id":
-    case "int4-safe-id":
+    case "reviewed-id":
     case "plain-integer":
     case "plain-text":
       return null;
