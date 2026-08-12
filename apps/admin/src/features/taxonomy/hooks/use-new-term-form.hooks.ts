@@ -1,7 +1,9 @@
 import { useState } from "react";
-import { api, describeApiError, type AdminTaxonomyWithTerms } from "../../../lib/api";
+import { describeApiError, type AdminTaxonomyWithTerms } from "../../../lib/api";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { t } from "../taxonomy-i18n";
+import { defaultNewTermFormPort } from "./new-term-form-dependencies.hooks";
+import type { NewTermFormPort } from "./new-term-form-port.hooks";
 
 /**
  * @file Everything `NewTermForm` does, so it can stay markup only.
@@ -15,6 +17,11 @@ import { t } from "../taxonomy-i18n";
  * behind a small trigger and only mounts the real form once opened; `submit` closes it again on
  * success (mirrors the reset-on-success it already does for `name`/`parentId`), so a completed add
  * returns the group to its compact resting state instead of leaving an empty form sitting open.
+ *
+ * `port` is injected — see `new-term-form-port.hooks.ts` — rather than importing `lib/api`
+ * directly, so a test can describe the create outcome against `createFakeNewTermFormPort` instead
+ * of stubbing global `fetch`. `useWiredNewTermForm` below is the zero-argument pair `Taxonomy.tsx`
+ * actually mounts.
  */
 
 export interface NewTermFormOptions {
@@ -34,8 +41,11 @@ export interface NewTermFormController {
   submit: (e: React.FormEvent) => Promise<void>;
 }
 
-export function useNewTermForm(options: NewTermFormOptions): NewTermFormController {
-  const locale = useAdminLocale();
+export function useNewTermForm(
+  options: NewTermFormOptions,
+  port: NewTermFormPort,
+  locale: string
+): NewTermFormController {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [parentId, setParentId] = useState("");
@@ -51,7 +61,7 @@ export function useNewTermForm(options: NewTermFormOptions): NewTermFormControll
     setSaving(true);
     setError(null);
     try {
-      await api.createTerm(
+      await port.createTerm(
         { taxonomyId: options.taxonomy.taxonomy.id, name: name.trim() },
         { parentId: options.taxonomy.taxonomy.hierarchical && parentId ? parentId : null }
       );
@@ -67,4 +77,15 @@ export function useNewTermForm(options: NewTermFormOptions): NewTermFormControll
   }
 
   return { open, setOpen, name, setName, parentId, setParentId, error, saving, submit };
+}
+
+/**
+ * Binds the real `/api/.../taxonomy/:id/terms` client — see `new-term-form-dependencies.hooks.ts`.
+ *
+ * The zero-argument half of the `useX(dependencies)` / `useWiredX()` pair, so `Taxonomy.tsx`
+ * composes this and a test composes {@link useNewTermForm} with `createFakeNewTermFormPort`.
+ */
+export function useWiredNewTermForm(options: NewTermFormOptions): NewTermFormController {
+  const locale = useAdminLocale();
+  return useNewTermForm(options, defaultNewTermFormPort, locale);
 }

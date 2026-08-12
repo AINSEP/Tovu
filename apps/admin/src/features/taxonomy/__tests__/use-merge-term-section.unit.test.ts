@@ -1,7 +1,8 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { useMergeTermSection } from "../hooks/use-merge-term-section.hooks";
+import { useMergeTermSection, useWiredMergeTermSection } from "../hooks/use-merge-term-section.hooks";
+import { createFakeMergeTermSectionPort } from "../hooks/merge-term-section-dependencies.hooks";
 import type { AdminTerm } from "../../../lib/api";
 
 /**
@@ -61,7 +62,7 @@ afterEach(() => {
 
 describe("startPlan", () => {
   it("is a no-op with no intoTermId chosen — no fetch, step stays idle", async () => {
-    const { result } = renderHook(() => useMergeTermSection({ term: termFixture(), onMerged: vi.fn() }));
+    const { result } = renderHook(() => useWiredMergeTermSection({ term: termFixture(), onMerged: vi.fn() }));
     await act(async () => {
       await result.current.startPlan();
     });
@@ -71,7 +72,7 @@ describe("startPlan", () => {
 
   it("advances to 'planned' and stores plan details on success", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(PLAN_RESPONSE));
-    const { result } = renderHook(() => useMergeTermSection({ term: termFixture(), onMerged: vi.fn() }));
+    const { result } = renderHook(() => useWiredMergeTermSection({ term: termFixture(), onMerged: vi.fn() }));
     act(() => result.current.setIntoTermId("into1"));
 
     await act(async () => {
@@ -85,7 +86,7 @@ describe("startPlan", () => {
 
   it("stays on 'idle' and sets an error when planning fails", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ error: "cycle detected" }, 409));
-    const { result } = renderHook(() => useMergeTermSection({ term: termFixture(), onMerged: vi.fn() }));
+    const { result } = renderHook(() => useWiredMergeTermSection({ term: termFixture(), onMerged: vi.fn() }));
     act(() => result.current.setIntoTermId("into1"));
 
     await act(async () => {
@@ -100,7 +101,7 @@ describe("startPlan", () => {
 
 describe("doConfirm", () => {
   it("is a no-op with no plan yet — no fetch, step stays idle", async () => {
-    const { result } = renderHook(() => useMergeTermSection({ term: termFixture(), onMerged: vi.fn() }));
+    const { result } = renderHook(() => useWiredMergeTermSection({ term: termFixture(), onMerged: vi.fn() }));
     await act(async () => {
       await result.current.doConfirm();
     });
@@ -110,7 +111,7 @@ describe("doConfirm", () => {
 
   async function planned() {
     fetchMock.mockResolvedValueOnce(jsonResponse(PLAN_RESPONSE));
-    const view = renderHook(() => useMergeTermSection({ term: termFixture(), onMerged: vi.fn() }));
+    const view = renderHook(() => useWiredMergeTermSection({ term: termFixture(), onMerged: vi.fn() }));
     act(() => view.result.current.setIntoTermId("into1"));
     await act(async () => {
       await view.result.current.startPlan();
@@ -146,7 +147,7 @@ describe("doConfirm", () => {
 
 describe("doExecute", () => {
   it("is a no-op with no confirmationToken yet — no fetch, onMerged not called", async () => {
-    const { result } = renderHook(() => useMergeTermSection({ term: termFixture(), onMerged: vi.fn() }));
+    const { result } = renderHook(() => useWiredMergeTermSection({ term: termFixture(), onMerged: vi.fn() }));
     const onMerged = vi.fn();
     await act(async () => {
       await result.current.doExecute();
@@ -159,7 +160,7 @@ describe("doExecute", () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse(PLAN_RESPONSE))
       .mockResolvedValueOnce(jsonResponse(CONFIRM_RESPONSE));
-    const view = renderHook(() => useMergeTermSection({ term: termFixture(), onMerged }));
+    const view = renderHook(() => useWiredMergeTermSection({ term: termFixture(), onMerged }));
     act(() => view.result.current.setIntoTermId("into1"));
     await act(async () => {
       await view.result.current.startPlan();
@@ -203,7 +204,7 @@ describe("doExecute", () => {
 describe("resetting when the term changes mid-wizard", () => {
   it("clears intoTermId/step/plan/confirmationToken/error when a new term id is passed in", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse(PLAN_RESPONSE));
-    const { result, rerender } = renderHook(({ term }) => useMergeTermSection({ term, onMerged: vi.fn() }), {
+    const { result, rerender } = renderHook(({ term }) => useWiredMergeTermSection({ term, onMerged: vi.fn() }), {
       initialProps: { term: termFixture({ id: "from1" }) },
     });
     act(() => result.current.setIntoTermId("into1"));
@@ -219,5 +220,56 @@ describe("resetting when the term changes mid-wizard", () => {
     expect(result.current.plan).toBeNull();
     expect(result.current.confirmationToken).toBeNull();
     expect(result.current.error).toBeNull();
+  });
+});
+
+describe("useMergeTermSection — injected port", () => {
+  it("plans through the fake port and stores plan details, with no fetch involved", async () => {
+    const networkMock = vi.fn();
+    vi.stubGlobal("fetch", networkMock);
+    const port = createFakeMergeTermSectionPort({ overlappingContentCount: 5 });
+
+    const { result } = renderHook(() => useMergeTermSection({ term: termFixture(), onMerged: vi.fn() }, port, "en"));
+    act(() => result.current.setIntoTermId("into1"));
+    await act(async () => {
+      await result.current.startPlan();
+    });
+
+    expect(result.current.step).toBe("planned");
+    expect(result.current.plan?.overlappingContentCount).toBe(5);
+    expect(networkMock).not.toHaveBeenCalled();
+  });
+
+  it("runs the full plan/confirm/execute ceremony through the port and calls onMerged", async () => {
+    const port = createFakeMergeTermSectionPort();
+    const onMerged = vi.fn();
+    const { result } = renderHook(() => useMergeTermSection({ term: termFixture(), onMerged }, port, "en"));
+
+    act(() => result.current.setIntoTermId("into1"));
+    await act(async () => {
+      await result.current.startPlan();
+    });
+    await act(async () => {
+      await result.current.doConfirm();
+    });
+    await act(async () => {
+      await result.current.doExecute();
+    });
+
+    expect(onMerged).toHaveBeenCalledTimes(1);
+    expect(result.current.error).toBeNull();
+  });
+
+  it("surfaces a rejected planMergeTerm call's message on the error channel", async () => {
+    const port = createFakeMergeTermSectionPort({ planError: "cycle detected" });
+    const { result } = renderHook(() => useMergeTermSection({ term: termFixture(), onMerged: vi.fn() }, port, "en"));
+    act(() => result.current.setIntoTermId("into1"));
+
+    await act(async () => {
+      await result.current.startPlan();
+    });
+
+    expect(result.current.step).toBe("idle");
+    expect(result.current.error).toBe("cycle detected");
   });
 });

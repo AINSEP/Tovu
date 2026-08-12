@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState, type Dispatch, type SetStateAction } from "react";
-import { api, describeApiError, type AdminTaxonomy, type AdminTaxonomyWithTerms, type AdminTerm } from "../../../lib/api";
+import { describeApiError, type AdminTaxonomy, type AdminTaxonomyWithTerms, type AdminTerm } from "../../../lib/api";
 import { describeDeleteBlocked, findSelectedTerm, type DeleteBlockedState } from "../rules";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { t } from "../taxonomy-i18n";
+import { defaultTaxonomyPort } from "./taxonomy-dependencies.hooks";
+import type { TaxonomyPort } from "./taxonomy-port.hooks";
 
 /**
  * @file Everything the top-level `Taxonomy` screen does, so `Taxonomy.tsx` is only markup.
@@ -30,6 +32,12 @@ import { t } from "../taxonomy-i18n";
  * its own `{ termId, state } | null` (not folded into `error`) so `Taxonomy.tsx` can show it scoped
  * to the specific row it's about, the same way `Comments.tsx`'s per-row `rs.error` does, rather than
  * a page-level banner that doesn't say which of several terms it's talking about.
+ *
+ * `port` is injected — see `taxonomy-port.hooks.ts` (shared with `use-term-detail-panel.hooks.ts`,
+ * since both read/write the same taxonomy/term resource) — rather than importing `lib/api`
+ * directly, so a test can describe load/delete outcomes against `createFakeTaxonomyPort` instead
+ * of stubbing global `fetch`. `useWiredTaxonomy` below is the zero-argument pair `Taxonomy.tsx`
+ * actually mounts.
  */
 
 export interface TaxonomyController {
@@ -101,8 +109,7 @@ async function runGuardedDelete(
   }
 }
 
-export function useTaxonomy(): TaxonomyController {
-  const locale = useAdminLocale();
+export function useTaxonomy(port: TaxonomyPort, locale: string): TaxonomyController {
   const [taxonomies, setTaxonomies] = useState<AdminTaxonomyWithTerms[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [selectedTermId, setSelectedTermId] = useState<string | null>(null);
@@ -122,13 +129,13 @@ export function useTaxonomy(): TaxonomyController {
   } | null>(null);
 
   function load() {
-    api
+    port
       .listTaxonomies()
       .then((r) => setTaxonomies(r.items))
       .catch((e) => setError(describeApiError(e, t(locale, "failed to load taxonomies"))));
   }
 
-  useEffect(load, []);
+  useEffect(load, [port]);
 
   const selected = useMemo(() => findSelectedTerm(taxonomies, selectedTermId), [taxonomies, selectedTermId]);
 
@@ -148,7 +155,7 @@ export function useTaxonomy(): TaxonomyController {
     const term = pendingDeleteTerm;
     await runGuardedDelete(
       term.id,
-      api.deleteTerm,
+      port.deleteTerm,
       setDeleteTermBusy,
       () => setPendingDeleteTermState(null),
       // A deleted term can no longer own the detail panel it might currently be selected into.
@@ -172,7 +179,7 @@ export function useTaxonomy(): TaxonomyController {
     const taxonomy = pendingDeleteTaxonomy;
     await runGuardedDelete(
       taxonomy.id,
-      api.deleteTaxonomy,
+      port.deleteTaxonomy,
       setDeleteTaxonomyBusy,
       () => setPendingDeleteTaxonomyState(null),
       // A deleted taxonomy takes every one of its terms with it (the route's own cascade) —
@@ -207,4 +214,15 @@ export function useTaxonomy(): TaxonomyController {
     deleteTaxonomyBlocked,
     confirmDeleteTaxonomy,
   };
+}
+
+/**
+ * Binds the real `/api/.../taxonomy` client — see `taxonomy-dependencies.hooks.ts`.
+ *
+ * The zero-argument half of the `useX(dependencies)` / `useWiredX()` pair, so `Taxonomy.tsx`
+ * composes this and a test composes {@link useTaxonomy} with `createFakeTaxonomyPort`.
+ */
+export function useWiredTaxonomy(): TaxonomyController {
+  const locale = useAdminLocale();
+  return useTaxonomy(defaultTaxonomyPort, locale);
 }

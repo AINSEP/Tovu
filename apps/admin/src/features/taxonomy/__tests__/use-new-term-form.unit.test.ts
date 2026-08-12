@@ -1,7 +1,8 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { useNewTermForm } from "../hooks/use-new-term-form.hooks";
+import { useNewTermForm, useWiredNewTermForm } from "../hooks/use-new-term-form.hooks";
+import { createFakeNewTermFormPort } from "../hooks/new-term-form-dependencies.hooks";
 import type { AdminTaxonomyWithTerms } from "../../../lib/api";
 
 /**
@@ -52,7 +53,7 @@ function formEvent() {
 describe("validation guard", () => {
   it("rejects an empty name without calling the API", async () => {
     const onCreated = vi.fn();
-    const { result } = renderHook(() => useNewTermForm({ taxonomy: taxonomy(false), onCreated }));
+    const { result } = renderHook(() => useWiredNewTermForm({ taxonomy: taxonomy(false), onCreated }));
 
     await act(async () => {
       await result.current.submit(formEvent());
@@ -64,7 +65,7 @@ describe("validation guard", () => {
   });
 
   it("rejects a whitespace-only name", async () => {
-    const { result } = renderHook(() => useNewTermForm({ taxonomy: taxonomy(false), onCreated: vi.fn() }));
+    const { result } = renderHook(() => useWiredNewTermForm({ taxonomy: taxonomy(false), onCreated: vi.fn() }));
     act(() => result.current.setName("   "));
 
     await act(async () => {
@@ -81,7 +82,7 @@ describe("hierarchical parentId handling", () => {
     fetchMock.mockResolvedValueOnce(
       jsonResponse({ term: { id: "t1", taxonomyId: "tax1", parentId: null, name: "Child", status: "active", updatedAt: "x", version: 1 } })
     );
-    const { result } = renderHook(() => useNewTermForm({ taxonomy: taxonomy(false), onCreated: vi.fn() }));
+    const { result } = renderHook(() => useWiredNewTermForm({ taxonomy: taxonomy(false), onCreated: vi.fn() }));
     act(() => {
       result.current.setName("Child");
       result.current.setParentId("stale-parent-id");
@@ -99,7 +100,7 @@ describe("hierarchical parentId handling", () => {
     fetchMock.mockResolvedValueOnce(
       jsonResponse({ term: { id: "t2", taxonomyId: "tax1", parentId: "p1", name: "Child", status: "active", updatedAt: "x", version: 1 } })
     );
-    const { result } = renderHook(() => useNewTermForm({ taxonomy: taxonomy(true), onCreated: vi.fn() }));
+    const { result } = renderHook(() => useWiredNewTermForm({ taxonomy: taxonomy(true), onCreated: vi.fn() }));
     act(() => {
       result.current.setName("Child");
       result.current.setParentId("p1");
@@ -117,7 +118,7 @@ describe("hierarchical parentId handling", () => {
     fetchMock.mockResolvedValueOnce(
       jsonResponse({ term: { id: "t3", taxonomyId: "tax1", parentId: null, name: "Root", status: "active", updatedAt: "x", version: 1 } })
     );
-    const { result } = renderHook(() => useNewTermForm({ taxonomy: taxonomy(true), onCreated: vi.fn() }));
+    const { result } = renderHook(() => useWiredNewTermForm({ taxonomy: taxonomy(true), onCreated: vi.fn() }));
     act(() => result.current.setName("Root"));
 
     await act(async () => {
@@ -135,7 +136,7 @@ describe("success and failure", () => {
       jsonResponse({ term: { id: "t1", taxonomyId: "tax1", parentId: null, name: "Child", status: "active", updatedAt: "x", version: 1 } })
     );
     const onCreated = vi.fn();
-    const { result } = renderHook(() => useNewTermForm({ taxonomy: taxonomy(true), onCreated }));
+    const { result } = renderHook(() => useWiredNewTermForm({ taxonomy: taxonomy(true), onCreated }));
     act(() => {
       result.current.setOpen(true);
       result.current.setName("Child");
@@ -156,7 +157,7 @@ describe("success and failure", () => {
   it("sets error, stops saving, and leaves the form open without calling onCreated on failure", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ error: "duplicate name" }, 409));
     const onCreated = vi.fn();
-    const { result } = renderHook(() => useNewTermForm({ taxonomy: taxonomy(false), onCreated }));
+    const { result } = renderHook(() => useWiredNewTermForm({ taxonomy: taxonomy(false), onCreated }));
     act(() => {
       result.current.setOpen(true);
       result.current.setName("Dup");
@@ -177,15 +178,49 @@ describe("open", () => {
   // Web-design pass (2026-08-05): every group's "New term" form starts collapsed behind a small
   // trigger instead of permanently open — see this hook's own comment.
   it("starts closed", () => {
-    const { result } = renderHook(() => useNewTermForm({ taxonomy: taxonomy(false), onCreated: vi.fn() }));
+    const { result } = renderHook(() => useWiredNewTermForm({ taxonomy: taxonomy(false), onCreated: vi.fn() }));
     expect(result.current.open).toBe(false);
   });
 
   it("opens and closes via setOpen", () => {
-    const { result } = renderHook(() => useNewTermForm({ taxonomy: taxonomy(false), onCreated: vi.fn() }));
+    const { result } = renderHook(() => useWiredNewTermForm({ taxonomy: taxonomy(false), onCreated: vi.fn() }));
     act(() => result.current.setOpen(true));
     expect(result.current.open).toBe(true);
     act(() => result.current.setOpen(false));
     expect(result.current.open).toBe(false);
+  });
+});
+
+describe("useNewTermForm — injected port", () => {
+  it("creates through the fake port with the resolved parentId, with no fetch involved", async () => {
+    const networkMock = vi.fn();
+    vi.stubGlobal("fetch", networkMock);
+    const port = createFakeNewTermFormPort();
+    const onCreated = vi.fn();
+
+    const { result } = renderHook(() => useNewTermForm({ taxonomy: taxonomy(true), onCreated }, port, "en"));
+    act(() => {
+      result.current.setName("Child");
+      result.current.setParentId("p1");
+    });
+    await act(async () => {
+      await result.current.submit(formEvent());
+    });
+
+    expect(result.current.name).toBe("");
+    expect(onCreated).toHaveBeenCalledTimes(1);
+    expect(networkMock).not.toHaveBeenCalled();
+  });
+
+  it("surfaces a rejected createTerm call's message on the error channel", async () => {
+    const port = createFakeNewTermFormPort({ createError: "duplicate name" });
+    const { result } = renderHook(() => useNewTermForm({ taxonomy: taxonomy(false), onCreated: vi.fn() }, port, "en"));
+    act(() => result.current.setName("Dup"));
+
+    await act(async () => {
+      await result.current.submit(formEvent());
+    });
+
+    expect(result.current.error).toBe("duplicate name");
   });
 });

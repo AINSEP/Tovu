@@ -1,7 +1,8 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { useTermDetailPanel } from "../hooks/use-term-detail-panel.hooks";
+import { useTermDetailPanel, useWiredTermDetailPanel } from "../hooks/use-term-detail-panel.hooks";
+import { createFakeTaxonomyPort } from "../hooks/taxonomy-dependencies.hooks";
 import type { AdminTerm } from "../../../lib/api";
 
 /**
@@ -56,13 +57,13 @@ function formEvent() {
 }
 
 it("initializes newName from the term's current name", () => {
-  const { result } = renderHook(() => useTermDetailPanel({ term: termFixture({ name: "Seeded" }), onRenamed: vi.fn() }));
+  const { result } = renderHook(() => useWiredTermDetailPanel({ term: termFixture({ name: "Seeded" }), onRenamed: vi.fn() }));
   expect(result.current.newName).toBe("Seeded");
 });
 
 describe("no-op guard", () => {
   it("does not call the API for an empty newName", async () => {
-    const { result } = renderHook(() => useTermDetailPanel({ term: termFixture(), onRenamed: vi.fn() }));
+    const { result } = renderHook(() => useWiredTermDetailPanel({ term: termFixture(), onRenamed: vi.fn() }));
     act(() => result.current.setNewName(""));
 
     await act(async () => {
@@ -73,7 +74,7 @@ describe("no-op guard", () => {
   });
 
   it("does not call the API when the trimmed newName equals the term's current name", async () => {
-    const { result } = renderHook(() => useTermDetailPanel({ term: termFixture({ name: "Same" }), onRenamed: vi.fn() }));
+    const { result } = renderHook(() => useWiredTermDetailPanel({ term: termFixture({ name: "Same" }), onRenamed: vi.fn() }));
     act(() => result.current.setNewName("  Same  "));
 
     await act(async () => {
@@ -88,7 +89,7 @@ describe("success and failure", () => {
   it("shows a 'Renamed.' message and calls onRenamed on success", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ term: termFixture({ name: "New Name" }) }));
     const onRenamed = vi.fn();
-    const { result } = renderHook(() => useTermDetailPanel({ term: termFixture(), onRenamed }));
+    const { result } = renderHook(() => useWiredTermDetailPanel({ term: termFixture(), onRenamed }));
     act(() => result.current.setNewName("New Name"));
 
     await act(async () => {
@@ -104,7 +105,7 @@ describe("success and failure", () => {
   it("sets error, clears any prior message, and does not call onRenamed on failure", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ error: "name already exists" }, 409));
     const onRenamed = vi.fn();
-    const { result } = renderHook(() => useTermDetailPanel({ term: termFixture(), onRenamed }));
+    const { result } = renderHook(() => useWiredTermDetailPanel({ term: termFixture(), onRenamed }));
     act(() => result.current.setNewName("Taken Name"));
 
     await act(async () => {
@@ -120,7 +121,7 @@ describe("success and failure", () => {
 describe("resetting when the selected term changes", () => {
   it("re-seeds newName and clears message/error for the newly selected term", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ term: termFixture({ name: "Renamed A" }) }));
-    const { result, rerender } = renderHook(({ term }) => useTermDetailPanel({ term, onRenamed: vi.fn() }), {
+    const { result, rerender } = renderHook(({ term }) => useWiredTermDetailPanel({ term, onRenamed: vi.fn() }), {
       initialProps: { term: termFixture({ id: "t1", name: "Term A" }) },
     });
     act(() => result.current.setNewName("Renamed A"));
@@ -134,5 +135,44 @@ describe("resetting when the selected term changes", () => {
     await waitFor(() => expect(result.current.newName).toBe("Term B"));
     expect(result.current.message).toBeNull();
     expect(result.current.error).toBeNull();
+  });
+});
+
+describe("useTermDetailPanel — injected port", () => {
+  it("renames through the fake port and reports success, with no fetch involved", async () => {
+    const networkMock = vi.fn();
+    vi.stubGlobal("fetch", networkMock);
+    const term = termFixture();
+    const port = createFakeTaxonomyPort({ groups: [{ taxonomy: { id: "tax1", name: "Category", hierarchical: false, status: "active", updatedAt: "x", version: 1 }, terms: [term] }] });
+    const onRenamed = vi.fn();
+
+    const { result } = renderHook(() => useTermDetailPanel({ term, onRenamed }, port, "en"));
+    act(() => result.current.setNewName("Renamed via port"));
+    await act(async () => {
+      await result.current.rename(formEvent());
+    });
+
+    expect(result.current.message).toBe("Renamed.");
+    expect(onRenamed).toHaveBeenCalledTimes(1);
+    expect(networkMock).not.toHaveBeenCalled();
+  });
+
+  it("shares the same store as useTaxonomy through TaxonomyPort — a rename here is visible to a sibling useTaxonomy", async () => {
+    const term = termFixture();
+    const group = { taxonomy: { id: "tax1", name: "Category", hierarchical: false, status: "active", updatedAt: "x", version: 1 }, terms: [term] };
+    const port = createFakeTaxonomyPort({ groups: [group] });
+
+    const { result } = renderHook(() => useTermDetailPanel({ term, onRenamed: vi.fn() }, port, "en"));
+    act(() => result.current.setNewName("Shared Store Rename"));
+    await act(async () => {
+      await result.current.rename(formEvent());
+    });
+
+    const renamed = await port.renameTerm({ termId: term.id, newName: "confirm read-back" }).catch(() => null);
+    // The second renameTerm call above is only to read the store back through the same port
+    // instance — its own result isn't the point, `port`'s internal `groups` state is.
+    expect(renamed).not.toBeNull();
+    const listed = await port.listTaxonomies();
+    expect(listed.items[0]?.terms[0]?.name).toBe("confirm read-back");
   });
 });

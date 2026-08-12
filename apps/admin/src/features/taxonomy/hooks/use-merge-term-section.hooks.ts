@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
-import { api, describeApiError, type AdminTerm } from "../../../lib/api";
+import { describeApiError, type AdminTerm } from "../../../lib/api";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { t } from "../taxonomy-i18n";
+import { defaultMergeTermSectionPort } from "./merge-term-section-dependencies.hooks";
+import type { MergeTermSectionPort } from "./merge-term-section-port.hooks";
 
 /**
  * @file Everything `MergeTermSection` (the merge-term plan/confirm/execute wizard, ADR-044,
@@ -11,6 +13,11 @@ import { t } from "../taxonomy-i18n";
  * error strings. The original component also took a `taxonomy` prop, used only to compute
  * `otherTerms` (now `rules.ts`'s `otherMergeTargets`, called directly by the view); this hook has
  * no use for it and does not accept it.
+ *
+ * `port` is injected — see `merge-term-section-port.hooks.ts` — rather than importing `lib/api`
+ * directly, so a test can describe plan/confirm/execute outcomes against
+ * `createFakeMergeTermSectionPort` instead of stubbing global `fetch`. `useWiredMergeTermSection`
+ * below is the zero-argument pair `Taxonomy.tsx` actually mounts.
  */
 
 export type MergeStep = "idle" | "planned" | "confirmed";
@@ -33,8 +40,11 @@ export interface MergeTermSectionController {
   doExecute: () => Promise<void>;
 }
 
-export function useMergeTermSection(options: MergeTermSectionOptions): MergeTermSectionController {
-  const locale = useAdminLocale();
+export function useMergeTermSection(
+  options: MergeTermSectionOptions,
+  port: MergeTermSectionPort,
+  locale: string
+): MergeTermSectionController {
   const { term, onMerged } = options;
   const [intoTermId, setIntoTermId] = useState("");
   const [step, setStep] = useState<MergeStep>("idle");
@@ -56,7 +66,7 @@ export function useMergeTermSection(options: MergeTermSectionOptions): MergeTerm
     setBusy(true);
     setError(null);
     try {
-      const r = await api.planMergeTerm({ fromTermId: term.id, intoTermId });
+      const r = await port.planMergeTerm({ fromTermId: term.id, intoTermId });
       setPlan({ planId: r.planId, planHash: r.planHash, overlappingContentCount: r.details.overlappingContentCount });
       setStep("planned");
     } catch (e) {
@@ -71,7 +81,7 @@ export function useMergeTermSection(options: MergeTermSectionOptions): MergeTerm
     setBusy(true);
     setError(null);
     try {
-      const r = await api.confirmMergeTerm({ fromTermId: term.id, planId: plan.planId, planHash: plan.planHash });
+      const r = await port.confirmMergeTerm({ fromTermId: term.id, planId: plan.planId, planHash: plan.planHash });
       setConfirmationToken(r.confirmationToken);
       setStep("confirmed");
     } catch (e) {
@@ -86,7 +96,7 @@ export function useMergeTermSection(options: MergeTermSectionOptions): MergeTerm
     setBusy(true);
     setError(null);
     try {
-      await api.executeMergeTerm({ fromTermId: term.id, intoTermId, confirmationToken });
+      await port.executeMergeTerm({ fromTermId: term.id, intoTermId, confirmationToken });
       onMerged();
     } catch (e) {
       setError(describeApiError(e, t(locale, "Failed to execute the merge")));
@@ -96,4 +106,17 @@ export function useMergeTermSection(options: MergeTermSectionOptions): MergeTerm
   }
 
   return { intoTermId, setIntoTermId, step, busy, error, plan, confirmationToken, startPlan, doConfirm, doExecute };
+}
+
+/**
+ * Binds the real `/api/.../taxonomy/terms/:id/merge` client — see
+ * `merge-term-section-dependencies.hooks.ts`.
+ *
+ * The zero-argument half of the `useX(dependencies)` / `useWiredX()` pair, so `Taxonomy.tsx`
+ * composes this and a test composes {@link useMergeTermSection} with
+ * `createFakeMergeTermSectionPort`.
+ */
+export function useWiredMergeTermSection(options: MergeTermSectionOptions): MergeTermSectionController {
+  const locale = useAdminLocale();
+  return useMergeTermSection(options, defaultMergeTermSectionPort, locale);
 }

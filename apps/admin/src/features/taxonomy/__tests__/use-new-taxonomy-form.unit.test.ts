@@ -1,7 +1,8 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { useNewTaxonomyForm } from "../hooks/use-new-taxonomy-form.hooks";
+import { useNewTaxonomyForm, useWiredNewTaxonomyForm } from "../hooks/use-new-taxonomy-form.hooks";
+import { createFakeNewTaxonomyFormPort } from "../hooks/new-taxonomy-form-dependencies.hooks";
 
 /**
  * @file `useNewTaxonomyForm` (SPEC-037 REQ-02) — mirrors `use-new-term-form.hooks.ts`'s shape;
@@ -44,7 +45,7 @@ function formEvent() {
 describe("validation guard", () => {
   it("rejects an empty name without calling the API", async () => {
     const onCreated = vi.fn();
-    const { result } = renderHook(() => useNewTaxonomyForm({ onCreated }));
+    const { result } = renderHook(() => useWiredNewTaxonomyForm({ onCreated }));
 
     await act(async () => {
       await result.current.submit(formEvent());
@@ -56,7 +57,7 @@ describe("validation guard", () => {
   });
 
   it("rejects a whitespace-only name", async () => {
-    const { result } = renderHook(() => useNewTaxonomyForm({ onCreated: vi.fn() }));
+    const { result } = renderHook(() => useWiredNewTaxonomyForm({ onCreated: vi.fn() }));
     act(() => result.current.setName("   "));
 
     await act(async () => {
@@ -74,7 +75,7 @@ describe("success", () => {
       jsonResponse({ taxonomy: { id: "tax1", name: "Category", hierarchical: true, status: "active", updatedAt: "x", version: 1 } })
     );
     const onCreated = vi.fn();
-    const { result } = renderHook(() => useNewTaxonomyForm({ onCreated }));
+    const { result } = renderHook(() => useWiredNewTaxonomyForm({ onCreated }));
     act(() => {
       result.current.setName("  Category  ");
       result.current.setHierarchical(true);
@@ -97,7 +98,7 @@ describe("failure", () => {
   it("sets error, stops saving, and keeps the typed name/hierarchical without calling onCreated", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ error: "name already exists" }, 409));
     const onCreated = vi.fn();
-    const { result } = renderHook(() => useNewTaxonomyForm({ onCreated }));
+    const { result } = renderHook(() => useWiredNewTaxonomyForm({ onCreated }));
     act(() => {
       result.current.setName("Dup");
       result.current.setHierarchical(true);
@@ -112,5 +113,39 @@ describe("failure", () => {
     expect(result.current.name).toBe("Dup");
     expect(result.current.hierarchical).toBe(true);
     expect(onCreated).not.toHaveBeenCalled();
+  });
+});
+
+describe("useNewTaxonomyForm — injected port", () => {
+  it("creates through the fake port and resets the form, with no fetch involved", async () => {
+    const networkMock = vi.fn();
+    vi.stubGlobal("fetch", networkMock);
+    const port = createFakeNewTaxonomyFormPort();
+    const onCreated = vi.fn();
+
+    const { result } = renderHook(() => useNewTaxonomyForm({ onCreated }, port, "en"));
+    act(() => {
+      result.current.setName("Category");
+      result.current.setHierarchical(true);
+    });
+    await act(async () => {
+      await result.current.submit(formEvent());
+    });
+
+    expect(result.current.name).toBe("");
+    expect(onCreated).toHaveBeenCalledTimes(1);
+    expect(networkMock).not.toHaveBeenCalled();
+  });
+
+  it("surfaces a rejected createTaxonomy call's message on the error channel", async () => {
+    const port = createFakeNewTaxonomyFormPort({ createError: "name already exists" });
+    const { result } = renderHook(() => useNewTaxonomyForm({ onCreated: vi.fn() }, port, "en"));
+    act(() => result.current.setName("Category"));
+
+    await act(async () => {
+      await result.current.submit(formEvent());
+    });
+
+    expect(result.current.error).toBe("name already exists");
   });
 });
