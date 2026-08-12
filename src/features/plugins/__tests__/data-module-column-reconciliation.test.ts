@@ -8,6 +8,15 @@
  * cause. See `data-module.ts`'s header comment for the full reasoning behind each outcome these
  * tests assert (safe ALTER ADD COLUMN vs. the two SQLite-can't-do-that fail-closed cases vs. a
  * type mismatch vs. an undeclared live column being left alone).
+ *
+ * CONSTRAINT-LEVEL BUG FIX (2026-08-12): the same table-contents diff above compared `type` for an
+ * existing column but not `notNull`/`primaryKey` — declaring an already-existing nullable column
+ * `notNull: true` (or a non-PK column `primaryKey: true`) also returned `{ ok: true, altered: [] }`
+ * with the live column completely unenforced. `COLUMN_NOT_NULL_MISMATCH` and
+ * `COLUMN_PRIMARY_KEY_MISMATCH` close that gap, direction-agnostic (declared-stricter-than-live
+ * AND declared-looser-than-live both fail closed, mirroring `COLUMN_TYPE_MISMATCH`'s own symmetric
+ * behavior — see `data-module.ts`'s header for the full reasoning), plus a composite-primary-key
+ * false-positive check since `PRAGMA table_info`'s `pk` is an ordinal, not a boolean.
  */
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -263,6 +272,138 @@ test("dataModule: an ALTER TABLE ADD COLUMN is recorded in the site-wide migrati
   assert.equal(row!.plugin_id, "coltest");
   assert.equal(row!.table_name, "p_coltest__widgets");
   assert.match(row!.ddl, /ADD COLUMN "sku" TEXT/);
+
+  db.close();
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test("dataModule: fails closed when an existing column's declared NOT NULL is tighter than the live column (declared NOT NULL, live nullable)", async () => {
+  const { db, dbPath, dir } = openDb();
+  const v1 = { pluginId: "coltest", pluginTier: "tier-2" as const, provenance, tables: [
+    { name: "widgets", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }, { name: "title", type: "TEXT" as const }] },
+  ] };
+  await declareDataModule({ db, dbPath, decl: v1 });
+
+  const v2 = { ...v1, tables: [{ name: "widgets", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }, { name: "title", type: "TEXT" as const, notNull: true }] }] };
+  const result = await declareDataModule({ db, dbPath, decl: v2 });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.error?.code, "COLUMN_NOT_NULL_MISMATCH");
+  assert.match(result.error?.message ?? "", /"title" is declared NOT NULL but the live column is nullable/);
+  assert.equal(result.snapshotPath, null, "fails before any I/O");
+  assert.deepEqual(liveColumns(db, "p_coltest__widgets"), ["id", "title"], "the table is completely untouched");
+
+  db.close();
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test("dataModule: fails closed when an existing column's declared NOT NULL is looser than the live column (declared nullable, live NOT NULL) — direction-agnostic by design", async () => {
+  const { db, dbPath, dir } = openDb();
+  const v1 = { pluginId: "coltest", pluginTier: "tier-2" as const, provenance, tables: [
+    { name: "widgets", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }, { name: "title", type: "TEXT" as const, notNull: true }] },
+  ] };
+  await declareDataModule({ db, dbPath, decl: v1 });
+
+  const v2 = { ...v1, tables: [{ name: "widgets", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }, { name: "title", type: "TEXT" as const }] }] };
+  const result = await declareDataModule({ db, dbPath, decl: v2 });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.error?.code, "COLUMN_NOT_NULL_MISMATCH");
+  assert.match(result.error?.message ?? "", /"title" is declared nullable but the live column is NOT NULL/);
+  assert.equal(result.snapshotPath, null, "fails before any I/O");
+
+  db.close();
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test("dataModule: fails closed when an existing column's declared PRIMARY KEY is tighter than the live column (declared PK, live not PK)", async () => {
+  const { db, dbPath, dir } = openDb();
+  const v1 = { pluginId: "coltest", pluginTier: "tier-2" as const, provenance, tables: [
+    { name: "widgets", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }, { name: "sku", type: "TEXT" as const }] },
+  ] };
+  await declareDataModule({ db, dbPath, decl: v1 });
+
+  const v2 = { ...v1, tables: [{ name: "widgets", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }, { name: "sku", type: "TEXT" as const, primaryKey: true }] }] };
+  const result = await declareDataModule({ db, dbPath, decl: v2 });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.error?.code, "COLUMN_PRIMARY_KEY_MISMATCH");
+  assert.match(result.error?.message ?? "", /"sku" is declared a PRIMARY KEY but the live column is not part of the table's primary key/);
+  assert.equal(result.snapshotPath, null, "fails before any I/O");
+
+  db.close();
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test("dataModule: fails closed when an existing column's declared PRIMARY KEY is looser than the live column (declared not PK, live IS PK) — direction-agnostic by design", async () => {
+  const { db, dbPath, dir } = openDb();
+  const v1 = { pluginId: "coltest", pluginTier: "tier-2" as const, provenance, tables: [
+    { name: "widgets", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }, { name: "sku", type: "TEXT" as const }] },
+  ] };
+  await declareDataModule({ db, dbPath, decl: v1 });
+
+  const v2 = { ...v1, tables: [{ name: "widgets", columns: [{ name: "id", type: "TEXT" as const }, { name: "sku", type: "TEXT" as const }] }] };
+  const result = await declareDataModule({ db, dbPath, decl: v2 });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.error?.code, "COLUMN_PRIMARY_KEY_MISMATCH");
+  assert.match(result.error?.message ?? "", /"id" is declared not a PRIMARY KEY but the live column is part of the table's primary key/);
+  assert.equal(result.snapshotPath, null, "fails before any I/O");
+
+  db.close();
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test("dataModule: ADVERSARIAL — a live composite primary key does not produce a false COLUMN_PRIMARY_KEY_MISMATCH when every key column is declared primaryKey: true", async () => {
+  const { db, dbPath, dir } = openDb();
+  // This engine's own DDL can never create a composite primary key (see this file's header
+  // comment: two column-level PRIMARY KEY constraints in one CREATE TABLE is rejected by SQLite
+  // itself, "table has more than one primary key") — simulate the only way one can exist live: a
+  // table that predates this engine, or was created by a Tier-3 plugin holding a raw handle (the
+  // §0 access-control caveat in this file's header).
+  db.prepare(
+    `CREATE TABLE "p_coltest__memberships" ("workspace_id" TEXT NOT NULL, "user_id" TEXT NOT NULL, "role" TEXT, PRIMARY KEY ("workspace_id", "user_id"))`
+  ).run();
+
+  const decl = { pluginId: "coltest", pluginTier: "tier-2" as const, provenance, tables: [
+    { name: "memberships", columns: [
+      { name: "workspace_id", type: "TEXT" as const, notNull: true, primaryKey: true },
+      { name: "user_id", type: "TEXT" as const, notNull: true, primaryKey: true },
+      { name: "role", type: "TEXT" as const },
+    ] },
+  ] };
+  const result = await declareDataModule({ db, dbPath, decl });
+
+  assert.equal(result.ok, true, JSON.stringify(result.error));
+  assert.deepEqual(result.created, []);
+  assert.deepEqual(result.altered, [], "every declared column already exists and matches — pure no-op, not a false mismatch");
+  assert.equal(result.snapshotPath, null, "true no-op — nothing was snapshotted");
+
+  db.close();
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test("dataModule: against a live composite primary key, a genuinely undeclared key column still fails closed (the ordinal-aware read isn't blind to real mismatches)", async () => {
+  const { db, dbPath, dir } = openDb();
+  db.prepare(
+    `CREATE TABLE "p_coltest__memberships" ("workspace_id" TEXT NOT NULL, "user_id" TEXT NOT NULL, "role" TEXT, PRIMARY KEY ("workspace_id", "user_id"))`
+  ).run();
+
+  // The manifest author only marked the FIRST composite-key column primaryKey: true and forgot
+  // the second (user_id) — this must still be caught, not waved through because a composite key
+  // is involved.
+  const decl = { pluginId: "coltest", pluginTier: "tier-2" as const, provenance, tables: [
+    { name: "memberships", columns: [
+      { name: "workspace_id", type: "TEXT" as const, notNull: true, primaryKey: true },
+      { name: "user_id", type: "TEXT" as const, notNull: true },
+      { name: "role", type: "TEXT" as const },
+    ] },
+  ] };
+  const result = await declareDataModule({ db, dbPath, decl });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.error?.code, "COLUMN_PRIMARY_KEY_MISMATCH");
+  assert.match(result.error?.message ?? "", /"user_id" is declared not a PRIMARY KEY but the live column is part of the table's primary key/);
 
   db.close();
   fs.rmSync(dir, { recursive: true, force: true });
