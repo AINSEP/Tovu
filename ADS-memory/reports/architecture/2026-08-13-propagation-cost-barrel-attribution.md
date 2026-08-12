@@ -170,3 +170,42 @@ Every `check:architecture -- --list` run referenced above was captured to
 (`A0`…`A3`, `B1`, `Z0`, `Z1` — filenames match the step labels in this report) at the time of
 measurement. That scratchpad is session-local and not committed; the tables above are the durable
 record.
+
+## Addendum (FixAssistant) — the cheapest fix, implemented, plus two mechanism facts worth keeping
+
+Independently reached the same Result 2 conclusion from the `assistant` side (own isolated worktree
+bisection, same method, same numbers within noise: reverting only `routes/types.ts`'s 3 lines took
+propagation cost from 12.43% to 8.20% in isolation). Also measured this report's "structural fix"
+option (§ "What this means for the owner's decision") before it was implemented anywhere: a real
+six-way split of `assistant/index.ts` (`site.ts`/`settings.ts`/`byok.ts`/`daemon-proxy.ts`/
+`mcp-federation-door.ts`/`chat-persistence.ts`, all 27 consumers re-pointed to the section(s) they
+actually use) measured **11.79% propagation / 7 exposed files** — worse than the 3-line fix on both
+axes, because `routes/types.ts` alone needs symbols spanning 4 of the 6 sections regardless of door
+width, so splitting only partially shrinks what it reaches (confirms this report's Result 2 mechanism
+rather than contradicting it: fan-in is the dominant variable, and `routes/types.ts`'s fan-in doesn't
+change no matter how the target module is subdivided). **Implemented the 3-line fix**
+(`src/server/routes/types.ts`, commit `32f3b7e`): `ChatStoreFactory`, `SiteAssistantCredentialRepoPort`,
+`AdminExecutionCredentialRepoPort`, `ExternalMcpServerRepoPort` stay direct imports; everything else
+in `assistant`'s 28-file redirect set stays on the barrel. Real-branch result (other agents' concurrent
+work included): propagation cost 8.42%, `assistant` API surface 6 edges / 5 files (down from 59/27),
+SCC/cycles/back-edges unchanged at 35/8/16.
+
+Two mechanism facts this investigation surfaced that are easy to rediscover expensively if undocumented:
+
+1. **`buildFileGraph` (this script) does not distinguish `import type` from value imports.** Every
+   `dep.resolved` depcruise reports becomes a graph edge regardless of `dependencyTypes` — confirmed by
+   reading the function, not inferred from behavior. The 3 lines this addendum reverts are 100%
+   type-only (erased at runtime, zero bundle/tree-shaking impact) and still cost 4.2 percentage points.
+   **Propagation cost measures compile-time change-propagation risk — "how much of the codebase does a
+   change to file X's public shape put at risk of needing review" — not runtime coupling, bundle size,
+   or tree-shaking.** A file can be perfectly tree-shakeable and still be exactly as expensive here as
+   a value re-export; this metric cannot tell the difference and was never designed to.
+2. **`inScope()` (same file) requires `file.startsWith("src/")`.** `navigation`/`media`/`mail`'s
+   barrels re-export almost entirely from `@jini-ai/cms/*`, a `file:../Jini/packages/cms` workspace
+   link resolving to `../Jini/packages/cms/...` — outside `src/`, so those edges are **invisible to
+   this graph, not free**. Their barrels measuring ~0% propagation impact is a measurement-boundary
+   artifact, not evidence that ADR-009 barrels are cheap at any scale. `members`' barrel (local
+   `src/members/*` re-exports, no package boundary to hide behind) is the more honest small-scale
+   comparison, and it is non-zero for the same reason `assistant`'s is, just smaller (fewer files,
+   lower-fan-in consumers). Any future comparison against the `cms`-backed barrels should account for
+   this rather than treat them as a clean baseline.
