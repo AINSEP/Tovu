@@ -154,6 +154,26 @@ test("PUT into a built theme's sourceDir or theme.json still works", async (t) =
   );
 });
 
+test("PUT of a NON-framework extension into sourceDir is still refused — the bypass is a bounded allowlist, not 'anything in sourceDir'", async (t) => {
+  const themesDir = makeThemesRoot();
+  const app = buildTestApp(themesDir);
+  const baseUrl = await startTestServer(app, t);
+
+  // build.sourceDir is statically served (theme-static-assets.ts mounts express.static on the WHOLE
+  // theme folder), so an arbitrary-extension write here would be a publicly fetchable file, not just
+  // an internal one -- this must stay refused exactly like it is everywhere else in a theme.
+  const response = await fetch(`${baseUrl}${BASE("compiled")}/file`, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ path: "src/shell.php", content: "<?php system($_GET['c']); ?>" }),
+  });
+
+  assert.equal(response.status, 403);
+  const body = (await response.json()) as { code: string };
+  assert.equal(body.code, "READ_ONLY_FILE");
+  assert.equal(fs.existsSync(path.join(themesDir, "static", "compiled", "src", "shell.php")), false);
+});
+
 test("reset on a built theme's generated file restores the WHOLE generated tree atomically, reporting every restored path", async (t) => {
   const themesDir = makeThemesRoot();
   // Corrupt the live css AND leave a stray live-only generated file, to prove a single reset call
@@ -284,6 +304,26 @@ test("rename inside a built theme's sourceDir still works", async (t) => {
 
   assert.equal(response.status, 200);
   assert.equal(fs.existsSync(path.join(themesDir, "static", "compiled", "src", "Header2.tsx")), true);
+});
+
+test("renaming a non-framework-extension file already sitting in sourceDir is still refused (same bounded allowlist as PUT)", async (t) => {
+  const themesDir = makeThemesRoot();
+  // Simulate a file that landed on disk some other way (not through this API, which already refuses
+  // to create one) -- the rename route must still refuse it on its own, not merely rely on PUT.
+  fs.writeFileSync(path.join(themesDir, "static", "compiled", "src", "shell.sh"), "#!/bin/sh\necho hi", "utf8");
+
+  const app = buildTestApp(themesDir);
+  const baseUrl = await startTestServer(app, t);
+
+  const response = await fetch(`${baseUrl}${BASE("compiled")}/file/rename`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ path: "src/shell.sh", name: "renamed.sh" }),
+  });
+
+  assert.equal(response.status, 409);
+  const body = (await response.json()) as { code: string };
+  assert.equal(body.code, "READ_ONLY_FILE");
 });
 
 test("an authored theme's PUT/copy/rename are completely unaffected by any of this", async (t) => {
