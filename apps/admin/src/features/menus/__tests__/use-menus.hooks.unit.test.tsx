@@ -32,7 +32,7 @@ describe("useMenus — injected port (no fetch stub, no api spy)", () => {
   it("loads the list from the injected port and never touches the real api client", async () => {
     const listSpy = vi.spyOn(api, "listMenus");
     const port = createFakeMenusPort({ menus: [MENU] });
-    const { result } = renderHook(() => useMenus({ port }));
+    const { result } = renderHook(() => useMenus({ port, t: (k) => k }));
 
     await waitFor(() => expect(result.current.menus).toEqual([MENU]));
     expect(listSpy).not.toHaveBeenCalled();
@@ -41,7 +41,7 @@ describe("useMenus — injected port (no fetch stub, no api spy)", () => {
   it("routes trashOrPurge (active menu) through the injected port's deleteMenu, and the row flips to trash once the list re-reads it", async () => {
     const deleteSpy = vi.spyOn(api, "deleteMenu");
     const port = createFakeMenusPort({ menus: [MENU] });
-    const { result } = renderHook(() => useMenus({ port }));
+    const { result } = renderHook(() => useMenus({ port, t: (k) => k }));
     await waitFor(() => expect(result.current.menus).toEqual([MENU]));
 
     await act(async () => {
@@ -61,7 +61,7 @@ describe("useMenus — injected port (no fetch stub, no api spy)", () => {
   it("does not resolve `menus` while the injected port's list call is still pending", () => {
     const port = createFakeMenusPort();
     port.listMenus = () => new Promise(() => {});
-    const { result } = renderHook(() => useMenus({ port }));
+    const { result } = renderHook(() => useMenus({ port, t: (k) => k }));
     expect(result.current.menus).toBeNull();
   });
 });

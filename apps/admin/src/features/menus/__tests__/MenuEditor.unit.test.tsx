@@ -66,7 +66,20 @@ let confirmSpy: ReturnType<typeof vi.spyOn>;
 
 beforeEach(() => {
   fetchMock = vi.fn();
-  vi.stubGlobal("fetch", fetchMock);
+  // `MenuEditor` now also reads `core.language.locale` (via `useAdminLocale`, moved from the
+  // component into `useWiredMenuEditor` alongside this hook's own load effect — see
+  // `use-menu-editor.hooks.ts`'s header) to translate its own chrome — a real `fetch` call this
+  // file's tests never queued for. Routed here, ahead of `fetchMock`, so it never consumes a slot
+  // from the `mockResolvedValueOnce` sequence every test below still queues on `fetchMock` itself
+  // unchanged. An empty settings response resolves `loadLanguage()` to `DEFAULT_LOCALE` ("en"),
+  // matching every assertion below. Same fix `Menus.unit.test.tsx` already applies.
+  vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === "string" ? input : input.toString();
+    if (url.includes("/settings/effective")) {
+      return Promise.resolve(jsonResponse({ data: [] }));
+    }
+    return fetchMock(input, init);
+  });
 });
 
 afterEach(() => {

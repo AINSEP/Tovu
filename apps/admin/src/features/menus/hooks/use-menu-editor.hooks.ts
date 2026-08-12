@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { type AdminMenu, type AdminMenuItem } from "../../../lib/api";
 import { navigate as realNavigate } from "../../../lib/router";
 import { useDirtyGuard } from "../../../hooks/use-dirty-guard.hooks";
+import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { MENUS_DICT } from "../menus-i18n";
 import { defaultMenusPort } from "./menus-dependencies.hooks";
 import type { MenusPort } from "./menus-port.hooks";
 
@@ -25,11 +27,18 @@ import type { MenusPort } from "./menus-port.hooks";
  * `deps.port`/`deps.navigate` are injected (see `menus-port.hooks.ts`) rather than reaching for
  * `lib/api`'s `api` and `lib/router`'s `navigate` directly, sharing the `MenusPort`
  * `use-menus.hooks.ts` also injects.
+ *
+ * `deps.t` (standing i18n rule, 2026-08-11 — see `use-menus.hooks.ts`'s identical note): injected
+ * so `MenuEditor.tsx` (and `ItemRow`, which it threads `t` into as a prop) source their UI copy
+ * from this hook instead of their own `useAdminLocale()`/`MENUS_DICT` import. This hook's OWN error
+ * strings stay hardcoded English (unchanged) — `useAdminLocale()`/`MENUS_DICT` are read only inside
+ * {@link useWiredMenuEditor}.
  */
 
 export interface MenuEditorDependencies {
   port: MenusPort;
   navigate: (path: string) => void;
+  t: (key: string) => string;
 }
 
 function newItemId(): string {
@@ -134,9 +143,11 @@ export interface MenuEditorController {
   moveAt: (path: number[], direction: -1 | 1) => void;
   addRootItem: () => void;
   save: () => Promise<void>;
+  /** Bound translator — `MenuEditor.tsx`'s only source of UI copy; see this file's own header. */
+  t: (key: string) => string;
 }
 
-export function useMenuEditor(menuId: string | null, { port, navigate }: MenuEditorDependencies): MenuEditorController {
+export function useMenuEditor(menuId: string | null, { port, navigate, t }: MenuEditorDependencies): MenuEditorController {
   const isNew = menuId === null;
   const [menu, setMenu] = useState<AdminMenu | null>(null);
   const [title, setTitle] = useState("");
@@ -238,17 +249,20 @@ export function useMenuEditor(menuId: string | null, { port, navigate }: MenuEdi
     moveAt,
     addRootItem,
     save,
+    t,
   };
 }
 
 /**
- * Binds the real `/api/.../menus` client and the real `lib/router` `navigate` — see
- * `menus-dependencies.hooks.ts`.
+ * Binds the real `/api/.../menus` client, the real `lib/router` `navigate`, and a
+ * `MENUS_DICT`-bound translator — see `menus-dependencies.hooks.ts`.
  *
  * The zero-argument-dependencies half of the `useX(dependencies)` / `useWiredX()` pair, so
  * `MenuEditor.tsx` composes this and a test composes {@link useMenuEditor} with
  * `createFakeMenusPort`.
  */
 export function useWiredMenuEditor(menuId: string | null): MenuEditorController {
-  return useMenuEditor(menuId, { port: defaultMenusPort, navigate: realNavigate });
+  const locale = useAdminLocale();
+  const t = (key: string): string => MENUS_DICT[locale]?.[key] ?? key;
+  return useMenuEditor(menuId, { port: defaultMenusPort, navigate: realNavigate, t });
 }

@@ -32,7 +32,7 @@ describe("useMenuEditor — injected port (no fetch stub, no api spy)", () => {
   it("loads an existing menu from the injected port and never touches the real api client", async () => {
     const getSpy = vi.spyOn(api, "getMenu");
     const port = createFakeMenusPort({ menus: [MENU] });
-    const { result } = renderHook(() => useMenuEditor("m1", { port, navigate: vi.fn() }));
+    const { result } = renderHook(() => useMenuEditor("m1", { port, navigate: vi.fn(), t: (k) => k }));
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.title).toBe("Main menu");
@@ -44,7 +44,7 @@ describe("useMenuEditor — injected port (no fetch stub, no api spy)", () => {
     const createSpy = vi.spyOn(api, "createMenu");
     const port = createFakeMenusPort();
     const fakeNavigate = vi.fn();
-    const { result } = renderHook(() => useMenuEditor(null, { port, navigate: fakeNavigate }));
+    const { result } = renderHook(() => useMenuEditor(null, { port, navigate: fakeNavigate, t: (k) => k }));
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     act(() => result.current.setTitle("New menu"));
@@ -69,7 +69,7 @@ describe("useMenuEditor — injected port (no fetch stub, no api spy)", () => {
   it("stays loading while the injected port's get call is still pending", () => {
     const port = createFakeMenusPort();
     port.getMenu = () => new Promise(() => {});
-    const { result } = renderHook(() => useMenuEditor("m1", { port, navigate: vi.fn() }));
+    const { result } = renderHook(() => useMenuEditor("m1", { port, navigate: vi.fn(), t: (k) => k }));
     expect(result.current.loading).toBe(true);
     expect(result.current.menu).toBeNull();
   });
