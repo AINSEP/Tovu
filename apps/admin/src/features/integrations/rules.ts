@@ -1,7 +1,8 @@
 import type { RowMenuItem } from "@jini-ai/admin/react";
 
-import type { AdminWebhookDelivery, AdminWebhookSubscription } from "../../lib/api";
+import { describeApiError, type AdminWebhookDelivery, type AdminWebhookSubscription } from "../../lib/api";
 import { formatTimestamp } from "../../lib/format-timestamp";
+import type { QueryKey } from "../../lib/fetch-query";
 import { t } from "./integrations-i18n";
 
 /**
@@ -13,7 +14,18 @@ import { t } from "./integrations-i18n";
  * used to be an array literal built inline inside a `DataTable` cell — logic reachable only by
  * rendering a table and opening a popover, which is how its `status === "paused"` label branch
  * ended up untested.
+ *
+ * `KEYS` (fetch-query migration, 2026-08-12): two entirely separate top-level namespaces, not a
+ * shared grandparent — `use-integration-deliveries.hooks.ts`'s delivery log is a distinct,
+ * read-only sub-resource with no method overlap with subscription CRUD (same split
+ * `integrations-port.hooks.ts` already makes with its own two ports), and no subscription write
+ * (create/pause/delete) needs to invalidate a delivery log. Same "separate namespaces, no shared
+ * prefix" shape `forms/rules.ts`'s `KEYS` uses for `forms` vs `form-submissions`.
  */
+export const KEYS = {
+  list: ["integrations", "list"] as QueryKey,
+  deliveries: (subscriptionId: string): QueryKey => ["integration-deliveries", subscriptionId],
+};
 
 /** Parses the comma-separated topics field into a trimmed, blank-free list.
  *
@@ -77,4 +89,29 @@ export function integrationRowMenuItems(
  */
 export function displayTimestamp(delivery: AdminWebhookDelivery): string {
   return formatTimestamp(delivery.deliveredAt ?? delivery.createdAt);
+}
+
+/**
+ * `useIntegrations`'s page-level error banner — deliberately excludes the CREATE write's own
+ * failure, which shows inside the create form itself (`formError`, derived directly from
+ * `createMutation.error` in the hook) rather than this page-level channel, matching the
+ * pre-migration `onCreate`/`onTogglePause`/`onDelete` catch blocks' own separate `setFormError`
+ * vs `setError` split.
+ *
+ * Precedence: an active toggle/delete failure outranks a background list-refresh failure, same
+ * shape as `redirects/rules.ts`'s `visibleRedirectsError`. The list error only surfaces before
+ * `subscriptions` has ever loaded.
+ *
+ * @complexity Time/space: O(1) — three fixed checks, no iteration.
+ */
+export function visibleIntegrationsError(params: {
+  toggleError: Error | null;
+  deleteError: Error | null;
+  listError: Error | null;
+  hasSubscriptions: boolean;
+}): string | null {
+  if (params.toggleError) return describeApiError(params.toggleError, "failed to update subscription");
+  if (params.deleteError) return describeApiError(params.deleteError, "failed to delete subscription");
+  if (params.hasSubscriptions) return null;
+  return params.listError ? describeApiError(params.listError, "failed to load integrations") : null;
 }

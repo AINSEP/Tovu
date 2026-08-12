@@ -1,6 +1,6 @@
-import { useEffect, useState } from "react";
-
-import type { AdminWebhookDelivery } from "../../../lib/api";
+import { describeApiError, type AdminWebhookDelivery } from "../../../lib/api";
+import { useFetchQuery } from "../../../lib/fetch-query";
+import { KEYS } from "../rules";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { t as defaultT } from "../integrations-i18n";
 import { defaultIntegrationDeliveriesPort } from "./integration-deliveries-dependencies.hooks";
@@ -9,10 +9,10 @@ import type { IntegrationDeliveriesPort } from "./integration-deliveries-port.ho
 /**
  * @file Everything the delivery-log screen does, so `IntegrationDeliveries.tsx` is only markup.
  *
- * Extracted verbatim — same state, same effect, same error strings. A second hook file rather than
- * folding into `use-integrations.hooks.ts`: `IntegrationDeliveries` is a distinct component with
- * its own lifecycle (re-fetches whenever `subscriptionId` changes), per this feature's "one hook
- * file per component" convention.
+ * Extracted verbatim — same error strings. A second hook file rather than folding into
+ * `use-integrations.hooks.ts`: `IntegrationDeliveries` is a distinct component with its own
+ * lifecycle (re-fetches whenever `subscriptionId` changes), per this feature's "one hook file per
+ * component" convention.
  *
  * `port` is injected — see `integration-deliveries-port.hooks.ts` — rather than importing
  * `lib/api` directly, so a test can describe a subscription's delivery log against
@@ -24,6 +24,12 @@ import type { IntegrationDeliveriesPort } from "./integration-deliveries-port.ho
  * full rationale): injected as this hook's third parameter. UNLIKE `useIntegrations`, no raw
  * `locale` is threaded — `IntegrationDeliveries.tsx` only ever calls `t(locale, key)` bound-style,
  * it never passes `locale` to a helper that needs it directly.
+ *
+ * `lib/fetch-query` migration (2026-08-12): the load is one `useFetchQuery` keyed on
+ * `KEYS.deliveries(subscriptionId)` — a query cannot commit a response belonging to a prior key,
+ * which eliminates the load race an external audit flagged at this file's old line 46 (a plain
+ * `.then()`/`.catch()` effect with no cancellation guard, so a `subscriptionId` change mid-flight
+ * could commit a stale response) by construction.
  */
 
 export interface IntegrationDeliveriesController {
@@ -40,17 +46,13 @@ export function useIntegrationDeliveries(
   port: IntegrationDeliveriesPort,
   t: (key: string) => string
 ): IntegrationDeliveriesController {
-  const [deliveries, setDeliveries] = useState<AdminWebhookDelivery[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const list = useFetchQuery({
+    key: KEYS.deliveries(subscriptionId),
+    fetch: () => port.listIntegrationDeliveries(subscriptionId),
+  });
 
-  useEffect(() => {
-    setDeliveries(null);
-    setError(null);
-    port
-      .listIntegrationDeliveries(subscriptionId)
-      .then((r) => setDeliveries(r.deliveries))
-      .catch((e) => setError(e instanceof Error ? e.message : "failed to load deliveries"));
-  }, [subscriptionId, port]);
+  const deliveries = list.data?.deliveries ?? null;
+  const error = list.error ? describeApiError(list.error, "failed to load deliveries") : null;
 
   return { deliveries, error, t };
 }
