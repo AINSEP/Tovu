@@ -16,7 +16,7 @@ import { useAdminAssistantSwitch } from "./hooks/use-admin-assistant-switch.hook
 import { useAdminExecutionMode } from "./hooks/use-admin-execution-mode.hooks";
 import { useWiredAdminExecutionCredential } from "../../hooks/use-admin-execution-credential.hooks";
 import { DEFAULT_EXECUTION_CONFIG } from "../../lib/execution-settings";
-import { useAiAssistant } from "./hooks/use-ai-assistant.hooks";
+import { useWiredAiAssistant } from "./hooks/use-ai-assistant.hooks";
 import { useVisitorCredentialForm, type VisitorCredentialFormController } from "./hooks/use-visitor-credential-form.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { translateAdminNavLabel } from "../../lib/admin-nav-i18n";
@@ -674,10 +674,10 @@ export interface AiAssistantProps {
    * `AdminExecutionMode`, `VisitorCredentialForm`) take the same seam over their own hooks, for the
    * same reason — this is the screen with the most independent state in the app.
    */
-  useAiAssistantHook?: typeof useAiAssistant;
+  useAiAssistantHook?: typeof useWiredAiAssistant;
 }
 
-export function AiAssistant({ useAiAssistantHook = useAiAssistant }: AiAssistantProps = {}) {
+export function AiAssistant({ useAiAssistantHook = useWiredAiAssistant }: AiAssistantProps = {}) {
   const { settings, loadError, saveError, saving, setPublicEnabled } = useAiAssistantHook();
 
   /**
