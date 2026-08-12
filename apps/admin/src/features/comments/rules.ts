@@ -8,6 +8,7 @@ import {
 } from "../../lib/api";
 import { hasPermission } from "../../lib/permissions";
 import type { RowMenuItem } from "@jini-ai/admin/react";
+import type { QueryKey } from "../../lib/fetch-query";
 import { t } from "./comments-i18n";
 
 /**
@@ -19,7 +20,24 @@ import { t } from "./comments-i18n";
  * `truncate` (already module-scope free functions in the original, just not exported), the
  * moderation-queue row-menu item builder (a permission-and-status branch per action), and the
  * Comments-settings patch builder plus its validation (REQ-08/09/10).
+ *
+ * `KEYS` (fetch-query migration, 2026-08-12): three independent resources this feature's three
+ * hooks each own — the operator's own effective permissions, the moderation queue (one cache
+ * identity PER status filter, `queue(status)`), and the settings form. `queueRoot` is the
+ * INVALIDATION target for a moderation action succeeding, not a read key of its own: a moderate/
+ * purge action always moves a comment to a DIFFERENT status than the one currently filtered, so the
+ * pre-migration `reloadFirstPage()` only ever refreshed the CURRENT filter's page — leaving a
+ * previously-visited OTHER status tab's cache stale (missing the comment) until the operator
+ * happened to force a reload. Invalidating the shared `["comments","queue"]` prefix instead
+ * refreshes every status tab's cache at once (matching by prefix — see `lib/fetch-query/types.ts`'s
+ * `QueryKey` doc), closing that gap; see `use-comment-queue.hooks.ts`'s own doc comment.
  */
+export const KEYS = {
+  permissions: ["comments", "permissions"] as QueryKey,
+  queueRoot: ["comments", "queue"] as QueryKey,
+  queue: (status: CommentStatus): QueryKey => ["comments", "queue", status],
+  settings: ["comments", "settings"] as QueryKey,
+};
 
 /** Per-row moderation-action state (Approve/Spam/Trash/Restore/Purge share one `busy` flag — only
  *  one action per row at a time). */
@@ -223,4 +241,29 @@ export function validateSettingsPatch(patch: Partial<CommentsSettings>): string 
     return "Spam auto-reject score must be between 0 and 1.";
   }
   return null;
+}
+
+/**
+ * `useCommentSettings`'s error banner, extracted out of that hook (`refactor/fetch-query`
+ * complexity pass, 2026-08-12 — same reason `redirects/rules.ts`'s `visibleRedirectsError` was
+ * extracted). Precedence, highest first: a client-side validation failure (the operator hasn't even
+ * submitted a valid patch yet — a stale write/list error underneath it would be a confusing second
+ * message), then the save write's own failure, then — only before `settings` has ever loaded — the
+ * list-read failure, matching every other migrated feature's "a later background failure must not
+ * blank an already-rendered screen" guard.
+ *
+ * @complexity Time/space: O(1) — four fixed checks, no iteration.
+ */
+export function visibleCommentSettingsError(params: {
+  validationError: string | null;
+  saveError: Error | null;
+  saveFallback: string;
+  listError: Error | null;
+  listFallback: string;
+  hasSettings: boolean;
+}): string | null {
+  if (params.validationError) return params.validationError;
+  if (params.saveError) return describeApiError(params.saveError, params.saveFallback);
+  if (params.hasSettings) return null;
+  return params.listError ? describeApiError(params.listError, params.listFallback) : null;
 }

@@ -2,6 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { FetchQueryProvider } from "../../../lib/fetch-query";
 import { Comments } from "../Comments";
 
 /**
@@ -10,10 +11,19 @@ import { Comments } from "../Comments";
  * visibility condition copied verbatim from the inline buttons they replace, and Purge's
  * confirmation moved off `window.confirm` onto the shared `ConfirmDialog` (same "cannot be undone"
  * copy).
+ *
+ * `renderScreen` wraps every render in `FetchQueryProvider` (2026-08-12, `lib/fetch-query`
+ * migration) — `Comments`'s hooks are now backed by `useFetchQuery`/`useFetchMutation`, which throw
+ * without a `QueryClientProvider` ancestor. `main.tsx` provides this in production; here it is one
+ * `FetchQueryProvider` per render, matching `taxonomy`'s own component-test precedent.
  */
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+}
+
+function renderScreen(node: React.ReactElement) {
+  return render(<FetchQueryProvider>{node}</FetchQueryProvider>);
 }
 
 /**
@@ -91,7 +101,7 @@ it("offers only Approve/Spam/Trash for a pending comment — no Restore, no Purg
     // moderation POST itself.
     .mockResolvedValueOnce(jsonResponse({ items: [], nextCursor: null }));
 
-  render(<Comments />);
+  renderScreen(<Comments />);
 
   const trigger = await screen.findByRole("button", { name: /actions for the comment by "jane"/i }, ROW_MENU_TRIGGER_TIMEOUT);
   await user.click(trigger);
@@ -119,7 +129,7 @@ it("offers Purge only under the trash filter, and gates it through ConfirmDialog
     // Switching the status filter to "trash" refetches under that status.
     .mockResolvedValueOnce(jsonResponse({ items: [TRASHED_COMMENT], nextCursor: null }));
 
-  render(<Comments />);
+  renderScreen(<Comments />);
 
   await screen.findByRole("button", { name: /actions for the comment by "jane"/i }, ROW_MENU_TRIGGER_TIMEOUT);
   await user.selectOptions(screen.getByLabelText(/status/i), "trash");
@@ -171,7 +181,7 @@ it("an owner holding only the wildcard grant still sees both the moderation queu
     .mockResolvedValueOnce(jsonResponse({ items: [PENDING_COMMENT], nextCursor: null }))
     .mockResolvedValueOnce(jsonResponse({ data: COMMENTS_SETTINGS_FIXTURE }));
 
-  render(<Comments />);
+  renderScreen(<Comments />);
 
   expect(await screen.findByRole("button", { name: /actions for the comment by "jane"/i }, ROW_MENU_TRIGGER_TIMEOUT)).toBeInTheDocument();
   expect(screen.queryByText(/you do not have permission to view the moderation queue/i)).not.toBeInTheDocument();
@@ -181,7 +191,7 @@ it("an owner holding only the wildcard grant still sees both the moderation queu
 it("a principal holding only an unrelated grant (comments.delete) sees neither the queue nor the settings form", async () => {
   fetchMock.mockResolvedValueOnce(jsonResponse({ effectivePermissions: ["comments.delete"] }));
 
-  render(<Comments />);
+  renderScreen(<Comments />);
 
   expect(
     await screen.findByText(/you do not have permission to view the moderation queue/i)
