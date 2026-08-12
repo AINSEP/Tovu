@@ -4,12 +4,27 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FetchQueryProvider } from "../lib/fetch-query";
 
 /**
- * @file TEMPORARY measurement harness — TM-TOVU-2026-08-12-A follow-up ("did lib/fetch-query
- * actually reduce request volume"). Not a regression suite; not meant to be committed. Mounts each
- * screen's REAL wired hook/component (real `api.ts` -> global `fetch`, no DI fake port) so nothing
- * bypasses the actual request seam, stubs `fetch` to record every call, and logs a table row per
- * action. Reuses the `vi.stubGlobal("fetch", ...)` + locale-bootstrap-interceptor convention
+ * @file Measurement instrument — TM-TOVU-2026-08-12-A follow-up ("did `lib/fetch-query` actually
+ * reduce request volume, or just move it?"). MEASUREMENT-ONLY, NOT a correctness test — it asserts
+ * request counts, so it fails on any deliberate change to invalidation topology; that's the point,
+ * it's the before/after instrument for any Phase 2 change. Run with:
+ * `cd apps/admin && npx vitest run src/__measurements__/request-volume.measurement.test.tsx --reporter=verbose`
+ * — the `MEASURE\t...` lines in stdout are the actual data.
+ *
+ * Mounts each screen's REAL wired hook/component (real `api.ts` -> global `fetch`, no DI fake port)
+ * so nothing bypasses the actual request seam, stubs `fetch` to record every call, and logs a table
+ * row per action. Reuses the `vi.stubGlobal("fetch", ...)` + locale-bootstrap-interceptor convention
  * already established across this package's own test suite (Comments/roles/users/database/etc.).
+ *
+ * The "remount / re-navigation" block at the end is the one case where sharing a SINGLE
+ * `FetchQueryProvider`/`QueryClient` across both "visits" is load-bearing, not incidental — two
+ * independent `render`/`renderHook` calls each mint their OWN client (`FetchQueryProvider`'s
+ * `useMemo(createClient, [])` runs fresh per mount), which would silently manufacture a guaranteed
+ * cache miss and make "visit 2 also fetched" a foregone, meaningless conclusion. Those tests keep
+ * `<FetchQueryProvider>` itself in a fixed position across `rerender()` calls (same component
+ * instance, same memoized client) and only mount/unmount the SCREEN inside it — matching production,
+ * where `main.tsx` mounts one `FetchQueryProvider` for the app's lifetime and the router mounts/
+ * unmounts individual screens inside it.
  */
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -496,5 +511,128 @@ describe("database", () => {
     await waitFor(() => expect(result.current.points).not.toBeNull());
     logRow("database", "restore points initial load", calls);
     expect(calls.length).toBeGreaterThan(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// remount / re-navigation — staleTime:0's actual cost, per Coordinator's ask.
+// `<FetchQueryProvider>` stays mounted (same component instance, same memoized QueryClient) across
+// every `rerender()` below — only the SCREEN inside it mounts/unmounts, matching `main.tsx` (one
+// provider for the app's lifetime) + the router (screens mount/unmount on navigation). Elapsed time
+// inside these tests is milliseconds, far under TanStack's default `gcTime` (5 min), so a refetch
+// observed here is a `staleTime` decision, not a `gcTime` eviction — noted per test.
+// ---------------------------------------------------------------------------
+describe("remount / re-navigation — same QueryClient shared across visits", () => {
+  it("redirects: navigate away (unmount the whole screen) and back (remount) — does visit 2 refetch?", async () => {
+    const { fn, calls } = createRecorder([{ match: "/redirects", respond: () => jsonResponse({ data: [] }) }]);
+    vi.stubGlobal("fetch", fn);
+    const { Redirects } = await import("../features/redirects/Redirects");
+
+    const { rerender } = render(
+      <FetchQueryProvider>
+        <Redirects />
+      </FetchQueryProvider>
+    );
+    await waitFor(() => expect(screen.queryByText(/loading redirects/i)).not.toBeInTheDocument());
+    const visit1 = calls.length;
+    calls.length = 0;
+
+    // "Navigate away": unmount the screen but keep the provider (and its QueryClient) alive.
+    rerender(<FetchQueryProvider>{null}</FetchQueryProvider>);
+    // "Navigate back": remount the SAME screen under the SAME provider/client.
+    rerender(
+      <FetchQueryProvider>
+        <Redirects />
+      </FetchQueryProvider>
+    );
+    await waitFor(() => expect(screen.queryByText(/loading redirects/i)).not.toBeInTheDocument());
+    const visit2 = calls.length;
+
+    logRow("redirects", `remount visit 1=${visit1} requests`, []);
+    logRow("redirects", `remount visit 2 (same client, cache entry ${visit2 > 0 ? "NOT " : ""}reused)`, calls);
+    // eslint-disable-next-line no-console
+    console.log(`MEASURE\tredirects\tremount cost: staleTime:0 means visit2Requests=${visit2} (gcTime not a factor — elapsed time is ms)`);
+    expect(visit1).toBeGreaterThan(0);
+  });
+
+  it("collections entry editor: open a detail panel, close it, reopen the SAME record — does the reopen refetch?", async () => {
+    const CONTENT_TYPE = { workspaceId: "w1", key: "recipe", label: "Recipe", fields: [], status: "active", version: 1 };
+    const ENTRY = {
+      id: "e1", workspaceId: "w1", type: "recipe", slug: "r", status: "draft", title: "T",
+      bodyJson: null, fieldsJson: {}, publishedAt: null, createdAt: "2026-08-01T00:00:00.000Z",
+      updatedAt: "2026-08-01T00:00:00.000Z", version: 1,
+    };
+    const { fn, calls } = createRecorder([
+      { match: "/content-types", respond: () => jsonResponse({ items: [CONTENT_TYPE] }) },
+      { match: "/entries", respond: () => jsonResponse({ items: [ENTRY] }) },
+      { match: "/taxonomy", respond: () => jsonResponse({ items: [] }) },
+    ]);
+    vi.stubGlobal("fetch", fn);
+    const { useWiredCollectionEntryEditor } = await import("../features/collections/hooks/use-collection-entry-editor.hooks");
+
+    function Panel({ open }: { open: boolean }) {
+      const editor = open ? useWiredCollectionEntryEditor({ contentTypeKey: "recipe", entryId: "e1" }) : null;
+      return <div data-testid="loaded">{editor?.loaded ? "yes" : "no"}</div>;
+    }
+
+    const { rerender } = render(
+      <FetchQueryProvider>
+        <Panel open={true} />
+      </FetchQueryProvider>
+    );
+    await waitFor(() => expect(screen.getByTestId("loaded").textContent).toBe("yes"));
+    const visit1 = calls.length;
+    calls.length = 0;
+
+    // Close the panel (unmount its query), then reopen the SAME record under the SAME provider.
+    rerender(
+      <FetchQueryProvider>
+        <Panel open={false} />
+      </FetchQueryProvider>
+    );
+    rerender(
+      <FetchQueryProvider>
+        <Panel open={true} />
+      </FetchQueryProvider>
+    );
+    await waitFor(() => expect(screen.getByTestId("loaded").textContent).toBe("yes"));
+    const visit2 = calls.length;
+
+    logRow("collections", `entry editor reopen visit 1=${visit1} requests`, []);
+    logRow("collections", "entry editor reopen visit 2 (same record, same client)", calls);
+    // eslint-disable-next-line no-console
+    console.log(`MEASURE\tcollections\tdetail-panel reopen cost: staleTime:0 means visit2Requests=${visit2}`);
+    expect(visit1).toBeGreaterThan(0);
+  });
+
+  it("media: close the edit-metadata panel and reopen the SAME item — control case, no query of its own", async () => {
+    const ITEM = {
+      id: "m1", workspaceId: "w1", title: "T", alt: "", caption: "", credit: "", sha256: "s",
+      status: "active", createdAt: "2026-08-01T00:00:00.000Z", updatedAt: "2026-08-01T00:00:00.000Z",
+      version: 1, width: null, height: null, cssClass: null,
+    };
+    const { fn, calls } = createRecorder([{ match: "/media", respond: () => jsonResponse({ media: [ITEM] }) }]);
+    vi.stubGlobal("fetch", fn);
+    const { Media } = await import("../features/media/Media");
+    const user = (await import("@testing-library/user-event")).default.setup();
+    render(
+      <FetchQueryProvider>
+        <Media />
+      </FetchQueryProvider>
+    );
+    await screen.findByText("T");
+    calls.length = 0;
+
+    await user.click(screen.getByRole("button", { name: /actions for "t"/i }));
+    await user.click(screen.getByRole("menuitem", { name: /edit metadata/i }));
+    await screen.findByLabelText("Title");
+    await user.click(screen.getByRole("button", { name: /cancel/i }));
+    await user.click(screen.getByRole("button", { name: /actions for "t"/i }));
+    await user.click(screen.getByRole("menuitem", { name: /edit metadata/i }));
+    await screen.findByLabelText("Title");
+
+    logRow("media", "edit panel close+reopen SAME item — no independent query, expect 0", calls);
+    console.log(`MEASURE\tmedia\tdetail-panel reopen cost: ${calls.length} (EditMediaPanel has no useFetchQuery of its own — item arrives as a prop already resolved from the cached list)`);
+    expect(calls.length).toBe(0);
   });
 });
