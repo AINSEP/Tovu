@@ -61,7 +61,7 @@ import {
 } from "../newsletter/repo.memory";
 import { ensureDefaultList } from "../newsletter/lists";
 import { createHookRegistry, handleSendBatchClaimed, SEND_BATCH_CLAIMED_EVENT } from "../newsletter/send-pipeline";
-import type { SendBatchJob } from "../newsletter/ports";
+import type { SendBatchJob } from "../newsletter";
 import { MembersSubscriberDirectory } from "../members";
 import type { NewsletterRouteDeps } from "./routes/admin/newsletter/deps";
 import { toSendPipelineDeps } from "./routes/admin/newsletter/deps";
@@ -104,7 +104,7 @@ import {
   InMemoryTaxonomyRevisionRepo,
   InMemoryTermRepo,
   noopStampWatermark,
-} from "../features/taxonomy/repo.memory";
+} from "../features/taxonomy";
 import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "../features/recovery/repo.memory";
 import { buildGatewayDeps, buildOwnerOnlyInstanceAuthorize } from "../core/gated-mutations/composition";
 import { resolveRuntimeMode } from "#src/core/runtime-mode";

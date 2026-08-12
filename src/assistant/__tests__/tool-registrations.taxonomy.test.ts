@@ -12,7 +12,7 @@ import {
   InMemoryTaxonomyRevisionRepo,
   InMemoryTermRepo,
   noopStampWatermark,
-} from "../../features/taxonomy/repo.memory";
+} from "../../features/taxonomy";
 import type { RouteDeps } from "../../server/routes/types";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations";
 

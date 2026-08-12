@@ -42,21 +42,23 @@ import {
 import type { PostRepoPort } from "../post";
 import { buildMergeTermHooks, type MergeableEntryTermRepoPort } from "./gated-hooks";
 import { taxonomyAgentToolCatalog } from "./agent-tools";
-import { createPostBackedContentLookup } from "./content-lookup";
-import { listTaxonomiesWithTerms, type TaxonomyListPort, type TermListPort } from "./list";
-import { planMergeTerm } from "./merge-term";
-import { toTaxonomyOutbox } from "./repo.memory";
 import {
+  createPostBackedContentLookup,
+  listTaxonomiesWithTerms,
+  planMergeTerm,
+  toTaxonomyOutbox,
   assignTerms,
   createTaxonomy,
   createTerm,
   renameTerm,
+  type TaxonomyListPort,
+  type TermListPort,
   type EntryTermRepoPort,
   type TaxonomyRepoPort,
   type TaxonomyRevisionRepoPort,
   type TermRepoPort,
   type WriteServiceDeps,
-} from "./write-service";
+} from "./index";
 
 const CATALOG_BY_ID = indexCatalogById(taxonomyAgentToolCatalog);
 

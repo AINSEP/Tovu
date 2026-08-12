@@ -1,16 +1,16 @@
 import type { Express } from "express";
 
 import { ForbiddenError } from "@jini-ai/cms/core";
-import { TaxonomyRecordNotFoundError } from "#src/features/taxonomy/write-service";
 import {
+  TaxonomyRecordNotFoundError,
   HierarchyCycleDetectedError,
   ParentCrossTaxonomyError,
   TaxonomyNotHierarchicalError,
   TermNotFoundError,
-} from "#src/features/taxonomy/validation-chain";
-import { createPostBackedContentLookup } from "#src/features/taxonomy/content-lookup";
-import { toTaxonomyOutbox } from "#src/features/taxonomy/repo.memory";
-import { createTerm } from "#src/features/taxonomy/write-service";
+  createPostBackedContentLookup,
+  toTaxonomyOutbox,
+  createTerm,
+} from "#src/features/taxonomy/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { TaxonomyRouteDeps } from "./deps";
 
