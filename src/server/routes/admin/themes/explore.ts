@@ -685,6 +685,19 @@ export const registerAdminThemeFileCopyRoute: ContentRouteRegistrar = (app, deps
         res.status(409).json({ error: `'${sourcePath}' is read-only: ${writeScope.reason}`, code: "GENERATED_READONLY" });
         return;
       }
+      // 2026-08-13 (security pass Finding 1, defense in depth, continuation agent): `writeScope`
+      // above answers a DIFFERENT question (is this a built theme's ADR-020 generated tree) than
+      // `isGeneratedThemePath` (is this `preview/…`, `build-preview.mjs`'s own output) — the two were
+      // conflated here, so copy never refused `preview/` the way PUT and rename already do. Since the
+      // destination is always the SAME folder as `sourcePath` (see the comment above), checking the
+      // source alone is sufficient, matching the rename route's own `sourceRenamable` check.
+      if (isGeneratedThemePath(sourcePath)) {
+        res.status(409).json({
+          error: `'${sourcePath}' is generated output and cannot be copied`,
+          code: "READ_ONLY_FILE",
+        });
+        return;
+      }
 
       const existingPaths = new Set(listThemeFiles({ themeDir: theme.dir, themesRoot: deps.themesDir }));
       if (!existingPaths.has(sourcePath)) {
