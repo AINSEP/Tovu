@@ -53,17 +53,37 @@ const STRICT_RFC3339_SHAPE = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2}):(\d{2})(?
 
 /**
  * Range-checks an offset captured by `STRICT_RFC3339_SHAPE`'s optional sign/hour/minute groups.
- * `offsetSign` is `undefined` for the `Z` form (nothing to range-check — always valid). UTC offsets
- * in real-world use never exceed ±14:00, but this deliberately checks only the wire-format bounds a
- * clock field can name at all (hours `00`-`23`, minutes `00`-`59`), matching exactly what
- * `Date.parse` itself enforces — not the narrower ±14:00 political range, which is a fact about
- * which offsets exist today, not about what this text shape can validly encode.
+ * `offsetSign` is `undefined` for the `Z` form (nothing to range-check — always valid).
+ *
+ * Bounded at ±15:59, NOT the ±23:59 `Date.parse` itself enforces (that was this validator's bound
+ * until the 2026-08-12 round-3 audit caught the mismatch). This validator's entire job is "will
+ * Postgres accept this as `timestamptz`" — matching `Date.parse`'s wire-format bound was the wrong
+ * authority to copy from, because Postgres caps timezone DISPLACEMENT at ±15:59 and rejects anything
+ * beyond it outright, live-verified on Postgres 14.18:
+ *
+ *   '2026-08-12T10:00:00+15:59'::timestamptz  -> OK
+ *   '2026-08-12T10:00:00+16:00'::timestamptz  -> ERROR: time zone displacement out of range
+ *   '2026-08-12T10:00:00-15:59'::timestamptz  -> OK
+ *   '2026-08-12T10:00:00-16:00'::timestamptz  -> ERROR: time zone displacement out of range
+ *
+ * (proof lives in `migration-manifest-postgres.test.ts`, run against a real server, not asserted in
+ * the abstract). So `Date.parse`'s ±23:59 bound let `+16:00`...`+23:59` through this validator even
+ * though Postgres can never cast any of them to `timestamptz` — exactly the conversion this validator
+ * exists to gate; `Date.parse` itself does accept those values (confirmed: `Date.parse("...+16:00")`
+ * is not `NaN`), so this is not a stricter-than-necessary choice, it is closing a real gap.
+ *
+ * ±15:59 (what Postgres actually accepts) was chosen over the narrower ±14:00 real-world political
+ * maximum (the largest offset any actual timezone uses today, e.g. Kiribati's +14:00) because this
+ * function's contract is "will the destination database accept this value," not "does this offset
+ * correspond to a timezone that exists" — a hypothetical future political offset between +14:00 and
+ * +15:59 would be a needless false rejection under the tighter bound, while anything Postgres itself
+ * rejects must be rejected here regardless of political plausibility.
  */
 function isValidUtcOffset(offsetSign: string | undefined, offsetHourStr: string | undefined, offsetMinuteStr: string | undefined): boolean {
   if (offsetSign === undefined) return true; // the "Z" form — no offset field to range-check
   const offsetHour = Number(offsetHourStr);
   const offsetMinute = Number(offsetMinuteStr);
-  return offsetHour <= 23 && offsetMinute <= 59;
+  return offsetHour <= 15 && offsetMinute <= 59;
 }
 
 /**
@@ -101,11 +121,13 @@ function isValidCalendarInstant(year: number, month: number, day: number, hour: 
  * `Date.UTC` — neither one, by itself, would have caught that. Verified against the live
  * `infra/content.db` before this tightened — every `schema.ts`-declared timestamp column's stored
  * values already match the literal `T`-separated, calendar-valid, range-valid-offset shape this
- * enforces (3,027 non-null values across 117 in-scope columns, zero rejections), so tightening does
- * not retroactively flag any value this manifest's scope actually covers (the handful of anomalous
- * `*_at`-named columns holding epoch-millisecond integers live in `__drizzle_migrations`/`_plugin_*`/
- * `ai_chat*` tables, none of which are exported from `schema.ts` — out of `classifyAllCoreColumns()`'s
- * scope entirely).
+ * enforces (117 in-scope columns; 3,027 non-null values at the first check, 3,029 when re-verified for
+ * the 2026-08-12 round-3 offset-bound tightening below, zero rejections either time — every stored
+ * value uses the `Z` designator, none carries an explicit numeric offset at all, so narrowing the
+ * offset bound from ±23:59 to ±15:59 has zero real-data impact), so tightening does not retroactively
+ * flag any value this manifest's scope actually covers (the handful of anomalous `*_at`-named columns
+ * holding epoch-millisecond integers live in `__drizzle_migrations`/`_plugin_*`/`ai_chat*` tables, none
+ * of which are exported from `schema.ts` — out of `classifyAllCoreColumns()`'s scope entirely).
  */
 export function verifyUtcTimestampText(value: string | null): VerificationFailure | null {
   if (value === null) return null;
@@ -133,9 +155,10 @@ export function verifyUtcTimestampText(value: string | null): VerificationFailur
       code: "INVALID_UTC_OFFSET",
       message:
         `"${value}" carries an offset of ${offsetSign}${offsetHourStr}:${offsetMinuteStr}, which is out of range — ` +
-        `offset hours must be 00-23 and minutes must be 00-59, the same bounds Date.parse enforces on its own. ` +
-        `The RFC3339 shape alone (STRICT_RFC3339_SHAPE) accepts any two-digit:two-digit pair here, so this range ` +
-        `check exists specifically to restore the bounds checking Date.parse used to provide for free.`,
+        `Postgres caps timezone displacement at ±15:59 and rejects anything beyond it when casting to ` +
+        `timestamptz, live-verified against a real server (see isValidUtcOffset's own doc). The RFC3339 shape ` +
+        `alone (STRICT_RFC3339_SHAPE) accepts any two-digit:two-digit pair here, so this range check exists ` +
+        `specifically to reject values this validator's destination database can never actually accept.`,
     };
   }
   const [year, month, day, hour, minute, second] = [yearStr, monthStr, dayStr, hourStr, minuteStr, secondStr].map(Number);
