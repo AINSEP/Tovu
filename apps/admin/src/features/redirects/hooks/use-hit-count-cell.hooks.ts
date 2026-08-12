@@ -19,6 +19,16 @@ import type { RedirectsPort } from "./redirects-port.hooks";
  *
  * `port` is injected (see `redirects-port.hooks.ts`) — shared with `use-redirects.hooks.ts` and
  * `use-import-redirects-form.hooks.ts`, since all three read the same `/redirects` resource.
+ *
+ * `t` (2026-08-11, standing i18n rule): `HitCountCell` used to take `locale` as a prop from
+ * `Redirects` and import `redirects-i18n`'s `t` directly — it now takes a bound `t` as a prop
+ * instead. Deliberately NOT resolved via `useAdminLocale()` inside `useWiredHitCountCell` itself,
+ * even though that's this file's usual `useWiredX` shape: `HitCountCell` renders ONCE PER TABLE
+ * ROW, and `useAdminLocale()`'s underlying `loadLanguage()` is not memoized (see this same
+ * screen's `use-redirects.hooks.ts` and `Database.tsx`'s own file header for the identical,
+ * already-documented hazard) — N independent calls would mean N concurrent settings fetches for
+ * one page load. `t` is instead resolved ONCE in `useWiredRedirects` and threaded down through
+ * `Redirects.tsx` as a prop, same as `locale` always was here.
  */
 
 export interface HitCountCellController {
@@ -30,9 +40,17 @@ export interface HitCountCellController {
   isFetching: boolean;
   /** Fires the lazy hits fetch by flipping the query's `enabled` gate. */
   request: () => void;
+  /** The same bound translator passed in — returned unchanged so a test asserting on
+   *  `result.current.t` doesn't need to also hold onto the fake it passed in. See this file's
+   *  header for why it arrives as a parameter rather than being resolved here. */
+  t: (key: string) => string;
 }
 
-export function useHitCountCell(props: { redirectId: string }, port: RedirectsPort): HitCountCellController {
+export function useHitCountCell(
+  props: { redirectId: string },
+  port: RedirectsPort,
+  t: (key: string) => string
+): HitCountCellController {
   // `enabled` is what keeps this lazy: the query is declared for every row but
   // runs for none of them until its own button is pressed, preserving the
   // no-N+1-burst property without a manual imperative fetch.
@@ -48,11 +66,15 @@ export function useHitCountCell(props: { redirectId: string }, port: RedirectsPo
     data: hits.data,
     isFetching: hits.isFetching,
     request: () => setRequested(true),
+    t,
   };
 }
 
-/** Binds the real client — see `redirects-dependencies.hooks.ts`. The zero-argument half of the
- *  `useX(dependencies)` / `useWiredX()` pair; `Redirects.tsx`'s `HitCountCell` composes this. */
-export function useWiredHitCountCell(props: { redirectId: string }): HitCountCellController {
-  return useHitCountCell(props, defaultRedirectsPort);
+/** Binds the real client — see `redirects-dependencies.hooks.ts`. The zero-argument-PLUS-`t` half
+ *  of the `useX(dependencies)` / `useWiredX()` pair; `Redirects.tsx`'s `HitCountCell` composes this
+ *  with the `t` it received as its own prop. See this file's header for why `t` is a parameter here
+ *  rather than resolved via `useAdminLocale()` internally, unlike every other `useWiredX` in this
+ *  feature. */
+export function useWiredHitCountCell(props: { redirectId: string; t: (key: string) => string }): HitCountCellController {
+  return useHitCountCell({ redirectId: props.redirectId }, defaultRedirectsPort, props.t);
 }

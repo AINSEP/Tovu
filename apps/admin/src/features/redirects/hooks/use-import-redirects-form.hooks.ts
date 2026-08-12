@@ -21,6 +21,16 @@ import type { RedirectsPort } from "./redirects-port.hooks";
  * `port` is injected (see `redirects-port.hooks.ts`); `describeApiError` stays a direct import — it
  * is a pure error-message rule with no I/O, so per the pattern it is not part of the port (see
  * `redirects-port.hooks.ts`'s own doc comment).
+ *
+ * `t`/`locale` (2026-08-11, standing i18n rule): `ImportRedirectsForm` used to take `locale` as a
+ * prop from `Redirects` and import `redirects-i18n` directly — it now takes bound `t`/raw `locale`
+ * as props instead. Raw `locale` is threaded ALONGSIDE `t` because
+ * `importRulesLabel`/`importResultSummary`/`createdLabel`/`failedItemLabel` (`redirects-i18n.tsx`)
+ * all take `(locale, ...)` directly. Deliberately NOT resolved via `useAdminLocale()` inside
+ * `useWiredImportRedirectsForm` itself — see `use-hit-count-cell.hooks.ts`'s identical reasoning
+ * (this screen already resolves `locale`/`t` exactly once, in `useWiredRedirects`, specifically to
+ * avoid duplicate un-memoized `loadLanguage()` fetches; a second independent resolution here would
+ * undercut that even though this component only renders once, not once per row).
  */
 
 export interface ImportRedirectsFormController {
@@ -31,9 +41,19 @@ export interface ImportRedirectsFormController {
   result: AdminRedirectImportResponse | null;
   importing: boolean;
   submit: (e: React.FormEvent) => void;
+  /** The same bound translator passed in — returned unchanged, same shape as
+   *  `use-hit-count-cell.hooks.ts`'s identical field. See this file's header. */
+  t: (key: string) => string;
+  /** The same raw locale passed in — returned unchanged; several `redirects-i18n.tsx` helpers take
+   *  `(locale, ...)` directly rather than a bound translator. See this file's header. */
+  locale: string;
 }
 
-export function useImportRedirectsForm(port: RedirectsPort): ImportRedirectsFormController {
+export function useImportRedirectsForm(
+  port: RedirectsPort,
+  t: (key: string) => string,
+  locale: string
+): ImportRedirectsFormController {
   const [raw, setRaw] = useState("");
   // Client-side validation only — the JSON never reached the server, so this
   // is not a request failure and does not belong in the mutation's `error`.
@@ -76,11 +96,14 @@ export function useImportRedirectsForm(port: RedirectsPort): ImportRedirectsForm
   const error = parseError ?? (importRules.error ? describeApiError(importRules.error, "Import failed") : null);
   const importing = importRules.status === "pending";
 
-  return { raw, setRaw, error, result, importing, submit };
+  return { raw, setRaw, error, result, importing, submit, t, locale };
 }
 
-/** Binds the real client — see `redirects-dependencies.hooks.ts`. The zero-argument half of the
- *  `useX(dependencies)` / `useWiredX()` pair; `Redirects.tsx`'s `ImportRedirectsForm` composes this. */
-export function useWiredImportRedirectsForm(): ImportRedirectsFormController {
-  return useImportRedirectsForm(defaultRedirectsPort);
+/** Binds the real client — see `redirects-dependencies.hooks.ts`. The zero-argument-PLUS-`t`/
+ *  `locale` half of the `useX(dependencies)` / `useWiredX()` pair; `Redirects.tsx`'s
+ *  `ImportRedirectsForm` composes this with the `t`/`locale` it received as its own props. See this
+ *  file's header for why they're parameters here rather than resolved via `useAdminLocale()`
+ *  internally. */
+export function useWiredImportRedirectsForm(deps: { t: (key: string) => string; locale: string }): ImportRedirectsFormController {
+  return useImportRedirectsForm(defaultRedirectsPort, deps.t, deps.locale);
 }

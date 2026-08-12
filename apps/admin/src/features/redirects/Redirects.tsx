@@ -5,9 +5,7 @@ import { redirectRowMenuItems } from "./rules";
 import { useWiredRedirects } from "./hooks/use-redirects.hooks";
 import { useWiredHitCountCell } from "./hooks/use-hit-count-cell.hooks";
 import { useWiredImportRedirectsForm } from "./hooks/use-import-redirects-form.hooks";
-import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import {
-  t,
   importRulesLabel,
   importResultSummary,
   createdLabel,
@@ -49,14 +47,24 @@ import {
  * per component in this file. Pure logic (cache keys, payload shaping, the row-menu builder, the
  * import textarea's parse check) lives in `rules.ts`. What stays here is what actually renders.
  *
- * `locale` is fetched once in `Redirects` via `useAdminLocale()` and threaded down as a prop —
- * see `Database.tsx`'s file header for why (the hook's `loadLanguage()` isn't memoized).
+ * `locale`/`t` are resolved once in `Redirects` via `useRedirectsHook()` (which calls
+ * `useAdminLocale()` internally — see `use-redirects.hooks.ts`'s own file header) and threaded down
+ * as props — see `Database.tsx`'s file header for why (the hook's `loadLanguage()` isn't
+ * memoized). `HitCountCell`/`ImportRedirectsForm` each have their own hook file, so per the
+ * standing i18n rule they receive `t` (and, for `ImportRedirectsForm`, `locale`) THROUGH that
+ * hook's own parameters rather than importing `redirects-i18n`/`useAdminLocale` directly — but
+ * deliberately do NOT resolve `useAdminLocale()` independently inside their own `useWiredX`
+ * (unlike every other converted screen in this sweep): `HitCountCell` renders once per table row,
+ * so N independent resolutions would mean N concurrent settings fetches for one page load. See
+ * `use-hit-count-cell.hooks.ts`'s file header for the full reasoning.
  * `rules.ts`'s row-menu labels stay English — see `redirects-i18n.tsx`'s file header.
  */
 
 export interface HitCountCellProps {
-  locale: string;
   redirectId: string;
+  /** Bound translator, threaded down from `Redirects`'s own hook rather than resolved here — see
+   *  this file's header. */
+  t: (key: string) => string;
   /** Dependency injection seam for tests — see `PostsProps.usePostsHook` for the convention. */
   useHitCountCellHook?: typeof useWiredHitCountCell;
 }
@@ -64,8 +72,8 @@ export interface HitCountCellProps {
 /** Lazy hit-count cell (REQ-03) — fetches on first click rather than on mount, so a list of many
  *  rows never fires a synchronous burst of `/hits` requests. A rule with zero recorded hits still
  *  renders `0` (not blank), matching `hits.ts`'s own "still 200s with hitCount: 0" contract. */
-function HitCountCell({ locale, redirectId, useHitCountCellHook = useWiredHitCountCell }: HitCountCellProps) {
-  const { error, data, isFetching, request } = useHitCountCellHook({ redirectId });
+function HitCountCell({ redirectId, t, useHitCountCellHook = useWiredHitCountCell }: HitCountCellProps) {
+  const { error, data, isFetching, request } = useHitCountCellHook({ redirectId, t });
 
   if (error) return <span className="save-error">{describeApiError(error, "failed")}</span>;
   // A rule with zero recorded hits still renders `0` (not blank), matching
@@ -74,12 +82,17 @@ function HitCountCell({ locale, redirectId, useHitCountCellHook = useWiredHitCou
   if (data) return <span>{data.data.hitCount}</span>;
   return (
     <button type="button" onClick={request} disabled={isFetching}>
-      {isFetching ? t(locale, "Loading…") : t(locale, "Load hits")}
+      {isFetching ? t("Loading…") : t("Load hits")}
     </button>
   );
 }
 
 export interface ImportRedirectsFormProps {
+  /** Bound translator, threaded down from `Redirects`'s own hook rather than resolved here — see
+   *  this file's header. */
+  t: (key: string) => string;
+  /** Raw resolved locale — needed alongside `t` because several `redirects-i18n.tsx` helpers take
+   *  `(locale, ...)` directly. See this file's header. */
   locale: string;
   /** Dependency injection seam for tests — see `PostsProps.usePostsHook` for the convention. */
   useImportRedirectsFormHook?: typeof useWiredImportRedirectsForm;
@@ -89,12 +102,12 @@ export interface ImportRedirectsFormProps {
  * `api.importRedirects`, and surface the `207` per-item created/failed breakdown directly
  * (never collapsed into a single pass/fail toast — a partial-batch failure is the route's own
  * designed behavior, not an edge case). */
-function ImportRedirectsForm({ locale, useImportRedirectsFormHook = useWiredImportRedirectsForm }: ImportRedirectsFormProps) {
-  const { raw, setRaw, error, result, importing, submit } = useImportRedirectsFormHook();
+function ImportRedirectsForm({ t, locale, useImportRedirectsFormHook = useWiredImportRedirectsForm }: ImportRedirectsFormProps) {
+  const { raw, setRaw, error, result, importing, submit } = useImportRedirectsFormHook({ t, locale });
 
   return (
     <details className="notice redirects-import">
-      <summary>{t(locale, "Bulk import")}</summary>
+      <summary>{t("Bulk import")}</summary>
       <form onSubmit={submit}>
         <label htmlFor="redirects-import-json">
           {importRulesLabel(locale, <code>{"{matchType, fromPattern, toTarget, statusCode, override?, priority?}"}</code>)}
@@ -110,7 +123,7 @@ function ImportRedirectsForm({ locale, useImportRedirectsFormHook = useWiredImpo
             action; bulk import is a power-user path to the same result, not a second headline CTA
             competing with it. */}
         <button type="submit" className="btn-secondary" disabled={importing}>
-          {importing ? t(locale, "Importing…") : t(locale, "Import")}
+          {importing ? t("Importing…") : t("Import")}
         </button>
       </form>
       {error ? (
@@ -155,7 +168,6 @@ export interface RedirectsProps {
 }
 
 export function Redirects({ useRedirectsHook = useWiredRedirects }: RedirectsProps = {}) {
-  const locale = useAdminLocale();
   const {
     redirects,
     listStatus,
@@ -169,6 +181,8 @@ export function Redirects({ useRedirectsHook = useWiredRedirects }: RedirectsPro
     createRedirect,
     onToggleStatus,
     onRequestDelete,
+    t,
+    locale,
   } = useRedirectsHook();
 
   // Only a FIRST load blocks the screen. A refetch triggered by a write keeps
@@ -177,18 +191,18 @@ export function Redirects({ useRedirectsHook = useWiredRedirects }: RedirectsPro
   if (listStatus === "error" && !redirects) {
     return <div className="notice error">{describeApiError(listError, "failed to load redirects")}</div>;
   }
-  if (!redirects) return <div className="notice">{t(locale, "Loading redirects…")}</div>;
+  if (!redirects) return <div className="notice">{t("Loading redirects…")}</div>;
 
   return (
     <div className="page">
       <div className="page-header">
         <div className="page-header-text">
-          <p className="page-kicker">{t(locale, "Marketing")}</p>
-          <h1 className="page-title">{t(locale, "Redirects")}</h1>
+          <p className="page-kicker">{t("Marketing")}</p>
+          <h1 className="page-title">{t("Redirects")}</h1>
           <p className="page-description">
-            {t(locale, "Manual URL redirect rules. Rules created automatically from a slug change (source")}
+            {t("Manual URL redirect rules. Rules created automatically from a slug change (source")}
             <code> auto_slug_change</code>
-            {t(locale, ") also show up here.")}
+            {t(") also show up here.")}
           </p>
         </div>
       </div>
@@ -205,7 +219,7 @@ export function Redirects({ useRedirectsHook = useWiredRedirects }: RedirectsPro
         <div className="field-group">
           <div className="field-row">
             <div className="field">
-              <label className="field-label" htmlFor="redirect-match-type">{t(locale, "Match type")}</label>
+              <label className="field-label" htmlFor="redirect-match-type">{t("Match type")}</label>
               <select id="redirect-match-type" name="matchType" defaultValue="exact">
                 <option value="exact">exact</option>
                 <option value="prefix">prefix</option>
@@ -213,32 +227,32 @@ export function Redirects({ useRedirectsHook = useWiredRedirects }: RedirectsPro
               </select>
             </div>
             <div className="field">
-              <label className="field-label" htmlFor="redirect-from-pattern">{t(locale, "From path")}</label>
+              <label className="field-label" htmlFor="redirect-from-pattern">{t("From path")}</label>
               <input id="redirect-from-pattern" name="fromPattern" placeholder="/old-path" required />
             </div>
             <div className="field">
-              <label className="field-label" htmlFor="redirect-to-target">{t(locale, "To target")}</label>
+              <label className="field-label" htmlFor="redirect-to-target">{t("To target")}</label>
               <input id="redirect-to-target" name="toTarget" placeholder="/new-path or https://example.com/..." required />
             </div>
             <div className="field">
-              <label className="field-label" htmlFor="redirect-status-code">{t(locale, "Status code")}</label>
+              <label className="field-label" htmlFor="redirect-status-code">{t("Status code")}</label>
               <select id="redirect-status-code" name="statusCode" defaultValue="301">
-                <option value="301">{t(locale, "301 (permanent)")}</option>
-                <option value="302">{t(locale, "302 (temporary)")}</option>
-                <option value="307">{t(locale, "307 (temporary, method-preserving)")}</option>
-                <option value="308">{t(locale, "308 (permanent, method-preserving)")}</option>
+                <option value="301">{t("301 (permanent)")}</option>
+                <option value="302">{t("302 (temporary)")}</option>
+                <option value="307">{t("307 (temporary, method-preserving)")}</option>
+                <option value="308">{t("308 (permanent, method-preserving)")}</option>
               </select>
             </div>
           </div>
         </div>
         <div className="editor-actions form-actions">
           <button type="submit" disabled={saving}>
-            {saving ? t(locale, "Saving…") : t(locale, "Add redirect")}
+            {saving ? t("Saving…") : t("Add redirect")}
           </button>
         </div>
       </form>
 
-      <ImportRedirectsForm locale={locale} />
+      <ImportRedirectsForm t={t} locale={locale} />
 
       <DataTable
         rows={redirects}
@@ -246,25 +260,25 @@ export function Redirects({ useRedirectsHook = useWiredRedirects }: RedirectsPro
         empty={
           <div className="card">
             <div className="empty-state">
-              <p>{t(locale, "No redirect rules yet.")}</p>
+              <p>{t("No redirect rules yet.")}</p>
             </div>
           </div>
         }
         columns={[
-          { key: "from", header: t(locale, "From"), cell: (rule) => rule.fromPattern },
-          { key: "to", header: t(locale, "To"), cell: (rule) => rule.toTarget },
-          { key: "type", header: t(locale, "Type"), cell: (rule) => rule.matchType },
-          { key: "code", header: t(locale, "Code"), cell: (rule) => rule.statusCode },
-          { key: "source", header: t(locale, "Source"), cell: (rule) => rule.source },
+          { key: "from", header: t("From"), cell: (rule) => rule.fromPattern },
+          { key: "to", header: t("To"), cell: (rule) => rule.toTarget },
+          { key: "type", header: t("Type"), cell: (rule) => rule.matchType },
+          { key: "code", header: t("Code"), cell: (rule) => rule.statusCode },
+          { key: "source", header: t("Source"), cell: (rule) => rule.source },
           {
             key: "status",
-            header: t(locale, "Status"),
+            header: t("Status"),
             cell: (rule) => <span className={`status status-${rule.status}`}>{rule.status}</span>,
           },
-          { key: "hits", header: t(locale, "Hits"), cell: (rule) => <HitCountCell locale={locale} redirectId={rule.id} /> },
+          { key: "hits", header: t("Hits"), cell: (rule) => <HitCountCell t={t} redirectId={rule.id} /> },
           {
             key: "actions",
-            header: t(locale, "More"),
+            header: t("More"),
             cell: (rule) => {
               const items: RowMenuItem[] = redirectRowMenuItems(rule, { onToggleStatus, onRequestDelete }, locale);
               return <RowMenu triggerLabel={actionsForRedirectLabel(locale, rule.fromPattern)} items={items} />;
@@ -274,9 +288,9 @@ export function Redirects({ useRedirectsHook = useWiredRedirects }: RedirectsPro
       />
       <ConfirmDialog
         open={pendingDelete !== null}
-        title={t(locale, "Delete redirect rule?")}
+        title={t("Delete redirect rule?")}
         body={pendingDelete ? deleteRedirectBody(locale, pendingDelete.fromPattern) : null}
-        confirmLabel={t(locale, "Delete")}
+        confirmLabel={t("Delete")}
         destructive
         pending={deletePending}
         onConfirm={confirmDelete}
