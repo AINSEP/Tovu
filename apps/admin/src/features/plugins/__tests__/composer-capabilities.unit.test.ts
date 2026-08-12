@@ -23,7 +23,7 @@ function fakeSource(id: string, capabilities: readonly TovuComposerCapability[])
 }
 
 describe("projectComposerCapabilities", () => {
-  it("preserves today's exact bundled catalog shape — content unchanged from the pre-2026-08-12 static array", async () => {
+  it("preserves today's exact bundled catalog shape — the pre-2026-08-12 static array plus this dispatch's /search addition", async () => {
     const projection = await projectComposerCapabilities([createBundledComposerCapabilitySource()]);
 
     expect(projection.groups.map((group) => group.id)).toEqual([
@@ -31,14 +31,42 @@ describe("projectComposerCapabilities", () => {
       "agent-plugins",
       "skills",
       "mcp",
+      "tools",
     ]);
     expect(projection.groups.flatMap((group) => group.items.map((item) => item.id))).toEqual([
       "regular-plugin:word-count",
       "agent-plugin:ui-ux-design",
       "skill:ui-ux-design",
       "mcp:settings",
+      "tool:content-search",
     ]);
     expect(projection.byItemId.get("mcp:settings")?.item.kind).toBe("mcp");
+  });
+
+  it("wires /search to a real allowlisted-tool-call binding against content_post_search, not a synthetic fixture", async () => {
+    const projection = await projectComposerCapabilities([createBundledComposerCapabilitySource()]);
+    const search = projection.byItemId.get("tool:content-search");
+
+    expect(search?.item.command).toBe("search");
+    expect(search?.item.argument).toEqual({ placeholder: "search terms", required: true });
+    // No needsConfirmation: content_post_search is read-only (see mcp-ui-tool-calls.ts's allowlist
+    // entry) and this binding executes immediately on selection — declaring a confirmation cue with
+    // nothing behind it would be worse than declaring none.
+    expect(search?.item.needsConfirmation).toBeUndefined();
+
+    expect(search?.resolve?.("aria listbox")).toEqual({
+      kind: "allowlisted-tool-call",
+      toolName: "content_post_search",
+      params: { query: "aria listbox" },
+    });
+    // Defensive fallback for a caller (e.g. this test) that invokes `resolve` directly, bypassing
+    // Jini's own grammar — through the real composer, `argument.required: true` means `resolve`
+    // is never reached with a blank/undefined argument in the first place.
+    expect(search?.resolve?.(undefined)).toEqual({
+      kind: "allowlisted-tool-call",
+      toolName: "content_post_search",
+      params: { query: "" },
+    });
   });
 
   it("composes multiple sources, preserving first-seen group order across source boundaries", async () => {

@@ -227,6 +227,7 @@ describe("AssistantDock", () => {
         "agent-plugins",
         "skills",
         "mcp",
+        "tools",
       ]);
     });
 
@@ -238,12 +239,14 @@ describe("AssistantDock", () => {
       "agent-plugin:ui-ux-design",
       "skill:ui-ux-design",
       "mcp:settings",
+      "tool:content-search",
     ]);
     expect(props.composerSlots.discoveryGroups.flatMap((group) => group.items.map((item) => item.kind))).toEqual([
       "plugin",
       "agent-plugin",
       "skill",
       "mcp",
+      "tool",
     ]);
   });
 

@@ -36,6 +36,22 @@ import { demoToolsEnabled } from "./demo-choices-tool";
  */
 export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = new Set([
   "content_post_delete",
+  // The `/search` composer capability's real execution path (`apps/admin/src/features/plugins/
+  // composer-capabilities.ts`'s `allowlisted-tool-call` binding) — a direct, immediate browser call
+  // with no agent turn in between, exactly what that binding kind exists for.
+  //
+  // Admitted under the SAME carve-out as `assistant_demo_choices` below, not either of the two
+  // confirmation shapes this rule otherwise requires: `postDerivedRisk`
+  // (`features/post/tool-registrations.ts`) classifies `content_post_search` "none" — its handler
+  // performs one SELECT against the FTS5 search index (`search.ts`'s `searchAdminPosts`) behind the
+  // same inline `content.read` permission check `content_post_list`/`content_post_get` already
+  // perform, and writes nothing: no repo save, no command gateway, no outbox, no bus. A caller
+  // reaches only what the admin session's own `content.read` grant already exposes through the
+  // Posts/Pages admin screens — unlike `content_post_delete`, there is no state this call could put
+  // the workspace into that a human would need to approve first, so the confirmation-shape rule has
+  // nothing to protect here. (Verified 2026-08-12 against a real `ToolRegistry`/`ToolExecutor` pair —
+  // see `mcp-ui-tool-calls-route.content-search.integration.test.ts`.)
+  "content_post_search",
   // Development only, and admitted under a DIFFERENT justification than the rule above — worth
   // stating plainly rather than letting it read as a precedent. `assistant_demo_choices`
   // (`demo-choices-tool.ts`) performs no token redemption, because it has nothing to redeem: both

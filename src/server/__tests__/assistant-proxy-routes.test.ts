@@ -88,6 +88,37 @@ async function startStandInDaemon(): Promise<{ origin: string; server: Server }>
         res.end(`id: cursor-7\ndata: {"kind":"end"}\n\n`);
         return;
       }
+      // Stand-in for `@jini-ai/http-kit`'s real tool-catalog routes (`registerToolCatalogRoutes`,
+      // mounted daemon-side by `agent-daemon-server.ts`) — answers the same two shapes the real
+      // route does, so the proxy tests below assert against realistic response bodies rather than
+      // the generic `{runs: [...]}` fallback every other route in this stand-in happens to share.
+      if ((req.url ?? "").startsWith("/api/tools/search")) {
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(
+          JSON.stringify({
+            hits: [{ id: "content_post_search", description: "Finds posts and pages by relevance.", source: "content", score: 4.2 }],
+          }),
+        );
+        return;
+      }
+      if ((req.url ?? "").startsWith("/api/tools/")) {
+        const id = decodeURIComponent((req.url ?? "").slice("/api/tools/".length));
+        if (id === "content_post_search") {
+          res.writeHead(200, { "content-type": "application/json" });
+          res.end(
+            JSON.stringify({
+              id: "content_post_search",
+              description: "Finds posts and pages by relevance.",
+              source: "content",
+              inputSchema: { type: "object", required: ["query"], properties: { query: { type: "string" } } },
+            }),
+          );
+        } else {
+          res.writeHead(404, { "content-type": "application/json" });
+          res.end(JSON.stringify({ error: { code: "NOT_FOUND", message: `unknown tool id '${id}'` } }));
+        }
+        return;
+      }
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify({ runs: [{ id: "run-1" }] }));
     });
@@ -441,4 +472,95 @@ test("clearing the failure (the future-retry hook) restores normal proxying", as
 
   assert.equal(recovered.status, 200, "clearing the latch must let the very next request reach the daemon again");
   assert.equal(recorded.length, 1);
+});
+
+/**
+ * ---- Tool catalog enumeration (`GET /api/tools/search`, `GET /api/tools/:id`) ----
+ *
+ * The browser-reachable proxy in front of the daemon's `requireSameOrigin`-gated
+ * `registerToolCatalogRoutes` (see `modules/assistant.ts`'s own doc at the mount site for the full
+ * same-origin trace). Written and first run against the pre-change router — where both routes
+ * 404 at Tovu's own Express app before ever reaching the stand-in daemon — as this dispatch's
+ * required RED evidence; see the Programmer handoff for the verbatim red output.
+ */
+
+test("GET /api/tools/search is proxied to the daemon and its real response shape is relayed verbatim", async (t) => {
+  const { baseUrl, cookie } = await bootProxy(t);
+
+  const res = await fetch(`${baseUrl}/api/tools/search?q=search+posts&limit=5`, { headers: { cookie } });
+
+  assert.equal(res.status, 200, "the tool-catalog search route must reach the daemon, not 404 at Tovu's own router");
+  assert.deepEqual(await res.json(), {
+    hits: [{ id: "content_post_search", description: "Finds posts and pages by relevance.", source: "content", score: 4.2 }],
+  });
+  assert.equal(recorded.length, 1);
+  assert.equal(recorded[0].method, "GET");
+  assert.equal(recorded[0].url, "/api/tools/search?q=search+posts&limit=5", "the query string must reach the daemon unmodified");
+});
+
+test("GET /api/tools/:id is proxied to the daemon, including its 404 for an unknown id", async (t) => {
+  const { baseUrl, cookie } = await bootProxy(t);
+
+  const found = await fetch(`${baseUrl}/api/tools/content_post_search`, { headers: { cookie } });
+  assert.equal(found.status, 200);
+  assert.deepEqual(await found.json(), {
+    id: "content_post_search",
+    description: "Finds posts and pages by relevance.",
+    source: "content",
+    inputSchema: { type: "object", required: ["query"], properties: { query: { type: "string" } } },
+  });
+
+  const missing = await fetch(`${baseUrl}/api/tools/no_such_tool`, { headers: { cookie } });
+  assert.equal(missing.status, 404, "the daemon's own not-found response must be relayed, not swallowed into a 200");
+
+  assert.equal(recorded.length, 2);
+});
+
+test("the tool catalog routes are session-gated like every other route in this module — no cookie, no daemon call", async (t) => {
+  const { baseUrl } = await bootProxy(t);
+
+  const res = await fetch(`${baseUrl}/api/tools/search?q=search`);
+
+  assert.equal(res.status, 401);
+  assert.equal(((await res.json()) as { code: string }).code, "UNAUTHENTICATED");
+  assert.equal(recorded.length, 0, "an unauthenticated caller must never reach the daemon's tool catalog either");
+});
+
+test("the tool catalog proxy carries the daemon bearer token, same as every other proxied route", async (t) => {
+  const { baseUrl, cookie } = await bootProxy(t);
+
+  await fetch(`${baseUrl}/api/tools/search?q=search`, { headers: { cookie } });
+
+  assert.equal(recorded.length, 1);
+  assert.equal(recorded[0].headers.authorization, `Bearer ${TOKEN}`);
+});
+
+test("a known-failed daemon also short-circuits the tool catalog routes to 503, never reaching the daemon's port", async (t) => {
+  const { baseUrl, cookie } = await bootProxy(t);
+  recordAssistantDaemonFailure("agent daemon could not bind 127.0.0.1:4319 — address already in use");
+  t.after(() => clearAssistantDaemonFailure());
+
+  const res = await fetch(`${baseUrl}/api/tools/search?q=search`, { headers: { cookie } });
+
+  assert.equal(res.status, 503);
+  assert.deepEqual(await res.json(), {
+    error: "the agent daemon failed to start for this boot",
+    code: "AGENT_DAEMON_BOOT_FAILED",
+  });
+  assert.equal(recorded.length, 0, "the stand-in daemon is healthy and would have answered — reaching it means the short-circuit didn't fire");
+});
+
+test("READ-ONLY BOUNDARY: no write verb is mounted on the tool catalog path — this proxy can enumerate, never execute", async (t) => {
+  const { baseUrl, cookie } = await bootProxy(t);
+
+  const post = await fetch(`${baseUrl}/api/tools/search`, { method: "POST", headers: { cookie, "content-type": "application/json" }, body: "{}" });
+  const put = await fetch(`${baseUrl}/api/tools/content_post_search`, { method: "PUT", headers: { cookie, "content-type": "application/json" }, body: "{}" });
+  const del = await fetch(`${baseUrl}/api/tools/content_post_search`, { method: "DELETE", headers: { cookie } });
+
+  // Express answers a path with no matching verb 404 (no route) rather than proxying it anywhere —
+  // the load-bearing fact here is that NONE of these reached the stand-in daemon.
+  assert.notEqual(post.status, 200);
+  assert.notEqual(put.status, 200);
+  assert.notEqual(del.status, 200);
+  assert.equal(recorded.length, 0, "a write verb against the tool-catalog path must never reach the daemon — enumeration only, per this route's own boundary");
 });

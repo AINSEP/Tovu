@@ -492,6 +492,39 @@ export function createAssistantModule(routeDeps: RouteDeps, byokSurfaceExchanges
       app.get("/api/agents", (req, res, next) => respondWithEnrichedAgentList(req, res, routeDeps).catch(next));
       app.post("/api/agents/rescan", (req, res, next) => respondWithEnrichedAgentList(req, res, routeDeps).catch(next));
 
+      // Browser-reachable tool CATALOG enumeration — `search`/`describe` over the same 131-tool
+      // registry `buildAssistantToolRegistrations` populates (`tool-catalog-query.ts`), proxied
+      // from `@jini-ai/http-kit`'s `registerToolCatalogRoutes` (mounted daemon-side by
+      // `agent-daemon-server.ts`). That daemon route is `requireSameOrigin`-gated and, before this,
+      // reachable only by the spawned `jini-mcp` subprocess's own loopback `fetch` (no `Origin`
+      // header, so it passes the daemon's same-origin check the way a browser's cross-origin
+      // request never could) plus the daemon bearer token. `proxyPassthrough` satisfies both of
+      // those the identical way that subprocess does: `forwardToAgentDaemon`'s outbound `fetch`
+      // carries no `Origin` header either (Node's `fetch`, not a browser's) and attaches the same
+      // bearer token every other route in this module does — so this proxy reaches the daemon route
+      // exactly like its one existing legitimate caller, without loosening `requireSameOrigin`
+      // itself by one bit. `requireAdminSession` below is the ONLY new gate a browser caller must
+      // pass, replacing "must be that subprocess" with "must be a signed-in admin".
+      //
+      // BOUNDARY, stated plainly because the next reader will otherwise conflate it with item 1's
+      // MCP-UI allowlist: this exposes tool **names and descriptions** to an authenticated admin
+      // session, in the admin's own page. It is **read-only enumeration, never execution** — no
+      // `toolName`/`params` body is accepted here, there is no POST/PUT/DELETE mounted on this
+      // path, and nothing on this path can reach `ToolExecutor.execute`. A tool becomes callable
+      // from the browser only through `MCP_UI_TOOL_CALLS_PATH`'s own allowlist
+      // (`mcp-ui-tool-calls.ts`) — a completely separate trust decision this route does not make or
+      // widen.
+      //
+      // Degrades the same way every other proxied route already does, with no extra code needed
+      // here: `forwardToAgentDaemon` answers 503 immediately (known-failed boot, no daemon `fetch`
+      // attempted) or 502 (genuinely unreachable) rather than hanging or throwing — a non-2xx JSON
+      // error the browser-side `ComposerCapabilitySource` this backs
+      // (`apps/admin/src/features/plugins/tool-catalog-composer-source.ts`) catches and treats as
+      // "nothing to add", falling back to the bundled composer catalog rather than breaking it.
+      app.use("/api/tools", requireAdminSession(routeDeps));
+      app.get("/api/tools/search", (req, res, next) => proxyPassthrough(req, res).catch(next));
+      app.get("/api/tools/:id", (req, res, next) => proxyPassthrough(req, res).catch(next));
+
       // Agent-driven control of the admin's own tab (`page.navigate`, `page.scroll_to`, …). The
       // stream carries invocations down to the browser and the response route carries answers
       // back; both are `@jini-ai/http-kit`'s, mounted on the daemon by `agent-daemon-server.ts`.
