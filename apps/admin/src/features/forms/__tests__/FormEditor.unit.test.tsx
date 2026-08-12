@@ -2,6 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { FetchQueryProvider } from "../../../lib/fetch-query";
 import { FormEditor } from "../FormEditor";
 
 /**
@@ -11,10 +12,19 @@ import { FormEditor } from "../FormEditor";
  * (`if (!isNew && !form && !error) return <Loading/>`) only covered the pre-error state, and fell
  * through once `error` was set. Follows the RTL harness `Plugins.unit.test.tsx` established for
  * this package.
+ *
+ * `renderScreen` wraps every render in `FetchQueryProvider` (2026-08-12, `lib/fetch-query`
+ * migration) — `FormEditor`'s hooks are now backed by `useFetchQuery`/`useFetchMutation`, which
+ * throw without a `QueryClientProvider` ancestor. `main.tsx` provides this in production; here it
+ * is one `FetchQueryProvider` per render, matching `taxonomy`'s own component-test precedent.
  */
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+}
+
+function renderScreen(node: React.ReactElement) {
+  return render(<FetchQueryProvider>{node}</FetchQueryProvider>);
 }
 
 let fetchMock: ReturnType<typeof vi.fn>;
@@ -42,7 +52,7 @@ describe("a form id that does not resolve", () => {
   it("renders only the not-found error, never a live Save button underneath it", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ error: "form definition 'bogus' was not found" }, 404));
 
-    render(<FormEditor formId="bogus" />);
+    renderScreen(<FormEditor formId="bogus" />);
 
     expect(await screen.findByText(/was not found/i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^save$/i })).not.toBeInTheDocument();
@@ -66,7 +76,7 @@ describe("a later save failure, after the form already loaded", () => {
       .mockResolvedValueOnce(jsonResponse({ data: form }))
       .mockResolvedValueOnce(jsonResponse({ error: "save failed" }, 500));
 
-    render(<FormEditor formId="f1" />);
+    renderScreen(<FormEditor formId="f1" />);
 
     const saveButton = await screen.findByRole("button", { name: /^save$/i });
     saveButton.click();
@@ -95,7 +105,7 @@ describe("field attributes modal", () => {
       .mockResolvedValueOnce(jsonResponse({ data: formWithOneField() }))
       .mockResolvedValueOnce(jsonResponse({ data: formWithOneField() }));
 
-    render(<FormEditor formId="f1" />);
+    renderScreen(<FormEditor formId="f1" />);
 
     const trigger = await screen.findByRole("button", { name: /attributes for field "email"/i });
     await user.click(trigger);
@@ -126,7 +136,7 @@ describe("field attributes modal", () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse({ data: formWithOneField() }));
 
-    render(<FormEditor formId="f1" />);
+    renderScreen(<FormEditor formId="f1" />);
 
     const trigger = await screen.findByRole("button", { name: /attributes for field "email"/i });
     await user.click(trigger);
@@ -148,7 +158,7 @@ describe("field attributes modal", () => {
     const user = userEvent.setup();
     fetchMock.mockResolvedValueOnce(jsonResponse({ data: formWithOneField() }));
 
-    render(<FormEditor formId="f1" />);
+    renderScreen(<FormEditor formId="f1" />);
 
     const trigger = await screen.findByRole("button", { name: /attributes for field "email"/i });
     await user.click(trigger);
@@ -177,7 +187,7 @@ describe("field attributes modal", () => {
  */
 describe("new form — no tabs, Create form label, notify recipients reveal", () => {
   it("renders no tab strip for a new form, and the Save button reads 'Create form'", async () => {
-    render(<FormEditor formId="new" />);
+    renderScreen(<FormEditor formId="new" />);
 
     expect(screen.getByRole("button", { name: /create form/i })).toBeInTheDocument();
     expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
@@ -185,7 +195,7 @@ describe("new form — no tabs, Create form label, notify recipients reveal", ()
 
   it("reveals the recipients input only once notify is enabled", async () => {
     const user = userEvent.setup();
-    render(<FormEditor formId="new" />);
+    renderScreen(<FormEditor formId="new" />);
 
     expect(screen.queryByLabelText(/recipients/i)).not.toBeInTheDocument();
     await user.click(screen.getByRole("checkbox", { name: /enable email notification/i }));
@@ -211,7 +221,7 @@ describe("existing form — tab strip, status toggle, submissions panel", () => 
       .mockResolvedValueOnce(jsonResponse({ data: activeForm() }))
       .mockResolvedValueOnce(jsonResponse({ data: [] })); // FormSubmissions' own load on mount
 
-    render(<FormEditor formId="f1" />);
+    renderScreen(<FormEditor formId="f1" />);
 
     const tablist = await screen.findByRole("tablist");
     expect(tablist).toBeInTheDocument();
@@ -225,12 +235,16 @@ describe("existing form — tab strip, status toggle, submissions panel", () => 
 
   it("an active form's status button reads 'Disable' (btn-warning) and flips the form to disabled", async () => {
     const user = userEvent.setup();
+    // Two mocked responses, not three (2026-08-12, `lib/fetch-query` migration): `handleStatusToggle`
+    // now sets `form` directly from the PUT's OWN response rather than following it with a separate
+    // reload GET — see `use-form-editor.hooks.ts`'s own doc comment on why `statusMutation` doesn't
+    // invalidate its own `KEYS.form(id)` read. The PUT response therefore needs to carry the real
+    // updated `data`, not the empty body the pre-migration reload-based flow could get away with.
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ data: activeForm() }))
-      .mockResolvedValueOnce(jsonResponse({})) // PUT status update
-      .mockResolvedValueOnce(jsonResponse({ data: { ...activeForm(), status: "disabled" } })); // reload after toggle
+      .mockResolvedValueOnce(jsonResponse({ data: { ...activeForm(), status: "disabled" } })); // PUT status update
 
-    render(<FormEditor formId="f1" />);
+    renderScreen(<FormEditor formId="f1" />);
 
     const disableButton = await screen.findByRole("button", { name: /^disable$/i });
     expect(disableButton).toHaveClass("btn-warning");

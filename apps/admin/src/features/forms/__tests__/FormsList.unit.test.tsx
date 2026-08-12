@@ -2,6 +2,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { FetchQueryProvider } from "../../../lib/fetch-query";
 import { FormsList } from "../FormsList";
 
 /**
@@ -12,10 +13,19 @@ import { FormsList } from "../FormsList";
  * `deleteFormSubmission`, a different resource). Follows the RTL harness
  * `Media.unit.test.tsx`/`Plugins.unit.test.tsx` established for this package (mocked global
  * `fetch`, URL-routed rather than call-order-coupled, no server).
+ *
+ * `renderScreen` wraps every render in `FetchQueryProvider` (2026-08-12, `lib/fetch-query`
+ * migration) — `FormsList`'s hooks are now backed by `useFetchQuery`/`useFetchMutation`, which
+ * throw without a `QueryClientProvider` ancestor. `main.tsx` provides this in production; here it
+ * is one `FetchQueryProvider` per render, matching `taxonomy`'s own component-test precedent.
  */
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
+}
+
+function renderScreen(node: React.ReactElement) {
+  return render(<FetchQueryProvider>{node}</FetchQueryProvider>);
 }
 
 const ACTIVE_FORM = {
@@ -88,7 +98,7 @@ afterEach(() => {
 describe("More column", () => {
   it("renders a More header and one RowMenu trigger per row", async () => {
     fetchMock.mockImplementation(routeFetch([{ match: "/forms", handler: () => Promise.resolve(jsonResponse({ data: [ACTIVE_FORM, DISABLED_FORM] })) }]));
-    render(<FormsList />);
+    renderScreen(<FormsList />);
 
     expect(await screen.findByRole("columnheader", { name: "More" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: 'Actions for form "Contact"' })).toBeInTheDocument();
@@ -100,7 +110,7 @@ describe("row menu contents", () => {
   it("an active form's menu offers Edit and Disable (not Enable), Disable carrying the warning tone", async () => {
     const user = userEvent.setup();
     fetchMock.mockImplementation(routeFetch([{ match: "/forms", handler: () => Promise.resolve(jsonResponse({ data: [ACTIVE_FORM] })) }]));
-    render(<FormsList />);
+    renderScreen(<FormsList />);
 
     await user.click(await screen.findByRole("button", { name: 'Actions for form "Contact"' }));
 
@@ -113,7 +123,7 @@ describe("row menu contents", () => {
   it("a disabled form's menu offers Enable (not Disable), with no warning/danger tone", async () => {
     const user = userEvent.setup();
     fetchMock.mockImplementation(routeFetch([{ match: "/forms", handler: () => Promise.resolve(jsonResponse({ data: [DISABLED_FORM] })) }]));
-    render(<FormsList />);
+    renderScreen(<FormsList />);
 
     await user.click(await screen.findByRole("button", { name: 'Actions for form "Newsletter"' }));
 
@@ -126,7 +136,7 @@ describe("row menu contents", () => {
   it("never offers a Delete item — no deleteForm route exists to wire one to", async () => {
     const user = userEvent.setup();
     fetchMock.mockImplementation(routeFetch([{ match: "/forms", handler: () => Promise.resolve(jsonResponse({ data: [ACTIVE_FORM] })) }]));
-    render(<FormsList />);
+    renderScreen(<FormsList />);
 
     await user.click(await screen.findByRole("button", { name: 'Actions for form "Contact"' }));
 
@@ -137,19 +147,30 @@ describe("row menu contents", () => {
 });
 
 describe("status toggle", () => {
-  it("selecting Disable PUTs status: disabled and updates the row's badge without a full reload", async () => {
+  it("selecting Disable PUTs status: disabled and updates the row's badge via the invalidated list refetch", async () => {
     const user = userEvent.setup();
+    // Stateful GET handler (2026-08-12, `lib/fetch-query` migration) — the toggle mutation no
+    // longer patches `forms` locally from the PUT's own response; it `invalidates: [KEYS.list]`
+    // and lets the cache's own background refetch update the view (`use-forms-list.hooks.ts`'s own
+    // file header explains the trade: cross-screen consistency over one saved round trip). A
+    // static GET handler that always returns `ACTIVE_FORM` would make that refetch show stale data
+    // forever and this test would hang — a REAL server's list GET reflects a just-completed PUT,
+    // so this fake needs to as well.
+    let current: Omit<typeof ACTIVE_FORM, "status"> & { status: "active" | "disabled" } = { ...ACTIVE_FORM };
     fetchMock.mockImplementation(
       routeFetch([
-        { match: "/forms", handler: () => Promise.resolve(jsonResponse({ data: [ACTIVE_FORM] })) },
+        { match: "/forms", handler: () => Promise.resolve(jsonResponse({ data: [current] })) },
         {
           match: "/forms/f1",
           method: "PUT",
-          handler: () => Promise.resolve(jsonResponse({ data: { ...ACTIVE_FORM, status: "disabled" } })),
+          handler: () => {
+            current = { ...current, status: "disabled" };
+            return Promise.resolve(jsonResponse({ data: current }));
+          },
         },
       ])
     );
-    render(<FormsList />);
+    renderScreen(<FormsList />);
     const row = await rowFor("Contact");
 
     await user.click(within(row).getByRole("button", { name: 'Actions for form "Contact"' }));
@@ -160,25 +181,31 @@ describe("status toggle", () => {
     expect(putCall).toBeTruthy();
     const putBody = JSON.parse(String((putCall![1] as RequestInit).body));
     expect(putBody).toEqual({ status: "disabled" });
-    // Only one GET (initial load) — a status flip updates local state from the PUT's own
-    // response rather than re-fetching the whole list, matching Posts.tsx/Pages.tsx.
+    // Two GETs now (initial load + the toggle's own `invalidates: [KEYS.list]` background
+    // refetch) — NOT one. The pre-migration "only one GET" pin here described the old hand-rolled
+    // `setForms((prev) => prev.map(...))` optimistic patch, which this migration deliberately
+    // replaces; see this file's header and `use-forms-list.hooks.ts`'s own doc comment.
     const getCalls = fetchMock.mock.calls.filter(([, init]) => (init as RequestInit | undefined)?.method === undefined || (init as RequestInit)?.method === "GET");
-    expect(getCalls).toHaveLength(1);
+    expect(getCalls).toHaveLength(2);
   });
 
   it("selecting Enable PUTs status: active", async () => {
     const user = userEvent.setup();
+    let current: Omit<typeof DISABLED_FORM, "status"> & { status: "active" | "disabled" } = { ...DISABLED_FORM };
     fetchMock.mockImplementation(
       routeFetch([
-        { match: "/forms", handler: () => Promise.resolve(jsonResponse({ data: [DISABLED_FORM] })) },
+        { match: "/forms", handler: () => Promise.resolve(jsonResponse({ data: [current] })) },
         {
           match: "/forms/f2",
           method: "PUT",
-          handler: () => Promise.resolve(jsonResponse({ data: { ...DISABLED_FORM, status: "active" } })),
+          handler: () => {
+            current = { ...current, status: "active" };
+            return Promise.resolve(jsonResponse({ data: current }));
+          },
         },
       ])
     );
-    render(<FormsList />);
+    renderScreen(<FormsList />);
     const row = await rowFor("Newsletter");
 
     await user.click(within(row).getByRole("button", { name: 'Actions for form "Newsletter"' }));
@@ -197,7 +224,7 @@ describe("status toggle", () => {
         { match: "/forms/f1", method: "PUT", handler: () => Promise.resolve(jsonResponse({ error: "boom" }, 500)) },
       ])
     );
-    render(<FormsList />);
+    renderScreen(<FormsList />);
     const row = await rowFor("Contact");
 
     await user.click(within(row).getByRole("button", { name: 'Actions for form "Contact"' }));
@@ -220,9 +247,13 @@ describe("status toggle", () => {
       resolvePut = resolve;
     });
     let putCallCount = 0;
+    // Stateful GET handler — see the "Disable ... via the invalidated list refetch" test above for
+    // why (the toggle's own `invalidates: [KEYS.list]` triggers a background refetch that must
+    // reflect the completed PUT, not the pre-toggle snapshot).
+    let current: Omit<typeof ACTIVE_FORM, "status"> & { status: "active" | "disabled" } = { ...ACTIVE_FORM };
     fetchMock.mockImplementation(
       routeFetch([
-        { match: "/forms", handler: () => Promise.resolve(jsonResponse({ data: [ACTIVE_FORM] })) },
+        { match: "/forms", handler: () => Promise.resolve(jsonResponse({ data: [current] })) },
         {
           match: "/forms/f1",
           method: "PUT",
@@ -233,7 +264,7 @@ describe("status toggle", () => {
         },
       ])
     );
-    render(<FormsList />);
+    renderScreen(<FormsList />);
     const row = await rowFor("Contact");
 
     // First selection starts the (still-pending) PUT.
@@ -248,7 +279,10 @@ describe("status toggle", () => {
     await user.click(screen.getByRole("menuitem", { name: "Disable" }));
     expect(putCallCount).toBe(1);
 
-    resolvePut(jsonResponse({ data: { ...ACTIVE_FORM, status: "disabled" } }));
+    // Update the stateful snapshot BEFORE resolving — synchronous, so it lands before the
+    // invalidation-triggered refetch's microtask reads it.
+    current = { ...current, status: "disabled" };
+    resolvePut(jsonResponse({ data: current }));
     await waitFor(() => expect(within(row).getByText("disabled")).toBeInTheDocument());
   });
 });
@@ -257,7 +291,7 @@ describe("Edit", () => {
   it("navigates to /forms/:id via the router (not a full page load)", async () => {
     const user = userEvent.setup();
     fetchMock.mockImplementation(routeFetch([{ match: "/forms", handler: () => Promise.resolve(jsonResponse({ data: [ACTIVE_FORM] })) }]));
-    render(<FormsList />);
+    renderScreen(<FormsList />);
     const row = await rowFor("Contact");
 
     await user.click(within(row).getByRole("button", { name: 'Actions for form "Contact"' }));

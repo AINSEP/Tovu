@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 
 import type { AdminFormDefinition, AdminFormField, AdminFormNotify } from "../../../lib/api";
+import { useFetchMutation, useFetchQuery } from "../../../lib/fetch-query";
 import { navigate as defaultNavigate } from "../../../lib/router";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
-import { FORM_TABS, blankField, existingFieldIdsOf, nextTabIndex, parseRecipients } from "../rules";
+import { FORM_TABS, KEYS, blankField, existingFieldIdsOf, nextTabIndex, parseRecipients, visibleFormEditorError } from "../rules";
 import { FORMS_DICT } from "../forms-i18n";
 import { defaultFormsPort } from "./forms-dependencies.hooks";
 import type { FormsPort } from "./forms-port.hooks";
@@ -30,10 +31,7 @@ import type { FormsPort } from "./forms-port.hooks";
  * since both read/write the same `AdminFormDefinition` resource) — rather than reaching `lib/api`/
  * `lib/router` directly, so a test can describe load/save outcomes against `createFakeFormsPort`
  * instead of stubbing global `fetch`. `useWiredFormEditor` below is the zero-argument pair
- * `FormEditor.tsx` actually mounts. This hook's OWN error strings stay hardcoded English (unlike
- * `features/pages`' `usePageEditor`) — that part of the earlier "no t/locale here" note still
- * holds, and adding locale to messages that were never localized would be a scope-creeping
- * behavior addition, not a refactor.
+ * `FormEditor.tsx` actually mounts.
  *
  * `t` (standing i18n rule — a component with a hook gets a BOUND `t` from that hook, not its own
  * `useAdminLocale()`/dictionary import, same shape `use-post-editor.hooks.ts` established for this
@@ -41,6 +39,22 @@ import type { FormsPort } from "./forms-port.hooks";
  * around this hook's own state — tab labels, Save button, etc.) DOES need translated strings, even
  * though this hook's own error messages don't. Pre-bound to `(key: string) => string`.
  * `useAdminLocale()` and `FORMS_DICT` are called/read only inside {@link useWiredFormEditor}.
+ *
+ * `lib/fetch-query` migration (2026-08-12): the load is one `useFetchQuery` keyed on
+ * `KEYS.form(formId)` (disabled for `isNew`, matching the original `if (isNew) return;` early-out).
+ * `form`/`name`/`slug`/`fields`/`notify`/`recipientsText` stay local `useState` — the operator edits
+ * them — and are seeded from `list.data` exactly once per `formId` via `seededFormIdRef`, the same
+ * shape `collections/hooks/use-collection-entry-editor.hooks.ts`'s `seededIdentityRef` establishes
+ * (see that file's header for the regression it guards against: a background refetch of the SAME
+ * identity must not clobber in-progress edits). `handleSave`/`handleStatusToggle` set `form` (and,
+ * for save, the rest of the seeded fields) directly from each MUTATION's own response, and neither
+ * mutation invalidates this hook's OWN `KEYS.form(formId)` read (only the sibling `KEYS.list`) —
+ * mirroring `save()`/`toggleLifecycle()` in that same collections hook, which invalidate only the
+ * sibling `KEYS.entries(...)`, never their own `KEYS.entry(...)`, for the identical reason: a
+ * response already in hand needs no redundant background refetch of itself. This eliminates the
+ * load race an external audit flagged at this file's old line 117 (`useEffect(load, [props.formId,
+ * port])` with no cancellation guard, so a formId change mid-flight could commit a stale response):
+ * a keyed query cannot commit a response belonging to a prior key, by construction.
  */
 
 export interface FormEditorController {
@@ -93,61 +107,97 @@ export function useFormEditor(
   const [notify, setNotify] = useState<AdminFormNotify>({ enabled: false, recipients: [] });
   const [recipientsText, setRecipientsText] = useState("");
   const [tab, setTab] = useState<"fields" | "submissions">("fields");
-  const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
   // Roving-tabindex focus targets for the tab strip below, indexed the same as `FORM_TABS` — see
   // `nextTabIndex`'s doc comment for why the index math itself lives outside the component.
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
 
-  function load() {
-    if (isNew) return;
-    port
-      .getForm(props.formId)
-      .then((r) => {
-        setForm(r.data);
-        setName(r.data.name);
-        setSlug(r.data.slug);
-        setFields(r.data.fields);
-        setNotify(r.data.notify);
-        setRecipientsText(r.data.notify.recipients.join(", "));
-      })
-      .catch((e) => setError(e instanceof Error ? e.message : "failed to load form"));
-  }
+  const list = useFetchQuery({ key: KEYS.form(props.formId), fetch: () => port.getForm(props.formId), enabled: !isNew });
 
-  useEffect(load, [props.formId, port]);
+  // Seeds `form`/`name`/`slug`/`fields`/`notify`/`recipientsText` from `list.data` exactly once per
+  // `formId` — see this file's own header for the regression this guards against (a background
+  // refetch of the SAME formId must not clobber in-progress edits).
+  const seededFormIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (seededFormIdRef.current !== props.formId) seededFormIdRef.current = null;
+    if (isNew || list.status === "loading" || !list.data) return;
+    if (seededFormIdRef.current === props.formId) return;
+    seededFormIdRef.current = props.formId;
+
+    const loaded = list.data.data;
+    setForm(loaded);
+    setName(loaded.name);
+    setSlug(loaded.slug);
+    setFields(loaded.fields);
+    setNotify(loaded.notify);
+    setRecipientsText(loaded.notify.recipients.join(", "));
+  }, [props.formId, isNew, list.status, list.data]);
+
+  // None of these invalidate `KEYS.form(props.formId)` — only `KEYS.list`. `handleSave`/
+  // `handleStatusToggle` below already set `form` (and, for save, the rest of the seeded fields)
+  // directly from each mutation's own response, so invalidating this hook's OWN read key would only
+  // buy a redundant background refetch of data already in hand — the same reasoning
+  // `use-collection-entry-editor.hooks.ts`'s `save()`/`toggleLifecycle()` document for why THEIR
+  // `invalidates` names only the sibling `KEYS.entries(...)`, never their own `KEYS.entry(...)`.
+  const updateMutation = useFetchMutation({
+    run: (input: { name: string; fields: AdminFormField[]; notify: AdminFormNotify }) =>
+      port.updateForm({ id: props.formId }, input),
+    invalidates: [KEYS.list],
+  });
+  const createMutation = useFetchMutation({
+    run: (input: { name: string; slug: string; fields: AdminFormField[]; notify: AdminFormNotify }) =>
+      port.createForm({ name: input.name, slug: input.slug, fields: input.fields }, { notify: input.notify }),
+    invalidates: [KEYS.list],
+  });
+  const statusMutation = useFetchMutation({
+    run: (input: { id: string; status: "active" | "disabled" }) => port.updateForm({ id: input.id }, { status: input.status }),
+    invalidates: [KEYS.list],
+  });
 
   async function handleSave() {
-    setSaving(true);
-    setError(null);
     const notifyPayload = { ...notify, recipients: parseRecipients(recipientsText) };
     try {
       if (isNew) {
-        const created = await port.createForm({ name, slug, fields }, { notify: notifyPayload });
+        const created = await createMutation.mutate({ name, slug, fields, notify: notifyPayload });
         navigate(`/forms/${created.data.id}`);
       } else {
-        await port.updateForm({ id: props.formId }, { name, fields, notify: notifyPayload });
-        load();
+        // Set directly from the write's own response — `updateMutation` doesn't invalidate this
+        // hook's own `KEYS.form(id)` read (see the mutations' own comment above), so there is no
+        // background refetch to wait for or to accidentally clobber an in-progress edit with.
+        // Mirrors `use-collection-entry-editor.hooks.ts`'s `save()`.
+        const { data: updated } = await updateMutation.mutate({ name, fields, notify: notifyPayload });
+        setForm(updated);
+        setName(updated.name);
+        setSlug(updated.slug);
+        setFields(updated.fields);
+        setNotify(updated.notify);
+        setRecipientsText(updated.notify.recipients.join(", "));
       }
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "save failed");
-    } finally {
-      setSaving(false);
+    } catch {
+      // already surfaced through updateMutation.error/createMutation.error -> error below
     }
   }
 
   async function handleStatusToggle() {
     if (!form) return;
-    setSaving(true);
-    setError(null);
     try {
-      await port.updateForm({ id: form.id }, { status: form.status === "active" ? "disabled" : "active" });
-      load();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "status update failed");
-    } finally {
-      setSaving(false);
+      const { data: updated } = await statusMutation.mutate({
+        id: form.id,
+        status: form.status === "active" ? "disabled" : "active",
+      });
+      setForm(updated);
+    } catch {
+      // already surfaced through statusMutation.error -> error below
     }
   }
+
+  const saving = updateMutation.status === "pending" || createMutation.status === "pending" || statusMutation.status === "pending";
+  const error = visibleFormEditorError({
+    updateError: updateMutation.error,
+    createError: createMutation.error,
+    statusError: statusMutation.error,
+    listError: list.error,
+    hasForm: form !== null,
+  });
 
   function onTabsKeyDown(e: React.KeyboardEvent) {
     const currentIndex = FORM_TABS.findIndex((t) => t.id === tab);

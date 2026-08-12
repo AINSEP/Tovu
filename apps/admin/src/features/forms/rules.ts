@@ -1,4 +1,5 @@
-import type { AdminFormDefinition, AdminFormField } from "../../lib/api";
+import { describeApiError, type AdminFormDefinition, type AdminFormField } from "../../lib/api";
+import type { QueryKey } from "../../lib/fetch-query";
 
 /**
  * @file Pure logic for the `forms` feature (`FormEditor.tsx` — see `FormsList.tsx`'s own
@@ -13,7 +14,77 @@ import type { AdminFormDefinition, AdminFormField } from "../../lib/api";
  * `collections/rules.ts` keeps its row-id counter alongside its other draft-list transforms: one
  * place for "how draft rows get local keys" per feature, not split by which hook happens to use it
  * first.
+ *
+ * `KEYS` (fetch-query migration, 2026-08-12): forms and form-submissions are two independent
+ * resources (separate ports, no method overlap — see `forms-port.hooks.ts`/`form-submissions-
+ * port.hooks.ts`'s own doc comments), so they get two entirely separate top-level key namespaces
+ * rather than sharing one grandparent. Within each, `list`/`detail(id)` (and `submissionsList(formId)`/
+ * `submissionDetail(formId, id)`) are SIBLINGS, not parent/child — `lib/fetch-query/types.ts`'s
+ * `QueryKey` doc warns that invalidation matches by prefix, and `collections/rules.ts`'s own `KEYS`
+ * doc records the regression that bit the predecessor when a detail key nested under its list: every
+ * save silently fired 3 extra background requests because invalidating the list also invalidated the
+ * editor's own currently-open read. Fixed second-array-element ("list" vs "detail") rather than
+ * nesting keeps `KEYS.list`'s invalidation from ever touching an open `KEYS.form(id)`/
+ * `KEYS.submissionDetail(...)` read, regardless of what `id` happens to be.
  */
+export const KEYS = {
+  list: ["forms", "list"] as QueryKey,
+  form: (id: string): QueryKey => ["forms", "detail", id],
+  submissionsList: (formId: string): QueryKey => ["form-submissions", "list", formId],
+  submissionDetail: (formId: string, submissionId: string): QueryKey => [
+    "form-submissions",
+    "detail",
+    formId,
+    submissionId,
+  ],
+};
+
+/**
+ * `useFormEditor`'s error banner, extracted out of that hook (`refactor/fetch-query` complexity
+ * pass, 2026-08-12 — same reason `collections/rules.ts`'s `visibleEntryEditorError` was extracted:
+ * the hook's own precedence chain over four sources pushed it past the complexity ceiling).
+ *
+ * Precedence: an active write's own failure (update/create/status, in that order — mirrors
+ * `redirects/rules.ts`'s `firstWriteError` array-order precedence, since `update`/`status` can both
+ * apply to the SAME loaded form) always wins. The list-load failure only surfaces before the form
+ * has ever loaded — once `hasForm` is true, a later BACKGROUND refresh failure must not blank an
+ * editor the operator is actively using (same "a later failure must not erase what already
+ * rendered" guard `FormEditor.tsx`'s own file header already documents at the render layer; this is
+ * its data-layer half).
+ *
+ * @complexity Time/space: O(1) — four fixed checks, no iteration.
+ */
+export function visibleFormEditorError(params: {
+  updateError: Error | null;
+  createError: Error | null;
+  statusError: Error | null;
+  listError: Error | null;
+  hasForm: boolean;
+}): string | null {
+  // Two distinct fallback strings, matching the pre-migration `handleSave`/`handleStatusToggle`
+  // catch blocks verbatim ("save failed" vs "status update failed") — not one shared string.
+  if (params.updateError) return describeApiError(params.updateError, "save failed");
+  if (params.createError) return describeApiError(params.createError, "save failed");
+  if (params.statusError) return describeApiError(params.statusError, "status update failed");
+  if (params.hasForm) return null;
+  return params.listError ? describeApiError(params.listError, "failed to load form") : null;
+}
+
+/**
+ * `useFormsList`'s error banner: the row-toggle write's own failure outranks a background
+ * list-refresh failure, same precedence `redirects/rules.ts`'s `visibleRedirectsError` documents.
+ * Two sources only (not the three-plus that pushed `visibleFormEditorError`/`visibleTaxonomyError`
+ * out to `rules.ts`), kept here anyway rather than inlined so the hook body doesn't grow a nested
+ * ternary chain (`adapter.tanstack.tsx`'s `resolveFetchQueryStatus` doc explains why a flat
+ * extraction beats a nested ternary of the same branch count for the complexity gate).
+ *
+ * @complexity Time/space: O(1) — two fixed checks, no iteration.
+ */
+export function formsListError(params: { toggleError: Error | null; listError: Error | null; hasForms: boolean }): string | null {
+  if (params.toggleError) return describeApiError(params.toggleError, "failed to update form status");
+  if (params.hasForms) return null;
+  return params.listError ? describeApiError(params.listError, "failed to load forms") : null;
+}
 
 export const FIELD_TYPES = ["text", "email", "textarea", "checkbox"] as const;
 

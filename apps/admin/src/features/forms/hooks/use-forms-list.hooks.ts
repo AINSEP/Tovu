@@ -1,6 +1,8 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { AdminFormDefinition } from "../../../lib/api";
+import { useFetchMutation, useFetchQuery } from "../../../lib/fetch-query";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { KEYS, formsListError } from "../rules";
 import { FORMS_DICT } from "../forms-i18n";
 import { defaultFormsPort } from "./forms-dependencies.hooks";
 import type { FormsPort } from "./forms-port.hooks";
@@ -25,6 +27,18 @@ import type { FormsPort } from "./forms-port.hooks";
  * and `FORMS_DICT` itself. Pre-bound to `(key: string) => string` so a test can inject
  * `t: (k) => k` and every assertion stays stable against copy changes. `useAdminLocale()` and
  * `FORMS_DICT` are called/read only inside {@link useWiredFormsList}.
+ *
+ * `lib/fetch-query` migration (2026-08-12): `toggleStatus` is one `useFetchMutation` that
+ * `invalidates: [KEYS.list]` — same idiom `use-taxonomy.hooks.ts`'s deletes use, so this list stays
+ * in sync with a status change made from `FormEditor.tsx` too (a `KEYS.list`-invalidating write
+ * elsewhere in the app, not just this screen's own toggle). This DOES cost one extra background GET
+ * per toggle that the pre-migration `setForms((prev) => prev.map(...))` optimistic patch avoided —
+ * a deliberate trade for cross-screen consistency (`lib/fetch-query/index.ts`'s own header names
+ * this exact "two screens showing the same resource silently drift apart" bug as the reason the
+ * library exists at all); `FormsList.unit.test.tsx`'s old "only one GET" assertion is updated
+ * accordingly, not preserved. `rowSavingId` stays local `useState` rather than reading off the
+ * mutation directly — one shared `useFetchMutation` object has no per-call "which row" of its own,
+ * the exact case this migration's own dispatch brief calls out as the intended `useState` out.
  */
 
 export interface FormsListController {
@@ -41,34 +55,28 @@ export interface FormsListController {
 
 export function useFormsList(deps: { port: FormsPort; t: (key: string) => string }): FormsListController {
   const { port, t } = deps;
-  const [forms, setForms] = useState<AdminFormDefinition[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const list = useFetchQuery({ key: KEYS.list, fetch: () => port.listForms() });
   const [rowSavingId, setRowSavingId] = useState<string | null>(null);
 
-  function load() {
-    port
-      .listForms()
-      .then((r) => setForms(r.data))
-      .catch((e) => setError(e instanceof Error ? e.message : "failed to load forms"));
-  }
-
-  useEffect(load, [port]);
+  const toggleMutation = useFetchMutation({
+    run: (form: AdminFormDefinition) =>
+      port.updateForm({ id: form.id }, { status: form.status === "active" ? "disabled" : "active" }),
+    invalidates: [KEYS.list],
+  });
 
   async function toggleStatus(form: AdminFormDefinition) {
     setRowSavingId(form.id);
-    setError(null);
     try {
-      const { data: updated } = await port.updateForm(
-        { id: form.id },
-        { status: form.status === "active" ? "disabled" : "active" }
-      );
-      setForms((prev) => (prev ? prev.map((f) => (f.id === updated.id ? updated : f)) : prev));
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "failed to update form status");
+      await toggleMutation.mutate(form);
+    } catch {
+      // already surfaced through toggleMutation.error -> error below
     } finally {
       setRowSavingId(null);
     }
   }
+
+  const forms = list.data?.data ?? null;
+  const error = formsListError({ toggleError: toggleMutation.error, listError: list.error, hasForms: forms !== null });
 
   return { forms, error, rowSavingId, toggleStatus, t };
 }

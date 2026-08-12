@@ -450,8 +450,10 @@ function FormSubmissions({ formId, useFormSubmissionsHook = useWiredFormSubmissi
         submissionId={selectedId}
         onBack={() => setSelectedId(null)}
         onDeleted={() => {
+          // No `load()` call here anymore — `useFormSubmissionDetail`'s delete mutation now
+          // `invalidates: [KEYS.submissionsList(formId)]` itself, so the list refreshes on its own.
+          // This callback only owns the UI-navigation concern (back to the plain list).
           setSelectedId(null);
-          load();
         }}
         t={t}
       />
