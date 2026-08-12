@@ -20,19 +20,34 @@ import { createPortal } from "react-dom";
  * matter which side it opens on or what `z-index` it's given. A portal sidesteps the problem
  * entirely: the bubble is a sibling of `<body>`, not a descendant of whatever clipped/scrolling
  * container the trigger happens to live in, so "opens above the trigger" (the owner's actual
- * preference) is safe everywhere a future caller might sit, not just in ancestors with room to
- * spare — ThemeExplore.tsx's actual first use doesn't need it (its own header has no clipping
- * ancestor) but gets it for free at no extra cost.
+ * preference) is safe in ancestors with room to spare.
+ *
+ * "Opens above" is a preference, not an unconditional rule: `ABOVE_HEADROOM_PX` below is a floor on
+ * how much room has to exist above the icon before it's honored. Caught live once ThemeExplore.tsx
+ * became this component's first real caller, sitting only ~74px below the viewport top: the bubble
+ * (up to 3 short lines at its `max-width: 18rem`, `styles.css`) rendered with `top: -5px`, clipped
+ * against the browser window itself — not a clipping ANCESTOR (the portal already solved that), but
+ * the actual top of the viewport, which no ancestor-escaping trick can fix. `176` is a deliberately
+ * generous estimate of the bubble's own height (comfortably above the ~72px a 3-line label like
+ * ThemeExplore's actually measures at) chosen BEFORE the bubble exists in the DOM to measure — the
+ * portal only mounts once `open` is already true, so there's no real height to read at decision
+ * time, and a threshold with headroom to spare is safer than a tight one that still clips an
+ * unusually long label.
  */
+const ABOVE_HEADROOM_PX = 176;
+
 export function InfoTip(props: { label: string }) {
   const [open, setOpen] = useState(false);
+  const [placement, setPlacement] = useState<"above" | "below">("above");
   const [coords, setCoords] = useState({ top: 0, left: 0 });
   const iconRef = useRef<HTMLSpanElement>(null);
 
   const show = () => {
     const rect = iconRef.current?.getBoundingClientRect();
     if (!rect) return;
-    setCoords({ top: rect.top, left: rect.left + rect.width / 2 });
+    const nextPlacement = rect.top < ABOVE_HEADROOM_PX ? "below" : "above";
+    setPlacement(nextPlacement);
+    setCoords({ top: nextPlacement === "above" ? rect.top : rect.bottom, left: rect.left + rect.width / 2 });
     setOpen(true);
   };
   const hide = () => setOpen(false);
@@ -68,7 +83,7 @@ export function InfoTip(props: { label: string }) {
       {open
         ? createPortal(
             <span
-              className="info-tip-bubble"
+              className={placement === "below" ? "info-tip-bubble info-tip-bubble-below" : "info-tip-bubble"}
               role="presentation"
               aria-hidden="true"
               style={{ top: coords.top, left: coords.left }}
