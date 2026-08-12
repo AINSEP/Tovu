@@ -1,7 +1,8 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { usePageEditor } from "../hooks/use-page-editor.hooks";
+import { useWiredPageEditor, usePageEditor } from "../hooks/use-page-editor.hooks";
+import { createFakePageEditorPort } from "../hooks/page-editor-dependencies.hooks";
 
 /**
  * @file `usePageEditor` — regression coverage for a real data-loss bug found by external audit
@@ -13,16 +14,22 @@ import { usePageEditor } from "../hooks/use-page-editor.hooks";
  * Publish silently blanked the page's real content. Fixed by gating the HTML write on
  * `page.bodyFormat === "html"`.
  *
- * Follows the fetch-mocking harness `use-pages.unit.test.ts` established for this package (mock
- * global `fetch`, not the `api` module). `usePageEditor` also calls `useAdminLocale()`, which fires
- * its own fetch on mount racing `getPage`'s, and (Task 4, 2026-08-11) `getPresentation()` for the
- * template picker's `activeThemeTemplates` (unified 2026-08-11, was `activeThemePageTemplates`) —
- * the mount helper below queues the page response
+ * Two styles, same split `use-assistant-chats.unit.test.ts` uses. The original suite below still
+ * drives `useWiredPageEditor` with `fetch` stubbed (`use-pages.unit.test.ts`'s established harness),
+ * so it keeps covering the real client and `useAdminLocale()`'s racing fetch. `usePageEditor` also
+ * calls `useAdminLocale()`, which fires its own fetch on mount racing `getPage`'s, and (Task 4,
+ * 2026-08-11) `getPresentation()` for the template picker's `activeThemeTemplates` (unified
+ * 2026-08-11, was `activeThemePageTemplates`) — the mount helper below queues the page response
  * THREE times so whichever of the three fires first (and second, and third) still gets a valid
  * `Response` (both the locale hook and the presentation-shaped consumer are tolerant of the wrong
  * shape: the locale hook only reads a `values` key that won't be present and falls back, and
  * `availableTemplates` simply ends up `undefined` rather than `[]`, which nothing in these hook-level
  * tests reads `.length` off of).
+ *
+ * The `describe("injected port …")` block further down at the end of this file injects
+ * `createFakePageEditorPort` directly into `usePageEditor` — no `fetch` stub, no `useAdminLocale()`
+ * race to absorb — added by the `useWiredX` dependency-injection conversion (see
+ * `page-editor-port.hooks.ts`'s file header).
  */
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -81,7 +88,7 @@ async function mountLoaded(routeSlug: string, page: unknown) {
   fetchMock.mockResolvedValueOnce(jsonResponse({ post: page }));
   fetchMock.mockResolvedValueOnce(jsonResponse({ post: page }));
   fetchMock.mockResolvedValueOnce(jsonResponse({ post: page }));
-  const view = renderHook(() => usePageEditor(routeSlug));
+  const view = renderHook(() => useWiredPageEditor(routeSlug));
   await waitFor(() => expect(view.result.current.page).not.toBeNull());
   return view;
 }
@@ -254,5 +261,87 @@ describe("contentDirty (template-preview fix, 2026-08-11)", () => {
 
     expect(result.current.dirty).toBe(true);
     expect(result.current.contentDirty).toBe(false);
+  });
+});
+
+/**
+ * `useWiredX` dependency-injection conversion — `usePageEditor` driven directly against
+ * `createFakePageEditorPort`, a fake `navigate`, and a fake `t`, with NO `fetch` stub and no
+ * `useAdminLocale()` race to absorb (`locale` is passed straight in). Mirrors
+ * `use-redirects.hooks.unit.test.tsx`'s injected-port block, the reference this conversion follows.
+ */
+describe("injected port — usePageEditor with no fetch stub", () => {
+  function fakeDeps(overrides: { page: unknown; activeThemeTemplates?: string[] }) {
+    const port = createFakePageEditorPort({
+      page: overrides.page as Parameters<typeof createFakePageEditorPort>[0]["page"],
+      activeThemeTemplates: overrides.activeThemeTemplates,
+    });
+    const navigate = vi.fn();
+    const t = (locale: string, key: string) => `${locale}:${key}`;
+    return { port, navigate, t, locale: "en" };
+  }
+
+  it("loads the seeded page with zero fetch calls", async () => {
+    const deps = fakeDeps({ page: HTML_PAGE, activeThemeTemplates: ["blog-post.html"] });
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+    expect(result.current.title).toBe(HTML_PAGE.title);
+    expect(result.current.availableTemplates).toEqual(["blog-post.html"]);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("save() writes through the injected port, not lib/api", async () => {
+    const deps = fakeDeps({ page: HTML_PAGE });
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+
+    act(() => {
+      result.current.setTitle("Landing (via fake port)");
+      result.current.setHtml("<p>edited</p>");
+    });
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(deps.port.updatePageHtmlCalls).toEqual(["<p>edited</p>"]);
+    expect(deps.port.updatePostCalls).toEqual([
+      expect.objectContaining({ title: "Landing (via fake port)" }),
+    ]);
+    expect(result.current.message).toBe("en:Saved");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("remove() calls port.deletePage then the injected navigate", async () => {
+    const deps = fakeDeps({ page: HTML_PAGE });
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+
+    await act(async () => {
+      await result.current.remove();
+    });
+
+    expect(deps.port.deleteCalled).toBe(true);
+    expect(deps.navigate).toHaveBeenCalledWith("/pages");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("a save failure surfaces the injected t()'s message and never calls navigate", async () => {
+    const deps = fakeDeps({ page: HTML_PAGE });
+    deps.port.updatePageHtml = async () => {
+      throw new Error("boom");
+    };
+    const { result } = renderHook(() => usePageEditor("landing", deps));
+    await waitFor(() => expect(result.current.page).not.toBeNull());
+
+    act(() => {
+      result.current.setHtml("<p>will fail</p>");
+    });
+    await act(async () => {
+      await result.current.save();
+    });
+
+    expect(result.current.error).toBe("boom");
+    expect(deps.navigate).not.toHaveBeenCalled();
   });
 });
