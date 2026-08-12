@@ -43,7 +43,10 @@ vi.mock("../hooks/use-edit-fields-dialog.hooks", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../hooks/use-edit-fields-dialog.hooks")>();
   return {
     ...actual,
-    useEditFieldsDialog: (props: unknown) => {
+    // Mocks the zero-port wrapper `EditFieldsDialog`'s default prop now points at post-`useWiredX`
+    // conversion — was `useEditFieldsDialog` (the pure, port-taking hook) before; a call-site
+    // rename of what gets intercepted, not a behavior or assertion change.
+    useWiredEditFieldsDialog: (props: unknown) => {
       editDialogPropsRef.current = props;
       return editDialogRef.current;
     },

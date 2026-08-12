@@ -3,7 +3,7 @@ import { DataTable, RowMenu } from "@jini-ai/admin/react";
 import { contentTypeMenuItems, type LifecycleConfirmOp } from "./rules";
 import { useCollections } from "./hooks/use-collections.hooks";
 import { useNewContentTypeDialog } from "./hooks/use-new-content-type-dialog.hooks";
-import { useEditFieldsDialog } from "./hooks/use-edit-fields-dialog.hooks";
+import { useWiredEditFieldsDialog } from "./hooks/use-edit-fields-dialog.hooks";
 import { useLifecycleConfirmDialog } from "./hooks/use-lifecycle-confirm-dialog.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { COLLECTIONS_DICT } from "./collections-i18n";
@@ -164,7 +164,7 @@ export interface EditFieldsDialogProps {
   onSaved: () => void;
   onCancel: () => void;
   /** Dependency injection seam for tests — see `PostsProps.usePostsHook` for the convention. */
-  useEditFieldsDialogHook?: typeof useEditFieldsDialog;
+  useEditFieldsDialogHook?: typeof useWiredEditFieldsDialog;
   /** Translator closure — see `Collections()`'s own `t`. */
   t: (key: string) => string;
 }
@@ -173,7 +173,7 @@ function EditFieldsDialog({
   contentType,
   onSaved,
   onCancel,
-  useEditFieldsDialogHook = useEditFieldsDialog,
+  useEditFieldsDialogHook = useWiredEditFieldsDialog,
   t,
 }: EditFieldsDialogProps) {
   const { fields, updateField, removeField, addField, error, saving, submit } = useEditFieldsDialogHook({
