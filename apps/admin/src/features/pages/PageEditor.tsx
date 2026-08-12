@@ -8,7 +8,7 @@ import { navigate } from "../../lib/router";
 import { prettifyHtml } from "./lib/prettify-html";
 import {
   PAGE_PREVIEW_WIDTHS,
-  usePageEditor,
+  useWiredPageEditor,
   type PagePreviewDevice,
   type PageEditorView,
 } from "./hooks/use-page-editor.hooks";
@@ -38,7 +38,7 @@ export interface PageEditorProps {
   /** The page's slug, as it appears in the URL. Also accepts a legacy id — see `usePageEditor`. */
   slug: string;
   /** DI seam for tests — same convention as `Pages.tsx`'s `usePagesHook`. */
-  usePageEditorHook?: typeof usePageEditor;
+  usePageEditorHook?: typeof useWiredPageEditor;
 }
 
 const DEVICES: ReadonlyArray<{ key: PagePreviewDevice; label: string }> = [
@@ -135,7 +135,7 @@ function PageEditorHeader({
   );
 }
 
-export function PageEditor({ slug: routeSlug, usePageEditorHook = usePageEditor }: PageEditorProps) {
+export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEditor }: PageEditorProps) {
   const {
     page,
     error,

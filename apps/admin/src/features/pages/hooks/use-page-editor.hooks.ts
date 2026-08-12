@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 
-import { api, type AdminPost } from "../../../lib/api";
-import { navigate } from "../../../lib/router";
+import type { AdminPost } from "../../../lib/api";
+import { navigate as defaultNavigate } from "../../../lib/router";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
-import { t } from "../page-editor-i18n";
+import { t as defaultT } from "../page-editor-i18n";
+import { defaultPageEditorPort } from "./page-editor-dependencies.hooks";
+import type { PageEditorPort } from "./page-editor-port.hooks";
 
 /**
  * @file Everything the Pages EDITOR does, so `PageEditor.tsx` is only markup.
@@ -12,6 +14,13 @@ import { t } from "../page-editor-i18n";
  * with `features/posts`' `usePostEditor`: a Post is a Tiptap document and a Page is a bespoke HTML
  * one, they are edited through different endpoints with different concurrency semantics, and the
  * only thing the two screens have in common is the header chrome.
+ *
+ * `port`/`navigate`/`t`/`locale` are injected — see `page-editor-port.hooks.ts` — rather than
+ * reaching `lib/api`/`lib/router`/`page-editor-i18n`/`useAdminLocale()` directly, so a test can
+ * describe load/save/delete outcomes against `createFakePageEditorPort` instead of stubbing global
+ * `fetch`. `useWiredPageEditor` below is the zero-argument pair `PageEditor.tsx` actually mounts.
+ * `useAdminLocale()` itself is called only inside `useWiredPageEditor` — its resolved `locale`
+ * string is what gets injected, not the hook reference; see that function's own doc.
  */
 
 /** The three things the editor's main pane can show. Preview is the default — the HTML source is
@@ -86,6 +95,13 @@ export interface PageEditorController {
   deleting: boolean;
 }
 
+export interface PageEditorDependencies {
+  port: PageEditorPort;
+  navigate: (path: string) => void;
+  t: (locale: string, key: string) => string;
+  locale: string;
+}
+
 /**
  * `routeSlug` names what the URL actually carries: the page's slug, as read from the route (see
  * `panels.tsx`'s `/:slug` pattern). It doubles as a legacy id — the server-side lookup this feeds
@@ -93,9 +109,15 @@ export interface PageEditorController {
  * id-based bookmark still resolves. Every write below uses `page.id` (the real id from the loaded
  * record), never `routeSlug` directly — the slug in the URL can go stale if the page is renamed
  * elsewhere, but the id it resolved to at load time cannot.
+ *
+ * `port`/`navigate`/`t` are destructured out of `deps` once, rather than threaded as `deps.port`
+ * everywhere below — they are stable references in production (`useWiredPageEditor` always passes
+ * the same module-level singletons; only `locale` actually varies across renders), so `useCallback`
+ * dependency arrays can name them directly without an unstable-identity hazard, matching
+ * `redirects-dependencies.hooks.ts`'s "confirmed safe to leave port unmemoized" precedent.
  */
-export function usePageEditor(routeSlug: string): PageEditorController {
-  const locale = useAdminLocale();
+export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): PageEditorController {
+  const { port, navigate, t, locale } = deps;
   const [page, setPage] = useState<AdminPost | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -121,7 +143,7 @@ export function usePageEditor(routeSlug: string): PageEditorController {
     // Loaded together, same reasoning as `usePostEditor`'s identical `Promise.all` — the picker
     // needs `activeThemeTemplates` in hand before it can render anything meaningful, and a fast
     // page-load racing a slow presentation-settings load would otherwise flash an empty picker.
-    Promise.all([api.getPage(routeSlug), api.getPresentation()])
+    Promise.all([port.getPage(routeSlug), port.getPresentation()])
       .then(([{ post }, { activeThemeTemplates }]) => {
         if (cancelled) return;
         setAvailableTemplates(activeThemeTemplates);
@@ -150,7 +172,14 @@ export function usePageEditor(routeSlug: string): PageEditorController {
     return () => {
       cancelled = true;
     };
-  }, [routeSlug]);
+    // `t`/`locale` are deliberately not listed — that gap predates this conversion (the effect only
+    // ever ran off `routeSlug` even when `locale` came from `useAdminLocale()` directly) and fixing
+    // it is a behavior change outside this refactor's scope. `port` IS added: unlike the old `api`
+    // import, it is now a function-scoped value ESLint's exhaustive-deps rule can see, and it is
+    // referentially stable in production (`useWiredPageEditor` always passes the same module-level
+    // singleton), so adding it changes nothing about when this effect re-runs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [routeSlug, port]);
 
   const save = useCallback(
     async (nextStatus?: "draft" | "published") => {
@@ -175,7 +204,7 @@ export function usePageEditor(routeSlug: string): PageEditorController {
         // second one can create the html row. Body first: if the metadata write fails on a slug
         // conflict, the operator's actual content is already safe.
         if (canSaveHtml) {
-          await api.updatePageHtml(page.id, html);
+          await port.updatePageHtml(page.id, html);
         }
         // `updatePost` (`features/post/post.ts`'s own `updatePost`) requires `bodyJson` to be a JSON
         // object for any Page NOT already in `html` format — it's meaningless for an html-format row
@@ -185,7 +214,7 @@ export function usePageEditor(routeSlug: string): PageEditorController {
         // it unchanged satisfies the requirement without touching the real content — the alternative
         // (omitting it) throws "bodyJson must be a JSON object" and leaves title/slug/status stuck
         // un-editable for every doc-format Page, which is worse than a no-op round-trip.
-        const { post: updated } = await api.updatePost(
+        const { post: updated } = await port.updatePost(
           { id: page.id },
           { title, slug, status: statusToWrite, templateChoice, ...(canSaveHtml ? {} : { bodyJson: page.bodyJson }) }
         );
@@ -209,7 +238,7 @@ export function usePageEditor(routeSlug: string): PageEditorController {
         setSaving(false);
       }
     },
-    [page, html, title, slug, status, templateChoice, locale]
+    [page, html, title, slug, status, templateChoice, locale, port, t]
   );
 
   const remove = useCallback(async () => {
@@ -217,14 +246,14 @@ export function usePageEditor(routeSlug: string): PageEditorController {
     setDeleting(true);
     setError(null);
     try {
-      await api.deletePage(page.id);
+      await port.deletePage(page.id);
       navigate("/pages");
     } catch (e) {
       setError(e instanceof Error ? e.message : t(locale, "failed to delete page"));
       setDeleting(false);
       setConfirmingDelete(false);
     }
-  }, [page, locale]);
+  }, [page, locale, port, navigate, t]);
 
   // Template-preview fix (2026-08-11) — see `contentDirty`'s doc on `PageEditorController`.
   const contentDirty =
@@ -270,4 +299,19 @@ export function usePageEditor(routeSlug: string): PageEditorController {
     setConfirmingDelete,
     deleting,
   };
+}
+
+/**
+ * Binds the real `/api/.../pages` client, `lib/router`'s `navigate`, and `page-editor-i18n`'s `t` —
+ * see `page-editor-dependencies.hooks.ts`.
+ *
+ * The zero-argument half of the `useX(dependencies)` / `useWiredX()` pair, so `PageEditor.tsx`
+ * composes this and a test composes {@link usePageEditor} with `createFakePageEditorPort`.
+ * `useAdminLocale()` is called here, not injected as a hook reference — its resolved `locale` value
+ * is what `usePageEditor` actually consumes (every internal use is `t(locale, ...)`), and there is no
+ * precedent in this codebase for injecting a hook reference instead of the value it resolves to.
+ */
+export function useWiredPageEditor(routeSlug: string): PageEditorController {
+  const locale = useAdminLocale();
+  return usePageEditor(routeSlug, { port: defaultPageEditorPort, navigate: defaultNavigate, t: defaultT, locale });
 }
