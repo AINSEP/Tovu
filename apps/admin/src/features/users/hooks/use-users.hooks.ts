@@ -1,8 +1,9 @@
-import { useEffect, useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
+import { useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
 
 import { api, type AdminIdentityUser, type AdminPolicy, type AdminRole } from "../../../lib/api";
+import { useFetchMutation, useFetchQuery } from "../../../lib/fetch-query";
 import { useAsyncAction } from "../../../hooks/use-async-action.hooks";
-import { describeApiError } from "../rules";
+import { describeApiError, KEYS } from "../rules";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { passwordResetNotice, t } from "../users-i18n";
 
@@ -38,6 +39,20 @@ import { passwordResetNotice, t } from "../users-i18n";
  * which takes `locale` directly) on the return value adds no new fetch — `Users.tsx` used to call
  * `useAdminLocale()` a second time and rebuild its own `translateUsers(locale, key)` closure,
  * entirely redundant with the resolution this hook was already doing internally.
+ *
+ * `lib/fetch-query` migration (2026-08-12): the combined users+roles+policies read is one
+ * `useFetchQuery` keyed on `KEYS.list`; every write below routes its actual API call through a
+ * `useFetchMutation` that `invalidates: [KEYS.list]` instead of the `action`/handler body calling
+ * `reload()` by hand — except `resetPasswordMutation`, which never called `reload()` either (a
+ * password reset doesn't change anything the users table shows). `useAsyncAction` (`createUser`/
+ * `resetPassword` below) keeps owning the busy/error UI state exactly as before — this migration
+ * only changes what runs INSIDE its `action` callback, not the primitive itself, which is shared
+ * with other screens and has no fetch-query concern of its own. `grantSaving`/`grantError`/
+ * `toggleSavingId`/`toggleError` stay hand-rolled for the same reason `use-roles.hooks.ts`'s
+ * `rowSavingId`/`rowError` do: each is shared across MULTIPLE independent mutations, and a single
+ * mutation's own `status`/`error` has no way to carry "which row/action this particular call was
+ * for". `emailSaving` is the one exception — it already tracked exactly one mutation 1:1 before this
+ * migration, so it now derives from `updateEmailMutation.status` directly.
  */
 
 export interface UsersController {
@@ -116,29 +131,28 @@ export interface UsersController {
   locale: string;
 }
 
-/** The shape `onAssignRole`/`onAttachPolicy`/`onSaveEmail` all repeat: set the shared
- *  `grantSaving`/`grantError` pair, run one call, do a success-only side effect, reload, and clear
- *  saving in a `finally` — the "whole-hook" complexity view (brief §2) rolls every closure inside
- *  a hook into one score, so three near-identical 10-line blocks count against `useUsers` even
- *  though `grantError`/`grantSaving` are deliberately NOT a fit for `useAsyncAction` (see that
- *  file's own header: shared across three handlers on purpose, not one action's own slot).
- *  Reproducing the shared-state shape as a local top-level helper — rather than importing the
- *  generic primitive — collapses the three call sites without forcing that mismatch onto them.
- *  `onSuccess` is a no-op for `onSaveEmail`, which has nothing else to clear on success. */
+/** The shape `onAssignRole`/`onAttachPolicy` both repeat: set the shared `grantSaving`/`grantError`
+ *  pair, run one mutation, do a success-only side effect, and clear saving in a `finally` — the
+ *  "whole-hook" complexity view (brief §2) rolls every closure inside a hook into one score, so two
+ *  near-identical blocks count against `useUsers` even though `grantError`/`grantSaving` are
+ *  deliberately NOT a fit for `useAsyncAction` (see that file's own header: shared across three
+ *  handlers on purpose, not one action's own slot — `onSaveEmail` is the third, kept separate below
+ *  since it tracks its OWN `emailSaving`). Reproducing the shared-state shape as a local top-level
+ *  helper — rather than importing the generic primitive — collapses the two call sites without
+ *  forcing that mismatch onto them. `mutate` itself `invalidates: [KEYS.list]`, replacing the
+ *  pre-migration `reload()` call this helper used to make explicitly. */
 async function runGrantMutation(
-  action: () => Promise<unknown>,
+  mutate: () => Promise<unknown>,
   onSuccess: () => void,
   setGrantSaving: Dispatch<SetStateAction<boolean>>,
   setGrantError: Dispatch<SetStateAction<string | null>>,
-  reload: () => Promise<void>,
   describeError: (e: unknown) => string,
 ): Promise<void> {
   setGrantSaving(true);
   setGrantError(null);
   try {
-    await action();
+    await mutate();
     onSuccess();
-    await reload();
   } catch (e) {
     setGrantError(describeError(e));
   } finally {
@@ -149,28 +163,56 @@ async function runGrantMutation(
 export function useUsers(): UsersController {
   const locale = useAdminLocale();
   const boundT = (key: string): string => t(locale, key);
-  const [users, setUsers] = useState<AdminIdentityUser[] | null>(null);
-  const [roles, setRoles] = useState<AdminRole[] | null>(null);
-  const [policies, setPolicies] = useState<AdminPolicy[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+
+  const list = useFetchQuery({
+    key: KEYS.list,
+    fetch: async () => {
+      const [u, r, p] = await Promise.all([api.listUsers(), api.listRoles(), api.listPolicies()]);
+      return { users: u.users, roles: r.roles, policies: p.policies };
+    },
+  });
+  const users = list.data?.users ?? null;
+  const roles = list.data?.roles ?? null;
+  const policies = list.data?.policies ?? null;
+  const error = list.error ? describeApiError(list.error, t(locale, "failed to load users")) : null;
 
   const [formOpen, setFormOpen] = useState(false);
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const createUser = useAsyncAction();
+  const createUserMutation = useFetchMutation({
+    run: (input: { username: string; password: string; email: string | undefined }) =>
+      api.createUser({ username: input.username, password: input.password }, { email: input.email }),
+    invalidates: [KEYS.list],
+  });
 
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [pendingRoleId, setPendingRoleId] = useState("");
   const [pendingPolicyId, setPendingPolicyId] = useState("");
   const [grantSaving, setGrantSaving] = useState(false);
   const [grantError, setGrantError] = useState<string | null>(null);
+  const assignRoleMutation = useFetchMutation({
+    run: (input: { principalId: string; roleId: string }) => api.assignRole(input),
+    invalidates: [KEYS.list],
+  });
+  const attachPolicyMutation = useFetchMutation({
+    run: (input: { principalId: string; policyId: string }) => api.attachPolicy(input),
+    invalidates: [KEYS.list],
+  });
 
   const [editEmail, setEditEmail] = useState("");
-  const [emailSaving, setEmailSaving] = useState(false);
+  const updateEmailMutation = useFetchMutation({
+    run: (input: { principalId: string; email: string }) => api.updateUser({ principalId: input.principalId }, { email: input.email }),
+    invalidates: [KEYS.list],
+  });
   const [toggleSavingId, setToggleSavingId] = useState<string | null>(null);
   const [toggleError, setToggleError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const toggleStatusMutation = useFetchMutation({
+    run: (user: AdminIdentityUser) => (user.status === "active" ? api.disableUser(user.principalId) : api.enableUser(user.principalId)),
+    invalidates: [KEYS.list],
+  });
 
   // Disable now confirms via a `RowMenu` item -> `ConfirmDialog` modal (replacing the in-place
   // two-click `ConfirmButton`, which has no menu-item equivalent — same migration Posts.tsx/
@@ -184,31 +226,20 @@ export function useUsers(): UsersController {
   const [resetPasswordFor, setResetPasswordFor] = useState<AdminIdentityUser | null>(null);
   const [newPassword, setNewPassword] = useState("");
   const resetPassword = useAsyncAction();
-
-  function reload(): Promise<void> {
-    return Promise.all([api.listUsers(), api.listRoles(), api.listPolicies()])
-      .then(([u, r, p]) => {
-        setUsers(u.users);
-        setRoles(r.roles);
-        setPolicies(p.policies);
-      })
-      .catch((e) => setError(describeApiError(e, t(locale, "failed to load users"))));
-  }
-
-  useEffect(() => {
-    void reload();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // No `invalidates` — matches the pre-migration `confirmResetPassword`, which never called
+  // `reload()` either (a password reset changes nothing the users table shows).
+  const resetPasswordMutation = useFetchMutation({
+    run: (input: { principalId: string; password: string }) => api.resetUserPassword(input),
+  });
 
   async function onCreate(e: FormEvent) {
     e.preventDefault();
     await createUser.run(async () => {
-      await api.createUser({ username, password }, { email: email || undefined });
+      await createUserMutation.mutate({ username, password, email: email || undefined });
       setUsername("");
       setEmail("");
       setPassword("");
       setFormOpen(false);
-      await reload();
     }, (e) => describeApiError(e, t(locale, "failed to create user")));
   }
 
@@ -223,11 +254,10 @@ export function useUsers(): UsersController {
   async function onAssignRole(principalId: string) {
     if (!pendingRoleId) return;
     await runGrantMutation(
-      () => api.assignRole({ principalId, roleId: pendingRoleId }),
+      () => assignRoleMutation.mutate({ principalId, roleId: pendingRoleId }),
       () => setPendingRoleId(""),
       setGrantSaving,
       setGrantError,
-      reload,
       (e) => describeApiError(e, t(locale, "failed to assign role")),
     );
   }
@@ -235,11 +265,10 @@ export function useUsers(): UsersController {
   async function onAttachPolicy(principalId: string) {
     if (!pendingPolicyId) return;
     await runGrantMutation(
-      () => api.attachPolicy({ principalId, policyId: pendingPolicyId }),
+      () => attachPolicyMutation.mutate({ principalId, policyId: pendingPolicyId }),
       () => setPendingPolicyId(""),
       setGrantSaving,
       setGrantError,
-      reload,
       (e) => describeApiError(e, t(locale, "failed to attach policy")),
     );
   }
@@ -247,19 +276,18 @@ export function useUsers(): UsersController {
   // `onSaveEmail` was left out of the `runGrantMutation` fold above on purpose: it tracks its OWN
   // `emailSaving` flag rather than the shared `grantSaving` `onAssignRole`/`onAttachPolicy` use, so
   // routing it through the same helper would mean passing a no-op in place of `setGrantSaving` —
-  // extraction for the sake of a shared call site, not a shared shape. Left hand-rolled.
+  // extraction for the sake of a shared call site, not a shared shape. Left hand-rolled; `emailSaving`
+  // now derives from `updateEmailMutation.status` since (unlike `grantSaving`) it was already this
+  // one mutation's own dedicated flag.
   async function onSaveEmail(principalId: string) {
-    setEmailSaving(true);
     setGrantError(null);
     try {
-      await api.updateUser({ principalId }, { email: editEmail });
-      await reload();
+      await updateEmailMutation.mutate({ principalId, email: editEmail });
     } catch (e) {
       setGrantError(describeApiError(e, t(locale, "failed to update email")));
-    } finally {
-      setEmailSaving(false);
     }
   }
+  const emailSaving = updateEmailMutation.status === "pending";
 
   /** Opens the reset-password dialog for `user` — the `RowMenu` item's `onSelect`. Guards against
    *  opening a second one while a toggle or a previous reset is still in flight, same discipline
@@ -278,7 +306,7 @@ export function useUsers(): UsersController {
     // reason; there's nothing sensitive left on screen once they retry or cancel. `resetPasswordFor`/
     // `newPassword` are therefore only cleared in the success path below, never as a `finally`.
     await resetPassword.run(async () => {
-      await api.resetUserPassword({ principalId: resetPasswordFor.principalId, password: newPassword });
+      await resetPasswordMutation.mutate({ principalId: resetPasswordFor.principalId, password: newPassword });
       setNotice(passwordResetNotice(locale, resetPasswordFor.username));
       setResetPasswordFor(null);
       setNewPassword("");
@@ -289,12 +317,7 @@ export function useUsers(): UsersController {
     setToggleSavingId(user.principalId);
     setToggleError(null);
     try {
-      if (user.status === "active") {
-        await api.disableUser(user.principalId);
-      } else {
-        await api.enableUser(user.principalId);
-      }
-      await reload();
+      await toggleStatusMutation.mutate(user);
     } catch (e) {
       setToggleError(describeApiError(e, t(locale, "failed to change status")));
     } finally {

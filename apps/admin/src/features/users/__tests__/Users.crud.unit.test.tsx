@@ -2,6 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { FetchQueryProvider } from "../../../lib/fetch-query";
 import { Users } from "../Users";
 
 /**
@@ -9,6 +10,9 @@ import { Users } from "../Users";
  * "Manage" panel's assign-role/attach-policy/save-email flows. `Users.unit.test.tsx` already pins
  * the `RowMenu` rollout (Manage/Disable/Enable/Reset password); this file targets the rest of the
  * screen, which was still 39.4% covered (rank #10 by risk) after that pass.
+ *
+ * `Users` has no injectable hook seam used here, so every `render(<Users />)` below needs a
+ * `FetchQueryProvider` ancestor (2026-08-12, `lib/fetch-query` migration).
  */
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -55,13 +59,13 @@ afterEach(() => {
 describe("loading, error, and empty states", () => {
   it("shows a loading placeholder before users/roles/policies resolve", () => {
     fetchMock.mockReturnValue(new Promise(() => {})); // never resolves
-    render(<Users />);
+    render(<FetchQueryProvider><Users /></FetchQueryProvider>);
     expect(screen.getByText("Loading users…")).toBeInTheDocument();
   });
 
   it("shows the error message instead of the table when the initial load fails", async () => {
     fetchMock.mockRejectedValueOnce(new Error("network down"));
-    render(<Users />);
+    render(<FetchQueryProvider><Users /></FetchQueryProvider>);
     expect(await screen.findByText("network down")).toBeInTheDocument();
   });
 
@@ -70,7 +74,7 @@ describe("loading, error, and empty states", () => {
       .mockResolvedValueOnce(jsonResponse({ users: [] }))
       .mockResolvedValueOnce(jsonResponse({ roles: [] }))
       .mockResolvedValueOnce(jsonResponse({ policies: [] }));
-    render(<Users />);
+    render(<FetchQueryProvider><Users /></FetchQueryProvider>);
     expect(await screen.findByText("No users yet.")).toBeInTheDocument();
   });
 });
@@ -82,7 +86,7 @@ describe("New user form", () => {
       .mockResolvedValueOnce(jsonResponse({ users: [] }))
       .mockResolvedValueOnce(jsonResponse({ roles: [] }))
       .mockResolvedValueOnce(jsonResponse({ policies: [] }));
-    render(<Users />);
+    render(<FetchQueryProvider><Users /></FetchQueryProvider>);
 
     await screen.findByText("No users yet.");
     expect(screen.queryByLabelText("Username")).not.toBeInTheDocument();
@@ -104,7 +108,7 @@ describe("New user form", () => {
       .mockResolvedValueOnce(jsonResponse({ users: [ACTIVE_USER] })) // reload
       .mockResolvedValueOnce(jsonResponse({ roles: [ROLE] }))
       .mockResolvedValueOnce(jsonResponse({ policies: [POLICY] }));
-    render(<Users />);
+    render(<FetchQueryProvider><Users /></FetchQueryProvider>);
 
     await screen.findByText("No users yet.");
     await user.click(screen.getByRole("button", { name: "New user" }));
@@ -129,7 +133,7 @@ describe("New user form", () => {
       .mockResolvedValueOnce(jsonResponse({ roles: [] }))
       .mockResolvedValueOnce(jsonResponse({ policies: [] }))
       .mockReturnValueOnce(new Promise(() => {})); // create POST never resolves
-    render(<Users />);
+    render(<FetchQueryProvider><Users /></FetchQueryProvider>);
 
     await screen.findByText("No users yet.");
     await user.click(screen.getByRole("button", { name: "New user" }));
@@ -147,7 +151,7 @@ describe("New user form", () => {
       .mockResolvedValueOnce(jsonResponse({ roles: [] }))
       .mockResolvedValueOnce(jsonResponse({ policies: [] }))
       .mockResolvedValueOnce(jsonResponse({ error: "RESOURCE_CONFLICT", code: "RESOURCE_CONFLICT" }, 409));
-    render(<Users />);
+    render(<FetchQueryProvider><Users /></FetchQueryProvider>);
 
     await screen.findByText("No users yet.");
     await user.click(screen.getByRole("button", { name: "New user" }));
@@ -176,7 +180,7 @@ describe("Manage panel — assign role / attach policy / save email", () => {
       .mockResolvedValueOnce(jsonResponse({ users: [{ ...ACTIVE_USER, roleIds: ["r1"] }] })) // reload
       .mockResolvedValueOnce(jsonResponse({ roles: [ROLE] }))
       .mockResolvedValueOnce(jsonResponse({ policies: [] }));
-    render(<Users />);
+    render(<FetchQueryProvider><Users /></FetchQueryProvider>);
 
     const panel = await openManagePanel(user);
     await user.selectOptions(within(panel).getByRole("combobox", { name: /assign role/i }), "r1");
@@ -195,7 +199,7 @@ describe("Manage panel — assign role / attach policy / save email", () => {
       .mockResolvedValueOnce(jsonResponse({ users: [ACTIVE_USER] }))
       .mockResolvedValueOnce(jsonResponse({ roles: [ROLE] }))
       .mockResolvedValueOnce(jsonResponse({ policies: [] }));
-    render(<Users />);
+    render(<FetchQueryProvider><Users /></FetchQueryProvider>);
 
     const panel = await openManagePanel(user);
     expect(within(panel).getByRole("button", { name: "Assign" })).toBeDisabled();
@@ -211,7 +215,7 @@ describe("Manage panel — assign role / attach policy / save email", () => {
       .mockResolvedValueOnce(jsonResponse({ users: [{ ...ACTIVE_USER, policyIds: ["p1"] }] })) // reload
       .mockResolvedValueOnce(jsonResponse({ roles: [] }))
       .mockResolvedValueOnce(jsonResponse({ policies: [POLICY] }));
-    render(<Users />);
+    render(<FetchQueryProvider><Users /></FetchQueryProvider>);
 
     const panel = await openManagePanel(user);
     await user.selectOptions(within(panel).getByRole("combobox", { name: /attach policy/i }), "p1");
@@ -228,7 +232,7 @@ describe("Manage panel — assign role / attach policy / save email", () => {
       .mockResolvedValueOnce(jsonResponse({ roles: [ROLE] }))
       .mockResolvedValueOnce(jsonResponse({ policies: [] }))
       .mockResolvedValueOnce(jsonResponse({ error: "cannot grant", code: "GRANT_EXCEEDS_ISSUER" }, 403));
-    render(<Users />);
+    render(<FetchQueryProvider><Users /></FetchQueryProvider>);
 
     const panel = await openManagePanel(user);
     await user.selectOptions(within(panel).getByRole("combobox", { name: /assign role/i }), "r1");
@@ -248,7 +252,7 @@ describe("Manage panel — assign role / attach policy / save email", () => {
       .mockResolvedValueOnce(jsonResponse({ users: [{ ...ACTIVE_USER, email: "new@example.com" }] })) // reload
       .mockResolvedValueOnce(jsonResponse({ roles: [] }))
       .mockResolvedValueOnce(jsonResponse({ policies: [] }));
-    render(<Users />);
+    render(<FetchQueryProvider><Users /></FetchQueryProvider>);
 
     const panel = await openManagePanel(user);
     const emailInput = within(panel).getByLabelText("Email") as HTMLInputElement;
@@ -268,7 +272,7 @@ describe("Disable failure", () => {
       .mockResolvedValueOnce(jsonResponse({ roles: [] }))
       .mockResolvedValueOnce(jsonResponse({ policies: [] }))
       .mockResolvedValueOnce(jsonResponse({ error: "cannot", code: "OWNER_REQUIRED" }, 409));
-    render(<Users />);
+    render(<FetchQueryProvider><Users /></FetchQueryProvider>);
 
     await user.click(await screen.findByRole("button", { name: 'Actions for user "alice"' }));
     await user.click(screen.getByRole("menuitem", { name: "Disable" }));
