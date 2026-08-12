@@ -529,6 +529,42 @@ section { padding: 96px 0; }
 .post-detail-body pre { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px 20px; overflow-x: auto; margin: 20px 0; }
 .post-detail-body pre code { border: none; background: none; padding: 0; }
 .post-detail-body img { max-width: 100%; border-radius: 10px; margin: 20px 0; }
+/* Rich-text capability CSS (2026-08-12) — the same `.post-detail-body` selectors
+   `basic/css/styles.css` carries for the 2026-08-11/-12 editor additions (highlight, table, task
+   list, YouTube embed, post mention); see
+   `ADS-memory/reports/findings/2026-08-12-theme-capability-css-gap.md` for the full inventory this is
+   the second worked example for (after `fuel`, which turned out to have a separate, deeper gap — no
+   template at all — so its CSS is correct but unreachable; THIS theme already reaches
+   `.post-detail-body` today, same as this file's own comment above states for the baseline rules, so
+   these rules are live the moment they ship).
+
+   Table cell borders/header background reuse `var(--border)`/`var(--surface)`, a clean 1:1 mapping —
+   same names `basic` uses. The `mark` highlight color is copied verbatim rather than mapped to a
+   token, same as `basic` itself and `fuel`'s own backfill: it is a deliberate, theme-independent
+   highlighter-yellow (see `basic`'s own comment), not a themed color.
+
+   Post-mention link — the one real judgement call, and the reason to read a theme's OWN comments
+   before reaching for the obvious token: this theme's `--accent` equals `--fg` in both modes (its own
+   comment two rules up: "monochrome design language (accent === fg, no hue)... no accent-tinted
+   blockquote/code, just border + surface contrast"), so `var(--accent)` here would be invisible
+   against ordinary text — not merely unthemed, actively wrong for THIS theme's stated design
+   language. Follows the SAME pattern this theme already uses to make blockquote/code stand out from
+   `.post-detail-body`'s own `color: var(--muted)` base: `var(--fg)` for contrast, weight for
+   emphasis, no accent. Underline deferred to `:hover` rather than always-on, same restraint `basic`'s
+   own mention rule documents ("the '@' it already carries as its own signal"). */
+.post-detail-body mark { background: #fef08a; color: #422006; border-radius: 3px; padding: 0 3px; }
+.post-detail-body table { width: 100%; border-collapse: collapse; margin: 24px 0; display: block; overflow-x: auto; }
+.post-detail-body th, .post-detail-body td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; vertical-align: top; }
+.post-detail-body th { background: var(--surface); font-weight: 600; }
+.post-detail-body ul[data-type="taskList"] { list-style: none; padding-left: 0; margin: 0 0 18px; }
+.post-detail-body li[data-type="taskItem"] { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 6px; }
+.post-detail-body li[data-type="taskItem"] > label { display: flex; align-items: center; margin-top: 0.35em; }
+.post-detail-body li[data-type="taskItem"] > div { flex: 1 1 auto; }
+.post-detail-body li[data-type="taskItem"] > div p { margin-bottom: 0; }
+.post-detail-body .youtube-embed { position: relative; width: 100%; aspect-ratio: 16 / 9; margin: 24px 0; border-radius: 10px; overflow: hidden; }
+.post-detail-body .youtube-embed iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.post-detail-body .post-mention { color: var(--fg); font-weight: 600; }
+.post-detail-body .post-mention:hover { text-decoration: underline; }
 
 /* ---------- Reveal animation base state ---------- */
 [data-reveal] { opacity: 1; }
