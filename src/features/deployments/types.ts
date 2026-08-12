@@ -95,9 +95,17 @@ export interface DeploymentRunRecord {
    * deleted target would silently drop the update instead of applying it.
    */
   readonly providerId: DeploymentProviderId;
-  readonly targetId: UUID;
-  readonly environmentId: UUID;
-  readonly releaseId: UUID;
+  /**
+   * `targetId`/`environmentId`/`releaseId` are nullable, backed by an `ON DELETE SET NULL` FK
+   * (`src/db/schema.ts`) rather than either a hard restrict or no FK at all: creation is still
+   * validated (a run cannot be inserted pointing at a target/environment/release that never
+   * existed), deletion of any of the three is still permitted, and the run row survives with its
+   * `providerId` + `providerRunRef` intact — exactly what the callback/poll resolution path needs,
+   * and nothing more.
+   */
+  readonly targetId: UUID | null;
+  readonly environmentId: UUID | null;
+  readonly releaseId: UUID | null;
   readonly status: DeploymentRunStatus;
   /** The provider's own identifier for this run. Opaque to Tovu; `null` until the provider accepts
    * the run (see `StartDeploymentRunResult`). The ONLY key an inbound callback or poll pass may use
