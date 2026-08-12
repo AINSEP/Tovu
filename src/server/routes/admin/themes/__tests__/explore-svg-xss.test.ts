@@ -172,3 +172,28 @@ test("FIXED: the header applies uniformly to the WHOLE mount, not an extension a
   // the "narrowed one side of an OR" trap d822d87 fell into: there is no allowlist here to narrow.
   assertScriptExecutionIsBlocked(served.headers);
 });
+
+test("FIXED (defense in depth): a SECOND path found while enumerating this class -- PUT into preview/ (hidden from the Explore file list, but never actually refused at write time) is now refused, matching the list filter's own intent", async (t) => {
+  const themesDir = makeThemesRoot();
+  const app = buildTestApp(themesDir);
+  const baseUrl = await startTestServer(app, t);
+
+  // `isGeneratedThemePath` (theme-files.ts) already excludes `preview/` from the Explore file LIST
+  // (explore.ts:426) on the grounds that it is generated build output, never real source. Before this
+  // fix, that exclusion was listing-only: PUT never checked it, so `preview/` was writable exactly
+  // like any other "asset" location -- and, since it is ALSO served raw by BOTH
+  // registerThemeStaticAssets (unscoped to any subpath) and registerThemePreviewStatic (mounted
+  // directly on a theme's preview/ folder), an .svg planted there was a THIRD, previously-undocumented
+  // instance of this same XSS class, independent of the ordinary-asset-folder one the other tests here
+  // cover. The CSP/nosniff fix above already closes the SERVE-side risk for this path regardless (see
+  // the mount-wide-policy test above); this test closes the WRITE-side inconsistency too, so the write
+  // gate and the list filter agree with each other again.
+  const put = await fetch(`${baseUrl}${BASE("authored")}/file`, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ path: "preview/evil.svg", content: "<svg><script>1</script></svg>" }),
+  });
+
+  assert.equal(put.status, 403, "preview/ is generated output and must be refused at write time, not merely hidden from the file list");
+  assert.equal(fs.existsSync(path.join(themesDir, "static", "authored", "preview", "evil.svg")), false);
+});
