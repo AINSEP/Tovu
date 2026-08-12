@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { describeApiError } from "../../../lib/api";
+import { useFetchMutation } from "../../../lib/fetch-query";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { t } from "../taxonomy-i18n";
+import { KEYS } from "../rules";
 import { defaultNewTaxonomyFormPort } from "./new-taxonomy-form-dependencies.hooks";
 import type { NewTaxonomyFormPort } from "./new-taxonomy-form-port.hooks";
 
@@ -16,6 +18,11 @@ import type { NewTaxonomyFormPort } from "./new-taxonomy-form-port.hooks";
  * directly, so a test can describe the create outcome against `createFakeNewTaxonomyFormPort`
  * instead of stubbing global `fetch`. `useWiredNewTaxonomyForm` below is the zero-argument pair
  * `Taxonomy.tsx` actually mounts.
+ *
+ * `lib/fetch-query` migration (2026-08-12): `createTaxonomy` is a `useFetchMutation` that
+ * `invalidates: [KEYS.list]` instead of the parent's `onCreated` calling `load()` by hand — same
+ * client-side-validation-vs-request-error precedence as `redirects`'s
+ * `use-import-redirects-form.hooks.ts`'s `error`.
  */
 
 export interface NewTaxonomyFormOptions {
@@ -39,28 +46,32 @@ export function useNewTaxonomyForm(
 ): NewTaxonomyFormController {
   const [name, setName] = useState("");
   const [hierarchical, setHierarchical] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
+
+  const createMutation = useFetchMutation({
+    run: (input: { name: string; hierarchical: boolean }) => port.createTaxonomy(input),
+    invalidates: [KEYS.list],
+  });
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) {
-      setError(t(locale, "Name is required."));
+      setValidationError(t(locale, "Name is required."));
       return;
     }
-    setSaving(true);
-    setError(null);
+    setValidationError(null);
     try {
-      await port.createTaxonomy({ name: name.trim(), hierarchical });
+      await createMutation.mutate({ name: name.trim(), hierarchical });
       setName("");
       setHierarchical(false);
       options.onCreated();
-    } catch (e) {
-      setError(describeApiError(e, t(locale, "Failed to create taxonomy")));
-    } finally {
-      setSaving(false);
+    } catch {
+      // already surfaced through createMutation.error -> error below
     }
   }
+
+  const saving = createMutation.status === "pending";
+  const error = validationError ?? (createMutation.error ? describeApiError(createMutation.error, t(locale, "Failed to create taxonomy")) : null);
 
   return { name, setName, hierarchical, setHierarchical, error, saving, submit };
 }
