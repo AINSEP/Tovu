@@ -1,4 +1,4 @@
-import { NewsletterCampaignNotFoundError } from "#src/newsletter/errors";
+import { NewsletterCampaignNotFoundError } from "#src/newsletter/index";
 import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond, toDataResponse } from "#src/server/http/admin/newsletter";
 import type { RouteRegistrar } from "../../types";
 import type { NewsletterRouteDeps } from "./deps";

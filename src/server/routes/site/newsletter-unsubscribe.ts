@@ -1,7 +1,7 @@
 import type { Express, Request, Response } from "express";
 
 import { processUnsubscribe } from "#src/newsletter/unsubscribe";
-import { NewsletterUnsubscribeTokenInvalidError } from "#src/newsletter/errors";
+import { NewsletterUnsubscribeTokenInvalidError } from "#src/newsletter/index";
 import { toPublicUnsubscribeDeps, type NewsletterPublicRouteDeps } from "./newsletter-deps";
 
 /**

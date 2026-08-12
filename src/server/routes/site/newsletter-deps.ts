@@ -19,7 +19,7 @@ import type {
   MembersConsentCapability,
   NewsletterConfirmationTokenRepoPort,
   NewsletterSubscriptionRepoPort,
-} from "#src/newsletter/ports";
+} from "#src/newsletter/index";
 import type { UnsubscribeDeps } from "#src/newsletter/unsubscribe";
 
 export interface NewsletterPublicRouteDeps {
