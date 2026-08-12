@@ -9,7 +9,7 @@
  * declarations, and PostgreSQL's tsvector/GIN equivalent is hand-authored. See the generator's
  * module doc.
  *
- * Tables: 63
+ * Tables: 73
  */
 import { sql } from "drizzle-orm";
 import { bigint, boolean, check, foreignKey, index, pgTable, primaryKey, text, uniqueIndex } from "drizzle-orm/pg-core";
@@ -134,6 +134,109 @@ export const changeSets = pgTable("change_sets", {
     uniqueIndex("idx_change_sets_idempotency").on(t.workspaceId, t.idempotencyKey),
   ]);
 
+export const commerceOrderItems = pgTable("commerce_order_items", {
+  id: text("id").primaryKey(),
+  workspaceId: text("workspace_id").notNull(),
+  orderId: text("order_id").notNull(),
+  priceId: text("price_id").notNull(),
+  productId: text("product_id").notNull(),
+  description: text("description").notNull(),
+  unitAmountCents: bigint("unit_amount_cents", { mode: "number" }).notNull(),
+  quantity: bigint("quantity", { mode: "number" }).notNull().default(1),
+  currency: text("currency").notNull(),
+  createdAt: text("created_at").notNull(),
+}, (t) => [
+    foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("restrict"),
+    foreignKey({ columns: [t.orderId], foreignColumns: [commerceOrders.id] }).onDelete("cascade"),
+    foreignKey({ columns: [t.priceId], foreignColumns: [commercePrices.id] }).onDelete("restrict"),
+    foreignKey({ columns: [t.productId], foreignColumns: [commerceProducts.id] }).onDelete("restrict"),
+    check("commerce_order_items_unit_amount_cents_check", sql`unit_amount_cents >= 0`),
+    check("commerce_order_items_quantity_check", sql`quantity > 0`),
+    index("idx_commerce_order_items_order").on(t.orderId),
+  ]);
+
+export const commerceOrders = pgTable("commerce_orders", {
+  id: text("id").primaryKey(),
+  workspaceId: text("workspace_id").notNull(),
+  memberId: text("member_id").notNull(),
+  status: text("status").notNull(),
+  currency: text("currency").notNull(),
+  totalAmountCents: bigint("total_amount_cents", { mode: "number" }).notNull(),
+  provider: text("provider").notNull(),
+  providerCustomerRef: text("provider_customer_ref"),
+  providerPaymentRef: text("provider_payment_ref"),
+  providerEventAt: text("provider_event_at"),
+  placedAt: text("placed_at").notNull(),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+  version: bigint("version", { mode: "number" }).notNull(),
+}, (t) => [
+    foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("restrict"),
+    foreignKey({ columns: [t.memberId], foreignColumns: [members.id] }).onDelete("restrict"),
+    check("commerce_orders_total_amount_cents_check", sql`total_amount_cents >= 0`),
+    check("commerce_orders_currency_check", sql`length(currency) = 3 AND currency = lower(currency)`),
+    check("commerce_orders_status_check", sql`status IN ('pending', 'paid', 'failed', 'canceled')`),
+    index("idx_commerce_orders_workspace_member").on(t.workspaceId, t.memberId),
+  ]);
+
+export const commercePrices = pgTable("commerce_prices", {
+  id: text("id").primaryKey(),
+  workspaceId: text("workspace_id").notNull(),
+  productId: text("product_id").notNull(),
+  unitAmountCents: bigint("unit_amount_cents", { mode: "number" }).notNull(),
+  currency: text("currency").notNull(),
+  billingInterval: text("billing_interval"),
+  status: text("status").notNull(),
+  createdAt: text("created_at").notNull(),
+  version: bigint("version", { mode: "number" }).notNull(),
+}, (t) => [
+    foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("restrict"),
+    foreignKey({ columns: [t.productId], foreignColumns: [commerceProducts.id] }).onDelete("restrict"),
+    check("commerce_prices_unit_amount_cents_check", sql`unit_amount_cents >= 0`),
+    check("commerce_prices_currency_check", sql`length(currency) = 3 AND currency = lower(currency)`),
+    check("commerce_prices_status_check", sql`status IN ('active', 'archived')`),
+    check("commerce_prices_billing_interval_check", sql`billing_interval IS NULL OR billing_interval IN ('month', 'year')`),
+    index("idx_commerce_prices_product").on(t.productId),
+  ]);
+
+export const commerceProducts = pgTable("commerce_products", {
+  id: text("id").primaryKey(),
+  workspaceId: text("workspace_id").notNull(),
+  name: text("name").notNull(),
+  slug: text("slug").notNull(),
+  kind: text("kind").notNull(),
+  status: text("status").notNull(),
+  description: text("description"),
+  grantsMemberTierId: text("grants_member_tier_id"),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+  version: bigint("version", { mode: "number" }).notNull(),
+}, (t) => [
+    foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("restrict"),
+    foreignKey({ columns: [t.workspaceId, t.grantsMemberTierId], foreignColumns: [memberTiers.workspaceId, memberTiers.id] }).onDelete("restrict"),
+    check("commerce_products_status_check", sql`status IN ('active', 'archived')`),
+    uniqueIndex("commerce_products_workspace_slug_unique").on(t.workspaceId, t.slug),
+  ]);
+
+export const commerceWebhookEvents = pgTable("commerce_webhook_events", {
+  id: text("id").primaryKey(),
+  workspaceId: text("workspace_id").notNull(),
+  provider: text("provider").notNull(),
+  eventId: text("event_id").notNull(),
+  eventType: text("event_type").notNull(),
+  eventOccurredAt: text("event_occurred_at").notNull(),
+  payloadJson: text("payload_json").notNull(),
+  status: text("status").notNull(),
+  receivedAt: text("received_at").notNull(),
+  processedAt: text("processed_at"),
+  lastError: text("last_error"),
+}, (t) => [
+    foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("restrict"),
+    check("commerce_webhook_events_status_check", sql`status IN ('received', 'applied', 'ignored', 'failed')`),
+    uniqueIndex("commerce_webhook_events_provider_event_unique").on(t.provider, t.eventId),
+    index("idx_commerce_webhook_events_claim").on(t.status, t.receivedAt),
+  ]);
+
 export const composioConfig = pgTable("composio_config", {
   workspaceId: text("workspace_id").primaryKey(),
   sealedKeyId: text("sealed_key_id"),
@@ -200,6 +303,75 @@ export const databaseWriteWatermark = pgTable("database_write_watermark", {
   value: bigint("value", { mode: "number" }).notNull().default(0),
   lastStampedAt: text("last_stamped_at"),
 });
+
+export const deploymentEnvironments = pgTable("deployment_environments", {
+  id: text("id").primaryKey(),
+  workspaceId: text("workspace_id").notNull(),
+  name: text("name").notNull(),
+  slug: text("slug").notNull(),
+  isProduction: bigint("is_production", { mode: "number" }).notNull(),
+  createdAt: text("created_at").notNull(),
+  version: bigint("version", { mode: "number" }).notNull().default(1),
+}, (t) => [
+    foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("restrict"),
+    check("deployment_environments_is_production_check", sql`is_production IN (0, 1)`),
+    uniqueIndex("idx_deployment_environments_workspace_slug").on(t.workspaceId, t.slug),
+  ]);
+
+export const deploymentRunEvents = pgTable("deployment_run_events", {
+  id: text("id").primaryKey(),
+  workspaceId: text("workspace_id").notNull(),
+  runId: text("run_id").notNull(),
+  at: text("at").notNull(),
+  level: text("level").notNull(),
+  message: text("message").notNull(),
+}, (t) => [
+    foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("restrict"),
+    foreignKey({ columns: [t.runId], foreignColumns: [deploymentRuns.id] }).onDelete("restrict"),
+    check("deployment_run_events_level_check", sql`level IN ('info', 'warning', 'error')`),
+    index("idx_deployment_run_events_run").on(t.runId, t.at),
+  ]);
+
+export const deploymentRuns = pgTable("deployment_runs", {
+  id: text("id").primaryKey(),
+  workspaceId: text("workspace_id").notNull(),
+  providerId: text("provider_id").notNull(),
+  targetId: text("target_id").notNull(),
+  environmentId: text("environment_id").notNull(),
+  releaseId: text("release_id").notNull(),
+  status: text("status").notNull(),
+  providerRunRef: text("provider_run_ref"),
+  reconciliation: text("reconciliation").notNull(),
+  requestedByPrincipalId: text("requested_by_principal_id").notNull(),
+  requestedAt: text("requested_at").notNull(),
+  startedAt: text("started_at"),
+  finishedAt: text("finished_at"),
+  errorSummary: text("error_summary"),
+  version: bigint("version", { mode: "number" }).notNull().default(1),
+}, (t) => [
+    foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("restrict"),
+    check("deployment_runs_status_check", sql`status IN ('queued', 'running', 'succeeded', 'failed', 'cancelled')`),
+    check("deployment_runs_reconciliation_check", sql`reconciliation IN ('poll', 'callback', 'manual')`),
+    uniqueIndex("idx_deployment_runs_provider_ref").on(t.providerId, t.providerRunRef),
+    index("idx_deployment_runs_workspace").on(t.workspaceId, t.requestedAt),
+  ]);
+
+export const deploymentTargets = pgTable("deployment_targets", {
+  id: text("id").primaryKey(),
+  workspaceId: text("workspace_id").notNull(),
+  environmentId: text("environment_id").notNull(),
+  providerId: text("provider_id").notNull(),
+  label: text("label").notNull(),
+  configJson: text("config_json").notNull(),
+  enabled: bigint("enabled", { mode: "number" }).notNull(),
+  createdAt: text("created_at").notNull(),
+  version: bigint("version", { mode: "number" }).notNull().default(1),
+}, (t) => [
+    foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("restrict"),
+    foreignKey({ columns: [t.environmentId], foreignColumns: [deploymentEnvironments.id] }).onDelete("restrict"),
+    check("deployment_targets_enabled_check", sql`enabled IN (0, 1)`),
+    index("idx_deployment_targets_workspace_env").on(t.workspaceId, t.environmentId),
+  ]);
 
 export const entries = pgTable("entries", {
   id: text("id").primaryKey(),
@@ -450,6 +622,7 @@ export const memberTiers = pgTable("member_tiers", {
   version: bigint("version", { mode: "number" }).notNull(),
 }, (t) => [
     uniqueIndex("member_tiers_workspace_slug_unique").on(t.workspaceId, t.slug),
+    uniqueIndex("member_tiers_workspace_id_unique").on(t.workspaceId, t.id),
   ]);
 
 export const members = pgTable("members", {
@@ -686,6 +859,24 @@ export const redirects = pgTable("redirects", {
 }, (t) => [
     index("idx_redirects_workspace_frompattern").on(t.workspaceId, t.fromPattern),
     index("idx_redirects_workspace_status").on(t.workspaceId, t.status),
+  ]);
+
+export const releases = pgTable("releases", {
+  id: text("id").primaryKey(),
+  workspaceId: text("workspace_id").notNull(),
+  label: text("label").notNull(),
+  sourceKind: text("source_kind").notNull(),
+  sourceRepoUrl: text("source_repo_url"),
+  sourceCommitSha: text("source_commit_sha"),
+  sourceUri: text("source_uri"),
+  sourceChecksum: text("source_checksum"),
+  createdByPrincipalId: text("created_by_principal_id").notNull(),
+  createdAt: text("created_at").notNull(),
+  version: bigint("version", { mode: "number" }).notNull().default(1),
+}, (t) => [
+    foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("restrict"),
+    check("releases_source_kind_check", sql`source_kind IN ('git-revision', 'external-artifact')`),
+    index("idx_releases_workspace_created").on(t.workspaceId, t.createdAt),
   ]);
 
 export const rolePolicies = pgTable("role_policies", {
