@@ -214,6 +214,60 @@ verified. Flag the template landmine for cleanup, not urgent).
 
 ---
 
+### Note — static asset serving re-judgment (priority #7): `068a4e2`'s call stands, one LOW info-disclosure note
+
+**Component:** `src/server/middleware/theme-static-assets.ts`, `src/themes/templated/*/templates/*.liquid`
+
+The dispatch asked me to independently re-judge `068a4e2`'s decision that making `templates/*.liquid`
+SOURCE web-fetchable (e.g. `/theme-assets/fashion-modern/templates/product.liquid`) is "an extension of
+an already-accepted exposure," not a new one. Re-derived the claim rather than trusting it:
+
+- **Content-type claim, re-verified:** `express.static`'s `send`/`mime-types` dependency has no MIME
+  entry for `.liquid`, so it serves as `application/octet-stream` (confirmed by the existing test,
+  `theme-static-assets.test.ts:133-149`, which asserts the content-type contains neither `text/html` nor
+  `javascript` nor `svg`). A direct GET cannot execute as a script or render as a document the way
+  Finding 1's `.svg`/`.html` case does — this really is a different risk class from Finding 1, not a
+  restatement of it.
+- **"Already-accepted exposure" claim, re-verified against the actual code, not just the commit
+  message:** `theme-static-assets.ts`'s mount was already unscoped to any subpath for the `static` tier
+  BEFORE this commit (`express.static(themeDir)` serves the whole folder — confirmed by reading the
+  pre-068a4e2 mount logic, unchanged by this commit) — so a static theme's own `pages/*.html`,
+  `build.sourceDir` framework source, etc. were already fetchable in full. Widening the SAME mechanism to
+  a second theme tier is genuinely the same exposure class extended, not a new one introduced.
+- **"Can a Liquid template leak secrets, internal paths, or another tenant's data?" — checked directly
+  against the actual template files, not assumed:** read all 7 `.liquid` files across both templated
+  themes (`storefront`, `fashion-modern`). No credentials, API keys, or connection strings in any of
+  them (grepped for `api[_-]?key|secret|password|token|bearer|private[_-]?key|-----BEGIN` across the
+  whole `src/themes/` tree — every hit is a UI label like a login form's "Password" field, not a real
+  secret). **"Another tenant's data" does not apply to this mount at all**: `builtInThemesDir()`
+  (`deps.ts:144`) resolves theme storage to one filesystem tree for the whole running process
+  (`TOVU_THEMES_DIR`, defaulting to the repo's own `src/themes/`), and `ContentRouteDeps.workspaceId` is
+  bound once at composition-root time — this codebase's v1 topology is one workspace per running
+  process/`content.db` (`deps.ts:494`'s own comment: *"siteId reuses workspaceId for v1's
+  single-workspace-per-content.db topology"*). Two DIFFERENT Tovu tenants, per the owner's "one website
+  should have nothing to do with another" rule, are two SEPARATE deployments/processes in this
+  architecture, not two rows sharing one running server — so there is no cross-tenant read available
+  through this one process's `/theme-assets/` mount today. (This is a materially different topology than
+  Finding 2/3's Agent Plugins layer, which explicitly designed for one process serving many
+  `ws/<workspaceId>/` trees — themes are not built that way.)
+
+**One LOW/UNPROVEN note:** the `.liquid` template comments themselves are unusually rich developer
+documentation (by design — this codebase writes evidence-heavy comments throughout) and several
+reference the Tovu codebase's OWN internal file paths and approximate line numbers (e.g.
+`fashion-modern/templates/product.liquid`'s header: *"Traced directly from `buildTemplateRenderData()`
+(src/server/http/site/render.ts ~L1572)"*). This is source-code-structure information disclosure —
+useful reconnaissance for an attacker mapping the codebase, though not a secret and not tenant data.
+Low severity, and arguably already implied by the product being extensible/inspectable by design; flagged
+for completeness since the brief specifically asked about "internal paths."
+
+**Verdict: `068a4e2`'s call stands.** Re-judged independently and reached the same conclusion for
+different, individually-verified reasons rather than accepting the prior session's stated justification
+at face value.
+
+**Human sign-off required:** No.
+
+---
+
 ### Note — commerce checkout + webhook (priority #6): price is server-computed, idempotency/ordering verified correct, signature verification honestly deferred
 
 **Component:** `src/features/commerce/checkout.ts`, `src/features/commerce/webhook-inbox.ts`,
