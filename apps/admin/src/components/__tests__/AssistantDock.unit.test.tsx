@@ -34,6 +34,7 @@ vi.mock("@jini-ai/chat/react", () => ({
     runContext?: () => { model?: string; frontendBindToken?: string };
     conversationId?: string;
     initialMessages?: unknown[];
+    composerSlots?: { discoveryGroups?: readonly unknown[] };
   }) => {
     chatPaneSpy(props);
     return (
@@ -81,6 +82,8 @@ vi.mock("../../lib/settings-refresh-bus", async (importOriginal) => {
   return { ...actual, publishSettingsRefresh: vi.fn() };
 });
 
+vi.mock("../../lib/router", () => ({ navigate: vi.fn() }));
+
 import { AssistantDock } from "../AssistantDock/AssistantDock";
 import {
   DEFAULT_EXECUTION_CONFIG,
@@ -90,6 +93,7 @@ import {
   saveExecutionConfig,
 } from "../../lib/execution-settings";
 import type { UseAssistantChats } from "../../hooks/use-assistant-chats.hooks";
+import { navigate } from "../../lib/router";
 import type { UseByokRuntime, UseExecutionConfig, UseLocalCliSelection } from "../AssistantDock/AssistantDock.hooks";
 
 const mockLoadExecutionConfig = vi.mocked(loadExecutionConfig);
@@ -182,6 +186,7 @@ beforeEach(() => {
   mockSaveExecutionConfig.mockReset().mockResolvedValue([]);
   mockCreateExecutionPort.mockReset().mockReturnValue({ listModels: vi.fn().mockResolvedValue([]) } as never);
   mockLoadAdminExecutionCredential.mockReset().mockResolvedValue(storedCredential(false));
+  vi.mocked(navigate).mockReset();
   chatPaneSpy.mockReset();
   consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 });
@@ -197,6 +202,49 @@ describe("AssistantDock", () => {
     // reintroduced around it (the `display:contents` regression this file's dispatch calls out)
     // would show up here as an extra element between `container` and the chat-pane div.
     expect(container.firstElementChild).toBe(screen.getByTestId("chat-pane"));
+  });
+
+  it("injects the source-backed plugin, Agent Plugin, skill, and MCP catalog into ChatPane", () => {
+    render(<AssistantDock useChats={() => fakeChats()} />);
+    const props = chatPaneSpy.mock.calls.at(-1)?.[0] as {
+      composerSlots: { discoveryGroups: Array<{ id: string; items: Array<{ id: string; kind: string }> }> };
+    };
+
+    expect(props.composerSlots.discoveryGroups.map((group) => group.id)).toEqual([
+      "regular-plugins",
+      "agent-plugins",
+      "skills",
+      "mcp",
+    ]);
+    expect(props.composerSlots.discoveryGroups.flatMap((group) => group.items.map((item) => item.id))).toEqual([
+      "regular-plugin:word-count",
+      "agent-plugin:ui-ux-design",
+      "skill:ui-ux-design",
+      "mcp:settings",
+    ]);
+    expect(props.composerSlots.discoveryGroups.flatMap((group) => group.items.map((item) => item.kind))).toEqual([
+      "plugin",
+      "agent-plugin",
+      "skill",
+      "mcp",
+    ]);
+  });
+
+  it("routes the truthful MCP navigation command to existing External MCP settings", () => {
+    render(<AssistantDock useChats={() => fakeChats()} />);
+    const props = chatPaneSpy.mock.calls.at(-1)?.[0] as {
+      composerSlots: {
+        discoveryGroups: Array<{ items: Array<{ id: string }> }>;
+        onDiscoverySelect: (selection: { item: { id: string }; source: "slash" }) => void;
+      };
+    };
+    const mcpItem = props.composerSlots.discoveryGroups.flatMap((group) => group.items)
+      .find((item) => item.id === "mcp:settings");
+
+    expect(mcpItem).toEqual(expect.objectContaining({ id: "mcp:settings" }));
+    expect(mcpItem).not.toHaveProperty("argumentHint");
+    props.composerSlots.onDiscoverySelect({ item: mcpItem!, source: "slash" });
+    expect(navigate).toHaveBeenCalledWith("/settings?tab=external-mcp");
   });
 
   it("wires executionMode/apiModeAvailable off the loaded config, not a hardcoded default", async () => {

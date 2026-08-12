@@ -9,6 +9,7 @@ import {
   registerExtEventRenderer,
   registerMcpUiSurfaceRenderer,
   type ChatPaneAgent,
+  type ComposerDiscoverySelection,
   type FrontendSessionBridge,
 } from "@jini-ai/chat/react";
 import type { ChatMessage } from "@jini-ai/chat/core";
@@ -16,10 +17,15 @@ import type { ChatMessage } from "@jini-ai/chat/core";
 import { createA2uiActionPoster } from "../../lib/a2ui-action-poster";
 import { createTovuAssistantTransport } from "../../lib/assistant-transport";
 import { publishSettingsRefresh } from "../../lib/settings-refresh-bus";
+import { navigate } from "../../lib/router";
 import { hasUsableAdminKey } from "../../lib/execution-settings";
 import { useWiredAssistantChats, type UseAssistantChats } from "../../hooks/use-assistant-chats.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { ASSISTANT_DOCK_DICT, createChatI18nAdapter } from "./assistant-dock-i18n";
+import {
+  TOVU_COMPOSER_DISCOVERY_GROUPS,
+  resolveTovuComposerDiscoveryRoute,
+} from "../../features/plugins/agent-plugin-catalog";
 import "../../styles/assistant.css";
 // The runtime picker's BYOK model row renders `@jini-ai/ui`'s `SearchableModelSelect`, whose
 // styles (including the body-portaled `.jini-select-menu`) live in this sheet. The settings
@@ -261,6 +267,10 @@ export function AssistantDock({
     [],
   );
   const chats = useChats();
+  const handleComposerDiscoverySelect = useCallback((selection: ComposerDiscoverySelection) => {
+    const route = resolveTovuComposerDiscoveryRoute(selection.item.id);
+    if (route) navigate(route);
+  }, []);
 
   /**
    * Last assistant message id seen in a terminal state, so a run's completion fires the settings
@@ -413,6 +423,13 @@ export function AssistantDock({
         onMessagesChange={handleMessagesChange}
         runContext={runContext}
         uploadAttachments={uploadAttachments}
+        // Host-owned, data-only inventory. Jini renders/filter/selects it generically; these rows
+        // describe source-backed resources and do not claim that Agent Plugin installation or
+        // execution exists. The same catalog drives the grouped plus menu and `/` autocomplete.
+        composerSlots={{
+          discoveryGroups: TOVU_COMPOSER_DISCOVERY_GROUPS,
+          onDiscoverySelect: handleComposerDiscoverySelect,
+        }}
         // Restricts the composer's file picker to image MIME types. Not a security boundary —
         // `detectAttachmentKind` sniffs magic bytes server-side regardless of what a renamed file
         // or a drag-drop bypassing this filter claims to be (see `attachments.ts`) — this only
