@@ -172,10 +172,14 @@ export async function projectComposerCapabilities(
 }
 
 /**
- * Today's four bundled entries — byte-identical content to the array this replaces
- * (`TOVU_COMPOSER_DISCOVERY_GROUPS`, pre-2026-08-12) — now flowing through the async
- * `ComposerCapabilitySource` contract instead of a static import. Genuinely compile-time-known
- * data, so a trivially-resolved source is correct here, not a stand-in for a real one.
+ * Today's five bundled entries. The first four are byte-identical content to the array this
+ * replaces (`TOVU_COMPOSER_DISCOVERY_GROUPS`, pre-2026-08-12), now flowing through the async
+ * `ComposerCapabilitySource` contract instead of a static import — genuinely compile-time-known
+ * data, so a trivially-resolved source is correct here, not a stand-in for a real one. The fifth,
+ * `/search`, is this dispatch's own addition: the first capability to actually use the
+ * `allowlisted-tool-call` binding kind against a real, wired tool (`content_post_search`) rather
+ * than a synthetic test fixture — see `mcp-ui-tool-calls.ts`'s allowlist entry for that tool's own
+ * justification.
  */
 const BUNDLED_CAPABILITIES: readonly TovuComposerCapability[] = [
   {
@@ -225,6 +229,41 @@ const BUNDLED_CAPABILITIES: readonly TovuComposerCapability[] = [
       keywords: ["mcp", "server", "tools", "settings"],
       insertText: "",
     },
+  },
+  {
+    groupId: "tools",
+    groupLabel: "Tools",
+    item: {
+      id: "tool:content-search",
+      label: "/search",
+      description: "Search this workspace's posts and pages by title, slug, and body text",
+      kind: "tool",
+      keywords: ["search", "find", "content", "posts", "pages"],
+      // Argument-aware grammar (Jini's `composer-discovery.ts`, 2026-08-12): `/search <terms>`
+      // completes the trigger until a separator plus non-blank text is typed, then invokes with
+      // that text as `argument` — see `resolveComposerSlashInvocation`'s own doc for the exact
+      // state machine. `required: true` means `resolve` below is never reached with a blank
+      // argument through the real composer; the `?? ""` fallback exists only for a caller (e.g. a
+      // unit test) that invokes `resolve` directly, bypassing that grammar.
+      command: "search",
+      argument: { placeholder: "search terms", required: true },
+      // No `needsConfirmation`: unlike a capability that could mutate or destroy something,
+      // `content_post_search` is read-only (`postDerivedRisk` classifies it "none" — see
+      // `mcp-ui-tool-calls.ts`'s allowlist entry) and executes immediately on selection with no
+      // further review step. Setting this flag would assert a safety gate that does not exist
+      // for this tool — Jini renders it only as a cue and never enforces it itself
+      // (`ComposerDiscoveryItem.needsConfirmation`'s own doc), so a false claim here would be
+      // exactly the "declares a confirmation it doesn't get" trap: worse than declaring none.
+    },
+    // Immediate, browser-only execution — no agent turn. `argument` is the composer's already-
+    // grammar-validated search text; `content_post_search`'s own schema requires `query` non-empty,
+    // which the composer's `required: true` argument already guarantees before `resolve` is called
+    // for real (see the item's own doc above).
+    resolve: (argument) => ({
+      kind: "allowlisted-tool-call",
+      toolName: "content_post_search",
+      params: { query: argument ?? "" },
+    }),
   },
 ];
 

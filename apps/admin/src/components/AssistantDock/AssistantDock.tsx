@@ -30,6 +30,7 @@ import {
   resolveTovuComposerDiscoveryRoute,
   type ComposerCapabilityProjection,
 } from "../../features/plugins/composer-capabilities";
+import { createToolCatalogComposerCapabilitySource } from "../../features/plugins/tool-catalog-composer-source";
 import "../../styles/assistant.css";
 // The runtime picker's BYOK model row renders `@jini-ai/ui`'s `SearchableModelSelect`, whose
 // styles (including the body-portaled `.jini-select-menu`) live in this sheet. The settings
@@ -331,10 +332,11 @@ export function AssistantDock({
    * The composer's discovery catalog, projected asynchronously (debate 2, "Composer slash
    * commands") — replaces the pre-2026-08-12 static `TOVU_COMPOSER_DISCOVERY_GROUPS` import.
    * Starts empty rather than pre-seeded: the whole point of `ComposerCapabilitySource.list()`
-   * being a `Promise` is that a source may genuinely need a round trip (a future tool-registry-
-   * backed source, or the Agent Plugins adapter another workstream is building against this same
-   * contract), so this component makes no assumption that resolution is instant even though
-   * today's only source (`createBundledComposerCapabilitySource`) happens to be.
+   * being a `Promise` is that a source may genuinely need a round trip — true for
+   * `createBundledComposerCapabilitySource` only by construction (compile-time data wrapped in a
+   * resolved `Promise`), but genuinely true for `createToolCatalogComposerCapabilitySource`, which
+   * fetches the real tool catalog through this dispatch's new `/api/tools/search` proxy. This
+   * component makes no assumption that resolution is instant for either.
    *
    * Mirrors this file's own `fetchAgents()`/`runtimeAccess` pattern: fetched once per mount, and
    * a failed projection (a future live source's fetch failing, or a duplicate-id contract
@@ -347,7 +349,10 @@ export function AssistantDock({
   );
   useEffect(() => {
     let cancelled = false;
-    projectComposerCapabilities([createBundledComposerCapabilitySource()])
+    // `createToolCatalogComposerCapabilitySource()` never rejects (see its own doc) — it degrades
+    // to an empty list on any failure, so a daemon that is down or still booting costs only the
+    // tool-catalog rows, never the bundled source alongside it in this same `Promise.all`.
+    projectComposerCapabilities([createBundledComposerCapabilitySource(), createToolCatalogComposerCapabilitySource()])
       .then((projection) => {
         if (!cancelled) setComposerCapabilities(projection);
       })

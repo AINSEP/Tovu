@@ -8,6 +8,11 @@ test("content_post_delete is on the allowlist — the one tool this mechanism wa
   assert.ok(MCP_UI_REDEEMABLE_TOOL_IDS.has("content_post_delete"));
 });
 
+test("content_post_search is on the allowlist — the real execution path behind the /search composer capability", () => {
+  assert.equal(isMcpUiToolCallAllowed("content_post_search"), true);
+  assert.ok(MCP_UI_REDEEMABLE_TOOL_IDS.has("content_post_search"));
+});
+
 test("SECURITY-CRITICAL: an arbitrary tool id is refused, including ones with their own destructive gate", () => {
   assert.equal(isMcpUiToolCallAllowed("database_execute_migrate_forward"), false);
   assert.equal(isMcpUiToolCallAllowed("backup_execute_restore"), false);
