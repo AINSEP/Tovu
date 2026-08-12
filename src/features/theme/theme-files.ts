@@ -12,7 +12,7 @@ import {
 } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
-import { ENGINE_SUBFOLDERS } from "./theme";
+import { ENGINE_SUBFOLDERS, type ThemeManifest } from "./theme";
 
 /**
  * @file Path containment and file I/O for the `themes` agent-tool domain
@@ -410,4 +410,54 @@ export function renameThemeFile(
   mkdirSync(dirname(dest), { recursive: true });
   renameSync(source, dest);
   return dest;
+}
+
+/**
+ * Whether one path resolves to a BUILT theme's generated tree — read-only from every per-file surface
+ * — or to a location that stays editable (ADR-020 §5, `ThemeBuildInfo`'s own doc: "a built theme's
+ * source keeps per-file reset and AI-authorability; only its generated tree loses granularity").
+ *
+ * `"editable"` for every theme on disk today (`manifest.build?.source !== "compiled"` — every theme is
+ * `authored`, unchanged). For a COMPILED theme, `"editable"` is narrowed to exactly two things: `
+ * theme.json` itself (the one file a compiled theme still needs to keep editing — author, lineage —
+ * without touching generated output), and anything under `manifest.build.sourceDir`, which is real,
+ * hand-authored source with no cross-file desync risk an editable file doesn't already carry on its
+ * own. Everything else is `"generated-readonly"`: one `pages/index.html` edited or reset in isolation
+ * from the same build's `js/main.js` would desync the release from what `build.artifactHashes` actually
+ * verifies (`build-conformance.ts`), so the generated tree is never mutated file-by-file — it is
+ * restored, when it is, only as one complete, re-verified release.
+ *
+ * A compiled theme declaring no `sourceDir` has no editable region here at all beyond `theme.json` —
+ * `loadTheme`'s own manifest-shape validation already flags such a theme `invalid` (`sourceDir` is
+ * REQUIRED when `build.source` is `"compiled"`), so this function does not need to guess a fallback
+ * convention like `src/` a real author's build might not even use.
+ *
+ * This is a PURE policy decision, not itself a containment check — callers still resolve
+ * `relativePath` through {@link resolveThemeFilePath} before touching the filesystem; this only
+ * answers "is this write/reset allowed at all for this theme's lifecycle class."
+ */
+export type ThemeFileWriteScope =
+  | { readonly kind: "editable" }
+  | { readonly kind: "generated-readonly"; readonly reason: string };
+
+export function resolveThemeFileWriteScope(
+  required: { manifest: Pick<ThemeManifest, "build">; relativePath: string },
+  _optional: Record<string, never> = {}
+): ThemeFileWriteScope {
+  const { manifest, relativePath } = required;
+  if (manifest.build?.source !== "compiled") return { kind: "editable" };
+
+  const normalized = relativePath.split(/[\\/]/).join("/");
+  if (normalized === "theme.json") return { kind: "editable" };
+
+  const sourceDir = manifest.build.sourceDir;
+  if (sourceDir !== undefined && (normalized === sourceDir || normalized.startsWith(`${sourceDir}/`))) {
+    return { kind: "editable" };
+  }
+
+  return {
+    kind: "generated-readonly",
+    reason:
+      "this file is generated output of a built theme (theme.json build.source: 'compiled'); it is versioned and restored only as one complete release, never edited or reset file-by-file — edit the source under build.sourceDir and rebuild instead",
+  };
 }

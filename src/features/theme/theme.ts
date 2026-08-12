@@ -3,6 +3,7 @@ import { join } from "node:path";
 
 import type { JsonObject, JsonValue } from "@jini-ai/cms/core";
 import { markersOfType } from "#src/core/embeds/marker";
+import { checkBuiltThemeConformance } from "./build-conformance";
 import { lintHandlebarsTemplate } from "./handlebars-allowlist";
 import { lintLiquidTemplate } from "./liquid-allowlist";
 
@@ -35,6 +36,68 @@ export type ThemeTier = "declarative" | "templated" | "handlebars" | "static" | 
 
 const THEME_TIERS: readonly ThemeTier[] = ["declarative", "templated", "handlebars", "static", "code"];
 
+/**
+ * `theme.json.build` — ADR-020 §5 (2026-08-12): declares which of the two lifecycle classes a
+ * `static`-tier theme belongs to.
+ *
+ * **Authored** — this field absent, every theme on disk today. The working copy on disk IS the
+ * source: full per-file edit, reset, and `theme_write_file` AI-authorability, exactly as before this
+ * field existed.
+ *
+ * **Built** (`source: "compiled"`) — the shipped `pages/`, `css/`, `js/` were produced by a framework's
+ * own build (React/Vue/Angular) rather than authored directly. Settled by the debate: *the author or
+ * publisher CI builds; Tovu never runs the build* — this field records provenance/contract for a build
+ * that already happened elsewhere, it never triggers one. A built theme's SOURCE (`sourceDir`) keeps
+ * everything an authored theme has today — per-file edit, reset, AI-authorability
+ * ({@link import("./theme-files").resolveThemeFileWriteScope}). Only its GENERATED tree — everything
+ * outside `sourceDir` plus `theme.json` — loses that per-file granularity: it is read-only from every
+ * per-file surface, and is restored, when it is, only as one complete release, never file-by-file.
+ *
+ * `source: "compiled"` requires `tier: "static"` (enforced in {@link loadTheme}) — a compiled theme's
+ * RUNTIME is a `static` theme; there is no server-executing `code` tier this maps onto (`code` stays
+ * reserved and unbuilt — see {@link ThemeTier}'s own doc).
+ */
+export interface ThemeBuildInfo {
+  /**
+   * `"compiled"` marks this theme as a built release (see this interface's own doc). Any other or
+   * absent value — including a `build` object present in `theme.json` with no `source` key at all, or
+   * an unrecognized string — is treated as `"authored"` rather than failing the theme. This is a
+   * descriptive default for an optional field, not {@link parseTier}'s fail-closed contract: that
+   * exists because a wrong TIER silently applies a different tier's validation rules with no error;
+   * defaulting an ambiguous `build.source` to "this is just an ordinary authored theme" has no
+   * equivalent silent-wrong-behavior risk.
+   */
+  source: "authored" | "compiled";
+  /** `compiled` only — which framework produced the source. Purely descriptive: nothing in Tovu's
+   * request-time branches reads this field; it exists for the editor/marketplace UI and support. */
+  framework?: "react" | "vue" | "angular";
+  /**
+   * `compiled` only, REQUIRED — the authored source tree's root, relative to the theme folder (e.g.
+   * `"src"`). Everything under this path, plus `theme.json` itself, stays per-file editable exactly
+   * like an authored theme; everything outside it is this build's generated output and is read-only
+   * through every per-file surface (see {@link import("./theme-files").resolveThemeFileWriteScope}).
+   * An author-DECLARED path rather than an assumed `src/` convention: a hardcoded prefix would either
+   * lock a real source tree named something else out of editing entirely, or (looser) let a generated
+   * folder that merely starts with the same letters (`src-legacy/`) slip through as writable.
+   */
+  sourceDir?: string;
+  /** `compiled` only — the tool and version that produced the artifact (e.g. `"astro@4.15.2"`),
+   * recorded for support/reproducibility. Never parsed or version-checked by Tovu. */
+  builderVersion?: string;
+  /** `compiled` only — sha256 of the lockfile the build ran against. Provenance only; Tovu never reads
+   * the lockfile's own contents. */
+  lockfileHash?: string;
+  /**
+   * `compiled` only, REQUIRED (non-empty) — sha256 hex digest of each generated file's bytes, keyed by
+   * path relative to the theme folder. Verified against the real files on disk by
+   * {@link checkBuiltThemeConformance} (`build-conformance.ts`) before the theme is accepted as
+   * `status: "valid"` — this is what backs "immutable, versioned, integrity-verified," not a UI label.
+   * A file not listed here is not integrity-checked — a documented gap (`build-conformance.ts`'s own
+   * header), not a silent one.
+   */
+  artifactHashes?: Record<string, string>;
+}
+
 /** `theme.json` — static theme identity. */
 export interface ThemeManifest {
   id: string;
@@ -45,6 +108,17 @@ export interface ThemeManifest {
   /** Legacy pre-ADR-020 field; retained for back-compat, superseded by `tier`. */
   class?: "declarative";
   engine: number;
+  /**
+   * ADR-020 §5 (2026-08-12) — free-text credit for who produced this theme, e.g. "Aurora Themes Co.".
+   * Absent for every theme on disk today; `loadTheme` never parsed this field before this change, and
+   * nothing in the engine branches on it. Independent of {@link ThemeBuildInfo}: `build` is about HOW
+   * the static output was produced, `author` is about WHO produced it — a hand-authored theme can
+   * still declare an `author`.
+   */
+  author?: string;
+  /** ADR-020 §5 (2026-08-12) — declares which lifecycle class this theme belongs to. See
+   * {@link ThemeBuildInfo}'s own doc for the authored-vs-built distinction and what each keeps/loses. */
+  build?: ThemeBuildInfo;
   description?: string;
   /**
    * Optional Google Fonts family specs the page shell loads for this theme,
@@ -252,6 +326,42 @@ function parseTier(value: JsonValue | undefined): ThemeTier {
     return value as ThemeTier;
   }
   throw new Error(`unrecognized theme tier '${String(value)}'`);
+}
+
+/**
+ * Parse `theme.json.build` into {@link ThemeBuildInfo}. Absent or non-object ⇒ `undefined` (this theme
+ * is `authored`, unchanged from before this field existed). Malformed or missing OPTIONAL fields
+ * degrade to omission rather than throwing — that is a different failure class than {@link parseTier}'s
+ * fail-closed contract (see {@link ThemeBuildInfo.source}'s own doc for why). The two fields REQUIRED
+ * for a `compiled` build (`sourceDir`, non-empty `artifactHashes`) are not enforced here — this
+ * function only shapes what is present; {@link loadTheme}'s own call site pushes the "required when
+ * compiled" errors, matching how `defaultMode`'s cross-field check already lives at the call site
+ * rather than inside its own field's parser.
+ */
+function parseThemeBuildInfo(value: JsonValue | undefined): ThemeBuildInfo | undefined {
+  if (!isObject(value)) return undefined;
+  const source = value.source === "compiled" ? "compiled" : "authored";
+  const framework =
+    value.framework === "react" || value.framework === "vue" || value.framework === "angular"
+      ? value.framework
+      : undefined;
+  const sourceDir = typeof value.sourceDir === "string" && value.sourceDir.length > 0 ? value.sourceDir : undefined;
+  const builderVersion = typeof value.builderVersion === "string" ? value.builderVersion : undefined;
+  const lockfileHash = typeof value.lockfileHash === "string" ? value.lockfileHash : undefined;
+  const artifactHashes = isObject(value.artifactHashes)
+    ? Object.fromEntries(
+        Object.entries(value.artifactHashes).filter((entry): entry is [string, string] => typeof entry[1] === "string")
+      )
+    : undefined;
+
+  return {
+    source,
+    ...(framework ? { framework } : {}),
+    ...(sourceDir ? { sourceDir } : {}),
+    ...(builderVersion ? { builderVersion } : {}),
+    ...(lockfileHash ? { lockfileHash } : {}),
+    ...(artifactHashes ? { artifactHashes } : {}),
+  };
 }
 
 /**
@@ -503,6 +613,8 @@ export function loadTheme(
       version: String(raw.version ?? "0.0.0"),
       tier: parseTier(raw.tier),
       engine: typeof raw.engine === "number" ? raw.engine : 1,
+      author: typeof raw.author === "string" ? raw.author : undefined,
+      build: parseThemeBuildInfo(raw.build),
       description: typeof raw.description === "string" ? raw.description : undefined,
       fonts: Array.isArray(raw.fonts) ? raw.fonts.map(String) : undefined,
       regions: Array.isArray(raw.regions) ? raw.regions.map(String) : undefined,
@@ -524,6 +636,20 @@ export function loadTheme(
       errors.push(
         `theme.json defaultMode '${manifest.defaultMode}' is not listed in modes [${(manifest.modes ?? []).join(", ")}]`
       );
+    }
+    // A `build.source: "compiled"` theme is, at runtime, an ordinary `static` theme — there is no
+    // server-executing tier it maps onto (see ThemeBuildInfo's own doc). Cross-field, so it lives at
+    // this call site rather than inside parseThemeBuildInfo, matching defaultMode's check just above.
+    if (manifest.build?.source === "compiled") {
+      if (manifest.tier !== "static") {
+        errors.push("theme.json build.source 'compiled' requires tier 'static'");
+      }
+      if (!manifest.build.sourceDir) {
+        errors.push("theme.json build.sourceDir is required when build.source is 'compiled'");
+      }
+      if (!manifest.build.artifactHashes || Object.keys(manifest.build.artifactHashes).length === 0) {
+        errors.push("theme.json build.artifactHashes is required when build.source is 'compiled'");
+      }
     }
   } catch (err) {
     errors.push(`theme.json: ${(err as Error).message}`);
@@ -548,6 +674,22 @@ export function loadTheme(
     templates: manifest.templates,
   });
   errors.push(...staticErrors);
+
+  // The install-time gate for a built release (ADR-020 §5) — only runs for `build.source: "compiled"`
+  // (a no-op otherwise, so every theme on disk today is unaffected). Needs `pages`/`partials`, so it
+  // cannot run any earlier than this — see `build-conformance.ts`'s own header for what it checks and
+  // why a hard failure here, not a runtime warning, is the point.
+  if (manifest.build?.source === "compiled") {
+    errors.push(
+      ...checkBuiltThemeConformance({
+        themeId: manifest.id,
+        themeDir,
+        pages,
+        partials,
+        artifactHashes: manifest.build.artifactHashes ?? {},
+      }).map((issue) => `build conformance (${issue.rule}) '${issue.page}': ${issue.message}`)
+    );
+  }
 
   const templates: Record<string, TemplateNode> = {};
   const liquidTemplates: Record<string, string> = {};
