@@ -1,10 +1,12 @@
 import { useState } from "react";
 
 import { type AdminContentType } from "../../../lib/api";
+import { useFetchMutation } from "../../../lib/fetch-query";
 import {
   addDraftField,
   describeEditFieldsError,
   draftFieldsFromContentType,
+  KEYS,
   removeDraftField,
   stripDraftFieldRowIds,
   updateDraftField,
@@ -32,6 +34,11 @@ import type { EditFieldsDialogPort } from "./edit-fields-dialog-port.hooks";
  * instead of stubbing global `fetch`. `useWiredEditFieldsDialog` below is the pair `Collections.tsx`
  * actually mounts. No `locale`/`useAdminLocale` here — `describeEditFieldsError` never resolves a
  * translated string (unlike `use-new-content-type-dialog.hooks.ts`'s `t(locale, ...)` fallback).
+ *
+ * `lib/fetch-query` migration (2026-08-12): `updateContentTypeFields` is a `useFetchMutation` that
+ * `invalidates: [KEYS.list]` — a field-schema change affects the content-type list AND every entries
+ * list/entry editor nested under it (`rules.ts`'s `KEYS` doc), matching what `props.onSaved`'s caller
+ * (`Collections.tsx`, via `load`) used to refresh by hand.
  */
 
 export interface EditFieldsDialogController {
@@ -53,10 +60,15 @@ export function useEditFieldsDialog(
   port: EditFieldsDialogPort
 ): EditFieldsDialogController {
   const [fields, setFields] = useState<DraftField[]>(() => draftFieldsFromContentType(props.contentType.fields));
-  const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   useEscapeToCancel(props.onCancel);
+
+  const updateFieldsMutation = useFetchMutation({
+    run: (input: { key: string; fields: ReturnType<typeof stripDraftFieldRowIds>; expectedVersion: number }) =>
+      port.updateContentTypeFields(input),
+    invalidates: [KEYS.list],
+  });
 
   function updateField(rowId: number, patch: Partial<DraftField>) {
     setFields((current) => updateDraftField(current, rowId, patch));
@@ -72,28 +84,28 @@ export function useEditFieldsDialog(
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
+    setValidationError(null);
 
-    const validationError = validateEditFieldsDraft(fields);
-    if (validationError) {
-      setError(validationError);
+    const draftError = validateEditFieldsDraft(fields);
+    if (draftError) {
+      setValidationError(draftError);
       return;
     }
 
-    setSaving(true);
     try {
-      await port.updateContentTypeFields({
+      await updateFieldsMutation.mutate({
         key: props.contentType.key,
         fields: stripDraftFieldRowIds(fields),
         expectedVersion: props.contentType.version,
       });
       props.onSaved();
-    } catch (e) {
-      setError(describeEditFieldsError(e));
-    } finally {
-      setSaving(false);
+    } catch {
+      // already surfaced through updateFieldsMutation.error -> error below
     }
   }
+
+  const saving = updateFieldsMutation.status === "pending";
+  const error = validationError ?? (updateFieldsMutation.error ? describeEditFieldsError(updateFieldsMutation.error) : null);
 
   return { fields, updateField, removeField, addField, error, saving, submit };
 }

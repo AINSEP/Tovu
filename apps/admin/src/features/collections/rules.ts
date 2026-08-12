@@ -1,6 +1,7 @@
 import type { RowMenuItem } from "@jini-ai/admin/react";
 
 import { ApiError, describeApiError, type AdminContentType, type ContentTypeFieldDef } from "../../lib/api";
+import type { QueryKey } from "../../lib/fetch-query";
 import { COLLECTIONS_DICT } from "./collections-i18n";
 
 /**
@@ -17,7 +18,32 @@ import { COLLECTIONS_DICT } from "./collections-i18n";
  * two independent counters per hook file would be an observable behaviour change, not a neutral
  * refactor. Keeping it here, imported by both hook files, is what preserves the single instance —
  * ES modules are singletons, so both hooks see the same counter.
+ *
+ * `KEYS` (fetch-query migration, 2026-08-12): `entries(key)` is a real child of `list` — a content
+ * type's fields/lifecycle changing SHOULD refresh its entries list, matching
+ * `lib/fetch-query/types.ts`'s `QueryKey` prefix-invalidation contract.
+ *
+ * `entry(key, id)` is deliberately a SIBLING of `entries(key)`, not a child of it — both nest under
+ * `list` (so a content-type field/lifecycle change still refreshes an open editor's own read, which
+ * IS wanted), but `entry` does NOT share `entries`' own prefix. It first shared it, on the reasoning
+ * that saving one entry should refresh that type's list; it does, `save()`/`toggleLifecycle()` in
+ * `use-collection-entry-editor.hooks.ts` still `invalidates: [KEYS.entries(key)]` for exactly that.
+ * The bug that reasoning missed: nesting the other way ALSO means invalidating `entries(key)`
+ * refetches the editor's OWN currently-open `entry(key, id)` read — so every save silently fired 3
+ * extra background requests (content-types/entries/taxonomies) immediately after the save's own
+ * request, which several `use-collection-entry-editor.unit.test.tsx` assertions on "the last fetch
+ * call" caught as a real, observable regression, not just a test-harness inconvenience.
  */
+export const KEYS = {
+  list: ["content-types"] as QueryKey,
+  entries: (contentTypeKey: string): QueryKey => ["content-types", contentTypeKey, "entries"],
+  entry: (contentTypeKey: string, entryId: string | null): QueryKey => [
+    "content-types",
+    contentTypeKey,
+    "entry",
+    entryId ?? "new",
+  ],
+};
 
 const KEY_GRAMMAR = /^[a-z][a-z0-9_]{0,63}$/;
 const RESERVED_KEYS = new Set(["post", "page"]);

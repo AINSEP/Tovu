@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { describeApiError, type AdminContentType } from "../../../lib/api";
-import type { LifecycleConfirmOp } from "../rules";
+import { useFetchMutation, useFetchQuery } from "../../../lib/fetch-query";
+import { KEYS, type LifecycleConfirmOp } from "../rules";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { COLLECTIONS_DICT, lifecycleFailureMessage, t as translate } from "../collections-i18n";
 import { defaultCollectionsPort } from "./collections-dependencies.hooks";
@@ -33,6 +34,11 @@ import type { CollectionsPort } from "./collections-port.hooks";
  * as an explicit argument, not a host reach (see wired-hooks-convention.md's "pure, no-I/O rules"
  * carve-out). `useAdminLocale()` and `COLLECTIONS_DICT` are read only inside
  * {@link useWiredCollections}.
+ *
+ * `lib/fetch-query` migration (2026-08-12): the content-type list read is now `useFetchQuery({ key:
+ * KEYS.list, ... })`; `runLifecycle` is a `useFetchMutation` that `invalidates: [KEYS.list]` — which
+ * cascades to every entries list and open entry editor too, per `rules.ts`'s `KEYS` doc, since a
+ * lifecycle change (or a field-schema edit via `EditFieldsDialog`) can change what those screens show.
  */
 
 export interface CollectionsController {
@@ -69,36 +75,41 @@ export interface CollectionsDependencies {
 
 export function useCollections(deps: CollectionsDependencies): CollectionsController {
   const { port, locale, t } = deps;
-  const [types, setTypes] = useState<AdminContentType[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const list = useFetchQuery({ key: KEYS.list, fetch: () => port.listContentTypes() });
+  const types = list.data?.items ?? null;
+
   const [showNewDialog, setShowNewDialog] = useState(false);
   const [pendingLifecycle, setPendingLifecycle] = useState<{ op: LifecycleConfirmOp; contentType: AdminContentType } | null>(null);
   const [editingFieldsFor, setEditingFieldsFor] = useState<AdminContentType | null>(null);
-  const [actionError, setActionError] = useState<string | null>(null);
+  // The op/label the CURRENTLY (or most recently) in-flight `runLifecycle` call was for — needed
+  // because `lifecycleFailureMessage` names both, but `pendingLifecycle` is the CONFIRM DIALOG's own
+  // state and is `null` for Reactivate (never confirm-gated — see `runLifecycle`'s call sites), so it
+  // cannot be reused here without misattributing a failed Reactivate's message to "deprecate".
+  const [lastAttempt, setLastAttempt] = useState<{
+    op: "deprecate" | "reactivate" | "tombstone";
+    contentType: AdminContentType;
+  } | null>(null);
 
-  function load() {
-    port
-      .listContentTypes()
-      .then((r) => setTypes(r.items))
-      .catch((e) => setError(describeApiError(e, translate(locale, "failed to load content types"))));
-  }
-
-  // `port` is added to the effect's dependency array — see `use-page-editor.hooks.ts`'s identical
-  // note: it's a function-scoped value ESLint's exhaustive-deps rule can see, and it is
-  // referentially stable in production (`useWiredCollections` always passes the same module-level
-  // singleton), so this changes nothing about when the effect re-runs.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(load, [port]);
+  const lifecycleMutation = useFetchMutation({
+    run: (input: { key: string; op: "deprecate" | "reactivate" | "tombstone"; expectedVersion: number }) =>
+      port.contentTypeLifecycle(input),
+    invalidates: [KEYS.list],
+  });
 
   async function runLifecycle(contentType: AdminContentType, op: "deprecate" | "reactivate" | "tombstone") {
-    setActionError(null);
+    setLastAttempt({ op, contentType });
     try {
-      await port.contentTypeLifecycle({ key: contentType.key, op, expectedVersion: contentType.version });
-      load();
-    } catch (e) {
-      setActionError(describeApiError(e, lifecycleFailureMessage(locale, op, contentType.label)));
+      await lifecycleMutation.mutate({ key: contentType.key, op, expectedVersion: contentType.version });
+    } catch {
+      // already surfaced through lifecycleMutation.error -> actionError below
     }
   }
+
+  const error = list.error ? describeApiError(list.error, translate(locale, "failed to load content types")) : null;
+  const actionError =
+    lifecycleMutation.error && lastAttempt
+      ? describeApiError(lifecycleMutation.error, lifecycleFailureMessage(locale, lastAttempt.op, lastAttempt.contentType.label))
+      : null;
 
   return {
     types,
@@ -110,7 +121,7 @@ export function useCollections(deps: CollectionsDependencies): CollectionsContro
     editingFieldsFor,
     setEditingFieldsFor,
     actionError,
-    load,
+    load: list.refetch,
     runLifecycle,
     t,
     locale,

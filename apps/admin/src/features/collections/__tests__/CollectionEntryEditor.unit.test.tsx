@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { FetchQueryProvider } from "../../../lib/fetch-query";
 import { CollectionEntryEditor } from "../CollectionEntryEditor";
 
 /**
@@ -12,6 +13,10 @@ import { CollectionEntryEditor } from "../CollectionEntryEditor";
  * against is a future edit that strips the wrapping `<label>` and quietly falls back to
  * placeholder-only again. Follows the RTL harness `WidgetInstanceEditor.unit.test.tsx` established
  * for this package.
+ *
+ * `CollectionEntryEditor` has no injectable hook seam — it always composes the real
+ * `useWiredCollectionEntryEditor` — so every render below needs a `FetchQueryProvider` ancestor
+ * (2026-08-12, `lib/fetch-query` migration).
  */
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -56,7 +61,11 @@ describe("new entry — title and slug fields", () => {
       .mockResolvedValueOnce(jsonResponse({ items: [ARTICLE_TYPE] }))
       .mockResolvedValueOnce(jsonResponse({ items: [] }));
 
-    render(<CollectionEntryEditor contentTypeKey="articles" entryId={null} />);
+    render(
+      <FetchQueryProvider>
+        <CollectionEntryEditor contentTypeKey="articles" entryId={null} />
+      </FetchQueryProvider>
+    );
 
     const titleInput = await screen.findByLabelText("Entry title");
     expect(titleInput).toHaveAttribute("placeholder", "Entry title");
@@ -67,7 +76,11 @@ describe("new entry — title and slug fields", () => {
       .mockResolvedValueOnce(jsonResponse({ items: [ARTICLE_TYPE] }))
       .mockResolvedValueOnce(jsonResponse({ items: [] }));
 
-    render(<CollectionEntryEditor contentTypeKey="articles" entryId={null} />);
+    render(
+      <FetchQueryProvider>
+        <CollectionEntryEditor contentTypeKey="articles" entryId={null} />
+      </FetchQueryProvider>
+    );
 
     const slugInput = await screen.findByLabelText("Entry slug");
     expect(slugInput).toHaveAttribute("placeholder", "entry-slug");

@@ -1,4 +1,4 @@
-import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
+import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from "react";
 import { useEditor, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import {
@@ -7,6 +7,8 @@ import {
   type AdminEntry,
   type AdminTaxonomyWithTerms,
 } from "../../../lib/api";
+import { useFetchMutation, useFetchQuery } from "../../../lib/fetch-query";
+import { KEYS } from "../rules";
 import { WidgetEmbed } from "../../../lib/widget-embed-extension";
 import { navigate as defaultNavigate } from "../../../lib/router";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
@@ -39,6 +41,23 @@ import type { CollectionEntryEditorPort } from "./collection-entry-editor-port.h
  * aliased `translate` here to avoid colliding with this file's bound `(key) => string` closure —
  * stays a direct, uninjected import for this hook's OWN error strings: a pure lookup that already
  * takes `locale` explicitly, not a host reach.
+ *
+ * `lib/fetch-query` migration (2026-08-12): the combined content-type/entry/taxonomies read is one
+ * `useFetchQuery` keyed on `KEYS.entry(contentTypeKey, entryId)` — a SIBLING of `use-collection-
+ * entries.hooks.ts`'s `KEYS.entries(key)`, deliberately NOT nested under it (see `rules.ts`'s `KEYS`
+ * doc for the regression that nesting caused: every save background-refetched this SAME hook's own
+ * read, firing 3 extra requests right after the save's own one and breaking several "the last fetch
+ * call was the save" test assertions). `save()`/`toggleLifecycle()` still `invalidates:
+ * [KEYS.entries(contentTypeKey)]` directly, so the sibling entries LIST still refreshes — this hook's
+ * own read just isn't a fellow traveller of that invalidation. It IS still nested under `KEYS.list`,
+ * so a content-type field/lifecycle change (from `use-collections.hooks.ts`/`use-edit-fields-
+ * dialog.hooks.ts`) still refreshes an open editor, which is wanted. `entry`/`title`/`slug`/
+ * `extFields`/the editor's own content stay local `useState` (the user edits them, and `save()`
+ * reassigns `entry` from the write's own response) rather than being read directly off `list.data` —
+ * `seededIdentityRef` seeds them from `list.data` exactly once per `(contentTypeKey, entryId)` pair,
+ * so a background refetch from a `KEYS.list` invalidation doesn't re-seed and silently overwrite
+ * in-progress edits. `contentType`/`taxonomies` have no such hazard (nothing local ever mutates them)
+ * and are read straight off `list.data` every render.
  */
 
 export interface CollectionEntryEditorController {
@@ -79,110 +98,136 @@ export function useCollectionEntryEditor(
   deps: CollectionEntryEditorDependencies
 ): CollectionEntryEditorController {
   const { port, navigate, locale, t } = deps;
-  const [contentType, setContentType] = useState<AdminContentType | null | undefined>(undefined);
   const [entry, setEntry] = useState<AdminEntry | null>(null);
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
   const [extFields, setExtFields] = useState<Record<string, unknown>>({});
-  const [taxonomies, setTaxonomies] = useState<AdminTaxonomyWithTerms[]>([]);
   const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [loaded, setLoaded] = useState(false);
-  const [saving, setSaving] = useState(false);
+  // The op the CURRENTLY (or most recently) in-flight `toggleLifecycle` call was for — needed
+  // because `entryLifecycleFailureMessage` names it, and unlike `save()` (one fallback string for
+  // both create/update), publish/unpublish share one mutation object with no other way to recover
+  // which op a given failure was for.
+  const [lastLifecycleOp, setLastLifecycleOp] = useState<"publish" | "unpublish" | null>(null);
 
   const editor = useEditor({ extensions: [StarterKit, WidgetEmbed], content: "" });
 
+  const list = useFetchQuery({
+    key: KEYS.entry(props.contentTypeKey, props.entryId),
+    fetch: async () => {
+      const [typesResult, entriesResult, taxonomyResult] = await Promise.all([
+        port.listContentTypes(),
+        props.entryId ? port.listEntries({ type: props.contentTypeKey }) : Promise.resolve({ items: [] as AdminEntry[] }),
+        port.listTaxonomies().catch(() => ({ items: [] as AdminTaxonomyWithTerms[] })),
+      ]);
+      return {
+        contentType: typesResult.items.find((type) => type.key === props.contentTypeKey) ?? null,
+        entry: props.entryId ? (entriesResult.items.find((e) => e.id === props.entryId) ?? null) : null,
+        taxonomies: taxonomyResult.items,
+      };
+    },
+  });
+
+  const contentType = list.data?.contentType;
+  const taxonomies = list.data?.taxonomies ?? [];
+  const loaded = list.status !== "loading";
+  const loadError = list.error ? describeApiError(list.error, translate(locale, "failed to load entry")) : null;
+
+  // Seeds `entry`/`title`/`slug`/`extFields`/the editor's content from `list.data` exactly once per
+  // `(contentTypeKey, entryId)` identity — see this file's own header for why a background refetch
+  // of the SAME identity (e.g. this hook's own `save()` invalidating its parent key) must NOT re-run
+  // this and clobber in-progress edits.
+  const seededIdentityRef = useRef<string | null>(null);
   useEffect(() => {
-    setLoadError(null);
-    setLoaded(false);
-    setContentType(undefined);
-    setEntry(null);
+    const identity = `${props.contentTypeKey}:${props.entryId ?? "new"}`;
+    if (seededIdentityRef.current !== identity) seededIdentityRef.current = null;
+    if (!editor || list.status === "loading" || !list.data) return;
+    if (seededIdentityRef.current === identity) return;
+    seededIdentityRef.current = identity;
 
-    Promise.all([
-      port.listContentTypes(),
-      props.entryId ? port.listEntries({ type: props.contentTypeKey }) : Promise.resolve({ items: [] as AdminEntry[] }),
-      port.listTaxonomies().catch(() => ({ items: [] as AdminTaxonomyWithTerms[] })),
-    ])
-      .then(([typesResult, entriesResult, taxonomyResult]) => {
-        const ct = typesResult.items.find((type) => type.key === props.contentTypeKey) ?? null;
-        setContentType(ct);
-        setTaxonomies(taxonomyResult.items);
+    const found = list.data.entry;
+    setEntry(found);
+    if (found) {
+      setTitle(found.title);
+      setSlug(found.slug);
+      setExtFields(
+        ((): Record<string, unknown> => {
+          const site = (found.fieldsJson as { ext?: { site?: Record<string, unknown> } } | null)?.ext?.site;
+          return site ? { ...site } : {};
+        })()
+      );
+      editor.commands.setContent((found.bodyJson ?? "") as never);
+    } else {
+      setTitle("");
+      setSlug("");
+      setExtFields({});
+      editor.commands.setContent("");
+    }
+  }, [props.contentTypeKey, props.entryId, editor, list.status, list.data]);
 
-        if (props.entryId) {
-          const found = entriesResult.items.find((e) => e.id === props.entryId) ?? null;
-          setEntry(found);
-          if (found) {
-            setTitle(found.title);
-            setSlug(found.slug);
-            setExtFields(
-              ((): Record<string, unknown> => {
-                const site = (found.fieldsJson as { ext?: { site?: Record<string, unknown> } } | null)?.ext?.site;
-                return site ? { ...site } : {};
-              })()
-            );
-            editor?.commands.setContent((found.bodyJson ?? "") as never);
-          }
-        } else {
-          setTitle("");
-          setSlug("");
-          setExtFields({});
-          editor?.commands.setContent("");
-        }
-      })
-      .catch((e) => setLoadError(describeApiError(e, translate(locale, "failed to load entry"))))
-      .finally(() => setLoaded(true));
-    // `port` is added — see `use-page-editor.hooks.ts`'s identical note: a function-scoped value
-    // ESLint's exhaustive-deps rule can see, referentially stable in production, so this changes
-    // nothing about when the effect re-runs.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [props.contentTypeKey, props.entryId, editor === null, port]);
+  const updateMutation = useFetchMutation({
+    run: (input: { target: { id: string; expectedVersion: number }; patch: { title?: string; fieldsJson?: unknown; bodyJson?: unknown } }) =>
+      port.updateEntry(input.target, input.patch),
+    invalidates: [KEYS.entries(props.contentTypeKey)],
+  });
+  const createMutation = useFetchMutation({
+    run: (input: { input: { type: string; slug: string; title: string }; options: { fieldsJson?: unknown; bodyJson?: unknown } }) =>
+      port.createEntry(input.input, input.options),
+    invalidates: [KEYS.entries(props.contentTypeKey)],
+  });
+  const lifecycleMutation = useFetchMutation({
+    run: (input: { id: string; op: "publish" | "unpublish"; expectedVersion: number }) => port.entryLifecycle(input),
+    invalidates: [KEYS.entries(props.contentTypeKey)],
+  });
 
   async function save() {
     if (!contentType || !editor) return;
-    setSaving(true);
-    setError(null);
     setMessage(null);
     try {
       const fieldsJson = { ext: { site: extFields } };
       if (entry) {
-        const { entry: saved } = await port.updateEntry(
-          { id: entry.id, expectedVersion: entry.version },
+        const { entry: saved } = await updateMutation.mutate({
+          target: { id: entry.id, expectedVersion: entry.version },
           // `bodyJson` was omitted here while the create branch below sent it,
           // so editing an existing entry's rich text reported "Saved · version N"
           // and left the stored body untouched. Silent data loss on the primary
           // content surface; `PostEditor` has always done this correctly.
-          { title, fieldsJson, bodyJson: editor.getJSON() }
-        );
+          patch: { title, fieldsJson, bodyJson: editor.getJSON() },
+        });
         setEntry(saved);
         setMessage(`Saved · version ${saved.version}`);
       } else {
-        const { entry: created } = await port.createEntry(
-          { type: props.contentTypeKey, slug: slug.trim(), title },
-          { fieldsJson, bodyJson: editor.getJSON() }
-        );
+        const { entry: created } = await createMutation.mutate({
+          input: { type: props.contentTypeKey, slug: slug.trim(), title },
+          options: { fieldsJson, bodyJson: editor.getJSON() },
+        });
         setEntry(created);
         setMessage(`Created · version ${created.version}`);
         navigate(`/collections/${props.contentTypeKey}/${created.id}`);
       }
-    } catch (e) {
-      setError(describeApiError(e, translate(locale, "save failed")));
-    } finally {
-      setSaving(false);
+    } catch {
+      // already surfaced through updateMutation.error/createMutation.error -> error below
     }
   }
 
   async function toggleLifecycle(op: "publish" | "unpublish") {
     if (!entry) return;
-    setError(null);
+    setLastLifecycleOp(op);
     try {
-      const { entry: saved } = await port.entryLifecycle({ id: entry.id, op, expectedVersion: entry.version });
+      const { entry: saved } = await lifecycleMutation.mutate({ id: entry.id, op, expectedVersion: entry.version });
       setEntry(saved);
       setMessage(`Entry ${op}ed · version ${saved.version}`);
-    } catch (e) {
-      setError(describeApiError(e, entryLifecycleFailureMessage(locale, op)));
+    } catch {
+      // already surfaced through lifecycleMutation.error -> error below
     }
   }
+
+  const saving = updateMutation.status === "pending" || createMutation.status === "pending";
+  const error =
+    (updateMutation.error && describeApiError(updateMutation.error, translate(locale, "save failed"))) ??
+    (createMutation.error && describeApiError(createMutation.error, translate(locale, "save failed"))) ??
+    (lifecycleMutation.error && lastLifecycleOp
+      ? describeApiError(lifecycleMutation.error, entryLifecycleFailureMessage(locale, lastLifecycleOp))
+      : null);
 
   return {
     contentType,

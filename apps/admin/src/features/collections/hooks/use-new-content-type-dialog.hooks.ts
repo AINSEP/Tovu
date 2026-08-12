@@ -1,9 +1,11 @@
 import { useState } from "react";
 
 import { describeApiError } from "../../../lib/api";
+import { useFetchMutation } from "../../../lib/fetch-query";
 import {
   addDraftField,
   emptyField,
+  KEYS,
   removeDraftField,
   stripDraftFieldRowIds,
   updateDraftField,
@@ -32,6 +34,10 @@ import type { NewContentTypeDialogPort } from "./new-content-type-dialog-port.ho
  * `lib/api`/`useAdminLocale()` directly, so a test can describe the submit outcome against
  * `createFakeNewContentTypeDialogPort` instead of stubbing global `fetch`.
  * `useWiredNewContentTypeDialog` below is the pair `Collections.tsx` actually mounts.
+ *
+ * `lib/fetch-query` migration (2026-08-12): `createContentType` is a `useFetchMutation` that
+ * `invalidates: [KEYS.list]` instead of `props.onCreated`'s caller (`Collections.tsx`) reloading by
+ * hand.
  */
 
 export interface NewContentTypeDialogController {
@@ -64,10 +70,15 @@ export function useNewContentTypeDialog(
   const [label, setLabel] = useState("");
   const [key, setKey] = useState("");
   const [fields, setFields] = useState<DraftField[]>([emptyField()]);
-  const [error, setError] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
   useEscapeToCancel(props.onCancel);
+
+  const createMutation = useFetchMutation({
+    run: (input: { key: string; label: string; fields: ReturnType<typeof stripDraftFieldRowIds> }) =>
+      port.createContentType(input),
+    invalidates: [KEYS.list],
+  });
 
   function updateField(rowId: number, patch: Partial<DraftField>) {
     setFields((current) => updateDraftField(current, rowId, patch));
@@ -83,28 +94,28 @@ export function useNewContentTypeDialog(
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    setError(null);
+    setValidationError(null);
 
-    const validationError = validateNewContentTypeDraft({ key, label, fields });
-    if (validationError) {
-      setError(validationError);
+    const draftError = validateNewContentTypeDraft({ key, label, fields });
+    if (draftError) {
+      setValidationError(draftError);
       return;
     }
 
-    setSaving(true);
     try {
-      await port.createContentType({
+      await createMutation.mutate({
         key: key.trim(),
         label: label.trim(),
         fields: stripDraftFieldRowIds(fields),
       });
       props.onCreated();
-    } catch (e) {
-      setError(describeApiError(e, t(locale, "Failed to create content type")));
-    } finally {
-      setSaving(false);
+    } catch {
+      // already surfaced through createMutation.error -> error below
     }
   }
+
+  const saving = createMutation.status === "pending";
+  const error = validationError ?? (createMutation.error ? describeApiError(createMutation.error, t(locale, "Failed to create content type")) : null);
 
   return { label, setLabel, key, setKey, fields, updateField, removeField, addField, error, saving, submit };
 }
