@@ -326,6 +326,93 @@ to migrate.
 
 ---
 
+## FIX addendum (2026-08-13, round 2) — Finding 1's `preview/` write gate: two more instances found and closed
+
+**Scope of this round:** the team lead asked for narrower re-verification of the already-shipped Finding
+1 fix — was there a third raw-serving mount, could the CSP be bypassed, and was the `preview/` write gap
+*actually* closed (not just tested). All three were checked directly against running code, not by
+re-reading the addendum's own claims.
+
+**1. Third serving path — none found.** Repo-wide `grep` for `express.static`/`sendFile`/
+`createReadStream`/`.pipe(res)`/`res.end(Buffer…)` across `src/server` turns up exactly the two mounts
+already fixed (`theme-static-assets.ts`, `theme-preview-static.ts`) plus `admin-static.ts`'s SEA-asset
+serving (trusted build artifact, not theme/user content — out of scope). `theme-page-preview.ts`
+(`/theme-explore/…`) re-confirmed as a different mechanism: it renders through the real
+`renderStaticPage`/`renderStaticPartial` loader, never raw file bytes. Checked every OTHER
+`app.get`/`app.post`/`res.type(...)` in `src/server/routes` for anything that could stream theme file
+content back to a client under a different name (a "download"/"export" idea) — the one real hit,
+`routes/admin/marketplace/download.ts`, is POST-only and returns `res.json()` with metadata
+(`assignedId`/`tier`/`lineage`); it triggers `downloadMarketplaceTheme`'s server-side directory copy, but
+never streams bytes to the response. No third path exists.
+
+**2. CSP bypass — none found for the actual vulnerability class; one inert, previously-undocumented
+fact found and refuted.** Tested empirically (a scratch test app hitting the real
+`registerThemeStaticAssets` mount), not merely reasoned about:
+- 200 and 206 (Range) responses both carry the full `Content-Security-Policy: default-src 'none';
+  sandbox` + `X-Content-Type-Options: nosniff` — confirmed by direct request/response inspection.
+- Could not force a genuine 304 through the test harness (fetch/undici's conditional-request handling
+  didn't trigger one), but a 304 carries no body by protocol definition — there is no fresh
+  content-bearing response for altered headers to matter on, so this gap in the test harness doesn't
+  leave a gap in the security property.
+- Middleware ordering: `themeAssetSecurityHeaders` runs FIRST and unconditionally inside each mount's
+  own `app.use(path, themeAssetSecurityHeaders, handler)` registration; nothing in `app.ts` inserts
+  anything between those two specific functions. Confirmed no GLOBAL header-touching middleware exists
+  anywhere in `app.ts` (`applyDevCors`/`applySiteServingGate`, the only two `app.use`-with-no-path
+  middlewares, touch CORS/503-gating only, never CSP/nosniff). Directly tested the "a later global CSP
+  middleware gets added someday" scenario by registering one after the mount in a scratch app — it never
+  ran for a successfully-served file, because `express.static` fully answers a matched request (calls
+  `res.end()`, never `next()`), so nothing registered after it in the stack can touch that response.
+  This is structurally safe, not merely currently-safe.
+- **Found and refuted:** Express's own built-in `finalhandler` (which generates the default "Cannot GET
+  …" page for any request that falls through every registered route) OVERWRITES the CSP header on ITS
+  OWN generated 404 page — `res.getHeader('content-security-policy')` on that specific response comes
+  back `"default-src 'none'"`, missing the `; sandbox` suffix our middleware set. This is real and
+  reproducible, not a test artifact (confirmed for both an unknown-theme-id 404 and a
+  known-theme/missing-file 404). It does NOT reopen the vulnerability: (a) the 404 page's body is
+  Express's own static HTML template, never the requested theme's file bytes — a 404 means no such file
+  was served, which is the opposite of the exploit precondition; (b) the reflected request-path segment
+  stays percent-encoded in the echoed `<pre>` block (verified with a literal `<script>` payload —
+  `%3Cscript%3E…`, never decoded to a live tag) — no reflected-XSS angle either; (c) `default-src 'none'`
+  alone, per CSP semantics, already blocks inline script execution as a fallback for `script-src`, so
+  even the narrower header still prevents the one risk that matters. Recorded here for completeness
+  (this codebase's own convention is to state what was checked and found safe, not only what was
+  broken), not flagged for a fix.
+
+**3. `preview/` write gate — was NOT uniformly closed. Two more instances found and closed this round.**
+The original fix added an `isGeneratedThemePath` refusal to `isThemeFileWritable` (PUT) and to the
+rename route's `sourceRenamable` check — but two of the six routes in `explore.ts` were never audited
+against this specific question, because they use a DIFFERENT, unrelated write-scope gate
+(`resolveThemeFileWriteScope`, the ADR-020 compiled-theme-generated-tree question) that has nothing to
+do with `isGeneratedThemePath`/`preview/` and resolves `"editable"` for every non-compiled theme
+regardless of path:
+- **Copy** (`registerAdminThemeFileCopyRoute`): empirically confirmed a COPY of an already-existing
+  `preview/dark/index.html` returned 200 and created `preview/dark/index-1.html` — a live write into
+  `preview/`, matching the addendum's own "list filter and write gate must agree" reasoning that
+  motivated the original fix. NOT a new content-injection vector (`copyThemeFile` only duplicates bytes
+  already on disk, same directory, same extension — no attacker-supplied content path exists), but a
+  real write-gate inconsistency. Closed by adding the same `isGeneratedThemePath` check on the copy
+  source, mirroring rename's own `sourceRenamable` pattern (destination is always the same folder as the
+  source, so checking the source alone suffices). RED test `18fc5f4`, fix `c8d06fc`.
+- **Reset** (`registerAdminThemeFileResetRoute`): empirically confirmed a single-file RESET of a
+  `preview/` path reads the theme's own catalog snapshot via `readThemeFile` and writes it straight back
+  to the live file with no `isGeneratedThemePath` check — 200, not refused. Also not attacker-content
+  injection (the restored bytes come from the theme's own pristine catalog, not request input), same
+  nuance as copy. Closed the same way, placed after the ADR-020 generated-tree branch (which correctly
+  handles compiled-theme whole-release restores already and is unrelated). RED test `b1bd772`, fix
+  `b27fcf7`.
+
+All 6 of `explore.ts`'s exported routes now consistently agree on `preview/`: the two read-only ones
+(`registerAdminThemeDetailRoute`'s file list, `registerAdminThemeFileGetRoute`) already filtered it out;
+all four mutating ones (PUT, copy, rename, reset) now refuse it. 22/22 in the full `admin/themes` test
+tree pass; `npx tsc -p tsconfig.json --noEmit` clean for both touched files.
+
+**Verdict on the team lead's three questions:** no third serving path; CSP cannot be bypassed for the
+actual vulnerability class (one inert, non-exploitable finalhandler nuance found and refuted); the
+`preview/` write gate was NOT actually fully closed as claimed — two more instances existed and are now
+fixed in this round.
+
+---
+
 ### Note — XSS in rendered output (priority #4): the `description` omission holds; one dead-but-dangerous template landmine found
 
 **Component:** `src/features/commerce/storefront.ts`, `src/server/http/site/render.ts`, theme `.liquid` templates
