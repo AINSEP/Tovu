@@ -33,7 +33,10 @@ vi.mock("../hooks/use-new-content-type-dialog.hooks", async (importOriginal) => 
   const actual = await importOriginal<typeof import("../hooks/use-new-content-type-dialog.hooks")>();
   return {
     ...actual,
-    useNewContentTypeDialog: (props: unknown) => {
+    // Mocks the zero-deps wrapper `NewContentTypeDialog`'s default prop now points at post-
+    // `useWiredX` conversion — was `useNewContentTypeDialog` (the pure, deps-taking hook) before; a
+    // call-site rename of what gets intercepted, not a behavior or assertion change.
+    useWiredNewContentTypeDialog: (props: unknown) => {
       newDialogPropsRef.current = props;
       return newDialogRef.current;
     },
