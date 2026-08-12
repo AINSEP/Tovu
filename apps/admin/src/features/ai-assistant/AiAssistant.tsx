@@ -21,7 +21,7 @@ import { useVisitorCredentialForm, type VisitorCredentialFormController } from "
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { translateAdminNavLabel } from "../../lib/admin-nav-i18n";
 import { AI_ASSISTANT_DICT } from "./ai-assistant-i18n";
-import { useAiAssistantLocaleSync } from "./hooks/use-ai-assistant-locale-sync.hooks";
+import { useWiredAiAssistantLocaleSync } from "./hooks/use-ai-assistant-locale-sync.hooks";
 
 /**
  * @file "AI Assistant" admin screen — the `/admin/ai-assistant` route. Markup only.
@@ -653,11 +653,11 @@ export function VisitorCredentialForm({
  */
 function AiAssistantLocaleSync({
   locale,
-  useAiAssistantLocaleSyncHook = useAiAssistantLocaleSync,
+  useAiAssistantLocaleSyncHook = useWiredAiAssistantLocaleSync,
 }: {
   locale: string;
   /** Dependency injection seam for tests — same convention as `PostsProps.usePostsHook`. */
-  useAiAssistantLocaleSyncHook?: typeof useAiAssistantLocaleSync;
+  useAiAssistantLocaleSyncHook?: typeof useWiredAiAssistantLocaleSync;
 }) {
   useAiAssistantLocaleSyncHook({ locale });
   return null;

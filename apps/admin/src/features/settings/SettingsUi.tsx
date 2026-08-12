@@ -70,7 +70,7 @@ import { ADMIN_LOCALES, DEFAULT_INSTRUCTIONS, type AppearanceConfig } from "../.
 import { DEFAULT_EXECUTION_CONFIG } from "../../lib/execution-settings";
 import { navigate } from "../../lib/router";
 import { describeSaveStatus, resolveDialogDataTheme } from "./rules";
-import { useSettingsLocaleSync } from "./hooks/use-settings-locale-sync.hooks";
+import { useWiredSettingsLocaleSync } from "./hooks/use-settings-locale-sync.hooks";
 import { useSettingsUi, type SettingsUiController } from "./hooks/use-settings-ui.hooks";
 import { ComposioKeyField } from "./ComposioKeyField";
 import { connectorsDependencies } from "./connectors-port";
@@ -173,11 +173,11 @@ function AboutPanel({ t, tCap }: { t: (key: string) => string; tCap: (key: strin
  */
 function SettingsLocaleSync({
   locale,
-  useSettingsLocaleSyncHook = useSettingsLocaleSync,
+  useSettingsLocaleSyncHook = useWiredSettingsLocaleSync,
 }: {
   locale: string;
   /** Dependency injection seam for tests — same convention as `PostsProps.usePostsHook`. */
-  useSettingsLocaleSyncHook?: typeof useSettingsLocaleSync;
+  useSettingsLocaleSyncHook?: typeof useWiredSettingsLocaleSync;
 }) {
   useSettingsLocaleSyncHook({ locale });
   return null;
