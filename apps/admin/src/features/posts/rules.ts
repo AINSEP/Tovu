@@ -85,6 +85,18 @@ export function toolbarBtnClass(active: boolean): string {
   return `tb-btn${active ? " on" : ""}`;
 }
 
+/** A 6-digit hex color if `value` is one, else `fallback` — display-only normalization for the
+ *  color/background-color `<input type="color">` swatches in `Toolbar` (2026-08-11): a native color
+ *  input can only ever SHOW a strict 6-digit hex, but the active mark's own `color` attr can be
+ *  `null` (nothing picked yet) or a non-hex CSS value the editor inherited some other way (pasted
+ *  `rgb(...)`/a keyword like `"red"`). Purely cosmetic — it decides what the swatch looks like, not
+ *  what gets applied on change (`chain().setColor(e.target.value)` always reads straight off the
+ *  native input, which itself can only ever emit a valid hex). */
+const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
+export function hexOrDefault(value: string | null, fallback: string): string {
+  return value !== null && HEX_COLOR_PATTERN.test(value) ? value : fallback;
+}
+
 /** Which end of `updatedAt` the Posts list's "Updated" column header currently sorts toward. */
 export type PostUpdatedSortDirection = "newest" | "oldest";
 

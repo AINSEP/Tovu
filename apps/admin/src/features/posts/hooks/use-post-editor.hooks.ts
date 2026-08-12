@@ -5,6 +5,7 @@ import TextAlign from "@tiptap/extension-text-align";
 import Highlight from "@tiptap/extension-highlight";
 import Subscript from "@tiptap/extension-subscript";
 import Superscript from "@tiptap/extension-superscript";
+import { TextStyle, Color, BackgroundColor } from "@tiptap/extension-text-style";
 
 import type { AdminPost, ThemeTier } from "../../../lib/api";
 import { MediaImage } from "../../../lib/media-image-extension";
@@ -209,6 +210,14 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
       Highlight.configure({ multicolor: true }),
       Subscript,
       Superscript,
+      // `Color`/`BackgroundColor` are both `Extension`s that attach a global attribute to the
+      // shared `textStyle` mark (`TextStyle`, the actual mark carrying `<span>` in the doc) rather
+      // than marks of their own — one mark can carry `color` and `backgroundColor` at once. See
+      // `render.ts`'s `"textStyle"` case for the public-render half, including why the two style
+      // declarations are combined into one `style=""` attribute there rather than nesting two spans.
+      TextStyle,
+      Color,
+      BackgroundColor,
       MediaImage,
       WidgetEmbed,
     ],

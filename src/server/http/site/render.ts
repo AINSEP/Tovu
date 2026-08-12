@@ -182,7 +182,28 @@ function renderMarks(text: string, marks: JsonValue[] | undefined): string {
     else if (type === "strike") html = `<s>${html}</s>`;
     else if (type === "subscript") html = `<sub>${html}</sub>`;
     else if (type === "superscript") html = `<sup>${html}</sup>`;
-    else if (type === "highlight") {
+    else if (type === "textStyle") {
+      // `@tiptap/extension-text-style` (2026-08-11) — `Color`/`BackgroundColor` are both
+      // `Extension`s that attach a global attribute to this ONE shared mark rather than marks of
+      // their own (confirmed against the installed dist, not assumed: both literally call
+      // `chain().setMark("textStyle", { color/backgroundColor })`), so a run of text with both
+      // picked carries a SINGLE `textStyle` mark with both attrs, not two nested marks — the
+      // combined style string below mirrors that, one `<span style="...">`, not two nested spans.
+      // Each value is independently allowlisted ({@link safeCssColor}) before it reaches public
+      // HTML; an unsafe/malformed value for either drops just that declaration rather than the
+      // whole style attribute (an author who picked a valid text color but somehow got a corrupted
+      // background value keeps the text color). No attrs surviving the allowlist (including the
+      // common case: a `textStyle` mark with neither attr set, e.g. from `toggleTextStyle()` or
+      // some other extension using this same mark) renders no `<span>` at all — an empty
+      // `style=""` wrapper would be pure noise.
+      const attrs = isObject(mark.attrs) ? mark.attrs : {};
+      const styleParts: string[] = [];
+      const color = safeCssColor(attrs.color);
+      if (color) styleParts.push(`color:${color}`);
+      const backgroundColor = safeCssColor(attrs.backgroundColor);
+      if (backgroundColor) styleParts.push(`background-color:${backgroundColor}`);
+      if (styleParts.length > 0) html = `<span style="${escapeHtml(styleParts.join(";"))}">${html}</span>`;
+    } else if (type === "highlight") {
       // `@tiptap/extension-highlight`, `multicolor: true` (2026-08-11) — the admin toolbar button is
       // a plain toggle (no color picker), so `attrs.color` is normally absent and this renders a bare
       // `<mark>`, styled by `.post-detail-body mark` (styles.css). A `color` attr from anywhere else

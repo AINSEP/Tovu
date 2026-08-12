@@ -9,7 +9,7 @@ import { api } from "../../lib/api";
 import { siteUrl } from "../../lib/site-url";
 import { useWiredPostEditor, type PostEditorView } from "./hooks/use-post-editor.hooks";
 import { PostTemplateModal } from "./PostTemplateModal";
-import { toolbarBtnClass } from "./rules";
+import { toolbarBtnClass, hexOrDefault } from "./rules";
 
 /**
  * @file The post/page editor screen — markup only.
@@ -71,6 +71,11 @@ function Toolbar({ editor }: { editor: Editor }) {
       alignCenter: editor?.isActive({ textAlign: "center" }) ?? false,
       alignRight: editor?.isActive({ textAlign: "right" }) ?? false,
       alignJustify: editor?.isActive({ textAlign: "justify" }) ?? false,
+      // `getAttributes`, not `isActive` — a color isn't a boolean toggle, it's the current cursor's
+      // `textStyle` mark attrs (or `{}` with nothing selected/no color set), which is exactly what
+      // the two color-input swatches below need to reflect the right swatch as the selection moves.
+      color: (editor?.getAttributes("textStyle").color as string | undefined) ?? null,
+      backgroundColor: (editor?.getAttributes("textStyle").backgroundColor as string | undefined) ?? null,
       canUndo: editor?.can().undo() ?? false,
       canRedo: editor?.can().redo() ?? false,
     }),
@@ -186,6 +191,35 @@ function Toolbar({ editor }: { editor: Editor }) {
       <div className="grp">
         <button className="tb-btn" title="Undo (⌘Z)" disabled={!s.canUndo} onClick={() => chain().undo().run()}>↺</button>
         <button className="tb-btn" title="Redo (⌘⇧Z)" disabled={!s.canRedo} onClick={() => chain().redo().run()}>↻</button>
+      </div>
+      {/* Text/background color (owner, 2026-08-11: "anything and everything") — native
+          `<input type="color">` swatches, no color-picker dependency, same "no icon dependency"
+          spirit the align-icon SVGs above follow. A native color input only ever emits a strict
+          6-digit hex, so `chain().setColor()`/`setBackgroundColor()` never receive anything
+          `safeCssColor` (render.ts) would reject — the allowlist there is defense-in-depth against
+          `bodyJson` written some OTHER way (a direct API call, pasted content), not something this
+          UI can trigger on its own. `hexOrDefault` only affects what the swatch DISPLAYS when
+          nothing is selected or the current mark's color isn't a plain hex string (e.g. inherited
+          from pasted `rgb(...)`/keyword content) — it never touches what gets applied on change. */}
+      <div className="grp">
+        <label className="tb-color" title="Text color">
+          <input
+            type="color"
+            aria-label="Text color"
+            value={hexOrDefault(s.color, "#000000")}
+            onChange={(e) => chain().setColor(e.target.value).run()}
+          />
+        </label>
+        <button className="tb-btn" title="Clear text color" aria-label="Clear text color" onClick={() => chain().unsetColor().run()}>×</button>
+        <label className="tb-color" title="Background color">
+          <input
+            type="color"
+            aria-label="Background color"
+            value={hexOrDefault(s.backgroundColor, "#ffffff")}
+            onChange={(e) => chain().setBackgroundColor(e.target.value).run()}
+          />
+        </label>
+        <button className="tb-btn" title="Clear background color" aria-label="Clear background color" onClick={() => chain().unsetBackgroundColor().run()}>×</button>
       </div>
       <div className="grp">
         {/* Single "Embed" control (quick-and-dirty pass, 2026-08-05 — owner explicitly skipped

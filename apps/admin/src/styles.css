@@ -1520,6 +1520,16 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    the `<svg>` itself (not here) is what makes the icon track `.tb-btn.on`'s active-state color swap
    for free. */
 .tb-btn svg { width: 16px; height: 16px; }
+/* Text/background color swatches (`PostEditor.tsx`'s `Toolbar`, 2026-08-11) — a native
+   `<input type="color">` renders with no consistent cross-browser chrome on its own (a raw square
+   with a visible native border in some browsers, none in others), so this wraps it in the same
+   30px-tall frame every other `.tb-btn` already occupies and gives the input itself a small
+   inset + border so it reads as "one more toolbar control", not a stray native form field. */
+.tb-color { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 7px; cursor: pointer; }
+.tb-color input[type="color"] {
+  width: 20px; height: 20px; padding: 0; border: 1px solid var(--border); border-radius: 5px;
+  cursor: pointer; background: none;
+}
 /* `WidgetAddControl`'s `<span className="widget-add-control">` (its widget-type `<select>` plus
    the "Insert widget"/"+ Add widget" trigger button, `components/WidgetPickerDialog/WidgetPickerDialog.tsx`) had
    never had any CSS anywhere in the app — the two controls sat flush with zero gap between them.
