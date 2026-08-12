@@ -154,22 +154,43 @@ function SidebarLogoutButton(props: { onLogout: () => void; locale: string }) {
 export interface AppProps {
   /**
    * Injectable seam for the boot-time auth check — defaults to the real {@link useAdminSession}.
-   * `App`'s one seam (see `App.hooks.tsx`'s own header for why only this one of the four hooks
-   * extracted there is injected): every existing test of `App` pays for mocking `fetch`/
-   * `EventSource` and awaiting the boot screen's exit before it can assert anything about routing
-   * or the shell, because there was no way to skip the real `api.me()` round trip. A fake here lets
-   * a future test render `App` already authenticated instead.
+   * Every existing test of `App` pays for mocking `fetch`/`EventSource` and awaiting the boot
+   * screen's exit before it can assert anything about routing or the shell, because there was no
+   * way to skip the real `api.me()` round trip. A fake here lets a future test render `App`
+   * already authenticated instead.
    */
   useSession?: typeof useAdminSession;
+  /** Injectable seam for the mobile drawer's open state — defaults to the real
+   *  {@link useSidebarDrawer}. Touches `document` (its Escape-key listener) and `localStorage`
+   *  indirectly through the effects it owns, so INFO.md's Components rule 3 applies. */
+  useDrawer?: typeof useSidebarDrawer;
+  /** Injectable seam for the app-wide SPA-link interceptor — defaults to the real
+   *  {@link useInternalLinkInterceptor}. Attaches a real `document` click listener, so rule 3
+   *  applies even though this hook has no return value to fake. */
+  useLinkInterceptor?: typeof useInternalLinkInterceptor;
+  /** Injectable seam for the assistant dock/sheet chrome — defaults to the real
+   *  {@link useChatDockLayout}. Touches `window.matchMedia`, two `ResizeObserver`s, `document`
+   *  keydown/focus, and `lib/assistant-dock-bus.ts`'s pub/sub, so rule 3 applies. */
+  useChatDock?: typeof useChatDockLayout;
+  /** Injectable seam for the agent page-control bridge — defaults to the real
+   *  {@link useAgentPageBridge}. Constructs an `EventSource`-backed session bridge and a DOM page
+   *  driver scoped to the live `<main>` node, so rule 3 applies. */
+  useAgentBridge?: typeof useAgentPageBridge;
 }
 
-export function App({ useSession = useAdminSession }: AppProps = {}) {
+export function App({
+  useSession = useAdminSession,
+  useDrawer = useSidebarDrawer,
+  useLinkInterceptor = useInternalLinkInterceptor,
+  useChatDock = useChatDockLayout,
+  useAgentBridge = useAgentPageBridge,
+}: AppProps = {}) {
   const { user, checking, handleLogin, logout } = useSession();
   const routePath = useRouteLocation();
   const route = useMemo(() => parseRoute(routePath), [routePath]);
 
-  const { sidebarOpen, setSidebarOpen } = useSidebarDrawer({ routePath });
-  useInternalLinkInterceptor();
+  const { sidebarOpen, setSidebarOpen } = useDrawer({ routePath });
+  useLinkInterceptor();
 
   // --- Assistant dock/sheet chrome (MSG-06/MSG-09) — see `useChatDockLayout`'s own doc for why
   // this is one hook rather than several: every value here reads or reacts to at least one other.
@@ -183,9 +204,9 @@ export function App({ useSession = useAdminSession }: AppProps = {}) {
     dockWidthPx,
     chatDockRef,
     chatFabRef,
-  } = useChatDockLayout();
+  } = useChatDock();
 
-  const { contentEl, setContentEl, agentBridge } = useAgentPageBridge();
+  const { contentEl, setContentEl, agentBridge } = useAgentBridge();
 
   /**
    * Read once per render rather than at each of the two `<Sidebar.Nav>` call sites below, so both

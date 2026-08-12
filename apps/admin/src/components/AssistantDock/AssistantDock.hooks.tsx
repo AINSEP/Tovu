@@ -28,11 +28,16 @@ import {
  * directly-assertable-without-mounting reason. Each function's own doc comment explains why it, in
  * particular, is shaped this way; see `AssistantDock.tsx` for how each one is actually wired in.
  *
- * Unlike `AssistantDock`'s own `useChats` prop, none of the three hooks below is exposed as an
- * injectable seam on `AssistantDockProps` — they are consumed directly, the same way they were
- * before this split. Nothing in this brief called for adding new seams here, and the existing
- * component test already exercises the config-load/discovery/mode-switch/model-pick paths through
- * `renderHook` against these exports directly, which is the same coverage a seam would buy.
+ * Per `INFO.md`'s Components rule 3 (any hook touching the DOM, browser APIs, or IO is an
+ * injectable prop, defaulted to the real hook), all three hooks below are exposed as injectable
+ * seams on `AssistantDockProps` — `useExecutionConfig`, `useByokRuntime`, `useLocalCliSelection` —
+ * alongside `AssistantDock`'s own pre-existing `useChats` prop; see `AssistantDock.tsx` for the
+ * wiring. (An earlier revision of this comment claimed none of the three was seamed, on the
+ * reasoning that nothing in that day's brief called for it. That was stale the moment rule 3 was
+ * applied here — corrected rather than left to mislead the next reader.) The existing component
+ * test still exercises the config-load/discovery/mode-switch/model-pick paths through `renderHook`
+ * against these exports directly for the hooks' OWN behavior; the seams exist so
+ * `AssistantDock.tsx`'s own markup/wiring tests can fake them instead of driving the real ones.
  */
 
 export interface UseExecutionConfig {

@@ -23,14 +23,18 @@ import { publishAssistantDockState, subscribeToAssistantDockRequests } from "./l
  * `App.tsx` while the state/effect moved here. Those are rewritten to name the actual file/element
  * they describe instead of a position that no longer holds.
  *
- * `useSession` (the first hook below) is `App`'s one injectable seam, mirroring `ChatFab.tsx`'s
- * `useFab` — every existing test of `App` (`app-plugins-route`, `app-sidebar-rail-storage-key`,
+ * All five hooks below are exposed as injectable seams on `App.tsx`'s `AppProps` (`useSession`,
+ * `useDrawer`, `useLinkInterceptor`, `useChatDock`, `useAgentBridge` — see `App.tsx` for the exact
+ * prop names and wiring), per `INFO.md`'s Components rule 3: every one of them touches the DOM,
+ * a browser API, or IO. `useSession` was the first seamed and is still the highest-value one —
+ * every existing test of `App` (`app-plugins-route`, `app-sidebar-rail-storage-key`,
  * `app-agent-page-identity`, `app-route-prototype-keys`) pays the cost of mocking `fetch`/
  * `EventSource` and awaiting the boot screen's exit before it can assert anything, because `App`
- * had no way to skip the real `api.me()` round trip. The other three hooks below are extracted but
- * NOT seamed, the same call `AssistantDock.hooks.tsx`'s own header makes for its three: nothing in
- * this task asked for more seams, and a fake for routing/chat-dock/agent-bridge state buys little
- * that a real `renderHook` test against these exports directly would not already cover.
+ * had no way to skip the real `api.me()` round trip. (An earlier revision of this comment said the
+ * other four were extracted but deliberately not seamed, on the reasoning that nothing in that
+ * task asked for more and `AssistantDock.hooks.tsx`'s own header made the same call for its three.
+ * That call did not survive contact with rule 3 — `AssistantDock.hooks.tsx`'s header was corrected
+ * the same day, and this one is corrected here rather than left to disagree with it.)
  */
 
 export interface UseAdminSession {
