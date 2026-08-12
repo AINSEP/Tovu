@@ -1,4 +1,4 @@
-import { api, type AdminPost, type AdminThemeSummary, type PresentationSettings } from "../../../lib/api";
+import { api, type AdminMedia, type AdminPost, type AdminThemeSummary, type PresentationSettings } from "../../../lib/api";
 import type { PostEditorPort } from "./post-editor-port.hooks";
 
 /**
@@ -14,6 +14,7 @@ export const defaultPostEditorPort: PostEditorPort = {
   updatePost: (target, patch) => api.updatePost(target, patch),
   deletePost: (id) => api.deletePost(id),
   listPosts: () => api.listPosts(),
+  uploadMedia: (input) => api.uploadMedia(input),
 };
 
 /** Seed state for {@link createFakePostEditorPort}. */
@@ -35,6 +36,11 @@ export interface FakePostEditorPortOptions {
    *  "explicit seed, safe empty default" shape every other array/list field on this options type
    *  already follows. */
   mentionablePosts?: AdminPost[];
+  /** File-handler feature (2026-08-12) — the `AdminMedia` `uploadMedia` resolves with; defaults to
+   *  {@link DEFAULT_MEDIA}. */
+  uploadMediaResult?: AdminMedia;
+  /** Rejects `uploadMedia` with this message instead of resolving — the upload-failure path. */
+  uploadMediaError?: string;
 }
 
 const DEFAULT_POST: AdminPost = {
@@ -50,6 +56,26 @@ const DEFAULT_POST: AdminPost = {
   overridesThemePage: false,
   updatedAt: new Date(0).toISOString(),
   version: 1,
+};
+
+/** {@link FakePostEditorPortOptions.uploadMediaResult}'s own default — an arbitrary but complete
+ *  `AdminMedia`, same "every field present, satisfies the real interface" bar {@link DEFAULT_POST}
+ *  sets for itself. */
+const DEFAULT_MEDIA: AdminMedia = {
+  id: "fake-media-1",
+  workspaceId: "fake-ws",
+  title: "fake-upload.png",
+  alt: "",
+  caption: "",
+  credit: "",
+  sha256: "fake-sha256",
+  status: "active",
+  createdAt: new Date(0).toISOString(),
+  updatedAt: new Date(0).toISOString(),
+  version: 1,
+  width: null,
+  height: null,
+  cssClass: null,
 };
 
 /**
@@ -112,6 +138,11 @@ export function createFakePostEditorPort(options: FakePostEditorPortOptions = {}
 
     async listPosts() {
       return { posts: (options.mentionablePosts ?? []).map((post) => ({ post })) };
+    },
+
+    async uploadMedia() {
+      if (options.uploadMediaError) throw new Error(options.uploadMediaError);
+      return { media: options.uploadMediaResult ?? DEFAULT_MEDIA };
     },
   };
 }

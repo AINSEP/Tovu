@@ -1,9 +1,9 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import type { AdminPost } from "../../../lib/api";
+import type { AdminMedia, AdminPost } from "../../../lib/api";
 import { createFakePostEditorPort } from "../hooks/post-editor-dependencies.hooks";
-import { usePostEditor, useWiredPostEditor } from "../hooks/use-post-editor.hooks";
+import { handleFileDrop, handleFilePaste, uploadDroppedFile, usePostEditor, useWiredPostEditor } from "../hooks/use-post-editor.hooks";
 
 /**
  * @file `usePostEditor` — first coverage for this hook (none existed before the `useWiredX`
@@ -38,6 +38,25 @@ const POST: AdminPost = {
 };
 
 const PAGE: AdminPost = { ...POST, id: "pg1", kind: "page", slug: "about-page" };
+
+/** {@link uploadDroppedFile}/{@link handleFileDrop}/{@link handleFilePaste} group's own fixture —
+ *  what `port.uploadMedia` resolves with, standing in for a real upload response. */
+const UPLOADED_MEDIA: AdminMedia = {
+  id: "asset-99",
+  workspaceId: "ws1",
+  title: "photo.png",
+  alt: "",
+  caption: "",
+  credit: "",
+  sha256: "fake-sha",
+  status: "active",
+  createdAt: "2026-08-12T00:00:00.000Z",
+  updatedAt: "2026-08-12T00:00:00.000Z",
+  version: 1,
+  width: null,
+  height: null,
+  cssClass: null,
+};
 
 function fakeNavigate() {
   return vi.fn<(path: string) => void>();
@@ -319,6 +338,87 @@ describe("usePostEditor — injected t is genuinely returned, not built internal
     await waitFor(() => expect(result.current.post).not.toBeNull());
     expect(result.current.t("Save")).toBe("TRANSLATED[Save]");
     expect(result.current.t).toBe(distinctiveT);
+  });
+});
+
+describe("uploadDroppedFile / handleFileDrop / handleFilePaste — file-handler drag & paste upload (2026-08-12, B1)", () => {
+  it("uploadDroppedFile uploads through port.uploadMedia and returns {assetId, alt: file.name}", async () => {
+    const port = createFakePostEditorPort({ post: POST, uploadMediaResult: UPLOADED_MEDIA });
+    const file = new File(["bytes"], "photo.png", { type: "image/png" });
+
+    const result = await uploadDroppedFile(port, file);
+
+    expect(result).toEqual({ assetId: "asset-99", alt: "photo.png" });
+  });
+
+  it("uploadDroppedFile returns null (not a throw) when the upload fails — a failed file must not crash the drop/paste handler", async () => {
+    const port = createFakePostEditorPort({ post: POST, uploadMediaError: "upload failed" });
+    const file = new File(["bytes"], "photo.png", { type: "image/png" });
+
+    const result = await uploadDroppedFile(port, file);
+
+    expect(result).toBeNull();
+  });
+
+  it("handleFileDrop inserts a ref-based {assetId, transformName, alt} image node at the drop position — the SAME node shape insertMediaRef (the Media picker's own command) produces, never a data: URL", async () => {
+    const port = createFakePostEditorPort({ post: POST, uploadMediaResult: UPLOADED_MEDIA });
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+    await waitFor(() => expect(result.current.editor).not.toBeNull());
+    const editor = result.current.editor!;
+    const dropPos = editor.state.doc.content.size; // end of doc — a plausible drop position
+    const file = new File(["bytes"], "photo.png", { type: "image/png" });
+
+    handleFileDrop(port, editor, [file], dropPos);
+
+    await waitFor(() => {
+      const json = editor.getJSON() as { content?: Array<{ type?: string; attrs?: Record<string, unknown> }> };
+      const inserted = json.content?.find((node) => node.type === "image");
+      expect(inserted?.attrs).toMatchObject({ assetId: "asset-99", transformName: "public", alt: "photo.png" });
+    });
+    expect(JSON.stringify(editor.getJSON())).not.toContain("data:"); // never base64-inlined
+  });
+
+  it("handleFilePaste inserts through insertMediaRef at the current selection — same node shape as drop, positioned differently since onPaste carries no pos argument", async () => {
+    const port = createFakePostEditorPort({ post: POST, uploadMediaResult: UPLOADED_MEDIA });
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+    await waitFor(() => expect(result.current.editor).not.toBeNull());
+    const editor = result.current.editor!;
+    const file = new File(["bytes"], "photo.png", { type: "image/png" });
+
+    handleFilePaste(port, editor, [file]);
+
+    await waitFor(() => {
+      const json = editor.getJSON() as { content?: Array<{ type?: string; attrs?: Record<string, unknown> }> };
+      const inserted = json.content?.find((node) => node.type === "image");
+      expect(inserted?.attrs).toMatchObject({ assetId: "asset-99", transformName: "public", alt: "photo.png" });
+    });
+  });
+
+  it("handleFileDrop uploads and inserts every file independently — one failing upload in a multi-file drop does not block the others", async () => {
+    let call = 0;
+    const port = createFakePostEditorPort({ post: POST });
+    // Override uploadMedia directly (createFakePostEditorPort's own options only model ONE
+    // fixed result/error, not a per-call sequence) so the first file fails and the second succeeds.
+    port.uploadMedia = vi.fn(async () => {
+      call += 1;
+      if (call === 1) throw new Error("first upload failed");
+      return { media: UPLOADED_MEDIA };
+    });
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+    await waitFor(() => expect(result.current.editor).not.toBeNull());
+    const editor = result.current.editor!;
+    const dropPos = editor.state.doc.content.size;
+    const bad = new File(["bytes"], "bad.png", { type: "image/png" });
+    const good = new File(["bytes"], "good.png", { type: "image/png" });
+
+    handleFileDrop(port, editor, [bad, good], dropPos);
+
+    await waitFor(() => {
+      const json = editor.getJSON() as { content?: Array<{ type?: string; attrs?: Record<string, unknown> }> };
+      const inserted = json.content?.filter((node) => node.type === "image") ?? [];
+      expect(inserted).toHaveLength(1); // only the successful upload landed
+      expect(inserted[0]?.attrs).toMatchObject({ alt: "good.png" });
+    });
   });
 });
 

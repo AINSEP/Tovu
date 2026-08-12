@@ -29,6 +29,7 @@
     "@tiptap/extension-file-handler": "3.27.2",
     "@tiptap/extension-highlight": "3.27.2",
     "@tiptap/extension-image": "^3.27.2",
+    "@tiptap/extension-invisible-characters": "3.27.2",
     "@tiptap/extension-list": "3.27.2",
     "@tiptap/extension-mention": "3.27.2",
     "@tiptap/extension-subscript": "3.27.2",

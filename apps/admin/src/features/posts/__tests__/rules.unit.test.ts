@@ -324,44 +324,31 @@ describe("handleImageDrop", () => {
     expect(view.dispatch).not.toHaveBeenCalled();
   });
 
-  it("inserts an image node at the drop position for a dropped image file, calls preventDefault, and returns true", async () => {
-    const { view, tr, imageCreate } = fakeView({ posAtCoordsResult: { pos: 5 } });
+  // A dropped local FILE is deliberately UNHANDLED here as of 2026-08-12 (B1, file-handler
+  // drag/paste upload) — see `handleImageDrop`'s own doc for why returning `true`/dispatching here
+  // would make `@tiptap/extension-file-handler`'s own `onDrop` (`use-post-editor.hooks.ts`'s
+  // `handleFileDrop`, which now owns local file drops end-to-end: upload + ref-based insert) silently
+  // unreachable. This replaces the three tests that used to assert the old base64-inlining behavior.
+  it("does NOT handle a dropped image file — returns false, no preventDefault, no dispatch (FileHandler's own onDrop must be reachable instead)", () => {
+    const { view } = fakeView({ posAtCoordsResult: { pos: 5 } });
     const file = new File(["img-bytes"], "photo.png", { type: "image/png" });
     const event = fakeDragEvent({ files: [file] });
 
     const result = handleImageDrop(view as never, event, false);
 
-    expect(result).toBe(true);
-    expect(event.preventDefault).toHaveBeenCalledTimes(1);
-    // The file read is async (readAsDataURL + FileReader onload) — poll until it settles rather
-    // than assuming a fixed number of microtask ticks.
-    await vi.waitFor(() => expect(imageCreate).toHaveBeenCalled());
-    expect(imageCreate).toHaveBeenCalledWith(expect.objectContaining({ alt: "photo.png" }));
-    expect(tr.insert).toHaveBeenCalledWith(5, expect.anything());
-    expect(view.dispatch).toHaveBeenCalledTimes(1);
+    expect(result).toBe(false);
+    expect(event.preventDefault).not.toHaveBeenCalled();
+    expect(view.dispatch).not.toHaveBeenCalled();
   });
 
-  it("falls back to the current selection's end position when posAtCoords returns null", async () => {
+  it("falls back to the current selection's end position when posAtCoords returns null (URI-drop path — the file-drop path that used to cover this fallback no longer exists here)", () => {
     const { view, tr } = fakeView({ posAtCoordsResult: null, selectionTo: 42 });
-    const file = new File(["img-bytes"], "photo.png", { type: "image/png" });
-    const event = fakeDragEvent({ files: [file] });
-
-    handleImageDrop(view as never, event, false);
-    await vi.waitFor(() => expect(tr.insert).toHaveBeenCalled());
-
-    expect(tr.insert).toHaveBeenCalledWith(42, expect.anything());
-  });
-
-  it("inserts one node per dropped image file, filtering out non-image files", async () => {
-    const { view, tr } = fakeView({ posAtCoordsResult: { pos: 1 } });
-    const img1 = new File(["a"], "a.png", { type: "image/png" });
-    const notImage = new File(["b"], "b.txt", { type: "text/plain" });
-    const img2 = new File(["c"], "c.jpg", { type: "image/jpeg" });
-    const event = fakeDragEvent({ files: [img1, notImage, img2] });
+    const event = fakeDragEvent({ uriListData: "https://example.com/pic.png" });
 
     const result = handleImageDrop(view as never, event, false);
+
     expect(result).toBe(true);
-    await vi.waitFor(() => expect(tr.insert).toHaveBeenCalledTimes(2));
+    expect(tr.insert).toHaveBeenCalledWith(42, expect.anything());
   });
 
   it("inserts a dropped http(s) image URL directly (no file read), calls preventDefault, returns true", () => {
