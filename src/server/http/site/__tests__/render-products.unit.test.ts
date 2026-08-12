@@ -71,3 +71,19 @@ test("buildTemplateRenderData: `product` is null (not undefined/absent) when the
   const data = buildTemplateRenderData(minimalContext({ route: "products", product: undefined }));
   assert.equal(data.product, null);
 });
+
+test("buildTemplateRenderData: a product's specs and currency pass through unchanged (2026-08-12 contract-delta fix -- product.liquid reads both, safely, since neither is emitted via `| raw`)", () => {
+  const specs = [{ label: "Material", value: "Combed cotton" }];
+  const data = buildTemplateRenderData(
+    minimalContext({ products: [siteProduct({ specs, currency: "usd" })] })
+  );
+  const products = data.products as Array<Record<string, unknown>>;
+  assert.deepEqual(products[0].specs, specs);
+  assert.equal(products[0].currency, "usd");
+});
+
+test("buildTemplateRenderData: a product never emits a `description` field, even if one somehow reached SiteProduct -- see storefront.ts's file header for why raw HTML from an unsanitized source must never reach product.liquid's `| raw` output", () => {
+  const data = buildTemplateRenderData(minimalContext({ products: [siteProduct()] }));
+  const products = data.products as Array<Record<string, unknown>>;
+  assert.equal("description" in products[0], false);
+});

@@ -1,4 +1,4 @@
-import type { CommercePriceRecord, CommerceProductRecord } from "./types";
+import type { CommercePriceRecord, CommerceProductRecord, CommerceProductSpec } from "./types";
 
 /**
  * @file `storefront.ts` — maps Commerce catalog records into the public site render pipeline's
@@ -27,6 +27,27 @@ import type { CommercePriceRecord, CommerceProductRecord } from "./types";
  *    number here would violate the standing "never present unproven capability as working" rule
  *    (this feature's own context packet, C5). `SiteProduct.stock` is widened to optional so a
  *    Commerce-sourced product can honestly omit it rather than claim a specific count.
+ *  - `description` — a SECURITY omission, not a data-availability one: `CommerceProductRecord
+ *    .description` is a plain `text()` column with no HTML-sanitization contract (no admin UI even
+ *    writes it yet — `db/schema.ts`'s `commerceProducts.description` doc names no format at all).
+ *    `product.liquid` renders `product.description` via Liquid's `| raw` filter — the SAME trust
+ *    contract `post.content` uses, but `post.content` earns that trust by walking a controlled
+ *    TipTap doc-JSON AST (`renderDocNode`) that only ever emits an allowlisted set of tags; a plain
+ *    string column has no equivalent guarantee. Wiring this field through unescaped the moment any
+ *    admin (or seed script) puts `<script>`-shaped text in a product description would be a live
+ *    XSS hole, not a hypothetical one. Revisit only alongside either (a) a sanitizer at the write
+ *    path, or (b) switching the template to escaped (non-`| raw`) output.
+ *
+ * Included this pass, both safe because `product.liquid`/`products.liquid` render them WITHOUT
+ * `| raw` (LiquidJS's `outputEscape: "escape"` default applies — see `liquid-worker.ts` — so any
+ * hostile content in either is HTML-escaped, not executed):
+ *  - `specs` — passed straight through from `CommerceProductRecord.specs`; already structured
+ *    `{label, value}` display data, not a data-availability or safety gap.
+ *  - `currency` — passed straight through from `CommercePriceRecord.currency`, lowercase ISO-4217
+ *    (e.g. `"usd"`), matching Stripe's own convention (see `types.ts`'s doc on that field). The
+ *    design's currency badge was mocked uppercase; `priceFormatted`'s own `$`-prefix is also
+ *    hardcoded regardless of this value (see `render.ts`'s `formatCents` doc) — both are cosmetic
+ *    mismatches for a future currency-formatting pass, not blockers for wiring the raw value.
  */
 
 /** The public-render-facing shape this module produces — structurally compatible with
@@ -38,6 +59,11 @@ export interface StorefrontSiteProduct {
   price: number;
   /** Cents. `undefined` = not on sale. */
   compareAtPrice?: number;
+  /** Lowercase ISO-4217 (e.g. `"usd"`), straight from the chosen price's own `currency`. */
+  currency: string;
+  /** Display-only spec pairs, in author-chosen order. `undefined` = none set. See file header for
+   * why this is safe to pass through unescaped-template-side but `description` is not. */
+  specs?: CommerceProductSpec[];
 }
 
 /**
@@ -72,6 +98,8 @@ export function toSiteProduct(input: {
     title: input.product.name,
     price: input.price.unitAmountCents,
     compareAtPrice: input.price.compareAtAmountCents,
+    currency: input.price.currency,
+    specs: input.product.specs,
   };
 }
 

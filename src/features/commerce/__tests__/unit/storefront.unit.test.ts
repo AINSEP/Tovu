@@ -58,12 +58,30 @@ test("pickDisplayPrice: an archived price is never picked even if it's cheaper",
   assert.equal(pickDisplayPrice([archived, active])?.id, "active");
 });
 
-test("toSiteProduct: maps name -> title, unitAmountCents -> price, compareAtAmountCents -> compareAtPrice", () => {
+test("toSiteProduct: maps name -> title, unitAmountCents -> price, compareAtAmountCents -> compareAtPrice, currency -> currency", () => {
   const result = toSiteProduct({
     product: product({ name: "Classic Boxy Tee" }),
-    price: price({ unitAmountCents: 3500, compareAtAmountCents: 4500 }),
+    price: price({ unitAmountCents: 3500, compareAtAmountCents: 4500, currency: "usd" }),
   });
-  assert.deepEqual(result, { id: "product-1", title: "Classic Boxy Tee", price: 3500, compareAtPrice: 4500 });
+  assert.deepEqual(result, {
+    id: "product-1",
+    title: "Classic Boxy Tee",
+    price: 3500,
+    compareAtPrice: 4500,
+    currency: "usd",
+    specs: undefined,
+  });
+});
+
+test("toSiteProduct: specs pass through unchanged, in author-chosen order -- safe because product.liquid renders spec.label/spec.value escaped (no `| raw`), unlike description", () => {
+  const specs = [{ label: "Material", value: "Combed cotton" }, { label: "Care", value: "Machine wash cold" }];
+  const result = toSiteProduct({ product: product({ specs }), price: price() });
+  assert.deepEqual(result.specs, specs);
+});
+
+test("toSiteProduct: specs is undefined, not an empty array, when the product has none", () => {
+  const result = toSiteProduct({ product: product({ specs: undefined }), price: price() });
+  assert.equal(result.specs, undefined);
 });
 
 test("toSiteProduct: compareAtPrice is undefined, not present-but-null, when not on sale", () => {
@@ -88,4 +106,11 @@ test("toSiteProducts: images/stock are absent from the mapped shape (not fabrica
   const [result] = toSiteProducts([{ product: product(), prices: [price()] }]);
   assert.equal("images" in result, false);
   assert.equal("stock" in result, false);
+});
+
+test("toSiteProducts: description is absent from the mapped shape even when the source product has one -- product.liquid renders description via `| raw` (unescaped), and Commerce's description column has no HTML-sanitization contract (see file header); wiring it through here would be a live XSS hole the moment any text containing markup reaches it", () => {
+  const [result] = toSiteProducts([
+    { product: product({ description: "<script>alert(1)</script>" }), prices: [price()] },
+  ]);
+  assert.equal("description" in result, false);
 });
