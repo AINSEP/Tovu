@@ -3,7 +3,8 @@ import { useEffect, useState } from "react";
 import { ApiError, describeApiError, type AdminWidget, type AdminWidgetType } from "../../../lib/api";
 import { describeReferencingLocations } from "../rules";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
-import { t } from "../widgets-i18n";
+import { WIDGETS_DICT, t as translate } from "../widgets-i18n";
+import type { Translate } from "../../../lib/dictionary-translator";
 import { defaultWidgetsPort } from "./widgets-dependencies.hooks";
 import type { WidgetsPort } from "./widgets-port.hooks";
 
@@ -21,14 +22,24 @@ import type { WidgetsPort } from "./widgets-port.hooks";
  * `deps.port`/`deps.locale` are injected (see `widgets-port.hooks.ts`) rather than reaching for
  * `lib/api`'s `api` and `useAdminLocale()` directly, sharing the `WidgetsPort`
  * `use-widget-instance-editor.hooks.ts` also injects — both hooks read/write the same widget-
- * instance resource. `t(locale, …)` stays a direct import: a pure `DICT[locale]?.[key] ?? key`
- * lookup with no host boundary, same "pure, no-I/O" category the convention doc names for
- * `describeApiError`.
+ * instance resource. `widgets-i18n.ts`'s own `t(locale, key)` — aliased `translate` here to avoid
+ * colliding with this file's own bound `(key) => string` closure — stays a direct import for this
+ * hook's OWN error strings: a pure `DICT[locale]?.[key] ?? key` lookup with no host boundary, same
+ * "pure, no-I/O" category the convention doc names for `describeApiError`.
+ *
+ * `deps.t` (standing i18n rule, 2026-08-11 — a component with a hook gets a BOUND `t` from that
+ * hook, not its own `useAdminLocale()`/dictionary import, same shape `use-pages.hooks.ts`
+ * established): injected so `WidgetsLibrary.tsx` sources its UI copy from this hook instead of its
+ * own `useAdminLocale()`/`WIDGETS_DICT` import. `locale` is ALSO exposed, not just `t`: this
+ * screen passes the raw string on to `widgetTypeLabel` (`../rules.ts`), same "row-menu/label
+ * builder is a different, out-of-scope thing" precedent `use-pages.hooks.ts` cites for
+ * `pageRowMenuItems`.
  */
 
 export interface WidgetsLibraryDependencies {
   port: WidgetsPort;
   locale: string;
+  t: Translate;
 }
 
 export interface WidgetsLibraryController {
@@ -48,9 +59,14 @@ export interface WidgetsLibraryController {
   forcePurging: boolean;
   confirmForcePurge: () => Promise<void>;
   trashOrPurge: (widget: AdminWidget) => Promise<void>;
+  /** Bound translator — `WidgetsLibrary.tsx`'s only source of UI copy; see this file's own header. */
+  t: Translate;
+  /** The raw resolved locale — exposed only because `widgetTypeLabel` (`../rules.ts`) genuinely
+   *  needs it, not `t`. */
+  locale: string;
 }
 
-export function useWidgetsLibrary({ port, locale }: WidgetsLibraryDependencies): WidgetsLibraryController {
+export function useWidgetsLibrary({ port, locale, t }: WidgetsLibraryDependencies): WidgetsLibraryController {
   const [widgets, setWidgets] = useState<AdminWidget[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   // Dossier C5 follow-up (2026-08-03): `listWidgetInstances` silently skips a widget-instance row
@@ -80,7 +96,7 @@ export function useWidgetsLibrary({ port, locale }: WidgetsLibraryDependencies):
         setWidgets(r.widgets.filter((w) => w.status !== "purged"));
         setSkippedCount(r.skippedCount ?? 0);
       })
-      .catch((e) => setError(describeApiError(e, t(locale, "failed to load widgets"))));
+      .catch((e) => setError(describeApiError(e, translate(locale, "failed to load widgets"))));
   }
 
   useEffect(load, []);
@@ -105,7 +121,7 @@ export function useWidgetsLibrary({ port, locale }: WidgetsLibraryDependencies):
         setPendingForcePurge({ widget, summary });
         return;
       }
-      setError(describeApiError(e, t(locale, "delete failed")));
+      setError(describeApiError(e, translate(locale, "delete failed")));
     }
   }
 
@@ -117,7 +133,7 @@ export function useWidgetsLibrary({ port, locale }: WidgetsLibraryDependencies):
       await port.purgeWidget({ id: widget.id }, { force: true });
       load();
     } catch (e2) {
-      setError(describeApiError(e2, t(locale, "force-purge failed")));
+      setError(describeApiError(e2, translate(locale, "force-purge failed")));
     } finally {
       setForcePurging(false);
       setPendingForcePurge(null);
@@ -134,7 +150,7 @@ export function useWidgetsLibrary({ port, locale }: WidgetsLibraryDependencies):
       }
       await purge(widget);
     } catch (e) {
-      setError(describeApiError(e, t(locale, "delete failed")));
+      setError(describeApiError(e, translate(locale, "delete failed")));
     }
   }
 
@@ -153,12 +169,14 @@ export function useWidgetsLibrary({ port, locale }: WidgetsLibraryDependencies):
     forcePurging,
     confirmForcePurge,
     trashOrPurge,
+    t,
+    locale,
   };
 }
 
 /**
- * Binds the real `/api/.../widgets` client and the real `useAdminLocale()` — see
- * `widgets-dependencies.hooks.ts`.
+ * Binds the real `/api/.../widgets` client, the real `useAdminLocale()`, and a `WIDGETS_DICT`-bound
+ * translator — see `widgets-dependencies.hooks.ts`.
  *
  * The zero-argument-dependencies half of the `useX(dependencies)` / `useWiredX()` pair, so
  * `WidgetsLibrary.tsx` composes this and a test composes {@link useWidgetsLibrary} with
@@ -166,5 +184,6 @@ export function useWidgetsLibrary({ port, locale }: WidgetsLibraryDependencies):
  */
 export function useWiredWidgetsLibrary(): WidgetsLibraryController {
   const locale = useAdminLocale();
-  return useWidgetsLibrary({ port: defaultWidgetsPort, locale });
+  const t = (key: string): string => WIDGETS_DICT[locale]?.[key] ?? key;
+  return useWidgetsLibrary({ port: defaultWidgetsPort, locale, t });
 }

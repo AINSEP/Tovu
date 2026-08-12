@@ -3,8 +3,6 @@ import { WIDGET_TYPE_OPTIONS } from "../../components/WidgetConfigFields/WidgetC
 import { ConfirmDialog, DataTable } from "@jini-ai/admin/react";
 import { widgetTypeLabel } from "./rules";
 import { useWiredWidgetsLibrary } from "./hooks/use-widgets-library.hooks";
-import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import { WIDGETS_DICT } from "./widgets-i18n";
 
 /**
  * @file `WidgetsLibraryScreen` (`ui.spec.md` §2.1/§3.1/§4.1) — the widget library/list screen,
@@ -65,9 +63,9 @@ export function WidgetsLibrary({ useWidgetsLibraryHook = useWiredWidgetsLibrary 
     forcePurging,
     confirmForcePurge,
     trashOrPurge,
+    t,
+    locale,
   } = useWidgetsLibraryHook();
-  const locale = useAdminLocale();
-  const t = (key: string): string => WIDGETS_DICT[locale]?.[key] ?? key;
 
   if (error && !widgets) return <div className="notice error">{error}</div>;
   if (!widgets) return <div className="notice">Loading widgets…</div>;

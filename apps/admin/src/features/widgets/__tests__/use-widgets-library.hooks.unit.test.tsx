@@ -31,7 +31,7 @@ describe("useWidgetsLibrary — injected port (no fetch stub)", () => {
   it("loads the list from the injected port and never touches the real api client", async () => {
     const listSpy = vi.spyOn(api, "listWidgets");
     const port = createFakeWidgetsPort({ widgets: [WIDGET] });
-    const { result } = renderHook(() => useWidgetsLibrary({ port, locale: "en" }));
+    const { result } = renderHook(() => useWidgetsLibrary({ port, locale: "en", t: (key: string) => key }));
 
     await waitFor(() => expect(result.current.widgets).toHaveLength(1));
     expect(result.current.widgets?.[0]?.id).toBe("w1");
@@ -40,7 +40,7 @@ describe("useWidgetsLibrary — injected port (no fetch stub)", () => {
 
   it("routes trashOrPurge (active widget) through the injected port's trashWidget, and the row disappears once the list re-reads it", async () => {
     const port = createFakeWidgetsPort({ widgets: [WIDGET] });
-    const { result } = renderHook(() => useWidgetsLibrary({ port, locale: "en" }));
+    const { result } = renderHook(() => useWidgetsLibrary({ port, locale: "en", t: (key: string) => key }));
     await waitFor(() => expect(result.current.widgets).toHaveLength(1));
 
     await act(async () => {
@@ -62,7 +62,7 @@ describe("useWidgetsLibrary — injected port (no fetch stub)", () => {
   it("does not resolve `widgets` while the injected port's list call is still pending", () => {
     const port = createFakeWidgetsPort();
     port.listWidgets = () => new Promise(() => {});
-    const { result } = renderHook(() => useWidgetsLibrary({ port, locale: "en" }));
+    const { result } = renderHook(() => useWidgetsLibrary({ port, locale: "en", t: (key: string) => key }));
     expect(result.current.widgets).toBeNull();
   });
 });

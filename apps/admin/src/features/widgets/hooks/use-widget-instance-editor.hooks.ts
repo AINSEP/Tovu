@@ -5,7 +5,8 @@ import { navigate as realNavigate } from "../../../lib/router";
 import { defaultWidgetConfig } from "../../../components/WidgetConfigFields/WidgetConfigFields";
 import { resolveEditorWidgetType, widgetConfigFieldErrors } from "../rules";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
-import { t } from "../widgets-i18n";
+import { WIDGETS_DICT, t as translate } from "../widgets-i18n";
+import type { Translate } from "../../../lib/dictionary-translator";
 import { defaultWidgetsPort } from "./widgets-dependencies.hooks";
 import type { WidgetsPort } from "./widgets-port.hooks";
 
@@ -20,22 +21,30 @@ import type { WidgetsPort } from "./widgets-port.hooks";
  * `deps.port`/`deps.locale`/`deps.navigate` are injected (see `widgets-port.hooks.ts`) rather than
  * reaching for `lib/api`'s `api`, `useAdminLocale()`, and `lib/router`'s `navigate` directly,
  * sharing the `WidgetsPort` `use-widgets-library.hooks.ts` also injects — both read/write the same
- * widget-instance resource. `t(locale, …)` stays a direct import: a pure `DICT[locale]?.[key] ??
- * key` lookup with no host boundary, same "pure, no-I/O" category the convention doc names for
- * `describeApiError`.
+ * widget-instance resource. `widgets-i18n.ts`'s own `t(locale, key)` — aliased `translate` here to
+ * avoid colliding with this file's own bound `(key) => string` closure — stays a direct import for
+ * this hook's OWN error strings: a pure `DICT[locale]?.[key] ?? key` lookup with no host boundary,
+ * same "pure, no-I/O" category the convention doc names for `describeApiError`.
+ *
+ * `deps.t` (standing i18n rule, 2026-08-11 — see `use-widgets-library.hooks.ts`'s identical note):
+ * injected so `WidgetInstanceEditor.tsx` sources its UI copy from this hook instead of its own
+ * `useAdminLocale()`/`WIDGETS_DICT` import. `locale` is ALSO exposed, not just `t`: this screen
+ * passes the raw string on to `widgetTypeLabel` (`../rules.ts`), same "row-menu/label builder is a
+ * different, out-of-scope thing" precedent `use-pages.hooks.ts` cites for `pageRowMenuItems`.
  */
 
 export interface WidgetInstanceEditorDependencies {
   port: WidgetsPort;
   locale: string;
   navigate: (path: string) => void;
+  t: Translate;
 }
 
 /** Locale-aware replacement for the old `STALE_VERSION_MESSAGE` constant — this string is only
  *  ever read inside this hook itself (after a `WIDGETS_VERSION_CONFLICT` 409), so it can be a
  *  function of `locale` instead of a locale-blind module constant. */
 export function staleVersionMessage(locale: string): string {
-  return t(locale, "This widget changed since you loaded it, refresh and try again.");
+  return translate(locale, "This widget changed since you loaded it, refresh and try again.");
 }
 
 /** The subset of `WidgetInstanceEditor`'s props this hook needs — the DI seam prop itself stays
@@ -62,11 +71,17 @@ export interface WidgetInstanceEditorController {
    *  widget's own type once one exists. `null` when neither is available. */
   widgetType: AdminWidgetType | null;
   save: () => Promise<void>;
+  /** Bound translator — `WidgetInstanceEditor.tsx`'s only source of UI copy; see this file's own
+   *  header. */
+  t: Translate;
+  /** The raw resolved locale — exposed only because `widgetTypeLabel` (`../rules.ts`) genuinely
+   *  needs it, not `t`. */
+  locale: string;
 }
 
 export function useWidgetInstanceEditor(
   props: WidgetInstanceEditorHookProps,
-  { port, locale, navigate }: WidgetInstanceEditorDependencies
+  { port, locale, navigate, t }: WidgetInstanceEditorDependencies
 ): WidgetInstanceEditorController {
   const isNew = props.widgetId === null;
   const [widget, setWidget] = useState<AdminWidget | null>(null);
@@ -100,7 +115,7 @@ export function useWidgetInstanceEditor(
         setConfig(r.widget.config);
         setWhereUsed(r.whereUsed);
       })
-      .catch((e) => setError(describeApiError(e, t(locale, "failed to load widget"))))
+      .catch((e) => setError(describeApiError(e, translate(locale, "failed to load widget"))))
       .finally(() => setLoading(false));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [props.widgetId, props.widgetType, isNew]);
@@ -127,9 +142,9 @@ export function useWidgetInstanceEditor(
         setError(staleVersionMessage(locale));
       } else if (e instanceof ApiError && e.code === "WIDGETS_CONFIG_VALIDATION_ERROR") {
         setFieldErrors(widgetConfigFieldErrors(e));
-        setError(describeApiError(e, t(locale, "save failed")));
+        setError(describeApiError(e, translate(locale, "save failed")));
       } else {
-        setError(describeApiError(e, t(locale, "save failed")));
+        setError(describeApiError(e, translate(locale, "save failed")));
       }
     } finally {
       setSaving(false);
@@ -151,12 +166,14 @@ export function useWidgetInstanceEditor(
     saving,
     widgetType,
     save,
+    t,
+    locale,
   };
 }
 
 /**
- * Binds the real `/api/.../widgets` client, the real `useAdminLocale()`, and the real
- * `lib/router` `navigate` — see `widgets-dependencies.hooks.ts`.
+ * Binds the real `/api/.../widgets` client, the real `useAdminLocale()`, the real `lib/router`
+ * `navigate`, and a `WIDGETS_DICT`-bound translator — see `widgets-dependencies.hooks.ts`.
  *
  * The zero-argument-dependencies half of the `useX(dependencies)` / `useWiredX()` pair, so
  * `WidgetInstanceEditor.tsx` composes this and a test composes {@link useWidgetInstanceEditor}
@@ -164,5 +181,6 @@ export function useWidgetInstanceEditor(
  */
 export function useWiredWidgetInstanceEditor(props: WidgetInstanceEditorHookProps): WidgetInstanceEditorController {
   const locale = useAdminLocale();
-  return useWidgetInstanceEditor(props, { port: defaultWidgetsPort, locale, navigate: realNavigate });
+  const t = (key: string): string => WIDGETS_DICT[locale]?.[key] ?? key;
+  return useWidgetInstanceEditor(props, { port: defaultWidgetsPort, locale, navigate: realNavigate, t });
 }

@@ -23,7 +23,7 @@ describe("useWidgetRegionEditor — injected port (no fetch stub, no api spy)", 
   it("loads the region from the injected port and never touches the real api client", async () => {
     const getSpy = vi.spyOn(api, "getWidgetRegion");
     const port = createFakeWidgetRegionsPort({ areas: { footer: { area: AREA, placements: [PLACEMENT] } } });
-    const { result } = renderHook(() => useWidgetRegionEditor("footer", { port, locale: "en" }));
+    const { result } = renderHook(() => useWidgetRegionEditor("footer", { port, locale: "en", t: (key: string) => key }));
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.area).toEqual(AREA);
@@ -34,7 +34,7 @@ describe("useWidgetRegionEditor — injected port (no fetch stub, no api spy)", 
   it("routes save through the injected port and bumps the area version", async () => {
     const mutateSpy = vi.spyOn(api, "mutateWidgetRegionPlacements");
     const port = createFakeWidgetRegionsPort({ areas: { footer: { area: AREA, placements: [PLACEMENT] } } });
-    const { result } = renderHook(() => useWidgetRegionEditor("footer", { port, locale: "en" }));
+    const { result } = renderHook(() => useWidgetRegionEditor("footer", { port, locale: "en", t: (key: string) => key }));
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () => {
@@ -56,7 +56,7 @@ describe("useWidgetRegionEditor — injected port (no fetch stub, no api spy)", 
   it("stays loading while the injected port's get call is still pending", () => {
     const port = createFakeWidgetRegionsPort();
     port.getWidgetRegion = () => new Promise(() => {});
-    const { result } = renderHook(() => useWidgetRegionEditor("footer", { port, locale: "en" }));
+    const { result } = renderHook(() => useWidgetRegionEditor("footer", { port, locale: "en", t: (key: string) => key }));
     expect(result.current.loading).toBe(true);
     expect(result.current.area).toBeNull();
   });

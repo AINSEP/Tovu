@@ -1,7 +1,5 @@
 import { WidgetAddControl } from "../../components/WidgetPickerDialog/WidgetPickerDialog";
 import { useWiredWidgetRegionEditor } from "./hooks/use-widget-region-editor.hooks";
-import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import { WIDGETS_DICT } from "./widgets-i18n";
 
 /**
  * @file `RegionPlacementEditorScreen` + `RegionPlacementList` (`ui.spec.md` §2.5/§2.6/§3.7/§3.8/
@@ -63,10 +61,8 @@ export function WidgetRegionEditorHeaderActions({
 
 export function WidgetRegionEditor(props: WidgetRegionEditorProps) {
   const { regionKey, useWidgetRegionEditorHook = useWiredWidgetRegionEditor } = props;
-  const { area, placements, message, error, loading, saving, removeAt, moveAt, toggleEnabled, addPlacement, save } =
+  const { area, placements, message, error, loading, saving, removeAt, moveAt, toggleEnabled, addPlacement, save, t } =
     useWidgetRegionEditorHook(regionKey);
-  const locale = useAdminLocale();
-  const t = (key: string): string => WIDGETS_DICT[locale]?.[key] ?? key;
 
   if (error && !area) return <div className="notice error">{error}</div>;
   if (loading) return <div className="notice">Loading region…</div>;

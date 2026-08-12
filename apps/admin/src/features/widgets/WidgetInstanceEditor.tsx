@@ -2,8 +2,7 @@ import { WidgetConfigFields } from "../../components/WidgetConfigFields/WidgetCo
 import { isKnownWidgetType, widgetTypeLabel } from "./rules";
 import { useWiredWidgetInstanceEditor } from "./hooks/use-widget-instance-editor.hooks";
 import type { AdminWidget, AdminWidgetWhereUsed } from "../../lib/api";
-import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import { WIDGETS_DICT } from "./widgets-i18n";
+import type { Translate } from "../../lib/dictionary-translator";
 
 /**
  * @file `WidgetInstanceEditorScreen` (`ui.spec.md` §2.2/§3.3/§4.3) — create/edit one widget
@@ -16,7 +15,7 @@ import { WIDGETS_DICT } from "./widgets-i18n";
  */
 
 /** REQ-34/`ui.spec.md` §3.5 — rendered only when `references.length > 0`, before the config form. */
-function WhereUsedBanner(props: { whereUsed: AdminWidgetWhereUsed; t: (key: string) => string }) {
+function WhereUsedBanner(props: { whereUsed: AdminWidgetWhereUsed; t: Translate }) {
   const { t } = props;
   if (props.whereUsed.count === 0) return null;
   return (
@@ -96,10 +95,24 @@ export interface WidgetInstanceEditorProps {
 
 export function WidgetInstanceEditor(props: WidgetInstanceEditorProps) {
   const { widgetId, widgetType: queryWidgetType, useWidgetInstanceEditorHook = useWiredWidgetInstanceEditor } = props;
-  const { isNew, widget, whereUsed, title, setTitle, config, setConfig, message, error, fieldErrors, loading, saving, widgetType, save } =
-    useWidgetInstanceEditorHook({ widgetId, widgetType: queryWidgetType });
-  const locale = useAdminLocale();
-  const t = (key: string): string => WIDGETS_DICT[locale]?.[key] ?? key;
+  const {
+    isNew,
+    widget,
+    whereUsed,
+    title,
+    setTitle,
+    config,
+    setConfig,
+    message,
+    error,
+    fieldErrors,
+    loading,
+    saving,
+    widgetType,
+    save,
+    t,
+    locale,
+  } = useWidgetInstanceEditorHook({ widgetId, widgetType: queryWidgetType });
 
   const guard = widgetInstanceGuard({ error, isNew, widget, loading, widgetType });
   if (guard) return <WidgetInstanceGuardNotice guard={guard} />;
