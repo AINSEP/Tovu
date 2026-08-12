@@ -551,8 +551,15 @@ describe("remount / re-navigation — same QueryClient shared across visits", ()
     logRow("redirects", `remount visit 1=${visit1} requests`, []);
     logRow("redirects", `remount visit 2 (same client, cache entry ${visit2 > 0 ? "NOT " : ""}reused)`, calls);
     // eslint-disable-next-line no-console
-    console.log(`MEASURE\tredirects\tremount cost: staleTime:0 means visit2Requests=${visit2} (gcTime not a factor — elapsed time is ms)`);
+    console.log(`MEASURE\tredirects\tremount cost: visit2Requests=${visit2} (gcTime not a factor — elapsed time is ms)`);
     expect(visit1).toBeGreaterThan(0);
+    // Owner decision (TM-TOVU-2026-08-12-A, `adapter.tanstack.tsx`'s `staleTime: 0 -> 30_000`
+    // default change): under the OLD `staleTime: 0` default this was 1 — a remount refetched at
+    // full cost, identical to a first visit (see this same file's git history for the pre-change
+    // number). Now 0: the cache entry survives the remount and is still fresh, so nothing refetches.
+    // This assertion IS the regression guard for that change — if it goes back to 1, `staleTime`
+    // regressed to `0` (or something is forcing a refetch some other way) and that is worth knowing.
+    expect(visit2).toBe(0);
   });
 
   it("collections entry editor: open a detail panel, close it, reopen the SAME record — does the reopen refetch?", async () => {
@@ -601,8 +608,15 @@ describe("remount / re-navigation — same QueryClient shared across visits", ()
     logRow("collections", `entry editor reopen visit 1=${visit1} requests`, []);
     logRow("collections", "entry editor reopen visit 2 (same record, same client)", calls);
     // eslint-disable-next-line no-console
-    console.log(`MEASURE\tcollections\tdetail-panel reopen cost: staleTime:0 means visit2Requests=${visit2}`);
+    console.log(`MEASURE\tcollections\tdetail-panel reopen cost: visit2Requests=${visit2}`);
     expect(visit1).toBeGreaterThan(0);
+    // Owner decision (TM-TOVU-2026-08-12-A, `adapter.tanstack.tsx`'s `staleTime: 0 -> 30_000`
+    // default change): under the OLD `staleTime: 0` default this was 3 — reopening the SAME record
+    // refetched all 3 of the combined load's requests again, identical to a first open (see this
+    // same file's git history for the pre-change number). Now 0: the cache entry survives the
+    // close/reopen and is still fresh. Same regression-guard reasoning as the redirects remount test
+    // above — if this goes back to 3, `staleTime` regressed or something else is forcing a refetch.
+    expect(visit2).toBe(0);
   });
 
   it("media: close the edit-metadata panel and reopen the SAME item — control case, no query of its own", async () => {

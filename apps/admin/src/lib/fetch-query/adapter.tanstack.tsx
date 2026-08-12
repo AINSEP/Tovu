@@ -44,10 +44,28 @@ function toError(value: unknown, fallback: string): Error {
  * Defaults chosen for a multi-operator admin, where the server is the source
  * of truth and someone else may have changed a record in another tab.
  *
- * `staleTime: 0` — revalidate on mount by default. The win this module is
- * bought for is deduping and cross-component sharing, NOT serving stale
- * records; a per-query `staleTime` opts specific reads into caching where the
- * data genuinely does not move.
+ * `staleTime: 30_000` (owner decision, TM-TOVU-2026-08-12-A request-volume audit,
+ * 2026-08-12 — was `0` from this module's original authoring; changed here, not
+ * per-query, because the owner wants the DEFAULT changed, not an opt-in). `0`
+ * meant every query was stale the instant it mounted, so navigating away from a
+ * screen and back — or closing a detail panel and reopening the same record —
+ * refetched from the network at full cost every time, identical to a first
+ * visit (measured: `apps/admin/src/__measurements__/request-volume.measurement
+ * .test.tsx`'s "remount / re-navigation" suite, redirects 1->1 and collections
+ * entry-editor reopen 3->3 requests under the old default). That is very likely
+ * what the operator-facing "admin keeps re-requesting things" complaint this
+ * audit was answering was actually observing post-migration, not the request-
+ * amplification the migration itself already fixed. `30_000` does NOT weaken
+ * write-driven correctness: `invalidateQueries` (every `invalidates`/
+ * `useInvalidate()` site) calls `refetchQueries({ type: "active" })`
+ * immediately and never consults `staleTime` — confirmed both by reading
+ * `query-core`'s `queryClient.js`/`query.js` and by re-running deliverable A's
+ * per-action request counts unchanged after this edit (see the commit that
+ * made this change for the verification record). A read that genuinely must
+ * show fresh data on every single mount, not just after a write, should opt
+ * OUT via a per-query `staleTime: 0` rather than this default being lowered
+ * back — none needed that as of this change (verified: zero call sites passed
+ * `staleTime` at all before this edit).
  *
  * `retry: false` — deliberate. `api.ts`'s `request()` throws a typed `ApiError`
  * carrying the server's own status and code, and the admin's screens report
@@ -58,7 +76,7 @@ function toError(value: unknown, fallback: string): Error {
 function createClient(): QueryClient {
   return new QueryClient({
     defaultOptions: {
-      queries: { staleTime: 0, retry: false, refetchOnWindowFocus: false },
+      queries: { staleTime: 30_000, retry: false, refetchOnWindowFocus: false },
       mutations: { retry: false },
     },
   });
