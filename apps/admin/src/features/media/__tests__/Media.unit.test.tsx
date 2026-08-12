@@ -553,6 +553,113 @@ describe("metadata edit stays a partial patch", () => {
   });
 });
 
+/**
+ * Regression pin for the 2026-08-12 audit round 2 blocker F1 (domain 4 — writing to the wrong
+ * record): `<EditMediaPanel>` used to render with no `key`, so switching the edit target from item
+ * A directly to item B (`toggleEditing`'s `A id -> B id` transition — see `use-media.hooks.ts`'s
+ * `toggleEditing`, which only passes through `null` when re-clicking the SAME row) re-rendered the
+ * SAME component instance instead of remounting it. `useEditMediaPanel` seeds `draft` inside a
+ * `useState` initializer, which React runs once per mount and never again — so `draft` stayed bound
+ * to A's (possibly edited, unsaved) values while `item` became B, and `save()` PATCHed B's id with
+ * A's stale field values. Two ordinary clicks, no race, no adversarial input.
+ *
+ * Fixed by `key={editingItem.id}` on `<EditMediaPanel>` in `Media.tsx`, forcing a remount (and a
+ * fresh `useState` seed from the NEW item) whenever the edit target's id changes.
+ */
+describe("switching edit target between items (regression: stale draft overwrite, audit F1)", () => {
+  const ITEM_ALPHA = {
+    id: "media-alpha",
+    workspaceId: "workspace-local",
+    title: "Alpha Original Title",
+    alt: "Alpha Alt",
+    caption: "Alpha Caption",
+    credit: "Alpha Credit",
+    sha256: "alpha-sha",
+    status: "active",
+    createdAt: "2026-08-01T00:00:00.000Z",
+    updatedAt: "2026-08-01T00:00:00.000Z",
+    version: 1,
+    width: null,
+    height: null,
+    cssClass: null,
+  };
+  const ITEM_BETA = {
+    id: "media-beta",
+    workspaceId: "workspace-local",
+    title: "Beta Original Title",
+    alt: "Beta Alt",
+    caption: "Beta Caption",
+    credit: "Beta Credit",
+    sha256: "beta-sha",
+    status: "active",
+    createdAt: "2026-08-01T00:00:00.000Z",
+    updatedAt: "2026-08-01T00:00:00.000Z",
+    version: 1,
+    width: null,
+    height: null,
+    cssClass: null,
+  };
+  const TWO_ITEM_RESPONSE = { media: [ITEM_ALPHA, ITEM_BETA] };
+
+  it("shows B's own values (not A's stale draft) after an unsaved A->B switch, and PATCHes only what was actually changed on B", async () => {
+    const user = userEvent.setup();
+    let patchedUrl: string | null = null;
+    let patchBody: unknown = null;
+    fetchMock.mockImplementation((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = typeof input === "string" ? input : String(input);
+      const method = (init?.method ?? "GET").toUpperCase();
+      if (method === "PATCH") {
+        patchedUrl = url;
+        patchBody = JSON.parse(String(init?.body));
+        return Promise.resolve(jsonResponse({ media: ITEM_BETA }));
+      }
+      if (url.includes("/media")) return Promise.resolve(jsonResponse(TWO_ITEM_RESPONSE));
+      return Promise.reject(new Error(`unexpected ${method} ${url}`));
+    });
+
+    const { container } = renderScreen();
+    const cardAlpha = cardFor(await waitForCard(container, "Alpha Original Title"), "Alpha Original Title");
+
+    // Open A's edit panel and change its title — WITHOUT saving. This is the divergence that makes
+    // a stale draft distinguishable from a fresh one.
+    await user.click(within(cardAlpha).getByRole("button", { name: /actions for "alpha original title"/i }));
+    await user.click(screen.getByRole("menuitem", { name: /edit metadata/i }));
+    const titleInputA = await screen.findByLabelText("Title");
+    expect(titleInputA).toHaveValue("Alpha Original Title");
+    await user.clear(titleInputA);
+    await user.type(titleInputA, "Changed Alpha Title");
+
+    // Switch the edit target DIRECTLY to B through the row menu's "Edit metadata" action (the same
+    // `toggleEditing` path the UI drives) — A's panel is never closed/saved first, so this is the
+    // A-id -> B-id transition `toggleEditing` takes without ever passing through `null`.
+    const cardBeta = cardFor(container, "Beta Original Title");
+    await user.click(within(cardBeta).getByRole("button", { name: /actions for "beta original title"/i }));
+    await user.click(screen.getByRole("menuitem", { name: /edit metadata/i }));
+
+    // The panel must now be editing B, seeded from B's OWN values — not A's stale/changed draft.
+    expect(await screen.findByRole("heading", { name: /editing "beta original title"/i })).toBeInTheDocument();
+    const titleInputB = screen.getByLabelText("Title");
+    await waitFor(() => expect(titleInputB).toHaveValue("Beta Original Title"));
+    expect(screen.getByLabelText("Alt")).toHaveValue("Beta Alt");
+    expect(screen.getByLabelText("Caption")).toHaveValue("Beta Caption");
+    expect(screen.getByLabelText("Credit")).toHaveValue("Beta Credit");
+
+    // Change ONE field on B (a different field than the one changed on A) and save.
+    const creditInputB = screen.getByLabelText("Credit");
+    await user.clear(creditInputB);
+    await user.type(creditInputB, "Changed Beta Credit");
+    await user.click(screen.getByRole("button", { name: "Save" }));
+
+    await waitFor(() => expect(patchBody).not.toBeNull());
+    expect(patchedUrl).toContain("/media/media-beta");
+    // The whole point of the regression: B's patch is derived from B's own values only. A stale
+    // instance would additionally carry A's changed title (and A's original alt/caption/credit,
+    // since the whole draft object stayed bound to A) into this same payload.
+    expect(patchBody).toEqual({ credit: "Changed Beta Credit" });
+    expect(JSON.stringify(patchBody)).not.toContain("Alpha");
+  });
+});
+
 /** Waits for the grid to have finished its initial load (the card for `title` exists), then
  *  returns the container for `cardFor` to re-scope against. */
 async function waitForCard(container: HTMLElement, title: string): Promise<HTMLElement> {
