@@ -134,6 +134,39 @@ class DeclError extends Error {
 const fqName = (pluginId: string, name: string): string => `p_${pluginId}__${name}`;
 
 /** Validate the declaration entirely before any I/O (§5 namespace + column shape + §3/T6 tier). */
+/**
+ * PostgreSQL's hard identifier ceiling (`NAMEDATALEN - 1`). SQLite has no limit at all, which is
+ * exactly why this needs checking here rather than being discovered later: nothing in a
+ * SQLite-only world ever fails, so a too-long name ships silently and only becomes a defect on a
+ * Postgres-backed site.
+ */
+const MAX_IDENTIFIER_BYTES = 63;
+
+/**
+ * Fails a declaration whose generated identifier would exceed what PostgreSQL accepts.
+ *
+ * Why reject rather than truncate: PostgreSQL truncates over-long identifiers *silently* — no
+ * error, no warning. The name in the catalog then differs from the name this module computed, so
+ * `existingTables`-style idempotency checks look for a name that is not there, conclude the object
+ * is missing, and try to create it again on every activation. Failing closed at declare time (like
+ * every other check in this function, all of which run before any I/O) turns a silent divergence on
+ * one backend into an install-time error the plugin author sees immediately.
+ *
+ * Measured headroom at the time this was added: the longest live identifier is 42 bytes
+ * (`idx_p_comments__comments__moderation_queue`), so no existing plugin is affected. The budget a
+ * plugin author actually has is `pluginId + tableName + indexName <= 53` for an index, since the
+ * `idx_`, `p_`, and two `__` separators consume the other 10.
+ */
+function assertIdentifierFits(identifier: string, what: string): void {
+  if (Buffer.byteLength(identifier, "utf8") <= MAX_IDENTIFIER_BYTES) return;
+  throw new DeclError(
+    "IDENTIFIER_TOO_LONG",
+    `${what} generates the identifier "${identifier}" (${Buffer.byteLength(identifier, "utf8")} bytes), ` +
+      `which exceeds PostgreSQL's ${MAX_IDENTIFIER_BYTES}-byte limit and would be silently truncated. ` +
+      `Shorten the plugin id, table name, or index name.`
+  );
+}
+
 function validate(decl: DataModuleDecl): void {
   if (!IDENT.test(decl.pluginId)) throw new DeclError("BAD_PLUGIN_ID", `invalid pluginId: ${decl.pluginId}`);
   if (decl.pluginTier === "tier-1") {
@@ -142,6 +175,7 @@ function validate(decl: DataModuleDecl): void {
   if (decl.tables.length === 0) throw new DeclError("EMPTY", "declaration lists no tables");
   for (const table of decl.tables) {
     if (!IDENT.test(table.name)) throw new DeclError("BAD_TABLE_NAME", `invalid table name: ${table.name}`);
+    assertIdentifierFits(fqName(decl.pluginId, table.name), `table ${table.name}`);
     if (table.columns.length === 0) throw new DeclError("NO_COLUMNS", `table ${table.name} declares no columns`);
     const declaredColumns = new Set<string>();
     for (const col of table.columns) {
@@ -151,6 +185,7 @@ function validate(decl: DataModuleDecl): void {
     }
     for (const idx of table.indexes ?? []) {
       if (!IDENT.test(idx.name)) throw new DeclError("BAD_INDEX_NAME", `invalid index name: ${idx.name}`);
+      assertIdentifierFits(`idx_${fqName(decl.pluginId, table.name)}__${idx.name}`, `index ${idx.name} on table ${table.name}`);
       if (idx.columns.length === 0) throw new DeclError("EMPTY_INDEX", `index ${idx.name} on table ${table.name} declares no columns`);
       for (const col of idx.columns) {
         if (!declaredColumns.has(col)) {
