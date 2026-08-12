@@ -31,6 +31,18 @@ import { loginAsAdmin } from "./auth-fixtures";
  * `entry.liquid` fired a real Playwright `download` event, and the HTML tab showed the "This is a
  * binary file" notice instead of any source — see this suite's handoff report for the captured run.
  * Verified GREEN after: no download fires, and the HTML tab shows the real Liquid source.
+ *
+ * 2026-08-12 follow-up (same owner report, different half of it): "I still don't see a preview of
+ * the liquid with the styles at all." The fix above closed the SOURCE half — the HTML tab. It never
+ * touched the Preview tab (the DEFAULT tab this screen opens on), which still shows nothing useful
+ * for a `.liquid` file: `previewSrcFor` (`ThemeExplore.tsx`) only builds a preview URL for
+ * `kind === "page"`/`"partial"`, and `fileGroup` (`explore.ts`) has no `templates/` case, so every
+ * `.liquid` file lands in `"other"` and gets `previewSrc === null` — same as CSS/JS/JSON. Explore has
+ * no templated-tier RENDER pipeline at all (`theme-page-preview.ts` 422s anything that isn't
+ * `static`-tier) — that is a real feature gap, not a bug, and is not what this fix builds. What WAS a
+ * bug: the Preview tab showed the exact same generic "Select a file to preview." placeholder for a
+ * missing capability as it does for "you haven't clicked anything yet", which reads as broken rather
+ * than as "not built". The second test below pins the honest, specific message instead.
  */
 test.describe("theme Explore — .liquid template preview", () => {
   test.beforeEach(async ({ page }) => {
@@ -79,5 +91,30 @@ test.describe("theme Explore — .liquid template preview", () => {
       path: "development/e2e/theme-liquid-preview.spec.ts-snapshots/liquid-template-preview.png",
       fullPage: true,
     });
+  });
+
+  test("the Preview tab shows an honest 'no rendered preview yet' message for entry.liquid, not the generic 'select a file' placeholder", async ({ page }) => {
+    await page.goto("/admin/themes/explore?theme=storefront");
+    await page.locator(".theme-explore").waitFor({ state: "visible", timeout: 15_000 });
+
+    const fileRow = page.getByRole("button", { name: "entry.liquid", exact: true });
+    await fileRow.waitFor({ state: "visible", timeout: 10_000 });
+    await fileRow.click();
+
+    // No tab switch here on purpose — Preview is the DEFAULT tab (`useState<ThemeExploreView>
+    // ("preview")`, `use-theme-explore.hooks.ts`), and this is the exact screen the owner landed on
+    // when they reported "I still don't see a preview ... at all".
+    await expect(page.getByText(/templated themes don't have a rendered preview yet/i)).toBeVisible({
+      timeout: 5_000,
+    });
+    await expect(page.getByText(/use the html tab/i)).toBeVisible();
+    // The generic placeholder every OTHER previewless file (CSS/JS/JSON, an ordinary `other`-group
+    // file) still shows must NOT appear here — this is the "reads as broken" bug being pinned, not
+    // just "some text is present".
+    await expect(page.getByText(/^select a file to preview\.?$/i)).not.toBeVisible();
+    // Still no rendered iframe -- this test pins the honest MESSAGE, not a claim that rendering now
+    // exists. Building an actual templated-tier render pipeline is a separate, not-yet-approved
+    // decision (see this file's own header).
+    await expect(page.locator(".page-preview-iframe")).toHaveCount(0);
   });
 });
