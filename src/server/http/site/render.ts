@@ -574,14 +574,59 @@ function tableSpanAttrs(attrs: JsonObject): string {
   return `${colspan !== 1 ? ` colspan="${colspan}"` : ""}${rowspan !== 1 ? ` rowspan="${rowspan}"` : ""}`;
 }
 
+/**
+ * Render-time recursion bound (worklist #5, TM-TOVU-2026-08-12-A request-cost audit) — same
+ * "defensive bound, not a real document's expected shape" reasoning {@link tableSpanAttrs}'s own
+ * doc already states for `colspan`/`rowspan`: `bodyJson` is written by a direct API call, an import,
+ * a migration, or a plugin with table access exactly as easily as by the editor, and an unbounded
+ * nesting chain is a cheap way to crash every concurrent visitor's request, not just the one that
+ * asked for this page.
+ *
+ * Chosen empirically, not guessed. A binary search against a real `bulletList > listItem` chain (the
+ * shape genuine repeated list-indentation produces, not an artificial doc) found the actual crash
+ * boundary twice, from two different angles: calling `renderDocNode` directly, depth 500 renders in
+ * ~2ms and depth 501 throws `RangeError: Maximum call stack size exceeded`; through a full real HTTP
+ * request (more call stack already in use — Express, the route handler's own `await` chain,
+ * `renderSite`), the boundary sits at depth 561/562, HIGHER than the isolated-call number, not lower
+ * — plausibly because each `await` resumption in the request path runs as a fresh, shallower
+ * continuation rather than accumulating stack the way nested synchronous calls do, though this isn't
+ * independently confirmed. Both numbers are Node/V8/platform-specific and this repo's own commit
+ * history is proof they move (`request-cost-traversal.measurement.test.ts`'s own runs varied depth
+ * 500-vs-1000 across invocations before the binary search narrowed it down): a bound picked by
+ * splitting the difference between two measurements taken on one laptop is not a bound, it is a
+ * coin flip on whichever platform actually deploys this. `200` is roughly 40% of the LOWER (more
+ * conservative) of the two measured boundaries — over 2.5x headroom below the worst observed crash
+ * point — while still being far deeper than any plausible human-authored document: a nested list 200
+ * `bulletList`/`listItem` pairs deep has no legitimate editorial reason to exist (ordinary nesting
+ * rarely exceeds single digits).
+ *
+ * A node-count (breadth) bound was considered and deliberately deferred, not forgotten — see this
+ * file's own commit history for the full reasoning: unlike depth, breadth doesn't crash (100,000
+ * sibling paragraphs measured ~250-650ms, slow but survives), and the natural mitigation shape is a
+ * different, more invasive design question (where to truncate a document that's too WIDE, and what a
+ * partially-rendered page communicates to a reader, versus depth's clean "stop recursing, show a
+ * placeholder for the over-deep branch, everything else renders exactly as authored").
+ */
+const MAX_RENDER_DEPTH = 200;
+
+/** Emitted in place of any node whose ancestor chain exceeds {@link MAX_RENDER_DEPTH} — same
+ *  labelled-placeholder convention {@link mediaPlaceholder} uses for a missing/unsafe asset, applied
+ *  here for a structural reason instead. The document itself is never modified, only truncated at
+ *  render time: everything above the bound still renders exactly as authored, and only the
+ *  over-deep branch degrades. */
+function depthLimitPlaceholder(): string {
+  return `<div class="content-ph"><span class="content-ph__label">Content too deeply nested to render</span></div>`;
+}
+
 function renderNodes(
   nodes: JsonValue[] | undefined,
   inlineResolved: ReadonlyMap<string, WidgetRenderIR>,
   mediaTransformVersions: ReadonlyMap<string, number>,
-  mediaAssetMetadata: ReadonlyMap<string, MediaAssetRenderMeta>
+  mediaAssetMetadata: ReadonlyMap<string, MediaAssetRenderMeta>,
+  depth: number
 ): string {
   return (nodes ?? [])
-    .map((node) => renderDocNode(node, inlineResolved, mediaTransformVersions, mediaAssetMetadata))
+    .map((node) => renderDocNode(node, inlineResolved, mediaTransformVersions, mediaAssetMetadata, depth))
     .join("");
 }
 
@@ -607,18 +652,27 @@ export function renderDocNode(
   node: JsonValue,
   inlineResolved: ReadonlyMap<string, WidgetRenderIR> = EMPTY_INLINE_RESOLVED,
   mediaTransformVersions: ReadonlyMap<string, number> = EMPTY_MEDIA_TRANSFORM_VERSIONS,
-  mediaAssetMetadata: ReadonlyMap<string, MediaAssetRenderMeta> = EMPTY_MEDIA_ASSET_METADATA
+  mediaAssetMetadata: ReadonlyMap<string, MediaAssetRenderMeta> = EMPTY_MEDIA_ASSET_METADATA,
+  /** Ancestor count above this node — the doc root is `0`. Every pre-existing caller (this file's
+   *  `entryContent`, `liquid-worker.ts`'s `buildLiquidData`, every direct test call) keeps working
+   *  unchanged via this default; only {@link renderNodes}'s own recursive calls ever pass a non-zero
+   *  value. See {@link MAX_RENDER_DEPTH}'s own doc for why this exists and how the number was
+   *  chosen. */
+  depth = 0
 ): string {
   if (!isObject(node)) return "";
+  // Checked before anything else — an over-deep node does no further work at all, which is what
+  // actually stops the recursion (a `depthLimitPlaceholder()` return has no `content` to walk).
+  if (depth > MAX_RENDER_DEPTH) return depthLimitPlaceholder();
   const content = Array.isArray(node.content) ? node.content : undefined;
 
   switch (node.type) {
     case "doc":
       // Dedupe at the doc boundary — see `dedupeHeadingIds` for why this is a pass over the finished
       // string rather than state threaded through the recursion.
-      return dedupeHeadingIds(renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata));
+      return dedupeHeadingIds(renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata, depth + 1));
     case "paragraph":
-      return `<p${alignStyleAttr(node)}>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata)}</p>`;
+      return `<p${alignStyleAttr(node)}>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata, depth + 1)}</p>`;
     case "heading": {
       const level = isObject(node.attrs) && typeof node.attrs.level === "number" ? node.attrs.level : 2;
       const h = Math.min(Math.max(level, 1), 6);
@@ -627,7 +681,7 @@ export function renderDocNode(
       // relies on. Omitted entirely when the text slugifies to nothing.
       const anchor = headingAnchorId(node);
       const idAttr = anchor === "" ? "" : ` id="${escapeHtml(anchor)}"`;
-      return `<h${h}${idAttr}${alignStyleAttr(node)}>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata)}</h${h}>`;
+      return `<h${h}${idAttr}${alignStyleAttr(node)}>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata, depth + 1)}</h${h}>`;
     }
     case "title":
       // Post-title-in-document feature (2026-08-11) — a dedicated first `doc` node an author can
@@ -646,11 +700,11 @@ export function renderDocNode(
         Array.isArray(node.marks) ? node.marks : undefined
       );
     case "bulletList":
-      return `<ul>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata)}</ul>`;
+      return `<ul>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata, depth + 1)}</ul>`;
     case "orderedList":
-      return `<ol>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata)}</ol>`;
+      return `<ol>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata, depth + 1)}</ol>`;
     case "listItem":
-      return `<li>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata)}</li>`;
+      return `<li>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata, depth + 1)}</li>`;
     // Task list (`@tiptap/extension-list`'s `./task-list`/`./task-item` subpaths, 2026-08-11) — DOM
     // shape confirmed against each installed extension's own `renderHTML`, not assumed:
     // `<ul data-type="taskList">` wrapping `<li data-type="taskItem"><label><input
@@ -663,11 +717,11 @@ export function renderDocNode(
     // `nested: false` (confirmed against the installed dist) means `content` here is a single
     // paragraph, not a nested list — sub-tasks are out of scope until that option is turned on.
     case "taskList":
-      return `<ul data-type="taskList">${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata)}</ul>`;
+      return `<ul data-type="taskList">${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata, depth + 1)}</ul>`;
     case "taskItem": {
       const attrs = isObject(node.attrs) ? node.attrs : {};
       const checked = attrs.checked === true;
-      return `<li data-type="taskItem"><label><input type="checkbox"${checked ? " checked" : ""} disabled/><span></span></label><div>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata)}</div></li>`;
+      return `<li data-type="taskItem"><label><input type="checkbox"${checked ? " checked" : ""} disabled/><span></span></label><div>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata, depth + 1)}</div></li>`;
     }
     // Table (`@tiptap/extension-table`, 2026-08-11) — four node types confirmed against the
     // installed dist: `table` (content `"tableRow+"`), `tableRow` (`<tr>`), `tableCell` (`<td>`),
@@ -679,19 +733,19 @@ export function renderDocNode(
     // editor config and this renderer's own `<colgroup>` emission, and nothing in this task asked
     // for resizable tables specifically.
     case "table":
-      return `<table>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata)}</table>`;
+      return `<table>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata, depth + 1)}</table>`;
     case "tableRow":
-      return `<tr>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata)}</tr>`;
+      return `<tr>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata, depth + 1)}</tr>`;
     case "tableCell": {
       const attrs = isObject(node.attrs) ? node.attrs : {};
-      return `<td${tableSpanAttrs(attrs)}${tableCellAlignAttr(node)}>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata)}</td>`;
+      return `<td${tableSpanAttrs(attrs)}${tableCellAlignAttr(node)}>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata, depth + 1)}</td>`;
     }
     case "tableHeader": {
       const attrs = isObject(node.attrs) ? node.attrs : {};
-      return `<th${tableSpanAttrs(attrs)}${tableCellAlignAttr(node)}>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata)}</th>`;
+      return `<th${tableSpanAttrs(attrs)}${tableCellAlignAttr(node)}>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata, depth + 1)}</th>`;
     }
     case "blockquote":
-      return `<blockquote>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata)}</blockquote>`;
+      return `<blockquote>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata, depth + 1)}</blockquote>`;
     case "codeBlock": {
       // `attrs.language` (`@tiptap/extension-code-block-lowlight`, 2026-08-11) — see
       // `safeLanguageClass`'s own doc for why this stays a class token with no server-side
@@ -701,7 +755,7 @@ export function renderDocNode(
       const attrs = isObject(node.attrs) ? node.attrs : {};
       const language = safeLanguageClass(attrs.language);
       const classAttr = language ? ` class="language-${escapeHtml(language)}"` : "";
-      return `<pre><code${classAttr}>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata)}</code></pre>`;
+      return `<pre><code${classAttr}>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata, depth + 1)}</code></pre>`;
     }
     case "horizontalRule":
       return "<hr/>";
@@ -833,7 +887,7 @@ export function renderDocNode(
       return renderWidgetIr(ir ?? WIDGET_PLACEHOLDER_IR);
     }
     default:
-      return renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata);
+      return renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata, depth + 1);
   }
 }
 
@@ -1310,7 +1364,10 @@ function extractTitleNode(
   const align = isObject(first.attrs) && typeof first.attrs.textAlign === "string" ? first.attrs.textAlign : null;
   const innerContent = Array.isArray(first.content) ? first.content : undefined;
   return {
-    html: renderNodes(innerContent, EMPTY_INLINE_RESOLVED, EMPTY_MEDIA_TRANSFORM_VERSIONS, EMPTY_MEDIA_ASSET_METADATA),
+    // `0`: this is its own independent render entry point (the title node's inline content, read
+    // directly off `bodyJson` rather than reached via `renderDocNode`'s own recursive walk), same as
+    // every other top-level caller relying on `renderDocNode`'s own `depth = 0` default.
+    html: renderNodes(innerContent, EMPTY_INLINE_RESOLVED, EMPTY_MEDIA_TRANSFORM_VERSIONS, EMPTY_MEDIA_ASSET_METADATA, 0),
     align,
   };
 }

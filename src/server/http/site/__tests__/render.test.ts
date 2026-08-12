@@ -1271,3 +1271,48 @@ test("renderWidgetIr('post-content'): an empty title node (freshly synthesized, 
   assert.ok(html.includes("<h1></h1>"), html);
   assert.ok(!html.includes("widget-placeholder"));
 });
+
+/** A `depth`-deep chain of nested `bulletList > listItem`, bottoming out in one paragraph — the
+ *  shape genuine repeated list-indentation produces, not an artificial malformed doc. Matches
+ *  `request-cost-traversal.measurement.test.ts`'s own `deepDoc` helper (that file is measurement-
+ *  only; this one is the permanent regression). */
+function deepBulletChain(depth: number): JsonObject {
+  let node: JsonObject = { type: "paragraph", content: [{ type: "text", text: "leaf" }] };
+  for (let i = 0; i < depth; i++) {
+    node = { type: "bulletList", content: [{ type: "listItem", content: [node] }] };
+  }
+  return { type: "doc", content: [node] };
+}
+
+test("renderDocNode: worklist #5 regression — a document nested past MAX_RENDER_DEPTH renders a placeholder instead of crashing the whole render", () => {
+  // Below the bound: renders in full, no placeholder at all — the bound must not clip ordinary
+  // (if unusually deep) legitimate content.
+  const shallow = renderDocNode(deepBulletChain(50));
+  assert.ok(shallow.includes("leaf"), "content within the bound must render exactly as authored");
+  assert.ok(!shallow.includes("content-ph"), "content within the bound must not show any placeholder");
+
+  // At/above the bound: the RangeError this worklist item exists for (measured directly in
+  // `request-cost-traversal.measurement.test.ts`: real crash between depth 500 and depth 1000,
+  // binary-searched to exactly depth 500 ok / depth 501 crashing) must now degrade to a placeholder
+  // instead of throwing. `deepBulletChain(600)` is comfortably past both the crash boundary this
+  // fix guards against AND `MAX_RENDER_DEPTH` itself, so this is testing the ACTUAL fix, not a value
+  // that happens to sit below both.
+  const tooDeep = renderDocNode(deepBulletChain(600));
+  assert.ok(tooDeep.includes("content-ph"), "an over-deep document must degrade to the placeholder, not crash");
+  assert.ok(!tooDeep.includes("leaf"), "content past the bound must not appear — it was never reached, not truncated mid-render");
+});
+
+test("renderDocNode: worklist #5 regression — content above the bound still renders in full; only the over-deep branch degrades", () => {
+  // Two siblings under the doc root: one shallow (renders fully), one past the bound (placeholder).
+  // Proves the bound is per-branch, not "the whole page degrades because ONE part is too deep."
+  const doc: JsonObject = {
+    type: "doc",
+    content: [
+      { type: "paragraph", content: [{ type: "text", text: "this paragraph is fine" }] },
+      deepBulletChain(600).content![0] as JsonObject,
+    ],
+  };
+  const html = renderDocNode(doc);
+  assert.ok(html.includes("this paragraph is fine"), "sibling content above the bound must render normally");
+  assert.ok(html.includes("content-ph"), "the over-deep sibling must degrade to the placeholder");
+});
