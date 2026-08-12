@@ -75,6 +75,7 @@ function controller(overrides: Partial<PageEditorController> = {}): PageEditorCo
     setDevice: vi.fn(),
     saving: false,
     dirty: false,
+    contentDirty: false,
     save: vi.fn(),
     remove: vi.fn(),
     confirmingDelete: false,
@@ -285,26 +286,62 @@ describe("view toggle (Preview / Interactive / HTML)", () => {
   // section flagged this as a real gap, not a regression). A published, un-dirtied page now iframes
   // the real public URL instead, so a visitor sees exactly what the operator sees.
   it("preview iframes the real public URL when the page is published and has no unsaved changes", () => {
-    renderEditor({ view: "preview", status: "published", dirty: false, slug: "about" });
+    renderEditor({ view: "preview", status: "published", dirty: false, contentDirty: false, slug: "about" });
     const preview = screen.getByTitle("Page preview");
     expect(preview).toHaveAttribute("src", expect.stringContaining("/about"));
     expect(screen.queryByText(/preview them with the theme/i)).not.toBeInTheDocument();
   });
 
-  // `SrcDocSandbox` also renders an `<iframe title="Page preview">` (via `srcDoc`, not `src`) — the
-  // fallback is distinguished by the ABSENCE of a `src` attribute, not by element type.
-  it("preview falls back to the raw-body sandbox, with a notice, for a draft page", () => {
-    renderEditor({ view: "preview", status: "draft", dirty: false });
+  // Template-preview fix (2026-08-11, `ADS-memory/reports/implementation/
+  // 2026-08-11-template-preview-render-bug.md`) — deliberately UNCHANGED for a draft, even a clean one
+  // (`contentDirty` false): a draft's own `{"type":"content"}` slot does not survive the shared render
+  // pipeline's visibility-filtered "content" resolver (confirmed live in `admin-post-template-preview
+  // .test.ts`'s own draft case — the body degrades to an empty placeholder, which would read as "my
+  // content disappeared"), so `canShowTemplatePreview` requires `status === "published"` and a draft
+  // keeps the pre-existing raw-body fallback.
+  it("preview still falls back to the raw-body sandbox for a clean draft page (drafts are out of this fix's scope)", () => {
+    renderEditor({ view: "preview", status: "draft", dirty: false, contentDirty: false });
     const preview = screen.getByTitle("Page preview");
     expect(preview).not.toHaveAttribute("src");
     expect(screen.getByText(/publish this page to preview it with the theme/i)).toBeInTheDocument();
   });
 
-  it("preview falls back to the raw-body sandbox, with a notice, when a published page has unsaved changes", () => {
-    renderEditor({ view: "preview", status: "published", dirty: true });
+  // Template-preview fix (2026-08-11) — the reported bug's exact repro: picking a DIFFERENT template
+  // on an otherwise-untouched published page. `dirty` is correctly `true` (an unsaved `templateChoice`
+  // change), but `contentDirty` stays `false` — this must show a real templated render, not the raw
+  // sandbox. Before the fix, `dirty` alone gated the fallback, so switching templates rendered
+  // unstyled and looked identical across every template (the fallback never read `templateChoice`).
+  it("preview shows a real templated render, with the pending template in the URL, when only the template choice is dirty on a published page", () => {
+    renderEditor({
+      view: "preview",
+      status: "published",
+      dirty: true,
+      contentDirty: false,
+      templateChoice: "page-shell.html",
+    });
+    const preview = screen.getByTitle("Page preview");
+    expect(preview).toHaveAttribute("src", expect.stringContaining("/pg1/template-preview"));
+    expect(preview).toHaveAttribute("src", expect.stringContaining("templateChoice=page-shell.html"));
+    expect(screen.getByText(/save to update the live page/i)).toBeInTheDocument();
+  });
+
+  // `SrcDocSandbox` also renders an `<iframe title="Page preview">` (via `srcDoc`, not `src`) — the
+  // fallback is distinguished by the ABSENCE of a `src` attribute, not by element type. Reachable when
+  // a published page's body/title/slug/status itself has unsaved edits (`contentDirty: true`) —
+  // neither the live public URL nor the template-preview endpoint can reflect edits that were never
+  // saved. Same notice wording as before this fix; only the branching condition changed.
+  it("preview falls back to the raw-body sandbox, with a notice, when the page body itself has unsaved edits", () => {
+    renderEditor({ view: "preview", status: "published", dirty: true, contentDirty: true });
     const preview = screen.getByTitle("Page preview");
     expect(preview).not.toHaveAttribute("src");
     expect(screen.getByText(/save your changes to preview them with the theme/i)).toBeInTheDocument();
+  });
+
+  it("preview falls back to the raw-body sandbox, with a notice, for a draft page with unsaved edits", () => {
+    renderEditor({ view: "preview", status: "draft", dirty: true, contentDirty: true });
+    const preview = screen.getByTitle("Page preview");
+    expect(preview).not.toHaveAttribute("src");
+    expect(screen.getByText(/publish this page to preview it with the theme/i)).toBeInTheDocument();
   });
 
   it("renders an editable HTML textarea (not the preview) in html view", () => {
@@ -363,7 +400,12 @@ describe("save/error messages", () => {
 
   it("shows neither when both are null", () => {
     renderEditor({ message: null, error: null });
-    expect(screen.queryByText(/saved/i)).not.toBeInTheDocument();
+    // Scoped to the `.save-ok`/`.save-error` header spans specifically (rather than a bare
+    // `/saved/i` text search) since the template-preview fix (2026-08-11) added a Preview-tab notice
+    // that legitimately contains the word "saved" ("Previewing your saved content...") — an unrelated
+    // element, not a false pass for this assertion's actual subject.
+    expect(document.querySelector(".save-ok")).not.toBeInTheDocument();
+    expect(document.querySelector(".save-error")).not.toBeInTheDocument();
   });
 });
 

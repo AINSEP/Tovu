@@ -203,3 +203,56 @@ describe("dirty (the F07 regression: metadata-only edits used to be invisible)",
     expect(result.current.dirty).toBe(true);
   });
 });
+
+describe("contentDirty (template-preview fix, 2026-08-11)", () => {
+  // The bug this field exists to fix: picking a different template correctly marks `dirty` (it IS an
+  // unsaved change), but `PagePreview` needs to tell that apart from an actual content edit so it can
+  // still show a real templated render instead of falling back to the raw, unstyled body — see
+  // `ADS-memory/reports/implementation/2026-08-11-template-preview-render-bug.md`.
+  it("stays false when only templateChoice changes, even though dirty goes true", async () => {
+    const { result } = await mountLoaded("landing", HTML_PAGE);
+    expect(result.current.dirty).toBe(false);
+    expect(result.current.contentDirty).toBe(false);
+
+    act(() => {
+      result.current.setTemplateChoice("blog-post.html");
+    });
+
+    expect(result.current.dirty).toBe(true);
+    expect(result.current.contentDirty).toBe(false);
+  });
+
+  it("goes true when the title changes, same as dirty", async () => {
+    const { result } = await mountLoaded("landing", HTML_PAGE);
+
+    act(() => {
+      result.current.setTitle("Landing (renamed)");
+    });
+
+    expect(result.current.dirty).toBe(true);
+    expect(result.current.contentDirty).toBe(true);
+  });
+
+  it("goes true when the html body changes on an html-format Page", async () => {
+    const { result } = await mountLoaded("landing", HTML_PAGE);
+
+    act(() => {
+      result.current.setHtml("<p>hello, edited</p>");
+    });
+
+    expect(result.current.dirty).toBe(true);
+    expect(result.current.contentDirty).toBe(true);
+  });
+
+  it("stays false when both templateChoice and html change on a doc-format Page (html isn't real content there)", async () => {
+    const { result } = await mountLoaded("privacy-policy", DOC_PAGE);
+
+    act(() => {
+      result.current.setTemplateChoice("blog-post.html");
+      result.current.setHtml("typed into a field that can't be saved");
+    });
+
+    expect(result.current.dirty).toBe(true);
+    expect(result.current.contentDirty).toBe(false);
+  });
+});

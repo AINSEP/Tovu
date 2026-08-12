@@ -104,7 +104,7 @@ const SITE_TITLE = "Tovu Demo Site";
  * the render-time fallback that keeps the public site from 500-ing when the
  * active theme id is missing/invalid (SPEC-004 REQ-10, spike-level).
  */
-function resolveActiveTheme(deps: RouteDeps, activeThemeId: string): DiscoveredTheme | null {
+export function resolveActiveTheme(deps: TemplateRenderDeps, activeThemeId: string): DiscoveredTheme | null {
   const active = findTheme({ themes: deps.themes, id: activeThemeId });
   if (active && active.status === "valid") return active;
   return deps.themes.find((t) => t.status === "valid") ?? deps.themes[0] ?? null;
@@ -210,8 +210,8 @@ function navTargetToRouteTarget(target: NavTarget): RouteTarget {
  * markup references (bounded in practice to the small, fixed set an author wrote into the theme's
  * own files), run concurrently.
  */
-async function resolveStaticMenusForRender(
-  deps: RouteDeps,
+export async function resolveStaticMenusForRender(
+  deps: TemplateRenderDeps,
   theme: DiscoveredTheme,
   currentPath: string
 ): Promise<Readonly<Record<string, readonly StaticMenuItem[]>>> {
@@ -330,6 +330,21 @@ export type ContentMarkerResolutionDeps = Pick<
   "workspaceId" | "postRepo" | "entryRepo" | "mediaRepo" | "transformDefinitionRepo"
 >;
 
+/** The narrow dependency slice {@link renderViaTemplate}, {@link resolveActiveTheme}, and
+ * {@link resolveStaticMenusForRender} actually need — same "`Pick` of `RouteDeps`, not the whole
+ * composition-root shape" reasoning as {@link ContentMarkerResolutionDeps} immediately above (a
+ * superset of it: adds `menuRepo`, for {@link resolveStaticMenusForRender}'s theme-nav lookup, and
+ * `themes`, for {@link resolveActiveTheme}'s discovery-list scan). Exported (2026-08-11
+ * template-preview fix) so `routes/admin/posts/template-preview.ts` can call these three real-pipeline
+ * functions with `ContentRouteDeps` — a `Pick` in its own right — without either type needing to
+ * satisfy the full `RouteDeps` shape neither one actually reads down to. `RouteDeps` remains a
+ * structural supertype of this, so every pre-existing call site in this file keeps passing its own
+ * full `deps` through unchanged. */
+export type TemplateRenderDeps = Pick<
+  RouteDeps,
+  "workspaceId" | "postRepo" | "entryRepo" | "mediaRepo" | "transformDefinitionRepo" | "menuRepo" | "themes"
+>;
+
 /**
  * Recursively resolves every `{"type":"content","id":...}` marker in `html` whose target is an
  * `"html"`-format entity: fetches the entity (visibility-filtered — guard 2), resolves ITS OWN
@@ -427,9 +442,16 @@ export async function resolveHtmlFormatContentMarkers(
  * or a Page rendered through it; a template with no such placeholder (`blog-post.html`, a disclosed,
  * unchanged limitation — see that function's own doc) is simply unaffected, the same no-op-when-absent
  * contract it already had.
+ *
+ * Exported (2026-08-11 template-preview fix) for `routes/admin/posts/template-preview.ts`, the
+ * admin-only "preview this row through a PENDING, not-yet-saved template choice" endpoint —
+ * `resolveTemplate` reads `post.templateChoice` alone, so that caller passes a shallow clone of the
+ * real record with only `templateChoice` overridden, never persisting the override. Reusing this
+ * function directly (rather than a second implementation) is the same "one render pipeline, zero
+ * drift" reasoning the file header above gives for the live-site iframe branch in both editors.
  */
-async function renderViaTemplate(
-  deps: RouteDeps,
+export async function renderViaTemplate(
+  deps: TemplateRenderDeps,
   theme: DiscoveredTheme,
   post: PostRecord,
   staticMenus: Readonly<Record<string, readonly StaticMenuItem[]>> | undefined
