@@ -1,0 +1,43 @@
+{%- comment -%}
+  Storefront — entry (single journal post). The base template every Post/Page
+  falls through to when no more specific template exists (`home` + `entry` is
+  a theme's required minimum; `products`/`product` are this theme's OWN
+  specializations for the store side). This is the OTHER half of theme.json's
+  own description — "...plus a journal for regular posts" — so it renders one
+  readable article, not a product layout, and (per the brief) must not depend
+  on the sample store plugin's seeded data: nothing here reads `products`.
+
+  Reuses `.wrap`/`.section-title` from home.liquid/products.liquid and the
+  `.journal-teaser__list` link-list markup home.liquid already established for
+  its "From the journal" teaser, so a real stylesheet styling one styles both.
+{%- endcomment -%}
+{% render_block component: "tovu/site-header", compact: true %}
+
+<main class="wrap wrap--article">
+  {%- if post -%}
+    <article class="journal-entry">
+      <a class="journal-entry__back" href="/">← Back to journal</a>
+      <p class="journal-entry__kicker">Journal</p>
+      <h1 class="journal-entry__title">{{ post.title }}</h1>
+      <p class="journal-entry__meta"><time>{{ post.date | date: "%B %e, %Y" }}</time></p>
+      <div class="prose">{{ post.content | raw }}</div>
+    </article>
+
+    {%- assign shown = 0 -%}
+    <section class="journal-entry__more">
+      <h2 class="section-title">More from the journal</h2>
+      <ul class="journal-teaser__list">
+        {%- for other in posts -%}
+          {%- if other.slug != post.slug -%}
+            {%- assign shown = shown | plus: 1 -%}
+            {%- if shown <= 3 -%}
+              <li><a href="/{{ other.slug }}">{{ other.title }}</a></li>
+            {%- endif -%}
+          {%- endif -%}
+        {%- endfor -%}
+      </ul>
+    </section>
+  {%- endif -%}
+</main>
+
+{% render_block component: "tovu/site-footer" %}
