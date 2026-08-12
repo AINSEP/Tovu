@@ -6,6 +6,7 @@ import test from "node:test";
 
 import Database from "better-sqlite3";
 
+import { declareDataModule } from "../data-module";
 import { beginJournalEntry, ensureMigrationJournal } from "../migration-journal";
 import { recoverIncompleteDataModuleMigrations } from "../migration-recovery";
 import { snapshotDb } from "../snapshot";
@@ -14,6 +15,14 @@ import { snapshotDb } from "../snapshot";
  * @file ADR-023 §2 — boot-time crash recovery. Simulates a process death mid-DDL (a journal entry
  * left at a non-terminal phase, with a live db that has already diverged from its snapshot) and
  * proves the mandatory, blocking restore-or-complete step actually restores the pre-DDL state.
+ *
+ * The last test (POST-COMMIT JOURNAL INTEGRITY, BUG FIX 2026-08-12) is a different shape from the
+ * ones above it: rather than hand-simulating a crash by calling the journal/snapshot primitives
+ * directly, it drives the real `declareDataModule` through a fault-injected post-commit failure
+ * (see `data-module.test.ts` for the matching unit-level assertion on the journal phase alone) and
+ * then runs THIS file's actual `recoverIncompleteDataModuleMigrations` against the result — closing
+ * the loop the bug was about: not just "the journal phase is non-terminal" in isolation, but "a
+ * real boot recovery pass actually acts on it."
  */
 
 function makeDbWithCoreContent(): { dir: string; dbPath: string } {
@@ -113,6 +122,72 @@ test("a COMMITTED entry is left alone — recovery is a no-op for a successful p
   const stillThere = new Database(dbPath);
   assert.ok(stillThere.prepare(`SELECT name FROM sqlite_master WHERE name = 'p_done_plugin__real'`).get(), "a committed table must not be reverted");
   stillThere.close();
+
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test("POST-COMMIT JOURNAL INTEGRITY (BUG FIX, 2026-08-12): a declareDataModule call whose post-commit verification fails leaves a journal entry real boot recovery actually restores", async () => {
+  const { dir, dbPath } = makeDbWithCoreContent();
+  const db = new Database(dbPath);
+  db.pragma("journal_mode = WAL");
+
+  const v1 = {
+    pluginId: "committest2",
+    pluginTier: "tier-2" as const,
+    provenance: { sourceUrl: "test://committest2", publisher: "test" },
+    tables: [{ name: "widgets", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }] }],
+  };
+  await declareDataModule({ db, dbPath, decl: v1 });
+
+  const v2 = {
+    ...v1,
+    tables: [{ name: "widgets", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }, { name: "sku", type: "TEXT" as const }] }],
+  };
+
+  // Same fault-injection technique as `data-module.test.ts`'s matching test: let the FIRST
+  // `PRAGMA table_info` call (planning, pre-commit) through untouched, but make the SECOND one
+  // (verifyPostDdl, strictly post-commit) report "sku" as missing even though the real ALTER
+  // already committed it — see that file for the fuller comment.
+  let tableInfoCalls = 0;
+  const proxiedDb = new Proxy(db, {
+    get(target, prop, receiver) {
+      if (prop !== "prepare") {
+        const value = Reflect.get(target, prop, receiver);
+        return typeof value === "function" ? value.bind(target) : value;
+      }
+      return (sql: string) => {
+        if (sql.includes('PRAGMA table_info("p_committest2__widgets")')) {
+          tableInfoCalls += 1;
+          if (tableInfoCalls === 2) {
+            return { all: () => [{ name: "id", type: "TEXT", notnull: 0, pk: 1 }] } as unknown as ReturnType<Database.Database["prepare"]>;
+          }
+        }
+        return target.prepare(sql);
+      };
+    },
+  });
+
+  const declareResult = await declareDataModule({ db: proxiedDb, dbPath, decl: v2 });
+  assert.equal(declareResult.ok, false, "the fault-injected post-commit verification failure is reported");
+  // Close BEFORE recovery — `recoverIncompleteDataModuleMigrations` opens its own short-lived
+  // connection and requires no other connection holds the file open (see this file's header and
+  // `migration-recovery.ts`'s own header on why restore only ever runs at boot, before any other
+  // connection exists).
+  db.close();
+
+  const recovery = recoverIncompleteDataModuleMigrations(dbPath);
+
+  assert.equal(recovery.recovered, 1, "the entry a false ROLLED_BACK would have hidden from recovery IS picked up");
+  assert.equal(recovery.entries[0].pluginId, "committest2");
+
+  const restored = new Database(dbPath);
+  const cols = (restored.prepare(`PRAGMA table_info("p_committest2__widgets")`).all() as Array<{ name: string }>).map((r) => r.name);
+  assert.deepEqual(
+    cols,
+    ["id"],
+    "restored to the pre-DDL snapshot — the ALTER that had actually committed is reverted, same as any other crash-recovered attempt"
+  );
+  restored.close();
 
   fs.rmSync(dir, { recursive: true, force: true });
 });

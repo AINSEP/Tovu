@@ -160,6 +160,98 @@ test("dataModule: a failing DDL rolls back to a working state (never-brick), sna
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
+/**
+ * POST-COMMIT JOURNAL INTEGRITY (BUG FIX, 2026-08-12): see `data-module.ts`'s header comment for
+ * the full reasoning. The two tests below prove both sides of the fork `recordFailurePhase` makes:
+ * a PRE-commit failure still journals a truthful `ROLLED_BACK` (this one, complementing "a failing
+ * DDL rolls back to a working state" above with an explicit journal-phase assertion it didn't
+ * previously make), and a POST-commit failure does NOT (next test, fault-injected).
+ */
+test("dataModule: a pre-commit DDL failure still journals a truthful ROLLED_BACK", async () => {
+  const { db, dbPath, dir } = openWithCore();
+  const result = await declareDataModule({ db, dbPath, decl: {
+    pluginId: "journaltest",
+    pluginTier: "tier-2" as const,
+    provenance: { sourceUrl: "test://journaltest", publisher: "test" },
+    tables: [
+      // Same table declared twice in one call — the second CREATE fails (no IF NOT EXISTS),
+      // before db.transaction() ever resolves, so SQLite's own rollback really did undo it all.
+      { name: "dup", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }] },
+      { name: "dup", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }] },
+    ],
+  } });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.error?.code, "DDL_FAILED");
+  const journalRow = db.prepare(`SELECT phase FROM _plugin_migration_journal ORDER BY id DESC LIMIT 1`).get() as { phase: string } | undefined;
+  assert.ok(journalRow, "a journal entry exists");
+  assert.equal(journalRow!.phase, "ROLLED_BACK", "SQLite's own transaction rollback really did undo everything, so ROLLED_BACK is truthful here");
+
+  db.close();
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test("dataModule: FAULT INJECTION — a post-commit verification failure does NOT mark the journal ROLLED_BACK, since the DDL genuinely committed", async () => {
+  const { db, dbPath, dir } = openWithCore();
+  const v1 = {
+    pluginId: "committest",
+    pluginTier: "tier-2" as const,
+    provenance: { sourceUrl: "test://committest", publisher: "test" },
+    tables: [{ name: "widgets", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }] }],
+  };
+  await declareDataModule({ db, dbPath, decl: v1 });
+
+  const v2 = {
+    ...v1,
+    tables: [{ name: "widgets", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }, { name: "sku", type: "TEXT" as const }] }],
+  };
+
+  // Wrap `db` so the FIRST `PRAGMA table_info("p_committest__widgets")` call (planning, strictly
+  // BEFORE `db.transaction()` resolves) passes through untouched, but the SECOND one
+  // (`verifyPostDdl`, called strictly AFTER the transaction has already committed for real) returns
+  // a stale column list missing "sku" — this injects the rare "verification can't confirm what was
+  // actually committed" case without needing an unreachable SQLite-level failure to trigger it.
+  // Every other `prepare()` call, and every other db method (`.transaction`, `.pragma`, etc.), goes
+  // straight through to the real connection, so the ALTER itself genuinely runs and commits.
+  let tableInfoCalls = 0;
+  const proxiedDb = new Proxy(db, {
+    get(target, prop, receiver) {
+      if (prop !== "prepare") {
+        const value = Reflect.get(target, prop, receiver);
+        return typeof value === "function" ? value.bind(target) : value;
+      }
+      return (sql: string) => {
+        if (sql.includes('PRAGMA table_info("p_committest__widgets")')) {
+          tableInfoCalls += 1;
+          if (tableInfoCalls === 2) {
+            return { all: () => [{ name: "id", type: "TEXT", notnull: 0, pk: 1 }] } as unknown as ReturnType<Database.Database["prepare"]>;
+          }
+        }
+        return target.prepare(sql);
+      };
+    },
+  });
+
+  const result = await declareDataModule({ db: proxiedDb, dbPath, decl: v2 });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.error?.code, "DDL_FAILED");
+  assert.match(result.error?.message ?? "", /post-DDL verification failed/);
+
+  // The ALTER genuinely committed on the real connection — confirmed via a plain, unproxied read.
+  const liveCols = (db.prepare(`PRAGMA table_info("p_committest__widgets")`).all() as Array<{ name: string }>).map((r) => r.name);
+  assert.deepEqual(liveCols, ["id", "sku"], "the ALTER really committed despite the reported failure");
+
+  // The load-bearing assertion: the journal entry must NOT be terminal. A real ROLLED_BACK here
+  // would make next-boot recovery see a "handled" entry and skip it, permanently losing the
+  // ability to reconcile a journal that disagrees with a database that actually has the change.
+  const journalRow = db.prepare(`SELECT phase FROM _plugin_migration_journal ORDER BY id DESC LIMIT 1`).get() as { phase: string };
+  assert.equal(journalRow.phase, "VERIFYING", "left non-terminal so next-boot recovery can act on it, not falsely marked ROLLED_BACK");
+
+  db.close();
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
 test("dataModule: declaring the same table twice is idempotent (no error, no double-create)", async () => {
   const { db, dbPath, dir } = openWithCore();
   const first = await declareDataModule({ db, dbPath, decl: productsDecl });
