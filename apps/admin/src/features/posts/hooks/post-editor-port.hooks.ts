@@ -1,4 +1,4 @@
-import type { AdminPost, AdminThemeSummary, PresentationSettings } from "../../../lib/api";
+import type { AdminMedia, AdminPost, AdminThemeSummary, PresentationSettings } from "../../../lib/api";
 
 /**
  * @file What `use-post-editor.hooks.ts` needs from the outside world, as an interface rather than a
@@ -37,4 +37,13 @@ export interface PostEditorPort {
    *  (confirmed against `use-posts.hooks.ts`'s own `r.posts.map((entry) => entry.post)`, not the
    *  type declaration alone). */
   listPosts(): Promise<{ posts: Array<{ post: AdminPost }> }>;
+  /** File-handler feature (2026-08-12) — uploads one dropped/pasted `File` through the SAME
+   *  media-upload path `MediaPickerDialog`'s own upload flow already calls (`api.uploadMedia`), so
+   *  a file dropped/pasted into the editor becomes a real media-library asset (`{assetId,
+   *  transformName}` ref) rather than an inlined `data:` URL. `PostEditorPort` (not a direct `api`
+   *  import) for the same reason every other route on this interface is injected — see this file's
+   *  header — even though media itself is a different feature's domain; the editor is the only
+   *  caller that needs it for THIS purpose (uploading whatever was just dropped, not browsing the
+   *  library), so it belongs on this port rather than pulling in `features/media`'s own port. */
+  uploadMedia(input: { filename: string; contentType: string; dataBase64: string }): Promise<{ media: AdminMedia }>;
 }

@@ -52,8 +52,13 @@ export function postRowMenuItems(post: AdminPost, handlers: PostRowMenuHandlers,
 /** Reads a browser `File` into a full `data:` URL (mirrors Media.tsx's upload helper, but keeps the
  *  prefix).
  *
- * @complexity Time: O(n) in file bytes; space: O(n) for the base64 result, which is ~1.33x the
- * input — the reason {@link handleImageDrop} inlining a large image is a real memory cost.
+ * Used by `use-post-editor.hooks.ts`'s `uploadDroppedFile` (2026-08-12, B1) as the read step before
+ * uploading a dropped/pasted file — the prefix is stripped there to get the bare base64 payload
+ * `api.uploadMedia` wants. No longer used by {@link handleImageDrop} below (which used to inline the
+ * result straight into `bodyJson` as a `data:` URL — see that function's own doc for why that path
+ * was replaced rather than kept as a fallback).
+ *
+ * @complexity Time: O(n) in file bytes; space: O(n) for the base64 result, which is ~1.33x the input.
  */
 export function readFileAsDataUrl(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -229,38 +234,40 @@ export function updatedSortButtonLabel(direction: PostUpdatedSortDirection): str
 }
 
 /**
- * Drag-and-drop image support: a dropped local file is inlined as a `data:` URL (no media-library
- * serving route exists yet to reference instead — see PostEditor's file header note); a dropped
- * image URL (e.g. dragged from another browser tab) is inserted directly.
+ * Drag-and-drop image support for a URL dragged in from elsewhere (e.g. an image dragged out of
+ * another browser tab) — the dropped resource's own URI is inserted as a legacy `src`-only image
+ * node, unchanged; `render.ts`'s `"image"` case still degrades an untrusted `src` to the public-safe
+ * placeholder, same as it always has for this shape.
+ *
+ * A dropped LOCAL FILE is deliberately NOT handled here (2026-08-12, B1 — file-handler drag/paste
+ * upload). It used to be inlined as a `data:` URL straight into `bodyJson` (a real memory cost —
+ * `readFileAsDataUrl`'s own doc), which `@tiptap/extension-file-handler`'s `onDrop` now supersedes:
+ * it uploads through the real media-library path and inserts the SAME ref-based
+ * `{assetId, transformName}` node the Media picker produces (`use-post-editor.hooks.ts`'s
+ * `handleFileDrop`). This function returning `false` for a file drop is load-bearing, not a gap —
+ * `handleDrop` set directly on `useEditor`'s `editorProps` (this function) runs BEFORE any
+ * extension-registered ProseMirror plugin's own `handleDrop` (confirmed against `prosemirror-view`'s
+ * `EditorView.someProp`: direct view props are tried first, plugin props only if every direct prop
+ * returns nothing), so this function returning `true` for a file drop would make FileHandler's own
+ * `onDrop` permanently unreachable for local files — a silent regression of the exact "editor works,
+ * public site doesn't" shape this whole file's own render-contract discipline exists to catch,
+ * except this one would have broken in the OTHER direction (a feature that never fires at all).
  *
  * Returns `true` when it consumed the drop, which is what tells ProseMirror not to apply its own
  * default handling — the return value is the contract, and it is why this is worth having out here
  * where a test can drive it with a fake `EditorView` instead of a real editor and a real drag.
  *
- * @complexity Time: O(f) in dropped files, each read asynchronously; space: O(1) beyond the reads.
+ * @complexity Time/space: O(1) — a single `DataTransfer` read, no iteration.
  */
 export function handleImageDrop(view: EditorView, event: DragEvent, moved: boolean): boolean {
   if (moved) return false; // internal content reorder, not an external drop
-  const insertAt = () => view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos ?? view.state.selection.to;
-
-  const files = Array.from(event.dataTransfer?.files ?? []).filter((f) => f.type.startsWith("image/"));
-  if (files.length > 0) {
-    event.preventDefault();
-    const pos = insertAt();
-    for (const file of files) {
-      readFileAsDataUrl(file).then((src) => {
-        const node = view.state.schema.nodes.image.create({ src, alt: file.name });
-        view.dispatch(view.state.tr.insert(pos, node));
-      });
-    }
-    return true;
-  }
 
   const uri = droppedUri(event.dataTransfer ?? null);
   if (/^https?:\/\//i.test(uri)) {
     event.preventDefault();
+    const pos = view.posAtCoords({ left: event.clientX, top: event.clientY })?.pos ?? view.state.selection.to;
     const node = view.state.schema.nodes.image.create({ src: uri });
-    view.dispatch(view.state.tr.insert(insertAt(), node));
+    view.dispatch(view.state.tr.insert(pos, node));
     return true;
   }
 

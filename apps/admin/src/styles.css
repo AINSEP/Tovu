@@ -1596,6 +1596,13 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .editor-body .is-empty::before {
   content: attr(data-placeholder); float: left; height: 0; color: var(--faint); pointer-events: none;
 }
+/* Focus (`use-post-editor.hooks.ts`, 2026-08-12, B2 low-priority free extra) — the extension's own
+   default class (`has-focus`) kept as-is, matching `.is-empty` just above; the extension itself ships
+   no CSS at all, so without this rule the class is added/removed in the DOM with zero visible effect.
+   A soft left rule rather than a background fill — a filled block would visually compete with
+   `mark`/`.tb-color` swatches and selection highlighting already in this editor; a rule reads as "you
+   are here" without adding contrast noise to the text itself. */
+.editor-body .tiptap .has-focus { border-left: 2px solid var(--accent); padding-left: 0.6rem; margin-left: -0.65rem; }
 /* `WidgetAddControl`'s `<span className="widget-add-control">` (its widget-type `<select>` plus
    the "Insert widget"/"+ Add widget" trigger button, `components/WidgetPickerDialog/WidgetPickerDialog.tsx`) had
    never had any CSS anywhere in the app — the two controls sat flush with zero gap between them.

@@ -11,7 +11,9 @@ import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import { createLowlight, common } from "lowlight";
 import Youtube from "@tiptap/extension-youtube";
 import Mention from "@tiptap/extension-mention";
-import { Placeholder, CharacterCount } from "@tiptap/extensions";
+import FileHandler from "@tiptap/extension-file-handler";
+import { Placeholder, CharacterCount, Focus } from "@tiptap/extensions";
+import InvisibleCharacters from "@tiptap/extension-invisible-characters";
 import { Table, TableRow, TableCell, TableHeader } from "@tiptap/extension-table";
 import { TaskList, TaskItem } from "@tiptap/extension-list";
 
@@ -22,7 +24,7 @@ import { PostTitleDocument, PostTitle } from "../../../lib/post-title-extension"
 import { navigate as realNavigate } from "../../../lib/router";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { useDirtyGuard } from "../../../hooks/use-dirty-guard.hooks";
-import { handleImageDrop, titleNodeText, withTitleNode } from "../rules";
+import { handleImageDrop, readFileAsDataUrl, titleNodeText, withTitleNode } from "../rules";
 import { POSTS_DICT } from "../posts-i18n";
 import { defaultPostEditorPort } from "./post-editor-dependencies.hooks";
 import type { PostEditorPort } from "./post-editor-port.hooks";
@@ -188,6 +190,97 @@ function computeContentDirty(
   );
 }
 
+/**
+ * Mirrors the server's own advisory upload allowlist (`DEFAULT_ALLOWED_MIME_TYPES`,
+ * `@jini-ai/cms/media`'s `media-service.ts`) rather than importing it: that subpath is the full
+ * server-side upload/DB implementation, which has no place in a browser bundle — unlike
+ * `@jini-ai/cms/settings`'s plain i18n dictionaries, which `SettingsUi.tsx` already imports safely
+ * elsewhere in this app. SVG is deliberately excluded here for the same reason it's excluded there:
+ * unsanitized SVG upload is a stored-XSS vector, not merely an unsupported format. Advisory only —
+ * `FileHandler` filters what reaches `onDrop`/`onPaste` client-side, but `port.uploadMedia` still
+ * goes through the server's own authoritative allowlist regardless of what gets past this filter.
+ */
+export const FILE_HANDLER_ALLOWED_MIME_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+
+/**
+ * `@tiptap/extension-file-handler`'s shared upload step (2026-08-12, B1 — drag & paste image
+ * upload) — uploads one dropped/pasted `File` through `port.uploadMedia`, the SAME media-upload
+ * path `MediaPickerDialog`'s own upload flow already calls (confirmed against
+ * `use-media.hooks.ts`'s `upload()`: `readFileAsDataUrl` then `port.uploadMedia({filename,
+ * contentType, dataBase64}, ...)` — this reuses `readFileAsDataUrl` from `../rules.ts`, the same
+ * helper `handleImageDrop` used to inline directly; here the `data:` prefix is stripped instead of
+ * kept, since `uploadMedia` wants the bare base64 payload). Returns the `{assetId, alt}` pair a
+ * ref-based image node needs, or `null` on upload failure so a caller can skip just that one file
+ * rather than throwing out of a FileHandler callback ProseMirror never awaits — the same "failure is
+ * silently absorbed, not a full-screen error" reasoning the mention-list effect above already states
+ * for its own non-critical, best-effort background fetch.
+ *
+ * Split to a top-level function taking `port` as an explicit parameter, not a closure inside
+ * `usePostEditor`, for the same reason `computeContentDirty` above already is: this project's
+ * complexity metric folds nested closures into the enclosing function's own score, so only
+ * top-level extraction keeps `usePostEditor` under the ceiling.
+ *
+ * @complexity Time: O(f) in file bytes (one `FileReader` read + one upload request); space: O(f) for
+ * the base64 payload — same cost {@link readFileAsDataUrl}'s own doc already states.
+ */
+export async function uploadDroppedFile(port: PostEditorPort, file: File): Promise<{ assetId: string; alt: string } | null> {
+  try {
+    const dataUrl = await readFileAsDataUrl(file);
+    const dataBase64 = dataUrl.slice(dataUrl.indexOf(",") + 1);
+    const { media } = await port.uploadMedia({ filename: file.name, contentType: file.type, dataBase64 });
+    return { assetId: media.id, alt: file.name };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * `FileHandler`'s `onDrop` callback body (2026-08-12, B1) — uploads each dropped file via
+ * {@link uploadDroppedFile} and inserts it at the drop position with `insertContentAt`, producing
+ * the IDENTICAL `{assetId, transformName: "public", alt}` node shape `insertMediaRef`
+ * (`lib/media-image-extension.tsx`, the Media picker's own insert command) builds. `insertMediaRef`
+ * itself isn't called here because it always inserts at the CURRENT SELECTION, never an arbitrary
+ * position, and `pos` (the drop point) is very often not the selection — `insertContentAt(pos, ...)`
+ * is TipTap's own documented pattern for a file-handler drop for exactly this reason. Never
+ * base64-inlines into `bodyJson` — see `handleImageDrop` (`../rules.ts`) for the legacy local-file
+ * behavior this supersedes, and why that function now deliberately leaves local files unhandled so
+ * this one is reachable at all.
+ *
+ * Each file is uploaded and inserted independently, as its own upload resolves — not
+ * `Promise.all`-batched, and this function itself does not await any of them (`onDrop` is a
+ * synchronous callback) — a multi-file drop with one slow or failing upload still lands every other
+ * file rather than blocking on the slowest or losing the whole batch to one failure.
+ */
+export function handleFileDrop(port: PostEditorPort, editor: Editor, files: File[], pos: number): void {
+  for (const file of files) {
+    uploadDroppedFile(port, file).then((result) => {
+      if (!result) return;
+      editor
+        .chain()
+        .insertContentAt(pos, { type: "image", attrs: { assetId: result.assetId, transformName: "public", alt: result.alt } })
+        .focus()
+        .run();
+    });
+  }
+}
+
+/**
+ * `FileHandler`'s `onPaste` callback body (2026-08-12, B1) — same upload step as
+ * {@link handleFileDrop}, but inserts through the real `insertMediaRef` command
+ * (`lib/media-image-extension.tsx`) rather than `insertContentAt`: `@tiptap/extension-file-handler`'s
+ * own `onPaste` signature carries no position argument (unlike `onDrop`'s `pos`), and inserting at
+ * the current selection is exactly what a paste is supposed to do — exactly what `insertMediaRef`'s
+ * own `commands.insertContent(...)` already does with no position argument.
+ */
+export function handleFilePaste(port: PostEditorPort, editor: Editor, files: File[]): void {
+  for (const file of files) {
+    uploadDroppedFile(port, file).then((result) => {
+      if (!result) return;
+      editor.commands.insertMediaRef({ assetId: result.assetId, transformName: "public", alt: result.alt });
+    });
+  }
+}
+
 export function usePostEditor(postId: string, deps: PostEditorDependencies): PostEditorController {
   const { port, navigate, t } = deps;
   const [post, setPost] = useState<AdminPost | null>(null);
@@ -305,6 +398,26 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
       // rule (2026-08-11) targets them directly.
       Placeholder.configure({ placeholder: "Start writing…" }),
       CharacterCount,
+      // Focus (2026-08-12, B2 low-priority free extra — confirmed MIT, bundled in `@tiptap/extensions`
+      // itself, no new package install needed) — editor-only chrome, same "no doc vocabulary, no
+      // render.ts case" reasoning Placeholder/CharacterCount already state: it adds/removes a plain
+      // `class="has-focus"` ProseMirror DECORATION on whichever block the cursor is currently inside,
+      // never written to `bodyJson`. Default `className`/`mode` kept (no `.configure()` call) — see
+      // `styles.css`'s own `.editor-body .has-focus` rule for the actual visual treatment; the
+      // extension itself ships with none.
+      Focus,
+      // InvisibleCharacters (2026-08-12, B2 — confirmed MIT) — same editor-only-chrome, no-doc-
+      // vocabulary shape as Focus just above (a DECORATION showing a middle-dot for spaces/a pilcrow
+      // for paragraph breaks, never written to `bodyJson`). `visible: false` overrides the
+      // extension's own default (`true`) deliberately: there is no toolbar button wired up in this
+      // pass to toggle it (out of scope for a "low-priority free extra" — a real toggle control is
+      // its own small UI decision, not an extension-registration one), so defaulting to `true` would
+      // make every space/paragraph mark in the editor permanently visible with no way to turn it back
+      // off — an uninvited, surprising visual change nobody asked for. Registered inert-but-available
+      // (`editor.commands.toggleInvisibleCharacters()` already works from a console or a future
+      // toolbar button) rather than left uninstalled, matching `Mention`'s own precedent above
+      // (registered so the node type/command exist, even before every trigger path is wired).
+      InvisibleCharacters.configure({ visible: false }),
       // Table (2026-08-11) — `resizable: false` (the extension's own default, kept explicit here
       // rather than relied on implicitly) since `render.ts`'s `"table"` case emits a plain
       // `<table>` with no `<colgroup>`; a resizable editor would let an author set column widths
@@ -337,6 +450,15 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
       // toolbar — registering the extension here is what makes the `mention` node type/schema exist
       // and `insertContent({ type: "mention", ... })` valid, independent of the "@" trigger path.
       Mention,
+      // FileHandler (2026-08-12, B1 — drag & paste image upload) — `onDrop`/`onPaste` both delegate
+      // to a top-level function taking `port` explicitly (see `handleFileDrop`/`handleFilePaste`'s
+      // own docs for why); referencing `port` here is a single-line forwarding closure, not new
+      // logic living inside `usePostEditor` itself.
+      FileHandler.configure({
+        allowedMimeTypes: FILE_HANDLER_ALLOWED_MIME_TYPES,
+        onDrop: (currentEditor, files, pos) => handleFileDrop(port, currentEditor, files, pos),
+        onPaste: (currentEditor, files) => handleFilePaste(port, currentEditor, files),
+      }),
       MediaImage,
       WidgetEmbed,
     ],
