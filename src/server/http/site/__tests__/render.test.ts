@@ -165,6 +165,42 @@ test("renderDocNode: subscript and superscript marks render (Posts toolbar, 2026
   assert.equal(html, "<p><sub>2</sub><sup>2</sup></p>");
 });
 
+test("renderDocNode: a youtube node with a watch-URL src builds a canonical nocookie embed iframe", () => {
+  const html = renderDocNode({ type: "doc", content: [{ type: "youtube", attrs: { src: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" } }] });
+  assert.equal(
+    html,
+    '<div class="youtube-embed"><iframe src="https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ" title="YouTube video" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe></div>'
+  );
+});
+
+test("a youtube node's src is recognized from every URL shape the extension itself produces (youtu.be, already-embed, shorts)", () => {
+  for (const [src, expectedId] of [
+    ["https://youtu.be/dQw4w9WgXcQ", "dQw4w9WgXcQ"],
+    ["https://www.youtube.com/embed/dQw4w9WgXcQ", "dQw4w9WgXcQ"],
+    ["https://www.youtube.com/shorts/dQw4w9WgXcQ", "dQw4w9WgXcQ"],
+  ] as const) {
+    const html = renderDocNode({ type: "doc", content: [{ type: "youtube", attrs: { src } }] });
+    assert.match(html, new RegExp(`src="https://www\\.youtube-nocookie\\.com/embed/${expectedId}"`));
+  }
+});
+
+test("a youtube node's start attr (bounded, positive integer) appends ?start=N; zero/invalid omit it", () => {
+  const withStart = renderDocNode({ type: "doc", content: [{ type: "youtube", attrs: { src: "https://youtu.be/dQw4w9WgXcQ", start: 90 } }] });
+  assert.match(withStart, /embed\/dQw4w9WgXcQ\?start=90"/);
+  const zeroStart = renderDocNode({ type: "doc", content: [{ type: "youtube", attrs: { src: "https://youtu.be/dQw4w9WgXcQ", start: 0 } }] });
+  assert.doesNotMatch(zeroStart, /\?start=/);
+  const negativeStart = renderDocNode({ type: "doc", content: [{ type: "youtube", attrs: { src: "https://youtu.be/dQw4w9WgXcQ", start: -5 } }] });
+  assert.doesNotMatch(negativeStart, /\?start=/);
+});
+
+test("a youtube node with an unrecognized/unsafe src degrades to the media placeholder, never an <iframe>", () => {
+  for (const src of ["javascript:alert(1)", "https://evil.example.com/embed/x", "not a url at all", 42, null, undefined]) {
+    const html = renderDocNode({ type: "doc", content: [{ type: "youtube", attrs: { src } as never }] });
+    assert.doesNotMatch(html, /<iframe/);
+    assert.match(html, /media-ph/);
+  }
+});
+
 test("renderDocNode: a codeBlock with a language attr emits a language-X class on <code>", () => {
   const html = renderDocNode({
     type: "doc",

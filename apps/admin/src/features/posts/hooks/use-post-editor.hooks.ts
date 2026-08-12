@@ -9,6 +9,7 @@ import { TextStyle, Color, BackgroundColor, FontFamily, FontSize, LineHeight } f
 import Typography from "@tiptap/extension-typography";
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import { createLowlight, common } from "lowlight";
+import Youtube from "@tiptap/extension-youtube";
 import { Placeholder, CharacterCount } from "@tiptap/extensions";
 import { Table, TableRow, TableCell, TableHeader } from "@tiptap/extension-table";
 import { TaskList, TaskItem } from "@tiptap/extension-list";
@@ -288,6 +289,11 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
       // case for what that means for the public render.
       TaskList,
       TaskItem.configure({ nested: false }),
+      // YouTube (2026-08-11, coordinator MSG #1 licensing sweep — confirmed MIT) — inline defaults
+      // kept (no `.configure()`): `render.ts`'s `"youtube"` case ignores the node's own stored
+      // `width`/`height` anyway (a responsive CSS box replaces them), so there is nothing this
+      // config would change that the public render would ever see.
+      Youtube,
       MediaImage,
       WidgetEmbed,
     ],

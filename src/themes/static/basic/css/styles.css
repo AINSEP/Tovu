@@ -327,6 +327,12 @@ section.band { padding: 72px 0; border-top: 1px solid var(--border); }
 .post-detail-body li[data-type="taskItem"] > label { display: flex; align-items: center; margin-top: 0.35em; }
 .post-detail-body li[data-type="taskItem"] > div { flex: 1 1 auto; }
 .post-detail-body li[data-type="taskItem"] > div p { margin-bottom: 0; }
+/* YouTube embed (`renderDocNode`'s `"youtube"` case, 2026-08-11) — a responsive 16:9 box regardless
+   of whatever width/height the editor's own node carried (the renderer ignores those attrs
+   entirely, see that case's own comment for why); without this an unstyled `<iframe>` renders at
+   its raw HTML default size (300x150), which is both tiny and non-responsive on a narrow viewport. */
+.post-detail-body .youtube-embed { position: relative; width: 100%; aspect-ratio: 16 / 9; margin: 24px 0; border-radius: 10px; overflow: hidden; }
+.post-detail-body .youtube-embed iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
 
 /* ---------- about ---------- */
 .about-hero { padding: 88px 0 56px; }
