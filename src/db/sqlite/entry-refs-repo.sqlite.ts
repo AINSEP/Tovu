@@ -1,18 +1,23 @@
 import { and, eq } from "drizzle-orm";
 
-import { entryRefs } from "../../db/schema";
-import type { ContentDb } from "../../db/sqlite/content-db";
+import { entryRefs } from "../schema";
+import type { ContentDb } from "./content-db";
 import type { UUID } from "@jini-ai/cms/core";
-import type { EntryRefsRepoPort } from "./ports";
-import type { EntryRefRow, EntryRefSourceKind, EntryRefTargetKind } from "./types";
+import type { EntryRefsRepoPort } from "../../core/entry-refs/ports";
+import type { EntryRefRow, EntryRefSourceKind, EntryRefTargetKind } from "../../core/entry-refs/types";
 
 /**
  * @file Real SQLite `EntryRefsRepoPort` adapter (ADR-006 rule-of-two "second adapter" half —
- * `repo.memory.ts`'s `InMemoryEntryRefsRepo` is the first), mirroring
+ * `core/entry-refs/repo.memory.ts`'s `InMemoryEntryRefsRepo` is the first), mirroring
  * `navigation/repo.sqlite.ts`'s `SqliteNavLocationBindingRepo` shape: `replaceForSource`/
  * `rebuildForWorkspace` are delete-then-insert (no per-row upsert race window, matching
  * `SqliteNavLocationBindingRepo.rebuildForWorkspace`'s own documented approach) since `entry_refs`
  * is a derived, rebuildable index (INV-06), never hand-patched row by row.
+ *
+ * Lives in `db/sqlite` rather than colocated with the port in `core/entry-refs` — same placement
+ * `core/gated-mutations/ports.ts`'s `DbOpsPort` already uses (port in core, concrete SQLite
+ * adapter in `db/sqlite/db-ops.ts`) — so `core` never has to import concrete `db` types to host
+ * its own adapter.
  *
  * Architectural role:
  * Infrastructure adapter. `core/entry-refs` domain logic never imports this file directly — only

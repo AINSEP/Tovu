@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { openContentDb } from "#src/db/sqlite/content-db";
 import { InMemoryEntryRefsRepo } from "../repo.memory";
-import { SqliteEntryRefsRepo } from "../repo.sqlite";
+import { SqliteEntryRefsRepo } from "#src/db/sqlite/entry-refs-repo.sqlite";
 import type { EntryRefsRepoPort } from "../ports";
 import type { EntryRefRow } from "../types";
 

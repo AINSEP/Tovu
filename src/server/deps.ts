@@ -97,7 +97,7 @@ import { NoopContentTypeIndexProvisioner } from "../features/content-types";
 import { SqliteContentTypeRepo } from "../features/content-types/repo.sqlite";
 import { SqliteEntryRepo } from "../features/entries/repo.sqlite";
 import { SqliteWidgetRegionBindingRepo } from "../widgets/repo.sqlite";
-import { SqliteEntryRefsRepo } from "../core/entry-refs/repo.sqlite";
+import { SqliteEntryRefsRepo } from "../db/sqlite/entry-refs-repo.sqlite";
 import { SqlitePluginActivationRepo } from "../features/plugin-runtime/repo.sqlite";
 import { WORD_COUNT_RUNTIME_SOURCE } from "../features/plugin-runtime/built-ins/word-count";
 import { composePluginRuntime } from "./plugin-runtime";
