@@ -157,7 +157,7 @@ describe("useTermDetailPanel — injected port", () => {
     expect(networkMock).not.toHaveBeenCalled();
   });
 
-  it("shares the same store as useTaxonomy through TaxonomyPort — a rename here is visible to a sibling useTaxonomy", async () => {
+  it("shares the same store as useTaxonomy through TaxonomyPort — a rename through THIS hook is visible via the port's own listTaxonomies, not just a bypass call", async () => {
     const term = termFixture();
     const group = { taxonomy: { id: "tax1", name: "Category", hierarchical: false, status: "active", updatedAt: "x", version: 1 }, terms: [term] };
     const port = createFakeTaxonomyPort({ groups: [group] });
@@ -168,11 +168,17 @@ describe("useTermDetailPanel — injected port", () => {
       await result.current.rename(formEvent());
     });
 
-    const renamed = await port.renameTerm({ termId: term.id, newName: "confirm read-back" }).catch(() => null);
-    // The second renameTerm call above is only to read the store back through the same port
-    // instance — its own result isn't the point, `port`'s internal `groups` state is.
-    expect(renamed).not.toBeNull();
+    // Asserting on the hook's OWN outcome first — this is what a mutation to `rename`'s call site
+    // must break for this test to mean anything; reading the store back through a second,
+    // independent port call would still pass even if `rename` itself silently no-op'd.
+    expect(result.current.message).toBe("Renamed.");
+    expect(result.current.error).toBeNull();
+
+    // The point of the test: a SIBLING consumer of the same `port` instance (the shape
+    // `useTaxonomy` + `useTermDetailPanel` share in production, per `taxonomy-port.hooks.ts`'s own
+    // doc comment) sees the write `useTermDetailPanel` made, with no fetch and no second hook
+    // mounted — proving the store, not just this hook's local state, changed.
     const listed = await port.listTaxonomies();
-    expect(listed.items[0]?.terms[0]?.name).toBe("confirm read-back");
+    expect(listed.items[0]?.terms[0]?.name).toBe("Shared Store Rename");
   });
 });
