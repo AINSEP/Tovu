@@ -174,6 +174,86 @@ test("PUT of a NON-framework extension into sourceDir is still refused — the b
   assert.equal(fs.existsSync(path.join(themesDir, "static", "compiled", "src", "shell.php")), false);
 });
 
+test("PUT of attacker-controlled markup as .html/.svg/.js into sourceDir is refused, even though those extensions ARE writable elsewhere in a theme", async (t) => {
+  // Regression: this exact request (a real HTTP PUT, no rename involved) returned 200 before
+  // SOURCE_DIR_WRITABLE_EXTENSIONS existed -- .html/.svg/.js are all in TEXT_READABLE_EXTENSIONS, and
+  // the first version of isCompiledSourceFile accepted anything in that broader set. build.sourceDir
+  // is statically served (theme-static-assets.ts), so this was a same-origin XSS payload reachable
+  // with one HTTP call, not a theoretical gap.
+  const themesDir = makeThemesRoot();
+  const app = buildTestApp(themesDir);
+  const baseUrl = await startTestServer(app, t);
+
+  for (const name of ["thing.html", "thing.svg", "thing.js"]) {
+    const filePath = `src/${name}`;
+    const response = await fetch(`${baseUrl}${BASE("compiled")}/file`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ path: filePath, content: "<script>alert(document.domain)</script>" }),
+    });
+
+    assert.equal(response.status, 403, `${filePath} must be refused`);
+    const body = (await response.json()) as { code: string };
+    assert.equal(body.code, "READ_ONLY_FILE");
+    assert.equal(fs.existsSync(path.join(themesDir, "static", "compiled", "src", name)), false);
+  }
+});
+
+test("PUT of .css/.json/.md/.txt into sourceDir still works — the narrowed allowlist isn't overly strict", async (t) => {
+  const themesDir = makeThemesRoot();
+  const app = buildTestApp(themesDir);
+  const baseUrl = await startTestServer(app, t);
+
+  for (const [name, content] of [
+    ["module.css", ".foo { color: red; }"],
+    ["package.json", "{}"],
+    ["README.md", "# hi"],
+    ["notes.txt", "hi"],
+  ] as const) {
+    const response = await fetch(`${baseUrl}${BASE("compiled")}/file`, {
+      method: "PUT",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ path: `src/${name}`, content }),
+    });
+    assert.equal(response.status, 200, `src/${name} should be writable`);
+    assert.equal(fs.readFileSync(path.join(themesDir, "static", "compiled", "src", name), "utf8"), content);
+  }
+});
+
+test("renaming a compiled theme's sourceDir file to a DIFFERENT extension is refused (would launder vetted bytes into an unvetted extension)", async (t) => {
+  const themesDir = makeThemesRoot();
+  const app = buildTestApp(themesDir);
+  const baseUrl = await startTestServer(app, t);
+
+  const response = await fetch(`${baseUrl}${BASE("compiled")}/file/rename`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ path: "src/Header.tsx", name: "Header.html" }),
+  });
+
+  assert.equal(response.status, 400);
+  const body = (await response.json()) as { code: string };
+  assert.equal(body.code, "EXTENSION_CHANGE_NOT_ALLOWED");
+  assert.equal(fs.existsSync(path.join(themesDir, "static", "compiled", "src", "Header.html")), false);
+  assert.equal(fs.existsSync(path.join(themesDir, "static", "compiled", "src", "Header.tsx")), true);
+});
+
+test("renaming ANY theme's file to a different extension is refused, not just a compiled theme's sourceDir (the same rule applies uniformly)", async (t) => {
+  const themesDir = makeThemesRoot();
+  const app = buildTestApp(themesDir);
+  const baseUrl = await startTestServer(app, t);
+
+  const response = await fetch(`${baseUrl}${BASE("authored")}/file/rename`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ path: "css/styles.css", name: "styles.html" }),
+  });
+
+  assert.equal(response.status, 400);
+  const body = (await response.json()) as { code: string };
+  assert.equal(body.code, "EXTENSION_CHANGE_NOT_ALLOWED");
+});
+
 test("reset on a built theme's generated file restores the WHOLE generated tree atomically, reporting every restored path", async (t) => {
   const themesDir = makeThemesRoot();
   // Corrupt the live css AND leave a stray live-only generated file, to prove a single reset call
