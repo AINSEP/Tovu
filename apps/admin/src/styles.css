@@ -1553,10 +1553,30 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    `<input type="color">` renders with no consistent cross-browser chrome on its own (a raw square
    with a visible native border in some browsers, none in others), so this wraps it in the same
    30px-tall frame every other `.tb-btn` already occupies and gives the input itself a small
-   inset + border so it reads as "one more toolbar control", not a stray native form field. */
+   inset + border so it reads as "one more toolbar control", not a stray native form field.
+   `.tb-color` (the `<label>` wrapper) itself was never the problem — it already measured exactly
+   26px, matching `.tb-btn`.
+   Swatch height (owner feedback on a screenshot, 2026-08-12: "half as tall") — this rule already
+   said `height: 17px` and had said so since the first toolbar-polish pass, but that was never the
+   REAL rendered height: measured live (Playwright against a running admin, `getComputedStyle` on
+   the actual `<input type="color">`) at exactly 37px tall, visibly overflowing the 26px `.tb-color`
+   frame above and below — "the rule is there" was not evidence it was winning, same trap this
+   file's own `.tb-select` comment two rules down already documents and fixes for a DIFFERENT
+   element. Identical root cause here: the app-wide `input, select, textarea { min-height: 37px;
+   ... }` reset ("Shared page primitives" section, this file) floors every native `<input>`
+   including `type="color"`, and `min-height` always wins over a smaller `height` regardless of
+   selector specificity (used value is `max(height, min-height)` per spec). Re-declaring
+   `min-height` here, not just `height`, is what actually un-clamps it. Half of the value the
+   stylesheet already claimed (17px) is 8.5px — halving the AUTHORED number, not the previously
+   wrong 37px rendered one, since 17px was always the intended baseline the owner was looking at
+   in spirit even though the browser never actually honored it. Verified after the fix: computed
+   height 8.5px, fits inside the unchanged 26px `.tb-color` frame with no overflow, toolbar row
+   stays level. `width` is untouched (17px) — only height was asked for; this reads as a short flat
+   swatch rather than a smaller square, flagged in the handoff in case a square (both dimensions
+   halved) is what was actually wanted. */
 .tb-color { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 6px; cursor: pointer; }
 .tb-color input[type="color"] {
-  width: 17px; height: 17px; padding: 0; border: 1px solid var(--border); border-radius: 4px;
+  width: 17px; height: 8.5px; min-height: 8.5px; padding: 0; border: 1px solid var(--border); border-radius: 4px;
   cursor: pointer; background: none;
 }
 /* Font family/size/line-height `<select>`s (`Toolbar`, 2026-08-11) — sized to match `.tb-btn`'s own
