@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryEventBus, InMemoryOutbox } from "../../core/events";
-import { createRateLimiter } from "../../server/middleware/rate-limit";
+import { createRateLimiter } from "#src/core/rate-limit/rate-limit";
 import { FormDefinitionNotFoundError, FormRateLimitExceededError, FormSubmissionValidationError } from "../errors";
 import { FORMS_SUBMIT_PROFILE } from "../rate-limit-profile";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "../repo.memory";

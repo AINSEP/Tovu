@@ -12,19 +12,27 @@ import type { ClockPort } from "@jini-ai/cms/core";
  * wired to a route today.
  *
  * How it relates to the project:
- * - `middleware/dev-auth.ts`'s login route calls `loginRateLimiter.check(...)`
+ * - `server/middleware/dev-auth.ts`'s login route calls `loginRateLimiter.check(...)`
  *   before calling `identity.login()`, keyed by `resolveClientIp(req)`.
  * - Reuses the repo's injectable `ClockPort` (`{ nowIso(): ISODateTime }`,
  *   `core/ports.ts`) instead of `Date.now()` directly, matching the pattern
  *   `identity/auth-service.ts` and its tests already use — so tests can fake
  *   the window boundary without real sleeps.
  *
+ * Why it lives in `core/rate-limit` rather than `server/middleware` (where it used to be):
+ * a policy primitive (fixed-window counting + client-IP resolution), not a piece of transport —
+ * it takes a minimal structural `ClientIpSource`, not an Express `Request`, and returns plain data.
+ * It was the single import edge that made `assistant`, `comments`, and `forms` each depend back on
+ * the composition root, closing three separate module cycles simultaneously (2026-08-02 module-graph
+ * analysis, Phase 3) — the same "domain importing its host's transport module" misplacement
+ * `widgets/where-used.ts` and `core/entry-refs/repo.sqlite.ts` (now `db/sqlite/entry-refs-repo.sqlite.ts`)
+ * were each relocated for.
+ *
  * Architectural role:
- * Ordinary framework-adjacent middleware helper (Express `Request` in, plain
- * data out) — not a port (ADR-006): one rate-limiter implementation, no
- * swappable backends in v1. REQ-14's Article I "Library-First" compliance
- * note flags this as intentionally hand-rolled (Red-Team RT-006, deferred to
- * Architect) rather than pulled from an npm package.
+ * A generic, framework-adjacent policy helper (structural `ClientIpSource` in, plain data out) —
+ * not a port (ADR-006): one rate-limiter implementation, no swappable backends in v1. REQ-14's
+ * Article I "Library-First" compliance note flags this as intentionally hand-rolled (Red-Team
+ * RT-006, deferred to Architect) rather than pulled from an npm package.
  *
  * Disclosed simplification:
  * Single-process, in-memory only (no Redis/distributed store) — acceptable

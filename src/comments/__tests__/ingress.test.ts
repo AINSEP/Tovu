@@ -9,7 +9,7 @@ import { InMemoryCommentRepo } from "../repo.memory";
 import { HeuristicSpamCheck } from "../spam.heuristic";
 import { COMMENTS_INGRESS_SYSTEM_PRINCIPAL_ID } from "../types";
 import type { CommentsSettings, CommentSubmission } from "../types";
-import type { RateLimiter } from "../../server/middleware/rate-limit";
+import type { RateLimiter } from "#src/core/rate-limit/rate-limit";
 
 /** @file SPEC-033 — `CommentIngressPolicy`, one rejection reason at a time. */
 

@@ -24,7 +24,7 @@
  * otherwise (hermetic tests that don't wire the ledger).
  */
 import type { ClockPort, IdGeneratorPort, OutboxPort, UUID } from "@jini-ai/cms/core";
-import type { RateLimiter } from "../server/middleware/rate-limit";
+import type { RateLimiter } from "#src/core/rate-limit/rate-limit";
 import type { CommentHookRegistry } from "./hooks";
 import type {
   CommentIngressPolicy,

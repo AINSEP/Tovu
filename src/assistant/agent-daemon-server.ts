@@ -84,7 +84,7 @@ import { SqliteToolAttemptAuditSink } from "../features/tool-audit/repo.sqlite";
 import { openContentDb } from "../db/sqlite/content-db";
 import { createRouteDeps } from "../server/app";
 import { createSqliteRouteDepsForWorkspace, defaultContentDbPath } from "../server/deps";
-import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "../server/middleware/rate-limit";
+import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/core/rate-limit/rate-limit";
 import { resolveRuntimeMode } from "../server/runtime-mode";
 import { listAssistantAgents, rescanAssistantAgents } from "./agents";
 import { createCustomInstructionsCache } from "./custom-instructions";

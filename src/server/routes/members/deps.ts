@@ -25,7 +25,7 @@ import type {
 } from "#src/members/index";
 import type { ClockPort, IdGeneratorPort, UUID } from "@jini-ai/cms/core";
 import type { OriginRegistryPort } from "#src/origin/index";
-import type { RateLimiter } from "../../middleware/rate-limit";
+import type { RateLimiter } from "#src/core/rate-limit/rate-limit";
 
 /**
  * Deps the public sign-in/complete-sign-in routes need. Intentionally has NO

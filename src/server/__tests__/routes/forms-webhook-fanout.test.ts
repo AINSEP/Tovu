@@ -12,7 +12,7 @@ import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "#src/for
 import { FORMS_SUBMIT_PROFILE } from "#src/forms/rate-limit-profile";
 import { submitForm } from "#src/forms/submit-service";
 import type { FormDefinitionRecord } from "#src/forms/types";
-import { createRateLimiter } from "../../middleware/rate-limit";
+import { createRateLimiter } from "#src/core/rate-limit/rate-limit";
 
 /**
  * @file Integration test proving the webhook fan-out reaches the existing delivery worker's

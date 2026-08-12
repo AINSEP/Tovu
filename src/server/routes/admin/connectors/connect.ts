@@ -1,8 +1,8 @@
 import type { Express } from "express";
 
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { RateLimiter } from "../../../middleware/rate-limit";
-import { resolveClientIp } from "../../../middleware/rate-limit";
+import type { RateLimiter } from "#src/core/rate-limit/rate-limit";
+import { resolveClientIp } from "#src/core/rate-limit/rate-limit";
 import { composioCallbackUrl } from "./callback-url";
 import type { ConnectorsRouteDeps } from "./deps";
 import { sendConnectorError } from "./errors";
@@ -25,7 +25,7 @@ import { sendConnectorError } from "./errors";
  * uses: every hit here — even a rejected one — makes it to `service.connect`, which calls out to
  * Composio, so the guard has to sit in front of everything that costs a real network round trip.
  * `requireAdminSession` alone bounds WHO can call this, not how often; see
- * `middleware/rate-limit.ts`'s `CONNECTOR_CONNECT_PER_IP` doc for the self-DoS this closes.
+ * `core/rate-limit/rate-limit.ts`'s `CONNECTOR_CONNECT_PER_IP` doc for the self-DoS this closes.
  */
 export function registerAdminConnectorsConnectRoute(
   app: Express,

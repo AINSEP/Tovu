@@ -54,7 +54,7 @@ import type { RedirectHitSink, RedirectRepoPort, RedirectsWriteDeps } from "../.
 import type { FormDefinitionRepoPort, FormSubmissionRepoPort } from "../../forms/ports";
 import type { CommentIngressPolicy, CommentRepoPort } from "../../comments/ports";
 import type { CommentWriteService } from "../../comments/write-service";
-import type { RateLimiter } from "../middleware/rate-limit";
+import type { RateLimiter } from "#src/core/rate-limit/rate-limit";
 import type { LedgerReadPort } from "../../features/database/timeline";
 import type {
   RestorePointListPort,

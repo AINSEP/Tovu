@@ -6,14 +6,14 @@ import {
   FormSubmissionValidationError,
 } from "#src/forms/errors";
 import { submitForm, type SubmitFormDeps } from "#src/forms/submit-service";
-import { resolveClientIp } from "../../middleware/rate-limit";
+import { resolveClientIp } from "#src/core/rate-limit/rate-limit";
 
 /**
  * @file Public submission route for `forms` (SPEC-010 `FORMS_POST_SUBMIT`, REQ-05).
  *
  * Mirrors `routes/site/analytics-ingest.ts`'s public-route shape: no session required, registered
  * before the site `/:slug` catch-all (see `server/app.ts`'s wiring). Reuses `resolveClientIp`
- * (`server/middleware/rate-limit.ts`) rather than re-deriving IP resolution — all real validation
+ * (`core/rate-limit/rate-limit.ts`) rather than re-deriving IP resolution — all real validation
  * happens inside `submitForm` (C-008); this file owns only the HTTP boundary.
  */
 

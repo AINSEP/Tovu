@@ -67,7 +67,7 @@ import { ensureCoreMediaTransform } from "../media/bootstrap";
 import { createSqliteIdentityRouteDeps } from "../identity/wiring";
 import { SqliteFormDefinitionRepo, SqliteFormSubmissionRepo } from "../forms/repo.sqlite";
 import { FORMS_SUBMIT_PROFILE } from "../forms/rate-limit-profile";
-import { createRateLimiter, SITE_ASSISTANT_PER_IP } from "./middleware/rate-limit";
+import { createRateLimiter, SITE_ASSISTANT_PER_IP } from "#src/core/rate-limit/rate-limit";
 import type { RouteDeps } from "./routes/types";
 import type { NewsletterRouteDeps } from "./routes/admin/newsletter/deps";
 import { createVerifiedOrigin, OriginRegistry } from "../origin";

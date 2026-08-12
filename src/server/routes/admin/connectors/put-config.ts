@@ -7,8 +7,8 @@ import {
   saveComposioApiKey,
 } from "#src/connectors/composio-config-store";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { RateLimiter } from "../../../middleware/rate-limit";
-import { resolveClientIp } from "../../../middleware/rate-limit";
+import type { RateLimiter } from "#src/core/rate-limit/rate-limit";
+import { resolveClientIp } from "#src/core/rate-limit/rate-limit";
 import type { ConnectorsConfigRouteDeps } from "./deps";
 
 /**
