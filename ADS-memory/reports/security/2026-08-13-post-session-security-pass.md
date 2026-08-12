@@ -15,58 +15,6 @@ UNPROVEN and ranked below proven findings, per the security-review skill's evide
 
 ## Findings
 
-### Note — untrusted archive extraction (priority #2): hardened, but not yet reachable
-
-**Component:** `src/features/agent-plugins/install.ts`, `yauzl-archive-reader.ts`, `package-paths.ts`
-
-`installAgentPlugin()` is genuinely well-hardened against every zip-slip/decompression-bomb/TOCTOU
-vector in scope: symlink entries are refused categorically (not validated-then-allowed); path
-containment (`assertContainedOnDisk`) re-`realpath`s BOTH the root and the deepest existing ancestor on
-every single entry, catching a symlinked-parent-directory-planted-by-an-earlier-entry attack, not just a
-lexical `../` check; size is bounded on bytes ACTUALLY streamed off `openReadStream()`, never the
-archive's own declared size (defeats the classic "declared size lies" bomb); entry count, per-file size,
-and running total are all capped (`LIMITS`, install.ts:115-120); writes use `O_EXCL|O_NOFOLLOW`; publish
-is an atomic same-filesystem `rename`; the digest is verified BEFORE the archive reader ever touches the
-bytes, so a mismatched-digest archive is never even parsed. I tried to refute this by hand-tracing each
-of the checklist items in the dispatch brief (zip-slip, absolute paths, symlinks, zip-bomb,
-declared-vs-actual size, TOCTOU, entry-name normalization) against the code above and could not find a
-bypass.
-
-**One LOW/UNPROVEN note:** `normalizePackageEntryPath` does not apply Unicode normalization (NFC/NFD).
-Two entries that are visually identical but differ in Unicode normalization form both pass the lexical
-`seen`-based `DUPLICATE_ENTRY` check as "different," even though some filesystems (historically HFS+)
-normalize on write and would collide on disk. This does **not** break containment — `assertContainedOnDisk`
-re-resolves the real filesystem path independently for every entry, so nothing escapes the package root
-this way — worst case is a silently-dropped `DUPLICATE_ENTRY` refusal on a platform where the two forms
-collide on disk, which is a robustness gap, not a security one on the file systems Tovu actually deploys
-to (Linux, not HFS+). Not pursued further given the severity ceiling.
-
-**Material finding, not a vulnerability but changes urgency:** `installAgentPlugin` has **zero callers**
-anywhere in `src/` outside its own file and its own tests — no HTTP route, no agent-tool registration.
-`src/server/routes/admin/plugins/{list.ts,set-enabled.ts}` is a different, unrelated "plugins" surface
-(the `.tovu-plugin`/`plugin-runtime` loader, explicitly distinguished in `install.ts`'s own header). This
-hardening is real and correct, but the archive-extraction attack surface it defends is **not yet
-reachable from the network or from any agent tool** — worth confirming with the owner whether a route is
-coming in a follow-up session, since that is the day this review's assumptions need re-checking (e.g.
-whether the eventual route re-validates `expectedSha256` server-side rather than trusting a client-supplied
-value, which `install.ts`'s own doc comment already flags as "a real marketplace flow would supply this
-from the server's own metadata" — i.e. today's function signature accepts it as a parameter with no
-opinion on where the caller gets it from).
-
-**The theme install path is not an archive-extraction surface at all.** `downloadMarketplaceTheme`
-(`src/features/theme/marketplace.ts:247`) copies a THEME directory via `cpSync`, sourced only from a
-local, repo-shipped `__marketplace__` fixture folder — not from an uploaded or fetched archive. The
-`marketplaceId` request parameter is validated against `SAFE_THEME_ID` (a regex) before any path is
-built from it, and the fixture directory itself is looked up by iterating a fixed, small set of
-`ENGINE_SUBFOLDERS` under a trusted root — no network fetch, no user-supplied bytes, no zip parsing.
-There is currently no code path where an external theme package (zip, tarball, or otherwise) is
-ingested. If "anyone can author themes" is meant to describe a near-term feature, the archive-extraction
-hardening above should be the template for it — it is not yet built for themes.
-
-**Human sign-off required:** No (no exploitable finding; informational for planning).
-
----
-
 ### FINDING 1 — CRITICAL — PROVEN — Stored XSS via `.svg` upload survives outside a compiled theme's `sourceDir`
 
 **Type:** Stored XSS (CWE-79) via content-type/extension allowlist gap
@@ -157,5 +105,125 @@ with `Content-Type: text/html` and the script unescaped.
 
 **Human sign-off required:** Yes (Critical, XSS, no clear one-line mitigation without touching the
 allowlist contract Explore's UI depends on for "what can I save").
+
+---
+
+### FINDING 2 — HIGH — PROVEN (as an architectural gap; UNPROVEN as a live network exploit today) — Agent Plugins tenant isolation is caller convention, not enforced by the layout type or `installAgentPlugin`
+
+**Type:** Broken access control / confused deputy (CWE-441-adjacent) — missing self-consistency check on
+a security-load-bearing value object
+**Component:** `src/features/agent-plugins/layout.ts`, `src/features/agent-plugins/install.ts`
+**Affected files:**
+- `src/features/agent-plugins/layout.ts:78-92` (`AgentPluginWorkspaceLayout` — no `workspaceId` field, no tag back to the instance root it was derived from)
+- `src/features/agent-plugins/install.ts:165-220` (`installAgentPlugin` uses `layout.packages`/`layout.staging` directly, with no re-derivation or containment check against any expected workspace or instance root)
+
+**Description:**
+The 2026-08-12 tenant-isolation redesign (`layout.ts`'s own header) states the guarantee is true "by
+construction": *"there is no shared enumerable path, so there is nothing to leak through."* That is true
+of the PATHS `forWorkspace()` computes when called correctly. It is not true of the TYPE those paths flow
+through afterward. `AgentPluginWorkspaceLayout` is a plain interface — `root: string`, `packages: string`,
+`staging: string`, `pluginDataDir(id): string` — with no field identifying which workspace it belongs to
+and no way for `installAgentPlugin` (or any future caller) to verify a given `layout` value was actually
+produced by `resolveAgentPluginLayout().forWorkspace(theRequestsOwnWorkspaceId)` rather than hand-assembled,
+stitched from two different real calls, or stale from a different request. The existing
+`layout.unit.test.ts` and `install.unit.test.ts` only ever exercise the CORRECT-usage path (call
+`forWorkspace` once per workspace, use the result immediately) — never what happens when a caller doesn't.
+
+**Exploit path (proven at the unit level against the real `installAgentPlugin`, not a mock):**
+1. Two real, disjoint layouts are resolved: `workspaceA = instanceLayout.forWorkspace(idA)`,
+   `workspaceB = instanceLayout.forWorkspace(idB)`.
+2. A caller-side bug (wrong variable capture, a stale layout cached against the wrong request, a future
+   code path that assembles the object by hand instead of calling `forWorkspace`) produces
+   `{ root: workspaceA.root, packages: workspaceB.packages, staging: workspaceB.staging, pluginDataDir:
+   workspaceA.pluginDataDir }` — a value that type-checks as `AgentPluginWorkspaceLayout` with no error.
+3. `installAgentPlugin({ ..., layout: thatObject })` runs to completion with no error and publishes the
+   archive into **workspace B's real, on-disk package store** — proven by reading
+   `workspaceB.packages/<digest>/plugin.json` back afterward.
+4. A second test shows the floor is even lower: a `layout` never derived from `forWorkspace` at all
+   (arbitrary strings pointing outside `infra/agent-plugins` entirely) is accepted identically —
+   `installAgentPlugin` has no notion of "is this even a real Agent Plugins root."
+
+**Why HIGH and not Critical, and why the exploit path is honestly UNPROVEN over the network today:**
+`installAgentPlugin` has zero callers anywhere in `src/` (confirmed in the P2 finding below) — no route,
+no agent tool. There is currently no way for an external request to reach this function at all, so there
+is no live, network-triggerable instance of "workspace A's request writes into workspace B's tree" today.
+What IS proven is that the function itself provides no defense against it — the day a route or agent tool
+is wired (which the owner's "anyone can author plugins" decision implies is coming), the isolation
+guarantee will depend ENTIRELY on that new caller getting `forWorkspace(req-authenticated-workspaceId)`
+right, with nothing in `installAgentPlugin` or the type system catching a mistake. Rated High rather than
+Critical specifically because of that unreachability; it should be re-rated Critical the moment a caller
+is wired, unless the mitigation below lands first.
+
+**Regression test (committed, passing, demonstrates the gap):**
+`src/features/agent-plugins/__tests__/unit/install.unit.test.ts` — two new tests, "PROVEN GAP: a layout
+literal stitching workspace A's `packages` onto workspace B's `staging`..." and "PROVEN GAP: a layout
+never derived from forWorkspace() at all...". Committed at `72a8537`.
+
+**Mitigation:**
+Give `AgentPluginWorkspaceLayout` a way to prove its own provenance — the cheapest version: an opaque,
+non-enumerable `workspaceId` (or a branded/nominal marker) carried on the object, and have
+`installAgentPlugin` assert `layout.workspaceId === expectedWorkspaceId` (passed alongside `layout` by
+the caller, sourced from the authenticated principal's own request context — never from the object
+itself, which a hand-built literal could fake identically). A stronger version: have
+`installAgentPlugin` independently re-derive the expected `packages`/`staging` paths from
+`resolveAgentPluginLayout()` + a caller-supplied `workspaceId`, and assert `layout.packages`/`layout.staging`
+equal what it independently computed — turning "trust the object" into "verify the object," the same
+shift `resolveThemeFilePath`'s `realpath`-based re-checks (Finding 1's neighborhood) already apply for
+filesystem containment.
+
+**Human sign-off required:** Yes (High; also flag for follow-up the moment any route/agent-tool wiring
+for Agent Plugin install is proposed — this finding's severity is contingent on that wiring, not fixed).
+
+---
+
+### Note — untrusted archive extraction (priority #2): hardened, but not yet reachable
+
+**Component:** `src/features/agent-plugins/install.ts`, `yauzl-archive-reader.ts`, `package-paths.ts`
+
+`installAgentPlugin()` is genuinely well-hardened against every zip-slip/decompression-bomb/TOCTOU
+vector in scope: symlink entries are refused categorically (not validated-then-allowed); path
+containment (`assertContainedOnDisk`) re-`realpath`s BOTH the root and the deepest existing ancestor on
+every single entry, catching a symlinked-parent-directory-planted-by-an-earlier-entry attack, not just a
+lexical `../` check; size is bounded on bytes ACTUALLY streamed off `openReadStream()`, never the
+archive's own declared size (defeats the classic "declared size lies" bomb); entry count, per-file size,
+and running total are all capped (`LIMITS`, install.ts:115-120); writes use `O_EXCL|O_NOFOLLOW`; publish
+is an atomic same-filesystem `rename`; the digest is verified BEFORE the archive reader ever touches the
+bytes, so a mismatched-digest archive is never even parsed. I tried to refute this by hand-tracing each
+of the checklist items in the dispatch brief (zip-slip, absolute paths, symlinks, zip-bomb,
+declared-vs-actual size, TOCTOU, entry-name normalization) against the code above and could not find a
+bypass.
+
+**One LOW/UNPROVEN note:** `normalizePackageEntryPath` does not apply Unicode normalization (NFC/NFD).
+Two entries that are visually identical but differ in Unicode normalization form both pass the lexical
+`seen`-based `DUPLICATE_ENTRY` check as "different," even though some filesystems (historically HFS+)
+normalize on write and would collide on disk. This does **not** break containment — `assertContainedOnDisk`
+re-resolves the real filesystem path independently for every entry, so nothing escapes the package root
+this way — worst case is a silently-dropped `DUPLICATE_ENTRY` refusal on a platform where the two forms
+collide on disk, which is a robustness gap, not a security one on the file systems Tovu actually deploys
+to (Linux, not HFS+). Not pursued further given the severity ceiling.
+
+**Material finding, not a vulnerability but changes urgency:** `installAgentPlugin` has **zero callers**
+anywhere in `src/` outside its own file and its own tests — no HTTP route, no agent-tool registration.
+`src/server/routes/admin/plugins/{list.ts,set-enabled.ts}` is a different, unrelated "plugins" surface
+(the `.tovu-plugin`/`plugin-runtime` loader, explicitly distinguished in `install.ts`'s own header). This
+hardening is real and correct, but the archive-extraction attack surface it defends is **not yet
+reachable from the network or from any agent tool** — worth confirming with the owner whether a route is
+coming in a follow-up session, since that is the day this review's assumptions need re-checking (e.g.
+whether the eventual route re-validates `expectedSha256` server-side rather than trusting a client-supplied
+value, which `install.ts`'s own doc comment already flags as "a real marketplace flow would supply this
+from the server's own metadata" — i.e. today's function signature accepts it as a parameter with no
+opinion on where the caller gets it from). This is also why Finding 2 above is rated High, not Critical.
+
+**The theme install path is not an archive-extraction surface at all.** `downloadMarketplaceTheme`
+(`src/features/theme/marketplace.ts:247`) copies a THEME directory via `cpSync`, sourced only from a
+local, repo-shipped `__marketplace__` fixture folder — not from an uploaded or fetched archive. The
+`marketplaceId` request parameter is validated against `SAFE_THEME_ID` (a regex) before any path is
+built from it, and the fixture directory itself is looked up by iterating a fixed, small set of
+`ENGINE_SUBFOLDERS` under a trusted root — no network fetch, no user-supplied bytes, no zip parsing.
+There is currently no code path where an external theme package (zip, tarball, or otherwise) is
+ingested. If "anyone can author themes" is meant to describe a near-term feature, the archive-extraction
+hardening above should be the template for it — it is not yet built for themes.
+
+**Human sign-off required:** No (no exploitable finding; informational for planning).
 
 ---
