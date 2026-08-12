@@ -1511,6 +1511,15 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .tb-btn.on { background: var(--accent-dim); color: var(--accent-text); }
 .tb-btn:disabled { opacity: 0.38; cursor: default; }
 .tb-btn i { font-style: italic; } .tb-btn s { text-decoration: line-through; }
+/* Align-icon buttons (`PostEditor.tsx`'s `Toolbar`, 2026-08-11 — icons replacing the Left/Center/
+   Right/Justify word labels) — same size band every other house SVG-in-button already uses
+   (`.admin-topbar-toggle svg`, `.cms-item svg`, `.row-menu-trigger svg`: 16-18px). Scoped to
+   `.tb-btn` generally rather than a new per-button class: no OTHER `.tb-btn` (Bold/Italic/H1/etc.)
+   renders an `<svg>` today, so this can't accidentally resize a future icon button meant to be a
+   different size without that button also opting into `.tb-btn`'s own 30px frame. `currentColor` on
+   the `<svg>` itself (not here) is what makes the icon track `.tb-btn.on`'s active-state color swap
+   for free. */
+.tb-btn svg { width: 16px; height: 16px; }
 /* `WidgetAddControl`'s `<span className="widget-add-control">` (its widget-type `<select>` plus
    the "Insert widget"/"+ Add widget" trigger button, `components/WidgetPickerDialog/WidgetPickerDialog.tsx`) had
    never had any CSS anywhere in the app — the two controls sat flush with zero gap between them.
