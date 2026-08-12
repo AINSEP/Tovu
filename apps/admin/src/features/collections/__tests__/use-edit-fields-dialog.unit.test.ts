@@ -2,7 +2,8 @@ import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminContentType } from "../../../lib/api";
-import { useEditFieldsDialog } from "../hooks/use-edit-fields-dialog.hooks";
+import { createFakeEditFieldsDialogPort } from "../hooks/edit-fields-dialog-dependencies.hooks";
+import { useEditFieldsDialog, useWiredEditFieldsDialog } from "../hooks/use-edit-fields-dialog.hooks";
 
 /**
  * @file `useEditFieldsDialog` — `EditFieldsDialog`'s own state and submit action (SPEC-037 REQ-05).
@@ -10,6 +11,11 @@ import { useEditFieldsDialog } from "../hooks/use-edit-fields-dialog.hooks";
  * this package. The distinguishing behavior versus `use-new-content-type-dialog`: seeds its draft
  * list from an EXISTING content type's fields (not one empty field), and its 409 failure path maps
  * to `describeEditFieldsError`'s dedicated stale-version copy.
+ *
+ * `mount()` below drives the wired hook (real `fetch`) — unchanged from before the `useWiredX`
+ * conversion, just a call-site swap. The "injected port" describe block at the bottom is new
+ * coverage added alongside that conversion, proving the pure hook is independently testable
+ * against `createFakeEditFieldsDialogPort` with no `fetch` stub at all.
  */
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -37,7 +43,7 @@ afterEach(() => {
 });
 
 function mount(contentType = TYPE, onSaved = vi.fn(), onCancel = vi.fn()) {
-  const view = renderHook(() => useEditFieldsDialog({ contentType, onSaved, onCancel }));
+  const view = renderHook(() => useWiredEditFieldsDialog({ contentType, onSaved, onCancel }));
   return { view, onSaved, onCancel };
 }
 
@@ -142,5 +148,44 @@ describe("Escape-to-cancel", () => {
     const { onCancel } = mount();
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape" }));
     expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("injected port (useWiredX conversion coverage)", () => {
+  it("submits fields (row-id-stripped) + expectedVersion through the injected port, without touching fetch", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const onSaved = vi.fn();
+    try {
+      const port = createFakeEditFieldsDialogPort();
+      const { result } = renderHook(() => useEditFieldsDialog({ contentType: TYPE, onSaved, onCancel: vi.fn() }, port));
+
+      await act(async () => {
+        await result.current.submit({ preventDefault: vi.fn() } as unknown as React.FormEvent);
+      });
+
+      expect(port.lastUpdate).toEqual({
+        key: "recipe",
+        fields: [{ name: "prep_time", kind: "integer", required: true, queryable: false }],
+        expectedVersion: 3,
+      });
+      expect(onSaved).toHaveBeenCalledTimes(1);
+      expect(fetchMock).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("maps a rejected injected port call through describeEditFieldsError (plain Error: its own message)", async () => {
+    const port = createFakeEditFieldsDialogPort({ updateError: new Error("network down") });
+    const onSaved = vi.fn();
+    const { result } = renderHook(() => useEditFieldsDialog({ contentType: TYPE, onSaved, onCancel: vi.fn() }, port));
+
+    await act(async () => {
+      await result.current.submit({ preventDefault: vi.fn() } as unknown as React.FormEvent);
+    });
+
+    expect(result.current.error).toBe("network down");
+    expect(onSaved).not.toHaveBeenCalled();
   });
 });
