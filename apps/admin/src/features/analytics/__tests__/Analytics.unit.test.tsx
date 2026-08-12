@@ -9,10 +9,15 @@ import type { AnalyticsController } from "../hooks/use-analytics.hooks";
  * `useAnalyticsHook` prop (see `Posts.tsx`'s own doc for the convention), never a fake `fetch`:
  * the whole point of the hook seam is that this screen's states (loading, error, empty, populated)
  * are reachable without a `DataTable` render depending on a real request settling.
+ *
+ * `t` (2026-08-11, standing i18n rule): `Analytics` now reads `t` off the injected hook rather than
+ * calling `useAdminLocale()`/`analytics-i18n` itself, so `stubHook` supplies the identity translator
+ * — every assertion below matches on the raw English key, stable against future copy/locale
+ * changes, matching `wired-hooks-convention.md`'s own `t: (k) => k` example.
  */
 
 function stubHook(overrides: Partial<AnalyticsController>): () => AnalyticsController {
-  return () => ({ hits: null, error: null, ...overrides });
+  return () => ({ hits: null, error: null, t: (key: string) => key, ...overrides });
 }
 
 const HIT_WITH_EVENT = {
