@@ -10,6 +10,7 @@ import Typography from "@tiptap/extension-typography";
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import { createLowlight, common } from "lowlight";
 import Youtube from "@tiptap/extension-youtube";
+import Mention from "@tiptap/extension-mention";
 import { Placeholder, CharacterCount } from "@tiptap/extensions";
 import { Table, TableRow, TableCell, TableHeader } from "@tiptap/extension-table";
 import { TaskList, TaskItem } from "@tiptap/extension-list";
@@ -95,6 +96,11 @@ export interface PostEditorController {
   /** The active static theme's declared `templates` list — `[]` when the theme doesn't support
    *  templates, in which case the caller should not render the picker at all. */
   availableTemplates: string[];
+  /** Mention feature's picker list (2026-08-11) — every OTHER post/page this workspace has,
+   *  unfiltered (`PostEditor.tsx` excludes the currently-open post at render time). `[]` while
+   *  loading or on fetch failure — the caller should render the mention control as inert/empty
+   *  rather than erroring, since this is a nice-to-have, not load-bearing content. */
+  mentionablePosts: AdminPost[];
   /** The workspace's currently active theme id (`PresentationSettings.activeThemeId`) — `null`
    *  until the presentation settings load. Feeds the "View Template" button's fetch URL
    *  (`/theme-assets/{activeThemeId}/pages/{templateChoice}`, 2026-08-10). */
@@ -161,6 +167,27 @@ export interface PostEditorDependencies {
  */
 const lowlight = createLowlight(common);
 
+/**
+ * Template-preview fix (2026-08-11) — see `contentDirty`'s doc on `PostEditorController`. Same
+ * `JSON.stringify` comparison `useDirtyGuard`'s own `shallowJsonEqual` uses for `bodyJson` (a fresh
+ * object reference from `editor.getJSON()` every call, so `!==` alone would always report dirty).
+ * Split out to a top-level function (complexity-ceiling pass, 2026-08-11) so this comparison's own
+ * `||` chain scores independently of `usePostEditor`'s complexity.
+ */
+function computeContentDirty(
+  current: { title: string; slug: string; status: "draft" | "published"; bodyJson: unknown; overridesThemePage: boolean },
+  original: PostFormState | null,
+): boolean {
+  if (original === null) return false;
+  return (
+    current.title !== original.title ||
+    current.slug !== original.slug ||
+    current.status !== original.status ||
+    JSON.stringify(current.bodyJson) !== JSON.stringify(original.bodyJson) ||
+    current.overridesThemePage !== original.overridesThemePage
+  );
+}
+
 export function usePostEditor(postId: string, deps: PostEditorDependencies): PostEditorController {
   const { port, navigate, t } = deps;
   const [post, setPost] = useState<AdminPost | null>(null);
@@ -182,6 +209,12 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   // Same fetch-once-independent-of-postId shape as `availableTemplates` — the active theme's own
   // page ids don't change when switching between posts.
   const [staticPageIds, setStaticPageIds] = useState<string[]>([]);
+  // Mention feature (2026-08-11) — the "mention another post" picker's own list, same fetch-once-
+  // independent-of-postId shape as `staticPageIds`/`availableTemplates` above: which OTHER posts
+  // exist doesn't change just because the operator switched which one they're editing. NOT filtered
+  // to exclude the currently-open post here — `PostEditor.tsx` does that at render time, since this
+  // state loads once per mount and `postId`/`post.id` can change independently of it.
+  const [mentionablePosts, setMentionablePosts] = useState<AdminPost[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   // TipTap's content lives in the editor's own imperative state, not React state, so nothing here
@@ -294,6 +327,16 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
       // `width`/`height` anyway (a responsive CSS box replaces them), so there is nothing this
       // config would change that the public render would ever see.
       Youtube,
+      // Mention (2026-08-11, coordinator MSG #1 licensing sweep) — "mention another post". Left
+      // at its own default `suggestion: {}` deliberately: `@tiptap/suggestion`'s own default
+      // `render = () => ({})` (confirmed against the installed dist) means typing "@" triggers the
+      // suggestion state machine internally but renders nothing — no half-built live-filter popup.
+      // Mentions are inserted instead through the toolbar's own picker `<select>` + button
+      // (`PostEditor.tsx`, reading `mentionablePosts` below), the same "closed picker, not a typed
+      // trigger" idiom `CODE_LANGUAGE_OPTIONS`/`FONT_FAMILY_OPTIONS` already use elsewhere on this
+      // toolbar — registering the extension here is what makes the `mention` node type/schema exist
+      // and `insertContent({ type: "mention", ... })` valid, independent of the "@" trigger path.
+      Mention,
       MediaImage,
       WidgetEmbed,
     ],
@@ -371,6 +414,19 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [postId, editor === null]);
 
+  // Mention feature (2026-08-11) — fetched once per mount, independent of `postId` (same
+  // reasoning `staticPageIds`/`availableTemplates` above already state for their own effects).
+  // Failure is silently absorbed (no `setError`): an operator who can't get the mention picker
+  // populated can still write and save a post normally — this is a nice-to-have, not the editor's
+  // own load-bearing content, so it must not turn into a full-screen error for an unrelated fetch.
+  useEffect(() => {
+    port.listPosts().then(
+      ({ posts }) => setMentionablePosts(posts.map((entry) => entry.post)),
+      () => {}
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const hasSlugCollision = staticPageIds.includes(slug);
 
   const { isDirty, confirmLeave } = useDirtyGuard<PostFormState>(
@@ -378,18 +434,13 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
     original,
   );
 
-  // Template-preview fix (2026-08-11) — see `contentDirty`'s doc on `PostEditorController`. Same
-  // `JSON.stringify` comparison `useDirtyGuard`'s own `shallowJsonEqual` uses for `bodyJson` (a fresh
-  // object reference from `editor.getJSON()` every call, so `!==` alone would always report dirty),
-  // inlined here rather than a second `useDirtyGuard` call so this doesn't register its own redundant
-  // `beforeunload` listener for a value nothing reads for that purpose.
-  const contentDirty =
-    original !== null &&
-    (title !== original.title ||
-      slug !== original.slug ||
-      status !== original.status ||
-      JSON.stringify(editor?.getJSON() ?? null) !== JSON.stringify(original.bodyJson) ||
-      overridesThemePage !== original.overridesThemePage);
+  // Inlined rather than a second `useDirtyGuard` call so this doesn't register its own redundant
+  // `beforeunload` listener for a value nothing reads for that purpose — see `computeContentDirty`
+  // above for the comparison itself.
+  const contentDirty = computeContentDirty(
+    { title, slug, status, bodyJson: editor?.getJSON() ?? null, overridesThemePage },
+    original,
+  );
 
   /**
    * Persists title/slug/body, optionally forcing `status` to a specific value first —
@@ -489,6 +540,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
     templateChoice,
     setTemplateChoice,
     availableTemplates,
+    mentionablePosts,
     activeThemeId,
     activeThemeTier,
     overridesThemePage,
