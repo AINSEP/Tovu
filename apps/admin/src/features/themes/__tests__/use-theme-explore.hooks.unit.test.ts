@@ -70,26 +70,28 @@ describe("useThemeExplore — injected port (no fetch stub, no api spy)", () => 
   /**
    * Regression (owner-reported, 2026-08-12): clicking a `.liquid` template in Explore downloaded the
    * file instead of previewing it. Root cause traced to the server's theme-detail listing route
-   * (`explore.ts`'s `TEXT_READABLE_EXTENSIONS`), which does not include `.liquid` and so reports
+   * (`explore.ts`'s `TEXT_READABLE_EXTENSIONS`), which did not include `.liquid` and so reported
    * `readable: false` for every templated-tier `.liquid` file — sending `ThemeExplore.tsx`'s
    * `previewSrcFor` down the "not readable" branch that points an iframe straight at the raw,
    * `application/octet-stream`-served `/theme-assets/...` URL (see that function's own doc comment).
    *
-   * `mapDetailFiles` (this hook) is the fix: it overrides `readable` to `true` for any `.liquid`
-   * path regardless of what the listing route reported, because the GET-file route
-   * (`readThemeFile`) already returns ANY file's content as UTF-8 text unconditionally — only the
-   * LISTING's classification was stale. This is what makes the effect below actually fetch the
-   * source instead of leaving it blank.
+   * First fixed with a client-side override in `mapDetailFiles` (this hook); moved server-side
+   * 2026-08-12 once `.liquid` joined `TEXT_READABLE_EXTENSIONS`, so this hook is back to a plain
+   * passthrough and the fixture below mirrors what the server now ACTUALLY returns
+   * (`readable: true`) rather than a value this hook has to correct. Kept as its own test (not
+   * folded into the generic passthrough case) because a `.liquid` template's read-only-preview
+   * round trip is exactly the behavior the owner reported broken — a regression here should read as
+   * "the liquid preview bug is back", not as an anonymous passthrough failure.
    */
-  it("treats a .liquid template as readable even when the server's listing reports readable: false, and fetches its source", async () => {
+  it("fetches a .liquid template's source once the server reports it readable (server is the source of truth, not a client override)", async () => {
     const port = createFakeThemeExplorePort({
       files: [
         { path: "pages/index.html", group: "page", readable: true, editable: true, resettable: true },
         // Mirrors exactly what `explore.ts`'s `describeThemeFile` returns for a templated-tier
         // `.liquid` file today: `other` group (no `pages/`/`.css`/`.m?js`/`.c?js`/config-json/root-
-        // html match), `readable: false` (extension absent from `TEXT_READABLE_EXTENSIONS`),
-        // `editable: false` (same absence, `isThemeFileWritable`'s first half).
-        { path: "templates/entry.liquid", group: "other", readable: false, editable: false, resettable: true },
+        // html match), `readable: true` (extension now IN `TEXT_READABLE_EXTENSIONS`), `editable:
+        // false` (`other` is one of `READ_ONLY_GROUPS` — readability changed, writability did not).
+        { path: "templates/entry.liquid", group: "other", readable: true, editable: false, resettable: true },
       ],
       contents: {
         "pages/index.html": "<h1>Home</h1>",
@@ -107,5 +109,29 @@ describe("useThemeExplore — injected port (no fetch stub, no api spy)", () => 
 
     act(() => result.current.select("templates/entry.liquid"));
     await waitFor(() => expect(result.current.source).toBe('{% render_block component: "tovu/site-header" %}'));
+  });
+
+  /**
+   * Negative companion to the test above: if the server ever regresses `.liquid` back to
+   * `readable: false` (e.g. someone reverts the `TEXT_READABLE_EXTENSIONS` entry), this hook must
+   * NOT silently paper over it anymore — the client-side override was removed on purpose, so the
+   * source fetch effect (gated on `readable`) must skip the request, matching how it already
+   * behaves for any other non-readable file.
+   */
+  it("does NOT override a .liquid file back to readable if the server reports readable: false (override was removed, not relocated)", async () => {
+    const port = createFakeThemeExplorePort({
+      files: [{ path: "templates/entry.liquid", group: "other", readable: false, editable: false, resettable: true }],
+      contents: { "templates/entry.liquid": "{% render_block component: \"tovu/site-header\" %}" },
+    });
+    const { result } = renderHook(() => useThemeExplore("storefront", { port, t: (k) => k }));
+    await waitFor(() => expect(result.current.files.length).toBe(1));
+
+    const liquidFile = result.current.files.find((f) => f.path === "templates/entry.liquid");
+    expect(liquidFile?.readable).toBe(false);
+
+    act(() => result.current.select("templates/entry.liquid"));
+    // No override left to fetch the source — stays blank, same as any other non-readable file.
+    await waitFor(() => expect(result.current.selected).toBe("templates/entry.liquid"));
+    expect(result.current.source).toBe("");
   });
 });
