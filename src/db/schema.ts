@@ -1701,12 +1701,17 @@ export const analyticsEvents = sqliteTable(
 // the ordering cursor) is a real column, per that rule.
 //
 // SQLite JSON storage stays `text("*_json")`, matching every other JSON column in this file
-// (see this file's own module doc: "portable to Postgres `jsonb` later"). `jsonb()` is NOT a
-// `drizzle-orm/sqlite-core` column builder — verified against the installed `drizzle-orm`
-// package (`integer`, `real`, `text`, `blob`, `numeric` is the complete list) — and SQLite's own
-// docs (sqlite.org/json1.html) say applications must not persist its internal JSONB format
-// outside SQLite. See `src/db/sqlite/jsonb-column.ts` for the (deliberately unwired) reference
-// material this decision is grounded in.
+// (see this file's own module doc: "portable to Postgres `jsonb` later"). This is a TOOLING
+// decision, not a durability or contract one — persisting SQLite's binary JSONB is safe
+// (sqlite.org/jsonb.html commits to backward compatibility across versions) and its JSON
+// functions (`json()`, `json_extract()`, `jsonb_extract()`, `json_type()`) work directly against
+// a `jsonb()`-written BLOB. The actual blocker is that `jsonb()` is NOT a `drizzle-orm/
+// sqlite-core` column builder (verified against the installed package: `integer`, `real`,
+// `text`, `blob`, `numeric` is the complete list) and Drizzle's `customType.fromDriver` cannot
+// rewrite a SELECT to wrap the column in `json(...)`, so binary storage would mean hand-written
+// `sql` fragments at every call site. What would change this: a Drizzle `jsonb` column builder,
+// or a codegen layer that rewrites SELECTs. See `src/db/sqlite/jsonb-column.ts` for the
+// (deliberately unwired) reference material this decision is grounded in.
 // ---------------------------------------------------------------------------
 
 /**
