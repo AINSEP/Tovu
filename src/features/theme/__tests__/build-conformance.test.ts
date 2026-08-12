@@ -104,6 +104,47 @@ test("artifactHashes verification reads real bytes off themeDir, independent of 
   assert.equal(mismatchIssues[0].page, "js/main.js");
 });
 
+test("a page with ZERO '../css/'/'../js/' asset references cannot pass checkAssetPaths by vacuity -- it is named as its own issue, not silently clean", () => {
+  // Real-bundler regression (astro-real-bundler-conformance.test.ts): a page whose CSS was inlined and
+  // that ships no client JS has nothing for the rewrite-then-detect pipeline to find, so before this
+  // fix `checkAssetPaths` returned `[]` -- indistinguishable, from the issues array alone, from a page
+  // whose assets were actually verified and found correct. This pins the fix: an asset-less page must
+  // report an explicit `asset-path` finding naming that nothing was there to check.
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-conformance-unit-"));
+  const html = "<html><head><style>h1{color:purple}</style></head><body><h1>no external assets here</h1></body></html>";
+
+  const issues = checkBuiltThemeConformance({
+    themeId: "t",
+    themeDir: root,
+    pages: { index: html },
+    partials: {},
+    artifactHashes: {},
+  });
+
+  const assetPathIssues = issues.filter((issue) => issue.rule === "asset-path");
+  assert.equal(assetPathIssues.length, 1);
+  assert.equal(assetPathIssues[0].page, "index");
+  assert.match(assetPathIssues[0].message, /no .* asset references/);
+});
+
+test("a page with exactly the stylesheet sentinel and nothing else does NOT trip the zero-references vacuity check", () => {
+  // The sentinel href itself is a '../css/' reference, so a page that has ONLY the mandatory sentinel
+  // (no other assets) must not be flagged as asset-less -- that would make an otherwise-compliant
+  // minimal page fail for having too little, which is not what this check is for.
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-conformance-unit-"));
+  const html = `<html><head>${SENTINEL}</head><body><h1>fine</h1></body></html>`;
+
+  const issues = checkBuiltThemeConformance({
+    themeId: "t",
+    themeDir: root,
+    pages: { index: html },
+    partials: {},
+    artifactHashes: {},
+  });
+
+  assert.deepEqual(issues, []);
+});
+
 test("a well-formed page (sentinel present once, only rewritable asset refs, filled islands) reports nothing", () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-conformance-unit-"));
   const html = `<html><head>${SENTINEL}</head><body><div data-tovu-island="cart">1 item</div></body></html>`;
