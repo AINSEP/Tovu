@@ -20,6 +20,7 @@
     "@jini-ai/cms": "file:../../../Jini/packages/cms",
     "@jini-ai/integrations": "file:../../../Jini/packages/integrations",
     "@jini-ai/platform": "file:../../../Jini/packages/platform",
+    "@jini-ai/plugins": "file:../../../Jini/packages/plugins",
     "@jini-ai/protocol": "file:../../../Jini/packages/protocol",
     "@jini-ai/ui": "file:../../../Jini/packages/ui",
     "@tanstack/react-query": "^5.101.4",
