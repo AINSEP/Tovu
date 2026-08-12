@@ -103,20 +103,42 @@ export function hexOrDefault(value: string | null, fallback: string): string {
 // CSS value, and every value it can produce already passes `render.ts`'s own
 // `safeCssFontFamily`/`safeCssLength` allowlist by construction, so an author can never end up
 // with a "valid in the editor, silently dropped on publish" surprise from a typo. `""` is the
-// shared "Default" sentinel across all three — `Toolbar`'s onChange treats it as "unset the attr",
-// not "set it to an empty string".
+// shared "unset the attr" sentinel across all three — `Toolbar`'s onChange treats it that way, not
+// as "set it to an empty string".
+//
+// The leading `value: ""` entry's LABEL (toolbar polish, 2026-08-11, owner: "is it possible to set
+// the defaults to actual numbers so people can quickly understand what that is?") states the real
+// resolved value rather than the word "Default" — three selects that all read "Default" tell an
+// operator nothing about which is font/size/line-height, or what any of them currently produce.
+// Verified live against a running admin (`getComputedStyle` on `.editor-body .tiptap p` in an
+// actual browser, not read off the stylesheet by eye — a plausible-looking number here would be
+// worse than "Default", since it would be confidently wrong): the editor's own baseline body text
+// (a paragraph with NO explicit textStyle mark, i.e. exactly what `value: ""` represents) computes
+// to `font-family: "DM Sans"`, `font-size: 16px`, `line-height: 1.6` (`.editor-body .tiptap p`'s
+// own declared ratio in this same file). That baseline is deliberately NOT the published site's own
+// body defaults (`.post-detail-body` in `src/themes/static/basic/css/styles.css`: 17px/1.7,
+// no family override so it also inherits `--font-ui`/DM Sans) — the editor was never meant to be
+// pixel-parity WYSIWYG for size/line-height, only for the content itself, so this label states what
+// the CONTROL currently shows on screen, not a promise about the published page.
+//
+// Suffixed `" (Default)"` rather than bare "16"/"1.6"/"DM Sans" — `FONT_SIZE_OPTIONS` already has a
+// real preset at exactly `16px`, and a native `<select>` with two options both reading bare "16"
+// (one `value=""`, one `value="16px"`) is indistinguishable to a sighted user and ambiguous to a
+// screen reader, even though they mean different things (leave the attribute unset vs. bake in an
+// explicit 16px). The suffix keeps the entry unique while still stating the real number.
 // ---------------------------------------------------------------------------
 
-/** One `<option>` for a `Toolbar` preset `<select>` — `value: ""` is always the leading "Default"
- *  entry, matching `PostEditor.tsx`'s own template-picker precedent (`availableTemplates.map`'s
- *  "No template chosen" as the deliberate final/first option, not a coerced `null`). */
+/** One `<option>` for a `Toolbar` preset `<select>` — `value: ""` is always the leading entry
+ *  (labeled with the real resolved default, see the block comment above), matching `PostEditor.tsx`'s
+ *  own template-picker precedent (`availableTemplates.map`'s "No template chosen" as the deliberate
+ *  final/first option, not a coerced `null`). */
 export interface ToolbarSelectOption {
   label: string;
   value: string;
 }
 
 export const FONT_FAMILY_OPTIONS: readonly ToolbarSelectOption[] = [
-  { label: "Default", value: "" },
+  { label: "DM Sans (Default)", value: "" },
   { label: "Sans-serif", value: "ui-sans-serif, system-ui, sans-serif" },
   { label: "Serif", value: "ui-serif, Georgia, serif" },
   { label: "Monospace", value: "ui-monospace, 'SF Mono', monospace" },
@@ -126,7 +148,7 @@ export const FONT_FAMILY_OPTIONS: readonly ToolbarSelectOption[] = [
 ];
 
 export const FONT_SIZE_OPTIONS: readonly ToolbarSelectOption[] = [
-  { label: "Default", value: "" },
+  { label: "16 (Default)", value: "" },
   { label: "12", value: "12px" },
   { label: "14", value: "14px" },
   { label: "16", value: "16px" },
@@ -138,7 +160,7 @@ export const FONT_SIZE_OPTIONS: readonly ToolbarSelectOption[] = [
 ];
 
 export const LINE_HEIGHT_OPTIONS: readonly ToolbarSelectOption[] = [
-  { label: "Default", value: "" },
+  { label: "1.6 (Default)", value: "" },
   { label: "1", value: "1" },
   { label: "1.15", value: "1.15" },
   { label: "1.5", value: "1.5" },

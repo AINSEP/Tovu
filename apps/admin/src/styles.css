@@ -1498,7 +1498,19 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 /* Children get a left guide rule instead of bare indentation, so nesting reads visually. */
 .menu-item-row[style*="margin-left"] { padding-left: 0.9rem; border-left: 2px solid var(--border); margin-top: 0.6rem; }
 .editor-shell { border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: var(--surface); box-shadow: var(--shadow-sm); }
-.editor-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 3px 8px; padding: 8px 10px; background: var(--surface-2); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 2; }
+/* Toolbar height (owner feedback on a screenshot, 2026-08-11: "~25% shorter" — two tall rows plus a
+   character-count line ate too much vertical space above the writing area). Padding/gap trimmed
+   here (8px 10px / 3px 8px -> 6px 8px / 2px 6px) together with `.tb-btn`/`.tb-color`/`.tb-select`
+   dropping from a 30px to a 26px frame below is what actually delivers the reduction — this is a
+   desktop admin, so 26px still clears a comfortable click/tap target and each control keeps its own
+   `:hover`/`:focus-visible` treatment, nothing here removes those. Measured live (Playwright against
+   a running admin, `.editor-toolbar`'s own `getBoundingClientRect().height` at a 1440px viewport,
+   two toolbar rows wrapped at that width both before and after): 94px before this change, 67px
+   after — a 29% reduction, past the ~25% ask. The `.tb-select` fix below (an app-wide `min-height:
+   37px` reset was clamping every select regardless of this file's own `height`) is what closes most
+   of the gap — without it the reduction was only ~5%, since the toolbar's own row height was still
+   governed by its tallest child. */
+.editor-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 2px 6px; padding: 6px 8px; background: var(--surface-2); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 2; }
 /* Selection bubble menu (`BubbleFormattingMenu`, 2026-08-11) — `@tiptap/react/menus`' `BubbleMenu`
    positions this `<div>` itself (Floating UI under the hood); this rule only styles its contents,
    same `.tb-btn` row shape `.editor-toolbar .grp` already uses, just without that row's own
@@ -1519,9 +1531,9 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .editor-toolbar .grp { display: flex; gap: 2px; padding-right: 8px; margin-right: 0; border-right: 1px solid var(--border); }
 .editor-toolbar .grp:last-child { border-right: none; padding-right: 0; }
 .tb-btn {
-  min-width: 30px; height: 30px; padding: 0 8px; display: inline-grid; place-items: center;
-  font-family: var(--font-ui); font-size: 12.5px; font-weight: 600; line-height: 1;
-  color: var(--fg-2); background: transparent; border: 1px solid transparent; border-radius: 7px; cursor: pointer;
+  min-width: 26px; height: 26px; padding: 0 7px; display: inline-grid; place-items: center;
+  font-family: var(--font-ui); font-size: 12px; font-weight: 600; line-height: 1;
+  color: var(--fg-2); background: transparent; border: 1px solid transparent; border-radius: 6px; cursor: pointer;
   transition: background 0.12s, color 0.12s, border-color 0.12s;
 }
 .tb-btn:hover:not(:disabled) { background: var(--surface); border-color: var(--border); }
@@ -1542,21 +1554,37 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    with a visible native border in some browsers, none in others), so this wraps it in the same
    30px-tall frame every other `.tb-btn` already occupies and gives the input itself a small
    inset + border so it reads as "one more toolbar control", not a stray native form field. */
-.tb-color { display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 7px; cursor: pointer; }
+.tb-color { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 6px; cursor: pointer; }
 .tb-color input[type="color"] {
-  width: 20px; height: 20px; padding: 0; border: 1px solid var(--border); border-radius: 5px;
+  width: 17px; height: 17px; padding: 0; border: 1px solid var(--border); border-radius: 4px;
   cursor: pointer; background: none;
 }
 /* Font family/size/line-height `<select>`s (`Toolbar`, 2026-08-11) — sized to match `.tb-btn`'s own
-   30px height so the row stays visually level; width left to content (`width: auto`) rather than a
+   26px height so the row stays visually level; width left to content (`width: auto`) rather than a
    fixed value since "Sans-serif"/"Courier New" and "12"/"48" need very different widths and a
-   shared fixed width would either clip the longest or waste space on the shortest. */
+   shared fixed width would either clip the longest or waste space on the shortest. `min-height: 26px`
+   + `line-height: 1` (toolbar-height pass, 2026-08-11) matter more than they look: this select
+   measured 37px tall in a real browser (`getComputedStyle`) against `.tb-btn`'s exactly-26px, a
+   mismatch that itself forced an extra row of wrap. Root cause traced live, not guessed — the
+   app-wide `input, select, textarea { min-height: 37px; ... }` reset ("Shared page primitives"
+   section, this file) floors EVERY select's height at 37px, and `min-height` always wins over a
+   smaller `height` regardless of selector specificity (the used value is `max(height, min-height)`
+   per spec). Re-declaring `min-height` here, not just `height`, is what actually un-clamps it;
+   `line-height: 1` on top keeps the select's own intrinsic content-box height from independently
+   exceeding that once the floor is gone. */
 .tb-select {
-  height: 30px; padding: 0 6px; font-family: var(--font-ui); font-size: 12.5px;
-  color: var(--fg-2); background: transparent; border: 1px solid transparent; border-radius: 7px;
+  height: 26px; min-height: 26px; line-height: 1; padding: 0 6px; font-family: var(--font-ui); font-size: 12px;
+  color: var(--fg-2); background: transparent; border: 1px solid transparent; border-radius: 6px;
   cursor: pointer; max-width: 9rem;
 }
 .tb-select:hover { background: var(--surface); border-color: var(--border); }
+/* Select label pairing (toolbar polish, 2026-08-11 — owner: three `<select>`s that all read
+   "Default" gave no clue which was font/size/line-height without hovering the `title`). Metrics
+   copied from `.field-label` (this file's existing small-caption convention: uppercase, letter-
+   spaced, muted) rather than a new ad hoc size, so this reads as "the same kind of label" as every
+   other field caption in the admin, just inline instead of stacked above its control. */
+.tb-select-group { display: inline-flex; align-items: center; gap: 3px; }
+.tb-select-label { font-size: var(--text-2xs); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
 /* CharacterCount readout (`Toolbar`, 2026-08-11) — `margin-left: auto` pushes it to the far end of
    the flex-wrap row, trailing every button/select group rather than sitting between them. */
 .editor-toolbar-count { margin-left: auto; padding: 0 4px; font-size: 12px; color: var(--faint); white-space: nowrap; }
@@ -1632,7 +1660,19 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .embed-insert-menu { display: inline-flex; align-items: center; gap: var(--space-2); margin-left: var(--space-2); }
 .editor-body { background: var(--surface); padding: 1.5rem 2rem; min-height: 22rem; }
 .editor-body .tiptap { outline: none; min-height: 20rem; }
-.editor-body .tiptap p { line-height: 1.6; }
+/* `font-size`/`color` made explicit here (found while measuring the real default for the toolbar's
+   font-size select, 2026-08-11) — without them, the FIRST paragraph of every post's body collided
+   with the legacy `.admin-content h1 + p` rule (this file, "Page headings + intro copy"): the
+   post-title-in-document feature's `<h1 data-post-title>` sits inside `.admin-content` same as any
+   dashboard page's own `<h1>`, so its immediate sibling `<p>` was unintentionally catching that
+   rule's `font-size: 0.95rem`/`color: var(--muted)`/`margin: 0 0 1.6rem` meant for a page's intro
+   copy, not post body text — verified live (`getComputedStyle`): the first paragraph rendered at
+   15.2px muted gray with no top margin while every OTHER paragraph in the same doc rendered at the
+   real 16px/`--fg`/1em-both-sides default. Not a fix to the legacy rule itself (still live and
+   correct for the dashboard sections that have not migrated to `.page-header` yet, per that rule's
+   own comment) — this instead gives every paragraph in the editor its own explicit values so none of
+   them are left exposed to whatever unrelated selector happens to match their DOM position. */
+.editor-body .tiptap p { font-size: 1rem; line-height: 1.6; color: inherit; margin: 1em 0; }
 .editor-body .tiptap pre { background: var(--surface-3); color: var(--fg); font-family: var(--font-mono); font-size: 0.85rem; padding: 1rem; border-radius: var(--r-md); overflow-x: auto; }
 /* Code block syntax highlighting (coordinator MSG #1, 2026-08-11) — `lowlight` decorates the
    editor's own DOM with `hljs-*` classes on `<span>`s inside the `<pre><code>` this rule's parent

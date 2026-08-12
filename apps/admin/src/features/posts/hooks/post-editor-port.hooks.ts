@@ -32,4 +32,9 @@ export interface PostEditorPort {
     patch: Partial<Pick<AdminPost, "title" | "slug" | "bodyJson" | "status" | "templateChoice" | "overridesThemePage">>
   ): Promise<{ post: AdminPost }>;
   deletePost(id: string): Promise<{ post: AdminPost }>;
+  /** Mention feature (2026-08-11, coordinator MSG #1 licensing sweep) — the picker list for
+   *  "mention another post"; same wrapped-entry response shape `api.listPosts()` actually returns
+   *  (confirmed against `use-posts.hooks.ts`'s own `r.posts.map((entry) => entry.post)`, not the
+   *  type declaration alone). */
+  listPosts(): Promise<{ posts: Array<{ post: AdminPost }> }>;
 }
