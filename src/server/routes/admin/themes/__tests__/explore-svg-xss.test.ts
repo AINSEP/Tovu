@@ -101,3 +101,27 @@ test("PROVEN: an .svg with an embedded <script>, written to an ordinary (non-sou
   const body = await served.text();
   assert.equal(body, payload, "the <script> must reach the client byte-for-byte unescaped -- this is what a direct navigation to this URL executes");
 });
+
+test("PROVEN: a root-level .html file with an embedded <script> is likewise accepted by PUT and served as text/html -- fileGroup classifies it 'partial', which is not in READ_ONLY_GROUPS either", async (t) => {
+  const themesDir = makeThemesRoot();
+  const app = buildTestApp(themesDir);
+  const baseUrl = await startTestServer(app, t);
+
+  const payload = '<!doctype html><html><body><script>document.title="XSS-PROOF-HTML"</script></body></html>';
+
+  const put = await fetch(`${baseUrl}${BASE("authored")}/file`, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ path: "custom.html", content: payload }),
+  });
+
+  assert.equal(put.status, 200, "expected a root-level .html file to be accepted by the general write gate");
+  assert.equal(fs.readFileSync(path.join(themesDir, "static", "authored", "custom.html"), "utf8"), payload);
+
+  const served = await fetch(`${baseUrl}/theme-assets/authored/custom.html`);
+  assert.equal(served.status, 200);
+  const contentType = served.headers.get("content-type") ?? "";
+  assert.ok(contentType.includes("html"), `expected an html content-type, got "${contentType}"`);
+  const body = await served.text();
+  assert.equal(body, payload, "the <script> must reach the client byte-for-byte unescaped");
+});
