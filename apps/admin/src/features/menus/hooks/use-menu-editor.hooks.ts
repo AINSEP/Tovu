@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
-import { api, type AdminMenu, type AdminMenuItem } from "../../../lib/api";
-import { navigate } from "../../../lib/router";
+import { type AdminMenu, type AdminMenuItem } from "../../../lib/api";
+import { navigate as realNavigate } from "../../../lib/router";
 import { useDirtyGuard } from "../../../hooks/use-dirty-guard.hooks";
+import { defaultMenusPort } from "./menus-dependencies.hooks";
+import type { MenusPort } from "./menus-port.hooks";
 
 /**
  * @file Everything the per-menu tree editor does, so `MenuEditor.tsx` is only markup.
@@ -19,7 +21,16 @@ import { useDirtyGuard } from "../../../hooks/use-dirty-guard.hooks";
  * Naming follows `hooks/use-settings-slice.hooks.ts` and `hooks/use-dirty-guard.hooks.ts`:
  * `use-<thing>.hooks.ts`. Feature-local because nothing outside `features/menus` needs it; promote
  * to `src/hooks/` only when a second feature actually does.
+ *
+ * `deps.port`/`deps.navigate` are injected (see `menus-port.hooks.ts`) rather than reaching for
+ * `lib/api`'s `api` and `lib/router`'s `navigate` directly, sharing the `MenusPort`
+ * `use-menus.hooks.ts` also injects.
  */
+
+export interface MenuEditorDependencies {
+  port: MenusPort;
+  navigate: (path: string) => void;
+}
 
 function newItemId(): string {
   return globalThis.crypto?.randomUUID?.() ?? `item-${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -125,7 +136,7 @@ export interface MenuEditorController {
   save: () => Promise<void>;
 }
 
-export function useMenuEditor(menuId: string | null): MenuEditorController {
+export function useMenuEditor(menuId: string | null, { port, navigate }: MenuEditorDependencies): MenuEditorController {
   const isNew = menuId === null;
   const [menu, setMenu] = useState<AdminMenu | null>(null);
   const [title, setTitle] = useState("");
@@ -152,7 +163,7 @@ export function useMenuEditor(menuId: string | null): MenuEditorController {
     }
     setLoading(true);
     setError(null);
-    api
+    port
       .getMenu(menuId as string)
       .then(({ menu }) => {
         setMenu(menu);
@@ -189,12 +200,12 @@ export function useMenuEditor(menuId: string | null): MenuEditorController {
     setError(null);
     try {
       if (isNew) {
-        const { menu: created } = await api.createMenu({ title, slug }, { items });
+        const { menu: created } = await port.createMenu({ title, slug }, { items });
         navigate(`/menus/${created.id}`);
         return;
       }
       if (!menu) return;
-      const { menu: saved } = await api.updateMenuTree(
+      const { menu: saved } = await port.updateMenuTree(
         { id: menu.id, expectedVersion: menu.version, items },
         { title, slug }
       );
@@ -228,4 +239,16 @@ export function useMenuEditor(menuId: string | null): MenuEditorController {
     addRootItem,
     save,
   };
+}
+
+/**
+ * Binds the real `/api/.../menus` client and the real `lib/router` `navigate` — see
+ * `menus-dependencies.hooks.ts`.
+ *
+ * The zero-argument-dependencies half of the `useX(dependencies)` / `useWiredX()` pair, so
+ * `MenuEditor.tsx` composes this and a test composes {@link useMenuEditor} with
+ * `createFakeMenusPort`.
+ */
+export function useWiredMenuEditor(menuId: string | null): MenuEditorController {
+  return useMenuEditor(menuId, { port: defaultMenusPort, navigate: realNavigate });
 }

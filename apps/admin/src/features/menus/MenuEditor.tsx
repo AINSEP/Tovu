@@ -1,7 +1,7 @@
 import { agentHandle } from "@jini-ai/agentic";
 
 import type { AdminMenuItem, AdminMenuTarget } from "../../lib/api";
-import { useMenuEditor } from "./hooks/use-menu-editor.hooks";
+import { useWiredMenuEditor } from "./hooks/use-menu-editor.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { MENUS_DICT } from "./menus-i18n";
 
@@ -256,7 +256,7 @@ export function MenuEditor(props: { menuId: string | null }) {
     moveAt,
     addRootItem,
     save,
-  } = useMenuEditor(props.menuId);
+  } = useWiredMenuEditor(props.menuId);
   const locale = useAdminLocale();
   const t = (key: string): string => MENUS_DICT[locale]?.[key] ?? key;
 

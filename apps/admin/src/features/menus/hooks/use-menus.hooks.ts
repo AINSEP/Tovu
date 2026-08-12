@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
-import { api, type AdminMenu } from "../../../lib/api";
+import { type AdminMenu } from "../../../lib/api";
+import { defaultMenusPort } from "./menus-dependencies.hooks";
+import type { MenusPort } from "./menus-port.hooks";
 
 /**
  * @file Everything the Menus LIST does, so `Menus.tsx` is only markup.
@@ -8,7 +10,14 @@ import { api, type AdminMenu } from "../../../lib/api";
  * `hooks/use-settings-slice.hooks.ts` and `hooks/use-dirty-guard.hooks.ts`: `use-<thing>.hooks.ts`.
  * Feature-local because nothing outside `features/menus` needs it; promote to `src/hooks/` only
  * when a second feature actually does.
+ *
+ * `deps.port` is injected (see `menus-port.hooks.ts`) rather than reaching for `lib/api`'s `api`
+ * directly, sharing the `MenusPort` `use-menu-editor.hooks.ts` also injects.
  */
+
+export interface MenusDependencies {
+  port: MenusPort;
+}
 
 export interface MenusController {
   menus: AdminMenu[] | null;
@@ -23,14 +32,14 @@ export interface MenusController {
   confirmForceDelete: () => Promise<void>;
 }
 
-export function useMenus(): MenusController {
+export function useMenus({ port }: MenusDependencies): MenusController {
   const [menus, setMenus] = useState<AdminMenu[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pendingForceDelete, setPendingForceDelete] = useState<AdminMenu | null>(null);
   const [forceDeleting, setForceDeleting] = useState(false);
 
   function load() {
-    api
+    port
       .listMenus()
       .then((r) => setMenus(r.menus))
       .catch((e) => setError(e instanceof Error ? e.message : "failed to load menus"));
@@ -49,7 +58,7 @@ export function useMenus(): MenusController {
       return;
     }
     try {
-      await api.deleteMenu({ id: menu.id }, { force: false });
+      await port.deleteMenu({ id: menu.id }, { force: false });
       load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "delete failed");
@@ -62,7 +71,7 @@ export function useMenus(): MenusController {
     setForceDeleting(true);
     setError(null);
     try {
-      await api.deleteMenu({ id: menu.id }, { force: true });
+      await port.deleteMenu({ id: menu.id }, { force: true });
       load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "delete failed");
@@ -81,4 +90,14 @@ export function useMenus(): MenusController {
     trashOrPurge,
     confirmForceDelete,
   };
+}
+
+/**
+ * Binds the real `/api/.../menus` client — see `menus-dependencies.hooks.ts`.
+ *
+ * The zero-argument half of the `useX(dependencies)` / `useWiredX()` pair, so `Menus.tsx` composes
+ * this and a test composes {@link useMenus} with `createFakeMenusPort`.
+ */
+export function useWiredMenus(): MenusController {
+  return useMenus({ port: defaultMenusPort });
 }
