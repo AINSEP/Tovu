@@ -200,10 +200,16 @@ same pre-existing, accepted behaviour `safeHref` already has.
    audit section above. This is the only unfixed blocker. Then audit the same shape across the other
    10 migrated features — any screen pairing uncontrolled inputs with a fetch-query invalidation
    refetch and a diff-against-state patch builder.
-2. **Audit the rest of `media` for the same shape** — any component taking an entity as a prop and
-   seeding state from it in a `useState` initializer with no `key` and no `item.id` reset effect.
-   `Verifier2` was asked to enumerate these; check its report. Consider whether
-   `use-form-editor.hooks.ts`'s `seededFormIdRef` pattern is more robust than `key=` here.
+2. ~~Audit the rest of `media` for the same shape~~ **— DONE, nothing else found.** `MediaGuardTest`
+   checked every `media` component: `EditMediaPanel` was the only gap. `MediaPreview`'s `stage` state
+   is a related-but-different case already covered by `key={item.id}` at both its mount sites
+   (`Media.tsx:479` and `:704`).
+   **And `key=` is the right mechanism here, not `seededFormIdRef`:** that ref exists in
+   `use-form-editor.hooks.ts` to distinguish "id changed" from "same id, background refetch clobbering
+   an in-progress edit" — it needs that because `FormEditor` owns its own `useFetchQuery`.
+   `EditMediaPanel` has no query; `item` arrives already resolved as a prop. So the only reset trigger
+   is "id changed," which `key=` handles for free across *every* piece of local state (`draft`,
+   `hashCopied`, `urlCopied`, the mutation's own status) instead of one hand-written effect per field.
 3. **Reproduce or refute the mention/YouTube node deletion** — Pro called it a blocker, `Verifier2`
    did not corroborate it. An isolated repro settles it either way.
 4. **Recover Codex's round-2 verdict** — it was still running at cutoff after 130 commands (it stood
