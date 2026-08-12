@@ -1634,6 +1634,21 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .editor-body .tiptap { outline: none; min-height: 20rem; }
 .editor-body .tiptap p { line-height: 1.6; }
 .editor-body .tiptap pre { background: var(--surface-3); color: var(--fg); font-family: var(--font-mono); font-size: 0.85rem; padding: 1rem; border-radius: var(--r-md); overflow-x: auto; }
+/* Code block syntax highlighting (coordinator MSG #1, 2026-08-11) — `lowlight` decorates the
+   editor's own DOM with `hljs-*` classes on `<span>`s inside the `<pre><code>` this rule's parent
+   already styles; without any color rules for those classes the highlighting exists structurally
+   but is invisible (every span inherits the same plain `--fg`). A hand-picked set of `hljs-*` rules
+   built from this admin's own tokens, not an imported vendor theme (`highlight.js/styles/*.css`):
+   every shipped vendor theme hardcodes hex colors for one fixed background, which would fight this
+   app's own light/dark skin system (`data-theme`) rather than adapt to it the way every other color
+   in this file already does. Two literal hex values (string/number) fill the two hues this token set
+   has no existing named color for — every other role reuses an existing token. */
+.editor-body .tiptap .hljs-comment, .editor-body .tiptap .hljs-quote { color: var(--muted); font-style: italic; }
+.editor-body .tiptap .hljs-keyword, .editor-body .tiptap .hljs-selector-tag, .editor-body .tiptap .hljs-literal, .editor-body .tiptap .hljs-type { color: var(--accent-text); }
+.editor-body .tiptap .hljs-string, .editor-body .tiptap .hljs-attr, .editor-body .tiptap .hljs-template-tag { color: #4caf7a; }
+.editor-body .tiptap .hljs-number, .editor-body .tiptap .hljs-symbol, .editor-body .tiptap .hljs-bullet { color: #d1975a; }
+.editor-body .tiptap .hljs-title, .editor-body .tiptap .hljs-section, .editor-body .tiptap .hljs-name { color: var(--fg-2); font-weight: 600; }
+.editor-body .tiptap .hljs-variable, .editor-body .tiptap .hljs-attribute { color: var(--fg-2); }
 .editor-body .tiptap blockquote { border-left: 3px solid var(--border-strong); margin: 1rem 0; padding-left: 1rem; color: var(--muted); }
 /* Post-title-in-document feature (2026-08-11) — the doc's own first node
    (`lib/post-title-extension.ts`), rendered as a real `<h1 data-post-title>` so an author can click

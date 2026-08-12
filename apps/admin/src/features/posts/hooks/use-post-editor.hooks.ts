@@ -7,6 +7,8 @@ import Subscript from "@tiptap/extension-subscript";
 import Superscript from "@tiptap/extension-superscript";
 import { TextStyle, Color, BackgroundColor, FontFamily, FontSize, LineHeight } from "@tiptap/extension-text-style";
 import Typography from "@tiptap/extension-typography";
+import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
+import { createLowlight, common } from "lowlight";
 import { Placeholder, CharacterCount } from "@tiptap/extensions";
 import { Table, TableRow, TableCell, TableHeader } from "@tiptap/extension-table";
 import { TaskList, TaskItem } from "@tiptap/extension-list";
@@ -148,6 +150,16 @@ export interface PostEditorDependencies {
   t: (key: string) => string;
 }
 
+/**
+ * Registers lowlight's `common` grammar set once at module load (2026-08-11, code-block
+ * highlighting) — `createLowlight` builds a language registry, not per-editor state, so this is a
+ * plain module-level singleton rather than something built inside the hook on every mount.
+ * `common` (not `all`): a curated, smaller set of the languages an author actually reaches for
+ * (js/ts/python/bash/json/css/…) — `all` registers every `highlight.js` grammar and would bloat
+ * this bundle for languages nothing in `rules.ts`'s `CODE_LANGUAGE_OPTIONS` even offers picking.
+ */
+const lowlight = createLowlight(common);
+
 export function usePostEditor(postId: string, deps: PostEditorDependencies): PostEditorController {
   const { port, navigate, t } = deps;
   const [post, setPost] = useState<AdminPost | null>(null);
@@ -200,7 +212,12 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
     // file header for the post-title-in-document feature this pair belongs to and why the title lives
     // in `bodyJson` as a real node instead of a theme-level-only field.
     extensions: [
-      StarterKit.configure({ document: false }),
+      // `codeBlock: false` (2026-08-11) — `CodeBlockLowlight` (added below) replaces StarterKit's
+      // own plain `CodeBlock`; both register the identical `codeBlock` node NAME, so leaving
+      // StarterKit's own copy enabled would register two competing implementations of it, same
+      // "disable the bundled copy, register the richer one separately" pattern `document: false`
+      // already established for `PostTitleDocument` just below.
+      StarterKit.configure({ document: false, codeBlock: false }),
       PostTitleDocument,
       PostTitle,
       TextAlign.configure({ types: ["heading", "paragraph", "title"] }),
@@ -238,6 +255,13 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
       // The result is plain text in a `text` node — `render.ts` needed no new case, since its
       // existing `"text"` case already `escapeHtml`s and emits whatever Unicode the doc carries.
       Typography,
+      // Code block syntax highlighting (2026-08-11, coordinator MSG #1, option (c)) — highlights
+      // in-browser via `lowlight` (module-level singleton above); only `attrs.language` is ever
+      // persisted to `bodyJson`, never the highlighted markup itself. See `render.ts`'s `"codeBlock"`
+      // case for the public-render half: it emits the language as a `class="language-X"` token and
+      // does nothing further — no server-side highlighter dependency, per the coordinator's own
+      // stated reasoning for rejecting options (a)/(b).
+      CodeBlockLowlight.configure({ lowlight }),
       // Placeholder/CharacterCount (2026-08-11) — editor-only chrome, no doc vocabulary of their own
       // (Placeholder is a ProseMirror DECORATION on an empty node, never written into `bodyJson`;
       // CharacterCount only reads `state.doc`, never writes to it), so neither needs a `render.ts`

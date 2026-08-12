@@ -146,6 +146,35 @@ export const LINE_HEIGHT_OPTIONS: readonly ToolbarSelectOption[] = [
   { label: "2", value: "2" },
 ];
 
+/**
+ * Code block language picker (2026-08-11, coordinator MSG #1) — every `value` here is one of
+ * lowlight's own `common` grammar set's registered keys (`use-post-editor.hooks.ts`'s
+ * `createLowlight(common)`), so picking any option always produces REAL in-editor highlighting,
+ * never a silent "unrecognized language, falls back to plain text" surprise. `"xml"` is the actual
+ * registered `highlight.js` grammar key for HTML (aliases like `"html"` are resolved by
+ * `highlight.js`'s own internal alias table, which lowlight's `registered()`/`listLanguages()`
+ * checks do NOT consult — verified against the installed dist rather than assumed), so the option
+ * is labeled "HTML" but stores the key lowlight actually has registered.
+ */
+export const CODE_LANGUAGE_OPTIONS: readonly ToolbarSelectOption[] = [
+  { label: "Plain text", value: "plaintext" },
+  { label: "JavaScript", value: "javascript" },
+  { label: "TypeScript", value: "typescript" },
+  { label: "Python", value: "python" },
+  { label: "Bash", value: "bash" },
+  { label: "JSON", value: "json" },
+  { label: "HTML", value: "xml" },
+  { label: "CSS", value: "css" },
+  { label: "SQL", value: "sql" },
+  { label: "Java", value: "java" },
+  { label: "Go", value: "go" },
+  { label: "Rust", value: "rust" },
+  { label: "Ruby", value: "ruby" },
+  { label: "PHP", value: "php" },
+  { label: "YAML", value: "yaml" },
+  { label: "Markdown", value: "markdown" },
+];
+
 /** Which end of `updatedAt` the Posts list's "Updated" column header currently sorts toward. */
 export type PostUpdatedSortDirection = "newest" | "oldest";
 
