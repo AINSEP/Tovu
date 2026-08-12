@@ -242,3 +242,58 @@ test("dataModule: an in-memory db's failing DDL still rolls back to a working st
 
   db.close();
 });
+
+/**
+ * PostgreSQL truncates over-long identifiers silently. SQLite has no limit, so a name that is fine
+ * today becomes a defect the day a site runs on Postgres — the catalog name would differ from the
+ * computed name, and the `existingTables` idempotency check would try to re-create the object on
+ * every activation. These three tests pin the boundary rather than the sentiment.
+ */
+const longNameDecl = (pluginId: string, tableName: string, indexName?: string) => ({
+  pluginId,
+  pluginTier: "tier-2" as const,
+  provenance: { sourceUrl: "test://long", publisher: "test" },
+  tables: [
+    {
+      name: tableName,
+      columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }],
+      ...(indexName ? { indexes: [{ name: indexName, columns: ["id"] }] } : {}),
+    },
+  ],
+});
+
+test("dataModule: rejects a table whose namespaced name would exceed PostgreSQL's 63-byte identifier limit", async () => {
+  const { db, dbPath, dir } = openWithCore();
+  // `p_` + pluginId(30) + `__` + tableName(32) = 66 bytes.
+  const result = await declareDataModule({ db, dbPath, decl: longNameDecl("a".repeat(30), "b".repeat(32)) });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.error?.code, "IDENTIFIER_TOO_LONG");
+  assert.match(result.error?.message ?? "", /66 bytes/, "reports the actual byte count");
+  assert.equal(result.snapshotPath, null, "fails before any I/O — no snapshot was taken");
+  db.close();
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test("dataModule: rejects an index whose generated name would exceed the identifier limit, even when the table fits", async () => {
+  const { db, dbPath, dir } = openWithCore();
+  // Table `p_short__t` fits easily; the index `idx_p_short__t__<50 chars>` does not.
+  const result = await declareDataModule({ db, dbPath, decl: longNameDecl("short", "t", "i".repeat(50)) });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.error?.code, "IDENTIFIER_TOO_LONG");
+  assert.match(result.error?.message ?? "", /^index /, "attributes the failure to the index, not the table");
+  db.close();
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+test("dataModule: accepts an identifier of exactly 63 bytes — the limit is inclusive", async () => {
+  const { db, dbPath, dir } = openWithCore();
+  // `p_`(2) + pluginId(30) + `__`(2) + tableName(29) = exactly 63.
+  const result = await declareDataModule({ db, dbPath, decl: longNameDecl("a".repeat(30), "b".repeat(29)) });
+
+  assert.equal(result.ok, true, result.error?.message);
+  assert.deepEqual(result.created, [`p_${"a".repeat(30)}__${"b".repeat(29)}`]);
+  db.close();
+  fs.rmSync(dir, { recursive: true, force: true });
+});
