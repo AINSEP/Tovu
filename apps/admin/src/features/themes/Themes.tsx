@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { Toast } from "@jini-ai/ui";
 
+import { type PresentationSettings } from "../../lib/api";
 import { siteUrl } from "../../lib/site-url";
 import { navigate } from "../../lib/router";
 import { TabBar, type TabBarTab } from "../../components/TabBar";
 import { ImagePreviewModal } from "../../components/ImagePreviewModal";
-import { useWiredThemes } from "./hooks/use-themes.hooks";
+import { useWiredThemes, type ThemesController, type MarketplaceItem } from "./hooks/use-themes.hooks";
 import {
   isActiveTheme,
   isStrandedActiveTheme,
@@ -102,27 +103,243 @@ export interface ThemesProps {
   useThemesHook?: typeof useWiredThemes;
 }
 
-export function Themes({ useThemesHook = useWiredThemes }: ThemesProps = {}) {
+/**
+ * Fills in every optional {@link ThemesController} field with the same default the destructuring at
+ * `Themes`'s own call site used to carry inline (complexity-ceiling pass, 2026-08-11) — split out to a
+ * top-level function so these six `??` fallbacks score against this function instead of `Themes`
+ * itself. Existing test doubles built against the earlier, smaller controller shape
+ * (`themeTiers`/`rescanning`/`rescanNotice`/`marketplace`/`marketplaceLoading`/`downloading` were all
+ * added later) keep type-checking without being rewritten — see those fields' own doc on
+ * `ThemesController` for why they're optional in the first place.
+ */
+function withThemeDefaults(controller: ThemesController) {
+  return {
+    ...controller,
+    themeTiers: controller.themeTiers ?? {},
+    rescanning: controller.rescanning ?? false,
+    rescanNotice: controller.rescanNotice ?? null,
+    marketplace: controller.marketplace ?? [],
+    marketplaceLoading: controller.marketplaceLoading ?? false,
+    downloading: controller.downloading ?? null,
+  };
+}
+
+/** The tab list for `TabBar` — every configured {@link ThemeTabGroup} plus the Marketplace
+ *  placeholder. Extracted to a top-level function (complexity-ceiling pass) so the marketplace tab's
+ *  `||` fallback scores independently of `Themes`'s own complexity. */
+function buildThemeTabs(
+  t: (key: string) => string,
+  grouped: Record<ThemeTabGroup, string[]>,
+  marketplace: MarketplaceItem[],
+): TabBarTab[] {
+  return [
+    ...THEME_TAB_GROUPS.map(
+      (group): TabBarTab => ({ id: group, label: tabGroupLabel(t, group), count: grouped[group].length }),
+    ),
+    // Live as of the local fixture (`src/themes/__marketplace__/`): a real listing served by a real
+    // route, downloading real theme folders. Still not a real marketplace — no network, no search,
+    // no publisher identity, no versioning (see development/todos.md).
+    { id: MARKETPLACE_TAB_ID, label: t("Marketplace"), count: marketplace.length || undefined },
+  ];
+}
+
+/** The rescan-outcome toast. Transient, not a persistent banner: the rescan outcome confirms
+ *  something the operator just did, so it clears itself rather than accumulating above the grid.
+ *  Passing `onDismiss` is what makes the component render its own X — the same handler the
+ *  auto-dismiss timer calls, so closing early and timing out are one code path. A duplicate-id result
+ *  still gets `role="alert"` (announced immediately by a screen reader) because it means the site may
+ *  be rendering a theme nobody picked. Extracted to a top-level component (complexity-ceiling pass) so
+ *  its role/tone ternaries score independently of `Themes`'s own complexity. */
+function RescanToast({
+  rescanNotice,
+  onDismiss,
+}: {
+  rescanNotice: string | null;
+  onDismiss: (() => void) | undefined;
+}) {
+  if (!rescanNotice) return null;
+  return (
+    <Toast
+      message={rescanNotice}
+      role={rescanNotice.includes("Duplicate") ? "alert" : "status"}
+      tone={rescanNotice.includes("Duplicate") ? "error" : "success"}
+      ttlMs={5000}
+      onDismiss={onDismiss}
+    />
+  );
+}
+
+/** The two banners below the toolbar — a failed fetch/save, and independently, "the site's active
+ *  theme no longer resolves" (`.notice.warning` — same visual language `PostEditor.tsx`'s
+ *  slug-collision banner already established for "the admin needs to know this, but nothing was
+ *  lost/destroyed", not `.notice.error`, which this codebase reserves for a failed fetch/save).
+ *  Extracted to a top-level component (complexity-ceiling pass) so these two independent ternaries
+ *  score against this function instead of `Themes`'s own complexity. */
+function ThemesBanners({
+  error,
+  settings,
+  themes,
+  t,
+}: {
+  error: string | null;
+  settings: PresentationSettings;
+  themes: string[];
+  t: (key: string) => string;
+}) {
+  return (
+    <>
+      {error ? <div className="notice error">{error}</div> : null}
+      {isStrandedActiveTheme(settings, themes) ? (
+        <div className="notice warning">
+          {t(
+            "The site's active theme (\"{id}\") is no longer available, so the public site cannot render until you activate a different one. No content was lost.",
+          ).replace("{id}", settings.activeThemeId)}
+        </div>
+      ) : null}
+    </>
+  );
+}
+
+/** The Marketplace tab's own content — loading / empty / grid, plus each card's per-item
+ *  "already have this id" note. Extracted to a top-level component (complexity-ceiling pass) so this
+ *  branching scores independently of `Themes`'s own complexity. */
+function MarketplaceGrid({
+  marketplaceLoading,
+  marketplace,
+  downloading,
+  download,
+  t,
+}: {
+  marketplaceLoading: boolean;
+  marketplace: MarketplaceItem[];
+  downloading: string | null;
+  download: ((themeId: string) => Promise<void>) | undefined;
+  t: (key: string) => string;
+}) {
+  if (marketplaceLoading) {
+    return <div className="notice">{t("Loading the marketplace…")}</div>;
+  }
+  if (marketplace.length === 0) {
+    return (
+      <div className="card">
+        <div className="empty-state">
+          <p>{t("Nothing available to download right now.")}</p>
+        </div>
+      </div>
+    );
+  }
+  return (
+    <div className="theme-grid" role="group" aria-label={t("Marketplace")}>
+      {marketplace.map((item) => (
+        <div key={item.id} className="theme-card">
+          <h3>{item.name}</h3>
+          <p>{item.description}</p>
+          {/* Says up front what the name will actually be. A download that silently lands as
+              `basic-1` after the operator asked for `basic` is the kind of surprise that makes
+              people think something went wrong — so the rename is announced before it happens, not
+              just reported after. */}
+          {item.idTaken ? (
+            <p className="theme-card-note">
+              {t("You already have a theme called")} <code>{item.id}</code>.{" "}
+              {t("This one will be installed under a new name.")}
+            </p>
+          ) : null}
+          <div className="theme-card-actions">
+            <button className="btn-primary" disabled={downloading !== null} onClick={() => void download?.(item.id)}>
+              {downloading === item.id ? t("Downloading…") : t("Download")}
+            </button>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** The installed-themes tab's own content — empty state or the theme card grid. Extracted to a
+ *  top-level component (complexity-ceiling pass) so this branching (including the active/inactive
+ *  card-action switch) scores independently of `Themes`'s own complexity. */
+function ThemeGrid({
+  visibleThemes,
+  settings,
+  busyTheme,
+  activate,
+  t,
+}: {
+  visibleThemes: string[];
+  settings: PresentationSettings;
+  busyTheme: string | null;
+  activate: (themeId: string) => Promise<void>;
+  t: (key: string) => string;
+}) {
+  if (visibleThemes.length === 0) {
+    return (
+      <div className="card">
+        <div className="empty-state">
+          <p>{t("No themes in this tier yet.")}</p>
+        </div>
+      </div>
+    );
+  }
+  return (
+    // `role="group"` + `aria-label` names the picker as a whole, matching `PageEditor.tsx`'s
+    // `role="group" aria-label="Preview width"` — the codebase's existing pattern for "a set of
+    // related controls with one label" rather than nothing.
+    <div className="theme-grid" role="group" aria-label={t("Themes")}>
+      {visibleThemes.map((themeId) => {
+        const active = isActiveTheme(settings, themeId);
+        return (
+          <div key={themeId} className={`theme-card theme-${themeId}${active ? " active" : ""}`}>
+            <ThemeCardPreview themeId={themeId} />
+            <h3>{themeId}</h3>
+            <p>{t(THEME_BLURBS[themeId] ?? "")}</p>
+            {/* Activate stays left, Explore is pushed right. Explore takes the app's existing
+                secondary/outline shape (white surface, bordered — see `.btn-explore` in styles.css)
+                rather than a second filled button: the burnt-orange fill marks the one action with a
+                site-wide consequence, and exploring changes nothing, so it should not compete with
+                Activate for primary attention — but it still reads as a real, clickable destination,
+                not plain text on the card. */}
+            <div className="theme-card-actions">
+              {active ? (
+                <span className="theme-active-tag">{t("Active")}</span>
+              ) : (
+                <button className="btn-primary" disabled={busyTheme !== null} onClick={() => activate(themeId)}>
+                  {busyTheme === themeId ? t("Activating…") : t("Activate")}
+                </button>
+              )}
+              <button
+                type="button"
+                className="btn-explore"
+                onClick={() => navigate(`/themes/explore?theme=${encodeURIComponent(themeId)}`)}
+              >
+                {t("Explore")}
+              </button>
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+export function Themes({ useThemesHook = useWiredThemes }: ThemesProps) {
   const {
     settings,
     themes,
-    themeTiers = {},
+    themeTiers,
     error,
     busyTheme,
     activate,
-    // Optional so a pre-existing test double supplying only the original controller fields still
-    // type-checks — same reason `themeTiers` is optional above.
-    rescanning = false,
-    rescanNotice = null,
+    rescanning,
+    rescanNotice,
     rescan,
     dismissRescanNotice,
-    marketplace = [],
-    marketplaceLoading = false,
+    marketplace,
+    marketplaceLoading,
     loadMarketplace,
-    downloading = null,
+    downloading,
     download,
     t,
-  } = useThemesHook();
+  } = withThemeDefaults(useThemesHook());
   // Manual override once the operator picks a tab; `null` means "not yet touched", so the tab
   // shown on load tracks the active theme's own tab group (`defaultThemeTabGroup`) without a
   // mount-time effect — same derived-value-with-override shape as `useSettingsDialogShell`'s own
@@ -130,8 +347,13 @@ export function Themes({ useThemesHook = useWiredThemes }: ThemesProps = {}) {
   // not a tab group — it lists what is installable rather than what is installed.
   const [manualTab, setManualTab] = useState<string | null>(null);
 
-  if (error && !settings) return <div className="notice error">{error}</div>;
-  if (!settings) return <div className="notice">{t("Loading themes…")}</div>;
+  // Combines the original two guards (`error && !settings` / `!settings`) into one `if` so
+  // TypeScript still narrows `settings` to non-null for everything below, while keeping only one
+  // decision point in `Themes`'s own scope instead of two (complexity-ceiling pass) — equivalent
+  // behavior: when `settings` hasn't loaded, an in-flight error takes priority over the loading copy.
+  if (!settings) {
+    return error ? <div className="notice error">{error}</div> : <div className="notice">{t("Loading themes…")}</div>;
+  }
 
   const grouped = groupThemesByTabGroup(themes, themeTiers);
   const activeTab = manualTab ?? defaultThemeTabGroup(settings, themeTiers);
@@ -168,46 +390,14 @@ export function Themes({ useThemesHook = useWiredThemes }: ThemesProps = {}) {
           {rescanning ? t("Rescanning…") : t("Rescan themes")}
         </button>
       </div>
-      {/* Transient, not a persistent banner: the rescan outcome confirms something the operator just
-          did, so it clears itself rather than accumulating above the grid. Passing `onDismiss` is
-          what makes the component render its own X — the same handler the auto-dismiss timer calls,
-          so closing early and timing out are one code path. A duplicate-id result still gets
-          `role="alert"` (announced immediately by a screen reader) because it means the site may be
-          rendering a theme nobody picked. */}
-      {rescanNotice ? (
-        <Toast
-          message={rescanNotice}
-          role={rescanNotice.includes("Duplicate") ? "alert" : "status"}
-          tone={rescanNotice.includes("Duplicate") ? "error" : "success"}
-          ttlMs={5000}
-          onDismiss={dismissRescanNotice}
-        />
-      ) : null}
-      {error ? <div className="notice error">{error}</div> : null}
+      <RescanToast rescanNotice={rescanNotice} onDismiss={dismissRescanNotice} />
       {/* Stranded active theme (2026-08-10) — `settings.activeThemeId` names a theme the server no
-          longer resolves, so no card below can ever show the Active tag and nothing else said why.
-          `.notice.warning` — same visual language `PostEditor.tsx`'s slug-collision banner already
-          established for "the admin needs to know this, but nothing was lost/destroyed" — not
-          `.notice.error`, which this codebase reserves for a failed fetch/save. */}
-      {isStrandedActiveTheme(settings, themes) ? (
-        <div className="notice warning">
-          {t("The site's active theme (\"{id}\") is no longer available, so the public site cannot render until you activate a different one. No content was lost.").replace(
-            "{id}",
-            settings.activeThemeId,
-          )}
-        </div>
-      ) : null}
+          longer resolves, so no card below can ever show the Active tag and nothing else said why —
+          see `ThemesBanners`'s own doc. */}
+      <ThemesBanners error={error} settings={settings} themes={themes} t={t} />
       <TabBar
         ariaLabel={t("Themes")}
-        tabs={[
-          ...THEME_TAB_GROUPS.map(
-            (group): TabBarTab => ({ id: group, label: tabGroupLabel(t, group), count: grouped[group].length }),
-          ),
-          // Live as of the local fixture (`src/themes/__marketplace__/`): a real listing served by a
-          // real route, downloading real theme folders. Still not a real marketplace — no network,
-          // no search, no publisher identity, no versioning (see development/todos.md).
-          { id: MARKETPLACE_TAB_ID, label: t("Marketplace"), count: marketplace.length || undefined },
-        ]}
+        tabs={buildThemeTabs(t, grouped, marketplace)}
         activeId={activeTab}
         onChange={(id) => {
           setManualTab(id);
@@ -217,90 +407,15 @@ export function Themes({ useThemesHook = useWiredThemes }: ThemesProps = {}) {
         }}
       />
       {activeTab === MARKETPLACE_TAB_ID ? (
-        marketplaceLoading ? (
-          <div className="notice">{t("Loading the marketplace…")}</div>
-        ) : marketplace.length === 0 ? (
-          <div className="card">
-            <div className="empty-state">
-              <p>{t("Nothing available to download right now.")}</p>
-            </div>
-          </div>
-        ) : (
-          <div className="theme-grid" role="group" aria-label={t("Marketplace")}>
-            {marketplace.map((item) => (
-              <div key={item.id} className="theme-card">
-                <h3>{item.name}</h3>
-                <p>{item.description}</p>
-                {/* Says up front what the name will actually be. A download that silently lands as
-                    `basic-1` after the operator asked for `basic` is the kind of surprise that makes
-                    people think something went wrong — so the rename is announced before it happens,
-                    not just reported after. */}
-                {item.idTaken ? (
-                  <p className="theme-card-note">
-                    {t("You already have a theme called")} <code>{item.id}</code>.{" "}
-                    {t("This one will be installed under a new name.")}
-                  </p>
-                ) : null}
-                <div className="theme-card-actions">
-                  <button
-                    className="btn-primary"
-                    disabled={downloading !== null}
-                    onClick={() => void download?.(item.id)}
-                  >
-                    {downloading === item.id ? t("Downloading…") : t("Download")}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        )
-      ) : visibleThemes.length === 0 ? (
-        <div className="card">
-          <div className="empty-state">
-            <p>{t("No themes in this tier yet.")}</p>
-          </div>
-        </div>
+        <MarketplaceGrid
+          marketplaceLoading={marketplaceLoading}
+          marketplace={marketplace}
+          downloading={downloading}
+          download={download}
+          t={t}
+        />
       ) : (
-        // `role="group"` + `aria-label` names the picker as a whole, matching `PageEditor.tsx`'s
-        // `role="group" aria-label="Preview width"` — the codebase's existing pattern for "a set of
-        // related controls with one label" rather than nothing. Without it, this was a bare `<div>`:
-        // a screen reader landing here (e.g. browsing by form control or by region) had no name for
-        // the widget at all, only the individual, per-card `<h3>`/button text. Reuses the "Themes"
-        // key already translated in every locale here instead of adding a new one.
-        <div className="theme-grid" role="group" aria-label={t("Themes")}>
-          {visibleThemes.map((themeId) => {
-            const active = isActiveTheme(settings, themeId);
-            return (
-              <div key={themeId} className={`theme-card theme-${themeId}${active ? " active" : ""}`}>
-                <ThemeCardPreview themeId={themeId} />
-                <h3>{themeId}</h3>
-                <p>{t(THEME_BLURBS[themeId] ?? "")}</p>
-                {/* Activate stays left, Explore is pushed right. Explore takes the app's existing
-                    secondary/outline shape (white surface, bordered — see `.btn-explore` in
-                    styles.css) rather than a second filled button: the burnt-orange fill marks the
-                    one action with a site-wide consequence, and exploring changes nothing, so it
-                    should not compete with Activate for primary attention — but it still reads as a
-                    real, clickable destination, not plain text on the card. */}
-                <div className="theme-card-actions">
-                  {active ? (
-                    <span className="theme-active-tag">{t("Active")}</span>
-                  ) : (
-                    <button className="btn-primary" disabled={busyTheme !== null} onClick={() => activate(themeId)}>
-                      {busyTheme === themeId ? t("Activating…") : t("Activate")}
-                    </button>
-                  )}
-                  <button
-                    type="button"
-                    className="btn-explore"
-                    onClick={() => navigate(`/themes/explore?theme=${encodeURIComponent(themeId)}`)}
-                  >
-                    {t("Explore")}
-                  </button>
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <ThemeGrid visibleThemes={visibleThemes} settings={settings} busyTheme={busyTheme} activate={activate} t={t} />
       )}
     </div>
   );
