@@ -1,6 +1,7 @@
 import type { RowMenuItem } from "@jini-ai/admin/react";
 
 import { ApiError, describeApiError as describeApiErrorDefault, type AdminPolicy, type AdminRole } from "../../lib/api";
+import type { QueryKey } from "../../lib/fetch-query";
 import { t } from "./roles-i18n";
 
 /**
@@ -17,7 +18,14 @@ import { t } from "./roles-i18n";
  * over component state, mirroring `postRowMenuItems`' `PostRowMenuHandlers` — this module has no
  * component to close over, and passing handlers explicitly is also what lets a test assert exactly
  * which callback a given row wires up.
+ *
+ * `KEYS` (fetch-query migration, 2026-08-12): one identity for the combined roles+policies read —
+ * matches the pre-migration `reload()`, which always refetched both together and had no route for
+ * refreshing just one. Every write (create/rename/delete role or policy) invalidates this same key.
  */
+export const KEYS = {
+  list: ["roles-and-policies"] as QueryKey,
+};
 
 /** Same flat-lookup shape as `users/rules.ts`'s `describeApiError` (see its comment for why a
  *  table doesn't lose exhaustiveness here) — a closed set of literal `code` strings, not a

@@ -1,6 +1,7 @@
-import { useEffect, useState, type Dispatch, type SetStateAction } from "react";
+import { useState, type Dispatch, type SetStateAction } from "react";
 import { api, type AdminPolicy, type AdminRole } from "../../../lib/api";
-import { describeApiError } from "../rules";
+import { useFetchMutation, useFetchQuery } from "../../../lib/fetch-query";
+import { describeApiError, KEYS } from "../rules";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { t } from "../roles-i18n";
 
@@ -31,6 +32,19 @@ import { t } from "../roles-i18n";
  * directly) on the return value adds no new fetch — `Roles.tsx` used to call `useAdminLocale()` a
  * second time and rebuild its own `translateRoles(locale, key)` closure, entirely redundant with
  * the resolution this hook was already doing internally.
+ *
+ * `lib/fetch-query` migration (2026-08-12): the combined roles+policies read is one `useFetchQuery`
+ * keyed on `KEYS.list`; every write invalidates it instead of calling `reload()` by hand (see
+ * `rules.ts`'s `KEYS` doc) — except `onWritePermission`, which never called `reload()` either, so it
+ * stays a plain `useFetchMutation` with no `invalidates`.
+ *
+ * `rowSavingId`/`rowError` deliberately stay plain `useState`, NOT derived from any mutation's own
+ * `status`/`error`: five independent writes (rename role, delete role, rename policy, delete policy,
+ * write permission) share this ONE "which row is busy" id and one error slot, and a mutation object's
+ * `status` has no way to carry "which row this particular call was for" the way a manually-set id
+ * does. `createRoleMutation`/`createPolicyMutation` are the ones-per-mutation exception below — each
+ * backs exactly one form, so `roleSaving`/`policySaving`/`roleError`/`policyError` derive from them
+ * directly, same shape as every other migrated create form in this sweep.
  */
 
 export interface RolesController {
@@ -103,26 +117,26 @@ export interface RolesController {
 /** The shape `onDeleteRole`/`onDeletePolicy` both repeat: guard on nothing pending, set the shared
  *  `rowSavingId`/`rowError` pair keyed by the row's own id (deliberately not a fit for
  *  `useAsyncAction` — see that file's own header on why a busy-row-id, not a boolean, is a
- *  different shape), delete, reload, and always clear both the saving flag and the pending
- *  selection in `finally` regardless of outcome. The "whole-hook" complexity view (brief §2) counts
- *  both ~12-line blocks against `useRoles` even though each is individually small under ESLint's
- *  own per-function view — `onDeletePolicy` had no test at all before this pass; characterisation
- *  tests were added first (`use-roles.unit.test.ts`) so this extraction has coverage to prove it
- *  behavior-preserving against. */
+ *  different shape), delete, and always clear both the saving flag and the pending selection in
+ *  `finally` regardless of outcome. `reload()` is gone — `deleteMutation` itself `invalidates:
+ *  [KEYS.list]` — this helper's job now is purely the shared busy-id/error bookkeeping. The
+ *  "whole-hook" complexity view (brief §2) counts both ~10-line blocks against `useRoles` even
+ *  though each is individually small under ESLint's own per-function view — `onDeletePolicy` had no
+ *  test at all before the extraction pass that introduced this helper; characterisation tests were
+ *  added first (`use-roles.unit.test.ts`) so this extraction has coverage to prove it behavior-
+ *  preserving against. */
 async function runRowDelete(
   id: string,
-  deleteCall: (id: string) => Promise<unknown>,
+  mutate: (id: string) => Promise<unknown>,
   setRowSavingId: Dispatch<SetStateAction<string | null>>,
   setRowError: Dispatch<SetStateAction<string | null>>,
   clearPending: () => void,
-  reload: () => Promise<void>,
   describeError: (e: unknown) => string,
 ): Promise<void> {
   setRowSavingId(id);
   setRowError(null);
   try {
-    await deleteCall(id);
-    await reload();
+    await mutate(id);
   } catch (e) {
     setRowError(describeError(e));
   } finally {
@@ -134,19 +148,23 @@ async function runRowDelete(
 export function useRoles(): RolesController {
   const locale = useAdminLocale();
   const boundT = (key: string): string => t(locale, key);
-  const [roles, setRoles] = useState<AdminRole[] | null>(null);
-  const [policies, setPolicies] = useState<AdminPolicy[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+
+  const list = useFetchQuery({
+    key: KEYS.list,
+    fetch: async () => {
+      const [r, p] = await Promise.all([api.listRoles(), api.listPolicies()]);
+      return { roles: r.roles, policies: p.policies };
+    },
+  });
+  const roles = list.data?.roles ?? null;
+  const policies = list.data?.policies ?? null;
+  const error = list.error ? describeApiError(list.error, t(locale, "failed to load roles/policies")) : null;
+
   const [rowError, setRowError] = useState<string | null>(null);
 
   const [roleName, setRoleName] = useState("");
-  const [roleSaving, setRoleSaving] = useState(false);
-  const [roleError, setRoleError] = useState<string | null>(null);
-
   const [policyName, setPolicyName] = useState("");
   const [policyDescription, setPolicyDescription] = useState("");
-  const [policySaving, setPolicySaving] = useState(false);
-  const [policyError, setPolicyError] = useState<string | null>(null);
 
   const [editingRoleId, setEditingRoleId] = useState<string | null>(null);
   const [editingRoleName, setEditingRoleName] = useState("");
@@ -166,47 +184,57 @@ export function useRoles(): RolesController {
   const [pendingRoleDelete, setPendingRoleDelete] = useState<AdminRole | null>(null);
   const [pendingPolicyDelete, setPendingPolicyDelete] = useState<AdminPolicy | null>(null);
 
-  function reload(): Promise<void> {
-    return Promise.all([api.listRoles(), api.listPolicies()])
-      .then(([r, p]) => {
-        setRoles(r.roles);
-        setPolicies(p.policies);
-      })
-      .catch((e) => setError(describeApiError(e, t(locale, "failed to load roles/policies"))));
-  }
-
-  useEffect(() => {
-    void reload();
-  }, []);
+  const createRoleMutation = useFetchMutation({
+    run: (name: string) => api.createRole(name),
+    invalidates: [KEYS.list],
+  });
+  const createPolicyMutation = useFetchMutation({
+    run: (input: { name: string; description: string | undefined }) =>
+      api.createPolicy({ name: input.name }, { description: input.description }),
+    invalidates: [KEYS.list],
+  });
+  const saveRoleMutation = useFetchMutation({
+    run: (input: { roleId: string; name: string }) => api.updateRole(input),
+    invalidates: [KEYS.list],
+  });
+  const deleteRoleMutation = useFetchMutation({
+    run: (id: string) => api.deleteRole(id),
+    invalidates: [KEYS.list],
+  });
+  const savePolicyMutation = useFetchMutation({
+    run: (input: { policyId: string; name: string; description: string }) =>
+      api.updatePolicy({ policyId: input.policyId }, { name: input.name, description: input.description }),
+    invalidates: [KEYS.list],
+  });
+  const deletePolicyMutation = useFetchMutation({
+    run: (id: string) => api.deletePolicy(id),
+    invalidates: [KEYS.list],
+  });
+  // No `invalidates` — matches the pre-migration `onWritePermission`, which never called `reload()`
+  // either.
+  const writePermissionMutation = useFetchMutation({
+    run: (input: { policyId: string; permission: string; resourceType: string | undefined }) =>
+      api.writePolicyPermission({ policyId: input.policyId, permission: input.permission }, { resourceType: input.resourceType }),
+  });
 
   async function onCreateRole(e: React.FormEvent) {
     e.preventDefault();
-    setRoleSaving(true);
-    setRoleError(null);
     try {
-      await api.createRole(roleName);
+      await createRoleMutation.mutate(roleName);
       setRoleName("");
-      await reload();
-    } catch (e) {
-      setRoleError(describeApiError(e, t(locale, "failed to create role")));
-    } finally {
-      setRoleSaving(false);
+    } catch {
+      // already surfaced through createRoleMutation.error -> roleError below
     }
   }
 
   async function onCreatePolicy(e: React.FormEvent) {
     e.preventDefault();
-    setPolicySaving(true);
-    setPolicyError(null);
     try {
-      await api.createPolicy({ name: policyName }, { description: policyDescription || undefined });
+      await createPolicyMutation.mutate({ name: policyName, description: policyDescription || undefined });
       setPolicyName("");
       setPolicyDescription("");
-      await reload();
-    } catch (e) {
-      setPolicyError(describeApiError(e, t(locale, "failed to create policy")));
-    } finally {
-      setPolicySaving(false);
+    } catch {
+      // already surfaced through createPolicyMutation.error -> policyError below
     }
   }
 
@@ -220,9 +248,8 @@ export function useRoles(): RolesController {
     setRowSavingId(roleId);
     setRowError(null);
     try {
-      await api.updateRole({ roleId, name: editingRoleName });
+      await saveRoleMutation.mutate({ roleId, name: editingRoleName });
       setEditingRoleId(null);
-      await reload();
     } catch (e) {
       setRowError(describeApiError(e, t(locale, "failed to rename role")));
     } finally {
@@ -241,11 +268,10 @@ export function useRoles(): RolesController {
     const role = pendingRoleDelete;
     await runRowDelete(
       role.id,
-      api.deleteRole,
+      deleteRoleMutation.mutate,
       setRowSavingId,
       setRowError,
       () => setPendingRoleDelete(null),
-      reload,
       (e) => describeApiError(e, t(locale, "failed to delete role")),
     );
   }
@@ -261,9 +287,8 @@ export function useRoles(): RolesController {
     setRowSavingId(policyId);
     setRowError(null);
     try {
-      await api.updatePolicy({ policyId }, { name: editingPolicyName, description: editingPolicyDescription });
+      await savePolicyMutation.mutate({ policyId, name: editingPolicyName, description: editingPolicyDescription });
       setEditingPolicyId(null);
-      await reload();
     } catch (e) {
       setRowError(describeApiError(e, t(locale, "failed to update policy")));
     } finally {
@@ -277,11 +302,10 @@ export function useRoles(): RolesController {
     const policy = pendingPolicyDelete;
     await runRowDelete(
       policy.id,
-      api.deletePolicy,
+      deletePolicyMutation.mutate,
       setRowSavingId,
       setRowError,
       () => setPendingPolicyDelete(null),
-      reload,
       (e) => describeApiError(e, t(locale, "failed to delete policy")),
     );
   }
@@ -298,7 +322,7 @@ export function useRoles(): RolesController {
     setRowSavingId(policyId);
     setRowError(null);
     try {
-      await api.writePolicyPermission({ policyId, permission: permissionInput }, { resourceType: resourceTypeInput || undefined });
+      await writePermissionMutation.mutate({ policyId, permission: permissionInput, resourceType: resourceTypeInput || undefined });
       setPermissionInput("");
       setResourceTypeInput("");
     } catch (e) {
@@ -307,6 +331,13 @@ export function useRoles(): RolesController {
       setRowSavingId(null);
     }
   }
+
+  const roleSaving = createRoleMutation.status === "pending";
+  const roleError = createRoleMutation.error ? describeApiError(createRoleMutation.error, t(locale, "failed to create role")) : null;
+  const policySaving = createPolicyMutation.status === "pending";
+  const policyError = createPolicyMutation.error
+    ? describeApiError(createPolicyMutation.error, t(locale, "failed to create policy"))
+    : null;
 
   return {
     roles,
