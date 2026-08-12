@@ -1,5 +1,5 @@
 import { DataTable } from "@jini-ai/admin/react";
-import { useWidgetRegions } from "./hooks/use-widget-regions.hooks";
+import { useWiredWidgetRegions } from "./hooks/use-widget-regions.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { WIDGETS_DICT } from "./widgets-i18n";
 
@@ -18,10 +18,10 @@ export interface WidgetRegionsProps {
    * Dependency injection seam for tests — the same convention `Posts.tsx`'s `usePostsHook` uses.
    * Defaulted to the real hook, so production callers pass nothing and behave exactly as before.
    */
-  useWidgetRegionsHook?: typeof useWidgetRegions;
+  useWidgetRegionsHook?: typeof useWiredWidgetRegions;
 }
 
-export function WidgetRegions({ useWidgetRegionsHook = useWidgetRegions }: WidgetRegionsProps = {}) {
+export function WidgetRegions({ useWidgetRegionsHook = useWiredWidgetRegions }: WidgetRegionsProps = {}) {
   const { regions, error, newRegionKey, setNewRegionKey, binding, bind } = useWidgetRegionsHook();
   const locale = useAdminLocale();
   const t = (key: string): string => WIDGETS_DICT[locale]?.[key] ?? key;

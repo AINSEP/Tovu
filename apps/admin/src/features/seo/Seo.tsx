@@ -1,10 +1,10 @@
 import { agentHandle } from "@jini-ai/agentic";
 
 import { actionLabel, orEmpty, sortIssuesBySeverity } from "./rules";
-import { useEntryPicker } from "./hooks/use-entry-picker.hooks";
-import { useSeoEntryPanel } from "./hooks/use-seo-entry-panel.hooks";
+import { useWiredEntryPicker } from "./hooks/use-entry-picker.hooks";
+import { useWiredSeoEntryPanel } from "./hooks/use-seo-entry-panel.hooks";
 import { useSeoEntrySection } from "./hooks/use-seo-entry-section.hooks";
-import { useSeo } from "./hooks/use-seo.hooks";
+import { useWiredSeo } from "./hooks/use-seo.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { t } from "./seo-i18n";
 import type { SeoEntryAnalysis } from "../../lib/api";
@@ -34,12 +34,12 @@ export interface EntryPickerProps {
   onChange: (entryId: string) => void;
   /** Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
    *  for `useCustomSelect`. */
-  useEntryPickerHook?: typeof useEntryPicker;
+  useEntryPickerHook?: typeof useWiredEntryPicker;
 }
 
 /** Dropdown over every post + page, sourced from the already-existing `listPosts`/`listPages`
  * routes — cheapest entry-selection UX available given what's already built (REQ-06). */
-function EntryPicker({ locale, entryId, onChange, useEntryPickerHook = useEntryPicker }: EntryPickerProps) {
+function EntryPicker({ locale, entryId, onChange, useEntryPickerHook = useWiredEntryPicker }: EntryPickerProps) {
   const { entries, error } = useEntryPickerHook();
 
   if (error) return <div className="notice error">{error}</div>;
@@ -95,7 +95,7 @@ function AnalyzePanel(props: { locale: string; analysis: SeoEntryAnalysis }) {
 export interface SeoEntryPanelProps {
   locale: string;
   entryId: string;
-  useSeoEntryPanelHook?: typeof useSeoEntryPanel;
+  useSeoEntryPanelHook?: typeof useWiredSeoEntryPanel;
 }
 
 /** Per-entry overrides edit form (REQ-06). Pre-fills from `getSeoEntry`'s resolved meta, but
@@ -114,7 +114,7 @@ export interface SeoEntryPanelProps {
 // the ceiling on their own. There is nothing to extract: splitting the eleven fields into their own
 // components would still evaluate the same fallback chains, just spread across more functions, for
 // no complexity benefit and a real loss of "one form, one place to read its fields."
-function SeoEntryPanel({ locale, entryId, useSeoEntryPanelHook = useSeoEntryPanel }: SeoEntryPanelProps) {
+function SeoEntryPanel({ locale, entryId, useSeoEntryPanelHook = useWiredSeoEntryPanel }: SeoEntryPanelProps) {
   const { resolved, analysis, loadError, saving, saveError, notice, fieldValue, setField, save, touched } = useSeoEntryPanelHook({ entryId });
 
   if (loadError) return <div className="notice error">{loadError}</div>;
@@ -249,10 +249,10 @@ export interface SeoProps {
   /** Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
    *  for `useCustomSelect`. Defaulted to the real hook, so production callers (`panels.tsx`) pass
    *  nothing and behave exactly as before. */
-  useSeoHook?: typeof useSeo;
+  useSeoHook?: typeof useWiredSeo;
 }
 
-export function Seo({ useSeoHook = useSeo }: SeoProps = {}) {
+export function Seo({ useSeoHook = useWiredSeo }: SeoProps = {}) {
   const locale = useAdminLocale();
   const { settings, error, saving, notice, save, regenerateSitemap } = useSeoHook();
 
