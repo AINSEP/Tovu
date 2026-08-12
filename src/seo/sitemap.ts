@@ -1,5 +1,5 @@
 import type { UUID } from "@jini-ai/cms/core";
-import type { PostRepoPort } from "../features/post/post";
+import type { PostRepoPort } from "../features/post";
 import type { SettingsRepoPort } from "../features/settings";
 import type { ResolveSeoImageRefDeps } from "./media";
 import { getEntryMeta } from "./seo";

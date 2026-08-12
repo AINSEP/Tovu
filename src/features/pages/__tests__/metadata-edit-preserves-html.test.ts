@@ -2,8 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { OutboxPort } from "@jini-ai/cms/core";
-import { createPost, updatePost } from "../../post/post";
-import { InMemoryPostRepo } from "../../post/repo.memory";
+import { createPost, updatePost, InMemoryPostRepo } from "../../post";
 import { InMemoryPagesHtmlDocumentStore } from "../html-document-store.memory";
 import { DEFAULT_PAGE_SKELETON } from "../skeleton";
 

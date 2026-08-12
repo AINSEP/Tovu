@@ -2,8 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "../../core/events";
-import { InMemoryPostRepo, updatePost } from "../../features/post";
-import type { PostRecord } from "../../features/post/post";
+import { InMemoryPostRepo, updatePost, type PostRecord } from "../../features/post";
 import { InMemorySettingsRepo } from "../../features/settings";
 import { InMemoryAssetRenditionRepo, InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "../../media";
 import { ensureSeoSettingDefinitions } from "../settings";

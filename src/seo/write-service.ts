@@ -1,5 +1,5 @@
 import { ForbiddenError, type AuthorizeFn } from "@jini-ai/cms/core";
-import type { PostRepoPort } from "../features/post/post";
+import type { PostRepoPort } from "../features/post";
 import {
   SeoEntryNotFoundError,
   SeoFieldValidationError,

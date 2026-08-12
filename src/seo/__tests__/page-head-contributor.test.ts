@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryPostRepo } from "../../features/post";
-import type { PostRecord } from "../../features/post/post";
+import { InMemoryPostRepo, type PostRecord } from "../../features/post";
 import { InMemorySettingsRepo } from "../../features/settings";
 import { InMemoryAssetRenditionRepo, InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "../../media";
 import type { HeadElement, PageHeadContext } from "../../server/http/site/page-head";
