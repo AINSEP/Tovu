@@ -167,10 +167,14 @@ describe("tier tabs", () => {
       />,
     );
     const tabs = screen.getAllByRole("tab");
+    // Order is Declarative | Static | Templated | Code | Marketplace, per `THEME_TAB_GROUPS`
+    // in rules.ts (commit fd81d10, 2026-08-11 owner feedback: Static reads before Templated
+    // since Tovu ships a working static theme today and no templated one yet). Do not
+    // "fix" this back to alphabetical/original order — that commit deliberately reordered it.
     expect(tabs.map((tab) => tab.textContent)).toEqual([
       "Declarative1",
-      "Templated0",
       "Static2",
+      "Templated0",
       "Code0",
       // No count suffix: this controller's `marketplace` is empty, and the tab passes `undefined`
       // rather than 0 so an unopened Marketplace does not advertise "0 available" before it has
