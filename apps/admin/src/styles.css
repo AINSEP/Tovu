@@ -1571,14 +1571,16 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    ⚠️ CORRECTED 2026-08-12, second pass. The first attempt halved the AUTHORED 17px to 8.5px and
    produced two thin horizontal dashes — the owner's words: "you made the color boxes lines, that's
    ridiculous." The brief was wrong, not the execution. He asked for half the size of *what he could
-   see*, and what he could see was the clamped 37px. So the target is ~18px, not 8.5px. Halve the
-   RENDERED value, never the authored one, whenever the two disagree — the owner is describing
-   pixels on his screen, not a number in this file. At 17x18 the swatch reads as a proper square-ish
-   colour chip that fits inside the 26px `.tb-color` frame instead of overflowing it, which is what
-   "half as tall" was always asking for. */
+   see*, and what he could see was the clamped 37px. So the target is half of 37, not half of 17.
+   Halve the RENDERED value, never the authored one, whenever the two disagree — the owner is
+   describing pixels on his screen, not a number in this file. 18.5px (exact half of the measured
+   37px, not the rounded 18px an intermediate pass used) fits inside the 26px `.tb-color` frame with
+   room to spare, verified live post-fix the same way the 37px was first found (`getComputedStyle` on
+   the real `<input type="color">`, not read off this stylesheet) — same discipline, applied to the
+   RIGHT number this time. Reads as a proper small colour chip, not a line. */
 .tb-color { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 6px; cursor: pointer; }
 .tb-color input[type="color"] {
-  width: 17px; height: 18px; min-height: 18px; padding: 0; border: 1px solid var(--border); border-radius: 4px;
+  width: 17px; height: 18.5px; min-height: 18.5px; padding: 0; border: 1px solid var(--border); border-radius: 4px;
   cursor: pointer; background: none;
 }
 /* Font family/size/line-height `<select>`s (`Toolbar`, 2026-08-11) — sized to match `.tb-btn`'s own
