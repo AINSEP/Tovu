@@ -5,7 +5,6 @@ import { useWiredEntryPicker } from "./hooks/use-entry-picker.hooks";
 import { useWiredSeoEntryPanel } from "./hooks/use-seo-entry-panel.hooks";
 import { useSeoEntrySection } from "./hooks/use-seo-entry-section.hooks";
 import { useWiredSeo } from "./hooks/use-seo.hooks";
-import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { t } from "./seo-i18n";
 import type { SeoEntryAnalysis } from "../../lib/api";
 
@@ -24,8 +23,11 @@ import type { SeoEntryAnalysis } from "../../lib/api";
  * plus a partial-override edit form and a read-only analyze view. `RobotsRuleEditor` (§2.5) is
  * still a minimal textarea-per-rule form (unchanged from the original disclosed scope note).
  *
- * `locale` is fetched once in `Seo` via `useAdminLocale()` and threaded down as a prop — see
- * `Database.tsx`'s file header for why (the hook's `loadLanguage()` isn't memoized).
+ * `locale` (standing i18n rule, 2026-08-11 — a component with a hook gets its locale-derived UI
+ * copy FROM that hook) comes from `useWiredSeo()` — `useAdminLocale()` is now called only inside
+ * that hook, not here — and is threaded down as a prop from there, same as before: see
+ * `use-seo.hooks.ts`'s own header for why `EntryPicker`/`SeoEntryPanel`/`SeoEntrySection` get the
+ * raw string rather than a bound `t`.
  */
 
 export interface EntryPickerProps {
@@ -253,8 +255,7 @@ export interface SeoProps {
 }
 
 export function Seo({ useSeoHook = useWiredSeo }: SeoProps = {}) {
-  const locale = useAdminLocale();
-  const { settings, error, saving, notice, save, regenerateSitemap } = useSeoHook();
+  const { settings, error, saving, notice, save, regenerateSitemap, locale } = useSeoHook();
 
   if (error && !settings) return <div className="notice error">{error}</div>;
   if (!settings) return <div className="notice">{t(locale, "Loading SEO settings…")}</div>;
