@@ -1,6 +1,7 @@
 import { DataTable, RowMenu, type RowMenuItem, ConfirmDialog } from "@jini-ai/admin/react";
 
 import { describeApiError } from "../../lib/api";
+import type { Translate } from "../../lib/dictionary-translator";
 import { redirectRowMenuItems } from "./rules";
 import { useWiredRedirects } from "./hooks/use-redirects.hooks";
 import { useWiredHitCountCell } from "./hooks/use-hit-count-cell.hooks";
@@ -64,7 +65,7 @@ export interface HitCountCellProps {
   redirectId: string;
   /** Bound translator, threaded down from `Redirects`'s own hook rather than resolved here — see
    *  this file's header. */
-  t: (key: string) => string;
+  t: Translate;
   /** Dependency injection seam for tests — see `PostsProps.usePostsHook` for the convention. */
   useHitCountCellHook?: typeof useWiredHitCountCell;
 }
@@ -90,7 +91,7 @@ function HitCountCell({ redirectId, t, useHitCountCellHook = useWiredHitCountCel
 export interface ImportRedirectsFormProps {
   /** Bound translator, threaded down from `Redirects`'s own hook rather than resolved here — see
    *  this file's header. */
-  t: (key: string) => string;
+  t: Translate;
   /** Raw resolved locale — needed alongside `t` because several `redirects-i18n.tsx` helpers take
    *  `(locale, ...)` directly. See this file's header. */
   locale: string;
