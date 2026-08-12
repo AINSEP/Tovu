@@ -52,9 +52,8 @@ import type {
 } from "../../media";
 import type { OriginRegistryPort } from "../../origin";
 import type { RedirectHitSink, RedirectRepoPort, RedirectsWriteDeps } from "../../redirects";
-import type { FormDefinitionRepoPort, FormSubmissionRepoPort } from "../../forms/ports";
-import type { CommentIngressPolicy, CommentRepoPort } from "../../comments/ports";
-import type { CommentWriteService } from "../../comments/write-service";
+import type { FormDefinitionRepoPort, FormSubmissionRepoPort } from "../../forms";
+import type { CommentIngressPolicy, CommentRepoPort, CommentWriteService } from "../../comments";
 import type { RateLimiter } from "#src/core/rate-limit/rate-limit";
 import type { LedgerReadPort } from "../../features/database/timeline";
 import type {
@@ -78,12 +77,13 @@ import type {
   DeletableTaxonomyRepoPort,
   DeletableTermRepoPort,
   EntryTermRepoPort,
+  TaxonomyListPort,
   TaxonomyRepoPort,
   TaxonomyRevisionRepoPort,
+  TermListPort,
   TermRepoPort,
   TransactionalRepoPort,
-} from "../../features/taxonomy/write-service";
-import type { TaxonomyListPort, TermListPort } from "../../features/taxonomy/list";
+} from "../../features/taxonomy";
 import type { DisclosureWatermarkSourcePort } from "../../features/recovery/disclosure";
 import type { DeepLinkRestorePointLookupPort } from "../../features/recovery/deep-link";
 import type { GatewayDeps } from "../../core/gated-mutations/gateway";

@@ -1,13 +1,13 @@
 import type { Express } from "express";
 
 import { ForbiddenError } from "@jini-ai/cms/core";
-import { createPostBackedContentLookup } from "#src/features/taxonomy/content-lookup";
-import { toTaxonomyOutbox } from "#src/features/taxonomy/repo.memory";
 import {
+  createPostBackedContentLookup,
+  toTaxonomyOutbox,
   deleteTaxonomy,
   TaxonomyRecordNotFoundError,
   TaxonomyHasAssignedContentError,
-} from "#src/features/taxonomy/write-service";
+} from "#src/features/taxonomy/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { TaxonomyRouteDeps } from "./deps";
 

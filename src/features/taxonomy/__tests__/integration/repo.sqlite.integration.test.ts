@@ -6,9 +6,16 @@ import test from "node:test";
 
 import { openContentDb } from "#src/db/sqlite/content-db";
 import { SqliteEntryTermRepo, SqliteTaxonomyRepo, SqliteTaxonomyRevisionRepo, SqliteTermRepo, sqliteStampWatermark } from "../../repo.sqlite";
-import { createTaxonomy, createTerm, renameTerm, deleteTerm, deleteTaxonomy, assignTerms } from "../../write-service";
-import { createPostBackedContentLookup } from "../../content-lookup";
-import { InMemoryContentLookup } from "../../repo.memory";
+import {
+  createTaxonomy,
+  createTerm,
+  renameTerm,
+  deleteTerm,
+  deleteTaxonomy,
+  assignTerms,
+  createPostBackedContentLookup,
+  InMemoryContentLookup,
+} from "../../index";
 
 /**
  * @file Real SQLite persistence for `features/taxonomy` (this dispatch). Mirrors

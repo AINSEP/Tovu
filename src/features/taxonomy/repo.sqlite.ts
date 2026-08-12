@@ -8,13 +8,14 @@ import { findOneBy } from "../../db/sqlite/repo-helpers";
 import type {
   EntryTermRepoPort,
   Taxonomy,
+  TaxonomyListPort,
   TaxonomyRepoPort,
   TaxonomyRevisionRepoPort,
   TaxonomyRevisionRow,
   Term,
+  TermListPort,
   TermRepoPort,
-} from "./write-service";
-import type { TaxonomyListPort, TermListPort } from "./list";
+} from "./index";
 
 /**
  * @file Real SQLite adapters for the `taxonomy` package's write/list ports (ADR-006 rule-of-two
