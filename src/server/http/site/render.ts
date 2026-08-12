@@ -54,6 +54,27 @@ export interface SiteProduct {
   /** Cents. `undefined` = not on sale — degrades to no strikethrough price shown, matching
    * `fashion-modern/templates/products.liquid`'s own documented fallback. */
   compareAtPrice?: number;
+  /**
+   * Lowercase ISO-4217 (e.g. `"usd"`) when known. `undefined` for a product source with no
+   * currency concept (the sample store plugin). Safe to pass through as-is: `product.liquid`'s
+   * currency badge and `products.liquid` both read it WITHOUT Liquid's `| raw` filter, so
+   * `outputEscape: "escape"` (`liquid-worker.ts`) HTML-escapes it same as any other plain field.
+   */
+  currency?: string;
+  /**
+   * Display-only spec pairs (e.g. `{label: "Material", value: "Combed cotton"}`), in author-chosen
+   * order. `undefined` = none set. Structurally mirrors `CommerceProductSpec`
+   * (`features/commerce/types.ts`) WITHOUT importing it — same decoupling `storefront.ts`'s own
+   * doc establishes for the whole `SiteProduct` shape. Safe to pass through unescaped-template-side
+   * for the same reason as `currency` above (no `| raw` filter on either field in the template).
+   *
+   * Deliberately NOT joined by a `description` field here — see `features/commerce/storefront.ts`'s
+   * file header for why: `product.liquid` reads `product.description` via `| raw` (unescaped,
+   * trusting pre-sanitized HTML the same way `post.content` is), and no Commerce-sourced string
+   * reaching this type today has ever been through a sanitizer. Adding the field to `SiteProduct`
+   * would silently invite a future caller to wire it straight into that trust boundary.
+   */
+  specs?: { label: string; value: string }[];
 }
 
 /** Everything a template + its components need to render one page. */
@@ -928,6 +949,46 @@ function entryList(ctx: SiteRenderContext, props: JsonObject): string {
   return `<section class="entry-list entry-list--${escapeHtml(layout)}"><div class="wrap"><ol class="entries">${body}</ol></div></section>`;
 }
 
+/**
+ * Products-route counterpart to `entryList` above, used by `fallbackBody()` for any theme with no
+ * dedicated `products` template (declarative tier's own `resolveTemplateId`, or a static/templated
+ * theme that never declared one). Mirrors `entryList`'s markup shape (`entry`/`entry-title`/
+ * `entry-meta` classes, same empty-state convention) rather than inventing a second vocabulary, so
+ * a theme author styling one gets the other for free.
+ *
+ * 2026-08-12 fix: before this, `fallbackBody()` routed the `"products"` route through `entryList`
+ * itself, which reads only `ctx.posts` — so a theme with no `products` template (the seeded default
+ * `"basic"` among them) rendered an empty post list for `/products` regardless of how many real
+ * products the caller passed in. See this file's test suite for the regression this closes.
+ *
+ * @complexity Time: O(p) in `ctx.products.length`. Space: O(p) for the joined markup.
+ */
+function productEntryList(ctx: SiteRenderContext): string {
+  const items = ctx.products
+    .map((product, i) => {
+      const folio = String(i + 1).padStart(2, "0");
+      const price = escapeHtml(formatCents(product.price));
+      return `<li class="entry"><a class="entry-link" href="/products/${escapeHtml(product.id)}"><span class="entry-index">№ ${folio}</span><h2 class="entry-title">${escapeHtml(product.title)}</h2><p class="entry-meta">${price}</p></a></li>`;
+    })
+    .join("");
+  const body = items || `<li class="entry entry--empty"><p>No products available yet.</p></li>`;
+  return `<section class="entry-list entry-list--products"><div class="wrap"><ol class="entries">${body}</ol></div></section>`;
+}
+
+/**
+ * Product-detail-route counterpart to `entryContent` above, same "no dedicated template" fallback
+ * use and same 2026-08-12 fix reasoning as `productEntryList` — `entryContent` reads only
+ * `ctx.post`, so it rendered an empty `<article>` for the `"product"` route no matter what
+ * `ctx.product` held.
+ *
+ * @complexity O(1).
+ */
+function productEntryContent(ctx: SiteRenderContext): string {
+  if (!ctx.product) return "";
+  const price = escapeHtml(formatCents(ctx.product.price));
+  return `<div class="wrap"><a class="back" href="/products">← ${escapeHtml(ctx.siteTitle)}</a><article class="entry"><h1 class="entry-title">${escapeHtml(ctx.product.title)}</h1><p class="entry-meta">${price}</p></article></div>`;
+}
+
 /** REQ-28-shaped default for an embed reference this render never resolved (never attempted, beyond
  * `MAX_HTML_EMBEDS_PER_PAGE`, or a genuine resolution failure) — see `html-embeds.ts`'s
  * `substituteHtmlEmbeds` doc for why no caller needs to distinguish those cases. */
@@ -1617,6 +1678,8 @@ function siteProductRenderShape(p: SiteProduct): Record<string, unknown> {
     priceFormatted: formatCents(p.price),
     stock: p.stock,
     compareAtPriceFormatted: p.compareAtPrice === undefined ? undefined : formatCents(p.compareAtPrice),
+    currency: p.currency,
+    specs: p.specs,
   };
 }
 
@@ -1903,12 +1966,25 @@ export async function renderSite(required: {
     pageHtmlEmbeds: required.pageHtmlEmbeds,
   };
 
-  // `products`/`product` have no dedicated fallback component (no theme built so far lacks them,
-  // and every OTHER theme simply never routes here) — degrade to the same entry-list/entry-content
-  // shape post/home already fall back to, so an unsupported theme still renders *something* instead
-  // of relying on a component that doesn't exist (REQ-10 spirit: never a raw crash).
-  const fallbackBody = (): string =>
-    `${siteHeader(ctx, {})}${route === "post" || route === "product" ? entryContent(ctx) : entryList(ctx, {})}${siteFooter(ctx)}`;
+  // A theme with no dedicated `products`/`product` template (declarative tier's own
+  // `resolveTemplateId`, or a static/templated theme that never declared one — the seeded default
+  // `"basic"` among them) still needs to render *something* instead of relying on a component that
+  // doesn't exist (REQ-10 spirit: never a raw crash). `productEntryList`/`productEntryContent`
+  // mirror `entryList`/`entryContent`'s own markup shape but read `ctx.products`/`ctx.product`
+  // rather than `ctx.posts`/`ctx.post` — see those two functions' own doc for the 2026-08-12 bug
+  // this replaced (both product routes used to silently fall through to the POST-shaped fallback,
+  // which never reads product data at all).
+  const fallbackBody = (): string => {
+    const main =
+      route === "post"
+        ? entryContent(ctx)
+        : route === "product"
+          ? productEntryContent(ctx)
+          : route === "products"
+            ? productEntryList(ctx)
+            : entryList(ctx, {});
+    return `${siteHeader(ctx, {})}${main}${siteFooter(ctx)}`;
+  };
 
   // Static tier: unlike every other branch below, a static theme's page is already a complete
   // `<!doctype html>` document (tokens, nav, footer, scripts — all of it), not a body fragment

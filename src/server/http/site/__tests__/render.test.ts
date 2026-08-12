@@ -7,7 +7,7 @@ import type { PostRecord } from "#src/features/post/index";
 import { loadTheme, type DiscoveredTheme } from "#src/features/theme/index";
 import type { ResolveHtmlPageEmbedsResult, ResolvePageWidgetsResult } from "#src/widgets/resolver-service";
 import type { WidgetRenderIR } from "#src/widgets/types";
-import { renderDocNode, renderSite, renderWidgetIr } from "../render";
+import { renderDocNode, renderSite, renderWidgetIr, type SiteProduct } from "../render";
 
 function textDoc(...content: JsonObject[]): JsonObject {
   return { type: "doc", content: [{ type: "paragraph", content }] };
@@ -1315,4 +1315,58 @@ test("renderDocNode: worklist #5 regression — content above the bound still re
   const html = renderDocNode(doc);
   assert.ok(html.includes("this paragraph is fine"), "sibling content above the bound must render normally");
   assert.ok(html.includes("content-ph"), "the over-deep sibling must degrade to the placeholder");
+});
+
+// ---------------------------------------------------------------------------
+// 2026-08-12 (Commerce catalog wiring) — `fallbackBody()`'s "products"/"product" branch bug.
+//
+// `fallbackBody()` existed before `route: "products" | "product"` had any real data source (both
+// were added to `SiteRenderContext.route`'s union for the sample store plugin, but the fallback
+// body itself was written only against `"post"` and never extended): its ternary routed EVERY
+// non-post/non-product route, including `"products"`, to `entryList(ctx, {})`, which reads only
+// `ctx.posts` — never `ctx.products`. `"product"` fared no better: it shared `"post"`'s branch,
+// `entryContent(ctx)`, which reads only `ctx.post` — never `ctx.product`. A theme with no dedicated
+// `products`/`product` template (the seeded default active theme, `"basic"`, among them — see
+// `server/seed.ts`) therefore rendered an EMPTY entry list for `/products` and an empty `<article>`
+// for `/products/:id`, regardless of how many real products a caller passed in. This is the exact
+// path `routes/site/products.ts`'s new Commerce wiring renders through for any workspace whose
+// active theme lacks bespoke product templates — silently invisible, never a crash, so nothing
+// short of asserting on product content in the output would have caught it.
+// ---------------------------------------------------------------------------
+
+function sampleSiteProduct(overrides: Partial<SiteProduct> = {}): SiteProduct {
+  return { id: "prod-1", title: "Classic Boxy Tee", price: 3500, ...overrides };
+}
+
+test("renderSite (products route, no theme template): the fallback body lists real products, not an empty post list (regression)", async () => {
+  const theme = declarativeTheme({ type: "doc", content: [] });
+  const html = await renderSite({
+    theme,
+    route: "products",
+    siteTitle: "Fallback Demo",
+    posts: [],
+    products: [sampleSiteProduct(), sampleSiteProduct({ id: "prod-2", title: "Linen Shirt", price: 4200 })],
+  });
+  assert.match(html, /Classic Boxy Tee/);
+  assert.match(html, /Linen Shirt/);
+  assert.doesNotMatch(html, /No published posts yet/, "must not fall through to the post-list empty state");
+});
+
+test("renderSite (products route, no theme template): an empty product list shows a real empty state, not a silently blank one", async () => {
+  const theme = declarativeTheme({ type: "doc", content: [] });
+  const html = await renderSite({ theme, route: "products", siteTitle: "Fallback Demo", posts: [], products: [] });
+  assert.match(html, /No products available yet/);
+});
+
+test("renderSite (product route, no theme template): the fallback body shows the single product's own title, not an empty article (regression)", async () => {
+  const theme = declarativeTheme({ type: "doc", content: [] });
+  const html = await renderSite({
+    theme,
+    route: "product",
+    siteTitle: "Fallback Demo",
+    posts: [],
+    products: [sampleSiteProduct()],
+    product: sampleSiteProduct(),
+  });
+  assert.match(html, /Classic Boxy Tee/);
 });
