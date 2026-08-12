@@ -1691,6 +1691,19 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .embed-insert-menu { display: inline-flex; align-items: center; gap: var(--space-2); margin-left: var(--space-2); }
 .editor-body { background: var(--surface); padding: 1.5rem 2rem; min-height: 22rem; }
 .editor-body .tiptap { outline: none; min-height: 20rem; }
+/* Owner-reported bug (2026-08-12): an inserted image rendered at its raw intrinsic size — a
+   2000px+ photo blew out the whole editor pane. Confirmed live (headless Chromium against the
+   real dev server): `.editor-body .tiptap img` had `max-width: none` / `display: inline` before
+   this rule, on BOTH insertion paths this editor supports — the toolbar's "Img by URL" (plain
+   `setImage`) and drag/paste upload (`MediaImage`'s NodeView, `lib/media-image-extension.tsx`).
+   Both render a real `<img class="media-image-node__preview">` inside this same `.tiptap`
+   container, so one rule here covers both; this was a missing-CSS gap, not a node-shape
+   difference between the two paths. Values mirror the public theme's own
+   `.post-detail-body img` (`src/themes/static/basic/css/styles.css`) so the editor previews the
+   published post's actual sizing/rounding/spacing instead of a same-but-different in-editor
+   look. `height: auto` is required alongside `max-width` — without it, a node carrying an
+   explicit `height` attribute would squash instead of scale once width is constrained. */
+.editor-body .tiptap img { max-width: 100%; height: auto; display: block; border-radius: 10px; margin: 20px 0; }
 /* `font-size`/`color` made explicit here (found while measuring the real default for the toolbar's
    font-size select, 2026-08-11) — without them, the FIRST paragraph of every post's body collided
    with the legacy `.admin-content h1 + p` rule (this file, "Page headings + intro copy"): the
