@@ -51,11 +51,16 @@ Object.defineProperty(window, "matchMedia", {
   })),
 });
 
-// `ResizeObserver` (App.tsx:274) is DELIBERATELY left unstubbed. jsdom does not implement it
-// either, and it is the next thing a test that opens chat in sheet mode (`isSheetMode &&
-// chatOpen`, gated right above its construction) will hit. Do not add a no-op stub here: App.tsx
-// uses it to measure the chat sheet's real rendered height for `avoidBottomPx`'s clearance
-// calculation, so a no-op would let a future test assert correct clearance behavior and pass
-// without the measurement ever happening — a silently-wrong green, which is worse than the loud
-// crash a missing stub produces. Whoever needs this should write a stub that records `observe`
-// calls (and lets a test drive a synthetic entry through the callback), not a bare no-op.
+// `ResizeObserver` (`App.hooks.tsx`'s `useChatDockLayout`, split out of `App.tsx` 2026-08-12) is
+// DELIBERATELY left unstubbed. jsdom does not implement it either, and it is the next thing a test
+// that drives the REAL hook and opens chat in sheet mode (`isSheetMode && chatOpen`, gated right
+// above its construction) will hit. Do not add a no-op stub here: `useChatDockLayout` uses it to
+// measure the chat sheet's real rendered height for `avoidBottomPx`'s clearance calculation, so a
+// no-op would let a future test assert correct clearance behavior and pass without the measurement
+// ever happening — a silently-wrong green, which is worse than the loud crash a missing stub
+// produces. Whoever needs to drive the REAL hook through this path should write a stub that
+// records `observe` calls (and lets a test drive a synthetic entry through the callback), not a
+// bare no-op. A test that only needs `App`'s chat-open UI state, not the measurement itself, can
+// sidestep this gap entirely via `App.tsx`'s `useChatDock` seam instead — see
+// `app-chat-dock-seam.unit.test.tsx`, which fakes `useChatDockLayout` outright so the real
+// `ResizeObserver` call never runs.
