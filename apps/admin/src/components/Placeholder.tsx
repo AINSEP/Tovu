@@ -151,6 +151,10 @@ const UNKNOWN_SECTION_PREFIX: Record<string, string> = {
 };
 
 export function Placeholder(props: { sectionId: string; note?: string }) {
+  // Deliberately NOT hook-injected (2026-08-12 sweep ruling): this is a terminal-leaf call — no
+  // other host dependency in this file to combine it with, not rendered in a loop, and its only
+  // renderers (App.tsx, panels.tsx) are both out of scope — so there is no duplicate fetch to
+  // eliminate and no coverage a wrapper hook would add. Do not "fix" this for consistency.
   const locale = useAdminLocale();
   const item = findNavItem(props.sectionId);
   if (!item) {
