@@ -9,6 +9,7 @@ import { TextStyle, Color, BackgroundColor, FontFamily, FontSize, LineHeight } f
 import Typography from "@tiptap/extension-typography";
 import { Placeholder, CharacterCount } from "@tiptap/extensions";
 import { Table, TableRow, TableCell, TableHeader } from "@tiptap/extension-table";
+import { TaskList, TaskItem } from "@tiptap/extension-list";
 
 import type { AdminPost, ThemeTier } from "../../../lib/api";
 import { MediaImage } from "../../../lib/media-image-extension";
@@ -255,6 +256,14 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
       TableRow,
       TableCell,
       TableHeader,
+      // TaskList/TaskItem (2026-08-11) — `@tiptap/extension-list`'s own bullet/ordered/list-item
+      // machinery is deliberately NOT imported from this same package: `StarterKit` above already
+      // bundles those three, and importing this package's own copies alongside would register two
+      // competing implementations of the same node names. `nested: false` is `TaskItem`'s own
+      // default (kept explicit rather than relied on implicitly) — see `render.ts`'s `"taskItem"`
+      // case for what that means for the public render.
+      TaskList,
+      TaskItem.configure({ nested: false }),
       MediaImage,
       WidgetEmbed,
     ],

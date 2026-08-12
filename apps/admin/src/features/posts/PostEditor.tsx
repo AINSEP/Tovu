@@ -65,6 +65,7 @@ function Toolbar({ editor }: { editor: Editor }) {
       h3: editor?.isActive("heading", { level: 3 }) ?? false,
       bullet: editor?.isActive("bulletList") ?? false,
       ordered: editor?.isActive("orderedList") ?? false,
+      taskList: editor?.isActive("taskList") ?? false,
       quote: editor?.isActive("blockquote") ?? false,
       codeBlock: editor?.isActive("codeBlock") ?? false,
       alignLeft: editor?.isActive({ textAlign: "left" }) ?? false,
@@ -134,6 +135,7 @@ function Toolbar({ editor }: { editor: Editor }) {
       <div className="grp">
         <button className={toolbarBtnClass(s.bullet)} title="Bullet list" aria-pressed={s.bullet} onClick={() => chain().toggleBulletList().run()}>• List</button>
         <button className={toolbarBtnClass(s.ordered)} title="Numbered list" aria-pressed={s.ordered} onClick={() => chain().toggleOrderedList().run()}>1. List</button>
+        <button className={toolbarBtnClass(s.taskList)} title="Task list" aria-pressed={s.taskList} onClick={() => chain().toggleTaskList().run()}>☐ List</button>
         <button className={toolbarBtnClass(s.quote)} title="Quote" aria-pressed={s.quote} onClick={() => chain().toggleBlockquote().run()}>&ldquo; Quote</button>
         <button className={toolbarBtnClass(s.codeBlock)} title="Code block" aria-pressed={s.codeBlock} onClick={() => chain().toggleCodeBlock().run()}>{"{ }"}</button>
         <button className="tb-btn" title="Divider" onClick={() => chain().setHorizontalRule().run()}>―</button>

@@ -513,6 +513,24 @@ export function renderDocNode(
       return `<ol>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata)}</ol>`;
     case "listItem":
       return `<li>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata)}</li>`;
+    // Task list (`@tiptap/extension-list`'s `./task-list`/`./task-item` subpaths, 2026-08-11) — DOM
+    // shape confirmed against each installed extension's own `renderHTML`, not assumed:
+    // `<ul data-type="taskList">` wrapping `<li data-type="taskItem"><label><input
+    // type="checkbox">...</label><div>CONTENT</div></li>` (the `<label>`/`<span>` pair is the
+    // extension's own click-target styling hook, not something this renderer invents). `disabled`
+    // added here (the editor's own DOM has no such attribute — its checkbox is live, backed by a
+    // ProseMirror node-view click handler) because there is no equivalent handler on the public
+    // site: an unwired, clickable-looking checkbox would visually toggle on click and then silently
+    // do nothing, which is worse than a checkbox that's honestly inert. The editor's default
+    // `nested: false` (confirmed against the installed dist) means `content` here is a single
+    // paragraph, not a nested list — sub-tasks are out of scope until that option is turned on.
+    case "taskList":
+      return `<ul data-type="taskList">${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata)}</ul>`;
+    case "taskItem": {
+      const attrs = isObject(node.attrs) ? node.attrs : {};
+      const checked = attrs.checked === true;
+      return `<li data-type="taskItem"><label><input type="checkbox"${checked ? " checked" : ""} disabled/><span></span></label><div>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata)}</div></li>`;
+    }
     // Table (`@tiptap/extension-table`, 2026-08-11) — four node types confirmed against the
     // installed dist: `table` (content `"tableRow+"`), `tableRow` (`<tr>`), `tableCell` (`<td>`),
     // `tableHeader` (`<th>`). No `<colgroup>`/column-resize markup: the editor mounts `Table` with
