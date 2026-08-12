@@ -72,6 +72,7 @@ import { navigate } from "../../lib/router";
 import { describeSaveStatus, resolveDialogDataTheme } from "./rules";
 import { useWiredSettingsLocaleSync } from "./hooks/use-settings-locale-sync.hooks";
 import { useSettingsUi, type SettingsUiController } from "./hooks/use-settings-ui.hooks";
+import type { Translate } from "../../lib/dictionary-translator";
 import { ComposioKeyField } from "./ComposioKeyField";
 import { connectorsDependencies } from "./connectors-port";
 import { useWiredAdminExecutionCredential } from "../../hooks/use-admin-execution-credential.hooks";
@@ -147,7 +148,7 @@ const MEMORY_HOOK_FLAGS: Record<MemoryConfigFlagKey, boolean> = {
  * @complexity O(1) — fixed-shape render, no iteration, no branching.
  * @overallScore 100 — no branches, no I/O, no state.
  */
-function AboutPanel({ t, tCap }: { t: (key: string) => string; tCap: (key: string) => string }) {
+function AboutPanel({ t, tCap }: { t: Translate; tCap: (key: string) => string }) {
   return (
     <section className="jini-settings-section">
       <div className="jini-settings-section-card">
