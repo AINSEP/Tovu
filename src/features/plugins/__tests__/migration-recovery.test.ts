@@ -16,13 +16,15 @@ import { snapshotDb } from "../snapshot";
  * left at a non-terminal phase, with a live db that has already diverged from its snapshot) and
  * proves the mandatory, blocking restore-or-complete step actually restores the pre-DDL state.
  *
- * The last test (POST-COMMIT JOURNAL INTEGRITY, BUG FIX 2026-08-12) is a different shape from the
+ * The last test (POST-COMMIT DATA-LOSS WINDOW, BUG FIX 2026-08-12) is a different shape from the
  * ones above it: rather than hand-simulating a crash by calling the journal/snapshot primitives
- * directly, it drives the real `declareDataModule` through a fault-injected post-commit failure
- * (see `data-module.test.ts` for the matching unit-level assertion on the journal phase alone) and
- * then runs THIS file's actual `recoverIncompleteDataModuleMigrations` against the result — closing
- * the loop the bug was about: not just "the journal phase is non-terminal" in isolation, but "a
- * real boot recovery pass actually acts on it."
+ * directly, it drives the real `declareDataModule` through a fault-injected post-commit-style
+ * failure (see `data-module.test.ts` for the matching unit-level assertions, including the full
+ * write-survives-a-later-restart reproduction) and then runs THIS file's actual
+ * `recoverIncompleteDataModuleMigrations` against the result — closing the loop the bug was about:
+ * not just "the journal phase is terminal" in isolation, but "a real boot recovery pass correctly
+ * finds nothing to do," since a non-crash, in-process failure must never leave behind anything a
+ * genuine crash-recovery pass would mistake for its own.
  */
 
 function makeDbWithCoreContent(): { dir: string; dbPath: string } {
@@ -126,7 +128,7 @@ test("a COMMITTED entry is left alone — recovery is a no-op for a successful p
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
-test("POST-COMMIT JOURNAL INTEGRITY (BUG FIX, 2026-08-12): a declareDataModule call whose post-commit verification fails leaves a journal entry real boot recovery actually restores", async () => {
+test("POST-COMMIT DATA-LOSS WINDOW (BUG FIX, 2026-08-12): a declareDataModule call whose verification fails leaves NOTHING for real boot recovery to act on, and any writes made after it survive", async () => {
   const { dir, dbPath } = makeDbWithCoreContent();
   const db = new Database(dbPath);
   db.pragma("journal_mode = WAL");
@@ -145,9 +147,9 @@ test("POST-COMMIT JOURNAL INTEGRITY (BUG FIX, 2026-08-12): a declareDataModule c
   };
 
   // Same fault-injection technique as `data-module.test.ts`'s matching test: let the FIRST
-  // `PRAGMA table_info` call (planning, pre-commit) through untouched, but make the SECOND one
-  // (verifyPostDdl, strictly post-commit) report "sku" as missing even though the real ALTER
-  // already committed it — see that file for the fuller comment.
+  // `PRAGMA table_info` call (planning, before the DDL transaction opens) through untouched, but
+  // make the SECOND one (verifyPostDdl, now called from INSIDE that same transaction) report "sku"
+  // as missing — see that file for the fuller comment.
   let tableInfoCalls = 0;
   const proxiedDb = new Proxy(db, {
     get(target, prop, receiver) {
@@ -168,7 +170,11 @@ test("POST-COMMIT JOURNAL INTEGRITY (BUG FIX, 2026-08-12): a declareDataModule c
   });
 
   const declareResult = await declareDataModule({ db: proxiedDb, dbPath, decl: v2 });
-  assert.equal(declareResult.ok, false, "the fault-injected post-commit verification failure is reported");
+  assert.equal(declareResult.ok, false, "the fault-injected verification failure is reported");
+
+  // The site does NOT crash — it keeps serving and accepting writes on the same live connection,
+  // exactly like production. This write must survive everything below.
+  db.prepare(`INSERT INTO posts VALUES ('p2')`).run();
   // Close BEFORE recovery — `recoverIncompleteDataModuleMigrations` opens its own short-lived
   // connection and requires no other connection holds the file open (see this file's header and
   // `migration-recovery.ts`'s own header on why restore only ever runs at boot, before any other
@@ -177,16 +183,17 @@ test("POST-COMMIT JOURNAL INTEGRITY (BUG FIX, 2026-08-12): a declareDataModule c
 
   const recovery = recoverIncompleteDataModuleMigrations(dbPath);
 
-  assert.equal(recovery.recovered, 1, "the entry a false ROLLED_BACK would have hidden from recovery IS picked up");
-  assert.equal(recovery.entries[0].pluginId, "committest2");
+  // The load-bearing assertion: recovery must find NOTHING to do. Before the fix, this same
+  // fault-injected failure left a non-terminal `VERIFYING` entry behind, which this exact call used
+  // to (wrongly) pick up and restore, discarding every write made after the failed declare — see the
+  // git history of this test for the pre-fix version, which asserted `recovery.recovered === 1` as
+  // the then-accepted behavior.
+  assert.deepEqual(recovery, { recovered: 0, entries: [] }, "verification failing now rolls back inside declareDataModule itself, so there is no non-terminal entry left for boot recovery to ever find");
 
   const restored = new Database(dbPath);
   const cols = (restored.prepare(`PRAGMA table_info("p_committest2__widgets")`).all() as Array<{ name: string }>).map((r) => r.name);
-  assert.deepEqual(
-    cols,
-    ["id"],
-    "restored to the pre-DDL snapshot — the ALTER that had actually committed is reverted, same as any other crash-recovered attempt"
-  );
+  assert.deepEqual(cols, ["id"], "the ALTER rolled back atomically at declare time, not via a later restore");
+  assert.ok(restored.prepare(`SELECT id FROM posts WHERE id = 'p2'`).get(), "the write made after the failed declare survives, because recovery never touched the file");
   restored.close();
 
   fs.rmSync(dir, { recursive: true, force: true });
