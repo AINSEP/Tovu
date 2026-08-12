@@ -7,7 +7,6 @@ import { formatTimestamp } from "../../lib/format-timestamp";
 import { useWiredComments } from "./hooks/use-comments.hooks";
 import { useWiredCommentQueue } from "./hooks/use-comment-queue.hooks";
 import { useWiredCommentSettings } from "./hooks/use-comment-settings.hooks";
-import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { t } from "./comments-i18n";
 import { interpolate } from "../../lib/template-i18n";
 import { translateAdminNavLabel } from "../../lib/admin-nav-i18n";
@@ -398,8 +397,7 @@ export interface CommentsProps {
 }
 
 export function Comments({ useCommentsHook = useWiredComments }: CommentsProps = {}) {
-  const { permissions, error } = useCommentsHook();
-  const locale = useAdminLocale();
+  const { permissions, error, locale } = useCommentsHook();
 
   if (error) return <div className="notice error">{error}</div>;
   if (!permissions) return <div className="notice">{t(locale, "Loading Comments…")}</div>;

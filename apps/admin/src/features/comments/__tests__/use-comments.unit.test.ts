@@ -18,7 +18,7 @@ describe("useComments", () => {
     vi.stubGlobal("fetch", fetchMock);
     try {
       const port = createFakeCommentsPort({ effectivePermissions: ["comments.moderate"] });
-      const { result } = renderHook(() => useComments(port));
+      const { result } = renderHook(() => useComments({ port, locale: "en" }));
       await waitFor(() => expect(result.current.permissions).not.toBeNull());
       expect(result.current.permissions).toEqual(["comments.moderate"]);
       expect(result.current.error).toBeNull();
@@ -30,7 +30,7 @@ describe("useComments", () => {
 
   it("sets the fallback error when the injected port rejects", async () => {
     const port = createFakeCommentsPort({ meError: new Error("boom") });
-    const { result } = renderHook(() => useComments(port));
+    const { result } = renderHook(() => useComments({ port, locale: "en" }));
     await waitFor(() => expect(result.current.error).not.toBeNull());
     expect(result.current.error).toBe("boom");
     expect(result.current.permissions).toBeNull();
