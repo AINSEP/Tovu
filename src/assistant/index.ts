@@ -15,6 +15,28 @@
  * those objects as inline literals, which TypeScript accepts structurally without the exported name.
  *
  * Organized into six sections, matching the six independent consumer clusters the trace found.
+ *
+ * NOT re-exported here: `ChatStoreFactory` (`./persistence/tenant-scope`), `SiteAssistantCredentialRepoPort`
+ * (`./site-credential-store`), `AdminExecutionCredentialRepoPort` (`./execution-credential-store`), and
+ * `ExternalMcpServerRepoPort` (`./external-mcp-store`). All four are otherwise-qualifying type-only
+ * symbols that `server/routes/types.ts` imports directly instead — deliberately, not an oversight.
+ * `routes/types.ts` defines `RouteDeps`, a god-type with ~22 landing imports across `server/routes/**`
+ * (2026-08-13 architecture audit). Measured empirically (`npm run check:architecture`, propagation
+ * cost = mean fraction of the file graph reachable from each file): routing those 3 lines through
+ * this barrel alone moved repo-wide propagation cost from 7.6% to 12.43% — reverting only them
+ * recovered it to 8.20%, confirmed by isolating `routes/types.ts` from every other consumer in a
+ * worktree bisection. The mechanism: `buildFileGraph` (`development/scripts/check-architecture.ts`)
+ * does not distinguish `import type` from value imports, so these three type-only lines are graph
+ * edges like any other; and because `routes/types.ts` has enormous fan-IN (every route file depends
+ * on it), inflating ITS reachable set transitively inflates every one of its ~22 dependents' own
+ * reachable sets too. Composition roots (`app.ts`/`deps.ts`) route through this barrel fine — they
+ * have near-zero fan-in, so their own reachable-set growth stays local and costs the metric almost
+ * nothing. A "six narrow doors" split (one file per section below) was also measured and rejected:
+ * 11.79% propagation / 7 exposed files — worse on both axes than reverting just these 3 lines, because
+ * `routes/types.ts` alone needs symbols spanning 4 of the 6 sections regardless of door width. Full
+ * writeup: `ADS-memory/reports/architecture/2026-08-12-assistant-barrel-propagation-cost-findings.md`.
+ * If `routes/types.ts` is ever split or its god-type status resolved, re-evaluate whether these 4
+ * symbols can safely route through this barrel again.
  */
 
 // ---------------------------------------------------------------------------------------------
