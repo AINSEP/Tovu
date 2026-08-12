@@ -9,7 +9,7 @@ import { registerAuthRoutes } from "../middleware/dev-auth";
 import { MCP_UI_TOOL_CALLS_PATH } from "../../assistant/mcp-ui-tool-calls-route";
 import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore } from "../../assistant/surface-exchanges";
 import { createByokToolSurface } from "../../assistant/byok-tool-surface";
-import { CONTENT_POST_DELETE_TOOL_ID } from "../../features/post/delete-confirmation-ui";
+import { CONTENT_POST_DELETE_TOOL_ID } from "../../features/post";
 import { bootAuthenticated, startTestServer } from "./helpers/http-test-server";
 import type { RouteDeps } from "../routes/types";
 

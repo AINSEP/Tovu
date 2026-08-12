@@ -16,7 +16,7 @@ import type {
 } from "@jini-ai/cms/identity";
 import type { LipayApi } from "../../features/plugins/lipay/lipay-plugin";
 import type { PostRepoPort, PostSearchPort } from "../../features/post";
-import type { BeforeSaveHookPort } from "../../features/post/post";
+import type { BeforeSaveHookPort } from "../../features/post";
 import type { PagesHtmlDocumentStoreFactory } from "../../features/pages";
 import type { ChatStoreFactory } from "../../assistant/persistence/tenant-scope";
 import type { PresentationSettingsRepoPort } from "../../features/presentation";
