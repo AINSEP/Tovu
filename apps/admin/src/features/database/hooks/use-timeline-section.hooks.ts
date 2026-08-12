@@ -16,6 +16,14 @@ import { t } from "../database-i18n";
  * (`sessionStorage.setItem`, `navigate`) rather than computing a value, so it is an effect, not a
  * pure rule, even though it needs no component state and is exported as a plain function rather
  * than folded into the hook's return.
+ *
+ * `t`/`locale` (2026-08-11, standing i18n rule — a component with a hook gets a BOUND `t` from that
+ * hook, not its own `useAdminLocale()`/dictionary import): this hook already called
+ * `useAdminLocale()` for its own error-string translations, so exposing that SAME already-resolved
+ * `locale` as a bound `t` (plus the raw value, still needed for `TimelineSection`'s own local
+ * subcomponents) on the return value adds no new fetch — `TimelineSection` used to receive `locale`
+ * as a separate prop from `Database`, entirely redundant with the resolution this hook was already
+ * doing internally and not using for anything the component could see.
  */
 
 /** Stashes a client-constructed `DatabaseContextEnvelope` for `Recovery.tsx` to re-resolve
@@ -56,10 +64,18 @@ export interface TimelineSectionController {
   loadingMore: boolean;
   applyFilters: (e: React.FormEvent) => void;
   loadMore: () => void;
+  /** Bound translator — `key` already resolved against the caller's locale, so `Database.tsx`
+   *  never imports `useAdminLocale`/`database-i18n` for this section. See this file's header. */
+  t: (key: string) => string;
+  /** Raw resolved locale — `TimelineSection`'s own local subcomponents (`TimelineFilterForm`,
+   *  `TimelineBody`, `timelineColumns`) take `locale` directly rather than a bound translator. See
+   *  this file's header. */
+  locale: string;
 }
 
 export function useTimelineSection(): TimelineSectionController {
   const locale = useAdminLocale();
+  const boundT = (key: string): string => t(locale, key);
   const [rows, setRows] = useState<AdminLedgerRow[] | null>(null);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -102,5 +118,5 @@ export function useTimelineSection(): TimelineSectionController {
     load(false);
   }
 
-  return { rows, nextCursor, error, kind, setKind, outcome, setOutcome, fromDate, setFromDate, toDate, setToDate, loadingMore, applyFilters, loadMore };
+  return { rows, nextCursor, error, kind, setKind, outcome, setOutcome, fromDate, setFromDate, toDate, setToDate, loadingMore, applyFilters, loadMore, t: boundT, locale };
 }

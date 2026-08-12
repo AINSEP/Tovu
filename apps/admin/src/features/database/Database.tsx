@@ -24,10 +24,13 @@ import { t, planReadyMessage } from "./database-i18n";
  * the drift banner, the `PENDING_MIGRATION` boot banner, and the Tier-3 browser have no route yet
  * — this screen omits them rather than rendering dead affordances.
  *
- * `locale` is fetched once in `Database` via `useAdminLocale()` and threaded down as a prop to
- * every section and presentational helper below, rather than each calling the hook itself — the
- * hook's underlying `loadLanguage()` isn't memoized, so ten independent calls would mean ten
- * concurrent settings fetches for one page.
+ * `Database` itself has no hook of its own (no single fetch/state this top-level shell owns), so it
+ * keeps calling `useAdminLocale()`/`database-i18n`'s `t` directly for its own header text — per the
+ * standing i18n rule's carve-out for components with no hook file. Each SECTION below (`useTimeline
+ * Section`, `useRestorePointsSection`, `useMigrateForwardSection`) already independently resolves
+ * `useAdminLocale()` for its own internal error-string translations (unrelated to this file), so
+ * `t`/`locale` are now sourced from each section's own hook rather than threaded down from
+ * `Database` as a prop — that prop was redundant with a resolution each hook was already doing.
  */
 
 const KIND_OPTIONS = [
@@ -42,7 +45,6 @@ const KIND_OPTIONS = [
 ] as const;
 
 export interface TimelineSectionProps {
-  locale: string;
   /** Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
    *  for `useCustomSelect`. Mirrored per-section below (`RestorePointsSectionProps`,
    *  `MigrateForwardSectionProps`) since each section owns independent state. */
@@ -162,7 +164,7 @@ function TimelineBody(props: { locale: string; rows: AdminLedgerRow[]; nextCurso
   );
 }
 
-function TimelineSection({ locale, useTimelineSectionHook = useTimelineSection }: TimelineSectionProps) {
+function TimelineSection({ useTimelineSectionHook = useTimelineSection }: TimelineSectionProps) {
   const {
     rows,
     nextCursor,
@@ -177,12 +179,13 @@ function TimelineSection({ locale, useTimelineSectionHook = useTimelineSection }
     setToDate,
     loadingMore,
     applyFilters,
-    loadMore
-  } =
-    useTimelineSectionHook();
+    loadMore,
+    t,
+    locale,
+  } = useTimelineSectionHook();
 
   if (error && !rows) return <div className="notice error">{error}</div>;
-  if (!rows) return <div className="notice">{t(locale, "Loading timeline…")}</div>;
+  if (!rows) return <div className="notice">{t("Loading timeline…")}</div>;
 
   return (
     <div>
@@ -207,22 +210,21 @@ function TimelineSection({ locale, useTimelineSectionHook = useTimelineSection }
 }
 
 export interface RestorePointsSectionProps {
-  locale: string;
   useRestorePointsSectionHook?: typeof useRestorePointsSection;
 }
 
-function RestorePointsSection({ locale, useRestorePointsSectionHook = useRestorePointsSection }: RestorePointsSectionProps) {
-  const { points, error, creating, createRestorePoint } = useRestorePointsSectionHook();
+function RestorePointsSection({ useRestorePointsSectionHook = useRestorePointsSection }: RestorePointsSectionProps) {
+  const { points, error, creating, createRestorePoint, t } = useRestorePointsSectionHook();
 
   if (error && !points) return <div className="notice error">{error}</div>;
-  if (!points) return <div className="notice">{t(locale, "Loading restore points…")}</div>;
+  if (!points) return <div className="notice">{t("Loading restore points…")}</div>;
 
   return (
     <div>
       <div className="editor-header">
-        <h2>{t(locale, "Restore points")}</h2>
+        <h2>{t("Restore points")}</h2>
         <button type="button" onClick={createRestorePoint} disabled={creating}>
-          {creating ? t(locale, "Creating…") : t(locale, "Create restore point")}
+          {creating ? t("Creating…") : t("Create restore point")}
         </button>
       </div>
       {error ? <div className="notice error">{error}</div> : null}
@@ -232,19 +234,19 @@ function RestorePointsSection({ locale, useRestorePointsSectionHook = useRestore
         empty={
           <div className="card">
             <div className="empty-state">
-              <p>{t(locale, "No restore points yet.")}</p>
+              <p>{t("No restore points yet.")}</p>
             </div>
           </div>
         }
         columns={[
-          { key: "timestamp", header: t(locale, "Timestamp"), cell: (p) => formatTimestamp(p.createdAt) },
-          { key: "trigger", header: t(locale, "Trigger"), cell: (p) => p.trigger },
+          { key: "timestamp", header: t("Timestamp"), cell: (p) => formatTimestamp(p.createdAt) },
+          { key: "trigger", header: t("Trigger"), cell: (p) => p.trigger },
           {
             key: "cost-class",
-            header: t(locale, "Cost class"),
+            header: t("Cost class"),
             cell: (p) => <span className={`status status-${p.costClass}`}>{p.costClass}</span>,
           },
-          { key: "kind", header: t(locale, "Kind"), cell: (p) => p.kind },
+          { key: "kind", header: t("Kind"), cell: (p) => p.kind },
         ]}
       />
     </div>
@@ -252,7 +254,6 @@ function RestorePointsSection({ locale, useRestorePointsSectionHook = useRestore
 }
 
 export interface MigrateForwardSectionProps {
-  locale: string;
   useMigrateForwardSectionHook?: typeof useMigrateForwardSection;
 }
 
@@ -330,21 +331,21 @@ function migrateForwardStep(props: {
   return null;
 }
 
-function MigrateForwardSection({ locale, useMigrateForwardSectionHook = useMigrateForwardSection }: MigrateForwardSectionProps) {
-  const { step, busy, error, plan, confirmationToken, done, reset, startPlan, doConfirm, doExecute } = useMigrateForwardSectionHook();
+function MigrateForwardSection({ useMigrateForwardSectionHook = useMigrateForwardSection }: MigrateForwardSectionProps) {
+  const { step, busy, error, plan, confirmationToken, done, reset, startPlan, doConfirm, doExecute, t, locale } = useMigrateForwardSectionHook();
 
   return (
     <div>
       <div className="editor-header">
-        <h2>{t(locale, "Migrate forward")}</h2>
+        <h2>{t("Migrate forward")}</h2>
         {step !== "idle" ? (
           <button type="button" className="btn-ghost" onClick={reset} disabled={busy}>
-            {t(locale, "Reset")}
+            {t("Reset")}
           </button>
         ) : null}
       </div>
       <p className="muted-cell">
-        {t(locale, "Brings this site's schema up to the latest migration, capturing a restore point first when the site's restore-point mechanism allows it.")}
+        {t("Brings this site's schema up to the latest migration, capturing a restore point first when the site's restore-point mechanism allows it.")}
       </p>
       {error ? <div className="notice error">{error}</div> : null}
 
@@ -376,9 +377,9 @@ export function Database() {
           </p>
         </div>
       </div>
-      <TimelineSection locale={locale} />
-      <RestorePointsSection locale={locale} />
-      <MigrateForwardSection locale={locale} />
+      <TimelineSection />
+      <RestorePointsSection />
+      <MigrateForwardSection />
     </div>
   );
 }

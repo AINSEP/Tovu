@@ -8,6 +8,12 @@ import { t } from "../database-i18n";
  * migrate-forward ceremony) does, so `Database.tsx` is only markup.
  *
  * Extracted verbatim — same state, same declaration order, same handlers, same error strings.
+ *
+ * `t`/`locale` (2026-08-11, standing i18n rule — see `use-timeline-section.hooks.ts`'s own file
+ * header for the full rationale): this hook already called `useAdminLocale()` for its own
+ * error-string translations, so exposing that same already-resolved `locale` as a bound `t` (plus
+ * the raw value, still needed for this section's own local step subcomponents and
+ * `planReadyMessage`) on the return value adds no new fetch.
  */
 
 export type CeremonyStep = "idle" | "planned" | "confirmed" | "done";
@@ -23,10 +29,18 @@ export interface MigrateForwardSectionController {
   startPlan: () => Promise<void>;
   doConfirm: () => Promise<void>;
   doExecute: () => Promise<void>;
+  /** Bound translator — `key` already resolved against the caller's locale, so `Database.tsx`
+   *  never imports `useAdminLocale`/`database-i18n` for this section. See this file's header. */
+  t: (key: string) => string;
+  /** Raw resolved locale — this section's own local step subcomponents (`PlanMigrationStep`,
+   *  `PlannedStep`, …) and `planReadyMessage` take `locale` directly rather than a bound
+   *  translator. See this file's header. */
+  locale: string;
 }
 
 export function useMigrateForwardSection(): MigrateForwardSectionController {
   const locale = useAdminLocale();
+  const boundT = (key: string): string => t(locale, key);
   const [step, setStep] = useState<CeremonyStep>("idle");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -86,5 +100,5 @@ export function useMigrateForwardSection(): MigrateForwardSectionController {
     }
   }
 
-  return { step, busy, error, plan, confirmationToken, done, reset, startPlan, doConfirm, doExecute };
+  return { step, busy, error, plan, confirmationToken, done, reset, startPlan, doConfirm, doExecute, t: boundT, locale };
 }
