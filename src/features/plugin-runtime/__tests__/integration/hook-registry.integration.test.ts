@@ -226,3 +226,50 @@ test("BR-04: a later-composed plugin's filter observes the earlier plugin's alre
   await registry.runBeforeSave(draft());
   assert.deepEqual(secondFilterSawFirstPluginsExt, { value: 1 });
 });
+
+test("ADR-024 §3: each filter receives a deeply isolated snapshot", async () => {
+  const registry = createHookRegistry();
+  const input = draft({
+    bodyJson: { type: "doc", content: [{ text: "original" }] },
+    ext: { existing: { nested: { value: "original" }, items: ["original"] } },
+  });
+  let secondSnapshot: ContentEntryDraft | undefined;
+
+  registry.attach(
+    "a-mutator",
+    "site",
+    async (entry) => {
+      const mutable = entry as {
+        bodyJson: { content: Array<{ text: string }> };
+        ext: { existing: { nested: { value: string }; items: string[] } };
+      };
+      mutable.bodyJson.content[0]!.text = "mutated";
+      mutable.ext.existing.nested.value = "mutated";
+      mutable.ext.existing.items.push("mutated");
+      return {};
+    },
+    []
+  );
+  registry.attach(
+    "b-observer",
+    "site",
+    async (entry) => {
+      secondSnapshot = entry;
+      return {};
+    },
+    []
+  );
+
+  await registry.runBeforeSave(input);
+
+  assert.deepEqual(input.bodyJson, { type: "doc", content: [{ text: "original" }] });
+  assert.deepEqual(input.ext.existing, {
+    nested: { value: "original" },
+    items: ["original"],
+  });
+  assert.deepEqual(secondSnapshot?.bodyJson, { type: "doc", content: [{ text: "original" }] });
+  assert.deepEqual(secondSnapshot?.ext.existing, {
+    nested: { value: "original" },
+    items: ["original"],
+  });
+});
