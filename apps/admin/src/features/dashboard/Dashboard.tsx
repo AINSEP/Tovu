@@ -1,6 +1,7 @@
 import type { AdminPost } from "../../lib/api";
 import { siteUrl } from "../../lib/site-url";
 import { formatTimestamp } from "../../lib/format-timestamp";
+import type { Translate } from "../../lib/dictionary-translator";
 import { useDashboard, type StatState } from "./hooks/use-dashboard.hooks";
 import { activityRowHref, commentsStatMeta, pagesStatMeta, postsStatMeta } from "./rules";
 
@@ -25,7 +26,7 @@ export interface DashboardProps {
 }
 
 /** One row in the "Recently updated" activity list. */
-function ActivityRow({ row, t }: { row: AdminPost; t: (key: string) => string }) {
+function ActivityRow({ row, t }: { row: AdminPost; t: Translate }) {
   return (
     <div className="dash-activity-row" key={row.id}>
       <a className="dash-activity-title" href={activityRowHref(row)}>
@@ -53,7 +54,7 @@ function RecentActivityBody(props: {
   recent: AdminPost[] | null;
   postsError: string | null;
   pagesError: string | null;
-  t: (key: string) => string;
+  t: Translate;
 }) {
   const { t } = props;
   if (props.recent === null && props.postsError && props.pagesError) {
@@ -90,7 +91,7 @@ function RecentActivityBody(props: {
 }
 
 /** The Appearance panel's body — active theme, or its own error. */
-function AppearanceBody(props: { themeError: string | null; themeId: string | null; t: (key: string) => string }) {
+function AppearanceBody(props: { themeError: string | null; themeId: string | null; t: Translate }) {
   const { t } = props;
   if (props.themeError) {
     return (
