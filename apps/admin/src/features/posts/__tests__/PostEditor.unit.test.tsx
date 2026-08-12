@@ -40,12 +40,14 @@ let activeThemeTemplates: string[];
 beforeEach(() => {
   fetchMock = vi.fn();
   activeThemeTemplates = [];
-  // `PostEditor` now also reads `core.language.locale` (via `useAdminLocale`) to translate its own
-  // chrome — a real `fetch` call this file's tests never queued for. Routed here, ahead of
-  // `fetchMock`, so it never consumes a slot from the post-load/save `mockResolvedValueOnce`
-  // sequence every test below still queues on `fetchMock` itself unchanged. An empty settings
-  // response resolves `loadLanguage()` to `DEFAULT_LOCALE` ("en"), matching every assertion below,
-  // which was already written against the untranslated English strings.
+  // `useWiredPostEditor` (2026-08-11: `useAdminLocale`/`POSTS_DICT` moved out of `PostEditor.tsx`
+  // and into the hook, per the standing i18n rule — see `use-post-editor.hooks.ts`'s file header)
+  // now reads `core.language.locale` (via `useAdminLocale`) to build its own bound `t`, a real
+  // `fetch` call this file's tests never queued for. Routed here, ahead of `fetchMock`, so it never
+  // consumes a slot from the post-load/save `mockResolvedValueOnce` sequence every test below still
+  // queues on `fetchMock` itself unchanged. An empty settings response resolves `loadLanguage()` to
+  // `DEFAULT_LOCALE` ("en"), matching every assertion below, which was already written against the
+  // untranslated English strings.
   vi.stubGlobal("fetch", (input: RequestInfo | URL, init?: RequestInit) => {
     const url = typeof input === "string" ? input : input.toString();
     if (url.includes("/settings/effective")) {
@@ -321,6 +323,7 @@ function postController(overrides: Partial<PostEditorController> = {}): PostEdit
     contentDirty: false,
     save: vi.fn(),
     remove: vi.fn(),
+    t: (key: string) => key,
     ...overrides,
   };
 }

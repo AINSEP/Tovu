@@ -8,8 +8,10 @@ import { MediaImage } from "../../../lib/media-image-extension";
 import { WidgetEmbed } from "../../../lib/widget-embed-extension";
 import { PostTitleDocument, PostTitle } from "../../../lib/post-title-extension";
 import { navigate as realNavigate } from "../../../lib/router";
+import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { useDirtyGuard } from "../../../hooks/use-dirty-guard.hooks";
 import { handleImageDrop, titleNodeText, withTitleNode } from "../rules";
+import { POSTS_DICT } from "../posts-i18n";
 import { defaultPostEditorPort } from "./post-editor-dependencies.hooks";
 import type { PostEditorPort } from "./post-editor-port.hooks";
 
@@ -34,6 +36,18 @@ import type { PostEditorPort } from "./post-editor-port.hooks";
  * shape (commit `2ea11f4`). `withTitleNode`/`titleNodeText` (pure rules, `../rules.ts`) and TipTap's
  * own `useEditor` stay direct imports, same as that conversion's own `describeApiError`/
  * `useFetchQuery` precedent — see `post-editor-port.hooks.ts`'s file header for why.
+ *
+ * `t` (2026-08-11, standing i18n rule — a component with a hook gets a BOUND `t` from that hook, not
+ * its own `useAdminLocale()`/dictionary import): also injected via {@link PostEditorDependencies},
+ * same shape `use-page-editor.hooks.ts` established for `t`/`locale` on its own second parameter.
+ * Unlike that file's `t: (locale, key) => string` (unbound, `locale` threaded through every call
+ * site), this one is pre-bound to `(key: string) => string` — the owner's explicit ask for this
+ * conversion, so a test can inject `t: (k) => k` and every assertion stays stable against copy
+ * changes rather than also asserting a particular locale resolved correctly. `useAdminLocale()` and
+ * `POSTS_DICT` (`../posts-i18n.ts`) are called/read only inside {@link useWiredPostEditor}, exactly
+ * where `PostEditor.tsx` used to call them directly before this change — `postRowMenuItems`
+ * (`../rules.ts`) keeps its own independent `POSTS_DICT[locale]?.[key] ?? key` closure unchanged
+ * (out of scope: it's `Posts.tsx`'s list-row menu, a different screen with a different hook).
  */
 
 /** What `useDirtyGuard` compares — every field this editor lets an operator change. `bodyJson` is
@@ -114,16 +128,20 @@ export interface PostEditorController {
   contentDirty: boolean;
   save: (statusOverride?: "draft" | "published") => Promise<void>;
   remove: () => Promise<void>;
+  /** Bound translator — `key` already resolved against the caller's locale, so `PostEditor.tsx`
+   *  never imports `useAdminLocale`/`POSTS_DICT` itself. See this file's header. */
+  t: (key: string) => string;
 }
 
 /** {@link usePostEditor}'s injected second parameter — see this file's header for the conversion this belongs to. */
 export interface PostEditorDependencies {
   port: PostEditorPort;
   navigate: (path: string) => void;
+  t: (key: string) => string;
 }
 
 export function usePostEditor(postId: string, deps: PostEditorDependencies): PostEditorController {
-  const { port, navigate } = deps;
+  const { port, navigate, t } = deps;
   const [post, setPost] = useState<AdminPost | null>(null);
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
@@ -391,17 +409,21 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
     contentDirty,
     save,
     remove,
+    t,
   };
 }
 
 /**
- * Binds the real `/api/.../posts` client and the real router — see `post-editor-dependencies
- * .hooks.ts` and `lib/router.ts`.
+ * Binds the real `/api/.../posts` client, the real router, and a `t` bound to the real resolved
+ * locale (`useAdminLocale()`, called here and ONLY here — see this file's header) — see
+ * `post-editor-dependencies.hooks.ts` and `lib/router.ts`.
  *
  * The zero-argument half of the `useX(dependencies)` / `useWiredX()` pair, so `PostEditor.tsx`
  * composes this and a test composes {@link usePostEditor} with `createFakePostEditorPort` and a fake
- * `navigate`.
+ * `navigate`/`t`.
  */
 export function useWiredPostEditor(postId: string): PostEditorController {
-  return usePostEditor(postId, { port: defaultPostEditorPort, navigate: realNavigate });
+  const locale = useAdminLocale();
+  const t = (key: string): string => POSTS_DICT[locale]?.[key] ?? key;
+  return usePostEditor(postId, { port: defaultPostEditorPort, navigate: realNavigate, t });
 }

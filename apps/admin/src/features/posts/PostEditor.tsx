@@ -10,8 +10,6 @@ import { siteUrl } from "../../lib/site-url";
 import { useWiredPostEditor, type PostEditorView } from "./hooks/use-post-editor.hooks";
 import { PostTemplateModal } from "./PostTemplateModal";
 import { toolbarBtnClass } from "./rules";
-import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import { POSTS_DICT } from "./posts-i18n";
 
 /**
  * @file The post/page editor screen — markup only.
@@ -342,9 +340,8 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
     contentDirty,
     save,
     remove,
+    t,
   } = usePostEditorHook(postId);
-  const locale = useAdminLocale();
-  const t = (key: string): string => POSTS_DICT[locale]?.[key] ?? key;
   // View Template (2026-08-10) — called above the early returns below so hook order stays stable
   // across the loading/error/loaded renders, same reasoning as `Posts.tsx`'s `updatedSort` state.
   const [showTemplateModal, setShowTemplateModal] = useState(false);

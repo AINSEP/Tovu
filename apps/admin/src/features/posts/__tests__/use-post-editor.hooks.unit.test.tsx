@@ -43,6 +43,11 @@ function fakeNavigate() {
   return vi.fn<(path: string) => void>();
 }
 
+/** Injected `t` for every test below except the dedicated "t is genuinely injected" group further
+ *  down — identity function, matching `wired-hooks-convention.md`'s own `t: (k) => k` example so
+ *  every other assertion in this file stays independent of `PostEditor`'s actual copy. */
+const fakeT = (key: string): string => key;
+
 afterEach(() => {
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
@@ -61,7 +66,7 @@ describe("usePostEditor — load", () => {
     });
     const navigate = fakeNavigate();
 
-    const { result } = renderHook(() => usePostEditor("p1", { port, navigate }));
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate, t: fakeT }));
 
     await waitFor(() => expect(result.current.post).toEqual(POST));
     expect(result.current.title).toBe("Hello World");
@@ -80,7 +85,7 @@ describe("usePostEditor — load", () => {
       presentation: { activeThemeTemplates: ["blog-post.html", "page-shell.html"] },
     });
 
-    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate() }));
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
 
     await waitFor(() => expect(result.current.post).not.toBeNull());
     expect(result.current.templateChoice).toBe("blog-post.html");
@@ -92,7 +97,7 @@ describe("usePostEditor — load", () => {
       presentation: { activeThemeStaticPageIds: ["pricing", "about"] },
     });
 
-    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate() }));
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
 
     await waitFor(() => expect(result.current.slug).toBe("pricing"));
     expect(result.current.hasSlugCollision).toBe(true);
@@ -101,7 +106,7 @@ describe("usePostEditor — load", () => {
   it("reports a load failure via error, leaving post null", async () => {
     const port = createFakePostEditorPort({ getPostError: "post not found" });
 
-    const { result } = renderHook(() => usePostEditor("missing", { port, navigate: fakeNavigate() }));
+    const { result } = renderHook(() => usePostEditor("missing", { port, navigate: fakeNavigate(), t: fakeT }));
 
     await waitFor(() => expect(result.current.error).toBe("post not found"));
     expect(result.current.post).toBeNull();
@@ -112,7 +117,7 @@ describe("usePostEditor — load", () => {
       post: { ...POST, bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "Body." }] }] } },
     });
 
-    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate() }));
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
 
     await waitFor(() => expect(result.current.editor).not.toBeNull());
     await waitFor(() => {
@@ -126,7 +131,7 @@ describe("usePostEditor — load", () => {
 describe("usePostEditor — title/slug/status setters", () => {
   it("setSlug/setStatus update state directly", async () => {
     const port = createFakePostEditorPort({ post: POST });
-    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate() }));
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
     await waitFor(() => expect(result.current.post).not.toBeNull());
 
     act(() => result.current.setSlug("new-slug"));
@@ -138,7 +143,7 @@ describe("usePostEditor — title/slug/status setters", () => {
 
   it("setTitle updates title state AND the editor's own title node text (two-way sync, post-title-in-document feature)", async () => {
     const port = createFakePostEditorPort({ post: POST });
-    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate() }));
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
 
     act(() => result.current.setTitle("Renamed"));
@@ -154,7 +159,7 @@ describe("usePostEditor — title/slug/status setters", () => {
 describe("usePostEditor — dirty guard / confirmLeave", () => {
   it("is not dirty immediately after load, and becomes dirty after a change", async () => {
     const port = createFakePostEditorPort({ post: POST });
-    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate() }));
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
     await waitFor(() => expect(result.current.post).not.toBeNull());
     expect(result.current.dirty).toBe(false);
 
@@ -165,7 +170,7 @@ describe("usePostEditor — dirty guard / confirmLeave", () => {
   it("confirmLeave returns true without prompting when not dirty", async () => {
     const confirmSpy = vi.spyOn(window, "confirm");
     const port = createFakePostEditorPort({ post: POST });
-    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate() }));
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
     await waitFor(() => expect(result.current.post).not.toBeNull());
 
     expect(result.current.confirmLeave()).toBe(true);
@@ -174,7 +179,7 @@ describe("usePostEditor — dirty guard / confirmLeave", () => {
 
   it("confirmLeave prompts via window.confirm once dirty, and returns the operator's answer", async () => {
     const port = createFakePostEditorPort({ post: POST });
-    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate() }));
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
     await waitFor(() => expect(result.current.post).not.toBeNull());
     act(() => result.current.setSlug("changed"));
     await waitFor(() => expect(result.current.dirty).toBe(true));
@@ -187,7 +192,7 @@ describe("usePostEditor — dirty guard / confirmLeave", () => {
 describe("usePostEditor — save", () => {
   it("saves title/slug/status/bodyJson/templateChoice/overridesThemePage through the injected port, clearing dirty", async () => {
     const port = createFakePostEditorPort({ post: POST });
-    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate() }));
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
 
     act(() => result.current.setSlug("new-slug"));
@@ -204,7 +209,7 @@ describe("usePostEditor — save", () => {
 
   it("save('published') forces status to published in the same call, without a separate status change", async () => {
     const port = createFakePostEditorPort({ post: { ...POST, status: "draft" } });
-    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate() }));
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
 
     await act(async () => {
@@ -218,7 +223,7 @@ describe("usePostEditor — save", () => {
 
   it("a failed save surfaces the port's error message and leaves dirty state untouched", async () => {
     const port = createFakePostEditorPort({ post: POST, updatePostError: "save failed on the server" });
-    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate() }));
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
     await waitFor(() => expect(result.current.editor).not.toBeNull());
     act(() => result.current.setSlug("new-slug"));
     await waitFor(() => expect(result.current.dirty).toBe(true));
@@ -236,7 +241,7 @@ describe("usePostEditor — delete", () => {
   it("removes a POST and navigates to /posts", async () => {
     const port = createFakePostEditorPort({ post: POST });
     const navigate = fakeNavigate();
-    const { result } = renderHook(() => usePostEditor("p1", { port, navigate }));
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate, t: fakeT }));
     await waitFor(() => expect(result.current.post).not.toBeNull());
 
     await act(async () => {
@@ -249,7 +254,7 @@ describe("usePostEditor — delete", () => {
   it("removes a PAGE and navigates to /pages — kind-aware, not hardcoded to /posts", async () => {
     const port = createFakePostEditorPort({ post: PAGE });
     const navigate = fakeNavigate();
-    const { result } = renderHook(() => usePostEditor("pg1", { port, navigate }));
+    const { result } = renderHook(() => usePostEditor("pg1", { port, navigate, t: fakeT }));
     await waitFor(() => expect(result.current.post).not.toBeNull());
 
     await act(async () => {
@@ -262,7 +267,7 @@ describe("usePostEditor — delete", () => {
   it("a failed delete surfaces the error and resets deleting/confirmingDelete without navigating", async () => {
     const port = createFakePostEditorPort({ post: POST, deletePostError: "delete failed" });
     const navigate = fakeNavigate();
-    const { result } = renderHook(() => usePostEditor("p1", { port, navigate }));
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate, t: fakeT }));
     await waitFor(() => expect(result.current.post).not.toBeNull());
     act(() => result.current.setConfirmingDelete(true));
 
@@ -289,10 +294,31 @@ describe("usePostEditor — injected port is genuinely read (negative verificati
       post: { ...POST, id: "p9", title: "A Totally Different Title", slug: "totally-different-slug" },
     });
 
-    const { result } = renderHook(() => usePostEditor("p9", { port, navigate: fakeNavigate() }));
+    const { result } = renderHook(() => usePostEditor("p9", { port, navigate: fakeNavigate(), t: fakeT }));
 
     await waitFor(() => expect(result.current.title).toBe("A Totally Different Title"));
     expect(result.current.slug).toBe("totally-different-slug");
+  });
+});
+
+describe("usePostEditor — injected t is genuinely returned, not built internally", () => {
+  /**
+   * Standing i18n rule (2026-08-11, `PostEditor.tsx` no longer imports `useAdminLocale`/
+   * `POSTS_DICT` itself): `t` must come from the hook's own `deps.t`, not something this hook
+   * quietly rebuilds from a dictionary it reaches for on its own. A DISTINCTIVE fake (not the
+   * identity `fakeT` every other test in this file uses) proves the returned `t` is literally the
+   * same function reference/behavior passed in — an identity `t` would pass this same assertion
+   * even if the hook silently ignored `deps.t` and returned its own `(k) => k`.
+   */
+  it("result.current.t is exactly the injected function, not a hook-internal one", async () => {
+    const port = createFakePostEditorPort({ post: POST });
+    const distinctiveT = (key: string): string => `TRANSLATED[${key}]`;
+
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: distinctiveT }));
+
+    await waitFor(() => expect(result.current.post).not.toBeNull());
+    expect(result.current.t("Save")).toBe("TRANSLATED[Save]");
+    expect(result.current.t).toBe(distinctiveT);
   });
 });
 
