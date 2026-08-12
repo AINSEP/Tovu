@@ -8,7 +8,7 @@ import { navigate } from "../../lib/router";
 import { TabBar } from "../../components/TabBar";
 import { pageRowMenuItems } from "./rules";
 import { usePages } from "./hooks/use-pages.hooks";
-import { useThemePages } from "./hooks/use-theme-pages.hooks";
+import { useWiredThemePages } from "./hooks/use-theme-pages.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { PAGES_DICT } from "./pages-i18n";
 
@@ -44,7 +44,7 @@ export interface PagesProps {
    */
   usePagesHook?: typeof usePages;
   /** Same DI seam as `usePagesHook`, for the Theme Pages tab's own data source. */
-  useThemePagesHook?: typeof useThemePages;
+  useThemePagesHook?: typeof useWiredThemePages;
 }
 
 /**
@@ -135,7 +135,7 @@ function ThemePagesTab({
   );
 }
 
-export function Pages({ usePagesHook = usePages, useThemePagesHook = useThemePages }: PagesProps) {
+export function Pages({ usePagesHook = usePages, useThemePagesHook = useWiredThemePages }: PagesProps) {
   const {
     pages,
     error,
