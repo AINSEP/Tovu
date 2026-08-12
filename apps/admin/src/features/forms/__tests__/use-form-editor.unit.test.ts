@@ -31,24 +31,28 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("useFormEditor — injected port + navigate", () => {
+describe("useFormEditor — injected port + navigate + t", () => {
   it("loads an existing form from the fake port's seed, with no fetch involved", async () => {
     const networkMock = vi.fn();
     vi.stubGlobal("fetch", networkMock);
     const port = createFakeFormsPort({ forms: [formFixture()] });
     const navigate = vi.fn();
+    const t = (key: string) => `[${key}]`;
 
-    const { result } = renderHook(() => useFormEditor({ formId: "f1" }, { port, navigate }));
+    const { result } = renderHook(() => useFormEditor({ formId: "f1" }, { port, navigate, t }));
 
     await waitFor(() => expect(result.current.form).not.toBeNull());
     expect(result.current.name).toBe("Contact");
     expect(networkMock).not.toHaveBeenCalled();
+    // Proves `t` is the injected fake, not a real FORMS_DICT lookup — see use-forms-list.unit
+    // .test.ts's identical assertion for why this is the point, not incidental.
+    expect(result.current.t("Save")).toBe("[Save]");
   });
 
   it("does not load for a new form (isNew), and creating one calls the injected navigate", async () => {
     const port = createFakeFormsPort();
     const navigate = vi.fn();
-    const { result } = renderHook(() => useFormEditor({ formId: "new" }, { port, navigate }));
+    const { result } = renderHook(() => useFormEditor({ formId: "new" }, { port, navigate, t: (key: string) => key }));
 
     expect(result.current.isNew).toBe(true);
     expect(result.current.form).toBeNull();
@@ -68,7 +72,7 @@ describe("useFormEditor — injected port + navigate", () => {
   it("handleStatusToggle flips status through the port for an existing form", async () => {
     const port = createFakeFormsPort({ forms: [formFixture({ status: "active" })] });
     const navigate = vi.fn();
-    const { result } = renderHook(() => useFormEditor({ formId: "f1" }, { port, navigate }));
+    const { result } = renderHook(() => useFormEditor({ formId: "f1" }, { port, navigate, t: (key: string) => key }));
     await waitFor(() => expect(result.current.form).not.toBeNull());
 
     await act(async () => {

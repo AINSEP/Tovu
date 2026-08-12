@@ -36,18 +36,23 @@ describe("useFormsList — injected port", () => {
     const networkMock = vi.fn();
     vi.stubGlobal("fetch", networkMock);
     const port = createFakeFormsPort({ forms: [formFixture()] });
+    const t = (key: string) => `[${key}]`;
 
-    const { result } = renderHook(() => useFormsList(port));
+    const { result } = renderHook(() => useFormsList({ port, t }));
 
     await waitFor(() => expect(result.current.forms).not.toBeNull());
     expect(result.current.forms).toEqual([formFixture()]);
     expect(result.current.error).toBeNull();
     expect(networkMock).not.toHaveBeenCalled();
+    // Proves `t` is the injected fake, not a real FORMS_DICT lookup — the whole point of the
+    // standing i18n rule (a component sources `t` from its hook, and a test can hand it a stable
+    // fake instead of asserting on translated copy).
+    expect(result.current.t("Forms")).toBe("[Forms]");
   });
 
   it("toggleStatus flips the form's status through the port", async () => {
     const port = createFakeFormsPort({ forms: [formFixture({ status: "active" })] });
-    const { result } = renderHook(() => useFormsList(port));
+    const { result } = renderHook(() => useFormsList({ port, t: (key: string) => key }));
     await waitFor(() => expect(result.current.forms).toHaveLength(1));
 
     await act(async () => {

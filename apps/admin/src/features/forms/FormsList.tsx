@@ -2,8 +2,6 @@ import { type AdminFormDefinition } from "../../lib/api";
 import { navigate } from "../../lib/router";
 import { DataTable, RowMenu, type RowMenuItem } from "@jini-ai/admin/react";
 import { useWiredFormsList } from "./hooks/use-forms-list.hooks";
-import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import { FORMS_DICT } from "./forms-i18n";
 
 /**
  * @file Forms list screen (SPEC-010 ui.spec.md §2.1/§3.1) — the `/admin/forms` route.
@@ -39,9 +37,7 @@ export interface FormsListProps {
 }
 
 export function FormsList({ useFormsListHook = useWiredFormsList }: FormsListProps = {}) {
-  const { forms, error, rowSavingId, toggleStatus } = useFormsListHook();
-  const locale = useAdminLocale();
-  const t = (key: string): string => FORMS_DICT[locale]?.[key] ?? key;
+  const { forms, error, rowSavingId, toggleStatus, t } = useFormsListHook();
 
   // `RowMenu` has no per-item `disabled` — the in-flight guard lives inside `onSelect` instead,
   // same shape as `Redirects.tsx`'s `if (saving) return;`.
