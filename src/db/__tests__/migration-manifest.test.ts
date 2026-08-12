@@ -199,6 +199,16 @@ test("boolean-flag classification matches exactly the 3 SQLiteBoolean columns in
   }
 });
 
+// LEDGER #14 (2026-08-12 audit, partially-resolved by the previous round): this "independent" oracle
+// filters with `name.endsWith("_json")` — the SAME suffix rule isJsonColumnName() itself encodes,
+// just re-typed by hand rather than called. Exactly the same coupling the timestamp oracle two tests
+// below used to have (see that test's own LOW #14 comment) — it proves classifyAllCoreColumns()
+// faithfully APPLIES the rule to every real column, not that the rule is EXHAUSTIVE over which
+// columns are semantically JSON. A JSON column named outside the *_json convention (e.g.
+// "settings_payload") would classify plain-text, skip JSON validation entirely, and this test would
+// stay green right alongside the bug. The genuinely independent test immediately below closes this
+// half of #14 the same way the timestamp half was already closed: by reading a DIFFERENT naming
+// convention (schema.ts's camelCase TS property names) against a DIFFERENT substring of the source.
 test("json-text classification matches an independent textual scan of schema.ts for *_json columns", () => {
   // Independent oracle: regexes directly over the source text, not through Drizzle introspection —
   // a different code path from classifyAllCoreColumns()'s getTableConfig() walk, so this cannot pass
@@ -212,6 +222,32 @@ test("json-text classification matches an independent textual scan of schema.ts 
   const all = classifyAllCoreColumns();
   const classified = new Set(all.filter((c) => c.columnClass.kind === "json-text").map((c) => c.sqlColumnName));
   assert.deepEqual(classified, declared);
+});
+
+test("json-text classification agrees with a GENUINELY independent oracle: schema.ts's camelCase TS property names ('*Json' convention) vs its snake_case SQL names ('_json' convention) never disagree on a single column", () => {
+  // Mirrors the timestamp version of this test below, closing LEDGER #14's JSON half the same way
+  // its timestamp half was already closed. Different signal from the coupled test above: this reads
+  // the TS property name (left of the colon, e.g. `bodyJson` in `bodyJson: text("body_json")`) via
+  // its own regex against a different substring of the source, then applies its OWN "is this JSON"
+  // predicate to that different string. A bug in the *_json convention itself that the SQL-name
+  // oracle above cannot see would only also fool THIS test if schema.ts's two independent naming
+  // conventions had themselves drifted apart on that exact column — a real, checkable fact about the
+  // schema's own naming discipline, not a restatement of the implementation. Manually verified before
+  // writing this test: every `*Json: text("*_json")` declaration in schema.ts pairs up cleanly today
+  // (no TS `*Json` name lacks a matching `_json` SQL name, and no `_json` SQL name lacks a matching
+  // TS `*Json` name) — the pairing genuinely holds for JSON the same way it holds for timestamps.
+  const pairs = [...SCHEMA_SOURCE.matchAll(/([A-Za-z_$][\w$]*):\s*text\("([a-z0-9_]+)"\)/g)].map((m) => ({ tsName: m[1], sqlName: m[2] }));
+  assert.ok(pairs.length > 400, `sanity: expected 400+ text(...) column declarations, got ${pairs.length}`);
+
+  const sqlSaysJson = (sqlName: string) => sqlName.endsWith("_json");
+  const tsSaysJson = (tsName: string) => tsName.endsWith("Json");
+
+  const disagreements = pairs.filter((p) => sqlSaysJson(p.sqlName) !== tsSaysJson(p.tsName));
+  assert.deepEqual(
+    disagreements,
+    [],
+    "schema.ts's SQL name and TS property name disagree about whether a column is JSON for at least one column"
+  );
 });
 
 // LOW #14 (2026-08-12 audit): this "independent" oracle filters with `name === "at" || name.endsWith("_at")`
