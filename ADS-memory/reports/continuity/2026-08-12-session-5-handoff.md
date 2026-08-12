@@ -4,7 +4,7 @@ Generated: 2026-08-12, end of session
 Source: Claude Code, Opus 5 (1M context), Coordinator + 11 Sonnet 5 subagents + 3 external peer models
 Target: Claude Code (Opus for routing, Sonnet subagents for implementation)
 
-**Status: 93 commits today. ALL PUSHED to `origin/general-work`. Audit round 2 complete except Codex.**
+**Status: 93 commits today. ALL PUSHED to `origin/general-work`. Audit round 2 COMPLETE — 2 blockers found, 1 fixed, 1 open.**
 
 ---
 
@@ -112,7 +112,7 @@ Fixed in `53b8d6f` + `6d3e9c4`.
 | Gemini 3.6 Flash (packet-only) | 9.2 | PASS | 10/10 verified |
 | Gemini 3.1 Pro (packet-only) | 7.5 | FAIL | 10/10 verified — 1 blocker, **not corroborated** |
 | **`Verifier2`** (Sonnet, repo access) | **6.0** | **FAIL** | **9/10 — one FALSIFIED** |
-| Codex `gpt-5.6-sol` xhigh (repo access) | **still running at cutoff** | | |
+| **Codex `gpt-5.6-sol`** xhigh (repo access) | **8.6** | **FAIL** | 10/10 verified — **1 blocker** |
 
 ### ⚠️ The round-2 blocker — a ledger claim of MINE was false. FOUND AND FIXED.
 
@@ -133,6 +133,44 @@ verification was dispatched (`MediaGuardTest`) — confirm it landed.
 
 This is the protocol earning its cost: the rule that *an unverifiable `fixed` claim is itself a
 blocker* is what converted my unchecked assertion into a finding instead of letting it through.
+
+### ⚠️ CODEX ROUND-2 BLOCKER — CONFIRMED, **NOT FIXED**. Top task for next session.
+
+**Concurrent two-operator lost update in Comments settings.** Score 8.6 is *above* the floor, so this
+gate fails purely on the blocker — the inverse of round 1, which failed purely on score.
+
+The chain, all three links verified independently against source:
+
+1. `Comments.tsx` uses **6 uncontrolled inputs** (`defaultValue`/`defaultChecked`).
+2. `use-comment-settings.hooks.ts:66-68` — `useEffect(() => { if (list.data) setSettings(list.data.data); }, [list.data])`
+   re-seeds the baseline from **every** successful load, **including background refetches**.
+3. `buildSettingsPatch({ form: FormData, current })` diffs the live DOM against that re-seeded baseline.
+
+**React behaviour that makes it bite:** changing `defaultValue` on a *mounted* uncontrolled input does
+NOT change its current value. Codex verified this with a JSDOM probe rather than asserting it.
+
+**The sequence — entirely normal:** two operators load `maxDepth=3`. A saves an unrelated field. B saves
+`maxDepth=5`. A's invalidation refetch advances A's hidden baseline to 5, **but A's input still holds 3**.
+A saves another unrelated field → `buildSettingsPatch` sees form=3 vs current=5, includes `maxDepth: 3`,
+and **silently reverts B's committed change.** No warning, no conflict.
+
+**Diff-caused:** before `761701e` the load was one-shot — no invalidation, no background refetch, so the
+baseline never moved. The fetch-query migration introduced the re-seeding.
+
+**Fix direction (Codex's, and it is right):** give the form one coherent owner — either controlled draft
+state with explicit refresh/conflict reconciliation, or seed the editable baseline **once** and never
+advance it behind uncontrolled DOM values. Add server-side version/compare-and-swap for robust
+concurrent writes, plus a two-operator refetch regression test.
+
+⚠️ **Audit this shape across the other 10 migrated features.** Any screen combining uncontrolled inputs
+with a fetch-query invalidation refetch and a diff-against-state patch builder has the same defect.
+Nobody has checked.
+
+**Codex's other findings** (all advisory): Database Timeline pagination — reapplying unchanged filters
+clears `morePages` but leaves the stale cursor, so "Load more" can vanish or skip pages; a failed status
+toggle stays visible after a successful save because the inactive mutation retains its error
+indefinitely; and `safeImageSrc` accepts and publishes URL credentials (no SSRF — the server never
+fetches — but the credentials end up in public HTML).
 
 ### Gemini Pro's blocker was NOT corroborated
 
