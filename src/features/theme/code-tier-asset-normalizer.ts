@@ -35,6 +35,14 @@
  * assets via a relative `url(...)` will need those made root-relative or otherwise unaffected by the move
  * before this module runs; there is no test proving this module handles that case because it does not
  * attempt to.
+ *
+ * A second, related gap found while writing this module rather than while verifying Angular's output
+ * (the default build config this module was validated against has `sourceMap: false`, so it did not
+ * surface there): a `.js.map`/`.css.map` sourcemap file does not end in `.js`/`.css`, so
+ * {@link planAssetRelocation} leaves it at the output root while its corresponding bundle moves into
+ * `js/`/`css/` — the bundle's own `//# sourceMappingURL=` comment then points at a relative filename that
+ * no longer resolves from the bundle's new location. Not exercised by any test here; a theme build with
+ * source maps enabled needs this module extended (relocate `*.map` alongside its bundle) before shipping.
  */
 
 import { lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
