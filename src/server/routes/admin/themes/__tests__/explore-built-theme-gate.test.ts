@@ -425,3 +425,59 @@ test("an authored theme's PUT/copy/rename are completely unaffected by any of th
   });
   assert.equal(copy.status, 200);
 });
+
+/**
+ * A compiled theme whose `build.sourceDir` IS the generated dir (`preview`). Contrived on purpose:
+ * it is the one manifest shape that makes `resolveThemeFileWriteScope` answer `"editable"` for a
+ * `preview/…` path, which is what routes PUT down its sourceDir branch.
+ */
+function makeSourceDirIsPreviewRoot(): string {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-explore-preview-src-"));
+  const dir = path.join(root, "static", "srcpreview");
+  fs.mkdirSync(path.join(dir, "pages"), { recursive: true });
+  fs.mkdirSync(path.join(dir, "preview"), { recursive: true });
+
+  const pageHtml = `<!doctype html><html><head>${SENTINEL}</head><body>SrcPreview</body></html>`;
+  fs.writeFileSync(path.join(dir, "pages", "index.html"), pageHtml, "utf8");
+  fs.writeFileSync(path.join(dir, "tokens.json"), "{}", "utf8");
+  fs.writeFileSync(path.join(dir, "preview", "app.css"), "body{color:blue}", "utf8");
+  fs.writeFileSync(
+    path.join(dir, "theme.json"),
+    JSON.stringify({
+      id: "srcpreview",
+      name: "SrcPreview",
+      version: "1.0.0",
+      tier: "static",
+      engine: 1,
+      author: "Aurora Themes Co.",
+      build: { source: "compiled", sourceDir: "preview", artifactHashes: { "pages/index.html": sha256(pageHtml) } },
+    }),
+    "utf8"
+  );
+  return root;
+}
+
+test("PUT into preview/ is refused even on the sourceDir branch — the generated-dir gate must not depend on which of PUT's two disjoint rules applies", async (t) => {
+  // REGRESSION (2026-08-13): the `preview/` refusal was folded into `isThemeFileWritable`, which PUT
+  // consults ONLY on its non-compiled branch. `isInsideCompiledSourceDir` deliberately does NOT fall
+  // back to that gate (see its own doc), so for a compiled theme the sole check was
+  // `isSourceDirWritableExtension` — an EXTENSION allowlist that knows nothing about `preview/`.
+  // rename/copy/reset each carry their own explicit `isGeneratedThemePath` refusal; PUT was the one
+  // write route where the check rode on a helper only half its paths use.
+  const themesDir = makeSourceDirIsPreviewRoot();
+  const app = buildTestApp(themesDir);
+  const baseUrl = await startTestServer(app, t);
+  const target = path.join(themesDir, "static", "srcpreview", "preview", "app.css");
+  const before = fs.readFileSync(target, "utf8");
+
+  const response = await fetch(`${baseUrl}${BASE("srcpreview")}/file`, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ path: "preview/app.css", content: "HACKED" }),
+  });
+
+  assert.equal(response.status, 403, "preview/ is build-preview.mjs's output; no editor route may write it");
+  const body = (await response.json()) as { code: string };
+  assert.equal(body.code, "READ_ONLY_FILE");
+  assert.equal(fs.readFileSync(target, "utf8"), before, "the refused write must not have reached disk");
+});

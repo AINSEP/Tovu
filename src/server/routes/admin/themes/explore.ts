@@ -540,9 +540,22 @@ export const registerAdminThemeFilePutRoute: ContentRouteRegistrar = (app, deps)
       // `isThemeFileWritable` gate here would silently readmit extensions (`.svg`, classified `asset`
       // — never read-only, with no notion of location) the sourceDir allowlist exists to exclude.
       // Everywhere else, `isThemeFileWritable` is unchanged.
-      const writable = isInsideCompiledSourceDir(theme, path, writeScope)
-        ? isSourceDirWritableExtension(path)
-        : isThemeFileWritable(path);
+      // 2026-08-13: `!isGeneratedThemePath` is applied to the sourceDir branch too, NOT folded into
+      // `isSourceDirWritableExtension` — the disjointness above is about WHICH EXTENSIONS are
+      // writable, and `preview/` is a location refusal that outranks both rules rather than a third
+      // opinion OR'd into either. It has to be repeated here because the original security-pass fix
+      // put this refusal inside `isThemeFileWritable`, reasoning it was better there than "a second,
+      // easy-to-forget check at each call site" — but this branch deliberately never calls that gate,
+      // so a compiled theme's PUT was left with an extension allowlist that knows nothing about
+      // `preview/`, and a `sourceDir: "preview"` manifest wrote straight into it (200, on disk).
+      // rename/copy/reset each already carry their own explicit refusal; this makes PUT match.
+      // The deeper fix is a conformance rule forbidding `build.sourceDir` from naming a
+      // GENERATED_THEME_DIRS entry at install time — not attempted here, see the regression test.
+      const writable =
+        !isGeneratedThemePath(path) &&
+        (isInsideCompiledSourceDir(theme, path, writeScope)
+          ? isSourceDirWritableExtension(path)
+          : isThemeFileWritable(path));
       if (!writable) {
         res.status(403).json({
           error: `'${path}' is read-only in Explore and cannot be saved`,
