@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { api, type AdminMedia } from "../../../lib/api";
 import { useFetchMutation } from "../../../lib/fetch-query";
@@ -30,6 +30,19 @@ import type { MediaPort } from "./media-port.hooks";
  * [KEYS.list]` — this hook has no read of its own to invalidate (see `rules.ts`'s `KEYS` doc), so
  * there is no sibling-vs-nested key decision to make here at all, unlike `forms`/`collections`'
  * list-plus-detail-editor pairs.
+ *
+ * `baselineRef` (2026-08-12 audit round, TM-TOVU-2026-08-12-A — silent-revert lost update, media's
+ * instance of the Comments defect): `diffMediaMetadata` must diff `draft` against the SAME snapshot
+ * `draft` was seeded from, not the live `item` prop. `props.item` is NOT frozen — `use-media.hooks
+ * .ts`'s `editingItem` is recomputed from `list.data` on every render, and `Media.tsx`'s
+ * `key={editingItem.id}` only remounts this panel when the id itself changes, not when the SAME
+ * item's other fields change via a background refetch (e.g. a different operator editing a
+ * DIFFERENT field of this same asset while this panel is open, surfaced by any invalidating write
+ * in this session — upload/trash/purge/another save all invalidate `KEYS.list`). Before this fix,
+ * `save()` diffed `draft` against that live, drifting `item`: an untouched field whose server value
+ * had since changed would show up as "changed" (draft's stale original vs the new live value) and
+ * get wrongly included in the patch, silently reverting the other operator's committed change. See
+ * `rules.ts`'s `diffMediaMetadata` doc for the other half of this fix.
  */
 
 export interface EditMediaPanelHookProps {
@@ -82,6 +95,10 @@ export function useEditMediaPanel(props: EditMediaPanelHookProps, { port, locale
     height: item.height,
     cssClass: item.cssClass,
   });
+  // Frozen at mount, exactly like `draft`'s own `useState` initializer above — `useRef(item)` only
+  // reads its argument on the FIRST render, so this stays the value `draft` was seeded from even as
+  // `props.item` keeps advancing underneath it. See this file's own header.
+  const baselineRef = useRef(item);
   const saveMutation = useFetchMutation({
     run: (input: { target: { id: string }; patch: MediaMetadataPatch }) => port.updateMedia(input.target, input.patch),
     invalidates: [KEYS.list],
@@ -147,7 +164,7 @@ export function useEditMediaPanel(props: EditMediaPanelHookProps, { port, locale
   }
 
   async function save() {
-    const patch = diffMediaMetadata({ item, draft });
+    const patch = diffMediaMetadata({ item: baselineRef.current, draft });
     if (Object.keys(patch).length === 0) {
       onCancel();
       return;

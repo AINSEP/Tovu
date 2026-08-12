@@ -44,7 +44,14 @@ export type MediaMetadataPatch = {
 
 /** Builds a partial patch containing only the fields whose draft value differs from `item`'s
  * current value — the backend's own contract is optional-field/partial-patch, so this never
- * sends an unchanged field (AC-01's "field left unchanged is not overwritten" proof). */
+ * sends an unchanged field (AC-01's "field left unchanged is not overwritten" proof).
+ *
+ * `item` MUST be the same snapshot `draft` was seeded from, frozen for the caller's whole edit
+ * session — never a live value that can advance independently of `draft` (2026-08-12 audit,
+ * TM-TOVU-2026-08-12-A). If `item` moves out from under a frozen `draft`, an untouched field whose
+ * server value changed in the interim reads as "changed" here and gets wrongly included in the
+ * patch, silently reverting whatever changed it. See `use-edit-media-panel.hooks.ts`'s
+ * `baselineRef` for the caller-side guarantee. */
 export function diffMediaMetadata(required: {
   item: AdminMedia;
   draft: Required<MediaMetadataPatch>;
