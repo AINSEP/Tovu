@@ -137,16 +137,27 @@ export async function resolveActorClassIdentity(params: { principalId: string; p
 /**
  * Minimal `GatedMutationHooks` for the `confirm()` step only — `gateway.ts`'s `confirm()` never
  * calls `hooks.computePlan()`/`hooks.executeMutation()` (only `domain`/`mutatePermission`/
- * `scopeId`), so this shared factory avoids each of the 3 ceremony route files having to rebuild
- * a full domain-specific hooks object (with its request-scoped details) just to confirm a token.
- * The two throwing stubs are a deliberate tripwire: if `gateway.ts`'s `confirm()` contract ever
- * changes to invoke either method, this throws loudly instead of silently running the wrong logic.
+ * `scopeId`/`scopeKind`), so this shared factory avoids each of the 3 ceremony route files having
+ * to rebuild a full domain-specific hooks object (with its request-scoped details) just to confirm
+ * a token. The two throwing stubs are a deliberate tripwire: if `gateway.ts`'s `confirm()` contract
+ * ever changes to invoke either method, this throws loudly instead of silently running the wrong
+ * logic.
+ *
+ * `scopeKind` is optional and passed straight through (mirrors `GatedMutationHooks.scopeKind`'s
+ * own default) — a caller building confirm-only hooks for an instance-scoped ceremony (`backup.
+ * restore`, `database.migrate`, see those domains' `gated-hooks.ts`) must supply
+ * `scopeKind: "instance"` here too, or `confirm()`'s own `mutatePermission` check would silently
+ * stay workspace-scoped even though `plan()`/`execute()` (built from the real domain hooks
+ * factory) are instance-scoped — an inconsistency within one ceremony, not just a gap between
+ * ceremonies. This same shape (no real closures, auth-only) is also reused directly by a route's
+ * own pre-lock authorization pre-check, see `gateway.ts`'s `authorizeForHooks` doc comment.
  */
 export function buildConfirmOnlyHooks(params: {
   domain: string;
   readPermission: string;
   mutatePermission: string;
   scopeId: string;
+  scopeKind?: "workspace" | "instance";
 }): GatedMutationHooks<unknown, unknown> {
   return {
     ...params,

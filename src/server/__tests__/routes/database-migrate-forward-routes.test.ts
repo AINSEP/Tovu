@@ -48,6 +48,58 @@ async function loginAsBarePrincipal(deps: RouteDeps, baseUrl: string): Promise<s
  * gated-mutation route triple (this dispatch). Mirrors
  * `taxonomy-merge-term-routes.test.ts`'s pattern.
  */
+
+let grantCounter = 0;
+
+/** Registers a principal holding ONLY the given permission strings, via a workspace-scoped custom
+ * policy grant — never the seeded owner, never a role. Mirrors `comments-settings-routes.test.ts`'s
+ * `loginWithPermissions` pattern. Used to prove `database.migrate`'s `scopeKind: "instance"` fix
+ * (2026-08-12): a principal legitimately holding `database.migrate` within ITS workspace must
+ * still be refused, because `executeMutation()`'s `dbOps.captureRestorePoint` call produces a
+ * whole-`content.db` backup artifact (every workspace's data, not just the caller's) and feeds a
+ * restore-points subsystem `backup.restore` (same `scopeKind` reasoning) treats as instance-wide. */
+async function loginWithPermissions(deps: RouteDeps, baseUrl: string, permissions: readonly string[]): Promise<string> {
+  await deps.identityReady;
+  const suffix = `${++grantCounter}`;
+  const principalId = `grant-principal-migrate-forward-${suffix}`;
+  const policyId = `grant-policy-migrate-forward-${suffix}`;
+  const username = `grant-migrate-forward-${suffix}`;
+
+  await deps.principalRepo.save({
+    id: principalId,
+    workspaceId: deps.workspaceId,
+    kind: "user",
+    displayName: `Grants: ${permissions.join(", ")}`,
+    status: "active",
+    createdAt: deps.clock.nowIso(),
+  });
+  await deps.userRepo.save({
+    principalId,
+    workspaceId: deps.workspaceId,
+    username,
+    passwordHash: await deps.passwordHasher.hash("grant-pw"),
+  });
+  await deps.policyRepo.save({ id: policyId, workspaceId: deps.workspaceId, name: `grant-policy-${suffix}`, isBuiltin: false, isFrozen: false });
+  for (const permission of permissions) {
+    await deps.policyPermissionRepo.save({
+      id: `grant-pp-${suffix}-${permission}`,
+      workspaceId: deps.workspaceId,
+      policyId,
+      permission,
+      resourceType: null,
+      constraintJson: null,
+    });
+  }
+  await deps.principalPolicyRepo.save({ id: `grant-link-${suffix}`, workspaceId: deps.workspaceId, principalId, policyId });
+
+  const login = await fetch(`${baseUrl}/api/admin/v1/auth/login`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ username, password: "grant-pw" }),
+  });
+  assert.equal(login.status, 200);
+  return login.headers.get("set-cookie")?.split(";")[0] ?? "";
+}
 function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   const deps: RouteDeps = createRouteDeps();
   const app = express();
@@ -216,4 +268,43 @@ test("AUD-001 regression (ordering proof, ext audit round 2 / Fable): authorize(
       await releaseOperationLock({ deps: { clock: deps.clock }, input: { siteId: deps.workspaceId, handle: held.value } });
     }
   }
+});
+
+test("instance-scope fix (internal audit, 2026-08-12): a principal holding database.read+database.migrate via an ordinary WORKSPACE-scoped grant -- not the seeded owner -- is refused at plan, confirm, AND execute", async (t) => {
+  // Before `buildMigrateForwardHooks` set `scopeKind: "instance"`, this exact grant shape would
+  // have succeeded end-to-end: `captureRestorePoint` backs up the WHOLE `content.db` file (every
+  // workspace's data), and the restore-points subsystem it feeds is not workspace-partitioned in
+  // practice, so a grant scoped to one workspace must never be sufficient to trigger it. Only the
+  // seeded owner (`buildOwnerOnlyInstanceAuthorize`) may pass now.
+  const { app, deps } = buildTestApp();
+  const { baseUrl } = await bootAuthenticated(app, t);
+  const workspaceScopedCookie = await loginWithPermissions(deps, baseUrl, ["database.read", "database.migrate"]);
+
+  const planRes = await fetch(`${baseUrl}/api/admin/v1/database/migrate-forward/plan`, {
+    method: "POST",
+    headers: { cookie: workspaceScopedCookie },
+  });
+  assert.equal(planRes.status, 403, "a workspace-scoped grant of database.read must not satisfy the instance-scoped read check");
+  assert.equal(((await planRes.json()) as { code: string }).code, "NOT_AUTHORIZED");
+
+  // confirm() mints a token bound to whatever planId/planHash it is given (it never re-derives the
+  // plan -- only execute() does, per CIC U-001-B3) -- so a workspace-scoped grant can be proven
+  // refused here without needing plan() to have actually succeeded first.
+  const confirmRes = await fetch(`${baseUrl}/api/admin/v1/database/migrate-forward/confirm`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: workspaceScopedCookie },
+    body: JSON.stringify({ planId: "arbitrary-plan-id", planHash: "arbitrary-plan-hash" }),
+  });
+  assert.equal(confirmRes.status, 403, "a workspace-scoped grant of database.migrate must not satisfy the instance-scoped mutate check at confirm()");
+  assert.equal(((await confirmRes.json()) as { code: string }).code, "NOT_AUTHORIZED");
+
+  const executeRes = await fetch(`${baseUrl}/api/admin/v1/database/migrate-forward/execute`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: workspaceScopedCookie },
+    body: JSON.stringify({ confirmationToken: "not-a-real-token-and-should-never-be-checked" }),
+  });
+  assert.equal(executeRes.status, 403, "the route's own pre-lock AUD-001 check must also route through the instance-scoped evaluator, not a hardcoded workspace-scoped one");
+  const executeBody = (await executeRes.json()) as { code: string; details: { permission: string } };
+  assert.equal(executeBody.code, "FORBIDDEN");
+  assert.equal(executeBody.details.permission, "database.migrate");
 });

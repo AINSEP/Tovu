@@ -75,6 +75,20 @@ export interface BuildMigrateForwardHooksInput {
  * out of this pass's scope — no composition root wires `SqliteMigrationRunsRepo`/an in-memory
  * counterpart into `RouteDeps` yet; disclosed, not silently skipped.
  *
+ * `scopeKind: "instance"` (internal audit, 2026-08-12): `executeMutation()`'s only real side
+ * effects are `dbOps.captureRestorePoint` (a whole-file online-backup COPY of `content.db` — the
+ * same "never a partial/logical export" mechanism `db/sqlite/db-ops.ts` documents for restore,
+ * so the resulting artifact carries every workspace's data, not just the caller's) plus one
+ * `restorePointsRepo`/`databaseLedgerRepo` write each. The restore-points subsystem this feeds is
+ * itself not workspace-partitioned in practice: the real SQLite repo is nominally `siteId`-scoped
+ * but bound to exactly one `siteId` for a whole process's lifetime (`server/deps.ts`), the
+ * in-memory test double has no partitioning field at all (`features/database/repo.memory.ts`),
+ * and `features/recovery/gated-hooks.ts`'s `buildRestoreHooks` reads `restorePointsRepo.list()`
+ * completely unfiltered — so a restore point this ceremony captures is exactly as instance-wide
+ * as the one `backup.restore` (`features/recovery/gated-hooks.ts`, same `scopeKind` reasoning)
+ * consumes. A workspace-scoped admin should not be able to trigger a whole-instance backup capture
+ * that a single workspace's RBAC grant was never meant to cover.
+ *
  * @complexity O(1) plus one `captureRestorePoint()` call and two persistence writes.
  * @overallScore 100
  */
@@ -84,6 +98,7 @@ export function buildMigrateForwardHooks(input: BuildMigrateForwardHooksInput): 
     readPermission: "database.read",
     mutatePermission: "database.migrate",
     scopeId: input.workspaceId,
+    scopeKind: "instance",
     computePlan: async () => {
       const capabilities = await input.dbOps.getCapabilities();
       const details = { costClass: capabilities.restorePoint.costClass, siteId: input.workspaceId };

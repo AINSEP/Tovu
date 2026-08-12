@@ -74,6 +74,16 @@ export class RestorePointNotFoundError extends Error {
  * disclosure-acknowledgment gate) is fully real and this file's own test coverage exercises it
  * end-to-end; only the final byte-for-byte file replacement is the disclosed gap.
  *
+ * `scopeKind: "instance"` (internal audit, 2026-08-12): `dbOps.restoreFromArtifact` (`db/sqlite/
+ * db-ops.ts`) physically swaps the entire `content.db` file, and a `content.db` can hold more
+ * than one workspace row (`site-dir/resolve-workspace.ts`, ADR-007, SPEC-044's admin CRUD). A
+ * principal authorized only within one workspace has no standing to replace data belonging to
+ * every OTHER workspace that file also holds — the ordinary workspace-scoped `authorize()` this
+ * hook used before would either deny every principal (no real workspace ever matches a
+ * whole-instance operation) or let one workspace's admin approve a cross-tenant file swap. See
+ * `core/gated-mutations/gateway.ts`'s `GatedMutationHooks.scopeKind` and `core/gated-mutations/
+ * composition.ts`'s `buildOwnerOnlyInstanceAuthorize` for the evaluator this now routes through.
+ *
  * @complexity O(n) in the number of restore points (`list()` scan — low-volume, ADR-041 §2).
  * @overallScore 100
  */
@@ -83,6 +93,7 @@ export function buildRestoreHooks(input: BuildRestoreHooksInput): GatedMutationH
     readPermission: "backup.read",
     mutatePermission: "backup.restore",
     scopeId: input.workspaceId,
+    scopeKind: "instance",
     computePlan: async () => {
       const details = { restorePointId: input.restorePointId };
       return { planHash: planHashOf(details), details };

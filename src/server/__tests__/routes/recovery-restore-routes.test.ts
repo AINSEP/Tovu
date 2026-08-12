@@ -48,6 +48,58 @@ async function loginAsBarePrincipal(deps: RouteDeps, baseUrl: string): Promise<s
  * gated-mutation route triple (this dispatch). Mirrors
  * `taxonomy-merge-term-routes.test.ts`'s pattern.
  */
+
+let grantCounter = 0;
+
+/** Registers a principal holding ONLY the given permission strings, via a workspace-scoped custom
+ * policy grant — never the seeded owner, never a role. Mirrors `comments-settings-routes.test.ts`'s
+ * `loginWithPermissions` pattern. Used to prove `backup.restore`'s `scopeKind: "instance"` fix
+ * (2026-08-12): a principal legitimately holding `backup.restore` within ITS workspace must still
+ * be refused, because this ceremony's blast radius (`dbOps.restoreFromArtifact` swaps the whole
+ * `content.db` file, which can hold more than one workspace — ADR-007/SPEC-044) is not something a
+ * single workspace's grant was ever meant to cover. */
+async function loginWithPermissions(deps: RouteDeps, baseUrl: string, permissions: readonly string[]): Promise<string> {
+  await deps.identityReady;
+  const suffix = `${++grantCounter}`;
+  const principalId = `grant-principal-restore-${suffix}`;
+  const policyId = `grant-policy-restore-${suffix}`;
+  const username = `grant-restore-${suffix}`;
+
+  await deps.principalRepo.save({
+    id: principalId,
+    workspaceId: deps.workspaceId,
+    kind: "user",
+    displayName: `Grants: ${permissions.join(", ")}`,
+    status: "active",
+    createdAt: deps.clock.nowIso(),
+  });
+  await deps.userRepo.save({
+    principalId,
+    workspaceId: deps.workspaceId,
+    username,
+    passwordHash: await deps.passwordHasher.hash("grant-pw"),
+  });
+  await deps.policyRepo.save({ id: policyId, workspaceId: deps.workspaceId, name: `grant-policy-${suffix}`, isBuiltin: false, isFrozen: false });
+  for (const permission of permissions) {
+    await deps.policyPermissionRepo.save({
+      id: `grant-pp-${suffix}-${permission}`,
+      workspaceId: deps.workspaceId,
+      policyId,
+      permission,
+      resourceType: null,
+      constraintJson: null,
+    });
+  }
+  await deps.principalPolicyRepo.save({ id: `grant-link-${suffix}`, workspaceId: deps.workspaceId, principalId, policyId });
+
+  const login = await fetch(`${baseUrl}/api/admin/v1/auth/login`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ username, password: "grant-pw" }),
+  });
+  assert.equal(login.status, 200);
+  return login.headers.get("set-cookie")?.split(";")[0] ?? "";
+}
 function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   const deps: RouteDeps = createRouteDeps();
   const app = express();
@@ -267,4 +319,45 @@ test("AUD-001 regression (ordering proof, ext audit round 2 / Fable): authorize(
       await releaseOperationLock({ deps: { clock: deps.clock }, input: { siteId: deps.workspaceId, handle: held.value } });
     }
   }
+});
+
+test("instance-scope fix (internal audit, 2026-08-12): a principal holding backup.read+backup.restore via an ordinary WORKSPACE-scoped grant -- not the seeded owner -- is refused at plan, confirm, AND execute", async (t) => {
+  // Before `buildRestoreHooks` set `scopeKind: "instance"`, this exact grant shape would have
+  // succeeded end-to-end: `content.db` can hold more than one workspace row (ADR-007/SPEC-044),
+  // yet `dbOps.restoreFromArtifact` swaps the whole file, so a grant scoped to one workspace must
+  // never be sufficient to approve replacing data belonging to every OTHER workspace that file
+  // also holds. Only the seeded owner (`buildOwnerOnlyInstanceAuthorize`) may pass now.
+  const { app, deps } = buildTestApp();
+  const { baseUrl } = await bootAuthenticated(app, t);
+  const restorePointId = await seedRestorePoint(deps);
+  const workspaceScopedCookie = await loginWithPermissions(deps, baseUrl, ["backup.read", "backup.restore"]);
+
+  const planRes = await fetch(`${baseUrl}/api/admin/v1/recovery/restore/plan`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: workspaceScopedCookie },
+    body: JSON.stringify({ restorePointId }),
+  });
+  assert.equal(planRes.status, 403, "a workspace-scoped grant of backup.read must not satisfy the instance-scoped read check");
+  assert.equal(((await planRes.json()) as { code: string }).code, "NOT_AUTHORIZED");
+
+  // confirm() mints a token bound to whatever planId/planHash it is given (it never re-derives the
+  // plan -- only execute() does, per CIC U-001-B3) -- so a workspace-scoped grant can be proven
+  // refused here without needing plan() to have actually succeeded first.
+  const confirmRes = await fetch(`${baseUrl}/api/admin/v1/recovery/restore/confirm`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: workspaceScopedCookie },
+    body: JSON.stringify({ planId: "arbitrary-plan-id", planHash: "arbitrary-plan-hash", disclosureAcknowledged: true }),
+  });
+  assert.equal(confirmRes.status, 403, "a workspace-scoped grant of backup.restore must not satisfy the instance-scoped mutate check at confirm()");
+  assert.equal(((await confirmRes.json()) as { code: string }).code, "NOT_AUTHORIZED");
+
+  const executeRes = await fetch(`${baseUrl}/api/admin/v1/recovery/restore/execute`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie: workspaceScopedCookie },
+    body: JSON.stringify({ confirmationToken: "not-a-real-token-and-should-never-be-checked", restorePointId }),
+  });
+  assert.equal(executeRes.status, 403, "the route's own pre-lock AUD-001 check must also route through the instance-scoped evaluator, not a hardcoded workspace-scoped one");
+  const executeBody = (await executeRes.json()) as { code: string; details: { permission: string } };
+  assert.equal(executeBody.code, "NOT_AUTHORIZED");
+  assert.equal(executeBody.details.permission, "backup.restore");
 });

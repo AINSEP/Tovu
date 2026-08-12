@@ -125,6 +125,17 @@ export class UnauthenticatedError extends Error {}
  * exactly once; this changes only WHICH evaluator backs a check, never the fixed check-sequence
  * documented in this file's header.
  *
+ * Exported (not just used internally) so a route's own pre-lock authorization pre-check — the
+ * AUD-001 pattern in `server/routes/admin/{recovery/restore,database/migrate-forward}.ts`, which
+ * authorizes before `core/operation-lock.ts`'s `acquireOperationLock` runs, strictly outside this
+ * gateway's own `plan()`/`confirm()`/`execute()` — can route through the exact same scope decision
+ * as the gateway itself. A route that instead hardcoded `deps.authorize(hooks.scopeId)` for that
+ * pre-check would silently stay workspace-scoped for an instance-scoped ceremony: a caller denied
+ * deeper inside `execute()`'s own `authorizeForHooks` call would still pass the shallow pre-check
+ * first, briefly acquire the operation lock, and only then be rejected — reopening the exact race
+ * AUD-001 closed, just one layer up. One function backing both call sites is what keeps that from
+ * drifting out of sync.
+ *
  * Fail-closed by construction: an `"instance"`-scoped hook with no `deps.authorizeInstance` bound
  * denies (`INSTANCE_AUTHORIZATION_NOT_CONFIGURED`) rather than falling back to
  * `deps.authorize(hooks.scopeId)` — that fallback is exactly the authorization-bypass gap this
@@ -133,7 +144,7 @@ export class UnauthenticatedError extends Error {}
  * @complexity O(1) plus one downstream `authorize`/`authorizeInstance` call.
  * @overallScore 100
  */
-async function authorizeForHooks(
+export async function authorizeForHooks(
   deps: GatewayDeps,
   hooks: GatedMutationHooks<unknown, unknown>,
   params: { principalId: string; permission: string }
