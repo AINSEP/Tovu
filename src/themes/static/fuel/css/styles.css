@@ -372,6 +372,47 @@ section { padding: 96px 0; }
 .post-block h3 { font-size: 18px; font-weight: 600; margin-bottom: 10px; }
 .post-block p { font-size: 15px; line-height: 1.65; color: var(--muted); }
 
+/* ---------- Post detail body (rich-text capability CSS, 2026-08-12) ----------
+   Backfills the same `.post-detail-body` capability selectors `basic/css/styles.css` carries for the
+   rich-text node/mark types added to the editor across the 2026-08-11 pass (highlight, table,
+   task list, YouTube embed) plus today's post-mention link — see
+   `ADS-memory/reports/findings/2026-08-12-theme-capability-css-gap.md` for the full 7-theme inventory
+   this is the worked example for. `renderDocNode` (`src/server/http/site/render.ts`) emits these exact
+   class names/attribute selectors regardless of theme, so a post using any of them renders
+   structurally correct but completely unstyled without this block.
+
+   IMPORTANT — unlike the other five gapped themes, this class is not yet reachable in `fuel` at all:
+   `theme.json` declares no `templates` array and there is no `pages/blog-post.html` (or equivalent)
+   file, so `isEligibleForTemplateBranch` (`src/features/theme/static-render.ts`) never routes a real
+   Post through the template branch that emits `.post-detail-body` (`renderWidgetPostContent`,
+   `render.ts`). Every post currently falls through to the generic, theme-agnostic `.entry`/`.prose`
+   fallback (`entryContent`, `render.ts`) instead — none of fuel's own chrome, and none of these rules,
+   apply there. This block is deliberately added anyway per this pass's brief (CSS-only, using fuel's
+   own tokens) so the selectors are ready the moment fuel gets a template; giving fuel that template is
+   a separate, structural change (a new page file + a `theme.json` edit) out of this pass's scope — see
+   the findings doc's own note on this before assuming a table/mention/task-list under `fuel` is fixed.
+
+   Token mapping against `basic`'s source rules (`tokens.json` has every name `basic` used, under the
+   same name — no fuel-specific renaming needed): `var(--border)` and `var(--surface)` for the table
+   rules, `var(--accent)` for the mention link (fuel's own near-black `#111111` accent, not basic's).
+   The `mark` highlight color is the one deliberate exception — `basic`'s own comment states it is a
+   fixed, theme-independent highlighter-yellow chosen so an author-supplied `background-color` inline
+   style never lands on illegible black-on-black, not a themed color — so it is copied verbatim rather
+   than mapped to a token, same as `basic` itself does not map it. */
+.post-detail-body mark { background: #fef08a; color: #422006; border-radius: 3px; padding: 0 3px; }
+.post-detail-body table { width: 100%; border-collapse: collapse; margin: 24px 0; display: block; overflow-x: auto; }
+.post-detail-body th, .post-detail-body td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; vertical-align: top; }
+.post-detail-body th { background: var(--surface); font-weight: 600; }
+.post-detail-body ul[data-type="taskList"] { list-style: none; padding-left: 0; margin: 0 0 18px; }
+.post-detail-body li[data-type="taskItem"] { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 6px; }
+.post-detail-body li[data-type="taskItem"] > label { display: flex; align-items: center; margin-top: 0.35em; }
+.post-detail-body li[data-type="taskItem"] > div { flex: 1 1 auto; }
+.post-detail-body li[data-type="taskItem"] > div p { margin-bottom: 0; }
+.post-detail-body .youtube-embed { position: relative; width: 100%; aspect-ratio: 16 / 9; margin: 24px 0; border-radius: 10px; overflow: hidden; }
+.post-detail-body .youtube-embed iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.post-detail-body .post-mention { color: var(--accent); font-weight: 600; }
+.post-detail-body .post-mention:hover { text-decoration: underline; }
+
 /* ---------- Contact form ---------- */
 .contact-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; align-items: start; }
 .field { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
