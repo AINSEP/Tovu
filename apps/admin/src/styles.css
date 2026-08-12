@@ -1694,11 +1694,13 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 /* Owner-reported bug (2026-08-12): an inserted image rendered at its raw intrinsic size — a
    2000px+ photo blew out the whole editor pane. Confirmed live (headless Chromium against the
    real dev server): `.editor-body .tiptap img` had `max-width: none` / `display: inline` before
-   this rule, on BOTH insertion paths this editor supports — the toolbar's "Img by URL" (plain
-   `setImage`) and drag/paste upload (`MediaImage`'s NodeView, `lib/media-image-extension.tsx`).
-   Both render a real `<img class="media-image-node__preview">` inside this same `.tiptap`
-   container, so one rule here covers both; this was a missing-CSS gap, not a node-shape
-   difference between the two paths. Values mirror the public theme's own
+   this rule, on BOTH insertion paths this editor supported at the time — the toolbar's since-
+   removed "Img by URL" (plain `setImage`; see `PostEditor.tsx`'s own comment on its 2026-08-12
+   removal) and drag/paste upload (`MediaImage`'s NodeView, `lib/media-image-extension.tsx`, the
+   surviving path). Both rendered a real `<img class="media-image-node__preview">` inside this
+   same `.tiptap` container, so one rule here covered both; this was a missing-CSS gap, not a
+   node-shape difference between the two paths — still true for whichever paths reach this
+   container today. Values mirror the public theme's own
    `.post-detail-body img` (`src/themes/static/basic/css/styles.css`) so the editor previews the
    published post's actual sizing/rounding/spacing instead of a same-but-different in-editor
    look. `height: auto` is required alongside `max-width` — without it, a node carrying an

@@ -340,3 +340,59 @@ export function titleNodeText(bodyJson: unknown): string {
   const inner = Array.isArray(first.content) ? first.content : [];
   return inner.map((n) => (isLooseNode(n) && typeof n.text === "string" ? n.text : "")).join("");
 }
+
+/**
+ * Owner-reported bug (2026-08-12): "the YouTube [embed] doesn't work" — reproduced live (headless
+ * Chromium, before this fix) against `PostPreview`'s raw draft fallback (`PostEditor.tsx`, the
+ * branch a NEW/unpublished post's Preview tab falls back to, fed `editor.getHTML()` through
+ * `@jini-ai/ui/renderers`' `SrcDocSandbox`): a solid black box, no player, no thumbnail. Root
+ * cause is that sandbox's OWN, deliberate security posture — `sandbox="allow-scripts
+ * allow-popups allow-popups-to-escape-sandbox"` with no `allow-same-origin`, because it treats
+ * `html` as hostile by construction (see its own file header) — which gives the sandboxed
+ * document (and everything nested inside it) an opaque origin. YouTube's own embed player script
+ * needs same-origin storage access and fails to initialize there; confirmed live via two distinct
+ * console errors inside that frame (`Failed to read the 'caches' property from 'Window'... the
+ * context is sandboxed and lacks the 'allow-same-origin' flag`, `writeEmbed is not defined`).
+ *
+ * `SrcDocSandbox` is a shared `@jini-ai/ui` component with no per-instance sandbox override, used
+ * elsewhere for genuinely untrusted (e.g. AI-generated) HTML — loosening its sandbox to fix one
+ * embed type in one caller is out of this fix's scope and would weaken a security boundary that
+ * has nothing to do with this bug. The published public page and the live/template-preview
+ * branches (`PostPreview`'s other three branches) are NOT sandboxed at all and were confirmed
+ * live to render the real, playable embed correctly — this is scoped to the raw fallback only,
+ * consistent with that branch's own already-disclosed "rough render... not parity" status
+ * (`PostPreview`'s file header).
+ *
+ * Rather than let the sandbox silently show a broken black box, this swaps each YouTube embed
+ * `editor.getHTML()` produces (`<div data-youtube-video><iframe .../></div>` — matches
+ * `@tiptap/extension-youtube`'s own `renderHTML`/`parseHTML` tag shape) for a labelled
+ * placeholder, the same "degrade to a clear label rather than a broken render" idiom `render.ts`'s
+ * `mediaPlaceholder` already uses for the public side. `DOMParser` (not a regex) because Tiptap's
+ * own attribute order/whitespace on that markup is an implementation detail this function
+ * shouldn't depend on. Styled with an inline `style` attribute, not a class in `styles.css` — this
+ * HTML is handed to `SrcDocSandbox`, which wraps it in its OWN isolated `srcDoc` document
+ * (`buildSrcDoc`, `@jini-ai/ui`) with no link back to the admin app's stylesheet at all; a class
+ * here would be exactly the "toggles in the DOM, does nothing" gap this project's own `Focus`-
+ * extension removal already flagged once.
+ *
+ * @param html Raw HTML from `editor.getHTML()` — never persisted, only ever fed to `SrcDocSandbox`.
+ * @returns The same HTML with every YouTube embed replaced by a placeholder `<div>`; unrelated
+ *   markup (including the placeholder's own escaping) is left exactly as `DOMParser`/
+ *   `Element.outerHTML` round-trip it, not hand-serialized.
+ * @complexity O(n) in `html`'s length (one parse, one query, one attribute set per match).
+ */
+export function degradeUnplayableEmbedsForRawPreview(html: string): string {
+  const doc = new DOMParser().parseFromString(html, "text/html");
+  for (const wrapper of doc.querySelectorAll("div[data-youtube-video]")) {
+    wrapper.innerHTML = "";
+    wrapper.removeAttribute("data-youtube-video");
+    wrapper.setAttribute("class", "embed-preview-unavailable");
+    wrapper.setAttribute(
+      "style",
+      "aspect-ratio:16/9;display:flex;align-items:center;justify-content:center;text-align:center;" +
+        "padding:1rem;background:#f3f3f3;color:#666;border-radius:10px;font-size:0.9rem;margin:24px 0;"
+    );
+    wrapper.textContent = "YouTube video — publish this post (or check the live template preview) to watch it play here.";
+  }
+  return doc.body.innerHTML;
+}

@@ -48,6 +48,11 @@ const BASIC_THEME_CSS_PATH = path.resolve(__dirname, "../../src/themes/static/ba
  *  (7852). The public site lives on the API port, same precedent as
  *  `post-editor-preview-branches.spec.ts`'s own `API_BASE_URL` constant. */
 const API_BASE_URL = "http://localhost:7851";
+/** Same admin-API convention `post-editor-toolbar.spec.ts` already uses (`fetchBodyJson`'s own
+ *  constants) — needed below to read-modify-write `bodyJson` directly, now that there is no toolbar
+ *  control left that writes a legacy `src`-only image node (see test 1's own comment). */
+const WORKSPACE_ID = "workspace-local";
+const API_BASE = "/api/admin/v1";
 
 const BIG_SVG_DATA_URI =
   "data:image/svg+xml," +
@@ -89,15 +94,50 @@ test.describe("post editor — inserted image sizing", () => {
     await loginAsAdmin(page);
   });
 
-  test("an image inserted via 'Img by URL' is constrained to the editor pane, not its raw intrinsic size", async ({
+  test("a legacy src-only image node (pre-existing content, no assetId/transformName) is constrained to the editor pane, not its raw intrinsic size", async ({
     page,
   }) => {
-    await openFreshPost(page);
+    // Was: click the toolbar's "Insert image by URL" button (`window.prompt`s for the URL/alt).
+    // That control was REMOVED 2026-08-12 in the same dispatch as this rewrite (owner-reported
+    // bug: it wrote exactly this `src`-only node shape, which never renders on the public site —
+    // see `PostEditor.tsx`'s own comment on the removal). The node shape itself is still real,
+    // reachable content: any post SAVED before the removal (or written some other way) can still
+    // carry it, and `MediaImageNodeView`'s legacy branch (`media-image-extension.tsx`) still renders
+    // it for exactly that backward-compat reason. There is no toolbar path left that produces this
+    // shape, so this test now writes it directly through the same authenticated admin API the editor
+    // itself uses (`post-editor-toolbar.spec.ts`'s own `fetchBodyJson` pattern), then reloads —
+    // simulating "open a post that already has one", the one way this shape is reached now.
+    const { id } = await openFreshPost(page);
     const editorBody = page.locator(".editor-body");
     const paneWidth = await editorBody.evaluate((el) => el.getBoundingClientRect().width);
 
-    page.once("dialog", (dialog) => dialog.accept(BIG_SVG_DATA_URI));
-    await page.click('button[title="Insert image by URL"]');
+    // `PUT /posts/:id` (`src/server/routes/admin/posts/update.ts`) has no partial-update path — it
+    // reads `title`/`slug`/`status` off the request body with `?? ""`/`undefined` fallbacks and
+    // `updatePost` then rejects an empty title/invalid status outright, so the full current record
+    // (not just the one field this test cares about) has to travel in every PUT.
+    const post = await page.evaluate(
+      async ({ url }) => {
+        const res = await fetch(url, { credentials: "same-origin" });
+        const data = await res.json();
+        return data.post;
+      },
+      { url: `${API_BASE}/workspaces/${WORKSPACE_ID}/posts/${id}` }
+    );
+    post.bodyJson.content.push({ type: "image", attrs: { src: BIG_SVG_DATA_URI, alt: "legacy image" } });
+    const putResult = await page.evaluate(
+      async ({ url, post }) => {
+        const res = await fetch(url, {
+          method: "PUT",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ title: post.title, slug: post.slug, status: post.status, bodyJson: post.bodyJson }),
+        });
+        return { status: res.status, text: await res.text() };
+      },
+      { url: `${API_BASE}/workspaces/${WORKSPACE_ID}/posts/${id}`, post }
+    );
+    expect(putResult.status, `seeding the legacy image node must succeed — got ${putResult.status}: ${putResult.text}`).toBe(200);
+    await page.reload();
 
     const img = page.locator('[data-agent-element="post-body"] img').last();
     await img.waitFor({ state: "attached", timeout: 5000 });

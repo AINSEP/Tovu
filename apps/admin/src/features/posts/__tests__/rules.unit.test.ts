@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  degradeUnplayableEmbedsForRawPreview,
   droppedUri,
   handleImageDrop,
   postRowMenuItems,
@@ -539,5 +540,57 @@ describe("titleNodeText", () => {
   it("round-trips through withTitleNode: extracting the text back out of a freshly synthesized doc returns the original title", () => {
     const synthesized = withTitleNode({ type: "doc", content: [] }, "Round Trip");
     expect(titleNodeText(synthesized)).toBe("Round Trip");
+  });
+});
+
+describe("degradeUnplayableEmbedsForRawPreview", () => {
+  // Owner-reported bug (2026-08-12): a YouTube embed rendered a solid black box in the Preview
+  // tab's raw draft fallback (`PostPreview`'s branch 4, `PostEditor.tsx`) — `SrcDocSandbox`'s
+  // deliberate `sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"` (no
+  // `allow-same-origin`) breaks the embed player's own same-origin storage access. This function
+  // swaps the embed markup for a labelled placeholder before that HTML ever reaches the sandbox.
+
+  it("replaces a YouTube embed div (the exact tag/attribute shape @tiptap/extension-youtube's own renderHTML produces) with a labelled placeholder", () => {
+    const html = '<p>hello</p><div data-youtube-video=""><iframe width="640" height="480" src="https://www.youtube.com/embed/dQw4w9WgXcQ?rel=1"></iframe></div>';
+
+    const result = degradeUnplayableEmbedsForRawPreview(html);
+
+    expect(result).not.toContain("<iframe");
+    expect(result).not.toContain("data-youtube-video");
+    expect(result).toContain('class="embed-preview-unavailable"');
+    expect(result).toContain("YouTube video");
+    expect(result).toContain("<p>hello</p>");
+  });
+
+  it("replaces every YouTube embed when a doc has more than one, leaving unrelated content between them untouched", () => {
+    const html =
+      '<div data-youtube-video=""><iframe src="https://www.youtube.com/embed/aaaaaaaaaaa"></iframe></div>' +
+      "<p>middle</p>" +
+      '<div data-youtube-video=""><iframe src="https://www.youtube.com/embed/bbbbbbbbbbb"></iframe></div>';
+
+    const result = degradeUnplayableEmbedsForRawPreview(html);
+
+    expect(result).not.toContain("<iframe");
+    expect(result.match(/embed-preview-unavailable/g)?.length).toBe(2);
+    expect(result).toContain("<p>middle</p>");
+  });
+
+  it("is a no-op (byte-identical body content) when the doc has no YouTube embed at all", () => {
+    const html = "<h1>Untitled</h1><p>just text, no embeds</p>";
+
+    expect(degradeUnplayableEmbedsForRawPreview(html)).toBe(html);
+  });
+
+  it("does not touch an unrelated iframe that is not a YouTube embed wrapper (no data-youtube-video attribute)", () => {
+    const html = '<div class="widget-embed"><iframe src="https://example.com/widget"></iframe></div>';
+
+    const result = degradeUnplayableEmbedsForRawPreview(html);
+
+    expect(result).toContain("<iframe");
+    expect(result).not.toContain("embed-preview-unavailable");
+  });
+
+  it("returns '' for an empty string rather than throwing", () => {
+    expect(degradeUnplayableEmbedsForRawPreview("")).toBe("");
   });
 });
