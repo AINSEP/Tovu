@@ -6,11 +6,11 @@ import {
   EXECUTION_NAMESPACE,
   clearLegacyLocalCredential,
   hasUsableAdminKey,
-  loadAdminExecutionCredential,
   readLegacyLocalCredential,
-  saveAdminExecutionCredential,
 } from "../lib/execution-settings";
 import { publishSettingsRefresh, subscribeToSettingsRefresh } from "../lib/settings-refresh-bus";
+import { defaultAdminExecutionCredentialPort } from "./admin-execution-credential-dependencies.hooks";
+import type { AdminExecutionCredentialPort } from "./admin-execution-credential-port.hooks";
 
 /**
  * @file State for the admin's own BYOK credential — the "Save key" control and the one-time
@@ -42,6 +42,13 @@ import { publishSettingsRefresh, subscribeToSettingsRefresh } from "../lib/setti
  * `EXECUTION_NAMESPACE`, and every mount (including the publisher's own, harmlessly — see
  * `runSave`'s doc for why that redundant self-refresh is accepted rather than tracked around) re-reads
  * on receiving it.
+ *
+ * `port` (the two functions that reach `api.getAdminExecutionCredential`/`api.setAdminExecutionCredential`
+ * under the hood) is injected — see `admin-execution-credential-port.hooks.ts` for exactly what is and
+ * is not in it, and why. `useWiredAdminExecutionCredential` below is the zero-argument pair
+ * `SettingsUi.tsx`/`AiAssistant.tsx` actually mount; `AssistantDock.hooks.tsx`'s own separate
+ * `loadAdminExecutionCredential()` call (this file's "Cross-mount staleness" doc above) is a
+ * different hook entirely, out of scope here.
  */
 
 export type AdminByokSaveState =
@@ -130,10 +137,10 @@ export interface AdminExecutionCredentialController {
  * @complexity Time: O(1) per call — one GET on mount, one PUT per explicit save/migrate. Space:
  * O(1) — no caller-controlled collections.
  */
-export function useAdminExecutionCredential({
-  byok,
-  onByokChange,
-}: UseAdminExecutionCredentialInput): AdminExecutionCredentialController {
+export function useAdminExecutionCredential(
+  { byok, onByokChange }: UseAdminExecutionCredentialInput,
+  port: AdminExecutionCredentialPort,
+): AdminExecutionCredentialController {
   const [stored, setStored] = useState<AdminExecutionCredential | null>(null);
   const [saveState, setSaveState] = useState<AdminByokSaveState>({ status: "idle" });
   const [legacyKey, setLegacyKey] = useState<string | null>(null);
@@ -148,7 +155,8 @@ export function useAdminExecutionCredential({
   useEffect(() => {
     let cancelled = false;
     const refresh = () => {
-      loadAdminExecutionCredential()
+      port
+        .loadAdminExecutionCredential()
         .then((view) => {
           if (!cancelled) setStored(view);
         })
@@ -166,7 +174,12 @@ export function useAdminExecutionCredential({
       cancelled = true;
       unsubscribe();
     };
-  }, []);
+    // `port` is referentially stable in production (`useWiredAdminExecutionCredential` always passes
+    // the same module-level singleton), so adding it changes nothing about when this effect re-runs —
+    // it is here only because it is now a function-scoped value ESLint's exhaustive-deps rule can see,
+    // where the old `loadAdminExecutionCredential` import was invisible to that rule.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [port]);
 
   // Offer the migration prompt only once the server's own state is known AND nothing is already
   // stored there — an admin who already has a server-side credential (migrated earlier, or just
@@ -190,7 +203,7 @@ export function useAdminExecutionCredential({
         ...(byok.maxTokens !== undefined ? { maxTokens: byok.maxTokens } : {}),
         ...(apiKey ? { apiKey } : {}),
       };
-      const view = await saveAdminExecutionCredential(patch);
+      const view = await port.saveAdminExecutionCredential(patch);
       setStored(view);
       setSaveState({ status: "saved" });
       // Tells every other mounted copy of this credential (the other settings screen, the dock) to
@@ -215,7 +228,7 @@ export function useAdminExecutionCredential({
         model: byok.model,
         ...(byok.maxTokens !== undefined ? { maxTokens: byok.maxTokens } : {}),
       };
-      const view = await saveAdminExecutionCredential(patch);
+      const view = await port.saveAdminExecutionCredential(patch);
       // Clear the local copy ONLY after the PUT above has actually resolved successfully — the
       // design's explicit ordering requirement (§6: "only after that PUT succeeds does the code
       // clear the localStorage entry"). A throw above skips every line from here down, so a failed
@@ -247,4 +260,18 @@ export function useAdminExecutionCredential({
     migrateLegacyKey,
     dismissLegacyPrompt,
   };
+}
+
+/**
+ * Binds the real `loadAdminExecutionCredential`/`saveAdminExecutionCredential` — see
+ * `admin-execution-credential-dependencies.hooks.ts`.
+ *
+ * The zero-argument-port half of the `useX(dependencies)` / `useWiredX()` pair, so
+ * `SettingsUi.tsx`/`AiAssistant.tsx` compose this and a test composes {@link useAdminExecutionCredential}
+ * with `createFakeAdminExecutionCredentialPort`.
+ */
+export function useWiredAdminExecutionCredential(
+  input: UseAdminExecutionCredentialInput,
+): AdminExecutionCredentialController {
+  return useAdminExecutionCredential(input, defaultAdminExecutionCredentialPort);
 }
