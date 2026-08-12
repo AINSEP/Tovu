@@ -95,6 +95,61 @@
  * runs for it exactly as it does for a brand-new table — only the fully-reconciled no-op case
  * (every declared table exists with every declared column already present and matching) skips it.
  *
+ * INDEX-LEVEL RECONCILIATION (BUG FIX, 2026-08-12): the column-level reconciliation above still
+ * built `toAlter` from `columnsToAdd` alone — a declared `IndexDecl` on an already-existing table
+ * was reconciled only on the CREATE path (`table.indexes` was only ever walked inside the
+ * `plan.toCreate` loop), so a v2 manifest that added an index to an existing table got
+ * `{ ok: true, altered: [...] }` back (truthfully reporting the column work, if any) with the
+ * index itself silently never created — the identical bug class one level up. `getExistingIndexes`
+ * reads `fqTableName`'s live indexes via `PRAGMA index_list` + `PRAGMA index_info`, filtered to
+ * `origin: 'c'` rows only: SQLite also auto-creates an implicit index per `UNIQUE` column
+ * constraint (`origin: 'u'`) and one for most `PRIMARY KEY` shapes (`origin: 'pk'`, e.g.
+ * `sqlite_autoindex_*`), neither of which was ever declared through `IndexDecl` or created by this
+ * module's own `indexSql` — diffing against those would be comparing against something the
+ * declaration grammar can't even express. `planIndexReconciliation` then diffs declared indexes
+ * (matched by the SAME generated name `indexSql` already uses to create one) against that live
+ * set: a declared index missing live is queued in `indexesToAdd`, safely creatable via a plain
+ * `CREATE INDEX` — unlike the column NOT NULL/PRIMARY KEY cases above, an index carries no data
+ * for `ALTER` semantics to conflict with, so there is no "SQLite literally cannot express this"
+ * case here to fail closed on. A declared index whose live shape (column list, in order, or
+ * uniqueness) no longer matches is queued in `indexesToRecreate` (`DROP INDEX` then `CREATE INDEX`,
+ * both inside this call's single transaction, so a mid-way failure rolls back exactly like any
+ * other DDL here) — a deliberate choice, not an oversight: an index is pure derived structure with
+ * no data of its own, so dropping and rebuilding it risks nothing a rollback wouldn't already
+ * protect, in sharp contrast to a column whose type/constraint this file explicitly refuses to
+ * touch because doing so risks the column's actual data. The one way this CAN still fail is a
+ * `CREATE UNIQUE INDEX` rejected by genuine live duplicate values — that surfaces exactly like any
+ * other DDL failure in this transaction (rollback, `DDL_FAILED`, snapshot kept as the recovery
+ * point), needing no special-casing. A live index the CURRENT declaration no longer mentions is
+ * left alone, mirroring the column-drop policy directly above. `assertIdentifierFits` already
+ * covers every declared index's generated name unconditionally, for both the create and alter
+ * paths — `validate()` walks `table.indexes` for every table in the declaration up front, before
+ * reconciliation ever runs, so no separate length check is needed in this new path.
+ *
+ * POST-COMMIT JOURNAL INTEGRITY (BUG FIX, 2026-08-12): the catch block below used to write
+ * `ROLLED_BACK` unconditionally on ANY failure inside the DDL try block — but a failure can occur
+ * either BEFORE the `db.transaction()` call resolves (SQLite's own rollback truly undid every
+ * write; `ROLLED_BACK` is accurate) or AFTER it already committed (`verifyPostDdl` throwing, or
+ * even the `advancePhaseIfJournaled(..., "COMMITTED")` write itself throwing) — and for that second
+ * case, the DDL is live and durable, so `ROLLED_BACK` was a lie: the journal claimed a rollback
+ * that never happened. `migration-recovery.ts` only ever restores NON-terminal entries
+ * (`ROLLED_BACK`/`COMMITTED` are both terminal, see `migration-journal.ts`'s `TERMINAL_PHASES`), so
+ * a next-boot crash recovery would see this mislabeled entry, conclude there is nothing to do, and
+ * skip it — leaving the live db and the journal's account of it permanently disagreeing, with
+ * nothing left to ever reconcile them. `declareDataModule` now tracks `transactionCommitted`,
+ * flipped to `true` the instant `db.transaction(() => { ... })()` returns without throwing, and
+ * `recordFailurePhase` uses it to decide: pre-commit, write `ROLLED_BACK` as before (truthful,
+ * unchanged); post-commit, write NOTHING and leave the journal at whatever non-terminal phase it
+ * already reached (`VERIFYING`, set immediately after the transaction resolves, before either of
+ * the two post-commit throw sites) — non-terminal is exactly what makes next-boot recovery pick it
+ * up and restore from the pre-DDL snapshot, which is the correct outcome here: verification failing
+ * means the live state doesn't provably match what was declared, and a `COMMITTED`-write failure
+ * means core can no longer vouch the attempt finished cleanly either way, so in both cases falling
+ * back to the last known-good snapshot (discarding the just-applied DDL rather than trusting it) is
+ * the same "recoverable, not zero-loss" trade this file already makes everywhere else (§9) — a
+ * plugin whose migration gets reverted this way simply re-applies it, idempotently, on the next
+ * `declare()` call, same as any other interrupted attempt.
+ *
  * T2 (§4's exclusive cross-process lock) is DELIBERATELY NOT acquired here — SPEC-033 correction
  * (2026-07-16), superseding SPEC-032's original implementation. The ADR's own §4 text scopes T2's
  * purpose narrowly: "The SQLite online backup API is safe under concurrent writers during
@@ -184,9 +239,9 @@ export interface DeclareResult {
   readonly created: string[];
   /**
    * Fully-qualified names of already-existing tables that had one or more declared columns added
-   * this call (the column-level reconciliation described in this file's header comment). A table
-   * name never appears in both `created` and `altered` — it is either newly made or already
-   * existed.
+   * and/or declared indexes added or recreated this call (the column- and index-level
+   * reconciliation described in this file's header comment). A table name never appears in both
+   * `created` and `altered` — it is either newly made or already existed.
    */
   readonly altered: string[];
   /** Path to the pre-DDL snapshot, or null when nothing needed doing / the input was invalid. */
@@ -343,10 +398,16 @@ interface ExistingColumnInfo {
   readonly primaryKey: boolean;
 }
 
-/** A plan to ALTER an already-existing table by adding the declared-but-missing columns. */
+/**
+ * A plan to ALTER an already-existing table: declared-but-missing columns to add, declared
+ * indexes missing live to add, and declared indexes whose live shape no longer matches to drop
+ * and recreate (see this file's header comment, INDEX-LEVEL RECONCILIATION).
+ */
 interface TableAlterationPlan {
   readonly fqTableName: string;
   readonly columnsToAdd: readonly ColumnDecl[];
+  readonly indexesToAdd: readonly IndexDecl[];
+  readonly indexesToRecreate: readonly IndexDecl[];
 }
 
 interface ReconciliationPlan {
@@ -476,11 +537,75 @@ function planColumnReconciliation(db: Database.Database, table: TableDecl, fqTab
   return columnsToAdd;
 }
 
+interface ExistingIndexInfo {
+  readonly columns: readonly string[];
+  readonly unique: boolean;
+}
+
+/**
+ * Reads `fqTableName`'s live, explicitly-authored indexes via `PRAGMA index_list` +
+ * `PRAGMA index_info`, keyed by the index's live name. Only `origin: 'c'` rows are kept — SQLite
+ * also auto-creates an implicit index per `UNIQUE` column constraint (`origin: 'u'`) and one for
+ * most `PRIMARY KEY` shapes (`origin: 'pk'`, e.g. `sqlite_autoindex_*`); neither was ever declared
+ * through `IndexDecl` or created by this module's own `indexSql` (see this file's header comment,
+ * INDEX-LEVEL RECONCILIATION, for the full reasoning).
+ */
+function getExistingIndexes(db: Database.Database, fqTableName: string): Map<string, ExistingIndexInfo> {
+  const indexRows = db.prepare(`PRAGMA index_list("${fqTableName}")`).all() as Array<{
+    name: string;
+    unique: number;
+    origin: string;
+  }>;
+  const result = new Map<string, ExistingIndexInfo>();
+  for (const row of indexRows) {
+    if (row.origin !== "c") continue;
+    const columnRows = db.prepare(`PRAGMA index_info("${row.name}")`).all() as Array<{ seqno: number; name: string }>;
+    const columns = columnRows.sort((a, b) => a.seqno - b.seqno).map((c) => c.name);
+    result.set(row.name, { columns, unique: row.unique !== 0 });
+  }
+  return result;
+}
+
+/** True when a declared index's shape (column list, in order, and uniqueness) matches its live index. */
+function indexMatches(idx: IndexDecl, existing: ExistingIndexInfo): boolean {
+  const declaredUnique = idx.unique ?? false;
+  if (existing.unique !== declaredUnique) return false;
+  if (existing.columns.length !== idx.columns.length) return false;
+  return existing.columns.every((col, i) => col === idx.columns[i]);
+}
+
+interface IndexReconciliationPlan {
+  readonly indexesToAdd: readonly IndexDecl[];
+  readonly indexesToRecreate: readonly IndexDecl[];
+}
+
+/**
+ * Diffs one already-existing table's declared indexes against its live shape (see this file's
+ * header comment, INDEX-LEVEL RECONCILIATION, for the full reasoning behind `indexesToAdd` vs.
+ * `indexesToRecreate` vs. leaving an undeclared live index alone).
+ */
+function planIndexReconciliation(db: Database.Database, table: TableDecl, fqTableName: string): IndexReconciliationPlan {
+  const existingIndexes = getExistingIndexes(db, fqTableName);
+  const indexesToAdd: IndexDecl[] = [];
+  const indexesToRecreate: IndexDecl[] = [];
+  for (const idx of table.indexes ?? []) {
+    const { indexName } = indexSql(fqTableName, idx);
+    const existing = existingIndexes.get(indexName);
+    if (existing === undefined) {
+      indexesToAdd.push(idx);
+    } else if (!indexMatches(idx, existing)) {
+      indexesToRecreate.push(idx);
+    }
+  }
+  return { indexesToAdd, indexesToRecreate };
+}
+
 /**
  * Builds the full reconciliation plan for a validated declaration: which declared tables don't
  * exist yet at all (`toCreate`, the pre-existing behavior) and which already-existing tables need
- * one or more columns added (`toAlter`, this fix). Throws a fail-closed `DeclError` if any
- * existing table's live shape can't be reconciled by a plain `ALTER TABLE ADD COLUMN`.
+ * one or more columns added and/or indexes added or recreated (`toAlter`). Throws a fail-closed
+ * `DeclError` if any existing table's live column shape can't be reconciled by a plain
+ * `ALTER TABLE ADD COLUMN` — index drift never throws here; see `planIndexReconciliation`.
  */
 function planReconciliation(
   db: Database.Database,
@@ -496,7 +621,10 @@ function planReconciliation(
       continue;
     }
     const columnsToAdd = planColumnReconciliation(db, table, fqTableName);
-    if (columnsToAdd.length > 0) toAlter.push({ fqTableName, columnsToAdd });
+    const { indexesToAdd, indexesToRecreate } = planIndexReconciliation(db, table, fqTableName);
+    if (columnsToAdd.length > 0 || indexesToAdd.length > 0 || indexesToRecreate.length > 0) {
+      toAlter.push({ fqTableName, columnsToAdd, indexesToAdd, indexesToRecreate });
+    }
   }
   return { toCreate, toAlter };
 }
@@ -516,6 +644,21 @@ function recordMigration(
 }
 
 /**
+ * Re-reads one altered table's live indexes and reports any declared-added-or-recreated index
+ * (`indexesToAdd` or `indexesToRecreate`) not actually there under its generated name. Indexes on
+ * a brand-new table (`plan.toCreate`) are pre-existing, out-of-scope-for-this-fix behavior — this
+ * only covers the alter path this fix adds, matching `missingColumns`'s scope one level up.
+ */
+function verifyAlteredIndexes(db: Database.Database, alteration: TableAlterationPlan): string[] {
+  const nowExistingIndexes = getExistingIndexes(db, alteration.fqTableName);
+  const declaredIndexes = [...alteration.indexesToAdd, ...alteration.indexesToRecreate];
+  return declaredIndexes
+    .map((idx) => indexSql(alteration.fqTableName, idx).indexName)
+    .filter((indexName) => !nowExistingIndexes.has(indexName))
+    .map((indexName) => `index ${indexName}`);
+}
+
+/**
  * Post-DDL sanity check (§2's VERIFYING phase): re-reads live state and returns a description of
  * anything the transaction claims to have applied but that isn't actually there. Empty means the
  * DDL is confirmed applied; a non-empty result makes the caller treat the whole attempt as failed
@@ -531,7 +674,8 @@ function verifyPostDdl(db: Database.Database, decl: DataModuleDecl, plan: Reconc
       .filter((c) => !nowExisting.has(c.name))
       .map((c) => `${alteration.fqTableName}.${c.name}`);
   });
-  return [...missingTables, ...missingColumns];
+  const missingIndexes = plan.toAlter.flatMap((alteration) => verifyAlteredIndexes(db, alteration));
+  return [...missingTables, ...missingColumns, ...missingIndexes];
 }
 
 /** Namespace-adoption (§5/§6/T5) and disk-headroom (§3/T4) preflight, both fail-closed, before any snapshot/lock/DDL. */
@@ -582,6 +726,76 @@ async function discardSnapshotIfFileBacked(snapshotPath: string | null): Promise
   await discardCommittedSnapshot(snapshotPath);
 }
 
+/** Runs one `CREATE INDEX` and records it. Shared by the create-table path and the add-index alter path. */
+function applyIndexAdd(
+  db: Database.Database,
+  pluginId: string,
+  fqTableName: string,
+  idx: IndexDecl,
+  snapshotPath: string | null,
+  at: number
+): void {
+  const { indexName, sql: createDdl } = indexSql(fqTableName, idx);
+  db.prepare(createDdl).run();
+  recordMigration(db, pluginId, indexName, createDdl, snapshotPath, at);
+}
+
+/**
+ * Drops then recreates one index whose live shape no longer matches its declaration (this file's
+ * header comment, INDEX-LEVEL RECONCILIATION) — two DDL statements, both recorded, both inside the
+ * caller's single transaction so either one failing rolls both back together with everything else.
+ */
+function applyIndexRecreate(
+  db: Database.Database,
+  pluginId: string,
+  fqTableName: string,
+  idx: IndexDecl,
+  snapshotPath: string | null,
+  at: number
+): void {
+  const { indexName } = indexSql(fqTableName, idx);
+  const dropDdl = `DROP INDEX "${indexName}"`;
+  db.prepare(dropDdl).run();
+  recordMigration(db, pluginId, indexName, dropDdl, snapshotPath, at);
+  applyIndexAdd(db, pluginId, fqTableName, idx, snapshotPath, at);
+}
+
+/** Creates one brand-new table and its declared indexes, inside the caller's transaction. Returns the fully-qualified name created. */
+function applyTableCreate(db: Database.Database, pluginId: string, table: TableDecl, snapshotPath: string | null, at: number): string {
+  const name = fqName(pluginId, table.name);
+  // No IF NOT EXISTS: a within-call duplicate is a malformed manifest → fail → roll back.
+  const ddl = `CREATE TABLE "${name}" (${table.columns.map(columnSql).join(", ")})`;
+  db.prepare(ddl).run();
+  recordMigration(db, pluginId, name, ddl, snapshotPath, at);
+  for (const idx of table.indexes ?? []) applyIndexAdd(db, pluginId, name, idx, snapshotPath, at);
+  return name;
+}
+
+/** Applies one already-existing table's queued column additions and index add/recreate, inside the caller's transaction. */
+function applyTableAlteration(db: Database.Database, pluginId: string, alteration: TableAlterationPlan, snapshotPath: string | null, at: number): void {
+  for (const col of alteration.columnsToAdd) {
+    const ddl = `ALTER TABLE "${alteration.fqTableName}" ADD COLUMN ${columnSql(col)}`;
+    db.prepare(ddl).run();
+    recordMigration(db, pluginId, alteration.fqTableName, ddl, snapshotPath, at);
+  }
+  for (const idx of alteration.indexesToRecreate) applyIndexRecreate(db, pluginId, alteration.fqTableName, idx, snapshotPath, at);
+  for (const idx of alteration.indexesToAdd) applyIndexAdd(db, pluginId, alteration.fqTableName, idx, snapshotPath, at);
+}
+
+/**
+ * Decides the journal phase to write when a DDL attempt fails, given whether the transaction
+ * itself already committed (this file's header comment, POST-COMMIT JOURNAL INTEGRITY). A
+ * pre-commit failure gets a truthful `ROLLED_BACK` — SQLite's own transaction rollback really did
+ * undo everything. A post-commit failure writes nothing, deliberately: the entry is already
+ * sitting at a non-terminal phase (`VERIFYING`) from before the failure, and leaving it there is
+ * what lets next-boot recovery restore it instead of a false `ROLLED_BACK` telling recovery there
+ * is nothing to do.
+ */
+function recordFailurePhase(db: Database.Database, journalId: number | null, transactionCommitted: boolean): void {
+  if (transactionCommitted) return;
+  advancePhaseIfJournaled(db, journalId, "ROLLED_BACK");
+}
+
 /** Declare (reconcile) a plugin's tables. Core snapshots first, then runs the DDL transactionally. */
 export async function declareDataModule(
   required: { db: Database.Database; dbPath: string; decl: DataModuleDecl },
@@ -628,36 +842,25 @@ export async function declareDataModule(
 
   const created: string[] = [];
   const altered: string[] = [];
+  // Tracks whether `db.transaction()` below actually committed, so a failure AFTER that point
+  // (verification, or the "COMMITTED" journal write itself) is never misreported as a rollback
+  // that never happened — see this file's header comment, POST-COMMIT JOURNAL INTEGRITY, and
+  // `recordFailurePhase`.
+  let transactionCommitted = false;
   try {
     advancePhaseIfJournaled(db, journalId, "DDL_IN_PROGRESS");
-    // One transaction for ALL DDL — both new tables and column additions to existing ones — so any
-    // failure rolls the live db back to a working state (§9).
+    // One transaction for ALL DDL — new tables, column additions, and index add/recreate on
+    // existing tables — so any failure rolls the live db back to a working state (§9).
     db.transaction(() => {
       ensureJournal(db);
       const at = Date.now();
-      for (const table of plan.toCreate) {
-        const name = fqName(decl.pluginId, table.name);
-        // No IF NOT EXISTS: a within-call duplicate is a malformed manifest → fail → roll back.
-        const ddl = `CREATE TABLE "${name}" (${table.columns.map(columnSql).join(", ")})`;
-        db.prepare(ddl).run();
-        recordMigration(db, decl.pluginId, name, ddl, snapshotPath, at);
-        created.push(name);
-
-        for (const idx of table.indexes ?? []) {
-          const { indexName, sql: indexDdl } = indexSql(name, idx);
-          db.prepare(indexDdl).run();
-          recordMigration(db, decl.pluginId, indexName, indexDdl, snapshotPath, at);
-        }
-      }
+      for (const table of plan.toCreate) created.push(applyTableCreate(db, decl.pluginId, table, snapshotPath, at));
       for (const alteration of plan.toAlter) {
-        for (const col of alteration.columnsToAdd) {
-          const ddl = `ALTER TABLE "${alteration.fqTableName}" ADD COLUMN ${columnSql(col)}`;
-          db.prepare(ddl).run();
-          recordMigration(db, decl.pluginId, alteration.fqTableName, ddl, snapshotPath, at);
-        }
+        applyTableAlteration(db, decl.pluginId, alteration, snapshotPath, at);
         altered.push(alteration.fqTableName);
       }
     })();
+    transactionCommitted = true;
     advancePhaseIfJournaled(db, journalId, "VERIFYING");
     const problems = verifyPostDdl(db, decl, plan);
     if (problems.length > 0) {
@@ -672,15 +875,19 @@ export async function declareDataModule(
     // for why this removes no recovery capability. Failure keeps its snapshot (catch branch).
     await discardSnapshotIfFileBacked(snapshotPath);
   } catch (err) {
-    // better-sqlite3 already rolled the transaction back → live db is unchanged and working
-    // (this is the same-process, catchable-failure case — no restore needed; restore only ever
-    // runs at next-boot recovery for a CRASH, see migration-recovery.ts). The snapshot remains as
-    // the named recovery point (§9) for operator forensics; the plugin is left in its prior state
-    // (unaltered if it already existed, "uninstalled" if it was new). For an in-memory db,
+    // Pre-commit (`transactionCommitted` still false): better-sqlite3 already rolled the
+    // transaction back → live db is unchanged and working (this is the same-process, catchable-
+    // failure case — no restore needed; restore only ever runs at next-boot recovery for a CRASH,
+    // see migration-recovery.ts). Post-commit (`transactionCommitted` true): the DDL is live and
+    // durable — `recordFailurePhase` deliberately does NOT write `ROLLED_BACK` here, leaving the
+    // journal entry at its already-non-terminal `VERIFYING` phase so next-boot recovery restores
+    // it from the snapshot instead of skipping a mislabeled terminal entry. Either way, the
+    // snapshot remains as the named recovery point (§9) for operator forensics and, in the
+    // post-commit case, for actual crash recovery to consume. For an in-memory db,
     // `snapshotPath`/`journalId` are both null (see above) — there is no recovery point to report
     // because the same-process rollback just performed IS the full recovery; no crash-recovery boot
     // path can ever exist for `:memory:` to need one.
-    advancePhaseIfJournaled(db, journalId, "ROLLED_BACK");
+    recordFailurePhase(db, journalId, transactionCommitted);
     const e = err as Error;
     return {
       ok: false,
