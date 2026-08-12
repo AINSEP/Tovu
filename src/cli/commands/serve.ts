@@ -2,11 +2,10 @@ import path from "node:path";
 
 import { createApp } from "../../server/app";
 import { createSqliteRouteDeps } from "../../server/deps";
-import { ValidationError } from "../../site-dir/errors";
+import { ValidationError, type ConfigJson } from "../../site-dir";
 import { bootSiteDir } from "../../site-dir/boot-site-dir";
 import { resolveInstallDirTarget } from "../../site-dir/resolve-install-dir-target";
 import { runtimeSchemaVersion } from "../../site-dir/schema-guard";
-import type { ConfigJson } from "../../site-dir/types";
 import { PortInUseError } from "../errors";
 
 /**

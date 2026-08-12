@@ -7,7 +7,7 @@ import {
   SiteDirInvalidError,
   SiteNewerThanRuntimeError,
   ValidationError,
-} from "../site-dir/errors";
+} from "../site-dir";
 
 /**
  * @file SPEC-003 — CLI-layer error-to-exit-code mapping (errors.spec.md).
