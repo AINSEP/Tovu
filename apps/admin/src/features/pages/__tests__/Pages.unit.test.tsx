@@ -42,6 +42,11 @@ function controller(overrides: Partial<PagesController> = {}): PagesController {
     createPage: vi.fn(async () => {}),
     disablePage: vi.fn(async () => {}),
     removePage: vi.fn(async () => {}),
+    // `PAGES_DICT` has no `en` entry (only translated locales) — `key` IS the English copy, so
+    // the identity function is a faithful fake for the wired hook's real English behavior, same
+    // as every assertion below already expects.
+    t: (key) => key,
+    locale: "en",
     ...overrides,
   };
 }

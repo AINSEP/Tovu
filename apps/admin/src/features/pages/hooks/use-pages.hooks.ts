@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 
 import { type AdminPost } from "../../../lib/api";
 import { navigate as defaultNavigate } from "../../../lib/router";
+import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { PAGES_DICT } from "../pages-i18n";
 import { defaultPagesPort } from "./pages-dependencies.hooks";
 import type { PagesPort } from "./pages-port.hooks";
 
@@ -24,9 +26,15 @@ import type { PagesPort } from "./pages-port.hooks";
  * `port`/`navigate` are injected — see `pages-port.hooks.ts` — rather than reaching `lib/api`/
  * `lib/router` directly, so a test can describe load/create/disable/delete outcomes against
  * `createFakePagesPort` instead of stubbing global `fetch`. `useWiredPages` below is the
- * zero-argument pair `Pages.tsx` actually mounts. No `locale`/`useAdminLocale` here — every error
- * string in this file is hardcoded English, unlike `use-collections.hooks.ts`'s locale-aware
- * fallbacks.
+ * zero-argument pair `Pages.tsx` actually mounts. This hook's OWN error strings stay hardcoded
+ * English, unlike `use-collections.hooks.ts`'s locale-aware fallbacks — but `t`/`locale` are still
+ * injected (2026-08-11, standing i18n rule — a component with a hook gets a BOUND `t` from that
+ * hook, not its own `useAdminLocale()`/dictionary import, same shape `use-post-editor.hooks.ts`
+ * established) purely so `Pages.tsx` has somewhere to source the UI copy it renders. `locale`
+ * itself is also exposed, not just `t`: `Pages.tsx` passes the raw string on to
+ * `pageRowMenuItems` (`../rules.ts`), which keeps its own independent `PAGES_DICT[locale]?.[key]
+ * ?? key` closure unchanged — same "row-menu builder is a different, out-of-scope thing" precedent
+ * `use-post-editor.hooks.ts`'s own header cites for `postRowMenuItems`.
  */
 
 export interface PagesController {
@@ -42,15 +50,22 @@ export interface PagesController {
   createPage: () => Promise<void>;
   disablePage: (page: AdminPost) => Promise<void>;
   removePage: () => Promise<void>;
+  /** Bound translator — `Pages.tsx`'s only source of UI copy; see this file's own header. */
+  t: (key: string) => string;
+  /** The raw resolved locale — exposed only because `pageRowMenuItems` (`../rules.ts`) genuinely
+   *  needs it, not `t`. */
+  locale: string;
 }
 
 export interface PagesDependencies {
   port: PagesPort;
   navigate: (path: string) => void;
+  t: (key: string) => string;
+  locale: string;
 }
 
 export function usePages(deps: PagesDependencies): PagesController {
-  const { port, navigate } = deps;
+  const { port, navigate, t, locale } = deps;
   const [pages, setPages] = useState<AdminPost[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
@@ -151,15 +166,20 @@ export function usePages(deps: PagesDependencies): PagesController {
     createPage,
     disablePage,
     removePage,
+    t,
+    locale,
   };
 }
 
 /**
- * Binds the real `/api/.../pages` client and `lib/router`'s `navigate` — see
+ * Binds the real `/api/.../pages` client, `lib/router`'s `navigate`, and a `t` bound to the real
+ * resolved locale (`useAdminLocale()`, called here and ONLY here — see this file's header) — see
  * `pages-dependencies.hooks.ts`. The zero-argument half of the `useX(dependencies)` /
  * `useWiredX()` pair, so `Pages.tsx` composes this and a test composes {@link usePages} with
- * `createFakePagesPort`.
+ * `createFakePagesPort` and a fake `navigate`/`t`.
  */
 export function useWiredPages(): PagesController {
-  return usePages({ port: defaultPagesPort, navigate: defaultNavigate });
+  const locale = useAdminLocale();
+  const t = (key: string): string => PAGES_DICT[locale]?.[key] ?? key;
+  return usePages({ port: defaultPagesPort, navigate: defaultNavigate, t, locale });
 }
