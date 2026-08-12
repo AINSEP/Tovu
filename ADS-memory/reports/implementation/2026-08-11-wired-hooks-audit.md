@@ -445,3 +445,71 @@ mid-conversion), flagged here rather than added.
   precedent to copy, not landed unilaterally — a repo-wide ESLint rule is bigger blast radius than
   "convert some hooks," and getting the multi-depth-import-path matching right needs its own
   verification pass this dispatch didn't have room for.
+
+## Resolution of the 5 REVIEW items (2026-08-11, later same-day dispatch)
+
+A follow-up dispatch converted the two `useI18n` locale-sync hooks and `use-admin-execution-
+credential`, and read the other three closely enough to rule rather than guess. The owner's original
+"same treatment, inject them too" ruling (relayed above) was made from this audit's summary table,
+before anyone had read the individual files — it covered `useI18n` specifically and correctly. The
+three below were never actually ruled on; they were carried into the REVIEW bucket by shape-matching
+against `useAdminLocale`. Read closely, the three split into two that behave like `useAdminLocale`
+(leave alone) and one that doesn't (convert, narrowly). The Coordinator independently verified the
+four load-bearing claims below (line numbers checked) before accepting this.
+
+**Converted:**
+
+- `use-admin-execution-credential.hooks.ts` — its test file carried a real
+  `vi.mock("../../lib/api", ...)` for `getAdminExecutionCredential`/`setAdminExecutionCredential`
+  (reached transitively via `lib/execution-settings.ts`'s `loadAdminExecutionCredential`/
+  `saveAdminExecutionCredential`) — exactly the module-mocking pain the pattern exists to remove.
+  New `AdminExecutionCredentialPort` scoped to JUST those two calls
+  (`admin-execution-credential-port.hooks.ts` / `-dependencies.hooks.ts`); `readLegacyLocalCredential`/
+  `clearLegacyLocalCredential` (real `localStorage`, jsdom-friendly) and the `settings-refresh-bus`
+  reach were deliberately left as direct imports — see the bus reasoning below, same shape.
+  `useWiredAdminExecutionCredential()` is the zero-arg wrapper; `SettingsUi.tsx`/`AiAssistant.tsx`
+  updated to call it. 4 new tests inject the fake port and assert the mocked `api.*` was never called;
+  negatively verified (3 of 4 fail when the injection is bypassed — the 4th, migration, exercises a
+  path that specific mutation didn't touch). Commit `e4b8f0b`.
+- `use-ai-assistant-locale-sync.hooks.ts` + `use-settings-locale-sync.hooks.ts` — per the owner's
+  ruling, which does apply here: both called `useI18n()` directly. Now take an injected
+  `{ activeLocale, setLocale }`; `useWiredX()` composes the real `useI18n()`. Neither had a test file
+  before; each now has one — a fake-`setLocale` block plus an end-to-end test mounting the real
+  `I18nProvider` to prove the wired composition isn't short-circuited. Negatively verified (3 of 5
+  fail per file when pointed back at a direct `useI18n()` call). Commit `2606827`.
+
+**Left unconverted, with evidence:**
+
+- **`use-admin-locale.hooks.ts`** — confirmed by reading it: it IS `useAdminLocale()`, the exact
+  function every other hook in this audit is told to inject. It has no further reach-point beneath it
+  worth extracting; it plays the same role `lib/api.ts` plays for the `api`-reach hooks. This matches
+  what this audit already said about it (§"Leaf infra / bus singletons" above) — confirmed, not
+  revised.
+- **`use-settings-slice.hooks.ts`** — NOT converting the `settings-refresh-bus` reach. Two facts,
+  independently verified by the Coordinator: (1) `SettingsSliceOptions.load`/`.save`
+  (`use-settings-slice.hooks.ts:46,50`) are ALREADY the injected host-I/O contract — that IS this
+  hook's `useX(dependencies)` half, done since the file's inception, not something this pass would be
+  adding. (2) `settings-refresh-bus.ts` ships its own test-reset export, `resetSettingsRefreshBus()`
+  (`settings-refresh-bus.ts:76`), and the existing `use-settings-slice.refresh.test.ts` already calls
+  the real bus (`publishSettingsRefresh`) directly — zero `vi.mock` anywhere in that file, confirmed.
+  The `useWiredX` pattern's stated justification ("testable without a provider tree or module
+  mocking") is already met, by a different, purpose-built seam. Converting the bus reach on top of
+  that buys no testability this file doesn't already have, against a file whose own
+  `@complexityExemption` comment cites 4 historical data-loss bugs and a prior extraction attempt
+  that left its complexity score unchanged (25 → 25) — real risk for no measurable gain.
+- **`use-admin-assistant-switch.hooks.ts`** — reaches ONLY `assistant-dock-bus`
+  (`getAssistantDockOpen`/`requestAssistantDock`/`subscribeToAssistantDock`, via
+  `useSyncExternalStore`). That module ships the identical seam: `resetAssistantDockBus()`
+  (`assistant-dock-bus.ts:120`). Once the bus is treated as a legitimate reach-point (per the
+  `use-settings-slice` reasoning immediately above), this file has no host/service dependency left to
+  inject — it belongs in this audit's own "Not-applicable — no host/service dependency to inject"
+  bucket (§ above), just not originally sorted there. No test file exists for it and none was added;
+  that is a separate, pre-existing coverage gap, not something this DI pass owns.
+
+**Net for this repo's hooks**: the REVIEW bucket is now fully resolved — 2 converted (3 files),
+3 confirmed correctly left alone. 52 of the original 57 non-conforming hooks remain unconverted; see
+the "What was NOT done" section above, unchanged.
+
+See also `development/docs/architecture/wired-hooks-convention.md` — the `useWiredX` spec this audit
+flagged as missing, written from this session's evidence (including the three non-applicability cases
+above, worked as the spec's own examples).
