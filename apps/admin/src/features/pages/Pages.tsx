@@ -5,6 +5,7 @@ import type { AdminPost } from "../../lib/api";
 import { siteUrl } from "../../lib/site-url";
 import { formatTimestamp } from "../../lib/format-timestamp";
 import { navigate } from "../../lib/router";
+import type { Translate } from "../../lib/dictionary-translator";
 import { TabBar } from "../../components/TabBar";
 import { pageRowMenuItems } from "./rules";
 import { useWiredPages } from "./hooks/use-pages.hooks";
@@ -90,7 +91,7 @@ function ThemePagesTab({
 }: {
   pageIds: string[] | null;
   error: string | null;
-  t: (key: string) => string;
+  t: Translate;
 }): ReactNode {
   if (error && !pageIds) return <div className="notice error">{error}</div>;
   if (!pageIds) return <div className="notice">{t("Loading theme pages…")}</div>;
