@@ -235,6 +235,14 @@ test("an artifactHashes key shaped like a path-traversal string never reaches th
   // key would have been read (and hash-compared) with no containment check at all. The rewrite walks
   // the tree itself and looks keys up in what it found, so a key that no real directory-entry chain
   // could ever produce simply reports "does not exist", the same as any other unmatched key.
+  //
+  // NOT theoretical: `artifactHashes` keys come from `theme.json`, and the owner has decided anyone
+  // can publish a theme -- `theme.json` is attacker-authored data, not trusted build-tool output. A
+  // `readFileSync` on a caller-supplied key would have been an arbitrary-file-read oracle (existence
+  // and content-hash confirmation) reachable by any published theme's own manifest. Do not "simplify"
+  // this back to a direct path join later on the assumption artifactHashes keys are safe -- they are
+  // exactly the untrusted input this whole promotion (see build-conformance.ts's file header) exists
+  // to defend against.
   const traversalKey = "../".repeat(6) + path.relative(root, path.join(outsideDir, "passwd")).split(path.sep).join("/");
 
   const issues = checkBuiltThemeConformance({

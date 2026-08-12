@@ -166,6 +166,14 @@ const MAX_INVENTORY_WALK_DEPTH = 12;
  * a whole file into memory at once (`readFileSync`), so one unbounded file — or an unbounded SUM across
  * many merely-legal-sized ones — is a memory/CPU cost a hostile publisher's build could run up, not
  * just a correctness gap.
+ *
+ * Tripwire, recorded so a future "why did my theme stop installing" report starts here instead of a
+ * cold re-derivation: these are a POLICY call, not a measured requirement, and a legitimately large
+ * theme (a hero video, a large image gallery) can hit them. That failure must always surface as a
+ * named, specific conformance issue — the size and the exact cap it exceeded, both in the message
+ * (`checkArtifactHashes`'s own per-file/total-size branches interpolate both) — never a silent
+ * truncation or an unexplained `invalid`. If a real theme trips this, the fix is to raise these two
+ * constants, not to loosen the containment or symlink rules they sit next to.
  */
 const MAX_HASHED_FILE_BYTES = 16 * 1024 * 1024;
 const MAX_TOTAL_HASHED_BYTES = 64 * 1024 * 1024;
