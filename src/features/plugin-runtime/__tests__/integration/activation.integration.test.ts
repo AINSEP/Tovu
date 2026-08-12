@@ -231,6 +231,105 @@ test("REQ-07/AC-02: a successful disable upserts enabled:false and invokes onDis
   assert.equal(onDisabledCalledWith, "word-count");
 });
 
+test("REQ-07: a failed disable side effect restores the prior activation and rethrows the original error", async () => {
+  const prior = {
+    pluginId: "word-count",
+    workspaceId: WORKSPACE,
+    version: "1.0.0",
+    enabled: true,
+    updatedAt: "2026-07-28T00:00:00.000Z",
+  } as const;
+  const repo = new InMemoryPluginActivationRepo([prior]);
+  const originalError = new Error("disable side effect failed");
+
+  await assert.rejects(
+    () =>
+      setPluginEnabled({
+        deps: {
+          clock: clock("2026-07-28T02:00:00.000Z"),
+          repo,
+          discovery: discoveryOf("valid"),
+          onDisabled: () => {
+            throw originalError;
+          },
+        },
+        input: { workspaceId: WORKSPACE, pluginId: "word-count", enabled: false },
+      }),
+    (error) => error === originalError
+  );
+
+  assert.deepEqual(
+    await repo.getActivation({ workspaceId: WORKSPACE, pluginId: "word-count" }),
+    prior
+  );
+});
+
+test("REQ-07: a failed first-time disable removes the newly-created activation and rethrows the original error", async () => {
+  const repo = new InMemoryPluginActivationRepo();
+  const originalError = new Error("first disable side effect failed");
+
+  await assert.rejects(
+    () =>
+      setPluginEnabled({
+        deps: {
+          clock: clock(),
+          repo,
+          discovery: discoveryOf("valid"),
+          onDisabled: () => {
+            throw originalError;
+          },
+        },
+        input: { workspaceId: WORKSPACE, pluginId: "word-count", enabled: false },
+      }),
+    (error) => error === originalError
+  );
+
+  assert.equal(
+    await repo.getActivation({ workspaceId: WORKSPACE, pluginId: "word-count" }),
+    null
+  );
+});
+
+test("REQ-07: a compensation failure never masks the original disable side-effect error", async () => {
+  const backing = new InMemoryPluginActivationRepo([
+    {
+      pluginId: "word-count",
+      workspaceId: WORKSPACE,
+      version: "1.0.0",
+      enabled: true,
+      updatedAt: "2026-07-28T00:00:00.000Z",
+    },
+  ]);
+  let saveCalls = 0;
+  const repo = {
+    getActivation: backing.getActivation.bind(backing),
+    listAll: backing.listAll.bind(backing),
+    deleteActivation: backing.deleteActivation.bind(backing),
+    save: async (record: Parameters<typeof backing.save>[0]) => {
+      saveCalls += 1;
+      if (saveCalls === 2) throw new Error("compensation failed");
+      await backing.save(record);
+    },
+  };
+  const originalError = new Error("disable side effect failed");
+
+  await assert.rejects(
+    () =>
+      setPluginEnabled({
+        deps: {
+          clock: clock("2026-07-28T02:00:00.000Z"),
+          repo,
+          discovery: discoveryOf("valid"),
+          onDisabled: () => {
+            throw originalError;
+          },
+        },
+        input: { workspaceId: WORKSPACE, pluginId: "word-count", enabled: false },
+      }),
+    (error) => error === originalError
+  );
+});
+
 test("REQ-07 (AC-13 state-symmetry half): disable is the exact structural inverse of enable — only `enabled` and `updatedAt` differ, `version` is unchanged", async () => {
   const repo = new InMemoryPluginActivationRepo();
 
