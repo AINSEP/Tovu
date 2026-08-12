@@ -120,11 +120,62 @@ function Toolbar({ editor }: { editor: Editor }) {
         <button className={toolbarBtnClass(s.codeBlock)} title="Code block" aria-pressed={s.codeBlock} onClick={() => chain().toggleCodeBlock().run()}>{"{ }"}</button>
         <button className="tb-btn" title="Divider" onClick={() => chain().setHorizontalRule().run()}>―</button>
       </div>
+      {/* Icons, not word labels (owner, 2026-08-11: "How come it just doesn't use the icons? ...
+          Not a huge deal, but would be nice to have") — house SVG convention (`viewBox="0 0 18 18"`,
+          `stroke="currentColor"`, no icon dependency), same shape `App.tsx`'s sidebar-collapse
+          button and `Media.tsx`'s file-type icons already use. `currentColor` is what makes these
+          free: they inherit the toolbar's own color token (and therefore dark mode, and the `.on`
+          active-state color swap `.tb-btn.on` already applies) with zero icon-specific CSS.
+          `B`/`I`/`U`/`H1` above stay letters — mixing letters for marks and icons for alignment
+          matches the Word/Docs/Notion convention rather than converting everything at once.
+          Losing the visible text label means the button needs its own accessible name: `aria-label`
+          now carries what `title` alone used to (a screen reader ignores `title`), and `title` stays
+          for the hover tooltip sighted users still get. */}
       <div className="grp">
-        <button className={toolbarBtnClass(s.alignLeft)} title="Align left" aria-pressed={s.alignLeft} onClick={() => chain().setTextAlign("left").run()}>Left</button>
-        <button className={toolbarBtnClass(s.alignCenter)} title="Align center" aria-pressed={s.alignCenter} onClick={() => chain().setTextAlign("center").run()}>Center</button>
-        <button className={toolbarBtnClass(s.alignRight)} title="Align right" aria-pressed={s.alignRight} onClick={() => chain().setTextAlign("right").run()}>Right</button>
-        <button className={toolbarBtnClass(s.alignJustify)} title="Justify" aria-pressed={s.alignJustify} onClick={() => chain().setTextAlign("justify").run()}>Justify</button>
+        <button
+          className={toolbarBtnClass(s.alignLeft)}
+          title="Align left"
+          aria-label="Align left"
+          aria-pressed={s.alignLeft}
+          onClick={() => chain().setTextAlign("left").run()}
+        >
+          <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+            <path d="M2.5 4h13M2.5 7.5h8M2.5 11h13M2.5 14.5h8" strokeLinecap="round" />
+          </svg>
+        </button>
+        <button
+          className={toolbarBtnClass(s.alignCenter)}
+          title="Align center"
+          aria-label="Align center"
+          aria-pressed={s.alignCenter}
+          onClick={() => chain().setTextAlign("center").run()}
+        >
+          <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+            <path d="M2.5 4h13M5 7.5h8M2.5 11h13M5 14.5h8" strokeLinecap="round" />
+          </svg>
+        </button>
+        <button
+          className={toolbarBtnClass(s.alignRight)}
+          title="Align right"
+          aria-label="Align right"
+          aria-pressed={s.alignRight}
+          onClick={() => chain().setTextAlign("right").run()}
+        >
+          <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+            <path d="M2.5 4h13M7.5 7.5h8M2.5 11h13M7.5 14.5h8" strokeLinecap="round" />
+          </svg>
+        </button>
+        <button
+          className={toolbarBtnClass(s.alignJustify)}
+          title="Justify"
+          aria-label="Justify"
+          aria-pressed={s.alignJustify}
+          onClick={() => chain().setTextAlign("justify").run()}
+        >
+          <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+            <path d="M2.5 4h13M2.5 7.5h13M2.5 11h13M2.5 14.5h13" strokeLinecap="round" />
+          </svg>
+        </button>
       </div>
       <div className="grp">
         <button className="tb-btn" title="Undo (⌘Z)" disabled={!s.canUndo} onClick={() => chain().undo().run()}>↺</button>

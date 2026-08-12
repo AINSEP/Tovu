@@ -168,6 +168,31 @@ describe("Title and slug fields — accessible names", () => {
   });
 });
 
+describe("Formatting toolbar — alignment icons", () => {
+  /**
+   * Icons replacing the Left/Center/Right/Justify word labels (owner, 2026-08-11: "How come it
+   * just doesn't use the icons? ... would be nice to have"). Mounts the REAL editor (not the
+   * `editor: null` DI-seam used by the "Edit/Preview toolbar" describe block below) because
+   * `Toolbar` only renders once TipTap has mounted — an icon-only button's accessible name comes
+   * from `aria-label` alone (a screen reader ignores `title`), so this has to assert against a real
+   * rendered button, not a stubbed controller that never renders `Toolbar` at all.
+   */
+  it("align buttons keep their accessible name via aria-label, with no visible text label left in the button", async () => {
+    fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST }));
+
+    render(<PostEditor postId="p1" />);
+
+    // Waits for the real TipTap editor to mount — `Toolbar` is null-gated on `editor` until then.
+    await screen.findByTitle("Bold (⌘B)");
+
+    for (const name of ["Align left", "Align center", "Align right", "Justify"]) {
+      const button = screen.getByRole("button", { name });
+      expect(button).toHaveAttribute("title", name);
+      expect(button.textContent).toBe(""); // icon only — an <svg aria-hidden>, no word label
+    }
+  });
+});
+
 describe("Back-to-list link", () => {
   it("points at the Posts list for a post", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ post: DRAFT_POST }));
