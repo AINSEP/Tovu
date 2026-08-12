@@ -48,6 +48,8 @@ function recoveryController(overrides: Partial<RecoveryController> = {}): Recove
     error: null,
     selected: null,
     setSelected: vi.fn(),
+    t: (key: string) => key,
+    locale: "en",
     ...overrides,
   };
 }

@@ -16,6 +16,14 @@ import { t } from "../recovery-i18n";
  *
  * Naming follows `hooks/use-settings-slice.hooks.ts`: `use-<thing>.hooks.ts`. Feature-local because
  * nothing outside `features/recovery` needs it.
+ *
+ * `t`/`locale` (2026-08-11, standing i18n rule — a component with a hook gets a BOUND `t` from that
+ * hook, not its own `useAdminLocale()`/dictionary import): this hook already called
+ * `useAdminLocale()` for its own error-string translations, so exposing that SAME already-resolved
+ * `locale` as a bound `t` (plus the raw value, still needed for `Recovery.tsx`'s local
+ * `DegradedBannerView`/`RestorePointsList` subcomponents, which take `locale` directly) on the
+ * return value adds no new fetch — `Recovery.tsx` used to call `useAdminLocale()` a second time,
+ * entirely redundant with the resolution this hook was already doing internally.
  */
 
 export interface RecoveryController {
@@ -28,10 +36,17 @@ export interface RecoveryController {
    *  inline swap, never a modal-over-list). */
   selected: AdminRestorePoint | null;
   setSelected: (point: AdminRestorePoint | null) => void;
+  /** Bound translator — `key` already resolved against the caller's locale, so `Recovery.tsx` never
+   *  imports `useAdminLocale`/`recovery-i18n` for the top-level screen. See this file's header. */
+  t: (key: string) => string;
+  /** Raw resolved locale — `Recovery.tsx`'s local `DegradedBannerView`/`RestorePointsList`
+   *  subcomponents take `locale` directly rather than a bound translator. See this file's header. */
+  locale: string;
 }
 
 export function useRecovery(): RecoveryController {
   const locale = useAdminLocale();
+  const boundT = (key: string): string => t(locale, key);
   const [status, setStatus] = useState<AdminRecoveryStatus | null>(null);
   const [points, setPoints] = useState<AdminRestorePoint[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -70,5 +85,5 @@ export function useRecovery(): RecoveryController {
       .catch(() => undefined); // a failed re-verification falls back to the plain list, no alarm
   }, [points]);
 
-  return { status, points, error, selected, setSelected };
+  return { status, points, error, selected, setSelected, t: boundT, locale };
 }
