@@ -209,6 +209,30 @@ describe("dirty (the F07 regression: metadata-only edits used to be invisible)",
     });
     expect(result.current.dirty).toBe(true);
   });
+
+  // Complexity-ceiling pass (2026-08-11) moved `draftHtml`/`paneWidth` from `PageEditor.tsx` into this
+  // hook — this is the regression net for the invariant that move had to preserve exactly: merely
+  // looking at the HTML tab must never mark the page as having unsaved changes. See `draftHtml`'s own
+  // doc on `PageEditorController` for the full "why".
+  it("switching to the HTML tab reformats draftHtml but never marks the page dirty", async () => {
+    // A body with a zero-gap block boundary (`</h2><p>`) so `prettifyHtml` actually inserts
+    // whitespace — this proves the reformat really ran, rather than happening to be a no-op that
+    // would pass even if the effect never fired.
+    const page = { ...HTML_PAGE, bodyHtml: "<h2>A</h2><p>B</p>" };
+    const { result } = await mountLoaded("landing", page);
+    expect(result.current.dirty).toBe(false);
+    expect(result.current.view).toBe("preview");
+
+    act(() => {
+      result.current.setView("html");
+    });
+
+    // The reformat actually happened (rules out a vacuously-passing assertion below).
+    expect(result.current.draftHtml).toBe("<h2>A</h2>\n<p>B</p>");
+    expect(result.current.draftHtml).not.toBe(result.current.html);
+    // ...but it never touched `dirty` — a display-only reformat of the HTML tab is not an edit.
+    expect(result.current.dirty).toBe(false);
+  });
 });
 
 describe("contentDirty (template-preview fix, 2026-08-11)", () => {
