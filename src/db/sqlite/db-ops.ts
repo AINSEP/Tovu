@@ -35,7 +35,10 @@ export class SqliteDbOpsAdapter implements DbOpsPort {
 
   constructor(deps: { db: ContentDb; filePath: string }) {
     this.inner = new InfraSqliteDbOpsAdapter({
-      db: deps.db,
+      // `$client` is the raw better-sqlite3 handle Drizzle already returns. The package takes the
+      // driver connection directly rather than an object with a `$client` property, so Drizzle's
+      // naming convention — and Drizzle itself — stays out of its surface entirely.
+      connection: deps.db.$client,
       filePath: deps.filePath,
       // Read lazily per capture, not captured at construction — the watermark advances with
       // every gated write, and a restore point must be stamped with its value at capture time
