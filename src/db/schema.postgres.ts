@@ -919,6 +919,6 @@ export const widgetRegionBindings = pgTable("widget_region_bindings", {
 export const workspaces = pgTable("workspaces", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
-  slug: text("slug").notNull(),
+  slug: text("slug").notNull().unique(),
   createdAt: text("created_at").notNull(),
 });
