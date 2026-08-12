@@ -42,13 +42,17 @@
 import type { AgentSummary } from "@jini-ai/http-kit";
 import type { Express, NextFunction, Request, Response } from "express";
 
-import { A2UI_ACTIONS_PATH } from "../../assistant/a2ui-actions-route";
-import { AGENT_DAEMON_TOKEN_ENV_VAR } from "../../assistant/daemon-auth";
-import { getLiveClaudeModels, unionModels } from "../../assistant/live-model-cache";
-import { isMcpUiToolCallAllowed } from "../../assistant/mcp-ui-tool-calls";
-import { MCP_UI_TOOL_CALLS_PATH } from "../../assistant/mcp-ui-tool-calls-route";
-import { RUN_PRINCIPAL_HEADER } from "../../assistant/run-ownership";
-import { SURFACE_EXCHANGE_ID_PARAM, type SurfaceExchangeStore } from "../../assistant/surface-exchanges";
+import {
+  A2UI_ACTIONS_PATH,
+  AGENT_DAEMON_TOKEN_ENV_VAR,
+  getLiveClaudeModels,
+  unionModels,
+  isMcpUiToolCallAllowed,
+  MCP_UI_TOOL_CALLS_PATH,
+  RUN_PRINCIPAL_HEADER,
+  SURFACE_EXCHANGE_ID_PARAM,
+  type SurfaceExchangeStore,
+} from "../../assistant";
 import { getAuthedPrincipal, requireAdminSession } from "../middleware/dev-auth";
 import { isAssistantDaemonKnownFailed } from "../readiness-state";
 import type { RouteDeps } from "../routes/types";

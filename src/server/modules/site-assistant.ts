@@ -2,12 +2,14 @@ import type { Express, Request, Response } from "express";
 
 import { runGoogleToolTurn, type GoogleToolCall, type GoogleToolResult } from "@jini-ai/agent-runtime";
 
-import { createSiteCapabilityRegistry } from "../../assistant/site/capability-registry";
-import { detectsExplicitNavigationIntent } from "../../assistant/site/client-directives";
-import { resolveBoundedHistory } from "../../assistant/site/history";
-import { resolveSiteAssistantMode } from "../../assistant/site/mode";
-import { isPublicAssistantEnabled } from "../../assistant/public-assistant-settings";
-import { resolveSiteAssistantApiKey } from "../../assistant/site-credential-store";
+import {
+  createSiteCapabilityRegistry,
+  detectsExplicitNavigationIntent,
+  resolveBoundedHistory,
+  resolveSiteAssistantMode,
+  isPublicAssistantEnabled,
+  resolveSiteAssistantApiKey,
+} from "../../assistant";
 import { resolveClientIp } from "#src/core/rate-limit/rate-limit";
 import type { RouteDeps } from "../routes/types";
 import type { ServerModuleHandle } from "./types";

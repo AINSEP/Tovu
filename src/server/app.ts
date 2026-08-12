@@ -7,7 +7,14 @@ import { createSeoEventSubscriptions, createSeoPageHeadHook, ensureSeoSettingDef
 import { registerPageHeadContributor } from "./http/site/page-head";
 import { InMemoryPostRepo, InMemoryPostSearchIndex } from "../features/post";
 import { InMemoryPagesHtmlDocumentStore } from "../features/pages";
-import { createInMemoryChatStoreFactory } from "../assistant/persistence/store-factory";
+import {
+  createInMemoryChatStoreFactory,
+  InMemorySiteAssistantCredentialRepo,
+  InMemoryAdminExecutionCredentialRepo,
+  InMemoryExternalMcpServerRepo,
+  ensurePublicAssistantSettingDefinitions,
+  ensureExecutionSettingDefinitions,
+} from "../assistant";
 import { InMemoryPresentationSettingsRepo } from "../features/presentation";
 import { InMemorySettingsRepo, ensureSettingsUiTabDefinitions } from "../features/settings";
 import { discoverAllBuiltInThemes } from "../features/theme";
@@ -35,13 +42,10 @@ import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "..
 import { InMemoryKeyring } from "../integrations/keyring.memory";
 import { createKeyringBackedSigner } from "../integrations/signing.keyring";
 import { AesGcmSecretSealer } from "../integrations/secret-sealer.aesgcm";
-import { InMemorySiteAssistantCredentialRepo } from "../assistant/site-credential-store.memory";
-import { InMemoryAdminExecutionCredentialRepo } from "../assistant/execution-credential-store.memory";
 import { InMemoryComposioConfigRepo } from "../connectors/composio-config-store.memory";
 import { createComposioConnectors } from "../connectors/composio-service";
 import { InMemoryConnectorCredentialRepo } from "../connectors/connector-credential-store.memory";
 import { InMemoryMediaProviderCredentialRepo } from "../media/provider-credential-store.memory";
-import { InMemoryExternalMcpServerRepo } from "../assistant/external-mcp-store.memory";
 import {
   InMemoryAssetBlobRepo,
   InMemoryAssetRenditionRepo,
@@ -93,8 +97,6 @@ import { composePluginRuntime } from "./plugin-runtime";
 import { wireCoreResolvers } from "../widgets/resolvers/index";
 import { createNavMenuReadModel } from "../navigation";
 import { createCommentsModule, ensureCommentsSettingDefinitions } from "../comments";
-import { ensurePublicAssistantSettingDefinitions } from "../assistant/public-assistant-settings";
-import { ensureExecutionSettingDefinitions } from "../assistant/execution-mode-settings";
 import { createSettingsAnalyticsConfig, ensureAnalyticsSettingDefinitions } from "../analytics/config.settings";
 import { InMemoryCommentRepo } from "../comments/repo.memory";
 import { registerCommentsSubmitRoute } from "./routes/site/comments-submit";

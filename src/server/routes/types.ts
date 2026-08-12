@@ -18,7 +18,7 @@ import type { LipayApi } from "../../features/plugins/lipay/lipay-plugin";
 import type { PostRepoPort, PostSearchPort } from "../../features/post";
 import type { BeforeSaveHookPort } from "../../features/post/post";
 import type { PagesHtmlDocumentStoreFactory } from "../../features/pages";
-import type { ChatStoreFactory } from "../../assistant/persistence/tenant-scope";
+import type { ChatStoreFactory } from "../../assistant";
 import type { PresentationSettingsRepoPort } from "../../features/presentation";
 import type { SettingsRepoPort } from "../../features/settings";
 import type { DiscoveredTheme } from "../../features/theme";
@@ -36,12 +36,11 @@ import type { MailerPort } from "../../mail";
 import type { MenuRepoPort, NavLocationBindingRepoPort } from "../../navigation";
 import type { KeyringPort, SecretSealerPort, WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "../../integrations";
 import type { WebhookSigner } from "../../integrations/signing";
-import type { SiteAssistantCredentialRepoPort } from "../../assistant/site-credential-store";
-import type { AdminExecutionCredentialRepoPort } from "../../assistant/execution-credential-store";
+import type { SiteAssistantCredentialRepoPort, AdminExecutionCredentialRepoPort } from "../../assistant";
 import type { ComposioConfigRepoPort } from "../../connectors/composio-config-store";
 import type { ComposioConnectors } from "../../connectors/composio-service";
 import type { MediaProviderCredentialRepoPort } from "../../media/provider-credential-store";
-import type { ExternalMcpServerRepoPort } from "../../assistant/external-mcp-store";
+import type { ExternalMcpServerRepoPort } from "../../assistant";
 import type {
   AssetBlobRepoPort,
   AssetRenditionRepoPort,
