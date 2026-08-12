@@ -677,6 +677,7 @@ test("GET themes lists discovered built-in themes, TB-01 ordered, exactly one ma
     [
       "basic",
       "basic-declarative",
+      "fashion-modern",
       "fuel",
       "gracious-timing",
       "portfolite",

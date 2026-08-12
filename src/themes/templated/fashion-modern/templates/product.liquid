@@ -1,0 +1,168 @@
+{%- comment -%}
+  Fashion Modern — product (single product detail). Own-named template, no fallthrough
+  (`resolveTemplateId`/`theme.ts`) — a theme that doesn't declare `product.liquid` simply has no
+  product pages. This is the FIRST `product.liquid` in the codebase: Storefront (the only other
+  templated theme) ships `products.liquid` but never built the single-product page its own
+  theme.json describes, so there was no existing pattern to follow here.
+
+  ============================================================================
+  PRODUCT DATA CONTRACT — every field this template reads, and what's real today
+  ============================================================================
+  Traced directly from `buildTemplateRenderData()` (src/server/http/site/render.ts ~L1572) and
+  `SiteProduct` (same file, ~L42) — do not assume more than what's below without re-checking
+  those two.
+
+  REAL TODAY (wired end-to-end: `/products/:id` route → `deps.store.listProducts()` → the sample
+  Tier-3 store plugin's seeded rows → `SiteRenderContext.product` → this template):
+    product.id                — string, used in the buy-button URL and canonical self-link.
+    product.title              — string.
+    product.price               — integer cents (rarely read directly; priceFormatted covers it).
+    product.priceFormatted      — string, server-precomputed (`formatCents`) — ALWAYS `$`-prefixed
+                                   regardless of any real currency; the formatter has no locale/
+                                   currency parameter today.
+    product.stock               — integer. `0` drives the sold-out state below.
+
+  NOT WIRED — named here so the template is ready the day they land, every reference below is
+  guarded and degrades to nothing (never a crash, never a blank required field) when absent:
+    product.compareAtPriceFormatted — string, same `$…` shape as priceFormatted, for a struck-
+                                       through "was" price. ~10 of 15 source products had one.
+    product.currency                — string, e.g. "USD". The source design showed a small
+                                       currency badge next to the price. NOTE: even once this
+                                       field exists, `priceFormatted`'s `$`-prefix stays literal
+                                       (see above) — a non-USD `currency` value would visually
+                                       conflict with the `$` sign until `formatCents` itself is
+                                       made currency-aware. Flagging, not fixing (out of territory).
+    product.description             — PRE-RENDERED, PRE-SANITIZED HTML, same trust contract as
+                                       `post.content` (render.ts's own doc: "the ONE value either
+                                       tier is permitted to emit unescaped"). Emitted via `| raw`
+                                       below for that reason — if this field is ever wired as raw
+                                       user text instead, that emission becomes an XSS hole and
+                                       must switch to escaped output first.
+    product.images                  — array of `{ url, alt }`. Rendered as a main image + up to 4
+                                       thumbnails; `alt` falls back to `product.title` when absent.
+    product.specs                   — array of `{ label, value }` pairs (source examples: Material
+                                       / Care / Warranty — see the theme's handoff report for the
+                                       full extracted table). Rendered as a definition list; the
+                                       whole "Product details" block is omitted when empty, not
+                                       shown half-empty.
+
+  ============================================================================
+  BUY BUTTON — wired to a REAL endpoint, not a mockup
+  ============================================================================
+  `/store/buy?productId=<id>&returnTo=/products/<id>` (src/server/routes/site/store.ts) is the
+  only checkout mechanism that exists anywhere in this codebase today: a GET-based OCC stock
+  decrement + order-row insert against the SAME `deps.store` the `/products` routes already read
+  from. It is explicitly spike-quality (GET instead of POST+CSRF, buys exactly 1 unit, no cart) —
+  that is this codebase's real state, not a simplification introduced here. `returnTo` is
+  allowlisted server-side to same-origin relative paths only, so this is safe to link directly.
+  If/when the Commerce work-in-progress products table gets its own checkout route, this button's
+  `href` is the one line that needs to change.
+{%- endcomment -%}
+<div class="announce">
+  <div class="wrap"><p>Black Friday sale — 50% off select styles</p></div>
+</div>
+<header class="site-header">
+  <div class="wrap nav">
+    <a class="brand" href="/">{{ site.title }}</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle menu">
+    <label for="nav-toggle" class="nav-burger"><span></span><span></span><span></span></label>
+    <nav class="nav-menu">
+      <ul class="nav-list">
+        <li class="nav-item"><a class="nav-link" href="/">Home</a></li>
+        <li class="nav-item"><a class="nav-link" href="/products">Shop</a></li>
+        <li class="nav-item"><a class="nav-link" href="/#journal">Journal</a></li>
+      </ul>
+    </nav>
+  </div>
+</header>
+
+<main class="wrap">
+  {%- if product -%}
+    <p style="padding-top:1.75rem"><a class="journal-entry__back" href="/products">&larr; All products</a></p>
+    <div class="product-detail">
+      <div class="product-detail__gallery">
+        <div class="product-detail__gallery-main">
+          {%- if product.images.size > 0 -%}
+            <img src="{{ product.images[0].url }}" alt="{{ product.images[0].alt | default: product.title }}">
+          {%- else -%}
+            <div class="product-detail__gallery-fallback" aria-hidden="true"></div>
+          {%- endif -%}
+        </div>
+        {%- if product.images.size > 1 -%}
+          <ul class="product-detail__thumbs">
+            {%- assign shown = 0 -%}
+            {%- for image in product.images -%}
+              {%- assign shown = shown | plus: 1 -%}
+              {%- if shown <= 4 -%}
+                <li><img src="{{ image.url }}" alt="{{ image.alt | default: product.title }}" loading="lazy"></li>
+              {%- endif -%}
+            {%- endfor -%}
+          </ul>
+        {%- endif -%}
+      </div>
+
+      <div class="product-detail__info">
+        <h1 class="product-detail__title">{{ product.title }}</h1>
+
+        <div class="product-detail__price-row">
+          <span class="product-detail__price">{{ product.priceFormatted }}</span>
+          {%- if product.compareAtPriceFormatted -%}
+            <span class="product-detail__price-compare">{{ product.compareAtPriceFormatted }}</span>
+          {%- endif -%}
+          {%- if product.currency -%}
+            <span class="product-detail__currency">{{ product.currency }}</span>
+          {%- endif -%}
+        </div>
+
+        {%- if product.description -%}
+          <div class="product-detail__description prose">{{ product.description | raw }}</div>
+        {%- endif -%}
+
+        {%- if product.stock > 0 -%}
+          <a class="btn btn--primary" href="/store/buy?productId={{ product.id | url_encode }}&amp;returnTo=/products/{{ product.id | url_encode }}">Order now</a>
+          <p class="product-detail__stock">{{ product.stock }} in stock</p>
+        {%- else -%}
+          <span class="btn btn--primary btn--disabled">Sold out</span>
+          <p class="product-detail__stock product-detail__stock--out">Currently out of stock</p>
+        {%- endif -%}
+
+        {%- if product.specs.size > 0 -%}
+          <dl class="product-detail__specs">
+            {%- for spec in product.specs -%}
+              <div class="product-detail__spec"><dt>{{ spec.label }}</dt><dd>{{ spec.value }}</dd></div>
+            {%- endfor -%}
+          </dl>
+        {%- endif -%}
+      </div>
+    </div>
+
+    <div class="trust-grid">
+      <div class="trust-grid__item"><h3>Trusted quality</h3><p>Every piece is checked to ensure it meets our standards.</p></div>
+      <div class="trust-grid__item"><h3>Real-time tracking</h3><p>Get live updates from our warehouse to your doorstep.</p></div>
+      <div class="trust-grid__item"><h3>Secure payments</h3><p>Shop confidently with a secure, encrypted checkout.</p></div>
+      <div class="trust-grid__item"><h3>Easy returns</h3><p>Change your mind? Return any item within thirty days.</p></div>
+    </div>
+  {%- else -%}
+    <p class="products__empty">Product not found. <a href="/products">Back to all products</a>.</p>
+  {%- endif -%}
+</main>
+
+<footer class="site-footer">
+  <div class="wrap footer__top">
+    <div class="footer__brandcol">
+      <a class="footer__brand" href="/">{{ site.title }}</a>
+      <p class="footer__blurb">A modern minimalist storefront built on Tovu — every product on this site is real, seeded/store-plugin data.</p>
+    </div>
+    <div class="footer__col">
+      <h4>Shop</h4>
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="/products">All products</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="wrap footer__bottom">
+    <span>&copy; {{ site.title }}</span>
+    <span>theme: {{ theme.name }}</span>
+  </div>
+</footer>

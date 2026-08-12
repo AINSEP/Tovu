@@ -1,0 +1,133 @@
+{%- comment -%}
+  Fashion Modern — home.
+
+  Converted from a Framer export ("Wearix"). The source home.html is a ~1MB single-file export
+  with the full marketing page: hero, "New arrivals" grid, a brand-story section, a "best
+  sellers" grid, a three-collection strip, customer reviews, a six-card feature grid, a blog
+  teaser, and a newsletter/social footer — all authored as static copy (not real data anywhere).
+
+  This template intentionally ports a SUBSET, not every marketing block: the hero, a real
+  product grid (from `products` — the store plugin's live data, never hardcoded), and a real
+  journal teaser (from `posts`). The reviews/brand-pillars/collections-strip sections were
+  fabricated marketing copy in the source with no corresponding Tovu data source, so porting
+  them verbatim would mean hardcoding fake testimonials and fake collection categories into a
+  theme that's supposed to demonstrate REAL product data — out of scope for what this theme
+  needs to prove. See the theme's handoff report for the full parity comparison against the
+  original screenshots.
+
+  Chrome (announcement bar / header+nav / footer) is hand-authored HTML, not `render_block`:
+  Tovu's richer core components (`tovu/nav`, `tovu/footer`, `tovu/hero` with actions/media) take
+  array/object props (`items`, `columns`, `actions`) that LiquidJS's tag-argument syntax cannot
+  construct — verified empirically, a literal `items: [{...}]` either silently drops the key or
+  mis-parses to a boolean. Only scalar-prop components (`tagline`, `text`, `title`) are reachable
+  from a Liquid template, which is too thin for this design's 5-column footer, so the chrome
+  below is plain HTML instead, repeated in every template (Tier 2 has no `{% include %}`).
+
+  Product field contract this template reads (see product.liquid's header for the full one):
+    product.id, product.title, product.priceFormatted, product.compareAtPriceFormatted (NOT
+    wired yet — degrades to nothing), product.stock, product.images[0].url/.alt (NOT wired yet —
+    degrades to a plain gradient card).
+{%- endcomment -%}
+<div class="announce">
+  <div class="wrap"><p>Black Friday sale — 50% off select styles</p></div>
+</div>
+<header class="site-header">
+  <div class="wrap nav">
+    <a class="brand" href="/">{{ site.title }}</a>
+    <input type="checkbox" id="nav-toggle" class="nav-toggle" aria-label="Toggle menu">
+    <label for="nav-toggle" class="nav-burger"><span></span><span></span><span></span></label>
+    <nav class="nav-menu">
+      <ul class="nav-list">
+        <li class="nav-item"><a class="nav-link" href="/">Home</a></li>
+        <li class="nav-item"><a class="nav-link" href="/products">Shop</a></li>
+        {%- if posts.size > 0 -%}<li class="nav-item"><a class="nav-link" href="/#journal">Journal</a></li>{%- endif -%}
+      </ul>
+      <a class="btn btn--primary btn--sm nav-cta" href="/products">Shop now</a>
+    </nav>
+  </div>
+</header>
+
+<section class="hero" style="background-image:url('/theme-assets/fashion-modern/assets/hero-outerwear.jpg')">
+  <div class="hero__scrim" aria-hidden="true"></div>
+  <div class="wrap hero__inner">
+    <span class="hero__badge">New arrivals</span>
+    <h1 class="hero__title">Premium wear for modern living</h1>
+    <p class="hero__sub">Made from resilient, beautiful fabrics — every piece below is real inventory, not a mockup.</p>
+    <div class="hero__actions">
+      <a class="btn btn--primary" href="/products">Shop all products</a>
+    </div>
+  </div>
+</section>
+
+<section class="products">
+  <div class="wrap">
+    <div class="section-head">
+      <div><p class="eyebrow">Fresh drop</p><h2>Fresh fits in our latest arrivals</h2></div>
+      <a class="btn btn--ghost btn--sm" href="/products">Shop all</a>
+    </div>
+    {%- if products.size == 0 -%}
+      <p class="products__empty">No products available yet — the store isn't enabled in this runtime, or nothing has been added.</p>
+    {%- else -%}
+      <ul class="product-grid">
+        {%- for product in products -%}
+          <li class="product-card">
+            <a href="/products/{{ product.id }}">
+              <div class="product-card__media">
+                {%- if product.images.size > 0 -%}
+                  <img src="{{ product.images[0].url }}" alt="{{ product.images[0].alt | default: product.title }}" loading="lazy">
+                {%- else -%}
+                  <span class="product-card__media-fallback" aria-hidden="true"></span>
+                {%- endif -%}
+                {%- if product.stock == 0 -%}<span class="product-card__badge product-card__badge--sold-out">Sold out</span>{%- endif -%}
+              </div>
+              <h3 class="product-card__title">{{ product.title }}</h3>
+              <p class="product-card__price">
+                <span class="product-card__price-current">{{ product.priceFormatted }}</span>
+                {%- if product.compareAtPriceFormatted -%}<span class="product-card__price-compare">{{ product.compareAtPriceFormatted }}</span>{%- endif -%}
+              </p>
+            </a>
+          </li>
+        {%- endfor -%}
+      </ul>
+    {%- endif -%}
+  </div>
+</section>
+
+{%- if posts.size > 0 -%}
+<section class="journal" id="journal">
+  <div class="wrap">
+    <div class="section-head">
+      <div><p class="eyebrow">Wearix voice</p><h2>From the journal</h2></div>
+    </div>
+    <ul class="journal-teaser__list">
+      {%- assign shown = 0 -%}
+      {%- for post in posts -%}
+        {%- assign shown = shown | plus: 1 -%}
+        {%- if shown <= 4 -%}
+          <li><a href="/{{ post.slug }}"><span>{{ post.title }}</span><time>{{ post.dateShort }}</time></a></li>
+        {%- endif -%}
+      {%- endfor -%}
+    </ul>
+  </div>
+</section>
+{%- endif -%}
+
+<footer class="site-footer">
+  <div class="wrap footer__top">
+    <div class="footer__brandcol">
+      <a class="footer__brand" href="/">{{ site.title }}</a>
+      <p class="footer__blurb">A modern minimalist storefront built on Tovu — every product on this site is real, seeded/store-plugin data.</p>
+    </div>
+    <div class="footer__col">
+      <h4>Shop</h4>
+      <ul>
+        <li><a href="/">Home</a></li>
+        <li><a href="/products">All products</a></li>
+      </ul>
+    </div>
+  </div>
+  <div class="wrap footer__bottom">
+    <span>&copy; {{ site.title }}</span>
+    <span>theme: {{ theme.name }}</span>
+  </div>
+</footer>
