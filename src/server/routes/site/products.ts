@@ -6,6 +6,13 @@ import type { RouteDeps, RouteRegistrar } from "../types";
 
 const SITE_TITLE = "Tovu Demo Site";
 
+/** Owner decision (TM-TOVU-2026-08-12-A request-cost audit, Phase 2 change 2 of 2) — same header,
+ *  same reasoning as `pages.ts`'s own `CACHE_CONTROL_PUBLIC_PAGE` (see that file's doc): neither
+ *  handler below reads `req` for anything beyond the route param, so the response is identical for
+ *  every anonymous visitor requesting the same URL. Not shared as a cross-file export — two short,
+ *  independently-readable copies over a new cross-file coupling for one string constant. */
+const CACHE_CONTROL_PUBLIC_PAGE = "public, max-age=60, stale-while-revalidate=300";
+
 /** Same fallback chain `pages.ts`'s `resolveActiveTheme` uses — kept as its own copy here rather
  * than exported/shared, since `pages.ts` is post/page-specific and this is products-specific; the
  * two call sites would otherwise need to agree on a shared module for one three-line function. */
@@ -34,7 +41,7 @@ export const registerProductRoutes: RouteRegistrar = (app, deps) => {
         res.status(500).type("html").send("<h1>No themes installed</h1>");
         return;
       }
-      res.type("html").send(
+      res.set("Cache-Control", CACHE_CONTROL_PUBLIC_PAGE).type("html").send(
         await renderSite({ theme, route: "products", siteTitle: SITE_TITLE, posts: [], products, siteAssistantEnabled }),
       );
     } catch {
@@ -60,7 +67,7 @@ export const registerProductRoutes: RouteRegistrar = (app, deps) => {
         res.status(500).type("html").send("<h1>No themes installed</h1>");
         return;
       }
-      res.type("html").send(
+      res.set("Cache-Control", CACHE_CONTROL_PUBLIC_PAGE).type("html").send(
         await renderSite({ theme, route: "product", siteTitle: SITE_TITLE, posts: [], products, product, siteAssistantEnabled }),
       );
     } catch {

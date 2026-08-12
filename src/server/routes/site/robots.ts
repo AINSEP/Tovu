@@ -1,6 +1,11 @@
 import { buildRobots } from "#src/seo/index";
 import type { SeoRouteRegistrar } from "../admin/seo/deps";
 
+/** Owner decision (TM-TOVU-2026-08-12-A request-cost audit, Phase 2 change 2 of 2) — same header,
+ *  same reasoning as `pages.ts`'s own `CACHE_CONTROL_PUBLIC_PAGE` (see that file's doc): this route
+ *  reads no per-request state beyond `deps`, so the body is identical for every visitor. */
+const CACHE_CONTROL_PUBLIC_PAGE = "public, max-age=60, stale-while-revalidate=300";
+
 /**
  * GET /robots.txt — public, unauthenticated (SPEC-008 api.spec.md `SEO_GET_ROBOTS`, REQ-09,
  * tasks.md T046).
@@ -18,7 +23,7 @@ export const registerSeoRobotsRoute: SeoRouteRegistrar = (app, deps) => {
         lines.push("");
       }
       for (const url of policy.sitemapUrls) lines.push(`Sitemap: ${url}`);
-      res.type("text/plain").send(lines.join("\n") + (lines.length > 0 ? "\n" : ""));
+      res.set("Cache-Control", CACHE_CONTROL_PUBLIC_PAGE).type("text/plain").send(lines.join("\n") + (lines.length > 0 ? "\n" : ""));
     } catch {
       res.status(500).type("text/plain").send("internal error");
     }

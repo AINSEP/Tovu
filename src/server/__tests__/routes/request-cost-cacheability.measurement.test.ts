@@ -43,6 +43,13 @@ function buildPublicSiteApp(): { app: express.Express; deps: RouteDeps } {
 
 const CACHE_HEADER_NAMES = ["cache-control", "etag", "last-modified", "expires", "vary"];
 
+/** Owner-decided value (TM-TOVU-2026-08-12-A Phase 2) — matches the literal each route file sets
+ *  its own local `CACHE_CONTROL_PUBLIC_PAGE` constant to (`pages.ts`/`products.ts`/`sitemap.ts`/
+ *  `robots.ts` each keep an independent copy rather than importing this one — see those files' own
+ *  doc comments for why). This is the before/after regression guard: before Phase 2 these routes
+ *  sent no `Cache-Control` at all (deliverable A's own finding); now they must send exactly this. */
+const EXPECTED_CACHE_CONTROL = "public, max-age=60, stale-while-revalidate=300";
+
 function summarizeCacheHeaders(res: Response): Record<string, string | null> {
   const out: Record<string, string | null> = {};
   for (const name of CACHE_HEADER_NAMES) out[name] = res.headers.get(name);
@@ -62,6 +69,7 @@ test("A: GET / (home) — headers today, and cacheability proven by diffing two 
   const plain = await fetch(`${baseUrl}/`);
   assert.equal(plain.status, 200);
   logRow("GET /", summarizeCacheHeaders(plain), "seeded default (basic theme)");
+  assert.equal(plain.headers.get("cache-control"), EXPECTED_CACHE_CONTROL, "Phase 2: home must send the owner-decided Cache-Control");
 
   // Same URL, different "visitor": an arbitrary cookie and a different Accept-Language, standing in
   // for "two different anonymous browsers." If the byte-for-byte body differs, something is reading
@@ -81,6 +89,7 @@ test("A: GET /:slug (a real post, dynamic render path) — headers + cacheabilit
   const plain = await fetch(`${baseUrl}/the-weight-of-type`);
   assert.equal(plain.status, 200);
   logRow("GET /:slug (post)", summarizeCacheHeaders(plain), "seeded post, not a static-theme page id");
+  assert.equal(plain.headers.get("cache-control"), EXPECTED_CACHE_CONTROL, "Phase 2: the dynamic post render path must send the owner-decided Cache-Control");
 
   const bodyA = await plain.text();
   const flavored = await fetch(`${baseUrl}/the-weight-of-type`, {
@@ -97,6 +106,7 @@ test("A: GET /:slug (a static-theme marketing page) — headers + cacheability",
   const res = await fetch(`${baseUrl}/about`);
   assert.equal(res.status, 200);
   logRow("GET /:slug (static theme page)", summarizeCacheHeaders(res), "matches basic theme's own page id");
+  assert.equal(res.headers.get("cache-control"), EXPECTED_CACHE_CONTROL, "Phase 2: the static-theme-page short-circuit must send the owner-decided Cache-Control too — same cacheability property, not just the dynamic path");
 });
 
 test("A: GET /products (grid) and /products/:id (detail) — headers + cacheability", async (t) => {
@@ -105,6 +115,7 @@ test("A: GET /products (grid) and /products/:id (detail) — headers + cacheabil
 
   const grid = await fetch(`${baseUrl}/products`);
   logRow("GET /products", summarizeCacheHeaders(grid), `status=${grid.status} (deps.store unset in this harness -> empty grid, still exercises the real handler)`);
+  assert.equal(grid.headers.get("cache-control"), EXPECTED_CACHE_CONTROL, "Phase 2: /products must send the owner-decided Cache-Control");
 
   const bodyA = await grid.text();
   const flavored = await fetch(`${baseUrl}/products`, { headers: { cookie: "x=1" } });
@@ -118,6 +129,7 @@ test("A: GET /store — plugin NOT wired (createRouteDeps()'s own default) — h
 
   const plain = await fetch(`${baseUrl}/store`);
   logRow("GET /store (no store plugin)", summarizeCacheHeaders(plain), "deps.store unset — matches createRouteDeps()'s own default, and per its file header, only the real SQLite runtime ever wires it");
+  assert.equal(plain.headers.get("cache-control"), null, "Phase 2 explicitly excluded /store — it must NOT get a cache header (cacheable only by full URL including query, not by path alone)");
   const bodyPlain = await plain.text();
   const withMsg = await fetch(`${baseUrl}/store?msg=hello`);
   const bodyMsg = await withMsg.text();
@@ -139,8 +151,10 @@ test("A: GET /store — plugin wired — query-string-dependent (not visitor-dep
 
   const plain = await fetch(`${baseUrl}/store`);
   logRow("GET /store (plugin wired)", summarizeCacheHeaders(plain), "no ?msg=");
+  assert.equal(plain.headers.get("cache-control"), null, "Phase 2 explicitly excluded /store — left alone regardless of plugin state");
   const withMsg = await fetch(`${baseUrl}/store?msg=hello`);
   logRow("GET /store?msg=... (plugin wired)", summarizeCacheHeaders(withMsg), "flash message present");
+  assert.equal(withMsg.headers.get("cache-control"), null, "Phase 2 explicitly excluded /store, including the ?msg= variant");
 
   const bodyPlain = await plain.text();
   const bodyMsg = await withMsg.text();
@@ -151,6 +165,26 @@ test("A: GET /store — plugin wired — query-string-dependent (not visitor-dep
   const withMsgOtherCookie = await fetch(`${baseUrl}/store?msg=hello`, { headers: { cookie: "visitor=2" } });
   const bodyMsgOtherCookie = await withMsgOtherCookie.text();
   assert.equal(bodyMsg, bodyMsgOtherCookie, "same query string, different cookie -> identical body (not visitor-dependent)");
+});
+
+test("A: GET /store/buy — MUST NEVER get a cache header of any kind (it's a GET that mutates)", async (t) => {
+  const deps: RouteDeps = createRouteDeps();
+  deps.store = {
+    listProducts: () => [{ id: "p1", title: "Test Widget", price: 500, stock: 3, version: 1 }],
+    checkout: () => ({ ok: true, orderId: "o1", remainingStock: 2, retries: 0 }),
+  };
+  const app = express();
+  registerStoreRoutes(app, deps);
+  const baseUrl = await startTestServer(app, t);
+
+  // redirect: false so we can inspect the redirect response itself, not follow it.
+  const res = await fetch(`${baseUrl}/store/buy?productId=p1`, { redirect: "manual" });
+  logRow("GET /store/buy", summarizeCacheHeaders(res), `status=${res.status} (a redirect, per the handler's own res.redirect())`);
+  assert.equal(
+    res.headers.get("cache-control"),
+    null,
+    "Phase 2 explicitly forbids ANY cache header here — this GET mutates (stock decrement + order write); caching or a CDN/crawler prefetching it would be actively dangerous"
+  );
 });
 
 test("A: does the auto-generated ETag actually short-circuit a conditional GET today?", async (t) => {
@@ -183,6 +217,7 @@ test("A: GET /products/:id (detail)", async (t) => {
   const res = await fetch(`${baseUrl}/products/p1`);
   assert.equal(res.status, 200);
   logRow("GET /products/:id", summarizeCacheHeaders(res), "");
+  assert.equal(res.headers.get("cache-control"), EXPECTED_CACHE_CONTROL, "Phase 2: /products/:id must send the owner-decided Cache-Control");
   const bodyA = await res.text();
   const flavored = await fetch(`${baseUrl}/products/p1`, { headers: { cookie: "x=1" } });
   const bodyB = await flavored.text();
@@ -196,10 +231,12 @@ test("A: GET /sitemap.xml and /robots.txt — headers + cacheability", async (t)
   const sitemap = await fetch(`${baseUrl}/sitemap.xml`);
   assert.equal(sitemap.status, 200);
   logRow("GET /sitemap.xml", summarizeCacheHeaders(sitemap), "");
+  assert.equal(sitemap.headers.get("cache-control"), EXPECTED_CACHE_CONTROL, "Phase 2: /sitemap.xml must send the owner-decided Cache-Control");
 
   const robots = await fetch(`${baseUrl}/robots.txt`);
   assert.equal(robots.status, 200);
   logRow("GET /robots.txt", summarizeCacheHeaders(robots), "");
+  assert.equal(robots.headers.get("cache-control"), EXPECTED_CACHE_CONTROL, "Phase 2: /robots.txt must send the owner-decided Cache-Control");
 
   const bodyA = await sitemap.text();
   const sitemapAgain = await fetch(`${baseUrl}/sitemap.xml`, { headers: { cookie: "x=1" } });
