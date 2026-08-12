@@ -42,7 +42,7 @@ import {
   THEME_READ_PERMISSION,
   THEME_WRITE_PERMISSION,
 } from "./agent-tools";
-import { listThemeFiles, readThemeFile, ThemePathError, writeThemeFile } from "./theme-files";
+import { listThemeFiles, readThemeFile, resolveThemeFileWriteScope, ThemePathError, writeThemeFile } from "./theme-files";
 import { loadTheme, type DiscoveredTheme } from "./theme";
 
 const CATALOG_BY_ID = indexCatalogById(getThemesAgentToolCatalog());
@@ -75,11 +75,21 @@ class ThemeNotFoundError extends Error {
   }
 }
 
+/** Raised when `theme_write_file` targets a BUILT theme's generated tree — ADR-020 §5's "editor-
+ * read-only" half of the lifecycle split. A different `path` (inside `build.sourceDir`, or
+ * `theme.json`) is exactly what would fix this, so it is a shape rejection like {@link ThemePathError}. */
+class ThemeFileReadOnlyError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ThemeFileReadOnlyError";
+  }
+}
+
 /** Errors a DIFFERENT input would fix, and therefore worth publishing the schema back with. A
  * genuine I/O failure (a permission-denied disk, a full volume) is not one of these and propagates
  * undecorated, because retrying with different arguments would not help. */
 function isShapeRejection(error: unknown): boolean {
-  return error instanceof ThemePathError || error instanceof ThemeNotFoundError;
+  return error instanceof ThemePathError || error instanceof ThemeNotFoundError || error instanceof ThemeFileReadOnlyError;
 }
 
 /**
@@ -195,6 +205,15 @@ export function buildThemesRegistrations(routeDeps: ThemeToolDeps): ToolRegistra
 
       return withSchemaOnRejection({ toolId: "theme_write_file", catalog: CATALOG_BY_ID, isShapeRejection }, async () => {
         const theme = findThemeOrThrow(routeDeps, themeId);
+
+        // ADR-020 §5: a built theme's generated tree is read-only from every per-file surface,
+        // this AI tool included — see `resolveThemeFileWriteScope`'s own doc for why. Checked BEFORE
+        // any filesystem write, so a rejected write never touches disk.
+        const writeScope = resolveThemeFileWriteScope({ manifest: theme.manifest, relativePath });
+        if (writeScope.kind === "generated-readonly") {
+          throw new ThemeFileReadOnlyError(`'${relativePath}' is read-only: ${writeScope.reason}`);
+        }
+
         writeThemeFile({ themeDir: theme.dir, themesRoot: routeDeps.themesDir, relativePath, content });
 
         // Re-validate through the SAME `loadTheme()` a boot-time discovery uses — the whole point of

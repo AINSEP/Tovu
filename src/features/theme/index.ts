@@ -14,11 +14,17 @@ export {
   THEME_CATALOG_DIR,
   MARKETPLACE_CATALOG_DIR,
   type ThemeManifest,
+  type ThemeBuildInfo,
   type ThemeTier,
   type ThemeTokens,
   type TemplateNode,
   type DiscoveredTheme,
 } from "./theme";
+
+// ADR-020 §5 (2026-08-12) — the install-time conformance gate a `build.source: "compiled"` theme must
+// pass. Re-exported so a consumer checking `theme.manifest.build` can also reach the exact gate
+// `loadTheme()` itself runs, without a second import path into `build-conformance.ts` directly.
+export { checkBuiltThemeConformance, type ConformanceIssue } from "./build-conformance";
 
 export {
   listMarketplaceThemes,
