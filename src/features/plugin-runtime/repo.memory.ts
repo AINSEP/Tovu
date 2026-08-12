@@ -36,6 +36,12 @@ export class InMemoryPluginActivationRepo implements PluginActivationRepoPort {
     this.rows[index] = record;
   }
 
+  async deleteActivation(required: { workspaceId: string; pluginId: string }): Promise<void> {
+    this.rows = this.rows.filter(
+      (row) => row.workspaceId !== required.workspaceId || row.pluginId !== required.pluginId
+    );
+  }
+
   async listAll(): Promise<PluginActivationRecord[]> {
     return [...this.rows];
   }

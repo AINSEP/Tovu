@@ -39,6 +39,7 @@ export interface PluginActivationRecord {
 export interface PluginActivationRepoPort {
   getActivation(required: { workspaceId: UUID; pluginId: string }): Promise<PluginActivationRecord | null>;
   save(record: PluginActivationRecord): Promise<void>;
+  deleteActivation(required: { workspaceId: UUID; pluginId: string }): Promise<void>;
   /** Every row across every workspace — used by discovery's `enabled` projection and by any
    * future migration, mirrors `PresentationSettingsRepoPort.listAll`. */
   listAll(): Promise<PluginActivationRecord[]>;
@@ -127,7 +128,23 @@ export async function setPluginEnabled(
   await deps.repo.save(activation);
 
   if (input.enabled) {
-    await deps.onEnabled?.(input.pluginId);
+    try {
+      await deps.onEnabled?.(input.pluginId);
+    } catch (error) {
+      try {
+        if (existing) {
+          await deps.repo.save(existing);
+        } else {
+          await deps.repo.deleteActivation({
+            workspaceId: input.workspaceId,
+            pluginId: input.pluginId,
+          });
+        }
+      } catch {
+        // Compensation is best-effort; its failure must not mask the enable side effect's error.
+      }
+      throw error;
+    }
   } else {
     deps.onDisabled?.(input.pluginId);
   }

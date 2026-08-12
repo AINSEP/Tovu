@@ -105,6 +105,105 @@ test("REQ-07/AC-02: a successful enable upserts enabled:true and invokes onEnabl
   assert.equal(persisted?.enabled, true);
 });
 
+test("REQ-07: a failed enable side effect restores the prior activation and rethrows the original error", async () => {
+  const prior = {
+    pluginId: "word-count",
+    workspaceId: WORKSPACE,
+    version: "0.9.0",
+    enabled: false,
+    updatedAt: "2026-07-27T00:00:00.000Z",
+  } as const;
+  const repo = new InMemoryPluginActivationRepo([prior]);
+  const originalError = new Error("enable side effect failed");
+
+  await assert.rejects(
+    () =>
+      setPluginEnabled({
+        deps: {
+          clock: clock(),
+          repo,
+          discovery: discoveryOf("valid"),
+          onEnabled: async () => {
+            throw originalError;
+          },
+        },
+        input: { workspaceId: WORKSPACE, pluginId: "word-count", enabled: true },
+      }),
+    (error) => error === originalError
+  );
+
+  assert.deepEqual(
+    await repo.getActivation({ workspaceId: WORKSPACE, pluginId: "word-count" }),
+    prior
+  );
+});
+
+test("REQ-07: a failed first enable removes the newly-created activation and rethrows the original error", async () => {
+  const repo = new InMemoryPluginActivationRepo();
+  const originalError = new Error("first enable side effect failed");
+
+  await assert.rejects(
+    () =>
+      setPluginEnabled({
+        deps: {
+          clock: clock(),
+          repo,
+          discovery: discoveryOf("valid"),
+          onEnabled: async () => {
+            throw originalError;
+          },
+        },
+        input: { workspaceId: WORKSPACE, pluginId: "word-count", enabled: true },
+      }),
+    (error) => error === originalError
+  );
+
+  assert.equal(
+    await repo.getActivation({ workspaceId: WORKSPACE, pluginId: "word-count" }),
+    null
+  );
+});
+
+test("REQ-07: a compensation failure never masks the original enable side-effect error", async () => {
+  const backing = new InMemoryPluginActivationRepo([
+    {
+      pluginId: "word-count",
+      workspaceId: WORKSPACE,
+      version: "0.9.0",
+      enabled: false,
+      updatedAt: "2026-07-27T00:00:00.000Z",
+    },
+  ]);
+  let saveCalls = 0;
+  const repo = {
+    getActivation: backing.getActivation.bind(backing),
+    listAll: backing.listAll.bind(backing),
+    deleteActivation: backing.deleteActivation.bind(backing),
+    save: async (record: Parameters<typeof backing.save>[0]) => {
+      saveCalls += 1;
+      if (saveCalls === 2) throw new Error("compensation failed");
+      await backing.save(record);
+    },
+  };
+  const originalError = new Error("enable side effect failed");
+
+  await assert.rejects(
+    () =>
+      setPluginEnabled({
+        deps: {
+          clock: clock(),
+          repo,
+          discovery: discoveryOf("valid"),
+          onEnabled: async () => {
+            throw originalError;
+          },
+        },
+        input: { workspaceId: WORKSPACE, pluginId: "word-count", enabled: true },
+      }),
+    (error) => error === originalError
+  );
+});
+
 test("REQ-07/AC-02: a successful disable upserts enabled:false and invokes onDisabled (the unload side effect); ext data is never touched by this module (INV-03 — no ext dependency exists here at all)", async () => {
   const repo = new InMemoryPluginActivationRepo();
   await repo.save({ pluginId: "word-count", workspaceId: WORKSPACE, version: "1.0.0", enabled: true, updatedAt: "2026-07-28T00:00:00.000Z" });
