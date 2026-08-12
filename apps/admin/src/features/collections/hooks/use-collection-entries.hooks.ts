@@ -1,5 +1,6 @@
-import { useEffect, useState } from "react";
 import { describeApiError, type AdminContentType, type AdminEntry } from "../../../lib/api";
+import { useFetchQuery } from "../../../lib/fetch-query";
+import { KEYS } from "../rules";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { COLLECTIONS_DICT, t as translate } from "../collections-i18n";
 import { defaultCollectionEntriesPort } from "./collection-entries-dependencies.hooks";
@@ -24,6 +25,14 @@ import type { CollectionEntriesPort } from "./collection-entries-port.hooks";
  * — aliased `translate` here to avoid colliding with this file's bound `(key) => string` closure —
  * stays a direct, uninjected import for this hook's OWN error string (pure, takes `locale`
  * explicitly, not a host reach).
+ *
+ * `lib/fetch-query` migration (2026-08-12): the combined content-type + entries read (still one
+ * `Promise.all`, since the screen genuinely needs both before it can render) is now one
+ * `useFetchQuery` keyed on `KEYS.entries(contentTypeKey)` — a child of `use-collections.hooks.ts`'s
+ * `KEYS.list`, so a content-type lifecycle/field change refreshes this list too. `use-collection-
+ * entry-editor.hooks.ts`'s `save()`/`toggleLifecycle()` also `invalidates: [KEYS.entries(key)]`
+ * directly (not by nesting a shared key under it — see `rules.ts`'s `KEYS` doc for why that nesting
+ * was tried and reverted), so saving one entry refreshes this list too.
  */
 
 export interface CollectionEntriesController {
@@ -46,25 +55,24 @@ export function useCollectionEntries(
   deps: CollectionEntriesDependencies
 ): CollectionEntriesController {
   const { port, locale, t } = deps;
-  const [contentType, setContentType] = useState<AdminContentType | null | undefined>(undefined);
-  const [entries, setEntries] = useState<AdminEntry[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
-  function load() {
-    setError(null);
-    Promise.all([port.listContentTypes(), port.listEntries({ type: props.contentTypeKey })])
-      .then(([typesResult, entriesResult]) => {
-        setContentType(typesResult.items.find((entry) => entry.key === props.contentTypeKey) ?? null);
-        setEntries(entriesResult.items);
-      })
-      .catch((e) => setError(describeApiError(e, translate(locale, "failed to load entries"))));
-  }
+  const list = useFetchQuery({
+    key: KEYS.entries(props.contentTypeKey),
+    fetch: async () => {
+      const [typesResult, entriesResult] = await Promise.all([
+        port.listContentTypes(),
+        port.listEntries({ type: props.contentTypeKey }),
+      ]);
+      return {
+        contentType: typesResult.items.find((entry) => entry.key === props.contentTypeKey) ?? null,
+        entries: entriesResult.items,
+      };
+    },
+  });
 
-  // `port` is added — see `use-page-editor.hooks.ts`'s identical note: a function-scoped value
-  // ESLint's exhaustive-deps rule can see, referentially stable in production, so this changes
-  // nothing about when the effect re-runs.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(load, [props.contentTypeKey, port]);
+  const contentType: AdminContentType | null | undefined = list.data?.contentType;
+  const entries: AdminEntry[] | null = list.data?.entries ?? null;
+  const error = list.error ? describeApiError(list.error, translate(locale, "failed to load entries")) : null;
 
   return { contentType, entries, error, t };
 }

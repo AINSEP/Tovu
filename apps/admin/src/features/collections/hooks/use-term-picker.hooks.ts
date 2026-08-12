@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { describeApiError } from "../../../lib/api";
+import { useFetchMutation } from "../../../lib/fetch-query";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { assignedTermsMessage, t } from "../collections-i18n";
 import { defaultTermPickerPort } from "./term-picker-dependencies.hooks";
@@ -20,6 +21,11 @@ import type { TermPickerPort } from "./term-picker-port.hooks";
  * `useAdminLocale()` directly, so a test can describe the assign outcome against
  * `createFakeTermPickerPort` instead of stubbing global `fetch`. `useWiredTermPicker` below is the
  * pair `CollectionEntryEditor.tsx` actually mounts.
+ *
+ * `lib/fetch-query` migration (2026-08-12): `assignTerms` is a `useFetchMutation` with no
+ * `invalidates` — matching the pre-migration behavior, which never reloaded anything after a
+ * successful assign (only cleared the local selection); term assignment isn't part of any cached
+ * `AdminEntry`/`AdminContentType` read this feature tracks.
  */
 
 export interface TermPickerController {
@@ -42,9 +48,11 @@ export function useTermPicker(
 ): TermPickerController {
   const { port, locale } = deps;
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
+
+  const assignMutation = useFetchMutation({
+    run: (input: { contentType: string; contentId: string; termIds: string[] }) => port.assignTerms(input),
+  });
 
   function toggle(termId: string) {
     setSelected((current) => {
@@ -57,19 +65,19 @@ export function useTermPicker(
 
   async function assign() {
     if (selected.size === 0) return;
-    setSaving(true);
-    setError(null);
     setMessage(null);
+    const assignedCount = selected.size;
     try {
-      await port.assignTerms({ contentType: props.contentType, contentId: props.contentId, termIds: [...selected] });
-      setMessage(assignedTermsMessage(locale, selected.size));
+      await assignMutation.mutate({ contentType: props.contentType, contentId: props.contentId, termIds: [...selected] });
+      setMessage(assignedTermsMessage(locale, assignedCount));
       setSelected(new Set());
-    } catch (e) {
-      setError(describeApiError(e, t(locale, "Failed to assign terms")));
-    } finally {
-      setSaving(false);
+    } catch {
+      // already surfaced through assignMutation.error -> error below
     }
   }
+
+  const saving = assignMutation.status === "pending";
+  const error = assignMutation.error ? describeApiError(assignMutation.error, t(locale, "Failed to assign terms")) : null;
 
   return { selected, toggle, saving, message, error, assign };
 }

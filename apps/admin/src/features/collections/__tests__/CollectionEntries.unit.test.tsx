@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { FetchQueryProvider } from "../../../lib/fetch-query";
 import { CollectionEntries } from "../CollectionEntries";
 
 /**
@@ -9,6 +10,10 @@ import { CollectionEntries } from "../CollectionEntries";
  * *creatable* collection — a working "New entry" button and no error anywhere — because nothing
  * checked the `contentType === null` case the lookup already distinguished from "still loading".
  * Follows the RTL harness `Plugins.unit.test.tsx` established for this package.
+ *
+ * `CollectionEntries` has no injectable hook seam — it always composes the real
+ * `useWiredCollectionEntries` — so every render below needs a `FetchQueryProvider` ancestor
+ * (2026-08-12, `lib/fetch-query` migration).
  */
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -48,7 +53,11 @@ describe("a content type key that matches nothing", () => {
       .mockResolvedValueOnce(jsonResponse(CONTENT_TYPES_RESPONSE)) // listContentTypes — "does-not-exist" is absent
       .mockResolvedValueOnce(jsonResponse({ items: [] })); // listEntries
 
-    render(<CollectionEntries contentTypeKey="does-not-exist" />);
+    render(
+      <FetchQueryProvider>
+        <CollectionEntries contentTypeKey="does-not-exist" />
+      </FetchQueryProvider>
+    );
 
     expect(await screen.findByText('Unknown content type "does-not-exist".')).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /new entry/i })).not.toBeInTheDocument();
@@ -62,7 +71,11 @@ describe("a real content type", () => {
       .mockResolvedValueOnce(jsonResponse(CONTENT_TYPES_RESPONSE))
       .mockResolvedValueOnce(jsonResponse({ items: [] }));
 
-    render(<CollectionEntries contentTypeKey="recipe" />);
+    render(
+      <FetchQueryProvider>
+        <CollectionEntries contentTypeKey="recipe" />
+      </FetchQueryProvider>
+    );
 
     expect(await screen.findByRole("heading", { name: "Recipe" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /new entry/i })).toBeInTheDocument();
