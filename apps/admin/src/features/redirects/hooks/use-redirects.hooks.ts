@@ -2,6 +2,8 @@ import { useState } from "react";
 
 import type { AdminRedirect } from "../../../lib/api";
 import { useFetchMutation, useFetchQuery, type QueryStatus } from "../../../lib/fetch-query";
+import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { t as defaultT } from "../redirects-i18n";
 import { KEYS, buildCreateRedirectPayload, firstWriteError, isAnyWritePending, nextRedirectStatus, visibleRedirectsError } from "../rules";
 import { defaultRedirectsPort } from "./redirects-dependencies.hooks";
 import type { RedirectsPort } from "./redirects-port.hooks";
@@ -23,6 +25,16 @@ import type { RedirectsPort } from "./redirects-port.hooks";
  * a test can describe list/write outcomes against `createFakeRedirectsPort` instead of stubbing
  * global `fetch`. `useWiredRedirects` below is the zero-argument pair `Redirects.tsx` actually
  * mounts.
+ *
+ * `t`/`locale` (2026-08-11, standing i18n rule — a component with a hook gets a BOUND `t` from that
+ * hook, not its own `useAdminLocale()`/dictionary import): `Redirects.tsx` was the ORIGINAL
+ * reference implementation of the port/dependencies half of this convention (`2ea11f4`) but had not
+ * yet had the i18n half applied — it still called `useAdminLocale()` and imported `redirects-i18n`'s
+ * `t` directly. Both are now injected here. `locale` is threaded ALONGSIDE `t` (not just `t` alone,
+ * unlike `use-analytics.hooks.ts`) because `Redirects.tsx` passes raw `locale` into
+ * `redirectRowMenuItems` (`rules.ts`) and `actionsForRedirectLabel`/`deleteRedirectBody`
+ * (`redirects-i18n.tsx`), all three of which take `(locale, ...)` directly — same reasoning as
+ * `use-integrations.hooks.ts`'s identical `t`+`locale` case.
  */
 
 export interface RedirectsController {
@@ -46,9 +58,16 @@ export interface RedirectsController {
   createRedirect: (form: FormData) => void;
   onToggleStatus: (rule: AdminRedirect) => void;
   onRequestDelete: (rule: AdminRedirect) => void;
+  /** Bound translator — `key` already resolved against the caller's locale, so `Redirects.tsx`
+   *  never imports `useAdminLocale`/`redirects-i18n` itself. See this file's header. */
+  t: (key: string) => string;
+  /** Raw resolved locale — needed alongside `t` because `rules.ts`/`redirects-i18n.tsx` expose a
+   *  few helpers that take `(locale, ...)` directly rather than a bound translator. See this file's
+   *  header. */
+  locale: string;
 }
 
-export function useRedirects(port: RedirectsPort): RedirectsController {
+export function useRedirects(port: RedirectsPort, t: (key: string) => string, locale: string): RedirectsController {
   const list = useFetchQuery({ key: KEYS.list, fetch: () => port.listRedirects() });
 
   // Each write names the cache it affects rather than calling a loader; the
@@ -147,15 +166,22 @@ export function useRedirects(port: RedirectsPort): RedirectsController {
     createRedirect,
     onToggleStatus,
     onRequestDelete,
+    t,
+    locale,
   };
 }
 
 /**
- * Binds the real `/api/.../redirects` client — see `redirects-dependencies.hooks.ts`.
+ * Binds the real `/api/.../redirects` client, and a `t` bound to the real resolved locale
+ * (`useAdminLocale()`, called here and ONLY here — see this file's header) — see
+ * `redirects-dependencies.hooks.ts`.
  *
  * The zero-argument half of the `useX(dependencies)` / `useWiredX()` pair, so `Redirects.tsx`
- * composes this and a test composes {@link useRedirects} with `createFakeRedirectsPort`.
+ * composes this and a test composes {@link useRedirects} with `createFakeRedirectsPort` and a fake
+ * `t`/`locale`.
  */
 export function useWiredRedirects(): RedirectsController {
-  return useRedirects(defaultRedirectsPort);
+  const locale = useAdminLocale();
+  const t = (key: string): string => defaultT(locale, key);
+  return useRedirects(defaultRedirectsPort, t, locale);
 }

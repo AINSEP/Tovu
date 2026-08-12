@@ -14,6 +14,10 @@ import { useHitCountCell, useWiredHitCountCell } from "../hooks/use-hit-count-ce
  *
  * Goes through `useFetchQuery`, so every render needs a `FetchQueryProvider` — a fresh one per
  * test, matching `fetch-query.test.tsx`'s own convention (cold cache per test).
+ *
+ * `t` (2026-08-11, standing i18n rule — see `use-hit-count-cell.hooks.ts`'s own file header): every
+ * call below passes `fakeT`, the identity function, matching `wired-hooks-convention.md`'s own
+ * `t: (k) => k` example — except the dedicated "injected t is genuinely returned" group.
  */
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -24,6 +28,9 @@ function wrapper({ children }: { children: React.ReactNode }) {
   return <FetchQueryProvider>{children}</FetchQueryProvider>;
 }
 
+/** Identity translator for tests that don't care about `t`'s own behavior — see this file's header. */
+const fakeT = (key: string): string => key;
+
 afterEach(() => {
   vi.unstubAllGlobals();
 });
@@ -33,7 +40,7 @@ describe("useHitCountCell", () => {
     const fetchMock = vi.fn(() => new Promise(() => {}));
     vi.stubGlobal("fetch", fetchMock);
 
-    renderHook(() => useWiredHitCountCell({ redirectId: "r1" }), { wrapper });
+    renderHook(() => useWiredHitCountCell({ redirectId: "r1", t: fakeT }), { wrapper });
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
@@ -43,7 +50,7 @@ describe("useHitCountCell", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    const { result } = renderHook(() => useWiredHitCountCell({ redirectId: "r1" }), { wrapper });
+    const { result } = renderHook(() => useWiredHitCountCell({ redirectId: "r1", t: fakeT }), { wrapper });
     act(() => result.current.request());
 
     await waitFor(() => expect(result.current.data?.data.hitCount).toBe(7));
@@ -56,7 +63,7 @@ describe("useHitCountCell", () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    const { result } = renderHook(() => useWiredHitCountCell({ redirectId: "r1" }), { wrapper });
+    const { result } = renderHook(() => useWiredHitCountCell({ redirectId: "r1", t: fakeT }), { wrapper });
     act(() => result.current.request());
 
     await waitFor(() => expect(result.current.data).toBeDefined());
@@ -68,7 +75,7 @@ describe("useHitCountCell", () => {
     const fetchMock = vi.fn(() => new Promise<Response>((resolve) => (resolveFetch = resolve)));
     vi.stubGlobal("fetch", fetchMock);
 
-    const { result } = renderHook(() => useWiredHitCountCell({ redirectId: "r1" }), { wrapper });
+    const { result } = renderHook(() => useWiredHitCountCell({ redirectId: "r1", t: fakeT }), { wrapper });
     act(() => result.current.request());
 
     await waitFor(() => expect(result.current.isFetching).toBe(true));
@@ -83,7 +90,7 @@ describe("useHitCountCell", () => {
     const fetchMock = vi.fn().mockResolvedValue(jsonResponse({ error: "hits route down" }, 500));
     vi.stubGlobal("fetch", fetchMock);
 
-    const { result } = renderHook(() => useWiredHitCountCell({ redirectId: "r1" }), { wrapper });
+    const { result } = renderHook(() => useWiredHitCountCell({ redirectId: "r1", t: fakeT }), { wrapper });
     act(() => result.current.request());
 
     await waitFor(() => expect(result.current.error).not.toBeNull());
@@ -101,7 +108,7 @@ describe("useHitCountCell — injected port (no fetch stub)", () => {
       return wrappedGetHits(id);
     };
 
-    const { result } = renderHook(() => useHitCountCell({ redirectId: "r1" }, port), { wrapper });
+    const { result } = renderHook(() => useHitCountCell({ redirectId: "r1" }, port, fakeT), { wrapper });
     expect(called).toBe(false);
 
     act(() => result.current.request());
@@ -116,9 +123,28 @@ describe("useHitCountCell — injected port (no fetch stub)", () => {
    */
   it("resolves whatever hitCount the injected port was seeded with", async () => {
     const port = createFakeRedirectsPort({ hits: { r1: { redirectId: "r1", workspaceId: "ws1", hitCount: 42, lastHitAt: null } } });
-    const { result } = renderHook(() => useHitCountCell({ redirectId: "r1" }, port), { wrapper });
+    const { result } = renderHook(() => useHitCountCell({ redirectId: "r1" }, port, fakeT), { wrapper });
 
     act(() => result.current.request());
     await waitFor(() => expect(result.current.data?.data.hitCount).toBe(42));
+  });
+});
+
+describe("useHitCountCell — injected t is genuinely returned, not built internally", () => {
+  /**
+   * Standing i18n rule (2026-08-11, `HitCountCell` no longer imports `redirects-i18n` itself): `t`
+   * must come from the hook's own third parameter, not something this hook quietly rebuilds
+   * internally. A DISTINCTIVE fake (not the identity `fakeT` every other test in this file uses)
+   * proves the returned `t` is literally the same function reference passed in. Mirrors
+   * `use-post-editor.hooks.unit.test.tsx`'s identical negative-verification group.
+   */
+  it("result.current.t is exactly the injected function, not a hook-internal one", () => {
+    const port = createFakeRedirectsPort();
+    const distinctiveT = (key: string): string => `TRANSLATED[${key}]`;
+
+    const { result } = renderHook(() => useHitCountCell({ redirectId: "r1" }, port, distinctiveT), { wrapper });
+
+    expect(result.current.t("Load hits")).toBe("TRANSLATED[Load hits]");
+    expect(result.current.t).toBe(distinctiveT);
   });
 });

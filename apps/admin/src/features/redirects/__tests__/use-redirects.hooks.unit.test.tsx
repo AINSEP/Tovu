@@ -18,6 +18,12 @@ import { useRedirects, useWiredRedirects } from "../hooks/use-redirects.hooks";
  * The "injected port" group at the bottom composes `useRedirects` directly with
  * `createFakeRedirectsPort` — no `fetch`, no `FetchQueryProvider` request plumbing to stub, just the
  * outcome the hook is actually responsible for.
+ *
+ * `t`/`locale` (2026-08-11, standing i18n rule — see `use-redirects.hooks.ts`'s own file header):
+ * `useRedirects(port, ...)` calls below pass `fakeT`/`fakeLocale` — `useWiredRedirects()` itself
+ * stays zero-arg (it now also calls `useAdminLocale()` internally, so `routeFetch` below routes on
+ * URL rather than call order/count, matching `use-analytics.hooks.unit.test.ts`'s identical fix for
+ * the same "two real fetches share one mock" hazard once a `useWiredX` composes `useAdminLocale()`).
  */
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -27,6 +33,10 @@ function jsonResponse(body: unknown, status = 200): Response {
 function wrapper({ children }: { children: React.ReactNode }) {
   return <FetchQueryProvider>{children}</FetchQueryProvider>;
 }
+
+/** Identity translator for tests that don't care about `t`'s own behavior — see this file's header. */
+const fakeT = (key: string): string => key;
+const fakeLocale = "en";
 
 const RULE = {
   id: "r1",
@@ -83,7 +93,11 @@ describe("useRedirects — list load", () => {
   });
 
   it("reports a list load failure via listStatus/listError, distinct from the write error channel", async () => {
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(jsonResponse({ error: "list route down" }, 500)));
+    // `mockImplementation`, not `mockResolvedValue` — `useWiredRedirects()` now also calls
+    // `useAdminLocale()` internally, which fires its OWN fetch. `mockResolvedValue` would hand out
+    // the identical `Response` object to both calls, and a `Response` body can only be read once —
+    // see `use-analytics.hooks.unit.test.ts`'s identical fix for the full reasoning.
+    vi.stubGlobal("fetch", vi.fn().mockImplementation(() => jsonResponse({ error: "list route down" }, 500)));
     const { result } = renderHook(() => useWiredRedirects(), { wrapper });
     await waitFor(() => expect(result.current.listStatus).toBe("error"));
     expect(result.current.listError?.message).toBe("list route down");
@@ -325,13 +339,13 @@ describe("useRedirects — delete confirmation", () => {
 describe("useRedirects — injected port (no fetch stub)", () => {
   it("reads the list from the injected port rather than the real client", async () => {
     const port = createFakeRedirectsPort({ redirects: [{ ...RULE, id: "seed-1" }] });
-    const { result } = renderHook(() => useRedirects(port), { wrapper });
+    const { result } = renderHook(() => useRedirects(port, fakeT, fakeLocale), { wrapper });
     await waitFor(() => expect(result.current.redirects).toEqual([{ ...RULE, id: "seed-1" }]));
   });
 
   it("routes a create through the injected port, and the new row appears after the list re-reads it", async () => {
     const port = createFakeRedirectsPort();
-    const { result } = renderHook(() => useRedirects(port), { wrapper });
+    const { result } = renderHook(() => useRedirects(port, fakeT, fakeLocale), { wrapper });
     await waitFor(() => expect(result.current.redirects).toEqual([]));
 
     const form = new FormData();
@@ -361,8 +375,30 @@ describe("useRedirects — injected port (no fetch stub)", () => {
   it("does not resolve `redirects` while the injected port's list call is still pending", () => {
     const port = createFakeRedirectsPort();
     port.listRedirects = () => new Promise(() => {});
-    const { result } = renderHook(() => useRedirects(port), { wrapper });
+    const { result } = renderHook(() => useRedirects(port, fakeT, fakeLocale), { wrapper });
     expect(result.current.redirects).toBeUndefined();
     expect(result.current.listStatus).toBe("loading");
+  });
+});
+
+describe("useRedirects — injected t/locale are genuinely returned, not built internally", () => {
+  /**
+   * Standing i18n rule (2026-08-11, `Redirects.tsx` no longer imports `useAdminLocale`/
+   * `redirects-i18n` itself): `t`/`locale` must come from the hook's own second/third parameters,
+   * not something this hook quietly rebuilds internally. Distinctive fakes (not the identity
+   * `fakeT`/`"en"` every other test in this file uses) prove the returned values are literally the
+   * ones passed in. Mirrors `use-post-editor.hooks.unit.test.tsx`'s identical negative-verification
+   * group.
+   */
+  it("result.current.t/locale are exactly the injected values, not hook-internal ones", async () => {
+    const port = createFakeRedirectsPort({ redirects: [RULE] });
+    const distinctiveT = (key: string): string => `TRANSLATED[${key}]`;
+
+    const { result } = renderHook(() => useRedirects(port, distinctiveT, "fr"), { wrapper });
+
+    await waitFor(() => expect(result.current.redirects).toEqual([RULE]));
+    expect(result.current.t("Redirects")).toBe("TRANSLATED[Redirects]");
+    expect(result.current.t).toBe(distinctiveT);
+    expect(result.current.locale).toBe("fr");
   });
 });
