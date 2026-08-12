@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 
-import { ApiError, describeApiError, type AdminWidget, type AdminWidgetType, type AdminWidgetWhereUsed } from "../../../lib/api";
+import { describeApiError, type AdminWidget, type AdminWidgetType, type AdminWidgetWhereUsed } from "../../../lib/api";
 import { navigate as realNavigate } from "../../../lib/router";
 import { defaultWidgetConfig } from "../../../components/WidgetConfigFields/WidgetConfigFields";
-import { resolveEditorWidgetType, widgetConfigFieldErrors } from "../rules";
+import { resolveEditorWidgetType, resolveWidgetSaveError } from "../rules";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { WIDGETS_DICT, t as translate } from "../widgets-i18n";
 import type { Translate } from "../../../lib/dictionary-translator";
@@ -158,14 +158,9 @@ export function useWidgetInstanceEditor(
       setConfig(saved.config);
       setMessage(`Saved · version ${saved.version}`);
     } catch (e) {
-      if (e instanceof ApiError && e.code === "WIDGETS_VERSION_CONFLICT") {
-        setError(staleVersionMessage(locale));
-      } else if (e instanceof ApiError && e.code === "WIDGETS_CONFIG_VALIDATION_ERROR") {
-        setFieldErrors(widgetConfigFieldErrors(e));
-        setError(describeApiError(e, translate(locale, "save failed")));
-      } else {
-        setError(describeApiError(e, translate(locale, "save failed")));
-      }
+      const outcome = resolveWidgetSaveError(e, locale, staleVersionMessage);
+      setError(outcome.error);
+      setFieldErrors(outcome.fieldErrors);
     } finally {
       setSaving(false);
     }
