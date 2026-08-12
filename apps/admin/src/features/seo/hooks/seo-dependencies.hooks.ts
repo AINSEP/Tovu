@@ -50,6 +50,15 @@ function defaultSettings(): SeoSettings {
   };
 }
 
+/** `patch value ?? meta value`, named — {@link applySeoPatch} calls this once per field instead of
+ *  inlining `??` at each of its 13 fields: a plain function call isn't a decision point the way an
+ *  inline `??` is, so this is what keeps that merge under the complexity ceiling (same fix this
+ *  codebase's `orEmpty` established elsewhere for the same class of violation — a flat run of
+ *  independent fallbacks, not real branching logic). */
+function orMeta<T>(patchValue: T | undefined, metaValue: T): T {
+  return patchValue ?? metaValue;
+}
+
 /** Applies a {@link SeoEntryOverridesPatch} onto a resolved {@link SeoEntryMeta} — only the fields
  *  a fake's own tests plausibly touch are merged (title/description/canonical directly, robots and
  *  the OG/Twitter card objects field-by-field); this mirrors the server's `SeoExtFields` -> `SeoMeta`
@@ -57,26 +66,26 @@ function defaultSettings(): SeoSettings {
 function applySeoPatch(meta: SeoEntryMeta, patch: SeoEntryOverridesPatch): SeoEntryMeta {
   return {
     ...meta,
-    title: patch.title ?? meta.title,
-    description: patch.description ?? meta.description,
-    canonical: patch.canonical ?? meta.canonical,
+    title: orMeta(patch.title, meta.title),
+    description: orMeta(patch.description, meta.description),
+    canonical: orMeta(patch.canonical, meta.canonical),
     robots: {
-      noindex: patch.noindex ?? meta.robots.noindex,
-      nofollow: patch.nofollow ?? meta.robots.nofollow,
+      noindex: orMeta(patch.noindex, meta.robots.noindex),
+      nofollow: orMeta(patch.nofollow, meta.robots.nofollow),
     },
     openGraph: {
       ...meta.openGraph,
-      title: patch.ogTitle ?? meta.openGraph.title,
-      description: patch.ogDescription ?? meta.openGraph.description,
-      image: patch.ogImage ?? meta.openGraph.image,
-      type: patch.ogType ?? meta.openGraph.type,
+      title: orMeta(patch.ogTitle, meta.openGraph.title),
+      description: orMeta(patch.ogDescription, meta.openGraph.description),
+      image: orMeta(patch.ogImage, meta.openGraph.image),
+      type: orMeta(patch.ogType, meta.openGraph.type),
     },
     twitter: {
       ...meta.twitter,
-      card: patch.twitterCard ?? meta.twitter.card,
-      title: patch.twitterTitle ?? meta.twitter.title,
-      description: patch.twitterDescription ?? meta.twitter.description,
-      image: patch.twitterImage ?? meta.twitter.image,
+      card: orMeta(patch.twitterCard, meta.twitter.card),
+      title: orMeta(patch.twitterTitle, meta.twitter.title),
+      description: orMeta(patch.twitterDescription, meta.twitter.description),
+      image: orMeta(patch.twitterImage, meta.twitter.image),
     },
   };
 }
