@@ -499,6 +499,35 @@ test("verifyUtcTimestampText: rejects Date.parse's looser forms that bare Date.p
   assert.ok(!Number.isNaN(Date.parse("2026-04-31T00:00:00Z")), "sanity: Date.parse silently normalizes April 31");
 });
 
+test("verifyUtcTimestampText: rejects an out-of-range UTC offset — the regression the STRICT_RFC3339_SHAPE/isValidCalendarInstant rewrite silently introduced by dropping Date.parse's own offset-bounds checking", () => {
+  // Before this fix: STRICT_RFC3339_SHAPE matched any two-digit:two-digit offset (no range check at
+  // all), and isValidCalendarInstant only round-trips the date/time fields — neither one looks at the
+  // offset's own magnitude, so all three of these shape-matched and calendar-round-tripped cleanly
+  // and were wrongly ACCEPTED. Date.parse itself has always rejected all three (see the sanity
+  // assertions below) — this is a real loss of a check the previous round had for free, not a new one.
+  const overHourBoundary = verifyUtcTimestampText("2026-08-12T10:00:00+24:00");
+  assert.equal(overHourBoundary?.code, "INVALID_UTC_OFFSET");
+  const overMinuteBoundary = verifyUtcTimestampText("2026-08-12T10:00:00+23:60");
+  assert.equal(overMinuteBoundary?.code, "INVALID_UTC_OFFSET");
+  const wayOutOfRange = verifyUtcTimestampText("2026-08-12T10:00:00+99:99");
+  assert.equal(wayOutOfRange?.code, "INVALID_UTC_OFFSET");
+  const negativeOverHourBoundary = verifyUtcTimestampText("2026-08-12T10:00:00-24:00");
+  assert.equal(negativeOverHourBoundary?.code, "INVALID_UTC_OFFSET");
+
+  // Confirm Date.parse really would have rejected all four — otherwise this would not be a genuine
+  // regression relative to the pre-rewrite behavior this manifest replaced.
+  assert.ok(Number.isNaN(Date.parse("2026-08-12T10:00:00+24:00")), "sanity: Date.parse rejects +24:00");
+  assert.ok(Number.isNaN(Date.parse("2026-08-12T10:00:00+23:60")), "sanity: Date.parse rejects +23:60");
+  assert.ok(Number.isNaN(Date.parse("2026-08-12T10:00:00+99:99")), "sanity: Date.parse rejects +99:99");
+  assert.ok(Number.isNaN(Date.parse("2026-08-12T10:00:00-24:00")), "sanity: Date.parse rejects -24:00");
+});
+
+test("verifyUtcTimestampText: accepts boundary-VALID offsets — the fix must not reject the legitimate edge of the range along with the illegitimate one", () => {
+  assert.equal(verifyUtcTimestampText("2026-08-12T10:00:00+23:59"), null, "+23:59 is the maximum valid positive offset");
+  assert.equal(verifyUtcTimestampText("2026-08-12T10:00:00-23:59"), null, "-23:59 is the maximum valid negative offset");
+  assert.equal(verifyUtcTimestampText("2026-08-12T10:00:00+00:00"), null, "+00:00 is a valid (if redundant with Z) offset");
+});
+
 test("verifyJsonText: accepts valid JSON and null, rejects malformed JSON", () => {
   assert.equal(verifyJsonText('{"a":1}'), null);
   assert.equal(verifyJsonText("[]"), null);

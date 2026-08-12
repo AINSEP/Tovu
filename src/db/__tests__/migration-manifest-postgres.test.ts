@@ -18,20 +18,149 @@
  * into the generator's column-builder choice is the explicit next step, not done here.
  */
 import assert from "node:assert/strict";
+import { spawn } from "node:child_process";
 import test from "node:test";
 
 import { IDENTITY_COLUMN_INSERT_OVERRIDE, reseedSequenceSql } from "../migration/manifest";
 import { dropDatabase, psql, recreateDatabase } from "../migration/pg-fixture";
 import { verifyJsonText, verifyUtcTimestampText } from "../migration/verify";
 
-const FIXTURE_DB = "tovu_migration_fixture";
+/** Same admin-connection target `pg-fixture.ts` uses internally for `DROP`/`CREATE DATABASE` — not
+ * exported from there (deliberately hardcoded, per that file's own doc, so no env var can redirect
+ * it), so this file names it again for the one extra admin-connection query the stale-database sweep
+ * below needs (listing `pg_database`). Duplicating the literal is cheaper than widening pg-fixture.ts's
+ * exports for a single read-only query used by exactly one test file. */
+const ADMIN_DATABASE_NAME = "postgres";
+
+/**
+ * Was a single hardcoded name (`"tovu_migration_fixture"`) shared by every run. Two concurrent runs
+ * — expected in this repo, where several agents run scoped test suites in parallel against the same
+ * host — raced each other's `test.before`/`test.after` DROP/CREATE against the SAME database,
+ * reproduced live: 10/10 pass, then a run failing 5/10 with `database "tovu_migration_fixture" does
+ * not exist` (one run's `test.after` dropped it out from under the other's still-running tests), then
+ * 10/10 again. Structurally impossible in CI (each job gets its own throwaway Postgres service
+ * container) but real on a shared local dev host — exactly this repo's normal operating mode.
+ * Suffixing with `process.pid` gives every run its own database, so no two runs can ever collide.
+ */
+const FIXTURE_DB_PREFIX = "tovu_migration_fixture";
+const FIXTURE_DB = `${FIXTURE_DB_PREFIX}_${process.pid}`;
+
+/** True if `pid` names a still-running process on this host — `kill(pid, 0)` sends no signal, it only
+ * probes for permission/existence. `ESRCH` ("no such process") means dead; any other outcome
+ * (success, or `EPERM` for a live process owned by another user) means alive. */
+function isProcessAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (error) {
+    return (error as NodeJS.ErrnoException).code !== "ESRCH";
+  }
+}
+
+/** Polls `isProcessAlive` until it reports `pid` as dead, or throws after `timeoutMs`. Test-only
+ * helper: the sweep tests below need a real process to genuinely finish dying (SIGKILL is not
+ * synchronous) before asserting the sweep now treats its fixture database as reclaimable. */
+async function waitUntilProcessDead(pid: number, timeoutMs = 2000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (isProcessAlive(pid)) {
+    if (Date.now() > deadline) throw new Error(`process ${pid} did not die within ${timeoutMs}ms`);
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+}
+
+/**
+ * Reclaims fixture databases this same suite abandoned in a PAST run — never one a concurrently
+ * RUNNING sibling still owns.
+ *
+ * Making `FIXTURE_DB` unique per run (above) fixes the collision, but trades it for a slow leak: a
+ * run that crashes before `test.after` gets to execute (killed mid-test, an uncaught exception that
+ * takes the process down, `kill -9` on a hung run — see this repo's own "Playwright zombie webServer"
+ * lesson that `kill -9` leaves things bound behind it) leaves its uniquely-named database behind
+ * forever, since nothing else is named to find and drop it. This sweep runs at the START of every
+ * suite, before this run's own database is created, and reclaims exactly the databases whose owning
+ * pid is no longer alive — i.e., provably abandoned by a crashed past run, not merely old. A database
+ * whose pid IS alive is, by definition, a concurrent sibling run in progress; skipping it (rather than
+ * e.g. an age-based sweep) is what keeps this safe to run at the top of every single invocation,
+ * including ones running alongside several others right now.
+ */
+function sweepStaleFixtureDatabases(): void {
+  const list = psql(ADMIN_DATABASE_NAME, `SELECT datname FROM pg_database;`);
+  if (!list.ok) throw new Error(`failed to list databases for the stale fixture-database sweep: ${list.stderr}`);
+  const allDatabaseNames = list.stdout.split("\n").map((line) => line.trim()).filter(Boolean);
+  for (const name of allDatabaseNames) {
+    if (!name.startsWith(`${FIXTURE_DB_PREFIX}_`) || name === FIXTURE_DB) continue;
+    const pid = Number(name.slice(FIXTURE_DB_PREFIX.length + 1));
+    if (!Number.isInteger(pid) || pid <= 0) continue; // not one of ours (or predates this fix's pid-suffixed naming) — leave it alone
+    if (isProcessAlive(pid)) continue; // a live concurrent sibling run's database — must not be touched
+    dropDatabase(name);
+  }
+}
+
+/** Reads the server's own catalog to answer "does this database exist right now" — never inferred
+ * from a `psql` exit code alone, so the sweep tests below are checking Postgres's actual state. */
+function databaseExists(name: string): boolean {
+  const result = psql(ADMIN_DATABASE_NAME, `SELECT 1 FROM pg_database WHERE datname = '${name}';`);
+  assert.equal(result.ok, true, result.stderr);
+  return result.stdout.trim() === "1";
+}
 
 test.before(() => {
+  sweepStaleFixtureDatabases();
   recreateDatabase(FIXTURE_DB);
 });
 
 test.after(() => {
   dropDatabase(FIXTURE_DB);
+});
+
+// --- fixture database name race (BLOCKER — reproduced live, see FIXTURE_DB's own doc) -------------
+
+test("FIXTURE_DB is namespaced by this run's own process.pid — two different pids can never compute the same fixture database name, which is the entire fix for the collision", () => {
+  assert.equal(FIXTURE_DB, `${FIXTURE_DB_PREFIX}_${process.pid}`);
+  assert.notEqual(FIXTURE_DB, FIXTURE_DB_PREFIX, "must not collapse back to the old bare, unsuffixed, shared name");
+});
+
+test("sweepStaleFixtureDatabases: reclaims a fixture database whose owning pid has died, and leaves one whose pid is still alive completely untouched", async () => {
+  // "Dead" case: an implausibly large pid — no process on this host will ever have it, so
+  // isProcessAlive reports ESRCH ("no such process") and the sweep must treat the database as
+  // abandoned by a crashed past run. Offset by this run's OWN pid (not a bare literal like
+  // 999999999) so two concurrent copies of this very test — exactly what Fix 2 as a whole must
+  // survive — don't collide on the SAME synthetic "dead" database name themselves (caught live: an
+  // earlier version using a bare literal here failed under concurrent self-run with "duplicate key
+  // value violates unique constraint" on this line, the identical race class this fix targets, just
+  // reintroduced by the test fixture instead of by FIXTURE_DB).
+  const deadPidName = `${FIXTURE_DB_PREFIX}_${900000000 + process.pid}`;
+
+  // "Alive" case: a REAL, separate, currently-running process, standing in for a genuinely
+  // concurrent sibling test run — the sweep must never drop a database while its owning pid is
+  // still alive, since that is indistinguishable from "a sibling run is using it right now."
+  const child = spawn("sleep", ["5"]);
+  const childPid = await new Promise<number>((resolve, reject) => {
+    child.once("spawn", () => (child.pid === undefined ? reject(new Error("sleep helper spawned with no pid")) : resolve(child.pid)));
+    child.once("error", reject);
+  });
+  const alivePidName = `${FIXTURE_DB_PREFIX}_${childPid}`;
+
+  recreateDatabase(deadPidName);
+  recreateDatabase(alivePidName);
+  try {
+    assert.ok(databaseExists(deadPidName), "setup: the dead-pid fixture database must exist before sweeping");
+    assert.ok(databaseExists(alivePidName), "setup: the alive-pid fixture database must exist before sweeping");
+
+    sweepStaleFixtureDatabases();
+
+    assert.equal(databaseExists(deadPidName), false, "a database owned by a dead pid must be reclaimed by the sweep — this is the leak fix");
+    assert.equal(
+      databaseExists(alivePidName),
+      true,
+      "a database owned by a still-alive pid must be left completely alone — it may be a concurrent sibling run in progress"
+    );
+  } finally {
+    child.kill("SIGKILL");
+    await waitUntilProcessDead(childPid);
+    dropDatabase(deadPidName); // idempotent (DROP IF EXISTS) even if the sweep already reclaimed it
+    dropDatabase(alivePidName); // sweepStaleFixtureDatabases only runs at the top of test.before, so this test must clean up its own alive-case database itself
+  }
 });
 
 // --- 1. 64-bit IDs: int4 genuinely rejects 2,147,483,648; int8 genuinely accepts it -------------
