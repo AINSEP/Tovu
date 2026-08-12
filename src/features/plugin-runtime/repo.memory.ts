@@ -5,9 +5,9 @@ import type { PluginActivationRecord, PluginActivationRepoPort } from "./activat
  * `src/features/presentation/repo.memory.ts`'s shape exactly (rule-of-two, day one).
  *
  * Architectural role:
- * TDD-certified stub (implementation outline C-013). Method bodies intentionally throw until the
- * Programmer stage implements them against `__tests__/integration/repo.contract.test.ts` (the
- * shared suite this adapter and `repo.sqlite.ts` must both satisfy identically).
+ * TDD-certified adapter (implementation outline C-013). Implements get/upsert/delete/list over an
+ * in-memory row set and satisfies `__tests__/integration/repo.contract.test.ts`, the shared suite
+ * this adapter and `repo.sqlite.ts` run identically.
  */
 export class InMemoryPluginActivationRepo implements PluginActivationRepoPort {
   private rows: PluginActivationRecord[];

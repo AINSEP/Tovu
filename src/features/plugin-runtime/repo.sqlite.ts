@@ -12,9 +12,9 @@ import type { PluginActivationRecord, PluginActivationRepoPort } from "./activat
  * `schema.ts`/`content-db.ts` allowed to import Drizzle for this feature (ADR-015 rule 2).
  *
  * Architectural role:
- * TDD-certified stub (implementation outline C-013). Method bodies intentionally throw until the
- * Programmer stage implements them against `__tests__/integration/repo.contract.test.ts` (the
- * shared suite this adapter and `repo.memory.ts` must both satisfy identically).
+ * TDD-certified adapter (implementation outline C-013). Implements get/upsert/delete/list through
+ * Drizzle and satisfies `__tests__/integration/repo.contract.test.ts`, the shared suite this
+ * adapter and `repo.memory.ts` run identically.
  */
 type PluginActivationRow = typeof pluginActivations.$inferSelect;
 

@@ -34,11 +34,9 @@
  * earlier filters' already-merged `ext` values on the entry snapshot they receive.
  *
  * Architectural role:
- * TDD-certified stub (implementation outline C-010, CIC U-004). Signature and JSDoc are
- * design-frozen; `runBeforeSave`'s body intentionally throws until the Programmer stage
- * implements it against `__tests__/integration/hook-registry.integration.test.ts`. Do not
- * implement ahead of that suite being reviewed — this file exists so the test suite compiles and
- * fails red, not green.
+ * TDD-certified implementation (implementation outline C-010, CIC U-004). Signature and JSDoc are
+ * design-frozen; `runBeforeSave()` orders attached filters, gives each an isolated entry snapshot,
+ * validates each declared-field patch, and returns the merged per-plugin `ext` object fail-closed.
  */
 import type { JsonObject } from "@jini-ai/cms/core";
 import type { BeforeSaveFilter, ContentEntryDraft } from "../../../packages/sdk/src/index";

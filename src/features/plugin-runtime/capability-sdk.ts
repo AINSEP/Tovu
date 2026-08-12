@@ -23,11 +23,9 @@
  * plugin's own `pluginId` and granted capability set only.
  *
  * Architectural role:
- * TDD-certified stub (implementation outline C-009, CIC U-003). Signature and JSDoc are
- * design-frozen; `buildCapabilityScopedSdk`'s body intentionally throws until the Programmer
- * stage implements it against `__tests__/unit/capability-sdk.unit.test.ts`. Do not implement
- * ahead of that suite being reviewed — this file exists so the test suite compiles and fails red,
- * not green.
+ * TDD-certified implementation (implementation outline C-009, CIC U-003). Signature and JSDoc are
+ * design-frozen; `buildCapabilityScopedSdk()` returns fresh per-plugin delegates for granted
+ * capabilities and present, typed-denial stubs for every ungranted surface.
  */
 import type { BeforeSaveFilter, ContentEntryDraft, PluginSdk } from "../../../packages/sdk/src/index";
 import type { HOOK_CONTENT_ENTRY_BEFORE_SAVE } from "../../../packages/sdk/src/index";

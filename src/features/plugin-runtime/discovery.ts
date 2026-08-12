@@ -16,10 +16,10 @@
  * (BR-01, CIC U-001). Discovery only reads bytes to hash/measure/list them.
  *
  * Architectural role:
- * TDD-certified stub (implementation outline C-007). Signature and JSDoc are design-frozen;
- * `discoverPlugins`'s body intentionally throws until the Programmer stage implements it against
- * `__tests__/integration/discovery.integration.test.ts`. Do not implement ahead of that suite
- * being reviewed — this file exists so the test suite compiles and fails red, not green.
+ * TDD-certified implementation (implementation outline C-007). Signature and JSDoc are
+ * design-frozen; `discoverPlugins()` validates built-ins, selects the latest installed site
+ * version per id, records candidate-local errors without aborting discovery, marks duplicate ids,
+ * and returns deterministic TB-01 ordering.
  */
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
