@@ -31,6 +31,7 @@ import type {
   MemberSubscriptionRepoPort,
   MemberTierRepoPort,
 } from "../../members";
+import type { CommercePriceRepoPort, CommerceProductRepoPort } from "../../features/commerce";
 import type { MailerPort } from "../../mail";
 import type { MenuRepoPort, NavLocationBindingRepoPort } from "../../navigation";
 import type { KeyringPort, SecretSealerPort, WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "../../integrations";
@@ -524,6 +525,16 @@ export interface RouteDeps {
       | { ok: true; orderId: string; remainingStock: number; retries: number }
       | { ok: false; reason: "not-found" | "out-of-stock" | "conflict"; retries: number };
   };
+  /**
+   * Commerce catalog read ports (2026-08-12: wiring products into template render data).
+   * Optional, matching `store?:` above's precedent — the real running server's composition root
+   * (`server/deps.ts`) wires both against the SAME `content.db` every other repo already uses (no
+   * `declareDataModule()`/plugin bootstrap needed, unlike `store`/`lipay`); the hermetic
+   * `server/app.ts` test composition leaves them unset, and `routes/site/products.ts` falls back
+   * to `store?.listProducts()` when absent — never a hard dependency a test has to fake.
+   */
+  commerceProductRepo?: CommerceProductRepoPort;
+  commercePriceRepo?: CommercePriceRepoPort;
   /**
    * The lipay payments framework plugin's composed API (`features/plugins/lipay`). Optional and
    * wired only by a composition root that has a real SQLite handle, exactly like `store` above —
