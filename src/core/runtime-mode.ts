@@ -5,6 +5,12 @@
  * either direction (INV-02) — see behavior.spec.md §1.1. Any missing/unrecognized value
  * resolves to `local`, never `production` (INV-04/EC-02): the only default that is safe in
  * both directions, since it activates no containment the operator didn't explicitly opt into.
+ *
+ * Lives in `core/` rather than `server/` (where it used to be): a dependency-free policy signal
+ * (reads one env var, no Express/transport coupling) consulted by `mail/purpose-scoped-mailer.ts`
+ * and `assistant/agent-daemon-server.ts`, both outside the composition root — the same
+ * "domain importing its host's transport module" misplacement `core/rate-limit/rate-limit.ts` was
+ * relocated for (2026-08-02 module-graph analysis, Phase 3).
  */
 
 export type RuntimeMode = "production" | "local";
