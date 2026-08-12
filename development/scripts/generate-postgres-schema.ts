@@ -86,10 +86,15 @@ function collectTables(): Array<{ exportName: string; table: never }> {
  * keys, and `serial`/`integer` identity exhaustion at 2^31 rows is a materially worse failure to
  * hit in production than the storage cost of avoiding it — a narrower allowlist scoped to
  * "append-only + watermark" would leave every PK unprotected. The storage cost is real but small:
- * measured against a live Postgres 14 instance, indexing an `int8` column costs nothing extra
- * over `int4` (btree entries are already 8-byte aligned on this platform) and heap growth was
- * ~19% on a synthetic table where every column was integer-shaped; this schema is 513/580 text
- * columns, so the true per-row cost across real tables is a smaller fraction than that.
+ * measured against a live Postgres 14 instance, indexing an `int8` column costs nothing extra over
+ * `int4` (btree entries are already 8-byte aligned on this platform, confirmed byte-identical index
+ * size in one such measurement). Heap growth from the `int8` widening is NOT a fixed constant — it is
+ * sharply sensitive to how many of a table's columns are integer-shaped, since that determines what
+ * fraction of each row the widening actually touches: reproduced live on Postgres 14 at an all-integer
+ * synthetic table, growth measured ~18% at 3 columns and ~55% at 8. Neither figure describes this
+ * schema directly — real tables here are a mix, and the schema as a whole is majority text (515 of 583
+ * columns per the census above), which dilutes the true per-row cost well below either number. Re-measure
+ * at the actual column count before citing a specific percentage for any one table.
  */
 function columnBuilder(col: SQLiteColumn): string {
   const name = JSON.stringify(col.name);

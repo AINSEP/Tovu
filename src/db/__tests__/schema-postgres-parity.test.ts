@@ -29,6 +29,20 @@
  * expectation is NOT derived by calling the generator's own renderer), and each index's exact
  * `.on(...)` argument list/order against source. Both are still measured against `schema.ts`, not the
  * generator's output-of-its-own-output, for the same reason the count tests are.
+ *
+ * The identity and foreign-key tests near the bottom of this file close a related but distinct blind
+ * spot, found by external audit: `bigint(...)` count parity (above, and GATE A in
+ * `migration-manifest.test.ts`) proves every `SQLiteInteger` column widens to `PgBigInt53` — it never
+ * asserts that a column which is also an autoincrement primary key actually becomes
+ * `.generatedAlwaysAsIdentity()` on the PostgreSQL side. A generator that regressed to emitting plain
+ * `.primaryKey()` on those columns would still pass GATE A, GATE B, and every count test above,
+ * because none of them look at identity at all — and a later copier could not reseed a sequence that
+ * was never created. Likewise, `occurrences("foreignKey({")` (above) proves nine `foreignKey({` tokens
+ * exist; it says nothing about which table each one targets, so a foreign key silently pointed at the
+ * wrong table — same count, wrong meaning — passes that test today. Both new tests below resolve
+ * columns and tables on *both* sides by identity via `getTableConfig()` — `schema.ts` for source,
+ * `schema.postgres.ts` (imported as a module, not read as text) for target — and compare what each
+ * column/constraint actually *is*, not how many of a token appear.
  */
 import assert from "node:assert/strict";
 import fs from "node:fs";
@@ -37,8 +51,10 @@ import test from "node:test";
 
 import { SQL, is } from "drizzle-orm";
 import { getTableConfig, type SQLiteColumn } from "drizzle-orm/sqlite-core";
+import { getTableConfig as getPgTableConfig } from "drizzle-orm/pg-core";
 
 import * as sqliteSchema from "../schema";
+import * as pgSchema from "../schema.postgres";
 
 import { tsPropertyNames } from "../../../development/scripts/generate-postgres-schema";
 
@@ -48,14 +64,71 @@ const DRIZZLE_IS_TABLE = Symbol.for("drizzle:IsDrizzleTable");
 /** Escapes a literal string for use inside a `new RegExp(...)` pattern. */
 const escapeRegExp = (text: string): string => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-function sourceTables(): Array<{ exportName: string; table: never }> {
-  return Object.entries(sqliteSchema)
+/**
+ * Every exported Drizzle table on a schema module, paired with its export name. `IsDrizzleTable` is
+ * the same symbol on both SQLite and PostgreSQL table instances — it is set by the dialect-agnostic
+ * base `Table` class drizzle-orm shares across cores — so this one walk works for `schema.ts` and the
+ * generated `schema.postgres.ts` alike.
+ */
+function tablesOf(schemaModule: object): Array<{ exportName: string; table: never }> {
+  return Object.entries(schemaModule)
     .filter(([, v]) => Boolean(v && typeof v === "object" && (v as Record<symbol, unknown>)[DRIZZLE_IS_TABLE]))
     .map(([exportName, table]) => ({ exportName, table: table as never }));
 }
 
+function sourceTables(): Array<{ exportName: string; table: never }> {
+  return tablesOf(sqliteSchema);
+}
+
 /** Counts non-overlapping occurrences of a literal token in the generated file. */
 const occurrences = (token: string): number => GENERATED.split(token).length - 1;
+
+/**
+ * Resolves a table object to the export name it is bound to within `tables` — used to identify a
+ * foreign key's target table by *what it is*, not by re-deriving the generator's own
+ * `EXPORT_NAME_BY_TABLE` logic (`development/scripts/generate-postgres-schema.ts`). A miss here is a
+ * bug in this test's own bookkeeping, not a real finding, so it fails loudly rather than returning
+ * `undefined` and letting a caller's `assert.equal` compare `undefined` to `undefined`.
+ */
+function exportNameOf(tables: ReadonlyArray<{ exportName: string; table: object }>, target: object): string {
+  const found = tables.find(({ table }) => table === target);
+  assert.ok(found, "internal test error: table not found among its own schema's exports");
+  return found.exportName;
+}
+
+/**
+ * Maps every column on a table to its TS property name, keyed by SQL name rather than object
+ * identity. Identity does not work here: PostgreSQL's `pgTable(name, columns, (t) => [...])` builds a
+ * SEPARATE column instance — via `buildExtraConfigColumn()` — for use inside that extra-config
+ * callback from the instance `getTableConfig(...).columns` exposes (`drizzle-orm/pg-core/table.js`),
+ * so a foreign key's `.reference().columns` on the generated schema is never `===` to anything in
+ * `cfg.columns`, even though both plainly name the same column. This was found empirically while
+ * writing the FK-meaning test below — it failed with "could not resolve TypeScript property name" on
+ * a real, correctly-generated foreign key until name resolution switched from identity to SQL name.
+ * SQLite does not split the two (`drizzle-orm/sqlite-core/table.js` assigns `ExtraConfigColumns` the
+ * *same* object as `Columns`), but resolving by SQL name uniformly, on both dialects, means these
+ * tests do not silently start depending on that SQLite-specific behavior staying true either. `.name`
+ * is safe to key on: `columnBuilder()` in the generator passes `col.name` through unchanged from the
+ * SQLite column to the PostgreSQL builder call, so a source column and its generated counterpart share
+ * the identical SQL name by construction.
+ */
+function tsNamesBySqlName(table: object, columns: readonly { name: string }[]): Map<string, string> {
+  const bySqlName = new Map<string, string>();
+  for (const [key, value] of Object.entries(table)) {
+    const col = columns.find((c) => c === value);
+    if (col !== undefined) bySqlName.set(col.name, key);
+  }
+  return bySqlName;
+}
+
+/** Looks up a column's resolved TS property name by its SQL name, failing loudly instead of silently
+ * comparing `undefined` to `undefined` — a miss here would quietly pass a comparison that never
+ * actually looked at the column it claims to. */
+function resolveName(bySqlName: Map<string, string>, col: { name: string }, describe: string): string {
+  const name = bySqlName.get(col.name);
+  assert.ok(name !== undefined, `${describe}: could not resolve TypeScript property name for SQL column "${col.name}"`);
+  return name;
+}
 
 test("every SQLite table is present in the generated PostgreSQL schema, by export name", () => {
   const missing = sourceTables()
@@ -225,3 +298,109 @@ test("every index's column list and order in the generated schema exactly matche
     }
   }
 });
+
+test(
+  "every source autoincrement primary key becomes an IDENTITY column in the generated schema, matched " +
+    "column-by-column via getTableConfig() on both schemas — GATE A (migration-manifest.test.ts) and the " +
+    "bigint(...) count test above only prove the column WIDTH; neither asserts IDENTITY, so a generator " +
+    "regression that emitted .primaryKey() instead of .generatedAlwaysAsIdentity() would pass both",
+  () => {
+    const isSourceIdentityPk = (col: SQLiteColumn): boolean =>
+      Boolean(col.primary && (col as unknown as { autoIncrement?: boolean }).autoIncrement);
+
+    const expectedIdentityCount = sourceTables().reduce(
+      (n, { table }) => n + getTableConfig(table).columns.filter(isSourceIdentityPk).length,
+      0
+    );
+    assert.ok(expectedIdentityCount > 0, "sanity: the source schema should declare at least one autoincrement primary key");
+
+    const pgTables = tablesOf(pgSchema);
+    for (const { exportName, table } of sourceTables()) {
+      const srcCfg = getTableConfig(table);
+      const srcNames = tsNamesBySqlName(table, srcCfg.columns);
+
+      const pgEntry = pgTables.find((t) => t.exportName === exportName);
+      assert.ok(pgEntry, `generated schema has no export "${exportName}"`);
+      const pgCfg = getPgTableConfig(pgEntry.table);
+      // Keyed by SQL name (not TS name) to look up a source column's counterpart directly — the
+      // generator carries `col.name` through unchanged, so this join key is exact by construction.
+      const pgColumnBySqlName = new Map(pgCfg.columns.map((c) => [c.name, c]));
+
+      for (const col of srcCfg.columns) {
+        const tsName = resolveName(srcNames, col, exportName);
+        const pgCol = pgColumnBySqlName.get(col.name);
+        assert.ok(pgCol, `${exportName}.${tsName} (SQL name "${col.name}") missing from the generated schema`);
+
+        const sourceIsIdentityPk = isSourceIdentityPk(col);
+        const targetIsIdentity = pgCol.generatedIdentity !== undefined && pgCol.generatedIdentity.type === "always";
+        assert.equal(
+          targetIsIdentity,
+          sourceIsIdentityPk,
+          `${exportName}.${tsName}: source autoincrement-PK=${sourceIsIdentityPk} but generated column identity=${targetIsIdentity}`
+        );
+      }
+    }
+  }
+);
+
+test(
+  "every foreign key's local columns, referenced table, referenced columns, and ON DELETE/UPDATE actions " +
+    "match between schemas by meaning — occurrences(\"foreignKey({\") above proves a token count, which " +
+    "cannot tell a foreign key pointed at its correct target from one pointed at the wrong table while " +
+    "keeping the same number of declarations",
+  () => {
+    // Drizzle may resolve an un-set FK action differently across versions (`undefined` vs the literal
+    // string "no action"). Normalizing both sides through the same function means a routine drizzle-orm
+    // dependency bump can fail this test only on an actual behavior difference, never on a representation
+    // difference that carries no referential-integrity meaning.
+    const normalizeAction = (action: string | undefined): string => action ?? "no action";
+
+    const pgTables = tablesOf(pgSchema);
+    for (const { exportName, table } of sourceTables()) {
+      const srcCfg = getTableConfig(table);
+      const srcNames = tsNamesBySqlName(table, srcCfg.columns);
+
+      const pgEntry = pgTables.find((t) => t.exportName === exportName);
+      assert.ok(pgEntry, `generated schema has no export "${exportName}"`);
+      const pgCfg = getPgTableConfig(pgEntry.table);
+      const pgNames = tsNamesBySqlName(pgEntry.table, pgCfg.columns);
+
+      // Per-table count, not just the schema-wide total the token-count test above already checks: a
+      // loss on one table could be masked by a spurious gain on another and still balance globally.
+      assert.equal(
+        pgCfg.foreignKeys.length,
+        srcCfg.foreignKeys.length,
+        `${exportName}: source declares ${srcCfg.foreignKeys.length} foreign key(s), generated declares ${pgCfg.foreignKeys.length}`
+      );
+
+      srcCfg.foreignKeys.forEach((srcFk, i) => {
+        const pgFk = pgCfg.foreignKeys[i];
+        const describe = `${exportName}'s foreign key #${i} ("${srcFk.getName()}")`;
+        const srcRef = srcFk.reference();
+        const pgRef = pgFk.reference();
+
+        // Local FK columns come from the table's `(t) => [...]` extra-config callback, which is
+        // exactly where PostgreSQL's identity split (see `tsNamesBySqlName`'s doc) bites — resolving
+        // by SQL name is what makes this comparison work on the generated side at all.
+        const srcLocal = srcRef.columns.map((c) => resolveName(srcNames, c, describe)).join(",");
+        const pgLocal = pgRef.columns.map((c) => resolveName(pgNames, c, `${describe} (generated)`)).join(",");
+        assert.equal(pgLocal, srcLocal, `${describe}: local column(s) differ`);
+
+        const srcTargetExport = exportNameOf(sourceTables(), srcRef.foreignTable);
+        const pgTargetExport = exportNameOf(pgTables, pgRef.foreignTable);
+        assert.equal(pgTargetExport, srcTargetExport, `${describe}: referenced table differs`);
+
+        const srcTargetNames = tsNamesBySqlName(srcRef.foreignTable, getTableConfig(srcRef.foreignTable).columns);
+        const pgTargetNames = tsNamesBySqlName(pgRef.foreignTable, getPgTableConfig(pgRef.foreignTable).columns);
+        const srcForeign = srcRef.foreignColumns.map((c) => resolveName(srcTargetNames, c, `${describe}'s referenced columns`)).join(",");
+        const pgForeign = pgRef.foreignColumns
+          .map((c) => resolveName(pgTargetNames, c, `${describe}'s referenced columns (generated)`))
+          .join(",");
+        assert.equal(pgForeign, srcForeign, `${describe}: referenced column(s) differ`);
+
+        assert.equal(normalizeAction(pgFk.onDelete), normalizeAction(srcFk.onDelete), `${describe}: onDelete action differs`);
+        assert.equal(normalizeAction(pgFk.onUpdate), normalizeAction(srcFk.onUpdate), `${describe}: onUpdate action differs`);
+      });
+    }
+  }
+);
