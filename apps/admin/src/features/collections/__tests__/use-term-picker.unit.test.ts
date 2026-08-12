@@ -1,12 +1,18 @@
 import { act, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { useTermPicker } from "../hooks/use-term-picker.hooks";
+import { createFakeTermPickerPort } from "../hooks/term-picker-dependencies.hooks";
+import { useTermPicker, useWiredTermPicker } from "../hooks/use-term-picker.hooks";
 
 /**
  * @file `useTermPicker` — `TermPicker`'s own selection state and `assignTerms` action.
  * Follows the fetch-mocking harness `use-migrate-forward-section.unit.test.ts` established for
  * this package.
+ *
+ * `mount()` below drives the wired hook (real `fetch`) — unchanged from before the `useWiredX`
+ * conversion, just a call-site swap. The "injected port" describe block at the bottom is new
+ * coverage added alongside that conversion, proving the pure hook is independently testable
+ * against `createFakeTermPickerPort` with no `fetch` stub at all.
  */
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -37,7 +43,7 @@ afterEach(() => {
 });
 
 function mount() {
-  return renderHook(() => useTermPicker({ contentType: "recipe", contentId: "e1" }));
+  return renderHook(() => useWiredTermPicker({ contentType: "recipe", contentId: "e1" }));
 }
 
 describe("initial state", () => {
@@ -173,5 +179,39 @@ describe("assign", () => {
       await result.current.assign();
     });
     expect(result.current.error).toBeNull();
+  });
+});
+
+describe("injected port (useWiredX conversion coverage)", () => {
+  it("assigns the selected terms through the injected port, without touching fetch", async () => {
+    const port = createFakeTermPickerPort();
+    const { result } = renderHook(() => useTermPicker({ contentType: "recipe", contentId: "e1" }, { port, locale: "en" }));
+
+    act(() => result.current.toggle("t1"));
+    act(() => result.current.toggle("t2"));
+    await act(async () => {
+      await result.current.assign();
+    });
+
+    expect(port.calls).toEqual([{ contentType: "recipe", contentId: "e1", termIds: ["t1", "t2"] }]);
+    expect(result.current.message).toBe("Assigned 2 term(s).");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("surfaces the injected port's rejection message, and does NOT clear the selection", async () => {
+    const port = createFakeTermPickerPort({ assignError: new Error("server exploded") });
+    const { result } = renderHook(() => useTermPicker({ contentType: "recipe", contentId: "e1" }, { port, locale: "en" }));
+
+    act(() => result.current.toggle("t1"));
+    await act(async () => {
+      await result.current.assign();
+    });
+
+    // `describeApiError` returns a plain `Error`'s own `.message` verbatim (only `ApiError` gets
+    // the locale-aware fallback substituted, and only when its message is empty) — matching
+    // `use-term-picker.unit.test.ts`'s existing "uses the server's own error message when present"
+    // case above.
+    expect(result.current.error).toBe("server exploded");
+    expect(result.current.selected.has("t1")).toBe(true);
   });
 });

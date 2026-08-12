@@ -2,7 +2,7 @@ import { EditorContent, type Editor } from "@tiptap/react";
 import { type AdminTaxonomyWithTerms, type ContentTypeFieldDef } from "../../lib/api";
 import { WidgetEmbedInsertControl } from "../../lib/widget-embed-extension";
 import { useCollectionEntryEditor } from "./hooks/use-collection-entry-editor.hooks";
-import { useTermPicker } from "./hooks/use-term-picker.hooks";
+import { useWiredTermPicker } from "./hooks/use-term-picker.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { COLLECTIONS_DICT } from "./collections-i18n";
 
@@ -129,7 +129,7 @@ function TermPicker(props: {
   contentId: string;
   t: (key: string) => string;
 }) {
-  const { selected, toggle, saving, message, error, assign } = useTermPicker({
+  const { selected, toggle, saving, message, error, assign } = useWiredTermPicker({
     contentType: props.contentType,
     contentId: props.contentId,
   });

@@ -35,7 +35,10 @@ vi.mock("../hooks/use-collection-entry-editor.hooks", async (importOriginal) => 
 });
 vi.mock("../hooks/use-term-picker.hooks", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../hooks/use-term-picker.hooks")>();
-  return { ...actual, useTermPicker: () => termPickerControllerRef.current };
+  // Mocks the zero-deps wrapper `CollectionEntryEditor.tsx` now calls by default post-`useWiredX`
+  // conversion — was `useTermPicker` (the pure, port-taking hook) before; a call-site rename of
+  // what gets intercepted, not a behavior or assertion change.
+  return { ...actual, useWiredTermPicker: () => termPickerControllerRef.current };
 });
 
 const FIELD_TEXT: ContentTypeFieldDef = { name: "notes", kind: "text", required: false, queryable: false };
