@@ -10,11 +10,14 @@
  *   4. namespace-adoption guard (§5/§6/T5) — fails closed on an unresolved provenance mismatch;
  *   5. **snapshot the whole db FIRST** (§4) — the never-brick anchor;
  *   6. open a durable phase-journal entry (§2/T3);
- *   7. run all DDL inside ONE transaction so a failure rolls the live db back to a working state
- *      (§9: recoverable, not zero-loss) — SQLite's own transaction rollback handles this
- *      same-process, non-crash case; the snapshot/journal exist for the CRASH case, recovered at
- *      next boot by `migration-recovery.ts` (see that file and `restore.ts` for why restore only
- *      ever runs there, never live).
+ *   7. run all DDL, the post-DDL verification, AND the journal's own COMMITTED transition inside
+ *      ONE transaction (see this file's POST-COMMIT DATA-LOSS WINDOW section for why verification
+ *      and the journal write are in-transaction too, not just the DDL) so a failure rolls the live
+ *      db AND the journal back together to a working, truthfully-recorded state (§9: recoverable,
+ *      not zero-loss) — SQLite's own transaction rollback handles this same-process, non-crash
+ *      case; the snapshot/journal exist for the CRASH case, recovered at next boot by
+ *      `migration-recovery.ts` (see that file and `restore.ts` for why restore only ever runs
+ *      there, never live).
  *
  * IN-MEMORY `dbPath` (BUG FIX, 2026-07-28): steps 3, 5, and 6 above are conditionally skipped for an
  * in-memory (or SQLite's other non-file) `dbPath` — see `snapshot.ts`'s `isInMemoryDbPath`. Disk
@@ -142,13 +145,71 @@
  * unchanged); post-commit, write NOTHING and leave the journal at whatever non-terminal phase it
  * already reached (`VERIFYING`, set immediately after the transaction resolves, before either of
  * the two post-commit throw sites) — non-terminal is exactly what makes next-boot recovery pick it
- * up and restore from the pre-DDL snapshot, which is the correct outcome here: verification failing
- * means the live state doesn't provably match what was declared, and a `COMMITTED`-write failure
- * means core can no longer vouch the attempt finished cleanly either way, so in both cases falling
- * back to the last known-good snapshot (discarding the just-applied DDL rather than trusting it) is
- * the same "recoverable, not zero-loss" trade this file already makes everywhere else (§9) — a
- * plugin whose migration gets reverted this way simply re-applies it, idempotently, on the next
- * `declare()` call, same as any other interrupted attempt.
+ * up and restore from the pre-DDL snapshot. **CORRECTED below, same day**: leaving a non-terminal
+ * phase behind turned out to trade one bug for a worse one — see POST-COMMIT DATA-LOSS WINDOW
+ * immediately following this section for why "restore from the pre-DDL snapshot" is NOT the correct
+ * outcome for this case, and what replaced `transactionCommitted`/`recordFailurePhase` instead.
+ *
+ * POST-COMMIT DATA-LOSS WINDOW (BUG FIX, 2026-08-12, same-day follow-up to the fix immediately
+ * above): the fix above stopped LYING about a post-commit failure, but stopping the lie did not
+ * stop the underlying failure from existing. A post-commit `verifyPostDdl` failure correctly wrote
+ * nothing and left the entry at `VERIFYING` — but `VERIFYING` is non-terminal, and
+ * `migration-recovery.ts` treats every non-terminal entry as a crash-interrupted attempt requiring
+ * restore, indistinguishably from an actual process crash. The scenario this opened: DDL commits,
+ * verification fails (a normal, catchable, in-process failure — the process does NOT crash),
+ * `declareDataModule` returns `{ ok: false }`, and the site keeps running and serving traffic —
+ * nothing about a caught, in-process exception stops that. Every write the site accepts from that
+ * moment on, by ANY table, not just this plugin's, is exposed: the recovery snapshot is a
+ * WHOLE-FILE backup (§4), and `restoreFromSnapshot` (`restore.ts`) is a whole-file copy back over
+ * `dbPath`. The next time anything restarts the process — an operator's routine deploy, not a
+ * crash — boot-time `recoverIncompleteDataModuleMigrations` finds the still-`VERIFYING` entry,
+ * restores the whole db file to its pre-DDL state, and every write since is gone, with no crash and
+ * no operator warning to explain why. Direct reproduction (both as a fault-injected `:memory:` case
+ * and as a full write-after-failure/restart/verify-survival end-to-end case, see
+ * `data-module.test.ts`) confirmed both the live-column retention AND the eventual data loss on
+ * recovery; this was not a hypothetical.
+ *
+ * The root cause both this fix and the one above were reacting to is the same: `verifyPostDdl` ran
+ * AFTER `db.transaction()` had already committed, so there was always going to be SOME failure mode
+ * in that gap that a post-hoc phase label could describe accurately but never close. The actual fix
+ * is to remove the gap: `verifyPostDdl` now runs as the LAST statement INSIDE the same
+ * `db.transaction()` that runs the DDL, and a failure throws from inside that callback — the exact
+ * same mechanism `applyTableCreate`/`applyTableAlteration` already use to fail the transaction, so
+ * better-sqlite3's own automatic `ROLLBACK` undoes the DDL right along with it. There is no longer a
+ * state where the DDL is live but unverified; verified-and-committed and rolled-back-entirely are
+ * now the only two reachable outcomes. (Verification's own `PRAGMA table_info`/`index_list` reads
+ * are unaffected by running mid-transaction — a SQLite connection sees its own uncommitted writes
+ * within the same transaction exactly like committed ones, confirmed directly for this repo's
+ * better-sqlite3 build; it is not merely inferred from general SQL semantics.)
+ *
+ * The journal's own `COMMITTED` transition moves inside the same transaction too, via
+ * `migration-journal.ts`'s `stageJournalPhase` — a checkpoint-free write, because
+ * `advanceJournalPhase` CANNOT be reused here: it calls `PRAGMA wal_checkpoint(FULL)`, and a
+ * checkpoint issued by the SAME connection that holds an open write transaction throws `database
+ * table is locked` (confirmed directly, not assumed — SQLite's own docs do not call out
+ * same-connection mid-transaction checkpoint behavior at all, so this needed a real probe, not a
+ * reading). Writing `COMMITTED` inside the DDL transaction means a crash at the worst possible
+ * instant — literally between SQLite's internal commit and this function's `db.transaction()` call
+ * returning to JS — still leaves the journal reading `COMMITTED`, because that write committed WITH
+ * the DDL, as one indivisible unit; there is no instant at which live state and journal state can
+ * disagree. `stagePhaseIfJournaled` no-ops for the in-memory case exactly like
+ * `advancePhaseIfJournaled` does, matching this file's existing in-memory convention throughout.
+ *
+ * `declareDataModule`'s catch block goes back to unconditionally writing `ROLLED_BACK` — the
+ * `transactionCommitted` flag and `recordFailurePhase`'s pre/post-commit fork the previous fix
+ * introduced are gone, not because that reasoning was wrong but because it is now unreachable: with
+ * verification and the `COMMITTED` write both inside the transaction, `db.transaction()` throwing
+ * means SQLite really did roll everything back in every remaining case, so `ROLLED_BACK` is once
+ * again always truthful — the same simplicity the very first version of this file had, restored
+ * without reintroducing the bug that simplicity originally hid. The one sliver of risk that
+ * remains — the belt-and-suspenders `advancePhaseIfJournaled(db, journalId, "COMMITTED")` checkpoint
+ * call (re-writing the already-`COMMITTED` row purely to force its WAL merge), or
+ * `discardSnapshotIfFileBacked`, throwing AFTER the transaction has already committed everything
+ * that matters — is deliberately kept OUT of the catch path entirely: both calls run in their own
+ * swallow-all block after the transaction succeeds, because by that point the migration is already
+ * correct and durable, and reporting `{ ok: false }` for a housekeeping hiccup would itself be a lie
+ * in the other direction (the same principle `discardCommittedSnapshot` already documents: "must
+ * not turn a successful migration into a reported failure").
  *
  * T2 (§4's exclusive cross-process lock) is DELIBERATELY NOT acquired here — SPEC-033 correction
  * (2026-07-16), superseding SPEC-032's original implementation. The ADR's own §4 text scopes T2's
@@ -185,7 +246,7 @@
 import type Database from "better-sqlite3";
 
 import { checkDiskHeadroom } from "./disk-headroom";
-import { advanceJournalPhase, beginJournalEntry, ensureMigrationJournal } from "./migration-journal";
+import { advanceJournalPhase, beginJournalEntry, ensureMigrationJournal, stageJournalPhase } from "./migration-journal";
 import type { JournalPhase } from "./migration-journal";
 import { checkNamespaceAdoption } from "./plugin-identity";
 import type { PluginProvenance } from "./plugin-identity";
@@ -659,10 +720,16 @@ function verifyAlteredIndexes(db: Database.Database, alteration: TableAlteration
 }
 
 /**
- * Post-DDL sanity check (§2's VERIFYING phase): re-reads live state and returns a description of
- * anything the transaction claims to have applied but that isn't actually there. Empty means the
- * DDL is confirmed applied; a non-empty result makes the caller treat the whole attempt as failed
- * (see `declareDataModule`'s catch block) even though SQLite itself reported no error.
+ * Post-DDL sanity check (§2): re-reads live state and returns a description of anything the DDL
+ * just run in this same transaction claims to have applied but that isn't actually there. Empty
+ * means the DDL is confirmed applied; a non-empty result makes the caller throw (see
+ * `declareDataModule`, POST-COMMIT DATA-LOSS WINDOW in this file's header) — called as the LAST
+ * statement inside the DDL transaction, so a non-empty result rolls the whole transaction back
+ * atomically with the DDL, even though SQLite itself reported no DDL error. `PRAGMA table_info` /
+ * `index_list` reads mid-transaction see this transaction's own uncommitted writes exactly like
+ * committed ones (same connection, standard SQLite read-your-writes semantics — confirmed directly,
+ * not merely assumed), so this check is exactly as sensitive to a real drift now as it was
+ * post-commit.
  */
 function verifyPostDdl(db: Database.Database, decl: DataModuleDecl, plan: ReconciliationPlan): string[] {
   const missingTables = plan.toCreate
@@ -718,6 +785,18 @@ function openJournalIfFileBacked(db: Database.Database, pluginId: string, snapsh
 function advancePhaseIfJournaled(db: Database.Database, journalId: number | null, phase: JournalPhase): void {
   if (journalId === null) return;
   advanceJournalPhase({ db, id: journalId, phase });
+}
+
+/**
+ * No-ops when there is no journal entry to advance (in-memory `dbPath` case, matching
+ * `advancePhaseIfJournaled`'s own guard) — but writes WITHOUT checkpointing, for use strictly
+ * inside an already-open `db.transaction()` on the same connection (see `migration-journal.ts`'s
+ * `stageJournalPhase` and this file's header comment, POST-COMMIT DATA-LOSS WINDOW, for why a
+ * checkpoint cannot run there).
+ */
+function stagePhaseIfJournaled(db: Database.Database, journalId: number | null, phase: JournalPhase): void {
+  if (journalId === null) return;
+  stageJournalPhase({ db, id: journalId, phase });
 }
 
 /** No-ops when no snapshot file was ever written (in-memory `dbPath` case) — nothing to discard. */
@@ -782,20 +861,6 @@ function applyTableAlteration(db: Database.Database, pluginId: string, alteratio
   for (const idx of alteration.indexesToAdd) applyIndexAdd(db, pluginId, alteration.fqTableName, idx, snapshotPath, at);
 }
 
-/**
- * Decides the journal phase to write when a DDL attempt fails, given whether the transaction
- * itself already committed (this file's header comment, POST-COMMIT JOURNAL INTEGRITY). A
- * pre-commit failure gets a truthful `ROLLED_BACK` — SQLite's own transaction rollback really did
- * undo everything. A post-commit failure writes nothing, deliberately: the entry is already
- * sitting at a non-terminal phase (`VERIFYING`) from before the failure, and leaving it there is
- * what lets next-boot recovery restore it instead of a false `ROLLED_BACK` telling recovery there
- * is nothing to do.
- */
-function recordFailurePhase(db: Database.Database, journalId: number | null, transactionCommitted: boolean): void {
-  if (transactionCommitted) return;
-  advancePhaseIfJournaled(db, journalId, "ROLLED_BACK");
-}
-
 /** Declare (reconcile) a plugin's tables. Core snapshots first, then runs the DDL transactionally. */
 export async function declareDataModule(
   required: { db: Database.Database; dbPath: string; decl: DataModuleDecl },
@@ -842,15 +907,14 @@ export async function declareDataModule(
 
   const created: string[] = [];
   const altered: string[] = [];
-  // Tracks whether `db.transaction()` below actually committed, so a failure AFTER that point
-  // (verification, or the "COMMITTED" journal write itself) is never misreported as a rollback
-  // that never happened — see this file's header comment, POST-COMMIT JOURNAL INTEGRITY, and
-  // `recordFailurePhase`.
-  let transactionCommitted = false;
   try {
     advancePhaseIfJournaled(db, journalId, "DDL_IN_PROGRESS");
     // One transaction for ALL DDL — new tables, column additions, and index add/recreate on
-    // existing tables — so any failure rolls the live db back to a working state (§9).
+    // existing tables — PLUS the post-DDL verification AND the journal's own COMMITTED write (this
+    // file's header comment, POST-COMMIT DATA-LOSS WINDOW). Folding all four into one atomic unit
+    // is what makes "the DDL committed" and "the journal says COMMITTED" the same fact: either this
+    // whole callback returns and every one of those things is durably true together, or it throws
+    // and better-sqlite3 rolls every one of them back together (§9).
     db.transaction(() => {
       ensureJournal(db);
       const at = Date.now();
@@ -859,35 +923,24 @@ export async function declareDataModule(
         applyTableAlteration(db, decl.pluginId, alteration, snapshotPath, at);
         altered.push(alteration.fqTableName);
       }
+      const problems = verifyPostDdl(db, decl, plan);
+      if (problems.length > 0) {
+        throw new Error(`post-DDL verification failed: ${problems.join(", ")} not found after DDL`);
+      }
+      stagePhaseIfJournaled(db, journalId, "COMMITTED");
     })();
-    transactionCommitted = true;
-    advancePhaseIfJournaled(db, journalId, "VERIFYING");
-    const problems = verifyPostDdl(db, decl, plan);
-    if (problems.length > 0) {
-      throw new Error(`post-DDL verification failed: ${problems.join(", ")} not found after DDL`);
-    }
-    advancePhaseIfJournaled(db, journalId, "COMMITTED");
-    // The snapshot's recovery window closed on the line above. `migration-recovery.ts` only ever
-    // restores from NON-terminal journal entries, so a COMMITTED entry's snapshot is unreachable
-    // by every code path that exists — keeping it means a permanent whole-database copy per
-    // plugin, which is what filled the working directory with `.snapshot-store-*`,
-    // `.snapshot-newsletter-*` and `.snapshot-comments-*` files. See `discardCommittedSnapshot`
-    // for why this removes no recovery capability. Failure keeps its snapshot (catch branch).
-    await discardSnapshotIfFileBacked(snapshotPath);
   } catch (err) {
-    // Pre-commit (`transactionCommitted` still false): better-sqlite3 already rolled the
-    // transaction back → live db is unchanged and working (this is the same-process, catchable-
-    // failure case — no restore needed; restore only ever runs at next-boot recovery for a CRASH,
-    // see migration-recovery.ts). Post-commit (`transactionCommitted` true): the DDL is live and
-    // durable — `recordFailurePhase` deliberately does NOT write `ROLLED_BACK` here, leaving the
-    // journal entry at its already-non-terminal `VERIFYING` phase so next-boot recovery restores
-    // it from the snapshot instead of skipping a mislabeled terminal entry. Either way, the
-    // snapshot remains as the named recovery point (§9) for operator forensics and, in the
-    // post-commit case, for actual crash recovery to consume. For an in-memory db,
-    // `snapshotPath`/`journalId` are both null (see above) — there is no recovery point to report
-    // because the same-process rollback just performed IS the full recovery; no crash-recovery boot
-    // path can ever exist for `:memory:` to need one.
-    recordFailurePhase(db, journalId, transactionCommitted);
+    // `db.transaction()` above threw — DDL, verification, and the in-transaction "COMMITTED" write
+    // are now one atomic unit, so better-sqlite3's own rollback really did undo ALL of them; the
+    // live db is unchanged and working (same-process, catchable-failure case — no restore needed,
+    // restore only ever runs at next-boot recovery for a CRASH, see migration-recovery.ts).
+    // `ROLLED_BACK` is therefore always truthful here now (this file's header comment, POST-COMMIT
+    // DATA-LOSS WINDOW) — there is no remaining case where this catch fires with the DDL actually
+    // live. The snapshot remains as the named recovery point (§9) for operator forensics; for an
+    // in-memory db, `snapshotPath`/`journalId` are both null (see above) — the same-process
+    // rollback just performed IS the full recovery, no crash-recovery boot path can ever exist for
+    // `:memory:` to need one.
+    advancePhaseIfJournaled(db, journalId, "ROLLED_BACK");
     const e = err as Error;
     return {
       ok: false,
@@ -897,6 +950,23 @@ export async function declareDataModule(
       recoveryPoint: snapshotPath ?? undefined,
       error: { code: "DDL_FAILED", message: e.message },
     };
+  }
+
+  // The transaction above already committed the DDL AND the journal's "COMMITTED" marker
+  // atomically and durably (SQLite's own WAL commit) — recovery already reads this attempt
+  // correctly even if nothing below this line ever runs. What follows is housekeeping only:
+  // `advancePhaseIfJournaled` re-writes the (already correct) row purely to force the WAL→main-file
+  // checkpoint `stagePhaseIfJournaled` could not request from inside the open transaction (see
+  // migration-journal.ts); `discardSnapshotIfFileBacked` deletes a snapshot the never-brick
+  // guarantee no longer needs (see the inline comment on `discardCommittedSnapshot`). Neither can
+  // undo a result that is already correct, so neither failing here is reported as a migration
+  // failure — matching `discardCommittedSnapshot`'s own "must not turn a successful migration into
+  // a reported failure" contract.
+  try {
+    advancePhaseIfJournaled(db, journalId, "COMMITTED");
+    await discardSnapshotIfFileBacked(snapshotPath);
+  } catch {
+    // Best-effort only — see the comment above. The migration itself already succeeded.
   }
 
   return { ok: true, created, altered, snapshotPath };

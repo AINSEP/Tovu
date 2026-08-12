@@ -161,11 +161,11 @@ test("dataModule: a failing DDL rolls back to a working state (never-brick), sna
 });
 
 /**
- * POST-COMMIT JOURNAL INTEGRITY (BUG FIX, 2026-08-12): see `data-module.ts`'s header comment for
- * the full reasoning. The two tests below prove both sides of the fork `recordFailurePhase` makes:
- * a PRE-commit failure still journals a truthful `ROLLED_BACK` (this one, complementing "a failing
- * DDL rolls back to a working state" above with an explicit journal-phase assertion it didn't
- * previously make), and a POST-commit failure does NOT (next test, fault-injected).
+ * POST-COMMIT DATA-LOSS WINDOW (BUG FIX, 2026-08-12): see `data-module.ts`'s header comment for the
+ * full reasoning. This test complements "a failing DDL rolls back to a working state" above with an
+ * explicit journal-phase assertion it didn't previously make; the fault-injected test immediately
+ * below proves the FIX for the case that used to leave a live-but-unverified DDL and a mislabeled
+ * journal entry behind (`ROLLED_BACK` is now truthful in every reachable case, not just this one).
  */
 test("dataModule: a pre-commit DDL failure still journals a truthful ROLLED_BACK", async () => {
   const { db, dbPath, dir } = openWithCore();
@@ -191,7 +191,7 @@ test("dataModule: a pre-commit DDL failure still journals a truthful ROLLED_BACK
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
-test("dataModule: FAULT INJECTION — a post-commit verification failure does NOT mark the journal ROLLED_BACK, since the DDL genuinely committed", async () => {
+test("dataModule: FAULT INJECTION — a verification failure now rolls back the DDL atomically, so the journal is truthfully ROLLED_BACK and no drift survives", async () => {
   const { db, dbPath, dir } = openWithCore();
   const v1 = {
     pluginId: "committest",
@@ -207,12 +207,12 @@ test("dataModule: FAULT INJECTION — a post-commit verification failure does NO
   };
 
   // Wrap `db` so the FIRST `PRAGMA table_info("p_committest__widgets")` call (planning, strictly
-  // BEFORE `db.transaction()` resolves) passes through untouched, but the SECOND one
-  // (`verifyPostDdl`, called strictly AFTER the transaction has already committed for real) returns
-  // a stale column list missing "sku" — this injects the rare "verification can't confirm what was
-  // actually committed" case without needing an unreachable SQLite-level failure to trigger it.
-  // Every other `prepare()` call, and every other db method (`.transaction`, `.pragma`, etc.), goes
-  // straight through to the real connection, so the ALTER itself genuinely runs and commits.
+  // BEFORE the DDL transaction opens) passes through untouched, but the SECOND one (`verifyPostDdl`,
+  // now called from INSIDE the same DDL transaction, immediately after the ALTER runs but before the
+  // transaction returns) returns a stale column list missing "sku" — this injects "verification
+  // can't confirm what was just applied" without needing an unreachable SQLite-level failure to
+  // trigger it. Every other `prepare()` call, and every other db method (`.transaction`, `.pragma`,
+  // etc.), goes straight through to the real connection.
   let tableInfoCalls = 0;
   const proxiedDb = new Proxy(db, {
     get(target, prop, receiver) {
@@ -238,17 +238,96 @@ test("dataModule: FAULT INJECTION — a post-commit verification failure does NO
   assert.equal(result.error?.code, "DDL_FAILED");
   assert.match(result.error?.message ?? "", /post-DDL verification failed/);
 
-  // The ALTER genuinely committed on the real connection — confirmed via a plain, unproxied read.
+  // POST-COMMIT DATA-LOSS WINDOW FIX (2026-08-12): verification now runs INSIDE the DDL transaction,
+  // so a verification failure rolls the ALTER back right along with it — confirmed via a plain,
+  // unproxied read. Before this fix, this same fault injection left "sku" live (see this file's git
+  // history for the prior version of this test, which asserted exactly that as the then-accepted
+  // tradeoff).
   const liveCols = (db.prepare(`PRAGMA table_info("p_committest__widgets")`).all() as Array<{ name: string }>).map((r) => r.name);
-  assert.deepEqual(liveCols, ["id", "sku"], "the ALTER really committed despite the reported failure");
+  assert.deepEqual(liveCols, ["id"], "verification failing now rolls the ALTER back too — no drift between live state and the reported failure");
 
-  // The load-bearing assertion: the journal entry must NOT be terminal. A real ROLLED_BACK here
-  // would make next-boot recovery see a "handled" entry and skip it, permanently losing the
-  // ability to reconcile a journal that disagrees with a database that actually has the change.
+  // The load-bearing assertion: the journal entry must be terminal AND truthful. Leaving it
+  // non-terminal (the pre-fix behavior) is what let next-boot recovery wrongly discard every write
+  // accepted after a non-crash, in-process failure like this one (see the end-to-end reproduction
+  // below). A real ROLLED_BACK is now safe to write unconditionally, because the rollback really did
+  // happen.
   const journalRow = db.prepare(`SELECT phase FROM _plugin_migration_journal ORDER BY id DESC LIMIT 1`).get() as { phase: string };
-  assert.equal(journalRow.phase, "VERIFYING", "left non-terminal so next-boot recovery can act on it, not falsely marked ROLLED_BACK");
+  assert.equal(journalRow.phase, "ROLLED_BACK", "the whole attempt (DDL + verification + journal write) rolled back together, so ROLLED_BACK is truthful");
 
   db.close();
+  fs.rmSync(dir, { recursive: true, force: true });
+});
+
+/**
+ * DATA-LOSS REPRODUCTION, END TO END (2026-08-12): this is the actual scenario both external
+ * auditors flagged against the pre-fix code (see `data-module.ts`'s header comment, POST-COMMIT
+ * DATA-LOSS WINDOW) — not a unit-level check of one internal flag, but the full chain: a post-commit
+ * verification failure occurs, the site (not simulated here as crashing — nothing about an in-process
+ * caught exception crashes anything) keeps accepting writes, and a LATER, non-crash restart runs the
+ * exact boot-time recovery function real boot uses. Against the pre-fix code, this test fails: the
+ * whole-file restore silently destroys the write made after the failure. Against the fix, it must
+ * fail to even trigger a restore, because the journal never ends up non-terminal for an in-process,
+ * non-crash failure any more.
+ */
+test("dataModule: DATA-LOSS REPRODUCTION — writes accepted after a post-commit verification failure survive a later (non-crash) boot recovery pass", async () => {
+  const { db, dbPath, dir } = openWithCore();
+  const v1 = {
+    pluginId: "dataloss",
+    pluginTier: "tier-2" as const,
+    provenance: { sourceUrl: "test://dataloss", publisher: "test" },
+    tables: [{ name: "widgets", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }] }],
+  };
+  await declareDataModule({ db, dbPath, decl: v1 });
+
+  const v2 = {
+    ...v1,
+    tables: [{ name: "widgets", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }, { name: "sku", type: "TEXT" as const }] }],
+  };
+
+  // Same fault-injection technique as the test above: the SECOND `PRAGMA table_info` call for this
+  // table (verification) sees stale, pre-ALTER data.
+  let tableInfoCalls = 0;
+  const proxiedDb = new Proxy(db, {
+    get(target, prop, receiver) {
+      if (prop !== "prepare") {
+        const value = Reflect.get(target, prop, receiver);
+        return typeof value === "function" ? value.bind(target) : value;
+      }
+      return (sql: string) => {
+        if (sql.includes('PRAGMA table_info("p_dataloss__widgets")')) {
+          tableInfoCalls += 1;
+          if (tableInfoCalls === 2) {
+            return { all: () => [{ name: "id", type: "TEXT", notnull: 0, pk: 1 }] } as unknown as ReturnType<Database.Database["prepare"]>;
+          }
+        }
+        return target.prepare(sql);
+      };
+    },
+  });
+
+  const declareResult = await declareDataModule({ db: proxiedDb, dbPath, decl: v2 });
+  assert.equal(declareResult.ok, false, "the injected verification failure is reported");
+
+  // The site does NOT crash — this is the whole point of the bug. It keeps serving and accepting
+  // writes on the SAME live connection, same as production would.
+  db.prepare(`INSERT INTO posts VALUES ('p2', 'written after the failed declare')`).run();
+  db.close();
+
+  // Some time later, a NON-crash restart happens (a deploy, a routine restart — not a crash). Real
+  // boot calls `recoverIncompleteDataModuleMigrations(dbPath)` before opening its own long-lived
+  // connection, exactly like this.
+  const { recoverIncompleteDataModuleMigrations } = await import("../migration-recovery");
+  recoverIncompleteDataModuleMigrations(dbPath);
+
+  // Re-open the (possibly just-restored) file and check whether the write made after the failed
+  // declare survived. Pre-fix, it does not: the journal was left at `VERIFYING` (non-terminal), so
+  // recovery treated this exactly like a crash-interrupted attempt and restored the WHOLE file to
+  // its pre-DDL snapshot, silently destroying `p2` along with everything else written since.
+  const reopened = new Database(dbPath);
+  const survivingPost = reopened.prepare(`SELECT id FROM posts WHERE id = 'p2'`).get();
+  assert.ok(survivingPost, "the write accepted after the failed declare must survive a later non-crash restart");
+  reopened.close();
+
   fs.rmSync(dir, { recursive: true, force: true });
 });
 
@@ -331,6 +410,66 @@ test("dataModule: an in-memory db's failing DDL still rolls back to a working st
     "core content is fully intact — the transaction rollback is the complete safety net here"
   );
   assert.deepEqual(after.filter((name) => !before.has(name)), [], "still no stray file, even on the failure path");
+
+  db.close();
+});
+
+/**
+ * FAULT INJECTION, `:memory:` (BUG FIX, 2026-08-12): reproduces the exact case that disproved the
+ * earlier assumption that a same-process transaction rollback covers every possible in-memory
+ * failure — a post-commit `verifyPostDdl` failure is itself a same-process, non-crash event, so it
+ * happens AFTER the transaction (and its rollback opportunity) has already resolved. Before this
+ * fix, `declareDataModule` returned `{ ok: false }` while the live `:memory:` db retained the
+ * ALTER's new column — a lie regardless of whether any journal exists to disagree with it, since
+ * `:memory:` has no journal at all (this file's header comment) and callers only ever see `ok`.
+ */
+test("dataModule: FAULT INJECTION, :memory: — a post-commit verification failure rolls the ALTER back too, not just the reported result", async () => {
+  const db = new Database(":memory:");
+  db.prepare(`CREATE TABLE posts (id TEXT PRIMARY KEY, title TEXT)`).run();
+
+  const v1 = {
+    pluginId: "memcommit",
+    pluginTier: "tier-2" as const,
+    provenance: { sourceUrl: "test://memcommit", publisher: "test" },
+    tables: [{ name: "widgets", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }] }],
+  };
+  await declareDataModule({ db, dbPath: ":memory:", decl: v1 });
+
+  const v2 = {
+    ...v1,
+    tables: [{ name: "widgets", columns: [{ name: "id", type: "TEXT" as const, primaryKey: true }, { name: "sku", type: "TEXT" as const }] }],
+  };
+
+  // Same fault-injection technique as the file-backed tests above: the SECOND `PRAGMA table_info`
+  // call for this table (verification, now inside the DDL transaction) sees stale, pre-ALTER data.
+  let tableInfoCalls = 0;
+  const proxiedDb = new Proxy(db, {
+    get(target, prop, receiver) {
+      if (prop !== "prepare") {
+        const value = Reflect.get(target, prop, receiver);
+        return typeof value === "function" ? value.bind(target) : value;
+      }
+      return (sql: string) => {
+        if (sql.includes('PRAGMA table_info("p_memcommit__widgets")')) {
+          tableInfoCalls += 1;
+          if (tableInfoCalls === 2) {
+            return { all: () => [{ name: "id", type: "TEXT", notnull: 0, pk: 1 }] } as unknown as ReturnType<Database.Database["prepare"]>;
+          }
+        }
+        return target.prepare(sql);
+      };
+    },
+  });
+
+  const result = await declareDataModule({ db: proxiedDb, dbPath: ":memory:", decl: v2 });
+
+  assert.equal(result.ok, false);
+  assert.equal(result.error?.code, "DDL_FAILED");
+  assert.match(result.error?.message ?? "", /post-DDL verification failed/);
+
+  // The load-bearing assertion — read via the real, unproxied connection.
+  const liveCols = (db.prepare(`PRAGMA table_info("p_memcommit__widgets")`).all() as Array<{ name: string }>).map((r) => r.name);
+  assert.deepEqual(liveCols, ["id"], "the ALTER rolled back together with the failed verification — no in-memory drift between live state and the reported failure");
 
   db.close();
 });
