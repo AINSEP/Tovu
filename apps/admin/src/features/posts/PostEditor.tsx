@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { EditorContent, useEditorState, type Editor } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
+import DragHandle from "@tiptap/extension-drag-handle-react";
 import { agentHandle } from "@jini-ai/agentic";
 import { ConfirmDialog } from "@jini-ai/admin/react";
 import { SrcDocSandbox } from "@jini-ai/ui/renderers";
@@ -791,6 +792,25 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
         >
           {editor ? <Toolbar editor={editor} /> : null}
           {editor ? <BubbleFormattingMenu editor={editor} /> : null}
+          {/* Drag handle (owner, 2026-08-11: "anything and everything") — a grip icon that appears
+              beside whichever top-level block the cursor is hovering, letting an author reorder
+              blocks by dragging instead of cut/paste. `nested` left at its `false` default: this is
+              the "quickest thing that works" pass every other plain-toggle-button addition this
+              dispatch made follows, not a stated requirement for reordering INSIDE a list/table/etc. */}
+          {editor ? (
+            <DragHandle editor={editor}>
+              <div className="editor-drag-handle" title="Drag to reorder" aria-hidden="true">
+                <svg viewBox="0 0 18 18" fill="currentColor">
+                  <circle cx="6" cy="4" r="1.3" />
+                  <circle cx="12" cy="4" r="1.3" />
+                  <circle cx="6" cy="9" r="1.3" />
+                  <circle cx="12" cy="9" r="1.3" />
+                  <circle cx="6" cy="14" r="1.3" />
+                  <circle cx="12" cy="14" r="1.3" />
+                </svg>
+              </div>
+            </DragHandle>
+          ) : null}
           {/* `role: "field"` rather than `region`: this is a TipTap `contenteditable`, which the
               page driver treats as a fillable rich-text surface (see its `isEditableRegion`), so an
               agent can read and write the body through the same field verbs it uses for an input. */}
