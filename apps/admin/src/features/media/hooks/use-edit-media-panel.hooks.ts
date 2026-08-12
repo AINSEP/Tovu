@@ -4,6 +4,8 @@ import { api, type AdminMedia } from "../../../lib/api";
 import { describeApiError, diffMediaMetadata, parseOptionalPixelSize, type MediaMetadataPatch } from "../rules";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { t } from "../media-i18n";
+import { defaultMediaPort } from "./media-dependencies.hooks";
+import type { MediaPort } from "./media-port.hooks";
 
 /**
  * @file Everything `EditMediaPanel` does, so the component in `Media.tsx` is only markup.
@@ -15,12 +17,24 @@ import { t } from "../media-i18n";
  *
  * Naming follows `hooks/use-settings-slice.hooks.ts`: `use-<thing>.hooks.ts`. Feature-local
  * because nothing outside `features/media` needs it.
+ *
+ * `deps.port`/`deps.locale` are injected (see `media-port.hooks.ts`) rather than reaching for
+ * `lib/api`'s `api` and `useAdminLocale()` directly, sharing the same `MediaPort` `use-media.hooks
+ * .ts` injects — both hooks read/write the one `/media` resource. `api.mediaOriginalUrl` stays a
+ * direct import: a pure, synchronous URL template (no `fetch`/`await` — see `lib/api.ts`), the
+ * same "no host boundary, no I/O" category as `describeApiError`, per `media-port.hooks.ts`'s own
+ * doc comment.
  */
 
 export interface EditMediaPanelHookProps {
   item: AdminMedia;
   onSaved: () => void;
   onCancel: () => void;
+}
+
+export interface EditMediaPanelDependencies {
+  port: MediaPort;
+  locale: string;
 }
 
 export interface EditMediaPanelController {
@@ -51,8 +65,7 @@ export interface EditMediaPanelController {
 /**
  * @complexity Time/space: O(1) per call — one metadata round trip per save, two clipboard writes.
  */
-export function useEditMediaPanel(props: EditMediaPanelHookProps): EditMediaPanelController {
-  const locale = useAdminLocale();
+export function useEditMediaPanel(props: EditMediaPanelHookProps, { port, locale }: EditMediaPanelDependencies): EditMediaPanelController {
   const { item, onSaved, onCancel } = props;
   const [draft, setDraft] = useState<Required<MediaMetadataPatch>>({
     title: item.title,
@@ -134,7 +147,7 @@ export function useEditMediaPanel(props: EditMediaPanelHookProps): EditMediaPane
     setSaving(true);
     setError(null);
     try {
-      await api.updateMedia({ id: item.id }, patch);
+      await port.updateMedia({ id: item.id }, patch);
       onSaved();
     } catch (e) {
       setError(describeApiError(e, t(locale, "failed to save media metadata")));
@@ -161,4 +174,17 @@ export function useEditMediaPanel(props: EditMediaPanelHookProps): EditMediaPane
     copyUrl,
     save,
   };
+}
+
+/**
+ * Binds the real `/api/.../media` client and the real `useAdminLocale()` — see
+ * `media-dependencies.hooks.ts`.
+ *
+ * The zero-argument-dependencies half of the `useX(dependencies)` / `useWiredX()` pair, so
+ * `Media.tsx` composes this and a test composes {@link useEditMediaPanel} with
+ * `createFakeMediaPort`.
+ */
+export function useWiredEditMediaPanel(props: EditMediaPanelHookProps): EditMediaPanelController {
+  const locale = useAdminLocale();
+  return useEditMediaPanel(props, { port: defaultMediaPort, locale });
 }

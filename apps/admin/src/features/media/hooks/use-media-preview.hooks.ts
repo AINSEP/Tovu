@@ -12,6 +12,17 @@ import { mediaAltText } from "../rules";
  *
  * Naming follows `hooks/use-settings-slice.hooks.ts`: `use-<thing>.hooks.ts`. Feature-local
  * because nothing outside `features/media` needs it.
+ *
+ * **Not a `useWiredX` candidate** (2026-08-11 wired-hooks-audit review): the only `api` touch here
+ * is `api.mediaOriginalUrl(item.id)`, a pure, synchronous URL template
+ * (`${BASE}/workspaces/${WORKSPACE_ID}/media/${id}/original` — see `lib/api.ts`; no `fetch`, no
+ * `await`, no network round trip). That is the same "no host boundary, no side effect" category the
+ * convention doc's own examples name for `describeApiError` — injecting it would let a fake quietly
+ * change a deterministic string-building rule every test needs to hold still, for zero testability
+ * gain since there is nothing here to stub. `media-port.hooks.ts` (the port shared by
+ * `use-media.hooks.ts`/`use-edit-media-panel.hooks.ts`, which both hold REAL I/O) deliberately
+ * excludes `mediaOriginalUrl` for the identical reason. This hook has no dependency left to inject
+ * once that's excluded.
  */
 
 export type PreviewStage = "image" | "video" | "unsupported";
