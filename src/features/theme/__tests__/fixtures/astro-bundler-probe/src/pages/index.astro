@@ -1,0 +1,24 @@
+---
+// Minimal one-page Astro source for the real-bundler falsification probe -- see
+// astro-real-bundler-conformance.test.ts for what this is checked against and why. Deliberately plain:
+// one heading, one scoped <style> block (so `astro build` actually emits a CSS bundle to test asset-path
+// rewriting against), no islands/client directives -- Astro has no built-in equivalent to Tovu's
+// `data-tovu-island` marker, so island-content coverage is out of scope for this minimal probe.
+---
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Astro Bundler Probe</title>
+  </head>
+  <body>
+    <h1>Astro bundler probe</h1>
+    <p>One real page, built by a real bundler, checked against Tovu's static theme contract.</p>
+  </body>
+</html>
+
+<style>
+  h1 {
+    color: rebeccapurple;
+  }
+</style>

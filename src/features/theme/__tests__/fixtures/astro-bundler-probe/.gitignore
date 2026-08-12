@@ -1,0 +1,7 @@
+# Astro's own build output and auto-generated type-check scaffolding -- both regenerated on every
+# `astro build` (astro-real-bundler-conformance.test.ts runs a fresh build on every test run, so
+# neither needs to be committed). `dist/` is already covered by the repo root .gitignore; `.astro/` is
+# not, and is Astro's own standard convention to ignore.
+dist/
+.astro/
+node_modules/
