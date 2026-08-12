@@ -131,7 +131,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
           // Guaranteed present: this view only fires when `/:slug` matched. Despite the name, the
           // server-side lookup this feeds (`getAdminPostByIdOrSlug`) accepts either a slug or a
           // real id, so an old id-based bookmark still resolves — see that function's own doc.
-          return <PageEditor slug={ctx.params.slug} />;
+          return <PageEditor key={ctx.params.slug} slug={ctx.params.slug} />;
         default:
           return <Pages />;
       }
@@ -150,7 +150,14 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
       switch (ctx.view) {
         case "post-editor":
           // Guaranteed present: this view only fires when `/:postId` matched.
-          return <PostEditor postId={ctx.params.postId} />;
+          // `key` (2026-08-12 audit, blocker TM-TOVU-2026-08-12-A/F1): without it React reuses one
+          // component + hook instance across entity navigation, so `save()`'s closure stays bound to
+          // whichever entity was current when Save was clicked. Navigate mid-save and the late
+          // response commits over the newly-displayed entity — then the NEXT save reads the stale id
+          // and writes to the wrong record. Remounting per id closes the whole class at the routing
+          // layer instead of one hand-rolled staleness ref per hook. `Seo.tsx:245` already does this
+          // (`<SeoEntryPanel key={entryId} …>`) and is why that panel was never vulnerable.
+          return <PostEditor key={ctx.params.postId} postId={ctx.params.postId} />;
         default:
           return <Posts />;
       }
@@ -187,6 +194,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
         case "collection-entry-editor":
           return (
             <CollectionEntryEditor
+              key={`${contentTypeKey}:${ctx.params.entryId}`}
               contentTypeKey={contentTypeKey}
               entryId={ctx.params.entryId === "new" ? null : ctx.params.entryId}
             />
@@ -215,7 +223,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
         case "menu-editor":
           // The `/new` pattern below captures no params, so `menuId` is `undefined` there — the
           // same "new means null" mapping `App.tsx`'s old `parseRoute` did inline.
-          return <MenuEditor menuId={ctx.params.menuId ?? null} />;
+          return <MenuEditor key={ctx.params.menuId ?? "new"} menuId={ctx.params.menuId ?? null} />;
         default:
           return <Menus />;
       }
@@ -239,13 +247,13 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
           return <WidgetRegions />;
         case "widget-region-editor":
           // Guaranteed present: this view only fires when `/regions/:regionKey` matched.
-          return <WidgetRegionEditor regionKey={ctx.params.regionKey} />;
+          return <WidgetRegionEditor key={ctx.params.regionKey} regionKey={ctx.params.regionKey} />;
         case "widget-editor": {
           // Same split as `menus`: the `/new` pattern captures no `widgetId`, so its presence is
           // what distinguishes "editing" from "creating" — `widgetType` only ever came from the
           // query string on the create path.
           const widgetId = ctx.params.widgetId ?? null;
-          return <WidgetInstanceEditor widgetId={widgetId} widgetType={widgetId ? null : ctx.query.get("type")} />;
+          return <WidgetInstanceEditor key={widgetId ?? "new"} widgetId={widgetId} widgetType={widgetId ? null : ctx.query.get("type")} />;
         }
         default:
           return <WidgetsLibrary />;
@@ -288,7 +296,7 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
       switch (ctx.view) {
         case "form-editor":
           // Guaranteed present: this view only fires when `/:formId` matched.
-          return <FormEditor formId={ctx.params.formId} />;
+          return <FormEditor key={ctx.params.formId} formId={ctx.params.formId} />;
         default:
           return <FormsList />;
       }
