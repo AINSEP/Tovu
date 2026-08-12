@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Media } from "../Media";
 import { api } from "../../../lib/api";
+import { FetchQueryProvider } from "../../../lib/fetch-query";
 
 /**
  * @file `Media` — MSG-05's preview-grid rewrite. Pins the two behaviors the dispatch called out as
@@ -74,6 +75,18 @@ function routeFetch(routes: Array<{ method?: string; match: string; handler: () 
   };
 }
 
+/** Wraps every render in `FetchQueryProvider` (2026-08-12, `lib/fetch-query` migration) — `Media`'s
+ *  hooks are now backed by `useFetchQuery`/`useFetchMutation`, which throw without a
+ *  `QueryClientProvider` ancestor. `main.tsx` provides this in production; here it is one
+ *  `FetchQueryProvider` per render, matching `taxonomy`'s own component-test precedent. */
+function renderScreen() {
+  return render(
+    <FetchQueryProvider>
+      <Media />
+    </FetchQueryProvider>
+  );
+}
+
 let fetchMock: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
@@ -108,7 +121,7 @@ function cardFor(container: HTMLElement, title: string): HTMLElement {
 describe("page header", () => {
   it("uses the shared .page-header primitive with the Content kicker", async () => {
     fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
-    render(<Media />);
+    renderScreen();
 
     expect(await screen.findByRole("heading", { name: "Media" })).toBeInTheDocument();
     expect(screen.getByText("Content")).toBeInTheDocument();
@@ -118,7 +131,7 @@ describe("page header", () => {
 describe("empty state", () => {
   it("renders a real .card/.empty-state instead of an empty grid", async () => {
     fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse({ media: [] })) }]));
-    render(<Media />);
+    renderScreen();
 
     expect(await screen.findByText("No media uploaded yet.")).toBeInTheDocument();
   });
@@ -127,7 +140,7 @@ describe("empty state", () => {
 describe("preview fallback chain", () => {
   it("renders <img> first, using api.mediaOriginalUrl and a real alt", async () => {
     fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
-    const { container } = render(<Media />);
+    const { container } = renderScreen();
 
     const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
     const img = card.querySelector("img");
@@ -139,7 +152,7 @@ describe("preview fallback chain", () => {
 
   it("falls back from image alt text to the title when alt is blank", async () => {
     fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
-    const { container } = render(<Media />);
+    const { container } = renderScreen();
 
     const card = cardFor(await waitForCard(container, "Trashed Clip"), "Trashed Clip");
     const img = card.querySelector("img");
@@ -148,7 +161,7 @@ describe("preview fallback chain", () => {
 
   it("swaps to <video> (same src, controls, no autoplay) when the image probe fails", async () => {
     fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
-    const { container } = render(<Media />);
+    const { container } = renderScreen();
 
     const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
     const img = card.querySelector("img")!;
@@ -166,7 +179,7 @@ describe("preview fallback chain", () => {
 
   it("falls back to an informative placeholder — not a blank box — when both the image and video probes fail, and still offers the file via the same byte-route URL", async () => {
     fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
-    const { container } = render(<Media />);
+    const { container } = renderScreen();
 
     const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
     // Drives the FULL chain — image fails, confirm it actually became a <video> (not stuck
@@ -202,7 +215,7 @@ describe("lightbox", () => {
   it("opens via the expand trigger, and aria-labelledby resolves to a heading with the item's own title", async () => {
     const user = userEvent.setup();
     fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
-    const { container } = render(<Media />);
+    const { container } = renderScreen();
     const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
 
     const dialog = document.querySelector("dialog.media-lightbox")!;
@@ -221,7 +234,7 @@ describe("lightbox", () => {
   it("renders the SAME MediaPreview fallback chain as the grid card (same src, same image-to-video fallback), not a reimplementation", async () => {
     const user = userEvent.setup();
     fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
-    const { container } = render(<Media />);
+    const { container } = renderScreen();
     const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
     await user.click(within(card).getByRole("button", { name: /view "sunset photo" larger/i }));
 
@@ -250,7 +263,7 @@ describe("lightbox", () => {
   it("resets the image/video/placeholder fallback chain when navigating to the next asset, instead of carrying the previous asset's verdict across", async () => {
     const user = userEvent.setup();
     fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
-    const { container } = render(<Media />);
+    const { container } = renderScreen();
     const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
     await user.click(within(card).getByRole("button", { name: /view "sunset photo" larger/i }));
 
@@ -274,7 +287,7 @@ describe("lightbox", () => {
   it("the native cancel event (what a real browser fires on Escape) closes the dialog and returns focus to the card's expand trigger", async () => {
     const user = userEvent.setup();
     fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
-    const { container } = render(<Media />);
+    const { container } = renderScreen();
     const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
     const expandButton = within(card).getByRole("button", { name: /view "sunset photo" larger/i });
 
@@ -291,7 +304,7 @@ describe("lightbox", () => {
   it("calls onCancel-equivalent (closes) when the click lands on the dialog element itself (the backdrop area), not on dialog content", async () => {
     const user = userEvent.setup();
     fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
-    const { container } = render(<Media />);
+    const { container } = renderScreen();
     const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
     await user.click(within(card).getByRole("button", { name: /view "sunset photo" larger/i }));
 
@@ -308,7 +321,7 @@ describe("lightbox", () => {
   it("ArrowRight/ArrowLeft navigate between assets and update the counter, clamping at the last item rather than wrapping", async () => {
     const user = userEvent.setup();
     fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
-    const { container } = render(<Media />);
+    const { container } = renderScreen();
     const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
     await user.click(within(card).getByRole("button", { name: /view "sunset photo" larger/i }));
 
@@ -330,7 +343,7 @@ describe("lightbox", () => {
 
   it("omits the expand trigger once an asset resolves as unsupported — nothing larger to show than the existing placeholder", async () => {
     fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
-    const { container } = render(<Media />);
+    const { container } = renderScreen();
     const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
 
     fireEvent.error(card.querySelector("img")!);
@@ -353,7 +366,7 @@ describe("lightbox", () => {
     it("mounts exactly one .media-lightbox for a multi-card grid, and re-targets its label when a different card's trigger opens it", async () => {
       const user = userEvent.setup();
       fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
-      const { container } = render(<Media />);
+      const { container } = renderScreen();
       await waitForCard(container, "Sunset Photo");
       await waitForCard(container, "Trashed Clip");
 
@@ -395,7 +408,7 @@ describe("row actions via RowMenu", () => {
         },
       ])
     );
-    const { container } = render(<Media />);
+    const { container } = renderScreen();
     const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
 
     await user.click(within(card).getByRole("button", { name: /actions for "sunset photo"/i }));
@@ -413,7 +426,7 @@ describe("row actions via RowMenu", () => {
   it("a trashed item's menu offers Delete permanently, which opens ConfirmDialog rather than deleting immediately", async () => {
     const user = userEvent.setup();
     fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
-    const { container } = render(<Media />);
+    const { container } = renderScreen();
     const card = cardFor(await waitForCard(container, "Trashed Clip"), "Trashed Clip");
 
     await user.click(within(card).getByRole("button", { name: /actions for "trashed clip"/i }));
@@ -446,7 +459,7 @@ describe("row actions via RowMenu", () => {
         },
       ])
     );
-    const { container } = render(<Media />);
+    const { container } = renderScreen();
     const card = cardFor(await waitForCard(container, "Trashed Clip"), "Trashed Clip");
 
     await user.click(within(card).getByRole("button", { name: /actions for "trashed clip"/i }));
@@ -460,7 +473,7 @@ describe("row actions via RowMenu", () => {
   it("canceling the purge dialog sends no DELETE and closes the dialog", async () => {
     const user = userEvent.setup();
     fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
-    const { container } = render(<Media />);
+    const { container } = renderScreen();
     const card = cardFor(await waitForCard(container, "Trashed Clip"), "Trashed Clip");
 
     await user.click(within(card).getByRole("button", { name: /actions for "trashed clip"/i }));
@@ -493,7 +506,7 @@ describe("metadata edit stays a partial patch", () => {
       return Promise.reject(new Error(`unexpected ${method} ${url}`));
     });
 
-    const { container } = render(<Media />);
+    const { container } = renderScreen();
     const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
 
     await user.click(within(card).getByRole("button", { name: /actions for "sunset photo"/i }));
@@ -521,7 +534,7 @@ describe("metadata edit stays a partial patch", () => {
       return Promise.reject(new Error(`unexpected ${method} ${url}`));
     });
 
-    const { container } = render(<Media />);
+    const { container } = renderScreen();
     const card = cardFor(await waitForCard(container, "Sunset Photo"), "Sunset Photo");
 
     await user.click(within(card).getByRole("button", { name: /actions for "sunset photo"/i }));

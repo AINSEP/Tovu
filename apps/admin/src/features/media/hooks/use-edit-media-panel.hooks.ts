@@ -1,7 +1,8 @@
 import { useState } from "react";
 
 import { api, type AdminMedia } from "../../../lib/api";
-import { describeApiError, diffMediaMetadata, parseOptionalPixelSize, type MediaMetadataPatch } from "../rules";
+import { useFetchMutation } from "../../../lib/fetch-query";
+import { KEYS, describeApiError, diffMediaMetadata, parseOptionalPixelSize, type MediaMetadataPatch } from "../rules";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { t } from "../media-i18n";
 import { defaultMediaPort } from "./media-dependencies.hooks";
@@ -24,6 +25,11 @@ import type { MediaPort } from "./media-port.hooks";
  * direct import: a pure, synchronous URL template (no `fetch`/`await` — see `lib/api.ts`), the
  * same "no host boundary, no I/O" category as `describeApiError`, per `media-port.hooks.ts`'s own
  * doc comment.
+ *
+ * `lib/fetch-query` migration (2026-08-12): `save` is one `useFetchMutation` that `invalidates:
+ * [KEYS.list]` — this hook has no read of its own to invalidate (see `rules.ts`'s `KEYS` doc), so
+ * there is no sibling-vs-nested key decision to make here at all, unlike `forms`/`collections`'
+ * list-plus-detail-editor pairs.
  */
 
 export interface EditMediaPanelHookProps {
@@ -76,8 +82,10 @@ export function useEditMediaPanel(props: EditMediaPanelHookProps, { port, locale
     height: item.height,
     cssClass: item.cssClass,
   });
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const saveMutation = useFetchMutation({
+    run: (input: { target: { id: string }; patch: MediaMetadataPatch }) => port.updateMedia(input.target, input.patch),
+    invalidates: [KEYS.list],
+  });
   const [hashCopied, setHashCopied] = useState(false);
   const [urlCopied, setUrlCopied] = useState(false);
 
@@ -144,17 +152,15 @@ export function useEditMediaPanel(props: EditMediaPanelHookProps, { port, locale
       onCancel();
       return;
     }
-    setSaving(true);
-    setError(null);
     try {
-      await port.updateMedia({ id: item.id }, patch);
+      await saveMutation.mutate({ target: { id: item.id }, patch });
       onSaved();
-    } catch (e) {
-      setError(describeApiError(e, t(locale, "failed to save media metadata")));
-    } finally {
-      setSaving(false);
+    } catch {
+      // already surfaced through saveMutation.error -> error below
     }
   }
+
+  const error = saveMutation.error ? describeApiError(saveMutation.error, t(locale, "failed to save media metadata")) : null;
 
   return {
     draft,
@@ -165,7 +171,7 @@ export function useEditMediaPanel(props: EditMediaPanelHookProps, { port, locale
     setWidth,
     setHeight,
     setCssClass,
-    saving,
+    saving: saveMutation.status === "pending",
     error,
     hashCopied,
     urlCopied,
