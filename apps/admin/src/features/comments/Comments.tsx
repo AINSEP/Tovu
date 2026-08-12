@@ -6,7 +6,7 @@ import { commentRowMenuItems, truncate, type RowActionState } from "./rules";
 import { formatTimestamp } from "../../lib/format-timestamp";
 import { useWiredComments } from "./hooks/use-comments.hooks";
 import { useWiredCommentQueue } from "./hooks/use-comment-queue.hooks";
-import { useCommentSettings } from "./hooks/use-comment-settings.hooks";
+import { useWiredCommentSettings } from "./hooks/use-comment-settings.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { t } from "./comments-i18n";
 import { interpolate } from "../../lib/template-i18n";
@@ -285,7 +285,7 @@ function QueueSection(props: { permissions: string[]; locale: string }) {
 }
 
 function SettingsSection(props: { canConfigure: boolean; locale: string }) {
-  const { settings, error, saving, notice, save } = useCommentSettings(props.canConfigure);
+  const { settings, error, saving, notice, save } = useWiredCommentSettings(props.canConfigure);
 
   if (!props.canConfigure) return null;
 
