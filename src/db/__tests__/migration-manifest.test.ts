@@ -32,6 +32,7 @@ import {
   PG_BIGINT53_SAFE_INTEGER_CEILING,
   reseedSequenceSql,
   REVIEWED_INTEGER_ID_COLUMNS,
+  REVIEWED_JSON_COLUMNS,
   TableCopyOrderCycleError,
   TIMESTAMP_ORDERING_REQUIRES_CANONICAL_Z,
   topologicalTableCopyOrder,
@@ -199,25 +200,42 @@ test("boolean-flag classification matches exactly the 3 SQLiteBoolean columns in
   }
 });
 
-// LEDGER #14 (2026-08-12 audit, partially-resolved by the previous round): this "independent" oracle
-// filters with `name.endsWith("_json")` — the SAME suffix rule isJsonColumnName() itself encodes,
-// just re-typed by hand rather than called. Exactly the same coupling the timestamp oracle two tests
-// below used to have (see that test's own LOW #14 comment) — it proves classifyAllCoreColumns()
-// faithfully APPLIES the rule to every real column, not that the rule is EXHAUSTIVE over which
-// columns are semantically JSON. A JSON column named outside the *_json convention (e.g.
-// "settings_payload") would classify plain-text, skip JSON validation entirely, and this test would
-// stay green right alongside the bug. The genuinely independent test immediately below closes this
-// half of #14 the same way the timestamp half was already closed: by reading a DIFFERENT naming
-// convention (schema.ts's camelCase TS property names) against a DIFFERENT substring of the source.
-test("json-text classification matches an independent textual scan of schema.ts for *_json columns", () => {
+// LEDGER #14 (2026-08-12 audit, CORRECTED 2026-08-12 round-3): this "independent" oracle filters with
+// `name.endsWith("_json")` — the SAME suffix rule isJsonColumnName() itself encodes, just re-typed by
+// hand rather than called. Exactly the same coupling the timestamp oracle two tests below used to have
+// (see that test's own LOW #14 comment) — it proves classifyAllCoreColumns() faithfully APPLIES the
+// rule to every real column, not that the rule is EXHAUSTIVE over which columns are semantically JSON.
+//
+// The test immediately below THIS one (SQL-name-vs-TS-name self-consistency) does NOT close that gap —
+// a previous version of this comment claimed it did, and that claim was itself wrong, caught live: it
+// only proves the *_json/*Json conventions never disagree WITH EACH OTHER on a single column's own two
+// names (SQL name says JSON, TS name says JSON, or neither does — genuinely useful, it would catch e.g.
+// `bodyJson: text("body_html")`), which says nothing at all about a column that fails the convention on
+// BOTH sides consistently. `composio_config.auth_config_ids` (SQL: no `_json` suffix; TS: `authConfigIds`,
+// ends `Ids` not `Json`) is exactly that case — a real, live column, not the earlier hypothetical
+// "settings_payload" example — and it passed the self-consistency test below cleanly (both sides agree
+// it "isn't JSON"), right alongside `classifyAllCoreColumns()` silently classifying it `plain-text` and
+// `verifyJsonText` never running on it. Four more columns share the identical shape (`posts.ext`,
+// `external_mcp_servers.args`/`allowed_tool_names`/`env_names`) — see `REVIEWED_JSON_COLUMNS` in
+// `manifest.ts` for the actual fix (a reviewed allowlist, paired with the staleness/non-redundancy
+// gates further down this file) and the full rationale for each. No test built on the *_json/*Json
+// naming conventions alone can ever close this gap by construction — the two tests below stay useful
+// for what they actually prove (naming-convention self-consistency and classifier-dispatch fidelity),
+// they are just not, and were never, a completeness proof over "which columns are semantically JSON."
+test("json-text classification matches an independent textual scan of schema.ts for *_json columns, UNIONED with the REVIEWED_JSON_COLUMNS allowlist for the columns that scan cannot see by construction", () => {
   // Independent oracle: regexes directly over the source text, not through Drizzle introspection —
   // a different code path from classifyAllCoreColumns()'s getTableConfig() walk, so this cannot pass
   // merely because the same bug is present in both places.
-  const declared = new Set([...SCHEMA_SOURCE.matchAll(/text\("([a-z0-9_]*_json)"\)/g)].map((m) => m[1]));
+  const declaredByConvention = new Set([...SCHEMA_SOURCE.matchAll(/text\("([a-z0-9_]*_json)"\)/g)].map((m) => m[1]));
   // Distinct NAMES, not occurrences — "state_json"/"value_json"/"before_json" etc. each repeat
   // across several tables, so this is well under the 37 total json-text columns classifyAllCoreColumns()
   // finds; the deepEqual below is what actually proves per-occurrence agreement via classifyAllCoreColumns.
-  assert.ok(declared.size > 20, `sanity: expected 20+ distinct *_json column names, got ${declared.size}`);
+  assert.ok(declaredByConvention.size > 20, `sanity: expected 20+ distinct *_json column names, got ${declaredByConvention.size}`);
+
+  // REVIEWED_JSON_COLUMNS entries are keyed "table.column"; this test compares bare SQL column names
+  // (matching declaredByConvention's shape), so take just the column half of each key.
+  const declaredByReview = new Set(Object.keys(REVIEWED_JSON_COLUMNS).map((key) => key.split(".")[1]));
+  const declared = new Set([...declaredByConvention, ...declaredByReview]);
 
   const all = classifyAllCoreColumns();
   const classified = new Set(all.filter((c) => c.columnClass.kind === "json-text").map((c) => c.sqlColumnName));
@@ -225,17 +243,17 @@ test("json-text classification matches an independent textual scan of schema.ts 
 });
 
 test("json-text classification agrees with a GENUINELY independent oracle: schema.ts's camelCase TS property names ('*Json' convention) vs its snake_case SQL names ('_json' convention) never disagree on a single column", () => {
-  // Mirrors the timestamp version of this test below, closing LEDGER #14's JSON half the same way
-  // its timestamp half was already closed. Different signal from the coupled test above: this reads
-  // the TS property name (left of the colon, e.g. `bodyJson` in `bodyJson: text("body_json")`) via
-  // its own regex against a different substring of the source, then applies its OWN "is this JSON"
-  // predicate to that different string. A bug in the *_json convention itself that the SQL-name
-  // oracle above cannot see would only also fool THIS test if schema.ts's two independent naming
-  // conventions had themselves drifted apart on that exact column — a real, checkable fact about the
-  // schema's own naming discipline, not a restatement of the implementation. Manually verified before
-  // writing this test: every `*Json: text("*_json")` declaration in schema.ts pairs up cleanly today
-  // (no TS `*Json` name lacks a matching `_json` SQL name, and no `_json` SQL name lacks a matching
-  // TS `*Json` name) — the pairing genuinely holds for JSON the same way it holds for timestamps.
+  // Proves naming-CONVENTION self-consistency only — NOT completeness over "which columns are
+  // semantically JSON" (see the LEDGER #14 comment above this test block for the real column,
+  // `composio_config.auth_config_ids`, that disproved the old, stronger claim this comment used to
+  // make). This reads the TS property name (left of the colon, e.g. `bodyJson` in
+  // `bodyJson: text("body_json")`) via its own regex against a different substring of the source, then
+  // applies its OWN "is this JSON" predicate to that different string. A bug where the *_json/*Json
+  // conventions disagree WITH EACH OTHER on one column's two names (SQL says JSON, TS doesn't, or vice
+  // versa) is exactly what this test catches — a column that fails the convention identically on BOTH
+  // sides (this test's "no disagreement" case) is invisible to it by construction, which is precisely
+  // why REVIEWED_JSON_COLUMNS in manifest.ts exists as a separate, explicitly-reviewed mechanism rather
+  // than a strengthening of this oracle.
   const pairs = [...SCHEMA_SOURCE.matchAll(/([A-Za-z_$][\w$]*):\s*text\("([a-z0-9_]+)"\)/g)].map((m) => ({ tsName: m[1], sqlName: m[2] }));
   assert.ok(pairs.length > 400, `sanity: expected 400+ text(...) column declarations, got ${pairs.length}`);
 
@@ -247,6 +265,37 @@ test("json-text classification agrees with a GENUINELY independent oracle: schem
     disagreements,
     [],
     "schema.ts's SQL name and TS property name disagree about whether a column is JSON for at least one column"
+  );
+});
+
+// --- round-3 audit (2026-08-12): REVIEWED_JSON_COLUMNS — the actual fix for the gap the LEDGER #14
+// comment above now correctly describes, paired with the same staleness discipline
+// REVIEWED_INTEGER_ID_COLUMNS gets (GATE B), plus a non-redundancy check so the allowlist can only ever
+// grow with columns the naming convention genuinely cannot see -----------------------------------------
+
+test("REVIEWED_JSON_COLUMNS has no stale entries — every key names a real column in schema.ts today", () => {
+  const real = new Set(rawCoreColumns().map((c) => `${c.sqlTableName}.${c.sqlColumnName}`));
+  const stale = Object.keys(REVIEWED_JSON_COLUMNS).filter((key) => !real.has(key));
+  assert.deepEqual(stale, [], "REVIEWED_JSON_COLUMNS names a column that no longer exists — update the registry");
+});
+
+test("REVIEWED_JSON_COLUMNS has no redundant entries — no key already matches isJsonColumnName (the allowlist exists ONLY for columns the naming convention cannot see)", () => {
+  const redundant = Object.keys(REVIEWED_JSON_COLUMNS).filter((key) => isJsonColumnName(key.split(".")[1]!));
+  assert.deepEqual(redundant, [], "a REVIEWED_JSON_COLUMNS entry already matches the *_json naming convention and should not be in this allowlist at all");
+});
+
+test("REVIEWED_JSON_COLUMNS: every entry actually classifies json-text via classifyAllCoreColumns — the fix this registry exists for, proven end to end", () => {
+  const all = classifyAllCoreColumns();
+  const byKey = new Map(all.map((c) => [`${c.sqlTableName}.${c.sqlColumnName}`, c.columnClass.kind]));
+  for (const key of Object.keys(REVIEWED_JSON_COLUMNS)) {
+    assert.equal(byKey.get(key), "json-text", `"${key}" is in REVIEWED_JSON_COLUMNS but does not classify json-text`);
+  }
+});
+
+test("REVIEWED_JSON_COLUMNS matches exactly the five columns the 2026-08-12 round-3 audit's schema.ts scan found — not more, not fewer", () => {
+  assert.deepEqual(
+    new Set(Object.keys(REVIEWED_JSON_COLUMNS)),
+    new Set(["posts.ext", "composio_config.auth_config_ids", "external_mcp_servers.args", "external_mcp_servers.allowed_tool_names", "external_mcp_servers.env_names"])
   );
 });
 
