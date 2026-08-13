@@ -23,14 +23,17 @@ import type { RouteDeps } from "../../types";
  * - `changeSets`: posts create/update, pages create (the SPEC-001 command gateway's audit trail),
  *   plus `change-sets/list.ts`/`get.ts`/`revert.ts` themselves.
  * - `outbox`: posts create/update, pages create (command-gateway side-effect queue), plus
- *   `change-sets/revert.ts`'s own `outbox` (both the gateway argument and
- *   `reverterDeps.outbox` for the settings-ledger applier).
+ *   `change-sets/revert.ts`'s own `revertChangeSet({ deps: { outbox, ... } })` argument (the
+ *   `change-set.reverted` event, not the post reverters — those close over their own outbox at
+ *   composition-root time now, see `revertRegistry` below).
  * - `bus`: `posts/update.ts`'s `processOutbox({ outbox, bus, clock })` drain call — SEO's
  *   sitemap-cache-invalidation subscriber needs the entry-lifecycle event delivered synchronously
  *   within the same request, mirroring the `/workspaces` route's identical inline drain.
- * - `settingsRepo`: `change-sets/revert.ts`'s `reverterDeps.settingsRepo` — the SPEC-007
- *   settings-ledger applier `core.commands.appliers` reverts through this port (ADR-PIPE-007
- *   Migration Safety), not `PresentationSettingsRepoPort`.
+ * - `revertRegistry`: `change-sets/revert.ts` reads this directly instead of building one itself.
+ *   `settingsRepo` is deliberately NOT in this list any more (2026-08-13
+ *   features-post-deep-import-trace.md Job 2) — it was here only for `revert.ts`'s own
+ *   `reverterDeps.settingsRepo`, and that field was dead (declared, never read by either post
+ *   reverter); removing it cost nothing.
  * - `presentationRepo`/`themes`: `presentation/get.ts`/`presentation/patch-active-theme.ts`
  *   (`themes` via `validThemeIds(deps.themes)`).
  * - `themesDir`: `presentation/rescan-themes.ts` — the root to re-run discovery against. Taken from
@@ -57,7 +60,7 @@ export type ContentRouteDeps = Pick<
   | "changeSets"
   | "outbox"
   | "bus"
-  | "settingsRepo"
+  | "revertRegistry"
   | "presentationRepo"
   | "themes"
   | "themesDir"
