@@ -20,8 +20,9 @@ import { useWiredTaxonomy } from "./hooks/use-taxonomy.hooks";
  * Structural reference, CORRECTED (web-design pass, 2026-08-05): the original comment here named
  * `Settings.tsx`'s two-pane namespace-list + detail-panel layout as the structural reference. That
  * was wrong on inspection — `panels.tsx` routes `/admin/settings` to `SettingsUi.tsx` (the Open
- * Design dialog-shell port), not to `Settings.tsx`, which is `features/settings-raw`'s SPEC-007 raw
- * namespace/key ledger inspector, a debug tool for engineers to browse `content.db` layer-by-layer.
+ * Design dialog-shell port), not to `Settings.tsx`, which was `features/settings-raw`'s SPEC-007 raw
+ * namespace/key ledger inspector, a debug tool for engineers to browse `content.db` layer-by-layer
+ * (since deleted — `/settings` was judged to cover the same rows on its own).
  * This screen DOES still borrow that debug tool's `.settings-body`/`.settings-row`/
  * `.settings-namespace-*` classes (true, unlike the old comment's framing of them as a deliberate
  * parity choice) — and that borrowing is exactly why the owner flagged this screen as looking worse
@@ -32,8 +33,9 @@ import { useWiredTaxonomy } from "./hooks/use-taxonomy.hooks";
  * `namespace.key` strings, wrong for ordinary content names. Fixed below with three additive,
  * taxonomy-scoped overrides in `styles.css` (`taxonomy-namespace-group`/`taxonomy-term-list`/
  * `taxonomy-term-detail`) plus one JSX change (the detail column only renders once a term is
- * selected) — `settings-raw/Settings.tsx` keeps the base `.settings-*` rules untouched, since the
- * ledger tool's own two-pane layout and monospace keys are correct for what IT shows.
+ * selected) — the base `.settings-*` rules in `styles.css` are left untouched, since the
+ * now-deleted ledger tool's own two-pane layout and monospace keys were correct for what IT showed,
+ * and this screen is now their only consumer.
  *
  * Scope note (disclosed): list/create-taxonomy/create-term/rename-term/assign-terms/merge-term are
  * backed by real routes; merge-term (ADR-044, SPEC-018 C-207) is wired to the real
@@ -546,7 +548,8 @@ export function Taxonomy({ useTaxonomyHook = useWiredTaxonomy }: TaxonomyProps =
  *  the exact same list markup — see the `selected ? … : …` comment for why there are two branches
  *  at all. `taxonomy-namespace-group`/`taxonomy-term-list` are additive classes (see `styles.css`'s
  *  own comment on that block) that converge this list's padding and type on the reference idiom
- *  without touching the shared `.settings-*` rules `settings-raw/Settings.tsx` still needs as-is.
+ *  without touching the shared `.settings-*` base rules, kept as originally defined for the
+ *  since-deleted `settings-raw/Settings.tsx`.
  *
  * `deleteState` (web-design pass, 2026-08-05): bundles the five `useTaxonomy` fields this list needs
  * to offer "Delete taxonomy"/"Delete term" and show a blocked-delete reason — passed as one object
