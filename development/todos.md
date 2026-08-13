@@ -1052,3 +1052,39 @@ Provider/adapter + modular monorepo references (TS):
 
 Curated lists to mine:
 - [ ] **mehdihadeli/awesome-software-architecture** and **donnemartin/system-design-primer** — patterns catalog
+
+## JSON-column tripwire + theme write-gate — 3 known-open items (2026-08-12 external audit)
+
+All three are **latent and non-blocking**, recorded here so they are not rediscovered from scratch.
+Context: a 4-auditor panel (Terra `gpt-5.6-terra`@xhigh, Gemini 3.1 Pro, Gemini 3.6 Flash, Sonnet)
+reviewed the session diff over two rounds. Everything blocking was fixed and mutation-proven —
+commits `3cd312d`, `57d5d65`, `697d97e`, `f763bb9`, `3fead5a`, `169b74a`. These three were
+deliberately deferred.
+
+**1. The JSON-mention regex fires on phrasing that means "not JSON."**
+`/(?<!\.)\bjson\b(?!\.(?:stringify|parse)\b)/i` in `src/db/__tests__/migration-manifest.test.ts`
+matches `"non-JSON"`, `"JSON Web Token (JWT)"`, `"JSON:API"`, `"GeoJSON-style … NOT parsed JSON"`.
+No such phrasing exists in `schema.ts` today (grep-confirmed). It fails **loud** — the suite breaks
+and someone rewords a comment or adds a `REVIEWED_JSON_COLUMNS` entry — so it cannot pass bad data
+silently. Same accepted risk class as the `theme.json` filename false positive the `(?<!\.)`
+lookbehind already handles. *Fix only if actually hit*, with a narrow `(?<!non-)` exclusion.
+
+**2. A trailing same-line comment is invisible to the tripwire.**
+`col: text("x"), // JSON blob` attaches to neither column — `ts.getLeadingCommentRanges` does not
+see it. **Pre-existing, not a regression**: the auditor traced the old regex scanner and confirmed
+identical behaviour (its backward walk never inspected same-line trailing text either). A column
+documented *only* that way carries a JSON signal the tripwire cannot read. Same applies to a shared
+section-header comment above a group of columns — only the immediately-following column inherits it.
+
+**3. No install-time rule forbids a theme declaring `build.sourceDir: "preview"`.**
+That manifest is what made `preview/` paths resolve `"editable"` and sent PUT down the sourceDir
+branch (fixed in `9e75c4a`). The narrow fix is in place; the deeper one — a `build-conformance.ts`
+check refusing a `sourceDir` that names a `GENERATED_THEME_DIRS` entry — was not attempted.
+Unreachable today: no theme on disk sets `build.source: "compiled"`. Noted in `explore.ts` where a
+maintainer would look.
+
+**The lesson worth keeping, above any of the three:** a gate and the writer it guards must resolve a
+name the same way. `isGeneratedThemePath()` compared paths as spelled while `resolveThemeFilePath()`
+normalized them, so `PUT {"path":"css/../preview/app.css"}` returned 200 and overwrote generated
+output — walking around the rule on every route. Two resolvers for one string is a bypass waiting to
+be spelled differently.
