@@ -8,12 +8,13 @@ The curated Open Design settings-dialog port — the `settings` panel, reachable
 | `SettingsUi.tsx` | 13-tab settings shell (Execution mode, Instructions, Notifications, Privacy, Dialog appearance, Language, MCP server, Media providers, Connectors, Memory, External MCP, Skills, About). See the file's own header for the tab-by-tab backing detail. |
 | `index.ts` | The only surface `panels.tsx` may import. |
 
-## What this feature deliberately does not own
+## History: `features/settings-raw`'s `Settings.tsx` (deleted)
 
-**`features/settings-raw`'s `Settings.tsx`.** This is not a WIP replacement for the SPEC-007 raw
-ledger browser — the decision on record (`SettingsUi.tsx`'s own header) is that both stay available:
-the curated tabbed surface and the raw namespace/key inspector are two views of the same
-`content.db` store. Do not "consolidate" them.
+This screen was not originally a replacement for the SPEC-007 raw ledger browser at
+`features/settings-raw/Settings.tsx` — the decision on record for a while (see `SettingsUi.tsx`'s
+own header) was that both stay available, as two views of the same `content.db` store. That raw
+ledger browser has since been deleted: `/settings` was judged to cover the same rows on its own, so
+there is no sibling left to keep separate from this one.
 
 ## Notes for anyone editing here
 

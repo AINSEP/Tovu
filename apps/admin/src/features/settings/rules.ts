@@ -4,9 +4,9 @@ import type { SaveState } from "../../hooks/use-settings-slice.hooks";
  * @file Pure logic for the `settings` feature (the Open Design settings-dialog port) —
  * everything that computes a value rather than rendering one.
  *
- * Named `rules.ts` to match `features/posts/rules.ts`'s and `features/settings-raw/rules.ts`'s
- * convention: the slice's decisions live in one importable, directly testable module with no
- * React in it.
+ * Named `rules.ts` to match `features/posts/rules.ts`'s (and the since-deleted
+ * `features/settings-raw/rules.ts`'s) convention: the slice's decisions live in one importable,
+ * directly testable module with no React in it.
  *
  * `SettingsUi.tsx` mounts six independent `useSettingsSlice` instances (Execution, Instructions,
  * Notifications, Privacy, Dialog appearance, Language); the functions below all operate on that

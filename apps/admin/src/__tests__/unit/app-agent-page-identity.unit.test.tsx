@@ -129,11 +129,13 @@ describe("data-agent-page reports the published page id, not the sidebar row", (
        * The invariant, stated in the only direction it actually holds — an external review was right
        * that the earlier version of this test overclaimed. It was named "every id reported is one
        * page.navigate will accept" while checking three widget routes: both narrower than its name
-       * and, as a general claim, false. `/admin/ai-assistant`, `/admin/settings-raw`,
-       * `/admin/newsletter` and every legacy `/admin/section/<unknown>` route legitimately report an
-       * id `ADMIN_AGENT_PAGE_PATHS` does not publish. That is the allowlist working as designed —
-       * those screens are reachable by a human and deliberately not by an agent — and reporting
-       * where you are is not the same as advertising somewhere to go.
+       * and, as a general claim, false. `/admin/ai-assistant`, `/admin/newsletter` and every legacy
+       * `/admin/section/<unknown>` route legitimately report an id `ADMIN_AGENT_PAGE_PATHS` does
+       * not publish. (An earlier version of this list also named `/admin/settings-raw`; that panel
+       * was deleted, so the route no longer exists to report anything at all.) That is the
+       * allowlist working as designed — those screens are reachable by a human and deliberately
+       * not by an agent — and reporting where you are is not the same as advertising somewhere to
+       * go.
        *
        * What must hold is the round trip: if an agent CAN navigate somewhere, arriving has to report
        * the id it asked for. Otherwise `page.navigate` returns an `after` contradicting its own

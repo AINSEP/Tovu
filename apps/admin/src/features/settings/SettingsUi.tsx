@@ -1,10 +1,11 @@
 /**
  * @file Admin "Settings (New)" screen — the Open Design settings-dialog port. Markup only.
  *
- * Ships *beside* the SPEC-007 raw ledger browser (`features/settings-raw/Settings.tsx`),
- * which is deliberately untouched: the curated tabbed surface and the raw
- * namespace/key inspector are two views of the same `content.db` store, and
- * the decision on record is that both stay available.
+ * Originally shipped *beside* the SPEC-007 raw ledger browser
+ * (`features/settings-raw/Settings.tsx`) — the curated tabbed surface and the raw namespace/key
+ * inspector were two views of the same `content.db` store, and for a while the decision on record
+ * was that both stay available. `settings-raw/` was later deleted once `/settings` was judged to
+ * cover the same rows on its own; this file no longer has a raw-ledger sibling.
  *
  * 13 tabs mounted: Execution mode, Instructions, Notifications, Privacy,
  * Dialog appearance, Language, MCP server, Media providers, Connectors,

@@ -46,7 +46,8 @@ Legacy `#/section/...` URLs are rewritten in place to their path equivalent on b
 
 2. **`src/nav.ts` — only if it belongs in the sidebar.** Not derivable from `SECTIONS`: this carries
    the label, icon, group and ordering. Some sections are deliberately reachable without a nav entry
-   (`appearance`, `settings-raw`). **The item's `id` must equal the `SECTIONS` key**, because
+   (`appearance`; `settings-raw` was another until that panel was deleted). **The item's `id` must
+   equal the `SECTIONS` key**, because
    `activeSectionId` derives the highlighted nav id from the route's section id — a mismatch gives a
    link that works but never lights up. `href` is a route path (`/settings`), not a URL.
 
