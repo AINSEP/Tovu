@@ -7,7 +7,7 @@ import type {
   ChangeSetRecord,
   ChangeSetRepoPort,
 } from "@jini-ai/cms/core";
-import type { RevertRegistry, ReverterDeps } from "./appliers";
+import type { RevertRegistry } from "./appliers";
 
 /**
  * @file Revert executor (ADR-018 C-004).
@@ -35,7 +35,6 @@ export class RevertConflictError extends Error {
 export interface RevertChangeSetDeps {
   changeSets: ChangeSetRepoPort;
   registry: RevertRegistry;
-  reverterDeps: ReverterDeps;
   clock: ClockPort;
   idGen: IdGeneratorPort;
   /** When provided, `change-set.reverted` is enqueued for async consumers. */
@@ -54,7 +53,7 @@ export async function revertChangeSet(
   _optional: RevertChangeSetOptional = {}
 ): Promise<ChangeSetRecord> {
   const { deps, input } = required;
-  const { changeSets, registry, reverterDeps } = deps;
+  const { changeSets, registry } = deps;
 
   // (1) exists in workspace
   const found = await changeSets.findById({
@@ -97,7 +96,6 @@ export async function revertChangeSet(
     const current = await reverter.currentVersion({
       workspaceId: input.workspaceId,
       entityId: item.entityId,
-      deps: reverterDeps,
     });
     if (current === null || current !== item.entityVersionAtApply) {
       throw new RevertConflictError(
@@ -114,7 +112,6 @@ export async function revertChangeSet(
     await reverter.applyInverse({
       workspaceId: input.workspaceId,
       item,
-      deps: reverterDeps,
     });
   }
 
