@@ -173,3 +173,46 @@ test("decodeSqliteJsonb: an object payload that ends after a key throws, instead
     'a truncated object must be reported, not silently decoded as {"a":"b"} by stealing the array\'s next element'
   );
 });
+
+test("decodeSqliteJsonb: an object VALUE whose payload straddles the container end throws — bounding where a value starts is not the same as bounding where it ends", () => {
+  // REGRESSION round 2 (2026-08-13, Terra F1 + Gemini-Pro F2, converged independently). The first
+  // bounds fix checked only `key.nextOffset >= payloadEnd` — i.e. where the value BEGINS. A value that
+  // begins inside the object but whose own payload runs past `payloadEnd` sailed straight through, so
+  // the container contract the comment claimed to enforce was still unenforced.
+  //
+  //   0x6b  ARRAY, payload 6
+  //   0x3c    OBJECT, payload 3  <- ends at offset 5
+  //   0x17      TEXT len 1
+  //   0x61        "a"            <- key
+  //   0x17      TEXT len 1       <- value HEADER is inside the object…
+  //   0x62      "b"              <- …but its PAYLOAD is at offset 5, outside it
+  //   0x01    TRUE               <- the array's real next element
+  //
+  // Before the fix this decoded as [{"a":"b"}, false] with no error.
+  assert.throws(
+    () => decodeSqliteJsonb(Buffer.from([0x6b, 0x3c, 0x17, 0x61, 0x17, 0x62, 0x01])),
+    /overflow|truncat|payload|bound/i,
+    "a value crossing its container boundary must be reported, not silently decoded by stealing bytes"
+  );
+});
+
+test("decodeSqliteJsonb: an ARRAY item whose payload straddles the container end throws too — same contract, other branch", () => {
+  // The array branch had the identical gap: `while (cursor < payloadEnd)` admits an item that STARTS
+  // inside the payload and ends past it, then jumps the cursor beyond payloadEnd and exits quietly.
+  //   0x2b  ARRAY, payload 2
+  //   0x17    TEXT len 1   <- starts inside…
+  //   0x61      "a"
+  //   0x62    trailing byte the item's payload would have to reach for
+  assert.throws(
+    () => decodeSqliteJsonb(Buffer.from([0x2b, 0x37, 0x61, 0x62, 0x63])),
+    /overflow|truncat|payload|bound/i,
+    "an array item crossing its container boundary must be reported, not silently absorbed"
+  );
+});
+
+test("decodeSqliteJsonb: a value ending EXACTLY at the container end is still valid — the bounds fix must not reject the legitimate edge", () => {
+  // The boundary case the guard must NOT break: `{"a":"b"}` where the value's last byte is the object's
+  // last byte. Equality is legal; only strictly-past is a violation.
+  const exact = Buffer.from([0x4c, 0x17, 0x61, 0x17, 0x62]);
+  assert.deepEqual(decodeSqliteJsonb(exact), { a: "b" }, "a value ending exactly at payloadEnd must decode");
+});
