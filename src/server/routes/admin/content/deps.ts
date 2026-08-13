@@ -47,6 +47,13 @@ import type { RouteDeps } from "../../types";
  *   recursive content-marker and widget/media embed resolution, `menuRepo` feeds
  *   `resolveStaticMenusForRender`'s theme-nav lookup. A second, narrower render implementation here
  *   would be exactly the drift risk `renderViaTemplate`'s own doc says reuse avoids.
+ *
+ *   NOT widened for the 2026-08-12 `.liquid` Preview-tab fix: that route
+ *   (`middleware/theme-page-preview.ts`) needs `requireAdminSession`'s own identity-repo dependency
+ *   set (`principalRepo`/`sessionRepo`/`roleRepo`/`passwordHasher`/`identityReady`, none of which any
+ *   other route in this module touches) on top of the render-pipeline repos, which is a materially
+ *   bigger and differently-shaped widening than anything else this type carries. It stays registered
+ *   directly in `app.ts` against full `RouteDeps` instead — see that route's own file header.
  */
 export type ContentRouteDeps = Pick<
   RouteDeps,

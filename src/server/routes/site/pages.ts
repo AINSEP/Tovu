@@ -97,7 +97,11 @@ async function tryRedirectPhase(
   return true;
 }
 
-const SITE_TITLE = "Tovu Demo Site";
+/** Exported (2026-08-12, `.liquid` Preview-tab fix) so `middleware/theme-page-preview.ts`'s
+ *  templated-theme preview route renders with the SAME site title text a live visitor would see —
+ *  a template that reads `site.title`/`ctx.siteTitle` should preview identically to how it renders
+ *  live, not under a stand-in string this file's own callers don't use. */
+export const SITE_TITLE = "Tovu Demo Site";
 
 /**
  * Owner decision (TM-TOVU-2026-08-12-A request-cost audit, Phase 2 change 2 of 2). Applied to every
@@ -172,7 +176,7 @@ export function resolveActiveTheme(deps: TemplateRenderDeps, activeThemeId: stri
  * `post.bodyJson` directly (`pageBodyJson`) instead of an id to re-fetch — this route already holds
  * `post` by the time it calls this, so no extra lookup is needed either way.
  */
-async function resolveWidgetsForRender(deps: RouteDeps, theme: DiscoveredTheme, post?: PostRecord): Promise<ResolvePageWidgetsResult> {
+export async function resolveWidgetsForRender(deps: RenderContextResolutionDeps, theme: DiscoveredTheme, post?: PostRecord): Promise<ResolvePageWidgetsResult> {
   return resolvePageWidgets({
     deps: { bindingRepo: deps.widgetBindingRepo, entryRepo: deps.entryRepo },
     input: { workspaceId: deps.workspaceId, pageBodyJson: post?.bodyJson, resolvedRegions: theme.manifest.regions ?? [] },
@@ -197,7 +201,7 @@ async function resolveWidgetsForRender(deps: RouteDeps, theme: DiscoveredTheme, 
  * from a non-templated Page's own body is a disclosed, out-of-scope gap for this pass, not silently
  * unhandled — it degrades to the same honest placeholder any other unresolved reference gets.
  */
-async function resolveHtmlEmbedsForRender(deps: RouteDeps, post: PostRecord | undefined): Promise<ResolveHtmlPageEmbedsResult | undefined> {
+export async function resolveHtmlEmbedsForRender(deps: RenderContextResolutionDeps, post: PostRecord | undefined): Promise<ResolveHtmlPageEmbedsResult | undefined> {
   if (!post || post.bodyFormat !== "html") return undefined;
   return resolveHtmlPageEmbeds({
     deps: { entryRepo: deps.entryRepo, mediaRepo: deps.mediaRepo, transformRepo: deps.transformDefinitionRepo, postRepo: deps.postRepo },
@@ -392,6 +396,23 @@ export type TemplateRenderDeps = Pick<
 >;
 
 /**
+ * The narrow dependency slice the four `resolve*ForRender` helpers below need — same "`Pick` of
+ * `RouteDeps`, not the whole composition-root shape" reasoning as {@link TemplateRenderDeps}/
+ * {@link ContentMarkerResolutionDeps} above (a superset of `ContentMarkerResolutionDeps`: adds
+ * `widgetBindingRepo`, for {@link resolveWidgetsForRender}'s region lookup). Exported (2026-08-12,
+ * `.liquid` Preview-tab fix) so `middleware/theme-page-preview.ts`'s templated-theme preview route can
+ * assemble the same `SiteRenderContext` inputs the live site renders with, via `ContentRouteDeps` — a
+ * `Pick` in its own right, widened by one field for this — without needing the full `RouteDeps` shape
+ * none of these four functions actually read down to. `RouteDeps` remains a structural supertype of
+ * this, so `registerSiteRoutes`/`registerProductRoutes`, the pre-existing callers, keep passing their
+ * own full `deps` through unchanged.
+ */
+export type RenderContextResolutionDeps = Pick<
+  RouteDeps,
+  "workspaceId" | "postRepo" | "entryRepo" | "mediaRepo" | "transformDefinitionRepo" | "widgetBindingRepo"
+>;
+
+/**
  * Recursively resolves every `{"type":"content","id":...}` marker in `html` whose target is an
  * `"html"`-format entity: fetches the entity (visibility-filtered — guard 2), resolves ITS OWN
  * embeds (every type, including further `content` markers, via a nested call to this same function
@@ -568,7 +589,7 @@ export async function renderViaTemplate(
  * treats a missing map entry as "not resolvable" and degrades to the placeholder, so this
  * function never needs its own try/catch beyond the route handler's existing one.
  */
-async function resolveMediaTransformVersionsForRender(deps: RouteDeps): Promise<ReadonlyMap<string, number>> {
+export async function resolveMediaTransformVersionsForRender(deps: RenderContextResolutionDeps): Promise<ReadonlyMap<string, number>> {
   const definition = await getLatestTransformDefinition({
     deps: { transformRepo: deps.transformDefinitionRepo },
     input: { workspaceId: deps.workspaceId, name: CORE_PUBLIC_TRANSFORM_NAME },
@@ -623,8 +644,8 @@ function collectImageAssetIds(node: unknown, out: Set<string>): void {
  * @complexity O(a) over the distinct `assetId`s referenced, each behind one `findById` call
  * (run concurrently via `Promise.all`, not serially).
  */
-async function resolveMediaAssetMetadataForRender(
-  deps: RouteDeps,
+export async function resolveMediaAssetMetadataForRender(
+  deps: RenderContextResolutionDeps,
   post: PostRecord | undefined
 ): Promise<ReadonlyMap<string, MediaAssetRenderMeta>> {
   if (!post) return new Map();

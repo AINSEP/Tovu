@@ -927,11 +927,13 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   });
 
   // Admin Explore screen's preview iframe: any static theme's page, fully rendered, at
-  // /theme-explore/<theme-id>/<page-id>. Registered AFTER the asset route above so the rendered
-  // page's own `/theme-assets/...` references are already being served when it loads. `getThemes`
-  // rather than the array itself — `rescanThemes` refills that array in place, and a theme
-  // downloaded after boot has to be previewable without a restart.
-  registerThemePagePreview(app, { getThemes: () => routeDeps.themes });
+  // /theme-explore/<theme-id>/<page-id> -- plus (2026-08-12) a GATED templated-theme (`.liquid`)
+  // preview at /theme-explore/<theme-id>/template/<template-id>, which needs `requireAdminSession`
+  // and therefore full `RouteDeps`, not the narrower `ContentRouteDeps` the admin CRUD module uses —
+  // see that route's own file header for why it stays registered here instead of moving into
+  // `createContentModule`. Registered AFTER the asset route above so the rendered page's own
+  // `/theme-assets/...` references are already being served when it loads.
+  registerThemePagePreview(app, routeDeps);
 
   // SPEC-044: the `workspace` server module (list/create/get/update/delete) is registered near the
   // other ADR-046 Phase 3 module calls above (`createUsersModule`); the original inline

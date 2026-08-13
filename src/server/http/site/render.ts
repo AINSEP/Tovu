@@ -1949,6 +1949,19 @@ export async function renderSite(required: {
    * static theme's own authored header/footer content renders unchanged — not a breaking change.
    */
   staticMenus?: { header?: readonly StaticMenuItem[]; footer?: readonly StaticMenuItem[] };
+  /**
+   * Explore's Preview tab (2026-08-12, `.liquid` template render) — when set, names the exact
+   * `theme.liquidTemplates` key to render, bypassing {@link resolveLiquidTemplateId}'s own
+   * route -> file preference order. That resolver exists to pick ONE file when several could satisfy
+   * the same `route` (e.g. it always prefers `post` over `entry` when a theme ships both) — the wrong
+   * question for Explore, which is asking "what does THIS specific file produce", not "what would the
+   * live site pick for this route". Without this override, previewing `entry.liquid` in a theme that
+   * also ships `post.liquid` would silently render the WRONG file with no indication to the operator.
+   * Ignored for every non-`templated` tier (nothing to override) and every pre-existing caller (every
+   * one of which leaves this `undefined`, so `resolveLiquidTemplateId` keeps deciding exactly as it
+   * always has) — this is purely additive.
+   */
+  liquidTemplateIdOverride?: string;
 }): Promise<string> {
   const { theme, route } = required;
   const ctx: SiteRenderContext = {
@@ -1999,7 +2012,8 @@ export async function renderSite(required: {
 
   let body: string;
   if (theme.manifest.tier === "templated") {
-    const liquidId = resolveLiquidTemplateId({ route, liquidTemplates: theme.liquidTemplates });
+    const liquidId =
+      required.liquidTemplateIdOverride ?? resolveLiquidTemplateId({ route, liquidTemplates: theme.liquidTemplates });
     const source = liquidId ? theme.liquidTemplates[liquidId] : undefined;
     try {
       body = source
