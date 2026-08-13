@@ -1,36 +1,33 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { defaultRevertRegistry, revertChangeSet } from "../..";
+import { revertChangeSet } from "../..";
 import { InMemoryChangeSetRepo } from "../../repo.memory";
-import { InMemoryPostRepo } from "#src/features/post/index";
+import { createPostRevertRegistry, InMemoryPostRepo } from "#src/features/post/index";
 import type { ChangeSetItemRecord, ChangeSetRecord } from "@jini-ai/cms/core";
-import type { PostRepoPort } from "#src/features/post/index";
-import type { ReverterDeps } from "../../appliers";
-import type { SettingsRepoPort } from "#src/features/settings/index";
+import type { PostRepoPort, PostReverterDeps } from "#src/features/post/index";
 
 /**
- * @file `core/commands/revert.ts` × `appliers.ts`'s `postUpdateReverter` — SPEC-005 BR-08, AC-17.
+ * @file `core/commands/revert.ts` × the post `update` reverter — SPEC-005 BR-08, AC-17.
  * **CIC U-005 (Binding — the SM2 transition specifically ESCALATE_SECURITY): revert must never
  * re-fire the hook.** This is the dedicated, direct coverage the TDD dispatch requires for U-005.
  *
  * **Load-bearing TDD finding (see tasks.md T023 and this feature's test-certification.md):** the
- * CURRENT, already-shipped `postUpdateReverter.applyInverse` (`src/core/commands/appliers.ts`,
- * unmodified by this dispatch) calls `updatePost(...)` directly to restore the pre-image. That is
- * EXACTLY the illegal transition CIC U-005 names — once `post.ts` gains an optional
- * `beforeSaveHook` (tasks.md T020), routing revert through `updatePost` would re-fire
- * `content.entry.beforeSave` during what must be a pure data restore. This is provable TODAY,
- * without any hook wiring at all, via an observable side effect `updatePost` performs that a raw
- * `PostRepoPort.save()` call never would: `updatePost` calls `repo.findBySlug()` to check slug
- * uniqueness before persisting. A correct revert (raw `save()`) must NEVER call `findBySlug` — an
- * incorrect one (routing through `updatePost`) always will. This decouples "is revert calling the
- * wrong function" from "is the hook wired yet," which is why this test is meaningful (and
- * currently RED against the real, current `appliers.ts`) before Phase 3 (T020/T023) lands.
+ * post `update` reverter — originally shipped in `src/core/commands/appliers.ts`, moved to
+ * `src/features/post/reverters.ts` by the 2026-08-13 features-post-deep-import-trace.md Job 2
+ * inversion, behavior unchanged by that move — calls `updatePost(...)` directly to restore the
+ * pre-image, at the time this test was written. That is EXACTLY the illegal transition CIC U-005
+ * names — once `post.ts` gains an optional `beforeSaveHook` (tasks.md T020), routing revert
+ * through `updatePost` would re-fire `content.entry.beforeSave` during what must be a pure data
+ * restore. This is provable TODAY, without any hook wiring at all, via an observable side effect
+ * `updatePost` performs that a raw `PostRepoPort.save()` call never would: `updatePost` calls
+ * `repo.findBySlug()` to check slug uniqueness before persisting. A correct revert (raw `save()`)
+ * must NEVER call `findBySlug` — an incorrect one (routing through `updatePost`) always will. This
+ * decouples "is revert calling the wrong function" from "is the hook wired yet," which is why this
+ * test was meaningful (and RED against the pre-T023 reverter) before Phase 3 (T020/T023) landed.
  *
- * TDD-certified against the CURRENT, already-implemented `core/commands/revert.ts` +
- * `appliers.ts` (existing files this dispatch does not modify) — these assertions describe the
- * fix the Programmer stage must apply (tasks.md T023) before this feature's hook integration can
- * ship safely.
+ * TDD-certified against `core/commands/revert.ts` + the post reverter — these assertions describe
+ * the fix T023 applied and continue to guard against a regression back to the illegal transition.
  */
 
 const WORKSPACE = "ws-1";
@@ -95,9 +92,8 @@ test("CIC U-005-B1 (Binding): reverting a post-update change set must NOT call p
   const { changeSet, item } = buildAppliedChangeSet();
   const changeSets = new InMemoryChangeSetRepo([changeSet], [item]);
 
-  const reverterDeps: ReverterDeps = {
+  const reverterDeps: PostReverterDeps = {
     postRepo,
-    settingsRepo: {} as unknown as SettingsRepoPort, // unused by postUpdateReverter — not exercised by this test
     clock: { nowIso: () => "2026-07-28T03:00:00.000Z" },
     outbox: { enqueue: async () => {} },
   };
@@ -105,8 +101,7 @@ test("CIC U-005-B1 (Binding): reverting a post-update change set must NOT call p
   await revertChangeSet({
     deps: {
       changeSets,
-      registry: defaultRevertRegistry(),
-      reverterDeps,
+      registry: createPostRevertRegistry(reverterDeps),
       clock: { nowIso: () => "2026-07-28T03:00:00.000Z" },
       idGen: { newId: () => "id-1" },
     },
@@ -139,9 +134,8 @@ test("AC-17 (existing, correct baseline — regression guard): reverting a post-
   const { changeSet, item } = buildAppliedChangeSet();
   const changeSets = new InMemoryChangeSetRepo([changeSet], [item]);
 
-  const reverterDeps: ReverterDeps = {
+  const reverterDeps: PostReverterDeps = {
     postRepo,
-    settingsRepo: {} as unknown as SettingsRepoPort,
     clock: { nowIso: () => "2026-07-28T03:00:00.000Z" },
     outbox: { enqueue: async () => {} },
   };
@@ -149,8 +143,7 @@ test("AC-17 (existing, correct baseline — regression guard): reverting a post-
   await revertChangeSet({
     deps: {
       changeSets,
-      registry: defaultRevertRegistry(),
-      reverterDeps,
+      registry: createPostRevertRegistry(reverterDeps),
       clock: { nowIso: () => "2026-07-28T03:00:00.000Z" },
       idGen: { newId: () => "id-1" },
     },

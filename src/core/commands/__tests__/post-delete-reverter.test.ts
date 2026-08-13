@@ -1,18 +1,26 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryPostRepo, deletePost, isTrashed, type PostRecord } from "#src/features/post/index";
+import {
+  InMemoryPostRepo,
+  deletePost,
+  isTrashed,
+  createPostReverters,
+  createPostRevertRegistry,
+  type PostRecord,
+  type PostReverterDeps,
+} from "#src/features/post/index";
 import type { OutboxPort, ChangeSetItemRecord } from "@jini-ai/cms/core";
-import { defaultRevertRegistry, postDeleteReverter, type ReverterDeps } from "../appliers";
 
 /**
- * @file Certification of `postDeleteReverter` — the restore that makes the soft delete genuinely
- * reversible, which is the whole reason `deletePost` marks a row instead of removing it.
+ * @file Certification of the post `delete` reverter (`features/post/reverters.ts`) — the restore
+ * that makes the soft delete genuinely reversible, which is the whole reason `deletePost` marks a
+ * row instead of removing it.
  *
  * The end-to-end proof (a real HTTP DELETE followed by a real change-set revert) lives in
  * `server/__tests__/admin-post-page-delete-routes.test.ts`. This file pins the two things that
  * test cannot see from outside: that the reverter is REGISTERED for `("post", "delete")` so a
- * revert routes here rather than to `postUpdateReverter`, and that the restore re-emits the
+ * revert routes here rather than to the `update` reverter, and that the restore re-emits the
  * lifecycle event symmetrically to the delete's own.
  */
 
@@ -59,10 +67,15 @@ const deleteItem: ChangeSetItemRecord = {
   inversePayload: { deletedAt: null },
 } as unknown as ChangeSetItemRecord;
 
-test("the registry routes ('post','delete') to postDeleteReverter, not postUpdateReverter", () => {
-  const registry = defaultRevertRegistry();
-  assert.equal(registry.resolve("post", "delete"), postDeleteReverter);
-  assert.notEqual(registry.resolve("post", "update"), postDeleteReverter);
+test("the registry routes ('post','delete') and ('post','update') to two distinct reverters", () => {
+  const { outbox } = recordingOutbox();
+  const deps: PostReverterDeps = { postRepo: new InMemoryPostRepo(), clock, outbox };
+  const registry = createPostRevertRegistry(deps);
+  const deleteReverter = registry.resolve("post", "delete");
+  const updateReverter = registry.resolve("post", "update");
+  assert.ok(deleteReverter, "post/delete must be registered");
+  assert.ok(updateReverter, "post/update must be registered");
+  assert.notEqual(deleteReverter, updateReverter, "the two operations must route to different reverters");
 });
 
 test("applyInverse clears the trash marker, restoring the row losslessly", async () => {
@@ -70,8 +83,8 @@ test("applyInverse clears the trash marker, restoring the row losslessly", async
   const { outbox } = recordingOutbox();
   await deletePost({ deps: { repo: postRepo, clock, outbox }, input: { workspaceId: WS, id: "post-1" } });
 
-  const deps = { postRepo, clock, outbox } as unknown as ReverterDeps;
-  await postDeleteReverter.applyInverse({ workspaceId: WS, item: deleteItem, deps });
+  const { delete: deleteReverter } = createPostReverters({ postRepo, clock, outbox });
+  await deleteReverter.applyInverse({ workspaceId: WS, item: deleteItem });
 
   const restored = await postRepo.findById({ workspaceId: WS, id: "post-1" });
   assert.ok(restored);
@@ -91,11 +104,8 @@ test("restoring a PUBLISHED row re-emits entry.published — symmetric to the de
   await deletePost({ deps: { repo: postRepo, clock, outbox }, input: { workspaceId: WS, id: "post-1" } });
   assert.deepEqual(events.map((e) => e.name), ["entry.unpublished"]);
 
-  await postDeleteReverter.applyInverse({
-    workspaceId: WS,
-    item: deleteItem,
-    deps: { postRepo, clock, outbox } as unknown as ReverterDeps,
-  });
+  const { delete: deleteReverter } = createPostReverters({ postRepo, clock, outbox });
+  await deleteReverter.applyInverse({ workspaceId: WS, item: deleteItem });
 
   assert.deepEqual(
     events.map((e) => e.name),
@@ -110,11 +120,8 @@ test("restoring a DRAFT row emits nothing — it never re-entered the public sit
   const { outbox, events } = recordingOutbox();
 
   await deletePost({ deps: { repo: postRepo, clock, outbox }, input: { workspaceId: WS, id: "post-1" } });
-  await postDeleteReverter.applyInverse({
-    workspaceId: WS,
-    item: deleteItem,
-    deps: { postRepo, clock, outbox } as unknown as ReverterDeps,
-  });
+  const { delete: deleteReverter } = createPostReverters({ postRepo, clock, outbox });
+  await deleteReverter.applyInverse({ workspaceId: WS, item: deleteItem });
 
   assert.deepEqual(events, []);
 });
@@ -124,22 +131,18 @@ test("currentVersion reads the trashed row's version — the revert guard must s
   const { outbox } = recordingOutbox();
   await deletePost({ deps: { repo: postRepo, clock, outbox }, input: { workspaceId: WS, id: "post-1" } });
 
-  const deps = { postRepo, clock, outbox } as unknown as ReverterDeps;
-  assert.equal(await postDeleteReverter.currentVersion({ workspaceId: WS, entityId: "post-1", deps }), 4);
-  assert.equal(await postDeleteReverter.currentVersion({ workspaceId: WS, entityId: "gone", deps }), null);
+  const { delete: deleteReverter } = createPostReverters({ postRepo, clock, outbox });
+  assert.equal(await deleteReverter.currentVersion({ workspaceId: WS, entityId: "post-1" }), 4);
+  assert.equal(await deleteReverter.currentVersion({ workspaceId: WS, entityId: "gone" }), null);
 });
 
 test("applyInverse on a row that no longer exists throws rather than silently succeeding", async () => {
   const postRepo = new InMemoryPostRepo();
   const { outbox } = recordingOutbox();
+  const { delete: deleteReverter } = createPostReverters({ postRepo, clock, outbox });
 
   await assert.rejects(
-    () =>
-      postDeleteReverter.applyInverse({
-        workspaceId: WS,
-        item: deleteItem,
-        deps: { postRepo, clock, outbox } as unknown as ReverterDeps,
-      }),
+    () => deleteReverter.applyInverse({ workspaceId: WS, item: deleteItem }),
     /post 'post-1' was not found/,
   );
 });
