@@ -18,10 +18,20 @@
  */
 const HAND_WRITTEN_RULES = [
     {
+      // Promoted to `error` (2026-08-13 features-post-deep-import-trace.md Job 2): the last 2 real
+      // violations (`core/commands/appliers.ts` -> `features/post/index.ts`/`features/settings/
+      // index.ts`) were the two concrete post reverters, moved to `features/post/reverters.ts` —
+      // adapter code, not core. The `pathNot` test-file exclusion below was a ready-to-apply
+      // recommendation from `2026-08-13-boundary-lint-plan.md` §1.3, not yet landed until now: all
+      // 21 remaining violations are contract/integration tests instantiating a concrete adapter
+      // (`db/sqlite/*`, `db/postgres/db-ops.ts`, or — post Job 2 — the post reverters via
+      // `features/post/index.ts`) to exercise a real implementation against its port contract,
+      // which the plan doc's own reasoning treats as orthogonal to this rule's production-layering
+      // concern (§1.3: "you cannot write a contract test without a concrete implementation").
       name: "core-no-server-or-app-imports",
-      severity: "warn",
+      severity: "error",
       comment: "src/core/** may not import src/server/**, apps/**, feature modules, or concrete infrastructure adapters.",
-      from: { path: "^src/core" },
+      from: { path: "^src/core", pathNot: ".*/__tests__/.*" },
       to: { path: "^(src/server|apps|src/features|src/db)" },
     },
     {
