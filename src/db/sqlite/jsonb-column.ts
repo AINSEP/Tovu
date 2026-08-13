@@ -60,9 +60,24 @@ import { customType } from "drizzle-orm/sqlite-core";
  * affinity. `pragma_table_info` happily reports the column type as "JSONB", masking the
  * problem — but NUMERIC affinity means SQLite will opportunistically cast an inserted value
  * that looks numeric. Probed directly: `CREATE TABLE t(x JSONB); INSERT INTO t VALUES ('123')`
- * stores `123` as an `INTEGER`, not the 3-byte text `'123'`, silently corrupting any document
- * that happens to be a bare JSON number. `dataType()` below MUST keep returning `"blob"` —
- * BLOB affinity performs no such coercion — never `"jsonb"`.
+ * stores `123` as an `INTEGER`, not the 3-byte text `'123'`.
+ *
+ * NARROWED 2026-08-12 (external audit finding, re-probed live against better-sqlite3 / SQLite
+ * 3.49.2 rather than reasoned about): that coercion does **not** reach anything THIS helper
+ * writes. `toDriver()` emits a `jsonb(...)` SQL fragment, and `jsonb(...)` returns a BLOB, which
+ * NUMERIC affinity does not cast. Measured, all three declared types:
+ *
+ *     jsonb('123')     -> JSONB-declared col -> typeof = blob      (not coerced)
+ *     jsonb('123')     -> BLOB-declared  col -> typeof = blob
+ *     '123' (raw text) -> JSONB-declared col -> typeof = integer   (COERCED — the real trap)
+ *     '123' (raw text) -> BLOB-declared  col -> typeof = text
+ *
+ * So the accurate claim is narrower than the one this comment used to make: the trap fires on
+ * RAW numeric-looking TEXT written into a JSONB-declared column, not on a JSONB document written
+ * through `sqliteJsonb`. `dataType()` below should still keep returning `"blob"` and never
+ * `"jsonb"` — it costs nothing and it is what protects an accidental raw-text write to the same
+ * column — but do not repeat the stronger "it would corrupt this helper's own documents" claim,
+ * because the measurement above says otherwise.
  *
  * Why `toDriver` returns a `sql` fragment instead of a plain value:
  * `customType`'s `toDriver` may return `T['driverData'] | SQL` (see
@@ -229,6 +244,15 @@ function decodeContainerPayload(elementType: number, buf: Buffer, payloadStart: 
     const key = decodeElement(buf, cursor);
     if (typeof key.value !== "string") {
       throw new Error(`decodeSqliteJsonb: object key at offset ${cursor} decoded to a non-string (${typeof key.value})`);
+    }
+    // The key must be followed by its value INSIDE this object's own payload. Without this check a
+    // payload ending right after a key reads on into the enclosing container and consumes the next
+    // sibling element as if it were this key's value — silent structural corruption rather than a
+    // reported truncation (2026-08-12 external audit; regression test in this file's __tests__).
+    if (key.nextOffset >= payloadEnd) {
+      throw new Error(
+        `decodeSqliteJsonb: object payload ends after key "${key.value}" at offset ${cursor} with no value element (truncated object)`
+      );
     }
     const val = decodeElement(buf, key.nextOffset);
     obj[key.value] = val.value;

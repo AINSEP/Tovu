@@ -386,7 +386,7 @@ test("textColumnDeclarations(): declLine carries a `.default(...)` wrapped onto 
   );
 });
 
-test("sanity: every text() column declaration in schema.ts is single-line — the assumption textColumnDeclarations() (and the JSON tripwire below) depends on", () => {
+test('sanity: exactly one text(" call site in schema.ts is not a scanner-recognized declaration head — this does NOT prove declarations are single-line', () => {
   // schema.ts has 612 total `text("...")` call sites: 611 real single-line column declarations plus
   // exactly one non-declaration mention (schema.ts's own `// SQLite JSON storage stays text("*_json")`
   // convention comment at line ~1703).
@@ -405,9 +405,11 @@ test("sanity: every text() column declaration in schema.ts is single-line — th
   assert.equal(
     declaredCount,
     rawTextCallSites - 1,
-    'expected exactly one text("...") call site that is not a single-line column declaration (this file\'s ' +
-      "own convention comment) — a multi-line declaration would break this count and the tripwire's " +
-      "default-literal detection"
+    'expected exactly one text("...") call site that is not a scanner-recognized declaration head ' +
+      "(schema.ts's own convention comment). This catches a `text(\"col\", { … })` config-object form and " +
+      "any NEW non-declaration `text(\"` mention. It does NOT catch a wrapped builder chain — that still " +
+      "counts as one declaration head, and is handled by textColumnDeclarations() folding continuation " +
+      "lines instead"
   );
 });
 

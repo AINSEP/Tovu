@@ -150,3 +150,26 @@ test("decodeSqliteJsonb: rejects trailing bytes after the top-level value", () =
   // A single top-level `true` (header byte 0x01) followed by one stray byte.
   assert.throws(() => decodeSqliteJsonb(Buffer.from([0x01, 0xff])), /trailing byte/);
 });
+
+test("decodeSqliteJsonb: an object payload that ends after a key throws, instead of silently consuming the next sibling element", () => {
+  // REGRESSION (2026-08-12, external audit): the object branch of `decodeContainerPayload` decoded a
+  // value at `key.nextOffset` without first checking that offset was still inside the object's own
+  // `payloadEnd`. A blob whose object payload ends right after a key therefore read PAST the object
+  // and consumed the next element of the ENCLOSING array — corrupting the decoded structure silently
+  // rather than reporting the truncation.
+  //
+  // Hand-built bytes (header byte = (sizeNibble << 4) | elementType, per readHeader):
+  //   0x5b  ARRAY(0xb), payload 5 bytes
+  //   0x2c    OBJECT(0xc), payload 2 bytes  <- only large enough for the KEY, no value
+  //   0x17      TEXT(0x7), payload 1 byte
+  //   0x61        "a"                        <- object's key, and the payload ends HERE
+  //   0x17    TEXT(0x7), payload 1 byte      <- second ARRAY element, NOT the object's value
+  //   0x62      "b"
+  const truncatedObject = Buffer.from([0x5b, 0x2c, 0x17, 0x61, 0x17, 0x62]);
+
+  assert.throws(
+    () => decodeSqliteJsonb(truncatedObject),
+    /truncat|payload/i,
+    'a truncated object must be reported, not silently decoded as {"a":"b"} by stealing the array\'s next element'
+  );
+});
