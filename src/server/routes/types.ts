@@ -1,7 +1,7 @@
 import type { Express } from "express";
 
 import type { EventBusPort, OutboxPort, UUID } from "@jini-ai/cms/core";
-import type { AuthorizeFn, ChangeSetRepoPort } from "../../core/commands";
+import type { AuthorizeFn, ChangeSetRepoPort, RevertRegistry } from "../../core/commands";
 import type {
   PasswordHasherPort,
   PolicyPermissionRepoPort,
@@ -15,8 +15,7 @@ import type {
   UserRepoPort,
 } from "@jini-ai/cms/identity";
 import type { LipayApi } from "../../features/plugins/lipay/lipay-plugin";
-import type { PostRepoPort, PostSearchPort } from "../../features/post";
-import type { BeforeSaveHookPort } from "../../features/post";
+import type { PostRepoPort, PostSearchPort, BeforeSaveHookPort } from "../../features/post";
 import type { PagesHtmlDocumentStoreFactory } from "../../features/pages";
 import type { ChatStoreFactory } from "../../assistant/persistence/tenant-scope";
 import type { PresentationSettingsRepoPort } from "../../features/presentation";
@@ -255,6 +254,16 @@ export interface RouteDeps {
   settingsUiTabsReady: Promise<void>;
   /** Change-set store for the command gateway (in-memory in v1, ADR-008/018). */
   changeSets: ChangeSetRepoPort;
+  /**
+   * Inverse-applier registry for `changeset.revert` (ADR-018 C-005/C-006), pre-loaded with the
+   * post-domain reverters (`features/post/reverters.ts`'s `createPostRevertRegistry`) by both
+   * composition roots. `change-sets/revert.ts` reads this directly instead of calling
+   * `defaultRevertRegistry()` itself — building the registry, closed over the SAME `postRepo`/
+   * `clock`/`outbox` instances the rest of this bag already carries, is composition-root work, same
+   * as every other concrete adapter selected here (2026-08-13 features-post-deep-import-trace.md
+   * Job 2).
+   */
+  revertRegistry: RevertRegistry;
   /** Themes discovered at boot (built-in + site themes/ dir), SPEC-004 spike. */
   themes: DiscoveredTheme[];
   /**

@@ -3,7 +3,7 @@ import { mkdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
 import { InMemoryEventBus } from "../core/events";
-import { backfillPostSearchIndex, SqlitePostRepo, SqlitePostSearchIndex } from "../features/post";
+import { backfillPostSearchIndex, SqlitePostRepo, SqlitePostSearchIndex, createPostRevertRegistry } from "../features/post";
 import { PagesHtmlDocumentStore } from "../features/pages";
 import { createChatStoreFactory, ensurePublicAssistantSettingDefinitions, ensureExecutionSettingDefinitions } from "../assistant";
 import { SqlitePresentationSettingsRepo } from "../features/presentation";
@@ -585,10 +585,17 @@ export function createSqliteRouteDeps(
     console.error(`composio connectors hydration failed at boot: ${(err as Error).message}`);
   });
 
+  // Extracted (not inlined into the return object below) so `revertRegistry` can close over the
+  // SAME instance `RouteDeps.postRepo` exposes, rather than a second `SqlitePostRepo(db)` — both
+  // are stateless wrappers over the shared `db` handle, so a second instance would behave
+  // identically, but reusing one matches this root's existing single-instance convention (see
+  // `outbox`/`settingsRepo` above).
+  const postRepo = new SqlitePostRepo(db);
+
   return {
     workspaceId: workspaceId,
     workspaceRepo: new SqliteWorkspaceRepo(db),
-    postRepo: new SqlitePostRepo(db),
+    postRepo,
     postSearch: new SqlitePostSearchIndex(db),
     // SPEC-047/ADR-056 — the db handle and clock are closed over here so no route ever holds one;
     // a route supplies only the `(workspaceId, postId)` scope. See `RouteDeps.pagesHtmlStore`.
@@ -625,6 +632,10 @@ export function createSqliteRouteDeps(
     // restart — the first durable-adapter slice off Phase 1's capability table, per the ADR's own
     // "pull-based per capability, not a uniform sweep" fold-in guidance.
     changeSets: new SqliteChangeSetRepo(db),
+    // Pre-loaded with the post-domain reverters, closed over the SAME postRepo/clock/outbox
+    // instances this root threads through everything else (ADR-018 C-005/C-006; 2026-08-13
+    // features-post-deep-import-trace.md Job 2 — see `features/post/reverters.ts`'s header).
+    revertRegistry: createPostRevertRegistry({ postRepo, clock, outbox }),
     themes: discoverAllBuiltInThemes({ dir: builtInThemesDir(), source: "built-in" }),
     themesDir: builtInThemesDir(),
     outbox,

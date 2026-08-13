@@ -1,7 +1,6 @@
 import {
   ChangeSetInvalidStatusError,
   ChangeSetNotFoundError,
-  defaultRevertRegistry,
   RevertConflictError,
   RevertNotPossibleError,
   revertChangeSet,
@@ -19,8 +18,6 @@ import type { ContentRouteRegistrar } from "../content/deps";
  * uses the same in-route pattern as `members/disable.ts` rather than the gateway pair.
  */
 export const registerAdminChangeSetRevertRoute: ContentRouteRegistrar = (app, deps) => {
-  const registry = defaultRevertRegistry();
-
   app.post("/api/admin/v1/workspaces/:workspaceId/change-sets/:changeSetId/revert", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });
@@ -50,13 +47,7 @@ export const registerAdminChangeSetRevertRoute: ContentRouteRegistrar = (app, de
       const reverted = await revertChangeSet({
         deps: {
           changeSets: deps.changeSets,
-          registry,
-          reverterDeps: {
-            postRepo: deps.postRepo,
-            settingsRepo: deps.settingsRepo,
-            clock: deps.clock,
-            outbox: deps.outbox,
-          },
+          registry: deps.revertRegistry,
           clock: deps.clock,
           idGen: deps.idGen,
           outbox: deps.outbox,

@@ -5,7 +5,7 @@ import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "../core/events"
 import { InMemoryChangeSetRepo } from "../core/commands";
 import { createSeoEventSubscriptions, createSeoPageHeadHook, ensureSeoSettingDefinitions } from "../seo";
 import { registerPageHeadContributor } from "./http/site/page-head";
-import { InMemoryPostRepo, InMemoryPostSearchIndex } from "../features/post";
+import { InMemoryPostRepo, InMemoryPostSearchIndex, createPostRevertRegistry } from "../features/post";
 import { InMemoryPagesHtmlDocumentStore } from "../features/pages";
 import {
   createInMemoryChatStoreFactory,
@@ -455,6 +455,10 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // BR-04 (2026-07-16): the repo forwards insert()'s optional event to this SAME outbox
     // instance, matching what the old separate executeCommand()-level enqueue() call did.
     changeSets: new InMemoryChangeSetRepo([], [], outbox),
+    // Pre-loaded with the post-domain reverters, closed over the SAME postRepo/clock/outbox
+    // instances this root threads through everything else (ADR-018 C-005/C-006; 2026-08-13
+    // features-post-deep-import-trace.md Job 2 — see `features/post/reverters.ts`'s header).
+    revertRegistry: createPostRevertRegistry({ postRepo, clock, outbox }),
     themes: discoverAllBuiltInThemes({ dir: builtInThemesDir(), source: "built-in" }),
     themesDir: builtInThemesDir(),
     outbox,
