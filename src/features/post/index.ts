@@ -46,3 +46,4 @@ export { SqlitePostRepo } from "./repo.sqlite";
 export { InMemoryPostSearchIndex } from "./search-index.memory";
 export { backfillPostSearchIndex, SqlitePostSearchIndex } from "./search-index.sqlite";
 export { CONTENT_POST_DELETE_TOOL_ID } from "./delete-confirmation-ui";
+export { createPostReverters, createPostRevertRegistry, type PostReverterDeps } from "./reverters";
