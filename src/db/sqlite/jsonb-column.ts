@@ -232,6 +232,14 @@ function decodeContainerPayload(elementType: number, buf: Buffer, payloadStart: 
     let cursor = payloadStart;
     while (cursor < payloadEnd) {
       const item = decodeElement(buf, cursor);
+      // Starting inside the container is not the same as FITTING inside it. Without this, an item whose
+      // payload runs past `payloadEnd` is absorbed and the cursor jumps beyond the end, exiting the loop
+      // quietly — the container silently swallows bytes belonging to its parent.
+      if (item.nextOffset > payloadEnd) {
+        throw new Error(
+          `decodeSqliteJsonb: array item at offset ${cursor} ends at ${item.nextOffset}, past its container's payload end ${payloadEnd} (overflowing element)`
+        );
+      }
       items.push(item.value);
       cursor = item.nextOffset;
     }
@@ -255,6 +263,15 @@ function decodeContainerPayload(elementType: number, buf: Buffer, payloadStart: 
       );
     }
     const val = decodeElement(buf, key.nextOffset);
+    // …and the value must FIT, not merely start inside. The check above only proved where the value
+    // BEGINS; round 2 of the audit showed a value beginning inside the object and ending past it still
+    // decoded, stealing the enclosing array's next byte and returning [{"a":"b"}, false] with no error.
+    // `>` not `>=`: a value whose last byte is the container's last byte is legal and must stay legal.
+    if (val.nextOffset > payloadEnd) {
+      throw new Error(
+        `decodeSqliteJsonb: value for key "${key.value}" ends at ${val.nextOffset}, past the object's payload end ${payloadEnd} (overflowing element)`
+      );
+    }
     obj[key.value] = val.value;
     cursor = val.nextOffset;
   }

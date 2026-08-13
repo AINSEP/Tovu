@@ -460,16 +460,33 @@ test("sanity: the AST scan silently drops no text() column that is textually vis
   // the AST walk itself — asking the compiler what a declaration is — that removes the shape-by-shape
   // blind spots; this assertion only guards against the scan regressing behind plain text search.
   const scanned = textColumnDeclarations();
-  const scannedNames = new Set(scanned.map((d) => d.sqlColumnName));
-  const textuallyVisible = [...SCHEMA_SOURCE.matchAll(/text\(\s*(["'])([a-z0-9_]+)\1\s*\)/g)].map((m) => m[2]);
+  // Compare MULTIPLICITIES, not set membership (round 2: Terra F2). A Set masks exactly the failure it
+  // claims to detect — one skipped `text("args")` is invisible whenever any other table also has `args`,
+  // which is the same bare-name collision this file just removed from the tripwire itself.
+  // The matcher accepts a closing `)` OR a `,`, so a `text("col", { … })` config-object form counts as
+  // textually visible too (Terra F2, second half); the previous pattern quietly excluded it from its own
+  // input set, so a skipped config-object column could never have shown up here.
+  const countByName = (names: readonly string[]): Map<string, number> => {
+    const counts = new Map<string, number>();
+    for (const n of names) counts.set(n, (counts.get(n) ?? 0) + 1);
+    return counts;
+  };
+  const scannedCounts = countByName(scanned.map((d) => d.sqlColumnName));
+  const visibleCounts = countByName(
+    [...SCHEMA_SOURCE.matchAll(/text\(\s*(["'])([a-z0-9_]+)\1\s*[),]/g)].map((m) => m[2])
+  );
 
   assert.ok(scanned.length > 500, `sanity: expected 500+ text() column declarations, got ${scanned.length}`);
+  const undercounted = [...visibleCounts.entries()]
+    .filter(([name, visible]) => (scannedCounts.get(name) ?? 0) < visible)
+    .map(([name, visible]) => `${name} (text search sees ${visible}, scan sees ${scannedCounts.get(name) ?? 0})`);
   assert.deepEqual(
-    textuallyVisible.filter((name) => !scannedNames.has(name)),
+    undercounted,
     [],
-    "every text() column name visible to a plain text search must also be seen by the AST scan — a name " +
-      "here means the scan is silently skipping a column (a table helper it does not recognize, a new " +
-      "declaration shape), which is the failure mode that makes the tripwire below quietly under-report"
+    "the AST scan sees FEWER occurrences of these column names than a plain text search does, which means " +
+      "it is silently skipping declarations — a table helper it does not recognize (it matches only " +
+      "`sqliteTable(\"name\", { … })`), or a shape it does not walk. That under-report is what would make " +
+      "the tripwire below quietly stop guarding those columns"
   );
   assert.ok(
     scanned.every((d) => d.sqlTableName.length > 0 && d.qualifiedName === `${d.sqlTableName}.${d.sqlColumnName}`),
