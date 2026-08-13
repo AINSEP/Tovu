@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+import { buildAgentPageMap } from "@jini-ai/admin/core";
 import * as router from "../router";
 import { ADMIN_AGENT_PAGE_PATHS, buildAdminAgentPages } from "../agent-pages";
 
@@ -31,11 +32,19 @@ describe("ADMIN_AGENT_PAGE_PATHS", () => {
     expect(ADMIN_AGENT_PAGE_PATHS["ai-assistant"]).toBe("/ai-assistant");
   });
 
-  it("excludes settings-raw even under the flipped default — the one panel with agentReachable: false set explicitly", () => {
-    // The raw namespace/key ledger inspector: a human-only debugging surface over rows `/settings`
-    // already exposes through a curated UI. Pinned so a future edit that deletes the explicit
-    // `false` (assuming the default alone is enough) is caught here, not discovered live.
-    expect(ADMIN_AGENT_PAGE_PATHS["settings-raw"]).toBeUndefined();
+  it("still honors an explicit agentReachable: false under the flipped default", () => {
+    // No panel in `panels.tsx` sets `agentReachable: false` today — `settings-raw`, the raw
+    // namespace/key ledger inspector, was the last one and was deleted once `/settings` covered
+    // the same rows through a curated UI. Asserting against the live `ADMIN_AGENT_PAGE_PATHS`
+    // would therefore pin nothing: every id is absent from a map that never had it. Feeding
+    // `buildAgentPageMap` a panel that sets it explicitly is what actually proves the opt-out
+    // still overrides `defaultReachable: true`, so the next panel that needs it works.
+    const map = buildAgentPageMap(
+      [{ id: "opted-out", render: () => null, agentReachable: false }],
+      { defaultReachable: true },
+    );
+
+    expect(map["opted-out"]).toBeUndefined();
   });
 });
 
@@ -61,7 +70,7 @@ describe("buildAdminAgentPages", () => {
   it("falls back to a humanized id for a page with no nav.label to read", () => {
     // "widget-regions" is a per-route agent page id (panels.tsx's `widgets` panel), never a panel
     // id itself, so it has no `nav` entry to look up at all — this is the case the fallback exists
-    // for, not just "appearance"/"settings-raw" leaving `nav` unset on an otherwise real panel.
+    // for, not just "appearance" leaving `nav` unset on an otherwise real panel.
     const pages = buildAdminAgentPages();
     expect(pages["widget-regions"]?.label).toBe("Widget Regions");
   });

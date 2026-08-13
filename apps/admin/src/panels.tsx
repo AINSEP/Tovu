@@ -16,7 +16,6 @@ import { Users } from "./features/users";
 import { Authentication } from "./features/authentication";
 import { Payments } from "./features/commerce";
 import { Roles } from "./features/roles";
-import { Settings } from "./features/settings-raw";
 import { SettingsUi } from "./features/settings";
 import { Seo } from "./features/seo";
 import { Redirects } from "./features/redirects";
@@ -45,14 +44,15 @@ import { Playground } from "./features/playground";
  *
  * `apps/admin/INFO.md` ("Adding a new admin section") explained why that split existed and was
  * right to insist on it: `nav.ts` presence and agent reachability are separate concerns from
- * routability — `appearance` and `settings-raw` are reachable with no sidebar row, for instance,
+ * routability — `appearance` is reachable with no sidebar row, for instance,
  * and an agent may only navigate where `agent-pages.ts` names. `@jini-ai/admin/core`'s `AdminPanel`
  * keeps that exact reasoning but as fields on one declaration: `nav` is optional (omit it and a
  * panel is routable but unlisted), and `agentReachable` is left unset on nearly every panel below —
  * `agent-pages.ts` opts Tovu into `buildAgentPageMap`'s `defaultReachable: true`, so unset now means
- * reachable, not excluded. Only `settings-raw` sets `agentReachable: false` explicitly, to opt back
- * OUT — a human-only debugging surface with a real, still-current reason to stay off the allowlist,
- * documented at that panel's own declaration. This is the mirror image of the field's original
+ * reachable, not excluded. No panel currently sets `agentReachable: false` to opt back OUT: the one
+ * that did was `settings-raw`, the SPEC-007 raw namespace/key ledger inspector, a human-only
+ * debugging surface deleted once `/settings` covered the same rows through a curated tabbed UI. The
+ * field still exists and still works; nothing needs it today. This is the mirror image of the field's original
  * fail-safe-by-default design (`@jini-ai/admin/core`'s own default is still `false`, for a host that
  * hasn't made this call); Tovu decided navigation-only reachability carries no meaningful risk on
  * its own — operating a page's controls is a separate, still per-element `data-agent-element`
@@ -163,11 +163,11 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
       }
     },
     nav: {
-      // Was a plain 3-line stack (`M3 4h12M3 8h12M3 12h8`) — pixel-identical in silhouette to
-      // `settings-raw`'s icon below (same three widths, same pattern), invisible with labels
-      // present but indistinguishable in the icon-only rail. Redrawn as a bulleted list (small
-      // marker + line per row) so the two read as different controls at a glance; `settings-raw`
-      // keeps its plain lines, since "raw ledger of rows" is the more literal fit for that one.
+      // Was a plain 3-line stack (`M3 4h12M3 8h12M3 12h8`) — pixel-identical in silhouette to the
+      // since-deleted `settings-raw` panel's icon (same three widths, same pattern), invisible with
+      // labels present but indistinguishable in the icon-only rail. Redrawn as a bulleted list
+      // (small marker + line per row) so the two read as different controls at a glance. Kept as
+      // drawn: the distinction it buys against every other line-based glyph in the rail still holds.
       label: "Posts",
       group: "Content",
       icon: '<circle cx="3.5" cy="4.5" r="1"/><path d="M6.5 4.5h9"/><circle cx="3.5" cy="9" r="1"/><path d="M6.5 9h9"/><circle cx="3.5" cy="13.5" r="1"/><path d="M6.5 13.5h6"/>',
@@ -768,21 +768,6 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
       icon: '<circle cx="9" cy="9" r="2.5"/><path d="M9 2v2M9 14v2M2 9h2M14 9h2M4.2 4.2l1.4 1.4M12.4 12.4l1.4 1.4M4.2 13.8l1.4-1.4M12.4 5.6l1.4-1.4"/>',
     },
     agentReachable: true,
-  },
-  {
-    id: "settings-raw",
-    // The SPEC-007 raw namespace/key ledger inspector, kept reachable now that `/settings` renders
-    // the curated tabbed surface ported from Open Design. Both read and write the same
-    // `content.db` rows through the ADR-028 chokepoint — a second *view*, not a second store.
-    // No `nav` entry — deliberately reachable without a sidebar row, same as `appearance` below.
-    //
-    // Explicit `agentReachable: false`, not just left unset — `agent-pages.ts` now defaults every
-    // OTHER unset panel to reachable, and this is the one panel that genuinely should stay excluded
-    // rather than inherit that default: a human-only debugging surface over the same raw
-    // namespace/key rows `/settings` already exposes through a curated UI, not a destination worth
-    // an agent (or an operator asking one for help) ever landing on directly.
-    agentReachable: false,
-    render: () => <Settings />,
   },
   {
     id: "workspace",
