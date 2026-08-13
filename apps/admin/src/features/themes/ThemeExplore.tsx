@@ -97,11 +97,33 @@ const DEVICES: ReadonlyArray<{ key: PagePreviewDevice; label: string }> = [
 ];
 
 /**
+ * Whether `file` is a `templated`-tier Liquid source file — case-insensitive, matching every other
+ * extension check in this screen's server counterpart (`explore.ts`'s
+ * `isTextReadable`/`isAssetExtension`). A plain extension check rather than reading `file.kind`:
+ * `fileGroup` (`explore.ts`) has no `templates/` case, so every `.liquid` file lands in the generic
+ * `"other"` group today — indistinguishable from `NOTICE.md` by `kind` alone, but NOT
+ * indistinguishable by what the Preview tab owes the operator (see {@link previewSrcFor}).
+ *
+ * @complexity O(1).
+ */
+function isLiquidTemplateFile(file: ThemeExploreFile): boolean {
+  return file.path.toLowerCase().endsWith(".liquid");
+}
+
+/**
  * The URL for the selected file's preview, or `null` when the file has no meaningful one.
  *
- * Three shapes, because "preview" means three different things here:
+ * Four shapes, because "preview" means four different things here:
  * - a **page** renders through the theme's own shell at `/theme-explore/{theme}/{page}`
  * - a **partial** renders standalone inside a minimal styled host, at `…/partial/{id}`
+ * - a **`.liquid` template** (2026-08-12) renders through the real Liquid render pipeline at
+ *   `…/template/{id}` — `id` is the filename minus `.liquid` (`file.label` for a non-page/partial
+ *   file is the bare basename WITH its extension, see `fileLabel`/`use-theme-explore.hooks.ts`),
+ *   matching `theme.ts`'s own `templateId = file.slice(0, -".liquid".length)` derivation
+ *   byte-for-byte. The server (`theme-page-preview.ts`) is the single source of truth for whether a
+ *   given template id is actually renderable — an id it doesn't recognize (a custom-named template a
+ *   third-party theme ships) degrades to that route's own honest plain-text refusal inside the
+ *   iframe rather than this function trying to duplicate the route/template-id mapping client-side.
  * - an **asset** (image, font) is served raw from `/theme-assets/`, the same URL a visitor's browser
  *   would fetch it from — so what the operator sees IS the file, not a re-encoding of it
  *
@@ -118,6 +140,10 @@ function previewSrcFor(
   if (file.kind === "page") return siteUrl(`/theme-explore/${theme}/${encodeURIComponent(file.label)}?v=${previewNonce}`);
   if (file.kind === "partial") {
     return siteUrl(`/theme-explore/${theme}/partial/${encodeURIComponent(file.label)}?v=${previewNonce}`);
+  }
+  if (isLiquidTemplateFile(file)) {
+    const templateId = file.label.replace(/\.liquid$/i, "");
+    return siteUrl(`/theme-explore/${theme}/template/${encodeURIComponent(templateId)}?v=${previewNonce}`);
   }
   // Any non-readable file (not just `asset`-group ones — an unrecognized binary extension can land
   // in the `other` catch-all too) gets served raw rather than shown as nothing: what the operator
@@ -138,41 +164,18 @@ function readOnlyReason(file: ThemeExploreFile): string {
 }
 
 /**
- * Whether `file` is a `templated`-tier Liquid source file — case-insensitive, matching every other
- * extension check in this screen's server counterpart (`explore.ts`'s
- * `isTextReadable`/`isAssetExtension`). A plain extension check rather than reading `file.kind`:
- * `fileGroup` (`explore.ts`) has no `templates/` case, so every `.liquid` file lands in the generic
- * `"other"` group today — indistinguishable from `NOTICE.md` by `kind` alone, but NOT
- * indistinguishable by what the Preview tab owes the operator (see {@link themeExplorePreviewNotice}).
+ * The Preview tab's "nothing to show" message for the currently selected file.
+ *
+ * Used to special-case `.liquid` templates with an honest "not built yet" message — Explore now HAS
+ * a templated-tier render pipeline (`previewSrcFor`'s own doc; `theme-page-preview.ts`'s
+ * `/theme-explore/{theme}/template/{id}` route), so `previewSrcFor` builds a real preview URL for
+ * every `.liquid` file and this function is never reached for one. Every remaining
+ * `previewSrc === null` case (CSS/JS/JSON, an ordinary `other`-group file like `NOTICE.md`) keeps this
+ * one generic message — there is genuinely nothing narrower to say for those.
  *
  * @complexity O(1).
  */
-function isLiquidTemplateFile(file: ThemeExploreFile): boolean {
-  return file.path.toLowerCase().endsWith(".liquid");
-}
-
-/**
- * The Preview tab's "nothing to show" message for the currently selected file — deliberately not one
- * fixed string for every case {@link previewSrcFor} returns `null` for.
- *
- * Owner-reported (2026-08-12): the generic "Select a file to preview." read as "this is broken" when
- * shown for a `.liquid` template, because a `.liquid` file genuinely has no rendered preview today —
- * Explore has no templated-tier render pipeline (`previewSrcFor`'s own doc; `theme-page-preview.ts`
- * only renders `static`-tier pages) — which is a materially different situation from "you haven't
- * picked a file yet" or "this is CSS/JS, switch to the page that consumes it". Naming the real reason
- * (and pointing at the one place a `.liquid` file's content IS visible, the HTML tab) is the smallest
- * fix that closes the "is this broken?" reading without building the rendering this doesn't attempt.
- *
- * Every OTHER `previewSrc === null` case (CSS/JS/JSON, an ordinary `other`-group file like
- * `NOTICE.md`) keeps the original generic copy — that copy is still accurate for those, per
- * `previewSrcFor`'s own doc: there is genuinely nothing narrower to say.
- *
- * @complexity O(1).
- */
-function themeExplorePreviewNotice(file: ThemeExploreFile | undefined, t: Translate): string {
-  if (file && isLiquidTemplateFile(file)) {
-    return t("Templated themes don't have a rendered preview yet — use the HTML tab to read the template source.");
-  }
+function themeExplorePreviewNotice(t: Translate): string {
   return t("Select a file to preview.");
 }
 
@@ -770,7 +773,7 @@ function ThemeExploreMainPane({
     return <ThemeExploreHtmlPane file={selectedFile} source={source} setSource={setSource} t={t} />;
   }
   if (previewSrc === null) {
-    return <div className="notice">{themeExplorePreviewNotice(selectedFile, t)}</div>;
+    return <div className="notice">{themeExplorePreviewNotice(t)}</div>;
   }
   return <ThemeExplorePreview src={previewSrc} width={previewWidth} title={t("Theme preview")} />;
 }
@@ -858,6 +861,7 @@ function ThemeExploreFullscreenDialog({
           className="theme-explore-preview-dialog-iframe"
           title={t("Theme preview, fullscreen")}
           src={previewSrc}
+          sandbox="allow-scripts"
           style={{ width: `${previewWidth}px` }}
         />
       ) : null}
@@ -1163,7 +1167,7 @@ function ThemeExplorePreview({ src, width, title }: { src: string; width: number
       >
         {/* `key={src}` forces a remount on every save (via `previewNonce` in the URL) or file/device
             change — an iframe does not reliably refetch when only its `src` attribute changes. */}
-        <iframe key={src} className="page-preview-iframe" title={title} src={src} />
+        <iframe key={src} className="page-preview-iframe" title={title} src={src} sandbox="allow-scripts" />
       </div>
     </div>
   );
