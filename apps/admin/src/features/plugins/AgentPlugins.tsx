@@ -30,7 +30,7 @@ function AgentPluginCard(props: {
       <h3 id={`agent-plugin-${plugin.id}`} className="jini-byok-card-title">{plugin.displayName}</h3>
       <p className="jini-field-hint">{t(plugin.description)}</p>
       <dl className="jini-settings-privacy-disclosure">
-        <div><dt>{t("Version")}</dt><dd>{plugin.version}</dd></div>
+        {plugin.version ? <div><dt>{t("Version")}</dt><dd>{plugin.version}</dd></div> : null}
         <div><dt>{t("Source")}</dt><dd>{t(plugin.source)}</dd></div>
         <div><dt>{t("Availability")}</dt><dd>{t(plugin.availability)}</dd></div>
       </dl>
