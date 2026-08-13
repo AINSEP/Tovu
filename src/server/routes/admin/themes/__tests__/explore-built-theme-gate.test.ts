@@ -481,3 +481,43 @@ test("PUT into preview/ is refused even on the sourceDir branch — the generate
   assert.equal(body.code, "READ_ONLY_FILE");
   assert.equal(fs.readFileSync(target, "utf8"), before, "the refused write must not have reached disk");
 });
+
+/** An ordinary authored theme that also has a generated `preview/` tree. */
+function makeAuthoredWithPreviewRoot(): string {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-explore-traversal-"));
+  const dir = path.join(root, "static", "authored2");
+  fs.mkdirSync(path.join(dir, "pages"), { recursive: true });
+  fs.mkdirSync(path.join(dir, "css"), { recursive: true });
+  fs.mkdirSync(path.join(dir, "preview"), { recursive: true });
+  fs.writeFileSync(path.join(dir, "pages", "index.html"), `<html><head>${SENTINEL}</head><body>x</body></html>`, "utf8");
+  fs.writeFileSync(path.join(dir, "css", "styles.css"), "body{}", "utf8");
+  fs.writeFileSync(path.join(dir, "preview", "app.css"), "GENERATED-BY-BUILD-PREVIEW", "utf8");
+  fs.writeFileSync(path.join(dir, "tokens.json"), "{}", "utf8");
+  fs.writeFileSync(
+    path.join(dir, "theme.json"),
+    JSON.stringify({ id: "authored2", name: "Authored2", version: "1.0.0", tier: "static", engine: 1 })
+  );
+  return root;
+}
+
+test("PUT cannot reach preview/ through a traversal segment — isGeneratedThemePath compares the RAW path, the write path normalizes it", async (t) => {
+  // REGRESSION (2026-08-13): `isGeneratedThemePath()` splits on separators and compares segments of the
+  // string AS GIVEN; it never collapses `.`/`..`. The write path (`resolveThemeFilePath`) DOES normalize.
+  // So the gate and the writer disagreed about which file a request names, and every editor route that
+  // asks "is this preview/?" could be walked around with one `../` — including the PUT branch fix in
+  // 9e75c4a, which closed the sourceDir hole but inherited this one.
+  const themesDir = makeAuthoredWithPreviewRoot();
+  const app = buildTestApp(themesDir);
+  const baseUrl = await startTestServer(app, t);
+  const target = path.join(themesDir, "static", "authored2", "preview", "app.css");
+  const before = fs.readFileSync(target, "utf8");
+
+  const response = await fetch(`${baseUrl}${BASE("authored2")}/file`, {
+    method: "PUT",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ path: "css/../preview/app.css", content: "HACKED" }),
+  });
+
+  assert.notEqual(response.status, 200, "a traversal that resolves into preview/ must not be accepted");
+  assert.equal(fs.readFileSync(target, "utf8"), before, "the generated file must be byte-identical after the refused write");
+});

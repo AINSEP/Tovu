@@ -110,21 +110,53 @@ export const GENERATED_THEME_DIRS: readonly string[] = ["preview"];
  * do with generated output. Matching on the full segment (`=== dir` or `startsWith(dir + "/")`) is what
  * avoids that false positive.
  *
+ * `.`/`..` segments are COLLAPSED before comparing (2026-08-13). Without that, this predicate judged
+ * the path as literally spelled while `resolveThemeFilePath` — the function that decides which file
+ * actually gets written — judged it normalized, so the two disagreed about which file a request names.
+ * `PUT {"path":"css/../preview/app.css"}` was accepted (200) and overwrote generated output, walking
+ * around the `preview/` rule on EVERY route that consults this predicate. Live-confirmed through the
+ * real Express routes before the fix; regression test in `explore-built-theme-gate.test.ts`.
+ *
+ * A gate and its writer must resolve a name the same way; anything else is a bypass waiting to be
+ * spelled differently. `..` popping past the root is left to produce a path that
+ * `resolveThemeFilePath`'s own containment check rejects — this function answers only "is it generated".
+ *
  * @param relativePath - A path relative to the theme's own root. Backslash-separated input (a raw
  * `path.relative` result on Windows) is normalized to `/` first, so callers on either platform can pass
  * their native separator through unchanged.
- * @returns `true` iff `relativePath` is `GENERATED_THEME_DIRS[i]` itself or falls under it.
+ * @returns `true` iff `relativePath`, once normalized, is `GENERATED_THEME_DIRS[i]` itself or under it.
  * @throws Never. Pure: no filesystem access, no side effects.
  * @complexity Time: O(d·k), d = `GENERATED_THEME_DIRS.length` (a fixed, tiny constant), k = path length.
  * @complexity Space: O(k) for the normalized copy.
  * @overallScore 100/100
  */
 export function isGeneratedThemePath(relativePath: string): boolean {
-  // Split on either separator explicitly, not `path.sep` — `sep` is `/` on the POSIX machine this
-  // runs on today, which would make this a no-op for a `\`-separated string instead of normalizing
-  // it, silently defeating the cross-platform guarantee this function's own doc comment makes.
-  const posix = relativePath.split(/[\\/]/).join("/");
-  return GENERATED_THEME_DIRS.some((dir) => posix === dir || posix.startsWith(`${dir}/`));
+  return GENERATED_THEME_DIRS.some((dir) => {
+    const normalized = normalizeThemeRelativePath(relativePath);
+    return normalized === dir || normalized.startsWith(`${dir}/`);
+  });
+}
+
+/**
+ * Collapse a theme-relative path to comparable segments: `/` separators, no `.`, no `..`, no empty
+ * segments. Shared by every predicate here that compares a path against a directory name, so a gate
+ * and the writer it guards cannot disagree about which file a string names.
+ *
+ * Split on either separator explicitly, not `path.sep` — `sep` is `/` on the POSIX machine this runs
+ * on today, which would make the split a no-op for a `\`-separated string instead of normalizing it,
+ * silently defeating the cross-platform guarantee these functions' doc comments make.
+ */
+function normalizeThemeRelativePath(relativePath: string): string {
+  const segments: string[] = [];
+  for (const segment of relativePath.split(/[\\/]/)) {
+    if (segment === "" || segment === ".") continue;
+    if (segment === "..") {
+      segments.pop();
+      continue;
+    }
+    segments.push(segment);
+  }
+  return segments.join("/");
 }
 
 /**
@@ -448,7 +480,11 @@ export function resolveThemeFileWriteScope(
   const { manifest, relativePath } = required;
   if (manifest.build?.source !== "compiled") return { kind: "editable" };
 
-  const normalized = relativePath.split(/[\\/]/).join("/");
+  // Normalized (not raw) for the same reason `isGeneratedThemePath` is — see its doc. Comparing the
+  // path as spelled let `src/../pages/index.html` match the `sourceDir` prefix and resolve "editable",
+  // handing back write permission on a built theme's GENERATED tree, which is the ADR-020 §5 refusal
+  // this function exists to make.
+  const normalized = normalizeThemeRelativePath(relativePath);
   if (normalized === "theme.json") return { kind: "editable" };
 
   const sourceDir = manifest.build.sourceDir;
