@@ -344,17 +344,23 @@ test("REVIEWED_JSON_COLUMNS matches exactly the five columns the 2026-08-12 roun
  * Column identity is now `sqlTableName.sqlColumnName`, matching `REVIEWED_JSON_COLUMNS`'s own key
  * shape exactly, so a reviewed name no longer leaks its exemption to a same-named column elsewhere.
  */
-function textColumnDeclarations(
-  source: string = SCHEMA_SOURCE
-): Array<{ sqlTableName: string; sqlColumnName: string; qualifiedName: string; docComment: string; declLine: string }> {
+type ScannedColumn = {
+  sqlTableName: string;
+  sqlColumnName: string;
+  qualifiedName: string;
+  docComment: string;
+  declLine: string;
+};
+
+/** Convenience wrapper — the declarations only. See {@link scanSchemaTables} for `unresolved`. */
+function textColumnDeclarations(source: string = SCHEMA_SOURCE): ScannedColumn[] {
+  return scanSchemaTables(source).declarations;
+}
+
+function scanSchemaTables(source: string = SCHEMA_SOURCE): { declarations: ScannedColumn[]; unresolved: string[] } {
   const sf = ts.createSourceFile("schema.ts", source, ts.ScriptTarget.Latest, /* setParentNodes */ true);
-  const out: Array<{
-    sqlTableName: string;
-    sqlColumnName: string;
-    qualifiedName: string;
-    docComment: string;
-    declLine: string;
-  }> = [];
+  const out: ScannedColumn[] = [];
+  const unresolved: string[] = [];
 
   /** Unwrap a builder chain (`text("x").notNull().default("{}")`) down to its root `text(...)` call. */
   const rootTextCall = (node: ts.Expression): ts.CallExpression | undefined => {
@@ -373,6 +379,28 @@ function textColumnDeclarations(
     }
   };
 
+  /**
+   * What a property's initializer chain BOTTOMS OUT at: a builder call (`integer("x")`, `text("x")`,
+   * `real("x")` — a real column this walk simply is not interested in), or a bare reference
+   * (`sharedColumn`, `cols.shared` — a column whose `text(...)` call this single-file parse cannot see).
+   * The distinction is the whole point: the first is safe to skip, the second is a silent under-report.
+   */
+  const chainRootKind = (node: ts.Expression): "call" | "reference" | "other" => {
+    let cur: ts.Node = node;
+    for (;;) {
+      if (ts.isCallExpression(cur)) {
+        if (ts.isIdentifier(cur.expression)) return "call";
+        cur = cur.expression;
+        continue;
+      }
+      if (ts.isPropertyAccessExpression(cur)) {
+        cur = cur.expression;
+        continue;
+      }
+      return ts.isIdentifier(cur) ? "reference" : "other";
+    }
+  };
+
   const literalText = (node: ts.Node | undefined): string | undefined =>
     node && ts.isStringLiteralLike(node) ? node.text : undefined;
 
@@ -383,11 +411,30 @@ function textColumnDeclarations(
       const columns = node.arguments[1];
       if (sqlTableName !== undefined && columns !== undefined && ts.isObjectLiteralExpression(columns)) {
         for (const prop of columns.properties) {
-          if (!ts.isPropertyAssignment(prop)) continue;
+          // A property this walk cannot resolve to a builder CALL is recorded, never silently skipped
+          // (round-2 audit F1). A shorthand/spread/imported column reference — `auditProbeColumn,` or
+          // `...sharedColumns` — is a plausible Drizzle refactor, and the scanner returned nothing for
+          // it: the column was ABSENT from the scan, and the textual safety net missed it too, because
+          // that net searches schema.ts's own text and the `text(...)` call lives in another file. A
+          // JSON column could then carry both signals and never be considered a candidate at all.
+          // 694/694 real columns are inline builder calls today, so recording these costs nothing now
+          // and fails loudly the moment the shape appears.
+          if (!ts.isPropertyAssignment(prop)) {
+            unresolved.push(`${sqlTableName}.${prop.name?.getText(sf) ?? "<spread>"} (${ts.SyntaxKind[prop.kind]})`);
+            continue;
+          }
           const call = rootTextCall(prop.initializer);
-          if (!call) continue;
+          if (!call) {
+            if (chainRootKind(prop.initializer) !== "call") {
+              unresolved.push(`${sqlTableName}.${prop.name.getText(sf)} (initializer is a bare reference, not a builder call)`);
+            }
+            continue;
+          }
           const sqlColumnName = literalText(call.arguments[0]);
-          if (sqlColumnName === undefined) continue;
+          if (sqlColumnName === undefined) {
+            unresolved.push(`${sqlTableName}.${prop.name.getText(sf)} (text() called with a non-literal name)`);
+            continue;
+          }
 
           // The compiler's own notion of "the comment attached to this property" — no backward line
           // walk, so a blank line, a section header, or a sibling's trailing comment cannot be
@@ -412,7 +459,7 @@ function textColumnDeclarations(
   };
 
   visit(sf);
-  return out;
+  return { declarations: out, unresolved };
 }
 
 test("textColumnDeclarations(): declLine carries a `.default(...)` wrapped onto a continuation line, not just a same-line one", () => {
@@ -492,6 +539,41 @@ test("sanity: the AST scan silently drops no text() column that is textually vis
     scanned.every((d) => d.sqlTableName.length > 0 && d.qualifiedName === `${d.sqlTableName}.${d.sqlColumnName}`),
     "every scanned column must carry the table name its qualified identity depends on"
   );
+});
+
+test("the AST scan resolves EVERY property in every sqliteTable literal — an unresolvable one fails loudly instead of vanishing", () => {
+  // ROUND-2 AUDIT F1. The scan reads one file and only understands an inline builder CALL. A column
+  // referenced by identifier — the ordinary result of extracting shared column builders into a helper
+  // module — was returned by NOTHING: absent from the scan, and invisible to the textual safety net
+  // too, because that net searches schema.ts's own source and the `text(...)` call lives elsewhere. A
+  // JSON column could then carry both signals and never be considered a candidate.
+  //
+  // Rather than resolve cross-file symbols (a full ts.Program for a test-only heuristic guarding a
+  // subsystem with no production consumers), refuse to skip quietly: anything this walk cannot resolve
+  // to a builder call is recorded, and this test asserts the list is empty. 694/694 real columns are
+  // inline calls today, so it costs nothing until the shape actually appears — and then it fails here
+  // rather than silently widening the tripwire's blind spot.
+  assert.deepEqual(
+    scanSchemaTables().unresolved,
+    [],
+    "schema.ts has table properties this scan cannot resolve to a column-builder call. Any text() column " +
+      "hiding behind one is invisible to the JSON tripwire below AND to its textual safety net. Either " +
+      "inline the builder call, or teach scanSchemaTables() to resolve the reference — do not delete " +
+      "this assertion"
+  );
+
+  // The guard must be able to fire: a bare reference and a spread are both recorded.
+  const withReference = [
+    'export const t = sqliteTable("t", {',
+    "  inlineCol: text(\"inline_col\"),",
+    "  sharedCol: importedColumnBuilder,",
+    "  ...spreadColumns,",
+    "});",
+  ].join("\n");
+  const scanned = scanSchemaTables(withReference);
+  assert.equal(scanned.declarations.length, 1, "the inline column is still scanned normally");
+  assert.equal(scanned.unresolved.length, 2, "the bare reference AND the spread must both be recorded");
+  assert.match(scanned.unresolved.join(" "), /sharedCol/, "the referenced column must be named in the report");
 });
 
 test("JSON-completeness tripwire (R4-F1/C-1): no text() column outside isJsonColumnName/REVIEWED_JSON_COLUMNS has a doc comment naming it JSON, or a JSON-literal default", () => {
