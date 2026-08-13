@@ -27,7 +27,10 @@ describe("AgentPlugins", () => {
     expect(screen.queryByRole("button", { name: "Tovu" })).not.toBeInTheDocument();
 
     const card = screen.getByRole("article", { name: "UI/UX Design" });
-    expect(within(card).getByText("1.1.0")).toBeInTheDocument();
+    // No Version row: the package this card describes carries no version field to show honestly
+    // (see agent-plugin-catalog.ts), and a stale hand-set number would be worse than none.
+    expect(within(card).queryByText("Version")).not.toBeInTheDocument();
+    expect(within(card).getByText("Jini plugins package (@jini-ai/plugins)")).toBeInTheDocument();
     expect(within(card).getByText("ui-ux-design")).toBeInTheDocument();
     expect(within(card).getByText("Bundled with Tovu — catalogued, not executed")).toBeInTheDocument();
   });

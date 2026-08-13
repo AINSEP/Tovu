@@ -11,9 +11,16 @@ export interface BundledAgentPluginSkill {
 export interface BundledAgentPlugin {
   readonly id: string;
   readonly displayName: string;
-  readonly version: string;
+  /**
+   * Optional because there is no honest value to put here: the package this entry describes
+   * (Jini's `ui-ux-design` Agent Plugin) bundles 7 skills and its own `plugin.json` carries no
+   * `version` field at all (see `packages/plugins/README.md` in the Jini repo). A hand-set number
+   * here would describe nothing real. Omit rather than invent one; `AgentPlugins.tsx` skips the
+   * Version row entirely when this is absent.
+   */
+  readonly version?: string;
   readonly description: string;
-  readonly source: "Tovu source tree";
+  readonly source: "Jini plugins package (@jini-ai/plugins)";
   readonly availability: "Bundled with Tovu — catalogued, not executed";
   readonly skills: readonly BundledAgentPluginSkill[];
 }
@@ -22,10 +29,18 @@ export const TOVU_BUNDLED_AGENT_PLUGINS: readonly BundledAgentPlugin[] = [
   {
     id: "ui-ux-design",
     displayName: "UI/UX Design",
-    version: "1.1.0",
-    description: "AI Dev Shop UI/UX and interface-design guidance packaged as one portable Agent Skill.",
-    source: "Tovu source tree",
+    description:
+      "AI Dev Shop's UI/UX design, interface-design, accessibility, and shadcn/ui component skills — 7 skills bundled as one portable Agent Plugin.",
+    source: "Jini plugins package (@jini-ai/plugins)",
     availability: "Bundled with Tovu — catalogued, not executed",
-    skills: [{ name: "ui-ux-design", relativePath: "skills/ui-ux-design/SKILL.md" }],
+    skills: [
+      { name: "ui-ux-design", relativePath: "skills/ui-ux-design/SKILL.md" },
+      { name: "interface-design", relativePath: "skills/interface-design/SKILL.md" },
+      { name: "gstack-design", relativePath: "skills/gstack-design/SKILL.md" },
+      { name: "frontend-accessibility", relativePath: "skills/frontend-accessibility/SKILL.md" },
+      { name: "vercel-web-design-guidelines", relativePath: "skills/vercel-web-design-guidelines/SKILL.md" },
+      { name: "shadcn-ui", relativePath: "skills/shadcn-ui/SKILL.md" },
+      { name: "web-compliance", relativePath: "skills/web-compliance/SKILL.md" },
+    ],
   },
 ];
