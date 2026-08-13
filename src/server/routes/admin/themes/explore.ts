@@ -33,16 +33,21 @@ import type { ContentRouteRegistrar } from "../content/deps";
  * documents that same reuse.
  */
 
-/** `theme.set` gate + workspace check, shared by all three routes below. */
-async function authorizeThemeAccess(
-  deps: ContentRouteDeps,
-  req: { params: Record<string, unknown> },
+/**
+ * The `theme.set` permission check alone — every route on this resource needs this; only the
+ * `/api/admin/v1/workspaces/:workspaceId/...` routes below ALSO need {@link authorizeThemeAccess}'s
+ * workspace-path-param comparison on top of it. Exported (2026-08-12, `.liquid` Preview-tab fix) so
+ * `middleware/theme-page-preview.ts`'s templated-theme preview route can apply the SAME gate — that
+ * route has no `:workspaceId` in its own URL (it lives at `/theme-explore/...`, matching its sibling
+ * static-preview route's shape, not under `/api/admin/v1/workspaces/...`), so it has nothing to
+ * compare a path param against and only needs this half. One definition rather than two independently
+ * written permission checks that could drift apart — exactly the class of gap this subsystem's own
+ * security passes kept finding.
+ */
+export async function authorizeThemeSetPermission(
+  deps: Pick<ContentRouteDeps, "workspaceId" | "authorize">,
   res: Response
 ): Promise<boolean> {
-  if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
-    res.status(404).json({ error: "workspace was not found" });
-    return false;
-  }
   const principal = getAuthedPrincipal(res);
   const authResult = await deps.authorize({
     principalId: principal.id,
@@ -59,6 +64,19 @@ async function authorizeThemeAccess(
     return false;
   }
   return true;
+}
+
+/** `theme.set` gate + workspace check, shared by all three routes below. */
+async function authorizeThemeAccess(
+  deps: ContentRouteDeps,
+  req: { params: Record<string, unknown> },
+  res: Response
+): Promise<boolean> {
+  if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
+    res.status(404).json({ error: "workspace was not found" });
+    return false;
+  }
+  return authorizeThemeSetPermission(deps, res);
 }
 
 /**
