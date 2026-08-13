@@ -8,8 +8,8 @@ import {
 } from "../agent-plugin-source-catalog";
 
 // The real package Tovu now reads from -- no local fork to drift out of sync with. Matches
-// `agent-plugin-source-catalog.ts`'s own glob root (see that file for why it's a relative path
-// into the sibling checkout rather than the package's export map).
+// `agent-plugin-source-catalog.ts`'s own import root (see that file for why its imports reach in
+// by relative path rather than through the package's `exports` map).
 const PLUGIN_ROOT = path.resolve(
   process.cwd(),
   "../../../Jini/packages/plugins/samples/agent-plugins/ui-ux-design",
@@ -81,7 +81,7 @@ describe("ui-ux-design Agent Plugin package", () => {
     }
   });
 
-  it("exposes the full glob-built catalog for all 7 skills and rejects unknown or traversal-like paths", () => {
+  it("exposes the full catalog for all 7 skills, including non-.md files, and rejects unknown or traversal-like paths", () => {
     const sourceFiles = getBundledAgentPluginSourceFiles("ui-ux-design");
     // Rooted at PLUGIN_ROOT (not SKILLS_ROOT) so the walk's own relative paths already carry the
     // "skills/..." prefix the catalog's relativePaths use -- no separate prefixing needed here.
@@ -97,6 +97,19 @@ describe("ui-ux-design Agent Plugin package", () => {
     // Every expected skill is actually represented in the exposed set, not just present on disk.
     for (const skillName of EXPECTED_SKILLS) {
       expect(sourceFiles.some((file) => file.relativePath === `skills/${skillName}/SKILL.md`)).toBe(true);
+    }
+
+    // The catalog must not silently narrow to markdown -- shadcn-ui ships 3 .tsx examples and 1
+    // .sh script alongside its .md files, and a browser that dropped them would misrepresent what
+    // the plugin actually ships.
+    const nonMarkdownRelativePaths = [
+      "skills/shadcn-ui/examples/auth-layout.tsx",
+      "skills/shadcn-ui/examples/data-table.tsx",
+      "skills/shadcn-ui/examples/form-pattern.tsx",
+      "skills/shadcn-ui/scripts/verify-setup.sh",
+    ];
+    for (const relativePath of nonMarkdownRelativePaths) {
+      expect(sourceFiles.some((file) => file.relativePath === relativePath)).toBe(true);
     }
 
     for (const file of sourceFiles) {
