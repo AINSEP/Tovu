@@ -24,7 +24,7 @@ import { ADMIN_PANELS } from "./panels";
  *   base lives in exactly one place.
  * - This file's presence in the nav controls sidebar *presence* only, never reachability — a
  *   section is routable as soon as it exists in `panels.tsx`'s `ADMIN_PANELS`, with or without a
- *   `nav` field (`appearance` and `settings-raw` are both deliberately reachable with no nav entry).
+ *   `nav` field (`appearance` is deliberately reachable with no nav entry).
  * - Adding a section: see `apps/admin/INFO.md`, "Adding a new admin section".
  *
  * Icons are inline SVG inner-markup (viewBox 0 0 18 18, stroke=currentColor).

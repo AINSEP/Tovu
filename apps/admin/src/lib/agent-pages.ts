@@ -17,9 +17,10 @@ import { navigate } from "./router";
  * excluded. That's a deliberate reversal of the package's fail-safe-by-default stance (see
  * `panels.tsx`'s own file header for the reasoning): navigation alone only lets an agent land on a
  * page, never operate anything on it — that needs each control separately tagged with
- * `data-agent-element` — so there is no meaningful risk in an agent knowing a page exists. The one
- * panel that still opts OUT explicitly (`settings-raw`, `agentReachable: false`) is a human-only
- * debugging surface with its own documented reason, not a gap in this reasoning.
+ * `data-agent-element` — so there is no meaningful risk in an agent knowing a page exists. No panel
+ * opts OUT explicitly today; the one that did (`settings-raw`, `agentReachable: false`) was a
+ * human-only raw-ledger debugging surface, deleted once `/settings` covered the same rows. The
+ * escape hatch is still wired and still honored — it just has no current user.
  *
  * Ids are the same vocabulary the sidebar and `currentPanelId()` already use, so "take me to
  * redirects" resolves to the id a human would guess and the one already reported as the current
@@ -47,9 +48,9 @@ export const ADMIN_AGENT_PAGE_PATHS: Readonly<Record<string, string>> = buildAge
 /**
  * `id.split('-')` title-cased — `"widget-regions"` -> `"Widget Regions"`.
  *
- * The fallback label for a published page id with no `nav.label` to use instead: `appearance` and
- * (before it opted back out) `settings-raw` have no `nav` entry at all, by design — reachable
- * without a sidebar row — and a per-route agent page id like `widget-regions` was never a panel id
+ * The fallback label for a published page id with no `nav.label` to use instead: `appearance` has
+ * no `nav` entry at all, by design — reachable without a sidebar row — and a per-route agent page
+ * id like `widget-regions` was never a panel id
  * in the first place, so it has no `nav` entry to look up either. Both still need SOME label for
  * the site map to be useful, and the id itself, split and title-cased, is the least-surprising one:
  * it is exactly what a human already reads when `page.navigate`'s refusal message names the id raw.
