@@ -93,8 +93,32 @@ Two traps, both of which have already cost real time:
   unmount → mount in development, so a cleanup-only version latches on the throwaway first pass and
   disables the behaviour it guards for the real one — a bug that exists only in dev.
 
-Components consume the wired hook and may accept it as an overridable prop (`AssistantDock`'s
-`useChats`), which is what lets a component test run against a fake without touching `fetch`.
+Components consume the wired hook **as an overridable prop defaulted to the wired pair**, which is
+what lets a component test run against a fake without touching `fetch`:
+
+```tsx
+export function Posts({ usePostsHook = useWiredPosts }: PostsProps) { … }
+```
+
+Calling `useWiredX()` inline in the component body works, but closes that seam — prefer the prop.
+
+### `t` as a prop is not an un-migrated component
+
+When auditing for leftover UI state, a component that takes `t: Translate` as a **prop** instead of
+calling `useT()` looks like a gap. Usually it isn't, and "fixing" it silently breaks translation.
+
+`useT()` reads `I18nContext` via `useContext`, so it only resolves for components rendered *below*
+an `I18nProvider`. A component that **mounts the provider itself** is never inside its own context —
+a `useT()` call there resolves to the package default and every lookup falls through to the raw key.
+The string still renders, so nothing fails loudly; the screen just shows key names.
+
+`features/settings/SettingsUi.tsx` and `features/ai-assistant/AiAssistant.tsx` both hit this and
+both carry the reasoning inline (`SettingsUi.tsx:142`, `:209`). Their `t`-as-a-prop shape is
+deliberate. Leave it alone.
+
+Corollary for anyone grepping: `useT()` appearing in a component file is not evidence of a call
+site. Every current hit in `features/` and `components/` is prose inside a comment explaining this
+exact rule.
 
 ## Components (`src/components/<Name>/`)
 
