@@ -1,5 +1,6 @@
-import { useRef, useState, type KeyboardEvent } from "react";
 import { createPortal } from "react-dom";
+
+import { useInfoTip } from "./InfoTip.hooks";
 
 /**
  * @file A small "ⓘ" affordance that reveals an explanation on hover, focus, or (once open) stays
@@ -9,8 +10,9 @@ import { createPortal } from "react-dom";
  *
  * Deliberately NOT the native `title` attribute: browser tooltips are slow (OS-dependent hover
  * delay), inconsistently exposed to screen readers, and invisible on touch devices. Escape closes
- * the bubble without moving focus off the icon (`handleIconKeyDown` below) — `onBlur` alone only
- * covers Tab/Shift+Tab leaving the icon, not "close this but let me keep reading from here."
+ * the bubble without moving focus off the icon (`handleIconKeyDown`, in `InfoTip.hooks.tsx`) —
+ * `onBlur` alone only covers Tab/Shift+Tab leaving the icon, not "close this but let me keep
+ * reading from here."
  *
  * Renders the bubble through a `createPortal` into `document.body`, positioned via a measured
  * `getBoundingClientRect()` rather than plain CSS `position: absolute` inside the trigger's own
@@ -22,48 +24,24 @@ import { createPortal } from "react-dom";
  * container the trigger happens to live in, so "opens above the trigger" (the owner's actual
  * preference) is safe in ancestors with room to spare.
  *
- * "Opens above" is a preference, not an unconditional rule: `ABOVE_HEADROOM_PX` below is a floor on
- * how much room has to exist above the icon before it's honored. Caught live once ThemeExplore.tsx
- * became this component's first real caller, sitting only ~74px below the viewport top: the bubble
- * (up to 3 short lines at its `max-width: 18rem`, `styles.css`) rendered with `top: -5px`, clipped
- * against the browser window itself — not a clipping ANCESTOR (the portal already solved that), but
- * the actual top of the viewport, which no ancestor-escaping trick can fix. `176` is a deliberately
- * generous estimate of the bubble's own height (comfortably above the ~72px a 3-line label like
- * ThemeExplore's actually measures at) chosen BEFORE the bubble exists in the DOM to measure — the
- * portal only mounts once `open` is already true, so there's no real height to read at decision
- * time, and a threshold with headroom to spare is safer than a tight one that still clips an
- * unusually long label.
+ * "Opens above" is a preference, not an unconditional rule — see `InfoTip.hooks.tsx`'s
+ * `ABOVE_HEADROOM_PX` for the floor that overrides it near the top of the viewport.
+ *
+ * State/effects (open/closed, placement, portal coordinates) live in `InfoTip.hooks.tsx`, split
+ * out the same way `SeeMore`/`SeeMore.hooks.tsx` does: this file stays props-and-JSX only, and the
+ * `useTip` prop below lets a test render this JSX against a fake hook — no real DOM measurement
+ * required.
  */
-const ABOVE_HEADROOM_PX = 176;
+export interface InfoTipProps {
+  label: string;
+  /** Injectable seam for the tooltip's open/close state and placement measurement. Defaults to the
+   *  real {@link useInfoTip}; a test can pass a fake here to exercise `InfoTip`'s rendering with a
+   *  fixed `open`/`placement`/`coords` instead of driving real hover/focus/measurement. */
+  useTip?: typeof useInfoTip;
+}
 
-export function InfoTip(props: { label: string }) {
-  const [open, setOpen] = useState(false);
-  const [placement, setPlacement] = useState<"above" | "below">("above");
-  const [coords, setCoords] = useState({ top: 0, left: 0 });
-  const iconRef = useRef<HTMLSpanElement>(null);
-
-  const show = () => {
-    const rect = iconRef.current?.getBoundingClientRect();
-    if (!rect) return;
-    const nextPlacement = rect.top < ABOVE_HEADROOM_PX ? "below" : "above";
-    setPlacement(nextPlacement);
-    setCoords({ top: nextPlacement === "above" ? rect.top : rect.bottom, left: rect.left + rect.width / 2 });
-    setOpen(true);
-  };
-  const hide = () => setOpen(false);
-
-  // Escape-to-dismiss without moving focus: `onBlur` alone only closes the bubble when focus
-  // actually leaves the icon (Tab/Shift+Tab), so a keyboard user who wants to close it and stay put
-  // — e.g. to keep reading the surrounding row before deciding where to go next — had no way to do
-  // that until this handler existed. `stopPropagation` keeps Escape from also bubbling to an
-  // ancestor dialog/drawer that treats it as "close me" (this component has no such ancestor today,
-  // but a future call site inside one would otherwise close both at once on a single keypress).
-  function handleIconKeyDown(e: KeyboardEvent<HTMLSpanElement>) {
-    if (e.key === "Escape" && open) {
-      e.stopPropagation();
-      hide();
-    }
-  }
+export function InfoTip({ label, useTip = useInfoTip }: InfoTipProps) {
+  const { open, placement, coords, iconRef, show, hide, handleIconKeyDown } = useTip();
 
   return (
     <span className="info-tip">
@@ -71,7 +49,7 @@ export function InfoTip(props: { label: string }) {
         ref={iconRef}
         className="info-tip-icon"
         tabIndex={0}
-        aria-label={props.label}
+        aria-label={label}
         onMouseEnter={show}
         onMouseLeave={hide}
         onFocus={show}
@@ -88,7 +66,7 @@ export function InfoTip(props: { label: string }) {
               aria-hidden="true"
               style={{ top: coords.top, left: coords.left }}
             >
-              {props.label}
+              {label}
             </span>,
             document.body
           )
