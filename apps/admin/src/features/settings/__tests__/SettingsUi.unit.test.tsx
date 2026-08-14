@@ -11,6 +11,7 @@ import {
 import { SettingsUi } from "../SettingsUi";
 import type { SettingsUiController } from "../hooks/use-settings-ui.hooks";
 import type { SettingsSlice } from "../../../hooks/use-settings-slice.hooks";
+import type { AdminExecutionCredentialController } from "../../../hooks/use-admin-execution-credential.hooks";
 import { createExecutionPort, DEFAULT_EXECUTION_CONFIG } from "../../../lib/execution-settings";
 import {
   DEFAULT_APPEARANCE,
@@ -92,6 +93,27 @@ function baseController(overrides: Partial<SettingsUiController> = {}): Settings
     save: { status: "idle" },
     ...overrides,
   } as SettingsUiController;
+}
+
+/** A fake `AdminExecutionCredentialController` for the `useAdminExecutionCredentialHook` seam below
+ *  — the real hook's own `AdminExecutionCredentialController` shape, filled in with values a live
+ *  network round trip cannot produce synchronously (a non-null `legacyKey`), so a passing assertion
+ *  actually proves the injected fake rendered rather than the real hook happening to agree with it. */
+function fakeAdminExecutionCredentialController(
+  overrides: Partial<AdminExecutionCredentialController> = {},
+): AdminExecutionCredentialController {
+  return {
+    stored: null,
+    apiKeyStoredExternally: false,
+    apiKeyPlaceholder: undefined,
+    saveState: { status: "idle" },
+    canSaveKey: false,
+    saveKey: vi.fn(async () => {}),
+    legacyKey: null,
+    migrateLegacyKey: vi.fn(async () => {}),
+    dismissLegacyPrompt: vi.fn(),
+    ...overrides,
+  };
 }
 
 /** Switches the inline shell to the named tab via its sidebar nav button — only the active tab's
@@ -221,6 +243,23 @@ describe("Privacy tab — inert by design (no Tovu telemetry backend)", () => {
     ).toBeInTheDocument();
     const wrap = document.querySelector(".settings-ui-inert-control");
     expect(wrap).toHaveAttribute("inert");
+  });
+});
+
+describe("useAdminExecutionCredentialHook injection", () => {
+  it("renders the migration prompt from the injected fake, not from a real credential round trip", () => {
+    render(
+      <SettingsUi
+        useSettingsUiHook={() => baseController()}
+        useAdminExecutionCredentialHook={() =>
+          fakeAdminExecutionCredentialController({ legacyKey: "sk-legacy-from-fake" })
+        }
+      />,
+    );
+    // `AdminByokMigrationPrompt` renders only when `controller.legacyKey` is non-null — the real
+    // hook can't settle a network GET synchronously within `render()`, so this text appearing at
+    // all proves the fake controller is what fed the Execution tab, not the real wired hook.
+    expect(screen.getByText(/We found a saved key in this browser/)).toBeInTheDocument();
   });
 });
 

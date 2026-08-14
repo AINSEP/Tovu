@@ -189,6 +189,13 @@ export interface SettingsUiProps {
   /** Dependency injection seam for tests — same convention as `PostsProps.usePostsHook`. */
   useSettingsUiHook?: typeof useSettingsUi;
   /**
+   * Dependency injection seam for tests — same convention as `useSettingsLocaleSyncHook` just above.
+   * Was an inline `useWiredAdminExecutionCredential({...})` call in the body until this pass; a prop
+   * lets a test drive the Execution tab's migration prompt and "Save key" footer (which read straight
+   * off this controller) without a real `/api/.../execution-credential` round trip.
+   */
+  useAdminExecutionCredentialHook?: typeof useWiredAdminExecutionCredential;
+  /**
    * The `?tab=` query value from `panels.tsx`'s `settings` route (`URLSearchParams.get` returns
    * `null` when the param is absent). Drives which tab the inline shell opens on — see the
    * `requestedTabId` computation below for why this can't be passed straight through as
@@ -197,7 +204,11 @@ export interface SettingsUiProps {
   tabId?: string | null;
 }
 
-export function SettingsUi({ useSettingsUiHook = useSettingsUi, tabId = null }: SettingsUiProps = {}) {
+export function SettingsUi({
+  useSettingsUiHook = useSettingsUi,
+  useAdminExecutionCredentialHook = useWiredAdminExecutionCredential,
+  tabId = null,
+}: SettingsUiProps = {}) {
   const s: SettingsUiController = useSettingsUiHook();
 
   /**
@@ -236,7 +247,7 @@ export function SettingsUi({ useSettingsUiHook = useSettingsUi, tabId = null }: 
   // `DEFAULT_EXECUTION_CONFIG.byok` while `s.execution.value` is still `null`, which is harmless:
   // the credential hook's own effects don't read `byok` until an explicit Save/migrate press, and
   // the tab this feeds isn't rendered until past the gate anyway.
-  const adminCredential = useWiredAdminExecutionCredential({
+  const adminCredential = useAdminExecutionCredentialHook({
     byok: (s.execution.value as ExecutionConfig | null)?.byok ?? DEFAULT_EXECUTION_CONFIG.byok,
     onByokChange: (byok) => s.execution.onChange({ ...(s.execution.value as ExecutionConfig), byok }),
   });
@@ -814,7 +825,7 @@ export function SettingsUi({ useSettingsUiHook = useSettingsUi, tabId = null }: 
         <SettingsDialogShell
           tabs={tabs}
           presentation="inline"
-          className="jini-settings-dialog--inline"
+          className="jini-tabbed-dialog--inline"
           fullscreenEnabled={false}
           chromeExtra={pageChrome}
           activeTabId={requestedTabId}
