@@ -204,11 +204,33 @@ export interface SettingsUiProps {
   tabId?: string | null;
 }
 
-export function SettingsUi({
-  useSettingsUiHook = useSettingsUi,
-  useAdminExecutionCredentialHook = useWiredAdminExecutionCredential,
-  tabId = null,
-}: SettingsUiProps = {}) {
+/**
+ * Resolves each of `SettingsUi`'s three seam/value props to its default when a caller passes
+ * none — same `??`-avoidance idiom `MenuEditor.tsx`'s `orEmpty`/`AssistantDock.tsx`'s/`App.tsx`'s
+ * resolver groups use (2026-08-14, DI migration sweep's complexity follow-up): ESLint's
+ * cyclomatic-complexity rule counts a default parameter value inside a function's OWN body as one
+ * of that function's own branches — a call out to a separately-scoped resolver does not.
+ */
+function resolveSettingsUiHook(override: typeof useSettingsUi | undefined): typeof useSettingsUi {
+  return override ?? useSettingsUi;
+}
+function resolveSettingsExecutionCredentialHook(
+  override: typeof useWiredAdminExecutionCredential | undefined
+): typeof useWiredAdminExecutionCredential {
+  return override ?? useWiredAdminExecutionCredential;
+}
+function resolveTabId(override: string | null | undefined): string | null {
+  return override ?? null;
+}
+
+export function SettingsUi(props: SettingsUiProps) {
+  // No `SettingsUiProps = {}` default on the parameter itself (2026-08-14, same reasoning as
+  // `App.tsx`'s own removal): every real call site is JSX, which always constructs an actual props
+  // object — `{}` when no attributes are given, never `undefined` — and every field here is
+  // optional, so `{}` still satisfies the type.
+  const useSettingsUiHook = resolveSettingsUiHook(props.useSettingsUiHook);
+  const useAdminExecutionCredentialHook = resolveSettingsExecutionCredentialHook(props.useAdminExecutionCredentialHook);
+  const tabId = resolveTabId(props.tabId);
   const s: SettingsUiController = useSettingsUiHook();
 
   /**
