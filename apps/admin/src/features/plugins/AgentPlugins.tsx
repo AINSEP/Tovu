@@ -5,12 +5,10 @@ import {
   type SettingsDialogTab,
 } from "@jini-ai/ui";
 import "@jini-ai/ui/settings-dialog.css";
-import { useState } from "react";
 
-import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { AgentPluginDetailsModal } from "./AgentPluginDetailsModal";
 import { TOVU_BUNDLED_AGENT_PLUGINS, type BundledAgentPlugin } from "./agent-plugin-catalog";
-import { t as translatePlugins } from "./plugins-i18n";
+import { useWiredAgentPlugins } from "./hooks/use-agent-plugins.hooks";
 
 const AGENT_PLUGINS_SPEC_URL = "https://agent-plugins.org/specification";
 
@@ -49,11 +47,17 @@ function AgentPluginCard(props: {
   );
 }
 
+export interface AgentPluginsProps {
+  /**
+   * Dependency injection seam for tests — the same convention `PostsProps.usePostsHook` uses.
+   * Defaulted to the real hook, so production callers pass nothing and behave exactly as before.
+   */
+  useAgentPluginsHook?: typeof useWiredAgentPlugins;
+}
+
 /** Settings-style Agent Plugins catalog. Installed is source-backed; Marketplace is future-only. */
-export function AgentPlugins() {
-  const locale = useAdminLocale();
-  const t = (key: string): string => translatePlugins(locale, key);
-  const [inspectedPlugin, setInspectedPlugin] = useState<BundledAgentPlugin | null>(null);
+export function AgentPlugins({ useAgentPluginsHook = useWiredAgentPlugins }: AgentPluginsProps = {}) {
+  const { t, locale, inspectedPlugin, inspectPlugin, closeInspector } = useAgentPluginsHook();
   const tabs: SettingsDialogTab[] = [
     {
       id: "installed",
@@ -70,7 +74,7 @@ export function AgentPlugins() {
               key={plugin.id}
               plugin={plugin}
               t={t}
-              onInspect={() => setInspectedPlugin(plugin)}
+              onInspect={() => inspectPlugin(plugin)}
             />
           ))}
           <p className="jini-field-hint">
@@ -108,12 +112,12 @@ export function AgentPlugins() {
         <SettingsDialogShell
           tabs={tabs}
           presentation="inline"
-          className="jini-settings-dialog--inline"
+          className="jini-tabbed-dialog--inline"
           fullscreenEnabled={false}
           labels={{ kicker: t("Plugins") }}
         />
         {inspectedPlugin ? (
-          <AgentPluginDetailsModal plugin={inspectedPlugin} onClose={() => setInspectedPlugin(null)} />
+          <AgentPluginDetailsModal plugin={inspectedPlugin} onClose={closeInspector} />
         ) : null}
       </div>
     </I18nProvider>
