@@ -13,6 +13,13 @@ import {
   saveExecutionConfig,
   selectedLocalCliModel,
 } from "../../lib/execution-settings";
+import {
+  createBundledComposerCapabilitySource,
+  emptyComposerCapabilityProjection,
+  projectComposerCapabilities,
+  type ComposerCapabilityProjection,
+} from "../../features/plugins/composer-capabilities";
+import { createToolCatalogComposerCapabilitySource } from "../../features/plugins/tool-catalog-composer-source";
 
 /**
  * @file `AssistantDock`'s state/effects layer, split out of `AssistantDock.tsx` (2026-08-06
@@ -29,12 +36,14 @@ import {
  * particular, is shaped this way; see `AssistantDock.tsx` for how each one is actually wired in.
  *
  * Per `INFO.md`'s Components rule 3 (any hook touching the DOM, browser APIs, or IO is an
- * injectable prop, defaulted to the real hook), all three hooks below are exposed as injectable
- * seams on `AssistantDockProps` — `useExecutionConfig`, `useByokRuntime`, `useLocalCliSelection` —
- * alongside `AssistantDock`'s own pre-existing `useChats` prop; see `AssistantDock.tsx` for the
- * wiring. (An earlier revision of this comment claimed none of the three was seamed, on the
- * reasoning that nothing in that day's brief called for it. That was stale the moment rule 3 was
- * applied here — corrected rather than left to mislead the next reader.) The existing component
+ * injectable prop, defaulted to the real hook), all four hooks below are exposed as injectable
+ * seams on `AssistantDockProps` — `useExecutionConfig`, `useByokRuntime`, `useLocalCliSelection`,
+ * `useComposerCapabilities` — alongside `AssistantDock`'s own pre-existing `useChats` prop; see
+ * `AssistantDock.tsx` for the wiring. (An earlier revision of this comment claimed none of the
+ * three was seamed, on the reasoning that nothing in that day's brief called for it. That was stale
+ * the moment rule 3 was applied here — corrected rather than left to mislead the next reader.)
+ * `useComposerCapabilities` (2026-08-14) was the last of `AssistantDock.tsx`'s own raw
+ * `useState`/`useEffect` pairs, moved here for the same reason. The existing component
  * test still exercises the config-load/discovery/mode-switch/model-pick paths through `renderHook`
  * against these exports directly for the hooks' OWN behavior; the seams exist so
  * `AssistantDock.tsx`'s own markup/wiring tests can fake them instead of driving the real ones.
@@ -509,6 +518,59 @@ export function useLocalCliSelection(
   }, [setExecutionConfig]);
 
   return { localCliSelection, handleLocalCliSelectionChange };
+}
+
+export interface UseComposerCapabilities {
+  /** The composer's discovery catalog — see {@link useComposerCapabilities}'s own doc for what
+   *  feeds it and why it starts empty. */
+  composerCapabilities: ComposerCapabilityProjection;
+}
+
+/**
+ * Projects the composer's discovery catalog (debate 2, "Composer slash commands") from a bundled,
+ * compile-time source plus a live tool-catalog source, and owns the one-shot mount effect that
+ * resolves it. Split out of `AssistantDock` (2026-08-14 DI migration pass) for the same reason the
+ * three hooks above it were: per `INFO.md`'s Components rule 3, any hook doing DOM/IO work gets an
+ * injectable seam on `AssistantDockProps`, defaulted to this real implementation — see
+ * `AssistantDock.tsx` for the wiring.
+ *
+ * Starts empty rather than pre-seeded: the whole point of `ComposerCapabilitySource.list()` being a
+ * `Promise` is that a source may genuinely need a round trip — true for
+ * `createBundledComposerCapabilitySource` only by construction (compile-time data wrapped in a
+ * resolved `Promise`), but genuinely true for `createToolCatalogComposerCapabilitySource`, which
+ * fetches the real tool catalog through `/api/tools/search`. This hook makes no assumption that
+ * resolution is instant for either, and a failed projection (a future live source's fetch failing,
+ * or a duplicate-id contract violation) falls back to the empty catalog rather than throwing — same
+ * "the failure is contained" posture `AssistantDock.tsx`'s own `fetchAgents()` uses for its own
+ * `!response.ok` branch.
+ *
+ * @returns `composerCapabilities` — the resolved projection, or the empty one before it settles.
+ * @example
+ * const { composerCapabilities } = useComposerCapabilities();
+ */
+export function useComposerCapabilities(): UseComposerCapabilities {
+  const [composerCapabilities, setComposerCapabilities] = useState<ComposerCapabilityProjection>(
+    emptyComposerCapabilityProjection,
+  );
+
+  useEffect(() => {
+    let cancelled = false;
+    // `createToolCatalogComposerCapabilitySource()` never rejects (see its own doc) — it degrades
+    // to an empty list on any failure, so a daemon that is down or still booting costs only the
+    // tool-catalog rows, never the bundled source alongside it in this same `Promise.all`.
+    projectComposerCapabilities([createBundledComposerCapabilitySource(), createToolCatalogComposerCapabilitySource()])
+      .then((projection) => {
+        if (!cancelled) setComposerCapabilities(projection);
+      })
+      .catch((error: unknown) => {
+        console.error("[AssistantDock] composer capability projection failed", error);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  return { composerCapabilities };
 }
 
 /**
