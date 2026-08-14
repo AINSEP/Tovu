@@ -47,6 +47,22 @@ export interface PagesProps {
 }
 
 /**
+ * Resolves `Pages`'s two injectable-seam props to their real implementations when a caller passes
+ * none — same `??`-avoidance idiom `MenuEditor.tsx`'s `orEmpty`/`AssistantDock.tsx`'s/`App.tsx`'s
+ * resolver groups use (2026-08-14, DI migration sweep's complexity follow-up): ESLint's
+ * cyclomatic-complexity rule counts a default parameter value inside a function's OWN body as one
+ * of that function's own branches — a call out to a separately-scoped resolver does not. Only
+ * these two data-fetching seams are touched; `Pages`'s local `activeTab` chrome state (owner
+ * ruling, see that declaration's own comment) is untouched by this pass.
+ */
+function resolvePagesHook(override: typeof useWiredPages | undefined): typeof useWiredPages {
+  return override ?? useWiredPages;
+}
+function resolveThemePagesHook(override: typeof useWiredThemePages | undefined): typeof useWiredThemePages {
+  return override ?? useWiredThemePages;
+}
+
+/**
  * The loading/error guard shown before the table has anything to render — pulled out of `Pages`
  * (2026-08-06, complexity pass, fourth pass) so its two early-return checks collapse into one
  * `if` at the call site. `error && !pages` (not just `error`), matching Media.tsx/Comments.tsx:
@@ -134,7 +150,9 @@ function ThemePagesTab({
   );
 }
 
-export function Pages({ usePagesHook = useWiredPages, useThemePagesHook = useWiredThemePages }: PagesProps) {
+export function Pages(props: PagesProps) {
+  const usePagesHook = resolvePagesHook(props.usePagesHook);
+  const useThemePagesHook = resolveThemePagesHook(props.useThemePagesHook);
   const {
     pages,
     error,
