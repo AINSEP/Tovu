@@ -252,38 +252,59 @@ export interface AssistantDockProps {
 }
 
 /**
- * @complexity 11 cyclomatic / 2 cognitive (measured, complexity-ceiling pass; was 10/2 before the
- * 2026-08-14 `useComposerCapabilities` extraction added a 6th injectable-seam default parameter).
- * Exempted from the ≤9/≤9 bar rather than refactored — this is the flat-fallback-chain shape
- * already exempted elsewhere in this codebase (`PostEditor.tsx:27` at 27/0, `SeoEntryPanel` at
- * 25/6): cyclomatic inflated by independent, unnested decision points, cognitive near zero because
- * none of them nest.
- *
- * The 11 breaks down as: 6 destructured default parameters (`agentBridge`, `useChats`,
- * `useExecutionConfig`, `useByokRuntime`, `useLocalCliSelection`, `useComposerCapabilities`) — the
- * injectable-hook DI seam `apps/admin/INFO.md` §Components rule 3 requires for every hook doing
- * DOM/IO work, not optional structure this component chose — plus 3 flat, sibling `?:`/`?.`/`??`
- * expressions in the JSX below: `executionMode={... ? "api" : "local"}`, the conditional
- * `conversationId` spread, and the active-conversation-title `?.title ?? "Tovu assistant"`
- * fallback. 6 + 1 + 1 + (1 for `?.` + 1 for `??`) = 11; none of the four wrap another, which is why
- * cognitive stays at 2.
- *
- * Tried: extracting the title fallback (`chats.conversations.find(...)?.title ?? "..."`) to a
- * top-level function would shave 2 points and clear ≤9 on its own — but doing that to one of the
- * four flat expressions while leaving the other three in place is an arbitrary, metric-driven
- * split of an equally trivial single-line derived value, not a real reduction in what a reader has
- * to hold in their head (cognitive complexity is unchanged either way). Removing the DI-seam
- * default parameters themselves is not an option: they are the testability contract every other
- * component in this codebase depends on, not incidental complexity.
+ * Resolves each of `AssistantDock`'s six injectable-seam props to its real implementation when a
+ * caller passes none. The same `??`-avoidance idiom `MenuEditor.tsx`'s `orEmpty`,
+ * `CollectionEntryEditor.tsx`'s `resolveCollectionEntryEditorHook`, and `Comments.tsx`'s
+ * `resolveCommentSettingsHook` use (2026-08-14, tried on `AssistantDock` per the DI migration
+ * sweep's own audit): ESLint's cyclomatic-complexity rule counts a default parameter value inside a
+ * function's OWN body as one of that function's own branches — a call out to a separately-scoped
+ * resolver does not. `AssistantDock` is the first MULTI-seam use of this idiom in the codebase (the
+ * three precedents above each resolve exactly one prop); one resolver per seam, rather than a
+ * single generic `resolveHook<T>`, so each stays independently named and grep-able the same way its
+ * precedents are.
  */
-export function AssistantDock({
-  agentBridge = null,
-  useChats = useWiredAssistantChats,
-  useExecutionConfig: useExecutionConfigState = useExecutionConfig,
-  useByokRuntime: useByokRuntimeState = useByokRuntime,
-  useLocalCliSelection: useLocalCliSelectionState = useLocalCliSelection,
-  useComposerCapabilities: useComposerCapabilitiesState = useComposerCapabilities,
-}: AssistantDockProps) {
+function resolveAgentBridge(override: FrontendSessionBridge | null | undefined): FrontendSessionBridge | null {
+  return override ?? null;
+}
+function resolveChatsHook(override: (() => UseAssistantChats) | undefined): () => UseAssistantChats {
+  return override ?? useWiredAssistantChats;
+}
+function resolveExecutionConfigHook(override: typeof useExecutionConfig | undefined): typeof useExecutionConfig {
+  return override ?? useExecutionConfig;
+}
+function resolveByokRuntimeHook(override: typeof useByokRuntime | undefined): typeof useByokRuntime {
+  return override ?? useByokRuntime;
+}
+function resolveLocalCliSelectionHook(
+  override: typeof useLocalCliSelection | undefined
+): typeof useLocalCliSelection {
+  return override ?? useLocalCliSelection;
+}
+function resolveComposerCapabilitiesHook(
+  override: typeof useComposerCapabilities | undefined
+): typeof useComposerCapabilities {
+  return override ?? useComposerCapabilities;
+}
+
+/**
+ * @complexity 5 cyclomatic / 2 cognitive (measured, complexity-ceiling pass; was 11/2 before the
+ * 2026-08-14 resolver-idiom pass below moved all six injectable-seam defaults out of this
+ * function's own body — see the resolver group's own doc comment). Clears the ≤9/≤9 bar outright;
+ * no longer needs a `admin-complexity-debt.json` entry (deleted in the same pass).
+ *
+ * The remaining 5 is: base 1, plus 3 flat, sibling `?:`/`?.`/`??` expressions in the JSX below —
+ * `executionMode={... ? "api" : "local"}`, the conditional `conversationId` spread, and the
+ * active-conversation-title `?.title ?? "Tovu assistant"` fallback (1 for the ternary, 1 for the
+ * spread's own ternary, 1 for `?.` + 1 for `??` on the title fallback) — none of which wrap
+ * another, which is why cognitive stays at 2.
+ */
+export function AssistantDock(props: AssistantDockProps) {
+  const agentBridge = resolveAgentBridge(props.agentBridge);
+  const useChats = resolveChatsHook(props.useChats);
+  const useExecutionConfigState = resolveExecutionConfigHook(props.useExecutionConfig);
+  const useByokRuntimeState = resolveByokRuntimeHook(props.useByokRuntime);
+  const useLocalCliSelectionState = resolveLocalCliSelectionHook(props.useLocalCliSelection);
+  const useComposerCapabilitiesState = resolveComposerCapabilitiesHook(props.useComposerCapabilities);
   /**
    * Translates this component's own pane chrome (eyebrow, title fallback, composer placeholder)
    * and — via `createChatI18nAdapter` — the `ConversationList` switcher mounted in `header` below.
