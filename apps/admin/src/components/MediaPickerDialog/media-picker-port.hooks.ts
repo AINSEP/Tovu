@@ -19,4 +19,15 @@ import type { AdminMedia } from "../../lib/api";
  */
 export interface MediaPickerPort {
   listMedia(): Promise<{ media: AdminMedia[] }>;
+  /**
+   * Synchronous URL builder for a thumbnail's byte-serving preview image — NOT a network call
+   * itself; the browser requests the URL only once the returned string is used as an `<img src>`.
+   * On the port since 2026-08-14 per the owner's ruling that ALL `lib/api.ts` URL builders cross
+   * this seam uniformly (mirrors `page-editor-port.hooks.ts`'s `templatePreviewUrl`, the reference
+   * implementation): `media-picker-dependencies.hooks.ts` becomes the only file under this folder
+   * that reaches `lib/api` for it, and a test can assert a rendered thumbnail's `src` came from the
+   * injected port rather than `MediaPickerDialog.tsx` calling `api.mediaOriginalUrl` itself. See
+   * `lib/api.ts`'s own `mediaOriginalUrl` for the exact URL shape this mirrors.
+   */
+  mediaOriginalUrl(id: string): string;
 }

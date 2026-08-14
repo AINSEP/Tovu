@@ -53,12 +53,35 @@ export function useWiredMediaPickerItems() {
   return useMediaPickerItems(defaultMediaPickerPort);
 }
 
+/** What {@link useMediaPickerDialog} (and {@link useWiredMediaPickerDialog}) hands back to
+ *  `MediaPickerDialog.tsx` — the dialog's full render-time contract. */
+export interface MediaPickerDialogController {
+  items: AdminMedia[] | null;
+  error: string | null;
+  select: (item: AdminMedia) => void;
+  /** Synchronous URL builder for a thumbnail's `<img src>`, forwarded straight from the injected
+   *  {@link MediaPickerPort} — see that port's own `mediaOriginalUrl` doc for why a pure URL
+   *  template still crosses this seam rather than staying a direct `lib/api` import in the
+   *  component. */
+  mediaOriginalUrl: (id: string) => string;
+}
+
 /**
  * Owns the dialog's own state on top of {@link useMediaPickerItems}: the Escape-to-cancel
  * listener and the single submit handler. Split out for the same reason `useWidgetPickerDialog`
  * is — a render-free unit to test the interaction logic against.
+ *
+ * @param onSelect - Called with the chosen item when a thumbnail is clicked.
+ * @param onCancel - Called on Escape, backdrop click, or the Cancel button.
+ * @param deps - Injected dependencies; `deps.port` is the {@link MediaPickerPort} this dialog reads
+ *   its media list and thumbnail URLs through.
+ * @returns The dialog's full render-time contract — see {@link MediaPickerDialogController}.
  */
-export function useMediaPickerDialog(onSelect: (item: AdminMedia) => void, onCancel: () => void, deps: { port: MediaPickerPort }) {
+export function useMediaPickerDialog(
+  onSelect: (item: AdminMedia) => void,
+  onCancel: () => void,
+  deps: { port: MediaPickerPort }
+): MediaPickerDialogController {
   const { items, error } = useMediaPickerItems(deps.port);
 
   useEffect(() => {
@@ -70,7 +93,7 @@ export function useMediaPickerDialog(onSelect: (item: AdminMedia) => void, onCan
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return { items, error, select: onSelect };
+  return { items, error, select: onSelect, mediaOriginalUrl: deps.port.mediaOriginalUrl };
 }
 
 /**
@@ -79,7 +102,11 @@ export function useMediaPickerDialog(onSelect: (item: AdminMedia) => void, onCan
  * The zero-argument-dependencies half of the `useX(dependencies)` / `useWiredX()` pair, so
  * `MediaPickerDialog.tsx` composes this and a test composes {@link useMediaPickerDialog} with
  * `createFakeMediaPickerPort`.
+ *
+ * @param onSelect - Forwarded to {@link useMediaPickerDialog}.
+ * @param onCancel - Forwarded to {@link useMediaPickerDialog}.
+ * @returns The dialog's full render-time contract — see {@link MediaPickerDialogController}.
  */
-export function useWiredMediaPickerDialog(onSelect: (item: AdminMedia) => void, onCancel: () => void) {
+export function useWiredMediaPickerDialog(onSelect: (item: AdminMedia) => void, onCancel: () => void): MediaPickerDialogController {
   return useMediaPickerDialog(onSelect, onCancel, { port: defaultMediaPickerPort });
 }

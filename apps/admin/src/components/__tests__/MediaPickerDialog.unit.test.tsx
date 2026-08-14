@@ -96,6 +96,26 @@ describe("MediaPickerDialog — populated grid", () => {
     await user.click(await screen.findByTitle("Sunset"));
     expect(onSelect).toHaveBeenCalledWith(mediaItem());
   });
+
+  // Proof this landed on the injection seam, not just on matching URL shape — same pattern as
+  // `PageEditor.unit.test.tsx`'s "not one this component computed itself" test for
+  // `templatePreviewUrl`. `MediaPickerDialog.tsx` no longer imports `lib/api` at all (see
+  // `media-picker-port.hooks.ts`'s `mediaOriginalUrl` and this file's `useDialog` field above); it
+  // renders whatever the injected hook hands it. A `fake://` URL the real `api.mediaOriginalUrl`
+  // could never produce still ends up as the thumbnail's `src` verbatim, which is only possible if
+  // the component reads it off the injected port rather than calling `api.mediaOriginalUrl` itself.
+  it("thumbnail src is exactly the injected port's mediaOriginalUrl, not one this component computed itself", async () => {
+    vi.spyOn(api, "listMedia").mockResolvedValue({ media: [mediaItem()] });
+    const mediaOriginalUrlSpy = vi.spyOn(api, "mediaOriginalUrl");
+    render(<MediaPickerDialog onSelect={vi.fn()} onCancel={vi.fn()} />);
+
+    const img = await screen.findByRole("img");
+    // `defaultMediaPickerPort.mediaOriginalUrl` forwards to the real `api.mediaOriginalUrl`, so the
+    // real client is exercised through the port here — the assertion below is the seam proof; the
+    // "useDialog injection" describe block further down is the fake-value proof.
+    expect(mediaOriginalUrlSpy).toHaveBeenCalledWith("m1");
+    expect(img).toHaveAttribute("src", api.mediaOriginalUrl("m1"));
+  });
 });
 
 describe("MediaPickerDialog — dismissal", () => {
@@ -133,8 +153,9 @@ describe("MediaPickerDialog — dismissal", () => {
 });
 
 describe("MediaPickerDialog — useDialog injection", () => {
-  it("renders entirely off an injected useDialog — api.listMedia is never called", () => {
+  it("renders entirely off an injected useDialog — api.listMedia and api.mediaOriginalUrl are never called", () => {
     const listMedia = vi.spyOn(api, "listMedia");
+    const mediaOriginalUrlSpy = vi.spyOn(api, "mediaOriginalUrl");
     const select = vi.fn();
     const fakeUseDialog: typeof useWiredMediaPickerDialog = (onSelect) => ({
       items: [mediaItem({ id: "fake-1", title: "Fake asset" })],
@@ -143,13 +164,18 @@ describe("MediaPickerDialog — useDialog injection", () => {
         select(item);
         onSelect(item);
       },
+      // A `fake://` scheme the real `api.mediaOriginalUrl` could never produce — see the assertion
+      // below.
+      mediaOriginalUrl: (id) => `fake://media-picker-original/${id}`,
     });
 
     render(<MediaPickerDialog onSelect={vi.fn()} onCancel={vi.fn()} useDialog={fakeUseDialog} />);
 
     // Content only the fake could have produced — the real hook, given no mock, would never
     // resolve `items` synchronously like this.
-    expect(screen.getByTitle("Fake asset")).toBeInTheDocument();
+    const img = screen.getByTitle("Fake asset").querySelector("img");
+    expect(img).toHaveAttribute("src", "fake://media-picker-original/fake-1");
     expect(listMedia).not.toHaveBeenCalled();
+    expect(mediaOriginalUrlSpy).not.toHaveBeenCalled();
   });
 });

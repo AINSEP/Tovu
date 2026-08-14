@@ -42,6 +42,24 @@ afterEach(() => {
 });
 
 describe("useEditMediaPanel — injected port (no fetch stub)", () => {
+  // Proof this landed on the injection seam, not just on matching URL shape — same pattern as
+  // `PageEditor.unit.test.tsx`'s "not one this component computed itself" test for
+  // `templatePreviewUrl`. `use-edit-media-panel.hooks.ts` no longer imports `lib/api`'s `api` value
+  // at all (see `media-port.hooks.ts`'s `mediaOriginalUrl`, added 2026-08-14); `originalUrl` is
+  // whatever the injected port hands back. A `fake://` URL the real `api.mediaOriginalUrl` could
+  // never produce still ends up as `originalUrl` verbatim, which is only possible if the hook reads
+  // it off `port` rather than calling `api.mediaOriginalUrl` itself.
+  it("originalUrl is exactly the injected port's mediaOriginalUrl, not one this hook computed itself", () => {
+    const mediaOriginalUrlSpy = vi.spyOn(api, "mediaOriginalUrl");
+    const port = createFakeMediaPort({ media: [ITEM] });
+    const { result } = renderHook(() => useEditMediaPanel({ item: ITEM, onSaved: vi.fn(), onCancel: vi.fn() }, { port, locale: "en" }), {
+      wrapper,
+    });
+
+    expect(result.current.originalUrl).toBe(`fake://media-original/${ITEM.id}`);
+    expect(mediaOriginalUrlSpy).not.toHaveBeenCalled();
+  });
+
   it("saves a changed title through the injected port and calls onSaved, never touching the real api client", async () => {
     const updateSpy = vi.spyOn(api, "updateMedia");
     const port = createFakeMediaPort({ media: [ITEM] });

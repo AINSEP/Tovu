@@ -1,6 +1,6 @@
 import { useRef, useState } from "react";
 
-import { api, type AdminMedia } from "../../../lib/api";
+import type { AdminMedia } from "../../../lib/api";
 import { useFetchMutation } from "../../../lib/fetch-query";
 import { KEYS, describeApiError, diffMediaMetadata, parseOptionalPixelSize, type MediaMetadataPatch } from "../rules";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
@@ -21,10 +21,9 @@ import type { MediaPort } from "./media-port.hooks";
  *
  * `deps.port`/`deps.locale` are injected (see `media-port.hooks.ts`) rather than reaching for
  * `lib/api`'s `api` and `useAdminLocale()` directly, sharing the same `MediaPort` `use-media.hooks
- * .ts` injects — both hooks read/write the one `/media` resource. `api.mediaOriginalUrl` stays a
- * direct import: a pure, synchronous URL template (no `fetch`/`await` — see `lib/api.ts`), the
- * same "no host boundary, no I/O" category as `describeApiError`, per `media-port.hooks.ts`'s own
- * doc comment.
+ * .ts` injects — both hooks read/write the one `/media` resource. `originalUrl` below now reads
+ * `port.mediaOriginalUrl(item.id)` rather than calling `api.mediaOriginalUrl` directly — see
+ * `media-port.hooks.ts`'s header for why that URL builder moved onto the port (2026-08-14).
  *
  * `lib/fetch-query` migration (2026-08-12): `save` is one `useFetchMutation` that `invalidates:
  * [KEYS.list]` — this hook has no read of its own to invalidate (see `rules.ts`'s `KEYS` doc), so
@@ -113,10 +112,11 @@ export function useEditMediaPanel(props: EditMediaPanelHookProps, { port, locale
    *  `asset_blobs` sidecar, keyed by `(workspaceId, sha256)` for dedup, not by this media record).
    *  So "where is this asset" has no stored answer to surface — the correct one to show is the
    *  same authenticated byte-serving URL `MediaPreview` already uses as this exact item's `<img>`/
-   *  `<video>` `src` (`api.mediaOriginalUrl`, REQ from MSG-05's rewrite): it is the one thing that
+   *  `<video>` `src` (`lib/api.ts`'s `mediaOriginalUrl` route, REQ from MSG-05's rewrite, read here
+   *  through the injected `port` rather than the `api` client directly): it is the one thing that
    *  reliably, uniquely resolves to THIS media record's bytes regardless of dedup (two records can
    *  share one blob's `storageKey`, which is why that internal key is not what's shown here). */
-  const originalUrl = api.mediaOriginalUrl(item.id);
+  const originalUrl = port.mediaOriginalUrl(item.id);
 
   function setTitle(value: string) {
     setDraft((d) => ({ ...d, title: value }));

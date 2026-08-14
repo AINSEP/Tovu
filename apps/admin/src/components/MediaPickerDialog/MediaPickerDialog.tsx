@@ -1,5 +1,5 @@
 import { useId } from "react";
-import { api, type AdminMedia } from "../../lib/api";
+import type { AdminMedia } from "../../lib/api";
 import { useWiredMediaPickerDialog } from "./MediaPickerDialog.hooks";
 
 /**
@@ -16,8 +16,9 @@ import { useWiredMediaPickerDialog } from "./MediaPickerDialog.hooks";
  * file mid-edit, with its own alt/caption/credit fields, is a bigger surface than this picker's
  * job — "choose one of the assets that already exist").
  *
- * Reuses `api.listMedia()`/`api.mediaOriginalUrl()` — the SAME data path `features/media/`'s own
- * `useMedia`/`MediaPreview` already read — rather than a second query against the same table.
+ * Reuses the same `/media` data path `features/media/`'s own `useMedia`/`MediaPreview` already
+ * read — rather than a second query against the same table — via the injected `useDialog` hook's
+ * `MediaPickerPort` (`listMedia`, `mediaOriginalUrl`; see `media-picker-port.hooks.ts`).
  * Deliberately does NOT reuse `MediaPreview`'s full video/unsupported-type fallback chain
  * (`use-media-preview.hooks.ts`): this picker only ever inserts an `image` node, so a thumbnail
  * grid needs just the image case, not the video/`<video>`/download-link branches a general asset
@@ -40,7 +41,7 @@ export interface MediaPickerDialogProps {
 }
 
 export function MediaPickerDialog({ useDialog = useWiredMediaPickerDialog, ...props }: MediaPickerDialogProps) {
-  const { items, error, select } = useDialog(props.onSelect, props.onCancel);
+  const { items, error, select, mediaOriginalUrl } = useDialog(props.onSelect, props.onCancel);
   const titleId = useId();
 
   return (
@@ -72,7 +73,7 @@ export function MediaPickerDialog({ useDialog = useWiredMediaPickerDialog, ...pr
                   title={item.title}
                   onClick={() => select(item)}
                 >
-                  <img src={api.mediaOriginalUrl(item.id)} alt={item.alt || item.title} loading="lazy" />
+                  <img src={mediaOriginalUrl(item.id)} alt={item.alt || item.title} loading="lazy" />
                   <span className="media-picker-item-title">{item.title}</span>
                 </button>
               ))}
