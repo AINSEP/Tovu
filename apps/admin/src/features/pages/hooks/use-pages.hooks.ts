@@ -38,11 +38,6 @@ import type { Translate } from "../../../lib/dictionary-translator";
  * `use-post-editor.hooks.ts`'s own header cites for `postRowMenuItems`.
  */
 
-/** Which of `Pages.tsx`'s two tabs is showing — "My Pages" (database rows) or "Theme Pages" (the
- *  active theme's own bundled `pages/*.html`). See `Pages.tsx`'s own file header for why they're
- *  deliberately separate tabs rather than one merged list. */
-export type PagesTab = "mine" | "theme";
-
 export interface PagesController {
   /** `null` until the initial load settles — the caller renders a loading state. */
   pages: AdminPost[] | null;
@@ -61,10 +56,6 @@ export interface PagesController {
   /** The raw resolved locale — exposed only because `pageRowMenuItems` (`../rules.ts`) genuinely
    *  needs it, not `t`. */
   locale: string;
-  /** Which tab is active — moved out of `Pages.tsx` (leftover `useState`, `apps/admin/INFO.md`'s
-   *  Hooks section). Defaults to `"mine"`; ephemeral view state, not persisted. */
-  activeTab: PagesTab;
-  setActiveTab: (tab: PagesTab) => void;
 }
 
 export interface PagesDependencies {
@@ -86,9 +77,6 @@ export function usePages(deps: PagesDependencies): PagesController {
   // closed. `ConfirmDialog` stays mounted unconditionally in the view (see its own doc comment on
   // why); this is what drives its `open` prop.
   const [pendingDelete, setPendingDelete] = useState<AdminPost | null>(null);
-  // Moved from `Pages.tsx` (leftover `useState` after the `useWiredX` conversion) — see
-  // `PagesController.activeTab`'s own doc.
-  const [activeTab, setActiveTab] = useState<PagesTab>("mine");
 
   useEffect(() => {
     port
@@ -181,8 +169,6 @@ export function usePages(deps: PagesDependencies): PagesController {
     removePage,
     t,
     locale,
-    activeTab,
-    setActiveTab,
   };
 }
 

@@ -1,5 +1,5 @@
 import { DataTable, RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 import type { AdminPost } from "../../lib/api";
 import { siteUrl } from "../../lib/site-url";
@@ -147,10 +147,15 @@ export function Pages({ usePagesHook = useWiredPages, useThemePagesHook = useWir
     removePage,
     t,
     locale,
-    activeTab,
-    setActiveTab,
   } = usePagesHook();
   const { pageIds: themePageIds, error: themePagesError } = useThemePagesHook();
+  // Owner ruling (2026-08-14): pure interactive DOM-chrome state — which tab is showing, no I/O
+  // behind it — stays LOCAL rather than moving into `use-pages.hooks.ts`, unlike every other piece
+  // of state on this screen. The line to draw: async/API/data state always moves into the hook;
+  // view-only chrome (active tab, expanded/collapsed, dialog open, sort direction) stays here
+  // UNLESS a test needs to observe it — see `Posts.tsx`'s identical `updatedSort`, the canonical
+  // example this mirrors.
+  const [activeTab, setActiveTab] = useState<"mine" | "theme">("mine");
 
   const notice = pagesListNotice(pages, error);
   if (notice) return notice;
