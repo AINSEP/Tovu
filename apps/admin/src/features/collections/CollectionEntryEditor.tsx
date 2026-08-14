@@ -126,8 +126,13 @@ function TermPicker(props: {
   contentType: string;
   contentId: string;
   t: (key: string) => string;
+  /** Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
+   *  for `useCustomSelect`. Defaulted to the real hook, so production callers (`CollectionEntryEditor`
+   *  below) pass nothing and behave exactly as before. */
+  useTermPickerHook?: typeof useWiredTermPicker;
 }) {
-  const { selected, toggle, saving, message, error, assign } = useWiredTermPicker({
+  const useTermPickerHook = props.useTermPickerHook ?? useWiredTermPicker;
+  const { selected, toggle, saving, message, error, assign } = useTermPickerHook({
     contentType: props.contentType,
     contentId: props.contentId,
   });
@@ -297,7 +302,30 @@ function EntryFieldsSection(props: {
   );
 }
 
-export function CollectionEntryEditor(props: { contentTypeKey: string; entryId: string | null }) {
+export interface CollectionEntryEditorProps {
+  contentTypeKey: string;
+  entryId: string | null;
+  /** Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
+   *  for `useCustomSelect`. Defaulted to the real hook, so production callers (`panels.tsx`) pass
+   *  only `contentTypeKey`/`entryId` and behave exactly as before. */
+  useCollectionEntryEditorHook?: typeof useWiredCollectionEntryEditor;
+}
+
+/**
+ * Resolves the injected hook prop to the real wired hook when a caller passes none. Pulled into its
+ * own function, the same `??`-avoidance idiom `MenuEditor.tsx`'s `orEmpty` uses (see that function's
+ * own doc): `CollectionEntryEditor` was already sitting at the 9/9 complexity ceiling, and ESLint's
+ * cyclomatic-complexity rule counts a default value or `??` inside a function's OWN body as one of
+ * that function's own branches — a call out to a separately-scoped resolver does not.
+ */
+function resolveCollectionEntryEditorHook(
+  override: typeof useWiredCollectionEntryEditor | undefined
+): typeof useWiredCollectionEntryEditor {
+  return override ?? useWiredCollectionEntryEditor;
+}
+
+export function CollectionEntryEditor(props: CollectionEntryEditorProps) {
+  const useCollectionEntryEditorHook = resolveCollectionEntryEditorHook(props.useCollectionEntryEditorHook);
   const {
     contentType,
     entry,
@@ -317,7 +345,7 @@ export function CollectionEntryEditor(props: { contentTypeKey: string; entryId: 
     save,
     toggleLifecycle,
     t,
-  } = useWiredCollectionEntryEditor({ contentTypeKey: props.contentTypeKey, entryId: props.entryId });
+  } = useCollectionEntryEditorHook({ contentTypeKey: props.contentTypeKey, entryId: props.entryId });
 
   if (loadError) return <div className="notice error">{loadError}</div>;
   if (!loaded || contentType === undefined) return <div className="notice">Loading entry…</div>;

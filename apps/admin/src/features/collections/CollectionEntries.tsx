@@ -10,8 +10,16 @@ import { useWiredCollectionEntries } from "./hooks/use-collection-entries.hooks"
  * that file's header for why. What stays here is presentation only.
  */
 
-export function CollectionEntries(props: { contentTypeKey: string }) {
-  const { contentType, entries, error, t } = useWiredCollectionEntries({ contentTypeKey: props.contentTypeKey });
+export interface CollectionEntriesProps {
+  contentTypeKey: string;
+  /** Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
+   *  for `useCustomSelect`. Defaulted to the real hook, so production callers (`panels.tsx`) pass
+   *  only `contentTypeKey` and behave exactly as before. */
+  useCollectionEntriesHook?: typeof useWiredCollectionEntries;
+}
+
+export function CollectionEntries({ contentTypeKey, useCollectionEntriesHook = useWiredCollectionEntries }: CollectionEntriesProps) {
+  const { contentType, entries, error, t } = useCollectionEntriesHook({ contentTypeKey });
 
   if (error && !entries) return <div className="notice error">{error}</div>;
   if (!entries || contentType === undefined) return <div className="notice">Loading entries…</div>;
@@ -22,7 +30,7 @@ export function CollectionEntries(props: { contentTypeKey: string }) {
   // `CollectionEntryEditor.tsx:266` one route deeper already gets this right — matching its exact
   // copy here rather than inventing a second wording for the same situation).
   if (contentType === null) {
-    return <div className="notice error">Unknown content type "{props.contentTypeKey}".</div>;
+    return <div className="notice error">Unknown content type "{contentTypeKey}".</div>;
   }
 
   const label = contentType.label;
@@ -44,7 +52,7 @@ export function CollectionEntries(props: { contentTypeKey: string }) {
           {/* Anchor-wrapping-a-button, unchanged — real navigation to the editor route, not a
               handler. `.btn-*` on a bare `<a>` is broken today (fix in flight elsewhere), so this
               stays exactly as it was rather than depending on that fix landing first. */}
-          <a href={`/admin/collections/${props.contentTypeKey}/new`}>
+          <a href={`/admin/collections/${contentTypeKey}/new`}>
             <button>{t("New entry")}</button>
           </a>
         </div>
@@ -67,7 +75,7 @@ export function CollectionEntries(props: { contentTypeKey: string }) {
             key: "title",
             header: t("Title"),
             cell: (entry) => (
-              <a href={`/admin/collections/${props.contentTypeKey}/${entry.id}`}>{entry.title}</a>
+              <a href={`/admin/collections/${contentTypeKey}/${entry.id}`}>{entry.title}</a>
             ),
           },
           { key: "slug", header: "Slug", cell: (entry) => entry.slug },

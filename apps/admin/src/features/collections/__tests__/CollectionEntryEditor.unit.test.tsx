@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "../../../lib/fetch-query";
 import { CollectionEntryEditor } from "../CollectionEntryEditor";
+import type { CollectionEntryEditorController } from "../hooks/use-collection-entry-editor.hooks";
 
 /**
  * @file `CollectionEntryEditor` — pins the accessibility fix for the audit's placeholder-only
@@ -14,9 +15,10 @@ import { CollectionEntryEditor } from "../CollectionEntryEditor";
  * placeholder-only again. Follows the RTL harness `WidgetInstanceEditor.unit.test.tsx` established
  * for this package.
  *
- * `CollectionEntryEditor` has no injectable hook seam — it always composes the real
- * `useWiredCollectionEntryEditor` — so every render below needs a `FetchQueryProvider` ancestor
- * (2026-08-12, `lib/fetch-query` migration).
+ * `CollectionEntryEditor` composes the real `useWiredCollectionEntryEditor` by default, so every
+ * render exercising that real path needs a `FetchQueryProvider` ancestor (2026-08-12,
+ * `lib/fetch-query` migration). The "injected hook seam" describe block below drives the screen
+ * through a fake controller instead — see `CollectionEntryEditorProps.useCollectionEntryEditorHook`.
  */
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -84,5 +86,44 @@ describe("new entry — title and slug fields", () => {
 
     const slugInput = await screen.findByLabelText("Entry slug");
     expect(slugInput).toHaveAttribute("placeholder", "entry-slug");
+  });
+});
+
+describe("injected hook seam (useCollectionEntryEditorHook)", () => {
+  it("renders from a fake controller, proving the real hook is not hardcoded — no fetch involved", () => {
+    // `contentType: null` short-circuits before the TipTap `EditorContent` mount below it, so this
+    // fake controller doesn't need a real `Editor` instance to exercise the seam.
+    const controller: CollectionEntryEditorController = {
+      contentType: null,
+      entry: null,
+      title: "",
+      setTitle: vi.fn(),
+      slug: "",
+      setSlug: vi.fn(),
+      extFields: {},
+      setExtFields: vi.fn(),
+      taxonomies: [],
+      message: null,
+      error: null,
+      loadError: null,
+      loaded: true,
+      saving: false,
+      editor: null,
+      save: vi.fn(async () => {}),
+      toggleLifecycle: vi.fn(async () => {}),
+      t: (key) => key,
+    };
+    render(
+      <CollectionEntryEditor
+        contentTypeKey="does-not-matter"
+        entryId={null}
+        useCollectionEntryEditorHook={() => controller}
+      />
+    );
+
+    // The real hook can never resolve `loaded: true, contentType: null` synchronously on first
+    // render (it starts `loaded: false` until the fetch settles) — reaching this branch with no
+    // `act`/`waitFor` is only possible because the fake bypassed `useWiredCollectionEntryEditor`.
+    expect(screen.getByText('Unknown content type "does-not-matter".')).toBeInTheDocument();
   });
 });
