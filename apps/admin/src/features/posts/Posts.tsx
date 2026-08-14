@@ -1,11 +1,11 @@
 import { DataTable, RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
 import type { AdminPost } from "../../lib/api";
 import { siteUrl } from "../../lib/site-url";
 import { formatTimestamp } from "../../lib/format-timestamp";
 import { navigate } from "../../lib/router";
-import { postRowMenuItems, sortPostsByUpdated, updatedSortButtonLabel, type PostUpdatedSortDirection } from "./rules";
+import { postRowMenuItems, sortPostsByUpdated, updatedSortButtonLabel } from "./rules";
 import { useWiredPosts } from "./hooks/use-posts.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { POSTS_DICT } from "./posts-i18n";
@@ -56,12 +56,11 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
     createPost,
     disablePost,
     removePost,
+    updatedSort,
+    setUpdatedSort,
   } = usePostsHook();
   const locale = useAdminLocale();
   const t = (key: string): string => POSTS_DICT[locale]?.[key] ?? key;
-  // Defaults to "newest" (owner's requested default) — called above any early return so hook order
-  // stays stable across the loading/error/loaded renders `postsListNotice` distinguishes below.
-  const [updatedSort, setUpdatedSort] = useState<PostUpdatedSortDirection>("newest");
 
   const notice = postsListNotice(posts, error);
   if (notice) return notice;

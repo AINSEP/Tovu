@@ -15,6 +15,7 @@ export const defaultPostEditorPort: PostEditorPort = {
   deletePost: (id) => api.deletePost(id),
   listPosts: () => api.listPosts(),
   uploadMedia: (input) => api.uploadMedia(input),
+  templatePreviewUrl: (id, templateChoice) => api.templatePreviewUrl(id, templateChoice),
 };
 
 /** Seed state for {@link createFakePostEditorPort}. */
@@ -143,6 +144,13 @@ export function createFakePostEditorPort(options: FakePostEditorPortOptions = {}
     async uploadMedia() {
       if (options.uploadMediaError) throw new Error(options.uploadMediaError);
       return { media: options.uploadMediaResult ?? DEFAULT_MEDIA };
+    },
+
+    // A distinct `fake://` scheme, not `api.templatePreviewUrl`'s real `siteUrl(...)`-wrapped
+    // `/api/admin/...` shape — same "the fake proves the seam, not just the shape" reasoning
+    // `createFakePageEditorPort`'s identical member documents.
+    templatePreviewUrl(id, templateChoice) {
+      return `fake://template-preview/${id}?templateChoice=${templateChoice ?? ""}`;
     },
   };
 }

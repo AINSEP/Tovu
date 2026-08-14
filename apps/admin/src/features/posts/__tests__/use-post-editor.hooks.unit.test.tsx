@@ -147,6 +147,34 @@ describe("usePostEditor — load", () => {
   });
 });
 
+describe("usePostEditor — templatePreviewUrl / previewFormTarget (2026-08-14, moved out of PostEditor.tsx/PostPreview)", () => {
+  it("is empty before the post loads, then reflects the INJECTED port's templatePreviewUrl once loaded", async () => {
+    const port = createFakePostEditorPort({ post: POST });
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+
+    expect(result.current.templatePreviewUrl).toBe("");
+    expect(result.current.previewFormTarget).toBe("");
+
+    await waitFor(() => expect(result.current.post).toEqual(POST));
+
+    // `createFakePostEditorPort`'s own `templatePreviewUrl` returns a `fake://` scheme the real
+    // `api.templatePreviewUrl` (`lib/api.ts`) could never produce — proving `usePostEditor` reads
+    // this off the injected port rather than calling `lib/api` itself.
+    expect(result.current.templatePreviewUrl).toBe("fake://template-preview/p1?templateChoice=");
+    expect(result.current.previewFormTarget).toBe("post-preview-pending-p1");
+  });
+
+  it("rebuilds templatePreviewUrl through the port when templateChoice changes", async () => {
+    const port = createFakePostEditorPort({ post: POST });
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+    await waitFor(() => expect(result.current.post).toEqual(POST));
+
+    act(() => result.current.setTemplateChoice("blog-post.html"));
+
+    expect(result.current.templatePreviewUrl).toBe("fake://template-preview/p1?templateChoice=blog-post.html");
+  });
+});
+
 describe("usePostEditor — title/slug/status setters", () => {
   it("setSlug/setStatus update state directly", async () => {
     const port = createFakePostEditorPort({ post: POST });

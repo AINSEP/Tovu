@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import type { RefObject } from "react";
 import { EditorContent, useEditorState, type Editor } from "@tiptap/react";
 import { BubbleMenu } from "@tiptap/react/menus";
 import DragHandle from "@tiptap/extension-drag-handle-react";
@@ -7,7 +7,7 @@ import { ConfirmDialog } from "@jini-ai/admin/react";
 import { SrcDocSandbox } from "@jini-ai/ui/renderers";
 
 import { EmbedInsertControl } from "../../components/EmbedInsertControl/EmbedInsertControl";
-import { api, type AdminPost } from "../../lib/api";
+import type { AdminPost } from "../../lib/api";
 import type { Translate } from "../../lib/dictionary-translator";
 import { siteUrl } from "../../lib/site-url";
 import { useWiredPostEditor, type PostEditorView } from "./hooks/use-post-editor.hooks";
@@ -684,13 +684,16 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
     confirmLeave,
     dirty,
     contentDirty,
+    templatePreviewUrl,
+    bodyJson,
+    showTemplateModal,
+    setShowTemplateModal,
+    previewFormRef,
+    previewFormTarget,
     save,
     remove,
     t,
   } = usePostEditorHook(postId);
-  // View Template (2026-08-10) — called above the early returns below so hook order stays stable
-  // across the loading/error/loaded renders, same reasoning as `Posts.tsx`'s `updatedSort` state.
-  const [showTemplateModal, setShowTemplateModal] = useState(false);
 
   if (error && !post) return <div className="notice error">{error}</div>;
   if (!post) return <div className="notice">Loading editor…</div>;
@@ -905,22 +908,19 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
         // `editor.getHTML()` read fresh every render, same idiom the hook already uses for
         // `editor.getJSON()` in its own dirty comparison — TipTap's content lives in the editor's
         // own imperative state, and `onUpdate`'s `bodyVersion` bump is what makes this re-evaluate
-        // after a keystroke rather than going stale.
+        // after a keystroke rather than going stale. `bodyJson`/`templatePreviewUrl`/`previewFormRef`/
+        // `previewFormTarget` come straight off the hook now (2026-08-14) — see
+        // `use-post-editor.hooks.ts`'s own docs on each for why they moved out of this component.
         <PostPreview
-          id={post.id}
           bodyHtml={degradeUnplayableEmbedsForRawPreview(editor?.getHTML() ?? "")}
-          // Pending-content preview (2026-08-12) — same `editor.getJSON()` idiom
-          // `use-post-editor.hooks.ts`'s own dirty comparison already uses, read fresh every render
-          // off the live editor rather than the last-saved `post.bodyJson`. `null` (not `editor?.getJSON()
-          // ?? {}`) when the editor hasn't mounted yet, matching `bodyHtml`'s own "nothing to show"
-          // fallback — `PostPreview` treats `null` as "no pending body to submit" rather than posting an
-          // empty document.
-          bodyJson={editor?.getJSON() ?? null}
+          bodyJson={bodyJson}
           slug={slug}
           status={status}
           dirty={dirty}
           contentDirty={contentDirty}
-          templateChoice={templateChoice}
+          templatePreviewUrl={templatePreviewUrl}
+          previewFormRef={previewFormRef}
+          previewFormTarget={previewFormTarget}
         />
       ) : (
         <div
@@ -1013,8 +1013,10 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
  *    template/theme CSS/nav/footer/widget resolution and all.
  * 2. **Template preview** (2026-08-11 fix) (`status === "published" && !contentDirty`, i.e.
  *    title/slug/status/body/`overridesThemePage` all match what's saved and the post IS published —
- *    only `templateChoice` is pending): `GET`s `api.templatePreviewUrl`, the SAME real render
- *    pipeline as branch 1, looked up by id instead of by public slug.
+ *    only `templateChoice` is pending): `GET`s `templatePreviewUrl` — `usePostEditor`'s pre-built URL
+ *    (`port.templatePreviewUrl`, `post-editor-port.hooks.ts`; the real binding calls `lib/api.ts`'s
+ *    own `templatePreviewUrl`), the SAME real render pipeline as branch 1, looked up by id instead of
+ *    by public slug.
  * 3. **Pending-content preview** (2026-08-12 fix — the owner's own reported bug: formatting text on
  *    an already-published post used to drop the preview straight to branch 4's unstyled fallback the
  *    instant `contentDirty` went true, even though the post was still live at its public URL).
@@ -1026,10 +1028,13 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
  *    navigated document instead of a `srcDoc` string. `srcDoc` is rejected here for the same reason
  *    `template-preview.ts`'s own file header gives: the rendered HTML's asset paths are root-relative
  *    to `/theme-assets/{themeId}/...`, which only resolves once the browser believes it is looking at
- *    a real navigated page. Debounced 500ms trailing in the effect below — a form submit is a full
- *    iframe navigation, not a `fetch`, so firing one per keystroke would be unusable. Gated on
- *    `status === "published"` for the same reason branch 2 is (see `2026-08-11-template-preview-
- *    render-bug.md`): a draft's `{"type":"content"}` slot does not resolve through this pipeline.
+ *    a real navigated page. Debounced 500ms trailing — a form submit is a full iframe navigation, not
+ *    a `fetch`, so firing one per keystroke would be unusable; the debounce effect itself, and the
+ *    `formRef`/`previewFormTarget` it needs, now live in `usePostEditor` (moved 2026-08-14, complexity-
+ *    ceiling pass — see `PostEditorController.previewFormRef`'s own doc), so this component only
+ *    attaches them to the `<form>`/`<iframe>` pair below. Gated on `status === "published"` for the
+ *    same reason branch 2 is (see `2026-08-11-template-preview-render-bug.md`): a draft's
+ *    `{"type":"content"}` slot does not resolve through this pipeline.
  * 4. **Raw fallback** (everything else — a draft, regardless of its own dirtiness): nothing at the
  *    public URL or the template-preview endpoint reflects a draft, so this renders the LIVE EDITOR
  *    BUFFER instead. Unlike Pages (whose body already IS raw HTML), a post's body is TipTap
@@ -1054,16 +1059,16 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
  * it always has.
  */
 function PostPreview({
-  id,
   bodyHtml,
   bodyJson,
   slug,
   status,
   dirty,
   contentDirty,
-  templateChoice,
+  templatePreviewUrl,
+  previewFormRef,
+  previewFormTarget,
 }: {
-  id: string;
   bodyHtml: string;
   /** Loosely typed like `PostFormState.bodyJson` (`use-post-editor.hooks.ts`) for the same stated
    *  reason: this only ever gets `JSON.stringify`'d into a hidden form field below, never read for
@@ -1073,7 +1078,14 @@ function PostPreview({
   status: "draft" | "published";
   dirty: boolean;
   contentDirty: boolean;
-  templateChoice: string | null;
+  /** Pre-built by `usePostEditor` — see this function's own doc, branch 2. Used as both the branch-2
+   *  iframe `src` and the branch-3 hidden form's `action` (same endpoint, `GET` vs `POST`). */
+  templatePreviewUrl: string;
+  /** Owned by `usePostEditor` — see `PostEditorController.previewFormRef`'s own doc for why the
+   *  debounced auto-submit effect that reaches through this ref lives there, not here. */
+  previewFormRef: RefObject<HTMLFormElement | null>;
+  /** The hidden form's `target` and the iframe's `name` it submits into — must match at submit time. */
+  previewFormTarget: string;
 }) {
   const canShowLiveSite = status === "published" && !dirty;
   // Template-preview fix (2026-08-11) — see this function's own doc, branch 2, for why `status ===
@@ -1084,27 +1096,6 @@ function PostPreview({
   // subset of what `computeDirty` does), so this is naturally mutually exclusive with the two
   // branches above without needing an explicit `!canShowLiveSite`/`!canShowTemplatePreview` guard.
   const canShowPendingContentPreview = status === "published" && contentDirty;
-
-  // The iframe `target` a hidden form submit lands in must match the iframe's `name` attribute (not
-  // `id`) at submit time — stable per mount via `useRef` since it only needs to outlive one
-  // `PostPreview` instance, not survive remounts. `id` folded in so two editors for different posts
-  // can never resolve to the same target name.
-  const previewFormTargetRef = useRef(`post-preview-pending-${id}`);
-  const formRef = useRef<HTMLFormElement>(null);
-
-  // Debounced auto-submit (2026-08-12) — a form submit is a full iframe navigation, so firing one per
-  // keystroke would thrash the iframe on every character. Trailing-only, 500ms: the timer restarts on
-  // every `bodyJson`/`templateChoice` change. `clearTimeout` on cleanup is the complete cancellation
-  // here — unlike a `fetch` promise, which keeps running after a component stops caring and needs an
-  // effect-local `cancelled` flag checked in `.then`/`.catch`, a cleared `setTimeout` callback
-  // provably never fires, so no extra flag is needed on top of it.
-  useEffect(() => {
-    if (!canShowPendingContentPreview || bodyJson === null) return;
-    const timer = setTimeout(() => {
-      formRef.current?.submit();
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [canShowPendingContentPreview, bodyJson, templateChoice, id]);
 
   return (
     <>
@@ -1118,7 +1109,7 @@ function PostPreview({
           />
         ) : canShowTemplatePreview ? (
           <iframe
-            src={api.templatePreviewUrl(id, templateChoice)}
+            src={templatePreviewUrl}
             title="Post preview"
             className="editor-preview-iframe"
             referrerPolicy="no-referrer"
@@ -1131,16 +1122,16 @@ function PostPreview({
                 does there, so a pending template choice AND pending content are both honored by one
                 submit. */}
             <form
-              ref={formRef}
+              ref={previewFormRef}
               method="post"
-              target={previewFormTargetRef.current}
-              action={api.templatePreviewUrl(id, templateChoice)}
+              target={previewFormTarget}
+              action={templatePreviewUrl}
               hidden
             >
               <input type="hidden" name="bodyJson" value={JSON.stringify(bodyJson)} />
             </form>
             <iframe
-              name={previewFormTargetRef.current}
+              name={previewFormTarget}
               title="Post preview"
               className="editor-preview-iframe"
               referrerPolicy="no-referrer"

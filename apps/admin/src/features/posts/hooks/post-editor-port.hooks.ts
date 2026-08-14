@@ -46,4 +46,14 @@ export interface PostEditorPort {
    *  caller that needs it for THIS purpose (uploading whatever was just dropped, not browsing the
    *  library), so it belongs on this port rather than pulling in `features/media`'s own port. */
   uploadMedia(input: { filename: string; contentType: string; dataBase64: string }): Promise<{ media: AdminMedia }>;
+  /**
+   * Synchronous URL builder for the admin-only template-preview iframe/form target (2026-08-14, moved
+   * out of `PostEditor.tsx`/`PostPreview` — see `apps/admin/INFO.md`'s Hooks section) — NOT a network
+   * call itself; the browser navigates to the returned URL when the iframe's `src` is set or the
+   * hidden form submits. `templateChoice: null` omits the query param (server renders the post's own
+   * saved template); `""` sends an explicit empty value ("no template"); a real filename requests
+   * that template. Mirrors `features/pages/hooks/page-editor-port.hooks.ts`'s identical member —
+   * see `lib/api.ts`'s own `templatePreviewUrl` for the exact query-string contract both share.
+   */
+  templatePreviewUrl(id: string, templateChoice: string | null): string;
 }

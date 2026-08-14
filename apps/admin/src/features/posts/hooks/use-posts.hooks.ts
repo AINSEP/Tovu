@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import { type AdminPost } from "../../../lib/api";
 import { navigate as defaultNavigate } from "../../../lib/router";
+import type { PostUpdatedSortDirection } from "../rules";
 import { defaultPostsListPort } from "./posts-list-dependencies.hooks";
 import type { PostsListPort } from "./posts-list-port.hooks";
 
@@ -45,6 +46,11 @@ export interface PostsController {
   createPost: () => Promise<void>;
   disablePost: (post: AdminPost) => Promise<void>;
   removePost: () => Promise<void>;
+  /** The "Updated" column's sort direction — moved out of `Posts.tsx` (leftover `useState`,
+   *  `apps/admin/INFO.md`'s Hooks section). Defaults to `"newest"` (owner's requested default);
+   *  ephemeral view state, not persisted. */
+  updatedSort: PostUpdatedSortDirection;
+  setUpdatedSort: (direction: PostUpdatedSortDirection | ((current: PostUpdatedSortDirection) => PostUpdatedSortDirection)) => void;
 }
 
 export interface PostsListDependencies {
@@ -64,6 +70,9 @@ export function usePosts(deps: PostsListDependencies): PostsController {
   // closed. `ConfirmDialog` stays mounted unconditionally in the view (see its own doc comment on
   // why); this is what drives its `open` prop.
   const [pendingDelete, setPendingDelete] = useState<AdminPost | null>(null);
+  // Moved from `Posts.tsx` (leftover `useState` after the `useWiredX` conversion) — see
+  // `PostsController.updatedSort`'s own doc.
+  const [updatedSort, setUpdatedSort] = useState<PostUpdatedSortDirection>("newest");
 
   useEffect(() => {
     port
@@ -148,6 +157,8 @@ export function usePosts(deps: PostsListDependencies): PostsController {
     createPost,
     disablePost,
     removePost,
+    updatedSort,
+    setUpdatedSort,
   };
 }
 
