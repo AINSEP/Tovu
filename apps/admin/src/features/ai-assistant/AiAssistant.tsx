@@ -17,7 +17,7 @@ import { useAdminExecutionMode } from "./hooks/use-admin-execution-mode.hooks";
 import { useWiredAdminExecutionCredential } from "../../hooks/use-admin-execution-credential.hooks";
 import { DEFAULT_EXECUTION_CONFIG } from "../../lib/execution-settings";
 import { useWiredAiAssistant } from "./hooks/use-ai-assistant.hooks";
-import { useVisitorCredentialForm, type VisitorCredentialFormController } from "./hooks/use-visitor-credential-form.hooks";
+import { useWiredVisitorCredentialForm, type VisitorCredentialFormController } from "./hooks/use-visitor-credential-form.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { translateAdminNavLabel } from "../../lib/admin-nav-i18n";
 import { AI_ASSISTANT_DICT } from "./ai-assistant-i18n";
@@ -223,12 +223,23 @@ function AdminAssistantSwitch({
  */
 interface AdminExecutionModeProps {
   useAdminExecutionModeHook?: typeof useAdminExecutionMode;
+  /**
+   * Dependency injection seam for tests — same convention as `useAdminExecutionModeHook` above, and
+   * the same seam `SettingsUi.tsx`'s own `useAdminExecutionCredentialHook` prop opens over the SAME
+   * shared hook. Was an inline `useWiredAdminExecutionCredential({...})` call in the body until this
+   * pass; the two mounts must stay consistent (see this component's own "must never disagree" doc
+   * above), so both convert together rather than one seaming ahead of the other.
+   */
+  useAdminExecutionCredentialHook?: typeof useWiredAdminExecutionCredential;
   /** `AiAssistant`'s own `t` — see {@link AdminAssistantSwitchProps.t}'s doc. */
   t?: (key: string) => string;
 }
 
-function AdminExecutionMode({
+/** Exported (unlike `AdminAssistantSwitch`) so `AdminExecutionMode.unit.test.tsx` can drive its two
+ *  DI seams directly, the same way `VisitorCredentialForm` is exported for its own test file. */
+export function AdminExecutionMode({
   useAdminExecutionModeHook = useAdminExecutionMode,
+  useAdminExecutionCredentialHook = useWiredAdminExecutionCredential,
   t = (key: string) => key,
 }: AdminExecutionModeProps = {}) {
   const { port, execution } = useAdminExecutionModeHook();
@@ -237,7 +248,7 @@ function AdminExecutionMode({
   // same reasoning `SettingsUi.tsx`'s identical call documents: the credential hook's own effects
   // don't read `byok` until an explicit Save/migrate press, and the panel this feeds isn't rendered
   // until past the gate anyway.
-  const adminCredential = useWiredAdminExecutionCredential({
+  const adminCredential = useAdminExecutionCredentialHook({
     byok: execution.value?.byok ?? DEFAULT_EXECUTION_CONFIG.byok,
     onByokChange: (byok) => execution.onChange({ ...(execution.value ?? DEFAULT_EXECUTION_CONFIG), byok }),
   });
@@ -482,7 +493,7 @@ export function visitorCredentialApiKeyPlaceholder(stored: VisitorCredentialForm
 }
 
 interface VisitorCredentialFormProps {
-  useVisitorCredentialFormHook?: typeof useVisitorCredentialForm;
+  useVisitorCredentialFormHook?: typeof useWiredVisitorCredentialForm;
   /** `AiAssistant`'s own `t` — see {@link AdminAssistantSwitchProps.t}'s doc. Defaults to English
    *  passthrough so `VisitorCredentialForm.unit.test.tsx`'s direct render (no `t` passed) keeps
    *  finding "Protocols"/"Gateways"/the intro copy by their exact English text. */
@@ -490,7 +501,7 @@ interface VisitorCredentialFormProps {
 }
 
 export function VisitorCredentialForm({
-  useVisitorCredentialFormHook = useVisitorCredentialForm,
+  useVisitorCredentialFormHook = useWiredVisitorCredentialForm,
   t = (key: string) => key,
 }: VisitorCredentialFormProps = {}) {
   const {
@@ -843,7 +854,7 @@ export function AiAssistant({ useAiAssistantHook = useWiredAiAssistant }: AiAssi
           <SettingsDialogShell
             tabs={tabs}
             presentation="inline"
-            className="jini-settings-dialog--inline"
+            className="jini-tabbed-dialog--inline"
             fullscreenEnabled={false}
           />
         </div>
