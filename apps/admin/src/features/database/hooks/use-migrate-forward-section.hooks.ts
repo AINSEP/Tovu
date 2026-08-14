@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { describeApiError } from "../../../lib/api";
 import { useFetchMutation } from "../../../lib/fetch-query";
-import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { useWiredAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { t } from "../database-i18n";
 import { defaultMigrateForwardSectionPort } from "./migrate-forward-section-dependencies.hooks";
 import type { MigrateForwardSectionPort } from "./migrate-forward-section-port.hooks";
@@ -13,7 +13,7 @@ import type { MigrateForwardSectionPort } from "./migrate-forward-section-port.h
  * Extracted verbatim — same declaration order, same handlers, same error strings.
  *
  * `t`/`locale` (2026-08-11, standing i18n rule — see `use-timeline-section.hooks.ts`'s own file
- * header for the full rationale): this hook already called `useAdminLocale()` for its own
+ * header for the full rationale): this hook already called `useWiredAdminLocale()` for its own
  * error-string translations, so exposing that same already-resolved `locale` as a bound `t` (plus
  * the raw value, still needed for this section's own local step subcomponents and
  * `planReadyMessage`) on the return value adds no new fetch.
@@ -72,7 +72,7 @@ export interface MigrateForwardSectionDependencies {
  */
 export function useMigrateForwardSection(deps: MigrateForwardSectionDependencies): MigrateForwardSectionController {
   const { port } = deps;
-  const locale = useAdminLocale();
+  const locale = useWiredAdminLocale();
   const boundT = (key: string): string => t(locale, key);
   const [step, setStep] = useState<CeremonyStep>("idle");
   const [plan, setPlan] = useState<{ planId: string; planHash: string } | null>(null);

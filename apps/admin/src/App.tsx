@@ -7,7 +7,7 @@ import { Login } from "./features/auth";
 import { Placeholder } from "./components/Placeholder";
 import { ADMIN_PANELS } from "./panels";
 import { translateAdminNavGroups, translateAdminNavLabel } from "./lib/admin-nav-i18n";
-import { useAdminLocale } from "./hooks/use-admin-locale.hooks";
+import { useWiredAdminLocale } from "./hooks/use-admin-locale.hooks";
 import { AssistantDock } from "./components/AssistantDock/AssistantDock";
 import { ChatFab } from "./components/ChatFab/ChatFab";
 import { ASSISTANT_DOCK_DICT } from "./components/AssistantDock/assistant-dock-i18n";
@@ -252,12 +252,12 @@ export function App(props: AppProps) {
 
   /**
    * Sidebar nav translation — outside `SettingsUi.tsx`'s `I18nProvider` entirely, since this nav
-   * renders on every admin page, not just inside the settings dialog. `useAdminLocale()` (shared
-   * with every translated content screen — see its own doc comment) re-fetches on every
-   * `core.language` refresh notification, not just at mount, so switching the Language setting
-   * updates the sidebar immediately instead of requiring a reload.
+   * renders on every admin page, not just inside the settings dialog. `useWiredAdminLocale()`
+   * (shared with every translated content screen — see `use-admin-locale.hooks.ts`'s own doc
+   * comment) re-fetches on every `core.language` refresh notification, not just at mount, so
+   * switching the Language setting updates the sidebar immediately instead of requiring a reload.
    */
-  const navLocale = useAdminLocale();
+  const navLocale = useWiredAdminLocale();
   const navGroups = translateAdminNavGroups(navLocale, rawNavGroups);
   const navSoonLabel = translateAdminNavLabel(navLocale, "Soon");
 

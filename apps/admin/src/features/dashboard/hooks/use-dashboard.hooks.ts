@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 
 import { describeApiError, type AdminPost } from "../../../lib/api";
 import { mergeRecent } from "../rules";
-import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { useWiredAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { t as translate } from "../dashboard-i18n";
 import type { Translate } from "../../../lib/dictionary-translator";
 import { defaultDashboardPort } from "./dashboard-dependencies.hooks";
@@ -43,7 +43,7 @@ import type { DashboardPort } from "./dashboard-port.hooks";
  * translator, and `deps.locale` is what THIS hook's own error strings resolve against via the
  * `translate(locale, key)` two-arg import (aliased to avoid colliding with the injected one-arg
  * `t`) — same split `media-dependencies.hooks.ts` documents for its identical `translate`
- * alias/`t` pass-through pair. `useWiredDashboard` resolves both from the real `useAdminLocale()`.
+ * alias/`t` pass-through pair. `useWiredDashboard` resolves both from the real `useWiredAdminLocale()`.
  *
  * 2026-08-14: this closes the port-conversion gap an earlier pass in this file's history left
  * disclosed ("NOT converted to the full port pattern... scoped as i18n-only... left as a disclosed
@@ -150,7 +150,7 @@ export function useDashboard({ port, locale, t }: DashboardDependencies): Dashbo
 }
 
 /**
- * Binds the real `/api` client, the real `useAdminLocale()`, and a `DASHBOARD_DICT`-bound
+ * Binds the real `/api` client, the real `useWiredAdminLocale()`, and a `DASHBOARD_DICT`-bound
  * translator — see `dashboard-dependencies.hooks.ts`.
  *
  * The zero-argument-dependencies half of the `useX(dependencies)` / `useWiredX()` pair, so
@@ -160,7 +160,7 @@ export function useDashboard({ port, locale, t }: DashboardDependencies): Dashbo
  * @returns The dashboard screen's full controller — see {@link DashboardController}.
  */
 export function useWiredDashboard(): DashboardController {
-  const locale = useAdminLocale();
+  const locale = useWiredAdminLocale();
   const t = (key: string): string => translate(locale, key);
   return useDashboard({ port: defaultDashboardPort, locale, t });
 }

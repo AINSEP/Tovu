@@ -18,7 +18,7 @@ import { useWiredAdminExecutionCredential } from "../../hooks/use-admin-executio
 import { DEFAULT_EXECUTION_CONFIG } from "../../lib/execution-settings";
 import { useWiredAiAssistant } from "./hooks/use-ai-assistant.hooks";
 import { useWiredVisitorCredentialForm, type VisitorCredentialFormController } from "./hooks/use-visitor-credential-form.hooks";
-import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
+import { useWiredAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { translateAdminNavLabel } from "../../lib/admin-nav-i18n";
 import { AI_ASSISTANT_DICT } from "./ai-assistant-i18n";
 import { useWiredAiAssistantLocaleSync } from "./hooks/use-ai-assistant-locale-sync.hooks";
@@ -723,7 +723,7 @@ export function AiAssistant({ useAiAssistantHook = useWiredAiAssistant }: AiAssi
   const { settings, loadError, saveError, saving, setPublicEnabled } = useAiAssistantHook();
 
   /**
-   * The one `useAdminLocale()` call for this whole screen — every subcomponent below (
+   * The one `useWiredAdminLocale()` call for this whole screen — every subcomponent below (
    * `AdminAssistantSwitch`, `AdminExecutionMode`, `RoadmapChecklist`, `VisitorCredentialForm`, and
    * that last one's own `VisitorCredentialKeyFooter`) takes the resulting `t` as a prop rather than
    * calling the hook itself, so switching the Language setting re-fetches once here, not once per
@@ -731,7 +731,7 @@ export function AiAssistant({ useAiAssistantHook = useWiredAiAssistant }: AiAssi
    * `AboutPanel({ t })` uses, for the same reason (a component that isn't a descendant of the
    * `I18nProvider` mounted below can't call that package's own `useT()`).
    */
-  const locale = useAdminLocale();
+  const locale = useWiredAdminLocale();
   const t = (key: string): string => AI_ASSISTANT_DICT[locale]?.[key] ?? key;
 
   if (loadError) return <div className="notice error">{loadError}</div>;

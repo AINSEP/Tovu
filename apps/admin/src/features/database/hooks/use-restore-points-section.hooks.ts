@@ -1,7 +1,7 @@
 import { describeApiError, type AdminRestorePoint } from "../../../lib/api";
 import { useFetchMutation, useFetchQuery } from "../../../lib/fetch-query";
 import { KEYS } from "../rules";
-import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { useWiredAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { t } from "../database-i18n";
 import { defaultRestorePointsSectionPort } from "./restore-points-section-dependencies.hooks";
 import type { RestorePointsSectionPort } from "./restore-points-section-port.hooks";
@@ -13,7 +13,7 @@ import type { RestorePointsSectionPort } from "./restore-points-section-port.hoo
  * Extracted verbatim — same error strings, including the decision record on `costAck: true` below.
  *
  * `t` (2026-08-11, standing i18n rule — see `use-timeline-section.hooks.ts`'s own file header for
- * the full rationale): this hook already called `useAdminLocale()` for its own error-string
+ * the full rationale): this hook already called `useWiredAdminLocale()` for its own error-string
  * translations, so exposing that same already-resolved `locale` as a bound `t` on the return value
  * adds no new fetch. No raw `locale` needed here — `RestorePointsSection` has no local
  * subcomponents that take it directly.
@@ -50,7 +50,7 @@ export interface RestorePointsSectionDependencies {
  */
 export function useRestorePointsSection(deps: RestorePointsSectionDependencies): RestorePointsSectionController {
   const { port } = deps;
-  const locale = useAdminLocale();
+  const locale = useWiredAdminLocale();
   const boundT = (key: string): string => t(locale, key);
   const list = useFetchQuery({ key: KEYS.restorePoints, fetch: () => port.listDatabaseRestorePoints() });
 

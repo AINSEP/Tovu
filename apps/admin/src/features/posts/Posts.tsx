@@ -7,7 +7,7 @@ import { formatTimestamp } from "../../lib/format-timestamp";
 import { navigate } from "../../lib/router";
 import { postRowMenuItems, sortPostsByUpdated, updatedSortButtonLabel, type PostUpdatedSortDirection } from "./rules";
 import { useWiredPosts } from "./hooks/use-posts.hooks";
-import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
+import { useWiredAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { POSTS_DICT } from "./posts-i18n";
 
 /**
@@ -57,7 +57,7 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
     disablePost,
     removePost,
   } = usePostsHook();
-  const locale = useAdminLocale();
+  const locale = useWiredAdminLocale();
   const t = (key: string): string => POSTS_DICT[locale]?.[key] ?? key;
   // Owner ruling (2026-08-14): pure interactive DOM-chrome state — a client-side sort toggle with
   // no I/O behind it — stays LOCAL rather than moving into `use-posts.hooks.ts`, unlike every other
