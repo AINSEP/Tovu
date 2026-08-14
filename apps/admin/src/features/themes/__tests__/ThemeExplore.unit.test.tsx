@@ -36,7 +36,7 @@ const FILES: ThemeExploreFile[] = [
   { path: "pages/mine.html", label: "mine", kind: "page", readable: true, editable: true, resettable: false },
   // A templated-tier Liquid source file — `other` group (no `templates/` case in `fileGroup`), but
   // readable (2026-08-12, `TEXT_READABLE_EXTENSIONS`) and, unlike `NOTICE.md` below, gets its own
-  // specific Preview-tab notice — see the "preview notice" describe block.
+  // real rendered preview — see the "preview src — pages, partials, and templates" describe block.
   { path: "templates/home.liquid", label: "home.liquid", kind: "other", readable: true, editable: false, resettable: true },
 ];
 
@@ -99,7 +99,7 @@ function renderExplore(overrides: Partial<ThemeExploreController> = {}) {
   return { ctrl, ...utils };
 }
 
-describe("preview src — pages vs. partials", () => {
+describe("preview src — pages, partials, and templates", () => {
   it("points a selected PAGE's preview at /theme-explore/{theme}/{pageId}", () => {
     renderExplore({ selected: "pages/about.html" });
     const iframe = screen.getByTitle("Theme preview") as HTMLIFrameElement;
@@ -141,25 +141,33 @@ describe("preview src — pages vs. partials", () => {
     const iframe = screen.getByTitle("Theme preview") as HTMLIFrameElement;
     expect(iframe.src).toContain("/theme-assets/novice/vendor.bin");
   });
+
+  /**
+   * Owner-reported (2026-08-12): "I still don't see a preview of the liquid with the styles at
+   * all." At the time, a `.liquid` template was `readable` (see the FILES fixture above) but not
+   * `kind === "page"`/`"partial"`, so `previewSrcFor` returned `null` and the Preview tab fell
+   * through to the same generic "Select a file to preview." copy shown for a totally different
+   * situation. ~70 minutes later the same day, `2a7cb56` (server: `theme-page-preview.ts`'s
+   * `/theme-explore/{theme}/template/{templateId}` route, backed by the same `renderSite`/
+   * `renderLiquidInSandbox` pipeline the live public site renders through) and `89fabb9` (client:
+   * `previewSrcFor` wired to it) gave `.liquid` files a real preview, same as a page or partial —
+   * this test now pins that down instead of the honest-gap message that preceded it.
+   */
+  it("points a selected .liquid TEMPLATE's preview at /theme-explore/{theme}/template/{templateId}, not the generic notice", () => {
+    renderExplore({ selected: "templates/home.liquid" });
+    const iframe = screen.getByTitle("Theme preview") as HTMLIFrameElement;
+    expect(iframe.src).toContain("/theme-explore/novice/template/home");
+    expect(screen.queryByText(/select a file to preview/i)).not.toBeInTheDocument();
+  });
 });
 
 /**
- * Owner-reported (2026-08-12): "I still don't see a preview of the liquid with the styles at all."
- * A `.liquid` template is `readable` (see the FILES fixture above) but not `kind === "page"`/
- * `"partial"`, so `previewSrcFor` returns `null` and the Preview tab used to fall through to the
- * exact same generic "Select a file to preview." copy shown for a totally different situation
- * (nothing selected yet, or a CSS/JS/JSON file). That made a genuinely-missing capability read as a
- * bug. This does not add rendering — Explore still has no templated-tier preview pipeline — it only
- * makes the honest reason visible instead of the generic placeholder.
+ * Every remaining `previewSrc === null` case shares one generic message: CSS/JS/JSON, an ordinary
+ * `other`-group file like `NOTICE.md`, or nothing selected yet. `.liquid` templates used to land
+ * here too — see the "preview src — pages, partials, and templates" describe block above for why
+ * that's no longer true.
  */
-describe("preview notice — no rendered preview available", () => {
-  it("shows a specific 'no rendered preview yet' message for a .liquid template, not the generic placeholder", () => {
-    renderExplore({ view: "preview", selected: "templates/home.liquid" });
-    expect(screen.getByText(/templated themes don't have a rendered preview yet/i)).toBeInTheDocument();
-    expect(screen.getByText(/use the html tab/i)).toBeInTheDocument();
-    expect(screen.queryByText(/^select a file to preview\.?$/i)).not.toBeInTheDocument();
-  });
-
+describe("preview notice — generic 'select a file' message", () => {
   it("keeps the generic message for an ordinary readable other-group file (e.g. NOTICE.md) — the split is by file, not a blanket change", () => {
     renderExplore({ view: "preview", selected: "NOTICE.md" });
     expect(screen.getByText(/^select a file to preview\.?$/i)).toBeInTheDocument();
