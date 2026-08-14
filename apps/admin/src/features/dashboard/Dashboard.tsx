@@ -2,7 +2,7 @@ import type { AdminPost } from "../../lib/api";
 import { siteUrl } from "../../lib/site-url";
 import { formatTimestamp } from "../../lib/format-timestamp";
 import type { Translate } from "../../lib/dictionary-translator";
-import { useDashboard, type StatState } from "./hooks/use-dashboard.hooks";
+import { useWiredDashboard, type StatState } from "./hooks/use-dashboard.hooks";
 import { activityRowHref, commentsStatMeta, pagesStatMeta, postsStatMeta } from "./rules";
 
 /**
@@ -22,7 +22,7 @@ export interface DashboardProps {
    * Dependency injection seam for tests — see `features/posts/Posts.tsx`'s `usePostsHook` for the
    * house convention this follows.
    */
-  useDashboardHook?: typeof useDashboard;
+  useDashboardHook?: typeof useWiredDashboard;
 }
 
 /** One row in the "Recently updated" activity list. */
@@ -112,7 +112,7 @@ function AppearanceBody(props: { themeError: string | null; themeId: string | nu
   );
 }
 
-export function Dashboard({ useDashboardHook = useDashboard }: DashboardProps = {}) {
+export function Dashboard({ useDashboardHook = useWiredDashboard }: DashboardProps = {}) {
   const { posts, published, pages, drafts, media, comments, themeId, themeError, recent, t } = useDashboardHook();
 
   return (

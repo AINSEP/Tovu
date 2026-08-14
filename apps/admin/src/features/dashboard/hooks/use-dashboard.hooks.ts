@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 
-import { api, describeApiError, type AdminPost } from "../../../lib/api";
+import { describeApiError, type AdminPost } from "../../../lib/api";
 import { mergeRecent } from "../rules";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
-import { t } from "../dashboard-i18n";
+import { t as translate } from "../dashboard-i18n";
 import type { Translate } from "../../../lib/dictionary-translator";
+import { defaultDashboardPort } from "./dashboard-dependencies.hooks";
+import type { DashboardPort } from "./dashboard-port.hooks";
 
 /**
  * @file Everything the Dashboard screen loads, so `Dashboard.tsx` is only markup.
@@ -30,19 +32,24 @@ import type { Translate } from "../../../lib/dictionary-translator";
  * single page the count silently becomes "items on the first page" and would need a real count
  * endpoint. Flagged rather than pre-solved.
  *
- * `t` (2026-08-11, standing i18n rule — a component with a hook gets a BOUND `t` from that hook,
- * not its own `useAdminLocale()`/dictionary import): `Dashboard.tsx` used to call `useAdminLocale()`
- * a SECOND time and rebuild its own `DASHBOARD_DICT[locale]?.[key] ?? key` closure, duplicating the
- * `useAdminLocale()` call this hook already makes for its own error strings below. Exposing this
- * hook's own already-resolved `locale` as a bound `t` on the return value removes that duplicate
- * fetch entirely, rather than merely avoiding adding a new one.
+ * `deps.port` is injected (see `dashboard-port.hooks.ts`) rather than reaching for `lib/api`'s
+ * `api` directly, so a test can describe each of the five reads against `createFakeDashboardPort`
+ * instead of stubbing global `fetch`. `useWiredDashboard` below is the zero-argument-dependencies
+ * pair `Dashboard.tsx` actually mounts.
  *
- * NOT converted to the full `useX(dependencies)`/`useWiredX()` port pattern this sweep uses
- * elsewhere (`api` is still a direct import, 5 concurrent reads): scoped as i18n-only per this
- * task's own dispatch — a full port conversion here is a materially larger change (new port
- * interface + fake covering 5 endpoints) than the rest of this sweep's per-file diff, and doing it
- * as a drive-by risks conflating an API-shape refactor with a copy/locale one. Left as a disclosed
- * gap, not silently expanded.
+ * `deps.t`/`deps.locale` (2026-08-11, standing i18n rule — a component with a hook gets a BOUND
+ * `t` from that hook, not its own `useAdminLocale()`/dictionary import) are ALSO now injected
+ * dependencies rather than values this hook resolved for itself: `Dashboard.tsx` needs a bound
+ * translator, and `deps.locale` is what THIS hook's own error strings resolve against via the
+ * `translate(locale, key)` two-arg import (aliased to avoid colliding with the injected one-arg
+ * `t`) — same split `media-dependencies.hooks.ts` documents for its identical `translate`
+ * alias/`t` pass-through pair. `useWiredDashboard` resolves both from the real `useAdminLocale()`.
+ *
+ * 2026-08-14: this closes the port-conversion gap an earlier pass in this file's history left
+ * disclosed ("NOT converted to the full port pattern... scoped as i18n-only... left as a disclosed
+ * gap, not silently expanded") — the dispatch that added `deps.t` deliberately deferred the
+ * 5-endpoint port because it was a materially larger diff than that pass's own scope; this pass's
+ * scope is exactly "convert the admin DI seams still missing one," so the deferred half lands now.
  */
 
 export interface StatState {
@@ -69,9 +76,23 @@ export interface DashboardController {
   t: Translate;
 }
 
-export function useDashboard(): DashboardController {
-  const locale = useAdminLocale();
-  const boundT = (key: string): string => t(locale, key);
+export interface DashboardDependencies {
+  port: DashboardPort;
+  /** Resolves this hook's OWN `describeApiError` fallback strings via the direct `translate`
+   *  import above — see this file's header for why that's a separate concern from `t`. */
+  locale: string;
+  /** Bound translator, passed straight through to {@link DashboardController.t} — see this file's
+   *  header for why it arrives as a dependency rather than this hook calling `useAdminLocale()`
+   *  itself. */
+  t: Translate;
+}
+
+/**
+ * @param deps `port`/`locale`/`t` — see {@link DashboardDependencies}.
+ * @returns The dashboard screen's full controller — see {@link DashboardController}.
+ * @complexity Time/space: O(1) per call — five independent, concurrent round trips on mount.
+ */
+export function useDashboard({ port, locale, t }: DashboardDependencies): DashboardController {
   const [posts, setPosts] = useState<StatState>(PENDING);
   const [published, setPublished] = useState<number | null>(null);
   const [pages, setPages] = useState<StatState>(PENDING);
@@ -85,7 +106,7 @@ export function useDashboard(): DashboardController {
   useEffect(() => {
     // Posts and pages each feed both a stat card and the merged activity list, so their handlers
     // do double duty rather than fetching the same list twice.
-    api
+    port
       .listPosts()
       .then((r) => {
         const rows = r.posts.map((entry) => entry.post);
@@ -93,9 +114,9 @@ export function useDashboard(): DashboardController {
         setPublished(rows.filter((p) => p.status === "published").length);
         setRecent((prev) => mergeRecent(prev, rows));
       })
-      .catch((e) => setPosts({ value: null, error: describeApiError(e, t(locale, "failed to load posts")) }));
+      .catch((e) => setPosts({ value: null, error: describeApiError(e, translate(locale, "failed to load posts")) }));
 
-    api
+    port
       .listPages()
       .then((r) => {
         const rows = r.posts.map((entry) => entry.post);
@@ -103,24 +124,43 @@ export function useDashboard(): DashboardController {
         setDrafts(rows.filter((p) => p.status === "draft").length);
         setRecent((prev) => mergeRecent(prev, rows));
       })
-      .catch((e) => setPages({ value: null, error: describeApiError(e, t(locale, "failed to load pages")) }));
+      .catch((e) => setPages({ value: null, error: describeApiError(e, translate(locale, "failed to load pages")) }));
 
-    api
+    port
       .listMedia()
       .then((r) => setMedia({ value: r.media.filter((m) => m.status === "active").length, error: null }))
-      .catch((e) => setMedia({ value: null, error: describeApiError(e, t(locale, "failed to load media")) }));
+      .catch((e) => setMedia({ value: null, error: describeApiError(e, translate(locale, "failed to load media")) }));
 
-    api
+    port
       .listCommentsQueue({ status: "pending" })
       .then((r) => setComments({ value: r.items.length, error: null }))
-      .catch((e) => setComments({ value: null, error: describeApiError(e, t(locale, "failed to load comments")) }));
+      .catch((e) => setComments({ value: null, error: describeApiError(e, translate(locale, "failed to load comments")) }));
 
-    api
+    port
       .getPresentation()
       .then((r) => setThemeId(r.settings.activeThemeId))
-      .catch((e) => setThemeError(describeApiError(e, t(locale, "failed to load the active theme"))));
+      .catch((e) => setThemeError(describeApiError(e, translate(locale, "failed to load the active theme"))));
+    // Deliberately `[]`, not `[port, locale]` — preserved from the pre-port version, which had no
+    // dependency to list either. A caller changing `port`/`locale` after mount does not re-fetch;
+    // unchanged behavior, not a new gap introduced by this conversion.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return { posts, published, pages, drafts, media, comments, themeId, themeError, recent, t: boundT };
+  return { posts, published, pages, drafts, media, comments, themeId, themeError, recent, t };
+}
+
+/**
+ * Binds the real `/api` client, the real `useAdminLocale()`, and a `DASHBOARD_DICT`-bound
+ * translator — see `dashboard-dependencies.hooks.ts`.
+ *
+ * The zero-argument-dependencies half of the `useX(dependencies)` / `useWiredX()` pair, so
+ * `Dashboard.tsx` composes this and a test composes {@link useDashboard} with
+ * `createFakeDashboardPort`.
+ *
+ * @returns The dashboard screen's full controller — see {@link DashboardController}.
+ */
+export function useWiredDashboard(): DashboardController {
+  const locale = useAdminLocale();
+  const t = (key: string): string => translate(locale, key);
+  return useDashboard({ port: defaultDashboardPort, locale, t });
 }
