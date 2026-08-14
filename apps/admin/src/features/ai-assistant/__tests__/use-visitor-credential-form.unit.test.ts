@@ -9,9 +9,10 @@ import {
 } from "../../../lib/api";
 import {
   saveVisitorCredential,
+  useWiredVisitorCredentialForm,
   useVisitorCredentialForm,
-  type VisitorCredentialApi,
 } from "../hooks/use-visitor-credential-form.hooks";
+import type { VisitorCredentialFormPort } from "../hooks/visitor-credential-form-port.hooks";
 
 /**
  * @file First test file for `useVisitorCredentialForm` (0% before this pass — no test file existed
@@ -30,6 +31,15 @@ import {
  * and its one or two most consequential edge cases (the debounce security gate, the
  * refresh-must-not-clobber-connection-result guard) rather than exhaustively enumerating every
  * branch — reported as a scope note, not silently.
+ *
+ * Orc-BASH port split (later pass): `useVisitorCredentialForm` now takes a required `{ port }`
+ * dependency instead of an optional `{ api }` — every "real path" call below is
+ * `useWiredVisitorCredentialForm()` (still spies on the module-level `api` singleton via
+ * `vi.spyOn`, since `defaultVisitorCredentialFormPort` is a thin passthrough to it), and the single
+ * "fake path" scenario in the `VisitorCredentialFormPort injection` describe block below passes
+ * `{ port: fake.port }` to `useVisitorCredentialForm` directly. `VisitorCredentialApi` was renamed
+ * `VisitorCredentialFormPort` and moved to `visitor-credential-form-port.hooks.ts` in the same pass;
+ * no test assertion changed.
  */
 
 function credential(overrides: Partial<SiteAssistantCredential> = {}): SiteAssistantCredential {
@@ -59,7 +69,7 @@ afterEach(() => {
 
 describe("useVisitorCredentialForm — initial config", () => {
   it("defaults to Google Gemini with an empty key and empty model", async () => {
-    const { result } = renderHook(() => useVisitorCredentialForm());
+    const { result } = renderHook(() => useWiredVisitorCredentialForm());
     await act(async () => {
       await Promise.resolve();
     });
@@ -81,7 +91,7 @@ describe("useVisitorCredentialForm — hydration", () => {
       data: credential({ isSet: true, masked: "••••abcd", baseUrl: "https://custom.example.com", model: "gpt-4o" }),
     });
 
-    const { result } = renderHook(() => useVisitorCredentialForm());
+    const { result } = renderHook(() => useWiredVisitorCredentialForm());
     await act(async () => {
       await Promise.resolve();
       await Promise.resolve();
@@ -96,7 +106,7 @@ describe("useVisitorCredentialForm — hydration", () => {
   it("on failure: stays silent — stored is null, no error surfaces anywhere", async () => {
     vi.spyOn(api, "getAssistantSiteCredential").mockRejectedValue(new Error("network down"));
 
-    const { result } = renderHook(() => useVisitorCredentialForm());
+    const { result } = renderHook(() => useWiredVisitorCredentialForm());
     await act(async () => {
       await Promise.resolve();
       await Promise.resolve();
@@ -113,7 +123,7 @@ describe("useVisitorCredentialForm — stored-key discovery (on load, empty fiel
     vi.spyOn(api, "getAssistantSiteCredential").mockResolvedValue({ data: credential({ isSet: true }) });
     const listExecutionModels = vi.spyOn(api, "listExecutionModels").mockResolvedValue({ ok: true, models: ["model-a", "model-b"] });
 
-    const { result } = renderHook(() => useVisitorCredentialForm());
+    const { result } = renderHook(() => useWiredVisitorCredentialForm());
     await act(async () => {
       await Promise.resolve();
       await Promise.resolve();
@@ -128,7 +138,7 @@ describe("useVisitorCredentialForm — stored-key discovery (on load, empty fiel
 
   it("does not fire when hydration reports no stored key", async () => {
     const listExecutionModels = vi.spyOn(api, "listExecutionModels");
-    const { result } = renderHook(() => useVisitorCredentialForm());
+    const { result } = renderHook(() => useWiredVisitorCredentialForm());
     await act(async () => {
       await Promise.resolve();
       await Promise.resolve();
@@ -143,7 +153,7 @@ describe("useVisitorCredentialForm — debounced typed-key discovery", () => {
   it("does not fire before the debounce window elapses, then fires once after it", async () => {
     vi.useFakeTimers();
     const listExecutionModels = vi.spyOn(api, "listExecutionModels").mockResolvedValue({ ok: true, models: ["m1"] });
-    const { result } = renderHook(() => useVisitorCredentialForm());
+    const { result } = renderHook(() => useWiredVisitorCredentialForm());
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
@@ -164,7 +174,7 @@ describe("useVisitorCredentialForm — debounced typed-key discovery", () => {
   it("SECURITY GATE: never fires for a key typed against a non-preset (operator-typed) endpoint", async () => {
     vi.useFakeTimers();
     const listExecutionModels = vi.spyOn(api, "listExecutionModels").mockResolvedValue({ ok: true, models: ["m1"] });
-    const { result } = renderHook(() => useVisitorCredentialForm());
+    const { result } = renderHook(() => useWiredVisitorCredentialForm());
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
@@ -183,7 +193,7 @@ describe("useVisitorCredentialForm — debounced typed-key discovery", () => {
   it("clearing the key resets discovery to idle immediately, without waiting for the debounce", async () => {
     vi.useFakeTimers();
     vi.spyOn(api, "listExecutionModels").mockResolvedValue({ ok: true, models: ["m1"] });
-    const { result } = renderHook(() => useVisitorCredentialForm());
+    const { result } = renderHook(() => useWiredVisitorCredentialForm());
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
@@ -197,7 +207,7 @@ describe("useVisitorCredentialForm — debounced typed-key discovery", () => {
 describe("useVisitorCredentialForm — runKeyTest", () => {
   it("runs immediately (no debounce) and seeds the model field from the result", async () => {
     const listExecutionModels = vi.spyOn(api, "listExecutionModels").mockResolvedValue({ ok: true, models: ["gpt-a"] });
-    const { result } = renderHook(() => useVisitorCredentialForm());
+    const { result } = renderHook(() => useWiredVisitorCredentialForm());
     await act(async () => {
       await Promise.resolve();
     });
@@ -213,7 +223,7 @@ describe("useVisitorCredentialForm — runKeyTest", () => {
 
   it("on rejection, reports an error discovery state", async () => {
     vi.spyOn(api, "listExecutionModels").mockRejectedValue(new Error("bad key"));
-    const { result } = renderHook(() => useVisitorCredentialForm());
+    const { result } = renderHook(() => useWiredVisitorCredentialForm());
     await act(async () => {
       await Promise.resolve();
     });
@@ -230,7 +240,7 @@ describe("useVisitorCredentialForm — runTestConnection", () => {
   it("on success, reports ok and quietly refreshes discovery when a key is present", async () => {
     vi.spyOn(api, "testExecutionConnection").mockResolvedValue({ ok: true, message: "Connected" });
     const listExecutionModels = vi.spyOn(api, "listExecutionModels").mockResolvedValue({ ok: true, models: ["refreshed-model"] });
-    const { result } = renderHook(() => useVisitorCredentialForm());
+    const { result } = renderHook(() => useWiredVisitorCredentialForm());
     await act(async () => {
       await Promise.resolve();
     });
@@ -248,7 +258,7 @@ describe("useVisitorCredentialForm — runTestConnection", () => {
   it("on success with NO key in the field, does not attempt a discovery refresh at all", async () => {
     vi.spyOn(api, "testExecutionConnection").mockResolvedValue({ ok: true, message: "Connected" });
     const listExecutionModels = vi.spyOn(api, "listExecutionModels");
-    const { result } = renderHook(() => useVisitorCredentialForm());
+    const { result } = renderHook(() => useWiredVisitorCredentialForm());
     await act(async () => {
       await Promise.resolve();
     });
@@ -270,7 +280,7 @@ describe("useVisitorCredentialForm — runTestConnection", () => {
     vi.spyOn(api, "testExecutionConnection").mockResolvedValue({ ok: true, message: "Connected" });
     const listExecutionModels = vi.spyOn(api, "listExecutionModels");
     listExecutionModels.mockResolvedValueOnce({ ok: true, models: ["existing-model"] });
-    const { result } = renderHook(() => useVisitorCredentialForm());
+    const { result } = renderHook(() => useWiredVisitorCredentialForm());
     await act(async () => {
       await vi.advanceTimersByTimeAsync(0);
     });
@@ -294,7 +304,7 @@ describe("useVisitorCredentialForm — runTestConnection", () => {
 
   it("on a not-ok result, reports the server's message as a connection error", async () => {
     vi.spyOn(api, "testExecutionConnection").mockResolvedValue({ ok: false, message: "Invalid key" });
-    const { result } = renderHook(() => useVisitorCredentialForm());
+    const { result } = renderHook(() => useWiredVisitorCredentialForm());
     await act(async () => {
       await Promise.resolve();
     });
@@ -308,7 +318,7 @@ describe("useVisitorCredentialForm — runTestConnection", () => {
 
   it("on a rejected probe, reports a connection error from the thrown message", async () => {
     vi.spyOn(api, "testExecutionConnection").mockRejectedValue(new Error("timed out"));
-    const { result } = renderHook(() => useVisitorCredentialForm());
+    const { result } = renderHook(() => useWiredVisitorCredentialForm());
     await act(async () => {
       await Promise.resolve();
     });
@@ -324,7 +334,7 @@ describe("useVisitorCredentialForm — runTestConnection", () => {
 describe("useVisitorCredentialForm — saveCredential", () => {
   it("is a no-op with no fetch call when the field is empty and nothing is stored", async () => {
     const setAssistantSiteCredential = vi.spyOn(api, "setAssistantSiteCredential");
-    const { result } = renderHook(() => useVisitorCredentialForm());
+    const { result } = renderHook(() => useWiredVisitorCredentialForm());
     await act(async () => {
       await Promise.resolve();
     });
@@ -341,7 +351,7 @@ describe("useVisitorCredentialForm — saveCredential", () => {
     vi.spyOn(api, "setAssistantSiteCredential").mockResolvedValue({
       data: credential({ isSet: true, masked: "••••wxyz", updatedAt: "2026-08-06T00:00:00.000Z" }),
     });
-    const { result } = renderHook(() => useVisitorCredentialForm());
+    const { result } = renderHook(() => useWiredVisitorCredentialForm());
     await act(async () => {
       await Promise.resolve();
     });
@@ -360,7 +370,7 @@ describe("useVisitorCredentialForm — saveCredential", () => {
 
   it("on failure: reports a describable save error and leaves the typed key in place", async () => {
     vi.spyOn(api, "setAssistantSiteCredential").mockRejectedValue(new ApiError("boom", 500));
-    const { result } = renderHook(() => useVisitorCredentialForm());
+    const { result } = renderHook(() => useWiredVisitorCredentialForm());
     await act(async () => {
       await Promise.resolve();
     });
@@ -380,7 +390,7 @@ describe("useVisitorCredentialForm — saveCredential", () => {
     const setAssistantSiteCredential = vi
       .spyOn(api, "setAssistantSiteCredential")
       .mockResolvedValue({ data: credential({ isSet: true, model: "m1" }) });
-    const { result } = renderHook(() => useVisitorCredentialForm());
+    const { result } = renderHook(() => useWiredVisitorCredentialForm());
     await act(async () => {
       await Promise.resolve();
       await Promise.resolve();
@@ -400,7 +410,7 @@ describe("useVisitorCredentialForm — saveCredential", () => {
 describe("useVisitorCredentialForm — selectPreset", () => {
   it("resets discovery and connectionTest to idle when switching providers", async () => {
     vi.spyOn(api, "testExecutionConnection").mockResolvedValue({ ok: true, message: "Connected" });
-    const { result } = renderHook(() => useVisitorCredentialForm());
+    const { result } = renderHook(() => useWiredVisitorCredentialForm());
     await act(async () => {
       await Promise.resolve();
     });
@@ -418,7 +428,7 @@ describe("useVisitorCredentialForm — selectPreset", () => {
 
 describe("useVisitorCredentialForm — editConfig", () => {
   it("marks the form dirty, unlike hydration or discovery seeding a model", async () => {
-    const { result } = renderHook(() => useVisitorCredentialForm());
+    const { result } = renderHook(() => useWiredVisitorCredentialForm());
     await act(async () => {
       await Promise.resolve();
     });
@@ -438,7 +448,7 @@ describe("useVisitorCredentialForm — editConfig", () => {
  * assertions pass a fake in instead: no module mocking at all, which is the property that proves the
  * seam is a real dependency boundary rather than a rename.
  */
-describe("VisitorCredentialApi injection", () => {
+describe("VisitorCredentialFormPort injection", () => {
   function fakeApi(stored: SiteAssistantCredential) {
     const setCalls: SiteAssistantCredentialPatch[] = [];
     let getCalls = 0;
@@ -454,7 +464,7 @@ describe("VisitorCredentialApi injection", () => {
           setCalls.push(patch);
           return { data: { ...stored, ...patch, isSet: true, updatedAt: "2026-08-10T00:00:00.000Z" } };
         },
-      } satisfies VisitorCredentialApi,
+      } satisfies VisitorCredentialFormPort,
     };
   }
 
@@ -516,7 +526,7 @@ describe("VisitorCredentialApi injection", () => {
 
   it("the hook hydrates from an injected port instead of the singleton", async () => {
     const fake = fakeApi(credential({ isSet: true, masked: "••••1234", baseUrl: "https://injected.test", model: "m-1" }));
-    const { result } = renderHook(() => useVisitorCredentialForm({ api: fake.port }));
+    const { result } = renderHook(() => useVisitorCredentialForm({ port: fake.port }));
     await act(async () => {
       await Promise.resolve();
     });

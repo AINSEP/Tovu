@@ -10,9 +10,11 @@ import {
   type ProviderPreset,
 } from "@jini-ai/ui";
 
-import { api, type SiteAssistantCredential, type SiteAssistantCredentialPatch } from "../../../lib/api";
+import type { SiteAssistantCredential, SiteAssistantCredentialPatch } from "../../../lib/api";
 import { createExecutionPort } from "../../../lib/execution-settings";
 import { configuredPresetIds as configuredPresetIdsRule, describeApiError, hasStoredCredential, hasUsableKey, isPresetSuppliedEndpoint } from "../rules";
+import { defaultVisitorCredentialFormPort } from "./visitor-credential-form-dependencies.hooks";
+import type { VisitorCredentialFormPort } from "./visitor-credential-form-port.hooks";
 
 /**
  * @file Everything `VisitorCredentialForm` does, so the component in `AiAssistant.tsx` is only
@@ -36,20 +38,6 @@ export type SaveState =
   | { status: "saving" }
   | { status: "saved"; at: string | null }
   | { status: "error"; message: string };
-
-/**
- * The two site-credential calls this form makes, as an explicit port.
- *
- * Structurally the matching slice of `lib/api`'s client, declared here rather than imported whole so
- * the handler below depends on the two methods it uses instead of on the ambient singleton. That
- * singleton is still the production default — nothing about the wiring changes — but it is now
- * passed in, which is what makes {@link saveVisitorCredential} exercisable against a fake without
- * module mocking, and what stops the port from silently widening as `api` grows.
- */
-export interface VisitorCredentialApi {
-  getAssistantSiteCredential(): Promise<{ data: SiteAssistantCredential }>;
-  setAssistantSiteCredential(patch: SiteAssistantCredentialPatch): Promise<{ data: SiteAssistantCredential }>;
-}
 
 /** The four writers {@link saveVisitorCredential} needs, grouped rather than passed as four loose
  *  setters beside four loose values. A save either advances all of them or none. */
@@ -104,8 +92,8 @@ export interface VisitorCredentialFormController {
  * `put-site-credential.ts`'s documented "leave the stored key alone" case.
  */
 export async function saveVisitorCredential(deps: {
-  /** Injected, not imported — see {@link VisitorCredentialApi}. */
-  api: VisitorCredentialApi;
+  /** Injected, not imported — see {@link VisitorCredentialFormPort}. */
+  api: VisitorCredentialFormPort;
   /** The whole draft, rather than the four fields picked out of it: the patch is built from `config`
    *  and nothing else, so restating its members here only invited them to drift apart. */
   config: ByokConfig;
@@ -224,18 +212,43 @@ async function runVisitorTestConnection(deps: {
   }
 }
 
-export interface UseVisitorCredentialFormOptions {
-  /** Dependency injection seam for tests — same convention `Roles`/`Users`/`Members` use for their
-   *  hooks. Defaulted to the real client, so production callers pass nothing. */
-  api?: VisitorCredentialApi;
+export interface VisitorCredentialFormDependencies {
+  /** Follows `useAiAssistant`/`useComposioConfig`'s `{ port }` dependencies shape — required here
+   *  (not defaulted internally), so the real client is supplied exactly once, by
+   *  {@link useWiredVisitorCredentialForm} below, rather than by every caller re-stating the
+   *  fallback. */
+  port: VisitorCredentialFormPort;
 }
 
-export function useVisitorCredentialForm(
-  options: UseVisitorCredentialFormOptions = {}
-): VisitorCredentialFormController {
+/**
+ * Everything `VisitorCredentialForm` does: config state, hydration from the server, the two debounced
+ * and on-demand model-discovery paths, connection testing, and the explicit save. See this file's own
+ * header for what this form is and `VisitorCredentialForm`'s doc comment in `AiAssistant.tsx` for the
+ * screen it backs.
+ *
+ * `port` is injected — see `visitor-credential-form-port.hooks.ts` — rather than importing `lib/api`
+ * directly, so a test can describe hydration/save against `createFakeVisitorCredentialFormPort`
+ * instead of stubbing global `fetch` or spying on the module singleton.
+ * {@link useWiredVisitorCredentialForm} below is the zero-argument pair `AiAssistant.tsx` actually
+ * mounts.
+ *
+ * @param deps - `{ port }` — the site-credential client this form reads and writes through.
+ * @returns The full form controller: config, discovery/connection-test state, and the save/test
+ *   handlers `VisitorCredentialForm` renders.
+ * @complexity Time: O(1) per call across every handler — one request per save/test/discovery pass,
+ *   no caller-controlled collections. Space: O(1).
+ */
+export function useVisitorCredentialForm({
+  // Renamed from the destructured `port` at the binding site — this function ALSO declares its own
+  // local `port` below (the unrelated `ExecutionPort` used for model discovery/connection tests), and
+  // the two would otherwise collide in the same scope. Same "rename the local binding, not the prop"
+  // rule `INFO.md`'s components section documents for an identical name clash.
+  port: credentialPort,
+}: VisitorCredentialFormDependencies): VisitorCredentialFormController {
   // A ref so the hydration effect can read it without listing it as a dependency, and so swapping
-  // the prop mid-life cannot re-run that one-shot effect. Same lifetime rule as `port` below.
-  const apiRef = useRef<VisitorCredentialApi>(options.api ?? api);
+  // the prop mid-life cannot re-run that one-shot effect. Same lifetime rule as `port` below (the
+  // OTHER port — `ExecutionPort`, for model discovery/connection tests — not this credential one).
+  const apiRef = useRef<VisitorCredentialFormPort>(credentialPort);
 
   const [config, setConfig] = useState<ByokConfig>(() => ({
     protocol: "google",
@@ -483,4 +496,20 @@ export function useVisitorCredentialForm(
     runKeyTest,
     runTestConnection,
   };
+}
+
+/**
+ * Binds the real `/api/.../assistant/site-credential` client — see
+ * `visitor-credential-form-dependencies.hooks.ts`.
+ *
+ * The zero-argument-dependencies half of the `useX(dependencies)` / `useWiredX()` pair, so
+ * `AiAssistant.tsx` composes this and a test composes {@link useVisitorCredentialForm} with
+ * `createFakeVisitorCredentialFormPort` (or, as `use-visitor-credential-form.unit.test.ts`'s own
+ * pre-existing "F05 coupling fix" tests do, a hand-rolled fake satisfying
+ * {@link VisitorCredentialFormPort}).
+ *
+ * @returns The full form controller, wired to the real site-credential client.
+ */
+export function useWiredVisitorCredentialForm(): VisitorCredentialFormController {
+  return useVisitorCredentialForm({ port: defaultVisitorCredentialFormPort });
 }

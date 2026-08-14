@@ -16,6 +16,17 @@ export interface AdminAssistantSwitchController {
   setOpen: (open: boolean) => void;
 }
 
+/**
+ * `AdminAssistantSwitch`'s own state — whether the admin's own assistant dock is open, read live off
+ * the shared dock bus rather than duplicated local state (see this file's own header for why).
+ *
+ * No I/O, so no injectable port: the whole hook has nothing to inject, and `AiAssistant.tsx` takes
+ * the hook itself as its DI seam (`useAdminAssistantSwitchHook`, defaulted to this function) rather
+ * than threading a dependencies object through it.
+ *
+ * @returns The dock's current open state and the setter that requests a change.
+ * @complexity Time/space: O(1) — one external-store subscription, no iteration.
+ */
 export function useAdminAssistantSwitch(): AdminAssistantSwitchController {
   const open = useSyncExternalStore(subscribeToAssistantDock, getAssistantDockOpen, () => false);
   return { open, setOpen: requestAssistantDock };

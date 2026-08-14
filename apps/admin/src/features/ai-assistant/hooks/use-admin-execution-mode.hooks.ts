@@ -29,6 +29,18 @@ export interface AdminExecutionModeController {
   execution: SettingsSlice<ExecutionConfig>;
 }
 
+/**
+ * `AdminExecutionMode`'s own Local CLI / BYOK slice — a second mount of `useSettingsSlice` over the
+ * same `core.execution` ledger namespace `features/settings/SettingsUi.tsx` uses (see this file's
+ * own header for why that duplication is intentional).
+ *
+ * No injectable port of its own: `useSettingsSlice`/`createExecutionPort` are the already-DI'd
+ * layers underneath this hook, so there is nothing left here to wrap in a port — `AiAssistant.tsx`
+ * takes this hook itself as its seam (`useAdminExecutionModeHook`, defaulted to this function).
+ *
+ * @returns The execution port ref and the `core.execution` settings slice `AdminExecutionMode` renders.
+ * @complexity Time/space: O(1) — one slice mount, no iteration.
+ */
 export function useAdminExecutionMode(): AdminExecutionModeController {
   const port = useRef(createExecutionPort());
 
