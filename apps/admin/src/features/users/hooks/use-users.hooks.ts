@@ -1,11 +1,13 @@
 import { useState, type Dispatch, type FormEvent, type SetStateAction } from "react";
 
-import { api, type AdminIdentityUser, type AdminPolicy, type AdminRole } from "../../../lib/api";
+import { type AdminIdentityUser, type AdminPolicy, type AdminRole } from "../../../lib/api";
 import { useFetchMutation, useFetchQuery } from "../../../lib/fetch-query";
 import { useAsyncAction } from "../../../hooks/use-async-action.hooks";
 import { describeApiError, KEYS } from "../rules";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { passwordResetNotice, t } from "../users-i18n";
+import { defaultUsersPort } from "./users-dependencies.hooks";
+import type { UsersPort } from "./users-port.hooks";
 
 /**
  * @file Everything the Users screen does, so `Users.tsx` is only markup.
@@ -53,6 +55,16 @@ import { passwordResetNotice, t } from "../users-i18n";
  * mutation's own `status`/`error` has no way to carry "which row/action this particular call was
  * for". `emailSaving` is the one exception — it already tracked exactly one mutation 1:1 before this
  * migration, so it now derives from `updateEmailMutation.status` directly.
+ *
+ * `useX(dependencies)` / `useWiredX()` conversion (2026-08-14): every `api.xxx()` call below is now
+ * `port.xxx()` — see `users-port.hooks.ts` for the interface and `users-dependencies.hooks.ts` for
+ * the real binding, the only file left that imports `lib/api` as a value for this feature. `port` is
+ * captured once from `deps` and read directly inside the `useFetchQuery`/`useFetchMutation` closures
+ * below, which is safe without the ref-and-dep-array discipline `apps/admin/INFO.md`'s "Two traps"
+ * section describes for a hand-rolled `useEffect`: TanStack's `useQuery`/`useMutation` (this file's
+ * actual I/O primitive, via `lib/fetch-query`) take a fresh `queryFn`/`mutationFn` closure every
+ * render by design and do not require referential stability to avoid a refetch loop, unlike a raw
+ * `useEffect([port])`. There is no dependency array in this file for `port` to be listed in wrongly.
  */
 
 export interface UsersController {
@@ -160,14 +172,28 @@ async function runGrantMutation(
   }
 }
 
-export function useUsers(): UsersController {
+/** What `useUsers` needs injected from outside — see this file's header for the conversion note. */
+export interface UsersDependencies {
+  port: UsersPort;
+}
+
+/**
+ * Everything the Users screen does — full state, effects, and every server write, as one hook so
+ * `Users.tsx` stays a pure render of whatever this returns. See this file's header for the
+ * `useFetchQuery`/`useFetchMutation` migration and the `port` injection it now also carries.
+ *
+ * @param deps - Injected collaborators; production callers get these from {@link useWiredUsers}.
+ * @returns The full `UsersController` the view renders from — see that interface for every field.
+ */
+export function useUsers(deps: UsersDependencies): UsersController {
+  const { port } = deps;
   const locale = useAdminLocale();
   const boundT = (key: string): string => t(locale, key);
 
   const list = useFetchQuery({
     key: KEYS.list,
     fetch: async () => {
-      const [u, r, p] = await Promise.all([api.listUsers(), api.listRoles(), api.listPolicies()]);
+      const [u, r, p] = await Promise.all([port.listUsers(), port.listRoles(), port.listPolicies()]);
       return { users: u.users, roles: r.roles, policies: p.policies };
     },
   });
@@ -183,7 +209,7 @@ export function useUsers(): UsersController {
   const createUser = useAsyncAction();
   const createUserMutation = useFetchMutation({
     run: (input: { username: string; password: string; email: string | undefined }) =>
-      api.createUser({ username: input.username, password: input.password }, { email: input.email }),
+      port.createUser({ username: input.username, password: input.password }, { email: input.email }),
     invalidates: [KEYS.list],
   });
 
@@ -193,24 +219,24 @@ export function useUsers(): UsersController {
   const [grantSaving, setGrantSaving] = useState(false);
   const [grantError, setGrantError] = useState<string | null>(null);
   const assignRoleMutation = useFetchMutation({
-    run: (input: { principalId: string; roleId: string }) => api.assignRole(input),
+    run: (input: { principalId: string; roleId: string }) => port.assignRole(input),
     invalidates: [KEYS.list],
   });
   const attachPolicyMutation = useFetchMutation({
-    run: (input: { principalId: string; policyId: string }) => api.attachPolicy(input),
+    run: (input: { principalId: string; policyId: string }) => port.attachPolicy(input),
     invalidates: [KEYS.list],
   });
 
   const [editEmail, setEditEmail] = useState("");
   const updateEmailMutation = useFetchMutation({
-    run: (input: { principalId: string; email: string }) => api.updateUser({ principalId: input.principalId }, { email: input.email }),
+    run: (input: { principalId: string; email: string }) => port.updateUser({ principalId: input.principalId }, { email: input.email }),
     invalidates: [KEYS.list],
   });
   const [toggleSavingId, setToggleSavingId] = useState<string | null>(null);
   const [toggleError, setToggleError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const toggleStatusMutation = useFetchMutation({
-    run: (user: AdminIdentityUser) => (user.status === "active" ? api.disableUser(user.principalId) : api.enableUser(user.principalId)),
+    run: (user: AdminIdentityUser) => (user.status === "active" ? port.disableUser(user.principalId) : port.enableUser(user.principalId)),
     invalidates: [KEYS.list],
   });
 
@@ -229,7 +255,7 @@ export function useUsers(): UsersController {
   // No `invalidates` — matches the pre-migration `confirmResetPassword`, which never called
   // `reload()` either (a password reset changes nothing the users table shows).
   const resetPasswordMutation = useFetchMutation({
-    run: (input: { principalId: string; password: string }) => api.resetUserPassword(input),
+    run: (input: { principalId: string; password: string }) => port.resetUserPassword(input),
   });
 
   async function onCreate(e: FormEvent) {
@@ -399,4 +425,16 @@ export function useUsers(): UsersController {
     t: boundT,
     locale,
   };
+}
+
+/**
+ * Binds the real `/api/.../users`, `/roles`, and `/policies` clients — see
+ * `users-dependencies.hooks.ts`. The zero-argument half of the `useX(dependencies)` / `useWiredX()`
+ * pair, so `Users.tsx` composes this and a test composes {@link useUsers} with
+ * `createFakeUsersPort`.
+ *
+ * @returns The same `UsersController` {@link useUsers} returns, wired to the live API client.
+ */
+export function useWiredUsers(): UsersController {
+  return useUsers({ port: defaultUsersPort });
 }

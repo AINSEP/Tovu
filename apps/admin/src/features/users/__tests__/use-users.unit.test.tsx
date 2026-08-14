@@ -2,7 +2,8 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "../../../lib/fetch-query";
-import { useUsers } from "../hooks/use-users.hooks";
+import { createFakeUsersPort } from "../hooks/users-dependencies.hooks";
+import { useUsers, useWiredUsers } from "../hooks/use-users.hooks";
 
 /**
  * @file First dedicated hook-level test file for `useUsers` (0% before this pass — the highest-
@@ -24,6 +25,14 @@ import { useUsers } from "../hooks/use-users.hooks";
  * `wrapper` (2026-08-12, `lib/fetch-query` migration): the combined users+roles+policies read and
  * every write now go through `useFetchQuery`/`useFetchMutation`, which throw without a
  * `QueryClientProvider` ancestor.
+ *
+ * `useWiredUsers` (2026-08-14, `useX(dependencies)` / `useWiredX()` conversion): every call below
+ * that used to render bare `useUsers()` now renders `useWiredUsers()` instead — same real `fetch`
+ * harness, same assertions, only the entry point renamed now that `useUsers` takes an injected
+ * `UsersDependencies` argument. Matches `use-posts.unit.test.ts`/`use-redirects.hooks.unit.test.tsx`'s
+ * identical split: this file's bulk stays a `fetch`-stubbed `useWiredUsers` suite, and a new
+ * "injected port" group at the bottom composes `useUsers` directly against `createFakeUsersPort`
+ * with no `fetch` stub at all.
  */
 
 function wrapper({ children }: { children: React.ReactNode }) {
@@ -74,7 +83,7 @@ async function renderLoaded() {
     .mockResolvedValueOnce(jsonResponse({ users: [USER_A] }))
     .mockResolvedValueOnce(jsonResponse({ roles: [ROLE] }))
     .mockResolvedValueOnce(jsonResponse({ policies: [POLICY] }));
-  const view = renderHook(() => useUsers(), { wrapper });
+  const view = renderHook(() => useWiredUsers(), { wrapper });
   await waitFor(() => expect(view.result.current.users).not.toBeNull());
   return view;
 }
@@ -93,7 +102,7 @@ describe("initial load", () => {
       .mockResolvedValueOnce(jsonResponse({ error: "nope", code: "FORBIDDEN" }, 403))
       .mockResolvedValueOnce(jsonResponse({ roles: [ROLE] }))
       .mockResolvedValueOnce(jsonResponse({ policies: [POLICY] }));
-    const { result } = renderHook(() => useUsers(), { wrapper });
+    const { result } = renderHook(() => useWiredUsers(), { wrapper });
     await waitFor(() => expect(result.current.error).not.toBeNull());
     expect(result.current.error).toBe("You do not have permission to do that.");
     expect(result.current.users).toBeNull();
@@ -468,9 +477,78 @@ describe("t/locale (2026-08-11, standing i18n rule)", () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ roles: [ROLE] }));
     fetchMock.mockResolvedValueOnce(jsonResponse({ policies: [POLICY] }));
 
-    const { result } = renderHook(() => useUsers(), { wrapper });
+    const { result } = renderHook(() => useWiredUsers(), { wrapper });
 
     await waitFor(() => expect(result.current.locale).toBe("es"));
     expect(result.current.t("Users")).toBe("Usuarios");
+  });
+});
+
+describe("injected port (useX(dependencies) / useWiredX() conversion coverage)", () => {
+  /** `useUsers` still calls `useAdminLocale()` internally regardless of which port is injected —
+   *  see this file's header note and `use-users.hooks.ts`'s own header on why that stays out of
+   *  `UsersPort` (it is wired in a separate pass). This file's `beforeEach` already routes that one
+   *  locale request to a fixed response, so every assertion below on `fetchMock` still only counts
+   *  the calls `UsersPort` itself would have made. */
+
+  it("loads users, roles, and policies through the injected port, without touching fetch", async () => {
+    const port = createFakeUsersPort({ users: [USER_A], roles: [ROLE], policies: [POLICY] });
+    const { result } = renderHook(() => useUsers({ port }), { wrapper });
+    await waitFor(() => expect(result.current.users).not.toBeNull());
+
+    expect(result.current.users).toEqual([USER_A]);
+    expect(result.current.roles).toEqual([ROLE]);
+    expect(result.current.policies).toEqual([POLICY]);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("onCreate writes through the injected port and the list reflects the new user", async () => {
+    const port = createFakeUsersPort({ users: [USER_A], roles: [ROLE], policies: [POLICY] });
+    const { result } = renderHook(() => useUsers({ port }), { wrapper });
+    await waitFor(() => expect(result.current.users).not.toBeNull());
+
+    act(() => {
+      result.current.setUsername("carol");
+      result.current.setPassword("hunter22");
+    });
+    await act(async () => {
+      await result.current.onCreate({ preventDefault: () => {} } as unknown as React.FormEvent);
+    });
+
+    expect(port.users).toHaveLength(2);
+    await waitFor(() => expect(result.current.users).toHaveLength(2));
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("onToggleStatus disables an active user through the injected port", async () => {
+    const port = createFakeUsersPort({ users: [USER_A], roles: [ROLE], policies: [POLICY] });
+    const { result } = renderHook(() => useUsers({ port }), { wrapper });
+    await waitFor(() => expect(result.current.users).not.toBeNull());
+
+    await act(async () => {
+      await result.current.onToggleStatus(USER_A);
+    });
+
+    expect(port.users[0]!.status).toBe("disabled");
+    await waitFor(() => expect(result.current.users?.[0]!.status).toBe("disabled"));
+  });
+
+  it("onAssignRole sets grantError from the injected port's configured failure", async () => {
+    const port = createFakeUsersPort({
+      users: [USER_A],
+      roles: [ROLE],
+      policies: [POLICY],
+      assignRoleError: new Error("boom"),
+    });
+    const { result } = renderHook(() => useUsers({ port }), { wrapper });
+    await waitFor(() => expect(result.current.users).not.toBeNull());
+
+    act(() => result.current.setPendingRoleId(ROLE.id));
+    await act(async () => {
+      await result.current.onAssignRole(USER_A.principalId);
+    });
+
+    expect(result.current.grantError).toBe("boom");
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

@@ -3,7 +3,7 @@ import type { AdminIdentityUser, AdminPolicy, AdminRole } from "../../lib/api";
 import { RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
 
 import { formatGrantLabel, userRowMenuItems } from "./rules";
-import { useUsers } from "./hooks/use-users.hooks";
+import { useWiredUsers } from "./hooks/use-users.hooks";
 
 /**
  * @file Admin "Users" screen (SPEC-006 §3 human grant-writing transitions + 0.6.0 CRUD-completion
@@ -45,10 +45,10 @@ import { useUsers } from "./hooks/use-users.hooks";
 export interface UsersProps {
   /**
    * Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
-   * for `useCustomSelect`. Defaulted to the real hook, so production callers (`panels.tsx`) pass
+   * for `useCustomSelect`. Defaulted to the wired hook, so production callers (`panels.tsx`) pass
    * nothing and behave exactly as before.
    */
-  useUsersHook?: typeof useUsers;
+  useUsersHook?: typeof useWiredUsers;
 }
 
 interface NewUserFormProps {
@@ -519,7 +519,7 @@ function UsersNotices({ toggleError, notice }: UsersNoticesProps) {
   );
 }
 
-export function Users({ useUsersHook = useUsers }: UsersProps = {}) {
+export function Users({ useUsersHook = useWiredUsers }: UsersProps = {}) {
   const {
     users,
     roles,
