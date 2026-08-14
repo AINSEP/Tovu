@@ -2,9 +2,9 @@ import { type AdminLedgerRow } from "../../lib/api";
 import { formatTimestamp } from "../../lib/format-timestamp";
 import { DataTable } from "@jini-ai/admin/react";
 
-import { navigateToRecoveryWithDeepLink, useTimelineSection } from "./hooks/use-timeline-section.hooks";
-import { useRestorePointsSection } from "./hooks/use-restore-points-section.hooks";
-import { useMigrateForwardSection, type MigrateForwardSectionController } from "./hooks/use-migrate-forward-section.hooks";
+import { navigateToRecoveryWithDeepLink, useWiredTimelineSection } from "./hooks/use-timeline-section.hooks";
+import { useWiredRestorePointsSection } from "./hooks/use-restore-points-section.hooks";
+import { useWiredMigrateForwardSection, type MigrateForwardSectionController } from "./hooks/use-migrate-forward-section.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { t, planReadyMessage } from "./database-i18n";
 
@@ -47,8 +47,10 @@ const KIND_OPTIONS = [
 export interface TimelineSectionProps {
   /** Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
    *  for `useCustomSelect`. Mirrored per-section below (`RestorePointsSectionProps`,
-   *  `MigrateForwardSectionProps`) since each section owns independent state. */
-  useTimelineSectionHook?: typeof useTimelineSection;
+   *  `MigrateForwardSectionProps`) since each section owns independent state. Defaulted to the
+   *  WIRED hook (2026-08-14, Orc-BASH pass) — see `use-timeline-section.hooks.ts`'s own
+   *  `useWiredTimelineSection`. */
+  useTimelineSectionHook?: typeof useWiredTimelineSection;
 }
 
 /** The Timeline's filter bar. Pure presentation, no branching of its own beyond the
@@ -164,7 +166,7 @@ function TimelineBody(props: { locale: string; rows: AdminLedgerRow[]; nextCurso
   );
 }
 
-function TimelineSection({ useTimelineSectionHook = useTimelineSection }: TimelineSectionProps) {
+function TimelineSection({ useTimelineSectionHook = useWiredTimelineSection }: TimelineSectionProps) {
   const {
     rows,
     nextCursor,
@@ -210,10 +212,12 @@ function TimelineSection({ useTimelineSectionHook = useTimelineSection }: Timeli
 }
 
 export interface RestorePointsSectionProps {
-  useRestorePointsSectionHook?: typeof useRestorePointsSection;
+  /** Defaulted to the WIRED hook (2026-08-14, Orc-BASH pass) — see `use-restore-points-
+   *  section.hooks.ts`'s own `useWiredRestorePointsSection`. */
+  useRestorePointsSectionHook?: typeof useWiredRestorePointsSection;
 }
 
-function RestorePointsSection({ useRestorePointsSectionHook = useRestorePointsSection }: RestorePointsSectionProps) {
+function RestorePointsSection({ useRestorePointsSectionHook = useWiredRestorePointsSection }: RestorePointsSectionProps) {
   const { points, error, creating, createRestorePoint, t } = useRestorePointsSectionHook();
 
   if (error && !points) return <div className="notice error">{error}</div>;
@@ -254,7 +258,9 @@ function RestorePointsSection({ useRestorePointsSectionHook = useRestorePointsSe
 }
 
 export interface MigrateForwardSectionProps {
-  useMigrateForwardSectionHook?: typeof useMigrateForwardSection;
+  /** Defaulted to the WIRED hook (2026-08-14, Orc-BASH pass) — see `use-migrate-forward-
+   *  section.hooks.ts`'s own `useWiredMigrateForwardSection`. */
+  useMigrateForwardSectionHook?: typeof useWiredMigrateForwardSection;
 }
 
 /** step === "idle": the entry point into the ceremony. */
@@ -331,7 +337,7 @@ function migrateForwardStep(props: {
   return null;
 }
 
-function MigrateForwardSection({ useMigrateForwardSectionHook = useMigrateForwardSection }: MigrateForwardSectionProps) {
+function MigrateForwardSection({ useMigrateForwardSectionHook = useWiredMigrateForwardSection }: MigrateForwardSectionProps) {
   const { step, busy, error, plan, confirmationToken, done, reset, startPlan, doConfirm, doExecute, t, locale } = useMigrateForwardSectionHook();
 
   return (

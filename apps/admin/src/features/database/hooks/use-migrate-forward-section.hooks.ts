@@ -1,8 +1,10 @@
 import { useState } from "react";
-import { api, describeApiError } from "../../../lib/api";
+import { describeApiError } from "../../../lib/api";
 import { useFetchMutation } from "../../../lib/fetch-query";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { t } from "../database-i18n";
+import { defaultMigrateForwardSectionPort } from "./migrate-forward-section-dependencies.hooks";
+import type { MigrateForwardSectionPort } from "./migrate-forward-section-port.hooks";
 
 /**
  * @file Everything `MigrateForwardSection` (the Database screen's plan/confirm/execute
@@ -29,6 +31,12 @@ import { t } from "../database-i18n";
  * their predecessor's output), so at most one ever holds a non-null `.error` at a time. `reset()`
  * now also resets all three mutations, so a stale failure from an earlier attempt at the current
  * step doesn't survive a full ceremony reset.
+ *
+ * DI seam (2026-08-14, Orc-BASH pass): `port` is now injected — see `migrate-forward-section-
+ * port.hooks.ts` — rather than reaching `lib/api` directly, so a test can describe the
+ * plan/confirm/execute ceremony against `createFakeMigrateForwardSectionPort` instead of stubbing
+ * global `fetch`. `useWiredMigrateForwardSection` below is the zero-argument pair `Database.tsx`
+ * actually mounts.
  */
 
 export type CeremonyStep = "idle" | "planned" | "confirmed" | "done";
@@ -53,7 +61,12 @@ export interface MigrateForwardSectionController {
   locale: string;
 }
 
-export function useMigrateForwardSection(): MigrateForwardSectionController {
+export interface MigrateForwardSectionDependencies {
+  port: MigrateForwardSectionPort;
+}
+
+export function useMigrateForwardSection(deps: MigrateForwardSectionDependencies): MigrateForwardSectionController {
+  const { port } = deps;
   const locale = useAdminLocale();
   const boundT = (key: string): string => t(locale, key);
   const [step, setStep] = useState<CeremonyStep>("idle");
@@ -61,11 +74,11 @@ export function useMigrateForwardSection(): MigrateForwardSectionController {
   const [confirmationToken, setConfirmationToken] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
-  const startPlanMutation = useFetchMutation({ run: (_: undefined) => api.planMigrateForward() });
+  const startPlanMutation = useFetchMutation({ run: (_: undefined) => port.planMigrateForward() });
   const confirmMutation = useFetchMutation({
-    run: (input: { planId: string; planHash: string }) => api.confirmMigrateForward(input),
+    run: (input: { planId: string; planHash: string }) => port.confirmMigrateForward(input),
   });
-  const executeMutation = useFetchMutation({ run: (confirmationTokenInput: string) => api.executeMigrateForward(confirmationTokenInput) });
+  const executeMutation = useFetchMutation({ run: (confirmationTokenInput: string) => port.executeMigrateForward(confirmationTokenInput) });
 
   function reset() {
     setStep("idle");
@@ -124,4 +137,14 @@ export function useMigrateForwardSection(): MigrateForwardSectionController {
   }
 
   return { step, busy, error, plan, confirmationToken, done, reset, startPlan, doConfirm, doExecute, t: boundT, locale };
+}
+
+/**
+ * Binds the real `/api/.../database/migrate-forward` client — see `migrate-forward-section-
+ * dependencies.hooks.ts`. The zero-argument half of the `useX(dependencies)` / `useWiredX()` pair,
+ * so `Database.tsx` composes this and a test composes {@link useMigrateForwardSection} with
+ * `createFakeMigrateForwardSectionPort`.
+ */
+export function useWiredMigrateForwardSection(): MigrateForwardSectionController {
+  return useMigrateForwardSection({ port: defaultMigrateForwardSectionPort });
 }

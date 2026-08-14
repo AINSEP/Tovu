@@ -78,11 +78,14 @@ function routeFetch(routes: Array<{ method?: string; match: string; handler: () 
 /** Wraps every render in `FetchQueryProvider` (2026-08-12, `lib/fetch-query` migration) — `Media`'s
  *  hooks are now backed by `useFetchQuery`/`useFetchMutation`, which throw without a
  *  `QueryClientProvider` ancestor. `main.tsx` provides this in production; here it is one
- *  `FetchQueryProvider` per render, matching `taxonomy`'s own component-test precedent. */
-function renderScreen() {
+ *  `FetchQueryProvider` per render, matching `taxonomy`'s own component-test precedent.
+ *
+ *  Takes `Media`'s own props (defaulted to `{}`) so a test can override an injectable seam —
+ *  e.g. `useMediaTabsHook` below — without every other existing call site needing to change. */
+function renderScreen(props: React.ComponentProps<typeof Media> = {}) {
   return render(
     <FetchQueryProvider>
-      <Media />
+      <Media {...props} />
     </FetchQueryProvider>
   );
 }
@@ -669,3 +672,16 @@ async function waitForCard(container: HTMLElement, title: string): Promise<HTMLE
   });
   return container;
 }
+
+describe("tab bar — useMediaTabsHook injection seam", () => {
+  it("renders the tab the injected hook reports, proving the default isn't hardcoded", async () => {
+    fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
+    // The real `useMediaTabs` can only ever start on "all" — landing on the "videos" placeholder
+    // on first render is a value the real hook cannot produce, so seeing it here proves this seam
+    // is wired to the injected hook, not calling `useMediaTabs()` directly.
+    renderScreen({ useMediaTabsHook: () => ({ activeTab: "videos", setActiveTab: vi.fn() }) });
+
+    expect(await screen.findByText(/Filtering by type isn't wired up yet\./)).toBeInTheDocument();
+    expect(screen.queryByText("No media uploaded yet.")).not.toBeInTheDocument();
+  });
+});

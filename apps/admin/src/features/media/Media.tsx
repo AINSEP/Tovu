@@ -566,6 +566,11 @@ export interface MediaProps {
    * Defaulted to the real hook, so production callers pass nothing and behave exactly as before.
    */
   useMediaHook?: typeof useWiredMedia;
+  /**
+   * Dependency injection seam for tests — same convention, no port (see `use-media-tabs.hooks.ts`'s
+   * own doc for why this pure-UI-state hook has no `useWiredX()` pair to default to instead).
+   */
+  useMediaTabsHook?: typeof useMediaTabs;
 }
 
 /** "Images"/"Videos" tab body — see `Media()`'s own comment at the tab-bar mount site for why
@@ -585,7 +590,7 @@ function MediaTypeFilterPlaceholder({ kind, t }: { kind: "images" | "videos"; t:
   );
 }
 
-export function Media({ useMediaHook = useWiredMedia }: MediaProps = {}) {
+export function Media({ useMediaHook = useWiredMedia, useMediaTabsHook = useMediaTabs }: MediaProps = {}) {
   const {
     media,
     error,
@@ -609,7 +614,7 @@ export function Media({ useMediaHook = useWiredMedia }: MediaProps = {}) {
     t,
     locale,
   } = useMediaHook();
-  const { activeTab, setActiveTab } = useMediaTabs();
+  const { activeTab, setActiveTab } = useMediaTabsHook();
 
   if (error && !media) return <div className="notice error">{error}</div>;
   if (!media) return <div className="notice">Loading media…</div>;

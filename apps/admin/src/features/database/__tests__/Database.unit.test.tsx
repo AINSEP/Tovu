@@ -39,15 +39,15 @@ const { timelineRef, restorePointsRef, migrateForwardRef } = vi.hoisted(() => ({
 
 vi.mock("../hooks/use-timeline-section.hooks", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../hooks/use-timeline-section.hooks")>();
-  return { ...actual, useTimelineSection: () => timelineRef.current };
+  return { ...actual, useWiredTimelineSection: () => timelineRef.current };
 });
 vi.mock("../hooks/use-restore-points-section.hooks", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../hooks/use-restore-points-section.hooks")>();
-  return { ...actual, useRestorePointsSection: () => restorePointsRef.current };
+  return { ...actual, useWiredRestorePointsSection: () => restorePointsRef.current };
 });
 vi.mock("../hooks/use-migrate-forward-section.hooks", async (importOriginal) => {
   const actual = await importOriginal<typeof import("../hooks/use-migrate-forward-section.hooks")>();
-  return { ...actual, useMigrateForwardSection: () => migrateForwardRef.current };
+  return { ...actual, useWiredMigrateForwardSection: () => migrateForwardRef.current };
 });
 
 const ROW: AdminLedgerRow = {
