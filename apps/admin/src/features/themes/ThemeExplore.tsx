@@ -919,6 +919,17 @@ export function ThemeExplore({ themeId, useThemeExploreHook = useWiredThemeExplo
     t,
   } = useThemeExploreHook(themeId);
 
+  // STAYS LOCAL — deliberately not moved into `useThemeExploreHook`'s controller (owner-ratified,
+  // 2026-08-14 DI migration sweep). This is interactive DOM chrome, not async/API state: nothing
+  // here does I/O, and `ThemeExplore.unit.test.tsx` asserts it through REAL DOM behavior driven by
+  // real clicks — `aria-pressed` toggling on Tablet/Mobile, the `<dialog>`'s `open` attribute,
+  // focus returning to the trigger on close. Every `useThemeExploreHook` fake in that file is a
+  // static object (`() => ctrl`), so a setter moved into the controller would become a `vi.fn()`
+  // that changes nothing on screen — proved by making the move and watching those tests fail with
+  // "setFullscreen is not a function" before reverting here. Same precedent as `Posts.tsx:64`'s own
+  // local `updatedSort`: pure view state with no I/O is allowed to live outside the injected hook.
+  // Async/API state (the rest of this controller) is NOT exempt — this carve-out is for DOM-chrome
+  // state asserted through real interaction only.
   const [device, setDevice] = useState<PagePreviewDevice>("desktop");
   const [fullscreen, setFullscreen] = useState(false);
   const fullscreenTriggerRef = useRef<HTMLButtonElement>(null);
