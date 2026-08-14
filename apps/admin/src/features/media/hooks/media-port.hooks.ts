@@ -8,16 +8,23 @@ import type { AdminMedia } from "../../../lib/api";
  * `development/docs/architecture/wired-hooks-convention.md` (canonical spec) and
  * `redirects-port.hooks.ts` (canonical reference implementation): this file declares,
  * `media-dependencies.hooks.ts` binds the real `api` client, and nothing else under
- * `features/media` imports `lib/api` for these five routes. One shared port rather than one per
+ * `features/media` imports `lib/api` for these six routes. One shared port rather than one per
  * hook — both hooks read/write the same `/media` resource, and a test double for one is a test
  * double for the resource, not for a single screen.
  *
- * `api.mediaOriginalUrl` is deliberately NOT part of this port: it is a pure, synchronous URL
- * template (`${BASE}/workspaces/${WORKSPACE_ID}/media/${id}/original` — no `fetch`, no `await`,
- * see `lib/api.ts`), not I/O. Per the convention's "what stays a direct import" rule (same
- * reasoning as `describeApiError`), a pure no-I/O function is imported directly rather than
- * injected — injecting it would let a fake quietly change a decision rule every test needs to hold
- * still, for zero testability gain since there is no host boundary to cross.
+ * `mediaOriginalUrl` IS part of this port (changed 2026-08-14 — this is not an oversight). Earlier
+ * revisions of this file excluded it: it is a pure, synchronous URL template
+ * (`${BASE}/workspaces/${WORKSPACE_ID}/media/${id}/original` — no `fetch`, no `await`, see
+ * `lib/api.ts`), and the convention's "what stays a direct import" rule (same category as
+ * `describeApiError`) argued a pure no-I/O function had no host boundary worth injecting. The
+ * owner's ruling supersedes that argument: EVERY synchronous URL builder `lib/api.ts` exposes goes
+ * through its consumer's port uniformly, so `media-dependencies.hooks.ts` stays the only file
+ * reaching `lib/api` for these six routes and a test can prove a URL came from the injected port
+ * rather than the consumer calling `lib/api` itself — the same thing the five I/O routes below were
+ * already bought for. Mirrors `page-editor-port.hooks.ts`'s `templatePreviewUrl`, the reference
+ * implementation this was ported from. `use-media-preview.hooks.ts`'s header still documents the
+ * OLD reasoning as of this date — that hook was not touched in this pass, is not part of `MediaPort`
+ * at all, and its own comment remains accurate for itself; do not treat it as contradicting this one.
  */
 export interface MediaPort {
   listMedia(): Promise<{ media: AdminMedia[] }>;
@@ -39,4 +46,12 @@ export interface MediaPort {
   ): Promise<{ media: AdminMedia }>;
   trashMedia(id: string): Promise<{ media: AdminMedia }>;
   deleteMedia(id: string): Promise<{ purged: boolean }>;
+  /**
+   * Synchronous URL builder for a media asset's authenticated byte-serving preview/original file —
+   * NOT a network call itself; see `lib/api.ts`'s own `mediaOriginalUrl` for the exact URL shape.
+   * On the port since 2026-08-14 (see this file's header) so `media-dependencies.hooks.ts` is the
+   * only file reaching `lib/api` for it and a test can assert the resolved URL came from the
+   * injected port.
+   */
+  mediaOriginalUrl(id: string): string;
 }

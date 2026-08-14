@@ -16,6 +16,7 @@ export const defaultMediaPort: MediaPort = {
   updateMedia: (target, options) => api.updateMedia(target, options),
   trashMedia: (id) => api.trashMedia(id),
   deleteMedia: (id) => api.deleteMedia(id),
+  mediaOriginalUrl: (id) => api.mediaOriginalUrl(id),
 };
 
 /** Seed state for {@link createFakeMediaPort}. */
@@ -88,6 +89,13 @@ export function createFakeMediaPort(options: FakeMediaPortOptions = {}): MediaPo
       if (index < 0) throw new Error(`fake media not found: ${id}`);
       items.splice(index, 1);
       return { purged: true };
+    },
+
+    // A distinct `fake://` scheme, not `api.mediaOriginalUrl`'s real
+    // `/workspaces/.../media/.../original` shape — so a test asserting a resolved URL came from
+    // THIS fake fails if a consumer ever goes back to calling the real `api` directly.
+    mediaOriginalUrl(id) {
+      return `fake://media-original/${id}`;
     },
   };
 }

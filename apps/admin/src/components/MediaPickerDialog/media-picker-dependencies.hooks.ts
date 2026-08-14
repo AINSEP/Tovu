@@ -10,6 +10,7 @@ import type { MediaPickerPort } from "./media-picker-port.hooks";
  *  .hooks.ts`'s `defaultRedirectsPort`. */
 export const defaultMediaPickerPort: MediaPickerPort = {
   listMedia: () => api.listMedia(),
+  mediaOriginalUrl: (id) => api.mediaOriginalUrl(id),
 };
 
 /** Seed state for {@link createFakeMediaPickerPort}. */
@@ -26,6 +27,14 @@ export function createFakeMediaPickerPort(options: FakeMediaPickerPortOptions = 
   return {
     async listMedia() {
       return { media: [...(options.media ?? [])] };
+    },
+
+    // A distinct `fake://` scheme, not `api.mediaOriginalUrl`'s real
+    // `/workspaces/.../media/.../original` shape — so a test asserting a rendered thumbnail's `src`
+    // came from THIS fake fails if `MediaPickerDialog.tsx` ever goes back to calling the real `api`
+    // directly.
+    mediaOriginalUrl(id) {
+      return `fake://media-picker-original/${id}`;
     },
   };
 }

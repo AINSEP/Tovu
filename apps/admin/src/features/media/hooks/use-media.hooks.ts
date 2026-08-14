@@ -26,10 +26,11 @@ import type { MediaPort } from "./media-port.hooks";
  * `createFakeMediaPort` instead of stubbing global `fetch`. `media-i18n.ts`'s own `t(locale, key)`
  * — aliased `translate` here to avoid colliding with this file's own bound `(key) => string`
  * closure — stays a direct import for this hook's OWN error strings: a pure `DICT[locale]?.[key]
- * ?? key` lookup with no host boundary, same category as `describeApiError` (see
- * `media-port.hooks.ts`'s own doc comment for the identical reasoning about
- * `api.mediaOriginalUrl`). `useWiredMedia` below is the zero-argument pair `Media.tsx` actually
- * mounts.
+ * ?? key` lookup with no host boundary, same category as `describeApiError` (unlike
+ * `mediaOriginalUrl`, which DID move onto `MediaPort` on 2026-08-14 — see `media-port.hooks.ts`'s
+ * header; a lookup with no external route to fake is a different case from a URL builder whose
+ * whole point is to prove which client produced the string). `useWiredMedia` below is the
+ * zero-argument pair `Media.tsx` actually mounts.
  *
  * `t`/`locale` are ALSO returned from {@link useMedia} (standing i18n rule, 2026-08-11 — a
  * component with a hook gets a BOUND `t` from that hook, not its own `useAdminLocale()`/dictionary
