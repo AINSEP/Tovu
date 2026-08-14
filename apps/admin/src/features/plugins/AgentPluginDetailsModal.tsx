@@ -1,29 +1,28 @@
 import { CodeWithLines } from "@jini-ai/ui";
 import { PreviewModalShell } from "@jini-ai/ui/renderers";
-import { useId, useState } from "react";
+import { useId } from "react";
 
 import type { BundledAgentPlugin } from "./agent-plugin-catalog";
-import {
-  findBundledAgentPluginSourceFile,
-  getBundledAgentPluginSourceFiles,
-} from "./agent-plugin-source-catalog";
+import { useAgentPluginDetailsModal } from "./hooks/use-agent-plugin-details-modal.hooks";
 
 export interface AgentPluginDetailsModalProps {
   readonly plugin: BundledAgentPlugin;
   readonly onClose: () => void;
+  /** Injectable seam for the file-tree selection state. Defaults to the real
+   *  {@link useAgentPluginDetailsModal}; a test can pass a fake here to exercise the modal's
+   *  rendering with a fixed file list/selection. */
+  readonly useDetails?: typeof useAgentPluginDetailsModal;
 }
 
 /**
  * Read-only inspection of an explicitly bundled plugin package.
  *
  * The modal receives no path/loading adapter. Its only content source is the compile-time
- * allowlist returned by `getBundledAgentPluginSourceFiles`, so selecting a row is a pure lookup
- * and can never become an arbitrary file read.
+ * allowlist `useAgentPluginDetailsModal` reads via `getBundledAgentPluginSourceFiles`, so
+ * selecting a row is a pure lookup and can never become an arbitrary file read.
  */
-export function AgentPluginDetailsModal({ plugin, onClose }: AgentPluginDetailsModalProps) {
-  const files = getBundledAgentPluginSourceFiles(plugin.id);
-  const [selectedPath, setSelectedPath] = useState(files[0]?.relativePath ?? "");
-  const selectedFile = findBundledAgentPluginSourceFile(files, selectedPath) ?? files[0] ?? null;
+export function AgentPluginDetailsModal({ plugin, onClose, useDetails = useAgentPluginDetailsModal }: AgentPluginDetailsModalProps) {
+  const { files, selectedFile, selectFile } = useDetails(plugin.id);
   const selectedFileHeadingId = useId();
 
   return (
@@ -43,7 +42,7 @@ export function AgentPluginDetailsModal({ plugin, onClose }: AgentPluginDetailsM
                     key={file.relativePath}
                     type="button"
                     aria-pressed={selectedFile?.relativePath === file.relativePath}
-                    onClick={() => setSelectedPath(file.relativePath)}
+                    onClick={() => selectFile(file.relativePath)}
                   >
                     {file.relativePath}
                   </button>
