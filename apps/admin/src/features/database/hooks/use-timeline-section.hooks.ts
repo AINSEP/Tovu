@@ -3,7 +3,7 @@ import { describeApiError, type AdminLedgerRow } from "../../../lib/api";
 import { useFetchQuery } from "../../../lib/fetch-query";
 import { KEYS } from "../rules";
 import { navigate } from "../../../lib/router";
-import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
+import { useWiredAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { t } from "../database-i18n";
 import { defaultTimelineSectionPort } from "./timeline-section-dependencies.hooks";
 import type { TimelineSectionPort } from "./timeline-section-port.hooks";
@@ -23,7 +23,7 @@ import type { TimelineSectionPort } from "./timeline-section-port.hooks";
  *
  * `t`/`locale` (2026-08-11, standing i18n rule — a component with a hook gets a BOUND `t` from that
  * hook, not its own `useAdminLocale()`/dictionary import): this hook already called
- * `useAdminLocale()` for its own error-string translations, so exposing that SAME already-resolved
+ * `useWiredAdminLocale()` for its own error-string translations, so exposing that SAME already-resolved
  * `locale` as a bound `t` (plus the raw value, still needed for `TimelineSection`'s own local
  * subcomponents) on the return value adds no new fetch — `TimelineSection` used to receive `locale`
  * as a separate prop from `Database`, entirely redundant with the resolution this hook was already
@@ -119,7 +119,7 @@ export interface TimelineSectionDependencies {
  */
 export function useTimelineSection(deps: TimelineSectionDependencies): TimelineSectionController {
   const { port } = deps;
-  const locale = useAdminLocale();
+  const locale = useWiredAdminLocale();
   const boundT = (key: string): string => t(locale, key);
 
   function fetchTimelinePage(filters: TimelineFilters, cursor?: string) {

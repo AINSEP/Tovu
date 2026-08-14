@@ -21,7 +21,7 @@ import { publishSettingsRefresh } from "../../lib/settings-refresh-bus";
 import { navigate } from "../../lib/router";
 import { hasUsableAdminKey } from "../../lib/execution-settings";
 import { useWiredAssistantChats, type UseAssistantChats } from "../../hooks/use-assistant-chats.hooks";
-import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
+import { useWiredAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { ASSISTANT_DOCK_DICT, createChatI18nAdapter } from "./assistant-dock-i18n";
 import {
   resolveTovuComposerDiscoveryRoute,
@@ -308,10 +308,10 @@ export function AssistantDock(props: AssistantDockProps) {
   /**
    * Translates this component's own pane chrome (eyebrow, title fallback, composer placeholder)
    * and — via `createChatI18nAdapter` — the `ConversationList` switcher mounted in `header` below.
-   * `useAdminLocale()` is the same shared hook every other translated admin screen uses; see its
-   * own doc comment for the live-refresh behavior.
+   * `useWiredAdminLocale()` is the same shared hook every other translated admin screen uses; see
+   * its own doc comment for the live-refresh behavior.
    */
-  const locale = useAdminLocale();
+  const locale = useWiredAdminLocale();
   const t = (key: string): string => ASSISTANT_DOCK_DICT[locale]?.[key] ?? key;
   const chatI18n = useMemo(() => createChatI18nAdapter(locale), [locale]);
 

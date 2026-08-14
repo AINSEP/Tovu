@@ -89,7 +89,7 @@ export function useAdminSession(): UseAdminSession {
    * Signing in changes what this tab is allowed to READ, not just who it is — so every settings
    * reader already mounted has to re-read.
    *
-   * `useAdminLocale()` (called from `App.tsx`, not here) is the visible casualty. It mounts while
+   * `useWiredAdminLocale()` (called from `App.tsx`, not here) is the visible casualty. It mounts while
    * the login screen is still showing, so its one-shot fetch resolves against a 401 (no session
    * yet), swallows it, and keeps `DEFAULT_LOCALE`. Its effect has no dependency that changes at
    * login, so it never retries: the sidebar stayed English for the whole session no matter what

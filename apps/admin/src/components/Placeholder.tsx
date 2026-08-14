@@ -1,5 +1,5 @@
 import { getNav, type AdminNavItem } from "../nav";
-import { useAdminLocale } from "../hooks/use-admin-locale.hooks";
+import { useWiredAdminLocale } from "../hooks/use-admin-locale.hooks";
 import { translateAdminNavLabel } from "../lib/admin-nav-i18n";
 import { DEFAULT_LOCALE } from "../lib/settings-tabs";
 import { interpolate } from "../lib/template-i18n";
@@ -154,8 +154,10 @@ export function Placeholder(props: { sectionId: string; note?: string }) {
   // Deliberately NOT hook-injected (2026-08-12 sweep ruling): this is a terminal-leaf call — no
   // other host dependency in this file to combine it with, not rendered in a loop, and its only
   // renderers (App.tsx, panels.tsx) are both out of scope — so there is no duplicate fetch to
-  // eliminate and no coverage a wrapper hook would add. Do not "fix" this for consistency.
-  const locale = useAdminLocale();
+  // eliminate and no coverage a wrapper hook would add. Do not "fix" this for consistency. Points at
+  // `useWiredAdminLocale` (2026-08-14) only because `useAdminLocale` itself now requires an injected
+  // port — same non-decision otherwise.
+  const locale = useWiredAdminLocale();
   const item = findNavItem(props.sectionId);
   if (!item) {
     const unknownSectionPrefix = UNKNOWN_SECTION_PREFIX[locale] ?? UNKNOWN_SECTION_PREFIX.en;
