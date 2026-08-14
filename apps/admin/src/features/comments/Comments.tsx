@@ -18,11 +18,12 @@ import { translateAdminNavLabel } from "../../lib/admin-nav-i18n";
  * State and API calls live in `hooks/use-comments.hooks.ts` (permissions),
  * `hooks/use-comment-queue.hooks.ts` (`QueueSection`), and `hooks/use-comment-settings.hooks.ts`
  * (`SettingsSection`). The row-menu logic, error-message overrides, and the settings patch
- * builder/validator live in `rules.ts`. `QueueSection`/`SettingsSection` now also carry their own
- * DI-seam prop (`useCommentQueueHook`/`useCommentSettingsHook`), matching `Comments`'s own
- * `useCommentsHook` — reversing this file's earlier "only the exported, tested screen gets a seam"
- * rule (still true in general elsewhere; here it left this one file internally inconsistent, with
- * `Comments` prop-injected but its own two sections not).
+ * builder/validator live in `rules.ts`. `QueueSection`/`SettingsSection` are now exported (2026-08-14,
+ * previously module-private) and carry their own DI-seam prop (`useCommentQueueHook`/
+ * `useCommentSettingsHook`), matching `Comments`'s own `useCommentsHook` — each has its own direct
+ * test (`QueueSection.unit.test.tsx`, `SettingsSection.unit.test.tsx`) satisfying the reason the
+ * earlier "only the exported, tested screen gets a seam" rule gave for skipping them (no standalone
+ * test existed), rather than overriding that rule's conclusion without addressing its premise.
  *
  * Closes the gap the SPEC-036 sweep found: the moderation-queue/moderate/settings backend
  * routes were built and audit-clean but nothing in `apps/admin/` called any of them, so the
@@ -247,7 +248,9 @@ interface QueueSectionProps {
   useCommentQueueHook?: typeof useWiredCommentQueue;
 }
 
-function QueueSection({ permissions, locale, useCommentQueueHook = useWiredCommentQueue }: QueueSectionProps) {
+/** Exported (2026-08-14, previously module-private) so `QueueSection.unit.test.tsx` can drive its
+ *  own DI seam directly — the same reason `AiAssistant.tsx`'s `AdminExecutionMode` is exported. */
+export function QueueSection({ permissions, locale, useCommentQueueHook = useWiredCommentQueue }: QueueSectionProps) {
   const {
     status,
     setStatus,
@@ -318,7 +321,9 @@ function resolveCommentSettingsHook(
   return override ?? useWiredCommentSettings;
 }
 
-function SettingsSection(props: SettingsSectionProps) {
+/** Exported (2026-08-14, previously module-private) so `SettingsSection.unit.test.tsx` can drive
+ *  its own DI seam directly — see `QueueSection`'s identical doc comment above. */
+export function SettingsSection(props: SettingsSectionProps) {
   const useCommentSettingsHook = resolveCommentSettingsHook(props.useCommentSettingsHook);
   const { settings, error, saving, notice, save } = useCommentSettingsHook(props.canConfigure);
 
