@@ -235,13 +235,39 @@ interface AdminExecutionModeProps {
   t?: (key: string) => string;
 }
 
+/**
+ * Resolves `t` to the English-passthrough default when a caller passes none — same
+ * `??`-avoidance idiom `MenuEditor.tsx`'s `orEmpty`/`AssistantDock.tsx`'s/`App.tsx`'s resolver
+ * groups use (2026-08-14, DI migration sweep's complexity follow-up): ESLint's
+ * cyclomatic-complexity rule counts a default parameter value inside a function's OWN body as one
+ * of that function's own branches — a call out to a separately-scoped resolver does not. Shared by
+ * `AdminExecutionMode` and `VisitorCredentialKeyFooter` below, this file's two debt-listed
+ * functions, since both use the identical `(key: string) => key` fallback.
+ */
+function resolveT(override: ((key: string) => string) | undefined): (key: string) => string {
+  return override ?? ((key: string) => key);
+}
+function resolveAdminExecutionModeHook(
+  override: typeof useAdminExecutionMode | undefined
+): typeof useAdminExecutionMode {
+  return override ?? useAdminExecutionMode;
+}
+function resolveAdminExecutionCredentialHook(
+  override: typeof useWiredAdminExecutionCredential | undefined
+): typeof useWiredAdminExecutionCredential {
+  return override ?? useWiredAdminExecutionCredential;
+}
+
 /** Exported (unlike `AdminAssistantSwitch`) so `AdminExecutionMode.unit.test.tsx` can drive its two
  *  DI seams directly, the same way `VisitorCredentialForm` is exported for its own test file. */
-export function AdminExecutionMode({
-  useAdminExecutionModeHook = useAdminExecutionMode,
-  useAdminExecutionCredentialHook = useWiredAdminExecutionCredential,
-  t = (key: string) => key,
-}: AdminExecutionModeProps = {}) {
+export function AdminExecutionMode(props: AdminExecutionModeProps) {
+  // No `AdminExecutionModeProps = {}` default on the parameter itself (2026-08-14, same reasoning
+  // as `App.tsx`'s own removal): every real call site is JSX, which always constructs an actual
+  // props object — `{}` when no attributes are given, never `undefined` — and every field on
+  // `AdminExecutionModeProps` is optional, so `{}` still satisfies the type.
+  const useAdminExecutionModeHook = resolveAdminExecutionModeHook(props.useAdminExecutionModeHook);
+  const useAdminExecutionCredentialHook = resolveAdminExecutionCredentialHook(props.useAdminExecutionCredentialHook);
+  const t = resolveT(props.t);
   const { port, execution } = useAdminExecutionModeHook();
 
   // Called unconditionally, ahead of the `execution.value === null` gate below (rules of hooks) —
@@ -412,8 +438,12 @@ export function VisitorCredentialKeyFooter({
   discovery,
   saveCredential,
   runKeyTest,
-  t = (key: string) => key,
+  t: tProp,
 }: VisitorCredentialKeyFooterProps) {
+  // `t`'s default is resolved through `resolveT` (see that function's own doc, next to
+  // `AdminExecutionMode` above) rather than inline here — this was the one thing keeping this
+  // function's cyclomatic complexity at 10, one over the 9/9 ceiling.
+  const t = resolveT(tProp);
   return (
     <div className="assistant-key-footer">
       <div className="assistant-key-actions">
