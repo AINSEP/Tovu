@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { MenuEditor, MenuItemTargetFields, targetForKind } from "../MenuEditor";
+import type { MenuEditorController } from "../hooks/use-menu-editor.hooks";
 
 /**
  * @file `MenuEditor`'s nested-item tree — pins the fix for the audit's Major finding: "Remove"
@@ -20,6 +21,9 @@ import { MenuEditor, MenuItemTargetFields, targetForKind } from "../MenuEditor";
  * "Not implemented: navigation to another Document" (this screen renders standalone here, without
  * `router.ts`'s own click interceptor mounted to consume the event first), which is exactly the
  * kind of tolerated console noise `apps/admin/INFO.md`'s test guidance says to avoid.
+ *
+ * The "injected hook seam" describe block pins `MenuEditorProps.useMenuEditorHook` — the DI seam
+ * that replaced this component's previous inline `useWiredMenuEditor(props.menuId)` call.
  */
 
 /** Observes whether this screen's own `onClick` already called `preventDefault()`, then always
@@ -303,5 +307,39 @@ describe("MenuItemTargetFields", () => {
     );
     expect(screen.getByPlaceholderText("term id")).toHaveValue("t1");
     expect(screen.getByPlaceholderText("taxonomy")).toHaveValue("category");
+  });
+});
+
+describe("injected hook seam (useMenuEditorHook)", () => {
+  it("renders from a fake controller, proving the real hook is not hardcoded — no fetch involved", () => {
+    const controller: MenuEditorController = {
+      isNew: true,
+      menu: null,
+      title: "",
+      setTitle: vi.fn(),
+      slug: "",
+      setSlug: vi.fn(),
+      items: [],
+      message: null,
+      error: null,
+      loading: true,
+      confirmLeave: vi.fn(() => true),
+      changeAt: vi.fn(),
+      removeAt: vi.fn(),
+      addChildAt: vi.fn(),
+      moveAt: vi.fn(),
+      addRootItem: vi.fn(),
+      save: vi.fn(async () => {}),
+      t: (key) => key,
+    };
+    const useMenuEditorHook = vi.fn(() => controller);
+
+    render(<MenuEditor menuId="m1" useMenuEditorHook={useMenuEditorHook} />);
+
+    // `loading: true` renders the loading notice regardless of `isNew`/`menuId` — reaching it
+    // synchronously, with no fetch queued, is only possible via the injected fake.
+    expect(screen.getByText("Loading menu…")).toBeInTheDocument();
+    expect(useMenuEditorHook).toHaveBeenCalledWith("m1");
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

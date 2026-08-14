@@ -3,11 +3,15 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { Menus } from "../Menus";
+import type { MenusController } from "../hooks/use-menus.hooks";
 
 /**
  * @file `Menus` — pins the MSG-03 confirm-dialog swap: trashing an active menu still needs no
  * confirmation at all (unchanged); permanently deleting an already-trashed menu used to gate via
  * `window.confirm` and now gates via the shared `ConfirmDialog`, same copy.
+ *
+ * The "injected hook seam" describe block pins `MenusProps.useMenusHook` — the DI seam that
+ * replaced this component's previous inline `useWiredMenus()` call.
  */
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -96,5 +100,26 @@ describe("Delete permanently (force, already-trashed)", () => {
     const deleteCall = fetchMock.mock.calls[1];
     expect(deleteCall[1]?.method).toBe("DELETE");
     expect(String(deleteCall[0])).toContain("force=true");
+  });
+});
+
+describe("injected hook seam (useMenusHook)", () => {
+  it("renders from a fake controller, proving the real hook is not hardcoded — no fetch involved", () => {
+    const controller: MenusController = {
+      menus: null,
+      error: "fake controller error",
+      pendingForceDelete: null,
+      setPendingForceDelete: vi.fn(),
+      forceDeleting: false,
+      trashOrPurge: vi.fn(async () => {}),
+      confirmForceDelete: vi.fn(async () => {}),
+      t: (key) => key,
+    };
+    render(<Menus useMenusHook={() => controller} />);
+
+    // The real hook never resolves an `error` before its first successful load — reaching this
+    // exact state synchronously, before any fetch, is only possible via the injected fake.
+    expect(screen.getByText("fake controller error")).toBeInTheDocument();
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });
