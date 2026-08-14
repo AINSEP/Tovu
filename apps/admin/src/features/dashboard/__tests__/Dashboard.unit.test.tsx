@@ -100,7 +100,7 @@ let fetchMock: ReturnType<typeof vi.fn>;
 
 beforeEach(() => {
   fetchMock = vi.fn();
-  // `useDashboard` now also calls `useAdminLocale()` (real `fetch`, not this hook's own concern),
+  // `useWiredDashboard` also calls `useAdminLocale()` (real `fetch`, not this hook's own concern),
   // which would otherwise consume one of this file's strictly-ordered `mockResolvedValueOnce`
   // slots and shift every later assertion by one call. Routed to a fixed default-locale response
   // outside `fetchMock`'s own call queue — same interceptor pattern `Members.unit.test.tsx` uses.
