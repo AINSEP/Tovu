@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AdminMedia, AdminPost } from "../../../lib/api";
 import { createFakePostEditorPort } from "../hooks/post-editor-dependencies.hooks";
 import { handleFileDrop, handleFilePaste, uploadDroppedFile, usePostEditor, useWiredPostEditor } from "../hooks/use-post-editor.hooks";
+import type { PostEditorController } from "../hooks/use-post-editor.hooks";
 
 /**
  * @file `usePostEditor` — first coverage for this hook (none existed before the `useWiredX`
@@ -172,6 +173,76 @@ describe("usePostEditor — templatePreviewUrl / previewFormTarget (2026-08-14, 
     act(() => result.current.setTemplateChoice("blog-post.html"));
 
     expect(result.current.templatePreviewUrl).toBe("fake://template-preview/p1?templateChoice=blog-post.html");
+  });
+});
+
+describe("usePostEditor — pending-content-preview debounce (2026-08-14, moved out of PostPreview)", () => {
+  // Fake timers are installed only AFTER the editor has mounted (real timers/`waitFor` for that
+  // part, same as every other test in this file) and torn down in `afterEach` regardless of how the
+  // test exits — installing them any earlier risks TipTap's own internal scheduling running under
+  // them too, and leaving them installed after a failing assertion would leak into the next test.
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /** Stands in for the `<form ref={previewFormRef}>` DOM node `PostPreview` would normally attach —
+   *  this test drives `usePostEditor` in isolation, with no `PostPreview` rendered, so it wires the
+   *  ref directly the same way a real mount would populate `.current`. Cast through `unknown`
+   *  because `previewFormRef.current` is `readonly` at the `RefObject` type level (by design — see
+   *  `PostEditorController.previewFormRef`'s own doc); only a real DOM attach or a test double is
+   *  meant to set it. */
+  function attachFakeForm(ref: PostEditorController["previewFormRef"]): { submit: ReturnType<typeof vi.fn> } {
+    const fakeForm = { submit: vi.fn() };
+    (ref as unknown as { current: typeof fakeForm | null }).current = fakeForm;
+    return fakeForm;
+  }
+
+  it("collapses THREE rapid pending changes into exactly ONE submit, 500ms after the LAST one — not the first, not three", async () => {
+    const port = createFakePostEditorPort({ post: { ...POST, status: "published" } });
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+    await waitFor(() => expect(result.current.editor).not.toBeNull());
+
+    const form = attachFakeForm(result.current.previewFormRef);
+
+    vi.useFakeTimers();
+    act(() => result.current.setView("preview"));
+    // First change: title differs from the loaded post, so contentDirty (and therefore
+    // canShowPendingContentPreview, since status is published) flips true here — this is what
+    // arms the debounce, same as an operator's first keystroke after a publish.
+    act(() => result.current.setTitle("Edit 1"));
+    vi.advanceTimersByTime(200);
+    // Second and third changes each land inside the still-running 500ms window and must each
+    // restart it — templateChoice is in the effect's own dependency list for exactly this reason
+    // (a pending template pick should also postpone the fire so the eventual submit carries it).
+    act(() => result.current.setTemplateChoice("blog-post.html"));
+    vi.advanceTimersByTime(200);
+    act(() => result.current.setTemplateChoice("page-shell.html"));
+
+    expect(form.submit).not.toHaveBeenCalled();
+    // 499ms after the LAST change (page-shell.html) — the whole point of a trailing debounce is
+    // that nothing has fired yet, even though 600ms have elapsed since the FIRST change.
+    vi.advanceTimersByTime(499);
+    expect(form.submit).not.toHaveBeenCalled();
+    // The 500th ms after the last change — exactly one submit, not three.
+    vi.advanceTimersByTime(1);
+    expect(form.submit).toHaveBeenCalledTimes(1);
+  });
+
+  it("cancels the pending submit entirely when the operator leaves the Preview tab before it fires", async () => {
+    const port = createFakePostEditorPort({ post: { ...POST, status: "published" } });
+    const { result } = renderHook(() => usePostEditor("p1", { port, navigate: fakeNavigate(), t: fakeT }));
+    await waitFor(() => expect(result.current.editor).not.toBeNull());
+
+    const form = attachFakeForm(result.current.previewFormRef);
+
+    vi.useFakeTimers();
+    act(() => result.current.setView("preview"));
+    act(() => result.current.setTitle("Edit 1"));
+    vi.advanceTimersByTime(300);
+    act(() => result.current.setView("edit"));
+    vi.advanceTimersByTime(1000);
+
+    expect(form.submit).not.toHaveBeenCalled();
   });
 });
 

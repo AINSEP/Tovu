@@ -1,11 +1,9 @@
-import { useState } from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { Posts, postsListNotice } from "../Posts";
 import type { PostsController } from "../hooks/use-posts.hooks";
-import type { PostUpdatedSortDirection } from "../rules";
 import { navigate } from "../../../lib/router";
 import type { AdminPost } from "../../../lib/api";
 
@@ -45,23 +43,13 @@ function controller(overrides: Partial<PostsController> = {}): PostsController {
     createPost: vi.fn(async () => {}),
     disablePost: vi.fn(async () => {}),
     removePost: vi.fn(async () => {}),
-    updatedSort: "newest",
-    // Never actually invoked — `renderWith` below overrides this with a REAL `useState` setter so
-    // the "Updated column sort" describe block can click the header and see the row order actually
-    // change, same as when `updatedSort` was local state inside `Posts.tsx` itself.
-    setUpdatedSort: vi.fn(),
     ...overrides,
   };
 }
 
 function renderWith(overrides: Partial<PostsController> = {}) {
   const c = controller(overrides);
-  // `updatedSort` is real React state here, not a static field read off `c` — see the comment on
-  // `updatedSort`'s default above.
-  function usePostsHook(): PostsController {
-    const [updatedSort, setUpdatedSort] = useState<PostUpdatedSortDirection>(c.updatedSort);
-    return { ...c, updatedSort, setUpdatedSort };
-  }
+  const usePostsHook = () => c;
   render(<Posts usePostsHook={usePostsHook} />);
   return c;
 }

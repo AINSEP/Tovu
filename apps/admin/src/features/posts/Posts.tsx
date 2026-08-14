@@ -1,11 +1,11 @@
 import { DataTable, RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 import type { AdminPost } from "../../lib/api";
 import { siteUrl } from "../../lib/site-url";
 import { formatTimestamp } from "../../lib/format-timestamp";
 import { navigate } from "../../lib/router";
-import { postRowMenuItems, sortPostsByUpdated, updatedSortButtonLabel } from "./rules";
+import { postRowMenuItems, sortPostsByUpdated, updatedSortButtonLabel, type PostUpdatedSortDirection } from "./rules";
 import { useWiredPosts } from "./hooks/use-posts.hooks";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { POSTS_DICT } from "./posts-i18n";
@@ -56,11 +56,17 @@ export function Posts({ usePostsHook = useWiredPosts }: PostsProps) {
     createPost,
     disablePost,
     removePost,
-    updatedSort,
-    setUpdatedSort,
   } = usePostsHook();
   const locale = useAdminLocale();
   const t = (key: string): string => POSTS_DICT[locale]?.[key] ?? key;
+  // Owner ruling (2026-08-14): pure interactive DOM-chrome state — a client-side sort toggle with
+  // no I/O behind it — stays LOCAL rather than moving into `use-posts.hooks.ts`, unlike every other
+  // piece of state on this screen. The line to draw: async/API/data state always moves into the
+  // hook; view-only chrome (active tab, expanded/collapsed, dialog open, sort direction) stays here
+  // UNLESS a test needs to observe it. `Posts.tsx` is the file everyone else copies this pattern
+  // from (this file's own `PostsProps` doc comment) — this is the canonical example of the
+  // exception, not an oversight to "finish" later.
+  const [updatedSort, setUpdatedSort] = useState<PostUpdatedSortDirection>("newest");
 
   const notice = postsListNotice(posts, error);
   if (notice) return notice;
