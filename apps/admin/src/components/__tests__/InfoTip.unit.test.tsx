@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
 import { InfoTip } from "../InfoTip";
+import type { InfoTipController } from "../InfoTip.hooks";
 
 /**
  * @file `InfoTip`'s open/close behavior — the reason this component exists instead of the native
@@ -110,5 +111,33 @@ describe("InfoTip", () => {
     const bubble = screen.getByText(LABEL);
     expect(bubble).toHaveClass("info-tip-bubble");
     expect(bubble).not.toHaveClass("info-tip-bubble-below");
+  });
+});
+
+describe("InfoTip tip-hook injection", () => {
+  const LABEL = "An untouched original is kept separately.";
+
+  it("renders purely off an injected fake, proving useInfoTip is not hardcoded", () => {
+    // The real `useInfoTip` always starts `open: false` — a first render can never show the
+    // bubble without a hover/focus interaction first. A fake that starts already-open is
+    // something the real hook could never produce on mount, so this only passes if `InfoTip`
+    // actually rendered off the fake.
+    function useFakeInfoTip(): InfoTipController {
+      return {
+        open: true,
+        placement: "below",
+        coords: { top: 12, left: 34 },
+        iconRef: { current: null },
+        show: () => {},
+        hide: () => {},
+        handleIconKeyDown: () => {},
+      };
+    }
+
+    render(<InfoTip label={LABEL} useTip={useFakeInfoTip} />);
+
+    const bubble = screen.getByText(LABEL);
+    expect(bubble).toHaveClass("info-tip-bubble-below");
+    expect(bubble).toHaveStyle({ top: "12px", left: "34px" });
   });
 });
