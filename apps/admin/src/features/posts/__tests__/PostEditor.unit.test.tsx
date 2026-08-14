@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { PostEditor } from "../PostEditor";
 import type { PostEditorController } from "../hooks/use-post-editor.hooks";
-import type { AdminPost } from "../../../lib/api";
+import { api, type AdminPost } from "../../../lib/api";
 
 /**
  * @file `PostEditor` — pins three new/fixed user-visible behaviors from the forms/PostEditor deep
@@ -351,8 +351,10 @@ describe("Template picker", () => {
  * own doc comment on why the seam exists.
  */
 function postController(overrides: Partial<PostEditorController> = {}): PostEditorController {
+  const post = overrides.post ?? (DRAFT_POST as AdminPost);
+  const templateChoice = overrides.templateChoice ?? null;
   return {
-    post: DRAFT_POST as AdminPost,
+    post,
     editor: null,
     title: "Hello world",
     setTitle: vi.fn(),
@@ -360,7 +362,7 @@ function postController(overrides: Partial<PostEditorController> = {}): PostEdit
     setSlug: vi.fn(),
     status: "draft",
     setStatus: vi.fn(),
-    templateChoice: null,
+    templateChoice,
     setTemplateChoice: vi.fn(),
     availableTemplates: [],
     mentionablePosts: [],
@@ -379,6 +381,18 @@ function postController(overrides: Partial<PostEditorController> = {}): PostEdit
     confirmLeave: () => true,
     dirty: false,
     contentDirty: false,
+    // Defaults to the SAME shape `defaultPostEditorPort.templatePreviewUrl` produces (the real
+    // `api.templatePreviewUrl`), so the pre-existing "Edit/Preview toolbar" characterization tests
+    // below — written when `PostPreview` called `api.templatePreviewUrl` itself — still see realistic
+    // URLs without restating that logic. Mirrors `PageEditor.unit.test.tsx`'s identical fixture.
+    templatePreviewUrl: post ? api.templatePreviewUrl(post.id, templateChoice) : "",
+    // `null` by default, matching `editor: null` above — see this describe block's own comment on
+    // why a `null` `bodyJson` means the debounced auto-submit effect never fires in this DI harness.
+    bodyJson: null,
+    showTemplateModal: false,
+    setShowTemplateModal: vi.fn(),
+    previewFormRef: { current: null },
+    previewFormTarget: post ? `post-preview-pending-${post.id}` : "",
     save: vi.fn(),
     remove: vi.fn(),
     t: (key: string) => key,

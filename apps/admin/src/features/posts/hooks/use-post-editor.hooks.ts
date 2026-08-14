@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { useEditor, type Editor } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import TextAlign from "@tiptap/extension-text-align";
@@ -146,6 +146,28 @@ export interface PostEditorController {
    * implementation/2026-08-11-template-preview-render-bug.md` for the bug this fixes.
    */
   contentDirty: boolean;
+  /** The admin-only template-preview URL, pre-built from `port.templatePreviewUrl` (a synchronous
+   *  URL builder, not a fetch) — used both as `PostPreview`'s branch-2 iframe `src` and its branch-3
+   *  hidden `<form action>` (same endpoint, `GET` vs `POST`). `""` before `post` loads; mirrors
+   *  `features/pages/hooks/use-page-editor.hooks.ts`'s identical field. */
+  templatePreviewUrl: string;
+  /** The live, unsaved TipTap body — `editor.getJSON() ?? null` read fresh every render off the
+   *  editor's own imperative state, not React state (same idiom `contentDirty`/`dirty` already use
+   *  internally). Exposed so `PostPreview` can serialize it into the pending-content-preview hidden
+   *  form without importing TipTap itself. `null` before the editor mounts. */
+  bodyJson: unknown;
+  /** Whether the "View Template" modal (`PostTemplateModal`) is open — moved out of `PostEditor.tsx`
+   *  (leftover `useState` after the `useWiredX` conversion, see `apps/admin/INFO.md`'s Hooks
+   *  section). Ephemeral view state; not persisted. */
+  showTemplateModal: boolean;
+  setShowTemplateModal: (open: boolean) => void;
+  /** DOM ref for the pending-content-preview's hidden `<form>` — owned here, not local to
+   *  `PostPreview`, so the debounced auto-submit effect below can reach it. Same "hook owns the ref,
+   *  view attaches it" shape `use-page-editor.hooks.ts`'s `frameRef` already uses. */
+  previewFormRef: RefObject<HTMLFormElement | null>;
+  /** Stable name shared by the hidden form's `target` and the iframe it submits into. `""` before
+   *  `post` loads — `PostPreview` never renders that early. */
+  previewFormTarget: string;
   save: (statusOverride?: "draft" | "published") => Promise<void>;
   remove: () => Promise<void>;
   /** Bound translator — `key` already resolved against the caller's locale, so `PostEditor.tsx`
@@ -189,6 +211,30 @@ function computeContentDirty(
     JSON.stringify(current.bodyJson) !== JSON.stringify(original.bodyJson) ||
     current.overridesThemePage !== original.overridesThemePage
   );
+}
+
+/**
+ * Pending-content preview's debounced auto-submit (moved from `PostPreview`, 2026-08-14 —
+ * `PostEditorController.previewFormRef`'s own doc has the "why here, not the view" reasoning). A
+ * form submit is a full iframe navigation, so firing one per keystroke would thrash the iframe;
+ * trailing-only, 500ms. `clearTimeout` on cleanup is the complete cancellation here — unlike a
+ * `fetch` promise, a cleared `setTimeout` callback provably never fires, so no extra `cancelled` flag
+ * is needed on top of it. Split to a top-level function (same complexity-ceiling reason
+ * `computeContentDirty` above already is) returning the cleanup directly, so the caller's own
+ * `useEffect` body is a one-line `return schedulePendingContentPreviewSubmit(...)`.
+ *
+ * @complexity Time/space: O(1) — one timer, no data copying.
+ */
+function schedulePendingContentPreviewSubmit(input: {
+  active: boolean;
+  bodyJson: unknown;
+  formRef: RefObject<HTMLFormElement | null>;
+}): () => void {
+  if (!input.active || input.bodyJson === null) return () => {};
+  const timer = setTimeout(() => {
+    input.formRef.current?.submit();
+  }, 500);
+  return () => clearTimeout(timer);
 }
 
 /**
@@ -332,6 +378,13 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   // into the new tab. Not reset by the load effect below: unlike `original`/`title`/`slug`, which
   // post is loaded doesn't need to force a specific pane back open.
   const [view, setView] = useState<PostEditorView>("edit");
+  // View Template (2026-08-10) — moved from `PostEditor.tsx` (leftover `useState` after the
+  // `useWiredX` conversion, `apps/admin/INFO.md`'s Hooks section). Whether the "View Template" modal
+  // is open.
+  const [showTemplateModal, setShowTemplateModal] = useState(false);
+  // Pending-content preview (2026-08-12, moved from `PostPreview` — see `PostEditorController
+  // .previewFormRef`'s own doc). The hidden form's DOM node; `PostPreview` attaches it via `ref`.
+  const previewFormRef = useRef<HTMLFormElement>(null);
 
   const editor = useEditor({
     // Link and Underline ship as part of StarterKit already (verified against its own bundle) —
@@ -550,17 +603,49 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
 
   const hasSlugCollision = staticPageIds.includes(slug);
 
+  // TipTap's content lives in the editor's own imperative state, not React state — read fresh every
+  // render (same "no false-stale reads" reasoning `onUpdate`'s `bodyVersion` bump exists for) and
+  // shared by `useDirtyGuard`, `contentDirty`, the pending-content-preview effect below, and the
+  // controller's own `bodyJson` field, rather than four separate `editor?.getJSON() ?? null` calls.
+  const bodyJson = editor?.getJSON() ?? null;
+
   const { isDirty, confirmLeave } = useDirtyGuard<PostFormState>(
-    { title, slug, status, bodyJson: editor?.getJSON() ?? null, templateChoice, overridesThemePage },
+    { title, slug, status, bodyJson, templateChoice, overridesThemePage },
     original,
   );
 
   // Inlined rather than a second `useDirtyGuard` call so this doesn't register its own redundant
   // `beforeunload` listener for a value nothing reads for that purpose — see `computeContentDirty`
   // above for the comparison itself.
-  const contentDirty = computeContentDirty(
-    { title, slug, status, bodyJson: editor?.getJSON() ?? null, overridesThemePage },
-    original,
+  const contentDirty = computeContentDirty({ title, slug, status, bodyJson, overridesThemePage }, original);
+
+  // Template-preview URL (moved from `PostEditor.tsx`/`PostPreview`, see `PostEditorController
+  // .templatePreviewUrl`'s own doc) and the pending-content-preview's hidden form target (moved from
+  // `PostPreview`'s own `useRef` — a plain per-render string suffices since `post.id` is stable once
+  // loaded, unlike the original's "stable per mount" ref, which existed only because `PostPreview`
+  // itself remounts on every tab switch). Both `""` before `post` loads — `PostPreview` never renders
+  // that early.
+  const templatePreviewUrl = post ? port.templatePreviewUrl(post.id, templateChoice) : "";
+  const previewFormTarget = post ? `post-preview-pending-${post.id}` : "";
+
+  // Pending-content preview (2026-08-12, moved from `PostPreview`) — see this function's own doc,
+  // branch 3. `contentDirty` already implies `dirty` (`computeContentDirty` compares a strict subset
+  // of what `useDirtyGuard` does), so this is naturally mutually exclusive with the live-site/
+  // template-preview branches without an explicit guard against them.
+  const canShowPendingContentPreview = status === "published" && contentDirty;
+  useEffect(
+    () =>
+      schedulePendingContentPreviewSubmit({
+        active: view === "preview" && post !== null && canShowPendingContentPreview,
+        bodyJson,
+        formRef: previewFormRef,
+      }),
+    // `post?.id`, not `post` — the original (`PostPreview`'s own effect, before this moved) keyed on
+    // the primitive `id` prop, not the whole post object, so a `setPost(saved)` after a successful
+    // save (a new object reference, same id) does not by itself restart the debounce timer. `post`
+    // itself is still read fresh via closure for the `active`/`null` check above, same as `postId`
+    // is elsewhere in this hook — only the DEPENDENCY entry is narrowed.
+    [view, post?.id, canShowPendingContentPreview, bodyJson, templateChoice]
   );
 
   /**
@@ -678,6 +763,12 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
     confirmLeave,
     dirty: isDirty,
     contentDirty,
+    templatePreviewUrl,
+    bodyJson,
+    showTemplateModal,
+    setShowTemplateModal,
+    previewFormRef,
+    previewFormTarget,
     save,
     remove,
     t,
