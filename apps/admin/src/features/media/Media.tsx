@@ -8,7 +8,7 @@ import { mediaProvidersPort } from "./media-providers-port";
 import "@jini-ai/ui/settings-dialog.css";
 import { mediaRowMenuItems } from "./rules";
 import { useWiredMedia } from "./hooks/use-media.hooks";
-import { useMediaPreview } from "./hooks/use-media-preview.hooks";
+import { useWiredMediaPreview } from "./hooks/use-media-preview.hooks";
 import { useWiredEditMediaPanel } from "./hooks/use-edit-media-panel.hooks";
 import { useMediaLightbox } from "./hooks/use-media-lightbox.hooks";
 import { useMediaTabs, MEDIA_TABS } from "./hooks/use-media-tabs.hooks";
@@ -122,9 +122,12 @@ interface MediaPreviewProps {
   onExpand?: () => void;
   /**
    * Dependency injection seam for tests — the same convention `Posts.tsx`'s `usePostsHook` uses.
-   * Defaulted to the real hook, so production callers pass nothing and behave exactly as before.
+   * Defaulted to the real (wired) hook, so production callers pass nothing and behave exactly as
+   * before. Typed against `useWiredMediaPreview` (the zero-dependencies pair), not the raw
+   * `useMediaPreview(item, deps)` — this component has no reason to see `deps` itself, matching
+   * `PostsProps.usePostsHook`'s own shape.
    */
-  useMediaPreviewHook?: typeof useMediaPreview;
+  useMediaPreviewHook?: typeof useWiredMediaPreview;
   /** Translator closure — see `Media()`'s own `t` for where this comes from; threaded through the
    *  lightbox too, since it remounts this same component for its enlarged view. */
   t: (key: string) => string;
@@ -145,7 +148,7 @@ interface MediaPreviewProps {
  * that stage already renders a "Download original" link, and the lightbox would show nothing more
  * than the exact same placeholder, just bigger. */
 function MediaPreview(props: MediaPreviewProps) {
-  const { useMediaPreviewHook = useMediaPreview, t } = props;
+  const { useMediaPreviewHook = useWiredMediaPreview, t } = props;
   const { stage, src, altText, handleImageError, handleVideoError } = useMediaPreviewHook(props.item);
 
   if (stage === "unsupported") {

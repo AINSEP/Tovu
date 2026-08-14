@@ -1,16 +1,16 @@
 import type { AdminMedia } from "../../../lib/api";
 
 /**
- * @file What `use-media.hooks.ts` and `use-edit-media-panel.hooks.ts` need from the outside world,
- * as an interface rather than a direct `lib/api` import.
+ * @file What `use-media.hooks.ts`, `use-edit-media-panel.hooks.ts`, and `use-media-preview.hooks.ts`
+ * need from the outside world, as an interface rather than a direct `lib/api` import.
  *
  * Follows the `useX(dependencies)` / `useWiredX()` pair documented on
  * `development/docs/architecture/wired-hooks-convention.md` (canonical spec) and
  * `redirects-port.hooks.ts` (canonical reference implementation): this file declares,
  * `media-dependencies.hooks.ts` binds the real `api` client, and nothing else under
  * `features/media` imports `lib/api` for these six routes. One shared port rather than one per
- * hook — both hooks read/write the same `/media` resource, and a test double for one is a test
- * double for the resource, not for a single screen.
+ * hook — all three hooks read/write the same `/media` resource, and a test double for one is a
+ * test double for the resource, not for a single screen.
  *
  * `mediaOriginalUrl` IS part of this port (changed 2026-08-14 — this is not an oversight). Earlier
  * revisions of this file excluded it: it is a pure, synchronous URL template
@@ -22,9 +22,16 @@ import type { AdminMedia } from "../../../lib/api";
  * reaching `lib/api` for these six routes and a test can prove a URL came from the injected port
  * rather than the consumer calling `lib/api` itself — the same thing the five I/O routes below were
  * already bought for. Mirrors `page-editor-port.hooks.ts`'s `templatePreviewUrl`, the reference
- * implementation this was ported from. `use-media-preview.hooks.ts`'s header still documents the
- * OLD reasoning as of this date — that hook was not touched in this pass, is not part of `MediaPort`
- * at all, and its own comment remains accurate for itself; do not treat it as contradicting this one.
+ * implementation this was ported from. `use-media-preview.hooks.ts` (2026-08-11 wired-hooks-audit)
+ * was the last holdout arguing the old exclusion for itself; it now injects this same port too — see
+ * its own header for the conversion.
+ *
+ * One deliberate carve-out remains, and it is NOT a straggler: `lib/media-image-extension.tsx`
+ * (a TipTap node view, alongside `lib/widget-embed-extension.tsx`) still calls
+ * `api.mediaOriginalUrl` directly. Per the owner's 2026-08-14 scope decision, node views under
+ * `lib/` sit outside this port pattern entirely — ProseMirror mounts them inside the editor's own
+ * lifecycle, not as React-tree components with props, so there is no prop seam for a port to cross
+ * and the pattern buys no testability there. Do not "fix" that call site to match this one.
  */
 export interface MediaPort {
   listMedia(): Promise<{ media: AdminMedia[] }>;
