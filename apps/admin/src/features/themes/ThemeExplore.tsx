@@ -22,6 +22,7 @@ import {
   type ThemeExploreFile,
   type ThemeExploreView,
 } from "./hooks/use-theme-explore.hooks";
+import { useThemeExplorePreviewFrame } from "./hooks/use-theme-explore-preview-frame.hooks";
 
 /**
  * @file Explore — edit any theme, active or not, and see it rendered.
@@ -50,10 +51,10 @@ import {
  * real `src` URL instead of `SrcDocSandbox`'s `srcDoc`.
  *
  * This component's own render body is deliberately thin. Every conditional block that does not need
- * `ThemeExplore`'s local `useState`/`useRef` values has been pulled out to a top-level function or
- * component below (`ThemeExploreDirectionsNotice`, `ThemeExploreFileList`, `ThemeExploreToolbarButtons`,
- * `ThemeExplorePreviewControls`, `ThemeExploreMainPane`, `ThemeExploreFullscreenDialog`,
- * `syncFullscreenDialog`) — `apps/admin`'s complexity-drift check (`npm run
+ * a value straight out of `useThemeExploreHook`'s controller has been pulled out to a top-level
+ * function or component below (`ThemeExploreDirectionsNotice`, `ThemeExploreFileList`,
+ * `ThemeExploreToolbarButtons`, `ThemeExplorePreviewControls`, `ThemeExploreMainPane`,
+ * `ThemeExploreFullscreenDialog`) — `apps/admin`'s complexity-drift check (`npm run
  * check:admin-complexity-drift`) scores a component's OWN cyclomatic/cognitive complexity from every
  * ternary/`&&`/`.map()`-with-branching directly inside its JSX, and this component's markup used to
  * carry roughly a dozen of those inline, landing at 27/29 against a 9/9 ceiling. Each extraction below
@@ -61,6 +62,17 @@ import {
  * scored as its own unit by ESLint's `complexity`/`sonarjs/cognitive-complexity` rules, but the
  * separate drift tool this repo also gates on aggregates a closure DECLARED INSIDE a component back
  * into that component's own count, so only moving the code to actual module scope lowers both.
+ *
+ * The `device`/`fullscreen` state below and the preview pane's own width measurement
+ * (`use-theme-explore-preview-frame.hooks.ts`) deliberately stay OUTSIDE `useThemeExploreHook`'s
+ * controller, unlike everything else this screen reads — see each one's own comment for why. Both
+ * are pure view chrome with nothing to inject (constraint: a hook with no I/O gets no port), same as
+ * `Posts.tsx`'s own local `updatedSort` state. `device`/`fullscreen` additionally CANNOT move into
+ * the injected controller without breaking real interactivity: `ThemeExplore.unit.test.tsx` swaps in
+ * a fully static controller fake (spies for every setter, no re-render), which is exactly right for
+ * data/mutation state asserted by "was the setter called with X" — but the device-width and
+ * fullscreen-dialog tests assert REAL DOM behavior (`aria-pressed` flipping, the dialog's `open`
+ * attribute, focus returning to the trigger) that only a live `useState` can drive under that fake.
  */
 export interface ThemeExploreProps {
   /** Theme id from `?theme=`. */
@@ -1133,30 +1145,13 @@ export function ThemeExplore({ themeId, useThemeExploreHook = useWiredThemeExplo
  * comment for why the preview has to be a real URL at all.
  */
 function ThemeExplorePreview({ src, width, title }: { src: string; width: number; title: string }) {
-  const frameRef = useRef<HTMLDivElement>(null);
   // The frame's REAL rendered width, not a guessed constant — the previous flat `880` (copied from
   // `PagePreview`'s own same-shaped placeholder) never tracked the pane actually resizing: no
   // listener of any kind, so the scale computed once and stayed frozen across a window resize, a
   // sidebar collapse, or the assistant dock opening/closing (reported live as "the preview is not
-  // responsive"). `880` survives only as the pre-measurement default, so the first paint still has a
-  // sane scale instead of `Infinity`/`NaN` from a zero-width ref.
-  //
-  // jsdom implements no `ResizeObserver` at all (`__tests__/setup.ts`'s own comment — deliberately
-  // left unstubbed, so a test can't pass without the measurement ever happening) — guarded exactly
-  // like `SeeMore.hooks.tsx`'s own `typeof ResizeObserver !== "function"` check, so this component
-  // still renders (at the `880` default) in every existing/new unit test.
-  const [paneWidth, setPaneWidth] = useState(880);
-  useEffect(() => {
-    const el = frameRef.current;
-    if (!el || typeof ResizeObserver !== "function") return;
-    const observer = new ResizeObserver((entries) => {
-      const entry = entries[0];
-      if (entry) setPaneWidth(entry.contentRect.width);
-    });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, []);
-
+  // responsive"). See `use-theme-explore-preview-frame.hooks.ts` for the measurement itself and why
+  // it stays a component-scoped hook instead of living in the screen-level one.
+  const { frameRef, paneWidth } = useThemeExplorePreviewFrame();
   const scale = Math.min(1, paneWidth / width);
 
   return (
