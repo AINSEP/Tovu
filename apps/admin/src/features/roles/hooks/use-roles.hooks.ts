@@ -1,9 +1,11 @@
 import { useState, type Dispatch, type SetStateAction } from "react";
-import { api, type AdminPolicy, type AdminRole } from "../../../lib/api";
+import { type AdminPolicy, type AdminRole } from "../../../lib/api";
 import { useFetchMutation, useFetchQuery } from "../../../lib/fetch-query";
 import { describeApiError, KEYS } from "../rules";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { t } from "../roles-i18n";
+import { defaultRolesPort } from "./roles-dependencies.hooks";
+import type { RolesPort } from "./roles-port.hooks";
 
 /**
  * @file Everything the "Roles & Permissions" screen does, so `Roles.tsx` is only markup.
@@ -45,6 +47,13 @@ import { t } from "../roles-i18n";
  * does. `createRoleMutation`/`createPolicyMutation` are the ones-per-mutation exception below — each
  * backs exactly one form, so `roleSaving`/`policySaving`/`roleError`/`policyError` derive from them
  * directly, same shape as every other migrated create form in this sweep.
+ *
+ * `useX(dependencies)` / `useWiredX()` conversion (2026-08-14): every `api.xxx()` call below is now
+ * `port.xxx()` — see `roles-port.hooks.ts` for the interface and `roles-dependencies.hooks.ts` for
+ * the real binding, the only file left that imports `lib/api` as a value for this feature. Same
+ * "no ref/dep-array needed" note as `use-users.hooks.ts`'s identical section: every write here goes
+ * through `useFetchMutation` (via `lib/fetch-query`), which takes a fresh `mutationFn` closure every
+ * render by design — there is no `useEffect([port])` in this file for `port` to be listed in wrongly.
  */
 
 export interface RolesController {
@@ -145,14 +154,28 @@ async function runRowDelete(
   }
 }
 
-export function useRoles(): RolesController {
+/** What `useRoles` needs injected from outside — see this file's header for the conversion note. */
+export interface RolesDependencies {
+  port: RolesPort;
+}
+
+/**
+ * Everything the "Roles & Permissions" screen does — full state, effects, and every server write, as
+ * one hook so `Roles.tsx` stays a pure render of whatever this returns. See this file's header for
+ * the `useFetchQuery`/`useFetchMutation` migration and the `port` injection it now also carries.
+ *
+ * @param deps - Injected collaborators; production callers get these from {@link useWiredRoles}.
+ * @returns The full `RolesController` the view renders from — see that interface for every field.
+ */
+export function useRoles(deps: RolesDependencies): RolesController {
+  const { port } = deps;
   const locale = useAdminLocale();
   const boundT = (key: string): string => t(locale, key);
 
   const list = useFetchQuery({
     key: KEYS.list,
     fetch: async () => {
-      const [r, p] = await Promise.all([api.listRoles(), api.listPolicies()]);
+      const [r, p] = await Promise.all([port.listRoles(), port.listPolicies()]);
       return { roles: r.roles, policies: p.policies };
     },
   });
@@ -185,36 +208,36 @@ export function useRoles(): RolesController {
   const [pendingPolicyDelete, setPendingPolicyDelete] = useState<AdminPolicy | null>(null);
 
   const createRoleMutation = useFetchMutation({
-    run: (name: string) => api.createRole(name),
+    run: (name: string) => port.createRole(name),
     invalidates: [KEYS.list],
   });
   const createPolicyMutation = useFetchMutation({
     run: (input: { name: string; description: string | undefined }) =>
-      api.createPolicy({ name: input.name }, { description: input.description }),
+      port.createPolicy({ name: input.name }, { description: input.description }),
     invalidates: [KEYS.list],
   });
   const saveRoleMutation = useFetchMutation({
-    run: (input: { roleId: string; name: string }) => api.updateRole(input),
+    run: (input: { roleId: string; name: string }) => port.updateRole(input),
     invalidates: [KEYS.list],
   });
   const deleteRoleMutation = useFetchMutation({
-    run: (id: string) => api.deleteRole(id),
+    run: (id: string) => port.deleteRole(id),
     invalidates: [KEYS.list],
   });
   const savePolicyMutation = useFetchMutation({
     run: (input: { policyId: string; name: string; description: string }) =>
-      api.updatePolicy({ policyId: input.policyId }, { name: input.name, description: input.description }),
+      port.updatePolicy({ policyId: input.policyId }, { name: input.name, description: input.description }),
     invalidates: [KEYS.list],
   });
   const deletePolicyMutation = useFetchMutation({
-    run: (id: string) => api.deletePolicy(id),
+    run: (id: string) => port.deletePolicy(id),
     invalidates: [KEYS.list],
   });
   // No `invalidates` — matches the pre-migration `onWritePermission`, which never called `reload()`
   // either.
   const writePermissionMutation = useFetchMutation({
     run: (input: { policyId: string; permission: string; resourceType: string | undefined }) =>
-      api.writePolicyPermission({ policyId: input.policyId, permission: input.permission }, { resourceType: input.resourceType }),
+      port.writePolicyPermission({ policyId: input.policyId, permission: input.permission }, { resourceType: input.resourceType }),
   });
 
   async function onCreateRole(e: React.FormEvent) {
@@ -396,4 +419,15 @@ export function useRoles(): RolesController {
     t: boundT,
     locale,
   };
+}
+
+/**
+ * Binds the real `/api/.../roles` and `/policies` clients — see `roles-dependencies.hooks.ts`. The
+ * zero-argument half of the `useX(dependencies)` / `useWiredX()` pair, so `Roles.tsx` composes this
+ * and a test composes {@link useRoles} with `createFakeRolesPort`.
+ *
+ * @returns The same `RolesController` {@link useRoles} returns, wired to the live API client.
+ */
+export function useWiredRoles(): RolesController {
+  return useRoles({ port: defaultRolesPort });
 }
