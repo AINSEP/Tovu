@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef } from "react";
 import {
   A2uiSurfaceCard,
   ChatPane,
@@ -24,13 +24,9 @@ import { useWiredAssistantChats, type UseAssistantChats } from "../../hooks/use-
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { ASSISTANT_DOCK_DICT, createChatI18nAdapter } from "./assistant-dock-i18n";
 import {
-  createBundledComposerCapabilitySource,
-  emptyComposerCapabilityProjection,
-  projectComposerCapabilities,
   resolveTovuComposerDiscoveryRoute,
   type ComposerCapabilityProjection,
 } from "../../features/plugins/composer-capabilities";
-import { createToolCatalogComposerCapabilitySource } from "../../features/plugins/tool-catalog-composer-source";
 import "../../styles/assistant.css";
 // The runtime picker's BYOK model row renders `@jini-ai/ui`'s `SearchableModelSelect`, whose
 // styles (including the body-portaled `.jini-select-menu`) live in this sheet. The settings
@@ -41,6 +37,7 @@ import {
   resolveRunContext,
   shouldPublishOnMessagesChange,
   useByokRuntime,
+  useComposerCapabilities,
   useExecutionConfig,
   useLocalCliSelection,
 } from "./AssistantDock.hooks";
@@ -142,13 +139,13 @@ declare global {
  * `--jini-chat-*` custom-property seam or a descendant selector — a flat `.jini-*` rule in
  * `assistant.css` loses even at equal specificity. See that file's header for the full account.
  *
- * The runtime-picker state (`useExecutionConfig`, `useByokRuntime`, `useLocalCliSelection`) and the
- * two pure decision helpers this component calls (`shouldPublishOnMessagesChange`,
- * `resolveRunContext`) live in `AssistantDock.hooks.tsx` — see that file's own header for why they
- * are split out. This file stays the render layer: it wires their return values onto `<ChatPane>`'s
- * props and owns only the JSX-adjacent state (`transport`, `uploadAttachments`, `runtimeAccess`,
- * `handleMessagesChange`, `runContext`) that has no independent failure path worth testing in
- * isolation.
+ * The runtime-picker state (`useExecutionConfig`, `useByokRuntime`, `useLocalCliSelection`), the
+ * composer-discovery projection (`useComposerCapabilities`, 2026-08-14), and the two pure decision
+ * helpers this component calls (`shouldPublishOnMessagesChange`, `resolveRunContext`) live in
+ * `AssistantDock.hooks.tsx` — see that file's own header for why they are split out. This file
+ * stays the render layer: it wires their return values onto `<ChatPane>`'s props and owns only the
+ * JSX-adjacent state (`transport`, `uploadAttachments`, `runtimeAccess`, `handleMessagesChange`,
+ * `runContext`) that has no independent failure path worth testing in isolation.
  */
 
 const AGENTS_URL = "/api/agents";
@@ -246,22 +243,30 @@ export interface AssistantDockProps {
    * bypasses entirely.
    */
   useLocalCliSelection?: typeof useLocalCliSelection;
+  /**
+   * Injectable seam for the composer's discovery-catalog projection — see
+   * {@link useComposerCapabilities}. Defaults to the real hook, same MSG-01 rationale as the three
+   * above: the real hook calls `projectComposerCapabilities`, which a fake bypasses entirely.
+   */
+  useComposerCapabilities?: typeof useComposerCapabilities;
 }
 
 /**
- * @complexity 10 cyclomatic / 2 cognitive (measured, complexity-ceiling pass). Exempted from the
- * ≤9/≤9 bar rather than refactored — this is the flat-fallback-chain shape already exempted
- * elsewhere in this codebase (`PostEditor.tsx:27` at 27/0, `SeoEntryPanel` at 25/6): cyclomatic
- * inflated by independent, unnested decision points, cognitive near zero because none of them
- * nest.
+ * @complexity 11 cyclomatic / 2 cognitive (measured, complexity-ceiling pass; was 10/2 before the
+ * 2026-08-14 `useComposerCapabilities` extraction added a 6th injectable-seam default parameter).
+ * Exempted from the ≤9/≤9 bar rather than refactored — this is the flat-fallback-chain shape
+ * already exempted elsewhere in this codebase (`PostEditor.tsx:27` at 27/0, `SeoEntryPanel` at
+ * 25/6): cyclomatic inflated by independent, unnested decision points, cognitive near zero because
+ * none of them nest.
  *
- * The 10 breaks down as: 5 destructured default parameters (`agentBridge`, `useChats`,
- * `useExecutionConfig`, `useByokRuntime`, `useLocalCliSelection`) — the injectable-hook DI seam
- * `apps/admin/INFO.md` §Components rule 3 requires for every hook doing DOM/IO work, not optional
- * structure this component chose — plus 3 flat, sibling `?:`/`?.`/`??` expressions in the JSX
- * below: `executionMode={... ? "api" : "local"}`, the conditional `conversationId` spread, and the
- * active-conversation-title `?.title ?? "Tovu assistant"` fallback. 5 + 1 + 1 + (1 for `?.` + 1
- * for `??`) = 10; none of the four wrap another, which is why cognitive stays at 2.
+ * The 11 breaks down as: 6 destructured default parameters (`agentBridge`, `useChats`,
+ * `useExecutionConfig`, `useByokRuntime`, `useLocalCliSelection`, `useComposerCapabilities`) — the
+ * injectable-hook DI seam `apps/admin/INFO.md` §Components rule 3 requires for every hook doing
+ * DOM/IO work, not optional structure this component chose — plus 3 flat, sibling `?:`/`?.`/`??`
+ * expressions in the JSX below: `executionMode={... ? "api" : "local"}`, the conditional
+ * `conversationId` spread, and the active-conversation-title `?.title ?? "Tovu assistant"`
+ * fallback. 6 + 1 + 1 + (1 for `?.` + 1 for `??`) = 11; none of the four wrap another, which is why
+ * cognitive stays at 2.
  *
  * Tried: extracting the title fallback (`chats.conversations.find(...)?.title ?? "..."`) to a
  * top-level function would shave 2 points and clear ≤9 on its own — but doing that to one of the
@@ -277,6 +282,7 @@ export function AssistantDock({
   useExecutionConfig: useExecutionConfigState = useExecutionConfig,
   useByokRuntime: useByokRuntimeState = useByokRuntime,
   useLocalCliSelection: useLocalCliSelectionState = useLocalCliSelection,
+  useComposerCapabilities: useComposerCapabilitiesState = useComposerCapabilities,
 }: AssistantDockProps) {
   /**
    * Translates this component's own pane chrome (eyebrow, title fallback, composer placeholder)
@@ -330,39 +336,11 @@ export function AssistantDock({
   const chats = useChats();
   /**
    * The composer's discovery catalog, projected asynchronously (debate 2, "Composer slash
-   * commands") — replaces the pre-2026-08-12 static `TOVU_COMPOSER_DISCOVERY_GROUPS` import.
-   * Starts empty rather than pre-seeded: the whole point of `ComposerCapabilitySource.list()`
-   * being a `Promise` is that a source may genuinely need a round trip — true for
-   * `createBundledComposerCapabilitySource` only by construction (compile-time data wrapped in a
-   * resolved `Promise`), but genuinely true for `createToolCatalogComposerCapabilitySource`, which
-   * fetches the real tool catalog through this dispatch's new `/api/tools/search` proxy. This
-   * component makes no assumption that resolution is instant for either.
-   *
-   * Mirrors this file's own `fetchAgents()`/`runtimeAccess` pattern: fetched once per mount, and
-   * a failed projection (a future live source's fetch failing, or a duplicate-id contract
-   * violation) falls back to the empty catalog rather than crashing the dock — same "MCP
-   * navigation remains available; the failure is contained" posture `fetchAgents` already uses for
-   * its own `!response.ok` branch.
+   * commands") — replaces the pre-2026-08-12 static `TOVU_COMPOSER_DISCOVERY_GROUPS` import. See
+   * `useComposerCapabilities`'s own doc (`AssistantDock.hooks.tsx`) for why it starts empty and how
+   * a failed projection degrades.
    */
-  const [composerCapabilities, setComposerCapabilities] = useState<ComposerCapabilityProjection>(
-    emptyComposerCapabilityProjection,
-  );
-  useEffect(() => {
-    let cancelled = false;
-    // `createToolCatalogComposerCapabilitySource()` never rejects (see its own doc) — it degrades
-    // to an empty list on any failure, so a daemon that is down or still booting costs only the
-    // tool-catalog rows, never the bundled source alongside it in this same `Promise.all`.
-    projectComposerCapabilities([createBundledComposerCapabilitySource(), createToolCatalogComposerCapabilitySource()])
-      .then((projection) => {
-        if (!cancelled) setComposerCapabilities(projection);
-      })
-      .catch((error: unknown) => {
-        console.error("[AssistantDock] composer capability projection failed", error);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const { composerCapabilities } = useComposerCapabilitiesState();
   const handleComposerDiscoverySelect = useCallback(
     (selection: ComposerDiscoverySelection) =>
       resolveComposerDiscoveryOutcome(selection, {
