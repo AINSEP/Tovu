@@ -1,5 +1,5 @@
 import { DataTable, RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
-import { useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 
 import type { AdminPost } from "../../lib/api";
 import { siteUrl } from "../../lib/site-url";
@@ -147,9 +147,10 @@ export function Pages({ usePagesHook = useWiredPages, useThemePagesHook = useWir
     removePage,
     t,
     locale,
+    activeTab,
+    setActiveTab,
   } = usePagesHook();
   const { pageIds: themePageIds, error: themePagesError } = useThemePagesHook();
-  const [activeTab, setActiveTab] = useState<"mine" | "theme">("mine");
 
   const notice = pagesListNotice(pages, error);
   if (notice) return notice;

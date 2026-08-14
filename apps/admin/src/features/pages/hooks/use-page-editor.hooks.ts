@@ -109,6 +109,15 @@ export interface PageEditorController {
    * 2026-08-11-template-preview-render-bug.md` for the bug this fixes.
    */
   contentDirty: boolean;
+  /**
+   * The admin-only template-preview iframe's `src`, pre-built from `port.templatePreviewUrl` (a
+   * synchronous URL builder, not a fetch) so `PageEditor.tsx` never imports `lib/api` just to call
+   * it. `""` before `page` loads — never rendered that early, since `PageEditor.tsx` shows a loading
+   * notice and mounts no preview until `page` is set, same "inert default before load" shape
+   * `availableTemplates` already uses. Recomputed on every render off `page`/`templateChoice` — cheap
+   * string building, not worth a `useMemo`.
+   */
+  templatePreviewUrl: string;
   save: (nextStatus?: "draft" | "published") => Promise<void>;
   remove: () => Promise<void>;
   confirmingDelete: boolean;
@@ -328,6 +337,10 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
       status !== page.status ||
       (page.bodyFormat === "html" && html !== savedHtml));
 
+  // See `templatePreviewUrl`'s own doc on `PageEditorController` for why this is a plain per-render
+  // expression rather than state or a `useMemo`.
+  const templatePreviewUrl = page ? port.templatePreviewUrl(page.id, templateChoice) : "";
+
   return {
     page,
     error,
@@ -362,6 +375,7 @@ export function usePageEditor(routeSlug: string, deps: PageEditorDependencies): 
     // `PageEditorController` for why that distinction exists.
     contentDirty,
     dirty: contentDirty || templateChoice !== savedTemplateChoice,
+    templatePreviewUrl,
     save,
     remove,
     confirmingDelete,

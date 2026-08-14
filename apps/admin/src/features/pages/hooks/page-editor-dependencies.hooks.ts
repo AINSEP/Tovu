@@ -18,6 +18,7 @@ export const defaultPageEditorPort: PageEditorPort = {
   updatePageHtml: (id, html) => api.updatePageHtml(id, html),
   updatePost: (target, patch) => api.updatePost(target, patch),
   deletePage: (id) => api.deletePage(id),
+  templatePreviewUrl: (id, templateChoice) => api.templatePreviewUrl(id, templateChoice),
 };
 
 /** Seed state for {@link createFakePageEditorPort}. */
@@ -89,6 +90,13 @@ export function createFakePageEditorPort(options: FakePageEditorPortOptions): Pa
       if (id !== page.id) throw new Error(`fake page editor port: unknown page id ${id}`);
       deleteCalled = true;
       return { post: page };
+    },
+
+    // A distinct `fake://` scheme, not `api.templatePreviewUrl`'s real `siteUrl(...)`-wrapped
+    // `/api/admin/...` shape — so a test asserting the rendered iframe's `src` came from THIS fake
+    // fails if `PageEditor.tsx`'s preview ever goes back to calling the real `api` directly.
+    templatePreviewUrl(id, templateChoice) {
+      return `fake://template-preview/${id}?templateChoice=${templateChoice ?? ""}`;
     },
   };
 }

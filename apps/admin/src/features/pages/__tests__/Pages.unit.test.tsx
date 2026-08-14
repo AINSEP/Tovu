@@ -1,9 +1,10 @@
+import { useState } from "react";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { Pages, pagesListNotice } from "../Pages";
-import type { PagesController } from "../hooks/use-pages.hooks";
+import type { PagesController, PagesTab } from "../hooks/use-pages.hooks";
 import type { ThemePagesController } from "../hooks/use-theme-pages.hooks";
 import { navigate } from "../../../lib/router";
 import type { AdminPost } from "../../../lib/api";
@@ -47,6 +48,11 @@ function controller(overrides: Partial<PagesController> = {}): PagesController {
     // as every assertion below already expects.
     t: (key) => key,
     locale: "en",
+    activeTab: "mine",
+    // Never actually invoked — `renderWith` below overrides this with a REAL `useState` setter so
+    // the "Theme Pages tab" describe block can click through the `TabBar` and see the tab actually
+    // switch, same as when `activeTab` was local state inside `Pages.tsx` itself.
+    setActiveTab: vi.fn(),
     ...overrides,
   };
 }
@@ -63,7 +69,14 @@ function themePagesController(overrides: Partial<ThemePagesController> = {}): Th
  */
 function renderWith(overrides: Partial<PagesController> = {}, themePages: Partial<ThemePagesController> = {}) {
   const c = controller(overrides);
-  const usePagesHook = () => c;
+  // `activeTab` is real React state here, not a static field read off `c` — the "Theme Pages tab"
+  // describe block below clicks through the `TabBar` and asserts the OTHER tab's content actually
+  // renders, which needs a real re-render on `setActiveTab`, same as before `activeTab` moved out
+  // of `Pages.tsx`'s own local `useState` and into `usePagesHook`.
+  function usePagesHook(): PagesController {
+    const [activeTab, setActiveTab] = useState<PagesTab>(c.activeTab);
+    return { ...c, activeTab, setActiveTab };
+  }
   const useThemePagesHook = () => themePagesController(themePages);
   render(<Pages usePagesHook={usePagesHook} useThemePagesHook={useThemePagesHook} />);
   return c;

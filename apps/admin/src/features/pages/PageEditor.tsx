@@ -2,7 +2,6 @@ import type { RefObject } from "react";
 import { ConfirmDialog, InteractiveHtmlEditor } from "@jini-ai/admin/react";
 import { SrcDocSandbox } from "@jini-ai/ui/renderers";
 
-import { api } from "../../lib/api";
 import { siteUrl } from "../../lib/site-url";
 import {
   PAGE_PREVIEW_WIDTHS,
@@ -251,6 +250,7 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
     saving,
     dirty,
     contentDirty,
+    templatePreviewUrl,
     save,
     remove,
     confirmingDelete,
@@ -340,14 +340,13 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
 
       {view === "preview" ? (
         <PagePreview
-          id={page.id}
           html={html}
           width={PAGE_PREVIEW_WIDTHS[device]}
           slug={slug}
           status={status}
           dirty={dirty}
           contentDirty={contentDirty}
-          templateChoice={templateChoice}
+          templatePreviewUrl={templatePreviewUrl}
           frameRef={frameRef}
           paneWidth={paneWidth}
         />
@@ -414,10 +413,12 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
  *    real public URL (`siteUrl`) directly — the exact same response a visitor gets.
  * 2. **Template preview, own fix (2026-08-11)** (`status === "published" && !contentDirty`, i.e.
  *    title/slug/status/body all match what's saved and the row IS published — only `templateChoice`
- *    is pending): iframes `api.templatePreviewUrl`, an admin-only render of this SAME saved content
- *    through the PENDING template choice — same render pipeline as branch 1 (`renderViaTemplate`,
- *    `routes/admin/posts/template-preview.ts`), just looked up by id instead of by public slug. This
- *    is the fix, and exactly the reported bug's own repro: picking a template from the dropdown marks
+ *    is pending): iframes `templatePreviewUrl` — `usePageEditor`'s pre-built URL for this SAME saved
+ *    content through the PENDING template choice (`port.templatePreviewUrl`, `page-editor-port.hooks.ts`;
+ *    the real binding calls `lib/api.ts`'s own `templatePreviewUrl`, an admin-only render through the
+ *    SAME render pipeline as branch 1: `renderViaTemplate`, `routes/admin/posts/template-preview.ts`,
+ *    just looked up by id instead of by public slug). This is the fix, and exactly the reported bug's
+ *    own repro: picking a template from the dropdown marks
  *    `dirty` (correctly — it IS an unsaved change to `templateChoice`), which used to fall the preview
  *    all the way back to branch 3 below — raw, unstyled, and blind to which template was even
  *    selected, which is why re-picking a DIFFERENT template while already dirty used to look like
@@ -456,25 +457,24 @@ export function PageEditor({ slug: routeSlug, usePageEditorHook = useWiredPageEd
  * no security gain.
  */
 function PagePreview({
-  id,
   html,
   width,
   slug,
   status,
   dirty,
   contentDirty,
-  templateChoice,
+  templatePreviewUrl,
   frameRef,
   paneWidth,
 }: {
-  id: string;
   html: string;
   width: number;
   slug: string;
   status: "draft" | "published";
   dirty: boolean;
   contentDirty: boolean;
-  templateChoice: string | null;
+  /** Pre-built by `usePageEditor` — see this function's own doc, branch 2. */
+  templatePreviewUrl: string;
   /** Frame element to measure and its live-measured width — both owned by `usePageEditor`
    *  (`hooks/use-page-editor.hooks.ts`), not local state, so they survive this component's own
    *  mount/unmount as the operator switches tabs. See that hook's own comment on why the measuring
@@ -505,10 +505,9 @@ function PagePreview({
           <PagePreviewFrame
             canShowLiveSite={canShowLiveSite}
             canShowTemplatePreview={canShowTemplatePreview}
-            id={id}
             slug={slug}
             html={html}
-            templateChoice={templateChoice}
+            templatePreviewUrl={templatePreviewUrl}
           />
         </div>
       </div>
@@ -529,17 +528,16 @@ function PagePreview({
 function PagePreviewFrame({
   canShowLiveSite,
   canShowTemplatePreview,
-  id,
   slug,
   html,
-  templateChoice,
+  templatePreviewUrl,
 }: {
   canShowLiveSite: boolean;
   canShowTemplatePreview: boolean;
-  id: string;
   slug: string;
   html: string;
-  templateChoice: string | null;
+  /** Pre-built by `usePageEditor` — see `PagePreview`'s own doc, branch 2. */
+  templatePreviewUrl: string;
 }) {
   if (canShowLiveSite) {
     return (
@@ -549,7 +547,7 @@ function PagePreviewFrame({
   if (canShowTemplatePreview) {
     return (
       <iframe
-        src={api.templatePreviewUrl(id, templateChoice)}
+        src={templatePreviewUrl}
         title="Page preview"
         className="page-preview-iframe"
         referrerPolicy="no-referrer"
