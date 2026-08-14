@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 
-import { api, describeApiError, type AdminDisclosureResult, type AdminRestorePoint } from "../../../lib/api";
+import { describeApiError, type AdminDisclosureResult, type AdminRestorePoint } from "../../../lib/api";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { t } from "../recovery-i18n";
 import type { Translate } from "../../../lib/dictionary-translator";
+import { defaultRestoreFlowPort } from "./restore-flow-dependencies.hooks";
+import type { RestoreFlowPort } from "./restore-flow-port.hooks";
 
 /**
  * @file The restore ceremony (`plan`/`confirm`/`execute`, SPEC-019 C-301/C-302/C-303) plus the
@@ -21,6 +23,14 @@ import type { Translate } from "../../../lib/dictionary-translator";
  * translations, so exposing that same already-resolved `locale` as a bound `t` (plus the raw value,
  * still needed for `RestoreFlow`'s own local step subcomponents and the several `recovery-i18n.tsx`
  * helpers that take `locale` directly) on the return value adds no new fetch.
+ *
+ * DI seam (2026-08-14, Orc-BASH pass): `port` is injected as a second argument — see
+ * `restore-flow-port.hooks.ts` — rather than reaching `lib/api` directly, so a test can describe
+ * the disclosure/plan/confirm/execute ceremony against `createFakeRestoreFlowPort` instead of
+ * stubbing global `fetch`. `props` (the `point`) stays a separate first argument, same two-argument
+ * shape `use-form-submissions.hooks.ts`'s `useFormSubmissions(props, port)` uses — `point` is a
+ * business input, not an external dependency. `useWiredRestoreFlow` below is the pair `RestoreFlow`
+ * in `Recovery.tsx` actually mounts.
  */
 
 export type CeremonyStep = "idle" | "planned" | "confirmed" | "done";
@@ -48,7 +58,7 @@ export interface RestoreFlowController {
   locale: string;
 }
 
-export function useRestoreFlow(props: { point: AdminRestorePoint }): RestoreFlowController {
+export function useRestoreFlow(props: { point: AdminRestorePoint }, port: RestoreFlowPort): RestoreFlowController {
   const locale = useAdminLocale();
   const boundT = (key: string): string => t(locale, key);
   const [disclosure, setDisclosure] = useState<AdminDisclosureResult | null>(null);
@@ -74,7 +84,7 @@ export function useRestoreFlow(props: { point: AdminRestorePoint }): RestoreFlow
     setPlan(null);
     setConfirmationToken(null);
     setResult(null);
-    api
+    port
       .computeRecoveryDisclosure(props.point.id)
       .then(setDisclosure)
       .catch((e) => setError(describeApiError(e, t(locale, "Failed to compute the discarded-write-window disclosure"))));
@@ -84,7 +94,7 @@ export function useRestoreFlow(props: { point: AdminRestorePoint }): RestoreFlow
     setBusy(true);
     setCeremonyError(null);
     try {
-      const r = await api.planRestore(props.point.id);
+      const r = await port.planRestore(props.point.id);
       setPlan({ planId: r.planId, planHash: r.planHash });
       setStep("planned");
     } catch (e) {
@@ -99,7 +109,7 @@ export function useRestoreFlow(props: { point: AdminRestorePoint }): RestoreFlow
     setBusy(true);
     setCeremonyError(null);
     try {
-      const r = await api.confirmRestore({
+      const r = await port.confirmRestore({
         planId: plan.planId,
         planHash: plan.planHash,
         disclosureAcknowledged: acknowledged,
@@ -118,7 +128,7 @@ export function useRestoreFlow(props: { point: AdminRestorePoint }): RestoreFlow
     setBusy(true);
     setCeremonyError(null);
     try {
-      const r = await api.executeRestore({ confirmationToken, restorePointId: props.point.id });
+      const r = await port.executeRestore({ confirmationToken, restorePointId: props.point.id });
       setResult({ restoreRunId: r.restoreRunId, state: r.state, restartRequired: r.restartRequired });
       setStep("done");
     } catch (e) {
@@ -145,4 +155,16 @@ export function useRestoreFlow(props: { point: AdminRestorePoint }): RestoreFlow
     t: boundT,
     locale,
   };
+}
+
+/**
+ * Binds the real `/api/.../recovery/restore` client — see `restore-flow-dependencies.hooks.ts`.
+ * The zero-argument-deps half of the `useX(dependencies)` / `useWiredX()` pair, so `RestoreFlow` in
+ * `Recovery.tsx` composes this and a test composes {@link useRestoreFlow} with
+ * `createFakeRestoreFlowPort`.
+ *
+ * @param props Same business input as {@link useRestoreFlow} — the selected restore point.
+ */
+export function useWiredRestoreFlow(props: { point: AdminRestorePoint }): RestoreFlowController {
+  return useRestoreFlow(props, defaultRestoreFlowPort);
 }

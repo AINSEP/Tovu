@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 
-import { api, describeApiError, type AdminRecoveryStatus, type AdminRestorePoint } from "../../../lib/api";
+import { describeApiError, type AdminRecoveryStatus, type AdminRestorePoint } from "../../../lib/api";
 import { parseDeepLinkEnvelope } from "../rules";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { t } from "../recovery-i18n";
 import type { Translate } from "../../../lib/dictionary-translator";
+import { defaultRecoveryPort } from "./recovery-dependencies.hooks";
+import type { RecoveryPort } from "./recovery-port.hooks";
 
 /**
  * @file Everything the Recovery SCREEN (the restore-points list + status/banner) does, so
@@ -25,6 +27,11 @@ import type { Translate } from "../../../lib/dictionary-translator";
  * `DegradedBannerView`/`RestorePointsList` subcomponents, which take `locale` directly) on the
  * return value adds no new fetch — `Recovery.tsx` used to call `useAdminLocale()` a second time,
  * entirely redundant with the resolution this hook was already doing internally.
+ *
+ * DI seam (2026-08-14, Orc-BASH pass): `port` is injected — see `recovery-port.hooks.ts` — rather
+ * than reaching `lib/api` directly, so a test can describe load/deep-link outcomes against
+ * `createFakeRecoveryPort` instead of stubbing global `fetch`. `useWiredRecovery` below is the
+ * zero-argument pair `Recovery.tsx` actually mounts.
  */
 
 export interface RecoveryController {
@@ -45,7 +52,12 @@ export interface RecoveryController {
   locale: string;
 }
 
-export function useRecovery(): RecoveryController {
+export interface RecoveryDependencies {
+  port: RecoveryPort;
+}
+
+export function useRecovery(deps: RecoveryDependencies): RecoveryController {
+  const { port } = deps;
   const locale = useAdminLocale();
   const boundT = (key: string): string => t(locale, key);
   const [status, setStatus] = useState<AdminRecoveryStatus | null>(null);
@@ -55,7 +67,7 @@ export function useRecovery(): RecoveryController {
 
   function load() {
     setError(null);
-    Promise.all([api.getRecoveryStatus(), api.listRecoveryRestorePoints()])
+    Promise.all([port.getRecoveryStatus(), port.listRecoveryRestorePoints()])
       .then(([statusResult, pointsResult]) => {
         setStatus(statusResult);
         setPoints(pointsResult.items);
@@ -75,7 +87,7 @@ export function useRecovery(): RecoveryController {
     sessionStorage.removeItem("recovery-deep-link-envelope");
     const parsed = parseDeepLinkEnvelope(raw);
     if (!parsed.ok) return;
-    api
+    port
       .resolveRecoveryDeepLink(parsed.envelope)
       .then((result) => {
         if (result.found && result.restorePoint) {
@@ -87,4 +99,13 @@ export function useRecovery(): RecoveryController {
   }, [points]);
 
   return { status, points, error, selected, setSelected, t: boundT, locale };
+}
+
+/**
+ * Binds the real `/api/.../recovery` client — see `recovery-dependencies.hooks.ts`. The
+ * zero-argument half of the `useX(dependencies)` / `useWiredX()` pair, so `Recovery.tsx` composes
+ * this and a test composes {@link useRecovery} with `createFakeRecoveryPort`.
+ */
+export function useWiredRecovery(): RecoveryController {
+  return useRecovery({ port: defaultRecoveryPort });
 }

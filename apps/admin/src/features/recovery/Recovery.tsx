@@ -3,8 +3,8 @@ import { DataTable } from "@jini-ai/admin/react";
 import { formatTimestamp } from "../../lib/format-timestamp";
 import type { AdminDisclosureResult, AdminRecoveryStatus, AdminRestorePoint } from "../../lib/api";
 import { categoryLabel, isAssertiveRecoveryBanner } from "./rules";
-import { useRecovery } from "./hooks/use-recovery.hooks";
-import { useRestoreFlow, type CeremonyStep } from "./hooks/use-restore-flow.hooks";
+import { useWiredRecovery } from "./hooks/use-recovery.hooks";
+import { useWiredRestoreFlow, type CeremonyStep } from "./hooks/use-restore-flow.hooks";
 import {
   t,
   sinceDiscardMessage,
@@ -283,14 +283,16 @@ function RestoreCeremonySteps(props: {
 export interface RestoreFlowProps {
   point: AdminRestorePoint;
   onBack: () => void;
-  /** Dependency injection seam for tests — see `PostsProps.usePostsHook` for the convention. */
-  useRestoreFlowHook?: typeof useRestoreFlow;
+  /** Dependency injection seam for tests — see `PostsProps.usePostsHook` for the convention.
+   *  Defaulted to the WIRED hook (2026-08-14, Orc-BASH pass) — see `use-restore-flow.hooks.ts`'s
+   *  own `useWiredRestoreFlow`. */
+  useRestoreFlowHook?: typeof useWiredRestoreFlow;
 }
 
 function RestoreFlow({
   point,
   onBack,
-  useRestoreFlowHook = useRestoreFlow
+  useRestoreFlowHook = useWiredRestoreFlow
 }: RestoreFlowProps) {
   const {
     disclosure,
@@ -358,11 +360,13 @@ export interface RecoveryProps {
    * Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
    * for `useCustomSelect`. Defaulted to the real hook, so production callers (`panels.tsx`) pass
    * nothing and behave exactly as before. See `PostsProps.usePostsHook` for the full rationale.
+   * Defaulted to the WIRED hook (2026-08-14, Orc-BASH pass) — see `use-recovery.hooks.ts`'s own
+   * `useWiredRecovery`.
    */
-  useRecoveryHook?: typeof useRecovery;
+  useRecoveryHook?: typeof useWiredRecovery;
 }
 
-export function Recovery({ useRecoveryHook = useRecovery }: RecoveryProps = {}) {
+export function Recovery({ useRecoveryHook = useWiredRecovery }: RecoveryProps = {}) {
   const { status, points, error, selected, setSelected, t, locale } = useRecoveryHook();
 
   if (error && !points) return <div className="notice error">{error}</div>;
