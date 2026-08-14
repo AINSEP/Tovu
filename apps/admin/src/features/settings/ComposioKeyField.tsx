@@ -1,5 +1,4 @@
-import { useState } from "react";
-
+import { useComposioKeyField } from "./hooks/use-composio-key-field.hooks";
 import type { ComposioConfigController } from "./hooks/use-composio-config.hooks";
 
 /**
@@ -12,24 +11,33 @@ import type { ComposioConfigController } from "./hooks/use-composio-config.hooks
  *
  * Write-only, like every other credential surface here: a stored key comes back as
  * `configured` + a 4-character tail and is never rendered into the input.
+ *
+ * The draft-input state lives in `hooks/use-composio-key-field.hooks.ts`, split out the same way
+ * `SeeMore`/`SeeMore.hooks.tsx` does — this file stays props-and-JSX only, and the `useKeyField`
+ * prop below lets a test render this JSX against a fake hook.
  */
 export interface ComposioKeyFieldProps {
   composio: ComposioConfigController;
+  /** Injectable seam for the draft-input state. Defaults to the real
+   *  {@link useComposioKeyField}; a test can pass a fake here to exercise `ComposioKeyField`'s
+   *  rendering with a fixed draft/configured/busy state. */
+  useKeyField?: typeof useComposioKeyField;
 }
 
-export function ComposioKeyField({ composio }: ComposioKeyFieldProps) {
-  const [draft, setDraft] = useState("");
-  const configured = composio.config?.configured ?? false;
-  const busy = composio.saveState === "saving";
+/**
+ * Resolves `useKeyField` to the real hook when a caller passes none — same `??`-avoidance idiom
+ * `MenuEditor.tsx`'s `orEmpty`/`AssistantDock.tsx`'s/`App.tsx`'s resolver groups use (2026-08-14,
+ * DI migration sweep's complexity follow-up): ESLint's cyclomatic-complexity rule counts a default
+ * parameter value inside a function's OWN body as one of that function's own branches — a call out
+ * to a separately-scoped resolver does not.
+ */
+function resolveKeyFieldHook(override: typeof useComposioKeyField | undefined): typeof useComposioKeyField {
+  return override ?? useComposioKeyField;
+}
 
-  const onSave = async () => {
-    const apiKey = draft.trim();
-    if (!apiKey) return;
-    await composio.save(apiKey);
-    // Cleared unconditionally rather than only on success: the value is a secret, and a failed
-    // save is not a reason to leave it sitting in the DOM. The operator re-pastes on retry.
-    setDraft("");
-  };
+export function ComposioKeyField({ composio, useKeyField: useKeyFieldProp }: ComposioKeyFieldProps) {
+  const useKeyField = resolveKeyFieldHook(useKeyFieldProp);
+  const { draft, setDraft, configured, busy, onSave } = useKeyField(composio);
 
   return (
     <div className="composio-key-field">
