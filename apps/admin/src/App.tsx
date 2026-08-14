@@ -178,13 +178,47 @@ export interface AppProps {
   useAgentBridge?: typeof useAgentPageBridge;
 }
 
-export function App({
-  useSession = useAdminSession,
-  useDrawer = useSidebarDrawer,
-  useLinkInterceptor = useInternalLinkInterceptor,
-  useChatDock = useChatDockLayout,
-  useAgentBridge = useAgentPageBridge,
-}: AppProps = {}) {
+/**
+ * Resolves each of `App`'s five injectable-seam props to its real implementation when a caller
+ * passes none. The same `??`-avoidance idiom `MenuEditor.tsx`'s `orEmpty`,
+ * `CollectionEntryEditor.tsx`'s `resolveCollectionEntryEditorHook`, and
+ * `AssistantDock.tsx`'s own resolver group use (2026-08-14, applied here per the DI migration
+ * sweep's own follow-up audit — this file's debt-list entry already attributed +6 cyclomatic to
+ * exactly this shape): ESLint's cyclomatic-complexity rule counts a default parameter value inside
+ * a function's OWN body as one of that function's own branches — a call out to a separately-scoped
+ * resolver does not.
+ */
+function resolveSessionHook(override: typeof useAdminSession | undefined): typeof useAdminSession {
+  return override ?? useAdminSession;
+}
+function resolveDrawerHook(override: typeof useSidebarDrawer | undefined): typeof useSidebarDrawer {
+  return override ?? useSidebarDrawer;
+}
+function resolveLinkInterceptorHook(
+  override: typeof useInternalLinkInterceptor | undefined
+): typeof useInternalLinkInterceptor {
+  return override ?? useInternalLinkInterceptor;
+}
+function resolveChatDockHook(override: typeof useChatDockLayout | undefined): typeof useChatDockLayout {
+  return override ?? useChatDockLayout;
+}
+function resolveAgentBridgeHook(override: typeof useAgentPageBridge | undefined): typeof useAgentPageBridge {
+  return override ?? useAgentPageBridge;
+}
+
+export function App(props: AppProps) {
+  // No `AppProps = {}` default on the parameter itself (2026-08-14 — the sixth branch this file's
+  // debt-list note flagged as untried): every real call site is JSX (`<App />`), and JSX's own
+  // `createElement`/`jsx` runtime always constructs an actual props object — `{}` when no
+  // attributes are given, never `undefined` — so `App` is never invoked with zero arguments the way
+  // a plain function call could be. `AppProps`' five fields are all optional, so `{}` satisfies the
+  // type and this compiles the same as before for every existing call site.
+  const useSession = resolveSessionHook(props.useSession);
+  const useDrawer = resolveDrawerHook(props.useDrawer);
+  const useLinkInterceptor = resolveLinkInterceptorHook(props.useLinkInterceptor);
+  const useChatDock = resolveChatDockHook(props.useChatDock);
+  const useAgentBridge = resolveAgentBridgeHook(props.useAgentBridge);
+
   const { user, checking, handleLogin, logout } = useSession();
   const routePath = useRouteLocation();
   const route = useMemo(() => parseRoute(routePath), [routePath]);
