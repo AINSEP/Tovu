@@ -2,7 +2,8 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "../../../lib/fetch-query";
-import { useRoles } from "../hooks/use-roles.hooks";
+import { createFakeRolesPort } from "../hooks/roles-dependencies.hooks";
+import { useRoles, useWiredRoles } from "../hooks/use-roles.hooks";
 
 /**
  * @file `useRoles` — the "Roles & Permissions" screen's entire state machine, extracted so it is
@@ -18,6 +19,14 @@ import { useRoles } from "../hooks/use-roles.hooks";
  * `wrapper` (2026-08-12, `lib/fetch-query` migration): the combined roles+policies read and every
  * write now go through `useFetchQuery`/`useFetchMutation`, which throw without a
  * `QueryClientProvider` ancestor.
+ *
+ * `useWiredRoles` (2026-08-14, `useX(dependencies)` / `useWiredX()` conversion): every call below
+ * that used to render bare `useRoles()` now renders `useWiredRoles()` instead — same real `fetch`
+ * harness, same assertions, only the entry point renamed now that `useRoles` takes an injected
+ * `RolesDependencies` argument. Matches `use-users.unit.test.tsx`/`use-posts.unit.test.ts`'s
+ * identical split: this file's bulk stays a `fetch`-stubbed `useWiredRoles` suite, and a new
+ * "injected port" group at the bottom composes `useRoles` directly against `createFakeRolesPort`
+ * with no `fetch` stub at all.
  */
 
 function wrapper({ children }: { children: React.ReactNode }) {
@@ -57,7 +66,7 @@ async function renderLoaded() {
   fetchMock
     .mockResolvedValueOnce(jsonResponse({ roles: [ROLE] }))
     .mockResolvedValueOnce(jsonResponse({ policies: [POLICY] }));
-  const view = renderHook(() => useRoles(), { wrapper });
+  const view = renderHook(() => useWiredRoles(), { wrapper });
   await waitFor(() => expect(view.result.current.roles).not.toBeNull());
   return view;
 }
@@ -74,7 +83,7 @@ describe("initial load", () => {
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ error: "nope", code: "FORBIDDEN" }, 403))
       .mockResolvedValueOnce(jsonResponse({ policies: [POLICY] }));
-    const { result } = renderHook(() => useRoles(), { wrapper });
+    const { result } = renderHook(() => useWiredRoles(), { wrapper });
     await waitFor(() => expect(result.current.error).not.toBeNull());
     expect(result.current.error).toBe("You do not have permission to do that.");
     expect(result.current.roles).toBeNull();
@@ -350,9 +359,74 @@ describe("t/locale (2026-08-11, standing i18n rule)", () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ roles: [ROLE] }));
     fetchMock.mockResolvedValueOnce(jsonResponse({ policies: [POLICY] }));
 
-    const { result } = renderHook(() => useRoles(), { wrapper });
+    const { result } = renderHook(() => useWiredRoles(), { wrapper });
 
     await waitFor(() => expect(result.current.locale).toBe("es"));
     expect(result.current.t("Roles & Permissions")).toBe("Roles y permisos");
+  });
+});
+
+describe("injected port (useX(dependencies) / useWiredX() conversion coverage)", () => {
+  /** `useRoles` still calls `useAdminLocale()` internally regardless of which port is injected —
+   *  see this file's header note and `use-roles.hooks.ts`'s own header on why that stays out of
+   *  `RolesPort` (it is wired in a separate pass). This file's `beforeEach` already routes that one
+   *  locale request to a fixed response, so every assertion below on `fetchMock` still only counts
+   *  the calls `RolesPort` itself would have made. */
+
+  it("loads roles and policies through the injected port, without touching fetch", async () => {
+    const port = createFakeRolesPort({ roles: [ROLE], policies: [POLICY] });
+    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    await waitFor(() => expect(result.current.roles).not.toBeNull());
+
+    expect(result.current.roles).toEqual([ROLE]);
+    expect(result.current.policies).toEqual([POLICY]);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("onCreateRole writes through the injected port and the list reflects the new role", async () => {
+    const port = createFakeRolesPort({ roles: [ROLE], policies: [POLICY] });
+    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    await waitFor(() => expect(result.current.roles).not.toBeNull());
+
+    act(() => result.current.setRoleName("New Role"));
+    await act(async () => {
+      await result.current.onCreateRole({ preventDefault: () => {} } as unknown as React.FormEvent);
+    });
+
+    expect(port.roles).toHaveLength(2);
+    await waitFor(() => expect(result.current.roles).toHaveLength(2));
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("onDeleteRole removes the pending role through the injected port", async () => {
+    const port = createFakeRolesPort({ roles: [ROLE], policies: [POLICY] });
+    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    await waitFor(() => expect(result.current.roles).not.toBeNull());
+
+    act(() => result.current.setPendingRoleDelete(ROLE));
+    await act(async () => {
+      await result.current.onDeleteRole();
+    });
+
+    expect(port.roles).toEqual([]);
+    await waitFor(() => expect(result.current.roles).toEqual([]));
+  });
+
+  it("onWritePermission sets rowError from the injected port's configured failure", async () => {
+    const port = createFakeRolesPort({
+      roles: [ROLE],
+      policies: [POLICY],
+      writePermissionError: new Error("boom"),
+    });
+    const { result } = renderHook(() => useRoles({ port }), { wrapper });
+    await waitFor(() => expect(result.current.roles).not.toBeNull());
+
+    act(() => result.current.setPermissionInput("content.write"));
+    await act(async () => {
+      await result.current.onWritePermission(POLICY.id);
+    });
+
+    expect(result.current.rowError).toBe("boom");
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

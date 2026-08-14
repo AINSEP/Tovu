@@ -3,7 +3,7 @@ import { DataTable, RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
 import type { AdminPolicy, AdminRole } from "../../lib/api";
 
 import { roleMenuItems, policyMenuItems } from "./rules";
-import { useRoles } from "./hooks/use-roles.hooks";
+import { useWiredRoles } from "./hooks/use-roles.hooks";
 import { rolesDescriptionParts, roleDeleteBodyParts, policyDeleteBodyParts } from "./roles-i18n";
 
 /**
@@ -36,9 +36,9 @@ import { rolesDescriptionParts, roleDeleteBodyParts, policyDeleteBodyParts } fro
  */
 export interface RolesProps {
   /** Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
-   *  for `useCustomSelect`. Defaulted to the real hook, so production callers (`panels.tsx`) pass
+   *  for `useCustomSelect`. Defaulted to the wired hook, so production callers (`panels.tsx`) pass
    *  nothing and behave exactly as before. */
-  useRolesHook?: typeof useRoles;
+  useRolesHook?: typeof useWiredRoles;
 }
 
 /**
@@ -455,7 +455,7 @@ function PolicyDeleteDialog({ pendingPolicyDelete, setPendingPolicyDelete, rowSa
   );
 }
 
-export function Roles({ useRolesHook = useRoles }: RolesProps = {}) {
+export function Roles({ useRolesHook = useWiredRoles }: RolesProps = {}) {
   const {
     roles,
     policies,
