@@ -236,7 +236,15 @@ function ItemRow(props: {
   );
 }
 
-export function MenuEditor(props: { menuId: string | null }) {
+export interface MenuEditorProps {
+  menuId: string | null;
+  /** Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
+   *  for `useCustomSelect`. Defaulted to the real hook, so production callers (`panels.tsx`) pass
+   *  only `menuId` and behave exactly as before. */
+  useMenuEditorHook?: typeof useWiredMenuEditor;
+}
+
+export function MenuEditor({ menuId, useMenuEditorHook = useWiredMenuEditor }: MenuEditorProps) {
   const {
     isNew,
     menu,
@@ -256,7 +264,7 @@ export function MenuEditor(props: { menuId: string | null }) {
     addRootItem,
     save,
     t,
-  } = useWiredMenuEditor(props.menuId);
+  } = useMenuEditorHook(menuId);
 
   if (error && !isNew && !menu) return <div className="notice error">{error}</div>;
   if (loading) return <div className="notice">Loading menu…</div>;

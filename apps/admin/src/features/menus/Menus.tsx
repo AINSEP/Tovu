@@ -10,7 +10,14 @@ import { useWiredMenus } from "./hooks/use-menus.hooks";
  * that file's header for why. What stays here is presentation only: columns, empty state, and the
  * confirm copy.
  */
-export function Menus() {
+export interface MenusProps {
+  /** Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
+   *  for `useCustomSelect`. Defaulted to the real hook, so production callers (`panels.tsx`) pass
+   *  nothing and behave exactly as before. */
+  useMenusHook?: typeof useWiredMenus;
+}
+
+export function Menus({ useMenusHook = useWiredMenus }: MenusProps = {}) {
   const {
     menus,
     error,
@@ -20,7 +27,7 @@ export function Menus() {
     trashOrPurge,
     confirmForceDelete,
     t,
-  } = useWiredMenus();
+  } = useMenusHook();
 
   if (error && !menus) return <div className="notice error">{error}</div>;
   if (!menus) return <div className="notice">Loading menus…</div>;
