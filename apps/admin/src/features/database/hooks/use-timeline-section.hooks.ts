@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { api, describeApiError, type AdminLedgerRow } from "../../../lib/api";
+import { describeApiError, type AdminLedgerRow } from "../../../lib/api";
 import { useFetchQuery } from "../../../lib/fetch-query";
 import { KEYS } from "../rules";
 import { navigate } from "../../../lib/router";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { t } from "../database-i18n";
+import { defaultTimelineSectionPort } from "./timeline-section-dependencies.hooks";
+import type { TimelineSectionPort } from "./timeline-section-port.hooks";
 
 /**
  * @file Everything `TimelineSection` (the Database screen's ledger browser) does, so
@@ -39,6 +41,15 @@ import { t } from "../database-i18n";
  * `filtersRef` guards that local accumulation against the same class of race the base query gets
  * for free: a `loadMore` in flight when `applyFilters` commits new filters must not append the
  * wrong filter's rows once it resolves.
+ *
+ * DI seam (2026-08-14, Orc-BASH pass): `port` is injected — see `timeline-section-port.hooks.ts` —
+ * rather than reaching `lib/api` directly, so a test can describe timeline-load/load-more outcomes
+ * against `createFakeTimelineSectionPort` instead of stubbing global `fetch`. `useWiredTimelineSection`
+ * below is the zero-argument pair `Database.tsx` actually mounts; `fetchTimelinePage` is now a
+ * closure over `port` local to the hook body rather than a module-scope function, matching
+ * `use-comment-queue.hooks.ts`'s inline-closure convention — `port` is never placed in a dependency
+ * array (this file has no `useCallback` and neither `useEffect` below depends on it), so a fresh
+ * fake-port object per render can never retrigger either effect.
  */
 
 /** Stashes a client-constructed `DatabaseContextEnvelope` for `Recovery.tsx` to re-resolve
@@ -97,19 +108,25 @@ interface TimelineFilters {
 
 const BLANK_FILTERS: TimelineFilters = { kind: "", outcome: "", fromDate: "", toDate: "" };
 
-function fetchTimelinePage(filters: TimelineFilters, cursor?: string) {
-  return api.getDatabaseTimeline({
-    kind: filters.kind || undefined,
-    outcome: filters.outcome || undefined,
-    fromDate: filters.fromDate || undefined,
-    toDate: filters.toDate || undefined,
-    cursor,
-  });
+export interface TimelineSectionDependencies {
+  port: TimelineSectionPort;
 }
 
-export function useTimelineSection(): TimelineSectionController {
+export function useTimelineSection(deps: TimelineSectionDependencies): TimelineSectionController {
+  const { port } = deps;
   const locale = useAdminLocale();
   const boundT = (key: string): string => t(locale, key);
+
+  function fetchTimelinePage(filters: TimelineFilters, cursor?: string) {
+    return port.getDatabaseTimeline({
+      kind: filters.kind || undefined,
+      outcome: filters.outcome || undefined,
+      fromDate: filters.fromDate || undefined,
+      toDate: filters.toDate || undefined,
+      cursor,
+    });
+  }
+
   const [kind, setKind] = useState("");
   const [outcome, setOutcome] = useState("");
   const [fromDate, setFromDate] = useState("");
@@ -186,4 +203,13 @@ export function useTimelineSection(): TimelineSectionController {
     t: boundT,
     locale,
   };
+}
+
+/**
+ * Binds the real `/api/.../database/timeline` client — see `timeline-section-dependencies.hooks.ts`.
+ * The zero-argument half of the `useX(dependencies)` / `useWiredX()` pair, so `Database.tsx`
+ * composes this and a test composes {@link useTimelineSection} with `createFakeTimelineSectionPort`.
+ */
+export function useWiredTimelineSection(): TimelineSectionController {
+  return useTimelineSection({ port: defaultTimelineSectionPort });
 }

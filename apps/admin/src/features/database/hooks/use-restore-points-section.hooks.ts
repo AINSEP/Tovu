@@ -1,8 +1,10 @@
-import { api, describeApiError, type AdminRestorePoint } from "../../../lib/api";
+import { describeApiError, type AdminRestorePoint } from "../../../lib/api";
 import { useFetchMutation, useFetchQuery } from "../../../lib/fetch-query";
 import { KEYS } from "../rules";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { t } from "../database-i18n";
+import { defaultRestorePointsSectionPort } from "./restore-points-section-dependencies.hooks";
+import type { RestorePointsSectionPort } from "./restore-points-section-port.hooks";
 
 /**
  * @file Everything `RestorePointsSection` (the Database screen's restore-point list + create
@@ -18,10 +20,12 @@ import { t } from "../database-i18n";
  *
  * `lib/fetch-query` migration (2026-08-12): the list read is `useFetchQuery({ key: KEYS.
  * restorePoints, ... })`; `createRestorePoint` is one `useFetchMutation` that `invalidates: [KEYS.
- * restorePoints]` instead of calling `load()` by hand on success. This feature has no injected
- * `port` (unlike every other migrated feature) — `api.*` stays a direct import here, matching the
- * pre-migration code; adding the DI seam is out of this migration's scope (see `rules.ts`'s own
- * header for why this feature's `KEYS` file is new).
+ * restorePoints]` instead of calling `load()` by hand on success.
+ *
+ * DI seam (2026-08-14, Orc-BASH pass): `port` is now injected — see `restore-points-section-
+ * port.hooks.ts` — rather than reaching `lib/api` directly, so a test can describe list/create
+ * outcomes against `createFakeRestorePointsSectionPort` instead of stubbing global `fetch`.
+ * `useWiredRestorePointsSection` below is the zero-argument pair `Database.tsx` actually mounts.
  */
 
 export interface RestorePointsSectionController {
@@ -34,10 +38,15 @@ export interface RestorePointsSectionController {
   t: (key: string) => string;
 }
 
-export function useRestorePointsSection(): RestorePointsSectionController {
+export interface RestorePointsSectionDependencies {
+  port: RestorePointsSectionPort;
+}
+
+export function useRestorePointsSection(deps: RestorePointsSectionDependencies): RestorePointsSectionController {
+  const { port } = deps;
   const locale = useAdminLocale();
   const boundT = (key: string): string => t(locale, key);
-  const list = useFetchQuery({ key: KEYS.restorePoints, fetch: () => api.listDatabaseRestorePoints() });
+  const list = useFetchQuery({ key: KEYS.restorePoints, fetch: () => port.listDatabaseRestorePoints() });
 
   const createMutation = useFetchMutation({
     // No capabilities-read route exists yet to learn `costClass` ahead of time (design-spec.md
@@ -45,7 +54,7 @@ export function useRestorePointsSection(): RestorePointsSectionController {
     // is sent unconditionally so a `cheap`/`expensive` site can still mint one, and an
     // `unavailable` site gets the server's honest `RESTORE_POINT_UNAVAILABLE` rejection below
     // rather than a client-side guess.
-    run: (_: undefined) => api.createDatabaseRestorePoint({ trigger: "manual", costAck: true }),
+    run: (_: undefined) => port.createDatabaseRestorePoint({ trigger: "manual", costAck: true }),
     invalidates: [KEYS.restorePoints],
   });
 
@@ -70,4 +79,14 @@ export function useRestorePointsSection(): RestorePointsSectionController {
   }
 
   return { points, error, creating: createMutation.status === "pending", createRestorePoint, t: boundT };
+}
+
+/**
+ * Binds the real `/api/.../database/restore-points` client — see `restore-points-section-
+ * dependencies.hooks.ts`. The zero-argument half of the `useX(dependencies)` / `useWiredX()` pair,
+ * so `Database.tsx` composes this and a test composes {@link useRestorePointsSection} with
+ * `createFakeRestorePointsSectionPort`.
+ */
+export function useWiredRestorePointsSection(): RestorePointsSectionController {
+  return useRestorePointsSection({ port: defaultRestorePointsSectionPort });
 }

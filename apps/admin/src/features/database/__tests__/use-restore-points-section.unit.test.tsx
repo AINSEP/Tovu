@@ -3,12 +3,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { AdminRestorePoint } from "../../../lib/api";
 import { FetchQueryProvider } from "../../../lib/fetch-query";
-import { useRestorePointsSection } from "../hooks/use-restore-points-section.hooks";
+import { useRestorePointsSection, useWiredRestorePointsSection } from "../hooks/use-restore-points-section.hooks";
+import { createFakeRestorePointsSectionPort } from "../hooks/restore-points-section-dependencies.hooks";
 
 /**
  * @file `useRestorePointsSection` (the Database screen's restore-point list + create action).
  * Follows the fetch-mocking harness `Comments.unit.test.tsx`/`use-roles.unit.test.ts` established
- * for this package.
+ * for this package. The bodies below drive the WIRED hook (real `fetch`); the "injected port"
+ * describe block at the bottom (2026-08-14, Orc-BASH pass) proves the pure hook is independently
+ * testable against `createFakeRestorePointsSectionPort` with no `fetch` stub for the data itself.
  *
  * `fetch-query` migration (2026-08-12): every `renderHook` now needs `wrapper: FetchQueryProvider`
  * — see `redirects/__tests__/use-redirects.hooks.unit.test.tsx`'s identical wrapper for the pilot
@@ -57,7 +60,7 @@ afterEach(() => {
 
 async function renderLoaded() {
   fetchMock.mockResolvedValueOnce(jsonResponse({ items: [POINT] }));
-  const view = renderHook(() => useRestorePointsSection(), { wrapper });
+  const view = renderHook(() => useWiredRestorePointsSection(), { wrapper });
   await waitFor(() => expect(view.result.current.points).not.toBeNull());
   return view;
 }
@@ -71,7 +74,7 @@ describe("initial load", () => {
 
   it("sets the Database-specific fallback message on a failed load with no server message", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ error: "" }, 500));
-    const { result } = renderHook(() => useRestorePointsSection(), { wrapper });
+    const { result } = renderHook(() => useWiredRestorePointsSection(), { wrapper });
     await waitFor(() => expect(result.current.error).not.toBeNull());
     expect(result.current.error).toBe("failed to load restore points");
     expect(result.current.points).toBeNull();
@@ -166,8 +169,47 @@ describe("t (2026-08-11, standing i18n rule)", () => {
       return network(url, init);
     });
 
-    const { result } = renderHook(() => useRestorePointsSection(), { wrapper });
+    const { result } = renderHook(() => useWiredRestorePointsSection(), { wrapper });
 
     await waitFor(() => expect(result.current.t("Restore points")).toBe("Puntos de restauración"));
+  });
+});
+
+describe("injected port (2026-08-14, Orc-BASH pass)", () => {
+  /** Drives the pure hook directly against `createFakeRestorePointsSectionPort` — `fetchMock` (the
+   *  real network `useWiredRestorePointsSection` above goes through) is asserted NEVER called for
+   *  the restore-points data itself; only this file's own `beforeEach` locale-settings shim still
+   *  uses real `fetch`, since `useAdminLocale()` is a separate, un-injected concern from this port. */
+  it("loads points from the fake port with no real fetch call for the data itself", async () => {
+    const port = createFakeRestorePointsSectionPort({ points: [POINT] });
+    const { result } = renderHook(() => useRestorePointsSection({ port }), { wrapper });
+
+    await waitFor(() => expect(result.current.points).not.toBeNull());
+    expect(result.current.points).toEqual([POINT]);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("createRestorePoint appends to the fake port's store, visible on the next list read", async () => {
+    const port = createFakeRestorePointsSectionPort({ points: [] });
+    const { result } = renderHook(() => useRestorePointsSection({ port }), { wrapper });
+    await waitFor(() => expect(result.current.points).toEqual([]));
+
+    await act(async () => {
+      await result.current.createRestorePoint();
+    });
+
+    await waitFor(() => expect(result.current.points).toHaveLength(1));
+  });
+
+  it("surfaces a create failure from the fake port's rejected createDatabaseRestorePoint", async () => {
+    const port = createFakeRestorePointsSectionPort({ points: [], createError: new Error("boom from fake") });
+    const { result } = renderHook(() => useRestorePointsSection({ port }), { wrapper });
+    await waitFor(() => expect(result.current.points).toEqual([]));
+
+    await act(async () => {
+      await result.current.createRestorePoint();
+    });
+
+    await waitFor(() => expect(result.current.error).toBe("boom from fake"));
   });
 });

@@ -4,13 +4,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AdminLedgerRow } from "../../../lib/api";
 import { FetchQueryProvider } from "../../../lib/fetch-query";
 import { navigate } from "../../../lib/router";
-import { navigateToRecoveryWithDeepLink, useTimelineSection } from "../hooks/use-timeline-section.hooks";
+import { navigateToRecoveryWithDeepLink, useTimelineSection, useWiredTimelineSection } from "../hooks/use-timeline-section.hooks";
+import { createFakeTimelineSectionPort } from "../hooks/timeline-section-dependencies.hooks";
 
 /**
  * @file `useTimelineSection` (the Database screen's ledger browser) and its sibling plain function
  * `navigateToRecoveryWithDeepLink`. Follows the fetch-mocking harness `Comments.unit.test.tsx`/
  * `use-roles.unit.test.ts` established for this package (mock global `fetch`, not the `api`
- * module — asserting the actual query string is part of the point for a cursor-paginated GET).
+ * module — asserting the actual query string is part of the point for a cursor-paginated GET). The
+ * bodies below drive the WIRED hook (real `fetch`, same harness as always); the "injected port"
+ * describe block at the bottom (2026-08-14, Orc-BASH pass) proves the pure hook is independently
+ * testable against `createFakeTimelineSectionPort` with no `fetch` stub at all.
  *
  * `fetch-query` migration (2026-08-12): every `renderHook` now needs `wrapper: FetchQueryProvider`
  * — see `redirects/__tests__/use-redirects.hooks.unit.test.tsx`'s identical wrapper for the pilot
@@ -95,7 +99,7 @@ afterEach(() => {
 describe("initial load", () => {
   it("starts with rows=null, then resolves to the raw items + nextCursor", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ items: [ROW_WITH_RESTORE_POINT], nextCursor: "c2" }));
-    const { result } = renderHook(() => useTimelineSection(), { wrapper });
+    const { result } = renderHook(() => useWiredTimelineSection(), { wrapper });
     expect(result.current.rows).toBeNull();
 
     await waitFor(() => expect(result.current.rows).not.toBeNull());
@@ -105,14 +109,14 @@ describe("initial load", () => {
 
   it("requests with no query string when every filter is blank", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ items: [], nextCursor: null }));
-    renderHook(() => useTimelineSection(), { wrapper });
+    renderHook(() => useWiredTimelineSection(), { wrapper });
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
     expect(String(fetchMock.mock.calls[0][0])).toMatch(/\/database\/timeline$/);
   });
 
   it("sets the ApiError's own message using the Database-specific fallback", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ error: "" }, 500));
-    const { result } = renderHook(() => useTimelineSection(), { wrapper });
+    const { result } = renderHook(() => useWiredTimelineSection(), { wrapper });
     await waitFor(() => expect(result.current.error).not.toBeNull());
     expect(result.current.error).toBe("failed to load the Database Timeline");
     expect(result.current.rows).toBeNull();
@@ -122,7 +126,7 @@ describe("initial load", () => {
 describe("applyFilters", () => {
   it("prevents default, and reloads with kind/outcome/fromDate/toDate in the query string, REPLACING rows rather than appending", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ items: [ROW_WITH_RESTORE_POINT], nextCursor: null }));
-    const { result } = renderHook(() => useTimelineSection(), { wrapper });
+    const { result } = renderHook(() => useWiredTimelineSection(), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeNull());
 
     act(() => {
@@ -155,7 +159,7 @@ describe("applyFilters", () => {
 describe("loadMore", () => {
   it("sends the current nextCursor and APPENDS the new page to existing rows", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ items: [ROW_WITH_RESTORE_POINT], nextCursor: "c2" }));
-    const { result } = renderHook(() => useTimelineSection(), { wrapper });
+    const { result } = renderHook(() => useWiredTimelineSection(), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeNull());
 
     fetchMock.mockResolvedValueOnce(jsonResponse({ items: [ROW_WITHOUT_RESTORE_POINT], nextCursor: null }));
@@ -172,7 +176,7 @@ describe("loadMore", () => {
 
   it("sets loadingMore true immediately, and false again once the page settles (success or failure)", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ items: [ROW_WITH_RESTORE_POINT], nextCursor: "c2" }));
-    const { result } = renderHook(() => useTimelineSection(), { wrapper });
+    const { result } = renderHook(() => useWiredTimelineSection(), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeNull());
 
     let resolveNext: ((r: Response) => void) | undefined;
@@ -199,7 +203,7 @@ describe("loadMore", () => {
 
   it("sends no cursor param when loadMore is called with nextCursor already null", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ items: [ROW_WITH_RESTORE_POINT], nextCursor: null }));
-    const { result } = renderHook(() => useTimelineSection(), { wrapper });
+    const { result } = renderHook(() => useWiredTimelineSection(), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeNull());
     expect(result.current.nextCursor).toBeNull();
 
@@ -215,7 +219,7 @@ describe("loadMore", () => {
 
   it("on failure, sets error and still clears loadingMore, but does NOT touch existing rows", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({ items: [ROW_WITH_RESTORE_POINT], nextCursor: "c2" }));
-    const { result } = renderHook(() => useTimelineSection(), { wrapper });
+    const { result } = renderHook(() => useWiredTimelineSection(), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeNull());
 
     fetchMock.mockResolvedValueOnce(jsonResponse({ error: "boom" }, 500));
@@ -248,9 +252,48 @@ describe("t/locale (2026-08-11, standing i18n rule)", () => {
       return network(url, init);
     });
 
-    const { result } = renderHook(() => useTimelineSection(), { wrapper });
+    const { result } = renderHook(() => useWiredTimelineSection(), { wrapper });
 
     await waitFor(() => expect(result.current.locale).toBe("es"));
     expect(result.current.t("Loading timeline…")).toBe("Cargando cronología…");
+  });
+});
+
+describe("injected port (2026-08-14, Orc-BASH pass)", () => {
+  /** Drives the pure hook directly against `createFakeTimelineSectionPort` — `fetchMock` (the
+   *  real network `useWiredTimelineSection` above goes through) is asserted NEVER called for the
+   *  timeline read itself; only this file's own `beforeEach` locale-settings shim still uses real
+   *  `fetch`, since `useAdminLocale()` is a separate, un-injected concern from this port. */
+  it("loads rows from the fake port with no real fetch call for the timeline itself", async () => {
+    const port = createFakeTimelineSectionPort({ items: [ROW_WITH_RESTORE_POINT], nextCursor: "c2" });
+    const { result } = renderHook(() => useTimelineSection({ port }), { wrapper });
+
+    await waitFor(() => expect(result.current.rows).not.toBeNull());
+    expect(result.current.rows).toEqual([ROW_WITH_RESTORE_POINT]);
+    expect(result.current.nextCursor).toBe("c2");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("passes the applied filters through to the port's own call log", async () => {
+    const port = createFakeTimelineSectionPort({ items: [] });
+    const { result } = renderHook(() => useTimelineSection({ port }), { wrapper });
+    await waitFor(() => expect(result.current.rows).not.toBeNull());
+
+    act(() => {
+      result.current.setKind("core.migration");
+    });
+    await act(async () => {
+      result.current.applyFilters({ preventDefault: () => {} } as unknown as React.FormEvent);
+      await Promise.resolve();
+    });
+
+    await waitFor(() => expect(port.calls.at(-1)).toMatchObject({ kind: "core.migration" }));
+  });
+
+  it("surfaces a load failure from the fake port's rejected getDatabaseTimeline", async () => {
+    const port = createFakeTimelineSectionPort({ getDatabaseTimelineError: new Error("boom from fake") });
+    const { result } = renderHook(() => useTimelineSection({ port }), { wrapper });
+    await waitFor(() => expect(result.current.error).toBe("boom from fake"));
+    expect(result.current.rows).toBeNull();
   });
 });

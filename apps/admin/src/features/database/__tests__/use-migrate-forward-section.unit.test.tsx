@@ -2,7 +2,8 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "../../../lib/fetch-query";
-import { useMigrateForwardSection } from "../hooks/use-migrate-forward-section.hooks";
+import { useMigrateForwardSection, useWiredMigrateForwardSection } from "../hooks/use-migrate-forward-section.hooks";
+import { createFakeMigrateForwardSectionPort } from "../hooks/migrate-forward-section-dependencies.hooks";
 
 /**
  * @file `useMigrateForwardSection` — the Database screen's plan/confirm/execute ceremony
@@ -18,6 +19,10 @@ import { useMigrateForwardSection } from "../hooks/use-migrate-forward-section.h
  * — see `redirects/__tests__/use-redirects.hooks.unit.test.tsx`'s identical wrapper for the pilot
  * precedent. The three ceremony mutations have no `invalidates` (see the hook file's own header),
  * but `useFetchMutation` still needs a `QueryClient` in context to call `useMutation` at all.
+ *
+ * The bodies below drive the WIRED hook (real `fetch`); the "injected port" describe block at the
+ * bottom (2026-08-14, Orc-BASH pass) proves the pure hook is independently testable against
+ * `createFakeMigrateForwardSectionPort` with no `fetch` stub for the ceremony calls themselves.
  */
 
 function wrapper({ children }: { children: React.ReactNode }) {
@@ -53,7 +58,7 @@ afterEach(() => {
 
 describe("initial state", () => {
   it("starts idle, with no fetch call on mount", () => {
-    const { result } = renderHook(() => useMigrateForwardSection(), { wrapper });
+    const { result } = renderHook(() => useWiredMigrateForwardSection(), { wrapper });
     expect(result.current.step).toBe("idle");
     expect(result.current.busy).toBe(false);
     expect(result.current.plan).toBeNull();
@@ -65,7 +70,7 @@ describe("initial state", () => {
 
 describe("startPlan", () => {
   it("sets busy during the request, then plan + step='planned' on success, and busy=false", async () => {
-    const { result } = renderHook(() => useMigrateForwardSection(), { wrapper });
+    const { result } = renderHook(() => useWiredMigrateForwardSection(), { wrapper });
     let resolvePlan: ((r: Response) => void) | undefined;
     fetchMock.mockImplementationOnce(() => new Promise((resolve) => (resolvePlan = resolve)));
 
@@ -89,7 +94,7 @@ describe("startPlan", () => {
   });
 
   it("POSTs to the plan endpoint with no body", async () => {
-    const { result } = renderHook(() => useMigrateForwardSection(), { wrapper });
+    const { result } = renderHook(() => useWiredMigrateForwardSection(), { wrapper });
     fetchMock.mockResolvedValueOnce(jsonResponse({ planId: "plan1", planHash: "hash1" }));
     await act(async () => {
       await result.current.startPlan();
@@ -101,7 +106,7 @@ describe("startPlan", () => {
   });
 
   it("on failure, sets the migrate-forward-specific fallback error and leaves step at idle", async () => {
-    const { result } = renderHook(() => useMigrateForwardSection(), { wrapper });
+    const { result } = renderHook(() => useWiredMigrateForwardSection(), { wrapper });
     fetchMock.mockResolvedValueOnce(jsonResponse({ error: "" }, 500));
 
     await act(async () => {
@@ -118,7 +123,7 @@ describe("startPlan", () => {
 
 describe("doConfirm", () => {
   it("is a no-op with no plan yet — no fetch call, step unchanged", async () => {
-    const { result } = renderHook(() => useMigrateForwardSection(), { wrapper });
+    const { result } = renderHook(() => useWiredMigrateForwardSection(), { wrapper });
     await act(async () => {
       await result.current.doConfirm();
     });
@@ -127,7 +132,7 @@ describe("doConfirm", () => {
   });
 
   async function planned() {
-    const view = renderHook(() => useMigrateForwardSection(), { wrapper });
+    const view = renderHook(() => useWiredMigrateForwardSection(), { wrapper });
     fetchMock.mockResolvedValueOnce(jsonResponse({ planId: "plan1", planHash: "hash1" }));
     await act(async () => {
       await view.result.current.startPlan();
@@ -166,7 +171,7 @@ describe("doConfirm", () => {
 
 describe("doExecute", () => {
   it("is a no-op with no confirmationToken yet — no fetch call even if a plan exists", async () => {
-    const view = renderHook(() => useMigrateForwardSection(), { wrapper });
+    const view = renderHook(() => useWiredMigrateForwardSection(), { wrapper });
     fetchMock.mockResolvedValueOnce(jsonResponse({ planId: "plan1", planHash: "hash1" }));
     await act(async () => {
       await view.result.current.startPlan();
@@ -182,7 +187,7 @@ describe("doExecute", () => {
   });
 
   async function confirmed() {
-    const view = renderHook(() => useMigrateForwardSection(), { wrapper });
+    const view = renderHook(() => useWiredMigrateForwardSection(), { wrapper });
     fetchMock.mockResolvedValueOnce(jsonResponse({ planId: "plan1", planHash: "hash1" }));
     await act(async () => {
       await view.result.current.startPlan();
@@ -225,7 +230,7 @@ describe("doExecute", () => {
 
 describe("reset", () => {
   it("clears step, error, plan, confirmationToken, and done back to their initial values from any point in the ceremony", async () => {
-    const view = renderHook(() => useMigrateForwardSection(), { wrapper });
+    const view = renderHook(() => useWiredMigrateForwardSection(), { wrapper });
     fetchMock.mockResolvedValueOnce(jsonResponse({ planId: "plan1", planHash: "hash1" }));
     await act(async () => {
       await view.result.current.startPlan();
@@ -261,9 +266,55 @@ describe("t/locale (2026-08-11, standing i18n rule)", () => {
       return network(url, init);
     });
 
-    const { result } = renderHook(() => useMigrateForwardSection(), { wrapper });
+    const { result } = renderHook(() => useWiredMigrateForwardSection(), { wrapper });
 
     await waitFor(() => expect(result.current.locale).toBe("es"));
     expect(result.current.t("Migrate forward")).toBe("Migrar hacia adelante");
+  });
+});
+
+describe("injected port (2026-08-14, Orc-BASH pass)", () => {
+  /** Drives the pure hook directly against `createFakeMigrateForwardSectionPort` — `fetchMock`
+   *  (the real network `useWiredMigrateForwardSection` above goes through) is asserted NEVER
+   *  called for the ceremony itself; only this file's own `beforeEach` locale-settings shim still
+   *  uses real `fetch`, since `useAdminLocale()` is a separate, un-injected concern from this port. */
+  it("runs the full plan -> confirm -> execute ceremony against the fake port with no real fetch call", async () => {
+    const port = createFakeMigrateForwardSectionPort({
+      plan: { planId: "plan-x", planHash: "hash-x", details: undefined },
+      confirmationToken: "tok-x",
+      executeResult: { migrated: true },
+    });
+    const { result } = renderHook(() => useMigrateForwardSection({ port }), { wrapper });
+
+    await act(async () => {
+      await result.current.startPlan();
+    });
+    expect(result.current.plan).toEqual({ planId: "plan-x", planHash: "hash-x" });
+    expect(result.current.step).toBe("planned");
+
+    await act(async () => {
+      await result.current.doConfirm();
+    });
+    expect(result.current.confirmationToken).toBe("tok-x");
+    expect(result.current.step).toBe("confirmed");
+
+    await act(async () => {
+      await result.current.doExecute();
+    });
+    expect(result.current.done).toBe(true);
+    expect(result.current.step).toBe("done");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("surfaces a plan failure from the fake port's rejected planMigrateForward", async () => {
+    const port = createFakeMigrateForwardSectionPort({ planError: new Error("boom from fake") });
+    const { result } = renderHook(() => useMigrateForwardSection({ port }), { wrapper });
+
+    await act(async () => {
+      await result.current.startPlan();
+    });
+
+    await waitFor(() => expect(result.current.error).toBe("boom from fake"));
+    expect(result.current.step).toBe("idle");
   });
 });
