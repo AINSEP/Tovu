@@ -1,5 +1,6 @@
-import { api, type AdminFormDefinition, type AdminMenu, type AdminWidgetType } from "../../lib/api";
+import type { AdminFormDefinition, AdminMenu, AdminWidgetType } from "../../lib/api";
 import { useFetchedOptions } from "./WidgetConfigFields.hooks";
+import { defaultWidgetConfigFieldsPort } from "./widget-config-fields-dependencies.hooks";
 
 /**
  * @file Per-widget-type config sub-forms (`ui.spec.md` §2/§3.4) — one component per v1 widget type,
@@ -22,6 +23,15 @@ import { useFetchedOptions } from "./WidgetConfigFields.hooks";
  * `{ useFetchedOptions: useOptions = useFetchedOptions, ...props }` destructure-and-rename shape
  * `RowMenu.tsx` uses for its own `useRowMenu` prop in `@jini-ai/admin`) rather than living on a
  * component-level hook the way `Select`'s `useDropdown`/`WidgetPickerDialog`'s `useDialog` do.
+ *
+ * The two `fetchList` closures passed into `useFetchedOptions` read through
+ * `widget-config-fields-dependencies.hooks.ts`'s `defaultWidgetConfigFieldsPort` rather than
+ * `lib/api`'s `api` directly — that file is the only one in this folder that imports `api`. This
+ * is a second, NESTED seam underneath the already-reachable `useFetchedOptions` prop (not a new
+ * component prop of its own): a test overriding `useFetchedOptions` with a fake never calls the
+ * closure at all, so the port is exercised only on the real path, the same "one seam per reachable
+ * boundary" reasoning `apps/admin/INFO.md`'s Components section gives for not double-injecting
+ * `useWidgetPickerDialog`'s inner `useExistingInstances`.
  */
 
 function textValue(config: Record<string, unknown>, key: string): string {
@@ -136,7 +146,10 @@ function MenuConfigFields({
   useFetchedOptions: useOptions = useFetchedOptions,
   ...props
 }: { config: Record<string, unknown>; onChange: (config: Record<string, unknown>) => void } & FetchedOptionsSeam) {
-  const { items: menus, error } = useOptions<AdminMenu>(() => api.listMenus().then((r) => r.menus), "failed to load menus");
+  const { items: menus, error } = useOptions<AdminMenu>(
+    () => defaultWidgetConfigFieldsPort.listMenus().then((r) => r.menus),
+    "failed to load menus",
+  );
 
   if (error) return <div className="notice error">{error}</div>;
   if (!menus) return <div className="notice">Loading menus…</div>;
@@ -168,7 +181,7 @@ function ContactFormConfigFields({
   ...props
 }: { config: Record<string, unknown>; onChange: (config: Record<string, unknown>) => void } & FetchedOptionsSeam) {
   const { items: forms, error } = useOptions<AdminFormDefinition>(
-    () => api.listForms().then((r) => r.data),
+    () => defaultWidgetConfigFieldsPort.listForms().then((r) => r.data),
     "failed to load forms"
   );
 
