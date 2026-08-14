@@ -9,13 +9,13 @@ import type { CommentsPort } from "./comments-port.hooks";
  * @file The top-level `Comments()` component's own state: loading the operator's effective
  * permissions, which gate whether `QueueSection`/`SettingsSection` render at all.
  *
- * `QueueSection` and `SettingsSection` are private, unexported sub-components of `Comments.tsx`
- * (its own file header explains why: mirrors `Database.tsx`'s multi-section-single-file shape).
- * Each gets its own hook file (`use-comment-queue.hooks.ts`, `use-comment-settings.hooks.ts`)
- * because each owns independent state, AND (2026-08-14, reversing this file's earlier "only the
- * exported, tested screen gets a seam" rule) its own DI-seam prop — this file's `Comments` was
- * seamed while its own two sections were not, which was an inconsistency within one file rather
- * than a defensible boundary.
+ * `QueueSection` and `SettingsSection` live inside `Comments.tsx` (its own file header explains why:
+ * mirrors `Database.tsx`'s multi-section-single-file shape). Each gets its own hook file
+ * (`use-comment-queue.hooks.ts`, `use-comment-settings.hooks.ts`) because each owns independent
+ * state. Both are now exported and carry their own DI-seam prop (2026-08-14) — the earlier rule
+ * withholding a seam from them named "neither is tested standalone today" as the reason, not a
+ * principled objection to seaming a sub-component; once each got a direct test
+ * (`QueueSection.unit.test.tsx`, `SettingsSection.unit.test.tsx`), that reason no longer applied.
  *
  * `port`/`locale` are injected — see `comments-port.hooks.ts` — rather than importing `lib/api`/
  * calling `useAdminLocale()` directly, so a test can describe the permissions load against

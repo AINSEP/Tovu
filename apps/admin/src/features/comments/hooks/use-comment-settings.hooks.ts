@@ -10,10 +10,11 @@ import type { CommentSettingsPort } from "./comment-settings-port.hooks";
 
 /**
  * @file `SettingsSection`'s load/edit/save lifecycle for the Comments workspace settings form.
- * Extracted verbatim from `Comments.tsx`. `SettingsSection` stays a private, unexported
- * sub-component of `Comments.tsx` (see that file's own header for why), but it DOES carry its own
- * DI-seam prop (`useCommentSettingsHook`, 2026-08-14) — see `use-comments.hooks.ts`'s header for
- * why the earlier "no seam for private sub-components" rule was reversed.
+ * Extracted verbatim from `Comments.tsx`. `SettingsSection` is defined and exported from
+ * `Comments.tsx` (see that file's own header for why it lives there rather than its own file), and
+ * carries its own DI-seam prop (`useCommentSettingsHook`, 2026-08-14) plus a direct test
+ * (`SettingsSection.unit.test.tsx`) — see `use-comments.hooks.ts`'s header for why the earlier "no
+ * seam for these sections" rule no longer applies.
  *
  * Takes `canConfigure` as an argument, same as the original component prop — the read is `enabled:
  * canConfigure` (AC-10: the GET route itself is `comments.configure`-gated, so a principal without
