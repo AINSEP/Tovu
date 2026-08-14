@@ -25,8 +25,9 @@ import { UserManagePanel, Users, type UserManageController } from "../Users";
  * Follows the RTL harness `MenuEditor.unit.test.tsx`/`Comments.unit.test.tsx` established for this
  * package's `RowMenu` screens.
  *
- * `Users` has no injectable hook seam used here (`useUsersHook` defaults to the real `useUsers`), so
- * every `render(<Users />)` below needs a `FetchQueryProvider` ancestor (2026-08-12, `lib/fetch-query`
+ * `Users` has no injectable hook seam used here (`useUsersHook` defaults to the wired `useWiredUsers`,
+ * which itself composes `useUsers` with the real `UsersPort` — 2026-08-14 conversion), so every
+ * `render(<Users />)` below needs a `FetchQueryProvider` ancestor (2026-08-12, `lib/fetch-query`
  * migration).
  */
 
