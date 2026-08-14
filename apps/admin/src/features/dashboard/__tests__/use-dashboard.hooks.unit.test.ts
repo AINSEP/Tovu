@@ -1,14 +1,16 @@
 import { renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { useDashboard } from "../hooks/use-dashboard.hooks";
+import { useWiredDashboard } from "../hooks/use-dashboard.hooks";
 
 /**
- * @file `useDashboard`'s own `t` field (2026-08-11, standing i18n rule — see this hook's own file
- * header for the full rationale, including why this hook stayed a direct `api` import rather than
- * getting the full port conversion the rest of this sweep uses).
+ * @file `useWiredDashboard`'s own `t` field (2026-08-11, standing i18n rule — see `use-dashboard
+ * .hooks.ts`'s own file header for the full rationale). Exercises `useWiredDashboard` specifically
+ * (not the injected `useDashboard`) because resolving `t` from the real `useAdminLocale()` is
+ * exactly what only the wired half does — `useDashboard` itself just receives `t` as a dependency,
+ * covered instead by `use-dashboard-port.unit.test.ts`'s injected-port coverage.
  *
- * No dedicated hook-level test existed for `useDashboard` before this change (`Dashboard.unit
+ * No dedicated hook-level test existed for this before the i18n change (`Dashboard.unit
  * .test.tsx` already covers the five-fetch/merge/error behavior end-to-end); this file adds only
  * what the i18n move itself needs proof of — that `t` reflects the hook's own resolved `locale`,
  * not a hardcoded English pass-through.
@@ -38,17 +40,17 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("useDashboard — t reflects the resolved locale", () => {
+describe("useWiredDashboard — t reflects the resolved locale", () => {
   it("t falls back to the English source string for the default locale", async () => {
     vi.stubGlobal("fetch", stubFetchWithLocale("en"));
-    const { result } = renderHook(() => useDashboard());
+    const { result } = renderHook(() => useWiredDashboard());
 
     await waitFor(() => expect(result.current.t("Dashboard")).toBe("Dashboard"));
   });
 
   it("t returns the Spanish translation once the locale settings fetch resolves to 'es'", async () => {
     vi.stubGlobal("fetch", stubFetchWithLocale("es"));
-    const { result } = renderHook(() => useDashboard());
+    const { result } = renderHook(() => useWiredDashboard());
 
     // `t` starts out against the DEFAULT_LOCALE ("en") until `useAdminLocale`'s own fetch settles —
     // this is the exact effect being proven, so wait for the resolved value, not the initial one.

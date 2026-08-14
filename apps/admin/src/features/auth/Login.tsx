@@ -1,5 +1,5 @@
 import type { AdminUser } from "../../lib/api";
-import { useLogin } from "./hooks/use-login.hooks";
+import { useWiredLogin } from "./hooks/use-login.hooks";
 
 /**
  * @file The Login screen — markup only.
@@ -14,11 +14,11 @@ export interface LoginProps {
    * `@jini-ai/ui`'s `useCustomSelect` use. Defaulted to the real hook, so production callers pass
    * nothing and behave exactly as before.
    */
-  useLoginHook?: typeof useLogin;
+  useLoginHook?: typeof useWiredLogin;
 }
 
-export function Login({ onLogin, useLoginHook = useLogin }: LoginProps) {
-  const { username, setUsername, password, setPassword, error, busy, submit } = useLoginHook(onLogin);
+export function Login({ onLogin, useLoginHook = useWiredLogin }: LoginProps) {
+  const { username, setUsername, password, setPassword, error, busy, submit } = useLoginHook({ onLogin });
 
   return (
     <div className="login-screen">

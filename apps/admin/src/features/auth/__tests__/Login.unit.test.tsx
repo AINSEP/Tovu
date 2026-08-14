@@ -31,7 +31,7 @@ describe("Login", () => {
     const onLogin = vi.fn();
     const useLoginHook = vi.fn(stubHook());
     render(<Login onLogin={onLogin} useLoginHook={useLoginHook} />);
-    expect(useLoginHook).toHaveBeenCalledWith(onLogin);
+    expect(useLoginHook).toHaveBeenCalledWith({ onLogin });
   });
 
   it("renders the hook's username/password values in their inputs", () => {
