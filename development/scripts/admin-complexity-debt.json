@@ -3,7 +3,6 @@
   "files": [
     { "file": "apps/admin/src/App.tsx", "note": "App: cyclomatic 19, cognitive 12 (limit 9/9) -- was 13/12 before the 2026-08-12 App.hooks.tsx extraction; the hooks move alone was neutral (verified 13/12 with every seam removed), all +6 cyclomatic is from the six default-parameter expressions the five injectable seams (useSession, useDrawer, useLinkInterceptor, useChatDock, useAgentBridge) plus the outer AppProps={} default require -- one branch each in eslint's complexity count, none counted by sonarjs's cognitive-complexity metric, which is why cognitive stayed flat at 12 throughout" },
     { "file": "apps/admin/src/components/AssistantDock/AssistantDock.tsx", "note": "AssistantDock: cyclomatic 10" },
-    { "file": "apps/admin/src/components/ImagePreviewModal.tsx", "note": "cognitive 15" },
     { "file": "apps/admin/src/features/ai-assistant/AiAssistant.tsx", "note": "AdminExecutionMode: cyclomatic 11; VisitorCredentialKeyFooter: cyclomatic 10" },
     { "file": "apps/admin/src/features/media/Media.tsx", "note": "Media: cyclomatic 12, cognitive 21" },
     { "file": "apps/admin/src/features/pages/Pages.tsx", "note": "Pages: cyclomatic 13" },
