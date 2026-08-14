@@ -42,6 +42,12 @@ export interface RestorePointsSectionDependencies {
   port: RestorePointsSectionPort;
 }
 
+/**
+ * @param deps Injected dependencies — the `RestorePointsSectionPort` to list/create restore points
+ * through.
+ * @returns The restore-points list, create state, `createRestorePoint`, and a bound `t` — see this
+ * file's header for the full rationale.
+ */
 export function useRestorePointsSection(deps: RestorePointsSectionDependencies): RestorePointsSectionController {
   const { port } = deps;
   const locale = useAdminLocale();
@@ -86,6 +92,8 @@ export function useRestorePointsSection(deps: RestorePointsSectionDependencies):
  * dependencies.hooks.ts`. The zero-argument half of the `useX(dependencies)` / `useWiredX()` pair,
  * so `Database.tsx` composes this and a test composes {@link useRestorePointsSection} with
  * `createFakeRestorePointsSectionPort`.
+ *
+ * @returns Same controller shape as {@link useRestorePointsSection}, bound to the real port.
  */
 export function useWiredRestorePointsSection(): RestorePointsSectionController {
   return useRestorePointsSection({ port: defaultRestorePointsSectionPort });

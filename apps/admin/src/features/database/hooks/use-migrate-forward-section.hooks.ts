@@ -65,6 +65,11 @@ export interface MigrateForwardSectionDependencies {
   port: MigrateForwardSectionPort;
 }
 
+/**
+ * @param deps Injected dependencies — the `MigrateForwardSectionPort` to run the ceremony through.
+ * @returns The ceremony's step/plan/token/done state plus `startPlan`/`doConfirm`/`doExecute`/
+ * `reset`, and a bound `t`/`locale` — see this file's header for the full rationale.
+ */
 export function useMigrateForwardSection(deps: MigrateForwardSectionDependencies): MigrateForwardSectionController {
   const { port } = deps;
   const locale = useAdminLocale();
@@ -144,6 +149,8 @@ export function useMigrateForwardSection(deps: MigrateForwardSectionDependencies
  * dependencies.hooks.ts`. The zero-argument half of the `useX(dependencies)` / `useWiredX()` pair,
  * so `Database.tsx` composes this and a test composes {@link useMigrateForwardSection} with
  * `createFakeMigrateForwardSectionPort`.
+ *
+ * @returns Same controller shape as {@link useMigrateForwardSection}, bound to the real port.
  */
 export function useWiredMigrateForwardSection(): MigrateForwardSectionController {
   return useMigrateForwardSection({ port: defaultMigrateForwardSectionPort });

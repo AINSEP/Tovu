@@ -112,6 +112,11 @@ export interface TimelineSectionDependencies {
   port: TimelineSectionPort;
 }
 
+/**
+ * @param deps Injected dependencies — the `TimelineSectionPort` to read the ledger through.
+ * @returns The Timeline's filter/paging state plus `applyFilters`/`loadMore`, and a bound `t`/
+ * `locale` — see this file's header for the full rationale.
+ */
 export function useTimelineSection(deps: TimelineSectionDependencies): TimelineSectionController {
   const { port } = deps;
   const locale = useAdminLocale();
@@ -209,6 +214,8 @@ export function useTimelineSection(deps: TimelineSectionDependencies): TimelineS
  * Binds the real `/api/.../database/timeline` client — see `timeline-section-dependencies.hooks.ts`.
  * The zero-argument half of the `useX(dependencies)` / `useWiredX()` pair, so `Database.tsx`
  * composes this and a test composes {@link useTimelineSection} with `createFakeTimelineSectionPort`.
+ *
+ * @returns Same controller shape as {@link useTimelineSection}, bound to the real port.
  */
 export function useWiredTimelineSection(): TimelineSectionController {
   return useTimelineSection({ port: defaultTimelineSectionPort });

@@ -58,6 +58,14 @@ export interface RestoreFlowController {
   locale: string;
 }
 
+/**
+ * @param props Business input — the restore point this ceremony targets.
+ * @param port Injected dependency — the `RestoreFlowPort` to run disclosure/plan/confirm/execute
+ * through. Kept as a separate positional argument rather than folded into `props`, since it is an
+ * external dependency rather than a business input — see this file's header for the precedent.
+ * @returns The disclosure/ceremony state plus `setAcknowledged`/`startPlan`/`doConfirm`/`doExecute`,
+ * and a bound `t`/`locale` — see this file's header for the full rationale.
+ */
 export function useRestoreFlow(props: { point: AdminRestorePoint }, port: RestoreFlowPort): RestoreFlowController {
   const locale = useAdminLocale();
   const boundT = (key: string): string => t(locale, key);
@@ -164,6 +172,7 @@ export function useRestoreFlow(props: { point: AdminRestorePoint }, port: Restor
  * `createFakeRestoreFlowPort`.
  *
  * @param props Same business input as {@link useRestoreFlow} — the selected restore point.
+ * @returns Same controller shape as {@link useRestoreFlow}, bound to the real port.
  */
 export function useWiredRestoreFlow(props: { point: AdminRestorePoint }): RestoreFlowController {
   return useRestoreFlow(props, defaultRestoreFlowPort);

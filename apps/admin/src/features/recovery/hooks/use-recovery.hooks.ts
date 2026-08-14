@@ -56,6 +56,12 @@ export interface RecoveryDependencies {
   port: RecoveryPort;
 }
 
+/**
+ * @param deps Injected dependencies — the `RecoveryPort` to load status/points/deep-link resolution
+ * through.
+ * @returns The Recovery screen's status/points/selected state plus `setSelected`, and a bound
+ * `t`/`locale` — see this file's header for the full rationale.
+ */
 export function useRecovery(deps: RecoveryDependencies): RecoveryController {
   const { port } = deps;
   const locale = useAdminLocale();
@@ -65,7 +71,7 @@ export function useRecovery(deps: RecoveryDependencies): RecoveryController {
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<AdminRestorePoint | null>(null);
 
-  function load() {
+  useEffect(() => {
     setError(null);
     Promise.all([port.getRecoveryStatus(), port.listRecoveryRestorePoints()])
       .then(([statusResult, pointsResult]) => {
@@ -73,9 +79,12 @@ export function useRecovery(deps: RecoveryDependencies): RecoveryController {
         setPoints(pointsResult.items);
       })
       .catch((e) => setError(describeApiError(e, t(locale, "failed to load Recovery"))));
-  }
-
-  useEffect(load, []);
+    // `port`/`t`/`locale` intentionally omitted — mount-once by design, matching this file's
+    // sibling `useEffect` below. Previously written as `useEffect(load, [])` (a named function
+    // reference), which dodges `exhaustive-deps`'s static analysis by accident of syntax rather
+    // than stating the omission explicitly — inlined here so the omission reads as deliberate.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Deep-link arrival (design-spec.md §4.5, ADR-041 §7/ADR-045 §5, INV-04): re-resolve any
   // envelope `Database.tsx` stashed before navigating here. A stale/forged/pruned envelope
@@ -105,6 +114,8 @@ export function useRecovery(deps: RecoveryDependencies): RecoveryController {
  * Binds the real `/api/.../recovery` client — see `recovery-dependencies.hooks.ts`. The
  * zero-argument half of the `useX(dependencies)` / `useWiredX()` pair, so `Recovery.tsx` composes
  * this and a test composes {@link useRecovery} with `createFakeRecoveryPort`.
+ *
+ * @returns Same controller shape as {@link useRecovery}, bound to the real port.
  */
 export function useWiredRecovery(): RecoveryController {
   return useRecovery({ port: defaultRecoveryPort });
