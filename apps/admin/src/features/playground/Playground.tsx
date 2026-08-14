@@ -14,97 +14,25 @@
  * driven by actual agent reasoning about what to add, not a scripted two-step demo — which doesn't
  * exist yet. This tab only proves the rendering half: registry resolution, recursive tree-walking,
  * a real shadcn component, all working in the actual admin app.
+ *
+ * The search/surface/interpreter state lives in `hooks/use-playground.hooks.ts`, split out the
+ * same way `SeeMore`/`SeeMore.hooks.tsx` does — this file stays props-and-JSX only, and the
+ * `usePlaygroundHook` prop below lets a test render this JSX against a fake hook.
  */
-import { useMemo, useRef, useState } from "react";
-import { DEFAULT_INTERACTIVE_UI_REGISTRY, type InteractiveComponentEntry } from "@jini-ai/ui/interactive-ui";
-import {
-  A2uiSurfaceRenderer,
-  buildA2uiCatalogFromRegistry,
-  createA2uiInterpreter,
-  createLabCatalog,
-  type A2uiInterpreter,
-} from "@jini-ai/ui/a2ui";
+import { A2uiSurfaceRenderer } from "@jini-ai/ui/a2ui";
 import "../../styles/playground.css";
 
-const SURFACE_ID = "tovu-admin-playground";
-const CATALOG_ID = "tovu-admin-playground-catalog";
+import { usePlayground, SURFACE_ID } from "./hooks/use-playground.hooks";
 
-/** One id counter per mounted tab instance — components added via the picker below need unique
- *  ids, and this tab has no server round trip to derive one from. */
-function useIdGenerator(prefix: string) {
-  const counter = useRef(0);
-  return () => {
-    counter.current += 1;
-    return `${prefix}-${counter.current}`;
-  };
+export interface PlaygroundProps {
+  /** Injectable seam for the tab's search/surface state. Defaults to the real
+   *  {@link usePlayground}; a test can pass a fake here to exercise `Playground`'s rendering with a
+   *  fixed registry/surface state instead of driving the real A2UI interpreter. */
+  usePlaygroundHook?: typeof usePlayground;
 }
 
-const SAMPLE_ROWS = [
-  { name: "Homepage relaunch", spend: "$2,400", status: "Live" },
-  { name: "Autumn promo", spend: "$980", status: "Draft" },
-  { name: "Referral push", spend: "$5,120", status: "Live" },
-];
-const SAMPLE_COLUMNS = [
-  { key: "name", label: "Campaign" },
-  { key: "spend", label: "Spend" },
-  { key: "status", label: "Status" },
-];
-
-export function Playground() {
-  const registry = DEFAULT_INTERACTIVE_UI_REGISTRY;
-  const catalog = useMemo(
-    () => buildA2uiCatalogFromRegistry(registry, CATALOG_ID, { base: createLabCatalog() }),
-    [registry],
-  );
-  const interpreterRef = useRef<A2uiInterpreter | null>(null);
-  if (!interpreterRef.current) interpreterRef.current = createA2uiInterpreter(catalog);
-  const interpreter = interpreterRef.current;
-  const nextId = useIdGenerator("pg");
-
-  const [surfaceOpen, setSurfaceOpen] = useState(false);
-  const [query, setQuery] = useState("");
-
-  const matches = useMemo(() => {
-    if (!query.trim()) return registry.list();
-    const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
-    return registry.list().filter((entry) =>
-      terms.every((term) => `${entry.id} ${entry.provider} ${entry.capabilities.join(" ")}`.toLowerCase().includes(term)),
-    );
-  }, [query, registry]);
-
-  function ensureSurfaceOpen() {
-    if (surfaceOpen) return;
-    interpreter.applyAgentMessage({
-      version: "v1.0",
-      createSurface: { surfaceId: SURFACE_ID, catalogId: CATALOG_ID, components: [{ id: "root", component: "Column", children: [] }] },
-    });
-    setSurfaceOpen(true);
-  }
-
-  function addToSurface(entry: InteractiveComponentEntry) {
-    ensureSurfaceOpen();
-    const rootId = "root";
-    const root = interpreter.getSurface(SURFACE_ID)?.components.get(rootId);
-    const existingChildren = Array.isArray(root?.props.children) ? (root.props.children as string[]) : [];
-    const newId = nextId();
-    interpreter.applyAgentMessage({
-      version: "v1.0",
-      updateComponents: {
-        surfaceId: SURFACE_ID,
-        components: [
-          { id: newId, component: entry.id, columns: SAMPLE_COLUMNS, rows: SAMPLE_ROWS },
-          { id: rootId, component: "Column", children: [...existingChildren, newId] },
-        ],
-      },
-    });
-  }
-
-  function reset() {
-    if (surfaceOpen) interpreter.applyAgentMessage({ version: "v1.0", deleteSurface: { surfaceId: SURFACE_ID } });
-    setSurfaceOpen(false);
-  }
-
-  const total = registry.list().length;
+export function Playground({ usePlaygroundHook = usePlayground }: PlaygroundProps = {}) {
+  const { registry, matches, query, setQuery, total, surfaceOpen, interpreter, addToSurface, reset } = usePlaygroundHook();
 
   return (
     <div className="page">
