@@ -10,9 +10,11 @@ import type { CommentQueuePort } from "./comment-queue-port.hooks";
 
 /**
  * @file `QueueSection`'s moderation-queue state — status filter, keyset-cursor paging, per-row
- * moderation state, and the Purge confirm dialog. Extracted verbatim from `Comments.tsx`; see that
- * file's own header for why `QueueSection` stays a private sub-component with no DI seam of its
- * own.
+ * moderation state, and the Purge confirm dialog. Extracted verbatim from `Comments.tsx`.
+ * `QueueSection` stays a private, unexported sub-component of `Comments.tsx` (see that file's own
+ * header for why), but it DOES carry its own DI-seam prop (`useCommentQueueHook`, 2026-08-14) —
+ * see `use-comments.hooks.ts`'s header for why the earlier "no seam for private sub-components"
+ * rule was reversed.
  *
  * Does not take `permissions` — the only thing that used it (the row-menu item builder) moved to
  * `rules.ts`'s `commentRowMenuItems`, called directly by the view, which already has `permissions`

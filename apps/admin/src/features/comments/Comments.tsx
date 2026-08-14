@@ -18,8 +18,11 @@ import { translateAdminNavLabel } from "../../lib/admin-nav-i18n";
  * State and API calls live in `hooks/use-comments.hooks.ts` (permissions),
  * `hooks/use-comment-queue.hooks.ts` (`QueueSection`), and `hooks/use-comment-settings.hooks.ts`
  * (`SettingsSection`). The row-menu logic, error-message overrides, and the settings patch
- * builder/validator live in `rules.ts`. See `hooks/use-comments.hooks.ts` for why only the
- * exported `Comments` gets the DI-seam prop, not its two private sub-components.
+ * builder/validator live in `rules.ts`. `QueueSection`/`SettingsSection` now also carry their own
+ * DI-seam prop (`useCommentQueueHook`/`useCommentSettingsHook`), matching `Comments`'s own
+ * `useCommentsHook` — reversing this file's earlier "only the exported, tested screen gets a seam"
+ * rule (still true in general elsewhere; here it left this one file internally inconsistent, with
+ * `Comments` prop-injected but its own two sections not).
  *
  * Closes the gap the SPEC-036 sweep found: the moderation-queue/moderate/settings backend
  * routes were built and audit-clean but nothing in `apps/admin/` called any of them, so the
@@ -235,7 +238,16 @@ function QueuePurgeDialog(props: {
   );
 }
 
-function QueueSection(props: { permissions: string[]; locale: string }) {
+interface QueueSectionProps {
+  permissions: string[];
+  locale: string;
+  /** Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
+   *  for `useCustomSelect`. Defaulted to the real hook, so production callers (the exported
+   *  `Comments` below) pass nothing and behave exactly as before. */
+  useCommentQueueHook?: typeof useWiredCommentQueue;
+}
+
+function QueueSection({ permissions, locale, useCommentQueueHook = useWiredCommentQueue }: QueueSectionProps) {
   const {
     status,
     setStatus,
@@ -249,13 +261,13 @@ function QueueSection(props: { permissions: string[]; locale: string }) {
     pendingPurge,
     setPendingPurge,
     onPurge,
-  } = useWiredCommentQueue();
+  } = useCommentQueueHook();
 
   if (error && !items) return <div className="notice error">{error}</div>;
 
   return (
     <div>
-      <QueueToolbar status={status} onStatusChange={setStatus} locale={props.locale} />
+      <QueueToolbar status={status} onStatusChange={setStatus} locale={locale} />
 
       {error ? <div className="notice error">{error}</div> : null}
 
@@ -265,9 +277,9 @@ function QueueSection(props: { permissions: string[]; locale: string }) {
         nextCursor={nextCursor}
         loadingMore={loadingMore}
         loadMore={loadMore}
-        permissions={props.permissions}
+        permissions={permissions}
         stateFor={stateFor}
-        locale={props.locale}
+        locale={locale}
         onModerate={(c, action) => void onModerate(c, action)}
         onRequestPurge={setPendingPurge}
       />
@@ -275,7 +287,7 @@ function QueueSection(props: { permissions: string[]; locale: string }) {
       <QueuePurgeDialog
         pendingPurge={pendingPurge}
         busy={pendingPurge !== null && stateFor(pendingPurge.id).busy}
-        locale={props.locale}
+        locale={locale}
         onConfirm={onPurge}
         onCancel={() => setPendingPurge(null)}
       />
@@ -283,8 +295,32 @@ function QueueSection(props: { permissions: string[]; locale: string }) {
   );
 }
 
-function SettingsSection(props: { canConfigure: boolean; locale: string }) {
-  const { settings, error, saving, notice, save } = useWiredCommentSettings(props.canConfigure);
+interface SettingsSectionProps {
+  canConfigure: boolean;
+  locale: string;
+  /** Dependency injection seam for tests — the same convention `@jini-ai/ui`'s `CustomSelect` uses
+   *  for `useCustomSelect`. Defaulted to the real hook, so production callers (the exported
+   *  `Comments` below) pass nothing and behave exactly as before. */
+  useCommentSettingsHook?: typeof useWiredCommentSettings;
+}
+
+/**
+ * Resolves the injected hook prop to the real wired hook when a caller passes none. Pulled into its
+ * own function, the same `??`-avoidance idiom `MenuEditor.tsx`'s `orEmpty`/`CollectionEntryEditor
+ * .tsx`'s `resolveCollectionEntryEditorHook` use: `SettingsSection` was already sitting at the 9/9
+ * complexity ceiling, and ESLint's cyclomatic-complexity rule counts a default value or `??` inside
+ * a function's OWN body as one of that function's own branches — a call out to a separately-scoped
+ * resolver does not.
+ */
+function resolveCommentSettingsHook(
+  override: typeof useWiredCommentSettings | undefined
+): typeof useWiredCommentSettings {
+  return override ?? useWiredCommentSettings;
+}
+
+function SettingsSection(props: SettingsSectionProps) {
+  const useCommentSettingsHook = resolveCommentSettingsHook(props.useCommentSettingsHook);
+  const { settings, error, saving, notice, save } = useCommentSettingsHook(props.canConfigure);
 
   if (!props.canConfigure) return null;
 
