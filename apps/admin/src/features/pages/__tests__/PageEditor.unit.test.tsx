@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { PageEditor } from "../PageEditor";
 import type { PageEditorController } from "../hooks/use-page-editor.hooks";
-import type { AdminPost } from "../../../lib/api";
+import { api, type AdminPost } from "../../../lib/api";
 
 /**
  * @file `PageEditor` had no test of any kind before this pass (see the note this corrects in
@@ -59,8 +59,10 @@ function controller(overrides: Partial<PageEditorController> = {}): PageEditorCo
   // test that overrides `html` alone (without also overriding `draftHtml`) still sees the HTML tab
   // show that same value, matching pre-refactor behavior.
   const html = overrides.html ?? "<p>Hello</p>";
+  const page = overrides.page ?? BASE_PAGE;
+  const templateChoice = overrides.templateChoice ?? null;
   return {
-    page: BASE_PAGE,
+    page,
     error: null,
     message: null,
     title: "About",
@@ -69,7 +71,7 @@ function controller(overrides: Partial<PageEditorController> = {}): PageEditorCo
     setSlug: vi.fn(),
     status: "draft",
     setStatus: vi.fn(),
-    templateChoice: null,
+    templateChoice,
     setTemplateChoice: vi.fn(),
     availableTemplates: [],
     html,
@@ -85,6 +87,12 @@ function controller(overrides: Partial<PageEditorController> = {}): PageEditorCo
     saving: false,
     dirty: false,
     contentDirty: false,
+    // Defaults to the SAME shape `defaultPageEditorPort.templatePreviewUrl` produces (the real
+    // `api.templatePreviewUrl`), so the pre-existing characterization tests below — written when
+    // `PagePreviewFrame` called `api.templatePreviewUrl` itself — still see realistic URLs without
+    // restating that logic. A test proving the seam itself overrides this with a value the real `api`
+    // could never produce (see "the preview iframe's src comes from the injected controller" below).
+    templatePreviewUrl: page ? api.templatePreviewUrl(page.id, templateChoice) : "",
     save: vi.fn(),
     remove: vi.fn(),
     confirmingDelete: false,
@@ -332,6 +340,25 @@ describe("view toggle (Preview / Interactive / HTML)", () => {
     expect(preview).toHaveAttribute("src", expect.stringContaining("/pg1/template-preview"));
     expect(preview).toHaveAttribute("src", expect.stringContaining("templateChoice=page-shell.html"));
     expect(screen.getByText(/save to update the live page/i)).toBeInTheDocument();
+  });
+
+  // Proof this landed on the injection seam, not just on matching URL shape: `PageEditor.tsx` no
+  // longer imports `lib/api` at all (see `page-editor-port.hooks.ts`'s `templatePreviewUrl` and
+  // `use-page-editor.hooks.ts`'s `templatePreviewUrl` field) — it renders whatever the CONTROLLER
+  // hands it. A URL the real `api.templatePreviewUrl` could never produce (no `/api/` prefix, no
+  // `template-preview` segment) still ends up as the iframe's `src` verbatim, which is only possible
+  // if the component reads it off the controller rather than calling a global `api` itself.
+  it("preview iframe's src is exactly the controller's templatePreviewUrl, not one this component computed itself", () => {
+    renderEditor({
+      view: "preview",
+      status: "published",
+      dirty: true,
+      contentDirty: false,
+      templateChoice: "page-shell.html",
+      templatePreviewUrl: "fake://template-preview/pg1?templateChoice=page-shell.html",
+    });
+    const preview = screen.getByTitle("Page preview");
+    expect(preview).toHaveAttribute("src", "fake://template-preview/pg1?templateChoice=page-shell.html");
   });
 
   // `SrcDocSandbox` also renders an `<iframe title="Page preview">` (via `srcDoc`, not `src`) — the
