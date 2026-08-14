@@ -2,6 +2,7 @@ import { render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { PostTemplateModal } from "../PostTemplateModal";
+import type { PostTemplateFetchState } from "../hooks/use-post-template-source.hooks";
 
 /**
  * @file `PostTemplateModal` — the "View Template" read-only source view (2026-08-10). Covers the
@@ -92,5 +93,32 @@ describe("a static-tier theme", () => {
     render(<PostTemplateModal themeId="basic" themeTier="static" templateFilename="x.html" onClose={vi.fn()} />);
 
     expect(await screen.findByRole("alert")).toHaveTextContent(/network down/);
+  });
+});
+
+describe("PostTemplateModal template-source-hook injection", () => {
+  it("renders purely off an injected fake, proving useTemplateSourceHook is not hardcoded", () => {
+    // The real hook always starts `{ status: "loading" }` on a fresh mount for a static-tier theme
+    // — a fake that resolves synchronously to `loaded` is something the real hook could never
+    // produce on first render, so this only passes if the render used the fake.
+    const fetchSpy = vi.fn();
+    vi.stubGlobal("fetch", fetchSpy);
+    function useFakeTemplateSource(): PostTemplateFetchState {
+      return { status: "loaded", html: "fake template source" };
+    }
+
+    render(
+      <PostTemplateModal
+        themeId="basic"
+        themeTier="static"
+        templateFilename="blog-post.html"
+        onClose={vi.fn()}
+        useTemplateSourceHook={useFakeTemplateSource}
+      />,
+    );
+
+    expect(screen.getByText("fake template source")).toBeInTheDocument();
+    expect(fetchSpy).not.toHaveBeenCalled();
+    vi.unstubAllGlobals();
   });
 });

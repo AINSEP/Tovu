@@ -1,8 +1,8 @@
-import { useEffect, useState } from "react";
 import { CodeWithLines } from "@jini-ai/ui";
 import { PreviewModalShell } from "@jini-ai/ui/renderers";
 
 import type { ThemeTier } from "../../lib/api";
+import { useWiredTemplateSource } from "./hooks/use-post-template-source.hooks";
 
 /**
  * @file "View Template" (2026-08-10) — read-only inspection of the theme page a post's
@@ -21,6 +21,12 @@ import type { ThemeTier } from "../../lib/api";
  * own file header), so a `"declarative"`/`"templated"`/`"handlebars"`/`"code"` theme has no
  * `/theme-assets/{id}/pages/*.html` route to hit at all — this component checks `themeTier` BEFORE
  * fetching and says so, rather than firing a request that can only ever 404.
+ *
+ * The fetch itself — real I/O, a raw `fetch()` outside `lib/api` entirely — lives behind
+ * `hooks/use-post-template-source.hooks.ts`'s `PostTemplatePort`, split out the same way
+ * `SeeMore`/`SeeMore.hooks.tsx` does: this file stays props-and-JSX only, and the
+ * `useTemplateSourceHook` prop below lets a test render this JSX against a fake port without a
+ * real network round trip.
  */
 
 export interface PostTemplateModalProps {
@@ -38,60 +44,20 @@ export interface PostTemplateModalProps {
    *  this modal once a real template is chosen. */
   readonly templateFilename: string;
   readonly onClose: () => void;
+  /** Injectable seam for the template-source fetch. Defaults to the real
+   *  {@link useWiredTemplateSource}; a test can pass a fake here to exercise the modal's rendering
+   *  without a real `fetch`. */
+  readonly useTemplateSourceHook?: typeof useWiredTemplateSource;
 }
 
-/** `/theme-assets/{themeId}/pages/{templateFilename}` — the exact route
- *  `theme-static-assets.ts` serves a static-tier theme's `pages/*.html` under (verified live,
- *  2026-08-10: `GET /theme-assets/basic/pages/blog-sidebar-template.html` → 200 with the raw
- *  HTML). `encodeURIComponent` on both segments: a theme id or filename with a space/`#`/`?`
- *  would otherwise either 404 against the exact static path or get parsed as a query string. */
-function templateAssetUrl(themeId: string, templateFilename: string): string {
-  return `/theme-assets/${encodeURIComponent(themeId)}/pages/${encodeURIComponent(templateFilename)}`;
-}
-
-type FetchState =
-  | { status: "loading" }
-  | { status: "loaded"; html: string }
-  | { status: "error"; message: string };
-
-/**
- * Fetches a static-tier theme's template source as plain text. Kept out of the component body so
- * the three outcomes (loading/loaded/error) are the function's only branches — no theme-tier
- * decision in here, that gate lives in the caller (`PostTemplateModal`'s effect below), which is
- * also why this never runs at all for a non-static theme.
- *
- * @complexity Time/space: O(n) in the fetched document's size — one request, no retry loop.
- */
-function useTemplateSource(themeId: string, themeTier: ThemeTier | null, templateFilename: string): FetchState {
-  const [state, setState] = useState<FetchState>({ status: "loading" });
-
-  useEffect(() => {
-    if (themeTier !== "static") return; // Nothing to fetch — the caller renders the tier explanation instead.
-    let cancelled = false;
-    setState({ status: "loading" });
-    fetch(templateAssetUrl(themeId, templateFilename))
-      .then((res) => {
-        if (!res.ok) throw new Error(`the theme server responded with ${res.status}`);
-        return res.text();
-      })
-      .then((html) => {
-        if (!cancelled) setState({ status: "loaded", html });
-      })
-      .catch((e: unknown) => {
-        if (!cancelled) {
-          setState({ status: "error", message: e instanceof Error ? e.message : "failed to load the template" });
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [themeId, themeTier, templateFilename]);
-
-  return state;
-}
-
-export function PostTemplateModal({ themeId, themeTier, templateFilename, onClose }: PostTemplateModalProps) {
-  const fetchState = useTemplateSource(themeId, themeTier, templateFilename);
+export function PostTemplateModal({
+  themeId,
+  themeTier,
+  templateFilename,
+  onClose,
+  useTemplateSourceHook = useWiredTemplateSource,
+}: PostTemplateModalProps) {
+  const fetchState = useTemplateSourceHook(themeId, themeTier, templateFilename);
 
   let stageContent;
   if (themeTier === null) {
