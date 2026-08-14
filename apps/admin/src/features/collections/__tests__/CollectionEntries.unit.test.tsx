@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { FetchQueryProvider } from "../../../lib/fetch-query";
 import { CollectionEntries } from "../CollectionEntries";
+import type { CollectionEntriesController } from "../hooks/use-collection-entries.hooks";
 
 /**
  * @file `CollectionEntries` — pins the fix for the audit's live-verified blocker (exec summary
@@ -11,9 +12,10 @@ import { CollectionEntries } from "../CollectionEntries";
  * checked the `contentType === null` case the lookup already distinguished from "still loading".
  * Follows the RTL harness `Plugins.unit.test.tsx` established for this package.
  *
- * `CollectionEntries` has no injectable hook seam — it always composes the real
- * `useWiredCollectionEntries` — so every render below needs a `FetchQueryProvider` ancestor
- * (2026-08-12, `lib/fetch-query` migration).
+ * `CollectionEntries` composes the real `useWiredCollectionEntries` by default, so every render
+ * exercising that real path needs a `FetchQueryProvider` ancestor (2026-08-12, `lib/fetch-query`
+ * migration). The "injected hook seam" describe block below drives the screen through a fake
+ * controller instead — see `CollectionEntriesProps.useCollectionEntriesHook`.
  */
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -80,5 +82,22 @@ describe("a real content type", () => {
     expect(await screen.findByRole("heading", { name: "Recipe" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /new entry/i })).toBeInTheDocument();
     expect(screen.getByText("No entries yet in Recipe.")).toBeInTheDocument();
+  });
+});
+
+describe("injected hook seam (useCollectionEntriesHook)", () => {
+  it("renders from a fake controller, proving the real hook is not hardcoded — no fetch involved", () => {
+    const controller: CollectionEntriesController = {
+      contentType: null,
+      entries: [],
+      error: null,
+      t: (key) => key,
+    };
+    render(<CollectionEntries contentTypeKey="does-not-matter" useCollectionEntriesHook={() => controller} />);
+
+    // The real hook can never resolve `contentType: null` synchronously on first render (it starts
+    // `undefined` until the fetch settles) — reaching this branch with no `act`/`waitFor` is only
+    // possible because the fake bypassed `useWiredCollectionEntries` entirely.
+    expect(screen.getByText('Unknown content type "does-not-matter".')).toBeInTheDocument();
   });
 });
