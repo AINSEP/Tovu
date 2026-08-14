@@ -69,6 +69,16 @@ type PreviewStage = "jpg" | "png" | "failed";
  * @complexity Time/space: O(1) — one `<img>`, one three-state fallback stage, one modal-open boolean.
  */
 function ThemeCardPreview({ themeId }: { themeId: string }) {
+  // STAYS LOCAL — deliberately not moved into `use-themes.hooks.ts`'s controller (owner-ratified,
+  // 2026-08-14 DI migration sweep). Interactive DOM chrome, not async/API state: no I/O, and
+  // `Themes.unit.test.tsx` asserts it through REAL DOM behavior (the jpg→png→placeholder `<img>`
+  // fallback chain via a real `onError`, the expand-modal open/close via a real click) driven
+  // against a static `useThemesHook` fake (`() => baseController({…})`) that has no way to carry
+  // live state. Per-card on top of that: this component renders once per theme inside a `.map()`,
+  // so moving `stage`/`expanded` into the single screen-level controller would mean redesigning it
+  // around a themeId-keyed record — a structural change, not the state move this sweep asked for.
+  // Same precedent as `Posts.tsx:64`'s own local `updatedSort` and `ThemeExplore.tsx`'s
+  // `device`/`fullscreen` (see that file's own comment at the equivalent site).
   const [stage, setStage] = useState<PreviewStage>("jpg");
   const [expanded, setExpanded] = useState(false);
   const ext = stage === "png" ? "png" : "jpg";
@@ -360,6 +370,13 @@ export function Themes({ useThemesHook = useWiredThemes }: ThemesProps) {
   // mount-time effect — same derived-value-with-override shape as `useSettingsDialogShell`'s own
   // active tab. Typed as plain `string` (not `ThemeTabGroup`) because the Marketplace tab's id is
   // not a tab group — it lists what is installable rather than what is installed.
+  //
+  // STAYS LOCAL — deliberately not moved into `use-themes.hooks.ts`'s controller (owner-ratified,
+  // 2026-08-14 DI migration sweep). No I/O, and `Themes.unit.test.tsx`'s "switches the visible
+  // cards when a different tab is clicked" test asserts this through a REAL click against a static
+  // `useThemesHook` fake (`() => baseController({…})`), which has no way to carry live state — same
+  // reasoning as `ThemeCardPreview`'s `stage`/`expanded` above and `ThemeExplore.tsx`'s
+  // `device`/`fullscreen`.
   const [manualTab, setManualTab] = useState<string | null>(null);
 
   // Combines the original two guards (`error && !settings` / `!settings`) into one `if` so
