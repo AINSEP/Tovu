@@ -159,7 +159,7 @@ export function Authentication(): ReactElement {
         <SettingsDialogShell
           tabs={tabs}
           presentation="inline"
-          className="jini-settings-dialog--inline"
+          className="jini-tabbed-dialog--inline"
           fullscreenEnabled={false}
           labels={{ kicker: "People" }}
         />

@@ -107,7 +107,7 @@
   --space-7: 2rem;    /* 32px */
   --space-8: 2.5rem;  /* 40px */
 
-  /* Type scale — sized against Settings' own measured computed styles (`.jini-settings-dialog-
+  /* Type scale — sized against Settings' own measured computed styles (`.jini-tabbed-dialog-
      kicker` 11px, `-subtitle` 13px, panel body 16px, page `h2` 26px) so the primitives below
      reproduce its rhythm using this file's own tokens rather than `--jini-*`. */
   --text-2xs: 0.6875rem; /* 11px   — eyebrow/kicker, dense badges */
@@ -2147,7 +2147,7 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
  * what made the first pass look cluttered. The page is admin sidebar →
  * settings sidebar → panel, nothing else. */
 .settings-ui-section { display: flex; flex-direction: column; min-height: 0; height: 100%; }
-.settings-ui-section > .jini-settings-dialog { flex: 1 1 auto; min-height: 0; }
+.settings-ui-section > .jini-tabbed-dialog { flex: 1 1 auto; min-height: 0; }
 .settings-ui-load-error { margin: 0 0 0.75rem; color: var(--danger, #9c2a25); font-size: 0.85rem; }
 .settings-ui-save { font-size: 0.75rem; color: var(--faint); align-self: center; }
 .settings-ui-save.is-error { color: var(--danger, #9c2a25); }
@@ -2204,7 +2204,7 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
  * Used by `features/ai-assistant/AiAssistant.tsx`. The Settings screen owns its whole
  * viewport, so `.settings-ui-section`'s `height: 100%` above and the shell's own
  * `height: min(720px, 90vh)` (settings-dialog.css) cooperate: the panel becomes
- * a fixed-height box whose `.jini-settings-dialog-content` scrolls internally.
+ * a fixed-height box whose `.jini-tabbed-dialog-content` scrolls internally.
  *
  * On a page that ALSO has its own header and scrolls normally, that same pair is
  * a trap, and the symptom is specific and confusing: content taller than the box
@@ -2223,16 +2223,16 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
  * rules below are all scoped to `.settings-ui-section`, so this screen needs
  * that class for its chrome while opting out of its layout. */
 .settings-ui-section--page-flow,
-.settings-ui-section--page-flow .jini-settings-dialog,
-.settings-ui-section--page-flow .jini-settings-dialog-body {
+.settings-ui-section--page-flow .jini-tabbed-dialog,
+.settings-ui-section--page-flow .jini-tabbed-dialog-body {
   height: auto;
   max-height: none;
 }
-.settings-ui-section--page-flow .jini-settings-dialog {
+.settings-ui-section--page-flow .jini-tabbed-dialog {
   width: auto;
   overflow: visible;
 }
-.settings-ui-section--page-flow .jini-settings-dialog-content {
+.settings-ui-section--page-flow .jini-tabbed-dialog-content {
   overflow: visible;
   /* Released with the scroller itself. Left in place it would keep swallowing
      wheel events at the boundary of an element that no longer scrolls. */
@@ -2253,13 +2253,13 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
  * `tab.title`/`tab.subtitle` are still supplied in AiAssistant.tsx — they are
  * part of the shell's contract and feed its accessible naming; this hides the
  * visual duplicate, it does not strip the semantics. */
-.settings-ui-section--page-flow .jini-settings-dialog-head {
+.settings-ui-section--page-flow .jini-tabbed-dialog-head {
   display: none;
 }
 
 /* --- Flat variant: the AI Assistant tab reads as page, not as a floating panel ---
  *
- * `settings-dialog.css` styles `.jini-settings-dialog` as a MODAL: its own
+ * `settings-dialog.css` styles `.jini-tabbed-dialog` as a MODAL: its own
  * elevated background (`--jini-bg-elevated`, #fffefc), a border, a large
  * radius, and `--jini-shadow-lg`. That is right for the surface it was built
  * for — a dialog floating over a dimmed page. Rendered inline inside an admin
@@ -2280,7 +2280,7 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
  * Upstream note: the shell has no `flat`/`chromeless` prop, so this is CSS
  * rather than a `@jini-ai/ui` change — same reasoning as the tab-strip block
  * below, and the same "delete to revert" property. */
-.settings-ui-section--page-flow .jini-settings-dialog {
+.settings-ui-section--page-flow .jini-tabbed-dialog {
   background: transparent;
   border: none;
   border-radius: 0;
@@ -2290,8 +2290,8 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 /* The modal's horizontal padding indents content from a dialog edge that no
    longer exists, which left the form and the tab strip hanging ~24px inside
    the page title above them. Zeroed so both align to the page's own column. */
-.settings-ui-section--page-flow .jini-settings-dialog-content,
-.settings-ui-section--page-flow .jini-settings-dialog--inline .jini-settings-dialog-sidebar {
+.settings-ui-section--page-flow .jini-tabbed-dialog-content,
+.settings-ui-section--page-flow .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar {
   padding-inline: 0;
 }
 
@@ -2302,7 +2302,7 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    Restores the constraint the card was incidentally providing, without
    restoring the card. Sibling of `.assistant-switch`'s own `max-width: 68ch`,
    set in the same spirit. */
-.settings-ui-section--page-flow .jini-settings-dialog-content { max-width: 46rem; }
+.settings-ui-section--page-flow .jini-tabbed-dialog-content { max-width: 46rem; }
 
 /* Vertical separation between the tab's three blocks (switch → intro → form).
    The card and `.notice` boxes were carrying this implicitly through their own
@@ -2417,12 +2417,12 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
  * buttons, not an ARIA tablist. Painting a nav to look like tabs is not the
  * same as promising arrow-key tab semantics, and claiming the role without
  * the roving-focus behaviour would be the worse of the two. */
-.settings-ui-section .jini-settings-dialog--inline .jini-settings-dialog-body {
+.settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-body {
   display: flex;
   flex-direction: column;
 }
 
-.settings-ui-section .jini-settings-dialog--inline .jini-settings-dialog-sidebar {
+.settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar {
   flex: 0 0 auto;
   flex-direction: row;
   /* Wrap rather than scroll: 13 tabs overflow a narrow viewport, and a second
@@ -2438,7 +2438,7 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
   overflow: visible;
 }
 
-.settings-ui-section .jini-settings-dialog--inline .jini-settings-dialog-nav-item {
+.settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-nav-item {
   width: auto;
   /* Sidebar mode reserves a fixed 18px icon track so labels can't fall into
    * it (see the shell's own comment); in a row, `auto` just shrink-wraps. */
@@ -2452,12 +2452,12 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
   color: var(--jini-text-muted);
 }
 
-.settings-ui-section .jini-settings-dialog--inline .jini-settings-dialog-nav-item strong {
+.settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-nav-item strong {
   white-space: nowrap;
 }
 
-.settings-ui-section .jini-settings-dialog--inline .jini-settings-dialog-nav-item.active,
-.settings-ui-section .jini-settings-dialog--inline .jini-settings-dialog-nav-item.active:hover {
+.settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-nav-item.active,
+.settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-nav-item.active:hover {
   /* The filled pill that reads as "selected" in a vertical list reads as a
    * button in a row; an underline is the tab-strip idiom for the same state. */
   background: transparent;
@@ -2465,18 +2465,18 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
   border-bottom-color: var(--jini-accent);
 }
 
-.settings-ui-section .jini-settings-dialog--inline .jini-settings-dialog-nav-item.active svg,
-.settings-ui-section .jini-settings-dialog--inline .jini-settings-dialog-nav-item.active .jini-settings-dialog-nav-icon {
+.settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-nav-item.active svg,
+.settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-nav-item.active .jini-tabbed-dialog-nav-icon {
   opacity: 1;
 }
 
 /* Collapsing a full-width strip would hide the nav outright rather than
  * reclaim space, so the chevron has nothing left to do here. */
-.settings-ui-section .jini-settings-dialog--inline .jini-settings-dialog-sidebar-toggle {
+.settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-sidebar-toggle {
   display: none;
 }
 
-.settings-ui-section .jini-settings-dialog--inline .jini-settings-dialog-content {
+.settings-ui-section .jini-tabbed-dialog--inline .jini-tabbed-dialog-content {
   flex: 1 1 auto;
   min-height: 0;
 }
