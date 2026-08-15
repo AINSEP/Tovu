@@ -31,7 +31,7 @@ test("AC-07: all production capabilities durable, no unsafe defaults -> boot suc
   const result = await runProductionReadinessGate({
     mode: "production",
     inventory: [entry({ name: "a" }), entry({ name: "b" })],
-    envSnapshot: { hasDevSecretPlaceholder: false, hasLocalhostEgressAllowance: false, hasAlwaysOnAnalyticsStub: false },
+    envSnapshot: { hasDevSecretPlaceholder: false, hasLocalhostEgressAllowance: false, hasAlwaysOnAnalyticsStub: false, hasDefaultOwnerPassword: false },
   });
   assert.equal(result.ok, true);
 });
@@ -40,7 +40,7 @@ test("AC-05/INV-01: a production capability missing its durable adapter refuses 
   const result = await runProductionReadinessGate({
     mode: "production",
     inventory: [entry({ name: "undurable-capability", hasDurableAdapter: false })],
-    envSnapshot: { hasDevSecretPlaceholder: false, hasLocalhostEgressAllowance: false, hasAlwaysOnAnalyticsStub: false },
+    envSnapshot: { hasDevSecretPlaceholder: false, hasLocalhostEgressAllowance: false, hasAlwaysOnAnalyticsStub: false, hasDefaultOwnerPassword: false },
   });
   assert.equal(result.ok, false);
   if (!result.ok) {
@@ -54,7 +54,7 @@ test("AC-06: a dev-only secret placeholder refuses boot before any route would r
   const result = await runProductionReadinessGate({
     mode: "production",
     inventory: [entry()],
-    envSnapshot: { hasDevSecretPlaceholder: true, hasLocalhostEgressAllowance: false, hasAlwaysOnAnalyticsStub: false },
+    envSnapshot: { hasDevSecretPlaceholder: true, hasLocalhostEgressAllowance: false, hasAlwaysOnAnalyticsStub: false, hasDefaultOwnerPassword: false },
   });
   assert.equal(result.ok, false);
   if (!result.ok) {
@@ -66,7 +66,7 @@ test("behavior.spec.md §2.1: multiple simultaneous failures are all aggregated,
   const result = await runProductionReadinessGate({
     mode: "production",
     inventory: [entry({ name: "undurable-1", hasDurableAdapter: false }), entry({ name: "undurable-2", hasDurableAdapter: false })],
-    envSnapshot: { hasDevSecretPlaceholder: true, hasLocalhostEgressAllowance: true, hasAlwaysOnAnalyticsStub: false },
+    envSnapshot: { hasDevSecretPlaceholder: true, hasLocalhostEgressAllowance: true, hasAlwaysOnAnalyticsStub: false, hasDefaultOwnerPassword: false },
   });
   assert.equal(result.ok, false);
   if (!result.ok) {
@@ -85,7 +85,7 @@ test("EC-03/INV-03: a durability check that throws is treated as a failure, neve
   const result = await runProductionReadinessGate({
     mode: "production",
     inventory: [throwingEntry],
-    envSnapshot: { hasDevSecretPlaceholder: false, hasLocalhostEgressAllowance: false, hasAlwaysOnAnalyticsStub: false },
+    envSnapshot: { hasDevSecretPlaceholder: false, hasLocalhostEgressAllowance: false, hasAlwaysOnAnalyticsStub: false, hasDefaultOwnerPassword: false },
   });
   assert.equal(result.ok, false, "a throwing check must never be interpreted as a passed check");
 });
@@ -94,7 +94,7 @@ test("§2.1 step 1 / local mode: the gate is entirely inert outside production, 
   const result = await runProductionReadinessGate({
     mode: "local",
     inventory: [entry({ name: "undurable", hasDurableAdapter: false })],
-    envSnapshot: { hasDevSecretPlaceholder: true, hasLocalhostEgressAllowance: true, hasAlwaysOnAnalyticsStub: true },
+    envSnapshot: { hasDevSecretPlaceholder: true, hasLocalhostEgressAllowance: true, hasAlwaysOnAnalyticsStub: true, hasDefaultOwnerPassword: true },
   });
   assert.equal(result.ok, true, "local mode must never refuse boot regardless of unsafe defaults or undurable capabilities");
 });
@@ -103,7 +103,7 @@ test("AC-12: webhook delivery worker is never invoked in production mode (REQ-07
   const result = await runProductionReadinessGate({
     mode: "production",
     inventory: [entry({ name: "webhooks", hasDurableAdapter: true })],
-    envSnapshot: { hasDevSecretPlaceholder: false, hasLocalhostEgressAllowance: false, hasAlwaysOnAnalyticsStub: false },
+    envSnapshot: { hasDevSecretPlaceholder: false, hasLocalhostEgressAllowance: false, hasAlwaysOnAnalyticsStub: false, hasDefaultOwnerPassword: false },
   });
   // webhooks is contained regardless of durability per REQ-07's unconditional production-mode gate.
   assert.equal(capabilityRouteGuard({ capabilityName: "webhooks", mode: "production" }).register, false);
@@ -117,7 +117,7 @@ test("AC-14/REQ-08: sharp readiness failure withholds media transform routes, at
   const result = await runProductionReadinessGate({
     mode: "production",
     inventory: [entry({ name: "media", hasDurableAdapter: true })],
-    envSnapshot: { hasDevSecretPlaceholder: false, hasLocalhostEgressAllowance: false, hasAlwaysOnAnalyticsStub: false },
+    envSnapshot: { hasDevSecretPlaceholder: false, hasLocalhostEgressAllowance: false, hasAlwaysOnAnalyticsStub: false, hasDefaultOwnerPassword: false },
     sharpReadiness: async () => false,
   });
   assert.equal(result.ok, false);
@@ -130,7 +130,7 @@ test("AC-15: sharp ready registers media transform routes normally", async () =>
   const result = await runProductionReadinessGate({
     mode: "production",
     inventory: [entry({ name: "media", hasDurableAdapter: true })],
-    envSnapshot: { hasDevSecretPlaceholder: false, hasLocalhostEgressAllowance: false, hasAlwaysOnAnalyticsStub: false },
+    envSnapshot: { hasDevSecretPlaceholder: false, hasLocalhostEgressAllowance: false, hasAlwaysOnAnalyticsStub: false, hasDefaultOwnerPassword: false },
     sharpReadiness: async () => true,
   });
   assert.equal(result.ok, true);
@@ -149,4 +149,49 @@ test("AC-10/REQ-05: a non-production capability's decision carries its classific
   const decision = capabilityRouteGuard({ capabilityName: "webhooks", mode: "production" });
   assert.equal(decision.register, false);
   assert.ok(decision.classification === undefined || typeof decision.classification === "string");
+});
+
+test("§4.2: production + default owner password refuses boot, names the check", async () => {
+  const result = await runProductionReadinessGate({
+    mode: "production",
+    inventory: [entry()],
+    envSnapshot: {
+      hasDevSecretPlaceholder: false,
+      hasLocalhostEgressAllowance: false,
+      hasAlwaysOnAnalyticsStub: false,
+      hasDefaultOwnerPassword: true,
+    },
+  });
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.ok(result.failures.some((f) => f.code === "PRODUCTION_BOOT_UNSAFE_DEFAULT" && f.details.checkName === "default-owner-password"));
+  }
+});
+
+test("§4.2: production + a custom owner password boots normally", async () => {
+  const result = await runProductionReadinessGate({
+    mode: "production",
+    inventory: [entry()],
+    envSnapshot: {
+      hasDevSecretPlaceholder: false,
+      hasLocalhostEgressAllowance: false,
+      hasAlwaysOnAnalyticsStub: false,
+      hasDefaultOwnerPassword: false,
+    },
+  });
+  assert.equal(result.ok, true);
+});
+
+test("§4.2 / §2.1 step 1: a default owner password is inert outside production mode", async () => {
+  const result = await runProductionReadinessGate({
+    mode: "local",
+    inventory: [entry()],
+    envSnapshot: {
+      hasDevSecretPlaceholder: false,
+      hasLocalhostEgressAllowance: false,
+      hasAlwaysOnAnalyticsStub: false,
+      hasDefaultOwnerPassword: true,
+    },
+  });
+  assert.equal(result.ok, true, "local mode must never refuse boot due to the default owner password");
 });

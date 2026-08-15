@@ -47,6 +47,7 @@ test("AC-05/INV-01: booting the REAL composition in production mode refuses give
       hasDevSecretPlaceholder: false,
       hasLocalhostEgressAllowance: false,
       hasAlwaysOnAnalyticsStub: false,
+      hasDefaultOwnerPassword: false,
     },
   });
 
@@ -70,7 +71,7 @@ test("§2.1 step 1: the real composition boots successfully in local mode despit
   const result = await runProductionReadinessGate({
     mode,
     inventory: CAPABILITY_INVENTORY,
-    envSnapshot: { hasDevSecretPlaceholder: false, hasLocalhostEgressAllowance: false, hasAlwaysOnAnalyticsStub: false },
+    envSnapshot: { hasDevSecretPlaceholder: false, hasLocalhostEgressAllowance: false, hasAlwaysOnAnalyticsStub: false, hasDefaultOwnerPassword: false },
   });
   assert.equal(result.ok, true, "local mode must never be blocked by production-only containment");
 });
