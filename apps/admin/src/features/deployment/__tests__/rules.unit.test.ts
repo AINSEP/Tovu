@@ -101,6 +101,10 @@ describe("FULL_SITE_PROVIDERS", () => {
     expect(new Set(FULL_SITE_PROVIDERS.map((p) => p.id)).size).toBe(6);
     expect(new Set(FULL_SITE_PROVIDERS.map((p) => p.descriptionKey)).size).toBe(6);
   });
+
+  it("puts AWS first — owner's own call, since it's expected to be the most popular provider", () => {
+    expect(FULL_SITE_PROVIDERS[0]!.id).toBe("aws");
+  });
 });
 
 describe("STATIC_HOSTS", () => {

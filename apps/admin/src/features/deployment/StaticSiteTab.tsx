@@ -145,30 +145,59 @@ function ExportRunResult({ run, t: translate }: { run: AdminExportRunSnapshot; t
   }
   if (run.status !== "completed" || !run.counts) return null;
   return (
-    <div className="deployment-facts">
-      <div className="deployment-fact">
-        <span className="deployment-fact-label">{translate("Routes")}</span>
-        <span className="deployment-fact-value">
-          {run.counts.routesSucceeded} {translate("succeeded")}
-          {run.counts.routesFailed > 0 ? `, ${run.counts.routesFailed} ${translate("failed")}` : ""}
-        </span>
-      </div>
-      <div className="deployment-fact">
-        <span className="deployment-fact-label">{translate("Assets")}</span>
-        <span className="deployment-fact-value">
-          {run.counts.assetsSucceeded} {translate("succeeded")}
-          {run.counts.assetsFailed > 0 ? `, ${run.counts.assetsFailed} ${translate("failed")}` : ""}
-        </span>
-      </div>
-      {run.outputDir ? (
+    <>
+      <div className="deployment-facts">
         <div className="deployment-fact">
-          <span className="deployment-fact-label">{translate("Written to")}</span>
+          <span className="deployment-fact-label">{translate("Routes")}</span>
           <span className="deployment-fact-value">
-            <code translate="no">{run.outputDir}</code>
+            {run.counts.routesSucceeded} {translate("succeeded")}
+            {run.counts.routesFailed > 0 ? `, ${run.counts.routesFailed} ${translate("failed")}` : ""}
           </span>
         </div>
+        <div className="deployment-fact">
+          <span className="deployment-fact-label">{translate("Assets")}</span>
+          <span className="deployment-fact-value">
+            {run.counts.assetsSucceeded} {translate("succeeded")}
+            {run.counts.assetsFailed > 0 ? `, ${run.counts.assetsFailed} ${translate("failed")}` : ""}
+          </span>
+        </div>
+        {run.outputDir ? (
+          <div className="deployment-fact">
+            <span className="deployment-fact-label">{translate("Written to")}</span>
+            <span className="deployment-fact-value">
+              <code translate="no">{run.outputDir}</code>
+            </span>
+          </div>
+        ) : null}
+      </div>
+      {/* The counts above only say HOW MANY routes/assets failed — `failedRoutes`/`failedAssets`
+          are the one place this run's own report names WHICH ones and why, so an operator staring
+          at "3 failed" has somewhere to look instead of re-running the whole export to find out. */}
+      {run.failedRoutes && run.failedRoutes.length > 0 ? (
+        <div className="deployment-failure-list">
+          <span className="deployment-fact-label">{translate("Failed routes")}</span>
+          <ul>
+            {run.failedRoutes.map((failure, index) => (
+              <li key={`${failure.kind}:${failure.path}:${index}`}>
+                <code translate="no">{failure.path}</code> — {failure.reason}
+              </li>
+            ))}
+          </ul>
+        </div>
       ) : null}
-    </div>
+      {run.failedAssets && run.failedAssets.length > 0 ? (
+        <div className="deployment-failure-list">
+          <span className="deployment-fact-label">{translate("Failed assets")}</span>
+          <ul>
+            {run.failedAssets.map((failure, index) => (
+              <li key={`${failure.url}:${index}`}>
+                <code translate="no">{failure.url}</code> — {failure.reason}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+    </>
   );
 }
 
@@ -194,6 +223,18 @@ function BuildExportCard({ controller, t: translate }: { controller: StaticExpor
         </div>
       </div>
       <div className="deployment-card-body">
+        {controller.loadError ? (
+          <p
+            className="notice error"
+            role="status"
+            {...agentHandle("deployment-static-site-export-load-error", {
+              role: "status",
+              label: "Shows the error when this export's current status could not be loaded",
+            })}
+          >
+            {controller.loadError}
+          </p>
+        ) : null}
         <p className="card-lead">
           {translate("Tovu writes every published post, the home page, products and theme pages into the folder you name.")}
         </p>
@@ -419,6 +460,18 @@ function GettingItOnlineCard({
         <h2 className="card-title">{translate("Getting it online")}</h2>
       </div>
       <div className="deployment-card-body">
+        {publishController.loadError ? (
+          <p
+            className="notice error"
+            role="status"
+            {...agentHandle("deployment-static-site-publish-load-error", {
+              role: "status",
+              label: "Shows the error when this publish's current status could not be loaded",
+            })}
+          >
+            {publishController.loadError}
+          </p>
+        ) : null}
         <p className="card-lead">
           {translate(
             "The export is just a folder of files. Pick where it goes, then either let the assistant drive the CLI or publish straight from here."

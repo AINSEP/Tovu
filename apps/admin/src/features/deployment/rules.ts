@@ -34,10 +34,19 @@ export interface FullSiteProviderRow {
   readonly status: "planned";
 }
 
-/** The six self-hosted-server providers named in the brief, in display order. The wording is the
- *  same copy this tab already shipped, split at its own em-dash into what-it-is and what-it-costs —
- *  no new claim about any provider is introduced here. See `deployment-i18n.tsx` for translations. */
+/** The six self-hosted-server providers named in the brief, in display order. AWS leads the list
+ *  (owner's own call: "it's going to be most popular") — every other row keeps its prior relative
+ *  order, so this is purely a reordering, not a re-ranking of anything else. The wording is the same
+ *  copy this tab already shipped, split at its own em-dash into what-it-is and what-it-costs — no
+ *  new claim about any provider is introduced here. See `deployment-i18n.tsx` for translations. */
 export const FULL_SITE_PROVIDERS: readonly FullSiteProviderRow[] = [
+  {
+    id: "aws",
+    name: "AWS",
+    status: "planned",
+    costKey: "AWS pricing",
+    descriptionKey: "Full control over the machine, at AWS's own complexity.",
+  },
   {
     id: "fly",
     name: "Fly.io",
@@ -58,13 +67,6 @@ export const FULL_SITE_PROVIDERS: readonly FullSiteProviderRow[] = [
     status: "planned",
     costKey: "From $7/mo",
     descriptionKey: "A managed container platform with persistent disks — Starter plan, one service per disk.",
-  },
-  {
-    id: "aws",
-    name: "AWS",
-    status: "planned",
-    costKey: "AWS pricing",
-    descriptionKey: "Full control over the machine, at AWS's own complexity.",
   },
   {
     id: "digitalocean",
