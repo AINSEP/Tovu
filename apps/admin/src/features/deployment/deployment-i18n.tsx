@@ -1698,6 +1698,21 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
 
 export const t = createDictionaryTranslator(DEPLOYMENT_DICT);
 
+/**
+ * "{count} lines" for the Dockerfile viewer's header.
+ *
+ * Takes a bound `t` rather than a `locale` and its own per-locale template map (the shape the two
+ * error messages below use) because its only caller, `DockerfileSourceViewer`, receives `t` from the
+ * hook and has no locale in hand. Routing through the same dictionary keeps the string translatable
+ * on exactly the same terms as every other string on these tabs: absent from a locale's map, `t`
+ * returns the key itself, and `interpolate` then fills `{count}` in either case.
+ *
+ * @complexity O(1) — one lookup and one substitution.
+ */
+export function dockerfileLineCountLabel(translate: (key: string) => string, count: number): string {
+  return interpolate(translate("{count} lines"), { count: String(count) });
+}
+
 /** The Overview tab's load-error banner — embeds `describeApiError`'s already-formatted message
  *  mid-sentence, same `interpolate` + per-locale template shape `actionsForWebhookLabel` uses. */
 const OVERVIEW_LOAD_ERROR_TEMPLATE: Record<string, string> = {

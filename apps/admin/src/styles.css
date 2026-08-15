@@ -2979,39 +2979,235 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .theme-card-preview-trigger:hover { opacity: 1; }
 .theme-card-preview-trigger img { width: 100%; height: 100%; object-fit: cover; display: block; }
 
-/* Deployment panel */
-.deployment-host-list { margin: 0; padding-left: 1.1rem; }
-.deployment-host-list li { padding: 0.15rem 0; }
-/* Full Site tab's provider rows — name + status pill on one line, description below. Not the
-   existing `.editor-header` (that class's own comment documents three unrelated jobs already
-   riding on it; adding a fourth here isn't worth the audit surface for one flex-row rule). */
-.deployment-provider-row { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-3); }
-.deployment-provider-row + p { margin-top: 0.3rem; }
-/* Dockerfile tab's read-only source view — same font-mono/surface-3 treatment
-   `.editor-body .tiptap pre` uses for a code block, but bounded to a scrollable pane (a whole
-   multi-stage Dockerfile is much taller than one screen) rather than growing the page. */
-.deployment-dockerfile-viewer {
-  margin: 0; padding: 1rem; max-height: 32rem; overflow: auto;
-  background: var(--surface-3); color: var(--fg); font-family: var(--font-mono); font-size: 0.82rem;
-  line-height: 1.5; border-radius: var(--r-md); white-space: pre;
+/* ============================================================
+   Deployment panel (`/admin/deployment`)
+   ------------------------------------------------------------
+   Rewritten 2026-08-15 (second owner UI/UX pass). The first pass fixed structure — a 0px row gap,
+   six stacked cards collapsed to a row list, a `.tab-bar` that clipped its last tab at 390px — but
+   was written without this file's own primitives in view, so it reproduced the exact defect
+   `.card-title` (~L744) was added to fix: a bare `<h2>` inside a `.card` renders at the UA default
+   24px against a 26.4px `.page-title`, which that rule's own comment calls "not a hierarchy step,
+   it is a near-tie". Every card heading on all five tabs was one of those. The screen therefore
+   read as a stack of equally-loud boxes, each holding one sentence.
+
+   The vocabulary below is borrowed, not invented — it is what the Dashboard (this admin's
+   best-looking screen) already does and what Deployment was not doing: a card head with a title
+   and its actions on one line, a hairline rule, then dense rows whose values sit in a predictable
+   right-hand column. `--space-*`, `--text-*`, `--r-*` and the semantic color tokens throughout;
+   no literals except where noted.
+
+   DEPENDENCY, recorded because it crosses an authorship boundary: `.card-title` and `.card-lead`
+   (~L730) were added to this file by a CONCURRENT agent during the same session as this block, and
+   were still uncommitted in the working tree when this was written — `git show HEAD:…/styles.css |
+   grep -c '^\.card-title'` returned 0. They are used on all five Deployment tabs and are not
+   duplicated here, because a second definition of a shared primitive is how this file ended up with
+   the two rival `.link-button` rules its own comment describes merging. If that block is ever
+   dropped instead of committed, these tabs' headings fall back to the UA `<h2>` they had before —
+   a return to the previous appearance, not a broken layout.
+   ============================================================ */
+
+/* Card head — title on the left, actions/status on the right, hairline below. Generic (no
+   `deployment-` prefix) because it is the missing half of the `.card`/`.card-title` pair: today a
+   card with a title AND a right-hand action has no primitive, which is why `DockerfileTab.tsx` was
+   reaching for `.deployment-provider-row` (a Full Site row class) to lay out its Copy/Download
+   buttons. Additive and opt-in, like `.card-title` itself — nothing existing takes this class.
+   The negative margins pull the hairline out to the card's own edges so it reads as a divider
+   between head and body rather than a short line floating inside the padding box; they are exactly
+   `.card`'s own `padding` values, so they cancel rather than approximate. */
+.card-head {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--space-4);
+  flex-wrap: wrap;
+  margin: calc(var(--space-5) * -1) calc(var(--space-6) * -1) var(--space-4);
+  padding: var(--space-4) var(--space-6);
+  border-bottom: 1px solid var(--border);
 }
-/* Overview tab's two-path comparison (2026-08-15 owner UI/UX pass — see `OverviewTab.tsx`'s file
-   header). `auto-fit`/`minmax` rather than a hard `1fr 1fr`: at the narrow end the two cards stack
+.card-head .card-title { margin: 0; }
+/* The right-hand group. `margin-left: auto` rather than relying on `justify-content` alone so it
+   still sits hard right after the row wraps at a narrow width. */
+.card-head-actions { display: flex; align-items: center; gap: var(--space-2); margin-left: auto; }
+
+/* Vertical rhythm between a tab's top-level blocks. The five tab components render a flat list of
+   cards and section groups; without this each pair of siblings has whatever margin the last child
+   happened to leave, which is what produced the uneven column gaps on the first pass. */
+.deployment-tab { display: flex; flex-direction: column; gap: var(--space-5); }
+/* The same rhythm one level down, inside a card whose body is more than a single paragraph. Every
+   spacing value on these five tabs comes from either this rule or `.deployment-tab` above, so the
+   whole panel is on one scale rather than on whatever margin each element brought with it. */
+.deployment-card-body { display: flex; flex-direction: column; gap: var(--space-4); }
+/* Two related groups side by side inside one card, collapsing to a stack when there is no room —
+   the same `auto-fit`/`minmax` responsive intent as `.deployment-path-grid`, at the narrower
+   `minmax` a within-card column can afford. */
+.deployment-split { display: grid; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); gap: var(--space-5) var(--space-6); }
+.deployment-split > div { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
+
+/* ---- The two-path choice (Overview) -------------------------------------------------------- */
+/* `auto-fit`/`minmax` rather than a hard `1fr 1fr`: at the narrow end the two cards stack
    full-width instead of squeezing to an unreadable column, same responsive intent `.field-row`
-   already has elsewhere in this file. Grid's own default `align-items: stretch` is what keeps both
-   cards the same height when one path's copy runs longer than the other's — no extra rule needed
-   for that, unlike the sibling-`.field-row` gap bug below, which needed one. */
-.deployment-path-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: var(--space-4); margin-bottom: var(--space-5); }
-.deployment-path-card { display: flex; flex-direction: column; align-items: flex-start; gap: 0.3rem; }
-.deployment-path-card .btn-secondary { margin-top: var(--space-3); }
-/* Full Site tab's provider list (2026-08-15 owner UI/UX pass — see `FullSiteTab.tsx`'s file
-   header): one `.card` holding six rows instead of six separate cards. Deliberately its own class
-   rather than reusing `.settings-row`/`.settings-row-list` — those bake in `cursor: pointer`,
-   hover/`:focus-visible`/`.is-selected` states for a SELECTABLE list (`Taxonomy.tsx`'s term list),
-   and these six rows are fixed and non-interactive; carrying that affordance over would promise a
-   click that does nothing. */
+   already has. Grid's default `align-items: stretch` keeps both cards the same height when one
+   path's copy runs longer than the other's. */
+.deployment-path-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(19rem, 1fr)); gap: var(--space-4); }
+.deployment-path-card { display: flex; flex-direction: column; gap: var(--space-3); }
+/* Icon + title + status pill. The icon sits in a soft rounded square (`--surface-2`, not a fill of
+   `--primary`) so it reads as a quiet identifying mark rather than a second call to action — the
+   two paths are peers here, and tinting one of them would be the screen picking a side it has no
+   basis to pick. */
+.deployment-path-head { display: flex; align-items: center; gap: var(--space-3); }
+.deployment-path-icon {
+  display: grid; place-items: center; flex-shrink: 0;
+  width: 2.25rem; height: 2.25rem; border-radius: var(--r-md);
+  background: var(--surface-2); border: 1px solid var(--border); color: var(--fg-2);
+}
+.deployment-path-card .card-title { margin: 0; flex: 1; min-width: 0; }
+/* Pushes the footer (link + note) to the card's bottom edge so both cards' links align on the same
+   baseline even when one path's capability list is a row longer. */
+.deployment-path-foot { margin-top: auto; padding-top: var(--space-2); display: flex; flex-direction: column; gap: var(--space-2); align-items: flex-start; }
+
+/* ---- Capability list ------------------------------------------------------------------------ */
+/* The "what works / what doesn't" rows. Shared by the Overview comparison and the Static Site tab
+   so the same fact is stated in the same shape in both places. Meaning is carried by the glyph AND
+   the row's own text, never by color alone (`frontend-accessibility`): the ✓/✗ marks are distinct
+   shapes with an `aria-label`, and the color is a reinforcement on top of that. */
+.deployment-caps { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
+.deployment-caps li { display: flex; align-items: flex-start; gap: var(--space-2); font-size: var(--text-sm); color: var(--fg-2); }
+.deployment-caps-mark { flex-shrink: 0; display: grid; place-items: center; width: 1.05rem; height: 1.05rem; margin-top: 0.05rem; }
+.deployment-caps-yes { color: var(--ok); }
+.deployment-caps-no { color: var(--faint); }
+/* An unsupported capability is stated, not struck through — the row still has to be readable, and
+   `line-through` on a whole label is harder to read for exactly the users least able to spare the
+   effort. The muted foreground plus the ✗ glyph is the whole signal. */
+.deployment-caps li.is-off { color: var(--muted); }
+
+/* ---- Fact rows (Overview diagnostics, env vars) --------------------------------------------- */
+/* Label above value, hairline-separated, in an auto-fitting grid. Replaces the `.field`/`.field-row`
+   pairing the first pass used: `.field` is `display: flex; flex-direction: column`, so a `.status`
+   pill placed directly inside one STRETCHES to the full column width — a 4-character pill rendered
+   ~400px wide, measured live at 1440px. Pills here hug their text because the row is a grid whose
+   value cell contains an inline-flex pill with `justify-self` left. */
+/* Separated by rhythm, not by rules. A hairline between grid cells cannot be drawn correctly here:
+   `auto-fit` decides the column count from the available width, so no static `nth-child` rule knows
+   which cells begin a row, and every version of "border-top except the first row" is wrong at some
+   viewport width. Spacing does the grouping instead — which is also what the Dashboard's own stat
+   tiles do, and they are the closest existing thing to these. */
+.deployment-facts {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr));
+  gap: var(--space-5) var(--space-6);
+}
+.deployment-fact { display: flex; flex-direction: column; gap: var(--space-2); min-width: 0; }
+.deployment-fact-label { font-size: var(--text-2xs); font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.deployment-fact-value { font-size: var(--text-sm); color: var(--fg); min-width: 0; }
+/* A filesystem path or other verbatim value. `overflow-wrap: anywhere` rather than a scroller: an
+   absolute path has no spaces to break at, and at 390px an un-breakable one is what pushes the
+   whole page into horizontal scroll. */
+.deployment-fact-value code,
+.deployment-code-inline {
+  display: block; font-family: var(--font-mono); font-size: var(--text-xs); line-height: 1.5;
+  color: var(--fg-2); background: var(--surface-2); border: 1px solid var(--border);
+  border-radius: var(--r-sm); padding: var(--space-2) var(--space-3);
+  overflow-wrap: anywhere;
+}
+/* `.status` is a bare `padding`/`border-radius` rule with no display of its own, so it inherits
+   whatever its parent's layout gives it. Forcing `inline-flex` here is what actually makes a pill
+   hug its label inside these flex/grid parents. */
+.deployment-fact .status, .deployment-env-row .status, .deployment-path-head .status,
+.deployment-provider-name .status, .card-head .status {
+  display: inline-flex; align-items: center; align-self: flex-start; width: fit-content;
+}
+
+/* ---- Environment variables (Overview) ------------------------------------------------------- */
+/* One row per variable: monospace name and its Set/Not set pill on the first line, the consequence
+   of it being unset underneath. Hairline-separated rows, the Dashboard's `.dash-activity-row`
+   idiom, rather than the first pass's 4-column grid — those four notes are different lengths, so
+   the grid rendered four ragged-bottomed columns with the tallest one setting a row height the
+   other three left empty. */
+.deployment-env-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.deployment-env-row { padding: var(--space-3) 0; border-top: 1px solid var(--border); }
+.deployment-env-row:first-child { border-top: none; padding-top: 0; }
+.deployment-env-row:last-child { padding-bottom: 0; }
+.deployment-env-head { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; }
+.deployment-env-name { font-family: var(--font-mono); font-size: var(--text-sm); font-weight: 500; color: var(--fg); overflow-wrap: anywhere; }
+.deployment-env-note { margin: var(--space-1) 0 0; font-size: var(--text-xs); color: var(--muted); max-width: 70ch; }
+
+/* ---- Command block (Static Site) ------------------------------------------------------------ */
+/* The terminal command, as something you can actually copy rather than a sentence with a command
+   embedded in the prose (which is what the first pass shipped — "Run tovu export <dir> and Tovu
+   writes…", unselectable as a unit and unstyled). `$` is a `::before` on the code element so it is
+   NOT part of the copied text. */
+.deployment-command {
+  display: flex; align-items: center; gap: var(--space-3);
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-md);
+  padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
+}
+.deployment-command code { flex: 1; min-width: 0; font-family: var(--font-mono); font-size: var(--text-sm); color: var(--fg); overflow-wrap: anywhere; }
+.deployment-command code::before { content: "$ "; color: var(--faint); user-select: none; }
+
+/* ---- Host chips (Static Site) ---------------------------------------------------------------- */
+/* Four proper nouns. A bulleted `<ul>` gave each its own line and a disc marker for no reason —
+   these are peers with nothing to rank, so they read better as one wrapped row of chips. Still a
+   real `<ul>`/`<li>`, so it is still a list to a screen reader. */
+.deployment-chips { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: var(--space-2); }
+.deployment-chips li {
+  font-size: var(--text-sm); color: var(--fg-2); background: var(--surface-2);
+  border: 1px solid var(--border); border-radius: var(--r-pill); padding: var(--space-1) var(--space-3);
+}
+
+/* ---- Provider rows (Full Site) --------------------------------------------------------------- */
+/* One `.card` holding six rows. Deliberately not `.settings-row`/`.settings-row-list` — those bake
+   in `cursor: pointer`, hover, `:focus-visible` and `.is-selected` for a SELECTABLE list
+   (`Taxonomy.tsx`'s terms), and these rows are fixed and non-interactive; carrying that affordance
+   over would promise a click that does nothing.
+
+   The status pill sits next to the provider's NAME, not flung to the far edge of a 1440px row by
+   `justify-content: space-between` (the first pass), where it lost any visible connection to the
+   thing it describes. The right-hand column is the cost instead — a value, which is what a reader
+   scanning a column of rows is actually looking for, and what makes six rows differ from each
+   other at a glance. */
 .deployment-provider-list { list-style: none; margin: 0; padding: 0; }
-.deployment-provider-list-item { padding: var(--space-4) 0; }
-.deployment-provider-list-item:first-child { padding-top: 0; }
+.deployment-provider-list-item { padding: var(--space-4) 0; border-top: 1px solid var(--border); }
+.deployment-provider-list-item:first-child { padding-top: 0; border-top: none; }
 .deployment-provider-list-item:last-child { padding-bottom: 0; }
-.deployment-provider-list-item + .deployment-provider-list-item { border-top: 1px solid var(--border); }
+.deployment-provider-row { display: flex; align-items: baseline; justify-content: space-between; gap: var(--space-4); flex-wrap: wrap; }
+.deployment-provider-name { display: flex; align-items: baseline; gap: var(--space-3); min-width: 0; font-size: var(--text-base); font-weight: 600; color: var(--fg); }
+/* `tabular-nums` so the "$2–9" / "$5" / "$7" figures line up down the column instead of jittering
+   with each glyph's own advance width. */
+.deployment-provider-cost { font-size: var(--text-sm); color: var(--fg-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.deployment-provider-list-item > p { margin: var(--space-2) 0 0; font-size: var(--text-sm); color: var(--muted); max-width: 78ch; }
+
+/* ---- Dockerfile viewer ----------------------------------------------------------------------- */
+/* Same font-mono treatment `.editor-body .tiptap pre` uses for a code block, bounded to a
+   scrollable pane (a multi-stage Dockerfile is much taller than one screen) rather than growing the
+   page. `--surface-2` + a border rather than the borderless `--surface-3` slab the first pass used:
+   inside a card that is itself `--surface`, the darker fill with no edge read as a hole punched in
+   the card, and it is the only element on the five tabs that did not have a border. */
+.deployment-dockerfile-viewer {
+  margin: 0; padding: var(--space-4); max-height: 32rem; overflow: auto;
+  background: var(--surface-2); color: var(--fg); border: 1px solid var(--border);
+  font-family: var(--font-mono); font-size: var(--text-xs);
+  line-height: 1.6; border-radius: var(--r-md); white-space: pre; tab-size: 2;
+}
+
+/* ---- Empty / unavailable states -------------------------------------------------------------- */
+/* History has no backend at all, and Static Site's build button has no route to call. Both are
+   permanent-for-now states rather than "still loading", so both get a composed block — a mark, a
+   title, one sentence of what would appear here, and a real next step — instead of the two
+   centered grey sentences `.empty-state` gives by default. The point is that a truthful "this
+   does not exist yet" should still look deliberate. */
+.deployment-empty { display: flex; flex-direction: column; align-items: center; text-align: center; gap: var(--space-3); padding: var(--space-8) var(--space-4); }
+.deployment-empty-mark {
+  display: grid; place-items: center; width: 3rem; height: 3rem; border-radius: var(--r-pill);
+  background: var(--surface-2); border: 1px solid var(--border); color: var(--muted);
+}
+.deployment-empty-title { margin: 0; font-family: var(--font-display); font-size: var(--text-lg); font-weight: 700; color: var(--fg); }
+.deployment-empty-body { margin: 0; font-size: var(--text-sm); color: var(--muted); max-width: 46ch; line-height: 1.6; }
+
+/* A disabled action plus the reason it is disabled, as one unit. Without the explicit `:disabled`
+   override the global `button:disabled` rule (~L243) color-mixes 30% `--primary` behind ANY
+   disabled button — on `.btn-secondary` that produced a pink/mauve fill with a near-invisible
+   label, which is what the Static Site tab shipped. Same specificity problem `.tab-bar-item
+   :disabled` documents at ~L1934. */
+.deployment-action { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); }
+.deployment-action .btn-secondary[aria-disabled="true"] {
+  background: var(--surface-2); color: var(--faint); border-color: var(--border);
+  cursor: not-allowed;
+}
+.deployment-action .btn-secondary[aria-disabled="true"]:hover { background: var(--surface-2); opacity: 1; }
+.deployment-action-reason { margin: 0; font-size: var(--text-xs); color: var(--muted); max-width: 60ch; }
