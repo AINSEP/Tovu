@@ -1,0 +1,151 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import { createRouteDeps } from "../../server/app";
+import { InMemoryPostRepo } from "../../features/post";
+import { InMemoryRedirectRepo } from "../../redirects";
+import type { RedirectRecord } from "../../redirects";
+import { buildRouteManifest, type RouteManifestDeps } from "../route-manifest";
+
+/**
+ * @file Regression coverage for `buildRouteManifest` (SPEC — static site exporter, 2026-08-15).
+ *
+ * Deliberately built against `server/app.ts`'s own `createRouteDeps()` fixture (the seeded demo
+ * workspace/posts/theme every other route test in this repo already trusts) rather than hand-rolled
+ * fakes — that fixture is real production seed data (`server/seed.ts`), so a manifest that is wrong
+ * against it would also be wrong against a freshly-installed real site.
+ */
+
+function baseDeps(overrides: Partial<RouteManifestDeps> = {}): RouteManifestDeps {
+  const deps = createRouteDeps();
+  return { ...deps, ...overrides };
+}
+
+test("buildRouteManifest: includes home and every seeded published post/page, and does not depend on sitemap.ts", async () => {
+  const manifest = await buildRouteManifest(baseDeps());
+
+  const home = manifest.routes.find((r) => r.path === "/");
+  assert.ok(home, "expected a '/' route");
+  assert.equal(home?.kind, "home");
+
+  // `server/seed.ts`'s `seededPosts` includes a published post at slug "welcome" — asserted by
+  // path+kind (not by importing `seo/sitemap.ts` in any form) so this test can never pass merely
+  // because the two modules happen to agree; `buildRouteManifest` never imports `seo/sitemap.ts` at
+  // all (verified by this file's import list above), so there is no seam for their behavior to leak
+  // into each other through.
+  const welcome = manifest.routes.find((r) => r.path === "/welcome");
+  assert.ok(welcome, "expected the seeded 'welcome' post to be enumerated");
+  assert.equal(welcome?.kind, "post");
+});
+
+test("buildRouteManifest: enumerates the active theme's own static pages, excluding index/404 and template shells", async () => {
+  const manifest = await buildRouteManifest(baseDeps());
+
+  // seeded active theme is "basic" (server/seed.ts's seededPresentation), a static-tier theme whose
+  // theme.json declares "pricing" as a real page and "page-shell"/"blog-post" as template shells
+  // (theme.manifest.templates) a post picks via templateChoice, never their own route.
+  const pricing = manifest.routes.find((r) => r.path === "/pricing");
+  assert.ok(pricing, "expected the theme's own 'pricing' static page to be enumerated");
+  assert.equal(pricing?.kind, "theme-page");
+
+  assert.equal(
+    manifest.routes.some((r) => r.path === "/page-shell" || r.path === "/blog-post"),
+    false,
+    "a template shell (theme.manifest.templates) must never be enumerated as its own route"
+  );
+  assert.equal(
+    manifest.routes.some((r) => r.path === "/index" || r.path === "/404"),
+    false,
+    "'index' is home ('/') and '404' is the not-found probe — neither is its own route"
+  );
+});
+
+test("buildRouteManifest: a post that overridesThemePage wins over the theme's same-slug static page", async () => {
+  const base = createRouteDeps();
+  const overridingPost = {
+    id: "post-override-test",
+    workspaceId: base.workspaceId,
+    title: "Custom Pricing",
+    slug: "pricing", // collides with basic theme's pages/pricing.html
+    bodyJson: { type: "doc", content: [] },
+    status: "published" as const,
+    kind: "post" as const,
+    bodyFormat: "doc" as const,
+    bodyHtml: null,
+    updatedAt: new Date().toISOString(),
+    version: 1,
+    overridesThemePage: true,
+  };
+  const postRepo = new InMemoryPostRepo([overridingPost]);
+  const manifest = await buildRouteManifest(baseDeps({ postRepo }));
+
+  const pricingRoutes = manifest.routes.filter((r) => r.path === "/pricing");
+  assert.equal(pricingRoutes.length, 1, "exactly one route at the shared slug, never two");
+  assert.equal(pricingRoutes[0]?.kind, "post");
+});
+
+test("buildRouteManifest: enumerates products only when the storefront actually has any", async () => {
+  const withoutStore = await buildRouteManifest(baseDeps());
+  assert.equal(
+    withoutStore.routes.some((r) => r.kind === "product-list" || r.kind === "product"),
+    false,
+    "no store/commerce wired in the base fixture — no product routes should appear"
+  );
+
+  const store = {
+    listProducts: () => [{ id: "mug-01", title: "Mug", price: 1200, stock: 5, version: 1 }],
+    checkout: () => ({ ok: false as const, reason: "not-found" as const, retries: 0 }),
+  };
+  const withStore = await buildRouteManifest(baseDeps({ store }));
+  assert.ok(withStore.routes.find((r) => r.path === "/products" && r.kind === "product-list"));
+  assert.ok(withStore.routes.find((r) => r.path === "/products/mug-01" && r.kind === "product"));
+});
+
+test("buildRouteManifest: an exact-match active redirect is enumerated; a prefix rule is reported as skipped, not silently dropped", async () => {
+  const now = new Date().toISOString();
+  const exactRule: RedirectRecord = {
+    id: "redir-exact",
+    workspaceId: "workspace-local",
+    matchType: "exact",
+    fromPattern: "/old-page",
+    toTarget: "/welcome",
+    statusCode: 301,
+    status: "active",
+    override: false,
+    priority: 0,
+    source: "manual",
+    createdByPrincipal: "system",
+    createdAt: now,
+    updatedAt: now,
+    version: 1,
+  };
+  const prefixRule: RedirectRecord = { ...exactRule, id: "redir-prefix", matchType: "prefix", fromPattern: "/old" };
+  const redirectRepo = new InMemoryRedirectRepo([exactRule, prefixRule]);
+
+  const manifest = await buildRouteManifest(baseDeps({ redirectRepo }));
+
+  const exact = manifest.routes.find((r) => r.path === "/old-page");
+  assert.ok(exact, "expected the exact-match redirect to be enumerated as a route");
+  assert.equal(exact?.kind, "redirect");
+  assert.equal(exact?.redirectTarget, "/welcome");
+  assert.equal(exact?.redirectStatusCode, 301);
+
+  assert.equal(
+    manifest.routes.some((r) => r.path === "/old"),
+    false,
+    "a prefix rule matches a family of paths and must not appear as one route"
+  );
+  assert.ok(
+    manifest.skipped.some((s) => s.reason === "non-exact-redirect" && s.detail.includes("/old")),
+    "the prefix rule must be named in `skipped`, never silently absent from the report"
+  );
+});
+
+test("buildRouteManifest: the not-found probe path never collides with a real enumerated route", async () => {
+  const manifest = await buildRouteManifest(baseDeps());
+  const probe = manifest.routes.find((r) => r.kind === "not-found");
+  assert.ok(probe, "expected a not-found probe route");
+
+  const realPaths = manifest.routes.filter((r) => r.kind !== "not-found").map((r) => r.path);
+  assert.equal(realPaths.includes(probe?.path ?? ""), false);
+});
