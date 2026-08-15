@@ -5,6 +5,10 @@ import { dirname, join, resolve } from "node:path";
 import { InMemoryEventBus } from "../core/events";
 import { backfillPostSearchIndex, SqlitePostRepo, SqlitePostSearchIndex, createPostRevertRegistry } from "../features/post";
 import { SqliteDeploymentsReadRepo } from "../features/deployments";
+// Safe here (this composition root is never reachable FROM `assistant/tool-registrations.ts` — see
+// `routes/types.ts`'s `runExportSite` doc for why the same import is UNSAFE inside
+// `features/deployments/export-run.ts`, which IS reachable from there).
+import { exportSite } from "../export/index";
 import { PagesHtmlDocumentStore } from "../features/pages";
 import { createChatStoreFactory, ensurePublicAssistantSettingDefinitions, ensureExecutionSettingDefinitions } from "../assistant";
 import { SqlitePresentationSettingsRepo } from "../features/presentation";
@@ -790,6 +794,11 @@ export function createSqliteRouteDeps(
     // 2026-08-15 — read-only wiring onto migration 0037's tables, previously applied with zero
     // callers on either end. See `routes/types.ts`'s `deploymentsReadRepo` doc.
     deploymentsReadRepo: new SqliteDeploymentsReadRepo(db),
+    // 2026-08-15 — the real export engine, bound here rather than imported inside
+    // `features/deployments/export-run.ts`/`export-site.ts` — see `routes/types.ts`'s
+    // `runExportSite` doc for why that indirection is required, not stylistic (a real circular-load
+    // crash, not a style preference).
+    runExportSite: exportSite,
   };
 }
 

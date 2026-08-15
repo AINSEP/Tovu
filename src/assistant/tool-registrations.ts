@@ -177,11 +177,6 @@ import {
 export type AssistantToolRegistryDeps = CommentsToolDeps &
   ContentTypesToolDeps &
   DatabaseToolDeps &
-  // `DeploymentsToolDeps` is the one exception to every other member of this intersection: its own
-  // file header discloses that it cannot be a narrow structural slice (`deployment_trigger_export`
-  // needs the full composition-root deps bag to boot an in-process copy of the app), so intersecting
-  // it here is what actually makes `deployment_trigger_export` callable at all — every real caller
-  // already passes an object satisfying it, since it is (structurally) `RouteDeps` itself.
   DeploymentsToolDeps &
   EntriesToolDeps &
   PluginsToolDeps &

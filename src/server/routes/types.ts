@@ -93,6 +93,7 @@ import type { EntryRefsRepoPort } from "../../core/entry-refs/ports";
 import type { PluginActivationRepoPort } from "../../features/plugin-runtime/activation";
 import type { PluginDiscoveryRecord } from "../../features/plugin-runtime/discovery";
 import type { DeploymentsReadRepoPort } from "../../features/deployments";
+import type { ExportEngine } from "../../features/deployments/export-run";
 
 export interface RouteDeps {
   workspaceId: UUID;
@@ -614,6 +615,24 @@ export interface RouteDeps {
    * No write methods on the port yet — see `features/deployments/index.ts`'s header for why.
    */
   deploymentsReadRepo: DeploymentsReadRepoPort;
+  /**
+   * The static-site export engine (`src/export/site-exporter.ts`'s `exportSite`), injected here
+   * rather than imported directly by `export-site.ts` or `features/deployments/export-run.ts`
+   * (shared by that route AND the `deployment_trigger_export` agent tool). This indirection is
+   * REQUIRED, not stylistic: `site-exporter.ts` imports `createApp` from THIS file's own
+   * `server/app.ts`, and `server/app.ts`'s eager `export const app = createApp();` runs the whole
+   * app-boot graph (including `buildAssistantToolRegistrations`, via the BYOK execution mode) as a
+   * side effect of loading `server/app.ts` — an eager import of `exportSite` inside
+   * `features/deployments/export-run.ts` closed a real cycle back into the still-loading
+   * `assistant/tool-registrations.ts` and crashed with `ReferenceError: Cannot access
+   * 'DOMAIN_SLICES' before initialization` (see `export-run.ts`'s file header for the full trace).
+   * Always the real `exportSite` in both `server/app.ts`'s `createRouteDeps()` and
+   * `server/deps.ts`'s `createSqliteRouteDeps()` — the two places safe to import
+   * `#src/export/index` directly, since neither is reachable from `assistant/tool-registrations.ts`.
+   * Typed structurally via `ExportEngine`, imported `type`-only (erased, zero runtime edge) so this
+   * field costs this file nothing even though `export-run.ts` sits under `features/`.
+   */
+  runExportSite: ExportEngine<RouteDeps>;
 }
 
 export type RouteRegistrar = (app: Express, deps: RouteDeps) => void;

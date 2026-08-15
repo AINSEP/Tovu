@@ -119,7 +119,7 @@ export function registerAdminExportSiteRoutes(app: Express, deps: AdminExportSit
       return;
     }
 
-    const snapshot = startExportRun(deps, { clean: parsedBody.clean, basePath: parsedBody.basePath });
+    const snapshot = startExportRun(deps, deps.runExportSite, { clean: parsedBody.clean, basePath: parsedBody.basePath });
     res.status(202).json(snapshot);
   });
 
