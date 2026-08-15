@@ -166,6 +166,49 @@ describe("StaticSiteTab — build export action", () => {
     });
     expect(screen.getByRole("alert")).toHaveTextContent("output directory is not empty");
   });
+
+  it("names each failed route and asset with its own reason, not just the aggregate count", () => {
+    renderTab({
+      exportController: {
+        run: {
+          status: "completed",
+          startedAtIso: "t0",
+          finishedAtIso: "t1",
+          outputDir: "/infra/export",
+          ok: false,
+          counts: { routesSucceeded: 26, routesFailed: 1, assetsSucceeded: 7, assetsFailed: 1 },
+          failedRoutes: [{ path: "/products/broken", kind: "product", reason: "template threw" }],
+          failedAssets: [{ url: "/theme/missing.png", reason: "404 from origin" }],
+        },
+      },
+    });
+    expect(screen.getByText("/products/broken")).toBeInTheDocument();
+    expect(screen.getByText(/template threw/)).toBeInTheDocument();
+    expect(screen.getByText("/theme/missing.png")).toBeInTheDocument();
+    expect(screen.getByText(/404 from origin/)).toBeInTheDocument();
+  });
+
+  it("shows no failure lists at all for a clean, fully-successful run", () => {
+    renderTab({
+      exportController: {
+        run: {
+          status: "completed",
+          startedAtIso: "t0",
+          finishedAtIso: "t1",
+          outputDir: "/infra/export",
+          ok: true,
+          counts: { routesSucceeded: 27, routesFailed: 0, assetsSucceeded: 8, assetsFailed: 0 },
+        },
+      },
+    });
+    expect(screen.queryByText("Failed routes")).not.toBeInTheDocument();
+    expect(screen.queryByText("Failed assets")).not.toBeInTheDocument();
+  });
+
+  it("surfaces a failed initial status load distinctly from a trigger error", () => {
+    renderTab({ exportController: { loadError: "could not reach the server" } });
+    expect(screen.getByText("could not reach the server")).toBeInTheDocument();
+  });
 });
 
 describe("StaticSiteTab — provider picker splits GitHub Pages and Vercel", () => {
@@ -255,6 +298,53 @@ describe("StaticSiteTab — real CLI detection, no more 'can't tell' placeholder
       },
     });
     expect(screen.getByText("Not detected on this server")).toBeInTheDocument();
+  });
+
+  it("only-gh installed: GitHub Pages (the default target) reads Detected, with no vercel row anywhere to contradict it", () => {
+    renderTab({
+      overviewController: {
+        snapshot: {
+          mode: "local",
+          productionReadinessGate: { applicable: false, passed: false },
+          defaultOwnerPasswordUnsafe: false,
+          daemonKnownFailed: false,
+          dbPath: "infra/content.db",
+          uploadsDir: "infra/uploads",
+          envVars: [],
+          deployClis: [
+            { name: "gh", installed: true },
+            { name: "vercel", installed: false },
+          ],
+        },
+      },
+    });
+    expect(screen.getByText("gh")).toBeInTheDocument();
+    expect(screen.getByText("Detected on this server")).toBeInTheDocument();
+    expect(screen.queryByText("vercel")).not.toBeInTheDocument();
+  });
+
+  it("only-vercel installed: switching the picker to Vercel reads Detected, with no gh row left over from the default GitHub Pages selection", () => {
+    renderTab({
+      publishController: { target: "vercel" },
+      overviewController: {
+        snapshot: {
+          mode: "local",
+          productionReadinessGate: { applicable: false, passed: false },
+          defaultOwnerPasswordUnsafe: false,
+          daemonKnownFailed: false,
+          dbPath: "infra/content.db",
+          uploadsDir: "infra/uploads",
+          envVars: [],
+          deployClis: [
+            { name: "gh", installed: false },
+            { name: "vercel", installed: true },
+          ],
+        },
+      },
+    });
+    expect(screen.getByText("vercel")).toBeInTheDocument();
+    expect(screen.getByText("Detected on this server")).toBeInTheDocument();
+    expect(screen.queryByText("gh")).not.toBeInTheDocument();
   });
 });
 
@@ -410,6 +500,11 @@ describe("StaticSiteTab — preview and publish gating", () => {
     renderTab({ publishController: { target: "vercel", projectName: "my-site", publish } });
     expect(publish).not.toHaveBeenCalled();
   });
+
+  it("surfaces a failed initial publish-status load distinctly from a preview/publish error", () => {
+    renderTab({ publishController: { loadError: "could not reach the server" } });
+    expect(screen.getByText("could not reach the server")).toBeInTheDocument();
+  });
 });
 
 describe("StaticSiteTab — AI agent tagging", () => {
@@ -428,5 +523,11 @@ describe("StaticSiteTab — AI agent tagging", () => {
     expect(document.querySelector('[data-agent-element="deployment-static-site-publish-project-name"]')).toBeInTheDocument();
     expect(document.querySelector('[data-agent-element="deployment-static-site-publish-preview"]')).toBeInTheDocument();
     expect(document.querySelector('[data-agent-element="deployment-static-site-publish-trigger"]')).toBeInTheDocument();
+  });
+
+  it("tags both cards' load-error notices for the AI agent", () => {
+    renderTab({ exportController: { loadError: "x" }, publishController: { loadError: "y" } });
+    expect(document.querySelector('[data-agent-element="deployment-static-site-export-load-error"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-agent-element="deployment-static-site-publish-load-error"]')).toBeInTheDocument();
   });
 });
