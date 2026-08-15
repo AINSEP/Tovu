@@ -1,0 +1,209 @@
+import type { Express } from "express";
+
+import {
+  createEnvPublishCredentialSource,
+  publishStaticSite,
+  validateStaticPublishConfig,
+  type StaticPublishConfig,
+  type StaticPublishOutcome,
+} from "#src/features/deployments/static-publish/index";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import type { RouteDeps } from "#src/server/routes/types";
+
+/**
+ * @file Admin Deployment panel → publish-to-GitHub-Pages/Vercel backend.
+ *
+ * Registers TWO routes, deliberately mirroring `./export-site.ts`'s own trigger+status shape
+ * almost exactly (see that file's header for the full reasoning this route inherits): a publish
+ * runs a fresh in-process export (see `static-publish/adapter.ts`'s `publishStaticSite`) and then
+ * blocks on an external provider's own build/deploy pipeline — GitHub Pages' build poll or Vercel's
+ * deployment poll, each up to roughly a minute — so `POST .../system/publish` starts the run and
+ * returns `202` immediately with a snapshot; `GET .../system/publish` polls the same snapshot. A
+ * single process-local mutable slot, same "one workspace per process, one run at a time" reasoning
+ * `export-site.ts`'s own header already documents — this route does NOT share that file's
+ * `currentRun` slot (a plain export and a publish are different operations that may legitimately
+ * need independent status), so it keeps its own.
+ *
+ * `system.publish`-gated for BOTH the trigger and the status poll — deliberately NOT split into a
+ * `system.publish`/`system.read` pair the way `export-site.ts` splits trigger/status. Reasoning: a
+ * completed publish's status snapshot names the exact external `url` this workspace's content is
+ * now live at (`StaticPublishOutcome`'s `url` field) and, on a validation failure, can echo back the
+ * caller-supplied `owner`/`repo`/`teamId`. Export's status is comparatively inert (counts and local
+ * file paths); publish's status is itself operationally sensitive information about a live external
+ * resource, so it gets the stricter, single-permission gate.
+ *
+ * Request body for the trigger: `{ target: "github-pages"|"vercel", projectName: string, owner?,
+ * repo?, branch?, teamId? }`. Every field is validated by `publishStaticSite` itself
+ * (`static-publish/adapter.ts`'s `validateStaticPublishConfig`) — this route's own parsing only
+ * narrows JSON shape (right types, right target-specific fields present), never re-implements that
+ * validation, so there is exactly one place a config is judged valid or not.
+ */
+export type AdminPublishSiteDeps = RouteDeps;
+
+export type PublishRunStatus = "idle" | "running" | "completed" | "errored";
+
+export interface PublishRunSnapshot {
+  status: PublishRunStatus;
+  startedAtIso: string | null;
+  finishedAtIso: string | null;
+  target: StaticPublishConfig["target"] | null;
+  /** Present only once `status` is `"completed"` or `"errored"` — the full `publishStaticSite`
+   *  result (never a thrown error re-surfaced here; `publishStaticSite` itself never throws, see
+   *  that function's own doc). */
+  result?: StaticPublishOutcome;
+  /** Populated only on the rare path where the ROUTE itself failed unexpectedly (never from
+   *  `publishStaticSite`, which reports its own failures inside `result`) — a message, never the raw
+   *  error object, crossing the same HTTP boundary `export-site.ts`'s own `error` field crosses. */
+  error?: string;
+}
+
+const IDLE_RUN: PublishRunSnapshot = { status: "idle", startedAtIso: null, finishedAtIso: null, target: null };
+
+/** Process-local mutable slot — see this file's header for why one slot is correct here, and why it
+ *  is independent of `export-site.ts`'s own `currentRun`. */
+let currentRun: PublishRunSnapshot = IDLE_RUN;
+
+/** The one `PublishCredentialSource` this pass wires — see `static-publish/credentials.ts`'s own
+ *  header for why an env-var source, not yet the encrypted secret store. Constructed once, module
+ *  scope: it is stateless (reads `process.env` fresh on every `resolve()` call) so there is no
+ *  staleness risk in holding one instance for the process lifetime. */
+const credentialSource = createEnvPublishCredentialSource();
+
+/**
+ * Parses and shape-validates the trigger request body. Never throws — every malformed shape maps to
+ * a `{ok:false, error}` result this route turns into a `400`, matching `export-site.ts`'s own
+ * `parseTriggerRequestBody` discipline. Field-level VALUE validation (a bad owner/repo/branch
+ * pattern) is deliberately NOT duplicated here — that happens exactly once, inside
+ * `publishStaticSite` -> `validateStaticPublishConfig`, so a caller only ever gets one canonical
+ * rejection message for the same bad value.
+ */
+function parsePublishRequestBody(body: unknown): { ok: true; config: StaticPublishConfig; projectName: string } | { ok: false; error: string } {
+  if (typeof body !== "object" || body === null || Array.isArray(body)) {
+    return { ok: false, error: "request body must be a JSON object" };
+  }
+  const raw = body as Record<string, unknown>;
+
+  if (typeof raw.projectName !== "string" || raw.projectName.trim() === "") {
+    return { ok: false, error: "'projectName' (non-empty string) is required" };
+  }
+
+  if (raw.target === "github-pages") {
+    if (typeof raw.owner !== "string" || raw.owner.trim() === "") return { ok: false, error: "'owner' (non-empty string) is required for target 'github-pages'" };
+    if (typeof raw.repo !== "string" || raw.repo.trim() === "") return { ok: false, error: "'repo' (non-empty string) is required for target 'github-pages'" };
+    if (raw.branch !== undefined && typeof raw.branch !== "string") return { ok: false, error: "'branch' must be a string" };
+    return {
+      ok: true,
+      config: { target: "github-pages", owner: raw.owner, repo: raw.repo, ...(typeof raw.branch === "string" ? { branch: raw.branch } : {}) },
+      projectName: raw.projectName,
+    };
+  }
+  if (raw.target === "vercel") {
+    if (raw.teamId !== undefined && typeof raw.teamId !== "string") return { ok: false, error: "'teamId' must be a string" };
+    return {
+      ok: true,
+      config: { target: "vercel", ...(typeof raw.teamId === "string" ? { teamId: raw.teamId } : {}) },
+      projectName: raw.projectName,
+    };
+  }
+  return { ok: false, error: "'target' must be 'github-pages' or 'vercel'" };
+}
+
+export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishSiteDeps): void {
+  app.post("/api/admin/v1/workspaces/:workspaceId/system/publish", async (req, res) => {
+    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
+      res.status(404).json({ error: "workspace was not found" });
+      return;
+    }
+
+    const principal = getAuthedPrincipal(res);
+    const authResult = await deps.authorize({
+      principalId: principal.id,
+      permission: "system.publish",
+      workspaceId: deps.workspaceId,
+      entityType: "site-publish",
+    });
+    if (!authResult.allowed) {
+      res.status(403).json({
+        error: `principal '${principal.id}' is not authorized for 'system.publish' (${authResult.reason})`,
+        code: "FORBIDDEN",
+        details: { permission: "system.publish", reason: authResult.reason },
+      });
+      return;
+    }
+
+    // No `await` between this check and setting `currentRun` below — same single-synchronous-
+    // stretch reasoning `export-site.ts`'s own trigger route documents, so two concurrent POSTs
+    // cannot both observe "idle".
+    if (currentRun.status === "running") {
+      res.status(409).json({ error: "a publish is already running", run: currentRun });
+      return;
+    }
+
+    const parsed = parsePublishRequestBody(req.body);
+    if (!parsed.ok) {
+      res.status(400).json({ error: parsed.error });
+      return;
+    }
+
+    // Fails fast, before flipping `currentRun` to "running" or touching the filesystem/network at
+    // all, on a config `publishStaticSite` would reject anyway — an explicit early validation
+    // pass costs nothing extra here (the same check `publishStaticSite` performs internally) and
+    // means a caller who only sends a malformed config never sees a "running" snapshot at all.
+    const configError = validateStaticPublishConfig(parsed.config);
+    if (configError) {
+      res.status(400).json({ error: configError });
+      return;
+    }
+
+    const startedAtIso = deps.clock.nowIso();
+    currentRun = { status: "running", startedAtIso, finishedAtIso: null, target: parsed.config.target };
+
+    // Deliberately not awaited — see this file's header for why the response returns before the
+    // publish finishes. Both branches always update `currentRun`, so a poller can never observe a
+    // stale "running" snapshot after the promise has actually settled. `publishStaticSite` itself
+    // never throws (its own doc), so the `.catch` below only guards against a truly unexpected
+    // failure in this route's own glue code, not a normal publish failure (those arrive as
+    // `result.ok === false` inside the resolved value, same shape as `export-site.ts`'s own
+    // `ok`/`failedRoutes` split).
+    void publishStaticSite({ credentialSource }, { workspaceId: deps.workspaceId, routeDeps: deps, config: parsed.config, projectName: parsed.projectName })
+      .then((result) => {
+        currentRun = { status: result.ok ? "completed" : "errored", startedAtIso, finishedAtIso: deps.clock.nowIso(), target: parsed.config.target, result };
+      })
+      .catch((err: unknown) => {
+        currentRun = {
+          status: "errored",
+          startedAtIso,
+          finishedAtIso: deps.clock.nowIso(),
+          target: parsed.config.target,
+          error: err instanceof Error ? err.message : String(err),
+        };
+      });
+
+    res.status(202).json(currentRun);
+  });
+
+  app.get("/api/admin/v1/workspaces/:workspaceId/system/publish", async (req, res) => {
+    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
+      res.status(404).json({ error: "workspace was not found" });
+      return;
+    }
+
+    const principal = getAuthedPrincipal(res);
+    const authResult = await deps.authorize({
+      principalId: principal.id,
+      permission: "system.publish",
+      workspaceId: deps.workspaceId,
+      entityType: "site-publish",
+    });
+    if (!authResult.allowed) {
+      res.status(403).json({
+        error: `principal '${principal.id}' is not authorized for 'system.publish' (${authResult.reason})`,
+        code: "FORBIDDEN",
+        details: { permission: "system.publish", reason: authResult.reason },
+      });
+      return;
+    }
+
+    res.status(200).json(currentRun);
+  });
+}
