@@ -1,5 +1,5 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { resetSettingsRefreshBus } from "../../lib/settings-refresh-bus";
 import { createFakeAdminLocalePort, DEFAULT_LOCALE } from "../admin-locale-dependencies.hooks";
@@ -53,6 +53,25 @@ describe("useAdminLocale — refresh on a relevant settings-refresh notification
 
     act(() => port.publishLocaleChange("de"));
     await waitFor(() => expect(result.current).toBe("de"));
+  });
+
+  // Replaces a deleted vacuous test that asserted only `not.toThrow()` on the publish call, which
+  // passed identically whether or not the effect's `unsubscribe()` ran — a stray setState on an
+  // unmounted instance surfaces as an act warning, never a throw. This one observes the hook's own
+  // cleanup instead: the listener the hook subscribes calls `port.loadLanguage()`, so if unsubscribe
+  // never ran, a post-unmount refresh would call `loadLanguage()` again and the spy's count would
+  // grow. No production or fake changes — `vi.spyOn` wraps the fake's own method for this test only.
+  it("stops calling the port's loadLanguage after unmount — proves the hook's own cleanup actually unsubscribes", async () => {
+    const port = createFakeAdminLocalePort({ initialLocale: "en" });
+    const loadLanguageSpy = vi.spyOn(port, "loadLanguage");
+    const { result, unmount } = renderHook(() => useAdminLocale(port));
+    await waitFor(() => expect(result.current).toBe("en"));
+    const callsBeforeUnmount = loadLanguageSpy.mock.calls.length;
+
+    unmount();
+    act(() => port.publishLocaleChange("de"));
+
+    expect(loadLanguageSpy.mock.calls.length).toBe(callsBeforeUnmount);
   });
 });
 
