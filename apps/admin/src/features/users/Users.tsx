@@ -4,6 +4,7 @@ import { RowMenu, ConfirmDialog } from "@jini-ai/admin/react";
 
 import { formatGrantLabel, userRowMenuItems } from "./rules";
 import { useWiredUsers } from "./hooks/use-users.hooks";
+import { useResetPasswordFields } from "./hooks/use-reset-password-fields.hooks";
 
 /**
  * @file Admin "Users" screen (SPEC-006 §3 human grant-writing transitions + 0.6.0 CRUD-completion
@@ -41,6 +42,17 @@ import { useWiredUsers } from "./hooks/use-users.hooks";
  * didn't already support — see `__tests__/Users.unit.test.tsx`/`Users.crud.unit.test.tsx` for the
  * full-render tests these were extracted underneath (unchanged), plus new
  * `__tests__/users-components.unit.test.tsx` for direct component-level tests of each piece.
+ *
+ * Reset-password confirm + reveal (typo-catching pass): `UserResetPasswordDialog` gained a second
+ * field ("Confirm new password") and an independent show/hide toggle per field, both driven by the
+ * new `hooks/use-reset-password-fields.hooks.ts` (confirm-field state and both reveal flags are
+ * purely local/ephemeral — never sent to the server, so they don't belong in `use-users.hooks.ts`'s
+ * screen-wide `UsersController`). The confirm-vs-server-error display conflict is resolved by giving
+ * the two states one shared slot with a fixed precedence — a live mismatch always wins over a stale
+ * `passwordError` from a previous attempt — rather than trying to show both at once or inventing a
+ * second error line; see `UserResetPasswordDialog`'s own body for the exact ternary. `RevealablePasswordField`
+ * is the shared field+toggle shape both new inputs use, following this file's own `GrantSelect`
+ * precedent for a shape used twice.
  */
 export interface UsersProps {
   /**
@@ -404,6 +416,82 @@ function UserDisableDialog({ confirmingDisable, setConfirmingDisable, toggleSavi
   );
 }
 
+/** Open-eye glyph — "reveal" state of a `RevealablePasswordField`'s toggle. Sized like `ChatFab`'s
+ *  own inline stroke icons (`fill="none"`, `stroke="currentColor"`), scaled down to fit a field-row
+ *  button rather than a floating action button. */
+function EyeIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path
+        d="M1.5 10S4.7 4.5 10 4.5 18.5 10 18.5 10 15.3 15.5 10 15.5 1.5 10 1.5 10Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <circle cx="10" cy="10" r="2.25" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  );
+}
+
+/** Same glyph with a slash through it — "hidden" state of a `RevealablePasswordField`'s toggle. */
+function EyeOffIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <path
+        d="M1.5 10S4.7 4.5 10 4.5 18.5 10 18.5 10 15.3 15.5 10 15.5 1.5 10 1.5 10Z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinejoin="round"
+      />
+      <circle cx="10" cy="10" r="2.25" stroke="currentColor" strokeWidth="1.5" />
+      <path d="M3 3 17 17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+interface RevealablePasswordFieldProps {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  visible: boolean;
+  onToggleVisible: () => void;
+  t: (key: string) => string;
+}
+
+/** One password input plus its own independent show/hide toggle. `UserResetPasswordDialog` renders
+ *  this twice (new password, confirm new password) so each field can be revealed on its own — the
+ *  whole point of the confirm field is catching a typo by eye, which a single toggle driving both
+ *  fields would not let the operator do selectively. Follows this file's `GrantSelect` precedent: a
+ *  shape used by more than one caller gets its own top-level function instead of staying inline
+ *  twice.
+ *
+ *  The input's inline `flex`/`minWidth` override neutralizes `styles.css`'s `.field input { width:
+ *  100% }` fighting the toggle button for room inside the `.editor-actions` row below — an inline
+ *  style wins on specificity without adding a new class to a stylesheet this feature doesn't own. */
+function RevealablePasswordField({ id, label, value, onChange, visible, onToggleVisible, t }: RevealablePasswordFieldProps) {
+  const toggleLabel = visible ? t("Hide password") : t("Show password");
+  return (
+    <div className="field">
+      <label className="field-label" htmlFor={id}>
+        {label}
+      </label>
+      <span className="editor-actions">
+        <input
+          id={id}
+          type={visible ? "text" : "password"}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          style={{ flex: "1 1 auto", minWidth: 0 }}
+        />
+        <button type="button" className="link-button" aria-label={toggleLabel} title={toggleLabel} onClick={onToggleVisible}>
+          {visible ? <EyeOffIcon /> : <EyeIcon />}
+        </button>
+      </span>
+    </div>
+  );
+}
+
 interface UserResetPasswordDialogProps {
   resetPasswordFor: AdminIdentityUser | null;
   setResetPasswordFor: Dispatch<SetStateAction<AdminIdentityUser | null>>;
@@ -414,9 +502,25 @@ interface UserResetPasswordDialogProps {
   passwordSaving: boolean;
   confirmResetPassword: () => Promise<void>;
   t: (key: string) => string;
+  /** Injectable seam for the confirm-field + reveal-toggle state — same convention
+   *  `ComposioKeyField.tsx`'s `useKeyField` prop uses. Defaults to the real
+   *  {@link useResetPasswordFields}. */
+  useFields?: typeof useResetPasswordFields;
 }
 
-/** The reset-password dialog — extracted from `Users` verbatim. */
+/** Resolves `useFields` to the real hook when no override is passed — same pattern
+ *  `ComposioKeyField.tsx`'s `resolveKeyFieldHook` uses, and for the same reason: ESLint's
+ *  cyclomatic-complexity rule counts a default parameter value evaluated inside a function's OWN
+ *  body as one of that function's own branches; a call out to a separately-scoped resolver does
+ *  not. */
+function resolveResetPasswordFieldsHook(
+  override: typeof useResetPasswordFields | undefined,
+): typeof useResetPasswordFields {
+  return override ?? useResetPasswordFields;
+}
+
+/** The reset-password dialog — extracted from `Users` verbatim, since extended with the confirm
+ *  field and both reveal toggles (see this file's header). */
 function UserResetPasswordDialog({
   resetPasswordFor,
   setResetPasswordFor,
@@ -427,7 +531,20 @@ function UserResetPasswordDialog({
   passwordSaving,
   confirmResetPassword,
   t,
+  useFields: useFieldsProp,
 }: UserResetPasswordDialogProps) {
+  const useFields = resolveResetPasswordFieldsHook(useFieldsProp);
+  const fields = useFields({ resetPasswordFor, newPassword });
+
+  /** Blocks the reset entirely when the two fields disagree — a mismatch never reaches
+   *  `confirmResetPassword`/the server. The inline message below is driven by the same `mismatch`
+   *  value, so it is already visible by the time a blocked click can happen; there is nothing
+   *  further to surface here. */
+  function handleConfirm() {
+    if (fields.mismatch) return;
+    void confirmResetPassword();
+  }
+
   return (
     <ConfirmDialog
       open={resetPasswordFor !== null}
@@ -439,18 +556,33 @@ function UserResetPasswordDialog({
               {t("Set a new password for")} &quot;{resetPasswordFor.username}&quot;.{" "}
               {t("Every active session for this user will be signed out.")}
             </p>
-            <div className="field">
-              <label className="field-label" htmlFor="users-reset-password-input">
-                {t("New password")}
-              </label>
-              <input
-                id="users-reset-password-input"
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-              />
-            </div>
-            {passwordError ? (
+            <RevealablePasswordField
+              id="users-reset-password-input"
+              label={t("New password")}
+              value={newPassword}
+              onChange={setNewPassword}
+              visible={fields.showNewPassword}
+              onToggleVisible={fields.toggleShowNewPassword}
+              t={t}
+            />
+            <RevealablePasswordField
+              id="users-reset-password-confirm-input"
+              label={t("Confirm new password")}
+              value={fields.confirmPassword}
+              onChange={fields.setConfirmPassword}
+              visible={fields.showConfirmPassword}
+              onToggleVisible={fields.toggleShowConfirmPassword}
+              t={t}
+            />
+            {/* One shared slot, fixed precedence: a live mismatch always wins over a stale
+                `passwordError` left over from a previous failed attempt, so the two can never be
+                shown — or appear to conflict — at the same time. Once the fields agree again, the
+                stale server error (if any) reappears until the next submit or Cancel clears it. */}
+            {fields.mismatch ? (
+              <p className="save-error" role="alert">
+                {t("Passwords do not match.")}
+              </p>
+            ) : passwordError ? (
               <p className="save-error" role="alert">
                 {passwordError}
               </p>
@@ -461,7 +593,7 @@ function UserResetPasswordDialog({
       confirmLabel={t("Reset password")}
       tone="warning"
       pending={passwordSaving}
-      onConfirm={confirmResetPassword}
+      onConfirm={handleConfirm}
       onCancel={() => {
         setResetPasswordFor(null);
         setNewPassword("");

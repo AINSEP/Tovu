@@ -1107,6 +1107,15 @@ const USERS_DICT: Record<string, Record<string, string>> = {
 
 export const t = createDictionaryTranslator(USERS_DICT);
 
+// `UserResetPasswordDialog`'s confirm-field + reveal-toggle copy ("Confirm new password",
+// "Show password", "Hide password", "Passwords do not match.") is intentionally NOT added to
+// `USERS_DICT` above — every call site still routes through `t(...)` (`createDictionaryTranslator`'s
+// `featureDict[locale]?.[key] ?? COMMON_I18N[locale]?.[key] ?? key` contract), so a missing entry
+// falls back to the English key itself rather than a raw un-translated literal or a dictionary-miss
+// placeholder. Same shape as the "Hook-level notice/error strings" note above for strings that
+// landed English-only in a prior pass — a follow-up localization pass can backfill these four across
+// the other sixteen locales without changing any call site.
+
 const PASSWORD_RESET_NOTICE_TEMPLATE: Record<string, string> = {
   en: 'Password reset for "{username}" — every active session for this user was revoked.',
   es: 'Se restableció la contraseña de "{username}" — se revocó toda sesión activa de este usuario.',
