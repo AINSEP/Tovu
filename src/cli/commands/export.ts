@@ -28,6 +28,9 @@ export interface RunExportCommandInput {
   out?: string;
   workspaceId?: string;
   clean?: boolean;
+  /** Passed straight through to `exportSite`'s own option of the same name — see that option's doc
+   *  (`site-exporter.ts`) for exactly what gets rewritten and what a base path must look like. */
+  basePath?: string;
 }
 
 /**
@@ -71,11 +74,17 @@ function printExportReport(report: ExportReport): void {
       process.stderr.write(`  - ${file}\n`);
     }
   }
+  if (report.basePath) {
+    process.stdout.write(`tovu export: rewrote root-relative links/assets for base path '${report.basePath}'\n`);
+  }
+  if (report.basePathRewriteWarning) {
+    process.stderr.write(`tovu export: warning: ${report.basePathRewriteWarning}\n`);
+  }
 }
 
 /**
- * Run `tovu export <dir> [--out] [--workspace] [--clean]`: validate/migrate/stamp the install dir
- * exactly like `serve` does, then export its public site to a folder of static files.
+ * Run `tovu export <dir> [--out] [--workspace] [--clean] [--base-path]`: validate/migrate/stamp the
+ * install dir exactly like `serve` does, then export its public site to a folder of static files.
  *
  * @throws whatever `bootSiteDir` throws (`SiteDirInvalidError`, `SiteNewerThanRuntimeError`,
  *   `SiteCorruptError`), `ExportOutputNotEmptyError` (non-empty `--out` without `--clean`), or
@@ -96,7 +105,7 @@ export async function runExportCommand(input: RunExportCommandInput): Promise<vo
   });
 
   try {
-    const report = await exportSite({ routeDeps, outputDir, clean: input.clean ?? false });
+    const report = await exportSite({ routeDeps, outputDir, clean: input.clean ?? false, basePath: input.basePath });
     printExportReport(report);
     if (report.routes.failed.length > 0) {
       throw new ExportIncompleteError(
