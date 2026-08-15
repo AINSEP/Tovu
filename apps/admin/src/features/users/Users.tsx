@@ -416,35 +416,27 @@ function UserDisableDialog({ confirmingDisable, setConfirmingDisable, toggleSavi
   );
 }
 
-/** Open-eye glyph — "reveal" state of a `RevealablePasswordField`'s toggle. Sized like `ChatFab`'s
- *  own inline stroke icons (`fill="none"`, `stroke="currentColor"`), scaled down to fit a field-row
- *  button rather than a floating action button. */
+/** Open-eye glyph — standard "reveal" affordance, shown while a `RevealablePasswordField` is
+ *  hidden (click to show). House stroke-icon convention (`viewBox="0 0 18 18"`, `fill="none"`,
+ *  `stroke="currentColor"`, `strokeWidth={1.5}`, `aria-hidden`) — same shape `Media.tsx`'s
+ *  `PlaceholderIcon`/`ExpandIcon`/`CloseIcon` and `nav.ts`'s panel icons use throughout this app. */
 function EyeIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-      <path
-        d="M1.5 10S4.7 4.5 10 4.5 18.5 10 18.5 10 15.3 15.5 10 15.5 1.5 10 1.5 10Z"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinejoin="round"
-      />
-      <circle cx="10" cy="10" r="2.25" stroke="currentColor" strokeWidth="1.5" />
+    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+      <path d="M1.5 9S4.5 4 9 4s7.5 5 7.5 5-3 5-7.5 5-7.5-5-7.5-5Z" strokeLinejoin="round" />
+      <circle cx="9" cy="9" r="2" />
     </svg>
   );
 }
 
-/** Same glyph with a slash through it — "hidden" state of a `RevealablePasswordField`'s toggle. */
+/** Same glyph with a slash through it — standard "hide" affordance, shown while the field is
+ *  currently revealed (click to hide). */
 function EyeOffIcon() {
   return (
-    <svg width="16" height="16" viewBox="0 0 20 20" fill="none" aria-hidden="true">
-      <path
-        d="M1.5 10S4.7 4.5 10 4.5 18.5 10 18.5 10 15.3 15.5 10 15.5 1.5 10 1.5 10Z"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinejoin="round"
-      />
-      <circle cx="10" cy="10" r="2.25" stroke="currentColor" strokeWidth="1.5" />
-      <path d="M3 3 17 17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth={1.5} aria-hidden="true">
+      <path d="M1.5 9S4.5 4 9 4s7.5 5 7.5 5-3 5-7.5 5-7.5-5-7.5-5Z" strokeLinejoin="round" />
+      <circle cx="9" cy="9" r="2" />
+      <path d="M3 3 15 15" strokeLinecap="round" />
     </svg>
   );
 }
@@ -466,6 +458,11 @@ interface RevealablePasswordFieldProps {
  *  shape used by more than one caller gets its own top-level function instead of staying inline
  *  twice.
  *
+ *  The toggle itself is icon-only (standard eye / eye-with-slash convention, per owner request —
+ *  not a text "Show"/"Hide" link): the accessible name still flips between "Show password"/"Hide
+ *  password" via `aria-label` (screen reader), and `aria-pressed` mirrors `visible` so assistive
+ *  tech gets the same on/off signal a text label would have given.
+ *
  *  The input's inline `flex`/`minWidth` override neutralizes `styles.css`'s `.field input { width:
  *  100% }` fighting the toggle button for room inside the `.editor-actions` row below — an inline
  *  style wins on specificity without adding a new class to a stylesheet this feature doesn't own. */
@@ -484,8 +481,15 @@ function RevealablePasswordField({ id, label, value, onChange, visible, onToggle
           onChange={(e) => onChange(e.target.value)}
           style={{ flex: "1 1 auto", minWidth: 0 }}
         />
-        <button type="button" className="link-button" aria-label={toggleLabel} title={toggleLabel} onClick={onToggleVisible}>
-          {visible ? <EyeOffIcon /> : <EyeIcon />}
+        <button
+          type="button"
+          className="link-button"
+          aria-label={toggleLabel}
+          aria-pressed={visible}
+          title={toggleLabel}
+          onClick={onToggleVisible}
+        >
+          <span style={{ display: "inline-flex", width: 16, height: 16 }}>{visible ? <EyeOffIcon /> : <EyeIcon />}</span>
         </button>
       </span>
     </div>
