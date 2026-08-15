@@ -124,6 +124,93 @@ export interface AdminDockerfileSource {
   contents: string | null;
 }
 
+/** Mirrors `ExportRunStatus` in `src/server/routes/admin/system/export-site.ts`. */
+export type AdminExportRunStatus = "idle" | "running" | "completed" | "errored";
+
+/** Mirrors `ExportRunSnapshot` in `src/server/routes/admin/system/export-site.ts` — see that
+ *  type's own doc comments for why it is a slim, JSON-safe summary rather than the full
+ *  `ExportReport` (no route/asset bytes ever cross this boundary). */
+export interface AdminExportRunSnapshot {
+  status: AdminExportRunStatus;
+  startedAtIso: string | null;
+  finishedAtIso: string | null;
+  outputDir: string | null;
+  basePath?: string;
+  ok?: boolean;
+  counts?: { routesSucceeded: number; routesFailed: number; assetsSucceeded: number; assetsFailed: number };
+  failedRoutes?: { path: string; kind: string; reason: string }[];
+  failedAssets?: { url: string; reason: string }[];
+  skippedManifestEntries?: { reason: string; detail: string }[];
+  unreferencedThemeFiles?: string[];
+  basePathRewriteWarning?: string;
+  error?: string;
+}
+
+/** Mirrors `features/deployments/types.ts`'s `EnvironmentRecord`. */
+export interface AdminDeploymentEnvironment {
+  workspaceId: string;
+  id: string;
+  name: string;
+  slug: string;
+  isProduction: boolean;
+  createdAtIso: string;
+  version: number;
+}
+
+/** Mirrors `features/deployments/types.ts`'s `DeploymentTargetRecord`. `config` is non-secret
+ *  provider config only (repo owner/name, environment name) — credentials are not stored here and
+ *  never will be reachable through this read-only route. */
+export interface AdminDeploymentTarget {
+  workspaceId: string;
+  id: string;
+  environmentId: string;
+  providerId: string;
+  label: string;
+  config: Record<string, unknown>;
+  enabled: boolean;
+  createdAtIso: string;
+  version: number;
+}
+
+/** Mirrors `features/deployments/types.ts`'s `ReleaseRecord`/`ReleaseSource`. */
+export interface AdminDeploymentRelease {
+  workspaceId: string;
+  id: string;
+  label: string;
+  source: { kind: "git-revision"; repoUrl: string; commitSha: string } | { kind: "external-artifact"; uri: string; checksum?: string };
+  createdByPrincipalId: string;
+  createdAtIso: string;
+  version: number;
+}
+
+/** Mirrors `features/deployments/types.ts`'s `DeploymentRunRecord`. */
+export interface AdminDeploymentRun {
+  workspaceId: string;
+  id: string;
+  providerId: string;
+  targetId: string | null;
+  environmentId: string | null;
+  releaseId: string | null;
+  status: "queued" | "running" | "succeeded" | "failed" | "cancelled";
+  providerRunRef: string | null;
+  reconciliation: "poll" | "callback" | "manual";
+  requestedByPrincipalId: string;
+  requestedAtIso: string;
+  startedAtIso: string | null;
+  finishedAtIso: string | null;
+  errorSummary: string | null;
+  version: number;
+}
+
+/** Mirrors `AdminDeploymentsSnapshot` in `src/server/routes/admin/deployments/list.ts` — the Full
+ *  Site tab's real-state read. */
+export interface AdminDeploymentsSnapshot {
+  environments: AdminDeploymentEnvironment[];
+  targets: AdminDeploymentTarget[];
+  releases: AdminDeploymentRelease[];
+  runs: AdminDeploymentRun[];
+}
+
 /**
  * Whether this workspace has a Composio API key. Mirrors `src/connectors/composio-config-store.ts`'s
  * `ComposioConfigView` and, structurally, `@jini-ai/integrations/composio`'s `PublicComposioConfig`.
@@ -2219,4 +2306,23 @@ export const api = {
    *  generated yet. Read-only — there is no write route. */
   getDockerfileSource: () =>
     request<AdminDockerfileSource>(`/workspaces/${WORKSPACE_ID}/system/dockerfile`),
+
+  // Static Site tab (`src/server/routes/admin/system/export-site.ts`) — trigger + poll, not a
+  // single synchronous call: a real export can take seconds to minutes, so `triggerSiteExport`
+  // returns the moment the run STARTS (202) and a caller polls `getSiteExportStatus` for the
+  // outcome. `system.export`-gated on trigger (writes to disk), `system.read` on the poll.
+  /** Starts a new static-site export. `409` (surfaced as a thrown error by `request`, same as any
+   *  non-2xx) if one is already running — this instance runs at most one export at a time. */
+  triggerSiteExport: (options?: { clean?: boolean; basePath?: string }) =>
+    request<AdminExportRunSnapshot>(`/workspaces/${WORKSPACE_ID}/system/export`, {
+      method: "POST",
+      body: JSON.stringify(options ?? {}),
+    }),
+  /** The current/most recent export run's status — poll this after `triggerSiteExport` until
+   *  `status` is no longer `"running"`. */
+  getSiteExportStatus: () => request<AdminExportRunSnapshot>(`/workspaces/${WORKSPACE_ID}/system/export`),
+
+  /** Full Site tab (`src/server/routes/admin/deployments/list.ts`) — read-only snapshot of the
+   *  `deployments` domain's environments/targets/releases/runs. `deployments.read`-gated. */
+  getDeployments: () => request<AdminDeploymentsSnapshot>(`/workspaces/${WORKSPACE_ID}/deployments`),
 };
