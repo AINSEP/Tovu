@@ -12,7 +12,7 @@
  */
 export interface PostTemplatePort {
   /** Fetches the raw template source at `url` (built by `templateAssetUrl` in
-   *  `PostTemplateModal.tsx`) as plain text. Rejects on a non-OK HTTP response or a network
+   *  `use-post-template-source.hooks.ts`) as plain text. Rejects on a non-OK HTTP response or a network
    *  failure — the caller (`useTemplateSource`) is what turns that into a describable message. */
   fetchTemplateSource(url: string): Promise<string>;
 }
