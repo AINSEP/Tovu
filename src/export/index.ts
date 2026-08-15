@@ -4,3 +4,13 @@
  */
 export type { ManifestRoute, ManifestRouteKind, ManifestSkip, RouteManifest, RouteManifestPort } from "./ports";
 export { buildRouteManifest, createRouteManifestReader, type RouteManifestDeps } from "./route-manifest";
+export {
+  exportSite,
+  ExportOutputNotEmptyError,
+  type ExportSiteOptions,
+  type ExportReport,
+  type ExportedRoute,
+  type FailedRoute,
+  type ExportedAsset,
+  type FailedAsset,
+} from "./site-exporter";
