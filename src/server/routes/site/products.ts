@@ -39,7 +39,10 @@ function resolveActiveTheme(deps: RouteDeps, activeThemeId: string): DiscoveredT
  * for the former, no inventory tracking at all for the latter). The templates already degrade
  * gracefully for both.
  */
-async function resolveStorefrontProducts(deps: RouteDeps): Promise<SiteProduct[]> {
+/** Exported (2026-08-15, static exporter) so `export/route-manifest.ts` enumerates the SAME
+ *  product set `/products`/`/products/:id` actually render — one source of truth for the
+ *  Commerce-vs-sample-store fallback below, rather than a second copy that could drift from it. */
+export async function resolveStorefrontProducts(deps: RouteDeps): Promise<SiteProduct[]> {
   const { commerceProductRepo, commercePriceRepo, workspaceId } = deps;
   if (commerceProductRepo && commercePriceRepo) {
     const products = await commerceProductRepo.listActive({ workspaceId });

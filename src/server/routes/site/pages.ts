@@ -135,7 +135,10 @@ const CACHE_CONTROL_PUBLIC_PAGE = "public, max-age=60, stale-while-revalidate=30
  * state into a bare 500 indistinguishable from a genuine fault. Any OTHER error (a real repo/DB
  * failure) still propagates unchanged — this narrows only the one documented "no row yet" case.
  */
-async function resolveActiveThemeId(deps: RouteDeps): Promise<string> {
+/** Exported (2026-08-15, static exporter) so `export/route-manifest.ts` resolves the SAME active
+ *  theme id this route already renders with — one source of truth for "what theme is live" rather
+ *  than a second copy of the `PresentationSettingsNotFoundError`-swallowing fallback below. */
+export async function resolveActiveThemeId(deps: RouteDeps): Promise<string> {
   try {
     const { settings } = await getPresentationSettings({
       deps: { repo: deps.presentationRepo },
