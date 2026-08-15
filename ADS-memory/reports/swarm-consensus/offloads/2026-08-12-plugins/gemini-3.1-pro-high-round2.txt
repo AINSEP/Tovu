@@ -1,0 +1,26 @@
+ACK_PACKET_RECEIVED CTX-PLUGINS-R2-2026-08-12 -- I received the packet and will work on it.
+
+## Position And Movement
+
+My position has fundamentally shifted in this round given the wiring finding. In Round 1, I advocated for a synthesis of Option A (Grow Tier-1 first) and Option C (Expand the hook surface), relying on the assumption that the single existing Tier-3 hook (`content.entry.beforeSave`, `manifest.ts:125`) functioned as a baseline proof-of-concept. The Coordinator's verification that the `setup()` and hook attachment loop is completely unwired (`loader.ts:147-158`) destroys that assumption. We cannot widen a hook surface that does not functionally exist, nor can we declare Tier-1 growth a safe path when the foundational loop is broken. The actual bottleneck is not trust (as Option B is firmly rejected), nor is it surface—it is functional integrity and recovery.
+
+## Sequencing Verdict
+
+1. **Precondition: Wire the Loop and Fix Recovery (Quarantine).** We cannot proceed with Options A or C until the `loadPlugin()` path is fully wired to attach hooks end-to-end. Concurrently, the Recovery/quarantine workstream must be elevated to priority zero. `EC-10` (`feature.spec.md:233`) demonstrates that a throwing filter blocks all content saves, requiring manual operator intervention. This violates the core promise of ADR-024 ("an update or plugin must never brick your site"). An automated kill-switch for throwing filters must exist before *any* new hooks are added.
+2. **Phase 1: Tier-1 Core Primitives (Option A).** The 60–73% demand vindication for Tier-1 is contingent on core-mediated primitives. However, since snippet injection, mail adapters, and form sinks currently have zero backing infrastructure, this is not a cheap win. It requires building substantial core features first.
+3. **Phase 2: Deliberate Hook Surface Expansion (Option C).** The ecosystem bottleneck is ultimately surface, but expanding it is computationally and architecturally expensive. The per-hook discipline cost dictated by ADR-024 §7 (explicit priority, phase, deterministic order, defined failure) means we cannot rapidly blanket the CMS in hooks. Hook breadth must be demand-driven and rigorously audited for the transport-agnostic ABI freeze, particularly checking the shallow snapshot issue (`hook-registry.ts:165`) and the async type drift (`hook-registry.ts:170`).
+4. **Out: Background/scheduled work.** Background work is strictly out. Tovu's desktop/Electron topology with sleep/catch-up semantics makes cron jobs monumentally complex. Given we cannot yet execute a basic synchronous save hook without risking a bricked site, scheduled work is a distraction.
+
+## Remaining Disagreements
+
+The primary remaining disagreement is the speed at which we can scale "adaptive integration." The belief that expanding the hook catalog (Option C) is a fast way to enable third parties ignores the per-hook discipline cost. Another disagreement is the framing of Option A (Tier-1) as a "declarative" silver bullet; if it requires Tovu to build complex redirect and mail adapters from scratch to hit the 60-73% target, it is an infrastructure project, not just a manifest schema addition.
+
+## Strongest Counter-Argument
+
+The strongest counter-argument against my sequencing is that prioritizing recovery and wiring over surface expansion starves the marketplace of early inventory. A plugin ecosystem lives or dies by its momentum. If we spend the next milestone building quarantine features and fixing a single hook's wiring, we ship nothing new to developers. A proponent of rapid Option C would argue that we should accept the risk of broken saves (`EC-10`) in the short term to quickly build developer interest, deferring recovery mechanics until real Tier-3 plugins start causing operational pain.
+
+## What Would Change My Mind
+
+I would reconsider accelerating Option C (expanding the hook surface) if we can mathematically prove that the `content.entry.beforeSave` hook, once wired, is structurally isolated enough that a failure only fails that specific entry mutation rather than taking down the entire host or workspace. If a cheap, effective safe-mode quarantine can be implemented without a massive architectural refactor, I would accelerate Options A and C. Furthermore, if the remaining Tier-1 primitives (mail, redirect, snippets) are proven to be trivial wrappers over existing ports rather than requiring new backend infrastructure, I would move Option A to run concurrently with the initial wiring fix.
+
+<<SWARM_END>>

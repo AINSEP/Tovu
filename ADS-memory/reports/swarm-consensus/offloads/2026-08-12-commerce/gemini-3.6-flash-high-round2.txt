@@ -1,0 +1,51 @@
+ACK_PACKET_RECEIVED CTX-COMMERCE-R2-2026-08-12 -- I received the packet and will work on it.
+
+## Position And Movement
+
+My position has clarified following the SQLite/MySQL technical corrections: **"JSONB for max flexibility" is partly right on storage, but wrong as a query or data modeling strategy.** 
+
+The correction proves SQLite has native JSONB support via `jsonb()` BLOBs, and MySQL's `JSON` type operates as binary under the hood (`PACKET-R2.md:19-46`). However, the asymmetry remains fundamental: PostgreSQL supports ad-hoc GIN indexing across arbitrary nested keys without declaring paths in advance, whereas MySQL and SQLite require pre-declared generated/expression columns (`PACKET-R2.md:44-55`). 
+
+Therefore, leaning on JSON for "query flexibility" across all three engines is a trap. I stand by a **relational core with opaque JSON document fields**, while updating physical storage details to reflect SQLite BLOB and Postgres JSONB semantics.
+
+## The JSONB Verdict
+
+To answer the owner directly: **The owner's instinct is partly right on storage efficiency, but wrong on query flexibility.**
+
+- **Where it is right:** Storing documents in binary JSON format (`JSONB` in Postgres, `JSON` in MySQL, `jsonb()` inside `BLOB` in SQLite) avoids runtime re-parsing overhead for reads (`PACKET-R2.md:22-45`).
+- **Where it is wrong:** JSONB does **not** provide cross-dialect query flexibility. If Tovu relies on arbitrary JSON path queries across dialects, it breaks on SQLite/MySQL unless every searchable key is extracted into an expression index up front (`PACKET-R2.md:53-56`). That is structurally identical to creating a relational column.
+
+## The Column-vs-Document Rule
+
+**Review-Time Rule:**
+> *“A data element MUST be a relational column if it is used in a `WHERE` predicate, `JOIN` condition, `ORDER BY` clause, `GROUP BY` grouping, `UNIQUE` constraint, or tenant isolation check (`workspace_id`). A data element MUST be a JSON document field ONLY if it is an opaque event payload, unindexed audit blob, external vendor pass-through, or dynamic user metadata that is never queried directly in application SQL.”*
+
+Precedent in the repository: `outbox_events` stores the full event envelope in `event_json` (`files/tovu/schema.ts:1080`), but explicitly denormalizes `workspace_id` into a relational column (`files/tovu/schema.ts:1068-1073`) so filtering and indexing remain portable.
+
+## Remaining Disagreements
+
+1. **Storage Spelling & Migrations:** 
+   - Existing 37 `text("*_json")` columns in Tovu (`files/tovu/schema.ts:49`) should **remain `TEXT`** to avoid breaking existing data round-tripping and readability.
+   - New commerce fields should use dialect-specific physical types: `jsonb` on PostgreSQL, `JSON` on MySQL, and `BLOB` containing `jsonb()` output on SQLite (`PACKET-R2.md:38`).
+   - Declaring a `JSONB` column directly in SQLite MUST be forbidden due to silent NUMERIC coercion mangling bare numbers (`PACKET-R2.md:29-37`).
+
+2. **MariaDB Support:**
+   - **MariaDB is OUT.** MariaDB treats `JSON` as a text alias (`LONGTEXT`) and breaks row-based replication with MySQL (`PACKET-R2.md:47-51`). Supporting MariaDB adds dialect fragmentation without operational value.
+
+3. **Idempotency & Ordering:**
+   - Idempotency requires a `(workspace_id, provider, event_id)` UNIQUE constraint on a durable inbox table.
+   - For out-of-order event deliveries, the existing `version` column (`files/tovu/schema.ts:518`) is insufficient on its own because provider event sequences are non-sequential or timestamp-based. Ordering MUST be handled via vendor event sequence numbers / event timestamps or an authoritative provider GET fallback.
+
+4. **Products vs. `member_tiers`:**
+   - **Introduce a separate `commerce_products` / `commerce_prices` entity set.**
+   - `member_tiers` (`files/tovu/schema.ts:485-503`) is domain-specific to membership access and portal visibility. Extending it to cover generic physical/digital goods, metered rates, or multi-currency pricing pollutes the access control model.
+
+5. **Sequencing:**
+   - **Vertical-slice-first.** Schema-first attempts to guess every financial edge-case before driving a live payment stream lead to dead code. The initial slice should implement end-to-end checkout, webhook inbox ingestion, deduplication, and refund handling for a single fixed-price offering.
+
+## What Would Change My Mind
+
+- I would accept schema-wide SQLite BLOB conversions for existing `*_json` columns if benchmarks showed re-parsing `TEXT` JSON is an active performance bottleneck in Tovu workloads.
+- I would favor extending `member_tiers` directly if Tovu's business scope were permanently locked to simple monthly/yearly membership subscriptions with zero external billing objects.
+
+<<SWARM_END>>

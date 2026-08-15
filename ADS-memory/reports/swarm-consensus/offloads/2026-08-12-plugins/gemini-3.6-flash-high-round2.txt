@@ -1,0 +1,95 @@
+ACK_PACKET_RECEIVED CTX-PLUGINS-R2-2026-08-12 -- I received the packet and will work on it.
+
+## Position And Movement
+
+The Coordinator's verification of the unwired enable path (`files/plugin-runtime/loader.ts:147-158`) fundamentally shifts this debate from abstract tier/hook trade-offs to a concrete, dependency-ordered engineering sequence. 
+
+In Round 1, participants debated whether to prioritize Tier-1 declarative primitives (Option A), build a Tier-2 capability sandbox (Option B), or expand the hook surface (Option C). That debate assumed a working foundation. The empirical reality of the codebase refutes that assumption:
+1. **The walking skeleton is disconnected.** `loader.ts:147-158` explicitly acknowledges that steps (4) and (5) of plugin enablement—invoking `definePlugin`'s `setup()` with a capability-scoped SDK, then attaching declared hooks via `hook-registry.ts`—are **never called** inside `loadPlugin()`.
+2. `hook-registry.ts:11-20` confirms that `loadPlugin()` has never called `.attach()`, and `attachLoadedPlugin()`'s only production caller is Site Glue (`files/plugin-runtime/loader.ts:166`), an out-of-scope feature.
+3. In `files/plugin-runtime/activation.ts:129-135`, `setPluginEnabled()` invokes `deps.onEnabled?.(pluginId)`. If `onEnabled` calls `loadPlugin()`, the plugin ESM entry is imported (`loader.ts:142`), but its `setup()` function is ignored and its filter is never attached to `hookRegistry`.
+
+**Movement this round:** 
+I move from treating Option A vs Option C as competing strategic paths to establishing a strict four-phase execution order. We cannot debate widening public surface area (Option C) or claiming 60–73% Tier-1 coverage (Option A) when enabling a plugin through SPEC-005's documented path results in zero hook attachments. 
+
+Furthermore, I elevate **Recovery/Quarantine (OQ-06 / EC-10)** to a coequal precondition before expanding public hooks. Under `files/spec/feature.spec.md:232-233` (EC-10), a single throwing filter in `content.entry.beforeSave` halts **all** content saves across the site (`PLUGIN_HOOK_FAILED`), recoverable only by manual operator API calls (`PATCH .../plugins/:id {enabled:false}`). This directly violates ADR-024’s binding rule: *"an update or plugin must never brick your site"* (`files/adr/ADR-024-plugin-execution-and-trust-model.md:10-11`). Proliferating hooks without auto-quarantine multiplies site-bricking vectors across the CMS.
+
+---
+
+## Sequencing Verdict
+
+### 1. Enable Path Completion is Precondition Zero (P0)
+Closing the enablement loop is an absolute, non-negotiable precondition to both hook-catalog expansion and Tier-1 primitive construction. 
+- `setPluginEnabled()` (`files/plugin-runtime/activation.ts:92-136`) must be wired to pass a composition-root `onEnabled` handler that: (a) executes `loadPlugin()` (`files/plugin-runtime/loader.ts:111`), (b) passes the capability-scoped SDK (`files/plugin-runtime/capability-sdk.ts:86-118`) to the plugin's `setup()`, and (c) calls `attachLoadedPlugin()` (`files/plugin-runtime/loader.ts:161-190`) with the resulting filter.
+- Parallelizing hook expansion or Tier-1 primitives before P0 is completed means writing code against an execution engine that cannot invoke it.
+
+### 2. Tier-1 Unbuilt Primitives Impact on Sequencing (Q4)
+ADR-024 §Open (`files/adr/ADR-024-plugin-execution-and-trust-model.md:152-157`) explicitly conditioned Tier-1's 60–73% demand vindication on five core-mediated primitives:
+1. *Webhook dispatch* — **Backed by code today.** `WebhookSubscriptionRepoPort` & `WebhookDeliveryRepoPort` (`files/integrations-ports.ts:104-155`) + `KeyringPort` HKDF signing (`files/integrations-ports.ts:59-87`) provide active infrastructure.
+2. *Snippet/asset injection* — **0 lines of backing infra in `files/`.**
+3. *Mail adapter* — **0 lines of backing infra in `files/`** (referenced only as a future fold note in `files/integrations-ports.ts:8`).
+4. *Redirect executor* — **0 lines of backing infra in `files/`.**
+5. *Form-submission sink* — **0 lines of backing infra in `files/`.**
+
+**Verdict:** Webhook dispatch can ship immediately as Tier-1's initial production primitive. However, claiming Tier-1 satisfies ~60–73% of real-world demand *today* is false. Without the remaining four primitives, Tier-1's actual coverage is capped at ~15–20% (webhooks alone). Building asset/snippet injection and form sinks must be scheduled as explicit core roadmap deliverables in Phase 2, rather than assuming Tier-1 is already "done."
+
+### 3. Background and Scheduled Work (Q5)
+**Verdict: Explicitly OUT for v1/v2 initial releases.**
+- `files/adr/ADR-024-plugin-execution-and-trust-model.md:145` explicitly defers background jobs due to "Electron sleep/catch-up semantics."
+- `files/plugin-runtime/manifest.ts:59-61` marks `adminSurfaces` and `contentTypes` as `"parsed-and-stored, UNUSED in v1"`, containing zero schema or manifest fields for cron/scheduled tasks.
+- In Electron's multi-site desktop topology (`files/adr/ADR-024-plugin-execution-and-trust-model.md:21-27`), host processes are frequently suspended or closed. Engineering cron catch-up semantics before basic synchronous save hooks are wired is unwarranted scope creep.
+
+---
+
+## Remaining Disagreements
+
+### Surface vs. Trust & Per-Hook Discipline Cost (Q2 & Q6)
+The primary bottleneck to a functional plugin ecosystem is **Surface + Recovery**, not Trust (Option B).
+
+Today, `VALID_HOOKS` is locked to a single entry: `new Set(["content.entry.beforeSave"])` (`files/plugin-runtime/manifest.ts:125`). A fully-trusted Tier-3 sideloaded plugin (`files/adr/ADR-024-plugin-execution-and-trust-model.md:40-44`) has full process access but cannot react to published entries, deleted content, query filters, or admin UI events because the core lifecycle invokes no other hooks.
+
+However, unbridled Option C ("hook-catalog explosion") ignores the strict per-hook discipline cost mandated by ADR-024 §7 (`files/adr/ADR-024-plugin-execution-and-trust-model.md:95-99`) and implemented in `files/plugin-runtime/hook-registry.ts:160-208`:
+1. Every hook requires deterministic ordering via `compareTb01` (`files/plugin-runtime/hook-registry.ts:161`).
+2. Every hook requires fail-closed error boundaries (`files/plugin-runtime/hook-registry.ts:172-178`).
+3. Every hook requires schema validation of returned patches against `declaredFields` (`files/plugin-runtime/hook-registry.ts:188-208`).
+4. Under ADR-005's semver rule, every public hook signature is an **irreversible API contract**.
+
+Going "wide" without per-hook rigor reproduces WordPress's "hook soup" anti-pattern (explicitly forbidden by INV-06, `files/spec/feature.spec.md:207`). The correct move is a disciplined addition of 3–4 high-impact hooks in Phase 2 (`content.entry.afterSave`, `content.entry.beforeDelete`, `content.query.filter`) rather than an unvetted catalog dump.
+
+### Codebase Audits: Verified Flaws & Specification Drift
+
+1. **Shallow Snapshot Flaw (`files/plugin-runtime/hook-registry.ts:165`):**
+   ```ts
+   const snapshot: ContentEntryDraft = { ...entry, ext: { ...entry.ext, ...merged } };
+   ```
+   Because `{ ...entry }` performs a shallow object spread, nested properties (such as `entry.bodyJson` or complex metadata objects) remain **shared live references in memory across hook invocations**. This directly violates ADR-024 §3 (`files/adr/ADR-024-plugin-execution-and-trust-model.md:60`), which mandates: *"No live core objects cross the SDK surface; serializable payloads only."* A buggy or malicious filter can directly mutate `snapshot.bodyJson`, bypassing `ext` patch validation and corrupting core entry state. 
+   *Fix:* `snapshot` must freeze or deep-clone nested entry objects before invoking filters.
+
+2. **ABI-Freeze Specification Drift:**
+   `files/spec/feature.spec.md:109` and `files/spec/state.spec.md:80` document the `beforeSave` filter type signature as `(entry, ctx) => ExtPatch` (synchronous return type). However, `files/plugin-runtime/hook-registry.ts:170` executes:
+   ```ts
+   patch = await attachment.filter(snapshot, ctx);
+   ```
+   The specification documentation must be updated to explicitly require `Promise<ExtPatch>`, enforcing ADR-024 §3's async-only rule (`files/adr/ADR-024-plugin-execution-and-trust-model.md:59`).
+
+---
+
+## Strongest Counter-Argument
+
+An **Option B (Sandbox-First)** purist would argue:
+> *"By focusing on wiring the enable path and expanding Tier-1 primitives while leaving executable plugins at Tier-3 (`files/adr/ADR-024-plugin-execution-and-trust-model.md:40-44`), you leave Electron multi-site hosts (`files/adr/ADR-024-plugin-execution-and-trust-model.md:21-27`) completely exposed. An unsandboxed Tier-3 plugin installed into Site A can read `content.db` across all sites and exfiltrate secrets via `KeyringPort` (`files/integrations-ports.ts:59-87`). Precondition Zero should be Tier-2 Rung 1 process isolation (`utilityProcess`, `files/adr/ADR-024-plugin-execution-and-trust-model.md:73-75`) to contain the machine-wide blast radius immediately."*
+
+### Refutation:
+Rung 1 process isolation (`files/adr/ADR-024-plugin-execution-and-trust-model.md:73-75`) requires serializing IPC messages across an OS process boundary. If the in-process enable path (`files/plugin-runtime/loader.ts:147-158`) does not even invoke `setup()` or `attachLoadedPlugin()`, placing an IPC boundary between them will not fix the missing invocation logic. 
+
+Furthermore, Tier-3 plugins are explicitly restricted to local/first-party sideloading with mandatory UI warning badges (`files/adr/ADR-024-plugin-execution-and-trust-model.md:40-44`; `files/spec/ui.spec.md:176-182`), whereas shipping an unwired enable path breaks *all* plugin tiers. Auto-quarantine (OQ-06) resolves the immediate save-bricking risk (EC-10) without architectural overhead.
+
+---
+
+## What Would Change My Mind
+
+1. **Event-Loop Latency Spikes:** If benchmark tests on the wired enable path show that in-process execution of 3+ filter hooks introduces >20ms synchronous latency during batch content imports, I would support elevating Tier-2 Rung 1 process isolation (`utilityProcess`, `files/adr/ADR-024-plugin-execution-and-trust-model.md:73-75`) to Phase 2.
+2. **Tier-1 Primitive Complexity:** If implementing core-mediated snippet injection and form sinks requires major architectural refactoring of core rendering engines (>2 engineering cycles), I would concede that Tier-1 cannot deliver its claimed 60–73% coverage near-term, shifting priority to expanding Tier-3/Tier-2 code hook surface.
+3. **Cloning Overhead:** If deep-cloning `ContentEntryDraft` snapshots (`files/plugin-runtime/hook-registry.ts:165`) causes measurable memory allocation bottlenecks during high-throughput save operations, I would support replacing deep clones with an `Object.freeze()` structural proxy contract.
+
+<<SWARM_END>>

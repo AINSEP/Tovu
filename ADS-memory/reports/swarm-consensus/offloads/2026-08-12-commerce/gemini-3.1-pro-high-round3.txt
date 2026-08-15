@@ -1,0 +1,152 @@
+ACK_PACKET_RECEIVED CTX-COMMERCE-R3-2026-08-12 -- I received the packet and will work on it.
+
+## Position And Movement
+
+My position has radically shifted regarding the physical storage of JSON due to the preamble's correction: SQLite's `jsonb` is an internal binary format explicitly documented as unstable for external use, and since SQLite versioning is tied to an npm dependency (`better-sqlite3`), updating the package could silently corrupt persisted rows. 
+
+Consequently, my previous concession that "binary JSON storage is portable" is dead. We cannot safely use `jsonb()` BLOBs in SQLite for long-term durable storage. 
+
+This solidifies my core position: the commerce model must be rigorously **relational**. For the small slice of data that must remain document-shaped (like raw provider metadata), we must revert to storing it as standard `TEXT` on SQLite, while keeping `jsonb` on Postgres and `JSON` on MySQL. Relying on JSON for "max flexibility" query paths is a structural trap that requires hand-authored, fragmented DDL across three engines, and relying on it for storage efficiency is now proven to be a durability risk on our primary local engine.
+
+## Sources
+
+1. **SQLite JSONB Durability Risk:** 
+   Confirmed via `sqlite.org/json1.html` and the packet preamble: "JSONB is a binary representation... intended for internal use by SQLite only. Applications should not use JSONB outside of SQLite nor try to reverse-engineer the JSONB format." Because `better-sqlite3` bundles its own SQLite engine, routine `npm update` cycles change the engine underneath the disk data, making BLOB JSONB storage unsafe.
+2. **Stripe Guidance on Webhooks:** 
+   Confirmed via [Stripe Docs on Webhooks](https://docs.stripe.com/webhooks). Stripe explicitly states that webhooks may be delivered multiple times and out of order. Stripe recommends using the event `id` for idempotency and querying the API for the authoritative object state or using timestamp sequence logic to handle out-of-order deliveries.
+3. **Commerce Systems Modeling (Refunds/Proration):** 
+   Established practices (e.g., Stripe, Shopify) model refunds and proration as immutable append-only ledger entries. Refunds are placed in a distinct table with a foreign key back to the original charge, rather than destructively updating the charge amount. Prorations are calculated as distinct debit and credit `line_items` tied to an invoice.
+4. **DDL Differences:**
+   - **PostgreSQL:** Native `jsonb` type with GIN index support for ad-hoc querying.
+   - **MySQL 8+:** Native `JSON` type. Indexing requires defining a generated scalar column first.
+   - **SQLite:** No native JSON type (text or BLOB). Declaring a column as `JSONB` resolves to `NUMERIC` affinity, which corrupts strings into integers.
+
+## Solution Slate
+
+Before ranking the options, I evaluate them based on three criteria: data durability across dependency updates (crucial for SQLite), tri-dialect equivalence without branching application SQL, and preventing race conditions in webhook processing.
+
+### Option A: Vertical-Slice-First, Distinct `commerce_products`/`commerce_prices` (Recommended)
+Builds the minimal checkout-to-webhook pipeline using a fully relational schema that separates products from memberships.
+- **Trade-offs / Sacrifice:** Requires an extra foreign key join to resolve entitlement targets, and forces a migration for current tier-based pricing logic over to the new schema.
+
+### Option B: Vertical-Slice-First, Extend `member_tiers`
+Adds generic commerce fields directly onto the existing `member_tiers` table.
+- **Trade-offs / Sacrifice:** Turns `member_tiers` into a God object. As physical goods or complex one-time purchases are added, the table will fill with nullable columns (shipping, inventory) that have no logical connection to its original purpose (portal access).
+
+### Option C: Schema-First JSON-Heavy Model
+Relies heavily on JSON columns for product attributes and metadata.
+- **Trade-offs / Sacrifice:** Utterly fails tri-dialect equivalence. Querying those fields requires writing custom expression indexes for SQLite and generated columns for MySQL, abandoning Drizzle's unified builder. Furthermore, using SQLite BLOBs risks data corruption on npm updates.
+
+## Leading Option — Code
+
+**1. The schema (SQLite flavor to match repo rules):**
+```typescript
+import { sqliteTable, text, integer, uniqueIndex, index } from "drizzle-orm/sqlite-core";
+
+export const commerceProducts = sqliteTable(
+  "commerce_products",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    name: text("name").notNull(),
+    slug: text("slug").notNull(),
+    status: text("status").notNull(),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+    version: integer("version").notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_commerce_products_workspace_slug").on(table.workspaceId, table.slug)
+  ]
+);
+
+export const commercePrices = sqliteTable(
+  "commerce_prices",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    productId: text("product_id").notNull(),
+    priceCents: integer("price_cents").notNull(),
+    currency: text("currency").notNull(),
+    billingInterval: text("billing_interval"), // 'monthly', 'yearly', null
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+    version: integer("version").notNull(),
+  },
+  (table) => [
+    index("idx_commerce_prices_workspace_product").on(table.workspaceId, table.productId)
+  ]
+);
+
+export const commerceOrders = sqliteTable(
+  "commerce_orders",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    memberId: text("member_id").notNull(),
+    priceId: text("price_id").notNull(),
+    status: text("status").notNull(),
+    // Source ordering via ISO-8601 provider timestamp
+    providerEventTimestamp: text("provider_event_timestamp").notNull(), 
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+    version: integer("version").notNull(),
+  }
+);
+
+// 2. Idempotency Table
+export const commerceEvents = sqliteTable(
+  "commerce_events",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    provider: text("provider").notNull(),
+    eventId: text("event_id").notNull(),
+    processedAt: text("processed_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("idx_commerce_events_dedup").on(table.workspaceId, table.provider, table.eventId)
+  ]
+);
+```
+
+**2. Atomic Guard (Idempotency and Ordering):**
+The `(workspace_id, provider, event_id)` UNIQUE constraint handles replays, but ordering must be resolved atomically in the database using the provider's timestamp, not the application layer.
+```typescript
+import { sql, and, eq, lt } from "drizzle-orm";
+
+await db.update(commerceOrders)
+  .set({ 
+    status: incoming.status,
+    providerEventTimestamp: incoming.timestamp,
+    version: sql`${commerceOrders.version} + 1`,
+    updatedAt: new Date().toISOString()
+  })
+  .where(
+    and(
+      eq(commerceOrders.id, incoming.orderId),
+      // The crucial atomic guard: only update if the incoming event is strictly newer
+      lt(commerceOrders.providerEventTimestamp, incoming.timestamp)
+    )
+  );
+```
+
+**3. The Dialect-Portability Proof:**
+Dialect portability is proven by executing the exact same Drizzle data access logic against three distinct database instances in the CI pipeline. The test harness provisions a `testcontainers` PostgreSQL container, a `testcontainers` MySQL container, and an in-memory/file-based SQLite database. If a single TypeScript `db.update(...)` operation successfully passes identical assertions across all three drivers without dialect-specific branches, equivalence is tested, not asserted.
+
+**Falsifying the Recommendation:** The cheapest test to falsify this recommendation is a load test on the atomic guard. If we can trigger a race condition (e.g., firing a stale webhook simultaneously with a newer webhook across two worker threads) and the stale data overwrites the newer state, the guard is insufficient.
+
+## Critique Of Another Participant's Round 2 Code
+
+I explicitly critique **`gemini-3.1-pro-high-round2`** for proposing an unsafe implementation pattern regarding event ordering.
+
+They stated: *"The logic: `if incoming.event_timestamp <= current_row.provider_event_timestamp`, acknowledge the webhook as a 200 OK but skip the database mutation."*
+
+This is a textbook Time-Of-Check to Time-Of-Use (TOCTOU) race condition. Evaluating a timestamp in application logic (Node.js) after a prior read requires a non-atomic round trip. If two webhooks arrive concurrently on different worker instances, both could read the same `current_row` state and proceed to write, completely subverting the check. Event ordering *must* be resolved atomically in the `WHERE` clause of the SQL statement (as shown in my code above), relying on the database's locking semantics to prevent interleaved stale writes. 
+
+## What Would Change My Mind
+
+- I would revert to using SQLite JSONB BLOBs if the SQLite developers explicitly stabilize the on-disk format for external interoperability and guarantee backward compatibility indefinitely.
+- I would consider JSON-heavy domain modeling if Drizzle shipped an abstraction layer that seamlessly compiled a single JSON path query into Postgres GIN, MySQL generated columns, and SQLite expression indexes natively, entirely abstracting away the fragmented DDL burden.
+
+<<SWARM_END>>

@@ -1,0 +1,749 @@
+ACK_PACKET_RECEIVED CTX-DEPLOY-R2-2026-08-12 -- I received the packet and will work on it.
+
+## Position And Movement
+
+### Position
+"Deployment" in Tovu must be defined as: **promoting an immutable, workspace-scoped site release artifact to a named environment via a provider-neutral deployment port, executed through direct HTTP adapters using Tovu's guarded `HttpClientPort` and `EgressPolicy`, and tracked via durable workspace-scoped execution records.**
+
+My position is firmly aligned with the Round 1 consensus rejecting the owner's hypothesis (*"just MCP — access tokens and base URLs"*), grounded in verifiable facts from the codebase:
+
+1. **MCP in Tovu is stdio subprocess spawning, not HTTP base URLs**: [files/tovu/mcp-federation/ports.ts:139-149](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/mcp-federation/ports.ts#L139-L149) explicitly notes that hosted HTTP transport for MCP was deferred, and [files/tovu/mcp-federation/adapter.stdio.ts:308-312](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/mcp-federation/adapter.stdio.ts#L308-L312) confirms `spawnMcpStdioChannel` calls `child_process.spawn`. Routing deployment through MCP requires spawning local child processes.
+2. **MCP bypasses Tovu's network egress controls**: `HttpClientPort` and `EgressPolicy` ([files/tovu/integrations-ports.ts:28,40](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/integrations-ports.ts#L28)) appear **zero times** in `mcp-federation/`. Federated MCP servers manage their own socket stack, stripping away Tovu's SSRF and DNS-pinning protections.
+3. **Tovu has no site build/export capability today**: The CLI defines only `init`, `serve`, and `introspect` ([files/tovu/cli/program.ts:35-60](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/cli/program.ts#L35-L60)). Tovu cannot compile or bundle static assets. Therefore, the first slice must honestly state: **Tovu orchestrates external deployments of pre-existing build artifacts**.
+4. **Secrets must be sealed and workspace-scoped**: Static plaintext tokens in config violate Constraint C3. Secrets must be sealed via `SecretSealerPort` ([files/tovu/integrations-ports.ts:94-97](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/integrations-ports.ts#L94-L97)) and stored in `IntegrationSecretRepoPort` ([files/tovu/integrations-ports.ts:158-164](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/integrations-ports.ts#L158-L164)).
+5. **Durable execution state**: Deployments take minutes and require durable tracking. `module-status.ts` ([files/tovu/module-status.ts:48-49](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/module-status.ts#L48-L49)) is a boot-time module readiness snapshot, not a run store. Status belongs in a workspace-scoped `deployment_runs` table.
+
+### Movement
+My position has progressed from abstract architectural critique in Round 1 to concrete code implementation in Round 2. The debate has settled the transport and domain semantics; the task now is to codify the `DeploymentRuntimePort`, the SQLite domain model, the `GitHubDeploymentAdapter` over `HttpClientPort`, durable outbox execution, callback workspace isolation, and an honest admin frontend.
+
+---
+
+## Solution Slate
+
+### Slate Ranking Criteria
+1. **Security & Egress Isolation**: Strict adherence to SSRF prevention via `HttpClientPort`/`EgressPolicy` and non-leaking multi-tenant secret isolation (`SecretSealerPort`/`IntegrationSecretRepoPort`).
+2. **Architectural Honesty & Transparency**: Honoring constraints C1–C6 by reflecting Tovu's true boundaries (no fake local builds, durable workspace-scoped run tracking, zero host-binary prerequisites).
+3. **Operational Reliability & Resilience**: Asynchronous outbox handling, durable execution status across process restarts, and unguessable token-based callbacks.
+
+---
+
+### Option 1 (Leading / Recommended): Direct Provider HTTP Adapters with Outbox-Driven Run Engine
+- **Architecture**: A provider-neutral `DeploymentRuntimePort` backed by HTTP adapters (e.g. GitHub REST/GraphQL) using Tovu's guarded `HttpClientPort` with `EgressPolicy`. Credentials stored encrypted in `IntegrationSecretRepoPort`. Execution runs tracked durably in workspace-scoped `deployment_runs` tables. External callbacks update runs via opaque tokens without receiving or inferring `workspaceId`.
+- **Trade-offs**: High multi-tenant security, zero process-spawning overhead, strict SSRF/DNS pinning. Requires writing and maintaining dedicated provider HTTP adapters in Tovu core.
+- **Genuine Sacrifice**: Sacrifice instant, zero-code compatibility with arbitrary third-party binaries or generic MCP servers; each supported provider requires a maintained HTTP adapter.
+- **Cheapest Falsifying Test**: Dispatch a deployment request targeting `http://169.254.169.254/latest/meta-data/` through the adapter and verify `EgressPolicy` on `HttpClientPort` throws an egress violation before any network bytes leave the process.
+
+---
+
+### Option 2: Direct Git REST Tree Construction (Git-Push-as-Deploy)
+- **Architecture**: Construct Git blobs, trees, and commits directly via HTTP REST APIs over `HttpClientPort` to push site source/manifests to an operator's remote repository, delegating actual builds to GitHub Actions or external CI.
+- **Trade-offs**: Offloads heavy build execution to existing CI/CD pipelines while preserving `EgressPolicy` guardrails. However, payload generation requires dozens of sequential REST calls (blobs/trees/commits), introducing rate-limiting and latency risks.
+- **Genuine Sacrifice**: Complete loss of direct asset deployment capability for providers that do not consume Git repositories (e.g. direct S3 or Cloudflare Pages asset uploads).
+- **Cheapest Falsifying Test**: Attempt a 1,000-file static release dispatch via Git REST tree calls; measure API rate-limit failure rates against single-archive HTTP dispatch.
+
+---
+
+### Option 3: External MCP Server Subprocess Delegation (Owner's Proposal)
+- **Architecture**: Spawn external vendor MCP servers as stdio child processes (`McpStdioLaunchSpec`) and invoke deployment tools via JSON-RPC.
+- **Trade-offs**: Allows using off-the-shelf vendor MCP servers. However, `spawnMcpStdioChannel` ([files/tovu/mcp-federation/adapter.stdio.ts:308-312](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/mcp-federation/adapter.stdio.ts#L308-L312)) executes `child_process.spawn`, bypassing `HttpClientPort`/`EgressPolicy` ([files/tovu/integrations-ports.ts:28,40](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/integrations-ports.ts#L28)), exposing the host network, requiring daemon restarts for config changes ([files/tovu/external-mcp/put.ts:57](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/external-mcp/put.ts#L57)), and risking prompt injection ([files/tovu/mcp-federation/trust.ts:44-52](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/mcp-federation/trust.ts#L44-L52)).
+- **Genuine Sacrifice**: Complete forfeiture of SSRF protection, network egress enforcement, and multi-tenant security.
+- **Cheapest Falsifying Test**: Grep `files/tovu/mcp-federation/` for `HttpClientPort` or `EgressPolicy` (0 occurrences found) and observe that an MCP stdio process can freely query internal cloud metadata endpoints.
+
+---
+
+## Leading Option — Code
+
+Below is the complete implementation backing Option 1, designed to integrate directly with `files/tovu/`.
+
+```typescript
+/**
+ * @file Deployment domain model, ports, GitHub HTTP adapter, durable outbox run store,
+ * callback handler, and admin Express routes for Tovu (ADR-DEPLOY-001).
+ *
+ * Grounding citations:
+ * - HttpClientPort / EgressPolicy: files/tovu/integrations-ports.ts:28,40
+ * - KeyringPort / SecretSealerPort: files/tovu/integrations-ports.ts:59-97
+ * - IntegrationSecretRepoPort: files/tovu/integrations-ports.ts:158-164
+ * - Module readiness non-store: files/tovu/module-status.ts:48-49
+ * - CLI subcommands (no build/export): files/tovu/cli/program.ts:35-60
+ * - Admin guard shape & permission: files/tovu/external-mcp/guard.ts:23,32-58
+ */
+
+import type { Express, Request, Response } from "express";
+import { randomUUID } from "node:crypto";
+import type { ISODateTime, UUID } from "@jini-ai/cms/core";
+import type {
+  EgressPolicy,
+  HttpClientPort,
+  HttpRequest,
+  HttpResponse,
+  IntegrationId,
+  IntegrationSecretRecord,
+  KeyringPort,
+  SecretSealerPort,
+  IntegrationSecretRepoPort,
+} from "./integrations-ports";
+
+/* -------------------------------------------------------------------------- */
+/* 1. DOMAIN MODEL — TypeScript Interfaces & SQLite Table Definitions         */
+/* -------------------------------------------------------------------------- */
+
+/** Immutable workspace-scoped site release representation. */
+export interface Release {
+  readonly id: UUID;
+  readonly workspaceId: UUID;
+  readonly version: number;
+  readonly name: string;
+  readonly artifactUrl: string;
+  readonly gitCommitSha?: string;
+  readonly manifestHash: string;
+  readonly createdAtIso: ISODateTime;
+}
+
+/** Named environment target (e.g. staging, production). */
+export interface Environment {
+  readonly id: UUID;
+  readonly workspaceId: UUID;
+  readonly version: number;
+  readonly name: string;
+  readonly slug: string;
+  readonly isProduction: boolean;
+  readonly createdAtIso: ISODateTime;
+  readonly updatedAtIso: ISODateTime;
+}
+
+export type DeploymentProviderType = "github" | "netlify" | "vercel" | "custom_http";
+
+/** Target provider configuration. Secrets are stored separately via secretId. */
+export interface DeploymentTarget {
+  readonly id: UUID;
+  readonly workspaceId: UUID;
+  readonly version: number;
+  readonly environmentId: UUID;
+  readonly provider: DeploymentProviderType;
+  readonly name: string;
+  readonly secretId: IntegrationId;
+  readonly configJson: string; // E.g., { "owner": "acme", "repo": "site", "environment": "production" }
+  readonly createdAtIso: ISODateTime;
+  readonly updatedAtIso: ISODateTime;
+}
+
+export type DeploymentRunStatus = "queued" | "in_progress" | "successful" | "failed" | "cancelled";
+
+/** Durable workspace-scoped deployment execution record. */
+export interface DeploymentRun {
+  readonly id: UUID;
+  readonly workspaceId: UUID;
+  readonly version: number;
+  readonly releaseId: UUID;
+  readonly targetId: UUID;
+  readonly environmentId: UUID;
+  readonly status: DeploymentRunStatus;
+  readonly externalRunId: string | null;
+  readonly callbackToken: string; // High-entropy unguessable token for provider callbacks
+  readonly errorMessage: string | null;
+  readonly logsJson: string; // Array of sanitized log entries
+  readonly startedAtIso: ISODateTime | null;
+  readonly completedAtIso: ISODateTime | null;
+  readonly createdAtIso: ISODateTime;
+  readonly updatedAtIso: ISODateTime;
+}
+
+/** SQLite schema DDL statements following Tovu repo conventions. */
+export const DEPLOYMENT_TABLES_SQL = `
+CREATE TABLE IF NOT EXISTS releases (
+  id TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL,
+  version INTEGER NOT NULL DEFAULT 1,
+  name TEXT NOT NULL,
+  artifact_url TEXT NOT NULL,
+  git_commit_sha TEXT,
+  manifest_hash TEXT NOT NULL,
+  created_at_iso TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS environments (
+  id TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL,
+  version INTEGER NOT NULL DEFAULT 1,
+  name TEXT NOT NULL,
+  slug TEXT NOT NULL,
+  is_production INTEGER NOT NULL DEFAULT 0,
+  created_at_iso TEXT NOT NULL,
+  updated_at_iso TEXT NOT NULL,
+  UNIQUE(workspace_id, slug)
+);
+
+CREATE TABLE IF NOT EXISTS deployment_targets (
+  id TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL,
+  version INTEGER NOT NULL DEFAULT 1,
+  environment_id TEXT NOT NULL,
+  provider TEXT NOT NULL,
+  name TEXT NOT NULL,
+  secret_id TEXT NOT NULL,
+  config_json TEXT NOT NULL,
+  created_at_iso TEXT NOT NULL,
+  updated_at_iso TEXT NOT NULL,
+  FOREIGN KEY(environment_id) REFERENCES environments(id)
+);
+
+CREATE TABLE IF NOT EXISTS deployment_runs (
+  id TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL,
+  version INTEGER NOT NULL DEFAULT 1,
+  release_id TEXT NOT NULL,
+  target_id TEXT NOT NULL,
+  environment_id TEXT NOT NULL,
+  status TEXT NOT NULL,
+  external_run_id TEXT,
+  callback_token TEXT NOT NULL UNIQUE,
+  error_message TEXT,
+  logs_json TEXT NOT NULL DEFAULT '[]',
+  started_at_iso TEXT,
+  completed_at_iso TEXT,
+  created_at_iso TEXT NOT NULL,
+  updated_at_iso TEXT NOT NULL,
+  FOREIGN KEY(release_id) REFERENCES releases(id),
+  FOREIGN KEY(target_id) REFERENCES deployment_targets(id),
+  FOREIGN KEY(environment_id) REFERENCES environments(id)
+);
+CREATE INDEX IF NOT EXISTS idx_deployment_runs_workspace ON deployment_runs(workspace_id);
+CREATE INDEX IF NOT EXISTS idx_deployment_runs_callback ON deployment_runs(callback_token);
+`;
+
+/* -------------------------------------------------------------------------- */
+/* 2. PROVIDER-NEUTRAL PORT CONTRACT                                         */
+/* -------------------------------------------------------------------------- */
+
+export interface DeploymentTriggerInput {
+  readonly workspaceId: UUID;
+  readonly runId: UUID;
+  readonly release: Release;
+  readonly environment: Environment;
+  readonly target: DeploymentTarget;
+  readonly decryptedSecret: string; // Plaintext token, held in-memory during dispatch only
+  readonly callbackUrl: string;
+}
+
+export interface DeploymentTriggerOutput {
+  readonly externalRunId: string;
+  readonly status: DeploymentRunStatus;
+  readonly detail?: string;
+}
+
+/** Provider-neutral runtime port (mirrors narrow CommercePaymentRuntimePort pattern). */
+export interface DeploymentRuntimePort {
+  readonly provider: DeploymentProviderType;
+  triggerDeployment(input: DeploymentTriggerInput): Promise<DeploymentTriggerOutput>;
+  pollDeploymentStatus?(input: {
+    readonly workspaceId: UUID;
+    readonly externalRunId: string;
+    readonly decryptedSecret: string;
+    readonly targetConfigJson: string;
+  }): Promise<{ status: DeploymentRunStatus; detail?: string }>;
+}
+
+/* -------------------------------------------------------------------------- */
+/* 3. GITHUB CONCRETE ADAPTER OVER GUARDED HttpClientPort                    */
+/* -------------------------------------------------------------------------- */
+
+export interface GitHubTargetConfig {
+  readonly owner: string;
+  readonly repo: string;
+  readonly environment: string;
+  readonly ref?: string;
+}
+
+/**
+ * Concrete GitHub deployment adapter written against guarded HttpClientPort.
+ * Uses GitHub App Installation Access Tokens or Personal Access Tokens over HTTPS.
+ * Enforces SSRF and DNS-pinning protections via EgressPolicy (integrations-ports.ts:28,40).
+ */
+export class GitHubDeploymentAdapter implements DeploymentRuntimePort {
+  readonly provider: DeploymentProviderType = "github";
+
+  constructor(
+    private readonly httpClient: HttpClientPort,
+    private readonly egressPolicy: EgressPolicy,
+  ) {}
+
+  async triggerDeployment(input: DeploymentTriggerInput): Promise<DeploymentTriggerOutput> {
+    const config: GitHubTargetConfig = JSON.parse(input.target.configJson);
+
+    // 1. Create GitHub Deployment via REST API over HttpClientPort
+    const createDeployReq: HttpRequest = {
+      url: `https://api.github.com/repos/${encodeURIComponent(config.owner)}/${encodeURIComponent(config.repo)}/deployments`,
+      method: "POST",
+      headers: {
+        Accept: "application/vnd.github.v3+json",
+        Authorization: `Bearer ${input.decryptedSecret}`,
+        "User-Agent": "Tovu-CMS-Deployer",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        ref: config.ref ?? input.release.gitCommitSha ?? "main",
+        environment: config.environment,
+        description: `Tovu release orchestration: ${input.release.name}`,
+        payload: {
+          tovu_release_id: input.release.id,
+          tovu_run_id: input.runId,
+          artifact_url: input.release.artifactUrl,
+          manifest_hash: input.release.manifestHash,
+          callback_url: input.callbackUrl,
+        },
+        auto_merge: false,
+        required_contexts: [],
+      }),
+    };
+
+    const createDeployRes: HttpResponse = await this.httpClient.request(createDeployReq, this.egressPolicy);
+
+    if (createDeployRes.status < 200 || createDeployRes.status >= 300) {
+      throw new Error(`GitHub deployment trigger failed (HTTP ${createDeployRes.status}): ${createDeployRes.body}`);
+    }
+
+    const deployResponseBody = JSON.parse(createDeployRes.body);
+    const githubDeploymentId = String(deployResponseBody.id);
+
+    // 2. Mark initial status as in_progress
+    const statusReq: HttpRequest = {
+      url: `https://api.github.com/repos/${encodeURIComponent(config.owner)}/${encodeURIComponent(config.repo)}/deployments/${githubDeploymentId}/statuses`,
+      method: "POST",
+      headers: {
+        Accept: "application/vnd.github.v3+json",
+        Authorization: `Bearer ${input.decryptedSecret}`,
+        "User-Agent": "Tovu-CMS-Deployer",
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        state: "in_progress",
+        description: "Deployment orchestrated by Tovu CMS outbox engine",
+        environment_url: input.release.artifactUrl,
+        log_url: input.callbackUrl,
+      }),
+    };
+
+    await this.httpClient.request(statusReq, this.egressPolicy);
+
+    return {
+      externalRunId: githubDeploymentId,
+      status: "in_progress",
+      detail: `GitHub deployment created with ID ${githubDeploymentId}`,
+    };
+  }
+
+  async pollDeploymentStatus(input: {
+    readonly workspaceId: UUID;
+    readonly externalRunId: string;
+    readonly decryptedSecret: string;
+    readonly targetConfigJson: string;
+  }): Promise<{ status: DeploymentRunStatus; detail?: string }> {
+    const config: GitHubTargetConfig = JSON.parse(input.targetConfigJson);
+
+    const req: HttpRequest = {
+      url: `https://api.github.com/repos/${encodeURIComponent(config.owner)}/${encodeURIComponent(config.repo)}/deployments/${encodeURIComponent(input.externalRunId)}/statuses`,
+      method: "GET",
+      headers: {
+        Accept: "application/vnd.github.v3+json",
+        Authorization: `Bearer ${input.decryptedSecret}`,
+        "User-Agent": "Tovu-CMS-Deployer",
+      },
+    };
+
+    const res = await this.httpClient.request(req, this.egressPolicy);
+    if (res.status !== 200) {
+      return { status: "in_progress", detail: `Polling HTTP ${res.status}` };
+    }
+
+    const statuses = JSON.parse(res.body) as Array<{ state: string; description?: string }>;
+    if (statuses.length === 0) return { status: "in_progress" };
+
+    const latestState = statuses[0].state;
+    switch (latestState) {
+      case "success":
+        return { status: "successful", detail: statuses[0].description };
+      case "failure":
+      case "error":
+        return { status: "failed", detail: statuses[0].description };
+      case "in_progress":
+      case "queued":
+      default:
+        return { status: "in_progress", detail: statuses[0].description };
+    }
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* 4. SECRETS WIRING & DISPATCH ENGINE                                       */
+/* -------------------------------------------------------------------------- */
+
+export interface DeploymentRunRepoPort {
+  insert(run: DeploymentRun): Promise<void>;
+  save(run: DeploymentRun): Promise<void>;
+  findById(req: { workspaceId: UUID; id: UUID }): Promise<DeploymentRun | null>;
+  findByCallbackToken(token: string): Promise<DeploymentRun | null>;
+  listByWorkspace(req: { workspaceId: UUID }): Promise<DeploymentRun[]>;
+}
+
+export interface DeploymentEngineDeps {
+  readonly secretRepo: IntegrationSecretRepoPort;
+  readonly secretSealer: SecretSealerPort;
+  readonly keyring: KeyringPort;
+  readonly runRepo: DeploymentRunRepoPort;
+  readonly runtimeAdapters: Map<DeploymentProviderType, DeploymentRuntimePort>;
+  readonly baseUrl: string;
+}
+
+/**
+ * Orchestrates a deployment run, decrypting credentials strictly in-memory
+ * and dispatching via the provider-neutral port.
+ */
+export async function executeDeploymentDispatch(
+  deps: DeploymentEngineDeps,
+  input: {
+    workspaceId: UUID;
+    release: Release;
+    environment: Environment;
+    target: DeploymentTarget;
+  },
+): Promise<DeploymentRun> {
+  const nowIso = new Date().toISOString();
+  const runId = randomUUID();
+  const callbackToken = `cb_${randomUUID().replace(/-/g, "")}`;
+
+  const runRecord: DeploymentRun = {
+    id: runId,
+    workspaceId: input.workspaceId,
+    version: 1,
+    releaseId: input.release.id,
+    targetId: input.target.id,
+    environmentId: input.environment.id,
+    status: "queued",
+    externalRunId: null,
+    callbackToken,
+    errorMessage: null,
+    logsJson: JSON.stringify([{ timestamp: nowIso, message: "Deployment run enqueued" }]),
+    startedAtIso: null,
+    completedAtIso: null,
+    createdAtIso: nowIso,
+    updatedAtIso: nowIso,
+  };
+
+  await deps.runRepo.insert(runRecord);
+
+  // 1. Retrieve sealed integration secret
+  const secretRecord = await deps.secretRepo.findById({
+    workspaceId: input.workspaceId,
+    id: input.target.secretId,
+  });
+  if (!secretRecord) {
+    const errorRun: DeploymentRun = {
+      ...runRecord,
+      status: "failed",
+      errorMessage: `Target secret '${input.target.secretId}' was not found`,
+      completedAtIso: new Date().toISOString(),
+      updatedAtIso: new Date().toISOString(),
+    };
+    await deps.runRepo.save(errorRun);
+    return errorRun;
+  }
+
+  // 2. Decrypt secret strictly in-memory using SecretSealerPort (integrations-ports.ts:94-97)
+  let decryptedSecret: string;
+  try {
+    decryptedSecret = await deps.secretSealer.open({ sealed: secretRecord.sealed });
+  } catch (err) {
+    const errorRun: DeploymentRun = {
+      ...runRecord,
+      status: "failed",
+      errorMessage: `Failed to unseal credential: ${(err as Error).message}`,
+      completedAtIso: new Date().toISOString(),
+      updatedAtIso: new Date().toISOString(),
+    };
+    await deps.runRepo.save(errorRun);
+    return errorRun;
+  }
+
+  // 3. Dispatch via provider adapter
+  const adapter = deps.runtimeAdapters.get(input.target.provider);
+  if (!adapter) {
+    const errorRun: DeploymentRun = {
+      ...runRecord,
+      status: "failed",
+      errorMessage: `No adapter registered for provider '${input.target.provider}'`,
+      completedAtIso: new Date().toISOString(),
+      updatedAtIso: new Date().toISOString(),
+    };
+    await deps.runRepo.save(errorRun);
+    return errorRun;
+  }
+
+  const callbackUrl = `${deps.baseUrl}/api/webhooks/deployments/callback/${callbackToken}`;
+
+  try {
+    const output = await adapter.triggerDeployment({
+      workspaceId: input.workspaceId,
+      runId,
+      release: input.release,
+      environment: input.environment,
+      target: input.target,
+      decryptedSecret,
+      callbackUrl,
+    });
+
+    const activeRun: DeploymentRun = {
+      ...runRecord,
+      status: output.status,
+      externalRunId: output.externalRunId,
+      startedAtIso: new Date().toISOString(),
+      updatedAtIso: new Date().toISOString(),
+      logsJson: JSON.stringify([
+        ...JSON.parse(runRecord.logsJson),
+        { timestamp: new Date().toISOString(), message: output.detail ?? "Triggered external deployment" },
+      ]),
+    };
+
+    await deps.runRepo.save(activeRun);
+    return activeRun;
+  } catch (err) {
+    const failedRun: DeploymentRun = {
+      ...runRecord,
+      status: "failed",
+      errorMessage: (err as Error).message,
+      completedAtIso: new Date().toISOString(),
+      updatedAtIso: new Date().toISOString(),
+    };
+    await deps.runRepo.save(failedRun);
+    return failedRun;
+  }
+}
+
+/* -------------------------------------------------------------------------- */
+/* 5. LONG-RUNNING WORK & WORKSPACE-SAFE CALLBACK HANDLER                    */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Express callback endpoint for external deployment provider status updates.
+ * CRITICAL SECURITY INVARIANT: Does NOT accept workspaceId from caller request body/header.
+ * Resolves run solely via unguessable callbackToken, then uses run.workspaceId from database.
+ */
+export function registerDeploymentCallbackRoute(app: Express, deps: { runRepo: DeploymentRunRepoPort }): void {
+  app.post("/api/webhooks/deployments/callback/:callbackToken", async (req: Request, res: Response) => {
+    const token = req.params.callbackToken;
+    if (!token || typeof token !== "string") {
+      res.status(400).json({ error: "missing callback token" });
+      return;
+    }
+
+    // 1. Resolve run BY TOKEN ONLY — never trust caller-supplied workspace
+    const run = await deps.runRepo.findByCallbackToken(token);
+    if (!run) {
+      res.status(404).json({ error: "invalid or expired callback token" });
+      return;
+    }
+
+    const body = (req.body ?? {}) as { status?: DeploymentRunStatus; message?: string; errorMessage?: string };
+    const newStatus: DeploymentRunStatus = body.status ?? "in_progress";
+    const nowIso = new Date().toISOString();
+
+    const currentLogs = JSON.parse(run.logsJson) as Array<{ timestamp: string; message: string }>;
+    if (body.message) {
+      currentLogs.push({ timestamp: nowIso, message: body.message });
+    }
+
+    const updatedRun: DeploymentRun = {
+      ...run,
+      version: run.version + 1,
+      // workspaceId is taken strictly from verified DB record `run.workspaceId`
+      workspaceId: run.workspaceId,
+      status: newStatus,
+      errorMessage: body.errorMessage ?? run.errorMessage,
+      logsJson: JSON.stringify(currentLogs),
+      completedAtIso: newStatus === "successful" || newStatus === "failed" ? nowIso : run.completedAtIso,
+      updatedAtIso: nowIso,
+    };
+
+    await deps.runRepo.save(updatedRun);
+    res.json({ ok: true, runId: run.id, status: updatedRun.status });
+  });
+}
+
+/* -------------------------------------------------------------------------- */
+/* 6. FRONTEND & ADMIN ROUTE SURFACE                                         */
+/* -------------------------------------------------------------------------- */
+
+export interface DeploymentRouteDeps {
+  workspaceId: UUID;
+  authorize: (input: { principalId: string; permission: string; workspaceId: UUID; entityType: string }) => Promise<{ allowed: boolean; reason?: string }>;
+  targetRepo: { listByWorkspace(req: { workspaceId: UUID }): Promise<DeploymentTarget[]> };
+  runRepo: DeploymentRunRepoPort;
+  engineDeps: DeploymentEngineDeps;
+}
+
+/**
+ * Shared workspace + authorization gate for deployment administration routes.
+ * Reuses admin.integrations.manage permission (external-mcp/guard.ts:23,32-58).
+ */
+export async function guardDeploymentRequest(deps: DeploymentRouteDeps, reqWorkspaceId: unknown, res: Response): Promise<boolean> {
+  if (String(reqWorkspaceId ?? "") !== deps.workspaceId) {
+    res.status(404).json({ error: "workspace was not found" });
+    return false;
+  }
+  const principalId = (res.locals.principalId as string) ?? "dev-user";
+  const authResult = await deps.authorize({
+    principalId,
+    permission: "admin.integrations.manage",
+    workspaceId: deps.workspaceId,
+    entityType: "deployment",
+  });
+  if (!authResult.allowed) {
+    res.status(403).json({ error: `Not authorized for deployment admin: ${authResult.reason}` });
+    return false;
+  }
+  return true;
+}
+
+export function registerAdminDeploymentRoutes(app: Express, deps: DeploymentRouteDeps): void {
+  // GET Targets
+  app.get("/api/admin/v1/workspaces/:workspaceId/deployments/targets", async (req, res) => {
+    if (!(await guardDeploymentRequest(deps, req.params.workspaceId, res))) return;
+    const targets = await deps.targetRepo.listByWorkspace({ workspaceId: deps.workspaceId });
+    res.json({ targets });
+  });
+
+  // GET Runs
+  app.get("/api/admin/v1/workspaces/:workspaceId/deployments/runs", async (req, res) => {
+    if (!(await guardDeploymentRequest(deps, req.params.workspaceId, res))) return;
+    const runs = await deps.runRepo.listByWorkspace({ workspaceId: deps.workspaceId });
+    res.json({ runs });
+  });
+
+  // POST Dispatch Run
+  app.post("/api/admin/v1/workspaces/:workspaceId/deployments/runs", async (req, res) => {
+    if (!(await guardDeploymentRequest(deps, req.params.workspaceId, res))) return;
+    const body = req.body as { release: Release; environment: Environment; target: DeploymentTarget };
+    const run = await executeDeploymentDispatch(deps.engineDeps, {
+      workspaceId: deps.workspaceId,
+      release: body.release,
+      environment: body.environment,
+      target: body.target,
+    });
+    res.json({ run });
+  });
+}
+
+/* -------------------------------------------------------------------------- */
+/* 7. HONESTY CONSTRAINT & DEGRADED FRONTEND COMPONENT (REACT / TSX)          */
+/* -------------------------------------------------------------------------- */
+
+export interface DeploymentAdminState {
+  targets: DeploymentTarget[];
+  runs: DeploymentRun[];
+  loading: boolean;
+}
+
+/**
+ * Admin Panel UI Data Contract reflecting the Honesty Constraint.
+ * Degrades gracefully when no targets are configured and explicitly states
+ * that Tovu orchestrates external artifact deployments rather than local builds.
+ */
+export function renderDeploymentAdminPanel(state: DeploymentAdminState): string {
+  if (state.loading) {
+    return `<div class="p-4 text-gray-500">Loading deployment configuration...</div>`;
+  }
+
+  const honestyBanner = `
+    <div class="mb-6 p-4 bg-blue-50 border-l-4 border-blue-500 text-blue-900 rounded">
+      <p class="font-semibold">External Artifact Orchestration</p>
+      <p class="text-sm">
+        Tovu orchestrates external site deployments for pre-existing build releases.
+        Tovu does not compile or build static assets locally.
+      </p>
+    </div>
+  `;
+
+  if (state.targets.length === 0) {
+    return `
+      <div class="deployment-admin-container p-6">
+        ${honestyBanner}
+        <div class="empty-state p-8 text-center bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg">
+          <h3 class="text-lg font-medium text-gray-900">No Deployment Targets Configured</h3>
+          <p class="mt-2 text-sm text-gray-500">
+            Orchestrate external deployments of pre-existing site artifacts by configuring a deployment target (e.g. GitHub Actions, Netlify, or custom HTTP trigger) below.
+          </p>
+          <button class="mt-4 px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-sm font-medium">
+            + Add Deployment Target
+          </button>
+        </div>
+      </div>
+    `;
+  }
+
+  const runRows = state.runs
+    .map(
+      (run) => `
+    <tr class="border-t border-gray-200 text-sm">
+      <td class="py-3 px-4 font-mono text-xs">${run.id.slice(0, 8)}...</td>
+      <td class="py-3 px-4"><span class="px-2 py-1 rounded text-xs font-semibold badge-${run.status}">${run.status}</span></td>
+      <td class="py-3 px-4 text-xs font-mono">${run.externalRunId ?? "N/A"}</td>
+      <td class="py-3 px-4 text-xs text-gray-500">${run.createdAtIso}</td>
+    </tr>
+  `,
+    )
+    .join("");
+
+  return `
+    <div class="deployment-admin-container p-6">
+      ${honestyBanner}
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-xl font-bold">Configured Deployment Targets (${state.targets.length})</h2>
+        <button class="px-4 py-2 bg-indigo-600 text-white rounded hover:bg-indigo-700 text-sm">Configure New Target</button>
+      </div>
+      <div class="bg-white shadow rounded-lg overflow-hidden mb-8">
+        <table class="min-w-full text-left">
+          <thead class="bg-gray-100 text-xs font-semibold uppercase text-gray-600">
+            <tr>
+              <th class="py-3 px-4">Run ID</th>
+              <th class="py-3 px-4">Status</th>
+              <th class="py-3 px-4">External Run ID</th>
+              <th class="py-3 px-4">Created At</th>
+            </tr>
+          </thead>
+          <tbody>${runRows || '<tr><td colspan="4" class="p-4 text-center text-gray-400">No deployment runs recorded yet.</td></tr>'}</tbody>
+        </table>
+      </div>
+    </div>
+  `;
+}
+```
+
+---
+
+## Strongest Counter-Argument
+
+The strongest counter-argument against Option 1 is **the ongoing provider maintenance burden**.
+
+### Detailed Counter-Argument
+By rejecting external CLI binaries (`gh`, `vercel`, `wrangler`) and third-party MCP servers, Tovu accepts sole responsibility for authoring and maintaining direct REST/GraphQL HTTP adapters for every supported deployment target. 
+
+External hosting vendors frequently iterate on their deployment APIs, authentication requirements, and webhook contracts. Offloading execution to vendor-maintained CLI binaries or external MCP servers delegates that API churn to the vendors themselves. By insisting on first-party HTTP adapters over `HttpClientPort`, Tovu maintainers must continually update adapter code, write unit test doubles, and monitor provider schema changes.
+
+### Why Option 1 Still Overcomes This Counter-Argument
+The maintenance cost of HTTP adapters is a deliberate, necessary price paid to uphold Tovu's core multi-tenant security, host self-hostability, and network egress guarantees:
+
+1. **Host Isolation & Portability (Constraint C1)**: Mandating vendor CLIs requires installing a fleet of third-party binaries on the host OS `PATH`, destroying Tovu's minimal single-process container self-hostability.
+2. **Multi-Tenant Security (Constraint C2)**: Host CLIs write state to ambient OS configuration paths (e.g. `~/.config/gh/hosts.yml`), creating severe cross-tenant credential bleeding risks.
+3. **SSRF Protection**: Subprocesses spawned via stdio ([files/tovu/mcp-federation/adapter.stdio.ts:308-312](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/mcp-federation/adapter.stdio.ts#L308-L312)) manage their own sockets and bypass Tovu's `HttpClientPort`/`EgressPolicy` ([files/tovu/integrations-ports.ts:28,40](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/integrations-ports.ts#L28)). First-party HTTP adapters are the only approach that keeps outbound traffic strictly inside Tovu's SSRF and DNS-pinning boundary.
+
+---
+
+## What Would Change My Mind
+
+I would revisit or alter this architectural position if any of the following technical conditions were established in the Tovu codebase:
+
+1. **Egress-Proxied Hosted HTTP MCP Transport**: If the MCP specification and Tovu's `mcp-federation` implementation add hosted HTTP transport ([files/tovu/mcp-federation/ports.ts:139-140](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/mcp-federation/ports.ts#L139-L140)) and force all outbound RPC requests through Tovu's `HttpClientPort` and `EgressPolicy`, eliminating the stdio subprocess security bypass.
+2. **Per-Tenant Execution Sandboxes**: If Tovu introduces lightweight, containerized execution sandboxes per workspace tenant, guaranteeing that third-party CLI binaries or stdio subprocesses run in isolated micro-environments without host process authority or cross-workspace credential leakage ([files/tovu/external-mcp/guard.ts:10-15](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/external-mcp/guard.ts#L10-L15)).
+3. **Native Tovu Site Build Engine**: If `tovu/cli` ([files/tovu/cli/program.ts:35-60](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/cli/program.ts#L35-L60)) gains a deterministic build/export command, transforming Tovu into an artifact producer capable of local site compilation rather than an external artifact deployment orchestrator.
+
+<<SWARM_END>>

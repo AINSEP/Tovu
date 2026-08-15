@@ -1,0 +1,86 @@
+ACK_PACKET_RECEIVED CTX-CODE-TIER-R2-2026-08-12 -- I received the packet and will work on it.
+
+## Position And Movement
+
+My position has converged and hardened: **React, Vue, and Angular must be build-time authoring formats targeting the existing `static` tier artifact contract, NOT a server-side framework runtime tier (`code`).**
+
+In Round 1, all participants unanimously rejected Option A (server-side worker adapters) and Option D (in-process signed JS). Round 2 moves from an abstract "compile to static" proposal to a concrete, operational architecture:
+
+1. **The tier is the wrong unit for front-end frameworks.** `theme.json`'s `tier` field ([theme.ts:34-36](file:///tmp/ads-peer-dispatch/debate-code-tier/files/src/features/theme/theme.ts#L34-L36)) defines a server capability boundary (`declarative`, `static`, `templated`, `handlebars`). Frameworks belong entirely on the author side of the compiler boundary.
+2. **Correcting marker & manifest citations.** As Codex correctly established, live static themes use the `{"type":"content"}` JSON-marker form ([static-render.ts:50-60](file:///tmp/ads-peer-dispatch/debate-code-tier/files/src/features/theme/static-render.ts#L50-L60), [theme.ts:96-104](file:///tmp/ads-peer-dispatch/debate-code-tier/files/src/features/theme/theme.ts#L96-L104)); `data-embed-type="..."` appears 0 times across live themes. `theme.ts:115` declares the unified `templates?: string[]` array, superseding `postTemplate`/`pageTemplate`. `honorsCurrentPage` ([theme.ts:165](file:///tmp/ads-peer-dispatch/debate-code-tier/files/src/features/theme/theme.ts#L165)) is the current boolean property, while `activeAttr` ([theme.ts:158-164](file:///tmp/ads-peer-dispatch/debate-code-tier/files/src/features/theme/theme.ts#L158-L164)) is legacy-accepted.
+3. **Fixing silent coercion.** `parseTier` ([theme.ts:248-252](file:///tmp/ads-peer-dispatch/debate-code-tier/files/src/features/theme/theme.ts#L248-L252)) currently coerces unrecognised tiers to `"declarative"`. This must be changed to fail closed at load time.
+
+---
+
+## The Build-Lifecycle Verdict
+
+**Verdict: Authors and Publisher CI build packages locally or out-of-process. Tovu's server MUST NOT run `npm install` or execute theme build scripts.**
+
+### Why "Tovu-Runs-Build" is Rejected
+
+Running author build scripts (`npm install && npm run build`) inside the Tovu server imports software supply-chain execution risk (arbitrary `postinstall` scripts, compromised transitive npm packages, native module compilation). Tovu currently possesses **zero isolation machinery for process builds**:
+- The existing Liquid worker ([liquid-sandbox.ts:18-20](file:///tmp/ads-peer-dispatch/debate-code-tier/files/src/server/http/site/liquid-sandbox.ts#L18-L20), [liquid-worker.ts:29-75](file:///tmp/ads-peer-dispatch/debate-code-tier/files/src/server/http/site/liquid-worker.ts#L29-L75)) provides V8 heap/CPU resource limits for a restricted DSL, *not* an OS process sandbox for arbitrary npm scripts (`child_process.exec`, `fs` mutation, network egress).
+- Tovu has not even implemented the basic CSS sanitizer requested in ADR-010 ([theme.ts:21-22](file:///tmp/ads-peer-dispatch/debate-code-tier/files/src/features/theme/theme.ts#L21-L22)). Executing unverified author npm graphs on the Tovu host server is an unjustifiable security exposure.
+- Tovu's server `package.json` ([package.json:45-83](file:///tmp/ads-peer-dispatch/debate-code-tier/files/package.json#L45-L83)) carries zero framework compiler toolchains (no React, Vue, Angular, Vite, or Rollup). Requiring self-hosted instances to install build toolchains breaks simple self-hostability (C1).
+
+### The Containment Required If Server Builds Were Ever Attempted
+If Tovu were ever forced to run server builds, containment could **not** be achieved via Node's `worker_threads`. It would require an isolated, ephemeral, containerized build daemon (e.g., gVisor micro-VMs or unprivileged Docker containers) with network access disabled during compilation, strict filesystem cgroups, and no access to host environment variables or CMS database secrets. Bringing such infrastructure into Tovu core contradicts the product's self-hosting architecture.
+
+Therefore, publisher CI or local CLI compilation targets the standard `static` artifact format; Tovu serves the resulting prebuilt static artifact.
+
+---
+
+## Remaining Disagreements
+
+### 1. Source-vs-Artifact Reset Semantics (C5 / F6)
+Marketplace installation downloads both pristine catalog files ([marketplace.ts:257-262](file:///tmp/ads-peer-dispatch/debate-code-tier/files/src/features/theme/marketplace.ts#L257-L262)) and editable theme files. 
+- Authored source files (`src/*.tsx`, `tokens.json`, `theme.json`) may ship inside the package and retain per-file "restore to pristine" semantics via catalog file copying.
+- Served output (`pages/*.html`, `css/styles.css`, `js/*.js`) **cannot be reset file-by-file**. Modifying one generated file causes build graph desync. Resetting generated output is defined as an **atomic theme rebuild or full-artifact restore** from the pristine catalog copy ([marketplace.ts:257-261](file:///tmp/ads-peer-dispatch/debate-code-tier/files/src/features/theme/marketplace.ts#L257-L261)).
+
+### 2. AI-Authorability (`theme_write_file`) (C6)
+`theme_write_file` ([agent-tools.ts:200-206](file:///tmp/ads-peer-dispatch/debate-code-tier/files/src/features/theme/agent-tools.ts#L200-L206)) re-validates and replaces live theme content per write, subject to a 1 MB file cap ([theme-files.ts:68](file:///tmp/ads-peer-dispatch/debate-code-tier/files/src/features/theme/theme-files.ts#L68)).
+- Direct writes to generated output files (`pages/*.html`, `js/*.js`, `css/*.css`) are rejected for built themes. 
+- For built themes, `theme_write_file` operates strictly on source files (`src/*`). Writing a source file updates disk state and returns a structured status: `"Source updated. Rebuild required via CLI/CI to update live served artifact."` Live visitor traffic continues to serve the active, last-known-good prebuilt artifact until a new validated artifact is deployed.
+
+### 3. One Class of Theme or Two?
+**Two distinct classes of themes is the explicit design, not an admission of failure.**
+- **Class 1: Authored Themes** (`declarative`, `static`, `templated`, `handlebars`). Live-editable in Admin UI, AI-repairable per file via `theme_write_file`, per-file resettable via catalog copy.
+- **Class 2: Built Themes** (Precompiled static artifacts generated from React/Vue/Angular source). Opaque, versioned, replaced wholesale, editor-read-only for generated bundles, annotated with provenance hashes.
+
+Failing to separate these two classes leads to broken editor states, overwritten source, and invalid resets. Explicitly flagging Class 2 themes in `theme.json` (e.g. `prebuilt: true`) preserves predictable system behavior.
+
+### 4. Conformance & String Rewriting
+The literal-string token injection ([static-render.ts:402-406](file:///tmp/ads-peer-dispatch/debate-code-tier/files/src/features/theme/static-render.ts#L402-L406)) matches `'<link rel="stylesheet" href="../css/styles.css" />'`; asset path rewriting ([static-render.ts:31-35](file:///tmp/ads-peer-dispatch/debate-code-tier/files/src/features/theme/static-render.ts#L31-L35)) regexes double-quoted `../css/` and `../js/` prefixes. Minifiers or bundlers will silently break these rewrites.
+
+- **Who pays for touching the path serving 100% of live traffic?** No one should touch `static-render.ts` with a heavy request-time DOM parser like `parse5`. Replacing string manipulation with DOM parsing on every request degrades throughput across 100% of live traffic.
+- **Resolution: Load-Time / Build-Time Conformance Validation.** At theme load time ([theme.ts:486-528](file:///tmp/ads-peer-dispatch/debate-code-tier/files/src/features/theme/theme.ts#L486-L528)) and in `tovu theme verify` CLI, Tovu validates that `pages/*.html` contains the exact literal CSS sentinel and valid `../css/` / `../js/` relative asset tags. If a bundler reordered attributes or stripped sentinels, `loadTheme()` marks the theme `invalid` with actionable compiler/lint errors. The hot request path (`renderStaticPage`) remains ultra-fast string substitution.
+
+### 5. Web Components
+Role: **Islands-only interactive seam, NOT a whole-page layout engine.**
+Whole-page Web Components interact poorly with global token injection ([static-render.ts:402-406](file:///tmp/ads-peer-dispatch/debate-code-tier/files/src/features/theme/static-render.ts#L402-L406)), CSS scoping, and SSR content marker resolution ([static-render.ts:410](file:///tmp/ads-peer-dispatch/debate-code-tier/files/src/features/theme/static-render.ts#L410)). Web Components serve as client-side interactive islands (`<cart-drawer>`, `<comment-feed>`) mounted inside clean, static HTML `pages/*.html` documents. Framework components (React/Vue/Angular) can compile down to custom elements embedded inside static page templates.
+
+### 6. Three Frameworks or One First?
+**One framework first: React.**
+React is already in Tovu's workspace dependencies for the admin SPA ([package.json:39-41](file:///tmp/ads-peer-dispatch/debate-code-tier/files/package.json#L39-L41)), making React build tooling familiar to the platform. Vue and Angular qualify by targeting the exact same `@tovu/theme-conformance` static artifact spec (`pages/*.html` + `css/` + `js/` + `tokens.json`). Angular's opinionated DI and heavy compiler remain encapsulated behind the build-time compiler boundary, never entering Tovu's server runtime.
+
+---
+
+## Strongest Counter-Argument
+
+**The Opposing Argument:** *"By requiring authors to compile locally or in CI and refusing to run `npm run build` or framework SSR inside Tovu, Tovu breaks the in-admin live co-authoring experience (C6). A non-technical user or AI agent cannot edit a React component inside the Admin SPA file editor and see immediate live updates on the site."*
+
+**Refutation:** 
+Allowing Tovu's server to run `npm install && npm run build` introduces massive supply-chain security vectors (`postinstall` scripts, unverified npm dependencies) into a Node server that has zero framework compilers in `package.json` ([package.json:45-83](file:///tmp/ads-peer-dispatch/debate-code-tier/files/package.json#L45-L83)) and has not even implemented basic CSS sanitization ([theme.ts:21-22](file:///tmp/ads-peer-dispatch/debate-code-tier/files/src/features/theme/theme.ts#L21-L22)). Attempting in-process or worker-thread SSR (Option A/D) fails because `worker_threads` provides resource limits, not code sandboxing ([liquid-sandbox.ts:18-20](file:///tmp/ads-peer-dispatch/debate-code-tier/files/src/server/http/site/liquid-sandbox.ts#L18-L20)); arbitrary JS can execute Node I/O and destroy fault isolation (C2/C3).
+
+Users who want live in-admin editing and AI co-authoring without a build step are explicitly served by **Authored Themes** (`declarative`, `static`, `templated`, `handlebars`). Developers choosing React, Vue, or Angular are professional authors using Git and CI pipelines who expect opaque, prebuilt artifacts. Conflating the two destroys security and stability for both.
+
+---
+
+## What Would Change My Mind
+
+I would reconsider this position only if:
+1. **Audited V8 Isolate Primitive in Node Core:** Node core incorporated a secure, zero-overhead V8 isolate sandbox (e.g. Wasm micro-runtime or Cloudflare Workers isolate) with zero filesystem/network/process access capability, allowing safe per-request execution of untrusted JS without `worker_threads` escape vectors.
+2. **Containerized Server Build Isolation:** Tovu acquired a secure, containerized build runner (e.g. gVisor/unprivileged container daemon) that could execute `npm install && npm run build` in an ephemeral sandbox without exposing host credentials, environment variables, or host filesystems ([theme-files.ts:54-61](file:///tmp/ads-peer-dispatch/debate-code-tier/files/src/features/theme/theme-files.ts#L54-L61)).
+3. **Shift to Client-Rendered SPA Architecture:** Tovu abandoned its "route resolves, render renders" SSR pipeline ([pages.ts:465-501](file:///tmp/ads-peer-dispatch/debate-code-tier/files/src/server/routes/site/pages.ts#L465-L501)) and converted site delivery to a pure Single Page Application (SPA), rendering server content markers irrelevant.
+
+<<SWARM_END>>

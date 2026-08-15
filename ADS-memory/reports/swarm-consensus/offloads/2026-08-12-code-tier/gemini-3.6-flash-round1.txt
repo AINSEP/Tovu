@@ -1,0 +1,99 @@
+ACK_PACKET_RECEIVED CTX-CODE-TIER-2026-08-12 -- I received the packet and will work on it.
+
+## Position
+
+The request to let theme authors build Tovu themes using React, Vue, or Angular presents a fundamental fork in architectural strategy. Among the candidate options, **Option B (rejecting a server-side framework runtime tier and treating component frameworks strictly as a build-time authoring tool that compiles down to the existing `static` tier)** is the only viable path. 
+
+Attempting to introduce server-side execution of React, Vue, or Angular into Tovu's CMS runtime (Option A or Option D) is fundamentally misaligned with the codebase's existing security boundaries, dependency model, and self-hosting constraints.
+
+1. **The Server Dependency Model**: The server runtime (`files/package.json:45-68`) contains zero dependencies for React, Vue, or Angular. React exists solely in the admin SPA (`files/package.json:39-41`). Introducing framework SSR to the Node server runtime would require adding heavy compiler and renderer toolchains or dynamic V8 isolate evaluation into Tovu's lean core.
+2. **The Render Pipeline Contract**: `renderSite()` (`files/src/server/http/site/render.ts:1645-1718`) operates as a pure function ("resolved data in, HTML string out"). The existing logic tiers (`templated` and `handlebars`) achieve isolation by running text-template parsing inside `worker_threads` isolates (`files/src/server/http/site/render.ts:1685-1705`) gated by pre-flight AST allowlists (`files/src/features/theme/liquid-allowlist.ts` and `files/src/features/theme/handlebars-allowlist.ts`). Component frameworks cannot be gated by string-based allowlists or executed safely without massive V8 bundle overhead.
+3. **The Static Contract Already Delivers the Seam**: The `static` tier (`files/src/features/theme/static-render.ts:389-413`) already implements a complete mechanical string-rewriting engine (`tokensToRootCss`, `rewriteAssetPaths`, `resolveSlots`, `injectMenuEmbeds`, `rewritePageLinks`). Compiling framework components to static HTML with Tovu embed markers (`data-embed-type="menu"`, `data-embed-type="partial"`, `data-embed-type="content"`) at build time allows authors to use any UI framework while keeping Tovu's server runtime 100% framework-agnostic, self-hostable (C1), fault-isolated (C3), and safe from untrusted code execution (C4).
+
+---
+
+## Option Assessment
+
+### Option A — Per-framework server-side render adapters inside worker isolates
+**REJECT.**
+- **Isolation & Security Failure**: LiquidJS and Handlebars run in isolates (`files/src/server/http/site/render.ts:1685-1705`) because their templates compile to text operations under strict AST allowlists (`files/src/features/theme/liquid-allowlist.ts` and `files/src/features/theme/handlebars-allowlist.ts`). React (`react-dom/server`), Vue (`@vue/server-renderer`), and Angular SSR runtimes rely on full JavaScript execution environments (`eval`/`Function`, Object prototype access, V8 code generation). Running arbitrary author JS inside `worker_threads` requires loading massive framework bundles per request or worker boot, breaking the load-time security gate contract (C4, F3).
+- **Operational Complexity**: SSR requires either on-demand compilation (running Vite/esbuild inside Tovu's server process) or pre-bundled V8 artifacts. This violates C1 (self-hostable simplicity) and introduces OOM and timeout risks that degrade the server under load, violating the degrade-never-500 contract (C2).
+
+### Option B — Reject runtime tier: frameworks compile at build-time to `static` tier
+**ACCEPT (Best Candidate Option).**
+- **Preserves System Invariants**: The server runtime remains untouched. Authors write React/Vue/Angular in their local toolchains; a build step emits `pages/*.html`, CSS, and client JS bundles adhering to `DiscoveredTheme` (`files/src/features/theme/theme.ts:191-238`) and the `static` tier contract (`files/src/features/theme/static-render.ts:389-413`).
+- **Zero Runtime Overhead**: Tovu serves the compiled static pages via `renderStaticPage()` (`files/src/features/theme/static-render.ts:389`) for home and `renderStaticPage()` in `pages.ts` (`files/development/docs/themes/theme-authoring-guide.md:49-59`) for non-home routes.
+- **Maintains Security & Fault Isolation**: Untrusted themes ship no server-side executable code (C4), single theme failures cannot crash discovery (C3, `files/src/features/theme/theme.ts:486-548`), and requests never produce 500s due to theme code failure (C2).
+
+### Option C — Client-only islands over `static`
+**REJECT as a complete solution.**
+- **Fails the Core Requirement**: Client-only islands allow embedding interactive React/Vue components into static DOM containers (which `static` themes can already do via standard `<script>` tags). However, it does not allow authors to build the *theme layout and page structure* using React/Vue/Angular components.
+- **SEO and Flash-of-Unstyled-Content (FOUC)**: Rendering page layouts purely on the client impairs search engine indexing and performance on low-power devices, contradicting Tovu's fast content delivery posture (`files/development/docs/themes/theme-authoring-guide.md:77-80`).
+
+### Option D — The originally-intended `code` tier: trusted, signed-plugin JS in-process
+**REJECT.**
+- **Breaches Core Security Invariants**: Option D relies on signed JS executing directly in the Node.js process (`files/src/features/theme/theme.ts:31`). This completely abandons C4 (installing themes from untrusted strangers).
+- **No Fault Isolation**: An uncaught exception, infinite loop, or unhandled promise rejection in theme code executing in-process bypasses `loadTheme()` error handling (`files/src/features/theme/theme.ts:486-528`) and crashes or hangs the entire Tovu server process, violating C2 (degrade-never-500) and C3 (fault isolation).
+
+---
+
+## Failure Modes And Sacrifice
+
+### Failure Modes of Option B
+
+1. **Source vs. Artifact Desync in Admin Editing**:
+   Tovu exposes in-admin file editing (`files/development/docs/themes/theme-authoring-guide.md:17-18`) and the `theme_write_file` agent tool (`files/src/features/theme/agent-tools.ts:202`). If an author builds a theme from React/Vue sources into `pages/*.html`, any edits made via the Admin UI or AI agent modify the *compiled output*, not the source JSX/TSX.
+2. **Pristine Catalog and Reset Breakdown (C5, F6)**:
+   Per-file reset copies files from `THEME_CATALOG_DIR` (`files/src/features/theme/theme.ts:698`). Resetting a compiled `pages/index.html` file restores the compiled HTML artifact, not the pre-compilation React source component.
+3. **AI-Authorability Breakdown (C6)**:
+   An AI agent using `theme_write_file` (`files/src/features/theme/agent-tools.ts:202`) can easily edit human-legible Liquid, Handlebars, or raw HTML. If `pages/*.html` contains complex, machine-generated hydration markers or bundled assets from a Vite build, AI models will struggle to safely edit or repair theme files without breaking markup structure.
+
+### Hidden Costs
+
+- **Toolchain Maintenance**: Tovu must maintain and version external CLI build plugins (e.g., `@tovu/cli-theme-builder`) for React, Vue, and Angular to ensure compiled output continuously conforms to Tovu's embed marker syntax (`files/src/features/theme/static-render.ts:78-84`, `files/src/features/theme/static-render.ts:251-262`).
+- **Marketplace Friction**: The marketplace (`files/src/features/theme/theme.ts:707`) must either distribute compiled static assets (making developer customization difficult) or require end-users to run a Node/Vite build step upon downloading a theme, undermining Tovu's zero-build-step theme runtime philosophy (`files/development/docs/themes/theme-authoring-guide.md:118-120`).
+
+### The Genuine Sacrifice
+
+- **Surrendering In-CMS Server-Side Reactive Rendering**: Tovu surrenders server-side reactive rendering (e.g., React Server Components or Vue SSR data fetching) inside themes. Data fetching remains strictly locked to Tovu's route-layer context resolution (`files/src/server/routes/site/pages.ts:489-558`), and components cannot perform arbitrary server-side database lookups or API calls during render.
+
+---
+
+## What Would Change My Mind
+
+I would reconsider my rejection of server-side framework adapters (Option A) or an in-process code tier (Option D) only if the following concrete repo facts or system constraints changed:
+
+1. **Native Lightweight V8 Isolate Support in Node Core**: If Tovu adopted a zero-overhead V8 isolate engine (such as `isolated-vm` or Cloudflare-style Workers) directly in `package.json` (`files/package.json:45-68`) capable of booting a React/Vue SSR context in <1ms with sub-10MB memory usage and strict execution timeouts.
+2. **Mandated In-Admin JSX/TSX Live Authoring**: If product requirements explicitly dictated that site administrators MUST edit React/Vue component source files directly inside the Tovu Admin SPA (`apps/admin`) with instant server-rendered previews, making external local build toolchains impossible.
+3. **Core Migration to React Server Components**: If Tovu's core component registry (`COMPONENTS` in `files/src/server/http/site/render.ts:614`) and route renderer were re-written from scratch in React, replacing the JSON block tree and HTML string pipeline entirely.
+
+---
+
+## Unlisted Option
+
+### Web Components / Custom Elements Seam over the `Static` Tier
+
+Rather than forcing React/Vue/Angular into server-side HTML rendering or complex hydration schemes, Tovu should establish **Custom Elements (Web Components)** as the standard interactive component seam.
+
+- **Authoring Model**: Theme authors write custom interactive components using React, Vue, Angular, Svelte, or Lit, and compile them into standard Web Component ES modules (`js/components.js`).
+- **Theme Layout**: The theme layout remains authored in clean, semantic HTML documents (`pages/*.html`) using standard Tovu embed markers (`data-embed-type="menu"`, `data-embed-type="partial"`, `data-embed-type="content"`).
+- **Runtime Execution**: The Tovu server serves `pages/*.html` and `js/*.js` via the existing `static` tier (`files/src/features/theme/static-render.ts:389-413`). The visitor's browser natively hydrates and renders `<theme-header>`, `<product-card>`, or `<interactive-gallery>` elements.
+
+**Why this is superior**:
+1. Zero changes to Tovu's server runtime (`files/src/server/http/site/render.ts:1645-1718`).
+2. Preserves 100% of AI-authorability (C6) and Admin UI file editing (`files/development/docs/themes/theme-authoring-guide.md:17-18`) because page markup remains legible HTML.
+3. Framework-agnostic: works identically for React, Vue, Angular, or vanilla JS without requiring per-framework server adapters.
+
+---
+
+## Blind Spots
+
+- **(a) Viable option this packet failed to list**:
+  An official **Tovu Framework CLI SDK / Vite Plugin** (`@tovu/vite-plugin-theme`). Instead of adding framework execution into Tovu server runtime, provide a Vite plugin that lets authors develop in React/Vue/Angular locally with HMR, and automatically compiles pages into valid Tovu `static` theme structures (`pages/*.html` + `tokens.json` + `css/styles.css`) during `vite build`.
+- **(b) A question we should be asking but aren't**:
+  *"Why are we trying to solve component framework integration at the full-page theme tier rather than at the widget/embed tier?"*
+  Tovu already has a dedicated widget embed mechanism (`files/src/widgets/html-embeds.ts` and `files/src/server/http/site/render.ts:1251-1273`). Embedding framework components as isolated widget embeds requires significantly less architectural surface area than replacing the page layout rendering engine.
+- **(c) The single assumption baked into this framing most likely to be wrong**:
+  **The assumption that CMS theme authors want or need full-page React/Vue SSR.** In self-hosted content CMS ecosystems (WordPress, Ghost, Hugo), theme authors prioritize CSS flexibility, fast load times, and simple HTML/template markup. Forcing JS framework SSR into CMS theme authoring introduces compilation steps and hydration complexities that undermine the simplicity of self-hosted CMS theme development.
+
+<<SWARM_END>>

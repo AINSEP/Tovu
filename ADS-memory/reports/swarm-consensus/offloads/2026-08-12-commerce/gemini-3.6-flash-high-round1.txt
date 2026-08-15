@@ -1,0 +1,82 @@
+ACK_PACKET_RECEIVED CTX-COMMERCE-2026-08-12 -- I received the packet and will work on it.
+
+## Position
+
+The owner's hypothesis—that JSONB-style columns paired with dialect adapters supply the right data model and cross-dialect portability strategy for Tovu commerce—is **WRONG for core entity modeling and indexable data, and PARTLY RIGHT only as an unindexed peripheral attribute escape hatch.**
+
+Relying on JSONB/JSON columns for core commerce entities (products, prices, orders, order items, invoices, payment events) destroys cross-dialect schema portability across PostgreSQL, SQLite, and MySQL. While all three engines can store JSON documents, their indexing mechanisms, query semantics, and DDL syntax are fundamentally incompatible:
+- PostgreSQL uses native binary `jsonb` with GIN indexing (`USING gin (data)`).
+- MySQL uses a `JSON` type lacking GIN indexes, requiring virtual/stored generated columns with standard B-Tree indexes or MySQL 8.0.17+ multi-valued indexes.
+- SQLite has no native JSON type at all (storing JSON as `TEXT`, as seen in Tovu's current post schema at [`files/tovu/schema.ts:49`](file:///tmp/ads-peer-dispatch/debate-commerce/files/tovu/schema.ts#L49)), requiring expression indexes (`json_extract`) or generated columns.
+
+Because Drizzle ORM does not abstract cross-dialect JSON index generation, building a JSONB-first commerce schema forces dialect-specific DDL forks, breaking Tovu's single-schema architecture ([`files/tovu/schema.ts:8-10`](file:///tmp/ads-peer-dispatch/debate-commerce/files/tovu/schema.ts#L8-L10)). Furthermore, hiding financial amounts, currency codes, status strings, foreign keys, and optimistic locking versions inside JSON blobs eliminates database-level foreign key enforcement (violating multi-tenant isolation requirements under `workspace_id`), disables `CHECK` constraints on non-negative currency amounts, breaks atomic optimistic concurrency (`version` integer updates at [`files/tovu/schema.ts:502`](file:///tmp/ads-peer-dispatch/debate-commerce/files/tovu/schema.ts#L502)), and forces heavy application-side parsing for basic SQL aggregations.
+
+The correct design is **Option C — Relational Core with Narrow, Unindexed Metadata JSON Escape Hatch**. 
+1. **Core Commerce Schema**: Model products, prices, orders, order items, subscriptions, and payment events using standard, portable ANSI SQL primitives (`TEXT` primary keys/UUIDs, `INTEGER` cents for monetary amounts, `TEXT` ISO-8601 timestamps, `TEXT` status enums, `INTEGER` version numbers) shared identically across PostgreSQL, SQLite, and MySQL without dialect forks. This directly mirrors Tovu's existing live tables `member_tiers` ([`files/tovu/schema.ts:485-505`](file:///tmp/ads-peer-dispatch/debate-commerce/files/tovu/schema.ts#L485-L505)) and `member_subscriptions` ([`files/tovu/schema.ts:507-525`](file:///tmp/ads-peer-dispatch/debate-commerce/files/tovu/schema.ts#L507-525)).
+2. **Narrow JSON Boundary**: Use `TEXT` JSON columns strictly for opaque, unindexed third-party gateway payloads (`raw_webhook_payload`) and open-ended workspace metadata (`metadata_json`), identical to how `posts.ext` ([`files/tovu/schema.ts:88`](file:///tmp/ads-peer-dispatch/debate-commerce/files/tovu/schema.ts#L88)) and `posts.seo_ext_json` ([`files/tovu/schema.ts:80`](file:///tmp/ads-peer-dispatch/debate-commerce/files/tovu/schema.ts#L80)) are handled today. Never place database indexes on these JSON fields.
+
+Regarding **Open SaaS**: Open SaaS contains **no commerce data model to port**. Its Prisma schema ([`files/opensaas/schema.prisma:10-111`](file:///tmp/ads-peer-dispatch/debate-commerce/files/opensaas/schema.prisma#L10-L111)) models `User`, `GptResponse`, `Task`, `File`, `DailyStats`, `PageViewSource`, `Logs`, and `ContactFormMessage`. It has no `Product`, `Order`, `Price`, or `Invoice` tables; subscription state is flattened directly into nullable strings on the `User` table ([`files/opensaas/schema.prisma:18-22`](file:///tmp/ads-peer-dispatch/debate-commerce/files/opensaas/schema.prisma#L18-L22)). The only element worth studying in Open SaaS is its stateless runtime payment processor port abstraction ([`files/opensaas/payment/paymentProcessor.ts:20-31`](file:///tmp/ads-peer-dispatch/debate-commerce/files/opensaas/payment/paymentProcessor.ts#L20-L31)), which reinforces Tovu's existing provider-neutral `CommercePaymentRuntimePort` contract ([`files/tovu/commerce/contracts.ts:37-39`](file:///tmp/ads-peer-dispatch/debate-commerce/files/tovu/commerce/contracts.ts#L37-L39)). Do not port schema code from Open SaaS.
+
+## Option Assessment
+
+### Option A — JSONB-First
+**REJECTED.**
+- *Incompatible Dialect Indexing*: Postgres `jsonb` GIN indexes, MySQL virtual column B-Tree/multi-valued indexes, and SQLite `json1` expression indexes require completely distinct DDL syntax that cannot be expressed in a single Drizzle schema without custom raw SQL migrations per dialect.
+- *Data Integrity Risk*: Financial attributes stored in JSON lose database-level `NOT NULL`, `CHECK (amount >= 0)`, and foreign key constraints (`workspace_id` multi-tenancy enforcement).
+- *Performance Degradation*: Filtering orders or products by indexed attributes stored in JSON requires engine-specific optimizations or forces table scans.
+
+### Option B — Fully Relational, Lowest-Common-Denominator (No JSON Anywhere)
+**REJECTED.**
+- *Rigidity Against Payment Gateway Payloads*: External payment processors (Stripe, PayPal, LemonSqueezy, Polar) return arbitrary, nested, evolving JSON objects in webhook events. Refusing JSON entirely forces developers to either create hundreds of sparse relational columns, truncate raw event payloads, or alter physical schemas with every provider API version bump.
+- *Metadata Isolation*: Custom key-value workspace attributes cannot be attached to orders or products without dedicated schema migrations.
+
+### Option C — Relational Core + Narrow JSON Escape Hatch
+**BEST DESIGN (SELECTED).**
+- *Strict Relational Foundation*: Core business attributes (identity, workspace ownership, pricing cents, order items, transaction states, optimistic locking `version`) are stored in strongly-typed ANSI SQL relational columns (`TEXT`, `INTEGER`). This guarantees foreign key integrity, fast B-Tree indexing across all three dialects, and zero DDL syntax branching across PostgreSQL, SQLite, and MySQL.
+- *Safe Extensibility*: Raw provider webhook payloads and custom workspace key-value pairs are stored in unindexed `TEXT` JSON fields. Because these fields are never target paths for database indexes or SQL joins, dialect indexing differences are completely bypassed.
+- *Precedent in Tovu*: Matches the established pattern in `files/tovu/schema.ts`, where table structures rely on relational columns while reserving `body_json` ([`files/tovu/schema.ts:49`](file:///tmp/ads-peer-dispatch/debate-commerce/files/tovu/schema.ts#L49)), `seo_ext_json` ([`files/tovu/schema.ts:80`](file:///tmp/ads-peer-dispatch/debate-commerce/files/tovu/schema.ts#L80)), and `ext` ([`files/tovu/schema.ts:88`](file:///tmp/ads-peer-dispatch/debate-commerce/files/tovu/schema.ts#L88)) as unindexed string payloads.
+
+### Option D — Per-Dialect Schemas Behind a Repository Port
+**REJECTED.**
+- *Maintenance Explosion*: Forces Tovu to maintain 3 separate physical schemas, 3 distinct migration pipelines, and 3 sets of Drizzle ORM definitions.
+- *Schema Drift*: Today, Tovu has 35 SQLite migrations under `drizzle/` and zero MySQL code; its Postgres adapter (`files/tovu/db-postgres-ops.ts:8-12`) is an unbacked stub. Branching physical schemas guarantees that SQLite, Postgres, and MySQL targets will drift out of parity, destroying self-hostability guarantees.
+
+## Failure Modes And Sacrifice
+
+### Failure Modes
+1. **Tri-Dialect Migration Drift & Drizzle Generator Failures**: SQLite is lenient with ALTER TABLE statements and type coercions, whereas PostgreSQL and MySQL enforce strict column constraints, foreign key validation, and type conversions. A single Drizzle schema developed against SQLite will generate DDL that fails on Postgres or MySQL if dialect-specific column types (e.g., `sqliteTable` vs `pgTable` vs `mysqlTable`) are mixed or if migrations are not continuously verified against real instances of all three database engines in CI.
+2. **Webhook Idempotency Races & Double-Fulfillment**: Payment webhooks arrive out-of-order, concurrently, and with at-least-once delivery. Without a dedicated relational `processed_webhooks` table enforcing `UNIQUE (workspace_id, provider_id, external_event_id)` across all three dialects, concurrent worker processes will execute duplicate order fulfillments or record conflicting status transitions.
+3. **Domain Bifurcation (`member_tiers` vs `products`)**: Tovu already has live `member_tiers` ([`files/tovu/schema.ts:485-505`](file:///tmp/ads-peer-dispatch/debate-commerce/files/tovu/schema.ts#L485-L505)) and `member_subscriptions` ([`files/tovu/schema.ts:507-525`](file:///tmp/ads-peer-dispatch/debate-commerce/files/tovu/schema.ts#L507-525)) tables storing price cents, currency, and billing periods. Introducing an isolated, parallel `products`/`orders` domain without unifying or mapping membership tiers will cause fragmented payment histories, duplicate price calculation routines, and inconsistent workspace revenue reports.
+4. **Multi-Currency & Fractional Unit Failures**: Representing prices as `INTEGER` cents (as in `member_tiers.monthly_price_cents` at [`files/tovu/schema.ts:497`](file:///tmp/ads-peer-dispatch/debate-commerce/files/tovu/schema.ts#L497)) works for single-currency integer denominations (USD, EUR), but breaks for zero-decimal currencies (JPY), three-decimal currencies (BHD), tax calculations requiring precision before rounding, and dynamic exchange rate conversions.
+
+### Hidden Costs
+- **Mandatory Tri-Engine CI Infrastructure**: Testing tri-dialect equivalence requires running native PostgreSQL, MySQL, and SQLite instances in automated CI pipelines for every pull request, ending Tovu's current single-engine SQLite test runner pattern ([`files/tovu/db-sqlite-ops.ts:33-48`](file:///tmp/ads-peer-dispatch/debate-commerce/files/tovu/db-sqlite-ops.ts#L33-L48)).
+- **Query Abstraction Discipline**: Developers must refrain from using dialect-specific SQL functions (e.g., Postgres `RETURNING`, MySQL `ON DUPLICATE KEY UPDATE`, SQLite `INSERT OR REPLACE`) in repository operations, relying strictly on standard ORM primitives.
+
+### One Genuine Sacrifice
+- **Sacrificing Dynamic JSON Attribute Indexing**: Workspaces cannot perform fast, indexed database queries or filters on arbitrary custom metadata fields stored inside JSON payloads. Any custom product attribute or order metadata that requires fast filtering must be declared as a explicit relational column in the core schema rather than stuffed into an unindexed JSON bag.
+
+## What Would Change My Mind
+
+1. **Native Cross-Dialect JSON Index Abstraction in Drizzle**: If Drizzle ORM introduces a unified, dialect-agnostic API that transparently compiles a single TypeScript index declaration into Postgres GIN syntax, MySQL virtual column B-Tree syntax, and SQLite `json1` expression index syntax without custom SQL, the technical friction of Option A would drop significantly.
+2. **Benchmark Proof of Multi-Valued / Expression Index Parity**: Empirical performance benchmarks demonstrating that MySQL 8.0+ multi-valued JSON indexes and SQLite expression indexes achieve equal query throughput, memory efficiency, and execution plan stability compared to Postgres GIN indexes under multi-tenant (`workspace_id`) workloads.
+3. **Abandonment of Tri-Dialect Constraint (C1)**: If Tovu explicitly drops multi-database support and standardizes on PostgreSQL as its sole production runtime, the JSONB-first model (Option A) would become the clear winner due to Postgres's superior native `jsonb` capabilities.
+4. **Narrow Scope Lock to Simple Digital Subscriptions**: If Tovu explicitly restricts its commerce scope to basic digital membership tiers, ruling out physical inventory, multi-item shopping carts, tax calculation engines, and custom line items, extending the existing `member_tiers` table directly would render a comprehensive relational commerce schema unnecessary.
+
+## Unlisted Option
+
+**Option F: Unified Commerce Catalog & Immutable Ledger (Relational Core with Domain Mapping)**
+
+Rather than creating a standalone `products` entity set that competes with existing `member_tiers` ([`files/tovu/schema.ts:485-505`](file:///tmp/ads-peer-dispatch/debate-commerce/files/tovu/schema.ts#L485-L505)), construct a unified relational catalog where `member_tiers` are treated as a specialized subtype (`product_kind = 'membership'`) of a generic `commerce_products` and `commerce_prices` schema.
+
+Pair this catalog with an **Immutable Payment Event Ledger** (`commerce_payment_events`) that logs every inbound payment intent, charge, refund, and subscription lifecycle state change as an immutable append-only row before updating relational entity states. The event ledger enforces idempotency across PostgreSQL, SQLite, and MySQL via standard relational uniqueness on `(workspace_id, provider_id, external_event_id)` while maintaining full auditing capabilities without relying on dialect-specific JSON indexing.
+
+## Blind Spots
+
+**(a) A viable option not listed**: *The Pure Immutable Event Ledger Strategy*. Instead of mutating order and subscription status columns (`status = 'active'`), store all commerce state mutations as an append-only event log. Aggregating state via deterministic projection tables solves cross-dialect idempotency cleanly through standard SQL `INSERT` statements with unique constraints on `(workspace_id, provider_id, external_event_id)`, avoiding complex cross-dialect row locking and update semantics.
+
+**(b) A question we should be asking but aren't**: *How do transaction isolation levels and row-locking mechanics differ across SQLite, PostgreSQL, and MySQL during concurrent checkout and inventory decrement operations?* SQLite uses file-level locking / serializable WAL writes ([`files/tovu/db-sqlite-ops.ts:11-13`](file:///tmp/ads-peer-dispatch/debate-commerce/files/tovu/db-sqlite-ops.ts#L11-L13)), PostgreSQL uses row-level MVCC with explicit `FOR UPDATE` semantics, and MySQL/InnoDB uses gap locking. A data model that appears portable in DDL can still deadlock or suffer write skew under high concurrency due to underlying engine locking differences.
+
+**(c) The framing assumption most likely wrong, and why**: *The assumption that Open SaaS is a relevant architectural baseline or reference point for Tovu commerce.* Open SaaS is a single-tenant Wasp + Prisma + PostgreSQL boilerplate app with zero commerce data models ([`files/opensaas/schema.prisma:10-111`](file:///tmp/ads-peer-dispatch/debate-commerce/files/opensaas/schema.prisma#L10-L111)) that smashes subscription status directly onto the `User` model ([`files/opensaas/schema.prisma:18-22`](file:///tmp/ads-peer-dispatch/debate-commerce/files/opensaas/schema.prisma#L18-L22)). Tovu is a multi-tenant, self-hostable CMS running Express + Drizzle + SQLite ([`files/tovu/schema.ts:1-26`](file:///tmp/ads-peer-dispatch/debate-commerce/files/tovu/schema.ts#L1-L26)). Looking to Open SaaS for schema modeling guidance is a fundamental domain and architectural distraction.
+
+<<SWARM_END>>

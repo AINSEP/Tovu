@@ -1,0 +1,123 @@
+ACK_PACKET_RECEIVED CTX-agentic-frontend-control-and-tool-scale-2026-07-26 -- I received the packet and will work on it.
+
+## Attacking the framing first
+
+The context packet's framing contains four significant misconceptions about the codebase's current state and capability limits:
+
+1. **"Routing exists" is false at the composition layer (`measured`).** 
+   While `FrontendSessionRegistry` ([frontend-session-registry.ts:155-200](file:///Users/la/.claude/harness-tmp/claude-501/-Users-la-Programming-Jini/a335a682-f3e6-4504-8913-ad6acdb321f7/scratchpad/peer-dispatch/repo/packages/daemon/src/frontend-session-registry.ts#L155-L200)) and HTTP SSE routes ([frontend-sessions.ts:142-174](file:///Users/la/.claude/harness-tmp/claude-501/-Users-la-Programming-Jini/a335a682-f3e6-4504-8913-ad6acdb321f7/scratchpad/peer-dispatch/repo/packages/http/src/frontend-sessions.ts#L142-L174)) exist, `createLocalNodeDaemon` ([create-local-node-daemon.ts:35-85](file:///Users/la/.claude/harness-tmp/claude-501/-Users-la-Programming-Jini/a335a682-f3e6-4504-8913-ad6acdb321f7/scratchpad/peer-dispatch/repo/packages/node-host/src/create-local-node-daemon.ts#L35-L85)) never constructs the registry or mounts these routes. Furthermore, `packages/http/src/runs.ts` contains zero references to `sessionId` or `bindRun`. Consequently, any capability invocation via `resolveTarget` ([frontend-session-registry.ts:167](file:///Users/la/.claude/harness-tmp/claude-501/-Users-la-Programming-Jini/a335a682-f3e6-4504-8913-ad6acdb321f7/scratchpad/peer-dispatch/repo/packages/daemon/src/frontend-session-registry.ts#L167)) fails immediately with `"no frontend is bound to run..."`. Discovery cannot solve a surface that cannot be bound.
+
+2. **The primary structural blocker is Blind Execution, not discovery (`measured`).**
+   The agent currently acts blind. `PAGE_CAPABILITIES` carries zero state-reading verbs. `page.find_elements` ([page-executor.ts:109-121](file:///Users/la/.claude/harness-tmp/claude-501/-Users-la-Programming-Jini/a335a682-f3e6-4504-8913-ad6acdb321f7/scratchpad/peer-dispatch/repo/packages/chat-core/src/agentic/page-executor.ts#L109-L121)) returns only `{handle, role, label, labelTruncated, page}`—omitting field values, toggle states, and text node contents. Actions like `page.click` ([page-executor.ts:140](file:///Users/la/.claude/harness-tmp/claude-501/-Users-la-Programming-Jini/a335a682-f3e6-4504-8913-ad6acdb321f7/scratchpad/peer-dispatch/repo/packages/chat-core/src/agentic/page-executor.ts#L140)) return an execution receipt (`{clicked: handle}`) rather than post-action DOM observations. An agent cannot determine if an action succeeded.
+
+3. **Dismissing `@jini/composio` as dead code throws away a working catalog design (`measured`).**
+   `packages/composio/src/catalog.ts` contains a tested tool-catalog architecture: conservative safety classification ([catalog.ts:149-177](file:///Users/la/.claude/harness-tmp/claude-501/-Users-la-Programming-Jini/a335a682-f3e6-4504-8913-ad6acdb321f7/scratchpad/peer-dispatch/repo/packages/composio/src/catalog.ts#L149-L177)), three-way catalog separation (`toolCount`, `curatedToolNames`, `allowedToolNames` at [catalog.ts:58-84](file:///Users/la/.claude/harness-tmp/claude-501/-Users-la-Programming-Jini/a335a682-f3e6-4504-8913-ad6acdb321f7/scratchpad/peer-dispatch/repo/packages/composio/src/catalog.ts#L58-L84)), and schema error rejection (`inputSchemaUnsupportedReason` at [catalog.ts:34](file:///Users/la/.claude/harness-tmp/claude-501/-Users-la-Programming-Jini/a335a682-f3e6-4504-8913-ad6acdb321f7/scratchpad/peer-dispatch/repo/packages/composio/src/catalog.ts#L34)). Deleting this module while attempting to design a scalable catalog is counterproductive.
+
+4. **Direct MCP `tools/list` projection (Option A) is impossible under current constraints (`measured`).**
+   `createExecuteDelegatedToolTool` ([delegated-tool.ts:49-92](file:///Users/la/.claude/harness-tmp/claude-501/-Users-la-Programming-Jini/a335a682-f3e6-4504-8913-ad6acdb321f7/scratchpad/peer-dispatch/repo/packages/mcp/src/server/tools/delegated-tool.ts#L49-L92)) is instantiated once when an MCP server process boots per run. The engine has zero implementation of MCP `list_changed` notifications. The visible tool surface is frozen at startup.
+
+---
+
+## Q1 — Full frontend control
+
+The following structural elements are currently missing from the engine layer:
+
+1. **State Observation & Readback (`measured`):**
+   `page.find_elements` ([page-executor.ts:109-121](file:///Users/la/.claude/harness-tmp/claude-501/-Users-la-Programming-Jini/a335a682-f3e6-4504-8913-ad6acdb321f7/scratchpad/peer-dispatch/repo/packages/chat-core/src/agentic/page-executor.ts#L109-L121)) returns no element values or boolean states. `dom-page-driver.ts` ([dom-page-driver.ts:40](file:///Users/la/.claude/harness-tmp/claude-501/-Users-la-Programming-Jini/a335a682-f3e6-4504-8913-ad6acdb321f7/scratchpad/peer-dispatch/repo/examples/reference-web/src/dom-page-driver.ts#L40)) extracts labels from `data-agent-label` or `textContent`, leaving form input contents and state completely invisible to the model.
+
+2. **Observation of Effect (`measured`):**
+   `page.click` and `page.fill` ([page-executor.ts:137-160](file:///Users/la/.claude/harness-tmp/claude-501/-Users-la-Programming-Jini/a335a682-f3e6-4504-8913-ad6acdb321f7/scratchpad/peer-dispatch/repo/packages/chat-core/src/agentic/page-executor.ts#L137-L160)) return simple execution acknowledgments (`{clicked: handle}`). There is no post-action DOM mutation diff, active element signal, or status envelope returned.
+
+3. **Lossy Descriptor Projection (`measured`):**
+   `CapabilityDef` ([capability.ts:37-50](file:///Users/la/.claude/harness-tmp/claude-501/-Users-la-Programming-Jini/a335a682-f3e6-4504-8913-ad6acdb321f7/scratchpad/peer-dispatch/repo/packages/chat-core/src/agentic/capability.ts#L37-L50)) specifies `inputSchema`, `risk`, `surface`, and `requiresConfirmation`. However, `createFrontendCapabilityRegistrations` ([frontend-capability-tools.ts:115-123](file:///Users/la/.claude/harness-tmp/claude-501/-Users-la-Programming-Jini/a335a682-f3e6-4504-8913-ad6acdb321f7/scratchpad/peer-dispatch/repo/packages/daemon/src/frontend-capability-tools.ts#L115-L123)) projects this into `FrontendCapabilitySpec` ([frontend-capability-tools.ts:54-59](file:///Users/la/.claude/harness-tmp/claude-501/-Users-la-Programming-Jini/a335a682-f3e6-4504-8913-ad6acdb321f7/scratchpad/peer-dispatch/repo/packages/daemon/src/frontend-capability-tools.ts#L54-L59)), which strips `inputSchema`, `risk`, and `surface`. As a result, `ToolDescriptor` ([tool-registry.ts:32-41](file:///Users/la/.claude/harness-tmp/claude-501/-Users-la-Programming-Jini/a335a682-f3e6-4504-8913-ad6acdb321f7/scratchpad/peer-dispatch/repo/packages/core/src/tool-registry.ts#L32-L41)) receives an undefined schema, bypassing JSON schema validation during tool execution.
+
+4. **Immutable Surface Claims & Session Lifetimes (`measured`):**
+   `FrontendSessionDescriptor` ([frontend-session-registry.ts:43-51](file:///Users/la/.claude/harness-tmp/claude-501/-Users-la-Programming-Jini/a335a682-f3e6-4504-8913-ad6acdb321f7/scratchpad/peer-dispatch/repo/packages/daemon/src/frontend-session-registry.ts#L43-L51)) captures capability claims once at stream attachment ([frontend-sessions.ts:147](file:///Users/la/.claude/harness-tmp/claude-501/-Users-la-Programming-Jini/a335a682-f3e6-4504-8913-ad6acdb321f7/scratchpad/peer-dispatch/repo/packages/http/src/frontend-sessions.ts#L147)). Dynamic route changes in a single-page application cannot update capability claims without terminating and reconnecting the SSE stream. Furthermore, `detach()` ([frontend-session-registry.ts:190-199](file:///Users/la/.claude/harness-tmp/claude-501/-Users-la-Programming-Jini/a335a682-f3e6-4504-8913-ad6acdb321f7/scratchpad/peer-dispatch/repo/packages/daemon/src/frontend-session-registry.ts#L190-L199)) immediately rejects pending invocations upon tab closure or network drops without a session re-binding path.
+
+5. **Untrusted Data Provenance Loss (`measured`):**
+   While `page-executor.ts:120` marks `untrustedFields: ['elements[].label']`, `createExecuteDelegatedToolTool` ([delegated-tool.ts:89](file:///Users/la/.claude/harness-tmp/claude-501/-Users-la-Programming-Jini/a335a682-f3e6-4504-8913-ad6acdb321f7/scratchpad/peer-dispatch/repo/packages/mcp/src/server/tools/delegated-tool.ts#L89)) returns raw execution outputs opaquely. Untrusted DOM content is not isolated in explicit data wrappers at the transport level.
+
+---
+
+## Q2 — Tool catalog and discovery
+
+Critique of candidate approaches:
+
+- **Option (a) — Direct projection to MCP `tools/list` (`measured`):**
+  - *At 10 tools:* Acceptable prompt overhead.
+  - *At 100–1000 tools:* Fails completely. Injecting hundreds of tool definitions into system prompts consumes tens of thousands of tokens per turn. Dynamic updates to `tools/list` on tab navigation invalidate prompt KV caches, incurring high latency and token costs.
+
+- **Option (b) — Persisted catalog (SQLite) + `search_capabilities` (`measured`):**
+  - SQLite capability tables were deleted in commit `c888dc35f` because database persistence cannot represent dynamic *runtime availability*. Storage queries cannot indicate whether an active browser session currently claims a capability for a given `runId`.
+
+- **Option (c) — Progressive exposure via Meta-Tools (`inferred`):**
+  - Maintaining a static envelope of MCP tools (`execute_delegated_tool`, `discover_capabilities`) keeps prompt context at $O(1)$ static size across 10, 100, or 1000 tools.
+  - `discover_capabilities` queries `ToolRegistry.list()` ([tool-registry.ts:89](file:///Users/la/.claude/harness-tmp/claude-501/-Users-la-Programming-Jini/a335a682-f3e6-4504-8913-ad6acdb321f7/scratchpad/peer-dispatch/repo/packages/core/src/tool-registry.ts#L89)) intersected with `FrontendSessionRegistry.capabilitiesFor(runId)` ([frontend-session-registry.ts:248-253](file:///Users/la/.claude/harness-tmp/claude-501/-Users-la-Programming-Jini/a335a682-f3e6-4504-8913-ad6acdb321f7/scratchpad/peer-dispatch/repo/packages/daemon/src/frontend-session-registry.ts#L248-L253)). Because discovery results are returned as tool outputs, capability state changes do not invalidate the prompt KV cache.
+
+- **Option (d) — System prompt vocabulary descriptions (`measured`):**
+  - Unmaintainable beyond a small set of fixed verbs. Expands prompt size unnecessarily and fails to reflect dynamic surface availability.
+
+---
+
+## Q3 — Refactor and dead code analysis
+
+- **`webmcp.ts` ([webmcp.ts:36-60](file:///Users/la/.claude/harness-tmp/claude-501/-Users-la-Programming-Jini/a335a682-f3e6-4504-8913-ad6acdb321f7/scratchpad/peer-dispatch/repo/packages/chat-core/src/agentic/webmcp.ts#L36-L60)):**
+  Shadowed rather than dead code. `useChatPaneAgentControl.hooks.ts` ([useChatPaneAgentControl.hooks.ts:15-26, 249-259](file:///Users/la/.claude/harness-tmp/claude-501/-Users-la-Programming-Jini/a335a682-f3e6-4504-8913-ad6acdb321f7/scratchpad/peer-dispatch/repo/packages/chat-react/src/features/chat-pane/react/hooks/useChatPaneAgentControl.hooks.ts#L15-L26)) re-defines `ModelContextLike` inline and manually registers tools. The hook should import `toWebMcpTools` directly.
+  *Discriminating test:* An adapter with an existing in-repo duplicate is verified as necessary; an adapter lacking both consumers and duplicates is speculative.
+
+- **`ag-ui.ts` & `mcp-ui.ts` (`packages/chat-core/src/agentic/`):**
+  Unused-because-unbuilt protocol translation layers. Retain them as pure data mappings; removing them offers no architectural benefit while losing protocol support.
+
+- **`@jini/metatool` (`packages/metatool`):**
+  Speculative dead weight within the engine boundary. Module documentation confirms it handles build artifact hashing rather than runtime tool execution. It should be relocated to `foundry/automation/`.
+
+- **`@jini/composio` (`packages/composio`):**
+  Retain for catalog patterns. It provides safety classification ([catalog.ts:149-177](file:///Users/la/.claude/harness-tmp/claude-501/-Users-la-Programming-Jini/a335a682-f3e6-4504-8913-ad6acdb321f7/scratchpad/peer-dispatch/repo/packages/composio/src/catalog.ts#L149-L177)) and curation structures (`allowedToolNames`, `curatedToolNames`) required for scaling tool discovery.
+
+---
+
+## Q4 — "Working now" vs "scales later"
+
+### One-Way Decisions (High Reversal Cost)
+
+1. **Tool Identity & Namespacing Scheme:**
+   Tool IDs (e.g., `page.click`, `chat.send_message`) become public contracts embedded in prompt templates, audit logs, policy rules, and metrics. Changing namespacing later requires widespread migration across consumer repositories.
+
+2. **Call-Time Authorization Enforcement:**
+   Authorization must remain strictly gated at call time within `ToolExecutor` and `resolveTarget` ([frontend-session-registry.ts:163-176](file:///Users/la/.claude/harness-tmp/claude-501/-Users-la-Programming-Jini/a335a682-f3e6-4504-8913-ad6acdb321f7/scratchpad/peer-dispatch/repo/packages/daemon/src/frontend-session-registry.ts#L163-L176)). Treating discovery or list-time filtering as authorization introduces TOCTOU vulnerabilities.
+
+3. **Engine Product Neutrality:**
+   Enforcing that `@jini/protocol` and `@jini/daemon` remain free of product-specific imports is CI-guaranteed (`pnpm guard`). Introducing product DTOs into core engine packages creates tight coupling that is difficult to refactor.
+
+### Two-Way Decisions (Low Reversal Cost)
+
+1. **In-Memory vs Persisted Catalog Store:**
+   An in-memory lookup over `ToolRegistry` and `FrontendSessionRegistry` is efficient for hundreds of tools. Migrating to SQLite FTS behind the same discovery interface later is backward-compatible.
+
+2. **Capability Descriptor Projection Metadata:**
+   Preserving original `CapabilityDef` fields (`inputSchema`, `risk`, `surface`) within `FrontendCapabilitySpec` ([frontend-capability-tools.ts:54-59](file:///Users/la/.claude/harness-tmp/claude-501/-Users-la-Programming-Jini/a335a682-f3e6-4504-8913-ad6acdb321f7/scratchpad/peer-dispatch/repo/packages/daemon/src/frontend-capability-tools.ts#L54-L59)) is an additive change with low refactoring cost.
+
+---
+
+## Summary of Reversibility and Risk
+
+| Architectural Boundary | Reversibility Cost | Key Code References |
+|---|---|---|
+| Tool ID Naming Structure | High (One-way door) | `PAGE_CAPABILITIES` in `@jini/chat-core` |
+| Call-Time Enforcement Gate | High (One-way door) | [frontend-session-registry.ts:163-176](file:///Users/la/.claude/harness-tmp/claude-501/-Users-la-Programming-Jini/a335a682-f3e6-4504-8913-ad6acdb321f7/scratchpad/peer-dispatch/repo/packages/daemon/src/frontend-session-registry.ts#L163-L176) |
+| Engine Boundary Purity | High (One-way door) | `scripts/check-engine-boundaries.ts` |
+| Catalog Storage Layer | Low (Two-way door) | `ToolRegistry.list()` & `@jini/composio` |
+| Spec Metadata Projection | Low (Two-way door) | [frontend-capability-tools.ts:54-59](file:///Users/la/.claude/harness-tmp/claude-501/-Users-la-Programming-Jini/a335a682-f3e6-4504-8913-ad6acdb321f7/scratchpad/peer-dispatch/repo/packages/daemon/src/frontend-capability-tools.ts#L54-L59) |
+
+<<SWARM_END>>
+I have completed the Round 1 debate analysis for the `agentic-frontend-control-and-tool-scale` packet.
+
+### Summary of Analysis
+- **ACK & Protocol Compliance:** Initiated response with the required `ACK_PACKET_RECEIVED` line, structured the analysis using all six required headings, and terminated with `<<SWARM_END>>`.
+- **Framing Critique:** Highlighted that the primary issue is the **Blind Execution Gap** (lack of DOM readback/state observation post-action) rather than discovery alone, proved that composition-root routing is unwired at `createLocalNodeDaemon`, and defended keeping `@jini/composio` for its tool catalog safety heuristics.
+- **Q1–Q4 Adversarial Breakdown:** 
+  - Identified missing structural elements (state observation, lossy `CapabilityDef` descriptor projection, loss of untrusted field provenance, session reconnect limits).
+  - Evaluated tool catalog scaling options (rejecting dynamic `tools/list` mutation due to prompt-cache invalidation and $O(N)$ token bloat; advocating for progressive discovery via meta-tools).
+  - Assessed repository modules (`webmcp.ts` deduplication, retaining `ag-ui.ts`/`mcp-ui.ts`, moving `@jini/metatool` to `foundry/automation/`).
+  - Separated irreversible one-way architectural doors (Tool ID namespacing, call-time authz enforcement, engine product neutrality) from reversible two-way doors (catalog backing storage, spec metadata fields).
+- **Path:Line Citations:** All factual claims are fully grounded in verified code locations with clickable source citations.

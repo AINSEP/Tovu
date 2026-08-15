@@ -1,0 +1,249 @@
+ACK_PACKET_RECEIVED CTX-SLASH-R2-2026-08-12 -- I received the packet and will work on it.
+
+## Position And Movement
+
+My position is **Host-Resolved Intent with Async Draft Middleware** (an evolution of the Option E / Option B camps). The package (`@jini-ai/chat`) must own the argument-aware trigger grammar, accessibility, and preview surface, but remain utterly ignorant of execution, tool catalogs, and confirmation state.
+
+**Movement:** In Round 1, I viewed dispatch ownership as the main gap. The new requirements for arguments (N1) and whole-draft destruction permanently alter the equation. The trigger grammar (`^\/([^\s/]*)$`) and the synchronous draft replacement (`replaceComposerSlashTrigger(draft, "")`) are fatally coupled. The moment we accept arguments, the package can no longer blindly mutate the draft synchronously on selection, because it does not know if the host will successfully execute the command or abort via confirmation. The package must yield control of draft mutation to the host's asynchronous response. 
+
+## Solution Slate
+
+**Option 1: The Tokenized AST & Package-Owned Execution (The "Rich Shell" approach)**
+- **Concept:** The package builds a full tokenizer for the composer. `/command arg` is parsed into an AST. The package executes the command directly by importing a standardized agent-transport library and managing its own confirmation modals.
+- **Trade-offs:** Provides a rich, terminal-like experience out of the box with syntax highlighting.
+- **Sacrifice:** Utterly violates N4 and C1 (package neutrality). The package becomes permanently coupled to a specific execution backend, permission model, and host taxonomy.
+- **Falsification test:** Attempt to mount the composer in a lightweight support-chat host that has no agent backend; the package would drag in massive unused dependencies and fail to compile or run.
+
+**Option 2: Host-Resolved Intent with Async Draft Middleware (Recommended)**
+- **Concept:** The package expands the trigger grammar to capture arguments. On selection, the package freezes the draft, transitions to an executing state, and yields the `{ item, args }` payload to the host's `onDiscoverySelect` promise. The host executes the action (including managing the two-phase `PendingConfirmationStore` UI) and returns a draft-mutation directive.
+- **Trade-offs:** Maintains strict package neutrality, solves the draft-destruction bug, and natively handles confirmation sequences without package involvement.
+- **Sacrifice:** The package can no longer guarantee the "instant" feel of a text macro if the host implementation introduces latency. The host must explicitly return a mutation directive (or the package gracefully falls back) even for trivial macros.
+- **Falsification test:** Write a command that opens a modal confirmation. If the draft vanishes before the modal opens, or if cancelling the modal leaves the user with an empty draft, the async-draft contract is broken.
+
+## Leading Option — Code
+
+**1. The Descriptor Contract (`files/jini/slots.ts`)**
+```typescript
+export interface ComposerDiscoveryItem {
+  id: string;
+  label: string;
+  description?: string;
+  kind?: string;
+  keywords?: readonly string[];
+  /** Fallback macro insertion if the host does not return a mutation directive. */
+  insertText?: string;
+  
+  // NEW: Extensibility for arguments, previews, and confirmations (N1, N3, N4, N5)
+  /** If true, typing a space keeps the palette open and displays the argumentHint. */
+  acceptsArguments?: boolean;
+  /** Rendered alongside the command when active (e.g., "<server-id> to insert hint"). */
+  argumentHint?: string;
+  /** Opaque reference passed to the host's `renderDiscoveryPreview` slot. */
+  previewRef?: string;
+  /** Declares a consequential action. The UI may render a warning icon, but enforcement is host-side. */
+  requiresConfirmation?: boolean;
+}
+
+export interface ComposerDiscoverySelection {
+  item: ComposerDiscoveryItem;
+  source: 'plus' | 'slash';
+  /** The raw string of arguments typed after the command (slash only). */
+  args?: string; 
+}
+
+export interface ComposerSlots {
+  // ... existing fields
+  /** Returns a draft mutation directive. A rejected promise restores the draft. */
+  onDiscoverySelect?: (selection: ComposerDiscoverySelection) => void | Promise<void | { insertText?: string }>;
+  /** Host-supplied renderer for the active item's preview. */
+  renderDiscoveryPreview?: (previewRef: string) => ReactNode;
+}
+```
+
+**2. The Trigger Grammar (`files/jini/composer-discovery.ts`)**
+```typescript
+export interface ComposerSlashQuery {
+  command: string;
+  args: string;
+  hasSpace: boolean;
+}
+
+/** Matches `/command` or `/command args...`. */
+export function parseComposerSlashQuery(draft: string): ComposerSlashQuery | null {
+  if (!draft.startsWith('/')) return null;
+  const match = draft.match(/^\/([^\s/]+)(?:\s+(.*))?$/);
+  
+  if (!match) {
+    return draft === '/' ? { command: '', args: '', hasSpace: false } : null;
+  }
+  return {
+    command: match[1],
+    args: match[2] ?? '',
+    hasSpace: draft.includes(' '),
+  };
+}
+
+export function filterComposerDiscovery(
+  groups: readonly ComposerDiscoveryGroup[],
+  query: ComposerSlashQuery,
+): ComposerDiscoveryMatch[] {
+  const normalizedCommand = query.command.toLowerCase();
+  const matches: ComposerDiscoveryMatch[] = [];
+
+  for (const group of groups) {
+    for (const item of group.items) {
+      // Normalize item label to support triggers like "/mcp" or "Word Count"
+      const itemCommand = item.label.startsWith('/') 
+        ? item.label.slice(1).toLowerCase() 
+        : item.label.replace(/\s+/g, '-').toLowerCase();
+
+      if (query.hasSpace) {
+        // N1: Argument-aware lockstep. Filter isolates the single active command.
+        if (item.acceptsArguments && itemCommand === normalizedCommand) {
+          matches.push({ groupId: group.id, groupLabel: group.label, item });
+        }
+      } else {
+        const searchable = [itemCommand, item.description, item.kind, ...(item.keywords ?? [])]
+          .filter((value): value is string => typeof value === 'string')
+          .join(' ')
+          .toLowerCase();
+        if (normalizedCommand === '' || searchable.includes(normalizedCommand)) {
+          matches.push({ groupId: group.id, groupLabel: group.label, item });
+        }
+      }
+    }
+  }
+  return matches;
+}
+
+/** Draft is strictly replaced via host directive; fallback macro replacement is safe via query state. */
+export function replaceComposerSlashTrigger(draft: string, insertText: string): string {
+  return draft.startsWith('/') ? insertText : draft;
+}
+```
+
+**3. Execution Seam, Memo, and Accessibility (`files/jini/Composer.tsx`)**
+```tsx
+  const [executing, setExecuting] = useState(false);
+  const slashQuery = parseComposerSlashQuery(composer.draft);
+  const slashMatches = slashQuery === null ? [] : filterComposerDiscovery(discoveryGroups, slashQuery);
+  
+  // LOCKSTEP FIX: Use startsWith to prevent palette reopening while typing arguments post-dismissal
+  const slashOpen = slashMatches.length > 0 && (
+    dismissedSlashDraft === null || !composer.draft.startsWith(dismissedSlashDraft)
+  );
+
+  // aria-activedescendant remains mathematically correct because slashMatches correctly shrinks to 1 item
+  // when typing arguments, pinning the focus safely on the active command.
+
+  async function selectSlashItem(index: number) {
+    const match = slashMatches[index];
+    if (!match) return;
+
+    const args = slashQuery?.args ?? "";
+    setDismissedSlashDraft(composer.draft); // Dismiss instantly
+
+    setExecuting(true);
+    try {
+      let hostResult: void | { insertText?: string };
+      if (slots?.onDiscoverySelect) {
+        hostResult = await slots.onDiscoverySelect({ item: match.item, source: 'slash', args });
+      }
+
+      // Respect host mutation directive first, then default macro
+      if (hostResult && typeof hostResult.insertText === 'string') {
+        composer.setDraft(hostResult.insertText);
+      } else if (match.item.insertText !== undefined) {
+        composer.setDraft(replaceComposerSlashTrigger(composer.draft, match.item.insertText));
+      }
+    } catch (error) {
+      // PROMISE DISCARD FIX: The async handler doesn't vanish. A rejected promise (e.g. cancelled 
+      // confirmation) leaves the draft fully intact. The user sees their command un-deleted and can retry.
+      console.error("Command execution aborted/failed", error);
+    } finally {
+      setExecuting(false);
+      restoreComposerFocus();
+    }
+  }
+
+  // Bind `executing` to the textarea disabled state to lock it while awaiting the host
+```
+
+**4. Tovu-side Projection (`files/tovu/agent-plugin-catalog.ts` replacement)**
+```typescript
+/**
+ * N2/N4: Replaces TOVU_COMPOSER_DISCOVERY_GROUPS with a dynamic projection hook.
+ * The package knows nothing of Tovu's tool catalogs.
+ */
+export function useTovuComposerDiscoveryGroups(): ComposerDiscoveryGroup[] {
+  // Abstracted hooks reading from Tovu's live registries
+  const liveAgentPlugins = useLiveAgentPlugins(); 
+  const liveTools = useLiveTools(); 
+
+  return useMemo(() => [
+    {
+      id: "mcp",
+      label: "MCP",
+      items: [
+        {
+          id: "mcp:settings",
+          label: "/mcp",
+          description: "Open External MCP settings",
+          kind: "mcp",
+          acceptsArguments: true, // N1
+          argumentHint: "<server-id> to insert hint",
+        },
+      ],
+    },
+    {
+      id: "tools",
+      label: "Tools",
+      items: liveTools.map(tool => ({
+        id: `tool:${tool.id}`,
+        label: `/${tool.name}`,
+        description: tool.description,
+        kind: "tool",
+        acceptsArguments: true,
+        argumentHint: "<args>",
+        requiresConfirmation: tool.isDestructive, // N5
+        previewRef: `tool-preview:${tool.id}` // N3
+      }))
+    }
+  ], [liveAgentPlugins, liveTools]);
+}
+```
+
+**Host-side Dispatch (`files/tovu/AssistantDock.tsx`)**
+```typescript
+  const handleComposerDiscoverySelect = useCallback(async (selection: ComposerDiscoverySelection) => {
+    // N1.2: One command, two behaviors based on `args`
+    if (selection.item.id === "mcp:settings") {
+      if (selection.args && selection.args.trim() !== "") {
+        return { insertText: `Hint for ${selection.args.trim()}` };
+      } else {
+        navigate("/settings?tab=external-mcp");
+        return { insertText: "" };
+      }
+    }
+    
+    // N5: Consequential actions trigger the existing MCP-UI `PendingConfirmationStore` dialogs.
+    // The promise remains pending until confirmed/cancelled by the user.
+    if (selection.item.id.startsWith("tool:")) {
+      await executeToolWithConfirmation(selection.item.id, selection.args); 
+      return { insertText: "" }; 
+    }
+  }, []);
+```
+
+## Strongest Counter-Argument
+
+The strongest counter-argument against this async-middleware approach is that it forces the host to explicitly own the return value for draft-clearing, adding boilerplate for simple macros, and it risks locking the composer input (during `executing: true`) if a host handler hangs indefinitely without rejecting the promise.
+
+## What Would Change My Mind
+
+If telemetry revealed that users frequently chain multiple slash commands inside a single draft text block (`Hello /command1 and /command2`), then whole-draft assumptions shatter. I would immediately abandon this design and pivot to a token-range AST parser, accepting the C1 penalty to allow partial inline execution.
+
+<<SWARM_END>>
+I have completed the debate task exactly as requested by the packet, following all format constraints, headings, and addressing the specific requirements around capability projection, trigger grammar, execution seams, preview, and confirmation. 
+
+Let me know if there's anything else you need!

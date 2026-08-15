@@ -1,0 +1,31 @@
+ACK_PACKET_RECEIVED CTX-SLASH-2026-08-12 -- I received the packet and will work on it.
+
+## Position
+The correct architectural design is **Option B — Client-side command dispatch**. The package (`@jini-ai/chat`) must remain a pure, unopinionated UI projection layer that renders host-supplied items (`files/jini/slots.ts:122`) and emits the user's choice through the `slots.onDiscoverySelect` callback (`files/jini/slots.ts:123`). The host (Tovu) retains complete ownership over execution semantics, registry lookup, and authorization. 
+
+This design respects Constraint C1 (reusable package) and is already functionally proven: Tovu currently uses this exact seam to navigate the user to `/mcp` settings when that slash command is selected (`files/tovu/AssistantDock.tsx:270-273`), proving that the package does not need to know what "executing" means. 
+
+This feature should be **finished**, not deleted. The parser (`files/jini/composer-discovery.ts:10`), ARIA-compliant renderer (`files/jini/ComposerDiscovery.tsx:118`), and host slots (`files/jini/slots.ts:123`) are fully built, tested, and already doing useful work. The only missing piece is formalizing the host's responsibility to handle the emitted selections.
+
+## Option Assessment
+- **Option A (Text macro only):** Rejected. This assumes commands are solely for text generation, but `ComposerDiscoveryItem.insertText` is explicitly typed as optional (`files/jini/slots.ts:88`). The existing `/mcp` command defines `insertText: ""` (`files/tovu/agent-plugin-catalog.ts:95`) specifically because its entire value is the client-side navigation side-effect fired by Tovu (`files/tovu/AssistantDock.tsx:272`). 
+- **Option C (Server/agent tool invocation):** Rejected. It breaks C1 (reusability) and C3 (CLI architecture). The composer package is a UI component and should not couple to the agent daemon's server-side tool execution pipeline, which in Tovu is handled entirely out-of-band by the backend (`files/tovu/AssistantDock.tsx:117-119`).
+- **Option D (Hybrid with declared command kind):** Rejected. It fundamentally violates the explicit architectural contract documented for `ComposerDiscoveryItem.kind`: "Jini filters and renders the value but never switches on a host-owned taxonomy such as 'plugin' or 'skill'" (`files/jini/slots.ts:77-78`). The package must not contain dispatch branching logic.
+
+## Failure Modes And Sacrifice
+- **Failure Modes:** `onDiscoverySelect` is untyped regarding success or failure (`void | Promise<void>`, `files/jini/slots.ts:124`). If a host-driven action fails asynchronously, the composer has no built-in mechanism to show an error state, revert the draft replacement, or recover context.
+- **Hidden Costs:** Since the host owns execution, if multiple host applications need slash commands to trigger complex backend agent states (e.g., injecting invisible system prompts), they will have to write duplicated boilerplate bridge code in their respective `onDiscoverySelect` handlers.
+- **Genuine Sacrifice:** We permanently sacrifice the ability to accept user arguments for slash commands in the current UX pattern. Because selection executes the command immediately (`files/jini/Composer.tsx:94`) and the regex strictly rejects whitespace (`/^\/([^\s/]*)$/`, `files/jini/composer-discovery.ts:11`), we cannot support complex commands like `/search [query]`.
+
+## What Would Change My Mind
+If telemetry or upcoming Agent Plugin requirements reveal that the vast majority of slash commands are strictly intended to be executed by the LLM as structured tool calls (rather than client-side UI navigation), Option C would become necessary. In that case, forcing every host app to manually bridge UI events to their backend tool pipeline would be an unacceptable anti-pattern, justifying giving the composer package explicit knowledge of the agent tool schema.
+
+## Unlisted Option
+**Execute on Send, Not Select.** The listed options all assume that picking an item from the autocomplete menu immediately executes the action. An alternative design is that selecting a command merely sets the draft text to an uneditable "chip" (or just populates the command text), and the execution logic only fires when the user explicitly clicks the "Send" button. This delays dispatch to the natural submission boundary and leaves the door open to accept trailing text arguments before execution.
+
+## Blind Spots
+- **(a) A viable unlisted option:** Intercepting commands at the `onSend` boundary instead of `onDiscoverySelect`. The composer could parse the final submitted draft and, if it matches a command, emit an `onCommandSubmit` event instead of appending a chat message to the transcript.
+- **(b) A question we should be asking but aren't:** "What is the intended lifecycle of the composer focus after a command executes?" Currently, `selectSlashItem` aggressively calls `restoreComposerFocus()` (`files/jini/Composer.tsx:98`). If a host action navigates the user to a new page or opens a modal (like `/mcp` does), stealing focus back to the textarea is actively hostile to the user.
+- **(c) The framing assumption most likely to be wrong:** The assumption in Open Question 5 that `replaceComposerSlashTrigger` "throws away whatever the user typed." This is a completely false premise. `parseComposerSlashQuery` enforces the regex `/^\/([^\s/]*)$/` (`files/jini/composer-discovery.ts:11`), which mandates that the slash token comprises the *entire* draft. No other user text can possibly exist in the draft to be destroyed; it only ever replaces the command string itself.
+
+<<SWARM_END>>

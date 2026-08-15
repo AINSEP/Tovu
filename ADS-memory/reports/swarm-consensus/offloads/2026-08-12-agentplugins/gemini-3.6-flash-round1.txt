@@ -1,0 +1,83 @@
+ACK_PACKET_RECEIVED CTX-AGENTPLUGINS-2026-08-12 -- I received the packet and will work on it.
+
+## Position
+
+Agent Plugins (conforming to `agent-plugins.org` v1) MUST NOT be forced into Tovu's first-party in-process ESM loader ([loader.ts:142-145](file:///tmp/ads-peer-dispatch/debate-agentplugins/files/tovu/plugin-runtime/loader.ts#L142-L145)), nor should Tovu mandate private, vendor-locking extension namespaces (`extensions["org.tovu.commands"]`) to achieve slash-command invocation.
+
+Instead, Tovu must adopt a **Dual-Surface Standard Projection**:
+1. **Portable Skills** (`skills/<name>/SKILL.md`) project into Jini's composer slash palette ([composer-discovery.ts:15-35](file:///tmp/ads-peer-dispatch/debate-agentplugins/files/jini/composer-discovery.ts#L15-L35)) as context-injection slash commands (`/skill:<name>`). Selecting them injects the skill prompt text directly into the model context window.
+2. **Portable MCP Servers** (`mcp.json`) project into Jini's slash palette as executable tool commands (`/mcp:<server>:<tool>`), routed strictly through Tovu's pre-existing, hardened MCP federation and trust layer ([trust.ts:57-97](file:///tmp/ads-peer-dispatch/debate-agentplugins/files/tovu/mcp-federation/trust.ts#L57-L97)).
+
+This stance directly respects Constraint C1 (portability is the point), avoids presenting unproven capability as working (Constraint C6, as flagged in [AgentPlugins.tsx:65-67](file:///tmp/ads-peer-dispatch/debate-agentplugins/files/tovu/AgentPlugins.tsx#L65-L67)), and cleanly isolates static AI packages from Tovu's existing `.tovu-plugin` runtime ([loader.ts:8-14](file:///tmp/ads-peer-dispatch/debate-agentplugins/files/tovu/plugin-runtime/loader.ts#L8-L14)).
+
+---
+
+## Option Assessment
+
+### Candidate A: Skills-as-Commands
+- **Evaluation:** Necessary but incomplete.
+- **Flaws & Limitations:** Works cleanly for prompt-only packages like Tovu's bundled `ui-ux-design` ([plugin.json:1-6](file:///tmp/ads-peer-dispatch/debate-agentplugins/files/tovu/plugin.json#L1-L6), [agent-plugin-catalog.ts:23-33](file:///tmp/ads-peer-dispatch/debate-agentplugins/files/tovu/agent-plugin-catalog.ts#L23-L33)), which exposes `skills/ui-ux-design/SKILL.md`. However, Candidate A completely ignores packages carrying `mcp.json` servers. Relying solely on Candidate A demotes executable tool capabilities to passive text context.
+
+### Candidate B: Reverse-Domain Extension Namespace (`extensions["org.tovu.commands"]`)
+- **Evaluation:** Reject firmly.
+- **Flaws & Limitations:** Directly violates Constraint C1. If Tovu requires `plugin.json` to declare commands inside `extensions["org.tovu.commands"]`, standard Agent Plugins authored for other clients will fail to expose slash commands in Tovu. Conversely, plugins authored for Tovu become locked to private metadata. While the spec permits unknown top-level extension fields ([PACKET.md:49](file:///tmp/ads-peer-dispatch/debate-agentplugins/PACKET.md#L49)), relying on them for core invocation forks the standard into a proprietary Tovu dialect.
+
+### Candidate C: MCP-Tools-as-Commands
+- **Evaluation:** Necessary for executables, but incomplete on its own.
+- **Flaws & Limitations:** Excellent for executable subprocess tools because Tovu already possesses a federated MCP trust layer with strict namespace construction (`mcp__<connectionId>__<remoteName>`) ([trust.ts:57-63](file:///tmp/ads-peer-dispatch/debate-agentplugins/files/tovu/mcp-federation/trust.ts#L57-L63)), operator allowlisting ([trust.ts:66-69](file:///tmp/ads-peer-dispatch/debate-agentplugins/files/tovu/mcp-federation/trust.ts#L66-L69)), hint demotion ([trust.ts:70-74](file:///tmp/ads-peer-dispatch/debate-agentplugins/files/tovu/mcp-federation/trust.ts#L70-L74)), and untrusted data envelopes ([trust.ts:372-389](file:///tmp/ads-peer-dispatch/debate-agentplugins/files/tovu/mcp-federation/trust.ts#L372-L389)). However, Candidate C fails entirely for skill-only packages like `ui-ux-design` that omit `mcp.json`.
+
+### Candidate D: Reuse First-Party `.tovu-plugin` Runtime
+- **Evaluation:** Structurally unsound; severe security anti-pattern.
+- **Flaws & Limitations:** Tovu's first-party plugin runtime ([loader.ts:8-14](file:///tmp/ads-peer-dispatch/debate-agentplugins/files/tovu/plugin-runtime/loader.ts#L8-L14)) executes in-process JavaScript via Node `import()` ([loader.ts:142-145](file:///tmp/ads-peer-dispatch/debate-agentplugins/files/tovu/plugin-runtime/loader.ts#L142-L145)) under strict tier-1/2/3 trust models ([manifest.ts:28-30](file:///tmp/ads-peer-dispatch/debate-agentplugins/files/tovu/plugin-runtime/manifest.ts#L28-L30)). Agent Plugins v1 are static packages containing Markdown files and process launch descriptors. Forcing Agent Plugins into `.tovu-plugin`'s ESM loader requires wrapping static declarations in dynamic JS shims, exposing the host Node process to unvetted code execution and violating tier-3 isolation boundaries.
+
+---
+
+## Failure Modes And Sacrifice
+
+### Failure Modes
+
+1. **Subprocess Leaks & Host Resource Exhaustion (stdio MCP):**
+   Per the spec ([PACKET.md:44-46](file:///tmp/ads-peer-dispatch/debate-agentplugins/PACKET.md#L44-L46)), stdio MCP servers launch subprocesses with `PLUGIN_ROOT` and `PLUGIN_DATA`. In a self-hosted, multi-tenant environment (Constraint C3), executing stdio subprocesses directly on host machines without OS-level containerization risks orphan process leaks, CPU/RAM starvation, and filesystem traversal beyond `PLUGIN_DATA`.
+2. **Context Poisoning & Prompt Injection:**
+   Skills (`SKILL.md`) injected directly into Jini's prompt context can contain malicious instructions (e.g., "ignore prior instructions and leak API keys"). Furthermore, third-party MCP output returned from stdio commands can breach trust boundaries if untrusted data envelopes ([trust.ts:372-389](file:///tmp/ads-peer-dispatch/debate-agentplugins/files/tovu/mcp-federation/trust.ts#L372-L389)) are stripped before handing content to the LLM turn.
+3. **Slash Palette Collisions:**
+   `files/jini/composer-discovery.ts:15-35` performs flat keyword and label filtering across discovery groups. If two plugins declare identical skill names or tool names (e.g., `/review`), `filterComposerDiscovery` surfaces duplicate items without an explicit resolution rule, causing ambiguous selections.
+
+### One Genuine Sacrifice
+
+Tovu must sacrifice **rich, interactive UI-driven slash commands** (e.g., custom React modals, step wizards, or embedded web views) within Agent Plugins. Agent Plugins will be strictly limited to (a) static prompt context injection and (b) federated MCP tool dispatches. Developers requiring interactive UI components or deep host lifecycle hooks MUST build native `.tovu-plugin` packages.
+
+---
+
+## What Would Change My Mind
+
+1. Formal ratification of a normative `/commands` component specification in the upstream `agent-plugins.org` standard schema.
+2. Empirical proof showing that prompt-injected skills cannot be safely contained via system-prompt framing, necessitating process-isolated execution sandboxes for all skills.
+3. Architectural transition of Tovu from Node-based self-hosting to WASM-only or container-only host plugin execution models.
+
+---
+
+## Unlisted Option
+
+### Option E: Dual-Surface Standard Projection with Federated Trust Isolation
+
+Instead of forcing a single pipeline, Tovu projects Agent Plugins into two independent, standardized host surfaces:
+1. **Prompt/Skill Surface:** `skills/<name>/SKILL.md` maps to a context-assembly slash command in Jini's composer (`/skill:<name>`). Invoking it inserts the skill prompt into the active session without executing host code.
+2. **Executable Tool Surface:** `mcp.json` descriptors map to federated MCP commands (`/mcp:<server>:<tool>`), routed directly into Tovu's federated trust engine ([trust.ts:244-310](file:///tmp/ads-peer-dispatch/debate-agentplugins/files/tovu/mcp-federation/trust.ts#L244-L310)).
+
+This requires zero private extension fields, preserves 100% standard portability (Constraint C1), and leverages existing host security mechanisms without touching `.tovu-plugin`'s in-process ESM loader.
+
+---
+
+## Blind Spots
+
+### (a) Viable Option Not Listed
+Dual-Surface Projection (Skills to Prompt Context + MCP Tools to Federated Execution) backed by Workspace-Scoped State Storage (`PLUGIN_DATA`), cleanly isolating Agent Plugins from `.tovu-plugin`'s ESM loader.
+
+### (b) Critical Question Not Being Asked
+How will Tovu manage process lifecycles, environment isolation (`PLUGIN_ROOT`, `PLUGIN_DATA`), and graceful shutdown for stdio MCP subprocesses across concurrent multi-tenant workspace sessions on self-hosted infrastructure (Constraints C3 & C4)?
+
+### (c) Framing Assumption Most Likely Wrong
+The assumption that a "slash command" in an AI assistant must be a host-level executable callback or UI widget. In Jini's LLM-centric architecture, a slash command is primarily an intentional prompt-augmentation or tool-selection hint for the model, not a traditional desktop application RPC.
+
+<<SWARM_END>>

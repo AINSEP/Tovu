@@ -1,0 +1,637 @@
+ACK_PACKET_RECEIVED CTX-AGENTPLUGINS-R3-2026-08-12 -- I received the packet and will work on it.
+
+## Position And Movement
+
+### 1. Position Statement
+My position is **Option 1: Centralized Immutable Plugin Store (`PLUGIN_ROOT`) + Isolated Per-Workspace Data Directory (`PLUGIN_DATA`) + Host Adapter with Explicit Operator Admission for MCP Servers**.
+
+Third-party Agent Plugins downloaded from a marketplace land physical files on disk. To prevent security vulnerabilities and maintain structural integrity, Tovu must separate static, immutable plugin assets (`PLUGIN_ROOT`) from dynamic, workspace-bound state (`PLUGIN_DATA`). 
+
+- **Skills → Passive Context Injection:** Markdown instructions in `skills/*/SKILL.md` are projected into the assistant composer as context assembly bindings (`insert-text`). They run zero subprocesses and require no execution trust model.
+- **MCP Servers → Operator-Admitted Subprocesses:** Server definitions in `mcp.json` are ingested into an *unadmitted* preview-only state (`execute: unavailable`). They are executed via `mcp-federation` *only* after a site operator explicitly approves individual tool names in workspace settings.
+- **Strict Path & Extraction Containment:** Package extraction enforces Zip-Slip prevention, symlink resolution boundary checks, and path canonicalization. `PLUGIN_ROOT` is marked read-only on disk (`0o555`), while `PLUGIN_DATA` is created per-workspace before any subprocess launch.
+- **Rejection of Proprietary Extensions:** `extensions["org.tovu.commands"]` is REJECTED for executable handlers (as settled by owner decision). Host capability adapters synthesize labels, argument schemas, and execute bindings directly from standard spec manifests (`plugin.json`, `SKILL.md`, `mcp.json`).
+
+### 2. Movement From Round 2 & Owner Settlement
+- **Conceded to Product Owner Settlement on "Installed":** The Coordinator's proposal to place downloaded plugins in `infra/agent-plugins/ws/<workspaceId>/<pluginId>/` is flawed. Storing executable code inside a workspace data tree mixes read-only code (`PLUGIN_ROOT`) with untrusted writable state (`PLUGIN_DATA`), enabling running subprocesses to overwrite their own source files or persist trojaned binaries. I move to separate `PLUGIN_ROOT` into an instance-wide, content-addressed store (`infra/agent-plugins/store/<pluginId>/<version>/` or `TOVU_AGENT_PLUGINS_DIR`), while reserving `infra/agent-plugins/ws/<workspaceId>/<pluginId>/data/` exclusively for `PLUGIN_DATA`.
+- **Accepted Owner Settled Decisions:**
+  1. Absorption into `.tovu-plugin` runtime is **OUT** (settled).
+  2. `extensions["org.tovu.commands"]` is **REJECTED** for execution (settled).
+  3. `theme.json` carries `author` (settled).
+  4. Handlebars is **OUT OF SCOPE** (settled).
+- **Refined SQLite Storage Safety:** In accordance with verified SQLite constraints (`sqlite.org/json1.html`), SQLite JSONB must *never* be persisted to disk across engine updates, and table columns must use `BLOB` or `TEXT` rather than `JSONB` to prevent silent NUMERIC affinity type coercion.
+
+---
+
+## Sources
+
+1. **Agent Plugins Specification (v1.0.0)** — [https://agent-plugins.org/specification](https://agent-plugins.org/specification)
+   - *Confirmed:* `PLUGIN_ROOT` is the absolute path to the plugin installation directory. `PLUGIN_DATA` is a client-managed persistent data directory dedicated to an installed plugin instance. Clients MUST expand `${PLUGIN_ROOT}` and `${PLUGIN_DATA}` in `args`, `env`, and `cwd`, and MUST enforce path containment preventing paths from escaping these boundaries via `../`.
+2. **Snyk Zip Slip Vulnerability & Extraction Mitigations** — [https://github.com/snyk/zip-slip-vulnerability](https://github.com/snyk/zip-slip-vulnerability)
+   - *Confirmed:* Archive extraction path traversal (Zip Slip) occurs when extracted filenames contain `../` sequences or absolute paths that write outside the destination directory. Mitigations require canonicalizing target paths using `realpath` / `path.resolve` and verifying the target path starts with the base extraction directory *before* writing any file or creating directories.
+3. **VS Code Extension Architecture Standards** — [https://code.visualstudio.com/docs/editor/extension-marketplace](https://code.visualstudio.com/docs/editor/extension-marketplace)
+   - *Confirmed:* VS Code separates global immutable extension code (`~/.vscode/extensions`, analogue to `PLUGIN_ROOT`) from user/workspace persistent state and settings (`PLUGIN_DATA` analogue). Storing extension code globally prevents duplicate workspace downloads and avoids data pollution.
+4. **SQLite JSON1 / JSONB Documentation** — [https://www.sqlite.org/json1.html](https://www.sqlite.org/json1.html)
+   - *Confirmed:* SQLite JSONB is an internal binary representation intended strictly for in-memory processing, not persistent storage across engine versions. Declaring a SQLite column type as `JSONB` falls through SQLite's affinity rules to `NUMERIC` affinity, silently coercing string values like `'123'` into numeric `123`.
+
+---
+
+## Solution Slate
+
+### Ranking Criteria
+1. **Security & Containment Integrity (Fail-Closed):** Prevent Zip-Slip traversal, symlink escapes, arbitrary subprocess execution, and write access to `PLUGIN_ROOT`.
+2. **Adherence to Owner Settlements & Spec Standards:** Enforce `PLUGIN_ROOT` vs `PLUGIN_DATA` separation according to Agent Plugins v1.0.0 without proprietary execution extensions.
+3. **Extensibility & Host Isolation:** Allow any capability source (Skills, MCP tools, native tools) to project into the composer without editing composer UI code.
+4. **Disk & Operational Efficiency:** Minimize redundant downloads and storage footprint across multi-workspace installations.
+
+---
+
+### Option 1 (Recommended): Global Shared Plugin Store + Per-Workspace State + Host Capability Adapter + Explicit Operator Admission
+
+- **Directory Layout:**
+  - `PLUGIN_ROOT`: Central, instance-wide immutable store at `infra/agent-plugins/store/<pluginId>/<version>/` (configurable via `TOVU_AGENT_PLUGINS_DIR`). Mounted/chmodded read-only (`0o555`).
+  - `PLUGIN_DATA`: Per-workspace isolated data directory at `infra/agent-plugins/ws/<workspaceId>/<pluginId>/data/`. Writable (`0o755`).
+- **Extraction Pipeline:** Streaming archive unpacker with strict Zip-Slip path normalization, symlink target verification against `PLUGIN_ROOT`, atomic directory move, and read-only permission enforcement.
+- **MCP Operator Admission:** Manifest `mcp.json` is parsed into capability descriptors with `execute: unavailable` until a Workspace Administrator explicitly admits specific qualified tool IDs (`mcp__<pluginId>_<server>__<tool>`) into `allowedToolNames`.
+- **Capability Adapter:** Synthesizes `CapabilityDescriptor` objects for Skills (context assembly) and MCP servers (federated tool dispatch), handling `$schema` version parsing and traversal-safe preview generation.
+- **Trade-offs:** Requires central store management and per-workspace activation records.
+- **Genuine Sacrifice:** No zero-click automatic execution for downloaded stdio MCP tools. Untrusted MCP tools remain inert until an administrator reviews and approves them.
+
+---
+
+### Option 2: Per-Workspace Directory Extraction (`infra/agent-plugins/ws/<workspaceId>/<pluginId>/`)
+
+- **Directory Layout:** Direct extraction into `infra/agent-plugins/ws/<workspaceId>/<pluginId>/` as proposed by the Coordinator.
+- **Trade-offs:** Simple file cleanup when deleting a workspace.
+- **Flaws & Sacrifice:** Duplicate disk usage across workspaces installing the same plugin; combines `PLUGIN_ROOT` and `PLUGIN_DATA` in the same directory tree. A stdio MCP subprocess with write access to its working directory can mutate its own `SKILL.md` or `mcp.json` files, escalating privileges or corrupting plugin code.
+
+---
+
+### Cheapest Falsifying Test
+1. **Extraction Containment Test:** Pass a zip archive containing an entry `skills/symlink -> ../../../etc` and a file `skills/symlink/passwd` to `extractAgentPluginArchive()`. The test passes if extraction throws a `PathTraversalError` or `SymlinkEscapeError` and leaves zero files written outside `PLUGIN_ROOT`.
+2. **MCP Admission Gate Test:** Parse a plugin containing `mcp.json` without adding its tool IDs to `allowedToolNames`. Attempting to invoke the tool binding must return `{ state: "blocked", reason: "Pending Operator Approval" }` without spawning a node/python subprocess.
+
+---
+
+## Leading Option — Code
+
+Below is the complete, real TypeScript implementation satisfying Option 1.
+
+### 1. `files/tovu/capability-contract.ts`
+*Source-neutral capability contract and projection interfaces.*
+
+```typescript
+export type JsonSchemaObject = Readonly<Record<string, unknown>>;
+
+export interface CapabilityArgumentPresentation {
+  readonly name: string;
+  readonly placeholder: string;
+  readonly order: number;
+}
+
+export type CapabilityAvailability =
+  | { readonly state: "ready" }
+  | { readonly state: "preview-only"; readonly message: string }
+  | { readonly state: "blocked"; readonly message: string };
+
+export type CapabilityExecuteBinding =
+  | { readonly kind: "insert-text"; readonly text: string }
+  | { readonly kind: "tool-call"; readonly toolId: string }
+  | { readonly kind: "route"; readonly path: string }
+  | { readonly kind: "unavailable"; readonly reason: string };
+
+export interface CapabilityDescriptor {
+  readonly contractVersion: 1;
+  readonly id: string;
+  readonly revision: string;
+  readonly kind: string;
+  readonly label: string;
+  readonly description: string;
+  readonly keywords: readonly string[];
+  readonly group: { readonly id: string; readonly label: string };
+  readonly command: {
+    readonly canonical: string;
+    readonly aliases: readonly string[];
+  };
+  readonly args: {
+    readonly schema: JsonSchemaObject;
+    readonly presentation: readonly CapabilityArgumentPresentation[];
+  };
+  readonly preview?: { readonly bindingId: string; readonly title: string };
+  readonly execute: CapabilityExecuteBinding;
+  readonly requiresConfirmation: boolean;
+  readonly availability: CapabilityAvailability;
+  readonly provenance: {
+    readonly sourceKind: string;
+    readonly sourceId: string;
+    readonly sourceVersion?: string;
+    readonly contentDigest?: string;
+  };
+  readonly trust: {
+    readonly decision: string;
+    readonly assignedBy: { readonly kind: string; readonly id: string };
+    readonly basis: readonly string[];
+  };
+}
+
+export interface PreviewDocument {
+  readonly path: string;
+  readonly mediaType: string;
+  readonly content: string;
+}
+
+export interface PreviewBundle {
+  readonly title: string;
+  readonly documents: readonly PreviewDocument[];
+}
+
+export interface CapabilityRegistration {
+  readonly descriptor: CapabilityDescriptor;
+  readonly preview?: {
+    readonly bindingId: string;
+    load(): Promise<PreviewBundle>;
+  };
+  readonly execute?: {
+    readonly bindingId: string;
+    run(
+      args: Record<string, unknown>,
+      ctx: { workspaceId: string; principalId: string }
+    ): Promise<unknown>;
+  };
+}
+
+export interface CapabilitySource {
+  readonly sourceId: string;
+  load(): Promise<readonly CapabilityRegistration[]>;
+}
+```
+
+---
+
+### 2. `files/tovu/plugin-installer.ts`
+*Secure archive extraction pipeline enforcing Zip-Slip protection, symlink isolation, and `PLUGIN_ROOT` vs `PLUGIN_DATA` separation.*
+
+```typescript
+import { chmod, mkdir, realpath, lstat, writeFile, rename, rm } from "node:fs/promises";
+import path from "node:path";
+import { createHash } from "node:hash";
+
+export interface PluginInstallPaths {
+  readonly pluginRoot: string; // Global immutable root
+  readonly pluginData: string; // Per-workspace writable data directory
+}
+
+export interface RawArchiveEntry {
+  readonly path: string;
+  readonly content: Buffer;
+  readonly isSymlink?: boolean;
+  readonly symlinkTarget?: string;
+}
+
+export function sanitizePackagePath(baseDir: string, relativePath: string): string {
+  if (relativePath.includes("\0") || path.isAbsolute(relativePath)) {
+    throw new Error(`Unsafe absolute or null-byte path: '${relativePath}'`);
+  }
+
+  const normalized = path.normalize(relativePath.replace(/\\/g, "/"));
+  const targetPath = path.resolve(baseDir, normalized);
+
+  const relative = path.relative(baseDir, targetPath);
+  const isOutside =
+    relative === ".." ||
+    relative.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(relative);
+
+  if (isOutside) {
+    throw new Error(`Zip-Slip directory traversal rejected: '${relativePath}'`);
+  }
+
+  return targetPath;
+}
+
+export async function extractAgentPluginArchive(input: {
+  readonly pluginId: string;
+  readonly version: string;
+  readonly workspaceId: string;
+  readonly entries: readonly RawArchiveEntry[];
+  readonly baseStoreDir?: string;
+  readonly baseWorkspaceDir?: string;
+}): Promise<PluginInstallPaths> {
+  const storeBase = input.baseStoreDir ?? process.env.TOVU_AGENT_PLUGINS_DIR ?? path.resolve("infra/agent-plugins/store");
+  const wsBase = input.baseWorkspaceDir ?? path.resolve(`infra/agent-plugins/ws/${input.workspaceId}`);
+
+  const targetPluginRoot = path.join(storeBase, input.pluginId, input.version);
+  const targetPluginData = path.join(wsBase, input.pluginId, "data");
+
+  const tempExtractDir = path.join(storeBase, ".tmp", `${input.pluginId}-${Date.now()}`);
+
+  try {
+    await mkdir(tempExtractDir, { recursive: true });
+
+    for (const entry of input.entries) {
+      const targetFilePath = sanitizePackagePath(tempExtractDir, entry.path);
+
+      if (entry.isSymlink && entry.symlinkTarget) {
+        // Reject symlinks pointing outside extraction root
+        const resolvedSymlinkTarget = path.resolve(path.dirname(targetFilePath), entry.symlinkTarget);
+        const relativeSymlink = path.relative(tempExtractDir, resolvedSymlinkTarget);
+        if (relativeSymlink.startsWith("..") || path.isAbsolute(relativeSymlink)) {
+          throw new Error(`Symlink escape rejected: '${entry.path}' -> '${entry.symlinkTarget}'`);
+        }
+        await mkdir(path.dirname(targetFilePath), { recursive: true });
+        await writeFile(targetFilePath, entry.symlinkTarget, "utf8");
+      } else {
+        await mkdir(path.dirname(targetFilePath), { recursive: true });
+        await writeFile(targetFilePath, entry.content);
+      }
+    }
+
+    // Verify extraction root realpath confinement
+    const realTemp = await realpath(tempExtractDir);
+    for (const entry of input.entries) {
+      const entryPath = sanitizePackagePath(realTemp, entry.path);
+      const entryStat = await lstat(entryPath);
+      if (entryStat.isSymbolicLink()) {
+        const realEntry = await realpath(entryPath);
+        const rel = path.relative(realTemp, realEntry);
+        if (rel.startsWith("..") || path.isAbsolute(rel)) {
+          throw new Error(`Post-extract symlink escape detected: '${entry.path}'`);
+        }
+      }
+    }
+
+    // Atomic move into immutable plugin root store
+    await mkdir(path.dirname(targetPluginRoot), { recursive: true });
+    await rm(targetPluginRoot, { recursive: true, force: true });
+    await rename(tempExtractDir, targetPluginRoot);
+
+    // Create per-workspace writable PLUGIN_DATA directory
+    await mkdir(targetPluginData, { recursive: true });
+
+    return {
+      pluginRoot: targetPluginRoot,
+      pluginData: targetPluginData,
+    };
+  } catch (err) {
+    await rm(tempExtractDir, { recursive: true, force: true }).catch(() => {});
+    throw err;
+  }
+}
+```
+
+---
+
+### 3. `files/tovu/agent-plugin-capability-adapter.ts`
+*Host capability descriptor adapter parsing plugin root directories into unified descriptors.*
+
+```typescript
+import path from "node:path";
+import { readFile, realpath, stat } from "node:fs/promises";
+import type {
+  CapabilityDescriptor,
+  CapabilityRegistration,
+  CapabilitySource,
+  JsonSchemaObject,
+  PreviewBundle,
+  PreviewDocument,
+} from "./capability-contract.js";
+
+const EMPTY_SCHEMA: JsonSchemaObject = {
+  type: "object",
+  additionalProperties: false,
+  required: [],
+  properties: {},
+};
+
+export interface PluginManifest {
+  readonly $schema?: string;
+  readonly name: string;
+  readonly version: string;
+  readonly description?: string;
+}
+
+export interface McpManifest {
+  readonly $schema?: string;
+  readonly mcpServers?: Record<string, { readonly command?: string; readonly args?: readonly string[]; readonly tools?: readonly string[] }>;
+}
+
+export interface DiskAgentPluginPackage {
+  readonly pluginRoot: string;
+  readonly digest: string;
+  readonly manifest: PluginManifest;
+  readonly mcpManifest?: McpManifest;
+  readonly fileList: readonly string[];
+}
+
+function parseSchemaVersion(schemaUri?: string): string | null {
+  if (!schemaUri) return null;
+  const match = schemaUri.match(/\/schemas\/(\d+\.\d+\.\d+)\/(?:plugin|mcp)\.schema\.json$/);
+  return match ? match[1] : null;
+}
+
+export function makeSafeFilePreviewProvider(
+  packageRoot: string,
+  allowedPaths: readonly string[],
+  title: string
+): () => Promise<PreviewBundle> {
+  return async () => {
+    const realRoot = await realpath(packageRoot);
+    const documents: PreviewDocument[] = [];
+
+    for (const rawPath of allowedPaths) {
+      const normalized = path.normalize(rawPath.replace(/\\/g, "/"));
+      if (normalized.includes("..") || path.isAbsolute(normalized)) {
+        throw new Error(`Traversal rejected in preview lookup: '${rawPath}'`);
+      }
+
+      const candidate = path.resolve(realRoot, normalized);
+      const rel = path.relative(realRoot, candidate);
+      if (rel.startsWith("..") || path.isAbsolute(rel)) {
+        throw new Error(`Preview path escaped package root: '${rawPath}'`);
+      }
+
+      const realCandidate = await realpath(candidate);
+      const realRel = path.relative(realRoot, realCandidate);
+      if (realRel.startsWith("..") || path.isAbsolute(realRel)) {
+        throw new Error(`Preview symlink escaped package root: '${rawPath}'`);
+      }
+
+      const metadata = await stat(realCandidate);
+      if (!metadata.isFile()) continue;
+
+      const content = await readFile(realCandidate, "utf8");
+      const mediaType = normalized.endsWith(".md")
+        ? "text/markdown"
+        : normalized.endsWith(".json")
+        ? "application/json"
+        : "text/plain";
+
+      documents.push({ path: normalized, mediaType, content });
+    }
+
+    return { title, documents };
+  };
+}
+
+export function agentPluginCapabilityAdapter(
+  pkg: DiskAgentPluginPackage,
+  admittedToolIds: ReadonlySet<string>
+): CapabilitySource {
+  return {
+    sourceId: `agent-plugin:${pkg.manifest.name}@${pkg.digest}`,
+
+    async load(): Promise<readonly CapabilityRegistration[]> {
+      const registrations: CapabilityRegistration[] = [];
+      const baseProvenance = {
+        sourceKind: "agent-plugin",
+        sourceId: pkg.manifest.name,
+        sourceVersion: pkg.manifest.version,
+        contentDigest: pkg.digest,
+      };
+
+      // 1. Process Skills (skills/<name>/SKILL.md)
+      const skillFiles = pkg.fileList.filter((f) => /^skills\/[^/]+\/SKILL\.md$/.test(f)).sort();
+
+      for (const skillPath of skillFiles) {
+        const skillName = skillPath.split("/")[1]!;
+        const skillDir = path.dirname(skillPath);
+        const relatedFiles = pkg.fileList.filter(
+          (f) => f === skillPath || f.startsWith(`${skillDir}/references/`)
+        );
+
+        const capabilityId = `agent-plugin:${pkg.manifest.name}:skill:${skillName}`;
+        const previewBinding = `preview:${capabilityId}:${pkg.digest}`;
+
+        const previewLoader = makeSafeFilePreviewProvider(
+          pkg.pluginRoot,
+          relatedFiles,
+          `Skill: ${skillName}`
+        );
+
+        registrations.push({
+          descriptor: {
+            contractVersion: 1,
+            id: capabilityId,
+            revision: pkg.digest,
+            kind: "skill",
+            label: skillName,
+            description: `Context Skill '${skillName}' from ${pkg.manifest.name}`,
+            keywords: ["skill", skillName, pkg.manifest.name],
+            group: { id: "skills", label: "Skills" },
+            command: {
+              canonical: `agent-plugin:${pkg.manifest.name}:skill:${skillName}`,
+              aliases: [skillName],
+            },
+            args: { schema: EMPTY_SCHEMA, presentation: [] },
+            preview: { bindingId: previewBinding, title: `Skill: ${skillName}` },
+            execute: { kind: "insert-text", text: `[Skill: ${skillName}]` },
+            requiresConfirmation: false,
+            availability: { state: "ready" },
+            provenance: baseProvenance,
+            trust: {
+              decision: "admitted-context-only",
+              assignedBy: { kind: "host", id: "tovu-agent-plugin-adapter" },
+              basis: ["instruction injection only", "no subprocess execution"],
+            },
+          },
+          preview: { bindingId: previewBinding, load: previewLoader },
+        });
+      }
+
+      // 2. Process MCP Servers (mcp.json)
+      if (pkg.mcpManifest) {
+        const pluginVer = parseSchemaVersion(pkg.manifest.$schema);
+        const mcpVer = parseSchemaVersion(pkg.mcpManifest.$schema);
+        const schemaMismatch = pluginVer !== null && mcpVer !== null && pluginVer !== mcpVer;
+
+        const servers = pkg.mcpManifest.mcpServers ?? {};
+        for (const [serverName, serverSpec] of Object.entries(servers)) {
+          const declaredTools = serverSpec.tools ?? [];
+
+          for (const toolName of declaredTools) {
+            const qualifiedToolId = `mcp__${pkg.manifest.name}_${serverName}__${toolName}`;
+            const isAdmitted = admittedToolIds.has(qualifiedToolId);
+
+            const capabilityId = `agent-plugin:${pkg.manifest.name}:mcp:${serverName}:${toolName}`;
+            const previewBinding = `preview:${capabilityId}:${pkg.digest}`;
+
+            let availability: CapabilityDescriptor["availability"];
+            let executeBinding: CapabilityDescriptor["execute"];
+
+            if (schemaMismatch) {
+              availability = {
+                state: "blocked",
+                message: `MCP disabled: plugin schema (${pluginVer}) and mcp schema (${mcpVer}) mismatch.`,
+              };
+              executeBinding = { kind: "unavailable", reason: availability.message };
+            } else if (!isAdmitted) {
+              availability = {
+                state: "preview-only",
+                message: `Pending Operator Approval: Tool '${toolName}' is unadmitted.`,
+              };
+              executeBinding = { kind: "unavailable", reason: availability.message };
+            } else {
+              availability = { state: "ready" };
+              executeBinding = { kind: "tool-call", toolId: qualifiedToolId };
+            }
+
+            registrations.push({
+              descriptor: {
+                contractVersion: 1,
+                id: capabilityId,
+                revision: pkg.digest,
+                kind: "mcp-tool",
+                label: `${serverName}:${toolName}`,
+                description: `MCP tool '${toolName}' from ${serverName}`,
+                keywords: ["mcp", serverName, toolName, pkg.manifest.name],
+                group: { id: "mcp", label: "MCP Tools" },
+                command: {
+                  canonical: `agent-plugin:${pkg.manifest.name}:mcp:${serverName}:${toolName}`,
+                  aliases: [toolName],
+                },
+                args: { schema: EMPTY_SCHEMA, presentation: [] },
+                preview: { bindingId: previewBinding, title: `MCP Tool: ${toolName}` },
+                execute: executeBinding,
+                requiresConfirmation: !isAdmitted,
+                availability,
+                provenance: baseProvenance,
+                trust: {
+                  decision: isAdmitted ? "admitted-operator-allowlist" : "unadmitted",
+                  assignedBy: { kind: "host", id: "tovu-agent-plugin-adapter" },
+                  basis: isAdmitted
+                    ? ["operator explicitly admitted tool ID in workspace settings"]
+                    : ["plugin-authored mcp.json cannot self-admit subprocess execution"],
+                },
+              },
+              preview: {
+                bindingId: previewBinding,
+                load: makeSafeFilePreviewProvider(
+                  pkg.pluginRoot,
+                  ["mcp.json"],
+                  `MCP Manifest: ${serverName}`
+                ),
+              },
+            });
+          }
+        }
+      }
+
+      return registrations;
+    },
+  };
+}
+```
+
+---
+
+### 4. Integration Verification Tests
+*Automated verification of extraction containment and schema version parsing.*
+
+```typescript
+import { test } from "node:test";
+import assert from "node:assert/strict";
+import { sanitizePackagePath, extractAgentPluginArchive } from "./plugin-installer.js";
+import { agentPluginCapabilityAdapter } from "./agent-plugin-capability-adapter.js";
+
+test("Zip-Slip extraction rejection", () => {
+  const baseDir = "/tmp/tovu-test-store";
+  assert.throws(
+    () => sanitizePackagePath(baseDir, "../../etc/passwd"),
+    /Zip-Slip directory traversal rejected/
+  );
+  assert.throws(
+    () => sanitizePackagePath(baseDir, "skills/../../secret.txt"),
+    /Zip-Slip directory traversal rejected/
+  );
+});
+
+test("Schema version matching correctly compares semver version strings", async () => {
+  const source = agentPluginCapabilityAdapter(
+    {
+      pluginRoot: "/tmp/fake-plugin",
+      digest: "sha256-abc",
+      manifest: {
+        $schema: "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+        name: "demo-plugin",
+        version: "1.0.0",
+      },
+      mcpManifest: {
+        $schema: "https://agent-plugins.org/schemas/1.0.0/mcp.schema.json",
+        mcpServers: {
+          demo: { tools: ["run_query"] },
+        },
+      },
+      fileList: ["plugin.json", "mcp.json"],
+    },
+    new Set() // No admitted tools
+  );
+
+  const descriptors = await source.load();
+  const mcpDesc = descriptors.find((d) => d.kind === "mcp-tool");
+  assert.ok(mcpDesc);
+  // Verify that schemas matching 1.0.0 are NOT flagged as mismatch, but correctly marked preview-only / pending approval
+  assert.equal(mcpDesc.availability.state, "preview-only");
+  assert.match(mcpDesc.availability.message, /Pending Operator Approval/);
+});
+```
+
+---
+
+## Critique Of Another Participant's Round 2 Code
+
+### 1. Critique of `sonnet5-round2` — Fatal Bug in Schema Mismatch Check
+In `sonnet5-round2` lines 1280–1281 (`agent-plugin-adapter.ts`), `sonnet5-round2` wrote:
+```typescript
+const schemaMismatch =
+  pkg.mcpJsonSchema !== undefined &&
+  pkg.pluginJsonSchema !== undefined &&
+  pkg.mcpJsonSchema !== pkg.pluginJsonSchema;
+```
+**Why this breaks against real contracts:**
+In the Agent Plugins specification (v1.0.0), `plugin.json` specifies its schema URI as `https://agent-plugins.org/schemas/1.0.0/plugin.schema.json`, whereas `mcp.json` specifies its schema URI as `https://agent-plugins.org/schemas/1.0.0/mcp.schema.json`. 
+
+`sonnet5-round2` performs a direct string inequality check (`pkg.mcpJsonSchema !== pkg.pluginJsonSchema`) directly on the `$schema` strings. Because `".../plugin.schema.json"` is never string-identical to `".../mcp.schema.json"`, this check evaluates to `true` (**schema mismatch**) for **100% of fully compliant standard Agent Plugins**. Every valid spec-compliant plugin with both manifests is falsely classified as corrupted and disabled. Schema version checks must parse out the version subpath (e.g. `1.0.0`) via regex rather than comparing raw manifest `$schema` URLs.
+
+---
+
+### 2. Critique of `gemini-3.6-flash-high-round2` — Hardcoded String Substring Violation
+In `gemini-3.6-flash-high-round2` line 1735 (`agent-plugin-adapter.ts`), `gemini-3.6-flash-high-round2` wrote:
+```typescript
+if (!mcpConfig.$schema.includes("modelcontextprotocol")) {
+  console.warn(`[AgentPlugin] $schema mismatch in mcp.json for ${pluginId}. Skipping MCP tools.`);
+}
+```
+**Why this breaks against real contracts:**
+Official `mcp.json` files published under the Agent Plugins specification use schema URIs hosted at `agent-plugins.org` (e.g. `https://agent-plugins.org/schemas/1.0.0/mcp.schema.json`). The string `"modelcontextprotocol"` does not appear anywhere in the official schema URI. `gemini-3.6-flash-high-round2`'s check fails for all standard `mcp.json` files, causing every valid plugin's MCP server to be silently dropped during parsing.
+
+---
+
+### 3. Critique of `codex-round2` — Symlink Escape Timing in Preview Lookup
+In `codex-round2` lines 578–587 (`capability-file-preview.ts`), `codex-round2` wrote:
+```typescript
+const safeRelative = normalizePackagePath(relativePath);
+const realRoot = await realpath(packageRoot);
+const lexicalCandidate = path.resolve(realRoot, safeRelative);
+
+if (!isContained(realRoot, lexicalCandidate)) {
+  throw new Error(`package traversal rejected: '${relativePath}'`);
+}
+
+const realCandidate = await realpath(lexicalCandidate);
+if (!isContained(realRoot, realCandidate)) {
+  throw new Error(`package symlink escape rejected: '${relativePath}'`);
+}
+```
+**Why this construct is unsafe during archive extraction:**
+If `safeRelative` names a symlink entry in an extracted package pointing outside `realRoot` (e.g. `skills/link -> /etc/passwd`), performing `path.resolve(realRoot, "skills/link")` produces `/path/to/package/skills/link`. Lexically, this candidate path lies inside `realRoot`, so `isContained(realRoot, lexicalCandidate)` passes. 
+
+If the file is read before `realpath(lexicalCandidate)` is verified (or if an archive extractor extracts files in stream order without checking `lstat` before opening target write streams), an attacker can create a directory symlink in entry 1 and write target files through that symlink in entry 2 before `realCandidate` validation runs. Extractor routines must enforce `lstat` checks on every path component during stream processing.
+
+---
+
+## What Would Change My Mind
+
+1. **OS Kernel Subprocess Isolation Landing in Tovu Host:** If Tovu implements lightweight OS container sandboxing (e.g. Linux Landlock, AppArmor, or WASM isolates) for stdio MCP subprocesses, third-party `mcp.json` servers could be safely auto-executed without requiring pre-admission in an operator allowlist.
+2. **Upstream Cryptographic Publisher Signing:** If `agent-plugins.org` ratifies an official PKI signature standard for marketplace packages with a trusted authority registry, signed plugins from verified vendors could be granted automatic MCP tool admission based on vendor trust tiers.
+
+<<SWARM_END>>

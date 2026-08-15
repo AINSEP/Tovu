@@ -1,0 +1,743 @@
+ACK_PACKET_RECEIVED CTX-SLASH-R3-2026-08-12 -- I received the packet and will work on it.
+
+## Position And Movement
+
+In Round 2, participants were divided across two primary axes:
+1. **Trigger Grammar & Replacement Safety**: Sonnet 5 R2 advocated an end-to-end anchored parser (`/^\/([^\s/]*)(?:(\s+)([\s\S]*))?$/`) paired with structural deferral (`argument`, `needsConfirmation`, `previewable` flags on `ComposerDiscoveryItem`), maintaining that `replaceComposerSlashTrigger` is only safe when the query anchors the entire draft. Gemini 3.6 Flash R2 and Gemini 3.1 Pro R2 proposed range-slicing (`range: [start, end]`) and explicit `rawArgs`/`acceptsArguments` parameters.
+2. **Package Neutrality vs. Host Delegation**: All participants agreed that package law ([slots.ts:77-80](file:///tmp/ads-peer-dispatch/debate-slash/files/jini/slots.ts#L77-L80)) forbids `@jini-ai/chat` from switching on host `kind` taxonomies. However, they differed on how host outcomes write back to composer state.
+
+### Round 3 Synthesis and Reconciliation
+We reconcile these competing approaches by selecting **Sonnet 5’s structural deferral model with an end-to-end anchored parser**, augmented by Gemini 3.6 Flash's explicit error state surface and transactional promise handling in `Composer.tsx`.
+
+- **Why End-to-End Anchored Regex beats Range Slicing**: In a plain `<textarea>` composer, slash commands act as whole-draft command triggers (e.g., `/mcp supabase` or `/search quantum computing`). Range slicing (`range: [start, end]`) introduces fragile state mutations when combined with async host execution. If `replaceComposerSlashTrigger` synchronously mutates the draft before `onDiscoverySelect` resolves, a host execution failure or user confirmation cancellation cannot cleanly restore the original user draft because the text was already sliced. Anchoring the parser end-to-end (`/^\/([^\s/]*)(?:(\s+)([\s\S]*))?$/`) and deferring draft replacement entirely to the host (`ComposerDiscoveryOutcome`) when `argument` or `needsConfirmation` is present guarantees zero destructive side effects on typed user input.
+- **Capability Projection**: Tovu’s static `TOVU_COMPOSER_DISCOVERY_GROUPS` 4-entry array is replaced with a real projection layer over Tovu's ~20 capability modules (`tool-registrations.ts`, `agent-tools.ts`, MCP federation). This satisfies requirement **N4** ("capabilities not thought of yet") by construction: new capability kinds register a single `TovuCapabilityDescriptor` on the host side without altering package code or adding switch statements.
+
+---
+
+## Sources
+
+### 1. W3C WAI-ARIA 1.2 Combobox & Listbox Design Pattern
+- **URL**: https://www.w3.org/WAI/ARIA/apg/patterns/combobox/
+- **Confirmed**: For an editable text input with an attached popup suggestion list (such as a slash command menu), DOM focus must remain strictly on the `<textarea>` (`role="combobox"`), while `aria-activedescendant` on the input dynamically references the `id` of the visually highlighted option (`role="option"`) within the listbox popup (`role="listbox"`).
+- **ARIA Implications of Dynamic Option Sets**: As the user types arguments (e.g. `/mcp supabase`), the set of matching options changes dynamically. If the listbox option set updates or shrinks, `aria-activedescendant` **must be mathematically bounded** (`Math.min(slashActiveIndex, slashMatches.length - 1)`). When the suggestion list closes or has zero matches, `aria-activedescendant` MUST be set to `undefined` (or omitted). Leaving a stale or out-of-bounds `id` in `aria-activedescendant` causes screen readers (e.g., VoiceOver, NVDA) to announce invalid elements or fail accessibility audits.
+
+### 2. Argument-Bearing Slash Commands & Inline Hints in Modern Chat Composers
+- **URLs**: 
+  - https://discord.com/developers/docs/interactions/application-commands
+  - https://api.slack.com/interactivity/slash-commands
+- **Confirmed**: 
+  - **Slack** treats everything after `/command` as a single raw text string passed directly to the backend handler.
+  - **Discord** uses structured argument hints displayed alongside the command label in the popover picker, converting selected commands into guided argument slots.
+  - **Analysis**: In plain `<textarea>` components (without heavy rich-text DOM frameworks like Lexical), rendering argument hints (e.g., `<server-id>` or `<query>`) in the listbox popover rows next to the label/description—as seen in Open Design and Discord—is the standard industry pattern. It provides clear visual guidance without requiring inline DOM tokenization or rich-text chips inside the textarea.
+
+---
+
+## Solution Slate
+
+**Ranking Criteria (stated prior to ranking):**
+1. **Compliance with N1–N4**: Natively supports argument-bearing commands (`/mcp <server-id>`, `/search <query>`), live host capability projection, preview affordances, and extensibility to future capability kinds.
+2. **Package Neutrality ([slots.ts:77-80](file:///tmp/ads-peer-dispatch/debate-slash/files/jini/slots.ts#L77-L80))**: `@jini-ai/chat` remains presentational and taxonomy-neutral, never branching on host `kind`.
+3. **Transactional Safety & Robustness**: Prevents whole-draft destruction, handles async host execution, and restores user drafts upon rejection or cancellation.
+4. **Minimal Blast Radius & Zero Extra Runtime Dependencies**: Works cleanly with standard React `<textarea>`, avoiding heavy editor frameworks.
+
+### Option 1: Declarative Structural Deferral + End-to-End Anchored Parser + Host Capability Projection (RECOMMENDED)
+- **Mechanism**: `@jini-ai/chat` updates `parseComposerSlashQuery` to parse `/command` and `/command argument...` while anchoring end-to-end (`/^\/([^\s/]*)(?:(\s+)([\s\S]*))?$/`). `ComposerDiscoveryItem` gains structural flags (`argument`, `needsConfirmation`, `previewable`). When `argument` or `needsConfirmation` is set, `selectSlashItem` skips package-side draft replacement and defers to `slots.onDiscoverySelect`. The host executes the capability and returns a `ComposerDiscoveryOutcome` (`{ draft?: string }`). Tovu replaces its static `TOVU_COMPOSER_DISCOVERY_GROUPS` with a dynamic projection (`projectCapabilitiesToDiscoveryGroups`) over all live registries.
+- **Trade-offs**: Simple, zero external dependencies, preserves package neutrality, complete transactional draft safety.
+- **Genuine Sacrifice**: Does not provide live, secondary auto-completion dropdowns inside the argument text space (e.g., typing `/mcp sup` shows a static placeholder `<server-id>` in the popover rather than opening a nested sub-picker of connected server IDs).
+- **Cheapest Falsifying Test**: Type `/search quantum computing` into the draft and press `Enter`. If typing a space after `/search ` closes the palette and wipes the draft, or if selecting the row eats the argument `"quantum computing"`, Option 1 is falsified.
+
+### Option 2: Caret-Aware Lexical Editor Port with Token Node AST
+- **Mechanism**: Replace plain `<textarea>` in `@jini-ai/chat` with Lexical (`lexical`, `@lexical/react`). Uses `TriggerPlugin` to track caret position and derive triggers, rendering inline tokenized chips inside the editor input.
+- **Trade-offs**: Enables rich inline chips and nested interactive sub-pickers directly inside the composer input.
+- **Genuine Sacrifice**: Adds ~5,600 lines of complex editor glue code and heavy runtime dependencies (`lexical`), breaking lightweight drop-in reusability for other host applications.
+- **Cheapest Falsifying Test**: Bundle `@jini-ai/chat` in a minimal host without Lexical; if compilation fails or bundle size grows by >100KB, Option 2 is falsified.
+
+**Recommendation**: Option 1.
+
+---
+
+## Leading Option — Code
+
+### 1. Descriptor Contract (`files/jini/slots.ts`)
+
+```typescript
+// Additions and updates to file:///tmp/ads-peer-dispatch/debate-slash/files/jini/slots.ts
+
+/**
+ * Declares that a `ComposerDiscoveryItem` accepts a trailing argument, e.g. `/mcp <server-id>`.
+ * The package reads only its PRESENCE — never a value, never a host taxonomy.
+ */
+export interface ComposerDiscoveryArgument {
+  /** Rendered inline after the label while no argument has been typed yet, e.g. `<server-id>`. */
+  placeholder: string;
+  required?: boolean;
+}
+
+export interface ComposerDiscoveryItem {
+  id: string;
+  label: string;
+  description?: string;
+  kind?: string;
+  keywords?: readonly string[];
+  insertText?: string;
+  /** See {@link ComposerDiscoveryArgument}. Unused for macro-only items. */
+  argument?: ComposerDiscoveryArgument;
+  /**
+   * True when host gates this item behind confirmation (Tovu's `PendingConfirmationStore`).
+   * Package skips draft mutation and lets host own the outcome.
+   */
+  needsConfirmation?: boolean;
+  /** True when item has host-owned preview content (N3). Package renders preview button. */
+  previewable?: boolean;
+}
+
+export interface ComposerDiscoverySelection {
+  item: ComposerDiscoveryItem;
+  source: 'plus' | 'slash';
+  /**
+   * Argument text typed after the command name — present only when `item.argument` was declared.
+   * `""` means command is committed (space typed) with no value yet; `undefined` means bare `/command`.
+   */
+  argument?: string;
+}
+
+/** What a host's `onDiscoverySelect` may resolve to besides nothing. */
+export interface ComposerDiscoveryOutcome {
+  draft?: string;
+}
+
+export type ComposerDiscoverySelect = (
+  selection: ComposerDiscoverySelection,
+) => void | ComposerDiscoveryOutcome | Promise<void | ComposerDiscoveryOutcome>;
+
+export interface ComposerSlots {
+  plusMenuItems?: ComposerPlusItem[];
+  discoveryGroups?: readonly ComposerDiscoveryGroup[];
+  onDiscoverySelect?: ComposerDiscoverySelect;
+  /** Host slot for rendering preview surfaces when item.previewable is true. */
+  onDiscoveryPreview?: (item: ComposerDiscoveryItem) => void;
+  mentionSources?: MentionSource[];
+  leadingAccessories?: ReactNode;
+  footerAccessories?: ReactNode;
+  onAttach?: (a: ChatAttachment) => void;
+  annotationAdapter?: AnnotationAdapter;
+}
+```
+
+### 2. Trigger Grammar & Tests (`files/jini/composer-discovery.ts` & `files/jini/__tests__/composer-discovery.test.ts`)
+
+```typescript
+// file:///tmp/ads-peer-dispatch/debate-slash/files/jini/composer-discovery.ts
+
+import type { ComposerDiscoveryGroup, ComposerDiscoveryItem } from '../slots.js';
+
+export interface ComposerDiscoveryMatch {
+  groupId: string;
+  groupLabel: string;
+  item: ComposerDiscoveryItem;
+}
+
+export interface ComposerSlashQuery {
+  command: string;
+  argument: string | null;
+}
+
+const SLASH_QUERY_RE = /^\/([^\s/]*)(?:(\s+)([\s\S]*))?$/;
+
+/** Parses slash commands with optional arguments, anchored end-to-end. */
+export function parseComposerSlashQuery(draft: string): ComposerSlashQuery | null {
+  const match = draft.match(SLASH_QUERY_RE);
+  if (!match) return null;
+  const [, command, separator, rest] = match;
+  return { command: command ?? '', argument: separator === undefined ? null : (rest ?? '') };
+}
+
+/** Filters discovery groups against the COMMAND portion only, preserving matching rows when typing arguments. */
+export function filterComposerDiscovery(
+  groups: readonly ComposerDiscoveryGroup[],
+  query: string,
+): ComposerDiscoveryMatch[] {
+  const normalizedQuery = query.trim().toLowerCase();
+  const matches: ComposerDiscoveryMatch[] = [];
+
+  for (const group of groups) {
+    for (const item of group.items) {
+      const searchable = [item.label, item.description, item.kind, ...(item.keywords ?? [])]
+        .filter((value): value is string => typeof value === 'string')
+        .join(' ')
+        .toLowerCase();
+      if (normalizedQuery === '' || searchable.includes(normalizedQuery)) {
+        matches.push({ groupId: group.id, groupLabel: group.label, item });
+      }
+    }
+  }
+
+  return matches;
+}
+
+/** Replaces full slash trigger for text macros. Safe because query is anchored end-to-end. */
+export function replaceComposerSlashTrigger(draft: string, insertText: string): string {
+  return parseComposerSlashQuery(draft) === null ? draft : insertText;
+}
+
+export function appendComposerDiscovery(draft: string, insertText: string): string {
+  if (draft.trim() === '') return insertText;
+  return `${draft.trimEnd()} ${insertText}`;
+}
+
+export type ComposerSlashKeyAction =
+  | { type: 'move'; offset: -1 | 1 }
+  | { type: 'select' }
+  | { type: 'dismiss' }
+  | { type: 'none' };
+
+export function resolveComposerSlashKeyAction(key: string, shiftKey: boolean): ComposerSlashKeyAction {
+  if (key === 'ArrowDown') return { type: 'move', offset: 1 };
+  if (key === 'ArrowUp') return { type: 'move', offset: -1 };
+  if ((key === 'Enter' || key === 'Tab') && !shiftKey) return { type: 'select' };
+  if (key === 'Escape') return { type: 'dismiss' };
+  return { type: 'none' };
+}
+```
+
+```typescript
+// file:///tmp/ads-peer-dispatch/debate-slash/files/jini/__tests__/composer-discovery.test.ts
+
+import { describe, expect, it } from 'vitest';
+import {
+  filterComposerDiscovery,
+  parseComposerSlashQuery,
+  replaceComposerSlashTrigger,
+} from '../composer-discovery.js';
+import type { ComposerDiscoveryGroup } from '../../slots.js';
+
+describe('parseComposerSlashQuery', () => {
+  it('returns null for non-slash draft', () => {
+    expect(parseComposerSlashQuery('hello')).toBeNull();
+    expect(parseComposerSlashQuery('')).toBeNull();
+  });
+
+  it('parses bare command with no argument', () => {
+    expect(parseComposerSlashQuery('/mcp')).toEqual({ command: 'mcp', argument: null });
+  });
+
+  it('parses command with space typed (empty argument)', () => {
+    expect(parseComposerSlashQuery('/mcp ')).toEqual({ command: 'mcp', argument: '' });
+  });
+
+  it('parses command with typed argument', () => {
+    expect(parseComposerSlashQuery('/mcp supabase')).toEqual({ command: 'mcp', argument: 'supabase' });
+  });
+
+  it('preserves spaces in multi-word arguments', () => {
+    expect(parseComposerSlashQuery('/search quantum computing algorithms')).toEqual({
+      command: 'search',
+      argument: 'quantum computing algorithms',
+    });
+  });
+
+  it('rejects slashes in command position but allows them in arguments', () => {
+    expect(parseComposerSlashQuery('/mc/p')).toBeNull();
+    expect(parseComposerSlashQuery('/search site:example.com/test')).toEqual({
+      command: 'search',
+      argument: 'site:example.com/test',
+    });
+  });
+});
+
+describe('filterComposerDiscovery with command portion', () => {
+  const groups: ComposerDiscoveryGroup[] = [
+    {
+      id: 'mcp',
+      label: 'MCP',
+      items: [
+        {
+          id: 'mcp:settings',
+          label: '/mcp',
+          kind: 'mcp',
+          argument: { placeholder: '<server-id>' },
+        },
+      ],
+    },
+  ];
+
+  it('retains row matching while typing argument', () => {
+    const query = parseComposerSlashQuery('/mcp supabase');
+    expect(query).not.toBeNull();
+    const matches = filterComposerDiscovery(groups, query!.command);
+    expect(matches.map((m) => m.item.id)).toEqual(['mcp:settings']);
+  });
+});
+
+describe('replaceComposerSlashTrigger', () => {
+  it('replaces whole draft when anchored match succeeds', () => {
+    expect(replaceComposerSlashTrigger('/mcp supabase', '')).toBe('');
+  });
+
+  it('is a no-op when draft contains text outside slash command', () => {
+    expect(replaceComposerSlashTrigger('prefix /mcp supabase', 'new')).toBe('prefix /mcp supabase');
+  });
+});
+```
+
+### 3. Composer & Menu Components (`files/jini/Composer.tsx` & `files/jini/ComposerDiscovery.tsx`)
+
+```tsx
+// Updates in file:///tmp/ads-peer-dispatch/debate-slash/files/jini/Composer.tsx
+
+import { useRef, useState, type ChangeEvent, type KeyboardEvent } from 'react';
+import { RemixIcon } from '@jini-ai/ui';
+import { useT } from '../hooks/context.js';
+import { AttachmentTray } from './AttachmentTray.js';
+import type { UseComposerResult } from '../hooks/useComposer.js';
+import type { ComposerDiscoveryItem, ComposerSlots } from '../slots.js';
+import { ComposerDiscoveryMenu, ComposerSlashMenu } from './ComposerDiscovery.js';
+import {
+  appendComposerDiscovery,
+  filterComposerDiscovery,
+  parseComposerSlashQuery,
+  replaceComposerSlashTrigger,
+  resolveComposerSlashKeyAction,
+} from './composer-discovery.js';
+
+export function Composer({ composer, onSend, disabled = false, sendDisabled = false, placeholder, slots, attachmentPicker }: ComposerProps) {
+  const t = useT();
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const [discoveryMenuOpen, setDiscoveryMenuOpen] = useState(false);
+  const [slashActiveIndex, setSlashActiveIndex] = useState(0);
+  const [dismissedSlashDraft, setDismissedSlashDraft] = useState<string | null>(null);
+  const [discoveryError, setDiscoveryError] = useState<string | null>(null);
+
+  const resolvedPlaceholder = placeholder ?? t('Send a message…');
+  const discoveryGroups = slots?.discoveryGroups ?? [];
+  const slashQuery = parseComposerSlashQuery(composer.draft);
+  const slashMatches = slashQuery === null ? [] : filterComposerDiscovery(discoveryGroups, slashQuery.command);
+  const slashOpen = slashMatches.length > 0 && dismissedSlashDraft !== composer.draft;
+
+  function restoreComposerFocus() {
+    textareaRef.current?.focus();
+  }
+
+  async function notifyDiscovery(
+    item: ComposerDiscoveryItem,
+    source: 'plus' | 'slash',
+    restoreDraft: string,
+    argument?: string,
+  ) {
+    setDiscoveryError(null);
+    try {
+      const outcome = await slots?.onDiscoverySelect?.({
+        item,
+        source,
+        ...(argument !== undefined ? { argument } : {}),
+      });
+      if (outcome && 'draft' in outcome && outcome.draft !== undefined) {
+        composer.setDraft(outcome.draft);
+      }
+    } catch {
+      // Transactional rollback on host failure
+      composer.setDraft(restoreDraft);
+      setDiscoveryError(t('That action failed. Your draft has been restored.'));
+    }
+  }
+
+  function selectSlashItem(index: number) {
+    const match = slashMatches[index];
+    if (!match) return;
+    const priorDraft = composer.draft;
+    const deferToHost = Boolean(match.item.argument || match.item.needsConfirmation);
+    const argument = match.item.argument ? (slashQuery?.argument ?? '') : undefined;
+
+    if (!deferToHost) {
+      composer.setDraft(replaceComposerSlashTrigger(composer.draft, match.item.insertText ?? match.item.label));
+    }
+    setDismissedSlashDraft(null);
+    void notifyDiscovery(match.item, 'slash', priorDraft, argument);
+    restoreComposerFocus();
+  }
+
+  function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.nativeEvent.isComposing) return;
+    if (slashOpen) {
+      const action = resolveComposerSlashKeyAction(event.key, event.shiftKey);
+      if (action.type !== 'none') {
+        event.preventDefault();
+        if (action.type === 'move') {
+          setSlashActiveIndex((current) => (current + action.offset + slashMatches.length) % slashMatches.length);
+        } else if (action.type === 'select') {
+          selectSlashItem(Math.min(slashActiveIndex, slashMatches.length - 1));
+        } else {
+          setDismissedSlashDraft(composer.draft);
+        }
+        return;
+      }
+    }
+    if (event.key !== 'Enter' || event.shiftKey) return;
+    event.preventDefault();
+    if (!disabled && !sendDisabled && composer.canSubmit) onSend();
+  }
+
+  const boundedActiveIndex = Math.min(slashActiveIndex, Math.max(0, slashMatches.length - 1));
+
+  return (
+    <div className="jini-composer">
+      {slots?.leadingAccessories ? <div className="jini-composer-leading">{slots.leadingAccessories}</div> : null}
+      <AttachmentTray attachments={composer.attachments} onRemove={composer.removeAttachment} />
+      <textarea
+        ref={textareaRef}
+        className="jini-composer-input"
+        value={composer.draft}
+        placeholder={resolvedPlaceholder}
+        disabled={disabled}
+        onChange={(e) => {
+          composer.setDraft(e.target.value);
+          setSlashActiveIndex(0);
+          setDismissedSlashDraft(null);
+          setDiscoveryError(null);
+        }}
+        onKeyDown={handleKeyDown}
+        aria-controls={slashOpen ? 'jini-composer-slash-menu' : undefined}
+        aria-expanded={slashOpen}
+        aria-activedescendant={slashOpen ? `jini-composer-slash-option-${boundedActiveIndex}` : undefined}
+        rows={3}
+      />
+      {slashOpen ? (
+        <ComposerSlashMenu
+          matches={slashMatches}
+          activeIndex={boundedActiveIndex}
+          onSelect={(item) => selectSlashItem(slashMatches.findIndex((match) => match.item === item))}
+          onPreview={slots?.onDiscoveryPreview}
+          t={t}
+        />
+      ) : null}
+      {discoveryError ? (
+        <div className="jini-composer-discovery-error" role="alert">
+          {discoveryError}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+```
+
+```tsx
+// Updates in file:///tmp/ads-peer-dispatch/debate-slash/files/jini/ComposerDiscovery.tsx
+
+export interface ComposerSlashMenuProps {
+  matches: readonly ComposerDiscoveryMatch[];
+  activeIndex: number;
+  onSelect: (item: ComposerDiscoveryItem) => void;
+  onPreview?: (item: ComposerDiscoveryItem) => void;
+  t: (key: string) => string;
+}
+
+export function ComposerSlashMenu(props: ComposerSlashMenuProps) {
+  if (props.matches.length === 0) return null;
+
+  return (
+    <div id="jini-composer-slash-menu" className="jini-composer-slash-menu" role="listbox" aria-label={props.t('Composer commands')}>
+      {props.matches.map((match, index) => (
+        <div key={`${match.groupId}:${match.item.id}`} className="jini-composer-slash-row">
+          <button
+            id={`jini-composer-slash-option-${index}`}
+            type="button"
+            role="option"
+            aria-selected={index === props.activeIndex}
+            className={`jini-composer-discovery-item${index === props.activeIndex ? ' is-active' : ''}`}
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() => props.onSelect(match.item)}
+          >
+            <span>
+              {props.t(match.item.label)}
+              {match.item.argument ? (
+                <em className="jini-composer-slash-arg-hint"> {match.item.argument.placeholder}</em>
+              ) : null}
+            </span>
+            <small>{props.t(match.item.description ?? match.groupLabel)}</small>
+          </button>
+          {match.item.previewable && props.onPreview ? (
+            <button
+              type="button"
+              className="jini-composer-slash-preview"
+              aria-label={props.t('Preview')}
+              title={props.t('Preview')}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={(event) => {
+                event.stopPropagation();
+                props.onPreview?.(match.item);
+              }}
+            >
+              <RemixIcon name="eye-line" size={14} />
+            </button>
+          ) : null}
+        </div>
+      ))}
+    </div>
+  );
+}
+```
+
+### 4. Tovu-side Capability Projection (`apps/admin/src/features/plugins/`)
+
+```typescript
+// New projection registry file: apps/admin/src/features/plugins/capability-registry.ts
+
+import type { ComposerDiscoveryGroup, ComposerDiscoveryItem } from "@jini-ai/chat/react";
+
+export type CapabilityOutcome =
+  | { type: "navigated" }
+  | { type: "inserted"; text: string }
+  | { type: "noop" };
+
+export interface TovuCapabilityDescriptor {
+  id: string;
+  groupId: string;
+  groupLabel: string;
+  label: string;
+  description?: string;
+  kind: string;
+  keywords?: readonly string[];
+  argument?: { placeholder: string; required?: boolean };
+  needsConfirmation?: boolean;
+  preview?: () => Promise<{ title: string; files: ReadonlyArray<{ path: string; content: string }> }>;
+  execute: (input: { argument?: string }) => Promise<CapabilityOutcome>;
+}
+
+function toDiscoveryItem(descriptor: TovuCapabilityDescriptor): ComposerDiscoveryItem {
+  const deferred = Boolean(descriptor.argument || descriptor.needsConfirmation);
+  return {
+    id: descriptor.id,
+    label: descriptor.label,
+    description: descriptor.description,
+    kind: descriptor.kind,
+    keywords: descriptor.keywords,
+    ...(descriptor.argument ? { argument: descriptor.argument } : {}),
+    ...(descriptor.needsConfirmation ? { needsConfirmation: true } : {}),
+    ...(descriptor.preview ? { previewable: true } : {}),
+    ...(deferred ? {} : { insertText: descriptor.label }),
+  };
+}
+
+export function projectCapabilitiesToDiscoveryGroups(
+  descriptors: readonly TovuCapabilityDescriptor[],
+): ComposerDiscoveryGroup[] {
+  const order: string[] = [];
+  const byGroup = new Map<string, { label: string; items: ComposerDiscoveryItem[] }>();
+  for (const descriptor of descriptors) {
+    let group = byGroup.get(descriptor.groupId);
+    if (!group) {
+      group = { label: descriptor.groupLabel, items: [] };
+      byGroup.set(descriptor.groupId, group);
+      order.push(descriptor.groupId);
+    }
+    group.items.push(toDiscoveryItem(descriptor));
+  }
+  return order.map((id) => ({ id, label: byGroup.get(id)!.label, items: byGroup.get(id)!.items }));
+}
+
+export function buildCapabilityIndex(
+  descriptors: readonly TovuCapabilityDescriptor[],
+): ReadonlyMap<string, TovuCapabilityDescriptor> {
+  return new Map(descriptors.map((d) => [d.id, d] as const));
+}
+```
+
+```typescript
+// Updated catalog file: files/tovu/agent-plugin-catalog.ts
+
+import {
+  projectCapabilitiesToDiscoveryGroups,
+  buildCapabilityIndex,
+  type TovuCapabilityDescriptor,
+} from "./capability-registry";
+import { navigate } from "../../lib/router";
+import { loadAgentPluginPreview } from "./agent-plugin-source-catalog";
+import { runResearchTool } from "../../assistant/tool-registrations";
+
+export const TOVU_CAPABILITY_DESCRIPTORS: readonly TovuCapabilityDescriptor[] = [
+  {
+    id: "regular-plugin:word-count",
+    groupId: "regular-plugins",
+    groupLabel: "Plugins",
+    label: "Word Count",
+    description: "Built-in Tovu plugin",
+    kind: "plugin",
+    keywords: ["plugin", "content"],
+    execute: async () => ({ type: "inserted", text: "Word Count plugin" }),
+  },
+  {
+    id: "agent-plugin:ui-ux-design",
+    groupId: "agent-plugins",
+    groupLabel: "Agent Plugins",
+    label: "UI/UX Design",
+    description: "UI/UX Design Agent Plugin bundled with Tovu",
+    kind: "agent-plugin",
+    keywords: ["agent plugin", "design", "ui", "ux"],
+    preview: () => loadAgentPluginPreview("ui-ux-design"),
+    execute: async () => ({ type: "inserted", text: "UI/UX Design agent plugin" }),
+  },
+  {
+    id: "skill:ui-ux-design",
+    groupId: "skills",
+    groupLabel: "Skills / Design toolbox",
+    label: "UI/UX Design",
+    description: "Portable skill from the ui-ux-design Agent Plugin",
+    kind: "skill",
+    keywords: ["skill", "design", "ui", "ux"],
+    execute: async () => ({ type: "inserted", text: "UI/UX Design skill" }),
+  },
+  {
+    // N1: Argument-bearing /mcp command
+    id: "mcp:settings",
+    groupId: "mcp",
+    groupLabel: "MCP",
+    label: "/mcp",
+    description: "Open settings, or type a server id to insert a hint",
+    kind: "mcp",
+    keywords: ["mcp", "server", "tools", "settings"],
+    argument: { placeholder: "<server-id>" },
+    execute: async ({ argument }) => {
+      if (!argument) {
+        navigate("/settings?tab=external-mcp");
+        return { type: "navigated" };
+      }
+      return { type: "inserted", text: `Toggle, adopt, or jump to ${argument} settings.` };
+    },
+  },
+  {
+    // N1: Real execution of /search <query>
+    id: "search:web",
+    groupId: "search",
+    groupLabel: "Search",
+    label: "/search",
+    description: "Search the web through the OD research command",
+    kind: "search",
+    keywords: ["search", "research", "web"],
+    argument: { placeholder: "<query>", required: true },
+    execute: async ({ argument }) => {
+      if (!argument) return { type: "noop" };
+      const result = await runResearchTool(argument);
+      return { type: "inserted", text: result.summary };
+    },
+  },
+];
+
+export const TOVU_COMPOSER_DISCOVERY_GROUPS = projectCapabilitiesToDiscoveryGroups(TOVU_CAPABILITY_DESCRIPTORS);
+export const TOVU_CAPABILITY_INDEX = buildCapabilityIndex(TOVU_CAPABILITY_DESCRIPTORS);
+```
+
+```tsx
+// Updated host call sites: files/tovu/AssistantDock.tsx
+
+import { useCallback } from 'react';
+import {
+  TOVU_CAPABILITY_INDEX,
+  TOVU_COMPOSER_DISCOVERY_GROUPS,
+} from "../../features/plugins/agent-plugin-catalog";
+import { requestPendingConfirmation } from "../../lib/pending-confirmation";
+import { openCapabilityPreviewModal } from "../../features/plugins/capability-preview-modal";
+import type { ComposerDiscoverySelection } from "@jini-ai/chat/react";
+
+// Inside AssistantDock component:
+const handleComposerDiscoverySelect = useCallback(
+  async (selection: ComposerDiscoverySelection): Promise<{ draft?: string } | void> => {
+    const descriptor = TOVU_CAPABILITY_INDEX.get(selection.item.id);
+    if (!descriptor) return;
+    if (descriptor.needsConfirmation) {
+      const confirmed = await requestPendingConfirmation({
+        title: descriptor.label,
+        description: descriptor.description,
+      });
+      if (!confirmed) return;
+    }
+    const outcome = await descriptor.execute({ argument: selection.argument });
+    if (outcome.type === "navigated") return { draft: "" };
+    if (outcome.type === "inserted") return { draft: outcome.text };
+    return;
+  },
+  [],
+);
+
+const handleComposerDiscoveryPreview = useCallback((item: ComposerDiscoveryItem) => {
+  const descriptor = TOVU_CAPABILITY_INDEX.get(item.id);
+  if (!descriptor?.preview) return;
+  openCapabilityPreviewModal(descriptor);
+}, []);
+
+// JSX:
+// <Composer
+//   slots={{
+//     discoveryGroups: TOVU_COMPOSER_DISCOVERY_GROUPS,
+//     onDiscoverySelect: handleComposerDiscoverySelect,
+//     onDiscoveryPreview: handleComposerDiscoveryPreview,
+//   }}
+// />
+```
+
+---
+
+## Critique Of Another Participant's Round 2 Code
+
+### Critique of Gemini 3.6 Flash's Round 2 Code
+
+In Round 2, **Gemini 3.6 Flash** submitted the following parser and execution code:
+
+```typescript
+// Gemini 3.6 Flash R2 - files/jini/composer-discovery.ts (Lines 1155-1168 & 1197-1204)
+export function parseComposerSlashQuery(draft: string): ParsedSlashQuery | null {
+  const match = draft.match(/^\/([^\s/]*)(?:\s+(.*))?$/);
+  if (!match) return null;
+  const commandQuery = match[1] ?? '';
+  const rawArgs = match[2] ?? '';
+  const hasSpace = draft.length > 1 + commandQuery.length && draft[1 + commandQuery.length] === ' ';
+  return { commandQuery, rawArgs, hasSpace, range: [0, draft.length] };
+}
+
+export function replaceComposerSlashTrigger(draft: string, insertText: string, range?: readonly [number, number]): string {
+  if (!range) return parseComposerSlashQuery(draft) === null ? draft : insertText;
+  return draft.slice(0, range[0]) + insertText + draft.slice(range[1]);
+}
+```
+
+```tsx
+// Gemini 3.6 Flash R2 - files/jini/Composer.tsx (Lines 1314-1343)
+async function notifyDiscovery(item: ComposerDiscoveryItem, source: 'plus' | 'slash', rawArgs?: string) {
+  if (!slots?.onDiscoverySelect) return;
+  const originalDraft = composer.draft;
+  try {
+    setErrorMessage(null);
+    await slots.onDiscoverySelect({ item, source, rawArgs });
+  } catch (err) {
+    composer.setDraft(originalDraft);
+    setErrorMessage(err instanceof Error ? err.message : t('Command execution failed'));
+  }
+}
+
+async function selectSlashItem(index: number) {
+  const match = slashMatches[index];
+  if (!match) return;
+  const insertValue = match.item.insertText ?? match.item.label;
+  const nextDraft = replaceComposerSlashTrigger(composer.draft, insertValue, parsedSlash?.range);
+  composer.setDraft(nextDraft);
+  setDismissedSlashDraft(null);
+
+  await notifyDiscovery(match.item, 'slash', parsedSlash?.rawArgs);
+  restoreComposerFocus();
+}
+```
+
+#### Flaw 1: Destructive Draft Mutation Before Host Execution (Breaks Rollback)
+In Gemini 3.6 Flash's `selectSlashItem`, `composer.setDraft(nextDraft)` is executed **before** calling `notifyDiscovery`. Inside `notifyDiscovery`, `originalDraft` is captured as `const originalDraft = composer.draft`.
+Because `composer.setDraft(nextDraft)` was already called on the preceding line, `composer.draft` at that moment is ALREADY the mutated/cleared draft `nextDraft`! When host execution rejects or throws an error in `notifyDiscovery`, calling `composer.setDraft(originalDraft)` restores `nextDraft` (the cleared draft), completely failing to restore the user's typed command `/mcp supabase`.
+
+#### Flaw 2: Range-Slicing Destroys Typed Arguments on Non-Empty `insertText`
+Gemini 3.6 Flash sets `range: [0, draft.length]`. If an item declares `insertText: "/search"`, typing `/search quantum computing` produces `range: [0, 25]`. Calling `replaceComposerSlashTrigger(draft, "/search", range)` slices `[0, 25]` and replaces the ENTIRE draft with `"/search"`, destroying the typed argument `"quantum computing"` synchronously before `onDiscoverySelect` ever completes execution.
+
+---
+
+## What Would Change My Mind
+
+1. **Mandatory Live Value Completion Inside Arguments**: If product UX explicitly requires live, filtered sub-pickers rendered inside the input area as the user types arguments (e.g. typing `/mcp sup` must open a sub-menu listing connected server IDs inside the composer input), plain `<textarea>` listbox rendering would be insufficient, necessitating a caret-aware tokenized editor (Option 2).
+2. **Standardized Cross-Host RPC Execution Protocol**: If all consumer hosts adopted a unified, standardized client RPC execution schema, embedding execution dispatch directly in `@jini-ai/chat` could be accomplished without violating host neutrality ([slots.ts:77-80](file:///tmp/ads-peer-dispatch/debate-slash/files/jini/slots.ts#L77-L80)).
+
+<<SWARM_END>>

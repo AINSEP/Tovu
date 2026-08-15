@@ -1,0 +1,46 @@
+ACK_PACKET_RECEIVED CTX-DEPLOY-2026-08-12 -- I received the packet and will work on it.
+
+## Position
+
+The owner's hypothesis—"just MCP, tokens and base URLs"—is **partly right but dangerously flawed**. 
+
+It is partly right because Tovu already possesses an MCP federation layer (`files/tovu/mcp-federation/trust.ts`) and the embedded assistant natively understands how to interact with local CLI binaries (F6). 
+
+It is dangerously wrong because choosing MCP via the existing `adapter.stdio.ts` means launching local subprocesses that manage their own network stack. If an MCP server pushes data to Vercel or GitHub, it completely bypasses Tovu's heavily guarded `HttpClientPort` and its `EgressPolicy` (F4: `integrations-ports.ts` L28, L54). This destroys the SSRF and DNS-pinning protections explicitly built for outbound requests. Furthermore, MCP's synchronous request/response JSON-RPC architecture is inherently hostile to the streaming nature of minutes-long deployment logs.
+
+Because Tovu is a multi-workspace CMS (C2), "what is being deployed" must be the **rendered static payload or serialized content state for a specific tenant**, not the Tovu runtime itself. Therefore, deployment is an outbound export process.
+
+## Option Assessment
+
+**Best Design:** A hybrid of **Option B (Direct HTTP adapters)** and **Option D (Git-push-as-deploy)**. Tovu should use the existing `HttpClientPort` to communicate with provider REST APIs (like GitHub's) to commit file trees, delegating the actual hosting and build steps to the operator's external CI. 
+
+- **Rejecting Option A (MCP-only):** Rejected due to the critical security bypass of the `EgressPolicy`. It also forces awkward polling over JSON-RPC to monitor long-running tasks.
+- **Rejecting Option C (CLI adapters):** Shelling out to `gh` or `vercel` violates the "self-hostable" constraint (C1) by forcing the host environment to maintain an arbitrary fleet of third-party binaries on `PATH`.
+- **Addressing GitHub (Q3):** GitHub requires a direct REST adapter. Pushing via pure `git` or `gh` requires local repository disk state which breaks portability. Authentication should ideally move toward GitHub Apps; a static "access token" (Q4) is brittle, but `SecretSealerPort` (L94) is already perfectly equipped to encrypt whatever credential we store.
+- **Long-running work (Q5):** A deployment cannot block an HTTP route. Tovu already has a durable worker pattern: `WebhookDeliveryRepoPort` (L121) tracks `enqueue`, `claimPending`, and `markFailed` states. Deployment status must live in a mirrored `DeploymentOutbox` table.
+- **Rollback and Environments (Q6 & Q7):** Deploy rollback is fundamentally different from the local `change-sets` primitive (F7). Local change-sets revert the CMS state; deploy rollback requires triggering a previous deployment outbox payload or reverting an external Git commit. Environments are simply distinct target configurations (e.g., a "staging" GitHub branch vs a "prod" branch) mapped to a workspace.
+- **Frontend & Sequencing (Q8 & Q9):** The admin UI only needs a target configuration panel and a read-only table over the deployment outbox logs. The smallest honest slice (Q9) is implementing a stateless HTTP POST webhook adapter that triggers an external Netlify/Vercel build without transferring any payload, with rollback being handled purely on the external provider's dashboard.
+
+## Failure Modes And Sacrifice
+
+**The Sacrifice:** We explicitly surrender the idea of Tovu being a deployment runtime. Tovu will not build or host the static frontend; it acts exclusively as a secure dispatcher of content payloads or webhook triggers. 
+
+**Hidden Costs:** Constructing Git trees and blobs sequentially over REST APIs (Option B) is incredibly verbose. A large workspace export could require hundreds of HTTP requests to GitHub's API, introducing severe rate-limiting risks and increasing the probability of network timeouts midway through a deployment.
+
+**Failure Mode:** If Tovu pushes a deploy payload and the external CI provider (e.g., GitHub Actions) fails during the build step, Tovu has no native way to know unless the provider successfully fires a webhook back to Tovu. If that callback drops, Tovu's outbox will permanently stall in a "running" state.
+
+## What Would Change My Mind
+
+If Tovu's `mcp-federation` layer were updated to support network sandboxing—specifically, an injected HTTP proxy interface that forces all stdio subprocess outbound traffic to route strictly through Tovu's `EgressPolicy`—Option A (MCP-only) would instantly become the superior choice. It would completely decouple provider-specific logic from the core CMS without sacrificing zero-trust network security.
+
+## Unlisted Option
+
+**Outbox-Driven Deployments.** The candidate designs focus strictly on transport protocols, ignoring state management. The critical unlisted option is duplicating the architecture of `WebhookDeliveryRepoPort` (`integrations-ports.ts` L121). Deployments must be modeled as durable jobs inserted into a `DeploymentRepoPort`, picked up by a background worker loop, and executed via the HTTP adapters. This natively solves the resilience, retry, and long-running execution requirements without inventing new paradigms.
+
+## Blind Spots
+
+**(a) A viable option not listed:** Tovu pushing static assets directly to an S3-compatible bucket via standard AWS HTTP APIs, bypassing Git and CI entirely for the simplest possible hosting mechanism. 
+**(b) A question we should be asking but aren't:** How do we enforce multi-tenant fairness? If Workspace A queues a massive 500-file deployment, how do we ensure it doesn't exhaust the worker threads or the `HttpClientPort` rate limits, starving Workspace B's ability to deploy?
+**(c) The framing assumption most likely wrong, and why:** The assumption that "the assistant should be able to drive this" implies the assistant needs to interface with a deployment CLI or MCP server directly. This is wrong. The assistant only needs the ability to insert a standard record into the deployment outbox table. The actual transport mechanism (HTTP vs CLI) is entirely orthogonal to the assistant's UX.
+
+<<SWARM_END>>

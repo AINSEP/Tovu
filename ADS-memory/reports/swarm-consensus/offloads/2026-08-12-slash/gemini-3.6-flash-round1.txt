@@ -1,0 +1,53 @@
+ACK_PACKET_RECEIVED CTX-SLASH-2026-08-12 -- I received the packet and will work on it.
+
+## Position
+
+The right design for slash commands in `@jini-ai/chat` is a **Host-Delegated Intent Dispatcher with Asymmetric State Control**. 
+
+The composer package (`@jini-ai/chat`) must remain strictly presentational and solution-neutral (`files/jini/Composer.tsx:2-13`). It must own ONLY the trigger regex parsing (`files/jini/composer-discovery.ts:10-12`), list filtering (`files/jini/composer-discovery.ts:15-34`), keyboard navigation (`files/jini/Composer.tsx:108-127`), and ARIA listbox accessibility state (`files/jini/Composer.tsx:150-157`). 
+
+Execution semantics must NOT be embedded inside `@jini-ai/chat`. The package must not switch on host taxonomies (`files/jini/slots.ts:79-81`) nor attempt to execute client-side routes, macro expansions, or server-side agent tool calls internally. Instead, selecting a slash command must emit a typed selection payload (`ComposerDiscoverySelection`, `files/jini/slots.ts:98-101`) to the host via `ComposerSlots.onDiscoverySelect` (`files/jini/slots.ts:124`, `files/jini/Composer.tsx:88-90`). 
+
+The host application (`Tovu` or any third-party host) retains 100% registry ownership by injecting `ComposerDiscoveryGroup[]` into `ComposerSlots.discoveryGroups` (`files/jini/slots.ts:121`, `files/tovu/AssistantDock.tsx:429-432`). The host handler (`files/tovu/AssistantDock.tsx:270-273`) determines the execution outcome based on its own domain logic:
+1. **Client UI Navigation / Action**: Wipes the slash trigger (as seen in `mcp:settings` with `insertText: ""` in `files/tovu/agent-plugin-catalog.ts:95`) and triggers host routing (`resolveTovuComposerDiscoveryRoute`, `files/tovu/agent-plugin-catalog.ts:101-104`, `files/tovu/AssistantDock.tsx:270-273`).
+2. **Prompt Template Expansion**: Replaces the active draft with `insertText` (`files/jini/composer-discovery.ts:38-40`, `files/jini/Composer.tsx:95`) for the user to edit before manual submission.
+3. **Direct Agent Execution / Context Injection**: Hands off structured intent parameters to the backend agent execution transport (`files/tovu/AssistantDock.tsx:239-242`, `files/tovu/AssistantDock.tsx:332-335`).
+
+## Option Assessment
+
+- **Option A (Text macro only)**: **REJECT.** Restricting slash commands to prompt text insertion degrades the mechanism to a simplistic template populator. In `files/tovu/agent-plugin-catalog.ts:90-97`, the `/mcp` command (`mcp:settings`) relies on `insertText: ""` and triggers route navigation to `/settings?tab=external-mcp` via `resolveTovuComposerDiscoveryRoute` (`files/tovu/agent-plugin-catalog.ts:101-104`, `files/tovu/AssistantDock.tsx:270-273`). Option A cannot support client navigation or local host state toggles without polluting the user's prompt text with artificial text markers.
+- **Option B (Client-side command dispatch)**: **REJECT.** Option B fails to account for server-side agent CLI execution environments (Constraint C3). In Tovu, assistant tool execution occurs server-side via spawned agent CLIs and daemon proxies (`files/tovu/AssistantDock.tsx:115-120`). Forcing all slash commands to execute as client-side JavaScript handlers prevents commands from directly contributing backend agent skills (`files/tovu/agent-plugin-catalog.ts:72-84`) or passing execution parameters into the agent transport (`files/tovu/AssistantDock.tsx:239-242`).
+- **Option C (Server/agent tool invocation)**: **REJECT.** Option C violates client security boundaries and host control. The parser `parseComposerSlashQuery` (`files/jini/composer-discovery.ts:10-12`) does not support argument parsing or parameter validation. Bypassing host inspection to instantly invoke server-side agent tools upon Enter keypress (`files/jini/Composer.tsx:116-117`) breaks user consent gates, prevents draft editing, and destroys client-side UI navigation (`files/tovu/AssistantDock.tsx:270-273`).
+- **Option D (Hybrid with declared command kind: macro | client | tool)**: **REJECT (Package-Owned Branching).** While host actions are inherently hybrid, embedding explicit `macro | client | tool` execution branches inside `@jini-ai/chat` violates Constraint C1 (package reusability) and explicitly breaks the package design contract in `files/jini/slots.ts:79-81` ("`kind` is intentionally an open string: Jini filters and renders the value but never switches on a host-owned taxonomy"). The package must not house a multi-branch execution engine.
+
+## Failure Modes And Sacrifice
+
+### Failure Modes
+1. **Irreversible Draft Destruction on Action Failure**: In `files/jini/Composer.tsx:95`, selecting an item immediately calls `composer.setDraft(replaceComposerSlashTrigger(composer.draft, ...))`. If `replaceComposerSlashTrigger` (`files/jini/composer-discovery.ts:38-40`) replaces the draft with `""` (e.g. for `mcp:settings` in `files/tovu/agent-plugin-catalog.ts:95`) and the subsequent host navigation (`files/tovu/AssistantDock.tsx:271-272`) fails or is rejected, the user's draft content is erased with zero recovery mechanism.
+2. **Argument Typing Rejection**: The regex in `parseComposerSlashQuery` (`files/jini/composer-discovery.ts:11`) strictly enforces `/^\/([^\s/]*)$/`. As soon as a user presses the spacebar to type an argument (e.g., `/search term`), `slashQuery` becomes `null` (`files/jini/Composer.tsx:80`), `slashMatches` evaluates to `[]` (`files/jini/Composer.tsx:81`), and `slashOpen` evaluates to `false` (`files/jini/Composer.tsx:82`). The command palette instantly closes, making argument autocompletion impossible under the current parser.
+3. **Vocabulary Collision between `@` Mentions and `/` Commands**: Mention selection (`files/jini/useComposer.ts:127-134`) appends tokens to the existing draft using `selectMention` (`files/jini/useComposer.ts:129-130`). Conversely, slash command selection (`files/jini/Composer.tsx:95`) uses `replaceComposerSlashTrigger` (`files/jini/composer-discovery.ts:38-40`), which replaces the entire draft string. If a user combines an `@` mention with a `/` command, picking the slash command destroys all previously staged `@` mentions in `composer.draft`.
+
+### Sacrifice
+We sacrifice out-of-the-box command execution in `@jini-ai/chat`. Third-party hosts cannot simply pass a list of slash items and expect them to execute automatically; every host MUST implement its own `onDiscoverySelect` handler (`files/jini/slots.ts:124`) to translate discovery selections into host-specific actions.
+
+## What Would Change My Mind
+
+1. **Standardized Agent Tool Protocol Across All Package Consumers**: If all current and future host applications consuming `@jini-ai/chat` standardized on a single unified client-agent RPC tool schema, built-in tool dispatching (Option C) would become viable without violating C1.
+2. **Grammar Refactoring to Token-Based Draft AST**: If `parseComposerSlashQuery` (`files/jini/composer-discovery.ts:10-12`) were replaced with a full tokenizing lexer capable of tracking inline token ranges (similar to `mentionSources` in `files/jini/slots.ts:104-117`), slash commands could replace sub-string tokens rather than wiping `composer.draft` (`files/jini/composer-discovery.ts:38-40`), eliminating the risk of draft destruction.
+
+## Unlisted Option
+
+**Option E: Action-Descriptor Contract with Host-Driven Draft Middleware.**
+Rather than forcing `@jini-ai/chat` to execute commands or restricting commands to simple text macros, `ComposerDiscoveryItem` (`files/jini/slots.ts:82-89`) can optionally carry a host-defined action descriptor (`action?: { type: string; payload?: unknown }`). 
+
+On selection (`files/jini/Composer.tsx:92-99`), `@jini-ai/chat` passes both the selected item and a state controller object (`{ originalDraft: string, setDraft: (s: string) => void }`) to `ComposerSlots.onDiscoverySelect` (`files/jini/slots.ts:124`). The host executes the action asynchronously. If the action succeeds, the host updates or clears the draft; if the action fails or is cancelled, the host can restore `originalDraft`. This preserves full package neutrality while enabling transactional draft management and host-defined execution.
+
+## Blind Spots
+
+**(a) Unlisted Option Missed by Packet**: **Directive Front-Loading (Metadata Staging)**. Slash commands do not execute client code or expand prompt text; instead, selecting a command stages an invisible runtime directive flag (e.g. `[skill: ui-ux-design]`) into `useComposer` state (`files/jini/useComposer.ts:42-62`). When the user eventually clicks `onSend` (`files/jini/Composer.tsx:126`), the staged directive is attached to the outgoing transport payload (`files/tovu/AssistantDock.tsx:332-335`) without altering the visible draft text.
+
+**(b) Reframe Question**: *"Why are we combining client UI navigation (e.g., `/mcp` -> `/settings?tab=external-mcp` in `files/tovu/agent-plugin-catalog.ts:101-104`) and backend prompt generation (`skill:ui-ux-design` in `files/tovu/agent-plugin-catalog.ts:75-84`) into a single slash palette, when their execution lifecycles and draft expectations are fundamentally opposed?"*
+
+**(c) Most Vulnerable Framing Assumption**: The assumption that slash query parsing must remain bound to position 0 of an isolated draft string (`/^\/([^\s/]*)$/` in `files/jini/composer-discovery.ts:11`). This assumption artificially restricts slash commands to whole-draft replacements (`files/jini/composer-discovery.ts:38-40`), preventing multi-command prompts, argument input, and inline slash directives.
+
+<<SWARM_END>>

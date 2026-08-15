@@ -1,0 +1,47 @@
+ACK_PACKET_RECEIVED CTX-COMMERCE-R2-2026-08-12 -- I received the packet and will work on it.
+
+## Position And Movement
+
+My current position is that Tovu's commerce requires a relational core with JSON restricted strictly to an unindexed escape hatch. My position *has changed* this round regarding physical storage: the corrected facts prove that binary JSON storage is genuinely portable across the three engines (provided we exclude MariaDB and use `BLOB` in SQLite). We no longer need to rely on lowest-common-denominator `TEXT`. 
+
+However, my architectural stance on *indexing* remains identical. Storage portability does not equal query portability. The strongest argument against the leading opposing position (JSONB-first for everything) is the glaring indexing asymmetry: Postgres indexes whole documents ad-hoc; MySQL and SQLite index only pre-declared scalars. A JSONB-first model for queryable data is just a schema-less design that gets heavily penalized on two out of the three required dialects.
+
+## The JSONB Verdict
+
+Given storage is portable but ad-hoc indexed querying is Postgres-only, the owner's "JSONB columns for max flexibility" is **partly right**. It is right for the *storage* of opaque, unindexed payloads (like raw provider webhooks or merchant metadata). It is completely **wrong** for queryable state. Designing the core commerce model around JSONB flexibility creates a Postgres-only application that either degrades into full table scans or requires fragmented, hand-written index migrations on SQLite and MySQL to extract scalars.
+
+**MariaDB is out.** Because it implements JSON as text and actively breaks row-based replication with MySQL on JSON columns, pretending MySQL and MariaDB are interchangeable is a trap. Tovu must explicitly target MySQL 8+ natively for its binary JSON and officially drop MariaDB support.
+
+## The Column-vs-Document Rule
+
+At review time, apply this mechanical rule: **If a field appears in a `WHERE`, `JOIN`, `ORDER BY`, `GROUP BY`, or `UNIQUE` constraint, it must be a typed relational column. If a field is only ever read or written by its primary key as part of a whole-entity payload, it can be JSON.** 
+
+No design principles, just SQL clauses. If a new feature requires filtering by a JSON property, that property must be promoted to a relational column first.
+
+## Remaining Disagreements
+
+**Does the storage spelling change?** 
+Yes. The 37 existing `text("*_json")` columns and all new commerce JSON boundaries should become `jsonb` on Postgres, `JSON` on MySQL, and `BLOB` (holding `jsonb()` output) on SQLite. 
+*What breaks:* 
+1. **Readability:** Direct database inspection in the SQLite CLI degrades; developers must explicitly query `json(col)` to read the binary blobs.
+2. **Migrations:** Drizzle schema purity breaks. You can no longer use a generic `text()` builder and must fork the DDL generation or write custom types to emit `BLOB` for SQLite and `JSON` for MySQL. 
+3. **Existing rows:** Requires a one-time data migration to execute `UPDATE table SET col = jsonb(col)` on all 37 existing JSON columns in SQLite.
+
+**Idempotency + ordering.** 
+The existing `version` column does **not** suffice. It tracks local optimistic concurrency, not the external provider's chronological sequence. To solve out-of-order deliveries, we must add a `provider_event_timestamp` (or sequence ID) to the domain row. The logic: `if incoming.event_timestamp <= current_row.provider_event_timestamp`, acknowledge the webhook as a 200 OK but skip the database mutation. Combined with the `(provider, event_id)` UNIQUE index, this fully solves both duplicate and chronologically inverted deliveries.
+
+**Products vs member_tiers.** 
+Extend the existing `member_tiers`. 
+*Cost of extending:* `member_tiers` is semantically tied to "memberships," meaning future non-membership commerce items might feel awkwardly named and require an eventual table rename. 
+*Cost of a new entity set:* Dual-write synchronization nightmares, fractured financial reporting, and duplicating the pricing and subscription lifecycles Tovu already successfully runs. Do not build a competing catalog.
+
+**Sequencing.** 
+**Vertical-slice-first.** There is no code path writing commerce rows today, the Postgres adapter is purely evaluation-only, and MySQL has zero code. Authoring three dialect-specific schemas upfront is designing blind. Build the webhook-to-database slice against the actual SQLite driver first, prove the idempotency constraints and JSON-to-BLOB semantics work, and then implement the Postgres/MySQL adapters to prove equivalence.
+
+## What Would Change My Mind
+
+I would embrace JSONB for indexed querying if Drizzle ORM shipped an abstraction that seamlessly compiled a single TypeScript JSON index declaration into Postgres GIN, MySQL generated columns, and SQLite expression indexes without requiring manual DDL forks. Until then, the maintenance burden is too high.
+
+I would change my mind on extending `member_tiers` if Tovu's roadmap explicitly included a requirement for a physical goods shopping cart (multi-item checkouts with inventory and shipping), which structurally breaks the 1:1 tier-to-member entitlement model currently in place.
+
+<<SWARM_END>>

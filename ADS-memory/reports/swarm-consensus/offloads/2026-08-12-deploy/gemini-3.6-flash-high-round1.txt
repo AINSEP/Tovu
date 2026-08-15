@@ -1,0 +1,72 @@
+ACK_PACKET_RECEIVED CTX-DEPLOY-2026-08-12 -- I received the packet and will work on it.
+
+## Position
+
+Deployment for Tovu must mean **Site Presentation Artifact Publishing combined with Content/Configuration Revision Promotion**. Because Tovu is a self-hostable CMS control plane ([files/tovu/cli/program.ts:30-32](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/cli/program.ts#L30-L32)), "deployment" is not re-deploying the Tovu Node.js process itself; it is exporting/building the rendered site (or triggering external host builds) and promoting reviewed content revisions between environments using Tovu’s existing `change-sets` primitive ([files/tovu/integrations-ports.ts:20](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/integrations-ports.ts#L20)).
+
+The owner’s working hypothesis—*"I'm thinking just MCP — so just access tokens and base URLs"*—is **fundamentally wrong on transport, security, and architectural fit**:
+
+1. **MCP in Tovu is stdio child subprocesses, not base URLs + access tokens**: [files/tovu/mcp-federation/adapter.stdio.ts:6-8](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/mcp-federation/adapter.stdio.ts#L6-L8) and [files/tovu/mcp-federation/ports.ts:139-149](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/mcp-federation/ports.ts#L139-L149) confirm that Tovu's outbound MCP implementation relies on `spawnMcpStdioChannel` (`child_process.spawn`). Hosted HTTP transport for MCP is explicitly deferred ([files/tovu/mcp-federation/ports.ts:139-140](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/mcp-federation/ports.ts#L139-L140)). Choosing MCP does not eliminate subprocesses.
+2. **"Just access tokens" violates Tovu's secret architecture**: Plaintext credentials must never be stored directly or bypass encryption (Constraint C3). Tovu already provides a robust cryptographic foundation via `KeyringPort` HKDF derivation ([files/tovu/integrations-ports.ts:59-87](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/integrations-ports.ts#L59-L87)), `SecretSealerPort` AEAD encryption ([files/tovu/integrations-ports.ts:94-97](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/integrations-ports.ts#L94-L97)), and `IntegrationSecretRepoPort` ([files/tovu/integrations-ports.ts:158-164](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/integrations-ports.ts#L158-L164)).
+3. **MCP is the wrong transport for deterministic infrastructure jobs**: External MCP tools operate under heavy trust restrictions ([files/tovu/mcp-federation/trust.ts:57-96](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/mcp-federation/trust.ts#L57-L96)): operator allowlists (R2), self-declared hint demotions (R3), frozen tool sets (R5), and untrusted boundary wrapping (R7). Wrapping deterministic deployment triggers in LLM tool calls adds latency, unpredictability, and prompt-injection risks ([files/tovu/mcp-federation/trust.ts:44-53](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/mcp-federation/trust.ts#L44-L53)).
+
+**The Right Integration Surface**: **Direct Provider HTTP Adapters combined with Event-Driven Webhook Triggers**, operating over Tovu’s guarded `HttpClientPort` ([files/tovu/integrations-ports.ts:40](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/integrations-ports.ts#L40)) with its SSRF/DNS-pinned `EgressPolicy` ([files/tovu/integrations-ports.ts:8-9](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/integrations-ports.ts#L8-L9)). Long-running jobs should leverage an asynchronous worker pattern mirroring `WebhookDeliveryRepoPort` ([files/tovu/integrations-ports.ts:116-155](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/integrations-ports.ts#L116-L155)).
+
+---
+
+## Option Assessment
+
+### Option A: MCP-Only (Owner's Hypothesis) — REJECTED
+- **Grounding**: [files/tovu/mcp-federation/adapter.stdio.ts:307-313](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/mcp-federation/adapter.stdio.ts#L307-L313), [files/tovu/mcp-federation/trust.ts:27-41](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/mcp-federation/trust.ts#L27-L41).
+- **Flaws**: MCP servers (e.g. `@supabase/mcp-server-supabase`) expose raw database/DDL tools like `execute_sql` and `deploy_edge_function` ([files/tovu/mcp-federation/trust.ts:36-41](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/mcp-federation/trust.ts#L36-L41)). Tovu's trust tier enforces default-deny allowlists (R2, [files/tovu/mcp-federation/trust.ts:65-68](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/mcp-federation/trust.ts#L65-L68)) and wraps all output in untrusted boundaries (R7, [files/tovu/mcp-federation/trust.ts:92-94](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/mcp-federation/trust.ts#L92-L94)). Using MCP for deployment forcing stdio subprocess spawning ([files/tovu/mcp-federation/adapter.stdio.ts:6-8](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/mcp-federation/adapter.stdio.ts#L6-L8)) while lacking job queues, status polling, or progress streaming primitives.
+
+### Option B: Direct Provider HTTP Adapters — RECOMMENDED
+- **Grounding**: [files/tovu/integrations-ports.ts:8-9](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/integrations-ports.ts#L8-L9), [files/tovu/integrations-ports.ts:40](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/integrations-ports.ts#L40), [files/tovu/integrations-ports.ts:94-97](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/integrations-ports.ts#L94-L97), [files/tovu/integrations-ports.ts:158-164](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/integrations-ports.ts#L158-L164).
+- **Strengths**: Reuses `HttpClientPort` with `EgressPolicy` (SSRF prevention, DNS pinning, response caps) ([files/tovu/integrations-ports.ts:8-9](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/integrations-ports.ts#L8-L9)). Stores provider tokens encrypted via `SecretSealerPort` ([files/tovu/integrations-ports.ts:94-97](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/integrations-ports.ts#L94-L97)) keyed per workspace ([files/tovu/integrations-ports.ts:20-22](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/integrations-ports.ts#L20-L22)). Requires zero host CLI binary installations, maintaining full container self-hostability (Constraint C1).
+
+### Option C: CLI Subprocess Adapters — REJECTED
+- **Grounding**: [files/tovu/cli/introspect.ts:13-15](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/cli/introspect.ts#L13-L15), [files/tovu/external-mcp/guard.ts:10-15](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/external-mcp/guard.ts#L10-L15).
+- **Flaws**: Spawning third-party host CLIs (`gh`, `vercel`, `wrangler`) executes arbitrary binaries as the Tovu daemon user ([files/tovu/external-mcp/guard.ts:10-15](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/external-mcp/guard.ts#L10-L15)). Provider CLIs store auth globally on the OS filesystem (e.g. `~/.config/gh/hosts.yml`), fundamentally breaking multi-workspace tenant isolation (Constraint C2). It also fails in minimal self-hosted docker environments lacking pre-installed CLI toolchains (Constraint C1).
+
+### Option D: Git-Push-As-Deploy — PARTIALLY ACCEPTED (As Trigger Mechanism)
+- **Grounding**: [files/tovu/integrations-ports.ts:116-155](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/integrations-ports.ts#L116-L155).
+- **Strengths/Flaws**: Offloads heavy build execution to existing CI/CD (GitHub Actions, GitLab CI). However, Git-push alone leaves Tovu blind to build outcomes unless paired with Tovu's webhook receiver delivery machinery ([files/tovu/integrations-ports.ts:116-155](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/integrations-ports.ts#L116-L155)) to track deployment status.
+
+---
+
+## Failure Modes And Sacrifice
+
+1. **Failure Mode — Multi-Tenant Credential Bleed**:
+   - Spawning CLIs or using process-level environment variables risks sharing provider credentials across workspaces. All deployment credentials must be isolated per workspace via `IntegrationSecretRepoPort` ([files/tovu/integrations-ports.ts:158-164](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/integrations-ports.ts#L158-L164)) and decrypted in-memory strictly for the duration of the HTTP request ([files/tovu/integrations-ports.ts:96](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/integrations-ports.ts#L96)).
+2. **Failure Mode — Express Event-Loop Blocking on Long Builds**:
+   - Deploys take minutes. Running synchronous deployment tasks in HTTP route handlers will cause gateway timeouts and block the server. Deploys must run asynchronously using an outbox queue pattern with claim/retry semantics ([files/tovu/integrations-ports.ts:122-148](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/integrations-ports.ts#L122-L148)).
+3. **Failure Mode — Confused-Deputy Permission Drift**:
+   - Exposing deployment triggers to the embedded assistant without gating them on `admin.integrations.manage` ([files/tovu/mcp-federation/trust.ts:131](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/mcp-federation/trust.ts#L131), [files/tovu/external-mcp/guard.ts:23](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/external-mcp/guard.ts#L23)) allows non-admin users to trigger production deployments via prompt injection.
+4. **Genuine Sacrifice**:
+   - Rejecting host CLI subprocesses (Option C) and generic MCP servers (Option A) means Tovu cannot claim "zero-code instant compatibility with any local CLI tool". Tovu must explicitly maintain platform HTTP adapters or structured Git webhook dispatchers.
+
+---
+
+## What Would Change My Mind
+
+1. **Official Read-Only / Deploy-Only Remote MCP Servers**: If deployment vendors publish official, hosted MCP servers that support multi-tenant token authorization, streaming build logs over JSON-RPC, and strictly scoped permissions without requiring stdio child processes ([files/tovu/mcp-federation/adapter.stdio.ts:6-8](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/mcp-federation/adapter.stdio.ts#L6-L8)).
+2. **Shift to Infrastructure Management**: If "deployment" is redefined to mean scaling and updating the Tovu Node.js process daemon itself (Docker/K8s/Terraform orchestration) rather than publishing presentation content/sites.
+3. **Container-Level Workspace Isolation**: If Tovu introduces lightweight container/sandbox isolation per workspace, eliminating the multi-tenant security risks of host CLI binaries ([files/tovu/external-mcp/guard.ts:10-15](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/external-mcp/guard.ts#L10-L15)).
+
+---
+
+## Unlisted Option
+
+**Option E: Asynchronous Outbound Webhook Dispatcher with Sealed Payload Signing (Repository/Platform Dispatch)**
+- **Concept**: Instead of custom provider SDKs or MCP wrapper processes, leverage Tovu's existing webhook outbox infrastructure (`WebhookSubscriptionRepoPort` [files/tovu/integrations-ports.ts:104-114](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/integrations-ports.ts#L104-L114) and `WebhookDeliveryRepoPort` [files/tovu/integrations-ports.ts:116-155](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/integrations-ports.ts#L116-L155)).
+- **Mechanism**: Tovu issues signed `repository_dispatch` or deploy-hook events to external providers (GitHub Actions, Vercel Deploy Hooks, Netlify Webhooks) using HKDF-derived signing secrets ([files/tovu/integrations-ports.ts:65-69](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/integrations-ports.ts#L65-L69)) and `HttpClientPort` ([files/tovu/integrations-ports.ts:40](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/integrations-ports.ts#L40)). Build status is reported back asynchronously via an inbound status webhook endpoint.
+
+---
+
+## Blind Spots
+
+- **(a) Viable Unlisted Option**: **Inter-Instance Revision Promotion via Signed `change-sets` Sync**: Promoting content/config between staging and production Tovu instances by serializing signed `change-sets` ([files/tovu/integrations-ports.ts:20](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/integrations-ports.ts#L20)) directly over `HttpClientPort` ([files/tovu/integrations-ports.ts:40](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/integrations-ports.ts#L40)).
+- **(b) Critical Unasked Question**: *How does deployment integrate with Tovu's health and recovery subsystems?* If a deployment fails or introduces broken plugin code, does `module-status.ts` ([files/tovu/module-status.ts:20-49](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/module-status.ts#L20-L49)) trigger automated rollback via database recovery primitives?
+- **(c) Flawed Framing Assumption**: *The assumption that Tovu must execute the build/deployment pipeline internally.* Tovu is a CMS content plane ([files/tovu/cli/program.ts:31](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/cli/program.ts#L31)), not a CI/CD build runner. Assuming Tovu must run local build scripts or host CLI binaries misplaces system boundaries; Tovu's role is trigger dispatch, secret sealing, and content revision locking.
+
+<<SWARM_END>>

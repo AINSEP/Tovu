@@ -1,0 +1,341 @@
+ACK_PACKET_RECEIVED CTX-SLASH-R3-2026-08-12 -- I received the packet and will work on it.
+
+## Position And Movement
+
+My position synthesizes the strongest elements of the `sonnet5-round2` and `gemini-3.1-pro-high-round2` designs: **Host-Delegated Intent with Strict Anchor Invariants and Async Middleware**. 
+
+In earlier rounds, the package was seen as owning both the text mutation and the mechanism. The packet's new N1-N5 constraints demonstrate that once arguments are typed, the package lacks the domain knowledge to perform correct text replacement or validation. Therefore, the package must fully cede the final draft mutation (and rollback) to the host via an async `onDiscoverySelect` promise. However, I reject the over-engineered token-range replacement proposed by some peers. By maintaining a strict, end-to-end anchored regex (`/^\/([^\s/]*)(?:(\s+)([\s\S]*))?$/`), the draft *is* the command, making whole-draft destruction perfectly safe without importing Lexical or writing manual token range trackers.
+
+## Sources
+
+1. **ARIA `aria-activedescendant` Implications:** I verified against the W3C ARIA Authoring Practices for listbox/combobox patterns. The pattern does **not** break when the trigger token (and thus the typed argument) grows, provided three invariants hold: keyboard focus remains on the `<textarea>`, `aria-activedescendant` points to a DOM ID that actually exists in the current render cycle, and the active index is clamped to the new bounds when filtering shrinks the option set. There is no fundamental ARIA limitation preventing the typed argument from growing; the risk is purely state desync. (Source: W3C ARIA Combobox Pattern / MDN Web Docs - https://www.w3.org/WAI/ARIA/apg/patterns/combobox/).
+2. **How other composers implement slash arguments:** I researched Slack, Discord, and ProseMirror implementations. They universally use a triggered popover combined with an AST or token-aware state in a rich-text editor. When a command is selected, they typically convert the command into an uneditable "chip" and transition the editor into an argument-collection mode. Since Tovu's textarea cannot render inline chips, relying on trailing text parsing with a static menu placeholder (e.g., `<server-id>`) is the correct analog to the "ghost text" phase seen in these editors. (Source: ProseMirror documentation, Discord API design patterns).
+
+## Solution Slate
+
+**Ranking Criteria:** 
+1. Solves N1-N5 directly without introducing unrequested UX paradigms (like full rich-text editors). 
+2. Retains package neutrality per `slots.ts:77-80` (no branching on `kind`).
+3. Safely handles draft replacement and failed execution rollbacks.
+
+### Option 1 (Recommended): Synthesized Async Host-Delegation
+I synthesize the declarative structure of `sonnet5-round2` with the rigorous async state management of `gemini-3.1-pro-high-round2`. The package expands the regex to capture arguments but remains completely ignorant of their meaning. If an item declares an argument or confirmation, the package hands the parsed argument to the host and waits. If the host resolves, the host dictates the new draft. If the host rejects, the package restores the original draft.
+- **Trade-offs:** Maintains a pure dependency tree (no Lexical) while satisfying all capability projections. The package defers all complex business logic.
+- **Genuine Sacrifice:** We permanently sacrifice the ability to render rich, inline, multi-field UI widgets (like live dropdowns for `<server-id>`) *inside* the input area itself. Users must type plain text arguments, and validation only happens upon Enter.
+- **Cheapest Falsifying Test:** Provide users with a command that requires complex, strict formatting (e.g., a compound date or multi-select). If users routinely fail to format it as plain text and demand a structured UI widget for the argument, this textarea-based approach is falsified.
+
+### Option 2: Token-Range Editor State
+The package tracks the `[start, end]` character range of the command and replaces only that substring, allowing slash commands to theoretically exist anywhere in the draft, rather than anchoring them to the start.
+- **Trade-offs:** Allows commands to be injected mid-sentence, bringing the `<textarea>` closer to a rich-text editor's behavior.
+- **Genuine Sacrifice:** We sacrifice the simplicity and safety of a single draft-wide mode. The package must now handle complex, notoriously fragile caret tracking and text selection states within a plain textarea.
+- **Cheapest Falsifying Test:** Type some standard text, move the caret to the middle, type a slash command, and use the arrow keys to navigate. If the popup loses track of the command span or replaces the wrong text substring, the manual state tracking is falsified.
+
+## Leading Option — Code
+
+**1. The Capability Descriptor Contract (`files/jini/slots.ts`)**
+```typescript
+export interface ComposerDiscoveryArgument {
+  placeholder: string;
+  required?: boolean;
+}
+
+export interface ComposerDiscoveryItem {
+  id: string;
+  label: string;
+  description?: string;
+  kind?: string;
+  keywords?: readonly string[];
+  insertText?: string;
+  argument?: ComposerDiscoveryArgument;
+  needsConfirmation?: boolean;
+  previewable?: boolean;
+}
+
+export interface ComposerDiscoverySelection {
+  item: ComposerDiscoveryItem;
+  source: 'plus' | 'slash';
+  argument?: string;
+}
+
+export interface ComposerDiscoveryOutcome {
+  draft?: string;
+}
+
+export type ComposerDiscoverySelect = (
+  selection: ComposerDiscoverySelection,
+) => void | ComposerDiscoveryOutcome | Promise<void | ComposerDiscoveryOutcome>;
+
+export interface ComposerSlots {
+  plusMenuItems?: ComposerPlusItem[];
+  discoveryGroups?: readonly ComposerDiscoveryGroup[];
+  onDiscoverySelect?: ComposerDiscoverySelect;
+  onDiscoveryPreview?: (item: ComposerDiscoveryItem) => void;
+}
+```
+
+**2. The Extended Parser + Tests (`files/jini/composer-discovery.ts` and `__tests__/composer-discovery.test.ts`)**
+```typescript
+export interface ComposerSlashQuery {
+  command: string;
+  argument: string | null;
+}
+
+// Anchored end-to-end to guarantee draft == trigger
+const SLASH_QUERY_RE = /^\/([^\s/]*)(?:(\s+)([\s\S]*))?$/;
+
+export function parseComposerSlashQuery(draft: string): ComposerSlashQuery | null {
+  const match = draft.match(SLASH_QUERY_RE);
+  if (!match) return null;
+  const [, command, separator, rest] = match;
+  return { command: command ?? '', argument: separator === undefined ? null : (rest ?? '') };
+}
+
+export function filterComposerDiscovery(
+  groups: readonly ComposerDiscoveryGroup[],
+  query: string,
+): ComposerDiscoveryMatch[] {
+  const normalizedQuery = query.trim().toLowerCase();
+  const matches: ComposerDiscoveryMatch[] = [];
+
+  for (const group of groups) {
+    for (const item of group.items) {
+      const searchable = [item.label, item.description, item.kind, ...(item.keywords ?? [])]
+        .filter((value): value is string => typeof value === 'string')
+        .join(' ')
+        .toLowerCase();
+      if (normalizedQuery === '' || searchable.includes(normalizedQuery)) {
+        matches.push({ groupId: group.id, groupLabel: group.label, item });
+      }
+    }
+  }
+  return matches;
+}
+
+export function replaceComposerSlashTrigger(draft: string, insertText: string): string {
+  return parseComposerSlashQuery(draft) === null ? draft : insertText;
+}
+```
+
+*Tests:*
+```typescript
+import { describe, expect, it } from 'vitest';
+import { parseComposerSlashQuery, replaceComposerSlashTrigger } from '../composer-discovery.js';
+
+describe('parseComposerSlashQuery', () => {
+  it('returns null for non-slash', () => expect(parseComposerSlashQuery('hi')).toBeNull());
+  it('parses bare command', () => expect(parseComposerSlashQuery('/mcp')).toEqual({ command: 'mcp', argument: null }));
+  it('parses with trailing space', () => expect(parseComposerSlashQuery('/mcp ')).toEqual({ command: 'mcp', argument: '' }));
+  it('parses with argument', () => expect(parseComposerSlashQuery('/mcp supabase')).toEqual({ command: 'mcp', argument: 'supabase' }));
+  it('allows spaces in argument', () => expect(parseComposerSlashQuery('/search open design')).toEqual({ command: 'search', argument: 'open design' }));
+});
+
+describe('replaceComposerSlashTrigger', () => {
+  it('replaces full draft safely', () => expect(replaceComposerSlashTrigger('/mcp supabase', '')).toBe(''));
+  it('no-op if draft has prepended text', () => expect(replaceComposerSlashTrigger('hi /mcp', 'x')).toBe('hi /mcp'));
+});
+```
+
+**3. Execution Seam and Confirmation Fix (`files/jini/Composer.tsx`)**
+```tsx
+  // Internal State
+  const [discoveryError, setDiscoveryError] = useState<string | null>(null);
+  const [executing, setExecuting] = useState(false);
+  
+  const slashQuery = parseComposerSlashQuery(composer.draft);
+  const slashMatches = slashQuery === null ? [] : filterComposerDiscovery(discoveryGroups, slashQuery.command);
+  const slashOpen = slashMatches.length > 0 && dismissedSlashDraft !== composer.draft;
+
+  // The discarded-promise fix and async middleware
+  async function notifyDiscovery(
+    item: ComposerDiscoveryItem,
+    source: 'plus' | 'slash',
+    restoreDraft: string,
+    argument?: string,
+  ) {
+    setDiscoveryError(null);
+    setExecuting(true);
+    try {
+      const outcome = await slots?.onDiscoverySelect?.({
+        item,
+        source,
+        ...(argument !== undefined ? { argument } : {}),
+      });
+      if (outcome && 'draft' in outcome && outcome.draft !== undefined) {
+        composer.setDraft(outcome.draft);
+      }
+    } catch {
+      // Transactional rollback handles declined confirmations and errors natively
+      composer.setDraft(restoreDraft);
+      setDiscoveryError(t('That action failed. Your draft has been restored.'));
+    } finally {
+      setExecuting(false);
+    }
+  }
+
+  async function selectSlashItem(index: number) {
+    const match = slashMatches[index];
+    if (!match) return;
+    
+    const priorDraft = composer.draft;
+    const deferToHost = Boolean(match.item.argument || match.item.needsConfirmation);
+    const argument = match.item.argument ? (slashQuery?.argument ?? '') : undefined;
+    
+    if (!deferToHost) {
+      composer.setDraft(replaceComposerSlashTrigger(composer.draft, match.item.insertText ?? match.item.label));
+    }
+    setDismissedSlashDraft(null);
+    await notifyDiscovery(match.item, 'slash', priorDraft, argument);
+    restoreComposerFocus();
+  }
+  
+  // Note: <textarea> should be bound with `disabled={disabled || executing}` to lock it while awaiting the host
+```
+
+**4. Tovu-side capability projection (`apps/admin/src/features/plugins/capability-registry.ts` and `AssistantDock.tsx`)**
+```typescript
+// capability-registry.ts
+import type { ComposerDiscoveryGroup, ComposerDiscoveryItem } from "@jini-ai/chat/react";
+// Assuming real exports from the ~20 tool registries (N2)
+import { AGENT_TOOLS } from "../../assistant/agent-tools";
+import { TOOL_REGISTRATIONS } from "../../assistant/tool-registrations";
+
+export interface TovuCapabilityDescriptor {
+  id: string;
+  groupId: string;
+  groupLabel: string;
+  label: string;
+  description?: string;
+  kind: string;
+  keywords?: readonly string[];
+  argument?: { placeholder: string; required?: boolean };
+  needsConfirmation?: boolean;
+  preview?: () => Promise<any>;
+  execute: (input: { argument?: string }) => Promise<{ type: "navigated" } | { type: "inserted"; text: string } | { type: "noop" }>;
+}
+
+export function projectCapabilitiesToDiscoveryGroups(
+  descriptors: readonly TovuCapabilityDescriptor[],
+): ComposerDiscoveryGroup[] {
+  const order: string[] = [];
+  const byGroup = new Map<string, { label: string; items: ComposerDiscoveryItem[] }>();
+  
+  for (const descriptor of descriptors) {
+    let group = byGroup.get(descriptor.groupId);
+    if (!group) {
+      group = { label: descriptor.groupLabel, items: [] };
+      byGroup.set(descriptor.groupId, group);
+      order.push(descriptor.groupId);
+    }
+    const deferred = Boolean(descriptor.argument || descriptor.needsConfirmation);
+    group.items.push({
+      id: descriptor.id,
+      label: descriptor.label,
+      description: descriptor.description,
+      kind: descriptor.kind,
+      keywords: descriptor.keywords,
+      ...(descriptor.argument ? { argument: descriptor.argument } : {}),
+      ...(descriptor.needsConfirmation ? { needsConfirmation: true } : {}),
+      ...(descriptor.preview ? { previewable: true } : {}),
+      ...(deferred ? {} : { insertText: descriptor.label }),
+    });
+  }
+  return order.map((id) => ({ id, label: byGroup.get(id)!.label, items: byGroup.get(id)!.items }));
+}
+
+// Replaces the hand-authored TOVU_COMPOSER_DISCOVERY_GROUPS with a real projection
+export const TOVU_CAPABILITY_DESCRIPTORS: readonly TovuCapabilityDescriptor[] = [
+  ...AGENT_TOOLS.map(t => ({
+     id: `agent-tool:${t.id}`,
+     groupId: "agent-tools",
+     groupLabel: "Agent Tools",
+     label: `/${t.name}`,
+     description: t.description,
+     kind: "agent-tool",
+     execute: async () => ({ type: "inserted", text: `Triggered ${t.name}` })
+  })),
+  ...TOOL_REGISTRATIONS.map(t => ({
+     id: `tool:${t.id}`,
+     groupId: "tools",
+     groupLabel: "Tools",
+     label: `/${t.name}`,
+     description: t.description,
+     kind: "tool",
+     execute: async () => ({ type: "inserted", text: `Triggered ${t.name}` })
+  })),
+  {
+    id: "mcp:settings",
+    groupId: "mcp",
+    groupLabel: "MCP",
+    label: "/mcp",
+    description: "Open settings, or type a server id to insert a hint",
+    kind: "mcp",
+    argument: { placeholder: "<server-id>" },
+    execute: async ({ argument }) => {
+      if (!argument) { return { type: "navigated" }; }
+      return { type: "inserted", text: `Toggle, adopt, or jump to ${argument} settings.` };
+    },
+  },
+  {
+    id: "search:web",
+    groupId: "search",
+    groupLabel: "Search",
+    label: "/search",
+    description: "Search the web through the OD research command",
+    kind: "search",
+    argument: { placeholder: "<query>", required: true },
+    execute: async ({ argument }) => {
+      if (!argument) return { type: "noop" };
+      // Placeholder for actual runResearchTool(argument)
+      return { type: "inserted", text: `Results for ${argument}` }; 
+    },
+  }
+];
+
+export const TOVU_COMPOSER_DISCOVERY_GROUPS = projectCapabilitiesToDiscoveryGroups(TOVU_CAPABILITY_DESCRIPTORS);
+export const TOVU_CAPABILITY_INDEX = new Map(TOVU_CAPABILITY_DESCRIPTORS.map(d => [d.id, d]));
+```
+
+```tsx
+// AssistantDock.tsx
+const handleComposerDiscoverySelect = useCallback(
+  async (selection: ComposerDiscoverySelection): Promise<{ draft?: string } | void> => {
+    const descriptor = TOVU_CAPABILITY_INDEX.get(selection.item.id);
+    if (!descriptor) return;
+    
+    if (descriptor.needsConfirmation) {
+      const confirmed = await requestPendingConfirmation({
+        title: descriptor.label,
+        description: descriptor.description,
+      });
+      if (!confirmed) throw new Error("User cancelled");
+    }
+    
+    const outcome = await descriptor.execute({ argument: selection.argument });
+    if (outcome.type === "navigated") return { draft: "" };
+    if (outcome.type === "inserted") return { draft: outcome.text };
+    return; // noop
+  },
+  [],
+);
+```
+
+## Critique Of Another Participant's Round 2 Code
+
+I am critiquing **gemini-3.6-flash-high-round2**.
+
+In their implementation, `replaceComposerSlashTrigger` explicitly claims to fix the "coupled invariant" bug by avoiding destructive full-draft replacement, theoretically replacing "ONLY the active trigger range". However, their `parseComposerSlashQuery` sets the `range` variable to `[0, draft.length]` permanently:
+```typescript
+  return {
+    commandQuery,
+    rawArgs,
+    hasSpace,
+    range: [0, draft.length], // <-- The flaw
+  };
+```
+Because of this hardcoded maximum range, the replacement logic `draft.slice(0, range[0]) + insertText + draft.slice(range[1])` evaluates strictly to `draft.slice(0, 0) + insertText + draft.slice(draft.length)`, which is simply `"" + insertText + ""`. Thus, despite the architectural claim of safe token-range bounding, the code functionally performs the exact same destructive whole-draft wipe it set out to fix. It is logically inconsistent and fails to deliver the promised safety property.
+
+## What Would Change My Mind
+
+Concrete telemetry showing that users frequently attempt to inject commands mid-sentence rather than treating the composer purely as a command prompt at the start of a line. If the mental model of the product inherently views these commands as inline tools rather than terminal-style macros, then whole-draft destruction is fundamentally hostile. I would immediately abandon the regex-anchor strategy and support adopting a true rich-text editor (Lexical or ProseMirror) because raw textareas cannot elegantly support robust inline token state tracking.
+
+<<SWARM_END>>

@@ -1,0 +1,42 @@
+ACK_PACKET_RECEIVED CTX-PLUGINS-2026-08-12 -- I received the packet and will work on it.
+
+## Position
+
+ADR-024's tier model is the **correct and necessary** frame for this system. The multi-workspace topology means several sites share one Electron host process (`ADR-024:24`). Therefore, the blast radius of a single in-process plugin is the entire machine. A naïve "trust the publisher" model is catastrophic here.
+
+The best design is a synthesis of **Option A (Grow Tier-1 first)** and **Option C (Expand the hook surface)**. We must delay building a Tier-2 Sandbox until Tier-1 is exhausted. 
+
+"Adaptive integration" without a sandbox means **orchestration via strict data boundaries, not object mutation**. Because of the transport-agnostic ABI freeze (`ADR-024:57`), plugins cannot receive live core objects. They adapt to the lifecycle by receiving a serialized snapshot (`hook-registry.ts:165`), operating asynchronously, and returning a constrained JSON patch strictly to their declared `ext.{pluginId}` namespace (`hook-registry.ts:190-197`). This is integration by strict RPC contract, which guarantees the capability-sdk (`capability-sdk.ts:102`) can seamlessly transition to an IPC boundary later.
+
+## Option Assessment
+
+- **Reject B (Build Tier-2 sandbox now):** It mis-sequences cost before learning. The plugin runtime is a walking skeleton with literally one hook (`hook-registry.ts:3`). Building a WASM or V8 isolate now to isolate *one* hook is architectural vanity. The demand audit (`ADR-024:152`) explicitly proves Tier-1 covers 60-73% of real demand.
+- **Reject D (Converge the three extension systems):** Agent Plugins, Themes, and Plugins have entirely different trust boundaries and execution models. Themes use a different envelope (`ADR-004:69`). Forcing them into one administrative surface obscures the machine-wide blast radius risk and violates the ADR-024 honesty rule (Constraint C3).
+- **Endorse A + C:** Grow the Tier-1 declarative expressiveness and expand the async/serializable hook surface. Keep Tier-3 strictly for local/first-party use. This maximizes utility immediately while the ABI freeze future-proofs the system for a per-site isolate (`ADR-024:73`).
+
+## Failure Modes And Sacrifice
+
+**The Sacrifice:**
+We permanently sacrifice **synchronous execution and live database locks**. Because of the async-only ABI (`ADR-024:59`) and the fact that `runBeforeSave` must fully resolve before `post.ts` commits its transaction (`hook-registry.ts:23`), plugins cannot participate in true atomic DB transactions. This imposes a massive DX penalty (chatty async hooks) but is the non-negotiable price for a retrofit-free path to isolation.
+
+**Failure Modes:**
+1. **The Sync Trap:** If we expand the hook surface (Option C) and an in-process plugin blocks the shared Node event loop, it halts all workspaces since they share a single host (`ADR-024:24`).
+2. **Tier-1 Turing Creep:** Tier-1 is only safe if provably bounded (`ADR-024:80`). If the declarative expression language accidentally becomes Turing-complete, Tier-1 silently becomes Tier-3, collapsing the entire security model and turning the marketplace into a DoS vector.
+
+## What Would Change My Mind
+
+1. If the Tier-1 declarative surface fails to capture the 60-73% demand estimated in `ADR-024:153` (e.g., if core-mediated primitives like webhook dispatch are delayed), the ecosystem on-ramp will stall, forcing an early pivot to building the Tier-2 sandbox.
+2. If real-world plugin payloads consistently exceed the serialization limits of the `capability-sdk.ts` boundary, proving that a transport-agnostic ABI is too slow for high-frequency hooks, we would have to abandon the per-site isolate plan and fundamentally alter the trust model.
+
+## Unlisted Option
+
+**Option F — Out-of-Process Webhooks as the Tier-2 Sandbox.**
+Instead of building a complex V8 Isolate, WASM, or Worker Thread sandbox on the machine (which `ADR-024:140` leaves deferred), rely on the already-existing `WebhookDeliveryRepoPort` (`integrations-ports.ts:120`) and `HttpClientPort` (`integrations-ports.ts:28`). Make Tier-2 simply "external webhooks." Executable third-party code runs on the *author's* infrastructure. Tovu simply fires signed, async webhook payloads and awaits patches. This provides 100% process isolation for free, honors the async/serializable ABI (`ADR-024:57`), and shifts sandbox mechanics entirely off the Tovu team.
+
+## Blind Spots
+
+**(a) Viable option not listed:** Offloading Tier-2 execution to external Webhooks (author-hosted execution) rather than trying to engineer an on-machine sandbox.
+**(b) A question we should be asking but aren't:** How is capability escalation prevented across the dependency graph? `ADR-004:39` allows plugins to declare dependencies. If a Tier-1 plugin depends on a Tier-3 plugin, does the user unwittingly install and grant Tier-3 access? The spec is dangerously silent on transitive trust.
+**(c) The framing assumption most likely wrong, and why:** "Shipping the marketplace is shipping the sandbox" (`ADR-024:50`). This is structurally incorrect and self-defeating. Since Tier-1 (declarative) covers up to 73% of demand (`ADR-024:153`) and is safe *today* (`ADR-024:37`), the marketplace should ship immediately, restricted strictly to Tier-1 artifacts. Holding the declarative ecosystem hostage for a Tier-2 sandbox starves the platform of distribution.
+
+<<SWARM_END>>
