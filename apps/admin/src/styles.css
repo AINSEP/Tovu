@@ -3171,13 +3171,55 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 /* `max-width` so the Copy button stays beside the command instead of being flung to the far edge of
    a ~1250px card — the same proximity failure the Full Site rows had, and there is no reason for a
    one-line command to occupy the full width of a desktop card. */
+/* `flex-wrap` plus a flex-basis on the text: once the line wraps to several rows there is no
+   sensible place for a vertically-centred button beside it — at 390px the assistant request runs
+   four lines and Copy ended up floating against the middle one. Below the basis the button drops
+   onto its own row, left-aligned under the text it copies. */
 .deployment-command {
-  display: flex; align-items: center; gap: var(--space-3); max-width: 42rem;
+  display: flex; align-items: center; gap: var(--space-3); max-width: 42rem; flex-wrap: wrap;
   background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-md);
   padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
 }
-.deployment-command code { flex: 1; min-width: 0; font-family: var(--font-mono); font-size: var(--text-sm); color: var(--fg); overflow-wrap: anywhere; }
+.deployment-command code { flex: 1 1 16rem; min-width: 0; font-family: var(--font-mono); font-size: var(--text-sm); color: var(--fg); overflow-wrap: anywhere; }
 .deployment-command code::before { content: "$ "; color: var(--faint); user-select: none; }
+/* The prose variant — a sentence to SAY to the assistant, not a command to run in a shell. Same
+   box and same Copy control so the two read as one family, but it drops the `$` prompt and the
+   monospace face, both of which would be lying about what the text is: a shell prompt in front of
+   an English sentence tells the reader to type it into a terminal, where it does nothing. Kept as a
+   modifier rather than a second component so the copy affordance stays identical between them. */
+.deployment-command-prose code { font-family: var(--font-ui); font-size: var(--text-base); line-height: 1.5; color: var(--fg); }
+.deployment-command-prose code::before { content: none; }
+
+/* ---- Recommended route (Static Site) --------------------------------------------------------- */
+/* The "ask the assistant" block. Borrows `.notice`'s left-accent idiom (3px `border-left` on a
+   tinted surface, ~L1188) rather than inventing a second way to mark an emphasized block, but takes
+   `--primary` for the accent — this is a recommendation, not a warning, and `.notice`'s own variants
+   are all severity states. The word "Recommended" sits in the label above, so the accent colour is
+   reinforcement and never the only thing carrying the meaning. */
+.deployment-route {
+  display: flex; flex-direction: column; gap: var(--space-3);
+  background: var(--surface-2); border: 1px solid var(--border);
+  border-left: 3px solid var(--primary); border-radius: var(--r-md);
+  padding: var(--space-4);
+}
+.deployment-route-label { display: flex; align-items: center; gap: var(--space-2); color: var(--fg-2); }
+.deployment-route-label .deployment-fact-label { color: var(--fg-2); }
+/* The command block sits inside an already-tinted route block, so it flips to `--surface` to stay
+   distinguishable from its parent instead of disappearing into it. `max-width` is raised rather
+   than removed: the prose line is longer than a shell command, but dropping the cap entirely puts
+   Copy about 1000px from the sentence it copies — the same proximity failure already fixed twice
+   on this screen. */
+.deployment-route .deployment-command { background: var(--surface); max-width: 48rem; }
+.deployment-route .deployment-provider-list-item { padding: var(--space-3) 0; }
+.deployment-route .deployment-provider-list-item:first-child { padding-top: 0; }
+.deployment-route .deployment-provider-list-item > p { margin-top: var(--space-1); }
+/* The "we can't actually check this" line. It needs a rule above it: without one it sits at the
+   same indent and nearly the same size as a tool row's own description, so it reads as a third
+   sentence about the Vercel CLI rather than as a statement about the whole list. */
+.deployment-route-note { margin: 0; padding-top: var(--space-3); border-top: 1px solid var(--border); }
+/* The tool's binary name, shown beside its human name — `gh`, `vercel`. Sized down from the row
+   name so the pair reads as one label with a parenthetical, not two competing titles. */
+.deployment-tool-command { font-family: var(--font-mono); font-size: var(--text-sm); font-weight: 400; color: var(--muted); }
 
 /* ---- Host chips (Static Site) ---------------------------------------------------------------- */
 /* Four proper nouns. A bulleted `<ul>` gave each its own line and a disc marker for no reason —
