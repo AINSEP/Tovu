@@ -17,11 +17,11 @@ import { findNavGroupLabel } from "./Placeholder";
  * `features/ai-assistant/AiAssistant.tsx`'s `--page-flow` variant. That distinction used to be
  * collapsed (both screens use the same shell, so an earlier pass here reused AiAssistant's
  * modifier by copy-paste) and it produced a visible bug: `--page-flow` hides the shell's own
- * `.jini-settings-dialog-head` and flattens its card (see that modifier's own comment in
+ * `.jini-tabbed-dialog-head` and flattens its card (see that modifier's own comment in
  * styles.css) because AiAssistant supplies its OWN `.page-header` above the shell instead. This
  * component never did — its kicker/title/subtitle used to be baked into `Placeholder.tsx`'s
  * `ComingSoonNotice` and rendered as the active tab's *panel*, i.e. inside
- * `.jini-settings-dialog-content`, below the (still-visible, because `--inline` tab-row styling
+ * `.jini-tabbed-dialog-content`, below the (still-visible, because `--inline` tab-row styling
  * isn't scoped to `--page-flow`) tab strip — the exact "header under the tabs, no card" the owner
  * flagged. Fixed by feeding the same three strings through the shell's own contract instead:
  * `labels.kicker` (section-level, e.g. "People") and each tab's `title`/`subtitle` (per-tab,
@@ -77,7 +77,7 @@ export function PlaceholderTabs(props: { sectionId: string; tabs: readonly Place
         <SettingsDialogShell
           tabs={tabs}
           presentation="inline"
-          className="jini-settings-dialog--inline"
+          className="jini-tabbed-dialog--inline"
           fullscreenEnabled={false}
           labels={{ kicker }}
         />
