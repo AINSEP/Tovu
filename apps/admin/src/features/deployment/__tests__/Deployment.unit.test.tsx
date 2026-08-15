@@ -84,7 +84,7 @@ describe("tab bar", () => {
 describe("?tab= deep linking", () => {
   it("opens directly on the tab named by the tabId prop", () => {
     renderScreen(<Deployment tabId="static-site" />);
-    expect(screen.getByText("What Static Site produces")).toBeInTheDocument();
+    expect(screen.getByText("What a static export gives you")).toBeInTheDocument();
     expect(screen.queryByText("How this instance is running")).not.toBeInTheDocument();
   });
 

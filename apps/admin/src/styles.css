@@ -3039,6 +3039,10 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    `minmax` a within-card column can afford. */
 .deployment-split { display: grid; grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr)); gap: var(--space-5) var(--space-6); }
 .deployment-split > div { display: flex; flex-direction: column; gap: var(--space-3); min-width: 0; }
+/* A flex column stretches its children to full width by default, which is how Full Site's "View the
+   Dockerfile" link rendered as a ~700px-wide button — the same defect class as the stretched status
+   pill, on a different element. A button's width should come from its label. */
+.deployment-split .btn-secondary { align-self: flex-start; }
 
 /* ---- The two-path choice (Overview) -------------------------------------------------------- */
 /* `auto-fit`/`minmax` rather than a hard `1fr 1fr`: at the narrow end the two cards stack
@@ -3132,8 +3136,11 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    embedded in the prose (which is what the first pass shipped — "Run tovu export <dir> and Tovu
    writes…", unselectable as a unit and unstyled). `$` is a `::before` on the code element so it is
    NOT part of the copied text. */
+/* `max-width` so the Copy button stays beside the command instead of being flung to the far edge of
+   a ~1250px card — the same proximity failure the Full Site rows had, and there is no reason for a
+   one-line command to occupy the full width of a desktop card. */
 .deployment-command {
-  display: flex; align-items: center; gap: var(--space-3);
+  display: flex; align-items: center; gap: var(--space-3); max-width: 42rem;
   background: var(--surface-2); border: 1px solid var(--border); border-radius: var(--r-md);
   padding: var(--space-3) var(--space-3) var(--space-3) var(--space-4);
 }
@@ -3205,8 +3212,12 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    label, which is what the Static Site tab shipped. Same specificity problem `.tab-bar-item
    :disabled` documents at ~L1934. */
 .deployment-action { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); }
+/* `--muted` (53% L, ~5.5:1 on `--surface-2`), not `--faint`. A truly `disabled` control is exempt
+   from the contrast minimum; this one is `aria-disabled` and therefore still focusable and still
+   something a sighted keyboard user will land on, so it is not exempt and should not look like it
+   is. It still reads as inactive next to an enabled `.btn-secondary`, which is `--fg-2`. */
 .deployment-action .btn-secondary[aria-disabled="true"] {
-  background: var(--surface-2); color: var(--faint); border-color: var(--border);
+  background: var(--surface-2); color: var(--muted); border-color: var(--border);
   cursor: not-allowed;
 }
 .deployment-action .btn-secondary[aria-disabled="true"]:hover { background: var(--surface-2); opacity: 1; }
