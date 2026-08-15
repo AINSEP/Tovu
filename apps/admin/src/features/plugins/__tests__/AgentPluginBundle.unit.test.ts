@@ -12,7 +12,7 @@ import {
 // by relative path rather than through the package's `exports` map).
 const PLUGIN_ROOT = path.resolve(
   process.cwd(),
-  "../../../Jini/packages/plugins/samples/agent-plugins/ui-ux-design",
+  "../../../Jini/packages/plugins/ui-ux-design",
 );
 const SKILLS_ROOT = path.join(PLUGIN_ROOT, "skills");
 const ALLOWED_MANIFEST_FIELDS = new Set([
