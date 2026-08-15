@@ -1,3 +1,4 @@
+import { agentHandle } from "@jini-ai/agentic";
 import type { AdminDockerfileSource } from "../../lib/api";
 import type { Translate } from "../../lib/dictionary-translator";
 import { dockerfileLineCountLabel } from "./deployment-i18n";
@@ -86,7 +87,13 @@ function countLines(draft: string): number {
  *  next move can be "write one." */
 function DockerfileEmptyState({ t }: { t: Translate }) {
   return (
-    <div className="card">
+    <div
+      className="card"
+      {...agentHandle("deployment-dockerfile-empty", {
+        role: "region",
+        label: "No Dockerfile exists yet at the repo root — write one in the editor below to create it",
+      })}
+    >
       <div className="deployment-empty">
         <span className="deployment-empty-mark">
           <LayersIcon size={22} />
@@ -138,14 +145,49 @@ function DockerfileEditorCard({
   const hasContent = draft.length > 0;
 
   return (
-    <div className="card">
+    <div
+      className="card"
+      {...agentHandle("deployment-dockerfile-editor-card", {
+        role: "region",
+        label: "Dockerfile editor — view, edit, copy, download and save the repo-root Dockerfile's contents",
+      })}
+    >
       <div className="card-head">
         <h2 className="card-title">{t("Dockerfile")}</h2>
         <div className="card-head-actions">
           <span className="deployment-provider-cost">{dockerfileLineCountLabel(t, countLines(draft))}</span>
-          {isDirty ? <span className="status status-warning">{t("Unsaved changes")}</span> : null}
-          {saved ? <span className="save-ok">{t("Saved")}</span> : null}
-          <button type="button" className="btn-secondary" onClick={onCopy} disabled={!hasContent}>
+          {isDirty ? (
+            <span
+              className="status status-warning"
+              {...agentHandle("deployment-dockerfile-unsaved", {
+                role: "status",
+                label: "Indicates the Dockerfile draft has unsaved changes",
+              })}
+            >
+              {t("Unsaved changes")}
+            </span>
+          ) : null}
+          {saved ? (
+            <span
+              className="save-ok"
+              {...agentHandle("deployment-dockerfile-saved", {
+                role: "status",
+                label: "Confirms the Dockerfile was just saved successfully",
+              })}
+            >
+              {t("Saved")}
+            </span>
+          ) : null}
+          <button
+            type="button"
+            className="btn-secondary"
+            onClick={onCopy}
+            disabled={!hasContent}
+            {...agentHandle("deployment-dockerfile-copy", {
+              role: "button",
+              label: "Copy the Dockerfile's current draft contents to the clipboard",
+            })}
+          >
             {/* `aria-live="polite"` so the label's swap to "Copied!" is announced — an action whose
                 only feedback is a silent visual change is invisible to a screen-reader user. */}
             <span aria-live="polite">{copied ? t("Copied!") : t("Copy")}</span>
@@ -155,10 +197,24 @@ function DockerfileEditorCard({
             className="btn-secondary"
             onClick={() => downloadDockerfile(draft)}
             disabled={!hasContent}
+            {...agentHandle("deployment-dockerfile-download", {
+              role: "button",
+              label: "Download the Dockerfile's current draft contents as a file named Dockerfile",
+            })}
           >
             {t("Download")}
           </button>
-          <button type="button" onClick={onSave} disabled={saving}>
+          <button
+            type="button"
+            onClick={onSave}
+            disabled={saving}
+            {...agentHandle("deployment-dockerfile-save", {
+              role: "button",
+              label:
+                "Save the Dockerfile's current draft — creates the file if it doesn't exist yet. " +
+                "Does not build or deploy anything.",
+            })}
+          >
             {saving ? t("Saving…") : t("Save")}
           </button>
         </div>
@@ -168,7 +224,14 @@ function DockerfileEditorCard({
           <p className="deployment-action-reason">{t("No Dockerfile exists yet. Write one below, then save to create it.")}</p>
         ) : null}
         {saveError ? (
-          <p className="save-error" role="alert">
+          <p
+            className="save-error"
+            role="alert"
+            {...agentHandle("deployment-dockerfile-save-error", {
+              role: "status",
+              label: "Shows the error message when saving the Dockerfile failed",
+            })}
+          >
             {saveError}
           </p>
         ) : null}
@@ -179,6 +242,10 @@ function DockerfileEditorCard({
           spellCheck={false}
           translate="no"
           aria-label={t("Dockerfile contents")}
+          {...agentHandle("deployment-dockerfile-textarea", {
+            role: "field",
+            label: "The Dockerfile's contents, editable — changes are not saved until Save is clicked",
+          })}
         />
         <p className="deployment-action-reason">
           {t("Building is a terminal command (docker build …), not a button here.")}
@@ -196,12 +263,33 @@ export function DockerfileTab(props: DockerfileTabProps) {
   const { snapshot, draft, setDraft, isDirty, error, saving, saveError, saved, copied, copy, save, t } =
     useDockerfileSourceHook();
 
-  if (error && !snapshot) return <div className="notice error">{error}</div>;
+  if (error && !snapshot)
+    return (
+      <div
+        className="notice error"
+        {...agentHandle("deployment-dockerfile-load-error", {
+          role: "status",
+          label: "Shows the error message when loading the Dockerfile failed",
+        })}
+      >
+        {error}
+      </div>
+    );
   if (!snapshot) return <div className="notice">{t("Loading Dockerfile…")}</div>;
 
   return (
     <div className="deployment-tab">
-      {error ? <div className="notice error">{error}</div> : null}
+      {error ? (
+        <div
+          className="notice error"
+          {...agentHandle("deployment-dockerfile-load-error", {
+            role: "status",
+            label: "Shows the error message when loading the Dockerfile failed",
+          })}
+        >
+          {error}
+        </div>
+      ) : null}
       {dockerfileTabBody(snapshot, {
         draft,
         setDraft,
