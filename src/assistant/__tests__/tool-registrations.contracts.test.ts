@@ -9,7 +9,9 @@ import {
   type AgentToolDefinition,
 } from "../../features/content-types";
 import { getDatabaseAgentToolCatalog } from "../../features/database/agent-tools";
+import { deploymentsAgentToolCatalog } from "../../features/deployments/agent-tools";
 import { entriesAgentToolCatalog } from "../../features/entries";
+import { pagesAgentToolCatalog } from "../../features/pages/agent-tools";
 import { pluginAgentToolCatalog } from "../../features/plugin-runtime/agent-tools";
 import { postAgentToolCatalog } from "../../features/post/agent-tools";
 import { recoveryAgentToolCatalog } from "../../features/recovery/agent-tools";
@@ -90,8 +92,9 @@ function wiredRegistration(toolId: string, existing?: ContentTypeRecord): ToolRe
 }
 
 /** Every catalog whose entries `buildAssistantToolRegistrations` wires. A newly wired domain must
- * be added here — an id missing from all of them fails rather than being skipped. All 21 wired
- * domains are listed; the generic contract/risk assertions below iterate EVERY wired registration,
+ * be added here — an id missing from all of them fails rather than being skipped. All 23 wired
+ * domains are listed (`deployments` added 2026-08-15; `pages` was missing before this dispatch —
+ * see the comment on its own array entry below); the generic contract/risk assertions below iterate EVERY wired registration,
  * not just content-types', so each domain's catalog has to be resolvable from here even when that
  * domain also has its own dedicated test file. The `as unknown as` casts cover the catalogs whose
  * own `AgentToolDefinition` is a structural sibling rather than the content-types one this array is
@@ -120,6 +123,13 @@ const WIRED_CATALOGS: AgentToolDefinition[] = [
   ...(getIntegrationsAgentToolCatalog() as unknown as AgentToolDefinition[]),
   ...(postAgentToolCatalog as unknown as AgentToolDefinition[]),
   ...(getThemesAgentToolCatalog() as unknown as AgentToolDefinition[]),
+  ...(deploymentsAgentToolCatalog as unknown as AgentToolDefinition[]),
+  // Pre-existing gap, not introduced by this dispatch: `pages` (`DOMAIN_SLICES`'s own
+  // `buildPagesRegistrations` entry) was never added here when it was wired in, so
+  // `pages_read_html`/`pages_write_html` failed `catalogEntry()` lookups below at HEAD already —
+  // confirmed via `git show HEAD:<this file>`, before this dispatch touched anything. Fixed here
+  // since this dispatch is already editing this exact array for `deployments`.
+  ...(pagesAgentToolCatalog as unknown as AgentToolDefinition[]),
 ];
 
 function catalogEntry(toolId: string): AgentToolDefinition {

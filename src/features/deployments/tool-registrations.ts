@@ -1,5 +1,4 @@
 import {
-  type AuthorizeFn,
   buildDomainRegistrations,
   indexCatalogById,
   isRecord,
@@ -17,7 +16,11 @@ import {
 import { deploymentsAgentToolCatalog } from "./agent-tools";
 import { readDockerfileSource, writeDockerfileSource } from "./dockerfile";
 import { getExportRunSnapshot, startExportRun } from "./export-run";
-import type { DeploymentsReadRepoPort } from "./read-repo";
+// TYPE-ONLY — fully erased at compile time, so this creates NO runtime require() and cannot
+// recreate the circular-load crash a VALUE import of `#src/export/index` caused inside
+// `export-run.ts` (see that file's header for the full trace). See `DeploymentsToolDeps`'s own doc
+// below for why this domain needs the named type at all, unlike every sibling domain.
+import type { RouteDeps } from "#src/server/routes/types";
 
 /**
  * @file The Deployments domain's half of the agent-tool wiring split — maps
@@ -32,27 +35,29 @@ import type { DeploymentsReadRepoPort } from "./read-repo";
  */
 
 /**
- * The exact slice of the route-deps bag this domain's tool handlers read.
- *
- * `deploymentsReadRepo` is declared explicitly even though it is already present on the type
- * `Parameters<typeof startExportRun>[0]` resolves to, purely for readability — a reader scanning
- * this file should not have to chase into `export-run.ts` to learn that `deployment_list` needs it.
+ * The route-deps bag this domain's tool handlers read — the full `RouteDeps`, not a narrow slice.
  *
  * Every OTHER domain's `tool-registrations.ts` declares a narrow structural interface instead of
- * importing `server/routes/types`'s `RouteDeps`, specifically to avoid a `features/<domain> ->
- * src/server/**` back-edge (see `features/recovery/tool-registrations.ts`'s file header). This
- * domain cannot follow that pattern for `deployment_trigger_export` alone: `startExportRun` calls
- * `exportSite`, which boots an entirely separate in-process copy of `createApp(routeDeps)` to fetch
- * every route — it genuinely needs the WHOLE deps bag, not a slice of it, so there is no honest
- * narrower type to declare. `Parameters<typeof startExportRun>[0]` gets the same full shape (which
- * IS `RouteDeps` at every real call site) without writing a named `import type { RouteDeps } from
- * "#src/server/routes/types"` anywhere in this file — see `export-run.ts`'s own header for the full
- * argument. This is a disclosed, deliberate exception to the narrow-slice convention, not an
- * oversight.
+ * naming `server/routes/types`'s `RouteDeps`, to avoid a `features/<domain> -> src/server/**`
+ * back-edge (`development/scripts/check-architecture.ts`'s metric; see
+ * `features/recovery/tool-registrations.ts`'s file header). This domain cannot follow that pattern
+ * for `deployment_trigger_export`: `startExportRun` (`export-run.ts`) hands its `routeDeps`
+ * parameter straight through to `RouteDeps.runExportSite` (the real `exportSite`), which boots an
+ * entirely separate in-process copy of `createApp(routeDeps)` to fetch every route — it genuinely
+ * needs the WHOLE deps bag, so there is no honest narrower type to declare (a self-referential
+ * attempt at one — `ExportEngine<DeploymentsToolDeps>` instead of `ExportEngine<RouteDeps>` — fails
+ * `tsc` outright: `RouteDeps.runExportSite`'s real value is contravariant in its parameter, so it is
+ * only assignable to a slot expecting the FULL `RouteDeps`, never a narrower stand-in).
+ *
+ * The import below is `type`-only, which matters for a different reason than the metric: an eager
+ * VALUE import reaching from this file into `#src/export/index` closed a real circular require back
+ * into the still-loading `assistant/tool-registrations.ts` and crashed with `ReferenceError: Cannot
+ * access 'DOMAIN_SLICES' before initialization` the first time this domain wired
+ * `deployment_trigger_export` (see `export-run.ts`'s file header for the full trace). A `type`-only
+ * import is fully erased at compile time — no `require()` is ever emitted for it — so it cannot
+ * reproduce that crash regardless of what `RouteDeps` itself pulls in.
  */
-export type DeploymentsToolDeps = Parameters<typeof startExportRun>[0] & {
-  deploymentsReadRepo: DeploymentsReadRepoPort;
-};
+export type DeploymentsToolDeps = RouteDeps;
 
 const CATALOG_BY_ID = indexCatalogById(deploymentsAgentToolCatalog);
 
@@ -92,7 +97,7 @@ export function buildDeploymentsRegistrations(routeDeps: DeploymentsToolDeps): T
 
       const clean = optionalBoolean(input, "clean") ?? false;
       const basePath = optionalString(input, "basePath");
-      return startExportRun(routeDeps, { clean, basePath });
+      return startExportRun(routeDeps, routeDeps.runExportSite, { clean, basePath });
     },
 
     deployment_get_export_status: async (ctx) => {

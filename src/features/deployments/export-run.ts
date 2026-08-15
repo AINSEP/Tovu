@@ -1,7 +1,5 @@
 import path from "node:path";
 
-import { exportSite, type ExportReport, type ExportSiteOptions } from "#src/export/index";
-
 /**
  * @file The static-site export run's process-local single-flight state, extracted out of
  * `server/routes/admin/system/export-site.ts` (2026-08-15) so a SECOND caller — the
@@ -14,13 +12,33 @@ import { exportSite, type ExportReport, type ExportSiteOptions } from "#src/expo
  * `features/<domain>/tool-registrations.ts` in this codebase already establishes (see
  * `features/recovery/tool-registrations.ts`'s file header): a domain's `tool-registrations.ts`
  * must never import from `src/server/**` — doing so is exactly the "back-edge into the composition
- * root" `development/scripts/check-architecture.ts` measures. `startExportRun`'s own `routeDeps`
- * parameter type is deliberately derived from `ExportSiteOptions["routeDeps"]` (a type-level
- * extraction) rather than a named `import type { RouteDeps } from "#src/server/routes/types"` — the
- * two are exactly the same type, but only the second would create that edge. `server/routes/admin/
- * system/export-site.ts` now imports FROM this file instead (the normal, encouraged
- * server-depends-on-features direction), and re-exports these types/functions for its own route
- * handlers to call.
+ * root" `development/scripts/check-architecture.ts` measures.
+ *
+ * THIS FILE ALSO NEVER IMPORTS `#src/export/index` (the real `exportSite`/`ExportReport`), and that
+ * is not the same "narrow-slice style" choice — it is a REQUIRED fix for a real bug the first
+ * version of this file shipped with. `src/export/site-exporter.ts` imports `createApp` from
+ * `server/app.ts`, and `server/app.ts`'s very last line is an EAGER `export const app =
+ * createApp();` that runs the whole app-boot call graph (including, via the BYOK execution mode,
+ * `buildAssistantToolRegistrations`) as a side effect of merely LOADING `server/app.ts`. An eager
+ * top-level `import { exportSite } from "#src/export/index"` here would have closed a real cycle —
+ * `assistant/tool-registrations.ts` (loading) -> this domain's `tool-registrations.ts` -> this file
+ * -> `export/index.ts` -> `site-exporter.ts` -> `server/app.ts` -> (via
+ * `modules/assistant-byok.ts`/`byok-tool-surface.ts`) back into the STILL-LOADING
+ * `assistant/tool-registrations.ts`, calling `buildAssistantToolRegistrations` before that module
+ * had reached its own `const DOMAIN_SLICES = [...]` line. Observed directly: `node --test`ing
+ * `tool-registrations.contracts.test.ts` threw `ReferenceError: Cannot access 'DOMAIN_SLICES'
+ * before initialization` — a real crash, not a theoretical one, the first time this file imported
+ * `exportSite` directly.
+ *
+ * The fix is dependency injection instead of an import: {@link startExportRun} takes the actual
+ * export engine as a parameter (typed structurally via {@link ExportEngine}, never by naming
+ * `ExportSiteOptions`/`ExportReport`), and `RouteDeps.runExportSite`
+ * (`server/routes/types.ts`) is where the real `exportSite` function is bound — exactly once, in
+ * `server/app.ts`'s `createRouteDeps()` and `server/deps.ts`'s `createSqliteRouteDeps()`, the two
+ * places that are safe to import `#src/export/index` directly (neither is reachable FROM
+ * `assistant/tool-registrations.ts`, so no cycle closes). Both callers of `startExportRun` —
+ * `export-site.ts`'s POST handler and this domain's `deployment_trigger_export` handler — pass
+ * `routeDeps.runExportSite` straight through; neither imports `#src/export/index` either.
  *
  * DISCLOSED CROSS-PROCESS GAP: this module's `currentRun` is a plain in-memory module variable, so
  * it is single-flight-correct only WITHIN one OS process. Tovu's admin HTTP server and the
@@ -75,6 +93,34 @@ export interface ExportRunSnapshot {
   error?: string;
 }
 
+/**
+ * A structural mirror of `src/export/site-exporter.ts`'s `ExportReport` — only the fields
+ * {@link summarizeCompletedReport} actually reads. Declared locally, never imported, per this
+ * file's header. The real `ExportReport` satisfies this structurally (it has every field below,
+ * with compatible types), so passing the real `exportSite` as an {@link ExportEngine} type-checks
+ * with no cast at the one place it is actually bound (`server/app.ts`/`server/deps.ts`).
+ */
+export interface ExportRunReportLike {
+  routes: { succeeded: unknown[]; failed: { path: string; kind: string; reason: string }[] };
+  assets: { succeeded: unknown[]; failed: { url: string; reason: string }[] };
+  skippedManifestEntries: { reason: string; detail: string }[];
+  unreferencedThemeFiles: string[];
+  basePath?: string;
+  basePathRewriteWarning?: string;
+}
+
+/**
+ * The injected shape of `src/export/site-exporter.ts`'s `exportSite`, generic over whatever
+ * `routeDeps` type the caller carries (in every real caller, `RouteDeps` itself — see this file's
+ * header for why that is never spelled out by name here).
+ */
+export type ExportEngine<TRouteDeps> = (options: {
+  routeDeps: TRouteDeps;
+  outputDir: string;
+  clean?: boolean;
+  basePath?: string;
+}) => Promise<ExportRunReportLike>;
+
 const IDLE_RUN: ExportRunSnapshot = { status: "idle", startedAtIso: null, finishedAtIso: null, outputDir: null };
 
 /** Process-local mutable slot — see this file's header for exactly which callers share ONE
@@ -89,9 +135,9 @@ function resolveExportOutputDir(): string {
   return path.resolve(process.cwd(), "infra", "export");
 }
 
-/** Slims a full `ExportReport` down to `ExportRunSnapshot`'s "completed" fields — moved verbatim
+/** Slims a full export report down to `ExportRunSnapshot`'s "completed" fields — moved verbatim
  *  from `export-site.ts`. */
-function summarizeCompletedReport(report: ExportReport): Pick<
+function summarizeCompletedReport(report: ExportRunReportLike): Pick<
   ExportRunSnapshot,
   "basePath" | "ok" | "counts" | "failedRoutes" | "failedAssets" | "skippedManifestEntries" | "unreferencedThemeFiles" | "basePathRewriteWarning"
 > {
@@ -133,18 +179,23 @@ export function getExportRunSnapshot(): ExportRunSnapshot {
  * callers in the same process. This function does not re-check, so calling it while a run is
  * already in flight would silently start a second one; it is deliberately not the guard itself.
  *
- * @param routeDeps - The same full composition-root deps object `createApp`/`exportSite` need to
- * boot an in-process copy of the app. Typed via `ExportSiteOptions["routeDeps"]` rather than a
- * named `RouteDeps` import — see this file's header for why.
- * @param options.clean - Forwarded to `exportSite`; wipes `outputDir` first when `true`.
- * @param options.basePath - Forwarded to `exportSite`; see `ExportSiteOptions.basePath`'s own doc.
+ * @param routeDeps - The same full composition-root deps object the injected `runExportSite` needs
+ * to boot an in-process copy of the app. Opaque to this function beyond `.clock.nowIso()` — passed
+ * straight through to `runExportSite`.
+ * @param runExportSite - The actual export engine, injected by the caller — see this file's header
+ * for why it is never imported here directly. In production this is always `routeDeps.runExportSite`
+ * (bound to the real `exportSite` by `server/app.ts`/`server/deps.ts`).
+ * @param options.clean - Forwarded to `runExportSite`; wipes `outputDir` first when `true`.
+ * @param options.basePath - Forwarded to `runExportSite`; see `ExportSiteOptions.basePath`'s own doc
+ * (`site-exporter.ts`).
  * @returns The new "running" snapshot (not a promise — the export's own completion is observed
  * later via {@link getExportRunSnapshot}).
  * @complexity O(1) synchronously; the awaited export itself is O(routes + assets) over HTTP, per
  * `site-exporter.ts`'s own complexity note.
  */
-export function startExportRun(
-  routeDeps: ExportSiteOptions["routeDeps"],
+export function startExportRun<TRouteDeps extends { clock: { nowIso(): string } }>(
+  routeDeps: TRouteDeps,
+  runExportSite: ExportEngine<TRouteDeps>,
   options: { clean: boolean; basePath?: string },
 ): ExportRunSnapshot {
   const outputDir = resolveExportOutputDir();
@@ -155,7 +206,7 @@ export function startExportRun(
   // snapshot immediately; a later poll observes the outcome via getExportRunSnapshot(). Both
   // branches always update currentRun, so a poller can never observe a stale "running" snapshot
   // after the promise has actually settled.
-  void exportSite({ routeDeps, outputDir, clean: options.clean, basePath: options.basePath })
+  void runExportSite({ routeDeps, outputDir, clean: options.clean, basePath: options.basePath })
     .then((report) => {
       currentRun = {
         status: "completed",

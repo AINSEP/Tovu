@@ -7,6 +7,10 @@ import { createSeoEventSubscriptions, createSeoPageHeadHook, ensureSeoSettingDef
 import { registerPageHeadContributor } from "./http/site/page-head";
 import { InMemoryPostRepo, InMemoryPostSearchIndex, createPostRevertRegistry } from "../features/post";
 import { InMemoryDeploymentsReadRepo } from "../features/deployments";
+// Safe here (this composition root is never reachable FROM `assistant/tool-registrations.ts` — see
+// `routes/types.ts`'s `runExportSite` doc for why the same import is UNSAFE inside
+// `features/deployments/export-run.ts`, which IS reachable from there).
+import { exportSite } from "../export/index";
 import { InMemoryPagesHtmlDocumentStore } from "../features/pages";
 import {
   createInMemoryChatStoreFactory,
@@ -160,6 +164,7 @@ import { registerAdminModuleStatusRoute } from "./routes/admin/system/module-sta
 import { registerAdminDeploymentOverviewRoute } from "./routes/admin/system/deployment-overview";
 import { registerAdminDockerfileSourceRoute } from "./routes/admin/system/dockerfile-source";
 import { registerAdminExportSiteRoutes } from "./routes/admin/system/export-site";
+import { registerAdminPublishSiteRoutes } from "./routes/admin/system/publish-site";
 import { registerAdminDeploymentsListRoute } from "./routes/admin/deployments/list";
 import { createFormsAdminModule } from "./modules/forms-admin";
 import { registerFormsSubmitRoute } from "./routes/site/forms-submit";
@@ -603,6 +608,11 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // and overrides this field, the same way other tests override a single `createRouteDeps()`
     // field rather than this composition root taking on fixture-authoring for every case.
     deploymentsReadRepo: new InMemoryDeploymentsReadRepo(),
+    // 2026-08-15 — the real export engine, bound here rather than imported inside
+    // `features/deployments/export-run.ts`/`export-site.ts` — see `routes/types.ts`'s
+    // `runExportSite` doc for why that indirection is required, not stylistic (a real circular-load
+    // crash, not a style preference).
+    runExportSite: exportSite,
   };
 }
 
@@ -756,6 +766,10 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // `system.export`-gated for the trigger (a disk write), `system.read` for the status poll — see
   // that file's own header for the split.
   registerAdminExportSiteRoutes(app, routeDeps);
+  // Deployment panel → publish-to-GitHub-Pages/Vercel: trigger + poll a one-shot static publish
+  // (`features/deployments/static-publish/`, wrapping `@jini-ai/devops/deploy`). `system.publish`-
+  // gated for BOTH the trigger and the status poll — see that route file's own header for why.
+  registerAdminPublishSiteRoutes(app, routeDeps);
   // Deployment panel → Full Site tab: read-only snapshot of the deployments domain
   // (`features/deployments/`). `deployments.read`-gated, not `system.read` — see that route
   // file's own header for why this one gets its own permission.
