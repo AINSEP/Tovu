@@ -99,6 +99,31 @@ export interface AdminExternalMcpServerInput {
   env?: string;
 }
 
+/** One required-for-production env var's presence — never its value. Mirrors
+ *  `DeploymentEnvVarStatus` in `src/server/routes/admin/system/deployment-overview.ts`. */
+export interface AdminDeploymentEnvVarStatus {
+  name: string;
+  set: boolean;
+}
+
+/** Mirrors `DeploymentOverviewSnapshot` in `src/server/routes/admin/system/deployment-overview.ts`
+ *  — see that type's own doc comments for what each field does and does not prove. */
+export interface AdminDeploymentOverview {
+  mode: "production" | "local";
+  productionReadinessGate: { applicable: boolean; passed: boolean };
+  defaultOwnerPasswordUnsafe: boolean;
+  daemonKnownFailed: boolean;
+  dbPath: string;
+  uploadsDir: string;
+  envVars: AdminDeploymentEnvVarStatus[];
+}
+
+/** Mirrors `DockerfileSourceSnapshot` in `src/server/routes/admin/system/dockerfile-source.ts`. */
+export interface AdminDockerfileSource {
+  exists: boolean;
+  contents: string | null;
+}
+
 /**
  * Whether this workspace has a Composio API key. Mirrors `src/connectors/composio-config-store.ts`'s
  * `ComposioConfigView` and, structurally, `@jini-ai/integrations/composio`'s `PublicComposioConfig`.
@@ -2182,4 +2207,16 @@ export const api = {
       `/workspaces/${WORKSPACE_ID}/plugins/${pluginId}`,
       { method: "PATCH", body: JSON.stringify({ enabled }) }
     ),
+
+  // Deployment panel (`src/server/routes/admin/system/deployment-overview.ts` /
+  // `dockerfile-source.ts`) — both read-only, both `system.read`-gated, same shape as
+  // `getModuleStatus` just above.
+  /** Runtime mode, boot-gate/default-password status, agent-daemon known-failure state, db/uploads
+   *  paths, and required-env-var presence (never values) — the Deployment panel's Overview tab. */
+  getDeploymentOverview: () =>
+    request<AdminDeploymentOverview>(`/workspaces/${WORKSPACE_ID}/system/deployment-overview`),
+  /** The repo-root `Dockerfile`'s current contents, or `{ exists: false }` when none has been
+   *  generated yet. Read-only — there is no write route. */
+  getDockerfileSource: () =>
+    request<AdminDockerfileSource>(`/workspaces/${WORKSPACE_ID}/system/dockerfile`),
 };
