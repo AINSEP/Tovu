@@ -41,13 +41,11 @@ afterEach(() => {
 });
 
 describe("useWiredDashboard — t reflects the resolved locale", () => {
-  it("t falls back to the English source string for the default locale", async () => {
-    vi.stubGlobal("fetch", stubFetchWithLocale("en"));
-    const { result } = renderHook(() => useWiredDashboard());
-
-    await waitFor(() => expect(result.current.t("Dashboard")).toBe("Dashboard"));
-  });
-
+  // No "t falls back to the English source string for the default locale" test here: DASHBOARD_DICT
+  // has no "en" entries, so `DICT[locale]?.[key] ?? key` returns `key` for every locale on a miss,
+  // not only "en" — that assertion would pass identically whether `t` were wired to the resolved
+  // locale or hardcoded to an identity function. The test below is the real proof: it requires the
+  // hook to have actually resolved the fetched locale AND looked it up in the dictionary.
   it("t returns the Spanish translation once the locale settings fetch resolves to 'es'", async () => {
     vi.stubGlobal("fetch", stubFetchWithLocale("es"));
     const { result } = renderHook(() => useWiredDashboard());
