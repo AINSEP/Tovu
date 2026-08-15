@@ -8,6 +8,7 @@ import {
   SiteNewerThanRuntimeError,
   ValidationError,
 } from "../site-dir";
+import { ExportOutputNotEmptyError } from "../export";
 
 /**
  * @file SPEC-003 — CLI-layer error-to-exit-code mapping (errors.spec.md).
@@ -35,6 +36,17 @@ export class PortInUseError extends Error {
   }
 }
 
+/** `EXPORT_INCOMPLETE` (exit 6) — `tovu export` ran to completion but at least one route failed to
+ *  render (`cli/commands/export.ts`'s own error, thrown AFTER the honest report has already been
+ *  printed) — a genuinely distinct outcome from a crash (`INTERNAL`) or a bad argument
+ *  (`VALIDATION`): the export partially succeeded and wrote everything it could. */
+export class ExportIncompleteError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ExportIncompleteError";
+  }
+}
+
 export interface CliOutcome {
   exitCode: number;
   /** The single `tovu: <CODE>: <message>` stderr line — omitted for a pure success outcome (`--help`). */
@@ -51,6 +63,13 @@ const EXIT_CODE_BY_ERROR_CODE: Record<string, number> = {
   SITE_CORRUPT: 5,
   PORT_IN_USE: 1,
   INTERNAL: 1,
+  // `tovu export`-only codes (not part of the original errors.spec.md registry): 3 is reused
+  // deliberately for EXPORT_OUTPUT_NOT_EMPTY — same "a pre-existing directory blocks a create-shaped
+  // operation" class as INIT_DIR_NOT_EMPTY, so it shares that code rather than minting a new one for
+  // an identical usage-error shape. EXPORT_INCOMPLETE (6) is genuinely new: no existing code means
+  // "ran, but not everything succeeded."
+  EXPORT_OUTPUT_NOT_EMPTY: 3,
+  EXPORT_INCOMPLETE: 6,
 };
 
 function stderrLine(code: string, message: string): string {
@@ -115,6 +134,12 @@ export function mapErrorToCliOutcome(err: unknown): CliOutcome {
   }
   if (err instanceof PortInUseError) {
     return { exitCode: EXIT_CODE_BY_ERROR_CODE.PORT_IN_USE, stderrLine: stderrLine("PORT_IN_USE", err.message) };
+  }
+  if (err instanceof ExportOutputNotEmptyError) {
+    return { exitCode: EXIT_CODE_BY_ERROR_CODE.EXPORT_OUTPUT_NOT_EMPTY, stderrLine: stderrLine("EXPORT_OUTPUT_NOT_EMPTY", err.message) };
+  }
+  if (err instanceof ExportIncompleteError) {
+    return { exitCode: EXIT_CODE_BY_ERROR_CODE.EXPORT_INCOMPLETE, stderrLine: stderrLine("EXPORT_INCOMPLETE", err.message) };
   }
   if (err instanceof InternalError) {
     return { exitCode: EXIT_CODE_BY_ERROR_CODE.INTERNAL, stderrLine: stderrLine("INTERNAL", err.message) };

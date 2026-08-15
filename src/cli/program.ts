@@ -1,5 +1,6 @@
 import { Command } from "commander";
 
+import { runExportCommand } from "./commands/export";
 import { runInitCommand } from "./commands/init";
 import { runIntrospectCommand } from "./commands/introspect";
 import { runServeCommand } from "./commands/serve";
@@ -49,6 +50,17 @@ export function createProgram(): Command {
     .option("--workspace <id>", "workspace id to serve (default: the oldest workspace, if the install has more than one)")
     .action(async (dir: string, options: { port?: string; workspace?: string }) => {
       await runServeCommand({ dir, port: options.port, workspaceId: options.workspace });
+    });
+
+  program
+    .command("export")
+    .description("render the install dir's public site to a folder of static files (no admin, no browser)")
+    .argument("<dir>", "install directory to export")
+    .option("--out <dir>", "output directory (default: $TOVU_EXPORT_DIR, then <cwd>/infra/export)")
+    .option("--workspace <id>", "workspace id to export (default: the oldest workspace, if the install has more than one)")
+    .option("--clean", "remove the output directory's existing contents first, if any")
+    .action(async (dir: string, options: { out?: string; workspace?: string; clean?: boolean }) => {
+      await runExportCommand({ dir, out: options.out, workspaceId: options.workspace, clean: options.clean });
     });
 
   program
