@@ -74,7 +74,8 @@ export interface PostFormState {
   status: "draft" | "published";
   bodyJson: unknown;
   templateChoice: string | null;
-  overridesThemePage: boolean;
+  /** Tri-state (2026-08-15) — see {@link PostEditorController.overridesThemePage}'s own doc. */
+  overridesThemePage: boolean | null;
 }
 
 /** The two things the editor's main pane can show — the rich-text editor, or a rendered preview
@@ -116,8 +117,15 @@ export interface PostEditorController {
    *  mounts one `express.static` root per discovered STATIC-tier theme dir, nothing else) — the
    *  caller uses this to decide whether "View Template" can fetch anything at all. */
   activeThemeTier: ThemeTier | null;
-  overridesThemePage: boolean;
-  setOverridesThemePage: (overridesThemePage: boolean) => void;
+  /**
+   * Tri-state (2026-08-15) — `null` means this post has never had an explicit opinion on the
+   * slug-collision override (the server resolver's current default applies, post-wins as of this
+   * change); `true`/`false` is a permanent explicit choice the author made after seeing the
+   * collision warning. See `AdminPost.overridesThemePage`'s own doc (`lib/api.ts`) for the full
+   * server-mirrored contract this state field carries.
+   */
+  overridesThemePage: boolean | null;
+  setOverridesThemePage: (overridesThemePage: boolean | null) => void;
   /** `true` when this post's own `slug` matches one of the active theme's own page ids — the caller
    *  shows the collision warning + override checkbox only then. */
   hasSlugCollision: boolean;
@@ -200,7 +208,7 @@ const lowlight = createLowlight(common);
  * `||` chain scores independently of `usePostEditor`'s complexity.
  */
 function computeContentDirty(
-  current: { title: string; slug: string; status: "draft" | "published"; bodyJson: unknown; overridesThemePage: boolean },
+  current: { title: string; slug: string; status: "draft" | "published"; bodyJson: unknown; overridesThemePage: boolean | null },
   original: PostFormState | null,
 ): boolean {
   if (original === null) return false;
@@ -345,7 +353,9 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   // between posts, only when the workspace's presentation settings themselves change.
   const [activeThemeId, setActiveThemeId] = useState<string | null>(null);
   const [activeThemeTier, setActiveThemeTier] = useState<ThemeTier | null>(null);
-  const [overridesThemePage, setOverridesThemePage] = useState(false);
+  // Tri-state (2026-08-15) — `null` (not `false`) is the correct "nothing loaded yet"/"never
+  // decided" initial value; see `PostEditorController.overridesThemePage`'s own doc.
+  const [overridesThemePage, setOverridesThemePage] = useState<boolean | null>(null);
   // Same fetch-once-independent-of-postId shape as `availableTemplates` — the active theme's own
   // page ids don't change when switching between posts.
   const [staticPageIds, setStaticPageIds] = useState<string[]>([]);
@@ -557,7 +567,13 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
         const defaultedTemplateChoice =
           post.templateChoice ?? (activeThemeTemplates.length > 0 ? activeThemeTemplates[0] : null);
         setTemplateChoice(defaultedTemplateChoice);
-        setOverridesThemePage(post.overridesThemePage ?? false);
+        // Tri-state (2026-08-15) — `?? null`, not `?? false`: a fetched post that never had an
+        // opinion set must load into the editor as "undecided", not as a silently-manufactured
+        // "theme page wins" choice the author never made. `post.overridesThemePage` is already
+        // `boolean | null` off the wire (see `AdminPost`'s own doc) — this `??` only exists to
+        // normalize the one remaining `undefined` case: a pre-feature test fixture that predates
+        // this field entirely.
+        setOverridesThemePage(post.overridesThemePage ?? null);
         if (editor) {
           // `withTitleNode` (post-title-in-document feature, 2026-08-11) is the back-compat seam:
           // every post saved before this feature has a `bodyJson` with no `title` node, which the
@@ -580,7 +596,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
             status: post.status,
             bodyJson: editor.getJSON(),
             templateChoice: defaultedTemplateChoice,
-            overridesThemePage: post.overridesThemePage ?? false,
+            overridesThemePage: post.overridesThemePage ?? null,
           });
         }
       })

@@ -115,7 +115,14 @@ export class SqlitePostRepo implements PostRepoPort {
       // SETTING a marker still goes through `softDelete` alone (see `PostRepoPort`'s own doc).
       deletedAt: record.deletedAt ?? null,
       templateChoice: record.templateChoice ?? null,
-      overridesThemePage: record.overridesThemePage ?? false,
+      // Tri-state (2026-08-15) — `record.overridesThemePage` is `undefined` on every row a caller
+      // never set an opinion on (every `createPost` call today: `CreatePostInput` has no field for
+      // this, deliberately — see its own doc). Coalescing to `null`, NOT `false`, is the entire fix
+      // this migration exists to enable: `false` would silently re-encode "never decided" as
+      // "explicitly kept the theme page", exactly the ambiguity `pages.ts`'s resolver can no longer
+      // tell apart from a real author choice. `null` stays honestly "undecided" all the way to the
+      // resolver, which is the one place the current default policy is allowed to live.
+      overridesThemePage: record.overridesThemePage ?? null,
       ext: JSON.stringify(record.ext ?? {}),
     };
     this.db

@@ -69,10 +69,13 @@ test("admin and content serializers stay aligned with shared headless contracts"
       // Post-template-picker / slug-collision-override features — `toAdminPostResponse` populates
       // both on every live response even when the record itself carries neither (see
       // `HeadlessPost.templateChoice`'s doc), so the serialized shape gains two keys the
-      // `seedPost` above never sets. `null` here is "never chosen", NOT "opted out" — the two are
-      // distinct stored values, see `resolveTemplate`.
+      // `seedPost` above never sets. `null` here is "never chosen"/"never decided", NOT an
+      // explicit opt-out choice — the two are distinct stored values, see `resolveTemplate` for
+      // `templateChoice` and `PostRecord.overridesThemePage`'s own doc for the tri-state contract
+      // (2026-08-15: this used to serialize as `false`, which silently manufactured an explicit
+      // "theme page wins" decision `seedPost` never made — the coercion this test now pins).
       templateChoice: null,
-      overridesThemePage: false,
+      overridesThemePage: null,
     },
   });
 

@@ -94,7 +94,13 @@ export const registerAdminPostUpdateRoute: ContentRouteRegistrar = (app, deps) =
                 bodyJson: priorPost.bodyJson,
                 status: priorPost.status,
                 templateChoice: priorPost.templateChoice ?? null,
-                overridesThemePage: priorPost.overridesThemePage ?? false,
+                // Tri-state (2026-08-15) — `?? null`, not `?? false`. This is the rollback inverse: if
+                // the pre-edit row was genuinely "never decided" (`undefined`/`null`) and the edit that
+                // just ran set an explicit `true`/`false`, a gateway rollback must restore "never
+                // decided", not silently manufacture an explicit "theme page wins" the author never
+                // chose. Coalescing to `false` here would be the exact same coercion bug this whole
+                // change removes, just relocated to the one path that only runs on failure.
+                overridesThemePage: priorPost.overridesThemePage ?? null,
                 // SPEC-005 BR-08 (T024) — the pre-edit plugin `ext` bag travels in the pre-image
                 // alongside the core fields, so one revert restores both together. Spread
                 // conditionally: an entry with no `ext` yet must produce an inverse payload with

@@ -133,8 +133,11 @@ export async function buildRouteManifest(deps: RouteManifestDeps): Promise<Route
     activeTheme = { id: theme.manifest.id, dir: theme.dir };
     const postBySlug = new Map<string, PostRecord>(posts.map((post) => [post.slug, post]));
     // Slugs claimed by a theme-owned static page THIS pass, so the post loop below can skip a post
-    // that is shadowed at its own slug (pages.ts:749-779: the theme page wins unless the post has
-    // explicitly opted into `overridesThemePage`).
+    // that is shadowed at its own slug (pages.ts:765-786: tri-state `overridesThemePage` — post wins
+    // unless the stored value is explicitly `false`; see that resolver's own doc for the full
+    // contract). Mirrored here rather than shared code so the exported manifest matches exactly what
+    // the live site would serve for the same row — a mismatch here would make an exported site
+    // disagree with its own live preview about which resource wins a collision.
     const shadowedSlugs = new Set<string>();
 
     if (theme.manifest.tier === "static") {
@@ -146,7 +149,9 @@ export async function buildRouteManifest(deps: RouteManifestDeps): Promise<Route
         if (pageId === "index" || pageId === "404" || templateShellStems.has(pageId)) continue;
 
         const collidingPost = postBySlug.get(pageId);
-        if (collidingPost?.overridesThemePage) continue; // the post loop below will add it instead.
+        // `null`/absent (never decided) and explicit `true` both mean the post wins, same as the
+        // live resolver; only an explicit `false` keeps the theme page winning.
+        if (collidingPost && collidingPost.overridesThemePage !== false) continue; // the post loop below will add it instead.
 
         routes.push({ path: `/${pageId}`, kind: "theme-page", label: pageId });
         shadowedSlugs.add(pageId);

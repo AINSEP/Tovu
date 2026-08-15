@@ -108,6 +108,57 @@ test("buildRouteManifest: a post that overridesThemePage wins over the theme's s
   assert.equal(pricingRoutes[0]?.kind, "post");
 });
 
+test("buildRouteManifest: a post that never decided (overridesThemePage omitted) still wins by default (tri-state, 2026-08-15)", async () => {
+  const base = createRouteDeps();
+  // Deliberately no `overridesThemePage` key at all — the same shape `createPost` produces for
+  // every post today (see `CreatePostInput`'s own doc for why it stays absent), not a hand-picked
+  // edge case. Must resolve exactly like the explicit-`true` test above: the exported manifest has
+  // to agree with what the live site actually serves for this row.
+  const neverDecidedPost = {
+    id: "post-never-decided-test",
+    workspaceId: base.workspaceId,
+    title: "Custom Pricing (never decided)",
+    slug: "pricing", // collides with basic theme's pages/pricing.html
+    bodyJson: { type: "doc", content: [] },
+    status: "published" as const,
+    kind: "post" as const,
+    bodyFormat: "doc" as const,
+    bodyHtml: null,
+    updatedAt: new Date().toISOString(),
+    version: 1,
+  };
+  const postRepo = new InMemoryPostRepo([neverDecidedPost]);
+  const manifest = await buildRouteManifest(baseDeps({ postRepo }));
+
+  const pricingRoutes = manifest.routes.filter((r) => r.path === "/pricing");
+  assert.equal(pricingRoutes.length, 1, "exactly one route at the shared slug, never two");
+  assert.equal(pricingRoutes[0]?.kind, "post", "the new default (post wins) must apply here too, not just in the live resolver");
+});
+
+test("buildRouteManifest: a post explicitly kept at false still loses to the theme's same-slug static page (tri-state, 2026-08-15)", async () => {
+  const base = createRouteDeps();
+  const explicitlyKeptPost = {
+    id: "post-explicit-false-test",
+    workspaceId: base.workspaceId,
+    title: "Custom Pricing (explicitly kept theme page)",
+    slug: "pricing",
+    bodyJson: { type: "doc", content: [] },
+    status: "published" as const,
+    kind: "post" as const,
+    bodyFormat: "doc" as const,
+    bodyHtml: null,
+    updatedAt: new Date().toISOString(),
+    version: 1,
+    overridesThemePage: false,
+  };
+  const postRepo = new InMemoryPostRepo([explicitlyKeptPost]);
+  const manifest = await buildRouteManifest(baseDeps({ postRepo }));
+
+  const pricingRoutes = manifest.routes.filter((r) => r.path === "/pricing");
+  assert.equal(pricingRoutes.length, 1, "exactly one route at the shared slug, never two");
+  assert.equal(pricingRoutes[0]?.kind, "theme-page", "an explicit false is a permanent choice and must still win over the default");
+});
+
 test("buildRouteManifest: enumerates products only when the storefront actually has any", async () => {
   const withoutStore = await buildRouteManifest(baseDeps());
   assert.equal(

@@ -755,12 +755,19 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
       // slug that was never meant to be a post in the first place (it used to run inside the same
       // `Promise.all` as the post lookup, so that throw short-circuited straight past this check).
       //
-      // Slug-collision override (2026-08-10) — the theme page still wins by default (reserved,
-      // reliable namespace), UNLESS a real post at this exact slug has explicitly opted to override
-      // it (`overridesThemePage`, set via the admin UI's collision warning). Checked with its own
-      // lookup here, swallowing `PostNotFoundError` locally rather than letting it reach the outer
-      // catch — "no post at this slug" is the overwhelmingly common case for a marketing-page route
-      // and must NOT 404 the theme page that's about to render fine.
+      // Slug-collision override (2026-08-10, default flipped to post-wins 2026-08-15) — one of the
+      // two resources at this slug must win. `overridesThemePage` is tri-state (see
+      // `PostRecord.overridesThemePage`'s own doc, `features/post/post.ts`): `null`/absent means the
+      // author never had an opinion, in which case THIS is the one place the current default policy
+      // is allowed to live — post wins. `false` is a permanent explicit choice (made via the admin
+      // UI's collision warning) that keeps the theme page winning regardless of the default; `true`
+      // is the same explicit choice in the post's favor, which was already the pre-2026-08-15
+      // behavior and needs no special case here. Flipping the default again later is this one
+      // comparison changing, never a migration — that is the entire reason the column is nullable
+      // instead of `NOT NULL DEFAULT`. Checked with its own lookup here, swallowing
+      // `PostNotFoundError` locally rather than letting it reach the outer catch — "no post at this
+      // slug" is the overwhelmingly common case for a marketing-page route and must NOT 404 the theme
+      // page that's about to render fine.
       let overridingPost: PostRecord | undefined;
       if (theme.manifest.tier === "static" && slug !== "index" && theme.pages[slug] !== undefined) {
         const candidate = await getPublishedPostBySlug({
@@ -770,7 +777,7 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
           if (err instanceof PostNotFoundError) return null;
           throw err;
         });
-        if (candidate?.post.overridesThemePage) {
+        if (candidate && candidate.post.overridesThemePage !== false) {
           overridingPost = candidate.post;
         } else {
           const staticHtml = renderStaticPage({ theme, pageId: slug, menus: staticMenus });
