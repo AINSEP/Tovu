@@ -48,6 +48,55 @@ class FailingSlugPostRepo implements PostRepoPort {
   }
 }
 
+test("exportSite: --base-path unset leaves every written byte identical to a plain export", async (t) => {
+  const outputDir = makeTmpOutputDir();
+  t.after(() => rmSync(outputDir, { recursive: true, force: true }));
+
+  const report = await exportSite({ routeDeps: createRouteDeps(), outputDir });
+
+  assert.equal(report.basePath, undefined);
+  assert.equal(report.basePathRewriteWarning, undefined);
+
+  const home = readFileSync(path.join(outputDir, "index.html"), "utf8");
+  assert.match(home, /href="\/about"/, "an internal link must stay bare root-relative when no base path is requested");
+  assert.match(home, /href="\/theme-assets\/basic\//, "a theme asset reference must stay bare root-relative when no base path is requested");
+
+  const sitemap = readFileSync(path.join(outputDir, "sitemap.xml"), "utf8");
+  assert.match(sitemap, /<loc>\/welcome<\/loc>/);
+
+  const robots = readFileSync(path.join(outputDir, "robots.txt"), "utf8");
+  assert.match(robots, /^Sitemap: \/sitemap\.xml$/m);
+});
+
+test("exportSite: --base-path rewrites HTML hrefs, sitemap <loc> entries, and robots.txt's Sitemap line, without double-prefixing anything already prefixed", async (t) => {
+  const outputDir = makeTmpOutputDir();
+  t.after(() => rmSync(outputDir, { recursive: true, force: true }));
+
+  const report = await exportSite({ routeDeps: createRouteDeps(), outputDir, basePath: "my-repo" });
+
+  assert.equal(report.basePath, "/my-repo", "a bare 'my-repo' flag value normalizes to a leading-slash, no-trailing-slash form");
+  assert.ok(report.basePathRewriteWarning && report.basePathRewriteWarning.length > 0, "the disclosed limit must be reported whenever a base path is set");
+  assert.deepEqual(report.assets.failed, [], "the crawl must still discover assets from the RAW (unprefixed) response the live server actually sent");
+
+  const home = readFileSync(path.join(outputDir, "index.html"), "utf8");
+  assert.match(home, /href="\/my-repo\/about"/, "an internal link must carry the base path");
+  assert.match(home, /href="\/my-repo\/theme-assets\/basic\//, "a theme asset reference must carry the base path");
+  assert.equal(/href="\/(?!my-repo\/)/.test(home), false, "no root-relative href may survive un-prefixed once a base path is set");
+
+  const sitemap = readFileSync(path.join(outputDir, "sitemap.xml"), "utf8");
+  assert.match(sitemap, /<loc>\/my-repo\/welcome<\/loc>/);
+
+  const robots = readFileSync(path.join(outputDir, "robots.txt"), "utf8");
+  assert.match(robots, /^Sitemap: \/my-repo\/sitemap\.xml$/m);
+
+  // Idempotency/no-double-prefix, checked across EVERY route this export actually wrote — not one
+  // hand-picked value — because a doubling bug in the shared prefixRootRelativePath helper would
+  // show up identically in any of them.
+  for (const route of report.routes.succeeded) {
+    assert.equal(route.data.includes("/my-repo/my-repo/"), false, `${route.path}: a path must never be prefixed twice`);
+  }
+});
+
 test("exportSite: writes the expected file tree for the seeded demo workspace, with zero failures", async (t) => {
   const outputDir = makeTmpOutputDir();
   t.after(() => rmSync(outputDir, { recursive: true, force: true }));

@@ -59,8 +59,9 @@ export function createProgram(): Command {
     .option("--out <dir>", "output directory (default: $TOVU_EXPORT_DIR, then <cwd>/infra/export)")
     .option("--workspace <id>", "workspace id to export (default: the oldest workspace, if the install has more than one)")
     .option("--clean", "remove the output directory's existing contents first, if any")
-    .action(async (dir: string, options: { out?: string; workspace?: string; clean?: boolean }) => {
-      await runExportCommand({ dir, out: options.out, workspaceId: options.workspace, clean: options.clean });
+    .option("--base-path <path>", 'rewrite root-relative links/assets for a subpath deploy (e.g. "/my-repo" for a GitHub Pages project site) — omit for an apex-domain deploy')
+    .action(async (dir: string, options: { out?: string; workspace?: string; clean?: boolean; basePath?: string }) => {
+      await runExportCommand({ dir, out: options.out, workspaceId: options.workspace, clean: options.clean, basePath: options.basePath });
     });
 
   program

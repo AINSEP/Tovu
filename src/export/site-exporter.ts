@@ -142,6 +142,21 @@ export interface ExportReport {
    * whether it matters for THIS theme. Empty when the manifest resolved no active theme.
    */
   unreferencedThemeFiles: string[];
+  /**
+   * The normalized base path this export rewrote every root-relative reference for (e.g. `"/repo"`
+   * for a GitHub Pages project site), or `undefined` when none was requested — the default,
+   * byte-for-byte-unchanged apex-domain case. Set only when non-empty; see
+   * {@link basePathRewriteWarning} for the disclosed limit that applies whenever this is set.
+   */
+  basePath?: string;
+  /**
+   * Present ONLY when `basePath` is set — a fixed disclosure, not a per-file diagnostic (there is
+   * nothing to enumerate: a path a theme's own JavaScript builds at runtime from a string never
+   * appears as text in a fetched response, so this rewrite cannot even detect that such a path
+   * exists, let alone list it). Same "report the limit, don't claim completeness" treatment as
+   * {@link unreferencedThemeFiles}, applied to a different, text-rewrite-shaped gap.
+   */
+  basePathRewriteWarning?: string;
 }
 
 export interface ExportSiteOptions {
@@ -154,6 +169,15 @@ export interface ExportSiteOptions {
    *  `cli/commands/export.ts` for the `--clean` flag that sets it). Pass `true` to remove the
    *  directory's existing contents before writing. */
   clean?: boolean;
+  /**
+   * When set (e.g. `"/my-repo"` for a GitHub Pages project site), every root-relative reference this
+   * exporter writes — HTML `href`/`src`, `sitemap.xml`'s `<loc>`, `robots.txt`'s `Sitemap:` line, a
+   * redirect stub's target — is rewritten to carry this prefix. Omitted/empty (the default) leaves
+   * every byte this exporter writes IDENTICAL to a pre-`--base-path` export — proven by
+   * `site-exporter.test.ts`'s own "unset is inert" regression test, not just asserted in this
+   * comment.
+   */
+  basePath?: string;
 }
 
 /** Thrown when `outputDir` has existing contents and `options.clean` was not set. */
@@ -211,11 +235,80 @@ function escapeHtmlAttr(value: string): string {
   return value.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+// ---------------------------------------------------------------------------
+// --base-path support (2026-08-15, team-lead-approved option (a)): every route in this exporter's
+// output is root-relative (`href="/about"`, `<loc>/welcome</loc>`, `Sitemap: /sitemap.xml`) because
+// that is what the LIVE server actually emits — correct at an apex domain, broken at a GitHub Pages
+// PROJECT site (`https://<owner>.github.io/<repo>/`, not the domain root). Rather than touch
+// `render.ts`'s 10+ scattered hand-written `href="/…"` template strings (there is no single
+// `urlFor`-style chokepoint for site hrefs to intercept upstream), this rewrites the ALREADY-
+// RENDERED response bytes this exporter already holds — one small, scoped regex per response shape,
+// extending the exact pattern `features/theme/static-asset-contract.ts`'s `rewriteAssetPaths`
+// already proves out (quote-echoing `href=`/`src=` rewrite), rather than inventing a new mechanism.
+//
+// Deliberately does NOT touch CSS `url(...)` references: verified (grep, 2026-08-15) that the
+// shipped `basic` theme's stylesheets contain no absolute `url(/...)` reference — every one is
+// already relative to the stylesheet's own location, which moves correctly with the rest of
+// `theme-assets/` under any base path without a rewrite.
+// ---------------------------------------------------------------------------
+
+/** `"repo"`, `"/repo"`, `"/repo/"` all normalize to `"/repo"` — one leading slash, no trailing
+ *  one — so every call site below can prefix with straight string concatenation. `""`/`"/"` (no
+ *  real base path) normalizes to `""`, which every caller below treats as "rewriting is off". */
+function normalizeBasePath(raw: string): string {
+  const trimmed = raw.trim().replace(/\/+$/, "");
+  if (trimmed === "" || trimmed === "/") return "";
+  return trimmed.startsWith("/") ? trimmed : `/${trimmed}`;
+}
+
+/**
+ * Prefixes ONE root-relative path with `basePath` — the single decision every rewrite below applies
+ * per match, so "what counts as root-relative" and "how do we avoid double-prefixing" are decided
+ * in exactly one place.
+ *
+ * Left untouched: anything that is not root-relative at all (a same-page `#anchor`, a relative
+ * `pricing.html`, an absolute external `https://…` URL) and protocol-relative URLs (`//cdn.example
+ * .com/x.js` — a root-relative-LOOKING path is actually a scheme-relative external reference).
+ * Idempotent: a value that already starts with `basePath` (or equals it) is returned unchanged, so
+ * running this twice — or a value that happens to already carry the prefix for some other reason —
+ * can never produce `/repo/repo/about`.
+ */
+function prefixRootRelativePath(value: string, basePath: string): string {
+  if (basePath === "") return value;
+  if (!value.startsWith("/") || value.startsWith("//")) return value;
+  if (value === basePath || value.startsWith(`${basePath}/`)) return value;
+  return `${basePath}${value}`;
+}
+
+/** Rewrites every `href="…"`/`src="…"` (single- OR double-quoted, matching
+ *  `static-asset-contract.ts`'s own quote-echoing convention — `pages.ts`'s bare 404 fallback is
+ *  observed to use single quotes, so both are real, not hypothetical) root-relative attribute value
+ *  in one rendered HTML document. */
+function rewriteHtmlBasePath(html: string, basePath: string): string {
+  if (basePath === "") return html;
+  return html.replace(/\b(href|src)=(["'])([^"']*)\2/g, (_match, attr: string, quote: string, value: string) => `${attr}=${quote}${prefixRootRelativePath(value, basePath)}${quote}`);
+}
+
+/** Rewrites every `<loc>…</loc>` entry in a rendered `sitemap.xml` body. */
+function rewriteSitemapBasePath(xml: string, basePath: string): string {
+  if (basePath === "") return xml;
+  return xml.replace(/<loc>([^<]*)<\/loc>/g, (_match, value: string) => `<loc>${prefixRootRelativePath(value, basePath)}</loc>`);
+}
+
+/** Rewrites the `Sitemap: …` line in a rendered `robots.txt` body (`robots.ts`'s own output shape —
+ *  one `Sitemap:` line per advertised sitemap URL, each on its own line). */
+function rewriteRobotsBasePath(text: string, basePath: string): string {
+  if (basePath === "") return text;
+  return text.replace(/^Sitemap: (.*)$/gm, (_match, value: string) => `Sitemap: ${prefixRootRelativePath(value.trim(), basePath)}`);
+}
+
 /**
  * A static host has no server-side redirect mechanism to hand this rule to, so the exported file
  * IS the redirect: an immediate `<meta http-equiv="refresh">` plus a visible fallback link, both
  * pointing at whatever the live app's real 3xx response actually said (see {@link writeRedirectRoute}
- * — never the manifest's own `redirectTarget`, which is only a cross-check hint).
+ * — never the manifest's own `redirectTarget`, which is only a cross-check hint). `location` is
+ * expected to already be base-path-prefixed by the caller when applicable — this function only
+ * embeds it, the same "one place decides the path" split every rewrite above already follows.
  */
 function renderRedirectStub(location: string): string {
   const safe = escapeHtmlAttr(location);
@@ -287,27 +380,46 @@ interface RouteWriteOutcome {
   html?: string;
 }
 
-async function writeContentRoute(route: ManifestRoute, baseUrl: string, outputDir: string): Promise<RouteWriteOutcome> {
+/** `robots.txt`/`sitemap.xml`'s literal well-known paths — shared between `route-manifest.ts` (which
+ *  enumerates them) and the base-path rewrite below (which needs to pick the right rewrite shape per
+ *  path). Not exported from `ports.ts`: nothing outside this file's own rewrite dispatch needs them
+ *  as a named constant rather than the two literal manifest routes they already are. */
+const SITEMAP_PATH = "/sitemap.xml";
+const ROBOTS_PATH = "/robots.txt";
+
+/**
+ * Applies whichever base-path rewrite matches this route's real content shape — HTML for every
+ * ordinary content/theme/product/not-found route, `<loc>` for the sitemap, the `Sitemap:` line for
+ * robots.txt. A no-op (returns `body` unchanged) when `basePath` is `""` (rewriting off).
+ */
+function rewriteRouteBodyForBasePath(route: ManifestRoute, body: string, basePath: string): string {
+  if (route.path === SITEMAP_PATH) return rewriteSitemapBasePath(body, basePath);
+  if (route.path === ROBOTS_PATH) return rewriteRobotsBasePath(body, basePath);
+  return rewriteHtmlBasePath(body, basePath);
+}
+
+async function writeContentRoute(route: ManifestRoute, baseUrl: string, outputDir: string, basePath: string): Promise<RouteWriteOutcome> {
   const res = await fetch(`${baseUrl}${route.path}`);
   if (res.status !== 200) {
     return { failed: { path: route.path, kind: route.kind, reason: `expected 200, got ${res.status}` } };
   }
-  const body = await res.text();
+  const rawBody = await res.text();
   const contentType = res.headers.get("content-type") ?? undefined;
   const outFile = route.kind === "well-known" ? wellKnownOutputFile(route.path, outputDir) : contentRouteOutputFile(route.path, outputDir);
-  writeTextFile(outFile, body);
-  // `robots.txt`/`sitemap.xml` are plain text/XML, not HTML — crawling them for `href="…"`/`src="…"`
-  // is harmless (no such attributes exist in either format, so nothing matches) but also pointless;
-  // `html` is still populated uniformly rather than special-cased, since a false-negative crawl scan
-  // is cheap and a special case here would be one more branch to keep in sync with `ports.ts`'s kind
-  // list for no real benefit.
+  // The CRAWL (below, via `html`) must see the RAW body — the live server has no concept of a base
+  // path, so it still emits `/theme-assets/...` un-prefixed, which is exactly the URL the crawl must
+  // request the asset FROM. Only the WRITTEN copy is rewritten; asset discovery and the on-disk
+  // asset layout are entirely unaffected by `--base-path` (team-lead condition: rewriting is a pure
+  // output-bytes transform, never a second render or a second fetch).
+  const writtenBody = rewriteRouteBodyForBasePath(route, rawBody, basePath);
+  writeTextFile(outFile, writtenBody);
   return {
-    succeeded: { path: route.path, kind: route.kind, outputFile: path.relative(outputDir, outFile), data: body, contentType },
-    html: body,
+    succeeded: { path: route.path, kind: route.kind, outputFile: path.relative(outputDir, outFile), data: writtenBody, contentType },
+    html: rawBody,
   };
 }
 
-async function writeRedirectRoute(route: ManifestRoute, baseUrl: string, outputDir: string): Promise<RouteWriteOutcome> {
+async function writeRedirectRoute(route: ManifestRoute, baseUrl: string, outputDir: string, basePath: string): Promise<RouteWriteOutcome> {
   const res = await fetch(`${baseUrl}${route.path}`, { redirect: "manual" });
   if (res.status < 300 || res.status >= 400) {
     return { failed: { path: route.path, kind: route.kind, reason: `expected a 3xx redirect response, got ${res.status}` } };
@@ -316,7 +428,10 @@ async function writeRedirectRoute(route: ManifestRoute, baseUrl: string, outputD
   if (!location) {
     return { failed: { path: route.path, kind: route.kind, reason: "redirect response carried no Location header" } };
   }
-  const stub = renderRedirectStub(location);
+  // Prefixed BEFORE constructing the stub, not by rewriting the stub's own HTML afterward — the
+  // same "one place decides the path" split `prefixRootRelativePath` documents, applied directly
+  // since this page's only path reference is the one value already in hand.
+  const stub = renderRedirectStub(prefixRootRelativePath(location, basePath));
   const outFile = contentRouteOutputFile(route.path, outputDir);
   writeTextFile(outFile, stub);
   // This page was authored locally (see renderRedirectStub's own doc), never fetched — there is no
@@ -327,13 +442,14 @@ async function writeRedirectRoute(route: ManifestRoute, baseUrl: string, outputD
 /** The 404 probe is written to `<outputDir>/404.html` — not to its own sentinel path — matching
  *  the convention static hosts (Netlify, GitHub Pages, S3+CloudFront) already look for at the
  *  output root. */
-async function writeNotFoundRoute(route: ManifestRoute, baseUrl: string, outputDir: string): Promise<RouteWriteOutcome> {
+async function writeNotFoundRoute(route: ManifestRoute, baseUrl: string, outputDir: string, basePath: string): Promise<RouteWriteOutcome> {
   const res = await fetch(`${baseUrl}${route.path}`);
   if (res.status < 400) {
     return { failed: { path: route.path, kind: route.kind, reason: `expected a non-2xx response for the 404 probe, got ${res.status}` } };
   }
-  const body = await res.text();
+  const rawBody = await res.text();
   const contentType = res.headers.get("content-type") ?? undefined;
+  const body = rewriteHtmlBasePath(rawBody, basePath);
   const outFile = path.join(outputDir, "404.html");
   writeTextFile(outFile, body);
   return { succeeded: { path: route.path, kind: route.kind, outputFile: "404.html", data: body, contentType } };
@@ -449,8 +565,14 @@ function findUnreferencedThemeFiles(activeTheme: ManifestActiveTheme, manifestRo
  *   job is fidelity over throughput — every export is a bounded, human-triggered operation on one
  *   workspace's content, not a hot path.
  */
+/** Printed/reported only when `--base-path` is actually set — see `ExportReport.basePathRewriteWarning`'s
+ *  own doc for why this cannot be a per-file list the way `unreferencedThemeFiles` is. */
+const BASE_PATH_REWRITE_WARNING =
+  "base-path rewriting is a best-effort TEXT rewrite over already-rendered responses — it cannot rewrite a path a theme's own JavaScript constructs at runtime from a string (same category of gap as the unreferenced-theme-file warning, just invisible to this rewrite instead of to the asset crawl).";
+
 export async function exportSite(options: ExportSiteOptions): Promise<ExportReport> {
   const { routeDeps, outputDir, clean = false } = options;
+  const basePath = normalizeBasePath(options.basePath ?? "");
   prepareOutputDir(outputDir, clean);
 
   const manifest = await buildRouteManifest(routeDeps);
@@ -468,10 +590,10 @@ export async function exportSite(options: ExportSiteOptions): Promise<ExportRepo
     for (const route of manifest.routes) {
       const outcome: RouteWriteOutcome =
         route.kind === "redirect"
-          ? await writeRedirectRoute(route, baseUrl, outputDir)
+          ? await writeRedirectRoute(route, baseUrl, outputDir, basePath)
           : route.kind === "not-found"
-            ? await writeNotFoundRoute(route, baseUrl, outputDir)
-            : await writeContentRoute(route, baseUrl, outputDir);
+            ? await writeNotFoundRoute(route, baseUrl, outputDir, basePath)
+            : await writeContentRoute(route, baseUrl, outputDir, basePath);
 
       if (outcome.succeeded) routesSucceeded.push(outcome.succeeded);
       if (outcome.failed) routesFailed.push(outcome.failed);
@@ -480,6 +602,8 @@ export async function exportSite(options: ExportSiteOptions): Promise<ExportRepo
       }
     }
 
+    // Asset discovery/fetch/output-layout is entirely basePath-agnostic (see writeContentRoute's own
+    // comment) — no rewrite is applied here, by design, not by omission.
     const { succeeded: assetsSucceeded, failed: assetsFailed } = await fetchAssets([...assetUrls], baseUrl, outputDir);
 
     const unreferencedThemeFiles = manifest.activeTheme
@@ -496,6 +620,7 @@ export async function exportSite(options: ExportSiteOptions): Promise<ExportRepo
       assets: { succeeded: assetsSucceeded, failed: assetsFailed },
       skippedManifestEntries: manifest.skipped,
       unreferencedThemeFiles,
+      ...(basePath !== "" ? { basePath, basePathRewriteWarning: BASE_PATH_REWRITE_WARNING } : {}),
     };
   } finally {
     server.closeAllConnections?.();

@@ -11,8 +11,8 @@ import test from "node:test";
  * spawn the real `tovu` CLI (via `tsx`'s dev-mode transform, no prior `npm run build` required)
  * against a real install directory `tovu init` itself just created, rather than calling
  * `runExportCommand`/`exportSite` in-process — this proves the CLI wiring end to end (argv parsing,
- * `--out`/`--workspace`/`--clean` flags, the `errors.spec.md`-style exit-code contract), which
- * `export/__tests__/site-exporter.test.ts`'s direct-function tests cannot.
+ * `--out`/`--workspace`/`--clean`/`--base-path` flags, the `errors.spec.md`-style exit-code
+ * contract), which `export/__tests__/site-exporter.test.ts`'s direct-function tests cannot.
  */
 
 const CLI_MAIN = path.resolve(__dirname, "../../main.ts");
@@ -65,6 +65,23 @@ test("tovu export: a non-empty --out is refused (EXPORT_OUTPUT_NOT_EMPTY, exit 3
   assert.equal(cleaned.status, 0, `stderr: ${cleaned.stderr}`);
   assert.equal(fs.existsSync(path.join(outDir, "stale.html")), false);
   assert.ok(fs.existsSync(path.join(outDir, "index.html")));
+});
+
+test("tovu export --base-path <path>: rewrites root-relative links and prints the disclosed-limit warning", (t) => {
+  const parent = mkTempParent();
+  t.after(() => fs.rmSync(parent, { recursive: true, force: true }));
+  const installDir = path.join(parent, "site");
+  const outDir = path.join(parent, "out");
+
+  assert.equal(runCli(["init", installDir]).status, 0);
+
+  const result = runCli(["export", installDir, "--out", outDir, "--base-path", "/my-repo"]);
+  assert.equal(result.status, 0, `stderr: ${result.stderr}`);
+  assert.match(result.stdout, /rewrote root-relative links\/assets for base path '\/my-repo'/);
+  assert.match(result.stderr, /warning:.*best-effort TEXT rewrite/, "the disclosed rewrite-limit warning must print when a base path is set");
+
+  const home = fs.readFileSync(path.join(outDir, "index.html"), "utf8");
+  assert.match(home, /href="\/my-repo\//, "at least one internal link must carry the base path");
 });
 
 test("tovu export: TOVU_EXPORT_DIR env var sets the default output directory when --out is omitted", (t) => {
