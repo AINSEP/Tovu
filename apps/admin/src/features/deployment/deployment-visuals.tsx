@@ -63,6 +63,18 @@ export function HistoryIcon({ size = 20 }: { size?: number }) {
   );
 }
 
+/** The assistant — a sparkle, deliberately the same mark the admin's own assistant FAB uses
+ *  (`ChatFab`), so the recommended route on the Static Site tab is visually tied to the thing it is
+ *  recommending rather than introducing a second, unrelated symbol for the same feature. */
+export function AssistantIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg {...LINE_ICON} width={size} height={size}>
+      <path d="M12 3.5 13.6 9l5.4 1.6-5.4 1.6L12 17.6l-1.6-5.4L5 10.6 10.4 9z" />
+      <path d="M18.5 15.5l.6 1.9 1.9.6-1.9.6-.6 1.9-.6-1.9-1.9-.6 1.9-.6z" />
+    </svg>
+  );
+}
+
 /** Dockerfile — a stack of layers, the shape of an image build. */
 export function LayersIcon({ size = 20 }: { size?: number }) {
   return (

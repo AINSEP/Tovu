@@ -78,6 +78,66 @@ export const FULL_SITE_PROVIDERS: readonly FullSiteProviderRow[] = [
 /** The four static-hosting destinations named in the brief. Proper nouns, never translated. */
 export const STATIC_HOSTS: readonly string[] = ["GitHub Pages", "Vercel", "Netlify", "Cloudflare Pages"] as const;
 
+/**
+ * One command-line tool the assistant can drive to publish a static export.
+ *
+ * NOTE FOR WHOEVER WIRES UP PATH DETECTION: this interface deliberately carries NO `installed`
+ * field, and the rows it feeds render with no status affordance of any kind. That is not an
+ * oversight — as of 2026-08-15 the server cannot see what is on its own PATH, so any per-tool
+ * badge, tick, or "checking…" state on this list would be describing a check that never ran. When
+ * a detection endpoint exists, add an optional `installed?: boolean` here and render it as a
+ * `.status` pill inside each row's `.deployment-provider-name` group — the same slot the Full Site
+ * provider rows already put theirs in, which is why these rows reuse that markup. The rows, their
+ * order, and their keys do not need to change; only the sentence under the list does.
+ */
+export interface PublishCliTool {
+  readonly id: string;
+  /** Human name, e.g. "GitHub CLI". Brand noun — rendered verbatim, never translated. */
+  readonly name: string;
+  /** The binary as typed, e.g. `gh`. A code token — rendered verbatim and `translate="no"`. */
+  readonly command: string;
+  /** What this specific tool publishes to. Names its destination explicitly so the list cannot be
+   *  read as covering all four `STATIC_HOSTS` — `gh` and `vercel` reach two of them, not Netlify or
+   *  Cloudflare Pages. */
+  readonly descriptionKey: string;
+}
+
+/**
+ * The two CLIs worth having installed before publishing a static export.
+ *
+ * Why these two and why a CLI at all: Tovu's assistant is a spawned coding-agent CLI (project
+ * memory: `@jini-ai/agent-runtime` PATH detection, no API key), so it has a real shell. If these
+ * tools are present it can run them directly — which needs no token pasted into this admin, no
+ * credential stored, and no provider adapter. That is a smaller and more capable path than the
+ * token-based one, which is why the tab presents it first.
+ */
+export const PUBLISH_CLI_TOOLS: readonly PublishCliTool[] = [
+  {
+    id: "gh",
+    name: "GitHub CLI",
+    command: "gh",
+    descriptionKey: "Creates the repo, pushes the exported folder, and switches GitHub Pages on.",
+  },
+  {
+    id: "vercel",
+    name: "Vercel CLI",
+    command: "vercel",
+    descriptionKey: "Deploys the exported folder straight to Vercel.",
+  },
+] as const;
+
+/**
+ * The exact sentence to say to the assistant, kept here rather than inline in the component
+ * because it is the one string on this screen people will copy verbatim and paste elsewhere.
+ *
+ * The trailing "confirm both are on my PATH" is doing real work, not padding: this admin cannot
+ * check that itself yet, and the assistant — running in the same shell the tools would be
+ * installed into — can. So the line that recommends the tools also asks for the answer the UI is
+ * currently unable to give, instead of leaving the reader to notice the gap and work around it.
+ */
+export const PUBLISH_ASSISTANT_REQUEST =
+  "Install the GitHub CLI and the Vercel CLI, then confirm both are on my PATH.";
+
 /** One row of the two paths' capability comparison. `supported` is a fact about the PATH, not about
  *  whether Tovu can currently deploy to it — see {@link STATIC_SITE_CAPABILITIES}. */
 export interface DeploymentCapability {
