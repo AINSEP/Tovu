@@ -1,3 +1,6 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+
 import type { Express } from "express";
 
 import { resolveRuntimeMode } from "#src/core/runtime-mode";
@@ -59,6 +62,55 @@ export interface DeploymentOverviewSnapshot {
   uploadsDir: string;
   /** Presence only, per required env var — never a value. */
   envVars: DeploymentEnvVarStatus[];
+  /**
+   * Which publish CLIs are on this process's PATH. The assistant is a spawned coding-agent CLI, so
+   * when these are present it can drive them directly — which needs no provider token stored here,
+   * because the CLI already holds its own auth. Their absence is not an error: the token-based
+   * adapter path exists for exactly that case.
+   */
+  deployClis: DeployCliStatus[];
+}
+
+/** One publish CLI's availability on PATH. */
+export interface DeployCliStatus {
+  name: string;
+  installed: boolean;
+}
+
+/** The publish CLIs worth reporting on — display order. */
+const DEPLOY_CLI_NAMES = ["gh", "vercel"] as const;
+
+/**
+ * Whether `binary` resolves on this process's PATH.
+ *
+ * Deliberately a filesystem walk rather than spawning `which`/`command -v`: this runs on every
+ * Overview render, and spawning a child process per request to answer a question `existsSync` can
+ * answer is both slower and a process-spawn surface this route does not otherwise need. The names
+ * are fixed module constants, never caller-supplied, so nothing here interpolates untrusted input
+ * into a path.
+ *
+ * Not cached: an operator who installs `gh` while the admin is open should see it on the next
+ * render rather than after a restart, and the cost is a handful of `stat` calls.
+ *
+ * @complexity O(P) in the number of PATH entries — bounded by the environment, not by request data.
+ */
+function isOnPath(binary: string): boolean {
+  const raw = process.env.PATH;
+  if (raw === undefined || raw === "") return false;
+  const isWindows = process.platform === "win32";
+  // On Windows a bare name is not executable; PATHEXT-style suffixes are what actually resolve.
+  const candidates = isWindows ? [`${binary}.exe`, `${binary}.cmd`, `${binary}.bat`] : [binary];
+  for (const dir of raw.split(isWindows ? ";" : ":")) {
+    if (dir === "") continue;
+    for (const candidate of candidates) {
+      try {
+        if (existsSync(join(dir, candidate))) return true;
+      } catch {
+        // An unreadable or malformed PATH entry is not an answer about the binary — keep looking.
+      }
+    }
+  }
+  return false;
 }
 
 /** The four env vars the brief calls out — order here is display order. */
@@ -85,6 +137,7 @@ export function buildDeploymentOverviewSnapshot(): DeploymentOverviewSnapshot {
     dbPath: defaultContentDbPath(),
     uploadsDir: mediaUploadsDir(),
     envVars: REQUIRED_ENV_VAR_NAMES.map((name) => ({ name, set: Boolean(process.env[name]) })),
+    deployClis: DEPLOY_CLI_NAMES.map((name) => ({ name, installed: isOnPath(name) })),
   };
 }
 
