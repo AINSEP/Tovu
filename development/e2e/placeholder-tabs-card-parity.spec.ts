@@ -12,10 +12,10 @@ const SCREENSHOT_DIR = path.resolve(__dirname, "../../ADS-memory/reports/placeho
  * `features/ai-assistant/AiAssistant.tsx` uses because THAT screen supplies its own external
  * `.page-header` above the shell. `PlaceholderTabs` supplied no such header; instead it baked the
  * kicker/title/subtitle into `Placeholder.tsx`'s `ComingSoonNotice` and rendered that as the
- * active tab's *panel*. Combined, `--page-flow` hid the shell's own `.jini-settings-dialog-head`
+ * active tab's *panel*. Combined, `--page-flow` hid the shell's own `.jini-tabbed-dialog-head`
  * and flattened its card (transparent background, no border, no shadow — see that modifier's own
  * comment in `styles.css`), so the only place left for a heading to render was inside
- * `.jini-settings-dialog-content`, below the tab strip. Confirmed live (Chromium screenshots,
+ * `.jini-tabbed-dialog-content`, below the tab strip. Confirmed live (Chromium screenshots,
  * `ADS-memory/reports/`) before the fix: no visible card boundary on `/admin/payments`, and
  * "PEOPLE" / "Home" / "Home is coming soon." rendered under the Home/Stripe/PayPal tab row instead
  * of above it — while `/admin/settings`, which never carried that modifier, showed the header
@@ -42,7 +42,7 @@ const SECTIONS = [
  *  screen, not just present in the DOM mid-transition. */
 async function gotoSection(page: Page, sectionPath: string): Promise<void> {
   await page.goto(sectionPath, { waitUntil: "domcontentloaded" });
-  await page.locator(".jini-settings-dialog").waitFor({ state: "visible", timeout: 10_000 });
+  await page.locator(".jini-tabbed-dialog").waitFor({ state: "visible", timeout: 10_000 });
 }
 
 // Login happens once in `playwright.placeholder-tabs.config.ts`'s `globalSetup`, and every test
@@ -53,14 +53,14 @@ test.describe("placeholder tabs match Settings' card chrome", () => {
     test(`${section.path}: header sits above the tab strip, inside a bordered card`, async ({ page }) => {
       await gotoSection(page, section.path);
 
-      const dialog = page.locator(".jini-settings-dialog");
-      const head = dialog.locator(".jini-settings-dialog-head");
+      const dialog = page.locator(".jini-tabbed-dialog");
+      const head = dialog.locator(".jini-tabbed-dialog-head");
 
       // The header block (kicker/title/subtitle) must actually be visible — this is exactly what
       // `--page-flow` used to hide via `display: none` for every placeholder section.
       await expect(head).toBeVisible();
-      await expect(head.locator(".jini-settings-dialog-kicker")).toHaveText(section.kicker.toUpperCase(), {
-        // `.jini-settings-dialog-kicker`'s CSS applies `text-transform: uppercase`; the underlying
+      await expect(head.locator(".jini-tabbed-dialog-kicker")).toHaveText(section.kicker.toUpperCase(), {
+        // `.jini-tabbed-dialog-kicker`'s CSS applies `text-transform: uppercase`; the underlying
         // text node is title-case, so match case-insensitively against the raw string instead of
         // asserting on rendered casing (a CSS concern, not a content one).
         ignoreCase: true,
@@ -75,7 +75,7 @@ test.describe("placeholder tabs match Settings' card chrome", () => {
         const bodyEl = headEl.parentElement?.querySelector(bodySelector);
         if (!bodyEl) return false;
         return Boolean(headEl.compareDocumentPosition(bodyEl) & Node.DOCUMENT_POSITION_FOLLOWING);
-      }, ".jini-settings-dialog-body");
+      }, ".jini-tabbed-dialog-body");
       expect(headPrecedesBody, "the header must precede the tab strip in DOM order").toBe(true);
 
       // Card look: a real border and a non-transparent background, not the `--page-flow` variant's
@@ -106,7 +106,7 @@ test.describe("placeholder tabs match Settings' card chrome", () => {
     // to the shell's own header fields, but must not change what they SAY. This is the one
     // assertion that would catch a fix that moved the header but silently reworded it.
     await gotoSection(page, "/admin/payments");
-    await expect(page.locator(".jini-settings-dialog-subtitle")).toHaveText("Home is coming soon.");
+    await expect(page.locator(".jini-tabbed-dialog-subtitle")).toHaveText("Home is coming soon.");
   });
 
   test("Payments' tab strip still lists Home, Stripe, PayPal, each clickable", async ({ page }) => {
@@ -114,13 +114,13 @@ test.describe("placeholder tabs match Settings' card chrome", () => {
     // dispatch brief) must be untouched. Clicking Stripe and reading its own header back proves the
     // per-tab title/subtitle wiring generalizes beyond the first tab, not just "home" specifically.
     await gotoSection(page, "/admin/payments");
-    const nav = page.locator(".jini-settings-dialog-sidebar");
+    const nav = page.locator(".jini-tabbed-dialog-sidebar");
     await expect(nav.getByTestId("settings-dialog-nav-home")).toBeVisible();
     await expect(nav.getByTestId("settings-dialog-nav-stripe")).toBeVisible();
     await expect(nav.getByTestId("settings-dialog-nav-paypal")).toBeVisible();
 
     await nav.getByTestId("settings-dialog-nav-stripe").click();
-    await expect(page.locator(".jini-settings-dialog-head h2")).toHaveText("Stripe");
-    await expect(page.locator(".jini-settings-dialog-subtitle")).toHaveText("Stripe is coming soon.");
+    await expect(page.locator(".jini-tabbed-dialog-head h2")).toHaveText("Stripe");
+    await expect(page.locator(".jini-tabbed-dialog-subtitle")).toHaveText("Stripe is coming soon.");
   });
 });

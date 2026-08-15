@@ -134,7 +134,7 @@ Split deliberately into two tables, because this is a real (if now smaller) dive
 | `postTemplate` | string[] | `static` only | no | Ordered list of `pages/*.html` filenames a Post author can pick between (§7.1). First entry is the implicit default. |
 | `modes` | string[] (e.g. `["dark","light"]`) | `static` only | no | The color-mode names this theme ships token overrides for. A mode name is nothing more than the value written into `data-theme` on `<html>` — it has no other effect on its own. See §3.3. |
 | `defaultMode` | string | `static` only | no | Which of `modes` a freshly-served page starts in. Emitted as `data-theme="<defaultMode>"` on `<html>` (`injectColorMode`, `static-render.ts:231-234`). Declaring a `defaultMode` outside `modes` is a **hard manifest error** — the theme loads with `status: "invalid"` (`theme.ts:378-382`), not a silent fallback. Absent ⇒ no `data-theme` is emitted at all (the pre-2026-08-10 behavior, unchanged). See §3.3. |
-| `slots` | `Record<string, { source, activeAttr?, variants? }>` | `static` only | no (defaults to `DEFAULT_THEME_SLOTS`, the legacy hardcoded `nav`/`footer` pair) | Maps a `data-tovu-slot="<key>"` marker to the root partial file it renders, optionally naming the marker-side "current page" attribute (`activeAttr`) and/or an explicit `data-slot-variant` → filename map (`variants`). See §6.1. |
+| `slots` | `Record<string, { source, activeAttr?, variants? }>` | `static` only | no (defaults to `DEFAULT_THEME_SLOTS`, the legacy hardcoded `nav`/`footer` pair) | Maps a `data-embed-type="partial" data-embed-id="<key>"` marker to the root partial file it renders, optionally naming the marker-side "current page" attribute for the deprecated spelling (`activeAttr`) and/or an explicit variant → filename map (`variants`) consulted via the marker's `data-embed-config`. See §6.1. |
 
 ### 3.2 Fields written by every theme, read by nothing
 
@@ -252,31 +252,35 @@ The fallback is what renders if the token is ever absent; the real value comes f
 
 ## 6. Slots, partials, and embeds
 
-These are two genuinely different mechanisms that share the "marker in HTML, resolved server-side" shape. Keep them separate:
+**Marker-spine unification (2026-08-10).** Slots and embeds used to be two genuinely different attribute vocabularies (`data-tovu-slot`/`data-nav-current`/`data-slot-variant` for partials vs. `data-embed-type`/`data-embed-id`/`data-embed-variant` for CMS-resolved content). They now share ONE marker vocabulary — `data-embed-type` / `data-embed-id` / `data-embed-config` — with `type="partial"` folded in as just another embed type. The real distinction was never the attribute names; it's what a `type` resolves against:
 
-- **Slots** (`data-tovu-slot`) — fill a marker with a *partial file* (`nav.html`, `footer.html`) that lives inside the same theme. Purely local to the theme; no repo/database lookup.
-- **Embeds** (`data-embed-type` / `data-embed-id`) — fill a marker with *real content resolved from the CMS* (a menu, a widget, a form, a media asset, a post). Requires a repo lookup by the route layer before rendering.
+- **`type="partial"`** — fills the marker with a *partial file* (`nav.html`, `footer.html`) that lives inside the same theme. Purely local to the theme; no repo/database lookup. Resolved by `resolveSlots()`.
+- **Every other `type`** (`menu`, `widget`, `form`, `media`, `post`, …) — fills the marker with *real content resolved from the CMS*. Requires a repo lookup by the route layer before rendering.
 
-### 6.1 Slots (`static` tier only)
+`data-embed-config` is a single-quoted JSON object (single-quoted so an inner `"` needs no escaping) carrying whatever a marker used to need a bespoke attribute for — `{"current":"pricing"}`, `{"variant":"minimal"}`, or both. Malformed/absent JSON degrades to an empty config with a `console.warn`, never a thrown error (`static-render.ts`'s `parseEmbedConfig`) — the same "never fail the render" contract §6.4's generic embed pipeline already followed for an unknown `type`.
+
+**Deprecated spelling, still accepted.** `data-tovu-slot="<key>"` / `data-nav-current="<page>"` / `data-embed-variant="tree"` are retired from every theme in this repo (all 7 migrated 2026-08-10) but `resolveSlots()` still recognizes `data-tovu-slot`/`data-nav-current`/`data-slot-variant` on a marker — with a `console.warn` (once per page render, not once per marker) — so a site-authored theme outside this repo doesn't break the moment it upgrades. `data-embed-variant` (the menu tree/flat choice) has NO such fallback — it shipped and was retired the same day, so there was no real installed base to protect; author `data-embed-config='{"variant":"tree"}'` instead. Do not author new theme content against the deprecated spelling — it exists for compatibility, not as a second supported convention.
+
+### 6.1 Partials (`type="partial"`, `static` tier only)
 
 A static page marks where a partial goes with an empty, self-closing-in-spirit div:
 
 ```html
-<div data-tovu-slot="nav" data-nav-current="pricing"></div>
+<div data-embed-type="partial" data-embed-id="nav" data-embed-config='{"current":"pricing"}'></div>
 ...
-<div data-tovu-slot="footer"></div>
-<div data-tovu-slot="footer" data-slot-variant="minimal"></div>
+<div data-embed-type="partial" data-embed-id="footer"></div>
+<div data-embed-type="partial" data-embed-id="footer" data-embed-config='{"variant":"minimal"}'></div>
 ```
 
-As of 2026-08-10, `resolveSlots()` (`static-render.ts:192-218`) is driven by `theme.json`'s `slots` map (`theme.manifest.slots ?? DEFAULT_THEME_SLOTS` — `static-render.ts:278`), not a hardcoded `nav`/`footer` pair. `DEFAULT_THEME_SLOTS` (`theme.ts:148-151`) reproduces that old hardcoded pair verbatim, so a theme that declares no `slots` renders byte-identically to before this wiring — which is exactly why landing the change didn't alter any existing theme's output.
+`resolveSlots()` (`static-render.ts`) is driven by `theme.json`'s `slots` map (`theme.manifest.slots ?? DEFAULT_THEME_SLOTS`), not a hardcoded `nav`/`footer` pair. `DEFAULT_THEME_SLOTS` (`theme.ts`) reproduces that old hardcoded pair verbatim, so a theme that declares no `slots` renders byte-identically to before this wiring existed.
 
 For each marker key present in the resolved slots map:
 
 - **`source`** — the root partial filename the marker resolves to by default (e.g. `"footer.html"`).
-- **`activeAttr`** (optional) — names the attribute on the *marker* element that carries the current page's id, e.g. `activeAttr: "data-nav-current"` reads `data-nav-current="pricing"` off the marker above. The anchor side of the convention is **fixed, not configurable**: whichever `<a href="..." data-nav-id="<that value>">` exists inside the resolved partial gets `aria-current="page"` spliced onto it. Only the marker-side attribute *name* varies by theme; the partial-side anchor always keys off `data-nav-id`.
-- **`variants`** (optional) — an explicit `{ "<variant-name>": "<filename>.html" }` map consulted when the marker carries `data-slot-variant="<name>"`. A variant with no entry in this map falls back to the `<source-stem>-<variant>.html` naming convention `resolveSlots()` has always applied — e.g. a `footer` slot with variant `minimal` and no explicit map entry resolves to `footer-minimal.html`.
+- **`activeAttr`** (optional) — decides WHETHER this slot honors a current-page marker at all (`activeAttr: "data-nav-current"` on the `nav` slot, matching `DEFAULT_THEME_SLOTS`). The JSON config key is always the fixed string `"current"` regardless of this name — only its *presence* on the descriptor matters for the new spelling; the name itself is only consulted on the deprecated `data-tovu-slot` spelling, where it's still a real attribute name to read off the marker. Either way, the anchor side of the convention is **fixed, not configurable**: whichever `<a href="..." data-nav-id="<that value>">` exists inside the resolved partial gets `aria-current="page"` spliced onto it.
+- **`variants`** (optional) — an explicit `{ "<variant-name>": "<filename>.html" }` map consulted when the marker's config carries `"variant":"<name>"`. A variant with no entry in this map falls back to the `<source-stem>-<variant>.html` naming convention `resolveSlots()` has always applied — e.g. a `footer` slot with variant `minimal` and no explicit map entry resolves to `footer-minimal.html`.
 
-A theme declaring no `slots` at all gets exactly the legacy pair from `DEFAULT_THEME_SLOTS`: `nav` → `nav.html` with `activeAttr: "data-nav-current"`, `footer` → `footer.html` with no variants map (so any footer variant falls through to the naming convention). A marker whose resolved partial doesn't exist still collapses to empty, same as before this wiring.
+A theme declaring no `slots` at all gets exactly the legacy pair from `DEFAULT_THEME_SLOTS`: `nav` → `nav.html` with `activeAttr: "data-nav-current"`, `footer` → `footer.html` with no variants map (so any footer variant falls through to the naming convention). A marker whose resolved partial doesn't exist still collapses to empty.
 
 **Worked example — `basic`** (`src/themes/static/basic/theme.json`, the only live theme with an explicit `variants` map):
 
@@ -290,7 +294,7 @@ A theme declaring no `slots` at all gets exactly the legacy pair from `DEFAULT_T
 }
 ```
 
-`pages/signin.html` (`src/themes/static/basic/pages/signin.html:12,36`) uses both: `<div data-tovu-slot="nav" data-nav-current="signin"></div>` and `<div data-tovu-slot="footer" data-slot-variant="minimal"></div>`, the latter resolving via the explicit map to `footer-minimal.html`. **Worth being honest about:** `basic`'s explicit `minimal → footer-minimal.html` entry produces the exact same result the naming-convention fallback would have produced on its own — no live theme's `variants` map currently diverges from what the convention alone would resolve to, so this field's first real payload doesn't (yet) observably prove the explicit-map-over-convention precedence, even though that code path exists and is exercised.
+`pages/signin.html` (`src/themes/static/basic/pages/signin.html`) uses both: `<div data-embed-type="partial" data-embed-id="nav" data-embed-config='{"current":"signin"}'></div>` and `<div data-embed-type="partial" data-embed-id="footer" data-embed-config='{"variant":"minimal"}'></div>`, the latter resolving via the explicit map to `footer-minimal.html`. **Worth being honest about:** `basic`'s explicit `minimal → footer-minimal.html` entry produces the exact same result the naming-convention fallback would have produced on its own — no live theme's `variants` map currently diverges from what the convention alone would resolve to, so this field's first real payload doesn't (yet) observably prove the explicit-map-over-convention precedence, even though that code path exists and is exercised.
 
 ### 6.2 Menu embeds (`data-embed-type="menu"`, `static` tier)
 
@@ -303,9 +307,11 @@ A static theme's nav/footer partial can mark a real, CMS-managed menu instead of
 </nav>
 ```
 
-The route layer scans every page/partial for `data-embed-type="menu"` markers (`scanMenuEmbedIds`, `static-render.ts:154-161`), fetches each referenced menu id, resolves it to real nav items (`resolveStaticMenusForRender`, `pages.ts:199-234`), and `injectMenuEmbed()` (`static-render.ts:128-136`) replaces the marker element's **entire inner content** with rendered `<a>` tags for each resolved item — but **only if** the menu resolves to at least one item; if the referenced menu id doesn't exist, or resolves to zero visible items, the marker's own authored fallback content (the hand-written `<a>` tags above) is left untouched. This "safe default" is deliberate: an active theme with no menu bound to a marker still looks exactly like it did before this feature existed (`static-render.ts:108-120`).
+The route layer scans every page/partial for `data-embed-type="menu"` markers (`scanMenuEmbedIds`, `static-render.ts`), fetches each referenced menu id, resolves it to real nav items (`resolveStaticMenusForRender`, `pages.ts`), and `injectMenuEmbed()` (`static-render.ts`) replaces the marker element's **entire inner content** with rendered `<a>` tags for each resolved item — but **only if** the menu resolves to at least one item; if the referenced menu id doesn't exist, or resolves to zero visible items, the marker's own authored fallback content (the hand-written `<a>` tags above) is left untouched. This "safe default" is deliberate: an active theme with no menu bound to a marker still looks exactly like it did before this feature existed.
 
-**This is a marker-scoped, all-or-nothing replacement**, not a merge — the regex substitutes the whole `<tag ...>...</tag>` span between the marker's opening and its own closing tag (`static-render.ts:132-135`), captured and backreferenced by the marker's own tag name.
+**This is a marker-scoped, all-or-nothing replacement**, not a merge — the regex substitutes the whole `<tag ...>...</tag>` span between the marker's opening and its own closing tag, captured and backreferenced by the marker's own tag name.
+
+**Nested rendering** (`docs-sidebar`-shaped nav, `basic/pages/blog-sidebar-template.html`): a marker opts into nested `<ul>/<li>` output instead of the default flat `<a>` list via `data-embed-config='{"variant":"tree"}'` — e.g. `<nav data-embed-type="menu" data-embed-id="docs-themes-menu" data-embed-config='{"variant":"tree"}'>`. Opt-in per marker, not a theme-wide switch: every static theme's nav CSS today targets direct `<a>` children of a flex container, so unconditionally introducing a `<ul>` wrapper would collapse each of those navs to a single flex child.
 
 ### 6.3 The nav-embed gap: not every theme wires this
 
