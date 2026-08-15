@@ -37,12 +37,37 @@ Standalone public repo, unconnected to `Tovu-AI-CMS`.
 
 ## Do this first
 
-1. **Verify `PublishTargets`' work.** It was mid-flight at session end and its files
-   (`src/features/deployments/static-publish/`) are committed but **unreported and unverified by
-   me**. It wraps `@jini-ai/devops/deploy`'s GitHub Pages + Vercel adapters. Check specifically:
-   token handling (nothing may echo a token), origin pinning / `maxRedirects: 0` (both Jini
-   adapters use bare `fetch`, so a redirect could carry `Authorization: Bearer <token>` off-host),
-   and whether `.nojekyll` is injected for Pages only.
+1. **Register the publish tools — one line, and it is the only thing left on that feature.**
+   Add `buildStaticPublishRegistrations` / `staticPublishDerivedRisk` from
+   `src/features/deployments/publish-agent-tools.ts` as one slice in `DOMAIN_SLICES`
+   (`src/assistant/tool-registrations.ts`), imported like every other domain. Nothing in the
+   publish module needs to change. It was left undone deliberately: that file was owned by a
+   concurrent agent.
+
+   `PublishTargets` reported after this handoff was first written, and **I verified its three
+   security-relevant claims directly** — they hold:
+   - **Redirect guard is real and lives in Jini**, not as a Tovu workaround: `redirect: 'manual'`
+     + `assertNotRedirected` on every authenticated call site (10 in `github-pages.ts`, 3 in
+     `vercel.ts`), so a 3xx can never carry `Authorization: Bearer <token>` off-host. Jini commit
+     `175b94b3`, 64/64 tests. It explicitly rejected global `fetch` monkey-patching, correctly —
+     a process-wide interceptor would break unrelated concurrent outbound calls for the 30–60s a
+     publish poll runs.
+   - **Base-path mismatch is structurally impossible**, not documented-and-hoped: `StaticPublishConfig`
+     has no `basePath` field at all, `adapter.ts` derives it (`/${repo}` for Pages, `undefined` for
+     Vercel), and every publish runs a **fresh** export with that value. The `basePath` you see in
+     `types.ts` is on the *result* type, echoed back for display. Cost: a re-export per publish,
+     accepted deliberately.
+   - **`deployment_execute_static_publish` is declared but deliberately NEVER wired** — it carries
+     `confirmer-must-equal-own-delegatedBy` (the same bar as `backup_execute_restore`) and sits in
+     `UNWIRED_STATIC_PUBLISH_TOOL_IDS`. **The assistant cannot publish to the internet.** Only
+     `deployment_preview_static_publish` (a pure read) is callable. If you ever wire the execute
+     tool, that decision deserves its own conversation with the owner.
+
+   ⚠️ **Credentials are env vars this pass** — `GITHUB_TOKEN` / `VERCEL_TOKEN`, behind an injectable
+   `PublishCredentialSource` seam. The encrypted store (ADR-058) is the right eventual home but
+   needs a new table + migration; swapping `createEnvPublishCredentialSource()` changes no caller.
+   ⚠️ **`.nojekyll` injection was NOT confirmed** — check `adapter.ts` before trusting a Pages
+   publish, since Jini's adapter definitively does not add it.
 2. **Make the Dockerfile tab editable in the UI — everything below it is already done.**
    `PUT /api/admin/v1/workspaces/:workspaceId/system/dockerfile` (gated on a new `system.write`),
    the `deployment_set_dockerfile` agent tool, and `api.setDockerfileSource(contents)` all exist.
