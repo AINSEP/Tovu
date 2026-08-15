@@ -8,7 +8,7 @@ import {
   type DeployTarget,
 } from "@jini-ai/devops/deploy";
 
-import { exportSite, type ExportReport } from "#src/export/index";
+import type { ExportReport, ExportSiteOptions } from "#src/export/index";
 import type { RouteDeps } from "#src/server/routes/types";
 
 import type { GitHubPagesPublishConfig, PublishCredentialSource, StaticPublishConfig, StaticPublishOutcome, StaticPublishTargetId } from "./types";
@@ -174,6 +174,34 @@ export interface StaticPublishInput {
 }
 
 /**
+ * `exportSite`, resolved at CALL time instead of at import time — mirrors `server/app.ts`'s own
+ * `runExportSiteLazily` (see that function's doc for the fuller crash trace this is the same class
+ * of bug as). A static `import { exportSite } from "#src/export/index"` at the top of THIS file
+ * closes a cycle the moment anything reachable from `src/assistant` imports this module:
+ *
+ *     assistant/tool-registrations.ts -> features/deployments/publish-agent-tools.ts ->
+ *     static-publish/index.ts -> static-publish/adapter.ts -> export/index.ts ->
+ *     export/site-exporter.ts -> server/app.ts -> ... (back into `src/assistant`)
+ *
+ * That edge went live 2026-08-15 when `deployment_preview_static_publish` was wired into
+ * `assistant/tool-registrations.ts`'s `DOMAIN_SLICES` — this file was never reachable from
+ * `src/assistant` before that. Observed failure importing `assistant/tool-registrations.ts` with
+ * the eager import still in place: `ReferenceError: Cannot access 'staticPublishDerivedRisk' before
+ * initialization` (this file's own top-level exports were still mid-initialisation when the cycle
+ * looped back). The preview tool never calls this at all — only {@link publishStaticSite} does, and
+ * only a real publish (never agent-reachable; see `publish-agent-tools.ts`'s header) reaches it.
+ *
+ * `require` rather than `await import`: this package is CommonJS, and a synchronous resolution
+ * keeps this function's signature a plain `(options) => Promise<ExportReport>` rather than forcing
+ * every caller to await an extra layer. By the time anything calls this, both modules are fully
+ * loaded, so there is no partial-initialisation window left to fall into.
+ */
+function exportSiteLazily(options: ExportSiteOptions): Promise<ExportReport> {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- deliberate; see doc above.
+  return (require("#src/export/index") as typeof import("#src/export/index")).exportSite(options);
+}
+
+/**
  * Publishes Tovu's current site content to `input.config.target`. Always runs a fresh, `clean`
  * export with the target-correct base path immediately before publishing (see this file's header)
  * — never reuses a previously-produced export directory.
@@ -207,7 +235,7 @@ export async function publishStaticSite(deps: StaticPublishDeps, input: StaticPu
 
   let report: ExportReport;
   try {
-    report = await exportSite({ routeDeps: input.routeDeps, outputDir, clean: true, ...(basePath !== undefined ? { basePath } : {}) });
+    report = await exportSiteLazily({ routeDeps: input.routeDeps, outputDir, clean: true, ...(basePath !== undefined ? { basePath } : {}) });
   } catch (err) {
     return {
       ok: false,

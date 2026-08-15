@@ -10,6 +10,7 @@ import {
 } from "../../features/content-types";
 import { getDatabaseAgentToolCatalog } from "../../features/database/agent-tools";
 import { deploymentsAgentToolCatalog } from "../../features/deployments/agent-tools";
+import { staticPublishAgentToolCatalog } from "../../features/deployments/publish-agent-tools";
 import { entriesAgentToolCatalog } from "../../features/entries";
 import { pagesAgentToolCatalog } from "../../features/pages/agent-tools";
 import { pluginAgentToolCatalog } from "../../features/plugin-runtime/agent-tools";
@@ -92,15 +93,19 @@ function wiredRegistration(toolId: string, existing?: ContentTypeRecord): ToolRe
 }
 
 /** Every catalog whose entries `buildAssistantToolRegistrations` wires. A newly wired domain must
- * be added here — an id missing from all of them fails rather than being skipped. All 23 wired
- * domains are listed (`deployments` added 2026-08-15; `pages` was missing before this dispatch —
- * see the comment on its own array entry below); the generic contract/risk assertions below iterate EVERY wired registration,
- * not just content-types', so each domain's catalog has to be resolvable from here even when that
- * domain also has its own dedicated test file. The `as unknown as` casts cover the catalogs whose
- * own `AgentToolDefinition` is a structural sibling rather than the content-types one this array is
- * typed as (identity requires `inputSchema`, database/recovery/plugins/workspace/settings/taxonomy/
- * seo/redirects/integrations/post/themes each declare their own copy — taxonomy's additionally carries
- * `actorClassRule`) — the shared structural supertype lives in `assistant/tool-registration-kit.ts`. */
+ * be added here — an id missing from all of them fails rather than being skipped. All 24 wired
+ * domains are listed (`deployments` added 2026-08-15; `pages` was missing before that dispatch —
+ * see the comment on its own array entry below; `static-publish` added 2026-08-15 in this dispatch,
+ * for the same reason `deployments` is here — it wires `deployment_preview_static_publish` and
+ * needs its catalog entry resolvable for the same generic assertions); the generic contract/risk
+ * assertions below iterate EVERY wired registration, not just content-types', so each domain's
+ * catalog has to be resolvable from here even when that domain also has its own dedicated test
+ * file. The `as unknown as` casts cover the catalogs whose own `AgentToolDefinition` is a
+ * structural sibling rather than the content-types one this array is typed as (identity requires
+ * `inputSchema`, database/recovery/plugins/workspace/settings/taxonomy/seo/redirects/integrations/
+ * post/themes/static-publish each declare their own copy — taxonomy's and static-publish's
+ * additionally carry `actorClassRule`) — the shared structural supertype lives in
+ * `assistant/tool-registration-kit.ts`. */
 const WIRED_CATALOGS: AgentToolDefinition[] = [
   ...contentTypesAgentToolCatalog,
   ...formsAgentToolCatalog,
@@ -130,6 +135,11 @@ const WIRED_CATALOGS: AgentToolDefinition[] = [
   // confirmed via `git show HEAD:<this file>`, before this dispatch touched anything. Fixed here
   // since this dispatch is already editing this exact array for `deployments`.
   ...(pagesAgentToolCatalog as unknown as AgentToolDefinition[]),
+  // `static-publish` (`DOMAIN_SLICES`'s own `buildStaticPublishRegistrations` entry, wired in this
+  // dispatch): only `deployment_preview_static_publish` is actually wired, but its catalog also
+  // carries the never-wired `deployment_execute_static_publish` — harmless here, since this array
+  // only needs to make every WIRED id resolvable and the extra entry is simply never looked up.
+  ...(staticPublishAgentToolCatalog as unknown as AgentToolDefinition[]),
 ];
 
 function catalogEntry(toolId: string): AgentToolDefinition {
