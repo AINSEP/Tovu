@@ -71,6 +71,36 @@ test("exportSite: writes the expected file tree for the seeded demo workspace, w
   assert.match(home, /<!doctype html>/i, "home is a full HTML document, not a fragment");
 });
 
+test("exportSite: every succeeded route/asset carries its own bytes and content-type as data, matching what's on disk", async (t) => {
+  const outputDir = makeTmpOutputDir();
+  t.after(() => rmSync(outputDir, { recursive: true, force: true }));
+
+  const report = await exportSite({ routeDeps: createRouteDeps(), outputDir });
+
+  const home = report.routes.succeeded.find((r) => r.path === "/");
+  if (!home) throw new Error("expected a '/' route in routes.succeeded");
+  assert.equal(home.data, readFileSync(path.join(outputDir, home.outputFile), "utf8"), "data must match the file actually written, not just resemble it");
+  assert.match(home.contentType ?? "", /text\/html/, "expected a real Content-Type captured from the response, not a guess from the extension");
+
+  const sitemap = report.routes.succeeded.find((r) => r.path === "/sitemap.xml");
+  if (!sitemap) throw new Error("expected /sitemap.xml in routes.succeeded");
+  assert.match(sitemap.contentType ?? "", /xml/);
+
+  const notFound = report.routes.succeeded.find((r) => r.kind === "not-found");
+  if (!notFound) throw new Error("expected the not-found probe in routes.succeeded");
+  assert.equal(notFound.outputFile, "404.html");
+  assert.ok(notFound.data.length > 0);
+
+  if (report.assets.succeeded.length === 0) throw new Error("expected at least one asset for this to be a meaningful check");
+  for (const asset of report.assets.succeeded) {
+    assert.ok(Buffer.isBuffer(asset.data), `${asset.url}: data must be a Buffer, not a string — assets can be binary`);
+    assert.ok(
+      asset.data.equals(readFileSync(path.join(outputDir, asset.outputFile))),
+      `${asset.url}: data must be byte-identical to the file actually written`
+    );
+  }
+});
+
 test("exportSite: reports theme files present on disk but never rendered or crawled, without flagging real ones", async (t) => {
   const outputDir = makeTmpOutputDir();
   t.after(() => rmSync(outputDir, { recursive: true, force: true }));
