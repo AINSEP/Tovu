@@ -175,8 +175,17 @@ cheapest high-value thing to try next — one sentence in the assistant pane.
   deliberately left the theme page in charge". Those are indistinguishable, so a naive flip silently
   overrides deliberate decisions. Resolution lives at `server/routes/site/pages.ts:764-782`, and it
   only engages when the theme tier is `static`, the slug is not `index`, and `theme.pages[slug]`
-  exists. **Suggested fix: make the column nullable (tri-state).** `null` = never decided (default
-  applies), `true`/`false` = explicit. Then the default can be flipped without a backfill at all.
+  exists. The lookup is **kind-blind** — database Pages collide too, not only Posts.
+  ~~Suggested fix: make the column nullable (tri-state).~~ **REFUTED by Terra 5.6 xhigh, same day**
+  (`ADS-memory/reports/external-audit/runs/2026-08-15-terra-xhigh-slug-collision-default.md`):
+  nullable alone does nothing, because `repo.sqlite.ts:117-119`, `server/http/shared/post.ts:29-31`
+  and the editor hooks all coerce missing/null back to `false` — and it still cannot classify
+  historic `false` rows.
+  **Do this instead — set the new default at CREATION time and never reinterpret legacy rows.**
+  Make `createPost` store `overridesThemePage: true` explicitly, leave every existing stored value
+  alone. Zero existing rows change; only newly created records are post-first.
+  Note option C (change `DEFAULT true` only) is a trap: `repo.sqlite.ts:117-123` writes
+  `record.overridesThemePage ?? false`, so the DB default is bypassed on every normal write.
 - ~~**Renaming a theme route** (`/about` → `/about-site`) does not exist.~~
   **FALSE — corrected 2026-08-15. It exists and ships.** Double-click a page in Theme Explore
   (`ThemeExplore.tsx:366` → `startRename`), or use the ⋮ menu's Rename. Renaming a page is diverted
