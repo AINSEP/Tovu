@@ -4,9 +4,22 @@ import { FULL_SITE_PROVIDERS, type FullSiteProviderRow } from "./rules";
 
 /**
  * @file Full Site tab — the complete Tovu server, one row per host provider. No hook, no fetch:
- * there is no backend to store credentials yet (`development/docs/deployment/
- * deployment-constraints.md` §3 — Postgres runtime and container packaging both don't exist), so
- * every row is honestly `status: "planned"`, never a real connection state.
+ * there is no ADMIN-REACHABLE backend to store credentials yet, so every row is honestly
+ * `status: "planned"`, never a real connection state.
+ *
+ * That claim is narrower than "nothing was ever built", and deliberately so — checked directly
+ * rather than assumed, the same way `StaticSiteTab.tsx`'s own header had to be corrected mid-build
+ * for the opposite kind of gap. `src/features/deployments/` DOES exist: a domain model
+ * (`types.ts`/`ports.ts`), a GitHub App provider adapter with SSRF protections
+ * (`providers/github.ts`), and a real migration (`deployment_environments`/`targets`/`runs`/
+ * `run_events`/`releases`) — all from 2026-08-12, three days before this pass. But
+ * `grep -rln "from ['\"].*features/deployments" src` outside that directory itself returns
+ * nothing: no route file imports it, `app.ts` never registers one, so nothing anywhere can reach
+ * it over HTTP. Same "no callers" shape project memory already flags for `installAgentPlugin` — a
+ * correct implementation with zero wiring is still functionally absent from this screen's point of
+ * view. `development/docs/deployment/deployment-constraints.md` §3's "Postgres runtime"/"container
+ * packaging" gaps are a separate, still-real reason this couldn't be wired live even if a route
+ * existed — provisioning a real environment needs both, not just the one adapter.
  *
  * `@jini-ai/ui`'s `SourceConfigList` was evaluated for this tab (per the brief's own instruction —
  * `settings/SettingsUi.tsx`'s External MCP tab is the working example) and rejected: that component
