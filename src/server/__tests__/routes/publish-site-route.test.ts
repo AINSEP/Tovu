@@ -302,8 +302,14 @@ test("publish-site preview: github-pages reports the derived base path and, with
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
+  // Captured rather than asserted as a literal "idle": by this point in the file, the earlier
+  // "trigger starts a real run" test (above) has already flipped the shared `currentRun` slot to
+  // "errored" and nothing resets it — same shared-mutable-state discipline this file's own header
+  // documents. What this test actually needs to prove is that a preview never MUTATES that slot,
+  // whatever its value; asserting a specific status here would just be re-asserting another test's
+  // leftover state.
   const before = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}`, { headers: { cookie } });
-  assert.equal((await before.json()).status, "idle");
+  const beforeBody = await before.json();
 
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}/preview?target=github-pages&owner=octo&repo=demo-repo`, { headers: { cookie } });
   assert.equal(res.status, 200);
@@ -321,7 +327,7 @@ test("publish-site preview: github-pages reports the derived base path and, with
   // Never mutates `currentRun` — a preview is a pure read, so the run slot this file's other tests
   // share is untouched by calling it.
   const after = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}`, { headers: { cookie } });
-  assert.equal((await after.json()).status, "idle");
+  assert.deepEqual(await after.json(), beforeBody);
 });
 
 test("publish-site preview: an invalid owner is reported as invalid with no base path, and vercel never carries one", async (t) => {
