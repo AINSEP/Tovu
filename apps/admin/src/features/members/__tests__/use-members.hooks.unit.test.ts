@@ -33,14 +33,13 @@ afterEach(() => {
 });
 
 describe("useMembers — t/locale reflect the resolved locale", () => {
-  it("t falls back to the English source string for the default locale", async () => {
-    vi.stubGlobal("fetch", stubFetchWithLocale("en"));
-    const { result } = renderHook(() => useWiredMembers());
-
-    await waitFor(() => expect(result.current.t("Members")).toBe("Members"));
-    expect(result.current.locale).toBe("en");
-  });
-
+  // No "t falls back to the English source string for the default locale" test here: MEMBERS_DICT
+  // has no "en" entries, so `t("Members")` returns "Members" on a dictionary miss regardless of
+  // wiring — and since that condition is already true before the fetch resolves, a `waitFor` gated
+  // on it exits immediately, so a follow-up `locale` assertion isn't reliably proven to run after
+  // the fetch settles either (DEFAULT_LOCALE is also "en", so it can pass on the pre-fetch value by
+  // coincidence). The test below is the real proof: both `t` and `locale` are pinned to values only
+  // the resolved 'es' fetch can produce.
   it("t returns the Spanish translation and locale reflects 'es' once the locale settings fetch resolves", async () => {
     vi.stubGlobal("fetch", stubFetchWithLocale("es"));
     const { result } = renderHook(() => useWiredMembers());
