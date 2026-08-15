@@ -1,3 +1,4 @@
+import { agentHandle } from "@jini-ai/agentic";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { t } from "./deployment-i18n";
 import { HistoryIcon } from "./deployment-visuals";
@@ -25,7 +26,13 @@ export function HistoryTab() {
   const locale = useAdminLocale();
   return (
     <div className="deployment-tab">
-      <div className="card">
+      <div
+        className="card"
+        {...agentHandle("deployment-history-empty", {
+          role: "region",
+          label: "No deploys yet — history has nothing to show because no host is wired up to deploy from",
+        })}
+      >
         <div className="deployment-empty">
           <span className="deployment-empty-mark">
             <HistoryIcon size={22} />
@@ -39,7 +46,14 @@ export function HistoryTab() {
           <p className="deployment-empty-body">
             {t(locale, "Nothing has been deployed from this screen — and nothing can be yet. Once a host is wired up, every build and deploy will be listed here with its outcome.")}
           </p>
-          <a className="btn-secondary" href="/admin/deployment?tab=static-site">
+          <a
+            className="btn-secondary"
+            href="/admin/deployment?tab=static-site"
+            {...agentHandle("deployment-history-publish-link", {
+              role: "link",
+              label: "Open the Static Site tab to see how to publish today",
+            })}
+          >
             {t(locale, "See how to publish today")}
           </a>
         </div>

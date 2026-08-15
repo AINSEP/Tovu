@@ -1,3 +1,4 @@
+import { agentHandle } from "@jini-ai/agentic";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { t } from "./deployment-i18n";
 import { FULL_SITE_CAPABILITIES, FULL_SITE_PROVIDERS, type FullSiteProviderRow } from "./rules";
@@ -75,7 +76,13 @@ export function FullSiteTab() {
 
   return (
     <div className="deployment-tab">
-      <div className="card">
+      <div
+        className="card"
+        {...agentHandle("deployment-full-site-overview", {
+          role: "region",
+          label: "What Full Site gives you — the complete Tovu server, what it keeps, and what host it needs",
+        })}
+      >
         <div className="card-head">
           <div className="deployment-path-head">
             <span className="deployment-path-icon">
@@ -101,7 +108,14 @@ export function FullSiteTab() {
               <p className="deployment-action-reason">
                 {t(locale, "A host that can run a container and keep a disk — the Dockerfile tab has the image this runs from.")}
               </p>
-              <a className="btn-secondary" href="/admin/deployment?tab=dockerfile">
+              <a
+                className="btn-secondary"
+                href="/admin/deployment?tab=dockerfile"
+                {...agentHandle("deployment-full-site-dockerfile-link", {
+                  role: "link",
+                  label: "Open the Dockerfile tab — the image Full Site would run from",
+                })}
+              >
                 {t(locale, "View the Dockerfile")}
               </a>
             </div>
@@ -109,7 +123,13 @@ export function FullSiteTab() {
         </div>
       </div>
 
-      <div className="card">
+      <div
+        className="card"
+        {...agentHandle("deployment-full-site-providers", {
+          role: "region",
+          label: "Full Site host providers — six informational rows, none connectable yet from this screen",
+        })}
+      >
         <div className="card-head">
           <h2 className="card-title">{t(locale, "Providers")}</h2>
           <div className="card-head-actions">
