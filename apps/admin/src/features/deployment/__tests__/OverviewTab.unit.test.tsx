@@ -30,6 +30,13 @@ function snapshotFixture(overrides: Partial<AdminDeploymentOverview> = {}): Admi
       { name: "TOVU_INTEGRATIONS_ROOT_KEY", set: false },
       { name: "JINI_AGENT_DAEMON_PORT", set: true },
     ],
+    // Added 2026-08-15 alongside the Static Site tab's real CLI-detection wiring — this tab never
+    // reads it, but `AdminDeploymentOverview` is now a required field, so a fixture with none would
+    // fail to compile rather than fail a test.
+    deployClis: [
+      { name: "gh", installed: false },
+      { name: "vercel", installed: false },
+    ],
     ...overrides,
   };
 }

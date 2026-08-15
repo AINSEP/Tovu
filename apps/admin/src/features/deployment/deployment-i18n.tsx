@@ -1841,3 +1841,99 @@ const DOCKERFILE_SAVE_ERROR_TEMPLATE: Record<string, string> = {
 export function dockerfileSaveErrorMessage(locale: string, error: string): string {
   return interpolate(DOCKERFILE_SAVE_ERROR_TEMPLATE[locale] ?? DOCKERFILE_SAVE_ERROR_TEMPLATE.en, { error });
 }
+
+/** The Static Site tab's export-status LOAD-error banner (the initial `GET .../system/export` this
+ *  hook reads on mount to seed `run` — see `use-static-export.hooks.ts`'s header) — distinct from
+ *  {@link exportTriggerErrorMessage}, same split `dockerfileLoadErrorMessage`/
+ *  `dockerfileSaveErrorMessage` draw for the Dockerfile tab. */
+const EXPORT_LOAD_ERROR_TEMPLATE: Record<string, string> = {
+  en: "Could not load the export status ({error}).",
+  es: "No se pudo cargar el estado de la exportación ({error}).",
+  id: "Gagal memuat status ekspor ({error}).",
+  de: "Der Exportstatus konnte nicht geladen werden ({error}).",
+  fr: "Impossible de charger l'état de l'export ({error}).",
+  it: "Impossibile caricare lo stato dell'esportazione ({error}).",
+  "pt-BR": "Não foi possível carregar o status da exportação ({error}).",
+};
+
+export function exportLoadErrorMessage(locale: string, error: string): string {
+  return interpolate(EXPORT_LOAD_ERROR_TEMPLATE[locale] ?? EXPORT_LOAD_ERROR_TEMPLATE.en, { error });
+}
+
+/**
+ * The Static Site tab's "Build static export" trigger-error banner (2026-08-15, the button went
+ * from permanently inert to wired against a real `POST .../system/export`) — same
+ * `interpolate`/per-locale-template shape as {@link dockerfileSaveErrorMessage}, and the same
+ * partial-locale-coverage precedent that file's own doc comment already establishes as
+ * non-blocking. Covers both a genuine server rejection (a malformed request) and the expected `409`
+ * from clicking while a run is already in flight — the message itself (`describeApiError`'s
+ * `ApiError.message`) already distinguishes the two; this template only wraps it.
+ */
+const EXPORT_TRIGGER_ERROR_TEMPLATE: Record<string, string> = {
+  en: "Could not start the export ({error}).",
+  es: "No se pudo iniciar la exportación ({error}).",
+  id: "Gagal memulai ekspor ({error}).",
+  de: "Der Export konnte nicht gestartet werden ({error}).",
+  fr: "Impossible de démarrer l'export ({error}).",
+  it: "Impossibile avviare l'esportazione ({error}).",
+  "pt-BR": "Não foi possível iniciar a exportação ({error}).",
+};
+
+export function exportTriggerErrorMessage(locale: string, error: string): string {
+  return interpolate(EXPORT_TRIGGER_ERROR_TEMPLATE[locale] ?? EXPORT_TRIGGER_ERROR_TEMPLATE.en, { error });
+}
+
+/** The Static Site tab's publish-status LOAD-error banner (the initial `GET .../system/publish` this
+ *  hook reads on mount to seed `run` — see `use-static-publish.hooks.ts`'s header) — distinct from
+ *  {@link publishTriggerErrorMessage}, same split {@link exportLoadErrorMessage}/
+ *  `exportTriggerErrorMessage` draw for the export half of this tab. */
+const PUBLISH_LOAD_ERROR_TEMPLATE: Record<string, string> = {
+  en: "Could not load the publish status ({error}).",
+  es: "No se pudo cargar el estado de la publicación ({error}).",
+  id: "Gagal memuat status publikasi ({error}).",
+  de: "Der Veröffentlichungsstatus konnte nicht geladen werden ({error}).",
+  fr: "Impossible de charger l'état de la publication ({error}).",
+  it: "Impossibile caricare lo stato della pubblicazione ({error}).",
+  "pt-BR": "Não foi possível carregar o status da publicação ({error}).",
+};
+
+export function publishLoadErrorMessage(locale: string, error: string): string {
+  return interpolate(PUBLISH_LOAD_ERROR_TEMPLATE[locale] ?? PUBLISH_LOAD_ERROR_TEMPLATE.en, { error });
+}
+
+/** The Static Site tab's publish-preview error banner — a failed `GET .../system/publish/preview`
+ *  itself (network/auth/500), distinct from `preview.validationError` (a normal, expected outcome
+ *  for an incomplete form the preview reports at `200`, not a failure this template covers). Same
+ *  partial-locale-coverage precedent as {@link exportTriggerErrorMessage}. */
+const PUBLISH_PREVIEW_ERROR_TEMPLATE: Record<string, string> = {
+  en: "Could not check this target ({error}).",
+  es: "No se pudo comprobar este destino ({error}).",
+  id: "Gagal memeriksa target ini ({error}).",
+  de: "Dieses Ziel konnte nicht geprüft werden ({error}).",
+  fr: "Impossible de vérifier cette cible ({error}).",
+  it: "Impossibile verificare questa destinazione ({error}).",
+  "pt-BR": "Não foi possível verificar este destino ({error}).",
+};
+
+export function publishPreviewErrorMessage(locale: string, error: string): string {
+  return interpolate(PUBLISH_PREVIEW_ERROR_TEMPLATE[locale] ?? PUBLISH_PREVIEW_ERROR_TEMPLATE.en, { error });
+}
+
+/** The Static Site tab's "Publish" trigger-error banner — same shape and same "409 while already
+ *  running" coverage as {@link exportTriggerErrorMessage}, kept as its own template (rather than
+ *  reused) because a failed EXPORT trigger and a failed PUBLISH trigger are different operations a
+ *  reader needs to tell apart, same reasoning `dockerfileSaveErrorMessage`'s own doc gives for not
+ *  sharing a template with `dockerfileLoadErrorMessage`. */
+const PUBLISH_TRIGGER_ERROR_TEMPLATE: Record<string, string> = {
+  en: "Could not start the publish ({error}).",
+  es: "No se pudo iniciar la publicación ({error}).",
+  id: "Gagal memulai publikasi ({error}).",
+  de: "Die Veröffentlichung konnte nicht gestartet werden ({error}).",
+  fr: "Impossible de démarrer la publication ({error}).",
+  it: "Impossibile avviare la pubblicazione ({error}).",
+  "pt-BR": "Não foi possível iniciar a publicação ({error}).",
+};
+
+export function publishTriggerErrorMessage(locale: string, error: string): string {
+  return interpolate(PUBLISH_TRIGGER_ERROR_TEMPLATE[locale] ?? PUBLISH_TRIGGER_ERROR_TEMPLATE.en, { error });
+}

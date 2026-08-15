@@ -1,4 +1,11 @@
-import type { AdminDeploymentEnvVarStatus, AdminDeploymentOverview } from "../../lib/api";
+import type {
+  AdminDeployCliStatus,
+  AdminDeploymentEnvVarStatus,
+  AdminDeploymentOverview,
+  AdminExportRunSnapshot,
+  AdminPublishRunSnapshot,
+  AdminStaticPublishTargetId,
+} from "../../lib/api";
 
 /**
  * @file Pure data and computation for the Deployment panel — no React, no fetch, no `t()` calls
@@ -79,16 +86,16 @@ export const FULL_SITE_PROVIDERS: readonly FullSiteProviderRow[] = [
 export const STATIC_HOSTS: readonly string[] = ["GitHub Pages", "Vercel", "Netlify", "Cloudflare Pages"] as const;
 
 /**
- * One command-line tool the assistant can drive to publish a static export.
+ * One command-line tool the assistant can drive to publish a static export, keyed 1:1 to a
+ * {@link StaticPublishTargetInfo.cliToolId} and to `AdminDeployCliStatus.name` — the same id
+ * threads through `rules.ts`, the server's `DEPLOY_CLI_NAMES`, and the wire shape, so a lookup by
+ * `id` never needs a second translation table.
  *
- * NOTE FOR WHOEVER WIRES UP PATH DETECTION: this interface deliberately carries NO `installed`
- * field, and the rows it feeds render with no status affordance of any kind. That is not an
- * oversight — as of 2026-08-15 the server cannot see what is on its own PATH, so any per-tool
- * badge, tick, or "checking…" state on this list would be describing a check that never ran. When
- * a detection endpoint exists, add an optional `installed?: boolean` here and render it as a
- * `.status` pill inside each row's `.deployment-provider-name` group — the same slot the Full Site
- * provider rows already put theirs in, which is why these rows reuse that markup. The rows, their
- * order, and their keys do not need to change; only the sentence under the list does.
+ * `installed` used to be permanently absent here ("the server cannot see its own PATH" was true
+ * through this tab's first pass on 2026-08-15). It stopped being true the same day:
+ * `deployment-overview.ts`'s `isOnPath` landed and is real, committed detection — `id` is what a
+ * caller joins against the live `AdminDeployCliStatus[]` from `GET .../system/deployment-overview`
+ * (see {@link cliInstalledStatus}) to get a real `true`/`false`, never a third "unknown" state.
  */
 export interface PublishCliTool {
   readonly id: string;
@@ -106,10 +113,13 @@ export interface PublishCliTool {
  * The two CLIs worth having installed before publishing a static export.
  *
  * Why these two and why a CLI at all: Tovu's assistant is a spawned coding-agent CLI (project
- * memory: `@jini-ai/agent-runtime` PATH detection, no API key), so it has a real shell. If these
- * tools are present it can run them directly — which needs no token pasted into this admin, no
- * credential stored, and no provider adapter. That is a smaller and more capable path than the
- * token-based one, which is why the tab presents it first.
+ * memory: `@jini-ai/agent-runtime` PATH detection, no API key), so it has a real shell. If a tool
+ * is present it can run it directly — which needs no token pasted into this admin, no credential
+ * stored, and no provider adapter. That is a smaller and more capable path than the token-based
+ * one, which is why the tab presents it first, PER PROVIDER (see {@link STATIC_PUBLISH_TARGETS} —
+ * a reader who only has `gh` installed and only wants GitHub Pages must see just this one row, not
+ * both, so callers look up a single tool by {@link StaticPublishTargetInfo.cliToolId} rather than
+ * rendering this whole list together).
  */
 export const PUBLISH_CLI_TOOLS: readonly PublishCliTool[] = [
   {
@@ -126,17 +136,74 @@ export const PUBLISH_CLI_TOOLS: readonly PublishCliTool[] = [
   },
 ] as const;
 
+/** Looks up whether one CLI is on the server's PATH from the live `deployClis` array
+ *  (`AdminDeploymentOverview.deployClis`) — the real, per-tool boolean {@link PublishCliTool}'s own
+ *  doc comment describes. `false` (never `undefined`) when the name is absent, since the server's
+ *  fixed `DEPLOY_CLI_NAMES` list always reports both known tools once the overview snapshot has
+ *  loaded at all — an absent entry only happens before that first load, which callers already gate
+ *  on separately (same "snapshot undefined = still loading" convention every other tab in this
+ *  panel follows).
+ *  @complexity O(1) — the array has exactly two entries. */
+export function cliInstalledStatus(deployClis: readonly AdminDeployCliStatus[], toolId: string): boolean {
+  return deployClis.find((cli) => cli.name === toolId)?.installed ?? false;
+}
+
 /**
- * The exact sentence to say to the assistant, kept here rather than inline in the component
- * because it is the one string on this screen people will copy verbatim and paste elsewhere.
+ * The exact sentence to say to the assistant to install ONE tool, kept here rather than inline in
+ * the component because it is the one string on this screen people copy verbatim and paste
+ * elsewhere. Per-tool rather than the two-tool joint sentence this used to be
+ * ("Install the GitHub CLI and the Vercel CLI…") — a reader who only wants GitHub Pages should
+ * never be handed a request that also asks the assistant to install Vercel's CLI (this file's own
+ * "SPLIT the two CLIs" brief item).
  *
- * The trailing "confirm both are on my PATH" is doing real work, not padding: this admin cannot
- * check that itself yet, and the assistant — running in the same shell the tools would be
- * installed into — can. So the line that recommends the tools also asks for the answer the UI is
- * currently unable to give, instead of leaving the reader to notice the gap and work around it.
+ * The trailing "confirm it's on my PATH" is doing real work, not padding: `deployment-overview.ts`
+ * checks this SERVER process's PATH, which is not necessarily the same shell the assistant's own
+ * spawned CLI runs in — the assistant, running in that actual shell, can give a second, definitive
+ * answer the admin's own detection cannot.
+ * @complexity O(1).
  */
-export const PUBLISH_ASSISTANT_REQUEST =
-  "Install the GitHub CLI and the Vercel CLI, then confirm both are on my PATH.";
+export function publishAssistantRequestForTool(tool: PublishCliTool): string {
+  return `Install the ${tool.name}, then confirm it's on my PATH.`;
+}
+
+/** One static-publish destination this tab's provider picker can select — pairs a
+ *  `StaticPublishConfig["target"]` wire value with its display name and the {@link PublishCliTool}
+ *  id its own CLI-first path uses. Order here is the provider picker's display order. */
+export interface StaticPublishTargetInfo {
+  readonly id: AdminStaticPublishTargetId;
+  /** Proper noun — rendered verbatim, never translated, same treatment `STATIC_HOSTS` gets. */
+  readonly label: string;
+  readonly cliToolId: string;
+}
+
+export const STATIC_PUBLISH_TARGETS: readonly StaticPublishTargetInfo[] = [
+  { id: "github-pages", label: "GitHub Pages", cliToolId: "gh" },
+  { id: "vercel", label: "Vercel", cliToolId: "vercel" },
+] as const;
+
+/** Whether the publish form has enough filled in to ask for a PREVIEW — `owner`/`repo` are the only
+ *  fields `validateStaticPublishConfig` (server-side, `static-publish/adapter.ts`) actually requires
+ *  for `github-pages`; `branch`/`teamId` are always optional, and `vercel` needs nothing at all
+ *  beyond picking it. Mirrors `parsePreviewQuery`'s own required-field set so this button never
+ *  enables for a request the server would 400 on shape alone. @complexity O(1). */
+export function staticPublishFormReadyForPreview(
+  target: AdminStaticPublishTargetId,
+  fields: { owner: string; repo: string }
+): boolean {
+  if (target === "vercel") return true;
+  return fields.owner.trim() !== "" && fields.repo.trim() !== "";
+}
+
+/** Whether the form has enough to ask for a real PUBLISH — everything
+ *  {@link staticPublishFormReadyForPreview} requires, plus a non-blank `projectName` (required for
+ *  both targets; the preview endpoint has no equivalent field at all, since it never starts a run).
+ *  @complexity O(1). */
+export function staticPublishFormReadyToPublish(
+  target: AdminStaticPublishTargetId,
+  fields: { owner: string; repo: string; projectName: string }
+): boolean {
+  return fields.projectName.trim() !== "" && staticPublishFormReadyForPreview(target, fields);
+}
 
 /** One row of the two paths' capability comparison. `supported` is a fact about the PATH, not about
  *  whether Tovu can currently deploy to it — see {@link STATIC_SITE_CAPABILITIES}. */
@@ -234,4 +301,41 @@ export function daemonStatusLabelKey(daemonKnownFailed: boolean): string {
 /** The Overview tab's owner-password status label key. @complexity O(1). */
 export function ownerPasswordLabelKey(defaultOwnerPasswordUnsafe: boolean): string {
   return defaultOwnerPasswordUnsafe ? "Still the default — set TOVU_ADMIN_PASSWORD." : "Changed from the default.";
+}
+
+/** The `.status` tone a run's pill should use, shared between the export and publish run slots —
+ *  both are `"idle"|"running"|"completed"|"errored"`, and only the "completed" case needs a second
+ *  input (`ok`) to tell a real success apart from a completed-but-failed outcome (an export whose
+ *  routes failed, or a publish `StaticPublishOutcome` with `ok: false`). @complexity O(1). */
+export function runStatusTone(
+  status: "idle" | "running" | "completed" | "errored",
+  ok: boolean | undefined
+): "neutral" | "warning" | "ok" | "error" {
+  if (status === "idle") return "neutral";
+  if (status === "running") return "warning";
+  if (status === "errored") return "error";
+  return ok === false ? "error" : "ok";
+}
+
+/** The Static Site tab's export-run status label key — `run` is `undefined` before the first poll
+ *  has resolved, which reads the same as `"idle"` (nothing has ever run in THIS browser session's
+ *  view of it either). @complexity O(1). */
+export function exportRunStatusLabelKey(run: Pick<AdminExportRunSnapshot, "status" | "ok"> | undefined): string {
+  const status = run?.status ?? "idle";
+  if (status === "idle") return "Not started";
+  if (status === "running") return "Exporting…";
+  if (status === "errored") return "Export failed";
+  return run?.ok === false ? "Finished with failures" : "Export finished";
+}
+
+/** The Static Site tab's publish-run status label key — same `undefined`-reads-as-idle convention
+ *  {@link exportRunStatusLabelKey} documents, and the same `result.ok` distinction for a completed
+ *  run that nonetheless failed (bad config, no credential, a rejected provider call — see
+ *  `StaticPublishOutcome`'s own `code` union). @complexity O(1). */
+export function publishRunStatusLabelKey(run: Pick<AdminPublishRunSnapshot, "status" | "result"> | undefined): string {
+  const status = run?.status ?? "idle";
+  if (status === "idle") return "Not started";
+  if (status === "running") return "Publishing…";
+  if (status === "errored") return "Publish failed";
+  return run?.result?.ok === false ? "Publish failed" : "Published";
 }
