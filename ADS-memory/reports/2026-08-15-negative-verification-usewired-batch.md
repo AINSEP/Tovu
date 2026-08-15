@@ -11,6 +11,32 @@
   file, chosen to hit the assertion(s) that carry the file's actual claim (most of these tests are
   explicitly about proving DI wiring is not hardcoded — that's the mutation target).
 
+## Summary — true hit rate
+
+**11/11 files verified. 9/11 fully clean (PROVEN). 2/11 produced a finding:**
+
+| # | File | Verdict |
+|---|---|---|
+| 1 | `Playground.unit.test.tsx` | PROVEN |
+| 2 | `use-playground.hooks.unit.test.ts` | PROVEN |
+| 3 | `use-post-template-source.hooks.unit.test.ts` | PROVEN |
+| 4 | `PostTemplateModal.unit.test.tsx` (injection block) | PROVEN |
+| 5 | `widget-config-fields-dependencies.unit.test.ts` | PROVEN |
+| 6 | `MediaPickerDialog.unit.test.tsx` (injection block) | PROVEN |
+| 7 | `use-edit-media-panel.hooks.unit.test.tsx` | PROVEN |
+| 8 | `use-media-preview.hooks.unit.test.tsx` | PROVEN |
+| 9 | `use-admin-locale.hooks.test.ts` | **MIXED — 1 VACUOUS test found** |
+| 10 | `admin-locale-dependencies.hooks.test.ts` | PROVEN |
+| 11 | `ThemeExplore.unit.test.tsx` (`.liquid` assertion) | **MIXED — 1 narrow assertion-precision gap found** |
+
+At the individual-mutation level: 21 mutations run, 19 went RED as expected, 2 stayed green when
+they should not have. Both findings are detailed in their file's section below, left unfixed, and
+flagged for the owner's call (per instructions — this pass does not patch vacuous tests).
+
+Combined with the four prior negative-verification batches referenced in the handoff (13/13, 8/8,
+6/6, 9/10 — two vacuous tests found there), the base rate across all batches to date is roughly
+**4 vacuous/weak findings out of ~57 files checked**, holding steady at "not zero, worth doing."
+
 ## Results
 
 ### 1. `apps/admin/src/features/playground/__tests__/Playground.unit.test.tsx`
@@ -148,9 +174,116 @@ Full file green (3/3) after both reverts.
 
 **Verdict: PROVEN.**
 
+### 9. `apps/admin/src/hooks/__tests__/use-admin-locale.hooks.test.ts`
+
+Four mutations against `use-admin-locale.hooks.ts`. Result: **mixed** — the first genuine vacuous
+finding of this batch.
+
+- **Mutation A (VACUOUS FINDING)** — cleanup: `cancelled = true; unsubscribe();` →
+  `cancelled = true;` (dropped the `unsubscribe()` call entirely — the listener stays subscribed
+  forever after unmount). Test: `"unsubscribes on unmount — a refresh after teardown does not
+  touch a torn-down instance"`. **STAYED GREEN.** The test's only assertion is
+  `expect(() => port.publishLocaleChange("de")).not.toThrow()`. `publishLocaleChange` just
+  iterates listeners synchronously calling each one; the listener (`fetchLocale`) kicks off an
+  async `port.loadLanguage().then(...)` that would call `setState` on an unmounted component —
+  which produces, at most, an async React `act` warning, never a synchronous throw, so
+  `not.toThrow()` passes identically whether or not `unsubscribe()` ran. Checked whether the
+  project fails tests on console.error/act warnings (`apps/admin/src/__tests__/setup.ts`,
+  `vitest.config.ts`): it does not — no `onConsoleLog`/console-error-to-throw wiring exists. The
+  test's own comment claims *"the fake's own subscriber-count behaviour... is what proves the
+  listener was actually removed"*, but the actual assertion never inspects subscriber count (that
+  behavior IS separately, correctly tested — see file 10 below — just not from this test). **This
+  specific test would pass unchanged even if `unsubscribe()` were deleted from the hook.**
+  Reverted; confirmed `git diff` against the file is empty (exact restore) before continuing.
+- **Mutation B** — `port.subscribeToSettingsRefresh(fetchLocale)` →
+  `port.subscribeToSettingsRefresh(() => {})` (registers a no-op instead of the real refetch
+  callback). Test: `"re-fetches and updates when the port announces a refresh"`. **RED**
+  (`expected "de", received "en"`). Reverted.
+- **Mutation C** — `.catch(() => undefined)` → `.catch(() => { if (!cancelled) setLocale
+  ("broken-on-error"); })` (fetch failure sets a visible wrong value instead of swallowing).
+  Test: `"swallows a failed fetch and stays at DEFAULT_LOCALE..."`. **RED**
+  (`expected 'broken-on-error' to be 'en'`). Reverted.
+- **Mutation D** — moved the `cancelled` flag from effect-local (`let cancelled = false` inside
+  the effect body, fresh per mount) to a module-level variable shared across mounts, reproducing
+  the exact pre-fix bug this file's own header describes ("the cancelled flag resets on mount, not
+  only on unmount"). Test: `"a fresh mount after unmount still updates on refresh"` (StrictMode
+  mount→unmount→mount shape). **RED** (`expected "ja", received "en"` — the second mount's update
+  was silently dropped because the module-level flag, set `true` by the first mount's cleanup, was
+  never reset). Reverted; confirmed `git diff` empty after restoring the original three-line
+  structure (this mutation required more surgery than a single-line swap, so it was checked for an
+  exact source match afterward, not just re-running tests).
+
+Full file green (7/7) after all reverts. The two tests not independently mutation-targeted
+(`"starts at DEFAULT_LOCALE before the fetch resolves"` and the `useWiredAdminLocale`
+`typeof`-is-a-function smoke test) are trivial-enough assertions that a targeted mutation isn't
+informative — the first is exercised as a side effect of mutations B/C/D's own setup, and the
+second has no behavior to break short of deleting the export (a compile error, not a runtime
+mutation).
+
+**Verdict: MIXED — 3 of 4 mutation-tested assertions PROVEN, 1 genuinely VACUOUS.** Not fixed, per
+instructions — reported for the owner's call. Candidate fix (not applied): the "unsubscribes on
+unmount" test would need to assert against the fake's own subscriber count/a spy on `unsubscribe`
+itself rather than `not.toThrow()`, or be deleted as redundant with file 10's `createFakeAdminLocalePort`
+unsubscribe test (see immediately below) plus a rewritten claim.
+
+### 10. `apps/admin/src/hooks/__tests__/admin-locale-dependencies.hooks.test.ts`
+
+Two mutations, one per half of what this file's own header says it tests separately (the real
+binding's namespace filter, and the fake's own correctness):
+
+- **Mutation A** — `admin-locale-dependencies.hooks.ts`'s `refreshApplies`:
+  `scope === null || scope.includes(LANGUAGE_NAMESPACE)` → `scope === null` (drop the namespace
+  match, only the "refresh everything" case still applies). Test: `"calls the listener when a
+  refresh names core.language"`. **RED** (`expected "vi.fn()" to be called 1 times, but got 0
+  times`). Reverted.
+- **Mutation B** — `createFakeAdminLocalePort`'s `subscribeToSettingsRefresh`:
+  `return () => listeners.delete(listener)` → `return () => {}` (fake's own unsubscribe becomes a
+  no-op). Test: `"a subscriber's unsubscribe stops it, without affecting other subscribers"`.
+  **RED** (`a` still called once after its own `unsubscribeA()`). Reverted. Notably, THIS is the
+  test that actually proves the fake's unsubscribe/subscriber-count behavior that file 9's vacuous
+  test claimed (in its comment) to be relying on — the claim is true of THIS file, just not of the
+  test that cited it.
+
+Full file green (10/10) after both reverts.
+
+**Verdict: PROVEN.**
+
+### 11. Rewritten `.liquid` assertion in `apps/admin/src/features/themes/__tests__/ThemeExplore.unit.test.tsx`
+
+Test: `"points a selected .liquid TEMPLATE's preview at /theme-explore/{theme}/template/
+{templateId}, not the generic notice"`, pinned against `ThemeExplore.tsx`'s `previewSrcFor`.
+
+- **Mutation A** — disabled the whole `.liquid`-template branch: `if (isLiquidTemplateFile(file))`
+  → `if (false && isLiquidTemplateFile(file))` (reproduces the exact pre-fix "honest gap" behavior
+  the test's own comment describes — falls through toward the generic notice / `null` preview
+  src). **RED** (`getByTitle("Theme preview")` — the iframe never renders at all, since
+  `previewSrc` came back `null`). Reverted.
+- **Mutation B (NARROW GAP FOUND)** — `templateId = file.label.replace(/\.liquid$/i, "")` →
+  `templateId = file.label` (stop stripping the `.liquid` extension, so the URL becomes
+  `/theme-explore/novice/template/home.liquid` instead of `.../home`). **STAYED GREEN.** The
+  assertion is `expect(iframe.src).toContain("/theme-explore/novice/template/home")` — a substring
+  check, and `"home.liquid"` still contains `"home"` as a leading substring, so the broken,
+  extension-still-attached URL satisfies `toContain` anyway. The test correctly proves the
+  `.liquid`-preview branch exists and fires (mutation A), but does NOT tightly pin the exact
+  `templateId` value the way the "PROVEN" mutations elsewhere in this batch do — a regression in
+  the extension-stripping specifically would slip through undetected. This is narrower than file
+  9's finding (the primary claim in the test's own title — "not the generic notice" — IS proven;
+  only the precise-URL half is not), so it's reported separately as a gap rather than folded into
+  the vacuous count. Reverted; confirmed `git diff` empty (exact restore).
+
+Full file green (46/46) after both reverts.
+
+**Verdict: MIXED — primary claim PROVEN, one narrow assertion-precision gap found (not vacuous,
+but weaker than it reads).** Not fixed, per instructions.
+
 ## Running tally
 
-8/8 files verified PROVEN so far (0 vacuous). Continuing to the remaining 3 files.
+11/11 files verified. **2 files produced a finding** (file 9: one genuinely vacuous test; file 11:
+one assertion that doesn't pin what it appears to pin, though the file's primary claim IS proven).
+9/11 files fully clean.
+
+At the assertion/mutation level: 21 mutations run across the batch, 19 went RED as expected, 2
+stayed green when they should not have (both detailed above, both left unfixed for the owner).
 
 ## Six pre-existing dirty files — inspected, not touched
 
