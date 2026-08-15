@@ -57,7 +57,13 @@ export default defineConfig({
       gracefulShutdown: { signal: "SIGTERM", timeout: 5_000 },
     },
     {
-      command: `TOVU_API_URL=${API_BASE_URL} npx vite --port ${ADMIN_PORT} --strictPort`,
+      // `VITE_TOVU_SITE_URL` (2026-08-12, `.liquid` render preview): without this, `siteUrl()`
+      // (`apps/admin/src/lib/site-url.ts`) defaults to `http://localhost:3000` in dev mode — the
+      // OWNER'S real dev server, not this suite's own hermetic API — so the preview iframe's `src`
+      // would resolve outside this suite's isolated boot entirely. Harmless for the pre-existing
+      // source-preview test (never needs the iframe to load), but load-bearing for the render-preview
+      // tests added alongside this fix.
+      command: `TOVU_API_URL=${API_BASE_URL} VITE_TOVU_SITE_URL=${API_BASE_URL} npx vite --port ${ADMIN_PORT} --strictPort`,
       cwd: ADMIN_ROOT,
       url: `${BASE_URL}/admin/`,
       timeout: 30_000,

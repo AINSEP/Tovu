@@ -2,9 +2,13 @@ import path from "node:path";
 import { defineConfig, devices } from "@playwright/test";
 
 /**
- * @file Config for `post-editor-toolbar.spec.ts`.
+ * @file Config for every `post-editor-*.spec.ts` suite (coordinator MSG #1/#2/#3, 2026-08-11/12
+ * expansion) — toolbar clicks, preview-branch coverage, and the bubble-menu/drag-handle specs all
+ * drive the SAME screen (`PostEditor.tsx`) against the SAME hermetic boot, so they share one config
+ * via `testMatch`'s glob rather than three configs duplicating the same ports/webServer block. This
+ * mirrors `playwright.admin.config.ts`'s own `byok-*.spec.ts` grouping precedent, not a new pattern.
  *
- * Own config, not a `testMatch` addition to an existing one — this directory's established shape
+ * Own config family, not folded into an existing one — this directory's established shape
  * (`playwright.pages.config.ts`'s own header explains why: independent ports, server flags and
  * teardown per suite). Copies that config's two confirmed traps verbatim:
  *
@@ -31,7 +35,7 @@ const ADMIN_ROOT = path.resolve(REPO_ROOT, "apps/admin");
 
 export default defineConfig({
   testDir: "./e2e",
-  testMatch: /post-editor-toolbar\.spec\.ts/,
+  testMatch: /post-editor-.*\.spec\.ts/,
   timeout: 45_000,
   // One worker: parallel logins trip the real `LOGIN_STRICT` rate limiter, as
   // `playwright.admin.config.ts` discovered live — every sibling config in this directory that logs
