@@ -53,7 +53,20 @@ function buildPreMigrationDb(): { dir: string; dbPath: string; db: ContentDb } {
   const dir = tmpDir("posts-body-format-pre-");
   const dbPath = path.join(dir, "content.db");
 
-  const preEntries = REAL_JOURNAL.entries.filter((entry) => entry.tag !== "0024_lethal_weapon_omega");
+  // Truncate BEFORE 0024's own index, not merely exclude its tag (2026-08-15 fix — surfaced by
+  // migration 0039, the first `posts`-table rebuild added to the journal since 0024 itself). The
+  // old `entry.tag !== "0024_lethal_weapon_omega"` filter only removed that one entry and silently
+  // kept every migration AFTER 0024 too, which happened to be harmless for years because nothing
+  // between 0025 and 0038 both touched `posts` AND needed one of 0024's own columns (`body_format`/
+  // `body_html`) to already exist. A later full-table-rebuild migration exposes it immediately: its
+  // generated `INSERT INTO __new_posts(...) SELECT ... FROM posts` lists every current column,
+  // including 0024's, against a source table that — because 0024 was skipped, not because anything
+  // about the new migration is wrong — never got them. Filtering by index instead of by tag is what
+  // actually delivers the doc comment above's own claim ("migrated up through 0023, i.e. the schema
+  // shape immediately BEFORE this feature's migration"), for any number of migrations after 0024.
+  const migration0024 = REAL_JOURNAL.entries.find((entry) => entry.tag === "0024_lethal_weapon_omega");
+  if (!migration0024) throw new Error("0024_lethal_weapon_omega is missing from the real migration journal");
+  const preEntries = REAL_JOURNAL.entries.filter((entry) => entry.idx < migration0024.idx);
   const scratchMigrationsDir = tmpDir("posts-body-format-migrations-");
   fs.mkdirSync(path.join(scratchMigrationsDir, "meta"), { recursive: true });
   for (const entry of preEntries) {

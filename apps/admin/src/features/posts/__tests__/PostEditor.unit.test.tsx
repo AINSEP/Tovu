@@ -526,3 +526,69 @@ describe("Edit/Preview toolbar", () => {
     expect(document.querySelector('[data-agent-element="post-template-choice"]')).toBeInTheDocument();
   });
 });
+
+/**
+ * Slug-collision override, tri-state (2026-08-15) — a two-state checkbox can no longer represent
+ * `overridesThemePage`'s three real states (`null`/`true`/`false`), so the control became a
+ * `<select>`. These pin the value<->option mapping and the copy change (the notice used to claim the
+ * theme page wins by default, which is now false) — nothing here exercises `usePostEditor` itself
+ * (that hook's own tri-state plumbing is covered by `use-post-editor.hooks.unit.test.tsx`), only that
+ * `PostEditor` renders and drives the control correctly for a given controller state.
+ */
+describe("Slug-collision override (tri-state)", () => {
+  it("renders nothing when there is no slug collision", () => {
+    renderPostEditor({ hasSlugCollision: false });
+    expect(document.querySelector('[data-agent-element="post-override-theme-page"]')).not.toBeInTheDocument();
+  });
+
+  it("selects 'Use the default' when overridesThemePage is null (never decided)", () => {
+    renderPostEditor({ hasSlugCollision: true, overridesThemePage: null });
+    const select = document.querySelector('[data-agent-element="post-override-theme-page"]') as HTMLSelectElement;
+    expect(select).toBeInTheDocument();
+    expect(select.value).toBe("default");
+    // The copy must no longer claim the theme page wins by default — that became false 2026-08-15.
+    expect(screen.getByText(/this post is shown at that url instead of the theme's page/i)).toBeInTheDocument();
+  });
+
+  it("selects 'Always show this post' when overridesThemePage is explicitly true", () => {
+    renderPostEditor({ hasSlugCollision: true, overridesThemePage: true });
+    const select = document.querySelector('[data-agent-element="post-override-theme-page"]') as HTMLSelectElement;
+    expect(select.value).toBe("post");
+  });
+
+  it("selects \"Always show the theme's page\" when overridesThemePage is explicitly false", () => {
+    renderPostEditor({ hasSlugCollision: true, overridesThemePage: false });
+    const select = document.querySelector('[data-agent-element="post-override-theme-page"]') as HTMLSelectElement;
+    expect(select.value).toBe("theme");
+  });
+
+  it("choosing 'Use the default' calls setOverridesThemePage(null), not false", async () => {
+    const user = userEvent.setup();
+    const { ctrl } = renderPostEditor({ hasSlugCollision: true, overridesThemePage: true });
+    await user.selectOptions(
+      document.querySelector('[data-agent-element="post-override-theme-page"]') as HTMLSelectElement,
+      "default"
+    );
+    expect(ctrl.setOverridesThemePage).toHaveBeenCalledWith(null);
+  });
+
+  it("choosing 'Always show this post' calls setOverridesThemePage(true)", async () => {
+    const user = userEvent.setup();
+    const { ctrl } = renderPostEditor({ hasSlugCollision: true, overridesThemePage: null });
+    await user.selectOptions(
+      document.querySelector('[data-agent-element="post-override-theme-page"]') as HTMLSelectElement,
+      "post"
+    );
+    expect(ctrl.setOverridesThemePage).toHaveBeenCalledWith(true);
+  });
+
+  it("choosing \"Always show the theme's page\" calls setOverridesThemePage(false)", async () => {
+    const user = userEvent.setup();
+    const { ctrl } = renderPostEditor({ hasSlugCollision: true, overridesThemePage: null });
+    await user.selectOptions(
+      document.querySelector('[data-agent-element="post-override-theme-page"]') as HTMLSelectElement,
+      "theme"
+    );
+    expect(ctrl.setOverridesThemePage).toHaveBeenCalledWith(false);
+  });
+});

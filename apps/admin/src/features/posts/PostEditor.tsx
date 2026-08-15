@@ -877,30 +877,46 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
           ) : null}
         </div>
       </div>
-      {/* Slug-collision override (2026-08-10) — surfaced live this session: a post at slug "about"
-          was silently unreachable because the active theme ships its own pages/about.html at the
-          same slug, and the theme page always won with zero indication why. Warn explicitly rather
-          than let an author discover this by visiting the public URL and finding their post missing. */}
+      {/* Slug-collision override (2026-08-10, tri-state default flip 2026-08-15) — surfaced live
+          2026-08-10: a post at slug "about" was silently unreachable because the active theme ships
+          its own pages/about.html at the same slug. Warn explicitly rather than let an author
+          discover this by visiting the public URL.
+
+          As of 2026-08-15 the DEFAULT winner flipped to the post (previously the theme page), and the
+          stored flag became tri-state (`AdminPost.overridesThemePage: boolean | null` — see that
+          field's own doc, `lib/api.ts`) so a two-state checkbox can no longer represent every state:
+          `null` ("never decided", the default applies), `true` (explicitly always this post — same
+          outcome as the default today, but pinned regardless of future default changes), `false`
+          (explicitly always the theme's page). A `<select>` is the smallest control that can express
+          three mutually-exclusive states without inventing a custom widget. */}
       {hasSlugCollision ? (
         <div className="notice warning" {...agentHandle("post-slug-collision-warning", {
           role: "region",
-          label: "Warning: this post's slug is claimed by the active theme's own page",
+          label: "This post's slug is also claimed by the active theme's own page — choose which one wins",
         })}>
           <p>
-            {t("The active theme has its own page at this slug — it will be shown instead of this post.")}
+            {t("This post's slug matches one of the active theme's own pages. By default, this post is shown at that URL instead of the theme's page.")}
           </p>
           <label>
-            <input
-              type="checkbox"
-              checked={overridesThemePage}
-              onChange={(e) => setOverridesThemePage(e.target.checked)}
+            {t("Which page wins at this URL")}
+            {" "}
+            <select
+              value={overridesThemePage === null ? "default" : overridesThemePage ? "post" : "theme"}
+              // Only "default" maps to `null`; both other options are an explicit, permanent choice
+              // (`true`/`false`) that keeps winning even if the default policy changes later — see
+              // this control's own file-header doc for the tri-state contract.
+              onChange={(e) => setOverridesThemePage(e.target.value === "default" ? null : e.target.value === "post")}
               {...agentHandle("post-override-theme-page", {
                 role: "field",
-                label: "Show this post instead of the active theme's own same-slug page",
+                label:
+                  "Which page is shown at this shared URL: the default (currently this post), always this post " +
+                  "regardless of future default changes, or always the active theme's own same-slug page.",
               })}
-            />
-            {" "}
-            {t("Show this post instead")}
+            >
+              <option value="default">{t("Use the default (currently: this post)")}</option>
+              <option value="post">{t("Always show this post")}</option>
+              <option value="theme">{t("Always show the theme's page")}</option>
+            </select>
           </label>
         </div>
       ) : null}

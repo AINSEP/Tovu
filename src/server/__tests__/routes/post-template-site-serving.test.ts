@@ -90,7 +90,7 @@ function buildTestApp(
  */
 async function savePost(
   deps: RouteDeps,
-  fields: { slug: string; templateChoice?: string | null; overridesThemePage?: boolean }
+  fields: { slug: string; templateChoice?: string | null; overridesThemePage?: boolean | null; kind?: "post" | "page" }
 ): Promise<PostRecord> {
   const post = {
     id: randomUUID(),
@@ -99,7 +99,7 @@ async function savePost(
     slug: fields.slug,
     bodyJson: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: POST_BODY_TEXT }] }] },
     status: "published",
-    kind: "post",
+    kind: fields.kind ?? "post",
     bodyFormat: "doc",
     bodyHtml: null,
     updatedAt: new Date().toISOString(),
@@ -233,6 +233,74 @@ test('ROUND TRIP: saving "No template chosen" through the admin API persists "" 
 
   const { html } = await getPage(baseUrl, "round-trip");
   assert.ok(html.includes(DIAGNOSTIC_MARKER));
+});
+
+test("overridesThemePage null (never decided): the post wins over the theme's own same-slug page — the tri-state default (2026-08-15)", async (t) => {
+  // No `overridesThemePage` field at all — the same shape `createPost` produces for every post
+  // today (see `CreatePostInput`'s own doc). This is the actual, common case the whole tri-state
+  // change exists for, not a hand-picked edge case: an author who never saw a collision warning.
+  const theme = staticThemeWithPostTemplate({
+    extraPages: { "collision-page": '<html><body><main data-tpl="theme-collision-page">Theme collision page</main></body></html>' },
+  });
+  const { app, deps } = buildTestApp(theme);
+  await savePost(deps, { slug: "collision-page" });
+  const baseUrl = await startTestServer(app, t);
+
+  const { status, html } = await getPage(baseUrl, "collision-page");
+
+  assert.equal(status, 200);
+  assert.ok(html.includes(POST_BODY_TEXT), "an undecided post must win under the new default");
+  assert.ok(!html.includes('data-tpl="theme-collision-page"'), "the theme page must lose to the new default");
+});
+
+test("overridesThemePage is kind-blind: a database Page (kind: 'page') gets the same tri-state default as a Post", async (t) => {
+  // The collision lookup (`getPublishedPostBySlug` -> `findBySlug`) filters on workspace+slug only,
+  // never `kind` — a `kind: "page"` row is exactly as reachable as a `kind: "post"` row. Proving the
+  // NEW default applies identically to both, not just to posts, closes the coverage gap the audit
+  // flagged (`ADS-memory/reports/external-audit/runs/2026-08-15-terra-xhigh-slug-collision-default.md`).
+  const theme = staticThemeWithPostTemplate({
+    extraPages: { "collision-page": '<html><body><main data-tpl="theme-collision-page">Theme collision page</main></body></html>' },
+  });
+  const { app, deps } = buildTestApp(theme);
+  await savePost(deps, { slug: "collision-page", kind: "page" });
+  const baseUrl = await startTestServer(app, t);
+
+  const { status, html } = await getPage(baseUrl, "collision-page");
+
+  assert.equal(status, 200);
+  assert.ok(html.includes(POST_BODY_TEXT), "an undecided database Page must also win under the new default");
+  assert.ok(!html.includes('data-tpl="theme-collision-page"'));
+});
+
+test('ROUND TRIP: explicitly resetting overridesThemePage to null through the admin API restores the default (post wins)', async (t) => {
+  // The smallest adversarial case for a tri-state field: an author who once explicitly chose "theme
+  // page wins" (`false`) later reverses that decision back to "no opinion" via the editor's tri-state
+  // control, which must send an explicit `null` (not just omit the field, which would leave `false`
+  // untouched — see `UpdatePostInput.overridesThemePage`'s own "omit vs explicit null" contract).
+  const theme = staticThemeWithPostTemplate({
+    extraPages: { "collision-page": '<html><body><main data-tpl="theme-collision-page">Theme collision page</main></body></html>' },
+  });
+  const { app, deps } = buildTestApp(theme, { withAdmin: true });
+  const post = await savePost(deps, { slug: "collision-page", overridesThemePage: false });
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  // Baseline: the explicit false still keeps the theme page winning.
+  const before = await getPage(baseUrl, "collision-page");
+  assert.ok(before.html.includes('data-tpl="theme-collision-page"'));
+
+  const put = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/posts/${post.id}`, {
+    method: "PUT",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ title: post.title, slug: post.slug, status: "published", bodyJson: post.bodyJson, overridesThemePage: null }),
+  });
+  assert.equal(put.status, 200);
+
+  const stored = await deps.postRepo.findById({ workspaceId: WORKSPACE_ID, id: post.id });
+  assert.equal(stored?.overridesThemePage, null, "an explicit reset must persist as a real null, not silently stay false");
+
+  const after = await getPage(baseUrl, "collision-page");
+  assert.ok(after.html.includes(POST_BODY_TEXT), "resetting to 'never decided' must fall through to the new default (post wins)");
+  assert.ok(!after.html.includes('data-tpl="theme-collision-page"'));
 });
 
 test("a theme with no same-slug page serves the post regardless of overridesThemePage", async (t) => {

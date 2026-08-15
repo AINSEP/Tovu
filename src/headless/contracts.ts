@@ -52,12 +52,13 @@ interface AdminPostFields {
    */
   templateChoice?: string | null;
   /**
-   * Slug-collision override (2026-08-10) — NEW field, additive and OPTIONAL, same pattern as
-   * `templateChoice` above: `true` when this post has been explicitly set to win over an active
-   * static theme's own same-slug page. `toHeadlessPost` always populates a real boolean on every
-   * live response; `undefined` only appears in a pre-feature test fixture.
+   * Slug-collision override (2026-08-10, tri-state 2026-08-15) — NEW field, additive and OPTIONAL,
+   * same pattern as `templateChoice` above: `null` means this post never had an explicit opinion set
+   * (the resolver's current default policy applies), `true`/`false` is a permanent explicit author
+   * choice. `toHeadlessPost` always populates a real value (`post.overridesThemePage ?? null`) on
+   * every live response; `undefined` only appears in a pre-feature test fixture.
    */
-  overridesThemePage?: boolean;
+  overridesThemePage?: boolean | null;
 }
 
 /**

@@ -106,15 +106,27 @@ export const posts = sqliteTable(
      */
     templateChoice: text("template_choice"),
     /**
-     * Slug-collision override (2026-08-10) — when a real post's slug matches one of the active
-     * static theme's own page filenames (e.g. a post at slug "about" colliding with `pages/
-     * about.html`), the theme's page wins by default (reserved, reliable namespace). This flag lets
-     * an author explicitly choose the opposite for one specific post, after the admin UI warns them
-     * about the collision — never a silent, blanket priority flip. `NOT NULL DEFAULT false`:
-     * additive, every pre-existing row keeps today's exact behavior (theme page wins) with zero
-     * backfill.
+     * Slug-collision override (2026-08-10, tri-state 2026-08-15) — when a real post's slug matches
+     * one of the active static theme's own page filenames (e.g. a post at slug "about" colliding
+     * with `pages/about.html`), one of the two resources must win. `NULL`/absent means *never
+     * decided* — the caller applies WHATEVER the current policy default is (as of 2026-08-15, the
+     * post wins; see `pages.ts`'s resolver). `true`/`false` are an author's explicit, permanent
+     * choice, made after the admin UI warns them about the collision, and always win over the
+     * default regardless of what it is set to.
+     *
+     * Nullable, deliberately NOT `NOT NULL DEFAULT ...`, because the whole point of this shape is
+     * that the default lives in the RESOLVER, not in storage: flipping which side wins by default is
+     * then a one-line change to `pages.ts` forever after, never another migration. A `NOT NULL
+     * DEFAULT` column can only ever encode the default that was true the day it was written — every
+     * row action's storage default. (2026-08-15) widened this column from `NOT NULL DEFAULT false`
+     * to nullable — see `drizzle/0039_*.sql` — deliberately WITHOUT reinterpreting any existing
+     * `false` row: a stored `false` from before this change is indistinguishable in the database
+     * alone between "never decided" (this feature's checkbox only ever rendered on an actual
+     * collision, so most `false` rows are really "never saw the checkbox") and "explicitly kept the
+     * theme page". A separate, explicitly reversible backfill pass reclassifies the former using live
+     * theme data no migration can see; this migration touches zero existing values.
      */
-    overridesThemePage: integer("overrides_theme_page", { mode: "boolean" }).notNull().default(false),
+    overridesThemePage: integer("overrides_theme_page", { mode: "boolean" }),
   },
   (table) => [
     uniqueIndex("posts_workspace_slug_unique").on(table.workspaceId, table.slug),

@@ -100,12 +100,15 @@ export interface PostRecord {
    */
   templateChoice?: string | null;
   /**
-   * Slug-collision override (2026-08-10) — when this post's slug matches one of the active static
-   * theme's own page filenames, the theme's page renders instead of this post by default. Setting
-   * this `true` (an explicit author choice, made after the admin UI warns about the collision) makes
-   * this post win instead. Absent/`false` is the pre-feature default: theme pages keep winning.
+   * Slug-collision override (2026-08-10, tri-state 2026-08-15) — when this post's slug matches one
+   * of the active static theme's own page filenames, one of the two resources must win. Tri-state,
+   * and the `null`-vs-`false` difference is load-bearing (same shape as {@link templateChoice}'s own
+   * `null`-vs-`""` split just above): `null`/absent means *never decided*, so the resolver applies
+   * whatever the current default policy is (as of 2026-08-15, the post wins — see `pages.ts`); an
+   * explicit `true`/`false` is a permanent author choice, made after the admin UI warns about the
+   * collision, that always wins over the default regardless of which way the default is set.
    */
-  overridesThemePage?: boolean;
+  overridesThemePage?: boolean | null;
 }
 
 /**
@@ -215,8 +218,13 @@ export interface UpdatePostInput {
    * require a caller to resend; `null` explicitly clears a previously-chosen template.
    */
   templateChoice?: string | null;
-  /** Same "omit to leave unchanged" contract as {@link UpdatePostInput.templateChoice} just above. */
-  overridesThemePage?: boolean;
+  /**
+   * Same "omit to leave unchanged" contract as {@link UpdatePostInput.templateChoice} just above —
+   * `undefined` carries the existing value forward untouched; an explicit `null` resets it back to
+   * *never decided* (the resolver's default applies again), and `true`/`false` set a permanent
+   * explicit choice. See {@link PostRecord.overridesThemePage} for the full tri-state contract.
+   */
+  overridesThemePage?: boolean | null;
 }
 
 export interface UpdatePostDeps {

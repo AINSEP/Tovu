@@ -106,6 +106,16 @@ export interface AdminDeploymentEnvVarStatus {
   set: boolean;
 }
 
+/** One publish CLI's presence on the SERVER process's PATH (never the browser's) — mirrors
+ *  `DeployCliStatus` in `src/server/routes/admin/system/deployment-overview.ts`. A real filesystem
+ *  check (`isOnPath`, committed 2026-08-15), not a placeholder: `installed` is either `true` or
+ *  `false`, never a third "unknown" state, so a caller renders a real pill for it directly rather
+ *  than a "can't tell yet" sentence. */
+export interface AdminDeployCliStatus {
+  name: string;
+  installed: boolean;
+}
+
 /** Mirrors `DeploymentOverviewSnapshot` in `src/server/routes/admin/system/deployment-overview.ts`
  *  — see that type's own doc comments for what each field does and does not prove. */
 export interface AdminDeploymentOverview {
@@ -116,6 +126,8 @@ export interface AdminDeploymentOverview {
   dbPath: string;
   uploadsDir: string;
   envVars: AdminDeploymentEnvVarStatus[];
+  /** `gh`/`vercel` PATH presence, in server display order. See {@link AdminDeployCliStatus}. */
+  deployClis: AdminDeployCliStatus[];
 }
 
 /** Mirrors `DockerfileSourceSnapshot` in `src/server/routes/admin/system/dockerfile-source.ts`. */
@@ -144,6 +156,55 @@ export interface AdminExportRunSnapshot {
   unreferencedThemeFiles?: string[];
   basePathRewriteWarning?: string;
   error?: string;
+}
+
+/** Mirrors `StaticPublishTargetId` in `src/features/deployments/static-publish/types.ts`. */
+export type AdminStaticPublishTargetId = "github-pages" | "vercel";
+
+/** Mirrors `GitHubPagesPublishConfig`/`VercelPublishConfig` (same file). `basePath` is deliberately
+ *  NOT a field on either variant — the server always derives it from `repo`, never accepts one, so
+ *  there is no field here a caller could even try to set it through. */
+export type AdminStaticPublishConfig =
+  | { target: "github-pages"; owner: string; repo: string; branch?: string }
+  | { target: "vercel"; teamId?: string };
+
+/** Mirrors `StaticPublishOutcome` (same file) — the terminal result of one publish attempt, present
+ *  on an {@link AdminPublishRunSnapshot} once `status` is `"completed"` or `"errored"`. */
+export type AdminStaticPublishOutcome =
+  | { ok: true; targetId: AdminStaticPublishTargetId; url: string; status: string; deploymentId?: string; basePath?: string }
+  | { ok: false; code: "INVALID_CONFIG" | "NO_CREDENTIALS_CONFIGURED" | "EXPORT_FAILED" | "PROVIDER_ERROR"; message: string };
+
+/** Mirrors `PublishRunStatus` in `src/server/routes/admin/system/publish-site.ts`. */
+export type AdminPublishRunStatus = "idle" | "running" | "completed" | "errored";
+
+/** Mirrors `PublishRunSnapshot` (same file) — the trigger+poll run slot for a publish to GitHub
+ *  Pages/Vercel, independent of {@link AdminExportRunSnapshot}'s own run slot (a plain export and a
+ *  publish are different server-side operations with their own process-local state). */
+export interface AdminPublishRunSnapshot {
+  status: AdminPublishRunStatus;
+  startedAtIso: string | null;
+  finishedAtIso: string | null;
+  target: AdminStaticPublishTargetId | null;
+  /** Present only once `status` is `"completed"` or `"errored"`. */
+  result?: AdminStaticPublishOutcome;
+  /** Present only on the rare path where the route itself failed unexpectedly — never echoes the
+   *  raw error object. */
+  error?: string;
+}
+
+/** Mirrors the JSON shape `GET .../system/publish/preview` returns — see that route's own doc
+ *  comment in `publish-site.ts`. A pure read: never starts a run, never echoes a credential's value,
+ *  only whether one is configured. */
+export interface AdminStaticPublishPreview {
+  target: AdminStaticPublishTargetId;
+  valid: boolean;
+  validationError: string | null;
+  /** `/${repo}` for github-pages, `null` for vercel or an invalid config — always SERVER-derived,
+   *  never something the caller supplied. */
+  basePath: string | null;
+  credentialsConfigured: boolean;
+  credentialGuidance: string | null;
+  willInjectNojekyll: boolean;
 }
 
 /** Mirrors `features/deployments/types.ts`'s `EnvironmentRecord`. */
@@ -463,11 +524,12 @@ export interface AdminPost {
    */
   templateChoice?: string | null;
   /**
-   * Slug-collision override (2026-08-10) — `true` when this post has been explicitly set to win
-   * over an active static theme's own same-slug page. Optional, same migration-safety precedent as
-   * `templateChoice` just above.
+   * Slug-collision override (2026-08-10, tri-state 2026-08-15) — `null` means this post never had an
+   * explicit opinion set (the server resolver's current default policy applies, post-wins as of this
+   * change); `true`/`false` is a permanent explicit author choice that always wins over the default.
+   * Optional, same migration-safety precedent as `templateChoice` just above.
    */
-  overridesThemePage?: boolean;
+  overridesThemePage?: boolean | null;
 }
 
 export interface PresentationSettings {
@@ -2329,6 +2391,34 @@ export const api = {
   /** The current/most recent export run's status — poll this after `triggerSiteExport` until
    *  `status` is no longer `"running"`. */
   getSiteExportStatus: () => request<AdminExportRunSnapshot>(`/workspaces/${WORKSPACE_ID}/system/export`),
+
+  // Static Site tab "Getting it online" card (`src/server/routes/admin/system/publish-site.ts`) —
+  // publishing the current export straight to GitHub Pages or Vercel. Same trigger+poll shape as
+  // the export pair just above, plus a third pure-read preview route with no run of its own.
+  /** Read-only: validates `config`, reports the base path a real publish would use (always
+   *  SERVER-derived — see {@link AdminStaticPublishConfig}'s own doc), and whether a credential is
+   *  configured for the target (a boolean only, never the credential itself). Never starts a run. */
+  getPublishPreview: (config: AdminStaticPublishConfig) => {
+    const query = new URLSearchParams({ target: config.target });
+    if (config.target === "github-pages") {
+      query.set("owner", config.owner);
+      query.set("repo", config.repo);
+      if (config.branch !== undefined) query.set("branch", config.branch);
+    } else if (config.teamId !== undefined) {
+      query.set("teamId", config.teamId);
+    }
+    return request<AdminStaticPublishPreview>(`/workspaces/${WORKSPACE_ID}/system/publish/preview?${query.toString()}`);
+  },
+  /** Starts a new publish to `config.target`. `409` (surfaced as a thrown error) if one is already
+   *  running — this instance runs at most one publish at a time, independent of a plain export. */
+  triggerPublish: (input: { config: AdminStaticPublishConfig; projectName: string }) =>
+    request<AdminPublishRunSnapshot>(`/workspaces/${WORKSPACE_ID}/system/publish`, {
+      method: "POST",
+      body: JSON.stringify({ ...input.config, projectName: input.projectName }),
+    }),
+  /** The current/most recent publish run's status — poll this after `triggerPublish` until `status`
+   *  is no longer `"running"`. */
+  getPublishStatus: () => request<AdminPublishRunSnapshot>(`/workspaces/${WORKSPACE_ID}/system/publish`),
 
   /** Full Site tab (`src/server/routes/admin/deployments/list.ts`) — read-only snapshot of the
    *  `deployments` domain's environments/targets/releases/runs. `deployments.read`-gated. */

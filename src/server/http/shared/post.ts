@@ -27,7 +27,11 @@ export function toHeadlessPost(post: PostRecord): AdminPost {
     updatedAt: post.updatedAt,
     version: post.version,
     templateChoice: post.templateChoice ?? null,
-    overridesThemePage: post.overridesThemePage ?? false,
+    // Tri-state (2026-08-15) — `?? null`, not `?? false`: a `PostRecord` that never had an opinion
+    // set (`undefined`) must reach the wire as `null` ("never decided"), the same value a stored
+    // database NULL round-trips as. Coalescing to `false` here would silently manufacture an explicit
+    // "theme page wins" decision no author ever made. See `PostRecord.overridesThemePage`'s own doc.
+    overridesThemePage: post.overridesThemePage ?? null,
     ...(post.ext !== undefined ? { ext: post.ext as Record<string, Record<string, unknown>> } : {}),
   };
 
