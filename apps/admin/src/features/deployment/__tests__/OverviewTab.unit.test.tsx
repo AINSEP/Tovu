@@ -150,3 +150,19 @@ describe("real fields, honestly labeled", () => {
     expect(notSetPills.every((el) => el.className.includes("status-neutral"))).toBe(true);
   });
 });
+
+describe("agent handles", () => {
+  // Pins the ids the AI assistant relies on to drive this tab — same `data-agent-element` querying
+  // convention `PostEditor.unit.test.tsx` uses. Guards against a handle silently rotting.
+  it("tags both path cards, their details links, and both diagnostics cards", () => {
+    render(<OverviewTab useDeploymentOverviewHook={() => controllerFixture()} />);
+    expect(document.querySelector('[data-agent-element="deployment-overview-static-path-card"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-agent-element="deployment-overview-full-path-card"]')).toBeInTheDocument();
+    expect(
+      document.querySelector('[data-agent-element="deployment-overview-static-details-link"]'),
+    ).toBeInTheDocument();
+    expect(document.querySelector('[data-agent-element="deployment-overview-full-details-link"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-agent-element="deployment-overview-instance-facts"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-agent-element="deployment-overview-env-vars"]')).toBeInTheDocument();
+  });
+});

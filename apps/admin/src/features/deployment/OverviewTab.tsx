@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { agentHandle } from "@jini-ai/agentic";
 import type { AdminDeploymentEnvVarStatus, AdminDeploymentOverview } from "../../lib/api";
 import type { Translate } from "../../lib/dictionary-translator";
 import {
@@ -66,6 +67,8 @@ function OverviewPathCard({
   costLine,
   detailsHref,
   detailsLabel,
+  cardHandleId,
+  detailsHandleId,
   t,
 }: {
   icon: ReactNode;
@@ -76,10 +79,20 @@ function OverviewPathCard({
   costLine: string;
   detailsHref: string;
   detailsLabel: string;
+  /** Distinguishes the Static Site vs. Full Site card — see the two `OverviewPathChoice` call
+   *  sites, the only two instances this shared component ever renders. */
+  cardHandleId: string;
+  detailsHandleId: string;
   t: Translate;
 }) {
   return (
-    <div className="card deployment-path-card">
+    <div
+      className="card deployment-path-card"
+      {...agentHandle(cardHandleId, {
+        role: "region",
+        label: `${heading} path card — availability, what it gives you, capability comparison, and a link to its own tab`,
+      })}
+    >
       <div className="deployment-path-head">
         <span className="deployment-path-icon">{icon}</span>
         <h2 className="card-title">{heading}</h2>
@@ -89,7 +102,11 @@ function OverviewPathCard({
       <CapabilityList rows={capabilities} t={t} />
       <div className="deployment-path-foot">
         <p className="deployment-action-reason">{costLine}</p>
-        <a className="btn-secondary" href={detailsHref}>
+        <a
+          className="btn-secondary"
+          href={detailsHref}
+          {...agentHandle(detailsHandleId, { role: "link", label: `Open the ${heading} tab for full details` })}
+        >
           {detailsLabel}
         </a>
       </div>
@@ -115,6 +132,8 @@ function OverviewPathChoice({ t }: { t: Translate }) {
         costLine={t("Runs on any static host, including free ones. Nothing dynamic survives the export.")}
         detailsHref="/admin/deployment?tab=static-site"
         detailsLabel={t("View Static Site details")}
+        cardHandleId="deployment-overview-static-path-card"
+        detailsHandleId="deployment-overview-static-details-link"
         t={t}
       />
       <OverviewPathCard
@@ -126,6 +145,8 @@ function OverviewPathChoice({ t }: { t: Translate }) {
         costLine={t("Needs a host to run on — provider setup is planned, not wired up yet.")}
         detailsHref="/admin/deployment?tab=full-site"
         detailsLabel={t("View Full Site details")}
+        cardHandleId="deployment-overview-full-path-card"
+        detailsHandleId="deployment-overview-full-details-link"
         t={t}
       />
     </div>
@@ -177,7 +198,13 @@ function OverviewEnvVarRow({ varStatus, t }: { varStatus: AdminDeploymentEnvVarS
 function OverviewSnapshotBody({ snapshot, t }: { snapshot: AdminDeploymentOverview; t: Translate }) {
   return (
     <>
-      <div className="card">
+      <div
+        className="card"
+        {...agentHandle("deployment-overview-instance-facts", {
+          role: "region",
+          label: "How this instance is running — runtime mode, readiness gate, owner password, agent daemon, and file paths",
+        })}
+      >
         <div className="card-head">
           <h2 className="card-title">{t("How this instance is running")}</h2>
         </div>
@@ -209,7 +236,13 @@ function OverviewSnapshotBody({ snapshot, t }: { snapshot: AdminDeploymentOvervi
         </div>
       </div>
 
-      <div className="card">
+      <div
+        className="card"
+        {...agentHandle("deployment-overview-env-vars", {
+          role: "region",
+          label: "Environment variables this instance reads, with each one's Set/Not set state and what happens when it's absent",
+        })}
+      >
         <div className="card-head">
           <h2 className="card-title">{t("Environment variables")}</h2>
         </div>
