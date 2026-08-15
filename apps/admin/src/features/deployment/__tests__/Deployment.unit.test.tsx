@@ -102,3 +102,19 @@ describe("?tab= deep linking", () => {
     expect(window.location.search).toBe("?tab=history");
   });
 });
+
+describe("agent handles", () => {
+  // Pins the ids the AI assistant relies on to see and drive this panel's header and tab bar — same
+  // `data-agent-element` querying convention `PostEditor.unit.test.tsx` uses. Guards against a
+  // handle silently rotting (renamed, removed, or a typo) with nothing catching it.
+  it("tags the header, the tab bar container, and all five tabs", () => {
+    renderScreen(<Deployment />);
+    expect(document.querySelector('[data-agent-element="deployment-header"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-agent-element="deployment-tab-bar"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-agent-element="deployment-tab-overview"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-agent-element="deployment-tab-static-site"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-agent-element="deployment-tab-full-site"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-agent-element="deployment-tab-dockerfile"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-agent-element="deployment-tab-history"]')).toBeInTheDocument();
+  });
+});

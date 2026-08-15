@@ -1,3 +1,4 @@
+import { agentHandle } from "@jini-ai/agentic";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { navigate } from "../../lib/router";
 import { TabBar, type TabBarTab } from "../../components/TabBar";
@@ -71,11 +72,36 @@ export function Deployment(props: DeploymentProps) {
   const activeTabId = resolveActiveTabId(props.tabId);
 
   const tabs: TabBarTab[] = [
-    { id: "overview", label: t(locale, "Overview") },
-    { id: "static-site", label: t(locale, "Static Site") },
-    { id: "full-site", label: t(locale, "Full Site") },
-    { id: "dockerfile", label: t(locale, "Dockerfile") },
-    { id: "history", label: t(locale, "History") },
+    {
+      id: "overview",
+      label: t(locale, "Overview"),
+      handle: "deployment-tab-overview",
+      handleLabel: "Switch to the Overview tab — instance diagnostics and the Static vs. Full Site comparison",
+    },
+    {
+      id: "static-site",
+      label: t(locale, "Static Site"),
+      handle: "deployment-tab-static-site",
+      handleLabel: "Switch to the Static Site tab — export a read-only copy of this site's published pages",
+    },
+    {
+      id: "full-site",
+      label: t(locale, "Full Site"),
+      handle: "deployment-tab-full-site",
+      handleLabel: "Switch to the Full Site tab — the complete Tovu server, host provider options",
+    },
+    {
+      id: "dockerfile",
+      label: t(locale, "Dockerfile"),
+      handle: "deployment-tab-dockerfile",
+      handleLabel: "Switch to the Dockerfile tab — view, edit and save the repo-root Dockerfile",
+    },
+    {
+      id: "history",
+      label: t(locale, "History"),
+      handle: "deployment-tab-history",
+      handleLabel: "Switch to the History tab — past builds and deploys",
+    },
   ];
 
   function handleTabChange(nextTabId: string) {
@@ -84,7 +110,13 @@ export function Deployment(props: DeploymentProps) {
 
   return (
     <div className="page">
-      <div className="page-header">
+      <div
+        className="page-header"
+        {...agentHandle("deployment-header", {
+          role: "region",
+          label: "Deployment panel header — choose how this site gets published",
+        })}
+      >
         <div className="page-header-text">
           <p className="page-kicker">{t(locale, "Operations")}</p>
           <h1 className="page-title">{t(locale, "Deployment")}</h1>
@@ -93,7 +125,13 @@ export function Deployment(props: DeploymentProps) {
           </p>
         </div>
       </div>
-      <TabBar ariaLabel={t(locale, "Deployment")} tabs={tabs} activeId={activeTabId} onChange={handleTabChange} />
+      <TabBar
+        ariaLabel={t(locale, "Deployment")}
+        tabs={tabs}
+        activeId={activeTabId}
+        onChange={handleTabChange}
+        containerHandle="deployment-tab-bar"
+      />
       {deploymentTabPanel(activeTabId)}
     </div>
   );
