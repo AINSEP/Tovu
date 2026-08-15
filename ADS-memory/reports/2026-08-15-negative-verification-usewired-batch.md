@@ -62,9 +62,39 @@ Full file green (6/6) after both reverts.
 
 **Verdict: PROVEN.**
 
+### 4. Injection block in `apps/admin/src/features/posts/__tests__/PostTemplateModal.unit.test.tsx`
+
+Only the `"PostTemplateModal template-source-hook injection"` describe block is in scope (the
+other 6 tests in this file predate the sweep and don't test injection).
+
+- **Mutation** — `PostTemplateModal.tsx`: `useTemplateSourceHook(...)` → `useWiredTemplateSource(...)`
+  (hardcode the real hook, bypassing the injected prop). Test: `"renders purely off an injected
+  fake, proving useTemplateSourceHook is not hardcoded"`. **RED** (`getByText("fake template
+  source")` not found — real hook's `loading` state rendered instead, since global `fetch` was
+  stubbed to a `vi.fn()` that never resolves). Reverted. Full file green (7/7).
+
+**Verdict: PROVEN.**
+
+### 5. `apps/admin/src/components/__tests__/widget-config-fields-dependencies.unit.test.ts`
+
+Two mutations against `widget-config-fields-dependencies.hooks.ts`:
+
+- **Mutation A** — `defaultWidgetConfigFieldsPort.listMenus` body: `() => api.listMenus()` →
+  `() => Promise.resolve({ menus: [] })` (stop delegating to `api`). Test: `"listMenus delegates
+  to api.listMenus"`. **RED** (`expected "listMenus" to be called 1 times, but got 0 times`).
+  Reverted.
+- **Mutation B** — `createFakeWidgetConfigFieldsPort`: removed the
+  `if (options.listMenusError) throw options.listMenusError;` branch. Test: `"rejects with the
+  given errors when set"`. **RED** (`port.listMenus()` resolved to `{menus: []}` instead of
+  rejecting). Reverted.
+
+Full file green (5/5) after both reverts.
+
+**Verdict: PROVEN.**
+
 ## Running tally
 
-3/3 files verified PROVEN so far (0 vacuous). Continuing to the remaining 8 files.
+5/5 files verified PROVEN so far (0 vacuous). Continuing to the remaining 6 files.
 
 ## Six pre-existing dirty files — inspected, not touched
 
