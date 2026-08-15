@@ -25,6 +25,7 @@ import { Collections, CollectionEntries, CollectionEntryEditor } from "./feature
 import { Taxonomy } from "./features/taxonomy";
 import { Database } from "./features/database";
 import { Recovery } from "./features/recovery";
+import { Deployment } from "./features/deployment";
 import { WidgetsLibrary, WidgetInstanceEditor, WidgetRegions, WidgetRegionEditor } from "./features/widgets";
 import { Workspace } from "./features/workspace";
 import { AiAssistant } from "./features/ai-assistant";
@@ -735,21 +736,17 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   },
   {
     id: "deployment",
-    render: () => (
-      <PlaceholderTabs
-        sectionId="deployment"
-        tabs={[
-          { id: "home", label: "Home" },
-          { id: "github", label: "GitHub" },
-          { id: "aws", label: "AWS" },
-        ]}
-      />
-    ),
+    // Five real tabs (Overview, Static Site, Full Site, Dockerfile, History) replaced the
+    // `PlaceholderTabs` stub (Home/GitHub/AWS) this pass. `soon: true` is dropped: that flag means
+    // "announced but not yet built" (see `PlaceholderTabs.tsx`'s own doc), and this screen no
+    // longer renders a generic "X is coming soon" panel anywhere — Overview and Dockerfile are
+    // backed by real endpoints, and Static Site/Full Site/History are honest, real empty/explainer
+    // states rather than placeholders. Same `?tab=` deep-linking convention as `settings`'s own
+    // entry just below.
+    render: (ctx) => <Deployment tabId={ctx.query.get("tab")} />,
     nav: {
       label: "Deployment",
       group: "Operations",
-      soon: true,
-      soonPreviewable: true,
       icon: '<path d="M9 2.5c2.6 1.8 4 4.4 4 7.2L9 13 5 9.7c0-2.8 1.4-5.4 4-7.2z"/><circle cx="9" cy="7.5" r="1.4"/><path d="M6.6 12.4L5 15.5l3-.9M11.4 12.4L13 15.5l-3-.9"/>',
     },
   },
