@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { AdminDeploymentEnvVarStatus, AdminDeploymentOverview } from "../../lib/api";
 import type { Translate } from "../../lib/dictionary-translator";
 import {
@@ -7,7 +8,11 @@ import {
   ownerPasswordLabelKey,
   productionGateLabelKey,
   runtimeModeLabelKey,
+  FULL_SITE_CAPABILITIES,
+  STATIC_SITE_CAPABILITIES,
+  type DeploymentCapability,
 } from "./rules";
+import { CapabilityList, FullSiteIcon, StaticSiteIcon } from "./deployment-visuals";
 import { useWiredDeploymentOverview } from "./hooks/use-deployment-overview.hooks";
 
 /**
@@ -17,101 +22,136 @@ import { useWiredDeploymentOverview } from "./hooks/use-deployment-overview.hook
  * overview.ts`) or a translated label derived from it by `rules.ts`'s pure helpers — nothing on
  * this tab is invented.
  *
- * CORRECTED post-launch (2026-08-15, owner UI/UX pass): the original version of this tab was ONLY
- * the current-instance diagnostics below. That buried the panel's own stated job — "Choose how
- * this site gets published" is the page's own subtitle, but nothing on the page ever put Static
- * Site and Full Site side by side so a reader could actually compare them; you'd have to click
- * into each tab separately and hold the difference in your head. `OverviewPathChoice` now renders
- * first, unconditionally (it has no fetch of its own, so it shows immediately even while the
- * diagnostics below are still loading) — two cards, same "what you get" sentences already used
- * verbatim on `StaticSiteTab.tsx`/`FullSiteTab.tsx` (not new claims, just surfaced earlier), each
- * linking to its own tab via a plain `<a href="/admin/deployment?tab=...">` — the established
- * internal-link idiom (`Integrations.tsx`'s row links), not a synthetic `onClick`/`navigate()`
- * call, so cmd-click/middle-click/copy-link all keep working (`installInternalLinkInterceptor`,
- * `@jini-ai/admin/browser`).
+ * ## Second pass (2026-08-15) — what changed and why
  *
- * Split into small presentational pieces (`OverviewStatusRow`, `OverviewPathRow`,
- * `OverviewEnvVarRow`) from the start, per this app's per-scope complexity gate — see
- * `Deployment.tsx`'s own file header for the same reasoning applied at the shell level.
+ * The first pass put the two paths side by side, which was the right call and stays. What it did
+ * not do was make them COMPARABLE: two cards, one sentence each, in prose. A reader still had to
+ * hold "no checkout, no admin online, no assistant" in their head and diff it against "admin,
+ * assistant, checkout, everything works" to see what they were choosing between. {@link
+ * CapabilityList} turns that into four aligned rows with a ✓/✗ per path, so the difference is a
+ * shape rather than a reading-comprehension exercise. No new claim is made — `rules.ts`'s
+ * `STATIC_SITE_CAPABILITIES` is that same warning sentence, itemized, and its own doc comment
+ * records the source for each row.
+ *
+ * Headings are `.card-title`, not bare `<h2>`. That primitive exists in `styles.css` (~L744) for
+ * exactly this, and its own comment measured the defect this tab shipped: a bare `<h2>` in a
+ * `.card` renders at the UA default 24px against a 26.4px `.page-title` — "not a hierarchy step,
+ * it is a near-tie" — plus a stray 19.92px UA margin. Six such headings across five tabs is most of
+ * why the panel read as a stack of equally loud boxes.
+ *
+ * The diagnostics no longer use `.field`/`.field-row`. `.field` is `display: flex; flex-direction:
+ * column`, so a `.status` pill placed directly inside one stretches to the full column width — the
+ * "Local" pill measured ~400px wide at a 1440px viewport, which is what made this section look
+ * unfinished. `.deployment-fact` is the same label-over-value shape with the pill hugging its text.
+ *
+ * Links to the sibling tabs stay plain `<a href="/admin/deployment?tab=...">` — the established
+ * internal-link idiom (`installInternalLinkInterceptor`, `@jini-ai/admin/browser`), so cmd-click,
+ * middle-click and copy-link all keep working.
  */
 export interface OverviewTabProps {
   /** DI seam for tests — same convention as every other wired-hook prop in this app. */
   useDeploymentOverviewHook?: typeof useWiredDeploymentOverview;
 }
 
-/** One path-choice card — a heading, the one-line "what you get" (verbatim from that path's own
- *  tab), a one-line "what it needs/gives up" in the same muted `.field-hint` voice the diagnostics
- *  below already use for a value's footnote, and a real link to that tab's full detail. */
+/** One path-choice card: identifying icon, name, an honest one-word availability pill, the promise,
+ *  the capability comparison, and a footer holding the caveat above the link to that path's own tab.
+ *  The footer is pushed to the card's bottom edge by CSS so both cards' links land on the same
+ *  baseline even when one capability list runs longer. */
 function OverviewPathCard({
+  icon,
   heading,
+  statusLabel,
   getLine,
+  capabilities,
   costLine,
   detailsHref,
   detailsLabel,
+  t,
 }: {
+  icon: ReactNode;
   heading: string;
+  statusLabel: string;
   getLine: string;
+  capabilities: readonly DeploymentCapability[];
   costLine: string;
   detailsHref: string;
   detailsLabel: string;
+  t: Translate;
 }) {
   return (
     <div className="card deployment-path-card">
-      <h2>{heading}</h2>
-      <p>{getLine}</p>
-      <p className="field-hint">{costLine}</p>
-      <a className="btn-secondary" href={detailsHref}>
-        {detailsLabel}
-      </a>
+      <div className="deployment-path-head">
+        <span className="deployment-path-icon">{icon}</span>
+        <h2 className="card-title">{heading}</h2>
+        <span className="status status-neutral">{statusLabel}</span>
+      </div>
+      <p className="card-lead">{getLine}</p>
+      <CapabilityList rows={capabilities} t={t} />
+      <div className="deployment-path-foot">
+        <p className="deployment-action-reason">{costLine}</p>
+        <a className="btn-secondary" href={detailsHref}>
+          {detailsLabel}
+        </a>
+      </div>
     </div>
   );
 }
 
-/** The two-path comparison — see this file's header for why it leads the tab. */
+/** The two-path comparison — see this file's header for why it leads the tab.
+ *
+ *  Both availability pills are `status-neutral`, deliberately. "Available from a terminal" is not a
+ *  success state and "Not wired up yet" is not a failure, so neither earns `status-ok`/`status-
+ *  warning`; the words carry the difference, which is also what keeps the distinction legible
+ *  without color perception. */
 function OverviewPathChoice({ t }: { t: Translate }) {
   return (
     <div className="deployment-path-grid">
       <OverviewPathCard
+        icon={<StaticSiteIcon />}
         heading={t("Static Site")}
+        statusLabel={t("Available from a terminal")}
         getLine={t("A fast, read-only copy of this site's published pages — no server behind it.")}
-        costLine={t("No checkout, no admin online, no assistant, no dynamic anything.")}
+        capabilities={STATIC_SITE_CAPABILITIES}
+        costLine={t("Runs on any static host, including free ones. Nothing dynamic survives the export.")}
         detailsHref="/admin/deployment?tab=static-site"
         detailsLabel={t("View Static Site details")}
+        t={t}
       />
       <OverviewPathCard
+        icon={<FullSiteIcon />}
         heading={t("Full Site")}
+        statusLabel={t("Not wired up yet")}
         getLine={t("The complete Tovu server — admin, assistant, checkout, everything works.")}
+        capabilities={FULL_SITE_CAPABILITIES}
         costLine={t("Needs a host to run on — provider setup is planned, not wired up yet.")}
         detailsHref="/admin/deployment?tab=full-site"
         detailsLabel={t("View Full Site details")}
+        t={t}
       />
     </div>
   );
 }
 
-/** One label/value row with a status pill — Runtime mode, Production readiness gate, Owner
- *  password, Agent daemon. `tone` picks which of the three pill classes `styles.css` defines for
- *  this tab (`status-ok`/`status-warning`/`status-neutral`). */
-function OverviewStatusRow({ label, value, tone }: { label: string; value: string; tone: "ok" | "warning" | "neutral" }) {
+/** One label-over-value diagnostic cell. `children` rather than a `value` string so the same cell
+ *  shape holds either a status pill or a verbatim `<code>` path — two different renderings of the
+ *  same "here is one fact about this instance" row, which is why they share a component instead of
+ *  each having their own. */
+function OverviewFact({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="field">
-      <span className="field-label">{label}</span>
-      <span className={`status status-${tone}`}>{value}</span>
+    <div className="deployment-fact">
+      <span className="deployment-fact-label">{label}</span>
+      <span className="deployment-fact-value">{children}</span>
     </div>
   );
 }
 
-/** One label/value row showing a filesystem path verbatim — Database file, Uploads folder. Not a
- *  status pill: a path isn't a state, it's a fact to read or copy. Plain `<code>`, monospaced by
- *  the browser's own default, matching how `ThemeExplore.tsx`'s `PageRenameWarningBody` renders a
- *  path inline. */
-function OverviewPathRow({ label, path }: { label: string; path: string }) {
-  return (
-    <div className="field">
-      <span className="field-label">{label}</span>
-      <code>{path}</code>
-    </div>
-  );
+/** A filesystem path, shown verbatim. `translate="no"` so a machine translator leaves it alone — a
+ *  path is an identifier, not prose (Web Interface Guidelines: "brand names, code tokens,
+ *  identifiers: wrap with `translate=\"no\"`"). Wrapping is `overflow-wrap: anywhere` in CSS
+ *  because an absolute path has no spaces to break at, and at 390px an unbreakable one is what
+ *  pushes the whole page into horizontal scroll. */
+function OverviewPathValue({ path }: { path: string }) {
+  return <code translate="no">{path}</code>;
 }
 
 /** One environment-variable row: name, Set/Not set pill, and the one-line note explaining what
@@ -120,11 +160,15 @@ function OverviewEnvVarRow({ varStatus, t }: { varStatus: AdminDeploymentEnvVarS
   const unsafe = isEnvVarRowUnsafe(varStatus);
   const tone: "ok" | "warning" | "neutral" = varStatus.set ? "ok" : unsafe ? "warning" : "neutral";
   return (
-    <div className="field">
-      <span className="field-label">{varStatus.name}</span>
-      <span className={`status status-${tone}`}>{varStatus.set ? t("Set") : t("Not set")}</span>
-      <p className="field-hint">{t(deploymentEnvVarNoteKey(varStatus.name))}</p>
-    </div>
+    <li className="deployment-env-row">
+      <div className="deployment-env-head">
+        <span className="deployment-env-name" translate="no">
+          {varStatus.name}
+        </span>
+        <span className={`status status-${tone}`}>{varStatus.set ? t("Set") : t("Not set")}</span>
+      </div>
+      <p className="deployment-env-note">{t(deploymentEnvVarNoteKey(varStatus.name))}</p>
+    </li>
   );
 }
 
@@ -134,54 +178,46 @@ function OverviewSnapshotBody({ snapshot, t }: { snapshot: AdminDeploymentOvervi
   return (
     <>
       <div className="card">
-        <h2>{t("How this instance is running")}</h2>
-        {/* Both `.field-row`s wrapped in one `.field-group`: two sibling `.field-row`s with nothing
-            between them have a MEASURED 0px gap (confirmed via `getBoundingClientRect()` — row
-            two's top edge was exactly row one's bottom edge, to the pixel), because a grid's own
-            row height is set by its tallest cell and nothing adds space after it. That reads as
-            broken alignment whenever a value wraps to two lines (e.g. the Owner password pill) —
-            row two ends up flush against the wrapped cell on one side and floating under a big gap
-            on the others. `.field-group`'s own `gap: var(--space-4)` (already defined for its
-            children generally, not added here) now sits between the two rows — 16px, confirmed by
-            the same measurement, matching the gap already used *within* each row rather than
-            inventing a new spacing value. */}
-        <div className="field-group">
-          <div className="field-row">
-            <OverviewStatusRow
-              label={t("Runtime mode")}
-              value={t(runtimeModeLabelKey(snapshot.mode))}
-              tone="neutral"
-            />
-            <OverviewStatusRow
-              label={t("Production readiness gate")}
-              value={t(productionGateLabelKey(snapshot.productionReadinessGate))}
-              tone={snapshot.productionReadinessGate.applicable ? "ok" : "neutral"}
-            />
-            <OverviewStatusRow
-              label={t("Owner password")}
-              value={t(ownerPasswordLabelKey(snapshot.defaultOwnerPasswordUnsafe))}
-              tone={snapshot.defaultOwnerPasswordUnsafe ? "warning" : "ok"}
-            />
-            <OverviewStatusRow
-              label={t("Agent daemon")}
-              value={t(daemonStatusLabelKey(snapshot.daemonKnownFailed))}
-              tone={snapshot.daemonKnownFailed ? "warning" : "ok"}
-            />
-          </div>
-          <div className="field-row">
-            <OverviewPathRow label={t("Database file")} path={snapshot.dbPath} />
-            <OverviewPathRow label={t("Uploads folder")} path={snapshot.uploadsDir} />
-          </div>
+        <div className="card-head">
+          <h2 className="card-title">{t("How this instance is running")}</h2>
+        </div>
+        <div className="deployment-facts">
+          <OverviewFact label={t("Runtime mode")}>
+            <span className="status status-neutral">{t(runtimeModeLabelKey(snapshot.mode))}</span>
+          </OverviewFact>
+          <OverviewFact label={t("Production readiness gate")}>
+            <span className={`status status-${snapshot.productionReadinessGate.applicable ? "ok" : "neutral"}`}>
+              {t(productionGateLabelKey(snapshot.productionReadinessGate))}
+            </span>
+          </OverviewFact>
+          <OverviewFact label={t("Owner password")}>
+            <span className={`status status-${snapshot.defaultOwnerPasswordUnsafe ? "warning" : "ok"}`}>
+              {t(ownerPasswordLabelKey(snapshot.defaultOwnerPasswordUnsafe))}
+            </span>
+          </OverviewFact>
+          <OverviewFact label={t("Agent daemon")}>
+            <span className={`status status-${snapshot.daemonKnownFailed ? "warning" : "ok"}`}>
+              {t(daemonStatusLabelKey(snapshot.daemonKnownFailed))}
+            </span>
+          </OverviewFact>
+          <OverviewFact label={t("Database file")}>
+            <OverviewPathValue path={snapshot.dbPath} />
+          </OverviewFact>
+          <OverviewFact label={t("Uploads folder")}>
+            <OverviewPathValue path={snapshot.uploadsDir} />
+          </OverviewFact>
         </div>
       </div>
 
       <div className="card">
-        <h2>{t("Environment variables")}</h2>
-        <div className="field-row">
+        <div className="card-head">
+          <h2 className="card-title">{t("Environment variables")}</h2>
+        </div>
+        <ul className="deployment-env-list">
           {snapshot.envVars.map((varStatus) => (
             <OverviewEnvVarRow key={varStatus.name} varStatus={varStatus} t={t} />
           ))}
-        </div>
+        </ul>
       </div>
     </>
   );
@@ -226,7 +262,7 @@ export function OverviewTab(props: OverviewTabProps) {
   const { snapshot, error, t } = useDeploymentOverviewHook();
 
   return (
-    <div>
+    <div className="deployment-tab">
       <OverviewPathChoice t={t} />
       <OverviewDiagnostics snapshot={snapshot} error={error} t={t} />
     </div>
