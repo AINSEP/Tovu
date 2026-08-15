@@ -280,7 +280,7 @@ async function main(): Promise<void> {
   }
 
   const app = createApp(deps);
-  app.listen(port, () => {
+  const server = app.listen(port, () => {
     const store = useMemory ? "in-memory" : `sqlite (${defaultContentDbPath()})`;
     console.log(`tovu server running on http://localhost:${port} — store: ${store}`);
 
@@ -316,6 +316,34 @@ async function main(): Promise<void> {
       .catch((error: unknown) => {
         console.error("[index] a boot-readiness promise rejected — not starting the agent daemon", error);
       });
+  });
+
+  // WHY THIS EXISTS: without it, a listen failure is an unhandled `'error'` event on the Server,
+  // which Node re-throws — so the process dies with a raw stack trace and no statement of what is
+  // wrong. Measured 2026-08-15: `tsx watch` restarted this process on a source edit, force-killed
+  // the previous one after its 5s grace period ("Process didn't exit in 5s"), and the replacement
+  // hit the still-held port. What the operator saw was a dead server and a login page that would
+  // not authenticate; what they needed to see was "port 3000 is already in use".
+  //
+  // EADDRINUSE gets a named, actionable message because it is the one failure here with an obvious
+  // operator fix. Everything else re-raises rather than being swallowed into a generic line — an
+  // unknown listen failure should still surface its own error, just not as an unhandled event.
+  //
+  // `exit(1)` rather than a retry loop: a port collision in dev means another Tovu is already
+  // serving, and silently retrying would make two processes race for the port on every restart.
+  // `dev.mjs` already preflights ports and names the holder; `dev:server` alone does not, which is
+  // exactly the path this was hit on.
+  server.on("error", (error: NodeJS.ErrnoException) => {
+    if (error.code === "EADDRINUSE") {
+      console.error(
+        `Refusing to start: port ${port} is already in use.\n` +
+          `  Another Tovu (or an orphan from a previous run) is still holding it.\n` +
+          `  Find it with:  lsof -ti :${port} -sTCP:LISTEN\n` +
+          `  Then stop that process, or set PORT to a free port.`,
+      );
+      process.exit(1);
+    }
+    throw error;
   });
 }
 
