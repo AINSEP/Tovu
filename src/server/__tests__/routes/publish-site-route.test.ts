@@ -253,3 +253,111 @@ test("publish-site: a concurrent second trigger while one is genuinely in flight
   assert.equal(result.code, "PROVIDER_ERROR");
   assert.equal(vercelCallCount, 1, "exactly one publish reached the (intercepted) Vercel API — the second trigger was refused before ever getting there");
 });
+
+/**
+ * `GET .../system/publish/preview` — the admin UI's read-only counterpart to
+ * `deployment_preview_static_publish` (see `publish-site.ts`'s header). Same auth/workspace-404
+ * shape as every other route in this file; the behavior worth pinning here is specific to a preview:
+ * it never starts a run (no `currentRun` mutation, unlike every test above), the base path is
+ * derived exactly as `computeBasePath` documents, and a resolved credential's boolean crosses the
+ * response while the token string itself never does — proven the same way the earlier
+ * NO_CREDENTIALS_CONFIGURED test proves it for the trigger route.
+ */
+test("publish-site preview: an unauthorized principal (no grants) gets 403", async (t) => {
+  const deps: RouteDeps = { ...createRouteDeps() };
+  const app = createApp(deps);
+  const { baseUrl } = await bootAuthenticated(app, t);
+  const cookie = await loginAsBarePrincipal(deps, baseUrl);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}/preview?target=vercel`, { headers: { cookie } });
+  assert.equal(res.status, 403);
+});
+
+test("publish-site preview: a mismatched workspaceId 404s", async (t) => {
+  const deps: RouteDeps = { ...createRouteDeps() };
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/not-the-real-workspace/${PUBLISH_PATH}/preview?target=vercel`, { headers: { cookie } });
+  assert.equal(res.status, 404);
+});
+
+test("publish-site preview: a missing/unrecognized target, and a github-pages preview missing repo, both 400", async (t) => {
+  const deps: RouteDeps = { ...createRouteDeps() };
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const noTarget = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}/preview`, { headers: { cookie } });
+  assert.equal(noTarget.status, 400);
+
+  const badTarget = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}/preview?target=netlify`, { headers: { cookie } });
+  assert.equal(badTarget.status, 400);
+
+  const missingRepo = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}/preview?target=github-pages&owner=octo`, { headers: { cookie } });
+  assert.equal(missingRepo.status, 400);
+});
+
+test("publish-site preview: github-pages reports the derived base path and, with no GITHUB_TOKEN configured, credentialsConfigured false — never starting a run", async (t) => {
+  const deps: RouteDeps = { ...createRouteDeps() };
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const before = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}`, { headers: { cookie } });
+  assert.equal((await before.json()).status, "idle");
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}/preview?target=github-pages&owner=octo&repo=demo-repo`, { headers: { cookie } });
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.deepEqual(body, {
+    target: "github-pages",
+    valid: true,
+    validationError: null,
+    basePath: "/demo-repo",
+    credentialsConfigured: false,
+    credentialGuidance: "GITHUB_TOKEN is not set — publishing to github-pages requires a token with write access configured in the server environment",
+    willInjectNojekyll: true,
+  });
+
+  // Never mutates `currentRun` — a preview is a pure read, so the run slot this file's other tests
+  // share is untouched by calling it.
+  const after = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}`, { headers: { cookie } });
+  assert.equal((await after.json()).status, "idle");
+});
+
+test("publish-site preview: an invalid owner is reported as invalid with no base path, and vercel never carries one", async (t) => {
+  const deps: RouteDeps = { ...createRouteDeps() };
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const invalidOwner = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}/preview?target=github-pages&owner=not%20valid!!&repo=demo`, { headers: { cookie } });
+  assert.equal(invalidOwner.status, 200);
+  const invalidBody = await invalidOwner.json();
+  assert.equal(invalidBody.valid, false);
+  assert.ok(invalidBody.validationError, "an invalid owner must report why");
+  assert.equal(invalidBody.basePath, null);
+
+  const vercel = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}/preview?target=vercel`, { headers: { cookie } });
+  assert.equal(vercel.status, 200);
+  const vercelBody = await vercel.json();
+  assert.equal(vercelBody.valid, true);
+  assert.equal(vercelBody.basePath, null);
+  assert.equal(vercelBody.willInjectNojekyll, false);
+});
+
+test("publish-site preview: with a token configured, credentialsConfigured is true and the token itself never crosses the response", async (t) => {
+  const deps: RouteDeps = { ...createRouteDeps() };
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const previousToken = process.env.GITHUB_TOKEN;
+  process.env.GITHUB_TOKEN = "ghp_fake-token-for-preview-test-only";
+  t.after(() => {
+    process.env.GITHUB_TOKEN = previousToken;
+  });
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}/preview?target=github-pages&owner=octo&repo=demo-repo`, { headers: { cookie } });
+  assert.equal(res.status, 200);
+  const body = await res.json();
+  assert.equal(body.credentialsConfigured, true);
+  assert.equal(body.credentialGuidance, null);
+  assert.doesNotMatch(JSON.stringify(body), /ghp_fake-token-for-preview-test-only/, "the resolved token must never appear in a preview response");
+});
