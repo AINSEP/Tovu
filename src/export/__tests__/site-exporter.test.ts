@@ -55,17 +55,45 @@ test("exportSite: writes the expected file tree for the seeded demo workspace, w
   const report = await exportSite({ routeDeps: createRouteDeps(), outputDir });
 
   assert.deepEqual(report.routes.failed, []);
-  // route-manifest.test.ts's own count against this exact fixture: 1 home + 8 theme pages + 7 posts
-  // (the seeded "about" post is shadowed by the theme's own about.html) + 1 not-found probe.
-  assert.equal(report.routes.succeeded.length, 17);
+  // route-manifest.test.ts's own count against this exact fixture: 1 home + 2 well-known
+  // (robots.txt/sitemap.xml) + 8 theme pages + 7 posts (the seeded "about" post is shadowed by the
+  // theme's own about.html) + 1 not-found probe.
+  assert.equal(report.routes.succeeded.length, 19);
 
   assert.ok(existsSync(path.join(outputDir, "index.html")), "home");
+  assert.ok(existsSync(path.join(outputDir, "robots.txt")), "well-known route at its literal filename, not a subfolder");
+  assert.ok(existsSync(path.join(outputDir, "sitemap.xml")), "well-known route at its literal filename, not a subfolder");
   assert.ok(existsSync(path.join(outputDir, "about", "index.html")), "theme-owned static page");
   assert.ok(existsSync(path.join(outputDir, "welcome", "index.html")), "seeded published post");
   assert.ok(existsSync(path.join(outputDir, "404.html")), "404 probe written to the output root");
 
   const home = readFileSync(path.join(outputDir, "index.html"), "utf8");
   assert.match(home, /<!doctype html>/i, "home is a full HTML document, not a fragment");
+});
+
+test("exportSite: reports theme files present on disk but never rendered or crawled, without flagging real ones", async (t) => {
+  const outputDir = makeTmpOutputDir();
+  t.after(() => rmSync(outputDir, { recursive: true, force: true }));
+
+  const report = await exportSite({ routeDeps: createRouteDeps(), outputDir });
+
+  // A content-embedding template shell (route-manifest.ts's own file header): never its own route,
+  // never linked from any rendered page — genuinely unreferenced, not a false positive.
+  assert.ok(
+    report.unreferencedThemeFiles.includes("pages/page-shell.html"),
+    "a template shell is neither a rendered route nor a crawled asset — must be named, not silently absent"
+  );
+  assert.ok(report.unreferencedThemeFiles.includes("theme.json"), "the manifest file itself is never independently fetched");
+
+  // Files this export DID account for — real pages, real assets — must never appear in the same
+  // list, or the warning would be noise instead of signal.
+  for (const shouldNotAppear of ["pages/about.html", "pages/index.html", "pages/404.html", "css/styles.css", "js/main.js"]) {
+    assert.equal(
+      report.unreferencedThemeFiles.includes(shouldNotAppear),
+      false,
+      `'${shouldNotAppear}' was rendered/crawled by this export and must not be reported as unreferenced`
+    );
+  }
 });
 
 test("exportSite: crawls and writes theme assets referenced by rendered pages", async (t) => {

@@ -7,7 +7,7 @@ import path from "node:path";
 import { createApp } from "../server/app";
 import type { RouteDeps } from "../server/routes/types";
 import { buildRouteManifest } from "./route-manifest";
-import type { ManifestRoute, ManifestRouteKind, ManifestSkip } from "./ports";
+import type { ManifestActiveTheme, ManifestRoute, ManifestRouteKind, ManifestSkip } from "./ports";
 
 /**
  * @file The static-site exporter engine: boots the REAL `createApp(routeDeps)` Express app
@@ -42,6 +42,19 @@ import type { ManifestRoute, ManifestRouteKind, ManifestSkip } from "./ports";
  * The CSS second-pass below (one bounded hop, not open-ended recursion) exists because a
  * stylesheet's own `url(...)` references (fonts, background images) are invisible to an HTML-only
  * crawl.
+ *
+ * Two more things a crawl structurally cannot see, per 2026-08-15 team-lead review:
+ * - Convention-addressed files nothing links to (`robots.txt`, `sitemap.xml`) — no HTML references
+ *   them, browsers/crawlers request them by exact name. `route-manifest.ts` now always includes
+ *   them as ordinary `kind: "well-known"` routes rather than leaving them to a crawl that could
+ *   never find them; {@link wellKnownOutputFile} writes them at their literal filename, not
+ *   wrapped in a `<name>/index.html` directory like every other content route.
+ * - Runtime-referenced assets: a theme's own JavaScript can build an image path or inject a font
+ *   from a string at request time, which no static crawl can ever see (there is no link to find).
+ *   This exporter does NOT attempt to catch these — instead {@link findUnreferencedThemeFiles}
+ *   diffs the active theme's whole folder against what actually got rendered/fetched and reports
+ *   the leftover files, so a caller gets an honest "these N files were never referenced" list
+ *   instead of an export that silently looks complete.
  */
 
 const ASSET_URL_PREFIXES = ["/theme-assets/", "/agent-icons/", "/m/"] as const;
@@ -81,6 +94,18 @@ export interface ExportReport {
   /** Manifest entries that could not even be attempted (e.g. non-`exact` redirect rules) — carried
    *  through from `RouteManifest.skipped` so one report names every known gap. */
   skippedManifestEntries: ManifestSkip[];
+  /**
+   * Files that physically exist in the active theme's own folder but were never written by this
+   * export — neither rendered as a route (a theme page) nor discovered by the HTML/CSS crawl (an
+   * asset). Paths are relative to the theme's own folder, e.g. `"images/hero-unused.jpg"`.
+   *
+   * This is a KNOWN, DISCLOSED gap, not a bug this exporter can close: a theme's own JavaScript can
+   * construct an image path or inject a font at runtime from a string, which is invisible to a
+   * static crawl by construction (there is no link for the crawl to find). Rather than let the
+   * export look complete, every such file is named here so a caller can make an informed call about
+   * whether it matters for THIS theme. Empty when the manifest resolved no active theme.
+   */
+  unreferencedThemeFiles: string[];
 }
 
 export interface ExportSiteOptions {
@@ -131,6 +156,14 @@ function contentRouteOutputFile(routePath: string, outputDir: string): string {
   if (routePath === "/") return path.join(outputDir, "index.html");
   const trimmed = routePath.replace(/^\/+/, "").replace(/\/+$/, "");
   return path.join(outputDir, trimmed, "index.html");
+}
+
+/** `kind: "well-known"` routes (`/robots.txt`, `/sitemap.xml`) are convention-addressed BY NAME —
+ *  a crawler or browser requests them at that exact literal path, never through a link — so unlike
+ *  every other content route, they must land at that literal filename, not wrapped in a
+ *  `<name>/index.html` directory. */
+function wellKnownOutputFile(routePath: string, outputDir: string): string {
+  return path.join(outputDir, routePath.replace(/^\/+/, ""));
 }
 
 function writeTextFile(filePath: string, contents: string): void {
@@ -223,10 +256,15 @@ async function writeContentRoute(route: ManifestRoute, baseUrl: string, outputDi
   if (res.status !== 200) {
     return { failed: { path: route.path, kind: route.kind, reason: `expected 200, got ${res.status}` } };
   }
-  const html = await res.text();
-  const outFile = contentRouteOutputFile(route.path, outputDir);
-  writeTextFile(outFile, html);
-  return { succeeded: { path: route.path, kind: route.kind, outputFile: path.relative(outputDir, outFile) }, html };
+  const body = await res.text();
+  const outFile = route.kind === "well-known" ? wellKnownOutputFile(route.path, outputDir) : contentRouteOutputFile(route.path, outputDir);
+  writeTextFile(outFile, body);
+  // `robots.txt`/`sitemap.xml` are plain text/XML, not HTML — crawling them for `href="…"`/`src="…"`
+  // is harmless (no such attributes exist in either format, so nothing matches) but also pointless;
+  // `html` is still populated uniformly rather than special-cased, since a false-negative crawl scan
+  // is cheap and a special case here would be one more branch to keep in sync with `ports.ts`'s kind
+  // list for no real benefit.
+  return { succeeded: { path: route.path, kind: route.kind, outputFile: path.relative(outputDir, outFile) }, html: body };
 }
 
 async function writeRedirectRoute(route: ManifestRoute, baseUrl: string, outputDir: string): Promise<RouteWriteOutcome> {
@@ -305,6 +343,49 @@ async function fetchAssets(initialUrls: readonly string[], baseUrl: string, outp
   return { succeeded, failed };
 }
 
+/** Every file under `dir`, recursively, as paths relative to `dir` using forward slashes (matching
+ *  the URL-path separator every `ASSET_URL_PREFIXES` comparison elsewhere in this file already
+ *  uses, so callers never need to normalize `path.sep` themselves). */
+function listFilesRecursively(dir: string): string[] {
+  const found: string[] = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = path.join(dir, entry.name);
+    if (entry.isDirectory()) {
+      found.push(...listFilesRecursively(full).map((rel) => `${entry.name}/${rel}`));
+    } else if (entry.isFile()) {
+      found.push(entry.name);
+    }
+  }
+  return found;
+}
+
+/**
+ * Diffs the active theme's own folder against everything this export actually wrote FROM it (a
+ * rendered theme-page route, or a crawled/fetched asset), per {@link ExportReport.unreferencedThemeFiles}'s
+ * own doc. `manifestRoutes` supplies the `pages/<id>.html` exclusions — `"index"`/`"404"` always
+ * (home and the 404 probe render from them regardless of whether that render succeeded), plus every
+ * `kind: "theme-page"` route's own page id, so a page the export ATTEMPTED (even one that failed —
+ * already reported, with more detail, in `routes.failed`) is never ALSO reported here as if no code
+ * path had touched it at all.
+ *
+ * @complexity O(F) file-system entries under the theme's folder, one `readdirSync` per directory —
+ *   a theme folder is a handful of files/folders in practice, never a caller-controlled collection.
+ */
+function findUnreferencedThemeFiles(activeTheme: ManifestActiveTheme, manifestRoutes: readonly ManifestRoute[], fetchedAssetUrls: readonly string[]): string[] {
+  const accountedFor = new Set<string>(["pages/index.html", "pages/404.html"]);
+  for (const route of manifestRoutes) {
+    if (route.kind === "theme-page") accountedFor.add(`pages/${route.label}.html`);
+  }
+  const themeAssetPrefix = `/theme-assets/${activeTheme.id}/`;
+  for (const url of fetchedAssetUrls) {
+    if (url.startsWith(themeAssetPrefix)) accountedFor.add(url.slice(themeAssetPrefix.length));
+  }
+
+  return listFilesRecursively(activeTheme.dir)
+    .filter((relativePath) => !accountedFor.has(relativePath))
+    .sort();
+}
+
 /**
  * Exports the whole public site to `options.outputDir`: boots the real app in-process, enumerates
  * every route via {@link buildRouteManifest}, fetches each one over real HTTP, and writes the
@@ -356,11 +437,20 @@ export async function exportSite(options: ExportSiteOptions): Promise<ExportRepo
 
     const { succeeded: assetsSucceeded, failed: assetsFailed } = await fetchAssets([...assetUrls], baseUrl, outputDir);
 
+    const unreferencedThemeFiles = manifest.activeTheme
+      ? findUnreferencedThemeFiles(
+          manifest.activeTheme,
+          manifest.routes,
+          assetsSucceeded.map((a) => a.url)
+        )
+      : [];
+
     return {
       outputDir,
       routes: { succeeded: routesSucceeded, failed: routesFailed },
       assets: { succeeded: assetsSucceeded, failed: assetsFailed },
       skippedManifestEntries: manifest.skipped,
+      unreferencedThemeFiles,
     };
   } finally {
     server.closeAllConnections?.();

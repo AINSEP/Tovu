@@ -34,7 +34,8 @@ export type ManifestRouteKind =
   | "product-list"
   | "product"
   | "redirect"
-  | "not-found";
+  | "not-found"
+  | "well-known";
 
 /**
  * One publicly reachable URL. `redirectTarget`/`redirectStatusCode` are populated ONLY for
@@ -56,6 +57,16 @@ export interface ManifestRoute {
   redirectStatusCode?: number;
 }
 
+/** Identifies the active theme a built manifest resolved against, so a caller (the exporter's
+ *  unreferenced-file diff) can locate its on-disk folder without re-resolving "which theme is
+ *  active" a third time (`route-manifest.ts` and `pages.ts`'s live route are the other two). Not
+ *  the full `DiscoveredTheme` — only the fields a caller outside this port's own module needs. */
+export interface ManifestActiveTheme {
+  id: string;
+  /** Absolute path of the theme's own folder on disk (`DiscoveredTheme.dir`). */
+  dir: string;
+}
+
 /** A publicly reachable URL the manifest could NOT enumerate, recorded so the export report names
  *  the gap instead of silently under-counting routes (the brief's "never a silently missing file"
  *  rule, applied one step upstream of the writer). Today's only known source: `prefix`/`wildcard`/
@@ -68,6 +79,8 @@ export interface ManifestSkip {
 export interface RouteManifest {
   routes: ManifestRoute[];
   skipped: ManifestSkip[];
+  /** Set only when a valid theme was resolved (absent in the `no-theme` `skipped` case). */
+  activeTheme?: ManifestActiveTheme;
 }
 
 /** Enumerates every publicly reachable URL for one workspace's active theme + content. */
