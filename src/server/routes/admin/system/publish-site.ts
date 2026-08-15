@@ -1,6 +1,7 @@
 import type { Express } from "express";
 
 import {
+  computeBasePath,
   createEnvPublishCredentialSource,
   publishStaticSite,
   validateStaticPublishConfig,
@@ -37,6 +38,19 @@ import type { RouteDeps } from "#src/server/routes/types";
  * (`static-publish/adapter.ts`'s `validateStaticPublishConfig`) — this route's own parsing only
  * narrows JSON shape (right types, right target-specific fields present), never re-implements that
  * validation, so there is exactly one place a config is judged valid or not.
+ *
+ * A THIRD route, `GET .../system/publish/preview`, was added 2026-08-15 alongside the admin UI's
+ * Static Site tab publish card. `deployment_preview_static_publish` (`publish-agent-tools.ts`)
+ * already gives the ASSISTANT this exact read — target validity, the computed base path, and
+ * whether a credential is configured (a boolean only, never the token) — but that tool is reached
+ * over the agent-tool transport, not an HTTP route a browser session can call, and the admin UI has
+ * no other way to answer "would this publish work?" before spending a real trigger+run on the
+ * question. This route reuses the SAME pure functions the tool already calls
+ * (`computeBasePath`/`validateStaticPublishConfig` from `static-publish/adapter.ts`, this file's own
+ * `credentialSource`) rather than re-deriving any of that logic a third time, so a preview here and
+ * a preview from the assistant can never disagree. `system.read`-gated, matching every other GET in
+ * this directory (`export-site.ts`, `deployment-overview.ts`) — it performs zero writes, zero
+ * network calls, and zero filesystem access; the credential check is a `process.env` read.
  */
 export type AdminPublishSiteDeps = RouteDeps;
 
@@ -106,6 +120,34 @@ function parsePublishRequestBody(body: unknown): { ok: true; config: StaticPubli
     };
   }
   return { ok: false, error: "'target' must be 'github-pages' or 'vercel'" };
+}
+
+/**
+ * Parses the preview GET's query string into a {@link StaticPublishConfig} — the same
+ * target-discriminated shape {@link parsePublishRequestBody} reads from a JSON body, translated to
+ * `req.query` since this is a plain read with no request body. Deliberately has no `projectName`
+ * counterpart: a preview never starts a run, so there is no label to validate.
+ *
+ * @returns `{ok:false, error}` for a missing/unrecognized `target` or a missing required
+ *   target-specific field. VALUE validation (a malformed owner/repo/branch) is intentionally not
+ *   duplicated here — {@link validateStaticPublishConfig} is the one place that judges a value valid,
+ *   same discipline {@link parsePublishRequestBody}'s own doc comment states for the trigger route.
+ * @complexity O(1) — fixed-size field reads, no iteration.
+ */
+function parsePreviewQuery(query: Record<string, unknown>): { ok: true; config: StaticPublishConfig } | { ok: false; error: string } {
+  if (query.target === "github-pages") {
+    const owner = typeof query.owner === "string" ? query.owner : "";
+    const repo = typeof query.repo === "string" ? query.repo : "";
+    if (owner.trim() === "") return { ok: false, error: "'owner' (non-empty string) is required for target 'github-pages'" };
+    if (repo.trim() === "") return { ok: false, error: "'repo' (non-empty string) is required for target 'github-pages'" };
+    const branch = typeof query.branch === "string" && query.branch.trim() !== "" ? query.branch : undefined;
+    return { ok: true, config: { target: "github-pages", owner, repo, ...(branch !== undefined ? { branch } : {}) } };
+  }
+  if (query.target === "vercel") {
+    const teamId = typeof query.teamId === "string" && query.teamId.trim() !== "" ? query.teamId : undefined;
+    return { ok: true, config: { target: "vercel", ...(teamId !== undefined ? { teamId } : {}) } };
+  }
+  return { ok: false, error: "'target' query param must be 'github-pages' or 'vercel'" };
 }
 
 export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishSiteDeps): void {
@@ -205,5 +247,53 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
     }
 
     res.status(200).json(currentRun);
+  });
+
+  app.get("/api/admin/v1/workspaces/:workspaceId/system/publish/preview", async (req, res) => {
+    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
+      res.status(404).json({ error: "workspace was not found" });
+      return;
+    }
+
+    const principal = getAuthedPrincipal(res);
+    const authResult = await deps.authorize({
+      principalId: principal.id,
+      permission: "system.read",
+      workspaceId: deps.workspaceId,
+      entityType: "site-publish",
+    });
+    if (!authResult.allowed) {
+      res.status(403).json({
+        error: `principal '${principal.id}' is not authorized for 'system.read' (${authResult.reason})`,
+        code: "FORBIDDEN",
+        details: { permission: "system.read", reason: authResult.reason },
+      });
+      return;
+    }
+
+    const parsed = parsePreviewQuery(req.query as Record<string, unknown>);
+    if (!parsed.ok) {
+      res.status(400).json({ error: parsed.error });
+      return;
+    }
+
+    // Same three reads `deployment_preview_static_publish`'s handler performs (this file's header)
+    // — a pure shape check, a pure base-path derivation, and one `process.env` lookup. No export
+    // runs, no filesystem or network I/O, and the resolved credential's TOKEN never enters this
+    // response — only `credential.ok` and, on failure, `credential.reason` (a fixed, non-secret
+    // sentence naming which env var is missing; see `credentials.ts`'s own `resolve()`).
+    const validationError = validateStaticPublishConfig(parsed.config);
+    const basePath = validationError === null ? (computeBasePath(parsed.config) ?? null) : null;
+    const credential = await credentialSource.resolve({ workspaceId: deps.workspaceId, target: parsed.config.target });
+
+    res.status(200).json({
+      target: parsed.config.target,
+      valid: validationError === null,
+      validationError,
+      basePath,
+      credentialsConfigured: credential.ok,
+      credentialGuidance: credential.ok ? null : credential.reason,
+      willInjectNojekyll: parsed.config.target === "github-pages",
+    });
   });
 }

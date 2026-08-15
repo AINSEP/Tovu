@@ -1,0 +1,260 @@
+import { act, renderHook, waitFor } from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import { FetchQueryProvider } from "../../../../lib/fetch-query";
+import { useStaticPublish } from "../use-static-publish.hooks";
+import { createFakeStaticPublishPort } from "../static-publish-dependencies.hooks";
+import type { AdminPublishRunSnapshot, AdminStaticPublishConfig, AdminStaticPublishPreview } from "../../../../lib/api";
+
+/**
+ * @file `useStaticPublish` — the Static Site tab's provider form, preview, and publish
+ * trigger+poll. Same injected-port shape as `use-static-export.unit.test.tsx`; the field-state and
+ * `buildConfig` behavior (which fields matter per target, blank optionals omitted) is this file's
+ * own load-bearing coverage — `StaticSiteTab.unit.test.tsx` only proves the markup wiring, not that
+ * the request shape sent to the server is correct.
+ */
+
+function wrapper({ children }: { children: React.ReactNode }) {
+  return <FetchQueryProvider>{children}</FetchQueryProvider>;
+}
+
+const fakeT = (key: string): string => key;
+const fakeLocale = "en";
+const IDLE_RUN: AdminPublishRunSnapshot = { status: "idle", startedAtIso: null, finishedAtIso: null, target: null };
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
+describe("useStaticPublish — field state", () => {
+  it("defaults to github-pages with every field blank", async () => {
+    const port = createFakeStaticPublishPort();
+    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.run).not.toBeUndefined());
+
+    expect(result.current.target).toBe("github-pages");
+    expect(result.current.owner).toBe("");
+    expect(result.current.repo).toBe("");
+    expect(result.current.branch).toBe("");
+    expect(result.current.teamId).toBe("");
+    expect(result.current.projectName).toBe("");
+  });
+
+  it("setters update their own field independently", async () => {
+    const port = createFakeStaticPublishPort();
+    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.run).not.toBeUndefined());
+
+    act(() => result.current.setOwner("octo"));
+    act(() => result.current.setRepo("demo-repo"));
+    act(() => result.current.setProjectName("demo"));
+    expect(result.current.owner).toBe("octo");
+    expect(result.current.repo).toBe("demo-repo");
+    expect(result.current.projectName).toBe("demo");
+  });
+
+  it("switching target does not clear the other target's already-typed fields", async () => {
+    const port = createFakeStaticPublishPort();
+    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.run).not.toBeUndefined());
+
+    act(() => result.current.setOwner("octo"));
+    act(() => result.current.setTarget("vercel"));
+    act(() => result.current.setTeamId("team_123"));
+    act(() => result.current.setTarget("github-pages"));
+
+    expect(result.current.owner).toBe("octo");
+    expect(result.current.teamId).toBe("team_123");
+  });
+});
+
+describe("useStaticPublish — preview", () => {
+  it("checkPreview sends the current field values and stores the result", async () => {
+    let sentConfig: AdminStaticPublishConfig | undefined;
+    const previewResult: AdminStaticPublishPreview = {
+      target: "github-pages",
+      valid: true,
+      validationError: null,
+      basePath: "/demo-repo",
+      credentialsConfigured: true,
+      credentialGuidance: null,
+      willInjectNojekyll: true,
+    };
+    const port = createFakeStaticPublishPort({
+      getPublishPreview: (config) => {
+        sentConfig = config;
+        return Promise.resolve(previewResult);
+      },
+    });
+    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.run).not.toBeUndefined());
+
+    act(() => result.current.setOwner("octo"));
+    act(() => result.current.setRepo("demo-repo"));
+    await act(async () => {
+      await result.current.checkPreview();
+    });
+
+    expect(sentConfig).toEqual({ target: "github-pages", owner: "octo", repo: "demo-repo" });
+    expect(result.current.preview).toEqual(previewResult);
+    expect(result.current.previewLoading).toBe(false);
+  });
+
+  it("omits a blank branch/teamId entirely rather than sending an empty string", async () => {
+    let sentConfig: AdminStaticPublishConfig | undefined;
+    const port = createFakeStaticPublishPort({
+      getPublishPreview: (config) => {
+        sentConfig = config;
+        return Promise.resolve({
+          target: config.target,
+          valid: true,
+          validationError: null,
+          basePath: null,
+          credentialsConfigured: false,
+          credentialGuidance: null,
+          willInjectNojekyll: false,
+        });
+      },
+    });
+    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.run).not.toBeUndefined());
+
+    act(() => result.current.setOwner("octo"));
+    act(() => result.current.setRepo("demo-repo"));
+    act(() => result.current.setBranch("  "));
+    await act(async () => {
+      await result.current.checkPreview();
+    });
+
+    expect(sentConfig).toEqual({ target: "github-pages", owner: "octo", repo: "demo-repo" });
+    expect(sentConfig).not.toHaveProperty("branch");
+  });
+
+  it("editing any field after a preview clears the now-stale preview", async () => {
+    const port = createFakeStaticPublishPort({
+      getPublishPreview: () =>
+        Promise.resolve({
+          target: "github-pages",
+          valid: true,
+          validationError: null,
+          basePath: "/demo-repo",
+          credentialsConfigured: true,
+          credentialGuidance: null,
+          willInjectNojekyll: true,
+        }),
+    });
+    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.run).not.toBeUndefined());
+
+    act(() => result.current.setOwner("octo"));
+    act(() => result.current.setRepo("demo-repo"));
+    await act(async () => {
+      await result.current.checkPreview();
+    });
+    expect(result.current.preview).not.toBeUndefined();
+
+    act(() => result.current.setRepo("renamed-repo"));
+    expect(result.current.preview).toBeUndefined();
+  });
+
+  it("surfaces a rejected preview as a translated preview error", async () => {
+    const port = createFakeStaticPublishPort({ getPublishPreview: () => Promise.reject(new Error("boom")) });
+    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.run).not.toBeUndefined());
+
+    await act(async () => {
+      await result.current.checkPreview();
+    });
+    expect(result.current.previewError).toContain("Could not check this target");
+    expect(result.current.previewError).toContain("boom");
+  });
+});
+
+describe("useStaticPublish — publish trigger and poll", () => {
+  it("publish() sends the built config plus projectName and sets run from the response", async () => {
+    let sentInput: { config: AdminStaticPublishConfig; projectName: string } | undefined;
+    const runningRun: AdminPublishRunSnapshot = { status: "running", startedAtIso: "t0", finishedAtIso: null, target: "vercel" };
+    const port = createFakeStaticPublishPort({
+      triggerPublish: (input) => {
+        sentInput = input;
+        return Promise.resolve(runningRun);
+      },
+    });
+    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.run).not.toBeUndefined());
+
+    act(() => result.current.setTarget("vercel"));
+    act(() => result.current.setProjectName("demo"));
+    await act(async () => {
+      await result.current.publish();
+    });
+
+    expect(sentInput).toEqual({ config: { target: "vercel" }, projectName: "demo" });
+    expect(result.current.run).toEqual(runningRun);
+    expect(result.current.isPublishing).toBe(true);
+  });
+
+  it("surfaces a rejected publish (e.g. 409 already running) as a translated publish error", async () => {
+    const port = createFakeStaticPublishPort({ triggerPublish: () => Promise.reject(new Error("a publish is already running")) });
+    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.run).not.toBeUndefined());
+
+    act(() => result.current.setProjectName("demo"));
+    await act(async () => {
+      await result.current.publish();
+    });
+
+    expect(result.current.publishError).toContain("Could not start the publish");
+    expect(result.current.publishError).toContain("a publish is already running");
+  });
+
+  it("polls the publish status route while running and stops once the run settles", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const runningRun: AdminPublishRunSnapshot = { status: "running", startedAtIso: "t0", finishedAtIso: null, target: "vercel" };
+    const completedRun: AdminPublishRunSnapshot = {
+      status: "completed",
+      startedAtIso: "t0",
+      finishedAtIso: "t1",
+      target: "vercel",
+      result: { ok: true, targetId: "vercel", url: "https://demo.vercel.app", status: "READY" },
+    };
+    let pollCount = 0;
+    const getPublishStatus = vi.fn().mockImplementation(() => {
+      pollCount += 1;
+      return Promise.resolve(pollCount < 2 ? runningRun : completedRun);
+    });
+    const port = createFakeStaticPublishPort({ getPublishStatus });
+    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.run).not.toBeUndefined());
+
+    act(() => result.current.setProjectName("demo"));
+    await act(async () => {
+      await result.current.publish();
+    });
+    expect(result.current.isPublishing).toBe(true);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1500);
+    });
+    expect(result.current.run?.status).toBe("completed");
+    expect(result.current.isPublishing).toBe(false);
+  });
+});
+
+describe("useStaticPublish — initial load", () => {
+  it("seeds run from the fake port's initial status read", async () => {
+    const port = createFakeStaticPublishPort({ getPublishStatus: () => Promise.resolve(IDLE_RUN) });
+    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.run).not.toBeUndefined());
+    expect(result.current.run).toEqual(IDLE_RUN);
+    expect(result.current.loadError).toBeNull();
+  });
+
+  it("surfaces a rejected initial read as a translated load error", async () => {
+    const port = createFakeStaticPublishPort({ getPublishStatus: () => Promise.reject(new Error("disk error")) });
+    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.loadError).not.toBeNull());
+    expect(result.current.loadError).toContain("Could not load the publish status");
+    expect(result.current.loadError).toContain("disk error");
+  });
+});

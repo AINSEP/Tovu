@@ -1,65 +1,81 @@
 import { useState } from "react";
+import { agentHandle } from "@jini-ai/agentic";
+
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
+import { TabBar } from "../../components/TabBar";
+import type {
+  AdminDeployCliStatus,
+  AdminExportRunSnapshot,
+  AdminPublishRunSnapshot,
+  AdminStaticPublishPreview,
+  AdminStaticPublishTargetId,
+} from "../../lib/api";
+import type { Translate } from "../../lib/dictionary-translator";
 import { t } from "./deployment-i18n";
 import {
-  PUBLISH_ASSISTANT_REQUEST,
-  PUBLISH_CLI_TOOLS,
   STATIC_HOSTS,
+  STATIC_PUBLISH_TARGETS,
   STATIC_SITE_CAPABILITIES,
+  PUBLISH_CLI_TOOLS,
+  cliInstalledStatus,
+  exportRunStatusLabelKey,
+  publishAssistantRequestForTool,
+  publishRunStatusLabelKey,
+  runStatusTone,
+  staticPublishFormReadyForPreview,
+  staticPublishFormReadyToPublish,
   type PublishCliTool,
 } from "./rules";
 import { AssistantIcon, CapabilityList, StaticSiteIcon } from "./deployment-visuals";
+import { useWiredDeploymentOverview } from "./hooks/use-deployment-overview.hooks";
+import type { DeploymentOverviewController } from "./hooks/use-deployment-overview.hooks";
+import { useWiredStaticExport } from "./hooks/use-static-export.hooks";
+import type { StaticExportController } from "./hooks/use-static-export.hooks";
+import { useWiredStaticPublish } from "./hooks/use-static-publish.hooks";
+import type { StaticPublishController } from "./hooks/use-static-publish.hooks";
 
 /**
- * @file Static Site tab — what a static export produces, the real command that produces one, where
- * the output can be hosted, and a deliberately inert build action with a truthful reason.
+ * @file Static Site tab — what a static export produces, a real trigger+poll build action, and a
+ * real per-provider publish flow to GitHub Pages/Vercel.
  *
- * CORRECTED mid-build (first pass): `development/docs/deployment/deployment-constraints.md` §3 said
- * the static exporter did not exist, and that was true when that pass started. It stopped being
- * true partway through the same session — a concurrent teammate landed `src/export/route-manifest
- * .ts` (`RouteManifestPort`, resolving home/products/theme pages via the SAME functions the real
- * public routes use, plus a synthetic 404 probe), `src/export/site-exporter.ts` (`exportSite`), and
- * `src/cli/commands/export.ts` (`tovu export <dir>`). Verified directly, not taken on faith:
- * `grep -rln "runExportCommand\|exportSite\b" src/server/routes` returns nothing, so the exporter is
- * real but CLI-only — there is still no HTTP route this admin screen could call, which is why the
- * button below stays inert.
+ * ## Third pass (2026-08-15) — the two "not wired up yet" halves both got wired
  *
- * ## Second pass (2026-08-15) — what changed and why
+ * The second pass's own header traced a grep (`runExportCommand|exportSite\b` against
+ * `src/server/routes`) that returned nothing, and concluded the build button had to stay inert. That
+ * grep is now stale for a second time, the same way it was corrected once already: a concurrent
+ * agent landed `src/server/routes/admin/system/export-site.ts` (`POST`/`GET .../system/export`,
+ * trigger+poll, `system.export`-gated) the same session, registered in `server/app.ts`, tested in
+ * `export-site-route.test.ts`. The build button below now calls it for real, through
+ * `useWiredStaticExport` (`hooks/use-static-export.hooks.ts`).
  *
- * The command was prose. "Run tovu export <dir> and Tovu writes a static copy…" put the one thing
- * on this tab a reader actually needs to transcribe inside a sentence, unstyled, with nothing to
- * click — on a screen whose entire job is to hand a developer a command. It is now a real command
- * block with a Copy button. The `$` prompt is a CSS `::before`, so it is not part of what gets
- * copied.
+ * The publish half tells the same story a second time over: `src/server/routes/admin/system/
+ * publish-site.ts` (preview + trigger + poll, wrapping `features/deployments/static-publish/`) also
+ * landed the same session, cookie-authed — a HUMAN clicking Publish in this admin, not the AI
+ * assistant (`deployment_execute_static_publish`, the agent-tool half of this same feature, stays
+ * declared-but-never-wired on purpose; see that tool's own doc comment in `publish-agent-tools.ts`
+ * for why: no confirmation-token transport exists yet for an agent to trigger an irreversible public
+ * publish). The "Getting it online" card below now has a real provider picker, preview, and publish
+ * action wired through `useWiredStaticPublish` (`hooks/use-static-publish.hooks.ts`), sitting
+ * alongside the CLI-first assistant route rather than replacing it — see that card's own doc for how
+ * the two relate.
  *
- * `<dir>` is left as the literal placeholder the CLI's own usage string uses, with a hint saying to
- * replace it. Substituting a plausible-looking `./dist` would be inventing a default this project
- * does not have — see `src/cli/commands/export.ts`, where the directory is a required argument with
- * no fallback.
- *
- * The four cards became two. "What it produces" and "what it costs you" were two cards stating one
- * fact, and `STATIC_SITE_CAPABILITIES` now states both at once as one list — the same list the
- * Overview tab's comparison renders, so a reader meets it twice in the same shape rather than as a
- * comparison in one place and a prose warning in another. The hosts list lost its bullet discs: four
- * proper nouns with nothing ranking them read as chips, not as an ordered argument.
- *
- * `STATIC_HOSTS` (`rules.ts`) is the fixed four-host list from the brief — proper nouns, never
- * translated, and marked `translate="no"` so a machine translator leaves them alone too.
+ * `deployClis` (`AdminDeploymentOverview.deployClis`, real PATH detection as of the same session —
+ * `deployment-overview.ts`'s `isOnPath`) replaces the second pass's "Tovu can't see what's installed"
+ * sentence with a real per-tool pill, SPLIT per provider rather than shown as one joint list — the
+ * owner's own instruction: "split the installed GitHub CLI and Vercel CLI into different commands,
+ * because maybe they only wanna use one, and it may be confusing." Someone with only `gh` on PATH who
+ * only wants GitHub Pages now sees a complete GitHub-only path with no Vercel row anywhere near it.
  */
 
 /** A line of text the reader is meant to take somewhere else, with a Copy button.
  *
- *  Two variants, because this tab now hands over two different KINDS of text: a shell command
+ *  Two variants, because this tab hands over two different KINDS of text: a shell command
  *  (`prose={false}`, monospace, rendered with a `$` prompt via CSS) and a sentence to say to the
  *  assistant (`prose`, UI face, no prompt). Sharing one component keeps the copy affordance
- *  identical between them; the variant only changes what the box claims the text is. Putting a `$`
- *  in front of an English sentence would tell the reader to type it into a terminal, where it does
- *  nothing.
+ *  identical between them; the variant only changes what the box claims the text is.
  *
- *  Component-local `useState` rather than a hook + port pair, which is the documented carve-out this
- *  app already applies to `ThemeExplore.tsx`'s device-width/fullscreen state: there is nothing to
- *  inject. `use-dockerfile-source.hooks.ts` keeps ITS copy handler in a hook for the opposite
- *  reason — that one copies fetched data the hook already owns, whereas this copies a constant.
+ *  Component-local `useState` rather than a hook + port pair — there is nothing to inject, same
+ *  carve-out `ThemeExplore.tsx`'s device-width/fullscreen state documents.
  *
  *  A denied clipboard permission is swallowed, same as everywhere else in this app: the text is
  *  visible and selectable in the block itself, so a failed copy degrades to "select it manually"
@@ -70,16 +86,21 @@ function CopyLine({
   copyLabel,
   copiedLabel,
   copyAccessibleName,
+  agentHandleId,
 }: {
   text: string;
   prose?: boolean;
   copyLabel: string;
   copiedLabel: string;
-  /** Distinguishes the two Copy buttons that now share this tab. Two controls whose only accessible
+  /** Distinguishes the several Copy buttons this tab now has. Two controls whose only accessible
    *  name is "Copy" are ambiguous to anyone listing the page's buttons, and "Copy" is a substring of
    *  each name passed here, which is what keeps the visible label a valid part of the accessible one
    *  (WCAG 2.5.3 Label in Name). */
   copyAccessibleName: string;
+  /** This component has several call sites in this tab (the export command, and one per publish
+   *  CLI's "ask the assistant" line) — the id is caller-supplied rather than a constant baked into
+   *  this component, same reason `copyAccessibleName` is. */
+  agentHandleId: string;
 }) {
   const [copied, setCopied] = useState(false);
 
@@ -98,87 +119,217 @@ function CopyLine({
       <code translate={prose ? undefined : "no"}>{text}</code>
       {/* `aria-live="polite"` on the label so the swap to "Copied!" is announced — an action whose
           only feedback is a silent visual label change is invisible to a screen-reader user. */}
-      <button type="button" className="btn-secondary" onClick={() => void copy()} aria-label={copyAccessibleName}>
+      <button
+        type="button"
+        className="btn-secondary"
+        onClick={() => void copy()}
+        aria-label={copyAccessibleName}
+        {...agentHandle(agentHandleId, { role: "button", label: copyAccessibleName })}
+      >
         <span aria-live="polite">{copied ? copiedLabel : copyLabel}</span>
       </button>
     </div>
   );
 }
 
-/** One CLI the assistant can drive. Reuses the Full Site provider row's markup deliberately — see
- *  `PublishCliTool`'s own doc comment in `rules.ts` for why, and for where a real installed/not-
- *  installed pill goes once the server can actually check. */
-function PublishToolRow({ tool, locale }: { tool: PublishCliTool; locale: string }) {
+/** One export run's completed/errored detail — counts, failures, and where it landed. Only rendered
+ *  once `run.status` is `"completed"` or `"errored"`; a `"running"`/`"idle"` run has nothing here yet
+ *  to report. */
+function ExportRunResult({ run, t: translate }: { run: AdminExportRunSnapshot; t: Translate }) {
+  if (run.status === "errored") {
+    return (
+      <p className="save-error" role="alert">
+        {run.error}
+      </p>
+    );
+  }
+  if (run.status !== "completed" || !run.counts) return null;
   return (
-    <li className="deployment-provider-list-item">
+    <div className="deployment-facts">
+      <div className="deployment-fact">
+        <span className="deployment-fact-label">{translate("Routes")}</span>
+        <span className="deployment-fact-value">
+          {run.counts.routesSucceeded} {translate("succeeded")}
+          {run.counts.routesFailed > 0 ? `, ${run.counts.routesFailed} ${translate("failed")}` : ""}
+        </span>
+      </div>
+      <div className="deployment-fact">
+        <span className="deployment-fact-label">{translate("Assets")}</span>
+        <span className="deployment-fact-value">
+          {run.counts.assetsSucceeded} {translate("succeeded")}
+          {run.counts.assetsFailed > 0 ? `, ${run.counts.assetsFailed} ${translate("failed")}` : ""}
+        </span>
+      </div>
+      {run.outputDir ? (
+        <div className="deployment-fact">
+          <span className="deployment-fact-label">{translate("Written to")}</span>
+          <span className="deployment-fact-value">
+            <code translate="no">{run.outputDir}</code>
+          </span>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** The "Build it from a terminal" card's second half — the command block (unchanged) plus the real
+ *  build action: a clean/overwrite checkbox, the Build button itself, a live status pill, and the
+ *  run's own result once it settles. */
+function BuildExportCard({ controller, t: translate }: { controller: StaticExportController; t: Translate }) {
+  const tone = runStatusTone(controller.run?.status ?? "idle", controller.run?.ok);
+  const busy = controller.triggering || controller.isRunning;
+
+  return (
+    <div
+      className="card"
+      {...agentHandle("deployment-static-site-export-card", {
+        role: "region",
+        label: "Build a static export from this admin server, with a live run status and result",
+      })}
+    >
+      <div className="card-head">
+        <h2 className="card-title">{translate("Build it from a terminal")}</h2>
+        <div className="card-head-actions">
+          <span className={`status status-${tone}`}>{translate(exportRunStatusLabelKey(controller.run))}</span>
+        </div>
+      </div>
+      <div className="deployment-card-body">
+        <p className="card-lead">
+          {translate("Tovu writes every published post, the home page, products and theme pages into the folder you name.")}
+        </p>
+        <CopyLine
+          text="tovu export <dir>"
+          copyLabel={translate("Copy")}
+          copiedLabel={translate("Copied!")}
+          copyAccessibleName={translate("Copy the export command")}
+          agentHandleId="deployment-static-site-export-command-copy"
+        />
+        <p className="deployment-action-reason">
+          {translate("Replace <dir> with the folder to write into. It is a required argument — there is no default.")}
+        </p>
+
+        <div className="deployment-action">
+          <label className="form-checkbox-field">
+            <input
+              type="checkbox"
+              checked={controller.clean}
+              onChange={(e) => controller.setClean(e.target.checked)}
+              {...agentHandle("deployment-static-site-export-clean", {
+                role: "checkbox",
+                label: "Overwrite the export output folder's existing contents before writing the new export",
+              })}
+            />
+            {translate("Overwrite existing files in the output folder")}
+          </label>
+          <p className="deployment-action-reason">
+            {translate(
+              "Off by default. The exporter refuses to write into a non-empty folder unless this is checked — it never deletes unknown files silently."
+            )}
+          </p>
+
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => void controller.trigger()}
+            {...agentHandle("deployment-static-site-export-build", {
+              role: "button",
+              label: "Start a static export from this admin server, using the checkbox above's overwrite setting",
+            })}
+          >
+            {busy ? translate("Exporting…") : translate("Build static export")}
+          </button>
+          {controller.triggerError ? (
+            <p className="save-error" role="alert">
+              {controller.triggerError}
+            </p>
+          ) : null}
+          {controller.run ? <ExportRunResult run={controller.run} t={translate} /> : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** One provider's CLI-first row inside the selected target's route block — real name/command, a
+ *  real detected/not-detected pill from `deployClis` (or "Checking…" while the Overview snapshot is
+ *  still loading), its own description, and its own single-tool "ask the assistant" copy line. Never
+ *  renders the OTHER provider's tool — see this file's header for why that split matters. */
+function ProviderCliRow({
+  tool,
+  deployClis,
+  overviewLoaded,
+  t: translate,
+}: {
+  tool: PublishCliTool;
+  deployClis: readonly AdminDeployCliStatus[];
+  overviewLoaded: boolean;
+  t: Translate;
+}) {
+  const installed = cliInstalledStatus(deployClis, tool.id);
+  return (
+    <div className="deployment-provider-list-item">
       <span className="deployment-provider-name">
         <span translate="no">{tool.name}</span>
         <span className="deployment-tool-command" translate="no">
           {tool.command}
         </span>
-      </span>
-      <p>{t(locale, tool.descriptionKey)}</p>
-    </li>
-  );
-}
-
-/**
- * The recommended publishing route: ask the assistant to install two CLIs, then let it drive them.
- *
- * ## Why this is the recommended route and not just an option
- *
- * Tovu's assistant is a spawned coding-agent CLI with a real shell (project memory:
- * `@jini-ai/agent-runtime`, PATH detection, no API key). If `gh` and `vercel` are present it can
- * publish directly — no token pasted into this admin, nothing stored, no provider adapter involved.
- * The token-based path is strictly more machinery for strictly less capability, so the recommended
- * one leads and the fallback is a single muted line underneath.
- *
- * ## Why there is no installed/not-installed indicator here
- *
- * There is no PATH-detection endpoint as of 2026-08-15 — the server genuinely cannot tell whether
- * either binary exists. So this block shows NO per-tool badge, tick, spinner, or "checking…" state,
- * because every one of those would be reporting a check that never ran, and a greyed-out badge
- * reads as "not installed" rather than "not known". Instead the gap is stated in words, once,
- * directly under the list, and the copyable request itself asks the assistant to answer the
- * question this screen cannot. When detection lands, that one sentence is what gets replaced; the
- * rows, their order and their keys already exist and gain a pill in the slot the Full Site provider
- * rows use. That is the difference between a reserved slot and a rewrite.
- */
-function PublishRoute({ locale }: { locale: string }) {
-  return (
-    <div className="deployment-route">
-      <div className="deployment-route-label">
-        <AssistantIcon size={16} />
-        <span className="deployment-fact-label">{t(locale, "Recommended — ask the assistant")}</span>
-      </div>
-      <p className="deployment-action-reason">
-        {t(
-          locale,
-          "Tovu's assistant runs as a command-line coding agent with its own shell, so once these two tools are installed it can publish the export for you — nothing to paste here, and no credentials stored."
+        {overviewLoaded ? (
+          <span className={`status status-${installed ? "ok" : "neutral"}`}>
+            {installed ? translate("Detected on this server") : translate("Not detected on this server")}
+          </span>
+        ) : (
+          <span className="status status-neutral">{translate("Checking…")}</span>
         )}
-      </p>
+      </span>
+      <p>{translate(tool.descriptionKey)}</p>
       <CopyLine
-        text={PUBLISH_ASSISTANT_REQUEST}
+        text={publishAssistantRequestForTool(tool)}
         prose
-        copyLabel={t(locale, "Copy")}
-        copiedLabel={t(locale, "Copied!")}
-        copyAccessibleName={t(locale, "Copy this request to the assistant")}
+        copyLabel={translate("Copy")}
+        copiedLabel={translate("Copied!")}
+        copyAccessibleName={translate(`Copy this request to the assistant (${tool.name})`)}
+        agentHandleId={`deployment-static-site-assistant-request-copy-${tool.id}`}
       />
-      <ul className="deployment-provider-list">
-        {PUBLISH_CLI_TOOLS.map((tool) => (
-          <PublishToolRow key={tool.id} tool={tool} locale={locale} />
-        ))}
-      </ul>
-      <p className="deployment-action-reason deployment-route-note">
-        {t(locale, "Tovu can't see what's installed on the server yet, so this is a recommendation rather than a check — the assistant can tell you which ones it found.")}
-      </p>
     </div>
   );
 }
 
-export function StaticSiteTab() {
+export interface StaticSiteTabProps {
+  /** DI seams for tests — same convention as every other wired-hook prop in this app
+   *  (`DockerfileTabProps.useDockerfileSourceHook`, `OverviewTabProps.useDeploymentOverviewHook`). */
+  useStaticExportHook?: typeof useWiredStaticExport;
+  useStaticPublishHook?: typeof useWiredStaticPublish;
+  useDeploymentOverviewHook?: typeof useWiredDeploymentOverview;
+}
+
+/** Resolves each of {@link StaticSiteTabProps}'s three DI seams to its real hook when a caller
+ *  passes none — three small resolvers rather than three inline `??` expressions in
+ *  `StaticSiteTab` itself, same complexity-gate reasoning `OverviewTab.tsx`'s own
+ *  `resolveDeploymentOverviewHook` documents (a resolver here counts one branch each; three inline
+ *  `??`s in the component body would count three against ITS OWN score instead). */
+function resolveStaticExportHook(override: typeof useWiredStaticExport | undefined): typeof useWiredStaticExport {
+  return override ?? useWiredStaticExport;
+}
+function resolveStaticPublishHook(override: typeof useWiredStaticPublish | undefined): typeof useWiredStaticPublish {
+  return override ?? useWiredStaticPublish;
+}
+function resolveDeploymentOverviewHookForStaticSite(
+  override: typeof useWiredDeploymentOverview | undefined
+): typeof useWiredDeploymentOverview {
+  return override ?? useWiredDeploymentOverview;
+}
+
+export function StaticSiteTab(props: StaticSiteTabProps) {
   const locale = useAdminLocale();
   const translate = (key: string): string => t(locale, key);
+
+  const useStaticExportHook = resolveStaticExportHook(props.useStaticExportHook);
+  const useStaticPublishHook = resolveStaticPublishHook(props.useStaticPublishHook);
+  const useDeploymentOverviewHook = resolveDeploymentOverviewHookForStaticSite(props.useDeploymentOverviewHook);
+
+  const exportController = useStaticExportHook();
+  const publishController = useStaticPublishHook();
+  const overview = useDeploymentOverviewHook();
 
   return (
     <div className="deployment-tab">
@@ -220,69 +371,298 @@ export function StaticSiteTab() {
         </div>
       </div>
 
-      <div className="card">
-        <div className="card-head">
-          <h2 className="card-title">{t(locale, "Build it from a terminal")}</h2>
-        </div>
-        <div className="deployment-card-body">
-          <p className="card-lead">
-            {t(locale, "Tovu writes every published post, the home page, products and theme pages into the folder you name.")}
-          </p>
-          <CopyLine
-            text="tovu export <dir>"
-            copyLabel={t(locale, "Copy")}
-            copiedLabel={t(locale, "Copied!")}
-            copyAccessibleName={t(locale, "Copy the export command")}
-          />
-          <p className="deployment-action-reason">
-            {t(locale, "Replace <dir> with the folder to write into. It is a required argument — there is no default.")}
-          </p>
-          {/* Inert, not hidden — the affordance's SHAPE is real (this is where a build will start
-              once this screen can reach the exporter over HTTP), only its function is not. A hidden
-              button would tell the operator nothing; an enabled one that does nothing would tell
-              them something false.
+      <BuildExportCard controller={exportController} t={exportController.t} />
 
-              `aria-disabled` rather than the `disabled` attribute, changed in this pass: `disabled`
-              removes the control from the tab order entirely, so a keyboard or screen-reader user
-              never reaches it and never hears the reason it cannot be used — the reason being the
-              entire point of rendering it at all. With `aria-disabled` the button stays focusable
-              and announces as dimmed, and `aria-describedby` ties the reason text to it so that is
-              read out too. There is no `onClick`, so it remains genuinely inert. */}
-          <div className="deployment-action">
-            <button type="button" className="btn-secondary" aria-disabled="true" aria-describedby="static-export-reason">
-              {t(locale, "Build static export")}
-            </button>
-            <p className="deployment-action-reason" id="static-export-reason">
-              {t(
-                locale,
-                "Not available from this screen yet — no admin route can start an export. Run the command above instead."
-              )}
-            </p>
-          </div>
-        </div>
+      <GettingItOnlineCard publishController={publishController} overview={overview} t={publishController.t} />
+    </div>
+  );
+}
+
+/** The "Getting it online" card — a provider picker (GitHub Pages/Vercel), that provider's own
+ *  CLI-first recommendation, and that provider's own preview+publish mini-form. Composed as its own
+ *  function (not inline in `StaticSiteTab`) for the same complexity-gate reason `Deployment.tsx`'s
+ *  `deploymentTabPanel` documents — this card alone owns a provider `if`/`else` plus two field sets.
+ *
+ *  `t` is `publishController.t` (the injected hook's own bound translator), not a second one built
+ *  from `useAdminLocale()` — same "the DI seam has to actually be exercised" reasoning
+ *  `use-deployment-overview.unit.test.tsx`'s own "proving the value isn't built internally" test
+ *  pins for `OverviewTab`. `overview` supplies only DATA (`deployClis`) here, never its own `t` —
+ *  one card, one translator, so a test injecting a fake `useStaticPublishHook` controls every string
+ *  this card renders without also needing to fake the Overview hook's locale plumbing. */
+function GettingItOnlineCard({
+  publishController,
+  overview,
+  t: translate,
+}: {
+  publishController: StaticPublishController;
+  overview: DeploymentOverviewController;
+  t: Translate;
+}) {
+  const selectedTarget = STATIC_PUBLISH_TARGETS.find((target) => target.id === publishController.target) ?? STATIC_PUBLISH_TARGETS[0]!;
+  const selectedTool = PUBLISH_CLI_TOOLS.find((tool) => tool.id === selectedTarget.cliToolId) ?? PUBLISH_CLI_TOOLS[0]!;
+  const deployClis = overview.snapshot?.deployClis ?? [];
+
+  function handleTargetChange(id: string) {
+    const next = STATIC_PUBLISH_TARGETS.find((target) => target.id === id);
+    if (next) publishController.setTarget(next.id);
+  }
+
+  return (
+    <div
+      className="card"
+      {...agentHandle("deployment-static-site-online-card", {
+        role: "region",
+        label: "Publish target picker, CLI-first recommendation, and direct preview/publish form for this static export",
+      })}
+    >
+      <div className="card-head">
+        <h2 className="card-title">{translate("Getting it online")}</h2>
       </div>
+      <div className="deployment-card-body">
+        <p className="card-lead">
+          {translate(
+            "The export is just a folder of files. Pick where it goes, then either let the assistant drive the CLI or publish straight from here."
+          )}
+        </p>
 
-      {/* Third and last, because it is genuinely the third step: the tab used to end at "you now
-          have a folder", which is the point at which the reader still has the hardest part of the
-          job in front of them. */}
-      <div className="card">
-        <div className="card-head">
-          <h2 className="card-title">{t(locale, "Getting it online")}</h2>
-        </div>
-        <div className="deployment-card-body">
-          <p className="card-lead">
-            {t(locale, "The export is just a folder of files. Putting it on GitHub Pages or Vercel is the last step, and the assistant can do that part for you.")}
-          </p>
-          <PublishRoute locale={locale} />
-          {/* The fallback is stated so the recommendation cannot read as a prerequisite wall, and
-              stated as PLANNED because that is what it is — another agent is building the
-              token-based path now, and describing it as available would be the one fabrication this
-              whole screen has avoided. */}
+        <TabBar
+          ariaLabel={translate("Publish target")}
+          tabs={STATIC_PUBLISH_TARGETS.map((target) => ({ id: target.id, label: target.label }))}
+          activeId={selectedTarget.id}
+          onChange={handleTargetChange}
+        />
+
+        <div className="deployment-route">
+          <div className="deployment-route-label">
+            <AssistantIcon size={16} />
+            <span className="deployment-fact-label">{translate("Recommended — ask the assistant")}</span>
+          </div>
           <p className="deployment-action-reason">
-            {t(locale, "If those tools can't be installed, a token-based fallback is planned — this route is a shortcut, not a requirement.")}
+            {translate(
+              "Tovu's assistant runs as a command-line coding agent with its own shell, so once this tool is installed it can publish the export for you — nothing to paste here, and no credentials stored."
+            )}
           </p>
+          <ul className="deployment-provider-list">
+            <ProviderCliRow tool={selectedTool} deployClis={deployClis} overviewLoaded={Boolean(overview.snapshot)} t={translate} />
+          </ul>
         </div>
+
+        <StaticPublishForm target={selectedTarget.id} controller={publishController} t={translate} />
+
+        <p className="deployment-action-reason">
+          {translate(
+            "Prefer not to install a CLI? A token-based fallback works too — set GITHUB_TOKEN or VERCEL_TOKEN in this server's environment, then use Publish below directly."
+          )}
+        </p>
       </div>
     </div>
   );
+}
+
+/** The token-based preview+publish mini-form for whichever target is currently selected. Reads
+ *  ONLY the fields the current target uses (see `use-static-publish.hooks.ts`'s header for why the
+ *  hook still keeps both targets' fields in state at once) — a GitHub Pages selection never shows a
+ *  `teamId` field, and vice versa. */
+function StaticPublishForm({
+  target,
+  controller,
+  t: translate,
+}: {
+  target: AdminStaticPublishTargetId;
+  controller: StaticPublishController;
+  t: Translate;
+}) {
+  const canPreview = staticPublishFormReadyForPreview(target, { owner: controller.owner, repo: controller.repo });
+  const canPublish = staticPublishFormReadyToPublish(target, {
+    owner: controller.owner,
+    repo: controller.repo,
+    projectName: controller.projectName,
+  });
+  const runTone = runStatusTone(controller.run?.status ?? "idle", controller.run?.result?.ok);
+  const busy = controller.isPublishing;
+
+  return (
+    <div className="deployment-route">
+      <div className="deployment-route-label">
+        <span className="deployment-fact-label">{translate("Publish directly from here")}</span>
+      </div>
+
+      <div className="field-row">
+        {target === "github-pages" ? (
+          <>
+            <div className="field">
+              <label className="field-label" htmlFor="deployment-static-site-publish-owner">
+                {translate("GitHub owner or org")}
+              </label>
+              <input
+                id="deployment-static-site-publish-owner"
+                type="text"
+                value={controller.owner}
+                onChange={(e) => controller.setOwner(e.target.value)}
+                {...agentHandle("deployment-static-site-publish-owner", { role: "field", label: "GitHub owner or organization login to publish under" })}
+              />
+            </div>
+            <div className="field">
+              <label className="field-label" htmlFor="deployment-static-site-publish-repo">
+                {translate("Repository")}
+              </label>
+              <input
+                id="deployment-static-site-publish-repo"
+                type="text"
+                value={controller.repo}
+                onChange={(e) => controller.setRepo(e.target.value)}
+                {...agentHandle("deployment-static-site-publish-repo", { role: "field", label: "GitHub repository name — also determines the published base path" })}
+              />
+            </div>
+            <div className="field">
+              <label className="field-label" htmlFor="deployment-static-site-publish-branch">
+                {translate("Branch (optional)")}
+              </label>
+              <input
+                id="deployment-static-site-publish-branch"
+                type="text"
+                value={controller.branch}
+                onChange={(e) => controller.setBranch(e.target.value)}
+                placeholder="gh-pages"
+                {...agentHandle("deployment-static-site-publish-branch", { role: "field", label: "GitHub Pages publish branch, defaults to gh-pages when left blank" })}
+              />
+            </div>
+          </>
+        ) : (
+          <div className="field">
+            <label className="field-label" htmlFor="deployment-static-site-publish-team">
+              {translate("Vercel team (optional)")}
+            </label>
+            <input
+              id="deployment-static-site-publish-team"
+              type="text"
+              value={controller.teamId}
+              onChange={(e) => controller.setTeamId(e.target.value)}
+              {...agentHandle("deployment-static-site-publish-team", { role: "field", label: "Vercel team id, optional" })}
+            />
+          </div>
+        )}
+        <div className="field">
+          <label className="field-label" htmlFor="deployment-static-site-publish-project-name">
+            {translate("Project name")}
+          </label>
+          <input
+            id="deployment-static-site-publish-project-name"
+            type="text"
+            value={controller.projectName}
+            onChange={(e) => controller.setProjectName(e.target.value)}
+            {...agentHandle("deployment-static-site-publish-project-name", { role: "field", label: "Human-facing label for this publish — becomes the commit message or Vercel project name" })}
+          />
+        </div>
+      </div>
+
+      <div className="deployment-action">
+        <button
+          type="button"
+          className="btn-secondary"
+          disabled={!canPreview || controller.previewLoading}
+          onClick={() => void controller.checkPreview()}
+          {...agentHandle("deployment-static-site-publish-preview", { role: "button", label: "Preview what publishing to this target would do, without publishing anything" })}
+        >
+          {controller.previewLoading ? translate("Checking…") : translate("Preview")}
+        </button>
+        {controller.previewError ? (
+          <p className="save-error" role="alert">
+            {controller.previewError}
+          </p>
+        ) : null}
+        {controller.preview ? <PublishPreviewFacts preview={controller.preview} t={translate} /> : null}
+      </div>
+
+      <div className="deployment-action">
+        <span className={`status status-${runTone}`}>{translate(publishRunStatusLabelKey(controller.run))}</span>
+        <button
+          type="button"
+          disabled={!canPublish || busy}
+          onClick={() => void controller.publish()}
+          {...agentHandle("deployment-static-site-publish-trigger", { role: "button", label: "Publish the current site export to this target right now — live on the public internet immediately" })}
+        >
+          {busy ? translate("Publishing…") : translate("Publish")}
+        </button>
+        <p className="deployment-action-reason">
+          {translate("This is immediately live on the public internet once it finishes — there is no draft or review step.")}
+        </p>
+        {controller.publishError ? (
+          <p className="save-error" role="alert">
+            {controller.publishError}
+          </p>
+        ) : null}
+        {controller.run ? <PublishRunResult run={controller.run} t={translate} /> : null}
+      </div>
+    </div>
+  );
+}
+
+/** A preview result's facts — base path (or "root, no prefix" for Vercel/an invalid config) and
+ *  whether a credential is configured. Never shows the credential itself — `preview.credentialsConfigured`
+ *  is a boolean the server already reduced it to. */
+function PublishPreviewFacts({ preview, t: translate }: { preview: AdminStaticPublishPreview; t: Translate }) {
+  if (!preview.valid) {
+    return (
+      <p className="save-error" role="alert">
+        {preview.validationError}
+      </p>
+    );
+  }
+  return (
+    <div className="deployment-facts">
+      <div className="deployment-fact">
+        <span className="deployment-fact-label">{translate("Base path")}</span>
+        <span className="deployment-fact-value">
+          {preview.basePath ? <code translate="no">{preview.basePath}</code> : translate("None — serves from the domain root")}
+        </span>
+      </div>
+      <div className="deployment-fact">
+        <span className="deployment-fact-label">{translate("Credential")}</span>
+        <span className={`status status-${preview.credentialsConfigured ? "ok" : "warning"}`}>
+          {preview.credentialsConfigured ? translate("Configured") : translate("Not configured")}
+        </span>
+      </div>
+      {!preview.credentialsConfigured && preview.credentialGuidance ? (
+        <p className="deployment-action-reason">{preview.credentialGuidance}</p>
+      ) : null}
+    </div>
+  );
+}
+
+/** A publish run's completed/errored detail — the live URL on success, or the failure message. */
+function PublishRunResult({ run, t: translate }: { run: AdminPublishRunSnapshot; t: Translate }) {
+  if (run.status !== "completed" && run.status !== "errored") return null;
+  // `result` can be present at EITHER terminal status — `publish-site.ts`'s own trigger route maps
+  // ANY `publishStaticSite` outcome with `ok: false` (bad config, no credential, a rejected provider
+  // call) to `status: "errored"`, not `"completed"`; only a route-level exception the route itself
+  // never expected (no `result` at all) falls back to the bare `run.error` string. Checking `result`
+  // FIRST regardless of `status` is what a naive `status === "errored" -> run.error` branch gets
+  // wrong — verified live against a real triggered publish with no credential configured, which
+  // settles to `status: "errored"` with a full `result.message`, not an empty `run.error`.
+  if (run.result) {
+    if (!run.result.ok) {
+      return (
+        <p className="save-error" role="alert">
+          {run.result.message}
+        </p>
+      );
+    }
+    return (
+      <p className="save-ok">
+        {translate("Published:")}{" "}
+        <a href={run.result.url} target="_blank" rel="noreferrer" translate="no">
+          {run.result.url}
+        </a>
+      </p>
+    );
+  }
+  if (run.error) {
+    return (
+      <p className="save-error" role="alert">
+        {run.error}
+      </p>
+    );
+  }
+  return null;
 }

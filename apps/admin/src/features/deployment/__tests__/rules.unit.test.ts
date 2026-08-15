@@ -2,13 +2,22 @@ import { describe, expect, it } from "vitest";
 
 import {
   FULL_SITE_PROVIDERS,
+  PUBLISH_CLI_TOOLS,
   STATIC_HOSTS,
+  STATIC_PUBLISH_TARGETS,
+  cliInstalledStatus,
   daemonStatusLabelKey,
   deploymentEnvVarNoteKey,
+  exportRunStatusLabelKey,
   isEnvVarRowUnsafe,
   ownerPasswordLabelKey,
   productionGateLabelKey,
+  publishAssistantRequestForTool,
+  publishRunStatusLabelKey,
+  runStatusTone,
   runtimeModeLabelKey,
+  staticPublishFormReadyForPreview,
+  staticPublishFormReadyToPublish,
 } from "../rules";
 
 /**
@@ -97,5 +106,106 @@ describe("FULL_SITE_PROVIDERS", () => {
 describe("STATIC_HOSTS", () => {
   it("lists exactly the four static hosts named in the brief", () => {
     expect(STATIC_HOSTS).toEqual(["GitHub Pages", "Vercel", "Netlify", "Cloudflare Pages"]);
+  });
+});
+
+describe("STATIC_PUBLISH_TARGETS", () => {
+  it("lists exactly the two publish targets, each paired to its own CLI tool id", () => {
+    expect(STATIC_PUBLISH_TARGETS).toHaveLength(2);
+    expect(STATIC_PUBLISH_TARGETS.map((target) => target.id)).toEqual(["github-pages", "vercel"]);
+    for (const target of STATIC_PUBLISH_TARGETS) {
+      expect(PUBLISH_CLI_TOOLS.some((tool) => tool.id === target.cliToolId)).toBe(true);
+    }
+  });
+});
+
+describe("cliInstalledStatus", () => {
+  it("returns the real per-tool boolean from a live deployClis array", () => {
+    const deployClis = [
+      { name: "gh", installed: true },
+      { name: "vercel", installed: false },
+    ];
+    expect(cliInstalledStatus(deployClis, "gh")).toBe(true);
+    expect(cliInstalledStatus(deployClis, "vercel")).toBe(false);
+  });
+
+  it("returns false (never throws or returns undefined) for a name absent from the array", () => {
+    expect(cliInstalledStatus([], "gh")).toBe(false);
+  });
+});
+
+describe("publishAssistantRequestForTool", () => {
+  it("names only the ONE tool passed in — never both CLIs in the same sentence", () => {
+    const ghTool = PUBLISH_CLI_TOOLS.find((tool) => tool.id === "gh")!;
+    const request = publishAssistantRequestForTool(ghTool);
+    expect(request).toContain("GitHub CLI");
+    expect(request).not.toMatch(/vercel/i);
+  });
+
+  it("produces a distinct sentence per tool", () => {
+    const [gh, vercel] = PUBLISH_CLI_TOOLS;
+    expect(publishAssistantRequestForTool(gh!)).not.toBe(publishAssistantRequestForTool(vercel!));
+  });
+});
+
+describe("runStatusTone", () => {
+  it("maps idle to neutral, running to warning, errored to error", () => {
+    expect(runStatusTone("idle", undefined)).toBe("neutral");
+    expect(runStatusTone("running", undefined)).toBe("warning");
+    expect(runStatusTone("errored", undefined)).toBe("error");
+  });
+
+  it("maps a completed run to ok when successful and error when ok is explicitly false", () => {
+    expect(runStatusTone("completed", true)).toBe("ok");
+    expect(runStatusTone("completed", undefined)).toBe("ok");
+    expect(runStatusTone("completed", false)).toBe("error");
+  });
+});
+
+describe("exportRunStatusLabelKey", () => {
+  it("reads an undefined run the same as an explicit idle run", () => {
+    expect(exportRunStatusLabelKey(undefined)).toBe(exportRunStatusLabelKey({ status: "idle" }));
+  });
+
+  it("distinguishes a clean finish from one with route failures", () => {
+    expect(exportRunStatusLabelKey({ status: "completed", ok: true })).toBe("Export finished");
+    expect(exportRunStatusLabelKey({ status: "completed", ok: false })).toBe("Finished with failures");
+  });
+
+  it("reports running and errored distinctly", () => {
+    expect(exportRunStatusLabelKey({ status: "running" })).toBe("Exporting…");
+    expect(exportRunStatusLabelKey({ status: "errored" })).toBe("Export failed");
+  });
+});
+
+describe("publishRunStatusLabelKey", () => {
+  it("reads an undefined run the same as an explicit idle run", () => {
+    expect(publishRunStatusLabelKey(undefined)).toBe(publishRunStatusLabelKey({ status: "idle" }));
+  });
+
+  it("distinguishes a real success from a completed-but-failed outcome (e.g. no credentials)", () => {
+    expect(publishRunStatusLabelKey({ status: "completed", result: { ok: true } as never })).toBe("Published");
+    expect(publishRunStatusLabelKey({ status: "completed", result: { ok: false } as never })).toBe("Publish failed");
+  });
+
+  it("reports running and errored distinctly", () => {
+    expect(publishRunStatusLabelKey({ status: "running" })).toBe("Publishing…");
+    expect(publishRunStatusLabelKey({ status: "errored" })).toBe("Publish failed");
+  });
+});
+
+describe("staticPublishFormReadyForPreview / staticPublishFormReadyToPublish", () => {
+  it("github-pages needs owner AND repo for a preview; vercel needs neither", () => {
+    expect(staticPublishFormReadyForPreview("github-pages", { owner: "", repo: "" })).toBe(false);
+    expect(staticPublishFormReadyForPreview("github-pages", { owner: "octo", repo: "" })).toBe(false);
+    expect(staticPublishFormReadyForPreview("github-pages", { owner: "octo", repo: "demo" })).toBe(true);
+    expect(staticPublishFormReadyForPreview("vercel", { owner: "", repo: "" })).toBe(true);
+  });
+
+  it("publishing additionally requires a non-blank projectName for BOTH targets", () => {
+    expect(staticPublishFormReadyToPublish("github-pages", { owner: "octo", repo: "demo", projectName: "" })).toBe(false);
+    expect(staticPublishFormReadyToPublish("github-pages", { owner: "octo", repo: "demo", projectName: "demo" })).toBe(true);
+    expect(staticPublishFormReadyToPublish("vercel", { owner: "", repo: "", projectName: "" })).toBe(false);
+    expect(staticPublishFormReadyToPublish("vercel", { owner: "", repo: "", projectName: "demo" })).toBe(true);
   });
 });
