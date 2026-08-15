@@ -90,6 +90,13 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     Download: "Descargar",
     "Building is a terminal command (docker build …), not a button here.":
       "Construir la imagen es un comando de terminal (docker build …), no un botón aquí.",
+    "Unsaved changes": "Cambios sin guardar",
+    Saved: "Guardado",
+    "Dockerfile contents": "Contenido del Dockerfile",
+    "Saving here only replaces the file's contents — it does not build or deploy anything.":
+      "Guardar aquí solo reemplaza el contenido del archivo — no construye ni despliega nada.",
+    "No Dockerfile exists yet. Write one below, then save to create it.":
+      "Todavía no existe un Dockerfile. Escribe uno a continuación y luego guarda para crearlo.",
     "No deploys yet": "Aún no hay despliegues",
     "Builds and deploys will show up here once a real host is wired up.":
       "Las compilaciones y despliegues aparecerán aquí una vez que se conecte un alojamiento real.",
@@ -170,6 +177,13 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     Download: "Unduh",
     "Building is a terminal command (docker build …), not a button here.":
       "Membangun image adalah perintah terminal (docker build …), bukan tombol di sini.",
+    "Unsaved changes": "Perubahan belum disimpan",
+    Saved: "Tersimpan",
+    "Dockerfile contents": "Isi Dockerfile",
+    "Saving here only replaces the file's contents — it does not build or deploy anything.":
+      "Menyimpan di sini hanya mengganti isi berkas — tidak membangun atau men-deploy apa pun.",
+    "No Dockerfile exists yet. Write one below, then save to create it.":
+      "Belum ada Dockerfile. Tulis satu di bawah ini, lalu simpan untuk membuatnya.",
     "No deploys yet": "Belum ada deployment",
     "Builds and deploys will show up here once a real host is wired up.":
       "Build dan deployment akan muncul di sini setelah hosting sungguhan terhubung.",
@@ -250,6 +264,13 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     Download: "Herunterladen",
     "Building is a terminal command (docker build …), not a button here.":
       "Das Bauen ist ein Terminal-Befehl (docker build …), keine Schaltfläche hier.",
+    "Unsaved changes": "Nicht gespeicherte Änderungen",
+    Saved: "Gespeichert",
+    "Dockerfile contents": "Dockerfile-Inhalt",
+    "Saving here only replaces the file's contents — it does not build or deploy anything.":
+      "Speichern hier ersetzt nur den Dateiinhalt — es baut oder deployt nichts.",
+    "No Dockerfile exists yet. Write one below, then save to create it.":
+      "Es existiert noch kein Dockerfile. Schreibe eines unten und speichere es, um es zu erstellen.",
     "No deploys yet": "Noch keine Deployments",
     "Builds and deploys will show up here once a real host is wired up.":
       "Builds und Deployments erscheinen hier, sobald ein echter Host angebunden ist.",
@@ -490,6 +511,13 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     Download: "Baixar",
     "Building is a terminal command (docker build …), not a button here.":
       "Construir a imagem é um comando de terminal (docker build …), não um botão aqui.",
+    "Unsaved changes": "Alterações não salvas",
+    Saved: "Salvo",
+    "Dockerfile contents": "Conteúdo do Dockerfile",
+    "Saving here only replaces the file's contents — it does not build or deploy anything.":
+      "Salvar aqui apenas substitui o conteúdo do arquivo — não constrói nem implanta nada.",
+    "No Dockerfile exists yet. Write one below, then save to create it.":
+      "Ainda não existe um Dockerfile. Escreva um abaixo e depois salve para criá-lo.",
     "No deploys yet": "Ainda não há implantações",
     "Builds and deploys will show up here once a real host is wired up.":
       "Builds e implantações aparecerão aqui assim que uma hospedagem real for conectada.",
@@ -1130,6 +1158,13 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     Download: "Télécharger",
     "Building is a terminal command (docker build …), not a button here.":
       "La construction de l'image est une commande de terminal (docker build …), pas un bouton ici.",
+    "Unsaved changes": "Modifications non enregistrées",
+    Saved: "Enregistré",
+    "Dockerfile contents": "Contenu du Dockerfile",
+    "Saving here only replaces the file's contents — it does not build or deploy anything.":
+      "Enregistrer ici remplace seulement le contenu du fichier — cela ne construit ni ne déploie rien.",
+    "No Dockerfile exists yet. Write one below, then save to create it.":
+      "Aucun Dockerfile n'existe encore. Écrivez-en un ci-dessous, puis enregistrez pour le créer.",
     "No deploys yet": "Aucun déploiement pour le moment",
     "Builds and deploys will show up here once a real host is wired up.":
       "Les builds et déploiements apparaîtront ici une fois un hébergeur réel connecté.",
@@ -1450,6 +1485,13 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     Download: "Scarica",
     "Building is a terminal command (docker build …), not a button here.":
       "La build dell'immagine è un comando da terminale (docker build …), non un pulsante qui.",
+    "Unsaved changes": "Modifiche non salvate",
+    Saved: "Salvato",
+    "Dockerfile contents": "Contenuto del Dockerfile",
+    "Saving here only replaces the file's contents — it does not build or deploy anything.":
+      "Salvare qui sostituisce solo il contenuto del file — non compila né distribuisce nulla.",
+    "No Dockerfile exists yet. Write one below, then save to create it.":
+      "Non esiste ancora un Dockerfile. Scrivine uno qui sotto, poi salva per crearlo.",
     "No deploys yet": "Ancora nessuna distribuzione",
     "Builds and deploys will show up here once a real host is wired up.":
       "Build e distribuzioni appariranno qui una volta collegato un host reale.",
@@ -1772,4 +1814,30 @@ const DOCKERFILE_LOAD_ERROR_TEMPLATE: Record<string, string> = {
 
 export function dockerfileLoadErrorMessage(locale: string, error: string): string {
   return interpolate(DOCKERFILE_LOAD_ERROR_TEMPLATE[locale] ?? DOCKERFILE_LOAD_ERROR_TEMPLATE.en, { error });
+}
+
+/**
+ * The Dockerfile tab's SAVE-error banner (2026-08-15, tab went from read-only to editable) — same
+ * shape as {@link dockerfileLoadErrorMessage}, distinct template because a failed save and a failed
+ * load are different failures a reader needs to tell apart (the source they were looking at is
+ * still fine; the edit they just tried to persist is what didn't go through).
+ *
+ * Translated for the Latin-script locales already covered elsewhere in this pass (es/id/de/fr/it/
+ * pt-BR); every other locale falls back to the English template via `?? DOCKERFILE_SAVE_ERROR_TEMPLATE.en`
+ * — `createDictionaryTranslator`'s documented, correct degrade path, not a bug. Widening coverage to
+ * the remaining locales is tracked as follow-up, not blocking: an English error banner in an
+ * otherwise-translated screen is a legible failure state, not a broken one.
+ */
+const DOCKERFILE_SAVE_ERROR_TEMPLATE: Record<string, string> = {
+  en: "Could not save the Dockerfile ({error}).",
+  es: "No se pudo guardar el Dockerfile ({error}).",
+  id: "Gagal menyimpan Dockerfile ({error}).",
+  de: "Dockerfile konnte nicht gespeichert werden ({error}).",
+  fr: "Impossible d'enregistrer le Dockerfile ({error}).",
+  it: "Impossibile salvare il Dockerfile ({error}).",
+  "pt-BR": "Não foi possível salvar o Dockerfile ({error}).",
+};
+
+export function dockerfileSaveErrorMessage(locale: string, error: string): string {
+  return interpolate(DOCKERFILE_SAVE_ERROR_TEMPLATE[locale] ?? DOCKERFILE_SAVE_ERROR_TEMPLATE.en, { error });
 }
