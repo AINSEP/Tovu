@@ -1088,3 +1088,38 @@ name the same way. `isGeneratedThemePath()` compared paths as spelled while `res
 normalized them, so `PUT {"path":"css/../preview/app.css"}` returned 200 and overwrote generated
 output — walking around the rule on every route. Two resolvers for one string is a bypass waiting to
 be spelled differently.
+
+## Live minor defect found while building the static exporter: template shells are their own reachable URL (2026-08-15)
+
+**Not being fixed now — recorded so it is not lost, per the deployment-work session's own tracking
+convention.** Found while building `src/export/route-manifest.ts` (the static-site exporter's route
+enumeration).
+
+A static theme's `pages/*.html` folder (`DiscoveredTheme.pages`, `src/features/theme/theme.ts:290-297`)
+holds two different kinds of file in the SAME `Record<string, string>`, keyed identically by filename
+minus `.html`: real standalone pages (`about.html`, `pricing.html`, …) AND content-embedding template
+shells a Post/Page picks via `templateChoice` (`page-shell.html`, `blog-post.html`,
+`blog-sidebar-template.html` for the `basic` theme — declared in `theme.manifest.templates`, the
+`ThemeManifest.templates?: string[]` field, `theme.ts:161-176`). Nothing in the loaded theme shape
+distinguishes the two by TYPE, only by which OTHER list names a given key.
+
+`src/server/routes/site/pages.ts`'s `GET /:slug` handler (the `theme.pages[slug] !== undefined` check
+around line 762) has no exclusion for `theme.manifest.templates` entries. The result: `/page-shell`,
+`/blog-post`, and `/blog-sidebar-template` are live, publicly reachable URLs on the `basic` theme
+today, each returning the shell's raw HTML directly via `renderStaticPage` — a document that expects a
+Post's content to be substituted into its `{"type":"content"}` marker, served instead with no
+substitution ever having run. A broken/incomplete page, reachable by anyone who guesses or is handed
+the URL.
+
+**Why the exporter doesn't just fix it inline:** the fix belongs in `pages.ts`, a file two other
+agents were actively working in during this same session — touching it beyond the one already-landed
+`export` keyword addition risked exactly the kind of conflict this session's dispatch briefs were
+written to avoid. `route-manifest.ts` instead excludes `theme.manifest.templates` stems from the
+theme-page route candidate set (see that file's own header comment), so the STATIC EXPORT never ships
+this broken output as if it were a real page — but the underlying live-site reachability is unrelated
+to export and remains open on the running server.
+
+**The narrow fix, when someone picks this up:** exclude `theme.manifest.templates` stems in the SAME
+`theme.pages[slug] !== undefined` check `pages.ts`'s `GET /:slug` handler already runs, mirroring what
+`route-manifest.ts` already does for export purposes — one shared exclusion list (or a small named
+helper) rather than two independently-maintained copies of "which page ids are template shells."
