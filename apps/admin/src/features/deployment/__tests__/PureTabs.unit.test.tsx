@@ -14,14 +14,18 @@ import { FULL_SITE_PROVIDERS, STATIC_HOSTS } from "../rules";
  */
 
 describe("StaticSiteTab", () => {
-  it("states plainly that the exporter does not exist, rather than implying one does", () => {
+  it("states the export is a terminal command today, not a claim that no exporter exists", () => {
+    // `tovu export <dir>` landed mid-session (`src/cli/commands/export.ts`) — this tab must not
+    // ship the earlier, now-false "Tovu has no static exporter" claim. See `StaticSiteTab.tsx`'s
+    // own file header for the verification trail.
     render(<StaticSiteTab />);
-    expect(screen.getByText("Not built yet")).toBeInTheDocument();
+    expect(screen.getByText("Build it from a terminal")).toBeInTheDocument();
     expect(
       screen.getByText(
-        "Tovu has no static exporter, and the sitemap alone can't drive one — it only lists published posts, not the home page, products, theme pages, redirects, the 404 page, or assets.",
+        "Run tovu export <dir> and Tovu writes a static copy of this site — every post, the home page, products, and theme pages — to a folder.",
       ),
     ).toBeInTheDocument();
+    expect(screen.queryByText(/tovu has no static exporter/i)).not.toBeInTheDocument();
   });
 
   it("names the four things a static export gives up", () => {
@@ -35,10 +39,13 @@ describe("StaticSiteTab", () => {
   });
 
   it("renders the build action disabled, with an honest reason — never a live no-op button", () => {
+    // Still disabled even though the exporter itself now exists: there is no admin-reachable HTTP
+    // route to trigger it from, only the CLI (`grep -rln "runExportCommand|exportSite\b"
+    // src/server/routes` returns nothing) — an enabled button here would still do nothing.
     render(<StaticSiteTab />);
     const button = screen.getByRole("button", { name: "Build static export" });
     expect(button).toBeDisabled();
-    expect(screen.getByText("Not available yet — see above.")).toBeInTheDocument();
+    expect(screen.getByText("Not available from this screen yet — run tovu export from a terminal.")).toBeInTheDocument();
   });
 });
 
