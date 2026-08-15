@@ -156,7 +156,10 @@ describe("preview src — pages, partials, and templates", () => {
   it("points a selected .liquid TEMPLATE's preview at /theme-explore/{theme}/template/{templateId}, not the generic notice", () => {
     renderExplore({ selected: "templates/home.liquid" });
     const iframe = screen.getByTitle("Theme preview") as HTMLIFrameElement;
-    expect(iframe.src).toContain("/theme-explore/novice/template/home");
+    // Pins the exact templateId boundary via the query-string delimiter — "home" alone would also
+    // match the unstripped "home.liquid" (a leading-substring false pass), so the assertion checks
+    // for "home?v=" specifically, matching `previewSrcFor`'s `?v=${previewNonce}` (default nonce 0).
+    expect(iframe.src).toContain("/theme-explore/novice/template/home?v=0");
     expect(screen.queryByText(/select a file to preview/i)).not.toBeInTheDocument();
   });
 });
