@@ -187,3 +187,53 @@ describe("an existing Dockerfile", () => {
     clickSpy.mockRestore();
   });
 });
+
+describe("agent handles", () => {
+  // Pins the ids the AI assistant relies on to drive this tab through `page.*` capabilities — same
+  // `data-agent-element` querying convention `PostEditor.unit.test.tsx` uses for its own handles.
+  // Guards against a handle silently rotting (renamed, removed, or a typo) with nothing catching it.
+  it("tags the editor card, Copy, Download, Save and the textarea on an existing Dockerfile", () => {
+    render(<DockerfileTab useDockerfileSourceHook={() => controllerFixture()} />);
+    expect(document.querySelector('[data-agent-element="deployment-dockerfile-editor-card"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-agent-element="deployment-dockerfile-copy"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-agent-element="deployment-dockerfile-download"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-agent-element="deployment-dockerfile-save"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-agent-element="deployment-dockerfile-textarea"]')).toBeInTheDocument();
+    // Nothing to report yet in this state.
+    expect(document.querySelector('[data-agent-element="deployment-dockerfile-unsaved"]')).not.toBeInTheDocument();
+    expect(document.querySelector('[data-agent-element="deployment-dockerfile-saved"]')).not.toBeInTheDocument();
+    expect(document.querySelector('[data-agent-element="deployment-dockerfile-save-error"]')).not.toBeInTheDocument();
+  });
+
+  it("tags the empty-state region when no Dockerfile exists yet", () => {
+    render(
+      <DockerfileTab
+        useDockerfileSourceHook={() => controllerFixture({ snapshot: { exists: false, contents: null }, draft: "" })}
+      />,
+    );
+    expect(document.querySelector('[data-agent-element="deployment-dockerfile-empty"]')).toBeInTheDocument();
+    // The editor card renders in both shapes — see `DockerfileEditorCard`'s own doc.
+    expect(document.querySelector('[data-agent-element="deployment-dockerfile-editor-card"]')).toBeInTheDocument();
+  });
+
+  it("tags the unsaved-changes, saved, and save-error indicators only while each condition holds", () => {
+    const { rerender } = render(<DockerfileTab useDockerfileSourceHook={() => controllerFixture({ isDirty: true })} />);
+    expect(document.querySelector('[data-agent-element="deployment-dockerfile-unsaved"]')).toBeInTheDocument();
+
+    rerender(<DockerfileTab useDockerfileSourceHook={() => controllerFixture({ saved: true })} />);
+    expect(document.querySelector('[data-agent-element="deployment-dockerfile-saved"]')).toBeInTheDocument();
+
+    rerender(<DockerfileTab useDockerfileSourceHook={() => controllerFixture({ saveError: "disk full" })} />);
+    expect(document.querySelector('[data-agent-element="deployment-dockerfile-save-error"]')).toBeInTheDocument();
+  });
+
+  it("tags the load-error banner whether or not a snapshot ever loaded", () => {
+    const { rerender } = render(
+      <DockerfileTab useDockerfileSourceHook={() => controllerFixture({ snapshot: undefined, error: "disk error" })} />,
+    );
+    expect(document.querySelector('[data-agent-element="deployment-dockerfile-load-error"]')).toBeInTheDocument();
+
+    rerender(<DockerfileTab useDockerfileSourceHook={() => controllerFixture({ error: "stale refresh failed" })} />);
+    expect(document.querySelector('[data-agent-element="deployment-dockerfile-load-error"]')).toBeInTheDocument();
+  });
+});
