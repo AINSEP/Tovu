@@ -46,7 +46,14 @@ writeFileSync(path.join(fakeGhBinDir, "gh"), "");
 export default defineConfig({
   testDir: "./e2e",
   testMatch: /static-site-tab\.spec\.ts/,
-  timeout: 45_000,
+  // 90s, not the usual 45s a sibling config here uses: whichever test in this file runs FIRST pays
+  // a real, one-time Vite cold-compile cost on its first navigation against a JUST-booted webServer
+  // (the `webServer.url` readiness check only proves the dev server answered a request, not that
+  // the admin app's module graph is pre-transformed) — confirmed live 2026-08-15, reproducibly, on
+  // a machine running several concurrent agent sessions (load average ~68): the first test's own
+  // `beforeEach` login navigation timed out at 45s while every other test in the same run, sharing
+  // the now-warm server, passed in 17-26s. Every LATER test in the file stays fast regardless.
+  timeout: 90_000,
   // One worker: parallel logins trip the real `LOGIN_STRICT` rate limiter (discovered live by
   // `playwright.admin.config.ts`) — every sibling config in this directory that logs in follows the
   // same rule.
