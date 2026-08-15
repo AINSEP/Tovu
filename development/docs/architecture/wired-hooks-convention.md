@@ -87,6 +87,12 @@ Live examples, in order of how much surface they cover:
 - **Pure, no-I/O rules.** `persistableMessages`, `describeApiError`, `hasUsableAdminKey`. Injecting a
   pure function lets a fake quietly change a decision rule every test needs to hold still. If it has
   no host boundary and no side effect, import it directly.
+- **A type/class needed for `instanceof` narrowing.** `ApiError` — used for `instanceof` narrowing
+  across most `rules.ts` files and several hooks (`use-admin-execution-credential.hooks.ts`,
+  `use-theme-explore.hooks.ts`, `use-widgets-library.hooks.ts`, `taxonomy-dependencies.hooks.ts`),
+  plus `lib/ledger-slice.ts` and `lib/execution-settings.ts`. Different reason than the pure-rules
+  case above: there's no decision a fake could swap, because the check IS the constructor's identity
+  — nothing to inject.
 - **Generic, framework-shaped hooks one tier below this.** `useAsyncAction`, `useDirtyGuard` — used
   un-injected even by the reference implementations. Same tier as `useState`.
 
