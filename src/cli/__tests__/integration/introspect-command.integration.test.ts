@@ -18,14 +18,14 @@ function runCli(args: string[]): { status: number | null; stdout: string; stderr
   return { status: result.status, stdout: result.stdout, stderr: result.stderr };
 }
 
-test("tovu introspect: exits 0 and prints valid JSON describing init/serve — matches the live CLI, not a hand-maintained doc", () => {
+test("tovu introspect: exits 0 and prints valid JSON describing init/serve/export — matches the live CLI, not a hand-maintained doc", () => {
   const result = runCli(["introspect"]);
   assert.equal(result.status, 0, `stderr: ${result.stderr}`);
 
   const manifest = JSON.parse(result.stdout);
   assert.equal(manifest.name, "tovu");
   const names = manifest.commands.map((c: { name: string }) => c.name);
-  assert.deepEqual(names, ["init", "serve"], "introspect must list the real registered commands, and exclude itself/help");
+  assert.deepEqual(names, ["init", "serve", "export"], "introspect must list the real registered commands, and exclude itself/help");
 
   const serve = manifest.commands.find((c: { name: string }) => c.name === "serve");
   const flags = serve.options.map((o: { flags: string }) => o.flags);
@@ -39,7 +39,7 @@ test("tovu introspect --format mcp: exits 0 and prints valid MCP tool definition
   const tools = JSON.parse(result.stdout);
   assert.ok(Array.isArray(tools));
   const names = tools.map((t: { name: string }) => t.name);
-  assert.deepEqual(names, ["tovu_init", "tovu_serve"]);
+  assert.deepEqual(names, ["tovu_init", "tovu_serve", "tovu_export"]);
 
   const serveTool = tools.find((t: { name: string }) => t.name === "tovu_serve");
   assert.equal(serveTool.inputSchema.type, "object");
