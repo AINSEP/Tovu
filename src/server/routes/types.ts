@@ -92,6 +92,7 @@ import type { WidgetRegionBindingRepoPort } from "../../widgets/ports";
 import type { EntryRefsRepoPort } from "../../core/entry-refs/ports";
 import type { PluginActivationRepoPort } from "../../features/plugin-runtime/activation";
 import type { PluginDiscoveryRecord } from "../../features/plugin-runtime/discovery";
+import type { DeploymentsReadRepoPort } from "../../features/deployments";
 
 export interface RouteDeps {
   workspaceId: UUID;
@@ -604,6 +605,15 @@ export interface RouteDeps {
   onPluginDisabled: (pluginId: string) => void;
   /** The same process-lifetime hook registry's content-facing port. */
   pluginBeforeSaveHook: BeforeSaveHookPort;
+  /**
+   * 2026-08-15 — the deployments feature's READ side (`features/deployments/read-repo.ts`),
+   * backing the admin Full Site tab's `GET .../deployments` route
+   * (`routes/admin/deployments/list.ts`). Real `SqliteDeploymentsReadRepo` in `server/deps.ts`
+   * (migration `0037` already applied — see that repo's own doc); `InMemoryDeploymentsReadRepo`
+   * in `server/app.ts`'s hermetic composition, same rule-of-two every other repo here follows.
+   * No write methods on the port yet — see `features/deployments/index.ts`'s header for why.
+   */
+  deploymentsReadRepo: DeploymentsReadRepoPort;
 }
 
 export type RouteRegistrar = (app: Express, deps: RouteDeps) => void;

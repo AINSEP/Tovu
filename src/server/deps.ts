@@ -4,6 +4,7 @@ import { dirname, join, resolve } from "node:path";
 
 import { InMemoryEventBus } from "../core/events";
 import { backfillPostSearchIndex, SqlitePostRepo, SqlitePostSearchIndex, createPostRevertRegistry } from "../features/post";
+import { SqliteDeploymentsReadRepo } from "../features/deployments";
 import { PagesHtmlDocumentStore } from "../features/pages";
 import { createChatStoreFactory, ensurePublicAssistantSettingDefinitions, ensureExecutionSettingDefinitions } from "../assistant";
 import { SqlitePresentationSettingsRepo } from "../features/presentation";
@@ -786,6 +787,9 @@ export function createSqliteRouteDeps(
     onPluginEnabled: pluginRuntime.onPluginEnabled,
     onPluginDisabled: pluginRuntime.onPluginDisabled,
     pluginBeforeSaveHook: pluginRuntime.beforeSaveHook,
+    // 2026-08-15 — read-only wiring onto migration 0037's tables, previously applied with zero
+    // callers on either end. See `routes/types.ts`'s `deploymentsReadRepo` doc.
+    deploymentsReadRepo: new SqliteDeploymentsReadRepo(db),
   };
 }
 

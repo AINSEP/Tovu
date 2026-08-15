@@ -6,6 +6,7 @@ import { InMemoryChangeSetRepo } from "../core/commands";
 import { createSeoEventSubscriptions, createSeoPageHeadHook, ensureSeoSettingDefinitions } from "../seo";
 import { registerPageHeadContributor } from "./http/site/page-head";
 import { InMemoryPostRepo, InMemoryPostSearchIndex, createPostRevertRegistry } from "../features/post";
+import { InMemoryDeploymentsReadRepo } from "../features/deployments";
 import { InMemoryPagesHtmlDocumentStore } from "../features/pages";
 import {
   createInMemoryChatStoreFactory,
@@ -158,6 +159,8 @@ import { createCommerceModule } from "./modules/commerce";
 import { registerAdminModuleStatusRoute } from "./routes/admin/system/module-status";
 import { registerAdminDeploymentOverviewRoute } from "./routes/admin/system/deployment-overview";
 import { registerAdminDockerfileSourceRoute } from "./routes/admin/system/dockerfile-source";
+import { registerAdminExportSiteRoutes } from "./routes/admin/system/export-site";
+import { registerAdminDeploymentsListRoute } from "./routes/admin/deployments/list";
 import { createFormsAdminModule } from "./modules/forms-admin";
 import { registerFormsSubmitRoute } from "./routes/site/forms-submit";
 import { createRedirectsModule } from "./modules/redirects";
@@ -595,6 +598,11 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     onPluginEnabled: pluginRuntime.onPluginEnabled,
     onPluginDisabled: pluginRuntime.onPluginDisabled,
     pluginBeforeSaveHook: pluginRuntime.beforeSaveHook,
+    // 2026-08-15 — hermetic double for `server/deps.ts`'s real `SqliteDeploymentsReadRepo`. Empty
+    // by default; a test that needs seeded rows constructs its own `InMemoryDeploymentsReadRepo`
+    // and overrides this field, the same way other tests override a single `createRouteDeps()`
+    // field rather than this composition root taking on fixture-authoring for every case.
+    deploymentsReadRepo: new InMemoryDeploymentsReadRepo(),
   };
 }
 
@@ -744,6 +752,14 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // module-status route just above; see each route file's own header for why they share it.
   registerAdminDeploymentOverviewRoute(app, routeDeps);
   registerAdminDockerfileSourceRoute(app, routeDeps);
+  // Deployment panel → Static Site tab: trigger + poll the static exporter (`src/export/`).
+  // `system.export`-gated for the trigger (a disk write), `system.read` for the status poll — see
+  // that file's own header for the split.
+  registerAdminExportSiteRoutes(app, routeDeps);
+  // Deployment panel → Full Site tab: read-only snapshot of the deployments domain
+  // (`features/deployments/`). `deployments.read`-gated, not `system.read` — see that route
+  // file's own header for why this one gets its own permission.
+  registerAdminDeploymentsListRoute(app, routeDeps);
   // ADR-046 Phase 3 (SPEC-040): the `comments-moderation` server module — 4 admin
   // moderation-queue/moderate/settings routes. Distinct from `createCommentsModule` above
   // (the ADR-031 backend composition) and from `registerCommentsSubmitRoute` below (the public,
