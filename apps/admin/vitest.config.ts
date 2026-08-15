@@ -53,9 +53,11 @@ export default defineConfig({
     // `@jini-ai/*` deps are `file:` links into a sibling Jini checkout, and Vite resolves
     // symlinks to their real path before checking `fs.allow`). This config never carried that
     // entry because nothing under test needed to read a `@jini-ai/*` package's own on-disk assets
-    // — `agent-plugin-source-catalog.ts`'s `@jini-ai/plugins/samples/...?raw` imports are the
+    // — `agent-plugin-source-catalog.ts`'s 44 `?raw` imports of the `ui-ux-design` plugin are the
     // first case that does, and without this Vitest denies the read with "Denied ID" rather than
-    // a normal resolution error.
+    // a normal resolution error. Those imports are RELATIVE paths into the sibling Jini checkout
+    // (`../../../../../../Jini/packages/plugins/ui-ux-design/...`), not `@jini-ai/plugins`
+    // specifiers — which is exactly why `fs.allow` is what governs them and not Vite's resolver.
     fs: { allow: [path.resolve(__dirname, "../.."), path.resolve(__dirname, "../../../Jini")] },
   },
   test: {
