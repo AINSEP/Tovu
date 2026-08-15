@@ -114,10 +114,50 @@ Full file green (15/15) after revert.
 **Verdict: PROVEN — the comment's claim holds under independent re-verification. Injection seam is
 real, not decorative.**
 
+## Required-param bulk
+
+Scope: the 22-file candidate list from the scope-derivation note above, minus 2 already covered
+(`WidgetPickerDialog.hooks.unit.test.tsx` — defaulted-dep tier; `use-edit-media-panel.hooks.unit.test.tsx`
+— already injection-seam-proven in the prior report, mutation B), minus the off-limits/concurrent
+files. 20 files remain. Re-baselined all 22 against current HEAD (`46e3376` at sweep start) before
+touching anything — every file still exists, none renamed by the concurrent feature work
+(Deployment panel, static exporter, CLI `tovu export`).
+
+Per team-lead guidance on the concurrent chunked-coverage process: every mutation below was run as
+mutate-one-file → run-the-one-named-test → revert-immediately, never batched across files.
+
+### Group 1 (5 files)
+
+All five: mode: injection-seam. Each hook takes its port as a *required* parameter (no default),
+so the seam risk isn't "parameter silently defaults" — it's "the function body reaches for the
+real singleton instead of using the parameter it was handed." Mutated each hook's own fetch call
+site to bypass its `port` parameter and call the real default binding directly.
+
+- **`use-integration-deliveries.unit.test.tsx`** — `use-integration-deliveries.hooks.ts`:
+  `port.listIntegrationDeliveries(subscriptionId)` → `defaultIntegrationDeliveriesPort.listIntegrationDeliveries(subscriptionId)`.
+  Test: `"loads the fake port's seeded deliveries for the given subscription, with no fetch
+  involved"`. **RED** (`result.current.deliveries` never resolved — the real port has nothing to
+  hit in this test env). Reverted, confirmed clean. **PROVEN.**
+- **`use-integrations.unit.test.tsx`** — `use-integrations.hooks.ts`:
+  `port.listIntegrationSubscriptions()` → `defaultIntegrationsPort.listIntegrationSubscriptions()`.
+  Test: `"loads subscriptions on mount from the fake port's seed, with no fetch involved"`. **RED**.
+  Reverted, confirmed clean. **PROVEN.**
+- **`use-media.hooks.unit.test.tsx`** — `use-media.hooks.ts`: `port.listMedia()` →
+  `defaultMediaPort.listMedia()`. Test: `"loads the list from the injected port and never touches
+  the real api client"`. **RED**. Reverted, confirmed clean. **PROVEN.**
+- **`MediaPickerDialog.hooks.unit.test.tsx`** — `MediaPickerDialog.hooks.tsx`'s
+  `useMediaPickerItems`: `port.listMedia()` → `defaultMediaPickerPort.listMedia()`. This file's own
+  comment (lines 148–153) already claims a self-documented negative-verification of exactly this
+  mutation — independently re-ran it per this session's standing rule on verifying comment claims.
+  Test: `"filters to active assets from the injected port and never touches the real api client"`.
+  **RED**. Reverted, confirmed clean. **PROVEN — comment's claim holds.**
+- **`use-analytics.hooks.unit.test.ts`** — `use-analytics.hooks.ts`: `port.listRecentAnalyticsHits()`
+  → `defaultAnalyticsPort.listRecentAnalyticsHits()`. Test: `"resolves hits from the fake port's
+  seed, with no fetch involved"`. **RED**. Reverted, confirmed clean. **PROVEN.**
+
+Group 1: 5/5 PROVEN. 0 findings.
+
 ## Running tally (this sweep)
 
-2/2 defaulted-dependency files checked (1 carried over from the prior report, 1 new). Both PROVEN.
-0 findings so far in the defaulted-dep priority tier.
-
-Continuing to the required-param bulk (the 22-file candidate list minus the 2 already covered
-above and the off-limits/concurrent files) once team lead confirms or adjusts scope.
+**7/22 candidate files checked** (2 defaulted-dep tier + 5 required-param group 1). All 7 PROVEN,
+0 findings. Continuing to the remaining 15 files.
