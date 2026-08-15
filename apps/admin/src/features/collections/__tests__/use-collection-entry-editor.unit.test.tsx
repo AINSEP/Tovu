@@ -463,3 +463,88 @@ describe("injected port (useWiredX conversion coverage)", () => {
     expect(result.current.message).toBe(`Entry published · version ${ENTRY.version + 1}`);
   });
 });
+
+describe("stale-response race (2026-08-12 regression test)", () => {
+  /**
+   * Pinned per an external audit's finding (relayed by the coordinator): the pre-migration hook
+   * loaded via a bare `Promise.all(...).then(setX...)` with no cancellation guard, so switching
+   * `entryId` while a request was still in flight could let the OLDER response resolve LAST and
+   * overwrite the newer entry's already-rendered fields with the previous entry's data — a real
+   * "typed content snaps back to an earlier entry" bug, not cosmetic.
+   *
+   * `useFetchQuery` fixes this by construction: `KEYS.entry(contentTypeKey, entryId)` is part of the
+   * cache key, so a response for the OLD key is written into the OLD key's own cache slot — it can
+   * never become `list.data` for a NEW key's observer, no matter which promise settles last. This
+   * test proves that end-to-end (through `entry`/`title`, the fields the seeding effect writes to
+   * local state) rather than assuming the library's own guarantee transfers to this hook's usage of
+   * it — `entry`/`title`/`slug`/`extFields` are copied into local `useState` by the seeding effect,
+   * which is exactly the kind of extra hop that COULD reintroduce a race if it read the wrong query's
+   * data (see this file's own `seededIdentityRef`).
+   */
+  it("switching entryId mid-flight: a slow, stale response for the OLD entry does not overwrite the already-loaded NEW entry", async () => {
+    const ENTRY_1: AdminEntry = { ...ENTRY, id: "e1", title: "Entry One" };
+    const ENTRY_2: AdminEntry = { ...ENTRY, id: "e2", title: "Entry Two" };
+
+    // Each call to `listEntries` gets its OWN controllable resolver, keyed by call order, so the
+    // test can resolve them out of order — the entire point of this race.
+    const pendingListEntries: Array<{ entryId: string | null; resolve: (items: AdminEntry[]) => void }> = [];
+    const port = {
+      async listContentTypes() {
+        return { items: [RECIPE_TYPE] };
+      },
+      async listEntries() {
+        return new Promise<{ items: AdminEntry[] }>((resolve) => {
+          pendingListEntries.push({
+            entryId: null, // filled in by the caller's own closure below
+            resolve: (items) => resolve({ items }),
+          });
+        });
+      },
+      async listTaxonomies() {
+        return { items: [] };
+      },
+      async updateEntry() {
+        throw new Error("not used in this test");
+      },
+      async createEntry() {
+        throw new Error("not used in this test");
+      },
+      async entryLifecycle() {
+        throw new Error("not used in this test");
+      },
+    };
+
+    const { result, rerender } = renderHook(
+      ({ entryId }) => useCollectionEntryEditor({ contentTypeKey: "recipe", entryId }, { port, navigate: vi.fn(), locale: "en", t: (k) => k }),
+      { initialProps: { entryId: "e1" as string | null }, wrapper }
+    );
+
+    await waitFor(() => expect(pendingListEntries).toHaveLength(1)); // e1's listEntries is now in flight
+
+    // Switch to e2 WHILE e1's request is still unresolved — the exact race window the pre-migration
+    // bug hit.
+    rerender({ entryId: "e2" });
+    await waitFor(() => expect(pendingListEntries).toHaveLength(2)); // e2's listEntries now ALSO in flight
+
+    // Resolve e2 (the NEW, current entry) FIRST...
+    await act(async () => {
+      pendingListEntries[1]!.resolve([ENTRY_2]);
+    });
+    await waitFor(() => expect(result.current.entry?.id).toBe("e2"));
+    expect(result.current.title).toBe("Entry Two");
+
+    // ...THEN resolve e1 (the OLD, stale entry) LAST — the late-arriving response the bug let win.
+    await act(async () => {
+      pendingListEntries[0]!.resolve([ENTRY_1]);
+    });
+    // Give any (incorrect) pending state update a chance to land before asserting it didn't.
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // The stale e1 response must NOT have clobbered the already-loaded e2 state.
+    expect(result.current.entry?.id).toBe("e2");
+    expect(result.current.title).toBe("Entry Two");
+  });
+});
