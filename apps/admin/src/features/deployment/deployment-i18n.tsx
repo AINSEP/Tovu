@@ -57,6 +57,9 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Tovu has no static exporter, and the sitemap alone can't drive one — it only lists published posts, not the home page, products, theme pages, redirects, the 404 page, or assets.":
       "Tovu no tiene un exportador estático, y el mapa del sitio por sí solo no puede generar uno — solo enumera publicaciones publicadas, no la página de inicio, productos, páginas del tema, redirecciones, la página 404 ni los recursos.",
     "Static hosts": "Alojamientos estáticos",
+    "Build it from a terminal": "Constrúyelo desde una terminal",
+    "Run tovu export <dir> and Tovu writes a static copy of this site — every post, the home page, products, and theme pages — to a folder.": "Ejecuta tovu export <dir> y Tovu escribe una copia estática de este sitio — cada publicación, la página de inicio, los productos y las páginas del tema — en una carpeta.",
+    "Not available from this screen yet — run tovu export from a terminal.": "Aún no disponible desde esta pantalla — ejecuta tovu export desde una terminal.",
     "Build static export": "Generar exportación estática",
     "Not available yet — see above.": "Aún no disponible — ver arriba.",
     "What Full Site gives you": "Qué te ofrece el sitio completo",
@@ -134,6 +137,9 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Tovu has no static exporter, and the sitemap alone can't drive one — it only lists published posts, not the home page, products, theme pages, redirects, the 404 page, or assets.":
       "Tovu belum memiliki exporter statis, dan sitemap saja tidak bisa menjalankannya — sitemap hanya mendaftar tulisan yang dipublikasikan, bukan halaman utama, produk, halaman tema, redirect, halaman 404, atau aset.",
     "Static hosts": "Hosting statis",
+    "Build it from a terminal": "Bangun dari terminal",
+    "Run tovu export <dir> and Tovu writes a static copy of this site — every post, the home page, products, and theme pages — to a folder.": "Jalankan tovu export <dir> dan Tovu menulis salinan statis situs ini — setiap tulisan, halaman utama, produk, dan halaman tema — ke sebuah folder.",
+    "Not available from this screen yet — run tovu export from a terminal.": "Belum tersedia dari layar ini — jalankan tovu export dari terminal.",
     "Build static export": "Bangun ekspor statis",
     "Not available yet — see above.": "Belum tersedia — lihat di atas.",
     "What Full Site gives you": "Apa yang diberikan Situs Lengkap",
@@ -211,6 +217,9 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Tovu has no static exporter, and the sitemap alone can't drive one — it only lists published posts, not the home page, products, theme pages, redirects, the 404 page, or assets.":
       "Tovu hat keinen statischen Exporter, und die Sitemap allein reicht dafür nicht — sie listet nur veröffentlichte Beiträge, nicht die Startseite, Produkte, Theme-Seiten, Weiterleitungen, die 404-Seite oder Assets.",
     "Static hosts": "Statische Hoster",
+    "Build it from a terminal": "Über ein Terminal erstellen",
+    "Run tovu export <dir> and Tovu writes a static copy of this site — every post, the home page, products, and theme pages — to a folder.": "Führe tovu export <dir> aus, und Tovu schreibt eine statische Kopie dieser Website — jeden Beitrag, die Startseite, Produkte und Theme-Seiten — in einen Ordner.",
+    "Not available from this screen yet — run tovu export from a terminal.": "Von diesem Bildschirm aus noch nicht verfügbar — führe tovu export in einem Terminal aus.",
     "Build static export": "Statischen Export erstellen",
     "Not available yet — see above.": "Noch nicht verfügbar — siehe oben.",
     "What Full Site gives you": "Was Vollständige Seite bietet",
@@ -288,6 +297,9 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Tovu has no static exporter, and the sitemap alone can't drive one — it only lists published posts, not the home page, products, theme pages, redirects, the 404 page, or assets.":
       "Tovu 还没有静态导出器,仅靠站点地图也无法驱动一个 — 它只列出已发布的文章,不包括首页、产品、主题页面、重定向、404 页面或资源文件。",
     "Static hosts": "静态托管平台",
+    "Build it from a terminal": "从终端构建",
+    "Run tovu export <dir> and Tovu writes a static copy of this site — every post, the home page, products, and theme pages — to a folder.": "运行 tovu export <dir>,Tovu 会将此站点的静态副本——每篇文章、首页、产品和主题页面——写入一个文件夹。",
+    "Not available from this screen yet — run tovu export from a terminal.": "此界面尚不支持——请在终端中运行 tovu export。",
     "Build static export": "生成静态导出",
     "Not available yet — see above.": "尚不可用 — 见上文。",
     "What Full Site gives you": "完整站点能带来什么",
@@ -365,6 +377,9 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Tovu has no static exporter, and the sitemap alone can't drive one — it only lists published posts, not the home page, products, theme pages, redirects, the 404 page, or assets.":
       "Tovu 尚無靜態匯出器,單靠網站地圖也無法驅動一個 — 它只列出已發佈的文章,不含首頁、產品、佈景主題頁面、重新導向、404 頁面或資源檔案。",
     "Static hosts": "靜態代管平台",
+    "Build it from a terminal": "從終端機建置",
+    "Run tovu export <dir> and Tovu writes a static copy of this site — every post, the home page, products, and theme pages — to a folder.": "執行 tovu export <dir>,Tovu 會將此網站的靜態副本——每篇文章、首頁、產品與佈景主題頁面——寫入資料夾。",
+    "Not available from this screen yet — run tovu export from a terminal.": "此畫面尚不支援——請在終端機執行 tovu export。",
     "Build static export": "建立靜態匯出",
     "Not available yet — see above.": "尚未提供 — 見上方說明。",
     "What Full Site gives you": "完整網站能帶來什麼",
@@ -442,6 +457,9 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Tovu has no static exporter, and the sitemap alone can't drive one — it only lists published posts, not the home page, products, theme pages, redirects, the 404 page, or assets.":
       "O Tovu não tem um exportador estático, e o sitemap sozinho não consegue gerar um — ele lista apenas publicações publicadas, não a página inicial, produtos, páginas do tema, redirecionamentos, a página 404 ou os recursos.",
     "Static hosts": "Hospedagens estáticas",
+    "Build it from a terminal": "Gere pelo terminal",
+    "Run tovu export <dir> and Tovu writes a static copy of this site — every post, the home page, products, and theme pages — to a folder.": "Execute tovu export <dir> e o Tovu grava uma cópia estática deste site — cada publicação, a página inicial, os produtos e as páginas do tema — em uma pasta.",
+    "Not available from this screen yet — run tovu export from a terminal.": "Ainda não disponível nesta tela — execute tovu export pelo terminal.",
     "Build static export": "Gerar exportação estática",
     "Not available yet — see above.": "Ainda não disponível — veja acima.",
     "What Full Site gives you": "O que o Site completo oferece",
@@ -519,6 +537,9 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Tovu has no static exporter, and the sitemap alone can't drive one — it only lists published posts, not the home page, products, theme pages, redirects, the 404 page, or assets.":
       "У Tovu нет статического экспортёра, а одной карты сайта недостаточно для его создания — она перечисляет только опубликованные записи, но не главную страницу, товары, страницы темы, редиректы, страницу 404 или ресурсы.",
     "Static hosts": "Статический хостинг",
+    "Build it from a terminal": "Соберите через терминал",
+    "Run tovu export <dir> and Tovu writes a static copy of this site — every post, the home page, products, and theme pages — to a folder.": "Выполните tovu export <dir>, и Tovu запишет статическую копию этого сайта — каждую запись, главную страницу, товары и страницы темы — в папку.",
+    "Not available from this screen yet — run tovu export from a terminal.": "Пока недоступно с этого экрана — выполните tovu export в терминале.",
     "Build static export": "Собрать статический экспорт",
     "Not available yet — see above.": "Пока недоступно — см. выше.",
     "What Full Site gives you": "Что даёт Полноценный сайт",
@@ -596,6 +617,9 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Tovu has no static exporter, and the sitemap alone can't drive one — it only lists published posts, not the home page, products, theme pages, redirects, the 404 page, or assets.":
       "Tovu هیچ صادرکننده ایستایی ندارد و نقشه سایت به‌تنهایی نمی‌تواند یکی بسازد — فقط نوشته‌های منتشرشده را فهرست می‌کند، نه صفحه اصلی، محصولات، صفحات قالب، ریدایرکت‌ها، صفحه 404 یا دارایی‌ها را.",
     "Static hosts": "میزبان‌های ایستا",
+    "Build it from a terminal": "از ترمینال بسازید",
+    "Run tovu export <dir> and Tovu writes a static copy of this site — every post, the home page, products, and theme pages — to a folder.": "دستور tovu export <dir> را اجرا کنید تا Tovu یک نسخه ایستا از این سایت — هر نوشته، صفحه اصلی، محصولات و صفحات قالب — را در یک پوشه بنویسد.",
+    "Not available from this screen yet — run tovu export from a terminal.": "هنوز از این صفحه در دسترس نیست — دستور tovu export را از ترمینال اجرا کنید.",
     "Build static export": "ساخت خروجی ایستا",
     "Not available yet — see above.": "هنوز در دسترس نیست — به بالا مراجعه کنید.",
     "What Full Site gives you": "سایت کامل چه چیزی به شما می‌دهد",
@@ -673,6 +697,9 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Tovu has no static exporter, and the sitemap alone can't drive one — it only lists published posts, not the home page, products, theme pages, redirects, the 404 page, or assets.":
       "لا يملك Tovu مُصدِّرًا ثابتًا، وخريطة الموقع وحدها لا تكفي لإنشاء واحد — فهي تسرد فقط المقالات المنشورة، دون الصفحة الرئيسية أو المنتجات أو صفحات القالب أو إعادة التوجيه أو صفحة 404 أو الأصول.",
     "Static hosts": "مضيفو المواقع الثابتة",
+    "Build it from a terminal": "أنشئه من الطرفية",
+    "Run tovu export <dir> and Tovu writes a static copy of this site — every post, the home page, products, and theme pages — to a folder.": "شغّل الأمر tovu export <dir> ليكتب Tovu نسخة ثابتة من هذا الموقع — كل مقالة، والصفحة الرئيسية، والمنتجات، وصفحات القالب — في مجلد.",
+    "Not available from this screen yet — run tovu export from a terminal.": "غير متاح من هذه الشاشة بعد — شغّل tovu export من الطرفية.",
     "Build static export": "إنشاء تصدير ثابت",
     "Not available yet — see above.": "غير متاح بعد — انظر أعلاه.",
     "What Full Site gives you": "ما الذي يمنحك إياه الموقع الكامل",
@@ -750,6 +777,9 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Tovu has no static exporter, and the sitemap alone can't drive one — it only lists published posts, not the home page, products, theme pages, redirects, the 404 page, or assets.":
       "Tovuには静的エクスポーターがなく、サイトマップだけではそれを実現できません — サイトマップは公開済みの投稿のみを列挙し、ホームページ、商品、テーマページ、リダイレクト、404ページ、アセットは含みません。",
     "Static hosts": "静的ホスティング先",
+    "Build it from a terminal": "ターミナルからビルドする",
+    "Run tovu export <dir> and Tovu writes a static copy of this site — every post, the home page, products, and theme pages — to a folder.": "tovu export <dir> を実行すると、Tovuはこのサイトの静的コピー——すべての投稿、ホームページ、商品、テーマページ——をフォルダに書き出します。",
+    "Not available from this screen yet — run tovu export from a terminal.": "この画面からはまだ利用できません — ターミナルでtovu exportを実行してください。",
     "Build static export": "静的エクスポートをビルド",
     "Not available yet — see above.": "まだ利用できません — 上記を参照してください。",
     "What Full Site gives you": "フルサイトで得られるもの",
@@ -827,6 +857,9 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Tovu has no static exporter, and the sitemap alone can't drive one — it only lists published posts, not the home page, products, theme pages, redirects, the 404 page, or assets.":
       "Tovu에는 정적 내보내기 기능이 없으며, 사이트맵만으로는 이를 생성할 수 없습니다 — 사이트맵은 게시된 글만 나열할 뿐, 홈페이지, 제품, 테마 페이지, 리디렉션, 404 페이지, 자산은 포함하지 않습니다.",
     "Static hosts": "정적 호스팅",
+    "Build it from a terminal": "터미널에서 빌드하기",
+    "Run tovu export <dir> and Tovu writes a static copy of this site — every post, the home page, products, and theme pages — to a folder.": "tovu export <dir>를 실행하면 Tovu가 이 사이트의 정적 사본 — 모든 게시물, 홈페이지, 제품, 테마 페이지 — 을 폴더에 씁니다.",
+    "Not available from this screen yet — run tovu export from a terminal.": "이 화면에서는 아직 사용할 수 없습니다 — 터미널에서 tovu export를 실행하세요.",
     "Build static export": "정적 내보내기 빌드",
     "Not available yet — see above.": "아직 사용할 수 없습니다 — 위 내용을 참고하세요.",
     "What Full Site gives you": "전체 사이트가 제공하는 것",
@@ -904,6 +937,9 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Tovu has no static exporter, and the sitemap alone can't drive one — it only lists published posts, not the home page, products, theme pages, redirects, the 404 page, or assets.":
       "Tovu nie ma eksportera statycznego, a sama mapa witryny nie wystarczy, by go stworzyć — wymienia tylko opublikowane wpisy, a nie stronę główną, produkty, strony motywu, przekierowania, stronę 404 ani zasoby.",
     "Static hosts": "Hosty statyczne",
+    "Build it from a terminal": "Zbuduj z terminala",
+    "Run tovu export <dir> and Tovu writes a static copy of this site — every post, the home page, products, and theme pages — to a folder.": "Uruchom tovu export <dir>, a Tovu zapisze statyczną kopię tej witryny — każdy wpis, stronę główną, produkty i strony motywu — do folderu.",
+    "Not available from this screen yet — run tovu export from a terminal.": "Jeszcze niedostępne z tego ekranu — uruchom tovu export z terminala.",
     "Build static export": "Zbuduj eksport statyczny",
     "Not available yet — see above.": "Jeszcze niedostępne — zobacz powyżej.",
     "What Full Site gives you": "Co daje Pełna witryna",
@@ -981,6 +1017,9 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Tovu has no static exporter, and the sitemap alone can't drive one — it only lists published posts, not the home page, products, theme pages, redirects, the 404 page, or assets.":
       "A Tovu-nak nincs statikus exportálója, és önmagában a webhelytérkép sem elegendő ehhez — csak a publikált bejegyzéseket sorolja fel, a kezdőlapot, termékeket, sablonoldalakat, átirányításokat, a 404-es oldalt vagy az erőforrásokat nem.",
     "Static hosts": "Statikus szolgáltatók",
+    "Build it from a terminal": "Építsd meg terminálból",
+    "Run tovu export <dir> and Tovu writes a static copy of this site — every post, the home page, products, and theme pages — to a folder.": "Futtasd a tovu export <dir> parancsot, és a Tovu ebbe a mappába írja ki az oldal statikus másolatát — minden bejegyzést, a kezdőlapot, a termékeket és a sablonoldalakat.",
+    "Not available from this screen yet — run tovu export from a terminal.": "Erről a képernyőről még nem érhető el — futtasd a tovu export parancsot terminálból.",
     "Build static export": "Statikus export létrehozása",
     "Not available yet — see above.": "Még nem elérhető — lásd fent.",
     "What Full Site gives you": "Mit ad a Teljes oldal",
@@ -1058,6 +1097,9 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Tovu has no static exporter, and the sitemap alone can't drive one — it only lists published posts, not the home page, products, theme pages, redirects, the 404 page, or assets.":
       "Tovu n'a pas d'exportateur statique, et le plan du site seul ne peut pas en générer un — il liste uniquement les articles publiés, pas la page d'accueil, les produits, les pages du thème, les redirections, la page 404 ni les ressources.",
     "Static hosts": "Hébergeurs statiques",
+    "Build it from a terminal": "Générez-le depuis un terminal",
+    "Run tovu export <dir> and Tovu writes a static copy of this site — every post, the home page, products, and theme pages — to a folder.": "Exécutez tovu export <dir> et Tovu écrit une copie statique de ce site — chaque article, la page d'accueil, les produits et les pages du thème — dans un dossier.",
+    "Not available from this screen yet — run tovu export from a terminal.": "Pas encore disponible depuis cet écran — exécutez tovu export depuis un terminal.",
     "Build static export": "Générer l'export statique",
     "Not available yet — see above.": "Pas encore disponible — voir ci-dessus.",
     "What Full Site gives you": "Ce que vous offre le Site complet",
@@ -1135,6 +1177,9 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Tovu has no static exporter, and the sitemap alone can't drive one — it only lists published posts, not the home page, products, theme pages, redirects, the 404 page, or assets.":
       "У Tovu немає статичного експортера, а самої карти сайту недостатньо для його створення — вона перелічує лише опубліковані записи, але не головну сторінку, товари, сторінки теми, редіректи, сторінку 404 чи ресурси.",
     "Static hosts": "Статичний хостинг",
+    "Build it from a terminal": "Зберіть через термінал",
+    "Run tovu export <dir> and Tovu writes a static copy of this site — every post, the home page, products, and theme pages — to a folder.": "Виконайте tovu export <dir>, і Tovu запише статичну копію цього сайту — кожен запис, головну сторінку, товари та сторінки теми — у папку.",
+    "Not available from this screen yet — run tovu export from a terminal.": "Поки недоступно з цього екрана — виконайте tovu export у терміналі.",
     "Build static export": "Зібрати статичний експорт",
     "Not available yet — see above.": "Поки недоступно — див. вище.",
     "What Full Site gives you": "Що дає Повноцінний сайт",
@@ -1212,6 +1257,9 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Tovu has no static exporter, and the sitemap alone can't drive one — it only lists published posts, not the home page, products, theme pages, redirects, the 404 page, or assets.":
       "Tovu'nun statik bir dışa aktarıcısı yok ve site haritası tek başına bunu oluşturamaz — yalnızca yayınlanmış yazıları listeler; ana sayfayı, ürünleri, tema sayfalarını, yönlendirmeleri, 404 sayfasını veya varlıkları listelemez.",
     "Static hosts": "Statik barındırıcılar",
+    "Build it from a terminal": "Terminalden oluşturun",
+    "Run tovu export <dir> and Tovu writes a static copy of this site — every post, the home page, products, and theme pages — to a folder.": "tovu export <dir> komutunu çalıştırın, Tovu bu sitenin statik bir kopyasını — her yazıyı, ana sayfayı, ürünleri ve tema sayfalarını — bir klasöre yazsın.",
+    "Not available from this screen yet — run tovu export from a terminal.": "Bu ekrandan henüz kullanılamıyor — terminalden tovu export komutunu çalıştırın.",
     "Build static export": "Statik dışa aktarma oluştur",
     "Not available yet — see above.": "Henüz kullanılamıyor — yukarıya bakın.",
     "What Full Site gives you": "Tam Site size ne sağlar",
@@ -1289,6 +1337,9 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Tovu has no static exporter, and the sitemap alone can't drive one — it only lists published posts, not the home page, products, theme pages, redirects, the 404 page, or assets.":
       "Tovu ยังไม่มีตัวส่งออกแบบสแตติก และแผนผังเว็บไซต์เพียงอย่างเดียวไม่สามารถสร้างสิ่งนี้ได้ — มันแสดงเฉพาะโพสต์ที่เผยแพร่แล้ว ไม่รวมหน้าแรก สินค้า หน้าธีม การเปลี่ยนเส้นทาง หน้า 404 หรือไฟล์ทรัพยากร",
     "Static hosts": "โฮสต์แบบสแตติก",
+    "Build it from a terminal": "สร้างจากเทอร์มินัล",
+    "Run tovu export <dir> and Tovu writes a static copy of this site — every post, the home page, products, and theme pages — to a folder.": "รันคำสั่ง tovu export <dir> แล้ว Tovu จะเขียนสำเนาแบบสแตติกของเว็บไซต์นี้ — ทุกโพสต์ หน้าแรก สินค้า และหน้าธีม — ลงในโฟลเดอร์",
+    "Not available from this screen yet — run tovu export from a terminal.": "ยังไม่พร้อมใช้งานจากหน้าจอนี้ — รันคำสั่ง tovu export จากเทอร์มินัล",
     "Build static export": "สร้างการส่งออกแบบสแตติก",
     "Not available yet — see above.": "ยังไม่พร้อมใช้งาน — ดูด้านบน",
     "What Full Site gives you": "เว็บไซต์แบบเต็มรูปแบบให้อะไรกับคุณ",
@@ -1366,6 +1417,9 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Tovu has no static exporter, and the sitemap alone can't drive one — it only lists published posts, not the home page, products, theme pages, redirects, the 404 page, or assets.":
       "Tovu non ha un esportatore statico, e la sitemap da sola non può generarne uno — elenca solo gli articoli pubblicati, non la home page, i prodotti, le pagine del tema, i redirect, la pagina 404 o le risorse.",
     "Static hosts": "Host statici",
+    "Build it from a terminal": "Generalo da un terminale",
+    "Run tovu export <dir> and Tovu writes a static copy of this site — every post, the home page, products, and theme pages — to a folder.": "Esegui tovu export <dir> e Tovu scrive una copia statica di questo sito — ogni articolo, la home page, i prodotti e le pagine del tema — in una cartella.",
+    "Not available from this screen yet — run tovu export from a terminal.": "Non ancora disponibile da questa schermata — esegui tovu export da un terminale.",
     "Build static export": "Genera esportazione statica",
     "Not available yet — see above.": "Non ancora disponibile — vedi sopra.",
     "What Full Site gives you": "Cosa offre il Sito completo",
@@ -1443,6 +1497,9 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Tovu has no static exporter, and the sitemap alone can't drive one — it only lists published posts, not the home page, products, theme pages, redirects, the 404 page, or assets.":
       "Tovu के पास कोई स्थिर एक्सपोर्टर नहीं है, और अकेला साइटमैप इसे नहीं बना सकता — यह केवल प्रकाशित पोस्ट सूचीबद्ध करता है, होम पेज, उत्पाद, थीम पेज, रीडायरेक्ट, 404 पेज या एसेट्स नहीं।",
     "Static hosts": "स्थिर होस्ट",
+    "Build it from a terminal": "टर्मिनल से बनाएं",
+    "Run tovu export <dir> and Tovu writes a static copy of this site — every post, the home page, products, and theme pages — to a folder.": "tovu export <dir> चलाएं और Tovu इस साइट की एक स्थिर प्रति — हर पोस्ट, होम पेज, उत्पाद और थीम पेज — एक फ़ोल्डर में लिखेगा।",
+    "Not available from this screen yet — run tovu export from a terminal.": "यह स्क्रीन से अभी उपलब्ध नहीं — टर्मिनल से tovu export चलाएं।",
     "Build static export": "स्थिर एक्सपोर्ट बनाएं",
     "Not available yet — see above.": "अभी उपलब्ध नहीं — ऊपर देखें।",
     "What Full Site gives you": "पूर्ण साइट आपको क्या देती है",
@@ -1520,6 +1577,9 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Tovu has no static exporter, and the sitemap alone can't drive one — it only lists published posts, not the home page, products, theme pages, redirects, the 404 page, or assets.":
       "Tovu کے پاس کوئی جامد ایکسپورٹر نہیں ہے، اور اکیلا سائٹ میپ اسے نہیں بنا سکتا — یہ صرف شائع شدہ پوسٹس درج کرتا ہے، ہوم پیج، پروڈکٹس، تھیم پیجز، ری ڈائریکٹس، 404 پیج یا اثاثے نہیں۔",
     "Static hosts": "جامد میزبان",
+    "Build it from a terminal": "ٹرمینل سے بنائیں",
+    "Run tovu export <dir> and Tovu writes a static copy of this site — every post, the home page, products, and theme pages — to a folder.": "tovu export <dir> چلائیں اور Tovu اس سائٹ کی ایک جامد کاپی — ہر پوسٹ، ہوم پیج، پروڈکٹس اور تھیم پیجز — ایک فولڈر میں لکھے گا۔",
+    "Not available from this screen yet — run tovu export from a terminal.": "یہ اسکرین سے ابھی دستیاب نہیں — ٹرمینل سے tovu export چلائیں۔",
     "Build static export": "جامد ایکسپورٹ بنائیں",
     "Not available yet — see above.": "ابھی دستیاب نہیں — اوپر دیکھیں۔",
     "What Full Site gives you": "مکمل سائٹ آپ کو کیا دیتی ہے",
@@ -1597,6 +1657,9 @@ const DEPLOYMENT_DICT: Record<string, Record<string, string>> = {
     "Tovu has no static exporter, and the sitemap alone can't drive one — it only lists published posts, not the home page, products, theme pages, redirects, the 404 page, or assets.":
       "Tovu-এর কোনো স্ট্যাটিক এক্সপোর্টার নেই, এবং একা সাইটম্যাপ এটি তৈরি করতে পারে না — এটি শুধুমাত্র প্রকাশিত পোস্টগুলো তালিকাভুক্ত করে, হোম পেজ, পণ্য, থিম পেজ, রিডাইরেক্ট, 404 পেজ বা অ্যাসেট নয়।",
     "Static hosts": "স্ট্যাটিক হোস্ট",
+    "Build it from a terminal": "টার্মিনাল থেকে তৈরি করুন",
+    "Run tovu export <dir> and Tovu writes a static copy of this site — every post, the home page, products, and theme pages — to a folder.": "tovu export <dir> চালান এবং Tovu এই সাইটের একটি স্ট্যাটিক কপি — প্রতিটি পোস্ট, হোম পেজ, পণ্য এবং থিম পেজ — একটি ফোল্ডারে লিখবে।",
+    "Not available from this screen yet — run tovu export from a terminal.": "এই স্ক্রিন থেকে এখনও উপলব্ধ নয় — টার্মিনাল থেকে tovu export চালান।",
     "Build static export": "স্ট্যাটিক এক্সপোর্ট তৈরি করুন",
     "Not available yet — see above.": "এখনও উপলব্ধ নয় — উপরে দেখুন।",
     "What Full Site gives you": "সম্পূর্ণ সাইট আপনাকে কী দেয়",
