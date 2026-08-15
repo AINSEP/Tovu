@@ -14,15 +14,51 @@ for most sets). Per `coverage-integrity-policy.md`, sets measured at different S
 into one defensible number, so **this report gives per-set results tagged with the SHA each set was
 actually measured at, and emits no whole-suite aggregate.**
 
-## Guard protocol actually used
+## Guard protocol actually used, and where the causal model was wrong
 
 Before and immediately after every run: `git rev-parse HEAD` and `git status --short -- apps/admin`.
 If either changed during the run, the run's numbers were discarded and re-run (tracked as "attempts"
-below). Early in the session this fired on almost every set because of a wrong causal model (attributed
-to a mutation-testing sweep that was actually idle) — team-lead corrected this mid-run: the real churn
-source was concurrent commits from the peer session and TDD agent, and the fix is to just re-run
-promptly rather than wait for anything to finish. All sets below reflect the guard passing clean on
-their **final, reported** attempt.
+below). All sets below reflect the guard passing clean on their **final, reported** attempt.
+
+**What I believed early on, and what turned out to be true.** Early guard trips (themes/ and
+deployment/ files appearing dirty) were attributed to `TestRunner-negverify`'s mutation-testing sweep,
+described at the time as running "injection-seam mutation tests across ~37 files." That was wrong on
+two counts: the ~37 number was a miscount of test counts, not file counts, and — more importantly —
+the sweep was not the churn source at all. `TestRunner-negverify` mutated exactly **two** files all
+session (`use-admin-locale.hooks.ts`, `WidgetPickerDialog.hooks.tsx`), then ran a read-only static
+pass across ~50-60 more sites, which came back 63/63 clean with zero mutations needed. **The sweep's
+entire footprint on `apps/admin` this session was two files, and it was idle or read-only for nearly
+all of this run's duration.** The actual churn was two other things happening concurrently: a peer
+session shipping the five-tab Deployment panel, a static exporter, a `tovu export` CLI command, server
+admin routes, and a reset-password dialog change; and a TDD agent landing fixes to `apps/admin` in the
+same window. Both kept committing throughout — there was nothing to wait for, and no ETA would have
+helped, which is why the eventual strategy was to re-run promptly on a trip rather than sequence around
+either agent.
+
+**The guard was also stricter than it needed to be, and a precise overlap check replaces the earlier
+binary discard-on-any-change rule** (per team-lead's direction): a file changing mid-run only taints a
+set's measurement if that file is actually exercised by the set's tests. Checkable exactly, after the
+fact: take the files that changed during a tripped run, and check whether they appear in that same
+run's own `lcov.info` **with nonzero lines hit** (not merely listed — `coverage.all: true` means every
+set's lcov lists the entire `src/` tree, most of it at 0/0 regardless of relevance). Applied
+retroactively to every set that tripped, using the retained lcov artifacts and, for HEAD-moves, `git
+diff --name-only <sha-before> <sha-after> -- apps/admin`:
+
+| Set / attempt | What changed mid-run | Overlap check | Verdict |
+|---|---|---|---|
+| set1, attempts using pre-`reportOnFailure` runner (multiple) | n/a | **No artifact was produced at all** (the `reportOnFailure` gap below, not a tree-movement question) | Not a guard case — nothing to check overlap against |
+| set2 (`components/`), original attempt | `features/deployment/{StaticSiteTab.tsx,deployment-i18n.tsx,PureTabs.unit.test.tsx}` | `deployment-i18n.tsx` had **66.67% line coverage** in that exact run — genuine overlap, most likely a shared i18n dictionary registry pulling deployment's strings into whatever `components/` tests exercise | **Trip with overlap — correctly discarded.** (Numerically matched the later clean re-run anyway, but that's coincidence, not proof — glad this wasn't asserted as valid on the strength of the coincidence alone.) |
+| set3 (`hooks/`), original attempt | `features/integrations/hooks/use-integration-deliveries.hooks.ts` | File does not appear anywhere in that run's lcov, not even at 0/0 (likely didn't exist yet when the coverage file-scan ran) | **Trip, no overlap — measurement was valid.** 94.9%/84.14%/93.18%/97.27% (stmts/branch/funcs/lines) confirmed, and matches the fresh re-run exactly |
+| set4 (`lib/`), attempt 1 | `styles.css` | CSS cannot appear in JS/TS v8 coverage instrumentation at all — zero `SF:` matches | **Trip, no overlap — measurement was valid** (matches the final re-run) |
+| set4, attempt 2 | (HEAD moved, no `apps/admin` status change) | `git diff --name-only` between the two SHAs touches **zero files under `apps/admin`** | **Trip, no overlap — measurement was valid** (matches the final re-run) |
+| set11 (`deployment/`), attempt 1 | `styles.css` | Same CSS reasoning | **Trip, no overlap — measurement was valid** |
+| set13 (`media/`), attempt 1 | `styles.css` | Same CSS reasoning | **Trip, no overlap — measurement was valid** |
+| set16 (`settings/`+`seo/`), attempts 1 and 2 | (HEAD moved both times, no `apps/admin` status change) | `git diff --name-only` for both SHA ranges touches **zero files under `apps/admin`** | **Trip, no overlap — measurement was valid both times** (all three attempts, including the final one, produced bit-identical numbers) |
+
+Net effect: every set in this report's table was, in retrospect, measuring real, untainted numbers on
+its first artifact-producing attempt — the extra re-runs were free of information, not free of cost.
+Recorded here anyway because "how many re-runs a set needed" is itself part of an honest result, per
+the standard applied to this run throughout.
 
 ## Two methodology bugs found and fixed (both CLI-only, no shared-config edits)
 
@@ -67,11 +103,12 @@ Raw artifacts (lcov.info + HTML report) per set: `ADS-memory/.local-artifacts/co
 ## Per-set results
 
 All test counts below are from each set's own final clean run. "Attempts" counts every guard-tripped
-retry, including the ones fired under the (later-corrected) wrong causal model.
+retry. See the overlap-check table above for which of these retries were actually necessary versus
+which discarded a measurement that the retroactive check shows was already valid.
 
 | Set | Final SHA | Attempts | Tests | Own-directory coverage (metric labeled) | Raw artifact |
 |---|---|---|---|---|---|
-| `__tests__/`+`__measurements__/`+`styles/` | `352adf6c` | 6 (see note) | 101/102 pass (1 flaky, see Findings) | N/A — these are test-only files; production code they exercise (App.tsx, AssistantDock, etc.) is scattered across other sets, not owned by this one | `set01-final2/` |
+| `__tests__/`+`__measurements__/`+`styles/` | `352adf6c` | 6 (5 produced no artifact — `reportOnFailure` gap, not a guard case; see Findings) | 101/102 pass (1 flaky, see Findings) | N/A — these are test-only files; production code they exercise (App.tsx, AssistantDock, etc.) is scattered across other sets, not owned by this one | `set01-final2/` |
 | `components/` | `3a83cf99` | 2 | 337/337 | lines 93.71%, branch 89.36%, funcs 90.71% (lcov) | `set02-components-final/` |
 | `hooks/` | `3a83cf99` | 2 | 155/155 | stmts 94.9%, branch 84.14%, funcs 93.18%, lines 97.27% (v8) | `set03-hooks-final/` |
 | `lib/` | `a1e86b02` | 3 | 419/419 | stmts 71.48%, branch 74.9%, funcs 50.28%, lines 71.73% (v8) | `set04-lib-r3/` |
@@ -94,14 +131,25 @@ retry, including the ones fired under the (later-corrected) wrong causal model.
 | `features/workspace/` + `features/playground/` + `features/members/` | `3a83cf99` | 1 | 36/36 | workspace: 95.45/100/83.33/94.11 (v8, but see Findings — `workspace/hooks` alone is 5.12%); playground: 83.33/100/80/83.33 (v8); members: 58.82/50/75/73.07 (v8) | `set21-workspace-playground-members/` |
 | `features/authentication/`+`auth/`+`analytics/`+`commerce/` | `3a83cf99` | 1 | 41/41 | authentication: 100/100/100 (lcov, 11 lines total); auth: 91.67/100/77.78 (lcov); analytics: 100/100/93.75 (lcov); commerce: 100/n-a/100 (lcov, **1 line total** — see Findings) | `set22-auth-analytics-commerce/` |
 
-**22 of 22 planned sets measured cleanly.** No set was left unmeasured or abandoned after 3+ retries;
-the two sets that took 3 attempts (`__tests__`/`__measurements__`/`styles` and `settings`+`seo`)
-succeeded on the attempt reported above, with `settings`+`seo` producing bit-identical numbers across
-all three attempts — the churn causing those guard trips was demonstrably happening elsewhere in the
-tree, not in the files this set measures.
+**22 of 22 planned sets measured cleanly.** No set was left unmeasured or abandoned after 3+ retries.
+Per the overlap-check table above, only one attempt across the whole run (`components/`'s original,
+superseded attempt) turned out to have genuine overlap and was correctly discarded; every other tripped
+attempt was, in retrospect, measuring the real number on its first artifact-producing try.
 
 ## Findings worth surfacing separately
 
+- **Repo-level finding: `apps/admin/vitest.config.ts` silently drops ALL coverage data whenever a
+  single test fails, and this outlives this run.** `coverage.reportOnFailure` is unset (Vitest default:
+  `false`). Diagnosed by changing one variable at a time rather than re-running blindly: same test
+  paths, same failures, only difference was adding `--coverage.reportOnFailure=true` — coverage output
+  went from nonexistent to fully written. This is not specific to chunked runs or to this session: **any
+  CI job or local `npx vitest run --coverage` on `apps/admin` that hits one failing test produces zero
+  coverage artifacts, with no error** — a reader would see "no report" and reasonably conclude the
+  tooling broke, not that a test failed. **Recommend adding `coverage.reportOnFailure: true` to the
+  coverage block in `apps/admin/vitest.config.ts`.** Not applying that edit myself — the file has
+  uncommitted changes from another agent this session, and it's the owner's call, not a TestRunner
+  dispatch decision. Every run in this report used the CLI-only equivalent
+  (`--coverage.reportOnFailure=true`) instead, which required no edit to shared config.
 - **Deployment panel (new feature surface, `features/deployment/`) is well-tested, not a coverage
   gap.** The peer session's five-tab Deployment panel landed with 7 test files / 53 passing tests and
   93.9% statement coverage on its own directory. Flagging this explicitly per team-lead's request,
@@ -117,12 +165,14 @@ tree, not in the files this set measures.
   `__tests__`/`__measurements__`/`styles` set, independent of guard status or HEAD movement. Also saw,
   in 2 of those attempts, `AssistantDock` throwing `TypeError`s while loading execution config
   (`lib/execution-settings.ts:319`) and BYOK credential state (`components/AssistantDock/AssistantDock.hooks.tsx:203`).
-  Team-lead independently reproduced this same test file clean (100/100) on a separate run. Working
-  theory is resource contention (three agents plus 22 sequential vitest boots on one machine, against a
-  hard 5000ms test timeout) rather than a logic bug, but this was not run through the formal
-  rerun-in-isolation flaky-test protocol (`AI-Dev-Shop/agents/testrunner/skills.md` Guardrails) to
-  confirm — noting it as an observation for whoever owns `request-volume.measurement.test.tsx`, not
-  blocking on it.
+  Team-lead independently ran the identical test paths on a clean tree and got **11 files / 100 tests
+  passing** — both implicated source files were unmodified by any of our three agents at that point,
+  which supports intermittent-under-load over a real logic bug. Working theory is resource contention
+  (three agents plus 22 sequential vitest boots on one machine, against a hard 5000ms test timeout), but
+  this was **not** run through the formal rerun-in-isolation flaky-test protocol
+  (`AI-Dev-Shop/agents/testrunner/skills.md` Guardrails) to confirm — stating that explicitly so this
+  note isn't later read as a cleared verdict. Noting it as an observation for whoever owns
+  `request-volume.measurement.test.tsx`, not blocking on it.
 - **No coverage-suppression directives, exclusions, or scope narrowing were added anywhere in this
   run** — the two fixes above were both CLI-only flags on my own invocations; `vitest.config.ts` was
   read but never modified.
