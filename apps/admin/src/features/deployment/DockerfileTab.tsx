@@ -72,7 +72,9 @@ function DockerfileEmptyState({ t }: { t: Translate }) {
         <span className="deployment-empty-mark">
           <LayersIcon size={22} />
         </span>
-        <p className="deployment-empty-title">{t("No Dockerfile yet")}</p>
+        {/* A real `<h2>` for the same reason `HistoryTab.tsx`'s own empty state documents: in this
+            state it is the tab's only heading. */}
+        <h2 className="deployment-empty-title">{t("No Dockerfile yet")}</h2>
         <p className="deployment-empty-body">
           {t("No Dockerfile exists at the repo root yet. Once one is added, its contents will appear here.")}
         </p>

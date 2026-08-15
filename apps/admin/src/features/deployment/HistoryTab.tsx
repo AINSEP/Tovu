@@ -30,7 +30,12 @@ export function HistoryTab() {
           <span className="deployment-empty-mark">
             <HistoryIcon size={22} />
           </span>
-          <p className="deployment-empty-title">{t(locale, "No deploys yet")}</p>
+          {/* A real `<h2>`, not a styled `<p>`: this is the only heading in the tab's region, and a
+              screen-reader user navigating by heading would otherwise find the tab panel empty of
+              structure entirely (confirmed live — this tab's heading list was `H1` and nothing
+              else). `.deployment-empty-title` supplies the size, so the element choice is free to
+              be the semantically correct one. */}
+          <h2 className="deployment-empty-title">{t(locale, "No deploys yet")}</h2>
           <p className="deployment-empty-body">
             {t(locale, "Nothing has been deployed from this screen — and nothing can be yet. Once a host is wired up, every build and deploy will be listed here with its outcome.")}
           </p>
