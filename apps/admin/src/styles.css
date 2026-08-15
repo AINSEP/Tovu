@@ -1264,6 +1264,14 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .status-delivery-pending, .status-delivery-delivering { background: var(--surface-3); color: var(--muted); }
 .status-delivery-failed, .status-delivery-dead { background: var(--danger-bg); color: var(--danger); }
 .status-delivery-canceled { background: var(--surface-3); color: var(--faint); }
+
+/* Deployment (Overview tab) — `.status-ok`/`.status-warning` reuse the same tone tokens
+   `.status-published`/`.notice.warning` already use elsewhere; new names because this tab's rows
+   (gate passed/not-applicable, daemon known-failure, env var set/unsafe) don't map onto any
+   existing published/active/trashed vocabulary above. */
+.status-ok { background: var(--ok-bg); color: var(--ok); }
+.status-warning { background: var(--warning-bg); color: var(--warning); }
+.status-neutral { background: var(--surface-3); color: var(--muted); }
 .muted-cell { color: var(--faint); font-size: 0.85rem; }
 .integrations-form { margin-bottom: 1rem; display: flex; flex-direction: column; gap: 0.6rem; align-items: flex-start; }
 /* Same consolidation as `.login-card label` above. */
@@ -2962,3 +2970,20 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .theme-card-preview-trigger { display: block; width: 100%; height: 100%; padding: 0; border: none; background: none; cursor: zoom-in; }
 .theme-card-preview-trigger:hover { opacity: 1; }
 .theme-card-preview-trigger img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+/* Deployment panel */
+.deployment-host-list { margin: 0; padding-left: 1.1rem; }
+.deployment-host-list li { padding: 0.15rem 0; }
+/* Full Site tab's provider rows — name + status pill on one line, description below. Not the
+   existing `.editor-header` (that class's own comment documents three unrelated jobs already
+   riding on it; adding a fourth here isn't worth the audit surface for one flex-row rule). */
+.deployment-provider-row { display: flex; justify-content: space-between; align-items: baseline; gap: var(--space-3); }
+.deployment-provider-row + p { margin-top: 0.3rem; }
+/* Dockerfile tab's read-only source view — same font-mono/surface-3 treatment
+   `.editor-body .tiptap pre` uses for a code block, but bounded to a scrollable pane (a whole
+   multi-stage Dockerfile is much taller than one screen) rather than growing the page. */
+.deployment-dockerfile-viewer {
+  margin: 0; padding: 1rem; max-height: 32rem; overflow: auto;
+  background: var(--surface-3); color: var(--fg); font-family: var(--font-mono); font-size: 0.82rem;
+  line-height: 1.5; border-radius: var(--r-md); white-space: pre;
+}
