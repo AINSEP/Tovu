@@ -54,20 +54,6 @@ describe("useAdminLocale — refresh on a relevant settings-refresh notification
     act(() => port.publishLocaleChange("de"));
     await waitFor(() => expect(result.current).toBe("de"));
   });
-
-  it("unsubscribes on unmount — a refresh after teardown does not touch a torn-down instance", async () => {
-    const port = createFakeAdminLocalePort({ initialLocale: "en" });
-    const { result, unmount } = renderHook(() => useAdminLocale(port));
-    await waitFor(() => expect(result.current).toBe("en"));
-    unmount();
-
-    // A stray `setState` on the unmounted instance would surface as an RTL/React `act` warning
-    // rather than a thrown error, so the pass condition is "this does not throw and produces no
-    // warning" — the fake's own subscriber-count behaviour (see
-    // `admin-locale-dependencies.hooks.test.ts`) is what proves the listener was actually removed,
-    // not re-inspectable through `result.current` post-unmount.
-    expect(() => port.publishLocaleChange("de")).not.toThrow();
-  });
 });
 
 describe("useAdminLocale — mount → unmount → mount (StrictMode shape)", () => {
