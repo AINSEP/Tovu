@@ -168,10 +168,22 @@ cheapest high-value thing to try next — one sentence in the assistant pane.
 ## Still open
 
 - **Slug-collision default.** `overridesThemePage` exists (`PostEditor.tsx:880-895`, shown only on
-  collision). Today the **theme wins**; the owner wants the **post** to win. Flipping the default
-  changes the live URL of every existing colliding post — needs a backfill decision.
-- **Renaming a theme route** (`/about` → `/about-site`) does not exist. Arguably better than an
-  override, since a rename keeps both pages reachable.
+  collision). Today the **theme wins**; the owner wants the **post** to win.
+  **CORRECTED 2026-08-15 — the blocker is not "URLs change", it is that `false` is ambiguous.**
+  `overrides_theme_page` is `NOT NULL DEFAULT false` (`db/schema.ts:117`, `schema.postgres.ts:799`),
+  so a stored `false` means BOTH "author never saw the warning" AND "author saw the warning and
+  deliberately left the theme page in charge". Those are indistinguishable, so a naive flip silently
+  overrides deliberate decisions. Resolution lives at `server/routes/site/pages.ts:764-782`, and it
+  only engages when the theme tier is `static`, the slug is not `index`, and `theme.pages[slug]`
+  exists. **Suggested fix: make the column nullable (tri-state).** `null` = never decided (default
+  applies), `true`/`false` = explicit. Then the default can be flipped without a backfill at all.
+- ~~**Renaming a theme route** (`/about` → `/about-site`) does not exist.~~
+  **FALSE — corrected 2026-08-15. It exists and ships.** Double-click a page in Theme Explore
+  (`ThemeExplore.tsx:366` → `startRename`), or use the ⋮ menu's Rename. Renaming a page is diverted
+  into a confirm dialog that states the public URL will change
+  (`ThemeExplore.tsx:587-589`, `use-theme-explore.hooks.ts:155-165`). `pages/index.html`,
+  `theme.json` and `tokens.json` are rename-locked; the `script` and `other` groups are read-only.
+  This remains the better escape hatch than the override, because both pages stay reachable.
 - **`.nojekyll` is manual.** Jini's `github-pages.ts` has zero Jekyll/base-path handling (grepped).
 - **The Docker image has never been built.** Docker Desktop was shut down at the owner's request.
 - **`/page-shell` is publicly reachable** — template shells served as real pages. Recorded in
