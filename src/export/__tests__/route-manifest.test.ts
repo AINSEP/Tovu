@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import path from "node:path";
 import test from "node:test";
 
 import { createRouteDeps } from "../../server/app";
@@ -36,6 +37,29 @@ test("buildRouteManifest: includes home and every seeded published post/page, an
   const welcome = manifest.routes.find((r) => r.path === "/welcome");
   assert.ok(welcome, "expected the seeded 'welcome' post to be enumerated");
   assert.equal(welcome?.kind, "post");
+});
+
+test("buildRouteManifest: always includes the convention routes robots.txt/sitemap.xml, and reports the missing favicon/manifest route", async () => {
+  const manifest = await buildRouteManifest(baseDeps());
+
+  const robots = manifest.routes.find((r) => r.path === "/robots.txt");
+  assert.ok(robots, "expected /robots.txt — no HTML page links to it, so a crawl alone would never find it");
+  assert.equal(robots?.kind, "well-known");
+
+  const sitemap = manifest.routes.find((r) => r.path === "/sitemap.xml");
+  assert.ok(sitemap, "expected /sitemap.xml — always registered regardless of the sitemapEnabled setting");
+  assert.equal(sitemap?.kind, "well-known");
+
+  assert.ok(
+    manifest.skipped.some((s) => s.reason === "no-favicon-or-manifest-route"),
+    "Tovu has no favicon/manifest route today — the gap must be named, not silently absent"
+  );
+});
+
+test("buildRouteManifest: resolves and returns the active theme's id + on-disk dir", async () => {
+  const manifest = await buildRouteManifest(baseDeps());
+  assert.equal(manifest.activeTheme?.id, "basic");
+  assert.ok(manifest.activeTheme?.dir.endsWith(`${path.sep}basic`));
 });
 
 test("buildRouteManifest: enumerates the active theme's own static pages, excluding index/404 and template shells", async () => {

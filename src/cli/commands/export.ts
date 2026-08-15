@@ -62,6 +62,15 @@ function printExportReport(report: ExportReport): void {
   for (const failure of report.assets.failed) {
     process.stderr.write(`tovu export: FAILED asset ${failure.url}: ${failure.reason}\n`);
   }
+  if (report.unreferencedThemeFiles.length > 0) {
+    process.stderr.write(
+      `tovu export: warning: ${report.unreferencedThemeFiles.length} theme file(s) were never referenced by a rendered page and were not exported ` +
+        "(template shells, build/preview artifacts, and anything a theme's own JS builds a path to at runtime all look identical from here):\n"
+    );
+    for (const file of report.unreferencedThemeFiles) {
+      process.stderr.write(`  - ${file}\n`);
+    }
+  }
 }
 
 /**

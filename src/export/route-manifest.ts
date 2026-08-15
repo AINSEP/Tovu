@@ -68,16 +68,24 @@ function chooseNotFoundProbePath(claimedPaths: ReadonlySet<string>): string {
 }
 
 /**
- * Builds the full {@link RouteManifest} for one workspace: home, every published post/page, every
- * theme-owned static marketing page not shadowed by a post, the product grid + each product detail
- * page (when any product exists), every statically-enumerable (`exact`-match, `active`) redirect
- * rule, and a collision-checked 404 probe. `prefix`/`wildcard`/`regex` redirect rules are recorded
- * in `skipped` rather than silently dropped — they match a FAMILY of paths, not one enumerable
- * path, so no finite manifest entry can represent them.
+ * Builds the full {@link RouteManifest} for one workspace: home, the two always-registered
+ * convention routes (`/robots.txt`, `/sitemap.xml`), every published post/page, every theme-owned
+ * static marketing page not shadowed by a post, the product grid + each product detail page (when
+ * any product exists), every statically-enumerable (`exact`-match, `active`) redirect rule, and a
+ * collision-checked 404 probe. `prefix`/`wildcard`/`regex` redirect rules — and the fact that Tovu
+ * has no favicon/manifest route to enumerate at all — are recorded in `skipped` rather than
+ * silently dropped: the redirect rules match a FAMILY of paths, not one enumerable path, so no
+ * finite manifest entry can represent them; favicon/manifest are convention-addressed paths with no
+ * backing route to find in the first place.
+ *
+ * Also resolves and returns `activeTheme` (id + on-disk `dir`) when a theme was found — the one
+ * piece of theme-resolution state a caller outside this function needs (the exporter's
+ * unreferenced-theme-file diff) without re-resolving "which theme is active" a third time.
  *
  * Never throws for "no theme installed" — that is itself a real, reportable state (an export with
- * only `/` and a 404 probe, and a `skipped` entry explaining why), not a crash; every other error
- * (a repo failure, for instance) propagates uncaught, same as the live routes it mirrors.
+ * only `/`, the two convention routes, and a 404 probe, and a `skipped` entry explaining why), not
+ * a crash; every other error (a repo failure, for instance) propagates uncaught, same as the live
+ * routes it mirrors.
  *
  * @complexity O(P + T + R) — P published posts, T theme pages, R redirect rules — one pass over
  *   each, no nested iteration. Products add O(K) for K storefront products. All four sources are
@@ -85,8 +93,29 @@ function chooseNotFoundProbePath(claimedPaths: ReadonlySet<string>): string {
  *   so this makes no additional query-shape assumption beyond what those repos already commit to.
  */
 export async function buildRouteManifest(deps: RouteManifestDeps): Promise<RouteManifest> {
-  const routes: ManifestRoute[] = [{ path: "/", kind: "home", label: "home" }];
-  const skipped: ManifestSkip[] = [];
+  const routes: ManifestRoute[] = [
+    { path: "/", kind: "home", label: "home" },
+    // Convention-addressed files: nothing in any rendered page LINKS to these — browsers and
+    // crawlers request them by name — so a crawl-based asset discovery pass (site-exporter.ts)
+    // structurally cannot find them. Both are always-registered routes regardless of settings
+    // (`registerSeoRobotsRoute`/`registerSeoSitemapRoute`, mounted unconditionally in `app.ts`;
+    // `sitemapEnabled` only gates whether `robots.txt` ADVERTISES the sitemap URL, not whether
+    // `/sitemap.xml` itself responds), so — unlike favicon/manifest below — they belong in the
+    // manifest proper rather than in `skipped`.
+    { path: "/robots.txt", kind: "well-known", label: "robots.txt" },
+    { path: "/sitemap.xml", kind: "well-known", label: "sitemap.xml" },
+  ];
+  const skipped: ManifestSkip[] = [
+    // Also convention-addressed and also invisible to a crawl — but unlike robots.txt/sitemap.xml,
+    // Tovu registers no `/favicon.ico` or web-app-manifest route at all today (grep-confirmed
+    // against `server/app.ts`/`server/routes/site/*`), so there is nothing here to enumerate, not a
+    // route this manifest failed to find. Recorded so the export report names the gap rather than
+    // looking complete — the fix, if wanted, is a product-level route, not an exporter change.
+    {
+      reason: "no-favicon-or-manifest-route",
+      detail: "Tovu has no /favicon.ico or web-app-manifest route today — nothing to export for either convention",
+    },
+  ];
 
   const [activeThemeId, { posts }] = await Promise.all([
     resolveActiveThemeId(deps),
@@ -94,12 +123,14 @@ export async function buildRouteManifest(deps: RouteManifestDeps): Promise<Route
   ]);
 
   const theme = resolveActiveTheme(deps, activeThemeId);
+  let activeTheme: RouteManifest["activeTheme"];
   if (!theme) {
     skipped.push({
       reason: "no-theme",
       detail: "no valid theme discovered for this workspace — only '/' and the 404 probe could be enumerated",
     });
   } else {
+    activeTheme = { id: theme.manifest.id, dir: theme.dir };
     const postBySlug = new Map<string, PostRecord>(posts.map((post) => [post.slug, post]));
     // Slugs claimed by a theme-owned static page THIS pass, so the post loop below can skip a post
     // that is shadowed at its own slug (pages.ts:749-779: the theme page wins unless the post has
@@ -157,7 +188,7 @@ export async function buildRouteManifest(deps: RouteManifestDeps): Promise<Route
   const claimedPaths = new Set(routes.map((route) => route.path));
   routes.push({ path: chooseNotFoundProbePath(claimedPaths), kind: "not-found", label: "404" });
 
-  return { routes, skipped };
+  return { routes, skipped, activeTheme };
 }
 
 /** Constructs a {@link RouteManifestPort} bound to one workspace's deps — the DI seam callers
