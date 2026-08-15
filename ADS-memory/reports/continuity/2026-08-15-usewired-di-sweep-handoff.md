@@ -109,32 +109,51 @@ three items to HIGH whose own text says *"the packet is insufficient to judge"*.
 
 ## 6. Open items
 
-**Substantive (1):**
-- [ ] **Negative-verify the ~10 previously-unexecuted test files.** They pass, but passing is not
-      proof. Negative verification ran on 4 other batches (13/13, 8/8, 6/6, 9/10) and found **two
-      genuinely vacuous tests**, so the base rate is not zero. Method: break the fake method the
-      test depends on → run that single test by name → confirm RED → revert → confirm green.
-      Files: `Playground.unit.test.tsx`, `use-playground.hooks.unit.test.ts`,
-      `use-post-template-source.hooks.unit.test.ts`, the injection block in
-      `PostTemplateModal.unit.test.tsx`, `widget-config-fields-dependencies.unit.test.ts`,
-      `MediaPickerDialog.unit.test.tsx`, `use-edit-media-panel.hooks.unit.test.tsx`,
-      `use-media-preview.hooks.unit.test.tsx`, `use-admin-locale.hooks.test.ts`,
-      `admin-locale-dependencies.hooks.test.ts`, and the rewritten `.liquid` assertion in
-      `ThemeExplore.unit.test.tsx`.
+**Substantive (1) — done, 2026-08-15 (second dispatch):**
+- [x] **Negative-verify the ~10 previously-unexecuted test files.** Completed:
+      `ADS-memory/reports/2026-08-15-negative-verification-usewired-batch.md`. 11/11 files verified,
+      9/11 clean, 2 findings (1 genuinely vacuous test, 1 narrow assertion-precision gap). Both acted
+      on below (the two items that used to be this section's own to-do): the vacuous
+      `use-admin-locale.hooks.test.ts` test was deleted in `126aab1`, then its coverage gap was
+      closed for real in `a717697` (see that commit — a spy-based test proving the hook's own
+      cleanup calls `unsubscribe()`, RED/GREEN-proven by mutation, zero production or fake changes).
+      The `ThemeExplore.unit.test.tsx` `.liquid` assertion was tightened in `1d6db82`, RED/GREEN-proven
+      by reverting the extension-strip and confirming the mutated test failed.
 
-**Cosmetic (4):**
-- [ ] Two vacuous tests, same tautology — `use-dashboard.hooks.unit.test.ts` ("t falls back to the
+**Cosmetic (4) — all four resolved, 2026-08-15 (second dispatch):**
+- [x] Two vacuous tests, same tautology — `use-dashboard.hooks.unit.test.ts` ("t falls back to the
       English source string…") and `use-members.hooks.unit.test.ts:36`. Both pass with `t` unwired
       because the dict has no `en` entries, so `?? key` and identity produce the same string. Both
-      have working Spanish siblings, so coverage is not lost — rename or delete.
-- [ ] Stale comment: a method comment says `templateAssetUrl` lives in `PostTemplateModal.tsx`; it
-      moved to `use-post-template-source.hooks.ts`.
+      have working Spanish siblings, so coverage is not lost. **Deleted** both (commit `1ab2d79`) —
+      `use-members`'s version also carried a `locale === "en"` assertion that looked like real
+      coverage but wasn't: its `waitFor` was gated on the tautological `t()` condition (already true
+      pre-fetch), so the assertion wasn't reliably proven to run after the fetch resolved
+      (`DEFAULT_LOCALE` is coincidentally also `"en"`).
+- [x] Stale comment: a method comment said `templateAssetUrl` lives in `PostTemplateModal.tsx`; it
+      moved to `use-post-template-source.hooks.ts`. Fixed in `post-template-port.hooks.ts`, commit
+      `444a3d0`.
 - [ ] `c578a77`'s message says content was unchanged from `b891763`; one comment line differed
       (`useDashboard` → `useWiredDashboard`). Terra's own advice: **do not rewrite history**, just
-      note it.
-- [ ] `apps/admin/INFO.md`'s pure-helper exception list names 2 (`describeApiError`,
-      `CONTENT_TYPE_FIELD_KINDS`); there are 3 — `ApiError` is used for `instanceof` in `rules.ts`
-      files and 2 hooks, all pre-existing.
+      note it — this bullet already is that note; no further action needed.
+- [x] **This bullet's own original claim was itself wrong — an 8th catalog error, same root cause as
+      section 4's seven (a claim built from an assumed shape, recorded as a measurement).** It said
+      `apps/admin/INFO.md`'s pure-helper exception list names 2 (`describeApiError`,
+      `CONTENT_TYPE_FIELD_KINDS`) and needs a 3rd (`ApiError`, "used for `instanceof` in `rules.ts`
+      files and 2 hooks"). None of that survived contact with the files: **`apps/admin/INFO.md` has
+      no such list at all** (its only nearby text is a table row at line 77); the real list is
+      `development/docs/architecture/wired-hooks-convention.md:85-91` ("What stays a direct
+      import — never injected"), and it already named **3** items before this pass
+      (`persistableMessages`, `describeApiError`, `hasUsableAdminKey`) — `CONTENT_TYPE_FIELD_KINDS`
+      was never in it. The one real omission was `ApiError` (`lib/api.ts:945`), and its usage was
+      undercounted too: `instanceof ApiError` actually appears in ~11 `rules.ts` files and 4 hooks
+      (`use-admin-execution-credential`, `use-theme-explore`, `use-widgets-library`,
+      `taxonomy-dependencies`), plus `lib/ledger-slice.ts` and `lib/execution-settings.ts` — not
+      "rules.ts files and 2 hooks". Added as its own bullet in the convention doc rather than folded
+      into the pure-rules one, since the reasoning differs (a class used for `instanceof` has no
+      decision a fake could swap — the check IS the constructor's identity). Fixed in commit
+      `857e066`. `CONTENT_TYPE_FIELD_KINDS` was deliberately **not** added anywhere — it's a plain
+      data constant with one consumer (`Collections.tsx`), not a pure-rule function, and folding it
+      into that bullet would blur what the list is about.
 
 **Refuted — no action:** both Gemini debounce findings; Gemini 3.1's three "packet insufficient"
 HIGHs (resolver semantics, URL-builder async-ness, ComposioKeyField draft) — all verified correct by
