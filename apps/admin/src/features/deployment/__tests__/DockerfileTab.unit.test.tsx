@@ -55,7 +55,7 @@ describe("no Dockerfile yet", () => {
         useDockerfileSourceHook={() => controllerFixture({ snapshot: { exists: false, contents: null } })}
       />,
     );
-    expect(screen.getByText("Not generated yet")).toBeInTheDocument();
+    expect(screen.getByText("No Dockerfile yet")).toBeInTheDocument();
     expect(
       screen.getByText("No Dockerfile exists at the repo root yet. Once one is added, its contents will appear here."),
     ).toBeInTheDocument();

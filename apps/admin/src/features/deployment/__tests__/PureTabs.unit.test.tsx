@@ -4,13 +4,20 @@ import { describe, expect, it } from "vitest";
 import { StaticSiteTab } from "../StaticSiteTab";
 import { FullSiteTab } from "../FullSiteTab";
 import { HistoryTab } from "../HistoryTab";
-import { FULL_SITE_PROVIDERS, STATIC_HOSTS } from "../rules";
+import { FULL_SITE_PROVIDERS, STATIC_HOSTS, STATIC_SITE_CAPABILITIES } from "../rules";
 
 /**
  * @file `StaticSiteTab`/`FullSiteTab`/`HistoryTab` — the three tabs with no hook and no fetch (see
  * each file's own header for why). `useAdminLocale()`'s real fetch attempt inside these is left
  * unstubbed on purpose: it swallows its own failure to the English default
  * (`use-admin-locale.hooks.ts`'s own doc comment), so nothing here needs a network shim.
+ *
+ * Updated 2026-08-15 (second UI/UX pass) — the assertions below are the SAME properties this file
+ * has always pinned: the exporter is described as real-but-CLI-only, the export's limits are stated,
+ * the build action cannot be a live no-op, no credential fields exist, and History fabricates
+ * nothing. Only the copy each property is expressed in moved. Where a sentence became a list, the
+ * assertion follows it to the list rather than being dropped — losing coverage because the wording
+ * changed would be the worst possible outcome of a design pass.
  */
 
 describe("StaticSiteTab", () => {
@@ -20,17 +27,33 @@ describe("StaticSiteTab", () => {
     // own file header for the verification trail.
     render(<StaticSiteTab />);
     expect(screen.getByText("Build it from a terminal")).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        "Run tovu export <dir> and Tovu writes a static copy of this site — every post, the home page, products, and theme pages — to a folder.",
-      ),
-    ).toBeInTheDocument();
+    expect(screen.getByText("tovu export <dir>")).toBeInTheDocument();
     expect(screen.queryByText(/tovu has no static exporter/i)).not.toBeInTheDocument();
   });
 
-  it("names the four things a static export gives up", () => {
+  it("offers the command as something copyable, not as prose to transcribe", () => {
+    // The command is the one thing on this tab a reader has to get exactly right, so it has to be
+    // an element of its own with a copy affordance — not a fragment of a sentence, which is what it
+    // was before this pass.
     render(<StaticSiteTab />);
-    expect(screen.getByText("No checkout, no admin online, no assistant, no dynamic anything.")).toBeInTheDocument();
+    const command = screen.getByText("tovu export <dir>");
+    expect(command.tagName).toBe("CODE");
+    expect(screen.getByRole("button", { name: "Copy" })).toBeInTheDocument();
+  });
+
+  it("names the four things a static export gives up", () => {
+    // Previously one sentence ("No checkout, no admin online, no assistant, no dynamic anything.");
+    // now the itemized `STATIC_SITE_CAPABILITIES` list, which states the same four facts plus what
+    // DOES survive. Driven off the table so a row added there without a label here fails.
+    render(<StaticSiteTab />);
+    for (const capability of STATIC_SITE_CAPABILITIES) {
+      expect(screen.getByText(capability.labelKey)).toBeInTheDocument();
+    }
+    // The unsupported rows must be marked as such, not merely listed — a list of four labels with
+    // no supported/unsupported distinction would pass a naive text check while saying the opposite.
+    const unsupported = STATIC_SITE_CAPABILITIES.filter((row) => !row.supported);
+    expect(unsupported).toHaveLength(3);
+    expect(screen.getAllByTitle("Not supported")).toHaveLength(unsupported.length);
   });
 
   it("lists all four static hosts from rules.ts", () => {
@@ -38,14 +61,24 @@ describe("StaticSiteTab", () => {
     for (const host of STATIC_HOSTS) expect(screen.getByText(host)).toBeInTheDocument();
   });
 
-  it("renders the build action disabled, with an honest reason — never a live no-op button", () => {
-    // Still disabled even though the exporter itself now exists: there is no admin-reachable HTTP
+  it("renders the build action inert, with an honest reason — never a live no-op button", () => {
+    // Still inert even though the exporter itself now exists: there is no admin-reachable HTTP
     // route to trigger it from, only the CLI (`grep -rln "runExportCommand|exportSite\b"
     // src/server/routes` returns nothing) — an enabled button here would still do nothing.
+    //
+    // `aria-disabled` rather than `disabled` since this pass, so the control stays reachable and
+    // its reason announceable; "inert" is therefore asserted as "says it is disabled AND has no
+    // click handler wired", which is the property that actually matters.
     render(<StaticSiteTab />);
     const button = screen.getByRole("button", { name: "Build static export" });
-    expect(button).toBeDisabled();
-    expect(screen.getByText("Not available from this screen yet — run tovu export from a terminal.")).toBeInTheDocument();
+    expect(button).toHaveAttribute("aria-disabled", "true");
+    const reason = screen.getByText(
+      "Not available from this screen yet — no admin route can start an export. Run the command above instead.",
+    );
+    expect(reason).toBeInTheDocument();
+    // The reason is not merely nearby — it is programmatically tied to the control, which is the
+    // whole point of preferring `aria-disabled` over `disabled` here.
+    expect(button.getAttribute("aria-describedby")).toBe(reason.id);
   });
 });
 
@@ -56,10 +89,17 @@ describe("FullSiteTab", () => {
     expect(screen.getAllByText("Planned")).toHaveLength(FULL_SITE_PROVIDERS.length);
   });
 
+  it("shows each provider's cost, so six otherwise-identical rows are told apart by a real value", () => {
+    render(<FullSiteTab />);
+    for (const provider of FULL_SITE_PROVIDERS) expect(screen.getByText(provider.costKey)).toBeInTheDocument();
+  });
+
   it("states there are no credential fields yet, rather than rendering fields that write nowhere", () => {
     render(<FullSiteTab />);
     expect(
-      screen.getByText("No credential fields yet — this instance has no backend to store them."),
+      screen.getByText(
+        "No credential fields yet — this instance has no backend to store them, so nothing here can be connected from this screen.",
+      ),
     ).toBeInTheDocument();
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   });
@@ -70,8 +110,12 @@ describe("HistoryTab", () => {
     render(<HistoryTab />);
     expect(screen.getByText("No deploys yet")).toBeInTheDocument();
     expect(
-      screen.getByText("Builds and deploys will show up here once a real host is wired up."),
+      screen.getByText(
+        "Nothing has been deployed from this screen — and nothing can be yet. Once a host is wired up, every build and deploy will be listed here with its outcome.",
+      ),
     ).toBeInTheDocument();
+    // Still the load-bearing assertion: no table, and now also no placeholder rows of any kind.
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
+    expect(screen.queryAllByRole("listitem")).toHaveLength(0);
   });
 });
