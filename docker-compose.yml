@@ -1,0 +1,88 @@
+# Tovu — self-hosted, single container.
+#
+#   cp .env.example .env      # then edit it — TOVU_ADMIN_PASSWORD is required
+#   docker compose build
+#   docker compose up -d
+#
+# Note `context: ..` — the build context is the PARENT of this repo, because
+# Tovu declares 22 dependencies as `file:` paths into a sibling `Jini/`
+# checkout. See the header of `Dockerfile` for why, and
+# `Dockerfile.dockerignore` for how the rest of the parent directory is kept
+# out of the context. A `Jini` checkout must sit beside this one, named exactly
+# `Jini`.
+
+services:
+  tovu:
+    build:
+      context: ..
+      dockerfile: Tovu/Dockerfile
+    image: tovu:local
+    restart: unless-stopped
+
+    # The agent daemon is spawned as a detached child in its own process group.
+    # An init process reaps it if it is ever orphaned, instead of leaving a
+    # zombie holding the daemon port and a handle on content.db — a failure
+    # that presents as "the assistant is unavailable", not as an error.
+    init: true
+
+    ports:
+      # Site and admin. The agent daemon's port is deliberately NOT published:
+      # it is an internal process the API proxies to.
+      - "${TOVU_PORT:-3000}:3000"
+
+    environment:
+      # ---- Runtime mode -------------------------------------------------
+      # THIS IS THE SWITCH THAT ARMS EVERY PRODUCTION SAFETY CHECK, and it is
+      # the only signal consulted — `NODE_ENV` is never read for this purpose
+      # (`src/core/runtime-mode.ts`). Anything other than the literal
+      # "production" resolves to `local`, which activates NO containment.
+      #
+      # With it set to production, the boot gate refuses to start on unsafe
+      # defaults — including a default or unset owner password. That is why
+      # TOVU_ADMIN_PASSWORD below is not optional.
+      TOVU_RUNTIME_MODE: production
+
+      # ---- Required -----------------------------------------------------
+      # No default. A production-mode boot with this unset, or still set to the
+      # development default, refuses to start with
+      # PRODUCTION_BOOT_UNSAFE_DEFAULT. Seeded on FIRST BOOT ONLY and stored as
+      # an argon2id hash; changing it later does nothing to an existing install
+      # — use Users -> Reset password in the admin instead.
+      TOVU_ADMIN_PASSWORD: ${TOVU_ADMIN_PASSWORD:?set TOVU_ADMIN_PASSWORD in .env}
+      TOVU_ADMIN_USER: ${TOVU_ADMIN_USER:-admin}
+
+      # ---- Strongly recommended -----------------------------------------
+      # Unset does NOT fail boot. It surfaces much later as a 503
+      # SECRET_STORE_UNCONFIGURED when saving on the AI Assistant screen, which
+      # reads as a broken feature rather than as missing configuration. Set it
+      # now and avoid the confusion.
+      TOVU_INTEGRATIONS_ROOT_KEY: ${TOVU_INTEGRATIONS_ROOT_KEY:-}
+
+      PORT: 3000
+
+    volumes:
+      # ALL persistent state: content.db and its WAL sidecars, uploads/, and
+      # ops state. Everything else in the container is disposable and rebuilt
+      # from the image. Lose this and you lose the site.
+      #
+      # A named volume rather than a bind mount by default: SQLite in WAL mode
+      # needs real POSIX locking, which is not guaranteed on every host
+      # filesystem a bind mount might land on (network shares especially). If
+      # you switch to a bind mount for easier backups, keep it on local disk.
+      - tovu-infra:/workspace/Tovu/infra
+
+    healthcheck:
+      # Deliberately a plain TCP connect rather than a request to an
+      # application route: no health endpoint has been verified to exist, and a
+      # healthcheck pointed at a 404 is worse than none — it reports healthy on
+      # any server that answers, and unhealthy on a working one whose route
+      # moved. Replace this with a real readiness route when one exists.
+      test: ["CMD", "node", "-e", "require('node:net').connect(3000,'127.0.0.1').on('connect',()=>process.exit(0)).on('error',()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      # Generous: first boot runs migrations and seeding before it listens.
+      start_period: 60s
+
+volumes:
+  tovu-infra:
