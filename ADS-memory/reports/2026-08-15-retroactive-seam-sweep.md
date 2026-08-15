@@ -194,7 +194,34 @@ parameter at its fetch call site, call the real default binding directly).
 
 Group 2: 5/5 PROVEN. 0 findings.
 
+### Group 3 (5 files)
+
+Same mode for all five: `injection-seam`, same technique as groups 1–2.
+
+- **`use-import-redirects-form.hooks.unit.test.tsx`** — `use-import-redirects-form.hooks.ts`:
+  `port.importRedirects(rules)` → `defaultRedirectsPort.importRedirects(rules)`. Test: `"submits
+  through the injected port and surfaces what it returns as \`result\`"`. **RED** (`result` stayed
+  `null`). Reverted, confirmed clean. **PROVEN.**
+- **`use-redirects.hooks.unit.test.tsx`** — `use-redirects.hooks.ts`: `port.listRedirects()` →
+  `defaultRedirectsPort.listRedirects()`. Test: `"reads the list from the injected port rather than
+  the real client"`. **RED**. Reverted, confirmed clean. **PROVEN.**
+- **`use-theme-explore.hooks.unit.test.ts`** — `use-theme-explore.hooks.ts`:
+  `port.getThemeDetail(themeId)` → `defaultThemeExplorePort.getThemeDetail(themeId)`. Test: `"loads
+  detail/files from the injected port and never touches the real api client"`. **RED**. Reverted,
+  confirmed clean. **PROVEN.**
+- **`use-themes.hooks.unit.test.ts`** — `use-themes.hooks.ts`: `port.getPresentation()` →
+  `defaultThemesPort.getPresentation()`. Test: `"loads settings/themes/tiers from the injected port
+  and never touches the real api client"`. **RED**. Reverted, confirmed clean. **PROVEN.**
+- **`use-widget-instance-editor.hooks.unit.test.ts`** — `use-widget-instance-editor.hooks.ts`:
+  `port.getWidget(props.widgetId as string)` → `defaultWidgetsPort.getWidget(props.widgetId as
+  string)`. Test: `"loads from the injected port and never touches the real api client"`. **RED**
+  (`title` stayed empty instead of resolving to `"Hero banner"`). Reverted, confirmed clean.
+  **PROVEN.**
+
+Group 3: 5/5 PROVEN. 0 findings.
+
 ## Running tally (this sweep)
 
-**12/22 candidate files checked** (2 defaulted-dep tier + 10 required-param groups 1–2). All 12
-PROVEN, 0 findings so far. Continuing to the remaining 10 files.
+**17/22 candidate files checked** (2 defaulted-dep tier + 15 required-param groups 1–3). All 17
+PROVEN, 0 findings so far. Continuing to the remaining 5 files (group 4: `use-widget-region-editor`,
+`use-widget-regions`, `use-widgets-library`, `use-recovery`, `MenuEditor`).
