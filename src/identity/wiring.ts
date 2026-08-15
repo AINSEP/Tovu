@@ -48,6 +48,14 @@ import { seedIdentity } from "@jini-ai/cms/identity";
  * identity repos — see `middleware/dev-auth.ts`.
  */
 
+/**
+ * SPEC-022 §4.2 / `production-readiness-gate.ts` — the literal owner-password default this
+ * module seeds when `TOVU_ADMIN_PASSWORD` is unset. Exported (not inlined below) so
+ * `runBootGateOrExit()` in `src/index.ts` can compare the configured password against the exact
+ * same value this seeder falls back to, with no second copy of the string to drift out of sync.
+ */
+export const DEFAULT_OWNER_PASSWORD = "tovu-dev";
+
 /** The identity-owned slice of `RouteDeps` (see that file's fields of the same names). */
 export interface IdentityRouteDepsSlice {
   principalRepo: IdentityRepos["principals"];
@@ -94,7 +102,7 @@ function buildIdentityRouteDeps(
       // itself used to read before the extraction, so first-boot behavior is unchanged — the
       // decision simply moved to the host that owns the deployment model.
       ownerUsername: process.env.TOVU_ADMIN_USER ?? "admin",
-      ownerPassword: process.env.TOVU_ADMIN_PASSWORD ?? "tovu-dev",
+      ownerPassword: process.env.TOVU_ADMIN_PASSWORD ?? DEFAULT_OWNER_PASSWORD,
     },
   });
 

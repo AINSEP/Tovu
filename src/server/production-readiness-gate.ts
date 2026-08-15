@@ -15,6 +15,8 @@ export interface EnvSnapshot {
   hasDevSecretPlaceholder: boolean;
   hasLocalhostEgressAllowance: boolean;
   hasAlwaysOnAnalyticsStub: boolean;
+  /** SPEC-022 §4.2: true when the seeded owner account still has the publicly-documented default password. */
+  hasDefaultOwnerPassword: boolean;
 }
 
 export type BootRefusalCode =
@@ -85,6 +87,7 @@ export async function runProductionReadinessGate(
   if (options.envSnapshot.hasDevSecretPlaceholder) failures.push(unsafeDefaultFailure("dev-secret-placeholder"));
   if (options.envSnapshot.hasLocalhostEgressAllowance) failures.push(unsafeDefaultFailure("localhost-egress-allowance"));
   if (options.envSnapshot.hasAlwaysOnAnalyticsStub) failures.push(unsafeDefaultFailure("always-enabled-analytics-stub"));
+  if (options.envSnapshot.hasDefaultOwnerPassword) failures.push(unsafeDefaultFailure("default-owner-password"));
 
   // §2.1 step 3: every production-classified capability must be durable.
   for (const capability of options.inventory) {

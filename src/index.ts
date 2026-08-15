@@ -5,6 +5,7 @@ import { createApp, createRouteDeps } from "./server/app";
 import { createSqliteRouteDeps, defaultContentDbPath } from "./server/deps";
 import { CAPABILITY_INVENTORY } from "./server/capability-inventory";
 import { runProductionReadinessGate } from "./server/production-readiness-gate";
+import { DEFAULT_OWNER_PASSWORD } from "./identity/wiring";
 import { resolveRuntimeMode } from "#src/core/runtime-mode";
 import { runBootLifecycle } from "./server/boot-lifecycle";
 import { buildBootModules } from "./server/bootstrap";
@@ -198,7 +199,7 @@ startOwnParentWatchdog();
  * is the one real top-level boot path (never imported by a test), so it is the safe place to
  * enforce "never bind the listening socket" without touching any tested surface.
  *
- * `envSnapshot`'s three checks are a disclosed, best-effort implementation, not exhaustively
+ * `envSnapshot`'s four checks are a disclosed, best-effort implementation, not exhaustively
  * specified by SPEC-022 (no test exercises the real heuristics, only injected fixture values):
  * - `hasDevSecretPlaceholder`: true when `ANALYTICS_ROOT_KEY_SEED` is unset, since
  *   `registerAnalyticsIngestRoute`'s wiring in `app.ts` falls back to the literal dev placeholder
@@ -210,6 +211,10 @@ startOwnParentWatchdog();
  * - `hasAlwaysOnAnalyticsStub`: false as of ADR-046 Phase 1's analytics slice (2026-07-16) —
  *   `deps.ts`'s `createSqliteRouteDeps()` now unconditionally wires the durable `SqliteBufferSink`,
  *   mirroring the "analytics" capability-inventory entry's `hasDurableAdapter: true`.
+ * - `hasDefaultOwnerPassword` (§4.2): true when `TOVU_ADMIN_PASSWORD` is unset or still equal to
+ *   `DEFAULT_OWNER_PASSWORD` — the exact literal `identity/wiring.ts`'s `buildIdentityRouteDeps()`
+ *   falls back to when seeding the owner account. Imported from that module rather than
+ *   re-declared here so the gate can never drift out of sync with what the seeder actually did.
  */
 async function runBootGateOrExit(): Promise<void> {
   const mode = resolveRuntimeMode();
@@ -222,6 +227,7 @@ async function runBootGateOrExit(): Promise<void> {
       hasDevSecretPlaceholder: !process.env.ANALYTICS_ROOT_KEY_SEED,
       hasLocalhostEgressAllowance: false,
       hasAlwaysOnAnalyticsStub: false,
+      hasDefaultOwnerPassword: (process.env.TOVU_ADMIN_PASSWORD ?? DEFAULT_OWNER_PASSWORD) === DEFAULT_OWNER_PASSWORD,
     },
   });
 
