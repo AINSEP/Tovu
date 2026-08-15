@@ -1,0 +1,22 @@
+# Graphify scope: only production source roots.
+/*
+!/.graphifyignore
+!/src/
+!/src/**
+!/infra/
+!/infra/**
+!/apps/
+!/apps/**
+!/packages/
+!/packages/**
+
+# Exclude nested dependencies, tests, and generated output.
+**/node_modules/
+**/__tests__/
+**/test/
+**/tests/
+**/*.test.*
+**/*.spec.*
+**/dist/
+**/coverage/
+**/test-results/
