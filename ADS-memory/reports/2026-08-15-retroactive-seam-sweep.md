@@ -297,3 +297,98 @@ concern). The six off-limits/concurrent files (`use-dashboard.hooks.unit.test.ts
 `use-members.hooks.unit.test.ts`, `use-admin-locale.hooks.test.ts`, `ThemeExplore.unit.test.tsx`,
 `use-post-template-source.hooks.ts`, `apps/admin/INFO.md`) were not read, mutated, or committed at
 any point in this sweep.
+
+---
+
+## Part 2 — Static pass: component-level `Hook = useWiredX` defaulted props
+
+Added after team-lead review, corrected twice mid-thread (first told to skip the 22-file bulk as
+"no reachable ignored-prop bug shape for a required param," then corrected: a required param CAN
+still be ignored if the body calls the real/default binding directly instead of the parameter it
+was handed — which is exactly what all 22 of Part 1's mutations tested, and all 22 already came
+back RED/PROVEN, so that work stands and was not redone).
+
+**New scope for this part:** the ~50-60 component-level `SomethingHook = useWiredX` defaulted-prop
+sites flagged earlier and set aside as "too broad to mutate individually" — team lead identified
+this as the real risk shape at scale: a component declaring the prop while its body calls
+`useWiredX()` directly would swallow every injected fake silently, and every test against it would
+pass while proving nothing.
+
+**Method (static, no test runs, no source edits, per team-lead's plan to avoid 50+ mutations):**
+for each site, does the component body call its own injected prop at least once, and does it ALSO
+call the real/wired binding directly (with parens — an actual invocation, not just the bare
+reference in the destructuring default) anywhere else in the file? A prop that's never called, or
+a real binding that's also called somewhere the prop should have been used instead, is a hit.
+Script: `check-seam-static.mjs` (throwaway, left in the session scratchpad per
+`2026-08-14-class-d-port-coverage.md`'s own "scripts are throwaway, not committed" precedent — not
+committed to the repo).
+
+**Re-baselined against current HEAD** (`352adf6` at time of this pass, well past the `4349c51` this
+report's Part 1 was committed against — the peer session landed a dozen-plus feature commits in
+between: Deployment panel, static exporter, CLI `tovu export`, server routes). Re-ran the
+`Hook = use\w+` grep fresh rather than reusing the earlier list: **63 sites** (up from the ~50-60
+estimated earlier — some are new from the concurrent Deployment-panel work).
+
+### Result: 63/63 clean. 0 genuine hits.
+
+One flag surfaced and was manually ruled out as a false positive:
+
+- **`Seo.tsx:257` — `useSeoHook = useWiredSeo`.** The script matched `useWiredSeo(` at line 27 and
+  reported "real binding also called 1x outside declaration." Read the context: line 27 sits inside
+  the file's own 31-line header doc comment (`/** ... */`, lines 1–31), in the prose "`locale`...
+  comes from `useWiredSeo()` — `useAdminLocale()` is now called only inside that hook, not here."
+  This is a doc-comment MENTION of the function name, not a code call — the script's regex doesn't
+  strip comments. Confirmed by reading: `useSeoHook()` is the only actual call in the file
+  (`Seo.tsx:258`), correctly reading from the injected prop. This is the exact false-positive shape
+  the original DI-sweep handoff itself documented in section 4 ("the three recurring false-positive
+  shapes are `api.xxx()` inside a doc comment, `deps.api` as a locally-scoped parameter, and a
+  multi-name import clause") — same trap, different function name. **Not a hit. Ruled out by
+  reading, not assumed.**
+
+All other 62 sites: the injected prop is called at least once, and the real/wired binding is never
+called anywhere else in the file. Full per-site table (script output) available on request; not
+reproduced here to keep this report readable — every line followed the pattern `hookCalls=1,
+realCallsElsewhere=0, clean` except the two multi-call-but-still-clean sites noted below and the
+one false positive above.
+
+**Two files include the site with `hookCalls=2`** (`Redirects.tsx:171`'s `useRedirectsHook`) — the
+prop is referenced twice in the file (once in the type position, once in the actual call), not a
+sign of trouble; `realCallsElsewhere` for that site is `0`.
+
+**`ThemeExplore.tsx:884`** (`useThemeExploreHook = useWiredThemeExplore`) was included in this
+READ-ONLY static check — reading is not the same as touching, and the off-limits instruction was
+about ownership of edits/commits to that file by the concurrent TDD agent. Came back clean
+(`hookCalls=1, realCallsElsewhere=0`). **Not mutation-verified** — that would require editing the
+file, which stays off limits regardless of the static result.
+
+**Per team-lead's stated criteria** ("mutation-verify only the hits and the genuinely ambiguous
+ones") — since the static pass found **zero genuine hits and zero ambiguous sites** among the 63
+(the one flag was conclusively resolved as a doc-comment false positive by reading, not by
+guessing), **no new mutation-verification was performed in this part.** No source files were
+edited or committed. The two audit-packet-named files this instruction explicitly asked to include
+(`use-recovery.unit.test.ts`, `MenuEditor.unit.test.tsx`) were both already directly
+mutation-verified with real RED evidence in Part 1's group 4 — that requirement is satisfied by
+already-completed work, not skipped.
+
+## Final summary — both parts combined
+
+**Part 1 (mutation-tested):** 22/22 files, 22/22 PROVEN, 0 findings.
+**Part 2 (statically checked):** 63/63 sites, 63/63 clean, 0 findings (1 false positive ruled out
+by reading).
+
+**Combined with the first report** (`2026-08-15-negative-verification-usewired-batch.md`, 6 files
+with an injectable dependency directly mutation-tested, all 6 seams real): across this entire body
+of work, **91 distinct injection points** (22 + 63 + 6) have now been checked for decorative
+injection — by direct mutation where that was the right tool (28 of them: the first report's 6 +
+this report's 22), and by exhaustive static read where mutation would have been 60+ redundant test
+runs against a binary, easily-audited-by-reading question (this report's 63). **Zero decorative
+injection found anywhere.** The Orc-BASH `useX(port)` / `useWiredX()` convention held across the
+entire `apps/admin` DI sweep — every injected dependency this session checked is genuinely read
+through its seam, not silently bypassed. Reporting this plainly, including the zero, per standing
+instruction.
+
+The two real findings from the whole body of work remain what the first report already surfaced:
+`use-admin-locale.hooks.test.ts`'s vacuous "unsubscribes on unmount" test, and
+`ThemeExplore.unit.test.tsx`'s `toContain` substring-collision gap on the `.liquid` templateId
+assertion — both already fixed by the concurrent TDD agent (`126aab1`, `1d6db82`). Neither was in
+the injection-seam dimension.
