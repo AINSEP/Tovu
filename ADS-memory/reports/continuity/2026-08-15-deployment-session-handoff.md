@@ -66,8 +66,8 @@ Standalone public repo, unconnected to `Tovu-AI-CMS`.
    ⚠️ **Credentials are env vars this pass** — `GITHUB_TOKEN` / `VERCEL_TOKEN`, behind an injectable
    `PublishCredentialSource` seam. The encrypted store (ADR-058) is the right eventual home but
    needs a new table + migration; swapping `createEnvPublishCredentialSource()` changes no caller.
-   ⚠️ **`.nojekyll` injection was NOT confirmed** — check `adapter.ts` before trusting a Pages
-   publish, since Jini's adapter definitively does not add it.
+   ✅ **`.nojekyll` IS injected** by `static-publish/adapter.ts` (verified). Jini's own adapter
+   does not add it, so this is Tovu's job and Tovu does it.
 2. **Make the Dockerfile tab editable in the UI — everything below it is already done.**
    `PUT /api/admin/v1/workspaces/:workspaceId/system/dockerfile` (gated on a new `system.write`),
    the `deployment_set_dockerfile` agent tool, and `api.setDockerfileSource(contents)` all exist.
