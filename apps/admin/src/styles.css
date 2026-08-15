@@ -3266,6 +3266,24 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
   line-height: 1.6; border-radius: var(--r-md); white-space: pre; tab-size: 2;
 }
 
+/* Same box as `.deployment-dockerfile-viewer` above, as a `<textarea>` instead of a `<pre><code>`
+   (2026-08-15 — the tab became editable). `min-height` rather than that block's fixed `max-height`:
+   a `<pre>` grows with its content up to a cap and then scrolls, but a `<textarea>` needs an
+   explicit starting height to not collapse to ~2 lines, so this keeps the same 32rem the read-only
+   viewer settled on as a floor and lets the operator drag it taller via `resize: vertical` — a
+   fixed-height-only textarea for a file that can genuinely run to hundreds of lines would make
+   editing near the bottom of a long Dockerfile a scroll-fight inside a small box. `outline` is kept
+   (not suppressed) — this is real interactive editable content, and a focus ring here is exactly the
+   affordance a keyboard user needs to confirm they're typing into it. */
+.deployment-dockerfile-editor {
+  display: block; width: 100%; box-sizing: border-box;
+  margin: 0; padding: var(--space-4); min-height: 32rem; resize: vertical;
+  background: var(--surface-2); color: var(--fg); border: 1px solid var(--border);
+  font-family: var(--font-mono); font-size: var(--text-xs);
+  line-height: 1.6; border-radius: var(--r-md); tab-size: 2;
+}
+.deployment-dockerfile-editor:focus-visible { border-color: var(--accent); }
+
 /* ---- Empty / unavailable states -------------------------------------------------------------- */
 /* History has no backend at all, and Static Site's build button has no route to call. Both are
    permanent-for-now states rather than "still loading", so both get a composed block — a mark, a
