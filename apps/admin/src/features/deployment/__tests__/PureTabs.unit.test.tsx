@@ -163,6 +163,17 @@ describe("FullSiteTab", () => {
     ).toBeInTheDocument();
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   });
+
+  it("tags the overview card, its Dockerfile link, and the providers card for the AI assistant", () => {
+    // `data-agent-element` querying convention `PostEditor.unit.test.tsx` uses. Guards against a
+    // handle silently rotting (renamed, removed, or a typo) with nothing catching it.
+    render(<FullSiteTab />);
+    expect(document.querySelector('[data-agent-element="deployment-full-site-overview"]')).toBeInTheDocument();
+    expect(
+      document.querySelector('[data-agent-element="deployment-full-site-dockerfile-link"]'),
+    ).toBeInTheDocument();
+    expect(document.querySelector('[data-agent-element="deployment-full-site-providers"]')).toBeInTheDocument();
+  });
 });
 
 describe("HistoryTab", () => {
@@ -177,5 +188,11 @@ describe("HistoryTab", () => {
     // Still the load-bearing assertion: no table, and now also no placeholder rows of any kind.
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
     expect(screen.queryAllByRole("listitem")).toHaveLength(0);
+  });
+
+  it("tags the empty-state region and its publish link for the AI assistant", () => {
+    render(<HistoryTab />);
+    expect(document.querySelector('[data-agent-element="deployment-history-empty"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-agent-element="deployment-history-publish-link"]')).toBeInTheDocument();
   });
 });
