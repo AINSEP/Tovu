@@ -146,8 +146,32 @@ that only one runs at a time, and — importantly — that `basePath` must exact
 for a GitHub Pages **project** site and be left unset for a user/org or custom-domain site. That is
 the single most likely thing for a model to get wrong, so check it survives any description edit.
 
-**Untested end to end:** nobody has actually asked the assistant to run an export. That is the
-cheapest high-value thing to try next — one sentence in the assistant pane.
+**✅ TESTED END TO END 2026-08-15.** `deployment_trigger_export` was executed through the daemon's
+real `ToolExecutor` gate and succeeded: **27 routes, 8 assets, 0 failures, 781ms**, `basePath`
+`/tovu-demo` applied to **617** links with **zero** unprefixed absolute links left behind.
+`deployment_preview_static_publish` also came back from the daemon's own catalog search, proving the
+static-publish registration (`dc7d486`) is live in the product path, not just at HEAD.
+
+**How to drive it again (this cost several probes to work out):**
+1. Boot with an operator-chosen token — `src/index.ts:244` mints a random one otherwise, and it lives
+   only in process memory: `TOVU_AGENT_DAEMON_TOKEN=<tok> npm run dev`.
+2. `POST /api/runs` with `Authorization: Bearer <tok>` **and** `x-tovu-principal-id: <principal>`.
+   ⚠️ **`contextRef` is NOT opaque.** `@jini-ai`'s kernel documents it as "an opaque caller-supplied
+   identity", but `run-start-context.ts` `JSON.parse`s it and requires `{prompt, principalId}` — both
+   non-empty strings. A plain string fails the run **2ms after start** with `state:"failed"`,
+   `code:null, signal:null`, and only a `[agent-daemon] malformed contextRef` line in the log. This
+   reads exactly like "the assistant is broken". Fix the kernel's doc or Tovu's parse; they disagree.
+3. `POST /api/delegated-tool-calls` (bearer-exempt, guarded instead by a live `runId`) with
+   `{runId, toolUseId, toolId, input}`. ⚠️ **`toolUseId` is required** and is absent from the MCP
+   bridge's own tool description — omitting it returns a `BAD_REQUEST` validation error.
+4. `POST /api/runs/:id/cancel` when done, or the spawned agent CLI keeps running.
+
+⚠️ **`.nojekyll` is injected by the PUBLISH path only, never by the export.** `NOJEKYLL_FILE` lives in
+`static-publish/adapter.ts:63`; `infra/export/` after a successful `deployment_trigger_export` has **no
+`.nojekyll`**. Verified 2026-08-15. Currently harmless — the export contains zero underscore-prefixed
+paths — but it is latent, and it means the export directory is **not** directly publishable to GitHub
+Pages by hand without adding the file, which is exactly what the original CLI chain did as a separate
+step. Do not read the "`.nojekyll` IS injected" note above as covering the export path; it does not.
 
 ## Settled decisions — do not re-litigate
 
