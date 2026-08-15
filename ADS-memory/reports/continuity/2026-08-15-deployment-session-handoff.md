@@ -189,6 +189,50 @@ step. Do not read the "`.nojekyll` IS injected" note above as covering the expor
 - Agent tools live at `src/features/<domain>/agent-tools.ts` + one `DOMAIN_SLICES` line. There is
   no `features/<x>/ai/` convention.
 
+## Queued — decided 2026-08-15, not started
+
+Ordered. Each waits on the one above only where it shares files.
+
+1. **Netlify + Cloudflare Pages targets.** `@jini-ai/devops` ALREADY ships `cloudflare-pages.ts` and
+   `netlify.ts`, both exported from its `deploy/index.ts`. Tovu wires neither: `StaticPublishTargetId`
+   is a closed union of `"github-pages" | "vercel"` on purpose (`static-publish/types.ts:21` explains
+   why). This is a reviewed 2-member addition — types, adapter branch, credentials — not new
+   implementation. Note `rules.ts:86` already lists **all four** in `STATIC_HOSTS`, so the UI names
+   four while the backend does two.
+2. **Static-host provider REGISTRY — owner-approved design, replaces ad-hoc per-provider code.**
+   Make providers **data, not types**, so adding one is a row rather than a core edit. One record:
+
+   ```
+   { id, name,
+     basePath: "root" | "subpath",   // the only genuine per-provider setting
+     cli?: "gh" | "vercel" | ...,     // optional: PATH detection + a copyable command
+     credentialEnv?: "GITHUB_TOKEN",  // optional: only for token-based API publish
+     docsUrl }
+   ```
+
+   - The four known hosts become four rows. **"Custom / other host" is the SAME row shape, filled in
+     by the user** — no special case, no second code path. That is what makes it future-proof.
+   - **Keep the closed typed union ONLY for hosts doing token-based API publishing** (GitHub Pages,
+     Vercel today). Those need real adapters and the automatic base-path derivation that makes a
+     mismatch structurally impossible. Everything else is a row plus a generated command.
+   - **There are no "build options" to model, and that is deliberate.** Tovu IS the build — the
+     export runs against the live server and writes HTML. No build command, no framework preset, no
+     output-dir. The single real variable is **base path** (root vs subpath), because that is what
+     breaks every asset link when wrong. Do not build a build-settings form; there is nothing to put
+     in it.
+   - ⚠️ **Do NOT execute a user-supplied shell command server-side.** That is RCE from an admin
+     settings field, and it contradicts this codebase's own posture — `deployment_execute_static_publish`
+     is deliberately unwired behind `confirmer-must-equal-own-delegatedBy` so the assistant cannot
+     publish unsupervised. **Generate** the command; let a human or the spawned CLI agent run it.
+     Same reach, none of the surface.
+   - Prior art to follow, already in-repo: `DeploymentProviderId = string` (`features/deployments/types.ts:29`)
+     is the OPEN counterpart for server hosts, with `rules.ts`'s `"vps"` — *"any server you already
+     have SSH access to"* — as the existing custom escape hatch. Mirror that shape for static hosts.
+3. **Full Site deploy.** `rules.ts` already carries six server providers (fly, railway, render, aws,
+   digitalocean, vps). The open question is not which providers but **what a Full Site button can
+   actually do**, since the container must be built and pushed somewhere — a genuinely different
+   shape from static publish. Decide deliberately, not by analogy to the static tab.
+
 ## Still open
 
 - **Slug-collision default.** `overridesThemePage` exists (`PostEditor.tsx:880-895`, shown only on
