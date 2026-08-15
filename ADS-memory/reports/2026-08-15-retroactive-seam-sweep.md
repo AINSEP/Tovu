@@ -220,8 +220,80 @@ Same mode for all five: `injection-seam`, same technique as groups 1–2.
 
 Group 3: 5/5 PROVEN. 0 findings.
 
-## Running tally (this sweep)
+### Group 4 (5 files) — final group
 
-**17/22 candidate files checked** (2 defaulted-dep tier + 15 required-param groups 1–3). All 17
-PROVEN, 0 findings so far. Continuing to the remaining 5 files (group 4: `use-widget-region-editor`,
-`use-widget-regions`, `use-widgets-library`, `use-recovery`, `MenuEditor`).
+- **`use-widget-region-editor.hooks.unit.test.tsx`** — `mode: injection-seam`.
+  `use-widget-region-editor.hooks.ts`: `port.getWidgetRegion(regionKey)` →
+  `defaultWidgetRegionsPort.getWidgetRegion(regionKey)`. Test: `"loads the region from the injected
+  port and never touches the real api client"`. **RED**. Reverted, confirmed clean. **PROVEN.**
+- **`use-widget-regions.hooks.unit.test.tsx`** — `mode: injection-seam`.
+  `use-widget-regions.hooks.ts`: `port.listWidgetRegions()` →
+  `defaultWidgetRegionsPort.listWidgetRegions()`. Test: `"loads the list from the injected port and
+  never touches the real api client"`. **RED**. Reverted, confirmed clean. **PROVEN.**
+- **`use-widgets-library.hooks.unit.test.tsx`** — `mode: injection-seam`. `use-widgets-library.hooks.ts`:
+  `port.listWidgets({ includeInactive: true })` → `defaultWidgetsPort.listWidgets({ includeInactive:
+  true })`. Test: `"loads the list from the injected port and never touches the real api client"`.
+  **RED**. Reverted, confirmed clean. **PROVEN.**
+- **`use-recovery.unit.test.ts`** — `mode: injection-seam`. `use-recovery.hooks.ts`:
+  `Promise.all([port.getRecoveryStatus(), port.listRecoveryRestorePoints()])` →
+  `Promise.all([defaultRecoveryPort.getRecoveryStatus(), defaultRecoveryPort.listRecoveryRestorePoints()])`
+  — both calls swapped together (the audit packet's disclosed granularity limit is about the
+  *failure-path* test needing both port calls broken to go red because of the shared `Promise.all`
+  catch; this seam mutation, on the *happy-path* test, doesn't hit that limit — swapping the whole
+  `Promise.all` pair at once is the natural seam mutation regardless). Test: `"loads status and
+  points from the fake port with no real fetch call for the data itself"`. **RED**. Reverted,
+  confirmed clean. **PROVEN.**
+- **`MenuEditor.unit.test.tsx`** — `mode: injection-seam` (component-level, same technique as files
+  1/4/6 in the prior report). `MenuEditor.tsx`: `useMenuEditorHook(menuId)` →
+  `useWiredMenuEditor(menuId)` (hardcode the real hook, bypassing the injected prop). Test:
+  `"renders from a fake controller, proving the real hook is not hardcoded — no fetch involved"`.
+  **RED** — and this independently confirms the audit packet's own disclosed caveat ("MenuEditor's
+  seam test has two assertions, only one of which distinguishes fake from real"): the failure
+  landed specifically on `expect(useMenuEditorHook).toHaveBeenCalledWith("m1")` (0 calls), NOT on
+  the `getByText("Loading menu…")` assertion — the real hook also renders a loading state
+  synchronously on mount, so that half of the test would pass unchanged even with the seam broken.
+  The spy-call assertion is what actually does the distinguishing work; the loading-text assertion
+  is along for the ride. Not a vacuous test (the spy assertion IS load-bearing and DID catch the
+  break), but the packet's characterization is accurate — one of its two assertions carries the
+  whole proof. Reverted, confirmed clean. **PROVEN, with the packet's caveat independently
+  reconfirmed rather than just cited.**
+
+Group 4: 5/5 PROVEN. 0 findings.
+
+## Final summary — this sweep
+
+**22/22 candidate files checked. 22/22 PROVEN. 0 findings.** Every injection-seam mutation across
+both the defaulted-dependency tier (2 files) and the required-param bulk (20 files, in 4 groups of
+5) went RED as expected and was reverted cleanly. No decorative injection was found anywhere in
+this retroactive sweep — every hook and every component genuinely reads through its injected
+dependency rather than silently falling back to the real binding.
+
+This is a materially different result from the first report (`2026-08-15-negative-verification-usewired-batch.md`),
+which found 1 vacuous test and 1 narrow assertion-precision gap out of 11 files — but neither of
+those findings was in the injection-seam dimension itself (both were about a *different* assertion
+in the same test file, not about the DI wiring). Combined across both reports: the injection-seam
+question specifically — "does the test actually observe the dependency it injects" — has now been
+checked on 6 (first report) + 22 (this sweep) = 28 distinct files with an injectable dependency,
+and every one of the 28 seams is real. The two known weaknesses in the whole body of work
+(`use-admin-locale.hooks.test.ts`'s vacuous unsubscribe test, `ThemeExplore.unit.test.tsx`'s
+substring-collision gap) are both non-seam findings, already fixed by the concurrent TDD agent
+(`126aab1`, `1d6db82`).
+
+**Where every candidate file came from, restated:** 20 files carried an embedded "negative
+verification" self-check comment (found via `grep -rliE "negative.?verification" apps/admin/src
+--include="*.test.ts" --include="*.test.tsx"`); 2 more were named explicitly in the
+20260814T-usewired-sweep-audit-packet.md as having disclosed granularity limits
+(`use-recovery.unit.test.ts`, `MenuEditor.unit.test.tsx`). This is short of the ~37-file estimate
+derived from the audit packet's aggregate test counts (13/13, 6/6, 9/10, 8/8) — no file-level
+manifest for those four batches exists anywhere in `ADS-memory/reports/`, so the 22-file list is
+the best-evidenced reconstruction available, not a literal enumeration of "the 4 batches." Flagged
+to team lead before spending the bulk of the sweep's budget; proceeded per their guidance once no
+authoritative list surfaced.
+
+## Six pre-existing dirty files, off-limits files — untouched
+
+Same six pre-existing dirty files from the first report remain untouched (not this sweep's
+concern). The six off-limits/concurrent files (`use-dashboard.hooks.unit.test.ts`,
+`use-members.hooks.unit.test.ts`, `use-admin-locale.hooks.test.ts`, `ThemeExplore.unit.test.tsx`,
+`use-post-template-source.hooks.ts`, `apps/admin/INFO.md`) were not read, mutated, or committed at
+any point in this sweep.
