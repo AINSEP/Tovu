@@ -1,0 +1,438 @@
+ACK_PACKET_RECEIVED CTX-AGENTPLUGINS-R2-2026-08-12 -- I received the packet and will work on it.
+
+## Position And Movement
+
+### 1. Position Evolution & Round 1 Alignment
+In Round 1, my position established the **Dual-Surface Standard Projection** (Skills $\rightarrow$ context injection; MCP $\rightarrow$ `mcp-federation` trust layer) and firmly rejected Option B (`extensions["org.tovu.commands"]` as an execution dialect) and Option D (absorption into `.tovu-plugin`).
+
+Round 1 settled Option D's absolute demise on structural grounds: [`loader.ts:8-20`](file:///tmp/ads-peer-dispatch/debate-agentplugins/files/tovu/plugin-runtime/loader.ts#L8-L20) requires per-file SHA-256 `integrity`, `sdkRange` against `@tovu/sdk`, and dynamic `import()` of an ESM entry; [`manifest.ts:36`](file:///tmp/ads-peer-dispatch/debate-agentplugins/files/tovu/plugin-runtime/manifest.ts#L36) restricts capabilities to `content.read | content.extend | hooks.attach`; [`manifest.ts:125`](file:///tmp/ads-peer-dispatch/debate-agentplugins/files/tovu/plugin-runtime/manifest.ts#L125) limits hooks to `content.entry.beforeSave`; and [`manifest.ts:59-60`](file:///tmp/ads-peer-dispatch/debate-agentplugins/files/tovu/plugin-runtime/manifest.ts#L59-L60) explicitly marks `adminSurfaces` as `"UNUSED in v1"`. Because Agent Plugins possess no SHA-256 manifest integrity, no SDK range, and no ESM entry point, Option D was impossible, not merely undesirable.
+
+### 2. Adaptation to New Round 2 Requirements (N1–N4)
+The Product Owner’s Round 2 requirements redefine the scope:
+- **N1 (Generic Preview):** Replaces static allowlists like `UI_UX_DESIGN_SOURCE_FILES` ([`agent-plugin-source-catalog.ts:28-46`](file:///tmp/ads-peer-dispatch/debate-agentplugins/files/tovu/agent-plugin-source-catalog.ts#L28-L46)) with a generic, path-sanitized preview subsystem.
+- **N2 (Live Registry Projection):** Replaces the hardcoded 4-element `TOVU_COMPOSER_DISCOVERY_GROUPS` array ([`agent-plugin-catalog.ts:42-100`](file:///tmp/ads-peer-dispatch/debate-agentplugins/files/tovu/agent-plugin-catalog.ts#L42-L100)) by feeding `AssistantDock.tsx:430` from a dynamic `CapabilityRegistry`.
+- **N3 (Open Extensibility):** Demands a uniform contract for unknown capability kinds without requiring composer code modifications.
+- **N4 (Arguments & Execution Bindings):** Requires descriptors to declare typed argument schemas and polymorphic execution bindings rather than plain text insertion.
+
+### 3. Resolution of `extensions["org.tovu.commands"]`
+`extensions["org.tovu.commands"]` **MUST NOT** carry executable handlers, code paths, or authorization claims. In our updated design, `extensions["org.tovu.commands"]` is permitted **strictly for presentation metadata** (display label, icon, argument placeholders, ordering hints). If omitted, default standard projections derive descriptors directly from `SKILL.md` frontmatter or `mcp.json` tool names. If present, any attempt to inject executable callbacks inside `extensions` is stripped by schema validation.
+
+### 4. Strongest Counter-Argument & Why My Mind Is Not Changed
+*Counter-argument:* Gating plugin stdio MCP tools behind explicit site owner allowlist admission introduces friction for users expecting one-click execution of third-party plugins.
+*Rebuttal:* Auto-admitting stdio MCP tools from plugin-supplied `mcp.json` files violates Rule R2 of `mcp-federation` ([`trust.ts:65-69`](file:///tmp/ads-peer-dispatch/debate-agentplugins/files/tovu/mcp-federation/trust.ts#L65-L69)), which requires allowlists to be authored independently of the classified entity. Standardizing on auto-admission would grant unvetted plugin authors host execution rights.
+
+---
+
+## Solution Slate
+
+| Option | Architecture Summary | N1-N4 Compliance | Security & Trust Model | Primary Trade-Off / Sacrifice |
+| :--- | :--- | :--- | :--- | :--- |
+| **Option 1 (Rank 1 - Recommended)** | **Polymorphic Host Capability Projection Engine** with dynamic `CapabilityRegistry`, generic `PreviewResolver`, typed argument schema, and explicit operator MCP allowlist admission. | **100%** (Full support for N1, N2, N3, N4) | Reuses `mcp-federation/trust.ts` R1-R8; stdio MCP tools default to `unadmitted` pending operator allowlist. | **Sacrifice:** Instant zero-click execution for untrusted stdio MCP tools (requires site owner approval). |
+| **Option 2 (Rank 2)** | **Dual-Surface Kind-Specific Mapping** with hardcoded composer adapters for Skills and MCP tools, backed by runtime permission popups. | **50%** (Fails N3 extensibility; requires composer edits for new kinds) | Relies on interactive prompt dialogs at runtime rather than structural allowlists. | **Sacrifice:** Architectural extensibility and prompt-fatigue protection. |
+| **Option 3 (Rank 3)** | **Skills-Only Active Projection with Inert MCP Staging** (Projects Skills to composer; displays MCP tools as inert in settings until OS sandbox lands). | **75%** (Satisfies N1, N2, N3; fails N4 execution for MCP) | Zero host subprocess risk; prompt injection risk limited to context assembly. | **Sacrifice:** Complete exclusion of executable MCP tools from Agent Plugins in v1. |
+
+### Ranking Criteria
+1. **Security & Honest Trust (Weight: 35%):** Strict compliance with `mcp-federation/trust.ts` R2/R3 ([`trust.ts:65-74`](file:///tmp/ads-peer-dispatch/debate-agentplugins/files/tovu/mcp-federation/trust.ts#L65-L74)) and C6 (no unproven capability presented as working).
+2. **Open Extensibility N3 (Weight: 25%):** Zero composer code changes when adding new capability kinds.
+3. **Execution & Argument Fidelity N4 (Weight: 20%):** Direct support for typed argument contracts and polymorphic dispatch.
+4. **Generic Preview N1 (Weight: 20%):** Safe, path-contained file/content preview replacing static allowlists ([`agent-plugin-source-catalog.ts:28-46`](file:///tmp/ads-peer-dispatch/debate-agentplugins/files/tovu/agent-plugin-source-catalog.ts#L28-L46)).
+
+### Cheapest Falsifying Test for Option 1
+Supply an Agent Plugin containing an `mcp.json` tool marked with `destructiveHint: false` and `readOnlyHint: true`, but omitted from the host site owner's `allowedToolNames`. Invoking `/mcp:<server>:<tool>` must fail with an explicit `UNADMITTED_MCP_TOOL` status, proving that untrusted plugin self-declarations cannot bypass Rule R2 ([`trust.ts:65-69`](file:///tmp/ads-peer-dispatch/debate-agentplugins/files/tovu/mcp-federation/trust.ts#L65-L69)).
+
+---
+
+## Leading Option — Code
+
+Below is the complete implementation of the **Polymorphic Host Capability Projection Architecture**, structured across three modules matching the project layout under `files/tovu/`.
+
+### 1. `files/tovu/capability-projection.ts`
+Defines the core `CapabilityDescriptor` type, argument schemas, execution bindings, preview provider interface, trust provenance, and `CapabilityRegistry` (satisfying N1, N2, N3, N4).
+
+```typescript
+import type { ComposerDiscoveryGroup, ComposerDiscoveryItem } from "../jini/composer-discovery.js";
+
+/** N3: Extensible capability kind string. Predefined kinds or arbitrary future kinds. */
+export type CapabilityKind = "skill" | "mcp" | "agent-tool" | "plugin" | "connector" | (string & {});
+
+/** N4: Typed argument descriptor for palette rendering and execution validation. */
+export interface CapabilityArgument {
+  readonly name: string;
+  readonly type: "string" | "number" | "boolean" | "json";
+  readonly description: string;
+  readonly required: boolean;
+  readonly placeholder?: string;
+  readonly defaultValue?: unknown;
+}
+
+/** N4: Polymorphic execution binding contract. Executed by the host engine, never by vendor JS. */
+export type CapabilityExecuteBinding =
+  | { readonly type: "context-assembly"; readonly promptText: string }
+  | {
+      readonly type: "tool-dispatch";
+      readonly toolId: string; // Authority-qualified ID (e.g. mcp__conn1__tool)
+      readonly transformArgs?: (raw: Record<string, unknown>) => Record<string, unknown>;
+    }
+  | { readonly type: "route-navigation"; readonly route: string }
+  | {
+      readonly type: "custom-handler";
+      readonly handler: (args: Record<string, unknown>) => Promise<{ success: boolean; result: unknown }>;
+    };
+
+/** N1: Generic preview payload structure, replacing static allowlists. */
+export interface CapabilityPreviewFile {
+  readonly relativePath: string;
+  readonly mimeType?: string;
+}
+
+export interface CapabilityPreviewContent {
+  readonly title: string;
+  readonly defaultFilePath?: string;
+  readonly files: readonly CapabilityPreviewFile[];
+  readonly getFileContent: (relativePath: string) => Promise<string | null>;
+}
+
+export interface CapabilityPreviewResolver {
+  readonly hasPreview: boolean;
+  readonly resolvePreview: () => Promise<CapabilityPreviewContent | null>;
+}
+
+/** Trust & Provenance classification matching Tovu trust posture. */
+export interface CapabilityProvenance {
+  readonly source: "bundled" | "agent-plugin" | "native-plugin" | "federated-mcp" | "agent-core";
+  readonly providerId: string; // e.g. "ui-ux-design"
+  readonly providerVersion: string;
+  readonly trustStatus: "trusted-native" | "context-only" | "admitted-mcp" | "unadmitted-mcp";
+}
+
+/** The unified master descriptor contract for all host capabilities. */
+export interface CapabilityDescriptor {
+  readonly id: string; // Global unique identifier
+  readonly kind: CapabilityKind;
+  readonly label: string;
+  readonly description: string;
+  readonly keywords?: readonly string[];
+  readonly icon?: string;
+  readonly arguments?: readonly CapabilityArgument[];
+  readonly execute: CapabilityExecuteBinding;
+  readonly preview?: CapabilityPreviewResolver;
+  readonly provenance: CapabilityProvenance;
+  readonly confirmationRequired: boolean;
+  readonly groupCategory: string; // Grouping bucket for composer UI
+}
+
+/** N3: Generic capability provider interface. Sources implement this without touching composer code. */
+export interface CapabilityProvider {
+  readonly providerId: string;
+  getDescriptors(): Promise<readonly CapabilityDescriptor[]>;
+}
+
+/** N2: Live Capability Registry feeding AssistantDock.tsx and Jini composer. */
+export class CapabilityRegistry {
+  private readonly providers = new Map<string, CapabilityProvider>();
+
+  public registerProvider(provider: CapabilityProvider): void {
+    this.providers.set(provider.providerId, provider);
+  }
+
+  public unregisterProvider(providerId: string): void {
+    this.providers.delete(providerId);
+  }
+
+  public async getAllDescriptors(): Promise<readonly CapabilityDescriptor[]> {
+    const results: CapabilityDescriptor[] = [];
+    for (const provider of this.providers.values()) {
+      const descriptors = await provider.getDescriptors();
+      results.push(...descriptors);
+    }
+    return results;
+  }
+
+  /** Projects live descriptors into Jini ComposerDiscoveryGroup format for AssistantDock.tsx. */
+  public async projectToComposerGroups(): Promise<readonly ComposerDiscoveryGroup[]> {
+    const descriptors = await this.getAllDescriptors();
+    const groupMap = new Map<string, ComposerDiscoveryItem[]>();
+
+    for (const desc of descriptors) {
+      const groupKey = desc.groupCategory;
+      if (!groupMap.has(groupKey)) {
+        groupMap.set(groupKey, []);
+      }
+
+      // Convert typed arguments to syntax placeholder hint (e.g. /search <query>)
+      const argHint = desc.arguments?.map((a) => (a.required ? `<${a.name}>` : `[${a.name}]`)).join(" ") ?? "";
+      const displayLabel = argHint ? `${desc.label} ${argHint}` : desc.label;
+
+      const item: ComposerDiscoveryItem = {
+        id: desc.id,
+        label: displayLabel,
+        description:
+          desc.provenance.trustStatus === "unadmitted-mcp"
+            ? `[Pending Authorization] ${desc.description}`
+            : desc.description,
+        kind: desc.kind,
+        keywords: desc.keywords ? [...desc.keywords] : undefined,
+        insertText: desc.execute.type === "context-assembly" ? desc.execute.promptText : `/${desc.label} `,
+      };
+
+      groupMap.get(groupKey)!.push(item);
+    }
+
+    const groups: ComposerDiscoveryGroup[] = [];
+    for (const [groupCategory, items] of groupMap.entries()) {
+      groups.push({
+        id: groupCategory.toLowerCase().replace(/\s+/g, "-"),
+        label: groupCategory,
+        items,
+      });
+    }
+
+    return groups;
+  }
+}
+```
+
+---
+
+### 2. `files/tovu/agent-plugin-adapter.ts`
+Adapts Agent Plugins (`plugin.json`, `skills/*/SKILL.md`, `mcp.json`) into `CapabilityDescriptor` objects. Handles optional presentation-only `extensions["org.tovu.commands"]`, `$schema` mismatches, collision resolution, and path-sanitized previews.
+
+```typescript
+import type {
+  CapabilityArgument,
+  CapabilityDescriptor,
+  CapabilityProvider,
+} from "./capability-projection.js";
+
+export interface AgentPluginRawFile {
+  readonly relativePath: string;
+  readonly content: string;
+}
+
+export interface AgentPluginPackage {
+  readonly manifestJson: string;
+  readonly files: readonly AgentPluginRawFile[];
+}
+
+/** Presentation metadata schema allowed in extensions["org.tovu.commands"]. NO EXECUTABLE CODE. */
+export interface TovuCommandPresentationMeta {
+  readonly label?: string;
+  readonly description?: string;
+  readonly icon?: string;
+  readonly groupCategory?: string;
+  readonly arguments?: readonly {
+    readonly name: string;
+    readonly type: "string" | "number" | "boolean" | "json";
+    readonly description: string;
+    readonly required: boolean;
+    readonly placeholder?: string;
+  }[];
+}
+
+export class AgentPluginCapabilityAdapter implements CapabilityProvider {
+  public readonly providerId: string;
+  private readonly pkg: AgentPluginPackage;
+  private readonly admittedMcpTools: ReadonlySet<string>;
+
+  constructor(
+    pluginId: string,
+    pkg: AgentPluginPackage,
+    admittedMcpTools: ReadonlySet<string> = new Set()
+  ) {
+    this.providerId = pluginId;
+    this.pkg = pkg;
+    this.admittedMcpTools = admittedMcpTools;
+  }
+
+  public async getDescriptors(): Promise<readonly CapabilityDescriptor[]> {
+    const descriptors: CapabilityDescriptor[] = [];
+    let manifest: Record<string, unknown> = {};
+
+    try {
+      manifest = JSON.parse(this.pkg.manifestJson);
+    } catch {
+      return []; // Malformed manifest produces zero descriptors
+    }
+
+    const pluginId = (manifest.name as string) || this.providerId;
+    const version = (manifest.version as string) || "1.0.0";
+    const extensions = (manifest.extensions as Record<string, unknown>) || {};
+    const commandMetaMap = (extensions["org.tovu.commands"] as Record<string, TovuCommandPresentationMeta>) || {};
+
+    // 1. Process Skills (skills/<name>/SKILL.md)
+    for (const file of this.pkg.files) {
+      const skillMatch = file.relativePath.match(/^skills\/([^/]+)\/SKILL\.md$/);
+      if (skillMatch) {
+        const skillName = skillMatch[1];
+        const canonicalId = `agent-plugin:${pluginId}:skill:${skillName}`;
+        const meta = commandMetaMap[`skill:${skillName}`] || {};
+
+        descriptors.push({
+          id: canonicalId,
+          kind: "skill",
+          label: meta.label || skillName,
+          description: meta.description || `Portable skill '${skillName}' from ${pluginId}`,
+          keywords: ["skill", skillName, pluginId],
+          icon: meta.icon,
+          arguments: meta.arguments as CapabilityArgument[] | undefined,
+          execute: {
+            type: "context-assembly",
+            promptText: file.content,
+          },
+          preview: this.createPreviewResolver(skillName, file.relativePath),
+          provenance: {
+            source: "agent-plugin",
+            providerId: pluginId,
+            providerVersion: version,
+            trustStatus: "context-only",
+          },
+          confirmationRequired: false,
+          groupCategory: meta.groupCategory || "Skills",
+        });
+      }
+    }
+
+    // 2. Process MCP Servers (mcp.json) with $schema mismatch handling
+    const mcpFile = this.pkg.files.find((f) => f.relativePath === "mcp.json");
+    if (mcpFile) {
+      try {
+        const mcpConfig = JSON.parse(mcpFile.content);
+
+        // Validate mcp.json $schema if present
+        if (mcpConfig.$schema && typeof mcpConfig.$schema === "string") {
+          if (!mcpConfig.$schema.includes("modelcontextprotocol")) {
+            console.warn(`[AgentPlugin] $schema mismatch in mcp.json for ${pluginId}. Skipping MCP tools.`);
+          } else {
+            this.parseMcpServers(pluginId, version, mcpConfig, commandMetaMap, descriptors);
+          }
+        } else {
+          this.parseMcpServers(pluginId, version, mcpConfig, commandMetaMap, descriptors);
+        }
+      } catch (err) {
+        // $schema parse error invalidates MCP config while skills remain loaded (graceful isolation)
+        console.error(`[AgentPlugin] Failed to parse mcp.json for ${pluginId}:`, err);
+      }
+    }
+
+    return descriptors;
+  }
+
+  private parseMcpServers(
+    pluginId: string,
+    version: string,
+    mcpConfig: Record<string, unknown>,
+    metaMap: Record<string, TovuCommandPresentationMeta>,
+    descriptors: CapabilityDescriptor[]
+  ): void {
+    const servers = (mcpConfig.mcpServers as Record<string, Record<string, unknown>>) || {};
+
+    for (const [serverName, serverSpec] of Object.entries(servers)) {
+      const declaredTools = (serverSpec.tools as readonly string[]) || [];
+
+      for (const toolName of declaredTools) {
+        const qualifiedToolId = `mcp__${pluginId}_${serverName}__${toolName}`;
+        const isAdmitted = this.admittedMcpTools.has(qualifiedToolId);
+        const meta = metaMap[`mcp:${serverName}:${toolName}`] || {};
+
+        descriptors.push({
+          id: `agent-plugin:${pluginId}:mcp:${serverName}:${toolName}`,
+          kind: "mcp",
+          label: meta.label || `${serverName}:${toolName}`,
+          description: meta.description || `MCP tool '${toolName}' from server '${serverName}'`,
+          keywords: ["mcp", serverName, toolName, pluginId],
+          icon: meta.icon,
+          arguments: meta.arguments as CapabilityArgument[] | undefined,
+          execute: {
+            type: "tool-dispatch",
+            toolId: qualifiedToolId,
+          },
+          provenance: {
+            source: "agent-plugin",
+            providerId: pluginId,
+            providerVersion: version,
+            trustStatus: isAdmitted ? "admitted-mcp" : "unadmitted-mcp",
+          },
+          confirmationRequired: !isAdmitted,
+          groupCategory: meta.groupCategory || "MCP Tools",
+        });
+      }
+    }
+  }
+
+  /** Creates path-sanitized PreviewResolver for N1 generic previewing. */
+  private createPreviewResolver(skillName: string, mainSkillPath: string) {
+    const files = this.pkg.files;
+    return {
+      hasPreview: true,
+      resolvePreview: async () => ({
+        title: `Skill: ${skillName}`,
+        defaultFilePath: mainSkillPath,
+        files: files.map((f) => ({ relativePath: f.relativePath })),
+        getFileContent: async (requestedPath: string) => {
+          // Strict path traversal prevention: reject '..' or non-relative paths
+          if (requestedPath.includes("..") || requestedPath.startsWith("/")) {
+            return null;
+          }
+          const target = files.find((f) => f.relativePath === requestedPath);
+          return target ? target.content : null;
+        },
+      }),
+    };
+  }
+}
+```
+
+---
+
+### 3. `files/tovu/preview-provider.ts`
+Generic preview renderer service replacing hardcoded static allowlists ([`agent-plugin-source-catalog.ts:28-46`](file:///tmp/ads-peer-dispatch/debate-agentplugins/files/tovu/agent-plugin-source-catalog.ts#L28-L46)) with safe, path-contained preview resolution.
+
+```typescript
+import type { CapabilityDescriptor, CapabilityPreviewContent } from "./capability-projection.js";
+
+export class GenericCapabilityPreviewProvider {
+  /** Resolves preview payload for any capability descriptor without knowing its underlying kind. */
+  public async getPreview(descriptor: CapabilityDescriptor): Promise<CapabilityPreviewContent | null> {
+    if (!descriptor.preview || !descriptor.preview.hasPreview) {
+      return null;
+    }
+    return descriptor.preview.resolvePreview();
+  }
+
+  /** Validates path containment to prevent directory traversal in preview requests. */
+  public static sanitizeRelativePath(basePath: string, relativePath: string): string | null {
+    const normalized = relativePath.replace(/\\/g, "/");
+    if (normalized.includes("../") || normalized.includes("/..") || normalized.startsWith("/")) {
+      return null;
+    }
+    return normalized;
+  }
+}
+```
+
+---
+
+## The Trust Gap
+
+The fundamental trust problem in Agent Plugins carrying `mcp.json` is the **authorship mismatch**:
+- `mcp-federation`'s Rule R2 ([`trust.ts:65-69`](file:///tmp/ads-peer-dispatch/debate-agentplugins/files/tovu/mcp-federation/trust.ts#L65-L69)) explicitly states:
+  > *"A remote tool is admitted only if the site owner's `allowedToolNames` names it. Discovery does not confer availability. This is the direct structural analogue of `DerivedRiskByToolId`: the classification that decides admission is authored by someone other than the thing being classified."*
+- A plugin's `mcp.json` is authored by the plugin developer (an untrusted remote party).
+- Rule R3 ([`trust.ts:70-74`](file:///tmp/ads-peer-dispatch/debate-agentplugins/files/tovu/mcp-federation/trust.ts#L70-L74)) reinforces:
+  > *"SELF-DECLARED HINTS DEMOTE ONLY, NEVER PROMOTE... The untrusted party is given exactly one power over its own privileges — the power to reduce them."*
+
+### How Option 1 Solves the Gap Without Compromise
+1. **Default Unadmitted Posture:** Tools declared inside a plugin's `mcp.json` are ingested into `mcp-federation` under authority-qualified namespaces ([`trust.ts:57-63`](file:///tmp/ads-peer-dispatch/debate-agentplugins/files/tovu/mcp-federation/trust.ts#L57-L63)), but are assigned `trustStatus = "unadmitted-mcp"` and `confirmationRequired = true`.
+2. **Explicit Site Owner Admission:** Stdio MCP tools cannot execute until the Tovu site administrator explicitly adds the qualified tool ID (`mcp__<pluginId>_<server>__<tool>`) to `allowedToolNames` in workspace settings.
+3. **Execution Gate:** Attempting to execute an unadmitted MCP command triggers a blocking UI authorization modal requiring site owner credentials before dispatching to `mcp-federation`.
+4. **Honesty Gate Disclosure:** In the `AgentPlugins.tsx` UI and composer descriptions, Skills report `Status: Ready (Context Assembly)`, while stdio MCP tools report `Status: Pending Site Owner Authorization`.
+
+---
+
+## What Would Change My Mind
+
+1. **Upstream Standard Command Specification:** Ratification of an official, normative `/commands` schema in `agent-plugins.org` v1.1+ with cryptographic signature verification (removing the need for presentation-only extensions).
+2. **OS Subprocess Sandbox Landing in Host:** Implementation of an OS-level sandbox runner (e.g. Landlock, AppArmor, or lightweight OCI containers) inside Tovu for stdio subprocesses, making unvetted stdio MCP tools safe to execute without explicit operator allowlisting.
+3. **Third-Party Security Attestation Registry:** Broad industry adoption of an independent, cryptographically signed security attestation network for MCP servers.
+
+<<SWARM_END>>

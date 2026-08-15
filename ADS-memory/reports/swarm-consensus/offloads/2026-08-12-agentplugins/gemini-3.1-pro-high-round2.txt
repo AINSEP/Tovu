@@ -1,0 +1,152 @@
+ACK_PACKET_RECEIVED CTX-AGENTPLUGINS-R2-2026-08-12 -- I received the packet and will work on it.
+
+## Position And Movement
+
+My position remains firmly rooted in decomposing Agent Plugins by their actual runtime mechanics: Skills are passive context injection, and MCP servers are local process execution. They must not be forced into the same execution model, nor should they be absorbed into Tovu's first-party in-process `.tovu-plugin` runtime (Option D).
+
+**Movement this round:** I now recognize that while the *execution* of these components must remain separated by trust tiers, their *projection* into the Composer UI must be unified. To satisfy N1-N4, the Composer cannot hardcode UI components for every new capability kind. Therefore, we must introduce a **Generic Capability Projection Contract**. This contract abstracts away the difference between a Skill, an MCP Tool, and a native Tovu command for the Composer, while preserving strict security boundaries on the host side.
+
+I maintain a hard rejection of Option B (`extensions["org.tovu.commands"]`). It is a proprietary fork disguised as standard adoption. Tovu must derive its commands natively from the standard `skills/` directory and `mcp.json` descriptors.
+
+**Strongest counter-argument:** The strongest argument against my position is that without `extensions["org.tovu.commands"]`, Tovu lacks explicit control over command presentation metadata (like custom ordering, aliases, or color coding) that a plugin author might want to provide specifically for Tovu users.
+
+## Solution Slate
+
+### Option 1 (Leading): Generic Capability Descriptor + Operator MCP Admission
+- **Description:** Projects all capabilities (Skills, federated MCP tools, native tools) into the Composer via a unified `CapabilityDescriptor` interface. Execution is handled via opaque `executeBinding` payloads dispatched to the host.
+- **Preview:** Replaces the hardcoded source array with a generic URI scheme (`capability-preview://`) that the host resolves securely.
+- **Trust:** MCP tools from plugins are parsed but **default-denied**. They require explicit manual approval by a Workspace Admin to enter the allowlist.
+- **Sacrifice:** Requires Workspace Admins to take manual action before any downloaded plugin's MCP tools will execute. There is no "one-click install and run" for external code.
+- **Test:** Verify the Composer can render and execute a mock capability kind (`kind: "future-unknown"`) without modifying any Composer React code.
+
+### Option 2: Skills-Only Projection (Context Only)
+- **Description:** Implements the generic descriptor for Skills only. `mcp.json` files in Agent Plugins are explicitly ignored by the loader.
+- **Preview:** Same URI-based generic preview.
+- **Trust:** No trust gap, because no external code execution is permitted. 
+- **Sacrifice:** Zero support for Agent Plugin MCP capabilities. Tovu will only act as a prompt library for standard plugins.
+- **Test:** Attempt to load a plugin with an `mcp.json` and assert it is catalogued as "Context Only — MCP execution disabled in v1".
+
+**Ranking Criteria:** (1) Honesty & Security (C6), (2) Portability (C1), (3) Product Utility. Option 1 wins because it provides a safe, honest path to MCP utility without compromising security or forking the standard.
+
+## Leading Option — Code
+
+```typescript
+// --- 1. The Descriptor Type (Host -> Composer Contract) ---
+
+export interface CapabilityPreviewSource {
+  readonly type: "text" | "markdown" | "json";
+  /** A host-resolvable URI, e.g., `capability-preview://plugin:ui-ux-design/skills/ui-ux-design/SKILL.md` */
+  readonly uri: string;
+}
+
+export interface CapabilityExecutionBinding {
+  /** The generic action the composer should dispatch back to the host */
+  readonly action: "insert-context" | "dispatch-tool" | "navigate";
+  /** Opaque payload interpreted strictly by the host's action handler */
+  readonly payload: Readonly<Record<string, unknown>>;
+}
+
+export interface CapabilityDescriptor {
+  readonly id: string; // Strictly namespaced: e.g. "plugin__ui-ux-design__skill__ui-ux-design"
+  readonly label: string; // e.g. "/skill:ui-ux-design"
+  readonly description: string;
+  readonly kind: string; // e.g. "skill", "mcp-tool", "native"
+  readonly argumentsSchema?: Readonly<Record<string, unknown>>;
+  readonly previewSource?: CapabilityPreviewSource;
+  readonly executeBinding: CapabilityExecutionBinding;
+  readonly provenance: {
+    readonly source: string;
+    readonly trustTier: "tier-1" | "tier-2" | "tier-3" | "federated" | "untrusted-local";
+  };
+  readonly requiresConfirmation: boolean;
+}
+
+// --- 2. The Agent Plugins Adapter (No org.tovu.commands used) ---
+
+export function adaptAgentPluginToCapabilities(
+  pluginId: string,
+  skills: { name: string; relativePath: string }[],
+  admittedMcpTools: AdmittedFederatedTool[]
+): CapabilityDescriptor[] {
+  const descriptors: CapabilityDescriptor[] = [];
+
+  // Skills -> Context Injection (Derived directly from standard folder structure)
+  for (const skill of skills) {
+    descriptors.push({
+      id: `plugin__${pluginId}__skill__${skill.name}`,
+      label: `/skill:${skill.name}`,
+      description: `Inject skill context: ${skill.name}`,
+      kind: "skill",
+      previewSource: {
+        type: "markdown",
+        uri: `capability-preview://plugin:${pluginId}/${skill.relativePath}`
+      },
+      executeBinding: { action: "insert-context", payload: { text: `[Skill: ${skill.name}]` } },
+      provenance: { source: `Agent Plugin: ${pluginId}`, trustTier: "untrusted-local" },
+      requiresConfirmation: false
+    });
+  }
+
+  // MCP Tools -> Dispatch Tool Execution
+  for (const tool of admittedMcpTools) {
+    descriptors.push({
+      id: `plugin__${pluginId}__mcp__${tool.remoteName}`,
+      label: `/mcp:${tool.remoteName}`,
+      description: tool.description, // Already R6-processed by mcp-federation/trust.ts
+      kind: "mcp-tool",
+      argumentsSchema: tool.inputSchema,
+      executeBinding: { action: "dispatch-tool", payload: { toolId: tool.toolId } },
+      provenance: { source: `Agent Plugin: ${pluginId} (MCP)`, trustTier: "federated" },
+      requiresConfirmation: true
+    });
+  }
+
+  return descriptors;
+}
+
+// --- 3. Preview Resolution (Replacing UI_UX_DESIGN_SOURCE_FILES) ---
+
+/** Resolves generic capability preview URIs, strictly enforcing path containment. */
+export async function resolveCapabilityPreviewUri(uri: string, pluginRegistryRoot: string): Promise<string> {
+  if (!uri.startsWith("capability-preview://plugin:")) {
+    throw new Error("Unsupported preview URI scheme");
+  }
+  
+  const pathPart = uri.replace("capability-preview://plugin:", "");
+  const [pluginId, ...pathSegments] = pathPart.split("/");
+  const relativePath = pathSegments.join("/");
+
+  // N3: Path-traversal rejection
+  if (relativePath.includes("..") || relativePath.startsWith("/")) {
+    throw new Error("Path traversal denied");
+  }
+  
+  // Isolate previews to static assets to prevent leaking execution code or local DBs
+  if (!relativePath.startsWith("skills/") && relativePath !== "plugin.json") {
+    throw new Error("Preview only permitted for static skill assets and manifests");
+  }
+
+  // In a real implementation, this reads from the scoped filesystem bridge
+  return `(Resolved content for ${pluginId}/${relativePath})`;
+}
+```
+
+## The Trust Gap
+
+The fundamental mismatch is that `mcp-federation` relies on an independent author for the allowlist (R2), but a plugin's `mcp.json` is authored by the plugin itself. 
+
+**The Solution:** We do not gloss over it; we enforce human independence.
+When an Agent Plugin is installed, its `mcp.json` is parsed, but its tools are **not** automatically added to the connection's `allowedToolNames`. They are catalogued in Tovu's database in a "Pending Operator Approval" state. 
+
+To admit the tools, the **Workspace Administrator** must view the requested tools in the Admin UI and explicitly approve them, which writes them into `allowedToolNames`. Thus, the independent allowlist author is the human operator. This perfectly preserves `mcp-federation`'s R2 (Operator Allowlist, Default Deny) and R3 (Self-declared hints demote only) mechanics without modification.
+
+**Collisions and Versioning:** 
+`CapabilityDescriptor.id` strictly prevents collisions via `plugin__${pluginId}__...` prefixing. If two plugins offer a `/review` label, the Composer filters both into the list. Because `executeBinding` uses the unique `id`, the user explicitly disambiguates by selecting the row corresponding to the desired `provenance.source`.
+If a plugin's `mcp.json` suffers a `$schema` mismatch, the parser catches it, the MCP tools array remains empty, and the plugin loads in a degraded state. The UI honesty gate labels the plugin: "Skills (Active) | MCP Server (Failed Schema Validation)", remaining completely transparent.
+
+## What Would Change My Mind
+
+I would change my mind and support Option B (`extensions["org.tovu.commands"]`) if the upstream `agent-plugins.org` spec officially ratified a similar extensions schema for declarative commands, demonstrating cross-client consensus. 
+
+I would support executing MCP servers without manual operator allowlisting if Tovu transitioned to a strictly containerized or WASM-based sandbox for all `stdio` execution, fundamentally removing the risk of host filesystem or resource compromise.
+<<SWARM_END>>

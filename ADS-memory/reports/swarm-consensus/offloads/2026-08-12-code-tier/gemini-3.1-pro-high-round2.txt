@@ -1,0 +1,39 @@
+```
+ACK_PACKET_RECEIVED CTX-CODE-TIER-R2-2026-08-12 -- I received the packet and will work on it.
+```
+
+## Position And Movement
+
+I am converging strongly on **Option B treated as an authoring workflow that outputs to the existing `static` tier**, heavily influenced by the Round 1 observations from Codex and Primary (Opus). The runtime boundary must be maintained. 
+
+`worker_threads` inside Tovu currently exists solely for resource bounding (`files/src/server/http/site/liquid-sandbox.ts:50-55`) while trusting a strict AST-based tag/filter load-time allowlist (`files/src/features/theme/liquid-allowlist.ts`) to provide code safety. Framework execution has no such static load-time guarantees and cannot safely reside inside the CMS Node runtime. The server dependencies (`files/package.json:45-68`) confirm zero framework runtimes are present today. Introducing them breaks self-hostability (C1) and fault isolation (C3).
+
+My movement this round is the explicit acknowledgment that this approach fundamentally alters the nature of themes: we must formally recognize two distinct classes of themes—*authored* themes and *built* themes—and design the API and Reset workflows accordingly, rather than pretending they are the same thing.
+
+## The Build-Lifecycle Verdict
+
+**Author builds locally (or via their CI), and Tovu serves the static artifact.** Tovu must not run the build.
+
+Running `npm install && npm run build` inside Tovu introduces uncontrolled supply-chain risk. As noted by `sonnet5` in Round 1, Tovu currently lacks even the CSS sanitizer proposed in ADR-010 (`files/src/features/theme/theme.ts:232-233`); assuming Tovu can safely contain arbitrary `postinstall` scripts or transitive dependencies during a server-side build step is a dangerous fallacy.
+
+The deployable artifact for these frameworks must strictly conform to the existing `static` tier (`files/src/features/theme/theme.ts:442-479` and `files/src/features/theme/static-render.ts`). The framework stays on the author’s machine; the compiled HTML, CSS, and client-JS bundles are what gets uploaded.
+
+## Remaining Disagreements
+
+1. **One class of theme or two?** We must admit two classes of themes exist: Authored (editable) and Built (opaque). Pretending they are the same breaks the UX. Built themes should be visually marked as "Read-Only" in the admin file editor.
+2. **AI-Authorability (`theme_write_file`)**: Because built themes are a distinct class, `theme_write_file` (`files/src/features/theme/agent-tools.ts:200-207`) must be restricted when interacting with them. As agents face a strict 1 MB write limit (`MAX_THEME_FILE_BYTES` in `files/src/features/theme/agent-tools.ts:161-162`), writing bundled artifacts is impractical and overwriting them breaks the source of truth. The AI should not be co-authoring built bundles; it should only repair authored themes.
+3. **Source-vs-Artifact Reset Semantics**: A theme package may contain the source code for marketplace provenance, but the *Reset* operation restores the compiled `pages/*.html` from the pristine catalog (`THEME_CATALOG_DIR` at `files/src/features/theme/theme.ts:698`). Resetting "per file" for generated assets is meaningless because a single TSX edit alters multiple output bundles. Reset must become an atomic, whole-theme artifact restoration.
+4. **Conformance Validation**: Tovu's static tier relies on highly brittle literal string replacements (`files/src/features/theme/static-render.ts:31-35` for `href="../css/"` and `static-render.ts:402-406` for the exact `<link rel="stylesheet" href="../css/styles.css" />` tag). A React or Vue bundler minifying or modifying these string literals will silently disable token injection. Since Tovu does not use a real HTML parser like `parse5` to handle this safely, we must require developers to use an official CLI linter that validates the compiled output *before* upload, rather than paying the performance tax of an HTML parser on 100% of live traffic.
+5. **Web Components and Framework Support**: We should endorse Web Components as the neutral client-side seam for island interactivity over the `static` tier. Rather than supporting three equal frameworks, we should provide one official Vite compiler plugin (e.g., for React) first. This proves the static artifact conformance suite without tying the Tovu server to React. 
+
+## Strongest Counter-Argument
+
+The strongest counter-argument against shifting the build lifecycle to the author is that it severely degrades the integrated authoring UX (edit in admin → instantly see changes). The CMS loses its "what you see is what you just typed" magic for framework themes, forcing less-technical authors to learn local build toolchains, breaking C6 (AI-authorability) for these specific themes. It fragments the user base between agency developers and casual site owners.
+
+## What Would Change My Mind
+
+I would reconsider Option A (SSR adapters) only if:
+1. Native, lightweight capability-restricted JS isolates (such as `isolated-vm` or a WASM sandbox) are introduced into Tovu's core runtime (verified against the same CVE-class that caused `vm2` to be rejected in `files/src/server/http/site/liquid-sandbox.ts:18-20`).
+2. There is hard product evidence that themes require per-request *live* framework rendering that cannot be resolved through the existing route layer and marker pipeline (`files/src/features/theme/static-render.ts:251-262`).
+
+<<SWARM_END>>

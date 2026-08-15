@@ -1,0 +1,51 @@
+ACK_PACKET_RECEIVED CTX-COMMERCE-2026-08-12 -- I received the packet and will work on it.
+
+## Position
+
+The JSONB hypothesis is **wrong**.
+
+While PostgreSQL, MySQL, and SQLite can all physically store JSON text, their mechanisms for indexing it are fundamentally incompatible. PostgreSQL utilizes GIN indexes, MySQL relies on generated virtual columns plus B-trees (lacking a native GIN equivalent), and SQLite requires expression indexes since it has no native JSON type. Drizzle ORM cannot magically abstract these divergent DDL strategies into a single, unified `schema.ts`. If you pursue the JSONB hypothesis under the constraint of tri-dialect support, you will be forced to abandon a unified migration path and maintain three separate sets of hand-written SQL migrations just to extract and index the JSON data, defeating the entire purpose of the shared schema.
+
+The correct approach is **Option C — Relational core + narrow JSON escape hatch**. 
+Commerce entities (Orders, Invoices, Subscriptions) have rigid, well-understood properties that must be modeled relationally using the lowest common denominator (text, integers, composite constraints) to preserve a single Drizzle schema. JSON (as plain text columns) should be strictly relegated to open-ended, provider-specific metadata (e.g., Stripe webhook payloads), bound by an ironclad rule: **we never index into the JSON**. 
+
+## Option Assessment
+
+- **Option C (Best Design):** Uses universally supported relational primitives for all searchable and joinable data (preserving the single `schema.ts` capability) while safely isolating unpredictable provider payloads in unindexed JSON text columns. 
+- **Option A (JSONB-first):** Rejected. It violently breaks Constraint C1 (three dialects). Attempting to index JSON across three engines requires deeply divergent DDL, forcing you into three separate, brittle migration tracks. 
+- **Option B (Fully relational):** Rejected as overly rigid. Payment providers send arbitrary, evolving metadata and webhook envelopes. A purely relational model would require endless schema migrations every time a provider adds a capability, violating C3 (provider neutrality).
+- **Option D (Per-dialect schemas):** Rejected. Maintaining three separate physical schemas and migration histories for 64 tables is an operational nightmare and completely abandons the current architectural precedent of a single shared schema (`files/tovu/schema.ts:6-14`).
+
+### Addressing the Open Questions:
+
+1. **JSON utility:** JSON provides necessary schema-less storage for opaque provider metadata, but it completely fails the indexing requirement. It does not survive tri-dialect DDL differences.
+2. **Migrations:** To keep one migration set, you cannot use dialect-specific DDL (like JSON indexes). By choosing Option C, you avoid JSON indexing entirely, preserving Drizzle's ability to generate unified migrations.
+3. **Money:** Integer cents (`files/tovu/schema.ts:497`, `monthlyPriceCents`) fails for modern B2B commerce. Proration, taxes, and multi-currency conversions frequently yield fractional cents. Without a native `DECIMAL` type in SQLite, you must store micro-cents (1/10000th of a cent) as integers to prevent cascading rounding errors during allocation.
+4. **Idempotency:** Safe webhook reconciliation requires a composite unique relational index. Tovu already solved this perfectly for webhooks in `files/tovu/schema.ts:720` with `uniqueIndex("idx_webhook_deliveries_workspace_sub_event").on(table.workspaceId, table.subscriptionId, table.eventId)`. This lowest-common-denominator strategy works flawlessly in all three dialects.
+5. **Products vs Tiers:** `member_tiers` (`files/tovu/schema.ts:485`) is already a product entity. Creating a new, separate `products` table creates a dual-write nightmare. Commerce should extend the existing tiers model.
+6. **Open SaaS:** The processor abstraction shape (`files/opensaas/payment/paymentProcessor.ts:20`) is structurally sound for C3 (provider neutrality). However, its schema (`files/opensaas/schema.prisma:18-21`) couples subscriptions directly to the `User` model and lacks independent commerce entities. Take the processor interface shape; take absolutely nothing from its schema.
+7. **Testing:** Prove equivalence by running the data access layer integration tests against ephemeral instances of PostgreSQL, MySQL, and SQLite (via Testcontainers) in the CI pipeline.
+8. **Sequencing:** First, prove the existing 35 SQLite migrations actually run on PostgreSQL to validate the "aspirational" portability claim. Second, introduce Option C's relational commerce tables.
+
+## Failure Modes And Sacrifice
+
+- **Failure Mode:** A developer attempts to filter queries based on provider-specific data (e.g., searching for orders by a Stripe discount code embedded in the unindexed JSON metadata). Under Option C, this triggers a full table scan and destroys database performance in production.
+- **Hidden Cost:** Because SQLite lacks a native `DECIMAL` type, all complex financial math (taxes, proration, multi-currency allocation) must be executed in the application layer, permanently shifting the burden of correctness away from the database.
+- **Genuine Sacrifice:** We sacrifice the ability to leverage powerful, database-native JSON search operators (like PostgreSQL's `@>`) in favor of broad, tri-dialect compatibility.
+
+## What Would Change My Mind
+
+If Drizzle ORM ships a feature that perfectly abstracts generated virtual columns and expression indexes across PostgreSQL, MySQL, and SQLite via a single unified API—allowing us to declare a JSON index once in `schema.ts` and have Drizzle emit the correct, divergent DDL for all three—I would reconsider Option A.
+
+## Unlisted Option
+
+**Option F — LCD Shared Schema + Hand-written Dialect-specific Index Migrations.** 
+Tovu already uses this exact pattern: `files/tovu/schema.ts:15-24` explicitly documents that the FTS5 search index lives entirely in a hand-written custom migration (`0022_posts_fts_search_index.sql`) because Drizzle cannot express it. We could apply this exact pattern to JSON indexes: define the JSON text column in the shared schema, but write dialect-specific `--custom` migrations (GIN for PG, generated columns for MySQL/SQLite) to index them, explicitly isolating the divergence.
+
+## Blind Spots
+
+**(a) A viable option not listed:** The "Thin Cache" approach. Since commerce must remain provider-neutral (C3), do not model it natively at all. Let the payment provider (Stripe/PayPal) be the sole source of truth and only cache the minimal read-status, which is precisely what `files/tovu/commerce/status.ts:60` implies the architecture does today.
+**(b) A question we should be asking but aren't:** How do we handle pessimistic locking (`SELECT ... FOR UPDATE`) to prevent overselling inventory or double-charging, given that SQLite relies on database-level write locks and lacks the row-level locking semantics found in PostgreSQL and MySQL?
+**(c) The framing assumption most likely wrong:** Constraint C4 ("SQLite must remain a first-class production target") is fundamentally incompatible with high-throughput commerce. While SQLite handles read-heavy CMS workloads beautifully, concurrent webhook bursts from payment processors will inevitably cause `SQLITE_BUSY` lock contention, leading to dropped webhooks, missed state transitions, and lost revenue.
+
+<<SWARM_END>>

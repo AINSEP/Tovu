@@ -1,0 +1,249 @@
+ACK_PACKET_RECEIVED CTX-DEPLOY-R2-2026-08-12 -- I received the packet and will work on it.
+
+## Position And Movement
+
+My position is that deployment means **promoting an immutable, workspace-scoped site release to a named environment via a configured target**. It orchestrates external side effects but does not build the artifact internally. 
+
+The owner's hypothesis of "just MCP — access tokens and base URLs" is structurally rejected. As confirmed in Round 1, Tovu’s MCP implementation (`adapter.stdio.ts`) relies on `child_process.spawn`. It spawns local subprocesses that manage their own network stacks, completely bypassing the SSRF and DNS-pinning protections of `HttpClientPort` and `EgressPolicy`. Furthermore, long-running deployments require durable run state and webhook callbacks, which MCP's synchronous JSON-RPC interface lacks. 
+
+My position has solidified in this round: **Direct Provider HTTP Adapters combined with Durable Job Queues** are the only architectural fit that respects Tovu's `EgressPolicy`, multi-tenant secret isolation (`IntegrationSecretRepoPort`), and self-hostable constraints. I have moved away from any reliance on CLI wrappers because they violate tenant isolation and assume arbitrary host binaries.
+
+## Solution Slate
+
+**Criteria for Ranking:**
+1. **Security & Egress Control:** Does the transport respect Tovu's SSRF and DNS-pinning `EgressPolicy`?
+2. **Tenant Isolation:** Are credentials strictly segregated per workspace without environment variable leakage?
+3. **Resiliency:** Can the system survive a server restart during a 10-minute deployment?
+
+**Rank 1 (Recommended): Direct Provider HTTP Adapters + Async Callbacks**
+Tovu uses `HttpClientPort` to interact directly with REST/GraphQL APIs (like GitHub). Status is tracked in a durable `DeploymentRun` table, and provider callbacks map back to the run via an opaque, workspace-less token.
+*   **Trade-offs:** High implementation and maintenance cost. We must maintain a bespoke adapter for every supported provider.
+*   **Genuine Sacrifice:** We surrender "universal instant compatibility". We cannot simply point Tovu at a pre-existing MCP server or a CLI tool to gain a new provider.
+*   **Cheapest Falsifying Test:** Identify a critical deployment target that strictly refuses to offer a REST/GraphQL API and can *only* be manipulated via a proprietary binary CLI.
+
+**Rank 2: Pull-Based Self-Hosted Runner**
+Tovu acts only as a control plane, writing signed deployment jobs to a database queue. The operator runs a separate "runner" process that claims jobs, executes arbitrary CLI tools (like `gh` or `vercel`), and reports status back.
+*   **Trade-offs:** Achieves perfect isolation (the runner can be heavily sandboxed or run on a different host), but massively increases the operational burden.
+*   **Genuine Sacrifice:** We surrender the turnkey, single-binary simplicity of self-hosted Tovu. 
+*   **Cheapest Falsifying Test:** Survey self-hosting operators to see if requiring a secondary background worker process for deployments blocks adoption.
+
+## Leading Option — Code
+
+Below is the implementation for the recommended **Direct Provider HTTP Adapters** approach.
+
+```typescript
+import type { ISODateTime, UUID } from "@jini-ai/cms/core";
+import type { HttpClientPort, EgressPolicy, KeyringPort, SecretSealerPort, IntegrationSecretRepoPort } from "./tovu/integrations-ports";
+
+// ---------------------------------------------------------
+// 1. Domain Model
+// ---------------------------------------------------------
+export type Environment = "preview" | "production";
+export type DeploymentStatus = "pending" | "running" | "success" | "failed" | "rolled_back";
+
+export interface Release {
+  workspaceId: UUID;
+  id: string; // Text PK
+  version: number;
+  createdAtIso: ISODateTime;
+  artifactLocator: string; // e.g., a git SHA or external bundle ID
+}
+
+export interface DeploymentTarget {
+  workspaceId: UUID;
+  id: string;
+  version: number;
+  environment: Environment;
+  provider: "github" | "netlify" | "vercel";
+  credentialId: string; // Points to IntegrationSecretRecord
+  config: Record<string, any>;
+  createdAtIso: ISODateTime;
+  updatedAtIso: ISODateTime;
+}
+
+export interface DeploymentRun {
+  workspaceId: UUID;
+  id: string;
+  version: number;
+  targetId: string;
+  releaseId: string;
+  status: DeploymentStatus;
+  providerRunId?: string;
+  callbackTokenHash?: string; // For secure inbound status webhooks without exposing workspaceId
+  logs: string[];
+  createdAtIso: ISODateTime;
+  updatedAtIso: ISODateTime;
+}
+
+// ---------------------------------------------------------
+// 2 & 3. Provider-Neutral Port & GitHub Adapter
+// ---------------------------------------------------------
+export interface DeploymentRuntimePort {
+  triggerDeployment(required: {
+    workspaceId: UUID;
+    target: DeploymentTarget;
+    run: DeploymentRun;
+    release: Release;
+  }): Promise<{ providerRunId: string }>;
+}
+
+export class GitHubRestDeploymentAdapter implements DeploymentRuntimePort {
+  constructor(
+    private readonly httpClient: HttpClientPort,
+    private readonly egressPolicy: EgressPolicy,
+    private readonly keyring: KeyringPort,
+    private readonly sealer: SecretSealerPort,
+    private readonly secretRepo: IntegrationSecretRepoPort
+  ) {}
+
+  async triggerDeployment({ workspaceId, target, run, release }: {
+    workspaceId: UUID;
+    target: DeploymentTarget;
+    run: DeploymentRun;
+    release: Release;
+  }): Promise<{ providerRunId: string }> {
+    // 4. SECRETS: Wire through IntegrationSecretRepoPort, Keyring, and Sealer. No plaintext.
+    const secretRecord = await this.secretRepo.findById({ workspaceId, id: target.credentialId });
+    if (!secretRecord) throw new Error("Credential not found");
+    
+    const rootKey = await this.keyring.activeKey();
+    const token = await this.sealer.open({ sealed: secretRecord.secret, key: rootKey });
+
+    // GitHub App Installation token or fine-grained PAT is used here.
+    // This is vastly superior to a CLI/MCP subprocess because it strictly scopes
+    // authority to the REST API without granting local filesystem/binary execution rights.
+    const url = `https://api.github.com/repos/${target.config.owner}/${target.config.repo}/deployments`;
+    
+    const request = {
+      url,
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${token}`,
+        "Accept": "application/vnd.github.v3+json",
+        "User-Agent": "Tovu-CMS"
+      },
+      body: JSON.stringify({
+        ref: release.artifactLocator, 
+        environment: target.environment,
+        auto_merge: false,
+        required_contexts: [],
+        // We pass our opaque run ID to GitHub so it can echo it back in webhooks
+        payload: { tovuRunId: run.id } 
+      })
+    };
+
+    // Execution strictly bounds egress via the shared HttpClientPort/EgressPolicy
+    const response = await this.httpClient.fetch(request, this.egressPolicy);
+    if (!response.ok) throw new Error(`GitHub deploy failed: ${response.status}`);
+    
+    const data = JSON.parse(response.body);
+    return { providerRunId: data.id.toString() };
+  }
+}
+
+// ---------------------------------------------------------
+// 5. Long-running runs & Workspace-less Callbacks
+// ---------------------------------------------------------
+export class DeploymentCallbackRoute {
+  constructor(
+    private readonly db: any, // e.g., Kysely/SQLite driver
+    private readonly keyring: KeyringPort
+  ) {}
+
+  /**
+   * Receives incoming webhook from the provider.
+   * The provider only knows the callbackToken, never the workspaceId.
+   */
+  async handleProviderWebhook(callbackToken: string, payload: any) {
+    const rootKey = await this.keyring.activeKey();
+    
+    // Hash the token using Web Crypto API to safely lookup the run
+    // without storing the raw callback token in the DB.
+    const hashed = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(callbackToken));
+    const tokenHashHex = Buffer.from(hashed).toString("hex");
+
+    // Map token hash directly to the run. No workspace context provided by the caller.
+    const run = await this.db.query("SELECT * FROM deployment_runs WHERE callback_token_hash = ?", [tokenHashHex]);
+    if (!run) return { status: 404 };
+
+    const status: DeploymentStatus = payload.state === 'success' ? 'success' : 'failed';
+    
+    // Update durable execution record (Optimistic Concurrency via version)
+    await this.db.execute(
+      "UPDATE deployment_runs SET status = ?, updated_at_iso = ?, version = version + 1 WHERE id = ? AND version = ?",
+      [status, new Date().toISOString(), run.id, run.version]
+    );
+    
+    return { status: 200 };
+  }
+}
+
+// ---------------------------------------------------------
+// 6 & 7. The Frontend & Honesty Constraint
+// ---------------------------------------------------------
+/**
+ * React Component for the Deployments Admin Panel
+ */
+export function DeploymentsPanel({ targets, runs }: { targets: DeploymentTarget[], runs: DeploymentRun[] }) {
+  if (targets.length === 0) {
+    // Degrades gracefully when unconfigured, explicitly enforcing the honesty constraint
+    return (
+      <div className="empty-state">
+        <h2>No Deployment Targets Configured</h2>
+        <p className="honesty-constraint">
+          <strong>Note:</strong> Tovu orchestrates an external deployment of a pre-existing artifact. 
+          It does not build or host the site internally.
+        </p>
+        <button onClick={() => alert("Open Target Config")}>Add Provider Target</button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="deployments-dashboard">
+      <header>
+        <h2>Deployments</h2>
+        <p className="honesty-constraint">Orchestrating external deployments of pre-existing artifacts.</p>
+      </header>
+      
+      <section className="config-panel">
+        <h3>Active Targets</h3>
+        {targets.map(t => (
+          <div key={t.id} className="target-card">
+            <span>{t.provider} ({t.environment})</span>
+            {/* Assistant flow could be triggered here via intent */}
+            <button>Edit Config</button>
+          </div>
+        ))}
+      </section>
+      
+      <section className="run-log">
+        <h3>Run History</h3>
+        <table>
+          <tbody>
+            {runs.map(r => (
+              <tr key={r.id}>
+                <td>{r.createdAtIso}</td>
+                <td>{r.status}</td>
+                <td><button onClick={() => console.log(r.logs)}>View Logs</button></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+    </div>
+  );
+}
+```
+
+## Strongest Counter-Argument
+
+The strongest counter-argument is **Ecosystem Velocity and Maintenance Burden**. By rejecting MCP and CLI adapters in favor of bespoke `HttpClientPort` adapters, we are taking on the perpetual maintenance burden of every provider's REST API quirks. If MCP becomes the universal standard for tool integrations, our refusal to adapt MCP for deployments means we miss out on a massive, community-maintained library of deployment servers, isolating Tovu and slowing integration delivery.
+
+## What Would Change My Mind
+
+I would pivot entirely to an MCP-first approach if two conditions were met:
+1. **Network Sandboxing:** Tovu's `mcp-federation` layer is upgraded so that all stdio subprocess outbound traffic is forcefully routed through an internal proxy that implements Tovu's `EgressPolicy`. This would restore SSRF and DNS-pinning protections.
+2. **Durable Job Primitives:** The MCP specification (or Tovu's extension of it) introduces first-class primitives for asynchronous, long-running jobs (e.g., `subscribeToRun`, `cancelRun`), rather than relying on synchronous JSON-RPC fire-and-forget calls. 
+
+<<SWARM_END>>

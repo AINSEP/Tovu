@@ -1,0 +1,628 @@
+ACK_PACKET_RECEIVED CTX-COMMERCE-R3-2026-08-12 -- I received the packet and will work on it.
+
+## Position And Movement
+
+Round 2 converged on **Option C (Relational core with an unindexed JSON escape hatch; MariaDB explicitly out)**. My position remains firmly anchored in Option C, but my stance on physical storage spelling has moved significantly following the SQLite durability finding in the preamble.
+
+### Mandatory Re-Reasoning: Storage Spelling in SQLite
+
+In Round 2, Codex advocated storing SQLite JSON documents inside `BLOB` columns using SQLite’s native `jsonb()` function (`"SQLite: a declared BLOB containing jsonb() output—never a column declared JSONB"`), while Primary and Sonnet advocated retaining `TEXT` (`text("*_json")`). 
+
+Re-evaluating this question with the explicit SQLite documentation ([sqlite.org/jsonb.html](https://www.sqlite.org/jsonb.html)) and driver dependencies:
+
+1. **SQLite JSONB is Internal-Only & Not an On-Disk Interchange Format:** SQLite's official specification explicitly warns: *"JSONB is a binary representation of JSON used by SQLite and is intended for internal use by SQLite only. Applications should not use JSONB outside of SQLite nor try to reverse-engineer the JSONB format."* The format reserves bytes specifically for internal engine optimizations across versions.
+2. **`better-sqlite3` Engine Swapping:** Tovu's SQLite driver (`better-sqlite3` 11.10.0) bundles its own SQLite binary (3.49.2), whereas host environments (such as macOS system CLI 3.44.3) use different versions. Running `npm update` on `better-sqlite3` silently upgrades the database engine underneath stored disk files. Relying on binary `jsonb()` BLOBs on disk risks format breakage or incompatibility across driver updates or host CLI diagnostics.
+3. **Column Affinity Trap:** Declaring a SQLite column as `JSONB` matches none of SQLite’s affinity rules, resolving to `NUMERIC` affinity and silently coercing string values like `'123'` into integer `123`.
+
+**Final Physical Storage Position across Engines:**
+- **SQLite (`content.db`):** Use UTF-8 text JSON stored in `TEXT` columns (`text("*_json")`). Do **NOT** store binary `jsonb()` in `BLOB`s for persistent rows, and **NEVER** declare a `JSONB` column type. This preserves engine-version independence, diagnostic CLI readability, and 100% compatibility with Tovu’s 37 existing JSON columns ([schema.ts:L12-L13](file:///tmp/ads-peer-dispatch/debate-commerce/files/tovu/schema.ts#L12-L13)).
+- **PostgreSQL:** Native `jsonb`.
+- **MySQL (8.0+):** Native `JSON`.
+- **MariaDB:** **OUT.** MariaDB treats `JSON` as a `LONGTEXT` alias and fails row-based replication with MySQL over JSON columns.
+
+---
+
+## Sources
+
+The following primary sources were queried and verified to substantiate all load-bearing architectural claims:
+
+1. **SQLite JSONB Specification & Durability Warnings:**
+   - **URL:** [https://www.sqlite.org/jsonb.html](https://www.sqlite.org/jsonb.html)
+   - **Findings:** Confirmed that SQLite `JSONB` is designed strictly for internal runtime execution speed (avoiding repeated string re-parsing during query processing) and is **not** an interchange or durable application storage format. Confirmed that binary `JSONB` data is stored in `BLOB`s and functions like `jsonb_extract()` operate on it, but persistent on-disk usage across application/driver lifecycles is discouraged by SQLite maintainers.
+
+2. **Stripe Webhook Idempotency & Out-of-Order Delivery Guidance:**
+   - **URL:** [https://stripe.com/docs/webhooks/build](https://stripe.com/docs/webhooks/build)
+   - **URL:** [https://stripe.com/docs/api/events/object](https://stripe.com/docs/api/events/object)
+   - **Findings:** Confirmed Stripe’s official pattern for webhook safety:
+     - **Idempotency:** Track `event.id` (e.g. `evt_123...`) in a unique database inbox table (`UNIQUE(provider, event_id)`) to drop duplicate deliveries.
+     - **Ordering:** Events arrive out of order (e.g., `customer.subscription.deleted` arriving before `customer.subscription.updated`). Stripe provides `event.created` (Unix timestamp) or object-level timestamps. Stripe explicitly recommends either comparing incoming event timestamps against local state in an atomic update guard or re-fetching authoritative object state from the API upon event receipt.
+
+3. **Stripe Guidance on Minor Currency Units, Refunds & Prorations:**
+   - **URL:** [https://stripe.com/docs/currencies](https://stripe.com/docs/currencies)
+   - **Findings:** Verified that established commerce systems model all monetary values as **integers in minor currency units** (e.g., cents for USD/EUR: $10.00 = `1000`; zero-decimal currencies like JPY: ¥500 = `500`). Refunds and prorations are represented as integer amounts attached to explicit transaction line items or credit notes, preserving auditability without mutating historical order totals.
+
+4. **Drizzle ORM Multi-Dialect Architecture:**
+   - **URL:** [https://orm.drizzle.team/docs/sql-schema-declaration](https://orm.drizzle.team/docs/sql-schema-declaration)
+   - **Findings:** Verified that Drizzle ORM deliberately avoids a single unified table builder. Instead, it provides dialect-specific table factories (`sqliteTable`, `pgTable`, `mysqlTable`). Cross-dialect equivalence must be enforced through shared domain interfaces, repository contracts, and multi-engine integration test suites rather than a single generic schema file.
+
+---
+
+## Solution Slate
+
+### Ranking Criteria
+1. **Tri-Dialect Equivalence & Safety:** 100% compilation and identical operational semantics across SQLite, PostgreSQL, and MySQL without engine-version vulnerabilities.
+2. **Financial & Data Integrity:** Strict minor-unit money calculations, atomic out-of-order webhook handling, and non-destructive refund tracking.
+3. **Domain Isolation:** Keeping site access/entitlement control (`member_tiers`) clean and unpolluted by generic catalog, multi-currency, or one-time product pricing.
+4. **Operational Debuggability:** Plain UTF-8 text inspectability in SQLite CLI and standard database tools.
+
+---
+
+### Option 1 (Leading Option): Decoupled Commerce Domain with Explicit Entitlement FK, Relational Core, UTF-8 Text JSON Escape Hatch, and Atomic Ordering Guard
+
+- **Description:** Create dedicated `commerce_products`, `commerce_prices`, `commerce_orders`, `commerce_order_items`, and `commerce_inbox` entities. Keep `member_tiers` focused on membership presentation and access control. Link a price to a `tier_id` via an optional foreign key when purchasing a membership subscription. Store raw webhook payloads as UTF-8 `TEXT` (`text("payload_json")`) on SQLite, native `jsonb` on PostgreSQL, and `JSON` on MySQL. Protect against duplicate and out-of-order events using an atomic single-statement update guard comparing `provider_event_at`.
+- **Pros:** Clean domain separation; zero risk from SQLite binary JSONB engine updates; human-readable SQLite DB files; complete multi-currency and product-type flexibility; robust out-of-order delivery protection.
+- **Cons:** Requires an explicit join/link table between `commerce_prices` and `member_tiers` when granting subscription access.
+- **Genuine Sacrifice:** Gives up the temptation of relying on Postgres-only ad-hoc JSON indexing and adds a small structural mapping layer between commerce orders and member tier activations.
+
+---
+
+### Option 2: Unified Entitlement Catalog (Extending `member_tiers` directly and storing SQLite JSON as binary `BLOB`s)
+
+- **Description:** Merge products and prices into `member_tiers`. Add one-time product fields, multi-currency columns, and store metadata as binary `BLOB`s generated by SQLite `jsonb()`.
+- **Pros:** Eliminates the new `commerce_products` table for initial simple membership setups.
+- **Cons:** Pollutes `member_tiers` with nullable non-membership attributes (`welcomePagePath`, `visibleInPortal`); breaks SQLite durability warnings by persisting internal binary JSONB on disk; risks data corruption across `better-sqlite3` driver upgrades; makes CLI debugging difficult.
+- **Genuine Sacrifice:** Sacrifices SQLite stability, tool interoperability, and long-term schema cleanliness to save writing a few initial Drizzle table definitions.
+
+---
+
+### Option 3: Postgres-Centric Document Model (Storing Products/Orders in Postgres `jsonb` with GIN Indexes)
+
+- **Description:** Store products, prices, and line items as rich JSON documents inside Postgres `jsonb`, using GIN indexes for arbitrary key queries.
+- **Pros:** Maximum flexibility on PostgreSQL; no schema migrations needed when adding metadata fields.
+- **Cons:** Fails completely on SQLite and MySQL, which cannot build ad-hoc GIN indexes over whole documents and require pre-declared generated/expression columns.
+- **Genuine Sacrifice:** Sacrifices tri-dialect portability and breaks Tovu's embedded SQLite-first architectural constraint ([schema.ts:L8-L11](file:///tmp/ads-peer-dispatch/debate-commerce/files/tovu/schema.ts#L8-L11)).
+
+---
+
+### Recommendation & Falsification
+
+**Recommended:** **Option 1**.
+**Cheapest Falsification Test:** Run a benchmark comparing SQLite `TEXT` JSON parsing against binary `BLOB` parsing on a realistic workload of 100,000 unindexed metadata reads. If `TEXT` JSON parsing accounts for >15% of total CPU time during hot path operations, reconsider storage spelling for high-throughput tables.
+
+---
+
+## Leading Option — Code
+
+Below is the complete implementation of the Commerce First Slice.
+
+### 1. Drizzle Schema Slice (`files/tovu/schema.ts` Extension)
+
+```typescript
+import { sql } from "drizzle-orm";
+import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+
+// ============================================================================
+// COMMERCE DOMAIN FIRST SLICE (SQLite Definition)
+// ============================================================================
+
+/**
+ * Products catalog table. Decoupled from site membership access rules.
+ */
+export const commerceProducts = sqliteTable(
+  "commerce_products",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    name: text("name").notNull(),
+    slug: text("slug").notNull(),
+    description: text("description"),
+    status: text("status").notNull(), // 'draft' | 'active' | 'archived'
+    /**
+     * Opaque vendor/custom metadata. UTF-8 text JSON escape hatch per ADR-006.
+     * NEVER binary BLOB (avoids SQLite engine version drift per sqlite.org/jsonb.html).
+     */
+    metadataJson: text("metadata_json"),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+    version: integer("version").notNull(),
+  },
+  (table) => [
+    uniqueIndex("commerce_products_workspace_slug_unique").on(table.workspaceId, table.slug),
+    index("idx_commerce_products_workspace_status").on(table.workspaceId, table.status),
+  ]
+);
+
+/**
+ * Immutable/versioned price entries linked to products.
+ * Optional tier_id bridges commerce pricing to site membership entitlements (member_tiers).
+ */
+export const commercePrices = sqliteTable(
+  "commerce_prices",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    productId: text("product_id").notNull(),
+    /** Optional FK to member_tiers.id when purchasing this price grants a membership tier */
+    tierId: text("tier_id"),
+    type: text("type").notNull(), // 'one_time' | 'recurring'
+    interval: text("interval"), // 'month' | 'year' | null
+    amountCents: integer("amount_cents").notNull(), // Integer minor currency units (cents/yen)
+    currency: text("currency").notNull(), // ISO-4217 code (e.g. 'USD', 'EUR', 'JPY')
+    status: text("status").notNull(), // 'active' | 'archived'
+    providerPriceRef: text("provider_price_ref"), // Vendor ID (e.g., Stripe price_1N...)
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+    version: integer("version").notNull(),
+  },
+  (table) => [
+    index("idx_commerce_prices_workspace_product").on(table.workspaceId, table.productId),
+    index("idx_commerce_prices_workspace_tier").on(table.workspaceId, table.tierId),
+  ]
+);
+
+/**
+ * Customer checkout orders & payment state projection.
+ */
+export const commerceOrders = sqliteTable(
+  "commerce_orders",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    memberId: text("member_id").notNull(),
+    status: text("status").notNull(), // 'pending' | 'paid' | 'failed' | 'refunded'
+    totalCents: integer("total_cents").notNull(),
+    currency: text("currency").notNull(),
+    provider: text("provider").notNull(),
+    providerOrderId: text("provider_order_id"),
+    /** ISO-8601 provider event timestamp used for out-of-order update protection */
+    providerEventAt: text("provider_event_at"),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+    version: integer("version").notNull(),
+  },
+  (table) => [
+    index("idx_commerce_orders_workspace_member").on(table.workspaceId, table.memberId),
+    index("idx_commerce_orders_provider_ref").on(table.provider, table.providerOrderId),
+  ]
+);
+
+/**
+ * Line items belonging to a commerce order.
+ */
+export const commerceOrderItems = sqliteTable(
+  "commerce_order_items",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    orderId: text("order_id").notNull(),
+    priceId: text("price_id").notNull(),
+    unitAmountCents: integer("unit_amount_cents").notNull(),
+    quantity: integer("quantity").notNull(),
+    totalCents: integer("total_cents").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [
+    index("idx_commerce_order_items_order").on(table.orderId),
+  ]
+);
+
+/**
+ * Durable Webhook Inbox for Idempotency and Deduplication.
+ * (provider, event_id) UNIQUE stops duplicate processing.
+ */
+export const commerceInbox = sqliteTable(
+  "commerce_inbox",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    provider: text("provider").notNull(),
+    eventId: text("event_id").notNull(),
+    eventType: text("event_type").notNull(),
+    providerEventAt: text("provider_event_at").notNull(),
+    status: text("status").notNull(), // 'received' | 'processed' | 'ignored' | 'failed'
+    payloadJson: text("payload_json").notNull(),
+    processedAt: text("processed_at"),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("commerce_inbox_provider_event_unique").on(table.provider, table.eventId),
+    index("idx_commerce_inbox_workspace_status").on(table.workspaceId, table.status),
+  ]
+);
+```
+
+---
+
+### 2. Idempotency & Out-of-Order Webhook Event Processor
+
+```typescript
+/**
+ * @file Processor for incoming payment events ensuring idempotency and out-of-order safety.
+ */
+
+export interface IncomingPaymentEvent {
+  readonly workspaceId: string;
+  readonly provider: string;
+  readonly eventId: string;
+  readonly eventType: string;
+  readonly providerEventAt: string; // ISO-8601 string from provider event timestamp
+  readonly orderId: string;
+  readonly nextOrderStatus: "pending" | "paid" | "failed" | "refunded";
+  readonly payloadJson: string;
+  readonly nowIso: string;
+}
+
+export interface ProcessingResult {
+  readonly processed: boolean;
+  readonly reason: "ok" | "duplicate_event" | "stale_out_of_order_event";
+}
+
+/**
+ * Atomic single-statement guard execution.
+ * 
+ * 1. UNIQUE(provider, event_id) inbox insertion drops duplicates.
+ * 2. WHERE (provider_event_at IS NULL OR provider_event_at < incoming.providerEventAt)
+ *    drops stale out-of-order events atomically in single SQL query.
+ */
+export async function processPaymentEventAtomic(
+  db: any,
+  event: IncomingPaymentEvent
+): Promise<ProcessingResult> {
+  return await db.transaction(async (tx: any) => {
+    // Step 1: Idempotent inbox receipt (stops duplicates)
+    const inboxId = `inbox_${event.provider}_${event.eventId}`;
+    const insertedInbox = await tx
+      .insert(commerceInbox)
+      .values({
+        id: inboxId,
+        workspaceId: event.workspaceId,
+        provider: event.provider,
+        eventId: event.eventId,
+        eventType: event.eventType,
+        providerEventAt: event.providerEventAt,
+        status: "received",
+        payloadJson: event.payloadJson,
+        createdAt: event.nowIso,
+      })
+      .onConflictDoNothing()
+      .returning();
+
+    if (insertedInbox.length === 0) {
+      return { processed: false, reason: "duplicate_event" };
+    }
+
+    // Step 2: Atomic single-statement guard for out-of-order delivery
+    const updatedOrders = await tx
+      .update(commerceOrders)
+      .set({
+        status: event.nextOrderStatus,
+        providerEventAt: event.providerEventAt,
+        version: sql`${commerceOrders.version} + 1`,
+        updatedAt: event.nowIso,
+      })
+      .where(
+        sql`${commerceOrders.id} = ${event.orderId} AND ${commerceOrders.workspaceId} = ${event.workspaceId} AND (${commerceOrders.providerEventAt} IS NULL OR ${commerceOrders.providerEventAt} < ${event.providerEventAt})`
+      )
+      .returning();
+
+    // Step 3: Update inbox status based on mutation outcome
+    const isSuccess = updatedOrders.length > 0;
+    await tx
+      .update(commerceInbox)
+      .set({
+        status: isSuccess ? "processed" : "ignored",
+        processedAt: event.nowIso,
+      })
+      .where(sql`${commerceInbox.id} = ${inboxId}`);
+
+    if (!isSuccess) {
+      return { processed: false, reason: "stale_out_of_order_event" };
+    }
+
+    return { processed: true, reason: "ok" };
+  });
+}
+```
+
+---
+
+### 3. Dialect-Portability Verification Test Suite
+
+```typescript
+/**
+ * @file Dialect portability suite executed against SQLite, PostgreSQL, and MySQL test runners.
+ */
+import { assert, beforeEach, describe, it } from "vitest";
+import { processPaymentEventAtomic } from "./event-processor";
+
+export function runTriDialectCommerceSuite(dbProvider: () => { db: any; clean: () => Promise<void> }) {
+  describe("Commerce Tri-Dialect Contract Certification", () => {
+    let db: any;
+    let cleanFn: () => Promise<void>;
+
+    beforeEach(async () => {
+      const res = dbProvider();
+      db = res.db;
+      cleanFn = res.clean;
+      await cleanFn();
+    });
+
+    it("enforces idempotency and drops duplicate webhook events", async () => {
+      const event = {
+        workspaceId: "ws_test_123",
+        provider: "stripe",
+        eventId: "evt_duplicate_001",
+        eventType: "charge.succeeded",
+        providerEventAt: "2026-08-12T10:00:00.000Z",
+        orderId: "ord_1001",
+        nextOrderStatus: "paid" as const,
+        payloadJson: '{"id":"evt_duplicate_001"}',
+        nowIso: "2026-08-12T10:00:01.000Z",
+      };
+
+      // Seed order
+      await db.run(
+        sql`INSERT INTO commerce_orders (id, workspace_id, member_id, status, total_cents, currency, provider, version, created_at, updated_at) VALUES ('ord_1001', 'ws_test_123', 'mem_1', 'pending', 2000, 'USD', 'stripe', 1, '2026-08-12T09:50:00Z', '2026-08-12T09:50:00Z')`
+      );
+
+      const res1 = await processPaymentEventAtomic(db, event);
+      assert.strictEqual(res1.processed, true);
+      assert.strictEqual(res1.reason, "ok");
+
+      // Re-send exact same event
+      const res2 = await processPaymentEventAtomic(db, event);
+      assert.strictEqual(res2.processed, false);
+      assert.strictEqual(res2.reason, "duplicate_event");
+    });
+
+    it("atomically rejects out-of-order stale events arriving late", async () => {
+      // Seed order with a newer event timestamp already applied
+      await db.run(
+        sql`INSERT INTO commerce_orders (id, workspace_id, member_id, status, total_cents, currency, provider, provider_event_at, version, created_at, updated_at) VALUES ('ord_1002', 'ws_test_123', 'mem_1', 'refunded', 2000, 'USD', 'stripe', '2026-08-12T12:00:00.000Z', 2, '2026-08-12T09:50:00Z', '2026-08-12T12:00:00Z')`
+      );
+
+      // Stale event dated 11:00:00 arrives after 12:00:00 event was already processed
+      const staleEvent = {
+        workspaceId: "ws_test_123",
+        provider: "stripe",
+        eventId: "evt_stale_999",
+        eventType: "charge.succeeded",
+        providerEventAt: "2026-08-12T11:00:00.000Z",
+        orderId: "ord_1002",
+        nextOrderStatus: "paid" as const,
+        payloadJson: '{"id":"evt_stale_999"}',
+        nowIso: "2026-08-12T12:05:00.000Z",
+      };
+
+      const res = await processPaymentEventAtomic(db, staleEvent);
+      assert.strictEqual(res.processed, false);
+      assert.strictEqual(res.reason, "stale_out_of_order_event");
+    });
+  });
+}
+```
+
+---
+
+### 4. Tri-Dialect SQL DDL Output
+
+#### SQLite DDL (`content.db`)
+```sql
+CREATE TABLE `commerce_products` (
+  `id` text PRIMARY KEY NOT NULL,
+  `workspace_id` text NOT NULL,
+  `name` text NOT NULL,
+  `slug` text NOT NULL,
+  `description` text,
+  `status` text NOT NULL,
+  `metadata_json` text,
+  `created_at` text NOT NULL,
+  `updated_at` text NOT NULL,
+  `version` integer NOT NULL
+);
+CREATE UNIQUE INDEX `commerce_products_workspace_slug_unique` ON `commerce_products` (`workspace_id`, `slug`);
+CREATE INDEX `idx_commerce_products_workspace_status` ON `commerce_products` (`workspace_id`, `status`);
+
+CREATE TABLE `commerce_prices` (
+  `id` text PRIMARY KEY NOT NULL,
+  `workspace_id` text NOT NULL,
+  `product_id` text NOT NULL,
+  `tier_id` text,
+  `type` text NOT NULL,
+  `interval` text,
+  `amount_cents` integer NOT NULL,
+  `currency` text NOT NULL,
+  `status` text NOT NULL,
+  `provider_price_ref` text,
+  `created_at` text NOT NULL,
+  `updated_at` text NOT NULL,
+  `version` integer NOT NULL
+);
+CREATE INDEX `idx_commerce_prices_workspace_product` ON `commerce_prices` (`workspace_id`, `product_id`);
+CREATE INDEX `idx_commerce_prices_workspace_tier` ON `commerce_prices` (`workspace_id`, `tier_id`);
+
+CREATE TABLE `commerce_orders` (
+  `id` text PRIMARY KEY NOT NULL,
+  `workspace_id` text NOT NULL,
+  `member_id` text NOT NULL,
+  `status` text NOT NULL,
+  `total_cents` integer NOT NULL,
+  `currency` text NOT NULL,
+  `provider` text NOT NULL,
+  `provider_order_id` text,
+  `provider_event_at` text,
+  `created_at` text NOT NULL,
+  `updated_at` text NOT NULL,
+  `version` integer NOT NULL
+);
+CREATE INDEX `idx_commerce_orders_workspace_member` ON `commerce_orders` (`workspace_id`, `member_id`);
+CREATE INDEX `idx_commerce_orders_provider_ref` ON `commerce_orders` (`provider`, `provider_order_id`);
+
+CREATE TABLE `commerce_inbox` (
+  `id` text PRIMARY KEY NOT NULL,
+  `workspace_id` text NOT NULL,
+  `provider` text NOT NULL,
+  `event_id` text NOT NULL,
+  `event_type` text NOT NULL,
+  `provider_event_at` text NOT NULL,
+  `status` text NOT NULL,
+  `payload_json` text NOT NULL,
+  `processed_at` text,
+  `created_at` text NOT NULL
+);
+CREATE UNIQUE INDEX `commerce_inbox_provider_event_unique` ON `commerce_inbox` (`provider`, `event_id`);
+```
+
+#### PostgreSQL DDL
+```sql
+CREATE TABLE "commerce_products" (
+  "id" text PRIMARY KEY NOT NULL,
+  "workspace_id" text NOT NULL,
+  "name" text NOT NULL,
+  "slug" text NOT NULL,
+  "description" text,
+  "status" text NOT NULL,
+  "metadata_json" jsonb,
+  "created_at" text NOT NULL,
+  "updated_at" text NOT NULL,
+  "version" integer NOT NULL
+);
+CREATE UNIQUE INDEX "commerce_products_workspace_slug_unique" ON "commerce_products" ("workspace_id", "slug");
+
+CREATE TABLE "commerce_prices" (
+  "id" text PRIMARY KEY NOT NULL,
+  "workspace_id" text NOT NULL,
+  "product_id" text NOT NULL,
+  "tier_id" text,
+  "type" text NOT NULL,
+  "interval" text,
+  "amount_cents" integer NOT NULL,
+  "currency" text NOT NULL,
+  "status" text NOT NULL,
+  "provider_price_ref" text,
+  "created_at" text NOT NULL,
+  "updated_at" text NOT NULL,
+  "version" integer NOT NULL
+);
+
+CREATE TABLE "commerce_orders" (
+  "id" text PRIMARY KEY NOT NULL,
+  "workspace_id" text NOT NULL,
+  "member_id" text NOT NULL,
+  "status" text NOT NULL,
+  "total_cents" integer NOT NULL,
+  "currency" text NOT NULL,
+  "provider" text NOT NULL,
+  "provider_order_id" text,
+  "provider_event_at" text,
+  "created_at" text NOT NULL,
+  "updated_at" text NOT NULL,
+  "version" integer NOT NULL
+);
+
+CREATE TABLE "commerce_inbox" (
+  "id" text PRIMARY KEY NOT NULL,
+  "workspace_id" text NOT NULL,
+  "provider" text NOT NULL,
+  "eventId" text NOT NULL,
+  "eventType" text NOT NULL,
+  "provider_event_at" text NOT NULL,
+  "status" text NOT NULL,
+  "payload_json" jsonb NOT NULL,
+  "processed_at" text,
+  "created_at" text NOT NULL,
+  CONSTRAINT "commerce_inbox_provider_event_unique" UNIQUE("provider", "eventId")
+);
+```
+
+#### MySQL DDL (MySQL 8.0+)
+```sql
+CREATE TABLE `commerce_products` (
+  `id` varchar(255) NOT NULL,
+  `workspace_id` varchar(255) NOT NULL,
+  `name` varchar(255) NOT NULL,
+  `slug` varchar(255) NOT NULL,
+  `description` text,
+  `status` varchar(255) NOT NULL,
+  `metadata_json` json,
+  `created_at` varchar(255) NOT NULL,
+  `updated_at` varchar(255) NOT NULL,
+  `version` int NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `commerce_products_workspace_slug_unique` (`workspace_id`, `slug`)
+);
+
+CREATE TABLE `commerce_prices` (
+  `id` varchar(255) NOT NULL,
+  `workspace_id` varchar(255) NOT NULL,
+  `product_id` varchar(255) NOT NULL,
+  `tier_id` varchar(255),
+  `type` varchar(255) NOT NULL,
+  `interval` varchar(255),
+  `amount_cents` int NOT NULL,
+  `currency` varchar(255) NOT NULL,
+  `status` varchar(255) NOT NULL,
+  `provider_price_ref` varchar(255),
+  `created_at` varchar(255) NOT NULL,
+  `updated_at` varchar(255) NOT NULL,
+  `version` int NOT NULL,
+  PRIMARY KEY (`id`)
+);
+
+CREATE TABLE `commerce_orders` (
+  `id` varchar(255) NOT NULL,
+  `workspace_id` varchar(255) NOT NULL,
+  `member_id` varchar(255) NOT NULL,
+  `status` varchar(255) NOT NULL,
+  `total_cents` int NOT NULL,
+  `currency` varchar(255) NOT NULL,
+  `provider` varchar(255) NOT NULL,
+  `provider_order_id` varchar(255),
+  `provider_event_at` varchar(255),
+  `created_at` varchar(255) NOT NULL,
+  `updated_at` varchar(255) NOT NULL,
+  `version` int NOT NULL,
+  PRIMARY KEY (`id`)
+);
+
+CREATE TABLE `commerce_inbox` (
+  `id` varchar(255) NOT NULL,
+  `workspace_id` varchar(255) NOT NULL,
+  `provider` varchar(255) NOT NULL,
+  `event_id` varchar(255) NOT NULL,
+  `event_type` varchar(255) NOT NULL,
+  `provider_event_at` varchar(255) NOT NULL,
+  `status` varchar(255) NOT NULL,
+  `payload_json` json NOT NULL,
+  `processed_at` varchar(255),
+  `created_at` varchar(255) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `commerce_inbox_provider_event_unique` (`provider`, `event_id`)
+);
+```
+
+---
+
+## Critique Of Another Participant's Round 2 Code
+
+### 1. Critique of Codex (`codex-round2`)
+
+- **Target Construct:** Codex's proposal for SQLite storage spelling ([PACKET-R3.md:L188-L190](file:///tmp/ads-peer-dispatch/debate-commerce/PACKET-R3.md#L188-L190)):
+  > *"SQLite: a declared `BLOB` containing `jsonb()` output—never a column declared `JSONB`."*
+- **Why it is wrong & unsafe:** Codex correctly identified the `JSONB` column affinity trap (that declaring `JSONB` resolves to `NUMERIC` affinity and mangles numerical strings like `'123'`), but failed to account for SQLite's official specification on JSONB on-disk durability ([sqlite.org/jsonb.html](https://www.sqlite.org/jsonb.html)). SQLite maintainers explicitly state that `JSONB` is an internal binary representation, not an interchange format, and its binary layout has reserved bytes subject to change across SQLite releases. Because `better-sqlite3` bundles its own SQLite binary, an `npm update` of `better-sqlite3` upgrades the database engine underneath stored disk files. Persisting raw binary `jsonb()` output inside SQLite `BLOB` columns creates on-disk format vulnerability across package updates, breaks external inspection via host CLI tools (such as standard system `sqlite3` CLI v3.44.3), and requires custom Drizzle type adapters that add unnecessary DDL complexity.
+
+### 2. Critique of Gemini 3.1 Pro (`gemini-3.1-pro-high-round2`)
+
+- **Target Construct:** Gemini 3.1 Pro's catalog recommendation ([PACKET-R3.md:L391-L395](file:///tmp/ads-peer-dispatch/debate-commerce/PACKET-R3.md#L391-L395)):
+  > *"Products vs member_tiers: Extend the existing `member_tiers`... Cost of a new entity set: Dual-write synchronization nightmares, fractured financial reporting, and duplicating the pricing and subscription lifecycles Tovu already successfully runs. Do not build a competing catalog."*
+- **Why it is wrong & breaks contracts:** Extending `member_tiers` directly forces non-subscription products (e.g. one-off digital downloads, event tickets, or metered API credits) into a table designed specifically for site access and portal navigation (`welcomePagePath`, `visibleInPortal`) ([schema.ts:L485-L504](file:///tmp/ads-peer-dispatch/debate-commerce/files/tovu/schema.ts#L485-L504)). Under Gemini 3.1 Pro's proposal, every single non-subscription product must either populate dummy values or carry `NULL` for membership-specific paths. Furthermore, `member_tiers` only supports hardcoded `monthly_price_cents` and `yearly_price_cents` in a single currency, making multi-currency pricing, tiered usage rates, or one-off purchases structurally impossible without constantly altering `member_tiers`. Creating a dedicated `commerce_products`/`commerce_prices` schema with an optional `tierId` foreign key cleanly decouples pricing models from access control without dual-write bugs or schema pollution.
+
+---
+
+## What Would Change My Mind
+
+1. **SQLite Formal JSONB Stability Guarantee:** If the SQLite Core Development Team formally stabilizes and guarantees the binary `JSONB` byte format as a frozen, cross-version, on-disk interchange format across major releases, storing `jsonb()` binary inside `BLOB` columns would become a viable optimization for high-throughput tables.
+2. **Postgres-Only Subsystem Commitment:** If Tovu dropped the requirement for C4 tri-dialect portability for the commerce subsystem and committed to PostgreSQL as the sole production engine, GIN-indexed Postgres `jsonb` would become the leading architectural choice.
+3. **Pure Membership Product Scope:** If Tovu's product strategy permanently restricted commerce to site membership access with no one-time products, digital downloads, usage-based billing, or multi-currency pricing, extending `member_tiers` directly would be acceptable.
+
+<<SWARM_END>>

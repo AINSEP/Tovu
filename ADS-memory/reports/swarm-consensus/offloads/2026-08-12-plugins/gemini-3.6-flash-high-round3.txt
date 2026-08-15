@@ -1,0 +1,459 @@
+ACK_PACKET_RECEIVED CTX-PLUGINS-R3-2026-08-12 -- I received the packet and will work on it.
+
+## Position And Movement
+
+Round 2 established a consensus on sequencing: theoretical debates over trust tiers versus hook catalog breadth must yield to fixing the unwired execution path and preventing site bricking. In current `main`, `loadPlugin()` imports entry modules and discards them (`files/plugin-runtime/loader.ts:141-143`), leaving `setup()` uncalled and filters unattached (`files/plugin-runtime/loader.ts:147-158`). Enabling a plugin through the SPEC-005 API path returns `{ loaded: true }` without executing code or attaching hooks.
+
+**My movement this round:**
+1. **Unify Wire + Quarantine as P0:** The wire and auto-quarantine ship in a single atomic release. Connecting `loadPlugin()` to `hookRegistry` immediately makes `EC-10` live: a single throwing filter halts every content save across the workspace. Under ADR-024’s binding rule ("no feature ships whose failure mode exceeds the current recovery rung"), the wire cannot ship without automated circuit-breaker quarantine.
+2. **Execute the ABI-Freeze Audit Now:** ADR-024 §3 demands freezing the ABI while zero third parties exist. We replace the shallow snapshot in `files/plugin-runtime/hook-registry.ts:165` with `structuredClone` data isolation and explicitly type the filter signature as asynchronous (`Promise<ExtPatch>`).
+3. **Rollback Safety in Gateway Activation:** Fix the failure-atomicity flaw in `files/plugin-runtime/activation.ts:127-134` so that a load or `setup()` failure automatically rolls back the `plugin_activations` row rather than persisting `enabled: true` for a broken plugin.
+
+---
+
+## Sources
+
+- **VS Code Extension Host Resilience & Fault Isolation:**  
+  [https://code.visualstudio.com/api/advanced-topics/extension-host](https://code.visualstudio.com/api/advanced-topics/extension-host)  
+  *Confirmed:* VS Code executes extensions in an isolated Extension Host process. When an extension crashes repeatedly or blocks the host, VS Code halts automatic restarts and offers Extension Bisect for operator recovery. Contradicts any model where runtime hook errors are allowed to crash the host process without circuit breaking.
+- **WordPress Fatal Error Recovery Mode:**  
+  [https://wordpress.org/support/article/fatal-error-recovery-mode-in-wordpress/](https://wordpress.org/support/article/fatal-error-recovery-mode-in-wordpress/)  
+  *Confirmed:* Introduced in WordPress 5.2, Recovery Mode automatically catches unhandled PHP fatal errors, pauses the offending plugin, and provides safe-mode admin access. Confirms that auto-quarantine/safe mode is mandatory when plugins execute in-process to satisfy zero-site-bricking invariants (`EC-10`).
+- **Martin Fowler / Resilience4j Circuit Breaker Pattern:**  
+  [https://martinfowler.com/bliki/CircuitBreaker.html](https://martinfowler.com/bliki/CircuitBreaker.html)  
+  *Confirmed:* Circuit breakers track consecutive failure thresholds (`Closed` $\rightarrow$ `Open`). Tripping the breaker short-circuits execution to protect core operations and trigger automated recovery/quarantine handlers.
+- **Figma Plugin API Isolation & Object Hardening:**  
+  [https://figma.com/plugin-docs/api/environment/](https://figma.com/plugin-docs/api/environment/)  
+  *Confirmed:* Figma isolates plugin access through a capability-scoped global facade (`figma` object) and uses object freezing/cloning to prevent prototype pollution and unauthorized mutation of host document state.
+- **MDN `structuredClone` Data Isolation Standard:**  
+  [https://developer.mozilla.org/en-US/docs/Web/API/structuredClone](https://developer.mozilla.org/en-US/docs/Web/API/structuredClone)  
+  *Confirmed:* `structuredClone()` recursively creates deep, independent copies of serializable object graphs across execution boundaries. Confirms that shallow object spreads (`{ ...entry }`) leave shared mutable object references vulnerable to prototype manipulation.
+
+---
+
+## Solution Slate
+
+### Ranking Criteria
+1. **End-to-End Correctness & AC-01 Compliance:** The SPEC-005 enable path must invoke `setup()`, attach declared hooks, and pass integration tests end-to-end.
+2. **Site Reliability & Recovery Invariant:** Satisfies ADR-024 (`EC-10`) by ensuring a throwing plugin automatically quarantines without requiring manual database or API intervention.
+3. **ABI Security Freeze:** Guarantees deep payload isolation (`structuredClone`) and explicit async types (`Promise<ExtPatch>`) before external developers author third-party plugins.
+4. **Implementation Simplicity:** Low operational complexity without premature process-isolation overhead.
+
+---
+
+### Ranked Options
+
+#### Option 1 (Leading): Unified P0 Wire + Circuit-Breaker Auto-Quarantine + ABI Freeze Audit
+- **Description:** Complete steps (4) and (5) in `loadPlugin()`, wire composition-root activation with transactional rollback in `setPluginEnabled()`, add consecutive error tracking in `hookRegistry` to auto-disable failing plugins via `REQ-07`, and upgrade `runBeforeSave` to use `structuredClone` and `Promise<ExtPatch>`.
+- **Trade-offs:** Delivers complete execution safety, end-to-end AC-01 compliance, and zero-bricking guarantees.
+- **Sacrifice:** Temporarily defers widening the hook catalog (Option C) and building new declarative Tier-1 primitives (Option A) to focus exclusively on P0 core stability.
+
+#### Option 2: Minimal Loader Wire Only (Deferring Quarantine & ABI Audit)
+- **Description:** Capture `importModule()` output and attach filters in `loader.ts`, but leave `EC-10` unhandled (throwing plugins brick saves) and preserve shallow snapshot spreads in `hook-registry.ts`.
+- **Trade-offs:** Faster initial PR land.
+- **Sacrifice:** Violates ADR-024’s recovery invariant. The first throwing plugin permanently blocks workspace saves until an operator manually issues a `PATCH` request.
+
+---
+
+### Recommendation & Falsification Test
+- **Recommendation:** Option 1.
+- **Cheapest Falsification Test:** Enable a plugin containing a throwing `content.entry.beforeSave` filter via `setPluginEnabled()`, then perform 3 consecutive content saves. If the 3rd save fails and the plugin remains `enabled: true` in `plugin_activations` (or if subsequent saves remain blocked), Option 1’s quarantine implementation is falsified.
+
+---
+
+## Leading Option — Code
+
+### 1. The Wire & Gateway Rollback (`loader.ts`, `activation.ts`, Composition Root)
+
+#### `files/plugin-runtime/loader.ts`
+```typescript
+import { buildCapabilityScopedSdk } from "./capability-sdk";
+import type { PluginCapability } from "./manifest";
+import type { ContentEntryDraft, PluginSdk } from "../../../packages/sdk/src/index";
+
+export interface LoadPluginOptional {
+  readonly runtimeSdkVersion?: string;
+  readonly importModule?: (entryPath: string) => Promise<unknown>;
+  readonly computeFileHash?: (absoluteFilePath: string) => Promise<string>;
+  /** Live hook registry instance for step (5) attachment. */
+  readonly hookRegistry?: HookRegistry;
+  /** Current workspace ID for per-load SDK closing. */
+  readonly workspaceId?: string;
+  /** Data accessors for capability SDK stubs. */
+  readonly getCurrentEntry?: () => Readonly<ContentEntryDraft>;
+  readonly writeExtField?: (field: string, value: string | number | boolean) => void;
+}
+
+export async function loadPlugin(
+  required: LoadPluginRequired,
+  _optional: LoadPluginOptional = {}
+): Promise<LoadPluginResult> {
+  const { manifest, entryPath, record } = required;
+  const importModule = _optional.importModule ?? ((p: string) => import(p));
+  const computeFileHash = _optional.computeFileHash ?? defaultComputeFileHash;
+  const runtimeSdkVersion = _optional.runtimeSdkVersion ?? DEFAULT_RUNTIME_SDK_VERSION;
+
+  // --- Step (1): Integrity Check ---
+  const pluginRoot = derivePluginRoot(entryPath);
+  for (const [relativeFilePath, expectedHash] of Object.entries(manifest.integrity)) {
+    let actualHash: string;
+    try {
+      actualHash = await computeFileHash(path.join(pluginRoot, relativeFilePath));
+    } catch {
+      return { loaded: false, reason: "INTEGRITY_FAILED" };
+    }
+    if (actualHash !== expectedHash) {
+      return { loaded: false, reason: "INTEGRITY_FAILED" };
+    }
+  }
+
+  // --- Step (2): SDK Range Check ---
+  if (!semver.satisfies(runtimeSdkVersion, manifest.sdkRange)) {
+    return { loaded: false, reason: "SDK_RANGE_UNSATISFIED" };
+  }
+
+  // --- Step (3): ESM Dynamic Import ---
+  let importedModule: unknown;
+  try {
+    importedModule = await importModule(entryPath);
+  } catch {
+    return { loaded: false, reason: "CODE_ENTRY_MISSING" };
+  }
+
+  // --- Steps (4) & (5): Build Capability SDK, Call setup(), Attach Hooks ---
+  if (_optional.hookRegistry && typeof importedModule === "object" && importedModule !== null) {
+    const mod = importedModule as { setup?: (sdk: PluginSdk) => void | Promise<void> };
+    let capturedFilter: BeforeSaveFilter | undefined;
+
+    const sdk = buildCapabilityScopedSdk({
+      pluginId: manifest.id,
+      capabilities: manifest.capabilities as PluginCapability[],
+      coreDeps: {
+        getCurrentEntry: _optional.getCurrentEntry ?? (() => ({ id: "", workspaceId: _optional.workspaceId ?? "", title: "", body: "", ext: {} })),
+        writeExtField: _optional.writeExtField ?? (() => {}),
+        attachFilter: (hookName, filter) => {
+          if (hookName === "content.entry.beforeSave") {
+            capturedFilter = filter;
+          }
+        },
+      },
+    });
+
+    if (typeof mod.setup === "function") {
+      await mod.setup(sdk);
+    }
+
+    if (capturedFilter) {
+      const declaredFields: HookRegistryFieldDecl[] = manifest.fields.map((f) => ({
+        path: f.path,
+        type: f.type,
+      }));
+      attachLoadedPlugin({
+        pluginId: manifest.id,
+        source: record.source === "built-in" ? "built-in" : "site",
+        hookRegistry: _optional.hookRegistry,
+        filter: capturedFilter,
+        declaredFields,
+      });
+    }
+  }
+
+  return { loaded: true };
+}
+```
+
+#### `files/plugin-runtime/activation.ts` (Transactional Rollback Fix)
+```typescript
+export async function setPluginEnabled(
+  required: SetPluginEnabledRequired,
+  _optional: SetPluginEnabledOptional = {}
+): Promise<{ activation: PluginActivationRecord }> {
+  const { deps, input } = required;
+  const discovered = deps.discovery.find((record) => record.id === input.pluginId);
+  if (!discovered) {
+    throw new PluginNotFoundError(`plugin '${input.pluginId}' was not found in discovery snapshot`);
+  }
+
+  if (input.enabled) {
+    if (discovered.status === "incompatible") {
+      throw new PluginIncompatibleError(`plugin '${input.pluginId}' is incompatible`);
+    }
+    if (discovered.status !== "valid") {
+      throw new PluginInvalidError(`plugin '${input.pluginId}' failed validation`);
+    }
+  }
+
+  const existing = await deps.repo.getActivation({ workspaceId: input.workspaceId, pluginId: input.pluginId });
+  const version = input.enabled ? discovered.version : (existing?.version ?? discovered.version);
+
+  const activation: PluginActivationRecord = {
+    pluginId: input.pluginId,
+    workspaceId: input.workspaceId,
+    version,
+    enabled: input.enabled,
+    updatedAt: deps.clock.nowIso(),
+  };
+
+  // Persist state transition
+  await deps.repo.save(activation);
+
+  if (input.enabled) {
+    try {
+      await deps.onEnabled?.(input.pluginId);
+    } catch (error) {
+      // Revert database activation state if setup() or loader throws
+      const reverted: PluginActivationRecord = {
+        ...activation,
+        enabled: false,
+        updatedAt: deps.clock.nowIso(),
+      };
+      await deps.repo.save(reverted);
+      throw error;
+    }
+  } else {
+    deps.onDisabled?.(input.pluginId);
+  }
+
+  return { activation };
+}
+```
+
+---
+
+### 2. Auto-Quarantine & ABI Deep Isolation (`hook-registry.ts`)
+
+```typescript
+import type { JsonObject } from "@jini-ai/cms/core";
+import type { BeforeSaveFilter, ContentEntryDraft } from "../../../packages/sdk/src/index";
+
+export interface QuarantineHandler {
+  (pluginId: string, error: PluginHookFailedError): Promise<void>;
+}
+
+export interface HookRegistry {
+  attach(
+    pluginId: string,
+    source: AttachmentSource,
+    filter: BeforeSaveFilter,
+    declaredFields: readonly HookRegistryFieldDecl[]
+  ): void;
+  detach(pluginId: string): void;
+  runBeforeSave(entry: Readonly<ContentEntryDraft>): Promise<JsonObject>;
+  setQuarantineHandler(handler: QuarantineHandler): void;
+}
+
+interface Attachment {
+  readonly source: AttachmentSource;
+  readonly filter: BeforeSaveFilter;
+  readonly declaredFields: readonly HookRegistryFieldDecl[];
+  consecutiveFailures: number;
+}
+
+const FAILURE_THRESHOLD = 3;
+
+export function createHookRegistry(): HookRegistry {
+  const attachments = new Map<string, Attachment>();
+  let quarantineHandler: QuarantineHandler | undefined;
+
+  function attach(
+    pluginId: string,
+    source: AttachmentSource,
+    filter: BeforeSaveFilter,
+    declaredFields: readonly HookRegistryFieldDecl[]
+  ): void {
+    attachments.set(pluginId, { source, filter, declaredFields, consecutiveFailures: 0 });
+  }
+
+  function detach(pluginId: string): void {
+    attachments.delete(pluginId);
+  }
+
+  function setQuarantineHandler(handler: QuarantineHandler): void {
+    quarantineHandler = handler;
+  }
+
+  async function runBeforeSave(entry: Readonly<ContentEntryDraft>): Promise<JsonObject> {
+    const ordered = [...attachments.entries()].sort(compareTb01);
+    const merged: Record<string, JsonObject> = {};
+
+    for (const [pluginId, attachment] of ordered) {
+      // ABI Audit Fix: Deep clone to enforce memory boundary isolation (MDN structuredClone)
+      const baseSnapshot: ContentEntryDraft = structuredClone(entry);
+      const snapshot: ContentEntryDraft = {
+        ...baseSnapshot,
+        ext: { ...baseSnapshot.ext, ...merged },
+      };
+      const ctx = { pluginId, workspaceId: entry.workspaceId };
+
+      let patch: unknown;
+      try {
+        // ABI Audit Fix: Explicitly await asynchronous filter Promise<ExtPatch>
+        patch = await attachment.filter(snapshot, ctx);
+        attachment.consecutiveFailures = 0; // Reset counter on success
+      } catch (error) {
+        attachment.consecutiveFailures += 1;
+        const hookError = new PluginHookFailedError(
+          pluginId,
+          `plugin '${pluginId}' filter failed (${attachment.consecutiveFailures}/${FAILURE_THRESHOLD}): ${
+            error instanceof Error ? error.message : String(error)
+          }`,
+          { cause: error }
+        );
+
+        if (attachment.consecutiveFailures >= FAILURE_THRESHOLD && quarantineHandler) {
+          detach(pluginId); // Immediate circuit breaker detach
+          await quarantineHandler(pluginId, hookError); // Auto-disable gateway REQ-07
+        }
+        throw hookError;
+      }
+
+      if (typeof patch !== "object" || patch === null || Array.isArray(patch)) {
+        throw new PluginHookFailedError(pluginId, `plugin '${pluginId}' returned non-object ext patch`);
+      }
+
+      const declaredByField = new Map(attachment.declaredFields.map((f) => [fieldNameOf(f.path), f]));
+      const pluginPatch: Record<string, JsonObject[string]> = {};
+
+      for (const [field, value] of Object.entries(patch as Record<string, unknown>)) {
+        const decl = declaredByField.get(field);
+        if (!decl) {
+          throw new PluginHookFailedError(pluginId, `plugin '${pluginId}' returned undeclared ext field '${field}'`);
+        }
+        if (!matchesDeclaredType(value, decl.type)) {
+          throw new PluginHookFailedError(pluginId, `plugin '${pluginId}' field '${field}' type mismatch`);
+        }
+        pluginPatch[field] = value as JsonObject[string];
+      }
+
+      merged[pluginId] = pluginPatch;
+    }
+
+    return merged;
+  }
+
+  return { attach, detach, runBeforeSave, setQuarantineHandler };
+}
+```
+
+---
+
+### 3. Regression Test Asserting AC-01 (`word-count` End-to-End)
+
+```typescript
+import { describe, it, expect, beforeEach } from "vitest";
+import { createHookRegistry } from "../files/plugin-runtime/hook-registry";
+import { setPluginEnabled } from "../files/plugin-runtime/activation";
+import { loadPlugin } from "../files/plugin-runtime/loader";
+import type { PluginDiscoveryRecord } from "../files/plugin-runtime/discovery";
+import type { ContentEntryDraft } from "../../packages/sdk/src/index";
+
+describe("AC-01 Integration: SPEC-005 Enable Path & Word Count Hook", () => {
+  let hookRegistry: ReturnType<typeof createHookRegistry>;
+
+  beforeEach(() => {
+    hookRegistry = createHookRegistry();
+  });
+
+  it("attaches word-count filter and writes ext.word-count.count on save", async () => {
+    const discoveryRecord: PluginDiscoveryRecord = {
+      id: "word-count",
+      source: "site",
+      status: "valid",
+      version: "1.0.0",
+      manifest: {
+        id: "word-count",
+        name: "Word Count",
+        version: "1.0.0",
+        sdkRange: "^0.1.0",
+        engine: 1,
+        tier: "tier-3",
+        capabilities: ["hooks.attach", "content.extend"],
+        hooks: ["content.entry.beforeSave"],
+        fields: [{ path: "ext.word-count.count", type: "integer", queryable: false }],
+        integrity: { "server/index.mjs": "sha256-mock" },
+      },
+      errors: [],
+    };
+
+    const mockActivationRepo = {
+      getActivation: async () => null,
+      save: async () => {},
+      listAll: async () => [],
+    };
+
+    // Simulated plugin entry module
+    const mockImportModule = async () => ({
+      setup(sdk: any) {
+        sdk.addFilter("content.entry.beforeSave", (entry: ContentEntryDraft) => {
+          const words = entry.body ? entry.body.trim().split(/\s+/).length : 0;
+          return { count: words };
+        });
+      },
+    });
+
+    // Execute SPEC-005 enable path
+    await setPluginEnabled({
+      deps: {
+        clock: { nowIso: () => "2026-08-12T10:00:00Z" },
+        repo: mockActivationRepo,
+        discovery: [discoveryRecord],
+        onEnabled: async (pluginId) => {
+          const res = await loadPlugin(
+            { record: discoveryRecord, manifest: discoveryRecord.manifest, entryPath: "/plugins/word-count/server/index.mjs" },
+            {
+              hookRegistry,
+              importModule: mockImportModule,
+              computeFileHash: async () => "sha256-mock",
+            }
+          );
+          expect(res.loaded).toBe(true);
+        },
+      },
+      input: { workspaceId: "ws-123", pluginId: "word-count", enabled: true },
+    });
+
+    // Execute content save through hook registry
+    const draft: ContentEntryDraft = {
+      id: "post-1",
+      workspaceId: "ws-123",
+      title: "Hello World",
+      body: "This is a test post with eight words.",
+      ext: {},
+    };
+
+    const extResult = await hookRegistry.runBeforeSave(draft);
+
+    // Assert AC-01: ext.word-count.count is written
+    expect(extResult).toEqual({
+      "word-count": {
+        count: 8,
+      },
+    });
+  });
+});
+```
+
+---
+
+## Critique Of Another Participant's Round 2 Code
+
+### Critique 1: `gemini-3.6-flash-high-round2` (Activation State Atomicity Defect)
+In `gemini-3.6-flash-high-round2` (lines 313–316), the proposed enablement sequence states:
+> *"setPluginEnabled() ... must be wired to pass a composition-root onEnabled handler that: (a) executes loadPlugin(), (b) passes capability SDK to setup(), and (c) calls attachLoadedPlugin()."*
+
+**Contract Defect:** `files/plugin-runtime/activation.ts:127-130` saves the database row (`await deps.repo.save(activation)`) **before** invoking `await deps.onEnabled?.(input.pluginId)`. If `loadPlugin()`, module evaluation, or `setup()` throws an exception (e.g., dynamic import error or failed integrity check), `setPluginEnabled()` propagates the error, but the `plugin_activations` row remains written as `enabled: true`. On subsequent server boots, `getActivation()` reports the plugin as enabled even though setup failed. The code must include a transactional `try/catch` rollback in `setPluginEnabled()` to revert the activation record on failure.
+
+### Critique 2: `sonnet5-round2` (Circuit Breaker State Leak)
+In `sonnet5-round2` (lines 255–260), the proposed `onDisabled` callback is described as:
+> *"onDisabled: (id) => deps.hookRegistry.detach(id)"*
+
+**Contract Defect:** Detaching a plugin removes its entry from `attachments.delete(pluginId)`, but if circuit breaker state (consecutive error count) is stored in a external map or retained across re-attaches, re-enabling a previously failing plugin immediately inherits stale failure counters. `attach()` must reset `consecutiveFailures: 0` explicitly so that manual operator re-enablement via `PATCH .../plugins/:id {enabled: true}` provides a clean slate.
+
+---
+
+## What Would Change My Mind
+
+1. **Native V8 Sandbox Benchmarks:** If microbenchmarks demonstrate that `structuredClone()` adds $>15\text{ms}$ latency overhead during high-frequency batch imports ($>1,000$ entries/sec), I would support replacing deep clones with `Object.freeze()` proxies for `ContentEntryDraft`.
+2. **IPC Overhead Metrics:** If process IPC round-trip latency for Tier-2 `utilityProcess` execution drops below $0.5\text{ms}$, I would advocate moving Rung 1 process isolation ahead of Tier-1 primitive expansion.
+
+<<SWARM_END>>

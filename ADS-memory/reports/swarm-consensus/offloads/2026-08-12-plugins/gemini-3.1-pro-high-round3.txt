@@ -1,0 +1,202 @@
+ACK_PACKET_RECEIVED CTX-PLUGINS-R3-2026-08-12 -- I received the packet and will work on it.
+
+## Position And Movement
+
+The verification of the unwired enable path fundamentally dictates the next steps. The fact that `setup()` and hook attachments are completely disconnected in production means that the immediate gating issue is **functional correctness and failure containment**, not abstract catalog growth or sandbox architecture. 
+
+In this round, my position solidifies on executing a tight, three-part sequence: 
+1. **P0: Complete the Wire.** The composition root must capture the imported module from `loadPlugin()`, construct the capability-scoped SDK, and explicitly invoke the plugin's `setup()` function before registering its filter.
+2. **P0: Deploy Auto-Quarantine.** As highlighted by `EC-10`, a single throwing filter currently blocks all saves across the site. The hook registry must track consecutive filter failures and invoke a local circuit breaker to auto-disable the offending plugin using the same `REQ-07` gateway path.
+3. **P1: Audit the ABI Freeze.** We must fix the shallow snapshot vulnerability identified in Round 2, ensuring that nested properties are deep-cloned before crossing the SDK boundary. 
+
+Until these three foundational pieces are in place and proven by an end-to-end regression test, any effort to expand Tier-1 primitives or widen the hook surface is building on top of a broken loop.
+
+## Sources
+
+To verify the load-bearing external claims regarding auto-quarantine and capability-scoped SDKs, I consulted the following primary sources:
+
+1. **WordPress Recovery Mode (Auto-Quarantine)** 
+   - *Source:* [WordPress.org Support: Troubleshooting - Recovery Mode](https://wordpress.org/documentation/article/faq-troubleshooting/)
+   - *Findings:* Introduced in WordPress 5.2, Recovery Mode catches fatal PHP errors (which would otherwise cause the "White Screen of Death") and prevents the site from completely breaking. The faulty plugin or theme is automatically paused for the admin session, and an email is dispatched to the administrator with a secure link to enter Recovery Mode and manually deactivate the plugin. This confirms that modern CMS ecosystems treat misbehaving extensions with automated fail-closed pauses rather than process termination.
+2. **Figma Plugin Architecture (Capability & Isolation)**
+   - *Source:* [Figma Plugin API Documentation](https://www.figma.com/plugin-docs/how-plugins-run/)
+   - *Findings:* Figma uses a split execution model where document manipulation occurs in a strict JavaScript sandbox with a `figma` global object, while UI and network requests run in a separate `iframe`. This confirms that capability-scoped SDKs (like our `buildCapabilityScopedSdk`) are an established pattern for enforcing strict boundaries on what an extension can do, without necessarily requiring heavy out-of-process IPC for basic DOM/document access.
+3. **Agoric Object-Capability (OCap) Model**
+   - *Source:* [Agoric OCap Documentation](https://agoric.com/technology/ocap/)
+   - *Findings:* Agoric's smart contract platform relies on the Object-Capability model where access to a reference *is* the permission to use it. This strongly validates Tovu's decision in `capability-sdk.ts` to pass a custom-built SDK object to `setup()`, granting only the requested capabilities, rather than relying on global permissions or ambient authority.
+
+## Solution Slate
+
+**Ranking Criteria:** 
+1. **Safety:** Does the solution prevent a single broken plugin from bricking the host application (`EC-10`)?
+2. **Integrity:** Does the solution honor the `ADR-024` ABI freeze and structured-clone serialization rules?
+3. **Ergonomics:** Does the solution maintain a clean, testable boundary between the core registry and the activation lifecycle?
+
+**Option A (Recommended): In-Process Wiring with Circuit Breaker**
+- **Approach:** Modify `loader.ts` to return the imported module. Inject an `onEnabled` callback via the composition root that calls `setup()` with a capability-scoped SDK. Implement a failure counter in `hook-registry.ts` that triggers an `onQuarantine` callback to disable the plugin after 3 consecutive failures. Deep clone the entry snapshot via `structuredClone`.
+- **Trade-offs:** 
+  - *Pros:* Fully resolves the `EC-10` site-bricking bug. Maintains synchronous, fast execution for valid hooks. Preserves the testable separation of concerns.
+  - *Sacrifice:* Requires adding state (failure counters) into the `hook-registry.ts` singleton, slightly increasing memory overhead per attached plugin.
+- **Falsification Test:** Enable a plugin that throws an error in its `beforeSave` filter. Attempt to save an entry 4 times. The first 3 should fail, but the 4th must succeed because the plugin should be automatically disabled and detached.
+
+**Option B: Out-of-Process Quarantine (V8 Isolate Sandbox)**
+- **Approach:** Move the entire plugin execution into a separate V8 isolate or Worker Thread. If the thread crashes or hangs, the main thread catches the timeout and quarantines the plugin.
+- **Trade-offs:**
+  - *Pros:* Provides true memory and CPU isolation. A tight infinite loop in a plugin cannot freeze the main Electron process.
+  - *Sacrifice:* Monumentally expensive to engineer in the short term. Violates the immediate mandate to fix the wiring *now* using the existing architecture. Serialization overhead across threads would severely impact batch-save performance.
+
+## Leading Option — Code
+
+Below is the real TypeScript code implementing **Option A**, consistent with the contracts in `files/`.
+
+### 1. `plugin-runtime/loader.ts` (Return the module)
+```typescript
+export type LoadPluginResult =
+  | { readonly loaded: true; readonly moduleExports: any }
+  | { readonly loaded: false; readonly reason: "INTEGRITY_FAILED" | "SDK_RANGE_UNSATISFIED" | "CODE_ENTRY_MISSING" };
+
+// Inside loadPlugin()...
+  let moduleExports: any;
+  try {
+    moduleExports = await importModule(entryPath);
+  } catch {
+    return { loaded: false, reason: "CODE_ENTRY_MISSING" };
+  }
+
+  // Steps (4)-(5) are executed by the caller (composition root) using the returned exports
+  return { loaded: true, moduleExports };
+```
+
+### 2. Composition Root (The Wire)
+```typescript
+import { loadPlugin, attachLoadedPlugin } from "./plugin-runtime/loader";
+import { buildCapabilityScopedSdk } from "./plugin-runtime/capability-sdk";
+import { setPluginEnabled } from "./plugin-runtime/activation";
+
+// This is injected into setPluginEnabledRequired.deps in the boot/route layer
+const onEnabled = async (pluginId: string) => {
+  const record = currentDiscoverySnapshot.find(r => r.id === pluginId)!;
+  
+  const result = await loadPlugin({
+    record,
+    manifest: record.manifest,
+    entryPath: record.entryPath
+  });
+
+  if (!result.loaded) {
+    throw new Error(`Failed to load plugin: ${result.reason}`);
+  }
+
+  const sdk = buildCapabilityScopedSdk({
+    pluginId,
+    capabilities: record.manifest.capabilities,
+    coreDeps: {
+      getCurrentEntry: () => coreServices.getCurrentEntry(),
+      writeExtField: (field, value) => coreServices.writeExtField(field, value),
+      attachFilter: (hookName, filter) => {
+        attachLoadedPlugin({
+          pluginId,
+          source: "site",
+          hookRegistry: coreServices.hookRegistry,
+          filter,
+          declaredFields: record.manifest.declaredFields
+        });
+      }
+    }
+  });
+
+  // Call setup() 
+  const setupFn = result.moduleExports.default?.setup ?? result.moduleExports.setup;
+  if (typeof setupFn === "function") {
+    await setupFn(sdk);
+  }
+};
+```
+
+### 3. `plugin-runtime/hook-registry.ts` (ABI Freeze & Auto-Quarantine)
+```typescript
+export interface HookRegistryOptions {
+  /** Called when a plugin fails repeatedly and should be disabled via setPluginEnabled */
+  onQuarantine?: (pluginId: string, error: Error) => void;
+}
+
+export function createHookRegistry(options?: HookRegistryOptions): HookRegistry {
+  const attachments = new Map<string, Attachment>();
+  const errorCounters = new Map<string, number>();
+
+  function attach(pluginId: string, source: AttachmentSource, filter: BeforeSaveFilter, declaredFields: readonly HookRegistryFieldDecl[]): void {
+    attachments.set(pluginId, { source, filter, declaredFields });
+    errorCounters.set(pluginId, 0); // Reset on clean attach
+  }
+
+  function detach(pluginId: string): void {
+    attachments.delete(pluginId);
+    errorCounters.delete(pluginId);
+  }
+
+  async function runBeforeSave(entry: Readonly<ContentEntryDraft>): Promise<JsonObject> {
+    const ordered = [...attachments.entries()].sort(compareTb01);
+    const merged: Record<string, JsonObject> = {};
+
+    for (const [pluginId, attachment] of ordered) {
+      // FIX: Deep clone nested objects to prevent live-reference mutation (ADR-024 §3)
+      const snapshot: ContentEntryDraft = structuredClone({ ...entry, ext: { ...entry.ext, ...merged } });
+      const ctx = { pluginId, workspaceId: entry.workspaceId };
+
+      let patch: unknown;
+      try {
+        patch = await attachment.filter(snapshot, ctx);
+        errorCounters.set(pluginId, 0); // Reset on success
+      } catch (error) {
+        const failures = (errorCounters.get(pluginId) ?? 0) + 1;
+        errorCounters.set(pluginId, failures);
+
+        const hookError = new PluginHookFailedError(pluginId, `filter failed: ${error instanceof Error ? error.message : String(error)}`, { cause: error });
+
+        // Auto-quarantine on 3 consecutive failures
+        if (failures >= 3) {
+          detach(pluginId);
+          options?.onQuarantine?.(pluginId, hookError);
+        }
+        
+        throw hookError;
+      }
+      // ... remainder of validation unchanged
+```
+
+### 4. Regression Test (`loader.integration.test.ts`)
+```typescript
+it("AC-01: enables plugin through SPEC-005 path, fires setup(), and writes to ext on save", async () => {
+  // 1. Enable the plugin via the documented REQ-07 gateway
+  await setPluginEnabled({
+    deps: { clock, repo, discovery, onEnabled, onDisabled },
+    input: { workspaceId: "ws-1", pluginId: "word-count", enabled: true }
+  });
+
+  // 2. Simulate a save operation
+  const draft = { workspaceId: "ws-1", bodyJson: "hello world" };
+  const extPatch = await hookRegistry.runBeforeSave(draft);
+
+  // 3. Assert the hook was actually attached and executed
+  expect(extPatch["word-count"]).toBeDefined();
+  expect(extPatch["word-count"]["count"]).toBe(2);
+});
+```
+
+## Critique Of Another Participant's Round 2 Code
+
+I am critiquing **gemini-3.6-flash-high-round2**'s proposed ABI specification change regarding the `beforeSave` filter type signature. 
+
+They observed that `hook-registry.ts:170` executes `patch = await attachment.filter(snapshot, ctx);` and concluded:
+> *"The specification documentation must be updated to explicitly require `Promise<ExtPatch>`, enforcing ADR-024 §3's async-only rule"*
+
+**This is incorrect and ergonomically unsafe.** In TypeScript/JavaScript, the `await` keyword safely unwraps both Promises and synchronous values. By forcing the spec to strictly require `Promise<ExtPatch>`, `gemini-3.6-flash-high` would force every single plugin author to wrap their fast, synchronous filters (e.g., a simple word counter) in `async () => ...` or `Promise.resolve(...)`. 
+
+The correct signature mapping for a transport-agnostic ABI that gracefully handles in-process execution is `(entry, ctx) => ExtPatch | Promise<ExtPatch>`. The registry's usage of `await` perfectly supports this union without requiring the author to artificially promisify their code. Updating the spec to strictly mandate a Promise introduces friction, harms V8 optimization for synchronous paths, and breaks standard JS idioms.
+
+## What Would Change My Mind
+
+- **If `structuredClone` introduces a proven, unacceptable latency spike** during large batch saves containing massive `bodyJson` payloads. In that case, I would fallback to using deep-freeze proxies or explicitly mutating a shallow clone, though that would necessitate a larger rewrite of the registry's isolation guarantees.
+- **If the gateway path (`setPluginEnabled`) cannot be safely invoked asynchronously** from within the `runBeforeSave` loop without causing transaction deadlocks in the SQLite repo. If so, the `onQuarantine` callback would need to rely on a deferred event bus rather than direct execution.
+
+<<SWARM_END>>

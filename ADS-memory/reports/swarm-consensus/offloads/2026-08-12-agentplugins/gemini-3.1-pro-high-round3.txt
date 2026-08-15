@@ -1,0 +1,141 @@
+ACK_PACKET_RECEIVED CTX-AGENTPLUGINS-R3-2026-08-12 -- I received the packet and will work on it.
+
+## Position And Movement
+
+**Position held, with adjustments for real containment and extraction realities.**
+The Operator must explicitly admit a plugin's MCP tools; auto-admission from a plugin's `mcp.json` breaks the foundational `mcp-federation/trust.ts` rule that an allowlist is authored independently of the classified entity. 
+
+**Movement on Folder Location:**
+The Coordinator's proposal to use `infra/agent-plugins/ws/<workspaceId>/<pluginId>/` is conceptually flawed. Agent Plugins carrying MCP servers execute as subprocesses. Subprocesses launched via `child_process.spawn` (as `adapter.stdio.ts` does) share the host environment and execute outside any workspace boundary. Scoping them to a workspace directory offers a false sense of isolation and introduces painful version conflicts if two workspaces try to run the same plugin. The plugins must be installed **per-instance** outside the application source tree, strictly separating `PLUGIN_ROOT` (read-only package assets) and `PLUGIN_DATA` (per-workspace writable state).
+
+## Sources
+
+1. **Agent Plugins Specification (`install` and `paths`)**: The official Agent Plugins v1.0.0 spec defines the package format and runtime requirements (e.g. providing `${PLUGIN_ROOT}` and `${PLUGIN_DATA}` to processes), but deliberately omits an installation protocol or marketplace design. This is left entirely to the client's discretion (Source: `agent-plugins.org` spec).
+2. **Comparable Client Isolation**: Clients like VS Code isolate third-party plugins in a global, client-specific directory (e.g., `~/.config/Code/agentPlugins/` or `%APPDATA%`), rather than per-workspace. This reflects the reality that unless the execution environment is strictly containerized per-workspace (e.g. via OCI containers or VMs), the plugin code executes with user-level privileges globally.
+3. **Zip Slip & Archive Traversal Mitigations**: Zip Slip is a widespread archive extraction vulnerability where an attacker uses traversal sequences (`../`) in filenames to overwrite files outside the target directory, often achieving RCE (Source: Snyk Zip Slip research). The standard industry mitigation forbids string-based traversal checks like `.includes("..")`, mandating instead that the output path be converted to a canonical, absolute path (resolving all symbolic links) and verified to strictly start with the canonical absolute path of the intended destination directory.
+
+## Solution Slate
+
+**Ranking Criteria:** (1) Structural safety against Zip-Slip and path traversal during extraction and preview; (2) Uncompromised adherence to the existing `mcp-federation` trust architecture; (3) Honest UI representation that never executes unvetted third-party code.
+
+1. **(Recommended) Per-Instance Global Install + Strict Canonical Path Verification + Operator MCP Admission**
+   - **Trade-offs / Sacrifice:** The user cannot immediately execute MCP tools from an installed plugin. Tovu operators must manually review and add tools to `allowedToolNames`, preventing the "one-click install-and-run" dream for third-party marketplace assets.
+   - **Architecture:** Plugins are downloaded to `infra/agent-plugins/global/<pluginId>`. Extraction enforces absolute canonical path containment against Zip-Slip. Skills are projected into the Composer, while MCP configs are parsed but blocked from execution pending manual allowlisting.
+2. **Per-Workspace Install with Auto-Admission (The Coordinator's Proposal)**
+   - **Trade-offs / Sacrifice:** Major security compromise. Auto-admitting MCP tools allows arbitrary marketplace plugins to self-promote and execute native subprocesses. Installing in a `ws/<workspaceId>` folder creates a fragmented cache and illusory containment since the process still runs on the host OS.
+3. **Skills-Only Extraction (Zero MCP execution)**
+   - **Trade-offs / Sacrifice:** Drops all MCP capabilities from Agent Plugins. We gain perfect safety by only extracting markdown files into contexts, but sacrifice the actual dynamic utility of the standard entirely.
+
+**Cheapest Falsifying Test for the Recommended Option:**
+Inject a maliciously crafted ZIP archive with a file named `..\..\..\etc\passwd` or a symlink attempting to escape the extraction root. If the extractor does not throw a path traversal error during the canonical absolute prefix check, the extraction logic is fatally vulnerable to Zip-Slip.
+
+## Leading Option — Code
+
+This code ensures that Zip-Slip is impossible during extraction and correctly projects the capabilities by delegating MCP admission to `trust.ts`.
+
+```typescript
+import path from "node:path";
+import fs from "node:fs/promises";
+import { 
+  federatedToolId, 
+  assertValidConnectionId 
+} from "../tovu/mcp-federation/trust.js";
+
+// 1. Where the folder lives: Per-instance, global cache outside the source tree.
+export function getPluginInstallRoot(pluginId: string): string {
+  // Never per-workspace. Subprocesses share the host; containment is per-instance.
+  return path.resolve(process.cwd(), "infra/agent-plugins/global", pluginId);
+}
+
+// 2. The Extraction & Path containment (Zip-Slip Mitigation)
+export async function getSafeExtractionPath(rootPath: string, archiveEntryName: string): Promise<string> {
+  const absoluteRoot = await fs.realpath(rootPath); // Resolves symlinks of the base dir
+  
+  // path.resolve normalizes '..' and backslashes cross-platform
+  const absoluteCandidate = path.resolve(absoluteRoot, archiveEntryName);
+
+  // The critical Zip-Slip check: Ensure the resolved candidate is strictly within the root
+  if (!absoluteCandidate.startsWith(absoluteRoot + path.sep) && absoluteCandidate !== absoluteRoot) {
+    throw new Error(`Zip-Slip traversal attempt rejected for entry: '${archiveEntryName}'`);
+  }
+  
+  return absoluteCandidate;
+}
+
+// 3. Capability Descriptor Adapter mapping to the Composer
+export interface CapabilityDescriptor {
+  readonly id: string;
+  readonly label: string;
+  readonly kind: "skill" | "mcp-tool";
+  readonly execute: { kind: "insert-text", text: string } | { kind: "unavailable", reason: string };
+  readonly provenance: { sourceLabel: string; trustTier: string };
+}
+
+export function buildAgentPluginDescriptors(
+  pluginId: string,
+  skills: { name: string, markdown: string }[],
+  mcpServer: { serverId: string, tools: string[] } | null,
+  allowedToolNames: ReadonlySet<string>
+): CapabilityDescriptor[] {
+  const descriptors: CapabilityDescriptor[] = [];
+
+  // Skills -> Direct Context Injection
+  for (const skill of skills) {
+    descriptors.push({
+      id: `agent-plugin:${pluginId}:skill:${skill.name}`,
+      label: skill.name,
+      kind: "skill",
+      execute: { kind: "insert-text", text: skill.markdown },
+      provenance: { sourceLabel: pluginId, trustTier: "unreviewed-third-party" }
+    });
+  }
+
+  // MCP Servers -> Default unavailable pending Operator admission
+  if (mcpServer) {
+    assertValidConnectionId(mcpServer.serverId);
+    
+    for (const toolName of mcpServer.tools) {
+      // Create the namespaced ID using the existing R1 rule
+      const qualifiedId = federatedToolId(mcpServer.serverId, toolName);
+      const isAdmitted = allowedToolNames.has(toolName);
+
+      descriptors.push({
+        id: `agent-plugin:${pluginId}:mcp:${toolName}`,
+        label: toolName,
+        kind: "mcp-tool",
+        // Do not return "tool-call". The federated connection handles execution post-admission.
+        execute: { 
+          kind: "unavailable", 
+          reason: isAdmitted 
+            ? "Tool is admitted, but executed via the ToolRegistry, not composer slash commands." 
+            : "Requires explicit Site Operator admission in allowedToolNames (trust.ts R2)."
+        },
+        provenance: { sourceLabel: pluginId, trustTier: isAdmitted ? "federated" : "unadmitted-mcp" }
+      });
+    }
+  }
+
+  return descriptors;
+}
+```
+
+## Critique Of Another Participant's Round 2 Code
+
+In `gemini-3.1-pro-high-round2`, the participant wrote the following logic to enforce path traversal rejection for previews:
+
+```typescript
+  // N3: Path-traversal rejection
+  if (relativePath.includes("..") || relativePath.startsWith("/")) {
+    throw new Error("Path traversal denied");
+  }
+```
+
+This code is fundamentally unsafe and naive against known Zip-Slip / traversal CVE vectors. It strictly fails because it does not account for backslash directory separators (`..\..\etc\passwd`) when evaluated on Windows environments, URL-encoded dot traversal (`%2e%2e`), or symlink resolution escaping the root bounds on disk. In standard security mitigations, paths must be fully resolved (`path.resolve`) against the absolute root directory and explicitly checked to ensure the resulting path starts with `rootPath + path.sep`, rather than relying on string-based `.includes()` checks. Additionally, `gemini-3.1-pro-high-round2` invented an `executeBinding: { action: "dispatch-tool" }` output which silently fails to compile against the real Jini composer's selection mechanism, bypassing existing UI constraints entirely.
+
+## What Would Change My Mind
+
+- The upstream Agent Plugins specification adding a cryptographically signed marketplace manifest, which would provide an independent identity we could theoretically map to an initial trust tier.
+- Tovu shipping an isolated, OS-level subprocess sandbox (e.g., Landlock or lightweight containers) for `adapter.stdio.ts`, making unvetted MCP tool execution significantly safer and reducing the need for strict operator manual review.
+- A product decision stating that `skills/` files should also be subject to an operator allowlist, which would force us to abandon the current "skills are just passive context" strategy.
+
+<<SWARM_END>>

@@ -1,0 +1,135 @@
+ACK_PACKET_RECEIVED CTX-CODE-TIER-R3-2026-08-12 -- I received the packet and will work on it.
+
+## Position And Movement
+
+My position on the runtime boundary is settled: **Frameworks compile to the existing `static` tier at build-time. Tovu must not execute framework code on the server, nor should Tovu's server execute author `npm run build` scripts.** Tovu's server lacks the process isolation required to safely execute arbitrary Node scripts (like `postinstall` or native dependencies). The theme author or publisher CI performs the build, and Tovu installs only the prebuilt artifact.
+
+The SEO constraint raised by the owner is paramount: static pages are crawled effectively by all bots, but interactive islands hydrated with client-side JS create issues for AI crawlers (like GPTBot or ClaudeBot), which typically *do not* execute JavaScript during indexing. This means **essential content must reside in the static HTML**. My design enforces this structurally through the `static` tier's rewrite contract: Tovu's server owns the route layer and injects content into the page using literal JSON markers (`{"type":"content"}`). The built artifacts must declare these markers natively in the raw HTML without relying on hydration. Web components and framework chunks are strictly limited to interactive islands, and a load-time conformance check ensures the built artifacts haven't obfuscated or minified the required static marker contracts.
+
+To align with this reality, the theme system must explicitly recognize two lifecycles: **Authored** (mutable, agent-authorable, per-file resettable) and **Built** (compiled, opaque, read-only generated output, atomic whole-artifact restore). This split is not a degradation; it is an honest representation of how modern framework output functions.
+
+## Sources
+
+*   **Google Search Central - JavaScript SEO Basics:** Confirmed that while Googlebot relies on a two-phase process (crawling static HTML, then rendering via headless Chromium), many AI crawlers do not execute JavaScript. Essential content MUST be in the initial HTML for visibility. Islands architecture is the recommended SEO-friendly approach, but only if the critical content sits outside the hydration boundary.
+*   **Astro / Nuxt / Angular Build Contracts:** Confirmed that post-build file manipulation (via Node.js scripts or `nitro` hooks) is required to safely inject custom markers (like Tovu's exact `<link rel="stylesheet">` token injection target) into static exports. The frameworks' bundlers will otherwise minify or strip unrecognized literals, meaning our conformance suite must gate them *before* they are accepted into the catalog.
+
+## Solution Slate
+
+**Option 1: Compile to Static Artifacts (Author Builds Locally) — LEADING**
+*   **Criteria:** Must avoid arbitrary code execution on the server, must pass strict token/asset rewrites, and must guarantee SEO-safe HTML.
+*   **Design:** Frameworks compile to the `static` tier. Tovu adds a `prebuilt: boolean` flag and `author`/`sourceRepo`/`hashes` fields to `theme.json` to formally identify built artifacts. Tovu enforces a load-time conformance check verifying that the bundler hasn't stripped the CSS sentinel or malformed asset paths. Generated output files (`pages/`, `css/`, `js/`) are locked against per-file resets, pushing the user toward atomic artifact restores instead.
+*   **Trade-offs:** We lose the in-product live-editing loop for framework themes. 
+*   **Sacrifice:** Built themes cannot be repaired file-by-file by `theme_write_file`. The agent must instruct the user to rebuild locally.
+
+**Option 2: Client-only Islands with No Server Build**
+*   **Criteria:** Maintain live-editability while supporting frameworks without server execution.
+*   **Design:** Framework components ship as browser bundles hydrating into mount points via ES modules and import maps (e.g., Vue's runtime compiler). 
+*   **Trade-offs:** Requires shipping heavy runtime compilers directly to the browser, significantly increasing client payload size. Completely unviable for React, which requires a JSX transform before the browser can execute it.
+*   **Sacrifice:** Degrades client-side performance and explicitly sacrifices React support, despite it being the most requested framework.
+
+## Leading Option — Code
+
+Below are the changes implemented in `files/src/features/theme/` to support Option 1. 
+
+**1. Theme Package Manifest & `parseTier` Fix (`theme.ts`)**
+```typescript
+export interface ThemeManifest {
+  id: string;
+  name: string;
+  author?: string;
+  prebuilt?: boolean;
+  hashes?: Record<string, string>;
+  sourceRepo?: string;
+  version: string;
+  tier: ThemeTier;
+  // ...
+}
+
+function parseTier(value: JsonValue | undefined): ThemeTier {
+  if (typeof value !== "string" || !(THEME_TIERS as readonly string[]).includes(value)) {
+    throw new Error(`tier must be one of: ${THEME_TIERS.join(", ")}`); // Fails closed
+  }
+  return value as ThemeTier;
+}
+
+// In loadTheme:
+manifest = {
+  id: String(raw.id ?? id),
+  name: String(raw.name ?? id),
+  author: typeof raw.author === "string" ? raw.author : undefined,
+  prebuilt: raw.prebuilt === true,
+  hashes: isObject(raw.hashes) ? Object.fromEntries(Object.entries(raw.hashes).map(([k, v]) => [k, String(v)])) : undefined,
+  sourceRepo: typeof raw.sourceRepo === "string" ? raw.sourceRepo : undefined,
+  // ...
+}
+```
+
+**2. Conformance Check for Built Artifacts (`theme.ts`)**
+```typescript
+function validateStaticArtifactConformance(pages: Record<string, string>): string[] {
+  const errors: string[] = [];
+  for (const [pageId, html] of Object.entries(pages)) {
+    if (!html.includes('<link rel="stylesheet" href="../css/styles.css" />')) {
+      errors.push(`pages/${pageId}.html is missing the exact CSS sentinel '<link rel="stylesheet" href="../css/styles.css" />' required for token injection`);
+    }
+    // Verify asset rewriting prefixes are double-quoted
+    if (html.includes("href='../css/") || html.includes("src='../js/")) {
+      errors.push(`pages/${pageId}.html contains single-quoted '../css/' or '../js/' asset paths, which asset rewriting will miss`);
+    }
+  }
+  return errors;
+}
+
+// Inside loadStaticTierAssets:
+if (required.prebuilt) {
+  errors.push(...validateStaticArtifactConformance(pages));
+}
+```
+
+**3. Per-file Reset Behavior (`theme-files.ts`)**
+```typescript
+import { ENGINE_SUBFOLDERS, THEME_CATALOG_DIR, type ThemeTier } from "./theme";
+
+/**
+ * Restore one file inside a theme's folder from its pristine catalog original.
+ * Strictly enforces the authored source vs generated output split for built releases.
+ */
+export function restoreThemeFile(
+  required: { themeDir: string; themesRoot: string; tier: ThemeTier; themeId: string; relativePath: string; prebuilt?: boolean },
+  _optional: Record<string, never> = {}
+): string {
+  const { themeDir, themesRoot, tier, themeId, relativePath, prebuilt } = required;
+  const target = resolveThemeFilePath({ themeDir, themesRoot, relativePath });
+  
+  if (prebuilt) {
+    const posix = relativePath.split(/[\\/]/).join("/");
+    if (posix.startsWith("pages/") || posix.startsWith("css/") || posix.startsWith("js/")) {
+      throw new ThemePathError(`Per-file reset is not supported for generated output file '${relativePath}' in a built release. Use a full artifact restore instead.`);
+    }
+  }
+
+  const catalogDir = join(themesRoot, THEME_CATALOG_DIR, tier, themeId);
+  const source = resolveThemeFilePath({ themeDir: catalogDir, themesRoot, relativePath });
+  
+  if (!existsSync(source)) {
+    throw new ThemePathError(`File '${relativePath}' does not exist in the original catalog.`);
+  }
+  
+  mkdirSync(dirname(target), { recursive: true });
+  copyFileSync(source, target);
+  return target;
+}
+```
+
+## Critique Of Another Participant's Round 2 Code
+
+**gemini-3.6-flash-high**'s Round 2 response asserts that `theme_write_file` should degrade gracefully by returning a mock status string instead of writing the file: *"Writing a source file updates disk state and returns a structured status: 'Source updated. Rebuild required via CLI/CI to update live served artifact.'"*
+
+This construct is fundamentally unsafe and breaks the real `WRITE_FILE_SCHEMA` contract defined in `agent-tools.ts:151`. The `theme_write_file` tool does not return an arbitrary string; it returns the strongly-typed re-validated theme state (with `status: "valid" | "invalid"` and `errors: string[]`). Attempting to return a custom status string here would not compile against the real agent schema and would cause the agent execution layer to fail. Furthermore, the assumption that writing to `src/*` magically protects the live site is flawed—any tool write instantly triggers the global `loadTheme` revalidation for the active theme, and a syntax error in an updated `theme.json` or `tokens.json` (which are also source files) would immediately degrade the live site to fallback mode, despite the build step.
+
+## What Would Change My Mind
+
+*   **Evidence that the primary target persona categorically refuses local builds:** If telemetry or user interviews prove that the demand for React/Vue themes comes strictly from non-technical site owners who refuse to run a CLI toolchain—and not from professional marketplace developers—then Option 1 solves a problem for a non-existent customer. In that scenario, I would pivot to abandoning the framework initiative entirely in favor of a native JSX-to-declarative visual compiler within Tovu.
+*   **The delivery of a tested, zero-overhead OS sandbox for Node builds:** If Tovu shipped an ephemeral, containerized build runner (e.g. gVisor) that could execute `npm run build` without exposing host credentials, filesystems, or networks, I would happily endorse "Tovu-runs-build" as the superior UX. 
+
+<<SWARM_END>>

@@ -3,21 +3,20 @@
 > **Scope.** This is the **Tovu website-product** backlog (CMS runtime: kernel,
 > data layer, content model, theme/plugin systems, admin UI, SEO/AEO/GEO plugins,
 > WordPress/Payload/Directus/Ghost parity). It moved here in the 2026-07-06 repo
-> split. Cross-references to `src/…` mean code that currently lives in
-> **`Tovu-Runner/web/src`** and should be evaluated for **porting here** (see
-> `START-HERE.md`), not rebuilt. Operator-shell / media-generation / agent-detection
-> / the operator chat profile are **not** here — they're tracked in **Tovu-Runner**.
-> The `Completed (Architecture)` scaffold note below refers to the pre-split
-> `tovu/` layout that is now Runner's `web/src`.
+> split. Cross-references to `src/…` and `apps/…` now refer to code in **this
+> repository**; they are no longer merely Tovu-Runner port candidates.
+> Operator-shell / media-generation / agent-detection / the operator chat profile
+> remain tracked in **Tovu-Runner**.
 >
-> **Start with the v1 first slice in `START-HERE.md`** before working down this list —
-> most items below are gated behind that walking skeleton.
+> `START-HERE.md` remains the architecture orientation document, but its greenfield
+> status language is historical. Verify every backlog claim against current source
+> before treating it as open.
 
 **Reference (added 2026-07-14):** competitive positioning vs. WordPress/Strapi/Directus/Payload/Ghost
 (where Tovu is ahead vs. genuinely behind) + an agentic-control-plane/MCP-WebMCP-A2UI-MCP-UI readiness
 gap analysis, written right after ADR-041/043/044/045 (Storage/Collections/Categories&Tags/Backups-Recovery)
-were accepted. Informal, not debated/audited — a reference to revisit before/during the Admin Section Spec
-Sweep's "competitor teardown" step below, and before building the eventual agent tool catalog. See
+were accepted. Informal, not debated/audited — a reference to revisit during future parity work and
+before building the eventual agent tool catalog. See
 `ADS-memory/reports/strategy/20260714-competitive-positioning-and-agentic-mcp-readiness.md`.
 
 ---
@@ -45,10 +44,10 @@ these two items) was overtaken by far more rigorous work: both went through the 
 
 ---
 
-## 🔧 IN PROGRESS 2026-07-28 — finish SPEC-003 recertification + Code Review (resume here)
+## 🔧 IN PROGRESS 2026-07-28 — finish SPEC-003 recertification + Code Inspection (resume here)
 
 **SPEC-003** (`tovu init`/`tovu serve`/`tovu --help` CLI surface) is implementation-complete and has
-been through one full TDD recertification round this session, but is not yet through Code Review:
+been through one full TDD recertification round this session, but is not yet through Code Inspection:
 - TestRunner found 3 blockers; TDD fixed 2 for real (both independently re-verified by direct test
   runs, not just trusted): the `EC-05` locked-db test's broken lock-priming fixture, and the
   `serve-command` port-boundary test's indefinite hang (no timeout on a synchronous CLI spawn).
@@ -65,23 +64,23 @@ been through one full TDD recertification round this session, but is not yet thr
   transpiled module (not Tovu source, nothing to refactor). Logged as a real follow-up, not blocking:
   evaluate swapping to a source-map-accurate coverage tool (c8/istanbul) so measured numbers match
   real numbers going forward, instead of needing this same real-arms argument re-litigated per feature.
-- **Next steps**: clean TestRunner re-verification pass (in progress), then Code Review + Security
-  dispatch (`/code-review`), then this feature is genuinely commit-ready.
+- **Next steps**: clean TestRunner re-verification pass (in progress), then Code Inspection + Security
+  dispatch (`/code-inspection`), then this feature is genuinely commit-ready.
 
 ---
 
-## ⚠️ OWED — `/audit-work` + `/code-review` across this session AND the previous (uncommitted) session
+## ⚠️ OWED — `/audit-work` + `/code-inspection` across this session AND the previous (uncommitted) session
 
 **Added 2026-07-28.** Nothing from either session has gone through a real review pass yet — this
 session's SPEC-003/005/006 work AND the prior long session's work (repo-wide signature refactor,
 snapshot-leak fix, posts/pages create-time validation fix, the 002/004/007 drift-fix sweep) are all
 still uncommitted and unreviewed beyond in-house TestRunner/TDD verification. Run both before treating
 any of it as mergeable:
-- `/code-review` — internal pipeline gate (Code Review + Security agents) per feature.
+- `/code-inspection` — internal pipeline gate (Code Inspection + Security agents) per feature.
 - `/audit-work` — external multi-LLM audit (needs peer CLIs with pinned exact model versions; check
   availability before assuming it can run).
 Do not skip either just because TestRunner/TDD reported green — those are necessary, not sufficient
-(see this repo's own Code Review Agent charter: "Green tests are necessary but not sufficient").
+(see this repo's own Code Inspection Agent charter: "Green tests are necessary but not sufficient").
 
 ---
 
@@ -124,84 +123,75 @@ subagents added ad hoc, not designed-in coverage.
 
 ---
 
-## ⛔ BLOCKER — Admin Section Spec Sweep (DO FIRST NEXT SESSION)
+## Admin Section Spec Sweep — implementation reconciliation (2026-08-10)
 
-**Added 2026-07-07.** These are the admin nav sections currently rendering a generic
-**placeholder** (real screen not built, no spec). Each needs its own spec before it can be
-built. This is the breadth gap: v1 has only ~5 real capabilities (posts/pages, themes,
-audit-undo, auth, workspaces) vs dozens in mature CMSs. **Treat this as the next-session
-starting point.**
+**The former next-session blocker is substantially complete.** The original sweep contained
+17 sections, not 18. Current source under `src/**` and `apps/**` was reconciled against the
+admin panel registry, HTTP routes, focused tests, and accepted ADR index.
 
-**Process for each (do NOT jump straight to a spec):**
-1. **Competitor teardown** — how did each platform do it, and *who did it best*? Mine
-   `other-repos-specs/` (wordpress 78 · directus 29 · medusa · shopify · woocommerce) +
-   `competitor-analysis.md` (Ghost/Payload/Directus). Map each to the `tovu-v2-design.md
-   §3.5` capability tier it belongs to.
-2. **Deep debate** — architecture options, trade-offs, build-vs-bundled-plugin placement
-   (§3.5 placement rule: tier-2 core lib vs tier-3 bundled plugin). Use `/debate` +
-   `/consensus`.
-3. **Audit** — pressure-test the chosen architecture with `/audit-work` (codex + gemini/agy)
-   before committing.
-4. **ADR** — record the decision (the parity/coverage decisions are currently NOT
-   ADR-governed — see gap note below).
-5. **Spec** — only then write the SPEC-NNN package.
+> **Status legend:** ✅ implemented admin screen · 🟡 real screen with material deferred scope ·
+> ⬜ admin screen remains a placeholder. **Progress: 9 implemented · 7 partial · 1 placeholder.**
 
-**Sections needing this treatment (each → competitor study → debate → audit → ADR → spec):**
+| Section | Status | Current evidence | What is still not done |
+|---|---|---|---|
+| Database / Storage | 🟡 Partial | Real Database screen plus timeline, restore-point, and migrate-forward routes; ADR-041 Accepted. | Wire the drift banner, pending-migration boot banner, and Tier-3 browser. |
+| Collections | ✅ Implemented | Collection, entries, and entry-editor screens with content-type/entry routes and tests; ADR-043. | No material admin-screen gap found. |
+| Categories & Tags | 🟡 Partial | Real Taxonomy screen and CRUD/assign/merge routes; ADR-044. | Reparent, deprecate, and term-slug controls. |
+| User management | ✅ Implemented | Users screen supports create/update, assignments, password reset, disable, and enable; ADR-021/SPEC-006. | Hard delete is intentionally excluded by the disable-only identity model. |
+| Roles & Permissions | ✅ Implemented | Role/policy create, rename, delete, and permission writes are wired and tested. | Removing one permission still requires delete/recreate. |
+| Forms | ✅ Implemented | Forms list/editor, fields, status, notifications, submissions, and routes are built. | Add the SPEC-010/ADR-PIPE-010 cross-link to the central ADR index. |
+| Media | 🟡 Partial | Real Media screen and upload/list/edit/trash/purge/original/provider routes; ADR-027. | Replace Images/Videos filter placeholders; confirm remaining origin-isolation, where-used protection, ingress, and GC behavior now owned by Jini. |
+| Menus | ✅ Implemented | Menu list/editor, tree update, delete, and location routes; ADR-029. | Drag-and-drop is deferred; reorder controls exist. |
+| Members | ✅ Implemented | List/detail/disable/resend-sign-in-link plus public sign-in flows; ADR-030. | Pagination and billing remain deferred. |
+| Comments | ✅ Implemented | Moderation queue/settings and approve/spam/trash/restore/purge flows; ADR-031. | Remove the stale `soon` badge/unfinished copy in the panel registry. |
+| SEO | ✅ Implemented | Defaults, robots, sitemap regeneration, per-entry overrides, and analysis; ADR-032. | No material admin-screen gap found. |
+| Redirects | ✅ Implemented | CRUD/tombstone, bulk import, and lazy hit statistics; ADR-033. | No material admin-screen gap found. |
+| Newsletter | ⬜ Admin UI open | Backend is substantial: campaign/list/subscriber/send-log routes and domain tests; ADR-034. | Build the admin client/types and campaigns, lists, subscribers, and send-log screens. |
+| Analytics | 🟡 Partial | Real recent-hits screen and authenticated route; ADR-035. | Aggregation, trends, breakdowns, goals, export, and stale “in memory” copy. |
+| Integrations / API | 🟡 Partial | Webhook subscription CRUD/pause and delivery history are wired; ADR-036. | API-key issuance/ADR-048, outbound credentials, and rotation surfaces. |
+| Backups / Recovery | 🟡 Partial | Recovery supersedes Backups; restore-point creation and plan→confirm→execute restore are built; ADR-045. | Import/export, interrupted-migration unblock route, and complete write-window counts. |
+| Settings | 🟡 Partial | Real Settings UI plus ledger/effective/raw/value/reset/event routes; ADR-028/050. | Five of 13 tabs still have no Tovu backend and remain inert/fake-port mounts. |
 
-> **Status legend:** ✅ decided (ADR exists) · 🟡 in progress · ⬜ open (needs the full cycle).
-> **Progress:** 6 decided (Media → ADR-027, Settings → ADR-028, both ACCEPTED), 2 in progress (Storage, Forms — debated, awaiting audit→ADR), 10 open. Next ADR candidates called out below.
+**Evidence caveat:** panel/route/test existence was verified against current source, but tests were
+inventoried rather than executed during this reconciliation. Several domains now re-export their
+core implementation from `@jini-ai/cms`; those Jini internals need a separate cross-repo audit before
+claiming complete runtime behavior.
 
-- 🟡 **Database → "Storage"** — **DEBATE DONE 2026-07-09** (3-round swarm; report
-  `reports/swarm-consensus/runs/20260709-storage-database-surface-consensus-report.md`). Decision locked
-  (build a read-first "Storage/Timeline" surface, not a raw DB editor). **ADR parked** at owner's request
-  — a punch-list of 3 blockers + 6 must-fix items is captured in the report, to fold before writing the ADR.
-- ✅ **Collections** — DECIDED: **ADR-022** (content-types-as-data registry). Screen still to build.
-- ✅ **Categories & Tags** — DECIDED: **ADR-022** (taxonomies + terms). Screen still to build.
-- ✅ **User management** — DECIDED: **ADR-021 + SPEC-006** (APPROVED 2026-07-09). Screen still to build.
-- ✅ **Roles & Permissions** — DECIDED: **ADR-021 + SPEC-006** (APPROVED 2026-07-09) — retires the Art. VI
-  auth exception. Screen still to build.
-- 🟡 **Forms** — tracked as the **Tier-1 sample plugin** (see AW-7); decision folds into that build.
-- ✅ **Media** — **ADR-027 ACCEPTED 2026-07-09**. **DEBATE DONE 2026-07-09** (2-round swarm: Opus + Codex gpt-5.5 + Gemini 3.1 Pro + Fable; report
-  `reports/swarm-consensus/runs/20260709-media-admin-section-consensus-report.md`). Converged (~0.92) on hybrid
-  `media` entry + `asset_blobs`/`asset_renditions` sidecars, `BlobStorePort` (content-addressed) + `ImageTransformPort`
-  (out-of-process worker), named-only transforms, origin-isolated serving under a frozen renditions-only URL contract,
-  entry_refs safe-delete + 2-phase GC. Maximize-v1: ~22 items IN, deferred only TUS/arbitrary-transforms/live-scanner/
-  transcoding/S3-adapter. **AUDIT DONE 2026-07-09** (`/audit-work` TM-media-001; Codex+Gemini external + Fable internal
-  verifier): architecture endorsed but round-1 **FAIL** (8.1/8.0 vs 8.5 floor) — 3 blockers (GC/dedup byte-deletion race,
-  immutable-URL+transform-name lifecycle, original-serving-origin) + 6 advisories, **all with converged drafted fixes**
-  (`.local-artifacts/external-audit/proposed-fixes/20260709-media/proposed-fixes.md`; report
-  `reports/external-audit/runs/20260709-media-design-external-audit-report.md`). B2 URL resolved → Fable version-in-path
-  `/m/{assetId}/{transformName}.v{version}/{slug}`. **DONE → fixes folded → ADR-027 written → round-2 re-audit PASS (Fable 8.7 PASS; Codex 8.3 clause-gaps; Gemini degraded) → 6 clause-gap amendments folded → ADR-027 ACCEPTED.**
-  ⚠️ **OWES CONFIRM-AUDIT (added 2026-07-09):** the round-2 re-audit ran against the **pre-amendment PROPOSED** version; the **6 clause-gap amendments applied this session were NOT themselves audited** (I applied the auditors' recommended-fix wording but no one verified the implementation). Run `/audit-work` diff-only (amended ADR-027 vs the round-2 recommendations, Codex + agy + fresh Fable) to confirm the 6 edits land the fixes without introducing new gaps — **before treating ACCEPTED as final**. Next stage for Media = SPEC-NNN (or the build-structure/package-layout pass).
-- ⬜ **Menus** — navigation trees as editable content (`navigation` lib, tier 2)
-- ⬜ **Members** — front-end membership/subscribers (Ghost members is the reference)
-- ⬜ **Comments** — moderation queue, own tables/hooks (bundled plugin — SDK stress test, §3.5 tier 3)
-- ⬜ **SEO** — metadata, sitemaps, `page.head` hook (dogfood plugin; large AEO/GEO backlog in §22)
-- ⬜ **Redirects** — redirect rules over `routing`
-- ⬜ **Newsletter** — email campaigns over `MailerPort` (bundled plugin)
-- ⬜ **Analytics** — traffic/usage surface (privacy-first; who did this best?)
-- ⬜ **Integrations / API** — API keys, webhooks, outbound integrations (`identity` app tokens + outbox).
-  **← owner named this next after Database** (webhooks).
-- ⬜ **Backups** — backup/restore + export (UF-13 portability; pairs with `tovu build` export). NOTE: shares
-  the one snapshot library with the Storage debate above — sequence it right after the Storage ADR.
-- ✅ **Settings** — **DECIDED: ADR-028 ACCEPTED 2026-07-11.** (3-round swarm: Opus + Codex gpt-5.5 xhigh + Gemini 3.1 Pro/agy + Fable.) Screen still to build.
-  R1–R2 position debate → consensus (~0.92) on a dedicated **"Layered Settings Ledger"** (own tables reusing ADR-022's
-  chokepoint/revision discipline, NOT settings-as-entries — killed by the authz-collapse argument: `content.write` reaches
-  agents, so settings-as-entries lets any agent flip site security). R3 concrete design (full DDL/resolver/ops) surfaced
-  **8 issues** (2 multi-peer-confirmed: rename+retype-in-one-op; the composite user-FK can't be table-wide → split value
-  tables). Reports: `reports/swarm-consensus/runs/20260709-settings-architecture-consensus-report.md` +
-  `…-settings-r3-design-report.md`. **Audit history (`TM-settings-001`, all in `ADR-028-settings-layered-ledger.md`,
-  status ACCEPTED 2026-07-11):** R1 **FAIL** (agy 4 / Codex 8.1 / Fable 8.2; 4 blockers) → fixes folded · R2 **FAIL** 2026-07-11
-  (internal 8.0 / Codex 8.4 / agy 9.5; `settings.write` reconciliation gap + 4 completeness gaps) → fixes folded ·
-  **R3 PASS 2026-07-11 (agy 9.8 / Codex 9.1; 0 blockers; all round-2 items reverified resolved; one LOW notes-mode R3-01
-  folded into §7)** → Coordinator closed without a 3rd internal round (2 clean externals + round-2 internal drove the fixes)
-  → **ACCEPTED**. Round-3 report: `.local-artifacts/external-audit/runs/20260711T054500Z-settings-round3-external-audit-report.md`.
-  Core-only subset greenlit to spec independently of the plugin/secret gates. (`settings` lib, replaces WP options grab-bag)
-  **Next: build the Settings admin screen + write the core-only SPEC.**
+**Historical process note:** the original competitor teardown → debate → audit → ADR → spec cycle
+has already produced Accepted ADRs for 16 of these 17 areas. Do not repeat that full cycle for an
+implemented section. Use its current ADR/spec and route only the explicit remaining slice through the
+appropriate planning/test gates. Newsletter needs an admin-UI-only spec check, not a new backend ADR.
 
-> **Not on this list but the owner wants ADRs for them (2026-07-09):** **Accessibility** (a cross-cutting
-> baseline, currently only in §21/§20 backlog — candidate for its own ADR) and the **coverage/parity ADR +
-> matrix** recommended in the gap note below (the "are we building everything the others have?" answer).
+> **Still separately wanted:** an Accessibility ADR and the coverage/parity ADR + matrix described
+> below.
+
+### 2026-08-10 Commerce, Authentication, and Agent Plugins slice
+
+- [x] Replace the Payments placeholder with a provider-neutral Commerce overview informed by
+  Open SaaS pricing, checkout, subscriptions, orders, and revenue information architecture.
+- [ ] Implement Commerce write paths and provider adapters. Stripe and PayPal remain planned
+  labels only; checkout, billing, subscriptions, reconciliation, and revenue data are not wired.
+- [x] Replace the Authentication placeholder with honest Google, Facebook, and LinkedIn
+  credential schemas (client/app IDs plus write-only secret fields).
+- [ ] Implement the approved Jini `@jini-ai/capability-providers/visitor-auth` boundary, provider
+  adapters, callback/state/PKCE lifecycle, Tovu sealed stores, identity linking, and local session
+  issuance. The current admin fields are disabled previews and do not persist or enable OAuth.
+- [x] Package AI Dev Shop's `ui-ux-design` material as the source-bundled
+  `ui-ux-design` Agent Plugin (`plugin.json` + `skills/ui-ux-design/SKILL.md` + references).
+- [x] Build the Agent Plugins screen with `Installed` first, a read-only allowlisted package-source
+  inspector, and a second inert `Marketplace` tab for future wiring.
+- [x] Add generic Jini Composer discovery and Tovu catalog wiring for attachments/images,
+  regular plugins, Agent Plugins, singular skills, and MCP, shared by the `+` menu and bare-`/`
+  autocomplete. `/mcp` currently routes to existing External MCP settings; there is no server-id
+  argument because that settings route has no argument consumer.
+- [ ] Replace the bounded source catalog with real installed/enabled inventories when the
+  corresponding plugin, Agent Plugin, skills, and MCP backends expose trustworthy discovery APIs.
+- [ ] Build the Agent Plugin loader/installer, validation, trust/permission review, lifecycle,
+  sandboxing, and execution boundaries. The package catalog must not imply these exist today.
+- [ ] Wire the Agent Plugin Marketplace backend and installation flow. The tab currently performs
+  no fetch and shows no fake inventory or install action.
+- [ ] Extend the Tovu daemon attachment contract beyond `image/*` before presenting general file
+  upload as supported in the Composer.
 
 **Coverage-gap note (surfaced 2026-07-07 audit-of-parity):** the parity map lives in
 `tovu-v2-design.md §3.5` (mutable design doc) and the corpus `coverage-audit.md` files —
@@ -632,18 +622,18 @@ exists anywhere in `src/` yet, only a stub FAB.
 ### 11) Admin UI (Headless Admin Client)
 - [x] Define admin API contract and client SDK boundaries — `apps/admin/src/lib/api.ts`
 - [x] ~~Choose baseline stack (Next.js + React + Zustand)~~ — superseded: actual stack is Vite + React (`apps/admin/`), not Next.js/Zustand, per the lean-rebuild decision
-- [x] Build shell layout (navigation, module registry, auth guard) — `admin-shell/navigation.ts` + `apps/admin/src/sections/`
-- [ ] Build workspace management screens — no `Workspace.tsx` section exists; blocked on the workspace-module gap above (§7 item 1)
-- [x] Build content type builder UI — `apps/admin/src/sections/Collections.tsx`
-- [x] Build content editor UI (forms, validation, revisions) — `PostEditor.tsx`, `CollectionEntryEditor.tsx`
-- [x] Build media manager UI — `apps/admin/src/sections/Media.tsx`
-- [x] Build settings and permissions UI — `Settings.tsx`, `Roles.tsx`, `Users.tsx`
-- [ ] Build extension point rendering in admin — ADR-025 mechanism decided, not built; no plugin panel registry screen
+- [x] Build shell layout (navigation, module registry, auth guard) — `apps/admin/src/App.tsx`, `panels.tsx`, and `nav.ts`
+- [x] Build workspace management screen — `apps/admin/src/features/workspace/Workspace.tsx` is registered and tested; backend lifecycle remains narrower than the UI shell
+- [x] Build content type builder UI — `apps/admin/src/features/collections/Collections.tsx`
+- [x] Build content editor UI (forms, validation, revisions) — `features/posts/PostEditor.tsx` and `features/collections/CollectionEntryEditor.tsx`
+- [x] Build media manager UI — `apps/admin/src/features/media/Media.tsx` (Images/Videos filtering remains partial; see sweep matrix)
+- [x] Build settings and permissions UI — `features/settings/SettingsUi.tsx`, `features/roles/Roles.tsx`, and `features/users/Users.tsx`
+- [ ] Build extension point rendering in admin — site-plugin and Agent Plugins management screens now exist, but ADR-025's sandboxed plugin-contributed panel runtime is not built
 - [ ] Build admin notification center
 
 ### 12) Agentic UI / AI Layer
-- [ ] Define AI interaction model (assistant panel + task execution) — ADR-013 (Accepted) defines the target model; implementation is still a stub FAB, not built (no CopilotKit/AG-UI code exists in `src/` or `apps/admin/src/`)
-- [ ] Define tool registry contracts and tool safety policy — ADR-013 `tools.ts` registry + ADR-014 profiles decided; not implemented
+- [ ] Define AI interaction model (assistant panel + task execution) — the stub has been replaced by `apps/admin/src/components/AssistantDock/` using Jini `ChatPane`, attachments, BYOK/local execution selection, and daemon integration; the complete task/capability contract and hardening remain open
+- [ ] Define tool registry contracts and tool safety policy — Jini runtime/tool registration is present, but fail-closed per-principal capability discovery and the control/retrieval-plane split in the Agent Capability Surface backlog remain open
 - [ ] Define structured outputs and tool-call protocol — ADR-013/024 ABI (async + serializable-only, no live objects) sets the constraints; no concrete implementation yet
 - [ ] Define context assembly pipeline (system/site/task/history)
 - [ ] Define memory policy (session, episodic, semantic boundaries)
@@ -1053,6 +1043,65 @@ Provider/adapter + modular monorepo references (TS):
 Curated lists to mine:
 - [ ] **mehdihadeli/awesome-software-architecture** and **donnemartin/system-design-primer** — patterns catalog
 
+---
+
+## Admin skins (Studio → Appearance) — planned, not started
+
+Goal: switch the ADMIN's own look — `basic` (today's), `glassmorphic`, `ultramodern` — from a
+Studio → Appearance tab. Same mechanism the public themes use, aimed at the admin instead.
+
+This is already half-true: `apps/admin/src/styles.css` defines 77 design tokens and every
+component references them (`var(--link)`, `var(--surface)`), with dark mode implemented as
+`:root[data-theme="dark"]` overriding the same token names. A skin is the identical trick one
+axis over — `:root[data-skin="glassmorphic"]` re-declaring those tokens.
+
+**Two things must hold or skins are unreachable, and both are cheaper to honor now than to
+retrofit across 76 components:**
+
+1. **No literal visual values in components.** This is the binding constraint on the Tailwind
+   adoption below. Tailwind's theme must map utilities onto the CSS variables
+   (`backgroundColor: { surface: 'var(--surface)' }` → `bg-surface`), never onto its default
+   palette. A component written as `bg-blue-500 shadow-md` is invisible to every skin, because
+   there is no variable for a skin to override.
+
+2. **The token vocabulary needs axes beyond color.** Glassmorphism is translucency, backdrop
+   blur, and a different border/elevation treatment — a skin that can only change hues cannot
+   express it. Needs tokens along the lines of `--surface-alpha`, `--surface-blur`,
+   `--elevation-shadow`, `--border-weight` before the look is reachable at all.
+
+Note the symmetry with the public theme work: site themes carry `tokens.json` + `tokens.light.json`
+and swap by writing `data-theme`. Admin skins are the same shape. Worth keeping the two token
+vocabularies deliberately similar rather than letting them drift into two unrelated systems.
+
+## Theme marketplace — local fixture only
+
+`src/themes/__marketplace__/` stands in for a remote marketplace so the download flow can be
+exercised end to end. No network, no search, no publisher identity, no versioning or update
+checks, no signing. A real one needs all of those, plus a stable upstream identity on `lineage`
+(local folder ids are per-install and mean nothing on another machine).
+
+## Tailwind + shadcn/ui — owner wants both, deferred (2026-08-11)
+
+Owner: *"Remind us to download shadcn and Tailwind later because I wanna be able to use the
+components from it."* Wanted specifically for shadcn's component library, not just utilities.
+
+Order matters: shadcn generates components built on Radix primitives **and Tailwind classes**, so
+Tailwind lands first. Neither is installed today — `apps/admin` has 27 deps, no Tailwind, no Radix,
+no shadcn; all UI comes from `@jini-ai/ui`.
+
+**Do not migrate the existing 4,687 lines / 541 selectors.** Add Tailwind with `preflight` DISABLED
+(preflight's reset would clobber the current stylesheet) and use it for NEW surfaces only.
+
+**The binding constraint**, from the admin-skins section above: Tailwind's theme must map onto the
+existing CSS variables (`backgroundColor: { surface: 'var(--surface)' }` → `bg-surface`), never onto
+its default palette. Same rule applies to whatever shadcn generates — a component shipping
+`bg-blue-500 shadow-md` is invisible to every skin, because there is no variable to override. Budget
+time to rewrite shadcn's generated classes onto the token bridge as each component is pulled in;
+that is the real cost of adopting it here, not the install.
+
+Known cost either way: two styling systems coexisting, and nothing tells a newcomer which to reach
+for. Needs a written rule — new components use Tailwind, do not convert old ones.
+
 ## JSON-column tripwire + theme write-gate — 3 known-open items (2026-08-12 external audit)
 
 All three are **latent and non-blocking**, recorded here so they are not rediscovered from scratch.
@@ -1088,6 +1137,36 @@ name the same way. `isGeneratedThemePath()` compared paths as spelled while `res
 normalized them, so `PUT {"path":"css/../preview/app.css"}` returned 200 and overwrote generated
 output — walking around the rule on every route. Two resolvers for one string is a bypass waiting to
 be spelled differently.
+
+## First-run onboarding wizard — deferred, but load-bearing (2026-08-15)
+
+**Not being built now. Recorded because the deployment work will be shaped wrong without it.**
+
+The idea: when someone first installs Tovu, ask them what they are actually building before they
+make choices they cannot see the consequences of. Roughly — what kind of site (blog / brochure /
+store), what database (if any), and do you need payments, forms, members, comments.
+
+Why this is not cosmetic: those answers **determine which deployment targets can ever work**, and the
+constraints are invisible to a non-technical user. Someone who picks "store" cannot deploy to a
+static host — checkout and `payments-webhook.ts` need trusted compute — but nothing in the product
+tells them that until it fails. The wizard is where "you said you want payments, so Cloudflare Pages
+alone will not work for you" gets said, at the one moment the user is receptive to hearing it.
+
+**The hard requirement, and the reason this needs design rather than a form:** people will answer
+wrong. They will pick "blog" and then want to sell something six months later. **Every answer must be
+reversible**, and reversing must not mean a migration the user has to understand. Do not build a
+wizard that writes a one-way decision into config. The likely shape is: answers set defaults and
+surface warnings, but the underlying capability stays present and re-derivable from what the site
+actually uses — i.e. **detect eligibility from real feature usage, and treat the wizard answers as a
+hint, never as the source of truth.**
+
+Read `development/docs/deployment/deployment-constraints.md` before designing this — §6 lists exactly
+which features force a stateful host, and §9 explains why the target user never sees a provider at
+all.
+
+Related open blocker: onboarding a *customer* (as opposed to a developer) is gated on multi-workspace
+hosting, which does not exist yet — one running app resolves exactly one workspace at boot
+(`src/site-dir/resolve-workspace.ts:15-21`). See constraints doc §4.1.
 
 ## Live minor defect found while building the static exporter: template shells are their own reachable URL (2026-08-15)
 

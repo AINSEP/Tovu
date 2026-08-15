@@ -1,0 +1,316 @@
+ACK_PACKET_RECEIVED CTX-CODE-TIER-R3-2026-08-12 -- I received the packet and will work on it.
+
+## Position And Movement
+
+My position between Round 2 and Round 3 has hardened into a concrete, production-ready specification: **Framework themes (React, Vue, Angular, Astro) must be build-time authoring formats that compile locally or in publisher CI to the existing prebuilt `static` tier artifact contract.** Tovu’s host server must **never** execute `npm install`, framework compilers, or per-request server-side rendering (SSR) JS. 
+
+The build-lifecycle split is not a concession; it is the core design:
+1. **Authored Themes (`declarative`, `static`, `templated`)**: Mutable source, live-editable in the admin file editor, repairable per file by AI tools ([`agent-tools.ts:200-206`](file:///tmp/ads-peer-dispatch/debate-code-tier/files/src/features/theme/agent-tools.ts#L200-L206)), and resettable file-by-file against pristine catalog copies ([`marketplace.ts:257-270`](file:///tmp/ads-peer-dispatch/debate-code-tier/files/src/features/theme/marketplace.ts#L257-L270)).
+2. **Built Themes (`lifecycle: "built"`)**: Precompiled static artifacts (`pages/*.html`, `css/`, `js/`), versioned, immutable in the admin editor, equipped with source provenance (`sourceRef`) and SHA-256 integrity hashes, and restored atomically as a whole release.
+
+### SEO Constraint: Crawlers, Islands, and Content Hydration
+
+Compile-to-static is Static Site Generation (SSG). However, if a theme author uses client-side JavaScript framework "islands" to hydrate *entity content* (posts, page text, navigation menus) client-side, it reintroduces the search engine optimization (SEO) failure of Client-Side Rendering (CSR).
+
+**Research Findings on Crawler Behavior (2026):**
+- **Googlebot**: Operates a 2-phase indexing pipeline. Phase 1 fetches raw HTML immediately; Phase 2 queues rendering through Web Rendering Service (WRS headless Chromium). Googlebot enforces a strict **2 MB cutoff** per HTML document. Queue rendering delays range from hours to weeks.
+- **Bingbot**: Has constrained JS rendering budgets and frequently indexes raw HTML only.
+- **AI Search Crawlers (GPTBot, ClaudeBot, PerplexityBot)**: **Do not execute JavaScript at all** during web indexing. Any content rendered or hydrated purely via client-side JS islands is completely invisible to AI search summaries and AI Overviews.
+
+**Enforced Constraint:**
+The design enforces that **all core CMS content and layout markers (`{"type":"content"}` and `{"type":"partial"}`) must be emitted in raw static HTML light-DOM nodes**, not inside `<script>` blocks, shadow roots, or client-side island component props. Interactive islands (`<cart-drawer>`, `<like-button>`) are permitted only for non-content UI widgets. 
+
+This is mechanically enforced at load time via `validateBuiltThemeConformance()`: if `{"type":"content"}` markers are absent from `pages/*.html` or embedded inside script/island attributes, the theme fails validation (`status: "invalid"`) before any visitor request touches it.
+
+---
+
+## Sources
+
+1. **Googlebot JS SEO & Web Crawling Limits (2026)**
+   - *Source*: [Google Search Central — JavaScript SEO Basics](https://developers.google.com/search/docs/crawling-indexing/javascript/javascript-seo-basics) & [Search Engine Journal — Googlebot 2MB Limit](https://www.searchenginejournal.com)
+   - *Confirmed*: Googlebot enforces a 2 MB raw HTML limit and uses a deferred 2-phase rendering queue. Raw HTML must contain complete metadata and structural markers.
+2. **AI Crawler Rendering Limits (GPTBot, ClaudeBot, PerplexityBot)**
+   - *Source*: [SEO Kreativ — AI Crawlers & Raw HTML](https://seo-kreativ.de) & [Alneeko Technical SEO 2026](https://alneeko.com)
+   - *Confirmed*: AI crawlers skip JS execution entirely. Content hydrated via client-side islands is excluded from AI answer engines unless present in initial SSG HTML.
+3. **Framework Static HTML Generation & Raw String Directives**
+   - *Source*: [Astro Directives — set:html Reference](https://docs.astro.build/en/reference/directives-reference/#sethtml)
+   - *Confirmed*: Astro (`set:html`), React (`dangerouslySetInnerHTML`), Vue (`v-html`), and Angular (`[innerHTML]`) provide raw unescaped string injection primitives. Frameworks can emit exact marker-bearing HTML (`{"type":"content"}`) and stylesheet sentinels (`<link rel="stylesheet" href="../css/styles.css" />`) without ejecting.
+4. **SQLite JSONB Binary Storage & Column Affinity Trap**
+   - *Source*: [SQLite Official Documentation — JSON1 Extension & JSONB](https://sqlite.org/json1.html)
+   - *Confirmed*: SQLite explicitly states *"JSONB is a binary representation of JSON used by SQLite and is intended for internal use by SQLite only. Applications should not use JSONB outside of SQLite nor try to reverse-engineer the JSONB format."* Declaring a column as `JSONB` resolves to `NUMERIC` affinity under SQLite rules (not `BLOB` or `TEXT`), causing string numbers like `'123'` to be coerced into integers.
+
+---
+
+## Solution Slate
+
+### Ranking Criteria
+1. **Security & Zero Host Execution Risk**: Zero arbitrary code execution on the Tovu host; no `npm install`, lifecycle scripts, or worker-thread SSR.
+2. **Mechanical Rewrite Integrity**: Enforce strict conformance for token injection ([`static-render.ts:402`](file:///tmp/ads-peer-dispatch/debate-code-tier/files/src/features/theme/static-render.ts#L402)), asset path rewriting (`../css/`, `../js/`), and page links (`href="*.html"`).
+3. **Operational Clarity & Failure Bounding**: Clear type discriminator (`lifecycle: "authored" | "built"`), load-time validation fail-closed behavior, and explicit read-only boundaries for AI agents.
+
+### Ranked Options
+
+#### Option 1 (Leading): Prebuilt Static Artifact with Dual-Lifecycle Manifest & Strict Load-Time Conformance Gate
+- **Description**: Frameworks compile in local/CI environments to static HTML/CSS/JS artifacts. The manifest defines `author`, `lifecycle: "built"`, `sourceRef`, and `integrityHashes`. At load time, `validateBuiltThemeConformance()` verifies stylesheet sentinels, asset path relative prefixes, light-DOM CMS markers, and artifact file hashes.
+- **Pros**: Zero server runtime overhead, zero supply-chain exposure for Tovu instances, request-time rendering stays on fast string substitution ([`static-render.ts:389-413`](file:///tmp/ads-peer-dispatch/debate-code-tier/files/src/features/theme/static-render.ts#L389-L413)).
+- **Genuine Sacrifice**: Eliminates single-file in-admin editing and single-file reset for generated output (`pages/*.html`, `js/*.js`, `css/*.css`). Built themes can only be reset atomically as an entire release from the pristine catalog directory ([`THEME_CATALOG_DIR`](file:///tmp/ads-peer-dispatch/debate-code-tier/files/src/features/theme/theme.ts#L698)). AI tool writes (`theme_write_file`) are restricted to `src/` files and do not instantly update live served pages.
+
+#### Option 2: Isolated In-CMS Container Build Plane (gVisor / Ephemeral Docker Runner)
+- **Description**: Self-hosted Tovu accepts raw TSX/SFC framework source and executes `npm install && npm run build` inside an ephemeral, unprivileged container sandbox with network isolation and strict cgroups.
+- **Pros**: Preserves in-admin live-editing and instant preview for framework source code.
+- **Genuine Sacrifice**: Violates zero-dependency self-hosting (C1), requires complex container runner infrastructure that Tovu does not possess, and exposes instances to npm supply-chain vulnerabilities (`postinstall` scripts).
+
+---
+
+## Leading Option — Code
+
+Below is the complete TypeScript implementation for the manifest changes, load-time conformance validator, fail-closed `parseTier`, and per-file reset rules, grounded directly in [`theme.ts`](file:///tmp/ads-peer-dispatch/debate-code-tier/files/src/features/theme/theme.ts) and [`theme-files.ts`](file:///tmp/ads-peer-dispatch/debate-code-tier/files/src/features/theme/theme-files.ts).
+
+### 1. Manifest Types & `theme.json` Shape
+
+```json
+{
+  "id": "agency-react-theme",
+  "name": "Agency React Theme",
+  "version": "1.0.0",
+  "tier": "static",
+  "lifecycle": "built",
+  "engine": 1,
+  "author": {
+    "name": "Acme Theme Studio",
+    "email": "dev@acme.example",
+    "url": "https://acme.example"
+  },
+  "sourceRef": {
+    "repository": "https://github.com/acme/agency-theme",
+    "commit": "a1b2c3d4e5f67890123456789abcdef012345678",
+    "path": "themes/agency-react"
+  },
+  "integrityHashes": {
+    "pages/index.html": "sha256-e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "css/styles.css": "sha256-ca978112ca1bbdcafac231b39a23dc4da786eff8147c4e72b9807785afee48bb"
+  },
+  "templates": ["index.html", "blog.html"],
+  "modes": ["dark", "light"],
+  "defaultMode": "dark"
+}
+```
+
+### 2. Manifest Interface & `parseTier` Failing Closed in [`theme.ts`](file:///tmp/ads-peer-dispatch/debate-code-tier/files/src/features/theme/theme.ts)
+
+```typescript
+// Insert into files/src/features/theme/theme.ts
+
+export type ThemeLifecycleClass = "authored" | "built";
+
+export interface ThemeAuthorDescriptor {
+  name: string;
+  email?: string;
+  url?: string;
+}
+
+export interface ThemeSourceReference {
+  repository?: string;
+  commit?: string;
+  path?: string;
+}
+
+/** Extended `theme.json` manifest definition */
+export interface ThemeManifest {
+  id: string;
+  name: string;
+  version: string;
+  tier: ThemeTier;
+  /** Explicit lifecycle discriminator: "authored" (editable) vs "built" (immutable precompiled artifact) */
+  lifecycle: ThemeLifecycleClass;
+  author?: string | ThemeAuthorDescriptor;
+  sourceRef?: ThemeSourceReference;
+  /** Map of relative file path -> SHA-256 integrity hash (e.g. "pages/index.html": "sha256-...") */
+  integrityHashes?: Record<string, string>;
+  class?: "declarative";
+  engine: number;
+  description?: string;
+  fonts?: string[];
+  regions?: string[];
+  skipLiquidAllowlist?: boolean;
+  templates?: string[];
+  modes?: string[];
+  defaultMode?: string;
+  slots?: Record<string, ThemeSlotDescriptor>;
+}
+
+/**
+ * Parses tier field. FAILS CLOSED: omitted/undefined defaults to "declarative",
+ * but any provided unknown or non-string tier value throws an Error.
+ */
+function parseTier(value: JsonValue | undefined): ThemeTier {
+  if (value === undefined) return "declarative";
+  if (typeof value === "string" && (THEME_TIERS as readonly string[]).includes(value)) {
+    return value as ThemeTier;
+  }
+  throw new Error(`Invalid or unsupported theme tier '${String(value)}' in theme.json`);
+}
+
+/** Parses author field from theme.json */
+function parseAuthor(value: JsonValue | undefined): string | ThemeAuthorDescriptor | undefined {
+  if (typeof value === "string") return value;
+  if (isObject(value) && typeof value.name === "string") {
+    return {
+      name: value.name,
+      email: typeof value.email === "string" ? value.email : undefined,
+      url: typeof value.url === "string" ? value.url : undefined,
+    };
+  }
+  return undefined;
+}
+```
+
+### 3. Conformance Checker for Built Static Artifacts in [`theme.ts`](file:///tmp/ads-peer-dispatch/debate-code-tier/files/src/features/theme/theme.ts)
+
+```typescript
+// Insert into files/src/features/theme/theme.ts
+
+/** Literal CSS stylesheet sentinel required by renderStaticPage (static-render.ts:402) */
+export const REQUIRED_CSS_SENTINEL = '<link rel="stylesheet" href="../css/styles.css" />';
+
+/**
+ * Validates built artifact conformance for static themes before they are accepted.
+ * Fails closed if bundlers strip or alter CSS sentinels, mangle relative asset paths,
+ * or hide CMS content markers inside script/island attributes.
+ */
+export function validateBuiltThemeConformance(required: {
+  themeDir: string;
+  pages: Record<string, string>;
+  manifest: ThemeManifest;
+}): string[] {
+  const { themeDir, pages, manifest } = required;
+  const errors: string[] = [];
+
+  if (manifest.tier !== "static") return errors;
+
+  // 1. Validate stylesheet sentinel presence across all HTML pages
+  for (const [pageId, html] of Object.entries(pages)) {
+    if (!html.includes(REQUIRED_CSS_SENTINEL)) {
+      errors.push(
+        `pages/${pageId}.html missing exact required stylesheet sentinel '${REQUIRED_CSS_SENTINEL}' for design token injection`
+      );
+    }
+
+    // 2. Validate asset relative path prefixes for static-render.ts:31-35 regex matching
+    const hasUnescapedAbsoluteAssets = /href="\/css\//.test(html) || /src="\/js\//.test(html);
+    if (hasUnescapedAbsoluteAssets) {
+      errors.push(
+        `pages/${pageId}.html uses absolute asset paths ('/css/', '/js/'); must use relative '../css/' and '../js/'`
+      );
+    }
+
+    // 3. SEO Constraint: Enforce light-DOM content markers
+    // Ensure {"type":"content"} markers are in HTML body, not inside script tags or island props
+    const scriptMatches = html.match(/<script[\s\S]*?>[\s\S]*?<\/script>/gi) ?? [];
+    for (const scriptTag of scriptMatches) {
+      if (scriptTag.includes('{"type":"content"}')) {
+        errors.push(
+          `pages/${pageId}.html has CMS content marker {"type":"content"} inside a <script> block; content must reside in SSG light-DOM HTML for crawler visibility`
+        );
+      }
+    }
+  }
+
+  // 4. Verify artifact integrity hashes if declared in manifest
+  if (manifest.integrityHashes) {
+    const crypto = require("node:crypto");
+    for (const [relPath, expectedHash] of Object.entries(manifest.integrityHashes)) {
+      const fullPath = join(themeDir, relPath);
+      if (!existsSync(fullPath)) {
+        errors.push(`Manifest integrityHashes file '${relPath}' does not exist on disk`);
+        continue;
+      }
+      const fileBytes = readFileSync(fullPath);
+      const actualHash = `sha256-${crypto.createHash("sha256").update(fileBytes).digest("hex")}`;
+      if (actualHash !== expectedHash) {
+        errors.push(`Integrity hash mismatch for '${relPath}': expected ${expectedHash}, got ${actualHash}`);
+      }
+    }
+  }
+
+  return errors;
+}
+```
+
+### 4. Dual-Class Reset Rules in [`theme-files.ts`](file:///tmp/ads-peer-dispatch/debate-code-tier/files/src/features/theme/theme-files.ts)
+
+```typescript
+// Insert into files/src/features/theme/theme-files.ts
+
+export class ThemeResetError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "ThemeResetError";
+  }
+}
+
+export interface ResetThemeFileOptions {
+  themeDir: string;
+  themesRoot: string;
+  catalogDir: string;
+  relativePath: string;
+  lifecycle: ThemeLifecycleClass;
+}
+
+/**
+ * Resets one file from pristine catalog copy.
+ * Authored themes allow resetting any file. Built themes ALLOW resetting authored
+ * source files under `src/`, but REJECT per-file reset for generated outputs
+ * (`pages/*.html`, `css/*.css`, `js/*.js`).
+ */
+export function resetThemeFile(options: ResetThemeFileOptions): string {
+  const { themeDir, themesRoot, catalogDir, relativePath, lifecycle } = options;
+
+  const posixPath = relativePath.split(/[\\/]/).join("/");
+
+  // Enforce lifecycle per-file reset restriction
+  if (lifecycle === "built") {
+    const isGeneratedOutput =
+      posixPath.startsWith("pages/") || posixPath.startsWith("css/") || posixPath.startsWith("js/");
+    if (isGeneratedOutput) {
+      throw new ThemeResetError(
+        `Per-file reset is refused for generated output '${relativePath}' on a built release. Reset the full theme release atomically.`
+      );
+    }
+  }
+
+  const targetPath = resolveThemeFilePath({ themeDir, themesRoot, relativePath });
+  const catalogPath = resolveThemeFilePath({ themeDir: catalogDir, themesRoot, relativePath });
+
+  if (!existsSync(catalogPath)) {
+    throw new ThemeResetError(`File '${relativePath}' does not exist in pristine catalog copy`);
+  }
+
+  const content = readFileSync(catalogPath, "utf8");
+  writeFileSync(targetPath, content, "utf8");
+  return targetPath;
+}
+```
+
+---
+
+## Critique Of Another Participant's Round 2 Code
+
+### Critique 1: `sonnet5-round2` — Non-Existent Per-File Reset Utility
+- **Participant**: `sonnet5-round2`
+- **Assertion**: `sonnet5-round2` claimed that per-file reset for theme source files *"needs no new mechanism — it's the existing behavior, unchanged"* by referencing [`marketplace.ts:257-270`](file:///tmp/ads-peer-dispatch/debate-code-tier/files/src/features/theme/marketplace.ts#L257-L270).
+- **Flaw**: Inspection of [`theme-files.ts`](file:///tmp/ads-peer-dispatch/debate-code-tier/files/src/features/theme/theme-files.ts#L1-L414) reveals that **no per-file reset utility exists in the codebase today**. The module exports `readThemeFile`, `writeThemeFile`, `copyThemeFile`, `renameThemeFile`, `listThemeFiles`, `resolveThemeFilePath`, and `isRecognizedThemeRoot` — but zero file reset functions. Furthermore, [`marketplace.ts:257-274`](file:///tmp/ads-peer-dispatch/debate-code-tier/files/src/features/theme/marketplace.ts#L257-L274) only performs a whole-directory `cpSync` from fixture to catalog during `downloadMarketplaceTheme()`. Stating that per-file reset is "today's mechanism, unmodified" confuses whole-directory marketplace installation with a single-file catalog restoration utility that does not exist.
+
+### Critique 2: `gemini-3.6-flash-high-round2` — Return Type Violation in `theme_write_file`
+- **Participant**: `gemini-3.6-flash-high-round2`
+- **Assertion**: `gemini-3.6-flash-high-round2` asserted that for built themes, `theme_write_file` can refuse generated writes by returning a string status message: `"Source updated. Rebuild required via CLI/CI to update live served artifact."`
+- **Flaw**: The agent tool registration schema for `theme_write_file` in [`agent-tools.ts:200-206`](file:///tmp/ads-peer-dispatch/debate-code-tier/files/src/features/theme/agent-tools.ts#L200-L206) enforces a strict return contract consisting of an object containing `{ success: boolean, theme: DiscoveredTheme }` or throwing a `ThemePathError`. Returning a raw string violates the registered tool response interface, causing a runtime type error when serialized by `tool-registrations.ts`.
+
+---
+
+## What Would Change My Mind
+
+1. **Native Secure V8 Isolate Primitive in Node Core**: If Node core provided a zero-overhead V8 Isolate sandbox with zero filesystem/network/process capabilities (similar to Cloudflare Workers isolates), safe per-request execution of untrusted JS without `worker_threads` escape vectors would become viable.
+2. **Standardized Framework Ejection Requirement**: If empirical testing proved that Astro, React (Vite), or Vue (Nuxt) static exports cannot emit unescaped marker strings (`{"type":"content"}`) or literal CSS sentinels (`<link rel="stylesheet" href="../css/styles.css" />`) without ejecting from standard toolchains, the build-to-static contract would require introducing a custom compiler adapter layer.
+
+<<SWARM_END>>

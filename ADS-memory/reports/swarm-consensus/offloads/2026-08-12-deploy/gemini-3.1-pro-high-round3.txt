@@ -1,0 +1,284 @@
+ACK_PACKET_RECEIVED CTX-DEPLOY-R3-2026-08-12 -- I received the packet and will work on it.
+
+## Position And Movement
+
+My position remains firmly grounded in the Round 1 and Round 2 consensus: Deployment in Tovu means orchestrating the promotion of an immutable, workspace-scoped release artifact to a named environment. Because Tovu has no built-in build or export capability (as proven by the CLI's lack of such commands), the first slice must honestly reflect that it triggers an external build/deployment of a pre-existing source revision.
+
+I have adjusted my technical approach based on the verified R3 corrections:
+1. **Network Egress & Host Pinning:** The guarded HTTP client uses `HttpClientPort.send(request)` and the `EgressPolicy` does *not* support an `allowedHosts` pinning feature. The policy only governs schemes, private address denial, redirects, timeouts, and byte limits. Therefore, strict host pinning must be hardcoded and verified inside the `GitHubDeploymentAdapter` before dispatching the request.
+2. **Persistence Constraints:** SQLite's `JSONB` is an internal binary representation (and a trap when declared as a column affinity). All structured metadata will be stored using the `TEXT` affinity, relying on standard SQLite JSON functions.
+3. **Transport Security:** We explicitly reject MCP as the deployment transport because it relies on `child_process.spawn`, escaping Tovu's network egress controls entirely.
+
+## Sources
+
+*   **GitHub App Installation Tokens:**
+    *   *Documentation:* [Authenticating as a GitHub App installation](https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/authenticating-as-a-github-app-installation)
+    *   *Findings:* Requires a JWT signed with the App's private key to call `POST /app/installations/{installation_id}/access_tokens`. The resulting token has a strict TTL of 1 hour and cannot be extended. The token is scoped strictly to the permissions granted during installation on specific repositories.
+*   **Deployments API & Webhook Contract:**
+    *   *Documentation:* [REST API endpoints for deployments](https://docs.github.com/en/rest/deployments/deployments) and [deployment_status webhook event](https://docs.github.com/en/webhooks/webhook-events-and-payloads#deployment_status)
+    *   *Findings:* The `deployment_status` webhook fires when a deployment status is created. The payload includes `deployment` (containing the deployment ID) and `deployment_status` (containing the `state` like `success`, `pending`, `failure`). Verification requires computing an HMAC-SHA256 digest of the raw payload using the webhook secret and comparing it to the `x-hub-signature-256` header in constant time.
+
+## Solution Slate
+
+**Criteria:**
+1. **SSRF and Egress Compliance:** Respects `HttpClientPort` and asserts strict host-pinning in code.
+2. **Tenant Isolation:** Provider callbacks must resolve runs opaquely without relying on or inferring `workspaceId` from the payload.
+3. **Storage Correctness:** Avoids SQLite footguns like `JSONB` and correctly models long-running asynchronous states.
+
+| Rank | Option | Trade-offs & Sacrifices |
+|---|---|---|
+| 1 | **Direct HTTP Adapters via GitHub App** | *Recommended.* Offers secure, granular credential scoping (1-hour tokens) and respects all network egress rules. *Sacrifice:* Requires building and maintaining a bespoke REST adapter for every deployment provider we support, abandoning "universal" compatibility via standard CLI tools. |
+| 2 | **Generic Webhook Dispatcher** | Simply POSTs a payload to a user-provided deploy-hook URL. *Sacrifice:* Zero visibility into the deployment lifecycle. Tovu can only say "Triggered," losing all durable run status, rollback capabilities, and environment progression tracking. |
+| 3 | **Pull-based Self-Hosted Runner** | Tovu acts as a queue; a separate runner executes `gh` or provider CLIs. *Sacrifice:* Destroys the single-process self-hosted deployment model. Requires operators to manage secondary worker nodes, networking, and binary dependencies. |
+
+**Cheapest Falsifying Test for Rank 1:**
+Write a test that intercepts the `HttpClientPort.send` call within the `GitHubDeploymentAdapter` and attempts to substitute the URL hostname with `169.254.169.254`. If the adapter does not explicitly block the request *before* it hits the egress policy (since the policy does not support `allowedHosts`), the host-pinning implementation is falsified.
+
+## Leading Option — Code
+
+### Domain & Tables
+We use `TEXT` for JSON columns to avoid SQLite `JSONB` affinity traps.
+
+```sql
+CREATE TABLE deployment_environments (
+  id TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  created_at_iso TEXT NOT NULL,
+  version INTEGER NOT NULL DEFAULT 1,
+  UNIQUE (workspace_id, name)
+);
+
+CREATE TABLE deployment_targets (
+  id TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL,
+  environment_id TEXT NOT NULL,
+  provider TEXT NOT NULL CHECK (provider = 'github'),
+  credential_secret_id TEXT NOT NULL,
+  config_json TEXT NOT NULL, -- Stored as TEXT
+  created_at_iso TEXT NOT NULL,
+  version INTEGER NOT NULL DEFAULT 1,
+  FOREIGN KEY (workspace_id, environment_id) REFERENCES deployment_environments(workspace_id, id)
+);
+
+CREATE TABLE deployment_runs (
+  id TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL,
+  target_id TEXT NOT NULL,
+  status TEXT NOT NULL CHECK (status IN ('queued', 'running', 'success', 'failed')),
+  provider_run_ref TEXT,
+  logs_json TEXT NOT NULL DEFAULT '[]', -- Stored as TEXT
+  created_at_iso TEXT NOT NULL,
+  updated_at_iso TEXT NOT NULL,
+  version INTEGER NOT NULL DEFAULT 1,
+  FOREIGN KEY (workspace_id, target_id) REFERENCES deployment_targets(workspace_id, id)
+);
+
+CREATE INDEX idx_deployment_runs_provider_ref ON deployment_runs (provider_run_ref);
+```
+
+### Provider-Neutral Port & GitHub Adapter
+The adapter enforces host pinning explicitly and uses `HttpClientPort.send` with the corrected `EgressPolicy`.
+
+```typescript
+import { createSign } from "node:crypto";
+import type { HttpClientPort, EgressPolicy, HttpRequest, IntegrationSecretRepoPort, SecretSealerPort } from "../integrations-ports";
+import type { UUID } from "@jini-ai/cms/core";
+
+const GITHUB_API_BASE = "https://api.github.com";
+
+export interface DeploymentRuntimePort {
+  startRun(input: {
+    workspaceId: UUID;
+    runId: UUID;
+    targetConfig: Record<string, any>;
+    commitSha: string;
+    credentialPlaintext: any;
+  }): Promise<{ providerRunRef: string }>;
+}
+
+export class GitHubDeploymentAdapter implements DeploymentRuntimePort {
+  constructor(
+    private readonly http: HttpClientPort,
+    private readonly egressPolicy: EgressPolicy
+  ) {
+    // EgressPolicy does not enforce allowedHosts, so we must manually ensure 
+    // it's configured safely for the generic properties.
+    this.egressPolicy.denyPrivateAddresses = true;
+    this.egressPolicy.maxRedirects = 0;
+  }
+
+  async startRun(input: {
+    workspaceId: UUID;
+    runId: UUID;
+    targetConfig: any;
+    commitSha: string;
+    credentialPlaintext: any;
+  }) {
+    const { owner, repo, environment } = input.targetConfig;
+    const targetUrl = new URL(`${GITHUB_API_BASE}/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/deployments`);
+    
+    // Explicit Host Pinning: SSRF prevention since EgressPolicy cannot do allowedHosts
+    if (targetUrl.hostname !== "api.github.com") {
+      throw new Error("Security Violation: Target URL hostname must be api.github.com");
+    }
+
+    const token = await this.mintInstallationToken(input.credentialPlaintext);
+
+    const request: HttpRequest = {
+      method: "POST",
+      url: targetUrl.toString(),
+      headers: {
+        "Accept": "application/vnd.github+json",
+        "Authorization": `Bearer ${token}`,
+        "X-GitHub-Api-Version": "2022-11-28",
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        ref: input.commitSha,
+        environment,
+        auto_merge: false,
+        required_contexts: [],
+        payload: { tovu_run_id: input.runId } // Correlation payload
+      })
+    };
+
+    // Correct method: .send()
+    const response = await this.http.send(request, this.egressPolicy);
+
+    if (response.status !== 201) {
+      throw new Error(`GitHub deployment failed: ${response.status}`);
+    }
+
+    const data = JSON.parse(response.body);
+    return { providerRunRef: String(data.id) };
+  }
+
+  private async mintInstallationToken(credential: any): Promise<string> {
+    const now = Math.floor(Date.now() / 1000);
+    const header = Buffer.from(JSON.stringify({ alg: "RS256", typ: "JWT" })).toString("base64url");
+    const payload = Buffer.from(JSON.stringify({ iat: now - 60, exp: now + (9 * 60), iss: credential.appId })).toString("base64url");
+    const signature = createSign("RSA-SHA256").update(`${header}.${payload}`).sign(credential.privateKeyPem).toString("base64url");
+    const jwt = `${header}.${payload}.${signature}`;
+
+    const url = `https://api.github.com/app/installations/${encodeURIComponent(credential.installationId)}/access_tokens`;
+    const response = await this.http.send({
+      method: "POST",
+      url,
+      headers: { "Authorization": `Bearer ${jwt}`, "Accept": "application/vnd.github+json" }
+    }, this.egressPolicy);
+
+    if (response.status !== 201) throw new Error("Failed to exchange JWT for installation token");
+    return JSON.parse(response.body).token;
+  }
+}
+```
+
+### Webhook Route
+Resolves the workspace securely from the `providerRunRef` without trusting the payload to provide tenant context.
+
+```typescript
+import { createHmac, timingSafeEqual } from "node:crypto";
+import type { Express, Request, Response } from "express";
+
+export function registerGitHubWebhook(app: Express, deps: any) {
+  app.post("/api/webhooks/github/deployments", async (req: Request, res: Response) => {
+    const signature = req.headers["x-hub-signature-256"];
+    if (typeof signature !== "string") {
+      res.status(401).json({ error: "Missing signature" });
+      return;
+    }
+
+    const webhookSecret = await deps.getSharedWebhookSecret();
+    const hmac = createHmac("sha256", webhookSecret).update(req.body);
+    const expectedSignature = `sha256=${hmac.digest("hex")}`;
+
+    if (!timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSignature))) {
+      res.status(401).json({ error: "Invalid signature" });
+      return;
+    }
+
+    const payload = JSON.parse(req.body.toString("utf8"));
+    if (req.headers["x-github-event"] !== "deployment_status") {
+      res.status(202).json({ ignored: true });
+      return;
+    }
+
+    const providerRunRef = String(payload.deployment?.id);
+    
+    // The Callback Invariant: Resolving workspace from Tovu's records, never the payload.
+    const run = await deps.runRepo.findByProviderRef("github", providerRunRef);
+    if (!run) {
+      res.status(202).json({ ignored: true });
+      return;
+    }
+
+    let status = "running";
+    if (payload.deployment_status?.state === "success") status = "success";
+    if (payload.deployment_status?.state === "failure" || payload.deployment_status?.state === "error") status = "failed";
+
+    await deps.runRepo.updateStatus({
+      workspaceId: run.workspaceId,
+      id: run.id,
+      status,
+      expectedVersion: run.version
+    });
+
+    res.status(204).end();
+  });
+}
+```
+
+### Admin Surface & Honesty Banner
+```tsx
+export function DeploymentsAdminPage({ targets, runs }: { targets: any[], runs: any[] }) {
+  return (
+    <div className="admin-deployments">
+      <div className="bg-blue-50 border-l-4 border-blue-500 p-4 mb-6">
+        <h3 className="font-bold">External Orchestration Only</h3>
+        <p>
+          Tovu does not compile or build your site. Deployments here orchestrate 
+          external deployment pipelines for pre-existing commits or artifacts.
+        </p>
+      </div>
+
+      {targets.length === 0 ? (
+        <div className="empty-state">
+          <h2>No Targets Configured</h2>
+          <button>Add GitHub Target</button>
+        </div>
+      ) : (
+        <table className="min-w-full">
+          <thead>
+            <tr><th>Environment</th><th>Status</th><th>Run ID</th></tr>
+          </thead>
+          <tbody>
+            {runs.map(run => (
+              <tr key={run.id}>
+                <td>{run.environmentName}</td>
+                <td>{run.status}</td>
+                <td>{run.id}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
+  );
+}
+```
+
+## Critique Of Another Participant's Round 2 Code
+
+I am critiquing **sonnet5-round2** for violating the actual network egress contracts of the Tovu core.
+
+First, the code explicitly assumes `EgressPolicy` supports `allowedHosts: ["api.github.com"]` and `followRedirects: false`. As verified in the packet preamble, `EgressPolicy` has no host-pinning feature at all. Assuming it does creates a false sense of security; host pinning MUST be asserted manually in the adapter code before execution. 
+
+Second, the code invokes the HTTP client via `deps.http.request(...)` (e.g., lines 1293 and 1317 of their submission). The verified correct client method is `HttpClientPort.send(request)`. Their adapter code will immediately crash with a `TypeError: deps.http.request is not a function` at runtime and does not compile against the true port signature.
+
+## What Would Change My Mind
+
+*   **Tovu implements internal build capabilities:** If Tovu gains a native `tovu build` command that generates artifacts, the honesty constraint changes, and the first slice would shift from "orchestrating an external commit" to "building and uploading an artifact directly to a host."
+*   **Customer adoption friction blocks App install:** If telemetry or user feedback proves that self-hosters abandon Tovu because creating a GitHub App is too complex, I would gracefully degrade to supporting Personal Access Tokens (PATs) as a fallback mechanism, explicitly warning the operator in the UI about the blast-radius risk of using a user-bound token.
+
+<<SWARM_END>>

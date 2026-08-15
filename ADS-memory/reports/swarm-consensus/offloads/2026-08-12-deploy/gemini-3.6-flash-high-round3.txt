@@ -1,0 +1,559 @@
+ACK_PACKET_RECEIVED CTX-DEPLOY-R3-2026-08-12 -- I received the packet and will work on it.
+
+## Position And Movement
+
+### Position
+Deployment in Tovu is defined as: **promoting an immutable, workspace-scoped release to a named environment through a configured target, executing side effects via direct HTTP adapters using Tovu's guarded `HttpClientPort.send()`, and tracking progress via durable workspace-scoped run records.**
+
+The owner's hypothesis — *"just MCP, access tokens and base URLs"* — is definitively rejected based on codebase facts:
+1. **MCP is a stdio subprocess, not an HTTP transport**: [ports.ts:139-149](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/mcp-federation/ports.ts#L139-L149) notes hosted HTTP is deferred; [adapter.stdio.ts:308-312](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/mcp-federation/adapter.stdio.ts#L308-L312) executes `child_process.spawn`.
+2. **MCP bypasses Tovu egress controls**: `HttpClientPort` and `EgressPolicy` ([integrations-ports.ts:28,40](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/integrations-ports.ts#L28)) appear **zero times** in `mcp-federation/`. Stdio subprocesses manage their own socket connections, bypassing SSRF and DNS-pinning protections.
+3. **The honesty constraint**: Tovu's CLI exposes only `init`, `serve`, `introspect` ([program.ts:35-60](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/cli/program.ts#L35-L60)) — **no build or export command exists**. The v1 deployment surface must honestly state: *Tovu orchestrates an external deployment of a pre-existing artifact or commit ref.*
+4. **Callback workspace isolation**: Inbound webhooks map `(providerId, providerRunRef) -> workspaceId` using Tovu's database. Callbacks **never supply or infer the workspace ID** from the request path, header, or body.
+
+### Movement & Refinements Since Round 2
+- **Origin Pinning in Adapter**: Because `EgressPolicy` has no `allowedHosts` field (verified in preamble), host pinning to `https://api.github.com` must be explicitly enforced inside the adapter before calling `HttpClientPort.send(request)`.
+- **SQLite JSONB Correction**: SQLite column types declared as `JSONB` resolve to `NUMERIC` affinity (matching no affinity keywords: `INT`, `CHAR`, `CLOB`, `BLOB`, `REAL`, `FLOA`, `DOUB`), silently coercing numeric string identifiers. Domain tables use `TEXT NOT NULL` for JSON payloads.
+
+---
+
+## Sources
+
+1. **[GitHub App Installation Access Tokens](https://docs.github.com/en/rest/apps/apps#create-an-installation-access-token-for-an-app)**
+   - *Confirmed*: Installation access tokens are minted via `POST /app/installations/{installation_id}/access_tokens` using a short-lived RS256 JWT (max 10-min TTL) in the `Authorization: Bearer {jwt}` header. The resulting installation token has a 1-hour default TTL and is scoped strictly to selected repositories and permissions (`deployments: write`, `contents: read`).
+2. **[GitHub REST Deployments API](https://docs.github.com/en/rest/deployments/deployments)** & **[Deployment Statuses](https://docs.github.com/en/rest/deployments/statuses)**
+   - *Confirmed*: Deployment creation is `POST /repos/{owner}/{repo}/deployments` (accepting `ref`, `environment`, `auto_merge`, `required_contexts`, `payload`). Status creation and polling use `POST/GET /repos/{owner}/{repo}/deployments/{deployment_id}/statuses`.
+3. **[GitHub Webhook Delivery Validation](https://docs.github.com/en/webhooks/using-webhooks/validating-webhook-deliveries)**
+   - *Confirmed*: Webhook deliveries send an `X-Hub-Signature-256` header containing the HMAC-SHA256 hex digest of the raw request payload signed with the configured secret. Verification requires constant-time string comparison.
+4. **[SQLite Datatypes and Column Affinity](https://www.sqlite.org/datatype3.html)** & **[SQLite JSON1 Extension](https://www.sqlite.org/json1.html)**
+   - *Confirmed & Contradiction Corrected*: SQLite's affinity determination rules assign `NUMERIC` affinity to any declared type string that does not contain `INT`, `CHAR`, `CLOB`, `BLOB`, `REAL`, `FLOA`, or `DOUB`. Declaring a column as `JSONB` falls through to `NUMERIC` affinity, causing automatic coercion of numeric strings (e.g. `'123'` -> `123`). Binary SQLite JSONB should use `BLOB`, while text JSON should use `TEXT`.
+
+---
+
+## Solution Slate
+
+### Slate Ranking Criteria
+1. **Egress Security & Isolation**: Strict compliance with Tovu's guarded `HttpClientPort.send()` and non-leaking multi-tenant secret handling (`SecretSealerPort`/`IntegrationSecretRepoPort`).
+2. **Architectural Honesty**: Truthful representation of Tovu's build capabilities (no fake local site builds).
+3. **Observability & Resilience**: Asynchronous outbox handling, durable execution state across restarts, and unguessable token/HMAC-gated webhooks.
+4. **Credential Scope Granularity**: Principle of least privilege for provider credentials.
+5. **Operator Onboarding Burden**: Friction required to configure a target.
+
+---
+
+### Option 1 (Leading / Recommended): Direct Provider HTTP Adapters with GitHub App Installation Tokens
+- **Architecture**: Domain model (`Release`, `Environment`, `DeploymentTarget`, `DeploymentRun`, `DeploymentRunEvent`) backed by SQLite tables. `GitHubDeploymentAdapter` implements `DeploymentRuntimePort` over `HttpClientPort.send()`, minting 1-hour installation tokens from an RS256 App JWT. Origin is pinned inside the adapter to `https://api.github.com`. Inbound webhooks resolve `(providerId, providerRunRef) -> workspaceId` via DB lookups.
+- **Trade-offs**: High multi-tenant security, zero process-spawning overhead, strict SSRF protection.
+- **Genuine Sacrifice**: Operator friction registering a GitHub App (generating a private key and walking an installation flow) compared to pasting a PAT, plus maintaining provider-specific HTTP adapters in Tovu core.
+- **Cheapest Falsifying Test**: Execute a test deployment request using `GitHubDeploymentAdapter`. Verify:
+  1. Origin verification in the adapter blocks requests targeting non-GitHub hosts.
+  2. `POST /repos/{owner}/{repo}/deployments` creates a deployment record on GitHub.
+  3. An inbound webhook with a forged `deployment.id` fails DB resolution and returns `202 { ignored: true }`.
+  4. Storing string IDs in a column typed `JSONB` in SQLite degrades numeric string comparisons.
+
+---
+
+### Option 2: Guarded Deploy-Hook URL Dispatcher (HTTP POST to External Webhook URLs)
+- **Architecture**: A minimal HTTP adapter that POSTs a sealed deploy-hook URL (e.g., Netlify/Vercel build hooks) through `HttpClientPort.send()`.
+- **Trade-offs**: Extremely low setup friction (copy-paste URL).
+- **Genuine Sacrifice**: Complete sacrifice of deployment observability and status tracking. Deploy hooks return "accepted" without a `providerRunRef`, preventing run status updates or rollback correlation.
+
+---
+
+### Option 3: External MCP Server Subprocess Delegation (Owner's Original Proposal)
+- **Architecture**: Spawn external vendor MCP servers as stdio child processes (`McpStdioLaunchSpec`) and invoke deployment tools via JSON-RPC.
+- **Trade-offs**: Off-the-shelf vendor tools.
+- **Genuine Sacrifice**: Total forfeiture of SSRF protection and network egress enforcement. Stdio child processes manage their own network sockets, bypassing `HttpClientPort`/`EgressPolicy` entirely ([ports.ts:139-149](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/mcp-federation/ports.ts#L139-L149)).
+
+---
+
+## Leading Option — Code
+
+### 1. Domain Types & SQLite Schema
+
+```typescript
+// deployment/types.ts
+import type { ISODateTime, UUID } from "@jini-ai/cms/core";
+import type { IntegrationId } from "../integrations-ports";
+
+export type DeploymentRunState =
+  | "queued"
+  | "starting"
+  | "submitted"
+  | "running"
+  | "succeeded"
+  | "failed"
+  | "canceled";
+
+export interface Release {
+  readonly id: UUID;
+  readonly workspaceId: UUID;
+  readonly label: string;
+  readonly artifact: {
+    readonly kind: "external";
+    readonly uri: string;
+    readonly digest: string; // Immutable commit SHA or artifact digest
+  };
+  readonly createdByPrincipalId: UUID;
+  readonly createdAtIso: ISODateTime;
+  readonly version: number;
+}
+
+export interface Environment {
+  readonly id: UUID;
+  readonly workspaceId: UUID;
+  readonly name: string;
+  readonly slug: string;
+  readonly currentReleaseId: UUID | null;
+  readonly createdAtIso: ISODateTime;
+  readonly updatedAtIso: ISODateTime;
+  readonly version: number;
+}
+
+export interface GitHubTargetConfig {
+  readonly kind: "github-deployments-v1";
+  readonly appId: string;
+  readonly installationId: string;
+  readonly owner: string;
+  readonly repository: string;
+  readonly task: string;
+}
+
+export interface DeploymentTarget {
+  readonly id: UUID;
+  readonly workspaceId: UUID;
+  readonly environmentId: UUID;
+  readonly name: string;
+  readonly provider: "github-deployments";
+  readonly config: GitHubTargetConfig;
+  readonly credentialSecretId: IntegrationId;
+  readonly enabled: boolean;
+  readonly createdAtIso: ISODateTime;
+  readonly updatedAtIso: ISODateTime;
+  readonly version: number;
+}
+
+export interface DeploymentRun {
+  readonly id: UUID;
+  readonly workspaceId: UUID;
+  readonly releaseId: UUID;
+  readonly environmentId: UUID;
+  readonly targetId: UUID;
+  readonly requestedByPrincipalId: UUID;
+  readonly state: DeploymentRunState;
+  readonly providerOperationId: string | null;
+  readonly providerState: string | null;
+  readonly errorSummary: string | null;
+  readonly createdAtIso: ISODateTime;
+  readonly updatedAtIso: ISODateTime;
+  readonly version: number;
+}
+
+export interface DeploymentRunEvent {
+  readonly id: UUID;
+  readonly workspaceId: UUID;
+  readonly runId: UUID;
+  readonly sequence: number;
+  readonly level: "info" | "warning" | "error";
+  readonly message: string;
+  readonly createdAtIso: ISODateTime;
+}
+```
+
+```sql
+-- Schema definition avoiding SQLite JSONB column affinity traps (uses TEXT NOT NULL)
+CREATE TABLE releases (
+  id TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL,
+  label TEXT NOT NULL,
+  artifact_kind TEXT NOT NULL CHECK (artifact_kind = 'external'),
+  artifact_uri TEXT NOT NULL,
+  artifact_digest TEXT NOT NULL,
+  created_by_principal_id TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  version INTEGER NOT NULL DEFAULT 1 CHECK (version >= 1),
+  UNIQUE (workspace_id, id)
+);
+
+CREATE TABLE environments (
+  id TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  slug TEXT NOT NULL,
+  current_release_id TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  version INTEGER NOT NULL DEFAULT 1 CHECK (version >= 1),
+  PRIMARY KEY (workspace_id, id),
+  UNIQUE (workspace_id, slug),
+  FOREIGN KEY (workspace_id, current_release_id) REFERENCES releases(workspace_id, id)
+);
+
+CREATE TABLE deployment_targets (
+  id TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL,
+  environment_id TEXT NOT NULL,
+  name TEXT NOT NULL,
+  provider TEXT NOT NULL CHECK (provider = 'github-deployments'),
+  provider_config_json TEXT NOT NULL, -- Stored as TEXT to prevent NUMERIC affinity coercion
+  credential_secret_id TEXT NOT NULL,
+  enabled INTEGER NOT NULL CHECK (enabled IN (0, 1)),
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  version INTEGER NOT NULL DEFAULT 1 CHECK (version >= 1),
+  PRIMARY KEY (workspace_id, id),
+  FOREIGN KEY (workspace_id, environment_id) REFERENCES environments(workspace_id, id)
+);
+
+CREATE TABLE deployment_runs (
+  id TEXT PRIMARY KEY,
+  workspace_id TEXT NOT NULL,
+  release_id TEXT NOT NULL,
+  environment_id TEXT NOT NULL,
+  target_id TEXT NOT NULL,
+  requested_by_principal_id TEXT NOT NULL,
+  state TEXT NOT NULL CHECK (state IN ('queued','starting','submitted','running','succeeded','failed','canceled')),
+  provider_operation_id TEXT,
+  provider_state TEXT,
+  error_summary TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  version INTEGER NOT NULL DEFAULT 1 CHECK (version >= 1),
+  PRIMARY KEY (workspace_id, id),
+  FOREIGN KEY (workspace_id, release_id) REFERENCES releases(workspace_id, id),
+  FOREIGN KEY (workspace_id, environment_id) REFERENCES environments(workspace_id, id),
+  FOREIGN KEY (workspace_id, target_id) REFERENCES deployment_targets(workspace_id, id)
+);
+
+CREATE INDEX idx_deployment_runs_provider_ref ON deployment_runs(provider_operation_id);
+```
+
+---
+
+### 2. Runtime Port & GitHub App Adapter over `HttpClientPort.send`
+
+```typescript
+// deployment/adapter.github.ts
+import { createSign } from "node:crypto";
+import type { UUID } from "@jini-ai/cms/core";
+import type { EgressPolicy, HttpClientPort, HttpRequest, HttpResponse } from "../integrations-ports";
+import type { DeploymentTarget, Release } from "./types";
+
+export interface DeploymentRuntimePort {
+  submit(input: {
+    workspaceId: UUID;
+    runId: UUID;
+    release: Release;
+    target: DeploymentTarget;
+    appPrivateKeyPem: string;
+  }): Promise<{ providerOperationId: string; providerState: string }>;
+
+  inspect(input: {
+    workspaceId: UUID;
+    target: DeploymentTarget;
+    providerOperationId: string;
+    appPrivateKeyPem: string;
+  }): Promise<{ state: "submitted" | "running" | "succeeded" | "failed"; providerState: string }>;
+}
+
+const GITHUB_API_ORIGIN = "https://api.github.com";
+
+export class GitHubDeploymentAdapter implements DeploymentRuntimePort {
+  constructor(
+    private readonly httpClient: HttpClientPort,
+    private readonly egressPolicy: EgressPolicy,
+  ) {}
+
+  private verifyOrigin(urlStr: string): void {
+    const parsed = new URL(urlStr);
+    if (parsed.origin !== GITHUB_API_ORIGIN) {
+      throw new Error(`Security Violation: Adapter restricted to origin ${GITHUB_API_ORIGIN}, got ${parsed.origin}`);
+    }
+  }
+
+  private async mintInstallationToken(appId: string, installationId: string, privateKeyPem: string): Promise<string> {
+    const now = Math.floor(Date.now() / 1000);
+    const header = Buffer.from(JSON.stringify({ alg: "RS256", typ: "JWT" })).toString("base64url");
+    const payload = Buffer.from(JSON.stringify({ iat: now - 60, exp: now + 540, iss: appId })).toString("base64url");
+    const signer = createSign("RSA-SHA256");
+    signer.update(`${header}.${payload}`);
+    const signature = signer.sign(privateKeyPem, "base64url");
+    const jwt = `${header}.${payload}.${signature}`;
+
+    const url = `${GITHUB_API_ORIGIN}/app/installations/${encodeURIComponent(installationId)}/access_tokens`;
+    this.verifyOrigin(url);
+
+    const response = await this.httpClient.send({
+      method: "POST",
+      url,
+      headers: {
+        Authorization: `Bearer ${jwt}`,
+        Accept: "application/vnd.github+json",
+        "User-Agent": "Tovu-Deployment-Engine",
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+      egressPolicy: this.egressPolicy,
+    });
+
+    if (response.status !== 201) {
+      throw new Error(`GitHub token exchange failed (${response.status}): ${response.body}`);
+    }
+
+    const data = JSON.parse(response.body) as { token: string };
+    return data.token;
+  }
+
+  async submit(input: {
+    workspaceId: UUID;
+    runId: UUID;
+    release: Release;
+    target: DeploymentTarget;
+    appPrivateKeyPem: string;
+  }) {
+    const token = await this.mintInstallationToken(
+      input.target.config.appId,
+      input.target.config.installationId,
+      input.appPrivateKeyPem,
+    );
+
+    const url = `${GITHUB_API_ORIGIN}/repos/${encodeURIComponent(input.target.config.owner)}/${encodeURIComponent(input.target.config.repository)}/deployments`;
+    this.verifyOrigin(url);
+
+    const req: HttpRequest = {
+      method: "POST",
+      url,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github+json",
+        "Content-Type": "application/json",
+        "User-Agent": "Tovu-Deployment-Engine",
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+      body: JSON.stringify({
+        ref: input.release.artifact.digest,
+        environment: input.target.name,
+        task: input.target.config.task || "deploy",
+        auto_merge: false,
+        required_contexts: [],
+        payload: { tovu_run_id: input.runId, workspace_id: input.workspaceId },
+      }),
+      egressPolicy: this.egressPolicy,
+    };
+
+    const res: HttpResponse = await this.httpClient.send(req);
+    if (res.status !== 201) {
+      throw new Error(`GitHub deployment creation failed (${res.status}): ${res.body}`);
+    }
+
+    const body = JSON.parse(res.body) as { id: number };
+    return { providerOperationId: String(body.id), providerState: "queued" };
+  }
+
+  async inspect(input: {
+    workspaceId: UUID;
+    target: DeploymentTarget;
+    providerOperationId: string;
+    appPrivateKeyPem: string;
+  }) {
+    const token = await this.mintInstallationToken(
+      input.target.config.appId,
+      input.target.config.installationId,
+      input.appPrivateKeyPem,
+    );
+
+    const url = `${GITHUB_API_ORIGIN}/repos/${encodeURIComponent(input.target.config.owner)}/${encodeURIComponent(input.target.config.repository)}/deployments/${encodeURIComponent(input.providerOperationId)}/statuses?per_page=1`;
+    this.verifyOrigin(url);
+
+    const res = await this.httpClient.send({
+      method: "GET",
+      url,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: "application/vnd.github+json",
+        "User-Agent": "Tovu-Deployment-Engine",
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+      egressPolicy: this.egressPolicy,
+    });
+
+    if (res.status !== 200) {
+      throw new Error(`GitHub status inspection failed (${res.status}): ${res.body}`);
+    }
+
+    const statuses = JSON.parse(res.body) as Array<{ state: string }>;
+    const latest = statuses[0]?.state || "queued";
+    return mapGitHubState(latest);
+  }
+}
+
+function mapGitHubState(state: string): { state: "submitted" | "running" | "succeeded" | "failed"; providerState: string } {
+  switch (state) {
+    case "success":
+      return { state: "succeeded", providerState: state };
+    case "failure":
+    case "error":
+      return { state: "failed", providerState: state };
+    case "in_progress":
+    case "queued":
+    default:
+      return { state: "running", providerState: state };
+  }
+}
+```
+
+---
+
+### 3. Webhook Callback Route (`(providerId, providerRunRef) -> workspace` resolution)
+
+```typescript
+// deployment/webhook.ts
+import { createHmac, timingSafeEqual } from "node:crypto";
+import type { Express, Request, Response } from "express";
+import type { DeploymentRun } from "./types";
+
+export interface WebhookRouteDeps {
+  readonly getWebhookSecret: () => Promise<string>;
+  readonly findRunByProviderRef: (providerOperationId: string) => Promise<DeploymentRun | null>;
+  readonly updateRunStatus: (runId: string, state: string, version: number) => Promise<void>;
+}
+
+export function registerGitHubWebhookRoute(app: Express, deps: WebhookRouteDeps): void {
+  app.post("/api/webhooks/github/deployments", async (req: Request, res: Response) => {
+    const rawBody = req.body as Buffer;
+    const signature = req.header("x-hub-signature-256") || "";
+
+    const secret = await deps.getWebhookSecret();
+    const hmac = createHmac("sha256", secret).update(rawBody).digest("hex");
+    const expectedSig = `sha256=${hmac}`;
+
+    if (!signature || !timingSafeEqual(Buffer.from(signature), Buffer.from(expectedSig))) {
+      res.status(401).json({ error: "Invalid signature" });
+      return;
+    }
+
+    if (req.header("x-github-event") !== "deployment_status") {
+      res.status(202).json({ ignored: true });
+      return;
+    }
+
+    const payload = JSON.parse(rawBody.toString("utf-8"));
+    const deploymentId = String(payload.deployment?.id || "");
+
+    // CRITICAL SECURITY INVARIANT: Workspace is resolved ONLY via DB lookup from deploymentId
+    const run = await deps.findRunByProviderRef(deploymentId);
+    if (!run) {
+      res.status(202).json({ ignored: true, reason: "No matching run found for deployment ref" });
+      return;
+    }
+
+    const newState = payload.deployment_status?.state === "success" ? "succeeded" : "failed";
+    await deps.updateRunStatus(run.id, newState, run.version);
+
+    res.status(200).json({ ok: true, runId: run.id, workspaceId: run.workspaceId });
+  });
+}
+```
+
+---
+
+### 4. Admin Surface & Frontend Honesty Banner
+
+```typescript
+// deployment/adminRoutes.ts
+import type { Express } from "express";
+import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import type { RouteDeps } from "#src/server/routes/types";
+
+export function registerAdminDeploymentRoutes(app: Express, deps: Pick<RouteDeps, "workspaceId" | "authorize">): void {
+  app.get("/api/admin/v1/workspaces/:workspaceId/deployment-targets", async (req, res) => {
+    if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
+      res.status(404).json({ error: "workspace was not found" });
+      return;
+    }
+
+    const principal = getAuthedPrincipal(res);
+    const authResult = await deps.authorize({
+      principalId: principal.id,
+      permission: "admin.integrations.manage",
+      workspaceId: deps.workspaceId,
+      entityType: "deployment-target",
+    });
+
+    if (!authResult.allowed) {
+      res.status(403).json({ error: `Not authorized: ${authResult.reason}`, code: "FORBIDDEN" });
+      return;
+    }
+
+    res.status(200).json({ targets: [], honestyNote: "Tovu orchestrates external deployments for pre-existing commit refs." });
+  });
+}
+```
+
+```tsx
+// frontend/DeploymentsAdminPanel.tsx
+import React from "react";
+
+export function DeploymentsAdminPanel({ targets }: { targets: Array<{ id: string; name: string }> }) {
+  return (
+    <div className="p-6 max-w-4xl mx-auto">
+      {/* Honesty Banner */}
+      <div className="mb-6 p-4 bg-amber-50 border-l-4 border-amber-500 text-amber-900 rounded">
+        <h3 className="font-bold text-sm">External Deployment Orchestration</h3>
+        <p className="text-xs mt-1">
+          Tovu does not compile or build static site assets locally. Deployments orchestrate an external workflow for pre-existing releases or commit SHAs.
+        </p>
+      </div>
+
+      {targets.length === 0 ? (
+        <div className="p-8 text-center bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg">
+          <h4 className="font-semibold text-gray-700">No Deployment Target Configured</h4>
+          <p className="text-xs text-gray-500 mt-1">Configure a GitHub App target to trigger external workflows.</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <h3 className="font-bold">Active Targets ({targets.length})</h3>
+        </div>
+      )}
+    </div>
+  );
+}
+```
+
+---
+
+## Critique Of Another Participant's Round 2 Code
+
+### Critique of `sonnet5-round2` (lines 1269–1276, 1293–1298)
+
+In Round 2, `sonnet5-round2` declared the following `EgressPolicy` and HTTP request call:
+
+```typescript
+// sonnet5-round2 code snippet (lines 1269–1276)
+const GITHUB_EGRESS_POLICY: EgressPolicy = {
+  allowedHosts: ["api.github.com"],
+  maxResponseBytes: 2 * 1024 * 1024,
+  followRedirects: false,
+};
+
+// sonnet5-round2 call site (lines 1293–1298)
+const res = await deps.http.request({
+  method: "GET",
+  url: `${GITHUB_API_BASE}/repos/${config.owner}/${config.repo}`,
+  headers: githubHeaders(token),
+  egressPolicy: GITHUB_EGRESS_POLICY,
+});
+```
+
+#### Code Defects & Failures Against Real Contracts
+1. **Uncompiled `EgressPolicy` Fields**: As established in the preamble, Tovu's `EgressPolicy` contract contains `allowedSchemes`, `denyPrivateAddresses`, `devHostAllowlist`, `maxRedirects`, `connectTimeoutMs`, `maxResponseBytes`, `maxDecompressedBytes`, and `rateLimit`. It has **no `allowedHosts` or `followRedirects` properties**. Passing these fields produces TypeScript compiler errors (`TS2353: Object literal may only specify known properties`).
+2. **Wrong Method Signature**: `sonnet5-round2` invoked `deps.http.request({...})`. Tovu's actual `HttpClientPort` method is `send(request: HttpRequest)`, not `.request(...)`.
+3. **False Security Property**: Because `EgressPolicy` cannot express host restriction, `sonnet5-round2`'s reliance on `allowedHosts` provides zero origin pinning. If a target URL is configured maliciously, `HttpClientPort.send()` will execute outbound requests to non-GitHub hosts. Host origin verification MUST be explicitly checked inside the adapter logic prior to calling `send()`.
+
+---
+
+## What Would Change My Mind
+
+1. **Hosted Egress-Proxied MCP Transport**: If Tovu's `mcp-federation` implements a hosted HTTP transport ([ports.ts:139-140](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/mcp-federation/ports.ts#L139-L140)) that routes all JSON-RPC egress through `HttpClientPort.send()`, eliminating stdio subprocess bypasses.
+2. **Native Site Build Engine**: If `tovu/cli` ([program.ts:35-60](file:///tmp/ads-peer-dispatch/debate-deploy/files/tovu/cli/program.ts#L35-L60)) adds a deterministic static site exporter, transforming Tovu into an artifact producer rather than an external orchestrator.
+
+<<SWARM_END>>

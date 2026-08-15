@@ -1,0 +1,128 @@
+ACK_PACKET_RECEIVED CTX-PLUGINS-2026-08-12 -- I received the packet and will work on it.
+
+## Position
+
+Tovu's goal of building a WordPress-style plugin ecosystem for a self-hostable, multi-workspace CMS in TypeScript ([files/adr/ADR-004-plugin-artifact-format.md:9-13](file:///tmp/ads-peer-dispatch/debate-plugins/files/adr/ADR-004-plugin-artifact-format.md#L9-L13)) faces a fundamental contradiction: **WordPress's ecosystem power comes from unisolated, in-process, synchronous code hooks (`add_action`/`add_filter`), whereas Tovu's multi-workspace architecture makes unisolated third-party code an existential security risk** ([files/adr/ADR-024-plugin-execution-and-trust-model.md:20-27](file:///tmp/ads-peer-dispatch/debate-plugins/files/adr/ADR-024-plugin-execution-and-trust-model.md#L20-L27)). Under ADR-011, a single host process serves multiple workspaces; an unsandboxed in-process ESM plugin installed into Workspace A can read Workspace B's `content.db`, extract secrets via `KeyringPort` ([files/integrations-ports.ts:59-87](file:///tmp/ads-peer-dispatch/debate-plugins/files/integrations-ports.ts#L59-L87)), or wipe the filesystem ([files/adr/ADR-004-plugin-artifact-format.md:64-66](file:///tmp/ads-peer-dispatch/debate-plugins/files/adr/ADR-004-plugin-artifact-format.md#L64-L66)).
+
+The right design is to **execute Option A (Grow Tier-1 Declarative Plugins first) while establishing Tier-2 Rung 1 (per-site process isolation) with a WASM/Worker capability sandbox (Tier-2 Rung 2) over the frozen ADR-024 §3 transport-agnostic ABI.**
+
+Specifically:
+
+1. **What "adaptive integration" means without a code sandbox:**
+   Adaptive integration **must NOT** mean proliferating in-process JavaScript hook callbacks (Option C). Without process isolation, in-process JS hooks create an irreversible security anti-pattern ([files/adr/ADR-024-plugin-execution-and-trust-model.md:63-65](file:///tmp/ads-peer-dispatch/debate-plugins/files/adr/ADR-024-plugin-execution-and-trust-model.md#L63-L65)).
+   - **At Tier-1 (Declarative):** "Adaptive integration" means **declarative intent and core-mediated primitives**. Third-party extensions register content types, fields, taxonomies, settings schemas, admin menu items, and core-mediated webhooks ([files/adr/ADR-024-plugin-execution-and-trust-model.md:34-37](file:///tmp/ads-peer-dispatch/debate-plugins/files/adr/ADR-024-plugin-execution-and-trust-model.md#L34-L37)). Host core executes dispatch, signing, and asset injection on their behalf using built-in machinery like `WebhookDeliveryRepoPort` and `HttpClientPort` ([files/integrations-ports.ts:28,121-155](file:///tmp/ads-peer-dispatch/debate-plugins/files/integrations-ports.ts#L28-L28)). The demand audit ([files/adr/ADR-024-plugin-execution-and-trust-model.md:148-161](file:///tmp/ads-peer-dispatch/debate-plugins/files/adr/ADR-024-plugin-execution-and-trust-model.md#L148-L161)) proved Tier-1 covers **~60–73%** of real ecosystem demand.
+   - **At Tier-2 (Sandboxed Code):** "Adaptive integration" means **asynchronous event-driven IPC hooks** over serializable, handle-based payloads ([files/adr/ADR-024-plugin-execution-and-trust-model.md:56-70](file:///tmp/ads-peer-dispatch/debate-plugins/files/adr/ADR-024-plugin-execution-and-trust-model.md#L56-L70)). Untrusted code interacts strictly with a capability-scoped SDK ([files/plugin-runtime/capability-sdk.ts:86-118](file:///tmp/ads-peer-dispatch/debate-plugins/files/plugin-runtime/capability-sdk.ts#L86-L118)) running inside isolated worker threads or WASM instances.
+
+2. **Evaluating ADR-024's Tier Model:**
+   ADR-024's tier model (`tier-1` | `tier-2` | `tier-3`, [files/plugin-runtime/manifest.ts:30](file:///tmp/ads-peer-dispatch/debate-plugins/files/plugin-runtime/manifest.ts#L30)) is **fundamentally sound** and must be preserved. Its marketplace forcing function—*"shipping the marketplace is shipping the sandbox"* ([files/adr/ADR-024-plugin-execution-and-trust-model.md:47-50](file:///tmp/ads-peer-dispatch/debate-plugins/files/adr/ADR-024-plugin-execution-and-trust-model.md#L47-L50))—is the only thing keeping the project from shipping un-sandboxed Tier-3 code to unsuspecting multi-site operators.
+
+---
+
+## Option Assessment
+
+### Option A — Grow Tier-1 First
+- **Verdict: ACCEPT & PRIORITIZE.**
+- **Rationale:** Grounded in ADR-024 §1 ([files/adr/ADR-024-plugin-execution-and-trust-model.md:34-37](file:///tmp/ads-peer-dispatch/debate-plugins/files/adr/ADR-024-plugin-execution-and-trust-model.md#L34-L37)), Tier-1 requires zero executable code. It relies on bounded, total expression languages ([files/adr/ADR-024-plugin-execution-and-trust-model.md:80-84](file:///tmp/ads-peer-dispatch/debate-plugins/files/adr/ADR-024-plugin-execution-and-trust-model.md#L80-L84)) and core-mediated primitives. The plugin-catalog demand audit ([files/adr/ADR-024-plugin-execution-and-trust-model.md:148-161](file:///tmp/ads-peer-dispatch/debate-plugins/files/adr/ADR-024-plugin-execution-and-trust-model.md#L148-L161)) verified that Tier-1 satisfies ~60–73% of target plugins (SEO tools, custom fields, taxonomies, analytics trackers, form sinks) without running a single byte of untrusted third-party JavaScript. It protects Tovu's single-binary install-dir product model ([files/adr/ADR-004-plugin-artifact-format.md:12-13](file:///tmp/ads-peer-dispatch/debate-plugins/files/adr/ADR-004-plugin-artifact-format.md#L12-L13)) today while building the ecosystem on-ramp.
+
+### Option B — Build the Tier-2 Sandbox Now
+- **Verdict: REJECT FULL IMMEDIATE BUILD; ADOPT PER-SITE RUNG 1 ARCHITECTURE.**
+- **Rationale:** Front-loading a full Tier-2 capability sandbox (Rung 2) before an ecosystem or marketplace exists mis-sequences development effort ([files/adr/ADR-024-plugin-execution-and-trust-model.md:126-128](file:///tmp/ads-peer-dispatch/debate-plugins/files/adr/ADR-024-plugin-execution-and-trust-model.md#L126-L128)). However, Tier-2 **Rung 1** (per-site process isolation via Electron `utilityProcess` or Node process/worker pools, [files/adr/ADR-024-plugin-execution-and-trust-model.md:71-78](file:///tmp/ads-peer-dispatch/debate-plugins/files/adr/ADR-024-plugin-execution-and-trust-model.md#L71-L78)) must be engineered now by strictly enforcing the transport-agnostic ABI freeze ([files/adr/ADR-024-plugin-execution-and-trust-model.md:56-70](file:///tmp/ads-peer-dispatch/debate-plugins/files/adr/ADR-024-plugin-execution-and-trust-model.md#L56-L70)).
+
+### Option C — Expand the Hook Surface at Tier-3
+- **Verdict: STRONGLY REJECT.**
+- **Rationale:** Today's runtime exposes a single hook (`content.entry.beforeSave`, [files/plugin-runtime/hook-registry.ts:53,83](file:///tmp/ads-peer-dispatch/debate-plugins/files/plugin-runtime/hook-registry.ts#L53-L83); [files/spec/feature.spec.md:33-34](file:///tmp/ads-peer-dispatch/debate-plugins/files/spec/feature.spec.md#L33-L34)) executed in-process at Tier-3 (`tier-3`, [files/plugin-runtime/manifest.ts:30,288](file:///tmp/ads-peer-dispatch/debate-plugins/files/plugin-runtime/manifest.ts#L30-L288)). Expanding the in-process JS hook catalog encourages plugin authors to build synchronous, reference-passing code. This creates ecosystem lock-in around an in-process model, directly breaking the ADR-024 ABI freeze ([files/adr/ADR-024-plugin-execution-and-trust-model.md:56-70](file:///tmp/ads-peer-dispatch/debate-plugins/files/adr/ADR-024-plugin-execution-and-trust-model.md#L56-L70)) and exposing all workspaces on the host to catastrophic cross-site data theft ([files/adr/ADR-024-plugin-execution-and-trust-model.md:20-27](file:///tmp/ads-peer-dispatch/debate-plugins/files/adr/ADR-024-plugin-execution-and-trust-model.md#L20-L27)).
+
+### Option D — Converge the Three Extension Systems
+- **Verdict: REJECT ARCHITECTURAL CONVERGENCE; UNIFY OPERATOR TRUST SURFACE ONLY.**
+- **Rationale:** Tovu has three extension concepts: Tovu Plugins ([files/adr/ADR-004-plugin-artifact-format.md:17-27](file:///tmp/ads-peer-dispatch/debate-plugins/files/adr/ADR-004-plugin-artifact-format.md#L17-L27)), Agent Plugins ([files/plugin-runtime/agent-tools.ts:1-26](file:///tmp/ads-peer-dispatch/debate-plugins/files/plugin-runtime/agent-tools.ts#L1-L26)), and Themes ([files/adr/ADR-004-plugin-artifact-format.md:69-70](file:///tmp/ads-peer-dispatch/debate-plugins/files/adr/ADR-004-plugin-artifact-format.md#L69-L70)). Forcing a single artifact format or runtime host across all three is a mistake—Agent Plugins are portable LLM tool declarations, Themes are presentation templates, and Plugins extend application lifecycle and data schema. However, unifying the operator-facing admin UI ([files/spec/feature.spec.md:116-165](file:///tmp/ads-peer-dispatch/debate-plugins/files/spec/feature.spec.md#L116-L165)) and trust-tier badges (`tier-1` | `tier-2` | `tier-3`, [files/spec/feature.spec.md:105,164-165](file:///tmp/ads-peer-dispatch/debate-plugins/files/spec/feature.spec.md#L105-L105)) across all extensions provides a coherent mental model for users.
+
+---
+
+### Answers to Specific Open Questions (OQ-01 to OQ-08)
+
+1. **Concrete Tier-2 Sandbox Mechanics:**
+   - *Mechanics:* A two-rung approach. **Rung 1** runs each workspace's plugin host in an isolated OS process (Electron `utilityProcess` or Node `child_process.fork()`). **Rung 2** enforces resource limits and memory isolation using standard Node `worker_threads` with `resourceLimits` combined with WebAssembly (WASM via QuickJS / Extism) for untrusted third-party code.
+   - *Rejected options:* `vm2` is rejected due to unresolvable sandbox escape CVEs ([files/adr/ADR-024-plugin-execution-and-trust-model.md:101](file:///tmp/ads-peer-dispatch/debate-plugins/files/adr/ADR-024-plugin-execution-and-trust-model.md#L101)). `isolated-vm` is rejected because C++ native compilation breaks the single-binary install-dir product model ([files/adr/ADR-004-plugin-artifact-format.md:12-13](file:///tmp/ads-peer-dispatch/debate-plugins/files/adr/ADR-004-plugin-artifact-format.md#L12-L13); C1 constraint).
+   - *Capability Surface:* IPC channels crossing the boundary pass structured-clone-safe serializable messages only, using capability handles rather than object references ([files/adr/ADR-024-plugin-execution-and-trust-model.md:60-62](file:///tmp/ads-peer-dispatch/debate-plugins/files/adr/ADR-024-plugin-execution-and-trust-model.md#L60-L62)).
+
+2. **Adaptive Integration Concrete Meaning:**
+   - Adaptive integration means extensions hook into host application lifecycle points without direct code coupling.
+   - For Tier-1, core translates manifest declarations into host behaviors (e.g., core enqueues webhooks via `WebhookDeliveryRepoPort` ([files/integrations-ports.ts:121-155](file:///tmp/ads-peer-dispatch/debate-plugins/files/integrations-ports.ts#L121-L155)) or registers custom content types in `tovu.plugin.json` ([files/plugin-runtime/manifest.ts:60](file:///tmp/ads-peer-dispatch/debate-plugins/files/plugin-runtime/manifest.ts#L60))).
+   - For Tier-2, core dispatches asynchronous hook filters (`content.entry.beforeSave`, [files/plugin-runtime/hook-registry.ts:83](file:///tmp/ads-peer-dispatch/debate-plugins/files/plugin-runtime/hook-registry.ts#L83)) over IPC, merging returned `ext.{pluginId}` patches ([files/plugin-runtime/hook-registry.ts:190-208](file:///tmp/ads-peer-dispatch/debate-plugins/files/plugin-runtime/hook-registry.ts#L190-208)).
+
+3. **Plugin-Owned Data & Database Dialects:**
+   - Plugins **never execute direct DDL** or create SQL tables/columns ([files/spec/feature.spec.md:110](file:///tmp/ads-peer-dispatch/debate-plugins/files/spec/feature.spec.md#L110); ADR-003).
+   - All plugin data is stored in the namespaced `ext` JSON column on core tables (`ext.{pluginId}.{field}`, [files/plugin-runtime/manifest.ts:41,256-263](file:///tmp/ads-peer-dispatch/debate-plugins/files/plugin-runtime/manifest.ts#L41-L41)).
+   - On disable or uninstall, `ext` data is preserved in an inert state ([files/plugin-runtime/activation.ts:15](file:///tmp/ads-peer-dispatch/debate-plugins/files/plugin-runtime/activation.ts#L15); [files/spec/feature.spec.md:110](file:///tmp/ads-peer-dispatch/debate-plugins/files/spec/feature.spec.md#L110)).
+   - On SPEC-001 change-set rollback, core restores stored `ext` JSON snapshots without requiring the plugin to be loaded or active ([files/spec/feature.spec.md:186](file:///tmp/ads-peer-dispatch/debate-plugins/files/spec/feature.spec.md#L186)).
+   - High-volume split-table promotion (ADR-023) is managed entirely by host core schema routines, preserving single-binary database portability across SQLite, Postgres, and MySQL.
+
+4. **Admin UI Extension & Host React Decoupling:**
+   - ADR-004 mandates prebuilt React panels `admin/panel.mjs` ([files/adr/ADR-004-plugin-artifact-format.md:23](file:///tmp/ads-peer-dispatch/debate-plugins/files/adr/ADR-004-plugin-artifact-format.md#L23)).
+   - Host isolation is governed by ADR-025 ([files/adr/ADR-024-plugin-execution-and-trust-model.md:101-106](file:///tmp/ads-peer-dispatch/debate-plugins/files/adr/ADR-024-plugin-execution-and-trust-model.md#L101-L106)): plugin admin UI bundles are rendered inside sandboxed `<iframe sandbox="allow-scripts">` containers, communicating with the host shell via `window.postMessage`.
+   - Host React version upgrades do not break plugin UI bundles because externalized host dependencies (`react`, `@tovu/sdk`, [files/adr/ADR-004-plugin-artifact-format.md:46-48](file:///tmp/ads-peer-dispatch/debate-plugins/files/adr/ADR-004-plugin-artifact-format.md#L46-L48)) are isolated within iframe contexts.
+
+5. **Update, Versioning, Dependency Resolution, & Kill-Switch:**
+   - *Layout & Versioning:* Artifacts are stored under `<site>/plugins/<id>/<version>/` with an `active` pointer in `content.db` (`plugin_activations`, [files/plugin-runtime/activation.ts:28-35](file:///tmp/ads-peer-dispatch/debate-plugins/files/plugin-runtime/activation.ts#L28-L35); [files/adr/ADR-004-plugin-artifact-format.md:52-54](file:///tmp/ads-peer-dispatch/debate-plugins/files/adr/ADR-004-plugin-artifact-format.md#L52-L54)). Updates write a new version folder beside the existing one; toggling versions is an atomic pointer swap.
+   - *Dependencies:* Handled via lockfile-style manifest declarations (`dependencies`, [files/adr/ADR-004-plugin-artifact-format.md:39](file:///tmp/ads-peer-dispatch/debate-plugins/files/adr/ADR-004-plugin-artifact-format.md#L39)).
+   - *Kill-Switch:* Core downloads an advisory signed quarantine list during discovery ([files/plugin-runtime/discovery.ts:226-255](file:///tmp/ads-peer-dispatch/debate-plugins/files/plugin-runtime/discovery.ts#L226-L255)). Flagged plugins are marked `status: "invalid"` with a `QUARANTINED` error code, preventing activation without remote file deletion ([files/adr/ADR-024-plugin-execution-and-trust-model.md:143-145](file:///tmp/ads-peer-dispatch/debate-plugins/files/adr/ADR-024-plugin-execution-and-trust-model.md#L143-L145)).
+
+6. **Distribution & Marketplace:**
+   - *Integrity & Provenance:* SHA-256 hashes per file ([files/plugin-runtime/loader.ts:123-133](file:///tmp/ads-peer-dispatch/debate-plugins/files/plugin-runtime/loader.ts#L123-L133)) and Ed25519 author signatures (`provenance`, [files/adr/ADR-004-plugin-artifact-format.md:38](file:///tmp/ads-peer-dispatch/debate-plugins/files/adr/ADR-004-plugin-artifact-format.md#L38)) are validated at discovery.
+   - *Marketplace Gate:* The public marketplace catalog lists **only Tier-1 and Tier-2 plugins**. Tier-3 executable plugins are physically barred from marketplace indexing ([files/adr/ADR-024-plugin-execution-and-trust-model.md:47-50](file:///tmp/ads-peer-dispatch/debate-plugins/files/adr/ADR-024-plugin-execution-and-trust-model.md#L47-L50)).
+
+7. **Three Extension Systems Alignment:**
+   - Retain distinct runtimes for Plugins, Agent Plugins, and Themes, but unify the administration UI ([files/spec/feature.spec.md:116-165](file:///tmp/ads-peer-dispatch/debate-plugins/files/spec/feature.spec.md#L116-L165)) under a shared "Extensions" management tab displaying unified trust badges (`tier-1` | `tier-2` | `tier-3`, [files/spec/feature.spec.md:105,164-165](file:///tmp/ads-peer-dispatch/debate-plugins/files/spec/feature.spec.md#L105-L105)).
+
+8. **Sequencing:**
+   - **Phase 1:** Deliver core-mediated Tier-1 primitives (webhooks, snippet injection, redirect executor, form sinks) alongside the Tier-1 manifest validator ([files/plugin-runtime/manifest.ts:151-277](file:///tmp/ads-peer-dispatch/debate-plugins/files/plugin-runtime/manifest.ts#L151-L277)).
+   - **Phase 2:** Freeze the transport-agnostic SDK ABI ([files/adr/ADR-024-plugin-execution-and-trust-model.md:56-70](file:///tmp/ads-peer-dispatch/debate-plugins/files/adr/ADR-024-plugin-execution-and-trust-model.md#L56-L70)) across all hook registries ([files/plugin-runtime/hook-registry.ts:160-212](file:///tmp/ads-peer-dispatch/debate-plugins/files/plugin-runtime/hook-registry.ts#L160-212)).
+   - **Phase 3:** Ship Tier-2 Rung 1 per-site process isolation ([files/adr/ADR-024-plugin-execution-and-trust-model.md:71-78](file:///tmp/ads-peer-dispatch/debate-plugins/files/adr/ADR-024-plugin-execution-and-trust-model.md#L71-L78)).
+   - **Phase 4:** Launch the public marketplace gated exclusively to Tier-1 and Tier-2 artifacts ([files/adr/ADR-024-plugin-execution-and-trust-model.md:47-50](file:///tmp/ads-peer-dispatch/debate-plugins/files/adr/ADR-024-plugin-execution-and-trust-model.md#L47-L50)).
+
+---
+
+## Failure Modes And Sacrifice
+
+### 1. Failure Modes
+- **IPC Serialization Overhead:** Forcing structured-clone serialization and async IPC across process boundaries ([files/adr/ADR-024-plugin-execution-and-trust-model.md:60-62](file:///tmp/ads-peer-dispatch/debate-plugins/files/adr/ADR-024-plugin-execution-and-trust-model.md#L60-L62)) introduces microsecond-to-millisecond latency on content mutation hooks (`content.entry.beforeSave`, [files/plugin-runtime/hook-registry.ts:83](file:///tmp/ads-peer-dispatch/debate-plugins/files/plugin-runtime/hook-registry.ts#L83)). If multiple Tier-2 plugins attach to the save pipeline, batch saves could experience noticeable throughput degradation.
+- **Core Primitive Maintenance Bottleneck:** Stalling core delivery of Tier-1 primitives (webhooks, mailers, form sinks, [files/adr/ADR-024-plugin-execution-and-trust-model.md:155-157](file:///tmp/ads-peer-dispatch/debate-plugins/files/adr/ADR-024-plugin-execution-and-trust-model.md#L155-L157)) will starve the Tier-1 ecosystem, pressuring the team to prematurely allow unsandboxed Tier-3 plugins into the marketplace.
+
+### 2. Hidden Costs
+- **Double Runtime Maintenance:** Supporting core-mediated declarative primitives alongside isolated process runtimes doubles the test matrix. Every host hook must maintain both a declarative execution path and an async IPC dispatch path.
+
+### 3. Genuine Sacrifice
+- **Developer Ergonomics for In-Process Extensions:** Plugin authors cannot write simple, synchronous mutation hooks or pass live host database handles ([files/adr/ADR-024-plugin-execution-and-trust-model.md:120-123](file:///tmp/ads-peer-dispatch/debate-plugins/files/adr/ADR-024-plugin-execution-and-trust-model.md#L120-L123)). They must write asynchronous, handle-based routines returning serializable JSON patches ([files/plugin-runtime/hook-registry.ts:168-186](file:///tmp/ads-peer-dispatch/debate-plugins/files/plugin-runtime/hook-registry.ts#L168-L186)). This is an explicit trade-off prioritizing multi-workspace host security over developer convenience.
+
+---
+
+## What Would Change My Mind
+
+1. **Empirical Evidence of Tier-1 Demand Collapse:**
+   If a production audit of third-party plugin submissions demonstrates that < 20% of developer demand can be satisfied by Tier-1 declarative specifications (contradicting the 60–73% audit result in [files/adr/ADR-024-plugin-execution-and-trust-model.md:148-161](file:///tmp/ads-peer-dispatch/debate-plugins/files/adr/ADR-024-plugin-execution-and-trust-model.md#L148-L161)), the strategy of growing Tier-1 first would collapse, forcing immediate priority onto building the Tier-2 sandbox (Option B).
+
+2. **Emergence of a Zero-Native-Dependency In-Process JS Isolate:**
+   If a pure JS/WASM lightweight V8 isolate engine emerges that runs inside Node without requiring C++ compilation (avoiding `isolated-vm`'s native build issues, [files/adr/ADR-024-plugin-execution-and-trust-model.md:101](file:///tmp/ads-peer-dispatch/debate-plugins/files/adr/ADR-024-plugin-execution-and-trust-model.md#L101)) and guarantees zero sandbox escape CVEs (unlike `vm2`), synchronous in-process sandboxing would become viable, altering the IPC isolation requirement.
+
+---
+
+## Unlisted Option
+
+### WASM Component Model Sandbox for Tier-2 Executable Logic
+Instead of spawning OS processes or heavyweight worker threads for Tier-2 JS execution, Tovu can compile third-party plugin code to **WebAssembly (WASM)** modules (using QuickJS compiled to WASM or Wasmtime bindings).
+- **Why it matters:** WASM provides deterministic memory sandboxing, near-zero startup overhead, and strict capability import gating within the main Node process without requiring IPC OS process management or native C++ compilation modules.
+
+---
+
+## Blind Spots
+
+**(a) Unlisted Viable Option:**
+- The **WASM Component Model Sandbox** (detailed in the Unlisted Option section above) provides in-process memory isolation without OS process IPC overhead or native C++ binding build failures.
+
+**(b) Unasked Critical Question:**
+- *"How does the runtime isolate multi-workspace data when a single site plugin instance is concurrently invoked across 50 tenant workspaces in the same host process?"* While activation records track `workspaceId` ([files/plugin-runtime/activation.ts:28-35](file:///tmp/ads-peer-dispatch/debate-plugins/files/plugin-runtime/activation.ts#L28-L35)), module evaluation in `loader.ts` ([files/plugin-runtime/loader.ts:141-145](file:///tmp/ads-peer-dispatch/debate-plugins/files/plugin-runtime/loader.ts#L141-L145)) evaluates code globally per process, creating potential in-memory cross-workspace state leaks.
+
+**(c) Most Likely Wrong Framing Assumption:**
+- **The assumption that WordPress plugin parity requires third-party executable JS on the CMS host server.** Modern CMS platforms (e.g., Shopify Apps, Contentful Apps) integrate overwhelmingly via **external OAuth/Webhook microservices combined with sandboxed admin UI iframe components**, rather than running third-party server-side code directly on the core application host.
+
+<<SWARM_END>>

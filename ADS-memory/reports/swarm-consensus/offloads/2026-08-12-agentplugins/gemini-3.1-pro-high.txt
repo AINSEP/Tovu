@@ -1,0 +1,45 @@
+ACK_PACKET_RECEIVED CTX-AGENTPLUGINS-2026-08-12 -- I received the packet and will work on it.
+
+## Position
+
+Agent Plugins must not define a parallel execution, command, or trust runtime. They should be ingested as foreign artifacts into Tovu's **existing** first-party plugin runtime (Option D). The first-party runtime already provides a mature ~1,578-line foundation with a tier-1/2/3 capability-scoped loader, an explicit trust module, and hook registries. Agent Plugins should be treated strictly as tier-3 (sideloaded/untrusted) payloads.
+
+To surface the Agent Plugin's portable components in the composer:
+1. **Skills** map to context-injection slash commands (Option A). This is a safe, zero-execution mapping.
+2. **MCP Servers** map to interactive tools (Option C). However, they should *not* be blindly flattened into global slash commands due to discovery blocking and collision risks.
+
+Option B (Reverse-domain namespaces for commands) must be completely rejected. Inventing proprietary JSON schemas for execution under the guise of an open standard creates a trojan horse fork. If a developer has to write `org.tovu.commands` to get a UI presence, they aren't writing an Agent Plugin; they are writing a Tovu plugin inside an Agent Plugin folder. This violates C1 (Portability).
+
+## Option Assessment
+
+- **Option D (Reuse the first-party runtime):** The only responsible architectural foundation. Rebuilding a sandbox and capability SDK for a Working Draft standard is a massive security and maintenance risk. 
+- **Option A (Skills-as-commands):** Strong and immediately viable for the "smallest honest slice" of phasing. Skills are passive markdown. Injecting them via a slash command requires no sandboxing and presents no unproven capabilities (C6), cleanly supporting Tovu's existing `ui-ux-design` bundled plugin.
+- **Option C (MCP-tools-as-commands):** Conceptually correct because it relies on the portable standard, but practically flawed if mapped to a global `/` palette. MCP tools require launching the stdio subprocess just to discover the command palette (`tools/list`), blocking the UI and risking timeouts.
+- **Option B (Reverse-domain extension):** REJECT. It is a closed-ecosystem play disguised as standard adoption. It forces Tovu to maintain a proprietary command schema indefinitely.
+
+## Failure Modes And Sacrifice
+
+- **Failure Mode 1 (Sandboxing Local Stdio):** An MCP stdio server on a self-hosted Tovu instance is arbitrary local code execution. Even if loaded as "tier-3", if there is no OS-level sandbox (like Docker or AppArmor) enforced by the runtime, a malicious plugin can easily escape `PLUGIN_DATA` and compromise the host user's system.
+- **Failure Mode 2 (UI Blocking on Discovery):** If Option C is used for the slash palette, populating the composer requires starting every MCP subprocess to call `tools/list`. A broken or hanging MCP server will freeze the composer's autocomplete.
+- **Genuine Sacrifice:** We sacrifice **instant, static command discovery for MCP capabilities**. Because we refuse to use a proprietary extension namespace (Option B) and MCP 1.0 lacks static tool manifests, the host cannot know what an MCP server does until it is executed.
+
+## What Would Change My Mind
+
+If the Agent Plugins standard (currently a Working Draft) officially introduces a native, static `commands` declarative schema in `plugin.json` in a future version (e.g., v1.1). If that happens, parsing static commands from the manifest becomes a standards-compliant action, making Option B's namespace unnecessary and bypassing the lazy-discovery penalty of Option C. Alternatively, if telemetry proves Agent Plugin authors overwhelmingly prefer providing host-specific UI metadata over raw MCP tools.
+
+## Unlisted Option
+
+**Subagent Delegation (@-mentions instead of /-commands)**
+The prompt assumes we must map plugins to slash commands. Instead, map Agent Plugins to **Subagents**. 
+Rather than polluting the global `/` palette with fine-grained MCP tools, treat the plugin as an autonomous identity (e.g., `@ui-ux-design`). When invoked, Tovu spawns a subagent equipped with the plugin's Skills in its system prompt and its MCP servers in its tool registry. 
+- Solves name collisions (two plugins with a `review` tool don't conflict).
+- Solves lazy discovery (tools are queried only when the subagent wakes up, not when the user opens the composer).
+- Perfectly aligns with the standard's name ("Agent" plugins).
+
+## Blind Spots
+
+**(a) A viable option not listed:** (Covered above) Subagent Delegation. Treat the plugin as an entity to be invoked, not a folder of global macro commands.
+**(b) A question we should be asking but aren't:** How do we handle MCP server dependencies? Stdio servers typically require an environment (e.g., Node.js, Python, `pip install`). Tovu has no install protocol for Agent Plugins. If a user drops a Python MCP server into the directory, how does Tovu bootstrap it safely without an explicit installation phase?
+**(c) The framing assumption most likely wrong:** The assumption that users *want* or *need* to manually trigger fine-grained commands from 3rd-party plugins. The industry trajectory is moving toward autonomous tool selection by the LLM. Forcing the user to manually discover and invoke `/org.plugin.tool` in a composer creates a legacy CLI experience inside an AI assistant.
+
+<<SWARM_END>>
