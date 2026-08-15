@@ -78,6 +78,18 @@ without a fake, and the 3 without ports are genuinely I/O-free.
 recurring false-positive shapes are `api.xxx()` inside a doc comment, `deps.api` as a locally-scoped
 parameter, and a multi-name import clause.
 
+**An 8th instance, same shape, one section over.** This handoff's own section 6 (item 5, second
+dispatch, 2026-08-15) originally claimed `apps/admin/INFO.md` has a pure-helper exception list
+naming 2 items (`describeApiError`, `CONTENT_TYPE_FIELD_KINDS`) and needing a 3rd (`ApiError`).
+Wrong on the file (no such list exists in `INFO.md` at all), the count (the real list, in
+`development/docs/architecture/wired-hooks-convention.md`, already named 3 —
+`persistableMessages`, `describeApiError`, `hasUsableAdminKey`), and the named items
+(`CONTENT_TYPE_FIELD_KINDS` was never in it, and `ApiError`'s actual usage — ~11 `rules.ts` files
+and 4 hooks — was undercounted as "`rules.ts` files and 2 hooks"). Full account and fix in section
+6's item-5 bullet, commits `857e066`/`6ee3721`. Same root cause as the seven above — a claim
+recorded as a measurement without reading the file it was about — just caught by an agent that
+refused to comply with a brief instead of a scan output.
+
 ## 5. Audit — 5 auditors, `TM-usewired-2026-08-14`
 
 Packet: `ADS-memory/reports/external-audit/packets/20260814T-usewired-sweep-audit-packet.md`
