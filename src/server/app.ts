@@ -156,6 +156,8 @@ import {
 import { createAnalyticsModule } from "./modules/analytics";
 import { createCommerceModule } from "./modules/commerce";
 import { registerAdminModuleStatusRoute } from "./routes/admin/system/module-status";
+import { registerAdminDeploymentOverviewRoute } from "./routes/admin/system/deployment-overview";
+import { registerAdminDockerfileSourceRoute } from "./routes/admin/system/dockerfile-source";
 import { createFormsAdminModule } from "./modules/forms-admin";
 import { registerFormsSubmitRoute } from "./routes/site/forms-submit";
 import { createRedirectsModule } from "./modules/redirects";
@@ -738,6 +740,10 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   siteAssistantModule.start?.();
   siteAssistantModule.registerRoutes?.(app);
   registerAdminModuleStatusRoute(app, routeDeps);
+  // Admin Deployment panel (Overview + Dockerfile tabs) — same `system.read`-gated shape as the
+  // module-status route just above; see each route file's own header for why they share it.
+  registerAdminDeploymentOverviewRoute(app, routeDeps);
+  registerAdminDockerfileSourceRoute(app, routeDeps);
   // ADR-046 Phase 3 (SPEC-040): the `comments-moderation` server module — 4 admin
   // moderation-queue/moderate/settings routes. Distinct from `createCommentsModule` above
   // (the ADR-031 backend composition) and from `registerCommentsSubmitRoute` below (the public,
