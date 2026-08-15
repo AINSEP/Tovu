@@ -43,11 +43,17 @@ Standalone public repo, unconnected to `Tovu-AI-CMS`.
    token handling (nothing may echo a token), origin pinning / `maxRedirects: 0` (both Jini
    adapters use bare `fetch`, so a redirect could carry `Authorization: Bearer <token>` off-host),
    and whether `.nojekyll` is injected for Pages only.
-2. **Make the Dockerfile tab editable in the UI.** The write route (`PUT …/system/dockerfile`),
-   the agent tool, and the `setDockerfileSource` client method all exist. `DockerfileTab.tsx` is
-   still a read-only `<pre>` with Copy/Download. **The AI can edit the Dockerfile; the human
-   cannot.** The owner asked for this three times. It needs an editor + Save wired to the existing
-   route, keeping the footer honest that saving does not rebuild.
+2. **Make the Dockerfile tab editable in the UI — everything below it is already done.**
+   `PUT /api/admin/v1/workspaces/:workspaceId/system/dockerfile` (gated on a new `system.write`),
+   the `deployment_set_dockerfile` agent tool, and `api.setDockerfileSource(contents)` all exist.
+   `DockerfileTab.tsx` is still a read-only `<pre>` with Copy/Download. **The AI can edit the
+   Dockerfile; the human cannot.** The owner asked for this three times. Wire an editor + Save to
+   `api.setDockerfileSource`, which returns `{ exists, contents }` so the view refreshes without a
+   second GET. Keep the footer honest that saving does not rebuild anything.
+
+   Path safety is genuinely settled here, don't re-audit it: `dockerfilePath()` is
+   `join(process.cwd(), "Dockerfile")` with **zero parameters**, and neither read nor write accepts
+   a path argument — the route only ever takes `contents`. There is no path input to traverse.
 3. **Register the publish tools.** `PublishTargets` was told to write
    `src/features/deployments/publish-agent-tools.ts` but NOT to touch
    `src/assistant/tool-registrations.ts` (another agent owned it). The one-line `DOMAIN_SLICES`
@@ -86,6 +92,37 @@ not per-caller. Fixed in `065cc79`, regression test
 
 **If the assistant breaks again, check this first:** run that test. Every other suite enters via
 `createApp` or `src/index.ts`, where the cycle is benign — which is why nothing caught it.
+
+⚠️ **`23d1182` claims to have fixed this and only half did.** That agent hit the same cycle from
+`export-run.ts`, fixed it by injecting `runExportSite` through `RouteDeps` (correct, keep it), and
+recorded in `routes/types.ts` that `server/app.ts` and `server/deps.ts` are "the two places safe to
+import `#src/export/index` directly, since neither is reachable from
+`assistant/tool-registrations.ts`." **That sentence is false** — the daemon's entry point is
+`src/assistant/agent-daemon-server.ts`, which imports `app.ts`, so both composition roots ARE
+reachable from inside `src/assistant`. `065cc79` removed those two static imports and moved the
+fix to the shared back-edge. **Do not restore a top-level `import { exportSite }` in either file on
+the strength of that comment.**
+
+## The assistant's deployment tools (domain `deployments`, all 5 wired)
+
+Registered in `src/assistant/tool-registrations.ts`'s `DOMAIN_SLICES`; catalog in
+`src/features/deployments/agent-tools.ts`. 63/63 tests passing at the time they landed.
+
+| Tool | Permission | Risk |
+|---|---|---|
+| `deployment_trigger_export` | `system.export` | `mutates-durable-state` |
+| `deployment_get_export_status` | `system.read` | none |
+| `deployment_list` | `deployments.read` | none |
+| `deployment_get_dockerfile` | `system.read` | none |
+| `deployment_set_dockerfile` | `system.write` | `mutates-durable-state` |
+
+The trigger tool's description tells the model that export returns immediately and must be polled,
+that only one runs at a time, and — importantly — that `basePath` must exactly match the repo name
+for a GitHub Pages **project** site and be left unset for a user/org or custom-domain site. That is
+the single most likely thing for a model to get wrong, so check it survives any description edit.
+
+**Untested end to end:** nobody has actually asked the assistant to run an export. That is the
+cheapest high-value thing to try next — one sentence in the assistant pane.
 
 ## Settled decisions — do not re-litigate
 
