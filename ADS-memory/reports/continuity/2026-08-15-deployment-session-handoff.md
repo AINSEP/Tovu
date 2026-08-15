@@ -183,9 +183,26 @@ step. Do not read the "`.nojekyll` IS injected" note above as covering the expor
 - **`@jini-ai/devops` is the eventual home**, not `cms`/`capability-providers`. But **wire it in
   Tovu and prove it works before moving anything**, or you add a fourth unwired layer to the three
   that already exist.
-- **CLI-first is the preferred publish path.** The assistant is a spawned coding-agent CLI, so it
-  can drive `gh`/`vercel` directly — no stored tokens. The API adapters are the fallback for when
-  those CLIs are absent, and are the *only* path under BYOK (an API model has no shell).
+- **CLI-first is the preferred publish path — FOR A LOCAL DEV INSTALL ONLY.** The assistant is a
+  spawned coding-agent CLI, so it can drive `gh`/`vercel` directly — no stored tokens. The API
+  adapters are the fallback for when those CLIs are absent, and are the *only* path under BYOK (an
+  API model has no shell).
+- **⚠️ DECIDED 2026-08-15 — NO agent CLIs ship inside the Docker image.** Owner's reasoning, close to
+  verbatim: *"then I'd have to log in and get credits that way, which is not something like 90% of
+  people are gonna do… It has to be only the key."* Requiring a container user to interactively sign
+  a vendor CLI into their own account and spend that account's credits is not a viable product.
+
+  **Consequences — treat these as load-bearing, not polish:**
+  - **Every Docker / hosted install is BYOK-only.** That assistant has an API key and NO shell.
+  - So **publishing from Docker/hosted can only go through the API adapters.** Stored credentials
+    stop being a fallback and become the entire publish surface for that mode. Design already done:
+    `ADS-memory/reports/external-audit/runs/2026-08-15-terra-xhigh-publish-credentials-design.md`.
+  - So **"custom / any provider" is impossible in that mode.** No shell means no arbitrary command,
+    and a generated command has nothing to run it. Custom hosts remain a local-install-only feature.
+  - The owner separately flagged the BYOK surface in the admin AI settings as **currently broken**
+    (stale model list — Gemini 3.7 Flash missing, only 3.6 offered; no model picker in the composer).
+    That is now on the Docker critical path, not a side quest — it is the *only* way a container
+    user gets an assistant at all.
 - Agent tools live at `src/features/<domain>/agent-tools.ts` + one `DOMAIN_SLICES` line. There is
   no `features/<x>/ai/` convention.
 
