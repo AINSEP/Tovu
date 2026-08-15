@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import { createA2uiInterpreter, createLabCatalog } from "@jini-ai/ui/a2ui";
 
 import { Playground } from "../Playground";
 import type { PlaygroundController } from "../hooks/use-playground.hooks";
@@ -23,7 +24,11 @@ function makeFakeController(overrides: Partial<PlaygroundController> = {}): Play
     setQuery: vi.fn(),
     total: 0,
     surfaceOpen: false,
-    interpreter: {} as PlaygroundController["interpreter"],
+    // A real (empty-catalog) interpreter, not a bare `{}` cast — `Playground` mounts
+    // `A2uiSurfaceRenderer` off this whenever `surfaceOpen` is true, and that renderer calls
+    // `interpreter.subscribe`/`interpreter.getRoot` for real (see `use-a2ui-surface.ts`), which a
+    // stub object can't satisfy.
+    interpreter: createA2uiInterpreter(createLabCatalog()),
     addToSurface: vi.fn(),
     reset: vi.fn(),
     ...overrides,

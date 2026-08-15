@@ -206,7 +206,7 @@ describe("collections", () => {
     vi.stubGlobal("fetch", fn);
     const { useWiredCollections } = await import("../features/collections/hooks/use-collections.hooks");
     const { result } = renderHook(() => useWiredCollections(), { wrapper });
-    await waitFor(() => expect(result.current.contentTypes).not.toBeNull());
+    await waitFor(() => expect(result.current.types).not.toBeNull());
     logRow("collections", "content-types list initial load", calls);
     expect(calls.length).toBeGreaterThan(0);
   });
@@ -268,8 +268,8 @@ describe("roles", () => {
       { match: "/policies", respond: () => jsonResponse({ policies: [] }) },
     ]);
     vi.stubGlobal("fetch", fn);
-    const { useRoles } = await import("../features/roles/hooks/use-roles.hooks");
-    const { result } = renderHook(() => useRoles(), { wrapper });
+    const { useWiredRoles } = await import("../features/roles/hooks/use-roles.hooks");
+    const { result } = renderHook(() => useWiredRoles(), { wrapper });
     await waitFor(() => expect(result.current.roles).not.toBeNull());
     logRow("roles", "initial load", calls);
     expect(calls.length).toBeGreaterThan(0);
@@ -281,8 +281,8 @@ describe("roles", () => {
       { match: "/policies", respond: () => jsonResponse({ policies: [] }) },
     ]);
     vi.stubGlobal("fetch", fn);
-    const { useRoles } = await import("../features/roles/hooks/use-roles.hooks");
-    const { result } = renderHook(() => useRoles(), { wrapper });
+    const { useWiredRoles } = await import("../features/roles/hooks/use-roles.hooks");
+    const { result } = renderHook(() => useWiredRoles(), { wrapper });
     await waitFor(() => expect(result.current.roles).not.toBeNull());
     calls.length = 0;
 
@@ -302,8 +302,8 @@ describe("roles", () => {
       { match: "/policies", respond: () => jsonResponse({ policies: [] }) },
     ]);
     vi.stubGlobal("fetch", fn);
-    const { useRoles } = await import("../features/roles/hooks/use-roles.hooks");
-    const { result } = renderHook(() => useRoles(), { wrapper });
+    const { useWiredRoles } = await import("../features/roles/hooks/use-roles.hooks");
+    const { result } = renderHook(() => useWiredRoles(), { wrapper });
     await waitFor(() => expect(result.current.roles).not.toBeNull());
     calls.length = 0;
 
@@ -327,8 +327,8 @@ describe("users", () => {
       { match: "/policies", respond: () => jsonResponse({ policies: [] }) },
     ]);
     vi.stubGlobal("fetch", fn);
-    const { useUsers } = await import("../features/users/hooks/use-users.hooks");
-    const { result } = renderHook(() => useUsers(), { wrapper });
+    const { useWiredUsers } = await import("../features/users/hooks/use-users.hooks");
+    const { result } = renderHook(() => useWiredUsers(), { wrapper });
     await waitFor(() => expect(result.current.users).not.toBeNull());
     logRow("users", "initial load", calls);
     expect(calls.length).toBeGreaterThan(0);
@@ -479,8 +479,8 @@ describe("database", () => {
   it("timeline: initial load", async () => {
     const { fn, calls } = createRecorder([{ match: "/database/timeline", respond: () => jsonResponse({ items: [], nextCursor: null }) }]);
     vi.stubGlobal("fetch", fn);
-    const { useTimelineSection } = await import("../features/database/hooks/use-timeline-section.hooks");
-    const { result } = renderHook(() => useTimelineSection(), { wrapper });
+    const { useWiredTimelineSection } = await import("../features/database/hooks/use-timeline-section.hooks");
+    const { result } = renderHook(() => useWiredTimelineSection(), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeNull());
     logRow("database", "timeline initial load", calls);
     expect(calls.length).toBeGreaterThan(0);
@@ -489,8 +489,8 @@ describe("database", () => {
   it("timeline: filter change", async () => {
     const { fn, calls } = createRecorder([{ match: "/database/timeline", respond: () => jsonResponse({ items: [], nextCursor: null }) }]);
     vi.stubGlobal("fetch", fn);
-    const { useTimelineSection } = await import("../features/database/hooks/use-timeline-section.hooks");
-    const { result } = renderHook(() => useTimelineSection(), { wrapper });
+    const { useWiredTimelineSection } = await import("../features/database/hooks/use-timeline-section.hooks");
+    const { result } = renderHook(() => useWiredTimelineSection(), { wrapper });
     await waitFor(() => expect(result.current.rows).not.toBeNull());
     calls.length = 0;
 
@@ -506,8 +506,8 @@ describe("database", () => {
   it("restore points: initial load", async () => {
     const { fn, calls } = createRecorder([{ match: "/database/restore-points", respond: () => jsonResponse({ items: [] }) }]);
     vi.stubGlobal("fetch", fn);
-    const { useRestorePointsSection } = await import("../features/database/hooks/use-restore-points-section.hooks");
-    const { result } = renderHook(() => useRestorePointsSection(), { wrapper });
+    const { useWiredRestorePointsSection } = await import("../features/database/hooks/use-restore-points-section.hooks");
+    const { result } = renderHook(() => useWiredRestorePointsSection(), { wrapper });
     await waitFor(() => expect(result.current.points).not.toBeNull());
     logRow("database", "restore points initial load", calls);
     expect(calls.length).toBeGreaterThan(0);
