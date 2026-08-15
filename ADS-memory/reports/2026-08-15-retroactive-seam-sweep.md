@@ -157,7 +157,44 @@ site to bypass its `port` parameter and call the real default binding directly.
 
 Group 1: 5/5 PROVEN. 0 findings.
 
+### Group 2 (5 files)
+
+Same mode for all five: `injection-seam`, same technique as group 1 (bypass the required `port`
+parameter at its fetch call site, call the real default binding directly).
+
+- **`use-menu-editor.hooks.unit.test.tsx`** — `use-menu-editor.hooks.ts`: `port.getMenu(menuId as
+  string)` → `defaultMenusPort.getMenu(menuId as string)`. Test: `"loads an existing menu from the
+  injected port and never touches the real api client"`. **RED** (`title` stayed empty instead of
+  resolving to `"Main menu"`). Reverted, confirmed clean. **PROVEN.**
+- **`use-menus.hooks.unit.test.tsx`** — `use-menus.hooks.ts`: `port.listMenus()` →
+  `defaultMenusPort.listMenus()`. This file's own comment (lines 55–60) claims a self-documented
+  negative-verification of exactly this mutation ("temporarily replacing `port.listMenus(...)`/
+  `port.deleteMenu(...)`... fails both assertions above") — independently re-ran it. Test: `"loads
+  the list from the injected port and never touches the real api client"`. **RED**. Reverted,
+  confirmed clean. **PROVEN — comment's claim holds.**
+- **`use-plugins.hooks.unit.test.ts`** — `use-plugins.hooks.ts`: `port.listPlugins()` →
+  `defaultPluginsPort.listPlugins()`. Test: `"loads the list from the injected port and never
+  touches the real api client"`. **RED**. Reverted, confirmed clean. **PROVEN.**
+- **`use-post-editor.hooks.unit.test.tsx`** — `use-post-editor.hooks.ts`:
+  `Promise.all([port.getPost(postId), port.getPresentation()])` →
+  `Promise.all([defaultPostEditorPort.getPost(postId), defaultPostEditorPort.getPresentation()])`.
+  This file has its own dedicated describe block titled `"usePostEditor — injected port is
+  genuinely read (negative verification)"`, but its actual test uses a different proof technique
+  (varying the fake's seeded post data and checking the hook reflects it, rather than swapping to
+  the real binding) — ran the standard swap-to-real-binding mutation for consistency with the rest
+  of this sweep. Test: `"reflects a DIFFERENT post's title/slug than every other test in this file
+  uses"`. **RED** (`title` never resolved to `"A Totally Different Title"`). Reverted, confirmed
+  clean. **PROVEN — both proof techniques agree.**
+- **`use-hit-count-cell.hooks.unit.test.tsx`** — `use-hit-count-cell.hooks.ts`:
+  `port.getRedirectHits(props.redirectId)` → `defaultRedirectsPort.getRedirectHits(props.redirectId)`.
+  Same situation as `usePostEditor` — this file's own tests use a "vary the seeded data" proof
+  technique, not a swap-to-real-binding one; ran the standard mutation anyway. Test: `"stays lazy
+  against the injected port too — request() is what triggers the read"`. **RED** (`data.hitCount`
+  never resolved to `9`). Reverted, confirmed clean. **PROVEN.**
+
+Group 2: 5/5 PROVEN. 0 findings.
+
 ## Running tally (this sweep)
 
-**7/22 candidate files checked** (2 defaulted-dep tier + 5 required-param group 1). All 7 PROVEN,
-0 findings. Continuing to the remaining 15 files.
+**12/22 candidate files checked** (2 defaulted-dep tier + 10 required-param groups 1–2). All 12
+PROVEN, 0 findings so far. Continuing to the remaining 10 files.
