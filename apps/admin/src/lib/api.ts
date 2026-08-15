@@ -2296,16 +2296,24 @@ export const api = {
     ),
 
   // Deployment panel (`src/server/routes/admin/system/deployment-overview.ts` /
-  // `dockerfile-source.ts`) — both read-only, both `system.read`-gated, same shape as
-  // `getModuleStatus` just above.
+  // `dockerfile-source.ts`) — `system.read`-gated, same shape as `getModuleStatus` just above.
   /** Runtime mode, boot-gate/default-password status, agent-daemon known-failure state, db/uploads
    *  paths, and required-env-var presence (never values) — the Deployment panel's Overview tab. */
   getDeploymentOverview: () =>
     request<AdminDeploymentOverview>(`/workspaces/${WORKSPACE_ID}/system/deployment-overview`),
   /** The repo-root `Dockerfile`'s current contents, or `{ exists: false }` when none has been
-   *  generated yet. Read-only — there is no write route. */
+   *  generated yet. */
   getDockerfileSource: () =>
     request<AdminDockerfileSource>(`/workspaces/${WORKSPACE_ID}/system/dockerfile`),
+  /** 2026-08-15 — `PUT` half of the Dockerfile tab, `system.write`-gated (distinct from the `GET`
+   *  above's `system.read`, mirroring `triggerSiteExport`'s own `system.export` vs `system.read`
+   *  split below). Overwrites the repo-root Dockerfile with `contents` and returns the snapshot it
+   *  now has — this only writes bytes to disk, it never builds or deploys anything. */
+  setDockerfileSource: (contents: string) =>
+    request<AdminDockerfileSource>(`/workspaces/${WORKSPACE_ID}/system/dockerfile`, {
+      method: "PUT",
+      body: JSON.stringify({ contents }),
+    }),
 
   // Static Site tab (`src/server/routes/admin/system/export-site.ts`) — trigger + poll, not a
   // single synchronous call: a real export can take seconds to minutes, so `triggerSiteExport`
