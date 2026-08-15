@@ -1878,11 +1878,19 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    `button` rule's filled-primary look entirely (background/border/radius/color), same reasoning
    `.list-table td button:not([class*="btn-"])` documents further up this file for why a bare
    `button` selector needs an explicit opt-out rather than relying on specificity alone. */
-.tab-bar { display: flex; gap: 0.3rem; border-bottom: 1px solid var(--border); margin-bottom: 1.3rem; }
+/* `overflow-x: auto` + `-webkit-overflow-scrolling: touch` — same treatment `.table-scroll` gets
+   further up this file, for the same reason: `display: flex` with no wrap means a row wider than
+   its container clips rather than reflows. Found on the Deployment panel's own 5 tabs at this
+   file's own documented 390px canary width (`.table-scroll`'s comment) — "History" fell off the
+   right edge with no way to reach it, since none of `TabBar.tsx`'s existing two consumers (Themes'
+   tier tabs, Pages' two tabs) had short enough content plus enough tabs to hit this before.
+   `flex-shrink: 0` on the items is required alongside it: without it, flex's default shrink-to-fit
+   squeezes each tab's padding/text instead of triggering the scroll this rule adds. */
+.tab-bar { display: flex; gap: 0.3rem; border-bottom: 1px solid var(--border); margin-bottom: 1.3rem; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .tab-bar-item {
   background: none; border: none; border-bottom: 2px solid transparent; border-radius: 0;
   padding: 0.65rem 0.9rem; font-family: var(--font-ui); font-size: var(--text-sm); font-weight: 600;
-  color: var(--muted); cursor: pointer; transition: color 0.14s, border-color 0.14s;
+  color: var(--muted); cursor: pointer; transition: color 0.14s, border-color 0.14s; flex-shrink: 0;
 }
 .tab-bar-item:hover { background: none; color: var(--fg); opacity: 1; }
 .tab-bar-item[aria-selected="true"] { color: var(--accent-text); border-bottom-color: var(--accent-text); }
@@ -2987,3 +2995,23 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
   background: var(--surface-3); color: var(--fg); font-family: var(--font-mono); font-size: 0.82rem;
   line-height: 1.5; border-radius: var(--r-md); white-space: pre;
 }
+/* Overview tab's two-path comparison (2026-08-15 owner UI/UX pass — see `OverviewTab.tsx`'s file
+   header). `auto-fit`/`minmax` rather than a hard `1fr 1fr`: at the narrow end the two cards stack
+   full-width instead of squeezing to an unreadable column, same responsive intent `.field-row`
+   already has elsewhere in this file. Grid's own default `align-items: stretch` is what keeps both
+   cards the same height when one path's copy runs longer than the other's — no extra rule needed
+   for that, unlike the sibling-`.field-row` gap bug below, which needed one. */
+.deployment-path-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: var(--space-4); margin-bottom: var(--space-5); }
+.deployment-path-card { display: flex; flex-direction: column; align-items: flex-start; gap: 0.3rem; }
+.deployment-path-card .btn-secondary { margin-top: var(--space-3); }
+/* Full Site tab's provider list (2026-08-15 owner UI/UX pass — see `FullSiteTab.tsx`'s file
+   header): one `.card` holding six rows instead of six separate cards. Deliberately its own class
+   rather than reusing `.settings-row`/`.settings-row-list` — those bake in `cursor: pointer`,
+   hover/`:focus-visible`/`.is-selected` states for a SELECTABLE list (`Taxonomy.tsx`'s term list),
+   and these six rows are fixed and non-interactive; carrying that affordance over would promise a
+   click that does nothing. */
+.deployment-provider-list { list-style: none; margin: 0; padding: 0; }
+.deployment-provider-list-item { padding: var(--space-4) 0; }
+.deployment-provider-list-item:first-child { padding-top: 0; }
+.deployment-provider-list-item:last-child { padding-bottom: 0; }
+.deployment-provider-list-item + .deployment-provider-list-item { border-top: 1px solid var(--border); }
