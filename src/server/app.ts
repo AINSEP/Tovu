@@ -7,10 +7,7 @@ import { createSeoEventSubscriptions, createSeoPageHeadHook, ensureSeoSettingDef
 import { registerPageHeadContributor } from "./http/site/page-head";
 import { InMemoryPostRepo, InMemoryPostSearchIndex, createPostRevertRegistry } from "../features/post";
 import { InMemoryDeploymentsReadRepo } from "../features/deployments";
-// Safe here (this composition root is never reachable FROM `assistant/tool-registrations.ts` — see
-// `routes/types.ts`'s `runExportSite` doc for why the same import is UNSAFE inside
-// `features/deployments/export-run.ts`, which IS reachable from there).
-import { exportSite } from "../export/index";
+// NOT a static import, and the reason is a measured crash — see `runExportSiteLazily` below.
 import { InMemoryPagesHtmlDocumentStore } from "../features/pages";
 import {
   createInMemoryChatStoreFactory,
@@ -179,6 +176,9 @@ import { createAssistantSettingsModule } from "./modules/assistant-settings";
 import { createAssistantExecutionModule } from "./modules/assistant-execution";
 import { createAssistantByokModule } from "./modules/assistant-byok";
 import type { RouteDeps } from "./routes/types";
+// `type`-only, so it is erased and adds no runtime edge — the whole point of the lazy resolution
+// in {@link runExportSiteLazily} below.
+import type { ExportEngine } from "../features/deployments/export-run";
 
 /**
  * @file HTTP composition root and route wiring.
@@ -611,10 +611,42 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // 2026-08-15 — the real export engine, bound here rather than imported inside
     // `features/deployments/export-run.ts`/`export-site.ts` — see `routes/types.ts`'s
     // `runExportSite` doc for why that indirection is required, not stylistic (a real circular-load
-    // crash, not a style preference).
-    runExportSite: exportSite,
+    // crash, not a style preference). Resolved lazily; see {@link runExportSiteLazily}.
+    runExportSite: runExportSiteLazily,
   };
 }
+
+/**
+ * `exportSite`, resolved at CALL time instead of at import time.
+ *
+ * WHY THIS IS NOT A TOP-LEVEL IMPORT. `src/export/site-exporter.ts` imports `createApp` from THIS
+ * file — deliberately, because exporting drives the real app rather than re-implementing rendering.
+ * A static `import { exportSite } from "../export/index"` here therefore closes a cycle:
+ *
+ *     server/app.ts -> export/index.ts -> export/site-exporter.ts -> server/app.ts
+ *
+ * `routes/types.ts`'s `runExportSite` doc previously called this file one of "the two places safe
+ * to import `#src/export/index` directly, since neither is reachable from
+ * `assistant/tool-registrations.ts`." That was true when written and became false on 2026-08-15:
+ * the agent daemon's entry point is `src/assistant/agent-daemon-server.ts`, which imports this
+ * file, so the cycle is entered from inside `src/assistant` and the barrel is only half-initialised
+ * when this file's own module body runs. Observed failure:
+ *
+ *     TypeError: Cannot read properties of undefined (reading 'createInMemoryChatStoreFactory')
+ *         at createRouteDeps (src/server/app.ts)
+ *
+ * The daemon died on every boot with exit code 1, the API server stayed up, and the visible symptom
+ * was "the AI assistant no longer works" with nothing naming an import cycle. Bisected: the
+ * daemon ran clean at `dcfdd89` and died at `a4bddce`, which changed module load ORDER rather than
+ * adding the edge itself — the edge had been latent since the export route landed.
+ *
+ * `require` rather than `await import`: this package is CommonJS, and a synchronous resolution
+ * keeps `ExportEngine`'s signature exactly as-is. By the time any caller invokes this, both modules
+ * are fully loaded, so there is no partial-initialisation window left to fall into.
+ */
+const runExportSiteLazily: ExportEngine<RouteDeps> = (options) =>
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- deliberate; see doc above.
+  (require("../export/index") as typeof import("../export/index")).exportSite(options);
 
 export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   const app = express();

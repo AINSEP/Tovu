@@ -5,10 +5,10 @@ import { dirname, join, resolve } from "node:path";
 import { InMemoryEventBus } from "../core/events";
 import { backfillPostSearchIndex, SqlitePostRepo, SqlitePostSearchIndex, createPostRevertRegistry } from "../features/post";
 import { SqliteDeploymentsReadRepo } from "../features/deployments";
-// Safe here (this composition root is never reachable FROM `assistant/tool-registrations.ts` — see
-// `routes/types.ts`'s `runExportSite` doc for why the same import is UNSAFE inside
-// `features/deployments/export-run.ts`, which IS reachable from there).
-import { exportSite } from "../export/index";
+// NOT a static import — `export/site-exporter.ts` imports `createApp` from `server/app.ts`, and a
+// top-level import here reaches that same cycle. See `server/app.ts`'s `runExportSiteLazily` for
+// the full trace and the crash it produced. Resolved at call time instead.
+import type { ExportEngine } from "../features/deployments/export-run";
 import { PagesHtmlDocumentStore } from "../features/pages";
 import { createChatStoreFactory, ensurePublicAssistantSettingDefinitions, ensureExecutionSettingDefinitions } from "../assistant";
 import { SqlitePresentationSettingsRepo } from "../features/presentation";
@@ -798,7 +798,7 @@ export function createSqliteRouteDeps(
     // `features/deployments/export-run.ts`/`export-site.ts` — see `routes/types.ts`'s
     // `runExportSite` doc for why that indirection is required, not stylistic (a real circular-load
     // crash, not a style preference).
-    runExportSite: exportSite,
+    runExportSite: runExportSiteLazily,
   };
 }
 
@@ -841,3 +841,16 @@ export function createSqliteRouteDepsForWorkspace(
   const workspace = resolveWorkspace({ db }, { workspaceId: workspaceIdOverride });
   return createSqliteRouteDeps(dbPath, { db, workspaceId: workspace.id });
 }
+
+/**
+ * `exportSite`, resolved at CALL time rather than at import time — the same fix, for the same
+ * cycle, as `server/app.ts`'s `runExportSiteLazily`. See that function's doc comment for the full
+ * trace: `server/app.ts -> export/index.ts -> export/site-exporter.ts -> server/app.ts`, which
+ * killed the agent daemon on every boot once its entry point started reaching this graph.
+ *
+ * Both composition roots need the same treatment; leaving either one static leaves the cycle live
+ * on whichever boot path uses it.
+ */
+const runExportSiteLazily: ExportEngine<RouteDeps> = (options) =>
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- deliberate; see doc above.
+  (require("../export/index") as typeof import("../export/index")).exportSite(options);

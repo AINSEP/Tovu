@@ -4,7 +4,23 @@ import type { AddressInfo } from "node:net";
 import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
-import { createApp } from "../server/app";
+// NOT a static import. This is the single shared back-edge that every export/publish import cycle
+// runs through, so breaking it here breaks all of them at once rather than one caller at a time.
+//
+// `server/app.ts` (and anything it registers — the export route, the publish route, the deployments
+// agent-tool domain) reaches `export/index.ts`, which reaches this file. A top-level
+// `import { createApp } from "../server/app"` therefore closes:
+//
+//     server/app.ts -> ... -> export/index.ts -> export/site-exporter.ts -> server/app.ts
+//
+// `server/app.ts` runs its whole boot graph as a side effect of being loaded, so re-entering it
+// mid-initialisation yields half-built module exports. On 2026-08-15 that killed the agent daemon
+// on every boot — `TypeError: Cannot read properties of undefined (reading
+// 'createInMemoryChatStoreFactory')`, exit code 1 — while the API server stayed up, so the only
+// visible symptom was "the AI assistant no longer works".
+//
+// Two separate callers reproduced it within one hour (the export route, then the publish adapter),
+// which is why the fix belongs here rather than in each of them.
 import type { RouteDeps } from "../server/routes/types";
 import { buildRouteManifest } from "./route-manifest";
 import type { ManifestActiveTheme, ManifestRoute, ManifestRouteKind, ManifestSkip } from "./ports";
@@ -576,6 +592,11 @@ export async function exportSite(options: ExportSiteOptions): Promise<ExportRepo
   prepareOutputDir(outputDir, clean);
 
   const manifest = await buildRouteManifest(routeDeps);
+  // Resolved here, at call time, rather than at module load — see the note where the static import
+  // used to be. By this point `server/app.ts` is fully initialised, so there is no partial-module
+  // window left to fall into.
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- deliberate; see that note.
+  const { createApp } = require("../server/app") as typeof import("../server/app");
   const server = createServer(createApp(routeDeps));
   server.listen(0);
   await once(server, "listening");
