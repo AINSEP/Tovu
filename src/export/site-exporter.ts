@@ -55,16 +55,45 @@ import type { ManifestActiveTheme, ManifestRoute, ManifestRouteKind, ManifestSki
  *   diffs the active theme's whole folder against what actually got rendered/fetched and reports
  *   the leftover files, so a caller gets an honest "these N files were never referenced" list
  *   instead of an export that silently looks complete.
+ *
+ * Every succeeded `ExportedRoute`/`ExportedAsset` also carries its own `data` (the exact bytes
+ * written) and `contentType` (the real response header, or a fixed value for the one
+ * exporter-authored page — the redirect stub) — added 2026-08-15 so this report is reachable as
+ * DATA for a future deploy-shaped caller, not only as a side effect on disk. See those interfaces'
+ * own doc comments (`ExportedRoute`/`ExportedAsset` below) for the confirmed downstream shape
+ * (`@jini-ai/devops/deploy`'s `DeployFile`) and the resource tradeoff this implies.
  */
 
 const ASSET_URL_PREFIXES = ["/theme-assets/", "/agent-icons/", "/m/"] as const;
 
-/** One route this exporter attempted and wrote successfully. */
+/**
+ * One route this exporter attempted and wrote successfully. `data`/`contentType` make the file set
+ * reachable as DATA, not only as a side effect on disk — added 2026-08-15 so a future deploy-shaped
+ * caller (`@jini-ai/devops/deploy`'s `DeployFile { file, data, contentType, sourcePath }`, confirmed
+ * against the real package at `Jini/packages/devops/src/deploy/types.ts`) can build its own file set
+ * straight from an `ExportReport` without re-reading every written file back off disk. `outputFile`
+ * is already the deploy-relative path that shape's `file` field wants — this exporter has written
+ * every path relative to `outputDir` since the first pass, not because of this addition.
+ *
+ * Resource note, disclosed rather than silently accepted: holding `data` on every entry means this
+ * exporter's peak memory now includes every exported route's full body simultaneously (previously
+ * write-and-discard, one body alive at a time). Fine at this feature's actual scale — one
+ * workspace's content, a CLI-triggered, human-paced operation — but a caller exporting a very large
+ * site and NOT immediately discarding the report should be aware the bytes are retained, not
+ * streamed.
+ */
 export interface ExportedRoute {
   path: string;
   kind: ManifestRouteKind;
-  /** Written file, relative to `outputDir`. */
+  /** Written file, relative to `outputDir` — already deploy-relative, not an absolute path. */
   outputFile: string;
+  /** The exact bytes written to `outputFile`. Always text: every route this exporter produces is
+   *  HTML, XML (`sitemap.xml`), or plain text (`robots.txt`, a redirect stub). */
+  data: string;
+  /** The real response's `Content-Type` header for a fetched route; a fixed, synthesized value for
+   *  the redirect stub this exporter itself authors (see {@link writeRedirectRoute}) — that page was
+   *  never fetched from anywhere, so there is no response header to read. */
+  contentType?: string;
 }
 
 /** One route this exporter attempted and could NOT write — always reported, never silently
@@ -76,10 +105,17 @@ export interface FailedRoute {
   reason: string;
 }
 
+/** Same "reachable as data" reasoning as {@link ExportedRoute} — see that interface's own doc. */
 export interface ExportedAsset {
   /** The site-relative URL this asset was fetched from, e.g. `/theme-assets/basic/css/base.css`. */
   url: string;
+  /** Written file, relative to `outputDir` — already deploy-relative. */
   outputFile: string;
+  /** The exact bytes written to `outputFile`. `Buffer`, not `string`: an asset may be binary
+   *  (an image, a font) as readily as text (a stylesheet). */
+  data: Buffer;
+  /** The real response's `Content-Type` header. */
+  contentType?: string;
 }
 
 export interface FailedAsset {
@@ -257,6 +293,7 @@ async function writeContentRoute(route: ManifestRoute, baseUrl: string, outputDi
     return { failed: { path: route.path, kind: route.kind, reason: `expected 200, got ${res.status}` } };
   }
   const body = await res.text();
+  const contentType = res.headers.get("content-type") ?? undefined;
   const outFile = route.kind === "well-known" ? wellKnownOutputFile(route.path, outputDir) : contentRouteOutputFile(route.path, outputDir);
   writeTextFile(outFile, body);
   // `robots.txt`/`sitemap.xml` are plain text/XML, not HTML — crawling them for `href="…"`/`src="…"`
@@ -264,7 +301,10 @@ async function writeContentRoute(route: ManifestRoute, baseUrl: string, outputDi
   // `html` is still populated uniformly rather than special-cased, since a false-negative crawl scan
   // is cheap and a special case here would be one more branch to keep in sync with `ports.ts`'s kind
   // list for no real benefit.
-  return { succeeded: { path: route.path, kind: route.kind, outputFile: path.relative(outputDir, outFile) }, html: body };
+  return {
+    succeeded: { path: route.path, kind: route.kind, outputFile: path.relative(outputDir, outFile), data: body, contentType },
+    html: body,
+  };
 }
 
 async function writeRedirectRoute(route: ManifestRoute, baseUrl: string, outputDir: string): Promise<RouteWriteOutcome> {
@@ -276,9 +316,12 @@ async function writeRedirectRoute(route: ManifestRoute, baseUrl: string, outputD
   if (!location) {
     return { failed: { path: route.path, kind: route.kind, reason: "redirect response carried no Location header" } };
   }
+  const stub = renderRedirectStub(location);
   const outFile = contentRouteOutputFile(route.path, outputDir);
-  writeTextFile(outFile, renderRedirectStub(location));
-  return { succeeded: { path: route.path, kind: route.kind, outputFile: path.relative(outputDir, outFile) } };
+  writeTextFile(outFile, stub);
+  // This page was authored locally (see renderRedirectStub's own doc), never fetched — there is no
+  // response header to read, so contentType is a fixed value describing what was actually written.
+  return { succeeded: { path: route.path, kind: route.kind, outputFile: path.relative(outputDir, outFile), data: stub, contentType: "text/html; charset=utf-8" } };
 }
 
 /** The 404 probe is written to `<outputDir>/404.html` — not to its own sentinel path — matching
@@ -290,9 +333,10 @@ async function writeNotFoundRoute(route: ManifestRoute, baseUrl: string, outputD
     return { failed: { path: route.path, kind: route.kind, reason: `expected a non-2xx response for the 404 probe, got ${res.status}` } };
   }
   const body = await res.text();
+  const contentType = res.headers.get("content-type") ?? undefined;
   const outFile = path.join(outputDir, "404.html");
   writeTextFile(outFile, body);
-  return { succeeded: { path: route.path, kind: route.kind, outputFile: "404.html" } };
+  return { succeeded: { path: route.path, kind: route.kind, outputFile: "404.html", data: body, contentType } };
 }
 
 /**
@@ -329,9 +373,10 @@ async function fetchAssets(initialUrls: readonly string[], baseUrl: string, outp
     }
 
     const buffer = Buffer.from(await res.arrayBuffer());
+    const contentType = res.headers.get("content-type") ?? undefined;
     mkdirSync(path.dirname(outFile), { recursive: true });
     writeFileSync(outFile, buffer);
-    succeeded.push({ url, outputFile: path.relative(outputDir, outFile) });
+    succeeded.push({ url, outputFile: path.relative(outputDir, outFile), data: buffer, contentType });
 
     if (url.endsWith(".css")) {
       for (const ref of extractCssUrls(buffer.toString("utf8"), url)) {
