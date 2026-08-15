@@ -10,15 +10,17 @@
  * assistant rather than any one domain — which domains are wired at all, and the two cross-domain
  * invariants that only a file seeing all of them can check.
  *
- * Wired domains and their catalogs (21 domains, 145 catalog entries, 131 wired tools — measured
- * 2026-08-05 by building the real registrations and attributing each id to its declaring catalog,
- * not carried forward from the previous edit; the counts below had drifted in six places):
+ * Wired domains and their catalogs (22 domains, 150 catalog entries, 136 wired tools — the 2026-08-05
+ * count below the `deployments` line was measured by building the real registrations and
+ * attributing each id to its declaring catalog, not carried forward from the previous edit; the
+ * counts below had drifted in six places. `deployments` (5 of 5, all wired) was added 2026-08-15 and
+ * is not part of that 2026-08-05 measurement pass):
  *   content-types (6 of 8)   forms (6 of 6)      identity (15 of 15)  comments (7 of 7)
  *   members (4 of 4)         newsletter (14/14)  media (4 of 4)       widgets (12 of 12)
  *   menus (5 of 5)           database (7 of 9)   recovery (5 of 7)    plugins (2 of 2)
  *   workspace (2 of 4)       settings (4 of 8)   entries (5 of 5)     taxonomy (6 of 7)
  *   seo (6 of 6)             redirects (6 of 7)  integrations (5/5)   post (6 of 6)
- *   themes (4 of 4)
+ *   themes (4 of 4)          deployments (5 of 5)
  * Recovery counts 5, not 6: `backup_create_restore_point` appears in both its catalog and
  * Database's, and Recovery is the one that declares it unwired (see {@link DERIVED_RISK_BY_TOOL_ID}
  * for why that collision has to resolve exactly this way). Counting it on both sides is what makes
@@ -52,6 +54,11 @@ import {
   databaseDerivedRisk,
   type DatabaseToolDeps,
 } from "../features/database/tool-registrations";
+import {
+  buildDeploymentsRegistrations,
+  deploymentsDerivedRisk,
+  type DeploymentsToolDeps,
+} from "../features/deployments/tool-registrations";
 import {
   buildEntriesRegistrations,
   entriesDerivedRisk,
@@ -170,6 +177,12 @@ import {
 export type AssistantToolRegistryDeps = CommentsToolDeps &
   ContentTypesToolDeps &
   DatabaseToolDeps &
+  // `DeploymentsToolDeps` is the one exception to every other member of this intersection: its own
+  // file header discloses that it cannot be a narrow structural slice (`deployment_trigger_export`
+  // needs the full composition-root deps bag to boot an in-process copy of the app), so intersecting
+  // it here is what actually makes `deployment_trigger_export` callable at all — every real caller
+  // already passes an object satisfying it, since it is (structurally) `RouteDeps` itself.
+  DeploymentsToolDeps &
   EntriesToolDeps &
   PluginsToolDeps &
   PostToolDeps &
@@ -221,6 +234,10 @@ const DOMAIN_SLICES: readonly DomainSlice[] = [
   { domain: "menus", build: buildMenusRegistrations, risk: menusDerivedRisk },
   { domain: "database", build: buildDatabaseRegistrations, risk: databaseDerivedRisk },
   { domain: "recovery", build: buildRecoveryRegistrations, risk: recoveryDerivedRisk },
+  // 2026-08-15 — the Deployment panel's three tabs (Static Site export, Full Site read, Dockerfile
+  // read/write). See `features/deployments/agent-tools.ts`'s file header for why, unlike every
+  // domain above, none of its 5 entries is excluded.
+  { domain: "deployments", build: buildDeploymentsRegistrations, risk: deploymentsDerivedRisk },
   { domain: "plugins", build: buildPluginsRegistrations, risk: pluginsDerivedRisk },
   { domain: "workspace", build: buildWorkspaceRegistrations, risk: workspaceDerivedRisk },
   { domain: "settings", build: buildSettingsRegistrations, risk: settingsDerivedRisk },
