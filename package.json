@@ -50,6 +50,7 @@
     "@jini-ai/cms": "file:../Jini/packages/cms",
     "@jini-ai/core": "file:../Jini/packages/core",
     "@jini-ai/daemon": "file:../Jini/packages/daemon",
+    "@jini-ai/devops": "file:../Jini/packages/devops",
     "@jini-ai/http-kit": "file:../Jini/packages/http-kit",
     "@jini-ai/infra": "file:../Jini/packages/infra",
     "@jini-ai/integrations": "file:../Jini/packages/integrations",
