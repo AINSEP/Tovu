@@ -263,7 +263,7 @@ describe("Enable — via RowMenu, immediate (no confirm, matching prior behavior
 });
 
 describe("Reset password — via RowMenu, opens a dialog with a password field", () => {
-  it("submits the typed password and shows a success notice", async () => {
+  it("submits the typed password and shows a success notice, once New/Confirm match", async () => {
     const user = userEvent.setup();
     fetchMock
       .mockResolvedValueOnce(jsonResponse({ users: [ACTIVE_USER] })) // initial load
@@ -279,6 +279,7 @@ describe("Reset password — via RowMenu, opens a dialog with a password field",
     const dialog = dialogFor(/reset password\?/i);
     expect(dialog).toHaveAttribute("open");
     await user.type(within(dialog).getByLabelText("New password"), "correct-horse-battery-staple");
+    await user.type(within(dialog).getByLabelText("Confirm new password"), "correct-horse-battery-staple");
     await user.click(within(dialog).getByRole("button", { name: /^reset password$/i }));
 
     expect(await screen.findByText(/password reset for "alice"/i)).toBeInTheDocument();
@@ -302,6 +303,7 @@ describe("Reset password — via RowMenu, opens a dialog with a password field",
     const dialog = dialogFor(/reset password\?/i);
     const input = within(dialog).getByLabelText("New password") as HTMLInputElement;
     await user.type(input, "correct-horse-battery-staple");
+    await user.type(within(dialog).getByLabelText("Confirm new password"), "correct-horse-battery-staple");
     await user.click(within(dialog).getByRole("button", { name: /^reset password$/i }));
 
     await screen.findByText("server exploded");
@@ -324,6 +326,7 @@ describe("Reset password — via RowMenu, opens a dialog with a password field",
 
     const dialog = dialogFor(/reset password\?/i);
     await user.type(within(dialog).getByLabelText("New password"), "correct-horse-battery-staple");
+    await user.type(within(dialog).getByLabelText("Confirm new password"), "correct-horse-battery-staple");
     await user.click(within(dialog).getByRole("button", { name: /^reset password$/i }));
     await screen.findByText("server exploded");
 
@@ -335,6 +338,154 @@ describe("Reset password — via RowMenu, opens a dialog with a password field",
     // cleared by onCancel, not merely hidden behind the closed dialog.
     await user.click(within(await openMenu(user, "alice")).getByRole("menuitem", { name: "Reset password" }));
     expect((within(dialog).getByLabelText("New password") as HTMLInputElement).value).toBe("");
+    expect((within(dialog).getByLabelText("Confirm new password") as HTMLInputElement).value).toBe("");
+  });
+
+  describe("Confirm-password mismatch gate", () => {
+    async function openDialog(user: ReturnType<typeof userEvent.setup>) {
+      await screen.findByText("alice");
+      const menu = await openMenu(user, "alice");
+      await user.click(within(menu).getByRole("menuitem", { name: "Reset password" }));
+      return dialogFor(/reset password\?/i);
+    }
+
+    it("blocks submit and shows an inline message while New and Confirm differ", async () => {
+      const user = userEvent.setup();
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse({ users: [ACTIVE_USER] }))
+        .mockResolvedValueOnce(jsonResponse({ roles: [] }))
+        .mockResolvedValueOnce(jsonResponse({ policies: [] }));
+      render(<FetchQueryProvider><Users /></FetchQueryProvider>);
+
+      const dialog = await openDialog(user);
+      await user.type(within(dialog).getByLabelText("New password"), "correct-horse-battery-staple");
+      await user.type(within(dialog).getByLabelText("Confirm new password"), "correct-horse-battery-wrong");
+
+      expect(within(dialog).getByText("Passwords do not match.")).toBeInTheDocument();
+      await user.click(within(dialog).getByRole("button", { name: /^reset password$/i }));
+
+      // Blocked client-side: the dialog stays open and no request was ever sent — the mismatch
+      // never reaches `confirmResetPassword`/the network at all.
+      expect(dialog).toHaveAttribute("open");
+      expect(fetchMock.mock.calls.some((c) => String(c[0]).includes("/reset-password"))).toBe(false);
+    });
+
+    it("fixing the mismatch clears the message and lets submit proceed", async () => {
+      const user = userEvent.setup();
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse({ users: [ACTIVE_USER] }))
+        .mockResolvedValueOnce(jsonResponse({ roles: [] }))
+        .mockResolvedValueOnce(jsonResponse({ policies: [] }))
+        .mockResolvedValueOnce(jsonResponse({})); // POST reset-password, once the fields agree
+      render(<FetchQueryProvider><Users /></FetchQueryProvider>);
+
+      const dialog = await openDialog(user);
+      await user.type(within(dialog).getByLabelText("New password"), "correct-horse-battery-staple");
+      await user.type(within(dialog).getByLabelText("Confirm new password"), "correct-horse-battery-wrong");
+      expect(within(dialog).getByText("Passwords do not match.")).toBeInTheDocument();
+
+      // Fix the typo — mismatch message goes away and the confirm button now actually submits.
+      await user.type(within(dialog).getByLabelText("Confirm new password"), "{Backspace>5}staple");
+      expect(within(dialog).queryByText("Passwords do not match.")).not.toBeInTheDocument();
+
+      await user.click(within(dialog).getByRole("button", { name: /^reset password$/i }));
+      expect(await screen.findByText(/password reset for "alice"/i)).toBeInTheDocument();
+      expect(fetchMock.mock.calls.some((c) => String(c[0]).includes("/reset-password"))).toBe(true);
+    });
+
+    it("a live mismatch message takes over the slot a stale server error was showing", async () => {
+      const user = userEvent.setup();
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse({ users: [ACTIVE_USER] }))
+        .mockResolvedValueOnce(jsonResponse({ roles: [] }))
+        .mockResolvedValueOnce(jsonResponse({ policies: [] }))
+        .mockResolvedValueOnce(jsonResponse({ error: "server exploded" }, 500));
+      render(<FetchQueryProvider><Users /></FetchQueryProvider>);
+
+      const dialog = await openDialog(user);
+      await user.type(within(dialog).getByLabelText("New password"), "correct-horse-battery-staple");
+      await user.type(within(dialog).getByLabelText("Confirm new password"), "correct-horse-battery-staple");
+      await user.click(within(dialog).getByRole("button", { name: /^reset password$/i }));
+      await screen.findByText("server exploded");
+
+      // Now introduce a live mismatch on top of the stale server error — only one message shows,
+      // and it's the live one, not both stacked or fighting for the same line.
+      await user.type(within(dialog).getByLabelText("Confirm new password"), "x");
+      expect(within(dialog).getByText("Passwords do not match.")).toBeInTheDocument();
+      expect(within(dialog).queryByText("server exploded")).not.toBeInTheDocument();
+    });
+  });
+
+  describe("Independent show/hide toggles", () => {
+    /** Each password field's own `.field` wrapper — scoping into it, rather than trusting DOM order
+     *  between two same-labeled "Show password" buttons, is what actually proves a toggle affects
+     *  only ITS OWN field. */
+    function fieldFor(dialog: HTMLElement, labelText: string): HTMLElement {
+      return within(dialog).getByLabelText(labelText).closest(".field") as HTMLElement;
+    }
+
+    it("each toggle reveals only its own field, and both start hidden", async () => {
+      const user = userEvent.setup();
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse({ users: [ACTIVE_USER] }))
+        .mockResolvedValueOnce(jsonResponse({ roles: [] }))
+        .mockResolvedValueOnce(jsonResponse({ policies: [] }));
+      render(<FetchQueryProvider><Users /></FetchQueryProvider>);
+
+      await screen.findByText("alice");
+      const menu = await openMenu(user, "alice");
+      await user.click(within(menu).getByRole("menuitem", { name: "Reset password" }));
+      const dialog = dialogFor(/reset password\?/i);
+
+      const newInput = within(dialog).getByLabelText("New password") as HTMLInputElement;
+      const confirmInput = within(dialog).getByLabelText("Confirm new password") as HTMLInputElement;
+      const newField = fieldFor(dialog, "New password");
+      const confirmField = fieldFor(dialog, "Confirm new password");
+      expect(newInput.type).toBe("password");
+      expect(confirmInput.type).toBe("password");
+
+      await user.click(within(newField).getByRole("button", { name: "Show password" }));
+      expect(newInput.type).toBe("text");
+      expect(confirmInput.type).toBe("password");
+      // The confirm field's own toggle is unaffected — still hidden, still labeled "Show password".
+      expect(within(confirmField).getByRole("button", { name: "Show password" })).toBeInTheDocument();
+
+      await user.click(within(confirmField).getByRole("button", { name: "Show password" }));
+      expect(newInput.type).toBe("text");
+      expect(confirmInput.type).toBe("text");
+
+      // Hiding the new-password field again doesn't touch the confirm field.
+      await user.click(within(newField).getByRole("button", { name: "Hide password" }));
+      expect(newInput.type).toBe("password");
+      expect(confirmInput.type).toBe("text");
+    });
+
+    it("reveal state resets to hidden every time the dialog re-opens", async () => {
+      const user = userEvent.setup();
+      fetchMock
+        .mockResolvedValueOnce(jsonResponse({ users: [ACTIVE_USER] }))
+        .mockResolvedValueOnce(jsonResponse({ roles: [] }))
+        .mockResolvedValueOnce(jsonResponse({ policies: [] }));
+      render(<FetchQueryProvider><Users /></FetchQueryProvider>);
+
+      await screen.findByText("alice");
+      const dialog = dialogFor(/reset password\?/i);
+      await user.click(within(await openMenu(user, "alice")).getByRole("menuitem", { name: "Reset password" }));
+
+      const newField = fieldFor(dialog, "New password");
+      const confirmField = fieldFor(dialog, "Confirm new password");
+      await user.click(within(newField).getByRole("button", { name: "Show password" }));
+      await user.click(within(confirmField).getByRole("button", { name: "Show password" }));
+      expect((within(dialog).getByLabelText("New password") as HTMLInputElement).type).toBe("text");
+      expect((within(dialog).getByLabelText("Confirm new password") as HTMLInputElement).type).toBe("text");
+
+      await user.click(within(dialog).getByRole("button", { name: /^cancel$/i }));
+      await user.click(within(await openMenu(user, "alice")).getByRole("menuitem", { name: "Reset password" }));
+
+      expect((within(dialog).getByLabelText("New password") as HTMLInputElement).type).toBe("password");
+      expect((within(dialog).getByLabelText("Confirm new password") as HTMLInputElement).type).toBe("password");
+      expect(within(dialog).queryAllByRole("button", { name: "Hide password" })).toHaveLength(0);
+    });
   });
 });
 
