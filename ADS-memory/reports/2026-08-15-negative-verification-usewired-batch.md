@@ -92,9 +92,65 @@ Full file green (5/5) after both reverts.
 
 **Verdict: PROVEN.**
 
+### 6. `apps/admin/src/components/__tests__/MediaPickerDialog.unit.test.tsx`
+
+Only the `"MediaPickerDialog — useDialog injection"` describe block is in scope (the file's own
+header calls this "the seam-specific test the split adds"; the other describe blocks predate the
+sweep, exercising the real hook against a mocked `api.listMedia`).
+
+- **Mutation** — `MediaPickerDialog.tsx`: `useDialog(...)` → `useWiredMediaPickerDialog(...)`
+  (hardcode the real hook). Test: `"renders entirely off an injected useDialog — api.listMedia and
+  api.mediaOriginalUrl are never called"`. **RED** (`getByTitle("Fake asset")` not found — real
+  hook's loading state rendered, since `api.listMedia` was left as an un-mocked spy that never
+  resolves). Reverted. Full file green (11/11).
+
+**Verdict: PROVEN.**
+
+### 7. `apps/admin/src/features/media/__tests__/use-edit-media-panel.hooks.unit.test.tsx`
+
+Two mutations against `use-edit-media-panel.hooks.ts`. Note: this file's own comments already
+claim a self-documented negative-verification for the first two tests in its top describe block
+("Negative verification (per this refactor's own required check)..." at line 82) — per this
+session's own standing instruction to verify claims written in code comments rather than trust
+them, both the baseline-diff claim and the port-seam claim were independently re-verified below
+rather than taken on the comment's word.
+
+- **Mutation A** — `save()`: `diffMediaMetadata({ item: baselineRef.current, draft })` →
+  `diffMediaMetadata({ item, draft })` (diff against the live, drifting `item` prop instead of the
+  frozen mount-time baseline — reintroducing the exact TM-TOVU-2026-08-12-A silent-revert bug the
+  test's own comment describes). Test: `"does not revert a field changed elsewhere while the panel
+  stays open, when only a different field was edited here"`. **RED**
+  (`expected '' to be 'Changed by operator B'` — the concurrent operator's write got silently
+  reverted, exactly the documented failure mode). Reverted.
+- **Mutation B** — `originalUrl`: `port.mediaOriginalUrl(item.id)` →
+  `` `computed://not-from-port/${item.id}` `` (bypass the injected port). Test: `"originalUrl is
+  exactly the injected port's mediaOriginalUrl, not one this hook computed itself"`. **RED**
+  (`expected 'computed://not-from-port/m1' to be 'fake://media-original/m1'`). Reverted.
+
+Full file green (4/4) after both reverts.
+
+**Verdict: PROVEN.**
+
+### 8. `apps/admin/src/features/media/__tests__/use-media-preview.hooks.unit.test.tsx`
+
+Two mutations against `use-media-preview.hooks.ts`:
+
+- **Mutation A** — `src`: `port.mediaOriginalUrl(item.id)` →
+  `` `computed://not-from-port/${item.id}` `` (bypass the injected port). Test: `"src is exactly
+  the injected port's mediaOriginalUrl, not one this hook computed itself"`. **RED**
+  (`expected 'computed://not-from-port/m1' to be 'fake://media-original/m1'`). Reverted.
+- **Mutation B** — `handleVideoError`: `setStage("unsupported")` → `setStage("video")` (break the
+  fallback-chain's terminal transition). Test: `"advances image -> video -> unsupported on
+  successive probe failures, same as before the port injection"`. **RED**
+  (`expected 'video' to be 'unsupported'`). Reverted.
+
+Full file green (3/3) after both reverts.
+
+**Verdict: PROVEN.**
+
 ## Running tally
 
-5/5 files verified PROVEN so far (0 vacuous). Continuing to the remaining 6 files.
+8/8 files verified PROVEN so far (0 vacuous). Continuing to the remaining 3 files.
 
 ## Six pre-existing dirty files — inspected, not touched
 
