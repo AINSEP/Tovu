@@ -727,6 +727,38 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); o
    the border/radius/shadow frame, not a second layer of padding. */
 .card-flush { padding: 0; overflow: hidden; }
 
+/* Card/section heading — the primitive missing from the set above (`.page-kicker`/`.page-title`/
+   `.page-description`/`.card` all existed; the heading INSIDE a card did not). Without it a bare
+   `<h2>` in a `.card` inherits the UA default, which measures 24px with 19.92px margins — 91% of
+   `.page-title`'s own 26.4px, in a different family, with a 40.7px gap to the first paragraph
+   (all four numbers measured live via `getComputedStyle`/`getBoundingClientRect`, not read off the
+   rules). That is not a hierarchy step, it is a near-tie, and the stray UA margin is what reads as
+   "nobody chose this".
+
+   The values are not invented either: they are `.theme-card h3`'s (L1814) — `--font-display` at
+   1.15rem — which is this admin's existing, working card-title idiom on its best-looking screen.
+   Reusing it makes a section title 18.4px against a 26.4px page title (a 1.43 step) and puts the
+   display face on both, so the two rhyme instead of competing.
+
+   Additive and opt-in: only elements that take the class change, so no existing screen moves. */
+.card-title {
+  margin: 0 0 var(--space-3);
+  font-family: var(--font-display); font-size: 1.15rem; font-weight: 700;
+  letter-spacing: -0.005em; line-height: 1.3; color: var(--fg);
+  text-wrap: balance;
+}
+/* A muted lead line directly under a `.card-title`, for the one sentence that says what the card
+   is about before its content starts. `max-width` in `ch` so a long sentence wraps at a readable
+   measure instead of running the full width of a 1440px card. */
+.card-lead { margin: 0; font-size: var(--text-md); color: var(--fg-2); line-height: 1.5; max-width: 68ch; }
+/* Section eyebrow for a group of cards that needs a name but not a second page-level heading —
+   same uppercase/letterspaced idiom as `.page-kicker` and `.field-label`, one tier down from
+   `.card-title` so it never competes with it. */
+.section-eyebrow {
+  margin: 0 0 var(--space-3); font-size: var(--text-2xs); font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted);
+}
+
 /* Toolbar — the row of filters/search/upload controls that sits above a list, so those controls
    read as one control group instead of stray inputs dropped on the page (Media's unstyled
    `<input type="file">` today). */
