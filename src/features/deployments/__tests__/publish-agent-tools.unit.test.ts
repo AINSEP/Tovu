@@ -10,7 +10,7 @@ import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@ji
 import { createRouteDeps } from "#src/server/app";
 import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "#src/assistant/surface-exchanges";
 import type { PublishCredentialSetRecord, PublishCredentialSetRepoPort } from "../publish-credentials/index";
-import { InMemoryPublishCredentialVerificationCache, type PublishCredentialSource } from "../static-publish/index";
+import { InMemoryPublishCredentialVerificationCache, InMemoryPublishHistoryStore, type PublishCredentialSource } from "../static-publish/index";
 
 import { buildStaticPublishRegistrations, staticPublishAgentToolCatalog, staticPublishDerivedRisk, type StaticPublishToolDeps } from "../publish-agent-tools";
 
@@ -350,6 +350,61 @@ test("deployment_get_static_publish_capabilities: a verified credential's accoun
   for (const provider of result.providers.filter((p) => p.providerId !== "github-pages")) {
     assert.equal(provider.accountLabel, null);
   }
+});
+
+test("deployment_get_static_publish_capabilities: a recorded lastPublish is surfaced per provider, and defaults to null when nothing has been published there yet", async () => {
+  const { deps } = fakeDeps({
+    credentialSource: {
+      async resolve() { throw new Error("must not be called by this handler"); },
+      async isConfigured(input) { return input.target === "github-pages" ? { configured: true } : { configured: false, reason: "not configured" }; },
+    },
+  });
+  deps.workspaceId = WORKSPACE_ID_FALLBACK;
+  deps.publishCredentialSetRepo = fakeCredentialRepo([]);
+  const history = new InMemoryPublishHistoryStore();
+  await history.recordSuccess({
+    workspaceId: WORKSPACE_ID_FALLBACK,
+    entry: { target: "github-pages", url: "https://leonaburime-ucla.github.io/tovu-demo/", reachable: true, status: "ready", projectName: "tovu-demo", publishedAt: NOW, owner: "leonaburime-ucla", repo: "tovu-demo", basePath: "/tovu-demo" },
+  });
+  deps.historyStore = history;
+
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const capabilities = tool(buildRegistrations(deps, surfaceExchanges), "deployment_get_static_publish_capabilities");
+  const result = (await call(capabilities)) as { providers: { providerId: string; lastPublish: { url: string; owner?: string; repo?: string } | null }[] };
+
+  const github = result.providers.find((p) => p.providerId === "github-pages")!;
+  assert.equal(github.lastPublish?.url, "https://leonaburime-ucla.github.io/tovu-demo/");
+  assert.equal(github.lastPublish?.owner, "leonaburime-ucla");
+  assert.equal(github.lastPublish?.repo, "tovu-demo");
+
+  const vercel = result.providers.find((p) => p.providerId === "vercel")!;
+  assert.equal(vercel.lastPublish, null);
+});
+
+test("confirm: a real publish records history in the injected historyStore, readable back through deployment_get_static_publish_capabilities", async () => {
+  const captured: { value: DeployFile[] | null } = { value: null };
+  const history = new InMemoryPublishHistoryStore();
+  const { deps } = fakeDeps({
+    credentialSource: { async resolve() { return { ok: true, token: "fake-token-never-real" }; }, async isConfigured() { return { configured: true }; } },
+    buildTarget: () => fakeDeployTarget(captured),
+  });
+  deps.historyStore = history;
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const registrations = buildRegistrations(deps, surfaceExchanges);
+  const executeTool = tool(registrations, "deployment_execute_static_publish");
+
+  const { exchangeId, pending } = await raiseDialog(executeTool, { target: "github-pages", owner: "octo", repo: "my-site", projectName: "my-site-release" });
+  surfaceExchanges.deliver({ exchangeId, toolId: "deployment_execute_static_publish", principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
+  const outcome = (await pending) as { published: boolean };
+  assert.equal(outcome.published, true);
+
+  const capabilities = tool(registrations, "deployment_get_static_publish_capabilities");
+  const result = (await call(capabilities)) as { providers: { providerId: string; lastPublish: { url: string; owner?: string; repo?: string; projectName: string } | null }[] };
+  const github = result.providers.find((p) => p.providerId === "github-pages")!;
+  assert.equal(github.lastPublish?.url, "https://example.test/published");
+  assert.equal(github.lastPublish?.owner, "octo");
+  assert.equal(github.lastPublish?.repo, "my-site");
+  assert.equal(github.lastPublish?.projectName, "my-site-release");
 });
 
 test("deployment_get_static_publish_capabilities's description tells the model to default 'owner' from accountLabel and still confirm with the human", () => {

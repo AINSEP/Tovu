@@ -105,10 +105,12 @@ import { S3_COMPATIBLE_FIELD_GUIDANCE, S3_COMPATIBLE_FORM_DESCRIPTION } from "./
 import {
   composePublishCredentialSource,
   computeBasePath,
+  defaultPublishHistoryStore,
   getPublishRunSnapshot,
   runPublishAndAwait,
   validateStaticPublishConfig,
   type PublishCredentialSource,
+  type PublishHistoryStore,
   type StaticPublishConfig,
   type StaticPublishDeps,
   type StaticPublishTargetId,
@@ -284,7 +286,7 @@ export const staticPublishAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "deployment_get_static_publish_capabilities",
     description:
-      "Reports live publish readiness for all five static-publish targets (github-pages, vercel, netlify, cloudflare-pages, s3-compatible) WITHOUT decrypting or exposing any credential: for each provider, whether it is ready to publish to right now (ready is true ONLY when a credential is saved AND it was last verified to actually work against the real provider — a saved-but-unverified or saved-but-failing credential is reported as NOT ready, distinctly from no credential at all), every named credential set saved for it (id, label, isDefault, createdAt, updatedAt — NEVER a token, ciphertext, or masked tail), the cached verification state (verified: 'valid' | 'invalid' | 'unreachable' | null, and verifiedAt — null means configured but never verified; 'unreachable' means the last check could not reach the provider due to a network issue and does NOT mean the credential is bad, distinctly from 'invalid', which means the provider itself rejected it; this is a CACHED result from the last time a human verified it, possibly stale, never a live check made by this call), accountLabel (the verified credential's own public account login/username — GitHub's real login, Vercel's real username — or null when not yet verified, or for a provider with no such field to report; NEVER an email, plan, or org — use this as the default 'owner' for a github-pages publish instead of guessing one from the human's name or email address, and still confirm it with the human before publishing), and — for a provider that is NOT ready — a human-readable reason naming what is missing or wrong (e.g. no credential saved for this workspace, a required field such as Cloudflare Pages' account id is not configured, the credential has never been verified yet, it was rejected by the provider, or the last check could not reach the provider). Also reports this install's executionMode ('self-hosted-cli' or 'hosted-api-only'), which affects whether a server-environment-variable credential can ever be used as a fallback. Call this before telling a human what publishing would do, before calling deployment_execute_static_publish, or whenever asked something like 'can I publish, and to where'. Do NOT ask the user to paste an API token, access key, or any other secret into this chat, ever, for any reason — a value typed into chat is written into the conversation transcript, which is exactly what this workspace's encrypted credential store exists to avoid, and this tool has no way to accept one anyway (it takes no input). If a provider is not ready: for github-pages/vercel/netlify/cloudflare-pages, tell the human to add or fix that provider's credential themselves in the admin's Static Site tab (Deployment panel → Static Site → Publish), which saves it encrypted server-side and never shows it to you. For s3-compatible specifically, you can instead offer to help right here in chat — call deployment_propose_custom_provider_credential, which shows the human an editable form to fill in (you never see or handle the secret fields).",
+      "Reports live publish readiness for all five static-publish targets (github-pages, vercel, netlify, cloudflare-pages, s3-compatible) WITHOUT decrypting or exposing any credential: for each provider, whether it is ready to publish to right now (ready is true ONLY when a credential is saved AND it was last verified to actually work against the real provider — a saved-but-unverified or saved-but-failing credential is reported as NOT ready, distinctly from no credential at all), every named credential set saved for it (id, label, isDefault, createdAt, updatedAt — NEVER a token, ciphertext, or masked tail), the cached verification state (verified: 'valid' | 'invalid' | 'unreachable' | null, and verifiedAt — null means configured but never verified; 'unreachable' means the last check could not reach the provider due to a network issue and does NOT mean the credential is bad, distinctly from 'invalid', which means the provider itself rejected it; this is a CACHED result from the last time a human verified it, possibly stale, never a live check made by this call), accountLabel (the verified credential's own public account login/username — GitHub's real login, Vercel's real username — or null when not yet verified, or for a provider with no such field to report; NEVER an email, plan, or org — use this as the default 'owner' for a github-pages publish instead of guessing one from the human's name or email address, and still confirm it with the human before publishing), lastPublish (the last successful publish to this provider from this server — target, url, reachable, status, projectName, publishedAt, and for github-pages also owner/repo/basePath — or null if this provider has never been published to from here; when the human asks to 'publish again' or 'publish the same way as last time', use this to resolve owner/repo/projectName without asking, and report the previous url when relevant), and — for a provider that is NOT ready — a human-readable reason naming what is missing or wrong (e.g. no credential saved for this workspace, a required field such as Cloudflare Pages' account id is not configured, the credential has never been verified yet, it was rejected by the provider, or the last check could not reach the provider). Also reports this install's executionMode ('self-hosted-cli' or 'hosted-api-only'), which affects whether a server-environment-variable credential can ever be used as a fallback. Call this before telling a human what publishing would do, before calling deployment_execute_static_publish, or whenever asked something like 'can I publish, and to where'. Do NOT ask the user to paste an API token, access key, or any other secret into this chat, ever, for any reason — a value typed into chat is written into the conversation transcript, which is exactly what this workspace's encrypted credential store exists to avoid, and this tool has no way to accept one anyway (it takes no input). If a provider is not ready: for github-pages/vercel/netlify/cloudflare-pages, tell the human to add or fix that provider's credential themselves in the admin's Static Site tab (Deployment panel → Static Site → Publish), which saves it encrypted server-side and never shows it to you. For s3-compatible specifically, you can instead offer to help right here in chat — call deployment_propose_custom_provider_credential, which shows the human an editable form to fill in (you never see or handle the secret fields).",
     sideEffects: "none",
     authorization: { permission: "deployments.read" },
     inputSchema: NO_INPUT_SCHEMA,
@@ -382,6 +384,15 @@ export interface StaticPublishToolDeps extends RouteDeps {
    *  "adapter tests with a faked deploy target — do not hit real providers in tests"). Production
    *  never sets this — `publishStaticSite`'s own default (the real Jini adapters) applies. */
   buildTarget?: StaticPublishDeps["buildTarget"];
+  /** Test-only override for `static-publish/publish-run.ts`'s module-level `defaultPublishHistoryStore`
+   *  — lets a test inject an `InMemoryPublishHistoryStore` so it can assert on a recorded publish (or
+   *  a capabilities read) without touching the filesystem. Passed straight through to
+   *  `runPublishAndAwait` on a confirmed publish AND used by the capabilities handler's own read, so a
+   *  test sees one consistent store on both sides — never a file-backed write paired with an
+   *  in-memory read or vice versa. Production never sets this; both paths fall back to the SAME
+   *  module-level default, so a real publish's history is visible to this tool with no wiring change
+   *  outside this domain (see `publish-run.ts`'s header, "Publish history"). */
+  historyStore?: PublishHistoryStore;
 }
 
 function buildPreviewConfig(raw: Record<string, unknown>): StaticPublishConfig {
@@ -669,6 +680,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
       executionMode: deps.publishExecutionMode,
       dbDeps: { repo: deps.publishCredentialSetRepo, sealer: deps.siteAssistantSecretSealer },
     });
+  const historyStore = deps.historyStore ?? defaultPublishHistoryStore;
 
   const handlers: Record<string, ToolHandler> = {
     deployment_preview_static_publish: async (ctx) => {
@@ -726,6 +738,11 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
               updatedAt: credential.updatedAt,
             }));
           const readiness = await credentialSource.isConfigured({ workspaceId: deps.workspaceId, target: providerId });
+          // 2026-08-16, Defect 2: the last successful publish to this provider, if any — see
+          // `publish-history.ts`'s own header for the storage design. `null` means never published
+          // (from this server, in this history store) rather than an absent key, so an agent-facing
+          // JSON result always carries the field.
+          const lastPublish = await historyStore.getLast({ workspaceId: deps.workspaceId, target: providerId });
 
           // Cached, non-decrypting read only — NEVER `verifyPublishCredential` from here (that
           // decrypts and makes a real provider call; see `static-publish/verify.ts`'s own header
@@ -762,6 +779,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
             // address and published to the wrong owner. This is the fix — see this tool's own catalog
             // description for how the model is told to use it.
             accountLabel: verification?.accountLabel ?? null,
+            lastPublish,
             savedCredentials,
             ...(guidance !== undefined ? { guidance } : {}),
           };
@@ -888,7 +906,8 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
         const outcome = await runPublishAndAwait(
           { credentialSource, ...(deps.buildTarget !== undefined ? { buildTarget: deps.buildTarget } : {}) },
           { workspaceId: deps.workspaceId, routeDeps: deps, config, projectName },
-          deps.clock
+          deps.clock,
+          historyStore
         );
 
         if (outcome.ok === "partial") {
