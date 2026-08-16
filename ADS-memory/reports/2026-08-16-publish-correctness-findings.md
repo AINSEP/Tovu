@@ -146,4 +146,97 @@ dispatch's assigned scope (Defect A + Defect B only); reporting per the brief.
 
 ## Defect B — credential "ready" means "a row exists," not "verified against the provider"
 
-*(not yet started — see progress note to team-lead)*
+### What I confirmed (read, not assumed)
+
+`deployment_get_static_publish_capabilities` (`publish-agent-tools.ts:672-703`) reports `ready:
+readiness.configured` where `readiness = credentialSource.isConfigured({workspaceId, target})`.
+Traced both `PublishCredentialSource` implementations
+(`static-publish/credentials.ts`): `createDbPublishCredentialSource.isConfigured` only calls
+`repo.findDefaultByProvider` — a plain existence check, no network call, no decrypt.
+`createEnvPublishCredentialSource.isConfigured` only checks whether the env var is set and
+non-blank. Neither ever contacts GitHub/Vercel/Netlify/Cloudflare/S3. This exactly matches the
+report: a row/env-var existing is reported as `ready: true` regardless of whether the provider
+would actually accept it.
+
+### Design (proposing before implementing, per the brief — this requires decryption)
+
+**New function `verifyPublishCredential`** (new file: `static-publish/verify.ts`) — the SECOND (and
+only other) legitimate caller of `PublishCredentialSource.resolve()`, alongside a real publish
+attempt (`static-publish/types.ts`'s own header already documents `resolve()` as reserved for "an
+actual publish attempt," which I'm reading as "or an equally human-gated, non-agent-facing
+verification attempt" — same non-decrypting-for-agents invariant, one more legitimate caller of the
+decrypting method). It calls `credentialSource.resolve({workspaceId, target})` — the SAME composed
+DB-first/env-fallback source a real publish already uses, so verification checks whichever
+credential would ACTUALLY be used, not an assumption about which one — then makes ONE lightweight,
+read-only, authenticated GET against that provider:
+- github-pages: `GET api.github.com/user`
+- vercel: `GET api.vercel.com/v2/user`
+- netlify: `GET api.netlify.com/api/v1/user`
+- cloudflare-pages: `GET api.cloudflare.com/client/v4/user/tokens/verify` (Cloudflare's own
+  purpose-built token-verify endpoint)
+- s3-compatible: SigV4-signed `HEAD` on the bucket root, via `aws4fetch`'s `AwsClient` — the same
+  library `static-publish/s3-compatible-target.ts` already depends on for real uploads, so this adds
+  no new dependency
+
+Every checker is wrapped so a network error, timeout, or non-JSON/non-2xx response NEVER throws —
+it always resolves to `{ok: boolean, message: string}`, and `message` is built only from the HTTP
+status/a provider error field, never from the request itself, so the token/secret cannot leak into
+it even by accident (same "message, never the raw error, never a credential" discipline
+`static-publish/adapter.ts`'s own `catch` already documents for `PROVIDER_ERROR`).
+
+**Caching — in-memory, NOT a DB column.** Recommending this over a `publish_credential_sets`
+migration, with tradeoffs:
+- *For*: zero migration risk. This session's own HARD CONSTRAINTS forbid restarting the dev
+  servers a schema change would need reloaded to take effect, and project memory
+  (`reference_drizzle_migration_hash_partial_apply.md`) independently flags migration mistakes in
+  this exact table family as a real, previously-hit boot-crash class. An in-memory cache needs
+  neither.
+- *Against*: lost on process restart, and NOT shared across replicas in a multi-instance hosted
+  deployment. Judged acceptable for now — re-verification is one cheap call and a restart
+  correctly reverting to "unverified" (rather than trusting a stale in-memory claim across a
+  restart) is arguably the MORE honest failure direction; `composePublishCredentialSource`'s own
+  doc already establishes `hosted-api-only` mode as single-tenant/DB-backed with no evidence of a
+  multi-replica deployment today. If either stops being true, promoting this to a small additive
+  migration (3 nullable columns) is cheap later — not blocked by this choice now, just deferred.
+- Keyed by `(workspaceId, target)`, matching `isConfigured()`'s own granularity — NOT by credential
+  row id. This also makes the DB-backed and env-var-fallback paths share one mechanism for free
+  (an env-sourced credential has no row to key by id, but it does have a `target`).
+- No TTL/auto-expiry: a verification result never silently reverts to "unknown" from time alone
+  (which would look like flakiness — a violation of the brief's "must not be flaky" requirement).
+  Instead `verifiedAt` is always reported so a caller can judge staleness itself. Freshness is kept
+  by re-verifying automatically after every human credential save, plus an on-demand "Verify" trigger.
+
+**Triggers — both human-gated, neither on the agent-facing read path**:
+1. Automatically, best-effort, right after a human's `POST`/`PUT` to
+   `.../publish/credentials` succeeds (`publish-credentials.ts` route) — the natural "did what I
+   just typed work" moment.
+2. On-demand via a new `POST .../publish/credentials/:id/verify` route, so a human can refresh a
+   stale or never-verified result without re-saving.
+
+**Reporting** (`deployment_get_static_publish_capabilities`, still 100% non-decrypting — reads the
+cache, never calls `resolve()`): per provider, `credentialConfigured` (today's `isConfigured()`
+check, renamed for clarity), `verified: true | false | null` (`null` = configured but never
+verified), `verifiedAt`, and `ready` REDEFINED to `credentialConfigured && verified === true` —
+never `true` for "configured but unverified," directly satisfying the brief's "unverified must not
+render as ready."
+
+**Deliberately NOT changed**: `deployment_execute_static_publish`'s pre-flight gate still checks
+only `isConfigured()`, not the cached verification. Reasoning: attempting the real publish IS the
+truest possible verification, and gating it on a possibly-stale cached result risks being wrong in
+BOTH directions (blocking a publish whose stale cache says "failed" but would actually work now, or
+letting one through whose stale cache says "verified" but was revoked since). Flagging as a
+follow-up recommendation, not implementing: the confirmation dialog could show a non-secret warning
+line ("last verified 3 days ago: failed — 401") using the SAME cached, non-decrypting data the
+capabilities tool already reads, without weakening the gate itself.
+
+Env-var-sourced credential verification is included in this design (same cache, same `target`
+key) — scoping note: the two triggers above are both DB-credential-row-shaped (a save, or a
+per-row Verify button); an operator-set env var has no natural "just saved it" moment or admin row
+to attach a button to, so in practice env-sourced credentials will only ever show `verified: null`
+until a route/CLI trigger for that path exists. Not building that trigger now — no evidence the
+live-reported bug involved the env-var path (the demonstrated case was a DB-saved token via the
+admin form).
+
+### Implementation status
+
+*(next update: code + tests + commit SHAs)*
