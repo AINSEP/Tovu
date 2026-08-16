@@ -43,11 +43,16 @@ import type { SealedSecret } from "../../../integrations/types";
 
 export type PublishProviderId = "github-pages" | "vercel" | "netlify" | "cloudflare-pages";
 
+/** No `owner`/`repo` here, deliberately — those are publish-TARGET fields, not credential fields:
+ *  they already live on `../static-publish/types.ts`'s `GitHubPagesPublishConfig`, chosen per publish
+ *  run (a saved connection can publish to more than one owner/repo over its lifetime, one run at a
+ *  time). Duplicating them onto the credential would just be a second, driftable place either could be
+ *  set — see `store.ts`'s `validateConnection` for the enforcement side of this contract, and this
+ *  feature's admin UI (`AdminPublishConnectionInput` in `apps/admin/src/lib/api.ts`) for the client
+ *  side, which never collects them on the credential form either. */
 export interface GitHubPagesConnectionInput {
   readonly providerId: "github-pages";
   readonly token: string;
-  readonly owner: string;
-  readonly repo: string;
 }
 
 export interface VercelConnectionInput {
