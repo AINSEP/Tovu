@@ -377,16 +377,34 @@ UI and the assistant can reconcile rather than retry blind.
 
 ### D-7. Complexity bar for new hook work: under 10, by convention not by gate
 Owner asked for cyclomatic AND cognitive complexity under 10, plus ~100% on all four coverage
-metrics, for hooks work. **The repo's configured gate is 15, severity `warn`** (`eslint.config.mjs`
-lines 46-47), with a tracked debt file (`development/scripts/admin-complexity-debt.json`) and a
-`check:admin-complexity-drift` script. So the owner's bar is **stricter than CI enforces** and
-nothing will automatically catch a function landing at 12.
+metrics, for hooks work.
 
-Applies to new work, **not** retroactively to all of `apps/admin` — tightening the rule to 10
-would turn every existing 10-15 function into a new warning and require regenerating the debt file.
+> **CORRECTED — the Coordinator got this wrong and told the owner the wrong thing.**
+> I reported the gate as **15/`warn`** from `eslint.config.mjs:46-47` and concluded the owner's bar
+> was *stricter than CI enforces*. That is the **repo-wide** block. There is a **second, narrower
+> block at `eslint.config.mjs:163-179`** scoped to `apps/admin/src/**/*.{ts,tsx}` which sets
+> **`complexity: ['error', 9]`** and **`sonarjs/cognitive-complexity: ['error', 9]`** — a HARD ERROR
+> at **9**, stricter than the owner's requested 10, for exactly the code in question.
+>
+> ESLint resolves later blocks over earlier ones for the same file+rule, so 9/error wins for
+> `apps/admin` production code. `__tests__/` and `__measurements__/` are **excluded outright** (not
+> grandfathered) and fall back to the repo-wide 15/`warn` — the config's own comment reasons that a
+> complexity ceiling on setup tables and parametrized assertions is a weaker argument than on
+> production logic, and grandfathering would wrongly imply debt someone should pay down.
+> `development/scripts/admin-complexity-debt.json` grandfathers pre-existing violations so today's
+> debt does not fail CI while any NEW over-the-line function still does.
+>
+> **Consequence: the owner's "under 10" is already enforced, and more strictly, by CI.** Nothing
+> needs tightening and no debt file needs regenerating. My earlier "convention, not enforcement"
+> framing was wrong.
+>
+> This is the exact trap recorded in prior memory as *"two complexity metrics on apps/admin"* — I
+> found one and stopped.
 
-Verified for `features/workspace/hooks`: **zero violations at threshold 10** for both
-`complexity` and `sonarjs/cognitive-complexity`. No refactor was needed.
+Verified for `features/workspace/hooks`: **zero complexity findings** against the real configured
+linter (not a hand-supplied `--rule` override), and **not present in the debt list**, so all three
+files are held to the real 9-ceiling and pass it. This is a "write tests" task, not "refactor then
+test." No function needs restructuring.
 
 ### D-8. Agent-assisted credential entry: `buildFormSurface`, secret never reaches the model
 The settings-write exclusion turned out **narrower than assumed**. It is not "no settings-write is
@@ -434,9 +452,29 @@ and S3 PUT responses carry no public URL the way the Vercel/Netlify APIs do. The
 five fields is fine"* was permission to exceed a narrow shared shape, **not a limit**. Agent pushback
 on this was correct and is accepted.
 
-### D-12. The `request-volume` flake is COLD-IMPORT COST, not agent contention — theory refuted
-The prior session's working theory ("resource contention — 3 agents + 22 sequential vitest boots")
-is **wrong**, and this is now settled by direct instrumentation rather than left as a note.
+### D-12. The `request-volume` flake is cold-import cost AND contention — both, not either
+> **CORRECTED TWICE. Read this heading, not the first version.** This entry was first recorded as
+> *"theory refuted — it is cold-import cost, NOT contention."* **That was wrong.** The agent then
+> found direct evidence (`find -newermt`) that DockerfileConcurrency's files were being modified
+> throughout its supposedly-quiet test window — its `ps` spot-checks had simply missed the process.
+> Re-run with load average logged per run on an 8-core box:
+> **load ~10-11 → 3.2-3.3s · load ~14 → 7.7-8.8s.** Both slow runs would have FAILED the old 5000ms
+> default.
+>
+> **Contention is real and does widen the margin.** The prior session's theory was not wrong, it was
+> *incomplete*. The two findings answer different questions and are complementary:
+> - **WHERE the time goes** (mechanism): the cold `import()` dominates the test's internal time.
+>   This is why the test sits near the limit at all.
+> - **WHY it varies run to run** (trigger): machine load. This is why it *crosses* the limit on any
+>   given run.
+>
+> The 15000ms ceiling is better justified under the corrected picture than the original one: worst
+> observed under real load is **8.8s**, giving ~1.7x headroom against actual worst case, rather than
+> 4x against a quiet-machine best case.
+>
+> **Coordinator note:** I wrote "REFUTED" into a committed decision log on one agent's report before
+> anyone had measured under load. Twice now this entry has been corrected by the agent volunteering
+> evidence against its own earlier claim, not by me catching it.
 
 WorkspaceHooksTests ran the file **18x sequentially**: 4 timeouts (~22%), always the exact text
 `"Test timed out in 5000ms"` at the `it()` line itself — Vitest's outer `testTimeout`, not a
