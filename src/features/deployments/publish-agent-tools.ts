@@ -224,15 +224,18 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps): To
       const config = buildPreviewConfig(raw);
       const validationError = validateStaticPublishConfig(config);
       const basePath = validationError ? undefined : computeBasePath(config);
-      const credential = await credentialSource.resolve({ workspaceId: deps.workspaceId, target });
+      // `isConfigured()`, NOT `resolve()` — this is an agent-facing read; per this file's own header
+      // (and `static-publish/types.ts`'s `PublishCredentialSource` doc) an agent-facing path must
+      // never be able to resolve a real credential, even indirectly by reading `.ok` off it.
+      const credential = await credentialSource.isConfigured({ workspaceId: deps.workspaceId, target });
 
       return {
         target,
         valid: validationError === null,
         ...(validationError !== null ? { validationError } : {}),
         basePath: basePath ?? null,
-        credentialsConfigured: credential.ok,
-        ...(!credential.ok ? { credentialGuidance: credential.reason } : {}),
+        credentialsConfigured: credential.configured,
+        ...(!credential.configured ? { credentialGuidance: credential.reason } : {}),
         willInjectNojekyll: target === "github-pages",
       };
     },

@@ -50,6 +50,9 @@ function neverCalledCredentialSource(): PublishCredentialSource {
     async resolve() {
       throw new Error("credentialSource.resolve must not be called for an already-invalid config");
     },
+    async isConfigured() {
+      throw new Error("credentialSource.isConfigured must not be called by publishStaticSite (it always resolves for real)");
+    },
   };
 }
 
@@ -97,7 +100,7 @@ test("publishStaticSite: a missing token fails cleanly with NO_CREDENTIALS_CONFI
 
   const result = await publishStaticSite(
     {
-      credentialSource: { async resolve() { return { ok: false, reason: "GITHUB_TOKEN is not set" }; } },
+      credentialSource: { async resolve() { return { ok: false, reason: "GITHUB_TOKEN is not set" }; }, async isConfigured() { return { configured: false, reason: "GITHUB_TOKEN is not set" }; } },
       buildTarget: () => {
         throw new Error("buildTarget must not be called when no credential was resolved");
       },
@@ -127,7 +130,7 @@ test("publishStaticSite: injects .nojekyll for github-pages and maps real export
 
   const result = await publishStaticSite(
     {
-      credentialSource: { async resolve() { return { ok: true, token: "fake-token-never-used-by-fake-target" }; } },
+      credentialSource: { async resolve() { return { ok: true, token: "fake-token-never-used-by-fake-target" }; }, async isConfigured() { return { configured: true }; } },
       buildTarget: () => fakeDeployTarget(captured),
     },
     {
@@ -163,7 +166,7 @@ test("publishStaticSite: does NOT inject .nojekyll for vercel, and never sets a 
 
   const result = await publishStaticSite(
     {
-      credentialSource: { async resolve() { return { ok: true, token: "fake-token-never-used-by-fake-target" }; } },
+      credentialSource: { async resolve() { return { ok: true, token: "fake-token-never-used-by-fake-target" }; }, async isConfigured() { return { configured: true }; } },
       buildTarget: () => fakeDeployTarget(captured),
     },
     {

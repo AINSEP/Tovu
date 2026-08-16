@@ -279,20 +279,21 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
 
     // Same three reads `deployment_preview_static_publish`'s handler performs (this file's header)
     // — a pure shape check, a pure base-path derivation, and one `process.env` lookup. No export
-    // runs, no filesystem or network I/O, and the resolved credential's TOKEN never enters this
-    // response — only `credential.ok` and, on failure, `credential.reason` (a fixed, non-secret
-    // sentence naming which env var is missing; see `credentials.ts`'s own `resolve()`).
+    // runs, no filesystem or network I/O. `isConfigured()`, NOT `resolve()` (2026-08-15 split, see
+    // `static-publish/types.ts`'s `PublishCredentialSource` header) — a preview must never resolve a
+    // real credential just to read a boolean off it, which is what would silently start decrypting on
+    // every preview call once a DB-backed source replaces this env-var one.
     const validationError = validateStaticPublishConfig(parsed.config);
     const basePath = validationError === null ? (computeBasePath(parsed.config) ?? null) : null;
-    const credential = await credentialSource.resolve({ workspaceId: deps.workspaceId, target: parsed.config.target });
+    const credential = await credentialSource.isConfigured({ workspaceId: deps.workspaceId, target: parsed.config.target });
 
     res.status(200).json({
       target: parsed.config.target,
       valid: validationError === null,
       validationError,
       basePath,
-      credentialsConfigured: credential.ok,
-      credentialGuidance: credential.ok ? null : credential.reason,
+      credentialsConfigured: credential.configured,
+      credentialGuidance: credential.configured ? null : credential.reason,
       willInjectNojekyll: parsed.config.target === "github-pages",
     });
   });

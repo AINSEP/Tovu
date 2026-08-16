@@ -28,11 +28,21 @@ test("buildStaticPublishRegistrations wires exactly one tool: the read-only prev
   assert.ok(registrations[0]!.descriptor.inputSchema, "a wired tool must publish an inputSchema");
 });
 
-test("deployment_preview_static_publish reports validity, computed base path, and credential presence — never a token", async () => {
+test("deployment_preview_static_publish reports validity, computed base path, and credential presence — via isConfigured(), NEVER resolve()", async () => {
+  let resolveCallCount = 0;
   const registrations = buildStaticPublishRegistrations({
     authorize: alwaysAllowAuthorize(),
     workspaceId: "ws-1",
-    credentialSource: { async resolve() { return { ok: true, token: "should-never-appear-in-output" }; } },
+    credentialSource: {
+      async resolve() {
+        // A preview must NEVER call this — see `static-publish/types.ts`'s `PublishCredentialSource`
+        // header. Counted (not just asserted-unreached) so a regression shows up as a real assertion
+        // failure below rather than this fake silently returning a token-shaped value into a preview.
+        resolveCallCount += 1;
+        return { ok: true, token: "should-never-appear-in-output" };
+      },
+      async isConfigured() { return { configured: true }; },
+    },
   });
   const preview = registrations.find((r) => r.descriptor.id === "deployment_preview_static_publish")!;
 
@@ -46,13 +56,17 @@ test("deployment_preview_static_publish reports validity, computed base path, an
   assert.equal(result.credentialsConfigured, true);
   assert.equal(result.willInjectNojekyll, true);
   assert.doesNotMatch(JSON.stringify(result), /should-never-appear-in-output/);
+  assert.equal(resolveCallCount, 0, "deployment_preview_static_publish must never call PublishCredentialSource.resolve()");
 });
 
 test("deployment_preview_static_publish reports invalid config and false credentials without throwing", async () => {
   const registrations = buildStaticPublishRegistrations({
     authorize: alwaysAllowAuthorize(),
     workspaceId: "ws-1",
-    credentialSource: { async resolve() { return { ok: false, reason: "GITHUB_TOKEN is not set" }; } },
+    credentialSource: {
+      async resolve() { return { ok: false, reason: "GITHUB_TOKEN is not set" }; },
+      async isConfigured() { return { configured: false, reason: "GITHUB_TOKEN is not set" }; },
+    },
   });
   const preview = registrations.find((r) => r.descriptor.id === "deployment_preview_static_publish")!;
 
