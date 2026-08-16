@@ -618,6 +618,51 @@ checking at implementation time.
 string in the file is the §9 heading that reports them all resolved. Implementation is unblocked,
 with the `@jini-ai/ui` masked-field change (§8a, 4 touches) as its one cross-package prerequisite.
 
+### D-15. `@jini-ai/ui` masked field SHIPPED — S3 implementation is now fully unblocked
+Jini repo, branch `general-work`, commit **`738d151c`**. 3 files:
+`packages/ui/src/features/mcp-ui/surfaces/{text-input.ts,fields.ts}` + `__tests__/surfaces/controls.test.ts`.
+
+**The spec's §8a prediction held exactly** — 4 touches plus the recommended `autocomplete`, and
+**no `FieldReadSpec` change**, verified by reading `toFieldReadSpecs` directly (it carries only
+`name/label/kind/required`, nothing type-related). Nothing to push back on.
+
+Touch points: `secret?: boolean` on `TextInputProps` and `StringField`; a new named
+`resolveInputType(props)` replacing the inline `isNumber` ternary (resolves
+`'number' | 'password' | 'text'`, with `inputType: 'number'` winning over `secret`); forwarded
+through `renderFieldControl`'s `'string'` case; `autocomplete="off"` emitted only when
+`secret === true`.
+
+**RED-first, observed:** 3 of 5 new assertions failed against unmodified source —
+`expected 'text' to be 'password'` (×2) and `expected <textarea> to be null`. 21 passed, 3 failed.
+
+**Wrong-reason-pass ruled out:** the two "no such element" checks could have passed by matching zero
+elements rather than the right element. Ruled out because 21 pre-existing tests in that file use the
+identical `parse()` + `querySelector` pattern and reliably distinguish `input`/`textarea`/`select`,
+and each new test asserts a **second** property so an empty/wrong match fails loudly. It also added
+**explicit negative-path tests** — `secret: false` and `secret` omitted still render `type="text"`
+with no `autocomplete` — so "always render password" or "always add autocomplete" would surface as a
+failure rather than as an absence of one.
+
+137/137 across the whole `mcp-ui/surfaces` suite (8 files, including `form.test.ts` and
+`confirmation.test.ts`, which consume the changed modules indirectly). 24/24 in `controls.test.ts`.
+
+**The dist trap was REAL and is handled.** `@jini-ai/ui`'s `./mcp-ui/surfaces` export points at
+`dist/features/mcp-ui/index.js`, **not** `src/` — so a source edit alone would never have reached
+Tovu. The agent built the package and then verified **from the Tovu side**: `require.resolve` lands
+in the Jini `dist/` through Tovu's symlinked `node_modules`, both `.d.ts` files Tovu literally
+resolves carry `readonly secret?: boolean`, and the full re-export chain
+(`dist/features/mcp-ui/index.d.ts` → `./surfaces/index.js` → `./fields.js`/`./text-input.js`) makes
+`secret` reachable at the top-level import rather than buried in an unexported nested module.
+
+> ⚠️ **OPERATIONAL NOTE — `packages/ui/dist/` is gitignored** (`Jini/.gitignore:2`, confirmed).
+> The SOURCE is committed; the BUILD ARTIFACT is not. It works on this machine right now because the
+> build has been run once. **Any fresh clone, other machine, or CI run needs `npm run build` in
+> `packages/ui` before Tovu can see the prop.** Nothing in Tovu will tell you it is missing except a
+> type error or an unmasked field.
+
+**Consequence: the custom-provider S3 work has no remaining blockers.** Spec complete (`832a8f5f`,
+zero open items), prerequisite live (`738d151c`). §6d's credential-form work can start.
+
 ### Harness note
 SendMessage delivered on **attempt 8** after 7 consecutive silent failures that all returned
 `success: true`. The channel is **unreliable, not dead** — worth retrying, never worth relying on.
