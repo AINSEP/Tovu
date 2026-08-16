@@ -1,6 +1,10 @@
 import type { Express } from "express";
 
-import { readDockerfileSource, writeDockerfileSource, type DockerfileSourceSnapshot } from "#src/features/deployments/dockerfile";
+import {
+  readDockerfileSource,
+  writeDockerfileSourceWithIfMatch,
+  type DockerfileSourceSnapshot,
+} from "#src/features/deployments/dockerfile";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 
@@ -30,13 +34,28 @@ export { readDockerfileSource };
  * Writing the Dockerfile does not build, validate, or deploy anything — this route only replaces
  * the file's bytes on disk. Nothing here shells out to `docker build`, and the response never
  * implies otherwise.
+ *
+ * ## 2026-08-15 — `If-Match`/`ETag` optimistic concurrency (Terra audit finding C5)
+ *
+ * `GET` sets a real `ETag` response header (`dockerfile.ts`'s `DockerfileSourceSnapshot.etag`) on
+ * every response, including the "does not exist" case. `PUT` now REQUIRES a matching `If-Match`
+ * request header — see {@link writeDockerfileSourceWithIfMatch}'s own doc for the full decision
+ * record (strict, not permissive) and the residual race window it honestly does not close. A `PUT`
+ * with no `If-Match` at all is `400`, not treated as an unconditional write; a `PUT` whose `If-Match`
+ * no longer names the file's current contents is `412 Precondition Failed`, with the CURRENT
+ * `{exists, contents}` in the body so the caller can diff and reconcile instead of retrying blind.
+ * The JSON response body deliberately stays `{exists, contents}` on every status — the etag travels
+ * ONLY via the `ETag`/`If-Match` headers, not duplicated into the body, so there is exactly one wire
+ * representation of "what etag is this" rather than two that could drift.
  */
 export type AdminDockerfileSourceDeps = Pick<RouteDeps, "workspaceId" | "authorize">;
 
 /** Validates the write request's JSON body. Never throws — every malformed shape maps to a
  *  `{ error }` result the route turns into a `400`, mirroring `export-site.ts`'s
- *  `parseTriggerRequestBody`. `contents` is the ONLY field this route reads from the body — there is
- *  no path field to validate because {@link writeDockerfileSource} accepts none. */
+ *  `parseTriggerRequestBody`. `contents` is the ONLY field this route reads from the BODY — there is
+ *  no path field to validate because {@link writeDockerfileSourceWithIfMatch} accepts none, and the
+ *  write's other required input, `If-Match`, is a HEADER (checked separately below, before this
+ *  parser ever runs) rather than a body field. */
 function parseWriteRequestBody(body: unknown): { ok: true; contents: string } | { ok: false; error: string } {
   if (typeof body !== "object" || body === null || Array.isArray(body)) {
     return { ok: false, error: "request body must be a JSON object" };
@@ -46,6 +65,13 @@ function parseWriteRequestBody(body: unknown): { ok: true; contents: string } | 
     return { ok: false, error: "'contents' (string) is required" };
   }
   return { ok: true, contents: raw.contents };
+}
+
+/** The wire body both `GET` and a successful `PUT` return — deliberately just `{exists, contents}`,
+ *  never the domain snapshot's `etag` field; see this file's header for why the etag travels only
+ *  via the `ETag` header. */
+function toResponseBody(snapshot: DockerfileSourceSnapshot): { exists: boolean; contents: string | null } {
+  return { exists: snapshot.exists, contents: snapshot.contents };
 }
 
 export function registerAdminDockerfileSourceRoute(app: Express, deps: AdminDockerfileSourceDeps): void {
@@ -71,7 +97,9 @@ export function registerAdminDockerfileSourceRoute(app: Express, deps: AdminDock
       return;
     }
 
-    res.status(200).json(readDockerfileSource());
+    const snapshot = readDockerfileSource();
+    res.setHeader("ETag", snapshot.etag);
+    res.status(200).json(toResponseBody(snapshot));
   });
 
   app.put("/api/admin/v1/workspaces/:workspaceId/system/dockerfile", async (req, res) => {
@@ -96,12 +124,38 @@ export function registerAdminDockerfileSourceRoute(app: Express, deps: AdminDock
       return;
     }
 
+    // Precondition check BEFORE body parsing — an `If-Match` header is a precondition on the
+    // REQUEST, distinct from whether the BODY it guards happens to be well-formed. Checking it
+    // first means a missing-header failure is never masked by (or mistaken for) a body-shape
+    // failure — see this file's header for the strict-vs-permissive decision this header enforces.
+    const ifMatch = req.get("If-Match");
+    if (!ifMatch) {
+      res.status(400).json({
+        error:
+          "the 'If-Match' header is required on PUT — GET this same URL first (its response carries an 'ETag' header with the file's current value), then send that value back as 'If-Match' to prove your write is based on the current contents, not a stale copy. This is deliberate (Terra audit finding C5, 2026-08-15): an unconditional write here would let a human editing this tab and the AI assistant's deployment_set_dockerfile tool silently overwrite each other with no warning to either.",
+      });
+      return;
+    }
+
     const parsedBody = parseWriteRequestBody(req.body);
     if (!parsedBody.ok) {
       res.status(400).json({ error: parsedBody.error });
       return;
     }
 
-    res.status(200).json(writeDockerfileSource(parsedBody.contents));
+    const result = writeDockerfileSourceWithIfMatch(parsedBody.contents, ifMatch);
+    if (!result.ok) {
+      res.setHeader("ETag", result.current.etag);
+      res.status(412).json({
+        error:
+          "the Dockerfile changed on the server since your 'If-Match' value was read — someone else (or the AI assistant) saved a different version in between. The response body's 'current' field is what's actually on disk right now; reconcile your intended change against it and retry with the 'ETag' header on THIS response.",
+        code: "DOCKERFILE_CONFLICT",
+        current: toResponseBody(result.current),
+      });
+      return;
+    }
+
+    res.setHeader("ETag", result.snapshot.etag);
+    res.status(200).json(toResponseBody(result.snapshot));
   });
 }
