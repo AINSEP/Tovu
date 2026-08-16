@@ -3,9 +3,12 @@ import { agentHandle } from "@jini-ai/agentic";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { TabBar } from "../../components/TabBar";
+import { formatTimestamp } from "../../lib/format-timestamp";
 import type {
   AdminDeployCliStatus,
   AdminExportRunSnapshot,
+  AdminPublishCredentialProviderId,
+  AdminPublishCredentialSummary,
   AdminPublishRunSnapshot,
   AdminStaticPublishPreview,
   AdminStaticPublishTargetId,
@@ -13,6 +16,7 @@ import type {
 import type { Translate } from "../../lib/dictionary-translator";
 import { t } from "./deployment-i18n";
 import {
+  PUBLISH_CREDENTIAL_PROVIDERS,
   STATIC_HOSTS,
   STATIC_PUBLISH_TARGETS,
   STATIC_SITE_CAPABILITIES,
@@ -20,11 +24,14 @@ import {
   cliInstalledStatus,
   exportRunStatusLabelKey,
   publishAssistantRequestForTool,
+  publishCredentialFormReadyToSubmit,
+  publishCredentialProviderInfo,
   publishRunStatusLabelKey,
   runStatusTone,
   staticPublishFormReadyForPreview,
   staticPublishFormReadyToPublish,
   type PublishCliTool,
+  type PublishCredentialFormFields,
 } from "./rules";
 import { AssistantIcon, CapabilityList, StaticSiteIcon } from "./deployment-visuals";
 import { useWiredDeploymentOverview } from "./hooks/use-deployment-overview.hooks";
@@ -33,6 +40,8 @@ import { useWiredStaticExport } from "./hooks/use-static-export.hooks";
 import type { StaticExportController } from "./hooks/use-static-export.hooks";
 import { useWiredStaticPublish } from "./hooks/use-static-publish.hooks";
 import type { StaticPublishController } from "./hooks/use-static-publish.hooks";
+import { useWiredPublishCredentials } from "./hooks/use-publish-credentials.hooks";
+import type { PublishCredentialsController } from "./hooks/use-publish-credentials.hooks";
 
 /**
  * @file Static Site tab — what a static export produces, a real trigger+poll build action, and a
@@ -341,13 +350,14 @@ export interface StaticSiteTabProps {
   useStaticExportHook?: typeof useWiredStaticExport;
   useStaticPublishHook?: typeof useWiredStaticPublish;
   useDeploymentOverviewHook?: typeof useWiredDeploymentOverview;
+  usePublishCredentialsHook?: typeof useWiredPublishCredentials;
 }
 
-/** Resolves each of {@link StaticSiteTabProps}'s three DI seams to its real hook when a caller
- *  passes none — three small resolvers rather than three inline `??` expressions in
+/** Resolves each of {@link StaticSiteTabProps}'s four DI seams to its real hook when a caller
+ *  passes none — four small resolvers rather than four inline `??` expressions in
  *  `StaticSiteTab` itself, same complexity-gate reasoning `OverviewTab.tsx`'s own
- *  `resolveDeploymentOverviewHook` documents (a resolver here counts one branch each; three inline
- *  `??`s in the component body would count three against ITS OWN score instead). */
+ *  `resolveDeploymentOverviewHook` documents (a resolver here counts one branch each; four inline
+ *  `??`s in the component body would count four against ITS OWN score instead). */
 function resolveStaticExportHook(override: typeof useWiredStaticExport | undefined): typeof useWiredStaticExport {
   return override ?? useWiredStaticExport;
 }
@@ -359,6 +369,11 @@ function resolveDeploymentOverviewHookForStaticSite(
 ): typeof useWiredDeploymentOverview {
   return override ?? useWiredDeploymentOverview;
 }
+function resolvePublishCredentialsHook(
+  override: typeof useWiredPublishCredentials | undefined
+): typeof useWiredPublishCredentials {
+  return override ?? useWiredPublishCredentials;
+}
 
 export function StaticSiteTab(props: StaticSiteTabProps) {
   const locale = useAdminLocale();
@@ -367,10 +382,12 @@ export function StaticSiteTab(props: StaticSiteTabProps) {
   const useStaticExportHook = resolveStaticExportHook(props.useStaticExportHook);
   const useStaticPublishHook = resolveStaticPublishHook(props.useStaticPublishHook);
   const useDeploymentOverviewHook = resolveDeploymentOverviewHookForStaticSite(props.useDeploymentOverviewHook);
+  const usePublishCredentialsHook = resolvePublishCredentialsHook(props.usePublishCredentialsHook);
 
   const exportController = useStaticExportHook();
   const publishController = useStaticPublishHook();
   const overview = useDeploymentOverviewHook();
+  const credentialsController = usePublishCredentialsHook();
 
   return (
     <div className="deployment-tab">
@@ -414,7 +431,12 @@ export function StaticSiteTab(props: StaticSiteTabProps) {
 
       <BuildExportCard controller={exportController} t={exportController.t} />
 
-      <GettingItOnlineCard publishController={publishController} overview={overview} t={publishController.t} />
+      <GettingItOnlineCard
+        publishController={publishController}
+        overview={overview}
+        credentialsController={credentialsController}
+        t={publishController.t}
+      />
     </div>
   );
 }
@@ -433,10 +455,12 @@ export function StaticSiteTab(props: StaticSiteTabProps) {
 function GettingItOnlineCard({
   publishController,
   overview,
+  credentialsController,
   t: translate,
 }: {
   publishController: StaticPublishController;
   overview: DeploymentOverviewController;
+  credentialsController: PublishCredentialsController;
   t: Translate;
 }) {
   const selectedTarget = STATIC_PUBLISH_TARGETS.find((target) => target.id === publishController.target) ?? STATIC_PUBLISH_TARGETS[0]!;
@@ -500,13 +524,434 @@ function GettingItOnlineCard({
           </ul>
         </div>
 
-        <StaticPublishForm target={selectedTarget.id} controller={publishController} t={translate} />
+        <PublishCredentialsSection controller={credentialsController} t={translate} />
 
-        <p className="deployment-action-reason">
+        <StaticPublishForm target={selectedTarget.id} controller={publishController} t={translate} />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The credential-management block — list, add, edit, delete named provider connections. Sits inside
+ * `GettingItOnlineCard`, between the CLI-first recommendation and the token-based publish form,
+ * because it answers exactly the question a reader has right after seeing the CLI route: "what if I
+ * can't install a CLI here at all."
+ *
+ * Disclosure is driven ENTIRELY by `controller.executionMode` — the server's own fact, never
+ * sniffed client-side (see `AdminPublishExecutionMode`'s doc in `lib/api.ts`):
+ *
+ * - `"self-hosted-cli"`: the CLI-first path above already works with no stored credential needed,
+ *   so this whole block sits collapsed behind a native `<details>` "Advanced" disclosure (same
+ *   affordance `Redirects.tsx`'s own bulk-import panel and `AiAssistant.tsx`'s roadmap accordion
+ *   already use in this admin, rather than a second JS-driven one) and is never expanded by
+ *   default — an operator who already has `gh`/`vercel` on PATH is never nagged for a token.
+ * - `"hosted-api-only"`: this workspace cannot reach the operator's own terminal at all, so a
+ *   stored credential is the ONLY way a publish can ever succeed here. The block renders OPEN, with
+ *   a plain sentence saying so up front — this is the "tell the user they need an API key online"
+ *   education surface named in the brief; nothing on this tab said this before today.
+ *
+ * Renders only a brief "Loading…" line until BOTH `credentials` and `executionMode` have resolved —
+ * showing the self-hosted framing for one render before the real `executionMode` arrives would be a
+ * worse false impression than a short, honest wait.
+ */
+function PublishCredentialsSection({ controller, t: translate }: { controller: PublishCredentialsController; t: Translate }) {
+  if (controller.loadError) {
+    return (
+      <p
+        className="notice error"
+        role="status"
+        {...agentHandle("deployment-static-site-credentials-load-error", {
+          role: "status",
+          label: "Shows the error when saved publish credentials could not be loaded",
+        })}
+      >
+        {controller.loadError}
+      </p>
+    );
+  }
+
+  if (controller.credentials === undefined || controller.executionMode === undefined) {
+    return <p className="deployment-action-reason">{translate("Loading credentials…")}</p>;
+  }
+
+  const body = (
+    <div
+      className="deployment-credentials"
+      {...agentHandle("deployment-static-site-credentials-section", {
+        role: "region",
+        label: "Saved publish credentials — add, edit, and delete named provider connections",
+      })}
+    >
+      <PublishCredentialList controller={controller} t={translate} />
+      {controller.isFormOpen ? (
+        <PublishCredentialForm controller={controller} t={translate} />
+      ) : (
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={controller.startAdd}
+          {...agentHandle("deployment-static-site-credentials-add", {
+            role: "button",
+            label: "Open the form to save a new publish credential for one provider",
+          })}
+        >
+          {translate("Add credential")}
+        </button>
+      )}
+    </div>
+  );
+
+  if (controller.executionMode === "hosted-api-only") {
+    return (
+      <div className="deployment-route">
+        <p
+          className="notice warning"
+          role="status"
+          {...agentHandle("deployment-static-site-credentials-hosted-notice", {
+            role: "status",
+            label: "States that this hosted workspace cannot use a local CLI and needs a saved credential to publish",
+          })}
+        >
           {translate(
-            "Prefer not to install a CLI? A token-based fallback works too — set GITHUB_TOKEN or VERCEL_TOKEN in this server's environment, then use Publish below directly."
+            "This workspace cannot use your computer's terminal or CLI sign-in. To publish here, connect a provider and save its credentials below."
           )}
         </p>
+        {body}
+      </div>
+    );
+  }
+
+  return (
+    <details className="deployment-credentials-advanced">
+      <summary>{translate("Advanced: publish with server-side provider credentials")}</summary>
+      <p className="deployment-action-reason">
+        {translate("Only needed if you'd rather not install a CLI, or the assistant can't reach this machine's terminal.")}
+      </p>
+      {body}
+    </details>
+  );
+}
+
+/** One row per saved credential — label, provider, and last-updated time, matching the brief's
+ *  "list by label + provider + updatedAt" requirement. Never renders anything from the credential
+ *  itself beyond those three facts — see `AdminPublishCredentialSummary`'s own doc for why there is
+ *  nothing else it COULD render. */
+function PublishCredentialList({ controller, t: translate }: { controller: PublishCredentialsController; t: Translate }) {
+  const credentials = controller.credentials ?? [];
+  return (
+    <>
+      {credentials.length === 0 ? (
+        <p className="deployment-action-reason">{translate("No credentials saved yet.")}</p>
+      ) : (
+        <ul className="deployment-credentials-list">
+          {credentials.map((credential) => (
+            <PublishCredentialRow key={credential.id} credential={credential} controller={controller} t={translate} />
+          ))}
+        </ul>
+      )}
+      {controller.deleteError ? (
+        <p className="save-error" role="alert">
+          {controller.deleteError}
+        </p>
+      ) : null}
+    </>
+  );
+}
+
+/** One credential's own list row — split out from {@link PublishCredentialList} so each row's own
+ *  `agentHandle` ids (edit/delete) are computed once per credential, not re-derived inline inside
+ *  the `.map`. */
+function PublishCredentialRow({
+  credential,
+  controller,
+  t: translate,
+}: {
+  credential: AdminPublishCredentialSummary;
+  controller: PublishCredentialsController;
+  t: Translate;
+}) {
+  const deleting = controller.deletingId === credential.id;
+  return (
+    <li className="deployment-credentials-list-item">
+      <div className="deployment-credentials-list-main">
+        <span className="deployment-credentials-label">{credential.label}</span>
+        <span className="status status-neutral" translate="no">
+          {publishCredentialProviderInfo(credential.providerId).label}
+        </span>
+        <span className="deployment-fact-value">
+          {translate("Updated")} {formatTimestamp(credential.updatedAt)}
+        </span>
+      </div>
+      <div className="deployment-credentials-list-actions">
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={() => controller.startEdit(credential)}
+          {...agentHandle(`deployment-static-site-credentials-edit-${credential.id}`, {
+            role: "button",
+            label: `Edit the saved "${credential.label}" credential's label or replace its token`,
+          })}
+        >
+          {translate("Edit")}
+        </button>
+        <button
+          type="button"
+          className="btn-secondary"
+          disabled={deleting}
+          onClick={() => void controller.remove(credential.id)}
+          {...agentHandle(`deployment-static-site-credentials-delete-${credential.id}`, {
+            role: "button",
+            label: `Permanently delete the saved "${credential.label}" credential`,
+          })}
+        >
+          {deleting ? translate("Deleting…") : translate("Delete")}
+        </button>
+      </div>
+    </li>
+  );
+}
+
+/** The add/edit form — one `providerId` picker (disabled while editing; a saved credential's
+ *  provider cannot be changed, only replaced by deleting and re-adding) plus the per-provider field
+ *  set {@link PUBLISH_CREDENTIAL_PROVIDERS} describes. `token` is a `password` input and is NEVER
+ *  pre-filled, in either mode — see `use-publish-credentials.hooks.ts`'s header for why a blank
+ *  token while editing means "leave the stored secret unchanged", and the copy right below the
+ *  field says so explicitly, because it is the one thing about this form people get wrong. */
+function PublishCredentialForm({ controller, t: translate }: { controller: PublishCredentialsController; t: Translate }) {
+  const mode: "add" | "edit" = controller.editingId === null ? "add" : "edit";
+  const info = publishCredentialProviderInfo(controller.providerId);
+  const fields: PublishCredentialFormFields = {
+    providerId: controller.providerId,
+    token: controller.token,
+    owner: controller.owner,
+    repo: controller.repo,
+    teamId: controller.teamId,
+    siteId: controller.siteId,
+    accountId: controller.accountId,
+    projectName: controller.projectName,
+  };
+  const readyToSubmit = publishCredentialFormReadyToSubmit(fields, mode, controller.label);
+
+  return (
+    <form
+      className="deployment-credentials-form"
+      onSubmit={(e) => {
+        e.preventDefault();
+        void controller.submit();
+      }}
+    >
+      <div className="field-row">
+        <div className="field">
+          <label className="field-label" htmlFor="deployment-static-site-credentials-provider">
+            {translate("Provider")}
+          </label>
+          <select
+            id="deployment-static-site-credentials-provider"
+            value={controller.providerId}
+            disabled={mode === "edit"}
+            onChange={(e) => controller.setProviderId(e.target.value as AdminPublishCredentialProviderId)}
+            {...agentHandle("deployment-static-site-credentials-provider", {
+              role: "field",
+              label: "Which provider this saved connection publishes to",
+            })}
+          >
+            {PUBLISH_CREDENTIAL_PROVIDERS.map((provider) => (
+              <option key={provider.id} value={provider.id} translate="no">
+                {provider.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="field">
+          <label className="field-label" htmlFor="deployment-static-site-credentials-label">
+            {translate("Label")}
+          </label>
+          <input
+            id="deployment-static-site-credentials-label"
+            type="text"
+            value={controller.label}
+            onChange={(e) => controller.setLabel(e.target.value)}
+            placeholder={translate("e.g. Production GitHub Pages")}
+            {...agentHandle("deployment-static-site-credentials-label", {
+              role: "field",
+              label: "Human-facing name for this connection — the only way to tell two saved credentials apart",
+            })}
+          />
+        </div>
+      </div>
+
+      <div className="field">
+        <label className="field-label" htmlFor="deployment-static-site-credentials-token">
+          {translate("Access token")}
+        </label>
+        <input
+          id="deployment-static-site-credentials-token"
+          type="password"
+          autoComplete="off"
+          value={controller.token}
+          onChange={(e) => controller.setToken(e.target.value)}
+          placeholder={mode === "edit" ? translate("Leave blank to keep the current token") : ""}
+          {...agentHandle("deployment-static-site-credentials-token", {
+            role: "field",
+            label: "Provider access token — stored encrypted, never shown again once saved",
+          })}
+        />
+        <p className="deployment-action-reason">
+          {mode === "edit"
+            ? translate(
+                "Never shown back, even here — leave this blank to keep the token already saved, or type a new one to replace it."
+              )
+            : translate(
+                "Stored encrypted on the server. Once saved, Tovu never displays it again — not even a partial version of it."
+              )}
+        </p>
+        <p className="deployment-action-reason">
+          {translate(info.scopeGuidanceKey)}{" "}
+          <a href={info.tokenPageUrl} target="_blank" rel="noreferrer">
+            {translate("Create a token")}
+          </a>
+        </p>
+      </div>
+
+      <PublishCredentialProviderFields controller={controller} t={translate} />
+
+      <div className="deployment-action">
+        <button
+          type="submit"
+          disabled={!readyToSubmit || controller.submitting}
+          {...agentHandle("deployment-static-site-credentials-submit", {
+            role: "button",
+            label: "Save this publish credential",
+          })}
+        >
+          {controller.submitting ? translate("Saving…") : mode === "add" ? translate("Save credential") : translate("Save changes")}
+        </button>
+        <button
+          type="button"
+          className="btn-secondary"
+          onClick={controller.cancelForm}
+          {...agentHandle("deployment-static-site-credentials-cancel", {
+            role: "button",
+            label: "Discard this form without saving",
+          })}
+        >
+          {translate("Cancel")}
+        </button>
+        {controller.formError ? (
+          <p className="save-error" role="alert">
+            {controller.formError}
+          </p>
+        ) : null}
+      </div>
+    </form>
+  );
+}
+
+/** {@link PublishCredentialForm}'s per-provider field block, split out into its own function for
+ *  the same complexity-gate reason `StaticSiteTab.tsx`'s own `resolveStaticExportHook`-style
+ *  resolvers document (a four-way provider `if`/`else if` counts against ITS OWN score here, instead
+ *  of stacking on top of the parent form's already-real branching over `mode`/`readyToSubmit`).
+ *  Renders exactly ONE provider's fields — the current `controller.providerId` — never more than
+ *  one at a time, same "never show the other provider's row" rule `ProviderCliRow`'s own doc states
+ *  for the CLI recommendation above. */
+function PublishCredentialProviderFields({ controller, t: translate }: { controller: PublishCredentialsController; t: Translate }) {
+  if (controller.providerId === "github-pages") {
+    return (
+      <div className="field-row">
+        <div className="field">
+          {/* "Owner or org for this token", not the shorter "GitHub owner or org" the publish
+              form above already uses for a DIFFERENT purpose (which repo to publish TO right
+              now) — two fields with the identical label on one screen would be ambiguous to a
+              screen reader and to `getByLabelText` alike, even though they're both really "an
+              owner/org", because this one scopes the CREDENTIAL, not the current run. */}
+          <label className="field-label" htmlFor="deployment-static-site-credentials-owner">
+            {translate("Owner or org for this token")}
+          </label>
+          <input
+            id="deployment-static-site-credentials-owner"
+            type="text"
+            value={controller.owner}
+            onChange={(e) => controller.setOwner(e.target.value)}
+            {...agentHandle("deployment-static-site-credentials-owner", { role: "field", label: "GitHub owner or organization login this token is scoped to" })}
+          />
+        </div>
+        <div className="field">
+          <label className="field-label" htmlFor="deployment-static-site-credentials-repo">
+            {translate("Repository for this token")}
+          </label>
+          <input
+            id="deployment-static-site-credentials-repo"
+            type="text"
+            value={controller.repo}
+            onChange={(e) => controller.setRepo(e.target.value)}
+            {...agentHandle("deployment-static-site-credentials-repo", { role: "field", label: "GitHub repository this token is scoped to" })}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (controller.providerId === "vercel") {
+    return (
+      <div className="field">
+        <label className="field-label" htmlFor="deployment-static-site-credentials-team">
+          {translate("Team ID (optional)")}
+        </label>
+        <input
+          id="deployment-static-site-credentials-team"
+          type="text"
+          value={controller.teamId}
+          onChange={(e) => controller.setTeamId(e.target.value)}
+          {...agentHandle("deployment-static-site-credentials-team", { role: "field", label: "Vercel team id, only needed when publishing into a team" })}
+        />
+      </div>
+    );
+  }
+
+  if (controller.providerId === "netlify") {
+    return (
+      <div className="field">
+        <label className="field-label" htmlFor="deployment-static-site-credentials-site">
+          {translate("Site ID (optional)")}
+        </label>
+        <input
+          id="deployment-static-site-credentials-site"
+          type="text"
+          value={controller.siteId}
+          onChange={(e) => controller.setSiteId(e.target.value)}
+          {...agentHandle("deployment-static-site-credentials-site", { role: "field", label: "Netlify site id to publish to an existing site instead of creating one" })}
+        />
+      </div>
+    );
+  }
+
+  // controller.providerId === "cloudflare-pages" — the closed union's last arm.
+  return (
+    <div className="field-row">
+      <div className="field">
+        <label className="field-label" htmlFor="deployment-static-site-credentials-account">
+          {translate("Account ID")}
+        </label>
+        <input
+          id="deployment-static-site-credentials-account"
+          type="text"
+          value={controller.accountId}
+          onChange={(e) => controller.setAccountId(e.target.value)}
+          {...agentHandle("deployment-static-site-credentials-account", { role: "field", label: "Cloudflare account id — required, Cloudflare cannot resolve a project without it" })}
+        />
+      </div>
+      <div className="field">
+        <label className="field-label" htmlFor="deployment-static-site-credentials-project">
+          {translate("Project name (optional)")}
+        </label>
+        <input
+          id="deployment-static-site-credentials-project"
+          type="text"
+          value={controller.projectName}
+          onChange={(e) => controller.setProjectName(e.target.value)}
+          {...agentHandle("deployment-static-site-credentials-project", { role: "field", label: "Cloudflare Pages project name" })}
+        />
       </div>
     </div>
   );

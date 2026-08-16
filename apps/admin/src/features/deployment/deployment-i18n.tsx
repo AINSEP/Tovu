@@ -1937,3 +1937,45 @@ const PUBLISH_TRIGGER_ERROR_TEMPLATE: Record<string, string> = {
 export function publishTriggerErrorMessage(locale: string, error: string): string {
   return interpolate(PUBLISH_TRIGGER_ERROR_TEMPLATE[locale] ?? PUBLISH_TRIGGER_ERROR_TEMPLATE.en, { error });
 }
+
+/**
+ * The credential section's LOAD-error banner (`GET .../system/publish/credentials`) — same split
+ * {@link publishLoadErrorMessage} draws for the publish run's own initial read. New 2026-08-15;
+ * English-only for now, same partial-coverage precedent {@link exportTriggerErrorMessage} documents
+ * — an English banner in an otherwise-translated screen degrades legibly, it does not break.
+ */
+const PUBLISH_CREDENTIALS_LOAD_ERROR_TEMPLATE: Record<string, string> = {
+  en: "Could not load publish credentials ({error}).",
+};
+
+export function publishCredentialsLoadErrorMessage(locale: string, error: string): string {
+  return interpolate(PUBLISH_CREDENTIALS_LOAD_ERROR_TEMPLATE[locale] ?? PUBLISH_CREDENTIALS_LOAD_ERROR_TEMPLATE.en, { error });
+}
+
+/**
+ * The credential form's save-error banner — shared by BOTH create and update, same "one banner for
+ * the one form" reasoning {@link dockerfileSaveErrorMessage} documents for its own single form. Also
+ * carries a rejected VALIDATION failure's `detail` text, routed here by
+ * `classifyPublishCredentialSubmitError` (`rules.ts`) instead of the generic `describeApiError`
+ * fallback — the `{error}` slot reads naturally either way ("a real transport failure" or "the
+ * server's own validation reason").
+ */
+const PUBLISH_CREDENTIAL_SAVE_ERROR_TEMPLATE: Record<string, string> = {
+  en: "Could not save this credential ({error}).",
+};
+
+export function publishCredentialSaveErrorMessage(locale: string, error: string): string {
+  return interpolate(PUBLISH_CREDENTIAL_SAVE_ERROR_TEMPLATE[locale] ?? PUBLISH_CREDENTIAL_SAVE_ERROR_TEMPLATE.en, { error });
+}
+
+/** The credential list's per-row delete-error banner — distinct template from
+ *  {@link publishCredentialSaveErrorMessage}, same reasoning {@link dockerfileSaveErrorMessage}'s own
+ *  doc gives for not sharing a load/save template: a failed delete and a failed save are different
+ *  operations a reader needs to tell apart. */
+const PUBLISH_CREDENTIAL_DELETE_ERROR_TEMPLATE: Record<string, string> = {
+  en: "Could not delete this credential ({error}).",
+};
+
+export function publishCredentialDeleteErrorMessage(locale: string, error: string): string {
+  return interpolate(PUBLISH_CREDENTIAL_DELETE_ERROR_TEMPLATE[locale] ?? PUBLISH_CREDENTIAL_DELETE_ERROR_TEMPLATE.en, { error });
+}

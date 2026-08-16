@@ -207,6 +207,74 @@ export interface AdminStaticPublishPreview {
   willInjectNojekyll: boolean;
 }
 
+/**
+ * A NAMED provider connection for publishing, stored server-side and never read back — see
+ * {@link AdminPublishCredentialSummary}. Wider than {@link AdminStaticPublishTargetId}: this instance
+ * may hold a Netlify or Cloudflare Pages connection today even though no API adapter for either
+ * exists yet (2026-08-15) — the credential store and the set of targets `triggerPublish` can
+ * actually reach are deliberately separate concerns, per the external design this UI was built
+ * against (`ADS-memory/reports/external-audit/runs/2026-08-15-terra-xhigh-publish-credentials-design.md`).
+ */
+export type AdminPublishCredentialProviderId = "github-pages" | "vercel" | "netlify" | "cloudflare-pages";
+
+/**
+ * One saved connection as the credential-management UI is allowed to see it — mirrors the server's
+ * `GET/POST/PUT .../system/publish/credentials` response shape verbatim, field names included.
+ *
+ * `configured` is always `true`: every row this list can ever contain already has a sealed secret
+ * behind it, so the field exists only to keep this type structurally distinct from a
+ * not-yet-configured provider row (there is no "draft" or "pending" state client-side).
+ *
+ * Nothing here can reconstruct the credential itself, ON PURPOSE — no token, no ciphertext, and
+ * deliberately no masked suffix either (the design doc explicitly recommends against even a last-4
+ * hint: label + `updatedAt` identify a connection well enough). See `use-publish-credentials.hooks.ts`'s
+ * header for what "never readable back" means for the edit flow.
+ */
+export interface AdminPublishCredentialSummary {
+  id: string;
+  providerId: AdminPublishCredentialProviderId;
+  label: string;
+  configured: true;
+  /** ISO timestamp. Field name matches the wire contract verbatim (not this file's usual `...AtIso`
+   *  suffix) — see this interface's own doc for why matching the contract exactly, rather than
+   *  renaming to local convention, is what keeps this boundary correct against a concurrently-built
+   *  server. */
+  createdAt: string;
+  /** ISO timestamp — see {@link createdAt}'s doc for the naming note. This is the one fact the UI
+   *  leans on to tell two saves of the same connection apart, in place of any secret material. */
+  updatedAt: string;
+}
+
+/**
+ * The body a create/update sends to configure ONE provider's connection — mirrors the server's
+ * closed discriminated union verbatim. Every variant requires `token`; the remaining fields split
+ * into what a provider cannot function without (GitHub Pages' `owner`/`repo`, Cloudflare's
+ * `accountId`) and what only narrows an otherwise-valid default (Vercel's `teamId`, Netlify's
+ * `siteId`, Cloudflare's `projectName`) — see `rules.ts`'s `PUBLISH_CREDENTIAL_PROVIDERS` for the
+ * single source of which fields are which, rather than re-deriving that split from this type alone.
+ */
+export type AdminPublishConnectionInput =
+  | { providerId: "github-pages"; token: string; owner: string; repo: string }
+  | { providerId: "vercel"; token: string; teamId?: string }
+  | { providerId: "netlify"; token: string; siteId?: string }
+  | { providerId: "cloudflare-pages"; token: string; accountId: string; projectName?: string };
+
+/**
+ * The server's own execution capability for THIS instance — never derived client-side from
+ * `NODE_ENV`, a PATH probe, or any other sniffing. `"self-hosted-cli"` means the operator's own
+ * machine already has a working CLI/env path (no token needed here); `"hosted-api-only"` means this
+ * workspace cannot reach the operator's terminal at all, so a stored credential is the only way
+ * `triggerPublish` can ever succeed. Drives the credential section's disclosure in
+ * `StaticSiteTab.tsx` — see that component's own header there.
+ */
+export type AdminPublishExecutionMode = "self-hosted-cli" | "hosted-api-only";
+
+/** Mirrors `GET .../system/publish/credentials`'s response shape. */
+export interface AdminPublishCredentialsSnapshot {
+  credentials: AdminPublishCredentialSummary[];
+  executionMode: AdminPublishExecutionMode;
+}
+
 /** Mirrors `features/deployments/types.ts`'s `EnvironmentRecord`. */
 export interface AdminDeploymentEnvironment {
   workspaceId: string;
@@ -2419,6 +2487,37 @@ export const api = {
   /** The current/most recent publish run's status — poll this after `triggerPublish` until `status`
    *  is no longer `"running"`. */
   getPublishStatus: () => request<AdminPublishRunSnapshot>(`/workspaces/${WORKSPACE_ID}/system/publish`),
+
+  // Static Site tab "Getting it online" card → credential management (`src/server/routes/admin/
+  // system/publish-credentials.ts`) — named provider connections for `triggerPublish`, stored
+  // encrypted server-side and never read back. See `AdminPublishCredentialSummary`'s own doc for
+  // exactly what a saved row can and cannot reveal.
+  /** Every configured credential for this workspace, plus the server's own `executionMode` — the
+   *  ONLY source of truth for whether this instance can drive a CLI locally or needs a stored
+   *  credential to publish at all. Never sniffed client-side; see `AdminPublishExecutionMode`'s doc. */
+  listPublishCredentials: () =>
+    request<AdminPublishCredentialsSnapshot>(`/workspaces/${WORKSPACE_ID}/system/publish/credentials`),
+  /** Creates one named connection. `409 DUPLICATE_LABEL` (surfaced as a thrown `ApiError` with that
+   *  `code`) if this workspace already has a credential with the same label — labels are the only
+   *  human-facing identifier a reader has for telling two connections apart, so silently allowing a
+   *  second row with the same one would make the list ambiguous. */
+  createPublishCredential: (input: { label: string; connection: AdminPublishConnectionInput }) =>
+    request<{ credential: AdminPublishCredentialSummary }>(`/workspaces/${WORKSPACE_ID}/system/publish/credentials`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  /** Updates a credential's label and/or connection. Omitting `connection` entirely — never sending
+   *  it as an empty object or blank fields — is what keeps the stored secret untouched; see
+   *  `use-publish-credentials.hooks.ts`'s header for why the form can never send a half-blank one. */
+  updatePublishCredential: (id: string, input: { label?: string; connection?: AdminPublishConnectionInput }) =>
+    request<{ credential: AdminPublishCredentialSummary }>(`/workspaces/${WORKSPACE_ID}/system/publish/credentials/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(input),
+    }),
+  /** `204`, idempotent — deleting an id that is already gone (a stale list, a double click) still
+   *  resolves rather than throwing. */
+  deletePublishCredential: (id: string) =>
+    request<void>(`/workspaces/${WORKSPACE_ID}/system/publish/credentials/${id}`, { method: "DELETE" }),
 
   /** Full Site tab (`src/server/routes/admin/deployments/list.ts`) — read-only snapshot of the
    *  `deployments` domain's environments/targets/releases/runs. `deployments.read`-gated. */
