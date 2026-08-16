@@ -8,201 +8,133 @@ import {
 } from "../../../lib/api";
 import { useFetchQuery } from "../../../lib/fetch-query";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
-import {
-  t as defaultT,
-  publishCredentialDeleteErrorMessage,
-  publishCredentialMakeDefaultErrorMessage,
-  publishCredentialSaveErrorMessage,
-  publishCredentialsLoadErrorMessage,
-} from "../deployment-i18n";
+import { t as defaultT, publishCredentialSaveErrorMessage, publishCredentialsLoadErrorMessage } from "../deployment-i18n";
 import type { Translate } from "../../../lib/dictionary-translator";
 import {
+  PUBLISH_CREDENTIAL_PROVIDERS,
+  PUBLISH_CREDENTIAL_ROW_LABEL,
   buildPublishConnectionInput,
   classifyPublishCredentialSubmitError,
-  credentialsForProvider,
-  publishCredentialFormReadyToSubmit,
+  defaultCredentialForProvider,
+  publishCredentialRowReadyToSave,
   type PublishCredentialFormFields,
 } from "../rules";
 import { defaultPublishCredentialsPort } from "./publish-credentials-dependencies.hooks";
 import type { PublishCredentialsPort } from "./publish-credentials-port.hooks";
 
 /**
- * @file The Static Site tab's credential-management section — list, add, edit, delete, default
- * selection, and the `executionMode` the section's own disclosure switches on. See
- * `StaticSiteTab.tsx`'s credential section header for the UI half of this story.
+ * @file The Static Site tab's credential-management section — one always-visible row per provider,
+ * each with its own token input, save action, and connected/not-connected status. See
+ * `StaticSiteTab.tsx`'s `PublishCredentialsSection` header for the UI half of this story.
  *
- * ## One form, four shapes, and why every field lives in this hook regardless of the selected provider
+ * ## 2026-08-15 redesign — a settings form, not a collection to manage
  *
- * Same reasoning `use-static-publish.hooks.ts`'s own header gives for its two-target form: `token`
- * and `accountId` both live here at once (the only two connection fields left — see
- * `AdminPublishConnectionInput`'s doc in `lib/api.ts` for why GitHub's `owner`/`repo` and Vercel's
- * `teamId` are NOT credential fields), and {@link buildPublishConnectionInput} (`rules.ts`) reads
- * only the ones the current `providerId` actually uses. Switching providers mid-edit never discards
- * whatever the operator already typed into `accountId`.
+ * This hook used to model credentials the way a CRUD screen models any collection: a list, an
+ * "Add credential" button, a provider `<select>`, a user-invented `label`, and per-row
+ * edit/delete/make-default actions. The owner's own read: "'Add credential' should be gone. Just
+ * list the providers, labels, and access token space, and that's it" — the whole point of an
+ * "Add" flow is asking the operator to create and name an object before they can type a token, and
+ * there is nothing here to name: {@link PUBLISH_CREDENTIAL_PROVIDERS} already names the fixed set of
+ * four things a token can be saved for. So this hook now exposes {@link PublishCredentialRowState}
+ * per provider instead of a form's worth of shared state — no `providerId`/`label` picker, no
+ * isFormOpen/editingId mode split, no delete or default-promotion affordance (the data model still
+ * supports more than one saved connection per provider and un-defaulting one via delete — see
+ * `rules.ts`'s `PUBLISH_CREDENTIAL_ROW_LABEL` doc — this UI just never exposes that).
  *
- * ## A stored credential is NEVER read back — this is why `startEdit` blanks every connection field
+ * ## A stored credential is NEVER read back — this is why every row's inputs start blank
  *
- * `AdminPublishCredentialSummary` carries no token, no ciphertext, and deliberately no masked
- * suffix (see that type's own doc in `lib/api.ts`). So {@link PublishCredentialsController.startEdit}
- * can only seed `providerId`, `label`, and `isDefault` from the row being edited — every connection
- * field starts blank, on purpose, every time. A blank `token` at submit time is therefore not "the
- * operator left it empty by mistake"; it is the ONLY way this form can express "keep the stored
- * secret, just change the label (or default status)" — {@link submit} below reads it as exactly that
- * and omits `connection` from the `PUT` entirely rather than sending a half-built one. Typing any
- * character into `token` is what commits to replacing the whole connection, at which point every
- * other required field for that provider is re-validated same as a fresh add
- * (`publishCredentialFormReadyToSubmit`'s own doc).
+ * `AdminPublishCredentialSummary` carries no token, no ciphertext, and deliberately no masked suffix
+ * (see that type's own doc in `lib/api.ts`). So a row's `token`/`accountId` draft state can only ever
+ * start blank, connected or not — a blank `token` at save time is therefore not "the operator left it
+ * empty by mistake"; on an already-connected row it is the ONLY way to express "nothing to change
+ * here" (`publishCredentialRowReadyToSave`, `rules.ts`, disables Save in that case rather than
+ * sending a no-op write).
  *
- * ## Default connection — one per provider, and the form only asks when there is a real choice
+ * ## Save decides CREATE vs. UPDATE by looking at what is already there, not at UI mode
  *
- * A workspace may save more than one connection for the same provider; exactly one of them is the
- * `isDefault: true` row `triggerPublish` actually uses. `isDefault` is form state like `label`, sent
- * on every add and (when the operator changed it) every edit. {@link markAsDefault} is the SEPARATE,
- * list-level action for promoting an existing row to default without opening the edit form at all —
- * `StaticSiteTab.tsx` only renders either affordance when `rules.ts`'s `credentialsForProvider` shows
- * more than one saved connection for that provider; a lone connection is trivially the default and
- * the operator is never asked to think about it.
+ * {@link save} reads the provider's current DEFAULT connection via `rules.ts`'s
+ * `defaultCredentialForProvider` (the exact row a real publish would use). If one exists, save PUTs
+ * to its id, replacing the connection but leaving its own label untouched. If none exists, save
+ * POSTs a brand-new one labeled {@link PUBLISH_CREDENTIAL_ROW_LABEL} — the one fixed label this whole
+ * flat-list UI ever writes, which satisfies the server's still-live `(workspace_id, provider_id,
+ * label)` UNIQUE constraint without ever asking an operator to type one. Neither branch sends
+ * `isDefault`: a brand-new connection auto-defaults server-side as a provider's first-ever saved
+ * connection (`publish-credentials/store.ts`'s `decideCreateDefault`), and replacing an existing
+ * default's connection never changes which row is default.
  *
- * ## The list is optimistically maintained locally, not refetched after every write
+ * ## The row list is optimistically maintained locally, not refetched after every write
  *
- * `create`/`update`/`delete`/`markAsDefault` splice their own result into the local `credentials`
- * array rather than re-running `listCredentials()` — one round trip per write instead of two, and the
- * row a caller just added/edited/removed/promoted is exactly the row `AdminPublishCredentialSummary`
- * the server handed back, so there is nothing a refetch would reveal that the response did not
- * already contain. {@link markAsDefault} additionally clears `isDefault` on any local sibling of the
- * same provider — the server enforces the real one-default-per-provider invariant, but the
- * optimistic list should not show two "Default" badges for one provider between this response and
- * the next full reload.
+ * `save` splices its own result into the local `credentials` array rather than re-running
+ * `listCredentials()` — one round trip per write instead of two, matching the CRUD hook this
+ * replaces. Draft `token`/`accountId` are cleared back to blank on a successful save (there is
+ * nothing left to keep typed — the row now reads its "Connected" status from the fresh summary).
  */
+export interface PublishCredentialRowState {
+  readonly providerId: AdminPublishCredentialProviderId;
+  /** This provider's saved DEFAULT connection, if any (`rules.ts`'s `defaultCredentialForProvider`)
+   *  — `undefined` means "not connected yet". Never carries a token or `accountId`; see this file's
+   *  header for why every row's connection fields always start blank regardless of this value. */
+  readonly saved: AdminPublishCredentialSummary | undefined;
+  readonly token: string;
+  readonly accountId: string;
+  readonly saving: boolean;
+  readonly error: string | null;
+}
+
 export interface PublishCredentialsController {
-  /** `undefined` until the first load resolves — same "no data yet" convention every other
-   *  hook in this panel uses (`StaticExportController.run`, `StaticPublishController.run`). */
-  credentials: AdminPublishCredentialSummary[] | undefined;
+  /** One entry per {@link PUBLISH_CREDENTIAL_PROVIDERS} provider, in that fixed order —
+   *  `undefined` until the first load resolves, same "no data yet" convention every other hook in
+   *  this panel uses (`StaticExportController.run`, `StaticPublishController.run`). */
+  rows: readonly PublishCredentialRowState[] | undefined;
   /** The server's own execution capability for this instance — `undefined` until the same first
    *  load resolves. Never derived any other way; see `AdminPublishExecutionMode`'s doc. */
   executionMode: AdminPublishExecutionMode | undefined;
   loadError: string | null;
 
-  /** Whether the add/edit form is currently shown at all — distinct from `editingId`, since a
-   *  freshly-mounted tab shows neither a form nor an editing row. */
-  isFormOpen: boolean;
-  /** `null` while adding a new credential; the row's `id` while editing an existing one. */
-  editingId: string | null;
-
-  providerId: AdminPublishCredentialProviderId;
-  setProviderId: (value: AdminPublishCredentialProviderId) => void;
-  label: string;
-  setLabel: (value: string) => void;
-  /** Blank always means "unchanged" while editing — see this file's header. */
-  token: string;
-  setToken: (value: string) => void;
-  /** Cloudflare Pages only — the sole connection field left beyond `token`. Ignored (but still
-   *  present, always blank on other providers) same as every other per-provider field this
-   *  controller carries — see this file's header. */
-  accountId: string;
-  setAccountId: (value: string) => void;
-  /** Whether the connection being added/edited should become its provider's default — see this
-   *  file's header. Sent as-is on submit; `StaticSiteTab.tsx` only shows a checkbox for it when the
-   *  provider already has another saved connection to be default INSTEAD of. */
-  isDefault: boolean;
-  setIsDefault: (value: boolean) => void;
-
-  /** Opens the form in ADD mode: no `editingId`, `providerId` reset to GitHub Pages, every field
-   *  blank, `isDefault` false. */
-  startAdd: () => void;
-  /** Opens the form in EDIT mode for one existing row — seeds `providerId`/`label`/`isDefault` from
-   *  it and blanks every connection field (see this file's header for why). */
-  startEdit: (credential: AdminPublishCredentialSummary) => void;
-  /** Closes the form without submitting — discards whatever is currently typed. */
-  cancelForm: () => void;
-
-  submitting: boolean;
-  formError: string | null;
-  /** Creates (no `editingId`) or updates (`editingId` set) with the current field values. A no-op
-   *  if {@link publishCredentialFormReadyToSubmit} says the form is not ready — the same guard the
-   *  UI's own Save button is disabled on, kept here too so a direct call (as this file's own tests
-   *  make) cannot bypass it. Resolves either way — a failure is surfaced through {@link formError}. */
-  submit: () => Promise<void>;
-
-  /** The row currently being deleted, if any — drives a per-row busy state without disabling every
-   *  other row's own Delete button. */
-  deletingId: string | null;
-  deleteError: string | null;
-  /** Deletes one credential by id. Resolves either way — a failure is surfaced through
-   *  {@link deleteError}. Closes the form first if the row being deleted is also the one being
-   *  edited, so the form cannot keep referencing a row that no longer exists. */
-  remove: (id: string) => Promise<void>;
-
-  /** The row currently being promoted to default, if any — same per-row busy-state precedent as
-   *  {@link deletingId}. */
-  markingDefaultId: string | null;
-  markDefaultError: string | null;
-  /** Promotes one existing credential to default for its provider, without opening the edit form —
-   *  see this file's header. Resolves either way — a failure is surfaced through
-   *  {@link markDefaultError}. */
-  markAsDefault: (id: string) => Promise<void>;
+  setToken: (providerId: AdminPublishCredentialProviderId, value: string) => void;
+  setAccountId: (providerId: AdminPublishCredentialProviderId, value: string) => void;
+  /** Creates or replaces one provider's saved connection from its own row's current `token`/
+   *  `accountId` — see this file's header for the create-vs-update decision. A no-op if
+   *  {@link publishCredentialRowReadyToSave} says this row is not ready (the same guard the row's
+   *  own Save button is disabled on, kept here too so a direct call — as this file's own tests make —
+   *  cannot bypass it). Resolves either way — a failure is surfaced through that row's own `error`. */
+  save: (providerId: AdminPublishCredentialProviderId) => Promise<void>;
 
   t: Translate;
 }
 
-/** Blanks every connection field — shared by {@link usePublishCredentials}'s `startAdd`/`startEdit`,
- *  since both start from a clean slate (a new credential has none yet; an existing one's are never
- *  read back into). Takes the two setters rather than a single "reset" state action so it stays a
- *  plain function next to the hook's own `useState` calls, matching this file's no-reducer
- *  convention (mirrors `use-static-publish.hooks.ts`'s own per-field setters). */
-function blankConnectionFields(setters: { setToken: (value: string) => void; setAccountId: (value: string) => void }) {
-  setters.setToken("");
-  setters.setAccountId("");
+/** One row's draft input + busy/error state — kept in a map keyed by provider id so each row's own
+ *  typing and in-flight save are fully independent of every other row's. */
+interface RowFormState {
+  token: string;
+  accountId: string;
+  saving: boolean;
+  error: string | null;
 }
 
-/** Runs the actual create-or-update write for {@link usePublishCredentials}'s `submit` — pulled out
- *  so `submit` itself does not ALSO carry the add-vs-edit branch on top of its own ready-guard and
- *  busy/success bookkeeping (this file's complexity budget, same reasoning
- *  `StaticSiteTab.tsx`'s per-provider field split documents one file over). `editingId` is only
- *  read for `mode: "edit"`, and `submit` only reaches that branch once `editingId` is already
- *  non-null (see this file's header on how `mode` and `editingId` stay in lockstep).
- *
- *  `isDefault` is `undefined` — omitted from the request body entirely, not sent as `false` — when
- *  `submit` determined the operator was never shown a default choice for this provider (a lone
- *  connection, add or edit); the server then applies its own default-assignment rule instead of this
- *  admin asserting "not default" for what may be about to become a provider's only saved connection.
- *  See `lib/api.ts`'s `createPublishCredential`/`updatePublishCredential` docs for the same contract.
- *  @complexity O(1) plus one network round trip. */
-async function writePublishCredential(
-  port: PublishCredentialsPort,
-  mode: "add" | "edit",
-  editingId: string | null,
-  fields: PublishCredentialFormFields,
-  label: string,
-  token: string,
-  isDefault: boolean | undefined
-): Promise<AdminPublishCredentialSummary> {
-  if (mode === "add") {
-    return port.createCredential({
-      label: label.trim(),
-      connection: buildPublishConnectionInput(fields),
-      ...(isDefault !== undefined ? { isDefault } : {}),
-    });
-  }
-  // Blank token = keep the stored secret untouched — see this file's header. Any other value
-  // commits to a full connection replace, re-validated by `submit`'s own guard before this runs.
-  const connectionChanged = token.trim() !== "";
-  return port.updateCredential(editingId as string, {
-    label: label.trim(),
-    ...(isDefault !== undefined ? { isDefault } : {}),
-    ...(connectionChanged ? { connection: buildPublishConnectionInput(fields) } : {}),
-  });
+function blankRowFormState(): RowFormState {
+  return { token: "", accountId: "", saving: false, error: null };
 }
 
-/** Translates a rejected create/update into the exact string `submit` shows as `formError` — pulled
- *  out of `submit` for the same complexity-budget reason {@link writePublishCredential} documents.
- *  Layers `classifyPublishCredentialSubmitError`'s (`rules.ts`) specific cases over the shared
+function initialRowFormStates(): Record<AdminPublishCredentialProviderId, RowFormState> {
+  const entries = PUBLISH_CREDENTIAL_PROVIDERS.map((provider) => [provider.id, blankRowFormState()] as const);
+  return Object.fromEntries(entries) as Record<AdminPublishCredentialProviderId, RowFormState>;
+}
+
+/** Translates a rejected create/update into the exact string {@link usePublishCredentials}'s `save`
+ *  stores as that row's `error` — pulled out of `save` for the same complexity-budget reason
+ *  `StaticSiteTab.tsx`'s per-provider field split documents one file over. Layers
+ *  `classifyPublishCredentialSubmitError`'s (`rules.ts`) specific cases over the shared
  *  `describeApiError` base case, same "check specific codes first, fall through to the shared base"
- *  convention `lib/api.ts`'s own `describeApiError` doc recommends every screen follow.
+ *  convention `lib/api.ts`'s own `describeApiError` doc recommends every screen follow. The
+ *  duplicate-label case reads oddly translated verbatim from the server ("a credential labeled...")
+ *  since this UI no longer shows labels at all, so it gets its own row-shaped sentence instead of the
+ *  server's own wording — this case should be unreachable in normal use (save always targets an
+ *  existing row's id once one exists) and can only fire on a genuine write race.
  *  @complexity O(1). */
 function publishCredentialSubmitErrorMessage(err: unknown, t: Translate, locale: string): string {
   const classified = classifyPublishCredentialSubmitError(err);
-  if (classified.kind === "duplicate-label") return t("A credential with this label already exists.");
+  if (classified.kind === "duplicate-label") return t("This connection was already saved — reload the page and try again.");
   if (classified.kind === "validation") return publishCredentialSaveErrorMessage(locale, classified.detail);
   return publishCredentialSaveErrorMessage(locale, describeApiError(err, "unknown error"));
 }
@@ -213,9 +145,9 @@ export function usePublishCredentials(port: PublishCredentialsPort, t: Translate
   const [executionMode, setExecutionMode] = useState<AdminPublishExecutionMode | undefined>(undefined);
 
   // Seeds local state from the query's first successful load, exactly once — same shape
-  // `use-static-publish.hooks.ts`'s own `seededRef` uses. Later changes flow through the CRUD
-  // handlers below, not through the query re-resolving (see this file's header on why writes are
-  // optimistic rather than refetch-driven).
+  // `use-static-publish.hooks.ts`'s own `seededRef` uses. Later changes flow through `save` below,
+  // not through the query re-resolving (see this file's header on why writes are optimistic rather
+  // than refetch-driven).
   const seededRef = useRef(false);
   useEffect(() => {
     if (seededRef.current || query.status === "loading" || !query.data) return;
@@ -226,150 +158,57 @@ export function usePublishCredentials(port: PublishCredentialsPort, t: Translate
 
   const loadError = query.error ? publishCredentialsLoadErrorMessage(locale, describeApiError(query.error, "unknown error")) : null;
 
-  const [isFormOpen, setIsFormOpen] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [providerId, setProviderId] = useState<AdminPublishCredentialProviderId>("github-pages");
-  const [label, setLabel] = useState("");
-  const [token, setToken] = useState("");
-  const [accountId, setAccountId] = useState("");
-  const [isDefault, setIsDefault] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [formError, setFormError] = useState<string | null>(null);
+  const [formStates, setFormStates] = useState<Record<AdminPublishCredentialProviderId, RowFormState>>(initialRowFormStates);
 
-  function startAdd() {
-    setEditingId(null);
-    setProviderId("github-pages");
-    setLabel("");
-    blankConnectionFields({ setToken, setAccountId });
-    setIsDefault(false);
-    setFormError(null);
-    setIsFormOpen(true);
+  function setToken(providerId: AdminPublishCredentialProviderId, value: string) {
+    setFormStates((prev) => ({ ...prev, [providerId]: { ...prev[providerId], token: value } }));
   }
 
-  function startEdit(credential: AdminPublishCredentialSummary) {
-    setEditingId(credential.id);
-    setProviderId(credential.providerId);
-    setLabel(credential.label);
-    blankConnectionFields({ setToken, setAccountId });
-    setIsDefault(credential.isDefault);
-    setFormError(null);
-    setIsFormOpen(true);
+  function setAccountId(providerId: AdminPublishCredentialProviderId, value: string) {
+    setFormStates((prev) => ({ ...prev, [providerId]: { ...prev[providerId], accountId: value } }));
   }
 
-  function cancelForm() {
-    setIsFormOpen(false);
-    setEditingId(null);
-    setFormError(null);
-  }
+  async function save(providerId: AdminPublishCredentialProviderId) {
+    const formState = formStates[providerId];
+    const fields: PublishCredentialFormFields = { providerId, token: formState.token, accountId: formState.accountId };
+    if (!publishCredentialRowReadyToSave(fields)) return;
 
-  async function submit() {
-    const mode: "add" | "edit" = editingId === null ? "add" : "edit";
-    const fields: PublishCredentialFormFields = { providerId, token, accountId };
-    if (!publishCredentialFormReadyToSubmit(fields, mode, label)) return;
-
-    // A default choice is only real when at least one OTHER saved connection for this provider
-    // exists — see this file's header. Otherwise `isDefault` is omitted entirely rather than
-    // asserting `false` for what may be about to become the provider's only connection.
-    const otherCredentialsForProvider = credentialsForProvider(credentials ?? [], providerId).filter(
-      (existing) => existing.id !== editingId
-    );
-    const isDefaultToSend = otherCredentialsForProvider.length > 0 ? isDefault : undefined;
-
-    setSubmitting(true);
-    setFormError(null);
+    const existing = defaultCredentialForProvider(credentials ?? [], providerId);
+    setFormStates((prev) => ({ ...prev, [providerId]: { ...prev[providerId], saving: true, error: null } }));
     try {
-      const result = await writePublishCredential(port, mode, editingId, fields, label, token, isDefaultToSend);
+      const connection = buildPublishConnectionInput(fields);
+      const result = existing
+        ? await port.updateCredential(existing.id, { connection })
+        : await port.createCredential({ label: PUBLISH_CREDENTIAL_ROW_LABEL, connection });
       setCredentials((prev) => {
         const base = prev ?? [];
-        // A newly-promoted default clears its provider siblings' own flag locally — see this file's
-        // header on why the optimistic list does this instead of waiting for a refetch.
-        const withSiblingsCleared = result.isDefault
-          ? base.map((existing) => (existing.providerId === result.providerId && existing.id !== result.id ? { ...existing, isDefault: false } : existing))
-          : base;
-        return mode === "add"
-          ? [...withSiblingsCleared, result]
-          : withSiblingsCleared.map((existing) => (existing.id === result.id ? result : existing));
+        return existing ? base.map((current) => (current.id === result.id ? result : current)) : [...base, result];
       });
-      setIsFormOpen(false);
-      setEditingId(null);
+      setFormStates((prev) => ({ ...prev, [providerId]: blankRowFormState() }));
     } catch (err) {
-      setFormError(publishCredentialSubmitErrorMessage(err, t, locale));
-    } finally {
-      setSubmitting(false);
+      setFormStates((prev) => ({
+        ...prev,
+        [providerId]: { ...prev[providerId], saving: false, error: publishCredentialSubmitErrorMessage(err, t, locale) },
+      }));
     }
   }
 
-  const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const rows: readonly PublishCredentialRowState[] | undefined =
+    credentials === undefined
+      ? undefined
+      : PUBLISH_CREDENTIAL_PROVIDERS.map((provider) => {
+          const formState = formStates[provider.id];
+          return {
+            providerId: provider.id,
+            saved: defaultCredentialForProvider(credentials, provider.id),
+            token: formState.token,
+            accountId: formState.accountId,
+            saving: formState.saving,
+            error: formState.error,
+          };
+        });
 
-  async function remove(id: string) {
-    setDeletingId(id);
-    setDeleteError(null);
-    try {
-      await port.deleteCredential(id);
-      setCredentials((prev) => (prev ?? []).filter((existing) => existing.id !== id));
-      if (editingId === id) cancelForm();
-    } catch (err) {
-      setDeleteError(publishCredentialDeleteErrorMessage(locale, describeApiError(err, "unknown error")));
-    } finally {
-      setDeletingId(null);
-    }
-  }
-
-  const [markingDefaultId, setMarkingDefaultId] = useState<string | null>(null);
-  const [markDefaultError, setMarkDefaultError] = useState<string | null>(null);
-
-  async function markAsDefault(id: string) {
-    setMarkingDefaultId(id);
-    setMarkDefaultError(null);
-    try {
-      const result = await port.updateCredential(id, { isDefault: true });
-      setCredentials((prev) =>
-        (prev ?? []).map((existing) => {
-          if (existing.id === result.id) return result;
-          // Any OTHER credential for the same provider stops being default — see this file's header
-          // on why the optimistic list clears siblings itself instead of waiting for a refetch.
-          if (existing.providerId === result.providerId) return { ...existing, isDefault: false };
-          return existing;
-        })
-      );
-    } catch (err) {
-      setMarkDefaultError(publishCredentialMakeDefaultErrorMessage(locale, describeApiError(err, "unknown error")));
-    } finally {
-      setMarkingDefaultId(null);
-    }
-  }
-
-  return {
-    credentials,
-    executionMode,
-    loadError,
-    isFormOpen,
-    editingId,
-    providerId,
-    setProviderId,
-    label,
-    setLabel,
-    token,
-    setToken,
-    accountId,
-    setAccountId,
-    isDefault,
-    setIsDefault,
-    startAdd,
-    startEdit,
-    cancelForm,
-    submitting,
-    formError,
-    submit,
-    deletingId,
-    deleteError,
-    remove,
-    markingDefaultId,
-    markDefaultError,
-    markAsDefault,
-    t,
-  };
+  return { rows, executionMode, loadError, setToken, setAccountId, save, t };
 }
 
 /**

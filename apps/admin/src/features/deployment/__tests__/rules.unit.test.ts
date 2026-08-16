@@ -5,6 +5,7 @@ import {
   FULL_SITE_PROVIDERS,
   PUBLISH_CLI_TOOLS,
   PUBLISH_CREDENTIAL_PROVIDERS,
+  PUBLISH_CREDENTIAL_ROW_LABEL,
   STATIC_HOSTS,
   STATIC_PUBLISH_TARGETS,
   buildPublishConnectionInput,
@@ -12,14 +13,15 @@ import {
   cliInstalledStatus,
   credentialsForProvider,
   daemonStatusLabelKey,
+  defaultCredentialForProvider,
   deploymentEnvVarNoteKey,
   exportRunStatusLabelKey,
   isEnvVarRowUnsafe,
   ownerPasswordLabelKey,
   productionGateLabelKey,
   publishAssistantRequestForTool,
-  publishCredentialFormReadyToSubmit,
   publishCredentialProviderInfo,
+  publishCredentialRowReadyToSave,
   publishRunStatusLabelKey,
   runStatusTone,
   runtimeModeLabelKey,
@@ -314,36 +316,32 @@ describe("buildPublishConnectionInput", () => {
   });
 });
 
-describe("publishCredentialFormReadyToSubmit", () => {
-  it("ADD mode always requires a non-blank label and a non-blank token", () => {
-    const fields = { ...blankCredentialFields("vercel"), token: "tok" };
-    expect(publishCredentialFormReadyToSubmit(fields, "add", "")).toBe(false);
-    expect(publishCredentialFormReadyToSubmit({ ...fields, token: "" }, "add", "My Vercel")).toBe(false);
-    expect(publishCredentialFormReadyToSubmit(fields, "add", "My Vercel")).toBe(true);
+describe("publishCredentialRowReadyToSave", () => {
+  it("requires a non-blank token — a blank token is never ready to save, connected or not", () => {
+    const fields = { ...blankCredentialFields("vercel"), token: "" };
+    expect(publishCredentialRowReadyToSave(fields)).toBe(false);
+    expect(publishCredentialRowReadyToSave({ ...fields, token: "   " })).toBe(false);
   });
 
-  it("ADD mode: github-pages/vercel/netlify need nothing beyond token — no per-provider field left to gate on", () => {
-    expect(publishCredentialFormReadyToSubmit({ ...blankCredentialFields("github-pages"), token: "tok" }, "add", "label")).toBe(true);
-    expect(publishCredentialFormReadyToSubmit({ ...blankCredentialFields("vercel"), token: "tok" }, "add", "label")).toBe(true);
-    expect(publishCredentialFormReadyToSubmit({ ...blankCredentialFields("netlify"), token: "tok" }, "add", "label")).toBe(true);
+  it("github-pages/vercel/netlify need nothing beyond a non-blank token — no per-provider field left to gate on", () => {
+    expect(publishCredentialRowReadyToSave({ ...blankCredentialFields("github-pages"), token: "tok" })).toBe(true);
+    expect(publishCredentialRowReadyToSave({ ...blankCredentialFields("vercel"), token: "tok" })).toBe(true);
+    expect(publishCredentialRowReadyToSave({ ...blankCredentialFields("netlify"), token: "tok" })).toBe(true);
   });
 
-  it("ADD mode: cloudflare-pages requires accountId even though it reads like an optional-style field", () => {
+  it("cloudflare-pages requires accountId too, even with a non-blank token", () => {
     const cf = { ...blankCredentialFields("cloudflare-pages"), token: "tok" };
-    expect(publishCredentialFormReadyToSubmit(cf, "add", "label")).toBe(false);
-    expect(publishCredentialFormReadyToSubmit({ ...cf, accountId: "acct-1" }, "add", "label")).toBe(true);
+    expect(publishCredentialRowReadyToSave(cf)).toBe(false);
+    expect(publishCredentialRowReadyToSave({ ...cf, accountId: "acct-1" })).toBe(true);
   });
 
-  it("EDIT mode with a BLANK token means 'keep the stored secret' — ready as soon as the label is non-blank, with every connection field still empty", () => {
-    const fields = blankCredentialFields("github-pages");
-    expect(publishCredentialFormReadyToSubmit(fields, "edit", "renamed label")).toBe(true);
-    expect(publishCredentialFormReadyToSubmit(fields, "edit", "")).toBe(false);
-  });
-
-  it("EDIT mode with a NON-blank token commits to a full replace — re-validated exactly like ADD mode", () => {
-    const fields = { ...blankCredentialFields("cloudflare-pages"), token: "new-token" };
-    expect(publishCredentialFormReadyToSubmit(fields, "edit", "label")).toBe(false); // still missing accountId
-    expect(publishCredentialFormReadyToSubmit({ ...fields, accountId: "acct-1" }, "edit", "label")).toBe(true);
+  it("there is no add-vs-edit distinction left — the exact same fields are ready or not ready regardless of whether the row is already connected", () => {
+    // publishCredentialRowReadyToSave itself has no notion of "connected"; StaticSiteTab.tsx reads
+    // that separately off `row.saved`. This test only pins that the gate's own answer for one fixed
+    // set of fields never varies by an argument it no longer takes.
+    const fields = { ...blankCredentialFields("github-pages"), token: "tok" };
+    expect(publishCredentialRowReadyToSave(fields)).toBe(true);
+    expect(publishCredentialRowReadyToSave({ ...fields })).toBe(true);
   });
 });
 
@@ -371,6 +369,41 @@ describe("credentialsForProvider", () => {
   it("returns an empty array when this workspace has no credential for the provider — never throws", () => {
     expect(credentialsForProvider([], "netlify")).toEqual([]);
     expect(credentialsForProvider([credential({ providerId: "github-pages" })], "netlify")).toEqual([]);
+  });
+});
+
+describe("defaultCredentialForProvider", () => {
+  function credential(overrides: Partial<AdminPublishCredentialSummary> = {}): AdminPublishCredentialSummary {
+    return {
+      id: "cred-1",
+      providerId: "github-pages",
+      label: PUBLISH_CREDENTIAL_ROW_LABEL,
+      configured: true,
+      isDefault: true,
+      createdAt: "2026-08-01T00:00:00.000Z",
+      updatedAt: "2026-08-01T00:00:00.000Z",
+      ...overrides,
+    };
+  }
+
+  it("returns undefined when this provider has no saved connection — never throws", () => {
+    expect(defaultCredentialForProvider([], "vercel")).toBeUndefined();
+  });
+
+  it("returns the sole saved connection for a provider with exactly one", () => {
+    const gh = credential({ id: "cred-1", providerId: "github-pages" });
+    expect(defaultCredentialForProvider([gh], "github-pages")).toBe(gh);
+  });
+
+  it("picks the DEFAULT row when a provider has more than one saved connection — never the first-created or an arbitrary one", () => {
+    const old = credential({ id: "cred-1", providerId: "vercel", label: "Old", isDefault: false });
+    const current = credential({ id: "cred-2", providerId: "vercel", label: "New", isDefault: true });
+    expect(defaultCredentialForProvider([old, current], "vercel")).toBe(current);
+  });
+
+  it("falls back to the first saved row as a defensive read when none is marked default (data predating this UI)", () => {
+    const first = credential({ id: "cred-1", providerId: "netlify", isDefault: false });
+    expect(defaultCredentialForProvider([first], "netlify")).toBe(first);
   });
 });
 

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
@@ -6,9 +6,9 @@ import { StaticSiteTab } from "../StaticSiteTab";
 import type { StaticExportController } from "../hooks/use-static-export.hooks";
 import type { StaticPublishController } from "../hooks/use-static-publish.hooks";
 import type { DeploymentOverviewController } from "../hooks/use-deployment-overview.hooks";
-import type { PublishCredentialsController } from "../hooks/use-publish-credentials.hooks";
-import type { AdminPublishCredentialSummary } from "../../../lib/api";
-import { PUBLISH_CLI_TOOLS, STATIC_HOSTS, STATIC_SITE_CAPABILITIES } from "../rules";
+import type { PublishCredentialRowState, PublishCredentialsController } from "../hooks/use-publish-credentials.hooks";
+import type { AdminPublishCredentialProviderId, AdminPublishCredentialSummary } from "../../../lib/api";
+import { PUBLISH_CLI_TOOLS, PUBLISH_CREDENTIAL_PROVIDERS, STATIC_HOSTS, STATIC_SITE_CAPABILITIES } from "../rules";
 
 /**
  * @file `StaticSiteTab` — driven through its three `useStaticExportHook`/`useStaticPublishHook`/
@@ -83,44 +83,43 @@ function overviewControllerFixture(overrides: Partial<DeploymentOverviewControll
 const GH_CREDENTIAL: AdminPublishCredentialSummary = {
   id: "cred-1",
   providerId: "github-pages",
-  label: "Production GitHub Pages",
+  label: "default",
   configured: true,
   isDefault: true,
   createdAt: "2026-08-01T10:00:00.000Z",
   updatedAt: "2026-08-15T09:30:00.000Z",
 };
 
-function credentialsControllerFixture(overrides: Partial<PublishCredentialsController> = {}): PublishCredentialsController {
+/** One provider row, blank/not-connected unless overridden — mirrors
+ *  `use-publish-credentials.hooks.ts`'s own `PublishCredentialRowState` shape exactly, since the
+ *  fixture below builds one row per {@link PUBLISH_CREDENTIAL_PROVIDERS} entry from a list of these. */
+function credentialRowFixture(providerId: AdminPublishCredentialProviderId, overrides: Partial<PublishCredentialRowState> = {}): PublishCredentialRowState {
+  return { providerId, saved: undefined, token: "", accountId: "", saving: false, error: null, ...overrides };
+}
+
+/** `credentialsControllerFixture`'s own override shape — `rows` widened to a mutable array (the real
+ *  controller's `rows` is `readonly`, which a fixture literal need not preserve) plus `rowOverrides`,
+ *  the per-provider shorthand {@link credentialsControllerFixture}'s own doc explains. */
+type CredentialsControllerFixtureOverrides = Partial<Omit<PublishCredentialsController, "rows">> & {
+  rows?: PublishCredentialRowState[];
+  rowOverrides?: Partial<Record<AdminPublishCredentialProviderId, Partial<PublishCredentialRowState>>>;
+};
+
+/** Builds the full four-row `rows` array a real hook load would produce, applying `rowOverrides` (by
+ *  provider id) to just the rows a test cares about — every OTHER row stays a blank, not-connected
+ *  default so a test asserting on one provider's row is never accidentally passing because a sibling
+ *  row happened to satisfy the same assertion. */
+function credentialsControllerFixture(overrides: CredentialsControllerFixtureOverrides = {}): PublishCredentialsController {
+  const { rows, rowOverrides, ...rest } = overrides;
   return {
-    credentials: [],
+    rows: rows ?? PUBLISH_CREDENTIAL_PROVIDERS.map((provider) => credentialRowFixture(provider.id, rowOverrides?.[provider.id])),
     executionMode: "self-hosted-cli",
     loadError: null,
-    isFormOpen: false,
-    editingId: null,
-    providerId: "github-pages",
-    setProviderId: vi.fn(),
-    label: "",
-    setLabel: vi.fn(),
-    token: "",
     setToken: vi.fn(),
-    accountId: "",
     setAccountId: vi.fn(),
-    isDefault: false,
-    setIsDefault: vi.fn(),
-    startAdd: vi.fn(),
-    startEdit: vi.fn(),
-    cancelForm: vi.fn(),
-    submitting: false,
-    formError: null,
-    submit: vi.fn().mockResolvedValue(undefined),
-    deletingId: null,
-    deleteError: null,
-    remove: vi.fn().mockResolvedValue(undefined),
-    markingDefaultId: null,
-    markDefaultError: null,
-    markAsDefault: vi.fn().mockResolvedValue(undefined),
+    save: vi.fn().mockResolvedValue(undefined),
     t: fakeT,
-    ...overrides,
+    ...rest,
   };
 }
 
@@ -128,7 +127,7 @@ function renderTab(overrides: {
   exportController?: Partial<StaticExportController>;
   publishController?: Partial<StaticPublishController>;
   overviewController?: Partial<DeploymentOverviewController>;
-  credentialsController?: Partial<PublishCredentialsController>;
+  credentialsController?: CredentialsControllerFixtureOverrides;
 } = {}) {
   return render(
     <StaticSiteTab
@@ -551,8 +550,12 @@ describe("StaticSiteTab — preview and publish gating", () => {
         },
       },
     });
-    expect(screen.getByRole("alert")).toHaveTextContent("VERCEL_TOKEN is not set");
-    expect(screen.queryByRole("link")).not.toBeInTheDocument();
+    // The alert itself must never render the failure message as a clickable link — it does not
+    // matter that the credential section elsewhere on this tab has its own, unrelated "Create a
+    // token" links (one per provider row, always rendered — see that section's own tests).
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent("VERCEL_TOKEN is not set");
+    expect(within(alert).queryByRole("link")).not.toBeInTheDocument();
   });
 
   it("REGRESSION: a real trigger's own status: 'errored' + a populated result.message (not run.error) still shows the real message — verified live against publish-site.ts, which maps ANY result.ok:false outcome to status 'errored', not 'completed'", () => {
@@ -624,15 +627,15 @@ describe("StaticSiteTab — AI agent tagging", () => {
 });
 
 describe("StaticSiteTab — credential section: loading and load-error states", () => {
-  it("shows a brief loading line, not either disclosure, while credentials/executionMode are unresolved", () => {
-    renderTab({ credentialsController: { credentials: undefined, executionMode: undefined } });
+  it("shows a brief loading line, not either disclosure, while rows/executionMode are unresolved", () => {
+    renderTab({ credentialsController: { rows: undefined, executionMode: undefined } });
     expect(screen.getByText("Loading credentials…")).toBeInTheDocument();
     expect(screen.queryByText(/Advanced: publish with server-side provider credentials/)).not.toBeInTheDocument();
     expect(screen.queryByText(/This workspace cannot use your computer's terminal/)).not.toBeInTheDocument();
   });
 
   it("surfaces a load error instead of either disclosure", () => {
-    renderTab({ credentialsController: { credentials: undefined, executionMode: undefined, loadError: "could not reach the server" } });
+    renderTab({ credentialsController: { rows: undefined, executionMode: undefined, loadError: "could not reach the server" } });
     expect(screen.getByText("could not reach the server")).toBeInTheDocument();
     expect(screen.queryByText("Loading credentials…")).not.toBeInTheDocument();
   });
@@ -642,7 +645,7 @@ describe("StaticSiteTab — credential section: executionMode disclosure", () =>
   it("self-hosted-cli: sits behind a native <details> 'Advanced' summary, OPEN by default, never a prominent notice", () => {
     // Open-by-default reverses this component's original collapsed-by-default choice (owner's own
     // call, 2026-08-15) — Netlify and Cloudflare Pages have no CLI-first row at all, so a reader who
-    // picks either target must not find the credential form hidden behind an unopened disclosure.
+    // picks either target must not find the credential rows hidden behind an unopened disclosure.
     renderTab({ credentialsController: { executionMode: "self-hosted-cli" } });
     const summary = screen.getByText("Advanced: publish with server-side provider credentials");
     expect(summary.closest("details")).not.toBeNull();
@@ -658,251 +661,138 @@ describe("StaticSiteTab — credential section: executionMode disclosure", () =>
     expect(screen.queryByText("Advanced: publish with server-side provider credentials")).not.toBeInTheDocument();
   });
 
-  it("the credential list/form itself renders in BOTH modes — disclosure changes prominence, never hides the actual controls", () => {
+  it("the credential rows themselves render in BOTH modes — disclosure changes prominence, never hides the actual rows", () => {
     renderTab({ credentialsController: { executionMode: "self-hosted-cli" } });
-    expect(screen.getByRole("button", { name: "Add credential" })).toBeInTheDocument();
+    expect(screen.getAllByRole("button", { name: "Save" })).toHaveLength(4);
 
     renderTab({ credentialsController: { executionMode: "hosted-api-only" } });
-    expect(screen.getAllByRole("button", { name: "Add credential" }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole("button", { name: "Save" }).length).toBeGreaterThanOrEqual(4);
   });
 });
 
-describe("StaticSiteTab — credential section: list", () => {
-  it("the empty state also states what a credential is for and which providers are supported — not just 'No credentials saved yet'", () => {
-    renderTab({ credentialsController: { credentials: [] } });
-    expect(screen.getByText("No credentials saved yet.")).toBeInTheDocument();
-    expect(
-      screen.getByText("A credential is a saved access token Tovu publishes with, for GitHub Pages, Vercel, Netlify, or Cloudflare Pages.")
-    ).toBeInTheDocument();
-  });
-
-  it("shows 'No credentials saved yet' when the list is empty", () => {
-    renderTab({ credentialsController: { credentials: [] } });
-    expect(screen.getByText("No credentials saved yet.")).toBeInTheDocument();
-  });
-
-  it("lists a saved credential by label, provider, and formatted updatedAt — never any token material", () => {
-    renderTab({ credentialsController: { credentials: [GH_CREDENTIAL] } });
-    expect(screen.getByText("Production GitHub Pages")).toBeInTheDocument();
-    expect(screen.getByText("GitHub Pages", { selector: ".status" })).toBeInTheDocument();
-    expect(screen.getByText(/2026-08-15/)).toBeInTheDocument();
-  });
-
-  it("clicking Edit on a row calls startEdit with that exact credential", async () => {
-    const user = userEvent.setup();
-    const startEdit = vi.fn();
-    renderTab({ credentialsController: { credentials: [GH_CREDENTIAL], startEdit } });
-    await user.click(screen.getByRole("button", { name: "Edit" }));
-    expect(startEdit).toHaveBeenCalledWith(GH_CREDENTIAL);
-  });
-
-  it("clicking Delete on a row calls remove with that row's id", async () => {
-    const user = userEvent.setup();
-    const remove = vi.fn().mockResolvedValue(undefined);
-    renderTab({ credentialsController: { credentials: [GH_CREDENTIAL], remove } });
-    await user.click(screen.getByRole("button", { name: "Delete" }));
-    expect(remove).toHaveBeenCalledWith("cred-1");
-  });
-
-  it("disables and relabels only the row currently being deleted", () => {
-    renderTab({ credentialsController: { credentials: [GH_CREDENTIAL], deletingId: "cred-1" } });
-    expect(screen.getByRole("button", { name: "Deleting…" })).toBeDisabled();
-    expect(screen.queryByRole("button", { name: "Delete" })).not.toBeInTheDocument();
-  });
-
-  it("surfaces a delete error as an alert", () => {
-    renderTab({ credentialsController: { credentials: [GH_CREDENTIAL], deleteError: "still referenced elsewhere" } });
-    expect(screen.getByRole("alert")).toHaveTextContent("still referenced elsewhere");
-  });
-
-  it("a lone credential for its provider shows neither a Default badge nor a Make default button — nothing to choose", () => {
-    renderTab({ credentialsController: { credentials: [GH_CREDENTIAL] } }); // GH_CREDENTIAL.isDefault is true
-    expect(screen.queryByText("Default")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Make default" })).not.toBeInTheDocument();
-  });
-
-  it("with two connections for the same provider: the default row shows a Default badge, the other shows a Make default button", async () => {
-    const other: AdminPublishCredentialSummary = { ...GH_CREDENTIAL, id: "cred-2", label: "Backup GitHub Pages", isDefault: false };
-    const markAsDefault = vi.fn().mockResolvedValue(undefined);
-    renderTab({ credentialsController: { credentials: [GH_CREDENTIAL, other], markAsDefault } });
-
-    expect(screen.getByText("Default")).toBeInTheDocument();
-    const makeDefaultButton = screen.getByRole("button", { name: "Make default" });
-    expect(makeDefaultButton).toBeInTheDocument();
-
-    const user = userEvent.setup();
-    await user.click(makeDefaultButton);
-    expect(markAsDefault).toHaveBeenCalledWith("cred-2");
-  });
-
-  it("disables and relabels only the row currently being promoted to default", () => {
-    const other: AdminPublishCredentialSummary = { ...GH_CREDENTIAL, id: "cred-2", label: "Backup", isDefault: false };
-    renderTab({ credentialsController: { credentials: [GH_CREDENTIAL, other], markingDefaultId: "cred-2" } });
-    expect(screen.getByRole("button", { name: "Setting…" })).toBeDisabled();
-    expect(screen.queryByRole("button", { name: "Make default" })).not.toBeInTheDocument();
-  });
-
-  it("surfaces a markDefaultError as an alert", () => {
-    renderTab({ credentialsController: { credentials: [GH_CREDENTIAL], markDefaultError: "could not reach the server" } });
-    expect(screen.getByRole("alert")).toHaveTextContent("could not reach the server");
-  });
-});
-
-describe("StaticSiteTab — credential section: add/edit form", () => {
-  it("clicking 'Add credential' calls startAdd; the form itself is hidden until isFormOpen is true", async () => {
-    const user = userEvent.setup();
-    const startAdd = vi.fn();
-    renderTab({ credentialsController: { startAdd } });
+describe("StaticSiteTab — credential section: rows", () => {
+  it("renders exactly one row per provider, in STATIC_PUBLISH_TARGETS/PUBLISH_CREDENTIAL_PROVIDERS order — no 'Add credential' button, no provider picker, no label field anywhere", () => {
+    renderTab();
+    for (const provider of PUBLISH_CREDENTIAL_PROVIDERS) {
+      expect(screen.getByText(provider.label, { selector: ".deployment-credential-row-name" })).toBeInTheDocument();
+    }
+    expect(screen.queryByRole("button", { name: "Add credential" })).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Provider")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Label")).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: "Add credential" }));
-    expect(startAdd).toHaveBeenCalledTimes(1);
   });
 
-  it("github-pages (default): shows no per-provider field beyond the shared token — owner/repo live on the publish target, not the credential", () => {
-    renderTab({ credentialsController: { isFormOpen: true, providerId: "github-pages" } });
-    expect(screen.queryByLabelText("Owner or org for this token")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Repository for this token")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(/Team ID/)).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(/Site ID/)).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Account ID")).not.toBeInTheDocument();
+  it("a not-connected row shows 'Not connected' and a visibly EMPTY token box — no placeholder text standing in for a value", () => {
+    renderTab();
+    expect(screen.getAllByText("Not connected")).toHaveLength(4);
+    const ghToken = screen.getByLabelText("Access token", { selector: "#deployment-static-site-credentials-token-github-pages" });
+    expect(ghToken).toHaveValue("");
+    expect(ghToken).not.toHaveAttribute("placeholder");
   });
 
-  it("vercel: shows no per-provider field beyond the shared token — teamId lives on the publish target, not the credential", () => {
-    renderTab({ credentialsController: { isFormOpen: true, providerId: "vercel" } });
-    expect(screen.queryByLabelText(/Team ID/)).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Account ID")).not.toBeInTheDocument();
+  it("a connected row shows 'Connected · updated <date>', and the token input still starts blank — never read back", () => {
+    renderTab({ credentialsController: { rowOverrides: { "github-pages": { saved: GH_CREDENTIAL } } } });
+    expect(screen.getByText(/Connected/)).toBeInTheDocument();
+    expect(screen.getByText(/2026-08-15/)).toBeInTheDocument();
+    const ghToken = screen.getByLabelText("Access token", { selector: "#deployment-static-site-credentials-token-github-pages" });
+    expect(ghToken).toHaveValue("");
+    expect(ghToken).not.toHaveAttribute("placeholder");
   });
 
-  it("netlify: shows no per-provider field beyond the shared token", () => {
-    renderTab({ credentialsController: { isFormOpen: true, providerId: "netlify" } });
-    expect(screen.queryByLabelText(/Site ID/)).not.toBeInTheDocument();
-    expect(screen.queryByLabelText("Account ID")).not.toBeInTheDocument();
+  it("a connected row's hint reads 'leave blank to keep the current token', below the field", () => {
+    renderTab({ credentialsController: { rowOverrides: { vercel: { saved: { ...GH_CREDENTIAL, providerId: "vercel" } } } } });
+    expect(screen.getByText(/Leave blank to keep the current token/)).toBeInTheDocument();
   });
 
-  it("cloudflare-pages: shows ONLY the required accountId field — the one provider with a second connection field", () => {
-    renderTab({ credentialsController: { isFormOpen: true, providerId: "cloudflare-pages" } });
-    expect(screen.getByLabelText("Account ID")).toBeInTheDocument();
-    expect(screen.queryByLabelText("Project name (optional)")).not.toBeInTheDocument();
+  it("a not-connected row's hint never claims a token is already stored — the connected-only copy is absent", () => {
+    renderTab(); // nothing connected anywhere on this render
+    expect(screen.queryByText(/Leave blank to keep the current token/)).not.toBeInTheDocument();
+    expect(screen.getAllByText(/Stored encrypted on the server/).length).toBeGreaterThan(0);
   });
 
-  it("the provider select is disabled in edit mode — a saved credential's provider cannot be changed", () => {
-    renderTab({ credentialsController: { isFormOpen: true, editingId: "cred-1", providerId: "github-pages" } });
-    expect(screen.getByLabelText("Provider")).toBeDisabled();
-  });
-
-  it("the provider select stays enabled in add mode", () => {
-    renderTab({ credentialsController: { isFormOpen: true, editingId: null } });
-    expect(screen.getByLabelText("Provider")).toBeEnabled();
-  });
-
-  it("edit mode's token field is empty with 'leave blank to keep it' copy — never pre-filled from a stored value", () => {
-    renderTab({ credentialsController: { isFormOpen: true, editingId: "cred-1", token: "" } });
-    expect(screen.getByLabelText("Access token")).toHaveValue("");
-    expect(screen.getByText(/leave this blank to keep the token already saved/i)).toBeInTheDocument();
-  });
-
-  it("Cancel calls cancelForm", async () => {
+  it("typing into a row's token input calls setToken with that row's own providerId", async () => {
     const user = userEvent.setup();
-    const cancelForm = vi.fn();
-    renderTab({ credentialsController: { isFormOpen: true, cancelForm } });
-    await user.click(screen.getByRole("button", { name: "Cancel" }));
-    expect(cancelForm).toHaveBeenCalledTimes(1);
+    const setToken = vi.fn();
+    renderTab({ credentialsController: { setToken } });
+    await user.type(screen.getByLabelText("Access token", { selector: "#deployment-static-site-credentials-token-vercel" }), "x");
+    expect(setToken).toHaveBeenCalledWith("vercel", "x");
   });
 
-  it("submitting the form calls the injected submit()", async () => {
+  it("github-pages/vercel/netlify show no Account ID field — only cloudflare-pages has a second connection field", () => {
+    renderTab();
+    expect(screen.getAllByLabelText("Account ID")).toHaveLength(1);
+  });
+
+  it("cloudflare-pages shows the required Account ID field, and typing into it calls setAccountId('cloudflare-pages', value)", async () => {
     const user = userEvent.setup();
-    const submit = vi.fn().mockResolvedValue(undefined);
-    renderTab({
-      credentialsController: {
-        isFormOpen: true,
-        providerId: "vercel",
-        label: "My Vercel",
-        token: "tok",
-        submit,
-      },
-    });
-    await user.click(screen.getByRole("button", { name: "Save credential" }));
-    expect(submit).toHaveBeenCalledTimes(1);
+    const setAccountId = vi.fn();
+    renderTab({ credentialsController: { setAccountId } });
+    const accountField = screen.getByLabelText("Account ID");
+    expect(accountField).toHaveValue("");
+    expect(accountField).not.toHaveAttribute("placeholder");
+    await user.type(accountField, "a");
+    expect(setAccountId).toHaveBeenCalledWith("cloudflare-pages", "a");
   });
 
-  it("the submit button is disabled until the provider's own required fields are filled — never bypassable by a raw click", () => {
-    renderTab({ credentialsController: { isFormOpen: true, providerId: "cloudflare-pages", label: "x", token: "tok" } });
-    // accountId still blank — cloudflare-pages is the one provider with a required field left
-    expect(screen.getByRole("button", { name: "Save credential" })).toBeDisabled();
+  it("clicking Save on one row calls save with that row's own providerId", async () => {
+    const user = userEvent.setup();
+    const save = vi.fn().mockResolvedValue(undefined);
+    renderTab({ credentialsController: { rowOverrides: { netlify: { token: "tok" } }, save } });
+    const netlifyRow = screen.getByText("Netlify", { selector: ".deployment-credential-row-name" }).closest("li")!;
+    await user.click(within(netlifyRow).getByRole("button", { name: "Save" }));
+    expect(save).toHaveBeenCalledWith("netlify");
   });
 
-  it("shows the busy label and disables submit while a save is in flight", () => {
-    renderTab({ credentialsController: { isFormOpen: true, providerId: "vercel", label: "x", token: "tok", submitting: true } });
-    expect(screen.getByRole("button", { name: "Saving…" })).toBeDisabled();
+  it("Save is disabled until that row's own required fields are filled — a blank token never enables it", () => {
+    renderTab({ credentialsController: { rowOverrides: { vercel: { token: "" } } } });
+    const vercelRow = screen.getByText("Vercel", { selector: ".deployment-credential-row-name" }).closest("li")!;
+    expect(within(vercelRow).getByRole("button", { name: "Save" })).toBeDisabled();
   });
 
-  it("edit mode's submit label reads 'Save changes', not 'Save credential'", () => {
-    renderTab({ credentialsController: { isFormOpen: true, editingId: "cred-1", providerId: "vercel", label: "x" } });
-    expect(screen.getByRole("button", { name: "Save changes" })).toBeInTheDocument();
+  it("cloudflare-pages' Save stays disabled with a token but no accountId yet", () => {
+    renderTab({ credentialsController: { rowOverrides: { "cloudflare-pages": { token: "tok", accountId: "" } } } });
+    const cfRow = screen.getByText("Cloudflare Pages", { selector: ".deployment-credential-row-name" }).closest("li")!;
+    expect(within(cfRow).getByRole("button", { name: "Save" })).toBeDisabled();
   });
 
-  it("surfaces a formError as an alert", () => {
-    renderTab({ credentialsController: { isFormOpen: true, formError: "A credential with this label already exists." } });
-    expect(screen.getByRole("alert")).toHaveTextContent("A credential with this label already exists.");
+  it("shows the busy label and disables Save only on the row currently saving", () => {
+    renderTab({ credentialsController: { rowOverrides: { vercel: { token: "tok", saving: true } } } });
+    const vercelRow = screen.getByText("Vercel", { selector: ".deployment-credential-row-name" }).closest("li")!;
+    expect(within(vercelRow).getByRole("button", { name: "Saving…" })).toBeDisabled();
+    const ghRow = screen.getByText("GitHub Pages", { selector: ".deployment-credential-row-name" }).closest("li")!;
+    expect(within(ghRow).getByRole("button", { name: "Save" })).toBeInTheDocument();
+  });
+
+  it("surfaces a row's own error as an alert, scoped to that row", () => {
+    renderTab({ credentialsController: { rowOverrides: { netlify: { error: "could not reach the server" } } } });
+    expect(screen.getByRole("alert")).toHaveTextContent("could not reach the server");
   });
 
   it("each provider's scope-guidance copy links to that provider's own token page", () => {
-    renderTab({ credentialsController: { isFormOpen: true, providerId: "cloudflare-pages" } });
-    const link = screen.getByRole("link", { name: "Create a token" });
-    expect(link).toHaveAttribute("href", "https://dash.cloudflare.com/profile/api-tokens");
+    renderTab();
+    const ghRow = screen.getByText("GitHub Pages", { selector: ".deployment-credential-row-name" }).closest("li")!;
+    const link = within(ghRow).getByRole("link", { name: "Create a token" });
+    expect(link).toHaveAttribute("href", "https://github.com/settings/tokens");
     expect(link).toHaveAttribute("target", "_blank");
-  });
-
-  it("ADD mode: the 'set as default' checkbox is hidden when this would be the provider's only connection", () => {
-    renderTab({ credentialsController: { isFormOpen: true, providerId: "github-pages", credentials: [] } });
-    expect(screen.queryByRole("checkbox", { name: /Set as default for/ })).not.toBeInTheDocument();
-  });
-
-  it("ADD mode: the 'set as default' checkbox appears once another connection for the same provider already exists", () => {
-    const setIsDefault = vi.fn();
-    renderTab({
-      credentialsController: { isFormOpen: true, providerId: "github-pages", credentials: [GH_CREDENTIAL], isDefault: false, setIsDefault },
-    });
-    const checkbox = screen.getByRole("checkbox", { name: /Set as default for/ });
-    expect(checkbox).not.toBeChecked();
-    expect(screen.getByText(/Set as default for/)).toBeInTheDocument();
-  });
-
-  it("EDIT mode: the checkbox is hidden while editing a provider's only connection, even though editingId matches a saved row", () => {
-    renderTab({ credentialsController: { isFormOpen: true, editingId: "cred-1", providerId: "github-pages", credentials: [GH_CREDENTIAL] } });
-    expect(screen.queryByRole("checkbox", { name: /Set as default for/ })).not.toBeInTheDocument();
-  });
-
-  it("EDIT mode: the checkbox appears when a sibling connection exists, pre-checked from the row's own isDefault", () => {
-    const other: AdminPublishCredentialSummary = { ...GH_CREDENTIAL, id: "cred-2", label: "Backup", isDefault: false };
-    renderTab({
-      credentialsController: {
-        isFormOpen: true,
-        editingId: "cred-1",
-        providerId: "github-pages",
-        credentials: [GH_CREDENTIAL, other],
-        isDefault: true,
-      },
-    });
-    expect(screen.getByRole("checkbox", { name: /Set as default for/ })).toBeChecked();
+    const cfRow = screen.getByText("Cloudflare Pages", { selector: ".deployment-credential-row-name" }).closest("li")!;
+    expect(within(cfRow).getByRole("link", { name: "Create a token" })).toHaveAttribute("href", "https://dash.cloudflare.com/profile/api-tokens");
   });
 });
 
 describe("StaticSiteTab — credential section: AI agent tagging", () => {
-  it("tags the section, add button, and per-row edit/delete controls", () => {
-    renderTab({ credentialsController: { credentials: [GH_CREDENTIAL] } });
-    expect(document.querySelector('[data-agent-element="deployment-static-site-credentials-add"]')).toBeInTheDocument();
-    expect(document.querySelector('[data-agent-element="deployment-static-site-credentials-edit-cred-1"]')).toBeInTheDocument();
-    expect(document.querySelector('[data-agent-element="deployment-static-site-credentials-delete-cred-1"]')).toBeInTheDocument();
+  it("tags the section and each provider's own row/token/save elements", () => {
+    renderTab();
+    expect(document.querySelector('[data-agent-element="deployment-static-site-credentials-section"]')).toBeInTheDocument();
+    for (const provider of PUBLISH_CREDENTIAL_PROVIDERS) {
+      expect(document.querySelector(`[data-agent-element="deployment-static-site-credentials-row-${provider.id}"]`)).toBeInTheDocument();
+      expect(document.querySelector(`[data-agent-element="deployment-static-site-credentials-token-${provider.id}"]`)).toBeInTheDocument();
+      expect(document.querySelector(`[data-agent-element="deployment-static-site-credentials-save-${provider.id}"]`)).toBeInTheDocument();
+    }
   });
 
-  it("tags the form's provider/label/token fields and submit/cancel actions", () => {
-    renderTab({ credentialsController: { isFormOpen: true } });
-    expect(document.querySelector('[data-agent-element="deployment-static-site-credentials-provider"]')).toBeInTheDocument();
-    expect(document.querySelector('[data-agent-element="deployment-static-site-credentials-label"]')).toBeInTheDocument();
-    expect(document.querySelector('[data-agent-element="deployment-static-site-credentials-token"]')).toBeInTheDocument();
-    expect(document.querySelector('[data-agent-element="deployment-static-site-credentials-submit"]')).toBeInTheDocument();
-    expect(document.querySelector('[data-agent-element="deployment-static-site-credentials-cancel"]')).toBeInTheDocument();
+  it("tags cloudflare-pages' own Account ID field only", () => {
+    renderTab();
+    expect(document.querySelector('[data-agent-element="deployment-static-site-credentials-account-cloudflare-pages"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-agent-element="deployment-static-site-credentials-account-github-pages"]')).not.toBeInTheDocument();
   });
 
   it("tags the load-error and hosted-mode notices", () => {
@@ -911,14 +801,5 @@ describe("StaticSiteTab — credential section: AI agent tagging", () => {
 
     renderTab({ credentialsController: { executionMode: "hosted-api-only" } });
     expect(document.querySelector('[data-agent-element="deployment-static-site-credentials-hosted-notice"]')).toBeInTheDocument();
-  });
-
-  it("tags the per-row Make default button and the form's is-default checkbox", () => {
-    const other: AdminPublishCredentialSummary = { ...GH_CREDENTIAL, id: "cred-2", label: "Backup", isDefault: false };
-    renderTab({ credentialsController: { credentials: [GH_CREDENTIAL, other] } });
-    expect(document.querySelector('[data-agent-element="deployment-static-site-credentials-make-default-cred-2"]')).toBeInTheDocument();
-
-    renderTab({ credentialsController: { isFormOpen: true, providerId: "github-pages", credentials: [GH_CREDENTIAL, other] } });
-    expect(document.querySelector('[data-agent-element="deployment-static-site-credentials-is-default"]')).toBeInTheDocument();
   });
 });
