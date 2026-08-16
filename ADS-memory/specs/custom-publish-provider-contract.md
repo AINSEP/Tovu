@@ -1,9 +1,13 @@
 # Custom Publish Provider Contract — S3-compatible, first slice
 
 Status: design spec, not implemented. Author: Software Architect dispatch, 2026-08-15.
-Amended same day with owner decisions: the `aws4fetch`/AWS-CLI-rejected ruling (§1, §1a), the
-bucket-vs-hosting choice reopened as a presented decision rather than resolved silently (§3a), and
-the honest AWS-vs-Vercel framing requirement (§3b, §4c).
+Amended twice same day with owner decisions. Pass 1: the `aws4fetch`/AWS-CLI-rejected ruling (§1,
+§1a), the bucket-vs-hosting choice reopened as a presented decision rather than resolved silently
+(§3a), and the honest AWS-vs-Vercel framing requirement (§3b, §4c). Pass 2: masked input DECIDED
+blocking with the exact upstream `@jini-ai/ui` diff spec (§8/§8a), the other-four-providers backfill
+DECIDED deferred (§7), the label/multi-connection UX DECIDED no (§9, and its consequences threaded
+back into §4c/§6d), and the `publicUrl` field + `buildFormSurface` design both DECIDED approved as
+specified (§4a, §6c). **Only §3a remains open** — every other question this spec raised is resolved.
 Scope: the fifth "Custom" tab in the Static Site deployment UI, S3-compatible protocol only.
 
 Every claim about existing code below is grounded in a file read during this dispatch, cited by
@@ -273,12 +277,18 @@ self-hosted MinIO instance often has no public DNS at all, and DigitalOcean Spac
 region format. Guessing wrong produces a "Published" success state pointing at a URL that 404s —
 worse than asking.
 
-**Decision: add a sixth, required field, `publicUrl`.** Widening `url` to optional on
+**APPROVED (owner): a sixth, required field, `publicUrl`.** Widening `url` to optional on
 `StaticPublishOutcome`/`DeployPublishResult` was the alternative — rejected because it is a
 higher-blast-radius change (touches every existing provider's success path and the UI's assumption)
 to avoid one extra text field on a form that already has five. `publicUrl` follows the same
 "lives on the credential, not the publish config" placement as `bucket`/`region`/`endpoint` — see
 §4b for why.
+
+The owner's own framing on review, recorded so a later reader does not re-treat "five fields is fine"
+as a cap this spec should have respected: that line was **permission to exceed** a narrow shared
+field shape when the case genuinely needs it, not a limit on how many fields this form may have. This
+finding — a required contract the brief's own framing missed — is exactly the kind of pushback this
+dispatch was asked to do.
 
 ### 4b. Placement: all six fields on the credential, not the publish config
 
@@ -346,9 +356,18 @@ you'll need to enable yourself first, in your provider's dashboard'], and an acc
 just that bucket. If you haven't done the first two yet, do that in your provider's console before
 filling this in."*
 
+**No `label` field** — per §9's resolution, S3-compatible follows the same flat, single-connection
+shape the other four providers already use, not a named-multi-connection UX. The save call sends the
+same fixed constant the existing 4-provider save path already uses for this exact reason
+(`use-publish-credentials.hooks.ts:182`'s `PUBLISH_CREDENTIAL_ROW_LABEL` — "the one fixed label this
+whole `(workspace_id, provider_id, label)` UNIQUE constraint" needs "without ever asking an operator
+to type one," per that file's own comment) — an operator never sees or types a label for
+S3-compatible either. `PublishCredentialSetRecord.label` (`publish-credentials/types.ts:94`) still
+exists as a required storage column (it is shared machinery across all five providers now, not
+S3-compatible-specific), it is simply never a user-facing input.
+
 | Field | Required | Secret | Hint copy (novice-facing) |
 |---|---|---|---|
-| `label` | no | no | "A name to tell this connection apart from others, e.g. 'R2 — main site'. Only shown to you." |
 | `endpoint` | no | no | "Your storage service's API address — not your bucket's website address. Cloudflare R2: `https://<account-id>.r2.cloudflarestorage.com`. Backblaze B2: check your bucket's 'Endpoint' field in the B2 dashboard. DigitalOcean Spaces: `https://<region>.digitaloceanspaces.com`. Wasabi: `https://s3.<region>.wasabisys.com`. Plain AWS S3: leave this blank." |
 | `region` | yes | no | "The region your bucket lives in — e.g. `us-east-1` for AWS, `auto` for Cloudflare R2, or your Space's region for DigitalOcean (e.g. `nyc3`). Needed to sign requests correctly even if your provider doesn't otherwise think in regions." |
 | `bucket` | yes | no | "The exact name of the bucket (DigitalOcean calls it a 'Space') to publish into. Case-sensitive. Tovu does not create this for you — create it in your provider's dashboard first." |
@@ -407,11 +426,10 @@ Three consumers read this one table — none re-author the prose:
    descriptions from the same table, so the model's own read of "what is a bucket" matches what the
    human sees in the form.
 
-Scope discipline: I am **not** proposing migrating the other four providers' `rules.ts` entries off
-client-hardcoding in this pass — that's pre-existing debt, not something this feature makes worse.
-Flagging it so it isn't mistaken for solved: **[NEEDS CLARIFICATION — recommended, not blocking]**
-whether to fold GitHub Pages/Vercel/Netlify/Cloudflare Pages into the same server-fetched guidance
-table later, so the whole tab has one consistency story instead of two.
+Scope discipline: this pass does **not** migrate the other four providers' `rules.ts` entries off
+client-hardcoding — **DECIDED by the owner, §7/§9: deferred**, not folded into this feature. That's
+pre-existing debt this feature does not make worse; backfilling it is real future work, sequenced
+after S3-compatible ships.
 
 ---
 
@@ -470,8 +488,25 @@ path is stubbed here." It uses the identical one-call-blocks-then-resumes patter
 
 ### 6c. The resolution
 
+**APPROVED (owner) as specified: `buildFormSurface` + no field for the secret anywhere in the tool's
+input schema.**
+
 **Yes — the MCP-UI form-surface mechanism is the right shape, with one design rule that makes it
 safe: the tool handler must never echo a submitted secret value back into its return value.**
+
+**This has to be read as structural, not conventional — say so plainly, because a convention is
+exactly the kind of thing a later change "simplifies" away.** The property that makes this design
+acceptable is not "the tool description asks the model not to handle the secret" (a convention,
+which a distracted or adversarial model could ignore) — it is that `EXECUTE_STATIC_PUBLISH_SCHEMA`-
+style input schemas (§6d) have **no parameter the secret could occupy at all**. There is no
+`secretAccessKey`/`accessKeyId` key in `deployment_propose_custom_provider_credential`'s JSON Schema
+for the model to fill in, correctly or otherwise — the model cannot supply, request, or leak the
+secret through this tool's call surface **even in principle**, independent of whether the model
+"means to." A future change that adds an *optional* secret-shaped parameter "for convenience, in case
+the user already pasted it in chat" would silently delete this property while looking like a harmless
+addition — that is the specific mistake this note exists to head off. If a real need to accept a
+user-pasted secret from chat ever arises, that is a different, new design decision requiring its own
+review, not an extension of this tool.
 
 The critical property, verified by tracing where the model can and cannot see data in this pipeline:
 - The rendered form's HTML/iframe content is withheld from the model entirely (§ above, verified
@@ -484,7 +519,7 @@ This is the exact discipline `deployment_execute_static_publish` already follows
 credential (never echoes `token`/`accountId`, only `{published, url, status}` — see
 `publish-agent-tools.ts:558-576`'s comment on why). Apply the identical rule to the new tool: after a
 confirmed submit, call the credential store's write function directly with the real values, then
-return only `{saved: true, providerId, label, connected: true}` — no field value, no partial value,
+return only `{saved: true, providerId, connected: true}` — no field value, no partial value,
 no masked-tail hint.
 
 **Why this does not violate the settings-write exclusion (§6a):** the model never supplies, decides,
@@ -506,13 +541,16 @@ so unprompted, not only inside the form the human sees after the tool has alread
 
 ```
 deployment_propose_custom_provider_credential
-  input: { protocol: "s3-compatible", label?: string, endpoint?: string, region?: string,
+  input: { protocol: "s3-compatible", endpoint?: string, region?: string,
            bucket?: string, publicUrl?: string }   // all optional, all non-secret, model-supplied
                                                       // pre-fill hints only — NO accessKeyId/
                                                       // secretAccessKey field exists in this schema,
                                                       // the same structural guarantee
                                                       // EXECUTE_STATIC_PUBLISH_SCHEMA gives the
-                                                      // existing token (publish-agent-tools.ts:174-178)
+                                                      // existing token (publish-agent-tools.ts:174-178).
+                                                      // No `label` either, per §9's resolution — the
+                                                      // model never proposes a label because the human
+                                                      // is never asked for one; see §4c.
   sideEffects: "mutates-durable-state"   // a confirmed submit does write a row
   authorization: { permission: "deployments.credentials.write" }   // NEW permission — narrower than
                                                                      // deployments.publish; proposing
@@ -534,7 +572,8 @@ Handler shape (mirrors `deployment_execute_static_publish`'s structure, `publish
    own guard (`publish-agent-tools.ts:501-506`).
 3. Open the exchange, build the form via `buildFormSurface` with `S3_COMPATIBLE_FIELD_GUIDANCE`
    (§5) mapped to `SurfaceField[]`, model-supplied args pre-filling `endpoint`/`region`/`bucket`/
-   `publicUrl`/`label` where given, `accessKeyId`/`secretAccessKey` always starting blank.
+   `publicUrl` where given, `accessKeyId`/`secretAccessKey` always starting blank. No label field is
+   rendered at all (§9, §4c).
 4. Park via `askOnce`.
 5. On a non-`"received"` answer (expired/abandoned) or a cancel: return the same
    `{saved: false, cancelled, reason}` shape family `deployment_execute_static_publish` already uses.
@@ -542,8 +581,10 @@ Handler shape (mirrors `deployment_execute_static_publish`'s structure, `publish
    attribute — `form.ts`'s own header notes it ships `novalidate` precisely because the browser's
    bubble UI is unusable in the surface's small iframe, so this handler is the actual enforcement
    point), call `createPublishCredential`/`updatePublishCredential`
-   (`publish-credentials/store.ts` — already exists, already does validate-then-seal-then-write),
-   return `{saved: true, providerId: "s3-compatible", label, connected: true}` only.
+   (`publish-credentials/store.ts` — already exists, already does validate-then-seal-then-write) with
+   `label: PUBLISH_CREDENTIAL_ROW_LABEL` (the same fixed constant `use-publish-credentials.hooks.ts:182`
+   already sends for the other four providers, imported from `rules.ts` — never a value the model or
+   the form supplied), return `{saved: true, providerId: "s3-compatible", connected: true}` only.
 
 Add `"deployment_propose_custom_provider_credential"` to `MCP_UI_REDEEMABLE_TOOL_IDS`
 (`mcp-ui-tool-calls.ts:37-74`), with a comment following the same "holds up the SAME shape" pattern
@@ -576,8 +617,17 @@ browse the Custom tab directly without going through chat gets it via the same `
 - ~~Bucket static-website auto-configuration~~ — **moved to §3a**, not deferred: the owner asked for
   this to be presented as a real choice rather than resolved silently one way, so it is no longer
   listed here as settled scope. See §3a for both options and their costs.
-- **Migrating the other four providers' guidance off client-hardcoded `rules.ts`** — recommended in
-  §5, not required for this feature.
+- **DECIDED (owner): migrating the other four providers' guidance off client-hardcoded `rules.ts`
+  stays deferred, not folded into this pass.** §5's `S3_COMPATIBLE_FIELD_GUIDANCE` table is built for
+  S3-compatible alone; `github-pages`/`vercel`/`netlify`/`cloudflare-pages` keep their existing
+  `PUBLISH_CREDENTIAL_PROVIDERS` hardcoding untouched. Reasoning (owner's own): refactoring four
+  *working* publish paths in service of one *unshipped* provider widens the blast radius of a design
+  that has never run end to end — [[project_tovu_deployment_model]] and this domain's own handoff
+  already name "the real publish has never run" as the feature's single biggest open risk; touching
+  four proven paths to serve a fifth, brand-new one compounds that risk rather than reducing it. If
+  the server-fetched-guidance pattern proves out in production for S3-compatible, backfilling the
+  other four is explicitly in scope as a **separate, later** piece of work — recorded here as a
+  deliberate sequencing choice, not an oversight this spec forgot to close.
 - **Object cleanup / delete-on-republish** — the four existing targets' own semantics around
   overwrite-vs-clean were not re-examined here; assume S3-compatible overwrites matching keys and
   leaves orphaned old keys in place for v1 (matches "no delete" being the safer default when nothing
@@ -585,50 +635,165 @@ browse the Custom tab directly without going through chat gets it via the same `
 
 ---
 
-## 8. Blocking pre-requisite: masked input does not exist in the MCP-UI form primitive
+## 8. Blocking pre-requisite: masked input, DECIDED — fix `@jini-ai/ui` first
 
-`SurfaceField`/`StringField` (`node_modules/@jini-ai/ui/dist/features/mcp-ui/surfaces/fields.d.ts`)
-has no `secret`/masked option, and `TextInputProps.inputType`
-(`.../surfaces/text-input.d.ts`) is `'text' | 'number'` only — verified by reading both files in
-full. Rendering `secretAccessKey` through this primitive today means it appears as **plain visible
-text** while the human types it.
+**DECIDED (owner): blocking.** The S3-compatible credential flow (§6d) is gated on this landing
+first — not shipped unmasked with a follow-up filed. Owner's reasoning, recorded so it is not
+re-litigated:
 
-That's a real regression against this product's own existing bar: `PublishCredentialRow`
-(`StaticSiteTab.tsx:723`) already renders the equivalent field as `type="password"` for the four
-built-in providers. Reaching the identical class of secret through a different entry point (chat vs.
-the tab directly) should not weaken how it's displayed.
+- It is a straight regression against the existing admin credential row, which already renders
+  `type="password"` for the equivalent field.
+- The owner screenshots this UI constantly — 38 loose PNGs were cleared out of the repo root the same
+  session this spec was written — so a plaintext secret field lands in screenshots and in any screen
+  share, not just a hypothetical shoulder-surfing risk inside a private tab.
+- `@jini-ai/ui` is the owner's own package (confirmed: `node_modules/@jini-ai/ui` is a symlink to
+  `/Users/la/Programming/Jini/packages/ui`, verified via `readlink`) and the change is small, so the
+  cost of doing it right first is low relative to the risk of shipping it wrong.
 
-**Recommendation: this is a required upstream addition, not deferred polish** — add
-`secret?: boolean` to `StringField`, rendered as `type="password"` in `renderTextInput`. This is a
-small, additive change to `@jini-ai/ui`'s surfaces module, not a redesign. I'm flagging it as
-blocking rather than deciding to ship it unmasked, because the owner may weigh the iframe's
-same-origin/private-session context differently than I do — **[NEEDS CLARIFICATION]** whether to (a)
-treat this as a hard blocker and land the `@jini-ai/ui` change first, or (b) accept unmasked entry for
-v1 with a follow-up filed.
+### 8a. The upstream change, specified against the real source (not the `.d.ts` alone)
+
+Confirmed on disk (the Jini monorepo is checked out locally, not just installed as a built
+dependency) — read directly, not inferred from the `dist/` shape:
+`/Users/la/Programming/Jini/packages/ui/src/features/mcp-ui/surfaces/{fields.ts,text-input.ts}`.
+
+**1. `TextInputProps` — `packages/ui/src/features/mcp-ui/surfaces/text-input.ts:11-31`**
+
+Add one optional prop:
+
+```ts
+export interface TextInputProps {
+  // ...existing fields unchanged...
+  /** Renders as `<input type="password">` — the value is never visible on screen, and browser
+   *  password managers may offer to remember it. Ignored when `inputType` is `'number'` (no such
+   *  thing as a masked number) and forces `multiline` off (no `<textarea type="password">` exists) —
+   *  same precedence `multiline`'s own doc comment already gives `inputType: 'number'`. */
+  readonly secret?: boolean;
+}
+```
+
+**2. `renderTextInput` — `text-input.ts:49-68`**
+
+The control-building branch currently reads (`text-input.ts:58-66`):
+
+```ts
+const isNumber = props.inputType === 'number';
+const control = props.multiline === true && !isNumber
+  ? `<textarea ...>`
+  : `<input class="mcpui-input" type="${isNumber ? 'number' : 'text'}"${common}` + ...
+```
+
+Change the `type` resolution to a small named helper rather than inlining a second ternary, and use
+it in both the `<input type="...">` construction and the `multiline` guard:
+
+```ts
+function resolveInputType(props: Pick<TextInputProps, 'inputType' | 'secret'>): 'text' | 'number' | 'password' {
+  if (props.inputType === 'number') return 'number';
+  return props.secret === true ? 'password' : 'text';
+}
+```
+
+`multiline` is currently allowed whenever `!isNumber` — that guard must also exclude `secret`, so
+`props.multiline === true && resolveInputType(props) === 'text'` becomes the textarea condition
+(a secret field always renders as `<input>`, never `<textarea>`, regardless of `multiline`).
+
+Also recommended, not required for the core gate: emit `autocomplete="off"` (or `"new-password"`)
+on the `<input>` when `secret` is true, mirroring what `PublishCredentialRow`'s own
+`type="password"` input already sets (`StaticSiteTab.tsx:726`, `autoComplete="off"`) — otherwise a
+browser's password manager may offer to save an S3 secret access key as a website login for this
+`ui://` surface's origin, which is a different and arguably worse exposure than the plaintext
+rendering this change fixes.
+
+**3. `StringField` — `packages/ui/src/features/mcp-ui/surfaces/fields.ts:32-38`**
+
+```ts
+export interface StringField extends SurfaceFieldBase {
+  readonly kind: 'string';
+  readonly value?: string;
+  readonly placeholder?: string;
+  readonly multiline?: boolean;
+  readonly rows?: number;
+  readonly secret?: boolean;   // NEW
+}
+```
+
+**4. `renderFieldControl`'s `'string'` case — `fields.ts:104-111`**
+
+Forward it with the same optional-spread pattern every other prop already uses in this function:
+
+```ts
+case 'string':
+  return renderTextInput({
+    ...base(field),
+    ...(field.value === undefined ? {} : { value: field.value }),
+    ...(field.placeholder === undefined ? {} : { placeholder: field.placeholder }),
+    ...(field.multiline === undefined ? {} : { multiline: field.multiline }),
+    ...(field.rows === undefined ? {} : { rows: field.rows }),
+    ...(field.secret === undefined ? {} : { secret: field.secret }),   // NEW
+  });
+```
+
+**5. No change needed to `FieldReadSpec`/`toFieldReadSpecs` (`fields.ts:152-168`).** Masking is a
+pure `type` attribute on the rendered `<input>` — the DOM's `form.elements[name].value` returns the
+same plain string regardless of `type="text"` vs `type="password"`, so the value-reading/coercion
+script `form.ts` generates from `FieldReadSpec` needs no awareness of `secret` at all. This is what
+keeps the change small: **4 files touched, 1 new optional prop end to end, zero change to the
+value-collection/submit path.**
+
+### 8b. How `deployment_propose_custom_provider_credential` declares it
+
+Once §8a lands, §6d's form build sets `secret: true` on exactly the two fields §4c marks secret:
+
+```ts
+fields: S3_COMPATIBLE_FIELD_GUIDANCE.map((f) => ({
+  kind: "string",
+  name: f.name,
+  label: f.label,
+  hint: f.hint,
+  required: f.required,
+  ...(f.secret ? { secret: true } : {}),
+  ...(prefill[f.name] !== undefined ? { value: prefill[f.name] } : {}),
+}))
+```
+
+`§5`'s `FieldGuidance.secret` (already specified with exactly this purpose — "drives masked
+rendering") is the single source for which fields get it; no second place decides this.
 
 ---
 
-## 9. Other `[NEEDS CLARIFICATION]` items
+## 9. `[NEEDS CLARIFICATION]` items — status
 
-- **§5**: fold the other four providers' guidance into the same server-fetched table now, or leave
-  as recommended-but-deferred debt? (Not blocking — my recommendation is defer.)
-- **§8**: masked-field gap — blocking or deferred with a follow-up? (My recommendation: blocking.)
+All three items this spec originally raised here are now **resolved by the owner**. One separate item
+raised later (§3a) remains genuinely open. Recorded as decided, not proposed, per the owner's
+instruction that resolved items should read as settled rather than re-litigable.
+
+- ~~Fold the other four providers' guidance into the same server-fetched table now, or leave
+  deferred?~~ — **RESOLVED, §7: DEFER.** S3-compatible only, for now. Owner's reasoning: refactoring
+  four working publish paths to serve one unshipped provider widens the blast radius of a design that
+  has never run end to end. Backfilling the other four is real, in-scope future work, not abandoned —
+  just sequenced after S3-compatible ships and the pattern proves out.
+- ~~Masked-field gap — blocking or deferred with a follow-up?~~ — **RESOLVED, §8: BLOCKING.** The
+  `@jini-ai/ui` change (§8a) lands before the S3-compatible credential flow ships, not after. Full
+  upstream-change spec (files, types, exact diffs) is in §8a.
 - ~~`aws4fetch` vs. hand-rolled SigV4~~ — **RESOLVED, §1**: owner decided `aws4fetch`, hand-rolled
   rejected on correctness-risk grounds. Also resolved: **§1a**, the AWS CLI is rejected outright, not
   a live option.
+- ~~Label field / multi-connection UX for S3-compatible~~ — **RESOLVED: NO.** Keep the flat
+  one-row-per-provider shape (`PublishCredentialRow`'s existing pattern), no label field, no
+  add/edit/list UX reintroduced for S3-compatible alone. Owner's reasoning: the label was killed
+  explicitly on 2026-08-15 ("why is there a label there? that's completely useless") and the flat
+  per-provider row (commit `9eaa935`) was a deliberate redesign, not an accident — introducing a
+  second UX pattern in the same tab for one provider would undo that redesign's own point.
+  **Consequence for §4c**: drop the `label` field from `S3CompatibleConnectionInput`/the form
+  entirely — it was speculative, matching the OLD 4-provider pattern this decision just re-confirmed
+  is dead. `is_default`-per-provider (`publish-credentials/types.ts:96-100`) still applies the same
+  way it does for the other four (auto-defaulted, never surfaced as a user-facing choice), not as a
+  named-multi-connection feature. If a real multi-bucket need appears later, the owner's framing is
+  explicit: revisit it for **all** providers at once, not carve out S3-compatible alone.
+
+**Still open — not resolved by this pass:**
 - **§3a**: whether Tovu configures bucket public-access/website-hosting, or the guidance walks the
-  user through it themselves — presented, not resolved, per the owner's explicit instruction. Blocks
-  finalizing §4c's field copy and §6d's tool description.
-- **Label field**: the existing 4-provider credential rows carry no user-facing label at all (the
-  2026-08-15 flatten redesign removed it — [[project_tovu_deployment_model]] handoff, "why is there a
-  label there? that's completely useless"). S3-compatible is different: unlike the 4 built-ins, a
-  workspace could plausibly want *more than one* S3-compatible connection (R2 for one project, B2 for
-  another) — the existing `is_default`-per-provider mechanism
-  (`publish-credentials/types.ts:96-100`) already supports multiple named rows per provider, it's
-  just unused by the flat 4-row UI. Does the Custom tab need the OLD add/edit/list-with-labels UX
-  the other four deliberately moved away from, specifically for this one provider? I lean yes (S3
-  genuinely has this multi-connection use case the other four don't), but this is an owner call, not
-  an architecture call.
+  user through it themselves. Presented as a choice per the owner's explicit instruction on this
+  point; blocks finalizing §4c's field copy and §6d's tool description until closed.
 
 ---
 
@@ -652,16 +817,21 @@ v1 with a follow-up filed.
 9. Admin: `AdminPublishCredentialProviderId` +1, a new `CustomProviderTab.tsx` (mirrors
    `StaticSiteTab.tsx`'s `PublishCredentialRow` pattern but fetches guidance over HTTP per §5 rather
    than hardcoding it), `Deployment.tsx` +1 tab entry.
-10. **Prerequisite or parallel track**: `@jini-ai/ui`'s `StringField`/`renderTextInput` masked-input
-    support (§8) — needed before `secretAccessKey` can render safely through the form surface.
-11. **Owner decision needed before coding starts**: §3a's bucket-vs-website-hosting choice. Everything
-    in (1)-(10) is unaffected by which way it resolves except the exact wording of §4c's field hints
-    and whether a "configure public access for me" step gets added to the propose-credential tool's
-    flow — but the guidance text can't be finalized without it.
+10. **DECIDED hard prerequisite, not a parallel-and-optional track**: `@jini-ai/ui`'s
+    `StringField`/`TextInputProps`/`renderTextInput` masked-input support (§8, full diff spec in
+    §8a — 4 files in `/Users/la/Programming/Jini/packages/ui/src/features/mcp-ui/surfaces/`). Gates
+    §6d's `secretAccessKey`/`accessKeyId` fields — do not wire the S3-compatible credential flow
+    against the unmasked primitive "temporarily."
+11. **The one remaining owner decision blocking final copy**: §3a's bucket-vs-website-hosting choice.
+    Everything in (1)-(10) is unaffected by which way it resolves except the exact wording of §4c's
+    two bracketed sentences and whether a "configure public access for me" step gets added to the
+    propose-credential tool's flow — but §4c's copy and §6d's tool description cannot be finalized
+    without it. This is now the single open item blocking a complete implementation dispatch; every
+    other question this spec raised is resolved (§1, §1a, §4a, §6c, §7, §8, §9).
 
 Parallel delivery: (1)-(5) [server domain types + target] can proceed independently of (6)-(8)
 [agent-guidance + tool wiring] once the `PublishProviderId` union lands, since everything downstream
 switches on that type and the compiler enforces completeness. (9) [admin UI] can start in parallel
-against the type contract alone, stubbing the HTTP guidance fetch. (10) is a dependency of (7)'s form
-build, not of anything else — it can run fully in parallel and land whenever ready, blocking only the
-final wiring of the secret fields.
+against the type contract alone, stubbing the HTTP guidance fetch. (10) [the `@jini-ai/ui` change] can
+run fully in parallel in the Jini repo and land whenever ready — it blocks only the final wiring of
+(7)'s secret fields, nothing else in this list.
