@@ -146,6 +146,23 @@ test("publish-site: a malformed trigger body 400s and never starts a run", async
   assert.equal((await idle.json()).status, "idle");
 });
 
+test("publish-site preview: netlify and cloudflare-pages are accepted targets (2026-08-15, all four Jini targets) — never 400 for a bare target with no other fields", async (t) => {
+  const deps: RouteDeps = { ...createRouteDeps() };
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  for (const target of ["netlify", "cloudflare-pages"]) {
+    const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}/preview?target=${target}`, { headers: { cookie } });
+    assert.equal(res.status, 200, `${target} preview must not 400`);
+    const body = await res.json();
+    assert.equal(body.valid, true);
+    assert.equal(body.basePath, null, `${target} must never carry a base path`);
+    // No credential source is configured in this test's env — this proves the route ACCEPTS the
+    // target and reports honestly, not that it fabricates a configured credential.
+    assert.equal(body.credentialsConfigured, false);
+  }
+});
+
 test("publish-site: trigger starts a real run (202), and — with no GITHUB_TOKEN configured — the poll settles quickly to an honest errored/NO_CREDENTIALS_CONFIGURED result, never touching a real GitHub/Vercel API", async (t) => {
   const deps: RouteDeps = { ...createRouteDeps() };
   const app = createApp(deps);
