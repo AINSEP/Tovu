@@ -131,6 +131,30 @@ const NO_INPUT_SCHEMA = {
   properties: {},
 } as const;
 
+/**
+ * Builds `deployment_get_static_publish_capabilities`'s per-provider `guidance` string — extracted
+ * from that handler's own `providers.map()` purely for readability (the three cases read as one
+ * flat decision this way rather than a nested ternary inline). `undefined` means "nothing to tell
+ * the human" (the provider is fully ready).
+ *
+ * @complexity O(1) — fixed string interpolation, no iteration.
+ * @overallScore 100
+ */
+function buildCapabilityGuidance(
+  providerId: string,
+  readiness: { configured: true } | { configured: false; reason: string },
+  verification: { ok: boolean; checkedAt: string; message: string } | undefined
+): string | undefined {
+  if (!readiness.configured) return readiness.reason;
+  if (verification === undefined) {
+    return `This ${providerId} credential is saved but has not been verified against ${providerId} yet — verify it in the Static Site tab before relying on it.`;
+  }
+  if (!verification.ok) {
+    return `The saved ${providerId} credential failed its last verification (checked ${verification.checkedAt}): ${verification.message} Update it in the Static Site tab.`;
+  }
+  return undefined;
+}
+
 /** Every provider this feature can publish to or save a credential for — the fixed iteration order
  *  `deployment_get_static_publish_capabilities` reports in. Sourced from `StaticPublishTargetId`'s own
  *  4-member union (`static-publish/types.ts`) rather than re-declared, so a fifth target added there
@@ -247,7 +271,7 @@ export const staticPublishAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "deployment_get_static_publish_capabilities",
     description:
-      "Reports live publish readiness for all five static-publish targets (github-pages, vercel, netlify, cloudflare-pages, s3-compatible) WITHOUT decrypting or exposing any credential: for each provider, whether it is ready to publish to right now, every named credential set saved for it (id, label, isDefault, createdAt, updatedAt — NEVER a token, ciphertext, or masked tail), and — for a provider that is NOT ready — a human-readable reason naming what is missing (e.g. no credential saved for this workspace, or a required field such as Cloudflare Pages' account id is not configured). Also reports this install's executionMode ('self-hosted-cli' or 'hosted-api-only'), which affects whether a server-environment-variable credential can ever be used as a fallback. Call this before telling a human what publishing would do, before calling deployment_execute_static_publish, or whenever asked something like 'can I publish, and to where'. Do NOT ask the user to paste an API token, access key, or any other secret into this chat, ever, for any reason — a value typed into chat is written into the conversation transcript, which is exactly what this workspace's encrypted credential store exists to avoid, and this tool has no way to accept one anyway (it takes no input). If a provider is not ready: for github-pages/vercel/netlify/cloudflare-pages, tell the human to add or fix that provider's credential themselves in the admin's Static Site tab (Deployment panel → Static Site → Publish), which saves it encrypted server-side and never shows it to you. For s3-compatible specifically, you can instead offer to help right here in chat — call deployment_propose_custom_provider_credential, which shows the human an editable form to fill in (you never see or handle the secret fields).",
+      "Reports live publish readiness for all five static-publish targets (github-pages, vercel, netlify, cloudflare-pages, s3-compatible) WITHOUT decrypting or exposing any credential: for each provider, whether it is ready to publish to right now (ready is true ONLY when a credential is saved AND it was last verified to actually work against the real provider — a saved-but-unverified or saved-but-failing credential is reported as NOT ready, distinctly from no credential at all), every named credential set saved for it (id, label, isDefault, createdAt, updatedAt — NEVER a token, ciphertext, or masked tail), the cached verification state (verified: true/false/null and verifiedAt — null means configured but never verified; this is a CACHED result from the last time a human verified it, possibly stale, never a live check made by this call), and — for a provider that is NOT ready — a human-readable reason naming what is missing or wrong (e.g. no credential saved for this workspace, a required field such as Cloudflare Pages' account id is not configured, the credential has never been verified yet, or it failed its last verification). Also reports this install's executionMode ('self-hosted-cli' or 'hosted-api-only'), which affects whether a server-environment-variable credential can ever be used as a fallback. Call this before telling a human what publishing would do, before calling deployment_execute_static_publish, or whenever asked something like 'can I publish, and to where'. Do NOT ask the user to paste an API token, access key, or any other secret into this chat, ever, for any reason — a value typed into chat is written into the conversation transcript, which is exactly what this workspace's encrypted credential store exists to avoid, and this tool has no way to accept one anyway (it takes no input). If a provider is not ready: for github-pages/vercel/netlify/cloudflare-pages, tell the human to add or fix that provider's credential themselves in the admin's Static Site tab (Deployment panel → Static Site → Publish), which saves it encrypted server-side and never shows it to you. For s3-compatible specifically, you can instead offer to help right here in chat — call deployment_propose_custom_provider_credential, which shows the human an editable form to fill in (you never see or handle the secret fields).",
     sideEffects: "none",
     authorization: { permission: "deployments.read" },
     inputSchema: NO_INPUT_SCHEMA,
@@ -690,11 +714,30 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
             }));
           const readiness = await credentialSource.isConfigured({ workspaceId: deps.workspaceId, target: providerId });
 
+          // Cached, non-decrypting read only — NEVER `verifyPublishCredential` from here (that
+          // decrypts and makes a real provider call; see `static-publish/verify.ts`'s own header
+          // for why this handler must never be its caller). `undefined` means "configured but never
+          // verified" — deliberately distinct from both `true` (last check passed) and `false`
+          // (last check failed), so this handler can report all three states honestly instead of
+          // collapsing "never checked" into either one.
+          const verification = readiness.configured ? deps.publishCredentialVerificationCache.get({ workspaceId: deps.workspaceId, target: providerId }) : undefined;
+          const verified = verification ? verification.ok : null;
+          // `ready` now means "will actually work," not merely "a credential is saved" — the fix for
+          // this defect (2026-08-16: a saved GitHub token GitHub rejected outright with 401 still
+          // reported `ready: true`). A credential that is configured but never verified, or that
+          // failed its last verification, is NOT ready — see this tool's own catalog description for
+          // the human-facing contract this enforces.
+          const ready = readiness.configured && verified === true;
+          const guidance = buildCapabilityGuidance(providerId, readiness, verification);
+
           return {
             providerId,
-            ready: readiness.configured,
+            ready,
+            credentialConfigured: readiness.configured,
+            verified,
+            verifiedAt: verification?.checkedAt ?? null,
             savedCredentials,
-            ...(readiness.configured ? {} : { guidance: readiness.reason }),
+            ...(guidance !== undefined ? { guidance } : {}),
           };
         })
       );

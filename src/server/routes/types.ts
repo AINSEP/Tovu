@@ -38,6 +38,7 @@ import type { WebhookSigner } from "../../integrations/signing";
 import type { SiteAssistantCredentialRepoPort } from "../../assistant/site-credential-store";
 import type { AdminExecutionCredentialRepoPort } from "../../assistant/execution-credential-store";
 import type { PublishCredentialSetRepoPort, PublishExecutionMode } from "../../features/deployments/publish-credentials";
+import type { PublishCredentialVerificationCache } from "../../features/deployments/static-publish";
 import type { SourceControlCredentialSetRepoPort } from "../../features/source-control";
 import type { ComposioConfigRepoPort } from "../../connectors/composio-config-store";
 import type { ComposioConnectors } from "../../connectors/composio-service";
@@ -655,6 +656,20 @@ export interface RouteDeps {
    * guidance without re-deriving it client-side.
    */
   publishExecutionMode: PublishExecutionMode;
+  /**
+   * 2026-08-16 — cached, non-secret provider-verification results for `publishCredentialSetRepo`'s
+   * (or the env-var fallback's) credentials, keyed by `(workspaceId, target)`. Fixes "ready means a
+   * row exists, not a working credential" (`deployments/static-publish/verify.ts`'s own header has
+   * the full incident/design trail): `deployment_get_static_publish_capabilities`
+   * (`publish-agent-tools.ts`) only ever calls `.get()` on this — a plain in-memory lookup, never a
+   * decrypt, never a network call, so a read tool stays fast and cannot leak a credential. Only
+   * `verifyPublishCredential` (called from `publish-credentials.ts`'s admin route, a human-gated
+   * write surface, never an agent tool) ever calls `.set()`/`.delete()`. ONE shared
+   * `InMemoryPublishCredentialVerificationCache` instance in both composition roots — same
+   * app-wide-singleton reasoning `siteAssistantSecretSealer` above already establishes, so a result
+   * cached from one request is visible to the next.
+   */
+  publishCredentialVerificationCache: PublishCredentialVerificationCache;
   /**
    * 2026-08-15 — the `source_control_credential_sets` repo backing the admin Source Control page's
    * connect/replace form (`routes/admin/system/source-control-credentials.ts`). Real

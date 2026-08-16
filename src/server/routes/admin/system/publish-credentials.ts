@@ -3,6 +3,7 @@ import type { Express, Request, Response } from "express";
 import {
   createPublishCredential,
   deletePublishCredential,
+  describeCredential,
   listPublishCredentials,
   PublishCredentialDuplicateLabelError,
   PublishCredentialNotFoundError,
@@ -11,6 +12,7 @@ import {
   updatePublishCredential,
   type PublishCredentialSummary,
 } from "#src/features/deployments/publish-credentials/index";
+import { verifyPublishCredentialById, type PublishCredentialVerificationResult } from "#src/features/deployments/static-publish/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 
@@ -31,6 +33,15 @@ import type { RouteDeps } from "#src/server/routes/types";
  * sensitive (which external accounts this workspace can publish to), so this gets the same
  * single-permission gate as the fact of a live publish, not the softer `system.read` the state-less
  * `/publish/preview` route uses.
+ *
+ * 2026-08-16 — this is now the ONE place `verifyPublishCredential` (`static-publish/verify.ts`) is
+ * ever called from a human action, per that module's own "never agent-facing" contract: `POST`/`PUT`
+ * verify the just-saved connection best-effort (awaited, included in the response — the "did what I
+ * just typed work" moment) without gating the save itself on the outcome (a rejected credential can
+ * still be saved and fixed later — this route only reports what it found, it does not decide the
+ * save is invalid because the provider disagrees), and a new `POST .../:id/verify` lets a human
+ * re-check a stale or never-verified result without re-saving. Both write ONLY the cached,
+ * non-secret `{ok, message, checkedAt}` result — never anything that could leak a credential value.
  */
 export type AdminPublishCredentialsDeps = RouteDeps;
 
@@ -68,6 +79,19 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
     clock: deps.clock,
     idGen: deps.idGen,
   };
+  /** Verifies ONE specific row (the one this route just touched) against its real provider, best-
+   *  effort — never throws (see `verifyPublishCredentialById`'s own "never throws" contract,
+   *  inherited from every per-provider checker), so a transient verification failure can never turn
+   *  a successful save into a 500. Returns `null` only if the row vanished between the write this
+   *  handler just performed and this call — treated the same as "nothing to report" by every caller
+   *  below, never surfaced as an error for what was otherwise a successful save. */
+  async function verifyAfterSave(id: string): Promise<PublishCredentialVerificationResult | undefined> {
+    const result = await verifyPublishCredentialById(
+      { repo: deps.publishCredentialSetRepo, sealer: deps.siteAssistantSecretSealer, cache: deps.publishCredentialVerificationCache, clock: deps.clock },
+      { workspaceId: deps.workspaceId, id }
+    );
+    return result ?? undefined;
+  }
 
   /** Shared workspace-path-param + `system.publish` authorization check every verb below performs
    *  first — same two-step `publish-site.ts` already repeats per-route; extracted here since this
@@ -112,7 +136,12 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
         connection: body.connection,
         isDefault: body.isDefault,
       });
-      res.status(201).json({ credential });
+      // Only when `connection` was actually supplied — matches `updatePublishCredential`'s own
+      // "connection omitted => nothing changed to verify" reasoning below. `createPublishCredential`
+      // always requires a connection, so this is always true here; kept as an explicit check (rather
+      // than an unconditional call) so both handlers read the same way.
+      const verification = body.connection !== undefined ? await verifyAfterSave(credential.id) : undefined;
+      res.status(201).json({ credential, ...(verification ? { verification } : {}) });
     } catch (err) {
       sendStoreError(res, err);
     }
@@ -129,10 +158,25 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
         ...(body.connection !== undefined ? { connection: body.connection } : {}),
         ...(body.isDefault !== undefined ? { isDefault: body.isDefault } : {}),
       });
-      res.status(200).json({ credential });
+      // A label-only/isDefault-only rename verifies nothing new — the connection (and therefore
+      // whatever a previous verification already found) is unchanged, so re-checking here would
+      // just repeat the same network call for no new information.
+      const verification = body.connection !== undefined ? await verifyAfterSave(credential.id) : undefined;
+      res.status(200).json({ credential, ...(verification ? { verification } : {}) });
     } catch (err) {
       sendStoreError(res, err);
     }
+  });
+
+  app.post(`${BASE_PATH}/:id/verify`, async (req, res) => {
+    if (await rejectUnlessAuthorized(req, res)) return;
+    const existing = await describeCredential(readDeps, { workspaceId: deps.workspaceId, id: req.params.id });
+    if (!existing) {
+      res.status(404).json({ error: "NOT_FOUND", detail: `no publish credential '${req.params.id}' in this workspace` });
+      return;
+    }
+    const verification = await verifyAfterSave(existing.id);
+    res.status(200).json({ verification });
   });
 
   app.delete(`${BASE_PATH}/:id`, async (req, res) => {
