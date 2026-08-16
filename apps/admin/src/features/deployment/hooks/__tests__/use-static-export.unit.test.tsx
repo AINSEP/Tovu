@@ -135,6 +135,50 @@ describe("useStaticExport — trigger", () => {
     expect(result.current.run).toEqual(IDLE_RUN);
     expect(result.current.triggering).toBe(false);
   });
+
+  it("REGRESSION (C1): a delayed initial status GET must not overwrite a run started locally by trigger() and kill polling", async () => {
+    // The bootstrap GET (`useFetchQuery`'s own read) is left pending — `resolveInitialStatus` is
+    // captured only on its FIRST call so a later poll call (irrelevant here, since we never advance
+    // timers) doesn't clobber it.
+    let resolveInitialStatus!: (value: AdminExportRunSnapshot) => void;
+    let initialCalls = 0;
+    const getSiteExportStatus = vi.fn().mockImplementation(() => {
+      initialCalls += 1;
+      if (initialCalls === 1) return new Promise<AdminExportRunSnapshot>((resolve) => (resolveInitialStatus = resolve));
+      return Promise.resolve(IDLE_RUN);
+    });
+    const runningRun: AdminExportRunSnapshot = { status: "running", startedAtIso: "t0", finishedAtIso: null, outputDir: "/infra/export" };
+    const triggerSiteExport = vi.fn().mockResolvedValue(runningRun);
+    const port = createFakeStaticExportPort(IDLE_RUN, { getSiteExportStatus, triggerSiteExport });
+
+    const { result } = renderHook(() => useStaticExport(port, fakeT, fakeLocale), { wrapper });
+
+    // The bootstrap read is still in flight — nothing has seeded `run` yet.
+    expect(result.current.run).toBeUndefined();
+
+    // The operator clicks Build before that slow initial read ever comes back.
+    await act(async () => {
+      await result.current.trigger();
+    });
+    expect(result.current.run).toEqual(runningRun);
+    expect(result.current.isRunning).toBe(true);
+
+    // NOW the delayed bootstrap GET finally resolves, reporting stale "idle" state from before the
+    // click. Flush the macrotask `useFetchQuery`'s underlying TanStack notification uses (setTimeout(0)
+    // — `await Promise.resolve()` would NOT flush this, see this repo's own fetch-query migration
+    // notes) so the seed effect gets its chance to run (or, with the fix, correctly decline to).
+    await act(async () => {
+      resolveInitialStatus(IDLE_RUN);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    // The freshly-triggered running run must survive untouched, and polling must still be considered
+    // active — pre-fix, the delayed bootstrap read overwrites `run` back to IDLE_RUN here and
+    // `isRunning` flips false, even though the server-side export is still actually running.
+    expect(result.current.run).toEqual(runningRun);
+    expect(result.current.isRunning).toBe(true);
+  });
 });
 
 describe("useStaticExport — poll loop", () => {
@@ -195,5 +239,45 @@ describe("useStaticExport — poll loop", () => {
     });
     expect(getSiteExportStatus.mock.calls.length).toBeGreaterThanOrEqual(3);
     expect(result.current.isRunning).toBe(true);
+  });
+
+  it("REGRESSION (C2): permanent poll failures are bounded, surfaced, and re-enable the Build button — not retried forever behind a stuck spinner", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const runningRun: AdminExportRunSnapshot = { status: "running", startedAtIso: "t0", finishedAtIso: null, outputDir: "/infra/export" };
+    // The bootstrap read succeeds once (seeding `isRunning: true`, e.g. a reload mid-export); every
+    // poll after that fails permanently — the local-dev `tsx watch` restart scenario the audit
+    // finding names, made permanent so the bound has to actually fire rather than recover.
+    const getSiteExportStatus = vi.fn().mockResolvedValueOnce(runningRun).mockRejectedValue(new Error("ECONNREFUSED"));
+    const port = createFakeStaticExportPort(runningRun, { getSiteExportStatus });
+
+    const { result } = renderHook(() => useStaticExport(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.isRunning).toBe(true));
+
+    // Three consecutive failed polls — the bound this fix introduces.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1500);
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1500);
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1500);
+    });
+
+    // The bound must have fired: an actionable error, the button un-disabled, and — proving `run`
+    // itself was never touched or faked to force this, only a separate gate — the run's own status
+    // is still exactly what the last successful read reported.
+    expect(result.current.pollError).toContain("Lost track of this export's status");
+    expect(result.current.pollError).toContain("ECONNREFUSED");
+    expect(result.current.isRunning).toBe(false);
+    expect(result.current.run?.status).toBe("running");
+
+    // And the loop must have actually STOPPED, not just be reporting an error while still polling —
+    // advancing well past several more intervals must not produce any further calls.
+    const callsAtBound = getSiteExportStatus.mock.calls.length;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(6000);
+    });
+    expect(getSiteExportStatus.mock.calls.length).toBe(callsAtBound);
   });
 });
