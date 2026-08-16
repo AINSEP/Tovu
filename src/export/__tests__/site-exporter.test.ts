@@ -164,9 +164,20 @@ test("exportSite: reports theme files present on disk but never rendered or craw
   );
   assert.ok(report.unreferencedThemeFiles.includes("theme.json"), "the manifest file itself is never independently fetched");
 
+  // The seeded "about" post shares the theme's "about" slug, and since the slug-collision tri-state
+  // default flipped to "post wins" (`route-manifest.ts:154`, `pages.ts:780`), the theme's own
+  // `pages/about.html` is never rendered as a route for this fixture — it is genuinely unreferenced,
+  // not a false positive, and must be named here rather than silently absent.
+  assert.ok(
+    report.unreferencedThemeFiles.includes("pages/about.html"),
+    "the theme's shadowed 'about' page is never rendered while the colliding post wins by default — must be reported unreferenced"
+  );
+
   // Files this export DID account for — real pages, real assets — must never appear in the same
-  // list, or the warning would be noise instead of signal.
-  for (const shouldNotAppear of ["pages/about.html", "pages/index.html", "pages/404.html", "css/styles.css", "js/main.js"]) {
+  // list, or the warning would be noise instead of signal. "pricing" has no colliding post in this
+  // fixture (see route-manifest.test.ts's own use of it as the canonical un-shadowed theme page), so
+  // it is the one still genuinely rendered from the theme.
+  for (const shouldNotAppear of ["pages/pricing.html", "pages/index.html", "pages/404.html", "css/styles.css", "js/main.js"]) {
     assert.equal(
       report.unreferencedThemeFiles.includes(shouldNotAppear),
       false,
