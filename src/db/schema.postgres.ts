@@ -9,7 +9,7 @@
  * declarations, and PostgreSQL's tsvector/GIN equivalent is hand-authored. See the generator's
  * module doc.
  *
- * Tables: 74
+ * Tables: 76
  */
 import { sql } from "drizzle-orm";
 import { bigint, boolean, check, foreignKey, index, pgTable, primaryKey, text, uniqueIndex } from "drizzle-orm/pg-core";
@@ -837,6 +837,24 @@ export const principals = pgTable("principals", {
   createdAt: text("created_at").notNull(),
 });
 
+export const publishCredentialSets = pgTable("publish_credential_sets", {
+  id: text("id").notNull(),
+  workspaceId: text("workspace_id").notNull(),
+  providerId: text("provider_id").notNull(),
+  label: text("label").notNull(),
+  sealedKeyId: text("sealed_key_id").notNull(),
+  sealedCiphertext: text("sealed_ciphertext").notNull(),
+  sealedNonce: text("sealed_nonce").notNull(),
+  sealedAlg: text("sealed_alg").notNull(),
+  isDefault: boolean("is_default").notNull().default(false),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+}, (t) => [
+    primaryKey({ columns: [t.workspaceId, t.id] }),
+    foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("cascade"),
+    uniqueIndex("publish_credential_sets_workspace_provider_label_unique").on(t.workspaceId, t.providerId, t.label),
+  ]);
+
 export const redirectHits = pgTable("redirect_hits", {
   redirectId: text("redirect_id").primaryKey(),
   workspaceId: text("workspace_id").notNull(),
@@ -1030,6 +1048,24 @@ export const siteAssistantCredentials = pgTable("site_assistant_credentials", {
   updatedAt: text("updated_at").notNull(),
 }, (t) => [
     check("site_assistant_credentials_sealed_shape", sql`(sealed_key_id IS NULL AND sealed_ciphertext IS NULL AND sealed_nonce IS NULL AND sealed_alg IS NULL AND masked IS NULL) OR (sealed_key_id IS NOT NULL AND sealed_ciphertext IS NOT NULL AND sealed_nonce IS NOT NULL AND sealed_alg IS NOT NULL AND masked IS NOT NULL)`),
+  ]);
+
+export const sourceControlCredentialSets = pgTable("source_control_credential_sets", {
+  id: text("id").notNull(),
+  workspaceId: text("workspace_id").notNull(),
+  providerId: text("provider_id").notNull(),
+  label: text("label").notNull(),
+  sealedKeyId: text("sealed_key_id").notNull(),
+  sealedCiphertext: text("sealed_ciphertext").notNull(),
+  sealedNonce: text("sealed_nonce").notNull(),
+  sealedAlg: text("sealed_alg").notNull(),
+  isDefault: boolean("is_default").notNull().default(false),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+}, (t) => [
+    primaryKey({ columns: [t.workspaceId, t.id] }),
+    foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("cascade"),
+    uniqueIndex("source_control_credential_sets_workspace_provider_label_unique").on(t.workspaceId, t.providerId, t.label),
   ]);
 
 export const taxonomies = pgTable("taxonomies", {

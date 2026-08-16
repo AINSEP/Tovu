@@ -38,6 +38,7 @@ import type { WebhookSigner } from "../../integrations/signing";
 import type { SiteAssistantCredentialRepoPort } from "../../assistant/site-credential-store";
 import type { AdminExecutionCredentialRepoPort } from "../../assistant/execution-credential-store";
 import type { PublishCredentialSetRepoPort, PublishExecutionMode } from "../../features/deployments/publish-credentials";
+import type { SourceControlCredentialSetRepoPort } from "../../features/source-control";
 import type { ComposioConfigRepoPort } from "../../connectors/composio-config-store";
 import type { ComposioConnectors } from "../../connectors/composio-service";
 import type { MediaProviderCredentialRepoPort } from "../../media/provider-credential-store";
@@ -654,6 +655,18 @@ export interface RouteDeps {
    * guidance without re-deriving it client-side.
    */
   publishExecutionMode: PublishExecutionMode;
+  /**
+   * 2026-08-15 — the `source_control_credential_sets` repo backing the admin Source Control page's
+   * connect/replace form (`routes/admin/system/source-control-credentials.ts`). Real
+   * `SqliteSourceControlCredentialSetRepo` in `server/deps.ts`; `InMemorySourceControlCredentialSetRepo`
+   * in `server/app.ts`'s hermetic composition, same rule-of-two every other repo here follows. Sealed
+   * via the SAME shared `siteAssistantSecretSealer`/`siteAssistantSecretKeyring` instances above — one
+   * sealing capability app-wide, same reasoning `publishCredentialSetRepo` already establishes. A
+   * deliberately SEPARATE table from `publishCredentialSetRepo` above, not a widened
+   * `PublishProviderId` union — see `src/db/schema.ts`'s `sourceControlCredentialSets` doc comment for
+   * why.
+   */
+  sourceControlCredentialSetRepo: SourceControlCredentialSetRepoPort;
 }
 
 export type RouteRegistrar = (app: Express, deps: RouteDeps) => void;

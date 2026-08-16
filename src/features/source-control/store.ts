@@ -1,0 +1,345 @@
+import type { ClockPort, ISODateTime, UUID } from "@jini-ai/cms/core";
+
+import type { KeyringPort, SecretSealerPort } from "../../integrations/ports";
+import { buildSourceControlCredentialAad } from "./aad";
+import type {
+  SourceControlConnectionInput,
+  SourceControlCredentialSetRecord,
+  SourceControlCredentialSetRepoPort,
+  SourceControlCredentialSummary,
+  SourceControlProviderId,
+} from "./types";
+
+/**
+ * @file Validate-then-seal-then-write CRUD over `source_control_credential_sets`, structurally
+ * mirroring `features/deployments/publish-credentials/store.ts` — see that file's own header for
+ * the design this one copies. One deliberate divergence: there is no `resolveForX`/decrypt function
+ * here. This feature connects an identity only (no commit history, sync, or git operation reads it
+ * back yet — see `types.ts`'s own header), so nothing in this codebase needs the plaintext
+ * `SourceControlConnectionInput` back out of a sealed row today. Adding a decrypt path with no
+ * caller would be dead code; the day a git-operating feature needs one, it can be added the same
+ * way `resolveForPublish`/`resolveDefaultForPublish` were added to the publish-credentials sibling,
+ * against a real caller.
+ *
+ * {@link describeCredential}/{@link listSourceControlCredentials} — read model only, never touch
+ * `sealer`/`keyring` at all, so neither can fail on a misconfigured master secret.
+ *
+ * {@link createSourceControlCredential}/{@link updateSourceControlCredential}/
+ * {@link deleteSourceControlCredential} — validate-then-write. `connection`, when supplied, is
+ * ALWAYS resealed as a fresh ciphertext (never a re-wrap of the old one) under a fresh AAD bound to
+ * that row's own `(workspaceId, providerId, id)` — see `./aad.ts`'s `buildSourceControlCredentialAad`.
+ *
+ * `isDefault` invariant: a provider's first-ever saved connection auto-defaults; `isDefault: true`
+ * on create/update always wins; omitted/`false` never removes the CURRENT default without a
+ * replacement — same contract `publish-credentials/store.ts` documents for its own write path.
+ */
+
+const MAX_LABEL_LENGTH = 200;
+const PROVIDER_IDS: ReadonlySet<SourceControlProviderId> = new Set(["github", "gitlab", "bitbucket"]);
+
+/** Type-predicate wrapper around `PROVIDER_IDS.has()` — `Set<T>.has()` alone does not narrow its
+ *  argument's static type, so `validateConnection` below would otherwise see `providerId` as a
+ *  plain `string` even after the runtime membership check. */
+function isSourceControlProviderId(value: string): value is SourceControlProviderId {
+  return PROVIDER_IDS.has(value as SourceControlProviderId);
+}
+
+export class SourceControlCredentialValidationError extends Error {}
+
+/** A `(workspaceId, providerId, label)` collision — the route maps this to `409 DUPLICATE_LABEL`. */
+export class SourceControlCredentialDuplicateLabelError extends Error {}
+
+/** Thrown when `sealer.seal()`/`keyring.activeKey()` fails while writing a connection — the
+ *  realistic cause is a missing master secret (`TOVU_INTEGRATIONS_ROOT_KEY`), same fail-closed
+ *  contract `PublishCredentialSecretStoreUnconfiguredError` documents for the sibling table. */
+export class SourceControlCredentialSecretStoreUnconfiguredError extends Error {}
+
+export class SourceControlCredentialNotFoundError extends Error {}
+
+function toSummary(record: SourceControlCredentialSetRecord): SourceControlCredentialSummary {
+  return {
+    id: record.id,
+    providerId: record.providerId,
+    label: record.label,
+    configured: true,
+    isDefault: record.isDefault,
+    createdAt: record.createdAt,
+    updatedAt: record.updatedAt,
+  };
+}
+
+export interface SourceControlCredentialReadDeps {
+  repo: SourceControlCredentialSetRepoPort;
+}
+
+/**
+ * The read model for ONE credential set. Pure DB read — no sealer, no keyring, cannot fail on a
+ * misconfigured master secret. Returns `null` if no row exists for `(workspaceId, id)` (not an
+ * error — the caller decides whether that is a 404).
+ *
+ * @complexity O(1) — one `findById` lookup.
+ */
+export async function describeCredential(
+  deps: SourceControlCredentialReadDeps,
+  input: { workspaceId: UUID; id: UUID }
+): Promise<SourceControlCredentialSummary | null> {
+  const record = await deps.repo.findById(input);
+  return record ? toSummary(record) : null;
+}
+
+/**
+ * The read model for EVERY credential set a workspace has saved — what
+ * `GET .../source-control/credentials` returns. Same "never decrypts" contract as
+ * {@link describeCredential}.
+ *
+ * @complexity O(n) in the workspace's own (small) credential-set count. One repo read, one array
+ *   map, no per-row I/O.
+ */
+export async function listSourceControlCredentials(
+  deps: SourceControlCredentialReadDeps,
+  input: { workspaceId: UUID }
+): Promise<SourceControlCredentialSummary[]> {
+  const records = await deps.repo.listByWorkspace(input);
+  return records.map(toSummary);
+}
+
+export interface SourceControlCredentialWriteDeps extends SourceControlCredentialReadDeps {
+  sealer: SecretSealerPort;
+  keyring: KeyringPort;
+  clock: ClockPort;
+  idGen: { newId(): string };
+}
+
+/** Narrows and validates a caller-supplied `label`. Never throws a raw `TypeError` — every
+ *  rejection is a {@link SourceControlCredentialValidationError} the route layer can map to its own
+ *  `400`. */
+function validateLabel(raw: unknown): string {
+  if (typeof raw !== "string" || raw.trim() === "") {
+    throw new SourceControlCredentialValidationError("label must be a non-empty string");
+  }
+  if (raw.length > MAX_LABEL_LENGTH) {
+    throw new SourceControlCredentialValidationError(`label must be ${MAX_LABEL_LENGTH} characters or fewer`);
+  }
+  return raw;
+}
+
+function requireNonEmptyString(raw: unknown, field: string, providerId: string): string {
+  if (typeof raw !== "string" || raw.trim() === "") {
+    throw new SourceControlCredentialValidationError(`'${field}' (non-empty string) is required for provider '${providerId}'`);
+  }
+  return raw;
+}
+
+/** Narrows a caller-supplied `isDefault`. `undefined` means "no default change requested"; any
+ *  other non-boolean value is rejected rather than coerced. */
+function optionalBoolean(raw: unknown, field: string): boolean | undefined {
+  if (raw === undefined) return undefined;
+  if (typeof raw !== "boolean") {
+    throw new SourceControlCredentialValidationError(`'${field}' must be a boolean when provided`);
+  }
+  return raw;
+}
+
+/**
+ * Validates a caller-supplied `connection` against its own provider's required shape. Never throws
+ * a raw shape error — every rejection is a {@link SourceControlCredentialValidationError}.
+ *
+ * @complexity O(1) — fixed-shape field reads, no iteration.
+ */
+function validateConnection(raw: unknown): SourceControlConnectionInput {
+  if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
+    throw new SourceControlCredentialValidationError("connection must be an object");
+  }
+  const value = raw as Record<string, unknown>;
+  const providerId = value.providerId;
+  if (typeof providerId !== "string" || !isSourceControlProviderId(providerId)) {
+    throw new SourceControlCredentialValidationError(`connection.providerId must be one of: ${[...PROVIDER_IDS].join(", ")}`);
+  }
+
+  const token = requireNonEmptyString(value.token, "token", providerId);
+  if (providerId !== "bitbucket") return { providerId, token };
+
+  // Bitbucket authenticates the (token, username) pair, not the token alone — see `types.ts`'s
+  // `BitbucketSourceControlConnectionInput` doc.
+  const username = requireNonEmptyString(value.username, "username", providerId);
+  return { providerId, token, username };
+}
+
+/** Wraps `sealer.seal()`/`keyring.activeKey()` failure into the fail-closed
+ *  {@link SourceControlCredentialSecretStoreUnconfiguredError} contract — never falls through to a
+ *  plaintext write. */
+async function sealConnection(
+  deps: SourceControlCredentialWriteDeps,
+  input: { workspaceId: UUID; providerId: SourceControlProviderId; id: UUID; connection: SourceControlConnectionInput }
+) {
+  try {
+    const activeKey = await deps.keyring.activeKey();
+    const aad = buildSourceControlCredentialAad({ workspaceId: input.workspaceId, providerId: input.providerId, id: input.id });
+    return await deps.sealer.seal({ plaintext: JSON.stringify(input.connection), key: activeKey, aad });
+  } catch (err) {
+    throw new SourceControlCredentialSecretStoreUnconfiguredError(
+      `source control credential secret store is unconfigured: ${err instanceof Error ? err.message : String(err)}`
+    );
+  }
+}
+
+/** True iff `err` is the underlying SQLite driver's "UNIQUE constraint failed" error — same
+ *  detection shape `publish-credentials/store.ts`'s own `isUniqueLabelViolation` uses (kept local
+ *  here rather than imported cross-feature — same repo-wide convention `forms/repo.sqlite.ts`/
+ *  `integrations/repo.sqlite.ts`/`media-repo.sqlite.ts` each already follow for this identical,
+ *  tiny, table-agnostic check). */
+export function isUniqueLabelViolation(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  const code = (err as { code?: string }).code;
+  return code === "SQLITE_CONSTRAINT_UNIQUE" || err.message.includes("UNIQUE constraint failed");
+}
+
+export interface CreateSourceControlCredentialInput {
+  workspaceId: UUID;
+  label: unknown;
+  connection: unknown;
+  /** `true` makes this the provider's default connection. Omitted/`false` still auto-defaults if
+   *  this turns out to be the provider's FIRST saved connection — see {@link decideCreateDefault}. */
+  isDefault?: unknown;
+}
+
+/**
+ * Decides whether a newly-created row should be the group's default: always `true` for a
+ * provider's first-ever saved connection (a saved connection that can never resolve because
+ * nothing is marked default would be a silently-broken feature, not a safe default), otherwise
+ * exactly the caller's own request.
+ *
+ * @complexity O(1) — one length check.
+ */
+function decideCreateDefault(existingForProvider: readonly unknown[], requested: boolean | undefined): boolean {
+  return existingForProvider.length === 0 || requested === true;
+}
+
+/**
+ * Validates, seals, and inserts a new credential set. `id` is minted here (`deps.idGen`), not
+ * caller-supplied.
+ *
+ * @throws {SourceControlCredentialValidationError} `label`/`connection`/`isDefault` fails shape
+ *   validation.
+ * @throws {SourceControlCredentialDuplicateLabelError} `(workspaceId, providerId, label)` already
+ *   exists.
+ * @throws {SourceControlCredentialSecretStoreUnconfiguredError} The master secret is unavailable.
+ * @complexity O(n) in the provider's own (small) existing-connection count, to decide default
+ *   auto-assignment, plus one keyring derivation, one seal, and one insert (which may itself throw
+ *   on the UNIQUE index, translated here rather than propagated raw).
+ */
+export async function createSourceControlCredential(
+  deps: SourceControlCredentialWriteDeps,
+  input: CreateSourceControlCredentialInput
+): Promise<SourceControlCredentialSummary> {
+  const label = validateLabel(input.label);
+  const connection = validateConnection(input.connection);
+  const requestedDefault = optionalBoolean(input.isDefault, "isDefault");
+  const id = deps.idGen.newId();
+  const now = deps.clock.nowIso();
+
+  const existingForProvider = await deps.repo.listByProvider({ workspaceId: input.workspaceId, providerId: connection.providerId });
+  const isDefault = decideCreateDefault(existingForProvider, requestedDefault);
+
+  const sealed = await sealConnection(deps, { workspaceId: input.workspaceId, providerId: connection.providerId, id, connection });
+  const record: SourceControlCredentialSetRecord = {
+    workspaceId: input.workspaceId,
+    id,
+    providerId: connection.providerId,
+    label,
+    sealed,
+    isDefault,
+    createdAt: now,
+    updatedAt: now,
+  };
+
+  try {
+    await deps.repo.insert(record);
+  } catch (err) {
+    if (isUniqueLabelViolation(err)) {
+      throw new SourceControlCredentialDuplicateLabelError(`a '${connection.providerId}' credential labeled '${label}' already exists in this workspace`);
+    }
+    throw err;
+  }
+  return toSummary(record);
+}
+
+export interface UpdateSourceControlCredentialInput {
+  workspaceId: UUID;
+  id: UUID;
+  /** Omitted = leave the label unchanged. */
+  label?: unknown;
+  /** Omitted = leave the stored connection (and its provider) untouched. */
+  connection?: unknown;
+  /** `true` makes this the default connection for its (possibly new) provider, clearing any
+   *  previous default in the same repo call. Omitted/`false` leaves default status UNCHANGED. */
+  isDefault?: unknown;
+}
+
+/**
+ * Validate-then-write for an existing credential set.
+ *
+ * @throws {SourceControlCredentialNotFoundError} No row exists for `(workspaceId, id)`.
+ * @throws {SourceControlCredentialValidationError} A supplied `label`/`connection`/`isDefault`
+ *   fails validation.
+ * @throws {SourceControlCredentialDuplicateLabelError} The (possibly renamed) `(providerId, label)`
+ *   collides with a different row.
+ * @throws {SourceControlCredentialSecretStoreUnconfiguredError} A new `connection` was supplied but
+ *   the master secret is unavailable.
+ * @complexity O(1) — one read, at most one seal, one update.
+ */
+export async function updateSourceControlCredential(
+  deps: SourceControlCredentialWriteDeps,
+  input: UpdateSourceControlCredentialInput
+): Promise<SourceControlCredentialSummary> {
+  const existing = await deps.repo.findById({ workspaceId: input.workspaceId, id: input.id });
+  if (!existing) {
+    throw new SourceControlCredentialNotFoundError(`no source control credential '${input.id}' in this workspace`);
+  }
+
+  const label = input.label !== undefined ? validateLabel(input.label) : existing.label;
+  const requestedDefault = optionalBoolean(input.isDefault, "isDefault");
+  const now: ISODateTime = deps.clock.nowIso();
+
+  let providerId = existing.providerId;
+  let sealed = existing.sealed;
+  if (input.connection !== undefined) {
+    const connection = validateConnection(input.connection);
+    providerId = connection.providerId;
+    sealed = await sealConnection(deps, { workspaceId: input.workspaceId, providerId, id: input.id, connection });
+  }
+
+  const record: SourceControlCredentialSetRecord = {
+    workspaceId: input.workspaceId,
+    id: input.id,
+    providerId,
+    label,
+    sealed,
+    isDefault: requestedDefault === true ? true : existing.isDefault,
+    createdAt: existing.createdAt,
+    updatedAt: now,
+  };
+
+  try {
+    await deps.repo.update(record);
+  } catch (err) {
+    if (isUniqueLabelViolation(err)) {
+      throw new SourceControlCredentialDuplicateLabelError(`a '${providerId}' credential labeled '${label}' already exists in this workspace`);
+    }
+    throw err;
+  }
+  return toSummary(record);
+}
+
+/**
+ * Deletes a credential set. No-op (not an error) if no row exists for `(workspaceId, id)` — matches
+ * `SourceControlCredentialSetRepoPort.delete`'s own idempotent contract and this feature's `DELETE`
+ * route's documented 204-always behavior. If the deleted row was its provider's default,
+ * `SourceControlCredentialSetRepoPort.delete` itself promotes the group's next candidate.
+ *
+ * @complexity O(1) at this layer (the repo's own promotion work is O(n) in the small provider
+ *   group).
+ */
+export async function deleteSourceControlCredential(deps: SourceControlCredentialReadDeps, input: { workspaceId: UUID; id: UUID }): Promise<void> {
+  await deps.repo.delete(input);
+}
