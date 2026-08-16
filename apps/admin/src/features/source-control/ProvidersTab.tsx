@@ -23,6 +23,18 @@ import type {
  * tab bar of their own. Moved here verbatim out of `SourceControl.tsx` in the 2026-08-16 page-shell
  * pass — see that file's own header for why the row content did not change, only what wraps it.
  *
+ * ## No outer `.card` — owner-corrected the same pass
+ *
+ * The first cut of this file wrapped the row list in its own `.card` (icon + "Providers"
+ * `card-title`) sitting under the `TabBar`. Owner's direct read: that is a card inside a card inside
+ * a tab — each `.source-control-row` below is ALREADY its own bordered surface, so a second
+ * bordered/background box around the whole list added a layer of chrome with no content of its own.
+ * `features/pages/Pages.tsx` (a real `TabBar`-driven list screen) never wraps its rows in a card
+ * either — `.card` there is reserved for an EMPTY state, not the populated list — so this tab now
+ * matches that: the rows render directly under the tab, no enclosing card. `SourceControlIcon`
+ * (`source-control-visuals.tsx`) lost its only call site here and is currently unused; left defined
+ * rather than deleted in case a later pass finds it a home.
+ *
  * ## Two defects this page was briefed NOT to inherit
  *
  * 1. A connected/collapsed row needs a VISIBLE expand affordance — a text label plus a chevron —
