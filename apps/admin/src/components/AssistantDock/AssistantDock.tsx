@@ -80,18 +80,29 @@ import {
  */
 const mcpUiToolCaller = createMcpUiToolCaller("", { path: "/api/admin/v1/mcp-ui/tool-calls" });
 /**
- * `maxHeight: 480` overrides `@jini-ai/chat`'s own 720px default (sized for a full-width
- * transcript). Measured live (2026-08-16): the publish confirmation surface declared a
- * `preferredFrameSize` height of 360px but its real content rendered at 559-560px — 720px would
- * still have let a surface that tall (or taller) demand more vertical room than this 380px dock
- * has to give before the operator has scrolled at all. 480px is not a guarantee every surface fits
- * without scrolling (nothing fixed-size can be, next to a composer and header of unknown height on
- * an unknown window size) — that guarantee comes from `MessageList`'s resize-aware sticky-scroll
- * fix, which keeps a growing surface's action buttons reachable regardless of the cap. This just
- * keeps the common case shorter, so a narrow dock stops handing out the same ceiling a full-width
- * transcript gets.
+ * Deliberately NOT passing `maxHeight` here — tried 480px first and reverted it after a live
+ * measurement caught a real regression it caused. `McpUiHost` sets `iframe.style.height` to
+ * `min(reported, maxHeight)`, but the surface's own document (`document.ts`'s `SURFACE_BASE_CSS`)
+ * has no `overflow` rule on `body`/`html` — so when a cap forces the frame SHORTER than the
+ * surface's real content, that content does not get clipped or internally scrolled, it visibly
+ * overflows the iframe's own box into the host page. Measured live (2026-08-16): capping at 480px
+ * against a ~559-580px-tall confirmation pushed its buttons back into the composer's covered zone
+ * by rendering them outside the (too-short) iframe entirely — the same failure this whole fix
+ * exists to prevent, just from a different cause. That is a latent defect in `McpUiHost`/
+ * `document.ts` shared by every consumer of the package (nothing before this dock had passed a cap
+ * below ~720px worth of real content to notice it), not something to paper over with a Tovu-only
+ * number; it needs its own careful fix to the auto-resize protocol, not a rushed one here.
+ *
+ * The library default (`DEFAULT_MAX_HEIGHT`, 720px) stays in effect and is untouched — it is
+ * already comfortably above every surface this dock has rendered, and reachability no longer
+ * depends on a tight cap at all: `MessageList`'s resize-aware sticky-scroll fix keeps a surface's
+ * action buttons reachable by scrolling regardless of its real height, and
+ * `useChatPaneControlsHeight`'s live-measured padding reservation keeps the transcript's true
+ * bottom clear of the composer overlay. A future host that genuinely needs a tighter ceiling can
+ * still pass `maxHeight` — the prop stays tested and supported — but should do so only once
+ * `document.ts` gives a capped surface its own internal scrollbar to overflow into.
  */
-registerMcpUiSurfaceRenderer({ onToolCall: mcpUiToolCaller, maxHeight: 480 });
+registerMcpUiSurfaceRenderer({ onToolCall: mcpUiToolCaller });
 
 /**
  * A2UI's counterpart to the MCP-UI wiring above — same module-scope-once posture, same "one line
