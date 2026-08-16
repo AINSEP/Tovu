@@ -64,14 +64,17 @@ import {
 } from "@jini-ai/cms/core";
 
 import {
+  composePublishCredentialSource,
   computeBasePath,
   createEnvPublishCredentialSource,
   publishStaticSite,
   validateStaticPublishConfig,
+  type DbPublishCredentialSourceDeps,
   type PublishCredentialSource,
   type StaticPublishConfig,
   type StaticPublishTargetId,
 } from "./static-publish/index";
+import type { PublishExecutionMode } from "./publish-credentials/execution-mode";
 
 export interface AgentToolDefinition {
   name: string;
@@ -92,9 +95,9 @@ const PREVIEW_STATIC_PUBLISH_SCHEMA = {
   properties: {
     target: {
       type: "string",
-      enum: ["github-pages", "vercel"],
+      enum: ["github-pages", "vercel", "netlify", "cloudflare-pages"],
       description:
-        "Which host to preview publishing to. 'github-pages' publishes to the gh-pages branch of a GitHub repo and serves from a /<repo> subpath (a GitHub Pages PROJECT site) — the exported site's base path is always rewritten to match, automatically. 'vercel' serves from the domain root and must NOT carry a base path.",
+        "Which host to preview publishing to. 'github-pages' publishes to the gh-pages branch of a GitHub repo and serves from a /<repo> subpath (a GitHub Pages PROJECT site) — the exported site's base path is always rewritten to match, automatically. 'vercel'/'netlify'/'cloudflare-pages' all serve from the domain root and must NOT carry a base path.",
     },
     owner: {
       type: "string",
@@ -126,7 +129,7 @@ export const staticPublishAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "deployment_preview_static_publish",
     description:
-      "Previews publishing the current site to GitHub Pages or Vercel WITHOUT publishing anything: validates the target config, reports the base path a real publish would use (always /<repo> for github-pages, never set for vercel — this is computed automatically and cannot be overridden, so it can never mismatch the export), and reports whether a publish credential is configured for that target (true/false only — never the credential itself). Use this before telling a human what a publish would do, or to check readiness. This tool NEVER publishes, writes, or sends anything anywhere — it is a pure read.",
+      "Previews publishing the current site to GitHub Pages, Vercel, Netlify, or Cloudflare Pages WITHOUT publishing anything: validates the target config, reports the base path a real publish would use (always /<repo> for github-pages, never set for the other three — this is computed automatically and cannot be overridden, so it can never mismatch the export), and reports whether a publish credential is configured for that target (true/false only — never the credential itself). Use this before telling a human what a publish would do, or to check readiness. This tool NEVER publishes, writes, or sends anything anywhere — it is a pure read.",
     sideEffects: "none",
     authorization: { permission: "deployments.read" },
     inputSchema: PREVIEW_STATIC_PUBLISH_SCHEMA,
@@ -139,7 +142,7 @@ export const staticPublishAgentToolCatalog: AgentToolDefinition[] = [
     // registration-kit), same "no confirmation-token transport exists for this yet" root cause.
     name: "deployment_execute_static_publish",
     description:
-      "Publishes the current site as a static export to GitHub Pages or Vercel, using a credential with WRITE access to the owner's external GitHub or Vercel account. The result is immediately live on the public internet and may be crawled, cached, or indexed within seconds — irreversible in the sense that matters, since a later republish overwrites what is HOSTED but can never retract what was already public. NEVER agent-callable: publishing requires a human to trigger it through the admin Deployment panel (server/routes/admin/system/publish-site.ts), which authenticates by browser session, not a tool call. No confirmation-token transport exists for this domain yet, so this tool is declared for documentation/risk-classification purposes only and is deliberately never wired — calling it is not possible.",
+      "Publishes the current site as a static export to GitHub Pages, Vercel, Netlify, or Cloudflare Pages, using a credential with WRITE access to the owner's external account. The result is immediately live on the public internet and may be crawled, cached, or indexed within seconds — irreversible in the sense that matters, since a later republish overwrites what is HOSTED but can never retract what was already public. NEVER agent-callable: publishing requires a human to trigger it through the admin Deployment panel (server/routes/admin/system/publish-site.ts), which authenticates by browser session, not a tool call. No confirmation-token transport exists for this domain yet, so this tool is declared for documentation/risk-classification purposes only and is deliberately never wired — calling it is not possible.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: "deployments.publish" },
     actorClassRule: "confirmer-must-equal-own-delegatedBy",
@@ -177,7 +180,17 @@ export const staticPublishDerivedRisk: DerivedRiskByToolId = new Map<string, Age
 export interface StaticPublishToolDeps {
   authorize: AuthorizeFn;
   workspaceId: string;
+  /** Pre-built source (tests inject a fake here). When omitted, one is composed from
+   *  `dbCredentialDeps`/`executionMode` below — see `buildStaticPublishRegistrations`'s own doc. */
   credentialSource?: PublishCredentialSource;
+  /** Omitted only in tests that pass `credentialSource` directly — a real caller always has a
+   *  `publishCredentialSetRepo`/`siteAssistantSecretSealer` pair (`RouteDeps`'s own fields) to pass
+   *  through here. Declared as this narrow shape rather than importing `RouteDeps` itself, so this
+   *  module still carries no back-edge into the composition root (this file's own header). */
+  dbCredentialDeps?: DbPublishCredentialSourceDeps;
+  /** Defaults to `"self-hosted-cli"` — see `publish-credentials/execution-mode.ts`'s own safe-default
+   *  reasoning. */
+  executionMode?: PublishExecutionMode;
 }
 
 function buildPreviewConfig(raw: Record<string, unknown>): StaticPublishConfig {
@@ -187,7 +200,15 @@ function buildPreviewConfig(raw: Record<string, unknown>): StaticPublishConfig {
     const repo = typeof raw.repo === "string" ? raw.repo : "";
     return { target, owner, repo, ...(typeof raw.branch === "string" ? { branch: raw.branch } : {}) };
   }
-  return { target: "vercel", ...(typeof raw.teamId === "string" ? { teamId: raw.teamId } : {}) };
+  if (target === "vercel") {
+    return { target, ...(typeof raw.teamId === "string" ? { teamId: raw.teamId } : {}) };
+  }
+  if (target === "netlify") {
+    return { target };
+  }
+  // target === "cloudflare-pages" — no target-specific field: `accountId` lives on the credential,
+  // not this config (see `static-publish/types.ts`'s `CloudflarePagesPublishConfig` doc).
+  return { target: "cloudflare-pages" };
 }
 
 /**
@@ -203,20 +224,28 @@ function buildPreviewConfig(raw: Record<string, unknown>): StaticPublishConfig {
  * way every other domain slice already is. That is the ONLY edit that file needs; nothing in this
  * file changes as a result.
  *
- * @param deps - `credentialSource` defaults to the same env-var source `publish-site.ts`'s route
- *   constructs, so a caller wiring this in production does not have to also remember to pass one.
+ * @param deps - `credentialSource` defaults to the same env-var + DB-backed composition
+ *   `publish-site.ts`'s route constructs (`dbCredentialDeps` provided) or a plain workspace-bound env
+ *   source (`dbCredentialDeps` omitted — e.g. tests), so a caller wiring this in production does not
+ *   have to also remember to build one. Only `isConfigured()` is ever reached (this file's own
+ *   header: the preview handler never calls `resolve()`), so which composition applies barely
+ *   matters here — it matters for `publish-site.ts`'s trigger route, which shares this same function.
  * @complexity O(1) registration-time cost; the wired handler's own cost is O(1) (an env lookup plus
  *   a handful of regex tests).
  */
 export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps): ToolRegistration[] {
-  const credentialSource = deps.credentialSource ?? createEnvPublishCredentialSource();
+  const credentialSource =
+    deps.credentialSource ??
+    (deps.dbCredentialDeps
+      ? composePublishCredentialSource({ workspaceId: deps.workspaceId, executionMode: deps.executionMode ?? "self-hosted-cli", dbDeps: deps.dbCredentialDeps })
+      : createEnvPublishCredentialSource(deps.workspaceId));
 
   const handlers: Record<string, ToolHandler> = {
     deployment_preview_static_publish: async (ctx) => {
       const raw = requireInputRecord(ctx.input);
       const target = requireString(raw, "target");
-      if (target !== "github-pages" && target !== "vercel") {
-        throw new Error("'target' must be 'github-pages' or 'vercel'");
+      if (target !== "github-pages" && target !== "vercel" && target !== "netlify" && target !== "cloudflare-pages") {
+        throw new Error("'target' must be one of: github-pages, vercel, netlify, cloudflare-pages");
       }
 
       await requireToolPermission(deps, { principalId: ctx.principal.id, permission: "deployments.read", entityType: "site-publish" });

@@ -14,13 +14,13 @@ export interface PublishCredentialsPort {
   listCredentials(): Promise<AdminPublishCredentialsSnapshot>;
   /** Creates one named connection. Rejects with an `ApiError` (`code: "DUPLICATE_LABEL"`) if this
    *  workspace already has a credential with the same label. */
-  createCredential(input: { label: string; connection: AdminPublishConnectionInput }): Promise<AdminPublishCredentialSummary>;
-  /** Updates a credential's label and/or connection. Omitting `connection` keeps the stored secret
-   *  untouched — see `use-publish-credentials.hooks.ts`'s header for why the form can never send a
-   *  half-blank one. */
+  createCredential(input: { label: string; connection: AdminPublishConnectionInput; isDefault?: boolean }): Promise<AdminPublishCredentialSummary>;
+  /** Updates a credential's label, connection, and/or default status. Omitting `connection` keeps the
+   *  stored secret untouched — see `use-publish-credentials.hooks.ts`'s header for why the form can
+   *  never send a half-blank one. */
   updateCredential(
     id: string,
-    input: { label?: string; connection?: AdminPublishConnectionInput }
+    input: { label?: string; connection?: AdminPublishConnectionInput; isDefault?: boolean }
   ): Promise<AdminPublishCredentialSummary>;
   /** Idempotent — deleting an id that is already gone still resolves. */
   deleteCredential(id: string): Promise<void>;

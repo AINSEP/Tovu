@@ -1979,3 +1979,15 @@ const PUBLISH_CREDENTIAL_DELETE_ERROR_TEMPLATE: Record<string, string> = {
 export function publishCredentialDeleteErrorMessage(locale: string, error: string): string {
   return interpolate(PUBLISH_CREDENTIAL_DELETE_ERROR_TEMPLATE[locale] ?? PUBLISH_CREDENTIAL_DELETE_ERROR_TEMPLATE.en, { error });
 }
+
+/** The credential list's per-row "Make default" error banner — distinct template from
+ *  {@link publishCredentialDeleteErrorMessage}, same "a failed X and a failed Y are different
+ *  operations a reader needs to tell apart" reasoning that function's own doc gives. New
+ *  2026-08-15, same English-only precedent {@link publishCredentialsLoadErrorMessage} documents. */
+const PUBLISH_CREDENTIAL_MAKE_DEFAULT_ERROR_TEMPLATE: Record<string, string> = {
+  en: "Could not make this credential the default ({error}).",
+};
+
+export function publishCredentialMakeDefaultErrorMessage(locale: string, error: string): string {
+  return interpolate(PUBLISH_CREDENTIAL_MAKE_DEFAULT_ERROR_TEMPLATE[locale] ?? PUBLISH_CREDENTIAL_MAKE_DEFAULT_ERROR_TEMPLATE.en, { error });
+}

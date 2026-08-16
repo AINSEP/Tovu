@@ -5,6 +5,8 @@ import { dirname, join, resolve } from "node:path";
 import { InMemoryEventBus } from "../core/events";
 import { backfillPostSearchIndex, SqlitePostRepo, SqlitePostSearchIndex, createPostRevertRegistry } from "../features/post";
 import { SqliteDeploymentsReadRepo } from "../features/deployments";
+import { SqlitePublishCredentialSetRepo } from "../db/sqlite/publish-credential-repo.sqlite";
+import { executionModeFromEnv } from "../features/deployments/publish-credentials";
 // NOT a static import — `export/site-exporter.ts` imports `createApp` from `server/app.ts`, and a
 // top-level import here reaches that same cycle. See `server/app.ts`'s `runExportSiteLazily` for
 // the full trace and the crash it produced. Resolved at call time instead.
@@ -799,6 +801,11 @@ export function createSqliteRouteDeps(
     // `runExportSite` doc for why that indirection is required, not stylistic (a real circular-load
     // crash, not a style preference).
     runExportSite: runExportSiteLazily,
+    // 2026-08-15 (Contract v2) — see `routes/types.ts`'s `publishCredentialSetRepo`/
+    // `publishExecutionMode` docs. Sealed via the same shared sealer/keyring the two credential
+    // repos above already reuse (no third `EnvOrFileKeyring` instance).
+    publishCredentialSetRepo: new SqlitePublishCredentialSetRepo(db),
+    publishExecutionMode: executionModeFromEnv(),
   };
 }
 

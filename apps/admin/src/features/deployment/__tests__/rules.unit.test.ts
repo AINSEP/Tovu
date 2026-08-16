@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { ApiError } from "../../../lib/api";
+import { ApiError, type AdminPublishCredentialSummary } from "../../../lib/api";
 import {
   FULL_SITE_PROVIDERS,
   PUBLISH_CLI_TOOLS,
@@ -10,6 +10,7 @@ import {
   buildPublishConnectionInput,
   classifyPublishCredentialSubmitError,
   cliInstalledStatus,
+  credentialsForProvider,
   daemonStatusLabelKey,
   deploymentEnvVarNoteKey,
   exportRunStatusLabelKey,
@@ -30,7 +31,7 @@ import {
 /** A blank form for one provider — every test below overrides only the fields it cares about,
  *  same "start from a known-empty baseline" convention the hook itself follows on `startAdd`. */
 function blankCredentialFields(providerId: PublishCredentialFormFields["providerId"]): PublishCredentialFormFields {
-  return { providerId, token: "", owner: "", repo: "", teamId: "", siteId: "", accountId: "", projectName: "" };
+  return { providerId, token: "", accountId: "" };
 }
 
 /**
@@ -234,17 +235,15 @@ describe("PUBLISH_CREDENTIAL_PROVIDERS", () => {
     expect(PUBLISH_CREDENTIAL_PROVIDERS.every((p) => p.tokenPageUrl.startsWith("https://"))).toBe(true);
   });
 
-  it("matches the brief's verified required/optional split per provider", () => {
-    expect(publishCredentialProviderInfo("github-pages").requiredFields).toEqual(["owner", "repo"]);
-    expect(publishCredentialProviderInfo("github-pages").optionalFields).toEqual([]);
+  it("matches the v2 contract's verified field split — a credential holds the secret plus only the account scoping with nowhere else to live", () => {
+    // GitHub Pages' owner/repo and Vercel's teamId are NOT credential fields — they already live on
+    // the publish target config (AdminStaticPublishConfig), chosen per run.
+    expect(publishCredentialProviderInfo("github-pages").requiredFields).toEqual([]);
     expect(publishCredentialProviderInfo("vercel").requiredFields).toEqual([]);
-    expect(publishCredentialProviderInfo("vercel").optionalFields).toEqual(["teamId"]);
     expect(publishCredentialProviderInfo("netlify").requiredFields).toEqual([]);
-    expect(publishCredentialProviderInfo("netlify").optionalFields).toEqual(["siteId"]);
-    // Cloudflare is the one provider where an OPTIONAL-looking field (accountId, alongside the
-    // optional projectName) is actually required — Cloudflare cannot resolve a project without it.
+    // Cloudflare Pages is the ONLY provider with a second field — accountId, hard required, since
+    // Cloudflare Pages has no per-run publish target this could otherwise live on.
     expect(publishCredentialProviderInfo("cloudflare-pages").requiredFields).toEqual(["accountId"]);
-    expect(publishCredentialProviderInfo("cloudflare-pages").optionalFields).toEqual(["projectName"]);
   });
 
   it("publishCredentialProviderInfo falls back to the first entry for an unrecognized id, never throws", () => {
@@ -253,52 +252,28 @@ describe("PUBLISH_CREDENTIAL_PROVIDERS", () => {
 });
 
 describe("buildPublishConnectionInput", () => {
-  it("github-pages: sends token/owner/repo trimmed, never a branch field (that belongs to publish config, not a credential)", () => {
-    const fields = { ...blankCredentialFields("github-pages"), token: " ghp_abc ", owner: " octo ", repo: " demo-repo " };
-    expect(buildPublishConnectionInput(fields)).toEqual({ providerId: "github-pages", token: "ghp_abc", owner: "octo", repo: "demo-repo" });
+  it("github-pages: sends only token, trimmed — owner/repo/branch belong to publish config, not a credential", () => {
+    const fields = { ...blankCredentialFields("github-pages"), token: " ghp_abc " };
+    expect(buildPublishConnectionInput(fields)).toEqual({ providerId: "github-pages", token: "ghp_abc" });
   });
 
-  it("vercel: omits a blank teamId entirely rather than sending an empty string", () => {
-    const fields = { ...blankCredentialFields("vercel"), token: "tok" };
+  it("vercel: sends only token, trimmed — teamId belongs to publish config, not a credential", () => {
+    const fields = { ...blankCredentialFields("vercel"), token: " tok " };
     expect(buildPublishConnectionInput(fields)).toEqual({ providerId: "vercel", token: "tok" });
     expect(buildPublishConnectionInput(fields)).not.toHaveProperty("teamId");
   });
 
-  it("vercel: includes a non-blank teamId, trimmed", () => {
-    const fields = { ...blankCredentialFields("vercel"), token: "tok", teamId: " team_123 " };
-    expect(buildPublishConnectionInput(fields)).toEqual({ providerId: "vercel", token: "tok", teamId: "team_123" });
-  });
-
-  it("netlify: omits a blank siteId, includes a non-blank one trimmed", () => {
-    expect(buildPublishConnectionInput({ ...blankCredentialFields("netlify"), token: "tok" })).toEqual({
+  it("netlify: sends only token, trimmed", () => {
+    expect(buildPublishConnectionInput({ ...blankCredentialFields("netlify"), token: " tok " })).toEqual({
       providerId: "netlify",
       token: "tok",
     });
-    expect(buildPublishConnectionInput({ ...blankCredentialFields("netlify"), token: "tok", siteId: " site-1 " })).toEqual({
-      providerId: "netlify",
-      token: "tok",
-      siteId: "site-1",
-    });
   });
 
-  it("cloudflare-pages: always sends accountId (required), omits a blank projectName", () => {
+  it("cloudflare-pages: always sends accountId (required, trimmed) alongside token — no projectName, that's inert on the credential", () => {
     const fields = { ...blankCredentialFields("cloudflare-pages"), token: "tok", accountId: " acct-1 " };
     expect(buildPublishConnectionInput(fields)).toEqual({ providerId: "cloudflare-pages", token: "tok", accountId: "acct-1" });
-  });
-
-  it("cloudflare-pages: includes a non-blank projectName, trimmed", () => {
-    const fields = {
-      ...blankCredentialFields("cloudflare-pages"),
-      token: "tok",
-      accountId: "acct-1",
-      projectName: " my-site ",
-    };
-    expect(buildPublishConnectionInput(fields)).toEqual({
-      providerId: "cloudflare-pages",
-      token: "tok",
-      accountId: "acct-1",
-      projectName: "my-site",
-    });
+    expect(buildPublishConnectionInput(fields)).not.toHaveProperty("projectName");
   });
 });
 
@@ -310,12 +285,10 @@ describe("publishCredentialFormReadyToSubmit", () => {
     expect(publishCredentialFormReadyToSubmit(fields, "add", "My Vercel")).toBe(true);
   });
 
-  it("ADD mode: github-pages additionally requires owner AND repo; vercel/netlify need nothing beyond token", () => {
-    const gh = { ...blankCredentialFields("github-pages"), token: "tok" };
-    expect(publishCredentialFormReadyToSubmit(gh, "add", "label")).toBe(false);
-    expect(publishCredentialFormReadyToSubmit({ ...gh, owner: "octo" }, "add", "label")).toBe(false);
-    expect(publishCredentialFormReadyToSubmit({ ...gh, owner: "octo", repo: "demo" }, "add", "label")).toBe(true);
+  it("ADD mode: github-pages/vercel/netlify need nothing beyond token — no per-provider field left to gate on", () => {
+    expect(publishCredentialFormReadyToSubmit({ ...blankCredentialFields("github-pages"), token: "tok" }, "add", "label")).toBe(true);
     expect(publishCredentialFormReadyToSubmit({ ...blankCredentialFields("vercel"), token: "tok" }, "add", "label")).toBe(true);
+    expect(publishCredentialFormReadyToSubmit({ ...blankCredentialFields("netlify"), token: "tok" }, "add", "label")).toBe(true);
   });
 
   it("ADD mode: cloudflare-pages requires accountId even though it reads like an optional-style field", () => {
@@ -331,9 +304,36 @@ describe("publishCredentialFormReadyToSubmit", () => {
   });
 
   it("EDIT mode with a NON-blank token commits to a full replace — re-validated exactly like ADD mode", () => {
-    const fields = { ...blankCredentialFields("github-pages"), token: "new-token" };
-    expect(publishCredentialFormReadyToSubmit(fields, "edit", "label")).toBe(false); // still missing owner/repo
-    expect(publishCredentialFormReadyToSubmit({ ...fields, owner: "octo", repo: "demo" }, "edit", "label")).toBe(true);
+    const fields = { ...blankCredentialFields("cloudflare-pages"), token: "new-token" };
+    expect(publishCredentialFormReadyToSubmit(fields, "edit", "label")).toBe(false); // still missing accountId
+    expect(publishCredentialFormReadyToSubmit({ ...fields, accountId: "acct-1" }, "edit", "label")).toBe(true);
+  });
+});
+
+describe("credentialsForProvider", () => {
+  function credential(overrides: Partial<AdminPublishCredentialSummary> = {}): AdminPublishCredentialSummary {
+    return {
+      id: "cred-1",
+      providerId: "github-pages",
+      label: "label",
+      configured: true,
+      isDefault: true,
+      createdAt: "2026-08-01T00:00:00.000Z",
+      updatedAt: "2026-08-01T00:00:00.000Z",
+      ...overrides,
+    };
+  }
+
+  it("returns only the credentials matching the given providerId, in the original order", () => {
+    const gh = credential({ id: "cred-1", providerId: "github-pages" });
+    const vercel1 = credential({ id: "cred-2", providerId: "vercel", isDefault: true });
+    const vercel2 = credential({ id: "cred-3", providerId: "vercel", isDefault: false });
+    expect(credentialsForProvider([gh, vercel1, vercel2], "vercel")).toEqual([vercel1, vercel2]);
+  });
+
+  it("returns an empty array when this workspace has no credential for the provider — never throws", () => {
+    expect(credentialsForProvider([], "netlify")).toEqual([]);
+    expect(credentialsForProvider([credential({ providerId: "github-pages" })], "netlify")).toEqual([]);
   });
 });
 

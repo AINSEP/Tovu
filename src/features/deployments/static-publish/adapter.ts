@@ -1,8 +1,10 @@
 import path from "node:path";
 
 import {
+  CloudflarePagesDeployTarget,
   DeployError,
   GitHubPagesDeployTarget,
+  NetlifyDeployTarget,
   VercelDeployTarget,
   type DeployFile,
   type DeployTarget,
@@ -95,9 +97,17 @@ export function validateStaticPublishConfig(config: StaticPublishConfig): string
     }
     return null;
   }
-  if (config.teamId !== undefined && config.teamId.trim() === "") {
-    return "teamId must not be blank when provided";
+  if (config.target === "vercel") {
+    if (config.teamId !== undefined && config.teamId.trim() === "") {
+      return "teamId must not be blank when provided";
+    }
+    return null;
   }
+  // config.target === "netlify" | "cloudflare-pages" — neither carries a target-specific field to
+  // validate here. Cloudflare Pages' `accountId` is HARD required, but it lives on the CREDENTIAL
+  // (`publish-credentials/types.ts`'s `CloudflarePagesConnectionInput`), not this config — see
+  // `types.ts`'s `CloudflarePagesPublishConfig` doc for why, and `store.ts`'s `validateConnection`
+  // for where that field is actually enforced (at credential-save time, not publish time).
   return null;
 }
 
@@ -135,11 +145,18 @@ export function toDeployFile(entry: { outputFile: string; data: string | Buffer;
   };
 }
 
-/** The real, default `buildTarget` — constructs the actual Jini `DeployTarget` that will hit
- *  GitHub/Vercel's real API. `StaticPublishDeps.buildTarget` exists specifically so a test can
- *  substitute a fake `DeployTarget` here instead (per the brief: "adapter tests with a faked deploy
- *  target — do not hit real GitHub or Vercel in tests"), without needing to stub global `fetch`. */
-function buildJiniTarget(config: StaticPublishConfig, token: string): DeployTarget {
+/** The resolved credential a real `DeployTarget` is built from — `token` for every provider, plus
+ *  `accountId` for `cloudflare-pages` only (see `types.ts`'s `PublishCredentialSource.resolve()` doc
+ *  and `CloudflarePagesPublishConfig`'s own doc for why that field flows through the CREDENTIAL, not
+ *  the publish config). */
+export type ResolvedPublishCredential = { readonly token: string; readonly accountId?: string };
+
+/** The real, default `buildTarget` — constructs the actual Jini `DeployTarget` that will hit the
+ *  provider's real API. `StaticPublishDeps.buildTarget` exists specifically so a test can substitute
+ *  a fake `DeployTarget` here instead (per the brief: "adapter tests with a faked deploy target — do
+ *  not hit real GitHub or Vercel in tests"), without needing to stub global `fetch`. */
+function buildJiniTarget(config: StaticPublishConfig, credential: ResolvedPublishCredential): DeployTarget {
+  const token = credential.token;
   if (config.target === "github-pages") {
     const githubConfig = config as GitHubPagesPublishConfig;
     return new GitHubPagesDeployTarget({
@@ -149,7 +166,25 @@ function buildJiniTarget(config: StaticPublishConfig, token: string): DeployTarg
       ...(githubConfig.branch !== undefined ? { branch: githubConfig.branch } : {}),
     });
   }
-  return new VercelDeployTarget({ token, ...(config.teamId !== undefined ? { teamId: config.teamId } : {}) });
+  if (config.target === "vercel") {
+    return new VercelDeployTarget({ token, ...(config.teamId !== undefined ? { teamId: config.teamId } : {}) });
+  }
+  if (config.target === "netlify") {
+    // No `siteId`/site-selection field to forward — Jini's `NetlifyDeployTarget` config is `{token}`
+    // only; see `types.ts`'s `NetlifyPublishConfig` doc for the full reasoning (it always
+    // find-or-creates a site from `publishStaticSite`'s own `projectName` argument instead).
+    return new NetlifyDeployTarget({ token });
+  }
+  // config.target === "cloudflare-pages" — `accountId` comes from the resolved CREDENTIAL, never the
+  // config (see `ResolvedPublishCredential`'s own doc). `store.ts`'s `validateConnection` already
+  // enforces `accountId` is non-blank at credential-save time, so any DB-backed credential that
+  // reaches this point has one; the env-backed source's own `readCredential` enforces the same
+  // before ever reporting `ok: true` (see `credentials.ts`). This guard is defense-in-depth against a
+  // future `PublishCredentialSource` implementation that does not uphold that contract.
+  if (!credential.accountId) {
+    throw new DeployError("Cloudflare account ID is required but was not resolved from the saved credential.", 400);
+  }
+  return new CloudflarePagesDeployTarget({ token, accountId: credential.accountId });
 }
 
 export interface StaticPublishDeps {
@@ -157,7 +192,7 @@ export interface StaticPublishDeps {
   /** Builds the `DeployTarget` that `publish()` is called on. Defaults to {@link buildJiniTarget}
    *  (the real Jini adapters) when omitted — tests inject a fake here instead of touching
    *  GitHub/Vercel or global `fetch`. */
-  readonly buildTarget?: (config: StaticPublishConfig, token: string) => DeployTarget;
+  readonly buildTarget?: (config: StaticPublishConfig, credential: ResolvedPublishCredential) => DeployTarget;
 }
 
 export interface StaticPublishInput {
@@ -258,7 +293,7 @@ export async function publishStaticSite(deps: StaticPublishDeps, input: StaticPu
     files.push(NOJEKYLL_FILE);
   }
 
-  const jiniTarget = (deps.buildTarget ?? buildJiniTarget)(input.config, credential.token);
+  const jiniTarget = (deps.buildTarget ?? buildJiniTarget)(input.config, { token: credential.token, ...(credential.accountId !== undefined ? { accountId: credential.accountId } : {}) });
 
   try {
     const result = await jiniTarget.publish({ files, projectName: input.projectName });

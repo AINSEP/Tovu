@@ -6,6 +6,7 @@ import {
   type AdminExportRunSnapshot,
   type AdminPublishConnectionInput,
   type AdminPublishCredentialProviderId,
+  type AdminPublishCredentialSummary,
   type AdminPublishRunSnapshot,
   type AdminStaticPublishTargetId,
 } from "../../lib/api";
@@ -187,11 +188,16 @@ export const STATIC_PUBLISH_TARGETS: readonly StaticPublishTargetInfo[] = [
 ] as const;
 
 /**
- * A field the credential form can show for one provider's connection — the union of every field
- * across all four {@link AdminPublishConnectionInput} variants except `token`, which every provider
- * needs and is therefore rendered unconditionally rather than listed as any one provider's field.
+ * A field the credential form can show for one provider's connection, beyond the universal `token`
+ * (rendered unconditionally, never listed as any one provider's field). Cloudflare Pages' `accountId`
+ * is the ONLY member — see {@link AdminPublishConnectionInput}'s own doc for why the other three
+ * providers' account scoping (GitHub's `owner`/`repo`, Vercel's `teamId`) lives on the publish TARGET
+ * config instead of the credential: a field with somewhere else to live does not get a second, driftable
+ * copy here. Kept as a union (of one) rather than inlined as a string literal so a future provider that
+ * needs its own extra field extends this type in one place, matching every other per-provider table in
+ * this file.
  */
-export type PublishCredentialFieldKey = "owner" | "repo" | "teamId" | "siteId" | "accountId" | "projectName";
+export type PublishCredentialFieldKey = "accountId";
 
 /**
  * One provider the credential-management section can save a connection for — WIDER than
@@ -213,21 +219,22 @@ export interface PublishCredentialProviderInfo {
    *  how OAuth or PATs work in general. */
   readonly scopeGuidanceKey: string;
   /** Fields (beyond the universal `token`) this provider cannot function without —
-   *  {@link publishCredentialFormReadyToSubmit}'s per-provider gate. GitHub Pages cannot push
-   *  without an owner/repo; Cloudflare cannot resolve a project without an account id. */
+   *  {@link publishCredentialFormReadyToSubmit}'s per-provider gate. Empty for every provider except
+   *  Cloudflare Pages, which cannot resolve a project without its `accountId` — see
+   *  {@link AdminPublishConnectionInput}'s doc for why every other provider's account scoping moved
+   *  off the credential entirely rather than staying here as an optional field (there is no longer
+   *  an "optional" field on this form at all: a field is either required, or it isn't part of the
+   *  credential). */
   readonly requiredFields: readonly PublishCredentialFieldKey[];
-  /** Fields this provider's form still offers but can do without — narrows an otherwise-valid
-   *  default (a specific Vercel team, an existing Netlify site, a named Cloudflare project) rather
-   *  than gating submission. */
-  readonly optionalFields: readonly PublishCredentialFieldKey[];
 }
 
 /**
  * The four providers a publish credential can be saved for, verified against each provider's own
- * token-creation docs (design doc header, 2026-08-15). `requiredFields`/`optionalFields` are the
- * single source both {@link buildPublishConnectionInput} and
- * {@link publishCredentialFormReadyToSubmit} read from — a field that should gate submission belongs
- * in exactly one of these two lists, never hardcoded again at either call site.
+ * token-creation docs (design doc header, 2026-08-15; field set narrowed the same day — see
+ * {@link AdminPublishConnectionInput}'s doc for why `owner`/`repo`/`teamId`/`siteId`/`projectName`
+ * are NOT credential fields). `requiredFields` is the single source both
+ * {@link buildPublishConnectionInput} and {@link publishCredentialFormReadyToSubmit} read from — a
+ * field that should gate submission belongs there, never hardcoded again at either call site.
  */
 export const PUBLISH_CREDENTIAL_PROVIDERS: readonly PublishCredentialProviderInfo[] = [
   {
@@ -236,24 +243,21 @@ export const PUBLISH_CREDENTIAL_PROVIDERS: readonly PublishCredentialProviderInf
     tokenPageUrl: "https://github.com/settings/tokens",
     scopeGuidanceKey:
       'Needs a classic personal access token with the "repo" scope, or a fine-grained token with Contents and Pages permissions set to Read and write.',
-    requiredFields: ["owner", "repo"],
-    optionalFields: [],
+    requiredFields: [],
   },
   {
     id: "vercel",
     label: "Vercel",
     tokenPageUrl: "https://vercel.com/account/tokens",
-    scopeGuidanceKey: "An access token from your Vercel account. Add a team ID only when publishing into a team, not a personal account.",
+    scopeGuidanceKey: "An access token from your Vercel account.",
     requiredFields: [],
-    optionalFields: ["teamId"],
   },
   {
     id: "netlify",
     label: "Netlify",
     tokenPageUrl: "https://app.netlify.com/user/applications#personal-access-tokens",
-    scopeGuidanceKey: "A personal access token from your Netlify account. Add a site ID to publish to an existing site instead of creating a new one.",
+    scopeGuidanceKey: "A personal access token from your Netlify account.",
     requiredFields: [],
-    optionalFields: ["siteId"],
   },
   {
     id: "cloudflare-pages",
@@ -262,7 +266,6 @@ export const PUBLISH_CREDENTIAL_PROVIDERS: readonly PublishCredentialProviderInf
     scopeGuidanceKey:
       "Needs an API token with Cloudflare Pages Edit permission, plus the account ID shown on your Cloudflare dashboard's own sidebar — Cloudflare cannot resolve a project without it.",
     requiredFields: ["accountId"],
-    optionalFields: ["projectName"],
   },
 ] as const;
 
@@ -276,26 +279,22 @@ export function publishCredentialProviderInfo(id: AdminPublishCredentialProvider
 
 /** The credential form's full field set, kept together as one shape so
  *  {@link buildPublishConnectionInput} and {@link publishCredentialFormReadyToSubmit} share a single
- *  parameter type — mirrors `use-static-publish.hooks.ts`'s own `buildConfig` fields parameter, one
- *  level wider (four provider shapes instead of two). */
+ *  parameter type — mirrors `use-static-publish.hooks.ts`'s own `buildConfig` fields parameter.
+ *  `accountId` is the only per-provider field left (Cloudflare Pages only) now that GitHub's
+ *  `owner`/`repo` and Vercel's `teamId` live on the publish target config instead — see
+ *  {@link AdminPublishConnectionInput}'s doc. */
 export interface PublishCredentialFormFields {
   providerId: AdminPublishCredentialProviderId;
   token: string;
-  owner: string;
-  repo: string;
-  teamId: string;
-  siteId: string;
   accountId: string;
-  projectName: string;
 }
 
 /**
  * Builds the wire {@link AdminPublishConnectionInput} from the form's current field values — the one
  * function that decides which fields matter for which provider, mirroring `buildConfig` in
- * `use-static-publish.hooks.ts` one union-arm wider (four provider shapes, not two). Blank optional
- * fields are omitted entirely rather than sent as `""` — same reasoning `buildConfig`'s own doc
- * gives, so a provider's server-side default (e.g. Cloudflare creating a NEW project) is never
- * shadowed by an accidental empty string.
+ * `use-static-publish.hooks.ts`. `accountId` is trimmed and included only for `cloudflare-pages`
+ * (required there, absent everywhere else — there is no blank-omits-it case left since it is the
+ * only remaining per-provider field, and it is required whenever it applies).
  *
  * Always trims and includes `token`, even when blank — detecting "no new token typed" is
  * {@link publishCredentialFormReadyToSubmit}'s job (in edit mode a blank token means "leave
@@ -307,19 +306,32 @@ export function buildPublishConnectionInput(fields: PublishCredentialFormFields)
   const token = fields.token.trim();
   switch (fields.providerId) {
     case "github-pages":
-      return { providerId: "github-pages", token, owner: fields.owner.trim(), repo: fields.repo.trim() };
+      return { providerId: "github-pages", token };
     case "vercel":
-      return { providerId: "vercel", token, ...(fields.teamId.trim() !== "" ? { teamId: fields.teamId.trim() } : {}) };
+      return { providerId: "vercel", token };
     case "netlify":
-      return { providerId: "netlify", token, ...(fields.siteId.trim() !== "" ? { siteId: fields.siteId.trim() } : {}) };
+      return { providerId: "netlify", token };
     case "cloudflare-pages":
-      return {
-        providerId: "cloudflare-pages",
-        token,
-        accountId: fields.accountId.trim(),
-        ...(fields.projectName.trim() !== "" ? { projectName: fields.projectName.trim() } : {}),
-      };
+      return { providerId: "cloudflare-pages", token, accountId: fields.accountId.trim() };
   }
+}
+
+/**
+ * Every saved credential for one provider, in the order the server returned them — the shared lookup
+ * behind two independent decisions that both need the SAME count: whether
+ * {@link PublishCredentialList}'s per-row "Default"/"Make default" chrome should render at all (never
+ * for a provider with only one saved connection — see that component's own header for why), and
+ * whether the add/edit form's "set as default" checkbox should render (never when this credential
+ * would be the only one saved for its provider, for the identical reason). A single function so both
+ * call sites can never drift on what "only one" means.
+ * @complexity O(n) in this workspace's total saved-credential count (small — see
+ *   `PublishCredentialSetRepoPort.listByWorkspace`'s own doc for why no cap is needed).
+ */
+export function credentialsForProvider(
+  credentials: readonly AdminPublishCredentialSummary[],
+  providerId: AdminPublishCredentialProviderId
+): AdminPublishCredentialSummary[] {
+  return credentials.filter((credential) => credential.providerId === providerId);
 }
 
 /**
@@ -331,7 +343,8 @@ export function buildPublishConnectionInput(fields: PublishCredentialFormFields)
  * for why blank-token-means-unchanged is the only way this form can ever express "edit the label,
  * keep the secret" — the alternative (a stored credential's fields round-tripping into this form)
  * is exactly what "never readable back" forbids.
- * @complexity O(k) in this provider's own required-field count (at most two).
+ * @complexity O(k) in this provider's own required-field count (at most one — `accountId` for
+ *   Cloudflare Pages; every other provider needs nothing beyond the already-checked token).
  */
 export function publishCredentialFormReadyToSubmit(
   fields: PublishCredentialFormFields,

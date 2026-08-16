@@ -2,7 +2,7 @@ import type { Express } from "express";
 
 import {
   computeBasePath,
-  createEnvPublishCredentialSource,
+  composePublishCredentialSource,
   publishStaticSite,
   validateStaticPublishConfig,
   type StaticPublishConfig,
@@ -77,11 +77,12 @@ const IDLE_RUN: PublishRunSnapshot = { status: "idle", startedAtIso: null, finis
  *  is independent of `export-site.ts`'s own `currentRun`. */
 let currentRun: PublishRunSnapshot = IDLE_RUN;
 
-/** The one `PublishCredentialSource` this pass wires — see `static-publish/credentials.ts`'s own
- *  header for why an env-var source, not yet the encrypted secret store. Constructed once, module
- *  scope: it is stateless (reads `process.env` fresh on every `resolve()` call) so there is no
- *  staleness risk in holding one instance for the process lifetime. */
-const credentialSource = createEnvPublishCredentialSource();
+/** No longer a module-scope constant (2026-08-15): `createEnvPublishCredentialSource` is now bound
+ *  to one workspace at construction time (Terra's finding — it used to accept and ignore
+ *  `workspaceId`), and `composePublishCredentialSource` layers the encrypted DB-backed source on top
+ *  per the install's `PublishExecutionMode`. Both need `deps`, which is only available inside
+ *  {@link registerAdminPublishSiteRoutes} — see that function's own first lines for where this is now
+ *  built. */
 
 /**
  * Parses and shape-validates the trigger request body. Never throws — every malformed shape maps to
@@ -119,7 +120,16 @@ function parsePublishRequestBody(body: unknown): { ok: true; config: StaticPubli
       projectName: raw.projectName,
     };
   }
-  return { ok: false, error: "'target' must be 'github-pages' or 'vercel'" };
+  if (raw.target === "netlify") {
+    return { ok: true, config: { target: "netlify" }, projectName: raw.projectName };
+  }
+  if (raw.target === "cloudflare-pages") {
+    // No target-specific field to parse — `accountId` lives on the CREDENTIAL, resolved by
+    // `credentialSource` below, never on the publish config; see `static-publish/types.ts`'s
+    // `CloudflarePagesPublishConfig` doc.
+    return { ok: true, config: { target: "cloudflare-pages" }, projectName: raw.projectName };
+  }
+  return { ok: false, error: "'target' must be one of: github-pages, vercel, netlify, cloudflare-pages" };
 }
 
 /**
@@ -147,10 +157,28 @@ function parsePreviewQuery(query: Record<string, unknown>): { ok: true; config: 
     const teamId = typeof query.teamId === "string" && query.teamId.trim() !== "" ? query.teamId : undefined;
     return { ok: true, config: { target: "vercel", ...(teamId !== undefined ? { teamId } : {}) } };
   }
-  return { ok: false, error: "'target' query param must be 'github-pages' or 'vercel'" };
+  if (query.target === "netlify") {
+    return { ok: true, config: { target: "netlify" } };
+  }
+  if (query.target === "cloudflare-pages") {
+    // No target-specific field — same reasoning as `parsePublishRequestBody`'s own cloudflare-pages
+    // branch above.
+    return { ok: true, config: { target: "cloudflare-pages" } };
+  }
+  return { ok: false, error: "'target' query param must be one of: github-pages, vercel, netlify, cloudflare-pages" };
 }
 
 export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishSiteDeps): void {
+  // Built once per `registerAdminPublishSiteRoutes` call (this route file's own registration is
+  // itself a once-per-process composition step), bound to `deps.workspaceId` — see
+  // `static-publish/credentials.ts`'s `composePublishCredentialSource` header for the DB-first,
+  // env-fallback-only-when-self-hosted composition this now performs.
+  const credentialSource = composePublishCredentialSource({
+    workspaceId: deps.workspaceId,
+    executionMode: deps.publishExecutionMode,
+    dbDeps: { repo: deps.publishCredentialSetRepo, sealer: deps.siteAssistantSecretSealer },
+  });
+
   app.post("/api/admin/v1/workspaces/:workspaceId/system/publish", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
       res.status(404).json({ error: "workspace was not found" });

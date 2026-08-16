@@ -7,6 +7,7 @@ import { createSeoEventSubscriptions, createSeoPageHeadHook, ensureSeoSettingDef
 import { registerPageHeadContributor } from "./http/site/page-head";
 import { InMemoryPostRepo, InMemoryPostSearchIndex, createPostRevertRegistry } from "../features/post";
 import { InMemoryDeploymentsReadRepo } from "../features/deployments";
+import { InMemoryPublishCredentialSetRepo, executionModeFromEnv } from "../features/deployments/publish-credentials";
 // NOT a static import, and the reason is a measured crash — see `runExportSiteLazily` below.
 import { InMemoryPagesHtmlDocumentStore } from "../features/pages";
 import {
@@ -613,6 +614,12 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // `runExportSite` doc for why that indirection is required, not stylistic (a real circular-load
     // crash, not a style preference). Resolved lazily; see {@link runExportSiteLazily}.
     runExportSite: runExportSiteLazily,
+    // 2026-08-15 (Contract v2) — hermetic double for `server/deps.ts`'s real
+    // `SqlitePublishCredentialSetRepo`; see `routes/types.ts`'s `publishCredentialSetRepo`/
+    // `publishExecutionMode` docs. `executionModeFromEnv()` (not a hardcoded `"self-hosted-cli"`) so
+    // a test can still exercise `TOVU_EXECUTION_MODE=hosted-api-only` against this hermetic root.
+    publishCredentialSetRepo: new InMemoryPublishCredentialSetRepo(),
+    publishExecutionMode: executionModeFromEnv(),
   };
 }
 
