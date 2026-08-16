@@ -105,7 +105,8 @@ import { S3_COMPATIBLE_FIELD_GUIDANCE, S3_COMPATIBLE_FORM_DESCRIPTION } from "./
 import {
   composePublishCredentialSource,
   computeBasePath,
-  publishStaticSite,
+  getPublishRunSnapshot,
+  runPublishAndAwait,
   validateStaticPublishConfig,
   type PublishCredentialSource,
   type StaticPublishConfig,
@@ -855,9 +856,30 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
           return { published: false, cancelled: true, target, projectName };
         }
 
-        const outcome = await publishStaticSite(
+        // No `await` between this check and `runPublishAndAwait` below — same single-synchronous-
+        // stretch contract `publish-site.ts`'s HTTP trigger route documents for the identical check,
+        // against the SAME shared slot (`static-publish/publish-run.ts`): this used to call
+        // `publishStaticSite` directly with nothing to check at all, so a human using the admin UI's
+        // Static Site tab and this tool in the same running server could both start a real publish at
+        // once and race each other's clean export into the same output directory (Terra audit
+        // finding #1). Checked here, immediately before the actual publish call, rather than earlier
+        // in this handler (e.g. before opening the confirmation dialog) — the dialog can sit open for
+        // an arbitrary time awaiting a human answer, during which another publish could start AND
+        // finish, so a check made before `askOnce` would not actually close the race; this is the
+        // last synchronous point before the real work starts.
+        if (getPublishRunSnapshot().status === "running") {
+          return {
+            published: false,
+            cancelled: false,
+            reason: "already-running",
+            message: "A publish is already running in this server (started via the admin UI or another agent call). Wait for it to finish, or check deployment_get_static_publish_capabilities/the Static Site tab for its status, then retry. This will not resolve on retry while it is still running.",
+          };
+        }
+
+        const outcome = await runPublishAndAwait(
           { credentialSource, ...(deps.buildTarget !== undefined ? { buildTarget: deps.buildTarget } : {}) },
-          { workspaceId: deps.workspaceId, routeDeps: deps, config, projectName }
+          { workspaceId: deps.workspaceId, routeDeps: deps, config, projectName },
+          deps.clock
         );
 
         if (outcome.ok === "partial") {

@@ -25,6 +25,14 @@ export {
 export { computeBasePath, publishStaticSite, validateStaticPublishConfig, type StaticPublishDeps, type StaticPublishInput } from "./adapter";
 
 export {
+  getPublishRunSnapshot,
+  runPublishAndAwait,
+  startPublishRun,
+  type PublishRunSnapshot,
+  type PublishRunStatus,
+} from "./publish-run";
+
+export {
   InMemoryPublishCredentialVerificationCache,
   verifyPublishCredential,
   verifyPublishCredentialById,

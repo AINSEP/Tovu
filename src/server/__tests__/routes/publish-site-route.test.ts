@@ -8,6 +8,8 @@ import { setTimeout as delay } from "node:timers/promises";
 import { createApp, createRouteDeps } from "../../app";
 import { bootAuthenticated } from "../helpers/http-test-server";
 import type { RouteDeps } from "../../routes/types";
+import { buildStaticPublishRegistrations } from "../../../features/deployments/publish-agent-tools";
+import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "../../../assistant/surface-exchanges";
 
 /**
  * @file Admin Deployment panel → publish-to-GitHub-Pages/Vercel — `POST`/`GET /api/admin/v1/
@@ -271,6 +273,106 @@ test("publish-site: a concurrent second trigger while one is genuinely in flight
   assert.equal(result.ok, false);
   assert.equal(result.code, "PROVIDER_ERROR");
   assert.equal(vercelCallCount, 1, "exactly one publish reached the (intercepted) Vercel API — the second trigger was refused before ever getting there");
+});
+
+test("publish-site: a concurrent call through the ASSISTANT TOOL while the HTTP route's own publish is in flight is refused, not raced — the two callers share one guard (Terra audit finding #1, 2026-08-16)", async (t) => {
+  // Before the fix, `deployment_execute_static_publish` (`publish-agent-tools.ts`) called
+  // `publishStaticSite` directly with nothing to check at all — this route's own `currentRun` slot
+  // was private to this file, so a human triggering a publish via the admin UI and an agent's
+  // confirmed `deployment_execute_static_publish` call in the SAME running server (the BYOK in-process
+  // execution mode) could both start a real publish at once. This test drives BOTH entry points
+  // against the SAME `deps` object a single server process would actually share, and proves the
+  // second one — regardless of which caller goes second — is refused before it ever reaches a real
+  // provider call, not merely delayed or silently raced.
+  const deps: RouteDeps = { ...createRouteDeps() };
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const runOutputDir = mkdtempSync(path.join(tmpdir(), "tovu-publish-cross-path-test-"));
+  const previousPublishDir = process.env.TOVU_PUBLISH_DIR;
+  const previousVercelToken = process.env.VERCEL_TOKEN;
+  process.env.TOVU_PUBLISH_DIR = runOutputDir;
+  process.env.VERCEL_TOKEN = "fake-token-for-cross-path-test-only";
+
+  // Same interception technique as the sibling "concurrent second trigger" test above — only calls to
+  // Vercel's real API host are faked; the real export's own real in-process HTTP calls pass through.
+  const realFetch = globalThis.fetch;
+  let vercelCallCount = 0;
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+    if (url.startsWith("https://api.vercel.com/")) {
+      vercelCallCount += 1;
+      return new Response(JSON.stringify({ error: { message: "intercepted — no real Vercel call was made" } }), {
+        status: 400,
+        headers: { "content-type": "application/json" },
+      });
+    }
+    return realFetch(input as never, init);
+  }) as typeof fetch;
+  t.after(() => {
+    globalThis.fetch = realFetch;
+    process.env.VERCEL_TOKEN = previousVercelToken;
+    process.env.TOVU_PUBLISH_DIR = previousPublishDir;
+    rmSync(runOutputDir, { recursive: true, force: true });
+  });
+
+  const trigger = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ target: "vercel", projectName: "demo" }),
+  });
+  assert.equal(trigger.status, 202);
+  assert.equal((await trigger.json()).status, "running");
+
+  // Fired immediately, no delay — the HTTP route's own real export against the hermetic fixture is
+  // still mid-flight (same real-export-duration race window the sibling test above relies on). Drives
+  // the assistant tool's registrations directly against `toolDeps` — a spread of the SAME `deps`
+  // object the app above is using, with only `authorize` overridden (this test is about the shared
+  // run-slot guard, not permission wiring, which `publish-agent-tools.unit.test.ts` already certifies
+  // on its own). `getPublishRunSnapshot`/`startPublishRun`/`runPublishAndAwait` all read/write ONE
+  // module-scope slot in `static-publish/publish-run.ts` regardless of which `deps` object a caller
+  // passes in, so this still exercises the real shared state a single server process would have.
+  const toolDeps = { ...deps, authorize: async () => ({ allowed: true, reason: "matched" }) };
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const registrations = new Map(buildStaticPublishRegistrations(toolDeps, { surfaceExchanges }).map((r) => [r.descriptor.id, r]));
+  const executeTool = registrations.get("deployment_execute_static_publish");
+  assert.ok(executeTool, "expected 'deployment_execute_static_publish' to be wired");
+
+  const emitted: { payload: { resource: { resource: { text: string } } } }[] = [];
+  const pending = executeTool.handler({
+    executionId: "exec-cross-path",
+    principal: { id: "principal-cross-path" },
+    run: { id: "run-cross-path" },
+    input: { target: "vercel", projectName: "demo-from-tool" },
+    signal: new AbortController().signal,
+    emitSurface: async (s) => void emitted.push(s as { payload: { resource: { resource: { text: string } } } }),
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(emitted.length, 1, "the dialog must be emitted before the call parks");
+  const html = emitted[0]!.payload.resource.resource.text;
+  const match = html.match(new RegExp(`${SURFACE_EXCHANGE_ID_PARAM}"\\s*:\\s*"([^"]+)"`));
+  assert.ok(match, "the surface must carry its exchange id, or the human's answer has nothing to name");
+  const exchangeId = match[1]!;
+
+  const delivered = surfaceExchanges.deliver({ exchangeId, toolId: "deployment_execute_static_publish", principalId: "principal-cross-path", params: { decision: "confirm" } });
+  assert.deepEqual(delivered, { ok: true });
+
+  const result = (await pending) as { published: boolean; cancelled: boolean; reason?: string; message?: string };
+  assert.equal(result.published, false);
+  assert.equal(result.cancelled, false);
+  assert.equal(
+    result.reason,
+    "already-running",
+    `expected the tool call to be refused while the HTTP route's own publish was still in flight, got: ${JSON.stringify(result)}`
+  );
+
+  let finalStatusBody: { status: string; [key: string]: unknown } = { status: "running" };
+  for (let attempt = 0; attempt < 200 && finalStatusBody.status === "running"; attempt++) {
+    await delay(20);
+    const poll = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}`, { headers: { cookie } });
+    finalStatusBody = await poll.json();
+  }
+  assert.equal(finalStatusBody.status, "errored", `HTTP route's own publish did not settle in time: ${JSON.stringify(finalStatusBody)}`);
+  assert.equal(vercelCallCount, 1, "exactly one publish (the HTTP route's own) reached the intercepted Vercel API — the tool's own call never got there");
 });
 
 /**

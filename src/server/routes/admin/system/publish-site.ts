@@ -3,10 +3,10 @@ import type { Express } from "express";
 import {
   computeBasePath,
   composePublishCredentialSource,
-  publishStaticSite,
+  getPublishRunSnapshot,
+  startPublishRun,
   validateStaticPublishConfig,
   type StaticPublishConfig,
-  type StaticPublishOutcome,
 } from "#src/features/deployments/static-publish/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
@@ -19,11 +19,14 @@ import type { RouteDeps } from "#src/server/routes/types";
  * runs a fresh in-process export (see `static-publish/adapter.ts`'s `publishStaticSite`) and then
  * blocks on an external provider's own build/deploy pipeline — GitHub Pages' build poll or Vercel's
  * deployment poll, each up to roughly a minute — so `POST .../system/publish` starts the run and
- * returns `202` immediately with a snapshot; `GET .../system/publish` polls the same snapshot. A
- * single process-local mutable slot, same "one workspace per process, one run at a time" reasoning
- * `export-site.ts`'s own header already documents — this route does NOT share that file's
- * `currentRun` slot (a plain export and a publish are different operations that may legitimately
- * need independent status), so it keeps its own.
+ * returns `202` immediately with a snapshot; `GET .../system/publish` polls the same snapshot. The
+ * single process-local mutable slot backing both lives in `static-publish/publish-run.ts` (2026-08-16,
+ * Terra audit finding #1 — see that file's header for the full "who shares this slot and why" story),
+ * NOT in this file — a plain export's own slot (`export-site.ts`'s `currentRun`, in `export-run.ts`)
+ * stays independent (a plain export and a publish are different operations that may legitimately need
+ * independent status), but THIS route's own slot is now shared with `deployment_execute_static_publish`
+ * (`publish-agent-tools.ts`), which used to call `publishStaticSite` directly with nothing to check at
+ * all — the actual gap the finding was about.
  *
  * `system.publish`-gated for BOTH the trigger and the status poll — deliberately NOT split into a
  * `system.publish`/`system.read` pair the way `export-site.ts` splits trigger/status. Reasoning: a
@@ -57,28 +60,11 @@ import type { RouteDeps } from "#src/server/routes/types";
  */
 export type AdminPublishSiteDeps = RouteDeps;
 
-export type PublishRunStatus = "idle" | "running" | "completed" | "errored";
-
-export interface PublishRunSnapshot {
-  status: PublishRunStatus;
-  startedAtIso: string | null;
-  finishedAtIso: string | null;
-  target: StaticPublishConfig["target"] | null;
-  /** Present only once `status` is `"completed"` or `"errored"` — the full `publishStaticSite`
-   *  result (never a thrown error re-surfaced here; `publishStaticSite` itself never throws, see
-   *  that function's own doc). */
-  result?: StaticPublishOutcome;
-  /** Populated only on the rare path where the ROUTE itself failed unexpectedly (never from
-   *  `publishStaticSite`, which reports its own failures inside `result`) — a message, never the raw
-   *  error object, crossing the same HTTP boundary `export-site.ts`'s own `error` field crosses. */
-  error?: string;
-}
-
-const IDLE_RUN: PublishRunSnapshot = { status: "idle", startedAtIso: null, finishedAtIso: null, target: null };
-
-/** Process-local mutable slot — see this file's header for why one slot is correct here, and why it
- *  is independent of `export-site.ts`'s own `currentRun`. */
-let currentRun: PublishRunSnapshot = IDLE_RUN;
+// `PublishRunStatus`/`PublishRunSnapshot` used to be declared here, backing a PRIVATE module-scope
+// `currentRun` this file alone could see or update. Both now live in `static-publish/publish-run.ts`,
+// and this route reads/writes the run through that module's `getPublishRunSnapshot`/`startPublishRun`
+// instead of a local variable — see this file's header for why (Terra audit finding #1:
+// `deployment_execute_static_publish` had no equivalent slot to check at all).
 
 /** No longer a module-scope constant (2026-08-15): `createEnvPublishCredentialSource` is now bound
  *  to one workspace at construction time (Terra's finding — it used to accept and ignore
@@ -204,11 +190,14 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
       return;
     }
 
-    // No `await` between this check and setting `currentRun` below — same single-synchronous-
-    // stretch reasoning `export-site.ts`'s own trigger route documents, so two concurrent POSTs
-    // cannot both observe "idle".
-    if (currentRun.status === "running") {
-      res.status(409).json({ error: "a publish is already running", run: currentRun });
+    // No `await` between this check and `startPublishRun` below — same single-synchronous-stretch
+    // reasoning `export-site.ts`'s own trigger route documents, so two concurrent POSTs cannot both
+    // observe "idle". This is now ALSO the same guard `deployment_execute_static_publish`
+    // (`publish-agent-tools.ts`) checks before its own confirmed publish call — both read/write the
+    // ONE shared slot in `static-publish/publish-run.ts`, so a concurrent trigger from either caller
+    // is refused, not raced (Terra audit finding #1).
+    if (getPublishRunSnapshot().status === "running") {
+      res.status(409).json({ error: "a publish is already running", run: getPublishRunSnapshot() });
       return;
     }
 
@@ -218,41 +207,24 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
       return;
     }
 
-    // Fails fast, before flipping `currentRun` to "running" or touching the filesystem/network at
-    // all, on a config `publishStaticSite` would reject anyway — an explicit early validation
-    // pass costs nothing extra here (the same check `publishStaticSite` performs internally) and
-    // means a caller who only sends a malformed config never sees a "running" snapshot at all.
+    // Fails fast, before flipping the shared run slot to "running" or touching the
+    // filesystem/network at all, on a config `publishStaticSite` would reject anyway — an explicit
+    // early validation pass costs nothing extra here (the same check `publishStaticSite` performs
+    // internally) and means a caller who only sends a malformed config never sees a "running"
+    // snapshot at all.
     const configError = validateStaticPublishConfig(parsed.config);
     if (configError) {
       res.status(400).json({ error: configError });
       return;
     }
 
-    const startedAtIso = deps.clock.nowIso();
-    currentRun = { status: "running", startedAtIso, finishedAtIso: null, target: parsed.config.target };
-
     // Deliberately not awaited — see this file's header for why the response returns before the
-    // publish finishes. Both branches always update `currentRun`, so a poller can never observe a
-    // stale "running" snapshot after the promise has actually settled. `publishStaticSite` itself
-    // never throws (its own doc), so the `.catch` below only guards against a truly unexpected
-    // failure in this route's own glue code, not a normal publish failure (those arrive as
-    // `result.ok === false` inside the resolved value, same shape as `export-site.ts`'s own
-    // `ok`/`failedRoutes` split).
-    void publishStaticSite({ credentialSource }, { workspaceId: deps.workspaceId, routeDeps: deps, config: parsed.config, projectName: parsed.projectName })
-      .then((result) => {
-        currentRun = { status: result.ok ? "completed" : "errored", startedAtIso, finishedAtIso: deps.clock.nowIso(), target: parsed.config.target, result };
-      })
-      .catch((err: unknown) => {
-        currentRun = {
-          status: "errored",
-          startedAtIso,
-          finishedAtIso: deps.clock.nowIso(),
-          target: parsed.config.target,
-          error: err instanceof Error ? err.message : String(err),
-        };
-      });
+    // publish finishes. `startPublishRun` itself keeps the shared slot in sync as the publish
+    // settles, so a poller can never observe a stale "running" snapshot after the promise has
+    // actually settled.
+    const snapshot = startPublishRun({ credentialSource }, { workspaceId: deps.workspaceId, routeDeps: deps, config: parsed.config, projectName: parsed.projectName }, deps.clock);
 
-    res.status(202).json(currentRun);
+    res.status(202).json(snapshot);
   });
 
   app.get("/api/admin/v1/workspaces/:workspaceId/system/publish", async (req, res) => {
@@ -277,7 +249,7 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
       return;
     }
 
-    res.status(200).json(currentRun);
+    res.status(200).json(getPublishRunSnapshot());
   });
 
   app.get("/api/admin/v1/workspaces/:workspaceId/system/publish/preview", async (req, res) => {
