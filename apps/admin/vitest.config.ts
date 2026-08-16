@@ -77,6 +77,11 @@ export default defineConfig({
       provider: "v8",
       reporter: ["text", "lcov"],
       reportsDirectory: "./coverage",
+      // Vitest defaults this to `false` — a coverage run with even one failing test then produces
+      // ZERO artifacts (no error, no partial report), which reads as broken tooling rather than a
+      // failed test. This has already cost real debugging time in this repo (see the 2026-08-15
+      // coverage-and-tests-worklist). Owner-approved 2026-08-15.
+      reportOnFailure: true,
     },
   },
 });
