@@ -1,13 +1,20 @@
 # Custom Publish Provider Contract — S3-compatible, first slice
 
-Status: design spec, not implemented. Author: Software Architect dispatch, 2026-08-15.
-Amended twice same day with owner decisions. Pass 1: the `aws4fetch`/AWS-CLI-rejected ruling (§1,
-§1a), the bucket-vs-hosting choice reopened as a presented decision rather than resolved silently
-(§3a), and the honest AWS-vs-Vercel framing requirement (§3b, §4c). Pass 2: masked input DECIDED
-blocking with the exact upstream `@jini-ai/ui` diff spec (§8/§8a), the other-four-providers backfill
-DECIDED deferred (§7), the label/multi-connection UX DECIDED no (§9, and its consequences threaded
-back into §4c/§6d), and the `publicUrl` field + `buildFormSurface` design both DECIDED approved as
-specified (§4a, §6c). **Only §3a remains open** — every other question this spec raised is resolved.
+Status: design spec, ready for implementation dispatch. Author: Software Architect dispatch,
+2026-08-15. Amended three times same day with owner decisions. Pass 1: the `aws4fetch`/AWS-CLI-
+rejected ruling (§1, §1a), the bucket-vs-hosting choice reopened as a presented decision rather than
+resolved silently (§3a), and the honest AWS-vs-Vercel framing requirement (§3b, §4c). Pass 2: masked
+input DECIDED blocking with the exact upstream `@jini-ai/ui` diff spec (§8/§8a), the other-four-
+providers backfill DECIDED deferred (§7), the label/multi-connection UX DECIDED no (§9, and its
+consequences threaded back into §4c/§6d), and the `publicUrl` field + `buildFormSurface` design both
+DECIDED approved as specified (§4a, §6c). Pass 3: §3a itself resolved — verified per-provider (AWS,
+Backblaze B2, Cloudflare R2, DigitalOcean Spaces, each against that provider's own current docs) that
+hosting/public-access configuration needs different permissions than object writes everywhere, and a
+genuinely different credential system for R2 and DO Spaces' CDN specifically; landed on a new
+read-only `deployment_generate_bucket_hosting_setup` tool (Tovu composes the exact policy/steps, the
+human applies them in their own console) as the uniform answer across all five providers, plus the
+required honest partial-success publish outcome this decision (and the owner's original framing)
+both depend on. **No open items remain.**
 Scope: the fifth "Custom" tab in the Static Site deployment UI, S3-compatible protocol only.
 
 Every claim about existing code below is grounded in a file read during this dispatch, cited by
@@ -164,7 +171,7 @@ parallel "custom provider" type hierarchy.
 
 ---
 
-## 3a. A bucket is not a website — presented as a choice, not resolved
+## 3a. A bucket is not a website — RESOLVED
 
 The owner's own framing, stated directly and reproduced here because it names the failure mode this
 section exists to design against: *"a novice whose site 403s after a 'successful' publish."*
@@ -173,56 +180,126 @@ Uploading objects to a bucket via `PUT` (§2's `S3CompatibleDeployTarget`) does 
 them servable as a website. A plain S3-compatible bucket is private by default on every provider in
 scope. Making it a served static site needs one more thing on top of the object API — and that
 "more" is **not** part of what "S3-compatible" uniformly means across providers, which is the reason
-this has to be a named decision rather than an implementation detail:
+this had to be a named decision rather than an implementation detail.
 
-- **AWS S3**: a bucket-level "Static website hosting" property, plus a bucket policy granting public
-  `s3:GetObject` (or CloudFront in front, with its own distribution + origin-access config) — a
-  distinct API surface from the object `PUT`/`GET` operations `S3CompatibleDeployTarget` already
-  implements.
-- **Cloudflare R2**: no "website hosting" concept at all — public access is either R2's own
-  `r2.dev` public-development-URL toggle or a custom domain binding, both R2-specific, neither
-  S3-API-shaped.
-- **DigitalOcean Spaces**: a CDN-endpoint toggle plus Spaces' own permission setting, again its own
-  console/API surface, not the S3 object API.
-- **Backblaze B2**: a "make bucket public" toggle in B2's *own* native API, separate from B2's S3-
-  compatible object-API surface.
+### The owner's design intent
 
-In other words: the reason S3-compatible was chosen as the first custom protocol is that the object
-API (`PUT`/`GET`/list) is genuinely uniform across these providers — SigV4-sign a request, it works
-everywhere. The public-hosting layer is **not** uniform; it is a per-provider integration each as
-different from the others as GitHub Pages is from Vercel. Two real options, with real costs each:
+Neither pure "Tovu configures it" nor pure "the user does it entirely alone." The same pattern
+already approved for credential entry (§6): **Tovu composes and pre-fills the change, but does not
+submit it — the human reviews the exact content and authorizes.** Their words: *"can tovu do it but
+not submit? just fill out the fields and have the user verify it."*
 
-**Option A — Tovu configures hosting/public-access too.** Closest to "it just works" for the human.
-Cost: a per-provider special case for the hosting/CDN API on top of the uniform object API — for
-AWS specifically, a bucket-policy write with real blast radius (a wrong policy can make a bucket
-world-writable, not just world-readable, if implemented carelessly). This is real implementation
-surface for each provider Tovu wants to support well, and it re-introduces per-provider branching
-inside what was supposed to be one uniform adapter — some of the value of picking S3-compatible
-first is that it *avoids* a per-provider adapter matrix the way the four REST-API providers already
-have one each; auto-configuring hosting partially reintroduces that matrix one layer up.
+### The feasibility question, verified against each provider's own docs (not assumed from AWS)
 
-**Option B — Tovu does not configure hosting; the guidance walks the user through enabling public
-access at their provider first, and `publicUrl` (§4) is what they paste back once it's live.**
-Cheaper to build and keeps `S3CompatibleDeployTarget` uniform across all five providers in scope
-(§2's `publish()`/`checkReachability()` only). Cost: a real extra step for the human, and the
-403-after-"success" failure mode the owner named is only avoided if `checkReachability(publicUrl)`
-(§2) is actually run and surfaced honestly — a successful object upload with an unreachable
-`publicUrl` must be reported as a **partial** success ("files uploaded, but `publicUrl` is not
-serving them — check that public access/hosting is enabled"), never folded into the same
-`{published: true}` shape a real success gets. `StaticPublishOutcome` (`static-publish/types.ts:92-
-108`) does not currently have a partial-success shape — this is new surface, not a reuse of an
-existing branch.
+Setting a bucket policy or enabling website hosting needs **different permissions** than uploading
+objects. §4c's own guidance tells users to create a least-privilege key scoped to one bucket's
+*objects* — the question is whether such a key can also perform hosting/public-access configuration,
+and whether that answer is even the same shape across providers. Verified by reading each provider's
+own current documentation directly (not inferred, not generalized from AWS):
 
-**My read, offered as a recommendation, not a resolution**: Option B, because it keeps the "one
-adapter, many providers" value proposition intact and because Option A's AWS bucket-policy write is
-exactly the kind of "irreversible, external, credential-scoped" action this codebase already treats
-with extra weight elsewhere ([[project_tovu_deployment_model]] and this domain's own
-`deployment_execute_static_publish` gating) — adding a *second* kind of external-account-mutating
-action inside credential setup, before a single object is even published, is a meaningfully bigger
-trust ask than what the four existing providers require (none of them configures anything on the
-provider side beyond what the user's token already scopes). But this is explicitly the owner's call
-per their own framing, not mine to close: **[NEEDS CLARIFICATION — blocking implementation of §6d's
-tool and §4's field list]**.
+| Provider | Object writes vs. hosting/public-access: same auth system? | Verified finding |
+|---|---|---|
+| **AWS S3** | Same system (IAM), **different actions**, at least three of them | `s3:PutObject` (object) is distinct from `s3:PutBucketPolicy`, `s3:PutBucketWebsite`, and `s3:PutBucketPublicAccessBlock` (all bucket-level) — confirmed against AWS's own Service Authorization Reference. Critically, **Block Public Access is on by default for new buckets** ("By default, new buckets, access points, and objects don't allow public access" — AWS's own block-public-access docs) and a bucket policy alone does not overcome it ("Block public access settings don't alter existing policies... removing a block public access setting causes a bucket... to again be publicly accessible"). So AWS needs the object-write action **plus at least three separate bucket-level actions**, one of which (`PutBucketPublicAccessBlock`) is arguably a bigger permission than the policy write itself — it is AWS's own deliberate guardrail against accidentally-public buckets, and this flow would need to deliberately turn it off. |
+| **Backblaze B2** | Same system (Application Keys), **different capability**, key can still be single-bucket-scoped | Confirmed against B2's own key-creation API docs: `writeFiles` (object writes) is a distinct capability from `writeBuckets` (bucket visibility/`bucketType`) in B2's 24-capability list, but a key can be scoped to one bucket (`bucketIds`) while carrying multiple capabilities — architecturally closer to AWS's case than to R2's below. |
+| **Cloudflare R2** | **Different systems entirely — no overlap at any permission level** | Confirmed against R2's own API-tokens docs: R2 API tokens (the S3-compatible access key/secret pair) are explicitly documented as usable only with "S3-compatible SDKs or XML APIs," and R2's own public-buckets docs describe enabling the `r2.dev` URL or a custom domain as a Cloudflare-dashboard/Cloudflare-REST-API operation using a **Cloudflare API token** — a wholly separate credential system with no shared scope. No amount of widening an R2 S3-compatible key reaches this. |
+| **DigitalOcean Spaces** | **Different systems for CDN specifically** | Confirmed against DigitalOcean's own CDN docs: enabling a Space's CDN endpoint is a DigitalOcean-control-panel or DigitalOcean-API (`doctl`/API v2) operation using a **DigitalOcean personal access token**, not a Spaces access key. (Not independently verified this pass, flagged rather than asserted: basic object/bucket public-read *may* be reachable via the S3-compatible API's own ACL mechanism — `x-amz-acl` on `PutObject`/`PutBucketAcl` — which would make bare public serving, without CDN acceleration, possibly reachable by the stored key. This needs a real check at implementation time before being relied on.) |
+| **Wasabi**, **MinIO** | Not independently verified this pass | Both market themselves as closely AWS-S3-API-compatible, including bucket-policy support through the same signed-request surface — reasonable to *expect* the same shape as AWS (same system, different actions), but this is an inference from the vendors' own compatibility claims, not a doc citation like the four rows above. Verify before relying on it in implementation.
+
+**This is the finding, stated plainly: it is not uniform, and it is not merely "AWS needs a bigger
+key."** Two providers in scope (R2, and DigitalOcean Spaces for CDN specifically) cannot reach
+hosting/public-access configuration through the S3-compatible credential **at any permission level**
+— it is a different protocol, not a bigger grant. The other two verified providers (AWS, B2) could
+technically reach it with a widened-but-still-bucket-scoped key.
+
+### The resolution: Fallback 2 (composed content, human applies it), uniformly, for all five providers
+
+**DECIDED (working through the owner's own three fallback framings):**
+
+- **Fallback 1 (ask for a permanently broader stored key)** — rejected, and the R2/DigitalOcean
+  finding makes the argument stronger than security-posture alone: even where it's technically
+  possible (AWS, B2), the widened scope would live in the **same stored credential used for every
+  future ordinary publish**, not just the one-time setup — a permanent blast-radius increase for a
+  one-time task. And it *cannot* be the uniform answer regardless, since it structurally doesn't
+  exist for R2/Spaces-CDN — a design that works for 3 of 5 providers and silently fails for the other
+  2 is a worse outcome than one that works honestly for all 5.
+- **Fallback 3 (a second, temporary, never-stored setup credential)** — genuinely evaluated, not
+  dismissed by default. It would work for AWS/B2 (same credential system, so a temporary elevated key
+  could execute a signed bucket-policy/website-hosting call, reviewed and confirmed, then discarded).
+  It **cannot** work for R2 or DigitalOcean-Spaces-CDN even as a "temporary" credential — an R2
+  S3-compatible key of any scope or lifetime still cannot call the Cloudflare REST API; the auth
+  systems don't overlap. Building it would mean two genuinely different automation depths across five
+  providers (auto-apply-after-confirm for two, manual-only for the other three), a second credential
+  *type* with its own UX (explaining a temporary vs. permanent key distinction to a novice — exactly
+  the audience §3b says needs LESS complexity, not more), and a second signed-request code path for
+  bucket-level actions beyond object `PUT`. That is real, standalone design and implementation
+  surface, disproportionate to a "first slice." **Deferred, not rejected** — worth a dedicated future
+  pass for the AWS/B2 subset specifically if the manual path proves to be a real adoption blocker in
+  practice.
+- **Fallback 2 (Tovu composes the exact content; the human applies it themselves)** — **this is what
+  ships**, uniformly across all five providers, because it is the only option that is (a) honest about
+  what the stored, least-privilege credential can and cannot do, (b) uniform — no provider gets a
+  silently worse experience than another, and (c) still delivers the owner's actual design intent.
+
+**Why (c) holds — this is not a downgrade from "compose, don't submit," it is the same pattern with
+a different final actor:** the owner's own words are "fill out the fields and have the user verify
+it" — the review-and-authorize gate is what matters, not which system's "Submit" button gets clicked.
+Tovu still does 100% of the composing: the exact bucket policy JSON (naming the real bucket, not a
+placeholder), the exact website-hosting configuration, and — for AWS — the exact Block Public Access
+change, all rendered together with plain-language explanation of what each one does. The human
+reviews genuinely real, unredacted content, not an abstract yes/no. The only difference from a
+Tovu-executed apply is *where* the human's authorization is exercised: in their own already fully-
+privileged provider console/session (which has no permission-scoping problem at all — it is their
+real account) rather than through Tovu's deliberately narrow stored credential. That preserves the
+review/authorize gate exactly; it does not weaken it.
+
+### The new tool: read-only, no write, no MCP-UI gate needed
+
+Composing this content is a **read-only operation** — Tovu never calls a write API for it, so it
+does not need the surface-exchange/confirmation machinery §6 designs for `deployment_execute_static_publish`
+and `deployment_propose_custom_provider_credential`. It is the same shape as `deployment_preview_static_publish`/
+`deployment_get_static_publish_capabilities` (§ pre-existing catalog, `publish-agent-tools.ts:201-215`):
+a plain read tool whose result the model relays directly in chat.
+
+```
+deployment_generate_bucket_hosting_setup
+  input: { protocol: "s3-compatible", bucket: string, region: string, endpoint?: string }
+    // same non-secret shape §6d's propose-credential tool takes for these fields — may be called
+    // before a credential is even saved (a novice deciding whether to proceed at all) or after
+    // (reading the values back off the just-saved connection)
+  sideEffects: "none"
+  authorization: { permission: "deployments.read" }   // same permission preview/capabilities already use
+  returns: {
+    provider: "aws" | "backblaze-b2" | "cloudflare-r2" | "digitalocean-spaces" | "wasabi" | "minio" | "generic",
+    steps: Array<{ title: string; description: string; consoleJson?: string }>,
+      // e.g. for AWS: [{title: "Enable static website hosting", ...}, {title: "Allow public reads
+      // (bucket policy)", description: "...", consoleJson: "<the exact policy JSON, bucket name
+      // substituted in>"}, {title: "Turn off Block Public Access for this bucket", ...}]
+    warning: string,
+      // for R2/DigitalOcean-Spaces-CDN specifically: states plainly that this step needs a DIFFERENT
+      // credential (their Cloudflare/DigitalOcean account login), not the S3-compatible key just
+      // saved, and why — so a novice does not go looking for a field on this tab that doesn't exist
+  }
+```
+
+The model relays `steps` as prose plus copyable code blocks — the same `CopyLine`-affordance pattern
+`StaticSiteTab.tsx` already uses for the export command and the CLI "ask the assistant" lines, just
+authored by the model from structured tool output instead of hardcoded JSX. Per-provider step content
+is out of scope for this spec to author in full (it is real prose, provider by provider, that belongs
+in implementation, informed by the citations in the table above) — but the **shape** (a tool the model
+can call, structured steps with an optional literal JSON block, and an explicit different-credential
+warning for R2/DO) is specified here.
+
+### Required regardless of which fallback — restated, still binding
+
+Publishing must honestly report **"uploaded, but not yet reachable"** as a distinct outcome from a
+real success, and must never fold an unreachable site into `{published: true}`. This was already the
+right requirement under the original Option B framing and stays exactly as required now that Fallback
+2 is the decision, for the identical reason: `checkReachability(publicUrl)` (§2) must actually run on
+every publish and be surfaced honestly. `StaticPublishOutcome` (`static-publish/types.ts:92-108`)
+needs a genuine partial-success shape for this — not a reuse of the existing `ok: true`/`ok: false`
+split, since "uploaded fine, not servable yet" is neither. This is the one thing that makes any of
+these options acceptable, per the owner's own framing, and it is unaffected by §3a's resolution one
+way or the other — it was never conditional on which fallback won.
 
 ### 3b. The guidance must say AWS is harder than Vercel — up front, not buried
 
@@ -349,12 +426,11 @@ forward-reference in this spec to "§6 has the actual copy" was a drafting error
 content; fixed here rather than left dangling. Leads with §3b's three-piece honesty framing, per the
 owner's explicit instruction that this must be up front, not buried in field 4 of 6.
 
-**Form-level `description` (shown above every field, per §3b):** *"S3-compatible storage needs three
-things, not just these fields: a bucket you've already created, public access or a CDN set up in
-front of it [— outcome depends on §3a — either 'which Tovu will help you enable below' or 'which
-you'll need to enable yourself first, in your provider's dashboard'], and an access key scoped to
-just that bucket. If you haven't done the first two yet, do that in your provider's console before
-filling this in."*
+**Form-level `description` (shown above every field, per §3b), finalized per §3a's resolution:**
+*"S3-compatible storage needs three things, not just these fields: a bucket you've already created,
+public access or hosting set up in front of it — ask me to generate the exact steps and the exact
+policy for your bucket, then apply them yourself in your provider's console — and an access key
+scoped to just that bucket. If you haven't done the first two yet, do that before filling this in."*
 
 **No `label` field** — per §9's resolution, S3-compatible follows the same flat, single-connection
 shape the other four providers already use, not a named-multi-connection UX. The save call sends the
@@ -373,11 +449,10 @@ S3-compatible-specific), it is simply never a user-facing input.
 | `bucket` | yes | no | "The exact name of the bucket (DigitalOcean calls it a 'Space') to publish into. Case-sensitive. Tovu does not create this for you — create it in your provider's dashboard first." |
 | `accessKeyId` | yes | no (but sensitive — treat like a username, not a password) | "Created alongside your Secret Access Key when you make an API key pair. AWS: IAM → Security credentials → Access keys. Cloudflare R2: R2 → Manage API tokens. Backblaze B2: Application Keys. Use a key scoped to just this one bucket if your provider supports it — not an account-wide key." |
 | `secretAccessKey` | yes | **yes** | "Shown only once, at the moment the key pair is created — copy it right away. If you lose it, your provider cannot show it to you again; you'll need to create a new key. Tovu stores this encrypted and never displays it again after you save." |
-| `publicUrl` | yes | no | "The web address people will actually visit once this is live, e.g. `https://my-site.pages.dev`, a custom domain pointed at this bucket, or your provider's public bucket URL. [— outcome depends on §3a — either 'Tovu can help set this up for you below' or 'set this up in your provider's dashboard first, then paste the resulting address here'.] Tovu checks this address after every publish and will tell you plainly if it isn't reachable, rather than reporting success anyway." |
+| `publicUrl` | yes | no | "The web address people will actually visit once this is live, e.g. `https://my-site.pages.dev`, a custom domain pointed at this bucket, or your provider's public bucket URL. Not sure how to set this up? Ask me to generate the exact steps for your bucket, then apply them yourself in your provider's console — Tovu never makes this change for you. Once it's live, paste the address here; Tovu checks it after every publish and will tell you plainly if it isn't reachable, rather than reporting success anyway." |
 
-The bracketed `[— outcome depends on §3a —]` markers are not placeholder prose left unfinished — they
-mark the two spots where §3a's still-open decision changes the actual wording. Both are one sentence
-each; finalizing them is a five-minute edit once §3a resolves, not a redesign.
+Both rows above are finalized against §3a's resolution (Fallback 2, `deployment_generate_bucket_hosting_setup`)
+— no longer placeholder text.
 
 ---
 
@@ -537,7 +612,10 @@ comes from "the model structurally cannot touch the value" rather than "the valu
 Its catalog `description` must open with §3b's three-piece honesty framing (bucket, hosting/CDN,
 scoped key) — this is the text the model actually has available to relay in chat before opening the
 form, so this is where "AWS is harder than Vercel" has to live for the model to be capable of saying
-so unprompted, not only inside the form the human sees after the tool has already been called.
+so unprompted, not only inside the form the human sees after the tool has already been called. It
+should also name `deployment_generate_bucket_hosting_setup` (§3a) directly, so the model knows to
+offer it in the same breath — "I can also generate the exact hosting setup steps for your bucket if
+you haven't done that part yet."
 
 ```
 deployment_propose_custom_provider_credential
@@ -632,6 +710,15 @@ browse the Custom tab directly without going through chat gets it via the same `
   overwrite-vs-clean were not re-examined here; assume S3-compatible overwrites matching keys and
   leaves orphaned old keys in place for v1 (matches "no delete" being the safer default when nothing
   in the brief asked for sync semantics).
+- **DECIDED (owner, via §3a): Tovu auto-applying the hosting/public-access change after confirm,
+  using a temporary, never-stored, elevated setup credential (§3a's "Fallback 3").** Genuinely
+  feasible for AWS/Backblaze B2 (verified: same credential system, a wider-but-still-bucket-scoped key
+  can reach the needed actions) but not for Cloudflare R2 or DigitalOcean Spaces' CDN (verified:
+  different credential system entirely, no scope reaches it). Deferred, not rejected: real future work
+  for the AWS/B2 subset specifically if the manual §3a path proves to be a real adoption blocker, but
+  it is a second credential type, a second confirm-then-apply flow, and a second signed-request
+  surface — disproportionate design/implementation weight for a first slice, and asymmetric across
+  providers in a way that would need its own UX story.
 
 ---
 
@@ -762,9 +849,9 @@ rendering") is the single source for which fields get it; no second place decide
 
 ## 9. `[NEEDS CLARIFICATION]` items — status
 
-All three items this spec originally raised here are now **resolved by the owner**. One separate item
-raised later (§3a) remains genuinely open. Recorded as decided, not proposed, per the owner's
-instruction that resolved items should read as settled rather than re-litigable.
+**All items this spec has raised, across all passes, are now resolved by the owner — including §3a,
+resolved last.** Recorded as decided, not proposed, per the owner's instruction that resolved items
+should read as settled rather than re-litigable.
 
 - ~~Fold the other four providers' guidance into the same server-fetched table now, or leave
   deferred?~~ — **RESOLVED, §7: DEFER.** S3-compatible only, for now. Owner's reasoning: refactoring
@@ -790,10 +877,20 @@ instruction that resolved items should read as settled rather than re-litigable.
   named-multi-connection feature. If a real multi-bucket need appears later, the owner's framing is
   explicit: revisit it for **all** providers at once, not carve out S3-compatible alone.
 
-**Still open — not resolved by this pass:**
-- **§3a**: whether Tovu configures bucket public-access/website-hosting, or the guidance walks the
-  user through it themselves. Presented as a choice per the owner's explicit instruction on this
-  point; blocks finalizing §4c's field copy and §6d's tool description until closed.
+- ~~§3a: whether Tovu configures bucket public-access/website-hosting, or the guidance walks the user
+  through it themselves~~ — **RESOLVED: neither pure option — Fallback 2.** Verified per-provider
+  (not assumed from AWS) that hosting/public-access configuration needs different permissions than
+  object writes everywhere, and for Cloudflare R2 and DigitalOcean Spaces' CDN specifically needs a
+  **different credential system entirely** — no amount of widening the stored S3-compatible key
+  reaches it. Tovu composes the exact policy/config content (naming the real bucket) via a new
+  read-only tool, `deployment_generate_bucket_hosting_setup`; the human applies it in their own
+  already-privileged provider console. This satisfies the owner's "compose but don't submit, human
+  verifies" intent identically to a Tovu-executed apply — only the final actor differs, forced by the
+  credential's own scope, not chosen against the design intent. Full reasoning, the verified
+  per-provider table, and the rejected/deferred alternatives (a permanently-broader stored key; a
+  temporary elevated setup-only credential) are in §3a.
+
+**No open items remain.**
 
 ---
 
@@ -802,36 +899,47 @@ instruction that resolved items should read as settled rather than re-litigable.
 **Small feature, additive throughout, no schema migration, one small decided dependency
 (`aws4fetch`, §1).** Touches, in order:
 
+**All decisions this spec raised are now resolved — nothing here is provisional on a future owner
+call.** This is the full touched-file list:
+
 1. `publish-credentials/types.ts` — `PublishProviderId` +1, `S3CompatibleConnectionInput`, +1 to
    `PublishConnectionInput` union.
 2. `publish-credentials/store.ts` — `PROVIDER_IDS` +1, `validateConnection` +1 branch.
-3. `static-publish/types.ts` — `S3CompatiblePublishConfig` (empty), +1 to `StaticPublishConfig`.
+3. `static-publish/types.ts` — `S3CompatiblePublishConfig` (empty), +1 to `StaticPublishConfig`, plus
+   `StaticPublishOutcome`'s new partial-success branch (§3a's "uploaded, not yet reachable" outcome —
+   required regardless of provider, not S3-compatible-specific once it exists on the shared type).
 4. `static-publish/s3-compatible-target.ts` (NEW) — `S3CompatibleDeployTarget implements DeployTarget`,
    signed with `aws4fetch` (§1, decided), PUT + reachability check.
-5. `static-publish/adapter.ts` — `buildJiniTarget` +1 branch, `computeBasePath` +1 branch (undefined).
+5. `static-publish/adapter.ts` — `buildJiniTarget` +1 branch, `computeBasePath` +1 branch (undefined),
+   plus wiring the partial-success outcome through `publishStaticSite`'s own return.
 6. `publish-credentials/s3-compatible-field-guidance.ts` (NEW) — the single guidance table (§5, §4c),
-   including the up-front three-piece framing from §3b (bucket, hosting/CDN, scoped IAM key).
-7. `publish-agent-tools.ts` — new `deployment_propose_custom_provider_credential` tool + handler
-   (§6d); `PROVIDER_IDS` array needs no edit (already type-sourced, per its own comment).
-8. `mcp-ui-tool-calls.ts` — allowlist the new tool id.
+   including the up-front three-piece framing from §3b (bucket, hosting/CDN, scoped IAM key) and §3a's
+   finalized `publicUrl`/description copy pointing at `deployment_generate_bucket_hosting_setup`.
+7. `publish-agent-tools.ts` — two new tools + handlers: `deployment_propose_custom_provider_credential`
+   (§6d, MCP-UI-gated write) and `deployment_generate_bucket_hosting_setup` (§3a, plain read tool, no
+   gate, `sideEffects: "none"`, `deployments.read`). `PROVIDER_IDS` array needs no edit for either
+   (already type-sourced, per its own comment).
+8. `mcp-ui-tool-calls.ts` — allowlist `deployment_propose_custom_provider_credential` only; the
+   hosting-setup tool is a read, so it never touches this gate at all (§3a).
 9. Admin: `AdminPublishCredentialProviderId` +1, a new `CustomProviderTab.tsx` (mirrors
    `StaticSiteTab.tsx`'s `PublishCredentialRow` pattern but fetches guidance over HTTP per §5 rather
-   than hardcoding it), `Deployment.tsx` +1 tab entry.
-10. **DECIDED hard prerequisite, not a parallel-and-optional track**: `@jini-ai/ui`'s
-    `StringField`/`TextInputProps`/`renderTextInput` masked-input support (§8, full diff spec in
-    §8a — 4 files in `/Users/la/Programming/Jini/packages/ui/src/features/mcp-ui/surfaces/`). Gates
-    §6d's `secretAccessKey`/`accessKeyId` fields — do not wire the S3-compatible credential flow
-    against the unmasked primitive "temporarily."
-11. **The one remaining owner decision blocking final copy**: §3a's bucket-vs-website-hosting choice.
-    Everything in (1)-(10) is unaffected by which way it resolves except the exact wording of §4c's
-    two bracketed sentences and whether a "configure public access for me" step gets added to the
-    propose-credential tool's flow — but §4c's copy and §6d's tool description cannot be finalized
-    without it. This is now the single open item blocking a complete implementation dispatch; every
-    other question this spec raised is resolved (§1, §1a, §4a, §6c, §7, §8, §9).
+   than hardcoding it; also renders the new partial-success publish outcome distinctly from both
+   success and failure), `Deployment.tsx` +1 tab entry.
+10. **Hard prerequisite**: `@jini-ai/ui`'s `StringField`/`TextInputProps`/`renderTextInput`
+    masked-input support (§8, full diff spec in §8a — 4 files in
+    `/Users/la/Programming/Jini/packages/ui/src/features/mcp-ui/surfaces/`). Gates §6d's
+    `secretAccessKey`/`accessKeyId` fields — do not wire the S3-compatible credential flow against the
+    unmasked primitive "temporarily."
+11. Explicitly out of scope for this dispatch, per §3a: authoring the actual per-provider hosting-setup
+    step content (the real bucket-policy JSON templates and console instructions for AWS/B2/R2/DO
+    Spaces/Wasabi/MinIO) that `deployment_generate_bucket_hosting_setup` returns. This spec fixes the
+    tool's *shape*; the prose is real implementation work informed by §3a's citations, not something to
+    invent here.
 
 Parallel delivery: (1)-(5) [server domain types + target] can proceed independently of (6)-(8)
 [agent-guidance + tool wiring] once the `PublishProviderId` union lands, since everything downstream
 switches on that type and the compiler enforces completeness. (9) [admin UI] can start in parallel
 against the type contract alone, stubbing the HTTP guidance fetch. (10) [the `@jini-ai/ui` change] can
 run fully in parallel in the Jini repo and land whenever ready — it blocks only the final wiring of
-(7)'s secret fields, nothing else in this list.
+(7)'s secret fields, nothing else in this list. (11) [hosting-setup prose] can be authored in parallel
+by anyone once (7)'s tool shape lands, provider by provider, independently of everything else.
