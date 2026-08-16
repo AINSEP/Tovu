@@ -134,7 +134,7 @@ const NO_INPUT_SCHEMA = {
  *  `deployment_get_static_publish_capabilities` reports in. Sourced from `StaticPublishTargetId`'s own
  *  4-member union (`static-publish/types.ts`) rather than re-declared, so a fifth target added there
  *  cannot silently go unreported here without a compile error at this array's own type annotation. */
-const PROVIDER_IDS: readonly StaticPublishTargetId[] = ["github-pages", "vercel", "netlify", "cloudflare-pages"];
+const PROVIDER_IDS: readonly StaticPublishTargetId[] = ["github-pages", "vercel", "netlify", "cloudflare-pages", "s3-compatible"];
 
 /** `deployment_preview_static_publish`'s input — the same target-discriminated shape
  *  `publish-site.ts`'s trigger route body uses, minus `projectName` (a preview never runs a real
@@ -147,9 +147,9 @@ const PREVIEW_STATIC_PUBLISH_SCHEMA = {
   properties: {
     target: {
       type: "string",
-      enum: ["github-pages", "vercel", "netlify", "cloudflare-pages"],
+      enum: ["github-pages", "vercel", "netlify", "cloudflare-pages", "s3-compatible"],
       description:
-        "Which host to preview publishing to. 'github-pages' publishes to the gh-pages branch of a GitHub repo and serves from a /<repo> subpath (a GitHub Pages PROJECT site) — the exported site's base path is always rewritten to match, automatically. 'vercel'/'netlify'/'cloudflare-pages' all serve from the domain root and must NOT carry a base path.",
+        "Which host to preview publishing to. 'github-pages' publishes to the gh-pages branch of a GitHub repo and serves from a /<repo> subpath (a GitHub Pages PROJECT site) — the exported site's base path is always rewritten to match, automatically. 'vercel'/'netlify'/'cloudflare-pages'/'s3-compatible' all serve from the domain root and must NOT carry a base path. 's3-compatible' is the 'Custom' tab's S3-compatible protocol (AWS S3, Cloudflare R2, Backblaze B2, DigitalOcean Spaces, Wasabi, MinIO, ...) — it takes no target-specific field here (endpoint/region/bucket/public URL all live on the saved credential, configured via deployment_propose_custom_provider_credential), and it is meaningfully more setup work than the other four: a bucket, a public-hosting/CDN step in front of it, and a scoped access key, not just one token.",
     },
     owner: {
       type: "string",
@@ -208,7 +208,7 @@ export const staticPublishAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "deployment_get_static_publish_capabilities",
     description:
-      "Reports live publish readiness for all four static-publish targets (github-pages, vercel, netlify, cloudflare-pages) WITHOUT decrypting or exposing any credential: for each provider, whether it is ready to publish to right now, every named credential set saved for it (id, label, isDefault, createdAt, updatedAt — NEVER a token, ciphertext, or masked tail), and — for a provider that is NOT ready — a human-readable reason naming what is missing (e.g. no credential saved for this workspace, or a required field such as Cloudflare Pages' account id is not configured). Also reports this install's executionMode ('self-hosted-cli' or 'hosted-api-only'), which affects whether a server-environment-variable credential can ever be used as a fallback. Call this before telling a human what publishing would do, before calling deployment_execute_static_publish, or whenever asked something like 'can I publish, and to where'. Do NOT ask the user to paste an API token, access key, or any other secret into this chat, ever, for any reason — a value typed into chat is written into the conversation transcript, which is exactly what this workspace's encrypted credential store exists to avoid, and this tool has no way to accept one anyway (it takes no input). If a provider is not ready, tell the human to add or fix that provider's credential themselves in the admin's Static Site tab (Deployment panel → Static Site → Publish), which saves it encrypted server-side and never shows it to you.",
+      "Reports live publish readiness for all five static-publish targets (github-pages, vercel, netlify, cloudflare-pages, s3-compatible) WITHOUT decrypting or exposing any credential: for each provider, whether it is ready to publish to right now, every named credential set saved for it (id, label, isDefault, createdAt, updatedAt — NEVER a token, ciphertext, or masked tail), and — for a provider that is NOT ready — a human-readable reason naming what is missing (e.g. no credential saved for this workspace, or a required field such as Cloudflare Pages' account id is not configured). Also reports this install's executionMode ('self-hosted-cli' or 'hosted-api-only'), which affects whether a server-environment-variable credential can ever be used as a fallback. Call this before telling a human what publishing would do, before calling deployment_execute_static_publish, or whenever asked something like 'can I publish, and to where'. Do NOT ask the user to paste an API token, access key, or any other secret into this chat, ever, for any reason — a value typed into chat is written into the conversation transcript, which is exactly what this workspace's encrypted credential store exists to avoid, and this tool has no way to accept one anyway (it takes no input). If a provider is not ready, tell the human to add or fix that provider's credential themselves in the admin's Static Site tab (Deployment panel → Static Site → Publish), which saves it encrypted server-side and never shows it to you.",
     sideEffects: "none",
     authorization: { permission: "deployments.read" },
     inputSchema: NO_INPUT_SCHEMA,
@@ -216,7 +216,7 @@ export const staticPublishAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "deployment_execute_static_publish",
     description:
-      "Publishes the current site as a FRESH static export to GitHub Pages, Vercel, Netlify, or Cloudflare Pages, using the workspace's own SAVED credential for that provider (configured by a human in the admin's Static Site tab — this tool takes no token/credential field of any kind; do not attempt to supply one). HUMAN-GATED: call it with just { target, projectName, ...any target-specific fields — see deployment_preview_static_publish's schema for those }. This ONE call shows an interactive confirmation dialog naming exactly what will be published and to where, and WAITS: it does not return until the human answers or the dialog times out. There is no second call to make, and no confirmation token to invent or pass. If the human clicks Publish, THIS SAME CALL runs the publish and returns { published: true, target, url, status, basePath? }. If they click Cancel, it returns { published: false, cancelled: true }. If nobody answers before the dialog expires (or the run ends first), it returns { published: false, cancelled: false, reason: 'expired' | 'abandoned' }. If no credential is configured yet for the requested provider, this returns { published: false, reason: 'no-credential', message } — naming the provider and pointing to the Static Site tab — WITHOUT ever raising a dialog (call deployment_get_static_publish_capabilities first to check readiness and avoid this). Every other failure — a saved Cloudflare Pages credential missing its account id, a rejected provider API call, an export failure — is returned as { published: false, code, message } with an actionable message describing what went wrong; it never echoes a credential or a raw provider response body. The result is immediately LIVE on the public internet the moment it returns published:true, and may be crawled, cached, or indexed within seconds — irreversible in the sense that matters, since a later republish overwrites what is HOSTED but can never retract what was already public. Simply wait for the result and report the true outcome to the user — do not tell them a dialog is open and stop, and do not re-call this tool while a call is already pending (a fresh call raises a second, separate dialog rather than answering the first).",
+      "Publishes the current site as a FRESH static export to GitHub Pages, Vercel, Netlify, Cloudflare Pages, or a Custom S3-compatible host, using the workspace's own SAVED credential for that provider (configured by a human in the admin's Static Site/Custom tab — this tool takes no token/credential field of any kind; do not attempt to supply one). HUMAN-GATED: call it with just { target, projectName, ...any target-specific fields — see deployment_preview_static_publish's schema for those }. This ONE call shows an interactive confirmation dialog naming exactly what will be published and to where, and WAITS: it does not return until the human answers or the dialog times out. There is no second call to make, and no confirmation token to invent or pass. If the human clicks Publish, THIS SAME CALL runs the publish and returns { published: true, reachable: true, target, url, status, basePath? } for a full, confirmed-live success. For an S3-compatible bucket specifically, uploading can succeed while the public URL is not YET confirmed reachable (a bucket needs public hosting/CDN configured in front of it as a separate step — see deployment_generate_bucket_hosting_setup) — that honest partial outcome returns { published: true, reachable: false, target, url, status, message, basePath? }: the files DID upload, but do not tell the user the site is live until reachable is true. If they click Cancel, it returns { published: false, cancelled: true }. If nobody answers before the dialog expires (or the run ends first), it returns { published: false, cancelled: false, reason: 'expired' | 'abandoned' }. If no credential is configured yet for the requested provider, this returns { published: false, reason: 'no-credential', message } — naming the provider and pointing to the right tab — WITHOUT ever raising a dialog (call deployment_get_static_publish_capabilities first to check readiness and avoid this). Every other failure — a saved Cloudflare Pages credential missing its account id, a rejected provider API call, an export failure — is returned as { published: false, code, message } with an actionable message describing what went wrong; it never echoes a credential or a raw provider response body. The result is immediately LIVE on the public internet the moment it returns published:true AND reachable:true, and may be crawled, cached, or indexed within seconds — irreversible in the sense that matters, since a later republish overwrites what is HOSTED but can never retract what was already public. Simply wait for the result and report the true outcome to the user — do not tell them a dialog is open and stop, and do not re-call this tool while a call is already pending (a fresh call raises a second, separate dialog rather than answering the first).",
     // Genuinely destructive in the sense that matters for this domain (sends content to the public
     // internet with a write-scoped external credential) — classified accordingly, and cross-checked
     // against `staticPublishDerivedRisk` below at build time (`assertToolIsWirable`) so this
@@ -291,9 +291,15 @@ function buildPreviewConfig(raw: Record<string, unknown>): StaticPublishConfig {
   if (target === "netlify") {
     return { target };
   }
-  // target === "cloudflare-pages" — no target-specific field: `accountId` lives on the credential,
-  // not this config (see `static-publish/types.ts`'s `CloudflarePagesPublishConfig` doc).
-  return { target: "cloudflare-pages" };
+  if (target === "cloudflare-pages") {
+    // no target-specific field: `accountId` lives on the credential, not this config (see
+    // `static-publish/types.ts`'s `CloudflarePagesPublishConfig` doc).
+    return { target: "cloudflare-pages" };
+  }
+  // target === "s3-compatible" — same empty-config shape as netlify/cloudflare-pages: every
+  // identifying field (endpoint/region/bucket/accessKeyId/secretAccessKey/publicUrl) lives on the
+  // CREDENTIAL, never this config (`static-publish/types.ts`'s `S3CompatiblePublishConfig` doc).
+  return { target: "s3-compatible" };
 }
 
 const EXECUTE_STATIC_PUBLISH_TOOL_ID = "deployment_execute_static_publish";
@@ -391,8 +397,8 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
     deployment_preview_static_publish: async (ctx) => {
       const raw = requireInputRecord(ctx.input);
       const target = requireString(raw, "target");
-      if (target !== "github-pages" && target !== "vercel" && target !== "netlify" && target !== "cloudflare-pages") {
-        throw new Error("'target' must be one of: github-pages, vercel, netlify, cloudflare-pages");
+      if (target !== "github-pages" && target !== "vercel" && target !== "netlify" && target !== "cloudflare-pages" && target !== "s3-compatible") {
+        throw new Error("'target' must be one of: github-pages, vercel, netlify, cloudflare-pages, s3-compatible");
       }
 
       await requireToolPermission(deps, { principalId: ctx.principal.id, permission: "deployments.read", entityType: "site-publish" });
@@ -484,8 +490,8 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
     deployment_execute_static_publish: async (ctx) => {
       const raw = requireInputRecord(ctx.input);
       const target = requireString(raw, "target");
-      if (target !== "github-pages" && target !== "vercel" && target !== "netlify" && target !== "cloudflare-pages") {
-        throw new Error("'target' must be one of: github-pages, vercel, netlify, cloudflare-pages");
+      if (target !== "github-pages" && target !== "vercel" && target !== "netlify" && target !== "cloudflare-pages" && target !== "s3-compatible") {
+        throw new Error("'target' must be one of: github-pages, vercel, netlify, cloudflare-pages, s3-compatible");
       }
       const projectName = requireString(raw, "projectName");
 
@@ -555,6 +561,24 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
           { workspaceId: deps.workspaceId, routeDeps: deps, config, projectName }
         );
 
+        if (outcome.ok === "partial") {
+          // "Uploaded, but not yet reachable" (spec `custom-publish-provider-contract.md` §3a) — the
+          // files DID upload (so `published: true`, never a hard failure), but the site is not
+          // confirmed live yet (so `reachable: false`, never a plain success either). Structurally a
+          // distinct branch from both — see `static-publish/types.ts`'s `StaticPublishOutcome` header
+          // for why `outcome.ok` itself is `true | false | "partial"`, not merely a boolean.
+          return {
+            published: true,
+            reachable: false,
+            target: outcome.targetId,
+            url: outcome.url,
+            status: outcome.status,
+            message: outcome.message,
+            ...(outcome.deploymentId !== undefined ? { deploymentId: outcome.deploymentId } : {}),
+            ...(outcome.basePath !== undefined ? { basePath: outcome.basePath } : {}),
+          };
+        }
+
         if (!outcome.ok) {
           // Every branch of `publishStaticSite`'s own failure contract (`static-publish/types.ts`'s
           // `StaticPublishOutcome` doc, `adapter.ts`'s own `catch`) is already an actionable,
@@ -568,6 +592,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
 
         return {
           published: true,
+          reachable: true,
           target: outcome.targetId,
           url: outcome.url,
           status: outcome.status,

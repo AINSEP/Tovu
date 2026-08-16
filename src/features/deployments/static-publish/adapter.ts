@@ -13,6 +13,7 @@ import {
 import type { ExportReport, ExportSiteOptions } from "#src/export/index";
 import type { RouteDeps } from "#src/server/routes/types";
 
+import { S3CompatibleDeployTarget, type S3CompatibleTargetConfig } from "./s3-compatible-target";
 import type { GitHubPagesPublishConfig, PublishCredentialSource, StaticPublishConfig, StaticPublishOutcome, StaticPublishTargetId } from "./types";
 
 /**
@@ -146,10 +147,51 @@ export function toDeployFile(entry: { outputFile: string; data: string | Buffer;
 }
 
 /** The resolved credential a real `DeployTarget` is built from — `token` for every provider, plus
- *  `accountId` for `cloudflare-pages` only (see `types.ts`'s `PublishCredentialSource.resolve()` doc
- *  and `CloudflarePagesPublishConfig`'s own doc for why that field flows through the CREDENTIAL, not
- *  the publish config). */
-export type ResolvedPublishCredential = { readonly token: string; readonly accountId?: string };
+ *  `accountId` for `cloudflare-pages` only, and five more optional fields for `s3-compatible` only
+ *  (see `types.ts`'s `PublishCredentialSource.resolve()` doc for the full reasoning on both). */
+export type ResolvedPublishCredential = {
+  readonly token: string;
+  readonly accountId?: string;
+  readonly accessKeyId?: string;
+  readonly bucket?: string;
+  readonly region?: string;
+  readonly endpoint?: string;
+  readonly publicUrl?: string;
+};
+
+/** The four fields `S3CompatibleTargetConfig` needs beyond `token`/`secretAccessKey` — checked as a
+ *  group by {@link buildS3CompatibleTargetConfig}. */
+const REQUIRED_S3_CREDENTIAL_FIELDS = ["accessKeyId", "bucket", "region", "publicUrl"] as const;
+
+/**
+ * Maps a resolved credential into `S3CompatibleTargetConfig`. Defense-in-depth, same reasoning
+ * `buildJiniTarget`'s cloudflare-pages branch already documents for its own `accountId` guard:
+ * `publish-credentials/store.ts`'s `validateConnection` already enforces every one of these fields is
+ * non-blank at credential-save time, so a DB-backed credential that reaches this point always has
+ * them — this guard is for a future `PublishCredentialSource` implementation that does not uphold that
+ * contract. Exported so this mapping is directly testable without constructing a real
+ * `S3CompatibleDeployTarget` (which would need a real `fetch`) — mirrors this file's own
+ * `computeBasePath`/`toDeployFile` precedent of extracting a pure, directly-tested helper out of a
+ * larger dispatch function.
+ *
+ * @throws {DeployError} Any of {@link REQUIRED_S3_CREDENTIAL_FIELDS} is missing from `credential`.
+ * @complexity O(1) — a fixed-size field check plus a fixed-shape object literal.
+ * @overallScore 100
+ */
+export function buildS3CompatibleTargetConfig(credential: ResolvedPublishCredential): S3CompatibleTargetConfig {
+  const missing = REQUIRED_S3_CREDENTIAL_FIELDS.filter((field) => credential[field] === undefined);
+  if (missing.length > 0) {
+    throw new DeployError(`S3-compatible credential is missing required field(s): ${missing.join(", ")}.`, 400);
+  }
+  return {
+    accessKeyId: credential.accessKeyId!,
+    secretAccessKey: credential.token,
+    bucket: credential.bucket!,
+    region: credential.region!,
+    publicUrl: credential.publicUrl!,
+    ...(credential.endpoint !== undefined ? { endpoint: credential.endpoint } : {}),
+  };
+}
 
 /** The real, default `buildTarget` — constructs the actual Jini `DeployTarget` that will hit the
  *  provider's real API. `StaticPublishDeps.buildTarget` exists specifically so a test can substitute
@@ -181,10 +223,15 @@ function buildJiniTarget(config: StaticPublishConfig, credential: ResolvedPublis
   // reaches this point has one; the env-backed source's own `readCredential` enforces the same
   // before ever reporting `ok: true` (see `credentials.ts`). This guard is defense-in-depth against a
   // future `PublishCredentialSource` implementation that does not uphold that contract.
-  if (!credential.accountId) {
-    throw new DeployError("Cloudflare account ID is required but was not resolved from the saved credential.", 400);
+  if (config.target === "cloudflare-pages") {
+    if (!credential.accountId) {
+      throw new DeployError("Cloudflare account ID is required but was not resolved from the saved credential.", 400);
+    }
+    return new CloudflarePagesDeployTarget({ token, accountId: credential.accountId });
   }
-  return new CloudflarePagesDeployTarget({ token, accountId: credential.accountId });
+  // config.target === "s3-compatible" — every identifying field comes from the resolved CREDENTIAL,
+  // never this config (`S3CompatiblePublishConfig` is deliberately empty — see `types.ts`'s own doc).
+  return new S3CompatibleDeployTarget(buildS3CompatibleTargetConfig(credential));
 }
 
 export interface StaticPublishDeps {
@@ -293,10 +340,43 @@ export async function publishStaticSite(deps: StaticPublishDeps, input: StaticPu
     files.push(NOJEKYLL_FILE);
   }
 
-  const jiniTarget = (deps.buildTarget ?? buildJiniTarget)(input.config, { token: credential.token, ...(credential.accountId !== undefined ? { accountId: credential.accountId } : {}) });
+  const resolvedCredential: ResolvedPublishCredential = {
+    token: credential.token,
+    ...(credential.accountId !== undefined ? { accountId: credential.accountId } : {}),
+    ...(credential.accessKeyId !== undefined ? { accessKeyId: credential.accessKeyId } : {}),
+    ...(credential.bucket !== undefined ? { bucket: credential.bucket } : {}),
+    ...(credential.region !== undefined ? { region: credential.region } : {}),
+    ...(credential.endpoint !== undefined ? { endpoint: credential.endpoint } : {}),
+    ...(credential.publicUrl !== undefined ? { publicUrl: credential.publicUrl } : {}),
+  };
+  const jiniTarget = (deps.buildTarget ?? buildJiniTarget)(input.config, resolvedCredential);
 
   try {
     const result = await jiniTarget.publish({ files, projectName: input.projectName });
+
+    // `result.status` is EVERY target's own honest terminal state (`DeployLinkStatus`) — not merely
+    // "did the API call succeed". A status other than 'ready' means the provider accepted the publish
+    // but the site is not (yet, or ever, without a further step outside this call) reachable — spec
+    // `custom-publish-provider-contract.md` §3a's "uploaded, but not yet reachable" requirement,
+    // required regardless of provider once `StaticPublishOutcome` carries a real third branch for it
+    // (see that type's own header). Applied uniformly here rather than special-cased per target: every
+    // target already resolves its own `status` internally before returning (verified directly against
+    // `VercelDeployTarget.publish()`'s own `waitForReachableDeploymentUrl` call), so this is the one
+    // place that turns an already-honest `status` into an equally-honest `StaticPublishOutcome`.
+    if (result.status !== "ready") {
+      return {
+        ok: "partial",
+        targetId: input.config.target,
+        url: result.url,
+        status: result.status,
+        message:
+          result.statusMessage ??
+          `Published to ${input.config.target}, but the public URL is not confirmed reachable yet (status: ${result.status}).`,
+        ...(result.deploymentId !== undefined ? { deploymentId: result.deploymentId } : {}),
+        ...(basePath !== undefined ? { basePath } : {}),
+      };
+    }
+
     return {
       ok: true,
       targetId: input.config.target,

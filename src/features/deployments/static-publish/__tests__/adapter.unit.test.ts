@@ -9,7 +9,7 @@ import type { DeployFile, DeployPublishInput, DeployPublishResult, DeployTarget 
 import { createRouteDeps } from "#src/server/app";
 import type { RouteDeps } from "#src/server/routes/types";
 
-import { publishStaticSite, toDeployFile, computeBasePath, validateStaticPublishConfig } from "../adapter";
+import { publishStaticSite, toDeployFile, computeBasePath, validateStaticPublishConfig, buildS3CompatibleTargetConfig } from "../adapter";
 import type { PublishCredentialSource, StaticPublishConfig } from "../types";
 
 /**
@@ -281,3 +281,169 @@ test("publishStaticSite: a resolved credential for vercel/github-pages/netlify n
 
   assert.equal("accountId" in (observedCredential as object), false);
 });
+
+// ---- s3-compatible + StaticPublishOutcome's "partial" branch (spec §3a/§4/§10) ----
+
+test("buildS3CompatibleTargetConfig: maps a full resolved credential, secretAccessKey carried by token, endpoint passed through", () => {
+  const config = buildS3CompatibleTargetConfig({
+    token: "s3cr3t",
+    accessKeyId: "AKIAEXAMPLE",
+    bucket: "my-bucket",
+    region: "us-east-1",
+    endpoint: "https://s3.us-east-1.amazonaws.com",
+    publicUrl: "https://my-bucket.s3.us-east-1.amazonaws.com",
+  });
+  assert.deepEqual(config, {
+    accessKeyId: "AKIAEXAMPLE",
+    secretAccessKey: "s3cr3t",
+    bucket: "my-bucket",
+    region: "us-east-1",
+    publicUrl: "https://my-bucket.s3.us-east-1.amazonaws.com",
+    endpoint: "https://s3.us-east-1.amazonaws.com",
+  });
+});
+
+test("buildS3CompatibleTargetConfig: an omitted endpoint stays omitted, never coerced to an empty string", () => {
+  const config = buildS3CompatibleTargetConfig({ token: "s3cr3t", accessKeyId: "AKIAEXAMPLE", bucket: "my-bucket", region: "us-east-1", publicUrl: "https://x.test" });
+  assert.ok(!("endpoint" in config));
+});
+
+test("buildS3CompatibleTargetConfig: throws DeployError naming every missing required field, defense-in-depth against a non-conforming credential source", () => {
+  assert.throws(
+    () => buildS3CompatibleTargetConfig({ token: "s3cr3t" }),
+    (err: unknown) => {
+      assert.ok(err instanceof Error);
+      assert.match(err.message, /accessKeyId/);
+      assert.match(err.message, /bucket/);
+      assert.match(err.message, /region/);
+      assert.match(err.message, /publicUrl/);
+      assert.doesNotMatch(err.message, /s3cr3t/);
+      return true;
+    }
+  );
+});
+
+test("validateStaticPublishConfig: s3-compatible is always valid — every field lives on the credential, not this (empty) config", () => {
+  assert.equal(validateStaticPublishConfig({ target: "s3-compatible" }), null);
+});
+
+test("computeBasePath: s3-compatible never carries a base path — a bucket serves from its own root", () => {
+  assert.equal(computeBasePath({ target: "s3-compatible" }), undefined);
+});
+
+test("publishStaticSite: forwards all six s3-compatible credential fields through to buildTarget, with token carrying secretAccessKey's role", async () => {
+  const deps: RouteDeps = { ...createRouteDeps() };
+  let observedCredential: Record<string, unknown> | null = null;
+
+  const result = await publishStaticSite(
+    {
+      credentialSource: {
+        async resolve() {
+          return {
+            ok: true,
+            token: "s3cr3t",
+            accessKeyId: "AKIAEXAMPLE",
+            bucket: "my-bucket",
+            region: "us-east-1",
+            endpoint: "https://s3.us-east-1.amazonaws.com",
+            publicUrl: "https://my-bucket.s3.us-east-1.amazonaws.com",
+          };
+        },
+        async isConfigured() {
+          return { configured: true };
+        },
+      },
+      buildTarget: (_config, credential) => {
+        observedCredential = credential;
+        return fakeDeployTarget({ value: null });
+      },
+    },
+    { workspaceId: deps.workspaceId, routeDeps: deps, config: { target: "s3-compatible" }, projectName: "demo" }
+  );
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(observedCredential, {
+    token: "s3cr3t",
+    accessKeyId: "AKIAEXAMPLE",
+    bucket: "my-bucket",
+    region: "us-east-1",
+    endpoint: "https://s3.us-east-1.amazonaws.com",
+    publicUrl: "https://my-bucket.s3.us-east-1.amazonaws.com",
+  });
+});
+
+test("publishStaticSite: an omitted endpoint is never forwarded to buildTarget as an explicit undefined key", async () => {
+  const deps: RouteDeps = { ...createRouteDeps() };
+  let observedCredential: Record<string, unknown> | null = null;
+
+  await publishStaticSite(
+    {
+      credentialSource: {
+        async resolve() {
+          return { ok: true, token: "s3cr3t", accessKeyId: "AKIAEXAMPLE", bucket: "my-bucket", region: "us-east-1", publicUrl: "https://my-bucket.example.test" };
+        },
+        async isConfigured() {
+          return { configured: true };
+        },
+      },
+      buildTarget: (_config, credential) => {
+        observedCredential = credential;
+        return fakeDeployTarget({ value: null });
+      },
+    },
+    { workspaceId: deps.workspaceId, routeDeps: deps, config: { target: "s3-compatible" }, projectName: "demo" }
+  );
+
+  assert.equal("endpoint" in (observedCredential as object), false);
+});
+
+test("publishStaticSite: a target's terminal status of 'ready' is a full ok:true success", async () => {
+  const deps: RouteDeps = { ...createRouteDeps() };
+  const result = await publishStaticSite(
+    {
+      credentialSource: { async resolve() { return { ok: true, token: "t" }; }, async isConfigured() { return { configured: true }; } },
+      buildTarget: () => ({
+        id: "fake",
+        async publish() {
+          return { targetId: "fake", url: "https://example.test/published", status: "ready" as const };
+        },
+        async checkReachability() {
+          return { reachable: true };
+        },
+      }),
+    },
+    { workspaceId: deps.workspaceId, routeDeps: deps, config: { target: "vercel" }, projectName: "demo" }
+  );
+  assert.equal(result.ok, true);
+});
+
+for (const notReadyStatus of ["link-delayed", "protected", "failed"] as const) {
+  test(`publishStaticSite: a target's terminal status of '${notReadyStatus}' is a genuine "partial" outcome — never ok:true, never ok:false`, async () => {
+    const deps: RouteDeps = { ...createRouteDeps() };
+    const result = await publishStaticSite(
+      {
+        credentialSource: { async resolve() { return { ok: true, token: "t" }; }, async isConfigured() { return { configured: true }; } },
+        buildTarget: () => ({
+          id: "fake",
+          async publish() {
+            return { targetId: "fake", url: "https://example.test/published", status: notReadyStatus, statusMessage: "not reachable yet" };
+          },
+          async checkReachability() {
+            return { reachable: false };
+          },
+        }),
+      },
+      { workspaceId: deps.workspaceId, routeDeps: deps, config: { target: "s3-compatible" }, projectName: "demo" }
+    );
+
+    assert.equal(result.ok, "partial");
+    if (result.ok !== "partial") throw new Error("unreachable");
+    assert.equal(result.url, "https://example.test/published");
+    assert.equal(result.status, notReadyStatus);
+    assert.match(result.message, /not reachable yet/);
+    // Structurally distinct from both existing branches: a caller doing `if (result.ok === true)` or
+    // `if (result.ok === false)` must NOT match this outcome at all.
+    assert.notEqual(result.ok, true);
+    assert.notEqual(result.ok, false);
+  });
+}

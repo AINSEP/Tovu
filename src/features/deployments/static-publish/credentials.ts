@@ -54,12 +54,25 @@ import type { PublishCredentialSource, StaticPublishTargetId } from "./types";
  * times before the single-name lists rejected them (2026-08-15 follow-up). `GH_TOKEN` is the `gh`
  * CLI's own documented name, so an operator already authenticated for `gh` needs no new variable.
  */
-const ENV_VAR_ALIASES_BY_TARGET: Readonly<Record<StaticPublishTargetId, readonly string[]>> = {
+/** `s3-compatible` is deliberately EXCLUDED from this record's key set (`Exclude<..., "s3-compatible">`,
+ *  not merely an empty array under that key) — its credential has SIX fields (endpoint, region, bucket,
+ *  access key id, secret access key, public URL), and this env-var fallback model is built around one
+ *  single-value secret per target (the same shape GITHUB_TOKEN/VERCEL_TOKEN/... already are). Excluding
+ *  the key entirely (rather than defining it with an empty alias list) means `readToken` below can never
+ *  even be CALLED for `s3-compatible` without a compile error — `readCredential` special-cases it
+ *  before ever reaching `readToken`, so this exclusion is enforced structurally, not by convention. */
+const ENV_VAR_ALIASES_BY_TARGET: Readonly<Record<Exclude<StaticPublishTargetId, "s3-compatible">, readonly string[]>> = {
   "github-pages": ["GITHUB_TOKEN", "GH_TOKEN", "GITHUB_ACCESS_TOKEN"],
   vercel: ["VERCEL_TOKEN", "VERCEL_ACCESS_TOKEN"],
   netlify: ["NETLIFY_TOKEN", "NETLIFY_ACCESS_TOKEN", "NETLIFY_AUTH_TOKEN"],
   "cloudflare-pages": ["CLOUDFLARE_TOKEN", "CLOUDFLARE_API_TOKEN"],
 };
+
+/** The fixed, human-readable reason `s3-compatible` refuses env-var fallback entirely — see
+ *  `ENV_VAR_ALIASES_BY_TARGET`'s own doc for why. Safe to surface directly (never a secret, never
+ *  workspace-specific), so both `resolve()` and `isConfigured()` below share it verbatim. */
+const S3_COMPATIBLE_NO_ENV_FALLBACK_REASON =
+  "s3-compatible has no server-environment-variable fallback — its credential (endpoint, region, bucket, access key id, secret access key, public URL) can only be configured through the Custom tab's saved connection, never through env vars";
 
 /** `cloudflare-pages` is the one target whose credential needs a SECOND env var — see
  *  `static-publish/types.ts`'s `CloudflarePagesPublishConfig` doc for why `accountId` lives on the
@@ -85,7 +98,7 @@ export function createEnvPublishCredentialSource(workspaceId: UUID, env: NodeJS.
    *  every other env read in this function). The failure reason names every alias the caller could
    *  have set, not just the first, so an operator who set the second-choice name by mistake reading
    *  an error naming only the first would be told to add a var they already have. */
-  function readToken(target: StaticPublishTargetId): { token: string } | { reason: string } {
+  function readToken(target: Exclude<StaticPublishTargetId, "s3-compatible">): { token: string } | { reason: string } {
     const aliases = ENV_VAR_ALIASES_BY_TARGET[target];
     for (const envVar of aliases) {
       const token = env[envVar]?.trim();
@@ -103,6 +116,12 @@ export function createEnvPublishCredentialSource(workspaceId: UUID, env: NodeJS.
       return {
         reason: `this credential source is bound to workspace '${workspaceId}' and refuses to resolve a token for workspace '${requestedWorkspaceId}'`,
       };
+    }
+    // s3-compatible has no env-var fallback at all — see `ENV_VAR_ALIASES_BY_TARGET`'s own doc.
+    // Branches BEFORE `readToken` so that function's own parameter type (which structurally excludes
+    // this target) is never violated.
+    if (target === "s3-compatible") {
+      return { reason: S3_COMPATIBLE_NO_ENV_FALLBACK_REASON };
     }
     const tokenResult = readToken(target);
     if ("reason" in tokenResult) return tokenResult;
@@ -162,6 +181,25 @@ export function createDbPublishCredentialSource(deps: DbPublishCredentialSourceD
       // `static-publish/types.ts`'s `CloudflarePagesPublishConfig` doc for why it flows through here
       // rather than living on the publish config.
       const accountId = resolved.connection.providerId === "cloudflare-pages" ? resolved.connection.accountId : undefined;
+
+      // s3-compatible has NO `token` field on its own connection variant (it authenticates with an
+      // access-key/secret-key pair, not a bearer token — `publish-credentials/types.ts`'s
+      // `S3CompatibleConnectionInput` doc) — `secretAccessKey` fills `token`'s "the value that
+      // authenticates this request" role instead (see `PublishCredentialSource`'s own doc on this
+      // reuse), and the other five fields ride along as this interface's own optional s3-only fields.
+      if (resolved.connection.providerId === "s3-compatible") {
+        const s3 = resolved.connection;
+        return {
+          ok: true,
+          token: s3.secretAccessKey,
+          accessKeyId: s3.accessKeyId,
+          bucket: s3.bucket,
+          region: s3.region,
+          publicUrl: s3.publicUrl,
+          ...(s3.endpoint !== undefined ? { endpoint: s3.endpoint } : {}),
+        };
+      }
+
       return { ok: true, token: resolved.connection.token, ...(accountId !== undefined ? { accountId } : {}) };
     },
     async isConfigured(input) {
