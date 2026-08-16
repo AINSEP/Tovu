@@ -17,13 +17,15 @@
  * were both added 2026-08-15 and are not part of that 2026-08-05 measurement pass. `static-publish`
  * itself changed again later the same day: all 3 of its catalog entries are now wired — see its own
  * slice comment below for why `deployment_execute_static_publish` moved from deliberately-unwired to
- * wired-but-human-gated):
+ * wired-but-human-gated. `source-control` (2 of 2) was added 2026-08-16, also not part of that
+ * 2026-08-05 measurement pass — see its own slice comment below):
  *   content-types (6 of 8)   forms (6 of 6)      identity (15 of 15)  comments (7 of 7)
  *   members (4 of 4)         newsletter (14/14)  media (4 of 4)       widgets (12 of 12)
  *   menus (5 of 5)           database (7 of 9)   recovery (5 of 7)    plugins (2 of 2)
  *   workspace (2 of 4)       settings (4 of 8)   entries (5 of 5)     taxonomy (6 of 7)
  *   seo (6 of 6)             redirects (6 of 7)  integrations (5/5)   post (6 of 6)
  *   themes (4 of 4)          deployments (5 of 5) static-publish (3 of 3)
+ *   source-control (2 of 2)
  * Recovery counts 5, not 6: `backup_create_restore_point` appears in both its catalog and
  * Database's, and Recovery is the one that declares it unwired (see {@link DERIVED_RISK_BY_TOOL_ID}
  * for why that collision has to resolve exactly this way). Counting it on both sides is what makes
@@ -72,6 +74,11 @@ import {
   entriesDerivedRisk,
   type EntriesToolDeps,
 } from "../features/entries/tool-registrations";
+import {
+  buildSourceControlRegistrations,
+  sourceControlDerivedRisk,
+  type SourceControlToolDeps,
+} from "../features/source-control/tool-registrations";
 import {
   buildPluginsRegistrations,
   pluginsDerivedRisk,
@@ -187,6 +194,7 @@ export type AssistantToolRegistryDeps = CommentsToolDeps &
   DatabaseToolDeps &
   DeploymentsToolDeps &
   StaticPublishToolDeps &
+  SourceControlToolDeps &
   EntriesToolDeps &
   PluginsToolDeps &
   PostToolDeps &
@@ -254,6 +262,17 @@ const DOMAIN_SLICES: readonly DomainSlice[] = [
   // cookie-authed admin route (`server/routes/admin/system/publish-site.ts`); this tool now gives the
   // assistant an equivalent, human-approved one.
   { domain: "static-publish", build: buildStaticPublishRegistrations, risk: staticPublishDerivedRisk },
+  // 2026-08-16 — a separate identity from `static-publish` above: connects a GitHub/GitLab/Bitbucket
+  // account for committing the site's OWN exported content into a connected repo (git-backed CMS
+  // content), not for hosting the built site as a live URL — see `features/source-control/types.ts`'s
+  // own header for why this is deliberately its own table/union, not a widened `PublishProviderId`.
+  // `source_control_get_capabilities` is a pure read; `source_control_execute_commit` is genuinely
+  // consequential (pushes a real commit using a write-scoped external credential) but reachable —
+  // gated behind the SAME MCP-UI held-open confirmation exchange `deployment_execute_static_publish`
+  // uses. GitHub-only this pass (see `features/source-control/commit-site.ts`'s header); gitlab/
+  // bitbucket credentials can be saved and are honestly reported by the capabilities tool, but
+  // committing to either is not implemented yet.
+  { domain: "source-control", build: buildSourceControlRegistrations, risk: sourceControlDerivedRisk },
   { domain: "plugins", build: buildPluginsRegistrations, risk: pluginsDerivedRisk },
   { domain: "workspace", build: buildWorkspaceRegistrations, risk: workspaceDerivedRisk },
   { domain: "settings", build: buildSettingsRegistrations, risk: settingsDerivedRisk },

@@ -54,6 +54,15 @@ export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = new Set([
   // only widen this endpoint's reach for no reason (same reasoning the two existing read-only
   // static-publish tools are absent for, in the test file's own comment).
   "deployment_propose_custom_provider_credential",
+  // 2026-08-16 — `source_control_execute_commit` (`features/source-control/tool-registrations.ts`)
+  // holds up the SAME shape `content_post_delete`/`deployment_execute_static_publish` do: its handler
+  // opens a `SurfaceExchangeStore` exchange and parks on `ctx.emitSurface` until this endpoint
+  // delivers the human's confirm/cancel click. Pushing a real commit to a connected repository with a
+  // write-scoped external credential is at least as consequential as a soft delete or a static
+  // publish, so it belongs on this list for the identical reason.
+  // `source_control_get_capabilities` is deliberately ABSENT here — it is a plain read that never
+  // opens an exchange, same reasoning the read-only static-publish tools are absent for above.
+  "source_control_execute_commit",
   // The `/search` composer capability's real execution path (`apps/admin/src/features/plugins/
   // composer-capabilities.ts`'s `allowlisted-tool-call` binding) — a direct, immediate browser call
   // with no agent turn in between, exactly what that binding kind exists for.

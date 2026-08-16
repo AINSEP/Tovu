@@ -18,6 +18,7 @@ import { pluginAgentToolCatalog } from "../../features/plugin-runtime/agent-tool
 import { postAgentToolCatalog } from "../../features/post/agent-tools";
 import { recoveryAgentToolCatalog } from "../../features/recovery/agent-tools";
 import { getSettingsAgentToolCatalog } from "../../features/settings";
+import { sourceControlAgentToolCatalog } from "../../features/source-control/tool-registrations";
 import { taxonomyAgentToolCatalog } from "../../features/taxonomy/agent-tools";
 import { getWorkspaceAgentToolCatalog } from "../../features/workspace";
 import { formsAgentToolCatalog } from "../../forms/agent-tools";
@@ -145,6 +146,12 @@ const WIRED_CATALOGS: AgentToolDefinition[] = [
   // tool was "never-wired" — that was true before this dispatch and is stale now; corrected here
   // rather than left to mislead the next reader.
   ...(staticPublishAgentToolCatalog as unknown as AgentToolDefinition[]),
+  // `source-control` (`DOMAIN_SLICES`'s own `buildSourceControlRegistrations` entry, added
+  // 2026-08-16): both catalog entries are wired — `source_control_get_capabilities` (a pure read)
+  // and `source_control_execute_commit` (human-gated via the same MCP-UI held-open exchange
+  // `deployment_execute_static_publish` uses). See `features/source-control/tool-registrations.ts`'s
+  // own file header.
+  ...(sourceControlAgentToolCatalog as unknown as AgentToolDefinition[]),
 ];
 
 function catalogEntry(toolId: string): AgentToolDefinition {
