@@ -105,7 +105,6 @@ import { S3_COMPATIBLE_FIELD_GUIDANCE, S3_COMPATIBLE_FORM_DESCRIPTION } from "./
 import {
   composePublishCredentialSource,
   computeBasePath,
-  defaultPublishHistoryStore,
   getPublishRunSnapshot,
   runPublishAndAwait,
   validateStaticPublishConfig,
@@ -384,14 +383,14 @@ export interface StaticPublishToolDeps extends RouteDeps {
    *  "adapter tests with a faked deploy target — do not hit real providers in tests"). Production
    *  never sets this — `publishStaticSite`'s own default (the real Jini adapters) applies. */
   buildTarget?: StaticPublishDeps["buildTarget"];
-  /** Test-only override for `static-publish/publish-run.ts`'s module-level `defaultPublishHistoryStore`
+  /** Test-only override for `RouteDeps.publishHistoryStore` (2026-08-16 rework — that field is now
+   *  the real, DB-backed `SqlitePublishHistoryStore` in production; see `routes/types.ts`'s own doc)
    *  — lets a test inject an `InMemoryPublishHistoryStore` so it can assert on a recorded publish (or
-   *  a capabilities read) without touching the filesystem. Passed straight through to
+   *  a capabilities read) without touching a real database. Passed straight through to
    *  `runPublishAndAwait` on a confirmed publish AND used by the capabilities handler's own read, so a
-   *  test sees one consistent store on both sides — never a file-backed write paired with an
-   *  in-memory read or vice versa. Production never sets this; both paths fall back to the SAME
-   *  module-level default, so a real publish's history is visible to this tool with no wiring change
-   *  outside this domain (see `publish-run.ts`'s header, "Publish history"). */
+   *  test sees one consistent store on both sides. Production never sets this; both paths fall back to
+   *  `deps.publishHistoryStore`, so a real publish's history is visible to this tool with no wiring
+   *  change outside this domain (see `publish-run.ts`'s header, "Publish history"). */
   historyStore?: PublishHistoryStore;
 }
 
@@ -680,7 +679,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
       executionMode: deps.publishExecutionMode,
       dbDeps: { repo: deps.publishCredentialSetRepo, sealer: deps.siteAssistantSecretSealer },
     });
-  const historyStore = deps.historyStore ?? defaultPublishHistoryStore;
+  const historyStore = deps.historyStore ?? deps.publishHistoryStore;
 
   const handlers: Record<string, ToolHandler> = {
     deployment_preview_static_publish: async (ctx) => {

@@ -27,11 +27,11 @@ test.after(() => rmSync(publishOutputDir, { recursive: true, force: true }));
 
 const clock = { nowIso: () => "2026-08-16T12:00:00.000Z" };
 
-function fakeDeployTarget(url = "https://example.test/published", status = "ready"): DeployTarget {
+function fakeDeployTarget(url = "https://example.test/published", status = "ready", deploymentId?: string): DeployTarget {
   return {
     id: "fake",
     async publish(_input: DeployPublishInput): Promise<DeployPublishResult> {
-      return { targetId: "fake", url, status };
+      return { targetId: "fake", url, status, ...(deploymentId !== undefined ? { deploymentId } : {}) };
     },
     async checkReachability() {
       return { reachable: true, status: "ready" as const };
@@ -83,9 +83,9 @@ function githubInput(routeDeps: ReturnType<typeof createRouteDeps>): StaticPubli
   };
 }
 
-test("runPublishAndAwait: a full success records history with owner/repo/basePath and reachable:true", async () => {
+test("runPublishAndAwait: a full success records history with owner/repo/basePath/branch/commitSha, reachable:true, triggeredBy:agent_tool", async () => {
   const routeDeps = createRouteDeps();
-  const deps: StaticPublishDeps = { credentialSource: fakeCredentialSource(), buildTarget: () => fakeDeployTarget() };
+  const deps: StaticPublishDeps = { credentialSource: fakeCredentialSource(), buildTarget: () => fakeDeployTarget("https://example.test/published", "ready", "commit-sha-abc123") };
   const history = new InMemoryPublishHistoryStore();
   const input = githubInput(routeDeps);
 
@@ -102,6 +102,30 @@ test("runPublishAndAwait: a full success records history with owner/repo/basePat
   assert.equal(recorded!.owner, "octo");
   assert.equal(recorded!.repo, "my-site");
   assert.equal(recorded!.basePath, "/my-site");
+  // github-pages only: `branch` defaults to 'gh-pages' when `config.branch` was omitted (matches
+  // `GitHubPagesDeployTarget`'s own default), and `commitSha` is the outcome's `deploymentId` —
+  // genuinely a commit sha for THIS target, per `toHistoryEntry`'s own doc.
+  assert.equal(recorded!.branch, "gh-pages");
+  assert.equal(recorded!.deploymentId, "commit-sha-abc123");
+  assert.equal(recorded!.commitSha, "commit-sha-abc123");
+  assert.equal(recorded!.triggeredBy, "agent_tool", "runPublishAndAwait is the agent tool's own entry point");
+});
+
+test("runPublishAndAwait: a non-github-pages target never carries commitSha/branch, even though deploymentId is still recorded verbatim", async () => {
+  const routeDeps = createRouteDeps();
+  const deps: StaticPublishDeps = { credentialSource: fakeCredentialSource(), buildTarget: () => fakeDeployTarget("https://demo.vercel.app", "ready", "dpl_not_a_commit") };
+  const history = new InMemoryPublishHistoryStore();
+  const input: StaticPublishInput = { workspaceId: routeDeps.workspaceId, routeDeps, config: { target: "vercel" }, projectName: "demo" };
+
+  await runPublishAndAwait(deps, input, clock, history);
+
+  const recorded = await history.getLast({ workspaceId: routeDeps.workspaceId, target: "vercel" });
+  assert.ok(recorded);
+  assert.equal(recorded!.deploymentId, "dpl_not_a_commit", "deploymentId is carried through for every target");
+  assert.equal(recorded!.commitSha, undefined, "vercel's deploymentId is a Vercel deploy id, NOT a git commit sha");
+  assert.equal(recorded!.branch, undefined);
+  assert.equal(recorded!.owner, undefined);
+  assert.equal(recorded!.repo, undefined);
 });
 
 test("runPublishAndAwait: a partial (uploaded, not yet reachable) outcome is still recorded, with reachable:false", async () => {
@@ -168,4 +192,5 @@ test("startPublishRun: the fire-and-forget path records history too, once the ba
   const recorded = await history.getLast({ workspaceId: routeDeps.workspaceId, target: "github-pages" });
   assert.ok(recorded, "startPublishRun's background settlement must record history the same way runPublishAndAwait does");
   assert.equal(recorded!.url, "https://example.test/bg");
+  assert.equal(recorded!.triggeredBy, "admin_ui", "startPublishRun is the admin route's own entry point");
 });

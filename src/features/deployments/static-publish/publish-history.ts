@@ -1,66 +1,67 @@
-import { randomUUID } from "node:crypto";
-import fs from "node:fs";
-import path from "node:path";
-
 import type { UUID } from "@jini-ai/cms/core";
 
 import type { StaticPublishTargetId } from "./types";
 
 /**
- * @file Durable "where did we last publish" memory, one entry per `(workspaceId, target)` — the fix
- * for Defect 2 (2026-08-16 live-publish finding): the site went live at
- * `https://leonaburime-ucla.github.io/tovu-demo/`, and the assistant still had nowhere to look that
- * up. `publish-run.ts`'s own `currentRun` snapshot answers "is a publish running right now", not
- * "what did the last SUCCESSFUL one produce" — it resets to `IDLE_RUN` on every process restart, and
- * even mid-process it only remembers the single most recent run for the whole server, not one entry
- * per target. Nothing else under `src/features/deployments/` records a publish at all: `publish-run.ts`
- * never persists `owner`, and `deployment_list` (`../agent-tools.ts`) is a genuinely different
- * subsystem — provider-driven continuous-deployment records, not this feature's one-shot static
- * publishes — and says so in its own tool description.
+ * @file Durable, append-only publish-history ledger — the fix for Defect 2 (2026-08-16 live-publish
+ * finding): the site went live at `https://leonaburime-ucla.github.io/tovu-demo/`, and the assistant
+ * still had nowhere to look that up. `publish-run.ts`'s own `currentRun` snapshot answers "is a
+ * publish running right now", not "what did the last SUCCESSFUL one produce" — it resets to
+ * `IDLE_RUN` on every process restart, and even mid-process it only remembers the single most recent
+ * run for the whole server, not one entry per target. `deployment_list` (`../agent-tools.ts`) is a
+ * genuinely different subsystem — provider-driven continuous-deployment records, not this feature's
+ * one-shot static publishes — and says so in its own tool description.
+ *
+ * REWORK (2026-08-16, owner-requested): the original fix for Defect 2 shipped a flat JSON file under
+ * `infra/publish-history/`, one file per workspace, one entry per `(workspace, target)` — "last
+ * publish wins," deliberately not a log. The owner reviewed that and rejected it: a publish is a
+ * record (what shipped, when, to where, triggered by what), not a cache, and a record belongs in the
+ * database — durable across a restart the same way the file was, but ALSO queryable, joinable, and
+ * capable of ever backing a real "publish history" view, which a single-row-per-target design can
+ * never do (every publish after the first overwrites the one before it). The prior design's own
+ * stated reason for staying file-backed — "adding a DB table needs a migration, and migrations
+ * belong to whichever dispatch owns `drizzle/` for this session" — was a scheduling convenience
+ * across two concurrently-dispatched agents, not an architectural argument, and does not survive
+ * being named explicitly. This file, `publish-run.ts`, `src/db/schema.ts`'s `publishHistory` table,
+ * and `src/db/sqlite/publish-history-repo.sqlite.ts` are that rework.
  *
  * Purpose:
- * {@link PublishHistoryStore} is the port; {@link InMemoryPublishHistoryStore} is the test double
- * (same "died on process restart" trade-off `verify.ts`'s cache accepts deliberately — fine there
- * because a stale verification just means "re-verify", but wrong here: an in-memory-only history would
- * defeat the one thing this fix exists for, so this module's DEFAULT is the file-backed store below,
- * never the in-memory one). {@link createFilePublishHistoryStore} is that default: one JSON file per
- * workspace under `infra/publish-history/` — `infra/` is this repo's own established, gitignored,
- * Docker-volume-mounted runtime-data root (already used by `export-run.ts`'s `TOVU_EXPORT_DIR` and
- * `adapter.ts`'s `TOVU_PUBLISH_DIR`; see that file's own `publishOutputDir` doc), so this survives a
- * container restart the same way every other durable-but-not-database artifact in this feature already
- * does. Deliberately NOT `adapter.ts`'s own `infra/publish/<target>` directory — that tree is a real
- * publish's OUTPUT (the exported file set actually handed to a provider) and gets a fresh `clean`
- * export written into it on every run (that file's own header), which would silently delete a history
- * record placed there. A sibling directory, written to independently, is what keeps this record alive
- * across every future publish rather than only until the next one starts.
- *
- * No DB table: adding one needs a migration, and migrations belong to whichever dispatch owns
- * `drizzle/` for this session (not this one) — coordinated rather than assumed. A flat JSON file is a
- * legitimate, already-precedented alternative for a collection this small (at most one entry per
- * provider per workspace, the same "inherently small, no pagination needed" reasoning
- * `PublishCredentialSetRepoPort.listByWorkspace`'s own doc gives for a structurally similar collection).
- *
- * The atomic temp-file+rename write technique below is a small, deliberate LOCAL duplicate of
- * `site-dir/atomic-write.ts`'s `writeJsonFileAtomic` rather than an import of it — that helper's own
- * header scopes it as "no exported contract... both callers are within this same module" (the
- * `site-dir` domain), and this codebase already has a precedent for re-implementing a few lines locally
- * rather than crossing a domain boundary neither file otherwise needs (`verify.ts`'s `deriveS3Endpoint`
- * makes the identical call, and documents the identical reasoning, for `s3-compatible-target.ts`'s own
- * `deriveEndpoint`).
+ * {@link PublishHistoryStore} is the port — `getLast` (the single most recent row for a
+ * `(workspace, target)` pair, what `deployment_get_static_publish_capabilities` surfaces as
+ * `lastPublish`) and `list` (newest-first, workspace-scoped, optionally target-scoped — what a future
+ * history UI would page through). {@link InMemoryPublishHistoryStore} is the test double, append-only
+ * like the real table (a test asserting "the second publish did not erase the first" needs an
+ * in-memory double that can actually fail that assertion). `SqlitePublishHistoryStore`
+ * (`src/db/sqlite/publish-history-repo.sqlite.ts`, this feature's real ADR-006 rule-of-two second
+ * adapter) is the production implementation — it lives under `src/db/sqlite/`, not here, matching
+ * every other DB-backed port/adapter split in this codebase (`PublishCredentialSetRepoPort` here in
+ * `features/deployments/`, `SqlitePublishCredentialSetRepo` there in `db/sqlite/`).
  *
  * Architectural role:
- * `features/deployments/static-publish` domain logic. `publish-run.ts` is the ONE place a
- * `PublishHistoryStore` is written to (both its shared entry points — the admin route's fire-and-forget
- * `startPublishRun` and the agent tool's awaited `runPublishAndAwait` — settle through the same
- * function, so both callers record identically with no change needed at either call site).
- * `publish-agent-tools.ts`'s capabilities handler is the one place it is read from, surfaced per
- * provider as `lastPublish`.
+ * `features/deployments/static-publish` domain logic — this file declares the port and its in-memory
+ * test double only; no Drizzle/SQL import belongs here (that is the adapter's job, one layer down).
+ * `publish-run.ts` is the ONE place a `PublishHistoryStore` is written to (both its shared entry
+ * points — the admin route's fire-and-forget `startPublishRun` and the agent tool's awaited
+ * `runPublishAndAwait` — settle through the same function, so both callers record identically with no
+ * change needed at either call site). `publish-agent-tools.ts`'s capabilities handler is the one
+ * place `getLast` is read from today, surfaced per provider as `lastPublish`.
  */
 
-/** One completed (or partial-but-live) publish, exactly what a caller needs to resolve "publish my
- *  site again" without asking the human anything, and what a future read-only history UI would need
- *  to show one row. `owner`/`repo` are present only for `github-pages` (`StaticPublishConfig`'s own
- *  per-target field split — see `types.ts`); every other target carries neither. */
+/** Which of this feature's two entry points produced a given {@link PublishHistoryEntry} — the admin
+ *  UI's Static Site tab (`publish-site.ts`'s HTTP trigger route, via `startPublishRun`) or the
+ *  assistant's confirmed publish tool (`publish-agent-tools.ts`'s `deployment_execute_static_publish`,
+ *  via `runPublishAndAwait`). Free to compute at the source: `publish-run.ts`'s two entry functions
+ *  each hardcode their own literal when calling into history recording, since which caller reached
+ *  which function IS the answer — no request-scoped or caller-supplied value is needed. */
+export type PublishTrigger = "admin_ui" | "agent_tool";
+
+/** One recorded publish — a row in the append-only ledger, not a cache slot. `owner`/`repo`/`branch`/
+ *  `commitSha` are present only for `github-pages` (`StaticPublishConfig`'s own per-target field
+ *  split — see `types.ts`); every other target carries none of the four. `commitSha` specifically is
+ *  NOT a placeholder that is always empty for every other target because it could not be obtained —
+ *  it genuinely does not exist for them (Vercel/Netlify/Cloudflare Pages publishes are not git
+ *  commits); see `publish-run.ts`'s `toHistoryEntry` for where this is derived and verified against
+ *  `@jini-ai/devops`'s own `GitHubPagesDeployTarget.publish()`. */
 export interface PublishHistoryEntry {
   readonly target: StaticPublishTargetId;
   readonly url: string;
@@ -75,111 +76,81 @@ export interface PublishHistoryEntry {
   readonly owner?: string;
   readonly repo?: string;
   readonly basePath?: string;
+  /** The provider's own opaque identifier for this publish — `StaticPublishOutcome.deploymentId`,
+   *  verbatim, whatever it means for that target (a Vercel/Netlify/Cloudflare deploy id, or, for
+   *  github-pages, the same commit sha `commitSha` below also carries). Absent when the outcome
+   *  carried none (s3-compatible has no `deploymentId` at all). */
+  readonly deploymentId?: string;
+  /** github-pages only — see this interface's own header. */
+  readonly commitSha?: string;
+  /** github-pages only — the branch actually published to. */
+  readonly branch?: string;
+  readonly triggeredBy: PublishTrigger;
 }
 
-/** Workspace-and-target-scoped read/write for the last successful publish. `recordSuccess` is named
- *  for what it is ever called with, not what it is capable of rejecting — see this file's header for
- *  why an `ok: false` `StaticPublishOutcome` is never passed to it at all (the caller decides that,
- *  not this port). */
+/** Workspace-and-target-scoped read/write for the publish-history ledger. */
 export interface PublishHistoryStore {
+  /** The single most recent recorded publish for `(workspaceId, target)`, or `null` if none has ever
+   *  been recorded — what `deployment_get_static_publish_capabilities` surfaces as `lastPublish`. */
   getLast(input: { workspaceId: UUID; target: StaticPublishTargetId }): Promise<PublishHistoryEntry | null>;
-  /** Replaces whatever was previously recorded for `(workspaceId, entry.target)` — a publish's history
-   *  is "the last one", not an append-only log (spec: "record the last successful publish per
-   *  target"). */
+  /** Every recorded publish for `workspaceId`, newest first, optionally narrowed to one `target` —
+   *  what a future read-only history view would page through. `limit` defaults to
+   *  {@link DEFAULT_PUBLISH_HISTORY_LIST_LIMIT} and is clamped to
+   *  {@link MAX_PUBLISH_HISTORY_LIST_LIMIT} regardless of what a caller requests: this table is
+   *  append-only and grows for the life of an install (`REVIEWED_INTEGER_ID_COLUMNS` in
+   *  `db/migration/manifest.ts` reviews `publish_history.id` as `"unbounded"` for exactly this
+   *  reason), so an unbounded `list` call is a real resource-exhaustion risk a workspace with years of
+   *  publish history could actually trigger, not a hypothetical one. */
+  list(input: { workspaceId: UUID; target?: StaticPublishTargetId; limit?: number }): Promise<PublishHistoryEntry[]>;
+  /** Appends a new row — an append-only ledger, never a replace-in-place. Named for what it is ever
+   *  called with, not what it is capable of rejecting: an `ok: false` `StaticPublishOutcome` is never
+   *  passed to it at all (the caller, `publish-run.ts`'s `toHistoryEntry`, decides that, not this
+   *  port), so `recordSuccess` never means "the publish failed." */
   recordSuccess(input: { workspaceId: UUID; entry: PublishHistoryEntry }): Promise<void>;
 }
 
-/** Test double — same shape/isolation-by-key discipline as `InMemoryPublishCredentialVerificationCache`
- *  (`verify.ts`). NEVER the production default (see this file's header for why: it dies on restart,
- *  which defeats the entire point of this fix) — tests inject this explicitly. */
-export class InMemoryPublishHistoryStore implements PublishHistoryStore {
-  private readonly entries = new Map<string, PublishHistoryEntry>();
+/** Default `limit` for {@link PublishHistoryStore.list} when a caller does not specify one. */
+export const DEFAULT_PUBLISH_HISTORY_LIST_LIMIT = 50;
+/** Hard ceiling on {@link PublishHistoryStore.list}'s `limit` — see that method's own doc for why an
+ *  append-only, unbounded-growth table needs one regardless of what a caller requests. */
+export const MAX_PUBLISH_HISTORY_LIST_LIMIT = 200;
 
-  private static key(workspaceId: UUID, target: StaticPublishTargetId): string {
-    return `${workspaceId}::${target}`;
-  }
+/** Clamps a caller-requested `list` limit into `[1, MAX_PUBLISH_HISTORY_LIST_LIMIT]`, defaulting to
+ *  {@link DEFAULT_PUBLISH_HISTORY_LIST_LIMIT} when omitted — the one place both {@link
+ *  InMemoryPublishHistoryStore} and `SqlitePublishHistoryStore` apply the same bound, so the two
+ *  implementations can never silently disagree on what "too many" means.
+ *  @complexity O(1). */
+export function resolvePublishHistoryListLimit(requested: number | undefined): number {
+  if (requested === undefined) return DEFAULT_PUBLISH_HISTORY_LIST_LIMIT;
+  return Math.max(1, Math.min(Math.trunc(requested), MAX_PUBLISH_HISTORY_LIST_LIMIT));
+}
+
+/** Test double — append-only like the real table (a `Map<key, PublishHistoryEntry[]>`, not
+ *  `Map<key, PublishHistoryEntry>`), so a test can actually assert "the second publish did not erase
+ *  the first." Dies on process restart, same as any in-memory double; production always uses
+ *  `SqlitePublishHistoryStore` instead (`server/deps.ts`), never this class. */
+export class InMemoryPublishHistoryStore implements PublishHistoryStore {
+  private readonly entriesByWorkspace = new Map<UUID, PublishHistoryEntry[]>();
 
   async getLast(input: { workspaceId: UUID; target: StaticPublishTargetId }): Promise<PublishHistoryEntry | null> {
-    return this.entries.get(InMemoryPublishHistoryStore.key(input.workspaceId, input.target)) ?? null;
+    const rows = this.entriesByWorkspace.get(input.workspaceId) ?? [];
+    for (let i = rows.length - 1; i >= 0; i -= 1) {
+      if (rows[i]!.target === input.target) return rows[i]!;
+    }
+    return null;
+  }
+
+  async list(input: { workspaceId: UUID; target?: StaticPublishTargetId; limit?: number }): Promise<PublishHistoryEntry[]> {
+    const limit = resolvePublishHistoryListLimit(input.limit);
+    const rows = this.entriesByWorkspace.get(input.workspaceId) ?? [];
+    const matching = input.target === undefined ? rows : rows.filter((row) => row.target === input.target);
+    // Newest-first: entries are appended oldest-to-newest, so reverse before slicing to `limit`.
+    return matching.slice().reverse().slice(0, limit);
   }
 
   async recordSuccess(input: { workspaceId: UUID; entry: PublishHistoryEntry }): Promise<void> {
-    this.entries.set(InMemoryPublishHistoryStore.key(input.workspaceId, input.entry.target), input.entry);
+    const rows = this.entriesByWorkspace.get(input.workspaceId) ?? [];
+    rows.push(input.entry);
+    this.entriesByWorkspace.set(input.workspaceId, rows);
   }
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-/** One workspace's whole history file, keyed by target — the unit this module reads and
- *  read-modify-writes as a whole (one small file, not one file per target: at most five keys ever). */
-type WorkspaceHistory = Partial<Record<StaticPublishTargetId, PublishHistoryEntry>>;
-
-/** `encodeURIComponent`, not the raw `workspaceId`, as the filename — a plain, standard escape that
- *  keeps this store safe against a `workspaceId` containing a path separator or `..` segment without
- *  inventing a bespoke validation regex, matching the defense-in-depth (not "assume the input is
- *  always well-formed") posture this feature already takes for model/form-supplied strings elsewhere
- *  (`adapter.ts`'s `OWNER_PATTERN`/`REPO_PATTERN`). `workspaceId` here is server-assigned, never
- *  agent- or form-supplied, but this store has no way to know that about every future caller. */
-function historyFilePath(dir: string, workspaceId: UUID): string {
-  return path.join(dir, `${encodeURIComponent(workspaceId)}.json`);
-}
-
-/** Reads one workspace's history file. Never throws: a missing file (nothing published yet for this
- *  workspace) and a corrupt/malformed one (this store's own atomic write is the only writer, but a
- *  hand-edited or partially-copied file is not this module's problem to diagnose) both degrade to "no
- *  history recorded" rather than propagating — the same "a stale/corrupt on-disk record must never
- *  crash a read" posture `read-site-dir.ts`'s schema-guarded reads already take elsewhere in this
- *  codebase. */
-function readWorkspaceHistory(dir: string, workspaceId: UUID): WorkspaceHistory {
-  let raw: string;
-  try {
-    raw = fs.readFileSync(historyFilePath(dir, workspaceId), "utf8");
-  } catch {
-    return {};
-  }
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    return isRecord(parsed) ? (parsed as WorkspaceHistory) : {};
-  } catch {
-    return {};
-  }
-}
-
-/** Writes one workspace's whole history file atomically (temp file in the SAME directory, then
- *  `renameSync` over the real path — POSIX rename is atomic within one filesystem) — see this file's
- *  header for why this is a small local duplicate of `site-dir/atomic-write.ts`'s identical technique
- *  rather than an import of it. */
-function writeWorkspaceHistoryAtomic(dir: string, workspaceId: UUID, data: WorkspaceHistory): void {
-  fs.mkdirSync(dir, { recursive: true });
-  const filePath = historyFilePath(dir, workspaceId);
-  const tempPath = path.join(dir, `.${path.basename(filePath)}.${process.pid}.${randomUUID()}.tmp`);
-  fs.writeFileSync(tempPath, JSON.stringify(data, null, 2));
-  fs.renameSync(tempPath, filePath);
-}
-
-/**
- * The production default: one JSON file per workspace under `infra/publish-history/` (or
- * `TOVU_PUBLISH_HISTORY_DIR`, mirroring `adapter.ts`'s `TOVU_PUBLISH_DIR`/`export-run.ts`'s
- * `TOVU_EXPORT_DIR` — a real operational knob, and what lets this module's own tests redirect off the
- * checked-out repo without a test-only code path).
- *
- * @param deps.dir - Overridable for tests; defaults to the env-or-`infra/` resolution above.
- * @complexity O(1) per operation — one small JSON file read and/or write, no larger than five entries.
- * @overallScore 100
- */
-export function createFilePublishHistoryStore(deps: { dir?: string } = {}): PublishHistoryStore {
-  const dir = deps.dir ?? (process.env.TOVU_PUBLISH_HISTORY_DIR !== undefined ? path.resolve(process.env.TOVU_PUBLISH_HISTORY_DIR) : path.resolve(process.cwd(), "infra", "publish-history"));
-
-  return {
-    async getLast(input) {
-      const history = readWorkspaceHistory(dir, input.workspaceId);
-      return history[input.target] ?? null;
-    },
-    async recordSuccess(input) {
-      const history = readWorkspaceHistory(dir, input.workspaceId);
-      writeWorkspaceHistoryAtomic(dir, input.workspaceId, { ...history, [input.entry.target]: input.entry });
-    },
-  };
 }

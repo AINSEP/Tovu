@@ -38,7 +38,7 @@ import type { WebhookSigner } from "../../integrations/signing";
 import type { SiteAssistantCredentialRepoPort } from "../../assistant/site-credential-store";
 import type { AdminExecutionCredentialRepoPort } from "../../assistant/execution-credential-store";
 import type { PublishCredentialSetRepoPort, PublishExecutionMode } from "../../features/deployments/publish-credentials";
-import type { PublishCredentialVerificationCache } from "../../features/deployments/static-publish";
+import type { PublishCredentialVerificationCache, PublishHistoryStore } from "../../features/deployments/static-publish";
 import type { SourceControlCredentialSetRepoPort } from "../../features/source-control";
 import type { ComposioConfigRepoPort } from "../../connectors/composio-config-store";
 import type { ComposioConnectors } from "../../connectors/composio-service";
@@ -647,6 +647,17 @@ export interface RouteDeps {
    * `mediaProviderCredentialRepo` already establish.
    */
   publishCredentialSetRepo: PublishCredentialSetRepoPort;
+  /**
+   * 2026-08-16 rework of the original flat-JSON-file design (see `static-publish/publish-history.ts`'s
+   * own header) — the append-only `publish_history` table backing `deployment_get_static_publish_capabilities`'s
+   * `lastPublish` field. Real `SqlitePublishHistoryStore` (`db/sqlite/publish-history-repo.sqlite.ts`)
+   * in `server/deps.ts`; `InMemoryPublishHistoryStore` in `server/app.ts`'s hermetic composition, same
+   * rule-of-two every other repo/port here follows. `static-publish/publish-run.ts`'s
+   * `startPublishRun`/`runPublishAndAwait` both take a `PublishHistoryStore` as a required
+   * (non-defaulted) parameter — `publish-site.ts` and `publish-agent-tools.ts` pass this field
+   * straight through rather than either one constructing its own instance.
+   */
+  publishHistoryStore: PublishHistoryStore;
   /**
    * 2026-08-15 (Contract v2) — this install's `PublishExecutionMode`, read once at boot from
    * `TOVU_EXECUTION_MODE` (`publish-credentials/execution-mode.ts`'s `executionModeFromEnv`) in BOTH

@@ -222,7 +222,12 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
     // publish finishes. `startPublishRun` itself keeps the shared slot in sync as the publish
     // settles, so a poller can never observe a stale "running" snapshot after the promise has
     // actually settled.
-    const snapshot = startPublishRun({ credentialSource }, { workspaceId: deps.workspaceId, routeDeps: deps, config: parsed.config, projectName: parsed.projectName }, deps.clock);
+    const snapshot = startPublishRun(
+      { credentialSource },
+      { workspaceId: deps.workspaceId, routeDeps: deps, config: parsed.config, projectName: parsed.projectName },
+      deps.clock,
+      deps.publishHistoryStore
+    );
 
     res.status(202).json(snapshot);
   });

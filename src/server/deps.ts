@@ -6,6 +6,7 @@ import { InMemoryEventBus } from "../core/events";
 import { backfillPostSearchIndex, SqlitePostRepo, SqlitePostSearchIndex, createPostRevertRegistry } from "../features/post";
 import { SqliteDeploymentsReadRepo } from "../features/deployments";
 import { SqlitePublishCredentialSetRepo } from "../db/sqlite/publish-credential-repo.sqlite";
+import { SqlitePublishHistoryStore } from "../db/sqlite/publish-history-repo.sqlite";
 import { SqliteSourceControlCredentialSetRepo } from "../db/sqlite/source-control-credential-repo.sqlite";
 import { executionModeFromEnv } from "../features/deployments/publish-credentials";
 import { InMemoryPublishCredentialVerificationCache } from "../features/deployments/static-publish";
@@ -807,6 +808,9 @@ export function createSqliteRouteDeps(
     // `publishExecutionMode` docs. Sealed via the same shared sealer/keyring the two credential
     // repos above already reuse (no third `EnvOrFileKeyring` instance).
     publishCredentialSetRepo: new SqlitePublishCredentialSetRepo(db),
+    // 2026-08-16 rework — see `routes/types.ts`'s `publishHistoryStore` doc. Real, DB-backed;
+    // `server/app.ts`'s hermetic composition uses `InMemoryPublishHistoryStore` instead.
+    publishHistoryStore: new SqlitePublishHistoryStore(db),
     publishExecutionMode: executionModeFromEnv(),
     // 2026-08-16 — see `routes/types.ts`'s `publishCredentialVerificationCache` doc. Deliberately
     // in-memory, not DB-backed — one instance per process (this function runs once per boot, per
