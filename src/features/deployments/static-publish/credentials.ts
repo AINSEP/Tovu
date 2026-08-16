@@ -46,18 +46,26 @@ const ENV_VAR_BY_TARGET: Readonly<Record<StaticPublishTargetId, string>> = {
  * @complexity O(1).
  */
 export function createEnvPublishCredentialSource(env: NodeJS.ProcessEnv = process.env): PublishCredentialSource {
+  function readToken(target: StaticPublishTargetId): { token: string } | { reason: string } {
+    const envVar = ENV_VAR_BY_TARGET[target];
+    const token = env[envVar]?.trim();
+    if (!token) {
+      return { reason: `${envVar} is not set — publishing to ${target} requires a token with write access configured in the server environment` };
+    }
+    return { token };
+  }
+
   return {
     async resolve(input) {
-      const envVar = ENV_VAR_BY_TARGET[input.target];
-      const raw = env[envVar];
-      const token = raw?.trim();
-      if (!token) {
-        return {
-          ok: false,
-          reason: `${envVar} is not set — publishing to ${input.target} requires a token with write access configured in the server environment`,
-        };
-      }
-      return { ok: true, token };
+      const result = readToken(input.target);
+      return "token" in result ? { ok: true, token: result.token } : { ok: false, reason: result.reason };
+    },
+    // Never exposes the token — same env-var presence/blankness check `resolve()` performs, just
+    // without returning what it found. See `types.ts`'s `PublishCredentialSource` header for why this
+    // is a separate method rather than a caller reading `.ok` off `resolve()`'s result.
+    async isConfigured(input) {
+      const result = readToken(input.target);
+      return "token" in result ? { configured: true } : { configured: false, reason: result.reason };
     },
   };
 }

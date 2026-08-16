@@ -71,13 +71,31 @@ export type StaticPublishOutcome =
       readonly message: string;
     };
 
-/** Resolves the bearer token for one publish target. The only implementation this pass
- *  (`credentials.ts`'s `createEnvPublishCredentialSource`) reads a fixed env var; `workspaceId` is
- *  carried in the input shape now so a future implementation backed by Tovu's encrypted
- *  `SecretSealerPort`/`KeyringPort` store (ADR-058's pattern — see `credentials.ts`'s own header)
- *  can be substituted with no change to any caller. */
+/**
+ * Resolves the bearer token for one publish target, and separately answers whether one is even
+ * configured. `credentials.ts`'s `createEnvPublishCredentialSource` is the env-var implementation;
+ * `publish-credentials`'s DB-backed source (2026-08-15, ADR-058-pattern encrypted store) is the
+ * second — both implement this same interface so no caller changes when the composition between them
+ * changes.
+ *
+ * TWO separate methods, not one, on purpose (2026-08-15 split, Terra's design): {@link resolve}
+ * is the ONLY one of the two that may decrypt/expose a real credential, and must never be called from
+ * a preview, a status display, or anything agent-facing — only from an actual publish attempt.
+ * {@link isConfigured} answers the read-only "would a publish work" question every preview/education
+ * surface actually needs, without decrypting anything (the DB-backed source's `isConfigured` only
+ * ever calls `describeCredential`-shaped reads — never `resolveForPublish`). Before this split, the
+ * only method was `resolve()`, and the admin preview route called it just to read `.ok` off the
+ * result — harmless while the only implementation was a plain `process.env` read, but it would have
+ * meant a REAL decrypt on every preview once a DB-backed source existed.
+ */
 export interface PublishCredentialSource {
   resolve(input: { workspaceId: UUID; target: StaticPublishTargetId }): Promise<
     { readonly ok: true; readonly token: string } | { readonly ok: false; readonly reason: string }
+  >;
+  /** Read-only, never decrypts. `reason` (when `configured` is `false`) is the same human-readable,
+   *  non-secret guidance `resolve()`'s own `{ok:false}.reason` carries — safe to show in an admin UI
+   *  or hand to an agent tool. */
+  isConfigured(input: { workspaceId: UUID; target: StaticPublishTargetId }): Promise<
+    { readonly configured: true } | { readonly configured: false; readonly reason: string }
   >;
 }
