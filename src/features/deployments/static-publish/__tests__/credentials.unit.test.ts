@@ -381,3 +381,82 @@ test("hosted-api-only: still resolves a DB-backed default when one is saved", as
   if (!result.ok) throw new Error("unreachable");
   assert.equal(result.token, "from-db");
 });
+
+// --- s3-compatible: no env fallback, six-field DB projection (spec `custom-publish-provider-contract.md` §4/§10) ---
+
+test("createEnvPublishCredentialSource: s3-compatible has NO env-var fallback — always ok:false, regardless of any env vars set", async () => {
+  const source = createEnvPublishCredentialSource(WORKSPACE, {
+    GITHUB_TOKEN: "irrelevant",
+    VERCEL_TOKEN: "irrelevant",
+  } as NodeJS.ProcessEnv);
+  const result = await source.resolve({ workspaceId: WORKSPACE, target: "s3-compatible" });
+  assert.equal(result.ok, false);
+  if (result.ok) throw new Error("unreachable");
+  assert.match(result.reason, /no server-environment-variable fallback/);
+
+  const configured = await source.isConfigured({ workspaceId: WORKSPACE, target: "s3-compatible" });
+  assert.equal(configured.configured, false);
+});
+
+test("createDbPublishCredentialSource: resolves a saved s3-compatible connection with secretAccessKey mapped to token, plus all five companion fields", async () => {
+  const writeDeps = makeWriteDeps();
+  await createPublishCredential(writeDeps, {
+    workspaceId: WORKSPACE,
+    label: "x",
+    connection: {
+      providerId: "s3-compatible",
+      region: "auto",
+      bucket: "my-bucket",
+      accessKeyId: "AKIAEXAMPLE",
+      secretAccessKey: "s3cr3t",
+      publicUrl: "https://my-bucket.example.test",
+      endpoint: "https://abc123.r2.cloudflarestorage.com",
+    },
+  });
+
+  const source = createDbPublishCredentialSource(writeDeps);
+  const result = await source.resolve({ workspaceId: WORKSPACE, target: "s3-compatible" });
+  assert.equal(result.ok, true);
+  if (!result.ok) throw new Error("unreachable");
+  assert.equal(result.token, "s3cr3t", "secretAccessKey must fill the token field's role");
+  assert.equal(result.accessKeyId, "AKIAEXAMPLE");
+  assert.equal(result.bucket, "my-bucket");
+  assert.equal(result.region, "auto");
+  assert.equal(result.publicUrl, "https://my-bucket.example.test");
+  assert.equal(result.endpoint, "https://abc123.r2.cloudflarestorage.com");
+  assert.equal(result.accountId, undefined, "accountId is a cloudflare-pages-only field, never populated for s3-compatible");
+});
+
+test("createDbPublishCredentialSource: an omitted endpoint stays omitted on the resolved credential, never coerced to an empty string", async () => {
+  const writeDeps = makeWriteDeps();
+  await createPublishCredential(writeDeps, {
+    workspaceId: WORKSPACE,
+    label: "x",
+    connection: {
+      providerId: "s3-compatible",
+      region: "us-east-1",
+      bucket: "my-bucket",
+      accessKeyId: "AKIAEXAMPLE",
+      secretAccessKey: "s3cr3t",
+      publicUrl: "https://my-bucket.s3.us-east-1.amazonaws.com",
+    },
+  });
+
+  const source = createDbPublishCredentialSource(writeDeps);
+  const result = await source.resolve({ workspaceId: WORKSPACE, target: "s3-compatible" });
+  assert.equal(result.ok, true);
+  if (!result.ok) throw new Error("unreachable");
+  assert.ok(!("endpoint" in result), "omitted endpoint must not appear as a key at all");
+});
+
+test("composePublishCredentialSource: self-hosted-cli mode still never falls back to env for s3-compatible when nothing is saved in the DB", async () => {
+  const writeDeps = makeWriteDeps();
+  const source = composePublishCredentialSource({
+    workspaceId: WORKSPACE,
+    executionMode: "self-hosted-cli",
+    dbDeps: writeDeps,
+    env: { GITHUB_TOKEN: "irrelevant-to-s3" } as NodeJS.ProcessEnv,
+  });
+  const result = await source.resolve({ workspaceId: WORKSPACE, target: "s3-compatible" });
+  assert.equal(result.ok, false);
+});

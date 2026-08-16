@@ -277,7 +277,9 @@ test("deployment_get_static_publish_capabilities reports per-provider readiness 
   };
 
   assert.equal(result.executionMode, deps.publishExecutionMode);
-  assert.equal(result.providers.length, 4);
+  // 5 providers as of the s3-compatible ("Custom" tab) addition — spec
+  // `custom-publish-provider-contract.md` §10.7 — not 4.
+  assert.equal(result.providers.length, 5);
 
   const github = result.providers.find((p) => p.providerId === "github-pages")!;
   assert.equal(github.ready, true);
@@ -493,6 +495,56 @@ test("provider rejection: an actionable message is returned, never a raw respons
   assert.equal(result.code, "PROVIDER_ERROR");
   assert.match(result.message, /403/);
   assert.doesNotMatch(result.message, /fake-token-never-real/, "the credential must never appear in a provider-error message");
+});
+
+test("confirm: a target that reports a non-'ready' terminal status returns a genuine partial outcome — published:true but reachable:false, never a plain success", async () => {
+  const { deps } = fakeDeps({
+    credentialSource: {
+      async resolve() {
+        return { ok: true, token: "s3cr3t", accessKeyId: "AKIA", bucket: "b", region: "us-east-1", publicUrl: "https://example.test/site" };
+      },
+      async isConfigured() {
+        return { configured: true };
+      },
+    },
+    buildTarget: () => ({
+      id: "fake",
+      async publish() {
+        return { targetId: "fake", url: "https://example.test/site", status: "link-delayed" as const, statusMessage: "not reachable yet" };
+      },
+      async checkReachability() {
+        return { reachable: false };
+      },
+    }),
+  });
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_execute_static_publish");
+
+  const { exchangeId, pending } = await raiseDialog(executeTool, { target: "s3-compatible", projectName: "demo-site" });
+  surfaceExchanges.deliver({ exchangeId, toolId: "deployment_execute_static_publish", principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
+
+  const result = (await pending) as { published: boolean; reachable: boolean; target: string; url: string; status: string; message: string };
+  assert.equal(result.published, true, "the upload itself DID succeed — this must not read as a hard failure");
+  assert.equal(result.reachable, false, "the site is NOT confirmed reachable — this must not read as a plain success either");
+  assert.equal(result.status, "link-delayed");
+  assert.match(result.message, /not reachable yet/);
+});
+
+test("confirm: a full 'ready' success explicitly reports reachable:true, not merely the absence of reachable:false", async () => {
+  const captured: { value: DeployFile[] | null } = { value: null };
+  const { deps } = fakeDeps({
+    credentialSource: { async resolve() { return { ok: true, token: "fake-token-never-real" }; }, async isConfigured() { return { configured: true }; } },
+    buildTarget: () => fakeDeployTarget(captured),
+  });
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_execute_static_publish");
+
+  const { exchangeId, pending } = await raiseDialog(executeTool, { target: "vercel", projectName: "demo-site" });
+  surfaceExchanges.deliver({ exchangeId, toolId: "deployment_execute_static_publish", principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
+
+  const result = (await pending) as { published: boolean; reachable: boolean };
+  assert.equal(result.published, true);
+  assert.equal(result.reachable, true);
 });
 
 test("re-calling the tool while a dialog is pending opens a SEPARATE dialog — it does not answer the first one", async () => {

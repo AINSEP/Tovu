@@ -85,10 +85,46 @@ export interface CloudflarePagesPublishConfig {
   readonly target: "cloudflare-pages";
 }
 
-export type StaticPublishConfig = GitHubPagesPublishConfig | VercelPublishConfig | NetlifyPublishConfig | CloudflarePagesPublishConfig;
+/**
+ * S3-compatible (AWS S3, Cloudflare R2, Backblaze B2, DigitalOcean Spaces, Wasabi, MinIO, ...)
+ * publish config. Deliberately EMPTY — unlike the four sibling configs, this protocol has NO
+ * per-run/per-publish field at all: all six identifying values (`endpoint`/`region`/`bucket`/
+ * `accessKeyId`/`secretAccessKey`/`publicUrl`) live on the CREDENTIAL
+ * (`publish-credentials/types.ts`'s `S3CompatibleConnectionInput`), the same "properties of the
+ * secret's own scope, not a genuine per-run choice" reasoning `CloudflarePagesPublishConfig`'s own doc
+ * gives for `accountId`, just carried further since an S3-compatible key is scoped to a bucket in its
+ * entirety, not merely an account. Spec `custom-publish-provider-contract.md` §4b.
+ *
+ * `basePath` is not a field here for the same reason it is absent from `CloudflarePagesPublishConfig`
+ * — a bucket serves from its own root; `computeBasePath` returns `undefined` for it (`adapter.ts`).
+ */
+export interface S3CompatiblePublishConfig {
+  readonly target: "s3-compatible";
+}
+
+export type StaticPublishConfig =
+  | GitHubPagesPublishConfig
+  | VercelPublishConfig
+  | NetlifyPublishConfig
+  | CloudflarePagesPublishConfig
+  | S3CompatiblePublishConfig;
 
 /** Every outcome this feature returns to a caller (admin route JSON, agent tool result) — never a
- *  `DeployFile`, never a token, never a raw upstream error body. */
+ *  `DeployFile`, never a token, never a raw upstream error body.
+ *
+ * THREE outcomes, not two — `ok` is `true | false | "partial"`, never merely a boolean. Spec
+ * `custom-publish-provider-contract.md` §3a names the exact failure mode this third state exists to
+ * prevent: uploading objects to a bucket does not, by itself, make them servable — a bucket is private
+ * by default on every S3-compatible provider, so "the PUT calls all succeeded" and "a human can
+ * actually load this site" are genuinely different claims. Folding "uploaded fine, but not reachable
+ * yet" into `ok: true` would be a false "Published" success pointing at a URL that 404s; folding it
+ * into `ok: false` would hide that the upload itself DID succeed (nothing needs re-uploading, only the
+ * hosting/public-access step is missing — see `deployment_generate_bucket_hosting_setup`, spec §3a).
+ * Neither existing branch is honest here, so this is a genuine third branch, not a reuse of either.
+ *
+ * `adapter.ts`'s `publishStaticSite` is the one place this is decided, from the SAME
+ * `DeployPublishResult.status` field every target (not only s3-compatible) already returns — see that
+ * function's own doc for why the check applies uniformly rather than being special-cased per target. */
 export type StaticPublishOutcome =
   | {
       readonly ok: true;
@@ -99,6 +135,19 @@ export type StaticPublishOutcome =
       /** The base path this publish's export was rewritten for — `/${repo}` for GitHub Pages,
        *  absent for Vercel. Echoed back so a caller can show "published at /repo" without having to
        *  re-derive the same computation this module already did. */
+      readonly basePath?: string;
+    }
+  | {
+      /** "Uploaded, not yet reachable" — see this type's own header. Every field below has the exact
+       *  same meaning as the `ok: true` branch's namesake field; only the discriminant and `message`
+       *  are new, so a caller migrating from a boolean-only reading of `ok` gets a compile error
+       *  (an unhandled union member) rather than a silent misclassification. */
+      readonly ok: "partial";
+      readonly targetId: StaticPublishTargetId;
+      readonly url: string;
+      readonly status: string;
+      readonly message: string;
+      readonly deploymentId?: string;
       readonly basePath?: string;
     }
   | {
@@ -129,10 +178,29 @@ export type StaticPublishOutcome =
  * account scope (see `CloudflarePagesPublishConfig`'s own doc for why that field has no home on the
  * publish config). Every other target's `accountId` is simply absent; `adapter.ts`'s `buildJiniTarget`
  * is the one place that reads it.
+ *
+ * Five more OPTIONAL fields (`accessKeyId`/`bucket`/`region`/`endpoint`/`publicUrl`), populated only
+ * for `s3-compatible` — same "additive field per provider" pattern as `accountId` above, just carried
+ * further since S3-compatible's credential has six identifying values instead of one companion id.
+ * `token` is still always populated for every target INCLUDING `s3-compatible` (it carries that
+ * protocol's `secretAccessKey` there — the value that authenticates the request, same role `token`
+ * plays for every other target, even though the field it originated from has a different name on
+ * `publish-credentials/types.ts`'s `S3CompatibleConnectionInput`) — kept required rather than widened
+ * to optional so this interface's single most load-bearing field never needs an existence check added
+ * to every existing caller for a fifth target's sake.
  */
 export interface PublishCredentialSource {
   resolve(input: { workspaceId: UUID; target: StaticPublishTargetId }): Promise<
-    | { readonly ok: true; readonly token: string; readonly accountId?: string }
+    | {
+        readonly ok: true;
+        readonly token: string;
+        readonly accountId?: string;
+        readonly accessKeyId?: string;
+        readonly bucket?: string;
+        readonly region?: string;
+        readonly endpoint?: string;
+        readonly publicUrl?: string;
+      }
     | { readonly ok: false; readonly reason: string }
   >;
   /** Read-only, never decrypts. `reason` (when `configured` is `false`) is the same human-readable,
