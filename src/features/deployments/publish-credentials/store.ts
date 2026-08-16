@@ -171,9 +171,9 @@ function validateConnection(raw: unknown): PublishConnectionInput {
   const token = requireNonEmptyString(value.token, "token", providerId);
 
   if (providerId === "github-pages") {
-    const owner = requireNonEmptyString(value.owner, "owner", providerId);
-    const repo = requireNonEmptyString(value.repo, "repo", providerId);
-    return { providerId, token, owner, repo };
+    // No owner/repo here — see `types.ts`'s `GitHubPagesConnectionInput` doc for why those are
+    // publish-TARGET fields, never credential fields.
+    return { providerId, token };
   }
   if (providerId === "vercel") {
     const teamId = optionalString(value.teamId, "teamId");

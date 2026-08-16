@@ -6,10 +6,11 @@
  *
  * Purpose:
  * Deliberately its OWN file, not folded into the sibling `agent-tools.ts`/`tool-registrations.ts` —
- * per this dispatch's brief, another concurrent agent owns those two files plus
- * `assistant/tool-registrations.ts`'s wiring pass, and this file must not collide with that work.
- * NOT imported by `assistant/tool-registrations.ts` yet — see this file's own bottom for the exact
- * one-line follow-up a later integration pass needs.
+ * that split let a concurrent agent own those two files plus `assistant/tool-registrations.ts`'s
+ * wiring pass without colliding with this one. That wiring has since landed: `assistant/
+ * tool-registrations.ts` imports this file's catalog (its own `deployments/publish-agent-tools`
+ * import) and invokes it alongside every other domain's registrations — see that file's own
+ * `deployment_preview_static_publish` comment for the wired half of this story.
  *
  * Risk classification (brief: "not boilerplate here"). This domain's sibling `agent-tools.ts` notes
  * its own five tools are ALL plain `mutates-durable-state` with no excluded/token-gated entry,
@@ -214,15 +215,11 @@ function buildPreviewConfig(raw: Record<string, unknown>): StaticPublishConfig {
 /**
  * Builds this domain's `ToolRegistration[]` — the same shape every other domain's
  * `build<Domain>Registrations` produces (see e.g. `recovery/tool-registrations.ts`'s
- * `buildRecoveryRegistrations`). NOT called by `assistant/tool-registrations.ts` yet; see this
- * file's header for why, and the exact follow-up below.
- *
- * Follow-up integration (left to a later pass per this dispatch's brief, to avoid colliding with
- * the concurrent agent wiring this directory's sibling `agent-tools.ts`): `assistant/
- * tool-registrations.ts` needs one new slice added to its `DOMAIN_SLICES` list —
- * `buildStaticPublishRegistrations`/`staticPublishDerivedRisk` from this file, imported the same
- * way every other domain slice already is. That is the ONLY edit that file needs; nothing in this
- * file changes as a result.
+ * `buildRecoveryRegistrations`). Called by `assistant/tool-registrations.ts`, which imports
+ * `buildStaticPublishRegistrations`/`staticPublishDerivedRisk` from this file and lists them as
+ * their own `"static-publish"` entry in `DOMAIN_SLICES` — see that file's own comment on that entry
+ * for why static-publish stays a separate slice rather than folding into this directory's sibling
+ * `deployments`/`agent-tools.ts` slice.
  *
  * @param deps - `credentialSource` defaults to the same env-var + DB-backed composition
  *   `publish-site.ts`'s route constructs (`dbCredentialDeps` provided) or a plain workspace-bound env

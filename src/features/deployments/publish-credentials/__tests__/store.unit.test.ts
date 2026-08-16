@@ -50,7 +50,7 @@ test("createPublishCredential seals the connection and returns a summary with NO
   const summary = await createPublishCredential(deps, {
     workspaceId: WORKSPACE,
     label: "Main repo",
-    connection: { providerId: "github-pages", token: "ghp_secret_value", owner: "acme", repo: "site" },
+    connection: { providerId: "github-pages", token: "ghp_secret_value" },
   });
 
   assert.equal(summary.providerId, "github-pages");
@@ -152,10 +152,19 @@ test("the SAME (provider, label) is allowed in a DIFFERENT workspace (uniqueness
   assert.equal(other.label, "Main");
 });
 
-test("createPublishCredential rejects github-pages with no owner/repo", async () => {
+test("createPublishCredential accepts github-pages with a bare token — owner/repo are publish-target fields, not credential fields", async () => {
+  const deps = makeDeps();
+  const summary = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "x", connection: { providerId: "github-pages", token: "t" } });
+  assert.equal(summary.providerId, "github-pages");
+
+  const resolved = await resolveForPublish(deps, { workspaceId: WORKSPACE, id: summary.id });
+  assert.deepEqual(resolved?.connection, { providerId: "github-pages", token: "t" });
+});
+
+test("createPublishCredential rejects github-pages with a blank token", async () => {
   const deps = makeDeps();
   await assert.rejects(
-    () => createPublishCredential(deps, { workspaceId: WORKSPACE, label: "x", connection: { providerId: "github-pages", token: "t" } }),
+    () => createPublishCredential(deps, { workspaceId: WORKSPACE, label: "x", connection: { providerId: "github-pages", token: "" } }),
     PublishCredentialValidationError
   );
 });
