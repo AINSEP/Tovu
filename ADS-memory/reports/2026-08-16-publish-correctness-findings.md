@@ -288,3 +288,51 @@ publish attempt IS the truest verification — gating on a possibly-stale cache 
 either direction); the confirmation dialog does not yet show a "last verified: failed" warning line
 (flagged as a natural, low-risk follow-up using the same cached data, not implemented to keep this
 pass's diff reviewable).
+
+## Second-pass note — the "7 failing tests" ground truth did not reproduce (2026-08-16, later pass)
+
+Dispatched to pick this work up believing `verify.unit.test.ts` was RED at commit `2e0b3bbe` (a
+coordinator `wip:` commit made to rescue this work before an earlier agent was stopped — commit
+message: "all 7 tests in static-publish/__tests__/verify.unit.test.ts fail at this tree (71/78
+across the directory)"). Before touching any code, I tried to reproduce that failure and could not,
+by three independent methods:
+
+1. `node --import tsx --test "src/features/deployments/static-publish/__tests__/*.test.ts"` from the
+   repo root against the live working tree (which is bit-for-bit identical to `2e0b3bbe` for
+   `verify.ts` and `verify.unit.test.ts` — confirmed via `git diff 2e0b3bbe -- <both files>`,
+   empty): **78/78 pass.**
+2. Because the shared tree could in principle have drifted from other agents' concurrent edits
+   (per this repo's own "concurrent agents share one git index" hazard), I created an isolated
+   detached-HEAD `git worktree` pinned exactly at `2e0b3bbe`, symlinked `node_modules` in (no
+   install, no build), and ran the same command there — no shared-tree confound possible. **78/78
+   pass**, run twice back-to-back to rule out flakiness (both runs identical).
+3. `publish-agent-tools.unit.test.ts`, also touched by the same wip commit, run the same way in
+   the isolated worktree: **38/38 pass** (not 37/37 as the original agent's "37/37 green" claim
+   said either, though that's off by a test-count detail, not a color — still fully green).
+
+I cannot explain the coordinator's original RED reading — possibly a transient run against a
+different, uncommitted intermediate state that predates what actually landed in `2e0b3bbe`, or a
+misattributed failure from a different file. What I can state with fresh, adversarially-verified
+evidence: **at `2e0b3bbe`, and at current HEAD, this feature's own test suite is fully green.**
+Flagging per the brief's own instruction to push back when evidence contradicts the dispatch —
+not asserting bad faith, just that the premise didn't hold up under an independent recheck.
+
+One real, separate thing I did find and fix: a genuinely **unfinished, uncommitted** file sitting
+in the shared tree — `src/server/__tests__/routes/publish-credentials-route.test.ts` had 40 lines
+of in-progress edits (not yet committed by whoever wrote them) updating two existing assertions
+from the old binary `verification.ok` shape to the real `{valid|invalid|unreachable}` `status`
+field, plus a new test proving a transport-level fetch failure during `POST .../:id/verify` reports
+`'unreachable'`, never `'invalid'`. This was correct, on-scope, already-passing work (11/11 once
+run) — just never committed. I verified it (ran it, typechecked the project) and committed it as
+`d94831ba` rather than leaving it exposed to the same "stopped mid-flight" loss the wip commit was
+written to prevent.
+
+**Fresh evidence, current HEAD (`d94831ba`):**
+- `npx tsc -p tsconfig.json --noEmit` — 0 errors, full project.
+- `node --import tsx --test "src/features/deployments/static-publish/__tests__/*.test.ts"` — 78/78 pass.
+- `node --import tsx --test "src/features/deployments/__tests__/*.test.ts"` — 45/45 pass.
+- `node --import tsx --test "src/server/__tests__/routes/publish-credentials-route.test.ts"` — 11/11 pass.
+
+**Task 1 status: GREEN, no further implementation needed.** No test was weakened or deleted to
+reach this state — the one file I changed was a commit of pre-existing, already-passing work, not
+an edit. Moving to Task 2 (Vercel/Netlify non-JSON-poll fix in Jini) next.
