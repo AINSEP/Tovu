@@ -18,19 +18,27 @@ import type { DockerfileSourceController } from "../hooks/use-dockerfile-source.
  * `save()` and is disabled while `saving`. The hook's own load/save mechanics (fetch behavior, dirty
  * comparison, no-second-GET-after-save) are `use-dockerfile-source.unit.test.tsx`'s job, not this
  * file's — this file only proves the component wires the controller's fields to the right markup.
+ *
+ * Same day, later: gained the "save conflict" describe block for the `saveConflict`/
+ * `reloadAfterConflict` surface (Terra audit finding C5) — pins that a conflict renders its OWN
+ * block (current server contents + a reload button) INSTEAD of the generic save-error paragraph,
+ * even when both happen to be non-null on the fixture, and that `reloadAfterConflict` is wired to
+ * the reload button's click.
  */
 
 const fakeT = (key: string): string => key;
 
 function controllerFixture(overrides: Partial<DockerfileSourceController> = {}): DockerfileSourceController {
   return {
-    snapshot: { exists: true, contents: "FROM node:22\n" },
+    snapshot: { exists: true, contents: "FROM node:22\n", etag: '"fixture-etag"' },
     draft: "FROM node:22\n",
     setDraft: vi.fn(),
     isDirty: false,
     error: null,
     saving: false,
     saveError: null,
+    saveConflict: null,
+    reloadAfterConflict: vi.fn().mockResolvedValue(undefined),
     saved: false,
     copied: false,
     copy: vi.fn().mockResolvedValue(undefined),
@@ -66,7 +74,7 @@ describe("no Dockerfile yet", () => {
     render(
       <DockerfileTab
         useDockerfileSourceHook={() =>
-          controllerFixture({ snapshot: { exists: false, contents: null }, draft: "" })
+          controllerFixture({ snapshot: { exists: false, contents: null, etag: 'W/"missing"' }, draft: "" })
         }
       />,
     );
@@ -88,7 +96,7 @@ describe("no Dockerfile yet", () => {
     render(
       <DockerfileTab
         useDockerfileSourceHook={() =>
-          controllerFixture({ snapshot: { exists: false, contents: null }, draft: "FROM node:22\n", isDirty: true })
+          controllerFixture({ snapshot: { exists: false, contents: null, etag: 'W/"missing"' }, draft: "FROM node:22\n", isDirty: true })
         }
       />,
     );
@@ -188,6 +196,78 @@ describe("an existing Dockerfile", () => {
   });
 });
 
+describe("save conflict (412, Terra audit finding C5)", () => {
+  it("renders the conflict's current contents INSTEAD OF a generic save error, even when both are set on the fixture", () => {
+    render(
+      <DockerfileTab
+        useDockerfileSourceHook={() =>
+          controllerFixture({
+            saveConflict: { exists: true, contents: "FROM node:22\n# a concurrent human edit\n" },
+            // Deliberately ALSO set, to prove the conflict block wins on precedence rather than
+            // both rendering side by side — see `DockerfileTab.tsx`'s own comment at this branch.
+            saveError: "some stale error string",
+          })
+        }
+      />,
+    );
+    expect(screen.getByText("Someone else saved a different version of this Dockerfile while you were editing — your changes below were NOT saved.")).toBeInTheDocument();
+    // `getByText`'s default matcher normalizes whitespace, which would collapse a multi-line
+    // `<pre>`'s real newlines — read the element's own `textContent` directly instead so the
+    // assertion proves the exact raw contents rendered, not a whitespace-flattened approximation.
+    const conflictContents = document.querySelector(".deployment-dockerfile-conflict-contents");
+    expect(conflictContents).not.toBeNull();
+    expect(conflictContents?.textContent).toBe("FROM node:22\n# a concurrent human edit\n");
+    expect(screen.queryByText("some stale error string")).not.toBeInTheDocument();
+  });
+
+  it("reports the deletion case distinctly when saveConflict.exists is false", () => {
+    render(
+      <DockerfileTab
+        useDockerfileSourceHook={() => controllerFixture({ saveConflict: { exists: false, contents: null } })}
+      />,
+    );
+    expect(screen.getByText("It was deleted on the server.")).toBeInTheDocument();
+  });
+
+  it("does not render any conflict block when saveConflict is null, even with a real saveError set", () => {
+    render(<DockerfileTab useDockerfileSourceHook={() => controllerFixture({ saveError: "disk full" })} />);
+    expect(screen.queryByText("Load the current version")).not.toBeInTheDocument();
+    expect(screen.getByText("disk full")).toBeInTheDocument();
+  });
+
+  it("clicking 'Load the current version' calls the injected reloadAfterConflict", async () => {
+    const user = userEvent.setup();
+    const reloadAfterConflict = vi.fn().mockResolvedValue(undefined);
+    render(
+      <DockerfileTab
+        useDockerfileSourceHook={() =>
+          controllerFixture({
+            saveConflict: { exists: true, contents: "FROM node:22\n# concurrent\n" },
+            reloadAfterConflict,
+          })
+        }
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Load the current version" }));
+    expect(reloadAfterConflict).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves the operator's own draft in the textarea untouched while a conflict is showing", () => {
+    render(
+      <DockerfileTab
+        useDockerfileSourceHook={() =>
+          controllerFixture({
+            draft: "FROM node:22\nRUN my own in-progress edit\n",
+            saveConflict: { exists: true, contents: "FROM node:22\n# concurrent\n" },
+          })
+        }
+      />,
+    );
+    expect(screen.getByRole("textbox", { name: "Dockerfile contents" })).toHaveValue("FROM node:22\nRUN my own in-progress edit\n");
+  });
+});
+
 describe("agent handles", () => {
   // Pins the ids the AI assistant relies on to drive this tab through `page.*` capabilities — same
   // `data-agent-element` querying convention `PostEditor.unit.test.tsx` uses for its own handles.
@@ -208,7 +288,7 @@ describe("agent handles", () => {
   it("tags the empty-state region when no Dockerfile exists yet", () => {
     render(
       <DockerfileTab
-        useDockerfileSourceHook={() => controllerFixture({ snapshot: { exists: false, contents: null }, draft: "" })}
+        useDockerfileSourceHook={() => controllerFixture({ snapshot: { exists: false, contents: null, etag: 'W/"missing"' }, draft: "" })}
       />,
     );
     expect(document.querySelector('[data-agent-element="deployment-dockerfile-empty"]')).toBeInTheDocument();
@@ -225,6 +305,22 @@ describe("agent handles", () => {
 
     rerender(<DockerfileTab useDockerfileSourceHook={() => controllerFixture({ saveError: "disk full" })} />);
     expect(document.querySelector('[data-agent-element="deployment-dockerfile-save-error"]')).toBeInTheDocument();
+  });
+
+  it("tags the conflict block and its reload button only while saveConflict holds, and NOT the plain save-error handle at the same time", () => {
+    const { rerender } = render(<DockerfileTab useDockerfileSourceHook={() => controllerFixture()} />);
+    expect(document.querySelector('[data-agent-element="deployment-dockerfile-conflict"]')).not.toBeInTheDocument();
+
+    rerender(
+      <DockerfileTab
+        useDockerfileSourceHook={() =>
+          controllerFixture({ saveConflict: { exists: true, contents: "FROM node:22\n# concurrent\n" } })
+        }
+      />,
+    );
+    expect(document.querySelector('[data-agent-element="deployment-dockerfile-conflict"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-agent-element="deployment-dockerfile-conflict-reload"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-agent-element="deployment-dockerfile-save-error"]')).not.toBeInTheDocument();
   });
 
   it("tags the load-error banner whether or not a snapshot ever loaded", () => {

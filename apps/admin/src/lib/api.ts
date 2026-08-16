@@ -134,6 +134,20 @@ export interface AdminDeploymentOverview {
 export interface AdminDockerfileSource {
   exists: boolean;
   contents: string | null;
+  /**
+   * A content-derived optimistic-concurrency token, read from the response's own `ETag` header —
+   * NOT a field the server's JSON body carries (see `dockerfile-source.ts`'s server-side header for
+   * why the etag travels only via the header). `getDockerfileSource`/`setDockerfileSource` below
+   * both merge it in from the raw `Response` before resolving.
+   *
+   * Pass this back as `ifMatch` to `setDockerfileSource` (sent as the `If-Match` request header) to
+   * prove a write is based on the CURRENT contents. A stale or missing value is refused — `412`
+   * (with the real current contents in the error body to reconcile against) or `400` respectively —
+   * rather than silently overwriting a concurrent edit (Terra audit finding C5, 2026-08-15: a human
+   * in this admin tab and the AI assistant's `deployment_set_dockerfile` tool can both write the
+   * same file).
+   */
+  etag: string;
 }
 
 /** Mirrors `ExportRunStatus` in `src/server/routes/admin/system/export-site.ts`. */
@@ -1293,10 +1307,17 @@ async function fetchOrThrowUnreachable(url: string, init: RequestInit): Promise<
  * which is the correct first action for both. Parseable JSON is the discriminator that IS reliable:
  * it proves an application, not a proxy, composed the response, so those keep `request failed (n)`.
  *
+ * `onOk`, when passed, is called with the raw `Response` immediately before this function resolves
+ * on a 2xx — the ONE hook a caller needing something off the wire that isn't in the JSON body (e.g.
+ * `getDockerfileSource`/`setDockerfileSource` reading the `ETag` response header, 2026-08-15) can
+ * use without reimplementing this function's own fetch/parse/error-shaping. Deliberately not called
+ * on the error path: nothing today needs a response header out of a FAILED request, and every
+ * caller that does can still read `ApiError.body` (already routed through non-2xx responses).
+ *
  * @complexity O(1) plus the request and body parse.
  * @overallScore 100
  */
-async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+async function request<T>(path: string, init: RequestInit = {}, onOk?: (res: Response) => void): Promise<T> {
   const res = await fetchOrThrowUnreachable(`${BASE}${path}`, {
     credentials: "same-origin",
     headers: { "Content-Type": "application/json", ...(init.headers ?? {}) },
@@ -1313,6 +1334,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
       body
     );
   }
+  onOk?.(res);
   return body as T;
 }
 
@@ -2459,18 +2481,41 @@ export const api = {
   getDeploymentOverview: () =>
     request<AdminDeploymentOverview>(`/workspaces/${WORKSPACE_ID}/system/deployment-overview`),
   /** The repo-root `Dockerfile`'s current contents, or `{ exists: false }` when none has been
-   *  generated yet. */
-  getDockerfileSource: () =>
-    request<AdminDockerfileSource>(`/workspaces/${WORKSPACE_ID}/system/dockerfile`),
+   *  generated yet, plus its `etag` merged in from the response's own `ETag` header (never the JSON
+   *  body — see {@link AdminDockerfileSource.etag}'s own doc). */
+  getDockerfileSource: (): Promise<AdminDockerfileSource> => {
+    let etag = "";
+    return request<{ exists: boolean; contents: string | null }>(
+      `/workspaces/${WORKSPACE_ID}/system/dockerfile`,
+      {},
+      (res) => {
+        etag = res.headers.get("ETag") ?? "";
+      }
+    ).then((body) => ({ ...body, etag }));
+  },
   /** 2026-08-15 — `PUT` half of the Dockerfile tab, `system.write`-gated (distinct from the `GET`
    *  above's `system.read`, mirroring `triggerSiteExport`'s own `system.export` vs `system.read`
    *  split below). Overwrites the repo-root Dockerfile with `contents` and returns the snapshot it
-   *  now has — this only writes bytes to disk, it never builds or deploys anything. */
-  setDockerfileSource: (contents: string) =>
-    request<AdminDockerfileSource>(`/workspaces/${WORKSPACE_ID}/system/dockerfile`, {
-      method: "PUT",
-      body: JSON.stringify({ contents }),
-    }),
+   *  now has — this only writes bytes to disk, it never builds or deploys anything.
+   *
+   *  `ifMatch` (the etag from the last `getDockerfileSource`/`setDockerfileSource` response) is sent
+   *  as the `If-Match` request header and REQUIRED by the server — a stale value rejects with a
+   *  `412` `ApiError` whose `.body.current` carries the real `{exists, contents}` currently on disk,
+   *  a missing/empty one with `400`; see {@link AdminDockerfileSource.etag}'s own doc for why. */
+  setDockerfileSource: (contents: string, ifMatch: string): Promise<AdminDockerfileSource> => {
+    let etag = "";
+    return request<{ exists: boolean; contents: string | null }>(
+      `/workspaces/${WORKSPACE_ID}/system/dockerfile`,
+      {
+        method: "PUT",
+        headers: { "If-Match": ifMatch },
+        body: JSON.stringify({ contents }),
+      },
+      (res) => {
+        etag = res.headers.get("ETag") ?? "";
+      }
+    ).then((body) => ({ ...body, etag }));
+  },
 
   // Static Site tab (`src/server/routes/admin/system/export-site.ts`) — trigger + poll, not a
   // single synchronous call: a real export can take seconds to minutes, so `triggerSiteExport`
