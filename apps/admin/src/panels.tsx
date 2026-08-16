@@ -27,6 +27,7 @@ import { Database } from "./features/database";
 import { Recovery } from "./features/recovery";
 import { Deployment } from "./features/deployment";
 import { SourceControl } from "./features/source-control";
+import { Security } from "./features/security";
 import { WidgetsLibrary, WidgetInstanceEditor, WidgetRegions, WidgetRegionEditor } from "./features/widgets";
 import { Workspace } from "./features/workspace";
 import { AiAssistant } from "./features/ai-assistant";
@@ -760,6 +761,38 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
     // which providers are already connected is a useful answer, even though saving a token itself
     // is a credential-entry action no `data-agent-element` opt-in exposes (same boundary the
     // Static Site tab's own publish-credential fields draw).
+  },
+  {
+    // Consolidates the two multi-named-token credential stores (`publish_credential_sets`,
+    // `source_control_credential_sets`) that Deployment/Source Control already write, into one
+    // searchable place to see, name, replace, and remove a saved token — `development/todos.md:1208`
+    // + its 2026-08-16 supersessions (`ADS-memory/reports/continuity/
+    // 2026-08-16-session-6-handoff.md`; `ADS-memory/reports/design/
+    // 2026-08-16-access-tokens-visual-spec.md`'s Phase-1 spec). Directly after Source Control, ahead
+    // of the two `soon: true` placeholders below — same "a BUILT screen belongs beside its nearest
+    // neighbours in meaning, not buried under panels nobody can use yet" reasoning `deployment`'s own
+    // comment gives for its position relative to Recovery: this screen reads the exact credentials
+    // Deployment and Source Control create.
+    // `id: "access-tokens"`, not `"security"` — the panel `id` IS the URL segment (`matchRoute`
+    // matches `panels.find(p => p.id === segment)`, `App.tsx`'s own comment on that function), and
+    // the owner asked for this page at `/admin/access-tokens` specifically, not `/admin/security`.
+    // `nav.label` below is "Security" — the nav LABEL and the route id are independent, same as
+    // every other panel here (e.g. `id: "themes"` labels "Themes" while `id: "admin-appearance"`
+    // also renders a Themes-shaped screen under a different label).
+    id: "access-tokens",
+    render: (ctx) => <Security tabId={ctx.query.get("tab")} />,
+    nav: {
+      label: "Security",
+      group: "Operations",
+      // A shield — distinct from Deployment's rocket-launch and Source Control's two-nodes-joined
+      // glyph.
+      icon: '<path d="M9 2 3.5 4v4.2c0 3.6 2.3 6.4 5.5 7.8 3.2-1.4 5.5-4.2 5.5-7.8V4z"/><path d="M6.7 9.2l1.8 1.8 3-3.4"/>',
+    },
+    // Reachable via the default — an agent asking "what tokens does this install have saved" gets a
+    // useful answer from this page's own row summaries (name/provider/saved-date), same boundary
+    // Deployment/Source Control already draw: the summary is agent-readable, the credential-entry
+    // fields and the destructive Remove action are not (`AccessTokensTab.tsx`'s own `agentHandle`
+    // tagging plan).
   },
   {
     id: "activity-log",
