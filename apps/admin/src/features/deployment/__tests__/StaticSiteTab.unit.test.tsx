@@ -473,6 +473,81 @@ describe("StaticSiteTab — real CLI detection, no more 'can't tell' placeholder
     expect(screen.getByText("Detected on this server")).toBeInTheDocument();
     expect(screen.queryByText("gh")).not.toBeInTheDocument();
   });
+
+  // REGRESSION (U1, owner-reported 2026-08-15): the row read "GitHub CLI · gh · Detected on this
+  // server" directly above a copy line that STILL said "Install the GitHub CLI, then confirm it's
+  // on my PATH." — install instructions for a tool the row itself just said was already there. The
+  // fix (`publishAssistantRequest` in rules.ts) is keyed on the same `installed` boolean the pill
+  // above renders, and is deliberately not GitHub-specific — checked against BOTH CLI-backed
+  // providers here, not only the one the owner happened to report.
+  it("REGRESSION (U1): a DETECTED CLI's copy line asks to use the tool, never to install it — github-pages", () => {
+    renderTab({
+      overviewController: {
+        snapshot: {
+          mode: "local",
+          productionReadinessGate: { applicable: false, passed: false },
+          defaultOwnerPasswordUnsafe: false,
+          daemonKnownFailed: false,
+          dbPath: "infra/content.db",
+          uploadsDir: "infra/uploads",
+          envVars: [],
+          deployClis: [
+            { name: "gh", installed: true },
+            { name: "vercel", installed: false },
+          ],
+        },
+      },
+    });
+    expect(screen.getByText("Detected on this server")).toBeInTheDocument();
+    expect(screen.queryByText(/Install the GitHub CLI/)).not.toBeInTheDocument();
+    expect(screen.getByText("Publish my static export to GitHub Pages with the GitHub CLI.")).toBeInTheDocument();
+  });
+
+  it("REGRESSION (U1): a DETECTED CLI's copy line asks to use the tool, never to install it — vercel", () => {
+    renderTab({
+      publishController: { target: "vercel" },
+      overviewController: {
+        snapshot: {
+          mode: "local",
+          productionReadinessGate: { applicable: false, passed: false },
+          defaultOwnerPasswordUnsafe: false,
+          daemonKnownFailed: false,
+          dbPath: "infra/content.db",
+          uploadsDir: "infra/uploads",
+          envVars: [],
+          deployClis: [
+            { name: "gh", installed: false },
+            { name: "vercel", installed: true },
+          ],
+        },
+      },
+    });
+    expect(screen.getByText("Detected on this server")).toBeInTheDocument();
+    expect(screen.queryByText(/Install the Vercel CLI/)).not.toBeInTheDocument();
+    expect(screen.getByText("Publish my static export to Vercel with the Vercel CLI.")).toBeInTheDocument();
+  });
+
+  it("REGRESSION (U1): a NOT-detected CLI's copy line still asks to install it", () => {
+    renderTab({
+      overviewController: {
+        snapshot: {
+          mode: "local",
+          productionReadinessGate: { applicable: false, passed: false },
+          defaultOwnerPasswordUnsafe: false,
+          daemonKnownFailed: false,
+          dbPath: "infra/content.db",
+          uploadsDir: "infra/uploads",
+          envVars: [],
+          deployClis: [
+            { name: "gh", installed: false },
+            { name: "vercel", installed: true },
+          ],
+        },
+      },
+    });
+    expect(screen.getByText("Not detected on this server")).toBeInTheDocument();
+    expect(screen.getByText("Install the GitHub CLI, then confirm it's on my PATH.")).toBeInTheDocument();
+  });
 });
 
 describe("StaticSiteTab — preview and publish gating", () => {
@@ -726,23 +801,29 @@ describe("StaticSiteTab — credential section: loading and load-error states", 
 });
 
 describe("StaticSiteTab — credential section: executionMode disclosure", () => {
-  it("self-hosted-cli: sits behind a native <details> 'Advanced' summary, OPEN by default, never a prominent notice", () => {
-    // Open-by-default reverses this component's original collapsed-by-default choice (owner's own
-    // call, 2026-08-15) — Netlify and Cloudflare Pages have no CLI-first row at all, so a reader who
-    // picks either target must not find the credential rows hidden behind an unopened disclosure.
+  // REWRITTEN 2026-08-16 (numbered-step pass): disclosure no longer depends on `executionMode` at
+  // all — there is no "Advanced" `<details>` left anywhere in this section. It now depends on
+  // `row.saved`: not-yet-connected renders open and plain (`CredentialStepTodo`, no `<details>`),
+  // connected renders collapsed behind a real `<details>` (`CredentialStepDone`). `executionMode`'s
+  // only remaining job is which SUBTITLE the not-yet-connected step shows (`credentialStepSubtitleKey`
+  // in `StaticSiteTab.tsx`) — see that function's own doc for why it keys off the workspace's terminal
+  // reachability, not the selected provider's own CLI availability.
+  it("self-hosted-cli: the not-yet-connected step is a plain, always-open block — no <details> anywhere, and the CLI-oriented subtitle, not the hosted-only notice", () => {
     renderTab({ credentialsController: { executionMode: "self-hosted-cli" } });
-    const summary = screen.getByText("Advanced: publish with server-side provider credentials");
-    expect(summary.closest("details")).not.toBeNull();
-    expect(summary.closest("details")).toHaveAttribute("open");
-    expect(screen.queryByText(/This workspace cannot use your computer's terminal/)).not.toBeInTheDocument();
+    expect(screen.getByText("Save a personal access token so Tovu can publish on your behalf.")).toBeInTheDocument();
+    expect(
+      screen.queryByText("This workspace can't use your computer's terminal — connecting here is the only way to publish.")
+    ).not.toBeInTheDocument();
+    expect(document.querySelector("details")).toBeNull();
   });
 
-  it("hosted-api-only: shows the plain-language notice OPEN, no collapsed <details> at all", () => {
+  it("hosted-api-only: the not-yet-connected step shows the 'only way to publish' subtitle instead — still no <details>, since the step is still not done", () => {
     renderTab({ credentialsController: { executionMode: "hosted-api-only" } });
     expect(
-      screen.getByText("This workspace cannot use your computer's terminal or CLI sign-in. To publish here, connect a provider and save its credentials below.")
+      screen.getByText("This workspace can't use your computer's terminal — connecting here is the only way to publish.")
     ).toBeInTheDocument();
-    expect(screen.queryByText("Advanced: publish with server-side provider credentials")).not.toBeInTheDocument();
+    expect(screen.queryByText("Save a personal access token so Tovu can publish on your behalf.")).not.toBeInTheDocument();
+    expect(document.querySelector("details")).toBeNull();
   });
 
   // REWRITTEN 2026-08-16 (collapse pass): this used to prove the credential rows render in BOTH
@@ -768,11 +849,19 @@ describe("StaticSiteTab — credential section: rows", () => {
   // above. This test pins the new contract directly — the selected provider's row is present, and
   // every OTHER provider's row (by name) is absent — plus the "no leftover add/edit chrome" half of
   // the original assertion, unchanged.
+  // REWRITTEN 2026-08-16 (numbered-step pass): `.deployment-credential-row-name` and the "Not
+  // connected" pill both belonged to the OLD per-row markup this pass replaced. The stable contract
+  // to pin against now is the agent-element tag `PublishCredentialsSection` puts on whichever row is
+  // selected (`deployment-static-site-credentials-row-<id>`, `agentHandle` in `StaticSiteTab.tsx`) —
+  // it exists for exactly one provider at a time and nowhere else, same guarantee the old class
+  // selector was standing in for.
   it("renders exactly one row — the selected provider's — never the other three; no 'Add credential' button, no provider picker, no label field anywhere", () => {
     renderTab();
-    expect(screen.getByText("GitHub Pages", { selector: ".deployment-credential-row-name" })).toBeInTheDocument();
+    const ghRow = document.querySelector('[data-agent-element="deployment-static-site-credentials-row-github-pages"]');
+    expect(ghRow).toBeInTheDocument();
+    expect(within(ghRow as HTMLElement).getByText("GitHub Pages")).toBeInTheDocument();
     for (const provider of PUBLISH_CREDENTIAL_PROVIDERS.filter((p) => p.id !== "github-pages")) {
-      expect(screen.queryByText(provider.label, { selector: ".deployment-credential-row-name" })).not.toBeInTheDocument();
+      expect(document.querySelector(`[data-agent-element="deployment-static-site-credentials-row-${provider.id}"]`)).not.toBeInTheDocument();
     }
     expect(screen.queryByRole("button", { name: "Add credential" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Provider")).not.toBeInTheDocument();
@@ -781,11 +870,11 @@ describe("StaticSiteTab — credential section: rows", () => {
 
   // REWRITTEN 2026-08-16: switching the publish-target tab is what decides which row shows now
   // (there is no longer a "credential picker" separate from the publish-target picker) — this pins
-  // that the row swaps with the tab, by provider name, in both directions.
+  // that the row swaps with the tab, by its agent-element tag, in both directions.
   it("switching the publish-target tab swaps which provider's credential row is shown", () => {
     const { rerender } = renderTab({ publishController: { target: "github-pages" } });
-    expect(screen.getByText("GitHub Pages", { selector: ".deployment-credential-row-name" })).toBeInTheDocument();
-    expect(screen.queryByText("Vercel", { selector: ".deployment-credential-row-name" })).not.toBeInTheDocument();
+    expect(document.querySelector('[data-agent-element="deployment-static-site-credentials-row-github-pages"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-agent-element="deployment-static-site-credentials-row-vercel"]')).not.toBeInTheDocument();
 
     rerender(
       <StaticSiteTab
@@ -795,27 +884,36 @@ describe("StaticSiteTab — credential section: rows", () => {
         usePublishCredentialsHook={() => credentialsControllerFixture()}
       />,
     );
-    expect(screen.getByText("Vercel", { selector: ".deployment-credential-row-name" })).toBeInTheDocument();
-    expect(screen.queryByText("GitHub Pages", { selector: ".deployment-credential-row-name" })).not.toBeInTheDocument();
+    expect(document.querySelector('[data-agent-element="deployment-static-site-credentials-row-vercel"]')).toBeInTheDocument();
+    expect(document.querySelector('[data-agent-element="deployment-static-site-credentials-row-github-pages"]')).not.toBeInTheDocument();
   });
 
-  it("a not-connected row shows 'Not connected' and a visibly EMPTY token box — no placeholder text standing in for a value", () => {
+  // REWRITTEN 2026-08-16: "Not connected" was the old pill copy; the not-yet-connected step no
+  // longer carries a status pill at all — it's the "Connect <label>" step heading itself
+  // (`CredentialStepTodo`) that says so. Exactly one row renders now regardless, so the old "was
+  // this the only one" half of the assertion no longer needs a length check either.
+  it("a not-connected row shows the 'Connect' step heading and a visibly EMPTY token box — no placeholder text standing in for a value", () => {
     renderTab();
-    // Exactly one row is on screen now (the selected provider's) — was `toHaveLength(4)` under the
-    // old "all four, always" contract.
-    expect(screen.getAllByText("Not connected")).toHaveLength(1);
+    expect(screen.getByRole("heading", { name: /Connect/, level: 3 })).toHaveTextContent("GitHub Pages");
     const ghToken = screen.getByLabelText("Access token", { selector: "#deployment-static-site-credentials-token-github-pages" });
     expect(ghToken).toHaveValue("");
     expect(ghToken).not.toHaveAttribute("placeholder");
   });
 
-  it("a connected row shows 'Connected · updated <date>', and the token input still starts blank — never read back", () => {
+  // REWRITTEN 2026-08-16 + U3 fix (2026-08-15 owner report): "Connected · updated <date>" was the
+  // old pill copy. The connected step now reads "<label> connected · token stored, encrypted · saved
+  // <date>" — "saved", never "updated": this is the moment the row was WRITTEN, not a liveness check
+  // Tovu actually performed, and a revoked token would show the exact same timestamp. Scoped to the
+  // row's own agent-element tag rather than a bare text search, since "connected" and dates can
+  // otherwise collide with the tab bar's own visually-hidden dot label (`TabBarTab.dot`'s doc).
+  it("a connected row's summary reads '<label> connected · token stored, encrypted · saved <date>' — never 'updated' — and the token input still starts blank, never read back", () => {
     renderTab({ credentialsController: { rowOverrides: { "github-pages": { saved: GH_CREDENTIAL } } } });
-    // `{ selector: ".status" }` — a bare `/Connected/` regex now also matches the tab bar's own
-    // visually-hidden ", Connected" text (`TabBarTab.dot`'s doc), which is a second, correct
-    // appearance of the same word, not a collision to weaken this assertion away from.
-    expect(screen.getByText(/Connected/, { selector: ".status" })).toBeInTheDocument();
-    expect(screen.getByText(/2026-08-15/)).toBeInTheDocument();
+    const ghRow = document.querySelector('[data-agent-element="deployment-static-site-credentials-row-github-pages"]') as HTMLElement;
+    expect(within(ghRow).getByText(/connected/)).toBeInTheDocument();
+    expect(within(ghRow).getByText(/token stored, encrypted/)).toBeInTheDocument();
+    expect(within(ghRow).getByText(/saved/)).toBeInTheDocument();
+    expect(within(ghRow).getByText(/2026-08-15/)).toBeInTheDocument();
+    expect(within(ghRow).queryByText(/updated/)).not.toBeInTheDocument();
     const ghToken = screen.getByLabelText("Access token", { selector: "#deployment-static-site-credentials-token-github-pages" });
     expect(ghToken).toHaveValue("");
     expect(ghToken).not.toHaveAttribute("placeholder");
@@ -859,25 +957,26 @@ describe("StaticSiteTab — credential section: rows", () => {
     expect(setAccountId).toHaveBeenCalledWith("cloudflare-pages", "a");
   });
 
+  // REWRITTEN 2026-08-16: `.closest("li")` scoped to the old markup's per-row `<li>` wrapper, which
+  // no longer exists — `CredentialStepTodo`/`CredentialStepDone` render their `.deployment-step`
+  // directly, no list wrapper. Scoping is no longer needed anyway: exactly one row is ever on
+  // screen, so its one Save button is already unambiguous without a `.closest()` lookup.
   it("clicking Save on the selected provider's row calls save with that provider's own id", async () => {
     const user = userEvent.setup();
     const save = vi.fn().mockResolvedValue(undefined);
     renderTab({ publishController: { target: "netlify" }, credentialsController: { rowOverrides: { netlify: { token: "tok" } }, save } });
-    const netlifyRow = screen.getByText("Netlify", { selector: ".deployment-credential-row-name" }).closest("li")!;
-    await user.click(within(netlifyRow).getByRole("button", { name: "Save" }));
+    await user.click(screen.getByRole("button", { name: "Save" }));
     expect(save).toHaveBeenCalledWith("netlify");
   });
 
   it("Save is disabled until the selected row's own required fields are filled — a blank token never enables it", () => {
     renderTab({ publishController: { target: "vercel" }, credentialsController: { rowOverrides: { vercel: { token: "" } } } });
-    const vercelRow = screen.getByText("Vercel", { selector: ".deployment-credential-row-name" }).closest("li")!;
-    expect(within(vercelRow).getByRole("button", { name: "Save" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
   });
 
   it("cloudflare-pages' Save stays disabled with a token but no accountId yet", () => {
     renderTab({ publishController: { target: "cloudflare-pages" }, credentialsController: { rowOverrides: { "cloudflare-pages": { token: "tok", accountId: "" } } } });
-    const cfRow = screen.getByText("Cloudflare Pages", { selector: ".deployment-credential-row-name" }).closest("li")!;
-    expect(within(cfRow).getByRole("button", { name: "Save" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
   });
 
   // REWRITTEN 2026-08-16: the original point of this test was "saving one row does not disturb a
@@ -914,10 +1013,14 @@ describe("StaticSiteTab — credential section: AI agent tagging", () => {
   // provider's tags exist at any one render — this now switches the target per provider and checks
   // that provider's own tags each time, which still proves every provider's row carries the right
   // tag, just one render per provider instead of one render for all four.
-  it("tags the section and the selected provider's own row/token/save elements, per provider", () => {
+  // REWRITTEN 2026-08-16: there is no single wrapping "section" element left to tag — the collapse
+  // pass made `PublishCredentialsSection` return one of four different top-level nodes (a loading
+  // `<p>`, an error `<p>`, `CredentialStepTodo`'s `<div>`, or `CredentialStepDone`'s `<details>`)
+  // depending on state, and none of those states share a common wrapper. What's still real and
+  // still worth pinning per-provider is the row/token/save triad below, unchanged.
+  it("tags the selected provider's own row/token/save elements, per provider", () => {
     for (const provider of PUBLISH_CREDENTIAL_PROVIDERS) {
       const { unmount } = renderTab({ publishController: { target: provider.id } });
-      expect(document.querySelector('[data-agent-element="deployment-static-site-credentials-section"]')).toBeInTheDocument();
       expect(document.querySelector(`[data-agent-element="deployment-static-site-credentials-row-${provider.id}"]`)).toBeInTheDocument();
       expect(document.querySelector(`[data-agent-element="deployment-static-site-credentials-token-${provider.id}"]`)).toBeInTheDocument();
       expect(document.querySelector(`[data-agent-element="deployment-static-site-credentials-save-${provider.id}"]`)).toBeInTheDocument();
@@ -935,11 +1038,34 @@ describe("StaticSiteTab — credential section: AI agent tagging", () => {
     expect(document.querySelector('[data-agent-element="deployment-static-site-credentials-account-cloudflare-pages"]')).not.toBeInTheDocument();
   });
 
-  it("tags the load-error and hosted-mode notices", () => {
+  // REWRITTEN 2026-08-16: the "hosted-mode notice" was its own tagged element under the old
+  // "Advanced" disclosure design. It has no equivalent element anymore — the hosted-only wording is
+  // now just `credentialStepSubtitleKey`'s text inside the SAME row region the triad above already
+  // tags, not a second, separately-tagged notice. Pinning the text is `credential section:
+  // executionMode disclosure`'s job (above); this keeps only the load-error half, which is still a
+  // real, separately-tagged element.
+  it("tags the load-error notice", () => {
     renderTab({ credentialsController: { loadError: "x" } });
     expect(document.querySelector('[data-agent-element="deployment-static-site-credentials-load-error"]')).toBeInTheDocument();
+  });
+});
 
-    renderTab({ credentialsController: { executionMode: "hosted-api-only" } });
-    expect(document.querySelector('[data-agent-element="deployment-static-site-credentials-hosted-notice"]')).toBeInTheDocument();
+// Three owner-reported bugs (2026-08-15) on the connected credential row's `<details>` summary.
+// U1's own regression coverage lives in `real CLI detection` above, next to the fixtures it needs.
+describe("StaticSiteTab — REGRESSION: connected summary affordance + copy (owner-reported 2026-08-15)", () => {
+  it("REGRESSION (U2): the connected summary exposes a visible, discoverable expand affordance — a 'Replace token' label plus a chevron, not just an unlabeled clickable row", () => {
+    renderTab({ credentialsController: { rowOverrides: { "github-pages": { saved: GH_CREDENTIAL } } } });
+    const row = document.querySelector('[data-agent-element="deployment-static-site-credentials-row-github-pages"]') as HTMLElement;
+    const summary = row.querySelector("summary") as HTMLElement;
+    expect(summary).not.toBeNull();
+    expect(within(summary).getByText("Replace token")).toBeInTheDocument();
+    expect(summary.querySelector("svg")).toBeInTheDocument();
+  });
+
+  it("REGRESSION (U3): the connected summary says 'saved', not 'updated' — this is the moment the row was WRITTEN, not a liveness check, and a revoked token would show this exact same timestamp", () => {
+    renderTab({ credentialsController: { rowOverrides: { "github-pages": { saved: GH_CREDENTIAL } } } });
+    const row = document.querySelector('[data-agent-element="deployment-static-site-credentials-row-github-pages"]') as HTMLElement;
+    expect(within(row).getByText(/saved/)).toBeInTheDocument();
+    expect(within(row).queryByText(/updated/)).not.toBeInTheDocument();
   });
 });
