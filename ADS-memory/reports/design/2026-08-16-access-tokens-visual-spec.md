@@ -15,6 +15,20 @@ Builds on, not duplicating: `development/todos.md:1208` (original Security-page 
 ProvidersTab.tsx` (the two credential UIs this page consolidates), `src/db/schema.ts` (the eight
 sealed-credential tables, read directly for this spec — see the inventory table below).
 
+## STATUS: COMPLETE (Phase 1)
+
+Every section below (§0–§16) was written and is not partial — §1–§15 spec the page in full, §16 is a
+closed list of assumptions rather than a placeholder. Read on restart with no loss: this file is not a
+handoff to a stranger, it is my own worklist — I (this same agent identity, web-design) will build
+Phase 2 against it once the Security page and Access Tokens tab exist in the tree and team-lead opens
+Phase 2. **§17, appended after the original Phase-1 pass, is the concrete Phase 2 worklist** — read
+that first on restart, it points back into the sections above by number rather than repeating them.
+
+Paused after Phase 1 by team-lead, owner's call: "we deployed you too early... a design pass wants
+something real to look at." Correct call — `security-tokens` is building the page concurrently; there
+was nothing rendered yet for a design pass to react to. Nothing was left mid-thought; this is a clean
+boundary, not an interruption.
+
 ---
 
 ## 0. Read this first — one decision that changes the shape of everything else
@@ -861,3 +875,58 @@ surfaces/` today).
    provider, defaulting to whichever is `isDefault`. Wiring it (a new field on `AdminStaticPublishConfig`
    naming a specific credential id, not just resolving the provider's default) is a data-contract
    change outside this spec's fence — Programmer's job, flagged here so it isn't lost.
+
+---
+
+## 17. Phase 2 worklist — my own build order, once Phase 2 opens
+
+Written for myself, not a stranger. `security-tokens` is expected to have created the page shell,
+routes, hooks, and CRUD wiring by the time this opens (Phase 1 assumed I'd be styling/restructuring
+markup that already fetches and mutates real data, not building the data layer myself — if that
+assumption is wrong on restart, check with team-lead before assuming scope grew again). Order below is
+"cheapest-to-verify first" so an early item's outcome can correct a later one before I've sunk work
+into it.
+
+1. **Look at what actually got built before touching anything.** Open `/admin/access-tokens` (or
+   wherever `security-tokens` routed it), read the real component tree and real class names — they
+   will not match my proposed `apps/admin/src/features/security/*` file layout in §3 exactly, since
+   that was written from the spec side, not the implementation side. Reconcile, don't fight: rename in
+   THIS document if the real structure disagrees, rather than forcing the built page to match a spec
+   written before it existed.
+2. **`apps/admin/src/styles.css:1927` `.tab-bar` — re-verify, don't re-derive.** §14 already concluded
+   the live `flex-wrap: wrap` change needs nothing further (container-level border-bottom survives
+   wrapping, per-item selected indicator is unaffected, `.tab-bar-dot` doesn't fight the wrap). That
+   conclusion was reached by READING the CSS, not by seeing it render. First real Phase 2 action:
+   actually look at Media, Pages, ThemeExplore, Source Control, and Deployment's tab bars wrapped to
+   two rows in a real browser (narrow the viewport or dock the chat pane to force it) before trusting
+   §14 — if reality disagrees with the static read, fix it there, don't leave two contradicting
+   answers in this file.
+3. **Build `apps/admin/src/styles/access-tokens.css`** per §4's class list — `.access-tokens-tab`
+   through `.access-tokens-row-summary-expand`. Reuse tokens only; introduce nothing new (§4 already
+   confirms none are needed on the Tovu side).
+4. **`TokenRow`/`ProviderGroup`/`TokenRowFields` markup** per §4/§5/§7 — accordion shell first (empty
+   states, not-connected state), THEN the open/fields state, THEN Replace/Remove, in that order so
+   each stage is checkable against a real screenshot before the next is layered on.
+5. **Search** (§6) — wire the existing `.playground-search`-style input against whatever the real
+   hook's field list turns out to be; verify the match count string against real data, not the
+   assumed "9 tokens across 8 providers" example.
+6. **Remove confirm dialog** (§7b) — copy is exact in §11, don't rewrite it live. Verify the
+   `[open]`-scoped `display` trap directly (open the dialog, confirm it isn't visible before that,
+   the same live check `.confirm-dialog`'s own comment says was needed the first time).
+7. **Tier 2 rows** (§8) — only if `security-tokens` actually wired reads for those 6 stores; if not,
+   this stays a Phase 3/later item and §9's partial-inventory notice is what covers the gap instead of
+   me inventing Tier 2 markup with nothing real behind it.
+8. **Accessibility pass** (§12) — do this against the REAL rendered DOM (heading order, tab semantics,
+   live regions), not just against this document's intent. A spec saying a live region exists is not
+   evidence one was actually wired correctly.
+9. **Anything visually wrong I notice along the way that isn't in scope for this page** — log it in a
+   new dated section at the bottom of this file rather than silently fixing it inline or silently
+   dropping it. Nothing observed yet as of this Phase 1 pass beyond `.tab-bar` (item 2 above); Phase 1
+   was a read-only pass through specific files named in the brief, not a full visual audit of the
+   admin, so "nothing else found" reflects the narrower Phase 1 scope, not a clean bill of health for
+   the whole app.
+
+Not on this list: the Jini `mcp-ui/surfaces/document.ts` work from §15. That is a different repo I
+have no write mandate over even in Phase 2 (this dispatch's write access, per team-lead's message, is
+`apps/admin/src/styles.css` plus Tovu-side JSX/class changes) — §15 stays a spec for whoever does own
+that repo, not a Phase 2 item of mine.
