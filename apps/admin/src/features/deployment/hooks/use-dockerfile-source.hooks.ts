@@ -119,6 +119,23 @@ export interface DockerfileSourceController {
   t: Translate;
 }
 
+/**
+ * Narrows a `412`'s `ApiError.body.current` down to the `{exists, contents}` shape
+ * {@link DockerfileSourceController.saveConflict} carries — pulled out of `save()` itself so its
+ * own chain of optional-chaining/typeof narrowing (defensive against a body that isn't shaped as
+ * expected — this reads an HTTP error body, not a value this module controls) counts against THIS
+ * function's complexity budget instead of `save()`'s.
+ *
+ * @complexity O(1).
+ */
+function readSaveConflictPayload(err: ApiError): { exists: boolean; contents: string | null } {
+  const current = (err.body as { current?: { exists?: unknown; contents?: unknown } } | undefined)?.current;
+  return {
+    exists: current?.exists === true,
+    contents: typeof current?.contents === "string" ? current.contents : null,
+  };
+}
+
 export function useDockerfileSource(
   port: DockerfileSourcePort,
   t: Translate,
@@ -204,11 +221,7 @@ export function useDockerfileSource(
       setTimeout(() => setSaved(false), 1500);
     } catch (err) {
       if (err instanceof ApiError && err.status === 412) {
-        const current = (err.body as { current?: { exists?: unknown; contents?: unknown } } | undefined)?.current;
-        setSaveConflict({
-          exists: current?.exists === true,
-          contents: typeof current?.contents === "string" ? current.contents : null,
-        });
+        setSaveConflict(readSaveConflictPayload(err));
         // A conflict is deliberately NOT a generic save error (see this file's header) — `reset()`
         // clears the mutation's own error state so the `saveError` derivation below reports `null`
         // on the next render instead of describing this same rejection a second, blander way.
