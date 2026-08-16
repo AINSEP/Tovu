@@ -47,7 +47,10 @@
    documents. */
 .source-control-card-body { display: flex; flex-direction: column; gap: var(--space-4); }
 
-.source-control-rows { display: flex; flex-direction: column; gap: var(--space-3); }
+/* 2026-08-16 tightened from --space-3: a brand-new instance shows all three rows open at once (see
+   `.source-control-row`'s own doc for why none of them collapse by default), so this gap multiplies
+   by three — one step down noticeably shortens the page without touching what's visible. */
+.source-control-rows { display: flex; flex-direction: column; gap: var(--space-2); }
 
 .source-control-action-reason { margin: 0; font-size: var(--text-sm); color: var(--muted); }
 
@@ -55,9 +58,16 @@
 
 /* Not-yet-connected: open and prominent, a real bordered surface (not a tinted/accented one — this
    is a primary action, not a recommendation or a settled fact). Mirrors `.deployment-step`'s own
-   reasoning exactly. */
+   reasoning exactly.
+
+   Internal `gap` tightened from --space-4 to --space-3 (2026-08-16, owner-flagged): a fresh instance
+   renders GitHub, GitLab, and Bitbucket all open and un-collapsed at once (see this page's own
+   header for why none of the three collapse by default — they are independent and parallel, not a
+   Deployment-style "pick one" tab picker), so the page runs tall. `padding` stays at --space-4 —
+   that is breathing room around the row's own border, not stacking between its internal blocks, and
+   shrinking it would cramp the row rather than shorten the page. */
 .source-control-row {
-  display: flex; flex-direction: column; gap: var(--space-4);
+  display: flex; flex-direction: column; gap: var(--space-3);
   padding: var(--space-4); background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--r-md);
 }
 .source-control-row-head { display: flex; align-items: flex-start; gap: var(--space-3); }
@@ -122,7 +132,8 @@
 /* Stacked, not the shared `.field-row` two-up grid: that grid gives both columns of a row the SAME
    height, which breaks the one row that ever has two fields (Bitbucket: Access token carries two
    hint lines plus a link, Username carries one short hint) — identical reasoning
-   `.deployment-credential-fields` documents for the identical shape. */
-.source-control-credential-fields { display: flex; flex-direction: column; gap: var(--space-4); }
+   `.deployment-credential-fields` documents for the identical shape. Gap tightened to --space-3
+   alongside `.source-control-row`'s own (2026-08-16, owner-flagged), same reasoning. */
+.source-control-credential-fields { display: flex; flex-direction: column; gap: var(--space-3); }
 
 .source-control-action { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); }
