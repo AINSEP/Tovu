@@ -20,14 +20,16 @@ import type { StaticPublishPort } from "./static-publish-port.hooks";
  * trigger+poll — so `StaticSiteTab.tsx` is only markup. Wired 2026-08-15 against
  * `src/server/routes/admin/system/publish-site.ts`'s three routes (preview, trigger, status).
  *
- * ## One form, two shapes
+ * ## One form, four shapes
  *
  * `owner`/`repo`/`branch` only mean anything for `target === "github-pages"`; `teamId` only for
- * `"vercel"`. Rather than two parallel sets of fields (or unmounting/remounting a whole sub-form per
- * target, which would lose whatever the operator already typed if they toggle back), this hook
- * keeps ALL five text fields in state at once and {@link buildConfig} reads only the ones the
- * current `target` uses — switching targets never discards the other target's half-filled fields,
- * so a reader who taps between the two while deciding doesn't lose work either way.
+ * `"vercel"`; netlify and cloudflare-pages use neither — both carry no target-specific field at all
+ * (see `AdminStaticPublishConfig`'s own doc in `lib/api.ts`). Rather than four parallel sets of
+ * fields (or unmounting/remounting a whole sub-form per target, which would lose whatever the
+ * operator already typed if they toggle back), this hook keeps ALL five text fields in state at once
+ * and {@link buildConfig} reads only the ones the current `target` uses — switching targets never
+ * discards another target's half-filled fields, so a reader who taps between providers while
+ * deciding doesn't lose work either way.
  *
  * ## `basePath` is never a field here
  *
@@ -92,7 +94,12 @@ const PUBLISH_POLL_INTERVAL_MS = 1500;
  *  which fields matter for which target (everything else in this hook is target-agnostic state).
  *  Blank optional fields (`branch`, `teamId`) are omitted entirely rather than sent as `""`, so an
  *  operator who typed then deleted a branch name gets the server's own default (`"gh-pages"`)
- *  instead of an explicit empty string.
+ *  instead of an explicit empty string. One case per target, not an `if (github-pages) ... else
+ *  vercel` — the shape this hook replaced silently built a `{target: "vercel", ...}` config for
+ *  ANY non-github-pages target, which would have sent a Vercel-shaped publish request for a Netlify
+ *  or Cloudflare Pages selection; a switch with an explicit branch per target makes that class of
+ *  bug a compile error instead (TypeScript's own exhaustiveness check over `AdminStaticPublishTargetId`
+ *  fails the build if a target is ever added here without a matching case).
  *  @complexity O(1). */
 function buildConfig(fields: {
   target: AdminStaticPublishTargetId;
@@ -101,15 +108,21 @@ function buildConfig(fields: {
   branch: string;
   teamId: string;
 }): AdminStaticPublishConfig {
-  if (fields.target === "github-pages") {
-    return {
-      target: "github-pages",
-      owner: fields.owner,
-      repo: fields.repo,
-      ...(fields.branch.trim() !== "" ? { branch: fields.branch.trim() } : {}),
-    };
+  switch (fields.target) {
+    case "github-pages":
+      return {
+        target: "github-pages",
+        owner: fields.owner,
+        repo: fields.repo,
+        ...(fields.branch.trim() !== "" ? { branch: fields.branch.trim() } : {}),
+      };
+    case "vercel":
+      return { target: "vercel", ...(fields.teamId.trim() !== "" ? { teamId: fields.teamId.trim() } : {}) };
+    case "netlify":
+      return { target: "netlify" };
+    case "cloudflare-pages":
+      return { target: "cloudflare-pages" };
   }
-  return { target: "vercel", ...(fields.teamId.trim() !== "" ? { teamId: fields.teamId.trim() } : {}) };
 }
 
 export function useStaticPublish(port: StaticPublishPort, t: Translate, locale: string): StaticPublishController {

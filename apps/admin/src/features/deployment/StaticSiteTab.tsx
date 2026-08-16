@@ -31,6 +31,7 @@ import {
   runStatusTone,
   staticPublishFormReadyForPreview,
   staticPublishFormReadyToPublish,
+  staticPublishProjectNameCopy,
   type PublishCliTool,
   type PublishCredentialFormFields,
 } from "./rules";
@@ -465,7 +466,11 @@ function GettingItOnlineCard({
   t: Translate;
 }) {
   const selectedTarget = STATIC_PUBLISH_TARGETS.find((target) => target.id === publishController.target) ?? STATIC_PUBLISH_TARGETS[0]!;
-  const selectedTool = PUBLISH_CLI_TOOLS.find((tool) => tool.id === selectedTarget.cliToolId) ?? PUBLISH_CLI_TOOLS[0]!;
+  // `undefined` for Netlify/Cloudflare Pages (no CLI this codebase drives — see
+  // `StaticPublishTargetInfo.cliToolId`'s own doc) — deliberately NOT resolved with a `?? PUBLISH_CLI_TOOLS[0]`
+  // fallback, which would silently recommend the GitHub CLI for a Netlify selection. `selectedTool`
+  // stays `undefined` and the CLI-first block below renders its own explicit "no CLI path" note instead.
+  const selectedTool = selectedTarget.cliToolId !== undefined ? PUBLISH_CLI_TOOLS.find((tool) => tool.id === selectedTarget.cliToolId) : undefined;
   const deployClis = overview.snapshot?.deployClis ?? [];
 
   function handleTargetChange(id: string) {
@@ -510,20 +515,34 @@ function GettingItOnlineCard({
           onChange={handleTargetChange}
         />
 
-        <div className="deployment-route">
-          <div className="deployment-route-label">
-            <AssistantIcon size={16} />
-            <span className="deployment-fact-label">{translate("Recommended — ask the assistant")}</span>
+        {selectedTool ? (
+          <div className="deployment-route">
+            <div className="deployment-route-label">
+              <AssistantIcon size={16} />
+              <span className="deployment-fact-label">{translate("Recommended — ask the assistant")}</span>
+            </div>
+            <p className="deployment-action-reason">
+              {translate(
+                "Tovu's assistant runs as a command-line coding agent with its own shell, so once this tool is installed it can publish the export for you — nothing to paste here, and no credentials stored."
+              )}
+            </p>
+            <ul className="deployment-provider-list">
+              <ProviderCliRow tool={selectedTool} deployClis={deployClis} overviewLoaded={Boolean(overview.snapshot)} t={translate} />
+            </ul>
           </div>
-          <p className="deployment-action-reason">
-            {translate(
-              "Tovu's assistant runs as a command-line coding agent with its own shell, so once this tool is installed it can publish the export for you — nothing to paste here, and no credentials stored."
-            )}
-          </p>
-          <ul className="deployment-provider-list">
-            <ProviderCliRow tool={selectedTool} deployClis={deployClis} overviewLoaded={Boolean(overview.snapshot)} t={translate} />
-          </ul>
-        </div>
+        ) : (
+          <div
+            className="deployment-route"
+            {...agentHandle("deployment-static-site-no-cli-note", {
+              role: "status",
+              label: "States that this provider has no CLI-first path and must be published with a saved credential",
+            })}
+          >
+            <p className="deployment-action-reason">
+              {translate("There's no CLI-first path for this provider yet — publish with a saved credential below.")}
+            </p>
+          </div>
+        )}
 
         <PublishCredentialsSection controller={credentialsController} t={translate} />
 
@@ -543,10 +562,14 @@ function GettingItOnlineCard({
  * sniffed client-side (see `AdminPublishExecutionMode`'s doc in `lib/api.ts`):
  *
  * - `"self-hosted-cli"`: the CLI-first path above already works with no stored credential needed,
- *   so this whole block sits collapsed behind a native `<details>` "Advanced" disclosure (same
- *   affordance `Redirects.tsx`'s own bulk-import panel and `AiAssistant.tsx`'s roadmap accordion
- *   already use in this admin, rather than a second JS-driven one) and is never expanded by
- *   default — an operator who already has `gh`/`vercel` on PATH is never nagged for a token.
+ *   so this block still sits behind a native `<details>` "Advanced" disclosure (same affordance
+ *   `Redirects.tsx`'s own bulk-import panel and `AiAssistant.tsx`'s roadmap accordion already use in
+ *   this admin, rather than a second JS-driven one) — but OPEN by default (owner's own call,
+ *   2026-08-15, reversing this component's original collapsed-by-default choice: Netlify and
+ *   Cloudflare Pages have no CLI-first row at all, so a reader who picks either target and finds the
+ *   credential form collapsed behind an unopened `<summary>` has nowhere else on this card to go).
+ *   `<details open>` still degrades gracefully for a reader who wants it closed — the summary stays
+ *   a real, clickable native disclosure toggle either way.
  * - `"hosted-api-only"`: this workspace cannot reach the operator's own terminal at all, so a
  *   stored credential is the ONLY way a publish can ever succeed here. The block renders OPEN, with
  *   a plain sentence saying so up front — this is the "tell the user they need an API key online"
@@ -624,7 +647,7 @@ function PublishCredentialsSection({ controller, t: translate }: { controller: P
   }
 
   return (
-    <details className="deployment-credentials-advanced">
+    <details className="deployment-credentials-advanced" open>
       <summary>{translate("Advanced: publish with server-side provider credentials")}</summary>
       <p className="deployment-action-reason">
         {translate("Only needed if you'd rather not install a CLI, or the assistant can't reach this machine's terminal.")}
@@ -643,7 +666,12 @@ function PublishCredentialList({ controller, t: translate }: { controller: Publi
   return (
     <>
       {credentials.length === 0 ? (
-        <p className="deployment-action-reason">{translate("No credentials saved yet.")}</p>
+        <>
+          <p className="deployment-action-reason">{translate("No credentials saved yet.")}</p>
+          <p className="deployment-action-reason">
+            {translate("A credential is a saved access token Tovu publishes with, for GitHub Pages, Vercel, Netlify, or Cloudflare Pages.")}
+          </p>
+        </>
       ) : (
         <ul className="deployment-credentials-list">
           {credentials.map((credential) => (
@@ -928,10 +956,96 @@ function PublishCredentialProviderFields({ controller, t: translate }: { control
   );
 }
 
+/**
+ * {@link StaticPublishForm}'s per-target field block — one case per {@link AdminStaticPublishTargetId},
+ * mirroring {@link PublishCredentialProviderFields}'s "render exactly one provider's fields" rule
+ * just above. GitHub Pages shows owner/repo/branch; Vercel shows its optional team id; Netlify and
+ * Cloudflare Pages render nothing here at all — neither carries a target-specific field (see
+ * `AdminStaticPublishConfig`'s own doc in `lib/api.ts`) — but each still gets its OWN case rather
+ * than falling into a shared `default: return null`, so a fifth target added later must be given an
+ * explicit answer instead of silently reusing "renders nothing".
+ */
+function StaticPublishTargetFields({
+  target,
+  controller,
+  t: translate,
+}: {
+  target: AdminStaticPublishTargetId;
+  controller: StaticPublishController;
+  t: Translate;
+}) {
+  if (target === "github-pages") {
+    return (
+      <>
+        <div className="field">
+          <label className="field-label" htmlFor="deployment-static-site-publish-owner">
+            {translate("GitHub owner or org")}
+          </label>
+          <input
+            id="deployment-static-site-publish-owner"
+            type="text"
+            value={controller.owner}
+            onChange={(e) => controller.setOwner(e.target.value)}
+            {...agentHandle("deployment-static-site-publish-owner", { role: "field", label: "GitHub owner or organization login to publish under" })}
+          />
+        </div>
+        <div className="field">
+          <label className="field-label" htmlFor="deployment-static-site-publish-repo">
+            {translate("Repository")}
+          </label>
+          <input
+            id="deployment-static-site-publish-repo"
+            type="text"
+            value={controller.repo}
+            onChange={(e) => controller.setRepo(e.target.value)}
+            {...agentHandle("deployment-static-site-publish-repo", { role: "field", label: "GitHub repository name — also determines the published base path" })}
+          />
+        </div>
+        <div className="field">
+          <label className="field-label" htmlFor="deployment-static-site-publish-branch">
+            {translate("Branch (optional)")}
+          </label>
+          <input
+            id="deployment-static-site-publish-branch"
+            type="text"
+            value={controller.branch}
+            onChange={(e) => controller.setBranch(e.target.value)}
+            placeholder="gh-pages"
+            {...agentHandle("deployment-static-site-publish-branch", { role: "field", label: "GitHub Pages publish branch, defaults to gh-pages when left blank" })}
+          />
+        </div>
+      </>
+    );
+  }
+  if (target === "vercel") {
+    return (
+      <div className="field">
+        <label className="field-label" htmlFor="deployment-static-site-publish-team">
+          {translate("Vercel team (optional)")}
+        </label>
+        <input
+          id="deployment-static-site-publish-team"
+          type="text"
+          value={controller.teamId}
+          onChange={(e) => controller.setTeamId(e.target.value)}
+          {...agentHandle("deployment-static-site-publish-team", { role: "field", label: "Vercel team id, optional" })}
+        />
+      </div>
+    );
+  }
+  if (target === "netlify") return null;
+  if (target === "cloudflare-pages") return null;
+  // Exhaustiveness guard: a fifth `AdminStaticPublishTargetId` value reaching here is a compile
+  // error at the call site above, not a silent `undefined` render — same discipline
+  // `buildPublishConnectionInput`'s own switch in `rules.ts` relies on.
+  const exhaustive: never = target;
+  return exhaustive;
+}
+
 /** The token-based preview+publish mini-form for whichever target is currently selected. Reads
  *  ONLY the fields the current target uses (see `use-static-publish.hooks.ts`'s header for why the
- *  hook still keeps both targets' fields in state at once) — a GitHub Pages selection never shows a
- *  `teamId` field, and vice versa. */
+ *  hook still keeps all five target fields in state at once) — a GitHub Pages selection never shows
+ *  a `teamId` field, and vice versa; Netlify and Cloudflare Pages show neither. */
 function StaticPublishForm({
   target,
   controller,
@@ -949,6 +1063,7 @@ function StaticPublishForm({
   });
   const runTone = runStatusTone(controller.run?.status ?? "idle", controller.run?.result?.ok);
   const busy = controller.isPublishing;
+  const projectNameCopy = staticPublishProjectNameCopy(target);
 
   return (
     <div className="deployment-route">
@@ -957,71 +1072,22 @@ function StaticPublishForm({
       </div>
 
       <div className="field-row">
-        {target === "github-pages" ? (
-          <>
-            <div className="field">
-              <label className="field-label" htmlFor="deployment-static-site-publish-owner">
-                {translate("GitHub owner or org")}
-              </label>
-              <input
-                id="deployment-static-site-publish-owner"
-                type="text"
-                value={controller.owner}
-                onChange={(e) => controller.setOwner(e.target.value)}
-                {...agentHandle("deployment-static-site-publish-owner", { role: "field", label: "GitHub owner or organization login to publish under" })}
-              />
-            </div>
-            <div className="field">
-              <label className="field-label" htmlFor="deployment-static-site-publish-repo">
-                {translate("Repository")}
-              </label>
-              <input
-                id="deployment-static-site-publish-repo"
-                type="text"
-                value={controller.repo}
-                onChange={(e) => controller.setRepo(e.target.value)}
-                {...agentHandle("deployment-static-site-publish-repo", { role: "field", label: "GitHub repository name — also determines the published base path" })}
-              />
-            </div>
-            <div className="field">
-              <label className="field-label" htmlFor="deployment-static-site-publish-branch">
-                {translate("Branch (optional)")}
-              </label>
-              <input
-                id="deployment-static-site-publish-branch"
-                type="text"
-                value={controller.branch}
-                onChange={(e) => controller.setBranch(e.target.value)}
-                placeholder="gh-pages"
-                {...agentHandle("deployment-static-site-publish-branch", { role: "field", label: "GitHub Pages publish branch, defaults to gh-pages when left blank" })}
-              />
-            </div>
-          </>
-        ) : (
-          <div className="field">
-            <label className="field-label" htmlFor="deployment-static-site-publish-team">
-              {translate("Vercel team (optional)")}
-            </label>
-            <input
-              id="deployment-static-site-publish-team"
-              type="text"
-              value={controller.teamId}
-              onChange={(e) => controller.setTeamId(e.target.value)}
-              {...agentHandle("deployment-static-site-publish-team", { role: "field", label: "Vercel team id, optional" })}
-            />
-          </div>
-        )}
+        <StaticPublishTargetFields target={target} controller={controller} t={translate} />
         <div className="field">
           <label className="field-label" htmlFor="deployment-static-site-publish-project-name">
-            {translate("Project name")}
+            {translate(projectNameCopy.labelKey)}
           </label>
           <input
             id="deployment-static-site-publish-project-name"
             type="text"
             value={controller.projectName}
             onChange={(e) => controller.setProjectName(e.target.value)}
-            {...agentHandle("deployment-static-site-publish-project-name", { role: "field", label: "Human-facing label for this publish — becomes the commit message or Vercel project name" })}
+            {...agentHandle("deployment-static-site-publish-project-name", {
+              role: "field",
+              label: `Human-facing label for this publish — ${projectNameCopy.helpKey}`,
+            })}
           />
+          <p className="deployment-action-reason">{translate(projectNameCopy.helpKey)}</p>
         </div>
       </div>
 

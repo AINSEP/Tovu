@@ -179,12 +179,29 @@ export interface StaticPublishTargetInfo {
   readonly id: AdminStaticPublishTargetId;
   /** Proper noun — rendered verbatim, never translated, same treatment `STATIC_HOSTS` gets. */
   readonly label: string;
-  readonly cliToolId: string;
+  /** Absent for Netlify and Cloudflare Pages (2026-08-15) — neither has a CLI this codebase drives
+   *  (`PUBLISH_CLI_TOOLS` only ever listed `gh`/`vercel`; there is no equivalent Netlify/Wrangler CLI
+   *  integration here), so there is no tool id to pair them with. `GettingItOnlineCard` in
+   *  `StaticSiteTab.tsx` reads this as "this target has no CLI-first row to show" rather than falling
+   *  back to some other target's tool — see that component's own doc for why an `?? PUBLISH_CLI_TOOLS[0]`
+   *  fallback would have been a real bug (silently recommending the GitHub CLI for a Netlify publish). */
+  readonly cliToolId?: string;
 }
 
+/**
+ * The four static-publish destinations `triggerPublish` can actually reach — widened 2026-08-15
+ * (from a github-pages/vercel-only pass) alongside `static-publish/adapter.ts`'s `buildJiniTarget`,
+ * which already wraps Jini's `NetlifyDeployTarget`/`CloudflarePagesDeployTarget` the same way it
+ * wraps the first two. This list and {@link PUBLISH_CREDENTIAL_PROVIDERS} now name the SAME four ids
+ * — {@link AdminStaticPublishTargetId} is declared as a straight alias of
+ * {@link AdminPublishCredentialProviderId} in `lib/api.ts` specifically so these two lists can never
+ * list a different provider set again.
+ */
 export const STATIC_PUBLISH_TARGETS: readonly StaticPublishTargetInfo[] = [
   { id: "github-pages", label: "GitHub Pages", cliToolId: "gh" },
   { id: "vercel", label: "Vercel", cliToolId: "vercel" },
+  { id: "netlify", label: "Netlify" },
+  { id: "cloudflare-pages", label: "Cloudflare Pages" },
 ] as const;
 
 /**
@@ -200,17 +217,13 @@ export const STATIC_PUBLISH_TARGETS: readonly StaticPublishTargetInfo[] = [
 export type PublishCredentialFieldKey = "accountId";
 
 /**
- * One provider the credential-management section can save a connection for — WIDER than
- * {@link STATIC_PUBLISH_TARGETS}: the SERVER now has a real publish adapter for all four providers
- * (`static-publish/adapter.ts`'s `buildJiniTarget` wraps Jini's `NetlifyDeployTarget`/
- * `CloudflarePagesDeployTarget` exactly like it does `GitHubPagesDeployTarget`/`VercelDeployTarget`,
- * and `publish-site.ts`'s trigger route already parses all four `target` values), but THIS admin's
- * own "Publish directly from here" trigger UI (`AdminStaticPublishTargetId`, `STATIC_PUBLISH_TARGETS`
- * below) still only has a provider tab, config-building, and preview wiring for github-pages/vercel —
- * a credential for Netlify/Cloudflare Pages can be saved and validated today (this section), ahead
- * of a later UI pass that adds their own trigger tab. See `AdminPublishCredentialProviderId`'s own
- * doc in `lib/api.ts` for why the credential store is intentionally the wider of the two sets. Order
- * here is the provider picker's display order in the credential form.
+ * One provider the credential-management section can save a connection for — the SAME four ids
+ * {@link STATIC_PUBLISH_TARGETS} publishes to (both trace back to `AdminPublishCredentialProviderId`
+ * in `lib/api.ts`, which `AdminStaticPublishTargetId` is a straight alias of). The two lists were
+ * briefly different sets (2026-08-15: the server's `static-publish/adapter.ts` and this credential
+ * form shipped ahead of the "Publish directly from here" trigger UI's own Netlify/Cloudflare Pages
+ * tab) — that gap is closed, and both now list the identical four providers, in the identical order.
+ * Order here is the provider picker's display order in the credential form.
  */
 export interface PublishCredentialProviderInfo {
   readonly id: AdminPublishCredentialProviderId;
@@ -394,27 +407,81 @@ export function classifyPublishCredentialSubmitError(e: unknown): PublishCredent
 }
 
 /** Whether the publish form has enough filled in to ask for a PREVIEW — `owner`/`repo` are the only
- *  fields `validateStaticPublishConfig` (server-side, `static-publish/adapter.ts`) actually requires
- *  for `github-pages`; `branch`/`teamId` are always optional, and `vercel` needs nothing at all
- *  beyond picking it. Mirrors `parsePreviewQuery`'s own required-field set so this button never
- *  enables for a request the server would 400 on shape alone. @complexity O(1). */
+ *  fields `validateStaticPublishConfig` (server-side, `static-publish/adapter.ts`) actually requires,
+ *  and only for `github-pages`; `branch`/`teamId` are always optional, and vercel/netlify/
+ *  cloudflare-pages need nothing at all beyond picking them (netlify/cloudflare-pages carry no
+ *  target-specific field whatsoever — see `AdminStaticPublishConfig`'s own doc in `lib/api.ts`).
+ *  Mirrors `parsePreviewQuery`'s own required-field set so this button never enables for a request
+ *  the server would 400 on shape alone. One case per target, not an `if (target === "github-pages")
+ *  ... else`, so a fifth target added here later must be given its own explicit answer rather than
+ *  silently inheriting "needs nothing" from the `else` branch. @complexity O(1). */
 export function staticPublishFormReadyForPreview(
   target: AdminStaticPublishTargetId,
   fields: { owner: string; repo: string }
 ): boolean {
-  if (target === "vercel") return true;
-  return fields.owner.trim() !== "" && fields.repo.trim() !== "";
+  switch (target) {
+    case "github-pages":
+      return fields.owner.trim() !== "" && fields.repo.trim() !== "";
+    case "vercel":
+    case "netlify":
+    case "cloudflare-pages":
+      return true;
+  }
 }
 
 /** Whether the form has enough to ask for a real PUBLISH — everything
  *  {@link staticPublishFormReadyForPreview} requires, plus a non-blank `projectName` (required for
- *  both targets; the preview endpoint has no equivalent field at all, since it never starts a run).
- *  @complexity O(1). */
+ *  every target — see {@link staticPublishProjectNameCopy} for why that one field means something
+ *  different per target; the preview endpoint has no equivalent field at all, since it never starts
+ *  a run). @complexity O(1). */
 export function staticPublishFormReadyToPublish(
   target: AdminStaticPublishTargetId,
   fields: { owner: string; repo: string; projectName: string }
 ): boolean {
   return fields.projectName.trim() !== "" && staticPublishFormReadyForPreview(target, fields);
+}
+
+/** The "Project name" field's label and help text — split per target because the SAME field means a
+ *  genuinely different thing to each provider's own API, not one universal concept with four names:
+ *  GitHub Pages uses it as the commit message subject on the `gh-pages` branch (never a "project" in
+ *  any GitHub sense); Vercel, Netlify, and Cloudflare Pages each find-or-create their own
+ *  project/site named after it (`adapter.ts`'s `publishStaticSite` passes the SAME `projectName`
+ *  string to `jiniTarget.publish()` for all four — this function only changes what the FORM calls
+ *  that string for the currently selected target, never the wire value itself). Netlify calls its
+ *  own resource a "site", not a "project" — copying Vercel's "project" wording onto Netlify would be
+ *  a fabricated claim about Netlify's own terminology, so it gets its own label rather than sharing
+ *  Vercel's or Cloudflare Pages'. One case per target, matching every other per-target function in
+ *  this file (`buildPublishConnectionInput`, `staticPublishFormReadyForPreview`) — a fifth target
+ *  must get its own explicit copy, never inherit another provider's by falling through an `else`.
+ *  @complexity O(1). */
+export interface StaticPublishProjectNameCopy {
+  readonly labelKey: string;
+  readonly helpKey: string;
+}
+
+export function staticPublishProjectNameCopy(target: AdminStaticPublishTargetId): StaticPublishProjectNameCopy {
+  switch (target) {
+    case "github-pages":
+      return {
+        labelKey: "Commit message",
+        helpKey: "Used as the commit message when Tovu pushes the export to the gh-pages branch.",
+      };
+    case "vercel":
+      return {
+        labelKey: "Vercel project name",
+        helpKey: "Vercel finds or creates a project with this name on every publish.",
+      };
+    case "netlify":
+      return {
+        labelKey: "Site name",
+        helpKey: "Netlify finds or creates a site with this name on every publish.",
+      };
+    case "cloudflare-pages":
+      return {
+        labelKey: "Project name",
+        helpKey: "Cloudflare Pages finds or creates a project with this name on every publish.",
+      };
+  }
 }
 
 /** One row of the two paths' capability comparison. `supported` is a fact about the PATH, not about

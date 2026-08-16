@@ -158,15 +158,32 @@ export interface AdminExportRunSnapshot {
   error?: string;
 }
 
-/** Mirrors `StaticPublishTargetId` in `src/features/deployments/static-publish/types.ts`. */
-export type AdminStaticPublishTargetId = "github-pages" | "vercel";
+/**
+ * Mirrors `StaticPublishTargetId` in `src/features/deployments/static-publish/types.ts` — which is
+ * itself a type ALIAS of that feature's `PublishProviderId` (2026-08-15, widened from a github-pages
+ * + vercel-only pass to all four Jini targets). Declared here as an alias of
+ * {@link AdminPublishCredentialProviderId} for the identical reason the server aliases the two: "what
+ * this admin can publish to" and "what provider a credential can be saved for" must never drift into
+ * two different sets — see that type's own doc for why it is declared as the wider of the two names
+ * even though the two id sets are now equal.
+ */
+export type AdminStaticPublishTargetId = AdminPublishCredentialProviderId;
 
-/** Mirrors `GitHubPagesPublishConfig`/`VercelPublishConfig` (same file). `basePath` is deliberately
- *  NOT a field on either variant — the server always derives it from `repo`, never accepts one, so
- *  there is no field here a caller could even try to set it through. */
+/** Mirrors `GitHubPagesPublishConfig`/`VercelPublishConfig`/`NetlifyPublishConfig`/
+ *  `CloudflarePagesPublishConfig` (same file). `basePath` is deliberately NOT a field on any variant
+ *  — the server always derives it from `repo` (github-pages) or omits it entirely (every other
+ *  target), never accepts one, so there is no field here a caller could even try to set it through.
+ *  Netlify and Cloudflare Pages carry no target-specific field at all: Jini's `NetlifyDeployTarget`
+ *  find-or-creates its site, and Cloudflare Pages' `accountId` lives on the CREDENTIAL, not this
+ *  config — see `CloudflarePagesPublishConfig`'s own doc server-side for why. Both still find-or-
+ *  create their project/site from the SAME `projectName` `triggerPublish` already sends alongside
+ *  `config` — see `staticPublishProjectNameCopy` in `features/deployment/rules.ts` for why that one
+ *  field means something different per target. */
 export type AdminStaticPublishConfig =
   | { target: "github-pages"; owner: string; repo: string; branch?: string }
-  | { target: "vercel"; teamId?: string };
+  | { target: "vercel"; teamId?: string }
+  | { target: "netlify" }
+  | { target: "cloudflare-pages" };
 
 /** Mirrors `StaticPublishOutcome` (same file) — the terminal result of one publish attempt, present
  *  on an {@link AdminPublishRunSnapshot} once `status` is `"completed"` or `"errored"`. */
@@ -209,11 +226,13 @@ export interface AdminStaticPublishPreview {
 
 /**
  * A NAMED provider connection for publishing, stored server-side and never read back — see
- * {@link AdminPublishCredentialSummary}. Wider than {@link AdminStaticPublishTargetId}: this instance
- * may hold a Netlify or Cloudflare Pages connection today even though no API adapter for either
- * exists yet (2026-08-15) — the credential store and the set of targets `triggerPublish` can
- * actually reach are deliberately separate concerns, per the external design this UI was built
- * against (`ADS-memory/reports/external-audit/runs/2026-08-15-terra-xhigh-publish-credentials-design.md`).
+ * {@link AdminPublishCredentialSummary}. The canonical four-provider union: {@link AdminStaticPublishTargetId}
+ * is declared as an ALIAS of this type, not a separate literal list, so "what a credential can be
+ * saved for" and "what `triggerPublish` can actually reach" can never drift apart again. They were
+ * briefly two different sets (2026-08-15, credential save wired ahead of the publish-target UI for
+ * Netlify/Cloudflare Pages — see `ADS-memory/reports/external-audit/runs/
+ * 2026-08-15-terra-xhigh-publish-credentials-design.md`); the publish-target UI caught up the same
+ * day, closing the gap.
  */
 export type AdminPublishCredentialProviderId = "github-pages" | "vercel" | "netlify" | "cloudflare-pages";
 
@@ -2476,12 +2495,22 @@ export const api = {
    *  configured for the target (a boolean only, never the credential itself). Never starts a run. */
   getPublishPreview: (config: AdminStaticPublishConfig) => {
     const query = new URLSearchParams({ target: config.target });
-    if (config.target === "github-pages") {
-      query.set("owner", config.owner);
-      query.set("repo", config.repo);
-      if (config.branch !== undefined) query.set("branch", config.branch);
-    } else if (config.teamId !== undefined) {
-      query.set("teamId", config.teamId);
+    // One branch per target, not an else-fallback — a target with no query params of its own
+    // (netlify, cloudflare-pages) gets its own empty branch rather than silently falling through
+    // whatever the last `else` happened to check, so a fifth target can never inherit github-pages'
+    // or vercel's params by accident.
+    switch (config.target) {
+      case "github-pages":
+        query.set("owner", config.owner);
+        query.set("repo", config.repo);
+        if (config.branch !== undefined) query.set("branch", config.branch);
+        break;
+      case "vercel":
+        if (config.teamId !== undefined) query.set("teamId", config.teamId);
+        break;
+      case "netlify":
+      case "cloudflare-pages":
+        break;
     }
     return request<AdminStaticPublishPreview>(`/workspaces/${WORKSPACE_ID}/system/publish/preview?${query.toString()}`);
   },
