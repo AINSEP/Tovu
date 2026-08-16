@@ -269,12 +269,12 @@ test("deployment_get_static_publish_capabilities reports per-provider readiness 
   });
   deps.workspaceId = WORKSPACE_ID_FALLBACK;
   deps.publishCredentialSetRepo = fakeCredentialRepo(records);
-  // 2026-08-16: `ready` now additionally requires a CACHED `verified: true` — a saved-but-never-
-  // verified credential is no longer `ready` (that is exactly this defect's fix; see the two
-  // dedicated tests below for the unverified/failed-verification cases). Seeding this here keeps
-  // this test's github-pages assertions about the "fully ready" case meaningful.
+  // 2026-08-16: `ready` now additionally requires a CACHED `verified: "valid"` — a saved-but-never-
+  // verified credential is no longer `ready` (that is exactly this defect's fix; see the dedicated
+  // tests below for the unverified/invalid/unreachable cases). Seeding this here keeps this test's
+  // github-pages assertions about the "fully ready" case meaningful.
   deps.publishCredentialVerificationCache = new InMemoryPublishCredentialVerificationCache();
-  deps.publishCredentialVerificationCache.set({ workspaceId: WORKSPACE_ID_FALLBACK, target: "github-pages" }, { ok: true, message: "GitHub accepted this credential.", checkedAt: NOW });
+  deps.publishCredentialVerificationCache.set({ workspaceId: WORKSPACE_ID_FALLBACK, target: "github-pages" }, { status: "valid", message: "GitHub accepted this credential.", checkedAt: NOW });
 
   const surfaceExchanges = createSurfaceExchangeStore();
   const capabilities = tool(buildRegistrations(deps, surfaceExchanges), "deployment_get_static_publish_capabilities");
@@ -285,7 +285,7 @@ test("deployment_get_static_publish_capabilities reports per-provider readiness 
       providerId: string;
       ready: boolean;
       credentialConfigured: boolean;
-      verified: boolean | null;
+      verified: "valid" | "invalid" | "unreachable" | null;
       verifiedAt: string | null;
       savedCredentials: { id: string; label: string; isDefault: boolean }[];
       guidance?: string;
@@ -299,7 +299,7 @@ test("deployment_get_static_publish_capabilities reports per-provider readiness 
 
   const github = result.providers.find((p) => p.providerId === "github-pages")!;
   assert.equal(github.credentialConfigured, true);
-  assert.equal(github.verified, true);
+  assert.equal(github.verified, "valid");
   assert.equal(github.verifiedAt, NOW);
   assert.equal(github.ready, true);
   assert.equal(github.guidance, undefined);
@@ -318,9 +318,12 @@ test("deployment_get_static_publish_capabilities reports per-provider readiness 
 });
 
 // 2026-08-16 — Defect fix: "ready" used to mean only "a credential row/env-var exists"
-// (`isConfigured()`), never whether the provider actually accepts it. These two tests are the
-// regression: a saved-but-unverified credential, and a saved-but-FAILING one, must both read as
-// NOT ready, distinctly from each other and from "nothing saved at all".
+// (`isConfigured()`), never whether the provider actually accepts it. These three tests are the
+// regression: a saved-but-unverified credential, a saved-but-INVALID one, and a saved credential
+// whose last check could not reach the provider must all read as NOT ready, but distinctly from
+// each other and from "nothing saved at all" — collapsing "unreachable" into "invalid" would risk
+// sending a human to regenerate a perfectly good token over a transient network blip (code review's
+// explicit constraint on this fix).
 
 test("deployment_get_static_publish_capabilities: a saved credential that has NEVER been verified is reported as configured but NOT ready", async () => {
   const records: PublishCredentialSetRecord[] = [
@@ -335,7 +338,9 @@ test("deployment_get_static_publish_capabilities: a saved credential that has NE
 
   const surfaceExchanges = createSurfaceExchangeStore();
   const capabilities = tool(buildRegistrations(deps, surfaceExchanges), "deployment_get_static_publish_capabilities");
-  const result = (await call(capabilities)) as { providers: { providerId: string; ready: boolean; credentialConfigured: boolean; verified: boolean | null; guidance?: string }[] };
+  const result = (await call(capabilities)) as {
+    providers: { providerId: string; ready: boolean; credentialConfigured: boolean; verified: "valid" | "invalid" | "unreachable" | null; guidance?: string }[];
+  };
 
   const github = result.providers.find((p) => p.providerId === "github-pages")!;
   assert.equal(github.credentialConfigured, true, "a row IS saved");
@@ -344,7 +349,7 @@ test("deployment_get_static_publish_capabilities: a saved credential that has NE
   assert.match(github.guidance!, /has not been verified/);
 });
 
-test("deployment_get_static_publish_capabilities: a saved credential that FAILED its last verification is reported as configured but NOT ready, with the failure reason", async () => {
+test("deployment_get_static_publish_capabilities: a saved credential the provider REJECTED is reported as configured but NOT ready, with the rejection reason", async () => {
   const records: PublishCredentialSetRecord[] = [
     { workspaceId: WORKSPACE_ID_FALLBACK, id: "cred-1", providerId: "github-pages", label: "work", sealed: {} as never, isDefault: true, createdAt: NOW, updatedAt: NOW },
   ];
@@ -356,19 +361,52 @@ test("deployment_get_static_publish_capabilities: a saved credential that FAILED
   deps.publishCredentialVerificationCache = new InMemoryPublishCredentialVerificationCache();
   deps.publishCredentialVerificationCache.set(
     { workspaceId: WORKSPACE_ID_FALLBACK, target: "github-pages" },
-    { ok: false, message: "GitHub rejected this credential (HTTP 401) — it is invalid, expired, or missing the required permissions.", checkedAt: NOW }
+    { status: "invalid", message: "GitHub rejected this credential (HTTP 401) — it is invalid, expired, or missing the required permissions.", checkedAt: NOW }
   );
 
   const surfaceExchanges = createSurfaceExchangeStore();
   const capabilities = tool(buildRegistrations(deps, surfaceExchanges), "deployment_get_static_publish_capabilities");
-  const result = (await call(capabilities)) as { providers: { providerId: string; ready: boolean; credentialConfigured: boolean; verified: boolean | null; guidance?: string }[] };
+  const result = (await call(capabilities)) as {
+    providers: { providerId: string; ready: boolean; credentialConfigured: boolean; verified: "valid" | "invalid" | "unreachable" | null; guidance?: string }[];
+  };
 
   const github = result.providers.find((p) => p.providerId === "github-pages")!;
   assert.equal(github.credentialConfigured, true);
-  assert.equal(github.verified, false);
+  assert.equal(github.verified, "invalid");
   assert.equal(github.ready, false, "this is the exact live-reported bug: a 401-rejected credential must never read as ready");
-  assert.match(github.guidance!, /failed its last verification/);
+  assert.match(github.guidance!, /rejected by github-pages/);
   assert.match(github.guidance!, /401/);
+  assert.doesNotMatch(github.guidance!, /does not mean the credential is bad/, "an INVALID credential must not get the unreachable-flavored reassurance");
+});
+
+test("deployment_get_static_publish_capabilities: a saved credential whose last check could not reach the provider is NOT ready, but the guidance must NOT read as 'your credential is bad'", async () => {
+  const records: PublishCredentialSetRecord[] = [
+    { workspaceId: WORKSPACE_ID_FALLBACK, id: "cred-1", providerId: "github-pages", label: "work", sealed: {} as never, isDefault: true, createdAt: NOW, updatedAt: NOW },
+  ];
+  const { deps } = fakeDeps({
+    credentialSource: { async resolve() { throw new Error("must never be called from this read tool"); }, async isConfigured() { return { configured: true }; } },
+  });
+  deps.workspaceId = WORKSPACE_ID_FALLBACK;
+  deps.publishCredentialSetRepo = fakeCredentialRepo(records);
+  deps.publishCredentialVerificationCache = new InMemoryPublishCredentialVerificationCache();
+  deps.publishCredentialVerificationCache.set(
+    { workspaceId: WORKSPACE_ID_FALLBACK, target: "github-pages" },
+    { status: "unreachable", message: "Could not reach GitHub to verify this credential — this does not necessarily mean the credential is bad.", checkedAt: NOW }
+  );
+
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const capabilities = tool(buildRegistrations(deps, surfaceExchanges), "deployment_get_static_publish_capabilities");
+  const result = (await call(capabilities)) as {
+    providers: { providerId: string; ready: boolean; credentialConfigured: boolean; verified: "valid" | "invalid" | "unreachable" | null; guidance?: string }[];
+  };
+
+  const github = result.providers.find((p) => p.providerId === "github-pages")!;
+  assert.equal(github.credentialConfigured, true);
+  assert.equal(github.verified, "unreachable");
+  assert.equal(github.ready, false, "unreachable is still not a confirmed 'this works' — but for a different reason than invalid");
+  assert.match(github.guidance!, /could not reach/i);
+  assert.match(github.guidance!, /does not mean the credential is bad/);
+  assert.doesNotMatch(github.guidance!, /was rejected by/, "an UNREACHABLE result must never be worded as a provider rejection");
 });
 
 test("deployment_get_static_publish_capabilities requires deployments.read and rejects extra input", async () => {
