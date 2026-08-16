@@ -126,15 +126,102 @@ report themselves as belonging to"* — i.e. it tracks live client-side routing,
 
 ## 5. Where would it break, if anywhere?
 
-Nowhere structural. The one thing this investigation could **not** verify (read-only, static trace
-only, no browser was driven): an actual live round trip — start a real chat run, have it call
-`page.find_elements` against a real rendered admin tab, confirm a real response comes back. Every
-individual link has its own dedicated unit tests
-(`frontend-session-registry.test.ts`, `frontend-capability-tools.test.ts`, `frontend-sessions.test.ts`
-in `@jini-ai/daemon`/`@jini-ai/http-kit`; `AssistantDock.hooks.unit.test.tsx` in Tovu) and the field
-names match exactly at every client/server boundary crossed, but no live end-to-end browser
-verification was performed as part of this pass. If a live smoke test is wanted before building on
-top of this, that is the one gap left to close — not a code gap, a verification gap.
+Nowhere structural, and this is now confirmed live, not just by static trace — see the addendum
+below. At the time this section was first written, the one thing this investigation could not verify
+(read-only, static trace only, no browser was driven) was an actual live round trip. That gap is now
+closed.
+
+---
+
+## ADDENDUM (2026-08-15, same day): live verification closes the one open gap
+
+The team lead assigned closing exactly the gap named above: drive a real browser, then the real
+transport, then a real spawned CLI agent — stopping at the first level that failed. **All three
+levels passed, live, on the first fully-fixed run.** New e2e suite committed:
+`development/e2e/agent-page-control-live-verification.spec.ts` +
+`development/playwright.agent-page-control.config.ts` (ports 7911-3), commit `a1e1ee00`.
+
+### LEVEL 1 — PASS: DOM mechanics against the real rendered SPA
+
+Targeted the exact tags a repo picker would drive: `deployment-static-site-credentials-section`
+(the region tag restored earlier this session) and the credential/publish `role: "field"` inputs, on
+a real headless Chromium tab against the real built admin SPA (no daemon needed for this level).
+Confirmed: tags resolve with correct `data-agent-role` values on the real hydrated DOM; reading a
+field's live value works exactly as `describeState()` reads it (`control.value`); and — the one
+real risk the driver's own source comments name explicitly — writing through the prototype setter +
+`dispatchEvent('input'|'change')` (not a bare `.value =`) genuinely reaches **React's own state**,
+not just the DOM attribute. Proven by a state-derived side effect: the Save button's `disabled` gate
+(`publishCredentialRowReadyToSave`, real React state, not the input's own value) flipped from
+disabled to enabled purely as a result of the driver-style write, and stayed that way after a
+render tick. A bare `.value =` would have left the button disabled forever with the input looking
+filled — this did not happen.
+
+### LEVEL 2 — PASS: the SSE bridge, both directions
+
+Two independent proofs, both live: (1) `page.waitForRequest` confirmed the **real bundled admin JS**
+(not a hand-rolled script) opens `GET /api/frontend-sessions/stream?capability=page....` on its own,
+unprompted, right after login — this is `useAgentPageBridge` actually running, not just present in
+source. (2) A second connection, speaking the exact wire protocol `frontend-session-bridge.ts` uses,
+got back a real `{type:"attached", sessionId, bindToken}` frame with a non-empty session id and bind
+token on a real request to the real daemon (proxied through Tovu's own `requireAdminSession` gate).
+
+### LEVEL 3 — PASS: the full round trip, a real spawned CLI agent included
+
+A real `claude` CLI process, started via `POST /api/runs` with `agentId: "claude"` and a
+`frontendBindToken` bound to a real attached session, called
+`execute_delegated_tool(toolId: "page.find_elements", input: {query: "GitHub owner", withState:
+true})` through the real `POST /api/delegated-tool-calls` route — and the `tool_result` streamed back
+over `/api/runs/:id/events` contained the **actual live value** (`octocat-live-verification-probe`)
+that had just been typed into the real `deployment-static-site-publish-owner` field on the real
+rendered Static Site tab, plus the field's real handle. Not a canned or hallucinated answer — a
+genuine read of a genuine live DOM value, through the entire chain: CLI → MCP → daemon →
+`ToolExecutor` → frontend-session registry → (see scope note below) → response → model.
+
+**One live, useful finding along the way, not a defect:** the spawned CLI agent's first tool call was
+`ToolSearch(query: "select:mcp__jini__execute_delegated_tool")` — it loads the delegated-tool-call
+mechanism's own schema before it can call it, the same deferred-tool-loading convention visible from
+inside this very investigation session. The test's first attempt broke on that bootstrap call's own
+`tool_result` instead of waiting for the real one; fixed by correlating `tool_result` back to its
+`tool_use`'s name rather than taking the first result unconditionally. Confirms the mechanism is a
+two-step discover-then-call one for this daemon's agent, not a defect in the daemon or the page path.
+
+**Honest scope limit, disclosed in the spec's own header too:** Level 3's "browser executes the
+invocation" half is played by the test harness — a small, faithful re-implementation of
+`dom-page-driver.ts`'s `findElements`/`describeState` (identical attribute names, identical
+`control.value` read) driven via real `page.evaluate` calls against the real rendered tab — standing
+in for the bundled `createFrontendSessionBridge`, which lives inside a live React component's closure
+this test process cannot reach directly. Everything else in the chain, including all policy and
+security logic (schema validation, handle checks, the credential-withholding guard), runs through the
+**real, unmodified, installed** `executePageCapability` from `@jini-ai/agentic` — not a copy. Level 1
+already independently proved this harness's DOM read/write technique matches the real driver's
+against this exact page, which is what makes the substitution faithful rather than just convenient.
+
+### Credential-withholding, checked directly and empirically (not from a comment)
+
+Team lead's specific ask: does `withState: true` actually withhold a credential field's value, or
+only intend to? Checked two ways, both decisive and both negative (no leak):
+
+1. **Live, in this environment, right now:** ran Jini's own `guards.test.ts` +
+   `page-executor.test.ts` (`cd /Users/la/Programming/Jini/packages/agentic && npx vitest run
+   src/core/__tests__/guards.test.ts src/core/__tests__/page-executor.test.ts`) — **102/102 passing**,
+   including `findFieldReadRefusal({ type: 'password' }) === 'denied-type'`.
+2. **Against Tovu's own real field, specifically:** a standalone probe (not committed — a one-off
+   check, not durable coverage; the durable coverage is #1 above) fed `projectElementState` (from
+   `require('@jini-ai/agentic')`, resolved against **Tovu's own installed dependency**, confirming
+   version parity) the exact raw descriptor `fieldDescriptorOf` produces for the real access-token
+   `<input>` in `StaticSiteTab.tsx` (`type="password"`, `id` containing `"token"`, labelled "Access
+   token", carrying a real secret-looking value). Output: the element is reported as existing
+   (handle/role/label present, so an agent CAN discover the field is there and ask a human to fill
+   it), but `state.value` is **absent**, replaced by `state.valueWithheld: "this field type is never
+   readable by an agent"`, and the raw secret string does not appear anywhere in the JSON output.
+
+### Plain answer
+
+**Can an agent read and drive this page for real, today? Yes.** All three escalation levels pass
+live, the credential guard genuinely withholds secret values (checked empirically, twice), and the
+one thing found along the way was a harness detail in this test, not a defect in the product's own
+read path. The repo-picker plan from the original report's "Recommended approach" section is safe to
+build on.
 
 ## Recommended approach for the repo picker
 
