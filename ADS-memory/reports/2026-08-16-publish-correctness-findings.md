@@ -317,6 +317,22 @@ evidence: **at `2e0b3bbe`, and at current HEAD, this feature's own test suite is
 Flagging per the brief's own instruction to push back when evidence contradicts the dispatch —
 not asserting bad faith, just that the premise didn't hold up under an independent recheck.
 
+**Correction, from the coordinator, confirmed above (2026-08-16, same day):** the "known RED"
+claim at the top of commit `2e0b3bbe`'s message is **withdrawn** — it does not reproduce, matching
+my finding above (coordinator's own re-run at `c8bef300` also came back 78/78). Probable cause:
+THREE agents were live in this tree when the coordinator measured, and the previous publish agent
+was very likely running the same `src/features/deployments/**` `node:test` files concurrently —
+this repo has a documented failure mode (`reference_shared_fixture_db_name_race` in project memory)
+where concurrent runs collide on a fixed fixture-DB name and produce failures that look like real
+regressions, guidance being "looks like flaky tests, is a name collision; run it alone to diagnose."
+The isolated `git worktree` re-run above is exactly that "run it alone" instrument, just reached for
+after the fact rather than before. Also correcting a second claim made at the same time: the
+previous agent's original **"37/37 green" was probably TRUE**, not false — what was actually false,
+and the real reason the coordinator rescued the work, was **"everything committed"** (`git status`
+showed five modified files at the time). The 38/38 count recorded above (one more test than either
+"37/37" claim) is the accurate current number. Leaving `2e0b3bbe`'s own commit message unedited
+(not rewriting history) — this note is the correcting trail for a future reader who finds it.
+
 One real, separate thing I did find and fix: a genuinely **unfinished, uncommitted** file sitting
 in the shared tree — `src/server/__tests__/routes/publish-credentials-route.test.ts` had 40 lines
 of in-progress edits (not yet committed by whoever wrote them) updating two existing assertions
