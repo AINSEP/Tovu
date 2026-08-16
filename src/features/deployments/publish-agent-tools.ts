@@ -545,7 +545,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
           };
         }
 
-        const decision = typeof answer.params["decision"] === "string" ? answer.params["decision"] : "confirm";
+        const decision = typeof answer.params.decision === "string" ? answer.params.decision : "confirm";
         if (decision !== "confirm") {
           return { published: false, cancelled: true, target, projectName };
         }
