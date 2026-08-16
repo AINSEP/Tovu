@@ -253,6 +253,48 @@ describe("useStaticPublish — publish trigger and poll", () => {
     expect(sentInput).toEqual({ config: { target: "cloudflare-pages" }, projectName: "my-project" });
   });
 
+  it("REGRESSION (C1): a delayed initial status GET must not overwrite a run started locally by publish() and kill polling", async () => {
+    let resolveInitialStatus!: (value: AdminPublishRunSnapshot) => void;
+    let initialCalls = 0;
+    const getPublishStatus = vi.fn().mockImplementation(() => {
+      initialCalls += 1;
+      if (initialCalls === 1) return new Promise<AdminPublishRunSnapshot>((resolve) => (resolveInitialStatus = resolve));
+      return Promise.resolve(IDLE_RUN);
+    });
+    const runningRun: AdminPublishRunSnapshot = { status: "running", startedAtIso: "t0", finishedAtIso: null, target: "vercel" };
+    const triggerPublish = vi.fn().mockResolvedValue(runningRun);
+    const port = createFakeStaticPublishPort({ getPublishStatus, triggerPublish });
+
+    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+
+    // The bootstrap read is still in flight — nothing has seeded `run` yet.
+    expect(result.current.run).toBeUndefined();
+
+    // The operator clicks Publish before that slow initial read ever comes back.
+    act(() => result.current.setTarget("vercel"));
+    act(() => result.current.setProjectName("demo"));
+    await act(async () => {
+      await result.current.publish();
+    });
+    expect(result.current.run).toEqual(runningRun);
+    expect(result.current.isPublishing).toBe(true);
+
+    // NOW the delayed bootstrap GET finally resolves, reporting stale "idle" state from before the
+    // click. Flush the setTimeout(0) macrotask `useFetchQuery`'s TanStack notification uses — plain
+    // `await Promise.resolve()` would NOT flush this (this repo's own fetch-query migration notes).
+    await act(async () => {
+      resolveInitialStatus(IDLE_RUN);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    // The freshly-triggered running run must survive untouched, and polling must still be
+    // considered active — pre-fix, the delayed bootstrap read overwrites `run` back to IDLE_RUN
+    // here and `isPublishing` flips false, even though the server-side publish is still running.
+    expect(result.current.run).toEqual(runningRun);
+    expect(result.current.isPublishing).toBe(true);
+  });
+
   it("surfaces a rejected publish (e.g. 409 already running) as a translated publish error", async () => {
     const port = createFakeStaticPublishPort({ triggerPublish: () => Promise.reject(new Error("a publish is already running")) });
     const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });

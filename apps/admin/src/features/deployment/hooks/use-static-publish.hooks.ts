@@ -227,6 +227,11 @@ export function useStaticPublish(port: StaticPublishPort, t: Translate, locale: 
   }, [isPublishing]);
 
   async function publish() {
+    // Local action supersedes any still-pending bootstrap read — same C1 fix and same reasoning
+    // `use-static-export.hooks.ts`'s own `trigger()` documents: this write is synchronous and
+    // happens-before the `await` below, so it wins the race regardless of how late the bootstrap
+    // read resolves.
+    seededRef.current = true;
     setPublishError(null);
     setPublishing(true);
     try {
