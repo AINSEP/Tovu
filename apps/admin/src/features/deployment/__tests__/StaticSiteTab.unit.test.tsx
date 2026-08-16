@@ -85,6 +85,7 @@ const GH_CREDENTIAL: AdminPublishCredentialSummary = {
   providerId: "github-pages",
   label: "Production GitHub Pages",
   configured: true,
+  isDefault: true,
   createdAt: "2026-08-01T10:00:00.000Z",
   updatedAt: "2026-08-15T09:30:00.000Z",
 };
@@ -102,18 +103,10 @@ function credentialsControllerFixture(overrides: Partial<PublishCredentialsContr
     setLabel: vi.fn(),
     token: "",
     setToken: vi.fn(),
-    owner: "",
-    setOwner: vi.fn(),
-    repo: "",
-    setRepo: vi.fn(),
-    teamId: "",
-    setTeamId: vi.fn(),
-    siteId: "",
-    setSiteId: vi.fn(),
     accountId: "",
     setAccountId: vi.fn(),
-    projectName: "",
-    setProjectName: vi.fn(),
+    isDefault: false,
+    setIsDefault: vi.fn(),
     startAdd: vi.fn(),
     startEdit: vi.fn(),
     cancelForm: vi.fn(),
@@ -123,6 +116,9 @@ function credentialsControllerFixture(overrides: Partial<PublishCredentialsContr
     deletingId: null,
     deleteError: null,
     remove: vi.fn().mockResolvedValue(undefined),
+    markingDefaultId: null,
+    markDefaultError: null,
+    markAsDefault: vi.fn().mockResolvedValue(undefined),
     t: fakeT,
     ...overrides,
   };
@@ -666,6 +662,38 @@ describe("StaticSiteTab — credential section: list", () => {
     renderTab({ credentialsController: { credentials: [GH_CREDENTIAL], deleteError: "still referenced elsewhere" } });
     expect(screen.getByRole("alert")).toHaveTextContent("still referenced elsewhere");
   });
+
+  it("a lone credential for its provider shows neither a Default badge nor a Make default button — nothing to choose", () => {
+    renderTab({ credentialsController: { credentials: [GH_CREDENTIAL] } }); // GH_CREDENTIAL.isDefault is true
+    expect(screen.queryByText("Default")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Make default" })).not.toBeInTheDocument();
+  });
+
+  it("with two connections for the same provider: the default row shows a Default badge, the other shows a Make default button", async () => {
+    const other: AdminPublishCredentialSummary = { ...GH_CREDENTIAL, id: "cred-2", label: "Backup GitHub Pages", isDefault: false };
+    const markAsDefault = vi.fn().mockResolvedValue(undefined);
+    renderTab({ credentialsController: { credentials: [GH_CREDENTIAL, other], markAsDefault } });
+
+    expect(screen.getByText("Default")).toBeInTheDocument();
+    const makeDefaultButton = screen.getByRole("button", { name: "Make default" });
+    expect(makeDefaultButton).toBeInTheDocument();
+
+    const user = userEvent.setup();
+    await user.click(makeDefaultButton);
+    expect(markAsDefault).toHaveBeenCalledWith("cred-2");
+  });
+
+  it("disables and relabels only the row currently being promoted to default", () => {
+    const other: AdminPublishCredentialSummary = { ...GH_CREDENTIAL, id: "cred-2", label: "Backup", isDefault: false };
+    renderTab({ credentialsController: { credentials: [GH_CREDENTIAL, other], markingDefaultId: "cred-2" } });
+    expect(screen.getByRole("button", { name: "Setting…" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Make default" })).not.toBeInTheDocument();
+  });
+
+  it("surfaces a markDefaultError as an alert", () => {
+    renderTab({ credentialsController: { credentials: [GH_CREDENTIAL], markDefaultError: "could not reach the server" } });
+    expect(screen.getByRole("alert")).toHaveTextContent("could not reach the server");
+  });
 });
 
 describe("StaticSiteTab — credential section: add/edit form", () => {
@@ -678,32 +706,31 @@ describe("StaticSiteTab — credential section: add/edit form", () => {
     expect(startAdd).toHaveBeenCalledTimes(1);
   });
 
-  it("github-pages (default): shows the owner/repo fields for THIS credential, never teamId/siteId/accountId", () => {
+  it("github-pages (default): shows no per-provider field beyond the shared token — owner/repo live on the publish target, not the credential", () => {
     renderTab({ credentialsController: { isFormOpen: true, providerId: "github-pages" } });
-    expect(screen.getByLabelText("Owner or org for this token")).toBeInTheDocument();
-    expect(screen.getByLabelText("Repository for this token")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Owner or org for this token")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Repository for this token")).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/Team ID/)).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/Site ID/)).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Account ID")).not.toBeInTheDocument();
   });
 
-  it("vercel: shows only the optional teamId field", () => {
+  it("vercel: shows no per-provider field beyond the shared token — teamId lives on the publish target, not the credential", () => {
     renderTab({ credentialsController: { isFormOpen: true, providerId: "vercel" } });
-    expect(screen.getByLabelText("Team ID (optional)")).toBeInTheDocument();
-    expect(screen.queryByLabelText("Owner or org for this token")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Team ID/)).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Account ID")).not.toBeInTheDocument();
   });
 
-  it("netlify: shows only the optional siteId field", () => {
+  it("netlify: shows no per-provider field beyond the shared token", () => {
     renderTab({ credentialsController: { isFormOpen: true, providerId: "netlify" } });
-    expect(screen.getByLabelText("Site ID (optional)")).toBeInTheDocument();
-    expect(screen.queryByLabelText(/Team ID/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Site ID/)).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Account ID")).not.toBeInTheDocument();
   });
 
-  it("cloudflare-pages: shows the REQUIRED accountId field plus the optional projectName field", () => {
+  it("cloudflare-pages: shows ONLY the required accountId field — the one provider with a second connection field", () => {
     renderTab({ credentialsController: { isFormOpen: true, providerId: "cloudflare-pages" } });
     expect(screen.getByLabelText("Account ID")).toBeInTheDocument();
-    expect(screen.getByLabelText("Project name (optional)")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Project name (optional)")).not.toBeInTheDocument();
   });
 
   it("the provider select is disabled in edit mode — a saved credential's provider cannot be changed", () => {
@@ -747,8 +774,8 @@ describe("StaticSiteTab — credential section: add/edit form", () => {
   });
 
   it("the submit button is disabled until the provider's own required fields are filled — never bypassable by a raw click", () => {
-    renderTab({ credentialsController: { isFormOpen: true, providerId: "github-pages", label: "x", token: "tok" } });
-    // owner/repo still blank
+    renderTab({ credentialsController: { isFormOpen: true, providerId: "cloudflare-pages", label: "x", token: "tok" } });
+    // accountId still blank — cloudflare-pages is the one provider with a required field left
     expect(screen.getByRole("button", { name: "Save credential" })).toBeDisabled();
   });
 
@@ -772,6 +799,40 @@ describe("StaticSiteTab — credential section: add/edit form", () => {
     const link = screen.getByRole("link", { name: "Create a token" });
     expect(link).toHaveAttribute("href", "https://dash.cloudflare.com/profile/api-tokens");
     expect(link).toHaveAttribute("target", "_blank");
+  });
+
+  it("ADD mode: the 'set as default' checkbox is hidden when this would be the provider's only connection", () => {
+    renderTab({ credentialsController: { isFormOpen: true, providerId: "github-pages", credentials: [] } });
+    expect(screen.queryByRole("checkbox", { name: /Set as default for/ })).not.toBeInTheDocument();
+  });
+
+  it("ADD mode: the 'set as default' checkbox appears once another connection for the same provider already exists", () => {
+    const setIsDefault = vi.fn();
+    renderTab({
+      credentialsController: { isFormOpen: true, providerId: "github-pages", credentials: [GH_CREDENTIAL], isDefault: false, setIsDefault },
+    });
+    const checkbox = screen.getByRole("checkbox", { name: /Set as default for/ });
+    expect(checkbox).not.toBeChecked();
+    expect(screen.getByText(/Set as default for/)).toBeInTheDocument();
+  });
+
+  it("EDIT mode: the checkbox is hidden while editing a provider's only connection, even though editingId matches a saved row", () => {
+    renderTab({ credentialsController: { isFormOpen: true, editingId: "cred-1", providerId: "github-pages", credentials: [GH_CREDENTIAL] } });
+    expect(screen.queryByRole("checkbox", { name: /Set as default for/ })).not.toBeInTheDocument();
+  });
+
+  it("EDIT mode: the checkbox appears when a sibling connection exists, pre-checked from the row's own isDefault", () => {
+    const other: AdminPublishCredentialSummary = { ...GH_CREDENTIAL, id: "cred-2", label: "Backup", isDefault: false };
+    renderTab({
+      credentialsController: {
+        isFormOpen: true,
+        editingId: "cred-1",
+        providerId: "github-pages",
+        credentials: [GH_CREDENTIAL, other],
+        isDefault: true,
+      },
+    });
+    expect(screen.getByRole("checkbox", { name: /Set as default for/ })).toBeChecked();
   });
 });
 
@@ -798,5 +859,14 @@ describe("StaticSiteTab — credential section: AI agent tagging", () => {
 
     renderTab({ credentialsController: { executionMode: "hosted-api-only" } });
     expect(document.querySelector('[data-agent-element="deployment-static-site-credentials-hosted-notice"]')).toBeInTheDocument();
+  });
+
+  it("tags the per-row Make default button and the form's is-default checkbox", () => {
+    const other: AdminPublishCredentialSummary = { ...GH_CREDENTIAL, id: "cred-2", label: "Backup", isDefault: false };
+    renderTab({ credentialsController: { credentials: [GH_CREDENTIAL, other] } });
+    expect(document.querySelector('[data-agent-element="deployment-static-site-credentials-make-default-cred-2"]')).toBeInTheDocument();
+
+    renderTab({ credentialsController: { isFormOpen: true, providerId: "github-pages", credentials: [GH_CREDENTIAL, other] } });
+    expect(document.querySelector('[data-agent-element="deployment-static-site-credentials-is-default"]')).toBeInTheDocument();
   });
 });

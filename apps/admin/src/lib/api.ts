@@ -235,6 +235,12 @@ export interface AdminPublishCredentialSummary {
   providerId: AdminPublishCredentialProviderId;
   label: string;
   configured: true;
+  /** Whether THIS connection is the one `triggerPublish` uses for its `providerId` when a workspace
+   *  has saved more than one — server-owned, never derived client-side. Exactly one credential per
+   *  provider is `true` at a time (the server enforces the invariant on every write); a provider with
+   *  only one saved connection still carries a real value here, it is just never worth showing UI
+   *  chrome about (see `StaticSiteTab.tsx`'s credential-list header for why). */
+  isDefault: boolean;
   /** ISO timestamp. Field name matches the wire contract verbatim (not this file's usual `...AtIso`
    *  suffix) — see this interface's own doc for why matching the contract exactly, rather than
    *  renaming to local convention, is what keeps this boundary correct against a concurrently-built
@@ -247,17 +253,19 @@ export interface AdminPublishCredentialSummary {
 
 /**
  * The body a create/update sends to configure ONE provider's connection — mirrors the server's
- * closed discriminated union verbatim. Every variant requires `token`; the remaining fields split
- * into what a provider cannot function without (GitHub Pages' `owner`/`repo`, Cloudflare's
- * `accountId`) and what only narrows an otherwise-valid default (Vercel's `teamId`, Netlify's
- * `siteId`, Cloudflare's `projectName`) — see `rules.ts`'s `PUBLISH_CREDENTIAL_PROVIDERS` for the
- * single source of which fields are which, rather than re-deriving that split from this type alone.
+ * closed discriminated union verbatim. A credential holds the secret plus only the account scoping
+ * that has nowhere else to live: GitHub Pages' `owner`/`repo`/`branch` and Vercel's `teamId` already
+ * live on {@link AdminStaticPublishConfig} (the publish TARGET, chosen per run), so this type does
+ * NOT duplicate them — a duplicate copy here would just be a second, driftable place either could be
+ * set. Cloudflare Pages is the one provider with a second field: `accountId` is HARD required
+ * (Cloudflare Pages has no account-scope-free API surface, and unlike `owner`/`repo` there is no
+ * per-run publish target this could otherwise live on).
  */
 export type AdminPublishConnectionInput =
-  | { providerId: "github-pages"; token: string; owner: string; repo: string }
-  | { providerId: "vercel"; token: string; teamId?: string }
-  | { providerId: "netlify"; token: string; siteId?: string }
-  | { providerId: "cloudflare-pages"; token: string; accountId: string; projectName?: string };
+  | { providerId: "github-pages"; token: string }
+  | { providerId: "vercel"; token: string }
+  | { providerId: "netlify"; token: string }
+  | { providerId: "cloudflare-pages"; token: string; accountId: string };
 
 /**
  * The server's own execution capability for THIS instance — never derived client-side from
@@ -2500,16 +2508,21 @@ export const api = {
   /** Creates one named connection. `409 DUPLICATE_LABEL` (surfaced as a thrown `ApiError` with that
    *  `code`) if this workspace already has a credential with the same label — labels are the only
    *  human-facing identifier a reader has for telling two connections apart, so silently allowing a
-   *  second row with the same one would make the list ambiguous. */
-  createPublishCredential: (input: { label: string; connection: AdminPublishConnectionInput }) =>
+   *  second row with the same one would make the list ambiguous. `isDefault` is optional — omitted
+   *  entirely (not `false`) lets the server apply its own default-assignment rule (e.g. a provider's
+   *  first-ever saved connection), rather than this admin guessing at it. */
+  createPublishCredential: (input: { label: string; connection: AdminPublishConnectionInput; isDefault?: boolean }) =>
     request<{ credential: AdminPublishCredentialSummary }>(`/workspaces/${WORKSPACE_ID}/system/publish/credentials`, {
       method: "POST",
       body: JSON.stringify(input),
     }),
-  /** Updates a credential's label and/or connection. Omitting `connection` entirely — never sending
-   *  it as an empty object or blank fields — is what keeps the stored secret untouched; see
-   *  `use-publish-credentials.hooks.ts`'s header for why the form can never send a half-blank one. */
-  updatePublishCredential: (id: string, input: { label?: string; connection?: AdminPublishConnectionInput }) =>
+  /** Updates a credential's label, connection, and/or default status. Omitting `connection` entirely
+   *  — never sending it as an empty object or blank fields — is what keeps the stored secret
+   *  untouched; see `use-publish-credentials.hooks.ts`'s header for why the form can never send a
+   *  half-blank one. `isDefault: true` makes this the default connection for its provider (the server
+   *  owns clearing any previous default for that same provider); omitted leaves default status
+   *  unchanged. */
+  updatePublishCredential: (id: string, input: { label?: string; connection?: AdminPublishConnectionInput; isDefault?: boolean }) =>
     request<{ credential: AdminPublishCredentialSummary }>(`/workspaces/${WORKSPACE_ID}/system/publish/credentials/${id}`, {
       method: "PUT",
       body: JSON.stringify(input),

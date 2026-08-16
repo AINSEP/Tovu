@@ -193,3 +193,91 @@ test("validateStaticPublishConfig: rejects a blank teamId for vercel and an out-
 
   assert.equal(validateStaticPublishConfig({ target: "vercel" }), null);
 });
+
+test("validateStaticPublishConfig: netlify and cloudflare-pages configs are always valid — accountId lives on the credential, not this config", () => {
+  assert.equal(validateStaticPublishConfig({ target: "netlify" }), null);
+  assert.equal(validateStaticPublishConfig({ target: "cloudflare-pages" }), null);
+});
+
+test("computeBasePath: netlify and cloudflare-pages never carry a base path, same as vercel", () => {
+  assert.equal(computeBasePath({ target: "netlify" }), undefined);
+  assert.equal(computeBasePath({ target: "cloudflare-pages" }), undefined);
+});
+
+test("publishStaticSite: does NOT inject .nojekyll for netlify or cloudflare-pages, and never sets a base path", async () => {
+  for (const config: StaticPublishConfig of [{ target: "netlify" }, { target: "cloudflare-pages" }] as const) {
+    const captured: { value: DeployFile[] | null } = { value: null };
+    const deps: RouteDeps = { ...createRouteDeps() };
+
+    const result = await publishStaticSite(
+      {
+        credentialSource: {
+          async resolve() {
+            return { ok: true, token: "fake-token-never-used-by-fake-target", accountId: "acct-1" };
+          },
+          async isConfigured() {
+            return { configured: true };
+          },
+        },
+        buildTarget: () => fakeDeployTarget(captured),
+      },
+      { workspaceId: deps.workspaceId, routeDeps: deps, config, projectName: "demo" }
+    );
+
+    assert.equal(result.ok, true);
+    if (!result.ok) throw new Error("unreachable");
+    assert.equal(result.basePath, undefined);
+    assert.ok(!captured.value!.some((f) => f.file === ".nojekyll"), `.nojekyll must never be published to ${config.target}`);
+  }
+});
+
+test("publishStaticSite: passes the resolved credential's accountId through to buildTarget for cloudflare-pages", async () => {
+  const deps: RouteDeps = { ...createRouteDeps() };
+  let observedCredential: { token: string; accountId?: string } | null = null;
+
+  const result = await publishStaticSite(
+    {
+      credentialSource: {
+        async resolve() {
+          return { ok: true, token: "cf-token", accountId: "acct-42" };
+        },
+        async isConfigured() {
+          return { configured: true };
+        },
+      },
+      buildTarget: (_config, credential) => {
+        observedCredential = credential;
+        return fakeDeployTarget({ value: null });
+      },
+    },
+    { workspaceId: deps.workspaceId, routeDeps: deps, config: { target: "cloudflare-pages" }, projectName: "demo" }
+  );
+
+  assert.equal(result.ok, true);
+  assert.deepEqual(observedCredential, { token: "cf-token", accountId: "acct-42" });
+});
+
+test("publishStaticSite: a resolved credential for vercel/github-pages/netlify never carries accountId through to buildTarget", async () => {
+  const deps: RouteDeps = { ...createRouteDeps() };
+  let observedCredential: { token: string; accountId?: string } | null = null;
+
+  await publishStaticSite(
+    {
+      credentialSource: {
+        async resolve() {
+          return { ok: true, token: "vercel-token" };
+        },
+        async isConfigured() {
+          return { configured: true };
+        },
+      },
+      buildTarget: (_config, credential) => {
+        observedCredential = credential;
+        return fakeDeployTarget({ value: null });
+      },
+    },
+    { workspaceId: deps.workspaceId, routeDeps: deps, config: { target: "vercel" }, projectName: "demo" }
+  );
+
+  assert.equal("accountId" in (observedCredential as object), false);
+});

@@ -4,7 +4,9 @@
  * feature (`../ports.ts`/`../providers/github.ts`).
  */
 export type {
+  CloudflarePagesPublishConfig,
   GitHubPagesPublishConfig,
+  NetlifyPublishConfig,
   PublishCredentialSource,
   StaticPublishConfig,
   StaticPublishOutcome,
@@ -12,6 +14,12 @@ export type {
   VercelPublishConfig,
 } from "./types";
 
-export { createEnvPublishCredentialSource } from "./credentials";
+export {
+  composePublishCredentialSource,
+  createDbPublishCredentialSource,
+  createEnvPublishCredentialSource,
+  type ComposePublishCredentialSourceInput,
+  type DbPublishCredentialSourceDeps,
+} from "./credentials";
 
 export { computeBasePath, publishStaticSite, validateStaticPublishConfig, type StaticPublishDeps, type StaticPublishInput } from "./adapter";

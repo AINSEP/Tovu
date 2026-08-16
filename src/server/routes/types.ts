@@ -37,6 +37,7 @@ import type { KeyringPort, SecretSealerPort, WebhookDeliveryRepoPort, WebhookSub
 import type { WebhookSigner } from "../../integrations/signing";
 import type { SiteAssistantCredentialRepoPort } from "../../assistant/site-credential-store";
 import type { AdminExecutionCredentialRepoPort } from "../../assistant/execution-credential-store";
+import type { PublishCredentialSetRepoPort, PublishExecutionMode } from "../../features/deployments/publish-credentials";
 import type { ComposioConfigRepoPort } from "../../connectors/composio-config-store";
 import type { ComposioConnectors } from "../../connectors/composio-service";
 import type { MediaProviderCredentialRepoPort } from "../../media/provider-credential-store";
@@ -633,6 +634,26 @@ export interface RouteDeps {
    * field costs this file nothing even though `export-run.ts` sits under `features/`.
    */
   runExportSite: ExportEngine<RouteDeps>;
+  /**
+   * 2026-08-15 (Contract v2) — the `publish_credential_sets` repo backing the admin's Static Site tab
+   * "add a connection" form and the DB-backed half of `static-publish/credentials.ts`'s
+   * `composePublishCredentialSource`. Real `SqlitePublishCredentialSetRepo` in `server/deps.ts`
+   * (migration `0041` already applied — see that repo's own doc); `InMemoryPublishCredentialSetRepo`
+   * in `server/app.ts`'s hermetic composition, same rule-of-two every other repo here follows. Sealed
+   * via the SAME shared `siteAssistantSecretSealer`/`siteAssistantSecretKeyring` instances above —
+   * one sealing capability app-wide, same reasoning `adminExecutionCredentialRepo`/
+   * `mediaProviderCredentialRepo` already establish.
+   */
+  publishCredentialSetRepo: PublishCredentialSetRepoPort;
+  /**
+   * 2026-08-15 (Contract v2) — this install's `PublishExecutionMode`, read once at boot from
+   * `TOVU_EXECUTION_MODE` (`publish-credentials/execution-mode.ts`'s `executionModeFromEnv`) in BOTH
+   * composition roots. Governs `composePublishCredentialSource`'s env-var-fallback behavior
+   * (`"self-hosted-cli"` only — see that function's own doc) and is echoed verbatim in the
+   * `GET .../publish/credentials` response so the admin UI can show self-hosted-vs-hosted-appropriate
+   * guidance without re-deriving it client-side.
+   */
+  publishExecutionMode: PublishExecutionMode;
 }
 
 export type RouteRegistrar = (app: Express, deps: RouteDeps) => void;

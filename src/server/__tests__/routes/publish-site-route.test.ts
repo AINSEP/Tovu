@@ -117,10 +117,12 @@ test("publish-site: a malformed trigger body 400s and never starts a run", async
   });
   assert.equal(missingProjectName.status, 400);
 
+  // "netlify"/"cloudflare-pages" are now real, supported targets (2026-08-15, all four Jini
+  // targets) — a genuinely unrecognized target string is what this sub-case needs to exercise.
   const badTarget = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}`, {
     method: "POST",
     headers: { cookie, "content-type": "application/json" },
-    body: JSON.stringify({ target: "netlify", projectName: "demo" }),
+    body: JSON.stringify({ target: "aws-amplify", projectName: "demo" }),
   });
   assert.equal(badTarget.status, 400);
 
@@ -290,7 +292,8 @@ test("publish-site preview: a missing/unrecognized target, and a github-pages pr
   const noTarget = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}/preview`, { headers: { cookie } });
   assert.equal(noTarget.status, 400);
 
-  const badTarget = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}/preview?target=netlify`, { headers: { cookie } });
+  // Same "netlify is now a real target" note as the trigger route's own equivalent case above.
+  const badTarget = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}/preview?target=aws-amplify`, { headers: { cookie } });
   assert.equal(badTarget.status, 400);
 
   const missingRepo = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}/preview?target=github-pages&owner=octo`, { headers: { cookie } });

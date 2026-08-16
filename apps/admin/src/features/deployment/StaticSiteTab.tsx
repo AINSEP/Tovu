@@ -22,6 +22,7 @@ import {
   STATIC_SITE_CAPABILITIES,
   PUBLISH_CLI_TOOLS,
   cliInstalledStatus,
+  credentialsForProvider,
   exportRunStatusLabelKey,
   publishAssistantRequestForTool,
   publishCredentialFormReadyToSubmit,
@@ -655,13 +656,24 @@ function PublishCredentialList({ controller, t: translate }: { controller: Publi
           {controller.deleteError}
         </p>
       ) : null}
+      {controller.markDefaultError ? (
+        <p className="save-error" role="alert">
+          {controller.markDefaultError}
+        </p>
+      ) : null}
     </>
   );
 }
 
 /** One credential's own list row — split out from {@link PublishCredentialList} so each row's own
  *  `agentHandle` ids (edit/delete) are computed once per credential, not re-derived inline inside
- *  the `.map`. */
+ *  the `.map`.
+ *
+ *  Default chrome (a "Default" badge, or a "Make default" button on a non-default row) renders ONLY
+ *  when this provider has more than one saved connection (`rules.ts`'s `credentialsForProvider`) —
+ *  a lone connection is trivially the one `triggerPublish` uses, and showing a badge or a button for
+ *  a choice that does not exist would be the exact "make the user think about it" the brief rules
+ *  out. */
 function PublishCredentialRow({
   credential,
   controller,
@@ -672,6 +684,9 @@ function PublishCredentialRow({
   t: Translate;
 }) {
   const deleting = controller.deletingId === credential.id;
+  const markingDefault = controller.markingDefaultId === credential.id;
+  const hasSiblingConnections = credentialsForProvider(controller.credentials ?? [], credential.providerId).length > 1;
+
   return (
     <li className="deployment-credentials-list-item">
       <div className="deployment-credentials-list-main">
@@ -679,11 +694,28 @@ function PublishCredentialRow({
         <span className="status status-neutral" translate="no">
           {publishCredentialProviderInfo(credential.providerId).label}
         </span>
+        {hasSiblingConnections && credential.isDefault ? (
+          <span className="status status-ok">{translate("Default")}</span>
+        ) : null}
         <span className="deployment-fact-value">
           {translate("Updated")} {formatTimestamp(credential.updatedAt)}
         </span>
       </div>
       <div className="deployment-credentials-list-actions">
+        {hasSiblingConnections && !credential.isDefault ? (
+          <button
+            type="button"
+            className="btn-secondary"
+            disabled={markingDefault}
+            onClick={() => void controller.markAsDefault(credential.id)}
+            {...agentHandle(`deployment-static-site-credentials-make-default-${credential.id}`, {
+              role: "button",
+              label: `Make the saved "${credential.label}" credential the default connection for ${publishCredentialProviderInfo(credential.providerId).label}`,
+            })}
+          >
+            {markingDefault ? translate("Setting…") : translate("Make default")}
+          </button>
+        ) : null}
         <button
           type="button"
           className="btn-secondary"
@@ -724,14 +756,17 @@ function PublishCredentialForm({ controller, t: translate }: { controller: Publi
   const fields: PublishCredentialFormFields = {
     providerId: controller.providerId,
     token: controller.token,
-    owner: controller.owner,
-    repo: controller.repo,
-    teamId: controller.teamId,
-    siteId: controller.siteId,
     accountId: controller.accountId,
-    projectName: controller.projectName,
   };
   const readyToSubmit = publishCredentialFormReadyToSubmit(fields, mode, controller.label);
+  // A default choice only exists when at least one OTHER saved connection for this provider is
+  // already there to be default INSTEAD of — see `use-publish-credentials.hooks.ts`'s header. A
+  // provider about to get (or that already has) exactly one connection never shows this checkbox;
+  // that connection is trivially the default either way.
+  const otherCredentialsForProvider = credentialsForProvider(controller.credentials ?? [], controller.providerId).filter(
+    (existing) => existing.id !== controller.editingId
+  );
+  const showsDefaultChoice = otherCredentialsForProvider.length > 0;
 
   return (
     <form
@@ -816,6 +851,21 @@ function PublishCredentialForm({ controller, t: translate }: { controller: Publi
 
       <PublishCredentialProviderFields controller={controller} t={translate} />
 
+      {showsDefaultChoice ? (
+        <label className="form-checkbox-field">
+          <input
+            type="checkbox"
+            checked={controller.isDefault}
+            onChange={(e) => controller.setIsDefault(e.target.checked)}
+            {...agentHandle("deployment-static-site-credentials-is-default", {
+              role: "checkbox",
+              label: `Make this the default ${info.label} connection triggerPublish uses`,
+            })}
+          />
+          {translate("Set as default for")} <span translate="no">{info.label}</span>
+        </label>
+      ) : null}
+
       <div className="deployment-action">
         <button
           type="submit"
@@ -850,109 +900,30 @@ function PublishCredentialForm({ controller, t: translate }: { controller: Publi
 
 /** {@link PublishCredentialForm}'s per-provider field block, split out into its own function for
  *  the same complexity-gate reason `StaticSiteTab.tsx`'s own `resolveStaticExportHook`-style
- *  resolvers document (a four-way provider `if`/`else if` counts against ITS OWN score here, instead
- *  of stacking on top of the parent form's already-real branching over `mode`/`readyToSubmit`).
- *  Renders exactly ONE provider's fields — the current `controller.providerId` — never more than
- *  one at a time, same "never show the other provider's row" rule `ProviderCliRow`'s own doc states
- *  for the CLI recommendation above. */
+ *  resolvers document. Renders exactly ONE provider's fields — the current `controller.providerId`
+ *  — never more than one at a time, same "never show the other provider's row" rule
+ *  `ProviderCliRow`'s own doc states for the CLI recommendation above.
+ *
+ *  Cloudflare Pages is the ONLY provider with a field here at all (`accountId`, required) — GitHub
+ *  Pages' `owner`/`repo` and Vercel's `teamId` are NOT credential fields (they already live on the
+ *  publish target config, chosen per run — see `AdminPublishConnectionInput`'s doc in `lib/api.ts`),
+ *  and Netlify has no per-provider field. GitHub Pages and Vercel render nothing at all beyond the
+ *  parent form's shared token field. */
 function PublishCredentialProviderFields({ controller, t: translate }: { controller: PublishCredentialsController; t: Translate }) {
-  if (controller.providerId === "github-pages") {
-    return (
-      <div className="field-row">
-        <div className="field">
-          {/* "Owner or org for this token", not the shorter "GitHub owner or org" the publish
-              form above already uses for a DIFFERENT purpose (which repo to publish TO right
-              now) — two fields with the identical label on one screen would be ambiguous to a
-              screen reader and to `getByLabelText` alike, even though they're both really "an
-              owner/org", because this one scopes the CREDENTIAL, not the current run. */}
-          <label className="field-label" htmlFor="deployment-static-site-credentials-owner">
-            {translate("Owner or org for this token")}
-          </label>
-          <input
-            id="deployment-static-site-credentials-owner"
-            type="text"
-            value={controller.owner}
-            onChange={(e) => controller.setOwner(e.target.value)}
-            {...agentHandle("deployment-static-site-credentials-owner", { role: "field", label: "GitHub owner or organization login this token is scoped to" })}
-          />
-        </div>
-        <div className="field">
-          <label className="field-label" htmlFor="deployment-static-site-credentials-repo">
-            {translate("Repository for this token")}
-          </label>
-          <input
-            id="deployment-static-site-credentials-repo"
-            type="text"
-            value={controller.repo}
-            onChange={(e) => controller.setRepo(e.target.value)}
-            {...agentHandle("deployment-static-site-credentials-repo", { role: "field", label: "GitHub repository this token is scoped to" })}
-          />
-        </div>
-      </div>
-    );
-  }
+  if (controller.providerId !== "cloudflare-pages") return null;
 
-  if (controller.providerId === "vercel") {
-    return (
-      <div className="field">
-        <label className="field-label" htmlFor="deployment-static-site-credentials-team">
-          {translate("Team ID (optional)")}
-        </label>
-        <input
-          id="deployment-static-site-credentials-team"
-          type="text"
-          value={controller.teamId}
-          onChange={(e) => controller.setTeamId(e.target.value)}
-          {...agentHandle("deployment-static-site-credentials-team", { role: "field", label: "Vercel team id, only needed when publishing into a team" })}
-        />
-      </div>
-    );
-  }
-
-  if (controller.providerId === "netlify") {
-    return (
-      <div className="field">
-        <label className="field-label" htmlFor="deployment-static-site-credentials-site">
-          {translate("Site ID (optional)")}
-        </label>
-        <input
-          id="deployment-static-site-credentials-site"
-          type="text"
-          value={controller.siteId}
-          onChange={(e) => controller.setSiteId(e.target.value)}
-          {...agentHandle("deployment-static-site-credentials-site", { role: "field", label: "Netlify site id to publish to an existing site instead of creating one" })}
-        />
-      </div>
-    );
-  }
-
-  // controller.providerId === "cloudflare-pages" — the closed union's last arm.
   return (
-    <div className="field-row">
-      <div className="field">
-        <label className="field-label" htmlFor="deployment-static-site-credentials-account">
-          {translate("Account ID")}
-        </label>
-        <input
-          id="deployment-static-site-credentials-account"
-          type="text"
-          value={controller.accountId}
-          onChange={(e) => controller.setAccountId(e.target.value)}
-          {...agentHandle("deployment-static-site-credentials-account", { role: "field", label: "Cloudflare account id — required, Cloudflare cannot resolve a project without it" })}
-        />
-      </div>
-      <div className="field">
-        <label className="field-label" htmlFor="deployment-static-site-credentials-project">
-          {translate("Project name (optional)")}
-        </label>
-        <input
-          id="deployment-static-site-credentials-project"
-          type="text"
-          value={controller.projectName}
-          onChange={(e) => controller.setProjectName(e.target.value)}
-          {...agentHandle("deployment-static-site-credentials-project", { role: "field", label: "Cloudflare Pages project name" })}
-        />
-      </div>
+    <div className="field">
+      <label className="field-label" htmlFor="deployment-static-site-credentials-account">
+        {translate("Account ID")}
+      </label>
+      <input
+        id="deployment-static-site-credentials-account"
+        type="text"
+        value={controller.accountId}
+        onChange={(e) => controller.setAccountId(e.target.value)}
+        {...agentHandle("deployment-static-site-credentials-account", { role: "field", label: "Cloudflare account id — required, Cloudflare cannot resolve a project without it" })}
+      />
     </div>
   );
 }
