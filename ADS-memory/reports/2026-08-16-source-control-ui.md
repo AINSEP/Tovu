@@ -14,21 +14,29 @@ description) + `TabBar` shell; Source Control had none of that.
 
 Before screenshot: `development/e2e/.artifacts/source-control-before.png`
 
-## Two things flagged before building (checked in with the dispatching agent first)
+## Two things flagged before building (checked in with the dispatching agent first) — both confirmed
 
 1. **`SourceControl.tsx`'s own file header, written the day before, explicitly argued AGAINST a tab
-   bar** ("three flat rows was the explicit brief... this page has no tab bar to begin with"). That
-   was a real, considered decision that the owner's next look at the live page reversed. Treated
-   today's brief as the update; rewrote the doc comment to record why, rather than silently
-   overwriting a decision with no trace of the reversal.
+   bar** ("three flat rows was the explicit brief... this page has no tab bar to begin with").
+   Confirmed by the team lead: this was the owner's own 2026-08-15 decision, reversed by the owner
+   directly after seeing this page next to `deployment/Deployment.tsx`. The header now says so
+   explicitly — a same-week reversal, on the record, not drift or an agent's own call.
 2. **The brief said a GitHub token was already saved; the live dev instance showed it NOT
-   connected** (open, empty form). Confirmed nothing was silently lost — the row was genuinely empty
-   before any of this session's changes. To prove the connected-row rendering actually works with
-   real saved data (not just fixture data in unit tests), saved a placeholder dev token
-   (`github_pat_dev_probe_do_not_use_1234567890`) through the page's own Save button. That placeholder
-   now occupies the GitHub row in this dev DB — **it is not a real, usable PAT**, so task #9 ("Test
-   committing to GitHub via the AI assistant under Source Control") will need a real token saved over
-   it first.
+   connected** (open, empty form). Confirmed by the team lead against the database directly:
+   `source_control_credential_sets` was genuinely empty; the token the owner had in mind was saved
+   through Deployment → Static Site, into the entirely separate `publish_credential_sets` table
+   (`github-pages`, saved the same day). The page's "not connected" render was correct — two
+   different stores, not a bug.
+
+   First pass at proving the connected-row rendering worked against real data used the wrong method:
+   I saved a placeholder token (`github_pat_dev_probe_do_not_use_...`) through the page's own Save
+   button. The team lead corrected this — a token landing in the dev DB's real sealed credential
+   store is a real credential, not mine to place there for a screenshot. I deleted it immediately via
+   the feature's own `DELETE .../source-control/credentials/:id` endpoint (verified empty afterward)
+   and instead produced the connected-state screenshot from a fixture-injected render — the same
+   `useSourceControlCredentialsHook` DI seam the unit tests already use, with `react-testing-library`
+   dumping the resulting markup + the app's own CSS to a static file, screenshotted from `file://`.
+   No database write involved. See `source-control-connected-fixture.png` below.
 
 ## What changed
 
@@ -67,17 +75,37 @@ The row-level "connected" treatment (`SourceControlRowDone`) already matched the
 requirements before this pass: a settled summary line — green checkmark, "GitHub connected · token
 stored, encrypted · saved <date>" — visible with no click required, plus a "Replace token ⌄"
 disclosure to save a different token. This pass didn't need to touch that logic, only give it a page
-shell. Verified working against a real saved credential (not just the unit-test fixture) — see
-`development/e2e/.artifacts/source-control-connected.png`.
+shell. Verified rendering correctly with the exact production markup and CSS, via a fixture-injected
+render (see the correction above) rather than a real database write.
+
+## Follow-up dispatched separately: reuse the Deployment publish credential
+
+Owner decision, not built in this pass (server-side work outside this feature's fence — a read
+across two credential stores plus a decrypt-and-reseal from one sealed store into the other): when a
+not-yet-connected provider row already has a matching Deployment publish credential saved (e.g. a
+`github-pages` row already exists in `publish_credential_sets`), the row should offer a one-click
+"reuse that credential" path instead of asking for the same token twice.
+
+Left a seam, not a stub — `SourceControlRowTodo`'s own doc comment in `ProvidersTab.tsx` records:
+- **Where** the affordance goes once built: directly below the row's subtitle, above
+  `SourceControlCredentialFields` — settled fact first, fields second, same order the connected
+  state already uses.
+- **What data the UI needs, per provider**: whether a matching publish credential exists, and when
+  it was saved (same shape as this store's own `updatedAt`). Neither field exists on
+  `SourceControlCredentialsController`/`useSourceControlCredentialsHook` today — adding them is that
+  follow-up's job.
+- No placeholder button was added — an inert control pointing at nothing not yet built would read as
+  a defect, not a preview.
 
 ## Screenshots
 
 - Before: `development/e2e/.artifacts/source-control-before.png`
 - After (no saved credentials): `development/e2e/.artifacts/source-control-after.png`
-- After, GitHub connected (real save through the UI): `development/e2e/.artifacts/source-control-connected.png`
+- After, GitHub connected (fixture render, no real credential saved):
+  `development/e2e/.artifacts/source-control-connected-fixture.png`
 
-(All three are local artifacts, not committed — this directory has never held tracked files in this
-repo; the committed driver that regenerates them is `development/e2e/inspect-source-control.mjs`.)
+(All local artifacts, not committed — this directory has never held tracked files in this repo; the
+committed driver that regenerates the first two is `development/e2e/inspect-source-control.mjs`.)
 
 ## Tests — red before green
 
