@@ -15,6 +15,15 @@ import { SOURCE_CONTROL_PROVIDERS } from "../rules";
  * component renders the right markup for each row state, and pins the two defects this page was
  * briefed NOT to inherit from the Static Site tab's own credential rows: a bare, affordance-less
  * collapsed row, and "updated" wording on a saved-credential timestamp.
+ *
+ * 2026-08-16 density pass: every row is now a `<details>` (not just the connected one), sharing one
+ * exclusive `name="source-control-provider"` accordion group — see `ProvidersTab.tsx`'s own header
+ * for why. The old "a not-yet-connected row has no <details> at all" assertion is gone because that
+ * is no longer true by design, not because it was stale. New coverage below proves the accordion's
+ * default-open logic instead. Assertions here lean on the `open` ATTRIBUTE (a real DOM attribute,
+ * observable regardless of jsdom's own rendering fidelity) rather than on content visibility where
+ * the two diverge, for the same reason the pre-existing connected-row tests already open a row via
+ * `user.click` before querying inside it.
  */
 
 const fakeT = (key: string): string => key;
@@ -109,12 +118,19 @@ describe("SourceControl — Providers tab: three flat provider rows, not sub-tab
     expect(screen.getByRole("heading", { name: /Connect Bitbucket/ })).toBeInTheDocument();
   });
 
-  it("shows Bitbucket's extra Username field but not GitHub's or GitLab's", () => {
+  it("shows Bitbucket's extra Username field but not GitHub's or GitLab's, once each row is open", async () => {
+    const user = userEvent.setup();
     renderPage();
     const headings = screen.getAllByRole("heading", { level: 3 });
-    const bitbucketRow = headings.find((h) => h.textContent?.includes("Bitbucket"))!.closest(".source-control-row")!;
+    const bitbucketHeading = headings.find((h) => h.textContent?.includes("Bitbucket"))!;
+    const bitbucketRow = bitbucketHeading.closest(".source-control-row")!;
+    // Bitbucket is not the first unconnected provider (GitHub is), so it starts collapsed — open it
+    // by clicking its own summary before looking for its fields, same dance the connected-row tests
+    // below already use for a collapsed row.
+    await user.click(bitbucketHeading);
     expect(within(bitbucketRow).getByLabelText("Username")).toBeInTheDocument();
 
+    // GitHub is the first unconnected provider, so it is open by default — no click needed.
     const githubRow = headings.find((h) => h.textContent?.includes("GitHub"))!.closest(".source-control-row")!;
     expect(within(githubRow).queryByLabelText("Username")).not.toBeInTheDocument();
   });
@@ -186,12 +202,92 @@ describe("SourceControl — connected row: the two defects this page must NOT in
     expect(summary.textContent).not.toMatch(/valid|verified|expired|live/i);
   });
 
-  it("a not-yet-connected row has no <details> at all — it is always open, never collapsible", () => {
+  it("a not-yet-connected row IS a <details>, open by default when it is the first unconnected provider", () => {
     renderPage();
     const githubHeading = screen.getByRole("heading", { name: /Connect GitHub/ });
-    expect(githubHeading.closest("details")).toBeNull();
+    const details = githubHeading.closest("details")!;
+    expect(details).not.toBeNull();
+    expect(details).toHaveAttribute("open");
     const githubRow = githubHeading.closest(".source-control-row")!;
     expect(within(githubRow).getByLabelText("Access token")).toBeInTheDocument();
+  });
+});
+
+describe("SourceControl — accordion: one exclusive group, not three open forms at once", () => {
+  it("opens only the first not-yet-connected provider (GitHub) by default, collapsing GitLab and Bitbucket", () => {
+    renderPage();
+    expect(screen.getByRole("heading", { name: /Connect GitHub/ }).closest("details")).toHaveAttribute("open");
+    expect(screen.getByRole("heading", { name: /Connect GitLab/ }).closest("details")).not.toHaveAttribute("open");
+    expect(screen.getByRole("heading", { name: /Connect Bitbucket/ }).closest("details")).not.toHaveAttribute("open");
+  });
+
+  it("shares one exclusive-accordion group name across all three rows, connected or not", () => {
+    renderPage({ rowOverrides: { github: { saved: savedCredential() } } });
+    const githubDetails = screen.getByText(/token stored, encrypted/).closest("details")!;
+    const gitlabDetails = screen.getByRole("heading", { name: /Connect GitLab/ }).closest("details")!;
+    const bitbucketDetails = screen.getByRole("heading", { name: /Connect Bitbucket/ }).closest("details")!;
+    for (const details of [githubDetails, gitlabDetails, bitbucketDetails]) {
+      expect(details).toHaveAttribute("name", "source-control-provider");
+    }
+  });
+
+  it("reveals a collapsed not-yet-connected row's fields once the reader opens it", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    const gitlabHeading = screen.getByRole("heading", { name: /Connect GitLab/ });
+    const details = gitlabHeading.closest("details")!;
+    expect(details).not.toHaveAttribute("open");
+    await user.click(gitlabHeading);
+    expect(details).toHaveAttribute("open");
+    expect(within(details).getByLabelText("Access token")).toBeInTheDocument();
+  });
+
+  it("defaults open to the next unconnected provider once the first one is connected", () => {
+    renderPage({ rowOverrides: { github: { saved: savedCredential() } } });
+    const githubDetails = screen.getByText(/token stored, encrypted/).closest("details")!;
+    expect(githubDetails).not.toHaveAttribute("open");
+    expect(screen.getByRole("heading", { name: /Connect GitLab/ }).closest("details")).toHaveAttribute("open");
+  });
+
+  it("opens no row by default once every provider is already connected", () => {
+    renderPage({
+      rowOverrides: {
+        github: { saved: savedCredential({ providerId: "github" }) },
+        gitlab: { saved: savedCredential({ providerId: "gitlab" }) },
+        bitbucket: { saved: savedCredential({ providerId: "bitbucket" }) },
+      },
+    });
+    for (const row of document.querySelectorAll(".source-control-row")) {
+      expect(row).not.toHaveAttribute("open");
+    }
+  });
+});
+
+describe("SourceControl — scope guidance: reachable behind its own disclosure, not shown by default", () => {
+  it("hides the scope-guidance sentence and its Create-a-token link until the reader opens the disclosure", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    // GitHub is open by default (first unconnected provider), so its own nested scope-guidance
+    // <details> is reachable but starts collapsed — asserted on the `open` attribute itself (a real
+    // DOM attribute) rather than on query visibility, since jsdom does not apply the native
+    // closed-<details>-hides-its-content rendering behavior the way a real browser does; the
+    // pre-existing connected-row tests above make the identical choice for the outer accordion.
+    // Scoped to GitHub's own row — jsdom does not hide the other two (closed) rows' identical
+    // "Which token do I need?" summaries from a plain `getByText`, so an unscoped query here would
+    // ambiguously match all three.
+    const githubDetails = screen.getByRole("heading", { name: /Connect GitHub/ }).closest("details")!;
+    const guidanceSummary = within(githubDetails).getByText("Which token do I need?");
+    const guidanceDetails = guidanceSummary.closest("details")!;
+    expect(guidanceDetails).not.toHaveAttribute("open");
+    await user.click(guidanceSummary);
+    expect(guidanceDetails).toHaveAttribute("open");
+    expect(within(guidanceDetails).getByText(/fine-grained personal access token/)).toBeInTheDocument();
+    expect(within(guidanceDetails).getByRole("link", { name: "Create a token" })).toBeInTheDocument();
+  });
+
+  it("no longer renders the old per-row subtitle repeated identically on all three rows", () => {
+    renderPage();
+    expect(screen.queryByText("Save a personal access token so Tovu can use this account.")).not.toBeInTheDocument();
   });
 });
 
