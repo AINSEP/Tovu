@@ -1920,6 +1920,7 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    squeezes each tab's padding/text instead of triggering the scroll this rule adds. */
 .tab-bar { display: flex; gap: 0.3rem; border-bottom: 1px solid var(--border); margin-bottom: 1.3rem; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .tab-bar-item {
+  display: inline-flex; align-items: center;
   background: none; border: none; border-bottom: 2px solid transparent; border-radius: 0;
   padding: 0.65rem 0.9rem; font-family: var(--font-ui); font-size: var(--text-sm); font-weight: 600;
   color: var(--muted); cursor: pointer; transition: color 0.14s, border-color 0.14s; flex-shrink: 0;
@@ -1928,6 +1929,14 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .tab-bar-item[aria-selected="true"] { color: var(--accent-text); border-bottom-color: var(--accent-text); }
 .tab-bar-count { margin-left: 0.4rem; font-size: var(--text-2xs); color: var(--faint); font-variant-numeric: tabular-nums; }
 .tab-bar-item[aria-selected="true"] .tab-bar-count { color: var(--accent-text); opacity: 0.75; }
+/* The "this one has something configured" signifier (`TabBarTab.dot`'s own doc) — a small filled
+   circle, not a colored ring or outline, so it reads clearly at 6px. `--ok` (the same green
+   `.status-ok` uses) rather than `--primary`: this is a fact about STATE ("connected"), not a
+   recommendation or a call to action, and reusing the connected/success tone from everywhere else
+   on this tab (`.status-ok`, the credential row's own "Connected" pill) is what lets a reader learn
+   the color once and reuse it, rather than this tab inventing a second meaning for a color already
+   spoken for. `flex-shrink: 0` keeps it a circle even inside a tab whose label wraps the row tight. */
+.tab-bar-dot { width: 0.4rem; height: 0.4rem; border-radius: 50%; background: var(--ok); margin-right: 0.4rem; flex-shrink: 0; }
 /* Marketplace (soon) placeholder tab (2026-08-10 owner feedback) — greyed out and inert, not a
    clickable empty state: `disabled` already stops the click and pulls it out of the tab order,
    this just makes that visible instead of leaving it looking like every other tab. `background:
@@ -3223,6 +3232,16 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .deployment-route .deployment-provider-list-item { padding: var(--space-3) 0; }
 .deployment-route .deployment-provider-list-item:first-child { padding-top: 0; }
 .deployment-route .deployment-provider-list-item > p { margin-top: var(--space-1); }
+/* Quiet modifier (2026-08-16) — the CLI recommendation and the "no CLI path" note both used the base
+   `.deployment-route` treatment above, the SAME strong `--primary`-accent box "Where this publish
+   goes" uses for the tab's actual Preview/Publish action. Three different-weight blocks reading as
+   one weight was a real cause of the owner's "it looks just awful" (`StaticSiteTab.tsx`'s own
+   "Seventh pass" doc), not just the four-credential-row wall — nothing on the card stood out as more
+   important than anything else. This keeps the same structure (icon+label row, tinted body,
+   rounded corners) so the three blocks still read as one family, but drops the accent border and the
+   tint down to a plain hairline-bordered surface, so only the block that ends in a live publish
+   action keeps the strong visual claim on the reader's attention. */
+.deployment-route-quiet { border-left-color: var(--border-strong); background: var(--surface); }
 /* The "we can't actually check this" line. It needs a rule above it: without one it sits at the
    same indent and nearly the same size as a tool row's own description, so it reads as a third
    sentence about the Vercel CLI rather than as a statement about the whole list. */
@@ -3266,6 +3285,18 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .deployment-credentials-advanced summary { cursor: pointer; padding: var(--space-3) var(--space-4); font-size: var(--text-sm); font-weight: 600; color: var(--fg-2); }
 .deployment-credentials-advanced > *:not(summary) { padding: 0 var(--space-4) var(--space-4); }
 .deployment-credentials-advanced .deployment-credentials-list { margin-top: var(--space-2); }
+/* The credential section collapsed to ONE row per tab (2026-08-16, `PublishCredentialsSection`'s own
+   doc) — it no longer needs its own bordered/tinted box nested inside a box that already has a
+   border: the Advanced `<details>` above, or the plain `.deployment-route` the hosted-only mode uses
+   instead (`PublishCredentialsSection`'s own branch below). A single row rendered as a card inside a
+   card inside a disclosure was exactly the "hard to read" nesting the owner called out, and now that
+   there is only ever one row, flattening it to sit flush in its parent removes a full layer of
+   boxes-inside-boxes for free — nothing here changes once the S3/Custom provider's own row lands, it
+   just stops competing with three siblings it no longer has. */
+.deployment-credentials-advanced .deployment-credential-row,
+.deployment-route .deployment-credential-row {
+  border: none; background: none; padding: 0;
+}
 
 /* ---- Host chips (Static Site) ---------------------------------------------------------------- */
 /* Four proper nouns. A bulleted `<ul>` gave each its own line and a disc marker for no reason —

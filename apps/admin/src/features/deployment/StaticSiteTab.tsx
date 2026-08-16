@@ -120,6 +120,48 @@ import type { PublishCredentialRowState, PublishCredentialsController } from "./
  * region) with uneven hint lengths of its own — exactly the shape `PublishCredentialRow`'s single-
  * column fix (fix 2 above) exists to tolerate, and exactly why that fix did not just special-case
  * Cloudflare Pages' two fields.
+ *
+ * ## Seventh pass (2026-08-16) — the sixth pass polished the boxes; the owner's actual complaint was
+ * that there were sixteen fields of them on screen at once
+ *
+ * The sixth pass ("Publish directly from here" -> "Where this publish goes", the two-field-row fix,
+ * surfacing `pollError`) shipped, the owner looked at the running app, and the verdict was "it looks
+ * just awful" — followed by the real diagnosis: `PublishCredentialsSection` rendered ALL FOUR
+ * providers' credential forms simultaneously, regardless of which tab was selected. A reader on the
+ * GitHub Pages tab saw GitHub Pages' fields, then Vercel's, then Netlify's, then Cloudflare Pages',
+ * all inside one `<details>` — a wall of "ACCESS TOKEN" boxes nobody but that one reader's own
+ * provider needed. Three changes, all in this file plus `TabBar.tsx`/`styles.css`:
+ *
+ * 1. **The credential section now renders exactly one row: the SELECTED provider's.** See
+ *    `PublishCredentialsSection`'s own doc for the filter and why the id-set guarantee between
+ *    `STATIC_PUBLISH_TARGETS` and `PUBLISH_CREDENTIAL_PROVIDERS` makes it safe. This is the fix the
+ *    owner explicitly approved — collapsing a 4-row wall down to whichever one the reader is already
+ *    looking at.
+ * 2. **The connected/not-connected fact the old all-rows layout gave away for free moved onto the tab
+ *    bar itself.** Collapsing to one row would otherwise have made it strictly WORSE than before —
+ *    "which providers have I already connected" was visible pre-collapse (scroll down, look at four
+ *    pills) and invisible post-collapse (click through every tab to find out) unless it went
+ *    somewhere else. `TabBar.tsx`'s new `TabBarTab.dot`/`dotLabel` puts a small filled dot on any tab
+ *    whose provider has a saved credential (`connectedProviderIds`, computed once from
+ *    `credentialsController.rows` below) — visible from EVERY tab at once, which the old layout never
+ *    actually managed either (you had to scroll to a row to see ITS OWN status, never all four at a
+ *    glance without scrolling). Generic and opt-in on `TabBar.tsx` itself, so `Themes.tsx`/`Pages.tsx`
+ *    (its other two callers) render unchanged — see that prop's own doc for the accessibility
+ *    reasoning (presence, not color alone, carries the meaning).
+ * 3. **Visual weight now matches actual importance.** Before this pass, `.deployment-route`'s tinted-
+ *    surface-plus-`--primary`-left-border treatment was applied identically to three different-weight
+ *    blocks: the CLI recommendation (a suggestion), the "no CLI path" note (a fact), and "Where this
+ *    publish goes" (the actual Preview/Publish action — this tab's real job). Nothing stood out as
+ *    more important than anything else. The CLI recommendation and the "no CLI path" note now use
+ *    `.deployment-route-quiet` (`styles.css`) — same structure, no strong accent — so the one block
+ *    that ends in a live "publish this to the public internet" action is the one block on this card
+ *    that still looks like it. The credential row's own box also lost its NESTED border/background
+ *    inside the Advanced `<details>`/hosted-mode `.deployment-route` it now sits alone in — a single
+ *    row no longer needs to look like a card inside a card inside a disclosure.
+ *
+ * None of this touches `use-static-publish.hooks.ts`/`use-static-export.hooks.ts`, or the `busy`
+ * guard `StaticPublishForm`'s own comment documents — both were verified correct earlier the same
+ * day and stayed off-limits this pass too.
  */
 
 /** A line of text the reader is meant to take somewhere else, with a Copy button.
@@ -187,47 +229,49 @@ function CopyLine({
   );
 }
 
-/** One export run's completed/errored detail — counts, failures, and where it landed. Only rendered
- *  once `run.status` is `"completed"` or `"errored"`; a `"running"`/`"idle"` run has nothing here yet
- *  to report. */
-function ExportRunResult({ run, t: translate }: { run: AdminExportRunSnapshot; t: Translate }) {
-  if (run.status === "errored") {
-    return (
-      <p className="save-error" role="alert">
-        {run.error}
-      </p>
-    );
-  }
-  if (run.status !== "completed" || !run.counts) return null;
+/** The counts half of a completed export run's detail — routes/assets succeeded-vs-failed, and
+ *  where the export landed. Split out of {@link ExportRunResult} purely for the complexity gate:
+ *  this repo's real `apps/admin` ESLint gate is a hard 9/9 cyclomatic/cognitive ceiling
+ *  (`eslint.config.mjs`'s own `F06 option B` block), and this block's three independent ternaries
+ *  (two failed-count checks, one optional `outputDir`) counted directly in `ExportRunResult` pushed
+ *  it to 11 — same reasoning `PublishPreviewAction`'s own doc gives for splitting the publish half of
+ *  this tab. No behavior moved, only where the branches are counted. */
+function ExportRunCounts({ run, t: translate }: { run: AdminExportRunSnapshot; t: Translate }) {
+  return (
+    <div className="deployment-facts">
+      <div className="deployment-fact">
+        <span className="deployment-fact-label">{translate("Routes")}</span>
+        <span className="deployment-fact-value">
+          {run.counts!.routesSucceeded} {translate("succeeded")}
+          {run.counts!.routesFailed > 0 ? `, ${run.counts!.routesFailed} ${translate("failed")}` : ""}
+        </span>
+      </div>
+      <div className="deployment-fact">
+        <span className="deployment-fact-label">{translate("Assets")}</span>
+        <span className="deployment-fact-value">
+          {run.counts!.assetsSucceeded} {translate("succeeded")}
+          {run.counts!.assetsFailed > 0 ? `, ${run.counts!.assetsFailed} ${translate("failed")}` : ""}
+        </span>
+      </div>
+      {run.outputDir ? (
+        <div className="deployment-fact">
+          <span className="deployment-fact-label">{translate("Written to")}</span>
+          <span className="deployment-fact-value">
+            <code translate="no">{run.outputDir}</code>
+          </span>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+/** The failure-detail half of a completed export run — WHICH routes/assets failed and why, not just
+ *  the aggregate counts {@link ExportRunCounts} shows. Split out for the same complexity-gate reason
+ *  that function's own doc gives: two independent `&&`/length-check branches, one per list, counted
+ *  directly in `ExportRunResult` is what pushed it over budget together with the counts block. */
+function ExportRunFailures({ run, t: translate }: { run: AdminExportRunSnapshot; t: Translate }) {
   return (
     <>
-      <div className="deployment-facts">
-        <div className="deployment-fact">
-          <span className="deployment-fact-label">{translate("Routes")}</span>
-          <span className="deployment-fact-value">
-            {run.counts.routesSucceeded} {translate("succeeded")}
-            {run.counts.routesFailed > 0 ? `, ${run.counts.routesFailed} ${translate("failed")}` : ""}
-          </span>
-        </div>
-        <div className="deployment-fact">
-          <span className="deployment-fact-label">{translate("Assets")}</span>
-          <span className="deployment-fact-value">
-            {run.counts.assetsSucceeded} {translate("succeeded")}
-            {run.counts.assetsFailed > 0 ? `, ${run.counts.assetsFailed} ${translate("failed")}` : ""}
-          </span>
-        </div>
-        {run.outputDir ? (
-          <div className="deployment-fact">
-            <span className="deployment-fact-label">{translate("Written to")}</span>
-            <span className="deployment-fact-value">
-              <code translate="no">{run.outputDir}</code>
-            </span>
-          </div>
-        ) : null}
-      </div>
-      {/* The counts above only say HOW MANY routes/assets failed — `failedRoutes`/`failedAssets`
-          are the one place this run's own report names WHICH ones and why, so an operator staring
-          at "3 failed" has somewhere to look instead of re-running the whole export to find out. */}
       {run.failedRoutes && run.failedRoutes.length > 0 ? (
         <div className="deployment-failure-list">
           <span className="deployment-fact-label">{translate("Failed routes")}</span>
@@ -252,6 +296,27 @@ function ExportRunResult({ run, t: translate }: { run: AdminExportRunSnapshot; t
           </ul>
         </div>
       ) : null}
+    </>
+  );
+}
+
+/** One export run's completed/errored detail — counts, failures, and where it landed. Only rendered
+ *  once `run.status` is `"completed"` or `"errored"`; a `"running"`/`"idle"` run has nothing here yet
+ *  to report. Delegates to {@link ExportRunCounts}/{@link ExportRunFailures} for the complexity-gate
+ *  reason each of those documents — this function itself now only decides WHICH detail to show. */
+function ExportRunResult({ run, t: translate }: { run: AdminExportRunSnapshot; t: Translate }) {
+  if (run.status === "errored") {
+    return (
+      <p className="save-error" role="alert">
+        {run.error}
+      </p>
+    );
+  }
+  if (run.status !== "completed" || !run.counts) return null;
+  return (
+    <>
+      <ExportRunCounts run={run} t={translate} />
+      <ExportRunFailures run={run} t={translate} />
     </>
   );
 }
@@ -550,6 +615,14 @@ function GettingItOnlineCard({
     if (next) publishController.setTarget(next.id);
   }
 
+  // One `Set` lookup per render, not a `.find()` inside the `.map()` below — `rows` is at most four
+  // (soon five) entries, so the difference is not about speed, it is about keeping the connected
+  // check a single small expression the `tabs` map stays readable with. `undefined` (rows not
+  // loaded yet) reads as "nothing connected yet" rather than a loading state of its own — a tab dot
+  // popping in a beat after the tab bar itself is the same acceptable one-render lag `overviewLoaded`
+  // already tolerates on `ProviderCliRow`'s own "Checking…" pill just below.
+  const connectedProviderIds = new Set((credentialsController.rows ?? []).filter((row) => row.saved !== undefined).map((row) => row.providerId));
+
   return (
     <div
       className="card"
@@ -582,13 +655,18 @@ function GettingItOnlineCard({
 
         <TabBar
           ariaLabel={translate("Publish target")}
-          tabs={STATIC_PUBLISH_TARGETS.map((target) => ({ id: target.id, label: target.label }))}
+          tabs={STATIC_PUBLISH_TARGETS.map((target) => ({
+            id: target.id,
+            label: target.label,
+            dot: connectedProviderIds.has(target.id),
+            dotLabel: translate("Connected"),
+          }))}
           activeId={selectedTarget.id}
           onChange={handleTargetChange}
         />
 
         {selectedTool ? (
-          <div className="deployment-route">
+          <div className="deployment-route deployment-route-quiet">
             <div className="deployment-route-label">
               <AssistantIcon size={16} />
               <span className="deployment-fact-label">{translate("Recommended — ask the assistant")}</span>
@@ -604,7 +682,7 @@ function GettingItOnlineCard({
           </div>
         ) : (
           <div
-            className="deployment-route"
+            className="deployment-route deployment-route-quiet"
             {...agentHandle("deployment-static-site-no-cli-note", {
               role: "status",
               label: "States that this provider has no CLI-first path and must be published with a saved credential",
@@ -616,7 +694,7 @@ function GettingItOnlineCard({
           </div>
         )}
 
-        <PublishCredentialsSection controller={credentialsController} t={translate} />
+        <PublishCredentialsSection controller={credentialsController} selectedProviderId={selectedTarget.id} t={translate} />
 
         <StaticPublishForm target={selectedTarget.id} controller={publishController} t={translate} />
       </div>
@@ -625,18 +703,22 @@ function GettingItOnlineCard({
 }
 
 /**
- * The credential section — one always-visible row per provider (2026-08-15 redesign, replacing an
- * add/edit/delete list of user-named connections). Sits inside `GettingItOnlineCard`, between the
- * CLI-first recommendation and the token-based publish form, because it answers exactly the question
- * a reader has right after seeing the CLI route: "what if I can't install a CLI here at all."
+ * The credential section — ONE row, for whichever provider is currently selected on the tab bar
+ * above (2026-08-16 redesign; before this pass it was one always-visible row per provider — see the
+ * next paragraph). Sits inside `GettingItOnlineCard`, between the CLI-first recommendation and the
+ * token-based publish form, because it answers exactly the question a reader has right after seeing
+ * the CLI route: "what if I can't install a CLI here at all."
  *
- * The owner's own read on the OLD shape: "'Add credential' should be gone. Just list the providers,
- * labels, and access token space, and that's it" — asking an operator to create and name an object
- * before they can type a token was the wrong model for something that only ever has ONE thing to
- * configure per provider. {@link PUBLISH_CREDENTIAL_PROVIDERS} already names the fixed four; the
- * provider name IS each row's identity now, so there is no picker, no label field, and no
- * add-vs-edit mode left — see `use-publish-credentials.hooks.ts`'s own header for the full story and
- * `PublishCredentialRow` below for the row itself.
+ * The owner's own read on this section, twice: first "'Add credential' should be gone. Just list the
+ * providers, labels, and access token space, and that's it" (2026-08-15, which produced the
+ * one-row-per-provider shape `PublishCredentialRow` below still is), then "it looks just awful"
+ * against that very shape once all four rows sat on screen together regardless of which tab was
+ * selected — a reader on the GitHub Pages tab still had to scroll past Vercel's, Netlify's, and
+ * Cloudflare Pages' own credential forms to find the one that mattered. Filtering `controller.rows`
+ * to {@link selectedProviderId} is the fix: exactly the row for the tab a reader is already looking
+ * at, never the other three. `PUBLISH_CREDENTIAL_PROVIDERS`/`STATIC_PUBLISH_TARGETS` share the same
+ * id set in the same order (`rules.ts`'s own doc on both), so `selectedProviderId` — always one of
+ * `STATIC_PUBLISH_TARGETS`'s own ids — is guaranteed to match exactly one row.
  *
  * Disclosure is driven ENTIRELY by `controller.executionMode` — the server's own fact, never
  * sniffed client-side (see `AdminPublishExecutionMode`'s doc in `lib/api.ts`):
@@ -646,7 +728,7 @@ function GettingItOnlineCard({
  *   `Redirects.tsx`'s own bulk-import panel and `AiAssistant.tsx`'s roadmap accordion already use in
  *   this admin, rather than a second JS-driven one) — but OPEN by default (owner's own call,
  *   2026-08-15: Netlify and Cloudflare Pages have no CLI-first row at all, so a reader who picks
- *   either target and finds the credential rows collapsed behind an unopened `<summary>` has nowhere
+ *   either target and finds the credential row collapsed behind an unopened `<summary>` has nowhere
  *   else on this card to go). `<details open>` still degrades gracefully for a reader who wants it
  *   closed — the summary stays a real, clickable native disclosure toggle either way.
  * - `"hosted-api-only"`: this workspace cannot reach the operator's own terminal at all, so a
@@ -657,7 +739,15 @@ function GettingItOnlineCard({
  * the self-hosted framing for one render before the real `executionMode` arrives would be a worse
  * false impression than a short, honest wait.
  */
-function PublishCredentialsSection({ controller, t: translate }: { controller: PublishCredentialsController; t: Translate }) {
+function PublishCredentialsSection({
+  controller,
+  selectedProviderId,
+  t: translate,
+}: {
+  controller: PublishCredentialsController;
+  selectedProviderId: AdminStaticPublishTargetId;
+  t: Translate;
+}) {
   if (controller.loadError) {
     return (
       <p
@@ -677,15 +767,21 @@ function PublishCredentialsSection({ controller, t: translate }: { controller: P
     return <p className="deployment-action-reason">{translate("Loading credentials…")}</p>;
   }
 
+  // Exactly the selected provider's row — see this function's own doc for why this replaced
+  // rendering `controller.rows` unfiltered. `.filter()` rather than `.find()` keeps `body` a `<ul>`
+  // of zero-or-one `<li>` (never a bare row with no list semantics), and the id-set guarantee above
+  // means it is always exactly one in practice.
+  const selectedRows = controller.rows.filter((row) => row.providerId === selectedProviderId);
+
   const body = (
     <ul
       className="deployment-credentials-list"
       {...agentHandle("deployment-static-site-credentials-section", {
         role: "region",
-        label: "Saved publish credentials — one always-visible row per provider, each with its own access token and Save action",
+        label: "The selected provider's saved publish credential — its own access token and Save action",
       })}
     >
-      {controller.rows.map((row) => (
+      {selectedRows.map((row) => (
         <PublishCredentialRow key={row.providerId} row={row} controller={controller} t={translate} />
       ))}
     </ul>
