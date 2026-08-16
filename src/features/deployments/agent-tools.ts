@@ -69,18 +69,30 @@ const TRIGGER_EXPORT_SCHEMA = {
   },
 } as const;
 
-/** `deployment_set_dockerfile`'s input — the ONLY field this tool accepts. There is no path field:
- *  the write always targets the repo-root Dockerfile and nothing else (`dockerfile.ts`'s own
- *  path-safety argument). */
+/** `deployment_set_dockerfile`'s input. There is no path field: the write always targets the
+ *  repo-root Dockerfile and nothing else (`dockerfile.ts`'s own path-safety argument).
+ *
+ *  `ifMatch` is REQUIRED, not optional (2026-08-15, Terra audit finding C5, owner-decided strict —
+ *  see `writeDockerfileSourceWithIfMatch`'s own doc in `dockerfile.ts` for the full decision
+ *  record). A human editing the same file in the admin UI's Dockerfile tab is a real, concurrent
+ *  second writer this tool cannot see coming; requiring `ifMatch` in the schema itself — not just
+ *  checking it at runtime — is what forces a model calling this tool to have called
+ *  `deployment_get_dockerfile` first and to be reasoning from CURRENT contents, rather than
+ *  silently overwriting whatever a human just saved. */
 const SET_DOCKERFILE_SCHEMA = {
   type: "object",
   additionalProperties: false,
-  required: ["contents"],
+  required: ["contents", "ifMatch"],
   properties: {
     contents: {
       type: "string",
       description:
         "The full replacement contents of the repo-root Dockerfile. This REPLACES the entire file — call deployment_get_dockerfile first if you need to preserve or build on its current contents. Not validated as Dockerfile syntax; an invalid Dockerfile is written as-is.",
+    },
+    ifMatch: {
+      type: "string",
+      description:
+        "The 'etag' from the most recent deployment_get_dockerfile call (or from this tool's own previous response). Required — proves this write is based on the file's CURRENT contents, not a stale copy a human may have since changed in the admin UI. If the Dockerfile changed since that etag was read, this call is refused with a conflict describing what changed; call deployment_get_dockerfile again, reconcile your intended edit against the NEW current contents, and retry with the fresh etag it returns.",
     },
   },
 } as const;
@@ -119,7 +131,7 @@ export const deploymentsAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "deployment_get_dockerfile",
     description:
-      "Returns the repo-root Dockerfile's current contents (exists:true/contents:'...'), or exists:false if none has been created yet. This is the build file a human runs `docker build`/`docker push` against in a terminal — reading it does not build, validate, or deploy anything.",
+      "Returns the repo-root Dockerfile's current contents (exists:true/contents:'...'), or exists:false if none has been created yet, plus an 'etag' identifying exactly this version of the contents. This is the build file a human runs `docker build`/`docker push` against in a terminal — reading it does not build, validate, or deploy anything. ALWAYS call this immediately before deployment_set_dockerfile to get a fresh etag: a human can edit and save this same file in the admin UI's Dockerfile tab at any time, so an etag from long ago may already be stale.",
     sideEffects: "none",
     authorization: { permission: "system.read" },
     inputSchema: NO_INPUT_SCHEMA,
@@ -127,7 +139,7 @@ export const deploymentsAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "deployment_set_dockerfile",
     description:
-      "Overwrites the repo-root Dockerfile with the given contents, creating it if it does not exist. This ONLY writes bytes to disk — it does NOT build, validate as Dockerfile syntax, or trigger any build/deploy; nothing about the running container changes as a result of this call, and a human still has to run `docker build` themselves afterward. The previous contents are not backed up by this tool; call deployment_get_dockerfile first if you need them.",
+      "Overwrites the repo-root Dockerfile with the given contents, creating it if it does not exist. Requires 'ifMatch' — the 'etag' from a just-prior deployment_get_dockerfile call — to prove the write is based on the file's CURRENT contents, since a human can edit and save the same file in the admin UI at any time; a stale or missing etag is refused with a conflict/error rather than silently overwriting whatever they saved (see the 'ifMatch' field's own description for the recovery steps). This ONLY writes bytes to disk — it does NOT build, validate as Dockerfile syntax, or trigger any build/deploy; nothing about the running container changes as a result of this call, and a human still has to run `docker build` themselves afterward. The previous contents are not backed up by this tool; call deployment_get_dockerfile first if you need them.",
     sideEffects: "mutates-durable-state",
     authorization: { permission: "system.write" },
     inputSchema: SET_DOCKERFILE_SCHEMA,

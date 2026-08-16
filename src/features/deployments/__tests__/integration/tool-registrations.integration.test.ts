@@ -34,6 +34,15 @@ import { buildDeploymentsRegistrations, type DeploymentsToolDeps } from "../../t
  * every test in THIS file — the "idle" test is declared before the "trigger" test so its precondition
  * (no run has started yet in this process) holds, the same ordering discipline
  * `export-site-route.test.ts` already documents for its own file.
+ *
+ * ## 2026-08-15 — `ifMatch` (Terra audit finding C5)
+ *
+ * `deployment_set_dockerfile` now requires `ifMatch` in its input, so every test below that expects
+ * a successful write reads a real etag from `deployment_get_dockerfile` (or an earlier successful
+ * `deployment_set_dockerfile` response) first — never a hand-typed placeholder standing in for one.
+ * The refused-authorization test still omits `contents`'s partner-in-shape but now also supplies
+ * SOME `ifMatch` string, so the assertion stays pinned to the authorization failure it names, not to
+ * the newer shape check (see that test's own comment for why this matters).
  */
 
 const exportOutputDir = mkdtempSync(path.join(tmpdir(), "tovu-deployments-tools-test-"));
@@ -105,11 +114,30 @@ test("deployment_set_dockerfile refuses when the caller lacks system.write, and 
   const registrations = buildDeploymentsRegistrations(deps);
   const tool = registrations.find((r) => r.descriptor.id === "deployment_set_dockerfile")!;
 
-  await assert.rejects(tool.handler(ctx({ contents: "FROM node:20\n" }) as never), /not authorized for 'system\.write'/);
+  // `ifMatch` is present (any string — the authorization check runs before this handler ever
+  // compares it against disk) purely so this rejection is unambiguously attributable to the
+  // authorization denial under test, not to the newer "ifMatch is required" shape check.
+  await assert.rejects(
+    tool.handler(ctx({ contents: "FROM node:20\n", ifMatch: "\"whatever\"" }) as never),
+    /not authorized for 'system\.write'/
+  );
   assert.deepEqual(readDockerfileSource(), before, "a refused call must never touch the file");
 });
 
-test("deployment_get_dockerfile / deployment_set_dockerfile round-trip the repo-root Dockerfile", async (t) => {
+test("deployment_set_dockerfile refuses when 'ifMatch' is missing from input, even for an otherwise-authorized caller, and never touches the file", async (t) => {
+  const before = readDockerfileSource();
+  t.after(() => {
+    if (before.exists) writeDockerfileSource(before.contents!);
+  });
+
+  const registrations = buildDeploymentsRegistrations(grantingDeps());
+  const tool = registrations.find((r) => r.descriptor.id === "deployment_set_dockerfile")!;
+
+  await assert.rejects(tool.handler(ctx({ contents: "FROM node:20\n" }) as never), /'ifMatch'/);
+  assert.deepEqual(readDockerfileSource(), before, "a shape-rejected call must never touch the file");
+});
+
+test("deployment_get_dockerfile / deployment_set_dockerfile round-trip the repo-root Dockerfile with a real etag", async (t) => {
   const before = readDockerfileSource();
   t.after(() => {
     if (before.exists) writeDockerfileSource(before.contents!);
@@ -118,12 +146,62 @@ test("deployment_get_dockerfile / deployment_set_dockerfile round-trip the repo-
   const registrations = buildDeploymentsRegistrations(grantingDeps());
   const byId = new Map(registrations.map((r) => [r.descriptor.id, r]));
 
+  const initialRead = (await byId.get("deployment_get_dockerfile")!.handler(ctx(undefined) as never)) as { etag: string };
+  assert.match(initialRead.etag, /^("[0-9a-f]{64}"|W\/"missing")$/, "deployment_get_dockerfile must report a real content-hash etag");
+
   const newContents = `# tool-written ${Date.now()}\nFROM node:20-slim\n`;
-  const writeResult = await byId.get("deployment_set_dockerfile")!.handler(ctx({ contents: newContents }) as never);
-  assert.deepEqual(writeResult, { exists: true, contents: newContents });
+  const writeResult = (await byId
+    .get("deployment_set_dockerfile")!
+    .handler(ctx({ contents: newContents, ifMatch: initialRead.etag }) as never)) as { exists: boolean; contents: string; etag: string };
+  assert.equal(writeResult.exists, true);
+  assert.equal(writeResult.contents, newContents);
+  assert.notEqual(writeResult.etag, initialRead.etag, "a real content change must advance the etag");
 
   const readResult = await byId.get("deployment_get_dockerfile")!.handler(ctx(undefined) as never);
-  assert.deepEqual(readResult, { exists: true, contents: newContents }, "a read right after a write must observe it, not stale bytes");
+  assert.deepEqual(
+    readResult,
+    { exists: true, contents: newContents, etag: writeResult.etag },
+    "a read right after a write must observe it, not stale bytes, and must report the SAME etag the write itself just returned"
+  );
+});
+
+test("deployment_set_dockerfile refuses a stale ifMatch with a message the assistant can act on, and never touches the file — the actual lost-update reproduction", async (t) => {
+  const before = readDockerfileSource();
+  t.after(() => {
+    if (before.exists) writeDockerfileSource(before.contents!);
+  });
+
+  const registrations = buildDeploymentsRegistrations(grantingDeps());
+  const byId = new Map(registrations.map((r) => [r.descriptor.id, r]));
+
+  // The assistant reads first, via its own tool, and gets a real etag.
+  const initialRead = (await byId.get("deployment_get_dockerfile")!.handler(ctx(undefined) as never)) as { etag: string };
+
+  // A SECOND, independent writer — e.g. the human admin UI's own save, or another agent run — saves
+  // a real change to the same real file in between. Reproduced with a real second `writeFileSync`
+  // (via the domain function the HTTP route itself calls), not a hand-crafted mismatched string.
+  const concurrentContents = `# concurrent human edit ${Date.now()}\nFROM node:22\n`;
+  writeDockerfileSource(concurrentContents);
+
+  // The assistant now tries to save its own edit, still carrying the etag from before the
+  // concurrent write.
+  const staleAttemptContents = `# assistant's stale attempt (should be rejected) ${Date.now()}\nFROM node:18\n`;
+  await assert.rejects(
+    byId.get("deployment_set_dockerfile")!.handler(ctx({ contents: staleAttemptContents, ifMatch: initialRead.etag }) as never),
+    (err: unknown) => {
+      assert.ok(err instanceof Error);
+      // The message is the model's ENTIRE channel for what to do next (see the handler's own
+      // comment) — pin that it actually names the recovery path, not just that a rejection occurred.
+      assert.match(err.message, /deployment_get_dockerfile/, "must point the assistant back at re-reading");
+      assert.match(err.message, new RegExp(concurrentContents.split("\n")[0].replace(/[.*+?^${}()|[\]\\]/g, "\\$&")), "must surface the CURRENT contents so the assistant can reconcile in the same turn");
+      return true;
+    }
+  );
+
+  // The core property under test: the assistant's stale write must never have landed.
+  const after = readDockerfileSource();
+  assert.equal(after.contents, concurrentContents, "a rejected stale write must not overwrite the concurrent writer's real save — this is the lost-update bug itself");
+  assert.notEqual(after.contents, staleAttemptContents);
 });
 
 test("deployment_get_export_status reports idle before any trigger in this process", async () => {
