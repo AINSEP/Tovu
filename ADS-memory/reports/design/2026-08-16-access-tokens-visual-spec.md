@@ -930,3 +930,48 @@ Not on this list: the Jini `mcp-ui/surfaces/document.ts` work from §15. That is
 have no write mandate over even in Phase 2 (this dispatch's write access, per team-lead's message, is
 `apps/admin/src/styles.css` plus Tovu-side JSX/class changes) — §15 stays a spec for whoever does own
 that repo, not a Phase 2 item of mine.
+
+---
+
+## COORDINATOR RULING — §0 Create-scope: ANSWERED, ADOPTED (2026-08-16)
+
+The Phase 1 note-to-self records §0 as the one decision most worth a second look and states the
+author did not know whether it was ever weighed in on. It was. Recording it here so the restart does
+not re-open it.
+
+**§0's reading is adopted in full.** Static Site and Source Control only ever create ONE default row
+per provider, and no UI anywhere today can create a second. The owner's "30-day test token vs
+production token" is therefore a request for a multi-row capability that has never been built and has
+no other home. The Access Tokens tab owning Create does not reopen the two-entry-point problem,
+because there is no second entry point to conflict with — the existing screens keep editing the same
+`isDefault` row this page's Replace also edits, and **nothing on them has to be un-built or changed.**
+
+This supersedes the 2026-08-16 session-6 handoff's "Create must stay on the feature flows" line
+(`ADS-memory/reports/continuity/2026-08-16-session-6-handoff.md:96`). That decision was made against
+the assumption of a single row per provider; §0 shows the assumption no longer holds once multi-row
+tokens exist. The owner confirmed Create directly: "Create has to be here. It absolutely has to be
+because you have to create the access token and paste it and then save it, or you can replace it, or
+you can just remove it so other people who are logging in don't have it."
+
+**The Tier 1 / Tier 2 split is also adopted**, and was relayed to `security-tokens` as its scope
+answer before it began building:
+
+- **Tier 1** — full Create / Replace / Remove / default-selection here. Seven providers:
+  `github-pages`, `vercel`, `netlify`, `cloudflare-pages`, `github`, `gitlab`, `bitbucket`.
+- **Tier 2** — read + Replace + Remove + deep-link only. BYOK x2, media provider, Composio x2,
+  external MCP. Single-row settings, not token collections; session-6's reasoning holds for these.
+
+**Also settled:** v1 migrates existing DB rows onto this page with auto-generated names. Nobody
+re-pastes a token they already saved, and migration must not break the feature pages that read those
+rows today.
+
+### Still genuinely open on restart
+
+§14's tab-bar sign-off, exactly as the note-to-self says — it is a conclusion from READING the CSS at
+`apps/admin/src/styles.css:1927`, never from seeing it rendered. Since Phase 1 ended, `security-tokens`
+shipped the fix and measured the real defect: with the chat dock open the tab row needs 450px and has
+388px at an 800px viewport, so this reproduced at ordinary desktop widths, not only at the 390px
+canary. `flex-wrap: wrap` is live and its e2e coverage is in
+`development/e2e/deployment-tabbar-scroll.spec.ts` (4 tests, confirmed RED before the fix). Judging
+how a wrapped two-row bar actually LOOKS across Media, Pages, ThemeExplore, Source Control and
+Deployment remains Phase 2 item 2 and is still unverified visually.
