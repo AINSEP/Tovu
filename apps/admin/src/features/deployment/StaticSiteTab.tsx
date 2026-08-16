@@ -47,7 +47,7 @@ import type { PublishCredentialsController } from "./hooks/use-publish-credentia
 
 /**
  * @file Static Site tab — what a static export produces, a real trigger+poll build action, and a
- * real per-provider publish flow to GitHub Pages/Vercel.
+ * real per-provider publish flow to GitHub Pages, Vercel, Netlify, or Cloudflare Pages.
  *
  * ## Third pass (2026-08-15) — the two "not wired up yet" halves both got wired
  *
@@ -76,6 +76,17 @@ import type { PublishCredentialsController } from "./hooks/use-publish-credentia
  * owner's own instruction: "split the installed GitHub CLI and Vercel CLI into different commands,
  * because maybe they only wanna use one, and it may be confusing." Someone with only `gh` on PATH who
  * only wants GitHub Pages now sees a complete GitHub-only path with no Vercel row anywhere near it.
+ *
+ * ## Fourth pass (2026-08-15) — the picker catches up to all four providers the credential form
+ * already saved for
+ *
+ * The third pass wired a real picker, but `STATIC_PUBLISH_TARGETS` still only listed github-pages
+ * and vercel even though `PUBLISH_CREDENTIAL_PROVIDERS` (below, in `rules.ts`) already covered all
+ * four — a saved Netlify or Cloudflare Pages credential had no tab that could ever use it. Closed by
+ * widening `STATIC_PUBLISH_TARGETS`/`AdminStaticPublishTargetId` to the full four-provider set the
+ * server (`static-publish/adapter.ts`) already published to. Netlify and Cloudflare Pages have no
+ * CLI this codebase drives, so their tab shows no CLI-first row at all (`StaticPublishTargetFields`'s
+ * own doc) — the token-based credential form below is their only publish path today.
  */
 
 /** A line of text the reader is meant to take somewhere else, with a Copy button.
@@ -443,10 +454,12 @@ export function StaticSiteTab(props: StaticSiteTabProps) {
   );
 }
 
-/** The "Getting it online" card — a provider picker (GitHub Pages/Vercel), that provider's own
- *  CLI-first recommendation, and that provider's own preview+publish mini-form. Composed as its own
- *  function (not inline in `StaticSiteTab`) for the same complexity-gate reason `Deployment.tsx`'s
- *  `deploymentTabPanel` documents — this card alone owns a provider `if`/`else` plus two field sets.
+/** The "Getting it online" card — a provider picker (GitHub Pages, Vercel, Netlify, Cloudflare
+ *  Pages), that provider's own CLI-first recommendation (github-pages/vercel only — see
+ *  `StaticPublishTargetInfo.cliToolId`'s doc), and that provider's own preview+publish mini-form.
+ *  Composed as its own function (not inline in `StaticSiteTab`) for the same complexity-gate reason
+ *  `Deployment.tsx`'s `deploymentTabPanel` documents — this card alone owns the CLI-tool-or-not
+ *  branch plus the four-target field sets `StaticPublishTargetFields` renders.
  *
  *  `t` is `publishController.t` (the injected hook's own bound translator), not a second one built
  *  from `useAdminLocale()` — same "the DI seam has to actually be exercised" reasoning

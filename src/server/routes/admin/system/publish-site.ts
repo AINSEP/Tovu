@@ -33,8 +33,11 @@ import type { RouteDeps } from "#src/server/routes/types";
  * file paths); publish's status is itself operationally sensitive information about a live external
  * resource, so it gets the stricter, single-permission gate.
  *
- * Request body for the trigger: `{ target: "github-pages"|"vercel", projectName: string, owner?,
- * repo?, branch?, teamId? }`. Every field is validated by `publishStaticSite` itself
+ * Request body for the trigger: `{ target: "github-pages"|"vercel"|"netlify"|"cloudflare-pages",
+ * projectName: string, owner?, repo?, branch?, teamId? }` — `owner`/`repo`/`branch` apply only to
+ * `github-pages`, `teamId` only to `vercel`; `netlify`/`cloudflare-pages` use none of the four (see
+ * `parsePublishRequestBody`'s own per-target branches below). Every field is validated by
+ * `publishStaticSite` itself
  * (`static-publish/adapter.ts`'s `validateStaticPublishConfig`) — this route's own parsing only
  * narrows JSON shape (right types, right target-specific fields present), never re-implements that
  * validation, so there is exactly one place a config is judged valid or not.
