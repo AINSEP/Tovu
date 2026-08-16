@@ -31,19 +31,19 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
       "Se guarda cifrado en el servidor. Una vez guardado, Tovu nunca vuelve a mostrarlo.",
     "Create a token": "Crear un token",
     Username: "Nombre de usuario",
-    "The Bitbucket username this app password belongs to.": "El nombre de usuario de Bitbucket al que pertenece esta contraseña de aplicación.",
+    "The Bitbucket username this API token belongs to.": "El nombre de usuario de Bitbucket al que pertenece este token de API.",
     Save: "Guardar",
     "Saving…": "Guardando…",
     connected: "conectado",
     "token stored, encrypted": "token guardado, cifrado",
     saved: "guardado",
     "Replace token": "Reemplazar token",
-    'Needs a classic personal access token with the "repo" scope, or a fine-grained token with Contents permission set to Read and write.':
-      'Necesita un token de acceso personal clásico con el alcance "repo", o un token detallado con el permiso Contents en Lectura y escritura.',
-    'Needs a personal access token with the "read_repository" and "write_repository" scopes.':
-      'Necesita un token de acceso personal con los alcances "read_repository" y "write_repository".',
-    "Needs an app password with Repositories: Read and Write permissions, plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the app password alone.":
-      "Necesita una contraseña de aplicación con permisos de Repositories: Read y Write, más el nombre de usuario de Bitbucket al que pertenece — Bitbucket autentica el par, no la contraseña de aplicación por sí sola.",
+    'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
+      'Necesita un token de acceso personal detallado, limitado únicamente a este repositorio, con el permiso Contents en Lectura y escritura. Un token clásico con el alcance "repo" también funciona, pero da acceso a todos los repositorios que esta cuenta pueda alcanzar — usa el token detallado siempre que puedas.',
+    'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
+      'Necesita un token de acceso de proyecto — limitado únicamente a este proyecto, no a toda tu cuenta — con los alcances "read_repository" y "write_repository". Créalo desde la página Settings → Access tokens del propio proyecto (no existe una única página para toda la cuenta).',
+    'Needs a Bitbucket API token scoped to repository access only (the "read:repository:bitbucket" and "write:repository:bitbucket" scopes), plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the token alone.':
+      'Necesita un token de API de Bitbucket limitado solo al acceso al repositorio (los alcances "read:repository:bitbucket" y "write:repository:bitbucket"), más el nombre de usuario de Bitbucket al que pertenece — Bitbucket autentica el par, no el token por sí solo.',
   },
   id: {
     "Source Control": "Kontrol Kode Sumber",
@@ -58,19 +58,19 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
       "Disimpan terenkripsi di server. Setelah disimpan, Tovu tidak akan pernah menampilkannya lagi.",
     "Create a token": "Buat token",
     Username: "Nama pengguna",
-    "The Bitbucket username this app password belongs to.": "Nama pengguna Bitbucket tempat kata sandi aplikasi ini berasal.",
+    "The Bitbucket username this API token belongs to.": "Nama pengguna Bitbucket tempat token API ini berasal.",
     Save: "Simpan",
     "Saving…": "Menyimpan…",
     connected: "terhubung",
     "token stored, encrypted": "token tersimpan, terenkripsi",
     saved: "disimpan",
     "Replace token": "Ganti token",
-    'Needs a classic personal access token with the "repo" scope, or a fine-grained token with Contents permission set to Read and write.':
-      'Memerlukan token akses pribadi klasik dengan cakupan "repo", atau token terperinci dengan izin Contents diatur ke Read and write.',
-    'Needs a personal access token with the "read_repository" and "write_repository" scopes.':
-      'Memerlukan token akses pribadi dengan cakupan "read_repository" dan "write_repository".',
-    "Needs an app password with Repositories: Read and Write permissions, plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the app password alone.":
-      "Memerlukan kata sandi aplikasi dengan izin Repositories: Read and Write, ditambah nama pengguna Bitbucket tempat asalnya — Bitbucket mengautentikasi pasangan ini, bukan hanya kata sandi aplikasinya.",
+    'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
+      'Memerlukan token akses pribadi terperinci yang dibatasi hanya untuk repositori ini, dengan izin Contents diatur ke Read and write. Token klasik dengan cakupan "repo" juga berfungsi, tetapi menjangkau semua repositori yang dapat diakses akun ini — gunakan token terperinci jika memungkinkan.',
+    'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
+      'Memerlukan token akses proyek — dibatasi hanya untuk proyek ini, bukan seluruh akun Anda — dengan cakupan "read_repository" dan "write_repository". Buat dari halaman Settings → Access tokens milik proyek itu sendiri (tidak ada satu halaman tunggal untuk seluruh akun).',
+    'Needs a Bitbucket API token scoped to repository access only (the "read:repository:bitbucket" and "write:repository:bitbucket" scopes), plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the token alone.':
+      'Memerlukan token API Bitbucket yang dibatasi hanya untuk akses repositori (cakupan "read:repository:bitbucket" dan "write:repository:bitbucket"), ditambah nama pengguna Bitbucket tempat token ini berasal — Bitbucket mengautentikasi pasangan ini, bukan hanya tokennya.',
   },
   de: {
     "Source Control": "Quellcodeverwaltung",
@@ -85,19 +85,19 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
       "Wird verschlüsselt auf dem Server gespeichert. Nach dem Speichern zeigt Tovu es nie wieder an.",
     "Create a token": "Token erstellen",
     Username: "Benutzername",
-    "The Bitbucket username this app password belongs to.": "Der Bitbucket-Benutzername, zu dem dieses App-Passwort gehört.",
+    "The Bitbucket username this API token belongs to.": "Der Bitbucket-Benutzername, zu dem dieses API-Token gehört.",
     Save: "Speichern",
     "Saving…": "Wird gespeichert…",
     connected: "verbunden",
     "token stored, encrypted": "Token gespeichert, verschlüsselt",
     saved: "gespeichert",
     "Replace token": "Token ersetzen",
-    'Needs a classic personal access token with the "repo" scope, or a fine-grained token with Contents permission set to Read and write.':
-      'Benötigt ein klassisches persönliches Zugriffstoken mit dem Bereich "repo", oder ein feingranulares Token mit der Berechtigung Contents auf Lesen und Schreiben.',
-    'Needs a personal access token with the "read_repository" and "write_repository" scopes.':
-      'Benötigt ein persönliches Zugriffstoken mit den Bereichen "read_repository" und "write_repository".',
-    "Needs an app password with Repositories: Read and Write permissions, plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the app password alone.":
-      "Benötigt ein App-Passwort mit den Berechtigungen Repositories: Read und Write, plus den Bitbucket-Benutzernamen, zu dem es gehört — Bitbucket authentifiziert das Paar, nicht nur das App-Passwort.",
+    'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
+      'Benötigt ein feingranulares persönliches Zugriffstoken, das auf nur dieses Repository beschränkt ist, mit der Berechtigung Contents auf Lesen und Schreiben. Ein klassisches Token mit dem Bereich "repo" funktioniert auch, erreicht aber jedes Repository, auf das dieses Konto zugreifen kann — bevorzuge nach Möglichkeit das feingranulare Token.',
+    'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
+      'Benötigt ein Projekt-Zugriffstoken — beschränkt auf nur dieses Projekt, nicht dein ganzes Konto — mit den Bereichen "read_repository" und "write_repository". Erstelle es auf der eigenen Settings → Access tokens-Seite des Projekts (es gibt keine einzelne kontoweite Seite dafür).',
+    'Needs a Bitbucket API token scoped to repository access only (the "read:repository:bitbucket" and "write:repository:bitbucket" scopes), plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the token alone.':
+      'Benötigt ein Bitbucket-API-Token, das ausschließlich auf Repository-Zugriff beschränkt ist (die Bereiche "read:repository:bitbucket" und "write:repository:bitbucket"), plus den Bitbucket-Benutzernamen, zu dem es gehört — Bitbucket authentifiziert das Paar, nicht nur das Token.',
   },
   "zh-CN": {
     "Source Control": "源代码管理",
@@ -111,19 +111,19 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
     "Stored encrypted on the server. Once saved, Tovu never displays it again.": "以加密方式存储在服务器上。保存后，Tovu 不会再次显示它。",
     "Create a token": "创建令牌",
     Username: "用户名",
-    "The Bitbucket username this app password belongs to.": "此应用密码所属的 Bitbucket 用户名。",
+    "The Bitbucket username this API token belongs to.": "此 API 令牌所属的 Bitbucket 用户名。",
     Save: "保存",
     "Saving…": "正在保存…",
     connected: "已连接",
     "token stored, encrypted": "令牌已存储，已加密",
     saved: "已保存于",
     "Replace token": "更换令牌",
-    'Needs a classic personal access token with the "repo" scope, or a fine-grained token with Contents permission set to Read and write.':
-      '需要一个具有 "repo" 范围的经典个人访问令牌，或一个将 Contents 权限设为读写的精细令牌。',
-    'Needs a personal access token with the "read_repository" and "write_repository" scopes.':
-      '需要一个具有 "read_repository" 和 "write_repository" 范围的个人访问令牌。',
-    "Needs an app password with Repositories: Read and Write permissions, plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the app password alone.":
-      "需要一个具有 Repositories: Read 和 Write 权限的应用密码，以及其所属的 Bitbucket 用户名——Bitbucket 验证的是这一对信息，而不仅仅是应用密码本身。",
+    'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
+      '需要一个精细令牌，仅限访问此仓库，并将 Contents 权限设为读写。具有 "repo" 范围的经典令牌也可以使用，但会访问该账户可访问的所有仓库——请尽可能使用精细令牌。',
+    'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
+      '需要一个项目访问令牌——仅限于此项目，而非整个账户——具有 "read_repository" 和 "write_repository" 范围。请从该项目自己的 Settings → Access tokens 页面创建（没有统一的账户级页面）。',
+    'Needs a Bitbucket API token scoped to repository access only (the "read:repository:bitbucket" and "write:repository:bitbucket" scopes), plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the token alone.':
+      '需要一个仅限仓库访问的 Bitbucket API 令牌（"read:repository:bitbucket" 和 "write:repository:bitbucket" 范围），以及其所属的 Bitbucket 用户名——Bitbucket 验证的是这一对信息，而不仅仅是令牌本身。',
   },
   "zh-TW": {
     "Source Control": "原始碼管理",
@@ -137,19 +137,19 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
     "Stored encrypted on the server. Once saved, Tovu never displays it again.": "以加密方式儲存於伺服器上。儲存後，Tovu 不會再次顯示它。",
     "Create a token": "建立權杖",
     Username: "使用者名稱",
-    "The Bitbucket username this app password belongs to.": "此應用程式密碼所屬的 Bitbucket 使用者名稱。",
+    "The Bitbucket username this API token belongs to.": "此 API 權杖所屬的 Bitbucket 使用者名稱。",
     Save: "儲存",
     "Saving…": "正在儲存…",
     connected: "已連接",
     "token stored, encrypted": "權杖已儲存，已加密",
     saved: "已儲存於",
     "Replace token": "更換權杖",
-    'Needs a classic personal access token with the "repo" scope, or a fine-grained token with Contents permission set to Read and write.':
-      '需要具有 "repo" 範圍的傳統個人存取權杖，或將 Contents 權限設為讀寫的精細權杖。',
-    'Needs a personal access token with the "read_repository" and "write_repository" scopes.':
-      '需要具有 "read_repository" 與 "write_repository" 範圍的個人存取權杖。',
-    "Needs an app password with Repositories: Read and Write permissions, plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the app password alone.":
-      "需要具有 Repositories: Read 與 Write 權限的應用程式密碼，以及其所屬的 Bitbucket 使用者名稱——Bitbucket 驗證的是這一對資訊，而非僅是應用程式密碼本身。",
+    'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
+      '需要精細權杖，僅限存取此儲存庫，並將 Contents 權限設為讀寫。具有 "repo" 範圍的傳統權杖也可使用，但會存取此帳戶可存取的每個儲存庫——請盡量使用精細權杖。',
+    'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
+      '需要專案存取權杖——僅限此專案，而非整個帳戶——具有 "read_repository" 與 "write_repository" 範圍。請從該專案自己的 Settings → Access tokens 頁面建立（沒有單一的帳戶層級頁面）。',
+    'Needs a Bitbucket API token scoped to repository access only (the "read:repository:bitbucket" and "write:repository:bitbucket" scopes), plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the token alone.':
+      '需要僅限儲存庫存取的 Bitbucket API 權杖（"read:repository:bitbucket" 與 "write:repository:bitbucket" 範圍），以及其所屬的 Bitbucket 使用者名稱——Bitbucket 驗證的是這一對資訊，而非僅是權杖本身。',
   },
   "pt-BR": {
     "Source Control": "Controle de código-fonte",
@@ -164,19 +164,19 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
       "Armazenado de forma criptografada no servidor. Depois de salvo, o Tovu nunca o exibe novamente.",
     "Create a token": "Criar um token",
     Username: "Nome de usuário",
-    "The Bitbucket username this app password belongs to.": "O nome de usuário do Bitbucket ao qual esta senha de aplicativo pertence.",
+    "The Bitbucket username this API token belongs to.": "O nome de usuário do Bitbucket ao qual este token de API pertence.",
     Save: "Salvar",
     "Saving…": "Salvando…",
     connected: "conectado",
     "token stored, encrypted": "token salvo, criptografado",
     saved: "salvo em",
     "Replace token": "Substituir token",
-    'Needs a classic personal access token with the "repo" scope, or a fine-grained token with Contents permission set to Read and write.':
-      'Requer um token de acesso pessoal clássico com o escopo "repo", ou um token refinado com a permissão Contents definida como Leitura e escrita.',
-    'Needs a personal access token with the "read_repository" and "write_repository" scopes.':
-      'Requer um token de acesso pessoal com os escopos "read_repository" e "write_repository".',
-    "Needs an app password with Repositories: Read and Write permissions, plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the app password alone.":
-      "Requer uma senha de aplicativo com as permissões Repositories: Read e Write, além do nome de usuário do Bitbucket ao qual pertence — o Bitbucket autentica o par, não apenas a senha de aplicativo.",
+    'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
+      'Requer um token de acesso pessoal refinado, restrito apenas a este repositório, com a permissão Contents definida como Leitura e escrita. Um token clássico com o escopo "repo" também funciona, mas alcança todos os repositórios que esta conta pode acessar — prefira o token refinado sempre que possível.',
+    'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
+      'Requer um token de acesso de projeto — restrito apenas a este projeto, não a toda a conta — com os escopos "read_repository" e "write_repository". Crie-o na própria página Settings → Access tokens do projeto (não existe uma única página para toda a conta).',
+    'Needs a Bitbucket API token scoped to repository access only (the "read:repository:bitbucket" and "write:repository:bitbucket" scopes), plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the token alone.':
+      'Requer um token de API do Bitbucket restrito apenas ao acesso de repositório (os escopos "read:repository:bitbucket" e "write:repository:bitbucket"), além do nome de usuário do Bitbucket ao qual pertence — o Bitbucket autentica o par, não apenas o token.',
   },
   ru: {
     "Source Control": "Управление исходным кодом",
@@ -191,19 +191,19 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
       "Хранится в зашифрованном виде на сервере. После сохранения Tovu больше никогда его не показывает.",
     "Create a token": "Создать токен",
     Username: "Имя пользователя",
-    "The Bitbucket username this app password belongs to.": "Имя пользователя Bitbucket, которому принадлежит этот пароль приложения.",
+    "The Bitbucket username this API token belongs to.": "Имя пользователя Bitbucket, которому принадлежит этот API-токен.",
     Save: "Сохранить",
     "Saving…": "Сохранение…",
     connected: "подключено",
     "token stored, encrypted": "токен сохранён, зашифрован",
     saved: "сохранено",
     "Replace token": "Заменить токен",
-    'Needs a classic personal access token with the "repo" scope, or a fine-grained token with Contents permission set to Read and write.':
-      'Требуется классический персональный токен доступа с областью "repo" или детализированный токен с правом Contents на чтение и запись.',
-    'Needs a personal access token with the "read_repository" and "write_repository" scopes.':
-      'Требуется персональный токен доступа с областями "read_repository" и "write_repository".',
-    "Needs an app password with Repositories: Read and Write permissions, plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the app password alone.":
-      "Требуется пароль приложения с правами Repositories: Read и Write, а также имя пользователя Bitbucket, которому он принадлежит — Bitbucket проверяет именно эту пару, а не только пароль приложения.",
+    'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
+      'Требуется детализированный персональный токен доступа, ограниченный только этим репозиторием, с правом Contents на чтение и запись. Классический токен с областью "repo" тоже подходит, но даёт доступ ко всем репозиториям, доступным этому аккаунту — по возможности используйте детализированный токен.',
+    'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
+      'Требуется токен доступа проекта — ограниченный только этим проектом, а не всем аккаунтом — с областями "read_repository" и "write_repository". Создайте его на странице Settings → Access tokens самого проекта (единой страницы для всего аккаунта не существует).',
+    'Needs a Bitbucket API token scoped to repository access only (the "read:repository:bitbucket" and "write:repository:bitbucket" scopes), plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the token alone.':
+      'Требуется токен API Bitbucket, ограниченный только доступом к репозиторию (области "read:repository:bitbucket" и "write:repository:bitbucket"), а также имя пользователя Bitbucket, которому он принадлежит — Bitbucket проверяет именно эту пару, а не только токен.',
   },
   fa: {
     "Source Control": "کنترل کد منبع",
@@ -218,19 +218,19 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
       "به‌صورت رمزگذاری‌شده روی سرور ذخیره می‌شود. پس از ذخیره، Tovu دیگر هرگز آن را نمایش نمی‌دهد.",
     "Create a token": "ایجاد توکن",
     Username: "نام کاربری",
-    "The Bitbucket username this app password belongs to.": "نام کاربری Bitbucket که این رمز عبور برنامه به آن تعلق دارد.",
+    "The Bitbucket username this API token belongs to.": "نام کاربری Bitbucket که این توکن API به آن تعلق دارد.",
     Save: "ذخیره",
     "Saving…": "در حال ذخیره…",
     connected: "متصل شد",
     "token stored, encrypted": "توکن ذخیره شد، رمزگذاری‌شده",
     saved: "ذخیره‌شده در",
     "Replace token": "جایگزینی توکن",
-    'Needs a classic personal access token with the "repo" scope, or a fine-grained token with Contents permission set to Read and write.':
-      'به یک توکن دسترسی شخصی کلاسیک با محدوده "repo"، یا یک توکن دقیق با مجوز Contents تنظیم‌شده روی خواندن و نوشتن نیاز دارد.',
-    'Needs a personal access token with the "read_repository" and "write_repository" scopes.':
-      'به یک توکن دسترسی شخصی با محدوده‌های "read_repository" و "write_repository" نیاز دارد.',
-    "Needs an app password with Repositories: Read and Write permissions, plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the app password alone.":
-      "به یک رمز عبور برنامه با مجوزهای Repositories: Read و Write، به‌همراه نام کاربری Bitbucket که به آن تعلق دارد نیاز است — Bitbucket این جفت را احراز هویت می‌کند، نه فقط رمز عبور برنامه را.",
+    'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
+      'به یک توکن دسترسی شخصی دقیق نیاز دارد که فقط به این مخزن محدود شده باشد، با مجوز Contents تنظیم‌شده روی خواندن و نوشتن. یک توکن کلاسیک با محدوده "repo" هم کار می‌کند، اما به هر مخزنی که این حساب به آن دسترسی دارد می‌رسد — در صورت امکان از توکن دقیق استفاده کنید.',
+    'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
+      'به یک توکن دسترسی پروژه نیاز دارد — که فقط به این پروژه محدود شده، نه کل حساب شما — با محدوده‌های "read_repository" و "write_repository". آن را از صفحه Settings → Access tokens خودِ پروژه بسازید (صفحه‌ی واحدی برای کل حساب وجود ندارد).',
+    'Needs a Bitbucket API token scoped to repository access only (the "read:repository:bitbucket" and "write:repository:bitbucket" scopes), plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the token alone.':
+      'به یک توکن API بیت‌باکت نیاز دارد که فقط به دسترسی مخزن محدود شده (محدوده‌های "read:repository:bitbucket" و "write:repository:bitbucket")، به‌همراه نام کاربری Bitbucket که به آن تعلق دارد — Bitbucket این جفت را احراز هویت می‌کند، نه فقط توکن را.',
   },
   ar: {
     "Source Control": "إدارة الشيفرة المصدرية",
@@ -245,19 +245,19 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
       "يُخزَّن مشفّرًا على الخادم. بعد الحفظ، لن يعرضه Tovu مرة أخرى أبدًا.",
     "Create a token": "إنشاء رمز",
     Username: "اسم المستخدم",
-    "The Bitbucket username this app password belongs to.": "اسم مستخدم Bitbucket الذي تنتمي إليه كلمة مرور التطبيق هذه.",
+    "The Bitbucket username this API token belongs to.": "اسم مستخدم Bitbucket الذي ينتمي إليه رمز API هذا.",
     Save: "حفظ",
     "Saving…": "جارٍ الحفظ…",
     connected: "متصل",
     "token stored, encrypted": "الرمز محفوظ، مشفّر",
     saved: "تم الحفظ في",
     "Replace token": "استبدال الرمز",
-    'Needs a classic personal access token with the "repo" scope, or a fine-grained token with Contents permission set to Read and write.':
-      'يتطلب رمز وصول شخصي تقليدي بنطاق "repo"، أو رمزًا دقيقًا بصلاحية Contents مضبوطة على القراءة والكتابة.',
-    'Needs a personal access token with the "read_repository" and "write_repository" scopes.':
-      'يتطلب رمز وصول شخصي بنطاقي "read_repository" و"write_repository".',
-    "Needs an app password with Repositories: Read and Write permissions, plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the app password alone.":
-      "يتطلب كلمة مرور تطبيق بصلاحيات Repositories: Read وWrite، إضافةً إلى اسم مستخدم Bitbucket الذي تنتمي إليه — يتحقق Bitbucket من هذا الزوج معًا، وليس من كلمة مرور التطبيق وحدها.",
+    'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
+      'يتطلب رمز وصول شخصي دقيقًا مقصورًا على هذا المستودع فقط، بصلاحية Contents مضبوطة على القراءة والكتابة. يعمل أيضًا رمز تقليدي بنطاق "repo"، لكنه يصل إلى كل مستودع يمكن لهذا الحساب الوصول إليه — يُفضَّل استخدام الرمز الدقيق كلما أمكن.',
+    'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
+      'يتطلب رمز وصول مشروع — مقصورًا على هذا المشروع فقط، وليس حسابك بالكامل — بنطاقي "read_repository" و"write_repository". أنشئه من صفحة Settings ← Access tokens الخاصة بالمشروع نفسه (لا توجد صفحة واحدة على مستوى الحساب لهذا الغرض).',
+    'Needs a Bitbucket API token scoped to repository access only (the "read:repository:bitbucket" and "write:repository:bitbucket" scopes), plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the token alone.':
+      'يتطلب رمز API من Bitbucket مقصورًا على الوصول إلى المستودع فقط (نطاقا "read:repository:bitbucket" و"write:repository:bitbucket")، إضافةً إلى اسم مستخدم Bitbucket الذي ينتمي إليه — يتحقق Bitbucket من هذا الزوج معًا، وليس من الرمز وحده.',
   },
   ja: {
     "Source Control": "ソースコード管理",
@@ -271,19 +271,19 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
     "Stored encrypted on the server. Once saved, Tovu never displays it again.": "サーバー上に暗号化して保存されます。保存後、Tovu が再び表示することはありません。",
     "Create a token": "トークンを作成",
     Username: "ユーザー名",
-    "The Bitbucket username this app password belongs to.": "このアプリパスワードが属する Bitbucket のユーザー名。",
+    "The Bitbucket username this API token belongs to.": "この API トークンが属する Bitbucket のユーザー名。",
     Save: "保存",
     "Saving…": "保存中…",
     connected: "接続済み",
     "token stored, encrypted": "トークン保存済み・暗号化済み",
     saved: "保存日時",
     "Replace token": "トークンを置き換える",
-    'Needs a classic personal access token with the "repo" scope, or a fine-grained token with Contents permission set to Read and write.':
-      '"repo" スコープを持つクラシックな個人アクセストークン、または Contents 権限を読み書きに設定したきめ細かいトークンが必要です。',
-    'Needs a personal access token with the "read_repository" and "write_repository" scopes.':
-      '"read_repository" と "write_repository" スコープを持つ個人アクセストークンが必要です。',
-    "Needs an app password with Repositories: Read and Write permissions, plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the app password alone.":
-      "Repositories: Read と Write の権限を持つアプリパスワードと、それが属する Bitbucket のユーザー名が必要です — Bitbucket はアプリパスワード単体ではなく、この組み合わせを認証します。",
+    'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
+      'このリポジトリだけに限定された、きめ細かい個人アクセストークンが必要です。Contents 権限を読み書きに設定してください。"repo" スコープを持つクラシックなトークンでも動作しますが、このアカウントがアクセスできるすべてのリポジトリに届いてしまいます — 可能な限りきめ細かいトークンを優先してください。',
+    'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
+      'このプロジェクトだけに限定された（アカウント全体ではない）プロジェクトアクセストークンが必要です。"read_repository" と "write_repository" スコープを設定してください。プロジェクト自体の Settings → Access tokens ページから作成します（アカウント全体で使える単一のページはありません）。',
+    'Needs a Bitbucket API token scoped to repository access only (the "read:repository:bitbucket" and "write:repository:bitbucket" scopes), plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the token alone.':
+      'リポジトリへのアクセスのみに限定された Bitbucket API トークン（"read:repository:bitbucket" と "write:repository:bitbucket" スコープ）と、それが属する Bitbucket のユーザー名が必要です — Bitbucket はトークン単体ではなく、この組み合わせを認証します。',
   },
   ko: {
     "Source Control": "소스 코드 관리",
@@ -297,19 +297,19 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
     "Stored encrypted on the server. Once saved, Tovu never displays it again.": "서버에 암호화되어 저장됩니다. 저장 후에는 Tovu가 다시는 표시하지 않습니다.",
     "Create a token": "토큰 만들기",
     Username: "사용자 이름",
-    "The Bitbucket username this app password belongs to.": "이 앱 비밀번호가 속한 Bitbucket 사용자 이름입니다.",
+    "The Bitbucket username this API token belongs to.": "이 API 토큰이 속한 Bitbucket 사용자 이름입니다.",
     Save: "저장",
     "Saving…": "저장 중…",
     connected: "연결됨",
     "token stored, encrypted": "토큰 저장됨, 암호화됨",
     saved: "저장 시각",
     "Replace token": "토큰 교체",
-    'Needs a classic personal access token with the "repo" scope, or a fine-grained token with Contents permission set to Read and write.':
-      '"repo" 범위를 가진 클래식 개인 액세스 토큰이나, Contents 권한을 읽기/쓰기로 설정한 세분화된 토큰이 필요합니다.',
-    'Needs a personal access token with the "read_repository" and "write_repository" scopes.':
-      '"read_repository" 및 "write_repository" 범위를 가진 개인 액세스 토큰이 필요합니다.',
-    "Needs an app password with Repositories: Read and Write permissions, plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the app password alone.":
-      "Repositories: Read 및 Write 권한을 가진 앱 비밀번호와 그것이 속한 Bitbucket 사용자 이름이 필요합니다 — Bitbucket은 앱 비밀번호 단독이 아니라 이 조합을 인증합니다.",
+    'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
+      '이 저장소에만 국한된 세분화된 개인 액세스 토큰이 필요하며, Contents 권한을 읽기/쓰기로 설정해야 합니다. "repo" 범위를 가진 클래식 토큰도 작동하지만 이 계정이 접근할 수 있는 모든 저장소에 도달합니다 — 가능하면 세분화된 토큰을 우선하세요.',
+    'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
+      '전체 계정이 아닌 이 프로젝트에만 국한된 프로젝트 액세스 토큰이 필요하며, "read_repository" 및 "write_repository" 범위를 설정해야 합니다. 프로젝트 자체의 Settings → Access tokens 페이지에서 생성하세요 (계정 전체에 대한 단일 페이지는 없습니다).',
+    'Needs a Bitbucket API token scoped to repository access only (the "read:repository:bitbucket" and "write:repository:bitbucket" scopes), plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the token alone.':
+      '저장소 접근으로만 범위가 제한된 Bitbucket API 토큰("read:repository:bitbucket" 및 "write:repository:bitbucket" 범위)과, 그것이 속한 Bitbucket 사용자 이름이 필요합니다 — Bitbucket은 토큰 단독이 아니라 이 조합을 인증합니다.',
   },
   pl: {
     "Source Control": "Kontrola kodu źródłowego",
@@ -324,19 +324,19 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
       "Przechowywany zaszyfrowany na serwerze. Po zapisaniu Tovu nigdy więcej go nie wyświetli.",
     "Create a token": "Utwórz token",
     Username: "Nazwa użytkownika",
-    "The Bitbucket username this app password belongs to.": "Nazwa użytkownika Bitbucket, do którego należy to hasło aplikacji.",
+    "The Bitbucket username this API token belongs to.": "Nazwa użytkownika Bitbucket, do którego należy ten token API.",
     Save: "Zapisz",
     "Saving…": "Zapisywanie…",
     connected: "połączono",
     "token stored, encrypted": "token zapisany, zaszyfrowany",
     saved: "zapisano",
     "Replace token": "Zastąp token",
-    'Needs a classic personal access token with the "repo" scope, or a fine-grained token with Contents permission set to Read and write.':
-      'Wymaga klasycznego osobistego tokenu dostępu o zakresie "repo" lub tokenu precyzyjnego z uprawnieniem Contents ustawionym na odczyt i zapis.',
-    'Needs a personal access token with the "read_repository" and "write_repository" scopes.':
-      'Wymaga osobistego tokenu dostępu o zakresach "read_repository" i "write_repository".',
-    "Needs an app password with Repositories: Read and Write permissions, plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the app password alone.":
-      "Wymaga hasła aplikacji z uprawnieniami Repositories: Read i Write, a także nazwy użytkownika Bitbucket, do którego należy — Bitbucket uwierzytelnia tę parę, a nie samo hasło aplikacji.",
+    'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
+      'Wymaga precyzyjnego osobistego tokenu dostępu ograniczonego wyłącznie do tego repozytorium, z uprawnieniem Contents ustawionym na odczyt i zapis. Klasyczny token o zakresie "repo" również działa, ale obejmuje każde repozytorium dostępne dla tego konta — jeśli to możliwe, preferuj token precyzyjny.',
+    'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
+      'Wymaga tokenu dostępu projektu — ograniczonego wyłącznie do tego projektu, a nie całego konta — o zakresach "read_repository" i "write_repository". Utwórz go na własnej stronie projektu Settings → Access tokens (nie istnieje jedna strona dla całego konta).',
+    'Needs a Bitbucket API token scoped to repository access only (the "read:repository:bitbucket" and "write:repository:bitbucket" scopes), plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the token alone.':
+      'Wymaga tokenu API Bitbucket ograniczonego wyłącznie do dostępu do repozytorium (zakresy "read:repository:bitbucket" i "write:repository:bitbucket"), a także nazwy użytkownika Bitbucket, do którego należy — Bitbucket uwierzytelnia tę parę, a nie sam token.',
   },
   hu: {
     "Source Control": "Forráskód-kezelés",
@@ -351,19 +351,19 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
       "Titkosítva tárolódik a szerveren. Mentés után a Tovu soha többé nem jeleníti meg.",
     "Create a token": "Token létrehozása",
     Username: "Felhasználónév",
-    "The Bitbucket username this app password belongs to.": "A Bitbucket felhasználónév, amelyhez ez az alkalmazásjelszó tartozik.",
+    "The Bitbucket username this API token belongs to.": "A Bitbucket felhasználónév, amelyhez ez az API-token tartozik.",
     Save: "Mentés",
     "Saving…": "Mentés…",
     connected: "kapcsolódva",
     "token stored, encrypted": "token elmentve, titkosítva",
     saved: "mentve",
     "Replace token": "Token cseréje",
-    'Needs a classic personal access token with the "repo" scope, or a fine-grained token with Contents permission set to Read and write.':
-      'Klasszikus személyes hozzáférési token szükséges "repo" hatókörrel, vagy finomhangolt token, amelyben a Contents jogosultság olvasásra és írásra van állítva.',
-    'Needs a personal access token with the "read_repository" and "write_repository" scopes.':
-      'Személyes hozzáférési token szükséges "read_repository" és "write_repository" hatókörrel.',
-    "Needs an app password with Repositories: Read and Write permissions, plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the app password alone.":
-      "Alkalmazásjelszó szükséges Repositories: Read és Write jogosultsággal, valamint a Bitbucket felhasználónév, amelyhez tartozik — a Bitbucket ezt a párost hitelesíti, nem csak az alkalmazásjelszót.",
+    'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
+      'Finomhangolt személyes hozzáférési token szükséges, amely kizárólag erre a tárolóra korlátozódik, a Contents jogosultsággal olvasásra és írásra állítva. A klasszikus, "repo" hatókörű token is működik, de eléri a fiók által elérhető összes tárolót — lehetőség szerint a finomhangolt tokent részesítsd előnyben.',
+    'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
+      'Projekt-hozzáférési token szükséges — kizárólag erre a projektre korlátozva, nem az egész fiókra — "read_repository" és "write_repository" hatókörrel. Hozd létre a projekt saját Settings → Access tokens oldalán (nincs egyetlen, fiókszintű oldal ehhez).',
+    'Needs a Bitbucket API token scoped to repository access only (the "read:repository:bitbucket" and "write:repository:bitbucket" scopes), plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the token alone.':
+      'Kizárólag tárolóhozzáférésre korlátozott Bitbucket API-token szükséges ("read:repository:bitbucket" és "write:repository:bitbucket" hatókörök), valamint a Bitbucket felhasználónév, amelyhez tartozik — a Bitbucket ezt a párost hitelesíti, nem csak a tokent.',
   },
   fr: {
     "Source Control": "Gestion du code source",
@@ -378,19 +378,19 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
       "Stocké chiffré sur le serveur. Une fois enregistré, Tovu ne l'affiche plus jamais.",
     "Create a token": "Créer un jeton",
     Username: "Nom d'utilisateur",
-    "The Bitbucket username this app password belongs to.": "Le nom d'utilisateur Bitbucket auquel ce mot de passe d'application appartient.",
+    "The Bitbucket username this API token belongs to.": "Le nom d'utilisateur Bitbucket auquel ce jeton API appartient.",
     Save: "Enregistrer",
     "Saving…": "Enregistrement…",
     connected: "connecté",
     "token stored, encrypted": "jeton enregistré, chiffré",
     saved: "enregistré le",
     "Replace token": "Remplacer le jeton",
-    'Needs a classic personal access token with the "repo" scope, or a fine-grained token with Contents permission set to Read and write.':
-      'Nécessite un jeton d\'accès personnel classique avec le champ "repo", ou un jeton précis avec la permission Contents réglée sur lecture et écriture.',
-    'Needs a personal access token with the "read_repository" and "write_repository" scopes.':
-      'Nécessite un jeton d\'accès personnel avec les champs "read_repository" et "write_repository".',
-    "Needs an app password with Repositories: Read and Write permissions, plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the app password alone.":
-      "Nécessite un mot de passe d'application avec les permissions Repositories : Read et Write, ainsi que le nom d'utilisateur Bitbucket auquel il appartient — Bitbucket authentifie cette paire, pas seulement le mot de passe d'application.",
+    'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
+      'Nécessite un jeton d\'accès personnel fin, limité à ce seul dépôt, avec la permission Contents réglée sur lecture et écriture. Un jeton classique avec le champ "repo" fonctionne aussi, mais donne accès à tous les dépôts que ce compte peut atteindre — préférez le jeton fin quand c\'est possible.',
+    'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
+      'Nécessite un jeton d\'accès de projet — limité à ce seul projet, pas à tout le compte — avec les champs "read_repository" et "write_repository". Créez-le depuis la page Settings → Access tokens du projet lui-même (il n\'existe pas de page unique pour tout le compte).',
+    'Needs a Bitbucket API token scoped to repository access only (the "read:repository:bitbucket" and "write:repository:bitbucket" scopes), plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the token alone.':
+      'Nécessite un jeton API Bitbucket limité au seul accès aux dépôts (les champs "read:repository:bitbucket" et "write:repository:bitbucket"), ainsi que le nom d\'utilisateur Bitbucket auquel il appartient — Bitbucket authentifie cette paire, pas seulement le jeton.',
   },
   uk: {
     "Source Control": "Керування вихідним кодом",
@@ -405,19 +405,19 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
       "Зберігається в зашифрованому вигляді на сервері. Після збереження Tovu більше ніколи його не показує.",
     "Create a token": "Створити токен",
     Username: "Ім'я користувача",
-    "The Bitbucket username this app password belongs to.": "Ім'я користувача Bitbucket, якому належить цей пароль додатка.",
+    "The Bitbucket username this API token belongs to.": "Ім'я користувача Bitbucket, якому належить цей токен API.",
     Save: "Зберегти",
     "Saving…": "Збереження…",
     connected: "підключено",
     "token stored, encrypted": "токен збережено, зашифровано",
     saved: "збережено",
     "Replace token": "Замінити токен",
-    'Needs a classic personal access token with the "repo" scope, or a fine-grained token with Contents permission set to Read and write.':
-      'Потрібен класичний особистий токен доступу з областю "repo" або деталізований токен із правом Contents на читання й запис.',
-    'Needs a personal access token with the "read_repository" and "write_repository" scopes.':
-      'Потрібен особистий токен доступу з областями "read_repository" та "write_repository".',
-    "Needs an app password with Repositories: Read and Write permissions, plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the app password alone.":
-      "Потрібен пароль додатка з правами Repositories: Read і Write, а також ім'я користувача Bitbucket, якому він належить — Bitbucket перевіряє саме цю пару, а не лише пароль додатка.",
+    'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
+      'Потрібен деталізований особистий токен доступу, обмежений лише цим репозиторієм, із правом Contents на читання й запис. Класичний токен з областю "repo" також підходить, але надає доступ до кожного репозиторію, доступного цьому обліковому запису — за можливості віддавайте перевагу деталізованому токену.',
+    'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
+      'Потрібен токен доступу проєкту — обмежений лише цим проєктом, а не всім обліковим записом — з областями "read_repository" та "write_repository". Створіть його на сторінці Settings → Access tokens самого проєкту (єдиної сторінки для всього облікового запису не існує).',
+    'Needs a Bitbucket API token scoped to repository access only (the "read:repository:bitbucket" and "write:repository:bitbucket" scopes), plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the token alone.':
+      'Потрібен токен API Bitbucket, обмежений лише доступом до репозиторію (області "read:repository:bitbucket" та "write:repository:bitbucket"), а також ім\'я користувача Bitbucket, якому він належить — Bitbucket перевіряє саме цю пару, а не лише токен.',
   },
   tr: {
     "Source Control": "Kaynak kod yönetimi",
@@ -432,19 +432,19 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
       "Sunucuda şifrelenerek saklanır. Kaydedildikten sonra Tovu onu bir daha asla göstermez.",
     "Create a token": "Belirteç oluştur",
     Username: "Kullanıcı adı",
-    "The Bitbucket username this app password belongs to.": "Bu uygulama parolasının ait olduğu Bitbucket kullanıcı adı.",
+    "The Bitbucket username this API token belongs to.": "Bu API belirtecinin ait olduğu Bitbucket kullanıcı adı.",
     Save: "Kaydet",
     "Saving…": "Kaydediliyor…",
     connected: "bağlandı",
     "token stored, encrypted": "belirteç kaydedildi, şifrelendi",
     saved: "kaydedildi",
     "Replace token": "Belirteci değiştir",
-    'Needs a classic personal access token with the "repo" scope, or a fine-grained token with Contents permission set to Read and write.':
-      '"repo" kapsamına sahip klasik bir kişisel erişim belirteci veya Contents izni Okuma ve yazma olarak ayarlanmış ayrıntılı bir belirteç gerekir.',
-    'Needs a personal access token with the "read_repository" and "write_repository" scopes.':
-      '"read_repository" ve "write_repository" kapsamlarına sahip bir kişisel erişim belirteci gerekir.',
-    "Needs an app password with Repositories: Read and Write permissions, plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the app password alone.":
-      "Repositories: Read ve Write izinlerine sahip bir uygulama parolası ile ait olduğu Bitbucket kullanıcı adı gerekir — Bitbucket yalnızca uygulama parolasını değil, bu ikiliyi doğrular.",
+    'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
+      'Yalnızca bu depoyla sınırlı, ayrıntılı bir kişisel erişim belirteci gerekir; Contents izni Okuma ve yazma olarak ayarlanmalıdır. "repo" kapsamına sahip klasik bir belirteç de çalışır, ancak bu hesabın erişebildiği her depoya ulaşır — mümkünse ayrıntılı belirteci tercih edin.',
+    'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
+      'Tüm hesap değil, yalnızca bu projeyle sınırlı bir proje erişim belirteci gerekir; "read_repository" ve "write_repository" kapsamlarına sahip olmalıdır. Bunu projenin kendi Settings → Access tokens sayfasından oluşturun (hesap geneli için tek bir sayfa yoktur).',
+    'Needs a Bitbucket API token scoped to repository access only (the "read:repository:bitbucket" and "write:repository:bitbucket" scopes), plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the token alone.':
+      'Yalnızca depo erişimiyle sınırlı bir Bitbucket API belirteci ("read:repository:bitbucket" ve "write:repository:bitbucket" kapsamları) ile ait olduğu Bitbucket kullanıcı adı gerekir — Bitbucket yalnızca belirteci değil, bu ikiliyi doğrular.',
   },
   th: {
     "Source Control": "การจัดการซอร์สโค้ด",
@@ -459,19 +459,19 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
       "จัดเก็บแบบเข้ารหัสไว้บนเซิร์ฟเวอร์ เมื่อบันทึกแล้ว Tovu จะไม่แสดงอีกเลย",
     "Create a token": "สร้างโทเคน",
     Username: "ชื่อผู้ใช้",
-    "The Bitbucket username this app password belongs to.": "ชื่อผู้ใช้ Bitbucket ที่รหัสผ่านแอปนี้เป็นของ",
+    "The Bitbucket username this API token belongs to.": "ชื่อผู้ใช้ Bitbucket ที่โทเคน API นี้เป็นของ",
     Save: "บันทึก",
     "Saving…": "กำลังบันทึก…",
     connected: "เชื่อมต่อแล้ว",
     "token stored, encrypted": "บันทึกโทเคนแล้ว เข้ารหัสแล้ว",
     saved: "บันทึกเมื่อ",
     "Replace token": "แทนที่โทเคน",
-    'Needs a classic personal access token with the "repo" scope, or a fine-grained token with Contents permission set to Read and write.':
-      'ต้องใช้โทเคนการเข้าถึงส่วนบุคคลแบบคลาสสิกที่มีขอบเขต "repo" หรือโทเคนแบบละเอียดที่ตั้งสิทธิ์ Contents เป็นอ่านและเขียน',
-    'Needs a personal access token with the "read_repository" and "write_repository" scopes.':
-      'ต้องใช้โทเคนการเข้าถึงส่วนบุคคลที่มีขอบเขต "read_repository" และ "write_repository"',
-    "Needs an app password with Repositories: Read and Write permissions, plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the app password alone.":
-      "ต้องใช้รหัสผ่านแอปที่มีสิทธิ์ Repositories: Read และ Write พร้อมชื่อผู้ใช้ Bitbucket ที่เป็นเจ้าของ — Bitbucket ตรวจสอบสิทธิ์จากคู่ข้อมูลนี้ ไม่ใช่รหัสผ่านแอปเพียงอย่างเดียว",
+    'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
+      'ต้องใช้โทเคนการเข้าถึงส่วนบุคคลแบบละเอียดที่จำกัดเฉพาะที่เก็บโค้ดนี้เท่านั้น โดยตั้งสิทธิ์ Contents เป็นอ่านและเขียน โทเคนแบบคลาสสิกที่มีขอบเขต "repo" ก็ใช้ได้เช่นกัน แต่จะเข้าถึงทุกที่เก็บโค้ดที่บัญชีนี้เข้าถึงได้ — ควรเลือกใช้โทเคนแบบละเอียดเมื่อทำได้',
+    'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
+      'ต้องใช้โทเคนการเข้าถึงโปรเจกต์ — จำกัดเฉพาะโปรเจกต์นี้เท่านั้น ไม่ใช่ทั้งบัญชี — ที่มีขอบเขต "read_repository" และ "write_repository" สร้างได้จากหน้า Settings → Access tokens ของโปรเจกต์นั้นเอง (ไม่มีหน้าเดียวสำหรับทั้งบัญชี)',
+    'Needs a Bitbucket API token scoped to repository access only (the "read:repository:bitbucket" and "write:repository:bitbucket" scopes), plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the token alone.':
+      'ต้องใช้โทเคน API ของ Bitbucket ที่จำกัดเฉพาะการเข้าถึงที่เก็บโค้ด (ขอบเขต "read:repository:bitbucket" และ "write:repository:bitbucket") พร้อมชื่อผู้ใช้ Bitbucket ที่เป็นเจ้าของ — Bitbucket ตรวจสอบสิทธิ์จากคู่ข้อมูลนี้ ไม่ใช่โทเคนเพียงอย่างเดียว',
   },
   it: {
     "Source Control": "Controllo del codice sorgente",
@@ -486,19 +486,19 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
       "Memorizzato in forma cifrata sul server. Una volta salvato, Tovu non lo mostrerà mai più.",
     "Create a token": "Crea un token",
     Username: "Nome utente",
-    "The Bitbucket username this app password belongs to.": "Il nome utente Bitbucket a cui appartiene questa password dell'app.",
+    "The Bitbucket username this API token belongs to.": "Il nome utente Bitbucket a cui appartiene questo token API.",
     Save: "Salva",
     "Saving…": "Salvataggio…",
     connected: "connesso",
     "token stored, encrypted": "token salvato, cifrato",
     saved: "salvato il",
     "Replace token": "Sostituisci token",
-    'Needs a classic personal access token with the "repo" scope, or a fine-grained token with Contents permission set to Read and write.':
-      'Richiede un token di accesso personale classico con l\'ambito "repo", oppure un token granulare con il permesso Contents impostato su Lettura e scrittura.',
-    'Needs a personal access token with the "read_repository" and "write_repository" scopes.':
-      'Richiede un token di accesso personale con gli ambiti "read_repository" e "write_repository".',
-    "Needs an app password with Repositories: Read and Write permissions, plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the app password alone.":
-      "Richiede una password dell'app con i permessi Repositories: Read e Write, oltre al nome utente Bitbucket a cui appartiene — Bitbucket autentica la coppia, non solo la password dell'app.",
+    'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
+      'Richiede un token di accesso personale granulare, limitato a questo solo repository, con il permesso Contents impostato su Lettura e scrittura. Funziona anche un token classico con l\'ambito "repo", ma raggiunge ogni repository a cui questo account può accedere — preferisci il token granulare quando possibile.',
+    'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
+      'Richiede un token di accesso al progetto — limitato a questo solo progetto, non all\'intero account — con gli ambiti "read_repository" e "write_repository". Crealo dalla pagina Settings → Access tokens del progetto stesso (non esiste un\'unica pagina per l\'intero account).',
+    'Needs a Bitbucket API token scoped to repository access only (the "read:repository:bitbucket" and "write:repository:bitbucket" scopes), plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the token alone.':
+      'Richiede un token API di Bitbucket limitato al solo accesso al repository (gli ambiti "read:repository:bitbucket" e "write:repository:bitbucket"), oltre al nome utente Bitbucket a cui appartiene — Bitbucket autentica la coppia, non solo il token.',
   },
   hi: {
     "Source Control": "स्रोत कोड नियंत्रण",
@@ -513,19 +513,19 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
       "सर्वर पर एन्क्रिप्ट करके संग्रहीत किया जाता है। सहेजे जाने के बाद, Tovu इसे फिर कभी नहीं दिखाता।",
     "Create a token": "टोकन बनाएं",
     Username: "उपयोगकर्ता नाम",
-    "The Bitbucket username this app password belongs to.": "वह Bitbucket उपयोगकर्ता नाम जिससे यह ऐप पासवर्ड संबंधित है।",
+    "The Bitbucket username this API token belongs to.": "वह Bitbucket उपयोगकर्ता नाम जिससे यह API टोकन संबंधित है।",
     Save: "सहेजें",
     "Saving…": "सहेजा जा रहा है…",
     connected: "जुड़ा हुआ",
     "token stored, encrypted": "टोकन सहेजा गया, एन्क्रिप्टेड",
     saved: "सहेजा गया",
     "Replace token": "टोकन बदलें",
-    'Needs a classic personal access token with the "repo" scope, or a fine-grained token with Contents permission set to Read and write.':
-      'इसके लिए "repo" स्कोप वाला क्लासिक व्यक्तिगत एक्सेस टोकन, या Contents अनुमति को पढ़ने और लिखने पर सेट किया गया बारीक टोकन चाहिए।',
-    'Needs a personal access token with the "read_repository" and "write_repository" scopes.':
-      'इसके लिए "read_repository" और "write_repository" स्कोप वाला व्यक्तिगत एक्सेस टोकन चाहिए।',
-    "Needs an app password with Repositories: Read and Write permissions, plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the app password alone.":
-      "इसके लिए Repositories: Read और Write अनुमतियों वाला ऐप पासवर्ड, साथ ही वह Bitbucket उपयोगकर्ता नाम चाहिए जिससे यह संबंधित है — Bitbucket इस जोड़ी को प्रमाणित करता है, केवल ऐप पासवर्ड को नहीं।",
+    'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
+      'इसके लिए केवल इसी रिपॉज़िटरी तक सीमित एक बारीक व्यक्तिगत एक्सेस टोकन चाहिए, जिसमें Contents अनुमति पढ़ने और लिखने पर सेट हो। "repo" स्कोप वाला क्लासिक टोकन भी काम करता है, लेकिन यह उन सभी रिपॉज़िटरी तक पहुँच देता है जिन तक यह खाता पहुँच सकता है — जब संभव हो, बारीक टोकन को प्राथमिकता दें।',
+    'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
+      'इसके लिए एक प्रोजेक्ट एक्सेस टोकन चाहिए — जो पूरे खाते तक नहीं, केवल इसी प्रोजेक्ट तक सीमित हो — जिसमें "read_repository" और "write_repository" स्कोप हों। इसे प्रोजेक्ट के अपने Settings → Access tokens पेज से बनाएं (पूरे खाते के लिए कोई एक पेज नहीं है)।',
+    'Needs a Bitbucket API token scoped to repository access only (the "read:repository:bitbucket" and "write:repository:bitbucket" scopes), plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the token alone.':
+      'इसके लिए केवल रिपॉज़िटरी एक्सेस तक सीमित एक Bitbucket API टोकन ("read:repository:bitbucket" और "write:repository:bitbucket" स्कोप), साथ ही वह Bitbucket उपयोगकर्ता नाम चाहिए जिससे यह संबंधित है — Bitbucket केवल टोकन को नहीं, बल्कि इस जोड़ी को प्रमाणित करता है।',
   },
   ur: {
     "Source Control": "سورس کوڈ کنٹرول",
@@ -540,19 +540,19 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
       "سرور پر خفیہ کاری کے ساتھ محفوظ کیا جاتا ہے۔ محفوظ ہونے کے بعد، Tovu اسے دوبارہ کبھی نہیں دکھاتا۔",
     "Create a token": "ٹوکن بنائیں",
     Username: "صارف نام",
-    "The Bitbucket username this app password belongs to.": "وہ Bitbucket صارف نام جس سے یہ ایپ پاس ورڈ تعلق رکھتا ہے۔",
+    "The Bitbucket username this API token belongs to.": "وہ Bitbucket صارف نام جس سے یہ API ٹوکن تعلق رکھتا ہے۔",
     Save: "محفوظ کریں",
     "Saving…": "محفوظ ہو رہا ہے…",
     connected: "منسلک",
     "token stored, encrypted": "ٹوکن محفوظ، خفیہ کاری شدہ",
     saved: "محفوظ کیا گیا",
     "Replace token": "ٹوکن تبدیل کریں",
-    'Needs a classic personal access token with the "repo" scope, or a fine-grained token with Contents permission set to Read and write.':
-      'اس کے لیے "repo" اسکوپ کے ساتھ کلاسک ذاتی رسائی ٹوکن، یا Contents اجازت کو پڑھنے اور لکھنے پر سیٹ کیا گیا باریک ٹوکن درکار ہے۔',
-    'Needs a personal access token with the "read_repository" and "write_repository" scopes.':
-      'اس کے لیے "read_repository" اور "write_repository" اسکوپس کے ساتھ ذاتی رسائی ٹوکن درکار ہے۔',
-    "Needs an app password with Repositories: Read and Write permissions, plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the app password alone.":
-      "اس کے لیے Repositories: Read اور Write اجازتوں کے ساتھ ایپ پاس ورڈ، اور وہ Bitbucket صارف نام درکار ہے جس سے یہ تعلق رکھتا ہے — Bitbucket صرف ایپ پاس ورڈ نہیں بلکہ اس جوڑے کی توثیق کرتا ہے۔",
+    'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
+      'اس کے لیے صرف اسی ریپوزٹری تک محدود ایک باریک ذاتی رسائی ٹوکن درکار ہے، جس میں Contents اجازت پڑھنے اور لکھنے پر سیٹ ہو۔ "repo" اسکوپ کے ساتھ کلاسک ٹوکن بھی کام کرتا ہے، لیکن یہ ہر اس ریپوزٹری تک رسائی دیتا ہے جس تک یہ اکاؤنٹ پہنچ سکتا ہے — جب ممکن ہو باریک ٹوکن کو ترجیح دیں۔',
+    'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
+      'اس کے لیے ایک پراجیکٹ ایکسیس ٹوکن درکار ہے — جو پورے اکاؤنٹ کے بجائے صرف اسی پراجیکٹ تک محدود ہو — جس میں "read_repository" اور "write_repository" اسکوپس ہوں۔ اسے پراجیکٹ کے اپنے Settings → Access tokens صفحے سے بنائیں (پورے اکاؤنٹ کے لیے کوئی ایک صفحہ نہیں ہے)۔',
+    'Needs a Bitbucket API token scoped to repository access only (the "read:repository:bitbucket" and "write:repository:bitbucket" scopes), plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the token alone.':
+      'اس کے لیے صرف ریپوزٹری تک رسائی محدود کردہ Bitbucket API ٹوکن ("read:repository:bitbucket" اور "write:repository:bitbucket" اسکوپس)، اور وہ Bitbucket صارف نام درکار ہے جس سے یہ تعلق رکھتا ہے — Bitbucket صرف ٹوکن کی نہیں بلکہ اس جوڑے کی توثیق کرتا ہے۔',
   },
   bn: {
     "Source Control": "সোর্স কোড নিয়ন্ত্রণ",
@@ -567,19 +567,19 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
       "সার্ভারে এনক্রিপ্ট করে সংরক্ষণ করা হয়। একবার সংরক্ষণ করার পর, Tovu এটি আর কখনও দেখাবে না।",
     "Create a token": "টোকেন তৈরি করুন",
     Username: "ব্যবহারকারীর নাম",
-    "The Bitbucket username this app password belongs to.": "যে Bitbucket ব্যবহারকারীর নামের সাথে এই অ্যাপ পাসওয়ার্ড সম্পর্কিত।",
+    "The Bitbucket username this API token belongs to.": "যে Bitbucket ব্যবহারকারীর নামের সাথে এই API টোকেন সম্পর্কিত।",
     Save: "সংরক্ষণ করুন",
     "Saving…": "সংরক্ষণ হচ্ছে…",
     connected: "সংযুক্ত",
     "token stored, encrypted": "টোকেন সংরক্ষিত, এনক্রিপ্টেড",
     saved: "সংরক্ষিত হয়েছে",
     "Replace token": "টোকেন প্রতিস্থাপন করুন",
-    'Needs a classic personal access token with the "repo" scope, or a fine-grained token with Contents permission set to Read and write.':
-      '"repo" স্কোপ সহ একটি ক্লাসিক ব্যক্তিগত অ্যাক্সেস টোকেন, অথবা Contents অনুমতি Read and write-এ সেট করা একটি সূক্ষ্ম টোকেন প্রয়োজন।',
-    'Needs a personal access token with the "read_repository" and "write_repository" scopes.':
-      '"read_repository" এবং "write_repository" স্কোপ সহ একটি ব্যক্তিগত অ্যাক্সেস টোকেন প্রয়োজন।',
-    "Needs an app password with Repositories: Read and Write permissions, plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the app password alone.":
-      "Repositories: Read এবং Write অনুমতি সহ একটি অ্যাপ পাসওয়ার্ড, এবং যে Bitbucket ব্যবহারকারীর নামের সাথে এটি সম্পর্কিত তা প্রয়োজন — Bitbucket শুধু অ্যাপ পাসওয়ার্ড নয়, এই জোড়াটি যাচাই করে।",
+    'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.':
+      'শুধুমাত্র এই রিপোজিটরির মধ্যে সীমাবদ্ধ একটি সূক্ষ্ম ব্যক্তিগত অ্যাক্সেস টোকেন প্রয়োজন, যেখানে Contents অনুমতি Read and write-এ সেট করা থাকবে। "repo" স্কোপ সহ একটি ক্লাসিক টোকেনও কাজ করে, তবে এটি এই অ্যাকাউন্ট যত রিপোজিটরিতে পৌঁছাতে পারে সবগুলোতে পৌঁছায় — যখনই সম্ভব সূক্ষ্ম টোকেনটি ব্যবহার করুন।',
+    'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).':
+      'পুরো অ্যাকাউন্ট নয়, শুধুমাত্র এই প্রকল্পের মধ্যে সীমাবদ্ধ একটি প্রকল্প অ্যাক্সেস টোকেন প্রয়োজন, যেখানে "read_repository" এবং "write_repository" স্কোপ থাকবে। এটি প্রকল্পের নিজস্ব Settings → Access tokens পৃষ্ঠা থেকে তৈরি করুন (পুরো অ্যাকাউন্টের জন্য একটিমাত্র পৃষ্ঠা নেই)।',
+    'Needs a Bitbucket API token scoped to repository access only (the "read:repository:bitbucket" and "write:repository:bitbucket" scopes), plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the token alone.':
+      'শুধুমাত্র রিপোজিটরি অ্যাক্সেসের মধ্যে সীমাবদ্ধ একটি Bitbucket API টোকেন ("read:repository:bitbucket" এবং "write:repository:bitbucket" স্কোপ), এবং যে Bitbucket ব্যবহারকারীর নামের সাথে এটি সম্পর্কিত তা প্রয়োজন — Bitbucket শুধু টোকেন নয়, এই জোড়াটি যাচাই করে।',
   },
 };
 
