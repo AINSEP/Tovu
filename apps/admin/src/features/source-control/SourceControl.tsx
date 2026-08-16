@@ -230,10 +230,10 @@ function SourceControlCredentialFields({
               onChange={(e) => controller.setUsername(row.providerId, e.target.value)}
               {...agentHandle(`source-control-credentials-username-${row.providerId}`, {
                 role: "field",
-                label: "Bitbucket username this app password belongs to — required, Bitbucket authenticates the pair",
+                label: "Bitbucket username this API token belongs to — required, Bitbucket authenticates the pair",
               })}
             />
-            <p className="field-hint">{translate("The Bitbucket username this app password belongs to.")}</p>
+            <p className="field-hint">{translate("The Bitbucket username this API token belongs to.")}</p>
           </div>
         ) : null}
       </div>

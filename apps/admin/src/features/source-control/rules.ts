@@ -51,29 +51,61 @@ export interface SourceControlProviderInfo {
  * {@link sourceControlCredentialRowReadyToSave} read from — a field that should gate saving belongs
  * there, never hardcoded again at either call site (same discipline `PUBLISH_CREDENTIAL_PROVIDERS`
  * documents for its own four rows).
+ *
+ * 2026-08-15 owner decision: every `scopeGuidanceKey` below leads with the NARROWEST credential
+ * each provider offers, and `tokenPageUrl` points at that narrow credential's own creation page —
+ * the broad, account-wide option (a classic PAT / a personal access token / an account-wide app
+ * password) is mentioned only as a fallback, if at all. Rationale: a broad credential is
+ * long-lived, human-scoped, and grants access to every repository/project the account can reach;
+ * the narrow one collapses most of that blast radius for free, with zero new infrastructure. This
+ * reverses this file's own PREVIOUS copy, which led with the classic/broad option — do not revert
+ * without a new owner decision.
+ *
+ * This does NOT touch how Tovu authenticates its OWN push-capable GitHub access
+ * (`src/features/deployments/providers/github.ts`), which already carries a documented 5/5 ADS
+ * debate decision (all three rounds) AGAINST stored PATs for that purpose, in favor of GitHub App
+ * installation auth (RS256 JWT with the correct 10-minute `exp` cap, installation-token exchange,
+ * an origin-pinned client that fails closed — fully implemented and tested, just not yet wired to
+ * any caller). This page is a different, narrower thing: an operator manually pasting a token they
+ * generated themselves to connect an EXTERNAL identity, the same shape
+ * `deployment/rules.ts`'s own `PUBLISH_CREDENTIAL_PROVIDERS` GitHub Pages row already asks for
+ * (`deployment/rules.ts:305`, live in production against a real `github-pages` row in
+ * `publish_credential_sets`) — this page matches existing, already-shipped practice, not a new
+ * precedent, and narrowing ITS guidance does not reopen the App-vs-PAT debate for the deployments
+ * feature.
+ *
+ * Bitbucket deviates from a literal reading of "app password": Atlassian's own current docs
+ * (support.atlassian.com/bitbucket-cloud/docs/app-passwords/, fetched 2026-08-15) state API tokens
+ * are "the long term replacement for App passwords" — scoped per-permission
+ * (`read:repository:bitbucket` / `write:repository:bitbucket`, verified against
+ * support.atlassian.com/bitbucket-cloud/docs/using-api-tokens/) and still authenticate paired with
+ * the account's username exactly like an app password does, so `requiredFields: ["username"]`
+ * below is unchanged. Pointing at the soon-superseded mechanism would undercut this same change's
+ * own "narrowest, current path" goal — flagged here for review rather than silently substituted.
  */
 export const SOURCE_CONTROL_PROVIDERS: readonly SourceControlProviderInfo[] = [
   {
     id: "github",
     label: "GitHub",
-    tokenPageUrl: "https://github.com/settings/tokens",
+    tokenPageUrl: "https://github.com/settings/personal-access-tokens/new",
     scopeGuidanceKey:
-      'Needs a classic personal access token with the "repo" scope, or a fine-grained token with Contents permission set to Read and write.',
+      'Needs a fine-grained personal access token scoped to just this repository, with Contents permission set to Read and write. A classic token with the "repo" scope also works, but reaches every repository this account can access — prefer the fine-grained token.',
     requiredFields: [],
   },
   {
     id: "gitlab",
     label: "GitLab",
-    tokenPageUrl: "https://gitlab.com/-/user_settings/personal_access_tokens",
-    scopeGuidanceKey: 'Needs a personal access token with the "read_repository" and "write_repository" scopes.',
+    tokenPageUrl: "https://docs.gitlab.com/user/project/settings/project_access_tokens/",
+    scopeGuidanceKey:
+      'Needs a project access token — scoped to just this project, not your whole account — with the "read_repository" and "write_repository" scopes. Create one from the project\'s own Settings → Access tokens page (there is no single account-wide page for these).',
     requiredFields: [],
   },
   {
     id: "bitbucket",
     label: "Bitbucket",
-    tokenPageUrl: "https://bitbucket.org/account/settings/app-passwords/",
+    tokenPageUrl: "https://id.atlassian.com/manage-profile/security/api-tokens",
     scopeGuidanceKey:
-      "Needs an app password with Repositories: Read and Write permissions, plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the app password alone.",
+      'Needs a Bitbucket API token scoped to repository access only (the "read:repository:bitbucket" and "write:repository:bitbucket" scopes), plus the Bitbucket username it belongs to — Bitbucket authenticates the pair, not the token alone.',
     requiredFields: ["username"],
   },
 ] as const;
