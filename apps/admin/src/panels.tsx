@@ -705,6 +705,28 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
     agentReachable: true,
   },
   {
+    id: "deployment",
+    // Five real tabs (Overview, Static Site, Full Site, Dockerfile, History) replaced the
+    // `PlaceholderTabs` stub (Home/GitHub/AWS) this pass. `soon: true` is dropped: that flag means
+    // "announced but not yet built" (see `PlaceholderTabs.tsx`'s own doc), and this screen no
+    // longer renders a generic "X is coming soon" panel anywhere — Overview and Dockerfile are
+    // backed by real endpoints, and Static Site/Full Site/History are honest, real empty/explainer
+    // states rather than placeholders. Same `?tab=` deep-linking convention as `settings`'s own
+    // entry just below.
+    //
+    // Ordered directly beneath Recovery (owner's call, 2026-08-15), ahead of the two `soon: true`
+    // entries rather than after them. Deployment is a BUILT screen and Activity Log / Import &
+    // Export are not, so trailing it behind them buried the section's most active surface under two
+    // that cannot be used yet. It also puts it beside its nearest neighbour in meaning: Recovery is
+    // how a site comes back, Deployment is how it goes out.
+    render: (ctx) => <Deployment tabId={ctx.query.get("tab")} />,
+    nav: {
+      label: "Deployment",
+      group: "Operations",
+      icon: '<path d="M9 2.5c2.6 1.8 4 4.4 4 7.2L9 13 5 9.7c0-2.8 1.4-5.4 4-7.2z"/><circle cx="9" cy="7.5" r="1.4"/><path d="M6.6 12.4L5 15.5l3-.9M11.4 12.4L13 15.5l-3-.9"/>',
+    },
+  },
+  {
     id: "activity-log",
     // No screen yet — `soon: true` + `Placeholder`, this repo's one idiom for a real-but-unbuilt
     // nav entry. Sits beside Recovery deliberately: both answer "what happened to my site," one
@@ -732,22 +754,6 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
       group: "Operations",
       soon: true,
       icon: '<path d="M9 2.5v8M9 10.5L6 7.5M9 10.5l3-3"/><path d="M3 12v2.5h12V12"/>',
-    },
-  },
-  {
-    id: "deployment",
-    // Five real tabs (Overview, Static Site, Full Site, Dockerfile, History) replaced the
-    // `PlaceholderTabs` stub (Home/GitHub/AWS) this pass. `soon: true` is dropped: that flag means
-    // "announced but not yet built" (see `PlaceholderTabs.tsx`'s own doc), and this screen no
-    // longer renders a generic "X is coming soon" panel anywhere — Overview and Dockerfile are
-    // backed by real endpoints, and Static Site/Full Site/History are honest, real empty/explainer
-    // states rather than placeholders. Same `?tab=` deep-linking convention as `settings`'s own
-    // entry just below.
-    render: (ctx) => <Deployment tabId={ctx.query.get("tab")} />,
-    nav: {
-      label: "Deployment",
-      group: "Operations",
-      icon: '<path d="M9 2.5c2.6 1.8 4 4.4 4 7.2L9 13 5 9.7c0-2.8 1.4-5.4 4-7.2z"/><circle cx="9" cy="7.5" r="1.4"/><path d="M6.6 12.4L5 15.5l3-.9M11.4 12.4L13 15.5l-3-.9"/>',
     },
   },
 
