@@ -152,8 +152,9 @@ test("publish-credentials: full CRUD round trip — create, list, update (blank 
   assert.equal("token" in credential, false);
   assert.equal("sealed" in credential, false);
   // The route verified the just-saved connection best-effort (2026-08-16) — `stubVerificationFetch`
-  // fakes Vercel's own answer as a 401, so this must read as "rejected", never as `ready`/`ok: true`.
-  assert.equal(verification.ok, false);
+  // fakes Vercel's own answer as a 401, so this must read as "invalid" (the provider affirmatively
+  // rejected it), never "valid" and never conflated with "unreachable" (a network problem).
+  assert.equal(verification.status, "invalid");
   assert.match(verification.message, /rejected/i);
   assert.equal(JSON.stringify(verification).includes("vercel-secret-token"), false);
 
@@ -299,8 +300,41 @@ test("publish-credentials: POST .../:id/verify re-checks an existing connection 
   const verified = await fetch(`${base}/${credential.id}/verify`, { method: "POST", headers: { cookie } });
   assert.equal(verified.status, 200);
   const { verification } = await verified.json();
-  assert.equal(verification.ok, false);
+  assert.equal(verification.status, "invalid");
   assert.match(verification.message, /GitHub rejected this credential.*HTTP 401/);
   assert.equal(typeof verification.checkedAt, "string");
   assert.equal(JSON.stringify(verification).includes("github-secret-token"), false);
+});
+
+test("publish-credentials: a network failure during POST .../:id/verify reports 'unreachable', never 'invalid' — a flaky network must not read as a bad credential", async (t) => {
+  const deps: RouteDeps = { ...createRouteDeps() };
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const base = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${CREDENTIALS_PATH}`;
+  stubVerificationFetch(t, baseUrl, 401); // save-time check: some status, contents irrelevant here
+
+  const created = await fetch(base, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ label: "gh", connection: { providerId: "github-pages", token: "github-secret-token" } }),
+  });
+  const { credential } = await created.json();
+
+  // Swap the stub for one that throws (DNS failure / connection reset) instead of answering, same
+  // "pass local calls through, fake the outbound provider call" URL discrimination as
+  // `stubVerificationFetch`, but this time the outbound call fails at the transport layer entirely.
+  const original = globalThis.fetch;
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    if (String(input).startsWith(baseUrl)) return original(input, init);
+    throw new TypeError("fetch failed");
+  }) as typeof fetch;
+  t.after(() => {
+    globalThis.fetch = original;
+  });
+
+  const verified = await fetch(`${base}/${credential.id}/verify`, { method: "POST", headers: { cookie } });
+  assert.equal(verified.status, 200);
+  const { verification } = await verified.json();
+  assert.equal(verification.status, "unreachable");
+  assert.notEqual(verification.status, "invalid");
 });
