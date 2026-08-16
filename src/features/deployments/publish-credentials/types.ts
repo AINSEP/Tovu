@@ -88,6 +88,11 @@ export interface PublishCredentialSetRecord {
   readonly providerId: PublishProviderId;
   readonly label: string;
   readonly sealed: SealedSecret;
+  /** Migration `0041` (Contract v2 Correction B) — at most one `TRUE` per `(workspaceId,
+   *  providerId)`, maintained by `store.ts`'s write path (never by a DB constraint — see
+   *  `db/schema.ts`'s `publishCredentialSets.isDefault` doc). `resolveDefaultForPublish` reads the
+   *  row with `isDefault: true` for a provider instead of requiring a caller-supplied `id`. */
+  readonly isDefault: boolean;
   readonly createdAt: ISODateTime;
   readonly updatedAt: ISODateTime;
 }
@@ -100,6 +105,7 @@ export interface PublishCredentialSummary {
   readonly providerId: PublishProviderId;
   readonly label: string;
   readonly configured: true;
+  readonly isDefault: boolean;
   readonly createdAt: ISODateTime;
   readonly updatedAt: ISODateTime;
 }
@@ -107,13 +113,32 @@ export interface PublishCredentialSummary {
 /** Workspace-scoped persistence for {@link PublishCredentialSetRecord} (ADR-007 §1). `insert`
  *  assumes the caller already checked/accepted the `(workspaceId, providerId, label)` UNIQUE
  *  constraint may reject it — see `store.ts`'s `isUniqueLabelViolation` for how that DB error is
- *  turned into `PublishCredentialDuplicateLabelError` rather than propagated as a raw driver error. */
+ *  turned into `PublishCredentialDuplicateLabelError` rather than propagated as a raw driver error.
+ *
+ * `insert`/`update`/`delete` ALSO own the `isDefault` invariant (Contract v2 Correction B): if the
+ * written `record.isDefault` is `true`, `insert`/`update` atomically clear `isDefault` on every OTHER
+ * row sharing `(workspaceId, providerId)`, in the SAME transaction as the write (the SQLite adapter
+ * wraps both statements in one `db.transaction()`; the in-memory adapter's plain synchronous
+ * sequencing gets the same atomicity for free — no `await` ever separates the read from the write).
+ * `delete` promotes the group's most-recently-updated remaining row to default if the deleted row WAS
+ * the default. `store.ts`'s write path decides the VALUE of `isDefault` before calling these (e.g.
+ * "first row for a provider auto-defaults"); this port only guarantees the GROUP-WIDE invariant once
+ * that value is decided. */
 export interface PublishCredentialSetRepoPort {
   insert(record: PublishCredentialSetRecord): Promise<void>;
   /** Full-row replace by `(workspaceId, id)` — used for both a label rename and a connection
    *  rotation. Same UNIQUE-violation possibility as `insert` (renaming into another row's label). */
   update(record: PublishCredentialSetRecord): Promise<void>;
   findById(input: { workspaceId: UUID; id: UUID }): Promise<PublishCredentialSetRecord | null>;
+  /** The current default row for one `(workspaceId, providerId)` pair — `null` if that provider has
+   *  no rows at all for this workspace. Once the write path's invariant holds, a provider with any
+   *  rows always has exactly one default; a caller should still treat `null` as "no default"
+   *  defensively rather than assume the invariant can never be violated (e.g. by a hand-edited row). */
+  findDefaultByProvider(input: { workspaceId: UUID; providerId: PublishProviderId }): Promise<PublishCredentialSetRecord | null>;
+  /** Every row for one `(workspaceId, providerId)` pair — used by `store.ts`'s write path to decide
+   *  "is this the group's first row" (create-time auto-default) and, ahead of `delete`, to reason
+   *  about the promotion candidate. Same small-collection reasoning as `listByWorkspace`. */
+  listByProvider(input: { workspaceId: UUID; providerId: PublishProviderId }): Promise<PublishCredentialSetRecord[]>;
   /** Every credential set a workspace has saved, across all providers — this feature's own
    *  collection is inherently small (bounded by how many connections a human bothers to save through
    *  this exact form, not by any user-supplied N), so no pagination/cap is added here, unlike a
@@ -121,6 +146,7 @@ export interface PublishCredentialSetRepoPort {
   listByWorkspace(input: { workspaceId: UUID }): Promise<PublishCredentialSetRecord[]>;
   /** No-op (not an error) if no row exists for `(workspaceId, id)` — matches
    *  `SiteAssistantCredentialRepoPort.clearKey`'s idempotent-delete posture and this feature's own
-   *  `DELETE .../credentials/:id` route contract (204, idempotent). */
+   *  `DELETE .../credentials/:id` route contract (204, idempotent). See this interface's own header
+   *  for the default-promotion behavior this method also performs. */
   delete(input: { workspaceId: UUID; id: UUID }): Promise<void>;
 }

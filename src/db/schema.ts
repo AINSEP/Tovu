@@ -1494,6 +1494,20 @@ export const publishCredentialSets = sqliteTable(
     /** Always `'aes-256-gcm'` today; stored rather than hardcoded for the same future-algorithm
      *  reason the two precedent tables above give. */
     sealedAlg: text("sealed_alg").notNull(),
+    /**
+     * Migration `0041` addition (2026-08-15, Contract v2 Correction B) — replaces the original
+     * design's "reject a publish when 2+ credentials exist for one provider, ambiguous" rule, which
+     * broke the whole point of named connections the first time a workspace saved a second one.
+     * `resolveForPublish`'s provider-scoped resolution now reads the row with `is_default = 1`
+     * instead. The write path (`publish-credentials/store.ts`) maintains the invariant "at most one
+     * `TRUE` per `(workspace_id, provider_id)`" — a provider's first-ever saved connection becomes
+     * default automatically, setting a new default clears the old one in the same transaction, and
+     * deleting the default promotes the group's most-recently-updated remaining row. No DB-level
+     * CHECK/partial-unique-index enforces this (SQLite partial indexes can't express "at most one
+     * TRUE per group" without excluding legitimate `0` rows too) — the write path is the sole
+     * chokepoint, same trust model this table's `sealed*` columns already rely on for the AAD
+     * binding above. */
+    isDefault: integer("is_default", { mode: "boolean" }).notNull().default(false),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
   },

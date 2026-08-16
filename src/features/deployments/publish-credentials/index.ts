@@ -25,6 +25,7 @@ export {
   PublishCredentialNotFoundError,
   PublishCredentialSecretStoreUnconfiguredError,
   PublishCredentialValidationError,
+  resolveDefaultForPublish,
   resolveForPublish,
   updatePublishCredential,
   type CreatePublishCredentialInput,

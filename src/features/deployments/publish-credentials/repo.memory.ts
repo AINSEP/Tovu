@@ -14,6 +14,12 @@ import type { PublishCredentialSetRecord, PublishCredentialSetRepoPort, PublishP
  * this, `store.ts`'s duplicate-label path (`createPublishCredential`/`updatePublishCredential`) would
  * only be exercisable against a real SQLite `content.db`, and this module's own unit tests would need
  * one just to prove that one branch — a heavier test than the behavior warrants.
+ *
+ * `insert`/`update`/`delete` also maintain the `isDefault` group invariant (Contract v2 Correction B
+ * — see `PublishCredentialSetRepoPort`'s own header). No explicit transaction is needed here: every
+ * method below is synchronous end to end (no `await` between the read and the write), so nothing else
+ * can observe a half-updated group in a single-threaded JS process — the same property the real
+ * SQLite adapter needs an actual `db.transaction()` to get.
  */
 export class InMemoryPublishCredentialSetRepo implements PublishCredentialSetRepoPort {
   private readonly rows = new Map<string, PublishCredentialSetRecord>();
@@ -32,18 +38,40 @@ export class InMemoryPublishCredentialSetRepo implements PublishCredentialSetRep
     }
   }
 
+  /** Clears `isDefault` on every OTHER row sharing `(workspaceId, providerId)` — the group-invariant
+   *  half of `insert`/`update`'s contract. */
+  private clearOtherDefaults(workspaceId: UUID, providerId: PublishProviderId, keepId: UUID): void {
+    for (const [key, row] of this.rows) {
+      if (row.workspaceId !== workspaceId || row.providerId !== providerId || row.id === keepId || !row.isDefault) continue;
+      this.rows.set(key, { ...row, isDefault: false });
+    }
+  }
+
   async insert(record: PublishCredentialSetRecord): Promise<void> {
     this.assertLabelAvailable(record.workspaceId, record.providerId, record.label);
     this.rows.set(InMemoryPublishCredentialSetRepo.rowKey(record.workspaceId, record.id), { ...record });
+    if (record.isDefault) this.clearOtherDefaults(record.workspaceId, record.providerId, record.id);
   }
 
   async update(record: PublishCredentialSetRecord): Promise<void> {
     this.assertLabelAvailable(record.workspaceId, record.providerId, record.label, record.id);
     this.rows.set(InMemoryPublishCredentialSetRepo.rowKey(record.workspaceId, record.id), { ...record });
+    if (record.isDefault) this.clearOtherDefaults(record.workspaceId, record.providerId, record.id);
   }
 
   async findById(input: { workspaceId: UUID; id: UUID }): Promise<PublishCredentialSetRecord | null> {
     return this.rows.get(InMemoryPublishCredentialSetRepo.rowKey(input.workspaceId, input.id)) ?? null;
+  }
+
+  async findDefaultByProvider(input: { workspaceId: UUID; providerId: PublishProviderId }): Promise<PublishCredentialSetRecord | null> {
+    for (const row of this.rows.values()) {
+      if (row.workspaceId === input.workspaceId && row.providerId === input.providerId && row.isDefault) return row;
+    }
+    return null;
+  }
+
+  async listByProvider(input: { workspaceId: UUID; providerId: PublishProviderId }): Promise<PublishCredentialSetRecord[]> {
+    return [...this.rows.values()].filter((row) => row.workspaceId === input.workspaceId && row.providerId === input.providerId);
   }
 
   async listByWorkspace(input: { workspaceId: UUID }): Promise<PublishCredentialSetRecord[]> {
@@ -51,6 +79,16 @@ export class InMemoryPublishCredentialSetRepo implements PublishCredentialSetRep
   }
 
   async delete(input: { workspaceId: UUID; id: UUID }): Promise<void> {
-    this.rows.delete(InMemoryPublishCredentialSetRepo.rowKey(input.workspaceId, input.id));
+    const key = InMemoryPublishCredentialSetRepo.rowKey(input.workspaceId, input.id);
+    const removed = this.rows.get(key);
+    this.rows.delete(key);
+    if (!removed?.isDefault) return;
+
+    // Promote the group's most-recently-updated remaining row — same tie-break rule the SQLite
+    // adapter's `ORDER BY updated_at DESC LIMIT 1` uses.
+    const remaining = [...this.rows.values()].filter((row) => row.workspaceId === removed.workspaceId && row.providerId === removed.providerId);
+    if (remaining.length === 0) return;
+    const promoted = remaining.reduce((latest, row) => (row.updatedAt > latest.updatedAt ? row : latest));
+    this.rows.set(InMemoryPublishCredentialSetRepo.rowKey(promoted.workspaceId, promoted.id), { ...promoted, isDefault: true });
   }
 }
