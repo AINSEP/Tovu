@@ -237,6 +237,54 @@ until a route/CLI trigger for that path exists. Not building that trigger now �
 live-reported bug involved the env-var path (the demonstrated case was a DB-saved token via the
 admin form).
 
-### Implementation status
+### Implementation status — DONE. Commit `c7af2422` in Tovu.
 
-*(next update: code + tests + commit SHAs)*
+Built exactly the design above, plus one refinement discovered while wiring the admin route: the
+originally-proposed target-scoped `verifyPublishCredential` (checks whichever credential the
+COMPOSED source currently resolves — always the provider's DEFAULT row) is right for the
+capabilities tool's `ready` signal, but wrong for "verify the row a human just clicked/saved" — a
+human saving or clicking Verify on a SECOND, non-default connection would otherwise silently check
+the unrelated default row instead. Added `verifyPublishCredentialById` (decrypts one specific row by
+id via the existing `resolveForPublish`) for the two human-triggered call sites; it still only
+updates the shared `(workspaceId, target)` cache when the checked row IS its provider's current
+default — a non-default row's own result is returned to the human but never overwrites what a real
+publish would actually see. Covered by a dedicated test
+(`verifyPublishCredentialById: a NON-default row's own result is returned but does NOT overwrite the
+default row's cached ready-signal`).
+
+**Files**: `static-publish/verify.ts` (new — checkers, cache, both entry points),
+`static-publish/index.ts` (barrel exports), `publish-agent-tools.ts` (capabilities handler + catalog
+description), `server/routes/types.ts` (`publishCredentialVerificationCache` on `RouteDeps`),
+`server/app.ts`/`server/deps.ts` (wire one shared in-memory instance per process, both composition
+roots), `server/routes/admin/system/publish-credentials.ts` (verify-after-save on POST/PUT, new
+`POST .../:id/verify`). Tests: `static-publish/__tests__/verify.unit.test.ts` (10 cases — every
+provider's accept/reject/unreachable classification, the never-throws contract, the cache's own
+contract, the default-vs-non-default row rule), `publish-agent-tools.unit.test.ts` (+2 new tests for
+the unverified/failed states, existing test updated for the new contract),
+`publish-credentials-route.test.ts` (+2 new tests for the on-demand verify route, existing tests
+updated to stub the now-real verification network call via a URL-discriminating `globalThis.fetch`
+stub so they never depend on reaching a real provider or on real network access).
+
+**Red-state proof for the actual reported defect**: `git stash`ed only `publish-agent-tools.ts` back
+to its pre-fix `HEAD` state, reran `publish-agent-tools.unit.test.ts` — the 2 new
+unverified/failed-verification tests AND the updated existing capabilities test failed (3/37),
+every other test (including everything about `deployment_execute_static_publish` and the
+propose-credential tool, which this change never touched) stayed green. Popped the stash, reran:
+37/37 pass. Full output captured in this session; not re-pasted here per the offload-large-output
+rule — summary: RED was exactly the 3 tests touching the new contract, nothing else, confirming the
+fix is both necessary (old code fails the new tests) and precise (no unrelated test moved).
+
+**Fresh evidence, current HEAD** (`c7af2422`):
+- `npx tsc -p tsconfig.json --noEmit` — 0 errors, full project.
+- `node --import tsx --test src/features/deployments/__tests__/publish-agent-tools.unit.test.ts` — 37/37 pass.
+- `node --import tsx --test src/server/__tests__/routes/publish-credentials-route.test.ts src/features/deployments/static-publish/__tests__/verify.unit.test.ts` — 20/20 pass.
+
+**Deliberately not built this pass** (stated up front in the design, restated here for the
+handoff): env-var-sourced credential verification has no trigger wired (no "just saved" moment or
+admin row to attach a Verify button to for that path — `verified` stays `null` forever for an
+env-fallback-only provider until/unless a future CLI or route adds one); `deployment_execute_static_publish`'s
+pre-flight gate still checks only `isConfigured()`, not the cached verification (reasoning: the real
+publish attempt IS the truest verification — gating on a possibly-stale cache risks being wrong in
+either direction); the confirmation dialog does not yet show a "last verified: failed" warning line
+(flagged as a natural, low-risk follow-up using the same cached data, not implemented to keep this
+pass's diff reviewable).
