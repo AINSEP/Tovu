@@ -8,7 +8,7 @@ import type { DeployFile, DeployPublishInput, DeployPublishResult, DeployTarget 
 import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { createRouteDeps } from "#src/server/app";
-import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "#src/assistant/surface-exchanges";
+import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "#src/assistant/surface-exchanges";
 import type { PublishCredentialSetRecord, PublishCredentialSetRepoPort } from "../publish-credentials/index";
 import type { PublishCredentialSource } from "../static-publish/index";
 
@@ -156,18 +156,20 @@ function fakeCredentialRepo(records: readonly PublishCredentialSetRecord[]): Pub
 }
 
 // ---------------------------------------------------------------------------
-// 1. Wiring shape — all three tools
+// 1. Wiring shape — all five tools
 // ---------------------------------------------------------------------------
 
-test("buildStaticPublishRegistrations wires all three tools, each with an input schema", () => {
+test("buildStaticPublishRegistrations wires all five tools, each with an input schema", () => {
   const { deps } = fakeDeps({ credentialSource: { async resolve() { return { ok: false, reason: "n/a" }; }, async isConfigured() { return { configured: false, reason: "n/a" }; } } });
   const surfaceExchanges = createSurfaceExchangeStore();
   const registrations = buildStaticPublishRegistrations(deps, { surfaceExchanges });
   const ids = registrations.map((r) => r.descriptor.id).sort();
   assert.deepEqual(ids, [
     "deployment_execute_static_publish",
+    "deployment_generate_bucket_hosting_setup",
     "deployment_get_static_publish_capabilities",
     "deployment_preview_static_publish",
+    "deployment_propose_custom_provider_credential",
   ]);
   for (const entry of registrations) {
     assert.ok(entry.descriptor.inputSchema, `${entry.descriptor.id} must publish an input schema`);
@@ -576,4 +578,243 @@ test("the dialog names the target and project name, so the consent is informed",
 
   surfaceExchanges.deliver({ exchangeId, toolId: "deployment_execute_static_publish", principalId: PRINCIPAL_ID, params: { decision: "cancel" } });
   await pending;
+});
+
+// ---------------------------------------------------------------------------
+// 5. deployment_propose_custom_provider_credential — MCP-UI form-gated write (spec §6)
+// ---------------------------------------------------------------------------
+
+/** Raises the propose-credential FORM and returns everything a test needs to answer it — same shape
+ *  as `raiseDialog`, distinct name because it's a form, not a confirmation. */
+async function raiseCredentialForm(proposeTool: ToolRegistration, input: Record<string, unknown> = { protocol: "s3-compatible" }) {
+  const emitted: unknown[] = [];
+  const pending = call(proposeTool, { input, emitSurface: async (s) => void emitted.push(s) });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(emitted.length, 1, "the form must be emitted before the call parks");
+  const html = (emitted[0] as { payload: { resource: { resource: { text: string } } } }).payload.resource.resource.text;
+  const exchangeId = exchangeIdFromSurface(emitted[0]);
+  return { pending, html, exchangeId };
+}
+
+const VALID_FORM_SUBMISSION = {
+  region: "us-east-1",
+  bucket: "my-bucket",
+  accessKeyId: "AKIAEXAMPLE",
+  secretAccessKey: "s3cr3t",
+  publicUrl: "https://my-bucket.s3.us-east-1.amazonaws.com",
+};
+
+test("deployment_propose_custom_provider_credential's schema carries no accessKeyId/secretAccessKey field of any kind", () => {
+  const entry = staticPublishAgentToolCatalog.find((t) => t.name === "deployment_propose_custom_provider_credential")!;
+  const schema = entry.inputSchema as { properties: Record<string, unknown>; additionalProperties?: boolean; required: string[] };
+  assert.equal(schema.additionalProperties, false);
+  assert.deepEqual(Object.keys(schema.properties).sort(), ["bucket", "endpoint", "protocol", "publicUrl", "region"]);
+  assert.deepEqual(schema.required, ["protocol"]);
+});
+
+test("with no emitSurface, the credential form is refused outright — no exchange is ever opened, nothing saved", async () => {
+  const { deps } = fakeDeps();
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_propose_custom_provider_credential");
+  await assert.rejects(() => call(proposeTool, { input: { protocol: "s3-compatible" } }));
+  assert.equal(surfaceExchanges.size(), 0);
+});
+
+test("requires deployments.credentials.write, checked before any form is raised", async () => {
+  const { deps, authorizeCalls, setAllow } = fakeDeps();
+  setAllow(false);
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_propose_custom_provider_credential");
+
+  await assert.rejects(() => call(proposeTool, { input: { protocol: "s3-compatible" }, emitSurface: async () => {} }));
+  assert.equal(surfaceExchanges.size(), 0, "no form may be raised before the permission check passes");
+  assert.ok(authorizeCalls.some((c) => c.permission === "deployments.credentials.write"));
+});
+
+test("the rendered form pre-fills non-secret hints and marks ONLY secretAccessKey as masked", async () => {
+  const { deps } = fakeDeps();
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_propose_custom_provider_credential");
+
+  const { html, exchangeId, pending } = await raiseCredentialForm(proposeTool, { protocol: "s3-compatible", bucket: "hinted-bucket", region: "us-east-1" });
+  assert.match(html, /value="hinted-bucket"/, "a model-supplied bucket hint must pre-fill the form");
+
+  // Each field renders as `<input class="mcpui-input" type="..." id="mcpui-field-<name>" name="<name>" ...>`
+  // (real output captured while diagnosing this test — field order within the tag is fixed by
+  // `text-input.ts`'s own template, so a simple id-anchored regex reads the real `type` attribute).
+  const secretInput = html.match(/<input[^>]*id="mcpui-field-secretAccessKey"[^>]*>/);
+  assert.ok(secretInput, "secretAccessKey's <input> must be present");
+  assert.match(secretInput![0], /type="password"/, "secretAccessKey must render masked");
+
+  const accessKeyInput = html.match(/<input[^>]*id="mcpui-field-accessKeyId"[^>]*>/);
+  assert.ok(accessKeyInput, "accessKeyId's <input> must be present");
+  assert.match(accessKeyInput![0], /type="text"/, "accessKeyId must NOT render masked — it is explicitly non-secret");
+
+  surfaceExchanges.deliver({ exchangeId, toolId: "deployment_propose_custom_provider_credential", principalId: PRINCIPAL_ID, params: { [SURFACE_DISMISSED_PARAM]: true } });
+  await pending;
+});
+
+test("submit: a first-time save creates exactly one s3-compatible row, auto-defaulted, and NEVER echoes any field value back", async () => {
+  const { deps } = fakeDeps();
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_propose_custom_provider_credential");
+
+  const { exchangeId, pending } = await raiseCredentialForm(proposeTool);
+  const delivered = surfaceExchanges.deliver({
+    exchangeId,
+    toolId: "deployment_propose_custom_provider_credential",
+    principalId: PRINCIPAL_ID,
+    params: VALID_FORM_SUBMISSION,
+  });
+  assert.deepEqual(delivered, { ok: true });
+
+  const result = await pending;
+  assert.deepEqual(result, { saved: true, providerId: "s3-compatible", connected: true });
+  assert.doesNotMatch(JSON.stringify(result), /s3cr3t|AKIAEXAMPLE/, "the secret/access key must never appear in the tool's own return value");
+
+  const rows = await deps.publishCredentialSetRepo.listByWorkspace({ workspaceId: deps.workspaceId });
+  const s3Rows = rows.filter((r) => r.providerId === "s3-compatible");
+  assert.equal(s3Rows.length, 1);
+  assert.equal(s3Rows[0]!.isDefault, true, "a provider's first-ever saved connection auto-defaults");
+  assert.equal(s3Rows[0]!.label, "default");
+});
+
+test("submit: a SECOND save updates the existing row rather than creating a duplicate — one row per provider, matching the admin's own flat-row UX", async () => {
+  const { deps } = fakeDeps();
+  const surfaceExchanges = createSurfaceExchangeStore();
+
+  const first = await raiseCredentialForm(tool(buildRegistrations(deps, surfaceExchanges), "deployment_propose_custom_provider_credential"));
+  surfaceExchanges.deliver({ exchangeId: first.exchangeId, toolId: "deployment_propose_custom_provider_credential", principalId: PRINCIPAL_ID, params: VALID_FORM_SUBMISSION });
+  await first.pending;
+
+  const second = await raiseCredentialForm(tool(buildRegistrations(deps, surfaceExchanges), "deployment_propose_custom_provider_credential"));
+  surfaceExchanges.deliver({
+    exchangeId: second.exchangeId,
+    toolId: "deployment_propose_custom_provider_credential",
+    principalId: PRINCIPAL_ID,
+    params: { ...VALID_FORM_SUBMISSION, bucket: "renamed-bucket" },
+  });
+  const result = await second.pending;
+  assert.deepEqual(result, { saved: true, providerId: "s3-compatible", connected: true });
+
+  const rows = (await deps.publishCredentialSetRepo.listByWorkspace({ workspaceId: deps.workspaceId })).filter((r) => r.providerId === "s3-compatible");
+  assert.equal(rows.length, 1, "a second save must UPDATE the existing row, never create a second one");
+});
+
+test("submit: a blank required field is rejected server-side with an actionable message, never a saved row — form.ts's own novalidate makes this the real enforcement point", async () => {
+  const { deps } = fakeDeps();
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_propose_custom_provider_credential");
+
+  const { exchangeId, pending } = await raiseCredentialForm(proposeTool);
+  surfaceExchanges.deliver({
+    exchangeId,
+    toolId: "deployment_propose_custom_provider_credential",
+    principalId: PRINCIPAL_ID,
+    params: { ...VALID_FORM_SUBMISSION, bucket: "" },
+  });
+
+  const result = (await pending) as { saved: boolean; reason: string; message: string };
+  assert.equal(result.saved, false);
+  assert.equal(result.reason, "invalid");
+  assert.match(result.message, /bucket/);
+
+  const rows = await deps.publishCredentialSetRepo.listByWorkspace({ workspaceId: deps.workspaceId });
+  assert.equal(rows.filter((r) => r.providerId === "s3-compatible").length, 0, "an invalid submission must not save anything");
+});
+
+test("cancel: nothing is saved, and the SAME call reports the cancellation", async () => {
+  const { deps } = fakeDeps();
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_propose_custom_provider_credential");
+
+  const { exchangeId, pending } = await raiseCredentialForm(proposeTool);
+  surfaceExchanges.deliver({ exchangeId, toolId: "deployment_propose_custom_provider_credential", principalId: PRINCIPAL_ID, params: { [SURFACE_DISMISSED_PARAM]: true } });
+  const result = await pending;
+  assert.deepEqual(result, { saved: false, cancelled: true });
+
+  const rows = await deps.publishCredentialSetRepo.listByWorkspace({ workspaceId: deps.workspaceId });
+  assert.equal(rows.filter((r) => r.providerId === "s3-compatible").length, 0);
+});
+
+test("re-calling the tool while a form is pending opens a SEPARATE form — it does not answer the first one", async () => {
+  const { deps } = fakeDeps();
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_propose_custom_provider_credential");
+
+  const first = await raiseCredentialForm(proposeTool);
+  const second = await raiseCredentialForm(proposeTool);
+  assert.notEqual(first.exchangeId, second.exchangeId);
+  assert.equal(surfaceExchanges.size(), 2);
+
+  surfaceExchanges.deliver({ exchangeId: first.exchangeId, toolId: "deployment_propose_custom_provider_credential", principalId: PRINCIPAL_ID, params: { [SURFACE_DISMISSED_PARAM]: true } });
+  surfaceExchanges.deliver({ exchangeId: second.exchangeId, toolId: "deployment_propose_custom_provider_credential", principalId: PRINCIPAL_ID, params: { [SURFACE_DISMISSED_PARAM]: true } });
+  await Promise.all([first.pending, second.pending]);
+});
+
+// ---------------------------------------------------------------------------
+// 6. deployment_generate_bucket_hosting_setup — plain read, no MCP-UI gate (spec §3a)
+// ---------------------------------------------------------------------------
+
+test("deployment_generate_bucket_hosting_setup requires deployments.read, checked before any content is composed", async () => {
+  const { deps, authorizeCalls, setAllow } = fakeDeps();
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const hostingSetupTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_generate_bucket_hosting_setup");
+
+  setAllow(false);
+  await assert.rejects(() => call(hostingSetupTool, { input: { protocol: "s3-compatible", bucket: "b", region: "us-east-1" } }), /is not authorized for 'deployments\.read'/);
+  assert.ok(authorizeCalls.some((c) => c.permission === "deployments.read"));
+});
+
+test("deployment_generate_bucket_hosting_setup rejects an unrecognized protocol rather than silently returning generic guidance", async () => {
+  const { deps } = fakeDeps();
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const hostingSetupTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_generate_bucket_hosting_setup");
+
+  await assert.rejects(() => call(hostingSetupTool, { input: { protocol: "webhook", bucket: "b", region: "us-east-1" } }), /protocol/);
+});
+
+test("blank/omitted endpoint infers plain AWS S3 and returns a bucket-substituted public-read policy JSON, no warning", async () => {
+  const { deps } = fakeDeps();
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const hostingSetupTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_generate_bucket_hosting_setup");
+
+  const result = (await call(hostingSetupTool, { input: { protocol: "s3-compatible", bucket: "my-bucket", region: "us-east-1" } })) as {
+    provider: string;
+    steps: { title: string; description: string; consoleJson?: string }[];
+    warning: string;
+  };
+  assert.equal(result.provider, "aws");
+  assert.equal(result.warning, "");
+  const policyStep = result.steps.find((s) => s.consoleJson);
+  assert.ok(policyStep, "AWS steps must include a real policy JSON block");
+  const parsed = JSON.parse(policyStep!.consoleJson!) as { Statement: { Resource: string }[] };
+  assert.equal(parsed.Statement[0]!.Resource, "arn:aws:s3:::my-bucket/*", "the bucket name must be substituted into the real policy, not a placeholder");
+  assert.ok(result.steps.some((s) => /Block Public Access/i.test(s.title)), "AWS's Block Public Access guardrail must be named explicitly (spec §3a's D-14 finding)");
+});
+
+test("a Cloudflare R2 endpoint infers cloudflare-r2 and warns about the different credential system", async () => {
+  const { deps } = fakeDeps();
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const hostingSetupTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_generate_bucket_hosting_setup");
+
+  const result = (await call(hostingSetupTool, {
+    input: { protocol: "s3-compatible", bucket: "my-bucket", region: "auto", endpoint: "https://abc123.r2.cloudflarestorage.com" },
+  })) as { provider: string; warning: string };
+  assert.equal(result.provider, "cloudflare-r2");
+  assert.match(result.warning, /different/i);
+  assert.match(result.warning, /Cloudflare/);
+});
+
+test("a DigitalOcean Spaces endpoint infers digitalocean-spaces and warns about the different credential system", async () => {
+  const { deps } = fakeDeps();
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const hostingSetupTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_generate_bucket_hosting_setup");
+
+  const result = (await call(hostingSetupTool, {
+    input: { protocol: "s3-compatible", bucket: "my-bucket", region: "nyc3", endpoint: "https://nyc3.digitaloceanspaces.com" },
+  })) as { provider: string; warning: string };
+  assert.equal(result.provider, "digitalocean-spaces");
+  assert.match(result.warning, /different/i);
+  assert.match(result.warning, /DigitalOcean/);
 });

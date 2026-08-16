@@ -23,6 +23,15 @@ test("the two read-only static-publish tools are NOT on the allowlist — neithe
   assert.equal(isMcpUiToolCallAllowed("deployment_preview_static_publish"), false);
 });
 
+test("deployment_propose_custom_provider_credential is on the allowlist — it holds up the SAME held-open-exchange shape content_post_delete/deployment_execute_static_publish do (spec §6d)", () => {
+  assert.equal(isMcpUiToolCallAllowed("deployment_propose_custom_provider_credential"), true);
+  assert.ok(MCP_UI_REDEEMABLE_TOOL_IDS.has("deployment_propose_custom_provider_credential"));
+});
+
+test("deployment_generate_bucket_hosting_setup is NOT on the allowlist — it is a plain read tool that never opens an exchange (spec §3a)", () => {
+  assert.equal(isMcpUiToolCallAllowed("deployment_generate_bucket_hosting_setup"), false);
+});
+
 test("SECURITY-CRITICAL: an arbitrary tool id is refused, including ones with their own destructive gate", () => {
   assert.equal(isMcpUiToolCallAllowed("database_execute_migrate_forward"), false);
   assert.equal(isMcpUiToolCallAllowed("backup_execute_restore"), false);
