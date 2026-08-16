@@ -558,6 +558,66 @@ Minor: the code comment on the 15s timeout attributes the cost to being "the FIR
 True for that file, but first-ness is neither necessary nor sufficient on its own — the dynamic
 import is the load-bearing part. Not worth a re-commit; recorded here for whoever reads it next.
 
+### D-14. §3a RESOLVED — hosting config is unreachable by the stored credential on 2 of 5 providers
+The owner proposed applying the D-8 pattern to bucket hosting: *"can tovu do it but not submit? just
+fill out the fields and have the user verify it."* Correct instinct. Verification found the final
+step is forced by credential scope rather than chosen.
+
+Checked **each provider's own current docs directly** (WebFetch against AWS's Service Authorization
+Reference + Block Public Access docs, Cloudflare's R2 API-token + public-bucket docs, Backblaze's
+key-creation API docs, DigitalOcean's CDN docs) rather than generalizing from AWS.
+
+| Provider | Reachable with the stored publish key? |
+|---|---|
+| **AWS S3** | No — needs **three** further actions: `s3:PutBucketPolicy`, `s3:PutBucketWebsite`, `s3:PutBucketPublicAccessBlock` |
+| **Backblaze B2** | No — `writeBuckets` is a distinct capability from `writeFiles` |
+| **Cloudflare R2** | **Impossible at any scope** — a different credential system entirely |
+| **DigitalOcean Spaces** | No for CDN activation — needs a DO personal access token |
+| MinIO/Wasabi | (S3-API shaped; same class as AWS) |
+
+**Two findings that settle it:**
+
+1. **AWS Block Public Access is ON BY DEFAULT for new buckets**, and a bucket policy is **inert**
+   while it is on — AWS's own docs: *"removing a block public access setting causes a bucket to again
+   be publicly accessible."* So automating this would mean **Tovu deliberately disabling AWS's own
+   anti-footgun guardrail** on a user's account. That is an independent reason not to automate it,
+   separate from permissions.
+2. **R2 changes the shape of the answer, not just its cost.** R2 API tokens (the S3-compatible
+   key/secret) work *"only with S3-compatible SDKs or XML APIs"*; public access — the r2.dev toggle,
+   custom domains — is configured with a **Cloudflare API token**, a separate credential system with
+   **zero permission overlap**. No amount of widening an R2 key reaches it. It is not a bigger grant,
+   it is a different protocol.
+
+So "ask for a broader key" was never a workable universal answer, independent of whether it is a good
+idea. **Fallback 3** (a temporary never-stored elevated credential) was worked through seriously
+rather than dismissed: it *could* work for AWS/B2, and is **deferred, not rejected** (§7) — it means a
+second credential type, a second confirm flow, a second signed-request surface, and it would be
+asymmetric since R2/DO can never get it at all. Revisit if the manual path proves an adoption blocker.
+
+**What ships:** a new **read-only** tool `deployment_generate_bucket_hosting_setup`. No write, so no
+MCP-UI gate is needed — Tovu never calls a write API for it. It composes the exact bucket policy
+JSON / website config / (AWS) the Block-Public-Access change, **naming the real bucket**, and for
+R2/DO emits an explicit *"this needs a different credential — your Cloudflare/DigitalOcean login, not
+the key you just saved"* warning so a novice does not hunt for a field that does not exist. The model
+relays it as prose plus copyable blocks (the `CopyLine` pattern `StaticSiteTab.tsx` already uses for
+the export command). The human applies it in their own console, where their session already has full
+permission — no scoping problem there at all.
+
+**This satisfies "compose but don't submit" exactly, and is not a downgrade from it.** The
+review-and-authorize gate is identical; only *who clicks apply* differs, and that is forced by the
+credential's scope.
+
+**Still binding:** publish must report *"uploaded, not yet reachable"* as a **distinct third
+outcome** — `StaticPublishOutcome` needs a real third branch, not a reuse of `ok:true`/`ok:false`.
+
+**Lower-confidence item the agent flagged as such:** basic public-read ACL on DO Spaces *might* be
+S3-API-reachable via `x-amz-acl`. Not chased down with the same rigor as the other four; worth
+checking at implementation time.
+
+**Spec status: COMPLETE.** `832a8f5f`. Zero open items — the only remaining `[NEEDS CLARIFICATION]`
+string in the file is the §9 heading that reports them all resolved. Implementation is unblocked,
+with the `@jini-ai/ui` masked-field change (§8a, 4 touches) as its one cross-package prerequisite.
+
 ### Harness note
 SendMessage delivered on **attempt 8** after 7 consecutive silent failures that all returned
 `success: true`. The channel is **unreliable, not dead** — worth retrying, never worth relying on.
