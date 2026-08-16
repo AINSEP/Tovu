@@ -1,5 +1,5 @@
 import { publishStaticSite, type StaticPublishDeps, type StaticPublishInput } from "./adapter";
-import { createFilePublishHistoryStore, type PublishHistoryEntry, type PublishHistoryStore } from "./publish-history";
+import type { PublishHistoryEntry, PublishHistoryStore, PublishTrigger } from "./publish-history";
 import type { StaticPublishOutcome, StaticPublishTargetId } from "./types";
 
 /**
@@ -41,7 +41,7 @@ import type { StaticPublishOutcome, StaticPublishTargetId } from "./types";
  * there — which is the concrete scenario this fix closes (a human using the admin UI's Static Site tab
  * and the assistant dock in the SAME running server, at the same time).
  *
- * ## Publish history (2026-08-16, Defect 2)
+ * ## Publish history (2026-08-16, Defect 2; reworked same day into an append-only DB table)
  *
  * The SAME reason this module exists in the first place — one shared slot both `publish-site.ts`'s
  * HTTP trigger route and `deployment_execute_static_publish` settle through — is why publish HISTORY
@@ -50,11 +50,25 @@ import type { StaticPublishOutcome, StaticPublishTargetId } from "./types";
  * `settleWithError` above are this module's PRE-EXISTING job (the single-flight snapshot); recording
  * history is a separate, additional side effect performed alongside them, not folded into them, so a
  * reader auditing "what does settling a run do to the shared snapshot" is not also reading unrelated
- * persistence code. See `./publish-history.ts`'s own header for the storage design (a file under
- * `infra/publish-history/`, not a DB table — no migration touched by this fix). `historyStore`
- * defaults to that file-backed store for every real caller (production wiring changes nowhere outside
- * this file); a test overrides it with `InMemoryPublishHistoryStore` the same way `deps.buildTarget`
- * already lets a test substitute a fake `DeployTarget`.
+ * persistence code. See `./publish-history.ts`'s own header for the storage design (an append-only
+ * `publish_history` table, `src/db/schema.ts`; migration `0043`).
+ *
+ * `historyStore` is a REQUIRED parameter on both {@link startPublishRun} and
+ * {@link runPublishAndAwait} — deliberately no module-level default the way this file's original
+ * (file-backed) design had one. A DB-backed store needs a live `ContentDb` handle to construct, and
+ * only the composition root (`server/deps.ts`/`server/app.ts`) has one; a module-level singleton
+ * constructed at import time cannot get one without either module-load-time I/O (this module's own
+ * prior header explicitly avoided that) or a global mutable setter (a worse shape than just requiring
+ * the argument). Both real callers thread it from `RouteDeps.publishHistoryStore` — `publish-site.ts`
+ * passes `deps.publishHistoryStore` straight through; `publish-agent-tools.ts`'s
+ * `StaticPublishToolDeps` does the same, with its own `historyStore` field staying a TEST-ONLY
+ * override on top (see that file's own doc). Every test in `publish-run.unit.test.ts` already passes
+ * an explicit `InMemoryPublishHistoryStore`, so this change needed no test-signature updates.
+ *
+ * `toHistoryEntry` below also decides `triggeredBy` (`'admin_ui'` vs `'agent_tool'`) — not a
+ * caller-supplied field, but a literal each of {@link startPublishRun}/{@link runPublishAndAwait}
+ * hardcodes when it calls {@link recordHistoryIfPublished}, since which function ran IS the answer
+ * (see `publish-history.ts`'s own `PublishTrigger` doc).
  */
 
 export type PublishRunStatus = "idle" | "running" | "completed" | "errored";
@@ -80,23 +94,33 @@ const IDLE_RUN: PublishRunSnapshot = { status: "idle", startedAtIso: null, finis
  *  of it and which do not. */
 let currentRun: PublishRunSnapshot = IDLE_RUN;
 
-/** The production default {@link PublishHistoryStore} — one file-backed instance shared by every real
- *  caller in this process, the same "module-level singleton, test-overridable per call" shape
- *  `currentRun` above already establishes for the single-flight guard. Constructing it here does no
- *  I/O (`createFilePublishHistoryStore` only resolves a directory path; nothing touches the filesystem
- *  until a publish actually settles or a capabilities read actually happens). Exported so
- *  `publish-agent-tools.ts`'s capabilities handler reads the SAME instance a real publish just wrote
- *  to, without either file needing a new dependency threaded in from outside this domain. */
-export const defaultPublishHistoryStore: PublishHistoryStore = createFilePublishHistoryStore();
-
-/** Maps a settled `outcome` into the durable record this run's publish produced — `undefined` when
- *  nothing was actually published (`outcome.ok === false`; see {@link PublishHistoryEntry}'s own doc
- *  on why a failure is never recorded at all, not recorded-as-failed). `owner`/`repo` are read off
- *  `input.config` (present only for `github-pages` — `StaticPublishConfig`'s own per-target split,
- *  `./types.ts`) rather than off `outcome`, which carries neither. */
-function toHistoryEntry(input: StaticPublishInput, outcome: StaticPublishOutcome, clock: { nowIso(): string }): PublishHistoryEntry | undefined {
+/**
+ * Maps a settled `outcome` into the durable record this run's publish produced — `undefined` when
+ * nothing was actually published (`outcome.ok === false`; see {@link PublishHistoryEntry}'s own doc
+ * on why a failure is never recorded at all, not recorded-as-failed). `owner`/`repo`/`branch` are read
+ * off `input.config` (present only for `github-pages` — `StaticPublishConfig`'s own per-target split,
+ * `./types.ts`) rather than off `outcome`, which carries neither; `branch` falls back to `'gh-pages'`
+ * when `config.branch` was omitted, the same default `GitHubPagesDeployTarget` itself applies
+ * (`types.ts`'s `GitHubPagesPublishConfig` doc).
+ *
+ * `commitSha` is derived, not caller-supplied: `outcome.deploymentId` is verified (against
+ * `@jini-ai/devops`'s `github-pages.ts`, `publish()`'s own `deploymentId: commitSha` return) to be a
+ * real git commit sha for `github-pages` specifically, and something else entirely (a provider's own
+ * deployment id) for every other target — so it is copied into `commitSha` ONLY on that one branch,
+ * left `undefined` everywhere else. `deploymentId` itself is always carried through unconditionally
+ * when the outcome has one, regardless of target.
+ *
+ * @complexity O(1) — fixed-shape field mapping, no iteration.
+ */
+function toHistoryEntry(
+  input: StaticPublishInput,
+  outcome: StaticPublishOutcome,
+  clock: { nowIso(): string },
+  triggeredBy: PublishTrigger
+): PublishHistoryEntry | undefined {
   if (!outcome.ok) return undefined;
   const { config } = input;
+  const isGitHubPages = config.target === "github-pages";
   return {
     target: outcome.targetId,
     url: outcome.url,
@@ -104,23 +128,32 @@ function toHistoryEntry(input: StaticPublishInput, outcome: StaticPublishOutcome
     status: outcome.status,
     projectName: input.projectName,
     publishedAt: clock.nowIso(),
-    ...(config.target === "github-pages" ? { owner: config.owner, repo: config.repo } : {}),
+    triggeredBy,
+    ...(isGitHubPages ? { owner: config.owner, repo: config.repo, branch: config.branch ?? "gh-pages" } : {}),
     ...(outcome.basePath !== undefined ? { basePath: outcome.basePath } : {}),
+    ...(outcome.deploymentId !== undefined ? { deploymentId: outcome.deploymentId } : {}),
+    ...(isGitHubPages && outcome.deploymentId !== undefined ? { commitSha: outcome.deploymentId } : {}),
   };
 }
 
 /**
  * Records a settled outcome's history, if it produced one — best-effort, never throws and never
- * changes what the caller reports. A failed history write (a read-only `infra/` volume, a full disk)
- * must not turn an otherwise-successful publish into a reported failure: the caller already has the
- * TRUE outcome from {@link publishStaticSite} and returns it regardless: losing "where did we last
- * publish" is a strictly smaller problem than a hard error on this genuinely non-essential bookkeeping
- * step layered on top of a publish that already succeeded.
+ * changes what the caller reports. A failed history write (a DB error, a full disk) must not turn an
+ * otherwise-successful publish into a reported failure: the caller already has the TRUE outcome from
+ * {@link publishStaticSite} and returns it regardless: losing "where did we last publish" is a
+ * strictly smaller problem than a hard error on this genuinely non-essential bookkeeping step layered
+ * on top of a publish that already succeeded.
  *
  * @complexity O(1) — see {@link PublishHistoryStore.recordSuccess}'s own cost note.
  */
-async function recordHistoryIfPublished(historyStore: PublishHistoryStore, input: StaticPublishInput, outcome: StaticPublishOutcome, clock: { nowIso(): string }): Promise<void> {
-  const entry = toHistoryEntry(input, outcome, clock);
+async function recordHistoryIfPublished(
+  historyStore: PublishHistoryStore,
+  input: StaticPublishInput,
+  outcome: StaticPublishOutcome,
+  clock: { nowIso(): string },
+  triggeredBy: PublishTrigger
+): Promise<void> {
+  const entry = toHistoryEntry(input, outcome, clock, triggeredBy);
   if (entry === undefined) return;
   try {
     await historyStore.recordSuccess({ workspaceId: input.workspaceId, entry });
@@ -167,18 +200,19 @@ function settleWithError(startedAtIso: string, target: StaticPublishTargetId, er
  * doc, restated here rather than merely cross-referenced since violating it is exactly the bug this
  * whole file exists to close).
  *
- * @param historyStore - See this file's header ("Publish history"). Defaults to the module-level
- *   file-backed store; a test injects `InMemoryPublishHistoryStore` here.
+ * @param historyStore - See this file's header ("Publish history") — REQUIRED, no module-level
+ *   default; real callers pass `RouteDeps.publishHistoryStore`, tests pass an
+ *   `InMemoryPublishHistoryStore`.
  * @complexity O(1) synchronously; the awaited publish itself is bounded by `publishStaticSite`'s own
  *   complexity note (one export pass plus one provider's fixed poll budget).
  */
-export function startPublishRun(deps: StaticPublishDeps, input: StaticPublishInput, clock: { nowIso(): string }, historyStore: PublishHistoryStore = defaultPublishHistoryStore): PublishRunSnapshot {
+export function startPublishRun(deps: StaticPublishDeps, input: StaticPublishInput, clock: { nowIso(): string }, historyStore: PublishHistoryStore): PublishRunSnapshot {
   const startedAtIso = beginRun(input.config.target, clock);
 
   void publishStaticSite(deps, input)
     .then(async (outcome) => {
       settleWithOutcome(startedAtIso, input.config.target, outcome, clock);
-      await recordHistoryIfPublished(historyStore, input, outcome, clock);
+      await recordHistoryIfPublished(historyStore, input, outcome, clock, "admin_ui");
     })
     .catch((err: unknown) => settleWithError(startedAtIso, input.config.target, err, clock));
 
@@ -207,8 +241,9 @@ export function startPublishRun(deps: StaticPublishDeps, input: StaticPublishInp
  * an unexpected throw (this function adds single-flight bookkeeping around the call, not a new error
  * shape).
  *
- * @param historyStore - See this file's header ("Publish history"). Defaults to the module-level
- *   file-backed store; a test injects `InMemoryPublishHistoryStore` here.
+ * @param historyStore - See this file's header ("Publish history") — REQUIRED, no module-level
+ *   default; real callers pass `RouteDeps.publishHistoryStore`, tests pass an
+ *   `InMemoryPublishHistoryStore`.
  * @complexity Same bound as {@link startPublishRun} — one export pass plus one provider's fixed poll
  *   budget — but AWAITED by the caller rather than backgrounded.
  */
@@ -216,13 +251,13 @@ export async function runPublishAndAwait(
   deps: StaticPublishDeps,
   input: StaticPublishInput,
   clock: { nowIso(): string },
-  historyStore: PublishHistoryStore = defaultPublishHistoryStore
+  historyStore: PublishHistoryStore
 ): Promise<StaticPublishOutcome> {
   const startedAtIso = beginRun(input.config.target, clock);
   try {
     const outcome = await publishStaticSite(deps, input);
     settleWithOutcome(startedAtIso, input.config.target, outcome, clock);
-    await recordHistoryIfPublished(historyStore, input, outcome, clock);
+    await recordHistoryIfPublished(historyStore, input, outcome, clock, "agent_tool");
     return outcome;
   } catch (err) {
     settleWithError(startedAtIso, input.config.target, err, clock);

@@ -25,7 +25,6 @@ export {
 export { computeBasePath, publishStaticSite, validateStaticPublishConfig, type StaticPublishDeps, type StaticPublishInput } from "./adapter";
 
 export {
-  defaultPublishHistoryStore,
   getPublishRunSnapshot,
   runPublishAndAwait,
   startPublishRun,
@@ -34,10 +33,13 @@ export {
 } from "./publish-run";
 
 export {
-  createFilePublishHistoryStore,
+  DEFAULT_PUBLISH_HISTORY_LIST_LIMIT,
+  MAX_PUBLISH_HISTORY_LIST_LIMIT,
   InMemoryPublishHistoryStore,
+  resolvePublishHistoryListLimit,
   type PublishHistoryEntry,
   type PublishHistoryStore,
+  type PublishTrigger,
 } from "./publish-history";
 
 export {
