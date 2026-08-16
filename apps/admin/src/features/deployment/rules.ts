@@ -1,10 +1,13 @@
-import type {
-  AdminDeployCliStatus,
-  AdminDeploymentEnvVarStatus,
-  AdminDeploymentOverview,
-  AdminExportRunSnapshot,
-  AdminPublishRunSnapshot,
-  AdminStaticPublishTargetId,
+import {
+  ApiError,
+  type AdminDeployCliStatus,
+  type AdminDeploymentEnvVarStatus,
+  type AdminDeploymentOverview,
+  type AdminExportRunSnapshot,
+  type AdminPublishConnectionInput,
+  type AdminPublishCredentialProviderId,
+  type AdminPublishRunSnapshot,
+  type AdminStaticPublishTargetId,
 } from "../../lib/api";
 
 /**
@@ -182,6 +185,195 @@ export const STATIC_PUBLISH_TARGETS: readonly StaticPublishTargetInfo[] = [
   { id: "github-pages", label: "GitHub Pages", cliToolId: "gh" },
   { id: "vercel", label: "Vercel", cliToolId: "vercel" },
 ] as const;
+
+/**
+ * A field the credential form can show for one provider's connection — the union of every field
+ * across all four {@link AdminPublishConnectionInput} variants except `token`, which every provider
+ * needs and is therefore rendered unconditionally rather than listed as any one provider's field.
+ */
+export type PublishCredentialFieldKey = "owner" | "repo" | "teamId" | "siteId" | "accountId" | "projectName";
+
+/**
+ * One provider the credential-management section can save a connection for — WIDER than
+ * {@link STATIC_PUBLISH_TARGETS}: Netlify and Cloudflare Pages have no publish adapter yet (no
+ * `AdminStaticPublishTargetId` covers either), but a credential for one can already be saved and
+ * validated today, ahead of that adapter landing — see `AdminPublishCredentialProviderId`'s own doc
+ * in `lib/api.ts` for why the credential store is intentionally the wider of the two sets. Order
+ * here is the provider picker's display order in the credential form.
+ */
+export interface PublishCredentialProviderInfo {
+  readonly id: AdminPublishCredentialProviderId;
+  /** Proper noun — rendered verbatim, never translated, same treatment `StaticPublishTargetInfo.label` gets. */
+  readonly label: string;
+  /** Where to create a token for this provider. Always opened in a new tab — a third-party
+   *  account-security page has no business rendering inside this admin. */
+  readonly tokenPageUrl: string;
+  /** Short, inline scope guidance shown under this provider's form — a dictionary key, translated
+   *  the same as every other chrome string on this tab. States what KIND of token is needed, not
+   *  how OAuth or PATs work in general. */
+  readonly scopeGuidanceKey: string;
+  /** Fields (beyond the universal `token`) this provider cannot function without —
+   *  {@link publishCredentialFormReadyToSubmit}'s per-provider gate. GitHub Pages cannot push
+   *  without an owner/repo; Cloudflare cannot resolve a project without an account id. */
+  readonly requiredFields: readonly PublishCredentialFieldKey[];
+  /** Fields this provider's form still offers but can do without — narrows an otherwise-valid
+   *  default (a specific Vercel team, an existing Netlify site, a named Cloudflare project) rather
+   *  than gating submission. */
+  readonly optionalFields: readonly PublishCredentialFieldKey[];
+}
+
+/**
+ * The four providers a publish credential can be saved for, verified against each provider's own
+ * token-creation docs (design doc header, 2026-08-15). `requiredFields`/`optionalFields` are the
+ * single source both {@link buildPublishConnectionInput} and
+ * {@link publishCredentialFormReadyToSubmit} read from — a field that should gate submission belongs
+ * in exactly one of these two lists, never hardcoded again at either call site.
+ */
+export const PUBLISH_CREDENTIAL_PROVIDERS: readonly PublishCredentialProviderInfo[] = [
+  {
+    id: "github-pages",
+    label: "GitHub Pages",
+    tokenPageUrl: "https://github.com/settings/tokens",
+    scopeGuidanceKey:
+      'Needs a classic personal access token with the "repo" scope, or a fine-grained token with Contents and Pages permissions set to Read and write.',
+    requiredFields: ["owner", "repo"],
+    optionalFields: [],
+  },
+  {
+    id: "vercel",
+    label: "Vercel",
+    tokenPageUrl: "https://vercel.com/account/tokens",
+    scopeGuidanceKey: "An access token from your Vercel account. Add a team ID only when publishing into a team, not a personal account.",
+    requiredFields: [],
+    optionalFields: ["teamId"],
+  },
+  {
+    id: "netlify",
+    label: "Netlify",
+    tokenPageUrl: "https://app.netlify.com/user/applications#personal-access-tokens",
+    scopeGuidanceKey: "A personal access token from your Netlify account. Add a site ID to publish to an existing site instead of creating a new one.",
+    requiredFields: [],
+    optionalFields: ["siteId"],
+  },
+  {
+    id: "cloudflare-pages",
+    label: "Cloudflare Pages",
+    tokenPageUrl: "https://dash.cloudflare.com/profile/api-tokens",
+    scopeGuidanceKey:
+      "Needs an API token with Cloudflare Pages Edit permission, plus the account ID shown on your Cloudflare dashboard's own sidebar — Cloudflare cannot resolve a project without it.",
+    requiredFields: ["accountId"],
+    optionalFields: ["projectName"],
+  },
+] as const;
+
+/** Looks up one provider's registry entry, falling back to the first (GitHub Pages) — the same
+ *  "the picker can never select something absent from its own list" guarantee
+ *  `STATIC_PUBLISH_TARGETS.find(...) ?? STATIC_PUBLISH_TARGETS[0]!` already relies on in
+ *  `StaticSiteTab.tsx`. @complexity O(1) — the array has exactly four entries. */
+export function publishCredentialProviderInfo(id: AdminPublishCredentialProviderId): PublishCredentialProviderInfo {
+  return PUBLISH_CREDENTIAL_PROVIDERS.find((provider) => provider.id === id) ?? PUBLISH_CREDENTIAL_PROVIDERS[0]!;
+}
+
+/** The credential form's full field set, kept together as one shape so
+ *  {@link buildPublishConnectionInput} and {@link publishCredentialFormReadyToSubmit} share a single
+ *  parameter type — mirrors `use-static-publish.hooks.ts`'s own `buildConfig` fields parameter, one
+ *  level wider (four provider shapes instead of two). */
+export interface PublishCredentialFormFields {
+  providerId: AdminPublishCredentialProviderId;
+  token: string;
+  owner: string;
+  repo: string;
+  teamId: string;
+  siteId: string;
+  accountId: string;
+  projectName: string;
+}
+
+/**
+ * Builds the wire {@link AdminPublishConnectionInput} from the form's current field values — the one
+ * function that decides which fields matter for which provider, mirroring `buildConfig` in
+ * `use-static-publish.hooks.ts` one union-arm wider (four provider shapes, not two). Blank optional
+ * fields are omitted entirely rather than sent as `""` — same reasoning `buildConfig`'s own doc
+ * gives, so a provider's server-side default (e.g. Cloudflare creating a NEW project) is never
+ * shadowed by an accidental empty string.
+ *
+ * Always trims and includes `token`, even when blank — detecting "no new token typed" is
+ * {@link publishCredentialFormReadyToSubmit}'s job (in edit mode a blank token means "leave
+ * unchanged", which is a decision about whether to send a `connection` at ALL, not about how to
+ * shape one once the caller has decided to).
+ * @complexity O(1).
+ */
+export function buildPublishConnectionInput(fields: PublishCredentialFormFields): AdminPublishConnectionInput {
+  const token = fields.token.trim();
+  switch (fields.providerId) {
+    case "github-pages":
+      return { providerId: "github-pages", token, owner: fields.owner.trim(), repo: fields.repo.trim() };
+    case "vercel":
+      return { providerId: "vercel", token, ...(fields.teamId.trim() !== "" ? { teamId: fields.teamId.trim() } : {}) };
+    case "netlify":
+      return { providerId: "netlify", token, ...(fields.siteId.trim() !== "" ? { siteId: fields.siteId.trim() } : {}) };
+    case "cloudflare-pages":
+      return {
+        providerId: "cloudflare-pages",
+        token,
+        accountId: fields.accountId.trim(),
+        ...(fields.projectName.trim() !== "" ? { projectName: fields.projectName.trim() } : {}),
+      };
+  }
+}
+
+/**
+ * Whether the credential form has enough filled in to submit. `mode: "add"` always requires a
+ * non-blank token (there is no stored secret yet to fall back to); `mode: "edit"` treats a blank
+ * token as "leave the stored secret untouched" and, in that case, skips the per-provider field
+ * checks entirely — those fields describe a NEW connection this half-filled form is not sending, so
+ * requiring them would block a pure label rename. See `use-publish-credentials.hooks.ts`'s header
+ * for why blank-token-means-unchanged is the only way this form can ever express "edit the label,
+ * keep the secret" — the alternative (a stored credential's fields round-tripping into this form)
+ * is exactly what "never readable back" forbids.
+ * @complexity O(k) in this provider's own required-field count (at most two).
+ */
+export function publishCredentialFormReadyToSubmit(
+  fields: PublishCredentialFormFields,
+  mode: "add" | "edit",
+  label: string
+): boolean {
+  if (label.trim() === "") return false;
+  const token = fields.token.trim();
+  if (mode === "add" && token === "") return false;
+  if (mode === "edit" && token === "") return true;
+  const info = publishCredentialProviderInfo(fields.providerId);
+  return info.requiredFields.every((field) => fields[field].trim() !== "");
+}
+
+/** What a rejected credential create/update means for the FORM — a dictionary-key-shaped result
+ *  for `use-publish-credentials.hooks.ts` to translate and apply, same "return a fact, never call
+ *  `t()`" convention this file's own header states. `"generic"` is the catch-all every other kind
+ *  falls back to (an unreachable server, an unexpected 500, …), handled by the caller's own
+ *  `describeApiError`-wrapped template rather than by this function. */
+export type PublishCredentialSubmitFailure = { kind: "duplicate-label" } | { kind: "validation"; detail: string } | { kind: "generic" };
+
+/**
+ * Classifies a rejected `createCredential`/`updateCredential` call. Checks BOTH `e.code` and
+ * `e.message` for the two known markers (`DUPLICATE_LABEL`, `VALIDATION`) rather than only one:
+ * this app's usual server shape is `{ error: <human message>, code: <MACHINE_CODE> }` (see
+ * `workspace/rules.ts`'s own `describeApiError` override for the precedent), but the dispatched API
+ * contract for this route writes `409 -> { error: "DUPLICATE_LABEL" }` and
+ * `400 -> { error: "VALIDATION", detail }` with no separate `code` field at all — `request()`
+ * (`lib/api.ts`) puts `body.error` into `e.message` and `body.code` into `e.code`, so whichever
+ * shape the concurrently-built backend actually sends, one of the two carries the marker.
+ * @complexity O(1).
+ */
+export function classifyPublishCredentialSubmitError(e: unknown): PublishCredentialSubmitFailure {
+  if (!(e instanceof ApiError)) return { kind: "generic" };
+  const marker = e.code ?? e.message;
+  if (marker === "DUPLICATE_LABEL") return { kind: "duplicate-label" };
+  if (marker === "VALIDATION") {
+    const detail = typeof e.body?.detail === "string" ? e.body.detail : e.message;
+    return { kind: "validation", detail };
+  }
+  return { kind: "generic" };
+}
 
 /** Whether the publish form has enough filled in to ask for a PREVIEW — `owner`/`repo` are the only
  *  fields `validateStaticPublishConfig` (server-side, `static-publish/adapter.ts`) actually requires

@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
 
+import { ApiError } from "../../../lib/api";
 import {
   FULL_SITE_PROVIDERS,
   PUBLISH_CLI_TOOLS,
+  PUBLISH_CREDENTIAL_PROVIDERS,
   STATIC_HOSTS,
   STATIC_PUBLISH_TARGETS,
+  buildPublishConnectionInput,
+  classifyPublishCredentialSubmitError,
   cliInstalledStatus,
   daemonStatusLabelKey,
   deploymentEnvVarNoteKey,
@@ -13,12 +17,21 @@ import {
   ownerPasswordLabelKey,
   productionGateLabelKey,
   publishAssistantRequestForTool,
+  publishCredentialFormReadyToSubmit,
+  publishCredentialProviderInfo,
   publishRunStatusLabelKey,
   runStatusTone,
   runtimeModeLabelKey,
   staticPublishFormReadyForPreview,
   staticPublishFormReadyToPublish,
+  type PublishCredentialFormFields,
 } from "../rules";
+
+/** A blank form for one provider — every test below overrides only the fields it cares about,
+ *  same "start from a known-empty baseline" convention the hook itself follows on `startAdd`. */
+function blankCredentialFields(providerId: PublishCredentialFormFields["providerId"]): PublishCredentialFormFields {
+  return { providerId, token: "", owner: "", repo: "", teamId: "", siteId: "", accountId: "", projectName: "" };
+}
 
 /**
  * @file `rules.ts` — the Deployment panel's pure label/tone helpers. Every function here returns a
@@ -211,5 +224,143 @@ describe("staticPublishFormReadyForPreview / staticPublishFormReadyToPublish", (
     expect(staticPublishFormReadyToPublish("github-pages", { owner: "octo", repo: "demo", projectName: "demo" })).toBe(true);
     expect(staticPublishFormReadyToPublish("vercel", { owner: "", repo: "", projectName: "" })).toBe(false);
     expect(staticPublishFormReadyToPublish("vercel", { owner: "", repo: "", projectName: "demo" })).toBe(true);
+  });
+});
+
+describe("PUBLISH_CREDENTIAL_PROVIDERS", () => {
+  it("lists exactly the four providers the brief names, each with a unique id and a token page", () => {
+    expect(PUBLISH_CREDENTIAL_PROVIDERS).toHaveLength(4);
+    expect(new Set(PUBLISH_CREDENTIAL_PROVIDERS.map((p) => p.id)).size).toBe(4);
+    expect(PUBLISH_CREDENTIAL_PROVIDERS.every((p) => p.tokenPageUrl.startsWith("https://"))).toBe(true);
+  });
+
+  it("matches the brief's verified required/optional split per provider", () => {
+    expect(publishCredentialProviderInfo("github-pages").requiredFields).toEqual(["owner", "repo"]);
+    expect(publishCredentialProviderInfo("github-pages").optionalFields).toEqual([]);
+    expect(publishCredentialProviderInfo("vercel").requiredFields).toEqual([]);
+    expect(publishCredentialProviderInfo("vercel").optionalFields).toEqual(["teamId"]);
+    expect(publishCredentialProviderInfo("netlify").requiredFields).toEqual([]);
+    expect(publishCredentialProviderInfo("netlify").optionalFields).toEqual(["siteId"]);
+    // Cloudflare is the one provider where an OPTIONAL-looking field (accountId, alongside the
+    // optional projectName) is actually required — Cloudflare cannot resolve a project without it.
+    expect(publishCredentialProviderInfo("cloudflare-pages").requiredFields).toEqual(["accountId"]);
+    expect(publishCredentialProviderInfo("cloudflare-pages").optionalFields).toEqual(["projectName"]);
+  });
+
+  it("publishCredentialProviderInfo falls back to the first entry for an unrecognized id, never throws", () => {
+    expect(publishCredentialProviderInfo("not-a-real-provider" as never)).toBe(PUBLISH_CREDENTIAL_PROVIDERS[0]);
+  });
+});
+
+describe("buildPublishConnectionInput", () => {
+  it("github-pages: sends token/owner/repo trimmed, never a branch field (that belongs to publish config, not a credential)", () => {
+    const fields = { ...blankCredentialFields("github-pages"), token: " ghp_abc ", owner: " octo ", repo: " demo-repo " };
+    expect(buildPublishConnectionInput(fields)).toEqual({ providerId: "github-pages", token: "ghp_abc", owner: "octo", repo: "demo-repo" });
+  });
+
+  it("vercel: omits a blank teamId entirely rather than sending an empty string", () => {
+    const fields = { ...blankCredentialFields("vercel"), token: "tok" };
+    expect(buildPublishConnectionInput(fields)).toEqual({ providerId: "vercel", token: "tok" });
+    expect(buildPublishConnectionInput(fields)).not.toHaveProperty("teamId");
+  });
+
+  it("vercel: includes a non-blank teamId, trimmed", () => {
+    const fields = { ...blankCredentialFields("vercel"), token: "tok", teamId: " team_123 " };
+    expect(buildPublishConnectionInput(fields)).toEqual({ providerId: "vercel", token: "tok", teamId: "team_123" });
+  });
+
+  it("netlify: omits a blank siteId, includes a non-blank one trimmed", () => {
+    expect(buildPublishConnectionInput({ ...blankCredentialFields("netlify"), token: "tok" })).toEqual({
+      providerId: "netlify",
+      token: "tok",
+    });
+    expect(buildPublishConnectionInput({ ...blankCredentialFields("netlify"), token: "tok", siteId: " site-1 " })).toEqual({
+      providerId: "netlify",
+      token: "tok",
+      siteId: "site-1",
+    });
+  });
+
+  it("cloudflare-pages: always sends accountId (required), omits a blank projectName", () => {
+    const fields = { ...blankCredentialFields("cloudflare-pages"), token: "tok", accountId: " acct-1 " };
+    expect(buildPublishConnectionInput(fields)).toEqual({ providerId: "cloudflare-pages", token: "tok", accountId: "acct-1" });
+  });
+
+  it("cloudflare-pages: includes a non-blank projectName, trimmed", () => {
+    const fields = {
+      ...blankCredentialFields("cloudflare-pages"),
+      token: "tok",
+      accountId: "acct-1",
+      projectName: " my-site ",
+    };
+    expect(buildPublishConnectionInput(fields)).toEqual({
+      providerId: "cloudflare-pages",
+      token: "tok",
+      accountId: "acct-1",
+      projectName: "my-site",
+    });
+  });
+});
+
+describe("publishCredentialFormReadyToSubmit", () => {
+  it("ADD mode always requires a non-blank label and a non-blank token", () => {
+    const fields = { ...blankCredentialFields("vercel"), token: "tok" };
+    expect(publishCredentialFormReadyToSubmit(fields, "add", "")).toBe(false);
+    expect(publishCredentialFormReadyToSubmit({ ...fields, token: "" }, "add", "My Vercel")).toBe(false);
+    expect(publishCredentialFormReadyToSubmit(fields, "add", "My Vercel")).toBe(true);
+  });
+
+  it("ADD mode: github-pages additionally requires owner AND repo; vercel/netlify need nothing beyond token", () => {
+    const gh = { ...blankCredentialFields("github-pages"), token: "tok" };
+    expect(publishCredentialFormReadyToSubmit(gh, "add", "label")).toBe(false);
+    expect(publishCredentialFormReadyToSubmit({ ...gh, owner: "octo" }, "add", "label")).toBe(false);
+    expect(publishCredentialFormReadyToSubmit({ ...gh, owner: "octo", repo: "demo" }, "add", "label")).toBe(true);
+    expect(publishCredentialFormReadyToSubmit({ ...blankCredentialFields("vercel"), token: "tok" }, "add", "label")).toBe(true);
+  });
+
+  it("ADD mode: cloudflare-pages requires accountId even though it reads like an optional-style field", () => {
+    const cf = { ...blankCredentialFields("cloudflare-pages"), token: "tok" };
+    expect(publishCredentialFormReadyToSubmit(cf, "add", "label")).toBe(false);
+    expect(publishCredentialFormReadyToSubmit({ ...cf, accountId: "acct-1" }, "add", "label")).toBe(true);
+  });
+
+  it("EDIT mode with a BLANK token means 'keep the stored secret' — ready as soon as the label is non-blank, with every connection field still empty", () => {
+    const fields = blankCredentialFields("github-pages");
+    expect(publishCredentialFormReadyToSubmit(fields, "edit", "renamed label")).toBe(true);
+    expect(publishCredentialFormReadyToSubmit(fields, "edit", "")).toBe(false);
+  });
+
+  it("EDIT mode with a NON-blank token commits to a full replace — re-validated exactly like ADD mode", () => {
+    const fields = { ...blankCredentialFields("github-pages"), token: "new-token" };
+    expect(publishCredentialFormReadyToSubmit(fields, "edit", "label")).toBe(false); // still missing owner/repo
+    expect(publishCredentialFormReadyToSubmit({ ...fields, owner: "octo", repo: "demo" }, "edit", "label")).toBe(true);
+  });
+});
+
+describe("classifyPublishCredentialSubmitError", () => {
+  it("recognizes DUPLICATE_LABEL via e.message (the dispatched contract's own shape: { error: 'DUPLICATE_LABEL' }, no separate code)", () => {
+    const err = new ApiError("DUPLICATE_LABEL", 409);
+    expect(classifyPublishCredentialSubmitError(err)).toEqual({ kind: "duplicate-label" });
+  });
+
+  it("recognizes DUPLICATE_LABEL via e.code too (this codebase's usual { error, code } shape)", () => {
+    const err = new ApiError("A credential with this label already exists.", 409, "DUPLICATE_LABEL");
+    expect(classifyPublishCredentialSubmitError(err)).toEqual({ kind: "duplicate-label" });
+  });
+
+  it("recognizes VALIDATION and surfaces body.detail when present", () => {
+    const err = new ApiError("VALIDATION", 400, undefined, { error: "VALIDATION", detail: "accountId is required for cloudflare-pages" });
+    expect(classifyPublishCredentialSubmitError(err)).toEqual({ kind: "validation", detail: "accountId is required for cloudflare-pages" });
+  });
+
+  it("VALIDATION without a body.detail falls back to the error message itself, never throws or drops the failure", () => {
+    const err = new ApiError("VALIDATION", 400);
+    expect(classifyPublishCredentialSubmitError(err)).toEqual({ kind: "validation", detail: "VALIDATION" });
+  });
+
+  it("falls through to 'generic' for an unrecognized ApiError and for a non-ApiError rejection", () => {
+    expect(classifyPublishCredentialSubmitError(new ApiError("request failed (500)", 500))).toEqual({ kind: "generic" });
+    expect(classifyPublishCredentialSubmitError(new Error("network down"))).toEqual({ kind: "generic" });
+    expect(classifyPublishCredentialSubmitError("not even an Error")).toEqual({ kind: "generic" });
   });
 });
