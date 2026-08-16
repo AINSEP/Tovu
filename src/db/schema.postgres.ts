@@ -9,7 +9,7 @@
  * declarations, and PostgreSQL's tsvector/GIN equivalent is hand-authored. See the generator's
  * module doc.
  *
- * Tables: 76
+ * Tables: 77
  */
 import { sql } from "drizzle-orm";
 import { bigint, boolean, check, foreignKey, index, pgTable, primaryKey, text, uniqueIndex } from "drizzle-orm/pg-core";
@@ -853,6 +853,28 @@ export const publishCredentialSets = pgTable("publish_credential_sets", {
     primaryKey({ columns: [t.workspaceId, t.id] }),
     foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("cascade"),
     uniqueIndex("publish_credential_sets_workspace_provider_label_unique").on(t.workspaceId, t.providerId, t.label),
+  ]);
+
+export const publishHistory = pgTable("publish_history", {
+  id: bigint("id", { mode: "number" }).generatedAlwaysAsIdentity().primaryKey(),
+  workspaceId: text("workspace_id").notNull(),
+  target: text("target").notNull(),
+  url: text("url").notNull(),
+  reachable: boolean("reachable").notNull(),
+  status: text("status").notNull(),
+  projectName: text("project_name").notNull(),
+  publishedAt: text("published_at").notNull(),
+  owner: text("owner"),
+  repo: text("repo"),
+  basePath: text("base_path"),
+  deploymentId: text("deployment_id"),
+  commitSha: text("commit_sha"),
+  branch: text("branch"),
+  triggeredBy: text("triggered_by").notNull(),
+}, (t) => [
+    foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("cascade"),
+    index("idx_publish_history_workspace_id").on(t.workspaceId, t.id),
+    index("idx_publish_history_workspace_target_id").on(t.workspaceId, t.target, t.id),
   ]);
 
 export const redirectHits = pgTable("redirect_hits", {

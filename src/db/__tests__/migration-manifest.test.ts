@@ -150,6 +150,7 @@ test("growth class 'unbounded' matches exactly the handoff's named risk categori
       "agent_tool_attempts.id",
       "analytics_events.id",
       "database_write_watermark.value",
+      "publish_history.id",
     ])
   );
 });
@@ -178,9 +179,10 @@ test("every autoincrement identity column is covered by identity reseeding, inde
     "analytics_events.id",
     "entry_refs.id",
     "entry_terms.id",
+    "publish_history.id",
   ]);
   assert.deepEqual(new Set(identity), expected);
-  assert.equal(identity.length, 11, "expected exactly 11 autoincrement primary keys in the core schema");
+  assert.equal(identity.length, 12, "expected exactly 12 autoincrement primary keys in the core schema");
 });
 
 test("entry_revisions.seq's rationale correctly scopes to entries, not posts — features/post/repo.sqlite.ts never writes entry_revisions (LOW #12 correction)", () => {
@@ -189,10 +191,23 @@ test("entry_revisions.seq's rationale correctly scopes to entries, not posts —
   assert.ok(!/entry\/post save/.test(rationale), "rationale must not repeat the false 'every entry/post save' claim");
 });
 
-test("boolean-flag classification matches exactly the 3 SQLiteBoolean columns in schema.ts, not the many plain-integer 0/1 flags", () => {
+test("boolean-flag classification matches exactly the SQLiteBoolean columns in schema.ts, not the many plain-integer 0/1 flags", () => {
   const all = classifyAllCoreColumns();
   const booleans = all.filter((c) => c.columnClass.kind === "boolean-flag").map((c) => `${c.sqlTableName}.${c.sqlColumnName}`);
-  assert.deepEqual(new Set(booleans), new Set(["posts.overrides_theme_page", "plugin_activations.enabled", "external_mcp_servers.enabled"]));
+  // `publish_credential_sets.is_default`/`source_control_credential_sets.is_default` (2026-08-15) and
+  // `publish_history.reachable` (2026-08-16) post-date this test's original hardcoded set — added
+  // here rather than left stale, since this assertion's whole point is to track real schema.ts state.
+  assert.deepEqual(
+    new Set(booleans),
+    new Set([
+      "posts.overrides_theme_page",
+      "plugin_activations.enabled",
+      "external_mcp_servers.enabled",
+      "publish_credential_sets.is_default",
+      "source_control_credential_sets.is_default",
+      "publish_history.reachable",
+    ])
+  );
 
   // Plain-integer 0/1-shaped flags get NO transform (correct passthrough) — confirm they are
   // classified plain-integer, not accidentally swept into boolean-flag by a looser name-based rule.
