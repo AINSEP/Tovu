@@ -422,9 +422,13 @@ test("deployment_get_static_publish_capabilities actually executes through the R
 
   assert.equal(result.status, "completed", `expected a real completed execution, got: ${JSON.stringify(result)}`);
   const output = result.output as { executionMode: string; providers: Array<{ providerId: string }> };
-  assert.equal(output.providers.length, 4, "all four static-publish providers must be reported");
+  // Stale expectation fixed 2026-08-16 (pre-existing, unrelated to source-control's own dispatch):
+  // this asserted 4 providers/no 's3-compatible' after that 5th static-publish target had already
+  // shipped in `publish-agent-tools.ts`'s own `PROVIDER_IDS` — the assertion had drifted behind the
+  // real catalog, not the other way around.
+  assert.equal(output.providers.length, 5, "all five static-publish providers must be reported");
   assert.deepEqual(
     output.providers.map((p) => p.providerId).sort(),
-    ["cloudflare-pages", "github-pages", "netlify", "vercel"],
+    ["cloudflare-pages", "github-pages", "netlify", "s3-compatible", "vercel"],
   );
 });
