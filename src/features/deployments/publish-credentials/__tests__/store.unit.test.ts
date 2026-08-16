@@ -361,6 +361,57 @@ test("deleting the LAST credential for a provider leaves that provider with no d
   assert.equal(await resolveDefaultForPublish(deps, { workspaceId: WORKSPACE, providerId: "vercel" }), null);
 });
 
+// ---------------------------------------------------------------------------
+// Changing a row's PROVIDER on update — Terra audit finding #4/#3 (2026-08-16): moving a credential's
+// connection onto a different provider changes which group's default invariant it participates in.
+// Confirmed by direct probe against the unfixed code before writing these: (1) the OLD provider group
+// ended up with rows but no default at all, and (2) worse than reported, the row's carried-over
+// `isDefault` ALSO silently stole default status from the NEW provider's own unrelated, working
+// default without the caller ever requesting `isDefault: true`.
+// ---------------------------------------------------------------------------
+
+test("updatePublishCredential: moving a credential to a DIFFERENT provider never carries its old isDefault onto the new provider, clobbering that provider's real default", async () => {
+  const deps = makeDeps();
+  const vercelDefault = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "vercel-main", connection: { providerId: "vercel", token: "real-vercel-default" } });
+  // Its own provider's sole (hence default) row — moving THIS one is the adversarial case: it carries
+  // `isDefault: true` into the update, but that was true for github-pages, not for vercel.
+  const ghRow = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "gh-row", connection: { providerId: "github-pages", token: "gh-token" } });
+  assert.equal(ghRow.isDefault, true, "sanity: the only github-pages row starts out as its provider's default");
+
+  await updatePublishCredential(deps, { workspaceId: WORKSPACE, id: ghRow.id, connection: { providerId: "vercel", token: "gh-now-vercel" } });
+
+  const vercelDefaultAfter = await describeCredential(deps, { workspaceId: WORKSPACE, id: vercelDefault.id });
+  assert.equal(vercelDefaultAfter?.isDefault, true, "the pre-existing vercel default must survive an unrelated row's provider change");
+  const movedRow = await describeCredential(deps, { workspaceId: WORKSPACE, id: ghRow.id });
+  assert.equal(movedRow?.isDefault, false, "the moved row must NOT silently become vercel's default just because it was github-pages's default");
+});
+
+test("updatePublishCredential: moving a provider's default off to a different provider promotes a replacement in the OLD group, never leaving it with rows but no default", async () => {
+  const deps = makeDeps();
+  const ghDefault = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "gh-main", connection: { providerId: "github-pages", token: "gh-a" } });
+  const ghSecond = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "gh-second", connection: { providerId: "github-pages", token: "gh-b" } });
+  assert.equal(ghDefault.isDefault, true);
+  assert.equal(ghSecond.isDefault, false);
+
+  await updatePublishCredential(deps, { workspaceId: WORKSPACE, id: ghDefault.id, connection: { providerId: "vercel", token: "now-vercel" } });
+
+  const ghSecondAfter = await describeCredential(deps, { workspaceId: WORKSPACE, id: ghSecond.id });
+  assert.equal(ghSecondAfter?.isDefault, true, "the only remaining github-pages row must be promoted — the group must never end up with rows but no default");
+  const remainingGithubPages = (await listPublishCredentials(deps, { workspaceId: WORKSPACE })).filter((c) => c.providerId === "github-pages");
+  assert.equal(remainingGithubPages.filter((c) => c.isDefault).length, 1, "exactly one default in the old group, never zero, never two");
+});
+
+test("updatePublishCredential: a SOLO credential moved onto a brand-new (currently empty) provider group still becomes that group's default — the fix must not regress the first-row auto-default rule", async () => {
+  const deps = makeDeps();
+  const solo = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "solo", connection: { providerId: "github-pages", token: "solo-token" } });
+
+  const updated = await updatePublishCredential(deps, { workspaceId: WORKSPACE, id: solo.id, connection: { providerId: "netlify", token: "solo-now-netlify" } });
+
+  assert.equal(updated.isDefault, true, "moving the only credential onto an empty provider group mirrors createPublishCredential's own first-row auto-default");
+  const netlifyDefault = await describeCredential(deps, { workspaceId: WORKSPACE, id: solo.id });
+  assert.equal(netlifyDefault?.isDefault, true);
+});
+
 test("createPublishCredential rejects a non-boolean isDefault", async () => {
   const deps = makeDeps();
   await assert.rejects(
