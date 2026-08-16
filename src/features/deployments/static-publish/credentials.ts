@@ -40,11 +40,19 @@ import type { PublishCredentialSource, StaticPublishTargetId } from "./types";
  * source is never even constructed, per this dispatch's brief ("must never be a hosted fallback").
  */
 
-const ENV_VAR_BY_TARGET: Readonly<Record<StaticPublishTargetId, string>> = {
-  "github-pages": "GITHUB_TOKEN",
-  vercel: "VERCEL_TOKEN",
-  netlify: "NETLIFY_TOKEN",
-  "cloudflare-pages": "CLOUDFLARE_API_TOKEN",
+/**
+ * Env var name(s) that carry a target's token, in preference order — the first one set (and
+ * non-blank) wins. Most targets have exactly one; Netlify and Cloudflare Pages each get more than
+ * one because their own CLIs/CI docs have used more than one name across tooling generations, and an
+ * operator who already has one of the aliases set in their environment should not have to rename it
+ * just because this admin's UI now also shows its own preferred name (2026-08-15 credential-UI
+ * redesign brief — accept the vendor-official name as an alias rather than forcing a rename).
+ */
+const ENV_VAR_ALIASES_BY_TARGET: Readonly<Record<StaticPublishTargetId, readonly string[]>> = {
+  "github-pages": ["GITHUB_TOKEN"],
+  vercel: ["VERCEL_TOKEN"],
+  netlify: ["NETLIFY_TOKEN", "NETLIFY_ACCESS_TOKEN", "NETLIFY_AUTH_TOKEN"],
+  "cloudflare-pages": ["CLOUDFLARE_TOKEN", "CLOUDFLARE_API_TOKEN"],
 };
 
 /** `cloudflare-pages` is the one target whose credential needs a SECOND env var — see
@@ -66,27 +74,42 @@ type EnvCredentialResult = { readonly token: string; readonly accountId?: string
  * @complexity O(1).
  */
 export function createEnvPublishCredentialSource(workspaceId: UUID, env: NodeJS.ProcessEnv = process.env): PublishCredentialSource {
+  /** Reads a target's token from the first set, non-blank alias in {@link ENV_VAR_ALIASES_BY_TARGET}
+   *  — never partially matches (a blank/whitespace-only alias is treated the same as unset, same as
+   *  every other env read in this function). The failure reason names every alias the caller could
+   *  have set, not just the first, so an operator who set the second-choice name by mistake reading
+   *  an error naming only the first would be told to add a var they already have. */
+  function readToken(target: StaticPublishTargetId): { token: string } | { reason: string } {
+    const aliases = ENV_VAR_ALIASES_BY_TARGET[target];
+    for (const envVar of aliases) {
+      const token = env[envVar]?.trim();
+      if (token) return { token };
+    }
+    const reason =
+      aliases.length === 1
+        ? `${aliases[0]} is not set — publishing to ${target} requires a token with write access configured in the server environment`
+        : `none of ${aliases.join(", ")} is set — publishing to ${target} requires a token with write access configured in the server environment (any one of these env vars)`;
+    return { reason };
+  }
+
   function readCredential(target: StaticPublishTargetId, requestedWorkspaceId: UUID): EnvCredentialResult {
     if (requestedWorkspaceId !== workspaceId) {
       return {
         reason: `this credential source is bound to workspace '${workspaceId}' and refuses to resolve a token for workspace '${requestedWorkspaceId}'`,
       };
     }
-    const envVar = ENV_VAR_BY_TARGET[target];
-    const token = env[envVar]?.trim();
-    if (!token) {
-      return { reason: `${envVar} is not set — publishing to ${target} requires a token with write access configured in the server environment` };
-    }
+    const tokenResult = readToken(target);
+    if ("reason" in tokenResult) return tokenResult;
     if (target !== "cloudflare-pages") {
-      return { token };
+      return { token: tokenResult.token };
     }
     const accountId = env[CLOUDFLARE_ACCOUNT_ID_ENV_VAR]?.trim();
     if (!accountId) {
       return {
-        reason: `${CLOUDFLARE_ACCOUNT_ID_ENV_VAR} is not set — publishing to cloudflare-pages requires both ${envVar} and ${CLOUDFLARE_ACCOUNT_ID_ENV_VAR}`,
+        reason: `${CLOUDFLARE_ACCOUNT_ID_ENV_VAR} is not set — publishing to cloudflare-pages requires both a token (${ENV_VAR_ALIASES_BY_TARGET["cloudflare-pages"].join(" or ")}) and ${CLOUDFLARE_ACCOUNT_ID_ENV_VAR}`,
       };
     }
-    return { token, accountId };
+    return { token: tokenResult.token, accountId };
   }
 
   return {
