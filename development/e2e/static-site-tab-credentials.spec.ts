@@ -2,30 +2,24 @@ import { test, expect } from "@playwright/test";
 import { loginAsAdmin } from "./auth-fixtures";
 
 /**
- * @file Deployment panel → Static Site tab → credential-management section, driven through the REAL
- * admin SPA against the REAL Tovu API (`../playwright.static-site-tab-credentials.config.ts`'s
- * hermetic two-server harness, `TOVU_DB=memory`, `TOVU_EXECUTION_MODE=hosted-api-only`). No route
- * stubbing.
+ * @file Deployment panel → Static Site tab → credential section, driven through the REAL admin SPA
+ * against the REAL Tovu API (`../playwright.static-site-tab-credentials.config.ts`'s hermetic
+ * two-server harness, `TOVU_DB=memory`, `TOVU_EXECUTION_MODE=hosted-api-only`). No route stubbing.
  *
- * Before this pass, the Static Site tab literally told a reader to "set GITHUB_TOKEN or
- * VERCEL_TOKEN in this server's environment" — with nowhere in the UI to actually do that. This
- * suite pins the real fix at the browser level: a real `POST`/`GET`/`PUT`/`DELETE
- * .../system/publish/credentials` round trip, driven by real clicks, persisting to the real
- * (in-memory) database — never a fake port.
- *
- * `TOVU_EXECUTION_MODE=hosted-api-only` (this suite's own config) is what this file adds beyond
- * `static-site-tab.spec.ts`: proving the plain-language "you need a credential here" notice shows
- * OPEN (not the collapsed self-hosted "Advanced" disclosure) against a real server reading the real
- * env var — `StaticSiteTab.unit.test.tsx` already proves the disclosure SWITCH itself from an
- * injected controller, which is not the same claim as "the real server actually reports this mode".
+ * 2026-08-15 redesign: this section used to be an add/edit/delete list of user-named connections
+ * (an "Add credential" button, a provider `<select>`, a `Label` field). The owner's own read: "'Add
+ * credential' should be gone. Just list the providers, labels, and access token space, and that's
+ * it." This suite was rewritten to pin the NEW shape — one always-visible row per provider, each
+ * with its own token input and Save action — against the same real CRUD routes the old suite proved
+ * (create/list/update), driven by real clicks, persisting to the real (in-memory) database.
  *
  * ## This suite never reaches the real internet
  *
  * A saved credential here is a Vercel connection with a placeholder token — the CRUD routes under
- * test (create/list/edit/delete) only persist an ENCRYPTED row; none of them ever construct a
- * provider API client or make an outbound call. `GITHUB_TOKEN`/`VERCEL_TOKEN` are never set for this
- * harness's API server either (this config's own `env` block does not mention them), so even a
- * publish attempt would settle without leaving the process — this suite does not trigger one.
+ * test (create/list/update) only persist an ENCRYPTED row; none of them ever construct a provider
+ * API client or make an outbound call. `GITHUB_TOKEN`/`VERCEL_TOKEN` are never set for this harness's
+ * API server either (this config's own `env` block does not mention them), so even a publish attempt
+ * would settle without leaving the process — this suite does not trigger one.
  */
 
 test.beforeEach(async ({ page }) => {
@@ -33,18 +27,16 @@ test.beforeEach(async ({ page }) => {
   await page.goto("/admin/deployment?tab=static-site", { waitUntil: "domcontentloaded" });
 });
 
-/** Scopes an assertion to ONE credential row by its EXACT label — "Vercel" alone would also match
- *  the provider tab picker and the CLI recommendation section elsewhere on this same tab, so every
- *  assertion below reads from inside this row rather than the page as a whole.
- *
- *  Filters on `.deployment-credentials-label` (`StaticSiteTab.tsx`'s dedicated label span) with
- *  `hasText`'s exact-string mode, not a plain substring match against the WHOLE row's text: a plain
- *  substring filter on `label` also matches any row whose label merely CONTAINS it as a prefix —
- *  exactly what this suite's own rename test produces (`"E2E Vercel 123"` -> `"E2E Vercel 123
- *  renamed"`), which made a "the old label is gone" assertion pass against the very row that
- *  replaced it. */
-function credentialRow(page: import("@playwright/test").Page, label: string) {
-  return page.locator(".deployment-credentials-list-item").filter({ has: page.locator(".deployment-credentials-label", { hasText: new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`) }) });
+/** Scopes every assertion/action to ONE provider's row by its exact name — "Vercel" alone would also
+ *  match the provider tab picker and the CLI recommendation section elsewhere on this same tab, so
+ *  every locator below reads from inside this row rather than the page as a whole. Filters on
+ *  `.deployment-credential-row-name` (`StaticSiteTab.tsx`'s dedicated row-name span) with exact text,
+ *  not a substring match against the whole row, for the same "a prefix match hits the wrong row"
+ *  reason the OLD version of this suite's `credentialRow` helper documented for labels. */
+function credentialRow(page: import("@playwright/test").Page, providerLabel: string) {
+  return page
+    .locator(".deployment-credential-row")
+    .filter({ has: page.locator(".deployment-credential-row-name", { hasText: new RegExp(`^${providerLabel.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`) }) });
 }
 
 test.describe("Static Site tab — credentials, hosted-api-only disclosure", () => {
@@ -55,83 +47,74 @@ test.describe("Static Site tab — credentials, hosted-api-only disclosure", () 
       )
     ).toBeVisible();
     await expect(page.getByText("Advanced: publish with server-side provider credentials")).toHaveCount(0);
-    // The controls themselves are visible without expanding anything — this mode never nags a
-    // reader with a hidden disclosure of its own.
-    await expect(page.getByRole("button", { name: "Add credential" })).toBeVisible();
+    // All four provider rows are visible without expanding anything — this mode never nags a
+    // reader with a hidden disclosure of its own, and there is no "Add credential" step in the way.
+    await expect(page.getByRole("button", { name: "Add credential" })).toHaveCount(0);
+    for (const provider of ["GitHub Pages", "Vercel", "Netlify", "Cloudflare Pages"]) {
+      await expect(credentialRow(page, provider)).toBeVisible();
+      await expect(credentialRow(page, provider).getByText("Not connected")).toBeVisible();
+    }
   });
 });
 
 test.describe("Static Site tab — credentials, real CRUD round trip", () => {
-  test("create, reload, edit, then delete a real saved credential — every step through a real route", async ({ page }) => {
-    const label = `E2E Vercel ${Date.now()}`;
+  test("save, reload, then replace the token — every step through a real route, no label ever typed", async ({ page }) => {
+    const row = credentialRow(page, "Vercel");
 
-    await page.getByRole("button", { name: "Add credential" }).click();
-    await page.getByLabel("Provider").selectOption("vercel");
-    await page.getByLabel("Label").fill(label);
-    await page.getByLabel("Access token").fill("fake-vercel-token-for-e2e");
-    await page.getByRole("button", { name: "Save credential" }).click();
+    // The token box starts visibly empty — no placeholder standing in for a value.
+    await expect(row.getByLabel("Access token")).toHaveValue("");
+    await expect(row.getByLabel("Access token")).not.toHaveAttribute("placeholder");
+    await expect(row.getByRole("button", { name: "Save" })).toBeDisabled();
 
-    const row = credentialRow(page, label);
-    await expect(row).toBeVisible({ timeout: 10_000 });
-    await expect(row.getByText("Vercel", { exact: true })).toBeVisible();
-    await expect(row.getByText(/Updated/)).toBeVisible();
+    await row.getByLabel("Access token").fill("fake-vercel-token-for-e2e");
+    await expect(row.getByRole("button", { name: "Save" })).toBeEnabled();
+    await row.getByRole("button", { name: "Save" }).click();
+
+    await expect(row.getByText(/^Connected/)).toBeVisible({ timeout: 10_000 });
+    // The token box clears back to empty once saved — it is never re-shown, even right after saving.
+    await expect(row.getByLabel("Access token")).toHaveValue("");
 
     // A real page reload re-reads the real `GET .../system/publish/credentials` route — proves the
     // row is a real database write, not local-only optimistic state that would vanish on reload.
     await page.reload({ waitUntil: "domcontentloaded" });
-    await expect(credentialRow(page, label)).toBeVisible({ timeout: 10_000 });
+    await expect(credentialRow(page, "Vercel").getByText(/^Connected/)).toBeVisible({ timeout: 10_000 });
 
-    // Edit: change only the label, leave the token blank — proves "blank token = keep the stored
-    // secret" reaches the real PUT route (a server that instead required a token here would 400).
-    const renamedLabel = `${label} renamed`;
-    await credentialRow(page, label).getByRole("button", { name: "Edit" }).click();
-    await expect(page.getByLabel("Access token")).toHaveValue("");
-    await page.getByLabel("Label").fill(renamedLabel);
-    await page.getByRole("button", { name: "Save changes" }).click();
-    await expect(credentialRow(page, renamedLabel)).toBeVisible({ timeout: 10_000 });
-    await expect(credentialRow(page, label)).toHaveCount(0);
-
-    // Delete: the row is really gone after a real DELETE + local removal, not just visually hidden.
-    await credentialRow(page, renamedLabel).getByRole("button", { name: "Delete" }).click();
-    await expect(credentialRow(page, renamedLabel)).toHaveCount(0, { timeout: 10_000 });
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await expect(credentialRow(page, renamedLabel)).toHaveCount(0);
+    // Replace: type a brand-new token into the already-connected row. This exercises the real PUT
+    // route (an update, not a second create) — the row stays exactly one row, never a duplicate.
+    const reconnectedRow = credentialRow(page, "Vercel");
+    await expect(reconnectedRow.getByText(/Leave blank to keep the current token/)).toBeVisible();
+    await reconnectedRow.getByLabel("Access token").fill("a-replaced-fake-token-for-e2e");
+    await reconnectedRow.getByRole("button", { name: "Save" }).click();
+    await expect(reconnectedRow.getByText(/^Connected/)).toBeVisible({ timeout: 10_000 });
+    await expect(page.locator(".deployment-credential-row")).toHaveCount(4); // still one row per provider, never a duplicate
   });
 
-  test("a real 409 from a duplicate label surfaces in the form, and never creates a second row", async ({ page }) => {
-    const label = `E2E Duplicate ${Date.now()}`;
-
-    await page.getByRole("button", { name: "Add credential" }).click();
-    await page.getByLabel("Provider").selectOption("vercel");
-    await page.getByLabel("Label").fill(label);
-    await page.getByLabel("Access token").fill("fake-vercel-token-for-e2e");
-    await page.getByRole("button", { name: "Save credential" }).click();
-    await expect(credentialRow(page, label)).toBeVisible({ timeout: 10_000 });
-
-    await page.getByRole("button", { name: "Add credential" }).click();
-    await page.getByLabel("Provider").selectOption("vercel");
-    await page.getByLabel("Label").fill(label);
-    await page.getByLabel("Access token").fill("a-different-fake-token");
-    await page.getByRole("button", { name: "Save credential" }).click();
-
-    await expect(page.getByText("A credential with this label already exists.")).toBeVisible({ timeout: 10_000 });
-    // Still exactly one row with this label — the rejected second attempt never got appended.
-    await expect(page.locator(".deployment-credentials-list-item").filter({ hasText: label })).toHaveCount(1);
-  });
-
-  test("github-pages needs only a label and token — owner/repo are NOT credential fields", async ({ page }) => {
+  test("github-pages needs only a token — no label, no owner/repo on this row", async ({ page }) => {
     // Owner/repo live on the publish TARGET config (chosen per run in the section below this one),
     // never on the saved credential — see `rules.ts`'s `PUBLISH_CREDENTIAL_PROVIDERS` doc
-    // (`requiredFields: []` for every provider except cloudflare-pages) and `api.ts`'s
-    // `AdminPublishConnectionInput` doc for why. A github-pages credential is a bare token.
-    await page.getByRole("button", { name: "Add credential" }).click();
-    // github-pages is the default provider selection.
-    await expect(page.getByRole("button", { name: "Save credential" })).toBeDisabled();
+    // (`requiredFields: []` for every provider except cloudflare-pages). A github-pages credential
+    // is a bare token.
+    const row = credentialRow(page, "GitHub Pages");
+    await expect(row.getByRole("button", { name: "Save" })).toBeDisabled();
+    await expect(page.getByLabel("Label")).toHaveCount(0);
+    await expect(page.getByLabel("Provider")).toHaveCount(0);
 
-    await page.getByLabel("Label").fill(`E2E GitHub ${Date.now()}`);
-    await expect(page.getByRole("button", { name: "Save credential" })).toBeDisabled();
+    await row.getByLabel("Access token").fill("fake-gh-token-for-e2e");
+    await expect(row.getByRole("button", { name: "Save" })).toBeEnabled();
+    await row.getByRole("button", { name: "Save" }).click();
+    await expect(row.getByText(/^Connected/)).toBeVisible({ timeout: 10_000 });
+  });
 
-    await page.getByLabel("Access token").fill("fake-gh-token-for-e2e");
-    await expect(page.getByRole("button", { name: "Save credential" })).toBeEnabled();
+  test("cloudflare-pages requires BOTH a token and an Account ID before Save enables", async ({ page }) => {
+    const row = credentialRow(page, "Cloudflare Pages");
+    await expect(row.getByRole("button", { name: "Save" })).toBeDisabled();
+
+    await row.getByLabel("Access token").fill("fake-cf-token-for-e2e");
+    await expect(row.getByRole("button", { name: "Save" })).toBeDisabled(); // account id still blank
+
+    await row.getByLabel("Account ID").fill("acct-e2e-123");
+    await expect(row.getByRole("button", { name: "Save" })).toBeEnabled();
+    await row.getByRole("button", { name: "Save" }).click();
+    await expect(row.getByText(/^Connected/)).toBeVisible({ timeout: 10_000 });
   });
 });
