@@ -1518,6 +1518,77 @@ export const publishCredentialSets = sqliteTable(
 );
 
 /**
+ * Append-only publish-history ledger (2026-08-16, owner-requested rework of the original
+ * flat-JSON-file design — see `static-publish/publish-history.ts`'s own header for the full
+ * before/after story). One row per publish that actually produced an outcome (`ok: true` or
+ * `ok: "partial"` — never `ok: false`, see that same header), never updated or deleted after
+ * insert — unlike `publishCredentialSets` above, "the last publish" is a query over this table
+ * (`ORDER BY id DESC LIMIT 1`, scoped by `workspace_id` + `target`), not a row this table
+ * overwrites, so a future deploy-history UI has real rows to list rather than only ever seeing
+ * the single most recent one. `id` is a plain surrogate autoincrement key (mirrors
+ * `redirectRevisions`' own `id` — no natural per-target sequence is needed here the way
+ * `redirectRevisions.seq` needs one per `redirect_id`, since nothing else in this feature ever
+ * references a specific publish-history row by number).
+ *
+ * `owner`/`repo`/`branch`/`commit_sha` are populated for `github-pages` only — every other target
+ * leaves them NULL, the same per-target-optional shape `publishCredentialSets`' sibling
+ * `StaticPublishConfig` already uses for `owner`/`repo`. `commit_sha` specifically: NOT a
+ * caller-supplied value — `static-publish/publish-run.ts`'s `toHistoryEntry` reads it off
+ * `StaticPublishOutcome.deploymentId`, which is genuinely a commit SHA ONLY for `github-pages`
+ * (verified directly against `@jini-ai/devops`'s `github-pages.ts`: `deploymentId: commitSha` on
+ * its `publish()` return — the ONLY target whose `deploymentId` means "a git commit"; Vercel's is a
+ * Vercel deployment id, Netlify's a deploy id, Cloudflare Pages' a deployment id, and s3-compatible
+ * has no `deploymentId` at all). Never populated for any other target, so this column is honestly
+ * NULL rather than a field that quietly always reads null everywhere.
+ *
+ * `triggered_by` records WHICH of this feature's two entry points produced the row —
+ * `'admin_ui'` (the admin route's `startPublishRun`) or `'agent_tool'` (the assistant's
+ * `runPublishAndAwait`) — see `publish-run.ts`'s own header for why this is free to derive (each
+ * function hardcodes its own literal; no caller has to supply it).
+ */
+export const publishHistory = sqliteTable(
+  "publish_history",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    /** `StaticPublishTargetId` — `"github-pages" | "vercel" | "netlify" | "cloudflare-pages" |
+     *  "s3-compatible"`. */
+    target: text("target").notNull(),
+    url: text("url").notNull(),
+    /** `false` only for the s3-compatible "uploaded, not yet confirmed reachable" partial outcome
+     *  — see this table's own doc and `PublishHistoryEntry`'s doc in `publish-history.ts` for why a
+     *  fully failed (`ok: false`) publish is never a row here at all, so this is never "the publish
+     *  failed". */
+    reachable: integer("reachable", { mode: "boolean" }).notNull(),
+    status: text("status").notNull(),
+    projectName: text("project_name").notNull(),
+    publishedAt: text("published_at").notNull(),
+    owner: text("owner"),
+    repo: text("repo"),
+    basePath: text("base_path"),
+    /** The provider's own opaque identifier for this publish (a Vercel/Netlify/Cloudflare deploy
+     *  id, or — for github-pages — the commit sha, same value as `commit_sha` below for that one
+     *  target). `StaticPublishOutcome.deploymentId`, verbatim. */
+    deploymentId: text("deployment_id"),
+    /** github-pages only — see this table's own doc for why this is a genuine, verified value and
+     *  not a column that is always null. */
+    commitSha: text("commit_sha"),
+    /** github-pages only — the branch actually published to, defaulted to `'gh-pages'` the same
+     *  way `GitHubPagesDeployTarget` itself defaults an omitted `config.branch` (`types.ts`'s
+     *  `GitHubPagesPublishConfig` doc). */
+    branch: text("branch"),
+    /** `'admin_ui' | 'agent_tool'` — see this table's own doc. */
+    triggeredBy: text("triggered_by").notNull(),
+  },
+  (table) => [
+    index("idx_publish_history_workspace_id").on(table.workspaceId, table.id),
+    index("idx_publish_history_workspace_target_id").on(table.workspaceId, table.target, table.id),
+  ]
+);
+
+/**
  * Per-workspace saved connections for the admin Source Control page (2026-08-15) — "I have a
  * GitHub/GitLab/Bitbucket personal access token" as its own concept, deliberately NOT a row in
  * `publishCredentialSets` above even though the column shape is identical. `PublishProviderId` is

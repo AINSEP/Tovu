@@ -241,6 +241,10 @@ export const REVIEWED_INTEGER_ID_COLUMNS: Readonly<Record<string, AutoIncrementR
     growthClass: "unbounded",
     rationale: "append-only analytics-event log — the single highest-volume table in this schema by construction",
   },
+  "publish_history.id": {
+    growthClass: "unbounded",
+    rationale: "append-only publish-history log — one row per successful/partial static publish, unbounded over an install's life (2026-08-16 rework of the original single-row-per-target file store)",
+  },
   "database_write_watermark.value": {
     growthClass: "unbounded",
     rationale:
