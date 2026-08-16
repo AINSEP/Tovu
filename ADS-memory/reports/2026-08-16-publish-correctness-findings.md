@@ -336,3 +336,53 @@ written to prevent.
 **Task 1 status: GREEN, no further implementation needed.** No test was weakened or deleted to
 reach this state — the one file I changed was a commit of pre-existing, already-passing work, not
 an edit. Moving to Task 2 (Vercel/Netlify non-JSON-poll fix in Jini) next.
+
+## Task 2 — same non-JSON-poll bug, Vercel and Netlify (Jini, 2026-08-16)
+
+Confirmed the earlier sibling-adapter audit's finding by reading both files directly, applied the
+identical localized fix shape as `eaa1a7d8` (GitHub Pages), one function each, no changes to the
+shared `readVercelJson`/`readNetlifyJson` helpers (same reasoning as the GitHub fix: those helpers
+are called from other sites — deployment creation, file upload — where a genuinely malformed
+response should keep throwing, not be silently swallowed).
+
+**`packages/devops/src/deploy/vercel.ts`'s `pollVercelDeployment`** — zero tolerance for any poll
+response that failed to parse as JSON (not even a 404-equivalent carve-out; worse than GitHub's
+pre-fix version). Runs strictly after the deployment already exists server-side (the `POST
+/v13/deployments` create call already succeeded before this loop starts). Wrapped the
+`readVercelJson` call in try/catch, `continue` on parse failure — same "keep polling" bucket the
+loop already uses for a non-terminal `readyState`. A genuine parseable non-2xx rejection still
+throws via `vercelError`, unchanged.
+
+**`packages/devops/src/deploy/netlify.ts`'s `pollNetlifyDeploy`** — identical pattern. Runs after
+`createNetlifyDeploy` and every required per-file upload have already completed. Same fix shape.
+
+**RED-first, both**: added a regression test to each file's existing `__tests__` suite reproducing
+the exact mechanism — 1st poll returns a bare `200` with an empty body (no build/deploy record
+readable yet, but not signaled via any status code the code already special-cased), 2nd poll
+returns the real terminal state. Run against unfixed code:
+- Vercel: `DeployError: Vercel returned a non-JSON response.` at `pollVercelDeployment
+  src/deploy/vercel.ts:174:18`.
+- Netlify: `DeployError: Netlify returned a non-JSON response.` at `pollNetlifyDeploy
+  src/deploy/netlify.ts:279:18`.
+
+Both byte-identical in mechanism to the GitHub Pages live-observed failure this whole dispatch
+started from.
+
+**Fresh evidence, current HEAD (`73ae1910` in Jini)**:
+- `cd packages/devops && npx tsc -p tsconfig.json --noEmit` — 0 errors.
+- `npx vitest run src/deploy/__tests__/vercel.test.ts` — 26/26 pass (was 25/26 before the fix, the
+  new regression test failing).
+- `npx vitest run src/deploy/__tests__/netlify.test.ts` — 26/26 pass (same, was 25/26 before).
+- `npx vitest run src/deploy` (whole directory, repo-root-relative per the reporting rule) —
+  **241/241 pass**, no regressions across any of the 10 test files in the deploy package (GitHub
+  Pages, Vercel, Netlify, S3-compatible, Cloudflare Pages, reachability, redirect-guard, naming).
+
+**Scope discipline**: did not touch `cloudflare-pages.ts` — the earlier audit already classified it
+as out of scope (single-shot response read at the one irreversible step, not a multi-attempt poll
+running well after several already-confirmed steps; narrower exposure window, separately assessed,
+explicitly named out of scope in this dispatch's brief). Did not touch `Jini/packages/chat/**` or
+`Jini/packages/ui/**` (other agents' territory) or `apps/admin/**` (same) — confirmed via `git
+diff --cached --name-only` before every stage, only ever adding by explicit path, per the shared-git-index
+hazard this session's brief called out.
+
+**Task 2 status: GREEN, both fixes shipped and regression-tested.**
