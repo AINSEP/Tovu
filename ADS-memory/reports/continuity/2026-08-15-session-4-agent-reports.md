@@ -520,11 +520,43 @@ session was built on the contention hypothesis. That hypothesis was wrong. The c
 (ordering only), but the lesson is that an undiagnosed working theory in a handoff should not drive
 scheduling decisions until someone instruments it.
 
-### OPEN LEAD — possible systemic cold-import flake
-That agent explicitly did **not** audit whether other test files have similarly tight cold-import
-margins. If "first test in the file pays the whole transform cost" is general, other files may sit
-just under the 5000ms default too, and would present as unrelated random flakes. Worth a sweep if
-this pattern recurs. Nobody has looked.
+### D-13. CLOSED — the cold-import flake is NOT systemic, and the rule is narrower than stated
+Surveyed read-only. **`request-volume.measurement.test.tsx` was the only file in `apps/admin` at
+risk, and it is already fixed.** No second latent case of this bug class exists.
+
+**The mechanism is narrower than "first test in the file" — that framing was imprecise.** The actual
+risk is specifically: **a dynamic `await import()` of a heavy, not-yet-loaded module, called from
+inside a test body.**
+
+A *static* top-level import of an equally heavy module pays its transform cost during the file's own
+import/transform phase, which runs **before any test's clock starts** — so however expensive that
+graph is, it can never eat into a `testTimeout` budget. Only a dynamic import triggered mid-test
+blocks that specific test's own timer.
+
+Confirmed from both directions. Method: grepped all of `src` for `await import(` inside test bodies
+(`.test.ts`/`.test.tsx` are the only two test extensions in use), found 5 files, then timed each.
+
+| File | Verdict | Timing |
+|---|---|---|
+| `render-churn.measurement.test.tsx` | **SAFE** — the decisive counter-example | test: 355/392/406ms |
+| `nav-wiring.unit.test.ts` | safe — Node builtins, not first test | 0-3ms |
+| `agent-plugin-capability-adapter.unit.test.ts` | safe — dynamic import at ~test 10 | 0-3ms |
+| `use-admin-execution-credential.hooks.test.ts` | safe — not first test | 54-76ms |
+
+`render-churn` is the proof of the refined rule: it is the closest structural analog (sibling
+measurement file, same audit, heavy Redirects+Taxonomy render tree) and its **file-level Duration
+still shows 7-8s** — but its one test runs in ~380ms, because its heavy deps are *static* top-level
+imports and its lone `await import("@testing-library/react")` is a cache hit on a module already
+imported at line 2. All the cost sits outside the test's clock. Same mechanism observed from the
+opposite side.
+
+**Actionable signal if this ever recurs:** grep for `await import(` inside an `it()` body targeting a
+module nothing else in the file has already loaded. That is the entire risk surface, confirmed by
+direct timing on every candidate in the tree.
+
+Minor: the code comment on the 15s timeout attributes the cost to being "the FIRST test in the file."
+True for that file, but first-ness is neither necessary nor sufficient on its own — the dynamic
+import is the load-bearing part. Not worth a re-commit; recorded here for whoever reads it next.
 
 ### Harness note
 SendMessage delivered on **attempt 8** after 7 consecutive silent failures that all returned
