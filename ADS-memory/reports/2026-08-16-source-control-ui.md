@@ -69,14 +69,22 @@ against it as filler with nothing behind it; flagged the option in the check-in 
 building it unasked. Commit history, sync, diffing, and branch management remain explicitly
 out-of-scope per `ProvidersTab.tsx`'s own header, same as before this pass.
 
-### Requirement #2 (saved-credential visibility) — already built, verified against real data
+### Requirement #2 (saved-credential visibility) — already built; rendering verified by fixture, NOT proven end-to-end against the live app
 
 The row-level "connected" treatment (`SourceControlRowDone`) already matched the brief's
 requirements before this pass: a settled summary line — green checkmark, "GitHub connected · token
 stored, encrypted · saved <date>" — visible with no click required, plus a "Replace token ⌄"
 disclosure to save a different token. This pass didn't need to touch that logic, only give it a page
-shell. Verified rendering correctly with the exact production markup and CSS, via a fixture-injected
-render (see the correction above) rather than a real database write.
+shell.
+
+Being precise about what was and wasn't checked: `source-control-connected-fixture.png` proves the
+exact production JSX/CSS renders that summary line correctly for a `saved` row — real component
+code, real stylesheet, fake data injected through the `useSourceControlCredentialsHook` DI seam,
+zero database writes. It does NOT prove the row renders correctly when driven by a real save through
+the live app end to end (real POST, real sealed-store round trip, real GET repopulating the row) —
+`source_control_credential_sets` is empty in this dev DB right now and stays that way. That live
+end-to-end path remains unverified; flagging it plainly rather than letting the fixture screenshot
+imply more than it shows.
 
 ## Correction: card-within-a-card-within-a-tab (owner-flagged, live)
 
@@ -88,6 +96,35 @@ never wraps its populated list in a card either — `.card` there is reserved fo
 Removed the outer card entirely; rows now render directly under the tab. `SourceControlIcon` lost
 its only call site and is currently unused (left defined, not deleted, per `ProvidersTab.tsx`'s own
 updated header). Regenerated all three screenshots below against the corrected layout.
+
+Also confirmed the "Providers" label duplication the team lead separately flagged (tab label + a
+second "Providers" `card-title` ~100px below it) no longer exists — it was removed by this same
+card-removal fix, since the duplicate heading lived inside the card that no longer renders. Grepped
+both `SourceControl.tsx` and `ProvidersTab.tsx` for `"Providers"` to confirm: the translated string
+now renders exactly once (the `TabBar` tab).
+
+## Page height: one small tightening shipped, one bigger option proposed but not built
+
+A brand-new instance shows all three provider rows open at once — none collapse by default (see
+`SourceControlRowTodo`'s own doc: a mandatory, not-yet-done step stays open on purpose, the same
+lesson `deployment/StaticSiteTab.tsx`'s "Advanced is backwards for a mandatory first step" history
+already paid for). That is a deliberate, previously-owner-decided shape for this page, not something
+to reverse here.
+
+Shipped: tightened `.source-control-rows`/`.source-control-row`/`.source-control-credential-fields`
+gaps one step down (`--space-4`→`--space-3`, `--space-3`→`--space-2`) in `source-control.css` — pure
+CSS, no markup or behavior change, shortens the page by roughly one row's worth of gap total. Modest
+by design: most of each row's height is the wrapped `scopeGuidanceKey` sentences (~200+ characters
+each), not spacing, and gap alone can't fix that.
+
+Proposed, not built: move each row's longer scope-guidance sentence (which token type to create,
+with its link) behind a small "Which token do I need?" disclosure, leaving the short "stored
+encrypted…" hint, the input, and Save always visible. This would meaningfully shorten the page (the
+scope sentences are the biggest single contributor after the row count itself) but it is a real
+information-visibility decision, not a spacing tweak — this exact page's `rules.ts` carries a
+same-week owner decision to make scope guidance MORE prominent (lead with the narrowest-credential
+option), and hiding that text by default is a plausible tension with that decision even though it
+doesn't literally reverse it. Flagging for a decision rather than building it unasked.
 
 ## Follow-up dispatched separately: reuse the Deployment publish credential
 
