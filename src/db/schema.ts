@@ -1424,6 +1424,86 @@ export const adminExecutionCredentials = sqliteTable(
 );
 
 /**
+ * Named, workspace-scoped provider connections for static-site publishing (GitHub Pages / Vercel /
+ * Netlify / Cloudflare Pages) — what the admin's Static Site tab "Advanced: publish with server-side
+ * provider credentials" form persists (`features/deployments/publish-credentials/`). Design:
+ * `ADS-memory/reports/external-audit/runs/2026-08-15-terra-xhigh-publish-credentials-design.md`.
+ *
+ * Composite PK `(workspace_id, id)`, NOT `workspace_id` alone like `siteAssistantCredentials`/
+ * `adminExecutionCredentials` above — those are single-row-per-scope settings rows; this table is a
+ * per-scope LEDGER, because a workspace can hold more than one named connection to the SAME provider
+ * (e.g. two GitHub tokens for two different repos). `id` is a caller-supplied UUID, not an
+ * autoincrement surrogate, matching every other UUID-keyed content row in this schema (`posts.id`
+ * etc.) rather than `agentToolAttempts`' autoincrement (that table has no natural key to reuse; this
+ * one does — `(workspace_id, provider_id, label)` is the human-meaningful identity, `id` exists only
+ * so PUT/DELETE has a stable target across a label rename). UNIQUE `(workspace_id, provider_id,
+ * label)` enforces the human-meaningful identity is actually unique per workspace.
+ *
+ * Sealed via the SAME shared `AesGcmSecretSealer`/`KeyringPort` instances the two tables above reuse
+ * (one sealing capability app-wide — see `secret-sealer.aesgcm.ts`'s own header) — but UNLIKE those
+ * two tables, every `sealed*` column here is `NOT NULL`, not nullable-together-via-CHECK. Those two
+ * precedent tables model a single settings row that can exist BEFORE any key is ever saved (rendering
+ * `isSet: false`); a row in THIS table cannot exist before a connection is saved — `POST .../publish/
+ * credentials` requires a `connection` in its very own request body (see
+ * `publish-credentials/store.ts`'s `createPublishCredential`), so "a row with no sealed payload" is
+ * not a state this table's writers can ever produce, and giving it a nullable CHECK it can never
+ * legitimately satisfy in the NULL branch would just be dead schema surface.
+ *
+ * Every `sealed*` payload is sealed with an `aad` (`SecretSealerPort`'s new optional parameter, this
+ * same 2026-08-15 change) bound to `workspaceId + providerId + id` — see
+ * `publish-credentials/aad.ts`'s `buildPublishCredentialAad` for the one place that string format is
+ * defined. This is what makes a row's ciphertext non-transplantable to a different workspace, a
+ * different provider, or a different credential set even though the underlying AES key is shared
+ * app-wide (Terra's 2026-08-15 finding: the two tables above, sealed with no AAD at all, do not have
+ * this property — out of scope to retrofit here without touching their live rows, see this dispatch's
+ * brief).
+ *
+ * Deliberately NO `masked` column — a divergence from BOTH tables above, made on Terra's explicit
+ * recommendation: label + `updatedAt` already identify a connection well enough for a human to
+ * recognize it, and not even storing a last-4 keeps zero token-derived material outside the sealed
+ * blob (`site_assistant_credentials`/`admin_execution_credentials`'s `masked` column, by contrast,
+ * stores plaintext-derived characters unencrypted specifically so a GET can answer "what does it end
+ * in" with no decrypt — a tradeoff this design consciously declines to repeat for a deployment
+ * secret with WRITE access to a real external account).
+ *
+ * The sealed payload itself is the WHOLE `PublishConnectionInput` connection object serialized as one
+ * JSON blob (token AND its provider-specific companion fields — `owner`/`repo` for github-pages,
+ * `teamId` for vercel, `siteId` for netlify, `accountId`/`projectName` for cloudflare-pages), not a
+ * bare token — see `publish-credentials/types.ts`'s own header for why a single `sealed_ciphertext`
+ * column per row is correct here and no per-field encrypted columns are needed.
+ */
+export const publishCredentialSets = sqliteTable(
+  "publish_credential_sets",
+  {
+    id: text("id").notNull(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    /** `"github-pages" | "vercel" | "netlify" | "cloudflare-pages"` — see
+     *  `publish-credentials/types.ts`'s `PublishProviderId`. */
+    providerId: text("provider_id").notNull(),
+    /** Human-chosen label, unique per `(workspace_id, provider_id)` — the identity a human picks a
+     *  connection by, since this table (unlike the two above) holds more than one row per provider. */
+    label: text("label").notNull(),
+    /** `SealedSecret.keyId`. */
+    sealedKeyId: text("sealed_key_id").notNull(),
+    /** Base64 `AEAD ciphertext || 16-byte GCM auth tag` of the whole serialized connection object. */
+    sealedCiphertext: text("sealed_ciphertext").notNull(),
+    /** Base64 12-byte AES-GCM IV. */
+    sealedNonce: text("sealed_nonce").notNull(),
+    /** Always `'aes-256-gcm'` today; stored rather than hardcoded for the same future-algorithm
+     *  reason the two precedent tables above give. */
+    sealedAlg: text("sealed_alg").notNull(),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.workspaceId, table.id] }),
+    uniqueIndex("publish_credential_sets_workspace_provider_label_unique").on(table.workspaceId, table.providerId, table.label),
+  ]
+);
+
+/**
  * Per-workspace media-generation vendor credentials, one row per `(workspace_id, provider_id)` —
  * what the admin's Media → "Media providers" tab persists (`media/provider-credential-store.ts`).
  *
