@@ -389,3 +389,55 @@ test("resolveDefaultForPublish returns null (never 'ambiguous') when a provider 
   await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "One", connection: { providerId: "netlify", token: "a" } });
   assert.equal(await resolveDefaultForPublish(deps, { workspaceId: WORKSPACE, providerId: "vercel" }), null);
 });
+
+// ---- s3-compatible (custom publish provider, spec `custom-publish-provider-contract.md` §4) ----
+
+const VALID_S3_CONNECTION = {
+  providerId: "s3-compatible",
+  region: "us-east-1",
+  bucket: "my-bucket",
+  accessKeyId: "AKIAEXAMPLE",
+  secretAccessKey: "s3cr3t",
+  publicUrl: "https://my-bucket.s3.us-east-1.amazonaws.com",
+};
+
+test("createPublishCredential accepts a full s3-compatible connection, including optional endpoint, and seals it with NO plaintext leak in the summary", async () => {
+  const deps = makeDeps();
+  const summary = await createPublishCredential(deps, {
+    workspaceId: WORKSPACE,
+    label: "x",
+    connection: { ...VALID_S3_CONNECTION, endpoint: "https://s3.us-east-1.amazonaws.com" },
+  });
+  assert.equal(summary.providerId, "s3-compatible");
+  assert.ok(!("connection" in summary) && !("sealed" in summary), "summary must carry no connection/sealed field at all");
+  assert.doesNotMatch(JSON.stringify(summary), /s3cr3t|AKIAEXAMPLE/, "the summary must never leak the secret or access key");
+
+  const resolved = await resolveForPublish(deps, { workspaceId: WORKSPACE, id: summary.id });
+  assert.deepEqual(resolved?.connection, { ...VALID_S3_CONNECTION, endpoint: "https://s3.us-east-1.amazonaws.com" });
+});
+
+test("createPublishCredential accepts s3-compatible with NO endpoint (plain AWS S3 — endpoint is the only optional field)", async () => {
+  const deps = makeDeps();
+  const summary = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "x", connection: VALID_S3_CONNECTION });
+  const resolved = await resolveForPublish(deps, { workspaceId: WORKSPACE, id: summary.id });
+  assert.deepEqual(resolved?.connection, VALID_S3_CONNECTION);
+  assert.ok(!("endpoint" in (resolved?.connection ?? {})), "omitted endpoint must stay omitted, never coerced to an empty string");
+});
+
+for (const field of ["region", "bucket", "accessKeyId", "secretAccessKey", "publicUrl"] as const) {
+  test(`createPublishCredential rejects s3-compatible with a blank '${field}' (all five are hard-required)`, async () => {
+    const deps = makeDeps();
+    await assert.rejects(
+      () => createPublishCredential(deps, { workspaceId: WORKSPACE, label: "x", connection: { ...VALID_S3_CONNECTION, [field]: "" } }),
+      PublishCredentialValidationError
+    );
+  });
+}
+
+test("createPublishCredential rejects s3-compatible with a blank endpoint when one IS supplied (optional means 'may be omitted', not 'may be blank')", async () => {
+  const deps = makeDeps();
+  await assert.rejects(
+    () => createPublishCredential(deps, { workspaceId: WORKSPACE, label: "x", connection: { ...VALID_S3_CONNECTION, endpoint: "   " } }),
+    PublishCredentialValidationError
+  );
+});

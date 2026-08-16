@@ -41,7 +41,7 @@ import type {
  */
 
 const MAX_LABEL_LENGTH = 200;
-const PROVIDER_IDS: ReadonlySet<PublishProviderId> = new Set(["github-pages", "vercel", "netlify", "cloudflare-pages"]);
+const PROVIDER_IDS: ReadonlySet<PublishProviderId> = new Set(["github-pages", "vercel", "netlify", "cloudflare-pages", "s3-compatible"]);
 
 /** Type-predicate wrapper around `PROVIDER_IDS.has()` — `Set<T>.has()` alone does not narrow its
  *  argument's static type, so `validateConnection` below would otherwise see `providerId` as a plain
@@ -168,6 +168,20 @@ function validateConnection(raw: unknown): PublishConnectionInput {
   if (typeof providerId !== "string" || !isPublishProviderId(providerId)) {
     throw new PublishCredentialValidationError(`connection.providerId must be one of: ${[...PROVIDER_IDS].join(", ")}`);
   }
+
+  // s3-compatible has NO `token` field at all (spec `custom-publish-provider-contract.md` §4a/§4b —
+  // it authenticates with an access-key/secret-key PAIR, not a single bearer token), so it branches
+  // BEFORE the generic `token` requirement below, which every other provider in this union shares.
+  if (providerId === "s3-compatible") {
+    const region = requireNonEmptyString(value.region, "region", providerId);
+    const bucket = requireNonEmptyString(value.bucket, "bucket", providerId);
+    const accessKeyId = requireNonEmptyString(value.accessKeyId, "accessKeyId", providerId);
+    const secretAccessKey = requireNonEmptyString(value.secretAccessKey, "secretAccessKey", providerId);
+    const publicUrl = requireNonEmptyString(value.publicUrl, "publicUrl", providerId);
+    const endpoint = optionalString(value.endpoint, "endpoint");
+    return { providerId, region, bucket, accessKeyId, secretAccessKey, publicUrl, ...(endpoint !== undefined ? { endpoint } : {}) };
+  }
+
   const token = requireNonEmptyString(value.token, "token", providerId);
 
   if (providerId === "github-pages") {

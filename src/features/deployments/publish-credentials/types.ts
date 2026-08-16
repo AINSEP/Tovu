@@ -41,7 +41,7 @@ import type { SealedSecret } from "../../../integrations/types";
  * adapters (ADR-006 rule-of-two) that move `PublishCredentialSetRecord` in and out of storage.
  */
 
-export type PublishProviderId = "github-pages" | "vercel" | "netlify" | "cloudflare-pages";
+export type PublishProviderId = "github-pages" | "vercel" | "netlify" | "cloudflare-pages" | "s3-compatible";
 
 /** No `owner`/`repo` here, deliberately — those are publish-TARGET fields, not credential fields:
  *  they already live on `../static-publish/types.ts`'s `GitHubPagesPublishConfig`, chosen per publish
@@ -79,10 +79,51 @@ export interface CloudflarePagesConnectionInput {
   readonly projectName?: string;
 }
 
+/**
+ * S3-compatible object storage (AWS S3, Cloudflare R2, Backblaze B2, DigitalOcean Spaces, Wasabi,
+ * MinIO, ...). Design: `ADS-memory/specs/custom-publish-provider-contract.md` §4. No `token` field —
+ * unlike the other four variants, this protocol authenticates with an access-key/secret-key PAIR, not
+ * a single bearer token, so this variant intentionally does not share `token: string` with its
+ * siblings (a shared field name here would invite a caller to read `.token` generically across the
+ * union and silently miss the secret half of this pair).
+ *
+ * All six fields live on the CREDENTIAL, never on `../static-publish/types.ts`'s
+ * `S3CompatiblePublishConfig` (which is empty) — an access-key/secret-key pair is provisioned for ONE
+ * specific bucket in practice, so `endpoint`/`region`/`bucket`/`publicUrl` are properties of the
+ * secret's own scope, not a per-run choice (spec §4b's placement rule, same reasoning already applied
+ * to Cloudflare Pages' `accountId`).
+ *
+ * `publicUrl` is REQUIRED, unlike every other optional companion field on this union: an S3 `PUT`
+ * response carries no public URL the way the other four providers' own APIs do, and
+ * `../static-publish/types.ts`'s `StaticPublishOutcome`/`DeployPublishResult.url` are both
+ * non-optional — nothing in this tuple can derive a reliable public URL (R2 has none by default, a
+ * self-hosted MinIO often has no public DNS at all), so guessing wrong would produce a false
+ * "Published" state pointing at a URL that 404s. Spec §4a.
+ */
+export interface S3CompatibleConnectionInput {
+  readonly providerId: "s3-compatible";
+  /** Blank/omitted means plain AWS S3 (a region-derived default host) — see
+   *  `../static-publish/s3-compatible-target.ts` for the derivation. Non-blank for every other
+   *  provider in scope (R2, B2, DigitalOcean Spaces, Wasabi, MinIO all require an explicit endpoint). */
+  readonly endpoint?: string;
+  readonly region: string;
+  readonly bucket: string;
+  readonly accessKeyId: string;
+  /** SECRET — never echoed back by any route/tool, never logged. Sealed as part of this whole object
+   *  (see this file's header on the closed-union / one-ciphertext-per-row design). */
+  readonly secretAccessKey: string;
+  readonly publicUrl: string;
+}
+
 /** Closed discriminated union — see this file's header. This whole object is what gets serialized to
  *  JSON and sealed as ONE ciphertext blob per credential set (never per-field columns — see
  *  `src/db/schema.ts`'s `publishCredentialSets` header for why). */
-export type PublishConnectionInput = GitHubPagesConnectionInput | VercelConnectionInput | NetlifyConnectionInput | CloudflarePagesConnectionInput;
+export type PublishConnectionInput =
+  | GitHubPagesConnectionInput
+  | VercelConnectionInput
+  | NetlifyConnectionInput
+  | CloudflarePagesConnectionInput
+  | S3CompatibleConnectionInput;
 
 /** A `publish_credential_sets` row, decrypted-shape (`sealed` is the DB's opaque
  *  `SealedSecret` — the actual `PublishConnectionInput` only exists in memory after
