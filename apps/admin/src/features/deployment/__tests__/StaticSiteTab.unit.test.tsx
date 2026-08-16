@@ -1013,11 +1013,6 @@ describe("StaticSiteTab — credential section: AI agent tagging", () => {
   // provider's tags exist at any one render — this now switches the target per provider and checks
   // that provider's own tags each time, which still proves every provider's row carries the right
   // tag, just one render per provider instead of one render for all four.
-  // REWRITTEN 2026-08-16: there is no single wrapping "section" element left to tag — the collapse
-  // pass made `PublishCredentialsSection` return one of four different top-level nodes (a loading
-  // `<p>`, an error `<p>`, `CredentialStepTodo`'s `<div>`, or `CredentialStepDone`'s `<details>`)
-  // depending on state, and none of those states share a common wrapper. What's still real and
-  // still worth pinning per-provider is the row/token/save triad below, unchanged.
   it("tags the selected provider's own row/token/save elements, per provider", () => {
     for (const provider of PUBLISH_CREDENTIAL_PROVIDERS) {
       const { unmount } = renderTab({ publishController: { target: provider.id } });
@@ -1026,6 +1021,36 @@ describe("StaticSiteTab — credential section: AI agent tagging", () => {
       expect(document.querySelector(`[data-agent-element="deployment-static-site-credentials-save-${provider.id}"]`)).toBeInTheDocument();
       unmount();
     }
+  });
+
+  // RESTORED 2026-08-16 (owner-directed): briefly lost when the numbered-step redesign gave
+  // `PublishCredentialsSection` four different top-level return shapes with no shared wrapper (a
+  // loading `<p>`, an error `<p>`, `CredentialStepTodo`'s `<div>`, `CredentialStepDone`'s
+  // `<details>`) — the old suite's single-state check on this tag quietly stopped matching anything
+  // and nobody noticed until this pass. Restored as its own function
+  // (`publishCredentialsSectionContent` inside `PublishCredentialsSection`, `StaticSiteTab.tsx`) so
+  // the wrap can't drift out of sync with a state again — this test asserts the tag directly in ALL
+  // FOUR states in one place, which the old suite never did (its own single-state check is exactly
+  // what let the gap go unnoticed). Matters beyond this file: the coming repo picker is meant to
+  // navigate this page via `data-agent-element` tagging, and a region tag missing in even one state
+  // reads to an agent as "not on this page" rather than "not in this state right now".
+  it("tags the whole credential section — present in all four states: loading, load-error, not-connected, connected", () => {
+    const sectionSelector = '[data-agent-element="deployment-static-site-credentials-section"]';
+
+    const loading = renderTab({ credentialsController: { rows: undefined, executionMode: undefined } });
+    expect(document.querySelector(sectionSelector)).toBeInTheDocument();
+    loading.unmount();
+
+    const loadError = renderTab({ credentialsController: { rows: undefined, executionMode: undefined, loadError: "x" } });
+    expect(document.querySelector(sectionSelector)).toBeInTheDocument();
+    loadError.unmount();
+
+    const notConnected = renderTab();
+    expect(document.querySelector(sectionSelector)).toBeInTheDocument();
+    notConnected.unmount();
+
+    renderTab({ credentialsController: { rowOverrides: { "github-pages": { saved: GH_CREDENTIAL } } } });
+    expect(document.querySelector(sectionSelector)).toBeInTheDocument();
   });
 
   it("tags cloudflare-pages' own Account ID field only, and only once cloudflare-pages is the selected tab", () => {
