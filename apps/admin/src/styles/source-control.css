@@ -8,7 +8,8 @@
    classes (`.card`, `.card-head`, `.card-title`, `.card-lead`, `.field`, `.field-label`,
    `.field-hint`, `.notice`, `.save-error`, `.page`, `.page-header`) — it does not redefine any of
    those. What follows is only what this page adds on top: the icon-plus-heading row, the vertical
-   card rhythm, and the provider-row shape (open/not-connected vs. collapsed/connected).
+   card rhythm, and the provider-row shape — one accordion of three collapsible rows, not-connected
+   vs. connected differing only in marker glyph, surface tint, and summary content.
 
    Visually rhymes with `deployment/StaticSiteTab.tsx`'s `.deployment-step`/`.deployment-step-done`
    numbered-step rows (same bordered-surface-vs-quiet-surface contrast, same disclosure idiom for
@@ -29,6 +30,16 @@
    `display: flex; flex-direction: column; gap` rule, kept as its own class rather than merged into
    `.deployment-tab` since this page owns no CSS import from `features/deployment/` — see this file's
    own header above for why that boundary is deliberate).
+
+   ## Second density pass (2026-08-16) — every row is now `<details>`, not just the connected one
+
+   `ProvidersTab.tsx`'s own header records why: three simultaneously-open forms read as a wall of
+   text, twice reported. `.source-control-row-head`/`.source-control-row-headings`/
+   `.source-control-row-subtitle` are removed here — they only ever styled the old always-open,
+   plain-`<div>` not-connected row, which no longer exists. `.source-control-row-summary` (below) now
+   serves BOTH states, so its sibling `[open]` rules generalize from `.source-control-row-done[open]`
+   to plain `.source-control-row[open]` — every row carries the base class regardless of connected
+   state, only `-done` differs.
    ================================================================================================ */
 
 .source-control-tab { display: flex; flex-direction: column; gap: var(--space-5); }
@@ -47,30 +58,30 @@
    documents. */
 .source-control-card-body { display: flex; flex-direction: column; gap: var(--space-4); }
 
-/* 2026-08-16 tightened from --space-3: a brand-new instance shows all three rows open at once (see
-   `.source-control-row`'s own doc for why none of them collapse by default), so this gap multiplies
-   by three — one step down noticeably shortens the page without touching what's visible. */
+/* Tightened to --space-2 (2026-08-16): now that every row is a collapsible `<details>` (see
+   `.source-control-row`'s own doc), most of this list is short one-line summaries most of the time —
+   a small gap keeps them read as one related group of three, not three separately-floating cards. */
 .source-control-rows { display: flex; flex-direction: column; gap: var(--space-2); }
 
 .source-control-action-reason { margin: 0; font-size: var(--text-sm); color: var(--muted); }
 
 /* ---- One provider row --------------------------------------------------------------------- */
 
-/* Not-yet-connected: open and prominent, a real bordered surface (not a tinted/accented one — this
-   is a primary action, not a recommendation or a settled fact). Mirrors `.deployment-step`'s own
-   reasoning exactly.
+/* The base row shell, shared by both states — a real bordered surface (not a tinted/accented one —
+   this is a primary action row, not a recommendation or a settled fact), mirroring `.deployment-step`'s
+   own reasoning. The connected variant quiets it down further via `.source-control-row-done` below.
 
-   Internal `gap` tightened from --space-4 to --space-3 (2026-08-16, owner-flagged): a fresh instance
-   renders GitHub, GitLab, and Bitbucket all open and un-collapsed at once (see this page's own
-   header for why none of the three collapse by default — they are independent and parallel, not a
-   Deployment-style "pick one" tab picker), so the page runs tall. `padding` stays at --space-4 —
-   that is breathing room around the row's own border, not stacking between its internal blocks, and
-   shrinking it would cramp the row rather than shorten the page. */
+   Internal `gap` at --space-3 (tightened from --space-4, 2026-08-16, owner-flagged, kept through the
+   later accordion pass below): GitHub, GitLab, and Bitbucket are still independent and parallel, not
+   a Deployment-style single tab picker — see `ProvidersTab.tsx`'s own header — they just now ALSO
+   collapse like one, via a native exclusive `<details>` group rather than a tab bar, since this page
+   never grew a per-provider tab bar of its own. `padding` stays at --space-4 — that is breathing room
+   around the row's own border, not stacking between its internal blocks, and shrinking it would
+   cramp the row rather than shorten the page. */
 .source-control-row {
   display: flex; flex-direction: column; gap: var(--space-3);
   padding: var(--space-4); background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--r-md);
 }
-.source-control-row-head { display: flex; align-items: flex-start; gap: var(--space-3); }
 /* The not-yet-connected marker — an empty ring, no glyph inside: there is nothing to report yet,
    and an empty shape reads honestly as "nothing here" rather than a placeholder icon standing in
    for one. Sized to sit on the same baseline as the row's own `<h3>`, same reasoning
@@ -88,44 +99,72 @@
   background: var(--ok-solid, var(--ok)); border-color: var(--ok-solid, var(--ok));
   color: var(--ok-solid-ink, oklch(99% 0 none));
 }
-.source-control-row-headings { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
+/* The not-yet-connected row's heading, now living inside `.source-control-row-summary` instead of
+   its own removed `.source-control-row-head`/`.source-control-row-headings` wrapper — unchanged
+   type treatment, just a new parent. */
 .source-control-row-title { margin: 0; font-family: var(--font-display); font-size: var(--text-lg); font-weight: 700; color: var(--fg); }
-.source-control-row-subtitle { margin: 0; font-size: var(--text-sm); color: var(--muted); max-width: 60ch; }
 
-/* The connected row's `<summary>` — marker, settled-fact text, then the EXPAND affordance
-   (`.source-control-row-summary-expand`) pinned to the far end. This is deliberately NOT the same
-   "strip the native triangle, rely on the row being clickable" treatment the Static Site tab's
-   credential rows originally shipped with and were corrected out of (owner-reported: a settled row
-   with no visible affordance read as inert). The native marker is still hidden here — but only
-   because it is REPLACED with a visible one, not removed outright. */
+/* Every row's `<summary>` — marker, then settled-fact-or-heading text, then the EXPAND affordance
+   (`.source-control-row-summary-expand`) pinned to the far end. Shared by both the not-connected and
+   connected states since 2026-08-16 (`ProvidersTab.tsx`'s own header) — previously only the
+   connected row used `<summary>` at all. This is deliberately NOT the "strip the native triangle,
+   rely on the row being clickable" treatment the Static Site tab's credential rows originally
+   shipped with and were corrected out of (owner-reported: a settled row with no visible affordance
+   read as inert). The native marker is still hidden here — but only because it is REPLACED with a
+   visible one, not removed outright. */
 .source-control-row-summary {
   display: flex; align-items: center; gap: var(--space-3); cursor: pointer; list-style: none;
   font-size: var(--text-sm); color: var(--fg-2);
 }
 .source-control-row-summary::-webkit-details-marker { display: none; }
 .source-control-row-summary-text { min-width: 0; flex: 1; }
-/* The visible expand affordance — a text label PLUS a chevron, never the chevron alone. This exact
-   pairing is the fix for the defect this page was briefed not to inherit: a bare clickable row with
-   its disclosure triangle stripped and nothing put in its place. `margin-left: auto` keeps it
-   pinned to the row's far end regardless of how long the settled-fact text runs. */
+/* The visible expand affordance. Connected rows pair a text label ("Replace token") with the
+   chevron — see `SourceControlRowSummary`'s own doc for why that pairing is required rather than
+   the chevron alone. Not-connected rows show the chevron only: their own heading text ("Connect
+   GitHub") already states the action, so a second label here would repeat rather than clarify.
+   `margin-left: auto` keeps this pinned to the row's far end regardless of how long the summary
+   text runs. */
 .source-control-row-summary-expand {
   display: inline-flex; align-items: center; gap: var(--space-1); flex-shrink: 0; margin-left: auto;
   font-size: var(--text-xs); font-weight: 600; color: var(--fg-2);
 }
 /* The chevron rotates open on `[open]` — CSS-only, no JS state to track since `<details>` already
-   carries its own open/closed state natively. */
+   carries its own open/closed state natively. Generalized from `.source-control-row-done[open]` to
+   plain `.source-control-row[open]` (2026-08-16): every row is a `<details>` now, not just the
+   connected one, so both states get the same rotation. */
 .source-control-row-summary-expand svg { transition: transform 0.15s ease; }
-.source-control-row-done[open] .source-control-row-summary-expand svg { transform: rotate(180deg); }
+.source-control-row[open] .source-control-row-summary-expand svg { transform: rotate(180deg); }
+.source-control-row[open] .source-control-row-summary { margin-bottom: var(--space-1); }
 
-/* Collapsed by default (no `open` attribute) — the mirror image of the not-yet-connected row, which
-   renders with no `<details>` at all so it can never be collapsed. Quieter surface than the
-   not-yet-connected row above (`--surface-2`, not `--surface`), and the fields revealed on expand
-   sit flush with no nested border, same "no box inside a box" flattening `.deployment-step-done`
-   documents. */
+/* Collapsed by default except for whichever row `ProvidersTab.tsx`'s `firstUnconnectedProviderId`
+   opens — see that file's own header for the accordion this page now runs as a whole. The fields
+   revealed on expand sit flush with no nested border, same "no box inside a box" flattening
+   `.deployment-step-done` documents; indenting them under the marker (2026-08-16, generalized from
+   `.source-control-row-done` to every row) keeps the open fields visually anchored to the summary
+   text above them regardless of connected state. */
 .source-control-row-done { background: var(--surface-2); }
-.source-control-row-done[open] .source-control-row-summary { margin-bottom: var(--space-1); }
-.source-control-row-done .source-control-credential-fields,
-.source-control-row-done .source-control-action { padding-left: calc(1.75rem + var(--space-3)); }
+.source-control-row .source-control-credential-fields,
+.source-control-row .source-control-action { padding-left: calc(1.75rem + var(--space-3)); }
+
+/* ---- The nested "Which token do I need?" disclosure ---------------------------------------- */
+
+/* 2026-08-16: the scope-guidance sentence (which token, which scopes — `rules.ts`'s own
+   owner-narrowed copy, words unchanged) used to render as a permanent `.field-hint` paragraph under
+   every token field. With three rows that was three long sentences on screen even after the
+   accordion above cut the rest — this is the fix for THAT specific line: reachable in one click,
+   not gone. Ghost-button treatment (`interface-design`: "no background by default, visible response
+   on hover") rather than a bordered/tinted box — this is a minor, optional detour, not a decision
+   that deserves its own visual weight next to Save. */
+.source-control-scope-guidance { margin: 0; }
+.source-control-scope-guidance > .field-hint { margin-top: var(--space-1); }
+.source-control-scope-guidance-summary {
+  display: inline-flex; align-items: center; gap: var(--space-1); cursor: pointer; list-style: none;
+  font-size: var(--text-xs); font-weight: 600; color: var(--fg-2);
+}
+.source-control-scope-guidance-summary::-webkit-details-marker { display: none; }
+.source-control-scope-guidance-summary:hover { color: var(--fg); text-decoration: underline; }
+.source-control-scope-guidance-summary svg { transition: transform 0.15s ease; }
+.source-control-scope-guidance[open] .source-control-scope-guidance-summary svg { transform: rotate(180deg); }
 
 /* ---- A row's own fields -------------------------------------------------------------------- */
 

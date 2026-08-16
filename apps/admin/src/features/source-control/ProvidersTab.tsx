@@ -3,6 +3,7 @@ import { agentHandle } from "@jini-ai/agentic";
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
 import { formatTimestamp } from "../../lib/format-timestamp";
 import type { Translate } from "../../lib/dictionary-translator";
+import type { AdminSourceControlProviderId } from "../../lib/api";
 import { t } from "./source-control-i18n";
 import {
   sourceControlCredentialRowReadyToSave,
@@ -35,10 +36,36 @@ import type {
  * (`source-control-visuals.tsx`) lost its only call site here and is currently unused; left defined
  * rather than deleted in case a later pass finds it a home.
  *
+ * ## Second density pass (2026-08-16) — an accordion, not three open forms
+ *
+ * The page-shell pass above shipped, the owner looked at it twice, and both times called it "a wall
+ * of text" — the same complaint `deployment/StaticSiteTab.tsx`'s own "seventh pass" doc records for
+ * the identical symptom (all four of ITS providers' full credential forms rendering at once). That
+ * file's fix was a tab bar showing one provider's fields at a time; this page has no per-provider tab
+ * bar by deliberate, still-standing decision (see the top of this file), so the equivalent fix here
+ * is a native accordion: every row — connected or not — now renders behind `<details
+ * name="source-control-provider">`. The shared `name` makes the three rows one EXCLUSIVE group
+ * (Baseline since 2024 — Chrome 120, Safari 17.4, Firefox 129): opening one closes whichever other
+ * row was open, no click handler or React state involved, so it stays presentation-layer.
+ * {@link firstUnconnectedProviderId} decides which row starts open — the first one still needing a
+ * token — so a first-time visitor already sees the one form they came to fill in, not three, and the
+ * open row naturally advances to the next unconnected provider once the current one saves. This
+ * supersedes {@link SourceControlRowTodo}'s old "always open, there is nothing to disclose FROM here"
+ * reasoning (removed, not merely extended) — with three rows open at once that reasoning was exactly
+ * what produced the wall the owner flagged twice.
+ *
+ * The per-row subtitle ("Save a personal access token so Tovu can use this account.") was identical
+ * on all three rows and added nothing the heading plus the "Access token" field label didn't already
+ * say — cut, along with its now-orphaned translation key across all 21 locale dictionaries. The
+ * scope-guidance sentence stays exactly as owner-narrowed on 2026-08-15 (`rules.ts`'s own header) —
+ * cutting ITS words was never the ask, only its default visibility — so it now sits behind its own
+ * small nested "Which token do I need?" `<details>` inside {@link SourceControlCredentialFields},
+ * reachable in one click rather than always-rendered.
+ *
  * ## Two defects this page was briefed NOT to inherit
  *
  * 1. A connected/collapsed row needs a VISIBLE expand affordance — a text label plus a chevron —
- *    never a bare clickable row. See {@link SourceControlRowDone}'s own doc.
+ *    never a bare clickable row. See {@link SourceControlRowSummary}'s own doc.
  * 2. A saved-credential timestamp says "saved," never "updated" — "updated" falsely implies the
  *    token was recently re-verified, and a revoked token still shows that same timestamp. No
  *    token-liveness indicator is shown anywhere on this page either, for the same reason.
@@ -109,44 +136,173 @@ function SourceControlCredentialsList({ controller, t: translate }: { controller
   if (controller.rows === undefined) {
     return <p className="source-control-action-reason">{translate("Loading connections…")}</p>;
   }
+  const defaultOpenProviderId = firstUnconnectedProviderId(controller.rows);
   return (
     <div className="source-control-rows">
       {controller.rows.map((row) => (
-        <SourceControlProviderRow key={row.providerId} row={row} controller={controller} t={translate} />
+        <SourceControlProviderRow
+          key={row.providerId}
+          row={row}
+          controller={controller}
+          t={translate}
+          defaultOpen={row.providerId === defaultOpenProviderId}
+        />
       ))}
     </div>
   );
 }
 
-/** One provider's row — dispatches to {@link SourceControlRowTodo} (nothing saved yet) or
- *  {@link SourceControlRowDone} (a connection already exists), mirroring
- *  `PublishCredentialsSection`'s own dispatch in `deployment/StaticSiteTab.tsx`. */
+/** The first provider still missing a saved connection, in {@link SOURCE_CONTROL_PROVIDERS} order —
+ *  the one row {@link SourceControlProviderRow} defaults open. `undefined` once every provider is
+ *  connected, matching every row starting collapsed (this file's own header explains why an
+ *  accordion exists at all). Pure and React-free like this page's `rules.ts` helpers, but kept here
+ *  rather than moved there: this decides a disclosure default, a presentation choice, not a fact
+ *  about a credential — `rules.ts` stays the file with no opinion about what is open on screen.
+ *  @complexity O(n) in the fixed, size-3 provider list. */
+function firstUnconnectedProviderId(rows: readonly SourceControlCredentialRowState[]): AdminSourceControlProviderId | undefined {
+  return rows.find((row) => row.saved === undefined)?.providerId;
+}
+
+/**
+ * One provider's row — a native `<details name="source-control-provider">`, connected or not, so
+ * the three rows form one exclusive accordion group (this file's own header explains why). Replaces
+ * the old {@link SourceControlRowTodo}/{@link SourceControlRowDone} split: both states now share this
+ * one shell, differing only in the marker glyph and {@link SourceControlRowSummary}'s content —
+ * mirrors `PublishCredentialsSection`'s single-row-at-a-time shape in `deployment/StaticSiteTab.tsx`,
+ * built for the identical density complaint.
+ *
+ * `open={defaultOpen}` is intentionally uncontrolled: React sets it once per computed value and
+ * otherwise leaves the DOM alone (it never re-asserts a prop that hasn't itself changed), so a
+ * reader's own manual expand/collapse clicks survive re-renders of sibling rows — typing a token
+ * into THIS row does not fight the accordion state of another.
+ *
+ * ## Seam for the not-yet-built "reuse the publish token" affordance
+ *
+ * 2026-08-16 owner decision: when a not-yet-connected row's provider already has a matching
+ * Deployment publish credential saved (checked directly against the database this session — e.g.
+ * `publish_credential_sets` already has a `github-pages` row for a workspace whose
+ * `source_control_credential_sets` is empty), this row should offer a one-click "reuse that
+ * credential" path instead of asking the operator to paste the same token twice. NOT built here —
+ * it needs a server-side read across both credential stores plus a decrypt-and-reseal from one
+ * sealed store into the other, both squarely outside this feature's fence (`lib/api.ts` wire types,
+ * `src/**`). Dispatched separately.
+ *
+ * The affordance's insertion point, once that data exists: directly below {@link
+ * SourceControlRowSummary}, ABOVE {@link SourceControlCredentialFields} — same "settled fact first,
+ * fields second" order the connected summary already establishes, so a reader sees "a GitHub Pages
+ * credential already exists" before being asked to type a new token into the fields underneath. It
+ * needs to read, per provider, from the controller: whether a matching publish credential exists,
+ * and when it was saved (same shape `AdminSourceControlCredentialSummary.updatedAt` already carries
+ * for THIS store's own rows) — `SourceControlCredentialsController`/`useSourceControlCredentialsHook`
+ * (`hooks/use-source-control-credentials.hooks.ts`) has neither field today; adding them is that
+ * follow-up's job, not this pass's. No placeholder button renders here in the meantime — an inert
+ * "Reuse token" control pointing at nothing would be a worse defect than the wait.
+ */
 function SourceControlProviderRow({
   row,
   controller,
   t: translate,
+  defaultOpen,
 }: {
   row: SourceControlCredentialRowState;
   controller: SourceControlCredentialsController;
   t: Translate;
+  defaultOpen: boolean;
 }) {
-  if (row.saved !== undefined) {
-    return <SourceControlRowDone row={row} controller={controller} t={translate} />;
-  }
-  return <SourceControlRowTodo row={row} controller={controller} t={translate} />;
+  const info = sourceControlProviderInfo(row.providerId);
+  const connected = row.saved !== undefined;
+  return (
+    <details
+      className={connected ? "source-control-row source-control-row-done" : "source-control-row"}
+      open={defaultOpen}
+      name="source-control-provider"
+      {...agentHandle(`source-control-credentials-row-${row.providerId}`, {
+        role: "region",
+        label: `${info.label}'s saved source control connection — ${connected ? "connected" : "not yet connected"}`,
+      })}
+    >
+      <SourceControlRowSummary row={row} label={info.label} connected={connected} t={translate} />
+      <SourceControlCredentialFields row={row} controller={controller} t={translate} />
+    </details>
+  );
+}
+
+/**
+ * A row's `<summary>` — split out of {@link SourceControlProviderRow} purely for this app's
+ * complexity gate, same reasoning every other per-state split in this file documents.
+ *
+ * Not-connected: an empty ring marker plus a heading ("Connect GitHub") — the heading text is
+ * already the call to action, so no separate subtitle repeats it (the old subtitle line, identical
+ * on all three rows, was cut for exactly this reason — see this file's own header).
+ *
+ * Connected: the same summary line this page has always shown — a filled checkmark marker, the
+ * settled trust fact ("token stored, encrypted"), and the SAVED time, never "updated" ("updated"
+ * would falsely imply the token was recently re-verified, and a revoked token still carries whatever
+ * timestamp is stored here regardless). No liveness/verification indicator is shown anywhere on this
+ * row — this admin has no way to check a token is still valid without trying to use it, and claiming
+ * otherwise would be exactly the kind of unbacked trust signal `CredentialStepDone`'s own doc in
+ * `deployment/StaticSiteTab.tsx` warns against.
+ *
+ * Both states end in a trailing chevron — connected pairs it with visible "Replace token" text,
+ * REQUIRED rather than a bare clickable row: a settled `<summary>` with its native disclosure
+ * triangle stripped and no replacement was owner-reported as undiscoverable on the Static Site tab's
+ * own credential rows (a reader with a rotated token had no way to tell the row could be reopened).
+ * The not-connected chevron carries no extra label — its own heading text is already the action, so a
+ * second "Add token" label next to it would repeat, not clarify.
+ */
+function SourceControlRowSummary({
+  row,
+  label,
+  connected,
+  t: translate,
+}: {
+  row: SourceControlCredentialRowState;
+  label: string;
+  connected: boolean;
+  t: Translate;
+}) {
+  return (
+    <summary className="source-control-row-summary">
+      <span className={connected ? "source-control-row-marker source-control-row-marker-done" : "source-control-row-marker"} aria-hidden="true">
+        {connected ? <ConnectedMarkIcon /> : null}
+      </span>
+      <span className="source-control-row-summary-text">
+        {connected ? (
+          <>
+            <span translate="no">{label}</span> {translate("connected")} · {translate("token stored, encrypted")} ·{" "}
+            {translate("saved")} {formatTimestamp(row.saved!.updatedAt)}
+          </>
+        ) : (
+          <h3 className="source-control-row-title">
+            {translate("Connect")} <span translate="no">{label}</span>
+          </h3>
+        )}
+      </span>
+      <span className="source-control-row-summary-expand">
+        {connected ? translate("Replace token") : null}
+        <DisclosureChevronIcon />
+      </span>
+    </summary>
+  );
 }
 
 /**
  * A row's fields — token input, Bitbucket's required username, and the Save action. Shared between
- * {@link SourceControlRowTodo} (always open) and {@link SourceControlRowDone} (one click away, for
- * replacing an already-saved token), same split `PublishCredentialFields` uses in
+ * both {@link SourceControlProviderRow} states, same split `PublishCredentialFields` uses in
  * `deployment/StaticSiteTab.tsx` and for the same reason: the fields and Save behavior are
- * identical in both states, only whether the reader sees them by default differs.
+ * identical in both states, only whether the reader has opened the row to see them differs.
  *
  * Every hint renders BELOW its input as `.field-hint`, never as placeholder text inside it — a
  * placeholder sitting in an empty box reads as a saved value at a glance, the exact confusion the
  * Static Site tab's own credential form was corrected out of. The token and username inputs below
  * carry no `placeholder` prop at all, connected or not.
+ *
+ * The scope-guidance sentence (which token, which scopes) sits behind its own nested "Which token do
+ * I need?" `<details>` rather than rendering by default — this file's own header records why: the
+ * words themselves are the owner's own 2026-08-15 narrowing (`rules.ts`), untouched here, only their
+ * default visibility changed. No `name` attribute on this inner `<details>` — it has nothing to stay
+ * exclusive WITH, and giving it the outer accordion's own group name would fold it into that group by
+ * mistake.
  */
 function SourceControlCredentialFields({
   row,
@@ -186,12 +342,18 @@ function SourceControlCredentialFields({
               ? translate("Leave blank to keep the current token.")
               : translate("Stored encrypted on the server. Once saved, Tovu never displays it again.")}
           </p>
-          <p className="field-hint">
-            {translate(info.scopeGuidanceKey)}{" "}
-            <a href={info.tokenPageUrl} target="_blank" rel="noreferrer">
-              {translate("Create a token")}
-            </a>
-          </p>
+          <details className="source-control-scope-guidance">
+            <summary className="source-control-scope-guidance-summary">
+              {translate("Which token do I need?")}
+              <DisclosureChevronIcon size={10} />
+            </summary>
+            <p className="field-hint">
+              {translate(info.scopeGuidanceKey)}{" "}
+              <a href={info.tokenPageUrl} target="_blank" rel="noreferrer">
+                {translate("Create a token")}
+              </a>
+            </p>
+          </details>
         </div>
 
         {needsUsername ? (
@@ -233,121 +395,5 @@ function SourceControlCredentialFields({
         ) : null}
       </div>
     </>
-  );
-}
-
-/**
- * A row, not yet connected — open and prominent. Plain fields, not a `<details>`: there is nothing
- * to progressively disclose FROM here, since this IS the thing the reader still has to do.
- *
- * ## Seam for the not-yet-built "reuse the publish token" affordance
- *
- * 2026-08-16 owner decision: when a not-yet-connected row's provider already has a matching
- * Deployment publish credential saved (checked directly against the database this session — e.g.
- * `publish_credential_sets` already has a `github-pages` row for a workspace whose
- * `source_control_credential_sets` is empty), this row should offer a one-click "reuse that
- * credential" path instead of asking the operator to paste the same token twice. NOT built here —
- * it needs a server-side read across both credential stores plus a decrypt-and-reseal from one
- * sealed store into the other, both squarely outside this feature's fence (`lib/api.ts` wire types,
- * `src/**`). Dispatched separately.
- *
- * The affordance's insertion point, once that data exists: directly below
- * `.source-control-row-subtitle` just below, ABOVE {@link SourceControlCredentialFields} — same
- * "settled fact first, fields second" order {@link SourceControlRowDone}'s summary already
- * establishes for the connected state, so a reader sees "a GitHub Pages credential already exists"
- * before being asked to type a new token into the fields underneath. It needs to read, per
- * provider, from the controller: whether a matching publish credential exists, and when it was
- * saved (same shape `AdminSourceControlCredentialSummary.updatedAt` already carries for THIS
- * store's own rows) — `SourceControlCredentialsController`/`useSourceControlCredentialsHook`
- * (`hooks/use-source-control-credentials.hooks.ts`) has neither field today; adding them is that
- * follow-up's job, not this pass's. No placeholder button renders here in the meantime — an inert
- * "Reuse token" control pointing at nothing would be a worse defect than the wait.
- */
-function SourceControlRowTodo({
-  row,
-  controller,
-  t: translate,
-}: {
-  row: SourceControlCredentialRowState;
-  controller: SourceControlCredentialsController;
-  t: Translate;
-}) {
-  const info = sourceControlProviderInfo(row.providerId);
-  return (
-    <div
-      className="source-control-row"
-      {...agentHandle(`source-control-credentials-row-${row.providerId}`, {
-        role: "region",
-        label: `${info.label}'s saved source control connection — not yet connected`,
-      })}
-    >
-      <div className="source-control-row-head">
-        <span className="source-control-row-marker" aria-hidden="true" />
-        <div className="source-control-row-headings">
-          <h3 className="source-control-row-title">
-            {translate("Connect")} <span translate="no">{info.label}</span>
-          </h3>
-          <p className="source-control-row-subtitle">{translate("Save a personal access token so Tovu can use this account.")}</p>
-        </div>
-      </div>
-      <SourceControlCredentialFields row={row} controller={controller} t={translate} />
-    </div>
-  );
-}
-
-/**
- * A row, connected — collapsed to one settled summary line behind a native `<details>`, closed by
- * default: the connection is done, so it gets out of the way, the mirror image of
- * {@link SourceControlRowTodo} staying open because its step is not done.
- *
- * The summary states the trust fact directly — "token stored, encrypted" — and the SAVED time, never
- * "updated": "updated" would falsely imply the token was recently re-verified, and a revoked token
- * still carries whatever timestamp is stored here regardless. No liveness/verification indicator is
- * shown anywhere on this row — this admin has no way to check a token is still valid without trying
- * to use it, and claiming otherwise would be exactly the kind of unbacked trust signal
- * `CredentialStepDone`'s own doc in `deployment/StaticSiteTab.tsx` warns against.
- *
- * The trailing "Replace token" text plus {@link DisclosureChevronIcon} is the row's expand
- * affordance, and it is REQUIRED to be visible, not just implied by the row being clickable — a
- * settled `<summary>` with its native disclosure triangle stripped and no replacement was
- * owner-reported as undiscoverable on the Static Site tab's own credential rows (a reader with a
- * rotated token had no way to tell the row could be reopened). This page's summary carries both a
- * checkmark-style connected marker at the START (via {@link ConnectedMarkIcon}, stating the fact)
- * and this label-plus-chevron pair at the END (stating the action), so the two never compete for
- * "which glyph means what."
- */
-function SourceControlRowDone({
-  row,
-  controller,
-  t: translate,
-}: {
-  row: SourceControlCredentialRowState;
-  controller: SourceControlCredentialsController;
-  t: Translate;
-}) {
-  const info = sourceControlProviderInfo(row.providerId);
-  return (
-    <details
-      className="source-control-row source-control-row-done"
-      {...agentHandle(`source-control-credentials-row-${row.providerId}`, {
-        role: "region",
-        label: `${info.label}'s saved source control connection — connected`,
-      })}
-    >
-      <summary className="source-control-row-summary">
-        <span className="source-control-row-marker source-control-row-marker-done" aria-hidden="true">
-          <ConnectedMarkIcon />
-        </span>
-        <span className="source-control-row-summary-text">
-          <span translate="no">{info.label}</span> {translate("connected")} · {translate("token stored, encrypted")} ·{" "}
-          {translate("saved")} {formatTimestamp(row.saved!.updatedAt)}
-        </span>
-        <span className="source-control-row-summary-expand">
-          {translate("Replace token")}
-          <DisclosureChevronIcon />
-        </span>
-      </summary>
-      <SourceControlCredentialFields row={row} controller={controller} t={translate} />
-    </details>
   );
 }
