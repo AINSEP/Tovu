@@ -86,11 +86,19 @@ describe("redirects", () => {
    * Measured 4 timeouts in 18 sequential whole-file runs (~22%) against the vitest.config.ts
    * default 5000ms `testTimeout`, entirely from this transform cost eating the budget before the
    * hook under test even starts — confirmed by the exact failure text ("Test timed out in 5000ms"
-   * at the `it(...)` line itself, not a `waitFor`-specific message). Reproduced with NO other heavy
-   * vitest process running, so generic "N concurrent agents" contention is not the full story —
-   * the real cause is this test's inherently narrow margin against ordinary OS scheduling jitter
-   * (background CPU load, e.g. an active browser, is enough on its own). 15s leaves ~4x headroom
-   * over the worst observed successful run (4.2s) while still catching a genuine hang.
+   * at the `it(...)` line itself, not a `waitFor`-specific message).
+   *
+   * Correction to an earlier version of this note: it claimed these numbers came from a "quiet"
+   * machine with no other heavy vitest process running, based on point-in-time `ps` spot checks.
+   * That inference was wrong — another agent was concurrently editing/testing a DIFFERENT feature
+   * in this same working tree during part of this investigation (confirmed via file mtimes, not
+   * just `ps`, since a live grep can miss a bursty test run). Re-measured with load average logged
+   * per run (`uptime`, 8-core machine): at load ~10-11, this test took 3.2s-3.3s; at load ~14, it
+   * took 7.7s-8.8s — both comfortably inside the 15s ceiling below, both would have FAILED against
+   * the old 5000ms default. So contention is real and measurably widens this test's already-tight
+   * margin; it does not replace the underlying mechanism (the cold `import()` transform cost is
+   * what's being contended FOR). 15s gives ~1.7x headroom over the worst measured total (8.8s at
+   * load ~14) while still catching a genuine hang.
    */
   it("initial load", async () => {
     const { fn, calls } = createRecorder([{ match: "/redirects", respond: () => jsonResponse({ data: [] }) }]);
