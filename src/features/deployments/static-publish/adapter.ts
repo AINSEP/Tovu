@@ -288,11 +288,20 @@ function exportSiteLazily(options: ExportSiteOptions): Promise<ExportReport> {
  * export with the target-correct base path immediately before publishing (see this file's header)
  * — never reuses a previously-produced export directory.
  *
- * Never throws: every failure (bad config, missing credentials, a failed export, a rejected Jini
- * `publish()` call) is returned as `{ok: false, code, message}`. `message` is always built from
- * `err.message`, never a raw `DeployError.details`/response-body object — see the `catch` below for
- * why that boundary matters even though no code path here has ever been observed to put a token in
- * one.
+ * Never throws: every failure (bad config, a credential that does not resolve — including a genuine
+ * DECRYPT failure, not just "not configured", see the `try`/`catch` around `credentialSource.resolve()`
+ * below — a failed export, a credential unusable for the target, or a rejected Jini `publish()` call)
+ * is returned as `{ok: false, code, message}`. `message` is always built from `err.message`, never a
+ * raw `DeployError.details`/response-body object — see the `catch` blocks below for why that boundary
+ * matters even though no code path here has ever been observed to put a token in one.
+ *
+ * This is a REAL contract, not aspirational (Terra audit finding #2, 2026-08-16 fix): two call sites —
+ * `credentialSource.resolve()` and `buildTarget`/`buildJiniTarget` — used to run unguarded, before
+ * either of this function's two `try` blocks existed around them, so a genuine decrypt failure or a
+ * credential missing a target-required field propagated as an UNCAUGHT exception, silently breaking
+ * this exact doc comment. Every caller (`publish-site.ts`'s HTTP route, `deployment_execute_static_publish`)
+ * is written assuming this function never throws, so that was a real crash risk for both, not just a
+ * documentation lie — both call sites are now inside their own `try`/`catch`.
  *
  * @complexity One `exportSite` pass (see that function's own complexity note: O(routes + assets)
  *   HTTP requests against the in-process app) plus one Jini `DeployTarget.publish()` call (bounded
@@ -307,7 +316,22 @@ export async function publishStaticSite(deps: StaticPublishDeps, input: StaticPu
     return { ok: false, code: "INVALID_CONFIG", message: `projectName must be 1-${MAX_PROJECT_NAME_LENGTH} characters` };
   }
 
-  const credential = await deps.credentialSource.resolve({ workspaceId: input.workspaceId, target: input.config.target });
+  let credential: Awaited<ReturnType<PublishCredentialSource["resolve"]>>;
+  try {
+    credential = await deps.credentialSource.resolve({ workspaceId: input.workspaceId, target: input.config.target });
+  } catch (err) {
+    // `PublishCredentialSource.resolve()`'s own doc documents this as a real, DELIBERATE possibility
+    // for the DB-backed source (`publish-credentials/store.ts`'s `resolveForPublish`/
+    // `resolveDefaultForPublish`: "a decrypt failure here should surface, not degrade" — a corrupted
+    // row or a missing master secret throws rather than resolving a silent `null`). This function's
+    // own contract (this file's header doc, right above) is that IT never throws regardless — so a
+    // genuine decrypt failure still needs to "surface", just through this function's own established
+    // `{ok:false, code, message}` channel instead of an uncaught exception, exactly like every other
+    // failure mode below. `err.message` only, same boundary the `jiniTarget.publish()` catch documents
+    // — a decrypt failure's message names the mechanism (bad AAD, tampered ciphertext, missing key),
+    // never the ciphertext or a derived secret itself.
+    return { ok: false, code: "NO_CREDENTIALS_CONFIGURED", message: `credential could not be resolved: ${err instanceof Error ? err.message : String(err)}` };
+  }
   if (!credential.ok) {
     return { ok: false, code: "NO_CREDENTIALS_CONFIGURED", message: credential.reason };
   }
@@ -349,7 +373,21 @@ export async function publishStaticSite(deps: StaticPublishDeps, input: StaticPu
     ...(credential.endpoint !== undefined ? { endpoint: credential.endpoint } : {}),
     ...(credential.publicUrl !== undefined ? { publicUrl: credential.publicUrl } : {}),
   };
-  const jiniTarget = (deps.buildTarget ?? buildJiniTarget)(input.config, resolvedCredential);
+  let jiniTarget: DeployTarget;
+  try {
+    // `buildJiniTarget` throws a `DeployError` naming the exact missing field when `resolvedCredential`
+    // doesn't have what `input.config.target` needs (e.g. `buildS3CompatibleTargetConfig`'s own
+    // defense-in-depth throw, or a cloudflare-pages credential missing `accountId`) — a shape problem
+    // with the CREDENTIAL, not a live provider rejection, so it is caught here rather than left to
+    // propagate: `NO_CREDENTIALS_CONFIGURED` is the closest existing code (this file has no dedicated
+    // "credential is configured but malformed for this target" code, and adding one is a wider API
+    // change than this fix), same bucket `deps.credentialSource.resolve()`'s own catch above uses for
+    // an analogous "the credential exists but cannot be used" outcome.
+    jiniTarget = (deps.buildTarget ?? buildJiniTarget)(input.config, resolvedCredential);
+  } catch (err) {
+    const message = err instanceof DeployError || err instanceof Error ? err.message : String(err);
+    return { ok: false, code: "NO_CREDENTIALS_CONFIGURED", message: `credential is not usable for ${input.config.target}: ${message}` };
+  }
 
   try {
     const result = await jiniTarget.publish({ files, projectName: input.projectName });
