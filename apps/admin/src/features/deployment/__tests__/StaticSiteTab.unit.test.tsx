@@ -259,6 +259,12 @@ describe("StaticSiteTab — build export action", () => {
     renderTab({ exportController: { loadError: "could not reach the server" } });
     expect(screen.getByText("could not reach the server")).toBeInTheDocument();
   });
+
+  it("REGRESSION: surfaces a poll error instead of leaving a silent stuck spinner — pollError existed on the hook but was never rendered anywhere on this tab before this pass", () => {
+    renderTab({ exportController: { pollError: "Lost track of this export's status and stopped checking." } });
+    expect(screen.getByText("Lost track of this export's status and stopped checking.")).toBeInTheDocument();
+    expect(document.querySelector('[data-agent-element="deployment-static-site-export-poll-error"]')).toBeInTheDocument();
+  });
 });
 
 describe("StaticSiteTab — provider picker splits GitHub Pages and Vercel", () => {
@@ -609,6 +615,21 @@ describe("StaticSiteTab — preview and publish gating", () => {
   it("surfaces a failed initial publish-status load distinctly from a preview/publish error", () => {
     renderTab({ publishController: { loadError: "could not reach the server" } });
     expect(screen.getByText("could not reach the server")).toBeInTheDocument();
+  });
+
+  it("REGRESSION: surfaces a poll error instead of leaving a silent stuck spinner — pollError existed on the hook but was never rendered anywhere on this tab before this pass", () => {
+    renderTab({ publishController: { pollError: "Lost track of this publish's status and stopped checking." } });
+    expect(screen.getByText("Lost track of this publish's status and stopped checking.")).toBeInTheDocument();
+    expect(document.querySelector('[data-agent-element="deployment-static-site-publish-poll-error"]')).toBeInTheDocument();
+  });
+
+  it("names the destination section distinctly from the credential section above it, with an explanation of the difference", () => {
+    renderTab();
+    expect(screen.getByText("Where this publish goes")).toBeInTheDocument();
+    expect(
+      screen.getByText("The account above only proves you're allowed to publish — this says exactly where this one goes.")
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Publish directly from here")).not.toBeInTheDocument();
   });
 });
 

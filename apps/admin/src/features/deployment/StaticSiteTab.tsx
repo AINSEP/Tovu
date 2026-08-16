@@ -31,7 +31,7 @@ import {
   type PublishCliTool,
   type PublishCredentialFormFields,
 } from "./rules";
-import { AssistantIcon, CapabilityList, StaticSiteIcon } from "./deployment-visuals";
+import { AssistantIcon, CapabilityList, DestinationIcon, StaticSiteIcon } from "./deployment-visuals";
 import { useWiredDeploymentOverview } from "./hooks/use-deployment-overview.hooks";
 import type { DeploymentOverviewController } from "./hooks/use-deployment-overview.hooks";
 import { useWiredStaticExport } from "./hooks/use-static-export.hooks";
@@ -94,6 +94,32 @@ import type { PublishCredentialRowState, PublishCredentialsController } from "./
  * a glance. `PublishCredentialsSection`/`PublishCredentialRow` below are the replacement: one
  * always-visible row per provider, no picker, no label, hints below every input rather than inside
  * it. See `use-publish-credentials.hooks.ts`'s own header for the hook-side half of this story.
+ *
+ * ## Sixth pass (2026-08-15) — a design pass on "it looks awful", with a fifth provider already on
+ * the way
+ *
+ * Three fixes, none of them touching `use-static-publish.hooks.ts`/`use-static-export.hooks.ts`
+ * (both off-limits this pass — their `busy`/`pollError` behaviour landed and was proven correct just
+ * before this pass started; see `StaticPublishForm`'s own `busy` comment for the guard this pass
+ * deliberately left alone):
+ *
+ * 1. "Publish directly from here" named nothing — a reader had no way to tell it apart from the
+ *    credential above it. Renamed to "Where this publish goes", with a line contrasting it against
+ *    the credential explicitly (`StaticPublishForm` below).
+ * 2. `PublishCredentialRow`'s two-field layout (Cloudflare Pages only, today) broke under uneven
+ *    field heights — see that component's own doc.
+ * 3. Neither `StaticExportController.pollError` nor `StaticPublishController.pollError` was rendered
+ *    ANYWHERE on this tab before this pass, despite both hooks having shipped it — a stalled poll
+ *    silently re-enabled the button with no explanation on screen for why the spinner stopped.
+ *    `BuildExportCard` and `StaticPublishForm` below now both render it, same `notice warning`
+ *    treatment `PublishCredentialsSection`'s own hosted-mode notice already established on this tab.
+ *
+ * A fifth publish target (S3-compatible: AWS S3, Cloudflare R2, Backblaze B2, DigitalOcean Spaces,
+ * Wasabi, MinIO) is being spec'd separately and is NOT built here. It matters to this pass because it
+ * will need roughly five credential fields (endpoint, access key id, secret access key, bucket,
+ * region) with uneven hint lengths of its own — exactly the shape `PublishCredentialRow`'s single-
+ * column fix (fix 2 above) exists to tolerate, and exactly why that fix did not just special-case
+ * Cloudflare Pages' two fields.
  */
 
 /** A line of text the reader is meant to take somewhere else, with a Copy button.
@@ -235,7 +261,6 @@ function ExportRunResult({ run, t: translate }: { run: AdminExportRunSnapshot; t
  *  run's own result once it settles. */
 function BuildExportCard({ controller, t: translate }: { controller: StaticExportController; t: Translate }) {
   const tone = runStatusTone(controller.run?.status ?? "idle", controller.run?.ok);
-  const busy = controller.triggering || controller.isRunning;
 
   return (
     <div
@@ -278,44 +303,71 @@ function BuildExportCard({ controller, t: translate }: { controller: StaticExpor
           {translate("Replace <dir> with the folder to write into. It is a required argument — there is no default.")}
         </p>
 
-        <div className="deployment-action">
-          <label className="form-checkbox-field">
-            <input
-              type="checkbox"
-              checked={controller.clean}
-              onChange={(e) => controller.setClean(e.target.checked)}
-              {...agentHandle("deployment-static-site-export-clean", {
-                role: "checkbox",
-                label: "Overwrite the export output folder's existing contents before writing the new export",
-              })}
-            />
-            {translate("Overwrite existing files in the output folder")}
-          </label>
-          <p className="deployment-action-reason">
-            {translate(
-              "Off by default. The exporter refuses to write into a non-empty folder unless this is checked — it never deletes unknown files silently."
-            )}
-          </p>
-
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => void controller.trigger()}
-            {...agentHandle("deployment-static-site-export-build", {
-              role: "button",
-              label: "Start a static export from this admin server, using the checkbox above's overwrite setting",
-            })}
-          >
-            {busy ? translate("Exporting…") : translate("Build static export")}
-          </button>
-          {controller.triggerError ? (
-            <p className="save-error" role="alert">
-              {controller.triggerError}
-            </p>
-          ) : null}
-          {controller.run ? <ExportRunResult run={controller.run} t={translate} /> : null}
-        </div>
+        <ExportTriggerAction controller={controller} t={translate} />
       </div>
+    </div>
+  );
+}
+
+/** The Build action — clean checkbox, the trigger button itself, and every terminal state a run can
+ *  end in (a rejected trigger, a poll that gave up — {@link StaticExportController.pollError}, added
+ *  this pass, see this file's header — and a settled run's own result). Split out of
+ *  {@link BuildExportCard} for the same complexity-gate reason `PublishPreviewAction`'s own doc gives
+ *  for the publish half of this tab: this repo's real `apps/admin` ESLint gate is a HARD 9/9
+ *  cyclomatic/cognitive ceiling (`eslint.config.mjs`'s own `F06 option B` block — not the 15/warn the
+ *  rest of the repo tolerates), and adding `pollError` as one more branch directly in
+ *  `BuildExportCard` pushed it from 9 to 10 against that real gate. */
+function ExportTriggerAction({ controller, t: translate }: { controller: StaticExportController; t: Translate }) {
+  const busy = controller.triggering || controller.isRunning;
+  return (
+    <div className="deployment-action">
+      <label className="form-checkbox-field">
+        <input
+          type="checkbox"
+          checked={controller.clean}
+          onChange={(e) => controller.setClean(e.target.checked)}
+          {...agentHandle("deployment-static-site-export-clean", {
+            role: "checkbox",
+            label: "Overwrite the export output folder's existing contents before writing the new export",
+          })}
+        />
+        {translate("Overwrite existing files in the output folder")}
+      </label>
+      <p className="deployment-action-reason">
+        {translate(
+          "Off by default. The exporter refuses to write into a non-empty folder unless this is checked — it never deletes unknown files silently."
+        )}
+      </p>
+
+      <button
+        type="button"
+        disabled={busy}
+        onClick={() => void controller.trigger()}
+        {...agentHandle("deployment-static-site-export-build", {
+          role: "button",
+          label: "Start a static export from this admin server, using the checkbox above's overwrite setting",
+        })}
+      >
+        {busy ? translate("Exporting…") : translate("Build static export")}
+      </button>
+      {controller.triggerError ? (
+        <p className="save-error" role="alert">
+          {controller.triggerError}
+        </p>
+      ) : null}
+      {controller.pollError ? (
+        <p
+          className="notice warning"
+          role="status"
+          {...agentHandle("deployment-static-site-export-poll-error", {
+            role: "status",
+            label: "States that this export's status could no longer be checked, so the button re-enabled even though the run may still be in progress",
+          })}
+        >
+          {controller.pollError}
+        </p>
+      ) : null}
+      {controller.run ? <ExportRunResult run={controller.run} t={translate} /> : null}
     </div>
   );
 }
@@ -682,6 +734,16 @@ function PublishCredentialsSection({ controller, t: translate }: { controller: P
  * section's earlier shape (the OLD `PublishCredentialForm`'s edit-mode placeholder). The token and
  * Account ID inputs below carry NO `placeholder` prop at all, connected or not — an empty box always
  * looks empty.
+ *
+ * Fields render in a single stacked column (`.deployment-credential-fields`), NOT the shared
+ * `.field-row` two-up grid every target-config field set on this tab uses — that grid gives both
+ * columns of a row the SAME height, and Cloudflare Pages' own two fields never have the same height
+ * (Access token carries two hint lines plus a link; Account ID carries one short hint), which left
+ * Account ID floating near the top of a mostly-empty tall column with the shared Save button below
+ * reading disconnected from it. A single column has no such row to share, so it cannot break this
+ * way regardless of how many fields a provider needs or how uneven their hints are — see this file's
+ * header for the Custom/S3 provider (~5 fields, deliberately not squeezed into this shared shape)
+ * this same row will need to render once it lands.
  */
 function PublishCredentialRow({
   row,
@@ -715,7 +777,7 @@ function PublishCredentialRow({
         </span>
       </div>
 
-      <div className="field-row">
+      <div className="deployment-credential-fields">
         <div className="field">
           <label className="field-label" htmlFor={`deployment-static-site-credentials-token-${row.providerId}`}>
             {translate("Access token")}
@@ -872,6 +934,104 @@ function StaticPublishTargetFields({
   return exhaustive;
 }
 
+/** The Preview action — its own component (not inlined in {@link StaticPublishForm}) purely for the
+ *  complexity gate: every conditional in this file that renders on `controller.preview*` state used
+ *  to accumulate directly in `StaticPublishForm`'s own cyclomatic count, which is what pushed that
+ *  function over this repo's complexity convention once `pollError` (below) added one more branch on
+ *  top of an already-over-budget function — splitting each `.deployment-action` block out the same
+ *  way `PublishPreviewFacts`/`PublishRunResult` already are moves each block's branches into ITS OWN
+ *  score instead, same reasoning `resolveStaticExportHook`'s own doc gives for this file's DI
+ *  resolvers. No behavior moved, only where the branches are counted. */
+function PublishPreviewAction({
+  canPreview,
+  controller,
+  t: translate,
+}: {
+  canPreview: boolean;
+  controller: StaticPublishController;
+  t: Translate;
+}) {
+  return (
+    <div className="deployment-action">
+      <button
+        type="button"
+        className="btn-secondary"
+        disabled={!canPreview || controller.previewLoading}
+        onClick={() => void controller.checkPreview()}
+        {...agentHandle("deployment-static-site-publish-preview", { role: "button", label: "Preview what publishing to this target would do, without publishing anything" })}
+      >
+        {controller.previewLoading ? translate("Checking…") : translate("Preview")}
+      </button>
+      {controller.previewError ? (
+        <p className="save-error" role="alert">
+          {controller.previewError}
+        </p>
+      ) : null}
+      {controller.preview ? <PublishPreviewFacts preview={controller.preview} t={translate} /> : null}
+    </div>
+  );
+}
+
+/** The Publish action — status pill, the button itself (gated by {@link busy}), and every terminal
+ *  state a publish attempt can end in: a rejected trigger, a poll that gave up ({@link
+ *  StaticPublishController.pollError} — see this file's header for why this pass added it here at
+ *  all), and a settled run's own result. Split out of {@link StaticPublishForm} for the same
+ *  complexity-gate reason {@link PublishPreviewAction} documents. `busy` and `runTone` are passed in
+ *  rather than recomputed here — `busy` is `StaticPublishForm`'s own value, read by BOTH the disabled
+ *  check below and the button's own label, and computing it twice would let the two drift; `runTone`
+ *  is `runStatusTone(controller.run?.status ?? "idle", ...)`, whose own optional-chaining/`??`
+ *  operators each count as a branch for this repo's `complexity` rule same as a ternary does — kept
+ *  in the parent (mirrors `BuildExportCard` keeping its own `tone` outside `ExportTriggerAction`)
+ *  rather than pushing this function back over the 9/9 gate the same way computing it here once did. */
+function PublishTriggerAction({
+  canPublish,
+  busy,
+  runTone,
+  controller,
+  t: translate,
+}: {
+  canPublish: boolean;
+  busy: boolean;
+  runTone: string;
+  controller: StaticPublishController;
+  t: Translate;
+}) {
+  return (
+    <div className="deployment-action">
+      <span className={`status status-${runTone}`}>{translate(publishRunStatusLabelKey(controller.run))}</span>
+      <button
+        type="button"
+        disabled={!canPublish || busy}
+        onClick={() => void controller.publish()}
+        {...agentHandle("deployment-static-site-publish-trigger", { role: "button", label: "Publish the current site export to this target right now — live on the public internet immediately" })}
+      >
+        {busy ? translate("Publishing…") : translate("Publish")}
+      </button>
+      <p className="deployment-action-reason">
+        {translate("This is immediately live on the public internet once it finishes — there is no draft or review step.")}
+      </p>
+      {controller.publishError ? (
+        <p className="save-error" role="alert">
+          {controller.publishError}
+        </p>
+      ) : null}
+      {controller.pollError ? (
+        <p
+          className="notice warning"
+          role="status"
+          {...agentHandle("deployment-static-site-publish-poll-error", {
+            role: "status",
+            label: "States that this publish's status could no longer be checked, so the button re-enabled even though the run may still be in progress",
+          })}
+        >
+          {controller.pollError}
+        </p>
+      ) : null}
+      {controller.run ? <PublishRunResult run={controller.run} t={translate} /> : null}
+    </div>
+  );
+}
+
 /** The token-based preview+publish mini-form for whichever target is currently selected. Reads
  *  ONLY the fields the current target uses (see `use-static-publish.hooks.ts`'s header for why the
  *  hook still keeps all five target fields in state at once) — a GitHub Pages selection never shows
@@ -903,8 +1063,14 @@ function StaticPublishForm({
   return (
     <div className="deployment-route">
       <div className="deployment-route-label">
-        <span className="deployment-fact-label">{translate("Publish directly from here")}</span>
+        <DestinationIcon size={16} />
+        <span className="deployment-fact-label">{translate("Where this publish goes")}</span>
       </div>
+      <p className="deployment-action-reason">
+        {translate(
+          "The account above only proves you're allowed to publish — this says exactly where this one goes."
+        )}
+      </p>
 
       <div className="field-row">
         <StaticPublishTargetFields target={target} controller={controller} t={translate} />
@@ -926,44 +1092,8 @@ function StaticPublishForm({
         </div>
       </div>
 
-      <div className="deployment-action">
-        <button
-          type="button"
-          className="btn-secondary"
-          disabled={!canPreview || controller.previewLoading}
-          onClick={() => void controller.checkPreview()}
-          {...agentHandle("deployment-static-site-publish-preview", { role: "button", label: "Preview what publishing to this target would do, without publishing anything" })}
-        >
-          {controller.previewLoading ? translate("Checking…") : translate("Preview")}
-        </button>
-        {controller.previewError ? (
-          <p className="save-error" role="alert">
-            {controller.previewError}
-          </p>
-        ) : null}
-        {controller.preview ? <PublishPreviewFacts preview={controller.preview} t={translate} /> : null}
-      </div>
-
-      <div className="deployment-action">
-        <span className={`status status-${runTone}`}>{translate(publishRunStatusLabelKey(controller.run))}</span>
-        <button
-          type="button"
-          disabled={!canPublish || busy}
-          onClick={() => void controller.publish()}
-          {...agentHandle("deployment-static-site-publish-trigger", { role: "button", label: "Publish the current site export to this target right now — live on the public internet immediately" })}
-        >
-          {busy ? translate("Publishing…") : translate("Publish")}
-        </button>
-        <p className="deployment-action-reason">
-          {translate("This is immediately live on the public internet once it finishes — there is no draft or review step.")}
-        </p>
-        {controller.publishError ? (
-          <p className="save-error" role="alert">
-            {controller.publishError}
-          </p>
-        ) : null}
-        {controller.run ? <PublishRunResult run={controller.run} t={translate} /> : null}
-      </div>
+      <PublishPreviewAction canPreview={canPreview} controller={controller} t={translate} />
+      <PublishTriggerAction canPublish={canPublish} busy={busy} runTone={runTone} controller={controller} t={translate} />
     </div>
   );
 }
