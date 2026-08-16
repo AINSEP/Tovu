@@ -438,9 +438,20 @@ on this was correct and is accepted.
 The prior session's working theory ("resource contention — 3 agents + 22 sequential vitest boots")
 is **wrong**, and this is now settled by direct instrumentation rather than left as a note.
 
-WorkspaceHooksTests ran the file **18x sequentially with no other heavy vitest process active**:
-4 timeouts (~22%), always the exact text `"Test timed out in 5000ms"` at the `it()` line itself —
-Vitest's outer `testTimeout`, not a `waitFor`-specific message.
+WorkspaceHooksTests ran the file **18x sequentially**: 4 timeouts (~22%), always the exact text
+`"Test timed out in 5000ms"` at the `it()` line itself — Vitest's outer `testTimeout`, not a
+`waitFor`-specific message.
+
+> **Amended.** This was first recorded here as "18x with no other heavy vitest process active." The
+> agent corrected that unprompted: it had checked `ps` at two points in time, not monitored
+> continuously, so a bursty concurrent test run could have been missed. **The 22% figure stands; the
+> "quiet machine" qualifier does not.** Correction is the Coordinator's — it was committed in the
+> stronger form before the agent flagged it.
+>
+> This does **not** weaken the root cause, and the distinction matters: the phase instrumentation
+> below is a *direct measurement of where time goes inside the test*, independent of whether any
+> given run is fast or slow. A pass/fail tally under assumed conditions is weak evidence; a
+> phase-level timing breakdown is not. The mechanism, the fix, and the code comment are unaffected.
 
 Instrumented phase timing across 4 successful runs:
 `await import("../features/redirects/hooks/use-redirects.hooks")` alone = **2.5s–3.8s of a 2.6s–3.9s
