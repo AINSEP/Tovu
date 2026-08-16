@@ -201,10 +201,15 @@ export type PublishCredentialFieldKey = "accountId";
 
 /**
  * One provider the credential-management section can save a connection for — WIDER than
- * {@link STATIC_PUBLISH_TARGETS}: Netlify and Cloudflare Pages have no publish adapter yet (no
- * `AdminStaticPublishTargetId` covers either), but a credential for one can already be saved and
- * validated today, ahead of that adapter landing — see `AdminPublishCredentialProviderId`'s own doc
- * in `lib/api.ts` for why the credential store is intentionally the wider of the two sets. Order
+ * {@link STATIC_PUBLISH_TARGETS}: the SERVER now has a real publish adapter for all four providers
+ * (`static-publish/adapter.ts`'s `buildJiniTarget` wraps Jini's `NetlifyDeployTarget`/
+ * `CloudflarePagesDeployTarget` exactly like it does `GitHubPagesDeployTarget`/`VercelDeployTarget`,
+ * and `publish-site.ts`'s trigger route already parses all four `target` values), but THIS admin's
+ * own "Publish directly from here" trigger UI (`AdminStaticPublishTargetId`, `STATIC_PUBLISH_TARGETS`
+ * below) still only has a provider tab, config-building, and preview wiring for github-pages/vercel —
+ * a credential for Netlify/Cloudflare Pages can be saved and validated today (this section), ahead
+ * of a later UI pass that adds their own trigger tab. See `AdminPublishCredentialProviderId`'s own
+ * doc in `lib/api.ts` for why the credential store is intentionally the wider of the two sets. Order
  * here is the provider picker's display order in the credential form.
  */
 export interface PublishCredentialProviderInfo {
