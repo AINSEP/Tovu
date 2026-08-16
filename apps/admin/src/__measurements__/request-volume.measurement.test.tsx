@@ -74,6 +74,24 @@ afterEach(() => {
 // redirects
 // ---------------------------------------------------------------------------
 describe("redirects", () => {
+  /**
+   * Explicit 15s timeout (2026-08-15 flaky-test investigation, `2026-08-15-coverage-and-tests-
+   * worklist.md`): this is the FIRST test in the file, so its `await import(...)` below uniquely
+   * pays for cold-transforming the whole `use-redirects.hooks` dependency graph AND every shared
+   * dependency this file's later tests then reuse already-warm (jsdom env, `@testing-library/
+   * react`, `lib/fetch-query`, etc.) — every later `it()` in this file imports a NEW feature's own
+   * hooks but finishes in 30-400ms because the expensive shared infra is already transformed.
+   * Instrumented timing on 4 successful runs: `import()` alone = 2.5s-3.8s of a ~2.6s-3.9s total;
+   * `renderHook` ~26ms, `waitFor` ~53ms — the mocked fetch/render/assert path itself is not slow.
+   * Measured 4 timeouts in 18 sequential whole-file runs (~22%) against the vitest.config.ts
+   * default 5000ms `testTimeout`, entirely from this transform cost eating the budget before the
+   * hook under test even starts — confirmed by the exact failure text ("Test timed out in 5000ms"
+   * at the `it(...)` line itself, not a `waitFor`-specific message). Reproduced with NO other heavy
+   * vitest process running, so generic "N concurrent agents" contention is not the full story —
+   * the real cause is this test's inherently narrow margin against ordinary OS scheduling jitter
+   * (background CPU load, e.g. an active browser, is enough on its own). 15s leaves ~4x headroom
+   * over the worst observed successful run (4.2s) while still catching a genuine hang.
+   */
   it("initial load", async () => {
     const { fn, calls } = createRecorder([{ match: "/redirects", respond: () => jsonResponse({ data: [] }) }]);
     vi.stubGlobal("fetch", fn);
@@ -82,7 +100,7 @@ describe("redirects", () => {
     await waitFor(() => expect(result.current.redirects).not.toBeUndefined());
     logRow("redirects", "initial load", calls);
     expect(calls.length).toBeGreaterThan(0);
-  });
+  }, 15000);
 
   it("create redirect (save)", async () => {
     let listCallCount = 0;
