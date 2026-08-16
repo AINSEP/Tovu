@@ -79,7 +79,19 @@ import {
  * never a second POST path to the same route.
  */
 const mcpUiToolCaller = createMcpUiToolCaller("", { path: "/api/admin/v1/mcp-ui/tool-calls" });
-registerMcpUiSurfaceRenderer({ onToolCall: mcpUiToolCaller });
+/**
+ * `maxHeight: 480` overrides `@jini-ai/chat`'s own 720px default (sized for a full-width
+ * transcript). Measured live (2026-08-16): the publish confirmation surface declared a
+ * `preferredFrameSize` height of 360px but its real content rendered at 559-560px — 720px would
+ * still have let a surface that tall (or taller) demand more vertical room than this 380px dock
+ * has to give before the operator has scrolled at all. 480px is not a guarantee every surface fits
+ * without scrolling (nothing fixed-size can be, next to a composer and header of unknown height on
+ * an unknown window size) — that guarantee comes from `MessageList`'s resize-aware sticky-scroll
+ * fix, which keeps a growing surface's action buttons reachable regardless of the cap. This just
+ * keeps the common case shorter, so a narrow dock stops handing out the same ceiling a full-width
+ * transcript gets.
+ */
+registerMcpUiSurfaceRenderer({ onToolCall: mcpUiToolCaller, maxHeight: 480 });
 
 /**
  * A2UI's counterpart to the MCP-UI wiring above — same module-scope-once posture, same "one line
