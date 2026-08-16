@@ -9,7 +9,13 @@ import {
 } from "../../../lib/api";
 import { useFetchQuery } from "../../../lib/fetch-query";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
-import { t as defaultT, publishLoadErrorMessage, publishPreviewErrorMessage, publishTriggerErrorMessage } from "../deployment-i18n";
+import {
+  t as defaultT,
+  publishLoadErrorMessage,
+  publishPollErrorMessage,
+  publishPreviewErrorMessage,
+  publishTriggerErrorMessage,
+} from "../deployment-i18n";
 import type { Translate } from "../../../lib/dictionary-translator";
 import { defaultStaticPublishPort } from "./static-publish-dependencies.hooks";
 import type { StaticPublishPort } from "./static-publish-port.hooks";
@@ -71,14 +77,29 @@ export interface StaticPublishController {
 
   /** The current/most recent publish run — `undefined` until the first status read resolves. */
   run: AdminPublishRunSnapshot | undefined;
+  /** True whenever `run.status === "running"` AND polling can still reach the status endpoint — see
+   *  {@link pollError}'s own doc for why the second half matters (same shape
+   *  `StaticExportController.isRunning` documents). */
   isPublishing: boolean;
   /** Already-formatted, translated error from the INITIAL status read — `null` while loading or once
    *  loaded successfully. Distinct from {@link publishError}: same split
    *  `StaticExportController.loadError`/`triggerError` draws. */
   loadError: string | null;
+  /** Already-formatted, translated error from the poll loop giving up after a bounded number of
+   *  consecutive failures — `null` while healthy, reset at the start of every new {@link publish}.
+   *  Same shape and same reason `StaticExportController.pollError` exists: an unbounded retry here
+   *  would strand the operator on a stuck "Publishing…" spinner with the button disabled forever. */
+  pollError: string | null;
   publishError: string | null;
+  /** True while a {@link publish} POST is in flight — briefer than {@link isPublishing}, which stays
+   *  true for the whole publish, not just the initial request. Exposed (unlike an internal-only flag)
+   *  so the caller can disable the Publish button on this alone, before any run comes back — without
+   *  it, a double-click could send two POSTs before the first one's response ever arrives. */
+  publishing: boolean;
   /** Starts a real publish with the current field values. Resolves either way — a failure is
-   *  surfaced through {@link publishError}, never a thrown rejection. */
+   *  surfaced through {@link publishError}, never a thrown rejection. A call while {@link publishing}
+   *  is already true is a duplicate submit and is ignored outright, not just discouraged by the
+   *  disabled button — see this function's own implementation note. */
   publish: () => Promise<void>;
 
   t: Translate;
@@ -89,6 +110,11 @@ export interface StaticPublishController {
  *  roughly a minute per `publish-site.ts`'s header), so this loop simply runs for longer, not
  *  faster or slower. */
 const PUBLISH_POLL_INTERVAL_MS = 1500;
+
+/** Same bound and same rationale as `use-static-export.hooks.ts`'s own `POLL_FAILURE_LIMIT` — how
+ *  many CONSECUTIVE poll failures the loop below tolerates before giving up and surfacing
+ *  {@link StaticPublishController.pollError} instead of retrying forever. */
+const PUBLISH_POLL_FAILURE_LIMIT = 3;
 
 /** Builds the wire config from the form's current field values — the one function that decides
  *  which fields matter for which target (everything else in this hook is target-agnostic state).
@@ -137,8 +163,14 @@ export function useStaticPublish(port: StaticPublishPort, t: Translate, locale: 
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewError, setPreviewError] = useState<string | null>(null);
 
+  // Bumped by every field edit (via `invalidatePreview` below) so `checkPreview` can tell whether
+  // the fields it was called against are still the CURRENT fields once its request resolves — see
+  // that function's own note (C3 fix).
+  const previewGenerationRef = useRef(0);
+
   // Every setter below clears the (now stale) preview as a side effect — see this file's header.
   function invalidatePreview() {
+    previewGenerationRef.current += 1;
     setPreview(undefined);
     setPreviewError(null);
   }
@@ -164,14 +196,28 @@ export function useStaticPublish(port: StaticPublishPort, t: Translate, locale: 
   }
 
   async function checkPreview() {
+    // Captured BEFORE the request starts — if a field edit bumps `previewGenerationRef` while this
+    // request is in flight, the comparison below after `await` tells us this result is now stale
+    // (C3 fix: without it, a slow preview response for `acme/old` could resolve AFTER the operator
+    // had already changed the field to `acme/new` and repopulate the form with the wrong target).
+    const requestGeneration = previewGenerationRef.current;
     setPreviewError(null);
     setPreviewLoading(true);
     try {
       const result = await port.getPublishPreview(buildConfig({ target, owner, repo, branch, teamId }));
+      // A field edited after this request started already invalidated the preview and moved the
+      // generation forward — applying this now-stale result would repopulate the OLD fields over a
+      // form the operator has since changed. Discard it silently; the edit's own `invalidatePreview()`
+      // already left `preview`/`previewError` in the right (empty) state.
+      if (previewGenerationRef.current !== requestGeneration) return;
       setPreview(result);
     } catch (err) {
+      if (previewGenerationRef.current !== requestGeneration) return;
       setPreviewError(publishPreviewErrorMessage(locale, describeApiError(err, "unknown error")));
     } finally {
+      // Unconditional, unlike the two branches above: this request's own spinner must stop once ITS
+      // OWN network call settles regardless of generation, or a discarded stale response would leave
+      // `previewLoading` stuck true forever with nothing left in flight to ever clear it.
       setPreviewLoading(false);
     }
   }
@@ -180,6 +226,7 @@ export function useStaticPublish(port: StaticPublishPort, t: Translate, locale: 
   const [run, setRun] = useState<AdminPublishRunSnapshot | undefined>(undefined);
   const [publishing, setPublishing] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
+  const [pollError, setPollError] = useState<string | null>(null);
 
   // Seeds `run` from the query's first successful load, exactly once — same shape
   // `use-static-export.hooks.ts`'s own `seededRef` uses, and for the same reason (a reload mid-
@@ -193,7 +240,16 @@ export function useStaticPublish(port: StaticPublishPort, t: Translate, locale: 
 
   const loadError = query.error ? publishLoadErrorMessage(locale, describeApiError(query.error, "unknown error")) : null;
 
-  const isPublishing = run?.status === "running";
+  // Counts CONSECUTIVE poll failures for the `PUBLISH_POLL_FAILURE_LIMIT` bound below — same ref-not-
+  // state reasoning `use-static-export.hooks.ts`'s own `pollFailuresRef` documents.
+  const pollFailuresRef = useRef(0);
+  // Synchronous duplicate-submit guard for `publish()` — a ref, not the `publishing` state, because a
+  // true double-click can fire two calls in the same synchronous tick, before React has re-rendered
+  // with `publishing: true`; `publishing` (state) still exists to let the UI disable the button, but
+  // the guard that actually stops a second POST from ever being sent has to be synchronous (C4 fix).
+  const publishingRef = useRef(false);
+
+  const isPublishing = run?.status === "running" && pollError === null;
 
   // Self-scheduling poll loop, re-armed only when `isPublishing` flips true — identical shape and
   // identical reasoning to `use-static-export.hooks.ts`'s own poll effect; see that file's comment
@@ -210,10 +266,21 @@ export function useStaticPublish(port: StaticPublishPort, t: Translate, locale: 
       try {
         const status = await port.getPublishStatus();
         if (cancelled) return;
+        pollFailuresRef.current = 0;
         setRun(status);
         if (status.status === "running") scheduleNext();
-      } catch {
-        if (!cancelled) scheduleNext();
+      } catch (err) {
+        if (cancelled) return;
+        pollFailuresRef.current += 1;
+        if (pollFailuresRef.current >= PUBLISH_POLL_FAILURE_LIMIT) {
+          // Bounded (C2, same shape as use-static-export.hooks.ts's own fix): give up rather than
+          // retry forever. Setting `pollError` also flips `isPublishing` false on the next render,
+          // which re-arms this effect's own cleanup — but `return` here (no `scheduleNext()`) is
+          // what actually stops the loop; it must not depend on that later render having happened.
+          setPollError(publishPollErrorMessage(locale, describeApiError(err, "unknown error")));
+          return;
+        }
+        scheduleNext();
       }
     }
     scheduleNext();
@@ -227,11 +294,23 @@ export function useStaticPublish(port: StaticPublishPort, t: Translate, locale: 
   }, [isPublishing]);
 
   async function publish() {
+    // A second call while the first is still in flight is a duplicate submit (e.g. a double-click
+    // landing before React re-renders with the button disabled) — ignore it here too, not just via
+    // the UI's `publishing`-gated disabled state, so the race can't still send two POSTs (C4 fix).
+    // This check-then-set is safe against a same-tick double call specifically BECAUSE it is
+    // synchronous: nothing yields between the read and the write below, so a second synchronous call
+    // always observes this call's write.
+    if (publishingRef.current) return;
+    publishingRef.current = true;
     // Local action supersedes any still-pending bootstrap read — same C1 fix and same reasoning
     // `use-static-export.hooks.ts`'s own `trigger()` documents: this write is synchronous and
     // happens-before the `await` below, so it wins the race regardless of how late the bootstrap
     // read resolves.
     seededRef.current = true;
+    // A fresh publish also clears any earlier poll-failure standoff (C2) — the operator retrying via
+    // this same button is exactly the recovery path a stalled `pollError` is meant to unblock.
+    pollFailuresRef.current = 0;
+    setPollError(null);
     setPublishError(null);
     setPublishing(true);
     try {
@@ -240,6 +319,7 @@ export function useStaticPublish(port: StaticPublishPort, t: Translate, locale: 
     } catch (err) {
       setPublishError(publishTriggerErrorMessage(locale, describeApiError(err, "unknown error")));
     } finally {
+      publishingRef.current = false;
       setPublishing(false);
     }
   }
@@ -264,7 +344,9 @@ export function useStaticPublish(port: StaticPublishPort, t: Translate, locale: 
     run,
     isPublishing,
     loadError,
+    pollError,
     publishError,
+    publishing,
     publish,
     t,
   };
