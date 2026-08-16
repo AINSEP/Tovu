@@ -343,3 +343,44 @@ export async function updateSourceControlCredential(
 export async function deleteSourceControlCredential(deps: SourceControlCredentialReadDeps, input: { workspaceId: UUID; id: UUID }): Promise<void> {
   await deps.repo.delete(input);
 }
+
+/** Shared decrypt step for {@link resolveDefaultForSourceControl} — the exact same AAD-derive-then-
+ *  open-then-parse sequence `publish-credentials/store.ts`'s own `decryptRecord` uses for its table.
+ *  Kept local rather than imported cross-feature — this table's AAD format is this file's own concern
+ *  (`aad.ts`'s header). */
+async function decryptRecord(sealer: SecretSealerPort, record: SourceControlCredentialSetRecord): Promise<SourceControlConnectionInput> {
+  const aad = buildSourceControlCredentialAad({ workspaceId: record.workspaceId, providerId: record.providerId, id: record.id });
+  const plaintext = await sealer.open({ sealed: record.sealed, aad });
+  return JSON.parse(plaintext) as SourceControlConnectionInput;
+}
+
+/**
+ * The ONLY decrypting read in this module — added for this table's first real git-operating caller
+ * (`tool-registrations.ts`'s `source_control_execute_commit`), per this file's own header: "the day a
+ * git-operating feature needs one, it can be added the same way `resolveForPublish`/
+ * `resolveDefaultForPublish` were added." Mirrors `resolveDefaultForPublish` exactly: resolves the
+ * DEFAULT credential set for `(workspaceId, providerId)`, since a commit call names a provider it wants
+ * to push to, never a specific saved connection's id — same reasoning `resolveDefaultForPublish`'s own
+ * doc gives for why no id-specific sibling exists on that side either.
+ *
+ * `resolveForSourceControl` (an id-specific sibling, mirroring `resolveForPublish`) is deliberately NOT
+ * added alongside this — nothing in this feature's tool catalog resolves a specific, non-default
+ * credential set, and adding an unused decrypt path would be exactly the "dead code with no caller"
+ * this file's header already warns against.
+ *
+ * Same "no such row" (`null`, a normal outcome) vs. genuine decrypt failure (thrown, a tampered row or
+ * missing master secret) distinction {@link resolveDefaultForPublish} documents for its own contract.
+ *
+ * @throws Whatever `SecretSealerPort.open()` throws (bad AAD, tampered ciphertext, wrong key) or
+ *   `KeyringPort` throws for a missing master secret.
+ * @complexity O(1) — one repo read, one decrypt, one `JSON.parse`.
+ */
+export async function resolveDefaultForSourceControl(
+  deps: { repo: SourceControlCredentialSetRepoPort; sealer: SecretSealerPort },
+  input: { workspaceId: UUID; providerId: SourceControlProviderId }
+): Promise<{ id: UUID; label: string; connection: SourceControlConnectionInput } | null> {
+  const record = await deps.repo.findDefaultByProvider(input);
+  if (!record) return null;
+  const connection = await decryptRecord(deps.sealer, record);
+  return { id: record.id, label: record.label, connection };
+}
