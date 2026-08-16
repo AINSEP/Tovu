@@ -3234,10 +3234,10 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 /* ---- Credential management (Static Site) --------------------------------------------------------
    One always-visible row per provider inside "Getting it online" (2026-08-15 redesign — no
    add/edit/delete/default-promotion flow left; see `PublishCredentialsSection`'s own header in
-   `StaticSiteTab.tsx`). Reuses `.field`/`.field-row` for the token/accountId inputs, `.field-hint`
-   for the copy below each of them, and `.deployment-action` for the Save row — `.deployment-credential-row`
-   is the one new surface, since nothing else on this panel is a fixed four-row list where each row
-   carries its own mini-form. */
+   `StaticSiteTab.tsx`). Reuses `.field` for each input, `.field-hint` for the copy below each of
+   them, and `.deployment-action` for the Save row — `.deployment-credential-row` and
+   `.deployment-credential-fields` are the two new surfaces, since nothing else on this panel is a
+   fixed provider-row list where each row carries its own mini-form. */
 .deployment-credentials-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); }
 .deployment-credential-row {
   display: flex; flex-direction: column; gap: var(--space-3);
@@ -3245,6 +3245,17 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 }
 .deployment-credential-row-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-3); }
 .deployment-credential-row-name { font-weight: 600; color: var(--fg); }
+/* A row's own fields, stacked — deliberately NOT `.field-row` (the shared two-up `auto-fit` grid
+   every target-config field set on this tab otherwise uses). `.field-row` puts both columns of a
+   grid ROW at the SAME height, which broke the one row that ever had two fields (Cloudflare Pages:
+   Access token carries two hint lines and a link, Account ID carries one short hint) — Account ID's
+   cell matched the row's full height and floated near the top of it, with the shared Save button
+   below reading disconnected from a field it visually had nothing to do with. A single column can't
+   have this problem regardless of field count or hint length, which is also why this is the layout
+   the coming ~5-field Custom/S3 provider row will use rather than a wider grid tuned for two fields.
+   `max-width` matches `.integrations-form label`'s own single-column form width elsewhere in this
+   app, so an Access Token input does not stretch to the full width of its card. */
+.deployment-credential-fields { display: flex; flex-direction: column; gap: var(--space-4); max-width: 28rem; }
 
 /* Collapsed-by-default "Advanced" disclosure for `executionMode: "self-hosted-cli"` — reuses the
    native <details>/<summary> affordance `.assistant-roadmap details` (~L2178) already established in

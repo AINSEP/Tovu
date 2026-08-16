@@ -85,6 +85,20 @@ export function LayersIcon({ size = 20 }: { size?: number }) {
   );
 }
 
+/** A publish destination — a map pin, next to the "Where this publish goes" heading
+ *  (`StaticSiteTab.tsx`'s `StaticPublishForm`). Sits beside {@link AssistantIcon}'s own
+ *  icon-plus-label treatment on the CLI-recommendation route just above it, so the two blocks read
+ *  as siblings with different jobs (which tool does the publishing vs. where THIS one lands) rather
+ *  than one plain block and one decorated one. */
+export function DestinationIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg {...LINE_ICON} width={size} height={size}>
+      <path d="M12 21s-7-6.1-7-11.5A7 7 0 0 1 19 9.5C19 14.9 12 21 12 21z" />
+      <circle cx="12" cy="9.5" r="2.25" />
+    </svg>
+  );
+}
+
 /**
  * The ✓ or ✗ beside a capability row.
  *
