@@ -163,6 +163,52 @@ describe("useStaticPublish — preview", () => {
     expect(sentConfig).toEqual({ target: "cloudflare-pages" });
   });
 
+  it("REGRESSION (C3): a stale preview response after a field edit must not repopulate the old target's value", async () => {
+    let resolvePreview!: (value: AdminStaticPublishPreview) => void;
+    const oldPreview: AdminStaticPublishPreview = {
+      target: "github-pages",
+      valid: true,
+      validationError: null,
+      basePath: "/old",
+      credentialsConfigured: true,
+      credentialGuidance: null,
+      willInjectNojekyll: true,
+    };
+    const port = createFakeStaticPublishPort({
+      getPublishPreview: () => new Promise((resolve) => (resolvePreview = resolve)),
+    });
+    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.run).not.toBeUndefined());
+
+    act(() => result.current.setOwner("acme"));
+    act(() => result.current.setRepo("old"));
+
+    let previewPromise!: Promise<void>;
+    act(() => {
+      previewPromise = result.current.checkPreview();
+    });
+    await waitFor(() => expect(result.current.previewLoading).toBe(true));
+
+    // The operator edits the target BEFORE the slow preview request resolves.
+    act(() => result.current.setRepo("new"));
+    expect(result.current.preview).toBeUndefined();
+
+    // The stale request now resolves, reporting the OLD repo's preview.
+    await act(async () => {
+      resolvePreview(oldPreview);
+      await previewPromise;
+    });
+
+    // Pre-fix, `setPreview(oldPreview)` runs unconditionally here and repopulates `/old` even though
+    // the operator is now looking at (and would publish to) `acme/new` — the exact "shown /old,
+    // published /new" mismatch the audit finding describes for an irreversible, live action.
+    expect(result.current.preview).toBeUndefined();
+    expect(result.current.repo).toBe("new");
+    // The spinner must still have stopped even though the response itself was discarded — a stale
+    // request being ignored must not be confused with a request that never returned.
+    expect(result.current.previewLoading).toBe(false);
+  });
+
   it("editing any field after a preview clears the now-stale preview", async () => {
     const port = createFakeStaticPublishPort({
       getPublishPreview: () =>
@@ -339,6 +385,79 @@ describe("useStaticPublish — publish trigger and poll", () => {
     });
     expect(result.current.run?.status).toBe("completed");
     expect(result.current.isPublishing).toBe(false);
+  });
+
+  it("REGRESSION (C2): permanent poll failures are bounded, surfaced, and re-enable the Publish button — not retried forever behind a stuck spinner", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    const runningRun: AdminPublishRunSnapshot = { status: "running", startedAtIso: "t0", finishedAtIso: null, target: "vercel" };
+    // The bootstrap read succeeds once (seeding `isPublishing: true`, e.g. a reload mid-publish);
+    // every poll after that fails permanently.
+    const getPublishStatus = vi.fn().mockResolvedValueOnce(runningRun).mockRejectedValue(new Error("ECONNREFUSED"));
+    const port = createFakeStaticPublishPort({ getPublishStatus });
+
+    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.isPublishing).toBe(true));
+
+    // Three consecutive failed polls — the bound this fix introduces.
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1500);
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1500);
+    });
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(1500);
+    });
+
+    // The bound must have fired: an actionable error, the button un-disabled, and — proving `run`
+    // itself was never touched or faked to force this, only a separate gate — the run's own status
+    // is still exactly what the last successful read reported.
+    expect(result.current.pollError).toContain("Lost track of this publish's status");
+    expect(result.current.pollError).toContain("ECONNREFUSED");
+    expect(result.current.isPublishing).toBe(false);
+    expect(result.current.run?.status).toBe("running");
+
+    // And the loop must have actually STOPPED — advancing well past several more intervals must not
+    // produce any further calls.
+    const callsAtBound = getPublishStatus.mock.calls.length;
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(6000);
+    });
+    expect(getPublishStatus.mock.calls.length).toBe(callsAtBound);
+  });
+
+  it("REGRESSION (C4): a second publish() call while the first is still in flight must not send a second POST or leave a false failure message", async () => {
+    const runningRun: AdminPublishRunSnapshot = { status: "running", startedAtIso: "t0", finishedAtIso: null, target: "github-pages" };
+    const triggerPublish = vi.fn().mockResolvedValue(runningRun);
+    const port = createFakeStaticPublishPort({ triggerPublish });
+    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.run).not.toBeUndefined());
+
+    act(() => result.current.setOwner("acme"));
+    act(() => result.current.setRepo("site"));
+    act(() => result.current.setProjectName("demo"));
+
+    // Simulate a double-click: two publish() calls fired synchronously, before the first has any
+    // chance to resolve (or even for React to re-render with the button disabled).
+    let firstCall!: Promise<void>;
+    let secondCall!: Promise<void>;
+    act(() => {
+      firstCall = result.current.publish();
+      secondCall = result.current.publish();
+    });
+
+    await act(async () => {
+      await firstCall;
+      await secondCall;
+    });
+
+    // Pre-fix, `publish()` had no in-flight guard at all: both calls run to completion, sending two
+    // POSTs — the second one would ordinarily hit the server's own 409, and (per the audit finding)
+    // that rejection's error message stays on screen even though the first publish is running fine.
+    expect(triggerPublish).toHaveBeenCalledTimes(1);
+    expect(result.current.run).toEqual(runningRun);
+    expect(result.current.publishError).toBeNull();
+    expect(result.current.publishing).toBe(false);
   });
 });
 
