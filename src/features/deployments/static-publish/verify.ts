@@ -38,11 +38,28 @@ import type { PublishCredentialSource, StaticPublishTargetId } from "./types";
  * credential), because the two demand opposite guidance. A human told "unreachable" should try again
  * later; a human told "invalid" should replace the credential. Collapsing them would risk sending
  * someone to regenerate a perfectly good token over a transient network blip — the same class of
- * false-negative Defect A (this same finding session) was filed for, just at a different layer. No
- * checker in this file reads a response BODY at all (see `classifyProviderResponse`'s own doc) — a
- * `GET /user`-shaped provider response carries a login, email, plan, and org list that has no
- * business anywhere near an agent-facing surface, so it is structurally unreachable from this module:
- * there is no code path here that could echo it even by mistake.
+ * false-negative Defect A (this same finding session) was filed for, just at a different layer.
+ *
+ * Two providers' checkers now read ONE named field off their success response body — GitHub's
+ * `login`, Vercel's `user.username` (2026-08-16, Defect 1: "the assistant has to guess the GitHub
+ * owner" — a live publish went to `leonaburime/tovu-demo1`, a 404, because nothing in this feature
+ * ever told the agent which account its own verified token belongs to, so it guessed one from the
+ * human's email address instead). This is a deliberate, reviewed NARROWING of the rule above, not a
+ * reversal of it: the reasoning is that this exact value is about to be interpolated into a PUBLIC
+ * URL a real publish already prints (`https://<login>.github.io/<repo>/`), so withholding it from the
+ * agent performing the publish protects nothing while forcing it to guess. `extractGitHubLogin`/
+ * `extractVercelUsername` each read exactly the one named field off a parsed body and discard
+ * everything else — not a general passthrough, and neither is reachable for `"invalid"`/
+ * `"unreachable"` results (see {@link probe}'s own doc: the body is only ever touched after
+ * `classifyProviderResponse` has already returned `ok: true`). GitHub's `login` and Vercel's
+ * `user.username` are both public by construction — the exact strings each provider prints in its own
+ * profile/project URLs — never `email`, `plan`, `billing`, or org/team membership, none of which this
+ * module reads before or after this change. Netlify's `/api/v1/user` (checked against Netlify's own
+ * published OpenAPI schema, 2026-08-16) has no field of this kind — only `email`/`full_name`, both
+ * excluded by this same rule — so its checker still reads nothing back. Cloudflare's
+ * `/user/tokens/verify` endpoint verifies a token without returning any account identity at all, and a
+ * second request purely to obtain one is not "equally cheap" per this narrowing's own scope, so its
+ * checker is unchanged too. S3-compatible has no login concept for a bucket-scoped access key.
  *
  * Architectural role:
  * `features/deployments/static-publish` domain logic. `publish-agent-tools.ts`'s capabilities
@@ -64,30 +81,73 @@ const VERIFY_TIMEOUT_MS = 10_000;
  * itself is good), extended with the optional HTTP status so the human-facing message can be
  * specific ("HTTP 401") without this module needing to re-derive it from a discarded response.
  */
-type ProviderCredentialCheckResult = { readonly ok: true } | { readonly ok: false; readonly reason: "rejected" | "unreachable"; readonly statusCode?: number };
+type ProviderCredentialCheckResult =
+  | { readonly ok: true; readonly accountLabel?: string }
+  | { readonly ok: false; readonly reason: "rejected" | "unreachable"; readonly statusCode?: number };
 
 /** Shared "did the provider authenticate this request" classifier — every checker below ends with
  *  this same three-way read of a `Response` it must not otherwise inspect (no body read, matching
  *  `composio-key-probe.ts`'s "response body discarded entirely" discipline: an authenticated
  *  provider's error body can carry request/account detail that has no business in a cached,
- *  potentially agent-visible message). */
-function classifyProviderResponse(resp: Response): ProviderCredentialCheckResult {
+ *  potentially agent-visible message). Never reads the body on EITHER branch — {@link probe} is the
+ *  one place a success body is ever opened, and only for the two providers with a reviewed field to
+ *  read (see this file's header). */
+function classifyProviderResponse(resp: Response): { readonly ok: true } | { readonly ok: false; readonly reason: "rejected" | "unreachable"; readonly statusCode?: number } {
   if (resp.ok) return { ok: true };
   if (resp.status === 401 || resp.status === 403) return { ok: false, reason: "rejected", statusCode: resp.status };
   return { ok: false, reason: "unreachable", statusCode: resp.status };
 }
 
-/** Runs one bounded, injectable-`fetchFn` request and folds a network-layer failure (DNS, TLS,
- *  timeout, connection reset) into the same `"unreachable"` bucket a bad-but-answered response
- *  would produce — never throws, matching every checker's own "never throws" contract below. */
-async function probe(fetchFn: typeof fetch, url: string, init: RequestInit): Promise<ProviderCredentialCheckResult> {
+/** GitHub's `/user` always carries `login` for a valid token (checked field, not assumed) — public by
+ *  construction, the exact string GitHub itself prints in every profile/repo URL. Never `email`,
+ *  `plan`, or org/team membership, none of which this function reads. */
+function extractGitHubLogin(body: unknown): string | undefined {
+  if (typeof body !== "object" || body === null) return undefined;
+  const login = (body as Record<string, unknown>).login;
+  return typeof login === "string" && login !== "" ? login : undefined;
+}
+
+/** Vercel's `/v2/user` nests the account under `user` and requires `username` on BOTH response
+ *  shapes its own OpenAPI schema declares (the full shape and the token-scope-limited "limited"
+ *  shape; checked 2026-08-16) — public by construction, the exact string Vercel uses in
+ *  `vercel.com/<username>` URLs. Never `email`, `billing`, or `defaultTeamId`, none of which this
+ *  function reads. */
+function extractVercelUsername(body: unknown): string | undefined {
+  if (typeof body !== "object" || body === null) return undefined;
+  const user = (body as Record<string, unknown>).user;
+  if (typeof user !== "object" || user === null) return undefined;
+  const username = (user as Record<string, unknown>).username;
+  return typeof username === "string" && username !== "" ? username : undefined;
+}
+
+/**
+ * Runs one bounded, injectable-`fetchFn` request and folds a network-layer failure (DNS, TLS,
+ * timeout, connection reset) into the same `"unreachable"` bucket a bad-but-answered response
+ * would produce — never throws, matching every checker's own "never throws" contract below.
+ *
+ * @param extractAccountLabel - When supplied AND the response classifies as `ok`, the ONE place this
+ *   module opens a success body: parses it as JSON and runs this extractor over it. Best-effort only
+ *   — a body that fails to parse, or does not carry the expected field, degrades to no account label
+ *   rather than failing the whole verification (a provider's exact success-body shape is not this
+ *   module's contract to enforce). Omitted entirely for a provider with no reviewed field to read
+ *   (Netlify, Cloudflare Pages — see this file's header), so those checkers never open the body at
+ *   all, matching the pre-2026-08-16 behavior exactly.
+ */
+async function probe(fetchFn: typeof fetch, url: string, init: RequestInit, extractAccountLabel?: (body: unknown) => string | undefined): Promise<ProviderCredentialCheckResult> {
   let resp: Response;
   try {
     resp = await fetchFn(url, { ...init, signal: AbortSignal.timeout(VERIFY_TIMEOUT_MS) });
   } catch {
     return { ok: false, reason: "unreachable" };
   }
-  return classifyProviderResponse(resp);
+  const classified = classifyProviderResponse(resp);
+  if (!classified.ok || extractAccountLabel === undefined) return classified;
+  try {
+    const body: unknown = await resp.json();
+    return { ok: true, accountLabel: extractAccountLabel(body) };
+  } catch {
+    return { ok: true };
+  }
 }
 
 /** `GET /user` — the same "cheapest authenticated read" reasoning `composio-key-probe.ts`'s
@@ -95,14 +155,17 @@ async function probe(fetchFn: typeof fetch, url: string, init: RequestInit): Pro
  *  endpoint and returns 401 for a bad/revoked token, exactly the shape the live-reported bug needs
  *  distinguished from "unreachable". */
 async function verifyGitHubPagesCredential(fetchFn: typeof fetch, token: string): Promise<ProviderCredentialCheckResult> {
-  return probe(fetchFn, "https://api.github.com/user", { headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json" } });
+  return probe(fetchFn, "https://api.github.com/user", { headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json" } }, extractGitHubLogin);
 }
 
 async function verifyVercelCredential(fetchFn: typeof fetch, token: string): Promise<ProviderCredentialCheckResult> {
-  return probe(fetchFn, "https://api.vercel.com/v2/user", { headers: { Authorization: `Bearer ${token}` } });
+  return probe(fetchFn, "https://api.vercel.com/v2/user", { headers: { Authorization: `Bearer ${token}` } }, extractVercelUsername);
 }
 
 async function verifyNetlifyCredential(fetchFn: typeof fetch, token: string): Promise<ProviderCredentialCheckResult> {
+  // No extractor: Netlify's own OpenAPI schema for this endpoint (checked 2026-08-16) carries no
+  // public handle/slug field — only `email`/`full_name`, both excluded by this file's own privacy
+  // rule — so there is nothing safe here to read.
   return probe(fetchFn, "https://api.netlify.com/api/v1/user", { headers: { Authorization: `Bearer ${token}` } });
 }
 
@@ -206,6 +269,13 @@ export interface PublishCredentialVerificationResult {
   readonly status: "valid" | "invalid" | "unreachable";
   readonly message: string;
   readonly checkedAt: string;
+  /** The verified account's public login/username — GitHub `login`, Vercel `username` — present only
+   *  on a `"valid"` result for a provider whose success response carries one (see this file's header
+   *  for exactly which, and why). Never an email, plan, or org — the ONE field this module's
+   *  otherwise-total "never reads the response body" rule makes a deliberate, scoped exception for.
+   *  `publish-agent-tools.ts`'s capabilities handler surfaces this so the agent can default a
+   *  github-pages publish's `owner` to it instead of guessing (2026-08-16, Defect 1). */
+  readonly accountLabel?: string;
 }
 
 /**
@@ -264,7 +334,12 @@ async function computeVerificationResult(
 ): Promise<PublishCredentialVerificationResult> {
   const check = await checkProviderCredential(fetchFn, target, credential);
   const status = check.ok ? "valid" : check.reason === "rejected" ? "invalid" : "unreachable";
-  return { status, message: buildVerificationMessage(target, check), checkedAt: clock.nowIso() };
+  return {
+    status,
+    message: buildVerificationMessage(target, check),
+    checkedAt: clock.nowIso(),
+    ...(check.ok && check.accountLabel !== undefined ? { accountLabel: check.accountLabel } : {}),
+  };
 }
 
 /** Maps a decrypted `PublishConnectionInput` (`publish-credentials/types.ts`) to the plain shape

@@ -76,12 +76,15 @@ test("verifyPublishCredential: no credential configured returns null, makes no n
   assert.equal(cache.get({ workspaceId: WORKSPACE, target: "github-pages" }), undefined, "a stale cached entry must not survive a credential that no longer exists");
 });
 
-test("verifyPublishCredential: GitHub accepts (200) — status:'valid', cached", async () => {
+test("verifyPublishCredential: GitHub accepts (200) — status:'valid', cached, and captures ONLY `login` as accountLabel", async () => {
   const cache = new InMemoryPublishCredentialVerificationCache();
   const requestedUrls: string[] = [];
+  // A real `GET /user` response carries far more than `login` — `email`/`plan`/org membership/etc.
+  // This fixture includes two of those on purpose, so the assertions below prove they are excluded
+  // by what the code does, not merely absent from a minimal fixture.
   const fetchFn = (async (input: RequestInfo | URL) => {
     requestedUrls.push(String(input));
-    return new Response(JSON.stringify({ login: "octo" }), { status: 200 });
+    return new Response(JSON.stringify({ login: "octo", email: "octo@example.com", plan: { name: "pro" } }), { status: 200 });
   }) as typeof fetch;
 
   const result = await verifyPublishCredential(
@@ -95,9 +98,57 @@ test("verifyPublishCredential: GitHub accepts (200) — status:'valid', cached",
   assert.equal(requestedUrls[0], "https://api.github.com/user");
   assert.deepEqual(cache.get({ workspaceId: WORKSPACE, target: "github-pages" }), result);
   assert.equal(JSON.stringify(result).includes("real-token-must-not-appear"), false);
-  // The response body (`{login: "octo"}`) is never read at all — confirms the account-detail leak
-  // code review flagged cannot happen structurally, not merely "doesn't happen to happen" today.
-  assert.equal(JSON.stringify(result).includes("octo"), false);
+  // 2026-08-16 (Defect 1, live-publish finding): `login` IS now captured deliberately — it is about
+  // to be printed in a public URL a real publish already prints (`https://<login>.github.io/<repo>/`),
+  // so withholding it from the agent performing the publish protected nothing and forced it to guess
+  // an owner instead (the incident this fix exists for). This is a narrowing of the old "never reads
+  // the body at all" rule, not a reversal of it — everything else in the body must still never
+  // surface in the cached result.
+  assert.equal(result!.accountLabel, "octo");
+  assert.equal(JSON.stringify(result).includes("octo@example.com"), false, "email must never be captured");
+  assert.equal(JSON.stringify(result).includes("pro"), false, "plan must never be captured");
+});
+
+test("verifyPublishCredential: Vercel accepts (200) — captures ONLY `user.username` as accountLabel, never email/billing", async () => {
+  const cache = new InMemoryPublishCredentialVerificationCache();
+  const fetchFn = (async () =>
+    new Response(JSON.stringify({ user: { id: "u1", username: "acme-han", email: "han@example.com", billing: { plan: "pro" } } }), { status: 200 })) as typeof fetch;
+
+  const result = await verifyPublishCredential(
+    { credentialSource: fakeSource({ ok: true, token: "tok" }), cache, clock, fetchFn },
+    { workspaceId: WORKSPACE, target: "vercel" }
+  );
+
+  assert.ok(result);
+  assert.equal(result!.status, "valid");
+  assert.equal(result!.accountLabel, "acme-han");
+  assert.equal(JSON.stringify(result).includes("han@example.com"), false, "email must never be captured");
+  assert.equal(JSON.stringify(result).includes("billing"), false, "billing must never be captured");
+});
+
+test("verifyPublishCredential: Netlify and Cloudflare Pages acceptances leave accountLabel undefined — neither's checked endpoint carries a safe public identity field", async () => {
+  for (const target of ["netlify", "cloudflare-pages"] as const) {
+    const cache = new InMemoryPublishCredentialVerificationCache();
+    const fetchFn = (async () => new Response(JSON.stringify({ id: "x", email: "x@example.test", full_name: "X" }), { status: 200 })) as typeof fetch;
+    const result = await verifyPublishCredential({ credentialSource: fakeSource({ ok: true, token: "tok" }), cache, clock, fetchFn }, { workspaceId: WORKSPACE, target });
+    assert.ok(result);
+    assert.equal(result!.status, "valid");
+    assert.equal(result!.accountLabel, undefined, `${target} must not fabricate an accountLabel from a field it has no reviewed mapping for`);
+  }
+});
+
+test("verifyPublishCredential: a 200 response with an unparseable body still returns status:'valid' with no accountLabel — never throws", async () => {
+  const cache = new InMemoryPublishCredentialVerificationCache();
+  const fetchFn = (async () => new Response("not json", { status: 200 })) as typeof fetch;
+
+  const result = await verifyPublishCredential(
+    { credentialSource: fakeSource({ ok: true, token: "tok" }), cache, clock, fetchFn },
+    { workspaceId: WORKSPACE, target: "github-pages" }
+  );
+
+  assert.ok(result);
+  assert.equal(result!.status, "valid");
+  assert.equal(result!.accountLabel, undefined);
 });
 
 test("verifyPublishCredential: GitHub rejects (401) — status:'invalid', distinct from 'unreachable', never the token or the provider's response body", async () => {

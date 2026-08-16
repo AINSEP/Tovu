@@ -317,6 +317,50 @@ test("deployment_get_static_publish_capabilities reports per-provider readiness 
   assert.doesNotMatch(JSON.stringify(result), /should-never-appear/);
 });
 
+// 2026-08-16 — Defect fix: the assistant had no way to learn which GitHub account its own verified
+// token belongs to, so it guessed one from the human's email address and published to a repo the
+// human did not control (`leonaburime/tovu-demo1`, a 404 — the human's real account was
+// `leonaburime-ucla`). `accountLabel` closes the gap: it is the verified credential's own public
+// login/username, cached on `verify.ts`'s result and surfaced here, never re-derived or guessed.
+
+test("deployment_get_static_publish_capabilities: a verified credential's accountLabel is surfaced so the model can default 'owner' instead of guessing", async () => {
+  const { deps } = fakeDeps({
+    credentialSource: {
+      async resolve() { throw new Error("must not be called by this handler"); },
+      async isConfigured(input) { return input.target === "github-pages" ? { configured: true } : { configured: false, reason: "not configured" }; },
+    },
+  });
+  deps.workspaceId = WORKSPACE_ID_FALLBACK;
+  deps.publishCredentialSetRepo = fakeCredentialRepo([]);
+  deps.publishCredentialVerificationCache = new InMemoryPublishCredentialVerificationCache();
+  deps.publishCredentialVerificationCache.set(
+    { workspaceId: WORKSPACE_ID_FALLBACK, target: "github-pages" },
+    { status: "valid", message: "GitHub accepted this credential.", checkedAt: NOW, accountLabel: "leonaburime-ucla" }
+  );
+
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const capabilities = tool(buildRegistrations(deps, surfaceExchanges), "deployment_get_static_publish_capabilities");
+  const result = (await call(capabilities)) as { providers: { providerId: string; accountLabel: string | null }[] };
+
+  const github = result.providers.find((p) => p.providerId === "github-pages")!;
+  assert.equal(github.accountLabel, "leonaburime-ucla");
+
+  // Every OTHER provider has no cached verification at all in this test — `accountLabel` must degrade
+  // to `null`, never `undefined` (an agent-facing JSON result should not drop the key) and never throw.
+  for (const provider of result.providers.filter((p) => p.providerId !== "github-pages")) {
+    assert.equal(provider.accountLabel, null);
+  }
+});
+
+test("deployment_get_static_publish_capabilities's description tells the model to default 'owner' from accountLabel and still confirm with the human", () => {
+  const entry = staticPublishAgentToolCatalog.find((t) => t.name === "deployment_get_static_publish_capabilities")!;
+  assert.match(entry.description, /accountLabel/);
+  const preview = staticPublishAgentToolCatalog.find((t) => t.name === "deployment_preview_static_publish")!;
+  const ownerDescription = (preview.inputSchema as { properties: { owner: { description: string } } }).properties.owner.description;
+  assert.match(ownerDescription, /accountLabel/);
+  assert.match(ownerDescription, /confirm/i);
+});
+
 // 2026-08-16 — Defect fix: "ready" used to mean only "a credential row/env-var exists"
 // (`isConfigured()`), never whether the provider actually accepts it. These three tests are the
 // regression: a saved-but-unverified credential, a saved-but-INVALID one, and a saved credential
