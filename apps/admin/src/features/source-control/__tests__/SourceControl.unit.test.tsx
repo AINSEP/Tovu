@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import { SourceControl } from "../SourceControl";
 import type { SourceControlCredentialRowState, SourceControlCredentialsController } from "../hooks/use-source-control-credentials.hooks";
-import type { AdminSourceControlCredentialSummary, AdminSourceControlProviderId } from "../types";
+import type { AdminSourceControlCredentialSummary, AdminSourceControlProviderId } from "../../../lib/api";
 import { SOURCE_CONTROL_PROVIDERS } from "../rules";
 
 /**

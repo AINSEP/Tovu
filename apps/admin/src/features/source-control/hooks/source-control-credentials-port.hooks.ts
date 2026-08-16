@@ -2,7 +2,7 @@ import type {
   AdminSourceControlConnectionInput,
   AdminSourceControlCredentialSummary,
   AdminSourceControlCredentialsSnapshot,
-} from "../types";
+} from "../../../lib/api";
 
 /**
  * @file What `useSourceControlCredentials` needs from the outside world, as an interface rather

@@ -1,9 +1,9 @@
-import { ApiError } from "../../lib/api";
-import type {
-  AdminSourceControlConnectionInput,
-  AdminSourceControlCredentialSummary,
-  AdminSourceControlProviderId,
-} from "./types";
+import {
+  ApiError,
+  type AdminSourceControlConnectionInput,
+  type AdminSourceControlCredentialSummary,
+  type AdminSourceControlProviderId,
+} from "../../lib/api";
 
 /**
  * @file Pure data and computation for the Source Control page — no React, no fetch, no `t()` calls

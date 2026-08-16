@@ -5,7 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { FetchQueryProvider } from "../../../lib/fetch-query";
 import { useSourceControlCredentials } from "../hooks/use-source-control-credentials.hooks";
 import { createFakeSourceControlCredentialsPort } from "../hooks/source-control-credentials-dependencies.hooks";
-import type { AdminSourceControlCredentialSummary } from "../types";
+import type { AdminSourceControlCredentialSummary } from "../../../lib/api";
 
 /**
  * @file `useSourceControlCredentials`, exercised against `createFakeSourceControlCredentialsPort` —
