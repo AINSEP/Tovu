@@ -1202,3 +1202,60 @@ to export and remains open on the running server.
 `theme.pages[slug] !== undefined` check `pages.ts`'s `GET /:slug` handler already runs, mirroring what
 `route-manifest.ts` already does for export purposes — one shared exclusion list (or a small named
 helper) rather than two independently-maintained copies of "which page ids are template shells."
+
+---
+
+## Security page (credential inventory) under Operations — owner wants this, deliberately deferred (2026-08-15)
+
+Owner's question, verbatim: *"Should we have, like, a Security tab under Operations and then an Access
+Tokens tab? In case we need it in more than one place, or is that too messy?"* Answer: not messy, and
+not speculative — the scattering already exists. Owner asked for it to be recorded and revisited, not
+built now.
+
+**The measured state.** Eight sealed-credential stores exist (or are landing) in this repo:
+
+| Store | Repo file |
+|---|---|
+| Site / BYOK credentials | `src/db/sqlite/site-credential-repo.sqlite.ts` |
+| Publish targets | `src/db/sqlite/publish-credential-repo.sqlite.ts` |
+| Composio connector credentials | `src/db/sqlite/composio-connector-credential-repo.sqlite.ts` |
+| Composio config | `src/db/sqlite/composio-config-repo.sqlite.ts` |
+| Admin execution credentials | `src/db/sqlite/execution-credential-repo.sqlite.ts` |
+| External MCP servers | `src/db/sqlite/external-mcp-repo.sqlite.ts` |
+| Media provider credentials | `src/db/sqlite/media-provider-credential-repo.sqlite.ts` |
+| Source control (in flight this session) | `source_control_credential_sets` |
+
+And five admin screens already accept a token: `features/settings/SettingsUi.tsx`,
+`features/settings/ComposioKeyField.tsx`, `features/ai-assistant/AiAssistant.tsx` (BYOK),
+`features/deployment/StaticSiteTab.tsx`, `features/source-control/SourceControl.tsx`.
+
+**Scope it to READ + REMOVE. Never a second place to enter a token.** Two entry points for one secret
+is the "which row is authoritative" bug, and it would also undo work already paid for: the Static Site
+tab's redesign specifically pulled the credential OUT of an "Advanced" disclosure to make it Step 1
+inline, on the owner's own direct read that hiding a mandatory first step was backwards
+(`PublishCredentialsSection`'s header comment records the three passes it took). A Security page that
+re-hosts the connect form re-hides that step one room further away.
+
+The two jobs are genuinely different, and only one of them is built:
+- **Connect** — task-shaped, belongs in the flow that needs it. Already correct on Static Site.
+- **Inventory** — "what secrets does this install hold, when were they saved, kill that one."
+  Cross-cutting. **Nothing does this today.** That is the entire gap this page exists to close.
+
+**The load-bearing constraint — do not get this wrong.** A button that deletes Tovu's row does NOT
+revoke the credential at the provider. It stays live on GitHub/Vercel/Cloudflare until someone revokes
+it there. Label it **"Remove from Tovu"**, never "Revoke", and link out to the provider's own
+revocation page. Calling it "Revoke" ships exactly the defect the owner caught on the connected-
+credential row the same day — copy asserting an action the system never performed (see U3 in
+`ADS-memory/reports/continuity/2026-08-15-session-4-handoff.md`, and `CredentialStepDone`'s doc
+comment for why that timestamp says "saved" and not "updated"). Same family of bug, higher stakes.
+
+**Shape.** One plain page under Operations, no tab bar — a tab bar with a single tab in it is noise.
+Add tabs when a second concern actually arrives; obvious candidates already exist (Activity Log is a
+`soon: true` placeholder in this same group, and Roles & Permissions sits over in People). One row per
+stored credential: provider, what it is for, when it was saved, and a deep link back to the screen
+that owns it.
+
+**Known cost when someone picks this up:** a complete inventory means reading from all eight stores,
+and two of those surfaces — BYOK and Composio — are already flagged as broken or unfinished elsewhere
+in the backlog. Either confront them or scope the first pass to the stores that are healthy and say so
+on screen, rather than silently listing a subset as if it were everything.
