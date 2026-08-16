@@ -3304,16 +3304,36 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 /* The done state's `<summary>` — same marker-plus-text shape as `.deployment-step-head` above, but
    as a single clickable row (native `<summary>`, cursor already signals it) rather than a
    heading-plus-subtitle pair, since a settled fact needs one line, not two. `list-style: none` +
-   the `::-webkit-details-marker` reset strip the browser's own disclosure triangle — the row's own
-   `<details>`/`open` state plus hover/focus are signifier enough, and a second, unstyled triangle
-   competing with the step marker would be the same "which glyph means what" confusion this whole
-   redesign exists to remove. */
+   the `::-webkit-details-marker` reset strip the browser's own disclosure triangle — a second,
+   unstyled triangle competing with the step marker at the START of the row would be the same "which
+   glyph means what" confusion this whole redesign exists to remove. That triangle is not simply
+   gone, though (owner-reported, 2026-08-15: the row was clickable with nothing on screen saying so)
+   — `.deployment-step-summary-action` below restores a real expand affordance at the row's OTHER
+   end instead, where it cannot compete with the step marker. */
 .deployment-step-summary {
   display: flex; align-items: center; gap: var(--space-3); cursor: pointer; list-style: none;
   font-size: var(--text-sm); color: var(--fg-2);
 }
 .deployment-step-summary::-webkit-details-marker { display: none; }
-.deployment-step-summary-text { min-width: 0; }
+/* `flex: 1` so `.deployment-step-summary-action` is pushed to the row's far edge instead of
+   trailing the timestamp mid-row. */
+.deployment-step-summary-text { min-width: 0; flex: 1; }
+/* The restored expand affordance — a text label plus a chevron, together, at the END of the summary
+   row. A label alone doesn't say WHERE the toggle is; a chevron alone (especially unstyled) repeats
+   the "mystery glyph" problem the details-marker reset exists to avoid — paired, they read as one
+   unambiguous "click here to expand" the way the step marker at the start does not compete with. */
+.deployment-step-summary-action {
+  display: flex; align-items: center; gap: var(--space-1); flex-shrink: 0;
+  font-size: var(--text-xs); font-weight: 600; color: var(--muted);
+}
+/* Down-chevron at rest (collapsed = "more below"), rotated to point up once `<details open>` — one
+   glyph rotated rather than swapped for a second icon, same approach `.cms-group-chevron` already
+   uses elsewhere in this admin. */
+.deployment-step-summary-action svg { transition: transform 0.16s ease; }
+.deployment-step-done[open] .deployment-step-summary-action svg { transform: rotate(180deg); }
+@media (prefers-reduced-motion: reduce) {
+  .deployment-step-summary-action svg { transition: none; }
+}
 /* Collapsed by default (no `open` attribute — the mirror image of the not-yet-connected state,
    which renders with no `<details>` at all so it can never be collapsed). Quieter surface than the
    not-yet-connected `.deployment-step` above: `--surface-2` rather than `--surface`, and the fields

@@ -104,6 +104,32 @@ export function StepDoneIcon({ size = 12 }: { size?: number }) {
 }
 
 /**
+ * The disclosure chevron on a collapsed `<summary>` (`StaticSiteTab.tsx`'s `CredentialStepDone`),
+ * rotated 180° by CSS when its `<details>` is open.
+ *
+ * Exists because that summary had NO expand affordance at all (owner-reported, 2026-08-15): the row
+ * was clickable and its stylesheet had deliberately stripped the browser's native triangle
+ * (`list-style: none` plus the `::-webkit-details-marker` reset), on the reasoning that "the row's
+ * own hover/focus are signifier enough". They are not — a reader with a rotated access token had no
+ * way to discover the row could be opened to replace it. This is that missing signifier, restored
+ * on purpose rather than by putting the native triangle back: the stripped triangle would sit at
+ * the START of the row, competing with the step marker for "which glyph means what", which is the
+ * problem the reset was avoiding. This one sits at the END, beside a visible text label that says
+ * what opening does.
+ *
+ * `aria-hidden` like every other icon here, and for the usual reason: `<summary>` already exposes
+ * its own expanded/collapsed state to a screen reader, and the label beside this glyph already says
+ * the rest in words.
+ */
+export function DisclosureChevron({ size = 14 }: { size?: number }) {
+  return (
+    <svg {...LINE_ICON} width={size} height={size}>
+      <path d="m6 9 6 6 6-6" />
+    </svg>
+  );
+}
+
+/**
  * The ✓ or ✗ beside a capability row.
  *
  * Two distinct SHAPES, not one shape in two colors — a check and a cross are told apart with no

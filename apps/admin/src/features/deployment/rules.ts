@@ -166,10 +166,46 @@ export function cliInstalledStatus(deployClis: readonly AdminDeployCliStatus[], 
  * checks this SERVER process's PATH, which is not necessarily the same shell the assistant's own
  * spawned CLI runs in — the assistant, running in that actual shell, can give a second, definitive
  * answer the admin's own detection cannot.
+ *
+ * **Only valid for a tool that is NOT detected.** Handing this sentence to someone whose CLI is
+ * already on PATH is the self-contradiction {@link publishAssistantRequest} exists to prevent —
+ * callers must go through that chooser rather than calling this directly.
  * @complexity O(1).
  */
 export function publishAssistantRequestForTool(tool: PublishCliTool): string {
   return `Install the ${tool.name}, then confirm it's on my PATH.`;
+}
+
+/**
+ * The counterpart sentence for a tool that IS already detected: skip installing, just do the thing.
+ * Names the destination rather than only the tool, because "publish with the GitHub CLI" is
+ * ambiguous once a second GitHub-driven target exists, and the reader has a specific one selected.
+ *
+ * The PATH caveat {@link publishAssistantRequestForTool} documents does not need restating here.
+ * If the assistant's own shell turns out not to have the tool that this server's PATH check found,
+ * the assistant discovers that when it tries to run it and says so — which is strictly better than
+ * asking a reader whose CLI is visibly detected to go install it again.
+ * @complexity O(1).
+ */
+export function publishAssistantRequestForInstalledTool(tool: PublishCliTool, targetLabel: string): string {
+  return `Publish my static export to ${targetLabel} with the ${tool.name}.`;
+}
+
+/**
+ * Picks the request that matches what the screen is simultaneously CLAIMING about this tool.
+ *
+ * This exists because the two facts were rendered independently and contradicted each other
+ * (2026-08-15, owner-reported): the row said `GitHub CLI · gh · Detected on this server` and then,
+ * directly below it, offered "Install the GitHub CLI, then confirm it's on my PATH." to copy. One
+ * chooser keyed on the SAME `installed` boolean the pill renders makes that state impossible to
+ * reach — the detected pill and the copy line can no longer disagree, because they read one value.
+ *
+ * Deliberately not GitHub-specific. Every provider with a `cliToolId` routes through here, so a
+ * fifth target that ships a CLI gets the fixed behaviour by existing rather than by remembering.
+ * @complexity O(1).
+ */
+export function publishAssistantRequest(tool: PublishCliTool, targetLabel: string, installed: boolean): string {
+  return installed ? publishAssistantRequestForInstalledTool(tool, targetLabel) : publishAssistantRequestForTool(tool);
 }
 
 /** One static-publish destination this tab's provider picker can select — pairs a
