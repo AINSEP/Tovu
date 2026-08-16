@@ -16,14 +16,83 @@ Branch: `general-work`, ~500 commits ahead of `origin/main`, **nothing pushed**
 ```
 Read AI-Dev-Shop/AGENTS.md, then this handoff.
 
+START WITH THE SECTION "NOT DONE — the complete list". It is the whole remaining worklist,
+grouped A-E, verified against the tree rather than copied from agent reports.
+
 Do NOT re-derive: the sealed-credential design, the four-provider set, Contract v2's connection
 union, or the tri-state slug work. All settled and recorded.
 
-Two things are queued and NOT started: the UX pass on the Static Site tab (owner: "it looks just
-awful"), and the CUSTOM PROVIDER tab. Both are described below with the owner's own requirements.
+Highest value first: A1-A4 (the feature's purpose is still unproven end to end), then B5 (a
+5-minute fix for a trap the owner hit three times), then C1-C2 (the two races that will fire
+during the first real publish).
 
 Messages to running agents DO NOT DELIVER in this harness. Put everything in the spawn prompt.
+TaskStop also kills only ONE task per call when several share a name — call it until it errors.
 ```
+
+---
+
+## NOT DONE — the complete list, nothing omitted
+
+Ordered roughly by what blocks the most. Everything below was verified against the tree at
+`9d1339f`, not taken from an agent's report.
+
+### A. The feature's own purpose is still unproven
+
+| # | Not done | Evidence |
+|---|---|---|
+| A1 | **A real publish has NEVER run.** No token has deployed anything, ever. | Every green test mocks HTTP or avoids the network; the e2e spec says so in its own header |
+| A2 | **Assistant tool tests never ran.** `9d1339f` carries **542 lines** of in-flight tests for the two publish tools. The tree compiles; that is not the same as passing. | checkpoint commit, `tsc` clean only |
+| A3 | **Nobody verified the assistant can actually INVOKE the tools.** They are registered; that is not proof the live tool surface exposes them. This was step 3 of the agent's brief and it never got there. | — |
+| A4 | **`deployment_execute_static_publish`'s approval gate is unverified.** It was wired with instructions to gate it behind this repo's existing risk tier. Nobody confirmed the gate actually fires. | `f96da9d` |
+
+### B. Owner-requested, not started
+
+| # | Not done |
+|---|---|
+| B1 | **Custom provider tab** — base URL + access token. Three possible designs, none chosen. See below. |
+| B2 | **UI/UX pass on the Static Site tab** — owner: *"it looks just awful."* |
+| B3 | **"Publish directly from here" does not explain what it is** (it is the publish *target*, vs the credential which is *who you are*). |
+| B4 | **The Cloudflare Pages credential row layout is broken** — Account ID floats right, help text collides. Only row with two fields. |
+| B5 | **GitHub Pages / Vercel env-var aliases were promised and NOT added.** `credentials.ts:52-53` still accepts only `GITHUB_TOKEN` / `VERCEL_TOKEN`. Netlify and Cloudflare got aliases; these two did not — and this is the exact trap the owner hit **three times** (`VERCEL_ACCESS_TOKEN`, `GITHUB_ACCESS_TOKEN`). |
+
+### C. Terra's review — 7 CONFIRMED findings, ZERO fixed
+
+Full report: `ADS-memory/reports/external-audit/runs/2026-08-15-terra-xhigh-deployment-slug-code-review.md`.
+Line numbers predate the `9eaa935` UI redesign — locate by behaviour, not by line.
+
+| # | Severity | Finding |
+|---|---|---|
+| C1 | HIGH | A delayed initial status GET **overwrites a run you just started and tears down polling** while the server job continues. `use-static-export.hooks.ts`, `use-static-publish.hooks.ts`. **Most likely to fire during the first real publish.** |
+| C2 | MEDIUM | **Poll errors retry forever** behind a stuck spinner — no retry limit, no surfaced error, action stays disabled. Very likely locally, because `tsx watch` restarts on every save. |
+| C3 | MEDIUM | A **stale preview repopulates after you edit the target** — UI shows `acme/old` while publish goes to `acme/new`. |
+| C4 | MEDIUM | **Double-click Publish sends two POSTs**; the second's conflict error stays on screen even though the first publish is running fine. |
+| C5 | MEDIUM | **Dockerfile editor silently loses concurrent edits** — no ETag/revision/If-Match. Needs a server-side half. |
+| C6 | HIGH | **Backfill collision heuristic has a false negative** — it only scans themes currently on disk. Already applied to the live DB. Mitigating fact: the old column was `.notNull().default(false)`, so "deliberate false" was never distinguishable from "never touched". Pre-backfill DB copy is in the session scratchpad. |
+| C7 | LOW | *(fixed)* the false `"NOT imported by tool-registrations"` doc comment — **this one IS done**, verified. |
+| C8 | SUSPECTED | `verify.ts`'s SQLite→Postgres boolean verifier still rejects the now-legal `NULL` tri-state. No production caller found. |
+
+### D. Carried over from session 2, still not done
+
+| # | Not done |
+|---|---|
+| D1 | **The Docker image has never built successfully.** Jini's blocking lockfile fix IS now committed (`00eb67ab` in Jini), so stage 1 should pass — but the build was never re-run. **Do not pipe it through `tail`**; a failed build returns `tail`'s exit code and reads as success. |
+| D2 | **The deployment test set was never run**: `src/export/__tests__/` and the four `{export-site,deployments-list,deployment-overview,dockerfile-source}-route` tests. |
+| D3 | **Full Site deploy** — discussed only, never started. AWS is first in the provider list per the owner. |
+| D4 | **Provider registry (data, not types)** — queued, never built. |
+| D5 | **BYOK admin surface is broken** — stale model list, no model picker in the composer. On the Docker critical path: it is the only way a container user gets an assistant. |
+
+### E. Repo hygiene and environment
+
+| # | Not done |
+|---|---|
+| E1 | **Nothing is pushed.** ~500 commits local only on `general-work`. |
+| E2 | **~35 loose `.png` screenshots** in the repo root (many added this session), plus `explore-snapshot.md` and `ops/database-journal.db`. Delete or gitignore. |
+| E3 | **Five stale git worktrees** still registered from earlier sessions, pointing at scratchpad paths that may no longer exist. `git worktree prune` is safe. |
+| E4 | **Pre-existing test failures**, not caused here: 6 in `post-template-site-serving.test.ts`, 5 in `assistant/__tests__/database-recovery.test.ts`, 2 in `menus.test.ts`, ~20 `Mock<Procedure\|Constructable>` tsc errors in `apps/admin`. |
+| E5 | **New Static Site strings are English-only** in ~8 non-English locale tables. Falls back to the key; nothing breaks. |
+| E6 | **The e2e per-test timeout was raised 45s → 90s** for a cold-compile flake. Generous enough to hide a real regression. Revisit. |
+| E7 | `/page-shell` is publicly reachable. `rebuildNavLocationBindings` fails on every boot with a UNIQUE constraint (non-fatal, unexplained). |
 
 ---
 
