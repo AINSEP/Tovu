@@ -111,10 +111,38 @@ not acting on it.
 
 ### Sibling adapter audit — `vercel.ts`, `netlify.ts`, `cloudflare-pages.ts`
 
-Audited (not yet fixed — reporting per the brief: "report what you find even if you do
-not fix it").
+Audited. **Found the same bug class in two of the three. Not fixed** — out of this
+dispatch's assigned scope (Defect A + Defect B only); reporting per the brief.
 
-*(audit in progress — see next update in this file)*
+1. **`vercel.ts`'s `pollVercelDeployment`** (lines 165-180) — **identical bug**, not
+   merely similar. Same 30-attempt poll loop shape, running strictly after the Vercel
+   deployment was already created server-side (irreversible by the time this loop
+   starts). `readVercelJson` (line 199-205) throws `'Vercel returned a non-JSON
+   response.'` on any unparseable body, and unlike GitHub's now-fixed version, this loop
+   has **zero** tolerance for any response shape short of parsed JSON — not even the
+   404-equivalent case GitHub already had before today's fix. Any transient/edge/empty
+   response mid-poll propagates straight out of `publish()` and would misreport an
+   already-created Vercel deployment as failed, the same live symptom Defect A was filed
+   for. Recommended fix shape: identical to what I just shipped for GitHub — fold a
+   `readVercelJson` parse failure into "keep polling," bounded by the same fixed budget.
+
+2. **`netlify.ts`'s `pollNetlifyDeploy`** (lines 272-285) — same pattern, same risk,
+   running after `createNetlifyDeploy` + per-file uploads have already happened
+   (irreversible). `readNetlifyJson` has the same zero-tolerance-for-non-JSON shape.
+   Same recommended fix.
+
+3. **`cloudflare-pages.ts`** — structurally different, narrower window. There is no
+   multi-attempt poll loop analogous to the other three targets; the single `POST
+   .../deployments` call (line 975) is itself the irreversible step, and its response is
+   read exactly once, immediately, via `readCloudflareJson` (line 980). If that specific
+   response body were malformed/truncated despite the deployment having been created
+   server-side, the same misreport would happen — but it's a single-shot read of the
+   creation call's own response, not a poll running well after several already-confirmed
+   steps, so the exposure window is much smaller (one HTTP response, not up to 30 polls
+   over ~1 minute). I did **not** individually audit the other 14 `readCloudflareJson`
+   call sites in this file (project lookup/creation, asset upload, custom-domain setup,
+   DNS record CRUD) for their own irreversibility — flagging them as unaudited, not
+   claiming they're clean.
 
 ## Defect B — credential "ready" means "a row exists," not "verified against the provider"
 
