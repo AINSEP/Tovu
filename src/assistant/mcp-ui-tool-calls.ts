@@ -43,6 +43,17 @@ export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = new Set([
   // public internet with a write-scoped external credential — at least as consequential as a soft
   // delete — so it belongs on this list for the identical reason, not a lesser one.
   "deployment_execute_static_publish",
+  // 2026-08-15 — `deployment_propose_custom_provider_credential` (`features/deployments/
+  // publish-agent-tools.ts`) holds up the SAME shape `content_post_delete`/
+  // `deployment_execute_static_publish` do: its handler opens a `SurfaceExchangeStore` exchange and
+  // parks on `ctx.emitSurface` until this endpoint delivers the human's form submission/cancel.
+  // Saving an S3-compatible credential is a real, external-account-scoped write — at least as
+  // consequential as the publish tool above, so it belongs on this list for the identical reason.
+  // `deployment_generate_bucket_hosting_setup` (the OTHER new tool from the same spec, §3a) is
+  // deliberately ABSENT here — it is a plain read that never opens an exchange, so admitting it would
+  // only widen this endpoint's reach for no reason (same reasoning the two existing read-only
+  // static-publish tools are absent for, in the test file's own comment).
+  "deployment_propose_custom_provider_credential",
   // The `/search` composer capability's real execution path (`apps/admin/src/features/plugins/
   // composer-capabilities.ts`'s `allowlisted-tool-call` binding) — a direct, immediate browser call
   // with no agent turn in between, exactly what that binding kind exists for.
