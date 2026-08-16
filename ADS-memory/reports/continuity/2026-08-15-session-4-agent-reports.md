@@ -434,6 +434,49 @@ and S3 PUT responses carry no public URL the way the Vercel/Netlify APIs do. The
 five fields is fine"* was permission to exceed a narrow shared shape, **not a limit**. Agent pushback
 on this was correct and is accepted.
 
+### D-12. The `request-volume` flake is COLD-IMPORT COST, not agent contention — theory refuted
+The prior session's working theory ("resource contention — 3 agents + 22 sequential vitest boots")
+is **wrong**, and this is now settled by direct instrumentation rather than left as a note.
+
+WorkspaceHooksTests ran the file **18x sequentially with no other heavy vitest process active**:
+4 timeouts (~22%), always the exact text `"Test timed out in 5000ms"` at the `it()` line itself —
+Vitest's outer `testTimeout`, not a `waitFor`-specific message.
+
+Instrumented phase timing across 4 successful runs:
+`await import("../features/redirects/hooks/use-redirects.hooks")` alone = **2.5s–3.8s of a 2.6s–3.9s
+total**. `renderHook` ~26ms, `waitFor` ~53ms. The mocked fetch/render/assert path is not slow at all.
+
+Mechanism: it is the **FIRST test in the file**, so it uniquely pays the cold Vite/Vitest transform
+for that hook's whole dependency graph *plus* every shared dependency (jsdom, `@testing-library/react`,
+`lib/fetch-query`) that later tests then reuse already-warm — which is why every subsequent `it()` in
+the file finishes in 30–400ms regardless of which new feature module it imports.
+
+So the real cause is an **inherently narrow margin** (2.6s–4.2s successful vs a 5000ms budget) that
+ordinary OS scheduling jitter tips over. Background CPU load — an active browser was measured at 100%+
+during some runs — is sufficient on its own. Concurrent runners would plausibly make it worse; there
+is **no evidence either way**, since none were running.
+
+**Fix:** raised **only this one test** to 15000ms (third arg to `it()`), not the global default —
+every other test in the file has ample headroom. The documenting comment carries the instrumented
+numbers, the sample size, the exact failure text, and what was refuted. Verified 6/6 clean after.
+Confidence: **high** on root cause, **medium-high** on 15000ms (≈4x the worst observed success, not
+derived from a distribution). Commit `44bdd19e`.
+
+**This is materially different from the E6 timeout raise** (e2e 45s→90s), which is flagged as
+"generous enough to hide a real regression" precisely because it was raised without a diagnosis.
+This one is raised *because of* a diagnosis, with the evidence in the file.
+
+**Coordinator correction:** the whole "run task 3 last, keep the machine quiet" sequencing this
+session was built on the contention hypothesis. That hypothesis was wrong. The cost was small
+(ordering only), but the lesson is that an undiagnosed working theory in a handoff should not drive
+scheduling decisions until someone instruments it.
+
+### OPEN LEAD — possible systemic cold-import flake
+That agent explicitly did **not** audit whether other test files have similarly tight cold-import
+margins. If "first test in the file pays the whole transform cost" is general, other files may sit
+just under the 5000ms default too, and would present as unrelated random flakes. Worth a sweep if
+this pattern recurs. Nobody has looked.
+
 ### Harness note
 SendMessage delivered on **attempt 8** after 7 consecutive silent failures that all returned
 `success: true`. The channel is **unreliable, not dead** — worth retrying, never worth relying on.
