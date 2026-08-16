@@ -33,6 +33,7 @@ function exportControllerFixture(overrides: Partial<StaticExportController> = {}
     run: undefined,
     isRunning: false,
     loadError: null,
+    pollError: null,
     triggerError: null,
     triggering: false,
     clean: false,
@@ -64,7 +65,9 @@ function publishControllerFixture(overrides: Partial<StaticPublishController> = 
     run: undefined,
     isPublishing: false,
     loadError: null,
+    pollError: null,
     publishError: null,
+    publishing: false,
     publish: vi.fn().mockResolvedValue(undefined),
     t: fakeT,
     ...overrides,
@@ -477,6 +480,14 @@ describe("StaticSiteTab — preview and publish gating", () => {
         usePublishCredentialsHook={() => credentialsControllerFixture()}
       />,
     );
+    expect(screen.getByRole("button", { name: "Publishing…" })).toBeDisabled();
+  });
+
+  it("REGRESSION (C4): the Publish button disables from `publishing` alone, before any run confirms isPublishing — the window a double-click could otherwise slip a second POST through", () => {
+    // `publishing: true, isPublishing: false` is exactly the state between clicking Publish and the
+    // POST's response arriving — pre-fix, `busy` only read `isPublishing`, so the button stayed
+    // enabled for that whole window even though a publish was already in flight.
+    renderTab({ publishController: { target: "vercel", projectName: "my-site", isPublishing: false, publishing: true } });
     expect(screen.getByRole("button", { name: "Publishing…" })).toBeDisabled();
   });
 
