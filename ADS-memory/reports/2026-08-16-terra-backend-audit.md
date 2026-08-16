@@ -86,6 +86,61 @@ audited:
 
 `apps/**` was excluded from this dispatch by design and has had no audit at all.
 
+## Fix pass — finding #1 (2026-08-16, publish-correctness-2)
+
+**Status: FIXED. Commit `e754ade6`.**
+
+Confirmed by direct read: `deployment_execute_static_publish` (`publish-agent-tools.ts:858`, pre-fix)
+called `publishStaticSite` directly with nothing to check — the admin route's own `currentRun` slot
+(`publish-site.ts`) was a private, un-exported module variable, so there was structurally nothing for
+the tool handler to check even if it had tried.
+
+New `static-publish/publish-run.ts` extracts the shared slot, mirroring `features/deployments/
+export-run.ts`'s own established pattern for the identical problem class (a domain tool-registrations
+file must never import `src/server/**`, so the shared state has to live on the `features/` side for
+BOTH a `src/server/**` route and a domain tool file to import it). Two entry points: `startPublishRun`
+(fire-and-forget, `publish-site.ts`'s existing 202/poll shape) and `runPublishAndAwait` (blocks and
+returns the outcome, for `deployment_execute_static_publish`, which has no separate poll step —
+the tool call itself blocks on the human's confirmation AND the publish). Both write the ONE shared
+`currentRun` slot, so either caller now sees the other's in-flight run.
+
+Guard placement in the tool handler: immediately before the actual publish call (right after
+`decision === "confirm"`, no `await` in between), NOT before the confirmation dialog opens. The
+dialog can sit open for an arbitrary time awaiting a human's answer, during which another publish
+could start and finish — a check made before `askOnce` would not actually close the race; this is
+the last synchronous point before the real work starts.
+
+**RED-first**, without touching git state: temporarily hand-reverted just the guard + `runPublishAndAwait`
+call back to a direct `publishStaticSite` call (Edit tool only, no stash — avoids any shared-index
+risk), ran the new cross-path regression test, confirmed it failed with the tool call racing straight
+into the intercepted Vercel API (`PROVIDER_ERROR`) instead of being refused, then restored the fix.
+
+New test: `publish-site-route.test.ts`'s `"a concurrent call through the ASSISTANT TOOL while the
+HTTP route's own publish is in flight is refused, not raced"` — drives BOTH the real HTTP route
+(`createApp`/`createRouteDeps`) and the assistant tool (`buildStaticPublishRegistrations`) against the
+SAME `deps` object a single server process would actually share, proving the guard is genuinely
+cross-caller, not merely within one of them.
+
+**Deliberately NOT touched**: the separate, already-disclosed cross-process gap
+(`export-run.ts`'s "DISCLOSED CROSS-PROCESS GAP" comment, replicated in `publish-run.ts`'s own header
+for the same reason) — this slot is still only single-flight-correct within one OS process; the admin
+server and the standalone agent daemon each load their own copy. Per the brief: closing that needs a
+cross-process lock or routing the daemon's call back over HTTP, a design change to propose separately,
+not a patch to fold into this fix.
+
+**Fresh evidence, current HEAD (`e754ade6`)**:
+- `npx tsc -p tsconfig.json --noEmit` — 0 errors, full project.
+- `node --import tsx --test "src/features/deployments/__tests__/*.test.ts"
+  "src/features/deployments/static-publish/__tests__/*.test.ts"` — 123/123 pass.
+- `node --import tsx --test "src/server/__tests__/routes/export-site-route.test.ts"
+  "src/server/__tests__/routes/publish-site-route.test.ts"
+  "src/server/__tests__/routes/publish-credentials-route.test.ts"` — 29/30 pass. The one failure
+  (`publish-site preview: github-pages ... credentialGuidance` wording mismatch) is PRE-EXISTING and
+  UNRELATED — traced to commit `5b035a93` ("accept GH_TOKEN/GITHUB_ACCESS_TOKEN... aliases"), which
+  changed the real guidance string without updating this test. Confirmed present both before AND
+  after this fix (same assertion, same diff, reproduced by temporarily reverting my own changes).
+  Not touched — outside this finding's scope; flagging for whoever owns that area next.
+
 ## Method note for the next dispatch
 
 Terra gravitated to the publish/credential subsystem — the area it was given the most context
