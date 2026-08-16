@@ -162,6 +162,7 @@ import { registerAdminModuleStatusRoute } from "./routes/admin/system/module-sta
 import { registerAdminDeploymentOverviewRoute } from "./routes/admin/system/deployment-overview";
 import { registerAdminDockerfileSourceRoute } from "./routes/admin/system/dockerfile-source";
 import { registerAdminExportSiteRoutes } from "./routes/admin/system/export-site";
+import { registerAdminPublishCredentialsRoutes } from "./routes/admin/system/publish-credentials";
 import { registerAdminPublishSiteRoutes } from "./routes/admin/system/publish-site";
 import { registerAdminDeploymentsListRoute } from "./routes/admin/deployments/list";
 import { createFormsAdminModule } from "./modules/forms-admin";
@@ -809,6 +810,10 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // (`features/deployments/static-publish/`, wrapping `@jini-ai/devops/deploy`). `system.publish`-
   // gated for BOTH the trigger and the status poll — see that route file's own header for why.
   registerAdminPublishSiteRoutes(app, routeDeps);
+  // Deployment panel → Static Site tab's credential form: CRUD over saved provider connections
+  // (`publish_credential_sets`). `system.publish`-gated on every verb — see that route file's own
+  // header for why this doesn't split trigger/read the way `publish-site.ts` does.
+  registerAdminPublishCredentialsRoutes(app, routeDeps);
   // Deployment panel → Full Site tab: read-only snapshot of the deployments domain
   // (`features/deployments/`). `deployments.read`-gated, not `system.read` — see that route
   // file's own header for why this one gets its own permission.
