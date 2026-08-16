@@ -1910,15 +1910,21 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    `button` rule's filled-primary look entirely (background/border/radius/color), same reasoning
    `.list-table td button:not([class*="btn-"])` documents further up this file for why a bare
    `button` selector needs an explicit opt-out rather than relying on specificity alone. */
-/* `overflow-x: auto` + `-webkit-overflow-scrolling: touch` — same treatment `.table-scroll` gets
-   further up this file, for the same reason: `display: flex` with no wrap means a row wider than
-   its container clips rather than reflows. Found on the Deployment panel's own 5 tabs at this
-   file's own documented 390px canary width (`.table-scroll`'s comment) — "History" fell off the
-   right edge with no way to reach it, since none of `TabBar.tsx`'s existing two consumers (Themes'
-   tier tabs, Pages' two tabs) had short enough content plus enough tabs to hit this before.
-   `flex-shrink: 0` on the items is required alongside it: without it, flex's default shrink-to-fit
-   squeezes each tab's padding/text instead of triggering the scroll this rule adds. */
-.tab-bar { display: flex; gap: 0.3rem; border-bottom: 1px solid var(--border); margin-bottom: 1.3rem; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+/* `flex-wrap: wrap` (2026-08-16, superseding the `overflow-x: auto` approach below) — `display:
+   flex` with no wrap means a row wider than its container either clips (no scroll affordance) or
+   scrolls invisibly. Both bit the Deployment panel's own 5 tabs: first "History" clipped off the
+   right edge outright at the file's documented 390px canary width (`.table-scroll`'s comment);
+   then, with `overflow-x: auto` added to fix that, opening the admin chat pane narrowed the
+   content column enough to trigger the same overflow again, but this time it scrolled instead of
+   clipped — and macOS's overlay scrollbar is invisible until scrolled, so it still read as broken
+   rather than reachable. `flex-wrap: wrap` sidesteps both failure modes by reflowing extra tabs
+   onto a second line instead of overflowing horizontally at all, so there is no scrollbar to
+   need. Re-verify against the 390px canary and the chat-pane-narrowed case if this rule changes
+   again — and re-check `TabBar.tsx`'s other consumers (Themes' tier tabs, Pages' two tabs, Media,
+   Source Control), since this class is shared and none of those had enough tabs to hit either
+   failure mode before. `flex-shrink: 0` on the items is still required: without it, flex's default
+   shrink-to-fit squeezes each tab's padding/text before wrap kicks in. */
+.tab-bar { display: flex; flex-wrap: wrap; gap: 0.3rem; border-bottom: 1px solid var(--border); margin-bottom: 1.3rem; }
 .tab-bar-item {
   display: inline-flex; align-items: center;
   background: none; border: none; border-bottom: 2px solid transparent; border-radius: 0;
