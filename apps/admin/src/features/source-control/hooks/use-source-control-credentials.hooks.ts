@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-import { describeApiError } from "../../../lib/api";
+import { describeApiError, type AdminSourceControlCredentialSummary, type AdminSourceControlProviderId } from "../../../lib/api";
 import { useFetchQuery } from "../../../lib/fetch-query";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { t as defaultT, sourceControlCredentialSaveErrorMessage, sourceControlCredentialsLoadErrorMessage } from "../source-control-i18n";
@@ -14,7 +14,6 @@ import {
   sourceControlCredentialRowReadyToSave,
   type SourceControlCredentialFormFields,
 } from "../rules";
-import type { AdminSourceControlCredentialSummary, AdminSourceControlProviderId } from "../types";
 import { defaultSourceControlCredentialsPort } from "./source-control-credentials-dependencies.hooks";
 import type { SourceControlCredentialsPort } from "./source-control-credentials-port.hooks";
 
