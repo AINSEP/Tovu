@@ -185,6 +185,72 @@ test("cloudflare-pages still names CLOUDFLARE_ACCOUNT_ID explicitly even when th
   assert.match(result.reason, /CLOUDFLARE_ACCOUNT_ID/);
 });
 
+test("github-pages falls back to GH_TOKEN (the gh CLI's own name) when GITHUB_TOKEN is unset", async () => {
+  const source = createEnvPublishCredentialSource(WORKSPACE, { GH_TOKEN: "gh-cli-token" } as NodeJS.ProcessEnv);
+  const result = await source.resolve({ workspaceId: WORKSPACE, target: "github-pages" });
+  assert.equal(result.ok, true);
+  if (!result.ok) throw new Error("unreachable");
+  assert.equal(result.token, "gh-cli-token");
+});
+
+test("github-pages falls back to GITHUB_ACCESS_TOKEN — the name operators reach for by analogy", async () => {
+  const source = createEnvPublishCredentialSource(WORKSPACE, { GITHUB_ACCESS_TOKEN: "gh-access-token" } as NodeJS.ProcessEnv);
+  const result = await source.resolve({ workspaceId: WORKSPACE, target: "github-pages" });
+  assert.equal(result.ok, true);
+  if (!result.ok) throw new Error("unreachable");
+  assert.equal(result.token, "gh-access-token");
+});
+
+test("github-pages prefers GITHUB_TOKEN over its own aliases when more than one is set", async () => {
+  const source = createEnvPublishCredentialSource(WORKSPACE, {
+    GITHUB_TOKEN: "primary",
+    GH_TOKEN: "alias-1",
+    GITHUB_ACCESS_TOKEN: "alias-2",
+  } as NodeJS.ProcessEnv);
+  const result = await source.resolve({ workspaceId: WORKSPACE, target: "github-pages" });
+  assert.equal(result.ok, true);
+  if (!result.ok) throw new Error("unreachable");
+  assert.equal(result.token, "primary");
+});
+
+test("github-pages' failure reason names every alias it checked when none is set", async () => {
+  const source = createEnvPublishCredentialSource(WORKSPACE, {} as NodeJS.ProcessEnv);
+  const result = await source.resolve({ workspaceId: WORKSPACE, target: "github-pages" });
+  assert.equal(result.ok, false);
+  if (result.ok) throw new Error("unreachable");
+  assert.match(result.reason, /GITHUB_TOKEN/);
+  assert.match(result.reason, /GH_TOKEN/);
+  assert.match(result.reason, /GITHUB_ACCESS_TOKEN/);
+});
+
+test("vercel falls back to VERCEL_ACCESS_TOKEN — the name operators reach for by analogy", async () => {
+  const source = createEnvPublishCredentialSource(WORKSPACE, { VERCEL_ACCESS_TOKEN: "vercel-access-token" } as NodeJS.ProcessEnv);
+  const result = await source.resolve({ workspaceId: WORKSPACE, target: "vercel" });
+  assert.equal(result.ok, true);
+  if (!result.ok) throw new Error("unreachable");
+  assert.equal(result.token, "vercel-access-token");
+});
+
+test("vercel prefers VERCEL_TOKEN over VERCEL_ACCESS_TOKEN when both are set", async () => {
+  const source = createEnvPublishCredentialSource(WORKSPACE, {
+    VERCEL_TOKEN: "primary",
+    VERCEL_ACCESS_TOKEN: "alias-1",
+  } as NodeJS.ProcessEnv);
+  const result = await source.resolve({ workspaceId: WORKSPACE, target: "vercel" });
+  assert.equal(result.ok, true);
+  if (!result.ok) throw new Error("unreachable");
+  assert.equal(result.token, "primary");
+});
+
+test("vercel's failure reason names every alias it checked when none is set", async () => {
+  const source = createEnvPublishCredentialSource(WORKSPACE, {} as NodeJS.ProcessEnv);
+  const result = await source.resolve({ workspaceId: WORKSPACE, target: "vercel" });
+  assert.equal(result.ok, false);
+  if (result.ok) throw new Error("unreachable");
+  assert.match(result.reason, /VERCEL_TOKEN/);
+  assert.match(result.reason, /VERCEL_ACCESS_TOKEN/);
+});
+
 // --- createDbPublishCredentialSource -------------------------------------------------------------
 
 test("resolves the provider's DEFAULT saved connection — never 'ambiguous' even with 2+ saved", async () => {
