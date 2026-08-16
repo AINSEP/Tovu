@@ -14,7 +14,7 @@ import {
   type ToolRegistration,
 } from "@jini-ai/cms/core";
 import { deploymentsAgentToolCatalog } from "./agent-tools";
-import { readDockerfileSource, writeDockerfileSource } from "./dockerfile";
+import { readDockerfileSource, writeDockerfileSourceWithIfMatch } from "./dockerfile";
 import { getExportRunSnapshot, startExportRun } from "./export-run";
 // TYPE-ONLY — fully erased at compile time, so this creates NO runtime require() and cannot
 // recreate the circular-load crash a VALUE import of `#src/export/index` caused inside
@@ -29,9 +29,16 @@ import type { RouteDeps } from "#src/server/routes/types";
  * header for why this domain, unlike Recovery/Database, has no token-gated/human-only entry).
  *
  * Authorization shape: none of `startExportRun`/`getExportRunSnapshot`/`readDockerfileSource`/
- * `writeDockerfileSource`/`DeploymentsReadRepoPort`'s methods call `authorize()` internally (they
- * mirror the plain domain functions the admin routes already call inline), so every handler below
- * calls the kit's `requireToolPermission` itself — the same shape `recovery`/`database` already use.
+ * `writeDockerfileSourceWithIfMatch`/`DeploymentsReadRepoPort`'s methods call `authorize()`
+ * internally (they mirror the plain domain functions the admin routes already call inline), so
+ * every handler below calls the kit's `requireToolPermission` itself — the same shape
+ * `recovery`/`database` already use.
+ *
+ * 2026-08-15 (Terra audit finding C5): `deployment_set_dockerfile` now requires an `ifMatch` etag
+ * and goes through `writeDockerfileSourceWithIfMatch` rather than the old unconditional
+ * `writeDockerfileSource`, so a human editing the same file in the admin UI's Dockerfile tab and
+ * this tool can no longer silently overwrite each other — see that function's own doc in
+ * `dockerfile.ts` for the full decision record.
  */
 
 /**
@@ -127,9 +134,29 @@ export function buildDeploymentsRegistrations(routeDeps: DeploymentsToolDeps): T
     },
 
     deployment_set_dockerfile: async (ctx) => {
-      const contents = requireString(requireInputRecord(ctx.input), "contents");
+      // Both fields validated before the permission check, same order `deployment_trigger_export`
+      // above already uses — a shape rejection should never need an authorize() round trip first.
+      const input = requireInputRecord(ctx.input);
+      const contents = requireString(input, "contents");
+      const ifMatch = requireString(input, "ifMatch");
       await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "system.write", entityType: "dockerfile-source" });
-      return writeDockerfileSource(contents);
+
+      const result = writeDockerfileSourceWithIfMatch(contents, ifMatch);
+      if (!result.ok) {
+        // Thrown, not returned — `ToolExecutor` reads a thrown error as the failed execution and
+        // surfaces its `.message` to the model, so the message itself IS the model's only channel
+        // for "what happened and what to do next" (Terra audit finding C5's "agent check and fix"
+        // requirement). Names the concrete recovery path (re-read, reconcile, retry) rather than a
+        // bare "conflict" — and includes the current contents inline so the model can reconcile in
+        // the same turn instead of spending a second tool call on deployment_get_dockerfile first
+        // (it MAY still call it, e.g. to double-check nothing changed again in the meantime).
+        throw new Error(
+          `deployment_set_dockerfile: refused — the Dockerfile changed on the server since your 'ifMatch' ('${ifMatch}') was read; its current etag is now '${result.current.etag}'. ` +
+            `The file's CURRENT contents (as of right now, echoed here so you don't have to call deployment_get_dockerfile again just to see them) are:\n\n${result.current.exists ? result.current.contents : "(the file does not exist)"}\n\n` +
+            `Reconcile your intended change against these current contents, then retry deployment_set_dockerfile with contents built on top of them and ifMatch set to '${result.current.etag}'. If you want to confirm nothing has changed a second time before retrying, call deployment_get_dockerfile again first. This will not resolve on retry with the same ifMatch.`
+        );
+      }
+      return result.snapshot;
     },
   };
 
