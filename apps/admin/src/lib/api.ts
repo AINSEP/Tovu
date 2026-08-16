@@ -316,6 +316,56 @@ export interface AdminPublishCredentialsSnapshot {
   executionMode: AdminPublishExecutionMode;
 }
 
+/**
+ * The three providers the Source Control page can save a connection for. Deliberately its own
+ * union, NOT reusing {@link AdminPublishCredentialProviderId} — that type is a deploy-target id by
+ * design (aliased to {@link AdminStaticPublishTargetId} so the two can never drift), and none of
+ * GitLab, Bitbucket, or a *source* GitHub account is a static-publish target. See
+ * `src/db/schema.ts`'s `sourceControlCredentialSets` doc comment (server-side) for the full "why a
+ * second table/type, not a wider union" reasoning this type mirrors on the client.
+ */
+export type AdminSourceControlProviderId = "github" | "gitlab" | "bitbucket";
+
+/**
+ * One saved connection's non-secret summary — never carries the token itself, and (like
+ * {@link AdminPublishCredentialSummary}) deliberately carries no masked/last-4 hint either. A
+ * stored token is never read back once saved; this is the fact a row's UI has to render its
+ * connected/not-connected state from.
+ */
+export interface AdminSourceControlCredentialSummary {
+  readonly id: string;
+  readonly providerId: AdminSourceControlProviderId;
+  readonly label: string;
+  readonly configured: true;
+  readonly isDefault: boolean;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+/**
+ * What a create/update call sends. A closed discriminated union on `providerId`, same shape
+ * {@link AdminPublishConnectionInput} uses for the same reason: a provider that needs a field
+ * beyond the universal `token` gets it here, typed, rather than every provider silently carrying
+ * every other provider's optional fields. Bitbucket is the one provider here that needs a second
+ * field — its API authenticates a token against the username it belongs to, not the token alone
+ * (see `apps/admin/src/features/source-control/rules.ts`'s `SOURCE_CONTROL_PROVIDERS` for the
+ * citation).
+ */
+export type AdminSourceControlConnectionInput =
+  | { providerId: "github"; token: string }
+  | { providerId: "gitlab"; token: string }
+  | { providerId: "bitbucket"; token: string; username: string };
+
+/** Mirrors `GET .../system/source-control/credentials`'s response shape. No `executionMode` field
+ *  here — unlike static publish, this page has no CLI-vs-hosted distinction to disclose. */
+export interface AdminSourceControlCredentialsSnapshot {
+  // Mutable array, not `readonly` — `useSourceControlCredentials` seeds local `useState` from this
+  // field directly, and a `readonly` array there is not assignable to that mutable state without a
+  // cast (same reasoning `AdminPublishCredentialsSnapshot.credentials` follows implicitly by also
+  // being mutable).
+  credentials: AdminSourceControlCredentialSummary[];
+}
+
 /** Mirrors `features/deployments/types.ts`'s `EnvironmentRecord`. */
 export interface AdminDeploymentEnvironment {
   workspaceId: string;
@@ -2606,6 +2656,43 @@ export const api = {
    *  resolves rather than throwing. */
   deletePublishCredential: (id: string) =>
     request<void>(`/workspaces/${WORKSPACE_ID}/system/publish/credentials/${id}`, { method: "DELETE" }),
+
+  // Source Control page → credential management (`src/server/routes/admin/system/
+  // source-control-credentials.ts`) — one saved GitHub/GitLab/Bitbucket identity connection per
+  // provider, stored encrypted server-side and never read back. Structurally mirrors the
+  // publish-credentials block above; see `AdminSourceControlCredentialSummary`'s own doc for
+  // exactly what a saved row can and cannot reveal. `source-control.credentials.write`-gated on
+  // every verb server-side — NOT the same permission as the publish-credentials calls above (see
+  // that route's own header for why connecting a source-control identity is not a publish
+  // trigger).
+  /** Every configured source-control credential for this workspace. */
+  listSourceControlCredentials: () =>
+    request<AdminSourceControlCredentialsSnapshot>(`/workspaces/${WORKSPACE_ID}/system/source-control/credentials`),
+  /** Creates one named connection. `409 DUPLICATE_LABEL` (surfaced as a thrown `ApiError` with that
+   *  `code`) if this workspace already has a credential with the same `(providerId, label)`.
+   *  `isDefault` is optional — omitted entirely (not `false`) lets the server apply its own
+   *  default-assignment rule (a provider's first-ever saved connection), rather than this admin
+   *  guessing at it. */
+  createSourceControlCredential: (input: { label: string; connection: AdminSourceControlConnectionInput; isDefault?: boolean }) =>
+    request<{ credential: AdminSourceControlCredentialSummary }>(`/workspaces/${WORKSPACE_ID}/system/source-control/credentials`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  /** Updates a credential's label, connection, and/or default status. Omitting `connection`
+   *  entirely — never sending it as an empty object or blank fields — is what keeps the stored
+   *  secret untouched; see `use-source-control-credentials.hooks.ts`'s header for why the form can
+   *  never send a half-blank one. */
+  updateSourceControlCredential: (id: string, input: { label?: string; connection?: AdminSourceControlConnectionInput; isDefault?: boolean }) =>
+    request<{ credential: AdminSourceControlCredentialSummary }>(`/workspaces/${WORKSPACE_ID}/system/source-control/credentials/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(input),
+    }),
+  /** `204`, idempotent — deleting an id that is already gone (a stale list, a double click) still
+   *  resolves rather than throwing. Not called anywhere on this page today (there is no delete
+   *  affordance in the UI — replacing a token PUTs over the existing row), kept for parity with
+   *  the publish-credentials block above. */
+  deleteSourceControlCredential: (id: string) =>
+    request<void>(`/workspaces/${WORKSPACE_ID}/system/source-control/credentials/${id}`, { method: "DELETE" }),
 
   /** Full Site tab (`src/server/routes/admin/deployments/list.ts`) — read-only snapshot of the
    *  `deployments` domain's environments/targets/releases/runs. `deployments.read`-gated. */
