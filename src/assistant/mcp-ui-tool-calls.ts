@@ -36,6 +36,13 @@ import { demoToolsEnabled } from "./demo-choices-tool";
  */
 export const MCP_UI_REDEEMABLE_TOOL_IDS: ReadonlySet<string> = new Set([
   "content_post_delete",
+  // 2026-08-15 — `deployment_execute_static_publish` (`features/deployments/publish-agent-tools.ts`)
+  // holds up the SAME shape `content_post_delete` does: its handler opens a `SurfaceExchangeStore`
+  // exchange and parks on `ctx.emitSurface` until this endpoint delivers the human's confirm/cancel
+  // click, exactly the mechanism this allowlist exists to gate. Publishing sends the site to the
+  // public internet with a write-scoped external credential — at least as consequential as a soft
+  // delete — so it belongs on this list for the identical reason, not a lesser one.
+  "deployment_execute_static_publish",
   // The `/search` composer capability's real execution path (`apps/admin/src/features/plugins/
   // composer-capabilities.ts`'s `allowlisted-tool-call` binding) — a direct, immediate browser call
   // with no agent turn in between, exactly what that binding kind exists for.

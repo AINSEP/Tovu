@@ -14,14 +14,16 @@
  * count below the `deployments` line was measured by building the real registrations and
  * attributing each id to its declaring catalog, not carried forward from the previous edit; the
  * counts below had drifted in six places. `deployments` (5 of 5, all wired) and `static-publish`
- * (1 of 2 — `deployment_execute_static_publish` is deliberately unwired, see its own slice comment
- * below) were both added 2026-08-15 and are not part of that 2026-08-05 measurement pass):
+ * were both added 2026-08-15 and are not part of that 2026-08-05 measurement pass. `static-publish`
+ * itself changed again later the same day: all 3 of its catalog entries are now wired — see its own
+ * slice comment below for why `deployment_execute_static_publish` moved from deliberately-unwired to
+ * wired-but-human-gated):
  *   content-types (6 of 8)   forms (6 of 6)      identity (15 of 15)  comments (7 of 7)
  *   members (4 of 4)         newsletter (14/14)  media (4 of 4)       widgets (12 of 12)
  *   menus (5 of 5)           database (7 of 9)   recovery (5 of 7)    plugins (2 of 2)
  *   workspace (2 of 4)       settings (4 of 8)   entries (5 of 5)     taxonomy (6 of 7)
  *   seo (6 of 6)             redirects (6 of 7)  integrations (5/5)   post (6 of 6)
- *   themes (4 of 4)          deployments (5 of 5) static-publish (1 of 2)
+ *   themes (4 of 4)          deployments (5 of 5) static-publish (3 of 3)
  * Recovery counts 5, not 6: `backup_create_restore_point` appears in both its catalog and
  * Database's, and Recovery is the one that declares it unwired (see {@link DERIVED_RISK_BY_TOOL_ID}
  * for why that collision has to resolve exactly this way). Counting it on both sides is what makes
@@ -241,13 +243,16 @@ const DOMAIN_SLICES: readonly DomainSlice[] = [
   // domain above, none of its 5 entries is excluded.
   { domain: "deployments", build: buildDeploymentsRegistrations, risk: deploymentsDerivedRisk },
   // Static publish is deliberately its OWN slice, not folded into `deployments` above — see
-  // `features/deployments/publish-agent-tools.ts`'s file header. Only
-  // `deployment_preview_static_publish` (a pure read) is wired; `deployment_execute_static_publish`
-  // carries `actorClassRule: "confirmer-must-equal-own-delegatedBy"` — the same class as
-  // `backup_execute_restore` and `database_execute_migrate_forward` — and stays deliberately unwired:
-  // no human-confirmation transport exists yet for a publish "ceremony", and the only real execute
-  // path is the cookie-authed admin route (`server/routes/admin/system/publish-site.ts`), never a
-  // tool call.
+  // `features/deployments/publish-agent-tools.ts`'s file header. All 3 entries are wired as of
+  // 2026-08-15: `deployment_preview_static_publish` and `deployment_get_static_publish_capabilities`
+  // are pure reads; `deployment_execute_static_publish` is genuinely destructive (publishes to the
+  // public internet with a write-scoped external credential) but is now reachable — gated behind a
+  // human confirmation dialog held open through the same MCP-UI surface-exchange mechanism
+  // `content_post_delete` uses (`assistant/surface-exchanges.ts`), not the
+  // `actorClassRule`/`ExecutionDelegate` mechanism `backup_execute_restore`/
+  // `database_execute_migrate_forward` still wait on. The only OTHER execute path remains the
+  // cookie-authed admin route (`server/routes/admin/system/publish-site.ts`); this tool now gives the
+  // assistant an equivalent, human-approved one.
   { domain: "static-publish", build: buildStaticPublishRegistrations, risk: staticPublishDerivedRisk },
   { domain: "plugins", build: buildPluginsRegistrations, risk: pluginsDerivedRisk },
   { domain: "workspace", build: buildWorkspaceRegistrations, risk: workspaceDerivedRisk },
