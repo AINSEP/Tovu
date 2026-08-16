@@ -933,6 +933,112 @@ that repo, not a Phase 2 item of mine.
 
 ---
 
+## Note to my future self
+
+You have no memory of writing this. The repo has moved on — the Security page exists now and almost
+certainly does not look like what's drawn in this document. Below is what won't be obvious from just
+re-reading §0–§17: the uncertainty behind the confident-sounding calls, what I tried and threw out,
+where I expect the plan to be wrong, and what surprised me about this codebase's CSS. Read this
+BEFORE trusting any specific section — it tells you which ones to lean on and which to re-derive.
+
+**Uncertain about, beyond what §16 admits to:**
+
+- §0's whole Create-scope argument rests on ONE observed fact: Static Site/Source Control only ever
+  write ONE default row per provider today. If `security-tokens` built something where the page
+  itself already does multi-row Create — which is plausible, since I never actually saw their work,
+  only inferred it from doc comments written before this session — then §0 is solving a problem that
+  no longer exists and you should delete it rather than defend it.
+- I don't actually know if "Security page → Access Tokens tab" implies MORE tabs are coming. I read it
+  as a list-of-one (matching Source Control's `SOURCE_CONTROL_TAB_IDS = ["providers"]` precedent) but
+  the phrasing has the same shape as "Deployment → Static Site tab," which has FOUR siblings. If a
+  second Security tab shows up in the built page, that's not drift from my spec, that's the owner
+  answering a question I only guessed at.
+- Tier 2 (§8 — BYOK, Composio, media provider, external MCP) is MY invention, not the owner's. Their
+  literal words only ever named GitHub/Cloudflare/Netlify. I built Tier 2 to satisfy the session-6
+  handoff's "eight stores, nothing can answer what secrets does this install hold" framing, which is a
+  coordinator's synthesis, not a direct quote. If Tier 2 didn't get built, that might be the RIGHT
+  call, not a gap — check whether the owner ever actually saw and reacted to that framing before
+  assuming Tier 2 is still wanted.
+- "Make default" (§7a) as an immediate write with no confirm — I never checked whether flipping
+  `isDefault` has any live side effect (an in-flight publish reading it mid-request, say). If it
+  turns out not to be as inert as I assumed, it needs the confirm dialog I deliberately left off.
+
+**Considered and rejected — don't re-litigate these:**
+
+- A `<h3>` per provider group, for a11y purism. Rejected: 7 provider headings plus 2 tier headings
+  makes heading-navigation on this page noisier than useful. Provider names are visual labels over a
+  row group, not a third heading tier. If this page ever grows to feel like it needs real per-provider
+  landmarks, that's a sign the page has outgrown two tiers, not a sign the heading call was wrong.
+- `.list-table` instead of the accordion-card shape for token rows. Rejected: `.list-table` is this
+  app's dense-read pattern (Posts, Users) and every row here needs to open into a real form
+  (Replace). Forcing that into table cells would be a worse fit than reusing the accordion idiom
+  Static Site/Source Control already proved out.
+- A reveal/eye-icon toggle on Tier 2's `••••{tail}` rows. Rejected hard, not just "not now" — see §10.
+  There is nothing behind those four characters to reveal; a toggle button that reveals nothing new is
+  a fake affordance, worse than no button.
+- One merged "GitHub" card covering both github-pages and github (source control). Rejected explicitly
+  — this is the exact trap the session-6 handoff named by hand ("github-pages vs github mismatch a
+  naive reuse gets silently wrong"). Don't merge them even if it looks tidier; §1 explains why.
+- Building the publish-outcome surface states as Tovu code, since the chat pane that shows them is
+  visually part of this admin. Rejected once I actually found the file — `document.ts` lives in the
+  Jini repo, a separate package this dispatch (even in Phase 2) has no write mandate over. §15 is a
+  spec for someone else, and I nearly missed that boundary because the RENDERED result looks local.
+
+**Where I expect this plan to be wrong, and what to check first:**
+
+- Everything in §3 (file/component names) is almost certainly wrong versus what got built. Don't
+  patch around it — read the real tree first (§17 item 1 already says this, it's worth repeating
+  because it's the single highest-value five minutes of the restart).
+- §14's tab-bar conclusion was reached by reading CSS, never by looking at a rendered wrapped bar.
+  It's probably right (the reasoning is sound: container-level border-bottom, per-item selected
+  indicator, `.tab-bar-dot` inside the flex item not a sibling) but "probably right from reading" and
+  "confirmed" are different claims — don't let §14's confident tone read as verified.
+- §7b assumes `.confirm-dialog` (native `<dialog>`, the `[open]`-scoped display trap) is what
+  `security-tokens` reused for Remove. If they built a different confirm primitive, adopt THEIRS —
+  don't force a second dialog pattern onto a page that already has one working.
+- The whole masked-tail table in §1/§10 was read directly from `schema.ts` comments, which are
+  unusually trustworthy in this file (they're original author's design rationale, not inferred
+  claims) — but re-verify the four "has a tail" stores (`site_assistant_credentials`,
+  `admin_execution_credentials`, `media_provider_credentials`, `composio_config`) against whatever the
+  real API actually returns by the time Tier 2 gets built. A schema column existing doesn't guarantee
+  the route serializing it still includes it.
+
+**What surprised me about this admin's CSS — useful before writing new rules of your own:**
+
+- The `[open]`-scoped `display` trap (an author `display` rule on a bare dialog/details class beats
+  the UA `:not([open]) { display: none }` regardless of specificity — origin outranks specificity)
+  is independently rediscovered and re-explained in FULL, from scratch, in the comments above
+  `.confirm-dialog`, `.image-preview-modal`, AND `.theme-explore-preview-dialog`. Three separate
+  authors hit the same live bug and each wrote their own paragraph about it rather than one of them
+  linking back to an earlier one. That tells you this fact is genuinely non-obvious even to people who
+  already know CSS well — budget for it being non-obvious to you too on restart, and scope `display`
+  to `[open]` on the very first pass, not after your own dialog renders open-by-default.
+- `--surface: oklch(100% 0 none)` uses the literal keyword `none` for the hue component, not `0` —
+  and the file's own comment shows this was a real, shipped, previously-unnoticed bug (pink-tinted
+  disabled buttons) before someone worked out why. `color-mix(in oklch, ...)` treats a POWERLESS hue
+  (`none`) completely differently from an ordinary hue angle that happens to be zero. Never write
+  `oklch(X% 0 0)` for a neutral in this file if it will ever be `color-mix`'d against something with
+  real chroma — write `none`.
+- `.visually-hidden`'s `top: 0; left: 0` is load-bearing, not a stray reset — without an explicit
+  offset, `position: absolute` on an element whose entire ancestor chain is `position: static`
+  resolves against the INITIAL containing block (the document), not anywhere near the element's
+  visual location. One shared utility class, used 22 times, produced 341px of phantom scroll on ONE
+  page before this was diagnosed. If you add a new visually-hidden element anywhere, don't assume its
+  positioning is inert just because it's 1px×1px.
+- This codebase's CSS comments are themselves a decision log, not just documentation — competing
+  agents' claims get cross-checked against each other in-line, owner quotes are reproduced verbatim,
+  and reversed decisions say so explicitly ("SUPERSEDED", "INVERTED", with the date and the reason).
+  Match that density in `access-tokens.css` rather than writing sparse property-only comments — it's
+  clearly a deliberate house style here, not incidental verbosity from any one author.
+- The per-scope ESLint complexity gate (hard 9/9 cyclomatic/cognitive, `eslint.config.mjs` `F06 option
+  B`) shapes component boundaries as much as design intent does — components like `ExportRunCounts`/
+  `ExportRunFailures`/`ProviderCliRow` exist ONLY because an inline `.map()` callback or ternary would
+  have pushed their parent over budget, not because they're independently reusable. When splitting
+  `TokenRow`/`TokenRowFields`/etc. in Phase 2, expect to hit this gate and expect the "correct" split
+  to sometimes look over-fragmented for no visual reason — that's the lint rule talking, not bad taste.
+
+---
+
 ## COORDINATOR RULING — §0 Create-scope: ANSWERED, ADOPTED (2026-08-16)
 
 The Phase 1 note-to-self records §0 as the one decision most worth a second look and states the
@@ -975,3 +1081,69 @@ canary. `flex-wrap: wrap` is live and its e2e coverage is in
 `development/e2e/deployment-tabbar-scroll.spec.ts` (4 tests, confirmed RED before the fix). Judging
 how a wrapped two-row bar actually LOOKS across Media, Pages, ThemeExplore, Source Control and
 Deployment remains Phase 2 item 2 and is still unverified visually.
+
+---
+
+## OWNER RULING — page shape: ONE LIST, not two surfaces (2026-08-16)
+
+Supersedes this spec's layout assumption. The §0 tiering **survives**, but as a per-row capability
+difference, not as a separate surface. Phase 2 must lay out against this, not against Phase 1's
+two-surface reading.
+
+The owner proposed a Security page under Operations with an Access Tokens tab plus a SECOND tab
+carrying the Settings-style wrapped icon-tab row, sub-divided `All / Media providers / Operations /
+AI`. Presented with the alternative, they chose the alternative:
+
+**One tab. One list. Every credential in the install. The category row is a FILTER on that list.**
+
+```
+OPERATIONS
+Security
+
+  Access Tokens  |  (future tabs)
+  ─────────────
+
+  [ search: github____________ ]
+
+  All   Source control   Hosting   Media   AI   Ops
+  ───
+
+  ▸ GitHub               2 tokens      [+ Add]
+      prod token          default ▾
+      30-day test
+  ▸ Cloudflare           1 token       [+ Add]
+  ▸ Netlify              — none —      [+ Add]
+  ▸ Cloudinary (media)   1 key         [Replace] [Remove]
+  ▸ BYOK (AI)            1 key         [Replace] [Remove]
+```
+
+Rationale: from a person's point of view a Cloudinary key and a GitHub token are the same kind of
+thing — a secret this install holds. Splitting them across two tabs makes someone learn a rule
+("is this an access token or an other-credential?") that has no obvious answer and no payoff. One
+filtered list has no rule to learn.
+
+**Consequences:**
+
+- **Tier 2 is no longer deferred.** All 8 stores are listed in v1.
+- **The "Showing 7 of 8 known credential stores" disclosure is DELETED.** There is nothing to
+  disclose once the page shows everything. Do not reintroduce it.
+- Tier 1 rows: multiple named tokens, `[+ Add]`, default selector. Tier 2 rows: `[Replace]`
+  `[Remove]` + deep-link to where that setting actually lives. Same list, same visual rhythm.
+- Categories start from `All / Source control / Hosting / Media / AI / Ops`, `All` default. Every
+  store lands in exactly one.
+
+**On the visual reference.** The owner pointed at Settings' wrapped icon-tab row as the look they
+want for the filter — that is `SettingsDialogShell` from `@jini-ai/ui`, rendered in page mode by
+`apps/admin/src/features/settings/SettingsUi.tsx`. **Borrow the styling, do not adopt the
+component.** `apps/admin/src/features/deployment/Deployment.tsx`'s header documents why it was
+rejected for a full-page screen: it bundles its own vertical sidebar plus a kicker/title/subtitle
+header that fights a page's own `.page-header`. Use `components/TabBar.tsx` for the page's top-level
+tab row, and give the category filter its own class rather than overloading `.tab-bar` — it is a
+filter control, not a tab bar.
+
+**Also settled since Phase 1:** no migration. Existing rows carry the sentinel label `"default"`
+(`PUBLISH_CREDENTIAL_ROW_LABEL` / `SOURCE_CONTROL_CREDENTIAL_ROW_LABEL`, both UI-side constants).
+Render a friendly computed name for those at display time and persist a real label only on a
+user-initiated rename/replace/create. A write-on-load migration was proposed and rejected: it writes
+on read, races on the `(workspaceId, providerId, label)` UNIQUE index, never runs on an install
+nobody opens, and fails silently.
