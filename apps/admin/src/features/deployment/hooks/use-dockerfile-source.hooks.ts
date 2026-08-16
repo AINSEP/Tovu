@@ -159,6 +159,18 @@ export function useDockerfileSource(
 
   const { isDirty } = useDirtyGuard(draft, snapshot ? (snapshot.contents ?? "") : null);
 
+  // Synchronous duplicate-submit guard for `save()` — a ref, not the `saving` (state) value below,
+  // because a true double-click/double-Enter can fire two `save()` calls in the same synchronous
+  // tick, before React has re-rendered with `saving: true`. `saving` (derived from
+  // `saveMutation.status`) still exists to let the UI disable the Save button, but the guard that
+  // actually stops a second PUT from ever being sent has to be synchronous — same shape and same
+  // reasoning as `use-static-publish.hooks.ts`'s own `publishingRef` (C4 fix, fixed the same night).
+  // Without this, two rapid Saves could both read the SAME `snapshot.etag` as `ifMatch` (neither has
+  // committed yet), send two writes, and let the second one's `412` come back for a save the
+  // operator never actually made twice on purpose — a self-inflicted version of the exact race this
+  // whole change exists to close.
+  const savingRef = useRef(false);
+
   async function copy() {
     if (!draft) return;
     try {
@@ -176,6 +188,11 @@ export function useDockerfileSource(
     // `!snapshot`), but a direct caller (a test, or a future caller) gets a clean no-op instead of
     // sending a request the server would refuse for a reason that has nothing to do with THIS call.
     if (!snapshot) return;
+    // A second call while the first is still in flight is a duplicate submit — ignore it here too,
+    // not just via the UI's `saving`-gated disabled Save button, so the race can't still send two
+    // PUTs (C4 fix; see `savingRef`'s own doc above for why this check must be synchronous).
+    if (savingRef.current) return;
+    savingRef.current = true;
     // A fresh attempt deserves a fresh judgment, not a conflict banner left over from a previous
     // one — see this file's header.
     setSaveConflict(null);
@@ -199,6 +216,11 @@ export function useDockerfileSource(
         return;
       }
       // any other failure: already surfaced through saveMutation.error -> saveError below
+    } finally {
+      // Unconditional and in `finally` specifically — every branch above (success, conflict,
+      // ordinary failure) must release this guard, or one failed save would permanently wedge
+      // every future Save click into a silent no-op with no error surfaced anywhere.
+      savingRef.current = false;
     }
   }
 
