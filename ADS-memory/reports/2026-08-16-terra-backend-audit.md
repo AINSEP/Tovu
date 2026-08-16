@@ -141,6 +141,55 @@ not a patch to fold into this fix.
   after this fix (same assertion, same diff, reproduced by temporarily reverting my own changes).
   Not touched — outside this finding's scope; flagging for whoever owns that area next.
 
+## Fix pass — finding #2 (2026-08-16, publish-correctness-2)
+
+**Status: FIXED. Commit `7aa04821`.**
+
+`publishStaticSite`'s own doc says every failure returns `{ok:false, code, message}`, never thrown.
+Two call sites ran unguarded, before either of the function's two `try` blocks existed: `deps.
+credentialSource.resolve()` (line 310) and `buildTarget`/`buildJiniTarget` (line 352). Both now sit
+inside their own `try`/`catch`, mapped to `NO_CREDENTIALS_CONFIGURED` — the closest existing failure
+code for "the credential exists but cannot be used," whether that's a genuine resolve failure (a real,
+DELIBERATE possibility per `publish-credentials/store.ts`'s `resolveForPublish`/
+`resolveDefaultForPublish` doc: "a decrypt failure here should surface, not degrade" — a corrupted row
+or missing master secret throws by design) or a resolved credential missing a field the target needs
+(`buildJiniTarget`'s own `DeployError`, e.g. cloudflare-pages missing `accountId`, or s3-compatible
+missing a required field via `buildS3CompatibleTargetConfig`'s own defense-in-depth throw). No new
+`StaticPublishOutcome` code was added — `NO_CREDENTIALS_CONFIGURED` is a defensible existing bucket for
+both, and adding a dedicated code would be a wider API change than this fix; noted explicitly in the
+code comments rather than silently decided.
+
+**Blast-radius half already fixed, incidentally**: the report's "worse than reported" note —
+`publish-site.ts:68`'s own doc relying on the false contract — no longer exists. Finding #1's own
+extraction (`e754ade6`, earlier in this same pass) deleted `publish-site.ts`'s local `PublishRunSnapshot`
+interface (which carried that exact comment) while moving the type to `static-publish/publish-run.ts`,
+and the replacement doc there never repeats the claim (it explicitly documents an unexpected-throw path
+instead). Grepped both `publish-site.ts` and `publish-agent-tools.ts` for "never throws" after finding
+#1 landed — neither references the now-corrected contract; confirmed before starting finding #2's own
+work, not assumed.
+
+**RED-first**, without touching git state (same technique as finding #1, refined slightly — a `git
+checkout -- <path>` single-file revert instead of a hand-edit, since the diff was large and mechanical):
+backed up the fixed `adapter.ts` to the scratchpad, reverted the working tree file to HEAD, ran the two
+new tests, confirmed both failed with the underlying error escaping `publishStaticSite` uncaught
+(`Error: bad AAD...` / `Error: s3-compatible credential is missing required field 'bucket'`, both
+visible in the stack trace pointing straight at the unguarded call sites), then restored the fix from
+the backup.
+
+New tests in `adapter.unit.test.ts`: one proving a throwing `credentialSource.resolve()` is caught and
+returns `NO_CREDENTIALS_CONFIGURED` with the underlying message (never the ciphertext), one proving a
+throwing `buildTarget` is caught the same way.
+
+**Fresh evidence, current HEAD (`7aa04821`)**:
+- `npx tsc -p tsconfig.json --noEmit` — 0 errors, full project.
+- `node --import tsx --test "src/features/deployments/__tests__/*.test.ts"
+  "src/features/deployments/static-publish/__tests__/*.test.ts"
+  "src/server/__tests__/routes/export-site-route.test.ts"
+  "src/server/__tests__/routes/publish-site-route.test.ts"
+  "src/server/__tests__/routes/publish-credentials-route.test.ts"` — 154/155 pass. The one failure is
+  the same pre-existing, unrelated `credentialGuidance` wording drift noted in finding #1's own report
+  section (commit `5b035a93`) — unchanged, not touched by this fix either.
+
 ## Method note for the next dispatch
 
 Terra gravitated to the publish/credential subsystem — the area it was given the most context
