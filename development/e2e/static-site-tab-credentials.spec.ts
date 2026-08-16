@@ -33,11 +33,18 @@ test.beforeEach(async ({ page }) => {
   await page.goto("/admin/deployment?tab=static-site", { waitUntil: "domcontentloaded" });
 });
 
-/** Scopes an assertion to ONE credential row by its label — "Vercel" alone would also match the
- *  provider tab picker and the CLI recommendation section elsewhere on this same tab, so every
- *  assertion below reads from inside this row rather than the page as a whole. */
+/** Scopes an assertion to ONE credential row by its EXACT label — "Vercel" alone would also match
+ *  the provider tab picker and the CLI recommendation section elsewhere on this same tab, so every
+ *  assertion below reads from inside this row rather than the page as a whole.
+ *
+ *  Filters on `.deployment-credentials-label` (`StaticSiteTab.tsx`'s dedicated label span) with
+ *  `hasText`'s exact-string mode, not a plain substring match against the WHOLE row's text: a plain
+ *  substring filter on `label` also matches any row whose label merely CONTAINS it as a prefix —
+ *  exactly what this suite's own rename test produces (`"E2E Vercel 123"` -> `"E2E Vercel 123
+ *  renamed"`), which made a "the old label is gone" assertion pass against the very row that
+ *  replaced it. */
 function credentialRow(page: import("@playwright/test").Page, label: string) {
-  return page.locator(".deployment-credentials-list-item").filter({ hasText: label });
+  return page.locator(".deployment-credentials-list-item").filter({ has: page.locator(".deployment-credentials-label", { hasText: new RegExp(`^${label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`) }) });
 }
 
 test.describe("Static Site tab — credentials, hosted-api-only disclosure", () => {
@@ -112,15 +119,19 @@ test.describe("Static Site tab — credentials, real CRUD round trip", () => {
     await expect(page.locator(".deployment-credentials-list-item").filter({ hasText: label })).toHaveCount(1);
   });
 
-  test("github-pages requires owner/repo before Save enables — never lets an incomplete credential through", async ({ page }) => {
+  test("github-pages needs only a label and token — owner/repo are NOT credential fields", async ({ page }) => {
+    // Owner/repo live on the publish TARGET config (chosen per run in the section below this one),
+    // never on the saved credential — see `rules.ts`'s `PUBLISH_CREDENTIAL_PROVIDERS` doc
+    // (`requiredFields: []` for every provider except cloudflare-pages) and `api.ts`'s
+    // `AdminPublishConnectionInput` doc for why. A github-pages credential is a bare token.
     await page.getByRole("button", { name: "Add credential" }).click();
     // github-pages is the default provider selection.
-    await page.getByLabel("Label").fill(`E2E GitHub ${Date.now()}`);
-    await page.getByLabel("Access token").fill("fake-gh-token-for-e2e");
     await expect(page.getByRole("button", { name: "Save credential" })).toBeDisabled();
 
-    await page.getByLabel("Owner or org for this token").fill("octocat");
-    await page.getByLabel("Repository for this token").fill("demo-repo");
+    await page.getByLabel("Label").fill(`E2E GitHub ${Date.now()}`);
+    await expect(page.getByRole("button", { name: "Save credential" })).toBeDisabled();
+
+    await page.getByLabel("Access token").fill("fake-gh-token-for-e2e");
     await expect(page.getByRole("button", { name: "Save credential" })).toBeEnabled();
   });
 });
