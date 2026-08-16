@@ -388,6 +388,57 @@ would turn every existing 10-15 function into a new warning and require regenera
 Verified for `features/workspace/hooks`: **zero violations at threshold 10** for both
 `complexity` and `sonarjs/cognitive-complexity`. No refactor was needed.
 
+### D-8. Agent-assisted credential entry: `buildFormSurface`, secret never reaches the model
+The settings-write exclusion turned out **narrower than assumed**. It is not "no settings-write is
+agent-reachable" — only the four GENERIC write tools (`settings_set`/`clear`/`reset`/
+`register_definitions`) are excluded, while a curated narrow write (`settings_set_ui_preference`) is
+directly model-callable with no gate. Publish credentials are a third category.
+
+Mechanism: `@jini-ai/ui/mcp-ui/surfaces` ships **`buildFormSurface`** — an editable form with
+pre-filled fields and per-field hints — not merely the `buildConfirmationSurface` used by
+`content_post_delete` and `deployment_execute_static_publish`. Already wired end to end and proven by
+a real tool (`src/assistant/demo-choices-tool.ts`), not a mock.
+
+**Approved design:** the assistant proposes non-secret pre-fill only (bucket, region). **There is no
+field for the secret in the tool's input schema at all** — the same structural guarantee the publish
+tool already uses for tokens. The human types the secret into the rendered form inside their own
+authenticated session; the handler returns only `{saved, providerId, label, connected}` and never
+echoes the secret. The model never sees or supplies it at any point.
+
+This is a **structural** guarantee, not a convention — state it that way anywhere it is documented,
+or a later reader will be tempted to "simplify" it.
+
+### D-9. Masked secret field is BLOCKING — fix `@jini-ai/ui` first
+`@jini-ai/ui`'s form-surface `StringField`/`TextInputProps` has **no masked/password input type**
+(verified by reading both `.d.ts` files in full). A `secretAccessKey` typed into the proposed form
+would render as **plain visible text**.
+
+**Decided: blocking.** Add `secret?: boolean` → renders `type="password"` upstream before the S3 flow
+ships. Rationale: it is a straight regression against the existing admin credential row (already
+`type="password"`); the owner screenshots this UI constantly (38 loose PNGs cleared from the repo
+root tonight), so a plaintext secret lands in screenshots and screen shares; and `@jini-ai/ui` is the
+owner's own package, so the cost of doing it right is low.
+
+### D-10. Guidance-table backfill DEFERRED; labeled/multi-connection UX REJECTED
+- **Backfill:** build the server-side FieldGuidance table for **S3-compatible only**. Backfill the
+  other four providers later if the pattern holds. Refactoring four working publish paths to serve
+  one unshipped provider widens the blast radius of a design that has never run.
+- **Labels:** **No.** The owner killed labels explicitly on 2026-08-15 (*"why is there a label there?
+  that's completely useless"*) and the flat one-row-per-provider shape was a deliberate redesign
+  (`9eaa935`). Do not reintroduce a second UX pattern in the same tab for S3 alone. Revisit for ALL
+  providers at once if a real multi-bucket need appears.
+
+### D-11. `publicUrl` is a REQUIRED 6th field — "five fields is fine" was not a cap
+`DeployPublishResult.url` and `StaticPublishOutcome.url` are both **non-optional** in existing code,
+and S3 PUT responses carry no public URL the way the Vercel/Netlify APIs do. The owner's *"having
+five fields is fine"* was permission to exceed a narrow shared shape, **not a limit**. Agent pushback
+on this was correct and is accepted.
+
+### Harness note
+SendMessage delivered on **attempt 8** after 7 consecutive silent failures that all returned
+`success: true`. The channel is **unreliable, not dead** — worth retrying, never worth relying on.
+The spawn prompt remains the only dependable channel.
+
 ---
 
 ## Still open
