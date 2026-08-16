@@ -78,6 +78,17 @@ disclosure to save a different token. This pass didn't need to touch that logic,
 shell. Verified rendering correctly with the exact production markup and CSS, via a fixture-injected
 render (see the correction above) rather than a real database write.
 
+## Correction: card-within-a-card-within-a-tab (owner-flagged, live)
+
+First cut of `ProvidersTab.tsx` wrapped the row list in its own `.card` (icon + "Providers"
+`card-title`) under the `TabBar`. Owner's direct read: that is a card inside a card inside a tab —
+each `.source-control-row` is already its own bordered surface, so the outer card added a layer of
+chrome around nothing. Checked `features/pages/Pages.tsx` (a real `TabBar`-driven list screen): it
+never wraps its populated list in a card either — `.card` there is reserved for the EMPTY state only.
+Removed the outer card entirely; rows now render directly under the tab. `SourceControlIcon` lost
+its only call site and is currently unused (left defined, not deleted, per `ProvidersTab.tsx`'s own
+updated header). Regenerated all three screenshots below against the corrected layout.
+
 ## Follow-up dispatched separately: reuse the Deployment publish credential
 
 Owner decision, not built in this pass (server-side work outside this feature's fence — a read
