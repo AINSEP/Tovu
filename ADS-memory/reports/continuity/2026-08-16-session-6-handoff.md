@@ -76,15 +76,35 @@ check `ADS-memory/reports/2026-08-16-source-control-ui.md` for where it stopped.
 The owner's earlier "make scope guidance prominent" decision is **superseded** by their objecting to
 text volume twice. Guidance must stay reachable, not be the default view.
 
-### 3. Security page (credential inventory) — owner converged on it twice
+### 3. Security page (credential inventory) — DECIDED THIS SESSION, scope changed
 
 Full spec: `development/todos.md:1208`. **Eight** sealed-credential stores exist; five admin screens
 already accept a token; nothing can answer "what secrets does this install hold."
 
-**READ + REMOVE ONLY. Never a second place to enter a token.** The owner floated making it an entry
-point this session; the Coordinator pushed back and the owner accepted. Two writers for one secret is
-the "which row is authoritative" bug, and one shared token forces the union of every scope.
-Control says **"Remove from Tovu"**, never "Revoke" — deleting the row does not revoke at the provider.
+**The 2026-08-15 spec said READ + REMOVE ONLY. That is now SUPERSEDED — it must also REPLACE.**
+
+The owner raised the argument that settles it and that the original spec never considered:
+**rotation**. When a token is revoked, the operator needs ONE place to put the new one, not a hunt
+across however many screens hold it. The Coordinator initially defended read-only on
+"two entry points is the which-row-is-authoritative bug" and was **wrong** — that objection is about
+COPYING a secret into multiple stores, not about rotating the one that exists.
+
+The resolved split, and the distinction is load-bearing:
+
+| Action | Where | Why |
+|---|---|---|
+| **Create** a connection | The feature flow that needs it (Static Site, Source Control) | Task-shaped. Also preserves the Static Site redesign that deliberately pulled the credential OUT of a disclosure into Step 1 — three passes were paid for that. |
+| **Replace / rotate** a token | **Security page** | Cross-cutting. One door for a revoked-token emergency. |
+| **Remove** a credential | **Security page** | Cross-cutting. |
+
+**Replace is NOT a second entry point.** It edits the SAME row the feature page owns — no new row is
+created, so there is no authoritative ambiguity. That is what makes this safe where a second Create
+form would not be.
+
+Still true from the original spec: the control says **"Remove from Tovu"**, never "Revoke" — deleting
+Tovu's row does not revoke anything at the provider. And a complete inventory means reading all eight
+stores, two of which (BYOK, Composio) are already flagged broken — either confront them or say on
+screen that the list is partial rather than showing a subset as if it were everything.
 
 ---
 
@@ -95,8 +115,12 @@ Control says **"Remove from Tovu"**, never "Revoke" — deleting the row does no
 - **Terra findings #6, #7** — architecture back-edge, and a `as unknown as` double cast in
   `byok-tool-surface.ts:276`. Unverified.
 - **Terra coverage was ~1/5** of the requested scope, and `apps/**` has had NO audit at all.
-- **Publish-credential reuse** into Source Control — owner-approved, server half partially built
-  (`8b7556ff`). Note the `"github-pages"` vs `"github"` providerId mismatch a naive reuse gets wrong.
+- **Publish-credential reuse** into Source Control — **NOT BUILT AT ALL.** Verified at session end:
+  there is no button and no server route, only doc comments in `ProvidersTab.tsx:179` describing
+  where the affordance would go. `8b7556ff` sounds related and is NOT — it only adds
+  `resolveDefaultForSourceControl`, source control reading its own credential. The owner was told
+  this was coming and nothing shipped; do not let the seam comment read as a partial implementation.
+  Note the `"github-pages"` vs `"github"` providerId mismatch a naive reuse gets silently wrong.
 - **`McpUiHost` caps height without clipping** — latent, deliberately unfixed. Anyone setting
   `maxHeight` below 720px hits visible overflow. Cost a real regression today (`8a1f0c48`).
 - **Cloudflare** — narrower single-shot exposure of the non-JSON bug, assessed and deferred; 14
@@ -146,9 +170,15 @@ Control says **"Remove from Tovu"**, never "Revoke" — deleting the row does no
    cache was real but affected only the Jini-package fixes. The owner caught this.
 4. **Dropped the AGENTS.md communication protocol** — no `AgentName(Mode):` prefix for most of the
    session, until the owner noticed and asked whether I was even the Coordinator.
+5. **Defended read-only on the Security page against the wrong argument.** My objection ("two entry
+   points is the which-row-is-authoritative bug") is about copying a secret between stores; the
+   owner was asking about ROTATING the one that already exists. Different problem, and rotation is
+   the strongest argument in that whole discussion. The original spec never considered it either.
+6. **Told the owner reuse was "in progress"** when the server half was never started. I mistook
+   `8b7556ff` for related work. Verified false at session end.
 
-(1) and (3) were caught by evidence and by the owner, not by me. Same standing lesson as session 5:
-measure, and let agents and owners contradict you.
+(1), (3), (5) and (6) were caught by evidence or by the owner, not by me. Same standing lesson as
+session 5, now with more supporting data: measure, and let agents and owners contradict you.
 
 ---
 
