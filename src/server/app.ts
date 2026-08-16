@@ -8,6 +8,7 @@ import { registerPageHeadContributor } from "./http/site/page-head";
 import { InMemoryPostRepo, InMemoryPostSearchIndex, createPostRevertRegistry } from "../features/post";
 import { InMemoryDeploymentsReadRepo } from "../features/deployments";
 import { InMemoryPublishCredentialSetRepo, executionModeFromEnv } from "../features/deployments/publish-credentials";
+import { InMemoryPublishCredentialVerificationCache } from "../features/deployments/static-publish";
 import { InMemorySourceControlCredentialSetRepo } from "../features/source-control";
 // NOT a static import, and the reason is a measured crash — see `runExportSiteLazily` below.
 import { InMemoryPagesHtmlDocumentStore } from "../features/pages";
@@ -623,6 +624,10 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // a test can still exercise `TOVU_EXECUTION_MODE=hosted-api-only` against this hermetic root.
     publishCredentialSetRepo: new InMemoryPublishCredentialSetRepo(),
     publishExecutionMode: executionModeFromEnv(),
+    // 2026-08-16 — hermetic double for `server/deps.ts`'s real (also in-memory — see
+    // `routes/types.ts`'s `publishCredentialVerificationCache` doc for why this cache is
+    // deliberately never DB-backed) instance.
+    publishCredentialVerificationCache: new InMemoryPublishCredentialVerificationCache(),
     // 2026-08-15 — hermetic double for `server/deps.ts`'s real
     // `SqliteSourceControlCredentialSetRepo`; see `routes/types.ts`'s
     // `sourceControlCredentialSetRepo` doc.

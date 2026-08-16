@@ -23,3 +23,13 @@ export {
 } from "./credentials";
 
 export { computeBasePath, publishStaticSite, validateStaticPublishConfig, type StaticPublishDeps, type StaticPublishInput } from "./adapter";
+
+export {
+  InMemoryPublishCredentialVerificationCache,
+  verifyPublishCredential,
+  verifyPublishCredentialById,
+  type PublishCredentialVerificationCache,
+  type PublishCredentialVerificationResult,
+  type VerifyPublishCredentialByIdDeps,
+  type VerifyPublishCredentialDeps,
+} from "./verify";

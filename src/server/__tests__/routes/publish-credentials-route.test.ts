@@ -20,6 +20,33 @@ import type { RouteDeps } from "../../routes/types";
 
 const CREDENTIALS_PATH = "system/publish/credentials";
 
+/**
+ * Installs a fast, deterministic `globalThis.fetch` stub for the duration of one test — every
+ * successful `POST`/`PUT` on this route now triggers a best-effort provider-verification call
+ * (`publish-credentials.ts`'s `verifyAfterSave`, `static-publish/verify.ts`), and this file's own
+ * tests must never depend on reaching a real GitHub/Vercel/Netlify/Cloudflare/S3 endpoint — same
+ * "every test replaces `globalThis.fetch` with a recording fake" discipline
+ * `s3-compatible-target.unit.test.ts` already documents for the identical class of problem.
+ *
+ * Discriminates by URL rather than replacing `fetch` unconditionally: this SAME global `fetch` is
+ * also what every test in this file uses to call its own local `baseUrl` test server, so a stub that
+ * intercepted every call would break the test's own HTTP requests, not just the outbound
+ * verification call it exists to fake. Anything targeting `baseUrl` passes through to the real
+ * `fetch` untouched; anything else (the provider-verification call) gets the fixed status below.
+ *
+ * `t.after` restores the original regardless of pass/fail, so a stub never leaks into a later test.
+ */
+function stubVerificationFetch(t: { after(fn: () => void): void }, baseUrl: string, status = 401): void {
+  const original = globalThis.fetch;
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    if (String(input).startsWith(baseUrl)) return original(input, init);
+    return new Response("", { status });
+  }) as typeof fetch;
+  t.after(() => {
+    globalThis.fetch = original;
+  });
+}
+
 async function loginAsBarePrincipal(deps: RouteDeps, baseUrl: string): Promise<string> {
   await deps.identityReady;
   const bareId = "bare-principal-publish-credentials";
@@ -106,6 +133,7 @@ test("publish-credentials: full CRUD round trip — create, list, update (blank 
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const base = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${CREDENTIALS_PATH}`;
+  stubVerificationFetch(t, baseUrl);
 
   const created = await fetch(base, {
     method: "POST",
@@ -113,7 +141,7 @@ test("publish-credentials: full CRUD round trip — create, list, update (blank 
     body: JSON.stringify({ label: "Main Vercel", connection: { providerId: "vercel", token: "vercel-secret-token" } }),
   });
   assert.equal(created.status, 201);
-  const { credential } = await created.json();
+  const { credential, verification } = await created.json();
   assert.equal(credential.providerId, "vercel");
   assert.equal(credential.label, "Main Vercel");
   assert.equal(credential.configured, true);
@@ -123,6 +151,11 @@ test("publish-credentials: full CRUD round trip — create, list, update (blank 
   assert.equal(JSON.stringify(credential).includes("vercel-secret-token"), false);
   assert.equal("token" in credential, false);
   assert.equal("sealed" in credential, false);
+  // The route verified the just-saved connection best-effort (2026-08-16) — `stubVerificationFetch`
+  // fakes Vercel's own answer as a 401, so this must read as "rejected", never as `ready`/`ok: true`.
+  assert.equal(verification.ok, false);
+  assert.match(verification.message, /rejected/i);
+  assert.equal(JSON.stringify(verification).includes("vercel-secret-token"), false);
 
   const list = await (await fetch(base, { headers: { cookie } })).json();
   assert.equal(list.credentials.length, 1);
@@ -137,9 +170,12 @@ test("publish-credentials: full CRUD round trip — create, list, update (blank 
     body: JSON.stringify({ label: "Renamed Vercel" }),
   });
   assert.equal(updated.status, 200);
-  const { credential: renamed } = await updated.json();
+  const { credential: renamed, verification: renameVerification } = await updated.json();
   assert.equal(renamed.label, "Renamed Vercel");
   assert.equal(renamed.id, credential.id);
+  // A label-only rename touches no connection — must NOT re-verify (no new network call to fake a
+  // result for, and no reason to repeat the one already recorded above).
+  assert.equal(renameVerification, undefined);
 
   const del = await fetch(`${base}/${credential.id}`, { method: "DELETE", headers: { cookie } });
   assert.equal(del.status, 204);
@@ -177,6 +213,7 @@ test("publish-credentials: POST with an invalid connection shape 400s with VALID
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const base = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${CREDENTIALS_PATH}`;
+  stubVerificationFetch(t, baseUrl);
 
   const blankLabel = await fetch(base, {
     method: "POST",
@@ -209,6 +246,7 @@ test("publish-credentials: a duplicate (provider, label) 409s with DUPLICATE_LAB
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const base = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${CREDENTIALS_PATH}`;
+  stubVerificationFetch(t, baseUrl);
 
   const first = await fetch(base, {
     method: "POST",
@@ -227,4 +265,42 @@ test("publish-credentials: a duplicate (provider, label) 409s with DUPLICATE_LAB
 
   const list = await (await fetch(base, { headers: { cookie } })).json();
   assert.equal(list.credentials.length, 1);
+});
+
+test("publish-credentials: POST .../:id/verify 404s for a never-existed id", async (t) => {
+  const deps: RouteDeps = { ...createRouteDeps() };
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${CREDENTIALS_PATH}/no-such-id/verify`, {
+    method: "POST",
+    headers: { cookie },
+  });
+  assert.equal(res.status, 404);
+  assert.equal((await res.json()).error, "NOT_FOUND");
+});
+
+test("publish-credentials: POST .../:id/verify re-checks an existing connection on demand and reports an honest result, never the credential", async (t) => {
+  const deps: RouteDeps = { ...createRouteDeps() };
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const base = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${CREDENTIALS_PATH}`;
+  stubVerificationFetch(t, baseUrl, 401);
+
+  const created = await fetch(base, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ label: "gh", connection: { providerId: "github-pages", token: "github-secret-token" } }),
+  });
+  const { credential } = await created.json();
+
+  // On-demand re-check, independent of the save-time one — a human clicking "Verify" later, e.g.
+  // after fixing the token in their GitHub account without changing what Tovu has stored.
+  const verified = await fetch(`${base}/${credential.id}/verify`, { method: "POST", headers: { cookie } });
+  assert.equal(verified.status, 200);
+  const { verification } = await verified.json();
+  assert.equal(verification.ok, false);
+  assert.match(verification.message, /GitHub rejected this credential.*HTTP 401/);
+  assert.equal(typeof verification.checkedAt, "string");
+  assert.equal(JSON.stringify(verification).includes("github-secret-token"), false);
 });
