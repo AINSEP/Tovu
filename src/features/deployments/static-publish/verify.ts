@@ -25,11 +25,24 @@ import type { PublishCredentialSource, StaticPublishTargetId } from "./types";
  * `verifyPublishCredential` resolves whichever credential a REAL publish would actually use (the
  * composed DB-first/env-fallback source — the same one `static-publish/credentials.ts`'s
  * `composePublishCredentialSource` builds), makes ONE lightweight, read-only, authenticated request
- * against that provider's own API, and caches only the outcome (`ok`/`message`/`checkedAt`) — never
- * the credential itself, and never the provider's raw response body (mirrors
+ * against that provider's own API, and caches only the outcome (`status`/`message`/`checkedAt`) —
+ * never the credential itself, and never the provider's raw response body (mirrors
  * `connectors/composio-key-probe.ts`'s "never return the response body/error text" discipline, the
  * closest existing precedent in this codebase for "probe a stored credential against its real
  * provider" — see that file's own header for the full reasoning this module reuses).
+ *
+ * `PublishCredentialVerificationResult.status` is a closed THREE-way enum
+ * (`"valid" | "invalid" | "unreachable"`), never a plain boolean — this is a hard requirement from
+ * code review, not a style choice: `"unreachable"` (a network failure, timeout, or provider 5xx) must
+ * never collapse into the same shape as `"invalid"` (the provider affirmatively rejected the
+ * credential), because the two demand opposite guidance. A human told "unreachable" should try again
+ * later; a human told "invalid" should replace the credential. Collapsing them would risk sending
+ * someone to regenerate a perfectly good token over a transient network blip — the same class of
+ * false-negative Defect A (this same finding session) was filed for, just at a different layer. No
+ * checker in this file reads a response BODY at all (see `classifyProviderResponse`'s own doc) — a
+ * `GET /user`-shaped provider response carries a login, email, plan, and org list that has no
+ * business anywhere near an agent-facing surface, so it is structurally unreachable from this module:
+ * there is no code path here that could echo it even by mistake.
  *
  * Architectural role:
  * `features/deployments/static-publish` domain logic. `publish-agent-tools.ts`'s capabilities
@@ -186,9 +199,11 @@ function buildVerificationMessage(target: StaticPublishTargetId, check: Provider
 }
 
 /** One cached verification outcome. Never carries the credential, its ciphertext, or any raw
- *  provider response — see this file's header. */
+ *  provider response — see this file's header. `status` is the enforced three-way boundary contract
+ *  (never a boolean) — `"unreachable"` must stay distinguishable from `"invalid"` at every layer that
+ *  reads this, all the way out to the agent-facing capabilities tool. */
 export interface PublishCredentialVerificationResult {
-  readonly ok: boolean;
+  readonly status: "valid" | "invalid" | "unreachable";
   readonly message: string;
   readonly checkedAt: string;
 }
@@ -248,7 +263,8 @@ async function computeVerificationResult(
   clock: { nowIso(): string }
 ): Promise<PublishCredentialVerificationResult> {
   const check = await checkProviderCredential(fetchFn, target, credential);
-  return { ok: check.ok, message: buildVerificationMessage(target, check), checkedAt: clock.nowIso() };
+  const status = check.ok ? "valid" : check.reason === "rejected" ? "invalid" : "unreachable";
+  return { status, message: buildVerificationMessage(target, check), checkedAt: clock.nowIso() };
 }
 
 /** Maps a decrypted `PublishConnectionInput` (`publish-credentials/types.ts`) to the plain shape
@@ -287,9 +303,13 @@ export interface VerifyPublishCredentialDeps {
  * read. The ONE non-test caller of this module allowed to trigger it is a human action (the admin
  * credential-CRUD route, after a save, or via an explicit "Verify" trigger) — never an agent tool.
  *
- * @returns The freshly-computed result (also now cached). When no credential is configured at all,
- *   clears any stale cached entry and returns `{ok: false, message: "no credential is configured...
- *   "}` WITHOUT making any network call — there is nothing to verify.
+ * @returns The freshly-computed result (also now cached). `null` when no credential is configured at
+ *   all — clears any stale cached entry and makes NO network call, matching
+ *   {@link verifyPublishCredentialById}'s own "nothing to verify" contract for a missing row.
+ *   Deliberately not folded into `status: "invalid"`/`"unreachable"`: neither word honestly describes
+ *   "there was nothing here to check" (see this file's header on why the three real states must stay
+ *   distinct from each other — the same discipline extends to not inventing a fourth, misleading one
+ *   for this case).
  * @complexity O(1) — one `resolve()` call (one repo read plus, for a DB-backed credential, one
  *   decrypt) plus one bounded outbound HTTP request.
  * @overallScore 100
@@ -297,12 +317,12 @@ export interface VerifyPublishCredentialDeps {
 export async function verifyPublishCredential(
   deps: VerifyPublishCredentialDeps,
   input: { workspaceId: UUID; target: StaticPublishTargetId }
-): Promise<PublishCredentialVerificationResult> {
+): Promise<PublishCredentialVerificationResult | null> {
   const fetchFn = deps.fetchFn ?? fetch;
   const resolved = await deps.credentialSource.resolve(input);
   if (!resolved.ok) {
     deps.cache.delete(input);
-    return { ok: false, message: `no credential is configured for '${input.target}' — nothing to verify (${resolved.reason})`, checkedAt: deps.clock.nowIso() };
+    return null;
   }
 
   const result = await computeVerificationResult(fetchFn, input.target, resolved, deps.clock);

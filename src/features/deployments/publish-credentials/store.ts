@@ -21,8 +21,16 @@ import type {
  *   preview, never called from anything agent-facing (mirrors `site-credential-store.ts`'s own
  *   `resolveSiteAssistantApiKey` split, one level stricter: that one function name signals "decrypts"
  *   loudly enough that a future caller cannot reach for it by accident the way a generically-named
- *   `getCredential` might invite).
+ *   `getCredential` might invite). Two legitimate callers exist today, both server-side, human-gated,
+ *   never agent-facing: a real publish attempt (`static-publish/adapter.ts`'s `publishStaticSite`,
+ *   via `PublishCredentialSource.resolve()`), and — 2026-08-16, this dispatch's Defect B fix —
+ *   `static-publish/verify.ts`'s `verifyPublishCredentialById`, which decrypts ONE row to check it
+ *   against its real provider (the "ready means a row exists, not a working credential" fix) and
+ *   caches only a closed-enum verdict (`valid`/`invalid`/`unreachable`) plus a short message, never
+ *   the decrypted connection itself. A third caller would need the same justification: server-side,
+ *   never reachable from an agent tool, and never returning the decrypted value past its own scope.
  *
+
  * Plus the three write operations ({@link createPublishCredential}, {@link updatePublishCredential},
  * {@link deletePublishCredential}) — validate-then-write, mirroring `setSiteAssistantCredential`'s
  * shape. `connection`, when supplied, is ALWAYS resealed as a fresh ciphertext (never a re-wrap of the

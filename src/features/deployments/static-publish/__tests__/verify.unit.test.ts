@@ -55,9 +55,9 @@ function fakeSource(resolved: Awaited<ReturnType<PublishCredentialSource["resolv
 // verifyPublishCredential — target-scoped ("whichever credential is currently active")
 // ---------------------------------------------------------------------------
 
-test("verifyPublishCredential: no credential configured makes no network call, clears any stale cache entry", async () => {
+test("verifyPublishCredential: no credential configured returns null, makes no network call, clears any stale cache entry", async () => {
   const cache = new InMemoryPublishCredentialVerificationCache();
-  cache.set({ workspaceId: WORKSPACE, target: "github-pages" }, { ok: true, message: "stale", checkedAt: "2020-01-01T00:00:00.000Z" });
+  cache.set({ workspaceId: WORKSPACE, target: "github-pages" }, { status: "valid", message: "stale", checkedAt: "2020-01-01T00:00:00.000Z" });
   let fetchCalls = 0;
   const fetchFn = (async () => {
     fetchCalls += 1;
@@ -70,12 +70,13 @@ test("verifyPublishCredential: no credential configured makes no network call, c
   );
 
   assert.equal(fetchCalls, 0);
-  assert.equal(result.ok, false);
-  assert.match(result.message, /no credential is configured/);
+  // Deliberately `null`, not a fabricated `status: "invalid"`/`"unreachable"` — see `verify.ts`'s own
+  // doc on why "nothing to check" is not one of the three real states.
+  assert.equal(result, null);
   assert.equal(cache.get({ workspaceId: WORKSPACE, target: "github-pages" }), undefined, "a stale cached entry must not survive a credential that no longer exists");
 });
 
-test("verifyPublishCredential: GitHub accepts (200) — ok:true, cached", async () => {
+test("verifyPublishCredential: GitHub accepts (200) — status:'valid', cached", async () => {
   const cache = new InMemoryPublishCredentialVerificationCache();
   const requestedUrls: string[] = [];
   const fetchFn = (async (input: RequestInfo | URL) => {
@@ -88,14 +89,18 @@ test("verifyPublishCredential: GitHub accepts (200) — ok:true, cached", async 
     { workspaceId: WORKSPACE, target: "github-pages" }
   );
 
-  assert.equal(result.ok, true);
-  assert.match(result.message, /GitHub accepted/);
+  assert.ok(result);
+  assert.equal(result!.status, "valid");
+  assert.match(result!.message, /GitHub accepted/);
   assert.equal(requestedUrls[0], "https://api.github.com/user");
   assert.deepEqual(cache.get({ workspaceId: WORKSPACE, target: "github-pages" }), result);
   assert.equal(JSON.stringify(result).includes("real-token-must-not-appear"), false);
+  // The response body (`{login: "octo"}`) is never read at all — confirms the account-detail leak
+  // code review flagged cannot happen structurally, not merely "doesn't happen to happen" today.
+  assert.equal(JSON.stringify(result).includes("octo"), false);
 });
 
-test("verifyPublishCredential: GitHub rejects (401) — ok:false, reason surfaced, never the token", async () => {
+test("verifyPublishCredential: GitHub rejects (401) — status:'invalid', distinct from 'unreachable', never the token or the provider's response body", async () => {
   const cache = new InMemoryPublishCredentialVerificationCache();
   const fetchFn = (async () => new Response(JSON.stringify({ message: "Bad credentials" }), { status: 401 })) as typeof fetch;
 
@@ -104,13 +109,14 @@ test("verifyPublishCredential: GitHub rejects (401) — ok:false, reason surface
     { workspaceId: WORKSPACE, target: "github-pages" }
   );
 
-  assert.equal(result.ok, false);
-  assert.match(result.message, /GitHub rejected this credential \(HTTP 401\)/);
+  assert.ok(result);
+  assert.equal(result!.status, "invalid");
+  assert.match(result!.message, /GitHub rejected this credential \(HTTP 401\)/);
   assert.equal(JSON.stringify(result).includes("ghp_should_never_leak"), false);
   assert.equal(JSON.stringify(result).includes("Bad credentials"), false, "the provider's own response body must never be echoed");
 });
 
-test("verifyPublishCredential: a network failure (DNS/timeout/etc.) never throws — classified as unreachable, not rejected", async () => {
+test("verifyPublishCredential: a network failure (DNS/timeout/etc.) never throws — status:'unreachable', distinct from 'invalid'", async () => {
   const cache = new InMemoryPublishCredentialVerificationCache();
   const fetchFn = (async () => {
     throw new TypeError("fetch failed");
@@ -121,8 +127,13 @@ test("verifyPublishCredential: a network failure (DNS/timeout/etc.) never throws
     { workspaceId: WORKSPACE, target: "vercel" }
   );
 
-  assert.equal(result.ok, false);
-  assert.match(result.message, /Could not reach Vercel/);
+  assert.ok(result);
+  // The regression this status distinction exists for: a transient network failure must read as
+  // "we couldn't check", never as "the provider said no" — collapsing the two would risk sending a
+  // human to regenerate a perfectly good token.
+  assert.equal(result!.status, "unreachable");
+  assert.notEqual(result!.status, "invalid");
+  assert.match(result!.message, /Could not reach Vercel/);
 });
 
 test("verifyPublishCredential: dispatches each provider to its own documented endpoint", async () => {
@@ -164,7 +175,8 @@ test("verifyPublishCredential: s3-compatible signs a HEAD against the bucket (vi
 
   assert.equal(seenMethod, "HEAD");
   assert.ok(seenAuthHeaderPresent, "aws4fetch must have signed the request with an Authorization header");
-  assert.equal(result.ok, true);
+  assert.ok(result);
+  assert.equal(result!.status, "valid");
   assert.equal(JSON.stringify(result).includes("s3-secret-should-never-leak"), false);
 });
 
@@ -174,9 +186,9 @@ test("verifyPublishCredential: s3-compatible signs a HEAD against the bucket (vi
 
 test("InMemoryPublishCredentialVerificationCache: isolates by workspace AND target", () => {
   const cache: PublishCredentialVerificationCache = new InMemoryPublishCredentialVerificationCache();
-  cache.set({ workspaceId: "ws-a", target: "github-pages" }, { ok: true, message: "a", checkedAt: NOW });
-  cache.set({ workspaceId: "ws-a", target: "vercel" }, { ok: false, message: "b", checkedAt: NOW });
-  cache.set({ workspaceId: "ws-b", target: "github-pages" }, { ok: false, message: "c", checkedAt: NOW });
+  cache.set({ workspaceId: "ws-a", target: "github-pages" }, { status: "valid", message: "a", checkedAt: NOW });
+  cache.set({ workspaceId: "ws-a", target: "vercel" }, { status: "invalid", message: "b", checkedAt: NOW });
+  cache.set({ workspaceId: "ws-b", target: "github-pages" }, { status: "unreachable", message: "c", checkedAt: NOW });
 
   assert.equal(cache.get({ workspaceId: "ws-a", target: "github-pages" })?.message, "a");
   assert.equal(cache.get({ workspaceId: "ws-a", target: "vercel" })?.message, "b");
@@ -221,7 +233,7 @@ test("verifyPublishCredentialById: the provider's DEFAULT row updates the shared
   const result = await verifyPublishCredentialById({ repo: writeDeps.repo, sealer: writeDeps.sealer, cache, clock, fetchFn }, { workspaceId: WORKSPACE, id: summary.id });
 
   assert.ok(result);
-  assert.equal(result!.ok, false);
+  assert.equal(result!.status, "invalid");
   assert.deepEqual(cache.get({ workspaceId: WORKSPACE, target: "github-pages" }), result, "the default row's result IS the target's ready-signal");
 });
 
@@ -240,14 +252,14 @@ test("verifyPublishCredentialById: a NON-default row's own result is returned bu
   const cache = new InMemoryPublishCredentialVerificationCache();
   // Seed the cache as if the DEFAULT row was already verified and known-good — the invariant under
   // test is that checking the unrelated SECOND row must never clobber this.
-  cache.set({ workspaceId: WORKSPACE, target: "github-pages" }, { ok: true, message: "default row is fine", checkedAt: NOW });
+  cache.set({ workspaceId: WORKSPACE, target: "github-pages" }, { status: "valid", message: "default row is fine", checkedAt: NOW });
 
   const fetchFn = (async () => new Response("", { status: 401 })) as typeof fetch; // the second row is BAD
 
   const result = await verifyPublishCredentialById({ repo: writeDeps.repo, sealer: writeDeps.sealer, cache, clock, fetchFn }, { workspaceId: WORKSPACE, id: secondRow.id });
 
   assert.ok(result);
-  assert.equal(result!.ok, false, "the row that was actually checked (the second, bad one) still gets an honest own result");
+  assert.equal(result!.status, "invalid", "the row that was actually checked (the second, bad one) still gets an honest own result");
   assert.equal(
     cache.get({ workspaceId: WORKSPACE, target: "github-pages" })?.message,
     "default row is fine",
