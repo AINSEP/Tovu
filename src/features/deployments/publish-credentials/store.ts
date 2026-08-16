@@ -359,17 +359,37 @@ export async function updatePublishCredential(deps: PublishCredentialWriteDeps, 
     providerId = connection.providerId;
     sealed = await sealConnection(deps, { workspaceId: input.workspaceId, providerId, id: input.id, connection });
   }
+  const providerChanged = providerId !== existing.providerId;
 
-  // `requestedDefault === true` always wins (see this function's own doc). Anything else leaves
-  // default status exactly as it already was for this row — never a false "un-default with no
-  // replacement" (see `UpdatePublishCredentialInput.isDefault`'s own doc for why).
+  // `requestedDefault === true` always wins (see this function's own doc). Otherwise: if the provider
+  // did NOT change, default status is left exactly as it already was for this row (never a false
+  // "un-default with no replacement" — see `UpdatePublishCredentialInput.isDefault`'s own doc for why).
+  //
+  // If the provider DID change, `existing.isDefault` must NOT simply carry over — it answered "was I
+  // the default for the OLD provider," which says nothing about the NEW one, and blindly copying it
+  // silently clobbered whatever the new provider's real default already was (Terra audit finding #4,
+  // 2026-08-16 fix — confirmed by direct probe against this exact function, worse than reported: not
+  // only did the OLD provider group end up with rows but no default, an UNREQUESTED `isDefault: true`
+  // on the new provider also silently stole default status away from an unrelated, working credential
+  // the human never touched). A provider change is treated the same way a brand-new row is —
+  // {@link decideCreateDefault}'s own "first in the (new) group, or explicitly requested" rule reused
+  // verbatim, so a solo credential moved onto a provider with nothing else configured still becomes its
+  // default (matching `createPublishCredential`'s own behavior for a first row), but never displaces an
+  // existing one without an explicit `isDefault: true`.
+  const isDefault =
+    requestedDefault === true
+      ? true
+      : providerChanged
+        ? decideCreateDefault(await deps.repo.listByProvider({ workspaceId: input.workspaceId, providerId }), undefined)
+        : existing.isDefault;
+
   const record: PublishCredentialSetRecord = {
     workspaceId: input.workspaceId,
     id: input.id,
     providerId,
     label,
     sealed,
-    isDefault: requestedDefault === true ? true : existing.isDefault,
+    isDefault,
     createdAt: existing.createdAt,
     updatedAt: now,
   };
@@ -382,6 +402,23 @@ export async function updatePublishCredential(deps: PublishCredentialWriteDeps, 
     }
     throw err;
   }
+
+  // The OTHER half of the same finding: if this row WAS the OLD provider's default and just left that
+  // group, the old group may now have rows but no default at all — the same "a provider group with any
+  // rows always has exactly one default" invariant `PublishCredentialSetRepoPort.delete`'s own promotion
+  // step already maintains for a REMOVED row. A provider change is, from the old group's point of view,
+  // exactly that: this row just left it. Reuses `delete()`'s own tie-break rule (most-recently-updated
+  // wins) rather than inventing a second one — this is the one case `updatePublishCredential` must
+  // promote a DIFFERENT row than the one it just wrote, so it cannot be folded into the single
+  // `deps.repo.update(record)` call above.
+  if (providerChanged && existing.isDefault) {
+    const remainingInOldGroup = await deps.repo.listByProvider({ workspaceId: input.workspaceId, providerId: existing.providerId });
+    if (remainingInOldGroup.length > 0) {
+      const promoted = remainingInOldGroup.reduce((latest, row) => (row.updatedAt > latest.updatedAt ? row : latest));
+      await deps.repo.update({ ...promoted, isDefault: true });
+    }
+  }
+
   return toSummary(record);
 }
 
