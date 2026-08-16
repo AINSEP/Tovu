@@ -120,6 +120,89 @@ function DockerfileEmptyState({ t }: { t: Translate }) {
   );
 }
 
+/** The save-conflict banner (`412`, Terra audit finding C5) — pulled out of `DockerfileEditorCard`
+ *  on its own so that component's own cognitive-complexity budget doesn't also have to carry this
+ *  block's nested exists-vs-deleted branch on top of everything else it already renders
+ *  conditionally (unsaved pill, saved confirmation, empty-state reason, Save/Copy/Download disabled
+ *  states). Renders unconditionally once called — the caller (`DockerfileSaveStatus` below) decides
+ *  WHETHER to render it at all. */
+function DockerfileConflictBanner({
+  conflict,
+  onReload,
+  t,
+}: {
+  conflict: { exists: boolean; contents: string | null };
+  onReload: () => void;
+  t: Translate;
+}) {
+  return (
+    <div
+      className="notice error"
+      role="alert"
+      {...agentHandle("deployment-dockerfile-conflict", {
+        role: "status",
+        label: "Shows that the Dockerfile changed on the server since it was last loaded, with the current contents to compare against",
+      })}
+    >
+      <p>{t("Someone else saved a different version of this Dockerfile while you were editing — your changes below were NOT saved.")}</p>
+      {conflict.exists ? (
+        <>
+          <p>{t("Its current contents on the server are:")}</p>
+          <pre className="deployment-dockerfile-conflict-contents">{conflict.contents}</pre>
+        </>
+      ) : (
+        <p>{t("It was deleted on the server.")}</p>
+      )}
+      <p>{t("Your own edits below are untouched. Compare them against the current contents above, reconcile by hand, then Save again.")}</p>
+      <button
+        type="button"
+        onClick={onReload}
+        {...agentHandle("deployment-dockerfile-conflict-reload", {
+          role: "button",
+          label: "Reloads the current version from the server so the next Save is checked against it — does not discard your own edits",
+        })}
+      >
+        {t("Load the current version")}
+      </button>
+    </div>
+  );
+}
+
+/** Whichever ONE status banner belongs above the textarea, if any: a save conflict takes
+ *  precedence over — and renders INSTEAD OF — a generic save error, even though `saveMutation`'s own
+ *  error state briefly held the same rejection (see `use-dockerfile-source.hooks.ts`'s header for
+ *  why the hook already resets that error state itself on a conflict, so in practice the two are
+ *  never simultaneously set; this precedence is the belt to that suspenders). A flat dispatch
+ *  function rather than a ternary chain inline in `DockerfileEditorCard`'s own JSX, same
+ *  complexity-gate reasoning `dockerfileTabBody` already documents for its own two-shape dispatch. */
+function DockerfileSaveStatus({
+  saveConflict,
+  saveError,
+  onReloadAfterConflict,
+  t,
+}: {
+  saveConflict: { exists: boolean; contents: string | null } | null;
+  saveError: string | null;
+  onReloadAfterConflict: () => void;
+  t: Translate;
+}) {
+  if (saveConflict) return <DockerfileConflictBanner conflict={saveConflict} onReload={onReloadAfterConflict} t={t} />;
+  if (saveError)
+    return (
+      <p
+        className="save-error"
+        role="alert"
+        {...agentHandle("deployment-dockerfile-save-error", {
+          role: "status",
+          label: "Shows the error message when saving the Dockerfile failed",
+        })}
+      >
+        {saveError}
+      </p>
+    );
+  return null;
+}
+
 /** The editable Dockerfile card: Copy/Download/Save actions, the line count, an "unsaved changes"
  *  pill, and the textarea itself — the one card that renders in BOTH the "exists" and "doesn't exist
  *  yet" cases (see `dockerfileTabBody`), since the write route makes both cases the same underlying
@@ -238,53 +321,7 @@ function DockerfileEditorCard({
         {!exists ? (
           <p className="deployment-action-reason">{t("No Dockerfile exists yet. Write one below, then save to create it.")}</p>
         ) : null}
-        {saveConflict ? (
-          // A conflict takes precedence over — and is rendered INSTEAD of — the generic save-error
-          // paragraph below, even though `saveMutation`'s own error state briefly held the same
-          // rejection: see `use-dockerfile-source.hooks.ts`'s header for why the hook already
-          // resets that error state itself on a conflict, so in practice `saveError` is never
-          // simultaneously set. This block still wins on precedence as the belt to that suspenders.
-          <div
-            className="notice error"
-            role="alert"
-            {...agentHandle("deployment-dockerfile-conflict", {
-              role: "status",
-              label: "Shows that the Dockerfile changed on the server since it was last loaded, with the current contents to compare against",
-            })}
-          >
-            <p>{t("Someone else saved a different version of this Dockerfile while you were editing — your changes below were NOT saved.")}</p>
-            {saveConflict.exists ? (
-              <>
-                <p>{t("Its current contents on the server are:")}</p>
-                <pre className="deployment-dockerfile-conflict-contents">{saveConflict.contents}</pre>
-              </>
-            ) : (
-              <p>{t("It was deleted on the server.")}</p>
-            )}
-            <p>{t("Your own edits below are untouched. Compare them against the current contents above, reconcile by hand, then Save again.")}</p>
-            <button
-              type="button"
-              onClick={onReloadAfterConflict}
-              {...agentHandle("deployment-dockerfile-conflict-reload", {
-                role: "button",
-                label: "Reloads the current version from the server so the next Save is checked against it — does not discard your own edits",
-              })}
-            >
-              {t("Load the current version")}
-            </button>
-          </div>
-        ) : saveError ? (
-          <p
-            className="save-error"
-            role="alert"
-            {...agentHandle("deployment-dockerfile-save-error", {
-              role: "status",
-              label: "Shows the error message when saving the Dockerfile failed",
-            })}
-          >
-            {saveError}
-          </p>
-        ) : null}
+        <DockerfileSaveStatus saveConflict={saveConflict} saveError={saveError} onReloadAfterConflict={onReloadAfterConflict} t={t} />
         <textarea
           className="deployment-dockerfile-editor"
           value={draft}
