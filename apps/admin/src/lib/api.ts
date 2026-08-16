@@ -2488,7 +2488,8 @@ export const api = {
   getSiteExportStatus: () => request<AdminExportRunSnapshot>(`/workspaces/${WORKSPACE_ID}/system/export`),
 
   // Static Site tab "Getting it online" card (`src/server/routes/admin/system/publish-site.ts`) —
-  // publishing the current export straight to GitHub Pages or Vercel. Same trigger+poll shape as
+  // publishing the current export straight to GitHub Pages, Vercel, Netlify, or Cloudflare Pages.
+  // Same trigger+poll shape as
   // the export pair just above, plus a third pure-read preview route with no run of its own.
   /** Read-only: validates `config`, reports the base path a real publish would use (always
    *  SERVER-derived — see {@link AdminStaticPublishConfig}'s own doc), and whether a credential is
