@@ -892,7 +892,12 @@ function StaticPublishForm({
     projectName: controller.projectName,
   });
   const runTone = runStatusTone(controller.run?.status ?? "idle", controller.run?.result?.ok);
-  const busy = controller.isPublishing;
+  // `publishing` (the POST-in-flight flag) is included alongside `isPublishing` (the server-confirmed
+  // "running" state) on purpose — without it, the window between clicking Publish and the response
+  // supplying a "running" run left the button enabled, which is exactly how a double-click could send
+  // two POSTs (see `use-static-publish.hooks.ts`'s own `publish()` for the matching in-hook guard —
+  // this is the UI half of that same C4 fix, belt-and-suspenders rather than either alone).
+  const busy = controller.isPublishing || controller.publishing;
   const projectNameCopy = staticPublishProjectNameCopy(target);
 
   return (
