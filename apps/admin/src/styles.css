@@ -3250,20 +3250,81 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    name so the pair reads as one label with a parenthetical, not two competing titles. */
 .deployment-tool-command { font-family: var(--font-mono); font-size: var(--text-sm); font-weight: 400; color: var(--muted); }
 
-/* ---- Credential management (Static Site) --------------------------------------------------------
-   One always-visible row per provider inside "Getting it online" (2026-08-15 redesign — no
-   add/edit/delete/default-promotion flow left; see `PublishCredentialsSection`'s own header in
-   `StaticSiteTab.tsx`). Reuses `.field` for each input, `.field-hint` for the copy below each of
-   them, and `.deployment-action` for the Save row — `.deployment-credential-row` and
-   `.deployment-credential-fields` are the two new surfaces, since nothing else on this panel is a
-   fixed provider-row list where each row carries its own mini-form. */
-.deployment-credentials-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); }
-.deployment-credential-row {
-  display: flex; flex-direction: column; gap: var(--space-3);
-  padding: var(--space-4); background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md);
+/* ---- Numbered step flow (Static Site — "Getting it online") ---------------------------------
+   Two steps: connect a credential, then say where this publish goes (`StaticPublishForm`'s own
+   `.deployment-route`, marker "2" added inline there). Replaces THREE earlier shapes of the
+   credential half in one session: an add/edit/delete list of named connections (pre-2026-08-15),
+   then one always-visible row per provider (2026-08-15), then all four rows collapsed to the
+   selected provider's row alone, still hidden behind an "Advanced" disclosure regardless of state
+   (2026-08-16 morning). The owner's own direct read of THAT result: "Advanced" is backwards for a
+   mandatory first step — a new user cannot publish anything through this form until a token is
+   saved, so hiding it behind a word that means "optional, skip this" was exactly backwards. This is
+   the fix: `.deployment-step` for the open, prominent not-yet-connected state (no box-within-a-box —
+   a single bordered surface, not `.deployment-route`'s tinted/accented treatment, since this state
+   is a real primary action rather than a recommendation or a settled fact) and
+   `.deployment-step-done` for the collapsed, quiet connected state, disclosure now driven by
+   `row.saved` (has this actually been done), never by `executionMode` — see
+   `PublishCredentialsSection`'s own header in `StaticSiteTab.tsx` for the full story. */
+.deployment-step {
+  display: flex; flex-direction: column; gap: var(--space-4);
+  padding: var(--space-4); background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--r-md);
 }
-.deployment-credential-row-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-3); }
-.deployment-credential-row-name { font-weight: 600; color: var(--fg); }
+.deployment-step-head { display: flex; align-items: flex-start; gap: var(--space-3); }
+/* The number/checkmark badge — a soft rounded circle rather than `.deployment-path-icon`'s square,
+   so a step marker never gets mistaken for that OTHER "icon in a quiet box" idiom this tab already
+   uses for the Static/Full Site path cards. Sized to sit on the same baseline as an `<h3>`, not body
+   text — it is the size of the thing it is labeling, same reasoning `kole-jain-uiux-concepts`
+   gives for sizing an icon to its related text line height. */
+.deployment-step-marker {
+  display: grid; place-items: center; flex-shrink: 0;
+  width: 1.75rem; height: 1.75rem; border-radius: 50%;
+  background: var(--surface-2); border: 1px solid var(--border-strong); color: var(--fg-2);
+  font-size: var(--text-sm); font-weight: 700;
+}
+/* The done state's marker — filled green, not just a color swap on the outline: swapping to a solid
+   fill AND a checkmark glyph is a second, independent signal (shape, not just color) that this step
+   is finished, matching `CapabilityMark`'s own "distinct shapes, not one shape recolored" rule.
+   `--ok-solid`/`--ok-solid-ink` (falling back to `--ok`/a literal near-white) rather than plain
+   `--ok`: dark mode's own `--ok` (~L74%, tuned to read as TEXT on a dark background, same family
+   `.status-ok` uses) is too light to hold a white glyph on top of it, which is exactly why dark mode
+   already carries a separate `--ok-solid`/`--ok-solid-ink` pair for a FILLED shape with something
+   drawn on it — light mode has no such split because its `--ok` (~L48%) already works as a solid
+   fill, so the fallback resolves to the right color there too. */
+.deployment-step-marker-done {
+  background: var(--ok-solid, var(--ok)); border-color: var(--ok-solid, var(--ok));
+  color: var(--ok-solid-ink, oklch(99% 0 none));
+}
+/* Step 2's marker sits inline in `.deployment-route-label` beside the existing text, at the smaller
+   scale that row already uses — it is not its own step block, just a label prefix, so it drops the
+   size/weight the standalone Step 1 marker above needs to hold its own next to an `<h3>`. */
+.deployment-step-marker-inline { width: 1.375rem; height: 1.375rem; font-size: var(--text-xs); flex-shrink: 0; }
+.deployment-step-headings { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
+.deployment-step-title { margin: 0; font-family: var(--font-display); font-size: var(--text-lg); font-weight: 700; color: var(--fg); }
+.deployment-step-subtitle { margin: 0; font-size: var(--text-sm); color: var(--muted); max-width: 60ch; }
+/* The done state's `<summary>` — same marker-plus-text shape as `.deployment-step-head` above, but
+   as a single clickable row (native `<summary>`, cursor already signals it) rather than a
+   heading-plus-subtitle pair, since a settled fact needs one line, not two. `list-style: none` +
+   the `::-webkit-details-marker` reset strip the browser's own disclosure triangle — the row's own
+   `<details>`/`open` state plus hover/focus are signifier enough, and a second, unstyled triangle
+   competing with the step marker would be the same "which glyph means what" confusion this whole
+   redesign exists to remove. */
+.deployment-step-summary {
+  display: flex; align-items: center; gap: var(--space-3); cursor: pointer; list-style: none;
+  font-size: var(--text-sm); color: var(--fg-2);
+}
+.deployment-step-summary::-webkit-details-marker { display: none; }
+.deployment-step-summary-text { min-width: 0; }
+/* Collapsed by default (no `open` attribute — the mirror image of the not-yet-connected state,
+   which renders with no `<details>` at all so it can never be collapsed). Quieter surface than the
+   not-yet-connected `.deployment-step` above: `--surface-2` rather than `--surface`, and the fields
+   revealed on expand sit flush with no nested border — the same "no box inside a box" flattening
+   the credential row itself already had, still true now that the outer box is `.deployment-step`
+   instead of the old Advanced disclosure. */
+.deployment-step-done { background: var(--surface-2); }
+.deployment-step-done[open] .deployment-step-summary { margin-bottom: var(--space-1); }
+.deployment-step-done .deployment-credential-fields,
+.deployment-step-done .deployment-action { padding-left: calc(1.75rem + var(--space-3)); }
+
 /* A row's own fields, stacked — deliberately NOT `.field-row` (the shared two-up `auto-fit` grid
    every target-config field set on this tab otherwise uses). `.field-row` puts both columns of a
    grid ROW at the SAME height, which broke the one row that ever had two fields (Cloudflare Pages:
@@ -3276,27 +3337,10 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    app, so an Access Token input does not stretch to the full width of its card. */
 .deployment-credential-fields { display: flex; flex-direction: column; gap: var(--space-4); max-width: 28rem; }
 
-/* Collapsed-by-default "Advanced" disclosure for `executionMode: "self-hosted-cli"` — reuses the
-   native <details>/<summary> affordance `.assistant-roadmap details` (~L2178) already established in
-   this admin rather than a second, JS-driven disclosure widget. See `PublishCredentialsSection`'s own
-   header in `StaticSiteTab.tsx` for why this is collapsed in that mode and expanded (as a plain
-   `.deployment-route`, not this class) in `"hosted-api-only"`. */
-.deployment-credentials-advanced { border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface); margin-top: var(--space-2); }
-.deployment-credentials-advanced summary { cursor: pointer; padding: var(--space-3) var(--space-4); font-size: var(--text-sm); font-weight: 600; color: var(--fg-2); }
-.deployment-credentials-advanced > *:not(summary) { padding: 0 var(--space-4) var(--space-4); }
-.deployment-credentials-advanced .deployment-credentials-list { margin-top: var(--space-2); }
-/* The credential section collapsed to ONE row per tab (2026-08-16, `PublishCredentialsSection`'s own
-   doc) — it no longer needs its own bordered/tinted box nested inside a box that already has a
-   border: the Advanced `<details>` above, or the plain `.deployment-route` the hosted-only mode uses
-   instead (`PublishCredentialsSection`'s own branch below). A single row rendered as a card inside a
-   card inside a disclosure was exactly the "hard to read" nesting the owner called out, and now that
-   there is only ever one row, flattening it to sit flush in its parent removes a full layer of
-   boxes-inside-boxes for free — nothing here changes once the S3/Custom provider's own row lands, it
-   just stops competing with three siblings it no longer has. */
-.deployment-credentials-advanced .deployment-credential-row,
-.deployment-route .deployment-credential-row {
-  border: none; background: none; padding: 0;
-}
+/* The "or" seam between the CLI recommendation and Step 1 (`GettingItOnlineCard`'s own doc) —
+   centered, quiet, and unboxed on purpose: it is punctuation between two real blocks, not a third
+   block of its own. */
+.deployment-route-divider { margin: 0; text-align: center; font-size: var(--text-xs); font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--faint); }
 
 /* ---- Host chips (Static Site) ---------------------------------------------------------------- */
 /* Four proper nouns. A bulleted `<ul>` gave each its own line and a disc marker for no reason —

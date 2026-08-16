@@ -85,16 +85,20 @@ export function LayersIcon({ size = 20 }: { size?: number }) {
   );
 }
 
-/** A publish destination — a map pin, next to the "Where this publish goes" heading
- *  (`StaticSiteTab.tsx`'s `StaticPublishForm`). Sits beside {@link AssistantIcon}'s own
- *  icon-plus-label treatment on the CLI-recommendation route just above it, so the two blocks read
- *  as siblings with different jobs (which tool does the publishing vs. where THIS one lands) rather
- *  than one plain block and one decorated one. */
-export function DestinationIcon({ size = 20 }: { size?: number }) {
+/**
+ * The checkmark inside a completed step's marker (`StaticSiteTab.tsx`'s `CredentialStepDone`) — the
+ * same check-glyph path {@link CapabilityMark} uses for "Supported", reused here rather than
+ * redrawn, so the two ✓ marks on this tab (a capability that survives the export, a credential
+ * that's connected) read as the same symbol meaning the same thing. Always `aria-hidden`: the
+ * summary text next to it already states "connected" in words — this glyph is reinforcement on a
+ * step marker that already has its own accessible summary, not the only place the fact lives (a
+ * genuine second appearance, not this icon file's usual "every icon sits next to text that already
+ * says the same thing" rule stretched to cover something new).
+ */
+export function StepDoneIcon({ size = 12 }: { size?: number }) {
   return (
-    <svg {...LINE_ICON} width={size} height={size}>
-      <path d="M12 21s-7-6.1-7-11.5A7 7 0 0 1 19 9.5C19 14.9 12 21 12 21z" />
-      <circle cx="12" cy="9.5" r="2.25" />
+    <svg {...LINE_ICON} width={size} height={size} stroke="currentColor" strokeWidth={2.5} aria-hidden="true">
+      <path d="m5 13 4.5 4.5L19 6.5" />
     </svg>
   );
 }

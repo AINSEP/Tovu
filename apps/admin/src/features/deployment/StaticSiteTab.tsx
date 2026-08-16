@@ -7,6 +7,7 @@ import { formatTimestamp } from "../../lib/format-timestamp";
 import type {
   AdminDeployCliStatus,
   AdminExportRunSnapshot,
+  AdminPublishExecutionMode,
   AdminPublishRunSnapshot,
   AdminStaticPublishPreview,
   AdminStaticPublishTargetId,
@@ -31,7 +32,7 @@ import {
   type PublishCliTool,
   type PublishCredentialFormFields,
 } from "./rules";
-import { AssistantIcon, CapabilityList, DestinationIcon, StaticSiteIcon } from "./deployment-visuals";
+import { AssistantIcon, CapabilityList, StaticSiteIcon, StepDoneIcon } from "./deployment-visuals";
 import { useWiredDeploymentOverview } from "./hooks/use-deployment-overview.hooks";
 import type { DeploymentOverviewController } from "./hooks/use-deployment-overview.hooks";
 import { useWiredStaticExport } from "./hooks/use-static-export.hooks";
@@ -666,33 +667,30 @@ function GettingItOnlineCard({
         />
 
         {selectedTool ? (
-          <div className="deployment-route deployment-route-quiet">
-            <div className="deployment-route-label">
-              <AssistantIcon size={16} />
-              <span className="deployment-fact-label">{translate("Recommended — ask the assistant")}</span>
+          <>
+            <div className="deployment-route deployment-route-quiet">
+              <div className="deployment-route-label">
+                <AssistantIcon size={16} />
+                <span className="deployment-fact-label">{translate("Fastest — ask the assistant")}</span>
+              </div>
+              <p className="deployment-action-reason">
+                {translate(
+                  "Tovu's assistant runs as a command-line coding agent with its own shell, so once this tool is installed it can publish the export for you — nothing to paste here, and no credentials stored."
+                )}
+              </p>
+              <ul className="deployment-provider-list">
+                <ProviderCliRow tool={selectedTool} deployClis={deployClis} overviewLoaded={Boolean(overview.snapshot)} t={translate} />
+              </ul>
             </div>
-            <p className="deployment-action-reason">
-              {translate(
-                "Tovu's assistant runs as a command-line coding agent with its own shell, so once this tool is installed it can publish the export for you — nothing to paste here, and no credentials stored."
-              )}
-            </p>
-            <ul className="deployment-provider-list">
-              <ProviderCliRow tool={selectedTool} deployClis={deployClis} overviewLoaded={Boolean(overview.snapshot)} t={translate} />
-            </ul>
-          </div>
-        ) : (
-          <div
-            className="deployment-route deployment-route-quiet"
-            {...agentHandle("deployment-static-site-no-cli-note", {
-              role: "status",
-              label: "States that this provider has no CLI-first path and must be published with a saved credential",
-            })}
-          >
-            <p className="deployment-action-reason">
-              {translate("There's no CLI-first path for this provider yet — publish with a saved credential below.")}
-            </p>
-          </div>
-        )}
+            {/* Names the CLI block above and the numbered flow below as ALTERNATIVES, not two steps
+                of one sequence — without it, "Connect GitHub Pages" reads like the thing you do
+                right after installing the CLI, when it is really the other option entirely. Plain
+                text, not `.deployment-route*`: a divider is not a block with its own content, and
+                giving it a box would make it look like a third choice rather than the seam between
+                the two real ones. */}
+            <p className="deployment-route-divider">{translate("or")}</p>
+          </>
+        ) : null}
 
         <PublishCredentialsSection controller={credentialsController} selectedProviderId={selectedTarget.id} t={translate} />
 
@@ -703,41 +701,31 @@ function GettingItOnlineCard({
 }
 
 /**
- * The credential section — ONE row, for whichever provider is currently selected on the tab bar
- * above (2026-08-16 redesign; before this pass it was one always-visible row per provider — see the
- * next paragraph). Sits inside `GettingItOnlineCard`, between the CLI-first recommendation and the
- * token-based publish form, because it answers exactly the question a reader has right after seeing
- * the CLI route: "what if I can't install a CLI here at all."
+ * The credential step — Step 1 of the two-step flow this card walks a reader through (Step 2 is
+ * {@link StaticPublishForm}'s "Where this publish goes"), for whichever provider is currently
+ * selected on the tab bar above. Renders exactly one provider's state: {@link CredentialStepTodo}
+ * when nothing is saved yet, {@link CredentialStepDone} once it is.
  *
- * The owner's own read on this section, twice: first "'Add credential' should be gone. Just list the
- * providers, labels, and access token space, and that's it" (2026-08-15, which produced the
- * one-row-per-provider shape `PublishCredentialRow` below still is), then "it looks just awful"
- * against that very shape once all four rows sat on screen together regardless of which tab was
- * selected — a reader on the GitHub Pages tab still had to scroll past Vercel's, Netlify's, and
- * Cloudflare Pages' own credential forms to find the one that mattered. Filtering `controller.rows`
- * to {@link selectedProviderId} is the fix: exactly the row for the tab a reader is already looking
- * at, never the other three. `PUBLISH_CREDENTIAL_PROVIDERS`/`STATIC_PUBLISH_TARGETS` share the same
- * id set in the same order (`rules.ts`'s own doc on both), so `selectedProviderId` — always one of
- * `STATIC_PUBLISH_TARGETS`'s own ids — is guaranteed to match exactly one row.
+ * Three passes got this section here. First, "'Add credential' should be gone. Just list the
+ * providers, labels, and access token space, and that's it" (2026-08-15) replaced an add/edit/delete
+ * flow with one always-visible row per provider. Then "it looks just awful" (2026-08-16) — all four
+ * rows rendered at once regardless of the selected tab — collapsed it to the SELECTED provider's row
+ * only. Then the owner's OWN direct read of that result: **"Advanced" is backwards for a mandatory
+ * first step.** A new user cannot publish anything through this form until a token is saved here —
+ * it is step one of two, not an optional extra — and the only reason it had ever been hidden behind
+ * an "Advanced" disclosure was that four stacked forms were too ugly to leave visible. The collapse
+ * removed that reason, so this pass removes the hiding along with it: disclosure now depends on
+ * `row.saved` (has this actually been done), never on `controller.executionMode` (the OLD gate).
+ * `executionMode` still matters — it changes WHY this step is mandatory, in
+ * {@link credentialStepSubtitleKey} — just not WHETHER it is shown open.
  *
- * Disclosure is driven ENTIRELY by `controller.executionMode` — the server's own fact, never
- * sniffed client-side (see `AdminPublishExecutionMode`'s doc in `lib/api.ts`):
- *
- * - `"self-hosted-cli"`: the CLI-first path above already works with no stored credential needed,
- *   so this block still sits behind a native `<details>` "Advanced" disclosure (same affordance
- *   `Redirects.tsx`'s own bulk-import panel and `AiAssistant.tsx`'s roadmap accordion already use in
- *   this admin, rather than a second JS-driven one) — but OPEN by default (owner's own call,
- *   2026-08-15: Netlify and Cloudflare Pages have no CLI-first row at all, so a reader who picks
- *   either target and finds the credential row collapsed behind an unopened `<summary>` has nowhere
- *   else on this card to go). `<details open>` still degrades gracefully for a reader who wants it
- *   closed — the summary stays a real, clickable native disclosure toggle either way.
- * - `"hosted-api-only"`: this workspace cannot reach the operator's own terminal at all, so a
- *   stored credential is the ONLY way a publish can ever succeed here. The block renders OPEN, with
- *   a plain sentence saying so up front.
+ * `PUBLISH_CREDENTIAL_PROVIDERS`/`STATIC_PUBLISH_TARGETS` share the same id set in the same order
+ * (`rules.ts`'s own doc on both), so `selectedProviderId` — always one of `STATIC_PUBLISH_TARGETS`'s
+ * own ids — is guaranteed to match exactly one row; the `undefined` fallback below is defensive only.
  *
  * Renders only a brief "Loading…" line until BOTH `rows` and `executionMode` have resolved — showing
- * the self-hosted framing for one render before the real `executionMode` arrives would be a worse
- * false impression than a short, honest wait.
+ * either step state for one render before the real data arrives would be a worse false impression
+ * than a short, honest wait.
  */
 function PublishCredentialsSection({
   controller,
@@ -767,81 +755,48 @@ function PublishCredentialsSection({
     return <p className="deployment-action-reason">{translate("Loading credentials…")}</p>;
   }
 
-  // Exactly the selected provider's row — see this function's own doc for why this replaced
-  // rendering `controller.rows` unfiltered. `.filter()` rather than `.find()` keeps `body` a `<ul>`
-  // of zero-or-one `<li>` (never a bare row with no list semantics), and the id-set guarantee above
-  // means it is always exactly one in practice.
-  const selectedRows = controller.rows.filter((row) => row.providerId === selectedProviderId);
+  const row = controller.rows.find((r) => r.providerId === selectedProviderId);
+  if (!row) return null;
 
-  const body = (
-    <ul
-      className="deployment-credentials-list"
-      {...agentHandle("deployment-static-site-credentials-section", {
-        role: "region",
-        label: "The selected provider's saved publish credential — its own access token and Save action",
-      })}
-    >
-      {selectedRows.map((row) => (
-        <PublishCredentialRow key={row.providerId} row={row} controller={controller} t={translate} />
-      ))}
-    </ul>
-  );
-
-  if (controller.executionMode === "hosted-api-only") {
-    return (
-      <div className="deployment-route">
-        <p
-          className="notice warning"
-          role="status"
-          {...agentHandle("deployment-static-site-credentials-hosted-notice", {
-            role: "status",
-            label: "States that this hosted workspace cannot use a local CLI and needs a saved credential to publish",
-          })}
-        >
-          {translate(
-            "This workspace cannot use your computer's terminal or CLI sign-in. To publish here, connect a provider and save its credentials below."
-          )}
-        </p>
-        {body}
-      </div>
-    );
+  if (row.saved !== undefined) {
+    return <CredentialStepDone row={row} controller={controller} t={translate} />;
   }
+  return <CredentialStepTodo row={row} controller={controller} executionMode={controller.executionMode} t={translate} />;
+}
 
-  return (
-    <details className="deployment-credentials-advanced" open>
-      <summary>{translate("Advanced: publish with server-side provider credentials")}</summary>
-      <p className="deployment-action-reason">
-        {translate("Only needed if you'd rather not install a CLI, or the assistant can't reach this machine's terminal.")}
-      </p>
-      {body}
-    </details>
-  );
+/** Step 1's subtitle key — explains why connecting here is necessary, which depends on
+ *  `executionMode` (the server's own fact about whether this WORKSPACE can reach the operator's
+ *  terminal at all — see `AdminPublishExecutionMode`'s doc in `lib/api.ts`), not on whether the
+ *  currently selected PROVIDER happens to have a CLI route. `"self-hosted-cli"` covers a workspace
+ *  where some other provider's CLI works even when this one has none, and the reason to connect
+ *  here is the same regardless: it is the only path this specific provider has. */
+function credentialStepSubtitleKey(executionMode: AdminPublishExecutionMode): string {
+  if (executionMode === "hosted-api-only") {
+    return "This workspace can't use your computer's terminal — connecting here is the only way to publish.";
+  }
+  return "Save a personal access token so Tovu can publish on your behalf.";
 }
 
 /**
- * One provider's always-visible credential row — provider name, its own token input (never
- * pre-filled, even when connected — see `AdminPublishCredentialSummary`'s own doc for why this admin
- * can never read a stored secret back), Cloudflare Pages' required Account ID, a connected/
- * not-connected status, and its own Save action.
+ * Step 1's fields — token input, Cloudflare Pages' required Account ID, and the Save action. Shared
+ * between {@link CredentialStepTodo} (always open) and {@link CredentialStepDone} (one click away,
+ * for replacing an already-saved token) rather than duplicated, since the fields and the Save
+ * behavior are identical in both — only whether the reader sees them by default differs.
  *
  * Every hint here renders BELOW its input as a `.field-hint`, never as placeholder text inside it —
  * grey placeholder text sitting in an empty box reads as a saved value at a glance, which was the
  * owner's own "why is the access token prepopulated for Netlify and Cloudflare" complaint about this
- * section's earlier shape (the OLD `PublishCredentialForm`'s edit-mode placeholder). The token and
- * Account ID inputs below carry NO `placeholder` prop at all, connected or not — an empty box always
- * looks empty.
+ * section's earlier shape. The token and Account ID inputs below carry NO `placeholder` prop at all,
+ * connected or not — an empty box always looks empty.
  *
  * Fields render in a single stacked column (`.deployment-credential-fields`), NOT the shared
  * `.field-row` two-up grid every target-config field set on this tab uses — that grid gives both
  * columns of a row the SAME height, and Cloudflare Pages' own two fields never have the same height
- * (Access token carries two hint lines plus a link; Account ID carries one short hint), which left
- * Account ID floating near the top of a mostly-empty tall column with the shared Save button below
- * reading disconnected from it. A single column has no such row to share, so it cannot break this
- * way regardless of how many fields a provider needs or how uneven their hints are — see this file's
- * header for the Custom/S3 provider (~5 fields, deliberately not squeezed into this shared shape)
- * this same row will need to render once it lands.
+ * (Access token carries two hint lines plus a link; Account ID carries one short hint). A single
+ * column can't break this way regardless of field count — see this file's header for the Custom/S3
+ * provider (~5 fields) this same layout will need to hold once it lands.
  */
-function PublishCredentialRow({
+function PublishCredentialFields({
   row,
   controller,
   t: translate,
@@ -857,22 +812,7 @@ function PublishCredentialRow({
   const needsAccountId = info.requiredFields.includes("accountId");
 
   return (
-    <li
-      className="deployment-credential-row"
-      {...agentHandle(`deployment-static-site-credentials-row-${row.providerId}`, {
-        role: "region",
-        label: `${info.label}'s saved publish credential`,
-      })}
-    >
-      <div className="deployment-credential-row-head">
-        <span className="deployment-credential-row-name" translate="no">
-          {info.label}
-        </span>
-        <span className={`status status-${connected ? "ok" : "neutral"}`}>
-          {connected ? `${translate("Connected")} · ${translate("updated")} ${formatTimestamp(row.saved!.updatedAt)}` : translate("Not connected")}
-        </span>
-      </div>
-
+    <>
       <div className="deployment-credential-fields">
         <div className="field">
           <label className="field-label" htmlFor={`deployment-static-site-credentials-token-${row.providerId}`}>
@@ -940,7 +880,102 @@ function PublishCredentialRow({
           </p>
         ) : null}
       </div>
-    </li>
+    </>
+  );
+}
+
+/**
+ * Step 1, not-yet-connected — open and prominent, no "Advanced" framing anywhere (the owner's own
+ * redirect; see {@link PublishCredentialsSection}'s doc for the full story). Plain fields, not a
+ * `<details>`: there is nothing to progressively disclose FROM here, since this IS the thing the
+ * reader still has to do — hiding the one remaining blocking step behind a click would recreate the
+ * exact problem this pass exists to fix.
+ */
+function CredentialStepTodo({
+  row,
+  controller,
+  executionMode,
+  t: translate,
+}: {
+  row: PublishCredentialRowState;
+  controller: PublishCredentialsController;
+  executionMode: AdminPublishExecutionMode;
+  t: Translate;
+}) {
+  const info = publishCredentialProviderInfo(row.providerId);
+  return (
+    <div
+      className="deployment-step"
+      {...agentHandle(`deployment-static-site-credentials-row-${row.providerId}`, {
+        role: "region",
+        label: `${info.label}'s saved publish credential — not yet connected`,
+      })}
+    >
+      <div className="deployment-step-head">
+        <span className="deployment-step-marker" aria-hidden="true">
+          1
+        </span>
+        <div className="deployment-step-headings">
+          <h3 className="deployment-step-title">
+            {translate("Connect")} <span translate="no">{info.label}</span>
+          </h3>
+          <p className="deployment-step-subtitle">{translate(credentialStepSubtitleKey(executionMode))}</p>
+        </div>
+      </div>
+      <PublishCredentialFields row={row} controller={controller} t={translate} />
+    </div>
+  );
+}
+
+/**
+ * Step 1, connected — collapsed to one settled summary line behind a native `<details>` (same
+ * disclosure affordance this admin already uses elsewhere — `Redirects.tsx`'s bulk-import panel,
+ * `AiAssistant.tsx`'s roadmap accordion — rather than a second, JS-driven one), CLOSED by default:
+ * the step is done, so it gets out of the way, the mirror image of {@link CredentialStepTodo}
+ * staying open because its step is NOT done.
+ *
+ * The summary states the trust fact directly — "token stored, encrypted" — rather than leaving
+ * "Connected" to imply it. The owner's own framing: a user pasting a real access token into this box
+ * has to decide whether to believe it is actually being protected, and this admin can back the claim
+ * — `publish_credential_sets` has no plaintext token column at all, only `sealed_ciphertext`/
+ * `sealed_nonce`/`sealed_alg` (AES-GCM). This says only what is true and checkable from the UI's own
+ * side of that boundary ("stored, encrypted"), not the specific cipher — the algorithm is an
+ * implementation detail the interface has no business asserting and no way to keep honest if the
+ * server ever changes it.
+ *
+ * Expanding the summary re-shows {@link PublishCredentialFields} to replace the token — the exact
+ * fields {@link CredentialStepTodo} shows, just reached one click away rather than always open,
+ * since changing an already-working credential is the rare path, not the common one.
+ */
+function CredentialStepDone({
+  row,
+  controller,
+  t: translate,
+}: {
+  row: PublishCredentialRowState;
+  controller: PublishCredentialsController;
+  t: Translate;
+}) {
+  const info = publishCredentialProviderInfo(row.providerId);
+  return (
+    <details
+      className="deployment-step deployment-step-done"
+      {...agentHandle(`deployment-static-site-credentials-row-${row.providerId}`, {
+        role: "region",
+        label: `${info.label}'s saved publish credential — connected`,
+      })}
+    >
+      <summary className="deployment-step-summary">
+        <span className="deployment-step-marker deployment-step-marker-done" aria-hidden="true">
+          <StepDoneIcon />
+        </span>
+        <span className="deployment-step-summary-text">
+          <span translate="no">{info.label}</span> {translate("connected")} · {translate("token stored, encrypted")} ·{" "}
+          {translate("updated")} {formatTimestamp(row.saved!.updatedAt)}
+        </span>
+      </summary>
+      <PublishCredentialFields row={row} controller={controller} t={translate} />
+    </details>
   );
 }
 
@@ -1159,7 +1194,16 @@ function StaticPublishForm({
   return (
     <div className="deployment-route">
       <div className="deployment-route-label">
-        <DestinationIcon size={16} />
+        {/* Step 2's plain numbered marker, not `DestinationIcon` (removed) — a bare "2" reads as
+            the second half of the same sequence Step 1's own marker starts, which is exactly the
+            "which have I done, what's next" legibility the numbered-step redesign exists for; a
+            destination-pin icon paired with Step 1's number-or-checkmark badge would have been two
+            different iconographic systems competing for the same job. Never gets a checkmark the
+            way a connected credential's marker does — publishing is a repeatable action, not a
+            one-time box to tick off. */}
+        <span className="deployment-step-marker deployment-step-marker-inline" aria-hidden="true">
+          2
+        </span>
         <span className="deployment-fact-label">{translate("Where this publish goes")}</span>
       </div>
       <p className="deployment-action-reason">

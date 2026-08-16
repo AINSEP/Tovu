@@ -308,22 +308,31 @@ describe("StaticSiteTab — provider picker splits GitHub Pages and Vercel", () 
     }
   });
 
-  it("netlify: no CLI row at all (never falls back to the GitHub CLI row) — shows the 'no CLI-first path' note and no target-specific field", () => {
+  // REWRITTEN 2026-08-16 (step-flow redesign): a "no CLI-first path" note used to stand in for the
+  // (hidden, "Advanced") credential form below it. Now that Step 1 renders open and immediately
+  // visible, the note is redundant — there is nothing left to explain, since Step 1 already speaks
+  // for itself as the one thing to do. Pinning instead that no CLI block/"or" divider render at all
+  // for a provider with no CLI route, and Step 1 shows up directly.
+  it("netlify: no CLI row, no 'Fastest' block, no 'or' divider — Step 1 renders directly, no target-specific field", () => {
     renderTab({ publishController: { target: "netlify" } });
     expect(screen.getByRole("tab", { name: "Netlify" })).toHaveAttribute("aria-selected", "true");
     expect(screen.queryByText("gh")).not.toBeInTheDocument();
     expect(screen.queryByText("vercel")).not.toBeInTheDocument();
-    expect(screen.getByText("There's no CLI-first path for this provider yet — publish with a saved credential below.")).toBeInTheDocument();
+    expect(screen.queryByText("Fastest — ask the assistant")).not.toBeInTheDocument();
+    expect(screen.queryByText("or")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Connect/, level: 3 })).toHaveTextContent("Netlify");
     expect(screen.queryByLabelText("GitHub owner or org")).not.toBeInTheDocument();
     expect(screen.queryByLabelText(/Vercel team/)).not.toBeInTheDocument();
   });
 
-  it("cloudflare-pages: no CLI row at all, same 'no CLI-first path' note, no target-specific field", () => {
+  it("cloudflare-pages: no CLI row, no 'Fastest' block, no 'or' divider — Step 1 renders directly", () => {
     renderTab({ publishController: { target: "cloudflare-pages" } });
     expect(screen.getByRole("tab", { name: "Cloudflare Pages" })).toHaveAttribute("aria-selected", "true");
     expect(screen.queryByText("gh")).not.toBeInTheDocument();
     expect(screen.queryByText("vercel")).not.toBeInTheDocument();
-    expect(screen.getByText("There's no CLI-first path for this provider yet — publish with a saved credential below.")).toBeInTheDocument();
+    expect(screen.queryByText("Fastest — ask the assistant")).not.toBeInTheDocument();
+    expect(screen.queryByText("or")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /Connect/, level: 3 })).toHaveTextContent("Cloudflare Pages");
   });
 });
 
