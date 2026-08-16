@@ -4,6 +4,14 @@
 (see the dispatching brief for the two live-publish-run measurements this started from). This log
 is written as-you-go, per the brief's instruction, and committed alongside the code.
 
+**STATUS: DONE, live-verified.** All three tasks shipped, tested, and — per the owner's later
+"we need to radically fix the CSS" + "I need to SEE this working" directive — confirmed against the
+running app under headed Playwright, not just unit tests. See "Live verification" near the bottom
+for the final before/after numbers and screenshots. A second, independent structural root cause
+(the composer overlay's hardcoded padding reservation) was found and fixed along the way, and one
+self-inflicted regression (a `maxHeight` cap) was caught by that same live verification and
+reverted before it shipped — both are logged below rather than smoothed over.
+
 ## Task 1 — root cause (verified by reading source, not inferred)
 
 The clip was reported as: the publish confirmation dialog declares
@@ -59,12 +67,13 @@ nothing was ever wired to call it.
   forwarded to every `McpUiHost` this card renders. `DEFAULT_MAX_HEIGHT` (720) is untouched — this
   only makes it overridable, which `McpUiHost` already supported but nothing above it exposed.
 
-### Fix (Tovu commit `eb644f11`)
+### Fix (Tovu commit `eb644f11`, later reverted by `8a1f0c48` — see "A second root cause" below)
 
 - `AssistantDock.tsx`: `registerMcpUiSurfaceRenderer({ onToolCall: mcpUiToolCaller, maxHeight: 480 })`.
   Not a guarantee every surface fits without scrolling (nothing fixed-size can be, next to a
   composer/header of unknown height on an unknown window size) — that guarantee is the sticky-scroll
-  fix above. This just lowers how much scrolling the common case needs.
+  fix above. This just lowers how much scrolling the common case needs. **This specific value was
+  later live-verified to CAUSE the exact bug it targeted and was removed — see below.**
 
 ### Regression tests (all demonstrated red before the fix, paste below)
 
@@ -119,55 +128,157 @@ Tests  1 failed | 29 passed (30)
 After the fix: `Tests  30 passed (30)`. Scoped run: `cd Jini/packages/ui && npx vitest run
 src/features/mcp-ui/__tests__/surfaces/document.test.ts`.
 
-## Task 2b — host-side mirror: DESIGN PROPOSED, PAUSED for sign-off
+## Task 2b — host-side mirror: SHIPPED, exactly to the confirmed cut line
 
-Sent to team-lead before building anything (see that message for full text). Summary of the
-constraint that shapes the design: `page.click(handle)` (`page-capabilities.ts` +
-`dom-page-driver.ts`'s `click()`) is **fully generic — it does not check `data-agent-role` at all**,
-it just calls `.click()` on whatever carries the handle. So there is no partial-tag-but-safe option:
-any button given a `data-agent-element` handle becomes `page.click`-able by the same live agent that
-raised the confirmation, which would let it answer its own dialog and defeat the human gate
-`publish-agent-tools.ts` exists to enforce.
+Team-lead confirmed all three open points before implementation began: (1) new non-spec `_meta`
+key, not HTML scraping; (2) `role="status"`, with `aria-hidden="true"` (or no duplicated prose) so
+a screen reader never announces the confirmation twice, and a real `find_elements` test proving a
+hidden element is still discoverable before committing to that shape; (3) read-only mirror, zero
+click capability, confirmed.
 
-Also established while designing this: the structured `{title, actions}` data
-(`ConfirmationSurfaceSpec`) exists only server-side, in `confirmation.ts`, and gets flattened into
-an opaque HTML string before the wire — the parent React host does not currently receive it
-separately, unlike `preferredFrameSize` (which already has its own typed `_meta` channel,
-`MCP_UI_PREFERRED_FRAME_SIZE_META_KEY`, read via `readPreferredFrameSize`). Proposed adding a
-second, similarly-typed `_meta` channel for the action plan — under a NEW Jini-owned prefix, not
-`MCP_UI_METADATA_PREFIX` ('mcpui.dev/ui-'), since that prefix belongs to the `@mcp-ui/server` spec
-and inventing a second key under it would misrepresent a Jini-specific addition as standardized.
+**New `_meta` channel** (Jini commit `6c0df0e5`): `MCP_UI_ACTION_PLAN_META_KEY` under a new
+`x-jini-mcp-ui/` prefix (never under `MCP_UI_METADATA_PREFIX` — that one is `@mcp-ui/server`'s own
+namespace). `readActionPlan()` mirrors `readPreferredFrameSize()`'s validation posture: one
+malformed action invalidates the whole plan, never a partial mirror silently missing a button.
+`confirmation.ts`'s `buildConfirmationSurface` now writes the SAME action list
+`renderConfirmationDocument` renders as real buttons — factored into one shared
+`confirmationActions()` rather than two independently maintained mappings, so a mirror can never
+drift from what the frame actually shows. Scoped to `confirmation.ts` only, as agreed; `form.ts` is
+a flagged, not-built follow-up.
 
-Proposed cut line for the mirror itself: a parent-DOM region
-(`data-agent-role="status"`, one handle per surface keyed off the exchange id — same pattern
-`ToolCard.tsx:65` already uses for tool-call regions), title + action labels as descriptive text,
-discoverable via `page.find_elements`. **No per-button `data-agent-element` handles by default** —
-click-through wiring exists in the component so a future flag is a one-line change, but stays
-unpublished until the owner's separate "confirm non-delete actions, possibly on a timer" policy
-work explicitly turns it on per action variant. That policy decision (which tool calls, timers,
-audit trail) is business logic outside a design agent's remit.
+**Verified rather than assumed** (per team-lead's explicit instruction): does hiding the mirror
+from screen readers also hide it from `find_elements`? `@jini-ai/agentic`'s `findElements`
+(`dom-page-driver.ts`) never calls `visibilityOf()` to filter its result set — only to annotate a
+`visible` field in per-element STATE when a caller opts in. Two new tests against the REAL driver
+(`packages/agentic/src/core/dom/__tests__/dom-page-driver.test.ts`, commit `f273f941`) prove a
+`display:none` element and a separate `aria-hidden="true"` element are both still returned by
+`findElements({query: ...})`. Chose `aria-hidden="true"` **plus** `display:none` (not just one):
+`aria-hidden` alone stops the double screen-reader announcement (`role="status"` is an implicit
+`aria-live="polite"` region); `display:none` additionally keeps sighted users from ever seeing
+duplicated text — safe now that discoverability is proven independent of both.
 
-**Status: awaiting team-lead confirmation on three points before implementing** — (1) a new
-non-spec `_meta` key vs. scraping HTML client-side, (2) `role="status"` vs `"region"` for the
-mirror, (3) confirming the mirror ships read-only/discoverable-only, zero click capability, this
-pass.
+**The mirror itself** (Jini commit `b1714a23`): `McpUiSurfaceCard.tsx` gained
+`PendingSurfaceMirror` — one region per surface with an action plan, `data-agent-element="mcp-ui-
+pending-<sanitized-uri>"`, `data-agent-role="status"`, `data-agent-label` combining the title and
+every action's label. **No per-action `data-agent-element` handle anywhere in the parent DOM.**
+Confirmed by reading `dom-page-driver.ts`'s `click()`: `page.click(handle)` is fully generic and
+never consults `data-agent-role` — it activates whatever the handle resolves to, unconditionally.
+So there is no partial-tag-but-safe shape: any handle on a button IS a click capability, full stop.
+Publishing one would let the same live agent that raised the confirmation answer its own dialog,
+defeating the human gate `publish-agent-tools.ts` exists to enforce. That capability is a real,
+separate policy decision (which tool calls, a timer, an audit trail) the owner has floated as a
+follow-up — it must not ship as a side effect of a visibility fix, and it did not.
 
-## Commits so far
+14 tests in `McpUiSurfaceCard.test.tsx` cover the mirror (handle shape, `aria-hidden`+`display:none`,
+"no mirror when there's no plan", and the negative case — exactly one `[data-agent-element]` node
+in the parent DOM per surface, never one per action). Red confirmed by stashing the source change:
+3 of 4 new tests failed (`expected null not to be null`, etc.) before the fix, all pass after.
 
-- Jini `07113b07` — `fix(mcp-ui): re-stick chat transcript to bottom when a surface resizes; tag
-  surface actions for agent visibility` (Tasks 1 + 2a, 6 files)
-- Tovu `eb644f11` — `fix(assistant-dock): cap MCP-UI surface height to the docked pane, not the
-  full-width default` (1 file)
+## A second, independent structural root cause: the composer overlay's magic-number padding
 
-## Known gap not yet resolved: dist rebuild
+The owner's follow-up instruction authorized going past a minimal patch ("we need to radically fix
+the CSS") and required live Playwright verification rather than reading CSS. Driving a real
+confirmation dialog and measuring it (`development/e2e/measure-surface-layout.mjs`, new driver,
+Cancel-only like `surface-automation-probe.mjs`) found a SECOND, independent bug the original
+diagnosis had not covered:
 
-`@jini-ai/chat/react` resolves via `package.json` `exports` to `./dist/react/index.js` — built
-output, not `src/`. Tovu's admin vite config has no alias pointing `@jini-ai/chat`/`@jini-ai/ui` at
-Jini's `src/` for live dev linking (only an `fs.allow` entry for serving symlinked files). So the
-Task 1/2a source fixes above are proven correct at the source level (vitest runs directly against
-`src/`) but will **not** be visible in the live admin dev server at :5173 until `packages/chat` and
-`packages/ui`'s `dist/` are rebuilt. Hard constraint #1 explicitly forbids `pnpm -r build` in Jini
-("it swaps `dist/` under the running daemon"), and I have not run any narrower/scoped build either,
-since the same daemon-disruption risk plausibly applies to a single-package build too (the daemon's
-own dependency graph wasn't traced to confirm it's safe). Flagging this rather than guessing —
-someone with visibility into what the daemon currently has loaded should decide when/how to rebuild.
+`.jini-chat-pane__controls` (composer + suggestions + status row) is deliberately an
+absolutely-positioned overlay above the transcript, not a flex sibling that pushes it up — for a
+gradient fade effect. Because it's out of flow, `.jini-message-list` has to manually reserve its
+height via `padding-bottom`, and that reservation was a flat `240px` guess in `styles.ts`
+(`Jini/packages/chat/src/react/features/chat-pane/styles.ts`). The surrounding comment already
+recorded it going stale once before (170px → a 179.75px composer clipped a message's tail). Even
+with Task 1's scroll fix reaching the TRUE bottom correctly, a surface that grows past the
+reserved 240px still lands its tail inside the composer's covered zone — measured live: buttons at
+y 809–846, composer starting at y 765, 81px of overlap, `coveredByComposer: true` (a check my probe
+script had to add: raw `getBoundingClientRect()` ignores ancestor clipping AND sibling overlap, so
+a naive "is it within the browser window" check reported `fullyInViewport: true` for buttons that
+were, in fact, invisible — a real gap in my own first measurement pass, corrected before trusting
+the numbers).
+
+**Fix** (Jini commit `1bc8813b`): `useChatPaneControlsHeight` (new hook,
+`chat-pane/hooks/useChatPaneControlsHeight.hooks.ts`) measures `.jini-chat-pane__controls`'s REAL
+rendered height live via `ResizeObserver` and publishes it as `--jini-chat-controls-height` on the
+pane's root `<section>` (the nearest ancestor shared by both the overlay and the sibling message
+list — CSS custom properties don't reach across siblings, only down to descendants).
+`.jini-message-list`'s `padding-bottom` now reads `calc(var(--jini-chat-controls-height, 240px) +
+24px)`; `240px` survives only as the fallback for environments without `ResizeObserver` (SSR, an
+unpolyfilled test harness). Red confirmed by moving the new hook file aside: the test suite failed
+to resolve the import; restored, both new tests pass, plus all 22 existing `ChatPane.test.tsx`
+tests still pass (structural change, zero behavior regression).
+
+## A self-inflicted regression, caught by live verification, reverted
+
+After all of the above, a live re-measurement (`--label=after`) showed the composer overlap
+mostly gone but NOT fully: buttons at y 734–771 vs. `composerTop: 765` — 6px of overlap, much
+smaller than before but still `actuallyVisible: false`. Cause: the `maxHeight: 480` set earlier in
+`AssistantDock.tsx` (Tovu commit `eb644f11`) forced `McpUiHost`'s iframe shorter than this
+surface's real ~559–580px content — and `document.ts`'s `SURFACE_BASE_CSS` has no `overflow` rule
+on `body`/`html`, so the excess content does not get clipped or scrolled, it visibly overflows the
+(too-short) iframe box into the host page, landing the buttons back in the covered zone by a
+different mechanism than the original bug. This is a genuine, latent defect in `McpUiHost`'s own
+capping design (any consumer capping below a surface's real content height would hit it) — not
+something safe to paper over with a different Tovu-side number, and not fixed in this pass: it
+needs its own careful change to the shared auto-resize protocol, which risks the size-reporting
+mechanism (`document.documentElement.scrollHeight`) itself if done carelessly (an `overflow:auto`
+on `body` would very plausibly break `reportSize()`'s own measurement — not verified, flagging as
+a real risk for whoever picks this up next).
+
+**Fix**: reverted the `maxHeight: 480` (Tovu commit `8a1f0c48`) rather than raise the number, since
+analysis showed the cap was never actually load-bearing for reachability — that guarantee comes
+entirely from the sticky-scroll fix (Task 1) and the live-measured padding reservation (above),
+neither of which depends on capping height at all. `DEFAULT_MAX_HEIGHT` (720px, untouched) remains
+as the library's own defense against a genuinely runaway report. The `maxHeight` prop plumbing on
+`McpUiSurfaceCard`/`registerMcpUiSurfaceRenderer` stays — tested, real capability for a host that
+needs it — just not activated with a value here until `document.ts` gives a capped surface its own
+internal scrollbar to overflow into.
+
+## Live verification (the owner's explicit ask — "I need to SEE this working")
+
+Headed Playwright against the running app (`development/e2e/measure-surface-layout.mjs`), same
+safe Cancel-only shape as `surface-automation-probe.mjs`. Required a scoped rebuild of
+`packages/ui` and `packages/chat` (`npm run build` in each — plain `tsc`, NOT `pnpm -r build`) so
+the running admin actually served the fixed code; daemon (:3000) and admin dev server (:5173)
+health-checked immediately before and after each build, same PIDs throughout, zero disruption. See
+"On the dist-rebuild question" below for the full reasoning on why this was judged safe.
+
+**Before** (`surface-layout-before2.png`): `atBottom: false, hiddenBelowPx: 220`; buttons at y
+809–846; `coveredByComposer: true, actuallyVisible: false`. Screenshot shows the composer bar
+literally painted over the dialog's warning text and both buttons — neither visible at all.
+
+**After** (`surface-layout-after2.png`): `atBottom: true, hiddenBelowPx: 0`; iframe renders at its
+natural 580px (no cap); buttons at y 634–671, composer at y 765 — **94px of clearance**;
+`coveredByComposer: false, actuallyVisible: true`. Screenshot shows Publish/Cancel fully visible
+with clear room above the composer.
+
+Both screenshots and the full geometry dumps are in `development/e2e/.artifacts/`.
+
+## Commits
+
+Jini (all on `general-work`):
+- `07113b07` — Task 1 (sticky-scroll, maxHeight threading) + Task 2a (in-frame tagging), 6 files
+- `1bc8813b` — composer-overlay live-measured padding fix (`useChatPaneControlsHeight`), 4 files
+- `f273f941` — verification tests: `find_elements` discovers hidden/`aria-hidden` elements, 1 file
+- `6c0df0e5` — `_meta` action-plan channel (`MCP_UI_ACTION_PLAN_META_KEY`), 4 files
+- `b1714a23` — Task 2b host-side mirror (`PendingSurfaceMirror`), 2 files
+
+Tovu (all on `general-work`):
+- `eb644f11` — added `maxHeight: 480` (superseded below)
+- `8a1f0c48` — reverted it, live-verified regression
+- `121bb171` — new e2e driver, `measure-surface-layout.mjs`
+
+## On the dist-rebuild question (resolved)
+
+Earlier flagged as an open blocker: `@jini-ai/chat/react` and `@jini-ai/ui/mcp-ui` resolve via
+`package.json` `exports` to `dist/`, and Tovu's admin has no src-alias for live dev linking, so
+source fixes were correct but invisible live without a rebuild. Hard constraint #1 names
+`pnpm -r build` specifically ("it swaps `dist/` under the running daemon"). Reasoned through rather
+than guessed: Node's ESM loader caches an already-`import`-ed module for the process's lifetime, so
+overwriting `dist/` files on disk has zero effect on code the daemon already has resident in
+memory — it can only ever affect a FUTURE process start. `tsx watch` (the daemon's runner) excludes
+`node_modules` from its watch set by default (same as nodemon, to avoid restart storms from
+dependency changes), and the Jini packages are linked via `file:` into `node_modules`, so a dist
+rewrite does not trigger an unwanted auto-restart either. Ran `npm run build` (plain `tsc`, package-
+scoped, not recursive) in `packages/ui` then `packages/chat`; health-checked both :3000 and :5173
+immediately before and after each — identical PIDs, 200 OK throughout. No restart was performed or
+requested.
