@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-import { describeApiError, type AdminDockerfileSource } from "../../../lib/api";
+import { ApiError, describeApiError, type AdminDockerfileSource } from "../../../lib/api";
 import { useFetchMutation, useFetchQuery } from "../../../lib/fetch-query";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
 import { useDirtyGuard } from "../../../hooks/use-dirty-guard.hooks";
@@ -39,6 +39,23 @@ import type { DockerfileSourcePort } from "./dockerfile-source-port.hooks";
  * `use-widget-region-editor.hooks.ts`'s `save()` (though that one DOES re-`load()`, for a reason
  * that does not apply here — it reconciles a version counter for OTHER placements that may have
  * changed shape; a Dockerfile write has no analogous server-side transform to reconcile).
+ *
+ * ## 2026-08-15 — optimistic concurrency (Terra audit finding C5)
+ *
+ * `snapshot.etag` (from `AdminDockerfileSource.etag`, itself read off the server's `ETag` response
+ * header — see that field's own doc in `lib/api.ts`) is sent as `save()`'s `ifMatch`, so a save that
+ * is based on stale contents — e.g. the AI assistant's own `deployment_set_dockerfile` tool saved a
+ * different version in between this hook's last load and this `save()` call — is refused by the
+ * server (`412`) instead of silently overwriting it. On that refusal, {@link save} does the opposite
+ * of every other failure path here: it does NOT let the generic `saveError` machinery describe it,
+ * and it does NOT touch `draft` at all. Instead it populates {@link saveConflict} with the real
+ * current contents the `412` response carried, so `DockerfileTab.tsx` can show them next to the
+ * operator's own untouched `draft` for a side-by-side comparison — "a generic save error" is
+ * explicitly the thing this is not (the brief for this change named that distinction directly).
+ * {@link reloadAfterConflict} is the operator's way out: a fresh `GET`, replacing `snapshot` (and
+ * therefore the etag the NEXT `save()` will use) with the server's current state, while still
+ * leaving `draft` alone — the operator reconciles their own edit by hand against what
+ * {@link saveConflict} showed them, then saves again.
  */
 
 export interface DockerfileSourceController {
@@ -61,8 +78,25 @@ export interface DockerfileSourceController {
   /** True while a `save()` call is in flight. */
   saving: boolean;
   /** Already-formatted, translated SAVE error from the most recent {@link save} call — `null` until
-   *  a save fails, and reset to `null` at the start of every new attempt. */
+   *  a save fails, and reset to `null` at the start of every new attempt. A `412` conflict does NOT
+   *  populate this — see {@link saveConflict} instead, and this file's header for why the two are
+   *  kept deliberately distinct. */
   saveError: string | null;
+  /** Set only when the most recent {@link save} was refused with a `412` conflict — the real current
+   *  `{exists, contents}` the server reported at that moment, for `DockerfileTab.tsx` to show next to
+   *  the operator's own {@link draft} so they can reconcile by hand. `null` otherwise, and reset to
+   *  `null` at the start of every new {@link save} attempt (a fresh attempt deserves a fresh
+   *  judgment, not a stale conflict banner left over from a previous one) and by
+   *  {@link reloadAfterConflict}. */
+  saveConflict: { exists: boolean; contents: string | null } | null;
+  /** Recovery action for a {@link saveConflict}: re-reads the Dockerfile from the server, replacing
+   *  {@link snapshot} (and therefore the etag the next {@link save} call will use) with the fresh
+   *  result, and clears {@link saveConflict}. Deliberately does NOT touch {@link draft} — the
+   *  operator's in-progress edit survives so they can reconcile it by hand against what
+   *  {@link saveConflict} just showed them before saving again. Resolves either way; a failed reload
+   *  simply leaves {@link saveConflict} exactly as it was (nothing new to surface — the operator can
+   *  still read the conflict's own contents and retry this action). */
+  reloadAfterConflict: () => Promise<void>;
   /** True for a short window right after a successful {@link save} — drives a transient "Saved"
    *  confirmation next to the Save button, on the theory that "the Unsaved-changes pill went away"
    *  is not, by itself, an obviously-noticed success signal. Same `setTimeout(..., 1500)` reset
@@ -76,9 +110,10 @@ export interface DockerfileSourceController {
    *  on screen) to the clipboard, if there's anything to write. Swallows a denied clipboard
    *  permission the same way `copyHash`/`copyUrl` do. */
   copy: () => Promise<void>;
-  /** Persists {@link draft} via `PUT .../system/dockerfile`, creating the file if it didn't exist
-   *  yet. Resolves either way (a failure is surfaced through {@link saveError}, not a thrown
-   *  rejection) — callers don't need a try/catch of their own. */
+  /** Persists {@link draft} via `PUT .../system/dockerfile` (with `snapshot`'s etag as `ifMatch`),
+   *  creating the file if it didn't exist yet. Resolves either way — a failure surfaces through
+   *  {@link saveError} for an ordinary failure, or {@link saveConflict} for a `412` — never a thrown
+   *  rejection, so callers don't need a try/catch of their own. */
   save: () => Promise<void>;
   /** Bound translator — see this file's header. */
   t: Translate;
@@ -97,6 +132,7 @@ export function useDockerfileSource(
   const [draft, setDraft] = useState("");
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveConflict, setSaveConflict] = useState<{ exists: boolean; contents: string | null } | null>(null);
 
   // Seeds `snapshot`/`draft` from the query's first successful load, exactly once — a LATER
   // background refetch of the same `["deployment", "dockerfile"]` key (the 10s `staleTime` window,
@@ -118,7 +154,7 @@ export function useDockerfileSource(
   // No `invalidates` — see this file's header for why a redundant re-`GET` of this hook's own read
   // key would be strictly worse than the response already in hand.
   const saveMutation = useFetchMutation({
-    run: (contents: string) => port.setDockerfileSource(contents),
+    run: (input: { contents: string; ifMatch: string }) => port.setDockerfileSource(input.contents, input.ifMatch),
   });
 
   const { isDirty } = useDirtyGuard(draft, snapshot ? (snapshot.contents ?? "") : null);
@@ -135,20 +171,54 @@ export function useDockerfileSource(
   }
 
   async function save() {
+    // No etag to compare `ifMatch` against before the initial load has resolved — unreachable via
+    // the UI anyway (`DockerfileTab.tsx` shows "Loading…" and renders no Save button while
+    // `!snapshot`), but a direct caller (a test, or a future caller) gets a clean no-op instead of
+    // sending a request the server would refuse for a reason that has nothing to do with THIS call.
+    if (!snapshot) return;
+    // A fresh attempt deserves a fresh judgment, not a conflict banner left over from a previous
+    // one — see this file's header.
+    setSaveConflict(null);
     try {
-      const updated = await saveMutation.mutate(draft);
+      const updated = await saveMutation.mutate({ contents: draft, ifMatch: snapshot.etag });
       setSnapshot(updated);
       setDraft(updated.contents ?? "");
       setSaved(true);
       setTimeout(() => setSaved(false), 1500);
-    } catch {
-      // already surfaced through saveMutation.error -> saveError below
+    } catch (err) {
+      if (err instanceof ApiError && err.status === 412) {
+        const current = (err.body as { current?: { exists?: unknown; contents?: unknown } } | undefined)?.current;
+        setSaveConflict({
+          exists: current?.exists === true,
+          contents: typeof current?.contents === "string" ? current.contents : null,
+        });
+        // A conflict is deliberately NOT a generic save error (see this file's header) — `reset()`
+        // clears the mutation's own error state so the `saveError` derivation below reports `null`
+        // on the next render instead of describing this same rejection a second, blander way.
+        saveMutation.reset();
+        return;
+      }
+      // any other failure: already surfaced through saveMutation.error -> saveError below
     }
   }
 
   const saveError = saveMutation.error
     ? dockerfileSaveErrorMessage(locale, describeApiError(saveMutation.error, "unknown error"))
     : null;
+
+  async function reloadAfterConflict() {
+    try {
+      const fresh = await port.getDockerfileSource();
+      setSnapshot(fresh);
+      setSaveConflict(null);
+      // `draft` is deliberately left untouched here — see this file's header for why: the
+      // operator's in-progress edit must survive so they can reconcile it by hand against what
+      // `saveConflict` just showed them, then save again.
+    } catch {
+      // A failed reload leaves `saveConflict` exactly as it was — the operator can still read the
+      // conflict's own contents and retry this action; nothing new needs surfacing here.
+    }
+  }
 
   return {
     snapshot,
@@ -158,6 +228,8 @@ export function useDockerfileSource(
     error,
     saving: saveMutation.status === "pending",
     saveError,
+    saveConflict,
+    reloadAfterConflict,
     saved,
     copied,
     copy,

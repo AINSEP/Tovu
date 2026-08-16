@@ -28,6 +28,17 @@ import { useWiredDockerfileSource } from "./hooks/use-dockerfile-source.hooks";
  * than being replaced by it — this tab still owes the reader an honest "this doesn't exist yet"
  * before handing them a blank box to fill in.
  *
+ * ## Fourth pass (2026-08-15, same day) — a save conflict gets its own surface, not a generic error
+ *
+ * `useDockerfileSource`'s `save()` now sends `snapshot`'s etag as `If-Match`, so a save based on
+ * stale contents (a human here and the AI assistant's `deployment_set_dockerfile` tool can both
+ * write this same file — Terra audit finding C5) is refused rather than silently overwriting the
+ * other write. That refusal reaches this component as `saveConflict`, deliberately kept separate
+ * from `saveError` (see `use-dockerfile-source.hooks.ts`'s own header) — `DockerfileEditorCard`
+ * below renders it as its OWN block, ahead of (and instead of) the plain error paragraph, showing
+ * the real current server contents next to the operator's still-untouched `draft` and a button that
+ * calls `reloadAfterConflict` to refresh `snapshot`'s etag without discarding that draft.
+ *
  * Saving does not build, validate, or deploy anything — same as before, just now said twice: once in
  * the pre-existing "Building is a terminal command…" footer line (still true, still there), and once
  * in a new second line that names the Save button specifically, since a reader who has just watched
@@ -120,10 +131,12 @@ function DockerfileEditorCard({
   isDirty,
   saving,
   saveError,
+  saveConflict,
   saved,
   copied,
   onCopy,
   onSave,
+  onReloadAfterConflict,
   t,
 }: {
   exists: boolean;
@@ -132,10 +145,12 @@ function DockerfileEditorCard({
   isDirty: boolean;
   saving: boolean;
   saveError: string | null;
+  saveConflict: { exists: boolean; contents: string | null } | null;
   saved: boolean;
   copied: boolean;
   onCopy: () => void;
   onSave: () => void;
+  onReloadAfterConflict: () => void;
   t: Translate;
 }) {
   // Copy/Download act on `draft` — see `use-dockerfile-source.hooks.ts`'s header for why the copy
@@ -223,7 +238,42 @@ function DockerfileEditorCard({
         {!exists ? (
           <p className="deployment-action-reason">{t("No Dockerfile exists yet. Write one below, then save to create it.")}</p>
         ) : null}
-        {saveError ? (
+        {saveConflict ? (
+          // A conflict takes precedence over — and is rendered INSTEAD of — the generic save-error
+          // paragraph below, even though `saveMutation`'s own error state briefly held the same
+          // rejection: see `use-dockerfile-source.hooks.ts`'s header for why the hook already
+          // resets that error state itself on a conflict, so in practice `saveError` is never
+          // simultaneously set. This block still wins on precedence as the belt to that suspenders.
+          <div
+            className="notice error"
+            role="alert"
+            {...agentHandle("deployment-dockerfile-conflict", {
+              role: "status",
+              label: "Shows that the Dockerfile changed on the server since it was last loaded, with the current contents to compare against",
+            })}
+          >
+            <p>{t("Someone else saved a different version of this Dockerfile while you were editing — your changes below were NOT saved.")}</p>
+            {saveConflict.exists ? (
+              <>
+                <p>{t("Its current contents on the server are:")}</p>
+                <pre className="deployment-dockerfile-conflict-contents">{saveConflict.contents}</pre>
+              </>
+            ) : (
+              <p>{t("It was deleted on the server.")}</p>
+            )}
+            <p>{t("Your own edits below are untouched. Compare them against the current contents above, reconcile by hand, then Save again.")}</p>
+            <button
+              type="button"
+              onClick={onReloadAfterConflict}
+              {...agentHandle("deployment-dockerfile-conflict-reload", {
+                role: "button",
+                label: "Reloads the current version from the server so the next Save is checked against it — does not discard your own edits",
+              })}
+            >
+              {t("Load the current version")}
+            </button>
+          </div>
+        ) : saveError ? (
           <p
             className="save-error"
             role="alert"
@@ -260,8 +310,22 @@ function DockerfileEditorCard({
 
 export function DockerfileTab(props: DockerfileTabProps) {
   const useDockerfileSourceHook = resolveDockerfileSourceHook(props.useDockerfileSourceHook);
-  const { snapshot, draft, setDraft, isDirty, error, saving, saveError, saved, copied, copy, save, t } =
-    useDockerfileSourceHook();
+  const {
+    snapshot,
+    draft,
+    setDraft,
+    isDirty,
+    error,
+    saving,
+    saveError,
+    saveConflict,
+    reloadAfterConflict,
+    saved,
+    copied,
+    copy,
+    save,
+    t,
+  } = useDockerfileSourceHook();
 
   if (error && !snapshot)
     return (
@@ -296,10 +360,12 @@ export function DockerfileTab(props: DockerfileTabProps) {
         isDirty,
         saving,
         saveError,
+        saveConflict,
         saved,
         copied,
         onCopy: () => void copy(),
         onSave: () => void save(),
+        onReloadAfterConflict: () => void reloadAfterConflict(),
         t,
       })}
     </div>
@@ -318,10 +384,12 @@ function dockerfileTabBody(
     isDirty: boolean;
     saving: boolean;
     saveError: string | null;
+    saveConflict: { exists: boolean; contents: string | null } | null;
     saved: boolean;
     copied: boolean;
     onCopy: () => void;
     onSave: () => void;
+    onReloadAfterConflict: () => void;
     t: Translate;
   }
 ) {
