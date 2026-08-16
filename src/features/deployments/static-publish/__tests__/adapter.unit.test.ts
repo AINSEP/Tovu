@@ -447,3 +447,61 @@ for (const notReadyStatus of ["link-delayed", "protected", "failed"] as const) {
     assert.notEqual(result.ok, false);
   });
 }
+
+// ---------------------------------------------------------------------------
+// "Never throws" — Terra audit finding #2 (2026-08-16): two call sites used to run unguarded before
+// either of this function's `try` blocks existed around them, so a genuine failure at either one
+// propagated as an UNCAUGHT exception, silently breaking this function's own doc comment (and every
+// caller written assuming it, per that comment's own header). Both are now caught.
+// ---------------------------------------------------------------------------
+
+test("publishStaticSite: a credentialSource.resolve() that THROWS (a genuine decrypt failure, not merely 'not configured') is caught, not left to escape as an uncaught exception", async () => {
+  // `publish-credentials/store.ts`'s `resolveForPublish`/`resolveDefaultForPublish` deliberately throw
+  // on a real decrypt failure (bad AAD, tampered ciphertext, missing master key) rather than resolving
+  // a silent `null` — this is the exact shape that failure takes once it reaches the composed
+  // `PublishCredentialSource.resolve()` this function calls.
+  const deps: RouteDeps = { ...createRouteDeps() };
+  const result = await publishStaticSite(
+    {
+      credentialSource: {
+        async resolve() {
+          throw new Error("bad AAD: ciphertext does not match the derived key");
+        },
+        async isConfigured() {
+          throw new Error("isConfigured must not be called by publishStaticSite (it always resolves for real)");
+        },
+      },
+      buildTarget: () => {
+        throw new Error("buildTarget must not be called when credential resolution itself failed");
+      },
+    },
+    { workspaceId: deps.workspaceId, routeDeps: deps, config: { target: "vercel" }, projectName: "demo" }
+  );
+
+  assert.equal(result.ok, false);
+  if (result.ok) throw new Error("unreachable");
+  assert.equal(result.code, "NO_CREDENTIALS_CONFIGURED");
+  assert.match(result.message, /bad AAD/);
+});
+
+test("publishStaticSite: a buildTarget/buildJiniTarget that THROWS (credential missing a target-required field) is caught, not left to escape as an uncaught exception", async () => {
+  // Mirrors `buildS3CompatibleTargetConfig`'s own real "throws DeployError naming every missing
+  // required field" defense-in-depth behavior — this test uses a plain throw (not a real
+  // `buildS3CompatibleTargetConfig` call) to isolate the claim under test to `publishStaticSite`'s own
+  // catch, not that helper's specific validation logic (already covered by its own dedicated test).
+  const deps: RouteDeps = { ...createRouteDeps() };
+  const result = await publishStaticSite(
+    {
+      credentialSource: { async resolve() { return { ok: true, token: "t" }; }, async isConfigured() { return { configured: true }; } },
+      buildTarget: () => {
+        throw new Error("s3-compatible credential is missing required field 'bucket'");
+      },
+    },
+    { workspaceId: deps.workspaceId, routeDeps: deps, config: { target: "s3-compatible" }, projectName: "demo" }
+  );
+
+  assert.equal(result.ok, false);
+  if (result.ok) throw new Error("unreachable");
+  assert.equal(result.code, "NO_CREDENTIALS_CONFIGURED");
+  assert.match(result.message, /missing required field 'bucket'/);
+});
