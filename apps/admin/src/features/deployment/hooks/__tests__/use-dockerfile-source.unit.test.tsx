@@ -177,6 +177,73 @@ describe("useDockerfileSource — save", () => {
     expect(setDockerfileSource).not.toHaveBeenCalled();
   });
 
+  it("REGRESSION (C4): a second save() call while the first is still in flight must not send a second PUT", async () => {
+    const setDockerfileSource = vi.fn().mockResolvedValue({ exists: true, contents: "FROM node:22\nRUN echo hi\n", etag: '"after-save-etag"' });
+    const port = createFakeDockerfileSourcePort(
+      { exists: true, contents: "FROM node:22\n", etag: INITIAL_ETAG },
+      { setDockerfileSource },
+    );
+    const { result } = renderHook(() => useDockerfileSource(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.snapshot).not.toBeUndefined());
+
+    act(() => result.current.setDraft("FROM node:22\nRUN echo hi\n"));
+
+    // Simulate a double-click: two save() calls fired synchronously in the SAME tick, no `await`
+    // between them — before the first has any chance to resolve (or even for React to re-render
+    // with the Save button disabled). The synchronous guard (`savingRef`) is what makes this prove
+    // anything: the second call's own top-of-function check reads the ref the FIRST call already
+    // set, entirely independent of when TanStack's own mutation machinery (a black box from this
+    // test's perspective) actually gets around to invoking the port. Same shape as
+    // `use-static-publish.unit.test.tsx`'s own C4 regression test.
+    let firstCall!: Promise<void>;
+    let secondCall!: Promise<void>;
+    act(() => {
+      firstCall = result.current.save();
+      secondCall = result.current.save();
+    });
+
+    await act(async () => {
+      await firstCall;
+      await secondCall;
+    });
+
+    // Pre-fix, `save()` had no in-flight guard at all: both calls would run to completion, sending
+    // two PUTs against the SAME stale `ifMatch` (neither call's write had committed yet when the
+    // second one read `snapshot.etag`) — the second landing after the first would 412 against its
+    // own sibling, surfacing a spurious conflict for a save the operator only asked for once.
+    expect(setDockerfileSource).toHaveBeenCalledTimes(1);
+    expect(result.current.snapshot).toEqual({ exists: true, contents: "FROM node:22\nRUN echo hi\n", etag: '"after-save-etag"' });
+    expect(result.current.saveConflict).toBeNull();
+    expect(result.current.saveError).toBeNull();
+    expect(result.current.saving).toBe(false);
+  });
+
+  it("releases the in-flight guard after a save settles, so a later save() (not concurrent, a genuinely NEW attempt) sends its own PUT", async () => {
+    const setDockerfileSource = vi
+      .fn()
+      .mockResolvedValueOnce({ exists: true, contents: "FROM node:22\nRUN one\n", etag: '"etag-one"' })
+      .mockResolvedValueOnce({ exists: true, contents: "FROM node:22\nRUN two\n", etag: '"etag-two"' });
+    const port = createFakeDockerfileSourcePort(
+      { exists: true, contents: "FROM node:22\n", etag: INITIAL_ETAG },
+      { setDockerfileSource },
+    );
+    const { result } = renderHook(() => useDockerfileSource(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.snapshot).not.toBeUndefined());
+
+    act(() => result.current.setDraft("FROM node:22\nRUN one\n"));
+    await act(async () => {
+      await result.current.save();
+    });
+    expect(setDockerfileSource).toHaveBeenCalledTimes(1);
+
+    act(() => result.current.setDraft("FROM node:22\nRUN two\n"));
+    await act(async () => {
+      await result.current.save();
+    });
+    expect(setDockerfileSource).toHaveBeenCalledTimes(2);
+    expect(setDockerfileSource).toHaveBeenNthCalledWith(2, "FROM node:22\nRUN two\n", '"etag-one"');
+  });
+
   it("surfaces a rejected write as a translated, formatted SAVE error — distinct from the load error — and leaves the draft untouched so the operator's edit isn't discarded", async () => {
     const port = createFakeDockerfileSourcePort(
       { exists: true, contents: "FROM node:22\n", etag: INITIAL_ETAG },
