@@ -21,7 +21,7 @@ import {
   PUBLISH_CLI_TOOLS,
   cliInstalledStatus,
   exportRunStatusLabelKey,
-  publishAssistantRequestForTool,
+  publishAssistantRequest,
   publishCredentialProviderInfo,
   publishCredentialRowReadyToSave,
   publishRunStatusLabelKey,
@@ -32,7 +32,7 @@ import {
   type PublishCliTool,
   type PublishCredentialFormFields,
 } from "./rules";
-import { AssistantIcon, CapabilityList, StaticSiteIcon, StepDoneIcon } from "./deployment-visuals";
+import { AssistantIcon, CapabilityList, DisclosureChevron, StaticSiteIcon, StepDoneIcon } from "./deployment-visuals";
 import { useWiredDeploymentOverview } from "./hooks/use-deployment-overview.hooks";
 import type { DeploymentOverviewController } from "./hooks/use-deployment-overview.hooks";
 import { useWiredStaticExport } from "./hooks/use-static-export.hooks";
@@ -441,14 +441,24 @@ function ExportTriggerAction({ controller, t: translate }: { controller: StaticE
 /** One provider's CLI-first row inside the selected target's route block — real name/command, a
  *  real detected/not-detected pill from `deployClis` (or "Checking…" while the Overview snapshot is
  *  still loading), its own description, and its own single-tool "ask the assistant" copy line. Never
- *  renders the OTHER provider's tool — see this file's header for why that split matters. */
+ *  renders the OTHER provider's tool — see this file's header for why that split matters.
+ *
+ *  The copy line is derived from the SAME `installed` boolean the pill renders, via
+ *  {@link publishAssistantRequest} — see that function's doc for the contradiction this closes
+ *  (a row reading "Detected on this server" while offering "Install the GitHub CLI…" to copy).
+ *  `targetLabel` is threaded in for the detected-state sentence, which names the destination; it
+ *  comes from the caller's already-resolved `selectedTarget`, since the tool→target relation is 1:1
+ *  through `StaticPublishTargetInfo.cliToolId` and re-deriving it here would be a second lookup of
+ *  a fact the caller already holds. */
 function ProviderCliRow({
   tool,
+  targetLabel,
   deployClis,
   overviewLoaded,
   t: translate,
 }: {
   tool: PublishCliTool;
+  targetLabel: string;
   deployClis: readonly AdminDeployCliStatus[];
   overviewLoaded: boolean;
   t: Translate;
@@ -471,7 +481,7 @@ function ProviderCliRow({
       </span>
       <p>{translate(tool.descriptionKey)}</p>
       <CopyLine
-        text={publishAssistantRequestForTool(tool)}
+        text={publishAssistantRequest(tool, targetLabel, installed)}
         prose
         copyLabel={translate("Copy")}
         copiedLabel={translate("Copied!")}
@@ -673,13 +683,27 @@ function GettingItOnlineCard({
                 <AssistantIcon size={16} />
                 <span className="deployment-fact-label">{translate("Fastest — ask the assistant")}</span>
               </div>
+              {/* State-NEUTRAL wording. This used to read "once this tool is installed it can
+                  publish the export for you", which quietly presumed the not-installed case and sat
+                  directly above a row that may well say "Detected on this server" — the same
+                  install-when-already-installed contradiction `publishAssistantRequest` fixes in the
+                  copy line below, in prose form. Phrasing it as a capability rather than a
+                  precondition is true in BOTH states, so this line needs no branch of its own (and
+                  this card has no complexity budget to spend on one — see the gate note in
+                  `eslint.config.mjs`). */}
               <p className="deployment-action-reason">
                 {translate(
-                  "Tovu's assistant runs as a command-line coding agent with its own shell, so once this tool is installed it can publish the export for you — nothing to paste here, and no credentials stored."
+                  "Tovu's assistant runs as a command-line coding agent with its own shell, so it can drive this tool to publish the export for you — nothing to paste here, and no credentials stored."
                 )}
               </p>
               <ul className="deployment-provider-list">
-                <ProviderCliRow tool={selectedTool} deployClis={deployClis} overviewLoaded={Boolean(overview.snapshot)} t={translate} />
+                <ProviderCliRow
+                  tool={selectedTool}
+                  targetLabel={selectedTarget.label}
+                  deployClis={deployClis}
+                  overviewLoaded={Boolean(overview.snapshot)}
+                  t={translate}
+                />
               </ul>
             </div>
             {/* Names the CLI block above and the numbered flow below as ALTERNATIVES, not two steps
@@ -946,6 +970,21 @@ function CredentialStepTodo({
  * Expanding the summary re-shows {@link PublishCredentialFields} to replace the token — the exact
  * fields {@link CredentialStepTodo} shows, just reached one click away rather than always open,
  * since changing an already-working credential is the rare path, not the common one.
+ *
+ * The summary row carries a visible "Replace token" label plus {@link DisclosureChevron} at its END
+ * (owner-reported, 2026-08-15: the row was clickable but nothing on screen said so, and a reader with
+ * a rotated token had no way to discover this row opens to a fresh token field). Placed at the end,
+ * not the start: the step marker already occupies the start, and a second unstyled glyph there would
+ * recreate the exact "which glyph means what" confusion the `::-webkit-details-marker` reset (see
+ * `.deployment-step-summary` in `styles.css`) exists to avoid — a text label plus a chevron reads as
+ * one clear affordance instead. `.deployment-step-summary-text` carries `flex: 1` so this action is
+ * pushed to the row's far edge rather than trailing the timestamp mid-row.
+ *
+ * The timestamp reads "saved", never "updated": it is the moment this ROW was written, not a
+ * liveness check — Tovu has not re-verified the token since, and a revoked token still shows this
+ * same timestamp. "updated" implied a recency the UI cannot back up. Do not add a verification
+ * indicator here to justify "updated" — token-liveness checking is a real feature, not a copy fix,
+ * and is explicitly out of scope for this row.
  */
 function CredentialStepDone({
   row,
@@ -971,7 +1010,11 @@ function CredentialStepDone({
         </span>
         <span className="deployment-step-summary-text">
           <span translate="no">{info.label}</span> {translate("connected")} · {translate("token stored, encrypted")} ·{" "}
-          {translate("updated")} {formatTimestamp(row.saved!.updatedAt)}
+          {translate("saved")} {formatTimestamp(row.saved!.updatedAt)}
+        </span>
+        <span className="deployment-step-summary-action">
+          {translate("Replace token")}
+          <DisclosureChevron />
         </span>
       </summary>
       <PublishCredentialFields row={row} controller={controller} t={translate} />
