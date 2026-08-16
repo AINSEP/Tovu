@@ -13,6 +13,16 @@ test("content_post_search is on the allowlist — the real execution path behind
   assert.ok(MCP_UI_REDEEMABLE_TOOL_IDS.has("content_post_search"));
 });
 
+test("deployment_execute_static_publish is on the allowlist — it holds up the same held-open-exchange shape content_post_delete does (2026-08-15)", () => {
+  assert.equal(isMcpUiToolCallAllowed("deployment_execute_static_publish"), true);
+  assert.ok(MCP_UI_REDEEMABLE_TOOL_IDS.has("deployment_execute_static_publish"));
+});
+
+test("the two read-only static-publish tools are NOT on the allowlist — neither opens an exchange, so admitting them here would only widen this endpoint's reach for no reason", () => {
+  assert.equal(isMcpUiToolCallAllowed("deployment_get_static_publish_capabilities"), false);
+  assert.equal(isMcpUiToolCallAllowed("deployment_preview_static_publish"), false);
+});
+
 test("SECURITY-CRITICAL: an arbitrary tool id is refused, including ones with their own destructive gate", () => {
   assert.equal(isMcpUiToolCallAllowed("database_execute_migrate_forward"), false);
   assert.equal(isMcpUiToolCallAllowed("backup_execute_restore"), false);

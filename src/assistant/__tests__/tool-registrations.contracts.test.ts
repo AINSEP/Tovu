@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
+import { createToolRegistry, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
+import { createToolExecutor } from "@jini-ai/daemon";
 
 import { commentsAgentToolCatalog } from "../../comments/agent-tools";
 import {
@@ -31,7 +32,9 @@ import { getRedirectsAgentToolCatalog } from "../../redirects/agent-tools";
 import { getSeoAgentToolCatalog } from "../../seo/agent-tools";
 import { widgetsAgentToolCatalog } from "../../widgets/agent-tools";
 import type { ContentTypeRecord } from "../../features/content-types";
+import { createRouteDeps } from "../../server/app";
 import type { RouteDeps } from "../../server/routes/types";
+import { buildToolCatalogQuery } from "../tool-catalog-query";
 import {
   assertRiskMetadataIsWirable,
   buildAssistantToolRegistrations,
@@ -135,10 +138,12 @@ const WIRED_CATALOGS: AgentToolDefinition[] = [
   // confirmed via `git show HEAD:<this file>`, before this dispatch touched anything. Fixed here
   // since this dispatch is already editing this exact array for `deployments`.
   ...(pagesAgentToolCatalog as unknown as AgentToolDefinition[]),
-  // `static-publish` (`DOMAIN_SLICES`'s own `buildStaticPublishRegistrations` entry, wired in this
-  // dispatch): only `deployment_preview_static_publish` is actually wired, but its catalog also
-  // carries the never-wired `deployment_execute_static_publish` — harmless here, since this array
-  // only needs to make every WIRED id resolvable and the extra entry is simply never looked up.
+  // `static-publish` (`DOMAIN_SLICES`'s own `buildStaticPublishRegistrations` entry): as of
+  // 2026-08-15 all 3 catalog entries are wired, including `deployment_execute_static_publish` (see
+  // `publish-agent-tools.ts`'s own file header for the human-gated MCP-UI mechanism that made
+  // wiring it safe). This comment previously said only the preview tool was wired and the execute
+  // tool was "never-wired" — that was true before this dispatch and is stale now; corrected here
+  // rather than left to mislead the next reader.
   ...(staticPublishAgentToolCatalog as unknown as AgentToolDefinition[]),
 ];
 
@@ -337,4 +342,82 @@ test("collections_execute_cleanup — the one catalog entry that DOES carry the 
 test("an actorClassRule that does NOT require confirmation is wirable — the guard is specific, not a blanket ban on actor-class rules", () => {
   assert.doesNotThrow(() => assertRiskMetadataIsWirable("collections_content_type_define", { ...catalogEntry("collections_content_type_define"), actorClassRule: "user-only" }));
   assert.doesNotThrow(() => assertRiskMetadataIsWirable("collections_content_type_define", { ...catalogEntry("collections_content_type_define"), actorClassRule: "none" }));
+});
+
+// ---------------------------------------------------------------------------
+// 5. static-publish reachability — the ASSEMBLED surface, not the source catalog (A3)
+// ---------------------------------------------------------------------------
+
+/**
+ * `registrationsById()` above (and every other assertion in this file) resolves catalog entries
+ * against {@link WIRED_CATALOGS} — an array built directly from each domain's own
+ * `*AgentToolCatalog` export. That is the DECLARED side. It is deliberately NOT what the tests below
+ * check: `staticPublishAgentToolCatalog` used to carry `deployment_execute_static_publish` as a
+ * catalog entry for months while `DOMAIN_SLICES` left it unwired (see this file's own git history
+ * and `publish-agent-tools.ts`'s header) — so "present in the catalog array" was true even when the
+ * tool could not actually be called by anything. These tests instead build the REAL production
+ * objects: a `ToolRegistry` via `createToolRegistry()` + `.register()` (the exact two calls
+ * `agent-daemon-server.ts:282-288` and `byok-tool-surface.ts:279-282` make — both real composition
+ * roots, not test doubles), a real `ToolExecutor` via `createToolExecutor({registry})` (no
+ * `delegate`, matching production), and the real `buildToolCatalogQuery(registry)` that backs
+ * `search_tools`/`describe_tool` for both the spawned-CLI and BYOK paths. Presence is asserted
+ * against THOSE, plus one tool is actually executed end to end — not merely listed.
+ */
+async function buildRealAssembledSurface() {
+  const routeDeps = createRouteDeps();
+  await routeDeps.identityReady;
+  const registry = createToolRegistry();
+  for (const registration of buildAssistantToolRegistrations(routeDeps)) {
+    registry.register(registration);
+  }
+  const toolExecutor = createToolExecutor({ registry });
+  const catalog = buildToolCatalogQuery(registry);
+  return { routeDeps, registry, toolExecutor, catalog };
+}
+
+test("deployment_execute_static_publish and deployment_get_static_publish_capabilities are present in the REAL ToolRegistry built the same way agent-daemon-server.ts builds it — not merely in the source catalog array", async () => {
+  const { registry } = await buildRealAssembledSurface();
+
+  // `registry.has()` reflects `.register()` having actually been called for this id — unreachable
+  // if `DOMAIN_SLICES` did not include `static-publish`, or if `buildStaticPublishRegistrations`
+  // left either id out of its returned `ToolRegistration[]` (both real ways this could regress).
+  assert.equal(registry.has("deployment_execute_static_publish"), true);
+  assert.equal(registry.has("deployment_get_static_publish_capabilities"), true);
+  assert.equal(registry.has("deployment_preview_static_publish"), true);
+});
+
+test("both tools are discoverable through the real search_tools/describe_tool catalog — the actual channel a model uses to find a tool id before calling it", async () => {
+  const { catalog } = await buildRealAssembledSurface();
+
+  // `describe()` is an exact id lookup against `buildToolCatalogQuery`'s FTS5 seed
+  // (`registry.list()` — see that function's own doc), not a fuzzy `.search()` match that could
+  // pass by coincidentally matching an unrelated tool's description.
+  const execute = catalog.describe("deployment_execute_static_publish");
+  const capabilities = catalog.describe("deployment_get_static_publish_capabilities");
+  assert.ok(execute, "deployment_execute_static_publish must be describable — search_tools/describe_tool is how a spawned CLI or a BYOK turn actually finds a tool id");
+  assert.ok(capabilities, "deployment_get_static_publish_capabilities must be describable for the same reason");
+  assert.match(execute!.description, /Publishes the current site/);
+
+  const hits = catalog.search("publish the site to a host", 25);
+  assert.ok(hits.some((hit) => hit.id === "deployment_execute_static_publish"), `expected deployment_execute_static_publish among search hits: ${JSON.stringify(hits.map((h) => h.id))}`);
+});
+
+test("deployment_get_static_publish_capabilities actually executes through the REAL ToolExecutor and returns real per-provider data — presence in the registry is not the same as being callable", async () => {
+  const { routeDeps, toolExecutor } = await buildRealAssembledSurface();
+  // A bare/unknown principal id is genuinely refused by `createRouteDeps()`'s real `authorize()`
+  // ("principal_disabled") — confirmed while writing this test. That is ADR-021's authorization
+  // layer doing its job, a different concern from what this test certifies, so this uses the same
+  // seeded owner principal `tool-dispatch/forms.dispatch.test.ts` uses for its own real-executor
+  // canary rather than working around the denial.
+  const ownerPrincipal = { id: await routeDeps.ownerPrincipalId };
+
+  const result = await toolExecutor.execute(ownerPrincipal, { id: "run-1" }, "deployment_get_static_publish_capabilities", {});
+
+  assert.equal(result.status, "completed", `expected a real completed execution, got: ${JSON.stringify(result)}`);
+  const output = result.output as { executionMode: string; providers: Array<{ providerId: string }> };
+  assert.equal(output.providers.length, 4, "all four static-publish providers must be reported");
+  assert.deepEqual(
+    output.providers.map((p) => p.providerId).sort(),
+    ["cloudflare-pages", "github-pages", "netlify", "vercel"],
+  );
 });
