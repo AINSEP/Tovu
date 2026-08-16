@@ -37,6 +37,29 @@ export interface TabBarTab {
    *  description; a caller with a translated `label` should pass its own). Ignored if `handle` is
    *  omitted. */
   readonly handleLabel?: string;
+  /**
+   * Renders a small filled dot before this tab's label — a compact "this one has something
+   * configured" signifier for a tab bar whose panels don't all show on screen at once. Built for
+   * the Deployment panel's publish-target picker (`StaticSiteTab.tsx`): collapsing that picker to
+   * showing one provider's credential row at a time (2026-08-16) removed the only place a reader
+   * could previously see which providers already had a saved credential without clicking through
+   * every tab — this restores that at-a-glance fact to the tab row itself, and unlike the old "all
+   * four rows, all the time" layout it scales to a fifth provider without getting denser.
+   *
+   * Meaning is carried by the dot's PRESENCE, not by which color it happens to render in — the
+   * absence of a dot is itself legible (nothing to report), which is a shape/presence distinction
+   * rather than a same-shape color-only one (`frontend-accessibility`: "color is not the only means
+   * of conveying information", same reasoning `CapabilityMark`'s own doc in `deployment-visuals.tsx`
+   * gives for using distinct check/cross glyphs rather than one glyph in two colors). The dot is
+   * still `aria-hidden` — {@link dotLabel} is what a screen reader actually gets, appended to this
+   * tab's own accessible name via visually-hidden text, same pattern `CopyLine`'s own
+   * `copyAccessibleName` documents for keeping a visual-only cue out of the accessible name entirely
+   * unless a text equivalent is supplied alongside it.
+   */
+  readonly dot?: boolean;
+  /** Visually-hidden text appended to this tab's accessible name when {@link dot} is set — e.g.
+   *  "Connected". Required whenever `dot` is true; ignored otherwise. */
+  readonly dotLabel?: string;
 }
 
 export interface TabBarProps {
@@ -48,6 +71,57 @@ export interface TabBarProps {
   containerHandle?: string;
 }
 
+/** {@link TabBarButton}'s own `agentHandle()` spread, as a plain function rather than an inline
+ *  ternary in the JSX below — one more small piece pulled out for the same complexity-gate reason
+ *  {@link TabBarButton}'s own doc gives. */
+function tabHandleProps(tab: TabBarTab) {
+  return tab.handle ? agentHandle(tab.handle, { role: "button", label: tab.handleLabel ?? tab.label }) : {};
+}
+
+/** The visually-hidden accessible-name SUFFIX {@link TabBarTab.dot} adds — e.g. "GitHub Pages,
+ *  Connected", never "Connected GitHub Pages". Deliberately its own function rather than folded into
+ *  the visual dot span rendered before the label (`TabBarButton` below): the visual dot is
+ *  `aria-hidden` and belongs immediately before the label, where a leading bullet reads naturally,
+ *  but the ACCESSIBLE text has to come AFTER the label text in DOM order for the tab's accessible
+ *  name (label + this suffix, concatenated in DOM order) to read as a sentence rather than a
+ *  fragment stitched on backwards. Split out for the same complexity-gate reason {@link
+ *  TabBarButton}'s own doc gives. */
+function tabDotAccessibleSuffix(tab: TabBarTab) {
+  if (!tab.dot || !tab.dotLabel) return null;
+  return <span className="visually-hidden">, {tab.dotLabel}</span>;
+}
+
+/** One tab button — split out of {@link TabBar}'s own `.map()` purely for the complexity gate: this
+ *  repo's `apps/admin` ESLint gate is a hard 9/9 cyclomatic/cognitive ceiling
+ *  (`eslint.config.mjs`'s own `F06 option B` block), and `sonarjs/cognitive-complexity` scores a
+ *  branch INSIDE an inline `.map()` callback with a nesting penalty on top of the branch itself —
+ *  adding the {@link TabBarTab.dot}/`dotLabel` rendering (two more conditionals) is what pushed
+ *  `TabBar` from 9 over budget. A named top-level component has no enclosing function to nest
+ *  inside, so its own branches are scored on their own, same reasoning this app's other per-row
+ *  extractions give (e.g. `StaticSiteTab.tsx`'s `ProviderCliRow`, split out of `GettingItOnlineCard`'s
+ *  own `.map()` for the identical reason) — {@link tabHandleProps}/{@link tabDotAccessibleSuffix}
+ *  above take the same treatment one level further, since even this component alone still counted
+ *  over budget with every branch inlined. No behavior moved, only where the branches are counted. */
+function TabBarButton({ tab, active, onChange }: { tab: TabBarTab; active: boolean; onChange: (id: string) => void }) {
+  return (
+    <button
+      type="button"
+      role="tab"
+      className="tab-bar-item"
+      aria-selected={active}
+      aria-disabled={tab.disabled || undefined}
+      disabled={tab.disabled}
+      onClick={tab.disabled ? undefined : () => onChange(tab.id)}
+      {...tabHandleProps(tab)}
+    >
+      {tab.dot ? <span className="tab-bar-dot" aria-hidden="true" /> : null}
+      {tab.label}
+      {tabDotAccessibleSuffix(tab)}
+      {tab.count !== undefined ? <span className="tab-bar-count">{tab.count}</span> : null}
+    </button>
+  );
+}
+
 export function TabBar({ tabs, activeId, onChange, ariaLabel, containerHandle }: TabBarProps) {
   return (
     <div
@@ -57,20 +131,7 @@ export function TabBar({ tabs, activeId, onChange, ariaLabel, containerHandle }:
       {...(containerHandle ? agentHandle(containerHandle, { role: "region", label: ariaLabel }) : {})}
     >
       {tabs.map((tab) => (
-        <button
-          key={tab.id}
-          type="button"
-          role="tab"
-          className="tab-bar-item"
-          aria-selected={activeId === tab.id}
-          aria-disabled={tab.disabled || undefined}
-          disabled={tab.disabled}
-          onClick={tab.disabled ? undefined : () => onChange(tab.id)}
-          {...(tab.handle ? agentHandle(tab.handle, { role: "button", label: tab.handleLabel ?? tab.label }) : {})}
-        >
-          {tab.label}
-          {tab.count !== undefined ? <span className="tab-bar-count">{tab.count}</span> : null}
-        </button>
+        <TabBarButton key={tab.id} tab={tab} active={activeId === tab.id} onChange={onChange} />
       ))}
     </div>
   );

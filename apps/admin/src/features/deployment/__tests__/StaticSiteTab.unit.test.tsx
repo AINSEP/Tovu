@@ -327,6 +327,49 @@ describe("StaticSiteTab — provider picker splits GitHub Pages and Vercel", () 
   });
 });
 
+// NEW 2026-08-16 — the tab bar's own "connected" dot. Added alongside the credential-section
+// collapse above: once only the SELECTED provider's row is ever on screen, "which providers have I
+// already connected" is no longer visible by scrolling past the other three rows the way it used to
+// be, so it has to live somewhere else that's visible from every tab. `TabBarTab.dot`/`dotLabel`
+// (`TabBar.tsx`) is that somewhere else — driven here off `credentialsController.rows`, never off
+// component state of its own, so it can never show a dot the credential rows themselves disagree
+// with.
+describe("StaticSiteTab — publish-target tab bar: connected indicator", () => {
+  it("shows a dot on a tab whose provider has a saved credential, with 'Connected' in that tab's own accessible name", () => {
+    renderTab({ credentialsController: { rowOverrides: { "github-pages": { saved: GH_CREDENTIAL } } } });
+    const ghTab = screen.getByRole("tab", { name: /GitHub Pages/ });
+    expect(ghTab).toHaveAccessibleName(/Connected/);
+    expect(ghTab.querySelector(".tab-bar-dot")).toBeInTheDocument();
+  });
+
+  it("shows no dot, and no 'Connected' in the accessible name, for a tab with nothing saved", () => {
+    renderTab();
+    const vercelTab = screen.getByRole("tab", { name: "Vercel" });
+    expect(vercelTab).not.toHaveAccessibleName(/Connected/);
+    expect(vercelTab.querySelector(".tab-bar-dot")).not.toBeInTheDocument();
+  });
+
+  it("reflects more than one connected provider at once — dots are independent per tab, not a single global flag", () => {
+    renderTab({
+      credentialsController: {
+        rowOverrides: {
+          "github-pages": { saved: GH_CREDENTIAL },
+          netlify: { saved: { ...GH_CREDENTIAL, providerId: "netlify" } },
+        },
+      },
+    });
+    expect(screen.getByRole("tab", { name: /GitHub Pages/ })).toHaveAccessibleName(/Connected/);
+    expect(screen.getByRole("tab", { name: /Netlify/ })).toHaveAccessibleName(/Connected/);
+    expect(screen.getByRole("tab", { name: "Vercel" })).not.toHaveAccessibleName(/Connected/);
+    expect(screen.getByRole("tab", { name: "Cloudflare Pages" })).not.toHaveAccessibleName(/Connected/);
+  });
+
+  it("shows no dots anywhere while credentials are still loading — never a false 'connected' guess", () => {
+    renderTab({ credentialsController: { rows: undefined, executionMode: undefined } });
+    expect(document.querySelectorAll(".tab-bar-dot")).toHaveLength(0);
+  });
+});
+
 describe("StaticSiteTab — real CLI detection, no more 'can't tell' placeholder", () => {
   it("shows 'Checking…' while the Overview snapshot has not loaded yet", () => {
     renderTab({ overviewController: { snapshot: undefined } });
@@ -693,29 +736,65 @@ describe("StaticSiteTab — credential section: executionMode disclosure", () =>
     expect(screen.queryByText("Advanced: publish with server-side provider credentials")).not.toBeInTheDocument();
   });
 
-  it("the credential rows themselves render in BOTH modes — disclosure changes prominence, never hides the actual rows", () => {
+  // REWRITTEN 2026-08-16 (collapse pass): this used to prove the credential rows render in BOTH
+  // modes by counting 4 Save buttons in each — that count was only ever a side effect of the OLD
+  // "all four providers, always" contract. The collapse makes exactly one row visible regardless of
+  // target, so the thing worth pinning now is that the ONE selected row still renders in both modes
+  // (disclosure changes prominence, never hides the row itself) — never that a specific count of
+  // rows survives, which the new contract makes false by design.
+  it("the selected provider's credential row renders in BOTH executionModes — disclosure changes prominence, never hides the row", () => {
     renderTab({ credentialsController: { executionMode: "self-hosted-cli" } });
-    expect(screen.getAllByRole("button", { name: "Save" })).toHaveLength(4);
+    expect(screen.getAllByRole("button", { name: "Save" })).toHaveLength(1);
 
     renderTab({ credentialsController: { executionMode: "hosted-api-only" } });
-    expect(screen.getAllByRole("button", { name: "Save" }).length).toBeGreaterThanOrEqual(4);
+    expect(screen.getAllByRole("button", { name: "Save" }).length).toBeGreaterThanOrEqual(1);
   });
 });
 
 describe("StaticSiteTab — credential section: rows", () => {
-  it("renders exactly one row per provider, in STATIC_PUBLISH_TARGETS/PUBLISH_CREDENTIAL_PROVIDERS order — no 'Add credential' button, no provider picker, no label field anywhere", () => {
+  // REWRITTEN 2026-08-16 (collapse pass, owner-approved): the credential section used to render one
+  // row per provider SIMULTANEOUSLY, regardless of the selected publish target — the "wall of four
+  // ACCESS TOKEN boxes" that was a large part of the owner's "it looks just awful" verdict on this
+  // tab. It now renders exactly ONE row: whichever provider is currently selected on the tab bar
+  // above. This test pins the new contract directly — the selected provider's row is present, and
+  // every OTHER provider's row (by name) is absent — plus the "no leftover add/edit chrome" half of
+  // the original assertion, unchanged.
+  it("renders exactly one row — the selected provider's — never the other three; no 'Add credential' button, no provider picker, no label field anywhere", () => {
     renderTab();
-    for (const provider of PUBLISH_CREDENTIAL_PROVIDERS) {
-      expect(screen.getByText(provider.label, { selector: ".deployment-credential-row-name" })).toBeInTheDocument();
+    expect(screen.getByText("GitHub Pages", { selector: ".deployment-credential-row-name" })).toBeInTheDocument();
+    for (const provider of PUBLISH_CREDENTIAL_PROVIDERS.filter((p) => p.id !== "github-pages")) {
+      expect(screen.queryByText(provider.label, { selector: ".deployment-credential-row-name" })).not.toBeInTheDocument();
     }
     expect(screen.queryByRole("button", { name: "Add credential" })).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Provider")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("Label")).not.toBeInTheDocument();
   });
 
+  // REWRITTEN 2026-08-16: switching the publish-target tab is what decides which row shows now
+  // (there is no longer a "credential picker" separate from the publish-target picker) — this pins
+  // that the row swaps with the tab, by provider name, in both directions.
+  it("switching the publish-target tab swaps which provider's credential row is shown", () => {
+    const { rerender } = renderTab({ publishController: { target: "github-pages" } });
+    expect(screen.getByText("GitHub Pages", { selector: ".deployment-credential-row-name" })).toBeInTheDocument();
+    expect(screen.queryByText("Vercel", { selector: ".deployment-credential-row-name" })).not.toBeInTheDocument();
+
+    rerender(
+      <StaticSiteTab
+        useStaticExportHook={() => exportControllerFixture()}
+        useStaticPublishHook={() => publishControllerFixture({ target: "vercel" })}
+        useDeploymentOverviewHook={() => overviewControllerFixture()}
+        usePublishCredentialsHook={() => credentialsControllerFixture()}
+      />,
+    );
+    expect(screen.getByText("Vercel", { selector: ".deployment-credential-row-name" })).toBeInTheDocument();
+    expect(screen.queryByText("GitHub Pages", { selector: ".deployment-credential-row-name" })).not.toBeInTheDocument();
+  });
+
   it("a not-connected row shows 'Not connected' and a visibly EMPTY token box — no placeholder text standing in for a value", () => {
     renderTab();
-    expect(screen.getAllByText("Not connected")).toHaveLength(4);
+    // Exactly one row is on screen now (the selected provider's) — was `toHaveLength(4)` under the
+    // old "all four, always" contract.
+    expect(screen.getAllByText("Not connected")).toHaveLength(1);
     const ghToken = screen.getByLabelText("Access token", { selector: "#deployment-static-site-credentials-token-github-pages" });
     expect(ghToken).toHaveValue("");
     expect(ghToken).not.toHaveAttribute("placeholder");
@@ -723,7 +802,10 @@ describe("StaticSiteTab — credential section: rows", () => {
 
   it("a connected row shows 'Connected · updated <date>', and the token input still starts blank — never read back", () => {
     renderTab({ credentialsController: { rowOverrides: { "github-pages": { saved: GH_CREDENTIAL } } } });
-    expect(screen.getByText(/Connected/)).toBeInTheDocument();
+    // `{ selector: ".status" }` — a bare `/Connected/` regex now also matches the tab bar's own
+    // visually-hidden ", Connected" text (`TabBarTab.dot`'s doc), which is a second, correct
+    // appearance of the same word, not a collision to weaken this assertion away from.
+    expect(screen.getByText(/Connected/, { selector: ".status" })).toBeInTheDocument();
     expect(screen.getByText(/2026-08-15/)).toBeInTheDocument();
     const ghToken = screen.getByLabelText("Access token", { selector: "#deployment-static-site-credentials-token-github-pages" });
     expect(ghToken).toHaveValue("");
@@ -731,7 +813,10 @@ describe("StaticSiteTab — credential section: rows", () => {
   });
 
   it("a connected row's hint reads 'leave blank to keep the current token', below the field", () => {
-    renderTab({ credentialsController: { rowOverrides: { vercel: { saved: { ...GH_CREDENTIAL, providerId: "vercel" } } } } });
+    renderTab({
+      publishController: { target: "vercel" },
+      credentialsController: { rowOverrides: { vercel: { saved: { ...GH_CREDENTIAL, providerId: "vercel" } } } },
+    });
     expect(screen.getByText(/Leave blank to keep the current token/)).toBeInTheDocument();
   });
 
@@ -741,23 +826,23 @@ describe("StaticSiteTab — credential section: rows", () => {
     expect(screen.getAllByText(/Stored encrypted on the server/).length).toBeGreaterThan(0);
   });
 
-  it("typing into a row's token input calls setToken with that row's own providerId", async () => {
+  it("typing into the selected row's token input calls setToken with that provider's own id", async () => {
     const user = userEvent.setup();
     const setToken = vi.fn();
-    renderTab({ credentialsController: { setToken } });
+    renderTab({ publishController: { target: "vercel" }, credentialsController: { setToken } });
     await user.type(screen.getByLabelText("Access token", { selector: "#deployment-static-site-credentials-token-vercel" }), "x");
     expect(setToken).toHaveBeenCalledWith("vercel", "x");
   });
 
-  it("github-pages/vercel/netlify show no Account ID field — only cloudflare-pages has a second connection field", () => {
+  it("github-pages (the default target) shows no Account ID field — only cloudflare-pages has that second connection field", () => {
     renderTab();
-    expect(screen.getAllByLabelText("Account ID")).toHaveLength(1);
+    expect(screen.queryByLabelText("Account ID")).not.toBeInTheDocument();
   });
 
   it("cloudflare-pages shows the required Account ID field, and typing into it calls setAccountId('cloudflare-pages', value)", async () => {
     const user = userEvent.setup();
     const setAccountId = vi.fn();
-    renderTab({ credentialsController: { setAccountId } });
+    renderTab({ publishController: { target: "cloudflare-pages" }, credentialsController: { setAccountId } });
     const accountField = screen.getByLabelText("Account ID");
     expect(accountField).toHaveValue("");
     expect(accountField).not.toHaveAttribute("placeholder");
@@ -765,66 +850,80 @@ describe("StaticSiteTab — credential section: rows", () => {
     expect(setAccountId).toHaveBeenCalledWith("cloudflare-pages", "a");
   });
 
-  it("clicking Save on one row calls save with that row's own providerId", async () => {
+  it("clicking Save on the selected provider's row calls save with that provider's own id", async () => {
     const user = userEvent.setup();
     const save = vi.fn().mockResolvedValue(undefined);
-    renderTab({ credentialsController: { rowOverrides: { netlify: { token: "tok" } }, save } });
+    renderTab({ publishController: { target: "netlify" }, credentialsController: { rowOverrides: { netlify: { token: "tok" } }, save } });
     const netlifyRow = screen.getByText("Netlify", { selector: ".deployment-credential-row-name" }).closest("li")!;
     await user.click(within(netlifyRow).getByRole("button", { name: "Save" }));
     expect(save).toHaveBeenCalledWith("netlify");
   });
 
-  it("Save is disabled until that row's own required fields are filled — a blank token never enables it", () => {
-    renderTab({ credentialsController: { rowOverrides: { vercel: { token: "" } } } });
+  it("Save is disabled until the selected row's own required fields are filled — a blank token never enables it", () => {
+    renderTab({ publishController: { target: "vercel" }, credentialsController: { rowOverrides: { vercel: { token: "" } } } });
     const vercelRow = screen.getByText("Vercel", { selector: ".deployment-credential-row-name" }).closest("li")!;
     expect(within(vercelRow).getByRole("button", { name: "Save" })).toBeDisabled();
   });
 
   it("cloudflare-pages' Save stays disabled with a token but no accountId yet", () => {
-    renderTab({ credentialsController: { rowOverrides: { "cloudflare-pages": { token: "tok", accountId: "" } } } });
+    renderTab({ publishController: { target: "cloudflare-pages" }, credentialsController: { rowOverrides: { "cloudflare-pages": { token: "tok", accountId: "" } } } });
     const cfRow = screen.getByText("Cloudflare Pages", { selector: ".deployment-credential-row-name" }).closest("li")!;
     expect(within(cfRow).getByRole("button", { name: "Save" })).toBeDisabled();
   });
 
-  it("shows the busy label and disables Save only on the row currently saving", () => {
-    renderTab({ credentialsController: { rowOverrides: { vercel: { token: "tok", saving: true } } } });
-    const vercelRow = screen.getByText("Vercel", { selector: ".deployment-credential-row-name" }).closest("li")!;
-    expect(within(vercelRow).getByRole("button", { name: "Saving…" })).toBeDisabled();
-    const ghRow = screen.getByText("GitHub Pages", { selector: ".deployment-credential-row-name" }).closest("li")!;
-    expect(within(ghRow).getByRole("button", { name: "Save" })).toBeInTheDocument();
+  // REWRITTEN 2026-08-16: the original point of this test was "saving one row does not disturb a
+  // sibling row" — with the collapse, sibling rows no longer render at all, so that half of the
+  // assertion has no equivalent to keep (there is nothing left to prove uninvolved, since there is
+  // nothing else on screen). What still holds and is worth pinning: the SELECTED row shows its own
+  // busy state correctly.
+  it("shows the busy label and disables Save on the selected row while it is saving", () => {
+    renderTab({ publishController: { target: "vercel" }, credentialsController: { rowOverrides: { vercel: { token: "tok", saving: true } } } });
+    expect(screen.getByRole("button", { name: "Saving…" })).toBeDisabled();
   });
 
   it("surfaces a row's own error as an alert, scoped to that row", () => {
-    renderTab({ credentialsController: { rowOverrides: { netlify: { error: "could not reach the server" } } } });
+    renderTab({ publishController: { target: "netlify" }, credentialsController: { rowOverrides: { netlify: { error: "could not reach the server" } } } });
     expect(screen.getByRole("alert")).toHaveTextContent("could not reach the server");
   });
 
-  it("each provider's scope-guidance copy links to that provider's own token page", () => {
+  it("the selected provider's scope-guidance copy links to that provider's own token page — github-pages by default", () => {
     renderTab();
-    const ghRow = screen.getByText("GitHub Pages", { selector: ".deployment-credential-row-name" }).closest("li")!;
-    const link = within(ghRow).getByRole("link", { name: "Create a token" });
+    const link = screen.getByRole("link", { name: "Create a token" });
     expect(link).toHaveAttribute("href", "https://github.com/settings/tokens");
     expect(link).toHaveAttribute("target", "_blank");
-    const cfRow = screen.getByText("Cloudflare Pages", { selector: ".deployment-credential-row-name" }).closest("li")!;
-    expect(within(cfRow).getByRole("link", { name: "Create a token" })).toHaveAttribute("href", "https://dash.cloudflare.com/profile/api-tokens");
+  });
+
+  it("switching to cloudflare-pages links its OWN token page, not github-pages' leftover from the default tab", () => {
+    renderTab({ publishController: { target: "cloudflare-pages" } });
+    expect(screen.getByRole("link", { name: "Create a token" })).toHaveAttribute("href", "https://dash.cloudflare.com/profile/api-tokens");
   });
 });
 
 describe("StaticSiteTab — credential section: AI agent tagging", () => {
-  it("tags the section and each provider's own row/token/save elements", () => {
-    renderTab();
-    expect(document.querySelector('[data-agent-element="deployment-static-site-credentials-section"]')).toBeInTheDocument();
+  // REWRITTEN 2026-08-16: this used to render all four providers' rows at once and assert every
+  // one of their agent-element tags in a single pass. The collapse means only the SELECTED
+  // provider's tags exist at any one render — this now switches the target per provider and checks
+  // that provider's own tags each time, which still proves every provider's row carries the right
+  // tag, just one render per provider instead of one render for all four.
+  it("tags the section and the selected provider's own row/token/save elements, per provider", () => {
     for (const provider of PUBLISH_CREDENTIAL_PROVIDERS) {
+      const { unmount } = renderTab({ publishController: { target: provider.id } });
+      expect(document.querySelector('[data-agent-element="deployment-static-site-credentials-section"]')).toBeInTheDocument();
       expect(document.querySelector(`[data-agent-element="deployment-static-site-credentials-row-${provider.id}"]`)).toBeInTheDocument();
       expect(document.querySelector(`[data-agent-element="deployment-static-site-credentials-token-${provider.id}"]`)).toBeInTheDocument();
       expect(document.querySelector(`[data-agent-element="deployment-static-site-credentials-save-${provider.id}"]`)).toBeInTheDocument();
+      unmount();
     }
   });
 
-  it("tags cloudflare-pages' own Account ID field only", () => {
-    renderTab();
+  it("tags cloudflare-pages' own Account ID field only, and only once cloudflare-pages is the selected tab", () => {
+    const first = renderTab({ publishController: { target: "cloudflare-pages" } });
     expect(document.querySelector('[data-agent-element="deployment-static-site-credentials-account-cloudflare-pages"]')).toBeInTheDocument();
+    first.unmount();
+
+    renderTab({ publishController: { target: "github-pages" } });
     expect(document.querySelector('[data-agent-element="deployment-static-site-credentials-account-github-pages"]')).not.toBeInTheDocument();
+    expect(document.querySelector('[data-agent-element="deployment-static-site-credentials-account-cloudflare-pages"]')).not.toBeInTheDocument();
   });
 
   it("tags the load-error and hosted-mode notices", () => {
