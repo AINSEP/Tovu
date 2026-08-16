@@ -17,8 +17,11 @@ import { useWiredSourceControlCredentials } from "./hooks/use-source-control-cre
  *
  * This file used to hold every provider row directly, under a doc comment arguing explicitly
  * against a tab bar: "three flat rows was the explicit brief... this page has no tab bar to begin
- * with." That was a real, considered decision made the day before — and the owner's next look at
- * the live page reversed it. The page read as a settings-dialog panel dropped onto a route, not a
+ * with." That was a real, considered decision the owner made the day before (2026-08-15) — a
+ * same-week reversal, not drift or an agent's own judgment call — confirmed directly by the owner
+ * after seeing this page next to `deployment/Deployment.tsx`. A future reader who finds a tab bar
+ * here where a comment once forbade one should read THIS as the record of that reversal, not a sign
+ * the old comment was ignored. The page read as a settings-dialog panel dropped onto a route, not a
  * page: it carried no `page-header`/`TabBar` shell at all, while its nearest neighbour,
  * `deployment/Deployment.tsx`, does. This file now mirrors `Deployment.tsx`'s shell exactly — same
  * `TabBar` (not `@jini-ai/ui`'s `SettingsDialogShell`, for the identical reason that file's own

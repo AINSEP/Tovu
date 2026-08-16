@@ -9,7 +9,7 @@ import {
   sourceControlProviderInfo,
   type SourceControlCredentialFormFields,
 } from "./rules";
-import { ConnectedMarkIcon, DisclosureChevronIcon, SourceControlIcon } from "./source-control-visuals";
+import { ConnectedMarkIcon, DisclosureChevronIcon } from "./source-control-visuals";
 import { useWiredSourceControlCredentials } from "./hooks/use-source-control-credentials.hooks";
 import type {
   SourceControlCredentialRowState,
@@ -62,26 +62,14 @@ export function ProvidersTab(props: ProvidersTabProps) {
   const controller = useSourceControlCredentialsHook();
 
   return (
-    <div className="source-control-tab">
-      <div
-        className="card"
-        {...agentHandle("source-control-card", {
-          role: "region",
-          label: "Connect a GitHub, GitLab, or Bitbucket account so Tovu can read and later push to your repositories",
-        })}
-      >
-        <div className="card-head">
-          <div className="source-control-path-head">
-            <span className="source-control-path-icon">
-              <SourceControlIcon />
-            </span>
-            <h2 className="card-title">{translate("Providers")}</h2>
-          </div>
-        </div>
-        <div className="source-control-card-body">
-          <SourceControlCredentialsList controller={controller} t={controller.t} />
-        </div>
-      </div>
+    <div
+      className="source-control-tab"
+      {...agentHandle("source-control-providers", {
+        role: "region",
+        label: "Connect a GitHub, GitLab, or Bitbucket account so Tovu can read and later push to your repositories",
+      })}
+    >
+      <SourceControlCredentialsList controller={controller} t={controller.t} />
     </div>
   );
 }
@@ -236,8 +224,33 @@ function SourceControlCredentialFields({
   );
 }
 
-/** A row, not yet connected — open and prominent. Plain fields, not a `<details>`: there is nothing
- *  to progressively disclose FROM here, since this IS the thing the reader still has to do. */
+/**
+ * A row, not yet connected — open and prominent. Plain fields, not a `<details>`: there is nothing
+ * to progressively disclose FROM here, since this IS the thing the reader still has to do.
+ *
+ * ## Seam for the not-yet-built "reuse the publish token" affordance
+ *
+ * 2026-08-16 owner decision: when a not-yet-connected row's provider already has a matching
+ * Deployment publish credential saved (checked directly against the database this session — e.g.
+ * `publish_credential_sets` already has a `github-pages` row for a workspace whose
+ * `source_control_credential_sets` is empty), this row should offer a one-click "reuse that
+ * credential" path instead of asking the operator to paste the same token twice. NOT built here —
+ * it needs a server-side read across both credential stores plus a decrypt-and-reseal from one
+ * sealed store into the other, both squarely outside this feature's fence (`lib/api.ts` wire types,
+ * `src/**`). Dispatched separately.
+ *
+ * The affordance's insertion point, once that data exists: directly below
+ * `.source-control-row-subtitle` just below, ABOVE {@link SourceControlCredentialFields} — same
+ * "settled fact first, fields second" order {@link SourceControlRowDone}'s summary already
+ * establishes for the connected state, so a reader sees "a GitHub Pages credential already exists"
+ * before being asked to type a new token into the fields underneath. It needs to read, per
+ * provider, from the controller: whether a matching publish credential exists, and when it was
+ * saved (same shape `AdminSourceControlCredentialSummary.updatedAt` already carries for THIS
+ * store's own rows) — `SourceControlCredentialsController`/`useSourceControlCredentialsHook`
+ * (`hooks/use-source-control-credentials.hooks.ts`) has neither field today; adding them is that
+ * follow-up's job, not this pass's. No placeholder button renders here in the meantime — an inert
+ * "Reuse token" control pointing at nothing would be a worse defect than the wait.
+ */
 function SourceControlRowTodo({
   row,
   controller,
