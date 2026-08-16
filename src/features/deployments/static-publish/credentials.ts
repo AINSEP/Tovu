@@ -42,15 +42,21 @@ import type { PublishCredentialSource, StaticPublishTargetId } from "./types";
 
 /**
  * Env var name(s) that carry a target's token, in preference order — the first one set (and
- * non-blank) wins. Most targets have exactly one; Netlify and Cloudflare Pages each get more than
- * one because their own CLIs/CI docs have used more than one name across tooling generations, and an
- * operator who already has one of the aliases set in their environment should not have to rename it
- * just because this admin's UI now also shows its own preferred name (2026-08-15 credential-UI
- * redesign brief — accept the vendor-official name as an alias rather than forcing a rename).
+ * non-blank) wins. Every target carries more than one because their own CLIs/CI docs have used more
+ * than one name across tooling generations, and an operator who already has one of the aliases set in
+ * their environment should not have to rename it just because this admin's UI now also shows its own
+ * preferred name (2026-08-15 credential-UI redesign brief — accept the vendor-official name as an
+ * alias rather than forcing a rename).
+ *
+ * The `github-pages`/`vercel` alias lists were promised by that same brief and shipped only for
+ * Netlify and Cloudflare Pages; the two that were missed are the two the owner actually uses, and
+ * `VERCEL_ACCESS_TOKEN`/`GITHUB_ACCESS_TOKEN` are exactly the names they set by analogy three separate
+ * times before the single-name lists rejected them (2026-08-15 follow-up). `GH_TOKEN` is the `gh`
+ * CLI's own documented name, so an operator already authenticated for `gh` needs no new variable.
  */
 const ENV_VAR_ALIASES_BY_TARGET: Readonly<Record<StaticPublishTargetId, readonly string[]>> = {
-  "github-pages": ["GITHUB_TOKEN"],
-  vercel: ["VERCEL_TOKEN"],
+  "github-pages": ["GITHUB_TOKEN", "GH_TOKEN", "GITHUB_ACCESS_TOKEN"],
+  vercel: ["VERCEL_TOKEN", "VERCEL_ACCESS_TOKEN"],
   netlify: ["NETLIFY_TOKEN", "NETLIFY_ACCESS_TOKEN", "NETLIFY_AUTH_TOKEN"],
   "cloudflare-pages": ["CLOUDFLARE_TOKEN", "CLOUDFLARE_API_TOKEN"],
 };
