@@ -90,10 +90,22 @@ export interface KeyringPort {
  * Seals/opens recoverable outbound credentials (unlike signing secrets, these must round-trip).
  * Rule-of-two: a real AEAD adapter (libsodium/AES-GCM) built now + an in-memory test double.
  * Wrapping is always under a {@link KeyringPort} root key, so `content.db` holds only ciphertext.
+ *
+ * `aad` (Additional Authenticated Data, AES-GCM's own mechanism — RFC 5116 §5.1) is OPTIONAL and
+ * backward compatible: every caller that predates it (`site-credential-store.ts`,
+ * `execution-credential-store.ts`, `provider-credential-store.ts` — all three sealing into rows with
+ * NO AAD) keeps sealing/opening exactly as before. A caller that DOES pass `aad` at seal time MUST
+ * pass the byte-identical string at open time, or `open()` throws (auth-tag verification fails) —
+ * this is what makes ciphertext non-transplantable across whatever scope `aad` encodes (e.g. a
+ * `workspaceId + providerId + credentialSetId` binding — see
+ * `features/deployments/publish-credentials/aad.ts`), without changing `SealedSecret`'s own shape:
+ * AAD is authenticated but never encrypted or persisted by GCM, so a caller must always be able to
+ * RE-DERIVE the same `aad` string from context at open time — it is not something to store alongside
+ * the ciphertext.
  */
 export interface SecretSealerPort {
-  seal(input: { plaintext: string; key: RootKeyHandle }): Promise<SealedSecret>;
-  open(input: { sealed: SealedSecret }): Promise<string>;
+  seal(input: { plaintext: string; key: RootKeyHandle; aad?: string }): Promise<SealedSecret>;
+  open(input: { sealed: SealedSecret; aad?: string }): Promise<string>;
 }
 
 /* -------------------------------------------------------------------------- */

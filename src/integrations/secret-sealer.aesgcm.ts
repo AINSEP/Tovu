@@ -26,6 +26,18 @@ import type { SealedSecret } from "./types";
  * encryption and matches `SealedSecret.keyId`'s own doc ("names the root-key generation the value
  * was wrapped under" — one generation identity for the whole store, not per-consumer).
  *
+ * `aad` (2026-08-15, `publish_credential_sets` hardening): the shared-key design above means the KEY
+ * alone does not separate one row's ciphertext from another's — a ciphertext sealed for workspace A
+ * would decrypt cleanly under workspace B's key derivation too, since it is the SAME derivation for
+ * both. `SecretSealerPort.seal`/`open`'s optional `aad` parameter closes that gap per-CALL rather
+ * than per-key: when a caller supplies `aad`, it is bound into the AES-GCM authentication tag via
+ * `cipher.setAAD`/`decipher.setAAD` (Node's `crypto` binding of the GCM AAD input, RFC 5116 §5.1) —
+ * opening with a different (or absent) `aad` than the one used to seal fails auth-tag verification
+ * exactly like a tampered ciphertext would. Optional and additive: every existing call site that
+ * never passes `aad` behaves byte-for-byte as before (`cipher.setAAD` simply is never called), so
+ * `site_assistant_credentials`/`admin_execution_credentials` rows sealed before this change keep
+ * opening with no changes at either the call site or the stored row.
+ *
  * Rule-of-two (ADR-006): this is the "real adapter" half. There is deliberately no separate
  * plaintext-passthrough test double for `SecretSealerPort` itself — a fake that skips encryption
  * would defeat the one thing worth testing (that a value round-trips through REAL AES-GCM). The
@@ -53,9 +65,15 @@ export class AesGcmSecretSealer implements SecretSealerPort {
    * Encrypts `input.plaintext` under a key derived from `input.key` (the caller's current
    * `RootKeyHandle`, typically `keyring.activeKey()`).
    *
+   * @param input.aad - Optional AES-GCM additional authenticated data (see this file's header). When
+   *   supplied, `open()` must be called with the byte-identical string or the auth tag fails to
+   *   verify. Omitted entirely (never called) when `input.aad` is undefined — a plain seal exactly
+   *   like every pre-existing call site performs.
    * @returns `{keyId, ciphertext, nonce, alg}` — `ciphertext` is base64(AEAD ciphertext || 16-byte
    *   GCM auth tag), `nonce` is base64(12-byte IV). A fresh random IV every call — GCM's security
-   *   property depends on never reusing an IV under the same key.
+   *   property depends on never reusing an IV under the same key. `aad` itself is NOT part of the
+   *   returned shape — GCM authenticates it but never encrypts or stores it, so a caller must be able
+   *   to re-derive the same string from context at open time (see this file's header).
    * @throws Whatever `KeyringPort.derive()` throws (e.g. a missing root key) — propagated, never
    *   swallowed into a plaintext fallback (ADR-058 §4: this feature's callers convert that into a
    *   distinct `SECRET_STORE_UNCONFIGURED` error, they do not catch it here).
@@ -63,10 +81,13 @@ export class AesGcmSecretSealer implements SecretSealerPort {
    *   collections.
    * @overallScore 100
    */
-  async seal(input: { plaintext: string; key: RootKeyHandle }): Promise<SealedSecret> {
+  async seal(input: { plaintext: string; key: RootKeyHandle; aad?: string }): Promise<SealedSecret> {
     const aesKey = await this.deriveAesKey(input.key);
     const iv = randomBytes(IV_LENGTH_BYTES);
     const cipher = createCipheriv(ALG, aesKey, iv);
+    if (input.aad !== undefined) {
+      cipher.setAAD(Buffer.from(input.aad, "utf8"));
+    }
     const ciphertext = Buffer.concat([cipher.update(input.plaintext, "utf8"), cipher.final()]);
     const authTag = cipher.getAuthTag();
     return {
@@ -82,13 +103,18 @@ export class AesGcmSecretSealer implements SecretSealerPort {
    * `keyring.activeKey()` — a sealed row wrapped under an older root-key generation must still open
    * under that generation's own derivation, the seam `keyId` exists for).
    *
+   * @param input.aad - Must be the byte-identical string passed to the {@link seal} call that
+   *   produced `input.sealed`, or omitted iff `seal` was also called with no `aad`. Any mismatch
+   *   (wrong string, or present/absent asymmetry in either direction) fails auth-tag verification —
+   *   see this file's header.
    * @throws If `input.sealed.alg` is not `"aes-256-gcm"`, if the ciphertext is malformed/too short to
-   *   contain an auth tag, if the auth tag fails to verify (tampered ciphertext or wrong key), or
-   *   whatever `KeyringPort.derive()` throws. Never returns a partial or best-guess plaintext.
+   *   contain an auth tag, if the auth tag fails to verify (tampered ciphertext, wrong key, or a
+   *   mismatched/missing `aad`), or whatever `KeyringPort.derive()` throws. Never returns a partial or
+   *   best-guess plaintext.
    * @complexity O(n) in ciphertext length.
    * @overallScore 100
    */
-  async open(input: { sealed: SealedSecret }): Promise<string> {
+  async open(input: { sealed: SealedSecret; aad?: string }): Promise<string> {
     if (input.sealed.alg !== ALG) {
       throw new Error(`AesGcmSecretSealer cannot open alg '${input.sealed.alg}' (expected '${ALG}')`);
     }
@@ -101,6 +127,9 @@ export class AesGcmSecretSealer implements SecretSealerPort {
     const authTag = combined.subarray(combined.length - AUTH_TAG_LENGTH_BYTES);
     const ciphertext = combined.subarray(0, combined.length - AUTH_TAG_LENGTH_BYTES);
     const decipher = createDecipheriv(ALG, aesKey, iv);
+    if (input.aad !== undefined) {
+      decipher.setAAD(Buffer.from(input.aad, "utf8"));
+    }
     decipher.setAuthTag(authTag);
     const plaintext = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
     return plaintext.toString("utf8");

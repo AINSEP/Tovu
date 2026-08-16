@@ -70,6 +70,56 @@ test("an unsupported alg is rejected before any key derivation", async () => {
   );
 });
 
+/**
+ * `aad` regression coverage (2026-08-15, `publish_credential_sets` hardening) — see
+ * `secret-sealer.aesgcm.ts`'s file header for the full design. These four tests are the exact
+ * scenarios the fix must satisfy: existing no-AAD callers are untouched, and AAD becomes a real
+ * cryptographic binding, not a decorative parameter.
+ */
+
+test("backward compatibility: a value sealed with no aad still opens with no aad (existing rows keep working)", async () => {
+  const keyring = new InMemoryKeyring();
+  const sealer = new AesGcmSecretSealer(keyring);
+  const sealed = await sealer.seal({ plaintext: "legacy-row-value", key: await keyring.activeKey() });
+
+  const opened = await sealer.open({ sealed });
+  assert.equal(opened, "legacy-row-value");
+});
+
+test("a value sealed with aad opens correctly when the SAME aad is supplied", async () => {
+  const keyring = new InMemoryKeyring();
+  const sealer = new AesGcmSecretSealer(keyring);
+  const aad = "ws-1:github-pages:cred-42";
+  const sealed = await sealer.seal({ plaintext: "scoped-token", key: await keyring.activeKey(), aad });
+
+  const opened = await sealer.open({ sealed, aad });
+  assert.equal(opened, "scoped-token");
+});
+
+test("a value sealed with aad A throws when opened with aad B (cross-tenant/cross-record transplant is rejected)", async () => {
+  const keyring = new InMemoryKeyring();
+  const sealer = new AesGcmSecretSealer(keyring);
+  const sealed = await sealer.seal({ plaintext: "scoped-token", key: await keyring.activeKey(), aad: "ws-1:github-pages:cred-42" });
+
+  await assert.rejects(() => sealer.open({ sealed, aad: "ws-2:github-pages:cred-42" }));
+});
+
+test("a value sealed with aad A throws when opened with NO aad", async () => {
+  const keyring = new InMemoryKeyring();
+  const sealer = new AesGcmSecretSealer(keyring);
+  const sealed = await sealer.seal({ plaintext: "scoped-token", key: await keyring.activeKey(), aad: "ws-1:github-pages:cred-42" });
+
+  await assert.rejects(() => sealer.open({ sealed }));
+});
+
+test("a value sealed with NO aad throws when opened WITH an aad (asymmetry fails both directions)", async () => {
+  const keyring = new InMemoryKeyring();
+  const sealer = new AesGcmSecretSealer(keyring);
+  const sealed = await sealer.seal({ plaintext: "unscoped-token", key: await keyring.activeKey() });
+
+  await assert.rejects(() => sealer.open({ sealed, aad: "ws-1:github-pages:cred-42" }));
+});
+
 test("open() re-derives from the sealed row's own keyId, not the keyring's CURRENT active key", async () => {
   // Two sealers sharing one keyring: seal under the keyring's key today, then confirm a fresh
   // sealer instance (same underlying root key) still opens it correctly purely from `sealed.keyId`
