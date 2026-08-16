@@ -1,0 +1,120 @@
+/* ================================================================================================
+   Source Control page — a CONNECTION page (save a personal access token per provider), not git
+   integration. See `features/source-control/SourceControl.tsx`'s own header for the scope boundary
+   and why this page is its own Operations entry rather than a Deployment tab.
+
+   This file draws on the SAME design tokens `styles.css` defines (`--space-*`, `--surface*`,
+   `--border*`, `--font-display`, `--text-*`, `--r-*`, `--ok*`) and reuses the app's shared base
+   classes (`.card`, `.card-head`, `.card-title`, `.card-lead`, `.field`, `.field-label`,
+   `.field-hint`, `.notice`, `.save-error`) — it does not redefine any of those. What follows is only
+   what this page adds on top: the icon-plus-heading row, the vertical card rhythm, and the
+   provider-row shape (open/not-connected vs. collapsed/connected).
+
+   Visually rhymes with `deployment/StaticSiteTab.tsx`'s `.deployment-step`/`.deployment-step-done`
+   numbered-step rows (same bordered-surface-vs-quiet-surface contrast, same disclosure idiom for
+   the connected state) on purpose — the brief for this page asked the two credential surfaces to
+   "read as one system." It is a deliberate visual rhyme, not shared code: this page owns no CSS or
+   component import from `features/deployment/`, since that feature was being built concurrently by
+   a different agent in the same session. The one deliberate DIFFERENCE from that pattern: no
+   numbered "1"/"2" step markers here. Those numbers on the Static Site tab encode a two-step
+   SEQUENCE within one provider's flow (connect a credential, then choose where to publish this
+   export). This page's three rows are independent and parallel, not sequential — GitHub, GitLab,
+   and Bitbucket are not steps of each other — so each row gets a plain circular marker instead,
+   filled with a checkmark once connected, never a number.
+   ================================================================================================ */
+
+.source-control-page { display: flex; flex-direction: column; gap: var(--space-5); }
+
+/* Icon + title in the card head, same shape `.deployment-path-head`/`.deployment-path-icon` use for
+   the Static/Full Site path cards — reused here as a plain visual idiom, not an import. */
+.source-control-path-head { display: flex; align-items: center; gap: var(--space-3); }
+.source-control-path-icon {
+  display: grid; place-items: center; flex-shrink: 0;
+  width: 2.25rem; height: 2.25rem; border-radius: var(--r-md);
+  background: var(--surface-2); border: 1px solid var(--border); color: var(--fg-2);
+}
+
+/* Vertical rhythm between this card's own blocks (lead paragraph, then the row list) — same
+   "one scale, not whatever margin the last child happened to leave" reasoning `.deployment-card-body`
+   documents. */
+.source-control-card-body { display: flex; flex-direction: column; gap: var(--space-4); }
+
+.source-control-rows { display: flex; flex-direction: column; gap: var(--space-3); }
+
+.source-control-action-reason { margin: 0; font-size: var(--text-sm); color: var(--muted); }
+
+/* ---- One provider row --------------------------------------------------------------------- */
+
+/* Not-yet-connected: open and prominent, a real bordered surface (not a tinted/accented one — this
+   is a primary action, not a recommendation or a settled fact). Mirrors `.deployment-step`'s own
+   reasoning exactly. */
+.source-control-row {
+  display: flex; flex-direction: column; gap: var(--space-4);
+  padding: var(--space-4); background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--r-md);
+}
+.source-control-row-head { display: flex; align-items: flex-start; gap: var(--space-3); }
+/* The not-yet-connected marker — an empty ring, no glyph inside: there is nothing to report yet,
+   and an empty shape reads honestly as "nothing here" rather than a placeholder icon standing in
+   for one. Sized to sit on the same baseline as the row's own `<h3>`, same reasoning
+   `.deployment-step-marker` documents for its own size. */
+.source-control-row-marker {
+  display: grid; place-items: center; flex-shrink: 0;
+  width: 1.75rem; height: 1.75rem; border-radius: 50%;
+  background: var(--surface-2); border: 1px solid var(--border-strong); color: var(--fg-2);
+}
+/* The connected marker — filled + a checkmark glyph, the same "solid fill AND a distinct glyph, not
+   just a recolor" rule `.deployment-step-marker-done` documents (`frontend-accessibility`: color is
+   never the only signal). Same `--ok-solid`/`--ok-solid-ink` fallback pair for the same dark-mode
+   contrast reason that rule's own comment explains. */
+.source-control-row-marker-done {
+  background: var(--ok-solid, var(--ok)); border-color: var(--ok-solid, var(--ok));
+  color: var(--ok-solid-ink, oklch(99% 0 none));
+}
+.source-control-row-headings { display: flex; flex-direction: column; gap: var(--space-1); min-width: 0; }
+.source-control-row-title { margin: 0; font-family: var(--font-display); font-size: var(--text-lg); font-weight: 700; color: var(--fg); }
+.source-control-row-subtitle { margin: 0; font-size: var(--text-sm); color: var(--muted); max-width: 60ch; }
+
+/* The connected row's `<summary>` — marker, settled-fact text, then the EXPAND affordance
+   (`.source-control-row-summary-expand`) pinned to the far end. This is deliberately NOT the same
+   "strip the native triangle, rely on the row being clickable" treatment the Static Site tab's
+   credential rows originally shipped with and were corrected out of (owner-reported: a settled row
+   with no visible affordance read as inert). The native marker is still hidden here — but only
+   because it is REPLACED with a visible one, not removed outright. */
+.source-control-row-summary {
+  display: flex; align-items: center; gap: var(--space-3); cursor: pointer; list-style: none;
+  font-size: var(--text-sm); color: var(--fg-2);
+}
+.source-control-row-summary::-webkit-details-marker { display: none; }
+.source-control-row-summary-text { min-width: 0; flex: 1; }
+/* The visible expand affordance — a text label PLUS a chevron, never the chevron alone. This exact
+   pairing is the fix for the defect this page was briefed not to inherit: a bare clickable row with
+   its disclosure triangle stripped and nothing put in its place. `margin-left: auto` keeps it
+   pinned to the row's far end regardless of how long the settled-fact text runs. */
+.source-control-row-summary-expand {
+  display: inline-flex; align-items: center; gap: var(--space-1); flex-shrink: 0; margin-left: auto;
+  font-size: var(--text-xs); font-weight: 600; color: var(--fg-2);
+}
+/* The chevron rotates open on `[open]` — CSS-only, no JS state to track since `<details>` already
+   carries its own open/closed state natively. */
+.source-control-row-summary-expand svg { transition: transform 0.15s ease; }
+.source-control-row-done[open] .source-control-row-summary-expand svg { transform: rotate(180deg); }
+
+/* Collapsed by default (no `open` attribute) — the mirror image of the not-yet-connected row, which
+   renders with no `<details>` at all so it can never be collapsed. Quieter surface than the
+   not-yet-connected row above (`--surface-2`, not `--surface`), and the fields revealed on expand
+   sit flush with no nested border, same "no box inside a box" flattening `.deployment-step-done`
+   documents. */
+.source-control-row-done { background: var(--surface-2); }
+.source-control-row-done[open] .source-control-row-summary { margin-bottom: var(--space-1); }
+.source-control-row-done .source-control-credential-fields,
+.source-control-row-done .source-control-action { padding-left: calc(1.75rem + var(--space-3)); }
+
+/* ---- A row's own fields -------------------------------------------------------------------- */
+
+/* Stacked, not the shared `.field-row` two-up grid: that grid gives both columns of a row the SAME
+   height, which breaks the one row that ever has two fields (Bitbucket: Access token carries two
+   hint lines plus a link, Username carries one short hint) — identical reasoning
+   `.deployment-credential-fields` documents for the identical shape. */
+.source-control-credential-fields { display: flex; flex-direction: column; gap: var(--space-4); }
+
+.source-control-action { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-2); }

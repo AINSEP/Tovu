@@ -26,6 +26,7 @@ import { Taxonomy } from "./features/taxonomy";
 import { Database } from "./features/database";
 import { Recovery } from "./features/recovery";
 import { Deployment } from "./features/deployment";
+import { SourceControl } from "./features/source-control";
 import { WidgetsLibrary, WidgetInstanceEditor, WidgetRegions, WidgetRegionEditor } from "./features/widgets";
 import { Workspace } from "./features/workspace";
 import { AiAssistant } from "./features/ai-assistant";
@@ -725,6 +726,38 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
       group: "Operations",
       icon: '<path d="M9 2.5c2.6 1.8 4 4.4 4 7.2L9 13 5 9.7c0-2.8 1.4-5.4 4-7.2z"/><circle cx="9" cy="7.5" r="1.4"/><path d="M6.6 12.4L5 15.5l3-.9M11.4 12.4L13 15.5l-3-.9"/>',
     },
+  },
+  {
+    // A CONNECTION page — save a personal access token per git host so Tovu can read (and later
+    // push to) repositories. Not git integration itself: no commit history, rollback, sync,
+    // diffing, or branch management here — that is a separate, larger, not-yet-started feature.
+    // See `features/source-control/SourceControl.tsx`'s own header for the full scope boundary.
+    //
+    // Its own Operations entry rather than a Deployment tab (owner's call, 2026-08-15): GitLab and
+    // Bitbucket are not deploy targets, so filing this under Deployment would list providers that
+    // cannot deploy anything. Deployment already carries five tabs — a sixth holding three
+    // sub-tabs would be two levels of nesting, which is exactly what that panel's own numbered-step
+    // redesign just paid to remove. Source control is also broader than deployment in what it will
+    // eventually cover, so it does not get locked under a feature it outgrows on day one.
+    //
+    // Ordered directly beneath Deployment, its nearest neighbour in meaning: Deployment is how this
+    // site's built output goes OUT, Source Control is how its code comes IN (and, later, goes out
+    // too) — the two panels answer adjacent questions about the same "where does this site's
+    // material live outside this admin" concern.
+    id: "source-control",
+    render: () => <SourceControl />,
+    nav: {
+      label: "Source Control",
+      group: "Operations",
+      // Two nodes joined by a line — the generic shape of "a connection," not any one host's mark.
+      // Distinct from Deployment's rocket-launch icon: this page connects an ACCOUNT, not a deploy
+      // target.
+      icon: '<circle cx="6" cy="6" r="2.5"/><circle cx="14" cy="14" r="2.5"/><path d="M7.8 7.8l4.4 4.4"/>',
+    },
+    // Reachable via the default, same as every other panel here — an agent landing here to report
+    // which providers are already connected is a useful answer, even though saving a token itself
+    // is a credential-entry action no `data-agent-element` opt-in exposes (same boundary the
+    // Static Site tab's own publish-credential fields draw).
   },
   {
     id: "activity-log",
