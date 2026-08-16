@@ -63,9 +63,30 @@ function controllerFixture(overrides: ControllerFixtureOverrides = {}): SourceCo
   };
 }
 
-function renderPage(overrides: ControllerFixtureOverrides = {}) {
-  return render(<SourceControl useSourceControlCredentialsHook={() => controllerFixture(overrides)} />);
+function renderPage(overrides: ControllerFixtureOverrides = {}, props: { tabId?: string | null } = {}) {
+  return render(<SourceControl tabId={props.tabId} useSourceControlCredentialsHook={() => controllerFixture(overrides)} />);
 }
+
+describe("SourceControl — page shell: tabbed like Deployment, not a bare settings-style card", () => {
+  it("renders a page header (Operations kicker, Source Control title) above a TabBar", () => {
+    renderPage();
+    expect(screen.getByText("Operations")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Source Control" })).toBeInTheDocument();
+  });
+
+  it("shows exactly one active Providers tab in the TabBar", () => {
+    renderPage();
+    const tablist = screen.getByRole("tablist");
+    const providersTab = within(tablist).getByRole("tab", { name: /Providers/ });
+    expect(providersTab).toHaveAttribute("aria-selected", "true");
+    expect(within(tablist).getAllByRole("tab")).toHaveLength(1);
+  });
+
+  it("falls back to the Providers tab for an absent or unrecognized ?tab= value", () => {
+    renderPage({}, { tabId: "not-a-real-tab" });
+    expect(screen.getByRole("tab", { name: /Providers/ })).toHaveAttribute("aria-selected", "true");
+  });
+});
 
 describe("SourceControl — loading and error states", () => {
   it("shows a loading line before rows resolve", () => {
@@ -80,13 +101,12 @@ describe("SourceControl — loading and error states", () => {
   });
 });
 
-describe("SourceControl — three flat provider rows, not sub-tabs", () => {
-  it("renders one row per provider, GitHub first, with no tab list anywhere on the page", () => {
+describe("SourceControl — Providers tab: three flat provider rows, not sub-tabs", () => {
+  it("renders one row per provider, GitHub first", () => {
     renderPage();
     expect(screen.getByRole("heading", { name: /Connect GitHub/ })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Connect GitLab/ })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /Connect Bitbucket/ })).toBeInTheDocument();
-    expect(screen.queryByRole("tablist")).not.toBeInTheDocument();
   });
 
   it("shows Bitbucket's extra Username field but not GitHub's or GitLab's", () => {
@@ -176,7 +196,7 @@ describe("SourceControl — connected row: the two defects this page must NOT in
 });
 
 describe("SourceControl — scope boundary copy", () => {
-  it("states this is a connection page, not git integration, in the lead paragraph", () => {
+  it("states this is a connection page, not git integration, in the page header", () => {
     renderPage();
     expect(
       screen.getByText(/doesn't turn your content into git-versioned files — that's a separate feature, not built yet\./)

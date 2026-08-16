@@ -6,9 +6,9 @@
    This file draws on the SAME design tokens `styles.css` defines (`--space-*`, `--surface*`,
    `--border*`, `--font-display`, `--text-*`, `--r-*`, `--ok*`) and reuses the app's shared base
    classes (`.card`, `.card-head`, `.card-title`, `.card-lead`, `.field`, `.field-label`,
-   `.field-hint`, `.notice`, `.save-error`) — it does not redefine any of those. What follows is only
-   what this page adds on top: the icon-plus-heading row, the vertical card rhythm, and the
-   provider-row shape (open/not-connected vs. collapsed/connected).
+   `.field-hint`, `.notice`, `.save-error`, `.page`, `.page-header`) — it does not redefine any of
+   those. What follows is only what this page adds on top: the icon-plus-heading row, the vertical
+   card rhythm, and the provider-row shape (open/not-connected vs. collapsed/connected).
 
    Visually rhymes with `deployment/StaticSiteTab.tsx`'s `.deployment-step`/`.deployment-step-done`
    numbered-step rows (same bordered-surface-vs-quiet-surface contrast, same disclosure idiom for
@@ -21,9 +21,17 @@
    export). This page's three rows are independent and parallel, not sequential — GitHub, GitLab,
    and Bitbucket are not steps of each other — so each row gets a plain circular marker instead,
    filled with a checkmark once connected, never a number.
+
+   `.source-control-tab` (2026-08-16, renamed from `.source-control-page`): the page shell moved to
+   `SourceControl.tsx`'s own `.page`/`.page-header` + `TabBar`, mirroring `Deployment.tsx` — see that
+   file's header for why. This class is now the PER-TAB wrapper `ProvidersTab.tsx` renders inside
+   that shell, the exact same role `.deployment-tab` plays for each of Deployment's own tabs (same
+   `display: flex; flex-direction: column; gap` rule, kept as its own class rather than merged into
+   `.deployment-tab` since this page owns no CSS import from `features/deployment/` — see this file's
+   own header above for why that boundary is deliberate).
    ================================================================================================ */
 
-.source-control-page { display: flex; flex-direction: column; gap: var(--space-5); }
+.source-control-tab { display: flex; flex-direction: column; gap: var(--space-5); }
 
 /* Icon + title in the card head, same shape `.deployment-path-head`/`.deployment-path-icon` use for
    the Static/Full Site path cards — reused here as a plain visual idiom, not an import. */
