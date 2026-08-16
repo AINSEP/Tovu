@@ -26,6 +26,7 @@ function makeRecord(overrides: Partial<PublishCredentialSetRecord> = {}): Publis
     providerId: "github-pages",
     label: "Main repo",
     sealed: { keyId: "v1", ciphertext: "Y2lwaGVy", nonce: "bm9uY2U=", alg: "aes-256-gcm" },
+    isDefault: false,
     createdAt: NOW,
     updatedAt: NOW,
     ...overrides,
@@ -130,4 +131,86 @@ test("deleting a workspace CASCADEs to its credential sets", async () => {
   db.delete(workspaces).where(eq(workspaces.id, WORKSPACE)).run();
 
   assert.equal(await repo.findById({ workspaceId: WORKSPACE, id: "cred-1" }), null);
+});
+
+test("findDefaultByProvider returns null when the provider has no rows", async () => {
+  const repo = new SqlitePublishCredentialSetRepo(openSeededDb());
+  assert.equal(await repo.findDefaultByProvider({ workspaceId: WORKSPACE, providerId: "vercel" }), null);
+});
+
+test("listByProvider returns only rows for that (workspace, provider) pair", async () => {
+  const repo = new SqlitePublishCredentialSetRepo(openSeededDb());
+  await repo.insert(makeRecord({ id: "cred-1", label: "One", providerId: "vercel" }));
+  await repo.insert(makeRecord({ id: "cred-2", label: "Two", providerId: "netlify" }));
+  await repo.insert(makeRecord({ id: "cred-3", label: "Three", providerId: "vercel" }));
+
+  const vercelOnly = await repo.listByProvider({ workspaceId: WORKSPACE, providerId: "vercel" });
+  assert.deepEqual(
+    vercelOnly.map((r) => r.id).sort(),
+    ["cred-1", "cred-3"]
+  );
+});
+
+test("insert with isDefault:true atomically clears isDefault on every OTHER row in the same (workspace, provider) group", async () => {
+  const repo = new SqlitePublishCredentialSetRepo(openSeededDb());
+  await repo.insert(makeRecord({ id: "cred-1", label: "One", providerId: "vercel", isDefault: true }));
+  await repo.insert(makeRecord({ id: "cred-2", label: "Two", providerId: "vercel", isDefault: true }));
+
+  const one = await repo.findById({ workspaceId: WORKSPACE, id: "cred-1" });
+  const two = await repo.findById({ workspaceId: WORKSPACE, id: "cred-2" });
+  assert.equal(one?.isDefault, false, "the previous default must be cleared by the new insert");
+  assert.equal(two?.isDefault, true);
+  assert.equal((await repo.findDefaultByProvider({ workspaceId: WORKSPACE, providerId: "vercel" }))?.id, "cred-2");
+});
+
+test("insert with isDefault:true never touches a DIFFERENT provider's or workspace's default", async () => {
+  const repo = new SqlitePublishCredentialSetRepo(openSeededDb());
+  await repo.insert(makeRecord({ id: "cred-1", label: "One", providerId: "vercel", isDefault: true }));
+  await repo.insert(makeRecord({ id: "cred-2", label: "Two", providerId: "netlify", isDefault: true }));
+  await repo.insert(makeRecord({ id: "cred-3", label: "Three", providerId: "vercel", workspaceId: OTHER_WORKSPACE, isDefault: true }));
+
+  assert.equal((await repo.findById({ workspaceId: WORKSPACE, id: "cred-1" }))?.isDefault, true, "different provider must not be cleared");
+  assert.equal((await repo.findById({ workspaceId: OTHER_WORKSPACE, id: "cred-3" }))?.isDefault, true, "different workspace must not be cleared");
+});
+
+test("update with isDefault:true atomically clears the previous default in the same group", async () => {
+  const repo = new SqlitePublishCredentialSetRepo(openSeededDb());
+  await repo.insert(makeRecord({ id: "cred-1", label: "One", providerId: "vercel", isDefault: true }));
+  await repo.insert(makeRecord({ id: "cred-2", label: "Two", providerId: "vercel", isDefault: false }));
+
+  await repo.update(makeRecord({ id: "cred-2", label: "Two", providerId: "vercel", isDefault: true, updatedAt: "2026-08-15T01:00:00.000Z" }));
+
+  assert.equal((await repo.findById({ workspaceId: WORKSPACE, id: "cred-1" }))?.isDefault, false);
+  assert.equal((await repo.findById({ workspaceId: WORKSPACE, id: "cred-2" }))?.isDefault, true);
+});
+
+test("deleting the default promotes the group's most-recently-updated remaining row", async () => {
+  const repo = new SqlitePublishCredentialSetRepo(openSeededDb());
+  await repo.insert(makeRecord({ id: "cred-1", label: "One", providerId: "vercel", isDefault: true, updatedAt: "2026-08-15T00:00:00.000Z" }));
+  await repo.insert(makeRecord({ id: "cred-2", label: "Two", providerId: "vercel", isDefault: false, updatedAt: "2026-08-15T02:00:00.000Z" }));
+  await repo.insert(makeRecord({ id: "cred-3", label: "Three", providerId: "vercel", isDefault: false, updatedAt: "2026-08-15T01:00:00.000Z" }));
+
+  await repo.delete({ workspaceId: WORKSPACE, id: "cred-1" });
+
+  const promoted = await repo.findDefaultByProvider({ workspaceId: WORKSPACE, providerId: "vercel" });
+  assert.equal(promoted?.id, "cred-2", "the most recently updated remaining row must be promoted, not just any row");
+});
+
+test("deleting the LAST row for a provider leaves no default (not an error)", async () => {
+  const repo = new SqlitePublishCredentialSetRepo(openSeededDb());
+  await repo.insert(makeRecord({ id: "cred-1", label: "One", providerId: "vercel", isDefault: true }));
+
+  await repo.delete({ workspaceId: WORKSPACE, id: "cred-1" });
+
+  assert.equal(await repo.findDefaultByProvider({ workspaceId: WORKSPACE, providerId: "vercel" }), null);
+});
+
+test("deleting a NON-default row never promotes anything (the real default is untouched)", async () => {
+  const repo = new SqlitePublishCredentialSetRepo(openSeededDb());
+  await repo.insert(makeRecord({ id: "cred-1", label: "One", providerId: "vercel", isDefault: true }));
+  await repo.insert(makeRecord({ id: "cred-2", label: "Two", providerId: "vercel", isDefault: false }));
+
+  await repo.delete({ workspaceId: WORKSPACE, id: "cred-2" });
+
+  assert.equal((await repo.findDefaultByProvider({ workspaceId: WORKSPACE, providerId: "vercel" }))?.id, "cred-1");
 });

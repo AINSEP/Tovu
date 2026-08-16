@@ -12,6 +12,7 @@ import {
   PublishCredentialDuplicateLabelError,
   PublishCredentialNotFoundError,
   PublishCredentialValidationError,
+  resolveDefaultForPublish,
   resolveForPublish,
   updatePublishCredential,
   type PublishCredentialWriteDeps,
@@ -263,4 +264,119 @@ test("listPublishCredentials only returns the requesting workspace's own rows (t
   const mine = await listPublishCredentials(deps, { workspaceId: WORKSPACE });
   assert.equal(mine.length, 1);
   assert.equal(mine[0]!.label, "mine");
+});
+
+/**
+ * Contract v2 Correction B: is_default. The previous design failed a publish with "multiple
+ * credentials configured, ambiguous" once a workspace saved a second connection for one provider —
+ * these tests lock in the replacement invariant instead: exactly one default per (workspace,
+ * provider), auto-assigned on first create, explicit thereafter, promoted on delete.
+ */
+
+test("the FIRST credential created for a provider becomes its default automatically, with no isDefault requested", async () => {
+  const deps = makeDeps();
+  const first = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "One", connection: { providerId: "vercel", token: "a" } });
+  assert.equal(first.isDefault, true);
+});
+
+test("a SECOND credential for the same provider is NOT default unless isDefault:true is requested", async () => {
+  const deps = makeDeps();
+  await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "One", connection: { providerId: "vercel", token: "a" } });
+  const second = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "Two", connection: { providerId: "vercel", token: "b" } });
+  assert.equal(second.isDefault, false);
+});
+
+test("creating with isDefault:true clears the previous default for that provider", async () => {
+  const deps = makeDeps();
+  const first = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "One", connection: { providerId: "vercel", token: "a" } });
+  const second = await createPublishCredential(deps, {
+    workspaceId: WORKSPACE,
+    label: "Two",
+    connection: { providerId: "vercel", token: "b" },
+    isDefault: true,
+  });
+  assert.equal(second.isDefault, true);
+  assert.equal((await describeCredential(deps, { workspaceId: WORKSPACE, id: first.id }))?.isDefault, false);
+});
+
+test("a provider's default is independent of a DIFFERENT provider's default (each group has its own)", async () => {
+  const deps = makeDeps();
+  const vercel = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "One", connection: { providerId: "vercel", token: "a" } });
+  const netlify = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "Two", connection: { providerId: "netlify", token: "b" } });
+  assert.equal(vercel.isDefault, true);
+  assert.equal(netlify.isDefault, true);
+});
+
+test("updatePublishCredential with isDefault:true promotes this row and demotes the previous default", async () => {
+  const deps = makeDeps();
+  const first = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "One", connection: { providerId: "vercel", token: "a" } });
+  const second = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "Two", connection: { providerId: "vercel", token: "b" } });
+
+  const updated = await updatePublishCredential(deps, { workspaceId: WORKSPACE, id: second.id, isDefault: true });
+  assert.equal(updated.isDefault, true);
+  assert.equal((await describeCredential(deps, { workspaceId: WORKSPACE, id: first.id }))?.isDefault, false);
+});
+
+test("updatePublishCredential with isDefault OMITTED never un-defaults the current default (no replacement)", async () => {
+  const deps = makeDeps();
+  const first = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "One", connection: { providerId: "vercel", token: "a" } });
+
+  const updated = await updatePublishCredential(deps, { workspaceId: WORKSPACE, id: first.id, label: "Renamed" });
+  assert.equal(updated.isDefault, true, "renaming the default must not silently clear its default status");
+});
+
+test("updatePublishCredential with isDefault:false on the CURRENT default is a no-op for default status (never leaves a provider with zero defaults)", async () => {
+  const deps = makeDeps();
+  const first = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "One", connection: { providerId: "vercel", token: "a" } });
+
+  const updated = await updatePublishCredential(deps, { workspaceId: WORKSPACE, id: first.id, isDefault: false });
+  assert.equal(updated.isDefault, true);
+});
+
+test("deleting the default promotes the group's most-recently-updated remaining row", async () => {
+  const deps = makeDeps();
+  const first = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "One", connection: { providerId: "vercel", token: "a" } });
+  await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "Two", connection: { providerId: "vercel", token: "b" } });
+
+  await deletePublishCredential(deps, { workspaceId: WORKSPACE, id: first.id });
+
+  const remaining = await listPublishCredentials(deps, { workspaceId: WORKSPACE });
+  assert.equal(remaining.length, 1);
+  assert.equal(remaining[0]!.isDefault, true, "the only remaining row for the provider must become the default");
+});
+
+test("deleting the LAST credential for a provider leaves that provider with no default — not an error", async () => {
+  const deps = makeDeps();
+  const only = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "One", connection: { providerId: "vercel", token: "a" } });
+  await deletePublishCredential(deps, { workspaceId: WORKSPACE, id: only.id });
+  assert.equal(await resolveDefaultForPublish(deps, { workspaceId: WORKSPACE, providerId: "vercel" }), null);
+});
+
+test("createPublishCredential rejects a non-boolean isDefault", async () => {
+  const deps = makeDeps();
+  await assert.rejects(
+    () => createPublishCredential(deps, { workspaceId: WORKSPACE, label: "x", connection: { providerId: "vercel", token: "t" }, isDefault: "yes" }),
+    PublishCredentialValidationError
+  );
+});
+
+test("resolveDefaultForPublish decrypts the provider's default connection, never an id-specific one", async () => {
+  const deps = makeDeps();
+  await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "One", connection: { providerId: "vercel", token: "old" } });
+  const second = await createPublishCredential(deps, {
+    workspaceId: WORKSPACE,
+    label: "Two",
+    connection: { providerId: "vercel", token: "new" },
+    isDefault: true,
+  });
+
+  const resolved = await resolveDefaultForPublish(deps, { workspaceId: WORKSPACE, providerId: "vercel" });
+  assert.equal(resolved?.id, second.id);
+  assert.equal(resolved?.connection.token, "new");
+});
+
+test("resolveDefaultForPublish returns null (never 'ambiguous') when a provider has no default — not an error even with rows for OTHER providers", async () => {
+  const deps = makeDeps();
+  await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "One", connection: { providerId: "netlify", token: "a" } });
+  assert.equal(await resolveDefaultForPublish(deps, { workspaceId: WORKSPACE, providerId: "vercel" }), null);
 });

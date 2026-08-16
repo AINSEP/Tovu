@@ -28,6 +28,16 @@ import type {
  * shape. `connection`, when supplied, is ALWAYS resealed as a fresh ciphertext (never a re-wrap of the
  * old one) under a fresh AAD bound to that row's own `(workspaceId, providerId, id)` — see
  * `./aad.ts`'s `buildPublishCredentialAad`.
+ *
+ * Contract v2 Correction B (2026-08-15): {@link resolveDefaultForPublish} is the provider-scoped
+ * sibling of `resolveForPublish` — it resolves the group's DEFAULT row for `(workspaceId,
+ * providerId)` instead of requiring a caller-supplied `id`, which is what a real publish attempt
+ * actually has (a target, never a specific saved connection's id). The write functions below decide
+ * `isDefault` before calling into `PublishCredentialSetRepoPort` (see that port's own header for which
+ * half of the invariant belongs to the repo): a provider's first-ever saved connection auto-defaults;
+ * `isDefault: true` on create/update always wins; omitted/`false` never removes the CURRENT default
+ * without a replacement (this module never produces a "zero defaults while rows exist" state — see
+ * `decideCreateDefault`/`decideUpdateDefault`'s own doc comments).
  */
 
 const MAX_LABEL_LENGTH = 200;
@@ -56,6 +66,7 @@ function toSummary(record: PublishCredentialSetRecord): PublishCredentialSummary
     providerId: record.providerId,
     label: record.label,
     configured: true,
+    isDefault: record.isDefault,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
   };
@@ -124,6 +135,18 @@ function optionalString(raw: unknown, field: string): string | undefined {
   if (raw === undefined) return undefined;
   if (typeof raw !== "string" || raw.trim() === "") {
     throw new PublishCredentialValidationError(`'${field}' must be a non-empty string when provided`);
+  }
+  return raw;
+}
+
+/** Narrows a caller-supplied `isDefault`. `undefined` means "no default change requested" (the same
+ *  omitted-means-unchanged convention `label`/`connection` already use); any other non-boolean value
+ *  is rejected rather than coerced, so a stray string/number in the request body cannot silently be
+ *  read as truthy. */
+function optionalBoolean(raw: unknown, field: string): boolean | undefined {
+  if (raw === undefined) return undefined;
+  if (typeof raw !== "boolean") {
+    throw new PublishCredentialValidationError(`'${field}' must be a boolean when provided`);
   }
   return raw;
 }
@@ -199,24 +222,46 @@ export interface CreatePublishCredentialInput {
   workspaceId: UUID;
   label: unknown;
   connection: unknown;
+  /** `true` makes this the provider's default connection (clearing any previous one — see
+   *  `PublishCredentialSetRepoPort`'s own header). Omitted/`false` still auto-defaults if this turns
+   *  out to be the provider's FIRST saved connection — see {@link decideCreateDefault}. */
+  isDefault?: unknown;
+}
+
+/**
+ * Decides whether a newly-created row should be the group's default: always `true` for a provider's
+ * first-ever saved connection (a saved connection that can never resolve because nothing is marked
+ * default would be a silently-broken feature, not a safe default), otherwise exactly the caller's own
+ * request.
+ *
+ * @complexity O(1) — one length check.
+ * @overallScore 100
+ */
+function decideCreateDefault(existingForProvider: readonly unknown[], requested: boolean | undefined): boolean {
+  return existingForProvider.length === 0 || requested === true;
 }
 
 /**
  * Validates, seals, and inserts a new credential set. `id` is minted here (`deps.idGen`), not
  * caller-supplied — matches this table's own "caller cannot choose an existing row's identity" shape.
  *
- * @throws {PublishCredentialValidationError} `label`/`connection` fails shape validation.
+ * @throws {PublishCredentialValidationError} `label`/`connection`/`isDefault` fails shape validation.
  * @throws {PublishCredentialDuplicateLabelError} `(workspaceId, providerId, label)` already exists.
  * @throws {PublishCredentialSecretStoreUnconfiguredError} The master secret is unavailable.
- * @complexity O(1) — one keyring derivation, one seal, one insert (which may itself throw on the
- *   UNIQUE index, translated here rather than propagated raw).
+ * @complexity O(n) in the provider's own (small) existing-connection count, to decide default
+ *   auto-assignment, plus one keyring derivation, one seal, and one insert (which may itself throw on
+ *   the UNIQUE index, translated here rather than propagated raw).
  * @overallScore 100
  */
 export async function createPublishCredential(deps: PublishCredentialWriteDeps, input: CreatePublishCredentialInput): Promise<PublishCredentialSummary> {
   const label = validateLabel(input.label);
   const connection = validateConnection(input.connection);
+  const requestedDefault = optionalBoolean(input.isDefault, "isDefault");
   const id = deps.idGen.newId();
   const now = deps.clock.nowIso();
+
+  const existingForProvider = await deps.repo.listByProvider({ workspaceId: input.workspaceId, providerId: connection.providerId });
+  const isDefault = decideCreateDefault(existingForProvider, requestedDefault);
 
   const sealed = await sealConnection(deps, { workspaceId: input.workspaceId, providerId: connection.providerId, id, connection });
   const record: PublishCredentialSetRecord = {
@@ -225,6 +270,7 @@ export async function createPublishCredential(deps: PublishCredentialWriteDeps, 
     providerId: connection.providerId,
     label,
     sealed,
+    isDefault,
     createdAt: now,
     updatedAt: now,
   };
@@ -252,6 +298,12 @@ export interface UpdatePublishCredentialInput {
    *  may change `providerId`; the AAD is rebuilt for the (possibly new) provider either way, since
    *  `id` (the third AAD component) never changes across an update. */
   connection?: unknown;
+  /** `true` makes this the default connection for its (possibly new — see `connection` above)
+   *  provider, clearing any previous default in the same repo call. Omitted/`false` leaves default
+   *  status UNCHANGED — this route never un-defaults the current default without a replacement; use
+   *  `createPublishCredential`/another `updatePublishCredential` call with `isDefault: true` to
+   *  promote a different row instead. */
+  isDefault?: unknown;
 }
 
 /**
@@ -259,7 +311,8 @@ export interface UpdatePublishCredentialInput {
  * "omitted field is left alone" contract exactly.
  *
  * @throws {PublishCredentialNotFoundError} No row exists for `(workspaceId, id)`.
- * @throws {PublishCredentialValidationError} A supplied `label`/`connection` fails validation.
+ * @throws {PublishCredentialValidationError} A supplied `label`/`connection`/`isDefault` fails
+ *   validation.
  * @throws {PublishCredentialDuplicateLabelError} The (possibly renamed) `(providerId, label)` collides
  *   with a different row.
  * @throws {PublishCredentialSecretStoreUnconfiguredError} A new `connection` was supplied but the
@@ -274,6 +327,7 @@ export async function updatePublishCredential(deps: PublishCredentialWriteDeps, 
   }
 
   const label = input.label !== undefined ? validateLabel(input.label) : existing.label;
+  const requestedDefault = optionalBoolean(input.isDefault, "isDefault");
   const now: ISODateTime = deps.clock.nowIso();
 
   let providerId = existing.providerId;
@@ -284,12 +338,16 @@ export async function updatePublishCredential(deps: PublishCredentialWriteDeps, 
     sealed = await sealConnection(deps, { workspaceId: input.workspaceId, providerId, id: input.id, connection });
   }
 
+  // `requestedDefault === true` always wins (see this function's own doc). Anything else leaves
+  // default status exactly as it already was for this row — never a false "un-default with no
+  // replacement" (see `UpdatePublishCredentialInput.isDefault`'s own doc for why).
   const record: PublishCredentialSetRecord = {
     workspaceId: input.workspaceId,
     id: input.id,
     providerId,
     label,
     sealed,
+    isDefault: requestedDefault === true ? true : existing.isDefault,
     createdAt: existing.createdAt,
     updatedAt: now,
   };
@@ -308,13 +366,24 @@ export async function updatePublishCredential(deps: PublishCredentialWriteDeps, 
 /**
  * Deletes a credential set. No-op (not an error) if no row exists for `(workspaceId, id)` — matches
  * `PublishCredentialSetRepoPort.delete`'s own idempotent contract and this feature's `DELETE`
- * route's documented 204-always behavior.
+ * route's documented 204-always behavior. If the deleted row was its provider's default,
+ * `PublishCredentialSetRepoPort.delete` itself promotes the group's next candidate — see that port's
+ * own header; this function does not need to know that happened.
  *
- * @complexity O(1).
+ * @complexity O(1) at this layer (the repo's own promotion work is O(n) in the small provider group).
  * @overallScore 100
  */
 export async function deletePublishCredential(deps: PublishCredentialReadDeps, input: { workspaceId: UUID; id: UUID }): Promise<void> {
   await deps.repo.delete(input);
+}
+
+/** Shared decrypt step for {@link resolveForPublish}/{@link resolveDefaultForPublish} — the exact
+ *  same AAD-derive-then-open-then-parse sequence, extracted so the two resolution paths (by id, by
+ *  provider default) cannot drift onto two different decrypt procedures. */
+async function decryptRecord(sealer: SecretSealerPort, record: PublishCredentialSetRecord): Promise<PublishConnectionInput> {
+  const aad = buildPublishCredentialAad({ workspaceId: record.workspaceId, providerId: record.providerId, id: record.id });
+  const plaintext = await sealer.open({ sealed: record.sealed, aad });
+  return JSON.parse(plaintext) as PublishConnectionInput;
 }
 
 /**
@@ -338,9 +407,33 @@ export async function resolveForPublish(
 ): Promise<{ providerId: PublishProviderId; label: string; connection: PublishConnectionInput } | null> {
   const record = await deps.repo.findById(input);
   if (!record) return null;
-
-  const aad = buildPublishCredentialAad({ workspaceId: record.workspaceId, providerId: record.providerId, id: record.id });
-  const plaintext = await deps.sealer.open({ sealed: record.sealed, aad });
-  const connection = JSON.parse(plaintext) as PublishConnectionInput;
+  const connection = await decryptRecord(deps.sealer, record);
   return { providerId: record.providerId, label: record.label, connection };
+}
+
+/**
+ * Contract v2 Correction B — the provider-scoped sibling of {@link resolveForPublish}: resolves the
+ * DEFAULT credential set for `(workspaceId, providerId)` instead of a caller-supplied `id`. This is
+ * what a real publish attempt actually has (a target provider, never a specific saved connection's
+ * id) — see `store.ts`'s file header and `PublishCredentialSetRepoPort.findDefaultByProvider`'s own
+ * doc for why "no default" (`null`) is the only "not configured" outcome this function can produce;
+ * it never refuses with an "ambiguous, multiple saved" error the way an earlier design did, because
+ * the write path's own invariant guarantees at most one default per provider.
+ *
+ * Same "no such row" (`null`) vs. genuine decrypt failure (thrown) distinction as `resolveForPublish` —
+ * see that function's own doc for the full reasoning.
+ *
+ * @throws Whatever `SecretSealerPort.open()` throws (bad AAD, tampered ciphertext, wrong key) or
+ *   `KeyringPort` throws for a missing master secret.
+ * @complexity O(1) — one repo read, one decrypt, one `JSON.parse`.
+ * @overallScore 100
+ */
+export async function resolveDefaultForPublish(
+  deps: { repo: PublishCredentialSetRepoPort; sealer: SecretSealerPort },
+  input: { workspaceId: UUID; providerId: PublishProviderId }
+): Promise<{ id: UUID; label: string; connection: PublishConnectionInput } | null> {
+  const record = await deps.repo.findDefaultByProvider(input);
+  if (!record) return null;
+  const connection = await decryptRecord(deps.sealer, record);
+  return { id: record.id, label: record.label, connection };
 }

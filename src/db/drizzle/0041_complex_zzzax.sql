@@ -1,0 +1,1 @@
+ALTER TABLE `publish_credential_sets` ADD `is_default` integer DEFAULT false NOT NULL;
