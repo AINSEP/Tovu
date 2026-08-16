@@ -745,7 +745,9 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
     // too) — the two panels answer adjacent questions about the same "where does this site's
     // material live outside this admin" concern.
     id: "source-control",
-    render: () => <SourceControl />,
+    // `?tab=` deep-linking, same convention as `deployment`'s own entry just above — see
+    // `SourceControl.tsx`'s own header for the 2026-08-16 page-shell pass that added it.
+    render: (ctx) => <SourceControl tabId={ctx.query.get("tab")} />,
     nav: {
       label: "Source Control",
       group: "Operations",

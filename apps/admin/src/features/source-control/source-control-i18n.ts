@@ -20,6 +20,7 @@ import { createDictionaryTranslator } from "../../lib/dictionary-translator";
 const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
   es: {
     "Source Control": "Control de código fuente",
+    Providers: "Proveedores",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
       "Conecta una cuenta para que Tovu pueda leer tus repositorios, y más adelante enviar cambios a ellos. Esto no convierte tu contenido en archivos versionados con git — eso es una función aparte, que aún no está construida.",
     "Loading connections…": "Cargando conexiones…",
@@ -47,6 +48,7 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
   },
   id: {
     "Source Control": "Kontrol Kode Sumber",
+    Providers: "Penyedia",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
       "Hubungkan akun agar Tovu dapat membaca repositori Anda, dan mendorong perubahan ke sana nanti. Ini tidak mengubah konten Anda menjadi berkas berversi git — itu fitur terpisah, yang belum dibuat.",
     "Loading connections…": "Memuat koneksi…",
@@ -74,6 +76,7 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
   },
   de: {
     "Source Control": "Quellcodeverwaltung",
+    Providers: "Anbieter",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
       "Verbinde ein Konto, damit Tovu deine Repositories lesen und später Änderungen dorthin pushen kann. Dadurch werden deine Inhalte nicht in git-versionierte Dateien umgewandelt — das ist eine separate Funktion, die noch nicht gebaut ist.",
     "Loading connections…": "Verbindungen werden geladen…",
@@ -101,6 +104,7 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
   },
   "zh-CN": {
     "Source Control": "源代码管理",
+    Providers: "提供商",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
       "连接一个账户，让 Tovu 可以读取你的仓库，之后再推送更改。这不会把你的内容变成 git 版本化文件——那是一个单独的功能，尚未构建。",
     "Loading connections…": "正在加载连接…",
@@ -127,6 +131,7 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
   },
   "zh-TW": {
     "Source Control": "原始碼管理",
+    Providers: "供應商",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
       "連接一個帳戶，讓 Tovu 可以讀取你的儲存庫，之後再推送變更。這不會把你的內容變成 git 版本化檔案——那是另一項功能，尚未建置。",
     "Loading connections…": "正在載入連線…",
@@ -153,6 +158,7 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
   },
   "pt-BR": {
     "Source Control": "Controle de código-fonte",
+    Providers: "Provedores",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
       "Conecte uma conta para que o Tovu possa ler seus repositórios e, mais tarde, enviar alterações a eles. Isso não transforma seu conteúdo em arquivos versionados com git — isso é um recurso separado, ainda não construído.",
     "Loading connections…": "Carregando conexões…",
@@ -180,6 +186,7 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
   },
   ru: {
     "Source Control": "Управление исходным кодом",
+    Providers: "Провайдеры",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
       "Подключите аккаунт, чтобы Tovu мог читать ваши репозитории, а позже отправлять в них изменения. Это не превращает ваш контент в файлы, версионируемые в git — это отдельная функция, которая ещё не реализована.",
     "Loading connections…": "Загрузка подключений…",
@@ -207,6 +214,7 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
   },
   fa: {
     "Source Control": "کنترل کد منبع",
+    Providers: "ارائه‌دهندگان",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
       "یک حساب کاربری متصل کنید تا Tovu بتواند مخازن شما را بخواند و بعداً تغییرات را به آن‌ها push کند. این کار محتوای شما را به فایل‌های نسخه‌بندی‌شده با git تبدیل نمی‌کند — آن یک ویژگی جداگانه است که هنوز ساخته نشده است.",
     "Loading connections…": "در حال بارگذاری اتصال‌ها…",
@@ -234,6 +242,7 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
   },
   ar: {
     "Source Control": "إدارة الشيفرة المصدرية",
+    Providers: "المزوّدون",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
       "اربط حسابًا حتى يتمكن Tovu من قراءة مستودعاتك، ودفع التغييرات إليها لاحقًا. هذا لا يحوّل محتواك إلى ملفات مُدارة بالإصدارات عبر git — تلك ميزة منفصلة لم تُبنَ بعد.",
     "Loading connections…": "جارٍ تحميل الاتصالات…",
@@ -261,6 +270,7 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
   },
   ja: {
     "Source Control": "ソースコード管理",
+    Providers: "プロバイダー",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
       "アカウントを接続すると、Tovu はリポジトリを読み取り、後で変更を push できるようになります。これによってコンテンツが git 管理のファイルになるわけではありません — それは別の、まだ未実装の機能です。",
     "Loading connections…": "接続を読み込み中…",
@@ -287,6 +297,7 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
   },
   ko: {
     "Source Control": "소스 코드 관리",
+    Providers: "제공업체",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
       "계정을 연결하면 Tovu가 저장소를 읽고 나중에 변경 사항을 push할 수 있습니다. 이 기능은 콘텐츠를 git 버전 관리 파일로 바꾸지 않습니다 — 그것은 아직 구축되지 않은 별도의 기능입니다.",
     "Loading connections…": "연결을 불러오는 중…",
@@ -313,6 +324,7 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
   },
   pl: {
     "Source Control": "Kontrola kodu źródłowego",
+    Providers: "Dostawcy",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
       "Połącz konto, aby Tovu mógł odczytywać Twoje repozytoria, a później wysyłać do nich zmiany. Nie zamienia to Twoich treści w pliki wersjonowane przez git — to osobna funkcja, jeszcze niezbudowana.",
     "Loading connections…": "Wczytywanie połączeń…",
@@ -340,6 +352,7 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
   },
   hu: {
     "Source Control": "Forráskód-kezelés",
+    Providers: "Szolgáltatók",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
       "Kapcsolj össze egy fiókot, hogy a Tovu olvasni tudja a tárolóidat, később pedig változtatásokat küldhessen beléjük. Ez nem alakítja a tartalmadat git által verziózott fájlokká — az egy külön, még meg nem épített funkció.",
     "Loading connections…": "Kapcsolatok betöltése…",
@@ -367,6 +380,7 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
   },
   fr: {
     "Source Control": "Gestion du code source",
+    Providers: "Fournisseurs",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
       "Connecte un compte pour que Tovu puisse lire tes dépôts, puis y pousser des modifications plus tard. Cela ne transforme pas ton contenu en fichiers versionnés par git — c'est une fonctionnalité distincte, pas encore construite.",
     "Loading connections…": "Chargement des connexions…",
@@ -394,6 +408,7 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
   },
   uk: {
     "Source Control": "Керування вихідним кодом",
+    Providers: "Провайдери",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
       "Підключіть обліковий запис, щоб Tovu міг читати ваші репозиторії, а пізніше надсилати до них зміни. Це не перетворює ваш вміст на файли, версійовані git — це окрема функція, яку ще не реалізовано.",
     "Loading connections…": "Завантаження підключень…",
@@ -421,6 +436,7 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
   },
   tr: {
     "Source Control": "Kaynak kod yönetimi",
+    Providers: "Sağlayıcılar",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
       "Tovu'nun depolarınızı okuyabilmesi ve daha sonra değişiklikleri bunlara gönderebilmesi için bir hesap bağlayın. Bu, içeriğinizi git ile sürümlenen dosyalara dönüştürmez — bu, henüz oluşturulmamış ayrı bir özelliktir.",
     "Loading connections…": "Bağlantılar yükleniyor…",
@@ -448,6 +464,7 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
   },
   th: {
     "Source Control": "การจัดการซอร์สโค้ด",
+    Providers: "ผู้ให้บริการ",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
       "เชื่อมต่อบัญชีเพื่อให้ Tovu สามารถอ่านที่เก็บโค้ดของคุณ และ push การเปลี่ยนแปลงไปยังที่เก็บเหล่านั้นได้ในภายหลัง การทำเช่นนี้ไม่ได้เปลี่ยนเนื้อหาของคุณให้เป็นไฟล์ที่ควบคุมเวอร์ชันด้วย git — นั่นเป็นฟีเจอร์แยกต่างหากที่ยังไม่ได้สร้างขึ้น",
     "Loading connections…": "กำลังโหลดการเชื่อมต่อ…",
@@ -475,6 +492,7 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
   },
   it: {
     "Source Control": "Controllo del codice sorgente",
+    Providers: "Fornitori",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
       "Collega un account per consentire a Tovu di leggere i tuoi repository e, in seguito, inviarvi modifiche. Questo non trasforma i tuoi contenuti in file versionati con git — è una funzionalità separata, non ancora realizzata.",
     "Loading connections…": "Caricamento connessioni…",
@@ -502,6 +520,7 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
   },
   hi: {
     "Source Control": "स्रोत कोड नियंत्रण",
+    Providers: "प्रदाता",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
       "एक खाता कनेक्ट करें ताकि Tovu आपके रिपॉज़िटरी पढ़ सके, और बाद में उनमें बदलाव push कर सके। इससे आपकी सामग्री git-वर्ज़न वाली फ़ाइलों में नहीं बदलती — वह एक अलग सुविधा है, जो अभी बनाई नहीं गई है।",
     "Loading connections…": "कनेक्शन लोड हो रहे हैं…",
@@ -529,6 +548,7 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
   },
   ur: {
     "Source Control": "سورس کوڈ کنٹرول",
+    Providers: "فراہم کنندگان",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
       "ایک اکاؤنٹ منسلک کریں تاکہ Tovu آپ کے ریپوزٹریز پڑھ سکے، اور بعد میں ان میں تبدیلیاں push کر سکے۔ اس سے آپ کا مواد git-ورژن شدہ فائلوں میں تبدیل نہیں ہوتا — وہ ایک الگ فیچر ہے، جو ابھی تک نہیں بنایا گیا۔",
     "Loading connections…": "کنکشنز لوڈ ہو رہے ہیں…",
@@ -556,6 +576,7 @@ const SOURCE_CONTROL_DICT: Record<string, Record<string, string>> = {
   },
   bn: {
     "Source Control": "সোর্স কোড নিয়ন্ত্রণ",
+    Providers: "প্রদানকারী",
     "Connect an account so Tovu can read your repositories, and push to them later. This doesn't turn your content into git-versioned files — that's a separate feature, not built yet.":
       "একটি অ্যাকাউন্ট সংযুক্ত করুন যাতে Tovu আপনার রিপোজিটরি পড়তে পারে, এবং পরে সেগুলোতে পরিবর্তন push করতে পারে। এটি আপনার কন্টেন্টকে git-ভার্সনযুক্ত ফাইলে পরিণত করে না — সেটি একটি আলাদা ফিচার, যা এখনও তৈরি হয়নি।",
     "Loading connections…": "সংযোগ লোড হচ্ছে…",
