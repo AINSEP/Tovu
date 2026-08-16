@@ -25,6 +25,7 @@ import {
   runtimeModeLabelKey,
   staticPublishFormReadyForPreview,
   staticPublishFormReadyToPublish,
+  staticPublishProjectNameCopy,
   type PublishCredentialFormFields,
 } from "../rules";
 
@@ -128,12 +129,21 @@ describe("STATIC_HOSTS", () => {
 });
 
 describe("STATIC_PUBLISH_TARGETS", () => {
-  it("lists exactly the two publish targets, each paired to its own CLI tool id", () => {
-    expect(STATIC_PUBLISH_TARGETS).toHaveLength(2);
-    expect(STATIC_PUBLISH_TARGETS.map((target) => target.id)).toEqual(["github-pages", "vercel"]);
-    for (const target of STATIC_PUBLISH_TARGETS) {
-      expect(PUBLISH_CLI_TOOLS.some((tool) => tool.id === target.cliToolId)).toBe(true);
-    }
+  it("lists exactly the four publish targets, matching PUBLISH_CREDENTIAL_PROVIDERS' own id set", () => {
+    expect(STATIC_PUBLISH_TARGETS).toHaveLength(4);
+    expect(STATIC_PUBLISH_TARGETS.map((target) => target.id)).toEqual(["github-pages", "vercel", "netlify", "cloudflare-pages"]);
+    expect(new Set(STATIC_PUBLISH_TARGETS.map((t) => t.id))).toEqual(new Set(PUBLISH_CREDENTIAL_PROVIDERS.map((p) => p.id)));
+  });
+
+  it("github-pages and vercel each pair to a real CLI tool id; netlify and cloudflare-pages carry none", () => {
+    const gh = STATIC_PUBLISH_TARGETS.find((t) => t.id === "github-pages")!;
+    const vercel = STATIC_PUBLISH_TARGETS.find((t) => t.id === "vercel")!;
+    const netlify = STATIC_PUBLISH_TARGETS.find((t) => t.id === "netlify")!;
+    const cloudflare = STATIC_PUBLISH_TARGETS.find((t) => t.id === "cloudflare-pages")!;
+    expect(PUBLISH_CLI_TOOLS.some((tool) => tool.id === gh.cliToolId)).toBe(true);
+    expect(PUBLISH_CLI_TOOLS.some((tool) => tool.id === vercel.cliToolId)).toBe(true);
+    expect(netlify.cliToolId).toBeUndefined();
+    expect(cloudflare.cliToolId).toBeUndefined();
   });
 });
 
@@ -213,18 +223,45 @@ describe("publishRunStatusLabelKey", () => {
 });
 
 describe("staticPublishFormReadyForPreview / staticPublishFormReadyToPublish", () => {
-  it("github-pages needs owner AND repo for a preview; vercel needs neither", () => {
+  it("github-pages needs owner AND repo for a preview; every other target needs neither", () => {
     expect(staticPublishFormReadyForPreview("github-pages", { owner: "", repo: "" })).toBe(false);
     expect(staticPublishFormReadyForPreview("github-pages", { owner: "octo", repo: "" })).toBe(false);
     expect(staticPublishFormReadyForPreview("github-pages", { owner: "octo", repo: "demo" })).toBe(true);
     expect(staticPublishFormReadyForPreview("vercel", { owner: "", repo: "" })).toBe(true);
+    expect(staticPublishFormReadyForPreview("netlify", { owner: "", repo: "" })).toBe(true);
+    expect(staticPublishFormReadyForPreview("cloudflare-pages", { owner: "", repo: "" })).toBe(true);
   });
 
-  it("publishing additionally requires a non-blank projectName for BOTH targets", () => {
+  it("publishing additionally requires a non-blank projectName for EVERY target", () => {
     expect(staticPublishFormReadyToPublish("github-pages", { owner: "octo", repo: "demo", projectName: "" })).toBe(false);
     expect(staticPublishFormReadyToPublish("github-pages", { owner: "octo", repo: "demo", projectName: "demo" })).toBe(true);
     expect(staticPublishFormReadyToPublish("vercel", { owner: "", repo: "", projectName: "" })).toBe(false);
     expect(staticPublishFormReadyToPublish("vercel", { owner: "", repo: "", projectName: "demo" })).toBe(true);
+    expect(staticPublishFormReadyToPublish("netlify", { owner: "", repo: "", projectName: "" })).toBe(false);
+    expect(staticPublishFormReadyToPublish("netlify", { owner: "", repo: "", projectName: "my-site" })).toBe(true);
+    expect(staticPublishFormReadyToPublish("cloudflare-pages", { owner: "", repo: "", projectName: "" })).toBe(false);
+    expect(staticPublishFormReadyToPublish("cloudflare-pages", { owner: "", repo: "", projectName: "my-project" })).toBe(true);
+  });
+});
+
+describe("staticPublishProjectNameCopy", () => {
+  it("gives each of the four targets a distinct label naming what the field really is", () => {
+    const copies = (["github-pages", "vercel", "netlify", "cloudflare-pages"] as const).map(staticPublishProjectNameCopy);
+    expect(new Set(copies.map((c) => c.labelKey)).size).toBe(4);
+    expect(new Set(copies.map((c) => c.helpKey)).size).toBe(4);
+  });
+
+  it("github-pages calls it a commit message, never a 'project name' — the field is not a project on GitHub", () => {
+    expect(staticPublishProjectNameCopy("github-pages").labelKey).toBe("Commit message");
+  });
+
+  it("netlify calls its resource a 'site', matching Netlify's own terminology, not Vercel's/Cloudflare's 'project'", () => {
+    expect(staticPublishProjectNameCopy("netlify").labelKey).toMatch(/site/i);
+  });
+
+  it("vercel and cloudflare-pages each name their own provider in the label — never a generic, unattributed 'Project name'", () => {
+    expect(staticPublishProjectNameCopy("vercel").labelKey).toMatch(/vercel/i);
+    expect(staticPublishProjectNameCopy("cloudflare-pages").helpKey).toMatch(/cloudflare/i);
   });
 });
 

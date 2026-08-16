@@ -299,6 +299,24 @@ describe("StaticSiteTab — provider picker splits GitHub Pages and Vercel", () 
       expect(screen.getByText(tool.name)).toBeInTheDocument();
     }
   });
+
+  it("netlify: no CLI row at all (never falls back to the GitHub CLI row) — shows the 'no CLI-first path' note and no target-specific field", () => {
+    renderTab({ publishController: { target: "netlify" } });
+    expect(screen.getByRole("tab", { name: "Netlify" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.queryByText("gh")).not.toBeInTheDocument();
+    expect(screen.queryByText("vercel")).not.toBeInTheDocument();
+    expect(screen.getByText("There's no CLI-first path for this provider yet — publish with a saved credential below.")).toBeInTheDocument();
+    expect(screen.queryByLabelText("GitHub owner or org")).not.toBeInTheDocument();
+    expect(screen.queryByLabelText(/Vercel team/)).not.toBeInTheDocument();
+  });
+
+  it("cloudflare-pages: no CLI row at all, same 'no CLI-first path' note, no target-specific field", () => {
+    renderTab({ publishController: { target: "cloudflare-pages" } });
+    expect(screen.getByRole("tab", { name: "Cloudflare Pages" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.queryByText("gh")).not.toBeInTheDocument();
+    expect(screen.queryByText("vercel")).not.toBeInTheDocument();
+    expect(screen.getByText("There's no CLI-first path for this provider yet — publish with a saved credential below.")).toBeInTheDocument();
+  });
 });
 
 describe("StaticSiteTab — real CLI detection, no more 'can't tell' placeholder", () => {
@@ -419,6 +437,29 @@ describe("StaticSiteTab — preview and publish gating", () => {
   it("Vercel needs only a projectName — Publish enables with no owner/repo at all", () => {
     renderTab({ publishController: { target: "vercel", owner: "", repo: "", projectName: "my-site" } });
     expect(screen.getByRole("button", { name: "Publish" })).toBeEnabled();
+  });
+
+  it("Netlify and Cloudflare Pages each need only a projectName too — no target-specific field to fill first", () => {
+    renderTab({ publishController: { target: "netlify", owner: "", repo: "", projectName: "my-site" } });
+    expect(screen.getByRole("button", { name: "Publish" })).toBeEnabled();
+
+    renderTab({ publishController: { target: "cloudflare-pages", owner: "", repo: "", projectName: "my-project" } });
+    expect(screen.getAllByRole("button", { name: "Publish" }).at(-1)).toBeEnabled();
+  });
+
+  it("the 'Project name' field's label and help text change per target — github-pages calls it a commit message, netlify a site name, never one shared label for all four", () => {
+    renderTab({ publishController: { target: "github-pages" } });
+    expect(screen.getByLabelText("Commit message")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Project name")).not.toBeInTheDocument();
+
+    renderTab({ publishController: { target: "vercel" } });
+    expect(screen.getByLabelText("Vercel project name")).toBeInTheDocument();
+
+    renderTab({ publishController: { target: "netlify" } });
+    expect(screen.getByLabelText("Site name")).toBeInTheDocument();
+
+    renderTab({ publishController: { target: "cloudflare-pages" } });
+    expect(screen.getByLabelText("Project name")).toBeInTheDocument();
   });
 
   it("clicking Publish calls the injected publish() and disables the button while isPublishing", async () => {
@@ -598,11 +639,14 @@ describe("StaticSiteTab — credential section: loading and load-error states", 
 });
 
 describe("StaticSiteTab — credential section: executionMode disclosure", () => {
-  it("self-hosted-cli: sits collapsed behind a native <details> 'Advanced' summary, never a prominent notice", () => {
+  it("self-hosted-cli: sits behind a native <details> 'Advanced' summary, OPEN by default, never a prominent notice", () => {
+    // Open-by-default reverses this component's original collapsed-by-default choice (owner's own
+    // call, 2026-08-15) — Netlify and Cloudflare Pages have no CLI-first row at all, so a reader who
+    // picks either target must not find the credential form hidden behind an unopened disclosure.
     renderTab({ credentialsController: { executionMode: "self-hosted-cli" } });
     const summary = screen.getByText("Advanced: publish with server-side provider credentials");
     expect(summary.closest("details")).not.toBeNull();
-    expect(summary.closest("details")).not.toHaveAttribute("open");
+    expect(summary.closest("details")).toHaveAttribute("open");
     expect(screen.queryByText(/This workspace cannot use your computer's terminal/)).not.toBeInTheDocument();
   });
 
@@ -624,6 +668,14 @@ describe("StaticSiteTab — credential section: executionMode disclosure", () =>
 });
 
 describe("StaticSiteTab — credential section: list", () => {
+  it("the empty state also states what a credential is for and which providers are supported — not just 'No credentials saved yet'", () => {
+    renderTab({ credentialsController: { credentials: [] } });
+    expect(screen.getByText("No credentials saved yet.")).toBeInTheDocument();
+    expect(
+      screen.getByText("A credential is a saved access token Tovu publishes with, for GitHub Pages, Vercel, Netlify, or Cloudflare Pages.")
+    ).toBeInTheDocument();
+  });
+
   it("shows 'No credentials saved yet' when the list is empty", () => {
     renderTab({ credentialsController: { credentials: [] } });
     expect(screen.getByText("No credentials saved yet.")).toBeInTheDocument();

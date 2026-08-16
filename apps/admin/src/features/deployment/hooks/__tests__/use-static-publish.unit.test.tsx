@@ -130,6 +130,39 @@ describe("useStaticPublish — preview", () => {
     expect(sentConfig).not.toHaveProperty("branch");
   });
 
+  it("netlify and cloudflare-pages preview with a bare {target} config — no owner/repo/teamId carried over from a prior target", async () => {
+    let sentConfig: AdminStaticPublishConfig | undefined;
+    const port = createFakeStaticPublishPort({
+      getPublishPreview: (config) => {
+        sentConfig = config;
+        return Promise.resolve({
+          target: config.target,
+          valid: true,
+          validationError: null,
+          basePath: null,
+          credentialsConfigured: false,
+          credentialGuidance: null,
+          willInjectNojekyll: false,
+        });
+      },
+    });
+    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.run).not.toBeUndefined());
+
+    act(() => result.current.setOwner("octo")); // typed while on github-pages, then switched away
+    act(() => result.current.setTarget("netlify"));
+    await act(async () => {
+      await result.current.checkPreview();
+    });
+    expect(sentConfig).toEqual({ target: "netlify" });
+
+    act(() => result.current.setTarget("cloudflare-pages"));
+    await act(async () => {
+      await result.current.checkPreview();
+    });
+    expect(sentConfig).toEqual({ target: "cloudflare-pages" });
+  });
+
   it("editing any field after a preview clears the now-stale preview", async () => {
     const port = createFakeStaticPublishPort({
       getPublishPreview: () =>
@@ -192,6 +225,32 @@ describe("useStaticPublish — publish trigger and poll", () => {
     expect(sentInput).toEqual({ config: { target: "vercel" }, projectName: "demo" });
     expect(result.current.run).toEqual(runningRun);
     expect(result.current.isPublishing).toBe(true);
+  });
+
+  it("REGRESSION: netlify and cloudflare-pages each build their OWN config shape, never silently falling into vercel's — the pre-fix buildConfig sent {target:'vercel'} for any non-github-pages target", async () => {
+    let sentInput: { config: AdminStaticPublishConfig; projectName: string } | undefined;
+    const port = createFakeStaticPublishPort({
+      triggerPublish: (input) => {
+        sentInput = input;
+        return Promise.resolve({ status: "running", startedAtIso: "t0", finishedAtIso: null, target: input.config.target });
+      },
+    });
+    const { result } = renderHook(() => useStaticPublish(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.run).not.toBeUndefined());
+
+    act(() => result.current.setTarget("netlify"));
+    act(() => result.current.setProjectName("my-site"));
+    await act(async () => {
+      await result.current.publish();
+    });
+    expect(sentInput).toEqual({ config: { target: "netlify" }, projectName: "my-site" });
+
+    act(() => result.current.setTarget("cloudflare-pages"));
+    act(() => result.current.setProjectName("my-project"));
+    await act(async () => {
+      await result.current.publish();
+    });
+    expect(sentInput).toEqual({ config: { target: "cloudflare-pages" }, projectName: "my-project" });
   });
 
   it("surfaces a rejected publish (e.g. 409 already running) as a translated publish error", async () => {
