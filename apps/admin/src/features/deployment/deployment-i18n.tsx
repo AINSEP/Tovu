@@ -1883,6 +1883,23 @@ export function exportTriggerErrorMessage(locale: string, error: string): string
   return interpolate(EXPORT_TRIGGER_ERROR_TEMPLATE[locale] ?? EXPORT_TRIGGER_ERROR_TEMPLATE.en, { error });
 }
 
+/**
+ * The Static Site tab's export POLL-error banner — shown only once the poll loop's own bound gives
+ * up on a status endpoint it can no longer reach (`use-static-export.hooks.ts`'s `POLL_FAILURE_LIMIT`,
+ * 2026-08-15 fix for a defect where poll failures retried forever behind a stuck spinner with no way
+ * out). Distinct from {@link exportLoadErrorMessage} (the one-shot initial read) and
+ * {@link exportTriggerErrorMessage} (the POST that starts a run) — this is the REPEATED read that
+ * keeps a `"running"` run's status current. English-only for now, same partial-locale-coverage
+ * precedent {@link exportTriggerErrorMessage} documents.
+ */
+const EXPORT_POLL_ERROR_TEMPLATE: Record<string, string> = {
+  en: "Lost track of this export's status and stopped checking ({error}). It may still be running — try again in a moment.",
+};
+
+export function exportPollErrorMessage(locale: string, error: string): string {
+  return interpolate(EXPORT_POLL_ERROR_TEMPLATE[locale] ?? EXPORT_POLL_ERROR_TEMPLATE.en, { error });
+}
+
 /** The Static Site tab's publish-status LOAD-error banner (the initial `GET .../system/publish` this
  *  hook reads on mount to seed `run` — see `use-static-publish.hooks.ts`'s header) — distinct from
  *  {@link publishTriggerErrorMessage}, same split {@link exportLoadErrorMessage}/
@@ -1936,6 +1953,18 @@ const PUBLISH_TRIGGER_ERROR_TEMPLATE: Record<string, string> = {
 
 export function publishTriggerErrorMessage(locale: string, error: string): string {
   return interpolate(PUBLISH_TRIGGER_ERROR_TEMPLATE[locale] ?? PUBLISH_TRIGGER_ERROR_TEMPLATE.en, { error });
+}
+
+/** The Static Site tab's publish POLL-error banner — same split and same 2026-08-15 fix
+ *  {@link exportPollErrorMessage} documents for the export half of this tab, applied to
+ *  `use-static-publish.hooks.ts`'s own poll loop. English-only for now, same partial-locale-coverage
+ *  precedent as that function. */
+const PUBLISH_POLL_ERROR_TEMPLATE: Record<string, string> = {
+  en: "Lost track of this publish's status and stopped checking ({error}). It may still be running — try again in a moment.",
+};
+
+export function publishPollErrorMessage(locale: string, error: string): string {
+  return interpolate(PUBLISH_POLL_ERROR_TEMPLATE[locale] ?? PUBLISH_POLL_ERROR_TEMPLATE.en, { error });
 }
 
 /**
