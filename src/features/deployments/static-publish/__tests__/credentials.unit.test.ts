@@ -114,6 +114,77 @@ test("netlify/vercel/github-pages never carry an accountId field", async () => {
   assert.equal("accountId" in result, false);
 });
 
+// --- vendor-official env var aliases (2026-08-15 credential-UI redesign brief) -----------------
+
+test("netlify falls back to NETLIFY_ACCESS_TOKEN when NETLIFY_TOKEN is unset", async () => {
+  const source = createEnvPublishCredentialSource(WORKSPACE, { NETLIFY_ACCESS_TOKEN: "nl-alias-token" } as NodeJS.ProcessEnv);
+  const result = await source.resolve({ workspaceId: WORKSPACE, target: "netlify" });
+  assert.equal(result.ok, true);
+  if (!result.ok) throw new Error("unreachable");
+  assert.equal(result.token, "nl-alias-token");
+});
+
+test("netlify falls back to NETLIFY_AUTH_TOKEN when neither NETLIFY_TOKEN nor NETLIFY_ACCESS_TOKEN is set", async () => {
+  const source = createEnvPublishCredentialSource(WORKSPACE, { NETLIFY_AUTH_TOKEN: "nl-auth-token" } as NodeJS.ProcessEnv);
+  const result = await source.resolve({ workspaceId: WORKSPACE, target: "netlify" });
+  assert.equal(result.ok, true);
+  if (!result.ok) throw new Error("unreachable");
+  assert.equal(result.token, "nl-auth-token");
+});
+
+test("netlify prefers NETLIFY_TOKEN over its own aliases when more than one is set", async () => {
+  const source = createEnvPublishCredentialSource(WORKSPACE, {
+    NETLIFY_TOKEN: "primary",
+    NETLIFY_ACCESS_TOKEN: "alias-1",
+    NETLIFY_AUTH_TOKEN: "alias-2",
+  } as NodeJS.ProcessEnv);
+  const result = await source.resolve({ workspaceId: WORKSPACE, target: "netlify" });
+  assert.equal(result.ok, true);
+  if (!result.ok) throw new Error("unreachable");
+  assert.equal(result.token, "primary");
+});
+
+test("netlify's failure reason names every alias it checked when none is set", async () => {
+  const source = createEnvPublishCredentialSource(WORKSPACE, {} as NodeJS.ProcessEnv);
+  const result = await source.resolve({ workspaceId: WORKSPACE, target: "netlify" });
+  assert.equal(result.ok, false);
+  if (result.ok) throw new Error("unreachable");
+  assert.match(result.reason, /NETLIFY_TOKEN/);
+  assert.match(result.reason, /NETLIFY_ACCESS_TOKEN/);
+  assert.match(result.reason, /NETLIFY_AUTH_TOKEN/);
+});
+
+test("cloudflare-pages accepts CLOUDFLARE_TOKEN (the vendor-official name) as its token, alongside the account id", async () => {
+  const source = createEnvPublishCredentialSource(WORKSPACE, {
+    CLOUDFLARE_TOKEN: "cf-official-token",
+    CLOUDFLARE_ACCOUNT_ID: "acct-1",
+  } as NodeJS.ProcessEnv);
+  const result = await source.resolve({ workspaceId: WORKSPACE, target: "cloudflare-pages" });
+  assert.equal(result.ok, true);
+  if (!result.ok) throw new Error("unreachable");
+  assert.equal(result.token, "cf-official-token");
+});
+
+test("cloudflare-pages prefers CLOUDFLARE_TOKEN over CLOUDFLARE_API_TOKEN when both are set", async () => {
+  const source = createEnvPublishCredentialSource(WORKSPACE, {
+    CLOUDFLARE_TOKEN: "primary",
+    CLOUDFLARE_API_TOKEN: "fallback",
+    CLOUDFLARE_ACCOUNT_ID: "acct-1",
+  } as NodeJS.ProcessEnv);
+  const result = await source.resolve({ workspaceId: WORKSPACE, target: "cloudflare-pages" });
+  assert.equal(result.ok, true);
+  if (!result.ok) throw new Error("unreachable");
+  assert.equal(result.token, "primary");
+});
+
+test("cloudflare-pages still names CLOUDFLARE_ACCOUNT_ID explicitly even when the token comes from an alias", async () => {
+  const source = createEnvPublishCredentialSource(WORKSPACE, { CLOUDFLARE_TOKEN: "cf-official-token" } as NodeJS.ProcessEnv);
+  const result = await source.resolve({ workspaceId: WORKSPACE, target: "cloudflare-pages" });
+  assert.equal(result.ok, false);
+  if (result.ok) throw new Error("unreachable");
+  assert.match(result.reason, /CLOUDFLARE_ACCOUNT_ID/);
+});
+
 // --- createDbPublishCredentialSource -------------------------------------------------------------
 
 test("resolves the provider's DEFAULT saved connection — never 'ambiguous' even with 2+ saved", async () => {
