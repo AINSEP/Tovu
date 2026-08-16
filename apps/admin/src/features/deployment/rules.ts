@@ -223,7 +223,9 @@ export type PublishCredentialFieldKey = "accountId";
  * briefly different sets (2026-08-15: the server's `static-publish/adapter.ts` and this credential
  * form shipped ahead of the "Publish directly from here" trigger UI's own Netlify/Cloudflare Pages
  * tab) — that gap is closed, and both now list the identical four providers, in the identical order.
- * Order here is the provider picker's display order in the credential form.
+ * Order here is the flat per-provider credential list's row order — there is no picker left to
+ * order; every provider gets its own always-visible row (see {@link PUBLISH_CREDENTIAL_PROVIDERS}'s
+ * own doc).
  */
 export interface PublishCredentialProviderInfo {
   readonly id: AdminPublishCredentialProviderId;
@@ -237,7 +239,7 @@ export interface PublishCredentialProviderInfo {
    *  how OAuth or PATs work in general. */
   readonly scopeGuidanceKey: string;
   /** Fields (beyond the universal `token`) this provider cannot function without —
-   *  {@link publishCredentialFormReadyToSubmit}'s per-provider gate. Empty for every provider except
+   *  {@link publishCredentialRowReadyToSave}'s per-provider gate. Empty for every provider except
    *  Cloudflare Pages, which cannot resolve a project without its `accountId` — see
    *  {@link AdminPublishConnectionInput}'s doc for why every other provider's account scoping moved
    *  off the credential entirely rather than staying here as an optional field (there is no longer
@@ -251,8 +253,12 @@ export interface PublishCredentialProviderInfo {
  * token-creation docs (design doc header, 2026-08-15; field set narrowed the same day — see
  * {@link AdminPublishConnectionInput}'s doc for why `owner`/`repo`/`teamId`/`siteId`/`projectName`
  * are NOT credential fields). `requiredFields` is the single source both
- * {@link buildPublishConnectionInput} and {@link publishCredentialFormReadyToSubmit} read from — a
- * field that should gate submission belongs there, never hardcoded again at either call site.
+ * {@link buildPublishConnectionInput} and {@link publishCredentialRowReadyToSave} read from — a
+ * field that should gate saving belongs there, never hardcoded again at either call site.
+ *
+ * Order here is also the flat per-provider credential list's row order (StaticSiteTab.tsx's
+ * `PublishCredentialsSection`, redesigned 2026-08-15 from an add/edit/delete list of named
+ * connections to one always-visible row per provider — see that component's own header).
  */
 export const PUBLISH_CREDENTIAL_PROVIDERS: readonly PublishCredentialProviderInfo[] = [
   {
@@ -295,8 +301,8 @@ export function publishCredentialProviderInfo(id: AdminPublishCredentialProvider
   return PUBLISH_CREDENTIAL_PROVIDERS.find((provider) => provider.id === id) ?? PUBLISH_CREDENTIAL_PROVIDERS[0]!;
 }
 
-/** The credential form's full field set, kept together as one shape so
- *  {@link buildPublishConnectionInput} and {@link publishCredentialFormReadyToSubmit} share a single
+/** One provider row's connection fields, kept together as one shape so
+ *  {@link buildPublishConnectionInput} and {@link publishCredentialRowReadyToSave} share a single
  *  parameter type — mirrors `use-static-publish.hooks.ts`'s own `buildConfig` fields parameter.
  *  `accountId` is the only per-provider field left (Cloudflare Pages only) now that GitHub's
  *  `owner`/`repo` and Vercel's `teamId` live on the publish target config instead — see
@@ -315,9 +321,9 @@ export interface PublishCredentialFormFields {
  * only remaining per-provider field, and it is required whenever it applies).
  *
  * Always trims and includes `token`, even when blank — detecting "no new token typed" is
- * {@link publishCredentialFormReadyToSubmit}'s job (in edit mode a blank token means "leave
- * unchanged", which is a decision about whether to send a `connection` at ALL, not about how to
- * shape one once the caller has decided to).
+ * {@link publishCredentialRowReadyToSave}'s job (a blank token on an already-connected row means
+ * "leave unchanged", which is a decision about whether to send a `connection` at ALL, not about how
+ * to shape one once the caller has decided to).
  * @complexity O(1).
  */
 export function buildPublishConnectionInput(fields: PublishCredentialFormFields): AdminPublishConnectionInput {
@@ -335,13 +341,19 @@ export function buildPublishConnectionInput(fields: PublishCredentialFormFields)
 }
 
 /**
- * Every saved credential for one provider, in the order the server returned them — the shared lookup
- * behind two independent decisions that both need the SAME count: whether
- * {@link PublishCredentialList}'s per-row "Default"/"Make default" chrome should render at all (never
- * for a provider with only one saved connection — see that component's own header for why), and
- * whether the add/edit form's "set as default" checkbox should render (never when this credential
- * would be the only one saved for its provider, for the identical reason). A single function so both
- * call sites can never drift on what "only one" means.
+ * The single fixed label every connection saved through the flat per-provider credential list uses
+ * (2026-08-15 redesign) — the server's `publish_credential_sets` table still enforces a UNIQUE
+ * `(workspace_id, provider_id, label)`, so a label is still written on every create, it is just never
+ * shown or typed by an operator anymore. Because {@link STATIC_PUBLISH_TARGETS}/
+ * {@link PUBLISH_CREDENTIAL_PROVIDERS} name each provider at most once, `(provider_id, "default")` can
+ * never collide with itself within one workspace — see `use-publish-credentials.hooks.ts`'s header for
+ * why a save only ever CREATES with this label when the provider has no saved connection yet, and
+ * UPDATEs the existing one (by id, keeping whatever label it already has) otherwise.
+ */
+export const PUBLISH_CREDENTIAL_ROW_LABEL = "default";
+
+/**
+ * Every saved credential for one provider, in the order the server returned them.
  * @complexity O(n) in this workspace's total saved-credential count (small — see
  *   `PublishCredentialSetRepoPort.listByWorkspace`'s own doc for why no cap is needed).
  */
@@ -353,26 +365,37 @@ export function credentialsForProvider(
 }
 
 /**
- * Whether the credential form has enough filled in to submit. `mode: "add"` always requires a
- * non-blank token (there is no stored secret yet to fall back to); `mode: "edit"` treats a blank
- * token as "leave the stored secret untouched" and, in that case, skips the per-provider field
- * checks entirely — those fields describe a NEW connection this half-filled form is not sending, so
- * requiring them would block a pure label rename. See `use-publish-credentials.hooks.ts`'s header
- * for why blank-token-means-unchanged is the only way this form can ever express "edit the label,
- * keep the secret" — the alternative (a stored credential's fields round-tripping into this form)
- * is exactly what "never readable back" forbids.
+ * Which saved connection (if any) a provider's flat credential row should treat as "connected" — the
+ * group's DEFAULT row, which is also the exact row `resolveDefaultForPublish`/
+ * `composePublishCredentialSource` (server-side `static-publish/credentials.ts`) actually publishes
+ * with, so the row's own status can never claim "connected" for a saved credential a real publish
+ * would not use. Falls back to the first saved row only as a defensive read for data saved before
+ * this UI existed — the store's own write-path invariant (`decideCreateDefault`) guarantees at most
+ * one row is ever marked default once any exist for a provider, so this fallback is unreachable
+ * against data this UI itself ever wrote.
+ * @complexity O(n) in this provider's own (small) saved-connection count.
+ */
+export function defaultCredentialForProvider(
+  credentials: readonly AdminPublishCredentialSummary[],
+  providerId: AdminPublishCredentialProviderId
+): AdminPublishCredentialSummary | undefined {
+  const forProvider = credentialsForProvider(credentials, providerId);
+  return forProvider.find((credential) => credential.isDefault) ?? forProvider[0];
+}
+
+/**
+ * Whether one provider's credential row has enough typed to save. There is no add-vs-edit mode and
+ * no label to check anymore (2026-08-15 redesign — see {@link PUBLISH_CREDENTIAL_ROW_LABEL}'s doc):
+ * "connected" vs. "not connected" is read directly off {@link AdminPublishCredentialSummary}
+ * presence, not form state, so a blank token always means "nothing to save" whether or not the row
+ * is already connected — leaving it blank on an already-connected row keeps the stored secret
+ * untouched (see `use-publish-credentials.hooks.ts`'s header), so there is nothing that click could
+ * change either way.
  * @complexity O(k) in this provider's own required-field count (at most one — `accountId` for
  *   Cloudflare Pages; every other provider needs nothing beyond the already-checked token).
  */
-export function publishCredentialFormReadyToSubmit(
-  fields: PublishCredentialFormFields,
-  mode: "add" | "edit",
-  label: string
-): boolean {
-  if (label.trim() === "") return false;
-  const token = fields.token.trim();
-  if (mode === "add" && token === "") return false;
-  if (mode === "edit" && token === "") return true;
+export function publishCredentialRowReadyToSave(fields: PublishCredentialFormFields): boolean {
+  if (fields.token.trim() === "") return false;
   const info = publishCredentialProviderInfo(fields.providerId);
   return info.requiredFields.every((field) => fields[field].trim() !== "");
 }

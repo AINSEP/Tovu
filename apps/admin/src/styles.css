@@ -3232,20 +3232,19 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .deployment-tool-command { font-family: var(--font-mono); font-size: var(--text-sm); font-weight: 400; color: var(--muted); }
 
 /* ---- Credential management (Static Site) --------------------------------------------------------
-   The add/edit form + saved-connection list inside "Getting it online" (2026-08-15). Reuses
-   `.field`/`.field-row` for inputs and `.deployment-action` for the submit/cancel row — the one new
-   surface here is the list of already-saved rows, which needs its own layout since nothing else on
-   this panel is a list of editable, deletable named records. */
-.deployment-credentials { display: flex; flex-direction: column; gap: var(--space-4); }
-.deployment-credentials-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
-.deployment-credentials-list-item {
-  display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-3);
-  padding: var(--space-3); background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md);
+   One always-visible row per provider inside "Getting it online" (2026-08-15 redesign — no
+   add/edit/delete/default-promotion flow left; see `PublishCredentialsSection`'s own header in
+   `StaticSiteTab.tsx`). Reuses `.field`/`.field-row` for the token/accountId inputs, `.field-hint`
+   for the copy below each of them, and `.deployment-action` for the Save row — `.deployment-credential-row`
+   is the one new surface, since nothing else on this panel is a fixed four-row list where each row
+   carries its own mini-form. */
+.deployment-credentials-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-3); }
+.deployment-credential-row {
+  display: flex; flex-direction: column; gap: var(--space-3);
+  padding: var(--space-4); background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md);
 }
-.deployment-credentials-list-main { display: flex; align-items: center; gap: var(--space-3); flex-wrap: wrap; min-width: 0; }
-.deployment-credentials-label { font-weight: 600; color: var(--fg); }
-.deployment-credentials-list-actions { display: flex; gap: var(--space-2); flex-shrink: 0; }
-.deployment-credentials-form { display: flex; flex-direction: column; gap: var(--space-4); padding-top: var(--space-2); }
+.deployment-credential-row-head { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: var(--space-3); }
+.deployment-credential-row-name { font-weight: 600; color: var(--fg); }
 
 /* Collapsed-by-default "Advanced" disclosure for `executionMode: "self-hosted-cli"` — reuses the
    native <details>/<summary> affordance `.assistant-roadmap details` (~L2178) already established in
@@ -3255,7 +3254,7 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
 .deployment-credentials-advanced { border: 1px solid var(--border); border-radius: var(--r-md); background: var(--surface); margin-top: var(--space-2); }
 .deployment-credentials-advanced summary { cursor: pointer; padding: var(--space-3) var(--space-4); font-size: var(--text-sm); font-weight: 600; color: var(--fg-2); }
 .deployment-credentials-advanced > *:not(summary) { padding: 0 var(--space-4) var(--space-4); }
-.deployment-credentials-advanced .deployment-credentials { margin-top: var(--space-2); }
+.deployment-credentials-advanced .deployment-credentials-list { margin-top: var(--space-2); }
 
 /* ---- Host chips (Static Site) ---------------------------------------------------------------- */
 /* Four proper nouns. A bulleted `<ul>` gave each its own line and a disc marker for no reason —

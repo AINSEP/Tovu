@@ -7,8 +7,6 @@ import { formatTimestamp } from "../../lib/format-timestamp";
 import type {
   AdminDeployCliStatus,
   AdminExportRunSnapshot,
-  AdminPublishCredentialProviderId,
-  AdminPublishCredentialSummary,
   AdminPublishRunSnapshot,
   AdminStaticPublishPreview,
   AdminStaticPublishTargetId,
@@ -16,17 +14,15 @@ import type {
 import type { Translate } from "../../lib/dictionary-translator";
 import { t } from "./deployment-i18n";
 import {
-  PUBLISH_CREDENTIAL_PROVIDERS,
   STATIC_HOSTS,
   STATIC_PUBLISH_TARGETS,
   STATIC_SITE_CAPABILITIES,
   PUBLISH_CLI_TOOLS,
   cliInstalledStatus,
-  credentialsForProvider,
   exportRunStatusLabelKey,
   publishAssistantRequestForTool,
-  publishCredentialFormReadyToSubmit,
   publishCredentialProviderInfo,
+  publishCredentialRowReadyToSave,
   publishRunStatusLabelKey,
   runStatusTone,
   staticPublishFormReadyForPreview,
@@ -43,7 +39,7 @@ import type { StaticExportController } from "./hooks/use-static-export.hooks";
 import { useWiredStaticPublish } from "./hooks/use-static-publish.hooks";
 import type { StaticPublishController } from "./hooks/use-static-publish.hooks";
 import { useWiredPublishCredentials } from "./hooks/use-publish-credentials.hooks";
-import type { PublishCredentialsController } from "./hooks/use-publish-credentials.hooks";
+import type { PublishCredentialRowState, PublishCredentialsController } from "./hooks/use-publish-credentials.hooks";
 
 /**
  * @file Static Site tab — what a static export produces, a real trigger+poll build action, and a
@@ -87,6 +83,17 @@ import type { PublishCredentialsController } from "./hooks/use-publish-credentia
  * server (`static-publish/adapter.ts`) already published to. Netlify and Cloudflare Pages have no
  * CLI this codebase drives, so their tab shows no CLI-first row at all (`StaticPublishTargetFields`'s
  * own doc) — the token-based credential form below is their only publish path today.
+ *
+ * ## Fifth pass (2026-08-15) — the credential section became a flat settings form, not a collection
+ *
+ * The fourth pass's credential block was still modelled as "manage a collection of named
+ * connections": an "Add credential" button, a provider `<select>`, a user-invented `Label` field,
+ * then a form. The owner's own read: "'Add credential' should be gone. Just list the providers,
+ * labels, and access token space, and that's it" — plus a second complaint that the OLD edit-mode
+ * form's placeholder text ("Leave blank to keep the current token") read as a prepopulated value at
+ * a glance. `PublishCredentialsSection`/`PublishCredentialRow` below are the replacement: one
+ * always-visible row per provider, no picker, no label, hints below every input rather than inside
+ * it. See `use-publish-credentials.hooks.ts`'s own header for the hook-side half of this story.
  */
 
 /** A line of text the reader is meant to take somewhere else, with a Copy button.
@@ -566,10 +573,18 @@ function GettingItOnlineCard({
 }
 
 /**
- * The credential-management block — list, add, edit, delete named provider connections. Sits inside
- * `GettingItOnlineCard`, between the CLI-first recommendation and the token-based publish form,
- * because it answers exactly the question a reader has right after seeing the CLI route: "what if I
- * can't install a CLI here at all."
+ * The credential section — one always-visible row per provider (2026-08-15 redesign, replacing an
+ * add/edit/delete list of user-named connections). Sits inside `GettingItOnlineCard`, between the
+ * CLI-first recommendation and the token-based publish form, because it answers exactly the question
+ * a reader has right after seeing the CLI route: "what if I can't install a CLI here at all."
+ *
+ * The owner's own read on the OLD shape: "'Add credential' should be gone. Just list the providers,
+ * labels, and access token space, and that's it" — asking an operator to create and name an object
+ * before they can type a token was the wrong model for something that only ever has ONE thing to
+ * configure per provider. {@link PUBLISH_CREDENTIAL_PROVIDERS} already names the fixed four; the
+ * provider name IS each row's identity now, so there is no picker, no label field, and no
+ * add-vs-edit mode left — see `use-publish-credentials.hooks.ts`'s own header for the full story and
+ * `PublishCredentialRow` below for the row itself.
  *
  * Disclosure is driven ENTIRELY by `controller.executionMode` — the server's own fact, never
  * sniffed client-side (see `AdminPublishExecutionMode`'s doc in `lib/api.ts`):
@@ -578,19 +593,17 @@ function GettingItOnlineCard({
  *   so this block still sits behind a native `<details>` "Advanced" disclosure (same affordance
  *   `Redirects.tsx`'s own bulk-import panel and `AiAssistant.tsx`'s roadmap accordion already use in
  *   this admin, rather than a second JS-driven one) — but OPEN by default (owner's own call,
- *   2026-08-15, reversing this component's original collapsed-by-default choice: Netlify and
- *   Cloudflare Pages have no CLI-first row at all, so a reader who picks either target and finds the
- *   credential form collapsed behind an unopened `<summary>` has nowhere else on this card to go).
- *   `<details open>` still degrades gracefully for a reader who wants it closed — the summary stays
- *   a real, clickable native disclosure toggle either way.
+ *   2026-08-15: Netlify and Cloudflare Pages have no CLI-first row at all, so a reader who picks
+ *   either target and finds the credential rows collapsed behind an unopened `<summary>` has nowhere
+ *   else on this card to go). `<details open>` still degrades gracefully for a reader who wants it
+ *   closed — the summary stays a real, clickable native disclosure toggle either way.
  * - `"hosted-api-only"`: this workspace cannot reach the operator's own terminal at all, so a
  *   stored credential is the ONLY way a publish can ever succeed here. The block renders OPEN, with
- *   a plain sentence saying so up front — this is the "tell the user they need an API key online"
- *   education surface named in the brief; nothing on this tab said this before today.
+ *   a plain sentence saying so up front.
  *
- * Renders only a brief "Loading…" line until BOTH `credentials` and `executionMode` have resolved —
- * showing the self-hosted framing for one render before the real `executionMode` arrives would be a
- * worse false impression than a short, honest wait.
+ * Renders only a brief "Loading…" line until BOTH `rows` and `executionMode` have resolved — showing
+ * the self-hosted framing for one render before the real `executionMode` arrives would be a worse
+ * false impression than a short, honest wait.
  */
 function PublishCredentialsSection({ controller, t: translate }: { controller: PublishCredentialsController; t: Translate }) {
   if (controller.loadError) {
@@ -608,35 +621,22 @@ function PublishCredentialsSection({ controller, t: translate }: { controller: P
     );
   }
 
-  if (controller.credentials === undefined || controller.executionMode === undefined) {
+  if (controller.rows === undefined || controller.executionMode === undefined) {
     return <p className="deployment-action-reason">{translate("Loading credentials…")}</p>;
   }
 
   const body = (
-    <div
-      className="deployment-credentials"
+    <ul
+      className="deployment-credentials-list"
       {...agentHandle("deployment-static-site-credentials-section", {
         role: "region",
-        label: "Saved publish credentials — add, edit, and delete named provider connections",
+        label: "Saved publish credentials — one always-visible row per provider, each with its own access token and Save action",
       })}
     >
-      <PublishCredentialList controller={controller} t={translate} />
-      {controller.isFormOpen ? (
-        <PublishCredentialForm controller={controller} t={translate} />
-      ) : (
-        <button
-          type="button"
-          className="btn-secondary"
-          onClick={controller.startAdd}
-          {...agentHandle("deployment-static-site-credentials-add", {
-            role: "button",
-            label: "Open the form to save a new publish credential for one provider",
-          })}
-        >
-          {translate("Add credential")}
-        </button>
-      )}
-    </div>
+      {controller.rows.map((row) => (
+        <PublishCredentialRow key={row.providerId} row={row} controller={controller} t={translate} />
+      ))}
+    </ul>
   );
 
   if (controller.executionMode === "hosted-api-only") {
@@ -670,302 +670,119 @@ function PublishCredentialsSection({ controller, t: translate }: { controller: P
   );
 }
 
-/** One row per saved credential — label, provider, and last-updated time, matching the brief's
- *  "list by label + provider + updatedAt" requirement. Never renders anything from the credential
- *  itself beyond those three facts — see `AdminPublishCredentialSummary`'s own doc for why there is
- *  nothing else it COULD render. */
-function PublishCredentialList({ controller, t: translate }: { controller: PublishCredentialsController; t: Translate }) {
-  const credentials = controller.credentials ?? [];
-  return (
-    <>
-      {credentials.length === 0 ? (
-        <>
-          <p className="deployment-action-reason">{translate("No credentials saved yet.")}</p>
-          <p className="deployment-action-reason">
-            {translate("A credential is a saved access token Tovu publishes with, for GitHub Pages, Vercel, Netlify, or Cloudflare Pages.")}
-          </p>
-        </>
-      ) : (
-        <ul className="deployment-credentials-list">
-          {credentials.map((credential) => (
-            <PublishCredentialRow key={credential.id} credential={credential} controller={controller} t={translate} />
-          ))}
-        </ul>
-      )}
-      {controller.deleteError ? (
-        <p className="save-error" role="alert">
-          {controller.deleteError}
-        </p>
-      ) : null}
-      {controller.markDefaultError ? (
-        <p className="save-error" role="alert">
-          {controller.markDefaultError}
-        </p>
-      ) : null}
-    </>
-  );
-}
-
-/** One credential's own list row — split out from {@link PublishCredentialList} so each row's own
- *  `agentHandle` ids (edit/delete) are computed once per credential, not re-derived inline inside
- *  the `.map`.
+/**
+ * One provider's always-visible credential row — provider name, its own token input (never
+ * pre-filled, even when connected — see `AdminPublishCredentialSummary`'s own doc for why this admin
+ * can never read a stored secret back), Cloudflare Pages' required Account ID, a connected/
+ * not-connected status, and its own Save action.
  *
- *  Default chrome (a "Default" badge, or a "Make default" button on a non-default row) renders ONLY
- *  when this provider has more than one saved connection (`rules.ts`'s `credentialsForProvider`) —
- *  a lone connection is trivially the one `triggerPublish` uses, and showing a badge or a button for
- *  a choice that does not exist would be the exact "make the user think about it" the brief rules
- *  out. */
+ * Every hint here renders BELOW its input as a `.field-hint`, never as placeholder text inside it —
+ * grey placeholder text sitting in an empty box reads as a saved value at a glance, which was the
+ * owner's own "why is the access token prepopulated for Netlify and Cloudflare" complaint about this
+ * section's earlier shape (the OLD `PublishCredentialForm`'s edit-mode placeholder). The token and
+ * Account ID inputs below carry NO `placeholder` prop at all, connected or not — an empty box always
+ * looks empty.
+ */
 function PublishCredentialRow({
-  credential,
+  row,
   controller,
   t: translate,
 }: {
-  credential: AdminPublishCredentialSummary;
+  row: PublishCredentialRowState;
   controller: PublishCredentialsController;
   t: Translate;
 }) {
-  const deleting = controller.deletingId === credential.id;
-  const markingDefault = controller.markingDefaultId === credential.id;
-  const hasSiblingConnections = credentialsForProvider(controller.credentials ?? [], credential.providerId).length > 1;
+  const info = publishCredentialProviderInfo(row.providerId);
+  const connected = row.saved !== undefined;
+  const fields: PublishCredentialFormFields = { providerId: row.providerId, token: row.token, accountId: row.accountId };
+  const readyToSave = publishCredentialRowReadyToSave(fields);
+  const needsAccountId = info.requiredFields.includes("accountId");
 
   return (
-    <li className="deployment-credentials-list-item">
-      <div className="deployment-credentials-list-main">
-        <span className="deployment-credentials-label">{credential.label}</span>
-        <span className="status status-neutral" translate="no">
-          {publishCredentialProviderInfo(credential.providerId).label}
-        </span>
-        {hasSiblingConnections && credential.isDefault ? (
-          <span className="status status-ok">{translate("Default")}</span>
-        ) : null}
-        <span className="deployment-fact-value">
-          {translate("Updated")} {formatTimestamp(credential.updatedAt)}
-        </span>
-      </div>
-      <div className="deployment-credentials-list-actions">
-        {hasSiblingConnections && !credential.isDefault ? (
-          <button
-            type="button"
-            className="btn-secondary"
-            disabled={markingDefault}
-            onClick={() => void controller.markAsDefault(credential.id)}
-            {...agentHandle(`deployment-static-site-credentials-make-default-${credential.id}`, {
-              role: "button",
-              label: `Make the saved "${credential.label}" credential the default connection for ${publishCredentialProviderInfo(credential.providerId).label}`,
-            })}
-          >
-            {markingDefault ? translate("Setting…") : translate("Make default")}
-          </button>
-        ) : null}
-        <button
-          type="button"
-          className="btn-secondary"
-          onClick={() => controller.startEdit(credential)}
-          {...agentHandle(`deployment-static-site-credentials-edit-${credential.id}`, {
-            role: "button",
-            label: `Edit the saved "${credential.label}" credential's label or replace its token`,
-          })}
-        >
-          {translate("Edit")}
-        </button>
-        <button
-          type="button"
-          className="btn-secondary"
-          disabled={deleting}
-          onClick={() => void controller.remove(credential.id)}
-          {...agentHandle(`deployment-static-site-credentials-delete-${credential.id}`, {
-            role: "button",
-            label: `Permanently delete the saved "${credential.label}" credential`,
-          })}
-        >
-          {deleting ? translate("Deleting…") : translate("Delete")}
-        </button>
-      </div>
-    </li>
-  );
-}
-
-/** The add/edit form — one `providerId` picker (disabled while editing; a saved credential's
- *  provider cannot be changed, only replaced by deleting and re-adding) plus the per-provider field
- *  set {@link PUBLISH_CREDENTIAL_PROVIDERS} describes. `token` is a `password` input and is NEVER
- *  pre-filled, in either mode — see `use-publish-credentials.hooks.ts`'s header for why a blank
- *  token while editing means "leave the stored secret unchanged", and the copy right below the
- *  field says so explicitly, because it is the one thing about this form people get wrong. */
-function PublishCredentialForm({ controller, t: translate }: { controller: PublishCredentialsController; t: Translate }) {
-  const mode: "add" | "edit" = controller.editingId === null ? "add" : "edit";
-  const info = publishCredentialProviderInfo(controller.providerId);
-  const fields: PublishCredentialFormFields = {
-    providerId: controller.providerId,
-    token: controller.token,
-    accountId: controller.accountId,
-  };
-  const readyToSubmit = publishCredentialFormReadyToSubmit(fields, mode, controller.label);
-  // A default choice only exists when at least one OTHER saved connection for this provider is
-  // already there to be default INSTEAD of — see `use-publish-credentials.hooks.ts`'s header. A
-  // provider about to get (or that already has) exactly one connection never shows this checkbox;
-  // that connection is trivially the default either way.
-  const otherCredentialsForProvider = credentialsForProvider(controller.credentials ?? [], controller.providerId).filter(
-    (existing) => existing.id !== controller.editingId
-  );
-  const showsDefaultChoice = otherCredentialsForProvider.length > 0;
-
-  return (
-    <form
-      className="deployment-credentials-form"
-      onSubmit={(e) => {
-        e.preventDefault();
-        void controller.submit();
-      }}
+    <li
+      className="deployment-credential-row"
+      {...agentHandle(`deployment-static-site-credentials-row-${row.providerId}`, {
+        role: "region",
+        label: `${info.label}'s saved publish credential`,
+      })}
     >
+      <div className="deployment-credential-row-head">
+        <span className="deployment-credential-row-name" translate="no">
+          {info.label}
+        </span>
+        <span className={`status status-${connected ? "ok" : "neutral"}`}>
+          {connected ? `${translate("Connected")} · ${translate("updated")} ${formatTimestamp(row.saved!.updatedAt)}` : translate("Not connected")}
+        </span>
+      </div>
+
       <div className="field-row">
         <div className="field">
-          <label className="field-label" htmlFor="deployment-static-site-credentials-provider">
-            {translate("Provider")}
-          </label>
-          <select
-            id="deployment-static-site-credentials-provider"
-            value={controller.providerId}
-            disabled={mode === "edit"}
-            onChange={(e) => controller.setProviderId(e.target.value as AdminPublishCredentialProviderId)}
-            {...agentHandle("deployment-static-site-credentials-provider", {
-              role: "field",
-              label: "Which provider this saved connection publishes to",
-            })}
-          >
-            {PUBLISH_CREDENTIAL_PROVIDERS.map((provider) => (
-              <option key={provider.id} value={provider.id} translate="no">
-                {provider.label}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="field">
-          <label className="field-label" htmlFor="deployment-static-site-credentials-label">
-            {translate("Label")}
+          <label className="field-label" htmlFor={`deployment-static-site-credentials-token-${row.providerId}`}>
+            {translate("Access token")}
           </label>
           <input
-            id="deployment-static-site-credentials-label"
-            type="text"
-            value={controller.label}
-            onChange={(e) => controller.setLabel(e.target.value)}
-            placeholder={translate("e.g. Production GitHub Pages")}
-            {...agentHandle("deployment-static-site-credentials-label", {
+            id={`deployment-static-site-credentials-token-${row.providerId}`}
+            type="password"
+            autoComplete="off"
+            value={row.token}
+            onChange={(e) => controller.setToken(row.providerId, e.target.value)}
+            {...agentHandle(`deployment-static-site-credentials-token-${row.providerId}`, {
               role: "field",
-              label: "Human-facing name for this connection — the only way to tell two saved credentials apart",
+              label: `${info.label} access token — stored encrypted, never shown again once saved`,
             })}
           />
+          <p className="field-hint">
+            {connected
+              ? translate("Leave blank to keep the current token.")
+              : translate("Stored encrypted on the server. Once saved, Tovu never displays it again.")}
+          </p>
+          <p className="field-hint">
+            {translate(info.scopeGuidanceKey)}{" "}
+            <a href={info.tokenPageUrl} target="_blank" rel="noreferrer">
+              {translate("Create a token")}
+            </a>
+          </p>
         </div>
+
+        {needsAccountId ? (
+          <div className="field">
+            <label className="field-label" htmlFor={`deployment-static-site-credentials-account-${row.providerId}`}>
+              {translate("Account ID")}
+            </label>
+            <input
+              id={`deployment-static-site-credentials-account-${row.providerId}`}
+              type="text"
+              value={row.accountId}
+              onChange={(e) => controller.setAccountId(row.providerId, e.target.value)}
+              {...agentHandle(`deployment-static-site-credentials-account-${row.providerId}`, {
+                role: "field",
+                label: "Cloudflare account id — required, Cloudflare cannot resolve a project without it",
+              })}
+            />
+            <p className="field-hint">{translate("Shown on your Cloudflare dashboard's own sidebar.")}</p>
+          </div>
+        ) : null}
       </div>
-
-      <div className="field">
-        <label className="field-label" htmlFor="deployment-static-site-credentials-token">
-          {translate("Access token")}
-        </label>
-        <input
-          id="deployment-static-site-credentials-token"
-          type="password"
-          autoComplete="off"
-          value={controller.token}
-          onChange={(e) => controller.setToken(e.target.value)}
-          placeholder={mode === "edit" ? translate("Leave blank to keep the current token") : ""}
-          {...agentHandle("deployment-static-site-credentials-token", {
-            role: "field",
-            label: "Provider access token — stored encrypted, never shown again once saved",
-          })}
-        />
-        <p className="deployment-action-reason">
-          {mode === "edit"
-            ? translate(
-                "Never shown back, even here — leave this blank to keep the token already saved, or type a new one to replace it."
-              )
-            : translate(
-                "Stored encrypted on the server. Once saved, Tovu never displays it again — not even a partial version of it."
-              )}
-        </p>
-        <p className="deployment-action-reason">
-          {translate(info.scopeGuidanceKey)}{" "}
-          <a href={info.tokenPageUrl} target="_blank" rel="noreferrer">
-            {translate("Create a token")}
-          </a>
-        </p>
-      </div>
-
-      <PublishCredentialProviderFields controller={controller} t={translate} />
-
-      {showsDefaultChoice ? (
-        <label className="form-checkbox-field">
-          <input
-            type="checkbox"
-            checked={controller.isDefault}
-            onChange={(e) => controller.setIsDefault(e.target.checked)}
-            {...agentHandle("deployment-static-site-credentials-is-default", {
-              role: "checkbox",
-              label: `Make this the default ${info.label} connection triggerPublish uses`,
-            })}
-          />
-          {translate("Set as default for")} <span translate="no">{info.label}</span>
-        </label>
-      ) : null}
 
       <div className="deployment-action">
         <button
-          type="submit"
-          disabled={!readyToSubmit || controller.submitting}
-          {...agentHandle("deployment-static-site-credentials-submit", {
-            role: "button",
-            label: "Save this publish credential",
-          })}
-        >
-          {controller.submitting ? translate("Saving…") : mode === "add" ? translate("Save credential") : translate("Save changes")}
-        </button>
-        <button
           type="button"
-          className="btn-secondary"
-          onClick={controller.cancelForm}
-          {...agentHandle("deployment-static-site-credentials-cancel", {
+          disabled={!readyToSave || row.saving}
+          onClick={() => void controller.save(row.providerId)}
+          {...agentHandle(`deployment-static-site-credentials-save-${row.providerId}`, {
             role: "button",
-            label: "Discard this form without saving",
+            label: `Save the ${info.label} access token`,
           })}
         >
-          {translate("Cancel")}
+          {row.saving ? translate("Saving…") : translate("Save")}
         </button>
-        {controller.formError ? (
+        {row.error ? (
           <p className="save-error" role="alert">
-            {controller.formError}
+            {row.error}
           </p>
         ) : null}
       </div>
-    </form>
-  );
-}
-
-/** {@link PublishCredentialForm}'s per-provider field block, split out into its own function for
- *  the same complexity-gate reason `StaticSiteTab.tsx`'s own `resolveStaticExportHook`-style
- *  resolvers document. Renders exactly ONE provider's fields — the current `controller.providerId`
- *  — never more than one at a time, same "never show the other provider's row" rule
- *  `ProviderCliRow`'s own doc states for the CLI recommendation above.
- *
- *  Cloudflare Pages is the ONLY provider with a field here at all (`accountId`, required) — GitHub
- *  Pages' `owner`/`repo` and Vercel's `teamId` are NOT credential fields (they already live on the
- *  publish target config, chosen per run — see `AdminPublishConnectionInput`'s doc in `lib/api.ts`),
- *  and Netlify has no per-provider field. GitHub Pages and Vercel render nothing at all beyond the
- *  parent form's shared token field. */
-function PublishCredentialProviderFields({ controller, t: translate }: { controller: PublishCredentialsController; t: Translate }) {
-  if (controller.providerId !== "cloudflare-pages") return null;
-
-  return (
-    <div className="field">
-      <label className="field-label" htmlFor="deployment-static-site-credentials-account">
-        {translate("Account ID")}
-      </label>
-      <input
-        id="deployment-static-site-credentials-account"
-        type="text"
-        value={controller.accountId}
-        onChange={(e) => controller.setAccountId(e.target.value)}
-        {...agentHandle("deployment-static-site-credentials-account", { role: "field", label: "Cloudflare account id — required, Cloudflare cannot resolve a project without it" })}
-      />
-    </div>
+    </li>
   );
 }
 
