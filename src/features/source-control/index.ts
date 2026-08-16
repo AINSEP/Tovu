@@ -21,6 +21,7 @@ export {
   describeCredential,
   isUniqueLabelViolation,
   listSourceControlCredentials,
+  resolveDefaultForSourceControl,
   SourceControlCredentialDuplicateLabelError,
   SourceControlCredentialNotFoundError,
   SourceControlCredentialSecretStoreUnconfiguredError,
