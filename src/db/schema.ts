@@ -1518,6 +1518,72 @@ export const publishCredentialSets = sqliteTable(
 );
 
 /**
+ * Per-workspace saved connections for the admin Source Control page (2026-08-15) — "I have a
+ * GitHub/GitLab/Bitbucket personal access token" as its own concept, deliberately NOT a row in
+ * `publishCredentialSets` above even though the column shape is identical. `PublishProviderId` is
+ * aliased onto `AdminStaticPublishTargetId` on purpose (see that type's own header) so the provider
+ * set a credential can be saved for and the provider set a publish can target can never drift apart;
+ * widening it with `"github"`/`"gitlab"`/`"bitbucket"` would corrupt that guarantee by making one
+ * value simultaneously mean "a saved source-control identity" and "a legal `triggerPublish` target",
+ * neither of which GitLab or Bitbucket (not deploy targets) or a *source* GitHub account (a
+ * different credential than `github-pages`) actually is. A second table with the same shape is the
+ * correct fix, not a wider union on the first one.
+ *
+ * Every column below is a structural copy of `publishCredentialSets`' own (see that table's own doc
+ * comment for the full reasoning this one inherits verbatim): the same composite
+ * `(workspace_id, id)` primary key, the same `(workspace_id, provider_id, label)` UNIQUE identity,
+ * the same four `sealed*` columns (all `NOT NULL` — a row cannot exist before a connection is saved,
+ * same reasoning), the same deliberate absence of a `masked` column, and the same write-path-owned
+ * `is_default` group invariant (at most one `TRUE` per `(workspace_id, provider_id)`, no DB-level
+ * CHECK). Sealed via the SAME shared `AesGcmSecretSealer`/`KeyringPort` instances every other sealed
+ * table in this file reuses, under an AAD bound to `workspaceId + providerId + id`
+ * (`features/source-control/aad.ts`'s `buildSourceControlCredentialAad`) so a row's ciphertext is
+ * not transplantable to a different workspace, provider, or credential set.
+ *
+ * The sealed payload is the whole `SourceControlConnectionInput` object (token, plus Bitbucket's
+ * paired `username` — Bitbucket's own API authenticates the pair, not the token alone), not a bare
+ * token — same one-ciphertext-per-row reasoning `publishCredentialSets` gives for its own multi-field
+ * providers.
+ */
+export const sourceControlCredentialSets = sqliteTable(
+  "source_control_credential_sets",
+  {
+    id: text("id").notNull(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    /** `"github" | "gitlab" | "bitbucket"` — see `features/source-control/types.ts`'s
+     *  `SourceControlProviderId`. */
+    providerId: text("provider_id").notNull(),
+    /** Human-chosen label, unique per `(workspace_id, provider_id)` — always
+     *  `SOURCE_CONTROL_CREDENTIAL_ROW_LABEL` (`"default"`) today, since the admin page's flat
+     *  one-row-per-provider UI never asks an operator to type one, but the column stays free-text
+     *  (not an enum) for the same future-multi-connection-per-provider reason `publishCredentialSets`
+     *  keeps its own `label` free-text. */
+    label: text("label").notNull(),
+    /** `SealedSecret.keyId`. */
+    sealedKeyId: text("sealed_key_id").notNull(),
+    /** Base64 `AEAD ciphertext || 16-byte GCM auth tag` of the whole serialized connection object. */
+    sealedCiphertext: text("sealed_ciphertext").notNull(),
+    /** Base64 12-byte AES-GCM IV. */
+    sealedNonce: text("sealed_nonce").notNull(),
+    /** Always `'aes-256-gcm'` today; stored rather than hardcoded for the same future-algorithm
+     *  reason `publishCredentialSets` gives. */
+    sealedAlg: text("sealed_alg").notNull(),
+    /** At most one `TRUE` per `(workspace_id, provider_id)`, maintained by
+     *  `features/source-control/store.ts`'s write path — same invariant, same "no DB-level CHECK"
+     *  reasoning `publishCredentialSets.isDefault` documents. */
+    isDefault: integer("is_default", { mode: "boolean" }).notNull().default(false),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.workspaceId, table.id] }),
+    uniqueIndex("source_control_credential_sets_workspace_provider_label_unique").on(table.workspaceId, table.providerId, table.label),
+  ]
+);
+
+/**
  * Per-workspace media-generation vendor credentials, one row per `(workspace_id, provider_id)` —
  * what the admin's Media → "Media providers" tab persists (`media/provider-credential-store.ts`).
  *

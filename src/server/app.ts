@@ -8,6 +8,7 @@ import { registerPageHeadContributor } from "./http/site/page-head";
 import { InMemoryPostRepo, InMemoryPostSearchIndex, createPostRevertRegistry } from "../features/post";
 import { InMemoryDeploymentsReadRepo } from "../features/deployments";
 import { InMemoryPublishCredentialSetRepo, executionModeFromEnv } from "../features/deployments/publish-credentials";
+import { InMemorySourceControlCredentialSetRepo } from "../features/source-control";
 // NOT a static import, and the reason is a measured crash — see `runExportSiteLazily` below.
 import { InMemoryPagesHtmlDocumentStore } from "../features/pages";
 import {
@@ -163,6 +164,7 @@ import { registerAdminDeploymentOverviewRoute } from "./routes/admin/system/depl
 import { registerAdminDockerfileSourceRoute } from "./routes/admin/system/dockerfile-source";
 import { registerAdminExportSiteRoutes } from "./routes/admin/system/export-site";
 import { registerAdminPublishCredentialsRoutes } from "./routes/admin/system/publish-credentials";
+import { registerAdminSourceControlCredentialsRoutes } from "./routes/admin/system/source-control-credentials";
 import { registerAdminPublishSiteRoutes } from "./routes/admin/system/publish-site";
 import { registerAdminDeploymentsListRoute } from "./routes/admin/deployments/list";
 import { createFormsAdminModule } from "./modules/forms-admin";
@@ -621,6 +623,10 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // a test can still exercise `TOVU_EXECUTION_MODE=hosted-api-only` against this hermetic root.
     publishCredentialSetRepo: new InMemoryPublishCredentialSetRepo(),
     publishExecutionMode: executionModeFromEnv(),
+    // 2026-08-15 — hermetic double for `server/deps.ts`'s real
+    // `SqliteSourceControlCredentialSetRepo`; see `routes/types.ts`'s
+    // `sourceControlCredentialSetRepo` doc.
+    sourceControlCredentialSetRepo: new InMemorySourceControlCredentialSetRepo(),
   };
 }
 
@@ -814,6 +820,10 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // (`publish_credential_sets`). `system.publish`-gated on every verb — see that route file's own
   // header for why this doesn't split trigger/read the way `publish-site.ts` does.
   registerAdminPublishCredentialsRoutes(app, routeDeps);
+  // Admin Source Control page: CRUD over saved GitHub/GitLab/Bitbucket identity connections
+  // (`source_control_credential_sets`). `source-control.credentials.write`-gated on every verb —
+  // see that route file's own header for why this is NOT `system.publish`.
+  registerAdminSourceControlCredentialsRoutes(app, routeDeps);
   // Deployment panel → Full Site tab: read-only snapshot of the deployments domain
   // (`features/deployments/`). `deployments.read`-gated, not `system.read` — see that route
   // file's own header for why this one gets its own permission.

@@ -6,6 +6,7 @@ import { InMemoryEventBus } from "../core/events";
 import { backfillPostSearchIndex, SqlitePostRepo, SqlitePostSearchIndex, createPostRevertRegistry } from "../features/post";
 import { SqliteDeploymentsReadRepo } from "../features/deployments";
 import { SqlitePublishCredentialSetRepo } from "../db/sqlite/publish-credential-repo.sqlite";
+import { SqliteSourceControlCredentialSetRepo } from "../db/sqlite/source-control-credential-repo.sqlite";
 import { executionModeFromEnv } from "../features/deployments/publish-credentials";
 // NOT a static import — `export/site-exporter.ts` imports `createApp` from `server/app.ts`, and a
 // top-level import here reaches that same cycle. See `server/app.ts`'s `runExportSiteLazily` for
@@ -806,6 +807,10 @@ export function createSqliteRouteDeps(
     // repos above already reuse (no third `EnvOrFileKeyring` instance).
     publishCredentialSetRepo: new SqlitePublishCredentialSetRepo(db),
     publishExecutionMode: executionModeFromEnv(),
+    // 2026-08-15 — see `routes/types.ts`'s `sourceControlCredentialSetRepo` doc. Sealed via the
+    // same shared sealer/keyring the credential repos above already reuse (no third
+    // `EnvOrFileKeyring` instance).
+    sourceControlCredentialSetRepo: new SqliteSourceControlCredentialSetRepo(db),
   };
 }
 
