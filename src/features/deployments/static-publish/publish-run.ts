@@ -1,4 +1,5 @@
 import { publishStaticSite, type StaticPublishDeps, type StaticPublishInput } from "./adapter";
+import { createFilePublishHistoryStore, type PublishHistoryEntry, type PublishHistoryStore } from "./publish-history";
 import type { StaticPublishOutcome, StaticPublishTargetId } from "./types";
 
 /**
@@ -39,6 +40,21 @@ import type { StaticPublishOutcome, StaticPublishTargetId } from "./types";
  * server process) shares this exact module instance with the admin HTTP route, so single-flight holds
  * there — which is the concrete scenario this fix closes (a human using the admin UI's Static Site tab
  * and the assistant dock in the SAME running server, at the same time).
+ *
+ * ## Publish history (2026-08-16, Defect 2)
+ *
+ * The SAME reason this module exists in the first place — one shared slot both `publish-site.ts`'s
+ * HTTP trigger route and `deployment_execute_static_publish` settle through — is why publish HISTORY
+ * is also recorded here rather than in either caller: recording it once, at the one place both routes
+ * already converge, means neither call site needs to change to gain it. `settleWithOutcome`/
+ * `settleWithError` above are this module's PRE-EXISTING job (the single-flight snapshot); recording
+ * history is a separate, additional side effect performed alongside them, not folded into them, so a
+ * reader auditing "what does settling a run do to the shared snapshot" is not also reading unrelated
+ * persistence code. See `./publish-history.ts`'s own header for the storage design (a file under
+ * `infra/publish-history/`, not a DB table — no migration touched by this fix). `historyStore`
+ * defaults to that file-backed store for every real caller (production wiring changes nowhere outside
+ * this file); a test overrides it with `InMemoryPublishHistoryStore` the same way `deps.buildTarget`
+ * already lets a test substitute a fake `DeployTarget`.
  */
 
 export type PublishRunStatus = "idle" | "running" | "completed" | "errored";
@@ -63,6 +79,55 @@ const IDLE_RUN: PublishRunSnapshot = { status: "idle", startedAtIso: null, finis
 /** Process-local mutable slot — see this file's header for exactly which callers share ONE instance
  *  of it and which do not. */
 let currentRun: PublishRunSnapshot = IDLE_RUN;
+
+/** The production default {@link PublishHistoryStore} — one file-backed instance shared by every real
+ *  caller in this process, the same "module-level singleton, test-overridable per call" shape
+ *  `currentRun` above already establishes for the single-flight guard. Constructing it here does no
+ *  I/O (`createFilePublishHistoryStore` only resolves a directory path; nothing touches the filesystem
+ *  until a publish actually settles or a capabilities read actually happens). Exported so
+ *  `publish-agent-tools.ts`'s capabilities handler reads the SAME instance a real publish just wrote
+ *  to, without either file needing a new dependency threaded in from outside this domain. */
+export const defaultPublishHistoryStore: PublishHistoryStore = createFilePublishHistoryStore();
+
+/** Maps a settled `outcome` into the durable record this run's publish produced — `undefined` when
+ *  nothing was actually published (`outcome.ok === false`; see {@link PublishHistoryEntry}'s own doc
+ *  on why a failure is never recorded at all, not recorded-as-failed). `owner`/`repo` are read off
+ *  `input.config` (present only for `github-pages` — `StaticPublishConfig`'s own per-target split,
+ *  `./types.ts`) rather than off `outcome`, which carries neither. */
+function toHistoryEntry(input: StaticPublishInput, outcome: StaticPublishOutcome, clock: { nowIso(): string }): PublishHistoryEntry | undefined {
+  if (!outcome.ok) return undefined;
+  const { config } = input;
+  return {
+    target: outcome.targetId,
+    url: outcome.url,
+    reachable: outcome.ok === true,
+    status: outcome.status,
+    projectName: input.projectName,
+    publishedAt: clock.nowIso(),
+    ...(config.target === "github-pages" ? { owner: config.owner, repo: config.repo } : {}),
+    ...(outcome.basePath !== undefined ? { basePath: outcome.basePath } : {}),
+  };
+}
+
+/**
+ * Records a settled outcome's history, if it produced one — best-effort, never throws and never
+ * changes what the caller reports. A failed history write (a read-only `infra/` volume, a full disk)
+ * must not turn an otherwise-successful publish into a reported failure: the caller already has the
+ * TRUE outcome from {@link publishStaticSite} and returns it regardless: losing "where did we last
+ * publish" is a strictly smaller problem than a hard error on this genuinely non-essential bookkeeping
+ * step layered on top of a publish that already succeeded.
+ *
+ * @complexity O(1) — see {@link PublishHistoryStore.recordSuccess}'s own cost note.
+ */
+async function recordHistoryIfPublished(historyStore: PublishHistoryStore, input: StaticPublishInput, outcome: StaticPublishOutcome, clock: { nowIso(): string }): Promise<void> {
+  const entry = toHistoryEntry(input, outcome, clock);
+  if (entry === undefined) return;
+  try {
+    await historyStore.recordSuccess({ workspaceId: input.workspaceId, entry });
+  } catch {
+    // Swallowed deliberately — see this function's own doc.
+  }
+}
 
 /**
  * The current/most recent publish run's status, exactly as both callers report it (the HTTP status
@@ -102,14 +167,19 @@ function settleWithError(startedAtIso: string, target: StaticPublishTargetId, er
  * doc, restated here rather than merely cross-referenced since violating it is exactly the bug this
  * whole file exists to close).
  *
+ * @param historyStore - See this file's header ("Publish history"). Defaults to the module-level
+ *   file-backed store; a test injects `InMemoryPublishHistoryStore` here.
  * @complexity O(1) synchronously; the awaited publish itself is bounded by `publishStaticSite`'s own
  *   complexity note (one export pass plus one provider's fixed poll budget).
  */
-export function startPublishRun(deps: StaticPublishDeps, input: StaticPublishInput, clock: { nowIso(): string }): PublishRunSnapshot {
+export function startPublishRun(deps: StaticPublishDeps, input: StaticPublishInput, clock: { nowIso(): string }, historyStore: PublishHistoryStore = defaultPublishHistoryStore): PublishRunSnapshot {
   const startedAtIso = beginRun(input.config.target, clock);
 
   void publishStaticSite(deps, input)
-    .then((outcome) => settleWithOutcome(startedAtIso, input.config.target, outcome, clock))
+    .then(async (outcome) => {
+      settleWithOutcome(startedAtIso, input.config.target, outcome, clock);
+      await recordHistoryIfPublished(historyStore, input, outcome, clock);
+    })
     .catch((err: unknown) => settleWithError(startedAtIso, input.config.target, err, clock));
 
   return currentRun;
@@ -137,14 +207,22 @@ export function startPublishRun(deps: StaticPublishDeps, input: StaticPublishInp
  * an unexpected throw (this function adds single-flight bookkeeping around the call, not a new error
  * shape).
  *
+ * @param historyStore - See this file's header ("Publish history"). Defaults to the module-level
+ *   file-backed store; a test injects `InMemoryPublishHistoryStore` here.
  * @complexity Same bound as {@link startPublishRun} — one export pass plus one provider's fixed poll
  *   budget — but AWAITED by the caller rather than backgrounded.
  */
-export async function runPublishAndAwait(deps: StaticPublishDeps, input: StaticPublishInput, clock: { nowIso(): string }): Promise<StaticPublishOutcome> {
+export async function runPublishAndAwait(
+  deps: StaticPublishDeps,
+  input: StaticPublishInput,
+  clock: { nowIso(): string },
+  historyStore: PublishHistoryStore = defaultPublishHistoryStore
+): Promise<StaticPublishOutcome> {
   const startedAtIso = beginRun(input.config.target, clock);
   try {
     const outcome = await publishStaticSite(deps, input);
     settleWithOutcome(startedAtIso, input.config.target, outcome, clock);
+    await recordHistoryIfPublished(historyStore, input, outcome, clock);
     return outcome;
   } catch (err) {
     settleWithError(startedAtIso, input.config.target, err, clock);
