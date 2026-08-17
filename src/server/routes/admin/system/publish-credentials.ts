@@ -1,10 +1,12 @@
 import type { Express, Request, Response } from "express";
 
 import {
+  createAccountLabelHealScheduler,
   createPublishCredential,
   deletePublishCredential,
   describeCredential,
   healAccountLabel,
+  idsNeedingAccountLabelHeal,
   listPublishCredentials,
   PublishCredentialDuplicateLabelError,
   PublishCredentialNotFoundError,
@@ -13,7 +15,7 @@ import {
   updatePublishCredential,
   type PublishCredentialSummary,
 } from "#src/features/deployments/publish-credentials/index";
-import { verifyPublishCredentialById, type PublishCredentialVerificationResult } from "#src/features/deployments/static-publish/index";
+import { canYieldAccountLabel, verifyPublishCredentialById, type PublishCredentialVerificationResult } from "#src/features/deployments/static-publish/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 
@@ -54,6 +56,28 @@ import type { RouteDeps } from "#src/server/routes/types";
  * working, previously-verified credential to no known account" durable: `deployment_get_static_publish
  * _capabilities` can now read a real DB column that survives a restart, instead of only ever reading a
  * process-memory cache that does not.
+ *
+ * Also 2026-08-16 (same night, second pass): `POST`/`PUT` above already heal a row's account label the
+ * moment it is saved — but only if THAT verify attempt succeeds. A row whose first auto-verify failed
+ * (provider unreachable at save time), or one saved before this wiring existed at all, stayed
+ * `account_label: null` forever unless a human found and clicked the per-row `POST .../:id/verify`
+ * action — the reported bug: the assistant's `deployment_get_static_publish_capabilities` tool had no
+ * account to default a github-pages publish's `owner` to, and correctly refused to guess one, but a
+ * non-technical owner had no reason to know a "Verify" button existed to fix it. `GET` below now also
+ * calls {@link accountLabelHealScheduler}`.triggerFor` after every list read, for any row this list
+ * call itself found still `null` on a provider that can ever yield a label
+ * (`idsNeedingAccountLabelHeal`, `static-publish/verify.ts`'s `canYieldAccountLabel`) — fire-and-forget,
+ * never awaited, never able to affect this (or any) response. This is deliberately the ONLY new trigger
+ * point: `static-publish/verify.ts`'s own header is categorical that only a human-gated caller may ever
+ * invoke a provider probe, and `publish-agent-tools.ts`'s capabilities handler reads this same table
+ * via `listPublishCredentials` directly — putting a probe inside that shared, decrypt-free read
+ * function (or anywhere reachable from it) would put a live outbound request on the agent's own path,
+ * which is exactly what that boundary exists to prevent. This GET handler is human-gated (the admin
+ * Deployment → Static Site tab loading its own list) and reuses `verifyAfterSave` verbatim as the
+ * scheduler's `heal` callback, so a self-heal shares the exact same probe/cache/DB-write behavior a
+ * human clicking "Verify" already gets — nothing new is added to WHAT a heal does, only WHEN it can
+ * additionally fire. See `account-label-heal-scheduler.ts`'s own header for the fire-and-forget/
+ * in-flight-dedupe contract that keeps this off the hot path and safe under `62ca21c7`'s guard.
  */
 export type AdminPublishCredentialsDeps = RouteDeps;
 
@@ -144,6 +168,13 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
     return result ?? undefined;
   }
 
+  /** Built ONCE per route registration, like `verifyAfterSave` itself — its in-flight dedupe only
+   *  works if it survives between requests. `heal` is `verifyAfterSave` verbatim: a background self-
+   *  heal does exactly what a human clicking "Verify" already does, through the same function, never a
+   *  parallel code path that could drift from it. See this file's own header ("second pass") and
+   *  `account-label-heal-scheduler.ts`'s header for the full reasoning. */
+  const accountLabelHealScheduler = createAccountLabelHealScheduler({ heal: verifyAfterSave });
+
   /** Shared workspace-path-param + `system.publish` authorization check every verb below performs
    *  first — same two-step `publish-site.ts` already repeats per-route; extracted here since this
    *  file has four verbs instead of that file's two. Returns `true` and has already written the
@@ -176,6 +207,13 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
     try {
       const credentials: PublishCredentialSummary[] = await listPublishCredentials(readDeps, { workspaceId: deps.workspaceId });
       res.status(200).json({ credentials, executionMode: deps.publishExecutionMode });
+      // Fires AFTER the response is already sent, and only for rows THIS call itself found still
+      // `null` — never awaited, never able to change or delay what the caller above just received.
+      // `accountLabelHealScheduler.triggerFor` is documented to never throw or reject, even if `heal`
+      // misbehaves (`account-label-heal-scheduler.ts`'s own tests cover that directly) — see this
+      // file's header for why this is the one new trigger point and why it must stay exactly this
+      // narrow.
+      accountLabelHealScheduler.triggerFor(idsNeedingAccountLabelHeal(credentials, canYieldAccountLabel));
     } catch (err) {
       sendStoreError(res, err);
     }
