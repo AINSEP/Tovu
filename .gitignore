@@ -38,9 +38,16 @@ blob-report/
 # Regenerated-on-every-run screenshots (e.g. connectors-screenshot.spec.ts), not checked baselines
 # — those live under `*-snapshots/` above and stay committed. Same "artifact, not fixture" split.
 development/e2e/__screenshots__/
+# Ad-hoc debug captures and one-off probe scripts written during interactive runs (~4.7MB today).
+# Same "artifact, not fixture" split as the two entries above: nothing here is a checked baseline.
+development/e2e/.artifacts/
 
 # stray/local artifacts (do not track)
 admin-page.png
+# Playwright accessibility-tree dump from an interactive exploration pass; regenerate on demand.
+explore-snapshot.md
+# Stray SQLite journal written outside infra/ by a local run. Runtime data, not source.
+ops/database-journal.db
 :memory:.snapshot-newsletter-*
 :memory:.snapshot-comments-*
 :memory:.snapshot-store-*
