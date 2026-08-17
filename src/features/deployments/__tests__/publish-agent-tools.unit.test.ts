@@ -100,7 +100,11 @@ function exchangeIdFromSurface(surface: unknown): string {
   return match[1]!;
 }
 
-/** Raises the publish confirmation dialog and returns everything a test needs to answer it. */
+/** Raises the publish confirmation dialog and returns everything a test needs to answer it.
+ *  `emitted` is the SAME live array `emitSurface` pushes onto — a test that also cares about a
+ *  later, post-answer emission (the outcome surface, `askThenReport`'s whole reason for existing)
+ *  reads `emitted[1]` off this after awaiting `pending`, rather than `raiseDialog` needing a second
+ *  return shape for that one extra check. */
 async function raiseDialog(executeTool: ToolRegistration, input: Record<string, unknown>) {
   const emitted: unknown[] = [];
   const pending = call(executeTool, { input, emitSurface: async (s) => void emitted.push(s) });
@@ -108,7 +112,25 @@ async function raiseDialog(executeTool: ToolRegistration, input: Record<string, 
   assert.equal(emitted.length, 1, "the dialog must be emitted before the call parks");
   const html = (emitted[0] as { payload: { resource: { resource: { text: string } } } }).payload.resource.resource.text;
   const exchangeId = exchangeIdFromSurface(emitted[0]);
-  return { pending, html, exchangeId };
+  return { pending, html, exchangeId, emitted };
+}
+
+/** Pulls a surface emission's rendered HTML text and its `ui://` URI — the shape both the
+ *  confirmation and outcome resources share (`buildConfirmationSurface`/`buildOutcomeSurface`'s
+ *  common `EmbeddedResource` wrapper). */
+function surfaceHtmlAndUri(surface: unknown): { html: string; uri: string } {
+  const resource = (surface as { payload: { resource: { resource: { text: string; uri: string } } } }).payload.resource.resource;
+  return { html: resource.text, uri: resource.uri };
+}
+
+/** The outcome surface's own status region's `data-state` — NOT a plain substring search, because
+ *  `document.ts`'s base stylesheet always emits `.mcpui-status[data-state="…"]` CSS rules for every
+ *  known state regardless of which one this particular document is actually in, so a naive
+ *  `html.includes('data-state="done"')` would pass on a document whose real status is "failed" just
+ *  because the (irrelevant, unused) "done" CSS rule happens to be present in the shared stylesheet. */
+function outcomeStatusState(html: string): string | null {
+  const match = html.match(/id="mcpui-status"[^>]*\bdata-state="([^"]+)"/);
+  return match ? match[1]! : null;
 }
 
 /** Records every `publish()` call's file set and returns a canned success result — never touches
@@ -757,6 +779,101 @@ test("confirm: a full 'ready' success explicitly reports reachable:true, not mer
   const result = (await pending) as { published: boolean; reachable: boolean };
   assert.equal(result.published, true);
   assert.equal(result.reachable, true);
+});
+
+/**
+ * The outcome-surface regression suite (2026-08-16): before `askThenReport`, this tool's confirmation
+ * dialog only ever showed "Done." the instant the confirming `tools/call` resolved — for a held-open
+ * MCP-UI exchange, that is the instant the click is DELIVERED (`mcp-ui-tool-calls-route.ts`'s
+ * `202 {delivered:true}`), not when the publish this handler goes on to run actually finishes. A 404,
+ * a rejected credential, and a genuine success all rendered the identical "Done.". These four tests
+ * assert the SECOND emission — the real outcome — reaches `emitSurface` on the SAME `ui://` URI the
+ * confirmation used (what makes `McpUiSurfaceCard` replace the dialog in place rather than opening a
+ * second card), with the correct `data-state`, for every branch that can actually settle a publish
+ * attempt. Written against `raiseDialog`'s live `emitted` array before any of this existed — with only
+ * `askOnce`, there was structurally no second emission to assert on, so these tests fail to compile/
+ * pass against that prior shape (`emitted.length` never reaches 2).
+ */
+
+test("confirm: a full success ALSO emits a succeeded outcome surface, same uri as the confirmation, with the live URL as an open-link action", async () => {
+  const captured: { value: DeployFile[] | null } = { value: null };
+  const { deps } = fakeDeps({
+    credentialSource: { async resolve() { return { ok: true, token: "fake-token-never-real" }; }, async isConfigured() { return { configured: true }; } },
+    buildTarget: () => fakeDeployTarget(captured),
+  });
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_execute_static_publish");
+
+  const { exchangeId, pending, emitted } = await raiseDialog(executeTool, { target: "vercel", projectName: "demo-site" });
+  const confirmationUri = surfaceHtmlAndUri(emitted[0]).uri;
+  surfaceExchanges.deliver({ exchangeId, toolId: "deployment_execute_static_publish", principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
+
+  const result = (await pending) as { published: boolean; url: string };
+  assert.equal(result.published, true);
+
+  assert.equal(emitted.length, 2, "the confirmation AND its outcome must both have been emitted");
+  const outcome = surfaceHtmlAndUri(emitted[1]);
+  assert.equal(outcome.uri, confirmationUri, "the outcome must replace the SAME card, not open a second one");
+  assert.equal(outcomeStatusState(outcome.html), "done", "success maps onto the outcome surface's 'done' status state");
+  assert.ok(outcome.html.includes(result.url), "the real published URL must appear in the outcome, not just the model result");
+});
+
+test("confirm: a partial (uploaded, not yet reachable) outcome ALSO emits its OWN partial-state surface — never rendered as success or failure", async () => {
+  const { deps } = fakeDeps({
+    credentialSource: { async resolve() { return { ok: true, token: "s3cr3t", accessKeyId: "AKIA", bucket: "b", region: "us-east-1", publicUrl: "https://example.test/site" }; }, async isConfigured() { return { configured: true }; } },
+    buildTarget: () => ({
+      id: "fake",
+      async publish() { return { targetId: "fake", url: "https://example.test/site", status: "link-delayed" as const, statusMessage: "not reachable yet" }; },
+      async checkReachability() { return { reachable: false }; },
+    }),
+  });
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_execute_static_publish");
+
+  const { exchangeId, pending, emitted } = await raiseDialog(executeTool, { target: "s3-compatible", projectName: "demo-site" });
+  const confirmationUri = surfaceHtmlAndUri(emitted[0]).uri;
+  surfaceExchanges.deliver({ exchangeId, toolId: "deployment_execute_static_publish", principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
+  await pending;
+
+  assert.equal(emitted.length, 2);
+  const outcome = surfaceHtmlAndUri(emitted[1]);
+  assert.equal(outcome.uri, confirmationUri);
+  assert.equal(outcomeStatusState(outcome.html), "partial", "never collapsed into either 'done' or 'failed'");
+});
+
+test("provider rejection ALSO emits a failed-state outcome surface carrying the SAME actionable message the model got, never the credential", async () => {
+  const { deps } = fakeDeps({
+    credentialSource: { async resolve() { return { ok: true, token: "fake-token-never-real" }; }, async isConfigured() { return { configured: true }; } },
+    buildTarget: () => failingDeployTarget("Vercel API responded 403: insufficient scope for this token"),
+  });
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_execute_static_publish");
+
+  const { exchangeId, pending, emitted } = await raiseDialog(executeTool, { target: "vercel", projectName: "demo-site" });
+  const confirmationUri = surfaceHtmlAndUri(emitted[0]).uri;
+  surfaceExchanges.deliver({ exchangeId, toolId: "deployment_execute_static_publish", principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
+  const result = (await pending) as { published: boolean; message: string };
+  assert.equal(result.published, false);
+
+  assert.equal(emitted.length, 2);
+  const outcome = surfaceHtmlAndUri(emitted[1]);
+  assert.equal(outcome.uri, confirmationUri);
+  assert.equal(outcomeStatusState(outcome.html), "failed");
+  assert.match(outcome.html, /insufficient scope/);
+  assert.doesNotMatch(outcome.html, /fake-token-never-real/, "the credential must never reach the human-visible outcome surface either");
+});
+
+test("cancel: does NOT emit a second surface — the confirmation's own script already reports the dismissal truthfully, nothing async happens afterward that could still fail", async () => {
+  const { deps } = fakeDeps({ credentialSource: { async resolve() { throw new Error("must not be called on cancel"); }, async isConfigured() { return { configured: true }; } } });
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_execute_static_publish");
+
+  const { exchangeId, pending, emitted } = await raiseDialog(executeTool, { target: "vercel", projectName: "demo-site" });
+  surfaceExchanges.deliver({ exchangeId, toolId: "deployment_execute_static_publish", principalId: PRINCIPAL_ID, params: { decision: "cancel" } });
+
+  const result = (await pending) as { published: boolean; cancelled: boolean };
+  assert.equal(result.cancelled, true);
+  assert.equal(emitted.length, 1, "cancel must not trigger a second, redundant human-visible emission");
 });
 
 test("re-calling the tool while a dialog is pending opens a SEPARATE dialog — it does not answer the first one", async () => {

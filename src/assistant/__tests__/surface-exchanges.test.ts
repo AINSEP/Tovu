@@ -7,6 +7,7 @@ import {
   DEFAULT_SURFACE_IDLE_TTL_MS,
   DEFAULT_SURFACE_MAX_LIFETIME_MS,
   askOnce,
+  askThenReport,
   createSurfaceExchangeStore,
 } from "../surface-exchanges";
 
@@ -291,6 +292,86 @@ test("askOnce closes the exchange even when no answer ever comes", async () => {
 
   assert.deepEqual(await askOnce(exchange, FORM), { status: "expired" });
   assert.equal(store.size(), 0);
+});
+
+const OUTCOME: SurfaceEmission = { channel: "mcp-ui", payload: { resource: { type: "resource-outcome" } } };
+
+test("askThenReport: sends the confirmation, then sends handle's outcome AFTER the answer — the exact defect askOnce cannot fix, since askOnce closes before a caller could send anything else", async () => {
+  const store = createSurfaceExchangeStore();
+  const { sent, emit } = recordingEmitter();
+  const exchange = store.open({ toolId: "t", principalId: "p" }, emit);
+
+  const asked = askThenReport(exchange, FORM, async (answer) => {
+    assert.deepEqual(answer, { status: "received", params: { decision: "confirm" } });
+    return { result: { published: true }, outcome: OUTCOME };
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  store.deliver({ exchangeId: exchange.id, toolId: "t", principalId: "p", params: { decision: "confirm" } });
+
+  assert.deepEqual(await asked, { published: true });
+  // Both emissions reached the human, confirmation first — the sequence a real re-send-on-the-same-URI
+  // replacement depends on.
+  assert.deepEqual(sent, [FORM, OUTCOME]);
+  assert.equal(store.size(), 0, "askThenReport closes once handle (and the outcome send) finish");
+});
+
+test("askThenReport: handle may omit outcome (e.g. a cancel) — no second send, exchange still closes", async () => {
+  const store = createSurfaceExchangeStore();
+  const { sent, emit } = recordingEmitter();
+  const exchange = store.open({ toolId: "t", principalId: "p" }, emit);
+
+  const asked = askThenReport(exchange, FORM, async () => ({ result: { published: false, cancelled: true } }));
+  await new Promise((resolve) => setImmediate(resolve));
+  store.deliver({ exchangeId: exchange.id, toolId: "t", principalId: "p", params: { decision: "cancel" } });
+
+  assert.deepEqual(await asked, { published: false, cancelled: true });
+  assert.deepEqual(sent, [FORM], "no outcome was supplied, so nothing beyond the confirmation was ever sent");
+  assert.equal(store.size(), 0);
+});
+
+test("askThenReport: the model's result is unaffected even when the outcome send itself fails — the exchange having already ended is not a tool failure", async () => {
+  const store = createSurfaceExchangeStore();
+  const { emit } = recordingEmitter();
+  const exchange = store.open({ toolId: "t", principalId: "p" }, emit);
+
+  const asked = askThenReport(exchange, FORM, async () => {
+    // Simulates the exchange ending out from under `handle` (a run abort, a teardown race) between
+    // the answer arriving and the outcome being sent — `send()` on an ended exchange throws, per
+    // `SurfaceExchange.send`'s own contract.
+    exchange.close();
+    return { result: { published: true, reachable: true }, outcome: OUTCOME };
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  store.deliver({ exchangeId: exchange.id, toolId: "t", principalId: "p", params: {} });
+
+  // The REAL, true result must still come back — this is the whole point: a failed frame update must
+  // never be reported to the model as a failed publish.
+  assert.deepEqual(await asked, { published: true, reachable: true });
+});
+
+test("askThenReport: closes the exchange even when handle itself throws, matching askOnce's own finally-close discipline", async () => {
+  const store = createSurfaceExchangeStore();
+  const exchange = store.open({ toolId: "t", principalId: "p" }, recordingEmitter().emit);
+
+  const asked = askThenReport(exchange, FORM, async () => {
+    throw new Error("real work blew up");
+  });
+  await new Promise((resolve) => setImmediate(resolve));
+  store.deliver({ exchangeId: exchange.id, toolId: "t", principalId: "p", params: {} });
+
+  await assert.rejects(asked, /real work blew up/);
+  assert.equal(store.size(), 0, "a throwing handle must not leak the exchange");
+});
+
+test("askThenReport: an answer that never arrives (expired) still reaches handle, which can report a no-op result with no outcome to send", async () => {
+  const store = createSurfaceExchangeStore({ idleTtlMs: 1 });
+  const exchange = store.open({ toolId: "t", principalId: "p" }, recordingEmitter().emit);
+
+  const result = await askThenReport(exchange, FORM, async (answer) => {
+    assert.deepEqual(answer, { status: "expired" });
+    return { result: { published: false, reason: "expired" } };
+  });
+  assert.deepEqual(result, { published: false, reason: "expired" });
 });
 
 test("the deadlines are ordered so the exchange, not the transport, gives up first", () => {
