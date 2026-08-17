@@ -24,12 +24,15 @@ import { buildSourceControlRegistrations, sourceControlAgentToolCatalog, sourceC
 const PRINCIPAL_ID = "principal-under-test";
 
 const exportDir = mkdtempSync(path.join(tmpdir(), "tovu-source-control-tools-test-"));
-process.env.TOVU_SOURCE_CONTROL_EXPORT_DIR = exportDir;
 test.after(() => rmSync(exportDir, { recursive: true, force: true }));
 
 /** Real hermetic `RouteDeps` (`createRouteDeps()`), with `authorize` overridden and this file's own
  *  test-only `gitAdapter` seam optionally set — mirrors `publish-agent-tools.unit.test.ts`'s own
- *  `fakeDeps` shape. */
+ *  `fakeDeps` shape. `sourceControlExportRootDir` is redirected to this file's own throwaway temp
+ *  dir — `commitSiteToSourceControl` reads that `RouteDeps` field instead of
+ *  `process.env.TOVU_SOURCE_CONTROL_EXPORT_DIR` (commit-site.ts no longer reads env vars at all),
+ *  so overriding it here is what keeps this suite's real `exportSite` writes off the checked-out
+ *  repo. */
 function fakeDeps(options: { allow?: boolean; gitAdapter?: GitHubCommitAdapter } = {}): {
   deps: SourceControlToolDeps;
   authorizeCalls: Record<string, unknown>[];
@@ -41,6 +44,7 @@ function fakeDeps(options: { allow?: boolean; gitAdapter?: GitHubCommitAdapter }
 
   const deps: SourceControlToolDeps = {
     ...base,
+    sourceControlExportRootDir: exportDir,
     authorize: async (params: Record<string, unknown>) => {
       authorizeCalls.push(params);
       return allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" };

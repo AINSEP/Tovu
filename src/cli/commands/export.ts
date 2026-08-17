@@ -40,11 +40,15 @@ export interface RunExportCommandInput {
  * `mediaUploadsDir()` (`<cwd>/infra/uploads`) because both anchor to the SAME `infra/` Docker
  * volume (`development/docs/deployment/deployment-constraints.md` — `infra/` survives a container
  * restart and is what an operator copies out), not to wherever the install dir happens to live.
+ *
+ * `exportOutputRootDir` is `RouteDeps.exportOutputRootDir` — this command's own composition root
+ * (`createSqliteRouteDeps`, below) resolves the `TOVU_EXPORT_DIR`-env-then-default half of this
+ * precedence chain exactly once (`server/deps.ts`'s `resolveExportOutputRootDir`); only the
+ * CLI-only `--out` flag is decided here. This function never reads `process.env` itself.
  */
-function resolveExportOutputDir(input: RunExportCommandInput): string {
+function resolveExportOutputDir(input: RunExportCommandInput, exportOutputRootDir: string): string {
   if (input.out !== undefined) return path.resolve(input.out);
-  if (process.env.TOVU_EXPORT_DIR !== undefined) return path.resolve(process.env.TOVU_EXPORT_DIR);
-  return path.resolve(process.cwd(), "infra", "export");
+  return exportOutputRootDir;
 }
 
 /** Formats the honest-reporting contract the brief for this feature requires: route/asset counts
@@ -95,7 +99,6 @@ function printExportReport(report: ExportReport): void {
 export async function runExportCommand(input: RunExportCommandInput): Promise<void> {
   const target = resolveInstallDirTarget(input.dir);
   const bootResult = bootSiteDir({ dir: target }, { workspaceId: input.workspaceId });
-  const outputDir = resolveExportOutputDir(input);
 
   const dbPath = path.join(target, "content.db");
   const routeDeps = createSqliteRouteDeps(dbPath, {
@@ -103,6 +106,7 @@ export async function runExportCommand(input: RunExportCommandInput): Promise<vo
     workspaceId: bootResult.workspaceId,
     uploadsDir: path.join(target, "uploads"),
   });
+  const outputDir = resolveExportOutputDir(input, routeDeps.exportOutputRootDir);
 
   try {
     const report = await exportSite({ routeDeps, outputDir, clean: input.clean ?? false, basePath: input.basePath });

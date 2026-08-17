@@ -39,15 +39,16 @@ export type { ExportRunCounts, ExportRunSnapshot, ExportRunStatus };
  * read, the same reasoning that gives `database.migrate`/`backup.restore`/`theme.set` their own
  * write-class permission strings instead of reusing a `*.read` grant.
  *
- * `--out`/`--workspace` are NOT client-controllable fields on the request body: `export-run.ts`'s
- * `resolveExportOutputDir` reproduces `cli/commands/export.ts`'s `TOVU_EXPORT_DIR` env-then-default
- * precedence (its own `resolveExportOutputDir` is private to that file and does not export
- * `--out`'s CLI-only half of the precedence chain here) rather than accepting a caller-supplied
- * path — the brief's own instruction ("do not invent a new location") doubles as a path-injection
- * guard: nothing here ever builds a filesystem path out of request input.
+ * `--out`/`--workspace` are NOT client-controllable fields on the request body: `startExportRun`
+ * (`export-run.ts`) reads `RouteDeps.exportOutputRootDir` — the same `TOVU_EXPORT_DIR`
+ * env-then-default value `cli/commands/export.ts`'s `resolveExportOutputDir` falls back to when its
+ * own CLI-only `--out` flag is absent, both ultimately resolved once by the composition root
+ * (`server/deps.ts`'s `resolveExportOutputRootDir`) — rather than accepting a caller-supplied path —
+ * the brief's own instruction ("do not invent a new location") doubles as a path-injection guard:
+ * nothing here ever builds a filesystem path out of request input.
  *
- * 2026-08-15: the process-local run state, `resolveExportOutputDir`, and the actual `exportSite`
- * call moved out to `features/deployments/export-run.ts` — this file now only translates HTTP
+ * 2026-08-15: the process-local run state and the actual `exportSite` call moved out to
+ * `features/deployments/export-run.ts` — this file now only translates HTTP
  * request/response shape around `startExportRun`/`getExportRunSnapshot`. The move exists so the new
  * `deployment_trigger_export`/`deployment_get_export_status` agent tools (`features/deployments/
  * tool-registrations.ts`) can trigger and poll the SAME run this route does — the assistant's own

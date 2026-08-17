@@ -16,14 +16,15 @@ import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "../../../
  * workspaces/:workspaceId/system/publish`. Same bare-principal-vs-owner + workspace-id-404 shape as
  * `export-site-route.test.ts`, whose header this file's own module-level setup mirrors closely.
  *
- * `TOVU_PUBLISH_DIR` is pointed at a throwaway temp directory for this whole file (the adapter's own
- * knob, `static-publish/adapter.ts`'s `publishOutputDir`) so the underlying export never writes into
- * the checked-out repo. This suite deliberately never sets `GITHUB_TOKEN`/`VERCEL_TOKEN` — per the
- * brief, these tests must not hit real GitHub or Vercel, and an absent token is exactly what makes
- * that true structurally: `publishStaticSite` returns `NO_CREDENTIALS_CONFIGURED` before ever
- * constructing a real `DeployTarget`, so the "success" trigger+poll test below reaches a genuine,
- * fully-exercised terminal state (auth, body validation, the run slot, a REAL export against the
- * hermetic fixture) without any external network call.
+ * `RouteDeps.publishOutputRootDir` is pointed at a throwaway temp directory for this whole file
+ * (via {@link testRouteDeps} below — the adapter's own knob, `static-publish/adapter.ts`'s
+ * `publishOutputDir`) so the underlying export never writes into the checked-out repo. This suite
+ * deliberately never sets `GITHUB_TOKEN`/`VERCEL_TOKEN` — per the brief, these tests must not hit
+ * real GitHub or Vercel, and an absent token is exactly what makes that true structurally:
+ * `publishStaticSite` returns `NO_CREDENTIALS_CONFIGURED` before ever constructing a real
+ * `DeployTarget`, so the "success" trigger+poll test below reaches a genuine, fully-exercised
+ * terminal state (auth, body validation, the run slot, a REAL export against the hermetic fixture)
+ * without any external network call.
  *
  * `currentRun` (the route module's own process-local run slot, independent of `export-site.ts`'s)
  * is shared mutable state across every test in this FILE — tests are ordered so each one's
@@ -32,11 +33,19 @@ import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "../../../
  */
 
 const publishOutputDir = mkdtempSync(path.join(tmpdir(), "tovu-publish-route-test-"));
-process.env.TOVU_PUBLISH_DIR = publishOutputDir;
 delete process.env.GITHUB_TOKEN;
 delete process.env.VERCEL_TOKEN;
 
 const PUBLISH_PATH = "system/publish";
+
+/** The hermetic fixture, with `publishOutputRootDir` redirected off the checked-out repo —
+ *  `publishStaticSite` reads this `RouteDeps` field instead of `process.env.TOVU_PUBLISH_DIR`
+ *  (adapter.ts no longer reads env vars at all). Defaults to this file's own shared throwaway temp
+ *  dir; the two "concurrent trigger" tests below pass their OWN per-test dir instead, since they
+ *  need a directory that outlives only that one test. */
+function testRouteDeps(publishOutputRootDir: string = publishOutputDir): RouteDeps {
+  return { ...createRouteDeps(), publishOutputRootDir };
+}
 
 async function loginAsBarePrincipal(deps: RouteDeps, baseUrl: string): Promise<string> {
   await deps.identityReady;
@@ -66,7 +75,7 @@ async function loginAsBarePrincipal(deps: RouteDeps, baseUrl: string): Promise<s
 }
 
 test("publish-site: an unauthorized principal (no grants) gets 403 on both the trigger and the status poll", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: RouteDeps = { ...testRouteDeps() };
   const app = createApp(deps);
   const { baseUrl } = await bootAuthenticated(app, t);
   const cookie = await loginAsBarePrincipal(deps, baseUrl);
@@ -82,7 +91,7 @@ test("publish-site: an unauthorized principal (no grants) gets 403 on both the t
 });
 
 test("publish-site: a mismatched workspaceId in the URL 404s on both routes", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: RouteDeps = { ...testRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -97,7 +106,7 @@ test("publish-site: a mismatched workspaceId in the URL 404s on both routes", as
 });
 
 test("publish-site: the status poll starts idle before any trigger has run in this process", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: RouteDeps = { ...testRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -108,7 +117,7 @@ test("publish-site: the status poll starts idle before any trigger has run in th
 });
 
 test("publish-site: a malformed trigger body 400s and never starts a run", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: RouteDeps = { ...testRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -149,7 +158,7 @@ test("publish-site: a malformed trigger body 400s and never starts a run", async
 });
 
 test("publish-site preview: netlify and cloudflare-pages are accepted targets (2026-08-15, all four Jini targets) — never 400 for a bare target with no other fields", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: RouteDeps = { ...testRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -166,7 +175,7 @@ test("publish-site preview: netlify and cloudflare-pages are accepted targets (2
 });
 
 test("publish-site: trigger starts a real run (202), and — with no GITHUB_TOKEN configured — the poll settles quickly to an honest errored/NO_CREDENTIALS_CONFIGURED result, never touching a real GitHub/Vercel API", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: RouteDeps = { ...testRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   t.after(() => rmSync(publishOutputDir, { recursive: true, force: true }));
@@ -202,13 +211,18 @@ test("publish-site: trigger starts a real run (202), and — with no GITHUB_TOKE
 });
 
 test("publish-site: a concurrent second trigger while one is genuinely in flight gets 409 — proven via a real export's own duration, with GitHub/Vercel's API itself intercepted so no real network call ever leaves this process", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  // Its own dedicated temp dir (never this file's shared `publishOutputDir`), so a real export
+  // triggered here can't collide on-disk with any other test's own real export — set directly on
+  // `deps.publishOutputRootDir` below (via `testRouteDeps(runOutputDir)`), never through
+  // `process.env.TOVU_PUBLISH_DIR` (adapter.ts no longer reads env vars at all — the OLD version of
+  // this test mutated that env var mid-test, which only worked because `publishOutputDir` used to
+  // re-read `process.env` at call time deep inside `publishStaticSite`; now the value is resolved
+  // once when `deps` is built, so it must be set BEFORE `createApp(deps)`, not after).
+  const runOutputDir = mkdtempSync(path.join(tmpdir(), "tovu-publish-race-test-"));
+  const deps: RouteDeps = { ...testRouteDeps(runOutputDir) };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
-  const runOutputDir = mkdtempSync(path.join(tmpdir(), "tovu-publish-race-test-"));
-  const previousPublishDir = process.env.TOVU_PUBLISH_DIR;
   const previousVercelToken = process.env.VERCEL_TOKEN;
-  process.env.TOVU_PUBLISH_DIR = runOutputDir;
   // A non-empty value is all `createEnvPublishCredentialSource` requires — Jini's own adapter never
   // validates a token's shape client-side, and this exact value never leaves this process (the only
   // fetch call that would ever send it, to api.vercel.com, is intercepted below and never dispatched
@@ -237,7 +251,6 @@ test("publish-site: a concurrent second trigger while one is genuinely in flight
   t.after(() => {
     globalThis.fetch = realFetch;
     process.env.VERCEL_TOKEN = previousVercelToken;
-    process.env.TOVU_PUBLISH_DIR = previousPublishDir;
     rmSync(runOutputDir, { recursive: true, force: true });
   });
 
@@ -284,13 +297,17 @@ test("publish-site: a concurrent call through the ASSISTANT TOOL while the HTTP 
   // against the SAME `deps` object a single server process would actually share, and proves the
   // second one — regardless of which caller goes second — is refused before it ever reaches a real
   // provider call, not merely delayed or silently raced.
-  const deps: RouteDeps = { ...createRouteDeps() };
+  //
+  // Its own dedicated temp dir (never this file's shared `publishOutputDir`), set directly on
+  // `deps.publishOutputRootDir` via `testRouteDeps(runOutputDir)` — see the sibling "concurrent
+  // second trigger" test above for why this can no longer be a mid-test `process.env.TOVU_PUBLISH_DIR`
+  // mutation (adapter.ts no longer reads env vars at all; the value is resolved once when `deps` is
+  // built, so it must be set BEFORE `createApp(deps)`).
+  const runOutputDir = mkdtempSync(path.join(tmpdir(), "tovu-publish-cross-path-test-"));
+  const deps: RouteDeps = { ...testRouteDeps(runOutputDir) };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
-  const runOutputDir = mkdtempSync(path.join(tmpdir(), "tovu-publish-cross-path-test-"));
-  const previousPublishDir = process.env.TOVU_PUBLISH_DIR;
   const previousVercelToken = process.env.VERCEL_TOKEN;
-  process.env.TOVU_PUBLISH_DIR = runOutputDir;
   process.env.VERCEL_TOKEN = "fake-token-for-cross-path-test-only";
 
   // Same interception technique as the sibling "concurrent second trigger" test above — only calls to
@@ -311,7 +328,6 @@ test("publish-site: a concurrent call through the ASSISTANT TOOL while the HTTP 
   t.after(() => {
     globalThis.fetch = realFetch;
     process.env.VERCEL_TOKEN = previousVercelToken;
-    process.env.TOVU_PUBLISH_DIR = previousPublishDir;
     rmSync(runOutputDir, { recursive: true, force: true });
   });
 
@@ -385,7 +401,7 @@ test("publish-site: a concurrent call through the ASSISTANT TOOL while the HTTP 
  * NO_CREDENTIALS_CONFIGURED test proves it for the trigger route.
  */
 test("publish-site preview: an unauthorized principal (no grants) gets 403", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: RouteDeps = { ...testRouteDeps() };
   const app = createApp(deps);
   const { baseUrl } = await bootAuthenticated(app, t);
   const cookie = await loginAsBarePrincipal(deps, baseUrl);
@@ -395,7 +411,7 @@ test("publish-site preview: an unauthorized principal (no grants) gets 403", asy
 });
 
 test("publish-site preview: a mismatched workspaceId 404s", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: RouteDeps = { ...testRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -404,7 +420,7 @@ test("publish-site preview: a mismatched workspaceId 404s", async (t) => {
 });
 
 test("publish-site preview: a missing/unrecognized target, and a github-pages preview missing repo, both 400", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: RouteDeps = { ...testRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -420,7 +436,7 @@ test("publish-site preview: a missing/unrecognized target, and a github-pages pr
 });
 
 test("publish-site preview: github-pages reports the derived base path and, with no GITHUB_TOKEN configured, credentialsConfigured false — never starting a run", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: RouteDeps = { ...testRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -453,7 +469,7 @@ test("publish-site preview: github-pages reports the derived base path and, with
 });
 
 test("publish-site preview: an invalid owner is reported as invalid with no base path, and vercel never carries one", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: RouteDeps = { ...testRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -473,7 +489,7 @@ test("publish-site preview: an invalid owner is reported as invalid with no base
 });
 
 test("publish-site preview: with a token configured, credentialsConfigured is true and the token itself never crosses the response", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: RouteDeps = { ...testRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const previousToken = process.env.GITHUB_TOKEN;

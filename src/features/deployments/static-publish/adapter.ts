@@ -125,12 +125,13 @@ export function computeBasePath(config: StaticPublishConfig): string | undefined
  *  is one-at-a-time per the admin route's own concurrency guard, since this function has no such
  *  guard of its own and may gain a second caller later.
  *
- * `TOVU_PUBLISH_DIR` overrides the `infra/publish` parent, mirroring `export-site.ts`'s own
- * `TOVU_EXPORT_DIR` knob — a real operational knob (an operator may want this on a different
- * volume/tmpfs), and what lets this module's own tests redirect off the checked-out repo without
- * a test-only code path. */
-function publishOutputDir(target: StaticPublishTargetId): string {
-  const parent = process.env.TOVU_PUBLISH_DIR !== undefined ? path.resolve(process.env.TOVU_PUBLISH_DIR) : path.resolve(process.cwd(), "infra", "publish");
+ * `parent` is `RouteDeps.publishOutputRootDir` (`TOVU_PUBLISH_DIR` env, then `infra/publish` —
+ * mirroring `export-site.ts`'s own `TOVU_EXPORT_DIR` knob), resolved ONCE by the composition root
+ * (`server/app.ts`/`server/deps.ts`) and threaded through {@link publishStaticSite}'s
+ * `input.routeDeps` — never read from `process.env` in this file. A test overrides it the same way
+ * every other `RouteDeps` field is overridden: by setting `publishOutputRootDir` on the fake
+ * `RouteDeps` it constructs, not by mutating real process env vars. */
+function publishOutputDir(parent: string, target: StaticPublishTargetId): string {
   return path.join(parent, target);
 }
 
@@ -337,7 +338,7 @@ export async function publishStaticSite(deps: StaticPublishDeps, input: StaticPu
   }
 
   const basePath = computeBasePath(input.config);
-  const outputDir = publishOutputDir(input.config.target);
+  const outputDir = publishOutputDir(input.routeDeps.publishOutputRootDir, input.config.target);
 
   let report: ExportReport;
   try {
