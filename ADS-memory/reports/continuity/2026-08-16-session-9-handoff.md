@@ -93,19 +93,45 @@ Independent second opinion (`gpt-5.6-sol`) said targeted decoupling, not a rewri
   (`resolveActiveThemeId` calls `getPresentationSettings`); presentation was already inside the
   cluster.
 
-**⛔ OPEN AND UNANSWERED — the one real miss of the session.** Edge 1's injection shape took
-**core size 7.93% → 16.59%** (66 → 138 files in the tightly-coupled core). `core size` IS a ratchet
-metric (`check-architecture.ts:102`, compared lower-is-better at `:548`). The agent's report and
-commit message never mention it, and the baseline move locked it in — the script's own
-`TRADE DETECTED` banner is silenced by a wholesale `--update`. The Coordinator caught this by
-re-measuring both commits in an isolated worktree. **The mechanism was never diagnosed.**
-Corroborating hint: edge 2's "move it down" shape moved core size only 16.59 → 16.51, suggesting the
-doubling is a property of the INJECTION shape, not inherent — which would mean reshaping edge 1 could
-recover it. **Not confirmed.**
+**RESOLVED — core size was caught, then diagnosed and answered.** The Coordinator caught it by
+re-measuring both commits in an isolated worktree: edge 1's injection shape took **core size
+7.93% → 16.59%** (66 → 138 files), on a metric that IS ratcheted (`check-architecture.ts:102`,
+lower-is-better at `:548`). The agent's original report and commit message never mentioned it, and a
+wholesale `--update` silences the script's own `TRADE DETECTED` banner. **That omission is the one
+real miss of the session and is exactly the pattern an auditor should hunt for elsewhere.**
 
-**⚠️ `check:architecture` is RED right now** (10.32 → 10.56 drift from other agents' commits landing
-after the baseline move). The agent correctly declined to re-ratchet against a moving target. **One
-final baseline move is needed once all work stops.**
+**The diagnosis (measured, and it refuted the Coordinator's hypothesis):** the Coordinator guessed
+the required `RouteDeps.createSiteApp` field dragged the BFS through the deps contract. Wrong. The
+agent went past the aggregate numbers to raw dependency-cruiser JSON and replicated
+`reachableCount`/median per-file. Pre-fix, the `site-exporter -> server/app` edge fused ~692 files
+into one mutually-reachable blob; graph-wide **median file fan-in was 285**. Fixing it halved fan-out
+for the cluster's hub files (691 → 316 — the real propagation win) but barely moved fan-in
+(284 → 285). **Core size is membership relative to the MEDIAN, and the fix crashed the median from
+285 to 10.** So a wide band of files whose own numbers did not worsen now clear a much lower bar.
+**The yardstick collapsed alongside the fix; 72 files did not become more coupled.**
+
+Attribution isolated by experiment: a throwaway copy of the post-fix worktree with `deps.ts`'s
+`createSiteAppLazily` require stubbed out recovered only **138 → 132 (6 files, ~8%)**. The other
+**92% is the structural price of closing the cycle at all**, independent of injection vs. move-down —
+corroborated by edge 2's pure move-down shape moving core size less than half a point (16.59 → 16.51).
+**Not-taken follow-up, named rather than silently skipped:** extracting `createApp` into a third file
+neither `app.ts` nor `deps.ts` reaches circularly would recover that 8% (~0.7pp); judged not worth
+the restructure since `createApp`'s default param already depends on `createRouteDeps`.
+
+**SCC 36 → 37 was root-caused AND FIXED, not just explained** (`45ff16bd`). Tarjan membership diff
+showed `features/theme` was the only new member: edge 2's `active-theme.ts` had bundled
+`resolveActiveThemeId` (no theme-data dependency, only reads presentation settings) with
+`resolveActiveTheme` (genuinely needs theme data), purely because call sites use them together. That
+created a real `features/theme -> features/presentation` edge into the already-fused cluster. Split
+into structural homes instead of call-site pairing — `resolveActiveThemeId` →
+`features/presentation/active-theme-id.ts`. **Largest SCC back to exactly 36**, edge-2 gains retained.
+
+**`c59d5b01` — third baseline move, with the full trade stated in the commit body**: both mechanisms,
+the 92%/8% split, the 36→37→36 round trip, and all four measured states in one table. This is what
+the first baseline move should have looked like.
+
+✅ **VERIFIED by the Coordinator at HEAD: `check:architecture — OK: at baseline`.** propagation
+10.58%, back-edges 27, largest SCC 36, core size 16.79%.
 
 ### The server-crash bug class (`route-async-guards`) — 21 of 21 fixed
 `62ca21c7`, `7cd9c200`, `069ee2d9`, `fba9246f`, `0786e718`, `023571fc`
@@ -176,23 +202,44 @@ so nothing looked broken.
 - **Bug it found that was not in the brief:** `restart()` must await the old child's actual exit
   before spawning, or the replacement collides on the port and instantly EADDRINUSEs.
 
-**⛔ CONFIRMED BUG STILL IN THIS CODE — found by the Coordinator reading the source:**
-`shuttingDown` is one flag serving two meanings (the agent's own comment admits it). `shutdown()`
-sets it true; `restart()` sets it **false unconditionally**, with no check for whether the process is
-terminating. So on Docker SIGTERM → `shutdown()` → any call to `restartAssistantDaemon()` **spawns a
-fresh `detached` daemon during container teardown**, which outlives the parent. Same orphan class the
-existing `reap()` comment says was already fixed once for `tsx watch`.
-**Fix:** split into `suppressExitHandler` (transient, current use) and `terminating` (set by
-signal/exit handlers, never cleared); `restart()` returns `{ok:false, reason:"shutting down"}` when
-terminating. Must still WORK after the crash-loop cap — only *terminating* refuses.
+**RESOLVED — the SIGTERM resurrection bug, caught and fixed** (`bba7c35a`). In the first pass
+(`5c1fae06`) `shuttingDown` was one flag serving two meanings — the agent's own comment admitted it.
+`shutdown()` set it true; `restart()` set it **false unconditionally**, with no check for whether the
+process was terminating. On Docker SIGTERM → `shutdown()` → any call to `restartAssistantDaemon()`
+would **spawn a fresh `detached` daemon during container teardown**, outliving the parent — the same
+orphan class the existing `reap()` comment says was already fixed once for `tsx watch`. Found by the
+Coordinator reading the source, not by a test.
 
-**⛔ ALSO UNANSWERED: lazy / on-demand start.** Respawn-on-exit only heals a daemon that died while
-the supervisor was watching. It does nothing for one that never started, or whose cap tripped an hour
-before a user arrived. The owner's bar was explicitly *"a non-technical human should never need to
-know a daemon exists."* `restartAssistantDaemon()` is likely already the right primitive; the open
-question is whether anything calls it automatically, and from where
-(`src/server/modules/assistant.ts`'s `forwardToAgentDaemon` is where the failure actually surfaces).
-Must be single-flight if built.
+Fixed with the two-flag split: `shuttingDown` stays the transient "suppress this one exit handler"
+signal; new `terminating` is set only by `shutdown()` and **never cleared**. `restart()` and
+`ensureStarted()` both check it first and return `{ok:false, reason:"shutting down"}`. **Restart
+still WORKS after a crash-loop trip** — only *terminating* refuses. Proven with a real RED/GREEN
+cycle: `if (terminating)` was temporarily replaced with `if (false)`, both new tests failed, then
+restored and passed.
+✅ VERIFIED by the Coordinator at HEAD: `terminating` at lines 182/286/293/317, both SIGTERM-race
+tests present, **38/38 daemon tests pass**.
+
+**RESOLVED — lazy / on-demand start: BUILT, not rejected** (same commit). `ensureStarted()` /
+`ensureAssistantDaemonStarted()`, exported through the barrel. **Single-flight falls out for free** —
+there is no `await` between the "already running" check and `attemptSpawn`'s synchronous
+`currentChild` assignment, so Node's run-to-completion guarantee does the work with no extra lock. A
+pending scheduled retry is deliberately left alone rather than accelerated (accelerating under
+traffic would let request volume outrun the backoff ladder). A 30s cooldown floor gates re-arming, so
+a durably broken daemon under sustained traffic cannot spawn more often than its own crash loop
+would.
+**`src/server/modules/assistant.ts` was deliberately NOT touched** — `ensureAssistantDaemonStarted()`
+is the ready primitive for `forwardToAgentDaemon` to call, but the wiring is still **OPEN work**.
+
+**A third bug the agent found unprompted while building this:** verified directly with Node that a
+spawn-level failure (ENOENT) fires only `"error"`, never `"exit"`, and `pid` stays `undefined`
+forever. The first pass's "wait for the stale child's actual exit" branch would therefore have **hung
+forever after any spawn failure** — a real pre-existing bug. Fixed by marking `childHasExited = true`
+in the error handler, with its own regression test.
+
+**⚠️ Deliberate scope boundary, disclosed not skipped:** the real `SIGINT`/`SIGTERM`/`SIGHUP` →
+`shutdown()` → `process.exit(0)` wiring was NOT tested by sending a real signal — that would kill the
+`node:test` runner itself. The interaction is proven at the factory level, where `shutdown()` is the
+exact call the real handler makes.
 
 ### Account label heal (`admin-vendor-ui`)
 `7e10275b`, `fc7a4cc8`, `87d7a4c5`, `6ec01fce`
@@ -342,12 +389,23 @@ save, and 8 agents were saving constantly. Diagnosed live: the server process wa
 ## 5. What's left — ranked
 
 1. **Fix CI** (§3). Two separate problems: it does not run on the working branch, and it cannot
-   resolve `@jini-ai/*`. Biggest un-started item.
-2. **The daemon `restart()` SIGTERM bug** (§2). Confirmed in shipped code. Fix specified.
-3. **Diagnose the core-size doubling** (§2) and decide whether reshaping edge 1 recovers it.
-4. **One final `check:architecture --update`** once all work stops — currently RED from drift.
-5. **Lazy/on-demand daemon start** — answer it, build or reject.
-6. **Source-control page redesign** (§4a) — Phase 4.
+   resolve `@jini-ai/*`. Biggest un-started item. **IN FLIGHT at time of writing.**
+   **⛔ REQUIRES AN OWNER ACTION NOBODY ELSE CAN TAKE:** `AINSEP/Jini` is a **private repo in a
+   different org** from `leonaburime-ucla/Tovu-AI-CMS`. Actions' built-in `GITHUB_TOKEN` cannot clone
+   it. The owner must create a repo secret holding a PAT (or deploy key) with read access to
+   `AINSEP/Jini`. Until that exists, CI cannot typecheck at all.
+2. **Wire `ensureAssistantDaemonStarted()` into `src/server/modules/assistant.ts`'s
+   `forwardToAgentDaemon`.** The primitive is built, exported, single-flight and cooldown-gated
+   (§2) — nothing calls it yet. This is the last step that makes "assistant is down" self-healing
+   without a human.
+3. **Build the admin "Restart assistant" button.** Contract is fixed and documented: import
+   `restartAssistantDaemon` from `src/assistant`, call with no args, returns `{ok}` / `{ok:false,
+   reason}`. It is **synchronous and does not wait for health** — no health-confirmation signal
+   exists anywhere in this daemon path — so a route must surface `/readyz` /
+   `isAssistantDaemonKnownFailed` separately for live status after the click.
+4. **Recover the 8% core-size slice** (§2), if judged worth it: extract `createApp` into a third file
+   neither `app.ts` nor `deps.ts` reaches circularly. ~0.7pp. Explicitly not taken tonight.
+5. **Source-control page redesign** (§4a) — Phase 4.
 7. **Agent-tool cutover** — `deployment_get_static_publish_capabilities` still reads the old table.
    Its *"NEVER a token, ciphertext, or masked tail"* contract is **still true today** and must only
    change in the same commit that adds `tokenTail`. `deployment_propose_custom_provider_credential`
