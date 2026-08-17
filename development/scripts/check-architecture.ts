@@ -575,6 +575,11 @@ function main(): void {
       console.log(`    ${count} → ${target}`);
     }
 
+    console.log(`\n--- same, runtime-only (informational — shows which of the above are real coupling vs. type-only noise) ---`);
+    for (const [target, count] of [...backEdgesRuntime.byTarget.entries()].sort((a, b) => b[1] - a[1])) {
+      console.log(`    ${count} → ${target}`);
+    }
+
     console.log(`\n--- module cycles (runtime-only graph) ---`);
     for (const pair of pairs) console.log(`    ${pair}`);
     if (sccs.length > 0) {
