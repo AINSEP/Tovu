@@ -7,12 +7,31 @@
 
 ## Do this first
 
-1. **Push.** 80 + 5 commits of proven, tested work exist only on this laptop. Nothing else on this
+1. **Push.** 84 + 5 commits of proven, tested work exist only on this laptop. Nothing else on this
    list matters if the machine dies.
-2. **Before/with the push: decide the architecture baseline** (see §5). `check:architecture` is a
+2. **Before/with the push: decide the architecture baseline** (see §5a). `check:architecture` is a
    **blocking** CI step (`.github/workflows/ci.yml`, no `continue-on-error`). It is currently RED.
-   **Your first push will fail CI** until the baseline moves. This is not a new breakage — see §5.
+   **Your first push will fail CI** until the baseline moves. This is not a new breakage — see §5a.
 3. Read §7 ("Not verified") before claiming any of this works.
+4. **§5b-ii has the highest-value single fix found all session** — one file edge worth ~15 points of
+   propagation cost. Read it before planning any architecture work.
+
+### ⛔ Owner decisions left UNANSWERED — these block real work
+
+| # | Decision | Blocks | Where |
+|---|---|---|---|
+| A | **Move the `check:architecture` baseline?** (recommended: yes, cite `84f4606e`) | **The push** — CI fails without it | §5a |
+| B | **Vendor-credential cutover: which of the 4 options?** (recommended: auto-backfill on boot, or dual-read) | The entire vendor redesign, Phase 3 | §4 |
+| C | **Fix the Create User form autofill?** Chrome may fill the admin's own email + saved password into a new-user form. Two attributes. | Nothing — but it is a live user-facing defect | §6.11 |
+
+### ❗ Requested last session and NOT done — do not lose these
+
+- **The `runs` Map leak fix was explicitly requested and never dispatched.** The owner asked for an
+  agent on it; the Coordinator dispatched something else and it fell through. See §6.7 for the full
+  diagnosis — it is ready to hand to an agent as-is.
+- **`gpt-5.6-sol`'s verdict arrived AFTER the first draft of this handoff** — §5b-ii is the result
+  and supersedes any earlier "verdict unknown" note.
+- **The autofill fix is still unconfirmed by a human** (§7). One page reload answers it.
 
 ---
 
@@ -294,13 +313,108 @@ The largest cluster is **199 members, cohesion 0.916 — the composition root**
 wiring layer that feature modules import back into, producing the back-edges, the SCC, and the
 propagation cost.
 
-**⚠️ A second opinion was IN FLIGHT and did not finish.** `gpt-5.6-sol` was dispatched with full
-repo access and told to attack the above thesis. It ran 43+ commands over 276KB of output with zero
-errors and had NOT emitted `turn.completed` when the session ended. **Its verdict is unknown —
-re-run it.** Packet at `~/.claude/harness-tmp/.../scratchpad/sol-packet.txt`; the canonical
-invocation pattern is in the `feedback_codex_peer_dispatch` memory (stdin via `-`,
-`<<PEER_DISPATCH>>` marker, `--ignore-rules --ignore-user-config --ephemeral --json`, and
-**exit 0 does not mean success** — parse the JSONL for `error`/`turn.failed`).
+### 5b-ii. ⭐ INDEPENDENT SECOND OPINION — `gpt-5.6-sol`, COMPLETED. **This is the most actionable
+finding of the session.**
+
+Dispatched with full repo access and told to attack the thesis above. Finished cleanly
+(`turn.completed`, zero `error`/`turn.failed`, 554KB of output, ~50 commands). Raw JSONL was at
+`~/.claude/harness-tmp/.../scratchpad/sol-output.jsonl` — **scratchpad may not survive a restart,
+so the substance is transcribed here.**
+
+**Verdict: targeted decoupling. Tovu does NOT need a radical re-architecture.** It agreed with the
+thesis but corrected one thing: **the propagation spike and the 35-module SCC are two DIFFERENT
+defects**, not one. Fixing the first does not fix the second.
+
+#### It threw out the graph evidence — and was right to
+It could not validate the Leiden result: the `codebase-memory-mcp` CLI reported its indexed branch
+as **`refactor/jini-admin-extraction` @ `e81320d`**, containing no deployment module — while this
+session's `index_status` MCP call reported `general-work` @ `ae404ba6`, matching HEAD exactly.
+Graphify had no Tovu graph at all. It discarded both and rebuilt from the repo's own
+dependency-cruiser graph, **reproducing the headline numbers exactly**: 829 files, 48 modules,
+29.05% propagation, 29 back-edges, SCC 35.
+**⚠️ ACTION: one of those two cbm views is stale and it is not known which. Resolve before trusting
+cbm-mcp for structural work again.**
+
+#### The measured counterfactuals — it cut edges and re-measured
+
+| Cut | Propagation | Largest SCC |
+|---|---:|---:|
+| Current HEAD | 29.05% | 35 |
+| Remove ONLY `export → server` | **9.43%** | 35 |
+| Remove all six new directions | 9.20% | 35 |
+| Remove all external imports into `server` | 8.65% | 32 |
+| **Runtime/value imports only (exclude type-only)** | **5.48%** | 30 |
+
+#### The single highest-value fix in either repo
+
+    src/export/site-exporter.ts → src/server/app.ts
+
+**Removing that one file edge drops propagation from 29.05% to 14.05%.** Add two route-selector
+imports (`export/route-manifest.ts:5` → `routes/site/pages.ts`, `:6` → `routes/site/products.ts`)
+and it reaches **9.53%**.
+
+Mechanism: `exportSite()` dynamically requires `createApp()`
+(`src/export/site-exporter.ts:599`) while `server/app.ts` dynamically resolves the exporter in the
+other direction (`src/server/app.ts:641-671`). A mutual dynamic require — in its words, *"one export
+feature booting the entire composition root from below."* **This is not diffuse rot.**
+
+**It has already caused a production-shaped failure.** The comments at `src/server/app.ts:641`
+document the agent daemon dying from a partially-initialized circular module while the API server
+stayed up. The lazy `require()` calls mitigate load order; they do not restore dependency direction.
+
+#### On whether 29.05% is dangerous
+Yes, but not as the raw number reads. It means an average production file transitively reaches
+~240 of the other 828 (vs ~55 at baseline). It does **not** mean 29% of behavior breaks per edit,
+nor a 29% runtime failure probability. **Runtime/value-only coupling is 5.48%** — most of the 29% is
+type-level, especially through `RouteDeps`. The deployments and source-control imports of
+`RouteDeps` are explicitly **type-only** (`features/deployments/tool-registrations.ts:19`,
+`features/source-control/tool-registrations.ts:15`) — change-time coupling, not emitted imports.
+**The gate deliberately mixes both categories at `development/scripts/check-architecture.ts:233`.**
+
+Real cost lands on module loading, isolated testing, and extraction — paid when a new import changes
+CommonJS init order, when Tovu moves to stricter ESM, when a module is tested or packaged alone, or
+when `RouteDeps` changes and ripples outward.
+
+Co-change analysis over the last 500 commits (86 usable) supports concentration, not system-wide
+coupling: dominant pairs were `deployments+server` (11), `assistant+server` (9), `export+server` (3).
+
+#### On the SCC — a real EXTRACTABILITY problem, but not the cause of the spike
+Removing all six new directions drops propagation ~20 points while leaving the SCC at 35. Highest-
+yield SCC cuts it measured:
+1. `integrations → db`: **35 → 32**. All three imports concentrated in
+   `src/integrations/repo.sqlite.ts:3`. Move that concrete SQLite adapter under `db/sqlite`.
+2. `features/database → db`: **35 → 33**. Decisive edge is the concrete `ContentDb` import in
+   `src/features/database/adapter.sqlite.ts:4`.
+3. Removing every non-server module edge into `server`: 35 → 32 — less actionable, because the gate
+   also counts legitimate outer entrypoints (`src/index.ts`, `src/cli/**`) which are *callers* of
+   the composition root, not feature back-edges. **The metric should distinguish them.**
+
+#### Recommended sequence (in order)
+1. **Break the export feedback edge first.** Inject a narrow `createRequestHandler(routeDeps)` /
+   HTTP harness into `exportSite()` instead of requiring `server/app.ts`. Expected to recover most
+   of the regression on its own.
+2. Move shared route-selection logic (active-theme, storefront-product selection) down into
+   feature-owned queries used by both HTTP routes and `route-manifest.ts`.
+3. Replace full `RouteDeps` in feature tools with narrow local interfaces; move or inject the
+   surface-exchange contract currently imported from `assistant`.
+4. Relocate `integrations/repo.sqlite.ts` and the database SQLite adapter to the outer persistence
+   layer — the highest-yield SCC cuts.
+5. **Split the architecture measurement**: all-import graph for change coupling, a runtime/value-only
+   graph for circular-load risk, and classify `src/index.ts`/CLI as outer composition callers rather
+   than violations.
+
+#### Its own strongest counter-argument, stated fairly
+The SCC is **not** localized: it remains **32 modules even after every import into `server` is
+removed**. Plus 202 exposed internal files and 500+ deep-import edges, and a codebase carrying
+extensive commentary and lazy-resolution machinery for *surviving* cycles rather than structurally
+preventing them. **If the near-term plan requires publishing features as separate packages,
+deploying them independently, or assigning autonomous teams — the present folder boundaries are not
+strong enough, and enforced workspace-package boundaries would be justified.**
+
+It judged that serious but not decisive: runtime propagation is 5.48%, feature communities remain
+recognizable, API surface and core size improved, and one export edge explains most of the headline.
+A radical restructure would spend heavily rearranging healthy feature boundaries while leaving the
+decisive dependency-inversion work still to do.
 
 ### 5c. Jini — the gates exist and are UNPLUGGED (owner explicitly wants this next)
 
