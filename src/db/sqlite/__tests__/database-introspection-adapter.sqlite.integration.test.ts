@@ -10,13 +10,16 @@ import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 
 import { openContentDb, type ContentDb } from "#src/db/sqlite/content-db";
 import { runtimeSchemaVersion } from "#src/site-dir/schema-guard";
-import { SqliteDatabaseIntrospectionAdapter } from "../../adapter.sqlite";
+import { SqliteDatabaseIntrospectionAdapter } from "../database-introspection-adapter.sqlite";
 
 /**
  * @file ADR-041 §3 — integration tests for `SqliteDatabaseIntrospectionAdapter`, the real backing
- * adapter for `database_get_health`/`database_get_schema_state`/`database_list_pending_migrations`
- * (this dispatch). Mirrors `db/sqlite/__tests__/database-journal.integration.test.ts`'s pattern:
- * real temp-file `better-sqlite3` databases, no mocks.
+ * adapter for `database_get_health`/`database_get_schema_state`/`database_list_pending_migrations`.
+ * Mirrors `db/sqlite/__tests__/database-journal.integration.test.ts`'s pattern: real temp-file
+ * `better-sqlite3` databases, no mocks. Relocated from
+ * `features/database/__tests__/integration/adapter.sqlite.integration.test.ts` (2026-08-17,
+ * architecture SCC cut) alongside the adapter it exercises; the port it exercises against
+ * (`DatabaseIntrospectionPort`) stays at `features/database/adapter.sqlite.ts`.
  *
  * Two fixture strategies, deliberately both used:
  *  - "real content.db" tests open an actual `content.db` via `openContentDb` (so `__drizzle_migrations`

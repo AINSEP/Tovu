@@ -1,11 +1,11 @@
 import { and, eq } from "drizzle-orm";
 
-import { webhookDeliveries, webhookSubscriptions } from "../db/schema";
-import type { ContentDb } from "../db/sqlite/content-db";
-import { findOneBy } from "../db/sqlite/repo-helpers";
+import { webhookDeliveries, webhookSubscriptions } from "../schema";
+import type { ContentDb } from "./content-db";
+import { findOneBy } from "./repo-helpers";
 
-import type { DeliveryEnvelopeStore } from "./repo.memory";
-import type { WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "./ports";
+import type { DeliveryEnvelopeStore } from "../../integrations/repo.memory";
+import type { WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "../../integrations/ports";
 import type {
   IntegrationId,
   WebhookDeliveryRecord,
@@ -14,7 +14,7 @@ import type {
   WebhookSubscriptionRecord,
   WebhookSubscriptionStatus,
   WebhookTopic,
-} from "./types";
+} from "../../integrations/types";
 
 /**
  * @file Drizzle/SQLite adapters for the `integrations` repo ports (ADR-036 §2,
@@ -28,13 +28,19 @@ import type {
  * (no envelope re-hydration path) are the same underlying gap, per the ADR's own Rationale.
  *
  * How it relates to the project:
- * - `enqueueDelivery` (`./delivery.ts`) calls `deliveryRepo.enqueue()` then
+ * - `enqueueDelivery` (`../../integrations/delivery.ts`) calls `deliveryRepo.enqueue()` then
  *   `envelopeStore.save()` as two sequential calls (see that file) — both land on the same row
  *   here, `save()` updating the `payload_json` column `enqueue()` left `NULL`.
  * - The unique index on `(workspace_id, subscription_id, event_id)` (`schema.ts`) makes `enqueue`
  *   idempotent at the storage layer: a duplicate insert is caught and silently ignored rather
  *   than throwing, closing the race `delivery.ts`'s scan-based pre-check alone can't (two
  *   concurrent enqueues could both pass the scan before either commits).
+ *
+ * Relocated from `integrations/repo.sqlite.ts` (2026-08-17, architecture SCC cut): this is the
+ * concrete SQLite half of the ADR-006 rule-of-two, so it belongs in the outer persistence layer
+ * alongside `vendor-credential-repo.sqlite.ts` and friends — the port stays domain-owned in
+ * `integrations/ports.ts`; only the adapter moved. All remaining imports from `integrations/` below
+ * are type-only, so this file cannot introduce a runtime edge back into `integrations/`.
  */
 
 function topicsToJson(topics: readonly WebhookTopic[]): string {

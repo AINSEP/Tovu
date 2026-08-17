@@ -17,14 +17,28 @@
  * the logic is unchanged, just folded in) and adds five more metrics, each ratcheted independently
  * against a committed baseline:
  *
- *   1. Propagation cost      — mean fraction of the system reachable from a file (change amplification)
- *   2. Back-edges to `server`  — imports from outside the composition root into it (the actual defect)
- *   3. Module cycles / SCC   — mutual module cycles + largest strongly-connected component (extractability)
+ *   1. Propagation cost      — mean fraction of the system reachable from a file (change amplification).
+ *                              Computed on BOTH graphs (2026-08-17, Sol's step 5): all-import (change
+ *                              coupling — a type-only edit still forces a `tsc` re-check) and
+ *                              runtime/value-only (circular-load risk — `import type` edges are erased
+ *                              by `tsc` and can't participate in a real load cycle). See
+ *                              `buildFileGraph()`'s own doc comment for the full split rationale.
+ *   2. Back-edges to `server`  — imports from outside the composition root into it (the actual defect).
+ *                              All-import graph, with `src/index.ts`/`src/cli/**` excluded as the
+ *                              composition root's own legitimate callers (Sol's step 5c); the same
+ *                              count on the runtime-only graph is reported alongside as informational.
+ *   3. Module cycles / SCC   — mutual module cycles + largest strongly-connected component
+ *                              (extractability). Runtime/value-only graph ONLY (2026-08-17): a
+ *                              type-only mutual pair can never actually deadlock a `require`/ESM load.
  *   4. API surface           — distinct files reached by a cross-module import that bypasses the target
  *                              module's `index.ts` (ratcheted); the raw edge count is reported alongside
- *                              as informational only — see the note on `deepImports()` below for why
- *   5. Core size             — files above-median in both transitive fan-in and fan-out (churn blast radius)
- *   6. Martin instability    — Ce/(Ca+Ce) per module; informational gradient, not ratcheted (see below)
+ *                              as informational only — see the note on `deepImports()` below for why.
+ *                              All-import graph — a module's declared surface doesn't shrink because a
+ *                              caller only needed a type from it.
+ *   5. Core size             — files above-median in both transitive fan-in and fan-out (churn blast
+ *                              radius). All-import graph, same reasoning as propagation cost above.
+ *   6. Martin instability    — Ce/(Ca+Ce) per module; informational gradient, not ratcheted (see below).
+ *                              All-import graph.
  *
  * Test files are excluded by default. Port/adapter contract tests (`__tests__/repo.contract.test.ts`)
  * deliberately import concrete adapters to verify them against the port — a correct pattern that
@@ -94,9 +108,10 @@ const ENFORCE_HARD_CONSTRAINT_TIERS = false;
 type MetricTier = "hard" | "ratchet";
 
 const HARD_CONSTRAINT_METRICS = new Set<string>([
-  "propagation cost",
+  "propagation cost (all-import)",
+  "propagation cost (runtime-only)",
   "back-edges into composition root",
-  "module cycles / SCC",
+  "module cycles / SCC (runtime-only)",
 ]);
 
 const RATCHET_METRICS = new Set<string>(["module API surface (files exposed)", "core size"]);
@@ -113,17 +128,35 @@ function tierOf(label: string): MetricTier {
 
 interface Baseline {
   meta: { fileCount: number; moduleCount: number };
+  /** All-import graph (change coupling): mean transitive reachability including `import type`
+   * edges. Same semantics this field has always had — kept on the all-import graph because a
+   * type-only edit still forces `tsc` to re-check every importer. */
   propagationCostPct: number;
+  /** NEW (2026-08-17, Sol's step 5). Runtime/value-only graph (circular-load risk): same
+   * computation, `import type`-only edges excluded. This is the number that actually bounds how
+   * far a runtime change can ripple via `require`/ESM loads. */
+  propagationCostRuntimePct: number;
+  /** All-import graph, `isOuterCompositionCaller()` files excluded (Sol's step 5c). */
   backEdgesIntoServer: number;
+  /** INFORMATIONAL, not ratcheted. Same edges, runtime/value-only graph — shows how much of
+   * `backEdgesIntoServer` is real coupling vs. type-only (e.g. `RouteDeps`) signature noise. */
+  backEdgesIntoServerRuntimeOnly: number;
+  /** NOW computed on the runtime/value-only graph (2026-08-17, Sol's step 5) — a mutual cycle or
+   * SCC membership here is a real `require`/ESM-load risk. Type-only cycles (common through
+   * `RouteDeps` and similar shared signature types) no longer count; see `isTypeOnlyDependency()`. */
   moduleCycles: { mutualCycleCount: number; largestScc: number; pairs: string[] };
   /** RATCHETED. Distinct private files reachable from outside their own module — the actual public
-   * API surface, and precisely what a package `exports` map would have to enumerate. */
+   * API surface, and precisely what a package `exports` map would have to enumerate. All-import
+   * graph — a module's declared surface doesn't get smaller just because a caller only needed a
+   * type from it. */
   moduleApiSurfaceFiles: number;
   /** INFORMATIONAL, not ratcheted. Total cross-module edges bypassing `index.ts`. Useful for
    * locating where deep coupling concentrates, but wrong to block on: a second import into an
    * already-exposed file would fail the build without widening the surface at all. Exposing a NEW
    * private file is the thing that should fail, and that is `moduleApiSurfaceFiles`. */
   deepImportsBypassingIndex: number;
+  /** All-import graph — churn blast radius is a change-coupling concept, same reasoning as
+   * `propagationCostPct`. */
   coreSize: { count: number; total: number; pct: number };
 }
 
@@ -184,7 +217,27 @@ function stronglyConnectedComponents(adjacency: Map<string, Set<string>>): strin
 
 interface CruiseModule {
   source: string;
-  dependencies: { resolved: string }[];
+  dependencies: { resolved: string; dependencyTypes: string[] }[];
+}
+
+/** True for an edge that is ONLY an `import type { X } from "..."` — erased by `tsc`, never
+ * emitted into the built JS, and therefore incapable of participating in a real runtime
+ * require/import cycle. dependency-cruiser's `--ts-pre-compilation-deps` tags these in
+ * `dependencyTypes` (confirmed empirically: `npx depcruise <file> --ts-pre-compilation-deps
+ * --output-type json` on a known `import type`-only edge returns
+ * `dependencyTypes: ["local", "type-only", "import"]`). A mixed import
+ * (`import { foo, type Bar } from "./x"`) carries a real value too, so it is NOT type-only here. */
+function isTypeOnlyDependency(dep: { dependencyTypes: string[] }): boolean {
+  return dep.dependencyTypes.includes("type-only");
+}
+
+/** `src/index.ts` (the package entrypoint) and everything under `src/cli/**` are callers OF the
+ * composition root, not violations of it — they are meant to reach into `src/server/**` to boot
+ * or drive it. Counting their edges in `back-edges into composition root` conflates "the
+ * composition root's own front door" with "a feature module reaching past its boundary", which is
+ * the actual defect that metric exists to catch (Sol's step 5c). */
+function isOuterCompositionCaller(file: string): boolean {
+  return file === "src/index.ts" || file.startsWith("src/cli/");
 }
 
 /**
@@ -214,9 +267,21 @@ function cruise(): CruiseModule[] {
 }
 
 /**
- * File-level import graph, filtered per `--include-tests`. This single graph feeds every metric
- * below except Martin instability's module-level edge counts — one cruise, one graph, six views
- * on it, so the metrics can never disagree about what the codebase looks like.
+ * File-level import graph, filtered per `--include-tests`. TWO of these are built from the SAME
+ * `cruise()` result — one cruise, two graphs, so the metrics can never disagree about what the
+ * codebase looks like even though they now answer two different questions (Sol's step 5):
+ *
+ *   - `{ runtimeOnly: false }` (all-import): every edge, including `import type`-only ones. This
+ *     is the CHANGE-COUPLING graph — propagation cost and core size use it, because a type-only
+ *     edit still forces `tsc` to re-check every importing file, and API surface / deep-import
+ *     hygiene are about what a module's contract exposes regardless of whether a caller uses it
+ *     for a type or a value.
+ *   - `{ runtimeOnly: true }` (runtime/value-only): `import type`-only edges dropped. This is the
+ *     CIRCULAR-LOAD-RISK graph — module cycles / SCC use it, because a type-only edge is erased by
+ *     `tsc` and can never participate in a real `require`/ESM-load cycle. Mixing the two into one
+ *     graph (the pre-2026-08-17 shape of this function) is why `RouteDeps`-style type-only imports
+ *     (e.g. `features/deployments/tool-registrations.ts` importing `RouteDeps` for a signature)
+ *     inflated the same SCC number as a genuine runtime coupling.
  *
  * Scoped to `src/**` on both ends. `--ts-pre-compilation-deps` makes dependency-cruiser resolve
  * and record *every* file it walks into as its own "module" entry, including ones outside this
@@ -230,7 +295,7 @@ function cruise(): CruiseModule[] {
  * them. Module-scoped metrics (cycles, deep imports, instability) were unaffected: they already
  * gate on `moduleOf()`, which returns `null` for anything outside `src/`.
  */
-function buildFileGraph(modules: CruiseModule[]): Map<string, Set<string>> {
+function buildFileGraph(modules: CruiseModule[], opts: { runtimeOnly: boolean }): Map<string, Set<string>> {
   const inScope = (file: string): boolean => file.startsWith("src/");
   const forward = new Map<string, Set<string>>();
   for (const mod of modules) {
@@ -241,6 +306,7 @@ function buildFileGraph(modules: CruiseModule[]): Map<string, Set<string>> {
       if (!inScope(dep.resolved)) continue;
       if (!INCLUDE_TESTS && isTestFile(dep.resolved)) continue;
       if (dep.resolved === mod.source) continue;
+      if (opts.runtimeOnly && isTypeOnlyDependency(dep)) continue;
       forward.get(mod.source)!.add(dep.resolved);
       if (!forward.has(dep.resolved)) forward.set(dep.resolved, new Set());
     }
@@ -317,11 +383,14 @@ function propagationAndCore(forward: Map<string, Set<string>>): {
 
 /** Metric 2: import edges from any non-`server` production file into any `src/server/**` file.
  * Grouped by target file, since that is what makes the count actionable — see the analysis
- * report's finding that 22 of these land on the single `RouteDeps` god type. */
+ * report's finding that 22 of these land on the single `RouteDeps` god type. Excludes
+ * `isOuterCompositionCaller()` files (`src/index.ts`, `src/cli/**`) — they are the composition
+ * root's own legitimate front door, not a feature module reaching past its boundary. */
 function backEdgesIntoServer(forward: Map<string, Set<string>>): { total: number; byTarget: Map<string, number> } {
   const byTarget = new Map<string, number>();
   for (const [from, targets] of forward) {
     if (moduleOf(from) === "server") continue;
+    if (isOuterCompositionCaller(from)) continue;
     for (const to of targets) {
       if (!to.startsWith("src/server/")) continue;
       byTarget.set(to, (byTarget.get(to) ?? 0) + 1);
@@ -414,9 +483,17 @@ function martinInstability(
     .sort((a, b) => a.instability - b.instability);
 }
 
-/** Ratchet comparison for a single "lower is better" numeric metric. */
+/** Ratchet comparison for a single "lower is better" numeric metric. A `baseline` that is missing
+ * or not a finite number (a metric newly added to `Baseline` since the committed baseline was last
+ * written) can never count as a regression — there is nothing to have regressed against — but it
+ * is loudly `console.warn`ed rather than silently treated as "same", so a genuinely new ratcheted
+ * metric doesn't slip in without a `--update` before its first real comparison. */
 type Verdict = "regressed" | "improved" | "same";
-function compare(current: number, baseline: number): Verdict {
+function compare(current: number, baseline: number, label?: string): Verdict {
+  if (!Number.isFinite(baseline)) {
+    if (label) console.warn(`\n  WARNING: "${label}" has no baseline value yet — run --update. Treating as improved.`);
+    return "improved";
+  }
   if (current === baseline) return "same";
   return current > baseline ? "regressed" : "improved";
 }
@@ -430,6 +507,10 @@ function pad(label: string, width: number): string {
  * on the same number — "+5 points" on a percentage metric is a much bigger deal than "+5%" on a
  * count, and only the relative figure makes that comparable across metrics of different units. */
 function formatDelta(current: number, baseline: number, unit: "pct" | "count"): string {
+  if (!Number.isFinite(baseline)) {
+    const currentStr = unit === "pct" ? current.toFixed(2) : `${current}`;
+    return `(no prior baseline) → ${currentStr}`;
+  }
   const rawDelta = unit === "pct" ? roundPct(current - baseline) : current - baseline;
   const deltaStr = `${rawDelta > 0 ? "+" : ""}${rawDelta}${unit === "pct" ? " pts" : ""}`;
   const relPct = baseline === 0 ? null : roundPct((rawDelta / Math.abs(baseline)) * 100);
@@ -440,23 +521,30 @@ function formatDelta(current: number, baseline: number, unit: "pct" | "count"): 
 
 function main(): void {
   const modules = cruise();
-  const forward = buildFileGraph(modules);
-  const fileCount = forward.size;
+  // One cruise, two graphs — see `buildFileGraph()`'s own doc comment for what each is for.
+  const forwardAll = buildFileGraph(modules, { runtimeOnly: false });
+  const forwardRuntime = buildFileGraph(modules, { runtimeOnly: true });
+  const fileCount = forwardAll.size;
 
-  const { propagationCostPct, coreSize } = propagationAndCore(forward);
-  const backEdges = backEdgesIntoServer(forward);
-  const deep = deepImports(forward);
+  const { propagationCostPct, coreSize } = propagationAndCore(forwardAll);
+  const { propagationCostPct: propagationCostRuntimePct } = propagationAndCore(forwardRuntime);
+  const backEdges = backEdgesIntoServer(forwardAll);
+  const backEdgesRuntime = backEdgesIntoServer(forwardRuntime);
+  const deep = deepImports(forwardAll);
   const apiSurfaceFiles = [...deep.byModule.values()].reduce((sum, e) => sum + e.files.size, 0);
-  const moduleAdjacency = buildModuleAdjacency(forward);
+  // Module cycles / SCC: runtime-only graph (2026-08-17) — see `Baseline.moduleCycles`'s doc comment.
+  const moduleAdjacency = buildModuleAdjacency(forwardRuntime);
   const pairs = mutualPairs(moduleAdjacency);
   const sccs = stronglyConnectedComponents(moduleAdjacency).filter((c) => c.length > 1);
   const largestScc = sccs.reduce((max, c) => Math.max(max, c.length), 0);
-  const instability = martinInstability(forward);
+  const instability = martinInstability(forwardAll);
 
   const current: Baseline = {
     meta: { fileCount, moduleCount: moduleAdjacency.size },
     propagationCostPct,
+    propagationCostRuntimePct,
     backEdgesIntoServer: backEdges.total,
+    backEdgesIntoServerRuntimeOnly: backEdgesRuntime.total,
     moduleCycles: { mutualCycleCount: pairs.length, largestScc, pairs },
     moduleApiSurfaceFiles: apiSurfaceFiles,
     deepImportsBypassingIndex: deep.total,
@@ -467,10 +555,12 @@ function main(): void {
   console.log(`check:architecture — ${fileCount} files, ${moduleAdjacency.size} modules, ${scope}\n`);
 
   const rows: { label: string; value: string }[] = [
-    { label: "propagation cost", value: `${propagationCostPct.toFixed(2)}%` },
+    { label: "propagation cost (all-import)", value: `${propagationCostPct.toFixed(2)}%` },
+    { label: "propagation cost (runtime-only)", value: `${propagationCostRuntimePct.toFixed(2)}%` },
     { label: "back-edges into composition root", value: `${backEdges.total}` },
-    { label: "module cycles (mutual pairs)", value: `${pairs.length}` },
-    { label: "largest strongly-connected component", value: `${largestScc}` },
+    { label: "  └ back-edges, runtime-only (informational)", value: `${backEdgesRuntime.total}` },
+    { label: "module cycles (mutual pairs, runtime-only)", value: `${pairs.length}` },
+    { label: "largest strongly-connected component (runtime-only)", value: `${largestScc}` },
     { label: "module API surface (files exposed)", value: `${apiSurfaceFiles}` },
     { label: "  └ deep-import edges (informational)", value: `${deep.total}` },
     { label: "core size", value: `${coreSize.pct.toFixed(2)}% (${coreSize.count}/${coreSize.total})` },
@@ -480,12 +570,12 @@ function main(): void {
   console.log(`\n  Martin instability: informational, not ratcheted — pass --list for the per-module gradient.`);
 
   if (LIST) {
-    console.log(`\n--- back-edges into src/server/**, by target file ---`);
+    console.log(`\n--- back-edges into src/server/**, by target file (all-import) ---`);
     for (const [target, count] of [...backEdges.byTarget.entries()].sort((a, b) => b[1] - a[1])) {
       console.log(`    ${count} → ${target}`);
     }
 
-    console.log(`\n--- module cycles ---`);
+    console.log(`\n--- module cycles (runtime-only graph) ---`);
     for (const pair of pairs) console.log(`    ${pair}`);
     if (sccs.length > 0) {
       console.log(`\n  strongly-connected components (mutually inseparable modules):`);
@@ -494,12 +584,12 @@ function main(): void {
       }
     }
 
-    console.log(`\n--- deep imports bypassing index.ts, by target module ---`);
+    console.log(`\n--- deep imports bypassing index.ts, by target module (all-import) ---`);
     for (const [mod, entry] of [...deep.byModule.entries()].sort((a, b) => b[1].edges - a[1].edges)) {
       console.log(`    ${entry.edges} edges, ${entry.files.size} distinct file(s) → ${mod}`);
     }
 
-    console.log(`\n--- Martin instability (stable → unstable) ---`);
+    console.log(`\n--- Martin instability (stable → unstable, all-import) ---`);
     for (const row of instability) {
       console.log(
         `    I=${row.instability.toFixed(2)}  Ca=${String(row.ca).padStart(4)} Ce=${String(row.ce).padStart(4)}  ${row.module}`,
@@ -526,7 +616,7 @@ function main(): void {
   const cyclesRegressed = introducedPairs.length > 0 || sccVerdict === "regressed";
   const cyclesImproved = (removedPairs.length > 0 || sccVerdict === "improved") && !cyclesRegressed;
 
-  const cyclesLabel = "module cycles / SCC";
+  const cyclesLabel = "module cycles / SCC (runtime-only)";
   const cyclesTier = tierOf(cyclesLabel);
   const cyclesTradeDetail =
     [
@@ -538,7 +628,8 @@ function main(): void {
       .join(", ") || "no change";
 
   const checks: { label: string; verdict: Verdict; current: number; baseline: number; unit: "pct" | "count"; tier: MetricTier }[] = [
-    { label: "propagation cost", verdict: compare(propagationCostPct, baseline.propagationCostPct), current: propagationCostPct, baseline: baseline.propagationCostPct, unit: "pct", tier: tierOf("propagation cost") },
+    { label: "propagation cost (all-import)", verdict: compare(propagationCostPct, baseline.propagationCostPct), current: propagationCostPct, baseline: baseline.propagationCostPct, unit: "pct", tier: tierOf("propagation cost (all-import)") },
+    { label: "propagation cost (runtime-only)", verdict: compare(propagationCostRuntimePct, baseline.propagationCostRuntimePct, "propagation cost (runtime-only)"), current: propagationCostRuntimePct, baseline: baseline.propagationCostRuntimePct, unit: "pct", tier: tierOf("propagation cost (runtime-only)") },
     { label: "back-edges into composition root", verdict: compare(backEdges.total, baseline.backEdgesIntoServer), current: backEdges.total, baseline: baseline.backEdgesIntoServer, unit: "count", tier: tierOf("back-edges into composition root") },
     // The API-surface metric ratchets on DISTINCT EXPOSED FILES, not on edge count. Adding a
     // second import to an already-exposed file does not widen a module's public surface and must

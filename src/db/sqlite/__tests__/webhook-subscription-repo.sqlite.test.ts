@@ -4,16 +4,18 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { openContentDb } from "../../db/sqlite/content-db";
-import { InMemoryWebhookSubscriptionRepo } from "../repo.memory";
-import { SqliteWebhookSubscriptionRepo } from "../repo.sqlite";
-import type { WebhookSubscriptionRepoPort } from "../ports";
-import type { WebhookSubscriptionRecord } from "../types";
+import { openContentDb } from "../content-db";
+import { InMemoryWebhookSubscriptionRepo } from "../../../integrations/repo.memory";
+import { SqliteWebhookSubscriptionRepo } from "../webhook-repo.sqlite";
+import type { WebhookSubscriptionRepoPort } from "../../../integrations/ports";
+import type { WebhookSubscriptionRecord } from "../../../integrations/types";
 
 /**
  * @file Shared `WebhookSubscriptionRepoPort` contract-test suite (ADR-PIPE-015 Phase 2 T020),
- * run against both `repo.memory.ts` and `repo.sqlite.ts` — mirrors
- * `src/members/__tests__/repo.contract.test.ts`'s shape.
+ * run against both `integrations/repo.memory.ts` and `webhook-repo.sqlite.ts` — mirrors
+ * `src/members/__tests__/repo.contract.test.ts`'s shape. Relocated from
+ * `integrations/__tests__/repo.subscription.contract.test.ts` (2026-08-17, architecture SCC cut)
+ * alongside the adapter it exercises.
  */
 
 function makeSubscription(overrides: Partial<WebhookSubscriptionRecord> = {}): WebhookSubscriptionRecord {

@@ -72,7 +72,10 @@ export {
 } from "./repo.memory";
 export type { DeliveryEnvelopeStore } from "./repo.memory";
 
-// ADR-046 Phase 1 (2026-07-16): the ADR-006 rule-of-two "second adapter" half — already fully
-// built and contract-tested (`__tests__/repo.*.contract.test.ts`) but never wired into a real
-// composition root until now (`server/deps.ts`).
-export { SqliteWebhookDeliveryRepo, SqliteWebhookSubscriptionRepo } from "./repo.sqlite";
+// ADR-046 Phase 1 (2026-07-16): the ADR-006 rule-of-two "second adapter" half — contract-tested at
+// `db/sqlite/__tests__/webhook-*-repo.sqlite.test.ts` and wired into the real composition root at
+// `server/deps.ts`. Relocated to `db/sqlite/webhook-repo.sqlite.ts` (2026-08-17, architecture SCC
+// cut: `integrations → db` concentrated entirely in this concrete adapter) and DELIBERATELY not
+// re-exported here — re-exporting it through this barrel would reintroduce the same edge the move
+// was for. `server/deps.ts` imports it directly from `db/sqlite`, same as every other outer-layer
+// SQLite adapter (`vendor-credential-repo.sqlite.ts` et al.).

@@ -1,18 +1,20 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { openContentDb } from "../../db/sqlite/content-db";
-import { InMemoryDeliveryEnvelopeStore, InMemoryWebhookDeliveryRepo } from "../repo.memory";
-import { SqliteWebhookDeliveryRepo } from "../repo.sqlite";
-import type { DeliveryEnvelopeStore } from "../repo.memory";
-import type { WebhookDeliveryRepoPort } from "../ports";
-import type { WebhookDeliveryRecord, WebhookEventEnvelope } from "../types";
+import { openContentDb } from "../content-db";
+import { InMemoryDeliveryEnvelopeStore, InMemoryWebhookDeliveryRepo } from "../../../integrations/repo.memory";
+import { SqliteWebhookDeliveryRepo } from "../webhook-repo.sqlite";
+import type { DeliveryEnvelopeStore } from "../../../integrations/repo.memory";
+import type { WebhookDeliveryRepoPort } from "../../../integrations/ports";
+import type { WebhookDeliveryRecord, WebhookEventEnvelope } from "../../../integrations/types";
 
 /**
  * @file Shared `WebhookDeliveryRepoPort` contract-test suite (ADR-PIPE-015 Phase 2 T021), incl.
  * the `payload_json` round-trip (GAP-12) and a restart-simulated fresh-repo-instance read —
  * proving `SqliteWebhookDeliveryRepo` persists across process boundaries, unlike the in-memory
  * adapter (whose "restart" test is necessarily a same-process no-op, included for parity only).
+ * Relocated from `integrations/__tests__/repo.delivery.contract.test.ts` (2026-08-17,
+ * architecture SCC cut) alongside the adapter it exercises.
  */
 
 function makeDelivery(overrides: Partial<WebhookDeliveryRecord> = {}): WebhookDeliveryRecord {
