@@ -29,6 +29,20 @@ import {
 const WORKSPACE = "ws-1";
 const NOW = "2026-08-15T00:00:00.000Z";
 
+/** A `fetch`-shaped stub that never makes a real network call — the SAFE default for every test in
+ *  this file that does not specifically care about the account-label probe's own behavior. Without
+ *  this, every `github`-provider test above (added before migration 0044's inline probe existed)
+ *  would start making a REAL request to `api.github.com/user` with a bogus token on every
+ *  `create`/`updateSourceControlCredential` call — see `store.ts`'s own header for why this table's
+ *  write path, unlike `publish-credentials/store.ts`'s, is allowed to probe inline. Rejects, which
+ *  `probeAccountLabel`'s own `catch` folds into `null` — the same "never throws, degrades silently"
+ *  contract the real fetch failure path exercises. */
+function neverCallRealNetwork(): typeof fetch {
+  return (async () => {
+    throw new Error("test fetchFn stub: no test in this file should reach the real network");
+  }) as unknown as typeof fetch;
+}
+
 function makeDeps(overrides: Partial<SourceControlCredentialWriteDeps> = {}): SourceControlCredentialWriteDeps {
   const keyring = new InMemoryKeyring();
   let counter = 0;
@@ -38,8 +52,16 @@ function makeDeps(overrides: Partial<SourceControlCredentialWriteDeps> = {}): So
     keyring,
     clock: { nowIso: () => NOW },
     idGen: { newId: () => `cred-${(counter += 1)}` },
+    fetchFn: neverCallRealNetwork(),
     ...overrides,
   };
+}
+
+/** Builds a `fetch`-shaped stub that returns one fixed JSON response for every call — for tests that
+ *  DO care what the account-label probe does with a real-shaped GitHub `/user` response. */
+function fetchReturningJson(status: number, body: unknown): typeof fetch {
+  return (async () =>
+    new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } })) as unknown as typeof fetch;
 }
 
 test("createSourceControlCredential seals the connection and returns a summary with NO secret material", async () => {
@@ -223,4 +245,90 @@ test("a blank label is rejected", async () => {
     }),
     SourceControlCredentialValidationError
   );
+});
+
+// ---------------------------------------------------------------------------
+// account_label (migration 0044, 2026-08-16) — populated INLINE by create/update (unlike
+// publish-credentials/store.ts's sibling column — see this file's own header for why the two tables
+// differ). Only `github` ever gets a real value; `gitlab`/`bitbucket` are always null.
+// ---------------------------------------------------------------------------
+
+test("createSourceControlCredential populates accountLabel from a successful GitHub identity probe", async () => {
+  const deps = makeDeps({ fetchFn: fetchReturningJson(200, { login: "leonaburime-ucla" }) });
+  const summary = await createSourceControlCredential(deps, {
+    workspaceId: WORKSPACE,
+    label: "default",
+    connection: { providerId: "github", token: "ghp_real_token" },
+  });
+  assert.equal(summary.accountLabel, "leonaburime-ucla");
+});
+
+test("createSourceControlCredential leaves accountLabel null when the GitHub probe is rejected (never fails the save)", async () => {
+  const deps = makeDeps({ fetchFn: fetchReturningJson(401, { message: "Bad credentials" }) });
+  const summary = await createSourceControlCredential(deps, {
+    workspaceId: WORKSPACE,
+    label: "default",
+    connection: { providerId: "github", token: "bad-token" },
+  });
+  assert.equal(summary.accountLabel, null, "a rejected probe must degrade to null, not throw or block the save");
+});
+
+test("createSourceControlCredential leaves accountLabel null when the probe's fetchFn throws (network failure, timeout) — never fails the save", async () => {
+  const deps = makeDeps(); // default fetchFn always rejects
+  const summary = await createSourceControlCredential(deps, {
+    workspaceId: WORKSPACE,
+    label: "default",
+    connection: { providerId: "github", token: "t" },
+  });
+  assert.equal(summary.accountLabel, null);
+});
+
+test("createSourceControlCredential never probes gitlab or bitbucket — accountLabel stays null even with a fetchFn that would happily answer", async () => {
+  const deps = makeDeps({ fetchFn: fetchReturningJson(200, { login: "would-be-wrong-to-use" }) });
+  const gitlab = await createSourceControlCredential(deps, { workspaceId: WORKSPACE, label: "default", connection: { providerId: "gitlab", token: "t" } });
+  assert.equal(gitlab.accountLabel, null);
+
+  const bitbucket = await createSourceControlCredential(deps, {
+    workspaceId: WORKSPACE,
+    label: "bb",
+    connection: { providerId: "bitbucket", token: "t", username: "leona" },
+  });
+  assert.equal(bitbucket.accountLabel, null, "bitbucket has no reviewed identity extractor — its OWN username field must not leak into accountLabel either");
+});
+
+test("updateSourceControlCredential with connection OMITTED preserves a previously-probed accountLabel (label-only rename)", async () => {
+  const deps = makeDeps({ fetchFn: fetchReturningJson(200, { login: "leonaburime-ucla" }) });
+  const created = await createSourceControlCredential(deps, { workspaceId: WORKSPACE, label: "default", connection: { providerId: "github", token: "t" } });
+  assert.equal(created.accountLabel, "leonaburime-ucla");
+
+  const renamed = await updateSourceControlCredential(deps, { workspaceId: WORKSPACE, id: created.id, label: "renamed" });
+  assert.equal(renamed.accountLabel, "leonaburime-ucla", "a label-only rename must not clear or re-probe the account label");
+});
+
+test("updateSourceControlCredential with a NEW connection re-probes and can change the account label (a new token may belong to a different account)", async () => {
+  const deps = makeDeps({ fetchFn: fetchReturningJson(200, { login: "old-account" }) });
+  const created = await createSourceControlCredential(deps, { workspaceId: WORKSPACE, label: "default", connection: { providerId: "github", token: "t1" } });
+  assert.equal(created.accountLabel, "old-account");
+
+  deps.fetchFn = fetchReturningJson(200, { login: "new-account" });
+  const updated = await updateSourceControlCredential(deps, {
+    workspaceId: WORKSPACE,
+    id: created.id,
+    connection: { providerId: "github", token: "t2" },
+  });
+  assert.equal(updated.accountLabel, "new-account", "a new connection must re-probe rather than carry the old account label forward");
+});
+
+test("updateSourceControlCredential with a NEW connection resets accountLabel to null when the re-probe fails — a stale label must not survive a token change", async () => {
+  const deps = makeDeps({ fetchFn: fetchReturningJson(200, { login: "old-account" }) });
+  const created = await createSourceControlCredential(deps, { workspaceId: WORKSPACE, label: "default", connection: { providerId: "github", token: "t1" } });
+  assert.equal(created.accountLabel, "old-account");
+
+  deps.fetchFn = fetchReturningJson(401, { message: "Bad credentials" });
+  const updated = await updateSourceControlCredential(deps, {
+    workspaceId: WORKSPACE,
+    id: created.id,
+    connection: { providerId: "github", token: "t2-bad" },
+  });
+  assert.equal(updated.accountLabel, null, "the old account label must not survive a token change the re-probe could not confirm");
 });

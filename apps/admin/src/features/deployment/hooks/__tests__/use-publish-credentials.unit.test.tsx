@@ -275,6 +275,78 @@ describe("usePublishCredentials — save, provider already connected (update)", 
   });
 });
 
+describe("usePublishCredentials — credentialsForProvider (the Static Site token-picker's data source)", () => {
+  it("returns every saved connection for a provider, not just the default one", async () => {
+    const backup: AdminPublishCredentialSummary = { ...GH_CREDENTIAL, id: "cred-2", label: "backup", isDefault: false };
+    const port = createFakePublishCredentialsPort({
+      listCredentials: () => Promise.resolve({ credentials: [backup, GH_CREDENTIAL], executionMode: "self-hosted-cli" }),
+    });
+    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.rows).not.toBeUndefined());
+
+    const github = result.current.credentialsForProvider("github-pages");
+    expect(github.map((c) => c.id)).toEqual(["cred-2", "cred-1"]);
+  });
+
+  it("returns an empty list for a provider with nothing saved", async () => {
+    const port = createFakePublishCredentialsPort();
+    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.rows).not.toBeUndefined());
+
+    expect(result.current.credentialsForProvider("vercel")).toEqual([]);
+  });
+});
+
+describe("usePublishCredentials — selectCredential (the Static Site token-picker's write)", () => {
+  it("PUTs isDefault: true to the chosen credential's id, then refetches the provider's list", async () => {
+    const backup: AdminPublishCredentialSummary = { ...GH_CREDENTIAL, id: "cred-2", label: "backup", isDefault: false };
+    const promoted: AdminPublishCredentialSummary = { ...backup, isDefault: true };
+    const demoted: AdminPublishCredentialSummary = { ...GH_CREDENTIAL, isDefault: false };
+    let sentId: string | undefined;
+    let sentInput: { isDefault?: boolean } | undefined;
+    let listCalls = 0;
+    const port = createFakePublishCredentialsPort({
+      listCredentials: () => {
+        listCalls += 1;
+        const credentials = listCalls === 1 ? [backup, GH_CREDENTIAL] : [demoted, promoted];
+        return Promise.resolve({ credentials, executionMode: "self-hosted-cli" });
+      },
+      updateCredential: (id, input) => {
+        sentId = id;
+        sentInput = input;
+        return Promise.resolve(promoted);
+      },
+    });
+    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.rows).not.toBeUndefined());
+
+    await act(async () => {
+      await result.current.selectCredential("github-pages", "cred-2");
+    });
+
+    expect(sentId).toBe("cred-2");
+    expect(sentInput).toEqual({ isDefault: true });
+    expect(listCalls).toBe(2);
+    // The row now reads the newly-promoted connection as this provider's default.
+    expect(result.current.rows!.find((row) => row.providerId === "github-pages")!.saved?.id).toBe("cred-2");
+  });
+
+  it("is a no-op — never calls the port — when the chosen credential is already the default", async () => {
+    const updateCredential = vi.fn();
+    const port = createFakePublishCredentialsPort({
+      listCredentials: () => Promise.resolve({ credentials: [GH_CREDENTIAL], executionMode: "self-hosted-cli" }),
+      updateCredential,
+    });
+    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.rows).not.toBeUndefined());
+
+    await act(async () => {
+      await result.current.selectCredential("github-pages", "cred-1");
+    });
+    expect(updateCredential).not.toHaveBeenCalled();
+  });
+});
+
 describe("usePublishCredentials — save, error handling", () => {
   it("a rejected save surfaces a translated, per-row error and leaves that row's draft fields intact", async () => {
     const port = createFakePublishCredentialsPort({ createCredential: () => Promise.reject(new Error("network down")) });
