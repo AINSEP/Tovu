@@ -49,47 +49,52 @@ export function registerAdminCommentsModerateRoutes(app: Express, deps: AdminCom
         return;
       }
 
-      const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
-        principalId: principal.id,
-        permission: spec.permission,
-        workspaceId: deps.workspaceId,
-        entityType: "comment",
-        entityId: req.params.commentId,
-      });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for '${spec.permission}' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: spec.permission, reason: authResult.reason },
+      try {
+        const principal = getAuthedPrincipal(res);
+        const authResult = await deps.authorize({
+          principalId: principal.id,
+          permission: spec.permission,
+          workspaceId: deps.workspaceId,
+          entityType: "comment",
+          entityId: req.params.commentId,
         });
-        return;
+        if (!authResult.allowed) {
+          res.status(403).json({
+            error: `principal '${principal.id}' is not authorized for '${spec.permission}' (${authResult.reason})`,
+            code: "FORBIDDEN",
+            details: { permission: spec.permission, reason: authResult.reason },
+          });
+          return;
+        }
+
+        const body = req.body as Record<string, unknown>;
+        const expectedVersion = parseExpectedVersion(body.expectedVersion);
+        if (expectedVersion === null) {
+          res.status(400).json({ error: "expectedVersion is required and must be a non-negative integer" });
+          return;
+        }
+
+        const result = await deps.commentWriteService.applyModeration({
+          workspaceId: deps.workspaceId,
+          id: req.params.commentId,
+          expectedVersion,
+          action: spec.action,
+          toStatus: spec.toStatus!,
+          actorPrincipalId: principal.id,
+          note: typeof body.note === "string" ? body.note : null,
+        });
+
+        if (!result.ok) {
+          const status = result.reason === "not-found" ? 404 : 409;
+          res.status(status).json({ error: result.reason, currentVersion: "currentVersion" in result ? result.currentVersion : undefined });
+          return;
+        }
+
+        res.status(204).end();
+      } catch (err) {
+        console.error(`[comments/moderate] unexpected error applying '${spec.action}'`, err);
+        res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
       }
-
-      const body = req.body as Record<string, unknown>;
-      const expectedVersion = parseExpectedVersion(body.expectedVersion);
-      if (expectedVersion === null) {
-        res.status(400).json({ error: "expectedVersion is required and must be a non-negative integer" });
-        return;
-      }
-
-      const result = await deps.commentWriteService.applyModeration({
-        workspaceId: deps.workspaceId,
-        id: req.params.commentId,
-        expectedVersion,
-        action: spec.action,
-        toStatus: spec.toStatus!,
-        actorPrincipalId: principal.id,
-        note: typeof body.note === "string" ? body.note : null,
-      });
-
-      if (!result.ok) {
-        const status = result.reason === "not-found" ? 404 : 409;
-        res.status(status).json({ error: result.reason, currentVersion: "currentVersion" in result ? result.currentVersion : undefined });
-        return;
-      }
-
-      res.status(204).end();
     });
   }
 
@@ -99,35 +104,40 @@ export function registerAdminCommentsModerateRoutes(app: Express, deps: AdminCom
       return;
     }
 
-    const principal = getAuthedPrincipal(res);
-    const authResult = await deps.authorize({
-      principalId: principal.id,
-      permission: "comments.delete.force",
-      workspaceId: deps.workspaceId,
-      entityType: "comment",
-      entityId: req.params.commentId,
-    });
-    if (!authResult.allowed) {
-      res.status(403).json({
-        error: `principal '${principal.id}' is not authorized for 'comments.delete.force' (${authResult.reason})`,
-        code: "FORBIDDEN",
-        details: { permission: "comments.delete.force", reason: authResult.reason },
+    try {
+      const principal = getAuthedPrincipal(res);
+      const authResult = await deps.authorize({
+        principalId: principal.id,
+        permission: "comments.delete.force",
+        workspaceId: deps.workspaceId,
+        entityType: "comment",
+        entityId: req.params.commentId,
       });
-      return;
-    }
+      if (!authResult.allowed) {
+        res.status(403).json({
+          error: `principal '${principal.id}' is not authorized for 'comments.delete.force' (${authResult.reason})`,
+          code: "FORBIDDEN",
+          details: { permission: "comments.delete.force", reason: authResult.reason },
+        });
+        return;
+      }
 
-    const body = req.body as Record<string, unknown>;
-    const result = await deps.commentWriteService.purge({
-      workspaceId: deps.workspaceId,
-      id: req.params.commentId,
-      actorPrincipalId: principal.id,
-      note: typeof body.note === "string" ? body.note : null,
-    });
+      const body = req.body as Record<string, unknown>;
+      const result = await deps.commentWriteService.purge({
+        workspaceId: deps.workspaceId,
+        id: req.params.commentId,
+        actorPrincipalId: principal.id,
+        note: typeof body.note === "string" ? body.note : null,
+      });
 
-    if (!result.ok) {
-      res.status(404).json({ error: result.reason });
-      return;
+      if (!result.ok) {
+        res.status(404).json({ error: result.reason });
+        return;
+      }
+      res.status(204).end();
+    } catch (err) {
+      console.error("[comments/moderate] unexpected error purging a comment", err);
+      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
     }
-    res.status(204).end();
   });
 }

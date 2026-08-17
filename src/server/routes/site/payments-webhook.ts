@@ -74,28 +74,38 @@ export function registerPaymentsWebhookRoute(app: Express, deps: PaymentsWebhook
     "/payments/webhook/:providerId",
     express.raw({ type: "application/json", limit: "1mb" }),
     async (req, res) => {
-      const lipay = deps.resolveLipay();
-      if (!lipay) {
-        res.status(503).json({ error: "payments are not configured on this install", code: "PAYMENTS_UNAVAILABLE" });
-        return;
+      try {
+        const lipay = deps.resolveLipay();
+        if (!lipay) {
+          res.status(503).json({ error: "payments are not configured on this install", code: "PAYMENTS_UNAVAILABLE" });
+          return;
+        }
+
+        // `express.raw` leaves `req.body` untouched when the content type does not match; an empty
+        // buffer then fails signature verification, which is the correct outcome for a delivery that
+        // did not arrive as JSON.
+        const rawBody = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
+
+        const ack = await lipay.handleWebhook({
+          providerId: req.params.providerId,
+          rawBody,
+          headers: flattenHeaders(req),
+        });
+
+        if (!ack.accepted) {
+          res.status(statusForError(ack.error)).json({ error: ack.error?.message, code: ack.error?.code });
+          return;
+        }
+        res.status(200).json({ processed: ack.processed, duplicates: ack.duplicates });
+      } catch (err) {
+        // A provider that never gets a response just retries the same delivery forever (this file's
+        // own header: a missing/failed response must never look like undelivered-but-silently-lost).
+        // 500 tells the provider to retry, which is the correct instruction for a failure on THIS
+        // side (unlike `statusForError`'s codes, which describe a judgment already reached about the
+        // delivery itself).
+        console.error("[payments-webhook] unexpected error handling a webhook delivery", err);
+        res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
       }
-
-      // `express.raw` leaves `req.body` untouched when the content type does not match; an empty
-      // buffer then fails signature verification, which is the correct outcome for a delivery that
-      // did not arrive as JSON.
-      const rawBody = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
-
-      const ack = await lipay.handleWebhook({
-        providerId: req.params.providerId,
-        rawBody,
-        headers: flattenHeaders(req),
-      });
-
-      if (!ack.accepted) {
-        res.status(statusForError(ack.error)).json({ error: ack.error?.message, code: ack.error?.code });
-        return;
-      }
-      res.status(200).json({ processed: ack.processed, duplicates: ack.duplicates });
     }
   );
 }
