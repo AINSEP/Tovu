@@ -43,8 +43,9 @@
  * `127.0.0.1` keeps remote hosts out but does nothing about other local processes, which is the
  * actual threat for a daemon that can start real agent runs and write to `content.db`), and fails
  * closed with 503 when the token env var is unset. The token is minted once per boot by
- * `src/index.ts`'s `main()` and inherited by this process through `spawnAgentDaemon()`'s
- * `child_process.spawn`; `src/server/modules/assistant.ts`'s proxy is the only caller that holds
+ * `src/index.ts`'s `main()` and inherited by this process through every `child_process.spawn`
+ * `daemon-supervisor.ts` makes (the first one and every automatic respawn alike, since all of them
+ * spread `process.env`); `src/server/modules/assistant.ts`'s proxy is the only caller that holds
  * it. Deliberately NOT `@jini-ai/http-kit`'s `registerApiBearerAuthMiddleware` — see
  * `daemon-auth.ts`'s header for why its loopback short-circuit makes it a no-op here.
  *
@@ -113,10 +114,10 @@ const DEFAULT_AGENT_ID = "claude";
 /**
  * Self-termination watchdog, 2026-08-05 (`ADS-memory/reports/analysis/2026-08-05-e2e-teardown-root-cause.md`).
  *
- * `src/index.ts`'s `spawnAgentDaemon()` puts this process in its own detached process group
- * specifically so it CAN be reaped independently (see that function's own comment) — but that
- * only works if `src/index.ts` gets a chance to run its `reap()`. Confirmed live, twice, two
- * different ways: Playwright's default `webServer` teardown skips straight to an uncatchable
+ * `daemon-supervisor.ts`'s `spawnRealDaemonProcessFor` puts this process in its own detached
+ * process group specifically so it CAN be reaped independently (see that function's own comment) —
+ * but that only works if the supervisor gets a chance to run its own shutdown-time kill. Confirmed
+ * live, twice, two different ways: Playwright's default `webServer` teardown skips straight to an uncatchable
  * `SIGKILL` unless opted out of (fixed at that source, `development/playwright.admin.config.ts`'s
  * `gracefulShutdown`), and — separately, still unfixed at its own source — an external `SIGTERM`
  * sent straight to Playwright's own top-level CLI process never invokes `teardown()` at all,
@@ -127,15 +128,15 @@ const DEFAULT_AGENT_ID = "claude";
  * nothing left to reap it. This watchdog is the last line of defense: detect that independently,
  * from inside this process, rather than depending on anything outside it to notice.
  *
- * Why the OS's own `process.ppid` cannot be that signal: `spawnAgentDaemon()`'s dev-mode spawn is
+ * Why the OS's own `process.ppid` cannot be that signal: `daemon-supervisor.ts`'s dev-mode spawn is
  * a 3-hop `npx -> tsx -> node` chain, and confirmed live via `ps` that none of those three
  * exec-replaces itself — all three stay alive for the whole run. This process's actual `ppid`
  * therefore resolves to the middle `tsx` hop, not to `src/index.ts`'s own process, so watching
- * `ppid` would watch the wrong ancestor. `spawnAgentDaemon()` instead passes the true one
+ * `ppid` would watch the wrong ancestor. `daemon-supervisor.ts` instead passes the true one
  * explicitly via `TOVU_PARENT_PID`.
  *
  * Opt-in by construction, not by a feature flag: `TOVU_PARENT_PID` is set by exactly one caller
- * (`spawnAgentDaemon()` — confirmed the only spawner of this file). A manual/standalone boot of
+ * (`daemon-supervisor.ts` — confirmed the only spawner of this file). A manual/standalone boot of
  * this file (local debugging, or any test that spawns it directly without that env var) gets no
  * watchdog at all, unchanged from before this existed — there is no ambient "parent" to watch in
  * that case, and none is invented.
@@ -201,16 +202,22 @@ startParentWatchdog();
 // for its own call to this function.
 //
 // This process needs its OWN guard, not merely inherited coverage from `index.ts`'s: it is a
-// SEPARATE OS process (`spawnAgentDaemon()`'s `child_process.spawn`), and — unlike that main
-// process — has no restart path at all if it dies: `spawnAgentDaemon()` is called exactly once per
-// `index.ts` boot, and its `child.on("exit")` handler only logs and records the failure via
-// `recordAssistantDaemonFailure()`, it never respawns. A crash here is not a request that gets
-// retried; it is the assistant staying unavailable, for every workspace, until an operator notices
-// and restarts the whole Tovu process by hand. Closing today's one known unguarded path
-// (`commit-site.ts`'s `resolveDefaultForSourceControl` call) fixes today's incident; this guard is
-// the same "fleet-wide" backstop `process-error-guards.ts`'s header argues for on the main process,
-// applied here for the identical reason — this codebase has no lint rule or type check that would
-// catch the NEXT unguarded decrypt/async call in some future tool-registration handler.
+// SEPARATE OS process (`daemon-supervisor.ts`'s `child_process.spawn`). CORRECTED 2026-08-16: this
+// used to say a crash here has no restart path at all — that stopped being true the day
+// `daemon-supervisor.ts` shipped automatic respawn with backoff, so leaving the old claim would
+// have been exactly the kind of stale, provably-false comment this codebase has already been
+// burned by once (see `verifyPublishCredentialById`'s "never throws" incident). What's still true,
+// and is the actual reason this guard remains load-bearing: a crash here is never free. Every
+// unhandled rejection still means a real gap in assistant availability while the supervisor's
+// backoff runs (escalating up to 30s between attempts), and a REPEATED crash from the same
+// unguarded code path will burn through the supervisor's crash-loop cap and give up retrying
+// altogether — at which point the assistant stays down for every workspace until an operator uses
+// the manual restart seam (`restartAssistantDaemon`) or notices and restarts Tovu by hand. Closing
+// today's one known unguarded path (`commit-site.ts`'s `resolveDefaultForSourceControl` call) fixes
+// today's incident; this guard is the same "fleet-wide" backstop `process-error-guards.ts`'s header
+// argues for on the main process, applied here for the identical reason — this codebase has no lint
+// rule or type check that would catch the NEXT unguarded decrypt/async call in some future
+// tool-registration handler.
 installUnhandledRejectionGuard();
 
 /**
@@ -265,8 +272,9 @@ function resolvePermissionMode(): "bypass" | "restricted" {
 // memory mode gives this process a disconnected store rather than sharing Tovu's.
 //
 // D10 fix: `TOVU_WORKSPACE`, when present, is the main process's own already-resolved
-// `deps.workspaceId` (`index.ts`'s `spawnAgentDaemon()` sets it from the SAME value used to build
-// its own route deps) — binding this process to that exact workspace instead of letting it
+// `deps.workspaceId` (`daemon-supervisor.ts`'s `spawnRealDaemonProcessFor` sets it from the SAME
+// value `index.ts` passed to `startAssistantDaemon`, on every spawn including every automatic
+// respawn) — binding this process to that exact workspace instead of letting it
 // independently re-resolve `resolveWorkspace`'s default. Irrelevant in memory mode: each process
 // gets its own disconnected in-memory store regardless (see module doc above), so there is no
 // second process to agree with.

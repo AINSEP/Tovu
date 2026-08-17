@@ -1,6 +1,3 @@
-import { spawn } from "node:child_process";
-import path from "node:path";
-
 import { createApp, createRouteDeps } from "./server/app";
 import { createSqliteRouteDeps, defaultContentDbPath } from "./server/deps";
 import { CAPABILITY_INVENTORY } from "./server/capability-inventory";
@@ -9,10 +6,10 @@ import { DEFAULT_OWNER_PASSWORD } from "./identity/wiring";
 import { resolveRuntimeMode } from "#src/core/runtime-mode";
 import { runBootLifecycle } from "./server/boot-lifecycle";
 import { buildBootModules } from "./server/bootstrap";
-import { clearAssistantDaemonFailure, recordAssistantDaemonFailure, setReadinessSnapshot } from "./server/readiness-state";
+import { setReadinessSnapshot } from "./server/readiness-state";
 import { registerPluginSdkResolver } from "./server/boot/plugin-sdk-resolver";
 import { installUnhandledRejectionGuard } from "./server/boot/process-error-guards";
-import { ensureAgentDaemonToken, AGENT_DAEMON_EXIT_CODE } from "./assistant";
+import { ensureAgentDaemonToken, startAssistantDaemon } from "./assistant";
 
 /**
  * @file Process entrypoint.
@@ -101,19 +98,20 @@ const useMemory = process.env.TOVU_DB === "memory";
  * exists unconditionally rather than being gated on what this search did or didn't find.
  *
  * Does not fight `tsx watch`'s own restart-on-save cycle: that delivers a real, catchable signal to
- * the OLD process first (already handled by the existing `SIGINT`/`SIGTERM`/`SIGHUP` handlers in
- * `spawnAgentDaemon()` below), and each fresh incarnation of this file gets its own fresh
- * `bootPpid`/interval at module load — no state carries over from the process being replaced.
+ * the OLD process first (already handled by the `SIGINT`/`SIGTERM`/`SIGHUP` handlers
+ * `startAssistantDaemon` registers — see `daemon-supervisor.ts`), and each fresh incarnation of
+ * this file gets its own fresh `bootPpid`/interval at module load — no state carries over from the
+ * process being replaced.
  *
  * Windows: not verified. Playwright's own `attemptToGracefullyClose()` throws unconditionally on
  * `win32` for this exact family of behavior (root-cause doc, quoting `playwright/lib/runner/
  * index.js`) — this inherits that same "not supported" posture rather than assuming parity.
  *
  * `process.exit()` from inside this function's interval callback fires the existing
- * `process.on("exit", reap)` listener `spawnAgentDaemon()` registers below (a standard Node
- * guarantee already relied on by this file's own SIGINT/SIGTERM/SIGHUP handlers), so a self-exit
- * here cleans up the agent daemon exactly like every other termination path already does — no
- * separate reap call needed.
+ * `process.on("exit", ...)` listener `startAssistantDaemon` registers (a standard Node guarantee
+ * already relied on by this file's own SIGINT/SIGTERM/SIGHUP handlers), so a self-exit here cleans
+ * up the agent daemon exactly like every other termination path already does — no separate call
+ * needed here.
  */
 function startOwnParentWatchdog(): void {
   if (process.env.TOVU_DISABLE_PARENT_WATCHDOG === "1") {
@@ -250,8 +248,9 @@ async function main(): Promise<void> {
   installUnhandledRejectionGuard();
 
   // Mints `TOVU_AGENT_DAEMON_TOKEN` (unless the operator already set one) into this process's env
-  // so `spawnAgentDaemon()` — called much later, from inside `app.listen()`'s callback — hands it
-  // to the daemon child through the inherited env, and so `server/modules/assistant.ts`'s proxy
+  // so `startAssistantDaemon()` — called much later, from inside `app.listen()`'s callback — hands
+  // it to the daemon child (and every respawn after it) through the inherited env, and so
+  // `server/modules/assistant.ts`'s proxy
   // can read it at request time. Must precede the spawn; placed first because it is the one boot
   // step with no dependency on anything at all. It is a single synchronous env assignment (no
   // import, no await, no I/O), so it does not weaken `registerPluginSdkResolver`'s ordering
@@ -320,7 +319,7 @@ async function main(): Promise<void> {
       deps.settingsUiTabsReady,
       deps.analyticsSettingsReady,
     ])
-      .then(() => spawnAgentDaemon(deps.workspaceId))
+      .then(() => startAssistantDaemon({ workspaceId: deps.workspaceId }))
       .catch((error: unknown) => {
         console.error("[index] a boot-readiness promise rejected — not starting the agent daemon", error);
       });
@@ -355,166 +354,15 @@ async function main(): Promise<void> {
   });
 }
 
-/**
- * ADR-049 (process-shape correction) — Tovu never spawns a coding-agent CLI itself; that lives
- * entirely in `src/assistant/agent-daemon-server.ts`, a separate OS process. Started only after
- * `app.listen()`'s callback fires (i.e. after this process's own boot/migrations have fully
- * completed), so the daemon's own `createSqliteRouteDeps()` call — a second connection to the
- * same `content.db` — never races Tovu's first-boot schema setup. Inherits this process's full
- * env (`TOVU_DB`, `TOVU_CONTENT_DB`, `TOVU_AGENT_CWD`, `TOVU_AGENT_PERMISSION_MODE`,
- * `JINI_AGENT_DAEMON_PORT`), no filtering needed here — the daemon process applies its own
- * deny-by-default env allowlist to whatever it, in turn, spawns.
- *
- * `TOVU_AGENT_DAEMON_TOKEN` rides that same inherited env: `main()` mints it as its very first
- * statement (see `ensureAgentDaemonToken`), so it is always present by the time this runs. The
- * daemon refuses to serve any request without it (`assistant/daemon-auth.ts`), which is what stops
- * an unrelated local process from driving agent runs against `content.db`.
- *
- * Resolves the sibling script by swapping this file's own extension, so the same code path
- * launches `agent-daemon-server.ts` under `tsx` in dev and the compiled
- * `agent-daemon-server.js` under plain `node` in a built `dist/` — whichever this process itself
- * is running as.
- *
- * D10 fix: `workspaceId` is this process's own already-resolved `deps.workspaceId` (`main()`'s
- * `createSqliteRouteDeps()`/`createRouteDeps()` call, above), passed through the child's env as
- * `TOVU_WORKSPACE` so the daemon binds to the SAME workspace instead of independently
- * re-resolving `resolveWorkspace`'s default on its own connection — the two processes agreeing
- * today relies on that default being time-invariant (a newly created workspace can never become
- * "the oldest"), which is true but not something either process was ever told to rely on. Added
- * to an explicit `env: {...process.env, ...}` object rather than mutating `process.env` before
- * the call, so the propagation is visible in a diff/grep the same way the doc comment above
- * already lists every other inherited variable.
- */
-function spawnAgentDaemon(workspaceId: string): void {
-  // There is no retry path today (this function is called exactly once per process boot), so this
-  // is a no-op on a fresh boot — nothing has latched a failure yet. It exists for a FUTURE retry:
-  // each new spawn attempt must start from a clean slate, or a later successful attempt would stay
-  // stuck behind a stale 503 an earlier, unrelated attempt latched. See `clearAssistantDaemonFailure`'s
-  // own doc.
-  clearAssistantDaemonFailure();
-
-  const isCompiled = __filename.endsWith(".js");
-  const daemonPath = path.join(__dirname, "assistant", isCompiled ? "agent-daemon-server.js" : "agent-daemon-server.ts");
-  // `TOVU_PARENT_PID` backs `agent-daemon-server.ts`'s own watchdog (see that file's
-  // `startParentWatchdog()` for the full rationale) — it is NOT redundant with the OS's own
-  // `ppid`. In dev mode this spawn is a 3-hop `npx -> tsx -> node` chain where none of the three
-  // exec-replaces itself (confirmed live via `ps`: all three stay alive for the run's whole
-  // lifetime), so the daemon's actual `process.ppid` resolves to the middle `tsx` hop, not to
-  // THIS process. `process.pid`, read here, is captured fresh for this exact spawn call/instance.
-  const env = { ...process.env, TOVU_WORKSPACE: workspaceId, TOVU_PARENT_PID: String(process.pid) };
-  // `detached: true` puts the daemon in its OWN process group so it can be reaped as a group.
-  // This matters specifically in dev: the non-compiled branch is an `npx -> tsx -> node` chain, so
-  // `child.kill()` only ever killed `npx`. The real daemon — the `node` grandchild that binds
-  // JINI_AGENT_DAEMON_PORT and opens `infra/content.db` — survived, reparented to PID 1, and
-  // squatted both indefinitely. A later boot then collided with it, and because the collision
-  // surfaces as "the assistant is unavailable" rather than an error, it read as a mystery. Measured
-  // 2026-08-04: an orphan from 11:01 was still holding 4319 and the content DB hours later.
-  //
-  // This separate process group has a real cost: it also shields the daemon from anything that
-  // kills THIS process by process-group signal instead of by delivering us a catchable one.
-  // Confirmed 2026-08-05: Playwright's default `webServer` teardown does exactly that — no
-  // catchable signal at all, straight to `process.kill(-webServerPid, "SIGKILL")` on ITS OWN
-  // group, which (by construction, per this comment) never reaches the daemon's group. `reap()`
-  // below never gets a chance to run, so the orphaned daemon keeps Playwright's inherited
-  // stdout/stderr pipe open and Playwright's own teardown hangs forever waiting for it to close.
-  // Fixed at the source by opting in to `webServer.gracefulShutdown` in
-  // `development/playwright.admin.config.ts`, which makes Playwright send a real SIGTERM first —
-  // that reaches this process normally (it isn't itself in a detached group), letting `reap()`
-  // run and group-kill the daemon exactly as it does for every other termination path below.
-  //
-  // Defense in depth, 2026-08-05: `stdio` is deliberately NOT `"inherit"` here (it was, until this
-  // change). `"inherit"` means the daemon subtree shares this process's actual stdout/stderr file
-  // descriptors — under Playwright those ARE the pipe `launchProcess()` reads to detect readiness
-  // and to know when the webServer child has fully closed. If this process ever dies WITHOUT
-  // `reap()` having run first (confirmed reproducible: an external SIGTERM straight to
-  // Playwright's own top-level CLI process — not its webServer child — bypasses Playwright's
-  // `teardown()` entirely, so `gracefulShutdown` above never even gets a chance to apply), the
-  // orphaned daemon would keep holding that pipe's write end open indefinitely. Any FUTURE,
-  // unrelated process waiting on that same pipe to close would then hang too — not just this run.
-  // Piping explicitly and relaying ourselves means the daemon's own fd is never shared outside
-  // this process, so an orphaned daemon can no longer wedge anyone else's teardown, no matter what
-  // killed us or how. This does NOT stop the daemon from becoming an orphan in the first place —
-  // that still requires whatever killed this process to have gone through `reap()` — so the
-  // EADDRINUSE-on-next-boot leak from that same external-kill scenario is a real, separate,
-  // still-open gap (see the analysis doc for the write-up); this only stops that leak from also
-  // being able to hang an unrelated process's teardown the way the original bug did.
-  const child = isCompiled
-    ? spawn(process.execPath, [daemonPath], { stdio: ["ignore", "pipe", "pipe"], env, detached: true })
-    : spawn("npx", ["tsx", daemonPath], { stdio: ["ignore", "pipe", "pipe"], env, detached: true });
-  // Relay the daemon's own output through this process instead of inheriting its fds (see above) —
-  // preserves the existing `[agent-daemon] ...` log visibility during dev/test without sharing
-  // the pipe itself.
-  child.stdout?.pipe(process.stdout);
-  child.stderr?.pipe(process.stderr);
-  // Captured once, right after spawn: `child.pid` is `number | undefined` only in the narrow
-  // window where `spawn()` itself failed to allocate a process (surfaced via the `"error"`
-  // handler below) — TS18048 was a real defect (not cosmetic), since `-child.pid` below would
-  // have computed `-undefined` = `NaN` and thrown inside `reap()`'s `try`, silently falling
-  // through to the single-process `child.kill()` fallback instead of the group kill. Narrowing
-  // once here (rather than casting) makes `reap()` correctly no-op instead in that case — there
-  // is no process to reap.
-  const pid = child.pid;
-
-  // Set ONLY by `reap()`, at the point it actually issues a kill — never inferred from the exit
-  // code itself. The degraded-boot defect this whole block exists to close was previously reading
-  // intent FROM the code (`code !== 0 && code !== null`), which silently treated a spontaneous
-  // clean exit (code 0, e.g. the daemon crashing during `start()`'s own async setup and resolving
-  // its process normally on the way down) as if it were fine. A clean code does not mean we asked
-  // for it — only this flag does. Left `false` (never flipped) when `reap()`'s own early-return
-  // fires because the child had ALREADY exited before we tried to shut it down — that path must
-  // still count as a failure, not a deliberate shutdown.
-  let shuttingDownDeliberately = false;
-
-  // Matches what `agent-daemon-server.ts` itself resolves the port from (`JINI_AGENT_DAEMON_PORT ??
-  // 4319`) — read again here, independently, so the parent's own failure message can name the exact
-  // port without needing the child to have survived long enough to report it back.
-  const daemonPort = process.env.JINI_AGENT_DAEMON_PORT ?? "4319";
-
-  child.on("error", (error) => {
-    const message = error instanceof Error ? error.message : String(error);
-    const reasonCode = `failed to start the agent daemon — the assistant will be unavailable: ${message}`;
-    console.error(`[index] ${reasonCode}`);
-    recordAssistantDaemonFailure(reasonCode);
-  });
-  child.on("exit", (code, signal) => {
-    if (shuttingDownDeliberately) return;
-    // `AGENT_DAEMON_EXIT_CODE.PORT_IN_USE` is `agent-daemon-server.ts`'s own `server.on("error")`
-    // handler reporting EADDRINUSE specifically (`daemon-exit-codes.ts`) — naming the real reason
-    // here instead of the generic message below is the fix for the degraded-boot defect: a leaked
-    // port used to read as unexplained "exited unexpectedly (code 1)" flake.
-    const reasonCode =
-      code === AGENT_DAEMON_EXIT_CODE.PORT_IN_USE
-        ? `agent daemon could not bind 127.0.0.1:${daemonPort} — address already in use`
-        : `agent daemon exited unexpectedly (code ${code}, signal ${signal ?? "none"})`;
-    console.error(`[index] ${reasonCode}`);
-    recordAssistantDaemonFailure(reasonCode);
-  });
-
-  /** Kill the daemon's whole process group, falling back to the direct child if the group is gone. */
-  const reap = () => {
-    if (pid === undefined || child.exitCode !== null || child.signalCode !== null) return;
-    shuttingDownDeliberately = true;
-    try {
-      process.kill(-pid, "SIGTERM");
-    } catch {
-      try {
-        child.kill("SIGTERM");
-      } catch {
-        /* already gone */
-      }
-    }
-  };
-
-  // `exit` alone was not enough: it does not run when this process is terminated by a signal, which
-  // is how a dev server actually dies (Ctrl-C, or `tsx watch` cycling on a file change — the latter
-  // otherwise leaks a fresh orphan on EVERY save).
-  process.on("exit", reap);
-  for (const signal of ["SIGINT", "SIGTERM", "SIGHUP"] as const) {
-    process.on(signal, () => {
-      reap();
-      process.exit(0);
-    });
-  }
-}
+// ADR-049 (process-shape correction) — Tovu never spawns a coding-agent CLI itself; that lives
+// entirely in `src/assistant/agent-daemon-server.ts`, a separate OS process. `startAssistantDaemon`
+// (called above, inside `app.listen()`'s callback, after the boot-readiness promises settle) now
+// owns the full spawn-and-supervise lifecycle — including automatic respawn with backoff, a
+// crash-loop cap, and the manual restart seam a future admin action can call — in
+// `src/assistant/daemon-supervisor.ts`. Moved out of this file because `index.ts` self-invokes
+// `main()` at module load (see this file's own header), so it can never be imported by a test;
+// `daemon-supervisor.ts` carries the same env-propagation (`TOVU_WORKSPACE`, `TOVU_PARENT_PID`),
+// process-group-detachment, and stdio-piping behavior this function used to, unchanged — see that
+// file's own header for the full rationale on each.
 
 void main();
