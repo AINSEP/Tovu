@@ -1,6 +1,6 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { SourceControl } from "../SourceControl";
 import type { SourceControlCredentialRowState, SourceControlCredentialsController } from "../hooks/use-source-control-credentials.hooks";
@@ -297,5 +297,31 @@ describe("SourceControl — scope boundary copy", () => {
     expect(
       screen.getByText(/doesn't turn your content into git-versioned files — that's a separate feature, not built yet\./)
     ).toBeInTheDocument();
+  });
+});
+
+// 2026-08-17 owner ruling (`ADS-memory/reports/2026-08-17-source-control-ui.md`): "Security → Access
+// Tokens is the ONE credential home. Source Control keeps only real source hosts." Same cross-link
+// `deployment/StaticSiteTab.unit.test.tsx` already proves for the Static Site tab — one real
+// `navigate()` call, not a mock (jsdom supports `history.pushState` for real; asserting the resulting
+// URL is a stronger proof than asserting a spy was called).
+describe("SourceControl — 'Create access token' cross-link to the Security page (owner ruling)", () => {
+  afterEach(() => {
+    // Same convention `Deployment.unit.test.tsx`/`StaticSiteTab.unit.test.tsx` document: `navigate()`
+    // drives real `history.pushState`, so one test's click could otherwise leak into the next.
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("renders once, below the three provider rows", () => {
+    renderPage();
+    expect(screen.getByRole("button", { name: "Create access token" })).toBeInTheDocument();
+  });
+
+  it("navigates to the Access Tokens tab on the Security page when clicked", async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await user.click(screen.getByRole("button", { name: "Create access token" }));
+    expect(window.location.pathname).toBe("/admin/access-tokens");
+    expect(window.location.search).toBe("?tab=access-tokens");
   });
 });

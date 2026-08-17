@@ -1,6 +1,7 @@
 import { agentHandle } from "@jini-ai/agentic";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
+import { navigate } from "../../lib/router";
 import { formatTimestamp } from "../../lib/format-timestamp";
 import type { Translate } from "../../lib/dictionary-translator";
 import type { AdminSourceControlProviderId } from "../../lib/api";
@@ -109,7 +110,43 @@ export function ProvidersTab(props: ProvidersTabProps) {
       })}
     >
       <SourceControlCredentialsList controller={controller} t={controller.t} />
+      <ManageAccessTokensLink t={controller.t} />
     </div>
+  );
+}
+
+/**
+ * Cross-link to the Access Tokens tab on the Security page — the same "ONE credential home" pattern
+ * `deployment/StaticSiteTab.tsx`'s own `ManageAccessTokensLink` documents (2026-08-16 owner ruling,
+ * `ADS-memory/reports/2026-08-17-source-control-ui.md`: "Security → Access Tokens is the ONE
+ * credential home. Source Control keeps only real source hosts; Static Site picks a saved
+ * credential."). The three rows above still handle the common case inline (one token per provider,
+ * paste-and-save) — this is the escape hatch to what only Security's Access Tokens tab can do: save a
+ * SECOND named token for GitHub/GitLab/Bitbucket, rename one, or manage every credential this install
+ * holds (including the four publish providers) in one place.
+ *
+ * Deliberately NOT a 7-`VendorId` picker — a picker built from `VendorId` would list Netlify/Vercel/
+ * Cloudflare/S3 as places to keep SOURCE CODE, which they are not; this page's own three rows
+ * (`SOURCE_CONTROL_PROVIDERS`, `rules.ts`) are the correct, narrower provider set for what this page
+ * actually does. See `AdminSourceControlProviderId`'s own three-member union in `lib/api.ts`.
+ * @complexity O(1) — no branches.
+ */
+function ManageAccessTokensLink({ t: translate }: { t: Translate }) {
+  return (
+    <p className="source-control-action-reason">
+      {translate("Need to save more than one token, rename one, or manage every saved credential in one place?")}{" "}
+      <button
+        type="button"
+        className="link-button"
+        onClick={() => navigate("/access-tokens?tab=access-tokens")}
+        {...agentHandle("source-control-manage-tokens-link", {
+          role: "button",
+          label: "Go to the Access Tokens tab on the Security page to create, rename, or manage saved tokens",
+        })}
+      >
+        {translate("Create access token")}
+      </button>
+    </p>
   );
 }
 
