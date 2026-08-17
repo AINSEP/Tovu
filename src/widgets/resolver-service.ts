@@ -784,6 +784,18 @@ const HTML_EMBED_RESOLVERS: Readonly<Record<string, HtmlEmbedResolver>> = {
  * A type in this set must stay absent from `HTML_EMBED_RESOLVERS` — do not "fix" the warning by adding
  * a resolver entry instead; see `isPageEmbedType`'s own doc for why that would reintroduce the
  * substitution bug this file already fixed once.
+ *
+ * **Why this isn't just `!isPageEmbedType(type)`.** `isPageEmbedType` is `Object.hasOwn(HTML_EMBED_RESOLVERS,
+ * type)` — exactly the same fact this loop's own `HTML_EMBED_RESOLVERS[type]` lookup already tests, one
+ * bit: "is this resolver-service's own type." That bit is `false` for `partial`/`menu` AND for a genuine
+ * unregistered/typo type alike, so it cannot distinguish "known, owned by a later stage" from "owned
+ * nowhere" — using it to gate the warning would silence the ONE case the warning exists for, not just
+ * the two it shouldn't fire for. This set names the missing fact directly instead. It intentionally
+ * duplicates `static-render.ts`'s own `marker.type !== "menu"`/`!== "partial"` literals rather than
+ * importing them (that file is a different feature's territory in this change's dispatch) — the real
+ * fix, hoisting a shared constant into `core/embeds/marker.ts` for both files to import, is proposed but
+ * not yet authorized; see `ADS-memory/reports/2026-08-16-embed-placeholder-gap.md`'s "Reuse decision"
+ * section. Keep this set's members in sync with those two literals, not with `isPageEmbedType`.
  */
 const THEME_OWNED_MARKER_TYPES: ReadonlySet<string> = new Set(["partial", "menu"]);
 
