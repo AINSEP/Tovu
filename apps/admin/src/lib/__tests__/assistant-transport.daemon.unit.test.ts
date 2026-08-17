@@ -435,6 +435,30 @@ describe("reattachRun — daemon path", () => {
     expect(FakeEventSource.instances).toHaveLength(1);
     expect(FakeEventSource.instances[0]?.url).toBe("/api/runs/run-9/events");
   });
+
+  /**
+   * `useRunStream.reattach()` (Jini `@jini-ai/chat-react`) creates an `AbortController`, stores it,
+   * and aborts it on unmount/reset/supersession, then hands it to `transport.reattachRun` as
+   * `options.signal` — exactly the seam `ChatTransport.reattachRun`'s third parameter exists for
+   * (`packages/chat/src/core/transport.ts`'s `ReattachRunOptions`, added 2026-07-29 specifically to
+   * close this resource leak). If this transport drops that third argument, the hook's own abort
+   * does nothing here: the EventSource this call opens has no way to ever be told to close, and
+   * outlives the component that reattached it — the same "recurring/long-lived thing with no
+   * cancellation wired through" shape as today's settings-events/AssistantDock-poll fixes.
+   */
+  test("honors options.signal — aborting it closes the reattached EventSource", async () => {
+    const transport = createTovuAssistantTransport();
+    const h = handlers();
+    const controller = new AbortController();
+
+    await transport.reattachRun("run-9", h, { signal: controller.signal });
+    const source = FakeEventSource.instances[0]!;
+    expect(source.closed).toBe(false);
+
+    controller.abort();
+
+    expect(source.closed).toBe(true);
+  });
 });
 
 describe("fetchRunStatus — daemon path", () => {

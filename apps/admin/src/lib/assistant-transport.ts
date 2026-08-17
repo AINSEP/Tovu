@@ -26,7 +26,7 @@
  */
 import { buildTranscript, latestUserPromptFromHistory } from "@jini-ai/chat/core";
 import type { AgentEvent, ChatMessage } from "@jini-ai/chat/core";
-import type { ChatTransport, RunHandlers, StartRunInput } from "@jini-ai/chat/react";
+import type { ChatTransport, ReattachRunOptions, RunHandlers, StartRunInput } from "@jini-ai/chat/react";
 import type { ExecutionConfig } from "@jini-ai/ui";
 
 const RUNS_URL = "/api/runs";
@@ -651,7 +651,7 @@ export function createTovuAssistantTransport(options: CreateTovuAssistantTranspo
       return { runId: run.id };
     },
 
-    async reattachRun(runId: string, handlers: RunHandlers): Promise<void> {
+    async reattachRun(runId: string, handlers: RunHandlers, options?: ReattachRunOptions): Promise<void> {
       // A BYOK run has no server-side record to reattach to (module doc's path-2 section) — the
       // stream lived entirely on the original `fetch()`'s response body, which a reload has already
       // discarded. Reporting the run as simply over (an empty `onDone`) is the honest answer: there
@@ -661,7 +661,7 @@ export function createTovuAssistantTransport(options: CreateTovuAssistantTranspo
         handlers.onDone([]);
         return;
       }
-      subscribeToRun(runId, handlers);
+      subscribeToRun(runId, handlers, options?.signal);
     },
 
     async fetchRunStatus(runId: string) {
