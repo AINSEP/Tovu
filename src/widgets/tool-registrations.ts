@@ -30,6 +30,7 @@ import {
   type ToolHandler,
   type ToolRegistration,
 } from "@jini-ai/cms/core";
+import { registerToolContributor } from "#src/assistant/index";
 import { toWhereUsedResponse } from "./where-used";
 import { widgetsAgentToolCatalog } from "./agent-tools";
 import { requireWidgetPermission } from "./authorize-helper";
@@ -362,4 +363,20 @@ export function buildWidgetsRegistrations(routeDeps: WidgetsToolDeps): ToolRegis
     handlers,
     derivedRisk: widgetsDerivedRisk,
   });
+}
+
+/**
+ * Contributes Widgets' AI tools to the assistant's catalog — called once by
+ * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
+ * module. `assistant/tool-registrations.ts` no longer imports `buildWidgetsRegistrations`/
+ * `widgetsDerivedRisk` by name; this is the seam that replaced it (2026-08-17, Stage 2 batch 2 — see
+ * `tool-contribution-registry.ts`'s header for why: this edge used to close a module cycle with
+ * `assistant`, and a one-directional `widgets -> assistant` registration call does not). Converting
+ * `widgets` first in this batch (ahead of `content-types`/`forms`, which `widgets` itself imports)
+ * was deliberate: it removes the `assistant -> widgets` static edge before either of those converts,
+ * so a later `content-types -> assistant` or `forms -> assistant` edge cannot round-trip back through
+ * `widgets` to close a new cycle the way `themes`/`post` did in the prior batch.
+ */
+export function contributeWidgetsTools(): void {
+  registerToolContributor({ domain: "widgets", build: buildWidgetsRegistrations, risk: widgetsDerivedRisk });
 }

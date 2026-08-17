@@ -26,6 +26,16 @@ import {
   assertRiskMetadataIsWirable,
   buildAssistantToolRegistrations,
 } from "../tool-registrations";
+import { resetToolContributorsForTests } from "../tool-contribution-registry";
+import { contributeMenusTools } from "../../navigation/tool-registrations";
+
+// Menus moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
+// tool-contribution registry (2026-08-17, Stage 2 batch 2 — see `tool-contribution-registry.ts`'s
+// header), so `buildAssistantToolRegistrations` below no longer wires it unless something explicitly
+// installs it first, mirroring what the real composition roots now do via
+// `installFirstPartyToolContributors()`.
+resetToolContributorsForTests();
+contributeMenusTools();
 
 const WORKSPACE_ID = "ws-menus-tools";
 const PRINCIPAL_ID = "principal-under-test";

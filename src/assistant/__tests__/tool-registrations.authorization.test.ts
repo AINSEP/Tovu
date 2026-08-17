@@ -9,6 +9,16 @@ import type { ContentTypeRecord } from "../../features/content-types";
 import { ForbiddenError as CoreForbiddenError } from "@jini-ai/cms/core";
 import type { RouteDeps } from "../../server/routes/types";
 import { buildAssistantToolRegistrations } from "../tool-registrations";
+import { resetToolContributorsForTests } from "../tool-contribution-registry";
+import { contributeContentTypesTools } from "../../features/content-types/tool-registrations";
+
+// Content-types moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
+// tool-contribution registry (2026-08-17, Stage 2 batch 2 — see `tool-contribution-registry.ts`'s
+// header), so `buildAssistantToolRegistrations` below no longer wires it unless something explicitly
+// installs it first, mirroring what the real composition roots now do via
+// `installFirstPartyToolContributors()`.
+resetToolContributorsForTests();
+contributeContentTypesTools();
 
 /**
  * @file Proves the claim `tool-registrations.ts` makes in its header: its `ToolPolicy.authorize`
