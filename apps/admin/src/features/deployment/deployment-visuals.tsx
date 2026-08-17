@@ -31,6 +31,20 @@ const LINE_ICON = {
   "aria-hidden": true,
 } as const;
 
+/** Overview — a small dashboard grid, i.e. a summary of several facts at a glance. Added for the
+ *  Deployment tab row's own icon set (owner request) — the four tabs beside it already had a glyph
+ *  each; this is Overview's. */
+export function OverviewIcon({ size = 20 }: { size?: number }) {
+  return (
+    <svg {...LINE_ICON} width={size} height={size}>
+      <rect x="3" y="3" width="7" height="7" rx="1.5" />
+      <rect x="14" y="3" width="7" height="7" rx="1.5" />
+      <rect x="3" y="14" width="7" height="7" rx="1.5" />
+      <rect x="14" y="14" width="7" height="7" rx="1.5" />
+    </svg>
+  );
+}
+
 /** Static Site — a document, i.e. files on disk with no machine behind them. */
 export function StaticSiteIcon({ size = 20 }: { size?: number }) {
   return (

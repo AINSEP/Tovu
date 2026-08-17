@@ -19,6 +19,19 @@ const LINE_ICON = {
   "aria-hidden": true,
 } as const;
 
+/** The Access Tokens tab's own icon — a key, i.e. the shape a credential is. Added for the Security
+ *  page's tab row (owner request, the same pass that added Deployment's five and Source Control's
+ *  Providers tab their own icons); this page has one real tab today, so this is that tab's only
+ *  glyph rather than one of a set. */
+export function AccessTokensIcon({ size = 16 }: { size?: number }) {
+  return (
+    <svg {...LINE_ICON} width={size} height={size}>
+      <circle cx="8" cy="8" r="4.5" />
+      <path d="m11.2 11.2 8.3 8.3M16.5 16.5l2.3-2.3M19 19l2-2" />
+    </svg>
+  );
+}
+
 /** The search field's leading icon — always `aria-hidden`, the field has its own visually-hidden
  *  `<label>` carrying the accessible name (`AccessTokensTab.tsx`'s `AccessTokensSearch`). */
 export function SearchIcon({ size = 16 }: { size?: number }) {

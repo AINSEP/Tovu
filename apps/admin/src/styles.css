@@ -1943,6 +1943,12 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    the color once and reuse it, rather than this tab inventing a second meaning for a color already
    spoken for. `flex-shrink: 0` keeps it a circle even inside a tab whose label wraps the row tight. */
 .tab-bar-dot { width: 0.4rem; height: 0.4rem; border-radius: 50%; background: var(--ok); margin-right: 0.4rem; flex-shrink: 0; }
+/* `TabBarTab.icon`'s own frame — `1em`-relative so it tracks this tab row's own type scale rather
+   than a pinned px size (`deployment-visuals.tsx`'s own icon sizing note gives the identical
+   reasoning), and `currentColor` inherits `.tab-bar-item`'s own text color so the icon dims/accents
+   exactly in step with the label beside it (muted at rest, `--accent-text` once selected) with no
+   separate color rule of its own to keep in sync. */
+.tab-bar-icon { display: inline-flex; align-items: center; margin-right: 0.4rem; flex-shrink: 0; width: 1em; height: 1em; color: currentColor; }
 /* Marketplace (soon) placeholder tab (2026-08-10 owner feedback) — greyed out and inert, not a
    clickable empty state: `disabled` already stops the click and pulls it out of the tab order,
    this just makes that visible instead of leaving it looking like every other tab. `background:

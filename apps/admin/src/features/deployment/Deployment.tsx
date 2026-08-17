@@ -8,6 +8,7 @@ import { StaticSiteTab } from "./StaticSiteTab";
 import { FullSiteTab } from "./FullSiteTab";
 import { DockerfileTab } from "./DockerfileTab";
 import { HistoryTab } from "./HistoryTab";
+import { FullSiteIcon, HistoryIcon, LayersIcon, OverviewIcon, StaticSiteIcon } from "./deployment-visuals";
 
 /**
  * @file The Deployment panel (`/admin/deployment`) — five tabs: Overview, Static Site, Full Site,
@@ -75,30 +76,35 @@ export function Deployment(props: DeploymentProps) {
     {
       id: "overview",
       label: t(locale, "Overview"),
+      icon: <OverviewIcon size={16} />,
       handle: "deployment-tab-overview",
       handleLabel: "Switch to the Overview tab — instance diagnostics and the Static vs. Full Site comparison",
     },
     {
       id: "static-site",
       label: t(locale, "Static Site"),
+      icon: <StaticSiteIcon size={16} />,
       handle: "deployment-tab-static-site",
       handleLabel: "Switch to the Static Site tab — export a read-only copy of this site's published pages",
     },
     {
       id: "full-site",
       label: t(locale, "Full Site"),
+      icon: <FullSiteIcon size={16} />,
       handle: "deployment-tab-full-site",
       handleLabel: "Switch to the Full Site tab — the complete Tovu server, host provider options",
     },
     {
       id: "dockerfile",
       label: t(locale, "Dockerfile"),
+      icon: <LayersIcon size={16} />,
       handle: "deployment-tab-dockerfile",
       handleLabel: "Switch to the Dockerfile tab — view, edit and save the repo-root Dockerfile",
     },
     {
       id: "history",
       label: t(locale, "History"),
+      icon: <HistoryIcon size={16} />,
       handle: "deployment-tab-history",
       handleLabel: "Switch to the History tab — past builds and deploys",
     },

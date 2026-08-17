@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { agentHandle } from "@jini-ai/agentic";
 
 /**
@@ -20,6 +21,15 @@ import { agentHandle } from "@jini-ai/agentic";
 export interface TabBarTab {
   readonly id: string;
   readonly label: string;
+  /** An inline icon rendered before {@link label} — same slot Settings' own wrapped icon-tab row
+   *  uses for its 13 tabs (`SettingsUi.tsx`'s `TabIcon`-wrapped SVGs), added here so Deployment,
+   *  Security, and Source Control's Providers tab can match that look without adopting
+   *  `SettingsDialogShell` itself (see those files' own headers for why not). Always `aria-hidden`
+   *  — every icon here sits directly beside the text label that already says the same thing, same
+   *  reasoning `deployment-visuals.tsx`'s own icon set documents for its icons. Optional and
+   *  additive: a caller that never sets it (`Themes.tsx`, `Pages.tsx`, `ThemeExplore.tsx`, `Media.tsx`)
+   *  renders exactly as before — nothing here changes `TabBarButton`'s layout when `icon` is absent. */
+  readonly icon?: ReactNode;
   /** Shown next to the label when present (e.g. a theme count per tier). Omit to show none. */
   readonly count?: number;
   /**
@@ -115,6 +125,11 @@ function TabBarButton({ tab, active, onChange }: { tab: TabBarTab; active: boole
       {...tabHandleProps(tab)}
     >
       {tab.dot ? <span className="tab-bar-dot" aria-hidden="true" /> : null}
+      {tab.icon ? (
+        <span className="tab-bar-icon" aria-hidden="true">
+          {tab.icon}
+        </span>
+      ) : null}
       {tab.label}
       {tabDotAccessibleSuffix(tab)}
       {tab.count !== undefined ? <span className="tab-bar-count">{tab.count}</span> : null}
