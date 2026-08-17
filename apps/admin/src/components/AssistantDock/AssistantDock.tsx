@@ -173,11 +173,56 @@ declare global {
 
 const AGENTS_URL = "/api/agents";
 
+/**
+ * Mirrors `lib/api.ts`'s `DEFAULT_REQUEST_TIMEOUT_MS` (60s). These three fetches bypass that
+ * shared `request()` seam entirely — `/api/agents` is not under `request()`'s `/api/admin/v1` base
+ * path — so without their own bound they can hang forever under the same per-origin
+ * connection-pool exhaustion `api.ts`'s own `REQUEST_TIMEOUT_CODE` doc describes (every open admin
+ * tab keeps one `EventSource` connection open forever; see `lib/settings-events.ts`).
+ */
+const AGENTS_FETCH_TIMEOUT_MS = 60_000;
+
 async function fetchAgents(): Promise<ChatPaneAgent[]> {
-  const response = await fetch(AGENTS_URL, { credentials: "same-origin" });
+  const response = await fetch(AGENTS_URL, {
+    credentials: "same-origin",
+    signal: AbortSignal.timeout(AGENTS_FETCH_TIMEOUT_MS),
+  });
   if (!response.ok) return [];
   const { agents } = (await response.json()) as { agents: ChatPaneAgent[] };
   return agents;
+}
+
+/**
+ * In-flight `daemonOnline()` call, shared module-wide so overlapping callers reuse it instead of
+ * each starting their own fetch.
+ *
+ * `@jini-ai/chat/react`'s `useChatPaneRuntimeInventory` polls `daemonOnline` on a bare
+ * `window.setInterval` every 5s for as long as a dock is mounted (effectively a whole tab's
+ * lifetime), and its own de-dup (`useLatestOperation`) only ignores a STALE RESULT — it never
+ * aborts the underlying fetch. Under connection-pool exhaustion, a `fetch` that queues forever
+ * previously meant a brand new permanently-stuck request was added on every single tick, an
+ * unbounded leak for as long as the tab stayed open (see
+ * `ADS-memory/reports/2026-08-17-vite-proxy-pool-saturation-investigation.md`). Reusing one
+ * in-flight promise caps that cost at one connection, the same fixed cost the settings-events SSE
+ * already holds, instead of growing without bound.
+ */
+let daemonOnlineInFlight: Promise<boolean> | null = null;
+
+async function daemonOnline(): Promise<boolean> {
+  if (daemonOnlineInFlight) return daemonOnlineInFlight;
+  const attempt = (async () => {
+    const response = await fetch(AGENTS_URL, {
+      credentials: "same-origin",
+      signal: AbortSignal.timeout(AGENTS_FETCH_TIMEOUT_MS),
+    });
+    return response.ok;
+  })();
+  daemonOnlineInFlight = attempt;
+  try {
+    return await attempt;
+  } finally {
+    if (daemonOnlineInFlight === attempt) daemonOnlineInFlight = null;
+  }
 }
 
 export interface ResolveComposerDiscoveryOutcomeDeps {
@@ -365,15 +410,16 @@ export function AssistantDock(props: AssistantDockProps) {
     () => ({
       listAgents: fetchAgents,
       rescanAgents: async () => {
-        const response = await fetch(`${AGENTS_URL}/rescan`, { method: "POST", credentials: "same-origin" });
+        const response = await fetch(`${AGENTS_URL}/rescan`, {
+          method: "POST",
+          credentials: "same-origin",
+          signal: AbortSignal.timeout(AGENTS_FETCH_TIMEOUT_MS),
+        });
         if (!response.ok) return fetchAgents();
         const { agents } = (await response.json()) as { agents: ChatPaneAgent[] };
         return agents;
       },
-      daemonOnline: async () => {
-        const response = await fetch(AGENTS_URL, { credentials: "same-origin" });
-        return response.ok;
-      },
+      daemonOnline,
     }),
     [],
   );
