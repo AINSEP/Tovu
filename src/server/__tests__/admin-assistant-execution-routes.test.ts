@@ -11,23 +11,33 @@ import { setSiteAssistantCredential } from "../../assistant/site-credential-stor
 import type { RouteDeps } from "../routes/types";
 
 /**
- * @file Route-level tests for the admin "Execution mode" tab's 3 probe routes (Local CLI detect,
- * BYOK connection test, BYOK model discovery).
+ * @file Route-level tests for the admin "Execution mode" tab's 4 probe routes (Local CLI detect,
+ * per-agent CLI re-check, BYOK connection test, BYOK model discovery).
  *
- * Real auth throughout, mirroring `admin-assistant-settings-routes.test.ts`. `detect-agents` calls
- * the real `@jini-ai/agent-runtime` `detectAgents()` — a local PATH probe with no network access, so
- * exercising it for real is safe and fast. `test-connection`/`list-models`'s SUCCESS paths make a
- * real outbound HTTP request, which this suite deliberately does not exercise (no live external
- * dependency in a scoped test run); what it certifies instead is the wiring these routes actually
- * own: auth gating, workspace-mismatch 404, request validation, and — for a base URL that resolves
- * to a blocked private address — the real, no-network SSRF-guard rejection path, proving the
- * request actually reaches `@jini-ai/agent-runtime`'s real functions rather than a stub.
+ * Real auth throughout, mirroring `admin-assistant-settings-routes.test.ts`. `detect-agents` and
+ * `test-agent` both call the real `@jini-ai/agent-runtime` `detectAgents()` — a local PATH probe
+ * with no network access, so exercising it for real is safe and fast. `test-connection`/
+ * `list-models`'s SUCCESS paths make a real outbound HTTP request, which this suite deliberately
+ * does not exercise (no live external dependency in a scoped test run); what it certifies instead is
+ * the wiring these routes actually own: auth gating, workspace-mismatch 404, request validation, and
+ * — for a base URL that resolves to a blocked private address — the real, no-network SSRF-guard
+ * rejection path, proving the request actually reaches `@jini-ai/agent-runtime`'s real functions
+ * rather than a stub.
+ *
+ * `test-agent`'s installed/authenticated/model-mismatch/success branches all depend on which CLIs
+ * are actually on the host's PATH and their live auth state — machine-dependent, not something this
+ * suite can force deterministically without a fake-CLI test seam (route calls `detectAgents()`
+ * directly, not through an injectable dep, and this repo's Node version needs an experimental flag
+ * for `mock.module()` — see `database-migrate-forward-routes.test.ts`'s note on the same
+ * constraint). Only the agent-id-not-found branch is exercised here, since it holds on every host
+ * regardless of what's installed; the rest is a known, accepted coverage gap.
  */
 
 const WORKSPACE_ID = "workspace-local";
 const DETECT_PATH = `/api/admin/v1/workspaces/${WORKSPACE_ID}/assistant/execution/detect-agents`;
 const TEST_CONNECTION_PATH = `/api/admin/v1/workspaces/${WORKSPACE_ID}/assistant/execution/test-connection`;
 const LIST_MODELS_PATH = `/api/admin/v1/workspaces/${WORKSPACE_ID}/assistant/execution/models`;
+const TEST_AGENT_PATH = `/api/admin/v1/workspaces/${WORKSPACE_ID}/assistant/execution/test-agent`;
 
 function buildTestApp(): { app: express.Express; deps: RouteDeps } {
   const deps: RouteDeps = createRouteDeps();
@@ -92,16 +102,17 @@ function post(baseUrl: string, path: string, cookie: string, body: unknown): Pro
   });
 }
 
-test("all 3 routes require a session — an unauthenticated caller never reaches them", async (t) => {
+test("all 4 routes require a session — an unauthenticated caller never reaches them", async (t) => {
   const { app } = buildTestApp();
   const baseUrl = await startTestServer(app, t);
 
   assert.equal((await post(baseUrl, DETECT_PATH, "", {})).status, 401);
   assert.equal((await post(baseUrl, TEST_CONNECTION_PATH, "", {})).status, 401);
   assert.equal((await post(baseUrl, LIST_MODELS_PATH, "", {})).status, 401);
+  assert.equal((await post(baseUrl, TEST_AGENT_PATH, "", {})).status, 401);
 });
 
-test("all 3 routes require admin.assistant.manage — a signed-in principal without it gets 403", async (t) => {
+test("all 4 routes require admin.assistant.manage — a signed-in principal without it gets 403", async (t) => {
   const { app, deps } = buildTestApp();
   const baseUrl = await startTestServer(app, t);
   const cookie = await loginWithPermissions(deps, baseUrl, ["content.write"]);
@@ -110,6 +121,7 @@ test("all 3 routes require admin.assistant.manage — a signed-in principal with
     await post(baseUrl, DETECT_PATH, cookie, {}),
     await post(baseUrl, TEST_CONNECTION_PATH, cookie, {}),
     await post(baseUrl, LIST_MODELS_PATH, cookie, {}),
+    await post(baseUrl, TEST_AGENT_PATH, cookie, {}),
   ]) {
     assert.equal(res.status, 403);
     const body = (await res.json()) as { code: string; details: { permission: string } };
@@ -118,7 +130,7 @@ test("all 3 routes require admin.assistant.manage — a signed-in principal with
   }
 });
 
-test("a workspace id that is not this site's is 404, on all 3 routes", async (t) => {
+test("a workspace id that is not this site's is 404, on all 4 routes", async (t) => {
   const { app } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   const otherBase = "/api/admin/v1/workspaces/some-other-workspace/assistant/execution";
@@ -126,6 +138,7 @@ test("a workspace id that is not this site's is 404, on all 3 routes", async (t)
   assert.equal((await post(baseUrl, `${otherBase}/detect-agents`, cookie, {})).status, 404);
   assert.equal((await post(baseUrl, `${otherBase}/test-connection`, cookie, {})).status, 404);
   assert.equal((await post(baseUrl, `${otherBase}/models`, cookie, {})).status, 404);
+  assert.equal((await post(baseUrl, `${otherBase}/test-agent`, cookie, {})).status, 404);
 });
 
 test("detect-agents returns a data array (real, no-network local-CLI probe)", async (t) => {
@@ -136,6 +149,41 @@ test("detect-agents returns a data array (real, no-network local-CLI probe)", as
   assert.equal(res.status, 200, await res.clone().text());
   const body = (await res.json()) as { data: unknown[] };
   assert.ok(Array.isArray(body.data));
+});
+
+test("test-agent rejects a missing agentId with 400 before any PATH probe", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await post(baseUrl, TEST_AGENT_PATH, cookie, {});
+  assert.equal(res.status, 400);
+  const body = (await res.json()) as { error: string; code: string };
+  assert.equal(body.code, "BAD_REQUEST");
+  assert.match(body.error, /agentId/);
+});
+
+test("test-agent rejects a blank/whitespace-only agentId with 400, same as missing", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await post(baseUrl, TEST_AGENT_PATH, cookie, { agentId: "   " });
+  assert.equal(res.status, 400);
+  assert.equal(((await res.json()) as { code: string }).code, "BAD_REQUEST");
+});
+
+test("test-agent reports ok:false for an agentId not present in the real detectAgents() result (real, no-network local-CLI probe)", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  // No id this repo's `@jini-ai/agent-runtime` registers will ever equal this string, so this
+  // branch is deterministic regardless of which CLIs happen to be installed on the host running
+  // the suite (see this file's header note on why the installed/authenticated branches are not
+  // exercised here).
+  const res = await post(baseUrl, TEST_AGENT_PATH, cookie, { agentId: "not-a-real-agent-id-zzz" });
+  assert.equal(res.status, 200, await res.clone().text());
+  const body = (await res.json()) as { ok: boolean; message: string };
+  assert.equal(body.ok, false);
+  assert.match(body.message, /was not found on this server's PATH/);
 });
 
 test("test-connection rejects an unsupported protocol with 400 before any network access", async (t) => {
