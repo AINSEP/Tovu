@@ -138,6 +138,51 @@ export function isGeneratedThemePath(relativePath: string): boolean {
 }
 
 /**
+ * Whether a compiled theme's declared `build.sourceDir` conflicts with a {@link GENERATED_THEME_DIRS}
+ * entry — the install-time half of the two-layer `preview/` defense. {@link isGeneratedThemePath}
+ * stops a WRITE that names a generated path; this stops the MANIFEST that would make an entire,
+ * ordinary-looking source tree alias generated output, checked by `loadTheme` (`theme.ts`) so a
+ * conflicting manifest fails to load at all rather than depending solely on each write route's own
+ * `isGeneratedThemePath` refusal (added 2026-08-13 after `PUT {"path":"preview/foo.tsx"}` on a
+ * `sourceDir: "preview"` manifest reached disk — see that history in `isGeneratedThemePath`'s doc, and
+ * `explore.ts`'s PUT handler for the call-site layer this one is in front of, not a replacement for).
+ *
+ * Three shapes conflict, because each makes some path indistinguishable as source vs. generated:
+ *  1. `sourceDir` names a generated dir exactly (`"preview"`).
+ *  2. `sourceDir` is NESTED inside one (`"preview/src"`) — the same "exact segment or a path under it"
+ *     shape {@link isGeneratedThemePath} already answers for a file path; reused here for `sourceDir`
+ *     rather than re-derived, so a `sourceDir` string and a file path are never judged by two different
+ *     rules.
+ *  3. `sourceDir` is an ANCESTOR of a generated dir — in practice only the theme root itself (`"."`,
+ *     which normalizes to `""`), which would put every {@link GENERATED_THEME_DIRS} entry INSIDE the
+ *     declared source tree. An empty `sourceDir` (`""`) is already refused earlier in `loadTheme` as
+ *     falsy (`build.sourceDir is required`), so the only shape this adds is a truthy root spelling like
+ *     `"."`. Any generated-dir list is non-empty by construction (see that constant's own doc), so a
+ *     root `sourceDir` conflicts unconditionally rather than needing a per-entry comparison.
+ *
+ * `"preview-notes"` — merely PREFIXED with a generated dir's name — must NOT conflict; the per-segment
+ * comparison below is what avoids that false positive, exactly as it does for {@link isGeneratedThemePath}.
+ *
+ * @param sourceDir - `theme.json`'s `build.sourceDir`, as authored (any separator, `./`, `..`).
+ * @returns `true` iff normalizing `sourceDir` lands on, inside, or astride any
+ * {@link GENERATED_THEME_DIRS} entry.
+ * @throws Never. Pure: no filesystem access, no side effects.
+ * @complexity Time: O(d·k), d = `GENERATED_THEME_DIRS.length`, k = path length. Space: O(k).
+ */
+export function isSourceDirGeneratedConflict(sourceDir: string): boolean {
+  const normalizedSource = normalizeThemeRelativePath(sourceDir);
+  // The root sourceDir case: no per-entry comparison can express "is an ancestor of every entry"
+  // via a single startsWith check the way the nested-inside direction can, so it is handled directly.
+  if (normalizedSource === "") return true;
+  return GENERATED_THEME_DIRS.some(
+    (dir) =>
+      normalizedSource === dir ||
+      normalizedSource.startsWith(`${dir}/`) ||
+      dir.startsWith(`${normalizedSource}/`)
+  );
+}
+
+/**
  * Collapse a theme-relative path to comparable segments: `/` separators, no `.`, no `..`, no empty
  * segments. Shared by every predicate here that compares a path against a directory name, so a gate
  * and the writer it guards cannot disagree about which file a string names.

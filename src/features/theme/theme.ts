@@ -6,6 +6,10 @@ import { markersOfType } from "#src/core/embeds/marker";
 import { checkBuiltThemeConformance } from "./build-conformance";
 import { lintHandlebarsTemplate } from "./handlebars-allowlist";
 import { lintLiquidTemplate } from "./liquid-allowlist";
+// `theme-files.ts` imports `ENGINE_SUBFOLDERS`/`THEME_CATALOG_DIR` from this module already, so this
+// is a pre-existing module pair, now cyclic in the other direction too — safe because both of these
+// are consumed only inside `loadTheme`'s function body below, never at module-evaluation time.
+import { GENERATED_THEME_DIRS, isSourceDirGeneratedConflict } from "./theme-files";
 
 /**
  * @file Declarative theme package format + discovery (SPEC-004, spike slice).
@@ -646,6 +650,16 @@ export function loadTheme(
       }
       if (!manifest.build.sourceDir) {
         errors.push("theme.json build.sourceDir is required when build.source is 'compiled'");
+      } else if (isSourceDirGeneratedConflict(manifest.build.sourceDir)) {
+        // The deeper fix promised in `explore.ts`'s PUT handler comment (2026-08-13): a manifest is
+        // refused HERE, at install time, rather than relying only on each write route's own
+        // `isGeneratedThemePath` call-site refusal. That refusal (explore.ts, marketplace.ts) stays —
+        // this is an earlier, independent layer, not a replacement for it. See
+        // `isSourceDirGeneratedConflict`'s own doc for the three conflicting shapes (exact, nested
+        // inside, or ancestor-of a generated dir) and why `"preview-notes"` is not one of them.
+        errors.push(
+          `theme.json build.sourceDir '${manifest.build.sourceDir}' must not name or contain a generated theme directory (${GENERATED_THEME_DIRS.join(", ")})`
+        );
       }
       if (!manifest.build.artifactHashes || Object.keys(manifest.build.artifactHashes).length === 0) {
         errors.push("theme.json build.artifactHashes is required when build.source is 'compiled'");
