@@ -35,6 +35,7 @@
     "check:inventory": "tsx development/scripts/check-capability-inventory.ts",
     "check:outbox-bridge": "tsx development/scripts/check-outbox-bridge.ts",
     "check:admin-complexity-drift": "tsx development/scripts/check-admin-complexity-drift.ts",
+    "check:src-complexity-drift": "tsx development/scripts/check-src-complexity-drift.ts",
     "check:embed-marker-drift": "tsx development/scripts/check-embed-marker-drift.ts",
     "check:route-coverage-floor": "tsx development/scripts/check-route-coverage-floor.ts",
     "check:route-coverage-diff": "tsx development/scripts/check-route-coverage-diff.ts",
