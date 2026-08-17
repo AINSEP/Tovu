@@ -152,7 +152,6 @@ test("media is deliberately NOT installed by installFirstPartyToolContributors â
   installFirstPartyToolContributors();
   assert.equal(listToolContributors().some((c) => c.domain === "media"), false);
 });
-});
 
 test("registration order is deterministic across repeated installs, not just stable within one", () => {
   installFirstPartyToolContributors();
