@@ -10,7 +10,6 @@ import {
   VendorCredentialSecretStoreUnconfiguredError,
   VendorCredentialValidationError,
   type VendorCredentialSetSummary,
-  type VendorCredentialSetRepoPort,
 } from "#src/features/vendor-credentials/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
@@ -53,16 +52,17 @@ import type { RouteDeps } from "#src/server/routes/types";
  * `AuthorizeFn` contract both predecessors already rely on (`core/commands/command.ts`) — no central
  * permission registry to update.
  *
- * `deps.vendorCredentialSetRepo` does not yet exist on `RouteDeps` (`server/routes/types.ts`) as of
- * this file's own commit — {@link AdminVendorCredentialsDeps} widens `RouteDeps` with the one field
- * this route needs so the route itself, and its own tests, can be written and proven correct in
- * isolation ahead of that composition-root change. `server/app.ts` cannot register this route (and no
- * real `RouteDeps` object can satisfy this file's own `AdminVendorCredentialsDeps` type) until
- * `vendorCredentialSetRepo` is added there and `server/deps.ts` constructs a
- * `SqliteVendorCredentialSetRepo` for it — deliberately left for that later, coordinated pass rather
- * than done here, since both files are shared, actively-edited composition-root surfaces.
+ * `deps.vendorCredentialSetRepo` (`RouteDeps`, `server/routes/types.ts`) is backed by the real
+ * `SqliteVendorCredentialSetRepo` in `server/deps.ts` and by `InMemoryVendorCredentialSetRepo` in
+ * `server/app.ts`'s hermetic composition — same rule-of-two every other repo on `RouteDeps` follows.
+ * (2026-08-16: this route was written and reviewed one commit ahead of that composition-root wiring,
+ * against a local `RouteDeps & {vendorCredentialSetRepo}` intersection type, so it could be proven
+ * correct in isolation without touching the shared `server/deps.ts`/`server/routes/types.ts` files
+ * while another pass was actively editing them. That intersection has since collapsed to plain
+ * `RouteDeps` below, now that the field is real — the temporary shape did not outlive the reason for
+ * it.)
  */
-export type AdminVendorCredentialsDeps = RouteDeps & { vendorCredentialSetRepo: VendorCredentialSetRepoPort };
+export type AdminVendorCredentialsDeps = RouteDeps;
 
 const BASE_PATH = "/api/admin/v1/workspaces/:workspaceId/system/vendor-credentials";
 const PERMISSION = "vendor-credentials.write";
