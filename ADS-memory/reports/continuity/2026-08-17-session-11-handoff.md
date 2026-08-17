@@ -1,5 +1,14 @@
 # Session 11 handoff — 2026-08-17, ~09:38am local
 
+**UPDATE (~09:52am, same session — restart was not actually taken, work continued):** §0's cleanup
+ran successfully and is verified clean. §1 and §2b are committed (`f994e419`, `061c7f54`). §2a
+(the typecheck gate) turned out to be two small, mechanical, REAL fixes rather than needing a
+ratchet — committed as `571e8b90`. Full `apps/admin` typecheck is now clean (0 errors). Branch is
+5 commits ahead of `origin/general-work`, none pushed yet. The rest of this document is preserved
+as originally written for the historical record; treat the "still needed" framing in §1 and §2 as
+SUPERSEDED by this update where it conflicts — the e2e test for §1 is the one item still genuinely
+in flight (a background agent is writing it).
+
 Restart requested mid-session. This is the continuation doc. Read this whole thing before touching
 git — there is a live, partially-fixed contamination issue (§0) that must be resolved FIRST, before
 anything else, or real risk of corrupting files with literal merge-conflict text.
