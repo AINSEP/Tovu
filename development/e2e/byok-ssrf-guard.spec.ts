@@ -1,6 +1,7 @@
 import * as http from "node:http";
 import type { AddressInfo } from "node:net";
 import { test, expect, type APIRequestContext } from "@playwright/test";
+import { validateBaseUrlResolved } from "@jini-ai/agent-runtime";
 
 /**
  * @file BYOK SSRF-guard adversarial battery (2026-08-04 dispatch, MSG-1 item 1 — "highest
@@ -104,9 +105,13 @@ test("a hostname that DNS-resolves to a private IP is blocked (rebinding defense
   // `validateBaseUrlResolved` directly with an injected resolver. This is a genuine one-off
   // measurement of the function's own contract, NOT a route-level proof — flagged as such in
   // the final report. No login needed; this test never touches the HTTP route.
-  const { validateBaseUrlResolved } = await import(
-    "/Users/la/Programming/Jini/packages/agent-runtime/src/providers/connection-guard.ts"
-  );
+  //
+  // Imported from the installed `@jini-ai/agent-runtime` package (top of file), not — as this line
+  // used to — a dynamic `import()` of a hardcoded absolute path into a sibling checkout
+  // (`/Users/la/Programming/Jini/...`). That path only ever existed on the one laptop that wrote it
+  // (`876b4fed`, 2026-08-05): a real `TS2307: Cannot find module` in CI, where the Jini sibling is
+  // cloned to a different path, confirmed live against run `31998106661`. The package export is the
+  // same function Tovu's own production code already resolves this same way elsewhere.
   const fakeLookup = async () => [{ address: "10.0.0.5", family: 4 }];
   const result = await validateBaseUrlResolved("http://internal.example.com", fakeLookup);
   expect(result.error).toMatch(/internal ip/i);
