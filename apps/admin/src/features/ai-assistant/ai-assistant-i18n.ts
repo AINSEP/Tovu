@@ -81,6 +81,20 @@ export const AI_ASSISTANT_DICT: Record<string, Record<string, string>> = {
     "Detected on the Tovu server, not on your own computer.": "Detectado en el servidor de Tovu, no en tu propio equipo.",
     "Saved.": "Guardado.",
 
+    // Admin tab — daemon restart
+    "Local CLI process": "Proceso de CLI local",
+    "The Local CLI mode above runs as its own process on the server. Tovu already retries it automatically after a crash — use this only if you don't want to wait for that.":
+      "El modo de CLI local anterior se ejecuta como su propio proceso en el servidor. Tovu ya lo reintenta automáticamente después de una falla; usa esto solo si no quieres esperar a eso.",
+    "Restart assistant": "Reiniciar asistente",
+    "Restarting…": "Reiniciando…",
+    "Restart accepted. This does not confirm the process is healthy yet — check the status below.":
+      "Reinicio aceptado. Esto no confirma que el proceso ya esté sano; revisa el estado abajo.",
+    "Restart refused: {reason}": "Reinicio rechazado: {reason}",
+    "Checking status…": "Comprobando estado…",
+    "Known failed — the last attempt to start it did not succeed.": "Fallo conocido: el último intento de inicio no tuvo éxito.",
+    "No known failure right now.": "Sin fallos conocidos en este momento.",
+    "Check status": "Comprobar estado",
+
     // Roadmap tab
     "These operator controls are planned but not implemented. Nothing below is active — turning the assistant on today means running it without a cost ceiling, without per-visitor rate limiting, and without a live activity view.":
       "Estos controles del operador están planificados pero no implementados. Nada de lo siguiente está activo: activar el asistente hoy significa ejecutarlo sin límite de costo, sin limitación de frecuencia por visitante y sin una vista de actividad en vivo.",

@@ -14,6 +14,7 @@ import { SeeMore } from "../../components/SeeMore/SeeMore";
 import { AdminByokKeyFooter, AdminByokMigrationPrompt } from "../../components/AdminByokKeyPanel";
 import { useAdminAssistantSwitch } from "./hooks/use-admin-assistant-switch.hooks";
 import { useAdminExecutionMode } from "./hooks/use-admin-execution-mode.hooks";
+import { useWiredAssistantDaemonRestart, type AssistantDaemonRestartController } from "./hooks/use-assistant-daemon-restart.hooks";
 import { useWiredAdminExecutionCredential } from "../../hooks/use-admin-execution-credential.hooks";
 import { DEFAULT_EXECUTION_CONFIG } from "../../lib/execution-settings";
 import { useWiredAiAssistant } from "./hooks/use-ai-assistant.hooks";
@@ -317,6 +318,91 @@ export function AdminExecutionMode(props: AdminExecutionModeProps) {
         {execution.saveState.status === "saved" ? t("Saved.") : null}
       </p>
       {execution.saveState.status === "error" ? <div className="save-error">{execution.saveState.message}</div> : null}
+    </section>
+  );
+}
+
+/**
+ * Manual recovery control for the Local CLI daemon process `AdminExecutionMode` just configured —
+ * the "human's not gonna know how to restart a Node process" seam
+ * (`server/routes/admin/system/assistant-daemon.ts`, backed by `src/assistant/daemon-supervisor.ts`).
+ *
+ * Renders directly under `AdminExecutionMode` in the same tab, not on its own tab: this control is
+ * only meaningful in the context of "Local CLI" mode (a BYOK-mode admin has no daemon process to
+ * restart), and putting it beside the mode picker keeps that context visible without a separate
+ * screen having to re-explain it.
+ *
+ * ## Why this never says "restarted successfully" or "healthy"
+ *
+ * `restart()`'s own contract (`use-assistant-daemon-restart.hooks.ts`) is that a restart being
+ * ACCEPTED and the daemon becoming HEALTHY are two different facts, and only the first one is ever
+ * knowable from this button press — there is no "daemon became healthy" signal anywhere in
+ * `daemon-supervisor.ts`. This component's copy is written to match that exactly: the result line
+ * says "accepted", never "restarted" on its own, and the status line below it says "no known
+ * failure right now" rather than "healthy". Reporting anything stronger would repeat the same
+ * lying-comment failure mode a past defect in this repo was caused by.
+ */
+interface AssistantDaemonRestartProps {
+  /** Dependency injection seam for tests — same convention as `AdminExecutionModeProps
+   *  .useAdminExecutionModeHook`. */
+  useAssistantDaemonRestartHook?: () => AssistantDaemonRestartController;
+  /** `AiAssistant`'s own `t` — see {@link AdminAssistantSwitchProps.t}'s doc. */
+  t?: (key: string) => string;
+}
+
+function resolveAssistantDaemonRestartHook(
+  override: (() => AssistantDaemonRestartController) | undefined
+): () => AssistantDaemonRestartController {
+  return override ?? useWiredAssistantDaemonRestart;
+}
+
+/** The status line under the button — one of three mutually exclusive messages keyed on
+ *  `knownFailed`/`checkingStatus`/`statusError`. Pulled to a top-level pure function for the same
+ *  reason `visitorCredentialKeyStatusMessage` above is: an independently testable decision instead
+ *  of a ternary chain inline in the component's JSX. */
+export function assistantDaemonStatusMessage(
+  controller: Pick<AssistantDaemonRestartController, "knownFailed" | "checkingStatus" | "statusError">,
+  t: Translate = (key) => key
+): string | null {
+  if (controller.statusError) return controller.statusError;
+  if (controller.checkingStatus && controller.knownFailed === null) return t("Checking status…");
+  if (controller.knownFailed === true) return t("Known failed — the last attempt to start it did not succeed.");
+  if (controller.knownFailed === false) return t("No known failure right now.");
+  return null;
+}
+
+export function AssistantDaemonRestart(props: AssistantDaemonRestartProps) {
+  const useAssistantDaemonRestartHook = resolveAssistantDaemonRestartHook(props.useAssistantDaemonRestartHook);
+  const t = resolveT(props.t);
+  const controller = useAssistantDaemonRestartHook();
+  const { restarting, restartResult, restartError, checkingStatus, checkStatus, restart } = controller;
+  const statusMessage = assistantDaemonStatusMessage(controller, t);
+
+  return (
+    <section className="assistant-daemon-restart">
+      <h2>{t("Local CLI process")}</h2>
+      <p className="muted-cell">
+        {t(
+          "The Local CLI mode above runs as its own process on the server. Tovu already retries it automatically after a crash — use this only if you don't want to wait for that."
+        )}
+      </p>
+      <div className="assistant-daemon-restart-actions">
+        <button type="button" className="btn-secondary" onClick={() => void restart()} disabled={restarting}>
+          {restarting ? t("Restarting…") : t("Restart assistant")}
+        </button>
+        <button type="button" className="btn-secondary" onClick={() => void checkStatus()} disabled={checkingStatus}>
+          {t("Check status")}
+        </button>
+      </div>
+      {restartError ? <div className="save-error">{restartError}</div> : null}
+      {!restartError && restartResult ? (
+        <p className="assistant-save-line" role="status">
+          {restartResult.ok
+            ? t("Restart accepted. This does not confirm the process is healthy yet — check the status below.")
+            : t("Restart refused: {reason}").replace("{reason}", restartResult.reason ?? "")}
+        </p>
+      ) : null}
+      {statusMessage ? <p className="muted-cell" role="status">{statusMessage}</p> : null}
     </section>
   );
 }
@@ -808,6 +894,7 @@ export function AiAssistant({ useAiAssistantHook = useWiredAiAssistant }: AiAssi
         <>
           <AdminAssistantSwitch t={t} />
           <AdminExecutionMode t={t} />
+          <AssistantDaemonRestart t={t} />
         </>
       ),
     },
