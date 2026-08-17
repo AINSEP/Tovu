@@ -76,18 +76,55 @@ personally re-verified at time of writing. Either way, `npm ci` resolving the si
 specifiers is separately and unambiguously proven by the local worktree reproduction in §2 below,
 which completed `pnpm install --frozen-lockfile` (root-equivalent for that resolution) cleanly.
 
-**As of this writing, no run has survived to full completion** — measured push pace on
-`general-work` tonight is roughly one push every 45 seconds (4 in the 3 minutes before this
-sentence was written), faster than `build-and-test` alone takes to reach even its midpoint, so
-`cancel-in-progress: true` keeps superseding every run before `route-coverage`, `Typecheck`,
-`Test`, or the architecture/coverage gates get a chance to run to conclusion. This is expected
-behavior of the concurrency group under real 8-agent concurrent load, not a pipeline defect — but
-it does mean **those later steps remain individually unproven tonight**, same as before this task
-started, purely because the branch never goes quiet long enough for one run to finish. A
-background watch is still running and will keep following the latest run; if it lands green (or
-fails for a provable pre-existing-debt reason) before this session ends, that result belongs here
-too. If nobody sees that update, the next person to touch this branch should expect the first run
-after a quiet period to be the first real end-to-end signal.
+**Update: the branch quieted (the "session 10 handoff" commit appears to have been the last push
+of the night) and a run finally survived past the push churn.** Run **`31998106661`** (on top of
+the session-10-handoff commit, which includes both `192e484a` and `d1aece57`):
+
+```
+Run actions/checkout@v4:                                                    success
+Resolve matching Jini branch:                                               success
+Clone Jini (sibling dependency):                                            success
+Run actions/setup-node@v4:                                                  success
+Run pnpm/action-setup@v4:                                                   success
+Build Jini (siblings resolve through gitignored dist/, not source):         success
+Install root dependencies:                                                  success
+Typecheck (root):                                                           FAILURE
+```
+
+**`Install root dependencies: success` is now independently confirmed by an actual completed
+step** (not disputed the way run `31996680254`'s reading was) — `npm ci` resolved all 13
+`file:../Jini/packages/*` specifiers against the freshly built sibling clone. That was the
+original failure that had killed every run on `main` since 2026-08-04. **Both of the pipeline's
+original blockers are now conclusively dead**, not just reasoned about.
+
+**`Typecheck (root)` failed for two reasons — verified, and neither is this task's problem or a
+regression of the Jini-sibling fix:**
+
+```
+##[error]development/e2e/agent-page-control-live-verification.spec.ts(131,59): error TS2358:
+The left-hand side of an 'instanceof' expression must be of type 'any', an object type or a
+type parameter.
+##[error]development/e2e/byok-ssrf-guard.spec.ts(108,5): error TS2307: Cannot find module
+'/Users/la/Programming/Jini/packages/agent-runtime/src/providers/connection-guard.ts' or its
+corresponding type declarations.
+```
+
+1. `byok-ssrf-guard.spec.ts:108` has a dynamic `import()` with a **hardcoded absolute local
+   filesystem path** (`/Users/la/Programming/Jini/...`) instead of a package import — breaks on
+   any machine that isn't this exact laptop, CI included. `git log` on that line: `876b4fed`,
+   **2026-08-05** — eight days old, nowhere near tonight's work.
+2. `agent-page-control-live-verification.spec.ts:131` — a DOM type-narrowing issue in a Playwright
+   helper (`instanceof HTMLInputElement`), unrelated to Jini entirely.
+
+**The signal that actually mattered — whether either error mentions `@jini-ai/*` modules, which
+would mean the original fix regressed — is absent from both.** This is fully proven pipeline
+infrastructure surfacing pre-existing application/test-code debt, exactly the "fails for a reason
+you can prove is pre-existing debt" case the brief anticipated. Not fixed here: both files belong
+to e2e/route-quality work, not `.github/workflows/**`.
+
+`route-coverage` (the parallel job) reached `Install root dependencies: success` too before this
+was written, and was still running its own gates (`test:cov:server`, ~7 min by the workflow's own
+estimate) — see the addendum below once it lands.
 
 <!-- RESULT-TOVU-RUN -->
 
