@@ -8,7 +8,7 @@ import {
   SURFACE_EXCHANGE_ID_PARAM,
   createSurfaceExchangeStore,
   type SurfaceExchangeStore,
-} from "#src/assistant/surface-exchanges";
+} from "#src/core/tool-surface-exchanges";
 import { InMemoryChangeSetRepo } from "#src/core/commands/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/core/events/index";
 import type { RouteDeps } from "#src/server/routes/types";

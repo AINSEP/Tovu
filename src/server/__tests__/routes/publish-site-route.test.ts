@@ -9,7 +9,7 @@ import { createApp, createRouteDeps } from "../../app";
 import { bootAuthenticated } from "../helpers/http-test-server";
 import type { RouteDeps } from "../../routes/types";
 import { buildStaticPublishRegistrations } from "../../../features/deployments/publish-agent-tools";
-import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "../../../assistant/surface-exchanges";
+import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "../../../core/tool-surface-exchanges";
 
 /**
  * @file Admin Deployment panel → publish-to-GitHub-Pages/Vercel — `POST`/`GET /api/admin/v1/

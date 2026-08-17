@@ -27,6 +27,7 @@ import {
 } from "@jini-ai/cms/core";
 import type { MailerPort } from "../mail";
 import type { OriginRegistryPort } from "../origin";
+import { registerToolContributor } from "#src/assistant/index";
 import { newsletterAgentToolCatalog } from "./agent-tools";
 import {
   cancelCampaign,
@@ -464,4 +465,16 @@ export function buildNewsletterRegistrations(deps: NewsletterToolDeps): ToolRegi
     handlers,
     derivedRisk: newsletterDerivedRisk,
   });
+}
+
+/**
+ * Contributes Newsletter's AI tools to the assistant's catalog — called once by
+ * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
+ * module. `assistant/tool-registrations.ts` no longer imports `buildNewsletterRegistrations`/
+ * `newsletterDerivedRisk` by name; this is the seam that replaced it (2026-08-17 — see
+ * `tool-contribution-registry.ts`'s header for why: this edge used to close a module cycle with
+ * `assistant`, and a one-directional `newsletter -> assistant` registration call does not).
+ */
+export function contributeNewsletterTools(): void {
+  registerToolContributor({ domain: "newsletter", build: buildNewsletterRegistrations, risk: newsletterDerivedRisk });
 }

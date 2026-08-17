@@ -18,7 +18,18 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { META_TOOL_DESCRIPTORS, createByokToolSurface } from "../byok-tool-surface";
+import { resetToolContributorsForTests } from "../tool-contribution-registry";
+import { installFirstPartyToolContributors } from "../../server/tool-catalog-manifest";
 import type { RouteDeps } from "../../server/routes/types";
+
+// `surface()` below calls `createByokToolSurface` directly (not through `createAssistantByokModule`,
+// which installs first-party contributors itself) — so this file must, or the `comments`/
+// `newsletter` tools would be silently absent from the catalog it searches. See
+// `tool-contribution-registry.ts`'s header. (`post`, this file's own "search 'post'" test's subject,
+// is unaffected either way — it stayed on the static `DOMAIN_SLICES` seam; see
+// `features/post/tool-registrations.ts`'s trailing comment for why.)
+resetToolContributorsForTests();
+installFirstPartyToolContributors();
 
 const PRINCIPAL = { id: "principal-meta-tool" };
 const RUN = { id: "run-meta-tool" };

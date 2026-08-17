@@ -6,7 +6,7 @@ import express from "express";
 import { startTestServer } from "../../server/__tests__/helpers/http-test-server";
 import { RUN_PRINCIPAL_HEADER } from "../run-ownership";
 import { A2UI_ACTIONS_PATH, registerA2uiActionsRoute } from "../a2ui-actions-route";
-import { createSurfaceExchangeStore } from "../surface-exchanges";
+import { createSurfaceExchangeStore } from "../../core/tool-surface-exchanges";
 
 /**
  * @file Route-level tests for the daemon-side inbound half of A2UI (`a2ui-actions-route.ts`,

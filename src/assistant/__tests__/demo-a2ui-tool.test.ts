@@ -5,7 +5,7 @@ import type { SurfaceEmission, SurfaceEmitter } from "@jini-ai/core";
 import type { ToolRegistration } from "@jini-ai/cms/core";
 
 import { DEMO_A2UI_TOOL_ID, buildDemoA2uiRegistrations } from "../demo-a2ui-tool";
-import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "../surface-exchanges";
+import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "../../core/tool-surface-exchanges";
 
 /**
  * @file The A2UI multi-turn inbound transport, end to end through a real tool handler.

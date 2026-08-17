@@ -31,6 +31,17 @@ import {
   assertRiskMetadataIsWirable,
   buildAssistantToolRegistrations,
 } from "../tool-registrations";
+import { resetToolContributorsForTests } from "../tool-contribution-registry";
+import { contributeCommentsTools } from "../../comments/tool-registrations";
+
+// Comments moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
+// tool-contribution registry (2026-08-17 — see `tool-contribution-registry.ts`'s header), so
+// `buildAssistantToolRegistrations` below no longer wires it unless something explicitly installs
+// it first, mirroring what the real composition roots (`agent-daemon-server.ts`,
+// `assistant-byok.ts`) now do via `installFirstPartyToolContributors()`. Reset first so this file's
+// own registration is the only one this process's registry holds while these tests run.
+resetToolContributorsForTests();
+contributeCommentsTools();
 
 const WORKSPACE_ID = "ws-comments-tools";
 const PRINCIPAL_ID = "principal-under-test";

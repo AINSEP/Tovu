@@ -40,6 +40,20 @@ import {
   assertRiskMetadataIsWirable,
   buildAssistantToolRegistrations,
 } from "../tool-registrations";
+import { resetToolContributorsForTests } from "../tool-contribution-registry";
+import { installFirstPartyToolContributors } from "../../server/tool-catalog-manifest";
+
+// `comments`/`newsletter` moved off `assistant/tool-registrations.ts`'s static
+// `DOMAIN_SLICES` array onto the tool-contribution registry (2026-08-17 — see
+// `tool-contribution-registry.ts`'s header). This file builds the FULL catalog and asserts against
+// every wired domain, so — like the real composition roots (`agent-daemon-server.ts`,
+// `assistant-byok.ts`) — it must install first-party contributors before calling
+// `buildAssistantToolRegistrations`, or those 2 domains' tools would simply be missing from
+// `registrationsById()` below rather than exercised. (`post` was also tried and reverted the same
+// night — see `features/post/tool-registrations.ts`'s trailing comment — so it stays on the static
+// seam and needs no install call.)
+resetToolContributorsForTests();
+installFirstPartyToolContributors();
 
 /**
  * @file The model-facing contract half of `tool-registrations.ts` — companion to

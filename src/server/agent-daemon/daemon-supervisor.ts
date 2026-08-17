@@ -53,10 +53,10 @@
 import { spawn } from "node:child_process";
 import path from "node:path";
 
-import { clearAssistantDaemonFailure, recordAssistantDaemonFailure } from "../server/readiness-state";
-import { AGENT_DAEMON_EXIT_CODE } from "./daemon-exit-codes";
-import { createRespawnPolicy } from "./daemon-respawn-policy";
-import type { RespawnDecision, RespawnPolicy } from "./daemon-respawn-policy";
+import { clearAssistantDaemonFailure, recordAssistantDaemonFailure } from "../readiness-state";
+import { AGENT_DAEMON_EXIT_CODE } from "../../assistant/daemon-exit-codes";
+import { createRespawnPolicy } from "../../assistant/daemon-respawn-policy";
+import type { RespawnDecision, RespawnPolicy } from "../../assistant/daemon-respawn-policy";
 
 /**
  * The minimal shape this module needs from a spawned daemon process. Node's real `ChildProcess`

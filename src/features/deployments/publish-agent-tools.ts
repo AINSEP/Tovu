@@ -99,7 +99,7 @@ import { buildConfirmationSurface, buildFormSurface, buildOutcomeSurface, type U
 // is not.
 import type { RouteDeps } from "#src/server/routes/types";
 
-import { askOnce, askThenReport, SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, type AssistantSurfaceDeps, type SurfaceExchange, type SurfaceMessage } from "../../assistant/surface-exchanges";
+import { askOnce, askThenReport, SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, type AssistantSurfaceDeps, type SurfaceExchange, type SurfaceMessage } from "../../core/tool-surface-exchanges";
 import { listPublishCredentials, type PublishCredentialReadDeps } from "./publish-credentials/index";
 import { S3_COMPATIBLE_FIELD_GUIDANCE, S3_COMPATIBLE_FORM_DESCRIPTION } from "./publish-credentials/s3-compatible-field-guidance";
 // Phase 3 cutover (this dispatch) — `vendor_credential_sets` is the eventual replacement for THIS

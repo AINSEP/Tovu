@@ -15,7 +15,7 @@ import type { RouteDeps } from "#src/server/routes/types";
 import { startTestServer } from "../../server/__tests__/helpers/http-test-server";
 import { RUN_PRINCIPAL_HEADER } from "../run-ownership";
 import { MCP_UI_TOOL_CALLS_PATH, registerMcpUiToolCallsRoute } from "../mcp-ui-tool-calls-route";
-import { createSurfaceExchangeStore } from "../surface-exchanges";
+import { createSurfaceExchangeStore } from "../../core/tool-surface-exchanges";
 
 /**
  * @file The real, non-mocked round trip through the MCP-UI callback route's Shape 2 (legacy,

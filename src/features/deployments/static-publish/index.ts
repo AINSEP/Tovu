@@ -33,10 +33,7 @@ export {
 } from "./publish-run";
 
 export {
-  DEFAULT_PUBLISH_HISTORY_LIST_LIMIT,
-  MAX_PUBLISH_HISTORY_LIST_LIMIT,
   InMemoryPublishHistoryStore,
-  resolvePublishHistoryListLimit,
   type PublishHistoryEntry,
   type PublishHistoryStore,
   type PublishTrigger,
