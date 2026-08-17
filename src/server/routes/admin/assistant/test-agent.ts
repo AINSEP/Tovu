@@ -2,6 +2,7 @@ import { detectAgents } from "@jini-ai/agent-runtime";
 import { ADMIN_ASSISTANT_PERMISSION } from "#src/assistant/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { AssistantExecutionRouteRegistrar } from "./execution-deps";
+import { resolveTestAgentOutcome } from "./resolve-test-agent-outcome";
 
 /**
  * POST re-probes ONE detected code-agent CLI and reports whether it is usable
@@ -68,47 +69,12 @@ export const registerAdminAssistantTestAgentRoute: AssistantExecutionRouteRegist
         res.json({ ok: false, message: `'${agentId}' was not found on this server's PATH.` });
         return;
       }
-      if (agent.authStatus === "missing") {
-        res.json({
-          ok: false,
-          message: agent.authMessage ?? `${agent.name} is installed but not authenticated.`,
-        });
-        return;
-      }
-      if (agent.authStatus === "unknown") {
-        // Not a failure: the adapter declares no auth probe, or its probe
-        // could not be classified. Saying "ready" would overstate what was
-        // checked, so the message says exactly what was and was not verified.
-        res.json({
-          ok: true,
-          message: `${agent.name} ${agent.version ?? ""}`.trim() + " responded, but its sign-in status could not be verified.",
-        });
-        return;
-      }
 
-      // The caller sends the operator's current per-agent model pick, so check
-      // it. A saved selection survives a model list changing under it (the card
-      // deliberately keeps a stale pick selectable rather than silently
-      // snapping to another model), which means "the CLI is authenticated" and
-      // "the model you chose still exists" are different questions. Answering
-      // only the first with a green result would tell the operator a run will
-      // work when it cannot.
-      if (model && agent.models?.length && !agent.models.some((option) => option.id === model)) {
-        res.json({
-          ok: false,
-          message:
-            `${agent.name} is installed and authenticated, but it no longer offers the model '${model}'. ` +
-            "Pick a different model, or Rescan to refresh the list.",
-        });
-        return;
-      }
-
-      res.json({
-        ok: true,
-        message:
-          `${agent.name} ${agent.version ?? ""}`.trim() +
-          (model ? ` is installed and authenticated, and offers '${model}'.` : " is installed and authenticated."),
-      });
+      // Branch logic (installed/authenticated/model-mismatch/success) lives in
+      // `resolveTestAgentOutcome` — a pure function so it can be unit-tested against fabricated
+      // `DetectedAgent` objects instead of depending on which CLIs happen to be installed and
+      // authenticated on the host running the suite. See that file's doc for why.
+      res.json(resolveTestAgentOutcome(agent, model));
     } catch {
       res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
     }
