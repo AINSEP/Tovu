@@ -28,6 +28,48 @@ original report body was written before that correction and reflects the earlier
   concrete "does the credential get stranded" answer, table/endpoint tracing) were sent via
   SendMessage rather than duplicated here — see that thread for the byte-for-byte claims.
 
+## UPDATE 2 — the real Phase 4 gap, a complexity fix, and one framing correction
+
+**The real Phase 4 gap, per the Coordinator's request to write it down here rather than leave it in
+chat:** the admin UI's "seven providers" and `VendorId`'s seven providers are **not the same seven**.
+
+- `apps/admin/src/features/security/rules.ts:~158` (`ACCESS_TOKEN_PROVIDERS`) — 4 from
+  `PUBLISH_CREDENTIAL_PROVIDERS` (`github-pages, vercel, netlify, cloudflare-pages`) + 3 from
+  `SOURCE_CONTROL_PROVIDERS` (`github, gitlab, bitbucket`). This is the OLD, **destination-keyed**
+  two-table model (`publish_credential_sets` / `source_control_credential_sets`), and it is what
+  every screen in `apps/admin` — Security, Static Site, Source Control — actually reads and writes
+  today, including everything I built this session.
+- `src/features/vendor-credentials/types.ts:54` (`VendorId`) — `github | gitlab | bitbucket | vercel
+  | netlify | cloudflare | s3-compatible`. This is the NEW, **vendor-keyed** model
+  (`vendor_credential_sets`, Phase 3, shipped and tested but nothing in production reads it yet).
+
+**So the admin UI has not been cut over to the vendor-keyed table at all.** Every credential screen I
+touched or read this session still encodes the destination-keyed split this whole redesign exists to
+retire. That cutover — not any picker or cross-link — is the actual remaining Phase 4 work, and it is
+`routedeps-vendor`'s territory (backend), not mine.
+
+**Framing correction, per the Coordinator's note — adopting it, not just relaying it:** earlier in
+this session I described `github-pages` and `github` as "different identities by design." That is
+true of the code AS IT STANDS, but it is **current design, not permanent design** — the
+vendor-credential redesign's own stated defect is exactly this split ("one GitHub PAT entered twice,
+which can drift"). Do not cite my earlier phrasing as a reason to keep the two tables separate
+forever; the whole point of `VendorId`/`vendor_credential_sets` is to end it.
+
+**`dual-read.ts` correction, confirmed adopted by the Coordinator:** it reads the NEW
+`vendor_credential_sets` table with fallback to the OLD tables when a vendor group is empty —
+old-schema-vs-new-schema, orthogonal to the destination-keyed split above. It does nothing to unify
+`publish_credential_sets` and `source_control_credential_sets` with each other; those stay two
+separate tables regardless of dual-read, until the actual UI cutover to `vendor_credential_sets`
+happens.
+
+**Complexity fix, `6f0c707c`:** `security/hooks/other-credentials-dependencies.hooks.ts`'s
+`createFakeOtherCredentialsPort` (from `b440a007`, not mine originally, but in my owned tree) hit
+complexity 17 against the admin app's hard 9/9 gate — new debt, not in the grandfathered list, so
+fixed rather than baselined per the Coordinator's instruction. Split its 15 fields into six small
+named helpers (one per Tier-2 store), composed by plain object spread in the top-level function
+(zero branches). `check:admin-complexity-drift` now passes; pure refactor, 61/61 tests in
+`apps/admin/src/features/security` still pass.
+
 ---
 
 
