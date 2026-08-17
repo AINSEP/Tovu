@@ -209,3 +209,32 @@ pass of the new button, that's the one remaining step.
 2. `6b4f3d35` — restart route + test (Task 2a)
 3. `0dbda781` — app.ts composition-root wiring (Task 2a)
 4. `f854e011` — admin UI button (Task 2b)
+
+## Addendum — two post-report fixes from independent verification
+
+The team lead verified Task 1 by reading source (not by trusting this report) and found two real
+issues, both fixed the same session:
+
+1. **`tsc --noEmit` was RED.** `assistant-daemon.ts:3` imported `#src/assistant` — `package.json`'s
+   `"#src/*": "./src/*.ts"` imports map has no directory-resolution fallback, so that resolved to
+   the nonexistent `./src/assistant.ts` instead of the real barrel at `./src/assistant/index.ts`.
+   `tsx`/esbuild strips types without resolving them, so every test I ran (route tests, `vitest`)
+   passed regardless — only a bare `tsc --noEmit` catches this class, and `tsconfig.json` excludes
+   test files from that check, which is why my own `npx tsc --noEmit` pass on the admin side never
+   caught the server-side file. Fixed in `88e061c3` (one-line specifier change). Repo-wide `tsc
+   --noEmit` confirmed exit 0 after.
+2. **The known-failed 503 body/doc comment were stale.** Both dated from when
+   `isAssistantDaemonKnownFailed()` could only be set by `index.ts`'s single boot spawn. Task 1's
+   own on-demand-recovery wiring plus `daemon-supervisor.ts`'s pre-existing give-up path made a
+   second, now-common cause real: a daemon that started fine, ran for hours, crashed repeatedly,
+   and got given up on — for which "failed to start for this boot" is a false claim pointing an
+   operator at boot config instead of a crash loop. Fixed in `26011c9b`: new
+   `readiness-state.ts#getAssistantDaemonFailureReasonCode()`, 503 body changed to
+   `{error:"the agent daemon is currently unavailable", code:"AGENT_DAEMON_KNOWN_FAILED",
+   reasonCode}` (breaking change to `code` — only test consumers existed, verified by grep), doc
+   comment corrected, 3 existing test assertions updated, 3 new getter tests added (RED-proven).
+
+Both fixes proven with fresh `tsc --noEmit` (exit 0) and scoped test runs (51/51 across
+`assistant-proxy-routes.test.ts`, the new restart route test, `readiness-state.unit.test.ts`,
+`module-status-route.test.ts`, `deployment-overview-route.test.ts`, `readiness-routes.test.ts`).
+Pushed as `88e061c3` and `26011c9b`.
