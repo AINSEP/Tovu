@@ -48,9 +48,12 @@
  * sibling domain still statically wired through this file that reaches back into it, so nothing
  * routes back through any of them to close a new cycle. Their tools still count in the totals above;
  * they just arrive via {@link listToolContributors}/{@link allToolContributors} now, folded together
- * with {@link DOMAIN_SLICES} rather than being one of its entries.
+ * with {@link DOMAIN_SLICES} rather than being one of its entries. `media` joined them in a later,
+ * separate pass the same day, after being retried once `widgets`'s own conversion (batch 2, group A)
+ * had merged — see the `media` paragraph below for the full trace, and `media/tool-registrations.ts`'s
+ * own header for the current state.
  *
- * Five more were TRIED (Stage 2 batch 1 or batch 2) and reverted the same session — each closes a
+ * Four more were TRIED (Stage 2 batch 1 or batch 2) and reverted the same session — each closes a
  * real cycle through a module that is itself still statically wired here, not a grep-visible direct
  * import: `themes` (batch 1) — `export/route-manifest.ts` imports `features/theme` via a `#src/*`
  * subpath import invisible to a relative-path grep, and `assistant` still reaches `export`
@@ -62,21 +65,33 @@
  * module, `features/deployments`, at `check:architecture`'s per-directory graph granularity) all
  * close a cycle through `features/vendor-credentials` (this file's own static
  * `REAL_VENDOR_CREDENTIAL_PORT` wiring reaches `vendor-credentials`, which value-imports
- * `source-control/store.ts`, which value-imports `deployments/static-publish/index.ts`); `media`
- * (batch 2, group B) closes a cycle through `widgets` (`widgets/resolver-service.ts` value-imports
- * `media/bootstrap`/`media/index`, and — at the time group B ran, in its own isolated worktree —
- * `assistant` still statically depended on `widgets`; group A's separate, parallel conversion of
- * `widgets` does not retroactively re-verify `media` against the combined result, since the two were
- * merged after both batches finished — worth a real re-check in a later pass, `media` may now
- * convert cleanly). See each reverted domain's own `DOMAIN_SLICES` entry comment below, and its own
- * `tool-registrations.ts`'s trailing comment, for the full trace. `post` was ALSO tried (the night
- * before Stage 2 existed) and reverted — see its own `DOMAIN_SLICES` entry's comment below and
+ * `source-control/store.ts`, which value-imports `deployments/static-publish/index.ts`). See each
+ * reverted domain's own `DOMAIN_SLICES` entry comment below, and its own `tool-registrations.ts`'s
+ * trailing comment, for the full trace. `post` was ALSO tried (the night before Stage 2 existed) and
+ * reverted — see its own `DOMAIN_SLICES` entry's comment below and
  * `features/post/tool-registrations.ts`'s trailing comment for why it is not a clean case: converting
  * it opened a NEW, larger cycle through `widgets`/`export`, both of which depend on `features/post`;
  * `widgets`' own subsequent conversion (batch 2, group A) closes half of that risk, but `export`
  * still depends on `features/post` and `assistant` still reaches `export` transitively through the
  * still-static `deployments`/`source-control` entries below, so `post` remains excluded and
  * unattempted this round regardless.
+ *
+ * `media` (batch 2, group B) was ALSO tried and reverted the same session as the four above, for the
+ * same shape of reason: `widgets/resolver-service.ts` value-imports `CORE_PUBLIC_TRANSFORM_NAME` from
+ * `media/bootstrap` and `getLatestTransformDefinition` from `media/index`, and — at the time group B
+ * ran, in its own isolated worktree — `assistant` still statically depended on `widgets`, so a
+ * `media -> assistant` registry edge closed a real 3-module cycle: `assistant, media, widgets`
+ * (confirmed via `check:architecture --list`: largest strongly-connected component, runtime-only,
+ * went 0 -> 3). Group A's separate, parallel conversion of `widgets` did not retroactively re-verify
+ * `media` against the combined result, since the two batches were merged after both finished
+ * independently. Re-checked in a later pass this session, after both batches had merged into this
+ * branch: `widgets` is now converted too, which already removed the `assistant -> widgets` static
+ * edge that closed the cycle above; `resolver-service.ts`'s value-imports into `media/bootstrap`/
+ * `media/index` are unchanged, but with `assistant` no longer reaching `widgets` statically, they no
+ * longer round-trip back to `assistant`. `check:architecture` confirmed 0 module cycles with `media`
+ * converted this way — `media` is now wired via `contributeMediaTools()` (see
+ * `media/tool-registrations.ts`'s own header) and is likewise absent from {@link DOMAIN_SLICES}
+ * below.
  *
  * To wire a new domain: if it will stay a first-party, always-present domain and you are not
  * specifically migrating it to the registry, add its `build<Domain>Registrations` and its risk
@@ -154,11 +169,7 @@ import type { WorkspaceToolDeps } from "../features/workspace/tool-registrations
 import type { FormsToolDeps } from "../forms/tool-registrations";
 import type { IdentityToolDeps } from "../identity/tool-registrations";
 import type { IntegrationsToolDeps } from "../integrations/tool-registrations";
-import {
-  buildMediaRegistrations,
-  mediaDerivedRisk,
-  type MediaToolDeps,
-} from "../media/tool-registrations";
+import type { MediaToolDeps } from "../media/tool-registrations";
 import type { MembersToolDeps } from "../members/tool-registrations";
 import type { MenusToolDeps } from "../navigation/tool-registrations";
 import type { NewsletterToolDeps } from "../newsletter/tool-registrations";
@@ -257,11 +268,12 @@ const DOMAIN_SLICES: readonly DomainSlice[] = [
   // `identity/tool-registrations.ts`'s/`members/tool-registrations.ts`'s own headers. No longer
   // entries here; they arrive via `contributeIdentityTools()`/`contributeMembersTools()`, installed
   // by `server/tool-catalog-manifest.ts`.
-  // Tried for the tool-contribution registry in Stage 2 batch 2 and reverted the same session — a
-  // real 3-module cycle through `widgets` below (`widgets/resolver-service.ts` value-imports from
-  // `media/bootstrap`/`media/index`, and `assistant` still statically depends on `widgets`). See
-  // `media/tool-registrations.ts`'s own trailing comment for the full trace.
-  { domain: "media", build: buildMediaRegistrations, risk: mediaDerivedRisk },
+  // `media` converted to the tool-contribution registry 2026-08-17 — tried once in Stage 2 batch 2
+  // and reverted (a real 3-module cycle through `widgets`, back when `assistant` still statically
+  // depended on it), then retried this session after `widgets`'s own conversion (immediately below)
+  // had merged and removed that static edge. See `media/tool-registrations.ts`'s own header for the
+  // full before/after trace. No longer an entry here; it arrives via `contributeMediaTools()`,
+  // installed by `server/tool-catalog-manifest.ts`.
   // `widgets` converted to the tool-contribution registry 2026-08-17 (Stage 2 batch 2) — see
   // `widgets/tool-registrations.ts`'s own header. No longer an entry here; it arrives via
   // `contributeWidgetsTools()`, installed by `server/tool-catalog-manifest.ts`. Converted first in

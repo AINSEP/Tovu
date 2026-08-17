@@ -9,6 +9,7 @@ import { contributeWorkspaceTools } from "../features/workspace/tool-registratio
 import { contributeFormsTools } from "../forms/tool-registrations";
 import { contributeIdentityTools } from "../identity/tool-registrations";
 import { contributeIntegrationsTools } from "../integrations/tool-registrations";
+import { contributeMediaTools } from "../media/tool-registrations";
 import { contributeMembersTools } from "../members/tool-registrations";
 import { contributeMenusTools } from "../navigation/tool-registrations";
 import { contributeNewsletterTools } from "../newsletter/tool-registrations";
@@ -34,7 +35,7 @@ import { contributeWidgetsTools } from "../widgets/tool-registrations";
  * throughout `server/deps.ts`/`server/app.ts` — this file adds no new module-level edge that did not
  * already exist, it just adds one more file-level reason for edges that were already there.
  *
- * 17 of the ~24 assistant-wired domains are listed here today (2026-08-17: `comments`/`newsletter`
+ * 18 of the ~24 assistant-wired domains are listed here today (2026-08-17: `comments`/`newsletter`
  * from Stage 1 of the registry rollout; `identity`/`members`/`taxonomy`/`redirects` added in Stage 2
  * batch 1 — `themes` was also tried in that batch and reverted, see
  * `assistant/tool-registrations.ts`'s header for why; Stage 2 batch 2 (run as two parallel worker
@@ -44,10 +45,14 @@ import { contributeWidgetsTools } from "../widgets/tool-registrations";
  * `widgets`; `database` was ALSO tried in that group and reverted — see
  * `assistant/tool-registrations.ts`'s own `DOMAIN_SLICES` entry comment for why: a much larger
  * 16-module SCC than the `themes`/`post` near-misses in the prior batch), group B did
- * `integrations`/`workspace`/`pages`/`seo` (`source-control`/`deployments`/`static-publish`/`media`
+ * `integrations`/`workspace`/`pages`/`seo` (`source-control`/`deployments`/`static-publish`
  * were ALSO tried in that group and reverted — see `assistant/tool-registrations.ts`'s header for
- * the full per-domain trace on each)). The rest still wire through
- * `assistant/tool-registrations.ts`'s own `DOMAIN_SLICES` array, unchanged — see that file's header
+ * the full per-domain trace on each; `media` was tried in that same group and reverted too, but was
+ * retried in a later, separate pass this session, after `widgets`'s own conversion above had merged
+ * and removed the static edge that caused its original revert — see
+ * `assistant/tool-registrations.ts`'s header and `media/tool-registrations.ts`'s own header for the
+ * full before/after trace; it is listed above alongside the other eighteen)). The rest still wire
+ * through `assistant/tool-registrations.ts`'s own `DOMAIN_SLICES` array, unchanged — see that file's header
  * for why (its own array still names exactly which domains those are, with a comment on each
  * reverted one explaining the specific cycle it closed). `post` was also tried and reverted the same
  * night as Stage 1: converting it opened a NEW module cycle (`assistant -> widgets -> features/post
@@ -88,6 +93,7 @@ export function installFirstPartyToolContributors(): void {
   contributeFormsTools();
   contributeIdentityTools();
   contributeIntegrationsTools();
+  contributeMediaTools();
   contributeMembersTools();
   contributeMenusTools();
   contributeNewsletterTools();

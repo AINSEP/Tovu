@@ -96,7 +96,12 @@ test("installFirstPartyToolContributors installs exactly the converted domains �
   // count. `themes` was also tried in Stage 2 batch 1 and reverted (new module cycle through
   // `export`); `database` (group A) and `source-control`/`deployments`/`static-publish`/`media`
   // (group B) were all tried in Stage 2 batch 2 and reverted (see each one's own trailing comment
-  // for its own cycle) — all deliberately absent, each covered by its own test below.
+  // for its own cycle). `media` was retried in a later, separate pass this session — once
+  // `widgets`'s own conversion above had merged and removed the static edge that caused the
+  // original revert, `check:architecture` confirmed 0 module cycles with `media` converted too (see
+  // `media/tool-registrations.ts`'s own header) — so it is now present below. `themes`/`database`/
+  // `source-control`/`deployments`/`static-publish`/`post` remain deliberately absent, each covered
+  // by its own test below.
   assert.deepEqual(listToolContributors().map((c) => c.domain), [
     "comments",
     "content-types",
@@ -104,6 +109,7 @@ test("installFirstPartyToolContributors installs exactly the converted domains �
     "forms",
     "identity",
     "integrations",
+    "media",
     "members",
     "menus",
     "newsletter",
@@ -146,11 +152,6 @@ test("deployments is deliberately NOT installed by installFirstPartyToolContribu
 test("static-publish is deliberately NOT installed by installFirstPartyToolContributors — tried in Stage 2 batch 2 and reverted the same session for the identical reason as deployments above (see features/deployments/publish-agent-tools.ts's trailing comment: same features/deployments module)", () => {
   installFirstPartyToolContributors();
   assert.equal(listToolContributors().some((c) => c.domain === "static-publish"), false);
-});
-
-test("media is deliberately NOT installed by installFirstPartyToolContributors — tried in Stage 2 batch 2 and reverted the same session (see media/tool-registrations.ts's trailing comment: converting it closed a 3-module cycle through widgets)", () => {
-  installFirstPartyToolContributors();
-  assert.equal(listToolContributors().some((c) => c.domain === "media"), false);
 });
 
 test("registration order is deterministic across repeated installs, not just stable within one", () => {
@@ -255,4 +256,7 @@ test("two independent buildAssistantToolRegistrations calls after one installFir
   assert.ok(daemonIds.includes("workspace_get"));
   assert.ok(daemonIds.includes("pages_read_html"));
   assert.ok(daemonIds.includes("seo_get_entry_meta"));
+  // `media`, converted in a later, separate pass this session (retried after `widgets`'s own
+  // conversion above had merged) — same proof, extended to cover it too.
+  assert.ok(daemonIds.includes("media_list_assets"));
 });
