@@ -410,11 +410,32 @@ export async function deleteSourceControlCredential(deps: SourceControlCredentia
 /** Shared decrypt step for {@link resolveDefaultForSourceControl} — the exact same AAD-derive-then-
  *  open-then-parse sequence `publish-credentials/store.ts`'s own `decryptRecord` uses for its table.
  *  Kept local rather than imported cross-feature — this table's AAD format is this file's own concern
- *  (`aad.ts`'s header). */
+ *  (`aad.ts`'s header).
+ *
+ *  Wraps ANY failure (bad AAD, tampered ciphertext, wrong key, or — the realistic one — a missing
+ *  `TOVU_INTEGRATIONS_ROOT_KEY` surfacing as a raw `KeyringPort` error) into the SAME typed
+ *  {@link SourceControlCredentialSecretStoreUnconfiguredError} {@link sealConnection} already throws
+ *  for the write side, rather than letting a raw `Error` escape — mirrors `publish-credentials/
+ *  store.ts`'s own `decryptRecord` fix (2026-08-16) byte-for-byte, for the identical reason.
+ *
+ *  Found live (2026-08-16): before this wrap existed, a raw `Error` from this exact call reached
+ *  `commit-site.ts`'s `commitSiteToSourceControl` uncaught — that function's own doc claims "Never
+ *  throws", but the call site had no try/catch at all, so a genuine decrypt failure broke that
+ *  contract as an escaping rejection. Worse than the publish-credentials sibling's version of this
+ *  bug: this feature's only caller runs inside `agent-daemon-server.ts`, a separate OS process with no
+ *  process-level `unhandledRejection` guard of its own and no restart supervisor, so the escaping
+ *  rejection would have taken the WHOLE daemon process down, not just answered one request with an
+ *  error. */
 async function decryptRecord(sealer: SecretSealerPort, record: SourceControlCredentialSetRecord): Promise<SourceControlConnectionInput> {
   const aad = buildSourceControlCredentialAad({ workspaceId: record.workspaceId, providerId: record.providerId, id: record.id });
-  const plaintext = await sealer.open({ sealed: record.sealed, aad });
-  return JSON.parse(plaintext) as SourceControlConnectionInput;
+  try {
+    const plaintext = await sealer.open({ sealed: record.sealed, aad });
+    return JSON.parse(plaintext) as SourceControlConnectionInput;
+  } catch (err) {
+    throw new SourceControlCredentialSecretStoreUnconfiguredError(
+      `source control credential could not be decrypted (secret store unconfigured, or the stored row is corrupted): ${err instanceof Error ? err.message : String(err)}`
+    );
+  }
 }
 
 /**
@@ -434,8 +455,10 @@ async function decryptRecord(sealer: SecretSealerPort, record: SourceControlCred
  * Same "no such row" (`null`, a normal outcome) vs. genuine decrypt failure (thrown, a tampered row or
  * missing master secret) distinction {@link resolveDefaultForPublish} documents for its own contract.
  *
- * @throws Whatever `SecretSealerPort.open()` throws (bad AAD, tampered ciphertext, wrong key) or
- *   `KeyringPort` throws for a missing master secret.
+ * @throws {SourceControlCredentialSecretStoreUnconfiguredError} `decryptRecord` failed — a
+ *   tampered/corrupt row or (the realistic cause) a missing master secret. See that function's own
+ *   doc for why this is a typed error rather than whatever raw error `SecretSealerPort.open()`/
+ *   `KeyringPort` produced.
  * @complexity O(1) — one repo read, one decrypt, one `JSON.parse`.
  */
 export async function resolveDefaultForSourceControl(
