@@ -1,6 +1,6 @@
 import { afterEach, expect, test, vi } from "vitest";
 
-import { API_UNREACHABLE_CODE, ApiError, api } from "../api";
+import { API_UNREACHABLE_CODE, REQUEST_TIMEOUT_CODE, ApiError, api } from "../api";
 
 /**
  * @file `request()`'s error translation, pinned at the two routes that produce "the operator cannot
@@ -77,6 +77,24 @@ test("a caller-cancelled request is NOT reported as unreachable", async () => {
 
   expect(error).toBe(abort);
   expect(error).not.toBeInstanceOf(ApiError);
+});
+
+test("a request that never gets a free connection times out as a readable ApiError, not a raw DOMException", async () => {
+  // `AbortSignal.timeout()` firing rejects `fetch` with a `TimeoutError` DOMException — the exact
+  // shape a real browser produces when a request queues forever with no free per-origin connection
+  // (live-found 2026-08-17: the Themes screen's `getPresentation()` call, see
+  // `development/e2e/themes-presentation-request-timeout.spec.ts` for the full-browser reproduction
+  // this unit test's fetch layer alone cannot exercise).
+  stubFetch(async () => {
+    throw new DOMException("signal timed out", "TimeoutError");
+  });
+
+  const error = (await api.login({ username: "a", password: "b" }).catch((e: unknown) => e)) as ApiError;
+
+  expect(error).toBeInstanceOf(ApiError);
+  expect(error.status).toBe(0);
+  expect(error.code).toBe(REQUEST_TIMEOUT_CODE);
+  expect(error.message).toMatch(/did not respond within/);
 });
 
 test("a JSON error envelope still wins — the server answered, so its own message is used", async () => {

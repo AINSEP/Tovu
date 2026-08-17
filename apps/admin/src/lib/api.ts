@@ -1304,6 +1304,37 @@ export class ApiError extends Error {
 export const API_UNREACHABLE_CODE = "API_UNREACHABLE";
 
 /**
+ * `ApiError.code` for "no response arrived within {@link DEFAULT_REQUEST_TIMEOUT_MS}" —
+ * client-synthesized, like {@link API_UNREACHABLE_CODE} above, for the sibling failure mode that
+ * code cannot cover: `fetch` only rejects when the origin itself refuses the connection. It does
+ * NOT reject when the origin is reachable but the browser has no free connection to send the
+ * request on at all — every open admin tab keeps one `EventSource` connection to
+ * `.../settings/events` open for its entire life (`lib/settings-events.ts`, "deliberately not
+ * closed"), and this app is served over plain HTTP/1.1 in both dev and production, where Chrome caps
+ * concurrent connections to one origin at 6. Enough long-lived tabs/streams against the same origin
+ * exhausts that budget, and any OTHER request — reachable server, correct auth, nothing wrong with
+ * either side — then queues in the browser forever with no error to catch (live-found 2026-08-17: the
+ * Themes screen's `getPresentation()` call hung indefinitely with no server-side activity and no
+ * client-side rejection). Bounding every request here converts that silent, permanent hang into a
+ * visible, retriable one.
+ */
+export const REQUEST_TIMEOUT_CODE = "REQUEST_TIMEOUT";
+
+/** How long a request may go unanswered before {@link fetchOrThrowUnreachable} gives up on it.
+ *  Most real calls through `request()` are CRUD round trips measured in low tens of milliseconds
+ *  locally, and the few genuinely long-running operations (static export/publish) are start/poll,
+ *  never a single blocking call — EXCEPT `uploadMedia`, which sends a whole file as base64 JSON
+ *  through this same seam and can legitimately run long: `server/app.ts` accepts request bodies up
+ *  to 15mb (`express.json({ limit: "15mb" })`), which a slow/mobile upload could take the better
+ *  part of a minute to send. 60s comfortably covers that worst real case while staying far short of
+ *  "hangs forever" — the failure this timeout exists to convert into something visible. */
+const DEFAULT_REQUEST_TIMEOUT_MS = 60_000;
+
+function timeoutApiMessage(): string {
+  return `the Tovu API did not respond within ${DEFAULT_REQUEST_TIMEOUT_MS / 1000}s — the browser may be out of free connections for this origin (try closing other admin tabs) or the server is unresponsive`;
+}
+
+/**
  * Operator copy for a request that never reached a Tovu API able to answer it.
  *
  * Replaces the old `request failed (500)`, which cost a real debugging hour on 2026-08-06: a bare
@@ -1347,11 +1378,29 @@ const UNPARSEABLE_BODY = Symbol("unparseable-json-body");
  * @complexity O(1) plus the request itself.
  * @overallScore 100
  */
+/** `cause.name` without assuming `cause instanceof Error` — a fired `AbortSignal.timeout()` rejects
+ *  `fetch` with a `DOMException`, and DOMException's `instanceof Error` result is realm-dependent
+ *  (true against Node's own global, observed false against a test environment's jsdom-provided
+ *  global). Duck-typing `name` is the only check that holds in both. */
+function errorName(value: unknown): string | undefined {
+  return value && typeof value === "object" && "name" in value && typeof value.name === "string"
+    ? value.name
+    : undefined;
+}
+
 async function fetchOrThrowUnreachable(url: string, init: RequestInit): Promise<Response> {
+  // A caller-supplied signal (none exist today, but `AbortError` handling below already
+  // anticipates one) is honored as-is; otherwise every request is bounded so a queued-forever
+  // request (see `REQUEST_TIMEOUT_CODE`'s own doc) cannot hang a screen indefinitely.
+  const signal = init.signal ?? AbortSignal.timeout(DEFAULT_REQUEST_TIMEOUT_MS);
   try {
-    return await fetch(url, init);
+    return await fetch(url, { ...init, signal });
   } catch (cause) {
-    if (cause instanceof Error && cause.name === "AbortError") throw cause;
+    if (errorName(cause) === "AbortError") throw cause;
+    if (errorName(cause) === "TimeoutError") {
+      const message = cause instanceof Error ? cause.message : String(cause);
+      throw new ApiError(timeoutApiMessage(), 0, REQUEST_TIMEOUT_CODE, { cause: message });
+    }
     if (!(cause instanceof TypeError)) throw cause;
     throw new ApiError(unreachableApiMessage(), 0, API_UNREACHABLE_CODE, {
       cause: cause.message,
