@@ -20,6 +20,7 @@ import {
   type ToolHandler,
   type ToolRegistration,
 } from "@jini-ai/cms/core";
+import { registerToolContributor } from "#src/assistant/index";
 import { membersAgentToolCatalog } from "./agent-tools";
 import type {
   MagicLinkTokenRepoPort,
@@ -207,4 +208,16 @@ export function buildMembersRegistrations(deps: MembersToolDeps): ToolRegistrati
     handlers,
     derivedRisk: membersDerivedRisk,
   });
+}
+
+/**
+ * Contributes Members' AI tools to the assistant's catalog — called once by
+ * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
+ * module. `assistant/tool-registrations.ts` no longer imports `buildMembersRegistrations`/
+ * `membersDerivedRisk` by name; this is the seam that replaced it (2026-08-17, Stage 2 of the
+ * rollout — no sibling domain still statically wired through `assistant` imports `members`, so this
+ * one-directional `members -> assistant` call closes no new cycle).
+ */
+export function contributeMembersTools(): void {
+  registerToolContributor({ domain: "members", build: buildMembersRegistrations, risk: membersDerivedRisk });
 }

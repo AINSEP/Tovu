@@ -27,6 +27,7 @@ import {
   type ToolHandler,
   type ToolRegistration,
 } from "@jini-ai/cms/core";
+import { registerToolContributor } from "#src/assistant/index";
 import { getRedirectsAgentToolCatalog } from "./agent-tools";
 import type { RedirectHitSink, RedirectRepoPort } from "./ports";
 import {
@@ -209,4 +210,16 @@ export function buildRedirectsRegistrations(routeDeps: RedirectsToolDeps): ToolR
     derivedRisk: redirectsDerivedRisk,
     unwiredToolIds: UNWIRED_REDIRECTS_TOOL_IDS,
   });
+}
+
+/**
+ * Contributes Redirects' AI tools to the assistant's catalog — called once by
+ * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
+ * module. `assistant/tool-registrations.ts` no longer imports `buildRedirectsRegistrations`/
+ * `redirectsDerivedRisk` by name; this is the seam that replaced it (2026-08-17, Stage 2 of the
+ * rollout — no sibling domain still statically wired through `assistant` imports `redirects`, so this
+ * one-directional `redirects -> assistant` call closes no new cycle).
+ */
+export function contributeRedirectsTools(): void {
+  registerToolContributor({ domain: "redirects", build: buildRedirectsRegistrations, risk: redirectsDerivedRisk });
 }

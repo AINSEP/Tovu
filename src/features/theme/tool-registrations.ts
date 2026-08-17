@@ -262,3 +262,18 @@ export function buildThemesRegistrations(routeDeps: ThemeToolDeps): ToolRegistra
     derivedRisk: themesDerivedRisk,
   });
 }
+
+// 2026-08-17: Themes was briefly converted to the tool-contribution registry (`contributeThemesTools`,
+// registered via `#src/assistant/index`'s `registerToolContributor`) alongside identity/members/
+// taxonomy/redirects in the same Stage 2 batch, then reverted the same night — `check:architecture`
+// showed it opened a NEW module cycle: `export/route-manifest.ts` imports `#src/features/theme/index`
+// (a `#src/*` subpath import, not a relative one — the reason a plain relative-path grep for this
+// domain's importers missed it beforehand), and `assistant` already reaches `export` transitively
+// through its still-static `deployments`/`source-control` `DOMAIN_SLICES` entries. Adding
+// `themes -> assistant` closed a 6-module SCC: `assistant, export, features/deployments,
+// features/source-control, features/theme, features/vendor-credentials`. Unlike identity/members/
+// taxonomy/redirects (which nothing outside `server/*` imports), Themes cannot convert safely until
+// either `export`'s theme dependency is relocated or `deployments`/`source-control` (the still-static
+// domains giving `assistant` a path into `export`) convert too. Left as a normal `DOMAIN_SLICES`
+// entry; see `assistant/tool-registrations.ts`'s own header for the current authoritative list of
+// what has and hasn't converted.
