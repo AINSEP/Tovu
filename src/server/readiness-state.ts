@@ -72,6 +72,24 @@ export function isAssistantDaemonKnownFailed(): boolean {
 }
 
 /**
+ * The exact `reasonCode` string the currently-latched failure was recorded with — `null` when
+ * nothing is latched. `recordAssistantDaemonFailure` is called from two structurally different
+ * situations (`daemon-supervisor.ts`'s `handleUnexpectedExit`/`buildGiveUpReasonCode`: a spawn-level
+ * `error` that never got a process running at all, an unexpected mid-life exit still within the
+ * respawn policy's retry window, OR the crash-loop/port-conflict cap giving up after several
+ * attempts) and those are different operational situations for whoever is reading the failure — "it
+ * never started" points at boot configuration, "it gave up after N crashes" points at something the
+ * process itself is doing once running. `isAssistantDaemonKnownFailed()` alone cannot distinguish
+ * them; this is the seam a caller needing to (e.g. `server/modules/assistant.ts`'s 503 body) reads
+ * through, rather than reaching into `snapshot.modules` and re-deriving the synthetic module name
+ * `recordAssistantDaemonFailure` stores this under.
+ */
+export function getAssistantDaemonFailureReasonCode(): string | null {
+  const failed = snapshot.modules.find((m) => m.name === ASSISTANT_DAEMON_MODULE_NAME && m.lifecycle.status === "failed");
+  return failed && failed.lifecycle.status === "failed" ? failed.lifecycle.reasonCode : null;
+}
+
+/**
  * Clears a previously-latched daemon failure. Called at the start of every spawn attempt inside
  * `daemon-supervisor.ts` — the very first boot, every automatic respawn, and the manual restart
  * seam alike — so a later successful attempt is never stuck behind a stale 503 an earlier,

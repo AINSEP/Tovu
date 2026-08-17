@@ -420,8 +420,9 @@ test("a known-failed daemon short-circuits every proxied route to an immediate 5
 
   assert.equal(res.status, 503);
   assert.deepEqual(await res.json(), {
-    error: "the agent daemon failed to start for this boot",
-    code: "AGENT_DAEMON_BOOT_FAILED",
+    error: "the agent daemon is currently unavailable",
+    code: "AGENT_DAEMON_KNOWN_FAILED",
+    reasonCode: "agent daemon could not bind 127.0.0.1:4319 — address already in use",
   });
   assert.equal(
     recorded.length,
@@ -483,8 +484,9 @@ test("a known-failed daemon short-circuits the dedicated attachment-upload proxy
 
   assert.equal(res.status, 503);
   assert.deepEqual(await res.json(), {
-    error: "the agent daemon failed to start for this boot",
-    code: "AGENT_DAEMON_BOOT_FAILED",
+    error: "the agent daemon is currently unavailable",
+    code: "AGENT_DAEMON_KNOWN_FAILED",
+    reasonCode: "agent daemon could not bind 127.0.0.1:4319 — address already in use",
   });
   assert.equal(recorded.length, 0);
 });
@@ -573,8 +575,9 @@ test("a known-failed daemon also short-circuits the tool catalog routes to 503, 
 
   assert.equal(res.status, 503);
   assert.deepEqual(await res.json(), {
-    error: "the agent daemon failed to start for this boot",
-    code: "AGENT_DAEMON_BOOT_FAILED",
+    error: "the agent daemon is currently unavailable",
+    code: "AGENT_DAEMON_KNOWN_FAILED",
+    reasonCode: "agent daemon could not bind 127.0.0.1:4319 — address already in use",
   });
   assert.equal(recorded.length, 0, "the stand-in daemon is healthy and would have answered — reaching it means the short-circuit didn't fire");
 });

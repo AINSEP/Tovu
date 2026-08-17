@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   clearAssistantDaemonFailure,
+  getAssistantDaemonFailureReasonCode,
   getReadinessSnapshot,
   isAssistantDaemonKnownFailed,
   recordAssistantDaemonFailure,
@@ -81,4 +82,28 @@ test("clearAssistantDaemonFailure on an already-clear snapshot is a safe no-op",
   assert.equal(isAssistantDaemonKnownFailed(), false);
   clearAssistantDaemonFailure();
   assert.equal(isAssistantDaemonKnownFailed(), false);
+});
+
+/**
+ * `getAssistantDaemonFailureReasonCode` — added 2026-08-17 alongside `server/modules/assistant.ts`'s
+ * 503 body fix (Terra's review finding: the old body claimed "failed to start for this boot" for
+ * BOTH a never-started daemon and a mid-life crash-loop give-up, which are different situations).
+ * This is the seam that lets a caller tell them apart without re-deriving the synthetic module name.
+ */
+test("getAssistantDaemonFailureReasonCode is null before anything has latched", () => {
+  assert.equal(getAssistantDaemonFailureReasonCode(), null);
+});
+
+test("getAssistantDaemonFailureReasonCode returns the exact latched string — proving a 'gave up after crash-looping' reason is distinguishable from a 'never started' one, not just a generic true/false", () => {
+  recordAssistantDaemonFailure("gave up after 5 attempts in 60s: agent daemon exited unexpectedly (code 1, signal none)");
+  assert.equal(
+    getAssistantDaemonFailureReasonCode(),
+    "gave up after 5 attempts in 60s: agent daemon exited unexpectedly (code 1, signal none)"
+  );
+});
+
+test("getAssistantDaemonFailureReasonCode returns null again once the latch is cleared", () => {
+  recordAssistantDaemonFailure("agent daemon exited unexpectedly (code 1, signal none)");
+  clearAssistantDaemonFailure();
+  assert.equal(getAssistantDaemonFailureReasonCode(), null);
 });
