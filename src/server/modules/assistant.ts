@@ -45,6 +45,7 @@ import type { Express, NextFunction, Request, Response } from "express";
 import {
   A2UI_ACTIONS_PATH,
   AGENT_DAEMON_TOKEN_ENV_VAR,
+  ensureAssistantDaemonStarted,
   getLiveClaudeModels,
   unionModels,
   isMcpUiToolCallAllowed,
@@ -173,10 +174,34 @@ let daemonUnreachableSince: number | null = null;
  * is dead, we stop trusting the port at all and fail immediately instead of racing a `fetch`
  * against whatever (if anything) is actually listening there.
  *
+ * This is also the on-demand self-healing seam: every request short-circuited here calls
+ * {@link ensureAssistantDaemonStarted}, not just the first one, because that function is
+ * single-flight and cooldown-guarded on its own side (`daemon-supervisor.ts`'s `ensureStarted()`)
+ * — a daemon that already has a spawn attempt running or scheduled treats the extra calls as
+ * cheap no-ops, and a durably broken one is re-armed no more often than its own 30s cooldown
+ * floor allows. Before this, a known-failed daemon stayed down until an operator noticed and
+ * either restarted the whole Tovu process or pressed the manual "Restart assistant" action —
+ * nothing on the request path ever triggered recovery.
+ *
+ * Deliberately NOT awaited and does not change THIS request's outcome: `ensureStarted()` is
+ * synchronous and never waits for the daemon to become healthy (there is no such signal in this
+ * codebase — see `daemon-supervisor.ts`'s own header), so recovery is purely a background side
+ * effect for future requests. This request always answers 503 immediately either way; blocking it
+ * on a daemon that may never come back up would just add a second way for it to hang.
+ *
  * @returns `true` if a 503 was already sent (caller must return without proceeding).
  */
 function respondIfDaemonKnownFailed(res: Response): boolean {
   if (!isAssistantDaemonKnownFailed()) return false;
+
+  const recovery = ensureAssistantDaemonStarted();
+  if (!recovery.ok) {
+    // ONE concise line, matching this file's own `daemonUnreachableSince` logging convention —
+    // worth an operator seeing (it names WHY on-demand recovery didn't fire this time: never
+    // started this boot, or cooling down after a recent attempt), not worth a stack trace.
+    console.error(`[assistant] on-demand daemon recovery did not start: ${recovery.reason}`);
+  }
+
   res.status(503).json({ error: "the agent daemon failed to start for this boot", code: "AGENT_DAEMON_BOOT_FAILED" });
   return true;
 }

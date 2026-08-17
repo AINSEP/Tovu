@@ -430,6 +430,35 @@ test("a known-failed daemon short-circuits every proxied route to an immediate 5
   );
 });
 
+test("a known-failed daemon triggers ensureAssistantDaemonStarted() as a self-healing side effect, on every short-circuited request", async (t) => {
+  const { baseUrl, cookie } = await bootProxy(t);
+  recordAssistantDaemonFailure("agent daemon could not bind 127.0.0.1:4319 — address already in use");
+  t.after(() => clearAssistantDaemonFailure());
+
+  // This test process never calls `daemon-supervisor.ts`'s `startAssistantDaemon()` (that spawns a
+  // real OS process, which no other test in this file does either), so `ensureAssistantDaemonStarted()`
+  // deterministically answers `{ok: false, reason: "the assistant daemon was never started this
+  // process boot"}` — see that function's own contract. `respondIfDaemonKnownFailed` logs exactly one
+  // line whenever the recovery attempt reports `ok: false`, which is the only externally-observable
+  // signal that the call happened at all (the function itself has no other side effect in this state).
+  // Capturing that line is what proves the wiring, not just the 503 status code every other
+  // known-failed test in this file already asserts.
+  const errorLines: string[] = [];
+  t.mock.method(console, "error", (...args: unknown[]) => {
+    errorLines.push(args.map(String).join(" "));
+  });
+
+  const res = await fetch(`${baseUrl}/api/runs`, { headers: { cookie } });
+
+  assert.equal(res.status, 503, "the short-circuit must still answer 503 immediately — recovery never blocks THIS request");
+  assert.ok(
+    errorLines.some(
+      (line) => line.includes("on-demand daemon recovery") && line.includes("never started this process boot")
+    ),
+    `expected a recovery-attempt log line proving ensureAssistantDaemonStarted() was called; got: ${JSON.stringify(errorLines)}`
+  );
+});
+
 test("a known-failed daemon also short-circuits the SSE run-events route", async (t) => {
   const { baseUrl, cookie } = await bootProxy(t);
   recordAssistantDaemonFailure("agent daemon could not bind 127.0.0.1:4319 — address already in use");
