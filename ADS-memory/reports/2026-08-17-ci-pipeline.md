@@ -65,12 +65,18 @@ Both the af5af566 checkout-path fix and this task's `pnpm/action-setup` fix are 
 end, in real CI, not just local reproduction. The `Build Jini` step — the one flagged for weeks
 as "sound reasoning, never empirically proven" — genuinely works.
 
-Still watching for a run that survives to full completion (`route-coverage`, `Typecheck`,
-`Test`, the coverage/architecture gates) rather than getting pre-empted by the next concurrent
-push — `general-work` has 8 agents actively pushing tonight, so this workflow's own
-`cancel-in-progress: true` keeps superseding runs faster than any one of them can finish. That is
-expected behavior of the concurrency group under this load, not a pipeline defect; noting it here
-because a future reader watching this same branch will see the same churn.
+**As of this writing, no run has survived to full completion** — measured push pace on
+`general-work` tonight is roughly one push every 45 seconds (4 in the 3 minutes before this
+sentence was written), faster than `build-and-test` alone takes to reach even its midpoint, so
+`cancel-in-progress: true` keeps superseding every run before `route-coverage`, `Typecheck`,
+`Test`, or the architecture/coverage gates get a chance to run to conclusion. This is expected
+behavior of the concurrency group under real 8-agent concurrent load, not a pipeline defect — but
+it does mean **those later steps remain individually unproven tonight**, same as before this task
+started, purely because the branch never goes quiet long enough for one run to finish. A
+background watch is still running and will keep following the latest run; if it lands green (or
+fails for a provable pre-existing-debt reason) before this session ends, that result belongs here
+too. If nobody sees that update, the next person to touch this branch should expect the first run
+after a quiet period to be the first real end-to-end signal.
 
 <!-- RESULT-TOVU-RUN -->
 
