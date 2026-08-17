@@ -168,3 +168,22 @@ export function buildDeploymentsRegistrations(routeDeps: DeploymentsToolDeps): T
     derivedRisk: deploymentsDerivedRisk,
   });
 }
+
+// NOT converted to the tool-contribution registry — tried in Stage 2 batch 2 and reverted the same
+// session. This file's own imports look clean in isolation (`export-run.ts` imports nothing beyond
+// `node:path`; `DeploymentsToolDeps = RouteDeps` is type-only), and no sibling domain imports
+// `features/deployments/tool-registrations` itself. But `check:architecture`'s module graph is
+// PER-DIRECTORY, not per-file: `src/features/deployments` is one module, and this directory's sibling
+// `static-publish/index.ts` exports `extractGitHubLogin`, which `features/source-control/store.ts`
+// value-imports (`from "../deployments/static-publish/index"`). Chain that closes the cycle:
+// `assistant -> features/vendor-credentials` (`tool-registrations.ts`'s own
+// `REAL_VENDOR_CREDENTIAL_PORT` wiring, unconditional) -> `features/source-control`
+// (`vendor-credentials/dual-read.ts`'s `resolveDefaultForSourceControl` import) ->
+// `features/deployments` (via that `extractGitHubLogin` import) -> back to `assistant` (this file's
+// own attempted `registerToolContributor` call). Confirmed via `check:architecture --list`: largest
+// strongly-connected component (runtime-only) went 0 -> 4 —
+// `[assistant, features/deployments, features/source-control, features/vendor-credentials]`. Same
+// root cause as `features/source-control/tool-registrations.ts`'s own revert comment, reached from
+// the opposite end of the chain — see that file's trailing comment for the same fix options. Also
+// blocks `static-publish` (`publish-agent-tools.ts`, this directory's other domain) for the identical
+// reason, since both live in the same `features/deployments` module.

@@ -39,21 +39,33 @@
  * were converted to `tool-contribution-registry.ts`'s explicit-call registry — see that file's
  * header for why (it existed to break the `[assistant, comments, features/plugins, newsletter]`
  * module cycle `check:architecture` flagged, which a static import here could not). `identity`,
- * `members`, `taxonomy`, and `redirects` (Stage 2, same day) followed the same way — none has a
- * sibling domain still statically wired through this file that reaches back into it, so nothing
- * routes back through any of them to close a new cycle. `themes` was ALSO tried in the same batch and
- * reverted — see its own `DOMAIN_SLICES` entry's comment below and
- * `features/theme/tool-registrations.ts`'s trailing comment for why it is not a clean case like the
- * other four: `export` (via a `#src/*` subpath import invisible to a relative-path grep) depends on
+ * `members`, `taxonomy`, and `redirects` (Stage 2 batch 1, same day) followed the same way, and
+ * `integrations`, `workspace`, `pages`, and `seo` (Stage 2 batch 2, same day) after that — none of
+ * these 8 has a sibling domain still statically wired through this file that reaches back into it,
+ * so nothing routes back through any of them to close a new cycle. Their tools still count in the
+ * totals above; they just arrive via {@link listToolContributors}/{@link allToolContributors} now,
+ * folded together with {@link DOMAIN_SLICES} rather than being one of its entries.
+ *
+ * Four more were TRIED in Stage 2 batch 2 and reverted the same session — each closes a real cycle
+ * through a module that is itself still statically wired here, not a grep-visible direct import:
+ * `source-control` and `deployments`/`static-publish` (the latter two share one module,
+ * `features/deployments`, at `check:architecture`'s per-directory graph granularity) all close a
+ * cycle through `features/vendor-credentials` (this file's own static `REAL_VENDOR_CREDENTIAL_PORT`
+ * wiring reaches `vendor-credentials`, which value-imports `source-control/store.ts`, which
+ * value-imports `deployments/static-publish/index.ts`); `media` closes a cycle through `widgets`
+ * (`widgets/resolver-service.ts` value-imports `media/bootstrap`/`media/index`, and `assistant`
+ * still statically depends on `widgets`). See each reverted domain's own `DOMAIN_SLICES` entry
+ * comment below, and its own `tool-registrations.ts`'s trailing comment, for the full trace.
+ *
+ * `themes` was ALSO tried (Stage 2 batch 1) and reverted — see its own `DOMAIN_SLICES` entry's
+ * comment below and `features/theme/tool-registrations.ts`'s trailing comment for why it is not a
+ * clean case: `export` (via a `#src/*` subpath import invisible to a relative-path grep) depends on
  * `features/theme`, and `assistant` still reaches `export` transitively through its still-static
- * `deployments`/`source-control` entries. Their tools
- * still count in the totals above; they just arrive via
- * {@link listToolContributors}/{@link allToolContributors} now, folded together with
- * {@link DOMAIN_SLICES} rather than being one of its entries. `post` was ALSO tried and reverted
- * the same night — see its own `DOMAIN_SLICES` entry's comment below and
- * `features/post/tool-registrations.ts`'s trailing comment for why it is not a clean case like the
- * other two: converting it opened a NEW, larger cycle through `widgets`/`export`, both of which
- * depend on `features/post` while `assistant` still statically depends on `widgets`.
+ * `deployments`/`source-control` entries. `post` was ALSO tried and reverted the same night — see
+ * its own `DOMAIN_SLICES` entry's comment below and `features/post/tool-registrations.ts`'s
+ * trailing comment for why it is not a clean case: converting it opened a NEW, larger cycle through
+ * `widgets`/`export`, both of which depend on `features/post` while `assistant` still statically
+ * depends on `widgets`.
  *
  * To wire a new domain: if it will stay a first-party, always-present domain and you are not
  * specifically migrating it to the registry, add its `build<Domain>Registrations` and its risk
@@ -126,11 +138,7 @@ import {
   postDerivedRisk,
   type PostToolDeps,
 } from "../features/post/tool-registrations";
-import {
-  buildPagesRegistrations,
-  pagesDerivedRisk,
-  type PagesToolDeps,
-} from "../features/pages/tool-registrations";
+import type { PagesToolDeps } from "../features/pages/tool-registrations";
 import {
   buildRecoveryRegistrations,
   recoveryDerivedRisk,
@@ -147,22 +155,14 @@ import {
   themesDerivedRisk,
   type ThemeToolDeps,
 } from "../features/theme/tool-registrations";
-import {
-  buildWorkspaceRegistrations,
-  workspaceDerivedRisk,
-  type WorkspaceToolDeps,
-} from "../features/workspace/tool-registrations";
+import type { WorkspaceToolDeps } from "../features/workspace/tool-registrations";
 import {
   buildFormsRegistrations,
   formsDerivedRisk,
   type FormsToolDeps,
 } from "../forms/tool-registrations";
 import type { IdentityToolDeps } from "../identity/tool-registrations";
-import {
-  buildIntegrationsRegistrations,
-  integrationsDerivedRisk,
-  type IntegrationsToolDeps,
-} from "../integrations/tool-registrations";
+import type { IntegrationsToolDeps } from "../integrations/tool-registrations";
 import {
   buildMediaRegistrations,
   mediaDerivedRisk,
@@ -176,7 +176,7 @@ import {
 } from "../navigation/tool-registrations";
 import type { NewsletterToolDeps } from "../newsletter/tool-registrations";
 import type { RedirectsToolDeps } from "../redirects/tool-registrations";
-import { buildSeoRegistrations, seoDerivedRisk, type SeoToolDeps } from "../seo/tool-registrations";
+import type { SeoToolDeps } from "../seo/tool-registrations";
 import {
   buildWidgetsRegistrations,
   widgetsDerivedRisk,
@@ -276,6 +276,10 @@ const DOMAIN_SLICES: readonly DomainSlice[] = [
   // `identity/tool-registrations.ts`'s/`members/tool-registrations.ts`'s own headers. No longer
   // entries here; they arrive via `contributeIdentityTools()`/`contributeMembersTools()`, installed
   // by `server/tool-catalog-manifest.ts`.
+  // Tried for the tool-contribution registry in Stage 2 batch 2 and reverted the same session — a
+  // real 3-module cycle through `widgets` below (`widgets/resolver-service.ts` value-imports from
+  // `media/bootstrap`/`media/index`, and `assistant` still statically depends on `widgets`). See
+  // `media/tool-registrations.ts`'s own trailing comment for the full trace.
   { domain: "media", build: buildMediaRegistrations, risk: mediaDerivedRisk },
   { domain: "widgets", build: buildWidgetsRegistrations, risk: widgetsDerivedRisk },
   { domain: "menus", build: buildMenusRegistrations, risk: menusDerivedRisk },
@@ -284,6 +288,16 @@ const DOMAIN_SLICES: readonly DomainSlice[] = [
   // 2026-08-15 — the Deployment panel's three tabs (Static Site export, Full Site read, Dockerfile
   // read/write). See `features/deployments/agent-tools.ts`'s file header for why, unlike every
   // domain above, none of its 5 entries is excluded.
+  //
+  // Tried for the tool-contribution registry in Stage 2 batch 2 and reverted the same session: this
+  // module (`features/deployments`, per-directory graph granularity) already sits downstream of a
+  // chain `assistant` reaches unconditionally — `assistant -> features/vendor-credentials -> features/
+  // source-control -> features/deployments` (the last hop via `source-control/store.ts`'s value
+  // import of `extractGitHubLogin` from this directory's `static-publish/index.ts`) — so adding a
+  // `deployments -> assistant` registry edge closed a real 4-module cycle: `assistant,
+  // features/deployments, features/source-control, features/vendor-credentials`. See
+  // `features/deployments/tool-registrations.ts`'s own trailing comment for the full trace. Blocks
+  // `static-publish` below for the identical reason (same module).
   { domain: "deployments", build: buildDeploymentsRegistrations, risk: deploymentsDerivedRisk },
   // Static publish is deliberately its OWN slice, not folded into `deployments` above — see
   // `features/deployments/publish-agent-tools.ts`'s file header. All 3 entries are wired as of
@@ -296,6 +310,11 @@ const DOMAIN_SLICES: readonly DomainSlice[] = [
   // `database_execute_migrate_forward` still wait on. The only OTHER execute path remains the
   // cookie-authed admin route (`server/routes/admin/system/publish-site.ts`); this tool now gives the
   // assistant an equivalent, human-approved one.
+  //
+  // Tried for the tool-contribution registry in Stage 2 batch 2 and reverted the same session — same
+  // 4-module cycle as `deployments` above (`assistant, features/deployments, features/source-control,
+  // features/vendor-credentials`), since both live in the `features/deployments` module. See
+  // `features/deployments/publish-agent-tools.ts`'s own trailing comment for the full trace.
   { domain: "static-publish", build: buildStaticPublishRegistrations, risk: staticPublishDerivedRisk },
   // 2026-08-16 — a separate identity from `static-publish` above: connects a GitHub/GitLab/Bitbucket
   // account for committing the site's OWN exported content into a connected repo (git-backed CMS
@@ -307,9 +326,20 @@ const DOMAIN_SLICES: readonly DomainSlice[] = [
   // uses. GitHub-only this pass (see `features/source-control/commit-site.ts`'s header); gitlab/
   // bitbucket credentials can be saved and are honestly reported by the capabilities tool, but
   // committing to either is not implemented yet.
+  //
+  // Tried for the tool-contribution registry in Stage 2 batch 2 and reverted the same session: a
+  // plain importer grep of `features/source-control` finds nothing risky, but `assistant` already
+  // reaches INTO this domain transitively via `features/vendor-credentials/dual-read.ts`'s value
+  // import of `resolveDefaultForSourceControl` from `../source-control/store` (this file's own
+  // `vendorCredentials` wiring below already value-imports from `vendor-credentials/index`). Adding
+  // a `source-control -> assistant` registry edge closed a real 3-module cycle: `assistant,
+  // features/source-control, features/vendor-credentials` — see
+  // `features/source-control/tool-registrations.ts`'s own trailing comment for the full trace.
   { domain: "source-control", build: buildSourceControlRegistrations, risk: sourceControlDerivedRisk },
   { domain: "plugins", build: buildPluginsRegistrations, risk: pluginsDerivedRisk },
-  { domain: "workspace", build: buildWorkspaceRegistrations, risk: workspaceDerivedRisk },
+  // `workspace` converted to the tool-contribution registry (Stage 2 batch 2) — see
+  // `features/workspace/tool-registrations.ts`'s own header. No longer an entry here; it arrives via
+  // `contributeWorkspaceTools()`, installed by `server/tool-catalog-manifest.ts`.
   { domain: "settings", build: buildSettingsRegistrations, risk: settingsDerivedRisk },
   { domain: "entries", build: buildEntriesRegistrations, risk: entriesDerivedRisk },
   // `buildPostRegistrations`' second parameter now IS the slice contract's own `surfaces` shape
@@ -322,15 +352,22 @@ const DOMAIN_SLICES: readonly DomainSlice[] = [
   { domain: "post", build: buildPostRegistrations, risk: postDerivedRisk },
   // Its own domain, not part of "post": a Page's body is bespoke HTML and a Post's is a Tiptap
   // document, and `content_post_update` cannot write the former. See `features/pages/agent-tools.ts`.
-  { domain: "pages", build: buildPagesRegistrations, risk: pagesDerivedRisk },
+  //
+  // `pages` converted to the tool-contribution registry (Stage 2 batch 2) — see
+  // `features/pages/tool-registrations.ts`'s own header. No longer an entry here; it arrives via
+  // `contributePagesTools()`, installed by `server/tool-catalog-manifest.ts`.
   // `taxonomy` converted to the tool-contribution registry 2026-08-17 (Stage 2) — see
   // `features/taxonomy/tool-registrations.ts`'s own header. No longer an entry here; it arrives via
   // `contributeTaxonomyTools()`, installed by `server/tool-catalog-manifest.ts`.
-  { domain: "seo", build: buildSeoRegistrations, risk: seoDerivedRisk },
+  // `seo` converted to the tool-contribution registry (Stage 2 batch 2) — see
+  // `seo/tool-registrations.ts`'s own header. No longer an entry here; it arrives via
+  // `contributeSeoTools()`, installed by `server/tool-catalog-manifest.ts`.
   // `redirects` converted to the tool-contribution registry 2026-08-17 (Stage 2) — see
   // `redirects/tool-registrations.ts`'s own header. No longer an entry here; it arrives via
   // `contributeRedirectsTools()`, installed by `server/tool-catalog-manifest.ts`.
-  { domain: "integrations", build: buildIntegrationsRegistrations, risk: integrationsDerivedRisk },
+  // `integrations` converted to the tool-contribution registry (Stage 2 batch 2) — see
+  // `integrations/tool-registrations.ts`'s own header. No longer an entry here; it arrives via
+  // `contributeIntegrationsTools()`, installed by `server/tool-catalog-manifest.ts`.
   // `themes` was ALSO tried in the same Stage 2 batch and reverted — see
   // `features/theme/tool-registrations.ts`'s trailing comment for why: `export/route-manifest.ts`
   // imports `features/theme` via a `#src/*` subpath import (invisible to a relative-path importer

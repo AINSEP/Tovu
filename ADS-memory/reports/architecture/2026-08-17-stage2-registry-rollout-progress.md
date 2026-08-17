@@ -175,7 +175,7 @@ were still untracked (never committed) from last night's Stage 1 session before 
 this batch's commit is their first commit, carrying both Stage 1's and this batch's content together,
 since there was no earlier commit to diff against.
 
-## Open items for the team lead
+## Open items for the team lead (batch 1, superseded where noted below)
 
 - Stage 1's `check-architecture.baseline.json` update, and Stage 1's `comments`/`newsletter`
   conversion itself, are still uncommitted on this branch (pre-existing, not from this batch) —
@@ -186,3 +186,237 @@ since there was no earlier commit to diff against.
 - 16 domains remain for future batches (17 minus `themes`, which needs the above precondition first,
   plus `post`, already excluded). Re-run the same selection heuristic each batch, extended to also
   grep for `#src/<domain>` subpath imports, not just relative-path ones.
+
+**Update (batch 2, below):** Stage 1's foundation was found genuinely missing from `general-work`
+HEAD at the start of batch 2 (not merely "uncommitted" as this file's own note above says) and was
+landed separately by the coordinator (`1cdc054c fix(assistant): land Stage 1 architecture decoupling
+foundation`) mid-session — see batch 2's own section below for the full story. `check-architecture
+.baseline.json` IS now committed, current as of that fix.
+
+---
+
+# Stage 2 registry rollout — batch 2 progress
+
+**Date:** 2026-08-17 (same day, later session)
+**Author:** Programmer(Direct), dispatched by team lead, running in parallel with a sibling agent
+(`registry-rollout-batch2-groupA`) converting a disjoint domain set in its own worktree.
+**Scope:** Convert 8 more assistant tool domains, in a specific order chosen by the team lead to test
+an ordering theory (see below): `source-control`, `deployments`, `static-publish`, `media`,
+`integrations`, `workspace`, `pages`, `seo`.
+
+## Environment problems hit before any domain work — both self-corrected, documented for future agents
+
+**1. Assigned worktree was stale, not branched from `general-work`.** The harness's declared working
+directory (`.claude/worktrees/agent-a55026c47dcee50c6`) was on a branch (`worktree-agent-
+a55026c47dcee50c6`) created from `origin/main` at an old commit (`8a40f62c`, a session-3 handoff doc
+commit), missing entire directories this task needed (`features/source-control`,
+`features/deployments`, etc.). The working tree was clean and that commit was a strict ancestor of
+`general-work`'s tip, so `git merge --ff-only <general-work-tip>` brought it in line — lossless, no
+work lost. Worth checking early in any future dispatch: `git log -1 --oneline` and `git merge-base
+--is-ancestor HEAD <expected-branch>` before trusting a worktree matches the brief.
+
+**2. Stage 1's foundation (`tool-contribution-registry.ts` itself, `assistant/index.ts`'s
+`registerToolContributor` export, and the real `comments`/`newsletter` conversion) was NEVER actually
+committed to `general-work`, on ANY branch — confirmed with `git cat-file -e HEAD:<path>` (not a
+working-tree check) and `git log --all -- <path>` (zero hits, ever). Batch 1's own commit
+(`016666d7`) built on top of this foundation without it ever landing, so `general-work` HEAD was
+broken from batch 1's own commit onward: `tsc` would fail, and `comments`/`newsletter` tools would be
+silently missing from the real catalog despite `DOMAIN_SLICES` already omitting them. This was
+independently re-discovered by both this agent (via `git cat-file`) and the coordinator at roughly
+the same time; the coordinator landed the real fix mid-session as `1cdc054c fix(assistant): land
+Stage 1 architecture decoupling foundation` (also moved `assistant/surface-exchanges.ts` to
+`core/tool-surface-exchanges.ts` and `agent-daemon-server.ts`/`daemon-supervisor.ts` to
+`server/agent-daemon/`). This agent paused all file edits on request, then fast-forwarded
+(`git merge --ff-only general-work`) once the fix landed — zero domain files had been touched before
+the pause, so no revert was needed. **Lesson for future sessions:** a batch's own progress report
+claiming something is "uncommitted, pre-existing" is not the same as verifying it's actually reachable
+from HEAD — `git cat-file -e HEAD:<path>` is the check that catches this, a working-tree `ls` is not
+(a concurrent session's dirty working tree in the SHARED checkout can make a file look present when
+it was never committed anywhere).
+
+**3. Nested worktree + Node's upward `node_modules` resolution silently pulled dependencies from the
+wrong place.** `.claude/worktrees/agent-a55026c47dcee50c6` has no `node_modules` of its own, and sits
+nested three levels inside the shared checkout (`/Users/la/Programming/Tovu`). Node's module
+resolution walks UP the directory tree past the worktree boundary and found the SHARED checkout's
+`node_modules` — meaning `npm run check:architecture`, `tsc`, and `node --test` were all silently
+running against the shared checkout's (and, transitively, a separate sibling repo's) dependency tree
+before this was caught, which could have made every metric/test result unreliable without any error
+being raised. Root cause: this repo's `@jini-ai/*` packages are `file:../Jini/packages/*` — relative
+sibling-repo dependencies — and `../Jini` does not exist relative to a worktree nested this deep, so
+a normal `npm install` inside the worktree would fail outright without a fix. Fixed by symlinking
+`.claude/worktrees/Jini -> /Users/la/Programming/Jini` (restoring the sibling-repo relative path the
+`file:` deps expect) and then running `npm ci` inside the worktree, which produced a correctly
+self-contained `node_modules` resolving entirely within the worktree plus the real external `Jini`
+repo. Verified via `node -e "console.log(require.resolve(...))"` before and after. **Lesson for future
+sessions: any nested worktree (`.claude/worktrees/<name>` living inside the main checkout) needs both
+of these before trusting `npm`/`tsc`/`node --test` output — check `require.resolve` on something from
+`node_modules` first if in doubt.**
+
+## Per-domain outcome
+
+Grep methodology used for every domain below: relative-path AND `#src/<domain>` subpath importers of
+the domain's OWN `tool-registrations.ts` file specifically (not the whole directory), then a broader
+sweep for anything importing ANY subpath of the domain's directory from outside it, then — critically,
+the lesson from this batch — a check for whether each import found is `import type` (erased, no
+runtime edge) or a real value import, since `check:architecture`'s cycle/SCC metric is computed on the
+runtime-only graph. A same-directory "module" in this tool's graph (per-directory granularity, e.g.
+`features/deployments` covers BOTH `tool-registrations.ts` and `publish-agent-tools.ts`) matters more
+than which specific file has the edge.
+
+| Domain | Outcome | Why |
+|---|---|---|
+| `source-control` | **Reverted** | Clean by direct-importer grep, but `assistant/tool-registrations.ts`'s own static `REAL_VENDOR_CREDENTIAL_PORT` wiring value-imports `features/vendor-credentials`, which value-imports `source-control/store.ts` (`resolveDefaultForSourceControl`). Adding `source-control -> assistant` closed a 3-module cycle: `[assistant, features/source-control, features/vendor-credentials]` (SCC 0 -> 3). |
+| `deployments` | **Reverted** | Same root cause as `source-control`, reached from the opposite end: `features/source-control/store.ts` value-imports `deployments/static-publish/index.ts`'s `extractGitHubLogin`. Adding `deployments -> assistant` closed a 4-module cycle: `[assistant, features/deployments, features/source-control, features/vendor-credentials]` (SCC 0 -> 4). |
+| `static-publish` | **Reverted** | Identical cycle to `deployments` — `check:architecture`'s graph is per-directory, and `publish-agent-tools.ts` (static-publish) lives in the SAME `features/deployments` module as `tool-registrations.ts` (deployments). Attempted and verified independently rather than assumed from `deployments`' result, per the brief's instruction not to assume; confirmed identical (SCC 0 -> 4). |
+| `media` | **Reverted** | Clean by direct-importer grep, but `widgets/resolver-service.ts` value-imports `media/bootstrap`/`media/index`, and `assistant` still statically depends on `widgets`. Adding `media -> assistant` closed a 3-module cycle: `[assistant, media, widgets]` (SCC 0 -> 3). |
+| `integrations` | **Converted, kept** | The team lead's own ordering theory (convert `source-control`/`deployments`/`media` first to remove `assistant`'s indirect path into `integrations`) turned out not to be the operative risk — re-verified precisely: every importer of `integrations` from those three siblings is `import type` only (erased from the runtime graph), and the only VALUE importers of `src/integrations` anywhere are `server/app.ts`/`server/modules/integrations.ts` (server-layer, unreachable from `assistant`). Converted clean regardless of the other 3 domains all reverting. |
+| `workspace` | **Converted, kept** | Zero risky importers; thin re-export shim over `@jini-ai/cms/workspace`, same shape as `identity`. |
+| `pages` | **Converted, kept** | Zero risky importers; this file's own cross-domain imports (`../post`, `../../core/commands`) are both `import type`. |
+| `seo` | **Converted, kept** | Zero risky importers; this file's own cross-domain imports (`../features/post`, `../features/settings`, `../media`, `@jini-ai/cms/identity`) are all `import type`. |
+
+**On the ordering theory specifically:** it did not hold, but not because it was wrong in spirit —
+`source-control`/`deployments`/`media` DO sit between `assistant` and `integrations` in the all-import
+graph. It just turned out irrelevant, because (a) the cycle-relevant graph is runtime-only and all
+three siblings' imports of `integrations` are type-only, and (b) all three reverted anyway for an
+entirely unrelated reason (the `vendor-credentials`/`widgets` cycles above), so there was never a
+version of this batch where they stayed converted long enough to matter either way. `integrations`
+would have converted exactly as cleanly if attempted FIRST, before any of the other 7 — worth noting
+for whoever writes the selection heuristic for the next batch: type-only vs. value-import status is
+the load-bearing check, not merely "who else imports this domain."
+
+## check:architecture — before/after this batch
+
+Own clean starting baseline (measured fresh, once the environment problems above were fixed and
+`general-work`'s Stage-1-fix commit was picked up — NOT the checked-in `check-architecture.baseline
+.json`'s own numbers, which read 934 files where this worktree's clean tree reads 848; the discrepancy
+is most likely the checked-in baseline having been measured against the shared checkout's working
+tree while it also held unrelated uncommitted files from a concurrent session — flagged for the team
+lead below, not fixed here since `--update` wasn't run and this batch's own file-count comparisons all
+use the SAME clean 848-file measurement on both sides):
+
+| Metric | Before this batch (clean re-measure) | After this batch (4 converted, 4 reverted) |
+|---|---|---|
+| propagation cost (all-import) | 10.81% | 10.98% |
+| propagation cost (runtime-only) | 2.32% | 2.32% |
+| back-edges into composition root | 11 | 11 |
+| back-edges, runtime-only | 0 | 0 |
+| module cycles (mutual pairs, runtime-only) | 0 | 0 |
+| largest SCC (runtime-only) | 0 | 0 |
+| module API surface (files exposed) | 213 | 213 |
+| core size | 16.63% (141/848) | 16.75% (142/848) |
+
+Per the team lead's explicit revert criteria (module cycles / largest SCC / runtime-only back-edges),
+nothing regressed for the 4 kept domains — the small propagation-cost/core-size upticks are the same
+expected per-registry-edge cost batch 1 already documented. Each of the 4 REVERTED domains was
+individually confirmed, via its own `check:architecture --list` run right after its own edit, to spike
+largest SCC (runtime-only) before being reverted, and confirmed to return to 0 immediately after each
+revert — never left in a broken state between domains.
+
+`check:architecture`'s own exit code reports FAILED throughout (propagation cost / core size
+against the checked-in baseline, same as batch 1's own note) — `--update` was NOT run, same reasoning
+batch 1 gave (out of this batch's scope; deferred to the team lead, now compounded by the file-count
+discrepancy above needing its own decision first).
+
+## tsc + tests
+
+```
+npx tsc -p tsconfig.json --noEmit
+```
+Result: **zero errors**, run twice (after `integrations`, and again as the final check after `seo`) —
+batch 1's previously-noted "10 pre-existing errors in a static theme template" were not reproduced;
+either fixed by the Stage-1-foundation commit or specific to a different tree state.
+
+```
+node --import tsx --test \
+  src/assistant/__tests__/tool-registrations.contracts.test.ts \
+  src/assistant/__tests__/tool-contribution-registry.test.ts \
+  src/assistant/__tests__/tool-registrations.integrations.test.ts \
+  src/assistant/__tests__/tool-registrations.workspace.test.ts \
+  src/assistant/__tests__/tool-registrations.seo.test.ts \
+  src/assistant/__tests__/tool-registrations.comments.test.ts \
+  src/assistant/__tests__/tool-registrations.newsletter.test.ts \
+  src/assistant/__tests__/tool-registrations.identity-authorization.test.ts \
+  src/assistant/__tests__/tool-registrations.identity-contracts.test.ts \
+  src/assistant/__tests__/tool-registrations.members.test.ts \
+  src/assistant/__tests__/tool-registrations.redirects.test.ts \
+  src/assistant/__tests__/tool-registrations.taxonomy.test.ts \
+  src/integrations/__tests__/*.test.ts \
+  src/features/workspace/__tests__/*.test.ts \
+  src/features/pages/__tests__/*.test.ts \
+  src/seo/__tests__/*.test.ts \
+  src/features/source-control/__tests__/*.test.ts \
+  src/features/deployments/__tests__/*.test.ts \
+  src/media/__tests__/*.test.ts
+```
+Result: **638 pass, 0 fail.** (Includes the 4 reverted domains' own test suites — confirmed they still
+pass unchanged as plain static wiring, i.e. the revert genuinely left them exactly as they were.)
+
+Also ran, separately, since it exercises `publish-agent-tools.ts` (touched then reverted for
+`static-publish`) through the real MCP-UI confirmation route rather than just the domain build
+function:
+```
+node --import tsx --test src/assistant/__tests__/mcp-ui-tool-calls-route.static-publish.integration.test.ts
+```
+Result: **3 pass, 0 fail.**
+
+Two test files needed the standard `resetToolContributorsForTests()` + `contribute<Domain>Tools()`
+setup fix (same pattern batch 1 established) after their domain converted:
+`tool-registrations.integrations.test.ts`, `tool-registrations.workspace.test.ts`,
+`tool-registrations.seo.test.ts`. `features/pages/__tests__/tool-registrations.test.ts` needed no fix
+— it calls `buildPagesRegistrations` directly, bypassing the registry entirely.
+
+`tool-contribution-registry.test.ts` was extended: the "installs exactly N domains" test now asserts
+the full 10-domain set; 4 new "X is deliberately NOT installed" tests added (source-control,
+deployments, static-publish, media), mirroring the existing post/themes tests; the daemon/BYOK parity
+test extended to assert `integrations_list_subscriptions`/`workspace_get`/`pages_read_html`/
+`seo_get_entry_meta` are present in both independently-built catalogs. One existing test
+("a registry contributor colliding with a legacy DOMAIN_SLICES id") used `workspace_get` as its
+example of a still-legacy id — switched to `database_get_health` since `workspace` itself converted
+this batch and using it would have silently turned that test into a registry-vs-registry collision
+(already covered by an earlier test) rather than the cross-seam case it exists to prove.
+
+## Files changed this batch
+
+- `src/integrations/tool-registrations.ts` — added `contributeIntegrationsTools()`.
+- `src/features/workspace/tool-registrations.ts` — added `contributeWorkspaceTools()`.
+- `src/features/pages/tool-registrations.ts` — added `contributePagesTools()`.
+- `src/seo/tool-registrations.ts` — added `contributeSeoTools()`.
+- `src/features/source-control/tool-registrations.ts` — tried, reverted; trailing comment added.
+- `src/features/deployments/tool-registrations.ts` — tried, reverted; trailing comment added.
+- `src/features/deployments/publish-agent-tools.ts` — tried, reverted; trailing comment added.
+- `src/media/tool-registrations.ts` — tried, reverted; trailing comment added.
+- `src/assistant/tool-registrations.ts` — removed 4 domains' static imports/`DOMAIN_SLICES` entries
+  (kept); restored/annotated the 4 reverted domains' entries with explanatory comments; rewrote the
+  file header's running domain-conversion history for accuracy.
+- `src/server/tool-catalog-manifest.ts` — added the 4 new `contribute*Tools()` imports and calls;
+  updated the file header's converted-domain count (6 → 10) and per-batch history.
+- `src/assistant/__tests__/tool-registrations.integrations.test.ts`,
+  `tool-registrations.workspace.test.ts`, `tool-registrations.seo.test.ts` — each gained the
+  `resetToolContributorsForTests()` + `contribute<Domain>Tools()` setup.
+- `src/assistant/__tests__/tool-contribution-registry.test.ts` — extended coverage as described above.
+
+## Open items for the team lead
+
+- **Baseline file-count discrepancy** (934 vs. this worktree's clean 848): worth a decision on
+  whether the checked-in `check-architecture.baseline.json` needs a clean re-measure + `--update`
+  independent of this batch's own domain work, since a 86-file gap this large could be hiding other
+  drift beyond just this batch's own metrics.
+- `source-control`/`deployments`/`static-publish` all block on the SAME underlying cycle
+  (`features/vendor-credentials` value-importing `source-control/store.ts`, which value-imports
+  `deployments/static-publish/index.ts`, while `assistant` unconditionally value-imports
+  `vendor-credentials` for `REAL_VENDOR_CREDENTIAL_PORT`). A future batch converting all three
+  together needs one of: relocating `vendor-credentials/dual-read.ts`'s legacy-fallback read off
+  `source-control/store.ts` directly, or moving `assistant`'s `VendorCredentialPort` wiring somewhere
+  that doesn't import `vendor-credentials` by value. Until then these three stay a matched set — no
+  point retrying one without the other two.
+- `media` blocks on `widgets/resolver-service.ts`'s value import of `media/bootstrap`/`media/index`
+  while `assistant` still statically depends on `widgets`. Converting `widgets` first (a much bigger
+  domain, not attempted this batch) would remove `assistant`'s static edge into it and likely unblock
+  `media` — worth trying in a batch that also takes on `widgets` itself.
+- 12 domains remain unconverted after this batch (content-types, forms, widgets, menus, database,
+  recovery, deployments, static-publish, source-control, plugins, settings, entries, media, themes —
+  minus `post`, permanently excluded per the user; several of these are the sibling agent's
+  disjoint set in `registry-rollout-batch2-groupA`'s own worktree, not this one's to re-attempt).
+  Re-run the same selection heuristic each batch, with the value-vs-type-only import distinction from
+  this batch folded in as a standing part of the risk check, not just a relative/`#src/*` importer
+  grep.

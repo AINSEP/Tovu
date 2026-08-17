@@ -90,16 +90,22 @@ test("installFirstPartyToolContributors is idempotent — calling it twice leave
 test("installFirstPartyToolContributors installs exactly the converted domains — no more, no fewer", () => {
   installFirstPartyToolContributors();
   // Stage 1 (2026-08-17): comments, newsletter. Stage 2 batch 1 (same day): identity, members,
-  // redirects, taxonomy — see `server/tool-catalog-manifest.ts`'s own header for the running count.
-  // `themes` was also tried in the Stage 2 batch and reverted (new module cycle through `export`),
-  // so it is deliberately absent — covered by its own test below.
+  // redirects, taxonomy. Stage 2 batch 2 (same day): integrations, workspace, pages, seo — see
+  // `server/tool-catalog-manifest.ts`'s own header for the running count. `themes` was also tried in
+  // Stage 2 batch 1 and reverted (new module cycle through `export`); `source-control`, `deployments`,
+  // `static-publish`, and `media` were all tried in Stage 2 batch 2 and reverted (see each one's own
+  // trailing comment for its own cycle) — all deliberately absent, covered by their own tests below.
   assert.deepEqual(listToolContributors().map((c) => c.domain), [
     "comments",
     "identity",
+    "integrations",
     "members",
     "newsletter",
+    "pages",
     "redirects",
+    "seo",
     "taxonomy",
+    "workspace",
   ]);
 });
 
@@ -111,6 +117,26 @@ test("post is deliberately NOT installed by installFirstPartyToolContributors �
 test("themes is deliberately NOT installed by installFirstPartyToolContributors — it was tried in the Stage 2 batch and reverted the same night (see features/theme/tool-registrations.ts's trailing comment: converting it opened a new module cycle through export/features/deployments/features/source-control/features/vendor-credentials)", () => {
   installFirstPartyToolContributors();
   assert.equal(listToolContributors().some((c) => c.domain === "themes"), false);
+});
+
+test("source-control is deliberately NOT installed by installFirstPartyToolContributors — tried in Stage 2 batch 2 and reverted the same session (see features/source-control/tool-registrations.ts's trailing comment: converting it closed a 3-module cycle through features/vendor-credentials)", () => {
+  installFirstPartyToolContributors();
+  assert.equal(listToolContributors().some((c) => c.domain === "source-control"), false);
+});
+
+test("deployments is deliberately NOT installed by installFirstPartyToolContributors — tried in Stage 2 batch 2 and reverted the same session (see features/deployments/tool-registrations.ts's trailing comment: converting it closed a 4-module cycle through features/source-control/features/vendor-credentials)", () => {
+  installFirstPartyToolContributors();
+  assert.equal(listToolContributors().some((c) => c.domain === "deployments"), false);
+});
+
+test("static-publish is deliberately NOT installed by installFirstPartyToolContributors — tried in Stage 2 batch 2 and reverted the same session for the identical reason as deployments above (see features/deployments/publish-agent-tools.ts's trailing comment: same features/deployments module)", () => {
+  installFirstPartyToolContributors();
+  assert.equal(listToolContributors().some((c) => c.domain === "static-publish"), false);
+});
+
+test("media is deliberately NOT installed by installFirstPartyToolContributors — tried in Stage 2 batch 2 and reverted the same session (see media/tool-registrations.ts's trailing comment: converting it closed a 3-module cycle through widgets)", () => {
+  installFirstPartyToolContributors();
+  assert.equal(listToolContributors().some((c) => c.domain === "media"), false);
 });
 
 test("registration order is deterministic across repeated installs, not just stable within one", () => {
@@ -138,12 +164,16 @@ test("two registry contributors claiming the same tool id fail buildAssistantToo
 });
 
 test("a registry contributor colliding with a legacy DOMAIN_SLICES id fails the same way — the check does not care which seam registered which side", () => {
-  // `workspace_get` is one of the legacy, still-statically-wired `workspace` domain's ids
-  // (`features/workspace/tool-registrations.ts`) — colliding a fake contributor against it proves
-  // the duplicate check spans both seams, not just registry-vs-registry or slice-vs-slice.
-  registerToolContributor(fakeContributor("impersonator", ["workspace_get"]));
+  // `database_get_health` is one of the legacy, still-statically-wired `database` domain's ids
+  // (`features/database/tool-registrations.ts`) — colliding a fake contributor against it proves
+  // the duplicate check spans both seams, not just registry-vs-registry or slice-vs-slice. (Was
+  // `workspace_get` before Stage 2 batch 2 converted `workspace` itself onto the registry — switched
+  // to a domain that is still genuinely legacy, so this test keeps proving the cross-seam case
+  // rather than silently becoming a registry-vs-registry collision, which the earlier test above
+  // already covers.)
+  registerToolContributor(fakeContributor("impersonator", ["database_get_health"]));
 
-  assert.throws(() => buildAssistantToolRegistrations(createRouteDeps()), /'workspace_get' is registered by both the workspace and impersonator domains/);
+  assert.throws(() => buildAssistantToolRegistrations(createRouteDeps()), /'database_get_health' is registered by both the database and impersonator domains/);
 });
 
 // ---------------------------------------------------------------------------
@@ -199,4 +229,9 @@ test("two independent buildAssistantToolRegistrations calls after one installFir
   assert.ok(daemonIds.includes("members_list"));
   assert.ok(daemonIds.includes("redirects_list"));
   assert.ok(daemonIds.includes("taxonomy_list"));
+  // Stage 2 batch 2's converted domains — same proof, extended to cover them too.
+  assert.ok(daemonIds.includes("integrations_list_subscriptions"));
+  assert.ok(daemonIds.includes("workspace_get"));
+  assert.ok(daemonIds.includes("pages_read_html"));
+  assert.ok(daemonIds.includes("seo_get_entry_meta"));
 });
