@@ -38,13 +38,16 @@ const PRINCIPAL_ID = "principal-under-test";
 const NOW = "2026-08-15T00:00:00.000Z";
 
 const publishOutputDir = mkdtempSync(path.join(tmpdir(), "tovu-publish-agent-tools-test-"));
-process.env.TOVU_PUBLISH_DIR = publishOutputDir;
 test.after(() => rmSync(publishOutputDir, { recursive: true, force: true }));
 
 /** Real hermetic `RouteDeps` (`createRouteDeps()`, the same fixture `adapter.unit.test.ts` and the
  *  sibling `deployments` integration test use — real, in-process, no external network), with
  *  `authorize` overridden and this file's own test-only `credentialSource`/`buildTarget` seams
- *  optionally set. Mirrors `agent-tools.delete-confirmation.test.ts`'s `fakeRouteDeps` shape. */
+ *  optionally set. Mirrors `agent-tools.delete-confirmation.test.ts`'s `fakeRouteDeps` shape.
+ *  `publishOutputRootDir` is redirected to this file's own throwaway temp dir — `publishStaticSite`
+ *  reads that `RouteDeps` field instead of `process.env.TOVU_PUBLISH_DIR` (adapter.ts no longer
+ *  reads env vars at all), so overriding it here is what keeps this suite's real `exportSite`
+ *  writes off the checked-out repo. */
 function fakeDeps(
   options: {
     allow?: boolean;
@@ -58,6 +61,7 @@ function fakeDeps(
 
   const deps: StaticPublishToolDeps = {
     ...base,
+    publishOutputRootDir: publishOutputDir,
     authorize: async (params: Record<string, unknown>) => {
       authorizeCalls.push(params);
       return allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" };

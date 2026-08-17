@@ -639,6 +639,17 @@ export interface RouteDeps {
    */
   runExportSite: ExportEngine<RouteDeps>;
   /**
+   * `TOVU_EXPORT_DIR` env, then `<cwd>/infra/export` — the export engine's default output directory
+   * root, read ONCE at boot by `server/app.ts`'s `createRouteDeps()`/`server/deps.ts`'s
+   * `resolveExportOutputRootDir()` (via `createSqliteRouteDeps()`) rather than re-read deep inside
+   * `features/deployments/export-run.ts`'s `startExportRun` or `cli/commands/export.ts`'s
+   * `runExportCommand` — same "read once at the root, thread the value down" discipline `themesDir`
+   * above already establishes for `TOVU_THEMES_DIR`. `cli/commands/export.ts`'s own `--out` flag
+   * still takes precedence over this field where a caller supplies one; this field IS the
+   * env-then-default fallback both callers share.
+   */
+  exportOutputRootDir: string;
+  /**
    * Boots a real `Express` app bound to the given `RouteDeps` — the SAME factory `server/app.ts`
    * exports as `createApp`, injected here rather than imported directly by
    * `src/export/site-exporter.ts` (`exportSite` needs to boot an in-process copy of the app to crawl
@@ -696,6 +707,15 @@ export interface RouteDeps {
    */
   publishExecutionMode: PublishExecutionMode;
   /**
+   * `TOVU_PUBLISH_DIR` env, then `<cwd>/infra/publish` — the static-publish flow's parent output
+   * directory, read ONCE at boot by `server/app.ts`'s `createRouteDeps()`/`server/deps.ts`'s
+   * `resolvePublishOutputRootDir()` (via `createSqliteRouteDeps()`), same "read once at the root"
+   * discipline `exportOutputRootDir` above establishes. `static-publish/adapter.ts`'s
+   * `publishOutputDir` joins this with the target id to get the per-target directory it actually
+   * exports into — never re-reads `process.env` itself.
+   */
+  publishOutputRootDir: string;
+  /**
    * 2026-08-16 — cached, non-secret provider-verification results for `publishCredentialSetRepo`'s
    * (or the env-var fallback's) credentials, keyed by `(workspaceId, target)`. Fixes "ready means a
    * row exists, not a working credential" (`deployments/static-publish/verify.ts`'s own header has
@@ -721,6 +741,17 @@ export interface RouteDeps {
    * why.
    */
   sourceControlCredentialSetRepo: SourceControlCredentialSetRepoPort;
+  /**
+   * `TOVU_SOURCE_CONTROL_EXPORT_DIR` env, then `<cwd>/infra/source-control-export` — the
+   * `source-control` domain's own export scratch directory (deliberately separate from
+   * `exportOutputRootDir`/`publishOutputRootDir` above so no two of these features ever race over
+   * the same on-disk output — see `features/source-control/commit-site.ts`'s header), read ONCE at
+   * boot by `server/app.ts`'s `createRouteDeps()`/`server/deps.ts`'s
+   * `resolveSourceControlExportRootDir()` (via `createSqliteRouteDeps()`). `commit-site.ts`'s
+   * `commitExportDir` joins this with the provider subdirectory (`"github"`) — never re-reads
+   * `process.env` itself.
+   */
+  sourceControlExportRootDir: string;
   /**
    * 2026-08-16 (Phase 3) — the `vendor_credential_sets` repo backing the unified vendor-scoped
    * credential redesign (`features/vendor-credentials/`; `db/schema.ts`'s `vendorCredentialSets`

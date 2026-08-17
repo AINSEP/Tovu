@@ -161,6 +161,43 @@ export function builtInThemesDir(): string {
 }
 
 /**
+ * `TOVU_EXPORT_DIR` env, then `<cwd>/infra/export` — the static-site export engine's default output
+ * directory root. Read ONCE here (mirrors `builtInThemesDir()`/`mediaUploadsDir()` immediately
+ * above) rather than re-read deep in `features/deployments/export-run.ts` (the admin route's export
+ * trigger + the `deployment_trigger_export` agent tool) or `cli/commands/export.ts` (`tovu export`)
+ * — both now read `RouteDeps.exportOutputRootDir` instead, which this function feeds in both
+ * composition roots (`server/app.ts`'s `createRouteDeps()` and this file's
+ * `createSqliteRouteDeps()`). See `routes/types.ts`'s `exportOutputRootDir` doc for the full
+ * reasoning.
+ */
+export function resolveExportOutputRootDir(): string {
+  return process.env.TOVU_EXPORT_DIR !== undefined ? resolve(process.env.TOVU_EXPORT_DIR) : resolve(process.cwd(), "infra", "export");
+}
+
+/**
+ * `TOVU_SOURCE_CONTROL_EXPORT_DIR` env, then `<cwd>/infra/source-control-export` — the
+ * `source-control` domain's own export scratch directory, deliberately separate from
+ * {@link resolveExportOutputRootDir} above so a static-site export and a source-control commit
+ * export never race over the same on-disk output (see `features/source-control/commit-site.ts`'s
+ * header). Read ONCE here, same reasoning as {@link resolveExportOutputRootDir}.
+ */
+export function resolveSourceControlExportRootDir(): string {
+  return process.env.TOVU_SOURCE_CONTROL_EXPORT_DIR !== undefined
+    ? resolve(process.env.TOVU_SOURCE_CONTROL_EXPORT_DIR)
+    : resolve(process.cwd(), "infra", "source-control-export");
+}
+
+/**
+ * `TOVU_PUBLISH_DIR` env, then `<cwd>/infra/publish` — the static-publish flow's parent output
+ * directory; each target gets its own subdirectory under it (see
+ * `features/deployments/static-publish/adapter.ts`'s `publishOutputDir`). Read ONCE here, same
+ * reasoning as {@link resolveExportOutputRootDir}.
+ */
+export function resolvePublishOutputRootDir(): string {
+  return process.env.TOVU_PUBLISH_DIR !== undefined ? resolve(process.env.TOVU_PUBLISH_DIR) : resolve(process.cwd(), "infra", "publish");
+}
+
+/**
  * @file SQLite-backed composition of route dependencies.
  *
  * Purpose:
@@ -811,6 +848,10 @@ export function createSqliteRouteDeps(
     // `runExportSite` doc for why that indirection is required, not stylistic (a real circular-load
     // crash, not a style preference).
     runExportSite: runExportSiteLazily,
+    // Read ONCE here rather than deep in `export-run.ts`/`cli/commands/export.ts` — see
+    // `resolveExportOutputRootDir`'s own doc immediately above and `routes/types.ts`'s
+    // `exportOutputRootDir` doc.
+    exportOutputRootDir: resolveExportOutputRootDir(),
     createSiteApp: createSiteAppLazily,
     resolveStorefrontProducts,
     // 2026-08-15 (Contract v2) — see `routes/types.ts`'s `publishCredentialSetRepo`/
@@ -821,6 +862,10 @@ export function createSqliteRouteDeps(
     // `server/app.ts`'s hermetic composition uses `InMemoryPublishHistoryStore` instead.
     publishHistoryStore: new SqlitePublishHistoryStore(db),
     publishExecutionMode: executionModeFromEnv(),
+    // Read ONCE here rather than deep in `static-publish/adapter.ts` — see
+    // `resolvePublishOutputRootDir`'s own doc above and `routes/types.ts`'s `publishOutputRootDir`
+    // doc.
+    publishOutputRootDir: resolvePublishOutputRootDir(),
     // 2026-08-16 — see `routes/types.ts`'s `publishCredentialVerificationCache` doc. Deliberately
     // in-memory, not DB-backed — one instance per process (this function runs once per boot, per
     // `index.ts`/`agent-daemon-server.ts`'s own call sites), same singleton lifetime
@@ -830,6 +875,10 @@ export function createSqliteRouteDeps(
     // same shared sealer/keyring the credential repos above already reuse (no third
     // `EnvOrFileKeyring` instance).
     sourceControlCredentialSetRepo: new SqliteSourceControlCredentialSetRepo(db),
+    // Read ONCE here rather than deep in `source-control/commit-site.ts` — see
+    // `resolveSourceControlExportRootDir`'s own doc above and `routes/types.ts`'s
+    // `sourceControlExportRootDir` doc.
+    sourceControlExportRootDir: resolveSourceControlExportRootDir(),
     // 2026-08-16 (Phase 3) — see `routes/types.ts`'s `vendorCredentialSetRepo` doc. Sealed via the
     // same shared sealer/keyring the two legacy credential repos above already reuse (no third
     // `EnvOrFileKeyring` instance).
