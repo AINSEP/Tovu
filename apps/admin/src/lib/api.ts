@@ -2113,6 +2113,31 @@ export const api = {
       method: "PUT",
       body: JSON.stringify(patch),
     }),
+  // The ADMIN's own agent daemon (Local CLI execution) — manual restart action for
+  // `features/ai-assistant/AiAssistant.tsx`'s "Admin AI Assistant" tab. `server/routes/admin/system/
+  // assistant-daemon.ts`'s route is synchronous and answers as soon as a restart is INITIATED, never
+  // once it's healthy (no such signal exists in the daemon supervisor — see that route's own doc), so
+  // this never throws for the ordinary "refused right now" outcome (e.g. `{reason: "shutting down"}`,
+  // `POST` answers `409`) — only a genuinely unexpected failure (network, 403, 500) still throws,
+  // exactly like every other route in this file. Callers read live health separately, via
+  // `getAssistantDaemonReadyz` below.
+  restartAssistantDaemon: async (): Promise<{ ok: boolean; reason?: string }> => {
+    try {
+      return await request<{ ok: true }>(`/workspaces/${WORKSPACE_ID}/system/assistant-daemon/restart`, { method: "POST" });
+    } catch (e) {
+      if (e instanceof ApiError && typeof e.body?.reason === "string") return { ok: false, reason: e.body.reason };
+      throw e;
+    }
+  },
+  // `/readyz` (root-level, NOT under `/api/admin/v1` — see `server/routes/ops/health.ts`) is
+  // deliberately unauthenticated and carries `assistantDaemonKnownFailed: true` only while a fresh
+  // agent-daemon failure is latched (`readiness-state.ts`). Read directly rather than through
+  // `request()`: both `200` (ready) and `503` (not ready) are ordinary, meaningful bodies here, not
+  // error cases to throw on — the whole point of this call is telling the two apart after a restart.
+  getAssistantDaemonReadyz: async (): Promise<{ ready: boolean; assistantDaemonKnownFailed?: true }> => {
+    const res = await fetch("/readyz", { credentials: "same-origin" });
+    return (await res.json()) as { ready: boolean; assistantDaemonKnownFailed?: true };
+  },
   // The SITE's encrypted provider credential (ADR-058) — a DIFFERENT key from the browser-local one
   // `lib/execution-settings.ts` keeps for this admin's own assistant, and the whole reason these three
   // routes exist. All three return the same write-only `{ data: SiteAssistantCredential }` view;

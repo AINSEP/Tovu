@@ -2480,6 +2480,13 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    the switch is already right and does not want changing. */
 .settings-ui-section--page-flow .assistant-execution { margin-top: 1.25rem; }
 
+/* `AssistantDaemonRestart` (`AiAssistant.tsx`) — the Local CLI daemon's manual restart control,
+ * directly under the execution-mode block above. `h2`/`.muted-cell` reuse the same page typography
+ * `RoadmapChecklist` does; only the spacing and the button row need their own rules. */
+.settings-ui-section--page-flow .assistant-daemon-restart { margin-top: 1.5rem; }
+.settings-ui-section--page-flow .assistant-daemon-restart h2 { font-size: 14px; font-weight: 600; color: var(--jini-text-strong); margin: 0 0 0.35rem; }
+.assistant-daemon-restart-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 0.5rem 0; }
+
 /* Matches `.jini-field-hint`, so the toggle reads as part of the form's own
    quiet layer rather than as a link competing with the copy above it. */
 .settings-ui-section--page-flow .see-more-toggle { font-size: 12px; }
