@@ -71,6 +71,13 @@ function toRepoRelative(sourceFilePath: string): string {
   return rel.split(path.sep).join("/");
 }
 
+/** Pulls a single `KEY:123` numeric field out of one lcov record block; 0 if the key is absent
+ *  (lcov omits BRF/BRH entirely for a file with no branches, for example). */
+function lcovField(record: string, key: string): number {
+  const match = record.match(new RegExp(`^${key}:(\\d+)$`, "m"));
+  return Number(match?.[1] ?? 0);
+}
+
 /** Parses every `SF:`/`end_of_record` block in the lcov file into a `FileCoverage` row, with no
  *  filtering — callers that want only route files should use `loadRouteCoverage()` below. */
 export function loadLcov(lcovPath: string = LCOV_PATH): FileCoverage[] {
@@ -87,12 +94,12 @@ export function loadLcov(lcovPath: string = LCOV_PATH): FileCoverage[] {
     if (!sf) continue;
     out.push({
       file: toRepoRelative(sf[1]),
-      lf: Number((rec.match(/^LF:(\d+)$/m) ?? [])[1] ?? 0),
-      lh: Number((rec.match(/^LH:(\d+)$/m) ?? [])[1] ?? 0),
-      brf: Number((rec.match(/^BRF:(\d+)$/m) ?? [])[1] ?? 0),
-      brh: Number((rec.match(/^BRH:(\d+)$/m) ?? [])[1] ?? 0),
-      fnf: Number((rec.match(/^FNF:(\d+)$/m) ?? [])[1] ?? 0),
-      fnh: Number((rec.match(/^FNH:(\d+)$/m) ?? [])[1] ?? 0),
+      lf: lcovField(rec, "LF"),
+      lh: lcovField(rec, "LH"),
+      brf: lcovField(rec, "BRF"),
+      brh: lcovField(rec, "BRH"),
+      fnf: lcovField(rec, "FNF"),
+      fnh: lcovField(rec, "FNH"),
     });
   }
   return out;
