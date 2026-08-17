@@ -39,21 +39,25 @@
  * were converted to `tool-contribution-registry.ts`'s explicit-call registry — see that file's
  * header for why (it existed to break the `[assistant, comments, features/plugins, newsletter]`
  * module cycle `check:architecture` flagged, which a static import here could not). `identity`,
- * `members`, `taxonomy`, and `redirects` (Stage 2, same day) followed the same way — none has a
- * sibling domain still statically wired through this file that reaches back into it, so nothing
- * routes back through any of them to close a new cycle. `themes` was ALSO tried in the same batch and
+ * `members`, `taxonomy`, and `redirects` (Stage 2 batch 1, same day) followed the same way — none has
+ * a sibling domain still statically wired through this file that reaches back into it, so nothing
+ * routes back through any of them to close a new cycle. `themes` was ALSO tried in that batch and
  * reverted — see its own `DOMAIN_SLICES` entry's comment below and
  * `features/theme/tool-registrations.ts`'s trailing comment for why it is not a clean case like the
  * other four: `export` (via a `#src/*` subpath import invisible to a relative-path grep) depends on
  * `features/theme`, and `assistant` still reaches `export` transitively through its still-static
- * `deployments`/`source-control` entries. Their tools
- * still count in the totals above; they just arrive via
+ * `deployments`/`source-control` entries. `widgets` converted next (Stage 2 batch 2) — deliberately
+ * BEFORE `content-types`/`forms`, which `widgets` itself imports, specifically to remove the
+ * `assistant -> widgets` static edge first and avoid the same round-trip shape `themes` hit. Their
+ * tools still count in the totals above; they just arrive via
  * {@link listToolContributors}/{@link allToolContributors} now, folded together with
  * {@link DOMAIN_SLICES} rather than being one of its entries. `post` was ALSO tried and reverted
  * the same night — see its own `DOMAIN_SLICES` entry's comment below and
  * `features/post/tool-registrations.ts`'s trailing comment for why it is not a clean case like the
  * other two: converting it opened a NEW, larger cycle through `widgets`/`export`, both of which
- * depend on `features/post` while `assistant` still statically depends on `widgets`.
+ * depend on `features/post` while `assistant` still statically depends on `widgets` — that comment
+ * now predates `widgets`' own conversion; `post` is unaffected since it is excluded from this round
+ * for its own, separate reasons (see its `DOMAIN_SLICES` entry below).
  *
  * To wire a new domain: if it will stay a first-party, always-present domain and you are not
  * specifically migrating it to the registry, add its `build<Domain>Registrations` and its risk
@@ -70,11 +74,7 @@ import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "../core/t
 import { listToolContributors, type ToolContributor } from "./tool-contribution-registry";
 
 export type { AssistantSurfaceDeps };
-import {
-  buildContentTypesRegistrations,
-  contentTypesDerivedRisk,
-  type ContentTypesToolDeps,
-} from "../features/content-types/tool-registrations";
+import type { ContentTypesToolDeps } from "../features/content-types/tool-registrations";
 import {
   buildDatabaseRegistrations,
   databaseDerivedRisk,
@@ -91,11 +91,7 @@ import {
   type StaticPublishToolDeps,
   type VendorCredentialPort,
 } from "../features/deployments/publish-agent-tools";
-import {
-  buildEntriesRegistrations,
-  entriesDerivedRisk,
-  type EntriesToolDeps,
-} from "../features/entries/tool-registrations";
+import type { EntriesToolDeps } from "../features/entries/tool-registrations";
 // This file's own real wiring for `StaticPublishToolDeps.vendorCredentials` (`VendorCredentialPort`,
 // `publish-agent-tools.ts`) — that file deliberately carries NO import of any kind from
 // `features/vendor-credentials` (see its own header for why: doing so closed a real
@@ -116,11 +112,7 @@ import {
   sourceControlDerivedRisk,
   type SourceControlToolDeps,
 } from "../features/source-control/tool-registrations";
-import {
-  buildPluginsRegistrations,
-  pluginsDerivedRisk,
-  type PluginsToolDeps,
-} from "../features/plugin-runtime/tool-registrations";
+import type { PluginsToolDeps } from "../features/plugin-runtime/tool-registrations";
 import {
   buildPostRegistrations,
   postDerivedRisk,
@@ -131,11 +123,7 @@ import {
   pagesDerivedRisk,
   type PagesToolDeps,
 } from "../features/pages/tool-registrations";
-import {
-  buildRecoveryRegistrations,
-  recoveryDerivedRisk,
-  type RecoveryToolDeps,
-} from "../features/recovery/tool-registrations";
+import type { RecoveryToolDeps } from "../features/recovery/tool-registrations";
 import {
   buildSettingsRegistrations,
   settingsDerivedRisk,
@@ -152,11 +140,7 @@ import {
   workspaceDerivedRisk,
   type WorkspaceToolDeps,
 } from "../features/workspace/tool-registrations";
-import {
-  buildFormsRegistrations,
-  formsDerivedRisk,
-  type FormsToolDeps,
-} from "../forms/tool-registrations";
+import type { FormsToolDeps } from "../forms/tool-registrations";
 import type { IdentityToolDeps } from "../identity/tool-registrations";
 import {
   buildIntegrationsRegistrations,
@@ -169,19 +153,11 @@ import {
   type MediaToolDeps,
 } from "../media/tool-registrations";
 import type { MembersToolDeps } from "../members/tool-registrations";
-import {
-  buildMenusRegistrations,
-  menusDerivedRisk,
-  type MenusToolDeps,
-} from "../navigation/tool-registrations";
+import type { MenusToolDeps } from "../navigation/tool-registrations";
 import type { NewsletterToolDeps } from "../newsletter/tool-registrations";
 import type { RedirectsToolDeps } from "../redirects/tool-registrations";
 import { buildSeoRegistrations, seoDerivedRisk, type SeoToolDeps } from "../seo/tool-registrations";
-import {
-  buildWidgetsRegistrations,
-  widgetsDerivedRisk,
-  type WidgetsToolDeps,
-} from "../widgets/tool-registrations";
+import type { WidgetsToolDeps } from "../widgets/tool-registrations";
 import {
   assertToolIsWirable,
   mergeDerivedRiskMaps,
@@ -270,17 +246,33 @@ type DomainSlice = ToolContributor;
  * `ToolRegistry.list()` and any snapshot of it stay readable.
  */
 const DOMAIN_SLICES: readonly DomainSlice[] = [
-  { domain: "content-types", build: buildContentTypesRegistrations, risk: contentTypesDerivedRisk },
-  { domain: "forms", build: buildFormsRegistrations, risk: formsDerivedRisk },
   // `identity`, `members` converted to the tool-contribution registry 2026-08-17 (Stage 2) — see
   // `identity/tool-registrations.ts`'s/`members/tool-registrations.ts`'s own headers. No longer
   // entries here; they arrive via `contributeIdentityTools()`/`contributeMembersTools()`, installed
   // by `server/tool-catalog-manifest.ts`.
   { domain: "media", build: buildMediaRegistrations, risk: mediaDerivedRisk },
-  { domain: "widgets", build: buildWidgetsRegistrations, risk: widgetsDerivedRisk },
-  { domain: "menus", build: buildMenusRegistrations, risk: menusDerivedRisk },
+  // `widgets` converted to the tool-contribution registry 2026-08-17 (Stage 2 batch 2) — see
+  // `widgets/tool-registrations.ts`'s own header. No longer an entry here; it arrives via
+  // `contributeWidgetsTools()`, installed by `server/tool-catalog-manifest.ts`. Converted first in
+  // this batch, ahead of `content-types`/`forms` (which `widgets` itself imports), specifically to
+  // remove the `assistant -> widgets` static edge before either of those two convert.
+  // `content-types`, `forms`, and `menus` converted next (Stage 2 batch 2) — see
+  // `features/content-types/tool-registrations.ts`'s/`forms/tool-registrations.ts`'s/
+  // `navigation/tool-registrations.ts`'s own headers. No longer entries here; they arrive via
+  // `contributeContentTypesTools()`/`contributeFormsTools()`/`contributeMenusTools()`, installed by
+  // `server/tool-catalog-manifest.ts`.
   { domain: "database", build: buildDatabaseRegistrations, risk: databaseDerivedRisk },
-  { domain: "recovery", build: buildRecoveryRegistrations, risk: recoveryDerivedRisk },
+  // `database` was ALSO tried in the same Stage 2 batch 2 and reverted — see
+  // `features/database/tool-registrations.ts`'s trailing comment for why: adding
+  // `database -> assistant` closed a NEW 16-module SCC running through the shared low-level `db`
+  // module and the still-static `deployments`/`source-control`/`recovery`/`settings`/`workspace`/
+  // `entries`/`post`/`pages`/`plugin-runtime`/`seo`/`export`/`vendor-credentials` DOMAIN_SLICES
+  // entries collectively — much larger than the `themes`/`post` near-misses in the prior batch.
+  // `recovery` converted next (same batch) — see `features/recovery/tool-registrations.ts`'s own
+  // header. No longer an entry here; it arrives via `contributeRecoveryTools()`, installed by
+  // `server/tool-catalog-manifest.ts`. Safe despite sharing `database`'s `db/sqlite` importer:
+  // Recovery's own imports of `features/database` are both `import type`, erased from the
+  // runtime-only cycle graph, so `recovery -> assistant` does not carry `database`'s round-trip risk.
   // 2026-08-15 — the Deployment panel's three tabs (Static Site export, Full Site read, Dockerfile
   // read/write). See `features/deployments/agent-tools.ts`'s file header for why, unlike every
   // domain above, none of its 5 entries is excluded.
@@ -308,17 +300,28 @@ const DOMAIN_SLICES: readonly DomainSlice[] = [
   // bitbucket credentials can be saved and are honestly reported by the capabilities tool, but
   // committing to either is not implemented yet.
   { domain: "source-control", build: buildSourceControlRegistrations, risk: sourceControlDerivedRisk },
-  { domain: "plugins", build: buildPluginsRegistrations, risk: pluginsDerivedRisk },
+  // `plugins` converted to the tool-contribution registry 2026-08-17 (Stage 2 batch 2) — see
+  // `features/plugin-runtime/tool-registrations.ts`'s own header. No longer an entry here; it
+  // arrives via `contributePluginsTools()`, installed by `server/tool-catalog-manifest.ts`.
   { domain: "workspace", build: buildWorkspaceRegistrations, risk: workspaceDerivedRisk },
   { domain: "settings", build: buildSettingsRegistrations, risk: settingsDerivedRisk },
-  { domain: "entries", build: buildEntriesRegistrations, risk: entriesDerivedRisk },
+  // `entries` converted to the tool-contribution registry 2026-08-17 (Stage 2 batch 2) — see
+  // `features/entries/tool-registrations.ts`'s own header. No longer an entry here; it arrives via
+  // `contributeEntriesTools()`, installed by `server/tool-catalog-manifest.ts`. Converted LAST in
+  // this batch: `widgets` (batch's own first conversion) imports `features/entries` internally, so
+  // this needed `widgets` off the static array first, same reasoning as `content-types`/`forms`.
   // `buildPostRegistrations`' second parameter now IS the slice contract's own `surfaces` shape
   // (ADR-055 Decision 2 — `content_post_delete` holds its call open through the same exchange store
   // every other surface-raising domain uses), so this forwards directly rather than wrapping.
   // NOT converted to the tool-contribution registry, unlike Comments/Newsletter — see this file's
   // header and `features/post/tool-registrations.ts`'s own trailing comment for why: `widgets` and
-  // `export` both depend on `features/post`, and `assistant` still statically imports `widgets`
-  // below, so a `post -> assistant` registry edge would close a NEW, larger module cycle.
+  // `export` both depend on `features/post`. `widgets` converted to the registry in Stage 2 batch 2
+  // (see its own entry above), which closes the `widgets` half of this risk, but `export` still
+  // depends on `features/post` and `assistant` still reaches `export` transitively through the
+  // still-static `deployments`/`source-control` entries below — the same path that blocks `themes`
+  // (see its own entry's comment) — so a `post -> assistant` registry edge would still close a NEW
+  // module cycle through `export`. Out of scope for this batch regardless (explicitly excluded, see
+  // Stage 2 batch 2's own brief); left unconverted, not re-attempted.
   { domain: "post", build: buildPostRegistrations, risk: postDerivedRisk },
   // Its own domain, not part of "post": a Page's body is bespoke HTML and a Post's is a Tiptap
   // document, and `content_post_update` cannot write the former. See `features/pages/agent-tools.ts`.
