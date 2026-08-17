@@ -47,8 +47,13 @@ const ENTITY_TYPE = "source-control";
 
 const BASE_PATH = "/api/admin/v1/workspaces/:workspaceId/system/source-control/credentials";
 
-/** Every 4xx this route can produce, shaped once so each handler below stays a thin dispatch.
- *  Mirrors `publish-credentials.ts`'s own `sendStoreError`. */
+/** Every error this route can produce, shaped once so each handler below stays a thin dispatch.
+ *  Mirrors `publish-credentials.ts`'s own `sendStoreError`, including its 2026-08-16 fix: the
+ *  untyped fallback responds `500` instead of `throw err`. A re-throw here escapes the caller's own
+ *  `catch (err) { sendStoreError(res, err); }` too — that shape only LOOKS guarded; see
+ *  `publish-credentials.ts`'s own doc comment on this same function for the fuller story (found via
+ *  an AST scan over every `app.<verb>()` handler in `src/server/routes/**`, which is also how this
+ *  file's `GET`/`DELETE` were found with no `try`/`catch` at all). */
 function sendStoreError(res: Response, err: unknown): void {
   if (err instanceof SourceControlCredentialValidationError) {
     res.status(400).json({ error: "VALIDATION", detail: err.message });
@@ -66,7 +71,8 @@ function sendStoreError(res: Response, err: unknown): void {
     res.status(503).json({ error: "SECRET_STORE_UNCONFIGURED", detail: err.message });
     return;
   }
-  throw err;
+  console.error("[source-control-credentials] unexpected error", err);
+  res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
 }
 
 export function registerAdminSourceControlCredentialsRoutes(app: Express, deps: AdminSourceControlCredentialsDeps): void {
@@ -108,8 +114,12 @@ export function registerAdminSourceControlCredentialsRoutes(app: Express, deps: 
 
   app.get(BASE_PATH, async (req, res) => {
     if (await rejectUnlessAuthorized(req, res)) return;
-    const credentials: SourceControlCredentialSummary[] = await listSourceControlCredentials(readDeps, { workspaceId: deps.workspaceId });
-    res.status(200).json({ credentials });
+    try {
+      const credentials: SourceControlCredentialSummary[] = await listSourceControlCredentials(readDeps, { workspaceId: deps.workspaceId });
+      res.status(200).json({ credentials });
+    } catch (err) {
+      sendStoreError(res, err);
+    }
   });
 
   app.post(BASE_PATH, async (req, res) => {
@@ -147,10 +157,15 @@ export function registerAdminSourceControlCredentialsRoutes(app: Express, deps: 
 
   app.delete(`${BASE_PATH}/:id`, async (req, res) => {
     if (await rejectUnlessAuthorized(req, res)) return;
-    // Idempotent — `deleteSourceControlCredential`/`SourceControlCredentialSetRepoPort.delete` are
-    // both no-ops (not errors) for a missing row, matching this route's own documented 204-always
-    // contract.
-    await deleteSourceControlCredential(readDeps, { workspaceId: deps.workspaceId, id: req.params.id });
-    res.status(204).end();
+    try {
+      // Idempotent — `deleteSourceControlCredential`/`SourceControlCredentialSetRepoPort.delete` are
+      // both no-ops (not errors) for a missing row, matching this route's own documented 204-always
+      // contract. A THROWN error here (e.g. the repo itself is unreachable) is a different case,
+      // still needs a response, not a silent no-op.
+      await deleteSourceControlCredential(readDeps, { workspaceId: deps.workspaceId, id: req.params.id });
+      res.status(204).end();
+    } catch (err) {
+      sendStoreError(res, err);
+    }
   });
 }

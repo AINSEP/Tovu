@@ -59,9 +59,19 @@ export type AdminPublishCredentialsDeps = RouteDeps;
 
 const BASE_PATH = "/api/admin/v1/workspaces/:workspaceId/system/publish/credentials";
 
-/** Every 4xx this route can produce, shaped once so each handler below stays a thin dispatch. Mirrors
- *  `publish-site.ts`'s inline `{error}`/`{error, code, details}` shapes for the same permission
- *  failure; the four store-error branches are new to this route and have no precedent to match. */
+/** Every error this route can produce, shaped once so each handler below stays a thin dispatch.
+ *  Mirrors `publish-site.ts`'s inline `{error}`/`{error, code, details}` shapes for the same
+ *  permission failure; the four typed store-error branches are new to this route and have no
+ *  precedent to match.
+ *
+ *  2026-08-16 — the untyped fallback used to be `throw err`, re-throwing out of the caller's own
+ *  `catch` block instead of responding. That is not a guard, it just moves the same unhandled
+ *  rejection one frame up: found live when `GET`/`DELETE` below had no `try`/`catch` at all (an
+ *  AST scan over every `app.<verb>()` handler in `src/server/routes/**` caught it), and the SAME
+ *  scan showed `POST`/`PUT`/`POST .../:id/verify` already had a `try { ... } catch (err) {
+ *  sendStoreError(res, err); }` shape that LOOKED guarded but was not — any error outside the four
+ *  typed ones above still escaped every one of those handlers too. Every caller below now gets a
+ *  real response for an error this function does not recognize, instead of a hung request. */
 function sendStoreError(res: Response, err: unknown): void {
   if (err instanceof PublishCredentialValidationError) {
     res.status(400).json({ error: "VALIDATION", detail: err.message });
@@ -79,7 +89,8 @@ function sendStoreError(res: Response, err: unknown): void {
     res.status(503).json({ error: "SECRET_STORE_UNCONFIGURED", detail: err.message });
     return;
   }
-  throw err;
+  console.error("[publish-credentials] unexpected error", err);
+  res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
 }
 
 export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminPublishCredentialsDeps): void {
@@ -162,8 +173,12 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
 
   app.get(BASE_PATH, async (req, res) => {
     if (await rejectUnlessAuthorized(req, res)) return;
-    const credentials: PublishCredentialSummary[] = await listPublishCredentials(readDeps, { workspaceId: deps.workspaceId });
-    res.status(200).json({ credentials, executionMode: deps.publishExecutionMode });
+    try {
+      const credentials: PublishCredentialSummary[] = await listPublishCredentials(readDeps, { workspaceId: deps.workspaceId });
+      res.status(200).json({ credentials, executionMode: deps.publishExecutionMode });
+    } catch (err) {
+      sendStoreError(res, err);
+    }
   });
 
   app.post(BASE_PATH, async (req, res) => {
@@ -230,9 +245,15 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
 
   app.delete(`${BASE_PATH}/:id`, async (req, res) => {
     if (await rejectUnlessAuthorized(req, res)) return;
-    // Idempotent — `deletePublishCredential`/`PublishCredentialSetRepoPort.delete` are both no-ops
-    // (not errors) for a missing row, matching this route's own documented 204-always contract.
-    await deletePublishCredential(readDeps, { workspaceId: deps.workspaceId, id: req.params.id });
-    res.status(204).end();
+    try {
+      // Idempotent — `deletePublishCredential`/`PublishCredentialSetRepoPort.delete` are both no-ops
+      // (not errors) for a missing row, matching this route's own documented 204-always contract.
+      // A THROWN error here is a different case (e.g. the repo itself is unreachable) — not the
+      // idempotent-missing-row path above, so it still needs a response, not a silent no-op.
+      await deletePublishCredential(readDeps, { workspaceId: deps.workspaceId, id: req.params.id });
+      res.status(204).end();
+    } catch (err) {
+      sendStoreError(res, err);
+    }
   });
 }
