@@ -57,25 +57,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Guard - JINI_CHECKOUT_TOKEN must be set
-        # AINSEP/Jini is a PRIVATE repo in a DIFFERENT GitHub org than this one -- the default
-        # GITHUB_TOKEN cannot clone it (verified: `gh api repos/AINSEP/Jini --jq '.private'` -> true).
-        # Without a real token the checkout step below would fail with a raw, unhelpful git-auth
-        # error deep in actions/checkout's own output. Fail HERE instead, loudly and legibly, naming
-        # exactly what's missing -- a silent/confusing failure mode here is worse than a clear one,
-        # same principle as check-route-coverage-floor.ts's "0 measurable files must not read as a
-        # pass" fix earlier tonight (a9fa15ed).
-        #
-        # What the owner must create (Settings -> Secrets and variables -> Actions -> New repository
-        # secret), since only the owner can:
-        #   Name:  JINI_CHECKOUT_TOKEN
-        #   Value: a GitHub PAT (classic, `repo` scope -- AINSEP/Jini is private, so `public_repo`
-        #          is not enough -- or fine-grained with Contents: Read-only on AINSEP/Jini
-        #          specifically) or a deploy-key-backed token with read access to that repo.
-        if: ${{ secrets.JINI_CHECKOUT_TOKEN == '' }}
-        run: |
-          echo "::error::JINI_CHECKOUT_TOKEN secret is not set. AINSEP/Jini is a private repo this build depends on (13 file:../Jini/packages/* deps in package.json) and the default GITHUB_TOKEN cannot clone it. Create a repository secret named JINI_CHECKOUT_TOKEN (a PAT with read access to AINSEP/Jini) in Settings -> Secrets and variables -> Actions. See .github/workflows/ci.yml's own comment on this step for exact scopes."
-          exit 1
+      # NO TOKEN OR SECRET IS NEEDED TO CLONE AINSEP/Jini -- it is a PUBLIC repository.
+      #
+      # An earlier revision of this file carried a `Guard - JINI_CHECKOUT_TOKEN must be set` step
+      # here that hard-failed the build when that secret was absent, on the stated-as-verified claim
+      # that AINSEP/Jini is private. That claim was FALSE: `gh api repos/AINSEP/Jini --jq '.private'`
+      # returns `false` (i.e. NOT private) and was misread as confirming private. Re-verified with no
+      # authentication at all on 2026-08-16:
+      #   curl https://api.github.com/repos/AINSEP/Jini                            -> HTTP 200
+      #   curl https://github.com/AINSEP/Jini.git/info/refs?service=git-upload-pack -> HTTP 200
+      #   git ls-remote https://github.com/AINSEP/Jini.git general-work            -> 31500c90...
+      # Anonymous clone works. The guard would have failed every run for a secret nobody needs.
+      #
+      # Do not re-add a `token:` to the Jini checkout below. Passing one would make a future reader
+      # infer that credentials are required here, which is exactly how the wrong claim propagated the
+      # first time.
 
       - name: Resolve matching Jini branch
         id: jini-ref
@@ -87,7 +83,7 @@ jobs:
         # very different problems and must not look the same.
         run: |
           set -euo pipefail
-          REMOTE="https://x-access-token:${{ secrets.JINI_CHECKOUT_TOKEN }}@github.com/AINSEP/Jini.git"
+          REMOTE="https://github.com/AINSEP/Jini.git"   # public repo -- no credentials needed
           git ls-remote "$REMOTE" HEAD >/dev/null
           BRANCH="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
           if git ls-remote --heads "$REMOTE" "$BRANCH" | grep -q .; then
@@ -113,7 +109,6 @@ jobs:
           repository: AINSEP/Jini
           ref: ${{ steps.jini-ref.outputs.ref }}
           path: ../Jini
-          token: ${{ secrets.JINI_CHECKOUT_TOKEN }}
 
       - uses: actions/setup-node@v4
         with:
@@ -253,21 +248,17 @@ jobs:
 
       # This job also runs `npm ci` at the repo root, which needs the same 13 file:../Jini/packages/*
       # deps resolved as build-and-test does -- see that job's identically-commented steps for the
-      # full reasoning (private cross-org repo, gitignored dist/, branch pairing). Duplicated here
+      # full reasoning (public cross-org repo, gitignored dist/, branch pairing). Duplicated here
       # rather than factored into a composite action/reusable workflow: two short step sequences are
       # easier to read top-to-bottom than an extra indirection layer, matching this file's own
       # existing Simplicity Gate note.
-      - name: Guard - JINI_CHECKOUT_TOKEN must be set
-        if: ${{ secrets.JINI_CHECKOUT_TOKEN == '' }}
-        run: |
-          echo "::error::JINI_CHECKOUT_TOKEN secret is not set. AINSEP/Jini is a private repo this build depends on (13 file:../Jini/packages/* deps in package.json) and the default GITHUB_TOKEN cannot clone it. Create a repository secret named JINI_CHECKOUT_TOKEN (a PAT with read access to AINSEP/Jini) in Settings -> Secrets and variables -> Actions. See build-and-test's identical guard step for exact scopes."
-          exit 1
+      # No token needed -- AINSEP/Jini is PUBLIC. See build-and-test's note on this.
 
       - name: Resolve matching Jini branch
         id: jini-ref
         run: |
           set -euo pipefail
-          REMOTE="https://x-access-token:${{ secrets.JINI_CHECKOUT_TOKEN }}@github.com/AINSEP/Jini.git"
+          REMOTE="https://github.com/AINSEP/Jini.git"   # public repo -- no credentials needed
           git ls-remote "$REMOTE" HEAD >/dev/null
           BRANCH="${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
           if git ls-remote --heads "$REMOTE" "$BRANCH" | grep -q .; then
@@ -283,7 +274,6 @@ jobs:
           repository: AINSEP/Jini
           ref: ${{ steps.jini-ref.outputs.ref }}
           path: ../Jini
-          token: ${{ secrets.JINI_CHECKOUT_TOKEN }}
 
       - uses: actions/setup-node@v4
         with:
