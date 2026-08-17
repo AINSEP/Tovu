@@ -7,7 +7,7 @@ import { bootAuthenticated, startTestServer } from "./helpers/http-test-server";
 import type { RouteDeps } from "../routes/types";
 import type { PublishCredentialSetRepoPort } from "../../features/deployments/publish-credentials/types";
 import type { SourceControlCredentialSetRepoPort } from "../../features/source-control/types";
-import type { CommentWriteService } from "#src/comments/index";
+import type { CommentIngressPolicy, CommentWriteService } from "#src/comments/index";
 import { registerPaymentsWebhookRoute } from "../routes/site/payments-webhook";
 import type { LipayApi } from "#src/features/plugins/lipay/lipay-plugin";
 
@@ -20,10 +20,11 @@ import type { LipayApi } from "#src/features/plugins/lipay/lipay-plugin";
  * verify` (`650b92f6`); an AST scan over every `app.<verb>()` registration in
  * `src/server/routes/**` (`ADS-memory/reports/2026-08-16-server-routes-coverage-complexity-audit.md`,
  * re-derived independently for this pass) found 21 more occurrences of the same shape across 15
- * files. This file covers the 9 highest-severity ones fixed in this pass — credential CRUD
- * (decrypts/touches secrets) and the publish/export trigger+status routes (start a background
- * run) — see `ADS-memory/reports/2026-08-16-route-async-guards.md` for the full 21-handler list,
- * which ones remain open, and why.
+ * files. This file covers all 21, fixed across four commits in severity order — credential CRUD
+ * (decrypts/touches secrets), the publish/export trigger+status routes (start a background run),
+ * dockerfile-source/comments-moderate/payments-webhook, then the remaining plain reads plus the
+ * one public route (`comments-submit.ts`) — see `ADS-memory/reports/2026-08-16-route-async-guards.md`
+ * for the full list and how each was derived and ranked.
  *
  * Every test below is written to assert the FIXED (current) behavior — a real error status,
  * never a hang. To prove RED before each fix, the corresponding `try`/`catch` was manually
@@ -354,6 +355,113 @@ test("payments-webhook: POST responds 500 (not a hang) when lipay.handleWebhook 
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ type: "test.event" }),
+    signal: AbortSignal.timeout(3000),
+  });
+  assert.equal(res.status, 500);
+  assert.equal((await res.json()).code, "INTERNAL_ERROR");
+});
+
+// ---------------------------------------------------------------------------------------------
+// Final batch — the remaining 7 of the 21 unguarded handlers found by the AST scan, all plain
+// GET reads gated only by `deps.authorize` (probed the same way as publish-site.ts/export-site.ts
+// above) except `comments-submit.ts`, the one PUBLIC unauthenticated route in the whole 21-handler
+// list — probed instead via `deps.commentIngressPolicy` throwing, the one awaited call it reaches.
+// ---------------------------------------------------------------------------------------------
+
+test("analytics/recent-hits: GET responds 500 (not a hang) when deps.authorize throws", async (t) => {
+  const deps = withThrowingAuthorize(createRouteDeps());
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/analytics/recent-hits`, {
+    headers: { cookie },
+    signal: AbortSignal.timeout(3000),
+  });
+  assert.equal(res.status, 500);
+  assert.equal((await res.json()).code, "INTERNAL_ERROR");
+});
+
+test("comments/moderation-queue: GET responds 500 (not a hang) when deps.authorize throws", async (t) => {
+  const deps = withThrowingAuthorize(createRouteDeps());
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/comments/queue`, {
+    headers: { cookie },
+    signal: AbortSignal.timeout(3000),
+  });
+  assert.equal(res.status, 500);
+  assert.equal((await res.json()).code, "INTERNAL_ERROR");
+});
+
+test("commerce/status: GET responds 500 (not a hang) when deps.authorize throws", async (t) => {
+  const deps = withThrowingAuthorize(createRouteDeps());
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/commerce/status`, {
+    headers: { cookie },
+    signal: AbortSignal.timeout(3000),
+  });
+  assert.equal(res.status, 500);
+  assert.equal((await res.json()).code, "INTERNAL_ERROR");
+});
+
+test("deployments/list: GET responds 500 (not a hang) when deps.authorize throws", async (t) => {
+  const deps = withThrowingAuthorize(createRouteDeps());
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/deployments`, {
+    headers: { cookie },
+    signal: AbortSignal.timeout(3000),
+  });
+  assert.equal(res.status, 500);
+  assert.equal((await res.json()).code, "INTERNAL_ERROR");
+});
+
+test("system/deployment-overview: GET responds 500 (not a hang) when deps.authorize throws", async (t) => {
+  const deps = withThrowingAuthorize(createRouteDeps());
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/deployment-overview`, {
+    headers: { cookie },
+    signal: AbortSignal.timeout(3000),
+  });
+  assert.equal(res.status, 500);
+  assert.equal((await res.json()).code, "INTERNAL_ERROR");
+});
+
+test("system/module-status: GET responds 500 (not a hang) when deps.authorize throws", async (t) => {
+  const deps = withThrowingAuthorize(createRouteDeps());
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/module-status`, {
+    headers: { cookie },
+    signal: AbortSignal.timeout(3000),
+  });
+  assert.equal(res.status, 500);
+  assert.equal((await res.json()).code, "INTERNAL_ERROR");
+});
+
+test("site/comments-submit: POST responds 500 (not a hang) when commentIngressPolicy.submit throws — the one PUBLIC route in this file", async (t) => {
+  const deps: RouteDeps = { ...createRouteDeps() };
+  const brokenIngressPolicy: CommentIngressPolicy = {
+    submit: async () => {
+      throw new Error("simulated ingress-policy failure");
+    },
+  };
+  deps.commentIngressPolicy = brokenIngressPolicy;
+  const app = createApp(deps);
+  const baseUrl = await startTestServer(app, t);
+
+  // No cookie at all — this route is deliberately unauthenticated (this file's own header).
+  const res = await fetch(`${baseUrl}/api/site/comments`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ entryId: "some-entry", authorName: "Visitor", body: "hello" }),
     signal: AbortSignal.timeout(3000),
   });
   assert.equal(res.status, 500);

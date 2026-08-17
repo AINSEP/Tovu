@@ -31,27 +31,32 @@ export function registerAdminCommentsModerationQueueRoute(app: Express, deps: Ad
       return;
     }
 
-    const principal = getAuthedPrincipal(res);
-    const authResult = await deps.authorize({
-      principalId: principal.id,
-      permission: "comments.read",
-      workspaceId: deps.workspaceId,
-      entityType: "comment",
-    });
-    if (!authResult.allowed) {
-      res.status(403).json({
-        error: `principal '${principal.id}' is not authorized for 'comments.read' (${authResult.reason})`,
-        code: "FORBIDDEN",
-        details: { permission: "comments.read", reason: authResult.reason },
+    try {
+      const principal = getAuthedPrincipal(res);
+      const authResult = await deps.authorize({
+        principalId: principal.id,
+        permission: "comments.read",
+        workspaceId: deps.workspaceId,
+        entityType: "comment",
       });
-      return;
+      if (!authResult.allowed) {
+        res.status(403).json({
+          error: `principal '${principal.id}' is not authorized for 'comments.read' (${authResult.reason})`,
+          code: "FORBIDDEN",
+          details: { permission: "comments.read", reason: authResult.reason },
+        });
+        return;
+      }
+
+      const status = parseStatus(req.query.status);
+      const limit = parseLimit(req.query.limit);
+      const cursor = typeof req.query.cursor === "string" ? req.query.cursor : null;
+
+      const page = await deps.commentRepo.listModerationQueue({ workspaceId: deps.workspaceId, status, limit, cursor });
+      res.json(page);
+    } catch (err) {
+      console.error("[comments/moderation-queue] unexpected error", err);
+      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
     }
-
-    const status = parseStatus(req.query.status);
-    const limit = parseLimit(req.query.limit);
-    const cursor = typeof req.query.cursor === "string" ? req.query.cursor : null;
-
-    const page = await deps.commentRepo.listModerationQueue({ workspaceId: deps.workspaceId, status, limit, cursor });
-    res.json(page);
   });
 }

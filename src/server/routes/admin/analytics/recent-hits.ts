@@ -75,24 +75,29 @@ export function registerAdminAnalyticsRecentHitsRoute(app: Express, deps: AdminA
       return;
     }
 
-    const principal = getAuthedPrincipal(res);
-    const authResult = await deps.authorize({
-      principalId: principal.id,
-      permission: "analytics.read",
-      workspaceId: deps.workspaceId,
-      entityType: "analytics-hit",
-    });
-    if (!authResult.allowed) {
-      res.status(403).json({
-        error: `principal '${principal.id}' is not authorized for 'analytics.read' (${authResult.reason})`,
-        code: "FORBIDDEN",
-        details: { permission: "analytics.read", reason: authResult.reason },
+    try {
+      const principal = getAuthedPrincipal(res);
+      const authResult = await deps.authorize({
+        principalId: principal.id,
+        permission: "analytics.read",
+        workspaceId: deps.workspaceId,
+        entityType: "analytics-hit",
       });
-      return;
-    }
+      if (!authResult.allowed) {
+        res.status(403).json({
+          error: `principal '${principal.id}' is not authorized for 'analytics.read' (${authResult.reason})`,
+          code: "FORBIDDEN",
+          details: { permission: "analytics.read", reason: authResult.reason },
+        });
+        return;
+      }
 
-    const limit = parseLimitParam(req.query.limit);
-    const hits = deps.analyticsSink.list({ limit }).map(toAdminAnalyticsHitResponse);
-    res.json({ hits });
+      const limit = parseLimitParam(req.query.limit);
+      const hits = deps.analyticsSink.list({ limit }).map(toAdminAnalyticsHitResponse);
+      res.json({ hits });
+    } catch (err) {
+      console.error("[analytics/recent-hits] unexpected error", err);
+      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+    }
   });
 }
