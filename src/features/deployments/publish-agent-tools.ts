@@ -100,8 +100,20 @@ import { buildConfirmationSurface, buildFormSurface, buildOutcomeSurface, type U
 import type { RouteDeps } from "#src/server/routes/types";
 
 import { askOnce, askThenReport, SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, type AssistantSurfaceDeps, type SurfaceExchange, type SurfaceMessage } from "../../assistant/surface-exchanges";
-import { createPublishCredential, listPublishCredentials, updatePublishCredential, type PublishCredentialReadDeps, type PublishCredentialWriteDeps } from "./publish-credentials/index";
+import { listPublishCredentials, type PublishCredentialReadDeps } from "./publish-credentials/index";
 import { S3_COMPATIBLE_FIELD_GUIDANCE, S3_COMPATIBLE_FORM_DESCRIPTION } from "./publish-credentials/s3-compatible-field-guidance";
+// Phase 3 cutover (this dispatch) — `vendor_credential_sets` is the eventual replacement for THIS
+// file's own `publish_credential_sets` reads/writes (see `vendor-credentials/index.ts`'s own header).
+// Both symbols below are read-model/validated-write only, exactly like this file's existing
+// `listPublishCredentials`/`createPublishCredential`/`updatePublishCredential` imports — neither
+// touches `sealer`/`keyring` for a read, and both go through the SAME validate-then-seal write
+// discipline `publish-credentials/store.ts` already documents. Creates a real
+// `features/deployments <-> features/vendor-credentials` module edge that does not exist at HEAD
+// today (`vendor-credentials/dual-read.ts` already imports back into `publish-credentials/store.ts`
+// for its own legacy-fallback), because dual-read is explicitly a TEMPORARY strategy — see that
+// file's header, "should be deleted... once every install is confirmed migrated." The cycle
+// disappears the day that fallback is deleted; it is not this cutover's own defect to fix.
+import { createVendorCredential, listVendorCredentials, PUBLISH_PROVIDER_TO_VENDOR, updateVendorCredential, type VendorCredentialWriteDeps } from "../vendor-credentials/index";
 import {
   composePublishCredentialSource,
   computeBasePath,
@@ -285,7 +297,7 @@ export const staticPublishAgentToolCatalog: AgentToolDefinition[] = [
   {
     name: "deployment_get_static_publish_capabilities",
     description:
-      "Reports live publish readiness for all five static-publish targets (github-pages, vercel, netlify, cloudflare-pages, s3-compatible) WITHOUT decrypting or exposing any credential: for each provider, whether it is ready to publish to right now (ready is true ONLY when a credential is saved AND it was last verified to actually work against the real provider — a saved-but-unverified or saved-but-failing credential is reported as NOT ready, distinctly from no credential at all), credentialConfigured (true iff a credential row/env var exists at all for this provider — this is the field that answers 'is anything saved', kept deliberately separate from verified/accountLabel below: credentialConfigured:true with accountLabel:null means a credential EXISTS but its account identity is not yet known — never verified, or a verify that has not run since — which is a completely different situation from credentialConfigured:false, where nothing is saved for this provider at all and the human needs to add one before anything else is possible), every named credential set saved for it (id, label, isDefault, createdAt, updatedAt — NEVER a token, ciphertext, or masked tail), the cached verification state (verified: 'valid' | 'invalid' | 'unreachable' | null, and verifiedAt — null means configured but never verified; 'unreachable' means the last check could not reach the provider due to a network issue and does NOT mean the credential is bad, distinctly from 'invalid', which means the provider itself rejected it; this is a CACHED result from the last time a human verified it, possibly stale, never a live check made by this call), accountLabel (the verified credential's own public account login/username — GitHub's real login, Vercel's real username — or null when not yet verified, or for a provider with no such field to report; NEVER an email, plan, or org — use this as the default 'owner' for a github-pages publish instead of guessing one from the human's name or email address, and still confirm it with the human before publishing; when accountLabel is null, say plainly that the account is not known yet and ask the human directly — NEVER offer an example, placeholder, or 'e.g. <name>' value to illustrate the answer, even a made-up-looking one, since this tool has no way to know whether it happens to match a real account and offering one is exactly how the original version of this bug reproduced), lastPublish (the last successful publish to this provider from this server — target, url, reachable, status, projectName, publishedAt, and for github-pages also owner/repo/basePath — or null if this provider has never been published to from here; when the human asks to 'publish again' or 'publish the same way as last time', use this to resolve owner/repo/projectName without asking, and report the previous url when relevant), and — for a provider that is NOT ready — a human-readable reason naming what is missing or wrong (e.g. no credential saved for this workspace, a required field such as Cloudflare Pages' account id is not configured, the credential has never been verified yet, it was rejected by the provider, or the last check could not reach the provider). Also reports this install's executionMode ('self-hosted-cli' or 'hosted-api-only'), which affects whether a server-environment-variable credential can ever be used as a fallback. Call this before telling a human what publishing would do, before calling deployment_execute_static_publish, or whenever asked something like 'can I publish, and to where'. Do NOT ask the user to paste an API token, access key, or any other secret into this chat, ever, for any reason — a value typed into chat is written into the conversation transcript, which is exactly what this workspace's encrypted credential store exists to avoid, and this tool has no way to accept one anyway (it takes no input). If a provider is not ready: for github-pages/vercel/netlify/cloudflare-pages, tell the human to add or fix that provider's credential themselves in the admin's Static Site tab (Deployment panel → Static Site → Publish), which saves it encrypted server-side and never shows it to you. For s3-compatible specifically, you can instead offer to help right here in chat — call deployment_propose_custom_provider_credential, which shows the human an editable form to fill in (you never see or handle the secret fields).",
+      "Reports live publish readiness for all five static-publish targets (github-pages, vercel, netlify, cloudflare-pages, s3-compatible) WITHOUT decrypting or exposing any credential: for each provider, whether it is ready to publish to right now (ready is true ONLY when a credential is saved AND it was last verified to actually work against the real provider — a saved-but-unverified or saved-but-failing credential is reported as NOT ready, distinctly from no credential at all), credentialConfigured (true iff a credential row/env var exists at all for this provider — this is the field that answers 'is anything saved', kept deliberately separate from verified/accountLabel below: credentialConfigured:true with accountLabel:null means a credential EXISTS but its account identity is not yet known — never verified, or a verify that has not run since — which is a completely different situation from credentialConfigured:false, where nothing is saved for this provider at all and the human needs to add one before anything else is possible), every named credential set saved for it (id, label, isDefault, createdAt, updatedAt, tokenTail — tokenTail is the LAST 4 CHARACTERS ONLY of that credential's token or secret access key, held in the clear specifically so it can be shown to a human as a short identifier like '••••ab12' when they have more than one saved connection for a provider and need to tell them apart; it is NEVER the full token, a longer fragment, or any ciphertext, and it is null for a credential this workspace has not yet migrated onto this feature's newer unified credential table, since deriving a tail for one of those would require decrypting it and this tool never decrypts anything), the cached verification state (verified: 'valid' | 'invalid' | 'unreachable' | null, and verifiedAt — null means configured but never verified; 'unreachable' means the last check could not reach the provider due to a network issue and does NOT mean the credential is bad, distinctly from 'invalid', which means the provider itself rejected it; this is a CACHED result from the last time a human verified it, possibly stale, never a live check made by this call), accountLabel (the verified credential's own public account login/username — GitHub's real login, Vercel's real username — or null when not yet verified, or for a provider with no such field to report; NEVER an email, plan, or org — use this as the default 'owner' for a github-pages publish instead of guessing one from the human's name or email address, and still confirm it with the human before publishing; when accountLabel is null, say plainly that the account is not known yet and ask the human directly — NEVER offer an example, placeholder, or 'e.g. <name>' value to illustrate the answer, even a made-up-looking one, since this tool has no way to know whether it happens to match a real account and offering one is exactly how the original version of this bug reproduced), lastPublish (the last successful publish to this provider from this server — target, url, reachable, status, projectName, publishedAt, and for github-pages also owner/repo/basePath — or null if this provider has never been published to from here; when the human asks to 'publish again' or 'publish the same way as last time', use this to resolve owner/repo/projectName without asking, and report the previous url when relevant), and — for a provider that is NOT ready — a human-readable reason naming what is missing or wrong (e.g. no credential saved for this workspace, a required field such as Cloudflare Pages' account id is not configured, the credential has never been verified yet, it was rejected by the provider, or the last check could not reach the provider). Also reports this install's executionMode ('self-hosted-cli' or 'hosted-api-only'), which affects whether a server-environment-variable credential can ever be used as a fallback. Call this before telling a human what publishing would do, before calling deployment_execute_static_publish, or whenever asked something like 'can I publish, and to where'. Do NOT ask the user to paste an API token, access key, or any other secret into this chat, ever, for any reason — a value typed into chat is written into the conversation transcript, which is exactly what this workspace's encrypted credential store exists to avoid, and this tool has no way to accept one anyway (it takes no input). If a provider is not ready: for github-pages/vercel/netlify/cloudflare-pages, tell the human to add or fix that provider's credential themselves in the admin's Static Site tab (Deployment panel → Static Site → Publish), which saves it encrypted server-side and never shows it to you. For s3-compatible specifically, you can instead offer to help right here in chat — call deployment_propose_custom_provider_credential, which shows the human an editable form to fill in (you never see or handle the secret fields).",
     sideEffects: "none",
     authorization: { permission: "deployments.read" },
     inputSchema: NO_INPUT_SCHEMA,
@@ -346,10 +358,11 @@ export const staticPublishDerivedRisk: DerivedRiskByToolId = new Map<string, Age
   // (GitHub/Vercel/Netlify/Cloudflare Pages) using a write-scoped credential — genuinely mutates
   // external durable state. See this file's header for the full risk story.
   ["deployment_execute_static_publish", "mutates-durable-state"],
-  // -> on submit, calls `createPublishCredential`/`updatePublishCredential` — a real encrypted write
-  // to `publish_credential_sets`. No secret ever transits the model (see this file's header/the
-  // catalog entry's own comment); the write itself is still a genuine external-account-scoped
-  // mutation, same category (not merely "some risk classification") as the publish tool above.
+  // -> on submit, calls `createVendorCredential`/`updateVendorCredential` — a real encrypted write to
+  // `vendor_credential_sets` (Phase 3 cutover, this dispatch — previously `publish_credential_sets`).
+  // No secret ever transits the model (see this file's header/the catalog entry's own comment); the
+  // write itself is still a genuine external-account-scoped mutation, same category (not merely "some
+  // risk classification") as the publish tool above.
   ["deployment_propose_custom_provider_credential", "mutates-durable-state"],
   // -> composes prose/JSON from fixed templates plus the caller-supplied bucket/region/endpoint
   // (never a saved secret — this handler never reads a credential at all, saved or otherwise). No
@@ -757,11 +770,25 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
     },
 
     /**
-     * Never decrypts — reads through `listPublishCredentials` (a pure DB read; see that function's
-     * own "read model only" doc in `publish-credentials/store.ts`) and `credentialSource.isConfigured`
+     * Never decrypts — reads through `listVendorCredentials`/`listPublishCredentials` (both pure DB
+     * reads; see either function's own "read model only" doc) and `credentialSource.isConfigured`
      * (this file's own preview handler already relies on the identical never-decrypting contract).
-     * Structurally cannot reach `resolveForPublish`/`resolveDefaultForPublish`: this handler is never
-     * given a `SecretSealerPort`, and both of those functions require one.
+     * Structurally cannot reach `resolveForPublish`/`resolveDefaultForPublish`/`resolveForVendor`/
+     * `resolveDefaultForVendor`: this handler is never given a `SecretSealerPort`, and every one of
+     * those functions requires one.
+     *
+     * Phase 3 cutover (this dispatch): reads `vendor_credential_sets` FIRST for each provider's
+     * mapped `VendorId`, falling back to the legacy `publish_credential_sets` rows only when that
+     * vendor's group is empty — same "new table wins, legacy is a fallback, both are non-decrypting
+     * reads" precedence `vendor-credentials/dual-read.ts` documents for its own (decrypting) resolve
+     * path, reimplemented inline here rather than calling that module: this handler's own contract
+     * (this doc, above) is that it never decrypts, and `dual-read.ts`'s function exists specifically
+     * to hand back a real, decrypted connection for an actual publish attempt — using it here would
+     * decrypt on every capabilities call, silently breaking the guarantee this doc and this file's
+     * own test already enforce. `tokenTail` is populated only for a vendor-table-sourced entry (the
+     * legacy table has no such column, and deriving one would mean decrypting); `null` there is
+     * honest, not a placeholder — see this tool's own catalog description for the model-facing
+     * contract.
      */
     deployment_get_static_publish_capabilities: async (ctx) => {
       requireNoInput(ctx.input);
@@ -770,22 +797,59 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
       const saved = await listPublishCredentials({ repo: deps.publishCredentialSetRepo } satisfies PublishCredentialReadDeps, {
         workspaceId: deps.workspaceId,
       });
+      // Phase 3 cutover — see this handler's own doc above for why this is a second, independent list
+      // read (never a decrypting resolve) rather than a call into `vendor-credentials/dual-read.ts`.
+      const savedVendor = await listVendorCredentials({ repo: deps.vendorCredentialSetRepo }, { workspaceId: deps.workspaceId });
 
       const providers = await Promise.all(
         PROVIDER_IDS.map(async (providerId) => {
+          // `PUBLISH_PROVIDER_TO_VENDOR` is exhaustive over every `PublishProviderId` (`vendor-
+          // credentials/types.ts`'s own compile-time guarantee), so this is never undefined for any
+          // member of `PROVIDER_IDS` — asserted rather than defensively guarded, matching how the rest
+          // of this handler already treats its own fixed, closed inputs.
+          const vendorId = PUBLISH_PROVIDER_TO_VENDOR[providerId];
+          const savedForVendor = savedVendor.filter((credential) => credential.vendorId === vendorId);
           const savedForProvider = saved.filter((credential) => credential.providerId === providerId);
-          const savedCredentials = savedForProvider.map((credential) => ({
-            id: credential.id,
-            label: credential.label,
-            isDefault: credential.isDefault,
-            createdAt: credential.createdAt,
-            updatedAt: credential.updatedAt,
-          }));
+          // New table wins the moment it has ANY row for this vendor — same per-vendor precedence
+          // `dual-read.ts` documents ("new table FIRST, legacy only when the new group is genuinely
+          // empty"). A provider whose vendor group has migrated (or was only ever saved through the
+          // new `deployment_propose_custom_provider_credential` write path — see this file's other
+          // handler) is reported from the new table exclusively; any stale legacy row for the same
+          // provider is simply not looked at, matching the write side's own "new table wins" behavior.
+          const usingVendorTable = savedForVendor.length > 0;
+          const savedCredentials = usingVendorTable
+            ? savedForVendor.map((credential) => ({
+                id: credential.id,
+                label: credential.label,
+                isDefault: credential.isDefault,
+                createdAt: credential.createdAt,
+                updatedAt: credential.updatedAt,
+                tokenTail: credential.tokenTail,
+              }))
+            : savedForProvider.map((credential) => ({
+                id: credential.id,
+                label: credential.label,
+                isDefault: credential.isDefault,
+                createdAt: credential.createdAt,
+                updatedAt: credential.updatedAt,
+                // Legacy `publish_credential_sets` rows have no `token_tail` column (Phase 1 added it
+                // only to the new table) — `null` here is an honest "not known", never derived by
+                // decrypting (this handler's own "never decrypts" contract, unchanged by this cutover).
+                tokenTail: null as string | null,
+              }));
           // The row a real publish would actually use — same "default row" resolution
-          // `resolveDefaultForPublish` performs, just never decrypting to get there (this is a plain
-          // field off the already-fetched summary list).
-          const defaultCredential = savedForProvider.find((credential) => credential.isDefault);
-          const readiness = await credentialSource.isConfigured({ workspaceId: deps.workspaceId, target: providerId });
+          // `resolveDefaultForPublish`/`resolveDefaultForVendor` perform, just never decrypting to get
+          // there (this is a plain field off whichever already-fetched summary list won above).
+          const defaultCredential = usingVendorTable ? savedForVendor.find((credential) => credential.isDefault) : savedForProvider.find((credential) => credential.isDefault);
+          // Merged "is anything saved" signal: the new table (just checked above) first, the existing
+          // old-table-or-env-var mechanism (`credentialSource`, untouched by this cutover — see this
+          // file's header for why `deployment_execute_static_publish`'s own real resolve path is out
+          // of scope here) only when the new table's group for this vendor is empty. Without this
+          // merge, a credential saved ONLY through the new write path (e.g. a fresh
+          // `deployment_propose_custom_provider_credential` save) would show up in `savedCredentials`
+          // above while `credentialConfigured` still reported `false` — a self-contradictory result
+          // this merge exists to prevent.
+          const readiness = usingVendorTable ? ({ configured: true } as const) : await credentialSource.isConfigured({ workspaceId: deps.workspaceId, target: providerId });
           // 2026-08-16, Defect 2: the last successful publish to this provider, if any — see
           // `publish-history.ts`'s own header for the storage design. `null` means never published
           // (from this server, in this history store) rather than an absent key, so an agent-facing
@@ -1091,7 +1155,8 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
      * has NO `accessKeyId`/`secretAccessKey` property. The model cannot supply, request, or leak the
      * secret through this tool's call surface even in principle. The human's typed secret lands in
      * `answer.params` inside this Node.js handler, server-side, and is sealed via
-     * `createPublishCredential`/`updatePublishCredential` — it never enters a prompt or a completion,
+     * `createVendorCredential`/`updateVendorCredential` (Phase 3 cutover, this dispatch — see this
+     * handler's own body for the storage-target change) — it never enters a prompt or a completion,
      * and this handler's own return value never echoes any field, secret or not.
      */
     deployment_propose_custom_provider_credential: async (ctx) => {
@@ -1174,18 +1239,29 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
 
         // Re-validate server-side, never trust the client-side `required` attribute — `form.ts` ships
         // `novalidate` on purpose (its own doc: the browser's bubble UI is unusable in the surface's
-        // small iframe), so `createPublishCredential`/`updatePublishCredential`'s own `validateConnection`
-        // (`store.ts`) is the ACTUAL enforcement point, not a redundant belt-and-braces check. Passing
-        // the raw params straight through (rather than hand-building a typed object with fallback
-        // empty strings) means there is exactly ONE place that decides what "valid" means.
+        // small iframe), so `createVendorCredential`/`updateVendorCredential`'s own `validateConnection`
+        // (`vendor-credentials/store.ts`) is the ACTUAL enforcement point, not a redundant
+        // belt-and-braces check. Passing the raw params straight through (rather than hand-building a
+        // typed object with fallback empty strings) means there is exactly ONE place that decides what
+        // "valid" means.
+        //
+        // Phase 3 cutover (this dispatch): `vendorId`, not `providerId` — this now writes through
+        // `vendor_credential_sets` (`vendor-credentials/store.ts`), NOT the legacy
+        // `publish_credential_sets` table `createPublishCredential`/`updatePublishCredential` still
+        // serve. This tool's OWN model-facing wire contract (its catalog description, and the
+        // `{ providerId: 's3-compatible' }` it returns on success below) is deliberately left
+        // unchanged — only the storage this save lands in moves, not what the model sees. Safe for
+        // `probeAccountLabel` (`vendor-credentials/store.ts`): it returns `null` unconditionally for
+        // every vendor but `github`, with no network call made, so this s3-compatible-only handler can
+        // never trigger it.
         const params = answer.params;
-        const connectionInput: Record<string, unknown> = { providerId: "s3-compatible" };
+        const connectionInput: Record<string, unknown> = { vendorId: "s3-compatible" };
         for (const field of ["region", "bucket", "accessKeyId", "secretAccessKey", "publicUrl", "endpoint"] as const) {
           if (typeof params[field] === "string") connectionInput[field] = params[field];
         }
 
-        const writeDeps: PublishCredentialWriteDeps = {
-          repo: deps.publishCredentialSetRepo,
+        const writeDeps: VendorCredentialWriteDeps = {
+          repo: deps.vendorCredentialSetRepo,
           sealer: deps.siteAssistantSecretSealer,
           keyring: deps.siteAssistantSecretKeyring,
           clock: deps.clock,
@@ -1193,16 +1269,24 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
         };
 
         try {
-          // "One flat row per provider" (spec §9's label-UX resolution, restated at §4c): find this
-          // workspace's existing s3-compatible row (a non-decrypting repo read) and UPDATE it if one
-          // exists, otherwise CREATE — mirrors the admin's own `use-publish-credentials.hooks.ts`
-          // save-path decision exactly (`defaultCredentialForProvider` + existing-then-update-else-create),
-          // so a second save through chat behaves identically to a second save through the Custom tab.
-          const existing = await deps.publishCredentialSetRepo.findDefaultByProvider({ workspaceId: deps.workspaceId, providerId: "s3-compatible" });
+          // "One flat row per vendor" (spec §9's label-UX resolution, restated at §4c, now applied to
+          // the unified table's own `(workspaceId, vendorId)` grouping): find this workspace's
+          // existing `s3-compatible` VENDOR row (a non-decrypting repo read) and UPDATE it if one
+          // exists, otherwise CREATE. A workspace whose only existing s3-compatible credential still
+          // sits in the OLD `publish_credential_sets` table (not yet migrated, or saved before this
+          // cutover) is NOT found here — `findDefaultByVendor` only ever looks at the new table — so
+          // this creates a fresh vendor-table row rather than updating the stale legacy one. That
+          // legacy row is simply left behind, unread from now on: `deployment_get_static_publish_
+          // capabilities`'s own Phase 3 cutover (this same dispatch) reports the new table's row
+          // exclusively the moment it has ANY row for a vendor, so this never produces two
+          // simultaneously-authoritative credentials from the model's point of view — only one
+          // harmless orphaned row, the same temporary cost `vendor-credentials/dual-read.ts`'s own
+          // header already accepts for the read side.
+          const existing = await deps.vendorCredentialSetRepo.findDefaultByVendor({ workspaceId: deps.workspaceId, vendorId: "s3-compatible" });
           if (existing) {
-            await updatePublishCredential(writeDeps, { workspaceId: deps.workspaceId, id: existing.id, connection: connectionInput });
+            await updateVendorCredential(writeDeps, { workspaceId: deps.workspaceId, id: existing.id, connection: connectionInput });
           } else {
-            await createPublishCredential(writeDeps, { workspaceId: deps.workspaceId, label: CUSTOM_PROVIDER_CREDENTIAL_ROW_LABEL, connection: connectionInput });
+            await createVendorCredential(writeDeps, { workspaceId: deps.workspaceId, label: CUSTOM_PROVIDER_CREDENTIAL_ROW_LABEL, connection: connectionInput });
           }
         } catch (err) {
           // `PublishCredentialValidationError`'s own messages never carry a field VALUE, only field

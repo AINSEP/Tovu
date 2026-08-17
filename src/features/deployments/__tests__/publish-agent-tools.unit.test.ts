@@ -11,6 +11,7 @@ import { createRouteDeps } from "#src/server/app";
 import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "#src/assistant/surface-exchanges";
 import type { PublishCredentialSetRecord, PublishCredentialSetRepoPort } from "../publish-credentials/index";
 import { InMemoryPublishCredentialVerificationCache, InMemoryPublishHistoryStore, type PublishCredentialSource } from "../static-publish/index";
+import { createVendorCredential } from "../../vendor-credentials/index";
 
 import { buildStaticPublishRegistrations, staticPublishAgentToolCatalog, staticPublishDerivedRisk, type StaticPublishToolDeps } from "../publish-agent-tools";
 
@@ -337,6 +338,106 @@ test("deployment_get_static_publish_capabilities reports per-provider readiness 
 
   assert.equal(resolveCallCount, 0, "deployment_get_static_publish_capabilities must never call PublishCredentialSource.resolve()");
   assert.doesNotMatch(JSON.stringify(result), /should-never-appear/);
+});
+
+// Phase 3 cutover (vendor-credentials dual-read) — this dispatch. See `vendor-credentials/dual-read.ts`'s
+// own header for the "new table first, legacy table only when the new group is empty" precedence this
+// handler reimplements at the non-decrypting list level (it cannot call that module directly — that
+// function DECRYPTS, and this handler's own "never decrypts" contract, proven above, must stay true).
+
+test("deployment_get_static_publish_capabilities: a credential saved on the NEW vendor_credential_sets table surfaces a real tokenTail; a legacy-table-only credential reports tokenTail: null", async () => {
+  const { deps } = fakeDeps({
+    credentialSource: {
+      async resolve() { throw new Error("must not be called by this handler"); },
+      async isConfigured() { return { configured: false, reason: "not configured" }; },
+    },
+  });
+  deps.workspaceId = WORKSPACE_ID_FALLBACK;
+  // netlify: legacy-table-only, exactly today's pre-migration shape — no tokenTail column exists there.
+  deps.publishCredentialSetRepo = fakeCredentialRepo([
+    { workspaceId: WORKSPACE_ID_FALLBACK, id: "legacy-1", providerId: "netlify", label: "legacy", sealed: {} as never, isDefault: true, accountLabel: null, createdAt: NOW, updatedAt: NOW },
+  ]);
+  // github-pages: saved through the NEW table (mirrors a real save via `deployment_propose_custom_
+  // provider_credential`'s Phase 3 cutover, or a post-migration row) — real `createVendorCredential`,
+  // not a hand-built record, so this exercises the exact same seal/tokenTail derivation production uses.
+  await createVendorCredential(
+    { repo: deps.vendorCredentialSetRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen },
+    { workspaceId: deps.workspaceId, label: "work", connection: { vendorId: "github", token: "ghp_aVeryRealLookingToken1234" } }
+  );
+
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const capabilities = tool(buildRegistrations(deps, surfaceExchanges), "deployment_get_static_publish_capabilities");
+  const result = (await call(capabilities)) as {
+    providers: { providerId: string; credentialConfigured: boolean; savedCredentials: { label: string; tokenTail: string | null }[] }[];
+  };
+
+  const github = result.providers.find((p) => p.providerId === "github-pages")!;
+  assert.equal(github.savedCredentials.length, 1);
+  assert.equal(github.savedCredentials[0]!.tokenTail, "1234", "a vendor-table-sourced entry must carry the real last-4 tail");
+  assert.doesNotMatch(JSON.stringify(result), /ghp_aVeryRealLookingToken/, "must NEVER surface anything beyond the last 4 characters");
+
+  const netlify = result.providers.find((p) => p.providerId === "netlify")!;
+  assert.equal(netlify.savedCredentials.length, 1);
+  assert.equal(netlify.savedCredentials[0]!.tokenTail, null, "a legacy-table-only entry has no token_tail column and this tool never decrypts to derive one");
+});
+
+test("deployment_get_static_publish_capabilities: credentialConfigured/ready are TRUE for a provider saved ONLY on the new vendor table, even though the old-table-backed credentialSource reports not-configured", async () => {
+  const { deps } = fakeDeps({
+    credentialSource: {
+      async resolve() { throw new Error("must not be called by this handler"); },
+      // Old-table/env mechanism sees nothing for ANY provider — proves `credentialConfigured` below
+      // is genuinely driven by the new table, not merely echoing this fake.
+      async isConfigured() { return { configured: false, reason: "no default credential is saved for this workspace yet" }; },
+    },
+  });
+  deps.workspaceId = WORKSPACE_ID_FALLBACK;
+  deps.publishCredentialSetRepo = fakeCredentialRepo([]);
+  await createVendorCredential(
+    { repo: deps.vendorCredentialSetRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen },
+    { workspaceId: deps.workspaceId, label: "custom bucket", connection: { vendorId: "s3-compatible", region: "us-east-1", bucket: "b", accessKeyId: "AKIA", secretAccessKey: "topsecret", publicUrl: "https://example.test" } }
+  );
+
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const capabilities = tool(buildRegistrations(deps, surfaceExchanges), "deployment_get_static_publish_capabilities");
+  const result = (await call(capabilities)) as { providers: { providerId: string; credentialConfigured: boolean; savedCredentials: unknown[]; guidance?: string }[] };
+
+  const s3 = result.providers.find((p) => p.providerId === "s3-compatible")!;
+  // Before this cutover this was the exact self-contradiction the handler's own header warns about:
+  // `savedCredentials` non-empty while `credentialConfigured` still read `false` off the old-table-only
+  // mechanism, because `deployment_propose_custom_provider_credential`'s Phase 3 write (this same
+  // dispatch) now lands in a table this handler previously never looked at.
+  assert.equal(s3.credentialConfigured, true, "a fresh vendor-table-only save must be reported as configured");
+  assert.equal(s3.savedCredentials.length, 1);
+  // Correctly "configured but not yet verified" — NOT the old-table-driven "nothing is saved" guidance
+  // this provider would have shown before this cutover (there is no verify endpoint for the new table
+  // yet — settled decision, see this dispatch's own report — so "never verified" is the honest,
+  // permanent state for a vendor-table-only s3-compatible credential today, not a transient gap).
+  assert.match(s3.guidance!, /has not been verified/);
+  assert.doesNotMatch(s3.guidance!, /no credential|nothing is saved|is not configured/i);
+});
+
+test("deployment_get_static_publish_capabilities: when a provider has rows on BOTH tables, the new vendor table wins outright and the stale legacy row is not reported", async () => {
+  const { deps } = fakeDeps({
+    credentialSource: {
+      async resolve() { throw new Error("must not be called by this handler"); },
+      async isConfigured() { return { configured: true }; },
+    },
+  });
+  deps.workspaceId = WORKSPACE_ID_FALLBACK;
+  deps.publishCredentialSetRepo = fakeCredentialRepo([
+    { workspaceId: WORKSPACE_ID_FALLBACK, id: "legacy-stale", providerId: "vercel", label: "stale", sealed: {} as never, isDefault: true, accountLabel: null, createdAt: NOW, updatedAt: NOW },
+  ]);
+  await createVendorCredential(
+    { repo: deps.vendorCredentialSetRepo, sealer: deps.siteAssistantSecretSealer, keyring: deps.siteAssistantSecretKeyring, clock: deps.clock, idGen: deps.idGen },
+    { workspaceId: deps.workspaceId, label: "fresh", connection: { vendorId: "vercel", token: "vercel-token-9999" } }
+  );
+
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const capabilities = tool(buildRegistrations(deps, surfaceExchanges), "deployment_get_static_publish_capabilities");
+  const result = (await call(capabilities)) as { providers: { providerId: string; savedCredentials: { label: string }[] }[] };
+
+  const vercel = result.providers.find((p) => p.providerId === "vercel")!;
+  assert.deepEqual(vercel.savedCredentials.map((c) => c.label), ["fresh"], "the new table's row must win outright — the stale legacy row must not also appear");
 });
 
 // 2026-08-16 — Defect fix: the assistant had no way to learn which GitHub account its own verified
@@ -1100,11 +1201,21 @@ test("submit: a first-time save creates exactly one s3-compatible row, auto-defa
   assert.deepEqual(result, { saved: true, providerId: "s3-compatible", connected: true });
   assert.doesNotMatch(JSON.stringify(result), /s3cr3t|AKIAEXAMPLE/, "the secret/access key must never appear in the tool's own return value");
 
-  const rows = await deps.publishCredentialSetRepo.listByWorkspace({ workspaceId: deps.workspaceId });
-  const s3Rows = rows.filter((r) => r.providerId === "s3-compatible");
+  // Phase 3 cutover: this write now lands in `vendor_credential_sets`
+  // (`deps.vendorCredentialSetRepo`), not the legacy `publish_credential_sets` table — assert against
+  // BOTH, so a regression that silently reverted to the old table (or wrote to neither) fails loudly
+  // rather than passing on a row this handler no longer produces.
+  const legacyRows = await deps.publishCredentialSetRepo.listByWorkspace({ workspaceId: deps.workspaceId });
+  assert.equal(legacyRows.filter((r) => r.providerId === "s3-compatible").length, 0, "must no longer write to the legacy publish_credential_sets table");
+
+  const rows = await deps.vendorCredentialSetRepo.listByWorkspace({ workspaceId: deps.workspaceId });
+  const s3Rows = rows.filter((r) => r.vendorId === "s3-compatible");
   assert.equal(s3Rows.length, 1);
-  assert.equal(s3Rows[0]!.isDefault, true, "a provider's first-ever saved connection auto-defaults");
+  assert.equal(s3Rows[0]!.isDefault, true, "a vendor's first-ever saved connection auto-defaults");
   assert.equal(s3Rows[0]!.label, "default");
+  // `VALID_FORM_SUBMISSION.secretAccessKey` is "s3cr3t" — s3-compatible's primary secret is
+  // `secretAccessKey`, not `accessKeyId` (`vendor-credentials/store.ts`'s `deriveTokenTail`).
+  assert.equal(s3Rows[0]!.tokenTail, "s3cr3t".slice(-4), "tokenTail must be the last 4 characters of the SECRET access key, not the access key id");
 });
 
 test("submit: a SECOND save updates the existing row rather than creating a duplicate — one row per provider, matching the admin's own flat-row UX", async () => {
@@ -1125,7 +1236,7 @@ test("submit: a SECOND save updates the existing row rather than creating a dupl
   const result = await second.pending;
   assert.deepEqual(result, { saved: true, providerId: "s3-compatible", connected: true });
 
-  const rows = (await deps.publishCredentialSetRepo.listByWorkspace({ workspaceId: deps.workspaceId })).filter((r) => r.providerId === "s3-compatible");
+  const rows = (await deps.vendorCredentialSetRepo.listByWorkspace({ workspaceId: deps.workspaceId })).filter((r) => r.vendorId === "s3-compatible");
   assert.equal(rows.length, 1, "a second save must UPDATE the existing row, never create a second one");
 });
 
@@ -1147,8 +1258,8 @@ test("submit: a blank required field is rejected server-side with an actionable 
   assert.equal(result.reason, "invalid");
   assert.match(result.message, /bucket/);
 
-  const rows = await deps.publishCredentialSetRepo.listByWorkspace({ workspaceId: deps.workspaceId });
-  assert.equal(rows.filter((r) => r.providerId === "s3-compatible").length, 0, "an invalid submission must not save anything");
+  const rows = await deps.vendorCredentialSetRepo.listByWorkspace({ workspaceId: deps.workspaceId });
+  assert.equal(rows.filter((r) => r.vendorId === "s3-compatible").length, 0, "an invalid submission must not save anything");
 });
 
 test("cancel: nothing is saved, and the SAME call reports the cancellation", async () => {
@@ -1161,8 +1272,8 @@ test("cancel: nothing is saved, and the SAME call reports the cancellation", asy
   const result = await pending;
   assert.deepEqual(result, { saved: false, cancelled: true });
 
-  const rows = await deps.publishCredentialSetRepo.listByWorkspace({ workspaceId: deps.workspaceId });
-  assert.equal(rows.filter((r) => r.providerId === "s3-compatible").length, 0);
+  const rows = await deps.vendorCredentialSetRepo.listByWorkspace({ workspaceId: deps.workspaceId });
+  assert.equal(rows.filter((r) => r.vendorId === "s3-compatible").length, 0);
 });
 
 test("re-calling the tool while a form is pending opens a SEPARATE form — it does not answer the first one", async () => {
