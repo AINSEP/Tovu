@@ -162,6 +162,7 @@ import {
 import { createAnalyticsModule } from "./modules/analytics";
 import { createCommerceModule } from "./modules/commerce";
 import { registerAdminModuleStatusRoute } from "./routes/admin/system/module-status";
+import { registerAdminAssistantDaemonRoutes } from "./routes/admin/system/assistant-daemon";
 import { registerAdminDeploymentOverviewRoute } from "./routes/admin/system/deployment-overview";
 import { registerAdminDockerfileSourceRoute } from "./routes/admin/system/dockerfile-source";
 import { registerAdminExportSiteRoutes } from "./routes/admin/system/export-site";
@@ -827,6 +828,11 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   siteAssistantModule.start?.();
   siteAssistantModule.registerRoutes?.(app);
   registerAdminModuleStatusRoute(app, routeDeps);
+  // Admin "Restart assistant" action (`system.write`-gated) — the manual recovery seam for the
+  // locally-spawned agent daemon, sibling to the on-demand recovery `server/modules/assistant.ts`'s
+  // daemon-proxy code now triggers automatically on a known-failed request. See that route file's
+  // own header for why its response never claims the daemon is healthy again.
+  registerAdminAssistantDaemonRoutes(app, routeDeps);
   // Admin Deployment panel (Overview + Dockerfile tabs) — same `system.read`-gated shape as the
   // module-status route just above; see each route file's own header for why they share it.
   registerAdminDeploymentOverviewRoute(app, routeDeps);
