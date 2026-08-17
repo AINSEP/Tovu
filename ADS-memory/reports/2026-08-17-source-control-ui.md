@@ -48,6 +48,51 @@ touched or read this session still encodes the destination-keyed split this whol
 retire. That cutover — not any picker or cross-link — is the actual remaining Phase 4 work, and it is
 `routedeps-vendor`'s territory (backend), not mine.
 
+### What a real UI cutover to `vendor_credential_sets` would touch (frontend scope only — documented, not scheduled)
+
+Verified by reading the actual client layer, not inferred:
+
+- **`apps/admin/src/lib/api.ts` has zero methods for the vendor-credentials route today** —
+  confirmed by grep: `listPublishCredentials`/`createPublishCredential`/`updatePublishCredential`/
+  `deletePublishCredential` and their `*SourceControlCredential*` twins all exist; nothing named
+  `*VendorCredential*` does, even though the server route (`vendor-credentials.ts`, GET/POST/PUT/
+  DELETE) already exists and is tested. A cutover needs this client layer built from scratch —
+  new wire types + four new methods hitting `/system/vendor-credentials`.
+- **Three near-duplicate provider tables collapse to one:** `deployment/rules.ts`'s
+  `PUBLISH_CREDENTIAL_PROVIDERS` (4), `source-control/rules.ts`'s `SOURCE_CONTROL_PROVIDERS` (3), and
+  `security/rules.ts`'s `ACCESS_TOKEN_PROVIDERS` (built by concatenating the first two with a `kind`
+  tag) all go away, replaced by one table over `VendorId`'s 7. The existing
+  `PUBLISH_PROVIDER_TO_VENDOR`/`SOURCE_CONTROL_PROVIDER_TO_VENDOR` maps
+  (`src/features/vendor-credentials/types.ts`) already define the old-id → vendor-id translation —
+  the frontend work is applying that same mapping to its own three tables, not inventing a new one.
+- **This is not just a rename — the current UI is missing real fields the vendor model already has.**
+  `VendorConnectionInput`'s discriminated union carries `teamId` (Vercel), `siteId` (Netlify), and a
+  whole 5-field `s3-compatible` shape (endpoint, region, bucket, accessKeyId, secretAccessKey) that no
+  admin screen collects today — `security/rules.ts`'s own comment says `s3-compatible` "has no admin
+  UI anywhere yet" and is deliberately left out of `ACCESS_TOKEN_PROVIDERS` for exactly that reason. A
+  faithful cutover adds a real form for a provider the admin has never had one for, not just repoints
+  existing forms.
+- **`tokenTail` has no UI home yet.** `VendorCredentialSetSummary` carries a masked last-4
+  (`••••MPWg`, owner-approved to be model-visible) that none of the three current summary shapes
+  return or render — a real new UI element, not a data-source swap.
+- **Four hooks would need rewiring**, not just their dependency layer:
+  `hooks/use-publish-credentials.hooks.ts`, `hooks/use-source-control-credentials.hooks.ts`,
+  `hooks/use-access-tokens.hooks.ts` (currently orchestrates BOTH old stores together — would
+  collapse to querying ONE store), `hooks/use-other-credentials.hooks.ts` (unaffected — Tier 2 stores
+  are untouched by any of this).
+- **Every test fixture keyed on the old `providerId` unions breaks.** `StaticSiteTab.unit.test.tsx`,
+  `SourceControl.unit.test.tsx`, `AccessTokensTab.unit.test.tsx`, and all three `rules.unit.test.ts`
+  files build fixtures against `AdminPublishCredentialProviderId`/`AdminSourceControlProviderId` —
+  every one needs updating, not just the production code.
+- **Sequencing risk, same shape as the backend's own open question:** the real `infra/content.db` may
+  still have zero rows in `vendor_credential_sets` until a backfill runs (per prior session handoffs).
+  A UI cutover that ships before that backfill (or before dual-read is proven) would show a working
+  owner credential as "not configured" — the identical regression class the backend cutover already
+  flagged for itself. **The frontend cutover should not be scheduled independently of that backend
+  decision.**
+
+This is scoping only — I have not started building any of it, and it is not assigned to me.
+
 **Framing correction, per the Coordinator's note — adopting it, not just relaying it:** earlier in
 this session I described `github-pages` and `github` as "different identities by design." That is
 true of the code AS IT STANDS, but it is **current design, not permanent design** — the
@@ -183,16 +228,34 @@ just leaving the honest free-text fields in place with the request on record.
 
 ## Task 5 — Static Site token field: analysis only, NOT implemented, per the HOLD
 
+### The replacement already exists — removal is a pure deletion, not a build
+
+**Confirmed, per the Coordinator's own check of `StaticSiteTab.tsx:1188`:** `CredentialTokenPicker`
+("the 'which saved token publishes' picker") is already built and already live — its own doc comment
+identifies it as *the owner's original ask*: *"GitHub pages... will have a dropdown where you can
+choose which GitHub access tokens."* Selecting an option calls `controller.selectCredential`, which
+promotes that credential to the provider's default — the exact row a real publish uses, so there is
+no second "which token publishes" setting anywhere for it to drift from. It deliberately renders
+nothing when a provider has at most one saved credential (nothing to choose between), which is
+correct and should not be changed into always-rendering.
+
+**So every piece needed to replace the inline write form already ships:** the picker (multi-token
+selection), the read-only status line (`CredentialStepDone`'s summary — "connected · token stored,
+encrypted · saved … · connected as X"), Verify (`CredentialVerifyAction`), and now my
+`ManageAccessTokensLink` (create/rename/remove, off-page). **Removing the inline token/Save/replace
+form is therefore pure subtraction — deleting `PublishCredentialFields`'s write half — not building
+anything new.** This meaningfully shrinks what the HOLD is actually blocking: there is no missing
+replacement to design or build, only a deletion to authorize.
+
 **What removing it would actually take**, now that I've read the real code on both sides:
 
 1. `StaticSiteTab.tsx`'s `PublishCredentialsSection` (in `GettingItOnlineCard`) currently renders the
    full read+write credential UI (`CredentialStepTodo`/`CredentialStepDone`/`PublishCredentialFields`
    — token input, Save button, Verify button, the multi-token picker). Removing "asking for a token"
-   means replacing this with a READ-ONLY status line (connected/not, which account, when saved) plus
-   my new `ManageAccessTokensLink` as the ONLY way to change it. The read side (status, Verify,
-   multi-token picker) is a real, separate decision: does it stay on Static Site (useful — you can
-   confirm/switch which of several tokens THIS target publishes with, without leaving the page) or
-   move to Security too? Not mine to decide unilaterally; flagging it rather than picking one.
+   means deleting the write half (`PublishCredentialFields`'s token/accountId inputs and Save button)
+   and keeping everything else that's already there: the read-only status line, Verify, and
+   `CredentialTokenPicker`. My new `ManageAccessTokensLink` becomes the ONLY way to add or rotate a
+   token from this page. Nothing on the read side needs building — it all stays exactly as-is.
 2. **The data-loss risk I was asked to check is smaller than it looks.** `Security.tsx`'s own header
    states plainly that its Access Tokens tab reads/writes the exact same two tables Static Site and
    Source Control already use (`publish_credential_sets` / `source_control_credential_sets`), through
