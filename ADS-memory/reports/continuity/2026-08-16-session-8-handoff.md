@@ -159,10 +159,69 @@ plaintext exists nowhere else. A pure `.sql` migration cannot do this; SQL canno
   different companies. Related open ambiguity: **Cloudflare R2 is S3-compatible**, so one real
   account could land as `cloudflare` or `s3-compatible` depending which route saved it.
 
-### Phase 2 — IN FLIGHT, check its state first
-`store.ts`, `repo.memory.ts`, the sqlite repo and their tests were being written when the session
-ended. **Check `git log` and `git status` before assuming anything** — the agent was told to commit
-WIP. Remaining after that: resolvers, the agent-tool contract rewrite, then Phase 3 (both UIs).
+### Phase 2 — DONE and committed (`2d445a08`, 1517 lines). Nothing is a stub; nothing is wired.
+- `types.ts` — `VendorConnectionInput` (closed union, all 7 vendors), `VendorCredentialSetRecord`,
+  `VendorCredentialSetSummary`, `VendorCredentialSetRepoPort`.
+- `store.ts` — full CRUD + `resolveForVendor`/`resolveDefaultForVendor`/`healAccountLabel`.
+  `decryptRecord` ships **hardened from day one** with the typed
+  `VendorCredentialSecretStoreUnconfiguredError` — it did not have to learn §2's lesson live.
+- `repo.memory.ts` + `db/sqlite/vendor-credential-repo.sqlite.ts` — both ADR-006 adapters.
+- 42 new tests green; 110 predecessor-table tests still green; tsc + eslint clean.
+
+**NOT started:** no route (`server/routes/admin/system/vendor-credentials.ts` does not exist), no
+`server/deps.ts` wiring (no `SqliteVendorCredentialSetRepo` in the composition root), no agent-tool
+cutover, no UI. Old tables/routes/tools untouched and fully functional. **The tree is
+half-BUILT, not half-MIGRATED** — nothing breaks by stopping here.
+
+### ⛔ THE BLOCKING DECISION FOR NEXT SESSION — owner's call, do not let an agent pick unilaterally
+
+Cutting `deployment_get_static_publish_capabilities` over to read `vendor_credential_sets` is
+**blocked on one question, not on missing code**: the real `infra/content.db` has **zero rows** in
+that table (verified). Flip the read path and the owner's real, working GitHub Pages credential
+silently reports as **"not configured"** to the assistant on the next boot, until someone hand-runs
+the backfill. That is a live regression, not the contract fix the work asked for.
+
+Four options — the first three are the implementing agent's, the fourth was not on its list:
+
+1. **Auto-backfill on boot.** Wire `runVendorCredentialBackfill({apply:true})` into `server/deps.ts`
+   right after `openContentDb()`, the same place schema migrations already auto-apply. Already
+   proven idempotent, additive-only and self-verifying. Automatically correct for **every** install,
+   not just this laptop — which is the standard set for the AAD work. Cost: a standing behavior
+   change in the composition root. *(Agent's recommendation. Note the "re-seals forever" worry is
+   overstated — idempotency means later boots find nothing to do.)*
+2. **One-time manual `--apply` now**, fresh backup first. No standing change, but every OTHER Tovu
+   install then depends on someone remembering — the exact product-defect class this work exists to
+   avoid, just relocated from "the migration" to "did anyone run it".
+3. **Rewrite only the contract text, leave the read path on the old table until Phase 3.** Honest
+   today but describes behavior that does not exist yet — the §2 lying-comment failure mode pointed
+   the other way in time.
+4. **Dual-read during transition** *(not considered by the agent, worth weighing)*: read the new
+   table, fall back to the old when the vendor group is empty. Zero regression risk regardless of
+   whether the backfill has run, decouples the cutover from the migration entirely, and the fallback
+   is deleted once every install is confirmed migrated. Cost: a temporary two-path read, which the
+   Phase 1 AAD strategy deliberately rejected for its own case — so it is a real trade, not a free
+   win.
+
+**Recommendation to bring to the owner: (1) or (4).** Both are automatically correct everywhere;
+(2) is not, and (3) defers without removing the problem.
+
+### Traps a fresh agent will otherwise hit (not written down anywhere else)
+- **Re-seal must call `keyring.activeKey()` at write time**, never reuse the old row's stored
+  `sealedKeyId`. Both the backfill and `store.ts` do this correctly. Irrelevant today
+  (`activeKey()` always returns `"v1"`), fatal once key rotation ships.
+- **Two separate default/label-collision mechanisms exist and share no code.** `resolveLabel` in
+  `backfill-vendor-credentials-helpers.ts` runs ONCE during migration (first-writer-wins, publish
+  rows before source-control rows). `store.ts`'s `decideCreateDefault`/vendor-change promotion is a
+  different, ongoing mechanism for live writes. Do not assume one reuses the other.
+- **`probeAccountLabel` takes the whole `connection` object**, not `(vendorId, token)` — a
+  deliberate divergence from `source-control/store.ts`, so `s3-compatible` (which has no `token`
+  field) never needs a placeholder threaded through. Check signatures before porting old logic.
+- **`deployment_propose_custom_provider_credential`** still writes through the OLD
+  `publish-credentials/store.ts`. It is a **second, unscheduled cutover point** — not tracked
+  anywhere else.
+- **eslint complexity cap is 15.** A widened `validateConnection` hit 16; the fix pattern is one
+  small named validator per vendor dispatched via `switch`. An 8th vendor gets its own function, not
+  another inline `if`.
 
 ### Acceptance criteria carried forward
 - `deployment_get_static_publish_capabilities` currently promises the model **"NEVER a token,
