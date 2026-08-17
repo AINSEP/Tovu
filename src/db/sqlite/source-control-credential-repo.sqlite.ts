@@ -37,6 +37,7 @@ function toRecord(row: Row): SourceControlCredentialSetRecord {
     label: row.label,
     sealed: { keyId: row.sealedKeyId, ciphertext: row.sealedCiphertext, nonce: row.sealedNonce, alg: row.sealedAlg },
     isDefault: row.isDefault,
+    accountLabel: row.accountLabel,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -53,6 +54,7 @@ function toValues(record: SourceControlCredentialSetRecord) {
     sealedNonce: record.sealed.nonce,
     sealedAlg: record.sealed.alg,
     isDefault: record.isDefault,
+    accountLabel: record.accountLabel,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
   };

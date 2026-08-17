@@ -26,6 +26,7 @@ function makeRecord(overrides: Partial<SourceControlCredentialSetRecord> = {}): 
     label: "default",
     sealed: { keyId: "v1", ciphertext: "Y2lwaGVy", nonce: "bm9uY2U=", alg: "aes-256-gcm" },
     isDefault: false,
+    accountLabel: null,
     createdAt: NOW,
     updatedAt: NOW,
     ...overrides,
@@ -223,4 +224,23 @@ test("bitbucket rows round-trip their sealed (token, username) pair like any oth
   // The username lives inside the sealed JSON blob (`store.ts`'s job to put it there), never as its
   // own column — this adapter only ever moves the opaque sealed group in and out.
   assert.equal(found?.sealed.ciphertext, record.sealed.ciphertext);
+});
+
+// ---------------------------------------------------------------------------
+// account_label (migration 0044, 2026-08-16)
+// ---------------------------------------------------------------------------
+
+test("a freshly inserted row starts with accountLabel null", async () => {
+  const repo = new SqliteSourceControlCredentialSetRepo(openSeededDb());
+  await repo.insert(makeRecord());
+  assert.equal((await repo.findById({ workspaceId: WORKSPACE, id: "cred-1" }))?.accountLabel, null);
+});
+
+test("a non-null accountLabel round-trips through insert/update exactly (store.ts's job to populate it — this adapter just moves it)", async () => {
+  const repo = new SqliteSourceControlCredentialSetRepo(openSeededDb());
+  await repo.insert(makeRecord({ accountLabel: "leonaburime-ucla" }));
+  assert.equal((await repo.findById({ workspaceId: WORKSPACE, id: "cred-1" }))?.accountLabel, "leonaburime-ucla");
+
+  await repo.update(makeRecord({ accountLabel: null, updatedAt: "2026-08-15T01:00:00.000Z" }));
+  assert.equal((await repo.findById({ workspaceId: WORKSPACE, id: "cred-1" }))?.accountLabel, null, "update must be able to reset it back to null (a new connection resets it — store.ts's job)");
 });

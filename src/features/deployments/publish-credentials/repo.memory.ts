@@ -91,4 +91,13 @@ export class InMemoryPublishCredentialSetRepo implements PublishCredentialSetRep
     const promoted = remaining.reduce((latest, row) => (row.updatedAt > latest.updatedAt ? row : latest));
     this.rows.set(InMemoryPublishCredentialSetRepo.rowKey(promoted.workspaceId, promoted.id), { ...promoted, isDefault: true });
   }
+
+  /** Mirrors the SQLite adapter's targeted single-column write — see
+   *  `PublishCredentialSetRepoPort.updateAccountLabel`'s own doc. No-op if the row vanished. */
+  async updateAccountLabel(input: { workspaceId: UUID; id: UUID; accountLabel: string }): Promise<void> {
+    const key = InMemoryPublishCredentialSetRepo.rowKey(input.workspaceId, input.id);
+    const existing = this.rows.get(key);
+    if (!existing) return;
+    this.rows.set(key, { ...existing, accountLabel: input.accountLabel });
+  }
 }

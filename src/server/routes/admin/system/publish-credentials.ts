@@ -4,6 +4,7 @@ import {
   createPublishCredential,
   deletePublishCredential,
   describeCredential,
+  healAccountLabel,
   listPublishCredentials,
   PublishCredentialDuplicateLabelError,
   PublishCredentialNotFoundError,
@@ -42,6 +43,17 @@ import type { RouteDeps } from "#src/server/routes/types";
  * save is invalid because the provider disagrees), and a new `POST .../:id/verify` lets a human
  * re-check a stale or never-verified result without re-saving. Both write ONLY the cached,
  * non-secret `{ok, message, checkedAt}` result — never anything that could leak a credential value.
+ *
+ * Also 2026-08-16 (migration `0044`): `verifyAfterSave` additionally heals `publish_credential_sets
+ * .account_label` (`publish-credentials/store.ts`'s `healAccountLabel`) whenever a verify comes back
+ * `"valid"` with an `accountLabel` — this is the ONE write path allowed to populate that column (see
+ * `store.ts`'s own header for why `createPublishCredential`/`updatePublishCredential` deliberately do
+ * not: this route is human-gated, `create`/`update` are not, sharing a write path with an agent-facing
+ * s3-compatible credential save). This is what makes the fix for "verification lived in
+ * `InMemoryPublishCredentialVerificationCache` only, so a routine server restart silently reverted a
+ * working, previously-verified credential to no known account" durable: `deployment_get_static_publish
+ * _capabilities` can now read a real DB column that survives a restart, instead of only ever reading a
+ * process-memory cache that does not.
  */
 export type AdminPublishCredentialsDeps = RouteDeps;
 
@@ -84,12 +96,25 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
    *  inherited from every per-provider checker), so a transient verification failure can never turn
    *  a successful save into a 500. Returns `null` only if the row vanished between the write this
    *  handler just performed and this call — treated the same as "nothing to report" by every caller
-   *  below, never surfaced as an error for what was otherwise a successful save. */
+   *  below, never surfaced as an error for what was otherwise a successful save.
+   *
+   *  Also heals `account_label` (`store.ts`'s `healAccountLabel`) whenever the result carries one —
+   *  see this file's own header. Deliberately checked via `result.accountLabel !== undefined` rather
+   *  than truthiness: an empty string is not a real GitHub login/Vercel username (`verify.ts`'s own
+   *  extractors never produce one — see their doc comments), but the distinction is cheap to keep
+   *  exact rather than relying on that invariant holding forever. The heal is fire-and-forget from
+   *  this function's own caller's point of view (awaited here, but its failure must not turn a
+   *  successful verify into a failed response) — a targeted single-column write against a row this
+   *  same request just confirmed exists has no realistic failure mode short of the DB itself being
+   *  down, at which point the save/verify response the caller already has is still honest. */
   async function verifyAfterSave(id: string): Promise<PublishCredentialVerificationResult | undefined> {
     const result = await verifyPublishCredentialById(
       { repo: deps.publishCredentialSetRepo, sealer: deps.siteAssistantSecretSealer, cache: deps.publishCredentialVerificationCache, clock: deps.clock },
       { workspaceId: deps.workspaceId, id }
     );
+    if (result?.accountLabel !== undefined) {
+      await healAccountLabel({ repo: deps.publishCredentialSetRepo }, { workspaceId: deps.workspaceId, id, accountLabel: result.accountLabel });
+    }
     return result ?? undefined;
   }
 

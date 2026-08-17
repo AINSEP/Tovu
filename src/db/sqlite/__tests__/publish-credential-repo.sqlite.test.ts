@@ -27,6 +27,7 @@ function makeRecord(overrides: Partial<PublishCredentialSetRecord> = {}): Publis
     label: "Main repo",
     sealed: { keyId: "v1", ciphertext: "Y2lwaGVy", nonce: "bm9uY2U=", alg: "aes-256-gcm" },
     isDefault: false,
+    accountLabel: null,
     createdAt: NOW,
     updatedAt: NOW,
     ...overrides,
@@ -213,4 +214,33 @@ test("deleting a NON-default row never promotes anything (the real default is un
   await repo.delete({ workspaceId: WORKSPACE, id: "cred-2" });
 
   assert.equal((await repo.findDefaultByProvider({ workspaceId: WORKSPACE, providerId: "vercel" }))?.id, "cred-1");
+});
+
+// ---------------------------------------------------------------------------
+// account_label (migration 0044, 2026-08-16)
+// ---------------------------------------------------------------------------
+
+test("a freshly inserted row starts with accountLabel null", async () => {
+  const repo = new SqlitePublishCredentialSetRepo(openSeededDb());
+  await repo.insert(makeRecord());
+  assert.equal((await repo.findById({ workspaceId: WORKSPACE, id: "cred-1" }))?.accountLabel, null);
+});
+
+test("updateAccountLabel writes ONLY the account_label column — sealed/isDefault/updatedAt are all untouched", async () => {
+  const repo = new SqlitePublishCredentialSetRepo(openSeededDb());
+  await repo.insert(makeRecord({ isDefault: true }));
+
+  await repo.updateAccountLabel({ workspaceId: WORKSPACE, id: "cred-1", accountLabel: "leonaburime-ucla" });
+
+  const found = await repo.findById({ workspaceId: WORKSPACE, id: "cred-1" });
+  assert.equal(found?.accountLabel, "leonaburime-ucla");
+  assert.equal(found?.isDefault, true, "updateAccountLabel must not disturb isDefault");
+  assert.equal(found?.updatedAt, NOW, "updateAccountLabel must not disturb updatedAt — a verify is not a credential change");
+  assert.deepEqual(found?.sealed, makeRecord().sealed, "updateAccountLabel must not disturb the sealed connection");
+});
+
+test("updateAccountLabel on a non-existent row is a harmless no-op (matches this port's other idempotent-write methods)", async () => {
+  const repo = new SqlitePublishCredentialSetRepo(openSeededDb());
+  await repo.updateAccountLabel({ workspaceId: WORKSPACE, id: "no-such-id", accountLabel: "someone" });
+  // Nothing to assert beyond "did not throw" — there is no row to have changed.
 });

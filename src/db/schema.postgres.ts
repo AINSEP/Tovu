@@ -847,6 +847,7 @@ export const publishCredentialSets = pgTable("publish_credential_sets", {
   sealedNonce: text("sealed_nonce").notNull(),
   sealedAlg: text("sealed_alg").notNull(),
   isDefault: boolean("is_default").notNull().default(false),
+  accountLabel: text("account_label"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 }, (t) => [
@@ -1082,6 +1083,7 @@ export const sourceControlCredentialSets = pgTable("source_control_credential_se
   sealedNonce: text("sealed_nonce").notNull(),
   sealedAlg: text("sealed_alg").notNull(),
   isDefault: boolean("is_default").notNull().default(false),
+  accountLabel: text("account_label"),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 }, (t) => [

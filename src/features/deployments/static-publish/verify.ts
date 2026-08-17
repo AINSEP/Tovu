@@ -100,8 +100,15 @@ function classifyProviderResponse(resp: Response): { readonly ok: true } | { rea
 
 /** GitHub's `/user` always carries `login` for a valid token (checked field, not assumed) — public by
  *  construction, the exact string GitHub itself prints in every profile/repo URL. Never `email`,
- *  `plan`, or org/team membership, none of which this function reads. */
-function extractGitHubLogin(body: unknown): string | undefined {
+ *  `plan`, or org/team membership, none of which this function reads.
+ *
+ *  Exported (2026-08-16) for `features/source-control/store.ts`'s own inline account-label probe to
+ *  reuse verbatim rather than re-declaring an identical extractor: a source-control `"github"`
+ *  connection's token hits the exact same `/user` endpoint and the exact same reviewed `login` field
+ *  this function already reads for a github-pages PUBLISH credential — see that file's own doc comment
+ *  for why its probe lives in `store.ts` rather than here (no shared "never agent-facing" boundary to
+ *  protect on that side, and no existing verify concept to extend). */
+export function extractGitHubLogin(body: unknown): string | undefined {
   if (typeof body !== "object" || body === null) return undefined;
   const login = (body as Record<string, unknown>).login;
   return typeof login === "string" && login !== "" ? login : undefined;

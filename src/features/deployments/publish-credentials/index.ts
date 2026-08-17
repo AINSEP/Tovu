@@ -19,6 +19,7 @@ export {
   createPublishCredential,
   deletePublishCredential,
   describeCredential,
+  healAccountLabel,
   isUniqueLabelViolation,
   listPublishCredentials,
   PublishCredentialDuplicateLabelError,

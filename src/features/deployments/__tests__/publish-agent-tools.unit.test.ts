@@ -272,9 +272,9 @@ test("deployment_get_static_publish_capabilities's description forbids ever aski
 test("deployment_get_static_publish_capabilities reports per-provider readiness and saved credentials by id/label only, scoped to this workspace, and NEVER calls resolve()", async () => {
   let resolveCallCount = 0;
   const records: PublishCredentialSetRecord[] = [
-    { workspaceId: WORKSPACE_ID_FALLBACK, id: "cred-1", providerId: "github-pages", label: "work", sealed: {} as never, isDefault: true, createdAt: NOW, updatedAt: NOW },
-    { workspaceId: WORKSPACE_ID_FALLBACK, id: "cred-2", providerId: "github-pages", label: "personal", sealed: {} as never, isDefault: false, createdAt: NOW, updatedAt: NOW },
-    { workspaceId: "some-other-workspace", id: "cred-x", providerId: "vercel", label: "not-mine", sealed: {} as never, isDefault: true, createdAt: NOW, updatedAt: NOW },
+    { workspaceId: WORKSPACE_ID_FALLBACK, id: "cred-1", providerId: "github-pages", label: "work", sealed: {} as never, isDefault: true, accountLabel: null, createdAt: NOW, updatedAt: NOW },
+    { workspaceId: WORKSPACE_ID_FALLBACK, id: "cred-2", providerId: "github-pages", label: "personal", sealed: {} as never, isDefault: false, accountLabel: null, createdAt: NOW, updatedAt: NOW },
+    { workspaceId: "some-other-workspace", id: "cred-x", providerId: "vercel", label: "not-mine", sealed: {} as never, isDefault: true, accountLabel: null, createdAt: NOW, updatedAt: NOW },
   ];
   const { deps } = fakeDeps({
     credentialSource: {
@@ -374,6 +374,107 @@ test("deployment_get_static_publish_capabilities: a verified credential's accoun
   }
 });
 
+// Migration 0044 (2026-08-16, Defect B fix): the cache alone is `InMemoryPublishCredentialVerification
+// Cache` — process memory, wiped by every server restart. Live reproduction: a real verify call
+// returned `accountLabel: "leonaburime-ucla"`, then the very next capabilities check (after an
+// unrelated `tsx watch` restart) reported "never verified" and the same `accountLabel` was gone —
+// the assistant fell straight back to suggesting `leonaburime`, the ORIGINAL wrong guess this whole
+// feature exists to prevent. The fix persists the label on the credential row itself, which a restart
+// does not touch.
+
+test("deployment_get_static_publish_capabilities: accountLabel is read from the default credential's DB column even when the in-memory verification cache is completely empty (Defect B — the cache is wiped by every process restart, the DB column is not)", async () => {
+  const records: PublishCredentialSetRecord[] = [
+    { workspaceId: WORKSPACE_ID_FALLBACK, id: "cred-1", providerId: "github-pages", label: "work", sealed: {} as never, isDefault: true, accountLabel: "leonaburime-ucla", createdAt: NOW, updatedAt: NOW },
+  ];
+  const { deps } = fakeDeps({
+    credentialSource: {
+      async resolve() { throw new Error("must not be called by this handler"); },
+      async isConfigured(input) { return input.target === "github-pages" ? { configured: true } : { configured: false, reason: "not configured" }; },
+    },
+  });
+  deps.workspaceId = WORKSPACE_ID_FALLBACK;
+  deps.publishCredentialSetRepo = fakeCredentialRepo(records);
+  // Deliberately empty — simulates the process having restarted since the credential was last
+  // verified (this is exactly the "InMemoryPublishCredentialVerificationCache wiped, DB row intact"
+  // scenario the fix is for).
+  deps.publishCredentialVerificationCache = new InMemoryPublishCredentialVerificationCache();
+
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const capabilities = tool(buildRegistrations(deps, surfaceExchanges), "deployment_get_static_publish_capabilities");
+  const result = (await call(capabilities)) as { providers: { providerId: string; accountLabel: string | null }[] };
+
+  const github = result.providers.find((p) => p.providerId === "github-pages")!;
+  assert.equal(github.accountLabel, "leonaburime-ucla", "the DB column must survive an empty verification cache — this is the whole point of migration 0044");
+});
+
+test("deployment_get_static_publish_capabilities: accountLabel falls back to the cached verification result when the DEFAULT credential's DB column is null (an older row that has not healed yet)", async () => {
+  const records: PublishCredentialSetRecord[] = [
+    { workspaceId: WORKSPACE_ID_FALLBACK, id: "cred-1", providerId: "github-pages", label: "work", sealed: {} as never, isDefault: true, accountLabel: null, createdAt: NOW, updatedAt: NOW },
+  ];
+  const { deps } = fakeDeps({
+    credentialSource: {
+      async resolve() { throw new Error("must not be called by this handler"); },
+      async isConfigured(input) { return input.target === "github-pages" ? { configured: true } : { configured: false, reason: "not configured" }; },
+    },
+  });
+  deps.workspaceId = WORKSPACE_ID_FALLBACK;
+  deps.publishCredentialSetRepo = fakeCredentialRepo(records);
+  deps.publishCredentialVerificationCache = new InMemoryPublishCredentialVerificationCache();
+  deps.publishCredentialVerificationCache.set(
+    { workspaceId: WORKSPACE_ID_FALLBACK, target: "github-pages" },
+    { status: "valid", message: "GitHub accepted this credential.", checkedAt: NOW, accountLabel: "leonaburime-ucla" }
+  );
+
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const capabilities = tool(buildRegistrations(deps, surfaceExchanges), "deployment_get_static_publish_capabilities");
+  const result = (await call(capabilities)) as { providers: { providerId: string; accountLabel: string | null }[] };
+
+  const github = result.providers.find((p) => p.providerId === "github-pages")!;
+  assert.equal(github.accountLabel, "leonaburime-ucla", "a null column must still fall back to the cache, never surface null while the cache has a real answer");
+});
+
+test("deployment_get_static_publish_capabilities: the DB column wins over a stale/different cached value — the column is the healed, durable answer", async () => {
+  const records: PublishCredentialSetRecord[] = [
+    { workspaceId: WORKSPACE_ID_FALLBACK, id: "cred-1", providerId: "github-pages", label: "work", sealed: {} as never, isDefault: true, accountLabel: "leonaburime-ucla", createdAt: NOW, updatedAt: NOW },
+  ];
+  const { deps } = fakeDeps({
+    credentialSource: {
+      async resolve() { throw new Error("must not be called by this handler"); },
+      async isConfigured(input) { return input.target === "github-pages" ? { configured: true } : { configured: false, reason: "not configured" }; },
+    },
+  });
+  deps.workspaceId = WORKSPACE_ID_FALLBACK;
+  deps.publishCredentialSetRepo = fakeCredentialRepo(records);
+  deps.publishCredentialVerificationCache = new InMemoryPublishCredentialVerificationCache();
+  // A deliberately different, stale cached value — the column must win.
+  deps.publishCredentialVerificationCache.set(
+    { workspaceId: WORKSPACE_ID_FALLBACK, target: "github-pages" },
+    { status: "valid", message: "GitHub accepted this credential.", checkedAt: NOW, accountLabel: "some-stale-value" }
+  );
+
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const capabilities = tool(buildRegistrations(deps, surfaceExchanges), "deployment_get_static_publish_capabilities");
+  const result = (await call(capabilities)) as { providers: { providerId: string; accountLabel: string | null }[] };
+
+  const github = result.providers.find((p) => p.providerId === "github-pages")!;
+  assert.equal(github.accountLabel, "leonaburime-ucla");
+});
+
+test("deployment_get_static_publish_capabilities's description explains credentialConfigured as distinct from accountLabel — 'a credential exists but is unverified' must never read as 'nothing is saved'", () => {
+  const entry = staticPublishAgentToolCatalog.find((t) => t.name === "deployment_get_static_publish_capabilities")!;
+  assert.match(entry.description, /credentialConfigured/);
+  assert.match(entry.description, /credentialConfigured:true with accountLabel:null/i);
+});
+
+test("deployment_get_static_publish_capabilities's description forbids ever offering an example/placeholder account name when accountLabel is unknown", () => {
+  const entry = staticPublishAgentToolCatalog.find((t) => t.name === "deployment_get_static_publish_capabilities")!;
+  assert.match(entry.description, /never offer an example, placeholder/i);
+
+  const preview = staticPublishAgentToolCatalog.find((t) => t.name === "deployment_preview_static_publish")!;
+  const ownerDescription = (preview.inputSchema as { properties: { owner: { description: string } } }).properties.owner.description;
+  assert.match(ownerDescription, /never soften that question with an illustrative example/i);
+});
+
 test("deployment_get_static_publish_capabilities: a recorded lastPublish is surfaced per provider, and defaults to null when nothing has been published there yet", async () => {
   const { deps } = fakeDeps({
     credentialSource: {
@@ -448,7 +549,7 @@ test("deployment_get_static_publish_capabilities's description tells the model t
 
 test("deployment_get_static_publish_capabilities: a saved credential that has NEVER been verified is reported as configured but NOT ready", async () => {
   const records: PublishCredentialSetRecord[] = [
-    { workspaceId: WORKSPACE_ID_FALLBACK, id: "cred-1", providerId: "github-pages", label: "work", sealed: {} as never, isDefault: true, createdAt: NOW, updatedAt: NOW },
+    { workspaceId: WORKSPACE_ID_FALLBACK, id: "cred-1", providerId: "github-pages", label: "work", sealed: {} as never, isDefault: true, accountLabel: null, createdAt: NOW, updatedAt: NOW },
   ];
   const { deps } = fakeDeps({
     credentialSource: { async resolve() { throw new Error("must never be called from this read tool"); }, async isConfigured() { return { configured: true }; } },
@@ -472,7 +573,7 @@ test("deployment_get_static_publish_capabilities: a saved credential that has NE
 
 test("deployment_get_static_publish_capabilities: a saved credential the provider REJECTED is reported as configured but NOT ready, with the rejection reason", async () => {
   const records: PublishCredentialSetRecord[] = [
-    { workspaceId: WORKSPACE_ID_FALLBACK, id: "cred-1", providerId: "github-pages", label: "work", sealed: {} as never, isDefault: true, createdAt: NOW, updatedAt: NOW },
+    { workspaceId: WORKSPACE_ID_FALLBACK, id: "cred-1", providerId: "github-pages", label: "work", sealed: {} as never, isDefault: true, accountLabel: null, createdAt: NOW, updatedAt: NOW },
   ];
   const { deps } = fakeDeps({
     credentialSource: { async resolve() { throw new Error("must never be called from this read tool"); }, async isConfigured() { return { configured: true }; } },
@@ -502,7 +603,7 @@ test("deployment_get_static_publish_capabilities: a saved credential the provide
 
 test("deployment_get_static_publish_capabilities: a saved credential whose last check could not reach the provider is NOT ready, but the guidance must NOT read as 'your credential is bad'", async () => {
   const records: PublishCredentialSetRecord[] = [
-    { workspaceId: WORKSPACE_ID_FALLBACK, id: "cred-1", providerId: "github-pages", label: "work", sealed: {} as never, isDefault: true, createdAt: NOW, updatedAt: NOW },
+    { workspaceId: WORKSPACE_ID_FALLBACK, id: "cred-1", providerId: "github-pages", label: "work", sealed: {} as never, isDefault: true, accountLabel: null, createdAt: NOW, updatedAt: NOW },
   ];
   const { deps } = fakeDeps({
     credentialSource: { async resolve() { throw new Error("must never be called from this read tool"); }, async isConfigured() { return { configured: true }; } },

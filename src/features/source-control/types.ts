@@ -68,6 +68,11 @@ export interface SourceControlCredentialSetRecord {
   /** At most one `TRUE` per `(workspaceId, providerId)`, maintained by `store.ts`'s write path —
    *  see `src/db/schema.ts`'s `sourceControlCredentialSets.isDefault` doc. */
   readonly isDefault: boolean;
+  /** Migration `0044` (2026-08-16) — the verified GitHub `login`, held in the clear (never sealed) —
+   *  see `src/db/schema.ts`'s `sourceControlCredentialSets.accountLabel` doc for the full reasoning.
+   *  `null` for `gitlab`/`bitbucket` connections (no reviewed identity extractor exists for either
+   *  yet) and for a `github` connection whose save-time identity probe failed or timed out. */
+  readonly accountLabel: string | null;
   readonly createdAt: ISODateTime;
   readonly updatedAt: ISODateTime;
 }
@@ -81,6 +86,8 @@ export interface SourceControlCredentialSummary {
   readonly label: string;
   readonly configured: true;
   readonly isDefault: boolean;
+  /** See `SourceControlCredentialSetRecord.accountLabel`'s own doc — carried through unchanged. */
+  readonly accountLabel: string | null;
   readonly createdAt: ISODateTime;
   readonly updatedAt: ISODateTime;
 }

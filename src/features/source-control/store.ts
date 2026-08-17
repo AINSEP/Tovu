@@ -1,5 +1,6 @@
 import type { ClockPort, ISODateTime, UUID } from "@jini-ai/cms/core";
 
+import { extractGitHubLogin } from "../deployments/static-publish/index";
 import type { KeyringPort, SecretSealerPort } from "../../integrations/ports";
 import { buildSourceControlCredentialAad } from "./aad";
 import type {
@@ -32,6 +33,17 @@ import type {
  * `isDefault` invariant: a provider's first-ever saved connection auto-defaults; `isDefault: true`
  * on create/update always wins; omitted/`false` never removes the CURRENT default without a
  * replacement — same contract `publish-credentials/store.ts` documents for its own write path.
+ *
+ * `accountLabel` (migration `0044`, 2026-08-16): {@link probeAccountLabel} runs INLINE, right here in
+ * `create`/`update`, unlike `publish-credentials/store.ts`'s sibling column — a deliberate difference,
+ * not an inconsistency. That module's create/update path is shared with an agent-facing tool
+ * (`deployment_propose_custom_provider_credential`), so `static-publish/verify.ts`'s "never
+ * agent-facing" network-probe boundary rules a probe out of that shared path entirely. Nothing under
+ * this feature's own tool catalog (`tool-registrations.ts`) calls `createSourceControlCredential`/
+ * `updateSourceControlCredential` — only the human-gated admin route does — so no such boundary
+ * exists here to protect, and this table also has no existing verify concept
+ * (`publish-credentials`'s sibling) for a save-time probe to defer to instead. Probing inline is
+ * therefore both safe and the only way to satisfy "populate at save time, no extra human step."
  */
 
 const MAX_LABEL_LENGTH = 200;
@@ -63,9 +75,47 @@ function toSummary(record: SourceControlCredentialSetRecord): SourceControlCrede
     label: record.label,
     configured: true,
     isDefault: record.isDefault,
+    accountLabel: record.accountLabel,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
   };
+}
+
+/** Same order of magnitude as `static-publish/verify.ts`'s own `VERIFY_TIMEOUT_MS` — a human is
+ *  waiting on a form submit, not a background job. */
+const ACCOUNT_LABEL_PROBE_TIMEOUT_MS = 10_000;
+
+/**
+ * Best-effort "who does this token belong to" probe, run inline at save time — see this file's own
+ * header for why THIS table's `create`/`update` may do this while `publish-credentials/store.ts`'s
+ * may not. NEVER throws: a network failure, timeout, or non-2xx response degrades to `null` (no
+ * account label learned) rather than failing the save, matching `static-publish/verify.ts`'s own
+ * per-provider checkers' "never throws" contract.
+ *
+ * `gitlab`/`bitbucket` return `null` unconditionally, with no request made at all — neither has a
+ * reviewed single-field identity extractor the way GitHub's `login` does (see `verify.ts`'s header
+ * for why s3-compatible gets the identical treatment on the publish side); inventing one here without
+ * that same review would break this codebase's "never email/plan/billing/org, one field only"
+ * discipline for account-identity reads. `github` reuses `static-publish/verify.ts`'s
+ * `extractGitHubLogin` against the identical `GET /user` endpoint a github-pages PUBLISH credential
+ * is checked against — same provider, same reviewed field, just a source-control token instead.
+ *
+ * @complexity O(1) — one bounded HTTP request (skipped entirely for gitlab/bitbucket).
+ * @overallScore 100
+ */
+async function probeAccountLabel(providerId: SourceControlProviderId, token: string, fetchFn: typeof fetch): Promise<string | null> {
+  if (providerId !== "github") return null;
+  try {
+    const resp = await fetchFn("https://api.github.com/user", {
+      headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json" },
+      signal: AbortSignal.timeout(ACCOUNT_LABEL_PROBE_TIMEOUT_MS),
+    });
+    if (!resp.ok) return null;
+    const body: unknown = await resp.json();
+    return extractGitHubLogin(body) ?? null;
+  } catch {
+    return null;
+  }
 }
 
 export interface SourceControlCredentialReadDeps {
@@ -108,6 +158,9 @@ export interface SourceControlCredentialWriteDeps extends SourceControlCredentia
   keyring: KeyringPort;
   clock: ClockPort;
   idGen: { newId(): string };
+  /** Injected by tests (mirrors `static-publish/verify.ts`'s own `VerifyPublishCredentialDeps
+   *  .fetchFn`); defaults to global `fetch`. Used only by {@link probeAccountLabel}. */
+  fetchFn?: typeof fetch;
 }
 
 /** Narrows and validates a caller-supplied `label`. Never throws a raw `TypeError` — every
@@ -242,6 +295,9 @@ export async function createSourceControlCredential(
   const isDefault = decideCreateDefault(existingForProvider, requestedDefault);
 
   const sealed = await sealConnection(deps, { workspaceId: input.workspaceId, providerId: connection.providerId, id, connection });
+  // Best-effort — see probeAccountLabel's own doc. Run against the SAME plaintext token about to be
+  // sealed, before it leaves this function's scope; never throws, degrades to null.
+  const accountLabel = await probeAccountLabel(connection.providerId, connection.token, deps.fetchFn ?? fetch);
   const record: SourceControlCredentialSetRecord = {
     workspaceId: input.workspaceId,
     id,
@@ -249,6 +305,7 @@ export async function createSourceControlCredential(
     label,
     sealed,
     isDefault,
+    accountLabel,
     createdAt: now,
     updatedAt: now,
   };
@@ -303,10 +360,15 @@ export async function updateSourceControlCredential(
 
   let providerId = existing.providerId;
   let sealed = existing.sealed;
+  // Re-probed (never carried over) whenever a NEW connection is resealed — same "a stale label is
+  // worse than none once the token has changed" reasoning `publish-credentials/store.ts` documents
+  // for its own sibling column, just resolved here by an immediate re-probe instead of a later heal.
+  let accountLabel = existing.accountLabel;
   if (input.connection !== undefined) {
     const connection = validateConnection(input.connection);
     providerId = connection.providerId;
     sealed = await sealConnection(deps, { workspaceId: input.workspaceId, providerId, id: input.id, connection });
+    accountLabel = await probeAccountLabel(connection.providerId, connection.token, deps.fetchFn ?? fetch);
   }
 
   const record: SourceControlCredentialSetRecord = {
@@ -316,6 +378,7 @@ export async function updateSourceControlCredential(
     label,
     sealed,
     isDefault: requestedDefault === true ? true : existing.isDefault,
+    accountLabel,
     createdAt: existing.createdAt,
     updatedAt: now,
   };

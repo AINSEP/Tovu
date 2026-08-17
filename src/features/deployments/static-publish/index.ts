@@ -43,6 +43,7 @@ export {
 } from "./publish-history";
 
 export {
+  extractGitHubLogin,
   InMemoryPublishCredentialVerificationCache,
   verifyPublishCredential,
   verifyPublishCredentialById,
