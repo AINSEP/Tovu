@@ -83,6 +83,34 @@ export type AdminPublishCredentialsDeps = RouteDeps;
 
 const BASE_PATH = "/api/admin/v1/workspaces/:workspaceId/system/publish/credentials";
 
+/** One repo `GET .../:id/repos` (below) can offer the picker replacing the free-text GitHub
+ *  owner/repo fields on the Deployment → Static Site tab — see `development/e2e/
+ *  live-publish-e2e.spec.ts`, the regression guard for the original bug this picker fixes (an
+ *  invented account name reaching a real publish). Response shape mirrors what GitHub's own
+ *  `GET /user/repos` reports per repo, narrowed to exactly what the UI needs. */
+export interface GitHubRepoSummary {
+  readonly owner: string;
+  readonly name: string;
+  readonly fullName: string;
+  readonly private: boolean;
+  readonly defaultBranch: string;
+}
+
+/** `status` mirrors {@link PublishCredentialVerificationResult}'s own closed three-way enum and the
+ *  same reasoning for why it exists (`static-publish/verify.ts`'s header): `"unreachable"` (network/
+ *  timeout/provider 5xx) and `"invalid"` (the provider affirmatively rejected the token) demand
+ *  opposite operator guidance and must never collapse into each other. `repos`/`truncated` are only
+ *  meaningful when `status === "valid"`. */
+export interface ListGitHubReposResult {
+  readonly status: "valid" | "invalid" | "unreachable";
+  readonly message?: string;
+  readonly repos: readonly GitHubRepoSummary[];
+  /** `true` when the account has more repos than the one page this probe fetches (`per_page=100`,
+   *  unpaginated) — the UI must not report a truncated list as complete, so a caller that ignores
+   *  this field would silently hide repos rather than just being slow to show them. */
+  readonly truncated: boolean;
+}
+
 /** Every error this route can produce, shaped once so each handler below stays a thin dispatch.
  *  Mirrors `publish-site.ts`'s inline `{error}`/`{error, code, details}` shapes for the same
  *  permission failure; the four typed store-error branches are new to this route and have no
@@ -174,6 +202,32 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
    *  parallel code path that could drift from it. See this file's own header ("second pass") and
    *  `account-label-heal-scheduler.ts`'s header for the full reasoning. */
   const accountLabelHealScheduler = createAccountLabelHealScheduler({ heal: verifyAfterSave });
+
+  /**
+   * TEMPORARY STUB (2026-08-17) — `GET .../:id/repos` below is the thin HTTP adapter half of the
+   * GitHub repo-list endpoint `source-control-ui` requested to back its picker (replacing the
+   * free-text owner/repo fields). The actual "decrypt this row's token, call GitHub's
+   * `GET /user/repos?affiliation=owner,organization_member&sort=updated&per_page=100`, map to
+   * `GitHubRepoSummary[]`" work is `routedeps-vendor`'s (per team-lead's split), expected to land as
+   * a real export from `src/features/deployments/static-publish/**` (mirroring
+   * `verifyPublishCredentialById`'s own resolve-then-probe shape one file up: same `resolveForPublish`
+   * decrypt step, same "`null` means no such row" contract, same "never throw for a network failure —
+   * fold it into `status: 'unreachable'`/`'invalid'`" contract `computeVerificationResult` already
+   * follows).
+   *
+   * DELETE this function and replace it with a real import (`import { listGitHubReposByCredentialId }
+   * from "#src/features/deployments/static-publish/index";`) the moment that lands — the route below
+   * is already written against exactly this name and signature so the swap is a one-line change.
+   * Until then this throws unconditionally, which proves only that THIS route's error-handling guard
+   * is real (same `route-async-guards.test.ts` RED-first pattern every other handler in this file
+   * follows) — never that repo listing itself works.
+   */
+  async function listGitHubReposByCredentialId(id: string): Promise<ListGitHubReposResult | null> {
+    void id;
+    throw new Error(
+      "listGitHubReposByCredentialId is not implemented yet — pending routedeps-vendor's probe function in src/features/deployments/static-publish/**"
+    );
+  }
 
   /** Shared workspace-path-param + `system.publish` authorization check every verb below performs
    *  first — same two-step `publish-site.ts` already repeats per-route; extracted here since this
@@ -277,6 +331,57 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
       // it is NOT covered by the provider-probe layer's "never throws" guarantee). Mirrors the
       // `POST`/`PUT` handlers' identical `try { ... } catch (err) { sendStoreError(res, err); }`
       // shape just below/above — this route was the one place that pattern was missing.
+      sendStoreError(res, err);
+    }
+  });
+
+  /**
+   * `GET .../:id/repos` — lists the GitHub repos reachable by ONE saved `github-pages` credential's
+   * token, backing `source-control-ui`'s searchable owner/repo picker. `system.publish`-gated like
+   * every other verb in this file (a saved connection's reachable-repo list is at least as sensitive
+   * as the fact of the connection itself).
+   *
+   * Only meaningful for `providerId === "github-pages"` — 400 for any other provider, checked via
+   * `describeCredential`'s already-non-secret read model (no decrypt needed to reject early). This
+   * is deliberately the `publish_credential_sets` table's own `providerId`, never
+   * `source_control_credential_sets`' `"github"` row — the two are different rows in different
+   * tables by current design, and this endpoint does not reach across that boundary.
+   *
+   * Always 200 with `{status, repos, truncated}` embedded, same as `POST .../:id/verify`'s
+   * `{verification}` shape: "the check ran, here's what it found" rather than mapping
+   * `"invalid"`/`"unreachable"` to a non-2xx status.
+   *
+   * Decrypts a token and makes an outbound request — the same shape that produced the original
+   * process-killing bug this file's `sendStoreError` doc already tells that story for. Guarded the
+   * same way: `try`/`catch` around the one awaited call that can throw
+   * (`listGitHubReposByCredentialId`'s decrypt step), mapped through `sendStoreError`. See
+   * `route-async-guards.test.ts` for the RED-first proof pattern this follows.
+   */
+  app.get(`${BASE_PATH}/:id/repos`, async (req, res) => {
+    if (await rejectUnlessAuthorized(req, res)) return;
+    try {
+      const existing = await describeCredential(readDeps, { workspaceId: deps.workspaceId, id: req.params.id });
+      if (!existing) {
+        res.status(404).json({ error: "NOT_FOUND", detail: `no publish credential '${req.params.id}' in this workspace` });
+        return;
+      }
+      if (existing.providerId !== "github-pages") {
+        res.status(400).json({
+          error: `repo listing is only available for a 'github-pages' credential, not '${existing.providerId}'`,
+          code: "UNSUPPORTED_PROVIDER",
+        });
+        return;
+      }
+      const result = await listGitHubReposByCredentialId(existing.id);
+      if (!result) {
+        // Row vanished between the `describeCredential` read above and the resolve step inside
+        // `listGitHubReposByCredentialId` — the same race `verifyAfterSave`'s own 404 fallback
+        // tolerates, not an error.
+        res.status(404).json({ error: "NOT_FOUND", detail: `no publish credential '${req.params.id}' in this workspace` });
+        return;
+      }
+      res.status(200).json(result);
+    } catch (err) {
       sendStoreError(res, err);
     }
   });

@@ -449,3 +449,79 @@ test("publish-credentials: a root key missing at verify time (present at save ti
   const list = await stillAlive.json();
   assert.equal(list.credentials.length, 1, "and it must still see the row it had before the failing call — the failure must not have corrupted anything else");
 });
+
+// -------------------------------------------------------------------------------------------------
+// GET .../:id/repos — the GitHub repo-list endpoint backing `source-control-ui`'s owner/repo picker
+// (replacing the free-text fields `development/e2e/live-publish-e2e.spec.ts` guards against). The
+// two tests below cover what is real TODAY: the 404/400 gating this route owns outright, both
+// resolved before `listGitHubReposByCredentialId` is ever called. The actual repo-listing behavior
+// (200 with a real/faked repo list) is NOT tested here yet — `publish-credentials.ts`'s own doc
+// comment on `listGitHubReposByCredentialId` explains why: it is a TEMPORARY STUB pending
+// `routedeps-vendor`'s real probe function in `src/features/deployments/static-publish/**`. The third
+// test below proves that stub's unconditional throw is still safely GUARDED (a fast 500, never a
+// hang) — the same RED-first shape every other handler in this file follows — which is the one thing
+// that must hold even before real GitHub-listing logic exists. Replace that third test with a real
+// success/invalid/unreachable-status assertion once the stub is swapped for the real import.
+// -------------------------------------------------------------------------------------------------
+
+test("publish-credentials: GET .../:id/repos 404s for a never-existed id", async (t) => {
+  const deps: RouteDeps = { ...createRouteDeps() };
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${CREDENTIALS_PATH}/no-such-id/repos`, {
+    headers: { cookie },
+  });
+  assert.equal(res.status, 404);
+  assert.equal((await res.json()).error, "NOT_FOUND");
+});
+
+test("publish-credentials: GET .../:id/repos 400s for a saved credential whose provider isn't github-pages", async (t) => {
+  const deps: RouteDeps = { ...createRouteDeps() };
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const base = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${CREDENTIALS_PATH}`;
+  stubVerificationFetch(t, baseUrl, 401); // save-time verify; contents irrelevant to this test
+
+  const created = await fetch(base, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ label: "vc", connection: { providerId: "vercel", token: "vercel-token" } }),
+  });
+  assert.equal(created.status, 201, await created.clone().text());
+  const { credential } = await created.json();
+  assert.equal(credential.providerId, "vercel");
+
+  // Rejected on `describeCredential`'s own read model, before any decrypt/probe — so this must
+  // resolve immediately even with no stub for the (never-reached) GitHub call.
+  const res = await fetch(`${base}/${credential.id}/repos`, { headers: { cookie }, signal: AbortSignal.timeout(3000) });
+  assert.equal(res.status, 400);
+  const body = (await res.json()) as { code: string; error: string };
+  assert.equal(body.code, "UNSUPPORTED_PROVIDER");
+  assert.match(body.error, /github-pages/);
+  assert.match(body.error, /vercel/);
+});
+
+test("publish-credentials: GET .../:id/repos on a real github-pages credential responds 500 (not a hang) — proves the handler's guard is real, ahead of the real probe landing", async (t) => {
+  const deps: RouteDeps = { ...createRouteDeps() };
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const base = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${CREDENTIALS_PATH}`;
+  stubVerificationFetch(t, baseUrl, 401); // save-time verify; contents irrelevant to this test
+
+  const created = await fetch(base, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ label: "gh", connection: { providerId: "github-pages", token: "github-secret-token" } }),
+  });
+  assert.equal(created.status, 201, await created.clone().text());
+  const { credential } = await created.json();
+
+  // `listGitHubReposByCredentialId` (the TEMPORARY STUB in `publish-credentials.ts`) throws
+  // unconditionally today. Bounded, not a bare `fetch`, for the same reason every other guard test in
+  // this suite bounds its request: an unguarded async handler that rejects with nothing calling
+  // `res.json()`/`res.status()` leaves the client hanging with no response at all, never a fast error.
+  const res = await fetch(`${base}/${credential.id}/repos`, { headers: { cookie }, signal: AbortSignal.timeout(3000) });
+  assert.equal(res.status, 500);
+  assert.equal((await res.json()).code, "INTERNAL_ERROR");
+});
