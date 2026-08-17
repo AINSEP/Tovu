@@ -373,3 +373,103 @@ not mine to fix unilaterally.
   pre-existing, unrelated, not touched.
 - `72c4f95e`'s commit message misattribution (see git-index incident above) — reported to
   team-lead, not resolved by me.
+
+---
+
+# Two independently-caught corrections: core size (edge 1) and largest SCC (edge 2)
+
+Team-lead independently re-measured this session's commits in an isolated worktree and caught two
+things I had not reported: edge 1's core-size regression (7.93% → 16.59%, invisible in `4af42ec4`'s
+commit body because the pre-fix run showed it in the IMPROVED column against the stale old
+baseline), and edge 2's largest-SCC regression (36 → 37) while I was still mid-edit. Both are now
+diagnosed with real measurements and, for the SCC one, fixed outright — not just explained.
+
+## Core size: mechanism, measured
+
+Ran the same check in two isolated `git worktree`s (`d9a61b44^` and `d9a61b44` exactly, `node_modules`
+symlinked in, zero shared-tree risk), confirmed the official script reproduces team-lead's numbers
+exactly (28.94%→14.13% propagation, 7.93%→16.59% core), then went past the script's own aggregate
+output to raw `dependency-cruiser` JSON and replicated its `reachableCount`/median logic directly in
+Python to see PER-FILE fan-in/fan-out, not just the final percentage.
+
+Finding: the pre-fix tree had `site-exporter.ts → server/app.ts` (the bug this whole task exists to
+fix) fusing an enormous ~692-file mutually-reachable cluster — the graph-wide MEDIAN file fan-in was
+285, meaning over a third of the codebase could already reach over a third of the codebase through
+that one edge. Fixing it shrank fan-OUT for that cluster's hub files (`assistant/index.ts`,
+`export/index.ts`, `export/route-manifest.ts`, `export/site-exporter.ts`, several
+`tool-registrations.ts`/`publish-agent-tools.ts` files) roughly in half — 691 → 316 — which IS the
+real, substantial propagation-cost win. But those same hub files' fan-IN barely moved (284 → 284/285).
+`core size` is membership relative to the graph-wide MEDIAN, not an absolute threshold — and fixing
+the bug also crashed that median from 285 down to 10. A wide band of files whose own numbers did not
+get worse now clear the new, much lower bar on both axes simultaneously. That is the doubling: not
+72 files becoming more coupled, but the yardstick used to call something "coupled" collapsing
+alongside the real fix.
+
+**Isolating what was actually attributable to this session's chosen shape** (not the underlying fix,
+which is non-negotiable): edge 1 also added a NEW edge of its own — `server/deps.ts`'s
+`createSiteAppLazily` lazily `require`s `server/app.ts`, which `server/app.ts` did not previously
+depend on in that direction (only the reverse, `app.ts → deps.ts`, existed before, for
+`builtInThemesDir`). Patched a throwaway copy of the post-fix worktree to strip JUST that one
+`require` (replacing it with a same-shaped stub that never references `./app`) and re-ran the
+script: core size only recovered from 138 to 132 files (6 of 72, ~8%). The other 66 files (~92%) are
+unaffected by removing that edge — they are the structural, unavoidable price of fixing
+`site-exporter.ts → server/app.ts` at all, regardless of injection vs. move-down shape.
+
+This is independently corroborated by edge 2 itself: a pure "move logic down" shape (`72c4f95e`,
+touching neither `app.ts` nor `deps.ts`) moved core size by less than half a point (16.59% →
+16.51%, per team-lead's own concurrent measurement) — consistent with the one-time median-collapse
+cost having already been paid by edge 1, with nothing left for a different shape to avoid.
+
+**Answer to "is it avoidable": mostly no, a small slice yes, not worth taking.** The dominant 92%
+is inherent to closing this specific cycle — no shape change removes it, because it comes from the
+median shift, not from any edge a particular shape introduces. The remaining 8% (6 files) IS
+avoidable — extracting `createApp` out of `server/app.ts` into a third file neither `app.ts` nor
+`deps.ts` needs to reach circularly would let `deps.ts` bind `createSiteApp` without any `app.ts`
+reference at all. Did not do this: it is a materially bigger restructure (also has to reckon with
+`createApp`'s default-parameter dependency on `createRouteDeps`, itself defined in `app.ts`), for a
+0.7-percentage-point recovery. Flagging as a possible, explicitly-not-taken follow-up rather than
+either silently skipping it or doing it unasked.
+
+## Largest SCC: mechanism, measured, and FIXED (commit `45ff16bd`)
+
+Same isolated-worktree method, this time diffing Tarjan SCC membership (not just size) before/after
+`72c4f95e`: `features/theme` was the only module that newly joined the pre-existing 36-module fused
+cluster. Root cause, once traced to the file level: `active-theme.ts` bundled BOTH
+`resolveActiveThemeId` (reads `PresentationSettingsRepoPort`, needs zero theme data) and
+`resolveActiveTheme` (needs `DiscoveredTheme`/`findTheme`) into one file, purely because
+`pages.ts`/`route-manifest.ts` always call them together. That gave `features/theme` a real NEW
+outgoing edge into `features/presentation` — and `features/presentation` was already fused into the
+36-module SCC (confirmed independently, not assumed), so `features/theme` got pulled in through it.
+
+Fix: split the two functions into their actual structural homes instead of their call-site pairing.
+`resolveActiveThemeId` moved to `src/features/presentation/active-theme-id.ts` (it never touched
+theme data — it belongs with the settings it reads, not with the theme it happens to be used
+alongside). `resolveActiveTheme` stays in `src/features/theme/active-theme.ts`. `pages.ts` and
+`route-manifest.ts` now import each from its own home; `products.ts` untouched (only ever used
+`resolveActiveTheme`). Measured, not assumed: largest SCC dropped from 37 back to exactly 36 — the
+same value edge 1 alone produced — with edge 2's propagation-cost and back-edges gains fully
+retained. Small, disclosed cost: module API surface +1 (the new file is a second cross-module-
+imported file in `features/presentation`, alongside `repo.sqlite.ts`'s existing precedent).
+
+## Full before/after table (all four measured states)
+
+| metric | pre-fix | after edge 1 (`d9a61b44`) | after edge 2 (`72c4f95e`) | after SCC fix (`45ff16bd`) |
+|---|---:|---:|---:|---:|
+| propagation cost | 28.94% | 14.13% | ~10.32% | 10.58% |
+| back-edges into composition root | 29 | 28 | ~27 | 27 |
+| largest SCC | 36 | 36 | **37** | **36** |
+| core size | 7.93% (66/832) | **16.59% (138/832)** | ~16.51% | 16.79% (141/840) |
+
+Baseline moved a third time (`c59d5b01`), with the full trade — both the core-size mechanism and the
+SCC round-trip — stated in the commit body itself, not left for a reader to infer from a diff.
+
+## Process note: the `git commit <paths> -F <file>` protocol change
+
+Adopted team-lead's mid-session correction for every commit from the SCC-fix commit onward: scope
+the commit itself to explicit paths (`git commit <paths> -F <msgfile>`) rather than
+`git add` → verify `--cached` → `git commit -F`, which leaves a window between the verify and the
+commit where a concurrent agent's commit can consume the index first (exactly what happened with
+`72c4f95e`). `git add` still needed first for the one brand-new untracked file
+(`active-theme-id.ts`) — the explicit-path commit form fails on untracked files — everything else in
+that commit was already-tracked, modified files. Both post-protocol-change commits (`45ff16bd`,
+`c59d5b01`) verified clean via `git show --stat HEAD` immediately after.
