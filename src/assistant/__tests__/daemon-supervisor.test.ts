@@ -16,6 +16,14 @@ import { AGENT_DAEMON_EXIT_CODE } from "../daemon-exit-codes";
  * the policy and gets acted on, a deliberate shutdown does not, and the manual restart seam works.
  * Real (tiny) `setTimeout` delays are used rather than a fake clock — every backoff override here
  * is single-digit milliseconds, so this stays fast without needing timer-mocking machinery.
+ *
+ * Also proves the two additions from the production-reality follow-up: `restart()`/`ensureStarted()`
+ * refusing once `shutdown()` has run (the SIGTERM-vs-manual-restart race — this is the closest a
+ * unit test can safely get to that interaction; actually sending a real SIGTERM to the test
+ * runner's own process to exercise `startAssistantDaemon`'s real `process.on(...)` wiring would kill
+ * `node:test` itself, so that wiring is exercised at this factory level instead, where `shutdown()`
+ * is the same call the real signal handler makes), and the on-demand/lazy-start seam
+ * (`ensureStarted()`) — single-flight, cooldown-guarded, and re-arming after the crash-loop cap.
  */
 
 // Astronomically larger than any real OS pid, so `process.kill(-pid, ...)` inside
@@ -23,7 +31,15 @@ import { AGENT_DAEMON_EXIT_CODE } from "../daemon-exit-codes";
 // instead of this test process ever sending a real signal to a real process group.
 const FAKE_PID = 987_654_321;
 
-function createFakeDaemonProcess(): { handle: SpawnedDaemonProcess; emitExit: (code: number | null, signal?: NodeJS.Signals | null) => void; killedSignals: (NodeJS.Signals | undefined)[] } {
+function createFakeDaemonProcess(): {
+  handle: SpawnedDaemonProcess;
+  emitExit: (code: number | null, signal?: NodeJS.Signals | null) => void;
+  /** Simulates a spawn-level failure (e.g. `spawn()` itself couldn't find the daemon script) —
+   *  distinct from `emitExit`, since `attemptSpawn` deliberately does NOT feed this into the
+   *  respawn policy (see that function's own comment): no retry is ever scheduled from this path. */
+  emitError: (error: Error) => void;
+  killedSignals: (NodeJS.Signals | undefined)[];
+} {
   const emitter = new EventEmitter();
   const killedSignals: (NodeJS.Signals | undefined)[] = [];
   const handle: SpawnedDaemonProcess = {
@@ -34,7 +50,12 @@ function createFakeDaemonProcess(): { handle: SpawnedDaemonProcess; emitExit: (c
       return true;
     },
   };
-  return { handle, emitExit: (code, signal = null) => emitter.emit("exit", code, signal), killedSignals };
+  return {
+    handle,
+    emitExit: (code, signal = null) => emitter.emit("exit", code, signal),
+    emitError: (error) => emitter.emit("error", error),
+    killedSignals,
+  };
 }
 
 function wait(ms: number): Promise<void> {
@@ -120,9 +141,10 @@ test("the manual restart seam spawns a fresh daemon even after the crash-loop ca
   await wait(20);
   assert.equal(spawnCount, 1, "the cap of 1 must trip on the very first failure — no automatic retry");
 
-  supervisor.restart();
+  const result = supervisor.restart();
 
   assert.equal(spawnCount, 2, "restart() must spawn immediately, bypassing the tripped cap");
+  assert.deepEqual(result, { ok: true }, "a restart while merely policy-tripped (not terminating) must succeed");
 });
 
 test("restart() waits for a still-live current child to actually exit before spawning its replacement", () => {
@@ -144,6 +166,29 @@ test("restart() waits for a still-live current child to actually exit before spa
   assert.equal(spawnCount, 2, "once the old child confirms its exit, the replacement spawns");
 });
 
+test("restart() spawns a replacement immediately after a spawn-level error, instead of waiting forever for an exit event that will never come", () => {
+  // Regression test for a real bug found while building `ensureStarted()`: verified directly with
+  // Node that a spawn-level failure (ENOENT) fires ONLY "error", never "exit", and `pid` stays
+  // `undefined` for that child's whole lifetime. Before `attemptSpawn`'s error handler started
+  // marking `childHasExited = true`, `restart()`'s "wait for the stale child's actual exit before
+  // spawning the replacement" branch (see the test above) would wait on an "exit" event this kind
+  // of child can never emit — a permanent hang, not merely a slow recovery.
+  const children = [createFakeDaemonProcess(), createFakeDaemonProcess()];
+  let spawnCount = 0;
+  const supervisor = createDaemonSupervisor({
+    spawnDaemonProcess: () => children[spawnCount++].handle,
+    policy: createRespawnPolicy(),
+  });
+
+  supervisor.start();
+  children[0].emitError(new Error("spawn ENOENT"));
+
+  const result = supervisor.restart();
+
+  assert.deepEqual(result, { ok: true });
+  assert.equal(spawnCount, 2, "restart() must spawn the replacement immediately — there is no live child left to wait on");
+});
+
 test("PORT_IN_USE exits are described with the real reason instead of a generic exit code", async () => {
   const children = [createFakeDaemonProcess(), createFakeDaemonProcess()];
   let spawnCount = 0;
@@ -162,4 +207,159 @@ test("PORT_IN_USE exits are described with the real reason instead of a generic 
   const entry = getReadinessSnapshot().modules.find((m) => m.name === "assistant-daemon");
   const latchedReason = entry?.lifecycle.status === "failed" ? entry.lifecycle.reasonCode : undefined;
   assert.match(latchedReason ?? "", /could not bind 127\.0\.0\.1:4319 — address already in use/);
+});
+
+// -------------------------------------------------------------------------------------------
+// terminating vs. crash-loop-tripped: restart() must tell them apart (production-reality follow-up)
+// -------------------------------------------------------------------------------------------
+
+test("restart() refuses once shutdown() has run, and does not spawn a replacement — the SIGTERM-vs-manual-restart race", () => {
+  const children = [createFakeDaemonProcess(), createFakeDaemonProcess()];
+  let spawnCount = 0;
+  const supervisor = createDaemonSupervisor({
+    spawnDaemonProcess: () => children[spawnCount++].handle,
+    policy: createRespawnPolicy(),
+  });
+
+  supervisor.start();
+  supervisor.shutdown(); // the same call the real SIGINT/SIGTERM/SIGHUP handler makes
+  children[0].emitExit(null, "SIGTERM"); // the OS confirming the kill actually landed
+
+  const result = supervisor.restart();
+
+  assert.deepEqual(result, { ok: false, reason: "shutting down" }, "a restart racing the process's own teardown must be refused, not silently ignored");
+  assert.equal(spawnCount, 1, "no replacement may be spawned once the process is terminating");
+});
+
+test("ensureStarted() also refuses once shutdown() has run", () => {
+  const children = [createFakeDaemonProcess()];
+  let spawnCount = 0;
+  const supervisor = createDaemonSupervisor({
+    spawnDaemonProcess: () => children[spawnCount++].handle,
+    policy: createRespawnPolicy(),
+  });
+
+  supervisor.start();
+  supervisor.shutdown();
+
+  assert.deepEqual(supervisor.ensureStarted(), { ok: false, reason: "shutting down" });
+  assert.equal(spawnCount, 1);
+});
+
+// -------------------------------------------------------------------------------------------
+// ensureStarted(): the on-demand/lazy-start seam
+// -------------------------------------------------------------------------------------------
+
+test("ensureStarted() reports ok without spawning when a daemon is already running — single-flight", () => {
+  const children = [createFakeDaemonProcess(), createFakeDaemonProcess()];
+  let spawnCount = 0;
+  const supervisor = createDaemonSupervisor({
+    spawnDaemonProcess: () => children[spawnCount++].handle,
+    policy: createRespawnPolicy(),
+  });
+
+  supervisor.start();
+
+  // Ten "concurrent" callers (as concurrent as this ever gets in a single-threaded event loop —
+  // each call is fully synchronous, with no `await` between the "already running?" check and
+  // `attemptSpawn`'s own `currentChild` assignment) must all see the same running child.
+  for (let i = 0; i < 10; i += 1) {
+    assert.deepEqual(supervisor.ensureStarted(), { ok: true });
+  }
+
+  assert.equal(spawnCount, 1, "ten calls against an already-running daemon must trigger zero extra spawns");
+});
+
+test("ensureStarted() reports ok without spawning when a retry is already scheduled on its own backoff", async () => {
+  const children = [createFakeDaemonProcess(), createFakeDaemonProcess()];
+  let spawnCount = 0;
+  const supervisor = createDaemonSupervisor({
+    spawnDaemonProcess: () => children[spawnCount++].handle,
+    policy: createRespawnPolicy({ backoffScheduleMs: [30], crashLoopMaxFailures: 10 }),
+  });
+
+  supervisor.start();
+  children[0].emitExit(1, null); // schedules an automatic retry ~30ms out
+
+  assert.deepEqual(supervisor.ensureStarted(), { ok: true }, "a recovery already in progress must not be accelerated");
+  assert.equal(spawnCount, 1, "no extra spawn while the scheduled retry has not fired yet");
+
+  await wait(60);
+  assert.equal(spawnCount, 2, "the originally-scheduled retry still fires on its own");
+});
+
+test("ensureStarted() triggers a fresh spawn when nothing is running and nothing is scheduled — the never-started/spawn-error case", () => {
+  const children = [createFakeDaemonProcess(), createFakeDaemonProcess()];
+  let spawnCount = 0;
+  const supervisor = createDaemonSupervisor({
+    spawnDaemonProcess: () => children[spawnCount++].handle,
+    policy: createRespawnPolicy(),
+  });
+
+  supervisor.start();
+  // A real spawn-level error (verified directly with Node: ENOENT fires ONLY "error", never
+  // "exit", and leaves `pid` `undefined` for the child's whole lifetime — see `attemptSpawn`'s own
+  // comment). Deliberately NOT fed into the respawn policy, so nothing gets scheduled after this —
+  // exactly the state `ensureStarted()` exists to recover from.
+  children[0].emitError(new Error("spawn ENOENT"));
+
+  const result = supervisor.ensureStarted();
+
+  assert.deepEqual(result, { ok: true });
+  assert.equal(spawnCount, 2, "a request arriving while nothing is running or scheduled must trigger a fresh attempt");
+});
+
+test("ensureStarted() re-arms after the crash-loop cap has tripped, just like the manual seam", async () => {
+  const children = [createFakeDaemonProcess(), createFakeDaemonProcess()];
+  let spawnCount = 0;
+  const supervisor = createDaemonSupervisor({
+    spawnDaemonProcess: () => children[spawnCount++].handle,
+    policy: createRespawnPolicy({ backoffScheduleMs: [5], crashLoopMaxFailures: 1 }),
+  });
+
+  supervisor.start();
+  children[0].emitExit(1, null);
+  await wait(20);
+  assert.equal(spawnCount, 1, "the cap of 1 trips on the very first failure");
+
+  const result = supervisor.ensureStarted();
+
+  assert.deepEqual(result, { ok: true });
+  assert.equal(spawnCount, 2, "a request arriving after the cap tripped must trigger a fresh attempt, same as the manual seam");
+});
+
+test("ensureStarted() cooldown: a repeated call shortly after a re-arm does not trigger a second spawn (thundering-herd guard)", async () => {
+  const children = [createFakeDaemonProcess(), createFakeDaemonProcess(), createFakeDaemonProcess()];
+  let spawnCount = 0;
+  let clock = 0;
+  const supervisor = createDaemonSupervisor({
+    spawnDaemonProcess: () => children[spawnCount++].handle,
+    policy: createRespawnPolicy({ backoffScheduleMs: [5], crashLoopMaxFailures: 1 }),
+    now: () => clock,
+    onDemandCooldownMs: 1_000,
+  });
+
+  supervisor.start();
+  children[0].emitExit(1, null);
+  await wait(20);
+  assert.equal(spawnCount, 1, "the cap of 1 trips on the very first failure");
+
+  const first = supervisor.ensureStarted();
+  assert.deepEqual(first, { ok: true });
+  assert.equal(spawnCount, 2, "the first request after the trip re-arms");
+
+  // The freshly re-armed daemon fails again immediately (still durably broken) — the cap trips
+  // again on this single-failure policy, landing back in the "nothing running, nothing scheduled"
+  // state ensureStarted() would otherwise re-arm from on every subsequent request.
+  children[1].emitExit(1, null);
+
+  clock += 500; // still inside the 1s cooldown
+  const second = supervisor.ensureStarted();
+  assert.deepEqual(second, { ok: false, reason: "an on-demand restart was already attempted recently — cooling down before trying again" });
+  assert.equal(spawnCount, 2, "a second request inside the cooldown window must not trigger another spawn");
+
+  clock += 600; // now 1.1s after the first re-arm — past the cooldown
+  const third = supervisor.ensureStarted();
+  assert.deepEqual(third, { ok: true });
+  assert.equal(spawnCount, 3, "once the cooldown elapses, the next request may re-arm again");
 });
