@@ -10,6 +10,7 @@ import { InMemoryDeploymentsReadRepo } from "../features/deployments";
 import { InMemoryPublishCredentialSetRepo, executionModeFromEnv } from "../features/deployments/publish-credentials";
 import { InMemoryPublishCredentialVerificationCache, InMemoryPublishHistoryStore } from "../features/deployments/static-publish";
 import { InMemorySourceControlCredentialSetRepo } from "../features/source-control";
+import { InMemoryVendorCredentialSetRepo } from "../features/vendor-credentials";
 // NOT a static import, and the reason is a measured crash — see `runExportSiteLazily` below.
 import { InMemoryPagesHtmlDocumentStore } from "../features/pages";
 import {
@@ -166,6 +167,7 @@ import { registerAdminDockerfileSourceRoute } from "./routes/admin/system/docker
 import { registerAdminExportSiteRoutes } from "./routes/admin/system/export-site";
 import { registerAdminPublishCredentialsRoutes } from "./routes/admin/system/publish-credentials";
 import { registerAdminSourceControlCredentialsRoutes } from "./routes/admin/system/source-control-credentials";
+import { registerAdminVendorCredentialsRoutes } from "./routes/admin/system/vendor-credentials";
 import { registerAdminPublishSiteRoutes } from "./routes/admin/system/publish-site";
 import { registerAdminDeploymentsListRoute } from "./routes/admin/deployments/list";
 import { createFormsAdminModule } from "./modules/forms-admin";
@@ -645,6 +647,9 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // `SqliteSourceControlCredentialSetRepo`; see `routes/types.ts`'s
     // `sourceControlCredentialSetRepo` doc.
     sourceControlCredentialSetRepo: new InMemorySourceControlCredentialSetRepo(),
+    // 2026-08-16 (Phase 3) — hermetic double for `server/deps.ts`'s real
+    // `SqliteVendorCredentialSetRepo`; see `routes/types.ts`'s `vendorCredentialSetRepo` doc.
+    vendorCredentialSetRepo: new InMemoryVendorCredentialSetRepo(),
   };
 }
 
@@ -842,6 +847,12 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // (`source_control_credential_sets`). `source-control.credentials.write`-gated on every verb —
   // see that route file's own header for why this is NOT `system.publish`.
   registerAdminSourceControlCredentialsRoutes(app, routeDeps);
+  // Phase 3: CRUD over the unified `vendor_credential_sets` table (`features/vendor-credentials/`) —
+  // the eventual replacement for BOTH credential routes just above, once every install's data is
+  // confirmed migrated. `vendor-credentials.write`-gated on every verb, deliberately its own
+  // permission — see that route file's own header for why neither `system.publish` nor
+  // `source-control.credentials.write` fits a table that now serves both domains.
+  registerAdminVendorCredentialsRoutes(app, routeDeps);
   // Deployment panel → Full Site tab: read-only snapshot of the deployments domain
   // (`features/deployments/`). `deployments.read`-gated, not `system.read` — see that route
   // file's own header for why this one gets its own permission.

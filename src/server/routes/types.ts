@@ -41,6 +41,7 @@ import type { AdminExecutionCredentialRepoPort } from "../../assistant/execution
 import type { PublishCredentialSetRepoPort, PublishExecutionMode } from "../../features/deployments/publish-credentials";
 import type { PublishCredentialVerificationCache, PublishHistoryStore } from "../../features/deployments/static-publish";
 import type { SourceControlCredentialSetRepoPort } from "../../features/source-control";
+import type { VendorCredentialSetRepoPort } from "../../features/vendor-credentials";
 import type { ComposioConfigRepoPort } from "../../connectors/composio-config-store";
 import type { ComposioConnectors } from "../../connectors/composio-service";
 import type { MediaProviderCredentialRepoPort } from "../../media/provider-credential-store";
@@ -720,6 +721,25 @@ export interface RouteDeps {
    * why.
    */
   sourceControlCredentialSetRepo: SourceControlCredentialSetRepoPort;
+  /**
+   * 2026-08-16 (Phase 3) — the `vendor_credential_sets` repo backing the unified vendor-scoped
+   * credential redesign (`features/vendor-credentials/`; `db/schema.ts`'s `vendorCredentialSets`
+   * doc has the full "destination vs. vendor" reasoning). Real `SqliteVendorCredentialSetRepo`
+   * (`db/sqlite/vendor-credential-repo.sqlite.ts`) in `server/deps.ts`;
+   * `InMemoryVendorCredentialSetRepo` in `server/app.ts`'s hermetic composition, same rule-of-two
+   * every other repo here follows. Sealed via the SAME shared `siteAssistantSecretSealer`/
+   * `siteAssistantSecretKeyring` instances above — one sealing capability app-wide, same reasoning
+   * `publishCredentialSetRepo`/`sourceControlCredentialSetRepo` already establish.
+   *
+   * This table does NOT yet replace `publishCredentialSetRepo`/`sourceControlCredentialSetRepo`
+   * above — both stay wired and fully live. `features/vendor-credentials/dual-read.ts`'s
+   * `resolveDefaultForVendorDualRead` is the seam that lets a future caller read this table first
+   * and fall back to one of the two legacy repos above when a vendor's group here is still empty
+   * (an install whose data has not been backfilled by `development/scripts/backfill-vendor-
+   * credentials.ts` yet) — see that module's own header for the full design and why a straight
+   * cutover was rejected.
+   */
+  vendorCredentialSetRepo: VendorCredentialSetRepoPort;
 }
 
 export type RouteRegistrar = (app: Express, deps: RouteDeps) => void;

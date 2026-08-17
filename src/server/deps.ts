@@ -13,6 +13,7 @@ import { SqliteDeploymentsReadRepo } from "../features/deployments";
 import { SqlitePublishCredentialSetRepo } from "../db/sqlite/publish-credential-repo.sqlite";
 import { SqlitePublishHistoryStore } from "../db/sqlite/publish-history-repo.sqlite";
 import { SqliteSourceControlCredentialSetRepo } from "../db/sqlite/source-control-credential-repo.sqlite";
+import { SqliteVendorCredentialSetRepo } from "../db/sqlite/vendor-credential-repo.sqlite";
 import { executionModeFromEnv } from "../features/deployments/publish-credentials";
 import { InMemoryPublishCredentialVerificationCache } from "../features/deployments/static-publish";
 // NOT a static import — `export/site-exporter.ts` imports `createApp` from `server/app.ts`, and a
@@ -829,6 +830,10 @@ export function createSqliteRouteDeps(
     // same shared sealer/keyring the credential repos above already reuse (no third
     // `EnvOrFileKeyring` instance).
     sourceControlCredentialSetRepo: new SqliteSourceControlCredentialSetRepo(db),
+    // 2026-08-16 (Phase 3) — see `routes/types.ts`'s `vendorCredentialSetRepo` doc. Sealed via the
+    // same shared sealer/keyring the two legacy credential repos above already reuse (no third
+    // `EnvOrFileKeyring` instance).
+    vendorCredentialSetRepo: new SqliteVendorCredentialSetRepo(db),
   };
 }
 
