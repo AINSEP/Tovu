@@ -263,6 +263,77 @@ Jini's own architecture measured **healthy**: 26 packages, **0 cross-package cyc
 violations**, `core`/`protocol`/`platform` with heavy fan-in and zero fan-out. The opposite shape of
 Tovu's composition-root problem.
 
+### 5d. Route tests, coverage and the gates on them (owner named this for next session)
+
+> **⚠️ NOTHING HERE WAS FIXED. This section is a MEASUREMENT ONLY.**
+> This session ran an audit and wrote down numbers. It did **not**:
+> - add a single missing route test
+> - configure any coverage gate, floor, or diff gate
+> - fix any of the 70 complexity violations
+> - fix any of the 21 unguarded async handlers
+> - set up mutation testing
+>
+> **All of that is still to do.** The audit exists so the next session does not have to re-derive
+> the numbers before acting — it is a starting point, not progress against the goal. Do not read the
+> committed report as work completed.
+
+Full report: **`ADS-memory/reports/2026-08-16-server-routes-coverage-complexity-audit.md`**
+(`4593bee4`, 20KB). Measured, not estimated — 234 route files under `src/server/routes`.
+
+**Coverage today (node:test + lcov parse, 215/234 files exercised):**
+
+    line 92.20%   |   branch 74.05%   |   funcs 97.54%
+
+**⚠️ There is no statements metric and there cannot be one.** `src/` runs on **node:test**, not
+vitest. `--experimental-test-coverage` reports exactly three columns — `line | branch | funcs`.
+"Statements" is an Istanbul concept, and in lcov it is the same number as lines anyway. A
+"line + branch + statement + function" gate is really only **three** distinct numbers here.
+Getting a real statement metric would mean migrating `src/` off node:test onto vitest+Istanbul
+(`apps/admin` already uses vitest; `src/` does not). **Recommended fourth signal instead:
+mutation testing** — `development/scripts/mutation-sweep.mjs` already exists, and it proves a test
+would FAIL if the code broke, which line coverage never does.
+
+Confirmed by direct observation: **node:test DOES still print the full coverage table when a test
+fails** (verified against the known-failing `render.test.ts` — 3 failures, exit 1, table still
+printed). That differs from vitest, which emits nothing on failure unless `reportOnFailure` is set.
+
+**A 98% gate is not achievable today** — branch is 24 points short. **And an aggregate gate is the
+wrong instrument regardless:** one file sits at **42.9% branch** while the rollup reads 74%, so a
+rollup gate would have passed the file that produced §2's server-killing bug.
+
+**Recommendation:**
+1. A **floor** just under today's baseline — roughly `line >= 88`, `branch >= 68`, `funcs >= 93`.
+   Stops backsliding, green from day one.
+2. A **diff / changed-code gate**: any new or modified route file must hit ~**80% branch**. This is
+   the one that actually prevents recurrence. The floor only holds the line.
+
+Watch the **line-vs-branch spread** as the real signal — `publish-credentials.ts` had 97.82% line
+coverage and still shipped a process-killing bug, because the untested part was a *branch*
+(71.93%).
+
+**Zero-coverage files: 19 total, but 17 are type-only `deps.ts`/`types.ts` with no runtime code —
+non-findings.** Of the 2 real ones:
+- `src/server/routes/admin/assistant/test-agent.ts` — **genuinely untested**, no test hits its path.
+- `src/server/routes/admin/assistant/test-connection.ts` — **the finding is DISPROVEN.**
+  `src/server/__tests__/admin-assistant-execution-routes.test.ts` hits its exact registered path
+  (`/api/admin/v1/workspaces/:workspaceId/assistant/execution/test-connection`) with ~8 tests
+  including SSRF and key-leak guards. Do not act on it.
+
+**Complexity across the same 234 files** (own eslint runs; `eslint.config.mjs` already wires
+`sonarjs`): **70 files / 113 functions** violate ≤9; **18 files / 30 functions** violate ≤15 (the
+repo's current repo-wide `warn` bar). Worst: `admin/themes/explore.ts` (6),
+`admin/system/publish-site.ts` (4). A hard sub-10 gate on `src/` therefore needs a debt list +
+ratchet, exactly like `apps/admin`'s existing `check:admin-complexity-drift`.
+
+**Unguarded async handlers: 21 across 15 files**, from a TypeScript-AST scan (not grep), out of 242
+`app.<verb>()` registrations across 209 files. The §2 process guard means these can no longer kill
+the server, but they still fail badly (and can hang). Includes GET-list and DELETE in
+`publish-credentials.ts` — real, but neither decrypts, so lower severity than verify was.
+
+**Not measurable from node:test:** e2e/Playwright coverage of these routes runs in a separate
+process and is invisible to its instrumentation. Some flagged paths may well be covered at that
+layer.
+
 ---
 
 ## 6. Open work, highest value first
