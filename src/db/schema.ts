@@ -1698,6 +1698,97 @@ export const sourceControlCredentialSets = sqliteTable(
 );
 
 /**
+ * Migration `0045` (2026-08-16, owner-decided redesign) — the vendor-scoped replacement for the two
+ * tables directly above. `publishCredentialSets`/`sourceControlCredentialSets` each key a row on a
+ * DESTINATION id (`"github-pages"`, `"github"`) even when the underlying secret authenticates the
+ * SAME company — a GitHub personal access token had to be typed and sealed twice, once per table,
+ * with no way for either save to know the other existed. This table keys on `vendor_id` instead — a
+ * company/protocol identity (`"github" | "gitlab" | "bitbucket" | "vercel" | "netlify" |
+ * "cloudflare" | "s3-compatible"`, `../features/vendor-credentials/types.ts`'s `VendorId`) — so
+ * Source Control and the Static Site publish tab both read from, and both save into, the SAME
+ * roster of GitHub tokens.
+ *
+ * `publish_credential_sets`/`source_control_credential_sets` are NOT dropped by this migration and
+ * keep serving every existing route/tool/store unchanged — this table is additive-only. A separate,
+ * explicitly-run backfill (`development/scripts/backfill-vendor-credentials.ts`, modeled on
+ * `backfill-slug-collision-defaults.ts`'s dry-run-by-default / `--apply` / restore-point-first
+ * shape) copies each existing row across, decrypting under its OLD table's AAD and re-sealing the
+ * SAME plaintext bytes under THIS table's own AAD (`buildVendorCredentialAad`,
+ * `../features/vendor-credentials/aad.ts`) — never a bare re-wrap, and never a plaintext rewrite:
+ * see that script's own header for why the connection JSON itself is copied verbatim rather than
+ * having its embedded `providerId` field renamed to a vendor id as part of this pass (deferred to
+ * whichever slice builds the real `VendorConnectionInput` union). The cutover that points routes/
+ * tools/UI at this table instead of the two above, and the migration that drops them, are later
+ * work — see the backfill script's own header for exactly what remains before that is safe.
+ *
+ * Column shape mirrors the two tables above almost exactly (same composite `(workspace_id, id)`
+ * primary key, same four `sealed*` columns, same write-path-owned `is_default` group invariant, same
+ * deliberately-unsealed `account_label`) with two differences:
+ *
+ * - `vendor_id` replaces `provider_id` — see this table's own header above for what changed and why.
+ * - `label` is UNIQUE per `(workspace_id, vendor_id)` same as before, but is now a REAL user-typed
+ *   name rather than a hardcoded literal: both predecessor tables' admin UIs wrote the same constant
+ *   string on every save (`PUBLISH_CREDENTIAL_ROW_LABEL`/`SOURCE_CONTROL_CREDENTIAL_ROW_LABEL`,
+ *   `apps/admin/src/features/source-control/rules.ts`) even though the column itself has always
+ *   supported a real one — the schema was ahead of the UI. The backfill script disambiguates any
+ *   label collision this causes (both predecessor rows for one workspace+vendor pair literally
+ *   named `"default"` is the expected common case, not an edge case) — see that script's own header.
+ *
+ * `token_tail` is new: the LAST FOUR CHARACTERS of the connection's primary secret
+ * (`connection.token` for every vendor except `s3-compatible`, whose bearer-token-shaped field is
+ * `secretAccessKey` instead — see `VendorConnectionInput`'s own doc once it exists), stored
+ * unencrypted beside `sealed*` for the same reason `accountLabel` documents on the tables above: a
+ * cheap, no-decrypt read the picker UI needs on every render (`"Github Access Token ••••MPWg"`), and
+ * four characters of a ~40-90 character token is not meaningful secret material on its own — the
+ * same judgment call `deployment_get_static_publish_capabilities`'s rewritten contract makes
+ * explicit (`../features/deployments/publish-agent-tools.ts`'s own header) for why an agent may see
+ * it too. Unlike `accountLabel`, `token_tail` is `NOT NULL`: it is always derivable at seal time from
+ * the very same plaintext being sealed, so there is no "not yet verified" state to model with NULL —
+ * see `sourceControlCredentialSets.accountLabel`'s own doc for how THAT column's NULL vs. populated
+ * split is a genuine two-state fact this one does not share.
+ */
+export const vendorCredentialSets = sqliteTable(
+  "vendor_credential_sets",
+  {
+    id: text("id").notNull(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    /** `"github" | "gitlab" | "bitbucket" | "vercel" | "netlify" | "cloudflare" | "s3-compatible"` —
+     *  see `../features/vendor-credentials/types.ts`'s `VendorId`. */
+    vendorId: text("vendor_id").notNull(),
+    /** Human-chosen label, unique per `(workspace_id, vendor_id)` — see this table's own doc for why
+     *  this is now genuinely user-typed rather than a hardcoded literal. */
+    label: text("label").notNull(),
+    /** `SealedSecret.keyId`. */
+    sealedKeyId: text("sealed_key_id").notNull(),
+    /** Base64 `AEAD ciphertext || 16-byte GCM auth tag` of the whole serialized connection object. */
+    sealedCiphertext: text("sealed_ciphertext").notNull(),
+    /** Base64 12-byte AES-GCM IV. */
+    sealedNonce: text("sealed_nonce").notNull(),
+    /** Always `'aes-256-gcm'` today; stored rather than hardcoded for the same future-algorithm
+     *  reason the two predecessor tables give. */
+    sealedAlg: text("sealed_alg").notNull(),
+    /** Last 4 characters of the connection's primary secret, plaintext — see this table's own doc
+     *  for the full reasoning and which field counts as "primary" per vendor. */
+    tokenTail: text("token_tail").notNull(),
+    /** At most one `TRUE` per `(workspace_id, vendor_id)`, maintained by the write path that owns
+     *  this table — same invariant, same "no DB-level CHECK" reasoning the two predecessor tables'
+     *  own `isDefault` columns document. */
+    isDefault: integer("is_default", { mode: "boolean" }).notNull().default(false),
+    /** The verified account's public login/username, held in the clear — same reasoning the two
+     *  predecessor tables' own `accountLabel` columns document. `NULL` until populated. */
+    accountLabel: text("account_label"),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.workspaceId, table.id] }),
+    uniqueIndex("vendor_credential_sets_workspace_vendor_label_unique").on(table.workspaceId, table.vendorId, table.label),
+  ]
+);
+
+/**
  * Per-workspace media-generation vendor credentials, one row per `(workspace_id, provider_id)` —
  * what the admin's Media → "Media providers" tab persists (`media/provider-credential-store.ts`).
  *
