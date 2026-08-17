@@ -276,6 +276,65 @@ test("resolveHtmlPageEmbeds: an unregistered/future embed type produces no entry
   assert.equal(resolved.size, 0);
 });
 
+// ---------------------------------------------------------------------------
+// Owner-reported log noise (2026-08-16 GitHub Pages export): `resolveHtmlPageEmbeds` logged
+// "unknown embed type, every occurrence degrades to the placeholder" ~17 times for a real, live
+// export that published successfully — https://leonaburime-ucla.github.io/tovu-demo/, `gh-pages`
+// commit `c0e52de2`. Curling the live output showed the opposite of what the log claimed: the
+// `menu`/`partial` markers it warned about were NOT placeholders — they carried real, resolved
+// `<a href="...">` links, because `features/theme/static-render.ts`'s `resolveSlots`/
+// `injectMenuEmbeds` (a LATER stage in `routes/site/pages.ts`'s `renderViaTemplate`) had already
+// filled them in correctly, exactly as `isPageEmbedType`'s own doc in `resolver-service.ts`
+// describes. These two tests pin that: a theme-structural type this stage never owned must not be
+// reported as if this stage failed to resolve it, while a REAL unregistered/typo type must still be
+// loud (see the "unregistered/future embed type" test above for that half, unchanged).
+// ---------------------------------------------------------------------------
+
+test('resolveHtmlPageEmbeds: "menu"/"partial" markers — theme-structural types resolved by a LATER stage (features/theme/static-render.ts), never by this registry — do not log the "unknown embed type" warning, even though HTML_EMBED_RESOLVERS has no entry for either', async () => {
+  const entryRepo = new InMemoryEntryRepo();
+  const warnings: unknown[][] = [];
+  const originalWarn = console.warn;
+  console.warn = (...args: unknown[]) => warnings.push(args);
+
+  try {
+    const resolved = await resolveHtmlPageEmbeds({
+      deps: { entryRepo },
+      input: {
+        workspaceId: WORKSPACE_ID,
+        html:
+          `<nav data-embed-config='{"type":"menu","id":"menu-header-nav"}'>fallback</nav>` +
+          `<div data-embed-config='{"type":"partial","id":"footer"}'></div>`,
+      },
+    });
+
+    assert.equal(resolved.size, 0, "still nothing to resolve at THIS stage — ownership is unchanged, only the log changes");
+    assert.deepEqual(warnings, [], 'no "unknown embed type" warning for a type this stage deliberately defers, not one it failed to resolve');
+  } finally {
+    console.warn = originalWarn;
+  }
+});
+
+test('resolveHtmlPageEmbeds: a genuinely unregistered/typo embed type still logs the "unknown embed type" warning — the menu/partial carve-out must not silence a real author mistake', async () => {
+  const entryRepo = new InMemoryEntryRepo();
+  const warnings: unknown[][] = [];
+  const originalWarn = console.warn;
+  console.warn = (...args: unknown[]) => warnings.push(args);
+
+  try {
+    const resolved = await resolveHtmlPageEmbeds({
+      deps: { entryRepo },
+      input: { workspaceId: WORKSPACE_ID, html: `<div data-embed-config='{"type":"widgt","id":"x1"}'></div>` },
+    });
+
+    assert.equal(resolved.size, 0);
+    assert.equal(warnings.length, 1, "an actual unknown type must still warn exactly once");
+    assert.equal(warnings[0]?.[0], "[widgets] resolveHtmlPageEmbeds: unknown embed type, every occurrence degrades to the placeholder");
+    assert.equal((warnings[0]?.[1] as { type: string }).type, "widgt");
+  } finally {
+    console.warn = originalWarn;
+  }
+});
+
 test('resolveHtmlPageEmbeds: a "widget" embed with no id key never throws and resolves nothing for that occurrence', async () => {
   const entryRepo = new InMemoryEntryRepo();
 
