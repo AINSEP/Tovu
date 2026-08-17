@@ -28,6 +28,7 @@ import {
   type ToolHandler,
   type ToolRegistration,
 } from "@jini-ai/cms/core";
+import { registerToolContributor } from "#src/assistant/index";
 import { formsAgentToolCatalog } from "./agent-tools";
 import { FormFieldValidationError } from "./errors";
 import type { FormDefinitionRepoPort, FormSubmissionRepoPort } from "./ports";
@@ -328,4 +329,18 @@ export function buildFormsRegistrations(routeDeps: FormsToolDeps): ToolRegistrat
     handlers,
     derivedRisk: formsDerivedRisk,
   });
+}
+
+/**
+ * Contributes Forms' AI tools to the assistant's catalog — called once by
+ * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
+ * module. `assistant/tool-registrations.ts` no longer imports `buildFormsRegistrations`/
+ * `formsDerivedRisk` by name; this is the seam that replaced it (2026-08-17, Stage 2 batch 2). Like
+ * `content-types`, this converts AFTER `widgets` (this batch's first conversion) specifically because
+ * `widgets/resolvers/{contact-form,create-core-resolvers}.ts` import `forms` internally — with
+ * `widgets` off the static `DOMAIN_SLICES` array first, `assistant -> widgets -> forms -> assistant`
+ * cannot close.
+ */
+export function contributeFormsTools(): void {
+  registerToolContributor({ domain: "forms", build: buildFormsRegistrations, risk: formsDerivedRisk });
 }

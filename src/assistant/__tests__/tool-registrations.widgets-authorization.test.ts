@@ -28,6 +28,16 @@ import { WidgetForbiddenError } from "../../widgets/errors";
 import { InMemoryWidgetRegionBindingRepo } from "../../widgets/repo.memory";
 import type { RouteDeps } from "../../server/routes/types";
 import { buildAssistantToolRegistrations } from "../tool-registrations";
+import { resetToolContributorsForTests } from "../tool-contribution-registry";
+import { contributeWidgetsTools } from "../../widgets/tool-registrations";
+
+// Widgets moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
+// tool-contribution registry (2026-08-17, Stage 2 batch 2 — see `tool-contribution-registry.ts`'s
+// header), so `buildAssistantToolRegistrations` below no longer wires it unless something explicitly
+// installs it first, mirroring what the real composition roots now do via
+// `installFirstPartyToolContributors()`.
+resetToolContributorsForTests();
+contributeWidgetsTools();
 
 const WORKSPACE_ID = "ws-widgets-auth";
 const PRINCIPAL_ID = "principal-under-test";
