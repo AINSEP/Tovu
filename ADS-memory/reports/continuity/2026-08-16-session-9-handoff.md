@@ -390,10 +390,18 @@ save, and 8 agents were saving constantly. Diagnosed live: the server process wa
 
 1. **Fix CI** (§3). Two separate problems: it does not run on the working branch, and it cannot
    resolve `@jini-ai/*`. Biggest un-started item. **IN FLIGHT at time of writing.**
-   **⛔ REQUIRES AN OWNER ACTION NOBODY ELSE CAN TAKE:** `AINSEP/Jini` is a **private repo in a
-   different org** from `leonaburime-ucla/Tovu-AI-CMS`. Actions' built-in `GITHUB_TOKEN` cannot clone
-   it. The owner must create a repo secret holding a PAT (or deploy key) with read access to
-   `AINSEP/Jini`. Until that exists, CI cannot typecheck at all.
+   **NO owner action is required — an earlier draft of this handoff said otherwise and was WRONG.**
+   The Coordinator misread `gh api repos/AINSEP/Jini --jq '.private'` (it returned `false`, i.e. NOT
+   private) and told both the owner and the implementing agent that a PAT secret was needed.
+   **`AINSEP/Jini` is PUBLIC.** Re-verified with no authentication at all:
+   `curl https://api.github.com/repos/AINSEP/Jini` → HTTP 200,
+   `curl .../Jini.git/info/refs?service=git-upload-pack` → HTTP 200, and
+   `git ls-remote` shows `general-work` at `31500c90`. So CI can `actions/checkout`
+   `repository: AINSEP/Jini` with **no token at all**, then
+   `pnpm install --frozen-lockfile && pnpm -r run build` inside it (Jini's packages resolve each
+   other through gitignored `dist/`, so a fresh checkout has nothing to import until it is built).
+   The 13 `file:../Jini/packages/*` specifiers must NOT be rewritten — make the sibling path resolve
+   instead, so the repo does not diverge from the owner's working local setup.
 2. **Wire `ensureAssistantDaemonStarted()` into `src/server/modules/assistant.ts`'s
    `forwardToAgentDaemon`.** The primitive is built, exported, single-flight and cooldown-gated
    (§2) — nothing calls it yet. This is the last step that makes "assistant is down" self-healing
