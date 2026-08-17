@@ -8,6 +8,7 @@ import {
   copyThemeFile,
   isGeneratedThemePath,
   isRecognizedThemeRoot,
+  isSourceDirGeneratedConflict,
   listThemeFiles,
   MAX_THEME_FILE_BYTES,
   readThemeFile,
@@ -234,6 +235,36 @@ test("a backslash-separated (Windows-shaped) relative path is normalized before 
 
 test("an ordinary theme file is NOT matched", () => {
   assert.equal(isGeneratedThemePath("pages/about.html"), false);
+});
+
+/**
+ * {@link isSourceDirGeneratedConflict} — the install-time sibling of {@link isGeneratedThemePath}
+ * (2026-08-17): `loadTheme`'s cross-field gate uses this to refuse a `build.sourceDir` that names,
+ * nests inside, or is an ancestor of a {@link GENERATED_THEME_DIRS} entry, before any write route is
+ * ever reached. See its own doc for why the three shapes below are the ones that matter.
+ */
+test("sourceDir naming a generated directory exactly is a conflict", () => {
+  assert.equal(isSourceDirGeneratedConflict("preview"), true);
+});
+
+test("sourceDir nested inside a generated directory is a conflict", () => {
+  assert.equal(isSourceDirGeneratedConflict("preview/src"), true);
+});
+
+test("sourceDir naming the theme root ('.') is a conflict — it would contain every generated directory", () => {
+  assert.equal(isSourceDirGeneratedConflict("."), true);
+});
+
+test("sourceDir merely PREFIXED with a generated dir's name is NOT a conflict", () => {
+  assert.equal(isSourceDirGeneratedConflict("preview-notes"), false);
+});
+
+test("an ordinary sourceDir unrelated to any generated directory is NOT a conflict", () => {
+  assert.equal(isSourceDirGeneratedConflict("src"), false);
+});
+
+test("a backslash-separated (Windows-shaped) sourceDir is normalized before matching", () => {
+  assert.equal(isSourceDirGeneratedConflict("preview\\src"), true);
 });
 
 /**

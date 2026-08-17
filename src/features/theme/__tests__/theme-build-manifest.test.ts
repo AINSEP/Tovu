@@ -160,6 +160,77 @@ test("build.source 'compiled' with no artifactHashes (absent, or an empty object
   }
 });
 
+/**
+ * The install-time half of the two-layer `preview/` defense (2026-08-17): a `build.sourceDir` naming,
+ * nesting inside, or containing a {@link GENERATED_THEME_DIRS} entry is refused at `loadTheme()`
+ * itself, not only at each write route's own `isGeneratedThemePath` call-site refusal (added
+ * 2026-08-13, see `theme-files.ts`'s doc). See `theme-files.test.ts` for direct unit coverage of the
+ * underlying `isSourceDirGeneratedConflict` predicate; these three cover the shapes that matter for
+ * `loadTheme`'s cross-field gate, plus one negative case proving a merely similarly-named sibling
+ * folder is untouched.
+ */
+test("build.source 'compiled' with sourceDir naming a generated directory exactly is invalid", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-build-manifest-"));
+  const dir = writeStaticTheme(root, "source-is-preview", {
+    build: { source: "compiled", sourceDir: "preview", artifactHashes: { "x.json": "a".repeat(64) } },
+  });
+  const theme = loadTheme({ themeDir: dir, id: "source-is-preview", source: "site" });
+
+  assert.equal(theme.status, "invalid");
+  assert.ok(
+    theme.errors.includes(
+      "theme.json build.sourceDir 'preview' must not name or contain a generated theme directory (preview)"
+    ),
+    `expected a sourceDir/generated-dir conflict error, got ${JSON.stringify(theme.errors)}`
+  );
+});
+
+test("build.source 'compiled' with sourceDir nested inside a generated directory is invalid", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-build-manifest-"));
+  const dir = writeStaticTheme(root, "source-inside-preview", {
+    build: { source: "compiled", sourceDir: "preview/src", artifactHashes: { "x.json": "a".repeat(64) } },
+  });
+  const theme = loadTheme({ themeDir: dir, id: "source-inside-preview", source: "site" });
+
+  assert.equal(theme.status, "invalid");
+  assert.ok(
+    theme.errors.includes(
+      "theme.json build.sourceDir 'preview/src' must not name or contain a generated theme directory (preview)"
+    ),
+    `expected a sourceDir/generated-dir conflict error, got ${JSON.stringify(theme.errors)}`
+  );
+});
+
+test("build.source 'compiled' with sourceDir naming the theme root ('.') is invalid — it would contain every generated directory", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-build-manifest-"));
+  const dir = writeStaticTheme(root, "source-is-root", {
+    build: { source: "compiled", sourceDir: ".", artifactHashes: { "x.json": "a".repeat(64) } },
+  });
+  const theme = loadTheme({ themeDir: dir, id: "source-is-root", source: "site" });
+
+  assert.equal(theme.status, "invalid");
+  assert.ok(
+    theme.errors.includes(
+      "theme.json build.sourceDir '.' must not name or contain a generated theme directory (preview)"
+    ),
+    `expected a sourceDir/generated-dir conflict error, got ${JSON.stringify(theme.errors)}`
+  );
+});
+
+test("build.source 'compiled' with sourceDir merely PREFIXED with a generated dir's name is NOT flagged", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-build-manifest-"));
+  const dir = writeStaticTheme(root, "source-is-preview-notes", {
+    build: { source: "compiled", sourceDir: "preview-notes", artifactHashes: { "x.json": "a".repeat(64) } },
+  });
+  const theme = loadTheme({ themeDir: dir, id: "source-is-preview-notes", source: "site" });
+
+  assert.equal(
+    theme.errors.some((e) => e.includes("must not name or contain a generated theme directory")),
+    false,
+    `'preview-notes' must not be treated as a conflict, got ${JSON.stringify(theme.errors)}`
+  );
+});
+
 test("a build.artifactHashes entry with a non-string value is dropped rather than crashing the parse", () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-build-manifest-"));
   const dir = writeStaticTheme(root, "mixed-hashes", {
