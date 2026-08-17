@@ -18,9 +18,24 @@
  *
  * Base ref resolution, in order: `ROUTE_COVERAGE_DIFF_BASE` env var, a positional CLI arg, else
  * `GITHUB_BASE_REF` (GitHub Actions sets this on `pull_request` events — a bare branch name like
- * "main", prefixed with `origin/` here since it isn't a ref by itself), else `origin/main`. Requires
- * a non-shallow checkout so the merge-base commit is actually present locally (ci.yml's checkout
- * step sets `fetch-depth: 0` for this reason).
+ * "main", prefixed with `origin/` here since it isn't a ref by itself), else `GITHUB_EVENT_BEFORE`
+ * (set from `github.event.before` on `push` events — the SHA the branch pointed at immediately
+ * before this push, already a full ref so used as-is), else `origin/main`.
+ *
+ * The `GITHUB_EVENT_BEFORE` tier exists because of a real gap found 2026-08-17: this gate was
+ * designed assuming it would only ever run meaningfully on `pull_request` events, with plain
+ * `push` (no `GITHUB_BASE_REF`) falling through to `origin/main` as a documented near-no-op — true
+ * only for a push TO `main` itself (base == HEAD's own history, nothing "changed"). Once the
+ * workflow trigger widened to `push: branches: ["**"]`, a push to any long-lived feature branch
+ * hit that same `origin/main` fallback instead, and a branch that diverged from `main` weeks ago
+ * makes "changed vs `origin/main`" mean "every route file touched since the branch was cut" —
+ * dozens of longstanding files, not this push's actual diff. `github.event.before` is the correct
+ * base for a push event: it diffs exactly the commits this push introduced, which is what a
+ * regression-catching gate on a feature branch should mean. Falls back to `origin/main` when
+ * `before` is the all-zeros SHA (a brand-new branch's first push has no prior commit to diff from).
+ *
+ * Requires a non-shallow checkout so the merge-base commit is actually present locally (ci.yml's
+ * checkout step sets `fetch-depth: 0` for this reason).
  *
  * Usage: npx tsx development/scripts/check-route-coverage-diff.ts [baseRef]
  * Exit codes: 0 = every changed measurable route file is >= 80% branch (or none changed).
@@ -32,12 +47,16 @@ import { REPO_ROOT, isMeasurableRouteFile, loadRouteCoverage, pct } from "./rout
 
 const BRANCH_THRESHOLD = 80;
 
-function resolveBaseRef(argv: string[]): string {
+export const ZERO_SHA = "0000000000000000000000000000000000000000";
+
+export function resolveBaseRef(argv: string[]): string {
   const positional = argv[2];
   if (positional) return positional;
   if (process.env.ROUTE_COVERAGE_DIFF_BASE) return process.env.ROUTE_COVERAGE_DIFF_BASE;
   const ghBase = process.env.GITHUB_BASE_REF;
   if (ghBase) return ghBase.includes("/") ? ghBase : `origin/${ghBase}`;
+  const eventBefore = process.env.GITHUB_EVENT_BEFORE;
+  if (eventBefore && eventBefore !== ZERO_SHA) return eventBefore;
   return "origin/main";
 }
 
@@ -95,4 +114,9 @@ function main(): void {
   console.log(`\ncheck:route-coverage-diff — OK`);
 }
 
-main();
+// Guarded (see check-src-complexity-drift.ts's own comment on this idiom): this file is also
+// imported as a plain module by its own unit test, which exercises resolveBaseRef directly
+// without running the real git/coverage scan or risking a bare process.exit from this module.
+if (require.main === module) {
+  main();
+}
