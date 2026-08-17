@@ -761,6 +761,33 @@ const HTML_EMBED_RESOLVERS: Readonly<Record<string, HtmlEmbedResolver>> = {
 };
 
 /**
+ * Marker types that exist in the shared `data-embed-config` vocabulary (`core/embeds/marker.ts`) but
+ * are deliberately absent from {@link HTML_EMBED_RESOLVERS} — a theme's own structural markers, owned
+ * end-to-end by `features/theme/static-render.ts`'s `resolveSlots` (`"partial"`) and
+ * `injectMenuEmbeds` (`"menu"`), which run AFTER this stage on every static-tier page render
+ * (`routes/site/pages.ts`'s `renderViaTemplate`: `resolveHtmlPageEmbeds` first, then
+ * `renderStaticPage`). `isPageEmbedType`'s own doc already tells `render.ts`'s `renderHtmlPageBody` to
+ * leave these two untouched rather than substitute a placeholder over the nav — that fixed the
+ * SUBSTITUTION half of "this stage sees markers it does not own" (2026-08-10). This constant fixes the
+ * matching LOGGING half, which that earlier fix did not touch.
+ *
+ * Without this, {@link resolveHtmlPageEmbeds}'s "unknown embed type" warning fired for `menu`/`partial`
+ * on every single static-tier render — confirmed live during the 2026-08-16 GitHub Pages export
+ * (`gh-pages` commit `c0e52de2`, https://leonaburime-ucla.github.io/tovu-demo/): the log claimed "every
+ * occurrence degrades to the placeholder," which was false — curling the published page showed real,
+ * resolved `<a href>` links in both the nav and footer, zero placeholder markup anywhere. The page was
+ * never broken; only the diagnostic was. Left uncorrected, that false alarm fires on every render and
+ * trains a reader to ignore this log line, burying the ONE case it exists to catch: an author's actual
+ * markup typo (`HTML_EMBED_RESOLVERS`'s own doc on why "unknown type" and "known type, dead id" must
+ * stay distinguishable applies equally to "known-and-owned-elsewhere" vs. "owned nowhere").
+ *
+ * A type in this set must stay absent from `HTML_EMBED_RESOLVERS` — do not "fix" the warning by adding
+ * a resolver entry instead; see `isPageEmbedType`'s own doc for why that would reintroduce the
+ * substitution bug this file already fixed once.
+ */
+const THEME_OWNED_MARKER_TYPES: ReadonlySet<string> = new Set(["partial", "menu"]);
+
+/**
  * Does the page-embed stage OWN this marker type — i.e. is a REQ-28 placeholder the honest answer
  * when it fails to resolve?
  *
@@ -803,7 +830,13 @@ export type ResolveHtmlPageEmbedsResult = ReadonlyMap<string, ReadonlyMap<string
  * type, unknown-type, or duplicate-beyond-{@link MAX_HTML_EMBEDS_PER_PAGE} reference degrades to the
  * REQ-28 placeholder exactly the way every other widget-resolution failure already does — the caller
  * (`render.ts`'s `renderHtmlPageBody`) never special-cases "this ref failed to resolve" versus "this
- * ref does not exist" versus "this ref was never attempted".
+ * ref does not exist" versus "this ref was never attempted" — **for a type this stage owns**
+ * ({@link HTML_EMBED_RESOLVERS}). A type it deliberately does not own ({@link THEME_OWNED_MARKER_TYPES})
+ * is absent from the returned map for a different reason and reaches a different outcome downstream:
+ * `renderHtmlPageBody`'s `isPageEmbedType` check leaves that marker untouched for `static-render.ts`'s
+ * later pass to resolve, not a placeholder. Do not read "absent from this map" as "renders as a
+ * placeholder" — that conflation is exactly what made this stage's own logging misleading (see
+ * `THEME_OWNED_MARKER_TYPES`'s doc for the live incident this caused).
  *
  * @complexity O(e) over the page's embed-reference count (capped at `MAX_HTML_EMBEDS_PER_PAGE`) for
  * the scan plus grouping, plus each registered type present incurring its own resolver's cost (the
@@ -831,11 +864,16 @@ export async function resolveHtmlPageEmbeds(required: {
   for (const [type, typeRefs] of refsByType) {
     const resolver = HTML_EMBED_RESOLVERS[type];
     if (!resolver) {
-      console.warn("[widgets] resolveHtmlPageEmbeds: unknown embed type, every occurrence degrades to the placeholder", {
-        type,
-        workspaceId: input.workspaceId,
-        occurrences: typeRefs.length,
-      });
+      // A theme-structural type (`menu`/`partial`) is not a failure at THIS stage — it is deferred,
+      // by design, to `static-render.ts`'s later pass (see `THEME_OWNED_MARKER_TYPES`'s own doc). Only
+      // a type genuinely unowned anywhere is worth the loud warning.
+      if (!THEME_OWNED_MARKER_TYPES.has(type)) {
+        console.warn("[widgets] resolveHtmlPageEmbeds: unknown embed type, every occurrence degrades to the placeholder", {
+          type,
+          workspaceId: input.workspaceId,
+          occurrences: typeRefs.length,
+        });
+      }
       continue;
     }
     result.set(type, await resolver(typeRefs, deps, context));
