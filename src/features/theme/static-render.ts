@@ -1,4 +1,11 @@
-import { markersOfType, substituteMarkers, withAddedId, withInnerContent } from "#src/core/embeds/marker";
+import {
+  markersOfType,
+  MENU_MARKER_TYPE,
+  PARTIAL_MARKER_TYPE,
+  substituteMarkers,
+  withAddedId,
+  withInnerContent,
+} from "#src/core/embeds/marker";
 import { findUnrewrittenAssetPaths, rewriteAssetPaths, TOKEN_STYLESHEET_SENTINEL } from "./static-asset-contract";
 import { DEFAULT_THEME_SLOTS, type DiscoveredTheme, type ThemeSlotDescriptor, type ThemeTokens } from "./theme";
 
@@ -251,7 +258,7 @@ function injectMenuEmbeds(
   menus: Readonly<Record<string, readonly StaticMenuItem[]>>
 ): string {
   return substituteMarkers(html, (marker) => {
-    if (marker.type !== "menu" || marker.id === undefined) return undefined;
+    if (marker.type !== MENU_MARKER_TYPE || marker.id === undefined) return undefined;
     const items = menus[marker.id];
     if (items === undefined) return undefined;
     const inner = marker.config.variant === "tree" ? renderMenuTree(items) : renderMenuLinks(items);
@@ -273,7 +280,7 @@ function injectMenuEmbeds(
 export function scanMenuEmbedIds(theme: DiscoveredTheme): readonly string[] {
   const ids = new Set<string>();
   for (const html of [...Object.values(theme.pages), ...Object.values(theme.partials)]) {
-    for (const marker of markersOfType(html, "menu")) {
+    for (const marker of markersOfType(html, MENU_MARKER_TYPE)) {
       if (marker.id !== undefined) ids.add(marker.id);
     }
   }
@@ -339,7 +346,7 @@ function resolveSlots(
   slots: Readonly<Record<string, ThemeSlotDescriptor>> = DEFAULT_THEME_SLOTS
 ): string {
   return substituteMarkers(html, (marker) => {
-    if (marker.type !== "partial" || marker.id === undefined) return undefined;
+    if (marker.type !== PARTIAL_MARKER_TYPE || marker.id === undefined) return undefined;
     const descriptor = slots[marker.id];
     if (descriptor === undefined) return undefined;
     return resolveSlotMarker(descriptor, partials, marker.config);

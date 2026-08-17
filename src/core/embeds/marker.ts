@@ -168,6 +168,30 @@ export function markersOfType(html: string, type: string): readonly EmbedMarker[
 }
 
 /**
+ * The two marker `type` values this module parses but never itself resolves — owned end-to-end by
+ * `features/theme/static-render.ts` (`injectMenuEmbeds` for {@link MENU_MARKER_TYPE}, `resolveSlots`
+ * for {@link PARTIAL_MARKER_TYPE}), which run AFTER `widgets/resolver-service.ts`'s page-embed stage
+ * on every static-tier page render.
+ *
+ * Hoisted here (2026-08-17) so that ownership fact has exactly one spelling. Before this, it existed
+ * only as inline string-literal comparisons inside `static-render.ts` itself
+ * (`marker.type !== "menu"`, `marker.type !== "partial"`), and `resolver-service.ts`'s own
+ * `THEME_OWNED_MARKER_TYPES` carried an independently-typed copy of the same two strings as a
+ * documented stopgap pending this exact hoist (`ADS-memory/reports/
+ * 2026-08-16-embed-placeholder-gap.md`, "Reuse decision") — two spellings of one fact is exactly the
+ * kind of drift risk this module exists to close for marker *parsing*; these two constants close it
+ * for marker *type naming* the same way.
+ *
+ * Deliberately NOT the same question `isPageEmbedType()` (`widgets/resolver-service.ts`) answers —
+ * that function tests registry membership (`Object.hasOwn(HTML_EMBED_RESOLVERS, type)`), which is
+ * `false` for these two AND for a genuine unregistered/typo type alike. These constants name the
+ * "owned elsewhere, not a typo" fact directly instead; see `isPageEmbedType`'s own doc for why
+ * conflating the two would silence a real warning.
+ */
+export const MENU_MARKER_TYPE = "menu";
+export const PARTIAL_MARKER_TYPE = "partial";
+
+/**
  * Rebuild a marker's element around new inner content, keeping its own tag and every authored
  * attribute (`class`, `aria-label`, …). The counterpart to a wholesale replace: a menu marker keeps
  * its `<nav class="docs-nav">` wrapper and only swaps what's inside, whereas a partial slot marker
