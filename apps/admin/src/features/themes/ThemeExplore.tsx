@@ -136,11 +136,15 @@ function isLiquidTemplateFile(file: ThemeExploreFile): boolean {
  *   given template id is actually renderable — an id it doesn't recognize (a custom-named template a
  *   third-party theme ships) degrades to that route's own honest plain-text refusal inside the
  *   iframe rather than this function trying to duplicate the route/template-id mapping client-side.
- * - an **asset** (image, font) is served raw from `/theme-assets/`, the same URL a visitor's browser
- *   would fetch it from — so what the operator sees IS the file, not a re-encoding of it
- *
- * CSS/JS/JSON get `null`: there is nothing to render standalone. Editing those and switching to
- * Preview shows the page that consumes them instead, which is the honest thing to show.
+ * - everything else — an asset (image, font), and now also CSS/JS/JSON/`other`-group files whether
+ *   or not they're `readable` — is served raw from `/theme-assets/`, the same URL a visitor's browser
+ *   would fetch it from. That route (`theme-static-assets.ts`) serves a theme's ENTIRE folder generically
+ *   via `express.static`, with the correct `Content-Type` per extension — it was never scoped to
+ *   binary/asset-group files only. So the browser's own native viewer does the rendering for free: CSS/JS
+ *   show as syntax-colored plain text, JSON gets Chrome's built-in collapsible tree viewer, images/fonts
+ *   render as themselves. 2026-08-17 owner ask (verbatim): "Can we get preview to just render everything,
+ *   in a simple manner. If it's an image, it renders that. If it's a JavaScript, it just renders like
+ *   HTML. If it's JSON same." — every file type should show SOMETHING in Preview, not just images.
  */
 function previewSrcFor(
   themeId: string,
@@ -157,13 +161,7 @@ function previewSrcFor(
     const templateId = file.label.replace(/\.liquid$/i, "");
     return siteUrl(`/theme-explore/${theme}/template/${encodeURIComponent(templateId)}?v=${previewNonce}`);
   }
-  // Any non-readable file (not just `asset`-group ones — an unrecognized binary extension can land
-  // in the `other` catch-all too) gets served raw rather than shown as nothing: what the operator
-  // sees IS the file, not a re-encoding of it.
-  if (!file.readable) {
-    return siteUrl(`/theme-assets/${theme}/${file.path.split("/").map(encodeURIComponent).join("/")}?v=${previewNonce}`);
-  }
-  return null;
+  return siteUrl(`/theme-assets/${theme}/${file.path.split("/").map(encodeURIComponent).join("/")}?v=${previewNonce}`);
 }
 
 /** Why the HTML tab shows a read-only viewer instead of a textarea, for a file that IS readable but
@@ -176,14 +174,13 @@ function readOnlyReason(file: ThemeExploreFile): string {
 }
 
 /**
- * The Preview tab's "nothing to show" message for the currently selected file.
+ * The Preview tab's "nothing to show" message when no file is selected.
  *
- * Used to special-case `.liquid` templates with an honest "not built yet" message — Explore now HAS
- * a templated-tier render pipeline (`previewSrcFor`'s own doc; `theme-page-preview.ts`'s
- * `/theme-explore/{theme}/template/{id}` route), so `previewSrcFor` builds a real preview URL for
- * every `.liquid` file and this function is never reached for one. Every remaining
- * `previewSrc === null` case (CSS/JS/JSON, an ordinary `other`-group file like `NOTICE.md`) keeps this
- * one generic message — there is genuinely nothing narrower to say for those.
+ * 2026-08-17: `previewSrcFor` now returns a real URL for every file kind (page/partial/template
+ * through their own routes, everything else — CSS/JS/JSON/`other`/assets, readable or not — via the
+ * raw `/theme-assets/` URL), so `previewSrc === null` only happens for the `!file` case: nothing
+ * selected yet. This message is purely the empty-selection state now, not a "nothing to render for
+ * this file type" state.
  *
  * @complexity O(1).
  */

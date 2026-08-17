@@ -542,6 +542,19 @@ button:focus-visible, a:focus-visible { outline: 2px solid var(--accent-text); o
   padding-right: var(--space-2);
   overscroll-behavior: contain;
 }
+/* Below 720px the sidebar and main pane drop into separate grid ROWS (single column, per
+   `.theme-explore`'s own media query above), so the stretch trick the base rules just above rely on
+   (matching `.theme-explore-main`'s height via `align-items: stretch` in a shared row) has no sibling
+   left to borrow height from — the wrap's own row auto-height is 0 (still no in-flow content),
+   collapsing the absolutely-positioned `<nav>` inside it to 0px too, i.e. an invisible sidebar. Back
+   to normal flow with an explicit cap instead. Placed AFTER the base rules on purpose, not just inside
+   a media query next to them: equal-specificity class selectors resolve ties by source order
+   regardless of which one's media condition is true, so an override earlier in the file loses to an
+   unconditional rule later in the file even while its own `@media` matches. */
+@media (max-width: 720px) {
+  .theme-explore-files-wrap { position: static; }
+  .theme-explore-files { position: static; inset: auto; max-height: 240px; }
+}
 .theme-explore-files ul { list-style: none; margin: 0 0 var(--space-4); padding: 0; }
 /* Group headings stay visible while their own group scrolls past — with six groups and 60 entries,
    a name alone does not say whether you are looking at a script or an asset. */
