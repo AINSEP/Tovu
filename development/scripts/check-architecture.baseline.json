@@ -1,10 +1,10 @@
 {
   "meta": {
-    "fileCount": 934,
+    "fileCount": 848,
     "moduleCount": 48
   },
-  "propagationCostPct": 8.95,
-  "propagationCostRuntimePct": 1.95,
+  "propagationCostPct": 11.29,
+  "propagationCostRuntimePct": 2.21,
   "backEdgesIntoServer": 11,
   "backEdgesIntoServerRuntimeOnly": 0,
   "moduleCycles": {
@@ -13,10 +13,10 @@
     "pairs": []
   },
   "moduleApiSurfaceFiles": 213,
-  "deepImportsBypassingIndex": 557,
+  "deepImportsBypassingIndex": 568,
   "coreSize": {
-    "count": 152,
-    "total": 934,
-    "pct": 16.27
+    "count": 145,
+    "total": 848,
+    "pct": 17.1
   }
 }
