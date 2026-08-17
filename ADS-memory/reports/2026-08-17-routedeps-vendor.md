@@ -231,15 +231,74 @@ all ~10 importers in one pass so nothing is left half-migrated.
 
 ---
 
+## Addendum — post-dispatch follow-ups from team-lead, all done
+
+Three more items landed after the original two tasks above, all requested mid-session:
+
+### 1. Architecture regression fixed properly (not just reported) — `a751ed04`
+
+Team-lead asked for the cycle itself to be fixed, not accept-and-tracked, since a new
+*runtime* module cycle is the exact defect class that already killed the agent daemon once
+in this repo (`server/app.ts:641`, a mutual dynamic require). Fixed via injection:
+`publish-agent-tools.ts` now imports NOTHING (type or value) from `features/vendor-
+credentials` — it declares a local `VendorCredentialPort` structural interface (same
+narrowing discipline this file already documents for `RouteDeps`, extended to a
+cross-feature edge) and reads the real implementation off a new optional
+`StaticPublishToolDeps.vendorCredentials` field. `assistant/tool-registrations.ts`'s
+`buildAssistantToolRegistrations` — the one file already documented as needing to see every
+domain at once — is the one place that imports the real `createVendorCredential`/
+`listVendorCredentials`/`updateVendorCredential`/`PUBLISH_PROVIDER_TO_VENDOR` and injects
+them. Unset in production is a wiring bug (throws a named error), never a silent
+legacy-only degrade — matches `commit-site.ts`'s existing "no adapter configured"
+precedent.
+
+Verified `features/deployments <-> features/vendor-credentials` is gone from
+`check:architecture`'s cycle list. The remaining propagation-cost drift (all-import
+10.5→10.51, runtime-only 2.25→2.28-2.31) is **not attributable to this work at all** —
+proven by checking an isolated worktree at `88e061c3` (the true parent of my first Task B
+commit, before any vendor-credentials wiring touched the tree) and finding the identical
+regression already present there. Reported to team-lead/`arch-scc-cuts` rather than
+baselined.
+
+Had to also fix 2 other test files that construct `StaticPublishToolDeps` directly
+(bypassing the assistant-level wiring) with the same injected-port fixture:
+`publish-agent-tools.unit.test.ts` (mine) and
+`src/assistant/__tests__/mcp-ui-tool-calls-route.static-publish.integration.test.ts` (not
+formally in my ownership list, but it broke without the fix and the fix is a narrow,
+obviously-correct test-fixture addition). 87 combined tests green.
+
+### 2. Syntax fix — `6dc742a4`
+
+`static-publish/__tests__/adapter.unit.test.ts:208` had an invalid `for (const config:
+StaticPublishConfig of [...])` type annotation on a for-of binding. Confirmed low-priority
+per team-lead's own correction: `tsconfig.json` excludes test files, so `tsc` never saw it,
+and `tsx`/esbuild strips the annotation without validating (all 15 tests passed
+regardless) — an ESLint-only latent finding, not a live break. Dropped the annotation.
+
+### 3. GitHub repo-list probe — `64949d75`
+
+New `listGitHubReposByCredentialId` in `static-publish/verify.ts`, backing
+`source-control-ui`'s owner/repo picker via `route-quality`'s admin route adapter. Built to
+the exact contract `route-quality` specified: same resolve-then-probe shape
+`verifyPublishCredentialById` already uses in this file, deliberately not reusing that
+function (a repo listing must never have a side effect on the verification cache).
+`truncated` checks GitHub's `Link: rel="next"` header first, falls back to "page came back
+exactly full" only when absent — deliberately biased toward over-reporting truncation
+rather than under-reporting it, since a silently-truncated picker is the same class of
+defect as the invented-account-name bug this whole picker workstream exists to prevent.
+9 new tests, proven RED first, 21/21 green in the file.
+
 ## For the next reader
 
 - Task B's two cutover points are complete, tested, and committed (`7dc7cae9`).
-- The architecture regression from Task B is real, small, expected, and reported to the
-  agent who owns the gate — not silently absorbed, not fixed by me editing a file I don't
-  own.
+- The architecture regression from Task B was real and small; the cycle half is now FIXED
+  (`a751ed04`), not merely reported — see the addendum above. The propagation-cost half was
+  proven, with an isolated worktree, to predate this work entirely.
 - Task A produced a negative result on purpose: both proposed moves were investigated
   rigorously (including independently re-deriving the TypeScript variance argument rather
   than trusting the existing comment) and found to be either already done or not safely
   executable within this dispatch's ownership boundary. Nothing was left half-finished —
   the RouteDeps piece has no further safe move, and the surface-exchange piece has a
   concrete, sequenced follow-up plan for whoever picks it up next.
+- Three follow-up requests from team-lead (architecture fix, syntax fix, repo-list probe)
+  are all done — see the addendum above for each.
