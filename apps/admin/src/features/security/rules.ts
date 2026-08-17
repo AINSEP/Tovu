@@ -15,6 +15,7 @@ import {
   SOURCE_CONTROL_PROVIDERS,
   buildSourceControlConnectionInput,
 } from "../source-control/rules";
+import { MEDIA_PROVIDER_CATALOG } from "../media/media-provider-catalog";
 
 /**
  * @file Pure data and computation for the Security page's Access Tokens tab — no React, no fetch,
@@ -44,10 +45,59 @@ import {
  * {@link AccessTokenRow} below carries an explicit `kind` precisely so a caller can never merge the
  * two into one row — {@link ACCESS_TOKEN_PROVIDERS} lists both as separate entries even though they
  * share the "GitHub" proper noun.
+ *
+ * ## One list, all eight stores — the 2026-08-16 owner ruling
+ *
+ * The page used to split into a 7-provider "Tier 1" list plus a banner naming six more stores it
+ * didn't read yet. The owner, shown that shape next to a single filtered list, chose the list: "from
+ * a person's point of view a Cloudinary key and a GitHub token are the same kind of thing — a secret
+ * this install holds." {@link ACCESS_TOKEN_CATEGORIES} is the filter that replaces the tier split —
+ * every provider AND every {@link OtherCredentialStoreInfo} carries a `category`, and `AccessTokensTab.tsx`
+ * renders both kinds of row through the same list, filtered by the same search box and the same
+ * category row. The Tier 1 / Tier 2 vocabulary survives only as a CAPABILITY difference now (Tier 1
+ * gets `[+ Add]` and multiple named rows; Tier 2 gets `[Replace]`/`[Remove]` and a deep link, never a
+ * second Create), not as two separate surfaces — see `OTHER_CREDENTIAL_STORES`'s own doc below.
  */
 
 /** Which of the two credential stores a row belongs to. */
 export type AccessTokenKind = "publish" | "source-control";
+
+/** The category filter row's own ids — `"all"` plus one bucket per real category. Every provider
+ *  and every {@link OtherCredentialStoreInfo} lands in exactly one of the non-`"all"` ids (the owner's
+ *  own requirement, 2026-08-16 ruling). */
+export type AccessTokenCategoryId = "all" | "source-control" | "hosting" | "media" | "ai" | "ops";
+
+/** The category actually stored on a row — never `"all"`, which exists only as the filter's own
+ *  "show everything" option and would be meaningless as a row's own classification. */
+export type AccessTokenRowCategoryId = Exclude<AccessTokenCategoryId, "all">;
+
+export interface AccessTokenCategoryInfo {
+  readonly id: AccessTokenCategoryId;
+  readonly label: string;
+}
+
+/**
+ * The filter row's fixed order — `All` first and default (owner's own list, 2026-08-16 ruling:
+ * "All / Source control / Hosting / Media / AI / Ops"). Split from the seven Tier 1 providers'
+ * `purposeLabel` ("Publishing"/"Source Control"), which is a per-provider DISAMBIGUATOR shown next to
+ * a name, not a filter bucket — `github-pages` and `vercel` share the `"hosting"` category here even
+ * though only `github-pages` needed a purpose subtitle to tell it apart from source-control's own
+ * `github`.
+ */
+export const ACCESS_TOKEN_CATEGORIES: readonly AccessTokenCategoryInfo[] = [
+  { id: "all", label: "All" },
+  { id: "source-control", label: "Source control" },
+  { id: "hosting", label: "Hosting" },
+  { id: "media", label: "Media" },
+  { id: "ai", label: "AI" },
+  { id: "ops", label: "Ops" },
+] as const;
+
+/** Whether `rowCategory` should show under the active category filter — `"all"` matches everything,
+ *  every other id matches only its own bucket. @complexity O(1). */
+export function accessTokenCategoryMatches(rowCategory: AccessTokenRowCategoryId, activeCategory: AccessTokenCategoryId): boolean {
+  return activeCategory === "all" || rowCategory === activeCategory;
+}
 
 /** A provider extra field this page's form can show, beyond the universal Name + Access token —
  *  the union of both stores' own extra-field vocab (`deployment/rules.ts`'s
@@ -83,6 +133,12 @@ export interface AccessTokenProviderInfo {
    *  workspace happens to have connected — a static fact per provider is simpler to reason about
    *  than one that depends on the rest of the list. */
   readonly purposeLabel: string;
+  /** The category-filter bucket this provider lands in — see {@link ACCESS_TOKEN_CATEGORIES}. All
+   *  four publish providers are `"hosting"` (they publish a static export TO a host); all three
+   *  source-control providers are `"source-control"` (they read/write a repository, never a
+   *  deploy target) — the same axis {@link AccessTokenProviderInfo.purposeLabel} already names in
+   *  prose for the one provider pair that needs disambiguating (github-pages vs github). */
+  readonly category: AccessTokenRowCategoryId;
   readonly tokenPageUrl: string;
   readonly scopeGuidanceKey: string;
   readonly requiredFields: readonly AccessTokenExtraFieldKey[];
@@ -109,6 +165,7 @@ export const ACCESS_TOKEN_PROVIDERS: readonly AccessTokenProviderInfo[] = [
       providerId: provider.id,
       label: provider.label,
       purposeLabel: "Publishing",
+      category: "hosting",
       tokenPageUrl: provider.tokenPageUrl,
       scopeGuidanceKey: provider.scopeGuidanceKey,
       requiredFields: provider.requiredFields,
@@ -120,6 +177,7 @@ export const ACCESS_TOKEN_PROVIDERS: readonly AccessTokenProviderInfo[] = [
       providerId: provider.id,
       label: provider.label,
       purposeLabel: "Source Control",
+      category: "source-control",
       tokenPageUrl: provider.tokenPageUrl,
       scopeGuidanceKey: provider.scopeGuidanceKey,
       requiredFields: provider.requiredFields,
@@ -167,10 +225,10 @@ export interface RawCredentialSummary {
 }
 
 /** One saved token as this page renders it — `name` is always display-ready (the real saved label,
- *  or a computed {@link friendlyLegacyName} for a legacy sentinel-labeled row); `rawLabel` is kept
- *  alongside it so {@link planLegacyLabelMigrations} can tell which rows still need the one-time
- *  rename write, and so a genuine uniqueness check can compare against what the server actually has
- *  stored rather than only against display names. */
+ *  or a computed {@link friendlyLegacyName} for a legacy sentinel-labeled row, resolved fresh on
+ *  every render — see `AccessTokensTab.tsx`'s header for why this replaced a write-on-load rename);
+ *  `rawLabel` is kept alongside it so a genuine uniqueness check can compare against what the server
+ *  actually has stored rather than only against display names. */
 export interface AccessTokenRow {
   readonly kind: AccessTokenKind;
   readonly providerId: string;
@@ -203,22 +261,6 @@ export function buildAccessTokenRows(kind: AccessTokenKind, raws: readonly RawCr
     }
     return { kind, providerId: raw.providerId, id: raw.id, name, rawLabel: raw.label, isDefault: raw.isDefault, createdAt: raw.createdAt, updatedAt: raw.updatedAt };
   });
-}
-
-/** One row's planned one-time rename — {@link buildAccessTokenRows} already computed the target
- *  display name; this just says which rows still have the OLD sentinel label sitting in the
- *  database and therefore need a real `PUT .../:id` (label-only) to catch up. Nothing reads
- *  `rawLabel` as a key anywhere in either store (`Static Site`/`Source Control` find their row via
- *  `isDefault`, never by label text — see `deployment/hooks/use-publish-credentials.hooks.ts`'s own
- *  header), so this rename changes only what a human reads, never what either feature page does.
- *  @complexity O(n) in the row list's own (small) size. */
-export interface LegacyLabelMigration {
-  readonly kind: AccessTokenKind;
-  readonly id: string;
-  readonly newLabel: string;
-}
-export function planLegacyLabelMigrations(rows: readonly AccessTokenRow[]): LegacyLabelMigration[] {
-  return rows.filter((row) => row.rawLabel === legacySentinelLabel(row.kind)).map((row) => ({ kind: row.kind, id: row.id, newLabel: row.name }));
 }
 
 /** Whether `row` should show under an active search `query` — matches the provider's brand label
@@ -383,28 +425,169 @@ export function classifyAccessTokenSubmitError(e: unknown): AccessTokenSubmitFai
   return { kind: "generic" };
 }
 
-/** One Tier-2 credential store this page does not yet read from — the partial-inventory disclosure's
- *  own data (`development/todos.md:1208`'s "confront or say on screen it's partial" requirement).
- *  `screenLabel` is the deep link text; `screenPath` is left undefined for stores with more than one
- *  owning screen (Composio's two stores both point at Settings → Connectors, so this is informational
- *  copy rather than a single href). @complexity n/a — static data. */
+/** A stable id for one of the six Tier-2 credential stores — `AccessTokenRow.id`'s counterpart for
+ *  the stores this page reads through a completely different set of endpoints (see
+ *  `hooks/other-credentials-port.hooks.ts`). Not a union of the underlying table names on purpose:
+ *  `composio-connector`/`composio-project` are two different reads of the SAME `composio_config`/
+ *  `composio_connector_credentials` pair (`ADS-memory/reports/design/2026-08-16-access-tokens-visual-
+ *  spec.md` §1's eight-row table), and this id names the ROW this page renders, not the table. */
+export type OtherCredentialStoreId = "site-assistant" | "admin-byok" | "media-provider" | "composio-project" | "composio-connector" | "external-mcp";
+
+/**
+ * One Tier-2 credential store — single connection per scope, or per-connector/per-server, but never
+ * *named* the way Tier 1 is (no operator-typed label, so no Name field and no `[+ Add]` — see
+ * `Security.tsx`'s own header for why Create stays on each store's OWN screen). Read + Replace +
+ * Remove + a deep link is the 2026-08-16 owner ruling for every row this produces
+ * (`ACCESS-TOKENS-VISUAL-SPEC.md`'s "OWNER RULING" section) — `supportsReplace` narrows that for the
+ * two stores where "replace" has no honest single-field meaning:
+ *
+ * - `composio-connector`: an OAuth-connected account, not a typed-in secret — there is no field to
+ *   retype. "Replace" for this row is "reconnect," which only the Connectors screen's own OAuth popup
+ *   can do; the deep link covers it, Remove (`disconnectConnector`) still applies here directly.
+ * - `external-mcp`: a multi-field server config (transport, command, args, allowed tools), not a
+ *   single token — a real "Replace" would have to reproduce that whole form, which is exactly the
+ *   second-entry-point risk the session-6 handoff warns against for a cross-cutting page. Remove
+ *   (`deleteExternalMcpServer`) still applies; editing the rest stays on Settings → External MCP.
+ *
+ * The other four (`site-assistant`, `admin-byok`, `media-provider`, `composio-project`) are all a
+ * single `apiKey` field end to end — `supportsReplace: true`, wired through the same
+ * retype-and-save shape Tier 1's own Replace already uses.
+ */
 export interface OtherCredentialStoreInfo {
+  readonly id: OtherCredentialStoreId;
+  /** The store's own generic label — shown as a row's heading only when the store has nothing
+   *  configured yet (a "— none —" placeholder needs SOME name to search on); a configured row is
+   *  headed by its OWN item name instead (a media provider's catalog label, a connector's own name,
+   *  an MCP server's own label) — see `use-other-credentials.hooks.ts` for where that split happens. */
   readonly label: string;
+  /** The category-filter bucket this store's rows land in — see {@link ACCESS_TOKEN_CATEGORIES}. */
+  readonly category: AccessTokenRowCategoryId;
+  /** Shown next to a row's name the same way Tier 1's `purposeLabel` is (`" · {purposeLabel}"`) — the
+   *  human-readable form of {@link category}, e.g. "Media", "AI", "Ops". */
+  readonly purposeLabel: string;
+  readonly supportsReplace: boolean;
+  /** Deep-link text, e.g. "Manage on AI Assistant". */
   readonly screenLabel: string;
+  /** In-app route for the deep link (`lib/router.ts`'s route-path shape, e.g. `/ai-assistant`) —
+   *  always this store's OWN screen, since Create/the full field set lives there and nowhere else. */
+  readonly screenPath: string;
 }
 
-/** The six single-row/single-purpose credential stores NOT covered by this page's Tier 1
- *  (multi-named-token) view — `development/todos.md:1208`'s eight-store inventory minus the two this
- *  page reads (`publish_credential_sets`, `source_control_credential_sets`). Read + Replace + Remove
- *  for these is a deliberately deferred follow-up (each already has its own real Create flow and
- *  gains nothing from a second one — see this page's own `Security.tsx` header) — until that follow-up
- *  ships, {@link ACCESS_TOKEN_PROVIDERS} plus this list is what makes the page's own "showing N of 8"
- *  disclosure a fact instead of a guess. */
+/**
+ * The six Tier-2 stores, in the order this page renders them within each category —
+ * `development/todos.md:1208`'s eight-store inventory minus the two Tier 1 already covers
+ * (`publish_credential_sets`, `source_control_credential_sets`). All eight are read in v1 (the
+ * 2026-08-16 owner ruling deleted the old "showing 7 of 8" partial-inventory disclosure along with
+ * the two-surface layout it was disclosing a gap in — see `AccessTokensTab.tsx`'s header).
+ */
 export const OTHER_CREDENTIAL_STORES: readonly OtherCredentialStoreInfo[] = [
-  { label: "Site assistant model key", screenLabel: "Settings → AI" },
-  { label: "Admin AI Assistant key (BYOK)", screenLabel: "AI Assistant dock" },
-  { label: "Media provider keys", screenLabel: "Media → Media providers" },
-  { label: "Composio project key", screenLabel: "Settings → Connectors" },
-  { label: "Composio connector accounts", screenLabel: "Settings → Connectors" },
-  { label: "External MCP servers", screenLabel: "Settings → External MCP" },
-];
+  {
+    id: "site-assistant",
+    label: "Site assistant model key",
+    category: "ai",
+    purposeLabel: "AI",
+    supportsReplace: true,
+    screenLabel: "AI Assistant",
+    screenPath: "/ai-assistant",
+  },
+  {
+    id: "admin-byok",
+    label: "Admin AI Assistant key (BYOK)",
+    category: "ai",
+    purposeLabel: "AI",
+    supportsReplace: true,
+    screenLabel: "Settings · Execution mode",
+    screenPath: "/settings?tab=execution",
+  },
+  {
+    id: "media-provider",
+    label: "Media provider keys",
+    category: "media",
+    purposeLabel: "Media",
+    supportsReplace: true,
+    screenLabel: "Media · Providers",
+    screenPath: "/media",
+  },
+  {
+    id: "composio-project",
+    label: "Composio project key",
+    category: "ops",
+    purposeLabel: "Ops",
+    supportsReplace: true,
+    screenLabel: "Settings · Connectors",
+    screenPath: "/settings?tab=connectors",
+  },
+  {
+    id: "composio-connector",
+    label: "Composio connector accounts",
+    category: "ops",
+    purposeLabel: "Ops",
+    supportsReplace: false,
+    screenLabel: "Settings · Connectors",
+    screenPath: "/settings?tab=connectors",
+  },
+  {
+    id: "external-mcp",
+    label: "External MCP servers",
+    category: "ai",
+    purposeLabel: "AI",
+    supportsReplace: false,
+    screenLabel: "Settings · External MCP",
+    screenPath: "/settings?tab=external-mcp",
+  },
+] as const;
+
+/** Looks up one store's registry entry, falling back to the first — same "the row list can never
+ *  render something absent from its own table" guarantee {@link accessTokenProviderInfo} gives Tier 1.
+ *  @complexity O(1) — the array has exactly six entries. */
+export function otherCredentialStoreInfo(id: OtherCredentialStoreId): OtherCredentialStoreInfo {
+  return OTHER_CREDENTIAL_STORES.find((store) => store.id === id) ?? OTHER_CREDENTIAL_STORES[0]!;
+}
+
+/** Whether a Tier-2 store (or, for a multi-item store, one of its own item names) matches an active
+ *  search `query` — mirrors {@link accessTokenProviderMatchesQuery} exactly: the store's generic
+ *  label, its purpose subtitle, or (when given) the specific configured item's own name.
+ *  @complexity O(1). */
+export function otherCredentialMatchesQuery(store: OtherCredentialStoreInfo, itemName: string | undefined, query: string): boolean {
+  const q = query.trim().toLowerCase();
+  if (q === "") return true;
+  if (store.label.toLowerCase().includes(q) || store.purposeLabel.toLowerCase().includes(q)) return true;
+  return itemName !== undefined && itemName.toLowerCase().includes(q);
+}
+
+/** A media provider's human catalog label (e.g. `"grok"` → `"xAI Grok Imagine"`) — same
+ *  `MEDIA_PROVIDER_CATALOG` lookup `Media.tsx` itself uses, so a media-provider row on this page
+ *  reads with the identical name an operator already sees on the Media → Providers screen. Falls
+ *  back to the raw provider id for one this workspace has a stored key under but the catalog no
+ *  longer lists (a removed vendor) — a stale id is still a fact worth showing, not a reason to hide
+ *  the row. @complexity O(n) in the catalog's own (small, fixed) size. */
+export function mediaProviderLabel(providerId: string): string {
+  return MEDIA_PROVIDER_CATALOG.find((provider) => provider.id === providerId)?.label ?? providerId;
+}
+
+/** The masked-tail value fact for a configured single-`apiKey` row (`site-assistant`/`admin-byok`/
+ *  `media-provider`/`composio-project` — the four stores whose GET response carries a precomputed
+ *  last-4, per the visual spec §10: "that's ALL they ever return"). `tail` is already the last 4
+ *  characters with no leading `••••` — every one of those four API shapes name the field
+ *  differently (`masked`, `apiKeyTail`) but agree on the bare-tail contract, so this is the one place
+ *  that prefix gets added. @complexity O(1). */
+export function maskedTailFact(tail: string): string {
+  return `••••${tail}`;
+}
+
+/** The value fact for an OAuth-connected `composio-connector` row — "Connected as: {label}" when
+ *  Composio returned a human account label, or a bare "Connected" when it did not (a real, observed
+ *  case: some connectors report status with no `accountLabel`). @complexity O(1). */
+export function connectedAsFact(accountLabel: string | undefined): string {
+  return accountLabel ? `Connected as: ${accountLabel}` : "Connected";
+}
+
+/** The value fact for an `external-mcp` row — there is no single token to characterize (§10: "no
+ *  per-field tail"), so this reports how many environment variable NAMES are set instead (`envNames`,
+ *  already plaintext — see `AdminExternalMcpServer.envNames`'s own doc in `lib/api.ts`). Zero reads as
+ *  a fact, not an error: an MCP server can be fully configured with no secrets at all (a local stdio
+ *  tool needing no credentials). @complexity O(1). */
+export function envNamesFact(envNames: readonly string[]): string {
+  if (envNames.length === 0) return "No environment variables set";
+  return envNames.length === 1 ? "1 environment variable set" : `${envNames.length} environment variables set`;
+}

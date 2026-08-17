@@ -24,6 +24,24 @@
 }
 .access-tokens-search-count { font-size: var(--text-xs); color: var(--muted); margin: 0; }
 
+/* The `All / Source control / Hosting / Media / AI / Ops` category filter — borrows Settings' own
+   wrapped icon-tab-row LOOK (`SettingsDialogShell` from `@jini-ai/ui`) without adopting that
+   component (`AccessTokensTab.tsx`'s header explains why: it bundles a vertical sidebar plus a
+   kicker/title/subtitle header that fights this page's own `.page-header`). Own class, not an
+   overload of `.tab-bar` — `.tab-bar` is shared by Media/Pages/ThemeExplore/Source Control/Deployment
+   and must not be affected by this page's own styling needs. */
+.access-tokens-category-filter { display: flex; flex-wrap: wrap; gap: var(--space-2); margin-bottom: var(--space-4); }
+.access-tokens-category-filter-item {
+  background: var(--surface); color: var(--fg-2); border: 1px solid var(--border-strong);
+  border-radius: var(--r-pill); padding: 0.35rem 0.85rem; cursor: pointer;
+  font-size: var(--text-xs); font-weight: 600; letter-spacing: 0.01em;
+  transition: background 0.14s, color 0.14s, border-color 0.14s;
+}
+.access-tokens-category-filter-item:hover { background: var(--surface-2); opacity: 1; }
+.access-tokens-category-filter-item[aria-selected="true"] {
+  background: var(--accent); color: var(--accent-ink); border-color: transparent;
+}
+
 .access-tokens-tier { display: flex; flex-direction: column; gap: var(--space-5); }
 
 .access-tokens-provider-group { display: flex; flex-direction: column; gap: var(--space-2); }

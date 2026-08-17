@@ -7,10 +7,12 @@ import { pickPlural } from "../../lib/template-i18n";
 import type { Translate } from "../../lib/dictionary-translator";
 import { removeDialogBody, removeDialogLastRowNote, removeDialogTitle } from "./security-i18n";
 import {
+  ACCESS_TOKEN_CATEGORIES,
   accessTokenProviderInfo,
   accessTokenProviderMatchesQuery,
   accessTokenReplaceReadyToSave,
   accessTokenRowReadyToSave,
+  type AccessTokenCategoryId,
   type AccessTokenFormFields,
   type AccessTokenProviderInfo,
   type AccessTokenProviderRef,
@@ -24,22 +26,47 @@ import type {
   AccessTokenProviderGroupState,
   AccessTokensController,
 } from "./hooks/use-access-tokens.hooks";
+import { useWiredOtherCredentials } from "./hooks/use-other-credentials.hooks";
+import type { OtherCredentialsController } from "./hooks/use-other-credentials.hooks";
+import { OtherCredentialsSection } from "./OtherCredentialsSection";
 
 /**
- * @file The Access Tokens tab — `Security.tsx`'s one tab and this feature's actual content. Seven
- * always-visible provider groups (`ACCESS_TOKEN_PROVIDERS` order: GitHub Pages, Vercel, Netlify,
- * Cloudflare Pages, GitHub, GitLab, Bitbucket), each holding zero or more NAMED saved tokens — the
+ * @file The Access Tokens tab — `Security.tsx`'s one tab and this feature's actual content. One
+ * flat, searchable, category-filtered list of every credential this install holds across all eight
+ * stores `development/todos.md:1208` names — the 2026-08-16 owner ruling that replaced this page's
+ * original two-surface shape (seven Tier 1 providers here, a banner naming six unread Tier 2 stores)
+ * with a single list: "from a person's point of view a Cloudinary key and a GitHub token are the
+ * same kind of thing — a secret this install holds." See `ADS-memory/reports/design/
+ * 2026-08-16-access-tokens-visual-spec.md`'s "OWNER RULING" section for the ruling in full.
+ *
+ * Tier 1 (`ACCESS_TOKEN_PROVIDERS`, `rules.ts`: GitHub Pages, Vercel, Netlify, Cloudflare Pages,
+ * GitHub, GitLab, Bitbucket) still gets `[+ Add]` and multiple operator-named rows per provider — the
  * genuinely new capability this page adds (see `Security.tsx`'s own header for why "Create" living
- * here is not a repeat of what Static Site/Source Control already do).
+ * here is not a repeat of what Static Site/Source Control already do). Tier 2
+ * (`OTHER_CREDENTIAL_STORES`, `rules.ts`, rendered by `OtherCredentialsSection.tsx`) gets Replace/
+ * Remove and a deep link to wherever Create actually lives, never a second Create — the tier split
+ * survives only as that per-row CAPABILITY difference now, not as two separate surfaces. The
+ * "showing 7 of 8" partial-inventory banner this page used to render is deleted; there is nothing
+ * left to disclose once every store is read.
  *
  * ## Search
  *
- * Matches a provider's brand label, its purpose subtitle ("Publishing"/"Source Control" — the
- * disambiguation `rules.ts`'s header calls "the two-store GitHub trap"), and a saved token's own
- * name. A group renders when EITHER its own provider info matches the query OR it has at least one
- * matching saved row — so typing "GitHub" surfaces both the GitHub Pages group (provider match) and
- * the GitHub · Source Control group (provider match), each rendering its own real rows, never merged
- * into one card.
+ * Matches a provider's/store's brand label, its purpose subtitle ("Publishing"/"Source Control"/
+ * "AI"/… — the disambiguation `rules.ts`'s header calls "the two-store GitHub trap" for Tier 1, and
+ * the same subtitle Tier 2 rows carry next to their own name), and a saved item's own name. A group
+ * renders when EITHER its own info matches the query OR it has at least one matching saved row — so
+ * typing "GitHub" surfaces both the GitHub Pages group (provider match) and the GitHub · Source
+ * Control group (provider match), each rendering its own real rows, never merged into one card.
+ *
+ * ## Category filter
+ *
+ * `All / Source control / Hosting / Media / AI / Ops` (`rules.ts`'s `ACCESS_TOKEN_CATEGORIES`),
+ * `All` default, borrowing Settings' wrapped icon-tab-row LOOK without adopting `SettingsDialogShell`
+ * itself — that component bundles its own vertical sidebar plus a kicker/title/subtitle header that
+ * fights this page's own `.page-header` (`Deployment.tsx`'s header documents the same rejection for
+ * the identical reason). `.access-tokens-category-filter` is its own class, not an overload of
+ * `.tab-bar` — a filter control, not a tab bar, and `.tab-bar` is shared by five other screens that
+ * must not be affected by this page's own styling needs.
  *
  * ## Component split
  *
@@ -48,35 +75,47 @@ import type {
  */
 
 export interface AccessTokensTabProps {
-  /** DI seam for tests — same convention as every other wired-hook prop in this app. */
+  /** DI seams for tests — same convention as every other wired-hook prop in this app. */
   useAccessTokensHook?: typeof useWiredAccessTokens;
+  useOtherCredentialsHook?: typeof useWiredOtherCredentials;
 }
 
 function resolveAccessTokensHook(override: typeof useWiredAccessTokens | undefined): typeof useWiredAccessTokens {
   return override ?? useWiredAccessTokens;
 }
+function resolveOtherCredentialsHook(override: typeof useWiredOtherCredentials | undefined): typeof useWiredOtherCredentials {
+  return override ?? useWiredOtherCredentials;
+}
 
 export function AccessTokensTab(props: AccessTokensTabProps) {
   useAdminLocale();
   const useAccessTokensHook = resolveAccessTokensHook(props.useAccessTokensHook);
+  const useOtherCredentialsHook = resolveOtherCredentialsHook(props.useOtherCredentialsHook);
   const controller = useAccessTokensHook();
+  // Tier 2 reads `query`/`category` FROM Tier 1's own controller rather than owning either — one
+  // search box, one category filter, across both tiers (this file's own header). See
+  // `use-other-credentials.hooks.ts`'s header for why that state isn't duplicated here instead.
+  const otherController = useOtherCredentialsHook({ query: controller.query, category: controller.category });
 
   return (
     <div
       className="access-tokens-tab"
       {...agentHandle("security-access-tokens", {
         role: "region",
-        label: "Every saved access token across GitHub, Vercel, Netlify, Cloudflare Pages, GitLab, and Bitbucket, searchable by provider or name",
+        label: "Every access token and other saved credential this install holds, across all eight stores, searchable and filterable by category",
       })}
     >
-      <AccessTokensBody controller={controller} />
+      <AccessTokensBody controller={controller} otherController={otherController} />
     </div>
   );
 }
 
 /** Loading/error/populated split — pulled out of {@link AccessTokensTab} purely for the complexity
- *  gate, same reasoning `SourceControlCredentialsList` documents in `ProvidersTab.tsx`. */
-function AccessTokensBody({ controller }: { controller: AccessTokensController }) {
+ *  gate, same reasoning `SourceControlCredentialsList` documents in `ProvidersTab.tsx`. Waits for
+ *  BOTH tiers' first load: rendering Tier 1's list before Tier 2 has resolved would put the category
+ *  filter and the row list on screen a beat before Tier 2's own rows could ever appear under it,
+ *  which reads as those rows being silently absent rather than still loading. */
+function AccessTokensBody({ controller, otherController }: { controller: AccessTokensController; otherController: OtherCredentialsController }) {
   if (controller.loadError) {
     return (
       <p className="notice error" role="status" {...agentHandle("security-access-tokens-load-error", { role: "status", label: "Shows the error when saved access tokens could not be loaded" })}>
@@ -84,19 +123,58 @@ function AccessTokensBody({ controller }: { controller: AccessTokensController }
       </p>
     );
   }
-  if (controller.groups === undefined) {
+  if (otherController.loadError) {
+    return (
+      <p className="notice error" role="status" {...agentHandle("security-other-credentials-load-error", { role: "status", label: "Shows the error when other saved credentials could not be loaded" })}>
+        {otherController.loadError}
+      </p>
+    );
+  }
+  if (controller.groups === undefined || otherController.groups === undefined) {
     return <p className="access-tokens-loading">{controller.t("Loading access tokens…")}</p>;
   }
   return (
     <>
-      <AccessTokensSearch controller={controller} />
-      <PartialInventoryNotice controller={controller} />
+      <AccessTokensSearch controller={controller} otherController={otherController} />
+      <AccessTokensCategoryFilter controller={controller} />
       <div className="access-tokens-tier">
         {controller.groups.map((group) => (
           <MaybeProviderGroup key={`${group.info.kind}:${group.info.providerId}`} group={group} controller={controller} query={controller.query} />
         ))}
+        <OtherCredentialsSection controller={otherController} query={controller.query} />
       </div>
     </>
+  );
+}
+
+/** The `All / Source control / Hosting / Media / AI / Ops` filter row — see this file's header for
+ *  why this borrows Settings' wrapped icon-tab-row LOOK rather than the component itself. Pulled out
+ *  of {@link AccessTokensBody} for the complexity gate; its own branching is a single `.map()`, so
+ *  this split is about readability/reuse rather than a budget this one function would otherwise
+ *  exceed. */
+function AccessTokensCategoryFilter({ controller }: { controller: AccessTokensController }) {
+  const translate = controller.t;
+  return (
+    <div
+      className="access-tokens-category-filter"
+      role="tablist"
+      aria-label={translate("Filter by category")}
+      {...agentHandle("security-access-tokens-category-filter", { role: "region", label: "Filter the credential list by category" })}
+    >
+      {ACCESS_TOKEN_CATEGORIES.map((c) => (
+        <button
+          key={c.id}
+          type="button"
+          role="tab"
+          className="access-tokens-category-filter-item"
+          aria-selected={controller.category === c.id}
+          onClick={() => controller.setCategory(c.id as AccessTokenCategoryId)}
+          {...agentHandle(`security-access-tokens-category-${c.id}`, { role: "button", label: `Filter the credential list to ${c.label}` })}
+        >
+          {translate(c.label)}
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -110,13 +188,22 @@ function MaybeProviderGroup({ group, controller, query }: { group: AccessTokenPr
   return <ProviderGroup group={group} controller={controller} />;
 }
 
-function AccessTokensSearch({ controller }: { controller: AccessTokensController }) {
+/** The search box and its own match-count line — counts are the SUM of both tiers'
+ *  `totalCount`/`matchCount` (this file's header on why the combined count stays a GLOBAL fact,
+ *  unaffected by the category filter below it). "tokens" stays the noun even though the count now
+ *  spans Tier 2's keys/credentials too — the existing e2e suite pins the exact string
+ *  (`development/e2e/access-tokens.spec.ts`'s `/^0 tokens saved$/`), and nothing in this pass asked
+ *  for new copy here; a person calling a Composio key a "token" loosely is the same shorthand this
+ *  page's own tab name already uses for the whole install. */
+function AccessTokensSearch({ controller, otherController }: { controller: AccessTokensController; otherController: OtherCredentialsController }) {
   const translate = controller.t;
-  const tokenWord = pickPlural(controller.totalCount, { one: translate("token"), other: translate("tokens") });
+  const totalCount = controller.totalCount + otherController.totalCount;
+  const matchCount = controller.matchCount + otherController.matchCount;
+  const tokenWord = pickPlural(totalCount, { one: translate("token"), other: translate("tokens") });
   const countText =
     controller.query.trim() === ""
-      ? `${controller.totalCount} ${tokenWord} ${translate("saved")}`
-      : `${controller.matchCount} ${translate("of")} ${controller.totalCount} ${tokenWord} ${translate("matching")} “${controller.query}”`;
+      ? `${totalCount} ${tokenWord} ${translate("saved")}`
+      : `${matchCount} ${translate("of")} ${totalCount} ${tokenWord} ${translate("matching")} “${controller.query}”`;
   return (
     <div className="access-tokens-search">
       <label className="visually-hidden" htmlFor="access-tokens-search">
@@ -138,28 +225,6 @@ function AccessTokensSearch({ controller }: { controller: AccessTokensController
         {countText}
       </p>
     </div>
-  );
-}
-
-/** The disclosure banner naming which of the eight credential stores this page does not yet read
- *  from — `rules.ts`'s `OTHER_CREDENTIAL_STORES`, `development/todos.md:1208`'s own "confront or
- *  disclose partial" requirement. Always rendered in v1 (Tier 2 reads are not wired at all yet — see
- *  `Security.tsx`'s header); a future pass that starts reading some of those stores shrinks
- *  `missingStores` and this banner's own text follows automatically. */
-function PartialInventoryNotice({ controller }: { controller: AccessTokensController }) {
-  if (controller.missingStores.length === 0) return null;
-  const names = controller.missingStores.map((store) => `${store.label} (${store.screenLabel})`).join(", ");
-  return (
-    <p
-      className="notice warning"
-      role="status"
-      {...agentHandle("security-partial-inventory-notice", {
-        role: "status",
-        label: "States which credential stores this page does not yet read from",
-      })}
-    >
-      {controller.t("This page shows GitHub, Vercel, Netlify, Cloudflare Pages, GitLab, and Bitbucket tokens.")} {controller.t("Not shown yet:")} {names}.
-    </p>
   );
 }
 

@@ -18,7 +18,7 @@ import {
 } from "../security-i18n";
 import {
   ACCESS_TOKEN_PROVIDERS,
-  OTHER_CREDENTIAL_STORES,
+  accessTokenCategoryMatches,
   accessTokenNameTaken,
   accessTokenProviderInfo,
   accessTokenRowMatchesQuery,
@@ -29,13 +29,12 @@ import {
   buildAccessTokenRows,
   buildAccessTokenUpdatePatch,
   classifyAccessTokenSubmitError,
-  planLegacyLabelMigrations,
+  type AccessTokenCategoryId,
   type AccessTokenFormFields,
   type AccessTokenKind,
   type AccessTokenProviderInfo,
   type AccessTokenProviderRef,
   type AccessTokenRow,
-  type OtherCredentialStoreInfo,
 } from "../rules";
 import { defaultAccessTokensPort } from "./access-tokens-dependencies.hooks";
 import type { AccessTokensPort } from "./access-tokens-port.hooks";
@@ -57,16 +56,27 @@ import type { AccessTokensPort } from "./access-tokens-port.hooks";
  * (`AdminPublishCredentialsSnapshot` carries `executionMode`, the source-control one does not), and
  * different failure modes to report independently in {@link AccessTokensController.loadError}.
  *
- * ## The legacy-label migration — a real, disclosed WRITE this page performs on load
+ * ## No write-on-load migration — the legacy label is display-only, computed fresh every render
  *
- * `rules.ts`'s `planLegacyLabelMigrations` finds every row still carrying the sentinel label
- * (`"default"`) either origin page ever wrote and fires ONE best-effort `PUT .../:id` (label-only,
- * `connection` omitted so the sealed secret is never touched) to give it the real, readable name this
- * page displays. Runs at most once per mount (`migrationRanRef`), and a failure is silently absorbed
- * — a row that could not be renamed just keeps showing its computed display name locally (this
- * effect never blocks rendering or surfaces an error banner for what is a cosmetic best-effort
- * write, not a load-bearing one). {@link AccessTokenRow.name} is already computed correctly whether
- * or not the migration write ever lands, so a reader never sees "default" either way.
+ * An earlier pass fired a best-effort `PUT .../:id` on load to rewrite every row still carrying the
+ * sentinel label (`"default"`) either origin page ever wrote. That write was rejected before it
+ * shipped, for four reasons: it mutates data on a plain page OPEN, which is a surprising thing for a
+ * read to do; `(workspaceId, providerId, label)` is UNIQUE, so two tabs open at once (or a React
+ * StrictMode double-invoke in dev) can race and one PUT loses to a 409 with nothing to show for it;
+ * an install nobody ever opens this page on never migrates, so "v1 transfers the tokens" was never
+ * actually true for every workspace; and a failed PUT during a page load has nowhere good to surface
+ * an error for what the reader didn't even ask this screen to do. `rules.ts`'s `buildAccessTokenRows`
+ * already computes {@link AccessTokenRow.name} correctly on every call — a legacy row reads with its
+ * friendly computed name from the very first render, with zero writes, and a REAL label is only ever
+ * persisted when a human renames, replaces, or creates a row through this page's own forms.
+ *
+ * ## The category filter narrows `groups`, not the search count
+ *
+ * `category`/`setCategory` gate which PROVIDERS even enter {@link groups} (a provider outside the
+ * active category is dropped before the query filter ever runs, same as if it didn't exist this
+ * render) — {@link AccessTokensController.totalCount}/`matchCount` stay a GLOBAL count across every
+ * category on purpose: the search-count line answers "how many tokens does this install hold",
+ * which should not silently change meaning depending on which category tab happens to be selected.
  *
  * ## Optimistic Create/Replace, refetch-on-write for Remove/Make-default
  *
@@ -163,17 +173,16 @@ export interface AccessTokensController {
 
   query: string;
   setQuery: (value: string) => void;
-  /** Every saved row across both stores, regardless of the active query — the match-count line's
-   *  denominator. */
+  /** The active category filter — `"all"` by default. See this file's header for why this narrows
+   *  {@link groups} but not {@link totalCount}/{@link matchCount}. */
+  category: AccessTokenCategoryId;
+  setCategory: (value: AccessTokenCategoryId) => void;
+  /** Every saved row across both stores, regardless of the active query OR category — the
+   *  match-count line's denominator. */
   totalCount: number;
-  /** Saved rows that match the active query — the match-count line's numerator; equals
-   *  {@link totalCount} when `query` is blank. */
+  /** Saved rows that match the active query, regardless of category — the match-count line's
+   *  numerator; equals {@link totalCount} when `query` is blank. */
   matchCount: number;
-  /** The credential stores this page does not yet read from — the partial-inventory disclosure's
-   *  own data (`rules.ts`'s `OTHER_CREDENTIAL_STORES`), exposed on the controller rather than
-   *  imported directly by the component so a future pass that starts reading some of them can shrink
-   *  this list in exactly one place. */
-  missingStores: readonly OtherCredentialStoreInfo[];
 
   setExistingField: (rowId: string, patch: Partial<DraftFields>) => void;
   replaceToken: (row: AccessTokenRow) => Promise<void>;
@@ -251,19 +260,8 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
     return [...buildAccessTokenRows("publish", publishCredentials), ...buildAccessTokenRows("source-control", sourceControlCredentials)];
   }, [publishCredentials, sourceControlCredentials]);
 
-  // One-time, best-effort legacy-label rename — see this file's header.
-  const migrationRanRef = useRef(false);
-  useEffect(() => {
-    if (migrationRanRef.current || rows === undefined) return;
-    migrationRanRef.current = true;
-    for (const migration of planLegacyLabelMigrations(rows)) {
-      void writeCredential(port, migration.kind, { type: "update", id: migration.id }, { label: migration.newLabel })
-        .then((result) => mergeCredential(migration.kind, result, false))
-        .catch(() => undefined);
-    }
-  }, [rows]);
-
   const [query, setQuery] = useState("");
+  const [category, setCategory] = useState<AccessTokenCategoryId>("all");
   const [existingDrafts, setExistingDrafts] = useState<Record<string, DraftFields>>({});
   const [existingBusy, setExistingBusy] = useState<Record<string, BusyState>>({});
   const [addForms, setAddForms] = useState<Record<string, AddFormEntry>>({});
@@ -361,7 +359,9 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
 
   const groups = useMemo<readonly AccessTokenProviderGroupState[] | undefined>(() => {
     if (rows === undefined) return undefined;
-    return ACCESS_TOKEN_PROVIDERS.map((info) => {
+    // A provider outside the active category is dropped here, before the query filter ever runs —
+    // see this file's header for why that keeps `totalCount`/`matchCount` a global fact instead.
+    return ACCESS_TOKEN_PROVIDERS.filter((info) => accessTokenCategoryMatches(info.category, category)).map((info) => {
       const providerRows = accessTokenRowsForProvider(rows, info).filter((row) => accessTokenRowMatchesQuery(row, info, query));
       return {
         info,
@@ -369,7 +369,7 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
         addForm: addFormState(addForms[addFormKey(info)]),
       };
     });
-  }, [rows, existingDrafts, existingBusy, addForms, query]);
+  }, [rows, existingDrafts, existingBusy, addForms, query, category]);
 
   const totalCount = rows?.length ?? 0;
   const matchCount = rows === undefined ? 0 : rows.filter((row) => accessTokenRowMatchesQuery(row, accessTokenProviderInfo(row), query)).length;
@@ -379,9 +379,10 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
     loadError,
     query,
     setQuery,
+    category,
+    setCategory,
     totalCount,
     matchCount,
-    missingStores: OTHER_CREDENTIAL_STORES,
     setExistingField,
     replaceToken,
     removeToken,
