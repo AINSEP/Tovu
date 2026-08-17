@@ -4,11 +4,17 @@ import {
   describeApiError,
   type AdminPublishCredentialProviderId,
   type AdminPublishCredentialSummary,
+  type AdminPublishCredentialVerification,
   type AdminPublishExecutionMode,
 } from "../../../lib/api";
 import { useFetchQuery } from "../../../lib/fetch-query";
 import { useAdminLocale } from "../../../hooks/use-admin-locale.hooks";
-import { t as defaultT, publishCredentialSaveErrorMessage, publishCredentialsLoadErrorMessage } from "../deployment-i18n";
+import {
+  t as defaultT,
+  publishCredentialSaveErrorMessage,
+  publishCredentialsLoadErrorMessage,
+  publishCredentialVerifyErrorMessage,
+} from "../deployment-i18n";
 import type { Translate } from "../../../lib/dictionary-translator";
 import {
   PUBLISH_CREDENTIAL_PROVIDERS,
@@ -63,6 +69,16 @@ import type { PublishCredentialsPort } from "./publish-credentials-port.hooks";
  * connection (`publish-credentials/store.ts`'s `decideCreateDefault`), and replacing an existing
  * default's connection never changes which row is default.
  *
+ * ## `verify` — the "hit verify on the token" button the assistant's own guidance already assumed existed
+ *
+ * 2026-08-16 (see `ADS-memory/reports/verification/2026-08-16-live-publish-through-assistant.md`):
+ * the assistant's own capability tool told a human to "go verify the GitHub token" through this admin
+ * whenever the in-process verification cache went cold (e.g. right after a restart), but no control
+ * ever called `POST .../credentials/:id/verify` — the backend route worked, nothing in this hook or
+ * `StaticSiteTab.tsx` reached it. {@link verify} closes that gap: same optimistic-local-update
+ * philosophy as {@link save} above (no unconditional refetch), but it can only ever update a row that
+ * is ALREADY connected — there is no credential id to verify before one exists.
+ *
  * ## The row list is optimistically maintained locally, not refetched after every write
  *
  * `save` splices its own result into the local `credentials` array rather than re-running
@@ -80,6 +96,21 @@ export interface PublishCredentialRowState {
   readonly accountId: string;
   readonly saving: boolean;
   readonly error: string | null;
+  /** True while {@link PublishCredentialsController.verify} has an in-flight request for THIS
+   *  provider's saved row. A no-op button click while already `true` is guarded the same way
+   *  `save`'s own `row.saving` disables its button — see `CredentialStepDone`'s Verify button. */
+  readonly verifying: boolean;
+  /** The most recent explicit re-verify's result for this row, `undefined` until {@link verify} has
+   *  resolved at least once this session — deliberately session-only, never seeded from the initial
+   *  load: the server has no "last verification" to hand back on `GET`, only the durable
+   *  `saved.accountLabel` half of it (see that field's own doc). Distinct from `error` below: a
+   *  `"invalid"`/`"unreachable"` `status` here is the provider's own answer, not a failure of this
+   *  UI's request — {@link error} is reserved for a genuine transport/request failure instead. */
+  readonly verification: AdminPublishCredentialVerification | undefined;
+  /** A transport/request failure from {@link verify} itself (network down, 5xx) — NOT a
+   *  `"invalid"`/`"unreachable"` provider answer, which is a normal {@link verification} result, not
+   *  an error. See this file's `publishCredentialVerifyErrorMessage` import for the translated text. */
+  readonly verifyError: string | null;
 }
 
 export interface PublishCredentialsController {
@@ -114,21 +145,33 @@ export interface PublishCredentialsController {
    *  row un-defaults whichever OTHER row held it server-side, a sibling effect this hook has no local
    *  copy of ahead of the write. A no-op if `credentialId` is already this provider's default. */
   selectCredential: (providerId: AdminPublishCredentialProviderId, credentialId: string) => Promise<void>;
+  /** Re-checks the provider's currently connected (default) row against its real provider right now
+   *  — the UI half of `POST .../credentials/:id/verify` (`publish-credentials.ts`'s route doc), for
+   *  when the automatic verify-on-save result is stale (a rotated token) or was lost (an in-memory
+   *  cache that a server restart clears — see `AdminPublishCredentialSummary.accountLabel`'s doc for
+   *  why `saved.accountLabel` survives that even though a single verify RESPONSE does not). A no-op,
+   *  resolving immediately, if this provider has no saved (connected) row yet — there is nothing to
+   *  verify. Never throws; a failure is surfaced through that row's own {@link
+   *  PublishCredentialRowState.verifyError}. */
+  verify: (providerId: AdminPublishCredentialProviderId) => Promise<void>;
 
   t: Translate;
 }
 
 /** One row's draft input + busy/error state — kept in a map keyed by provider id so each row's own
- *  typing and in-flight save are fully independent of every other row's. */
+ *  typing and in-flight save/verify are fully independent of every other row's. */
 interface RowFormState {
   token: string;
   accountId: string;
   saving: boolean;
   error: string | null;
+  verifying: boolean;
+  verification: AdminPublishCredentialVerification | undefined;
+  verifyError: string | null;
 }
 
 function blankRowFormState(): RowFormState {
-  return { token: "", accountId: "", saving: false, error: null };
+  return { token: "", accountId: "", saving: false, error: null, verifying: false, verification: undefined, verifyError: null };
 }
 
 function initialRowFormStates(): Record<AdminPublishCredentialProviderId, RowFormState> {
@@ -208,6 +251,30 @@ export function usePublishCredentials(port: PublishCredentialsPort, t: Translate
     }
   }
 
+  async function verify(providerId: AdminPublishCredentialProviderId): Promise<void> {
+    const connected = defaultCredentialForProvider(credentials ?? [], providerId);
+    if (!connected) return; // Nothing saved for this provider yet — no row for `verify`'s button to have come from.
+
+    setFormStates((prev) => ({ ...prev, [providerId]: { ...prev[providerId], verifying: true, verifyError: null } }));
+    try {
+      const result = await port.verifyCredential(connected.id);
+      // Mirrors the server's own `healAccountLabel` write (`publish-credentials.ts`'s route doc) —
+      // a `"valid"` result carrying an `accountLabel` updates this row's SAVED summary immediately,
+      // rather than waiting on a refetch this hook has no other reason to trigger. `undefined` (no
+      // account label on this result) leaves whatever the row already had alone, same "only a truthy
+      // finding heals forward" rule the server side follows.
+      if (result.accountLabel !== undefined) {
+        setCredentials((prev) => (prev ?? []).map((c) => (c.id === connected.id ? { ...c, accountLabel: result.accountLabel! } : c)));
+      }
+      setFormStates((prev) => ({ ...prev, [providerId]: { ...prev[providerId], verifying: false, verification: result, verifyError: null } }));
+    } catch (err) {
+      setFormStates((prev) => ({
+        ...prev,
+        [providerId]: { ...prev[providerId], verifying: false, verifyError: publishCredentialVerifyErrorMessage(locale, describeApiError(err, "unknown error")) },
+      }));
+    }
+  }
+
   const rows: readonly PublishCredentialRowState[] | undefined =
     credentials === undefined
       ? undefined
@@ -220,6 +287,9 @@ export function usePublishCredentials(port: PublishCredentialsPort, t: Translate
             accountId: formState.accountId,
             saving: formState.saving,
             error: formState.error,
+            verifying: formState.verifying,
+            verification: formState.verification,
+            verifyError: formState.verifyError,
           };
         });
 
@@ -235,7 +305,7 @@ export function usePublishCredentials(port: PublishCredentialsPort, t: Translate
     setCredentials(refreshed.credentials);
   }
 
-  return { rows, executionMode, loadError, setToken, setAccountId, save, credentialsForProvider: credentialsForProviderId, selectCredential, t };
+  return { rows, executionMode, loadError, setToken, setAccountId, save, credentialsForProvider: credentialsForProviderId, selectCredential, verify, t };
 }
 
 /**

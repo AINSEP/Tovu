@@ -398,6 +398,7 @@ describe("credentialsForProvider", () => {
       isDefault: true,
       createdAt: "2026-08-01T00:00:00.000Z",
       updatedAt: "2026-08-01T00:00:00.000Z",
+      accountLabel: null,
       ...overrides,
     };
   }
@@ -425,6 +426,7 @@ describe("defaultCredentialForProvider", () => {
       isDefault: true,
       createdAt: "2026-08-01T00:00:00.000Z",
       updatedAt: "2026-08-01T00:00:00.000Z",
+      accountLabel: null,
       ...overrides,
     };
   }

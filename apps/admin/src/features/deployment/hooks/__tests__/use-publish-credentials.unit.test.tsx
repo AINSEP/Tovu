@@ -29,6 +29,7 @@ const GH_CREDENTIAL: AdminPublishCredentialSummary = {
   isDefault: true,
   createdAt: "2026-08-01T10:00:00.000Z",
   updatedAt: "2026-08-15T09:30:00.000Z",
+  accountLabel: null,
 };
 
 describe("usePublishCredentials — initial load", () => {
@@ -344,6 +345,124 @@ describe("usePublishCredentials — selectCredential (the Static Site token-pick
       await result.current.selectCredential("github-pages", "cred-1");
     });
     expect(updateCredential).not.toHaveBeenCalled();
+  });
+});
+
+describe("usePublishCredentials — verify (the 'hit verify on the token' button the assistant's own guidance assumed existed)", () => {
+  it("calls the port with the provider's connected (default) credential's id, and reflects the result on that row", async () => {
+    let sentId: string | undefined;
+    const port = createFakePublishCredentialsPort({
+      listCredentials: () => Promise.resolve({ credentials: [GH_CREDENTIAL], executionMode: "self-hosted-cli" }),
+      verifyCredential: (id) => {
+        sentId = id;
+        return Promise.resolve({ status: "valid", message: "GitHub accepted this credential.", checkedAt: "2026-08-16T00:00:00.000Z", accountLabel: "leonaburime-ucla" });
+      },
+    });
+    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.rows).not.toBeUndefined());
+
+    await act(async () => {
+      await result.current.verify("github-pages");
+    });
+
+    expect(sentId).toBe("cred-1");
+    const row = result.current.rows!.find((r) => r.providerId === "github-pages")!;
+    expect(row.verification?.status).toBe("valid");
+    expect(row.verifying).toBe(false);
+    expect(row.verifyError).toBeNull();
+  });
+
+  it("a 'valid' result carrying an accountLabel heals it onto the row's SAVED summary — durable across a re-render, not just the transient result", async () => {
+    const port = createFakePublishCredentialsPort({
+      listCredentials: () => Promise.resolve({ credentials: [GH_CREDENTIAL], executionMode: "self-hosted-cli" }),
+      verifyCredential: () =>
+        Promise.resolve({ status: "valid", message: "GitHub accepted this credential.", checkedAt: "2026-08-16T00:00:00.000Z", accountLabel: "leonaburime-ucla" }),
+    });
+    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.rows).not.toBeUndefined());
+
+    expect(result.current.rows!.find((r) => r.providerId === "github-pages")!.saved?.accountLabel).toBeNull();
+
+    await act(async () => {
+      await result.current.verify("github-pages");
+    });
+
+    expect(result.current.rows!.find((r) => r.providerId === "github-pages")!.saved?.accountLabel).toBe("leonaburime-ucla");
+  });
+
+  it("a result with NO accountLabel leaves whatever the row already had alone — only a truthy finding heals forward", async () => {
+    const alreadyLabeled: AdminPublishCredentialSummary = { ...GH_CREDENTIAL, accountLabel: "leonaburime-ucla" };
+    const port = createFakePublishCredentialsPort({
+      listCredentials: () => Promise.resolve({ credentials: [alreadyLabeled], executionMode: "self-hosted-cli" }),
+      verifyCredential: () => Promise.resolve({ status: "unreachable", message: "Could not reach GitHub to verify this credential.", checkedAt: "2026-08-16T00:00:00.000Z" }),
+    });
+    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.rows).not.toBeUndefined());
+
+    await act(async () => {
+      await result.current.verify("github-pages");
+    });
+
+    expect(result.current.rows!.find((r) => r.providerId === "github-pages")!.saved?.accountLabel).toBe("leonaburime-ucla");
+  });
+
+  it("is a no-op — never calls the port — when this provider has nothing saved to verify", async () => {
+    const verifyCredential = vi.fn();
+    const port = createFakePublishCredentialsPort({ verifyCredential });
+    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.rows).not.toBeUndefined());
+
+    await act(async () => {
+      await result.current.verify("vercel");
+    });
+    expect(verifyCredential).not.toHaveBeenCalled();
+  });
+
+  it("a rejected verify surfaces a translated, per-row verifyError and leaves any prior verification result alone", async () => {
+    const port = createFakePublishCredentialsPort({
+      listCredentials: () => Promise.resolve({ credentials: [GH_CREDENTIAL], executionMode: "self-hosted-cli" }),
+      verifyCredential: () => Promise.reject(new Error("network down")),
+    });
+    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.rows).not.toBeUndefined());
+
+    await act(async () => {
+      await result.current.verify("github-pages");
+    });
+
+    const row = result.current.rows!.find((r) => r.providerId === "github-pages")!;
+    expect(row.verifyError).toContain("Could not verify this token");
+    expect(row.verifyError).toContain("network down");
+    expect(row.verifying).toBe(false);
+    expect(row.verification).toBeUndefined();
+  });
+
+  it("an in-flight verify sets verifying: true on that row only, never touching a sibling provider's row", async () => {
+    const secondCredential: AdminPublishCredentialSummary = { ...GH_CREDENTIAL, id: "cred-vercel", providerId: "vercel" };
+    let resolveVerify: (() => void) | undefined;
+    const port = createFakePublishCredentialsPort({
+      listCredentials: () => Promise.resolve({ credentials: [GH_CREDENTIAL, secondCredential], executionMode: "self-hosted-cli" }),
+      verifyCredential: () =>
+        new Promise((resolve) => {
+          resolveVerify = () => resolve({ status: "valid", message: "ok", checkedAt: "2026-08-16T00:00:00.000Z" });
+        }),
+    });
+    const { result } = renderHook(() => usePublishCredentials(port, fakeT, fakeLocale), { wrapper });
+    await waitFor(() => expect(result.current.rows).not.toBeUndefined());
+
+    let verifyPromise!: Promise<void>;
+    act(() => {
+      verifyPromise = result.current.verify("github-pages");
+    });
+
+    await waitFor(() => expect(result.current.rows!.find((r) => r.providerId === "github-pages")!.verifying).toBe(true));
+    expect(result.current.rows!.find((r) => r.providerId === "vercel")!.verifying).toBe(false);
+
+    await act(async () => {
+      resolveVerify!();
+      await verifyPromise;
+    });
+    expect(result.current.rows!.find((r) => r.providerId === "github-pages")!.verifying).toBe(false);
   });
 });
 

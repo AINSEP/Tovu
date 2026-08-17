@@ -2,6 +2,7 @@ import type {
   AdminPublishConnectionInput,
   AdminPublishCredentialSummary,
   AdminPublishCredentialsSnapshot,
+  AdminPublishCredentialVerification,
 } from "../../../lib/api";
 
 /**
@@ -24,4 +25,8 @@ export interface PublishCredentialsPort {
   ): Promise<AdminPublishCredentialSummary>;
   /** Idempotent — deleting an id that is already gone still resolves. */
   deleteCredential(id: string): Promise<void>;
+  /** Re-checks one already-saved credential against its real provider right now — see
+   *  `api.verifyPublishCredential`'s own doc for why this is a real `200` result even when the
+   *  provider rejects the credential, not a thrown error. */
+  verifyCredential(id: string): Promise<AdminPublishCredentialVerification>;
 }

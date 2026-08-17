@@ -8,9 +8,10 @@ export const defaultPublishCredentialsPort: PublishCredentialsPort = {
   createCredential: (input) => api.createPublishCredential(input).then((res) => res.credential),
   updateCredential: (id, input) => api.updatePublishCredential(id, input).then((res) => res.credential),
   deleteCredential: (id) => api.deletePublishCredential(id),
+  verifyCredential: (id) => api.verifyPublishCredential(id).then((res) => res.verification),
 };
 
-/** An in-memory {@link PublishCredentialsPort} for tests. Each of the four calls defaults to a
+/** An in-memory {@link PublishCredentialsPort} for tests. Each of the five calls defaults to a
  *  neutral, overridable stub — matches `createFakeStaticPublishPort`'s per-call override shape. */
 export function createFakePublishCredentialsPort(
   overrides: {
@@ -18,6 +19,7 @@ export function createFakePublishCredentialsPort(
     createCredential?: PublishCredentialsPort["createCredential"];
     updateCredential?: PublishCredentialsPort["updateCredential"];
     deleteCredential?: PublishCredentialsPort["deleteCredential"];
+    verifyCredential?: PublishCredentialsPort["verifyCredential"];
   } = {}
 ): PublishCredentialsPort {
   const emptySnapshot: AdminPublishCredentialsSnapshot = { credentials: [], executionMode: "self-hosted-cli" };
@@ -30,5 +32,8 @@ export function createFakePublishCredentialsPort(
       overrides.updateCredential ??
       (() => Promise.reject(new Error("updateCredential not stubbed for this test"))),
     deleteCredential: overrides.deleteCredential ?? (() => Promise.resolve()),
+    verifyCredential:
+      overrides.verifyCredential ??
+      (() => Promise.reject(new Error("verifyCredential not stubbed for this test"))),
   };
 }

@@ -282,6 +282,35 @@ export interface AdminPublishCredentialSummary {
   /** ISO timestamp — see {@link createdAt}'s doc for the naming note. This is the one fact the UI
    *  leans on to tell two saves of the same connection apart, in place of any secret material. */
   updatedAt: string;
+  /** The verified account's public login/username (GitHub `login`, Vercel `username`), healed onto
+   *  this row server-side (migration `0044`) whenever a verify comes back `"valid"` with one — see
+   *  `src/features/deployments/publish-credentials/store.ts`'s `healAccountLabel` doc. `null` until
+   *  the first successful verify, and NEVER cleared by a verify that merely fails to reach the
+   *  provider (a stale account name is still more useful than none) — only replacing the connection
+   *  (a new token) resets it, since the old account label may no longer apply. This is what lets
+   *  `StaticSiteTab.tsx`'s connected-credential row keep showing "connected as X" across a server
+   *  restart, when the in-memory-only `AdminPublishCredentialVerification` result from a given
+   *  request is long gone. */
+  accountLabel: string | null;
+}
+
+/**
+ * One `POST .../credentials/:id/verify` (or the same-shaped best-effort check a create/update already
+ * runs) result, as the admin is allowed to see it — mirrors the server's
+ * `PublishCredentialVerificationResult` (`src/features/deployments/static-publish/verify.ts`)
+ * verbatim. `status` is a closed three-way enum, never a boolean — `"unreachable"` (could not reach
+ * the provider at all) must stay distinguishable from `"invalid"` (the provider was reached and
+ * rejected the credential) at this boundary too, same reason the server type's own doc gives.
+ */
+export interface AdminPublishCredentialVerification {
+  status: "valid" | "invalid" | "unreachable";
+  message: string;
+  /** ISO timestamp of this specific check — NOT persisted anywhere the row itself carries forward;
+   *  only `AdminPublishCredentialSummary.accountLabel` survives past this one response. */
+  checkedAt: string;
+  /** Present only on a `"valid"` result for a provider whose success response carries one — see
+   *  {@link AdminPublishCredentialSummary.accountLabel}'s doc for how this becomes durable. */
+  accountLabel?: string;
 }
 
 /**
@@ -2656,6 +2685,17 @@ export const api = {
    *  resolves rather than throwing. */
   deletePublishCredential: (id: string) =>
     request<void>(`/workspaces/${WORKSPACE_ID}/system/publish/credentials/${id}`, { method: "DELETE" }),
+  /** Re-checks one already-saved credential against its real provider right now — the human-facing
+   *  counterpart to the best-effort verify a create/update already runs automatically, for when that
+   *  cached result has gone stale (a rotated token) or was lost (a server restart clears the
+   *  in-memory verification cache; see `AdminPublishCredentialSummary.accountLabel`'s doc for why the
+   *  DB-persisted half of this survives that even though this specific response does not). Never
+   *  4xxs for an unreachable or rejected provider — a failed verification is still a `200` carrying
+   *  `status: "invalid" | "unreachable"`, only a genuinely missing credential id 404s. */
+  verifyPublishCredential: (id: string) =>
+    request<{ verification: AdminPublishCredentialVerification }>(`/workspaces/${WORKSPACE_ID}/system/publish/credentials/${id}/verify`, {
+      method: "POST",
+    }),
 
   // Source Control page → credential management (`src/server/routes/admin/system/
   // source-control-credentials.ts`) — one saved GitHub/GitLab/Bitbucket identity connection per

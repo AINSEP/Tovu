@@ -91,13 +91,25 @@ const GH_CREDENTIAL: AdminPublishCredentialSummary = {
   isDefault: true,
   createdAt: "2026-08-01T10:00:00.000Z",
   updatedAt: "2026-08-15T09:30:00.000Z",
+  accountLabel: null,
 };
 
 /** One provider row, blank/not-connected unless overridden — mirrors
  *  `use-publish-credentials.hooks.ts`'s own `PublishCredentialRowState` shape exactly, since the
  *  fixture below builds one row per {@link PUBLISH_CREDENTIAL_PROVIDERS} entry from a list of these. */
 function credentialRowFixture(providerId: AdminPublishCredentialProviderId, overrides: Partial<PublishCredentialRowState> = {}): PublishCredentialRowState {
-  return { providerId, saved: undefined, token: "", accountId: "", saving: false, error: null, ...overrides };
+  return {
+    providerId,
+    saved: undefined,
+    token: "",
+    accountId: "",
+    saving: false,
+    error: null,
+    verifying: false,
+    verification: undefined,
+    verifyError: null,
+    ...overrides,
+  };
 }
 
 /** `credentialsControllerFixture`'s own override shape — `rows` widened to a mutable array (the real
@@ -114,13 +126,24 @@ type CredentialsControllerFixtureOverrides = Partial<Omit<PublishCredentialsCont
  *  row happened to satisfy the same assertion. */
 function credentialsControllerFixture(overrides: CredentialsControllerFixtureOverrides = {}): PublishCredentialsController {
   const { rows, rowOverrides, ...rest } = overrides;
+  const finalRows = rows ?? PUBLISH_CREDENTIAL_PROVIDERS.map((provider) => credentialRowFixture(provider.id, rowOverrides?.[provider.id]));
   return {
-    rows: rows ?? PUBLISH_CREDENTIAL_PROVIDERS.map((provider) => credentialRowFixture(provider.id, rowOverrides?.[provider.id])),
+    rows: finalRows,
     executionMode: "self-hosted-cli",
     loadError: null,
     setToken: vi.fn(),
     setAccountId: vi.fn(),
     save: vi.fn().mockResolvedValue(undefined),
+    // Defaults to "this provider's own row's `saved` credential, if any" — enough for the picker's
+    // "renders nothing below two options" default path; a test exercising the picker's multi-option
+    // rendering overrides this directly rather than fighting `rows`/`rowOverrides` to imply a second
+    // credential that `saved` (always the DEFAULT one) could never represent on its own.
+    credentialsForProvider: (providerId) => {
+      const row = finalRows.find((r) => r.providerId === providerId);
+      return row?.saved ? [row.saved] : [];
+    },
+    selectCredential: vi.fn().mockResolvedValue(undefined),
+    verify: vi.fn().mockResolvedValue(undefined),
     t: fakeT,
     ...rest,
   };
@@ -1092,5 +1115,106 @@ describe("StaticSiteTab — REGRESSION: connected summary affordance + copy (own
     const row = document.querySelector('[data-agent-element="deployment-static-site-credentials-row-github-pages"]') as HTMLElement;
     expect(within(row).getByText(/saved/)).toBeInTheDocument();
     expect(within(row).queryByText(/updated/)).not.toBeInTheDocument();
+  });
+});
+
+// The gap `development/e2e/deployment-static-site-verify-gap.spec.ts` reproduces live: the assistant's
+// own guidance told a human to "hit verify on the token" here, and no such control existed. Closed by
+// `CredentialVerifyAction` inside `CredentialStepDone`'s `<summary>` — see that component's own doc.
+describe("StaticSiteTab — REGRESSION: Verify control on the connected credential row (2026-08-16 live gap)", () => {
+  it("renders a Verify button on the connected row and calls controller.verify with that row's providerId — without toggling the details open", async () => {
+    const verify = vi.fn().mockResolvedValue(undefined);
+    const user = userEvent.setup();
+    renderTab({ credentialsController: { rowOverrides: { "github-pages": { saved: GH_CREDENTIAL } }, verify } });
+
+    const row = document.querySelector('[data-agent-element="deployment-static-site-credentials-row-github-pages"]') as HTMLElement;
+    const details = row.closest("details") ?? row;
+    expect(details.hasAttribute("open")).toBe(false);
+
+    const verifyButton = within(row).getByRole("button", { name: /verify/i });
+    await user.click(verifyButton);
+
+    expect(verify).toHaveBeenCalledWith("github-pages");
+    expect(details.hasAttribute("open")).toBe(false); // the click must not also expand "Replace token"
+  });
+
+  it("shows 'Verifying…' and disables the button while a verify is in flight", () => {
+    renderTab({ credentialsController: { rowOverrides: { "github-pages": { saved: GH_CREDENTIAL, verifying: true } } } });
+    const row = document.querySelector('[data-agent-element="deployment-static-site-credentials-row-github-pages"]') as HTMLElement;
+    const verifyButton = within(row).getByRole("button", { name: /verifying/i });
+    expect(verifyButton).toBeDisabled();
+  });
+
+  it("shows the provider's own verification message once a check resolves", () => {
+    renderTab({
+      credentialsController: {
+        rowOverrides: {
+          "github-pages": {
+            saved: GH_CREDENTIAL,
+            verification: { status: "invalid", message: "GitHub rejected this credential (HTTP 401).", checkedAt: "2026-08-16T00:00:00.000Z" },
+          },
+        },
+      },
+    });
+    const row = document.querySelector('[data-agent-element="deployment-static-site-credentials-row-github-pages"]') as HTMLElement;
+    expect(within(row).getByText("GitHub rejected this credential (HTTP 401).")).toBeInTheDocument();
+  });
+
+  it("shows a translated transport-failure message, distinct from a provider verification result", () => {
+    renderTab({
+      credentialsController: { rowOverrides: { "github-pages": { saved: GH_CREDENTIAL, verifyError: "Could not verify this token (network down)." } } },
+    });
+    const row = document.querySelector('[data-agent-element="deployment-static-site-credentials-row-github-pages"]') as HTMLElement;
+    expect(within(row).getByText("Could not verify this token (network down).")).toBeInTheDocument();
+  });
+
+  it("surfaces the row's persisted accountLabel in the summary once it is set — durable across a restart, not tied to a fresh verify click", () => {
+    renderTab({ credentialsController: { rowOverrides: { "github-pages": { saved: { ...GH_CREDENTIAL, accountLabel: "leonaburime-ucla" } } } } });
+    const row = document.querySelector('[data-agent-element="deployment-static-site-credentials-row-github-pages"]') as HTMLElement;
+    expect(within(row).getByText(/connected as/i)).toBeInTheDocument();
+    expect(within(row).getByText("leonaburime-ucla")).toBeInTheDocument();
+  });
+
+  it("shows no 'connected as' text when the row has never been verified (accountLabel: null)", () => {
+    renderTab({ credentialsController: { rowOverrides: { "github-pages": { saved: GH_CREDENTIAL } } } });
+    const row = document.querySelector('[data-agent-element="deployment-static-site-credentials-row-github-pages"]') as HTMLElement;
+    expect(within(row).queryByText(/connected as/i)).not.toBeInTheDocument();
+  });
+});
+
+describe("StaticSiteTab — the 'which saved token publishes' picker (owner's original ask: 'GitHub pages... will have a dropdown where you can choose which GitHub access tokens')", () => {
+  const PRIMARY: AdminPublishCredentialSummary = { ...GH_CREDENTIAL, id: "cred-1", label: "primary" };
+  const BACKUP: AdminPublishCredentialSummary = { ...GH_CREDENTIAL, id: "cred-2", label: "backup", isDefault: false };
+
+  it("renders no picker when the provider has at most one saved credential — nothing to choose between", () => {
+    renderTab({ credentialsController: { rowOverrides: { "github-pages": { saved: PRIMARY } } } });
+    expect(screen.queryByLabelText(/which saved token publishes/i)).not.toBeInTheDocument();
+  });
+
+  it("renders one option per saved credential, and the current default's id is selected", () => {
+    renderTab({
+      credentialsController: {
+        rowOverrides: { "github-pages": { saved: PRIMARY } },
+        credentialsForProvider: () => [PRIMARY, BACKUP],
+      },
+    });
+    const picker = screen.getByLabelText(/which saved token publishes/i) as HTMLSelectElement;
+    expect(picker.querySelectorAll("option")).toHaveLength(2);
+    expect(picker.value).toBe("cred-1");
+  });
+
+  it("choosing a different option calls controller.selectCredential with this provider and the chosen credential's id", async () => {
+    const selectCredential = vi.fn().mockResolvedValue(undefined);
+    const user = userEvent.setup();
+    renderTab({
+      credentialsController: {
+        rowOverrides: { "github-pages": { saved: PRIMARY } },
+        credentialsForProvider: () => [PRIMARY, BACKUP],
+        selectCredential,
+      },
+    });
+    const picker = screen.getByLabelText(/which saved token publishes/i);
+    await user.selectOptions(picker, "cred-2");
+    expect(selectCredential).toHaveBeenCalledWith("github-pages", "cred-2");
   });
 });

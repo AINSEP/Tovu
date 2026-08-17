@@ -1995,3 +1995,17 @@ const PUBLISH_CREDENTIAL_SAVE_ERROR_TEMPLATE: Record<string, string> = {
 export function publishCredentialSaveErrorMessage(locale: string, error: string): string {
   return interpolate(PUBLISH_CREDENTIAL_SAVE_ERROR_TEMPLATE[locale] ?? PUBLISH_CREDENTIAL_SAVE_ERROR_TEMPLATE.en, { error });
 }
+
+/** One provider row's re-verify-error banner — same shape as {@link PUBLISH_CREDENTIAL_SAVE_ERROR_TEMPLATE}
+ *  one function up, for the separate "Verify" action `CredentialStepDone` (`StaticSiteTab.tsx`) adds
+ *  to an already-connected row. Only a genuine transport/request failure reaches this template — the
+ *  server's own `status: "invalid" | "unreachable"` outcomes are not errors at this layer, they are a
+ *  normal `AdminPublishCredentialVerification` result the row renders directly (see
+ *  `use-publish-credentials.hooks.ts`'s `verify` for the split). */
+const PUBLISH_CREDENTIAL_VERIFY_ERROR_TEMPLATE: Record<string, string> = {
+  en: "Could not verify this token ({error}).",
+};
+
+export function publishCredentialVerifyErrorMessage(locale: string, error: string): string {
+  return interpolate(PUBLISH_CREDENTIAL_VERIFY_ERROR_TEMPLATE[locale] ?? PUBLISH_CREDENTIAL_VERIFY_ERROR_TEMPLATE.en, { error });
+}
