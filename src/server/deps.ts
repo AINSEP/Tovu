@@ -3,6 +3,11 @@ import { mkdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 
 import { InMemoryEventBus } from "../core/events";
+// A plain static import, unlike `createApp`/`exportSite` below: `resolveStorefrontProducts` has no
+// eager top-level side effect (`routes/site/products.ts`'s module body only declares functions/a
+// route registrar), so there is no load-order hazard to defer — see `routes/types.ts`'s
+// `resolveStorefrontProducts` doc for why this field exists at all.
+import { resolveStorefrontProducts } from "./routes/site/products";
 import { backfillPostSearchIndex, SqlitePostRepo, SqlitePostSearchIndex, createPostRevertRegistry } from "../features/post";
 import { SqliteDeploymentsReadRepo } from "../features/deployments";
 import { SqlitePublishCredentialSetRepo } from "../db/sqlite/publish-credential-repo.sqlite";
@@ -806,6 +811,7 @@ export function createSqliteRouteDeps(
     // crash, not a style preference).
     runExportSite: runExportSiteLazily,
     createSiteApp: createSiteAppLazily,
+    resolveStorefrontProducts,
     // 2026-08-15 (Contract v2) — see `routes/types.ts`'s `publishCredentialSetRepo`/
     // `publishExecutionMode` docs. Sealed via the same shared sealer/keyring the two credential
     // repos above already reuse (no third `EnvOrFileKeyring` instance).

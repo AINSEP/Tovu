@@ -2,20 +2,28 @@ import { randomUUID } from "node:crypto";
 
 import { listPublishedPosts } from "#src/features/post/index";
 import type { PostRecord } from "#src/features/post/index";
-import { resolveActiveTheme, resolveActiveThemeId } from "../server/routes/site/pages";
-import { resolveStorefrontProducts } from "../server/routes/site/products";
+import { resolveActiveTheme, resolveActiveThemeId } from "#src/features/theme/index";
 import type { RouteDeps } from "../server/routes/types";
 import type { ManifestRoute, ManifestSkip, RouteManifest, RouteManifestPort } from "./ports";
 
 /**
  * @file The one implementation of {@link RouteManifestPort} (`ports.ts`).
  *
- * Reuses the SAME selection logic the real public routes render with —
- * `resolveActiveThemeId`/`resolveActiveTheme` (`server/routes/site/pages.ts`) and
- * `resolveStorefrontProducts` (`server/routes/site/products.ts`), both exported for exactly this
- * reuse — rather than re-deriving "which theme is active" or "which products are live" a second
- * time. A manifest built from independent logic could silently drift from what the routes it is
- * describing actually do; reusing the exact functions makes that drift structurally impossible.
+ * Reuses the SAME selection logic the real public routes render with — rather than re-deriving
+ * "which theme is active" or "which products are live" a second time, so a manifest built from
+ * independent logic could never silently drift from what the routes it is describing actually do.
+ * Two different mechanisms as of 2026-08-16 (export<->server decoupling, edge 2 — see
+ * `ADS-memory/reports/2026-08-16-export-edge-decoupling.md`), chosen per-function rather than
+ * uniformly, because the two cases are not actually the same shape:
+ * - `resolveActiveThemeId`/`resolveActiveTheme` are pure `(deps) => value` queries with zero
+ *   `req`/`res`/routing coupling, so they moved to `#src/features/theme/index` (`active-theme.ts`)
+ *   and are imported directly, same as any other feature-owned function.
+ * - `resolveStorefrontProducts` stays in `server/routes/site/products.ts` — its return type
+ *   (`SiteProduct`, `server/http/site/render.ts`) is deliberately off-limits to `features/commerce`
+ *   (see `storefront.ts`'s own file header), so moving it would violate that existing boundary
+ *   instead of respecting it. Reused via `RouteDeps.resolveStorefrontProducts` injection instead
+ *   (`deps.resolveStorefrontProducts(deps)` below) — the same shape `runExportSite`/`createSiteApp`
+ *   already establish on this same type.
  *
  * The one non-obvious piece of domain knowledge this file owns: a static theme's `pages/*.html`
  * folder (`DiscoveredTheme.pages`, `features/theme/theme.ts`) holds BOTH real standalone pages
@@ -31,13 +39,14 @@ import type { ManifestRoute, ManifestSkip, RouteManifest, RouteManifestPort } fr
  */
 
 /**
- * The full `RouteDeps` composition-root object, not a narrow `Pick` — unlike the render-helper
- * `Pick`s in `pages.ts` (`TemplateRenderDeps` etc.), the reused functions this file calls
- * (`resolveActiveThemeId`, `resolveActiveTheme`, `resolveStorefrontProducts`) are themselves typed
- * against the full `RouteDeps`/`TemplateRenderDeps` shape, not a manifest-sized slice — narrowing
- * here would just move the type error to every call site below. A real `RouteDeps` object (what
- * `createApp`/`serve.ts` already build) always satisfies this trivially; only a test needs to
- * assemble one, and every route test in this repo already does via `createRouteDeps()`.
+ * The full `RouteDeps` composition-root object, not a narrow `Pick`. `resolveActiveThemeId`/
+ * `resolveActiveTheme` (`#src/features/theme/index`) only need their own narrow
+ * `ActiveThemeIdResolutionDeps`/`ActiveThemeResolutionDeps` — `RouteDeps` is a structural superset
+ * of both, so passing it through works with no cast — but `deps.resolveStorefrontProducts(deps)`
+ * below needs the injected field itself, which only exists on the real `RouteDeps` shape. A real
+ * `RouteDeps` object (what `createApp`/`serve.ts` already build) always satisfies this trivially;
+ * only a test needs to assemble one, and every route test in this repo already does via
+ * `createRouteDeps()`.
  */
 export type RouteManifestDeps = RouteDeps;
 
@@ -164,7 +173,7 @@ export async function buildRouteManifest(deps: RouteManifestDeps): Promise<Route
     }
   }
 
-  const products = await resolveStorefrontProducts(deps);
+  const products = await deps.resolveStorefrontProducts(deps);
   if (products.length > 0) {
     routes.push({ path: "/products", kind: "product-list", label: "products" });
     for (const product of products) {

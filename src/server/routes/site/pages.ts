@@ -2,17 +2,17 @@ import type { Response } from "express";
 import type { JsonObject } from "@jini-ai/cms/core";
 
 import type { PostRecord } from "#src/features/post/index";
-import { getPresentationSettings, PresentationSettingsNotFoundError } from "#src/features/presentation/index";
 import { getPublishedPostBySlug, findPublishedPostById, listPublishedPosts, PostNotFoundError } from "#src/features/post/index";
 import { isPublicAssistantEnabled } from "#src/assistant/index";
 import {
-  findTheme,
   renderStaticPage,
   injectCurrentEntityContentId,
   injectPageTitle,
   resolveTemplate,
   isEligibleForTemplateBranch,
   scanMenuEmbedIds,
+  resolveActiveThemeId,
+  resolveActiveTheme,
   type DiscoveredTheme,
   type StaticMenuItem,
 } from "#src/features/theme/index";
@@ -125,43 +125,15 @@ export const SITE_TITLE = "Tovu Demo Site";
 const CACHE_CONTROL_PUBLIC_PAGE = "public, max-age=60, stale-while-revalidate=300";
 
 /**
- * Resolves the workspace's stored `activeThemeId` preference, degrading to `""` — which
- * {@link resolveActiveTheme} immediately below already treats as "missing/invalid, fall back to
- * the first valid theme" — when the workspace has no `presentation_settings` row yet at all
- * (a freshly created workspace via SPEC-044's `CREATE_WORKSPACE` admin route, or a `content.db`
- * mid-seed), rather than letting `getPresentationSettings`'s `PresentationSettingsNotFoundError`
- * propagate out of this route's own `Promise.all` uncaught. Both `GET /` and `GET /:slug` below
- * previously let that error fall into their outer catch-all, turning a plain "not configured yet"
- * state into a bare 500 indistinguishable from a genuine fault. Any OTHER error (a real repo/DB
- * failure) still propagates unchanged — this narrows only the one documented "no row yet" case.
+ * `resolveActiveThemeId`/`resolveActiveTheme` moved to `#src/features/theme/index`
+ * (`active-theme.ts`) 2026-08-16 — both were pure `(deps) => value` queries with zero `req`/`res`
+ * coupling, and living here forced `export/route-manifest.ts` to import a routing-layer file just
+ * to reuse them (a `check:architecture`-flagged runtime edge into the composition-root module; see
+ * `ADS-memory/reports/2026-08-16-export-edge-decoupling.md`). Re-exported below, unchanged in
+ * behavior, so `routes/admin/posts/template-preview.ts`'s existing `from "../../site/pages"` import
+ * keeps working — only `route-manifest.ts` was updated to import the new home directly.
  */
-/** Exported (2026-08-15, static exporter) so `export/route-manifest.ts` resolves the SAME active
- *  theme id this route already renders with — one source of truth for "what theme is live" rather
- *  than a second copy of the `PresentationSettingsNotFoundError`-swallowing fallback below. */
-export async function resolveActiveThemeId(deps: RouteDeps): Promise<string> {
-  try {
-    const { settings } = await getPresentationSettings({
-      deps: { repo: deps.presentationRepo },
-      input: { workspaceId: deps.workspaceId },
-    });
-    return settings.activeThemeId;
-  } catch (err) {
-    if (err instanceof PresentationSettingsNotFoundError) return "";
-    throw err;
-  }
-}
-
-/**
- * Resolve the theme to render with: the active theme when discovered and valid,
- * otherwise the first valid theme, otherwise the first discovered theme. This is
- * the render-time fallback that keeps the public site from 500-ing when the
- * active theme id is missing/invalid (SPEC-004 REQ-10, spike-level).
- */
-export function resolveActiveTheme(deps: TemplateRenderDeps, activeThemeId: string): DiscoveredTheme | null {
-  const active = findTheme({ themes: deps.themes, id: activeThemeId });
-  if (active && active.status === "valid") return active;
-  return deps.themes.find((t) => t.status === "valid") ?? deps.themes[0] ?? null;
-}
+export { resolveActiveThemeId, resolveActiveTheme };
 
 /**
  * SPEC-043/ADR-047 W-004 — resolves every widget placed in one of `theme.manifest.regions` (REQ-13)
@@ -383,15 +355,18 @@ export type ContentMarkerResolutionDeps = Pick<
   "workspaceId" | "postRepo" | "entryRepo" | "mediaRepo" | "transformDefinitionRepo"
 >;
 
-/** The narrow dependency slice {@link renderViaTemplate}, {@link resolveActiveTheme}, and
- * {@link resolveStaticMenusForRender} actually need — same "`Pick` of `RouteDeps`, not the whole
- * composition-root shape" reasoning as {@link ContentMarkerResolutionDeps} immediately above (a
- * superset of it: adds `menuRepo`, for {@link resolveStaticMenusForRender}'s theme-nav lookup, and
- * `themes`, for {@link resolveActiveTheme}'s discovery-list scan). Exported (2026-08-11
- * template-preview fix) so `routes/admin/posts/template-preview.ts` can call these three real-pipeline
- * functions with `ContentRouteDeps` — a `Pick` in its own right — without either type needing to
- * satisfy the full `RouteDeps` shape neither one actually reads down to. `RouteDeps` remains a
- * structural supertype of this, so every pre-existing call site in this file keeps passing its own
+/** The narrow dependency slice {@link renderViaTemplate} and {@link resolveStaticMenusForRender}
+ * actually need — same "`Pick` of `RouteDeps`, not the whole composition-root shape" reasoning as
+ * {@link ContentMarkerResolutionDeps} immediately above (a superset of it: adds `menuRepo`, for
+ * {@link resolveStaticMenusForRender}'s theme-nav lookup, and `themes`, originally added for
+ * `resolveActiveTheme`'s discovery-list scan before that function moved to
+ * `#src/features/theme/index` 2026-08-16 — its own `ActiveThemeResolutionDeps` only needs `themes`,
+ * which this type is still a structural superset of, so every call site below that passes a
+ * `TemplateRenderDeps`-shaped `deps` to the now-imported `resolveActiveTheme` keeps type-checking
+ * unchanged). Exported (2026-08-11 template-preview fix) so `routes/admin/posts/template-preview.ts`
+ * can call these real-pipeline functions with `ContentRouteDeps` — a `Pick` in its own right —
+ * without needing the full `RouteDeps` shape neither one actually reads down to. `RouteDeps` remains
+ * a structural supertype of this, so every pre-existing call site in this file keeps passing its own
  * full `deps` through unchanged. */
 export type TemplateRenderDeps = Pick<
   RouteDeps,
