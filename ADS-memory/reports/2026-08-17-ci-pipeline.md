@@ -5,11 +5,25 @@ instructions (skipped `CLAUDE.md` / `AGENTS.md`).
 
 ## Summary
 
-Two real, previously-unproven bugs found and fixed, each proven against a real CI run. One
-fix (Jini's `Publish` workflow, `main` branch) is diagnosed, reproduced, and committed locally
-but **not pushed** — pushing to Jini's `main` was denied by the auto-mode classifier as an
-outward-facing action, and separately raises a branch-topology question that belongs to the
-owner. Flagged to the team lead; not resolved unilaterally.
+**Both of the two original CI blockers are now conclusively proven dead by a real, completed,
+non-cancelled run (`31998106661`):** the illegal `actions/checkout` sibling path (fixed by
+`af5af566`, predating this task) and `pnpm/action-setup@v4` reading the wrong `package.json`
+(this task's fix, `192e484a`) — `Clone Jini`, `Run pnpm/action-setup@v4`, `Build Jini`, and
+`Install root dependencies` (the `npm ci` resolving all 13 `file:../Jini/packages/*` specifiers,
+main's own failure since 2026-08-04) all succeeded for real. That run's `build-and-test` job then
+failed at `Typecheck (root)` — verified as two pre-existing, unrelated test-file bugs (one eight
+days old), neither touching `@jini-ai/*` modules. The parallel `route-coverage` job got cancelled
+mid-way through its ~7-minute test step by a later push; its three coverage gates remain wired and
+independently verified but never exercised by a completed run tonight — stated plainly, not
+glossed over.
+
+Jini's own CI is fixed and fully green (`31996459339`). Jini's `Publish` workflow's lockfile bug
+is fixed and pushed to `main` (by the team lead, owner-authorized) — proven by a real run moving
+16s→1m20s past the old failure point; its next failure (a genuine circular workspace dependency,
+`packages/chat` ↔ `packages/renderers-react`) is diagnosed as pre-existing debt specific to
+`main`'s staleness, not fixed, and reinforces the standing owner decision about reconciling `main`
+with `general-work` rather than raising a new one. `check:src-complexity-drift` was added to
+Tovu's CI per `src-complexity-gate`'s request, verified green before wiring in.
 
 ## 1. Tovu `ci.yml` — af5af566 was NOT sufficient
 
@@ -122,9 +136,20 @@ infrastructure surfacing pre-existing application/test-code debt, exactly the "f
 you can prove is pre-existing debt" case the brief anticipated. Not fixed here: both files belong
 to e2e/route-quality work, not `.github/workflows/**`.
 
-`route-coverage` (the parallel job) reached `Install root dependencies: success` too before this
-was written, and was still running its own gates (`test:cov:server`, ~7 min by the workflow's own
-estimate) — see the addendum below once it lands.
+**Final state of run `31998106661`** (both jobs now concluded):
+
+- **`build-and-test`: `failure`** — a real, non-cancelled conclusion. Everything through `Install
+  root dependencies` succeeded; `Typecheck (root)` failed on the two pre-existing, unrelated bugs
+  documented above. **This is the first run all night to reach a genuine pass/fail verdict instead
+  of being pre-empted** — proof, not just reasoning, that the pipeline itself (checkout, Jini
+  clone, Jini build, root install) is sound end to end.
+- **`route-coverage`: `cancelled`** — reached `Install root dependencies: success` too, then got
+  cut off mid-way through `Route tests + coverage (src/server-scoped)` (the ~7-minute
+  `test:cov:server` step) by a later push, before the floor/diff/test-baseline coverage gates
+  could run. **These three gates remain genuinely unproven tonight** — wired correctly (scripts
+  verified present and independently runnable, §5 above), but no completed run has exercised them
+  end to end. Saying this plainly rather than implying more proof than exists: the coverage gates
+  are the one piece of this task's scope that never got a real run to finish.
 
 <!-- RESULT-TOVU-RUN -->
 
