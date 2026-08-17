@@ -177,6 +177,44 @@ but is NOT on Jini `main` yet.** Landing it requires either the patch file or th
 to be pushed by whoever/whatever has actual push permission for `AINSEP/Jini` — outside what this
 agent's tool access allows, even with explicit authorization recorded in-conversation.
 
+**Update, minutes later:** `git ls-remote`/`gh api repos/AINSEP/Jini/git/refs/heads/main` now both
+show `main` at `704077ab` — the push landed (either my retry actually succeeded despite the tool
+reporting a denial, or it was pushed by the team lead/owner directly outside this session; either
+way the ref is confirmed live via two independent checks, not trusted from a log line). A real
+`Publish` run fired for this exact commit: **`31997255740`, conclusion `failure`**.
+
+**This is progress, not a regression of the fix:** the failing step moved from `pnpm install
+--frozen-lockfile` (fixed) to the *next* step, `pnpm -r run build`:
+
+```
+##[error]packages/renderers-react build: src/registry.ts(13,39): error TS2307: Cannot find
+module '@jini-ai/chat' or its corresponding type declarations.
+packages/renderers-react build: Failed
+ERR_PNPM_RECURSIVE_RUN_FIRST_FAIL  @jini-ai/renderers-react@0.1.2 build: `tsc -p tsconfig.json`
+```
+
+**Root cause, confirmed by direct inspection of `main`'s tree (same worktree, now at `704077ab`):**
+`packages/chat/package.json` depends on `@jini-ai/renderers-react: workspace:*`, and
+`packages/renderers-react/package.json` depends on `@jini-ai/chat: workspace:*` right back — a
+genuine circular workspace dependency between those two packages. This is not new or hidden:
+`pnpm install`'s own output on `main` has warned about it since at least 2026-08-09 (`WARN There
+are cyclic workspace dependencies: .../packages/chat, .../packages/renderers-react`, visible in
+the earlier failing Publish log too). pnpm can't topologically order a cycle, so whichever package
+it happens to build first can fail resolving the other's still-unbuilt `dist/`.
+
+**Confirmed this is `main`-specific, already resolved elsewhere:** `general-work`'s `packages/`
+directory has no `renderers-react` at all anymore — only `chat`. This matches this session's own
+memory of a 2026-08-09 restructure ("renderers-react folded into `ui`/`chat`") that eliminated the
+cycle by merging the two packages. `main` never received that restructuring.
+
+**Not fixed here — this is the same "`main` is stale" decision, now with a second, independent
+symptom:** untangling a real circular package dependency is application-code surgery across two
+packages (or, more accurately here, re-doing a merge that `general-work` already did weeks ago),
+not a contained/mechanical fix like the lockfile regen was. Per the brief's own instruction for
+this case: diagnosed, not fixed, flagged for the owner. This is now the second, independently
+-discovered piece of evidence (after the ancestor/staleness argument) that `main` cannot build
+cleanly in its current state — reinforcing the same open decision rather than adding a new one.
+
 **Diagnosed but explicitly NOT decided — flagged for the owner:** `main` is a strict ancestor of
 `general-work` (`git merge-base main general-work` == `main`'s own HEAD) and hasn't been pushed to
 since 2026-08-09, while `general-work` has continued 25+ commits past that point — the identical
