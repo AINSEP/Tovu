@@ -2136,7 +2136,23 @@ export const api = {
   // error cases to throw on — the whole point of this call is telling the two apart after a restart.
   getAssistantDaemonReadyz: async (): Promise<{ ready: boolean; assistantDaemonKnownFailed?: true }> => {
     const res = await fetch("/readyz", { credentials: "same-origin" });
-    return (await res.json()) as { ready: boolean; assistantDaemonKnownFailed?: true };
+    // `/readyz` (`server/routes/ops/health.ts`'s `registerReadyzRoute`) always answers JSON, on both
+    // its `200` and `503` branches — so a non-JSON response here means something ELSE answered
+    // instead of the real route: a dev-server proxy gap (fixed 2026-08-17 in `vite.config.ts`, but
+    // this guard is not just a workaround for that — the same class of failure is possible in
+    // production from a reverse proxy's own error page or a captive portal), a stale build, etc.
+    // Calling `res.json()` unconditionally used to let a plain-text 404 throw a raw
+    // `Unexpected token 'T', "The server"... is not valid JSON` straight into the UI (live-verified
+    // finding, 2026-08-17) — the least informative thing a STATUS CHECK could possibly show.
+    const contentType = res.headers.get("content-type") ?? "";
+    if (!contentType.includes("application/json")) {
+      throw new Error(`Could not check the assistant's status (unexpected response, HTTP ${res.status}).`);
+    }
+    try {
+      return (await res.json()) as { ready: boolean; assistantDaemonKnownFailed?: true };
+    } catch {
+      throw new Error(`Could not check the assistant's status (malformed response, HTTP ${res.status}).`);
+    }
   },
   // The SITE's encrypted provider credential (ADR-058) — a DIFFERENT key from the browser-local one
   // `lib/execution-settings.ts` keeps for this admin's own assistant, and the whole reason these three
