@@ -216,6 +216,7 @@ function AccessTokensSearch({ controller, otherController }: { controller: Acces
         id="access-tokens-search"
         className="access-tokens-search-input"
         type="search"
+        autoComplete="off"
         value={controller.query}
         onChange={(e) => controller.setQuery(e.target.value)}
         placeholder={translate("Search by provider, name, or purpose")}
