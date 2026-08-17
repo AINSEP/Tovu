@@ -86,41 +86,49 @@ export function registerAdminExportSiteRoutes(app: Express, deps: AdminExportSit
       return;
     }
 
-    const principal = getAuthedPrincipal(res);
-    const authResult = await deps.authorize({
-      principalId: principal.id,
-      permission: "system.export",
-      workspaceId: deps.workspaceId,
-      entityType: "site-export",
-    });
-    if (!authResult.allowed) {
-      res.status(403).json({
-        error: `principal '${principal.id}' is not authorized for 'system.export' (${authResult.reason})`,
-        code: "FORBIDDEN",
-        details: { permission: "system.export", reason: authResult.reason },
+    try {
+      const principal = getAuthedPrincipal(res);
+      const authResult = await deps.authorize({
+        principalId: principal.id,
+        permission: "system.export",
+        workspaceId: deps.workspaceId,
+        entityType: "site-export",
       });
-      return;
-    }
+      if (!authResult.allowed) {
+        res.status(403).json({
+          error: `principal '${principal.id}' is not authorized for 'system.export' (${authResult.reason})`,
+          code: "FORBIDDEN",
+          details: { permission: "system.export", reason: authResult.reason },
+        });
+        return;
+      }
 
-    // No `await` between this check and `startExportRun` below — this whole block runs as one
-    // synchronous stretch of the event loop, so two concurrent POSTs cannot both observe "idle".
-    // `deployment_trigger_export` (`features/deployments/tool-registrations.ts`) follows the
-    // identical no-await-in-between shape against the same `getExportRunSnapshot`/`startExportRun`
-    // pair, sharing this exact single-flight guarantee whenever it runs in this same process (see
-    // `export-run.ts`'s file header for the one case where it does not: a separate OS process).
-    if (getExportRunSnapshot().status === "running") {
-      res.status(409).json({ error: "an export is already running", run: getExportRunSnapshot() });
-      return;
-    }
+      // No `await` between this check and `startExportRun` below — this whole block runs as one
+      // synchronous stretch of the event loop, so two concurrent POSTs cannot both observe "idle".
+      // `deployment_trigger_export` (`features/deployments/tool-registrations.ts`) follows the
+      // identical no-await-in-between shape against the same `getExportRunSnapshot`/`startExportRun`
+      // pair, sharing this exact single-flight guarantee whenever it runs in this same process (see
+      // `export-run.ts`'s file header for the one case where it does not: a separate OS process).
+      if (getExportRunSnapshot().status === "running") {
+        res.status(409).json({ error: "an export is already running", run: getExportRunSnapshot() });
+        return;
+      }
 
-    const parsedBody = parseTriggerRequestBody(req.body);
-    if (!parsedBody.ok) {
-      res.status(400).json({ error: parsedBody.error });
-      return;
-    }
+      const parsedBody = parseTriggerRequestBody(req.body);
+      if (!parsedBody.ok) {
+        res.status(400).json({ error: parsedBody.error });
+        return;
+      }
 
-    const snapshot = startExportRun(deps, deps.runExportSite, { clean: parsedBody.clean, basePath: parsedBody.basePath });
-    res.status(202).json(snapshot);
+      const snapshot = startExportRun(deps, deps.runExportSite, { clean: parsedBody.clean, basePath: parsedBody.basePath });
+      res.status(202).json(snapshot);
+    } catch (err) {
+      // `startExportRun` itself is not awaited (the run continues in the background, polled via
+      // `GET` below), so a failure inside the run it starts can never reach this catch — only a
+      // failure BEFORE that point can, e.g. `deps.authorize` itself throwing.
+      console.error("[export-site] unexpected error triggering an export", err);
+      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+    }
   });
 
   app.get("/api/admin/v1/workspaces/:workspaceId/system/export", async (req, res) => {
@@ -129,22 +137,27 @@ export function registerAdminExportSiteRoutes(app: Express, deps: AdminExportSit
       return;
     }
 
-    const principal = getAuthedPrincipal(res);
-    const authResult = await deps.authorize({
-      principalId: principal.id,
-      permission: "system.read",
-      workspaceId: deps.workspaceId,
-      entityType: "site-export",
-    });
-    if (!authResult.allowed) {
-      res.status(403).json({
-        error: `principal '${principal.id}' is not authorized for 'system.read' (${authResult.reason})`,
-        code: "FORBIDDEN",
-        details: { permission: "system.read", reason: authResult.reason },
+    try {
+      const principal = getAuthedPrincipal(res);
+      const authResult = await deps.authorize({
+        principalId: principal.id,
+        permission: "system.read",
+        workspaceId: deps.workspaceId,
+        entityType: "site-export",
       });
-      return;
-    }
+      if (!authResult.allowed) {
+        res.status(403).json({
+          error: `principal '${principal.id}' is not authorized for 'system.read' (${authResult.reason})`,
+          code: "FORBIDDEN",
+          details: { permission: "system.read", reason: authResult.reason },
+        });
+        return;
+      }
 
-    res.status(200).json(getExportRunSnapshot());
+      res.status(200).json(getExportRunSnapshot());
+    } catch (err) {
+      console.error("[export-site] unexpected error polling export status", err);
+      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+    }
   });
 }

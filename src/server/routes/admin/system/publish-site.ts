@@ -174,62 +174,71 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
       return;
     }
 
-    const principal = getAuthedPrincipal(res);
-    const authResult = await deps.authorize({
-      principalId: principal.id,
-      permission: "system.publish",
-      workspaceId: deps.workspaceId,
-      entityType: "site-publish",
-    });
-    if (!authResult.allowed) {
-      res.status(403).json({
-        error: `principal '${principal.id}' is not authorized for 'system.publish' (${authResult.reason})`,
-        code: "FORBIDDEN",
-        details: { permission: "system.publish", reason: authResult.reason },
+    try {
+      const principal = getAuthedPrincipal(res);
+      const authResult = await deps.authorize({
+        principalId: principal.id,
+        permission: "system.publish",
+        workspaceId: deps.workspaceId,
+        entityType: "site-publish",
       });
-      return;
+      if (!authResult.allowed) {
+        res.status(403).json({
+          error: `principal '${principal.id}' is not authorized for 'system.publish' (${authResult.reason})`,
+          code: "FORBIDDEN",
+          details: { permission: "system.publish", reason: authResult.reason },
+        });
+        return;
+      }
+
+      // No `await` between this check and `startPublishRun` below — same single-synchronous-stretch
+      // reasoning `export-site.ts`'s own trigger route documents, so two concurrent POSTs cannot both
+      // observe "idle". This is now ALSO the same guard `deployment_execute_static_publish`
+      // (`publish-agent-tools.ts`) checks before its own confirmed publish call — both read/write the
+      // ONE shared slot in `static-publish/publish-run.ts`, so a concurrent trigger from either caller
+      // is refused, not raced (Terra audit finding #1).
+      if (getPublishRunSnapshot().status === "running") {
+        res.status(409).json({ error: "a publish is already running", run: getPublishRunSnapshot() });
+        return;
+      }
+
+      const parsed = parsePublishRequestBody(req.body);
+      if (!parsed.ok) {
+        res.status(400).json({ error: parsed.error });
+        return;
+      }
+
+      // Fails fast, before flipping the shared run slot to "running" or touching the
+      // filesystem/network at all, on a config `publishStaticSite` would reject anyway — an explicit
+      // early validation pass costs nothing extra here (the same check `publishStaticSite` performs
+      // internally) and means a caller who only sends a malformed config never sees a "running"
+      // snapshot at all.
+      const configError = validateStaticPublishConfig(parsed.config);
+      if (configError) {
+        res.status(400).json({ error: configError });
+        return;
+      }
+
+      // Deliberately not awaited — see this file's header for why the response returns before the
+      // publish finishes. `startPublishRun` itself keeps the shared slot in sync as the publish
+      // settles, so a poller can never observe a stale "running" snapshot after the promise has
+      // actually settled.
+      const snapshot = startPublishRun(
+        { credentialSource },
+        { workspaceId: deps.workspaceId, routeDeps: deps, config: parsed.config, projectName: parsed.projectName },
+        deps.clock,
+        deps.publishHistoryStore
+      );
+
+      res.status(202).json(snapshot);
+    } catch (err) {
+      // Everything above `startPublishRun` (auth check, snapshot read, body parsing) runs
+      // synchronously-awaited in this one try; `startPublishRun` itself is deliberately NOT awaited
+      // (see its own call site comment) so a failure inside the run it starts can never reach this
+      // catch — only a failure BEFORE that point can, e.g. `deps.authorize` itself throwing.
+      console.error("[publish-site] unexpected error triggering a publish", err);
+      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
     }
-
-    // No `await` between this check and `startPublishRun` below — same single-synchronous-stretch
-    // reasoning `export-site.ts`'s own trigger route documents, so two concurrent POSTs cannot both
-    // observe "idle". This is now ALSO the same guard `deployment_execute_static_publish`
-    // (`publish-agent-tools.ts`) checks before its own confirmed publish call — both read/write the
-    // ONE shared slot in `static-publish/publish-run.ts`, so a concurrent trigger from either caller
-    // is refused, not raced (Terra audit finding #1).
-    if (getPublishRunSnapshot().status === "running") {
-      res.status(409).json({ error: "a publish is already running", run: getPublishRunSnapshot() });
-      return;
-    }
-
-    const parsed = parsePublishRequestBody(req.body);
-    if (!parsed.ok) {
-      res.status(400).json({ error: parsed.error });
-      return;
-    }
-
-    // Fails fast, before flipping the shared run slot to "running" or touching the
-    // filesystem/network at all, on a config `publishStaticSite` would reject anyway — an explicit
-    // early validation pass costs nothing extra here (the same check `publishStaticSite` performs
-    // internally) and means a caller who only sends a malformed config never sees a "running"
-    // snapshot at all.
-    const configError = validateStaticPublishConfig(parsed.config);
-    if (configError) {
-      res.status(400).json({ error: configError });
-      return;
-    }
-
-    // Deliberately not awaited — see this file's header for why the response returns before the
-    // publish finishes. `startPublishRun` itself keeps the shared slot in sync as the publish
-    // settles, so a poller can never observe a stale "running" snapshot after the promise has
-    // actually settled.
-    const snapshot = startPublishRun(
-      { credentialSource },
-      { workspaceId: deps.workspaceId, routeDeps: deps, config: parsed.config, projectName: parsed.projectName },
-      deps.clock,
-      deps.publishHistoryStore
-    );
-
-    res.status(202).json(snapshot);
   });
 
   app.get("/api/admin/v1/workspaces/:workspaceId/system/publish", async (req, res) => {
@@ -238,23 +247,28 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
       return;
     }
 
-    const principal = getAuthedPrincipal(res);
-    const authResult = await deps.authorize({
-      principalId: principal.id,
-      permission: "system.publish",
-      workspaceId: deps.workspaceId,
-      entityType: "site-publish",
-    });
-    if (!authResult.allowed) {
-      res.status(403).json({
-        error: `principal '${principal.id}' is not authorized for 'system.publish' (${authResult.reason})`,
-        code: "FORBIDDEN",
-        details: { permission: "system.publish", reason: authResult.reason },
+    try {
+      const principal = getAuthedPrincipal(res);
+      const authResult = await deps.authorize({
+        principalId: principal.id,
+        permission: "system.publish",
+        workspaceId: deps.workspaceId,
+        entityType: "site-publish",
       });
-      return;
-    }
+      if (!authResult.allowed) {
+        res.status(403).json({
+          error: `principal '${principal.id}' is not authorized for 'system.publish' (${authResult.reason})`,
+          code: "FORBIDDEN",
+          details: { permission: "system.publish", reason: authResult.reason },
+        });
+        return;
+      }
 
-    res.status(200).json(getPublishRunSnapshot());
+      res.status(200).json(getPublishRunSnapshot());
+    } catch (err) {
+      console.error("[publish-site] unexpected error polling publish status", err);
+      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+    }
   });
 
   app.get("/api/admin/v1/workspaces/:workspaceId/system/publish/preview", async (req, res) => {
@@ -263,46 +277,55 @@ export function registerAdminPublishSiteRoutes(app: Express, deps: AdminPublishS
       return;
     }
 
-    const principal = getAuthedPrincipal(res);
-    const authResult = await deps.authorize({
-      principalId: principal.id,
-      permission: "system.read",
-      workspaceId: deps.workspaceId,
-      entityType: "site-publish",
-    });
-    if (!authResult.allowed) {
-      res.status(403).json({
-        error: `principal '${principal.id}' is not authorized for 'system.read' (${authResult.reason})`,
-        code: "FORBIDDEN",
-        details: { permission: "system.read", reason: authResult.reason },
+    try {
+      const principal = getAuthedPrincipal(res);
+      const authResult = await deps.authorize({
+        principalId: principal.id,
+        permission: "system.read",
+        workspaceId: deps.workspaceId,
+        entityType: "site-publish",
       });
-      return;
+      if (!authResult.allowed) {
+        res.status(403).json({
+          error: `principal '${principal.id}' is not authorized for 'system.read' (${authResult.reason})`,
+          code: "FORBIDDEN",
+          details: { permission: "system.read", reason: authResult.reason },
+        });
+        return;
+      }
+
+      const parsed = parsePreviewQuery(req.query as Record<string, unknown>);
+      if (!parsed.ok) {
+        res.status(400).json({ error: parsed.error });
+        return;
+      }
+
+      // Same three reads `deployment_preview_static_publish`'s handler performs (this file's header)
+      // — a pure shape check, a pure base-path derivation, and one `process.env` lookup. No export
+      // runs, no filesystem or network I/O. `isConfigured()`, NOT `resolve()` (2026-08-15 split, see
+      // `static-publish/types.ts`'s `PublishCredentialSource` header) — a preview must never resolve a
+      // real credential just to read a boolean off it, which is what would silently start decrypting on
+      // every preview call once a DB-backed source replaces this env-var one.
+      const validationError = validateStaticPublishConfig(parsed.config);
+      const basePath = validationError === null ? (computeBasePath(parsed.config) ?? null) : null;
+      const credential = await credentialSource.isConfigured({ workspaceId: deps.workspaceId, target: parsed.config.target });
+
+      res.status(200).json({
+        target: parsed.config.target,
+        valid: validationError === null,
+        validationError,
+        basePath,
+        credentialsConfigured: credential.configured,
+        credentialGuidance: credential.configured ? null : credential.reason,
+        willInjectNojekyll: parsed.config.target === "github-pages",
+      });
+    } catch (err) {
+      // `credentialSource.isConfigured` is the one awaited call here that can reach a real backing
+      // store (DB-backed source, per this file's header) — a failure there used to escape this
+      // handler entirely (no `try`/`catch` at all; found by an AST scan over every `app.<verb>()`
+      // handler in `src/server/routes/**`).
+      console.error("[publish-site] unexpected error building a publish preview", err);
+      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
     }
-
-    const parsed = parsePreviewQuery(req.query as Record<string, unknown>);
-    if (!parsed.ok) {
-      res.status(400).json({ error: parsed.error });
-      return;
-    }
-
-    // Same three reads `deployment_preview_static_publish`'s handler performs (this file's header)
-    // — a pure shape check, a pure base-path derivation, and one `process.env` lookup. No export
-    // runs, no filesystem or network I/O. `isConfigured()`, NOT `resolve()` (2026-08-15 split, see
-    // `static-publish/types.ts`'s `PublishCredentialSource` header) — a preview must never resolve a
-    // real credential just to read a boolean off it, which is what would silently start decrypting on
-    // every preview call once a DB-backed source replaces this env-var one.
-    const validationError = validateStaticPublishConfig(parsed.config);
-    const basePath = validationError === null ? (computeBasePath(parsed.config) ?? null) : null;
-    const credential = await credentialSource.isConfigured({ workspaceId: deps.workspaceId, target: parsed.config.target });
-
-    res.status(200).json({
-      target: parsed.config.target,
-      valid: validationError === null,
-      validationError,
-      basePath,
-      credentialsConfigured: credential.configured,
-      credentialGuidance: credential.configured ? null : credential.reason,
-      willInjectNojekyll: parsed.config.target === "github-pages",
-    });
   });
 }
