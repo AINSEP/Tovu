@@ -15,6 +15,8 @@ import {
 } from "../../features/taxonomy";
 import type { RouteDeps } from "../../server/routes/types";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations";
+import { resetToolContributorsForTests } from "../tool-contribution-registry";
+import { contributeTaxonomyTools } from "../../features/taxonomy/tool-registrations";
 
 /**
  * @file The Taxonomy (Categories & Tags) tool-wiring test file — mirrors
@@ -30,6 +32,13 @@ import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "..
  * `InMemoryTokenStore`), no mocking of the chokepoint itself, per Constitution Article V
  * (Integration-First Testing).
  */
+
+// Taxonomy moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
+// tool-contribution registry (2026-08-17, Stage 2 — see `tool-contribution-registry.ts`'s header),
+// so `buildAssistantToolRegistrations` below no longer wires it unless something explicitly installs
+// it first, mirroring what the real composition roots now do via `installFirstPartyToolContributors()`.
+resetToolContributorsForTests();
+contributeTaxonomyTools();
 
 const WORKSPACE_ID = "ws-taxonomy-tools";
 const PRINCIPAL_ID = "principal-under-test";

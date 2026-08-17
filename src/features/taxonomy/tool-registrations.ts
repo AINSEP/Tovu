@@ -39,6 +39,7 @@ import {
   type GatedMutationHooks,
   type GatewayDeps,
 } from "../../core/gated-mutations/gateway";
+import { registerToolContributor } from "#src/assistant/index";
 import type { PostRepoPort } from "../post";
 import { buildMergeTermHooks, type MergeableEntryTermRepoPort } from "./gated-hooks";
 import { taxonomyAgentToolCatalog } from "./agent-tools";
@@ -242,4 +243,16 @@ export function buildTaxonomyRegistrations(routeDeps: TaxonomyToolDeps): ToolReg
     derivedRisk: taxonomyDerivedRisk,
     unwiredToolIds: UNWIRED_TAXONOMY_TOOL_IDS,
   });
+}
+
+/**
+ * Contributes Taxonomy's AI tools to the assistant's catalog — called once by
+ * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
+ * module. `assistant/tool-registrations.ts` no longer imports `buildTaxonomyRegistrations`/
+ * `taxonomyDerivedRisk` by name; this is the seam that replaced it (2026-08-17, Stage 2 of the
+ * rollout — no sibling domain still statically wired through `assistant` imports `taxonomy`, so this
+ * one-directional `taxonomy -> assistant` call closes no new cycle).
+ */
+export function contributeTaxonomyTools(): void {
+  registerToolContributor({ domain: "taxonomy", build: buildTaxonomyRegistrations, risk: taxonomyDerivedRisk });
 }

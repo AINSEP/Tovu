@@ -27,7 +27,7 @@
  *   themes (4 of 4)          deployments (5 of 5) static-publish (3 of 3)
  *   source-control (2 of 2)
  * Recovery counts 5, not 6: `backup_create_restore_point` appears in both its catalog and
- * Database's, and Recovery is the one that declares it unwired (see {@link DERIVED_RISK_BY_TOOL_ID}
+ * Database's, and Recovery is the one that declares it unwired (see {@link derivedRiskByToolId}
  * for why that collision has to resolve exactly this way). Counting it on both sides is what makes
  * a naive per-domain sum read 132 against a registry that holds 131.
  * The two demo domains below wire nothing unless `TOVU_ENABLE_DEMO_TOOLS` is set, so they are
@@ -35,18 +35,39 @@
  * Each domain's own file records which of its entries are deliberately unwired and why; the kit's
  * `buildDomainRegistrations` fails the build on any catalog entry that is neither.
  *
- * To wire a new domain: add its `build<Domain>Registrations` and its risk slice to
- * {@link DOMAIN_SLICES} below. That is the only edit here — a new domain never adds handler code to
- * this file, which is what makes two domains developable in parallel without colliding.
+ * 2026-08-17: this file no longer wires every domain by static import. `comments` and `newsletter`
+ * were converted to `tool-contribution-registry.ts`'s explicit-call registry — see that file's
+ * header for why (it existed to break the `[assistant, comments, features/plugins, newsletter]`
+ * module cycle `check:architecture` flagged, which a static import here could not). `identity`,
+ * `members`, `taxonomy`, and `redirects` (Stage 2, same day) followed the same way — none has a
+ * sibling domain still statically wired through this file that reaches back into it, so nothing
+ * routes back through any of them to close a new cycle. `themes` was ALSO tried in the same batch and
+ * reverted — see its own `DOMAIN_SLICES` entry's comment below and
+ * `features/theme/tool-registrations.ts`'s trailing comment for why it is not a clean case like the
+ * other four: `export` (via a `#src/*` subpath import invisible to a relative-path grep) depends on
+ * `features/theme`, and `assistant` still reaches `export` transitively through its still-static
+ * `deployments`/`source-control` entries. Their tools
+ * still count in the totals above; they just arrive via
+ * {@link listToolContributors}/{@link allToolContributors} now, folded together with
+ * {@link DOMAIN_SLICES} rather than being one of its entries. `post` was ALSO tried and reverted
+ * the same night — see its own `DOMAIN_SLICES` entry's comment below and
+ * `features/post/tool-registrations.ts`'s trailing comment for why it is not a clean case like the
+ * other two: converting it opened a NEW, larger cycle through `widgets`/`export`, both of which
+ * depend on `features/post` while `assistant` still statically depends on `widgets`.
+ *
+ * To wire a new domain: if it will stay a first-party, always-present domain and you are not
+ * specifically migrating it to the registry, add its `build<Domain>Registrations` and its risk
+ * slice to {@link DOMAIN_SLICES} below (the same edit as before) — that is still the only edit here
+ * for that case. To wire it through the registry instead, give it its own `contribute<Domain>Tools()`
+ * (see `comments/tool-registrations.ts` for the shape) and add that call to
+ * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()` — nothing in THIS file
+ * changes for that path, which is the property the registry exists to buy.
  */
-import {
-  buildCommentsRegistrations,
-  commentsDerivedRisk,
-  type CommentsToolDeps,
-} from "../comments/tool-registrations";
+import type { CommentsToolDeps } from "../comments/tool-registrations";
 import { buildDemoA2uiRegistrations, demoA2uiDerivedRisk } from "./demo-a2ui-tool";
 import { buildDemoChoicesRegistrations, demoChoicesDerivedRisk } from "./demo-choices-tool";
-import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "./surface-exchanges";
+import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "../core/tool-surface-exchanges";
+import { listToolContributors, type ToolContributor } from "./tool-contribution-registry";
 
 export type { AssistantSurfaceDeps };
 import {
@@ -120,11 +141,7 @@ import {
   settingsDerivedRisk,
   type SettingsToolDeps,
 } from "../features/settings/tool-registrations";
-import {
-  buildTaxonomyRegistrations,
-  taxonomyDerivedRisk,
-  type TaxonomyToolDeps,
-} from "../features/taxonomy/tool-registrations";
+import type { TaxonomyToolDeps } from "../features/taxonomy/tool-registrations";
 import {
   buildThemesRegistrations,
   themesDerivedRisk,
@@ -140,11 +157,7 @@ import {
   formsDerivedRisk,
   type FormsToolDeps,
 } from "../forms/tool-registrations";
-import {
-  buildIdentityRegistrations,
-  identityDerivedRisk,
-  type IdentityToolDeps,
-} from "../identity/tool-registrations";
+import type { IdentityToolDeps } from "../identity/tool-registrations";
 import {
   buildIntegrationsRegistrations,
   integrationsDerivedRisk,
@@ -155,26 +168,14 @@ import {
   mediaDerivedRisk,
   type MediaToolDeps,
 } from "../media/tool-registrations";
-import {
-  buildMembersRegistrations,
-  membersDerivedRisk,
-  type MembersToolDeps,
-} from "../members/tool-registrations";
+import type { MembersToolDeps } from "../members/tool-registrations";
 import {
   buildMenusRegistrations,
   menusDerivedRisk,
   type MenusToolDeps,
 } from "../navigation/tool-registrations";
-import {
-  buildNewsletterRegistrations,
-  newsletterDerivedRisk,
-  type NewsletterToolDeps,
-} from "../newsletter/tool-registrations";
-import {
-  buildRedirectsRegistrations,
-  redirectsDerivedRisk,
-  type RedirectsToolDeps,
-} from "../redirects/tool-registrations";
+import type { NewsletterToolDeps } from "../newsletter/tool-registrations";
+import type { RedirectsToolDeps } from "../redirects/tool-registrations";
 import { buildSeoRegistrations, seoDerivedRisk, type SeoToolDeps } from "../seo/tool-registrations";
 import {
   buildWidgetsRegistrations,
@@ -236,15 +237,33 @@ export type AssistantToolRegistryDeps = CommentsToolDeps &
  *
  * `build`'s second parameter is optional to implement, not optional to pass — every domain builder
  * that ignores surfaces simply declares one parameter, which is assignable.
+ *
+ * Structurally identical to `tool-contribution-registry.ts`'s `ToolContributor` — kept as a
+ * separate local alias rather than merged into one exported type, since this array is the LEGACY
+ * seam (domains not yet converted to the registry) and `ToolContributor` is the seam replacing it;
+ * collapsing them would blur which one a reader is looking at mid-migration.
  */
-interface DomainSlice {
-  domain: string;
-  build: (routeDeps: AssistantToolRegistryDeps, surfaces: AssistantSurfaceDeps) => ToolRegistration[];
-  risk: DerivedRiskByToolId;
-}
+type DomainSlice = ToolContributor;
 
 /**
- * Every wired domain, in the order their tools are registered.
+ * The not-yet-converted domains, in the order their tools are registered — imported by name here
+ * exactly as every domain used to be, before `tool-contribution-registry.ts` existed.
+ *
+ * `comments` and `newsletter` were the first two converted (2026-08-17, the registry's
+ * introduction) and are deliberately ABSENT from this array now — they instead call
+ * `contribute<Domain>Tools()` (see each one's own `tool-registrations.ts`), installed by
+ * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()` into
+ * `listToolContributors()`, which {@link buildAssistantToolRegistrations} folds in below. They were
+ * chosen first because they were the actual drivers of the `[assistant, comments,
+ * features/plugins, newsletter]` strongly-connected component `check:architecture` flagged, and
+ * neither imports anything else nor is imported by anything else outside `assistant`, which is what
+ * made converting them safe with no other edges to trace. `post` was ALSO tried (to prove the
+ * pattern covers a domain whose `build` genuinely uses the `surfaces` parameter) and reverted the
+ * same night — it stayed in this array below, see its own entry's comment for why: unlike
+ * comments/newsletter, other modules (`widgets`, `export`) depend on `post`, so converting it opened
+ * a new cycle instead of closing one. The remaining domains below migrate the same way in a later
+ * pass, each needing the same "does anything else depend on me" check post's case revealed;
+ * nothing about their presence here is permanent.
  *
  * The order is not load-bearing for correctness — {@link buildAssistantToolRegistrations} refuses a
  * duplicate id outright rather than letting a later entry win — but it is stable, so
@@ -253,10 +272,10 @@ interface DomainSlice {
 const DOMAIN_SLICES: readonly DomainSlice[] = [
   { domain: "content-types", build: buildContentTypesRegistrations, risk: contentTypesDerivedRisk },
   { domain: "forms", build: buildFormsRegistrations, risk: formsDerivedRisk },
-  { domain: "identity", build: buildIdentityRegistrations, risk: identityDerivedRisk },
-  { domain: "comments", build: buildCommentsRegistrations, risk: commentsDerivedRisk },
-  { domain: "members", build: buildMembersRegistrations, risk: membersDerivedRisk },
-  { domain: "newsletter", build: buildNewsletterRegistrations, risk: newsletterDerivedRisk },
+  // `identity`, `members` converted to the tool-contribution registry 2026-08-17 (Stage 2) — see
+  // `identity/tool-registrations.ts`'s/`members/tool-registrations.ts`'s own headers. No longer
+  // entries here; they arrive via `contributeIdentityTools()`/`contributeMembersTools()`, installed
+  // by `server/tool-catalog-manifest.ts`.
   { domain: "media", build: buildMediaRegistrations, risk: mediaDerivedRisk },
   { domain: "widgets", build: buildWidgetsRegistrations, risk: widgetsDerivedRisk },
   { domain: "menus", build: buildMenusRegistrations, risk: menusDerivedRisk },
@@ -296,14 +315,29 @@ const DOMAIN_SLICES: readonly DomainSlice[] = [
   // `buildPostRegistrations`' second parameter now IS the slice contract's own `surfaces` shape
   // (ADR-055 Decision 2 — `content_post_delete` holds its call open through the same exchange store
   // every other surface-raising domain uses), so this forwards directly rather than wrapping.
+  // NOT converted to the tool-contribution registry, unlike Comments/Newsletter — see this file's
+  // header and `features/post/tool-registrations.ts`'s own trailing comment for why: `widgets` and
+  // `export` both depend on `features/post`, and `assistant` still statically imports `widgets`
+  // below, so a `post -> assistant` registry edge would close a NEW, larger module cycle.
   { domain: "post", build: buildPostRegistrations, risk: postDerivedRisk },
   // Its own domain, not part of "post": a Page's body is bespoke HTML and a Post's is a Tiptap
   // document, and `content_post_update` cannot write the former. See `features/pages/agent-tools.ts`.
   { domain: "pages", build: buildPagesRegistrations, risk: pagesDerivedRisk },
-  { domain: "taxonomy", build: buildTaxonomyRegistrations, risk: taxonomyDerivedRisk },
+  // `taxonomy` converted to the tool-contribution registry 2026-08-17 (Stage 2) — see
+  // `features/taxonomy/tool-registrations.ts`'s own header. No longer an entry here; it arrives via
+  // `contributeTaxonomyTools()`, installed by `server/tool-catalog-manifest.ts`.
   { domain: "seo", build: buildSeoRegistrations, risk: seoDerivedRisk },
-  { domain: "redirects", build: buildRedirectsRegistrations, risk: redirectsDerivedRisk },
+  // `redirects` converted to the tool-contribution registry 2026-08-17 (Stage 2) — see
+  // `redirects/tool-registrations.ts`'s own header. No longer an entry here; it arrives via
+  // `contributeRedirectsTools()`, installed by `server/tool-catalog-manifest.ts`.
   { domain: "integrations", build: buildIntegrationsRegistrations, risk: integrationsDerivedRisk },
+  // `themes` was ALSO tried in the same Stage 2 batch and reverted — see
+  // `features/theme/tool-registrations.ts`'s trailing comment for why: `export/route-manifest.ts`
+  // imports `features/theme` via a `#src/*` subpath import (invisible to a relative-path importer
+  // grep), and `assistant` already reaches `export` transitively through the still-static
+  // `deployments`/`source-control` entries below, so a `themes -> assistant` registry edge closed a
+  // NEW 6-module cycle: `assistant, export, features/deployments, features/source-control,
+  // features/theme, features/vendor-credentials`.
   { domain: "themes", build: buildThemesRegistrations, risk: themesDerivedRisk },
   // Last, and empty unless TOVU_ENABLE_DEMO_TOOLS is set — development-only surfaces for
   // exercising a transport in a real chat pane. See each one's own module doc for why it is a tool
@@ -315,15 +349,36 @@ const DOMAIN_SLICES: readonly DomainSlice[] = [
 ];
 
 /**
+ * Every wired domain, static and registry-contributed together, in the order their tools are
+ * registered — `DOMAIN_SLICES` first, then whatever `installFirstPartyToolContributors()` (or a
+ * test) has registered into {@link listToolContributors}.
+ *
+ * Computed fresh on every call rather than once at module load: unlike `DOMAIN_SLICES`, contributed
+ * entries are populated at COMPOSITION-ROOT-BOOT time, not at module-import time (that is the whole
+ * point of the registry — see `tool-contribution-registry.ts`'s header), so a value captured at
+ * module load could observe zero contributors if evaluated before the composition root's install
+ * call runs. This function is cheap (one array concat) and is not on any hot request path.
+ */
+function allToolContributors(): readonly DomainSlice[] {
+  return [...DOMAIN_SLICES, ...listToolContributors()];
+}
+
+/**
  * Every domain's risk classification folded into one map, refusing any id two domains both wire.
  *
- * Evaluated at module load, so a cross-domain id collision stops the daemon booting rather than
- * surfacing as a mysteriously double-registered tool at runtime. The one real collision in the
- * current catalogs — `backup_create_restore_point`, declared by both Database and Recovery — passes
- * because Recovery declares it unwired and so contributes no risk entry, which is the resolution
- * this check exists to force.
+ * Computed fresh per call (see {@link allToolContributors}) rather than once at module load — a
+ * cross-domain id collision still stops the FIRST real use (the composition root's own
+ * `buildAssistantToolRegistrations` call, immediately after its `installFirstPartyToolContributors()`
+ * call) rather than surfacing as a mysteriously double-registered tool deep in a request handler;
+ * it is simply no longer module-load time specifically, since contributed domains do not exist yet
+ * at module-load time. The one real collision in the current catalogs —
+ * `backup_create_restore_point`, declared by both Database and Recovery — passes because Recovery
+ * declares it unwired and so contributes no risk entry, which is the resolution this check exists
+ * to force.
  */
-const DERIVED_RISK_BY_TOOL_ID: DerivedRiskByToolId = mergeDerivedRiskMaps(DOMAIN_SLICES);
+function derivedRiskByToolId(): DerivedRiskByToolId {
+  return mergeDerivedRiskMaps(allToolContributors());
+}
 
 /**
  * The assistant-wide view of the kit's `assertToolIsWirable`: same gate, consulting every domain's
@@ -341,7 +396,7 @@ const DERIVED_RISK_BY_TOOL_ID: DerivedRiskByToolId = mergeDerivedRiskMaps(DOMAIN
  * @overallScore 100
  */
 export function assertRiskMetadataIsWirable(toolId: string, catalogEntry: WirableToolDefinition): void {
-  assertToolIsWirable({ toolId, catalogEntry, derivedRisk: DERIVED_RISK_BY_TOOL_ID });
+  assertToolIsWirable({ toolId, catalogEntry, derivedRisk: derivedRiskByToolId() });
 }
 
 /**
@@ -398,11 +453,11 @@ export function buildAssistantToolRegistrations(
     vendorCredentials: routeDeps.vendorCredentials ?? REAL_VENDOR_CREDENTIAL_PORT,
   };
 
-  for (const slice of DOMAIN_SLICES) {
+  for (const slice of allToolContributors()) {
     for (const registration of slice.build(enrichedRouteDeps, surfaces)) {
       const owner = ownerByToolId.get(registration.descriptor.id);
       if (owner) {
-        // Unreachable while `DERIVED_RISK_BY_TOOL_ID`'s merge holds — a tool cannot be wired
+        // Unreachable while `derivedRiskByToolId()`'s merge holds — a tool cannot be wired
         // without a risk entry, and the merge already refuses a shared id. Kept because that
         // argument is about today's code: this is the check on the actual registration list, and
         // it is what `ToolRegistry` would otherwise silently accept a second binding for.

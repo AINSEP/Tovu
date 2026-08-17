@@ -26,6 +26,15 @@ import {
 import { Argon2PasswordHasher } from "@jini-ai/cms/identity/hasher";
 import type { RouteDeps } from "../../server/routes/types";
 import { buildAssistantToolRegistrations } from "../tool-registrations";
+import { resetToolContributorsForTests } from "../tool-contribution-registry";
+import { contributeIdentityTools } from "../../identity/tool-registrations";
+
+// Identity moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
+// tool-contribution registry (2026-08-17, Stage 2 — see `tool-contribution-registry.ts`'s header),
+// so `buildAssistantToolRegistrations` below no longer wires it unless something explicitly installs
+// it first, mirroring what the real composition roots now do via `installFirstPartyToolContributors()`.
+resetToolContributorsForTests();
+contributeIdentityTools();
 
 /**
  * @file The ADR-021 half of the identity tool wiring — the sibling of
