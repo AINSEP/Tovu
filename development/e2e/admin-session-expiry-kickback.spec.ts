@@ -85,8 +85,11 @@ test.describe("admin session-expiry login kickback", () => {
       })
     );
 
+    // Asserts the actual status too, not just that a matching response arrived — a matching-URL-only
+    // predicate would keep passing for the wrong reason if the route/glob ever drifted apart, since
+    // nothing would force the real request to actually receive a 403.
     const response = page.waitForResponse(
-      (res) => res.url().includes("/workspaces/workspace-local/posts") && res.request().method() === "GET"
+      (res) => res.url().includes("/workspaces/workspace-local/posts") && res.request().method() === "GET" && res.status() === 403
     );
     await postsNavLink(page).click();
     await response;

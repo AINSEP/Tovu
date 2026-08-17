@@ -16,6 +16,14 @@ import { api } from "../../lib/api";
  * `useAdminSession` subscribes to clear `user` — reusing the EXISTING `<Login>` gate instead of
  * adding a second one. This test proves the INTEGRATION: a 401 from an unrelated screen's own call
  * (`listPosts`, standing in for "any screen"), not `/auth/me` itself, still clears the session.
+ *
+ * Second bug, found by adversarial review the same day: gating on bare `status === 401` (the
+ * original version of this fix) is too broad — a relayed Composio connector failure (bad API key)
+ * is ALSO a verbatim 401 in this codebase (`src/server/routes/admin/connectors/errors.ts`), so the
+ * original fix would silently log the whole tab out on a bad third-party key, with a perfectly
+ * valid Tovu session. The fix narrowed to `status === 401 && code === "UNAUTHENTICATED"` — every
+ * genuine session-invalidity 401 in `dev-auth.ts` sets that code; Composio's relay does not. The
+ * third test below proves the narrowed gate: a 401 without that code must NOT clear the session.
  */
 
 afterEach(() => {
@@ -79,6 +87,35 @@ it("a 403 (authenticated but forbidden) does NOT clear the session — a real pe
 
   // No waitFor here on purpose — asserting a NEGATIVE (nothing changed) needs a settled read, not
   // a race against whatever `onUnauthenticated` would have done if it (wrongly) fired on 403.
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  expect(result.current.user).toEqual({ id: "u1", username: "admin" });
+});
+
+it("a 401 WITHOUT code UNAUTHENTICATED (e.g. a relayed Composio connector failure) does NOT clear the session", async () => {
+  let call = 0;
+  const fetchMock = vi.fn(async () => {
+    call += 1;
+    if (call === 1) {
+      return new Response(JSON.stringify({ user: { id: "u1", username: "admin" } }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }
+    // Real shape from src/server/routes/admin/connectors/errors.ts relaying Composio's own 401 for
+    // a bad/expired API key — status 401, but NOT a session-invalidity signal.
+    return new Response(JSON.stringify({ error: "Composio tools request failed with HTTP 401", code: "CONNECTOR_EXECUTION_FAILED" }), {
+      status: 401,
+      headers: { "content-type": "application/json" },
+    });
+  });
+  vi.stubGlobal("fetch", fetchMock);
+
+  const { result } = renderHook(() => useAdminSession());
+  await waitFor(() => expect(result.current.checking).toBe(false));
+
+  await api.listConnectors().catch(() => undefined);
+
+  // Same reasoning as the 403 case above — a settled read, not a race.
   await new Promise((resolve) => setTimeout(resolve, 0));
   expect(result.current.user).toEqual({ id: "u1", username: "admin" });
 });
