@@ -4,6 +4,7 @@ import type { JsonObject } from "@jini-ai/cms/core";
 import type { PostRecord } from "#src/features/post/index";
 import { getPublishedPostBySlug, findPublishedPostById, listPublishedPosts, PostNotFoundError } from "#src/features/post/index";
 import { isPublicAssistantEnabled } from "#src/assistant/index";
+import { resolveActiveThemeId } from "#src/features/presentation/index";
 import {
   renderStaticPage,
   injectCurrentEntityContentId,
@@ -11,7 +12,6 @@ import {
   resolveTemplate,
   isEligibleForTemplateBranch,
   scanMenuEmbedIds,
-  resolveActiveThemeId,
   resolveActiveTheme,
   type DiscoveredTheme,
   type StaticMenuItem,
@@ -125,13 +125,20 @@ export const SITE_TITLE = "Tovu Demo Site";
 const CACHE_CONTROL_PUBLIC_PAGE = "public, max-age=60, stale-while-revalidate=300";
 
 /**
- * `resolveActiveThemeId`/`resolveActiveTheme` moved to `#src/features/theme/index`
- * (`active-theme.ts`) 2026-08-16 — both were pure `(deps) => value` queries with zero `req`/`res`
- * coupling, and living here forced `export/route-manifest.ts` to import a routing-layer file just
- * to reuse them (a `check:architecture`-flagged runtime edge into the composition-root module; see
- * `ADS-memory/reports/2026-08-16-export-edge-decoupling.md`). Re-exported below, unchanged in
- * behavior, so `routes/admin/posts/template-preview.ts`'s existing `from "../../site/pages"` import
- * keeps working — only `route-manifest.ts` was updated to import the new home directly.
+ * `resolveActiveThemeId`/`resolveActiveTheme` moved out of this file 2026-08-16 — both were pure
+ * `(deps) => value` queries with zero `req`/`res` coupling, and living here forced `export/
+ * route-manifest.ts` to import a routing-layer file just to reuse them (a `check:architecture`-
+ * flagged runtime edge into the composition-root module; see `ADS-memory/reports/
+ * 2026-08-16-export-edge-decoupling.md`). Different homes, not the same one — `resolveActiveThemeId`
+ * has zero theme-data dependency (it only reads presentation settings) so it moved to
+ * `#src/features/presentation/index` (`active-theme-id.ts`); `resolveActiveTheme` genuinely needs
+ * theme data (`findTheme`/`DiscoveredTheme`) so it moved to `#src/features/theme/index`
+ * (`active-theme.ts`). Splitting them, rather than bundling both into one file because every real
+ * call site uses them together, avoided a measured `check:architecture` regression a combined home
+ * would have caused — see `active-theme.ts`'s own file header for the SCC trace. Both re-exported
+ * below, unchanged in behavior, so `routes/admin/posts/template-preview.ts`'s existing
+ * `from "../../site/pages"` import of `resolveActiveTheme` keeps working — only `route-manifest.ts`
+ * was updated to import both new homes directly.
  */
 export { resolveActiveThemeId, resolveActiveTheme };
 

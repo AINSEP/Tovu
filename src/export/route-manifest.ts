@@ -2,7 +2,8 @@ import { randomUUID } from "node:crypto";
 
 import { listPublishedPosts } from "#src/features/post/index";
 import type { PostRecord } from "#src/features/post/index";
-import { resolveActiveTheme, resolveActiveThemeId } from "#src/features/theme/index";
+import { resolveActiveTheme } from "#src/features/theme/index";
+import { resolveActiveThemeId } from "#src/features/presentation/index";
 import type { RouteDeps } from "../server/routes/types";
 import type { ManifestRoute, ManifestSkip, RouteManifest, RouteManifestPort } from "./ports";
 
@@ -16,8 +17,14 @@ import type { ManifestRoute, ManifestSkip, RouteManifest, RouteManifestPort } fr
  * `ADS-memory/reports/2026-08-16-export-edge-decoupling.md`), chosen per-function rather than
  * uniformly, because the two cases are not actually the same shape:
  * - `resolveActiveThemeId`/`resolveActiveTheme` are pure `(deps) => value` queries with zero
- *   `req`/`res`/routing coupling, so they moved to `#src/features/theme/index` (`active-theme.ts`)
- *   and are imported directly, same as any other feature-owned function.
+ *   `req`/`res`/routing coupling, so they moved to feature-owned homes and are imported directly,
+ *   same as any other feature-owned function — but NOT the same home: `resolveActiveThemeId` has
+ *   zero theme-data dependency (only reads presentation settings), so it lives in
+ *   `#src/features/presentation/index` (`active-theme-id.ts`); `resolveActiveTheme` genuinely needs
+ *   theme data, so it lives in `#src/features/theme/index` (`active-theme.ts`). Splitting them
+ *   (rather than one combined file, since every real call site uses both together) avoided a
+ *   measured `check:architecture` largest-SCC regression a combined home would have caused — see
+ *   `active-theme.ts`'s own file header for the trace.
  * - `resolveStorefrontProducts` stays in `server/routes/site/products.ts` — its return type
  *   (`SiteProduct`, `server/http/site/render.ts`) is deliberately off-limits to `features/commerce`
  *   (see `storefront.ts`'s own file header), so moving it would violate that existing boundary
@@ -39,14 +46,14 @@ import type { ManifestRoute, ManifestSkip, RouteManifest, RouteManifestPort } fr
  */
 
 /**
- * The full `RouteDeps` composition-root object, not a narrow `Pick`. `resolveActiveThemeId`/
- * `resolveActiveTheme` (`#src/features/theme/index`) only need their own narrow
- * `ActiveThemeIdResolutionDeps`/`ActiveThemeResolutionDeps` — `RouteDeps` is a structural superset
- * of both, so passing it through works with no cast — but `deps.resolveStorefrontProducts(deps)`
- * below needs the injected field itself, which only exists on the real `RouteDeps` shape. A real
- * `RouteDeps` object (what `createApp`/`serve.ts` already build) always satisfies this trivially;
- * only a test needs to assemble one, and every route test in this repo already does via
- * `createRouteDeps()`.
+ * The full `RouteDeps` composition-root object, not a narrow `Pick`. `resolveActiveThemeId`
+ * (`#src/features/presentation/index`) and `resolveActiveTheme` (`#src/features/theme/index`) each
+ * only need their own narrow `ActiveThemeIdResolutionDeps`/`ActiveThemeResolutionDeps` —
+ * `RouteDeps` is a structural superset of both, so passing it through works with no cast — but
+ * `deps.resolveStorefrontProducts(deps)` below needs the injected field itself, which only exists
+ * on the real `RouteDeps` shape. A real `RouteDeps` object (what `createApp`/`serve.ts` already
+ * build) always satisfies this trivially; only a test needs to assemble one, and every route test
+ * in this repo already does via `createRouteDeps()`.
  */
 export type RouteManifestDeps = RouteDeps;
 

@@ -13,6 +13,12 @@
  *   1,246-line schema covering every domain, so it is host persistence, not library code.
  * - `INFO.md` / `__specs__/` — this host's requirement documents. They describe the host's routes
  *   and acceptance criteria, not a library contract, so they stay with the host.
+ * - `active-theme-id.ts` (2026-08-16) — `resolveActiveThemeId`, moved from `server/routes/site/
+ *   pages.ts` as part of the export<->server architecture decoupling (see that file's own header).
+ *   Host-specific reuse plumbing (the public-site route, the static exporter, and the admin
+ *   template-preview route all need the SAME "what theme id does this workspace have configured"
+ *   answer), not a library concern — `getPresentationSettings` already IS the library's answer to
+ *   that question; this is only the one shared fallback wrapper around it.
  *
  * The `SqlitePresentationSettingsRepo` re-export below is preserved for the same reason as
  * `workspace`'s: `server/deps.ts` already imports it from this barrel, and that file is a known
@@ -35,3 +41,5 @@ export {
 } from "@jini-ai/cms/presentation";
 
 export { SqlitePresentationSettingsRepo } from "./repo.sqlite";
+
+export { resolveActiveThemeId, type ActiveThemeIdResolutionDeps } from "./active-theme-id";

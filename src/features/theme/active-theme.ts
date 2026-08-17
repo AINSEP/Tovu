@@ -1,53 +1,35 @@
-import type { UUID } from "@jini-ai/cms/core";
-import {
-  getPresentationSettings,
-  PresentationSettingsNotFoundError,
-  type PresentationSettingsRepoPort,
-} from "#src/features/presentation/index";
 import { findTheme, type DiscoveredTheme } from "./theme";
 
 /**
- * @file "Which theme is active, and what does that resolve to" — moved here 2026-08-16 from
- * `server/routes/site/pages.ts` (2026-08-16 architecture follow-up: edge 2 of the export<->server
- * decoupling — see `ADS-memory/reports/2026-08-16-export-edge-decoupling.md`). Both functions were
- * already pure `(deps) => value` queries with zero `req`/`res`/middleware coupling; the only reason
- * they lived in the routing layer was history, not a real dependency. `export/route-manifest.ts`
- * used to import them straight from `server/routes/site/pages.ts` (a real runtime edge into the
- * composition-root module, flagged by `check:architecture`'s module-cycle detector) purely to reuse
- * this exact logic — this file is the shared home both `pages.ts` and `route-manifest.ts` (and now
- * `products.ts`, which used to keep its own private duplicate of {@link resolveActiveTheme} rather
- * than create the same cross-file coupling) import from instead.
+ * @file "Given a list of discovered themes and a candidate active id, which theme actually
+ * renders" — moved here 2026-08-16 from `server/routes/site/pages.ts` (2026-08-16 architecture
+ * follow-up: edge 2 of the export<->server decoupling — see
+ * `ADS-memory/reports/2026-08-16-export-edge-decoupling.md`). Was already a pure `(deps) => value`
+ * query with zero `req`/`res`/middleware coupling; the only reason it lived in the routing layer
+ * was history, not a real dependency. `export/route-manifest.ts` used to import it straight from
+ * `server/routes/site/pages.ts` (a real runtime edge into the composition-root module, flagged by
+ * `check:architecture`'s module-cycle detector) purely to reuse this exact logic — this file is the
+ * shared home `pages.ts` and `route-manifest.ts` (and now `products.ts`, which used to keep its own
+ * private duplicate rather than create the same cross-file coupling) import from instead.
  *
- * Deliberately typed against narrow, LOCAL structural interfaces below rather than `RouteDeps`
+ * Deliberately does NOT also carry `resolveActiveThemeId` (which `pages.ts` calls immediately
+ * before this) even though the two are always used together at every real call site — that function
+ * has ZERO dependency on theme data (it only reads `PresentationSettingsRepoPort` and returns a bare
+ * string), and giving it a home here would have created a real `features/theme -> features/
+ * presentation` edge that pulls this whole module into the pre-existing 36-module fused
+ * strongly-connected component `features/presentation` already belongs to (measured, not assumed —
+ * see `active-theme-id.ts`'s own file header in `features/presentation/` for the full trace and the
+ * before/after SCC membership diff). Two files instead of one, so that "used together" and
+ * "belongs together" stay separate questions.
+ *
+ * Deliberately typed against a narrow, LOCAL structural interface below rather than `RouteDeps`
  * (`server/routes/types.ts`) — importing `RouteDeps` here, even as a type-only import, would just
  * relocate the exact edge this move exists to remove (`check-architecture.ts`'s dependency-cruiser
  * pass resolves `--ts-pre-compilation-deps`, so a type-only import counts as a real graph edge, not
- * only a runtime one). `RouteDeps` is a structural superset of both interfaces below, so every real
- * caller (which always has a full `RouteDeps` in hand) passes it through unchanged, exactly the way
- * `pages.ts`'s own pre-existing `TemplateRenderDeps`/`ContentMarkerResolutionDeps` `Pick`s already do.
+ * only a runtime one). `RouteDeps` is a structural superset of it, so every real caller (which
+ * always has a full `RouteDeps` in hand) passes it through unchanged, exactly the way `pages.ts`'s
+ * own pre-existing `TemplateRenderDeps`/`ContentMarkerResolutionDeps` `Pick`s already do.
  */
-
-/** The narrow slice {@link resolveActiveThemeId} needs. */
-export interface ActiveThemeIdResolutionDeps {
-  presentationRepo: PresentationSettingsRepoPort;
-  workspaceId: UUID;
-}
-
-/** Exported so `export/route-manifest.ts` resolves the SAME active theme id the real routes render
- *  with — one source of truth for "what theme is live" rather than a second copy of the
- *  `PresentationSettingsNotFoundError`-swallowing fallback below. */
-export async function resolveActiveThemeId(deps: ActiveThemeIdResolutionDeps): Promise<string> {
-  try {
-    const { settings } = await getPresentationSettings({
-      deps: { repo: deps.presentationRepo },
-      input: { workspaceId: deps.workspaceId },
-    });
-    return settings.activeThemeId;
-  } catch (err) {
-    if (err instanceof PresentationSettingsNotFoundError) return "";
-    throw err;
-  }
-}
 
 /** The narrow slice {@link resolveActiveTheme} needs. */
 export interface ActiveThemeResolutionDeps {
