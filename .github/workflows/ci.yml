@@ -247,6 +247,19 @@ jobs:
         # header) — always exits 0 on findings, only fails on a genuine script error.
         run: npm run check:inventory
 
+      - name: Check src/server/routes complexity drift
+        # Requested by src-complexity-gate, wired in here (that agent owns package.json scripts,
+        # not workflows). Same ratchet shape as check:architecture above: blocking, fails only when
+        # a NEW violation appears that isn't already in the committed baseline
+        # (development/scripts/src-complexity-debt.json — 115 violations / 72 files as of
+        # 2026-08-16). Plain `tsx`, no dependency on any earlier step's output, so it's safe here or
+        # run standalone. Scope is deliberately `src/server/routes/**` only, NOT all of `src/` — every
+        # number in the baseline came from an audit that only measured route files; there is no
+        # `src/`-wide measurement to ratchet against. Verified locally before wiring in: `npm run
+        # check:src-complexity-drift` exits 0, "0 new complexity violations (115 total, 115 in
+        # baseline)".
+        run: npm run check:src-complexity-drift
+
       - name: Lint
         # No lint tool existed in this repo before this workflow. Added Biome (single
         # dependency-light binary, off-the-shelf "recommended" preset — not a bespoke ruleset)
