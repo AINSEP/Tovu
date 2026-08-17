@@ -5,6 +5,7 @@ import { navigate } from "../../lib/router";
 import { TabBar, type TabBarTab } from "../../components/TabBar";
 import { t } from "./security-i18n";
 import { AccessTokensTab } from "./AccessTokensTab";
+import { AccessTokensIcon } from "./security-visuals";
 import { useWiredAccessTokens } from "./hooks/use-access-tokens.hooks";
 
 /**
@@ -36,16 +37,18 @@ import { useWiredAccessTokens } from "./hooks/use-access-tokens.hooks";
  * throughout — this page's writes go through the exact same two HTTP endpoints those pages already
  * use (`hooks/access-tokens-dependencies.hooks.ts`), never a new one.
  *
- * ## Scope: publish + source-control credentials only, v1
+ * ## Scope: all eight credential stores, one list — the 2026-08-16 owner ruling
  *
- * `rules.ts`'s `ACCESS_TOKEN_PROVIDERS` covers the two credential stores shaped for this page's
- * multi-named-token model (`publish_credential_sets`, `source_control_credential_sets` — both
- * label + `isDefault`, both already full CRUD). The other six sealed-credential stores this install
- * holds (BYOK, Composio, media providers, external MCP — `rules.ts`'s `OTHER_CREDENTIAL_STORES`) are
- * single-row-per-scope, already have their own real Create flow, and are not yet read from this page
- * at all — `AccessTokensTab.tsx`'s partial-inventory notice says so on screen rather than presenting
- * a 2-of-8 view as if it were the complete inventory (`development/todos.md:1208`'s own "confront or
- * disclose partial" requirement).
+ * `rules.ts`'s `ACCESS_TOKEN_PROVIDERS` (Tier 1: `publish_credential_sets`, `source_control_
+ * credential_sets` — both label + `isDefault`, both full CRUD, multi-row per provider) and
+ * `OTHER_CREDENTIAL_STORES` (Tier 2: the six single-row/per-item sealed-credential stores — BYOK x2,
+ * media providers, Composio project key + connector accounts, external MCP) are ALL read and
+ * rendered in one flat list, filtered by one search box and one category row
+ * (`AccessTokensTab.tsx`'s own header has the ruling in full: "a Cloudinary key and a GitHub token
+ * are the same kind of thing"). The tier split survives only as a per-row capability difference —
+ * Tier 1 keeps `[+ Add]` and multiple named rows; Tier 2 gets Replace/Remove and a deep link, never a
+ * second Create — not as two separate surfaces, and there is no partial-inventory disclosure left to
+ * show once every store is read.
  *
  * Page shell mirrors `SourceControl.tsx`/`Deployment.tsx` exactly: `page-header` + `TabBar`, one real
  * tab today ("Access Tokens") — not padded with a disabled placeholder for a second tab nothing here
@@ -79,9 +82,9 @@ export function Security(props: SecurityProps) {
     {
       id: "access-tokens",
       label: t(locale, "Access Tokens"),
+      icon: <AccessTokensIcon size={16} />,
       handle: "security-tab-access-tokens",
-      handleLabel:
-        "Switch to the Access Tokens tab — every saved token across GitHub, Vercel, Netlify, Cloudflare Pages, GitLab, and Bitbucket, in one place",
+      handleLabel: "Switch to the Access Tokens tab — every access token and other saved credential this install holds, in one place",
     },
   ];
 

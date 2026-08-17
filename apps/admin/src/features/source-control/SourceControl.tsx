@@ -5,6 +5,7 @@ import { navigate } from "../../lib/router";
 import { TabBar, type TabBarTab } from "../../components/TabBar";
 import { t } from "./source-control-i18n";
 import { ProvidersTab } from "./ProvidersTab";
+import { SourceControlIcon } from "./source-control-visuals";
 import { useWiredSourceControlCredentials } from "./hooks/use-source-control-credentials.hooks";
 
 /**
@@ -75,6 +76,7 @@ export function SourceControl(props: SourceControlProps) {
     {
       id: "providers",
       label: t(locale, "Providers"),
+      icon: <SourceControlIcon size={16} />,
       handle: "source-control-tab-providers",
       handleLabel: "Switch to the Providers tab — connect GitHub, GitLab, or Bitbucket so Tovu can read (and later push to) your repositories",
     },
