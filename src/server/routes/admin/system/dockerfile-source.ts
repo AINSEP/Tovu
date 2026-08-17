@@ -81,25 +81,30 @@ export function registerAdminDockerfileSourceRoute(app: Express, deps: AdminDock
       return;
     }
 
-    const principal = getAuthedPrincipal(res);
-    const authResult = await deps.authorize({
-      principalId: principal.id,
-      permission: "system.read",
-      workspaceId: deps.workspaceId,
-      entityType: "dockerfile-source",
-    });
-    if (!authResult.allowed) {
-      res.status(403).json({
-        error: `principal '${principal.id}' is not authorized for 'system.read' (${authResult.reason})`,
-        code: "FORBIDDEN",
-        details: { permission: "system.read", reason: authResult.reason },
+    try {
+      const principal = getAuthedPrincipal(res);
+      const authResult = await deps.authorize({
+        principalId: principal.id,
+        permission: "system.read",
+        workspaceId: deps.workspaceId,
+        entityType: "dockerfile-source",
       });
-      return;
-    }
+      if (!authResult.allowed) {
+        res.status(403).json({
+          error: `principal '${principal.id}' is not authorized for 'system.read' (${authResult.reason})`,
+          code: "FORBIDDEN",
+          details: { permission: "system.read", reason: authResult.reason },
+        });
+        return;
+      }
 
-    const snapshot = readDockerfileSource();
-    res.setHeader("ETag", snapshot.etag);
-    res.status(200).json(toResponseBody(snapshot));
+      const snapshot = readDockerfileSource();
+      res.setHeader("ETag", snapshot.etag);
+      res.status(200).json(toResponseBody(snapshot));
+    } catch (err) {
+      console.error("[dockerfile-source] unexpected error reading the Dockerfile", err);
+      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+    }
   });
 
   app.put("/api/admin/v1/workspaces/:workspaceId/system/dockerfile", async (req, res) => {
@@ -108,54 +113,59 @@ export function registerAdminDockerfileSourceRoute(app: Express, deps: AdminDock
       return;
     }
 
-    const principal = getAuthedPrincipal(res);
-    const authResult = await deps.authorize({
-      principalId: principal.id,
-      permission: "system.write",
-      workspaceId: deps.workspaceId,
-      entityType: "dockerfile-source",
-    });
-    if (!authResult.allowed) {
-      res.status(403).json({
-        error: `principal '${principal.id}' is not authorized for 'system.write' (${authResult.reason})`,
-        code: "FORBIDDEN",
-        details: { permission: "system.write", reason: authResult.reason },
+    try {
+      const principal = getAuthedPrincipal(res);
+      const authResult = await deps.authorize({
+        principalId: principal.id,
+        permission: "system.write",
+        workspaceId: deps.workspaceId,
+        entityType: "dockerfile-source",
       });
-      return;
-    }
+      if (!authResult.allowed) {
+        res.status(403).json({
+          error: `principal '${principal.id}' is not authorized for 'system.write' (${authResult.reason})`,
+          code: "FORBIDDEN",
+          details: { permission: "system.write", reason: authResult.reason },
+        });
+        return;
+      }
 
-    // Precondition check BEFORE body parsing — an `If-Match` header is a precondition on the
-    // REQUEST, distinct from whether the BODY it guards happens to be well-formed. Checking it
-    // first means a missing-header failure is never masked by (or mistaken for) a body-shape
-    // failure — see this file's header for the strict-vs-permissive decision this header enforces.
-    const ifMatch = req.get("If-Match");
-    if (!ifMatch) {
-      res.status(400).json({
-        error:
-          "the 'If-Match' header is required on PUT — GET this same URL first (its response carries an 'ETag' header with the file's current value), then send that value back as 'If-Match' to prove your write is based on the current contents, not a stale copy. This is deliberate (Terra audit finding C5, 2026-08-15): an unconditional write here would let a human editing this tab and the AI assistant's deployment_set_dockerfile tool silently overwrite each other with no warning to either.",
-      });
-      return;
-    }
+      // Precondition check BEFORE body parsing — an `If-Match` header is a precondition on the
+      // REQUEST, distinct from whether the BODY it guards happens to be well-formed. Checking it
+      // first means a missing-header failure is never masked by (or mistaken for) a body-shape
+      // failure — see this file's header for the strict-vs-permissive decision this header enforces.
+      const ifMatch = req.get("If-Match");
+      if (!ifMatch) {
+        res.status(400).json({
+          error:
+            "the 'If-Match' header is required on PUT — GET this same URL first (its response carries an 'ETag' header with the file's current value), then send that value back as 'If-Match' to prove your write is based on the current contents, not a stale copy. This is deliberate (Terra audit finding C5, 2026-08-15): an unconditional write here would let a human editing this tab and the AI assistant's deployment_set_dockerfile tool silently overwrite each other with no warning to either.",
+        });
+        return;
+      }
 
-    const parsedBody = parseWriteRequestBody(req.body);
-    if (!parsedBody.ok) {
-      res.status(400).json({ error: parsedBody.error });
-      return;
-    }
+      const parsedBody = parseWriteRequestBody(req.body);
+      if (!parsedBody.ok) {
+        res.status(400).json({ error: parsedBody.error });
+        return;
+      }
 
-    const result = writeDockerfileSourceWithIfMatch(parsedBody.contents, ifMatch);
-    if (!result.ok) {
-      res.setHeader("ETag", result.current.etag);
-      res.status(412).json({
-        error:
-          "the Dockerfile changed on the server since your 'If-Match' value was read — someone else (or the AI assistant) saved a different version in between. The response body's 'current' field is what's actually on disk right now; reconcile your intended change against it and retry with the 'ETag' header on THIS response.",
-        code: "DOCKERFILE_CONFLICT",
-        current: toResponseBody(result.current),
-      });
-      return;
-    }
+      const result = writeDockerfileSourceWithIfMatch(parsedBody.contents, ifMatch);
+      if (!result.ok) {
+        res.setHeader("ETag", result.current.etag);
+        res.status(412).json({
+          error:
+            "the Dockerfile changed on the server since your 'If-Match' value was read — someone else (or the AI assistant) saved a different version in between. The response body's 'current' field is what's actually on disk right now; reconcile your intended change against it and retry with the 'ETag' header on THIS response.",
+          code: "DOCKERFILE_CONFLICT",
+          current: toResponseBody(result.current),
+        });
+        return;
+      }
 
-    res.setHeader("ETag", result.snapshot.etag);
-    res.status(200).json(toResponseBody(result.snapshot));
+      res.setHeader("ETag", result.snapshot.etag);
+      res.status(200).json(toResponseBody(result.snapshot));
+    } catch (err) {
+      console.error("[dockerfile-source] unexpected error writing the Dockerfile", err);
+      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+    }
   });
 }

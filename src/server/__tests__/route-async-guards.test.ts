@@ -1,11 +1,15 @@
 import assert from "node:assert/strict";
+import express from "express";
 import test from "node:test";
 
 import { createApp, createRouteDeps } from "../app";
-import { bootAuthenticated } from "./helpers/http-test-server";
+import { bootAuthenticated, startTestServer } from "./helpers/http-test-server";
 import type { RouteDeps } from "../routes/types";
 import type { PublishCredentialSetRepoPort } from "../../features/deployments/publish-credentials/types";
 import type { SourceControlCredentialSetRepoPort } from "../../features/source-control/types";
+import type { CommentWriteService } from "#src/comments/index";
+import { registerPaymentsWebhookRoute } from "../routes/site/payments-webhook";
+import type { LipayApi } from "#src/features/plugins/lipay/lipay-plugin";
 
 /**
  * @file Regression coverage for the "unguarded async Express handler" bug class — an async
@@ -236,6 +240,120 @@ test("export-site: GET (status poll) responds 500 (not a hang) when deps.authori
 
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${EXPORT_PATH}`, {
     headers: { cookie },
+    signal: AbortSignal.timeout(3000),
+  });
+  assert.equal(res.status, 500);
+  assert.equal((await res.json()).code, "INTERNAL_ERROR");
+});
+
+// ---------------------------------------------------------------------------------------------
+// dockerfile-source.ts — both GET and PUT had no try/catch. Same `deps.authorize`-throws probe as
+// publish-site.ts/export-site.ts above; PUT never reaches the real filesystem write in this test
+// since the throw happens at the authorize step, before the `If-Match` check or the write call.
+// ---------------------------------------------------------------------------------------------
+
+test("dockerfile-source: GET responds 500 (not a hang) when deps.authorize throws", async (t) => {
+  const deps = withThrowingAuthorize(createRouteDeps());
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/dockerfile`, {
+    headers: { cookie },
+    signal: AbortSignal.timeout(3000),
+  });
+  assert.equal(res.status, 500);
+  assert.equal((await res.json()).code, "INTERNAL_ERROR");
+});
+
+test("dockerfile-source: PUT responds 500 (not a hang) when deps.authorize throws", async (t) => {
+  const deps = withThrowingAuthorize(createRouteDeps());
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/system/dockerfile`, {
+    method: "PUT",
+    headers: { cookie, "content-type": "application/json", "if-match": '"anything"' },
+    body: JSON.stringify({ contents: "FROM node:20" }),
+    signal: AbortSignal.timeout(3000),
+  });
+  assert.equal(res.status, 500);
+  assert.equal((await res.json()).code, "INTERNAL_ERROR");
+});
+
+// ---------------------------------------------------------------------------------------------
+// comments/moderate.ts — the shared loop registrar (approve/spam/trash/restore, all 4 routes
+// registered from the SAME source line, which is why the AST scan's 21-handler count lists this
+// file once for that line) and the standalone purge route both had no try/catch. Probed via
+// `deps.commentWriteService` throwing — the one awaited call each handler reaches after auth.
+// ---------------------------------------------------------------------------------------------
+
+function withThrowingCommentWriteService(deps: RouteDeps): RouteDeps {
+  const broken: CommentWriteService = {
+    applyModeration: async () => {
+      throw new Error("simulated comment write-service failure");
+    },
+    purge: async () => {
+      throw new Error("simulated comment write-service failure");
+    },
+  };
+  return { ...deps, commentWriteService: broken };
+}
+
+test("comments/moderate: POST .../approve (the shared loop registrar) responds 500 (not a hang) when commentWriteService.applyModeration throws", async (t) => {
+  const deps = withThrowingCommentWriteService(createRouteDeps());
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/comments/some-comment-id/approve`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ expectedVersion: 0 }),
+    signal: AbortSignal.timeout(3000),
+  });
+  assert.equal(res.status, 500);
+  assert.equal((await res.json()).code, "INTERNAL_ERROR");
+});
+
+test("comments/moderate: POST .../purge responds 500 (not a hang) when commentWriteService.purge throws", async (t) => {
+  const deps = withThrowingCommentWriteService(createRouteDeps());
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/comments/some-comment-id/purge`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: "{}",
+    signal: AbortSignal.timeout(3000),
+  });
+  assert.equal(res.status, 500);
+  assert.equal((await res.json()).code, "INTERNAL_ERROR");
+});
+
+// ---------------------------------------------------------------------------------------------
+// site/payments-webhook.ts — the one handler had no try/catch. Built as a standalone Express app
+// around `registerPaymentsWebhookRoute` directly (not the full `createApp()`): this route's real
+// composition path resolves a real, DB-backed lipay instance at request time, and this repo's
+// hermetic `createRouteDeps()` fixture has no lipay activated at all (always `resolveLipay() =>
+// null`, per this route file's own header) — that would only ever exercise the 503
+// PAYMENTS_UNAVAILABLE branch, never reach the code this test targets. `resolveLipay` is exactly
+// the seam the route itself defines for this; a minimal fake exercises it directly.
+// ---------------------------------------------------------------------------------------------
+
+test("payments-webhook: POST responds 500 (not a hang) when lipay.handleWebhook throws", async (t) => {
+  const brokenLipay = {
+    handleWebhook: async () => {
+      throw new Error("simulated lipay failure");
+    },
+  } as unknown as LipayApi;
+
+  const app = express();
+  registerPaymentsWebhookRoute(app, { resolveLipay: () => brokenLipay });
+  const baseUrl = await startTestServer(app, t);
+
+  const res = await fetch(`${baseUrl}/payments/webhook/lipay`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ type: "test.event" }),
     signal: AbortSignal.timeout(3000),
   });
   assert.equal(res.status, 500);
