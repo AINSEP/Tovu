@@ -69,7 +69,6 @@ const REPO_ROOT = path.resolve(__dirname, "..");
 const ADMIN_ROOT = path.resolve(REPO_ROOT, "apps/admin");
 
 const LIVE_CONTENT_DB = path.join(REPO_ROOT, "infra", "content.db");
-const CONTENT_DB_SNAPSHOT = path.join(os.tmpdir(), `tovu-e2e-live-publish-content-${Date.now()}-${process.pid}.db`);
 
 if (!fs.existsSync(LIVE_CONTENT_DB)) {
   throw new Error(
@@ -79,10 +78,32 @@ if (!fs.existsSync(LIVE_CONTENT_DB)) {
   );
 }
 
-// `.backup`, not `cp`: safe under a concurrent writer (the live dev server may currently have this file
-// open) and correct under WAL mode, per SQLite's own Online Backup API. Runs once, synchronously, at
-// config load — before any webServer starts.
-execFileSync("sqlite3", [LIVE_CONTENT_DB, `.backup '${CONTENT_DB_SNAPSHOT}'`]);
+/**
+ * MUST be idempotent across re-evaluation of this module. Playwright does not load this config file
+ * exactly once: the main process (which starts the `webServer`s below) and the single test worker
+ * process (which runs the spec) each independently `require`/`import` it — confirmed the hard way on
+ * this suite's own first real run, which silently produced TWO distinct snapshot files per invocation,
+ * one with real WAL activity (the server's actual file) and one completely untouched (whichever
+ * process evaluated the module second, generating a fresh `Date.now()`-based path that no webServer
+ * ever pointed at). The spec's own `publish_history` assertion queried THAT second, never-served file
+ * and correctly reported zero rows — the publish itself had genuinely succeeded (confirmed
+ * post-mortem, querying the real file directly), so this was a test-harness bug, not a product one.
+ *
+ * The fix: reuse `E2E_LIVE_PUBLISH_CONTENT_DB` from `process.env` if a prior evaluation (in this same
+ * process tree — worker processes inherit env from the process that forked them) already set it,
+ * rather than unconditionally generating a new path and re-running `.backup` every time. The first
+ * evaluation (always the main process, since it runs before any worker is forked) generates the path
+ * and performs the one real backup; every subsequent evaluation — in any process — sees the inherited
+ * env var already set and reuses the exact same file without touching it again (a second `.backup`
+ * onto a path a live webServer may already have open would itself be a hazard, not just redundant).
+ */
+const CONTENT_DB_SNAPSHOT = process.env.E2E_LIVE_PUBLISH_CONTENT_DB ?? path.join(os.tmpdir(), `tovu-e2e-live-publish-content-${Date.now()}-${process.pid}.db`);
+
+if (!process.env.E2E_LIVE_PUBLISH_CONTENT_DB) {
+  // `.backup`, not `cp`: safe under a concurrent writer (the live dev server may currently have this
+  // file open) and correct under WAL mode, per SQLite's own Online Backup API.
+  execFileSync("sqlite3", [LIVE_CONTENT_DB, `.backup '${CONTENT_DB_SNAPSHOT}'`]);
+}
 
 /**
  * Loads `.env` into THIS process (config authoring process) so it is inherited by the webServer child
@@ -102,8 +123,10 @@ if (fs.existsSync(ENV_FILE)) {
   process.loadEnvFile(ENV_FILE);
 }
 
-/** Published for the spec's own diagnostics — if the credential turns out missing/broken in the
- *  snapshot, the failure message can name exactly which file was used, not just "the DB". */
+/** Re-asserted (idempotent — same value whether this evaluation generated it or inherited it above)
+ *  so every process in the tree agrees on one path: this is what makes the worker process's own
+ *  `publish_history` query in the spec look at the SAME file the webServer actually wrote to, and it
+ *  doubles as the spec's own diagnostic (a failure message can name exactly which file was used). */
 process.env.E2E_LIVE_PUBLISH_CONTENT_DB = CONTENT_DB_SNAPSHOT;
 process.env.E2E_API_PORT = String(API_PORT);
 process.env.E2E_AGENT_DAEMON_PORT = String(DAEMON_PORT);
