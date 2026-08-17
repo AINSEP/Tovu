@@ -93,6 +93,68 @@ Verified by reading the actual client layer, not inferred:
 
 This is scoping only — I have not started building any of it, and it is not assigned to me.
 
+### File manifest — every frontend file the cutover touches, by layer
+
+Named so this is dispatchable next session without re-deriving it. All paths relative to
+`apps/admin/src/`. Server-side files are named for completeness (dependency context) but are
+explicitly NOT this list's responsibility — `routedeps-vendor`/`route-quality` territory.
+
+**1. Wire client (new code, not a rename)**
+- `lib/api.ts` — add `AdminVendorId`/`AdminVendorConnectionInput`/`AdminVendorCredentialSummary`
+  types plus `listVendorCredentials`/`createVendorCredential`/`updateVendorCredential`/
+  `deleteVendorCredential`, hitting `/workspaces/${WORKSPACE_ID}/system/vendor-credentials` (mirrors
+  the existing `listPublishCredentials`/`listSourceControlCredentials` blocks immediately above
+  `getDeployments`, the object's last member). Server route already exists and is tested:
+  `src/server/routes/admin/system/vendor-credentials.ts`.
+
+**2. Provider tables (collapse three into one, add the missing S3-compatible form)**
+- `features/deployment/rules.ts` — `PUBLISH_CREDENTIAL_PROVIDERS`, `PublishCredentialProviderInfo`,
+  `buildPublishConnectionInput`, `publishCredentialRowReadyToSave`. Note `STATIC_PUBLISH_TARGETS` and
+  `AdminStaticPublishTargetId` (the PUBLISH-TARGET vocabulary: `github-pages`, `cloudflare-pages`,
+  …) stay destination-keyed even after cutover — a target still needs to say "GitHub Pages", the
+  cutover only changes which TABLE backs the credential a target's row reads. Don't collapse target
+  ids into vendor ids; keep the destination→vendor lookup `PUBLISH_PROVIDER_TO_VENDOR`
+  (`src/features/vendor-credentials/types.ts:64`) already defines for exactly this seam.
+- `features/source-control/rules.ts` — `SOURCE_CONTROL_PROVIDERS`, `SourceControlProviderInfo`,
+  `buildSourceControlConnectionInput`. Uses `SOURCE_CONTROL_PROVIDER_TO_VENDOR`
+  (`src/features/vendor-credentials/types.ts:74`) the same way.
+- `features/security/rules.ts` — `ACCESS_TOKEN_PROVIDERS` (currently built by concatenating the two
+  tables above with a `kind` tag) collapses to one list over `VendorId`'s 7.
+  `PROVIDER_VENDOR_LABEL_OVERRIDES`/`vendorLabelFor` likely become **unnecessary and removable** —
+  once `vendorId` IS the credential's identity, there is no destination-vs-vendor split left for this
+  page to reconcile; that naming problem moves entirely into `deployment/rules.ts`'s own
+  destination-keyed `STATIC_PUBLISH_TARGETS`, which is a genuine simplification worth calling out to
+  whoever picks this up. `legacySentinelLabel`/`friendlyLegacyName` (the `"default"`-label rename for
+  pre-Security rows) may still be needed for a transition window reading OLD rows via dual-read.
+  New net-new UI: an S3-compatible form (5 fields: endpoint, region, bucket, accessKeyId,
+  secretAccessKey) — no current file has one to adapt from.
+
+**3. Hooks (dependency layer + port + the `use*` hook itself, all three per feature)**
+- `features/deployment/hooks/{publish-credentials-port,publish-credentials-dependencies,use-publish-credentials}.hooks.ts`
+- `features/source-control/hooks/{source-control-credentials-port,source-control-credentials-dependencies,use-source-control-credentials}.hooks.ts`
+- `features/security/hooks/{access-tokens-port,access-tokens-dependencies,use-access-tokens}.hooks.ts`
+  — this one currently orchestrates BOTH old stores at once (`AccessTokenKind`); cutover collapses it
+  to querying the one vendor-credentials endpoint.
+- `features/security/hooks/{other-credentials-port,other-credentials-dependencies,use-other-credentials}.hooks.ts`
+  — **unaffected**, Tier 2 (BYOK/media/Composio/MCP) is a separate credential universe, out of scope.
+
+**4. Components that read `providerId`/`kind` directly**
+- `features/deployment/StaticSiteTab.tsx` — `PublishCredentialFields`, `StaticPublishTargetFields`,
+  `CredentialTokenPicker`, all keyed on `AdminPublishCredentialProviderId` today.
+- `features/source-control/ProvidersTab.tsx` — `SourceControlCredentialFields`, keyed on
+  `AdminSourceControlProviderId`.
+- `features/security/AccessTokensTab.tsx` — every `kind: "publish" | "source-control"` branch
+  (`TokenInputFields`, `ExistingTokenFields`, `AddTokenForm`) collapses to one shape once there is
+  only one store to read from.
+
+**5. Test fixtures — every one below builds against the OLD `providerId` unions and breaks**
+(extensions verified by directory listing, not assumed — the `rules.unit.test.*` files are `.ts`,
+no JSX, everywhere; every other file here is `.tsx`)
+- `features/deployment/__tests__/StaticSiteTab.unit.test.tsx`, `features/deployment/__tests__/rules.unit.test.ts`
+- `features/deployment/hooks/__tests__/use-publish-credentials.unit.test.tsx`
+- `features/source-control/__tests__/SourceControl.unit.test.tsx`, `.../rules.unit.test.ts`, `.../use-source-control-credentials.unit.test.tsx`
+- `features/security/__tests__/AccessTokensTab.unit.test.tsx`, `.../rules.unit.test.ts`, `.../access-tokens-revoke-copy.unit.test.tsx`
+
 **Framing correction, per the Coordinator's note — adopting it, not just relaying it:** earlier in
 this session I described `github-pages` and `github` as "different identities by design." That is
 true of the code AS IT STANDS, but it is **current design, not permanent design** — the
