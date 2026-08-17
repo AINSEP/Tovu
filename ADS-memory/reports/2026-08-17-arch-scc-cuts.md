@@ -167,6 +167,93 @@ re-run after their work lands before concluding otherwise.
   `db/sqlite/database-introspection-adapter.sqlite.ts`) isn't linted either way; left as-is, out of scope
   for this dispatch (`.dependency-cruiser.cjs` isn't a file this task owns).
 
+## Follow-up: declined the `createApp` extraction (core-size item 4)
+
+Requested by `team-lead` after a live cycle from `routedeps-vendor`'s vendor-credential cutover
+prompted a look at whether the metric split changes any standing decisions. It does, for exactly one:
+item 4 on the remaining-work list (`extract createApp into a third file that neither app.ts nor
+deps.ts reaches circularly — worth ~0.7pp of core size`) was carried across two prior handoffs as
+"not taken, revisit later." Re-judged here rather than executed, per this dispatch's own instruction
+to judge before acting on ratchet-tier work.
+
+### The export↔server "cycle" was a measurement artifact, not a real one
+
+The extraction's stated motivation (`server/routes/types.ts`'s own doc comment, and the file-header
+comments on the two lazy-`require()` call sites below) is "closing the `export -> server` cycle."
+Traced both directions on the current tree:
+
+- **`export → server`, TYPE-ONLY, both occurrences:**
+  - `src/export/route-manifest.ts:7` — `import type { RouteDeps } from "../server/routes/types";`
+  - `src/export/site-exporter.ts:29` — `import type { RouteDeps } from "../server/routes/types";`
+
+  Neither file imports anything else from `server/`. `RouteDeps` is used purely as a function-signature
+  type in both — erased by `tsc`, never emitted, exactly the `isTypeOnlyDependency()` case the metric
+  split (Task B above) exists to separate out.
+
+- **`server → export`, REAL RUNTIME EDGE, both occurrences:**
+  - `src/server/deps.ts:891` — `(require("../export/index") as typeof import("../export/index")).exportSite(options);`
+  - `src/server/app.ts:687` — `(require("../export/index") as typeof import("../export/index")).exportSite(options);`
+
+  Both are `require()` calls, not `import type`. **dependency-cruiser statically resolves a `require()`
+  call the same as a static `import`** — it is a syntactic analysis, not a runtime trace, and it does
+  not care that the call is deferred to inside a function body rather than hoisted to the top of the
+  file. Confirmed empirically the same way the type-only discriminator was confirmed for Task B:
+  `npx depcruise <file> --ts-pre-compilation-deps --output-type json` resolves the `require()` target
+  with `dynamic: false`, identical to a static `import`. Lazy-loading changes *when* the module is
+  loaded at runtime; it changes nothing about what a static grapher sees.
+
+Net: under the OLD all-import graph, both directions counted → `export <-> server` showed as a mutual
+pair (it is in the pre-session committed baseline's 13-pair list). Under the NEW runtime-only graph
+(Task B, this same dispatch), the type-only `export → server` direction is excluded → only the real
+`server → export` direction remains → not a mutual cycle. It is absent from this dispatch's committed
+6-pair baseline. **The cycle the extraction was supposed to close never carried real circular-load
+risk; it was an artifact of the pre-split metric counting a type-only signature dependency as if it
+were the same kind of coupling as the runtime `require()`.**
+
+### The lazy-`require()` comments are about a different problem, and conflating the two produced the phantom
+
+`deps.ts:897-906`'s doc comment (and `app.ts`'s equivalent for `runExportSiteLazily`) is careful and
+mostly correct, but its own framing is what fed the phantom-cycle belief. Quoting the load-bearing
+sentence: *"`server/app.ts`'s own module body ends with an eager `export const app = createApp();`
+that runs the whole app-boot graph... as a side effect of merely loading that file — the exact hazard
+[a static import here would cause]."* That is a real, correctly-diagnosed problem: a **Node.js CommonJS
+circular-`require` crash at boot time** — if `app.ts` statically imported from `deps.ts` (or vice
+versa) while either module has eager top-level side effects, whichever module is mid-initialization
+when the cycle closes gets handed a partially-populated `exports` object, which is a genuine runtime
+hazard distinct from anything a static grapher measures.
+
+What the comment does NOT say, but what the surrounding "closing the cycle" language in
+`routes/types.ts` and the remaining-work note both imply, is that this lazy-loading also removes the
+edge from **structural/static measurement** — it does not, per the depcruise result above. Two
+different problems (a boot-time initialization-order crash vs. a static module-coupling metric) got
+described with the same word, "cycle," and the fix for the first (defer the `require` call) was read
+as if it were also a fix for the second (remove the edge from the graph). It is not; it never was; the
+`require()` is still there and still counted. **This matches a known failure mode in this codebase: long, evidence-shaped comments that encode an
+inference rather than a verified fact** — a pattern flagged in prior session findings for an unrelated
+comment elsewhere in this repo; this is a second, independent instance of the same pattern, not a
+repeat of the same bug. The comment's own factual claims (about the Node CJS boot hazard) check out;
+only the unstated generalization to static analysis does not.
+
+### Decision: declined, bounded, revisit only if
+
+**Declined for now.** Reasoning:
+1. The hard-constraint case (closing a real circular-load-risk cycle) is gone — there was never a real
+   cycle here to close, only a mis-measured one, and the split baseline already reflects that correctly.
+2. What remains is a ratchet-tier metric only (core size, not hard-constraint), already tightly bounded
+   by a prior session's own experiment: stubbing `deps.ts`'s lazy require in a throwaway worktree
+   recovered 138 → 132 files, i.e. **at most ~0.7 percentage points (6 of 843 files)**, with the
+   remaining ~92% of any theoretical full separation judged structural and unreachable by this
+   injection-vs-move-down approach alone.
+3. `app.ts` and `deps.ts` are the two busiest shared files in the repo (`server`'s own
+   `Ce = 507` in the Martin-instability listing) and `app.ts` was edited by `assistant-selfheal` the
+   same night this was evaluated — restructuring either file trades real collision risk in a
+   shared-index, 8-agent tree for a cosmetic, non-blocking metric move.
+
+**Revisit only if:** (a) a future, unrelated refactor is already touching `app.ts`/`deps.ts` for other
+reasons, making the marginal cost near-zero; or (b) core size is ever promoted from ratchet to hard
+tier (`ENFORCE_HARD_CONSTRAINT_TIERS`/`RATCHET_METRICS` in `check-architecture.ts`) for a reason
+independent of this specific cycle. Absent either, the ~0.7pp is not worth the file-collision risk.
+
 ## Incident: accidental `git stash`
 
 Mid-session, while inspecting a dependency-cruiser rule, I ran `git stash` — forbidden per this
