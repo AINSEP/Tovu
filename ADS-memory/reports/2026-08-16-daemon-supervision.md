@@ -7,9 +7,108 @@ died unexpectedly, `child.on("exit")` recorded a failure reason and nothing ever
 — the AI assistant stayed dead for every workspace until a human restarted the whole Tovu process,
 with no in-product way for a human to know how.
 
-## What shipped
+## Addendum — production-reality follow-up (commit `bba7c35a`)
 
-Three pieces, all backend, all landed in commit `5c1fae06`:
+After the first pass landed, the owner asked for a "permanent fix," not a band-aid, and pushed on
+two things directly: whether `restartAssistantDaemon()` is safe under Docker's SIGTERM-based
+container shutdown, and whether an on-demand/lazy-start layer belongs alongside respawn-on-exit.
+Both are answered below and shipped in `bba7c35a`.
+
+### 1. `restart()`/`ensureStarted()` now refuse while the process is terminating
+
+This was a real hole, not a hypothetical one: Docker stops this container with SIGTERM, and this
+supervisor is the only thing standing between a dead daemon and a dead assistant — there is no
+external process manager underneath it in the one-container deployment model. Before this fix, a
+request racing the container's own shutdown could call `restart()` while `shutdown()` was tearing
+the daemon down and resurrect a process the container was actively trying to kill — the same orphan
+class `killCurrentChild`'s own comment already describes for `tsx watch`.
+
+Fixed with a `terminating` flag on the supervisor, set exactly once by `shutdown()` and never
+cleared, checked first by both `restart()` and `ensureStarted()`. This is a **different state** from
+the crash-loop cap tripping, and the two must not be collapsed: a tripped cap means "gave up
+retrying, but the process is still alive" — `restart()` must still work, that's the entire point of
+the seam. `terminating` means "this OS process itself is going away" — `restart()`/`ensureStarted()`
+must refuse, returning `{ ok: false, reason: "shutting down" }`.
+
+Proven with an actual RED/GREEN cycle, not just a green test written against already-correct code:
+temporarily disabled the `if (terminating)` check, ran the two new tests, watched both fail, restored
+the check, watched both pass. The real `SIGINT`/`SIGTERM`/`SIGHUP` -> `shutdown()` -> `process.exit(0)`
+wiring itself is unchanged from the first pass and lives in the module-singleton wrapper
+(`daemon-supervisor.ts`, ~line 397) — deliberately NOT re-tested by sending a real signal to the test
+runner's own process (that would kill `node:test` itself); the interaction is instead proven at the
+factory level, where `shutdown()` is the exact call the real signal handler makes.
+
+### 2. On-demand/lazy start — built, not rejected
+
+Explicit answer: **built.** Automatic respawn-on-exit only heals a daemon that dies while the
+supervisor is watching it. It does nothing for a daemon that never started (a `child.on("error")`
+spawn failure) or one whose crash-loop cap tripped an hour before a user showed up — and the owner's
+stated bar was that a non-technical human should never need to know a daemon exists. A respawn-only
+design still routinely requires someone to find the manual restart button, which does not meet that
+bar.
+
+Added `ensureStarted()` (module-singleton export: `ensureAssistantDaemonStarted`, re-exported through
+the barrel). Design:
+
+- **Single-flight by construction, no extra lock needed.** `attemptSpawn` sets `currentChild`
+  synchronously, with no `await` between "is anything already running" and that assignment — Node's
+  run-to-completion guarantee means two calls in the same or adjacent event-loop turns cannot both
+  decide to spawn. This was the guard rail the team lead flagged as the most likely way to get this
+  wrong; it falls out of the existing state model for free rather than needing new synchronization.
+- **A pending scheduled retry is left alone, not accelerated.** If the backoff ladder already has a
+  retry scheduled, `ensureStarted()` reports `{ ok: true }` without doing anything — a live request
+  just needs to retry once that fires. Deliberately did NOT build "cancel the pending timer and retry
+  right now," even though it's tempting for UX: under sustained traffic against a persistently broken
+  daemon, accelerating every pending retry to "immediately" would let request volume run the backoff
+  ladder far faster than its own design intends, defeating the whole point of backoff.
+  Time-driven and traffic-driven recovery share one pace instead of two.
+- **A cooldown floor (default 30s, matching the backoff ladder's own cap) gates re-arming when
+  nothing is running or scheduled** — the case that covers both "never started" and "cap tripped long
+  ago." Without this, sustained request volume against a durably broken daemon (bad permissions,
+  missing script) would spawn far more often than the internal crash-loop cap would ever allow on its
+  own, purely because request arrival isn't rate-limited the way the internal backoff timer is.
+
+**Not built, and explicitly flagged rather than silently omitted:** the actual call site.
+`src/server/modules/assistant.ts`'s `forwardToAgentDaemon` — where the owner's own
+`agent daemon unreachable ... TypeError: fetch failed` surfaced tonight — is not in this agent's
+ownership and was not touched. `ensureAssistantDaemonStarted()` is the primitive that call site
+should invoke when it detects the daemon is unreachable; wiring it in is a small, separate change for
+whoever owns that file.
+
+### 3. A real, pre-existing bug found while building this (not asked for, found anyway)
+
+Verified directly with a throwaway Node script (not assumed from memory, given this project's own
+"verify claims in code comments" history) that a spawn-level failure like ENOENT fires **only**
+`"error"` — `"exit"` never follows, and `pid` stays `undefined` for that child's entire lifetime.
+
+```
+error: ENOENT
+summary { sawError: true, sawExit: false }
+```
+
+Before this fix, `restart()`'s "wait for the stale child's actual exit before spawning the
+replacement" branch (added in the first pass, to avoid the EADDRINUSE race) would have waited
+**forever** on an exit event that kind of child can never emit — a permanent hang, not a slow
+recovery, for the exact "daemon never started" case `ensureStarted()` exists to fix. Fixed by marking
+`childHasExited = true` inside the `"error"` handler, which correctly converges the state to "nothing
+is running" for both `restart()` and `ensureStarted()`. Also corrected the inline comment that
+previously implied `"error"` alone made this case safe — it did not, until this fix.
+
+Regression test: `restart() spawns a replacement immediately after a spawn-level error, instead of
+waiting forever for an exit event that will never come`.
+
+### 4. Correcting a false claim in project lore
+
+`ADS-memory/reports/2026-08-16-jini-daemon-lifecycle.md:243` states: *"Tovu's own `src/` has zero
+SIGTERM/SIGINT handlers, as the brief said."* **That is false and was false before this session's
+changes too** — `src/index.ts` (now `daemon-supervisor.ts`'s module-singleton wrapper) has registered
+`SIGINT`/`SIGTERM`/`SIGHUP` handlers wired to the daemon's teardown since before this task started.
+Not edited (out of this agent's ownership — a different session's report) but flagged here per the
+team lead's request so it stops propagating.
+
+## What shipped (first pass, commit `5c1fae06`)
+
+Three pieces, all backend:
 
 1. **Automatic respawn with exponential backoff** on any unexpected daemon exit.
 2. **A crash-loop cap** so a genuinely broken daemon stops retrying and says why, instead of
@@ -17,7 +116,10 @@ Three pieces, all backend, all landed in commit `5c1fae06`:
 3. **A manual restart seam** (`restartAssistantDaemon`) that works even after the cap trips — the
    piece that answers "a human's not gonna know how to restart a Node process."
 
-The fourth item in the brief (an admin UI button) was explicitly out of scope and not built —
+(Now joined by `ensureAssistantDaemonStarted` from the addendum above — together these are the full
+answer to "a human's not gonna know how.")
+
+The admin UI button itself was explicitly out of scope and not built —
 `apps/admin/**` belongs to another agent.
 
 ## Design
@@ -121,12 +223,15 @@ three files under `src/server/__tests__/**` (owned by routes-coverage) still say
   crash-loop trip with the distinct reason, the rolling window excluding old failures (proves the
   self-healing property), the EADDRINUSE sub-cap tripping before the generic cap would, a non-port
   failure resetting that sub-cap (adversarial case), and `reset()` clearing everything.
-- `daemon-supervisor.test.ts`: 6 tests — unexpected exit → respawn; deliberate shutdown → no
-  respawn (and confirms the kill signal was sent); crash-loop cap trips and latches a distinct
-  reason (read back from the real `readiness-state` snapshot); manual restart spawns after the cap
-  tripped; restart waits for a still-live child's actual exit before spawning the replacement;
-  PORT_IN_USE gets the specific "could not bind... address already in use" message instead of a
-  generic exit code.
+- `daemon-supervisor.test.ts`: 14 tests total. First pass (6): unexpected exit → respawn;
+  deliberate shutdown → no respawn (and confirms the kill signal was sent); crash-loop cap trips and
+  latches a distinct reason (read back from the real `readiness-state` snapshot); manual restart
+  spawns after the cap tripped; restart waits for a still-live child's actual exit before spawning
+  the replacement; PORT_IN_USE gets the specific "could not bind... address already in use" message
+  instead of a generic exit code. Second pass (8, see addendum below): `restart()`/`ensureStarted()`
+  refuse once `shutdown()` has run; `restart()` no longer hangs forever after a spawn-level error;
+  `ensureStarted()` single-flight, leaves a pending retry alone, re-arms after the cap, and its
+  cooldown floor.
 
 Confirmed RED first for the policy module (`Cannot find module '../daemon-respawn-policy'`) before
 writing the implementation. The supervisor tests were written against the already-implemented
@@ -135,6 +240,14 @@ the TEST itself, not the implementation, on first run — the default crash-loop
 tripping on total call count before the port-specific sub-cap (3) could be isolated; fixed by
 raising the generic cap override in that one test.
 
+**Second pass (`bba7c35a`), 8 more tests, 14 total in `daemon-supervisor.test.ts`:** `restart()`/
+`ensureStarted()` refusing once `shutdown()` has run (proven with a real RED/GREEN cycle — see the
+addendum above); `restart()` no longer hanging forever after a spawn-level error (a genuine
+pre-existing bug this pass found); `ensureStarted()`'s single-flight behavior under ten synchronous
+calls against an already-running daemon; a pending scheduled retry being left alone rather than
+accelerated; re-arming after the crash-loop cap; and the cooldown floor rejecting a second re-arm
+inside its window while accepting one after the window elapses (fake-clock-driven, no real sleeps).
+
 ## Evidence
 
 ```
@@ -142,11 +255,19 @@ node --import tsx --test src/assistant/__tests__/daemon-respawn-policy.test.ts \
   src/assistant/__tests__/daemon-supervisor.test.ts \
   src/server/__tests__/unit/readiness-state.unit.test.ts \
   src/assistant/__tests__/agent-daemon-installs-unhandled-rejection-guard.unit.test.ts
-# 21 pass, 0 fail
+# 29 pass, 0 fail (7 policy + 14 supervisor + 6 readiness-state + 2 unhandled-rejection-guard)
 
-npx tsc --noEmit          # clean
-npx eslint <all 8 changed/created files>   # clean, no complexity warnings
+npx tsc --noEmit          # clean, both passes, repo-wide
+npx eslint src/assistant/daemon-supervisor.ts src/assistant/daemon-respawn-policy.ts \
+  src/assistant/index.ts src/assistant/__tests__/daemon-supervisor.test.ts \
+  src/assistant/__tests__/daemon-respawn-policy.test.ts
+# clean, no complexity warnings, both passes
 ```
+
+RED/GREEN evidence for the `terminating` fix specifically: temporarily replaced `if (terminating)`
+with `if (false)` in both `restart()` and `ensureStarted()`, ran the two new tests — both failed
+(`restart() refuses once shutdown() has run...`, `ensureStarted() also refuses once shutdown() has
+run`) — then restored the real check and reran the full file: 21/21 pass.
 
 Also ran `src/server/__tests__/routes/{readiness-routes,module-status-route}.test.ts` and
 `assistant-proxy-routes.test.ts` (owned by routes-coverage, not touched, run read-only as a
@@ -162,8 +283,9 @@ regression from this change.
 ## Architecture Audit
 
 - **Status: PASS.**
-- ADR-009 (module barrel/no-deep-imports): `assistant` is a guarded module; both new exports
-  (`startAssistantDaemon`, `restartAssistantDaemon`, `RestartAssistantDaemonResult`) go through
+- ADR-009 (module barrel/no-deep-imports): `assistant` is a guarded module; all four new exports
+  (`startAssistantDaemon`, `restartAssistantDaemon`, `ensureAssistantDaemonStarted`,
+  `RestartAssistantDaemonResult`, `EnsureAssistantDaemonStartedResult`) go through
   `src/assistant/index.ts`'s existing "Section D" (Admin Daemon Proxy / Process Composition), and
   `src/index.ts` (a declared composition root) continues importing from the barrel (`./assistant`)
   exactly as it did before.
@@ -171,13 +293,18 @@ regression from this change.
   `../server/readiness-state` — `assistant -> server` deep imports are already the established
   pattern in this file's sibling `agent-daemon-server.ts` (imports `../server/app`,
   `../server/deps`, `../server/boot/process-error-guards`).
-- eslint `complexity`/`sonarjs/cognitive-complexity` (cap 15): both new files come back clean;
-  largest function (`daemon-supervisor.ts`'s `restart()`) decomposed into `cancelPendingRetry`,
-  `killCurrentChild`, `attemptSpawn`, `handleUnexpectedExit` as named helpers specifically to stay
-  under the cap.
+- `src/server/modules/assistant.ts` was NOT touched, per explicit instruction not to take that file
+  unilaterally — `ensureAssistantDaemonStarted` is built and exported, ready for that file's owner
+  to call.
+- eslint `complexity`/`sonarjs/cognitive-complexity` (cap 15): all changed/new files come back
+  clean. `restart()` and `ensureStarted()` both delegate their "kill the stale child (if any), then
+  spawn" step to one shared helper (`forceFreshSpawn`) specifically so neither grows past the cap on
+  its own; other named helpers (`cancelPendingRetry`, `killCurrentChild`, `attemptSpawn`,
+  `handleUnexpectedExit`) are unchanged from the first pass.
 
 ## Files changed
 
+First pass (`5c1fae06`):
 - `src/assistant/daemon-respawn-policy.ts` (new)
 - `src/assistant/daemon-supervisor.ts` (new)
 - `src/assistant/__tests__/daemon-respawn-policy.test.ts` (new)
@@ -188,10 +315,21 @@ regression from this change.
 - `src/server/readiness-state.ts` (doc/remediationHint corrections only, no behavior change)
 - `src/assistant/agent-daemon-server.ts` (doc corrections only, no behavior change)
 
-Commit: `5c1fae06` on `general-work`.
+Second pass (`bba7c35a`), scoped-path commit per the corrected git protocol:
+- `src/assistant/daemon-supervisor.ts` (`terminating` flag, `ensureStarted()`, the ENOENT
+  `childHasExited` fix, `forceFreshSpawn` extraction)
+- `src/assistant/index.ts` (barrel — 2 more exports: `ensureAssistantDaemonStarted`,
+  `EnsureAssistantDaemonStartedResult`)
+- `src/assistant/__tests__/daemon-supervisor.test.ts` (8 new tests)
+
+Commits: `5c1fae06`, `bba7c35a` on `general-work`. Both verified with `git show --stat HEAD`
+immediately after committing.
 
 ## Open items / suggested next routing
 
+- **`ensureAssistantDaemonStarted()` needs a caller.** `src/server/modules/assistant.ts`'s
+  `forwardToAgentDaemon` — where the owner's own unreachable-daemon error surfaced — is the intended
+  call site. Not touched here; needs its own owner or explicit hand-off.
 - The admin "Restart assistant" button itself — needs `apps/admin/**` + whichever route file the
   team lead arbitrates with route-async-guards, calling `restartAssistantDaemon()` per the contract
   above.
