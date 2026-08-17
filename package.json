@@ -38,7 +38,7 @@
     "check:embed-marker-drift": "tsx development/scripts/check-embed-marker-drift.ts",
     "check:route-coverage-floor": "tsx development/scripts/check-route-coverage-floor.ts",
     "check:route-coverage-diff": "tsx development/scripts/check-route-coverage-diff.ts",
-    "check:route-test-baseline": "tsx development/scripts/check-test-baseline.ts",
+    "check:route-test-baseline": "tsx development/scripts/check-test-baseline.ts development/scripts/route-test-failure-baseline.json",
     "lint": "biome lint .",
     "complexity": "eslint --no-error-on-unmatched-pattern .",
     "admin:install": "npm --prefix apps/admin install",
