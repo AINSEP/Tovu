@@ -40,6 +40,17 @@ name: CI
 # 2026-08-16 finding: this workflow sat dormant through 38+ commits on `general-work` because it only
 # named `main`, so no future branch is silently unwatched the same way. `pull_request` explicitly
 # names both long-lived integration branches this repo actually uses.
+#
+# 2026-08-17 (later same evening): `af5af566`'s git-clone fix got the run past the checkout blocker,
+# but it was never proven against a real run and had a second bug: `pnpm/action-setup@v4` (no
+# `version:` input) defaults to reading the `packageManager` field from `$GITHUB_WORKSPACE/package.json`
+# -- Tovu's OWN root package.json, since Tovu is the primary checkout here, not Jini's. Tovu's root
+# uses npm, not pnpm, so that file has no `packageManager` field, and the action throws "No pnpm
+# version is specified" and fails the step. Traced through pnpm/action-setup@v4's own dist/index.js
+# (`readTarget()`): the `package_json_file` input is resolved as a plain `path.join($GITHUB_WORKSPACE,
+# <value>)` + `readFileSync`, with none of `actions/checkout`'s workspace-containment restriction --
+# so pointing it at `../Jini/package.json` is legal and correct. Both `pnpm/action-setup@v4` steps
+# below now set that explicitly. See each step's own comment.
 on:
   push:
     branches: ["**"]
@@ -152,8 +163,23 @@ jobs:
             apps/admin/package-lock.json
 
       - uses: pnpm/action-setup@v4
-        # No version pin: reads Jini's own `packageManager` field (pnpm@10.33.2) once its checkout
-        # exists above -- mirrors Jini's own ci.yml exactly (`../Jini/.github/workflows/ci.yml`).
+        with:
+          # No version pin: reads the `packageManager` field (pnpm@10.33.2) from Jini's OWN
+          # package.json instead. `package_json_file` is resolved as `path.join($GITHUB_WORKSPACE,
+          # <this value>)` by the action itself (verified against pnpm/action-setup@v4's own
+          # dist/index.js, `readTarget()`) -- a plain path.join+readFileSync with no
+          # workspace-containment check, unlike actions/checkout, so `../Jini/package.json` is legal
+          # here even though it wasn't for the checkout step above.
+          #
+          # Without this, the action defaults to `package_json_file: package.json`, which resolves
+          # to *Tovu's own* root package.json (Tovu is the primary checkout, at $GITHUB_WORKSPACE) --
+          # not Jini's. Tovu has no `packageManager` field (its root uses npm, not pnpm; see the
+          # `npm ci` / `npm run typecheck` steps below). Traced through the action's source: with no
+          # `version:` input and no `packageManager` field found, it throws "No pnpm version is
+          # specified" and the step fails outright. This was NEVER caught by a real run -- the prior
+          # revision's `git clone` fix (af5af566) only got as far as removing the checkout-path
+          # blocker; this step was still unreached.
+          package_json_file: ../Jini/package.json
 
       - name: Build Jini (siblings resolve through gitignored dist/, not source)
         # Every Jini package's package.json resolves its own @jini-ai/* siblings through its
@@ -316,6 +342,11 @@ jobs:
           cache-dependency-path: package-lock.json
 
       - uses: pnpm/action-setup@v4
+        with:
+          # Same fix as build-and-test's identically-named step -- see its comment for why this is
+          # required (not optional/defensive): without it, this step throws "No pnpm version is
+          # specified" because $GITHUB_WORKSPACE/package.json (Tovu's) has no `packageManager` field.
+          package_json_file: ../Jini/package.json
 
       - name: Build Jini (siblings resolve through gitignored dist/, not source)
         run: |
