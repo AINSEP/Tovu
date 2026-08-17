@@ -153,3 +153,223 @@ commits). No `--force`, no destructive reset used.
   new shape instead of the old one.
 - `development/scripts/check-architecture.baseline.json` — moved to the post-fix measured state.
 - No test files needed edits (see fixture-risk section above).
+
+---
+
+# Edge 2 — `export/route-manifest.ts`'s edges into `server/routes/site/{pages,products}.ts`
+
+Follow-up work, same session, explicitly authorized by team-lead after the live-publish e2e (see
+below) confirmed edge 1 on the real export path. Two more commits:
+
+- `72c4f95e` — code fix (landed with a **wrong commit message** — see the git-index incident below;
+  content verified correct and complete via `git show --stat`)
+- `54e8cb35` — `chore(architecture): move check:architecture baseline (edge 2)`
+
+## Live-publish e2e result (reported by team-lead, recorded here since I now own the export path's
+## story)
+
+Before starting edge 2, team-lead ran `development/playwright.live-publish-e2e.config.ts` against
+the **uncommitted working tree** carrying edge 1's `routeDeps.createSiteApp(routeDeps)` change: a
+real spawned `claude` CLI, through the real admin chat, booted the real app via my injected
+factory, crawled it, and pushed a real commit to `leonaburime-ucla/tovu-demo`'s `gh-pages` branch —
+independently confirmed by the branch HEAD moving (`819c09c5` -> `c0e52de2`) and the published site
+serving the owner's fresh one-line theme edit. This is strictly stronger evidence than the unit/
+integration suites: the DI seam works on the real, unmocked publish pipeline. One pre-existing,
+not-mine finding surfaced in that run's logs, recorded here per team-lead's instruction so it isn't
+rediscovered as new: `[widgets] resolveHtmlPageEmbeds: unknown embed type` fired ~17 times across
+the export, meaning `partial` and `menu` embeds ship as placeholders on the published site — a known
+open gap in the widgets/menus public-render path, unrelated to this decoupling work.
+
+## What I found before touching anything
+
+Verified with the real `dependency-cruiser` JSON (`--ts-pre-compilation-deps`, which resolves
+TYPE-ONLY imports as graph edges too — not just runtime ones) rather than reasoning from the
+summary numbers. There were exactly FOUR edges from `src/export/**` production files into
+`src/server/**`, not two:
+
+```
+route-manifest.ts -> server/routes/site/pages.ts      (runtime)
+route-manifest.ts -> server/routes/site/products.ts   (runtime)
+route-manifest.ts -> server/routes/types.ts            (type-only: RouteManifestDeps = RouteDeps)
+site-exporter.ts  -> server/routes/types.ts            (type-only: ExportSiteOptions.routeDeps: RouteDeps)
+```
+
+The two type-only ones are marked `circular: true` by dependency-cruiser and are **structurally
+required** — `ExportSiteOptions`/`RouteManifestDeps` type directly against the real `RouteDeps`
+(deliberately, so a real caller never needs a cast; `route-manifest.ts`'s own pre-existing comment
+already says narrowing "would just move the type error to every call site"). `features/deployments/
+export-run.ts` avoids this exact problem for *itself* by taking a generic `TRouteDeps` and declaring
+`ExportEngine<TRouteDeps>`/`ExportRunReportLike` locally rather than naming `RouteDeps` at all — but
+making `site-exporter.ts`/`route-manifest.ts` follow that pattern too would be a materially bigger,
+different-shaped change (genericizing the whole export module's public types), not "move two
+functions." Flagged this to team-lead before starting; explicitly did not attempt it. Consequence:
+`export <-> server` was never going to fully leave the module-cycle list from this dispatch alone,
+regardless of what edge 2 did to the two REAL runtime edges — and it hasn't (see numbers below).
+
+## The two runtime edges got two DIFFERENT fixes, chosen by measuring, not assuming
+
+**`resolveActiveThemeId`/`resolveActiveTheme`** (from `pages.ts`) — checked their signatures first:
+`(deps: RouteDeps) => Promise<string>` and `(deps: TemplateRenderDeps, id: string) => DiscoveredTheme
+| null`. Zero `req`/`res`, zero middleware coupling, pure `(deps) => value`. Moved to a new file,
+`src/features/theme/active-theme.ts`, re-exported through `features/theme/index.ts`. Typed against
+narrow LOCAL interfaces (`ActiveThemeIdResolutionDeps`/`ActiveThemeResolutionDeps`) rather than
+`RouteDeps` or a `Pick` of it — importing `RouteDeps` here, even type-only, would have just relocated
+the edge this move exists to remove. `RouteDeps` (and `pages.ts`'s own pre-existing `TemplateRenderDeps`
+`Pick`) are structural supersets of both, so every real call site keeps passing its full `deps`
+through unchanged, no cast needed anywhere.
+
+Bonus, done and disclosed rather than left silent: `products.ts` had its own **private duplicate**
+of `resolveActiveTheme`, kept separate by original design specifically "to avoid a new cross-file
+coupling for one three-line function" (its own prior comment). That objection is moot once a real
+shared home exists, so I collapsed it — `products.ts` now imports the same function
+`pages.ts`/`route-manifest.ts` use. Zero behavior change (identical logic); this was a judgment call
+within scope, not requested explicitly, flagged here per my own earlier message saying I'd disclose
+it either way.
+
+**`resolveStorefrontProducts`** (from `products.ts`) — did NOT move it, and this was a measured
+decision, not the "obvious" symmetric choice. Its return type, `SiteProduct`, is defined in
+`server/http/site/render.ts`, and `features/commerce/storefront.ts`'s own file header states this
+boundary explicitly and in so many words: *"`features/commerce` does not import `SiteProduct` or
+anything from `server/http/site`... `server/routes/site/products.ts` is what bridges the two."*
+Moving `resolveStorefrontProducts` into `features/commerce` would violate that existing, documented
+architectural decision, not honor Sol's "move it to the feature that owns it" recommendation — the
+feature that "owns" this bridge, by prior design, is the routing layer. This is exactly the
+"genuinely coupled to route-layer concerns, measure it rather than assume" fallback team-lead's
+brief explicitly authorized. Used injection instead: `RouteDeps.resolveStorefrontProducts:
+(routeDeps: RouteDeps) => Promise<SiteProduct[]>` (`server/routes/types.ts`), mirroring
+`createSiteApp`'s own precedent from edge 1 on the same type. Bound directly in `server/app.ts`'s
+`createRouteDeps()` (already imports `products.ts` to register routes); a new plain **static**
+import in `server/deps.ts` (unlike `createSiteAppLazily`'s lazy `require` — `products.ts` has no
+eager top-level side effect the way `app.ts`'s own `export const app = createApp()` does, verified
+by reading the whole file, not assumed).
+
+`route-manifest.ts` now calls `deps.resolveStorefrontProducts(deps)` instead of importing the
+function directly, and imports `resolveActiveTheme`/`resolveActiveThemeId` from
+`#src/features/theme/index` instead of `../server/routes/site/pages`.
+
+## Measured before/after (edge 2)
+
+| | propagation cost | back-edges into composition root | largest SCC |
+|---|---:|---:|---:|
+| Before edge 2 (= edge 1's post-fix baseline) | 14.13% | 28 | 36 |
+| After edge 2 | **10.31–10.32%** | **26–27** | **37** |
+
+(Small variance in the "after" row reflects concurrent commits from other agents landing on the
+tree between measurements, not remeasurement noise from this work — see the git-index section.)
+
+**The SCC growing by one, explained rather than hand-waved.** `active-theme.ts`'s
+`resolveActiveThemeId` calls `getPresentationSettings`, a real new `features/theme ->
+features/presentation` edge. `features/presentation` was ALREADY a member of the pre-existing
+36-module fused SCC (verified directly: ran this repo's own Tarjan SCC computation against both the
+pre- and post-edge-2 `dependency-cruiser` graphs and diffed membership — `features/theme` is the
+only module that newly joined). This is not new coupling BETWEEN `export` and `server` (that pair
+was already fused via the two structurally-required type-only edges from edge 1's own analysis, and
+stays fused either way) — it's `features/theme` getting pulled into an already-dominant cluster that
+already held 36 of 48 modules, the same "documented nonlinearity" the edge-1 baseline-move commit
+already named for a different jump. A real, disclosed tradeoff, not a hidden one: -3.8pts
+propagation cost and -2 back-edges, +1 SCC member.
+
+## Verification performed (edge 2)
+
+- `npx tsc --noEmit` — clean.
+- `npx eslint` on all 9 changed files — 0 errors. New pre-existing-confirmed warnings on
+  `route-manifest.ts` (complexity 17/30) and `pages.ts` (complexity 22/28) — confirmed pre-existing
+  by running eslint against an **isolated `git worktree` checkout of unmodified HEAD** (not
+  `git stash`, deliberately — see below), same warnings, same values.
+- Scoped tests: 92 run, 90 passed, 2 failed. Both failures independently reproduced against
+  **unmodified HEAD in an isolated git worktree**, under the same concurrent-agent system load
+  (`uptime` showed load averages of 232/259/196 at the time — another agent was running the full,
+  uncapped test suite in the background simultaneously): `export-command.integration.test.ts`'s
+  CLI-spawn tests hit their own 30s `spawnSync` timeout (`status: null`) on the control run too;
+  `media-site-serving.test.ts`'s one ADR-027 placeholder assertion failed identically on the control
+  run. Neither is caused by this change. `products.route.test.ts` (the dedicated product-route
+  suite) is fully green. `post-template-site-serving.test.ts`'s 3 failures (found during scoping, not
+  in my final targeted list) were also independently confirmed pre-existing the same way, before I
+  ever ran my real scoped list.
+- `npm run check:architecture` — before edge 2: FAILED (baseline still edge-1's). After: measured,
+  baseline moved (`54e8cb35`), passed. As of the LAST check in this session it has drifted red again
+  by a small amount (propagation cost 10.32 -> 10.56, API surface 203 -> 204) purely from other
+  agents' unrelated commits landing after my baseline move — did not chase this with a third
+  `--update`; the baseline reflects my own change honestly at the moment I measured it, and
+  continuously re-chasing concurrent agents' drift is not this task's job or a good use of the
+  ratchet.
+
+## Why I used `git worktree`, not `git stash`, for every "is this pre-existing" check this round
+
+Learned mid-session: `git stash` operates on the WHOLE shared working tree, not just the files I'm
+comparing — it briefly reverts every OTHER agent's uncommitted, unstaged work too, for as long as
+the stash is active, which is a real (if usually short) window for a concurrent `git status`/test
+run to observe a stale tree. Used `git worktree add --detach <scratch-dir> HEAD` instead for every
+"was this already broken" check this round (symlinking the existing `node_modules` in rather than
+reinstalling) — fully isolated from the shared working tree and index, zero risk to concurrent
+agents, `git worktree remove --force` to clean up after each check.
+
+## A SECOND git-index incident this round (worse than the first — not caught until after the fact,
+## but no data was lost)
+
+Sequence, reconstructed from `git log`/`git show` after the fact: I ran `git add <my 9 edge-2
+files>`, then `git diff --cached --stat` (verified: exactly my 9 files, clean), then in the SAME
+bash call, `git commit -F <message>`. Between the verified `diff --cached` and the `commit`, a
+DIFFERENT concurrent agent's `git commit` fired first, consuming the shared index — which at that
+instant held MY 9 staged files (their own intended files, for a `publish-credentials` account-label
+fix, had not been staged yet) — and committed them under **their** commit message
+(`72c4f95e "fix(publish-credentials): heal existing rows' account_label..."`). My `git commit -F`
+then found nothing staged and exited 1; `HEAD` had already moved to `72c4f95e`.
+
+Verified before doing anything else: (1) my actual file *content* was correct and complete inside
+`72c4f95e` (`git show --stat` — exactly my 9 files, matching my intended diff, nothing missing or
+corrupted); (2) the other agent's real intended work was NOT lost — `account-label-heal-scheduler.ts`
+and its test, plus their `verify.ts`/`publish-credentials.ts` edits, were sitting freshly re-staged
+on disk (`git status` showed them `A`/`M`) immediately after, meaning their own `git add` had simply
+run a beat after their `git commit` rather than before it, and they would catch the mismatch
+themselves on their own routine `git show --stat HEAD` check.
+
+Did NOT attempt to rewrite `72c4f95e`'s history: two more commits (`4cfed73f`, `e63865e3`, from other
+agents) had already landed on top of it by the time I noticed, and rebasing a commit three other
+agents have already built on is exactly the destructive, shared-history-risking operation this
+repo's git discipline rules out except on explicit request. My baseline-move commit for edge 2
+(`54e8cb35`) is a clean, correctly-scoped commit of its own, verified `--cached` immediately before
+committing with zero gap. Reported this to team-lead by message so whichever agent owns
+`72c4f95e`'s real intended commit message/content can decide whether/how to fix the attribution —
+not mine to fix unilaterally.
+
+## Files touched (edge 2, all within the extended ownership list team-lead granted)
+
+- `src/features/theme/active-theme.ts` — new file: `resolveActiveThemeId`/`resolveActiveTheme`,
+  moved from `pages.ts`, typed against narrow local interfaces.
+- `src/features/theme/index.ts` — re-exports the two moved functions + their Deps interfaces.
+- `src/server/routes/site/pages.ts` — removed the two function bodies; imports + re-exports them
+  from `#src/features/theme/index` instead (preserves `template-preview.ts`'s existing import path
+  unchanged — that file is NOT mine); updated two doc comments for accuracy
+  (`TemplateRenderDeps`'s "why `themes` is here" note).
+- `src/server/routes/site/products.ts` — removed its private duplicate `resolveActiveTheme`; now
+  imports the shared one.
+- `src/server/routes/types.ts` — new `resolveStorefrontProducts` field on `RouteDeps`, with a doc
+  comment naming the `features/commerce`/`SiteProduct` boundary as the reason it's injected rather
+  than moved.
+- `src/server/app.ts` — binds `resolveStorefrontProducts` directly in `createRouteDeps()`.
+- `src/server/deps.ts` — new static import of `resolveStorefrontProducts`; binds it in
+  `createSqliteRouteDeps()`.
+- `src/export/route-manifest.ts` — imports moved-theme functions from the new home; calls
+  `deps.resolveStorefrontProducts(deps)` instead of importing it; rewrote both file-header doc
+  blocks explaining the reuse mechanism to match the new (two-different-shapes) reality.
+- `src/export/ports.ts` — updated the "architectural role" doc paragraph, which named the old
+  `server/routes/site` import path as the reuse mechanism.
+- `development/scripts/check-architecture.baseline.json` — moved to the edge-2 measured state.
+- No test files needed edits — same "every RouteDeps fixture builds via `createRouteDeps()`"
+  finding from edge 1 held here too; `resolveStorefrontProducts` being newly required cost nothing.
+
+## Still open (named, not done)
+
+- The two structurally-required type-only `RouteDeps` edges (`site-exporter.ts`, `route-manifest.ts`
+  both -> `server/routes/types.ts`) keep `export <-> server` on the module-cycle list permanently
+  unless the export module's public types are genericized the way `features/deployments/
+  export-run.ts` already is for its own narrower surface — a materially bigger, differently-shaped
+  change than this dispatch, not attempted.
+- Largest SCC (37) is NOT an export/server problem per team-lead's own steer — the real cuts, per
+  the independent review, live in `src/integrations/repo.sqlite.ts:3` and
+  `src/features/database/adapter.sqlite.ts:4`. Not touched, not mine today.
+- The widgets/menu embed placeholder gap surfaced in the live-publish e2e logs (see above) — known,
+  pre-existing, unrelated, not touched.
+- `72c4f95e`'s commit message misattribution (see git-index incident above) — reported to
+  team-lead, not resolved by me.
