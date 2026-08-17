@@ -4,6 +4,8 @@ import { fileURLToPath } from 'node:url';
 import tseslint from 'typescript-eslint';
 import sonarjs from 'eslint-plugin-sonarjs';
 
+import effectResourceCleanup from './development/eslint-rules/effect-resource-cleanup.mjs';
+
 // Single source of truth shared with `development/scripts/check-admin-complexity-drift.ts` — see
 // that file's header and the block below for why this list exists and how to shrink it.
 const ADMIN_COMPLEXITY_DEBT_PATH = fileURLToPath(
@@ -176,6 +178,22 @@ export default [
     rules: {
       complexity: ['error', 9],
       'sonarjs/cognitive-complexity': ['error', 9],
+    },
+  },
+  {
+    // Resource-leak detection: a recurring bug shape found and fixed 2026-08-17 (see
+    // `ADS-memory/reports/2026-08-17-resource-leak-sweep.md`) — a `useEffect` that opens a
+    // browser-connection or timer resource with no cancellation path silently exhausts a shared,
+    // finite resource (Chrome's 6-connections-per-origin cap, in the case that prompted this rule).
+    // Scoped to `apps/admin/src` only: it is the one workspace in this repo with React hooks —
+    // `packages/sdk` has none. Test files are excluded for the same reason the complexity block
+    // above excludes them: this checks production hook shape, not test setup code.
+    files: ['apps/admin/src/**/*.ts', 'apps/admin/src/**/*.tsx'],
+    ignores: ['apps/admin/src/**/__tests__/**'],
+    languageOptions: { parser: tseslint.parser, parserOptions: { ecmaFeatures: { jsx: true } } },
+    plugins: { local: { rules: { 'effect-resource-cleanup': effectResourceCleanup } } },
+    rules: {
+      'local/effect-resource-cleanup': 'error',
     },
   },
   {
