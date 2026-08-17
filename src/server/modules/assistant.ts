@@ -55,7 +55,7 @@ import {
   type SurfaceExchangeStore,
 } from "../../assistant";
 import { getAuthedPrincipal, requireAdminSession } from "../middleware/dev-auth";
-import { isAssistantDaemonKnownFailed } from "../readiness-state";
+import { getAssistantDaemonFailureReasonCode, isAssistantDaemonKnownFailed } from "../readiness-state";
 import type { RouteDeps } from "../routes/types";
 import type { ServerModuleHandle } from "./types";
 
@@ -166,13 +166,20 @@ let daemonUnreachableSince: number | null = null;
 
 /**
  * Checked FIRST, before any `fetch` is attempted, by every function below that talks to the
- * daemon. `isAssistantDaemonKnownFailed()` is `true` only once `index.ts`'s own spawn of the
- * daemon has confirmed-crashed — a much stronger signal than "the request failed to connect",
- * because "something answered on the daemon's port" is not proof of health: a leaked port can
- * still be squatted by an orphaned daemon from a PREVIOUS run, which would otherwise go on
- * answering requests as if it were the daemon this boot just spawned. Once we know our own spawn
- * is dead, we stop trusting the port at all and fail immediately instead of racing a `fetch`
- * against whatever (if anything) is actually listening there.
+ * daemon. `isAssistantDaemonKnownFailed()` is `true` once `daemon-supervisor.ts` knows the daemon
+ * is not usable — either it never got a process running for this boot at all (a spawn-level
+ * `error`), OR automatic respawn gave up after repeated crashes (the crash-loop or port-conflict
+ * cap tripped, which can happen hours into a boot that started fine). Corrected 2026-08-17: this
+ * comment and the response body below used to claim ONLY the first case, back when the flag could
+ * only be set by `index.ts`'s single boot spawn — this file's own on-demand recovery call just
+ * below, plus `daemon-supervisor.ts`'s give-up path, made the second case common too, and the old
+ * wording pointed an operator at boot configuration for a failure that was actually a crash loop.
+ * Either way this is a much stronger signal than "the request failed to connect", because
+ * "something answered on the daemon's port" is not proof of health: a leaked port can still be
+ * squatted by an orphaned daemon from a PREVIOUS run, which would otherwise go on answering
+ * requests as if it were the daemon this boot just spawned. Once we know the daemon is not usable,
+ * we stop trusting the port at all and fail immediately instead of racing a `fetch` against
+ * whatever (if anything) is actually listening there.
  *
  * This is also the on-demand self-healing seam: every request short-circuited here calls
  * {@link ensureAssistantDaemonStarted}, not just the first one, because that function is
@@ -202,7 +209,16 @@ function respondIfDaemonKnownFailed(res: Response): boolean {
     console.error(`[assistant] on-demand daemon recovery did not start: ${recovery.reason}`);
   }
 
-  res.status(503).json({ error: "the agent daemon failed to start for this boot", code: "AGENT_DAEMON_BOOT_FAILED" });
+  // "unavailable", not "failed to start" — true for BOTH latch causes (never started this boot, or
+  // gave up after crash-looping), where the old wording named only the first. `reasonCode` is the
+  // exact string `daemon-supervisor.ts` latched (see `getAssistantDaemonFailureReasonCode`'s own
+  // doc) so a caller can tell those two situations apart instead of guessing from "unavailable"
+  // alone; `null` is defensive only — this branch is unreachable unless something is latched.
+  res.status(503).json({
+    error: "the agent daemon is currently unavailable",
+    code: "AGENT_DAEMON_KNOWN_FAILED",
+    reasonCode: getAssistantDaemonFailureReasonCode(),
+  });
   return true;
 }
 
