@@ -12,11 +12,39 @@ name: CI
 # including everything else in this file. Fixed below: `push` now watches every branch (so no
 # future branch is silently unwatched the same way), and `pull_request` explicitly names both
 # long-lived integration branches this repo actually uses.
+# ⛔ PAUSED 2026-08-16 AT THE OWNER'S REQUEST — finish this next session.
+#
+# `push: branches: ["**"]` was enabled briefly and produced the first CI run this branch has ever
+# had (`31995253883`). It failed in 37s, and the failure is the useful part:
+#
+#     ##[error]Repository path '/home/runner/work/Tovu-AI-CMS/Jini' is not under
+#              '/home/runner/work/Tovu-AI-CMS/Tovu-AI-CMS'
+#
+# **`actions/checkout` refuses to write outside $GITHUB_WORKSPACE**, so `path: ../Jini` is illegal
+# and the sibling-directory approach below CANNOT work as written. This is the real blocker, and it
+# is not the one anyone predicted (the predicted one — a private-repo token — turned out not to
+# exist at all; AINSEP/Jini is public).
+#
+# Fix next session, in rough order of preference:
+#   1. Replace the `actions/checkout` Jini step with a plain `git clone --depth 1 --branch <ref>
+#      https://github.com/AINSEP/Jini.git ../Jini` inside a `run:` step. `run:` steps have no
+#      workspace-containment restriction, and no credentials are needed for a public repo.
+#   2. Or check Tovu out into a named subdirectory (`path: Tovu-AI-CMS`) and Jini into a sibling
+#      subdirectory under the same workspace, then set `working-directory` on every later step.
+#   3. Do NOT rewrite the 13 `file:../Jini/packages/*` specifiers in package.json to dodge this —
+#      that would diverge the repo from the owner's local setup, which is deliberate and fast.
+#
+# To re-enable: restore `push: branches: ["**"]` and `pull_request: branches: [main, general-work]`.
+# Everything downstream of the checkout (Jini build, gates, the parallel route-coverage job) is
+# already wired and unchanged; only the checkout mechanism needs replacing.
+#
+# Note the previous state was `branches: [main]` only, which is why this workflow had never fired
+# for `general-work` despite 38+ commits — do not read "back to main-only" as "back to working".
 on:
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
-    branches: [main, general-work]
+    branches: [main]
 
 # Cancel superseded runs on the same branch/PR so pushes don't queue up stale CI runs.
 concurrency:
