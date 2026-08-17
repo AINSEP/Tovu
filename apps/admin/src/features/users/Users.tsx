@@ -91,8 +91,19 @@ function NewUserForm({ username, setUsername, email, setEmail, password, setPass
       </label>
       <label>
         {t("Password")}
+        {/* `autoComplete="new-password"`, NOT `"off"` — Chrome deliberately ignores `off` on
+            credential-shaped fields (a long-standing intentional decision, not a bug). Without
+            this, this form's `type="email"` input right above reads to Chrome as a login pair, and
+            Chrome offered to fill the logged-in ADMIN's own saved email/password into a form meant
+            to create a DIFFERENT user. `new-password` is the value Chrome/Safari/Firefox actually
+            honor for "this is an account-creation field, not a saved login" — matching this repo's
+            own corrected precedent on `security/AccessTokensTab.tsx`'s token field (commit
+            `fc64f2d9`, superseding an earlier `autoComplete="off"` attempt that did not work).
+            Known trade-off, not fixed here: Chrome may now offer to GENERATE a password on this
+            field — a suggestion popup, not a silently wrong value. */}
         <input
           type="password"
+          autoComplete="new-password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           required
