@@ -1,5 +1,67 @@
 # Source control / access-tokens UI — Phase 4 status (source-control-ui agent)
 
+## UPDATE 3 — live verification of "Restart assistant" / "Check status" (report only, not my file)
+
+Requested by the Coordinator as a one-off browser check on `assistant-selfheal`'s screen (AI Assistant
+→ "Admin AI Assistant" tab, `f854e011`). **Report only — I did not edit anything under
+`apps/admin/src/features/ai-assistant/`.**
+
+**1. Renders correctly, copy reads sensibly.** Screenshot-verified (not just the a11y tree): "Local
+CLI process" heading, one explanatory paragraph, two `.btn-secondary` buttons ("Restart assistant",
+"Check status"), directly under Execution mode — consistent with the rest of this tab, no layout
+break.
+
+**2. "Restart assistant" is honest, exactly as designed.** Clicking it produced: *"Restart accepted.
+This does not confirm the process is healthy yet — check the status below."* Never claims
+"restarted" or "healthy" on its own — matches `AssistantDaemonRestart`'s own doc comment in
+`AiAssistant.tsx` word for word. No defect here.
+
+**3. A real bug, more severe than the "rough edge" I was asked to judge — found live, reproduced
+outside the browser too.** Every status check (on mount, after Restart, and the manual "Check
+status" button) shows the literal, raw string: *"Unexpected token 'T', "The server"... is not valid
+JSON"* — never a real ready/known-failed reading. Root-caused, not guessed:
+
+- `lib/api.ts:2138`'s `getAssistantDaemonReadyz()` does a deliberately bare `fetch("/readyz")` —
+  correct in principle, since the route (`src/server/routes/ops/health.ts:42`) is intentionally
+  unauthenticated and root-level, outside `/api/admin/v1` (own comment at `api.ts:2132` explains
+  why: both 200 and 503 are meaningful bodies here, not errors to throw on).
+- **But `apps/admin/vite.config.ts:70` only proxies `/api` to the real backend** (`target:
+  process.env.TOVU_API_URL ?? "http://localhost:3000"`). A bare `/readyz` is not under `/api`, so
+  in `npm run dev` it never reaches the real Express route at all.
+- Confirmed independent of Playwright: `curl http://localhost:5173/readyz` returns the same 404,
+  body: *"The server is configured with a public base URL of /admin/ - did you mean to visit
+  /admin/readyz instead?"* — Tovu's own helpful-404 text, `text/plain`, not JSON.
+- `getAssistantDaemonReadyz()` then unconditionally does `(await res.json())`, so that plain-text
+  body's parse failure is what surfaces verbatim to the operator as the status line — a second,
+  more general gap: any non-JSON response here (this 404, or e.g. a proxy error page in some other
+  deployment shape) crashes the same way instead of producing a clean message.
+- **This is dev-environment-specific, not a production bug** — `restartAssistantDaemon()` goes
+  through `request()`'s `/api/admin/v1` prefix (proxied correctly) and worked cleanly in this same
+  session; only the deliberately-unprefixed `/readyz` call is affected. But `npm run dev` via Vite
+  is how every session handoff in this project describes the owner actually running Tovu, so this is
+  not an edge case — it is what tonight's owner would see clicking either button.
+
+**4. The single-read design judgment, as requested — code-verified, not guessed.**
+`use-assistant-daemon-restart.hooks.ts`'s own header states the reasoning directly: no health
+signal exists anywhere in `daemon-supervisor.ts`, so a fixed poll would only manufacture a false
+"waited long enough." **That design call is right and I would not change it.** But reading the hook
+closely turns up a sharper version of the rough edge than "you have to press Check status again" —
+`checkStatus()` already DOES auto-fire once on mount and once more the instant `restart()` settles
+(`use-assistant-daemon-restart.hooks.ts:86`), with **zero delay** between "restart accepted" and
+that follow-up read. A brand-new process cannot plausibly be up that fast, so the auto-fired
+post-restart check is likely reading the OLD process's state (or the daemon mid-teardown) and
+displaying it directly under a sentence that just said "check the status below" — which reads as if
+it already accounts for the restart, when it almost certainly does not yet. **My verdict: not
+confusing enough to justify a poll (the no-false-confidence principle should stay), but worth a
+small, honest fix that doesn't violate it** — e.g. a short fixed delay (2-3s, not a wait-until-ready
+poll) before only the POST-restart auto-check, or copy on that one particular reading that says
+"checked immediately after restart — the new process may not be up yet" so a stale-looking result
+doesn't read as a confirmed one.
+
+**Routing this to the Coordinator, not fixing it** — `assistant-selfheal`'s file, still active.
+
+---
+
 ## UPDATE — ownership correction + Source Control now covered
 
 The Coordinator corrected my brief mid-session: `apps/admin/src/features/source-control/**` is also
