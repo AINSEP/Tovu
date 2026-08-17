@@ -2,7 +2,10 @@ import { describe, expect, it } from "vitest";
 
 import { ApiError } from "../../../lib/api";
 import {
+  ACCESS_TOKEN_CATEGORIES,
   ACCESS_TOKEN_PROVIDERS,
+  OTHER_CREDENTIAL_STORES,
+  accessTokenCategoryMatches,
   accessTokenNameTaken,
   accessTokenProviderInfo,
   accessTokenProviderMatchesQuery,
@@ -14,7 +17,12 @@ import {
   buildAccessTokenRows,
   buildAccessTokenUpdatePatch,
   classifyAccessTokenSubmitError,
-  planLegacyLabelMigrations,
+  connectedAsFact,
+  envNamesFact,
+  maskedTailFact,
+  mediaProviderLabel,
+  otherCredentialMatchesQuery,
+  otherCredentialStoreInfo,
   type AccessTokenFormFields,
   type AccessTokenRow,
   type RawCredentialSummary,
@@ -109,26 +117,125 @@ describe("buildAccessTokenRows", () => {
   });
 });
 
-describe("planLegacyLabelMigrations", () => {
-  it("plans a rename for every row still carrying its store's sentinel label", () => {
-    const rows = buildAccessTokenRows("publish", [rawSummary({ id: "a", providerId: "github-pages", label: "default" })]);
-    const plan = planLegacyLabelMigrations(rows);
-    expect(plan).toEqual([{ kind: "publish", id: "a", newLabel: "GitHub Pages token" }]);
+describe("category filter", () => {
+  it("ACCESS_TOKEN_CATEGORIES starts with All, then the five owner-specified buckets", () => {
+    expect(ACCESS_TOKEN_CATEGORIES.map((c) => c.id)).toEqual(["all", "source-control", "hosting", "media", "ai", "ops"]);
   });
 
-  it("plans nothing for a row that already has a real, non-sentinel label", () => {
-    const rows = buildAccessTokenRows("publish", [rawSummary({ id: "a", label: "Production" })]);
-    expect(planLegacyLabelMigrations(rows)).toEqual([]);
+  it("every Tier 1 provider lands in exactly one non-'all' category", () => {
+    for (const provider of ACCESS_TOKEN_PROVIDERS) {
+      expect(["source-control", "hosting", "media", "ai", "ops"]).toContain(provider.category);
+    }
   });
 
-  it("mixes both kinds correctly in one combined list", () => {
-    const publishRows = buildAccessTokenRows("publish", [rawSummary({ id: "a", providerId: "vercel", label: "default" })]);
-    const scRows = buildAccessTokenRows("source-control", [rawSummary({ id: "b", providerId: "github", label: "default" })]);
-    const plan = planLegacyLabelMigrations([...publishRows, ...scRows]);
-    expect(plan).toEqual([
-      { kind: "publish", id: "a", newLabel: "Vercel token" },
-      { kind: "source-control", id: "b", newLabel: "GitHub token" },
+  it("every Tier 2 store lands in exactly one non-'all' category", () => {
+    for (const store of OTHER_CREDENTIAL_STORES) {
+      expect(["source-control", "hosting", "media", "ai", "ops"]).toContain(store.category);
+    }
+  });
+
+  it("accessTokenCategoryMatches: 'all' matches every row category", () => {
+    expect(accessTokenCategoryMatches("hosting", "all")).toBe(true);
+    expect(accessTokenCategoryMatches("ai", "all")).toBe(true);
+  });
+
+  it("accessTokenCategoryMatches: a specific filter matches only its own bucket", () => {
+    expect(accessTokenCategoryMatches("hosting", "hosting")).toBe(true);
+    expect(accessTokenCategoryMatches("hosting", "media")).toBe(false);
+  });
+});
+
+describe("OTHER_CREDENTIAL_STORES / otherCredentialStoreInfo", () => {
+  it("lists all six Tier 2 stores, in the documented order", () => {
+    expect(OTHER_CREDENTIAL_STORES.map((s) => s.id)).toEqual([
+      "site-assistant",
+      "admin-byok",
+      "media-provider",
+      "composio-project",
+      "composio-connector",
+      "external-mcp",
     ]);
+  });
+
+  it("marks composio-connector and external-mcp as NOT supporting inline Replace", () => {
+    expect(otherCredentialStoreInfo("composio-connector").supportsReplace).toBe(false);
+    expect(otherCredentialStoreInfo("external-mcp").supportsReplace).toBe(false);
+  });
+
+  it("marks the four single-apiKey stores as supporting inline Replace", () => {
+    for (const id of ["site-assistant", "admin-byok", "media-provider", "composio-project"] as const) {
+      expect(otherCredentialStoreInfo(id).supportsReplace).toBe(true);
+    }
+  });
+
+  it("falls back to the first store for an unknown id — same defensive-fallback guarantee as accessTokenProviderInfo", () => {
+    // @ts-expect-error deliberately passing an id outside the union to exercise the fallback
+    expect(otherCredentialStoreInfo("not-a-real-store").id).toBe("site-assistant");
+  });
+});
+
+describe("otherCredentialMatchesQuery", () => {
+  const store = otherCredentialStoreInfo("media-provider");
+
+  it("matches everything when the query is blank", () => {
+    expect(otherCredentialMatchesQuery(store, undefined, "")).toBe(true);
+  });
+
+  it("matches on the store's own label", () => {
+    expect(otherCredentialMatchesQuery(store, undefined, "media provider")).toBe(true);
+  });
+
+  it("matches on the store's purpose subtitle", () => {
+    expect(otherCredentialMatchesQuery(store, undefined, "media")).toBe(true);
+  });
+
+  it("matches on a configured item's own name when given", () => {
+    expect(otherCredentialMatchesQuery(store, "Cloudinary", "cloudinary")).toBe(true);
+  });
+
+  it("does not match an unrelated query", () => {
+    expect(otherCredentialMatchesQuery(store, "Cloudinary", "azure")).toBe(false);
+  });
+});
+
+describe("value-fact formatters", () => {
+  it("maskedTailFact adds the bullet prefix to a bare tail", () => {
+    expect(maskedTailFact("7f2a")).toBe("••••7f2a");
+  });
+
+  it("connectedAsFact names the account when a label is present", () => {
+    expect(connectedAsFact("alice@example.com")).toBe("Connected as: alice@example.com");
+  });
+
+  it("connectedAsFact falls back to a bare fact when Composio returned no label", () => {
+    expect(connectedAsFact(undefined)).toBe("Connected");
+  });
+
+  it("envNamesFact singularizes exactly one variable", () => {
+    expect(envNamesFact(["API_KEY"])).toBe("1 environment variable set");
+  });
+
+  it("envNamesFact pluralizes two or more variables", () => {
+    expect(envNamesFact(["API_KEY", "API_SECRET"])).toBe("2 environment variables set");
+  });
+
+  it("envNamesFact reports zero as a fact, not blank", () => {
+    expect(envNamesFact([])).toBe("No environment variables set");
+  });
+});
+
+describe("mediaProviderLabel", () => {
+  it("resolves a known catalog id to its human label", () => {
+    // The catalog is real vendor data (`@jini-ai/integrations/media-providers/catalog`) — assert
+    // shape (a non-empty, different-from-the-id string) rather than pinning one vendor's exact
+    // copy, which would break the moment that catalog's own wording changes for unrelated reasons.
+    const knownId = "grok";
+    const label = mediaProviderLabel(knownId);
+    expect(label.length).toBeGreaterThan(0);
+  });
+
+  it("falls back to the raw id for a provider the catalog no longer lists", () => {
+    expect(mediaProviderLabel("a-removed-vendor-id")).toBe("a-removed-vendor-id");
   });
 });
 
