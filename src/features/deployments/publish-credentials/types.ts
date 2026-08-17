@@ -139,6 +139,11 @@ export interface PublishCredentialSetRecord {
    *  `db/schema.ts`'s `publishCredentialSets.isDefault` doc). `resolveDefaultForPublish` reads the
    *  row with `isDefault: true` for a provider instead of requiring a caller-supplied `id`. */
   readonly isDefault: boolean;
+  /** Migration `0044` (2026-08-16) — the verified account's public login/username, held in the
+   *  clear (never sealed) — see `db/schema.ts`'s `publishCredentialSets.accountLabel` doc for the
+   *  full reasoning (mirrors `composioConnectorCredentials.accountLabel`) and `store.ts`'s header for
+   *  exactly which write paths are and are not allowed to populate it. */
+  readonly accountLabel: string | null;
   readonly createdAt: ISODateTime;
   readonly updatedAt: ISODateTime;
 }
@@ -152,6 +157,9 @@ export interface PublishCredentialSummary {
   readonly label: string;
   readonly configured: true;
   readonly isDefault: boolean;
+  /** See `PublishCredentialSetRecord.accountLabel`'s own doc — carried through unchanged, never
+   *  re-derived here (this is a read model, it never decrypts or verifies anything). */
+  readonly accountLabel: string | null;
   readonly createdAt: ISODateTime;
   readonly updatedAt: ISODateTime;
 }
@@ -195,4 +203,14 @@ export interface PublishCredentialSetRepoPort {
    *  `DELETE .../credentials/:id` route contract (204, idempotent). See this interface's own header
    *  for the default-promotion behavior this method also performs. */
   delete(input: { workspaceId: UUID; id: UUID }): Promise<void>;
+  /** Migration `0044` (2026-08-16) — a TARGETED single-column write, deliberately not `update()`'s
+   *  full-row replace: healing an account label after a verify must never disturb `sealed`,
+   *  `isDefault`, or `updatedAt` (a verify is a read of the provider, not a change to the credential
+   *  itself). No-op (not an error) if no row exists for `(workspaceId, id)` — same idempotent posture
+   *  as `delete`; the caller (`static-publish/verify.ts`'s human-gated route) has no reason to treat a
+   *  row that vanished mid-request as anything other than "nothing to heal." See `store.ts`'s own
+   *  header for why this is the ONLY write path allowed to populate this column for THIS table (unlike
+   *  `sourceControlCredentialSets`, whose sibling column is instead populated inline by `create`/
+   *  `update` — see that table's own doc comment for why the two tables differ here). */
+  updateAccountLabel(input: { workspaceId: UUID; id: UUID; accountLabel: string }): Promise<void>;
 }

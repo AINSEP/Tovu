@@ -8,6 +8,7 @@ import {
   createPublishCredential,
   deletePublishCredential,
   describeCredential,
+  healAccountLabel,
   listPublishCredentials,
   PublishCredentialDuplicateLabelError,
   PublishCredentialNotFoundError,
@@ -491,4 +492,73 @@ test("createPublishCredential rejects s3-compatible with a blank endpoint when o
     () => createPublishCredential(deps, { workspaceId: WORKSPACE, label: "x", connection: { ...VALID_S3_CONNECTION, endpoint: "   " } }),
     PublishCredentialValidationError
   );
+});
+
+// ---------------------------------------------------------------------------
+// account_label (migration 0044, 2026-08-16) — see this file's own header for why create/update
+// never populate this with a real value themselves (the s3-compatible custom-provider agent tool
+// shares this write path, and static-publish/verify.ts's network probe must never run on an
+// agent-reachable path). healAccountLabel is the ONE function allowed to write a real value, and only
+// the human-gated admin route calls it.
+// ---------------------------------------------------------------------------
+
+test("createPublishCredential always starts a new row with accountLabel null — it never probes a provider itself", async () => {
+  const deps = makeDeps();
+  const summary = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "x", connection: { providerId: "github-pages", token: "t" } });
+  assert.equal(summary.accountLabel, null);
+});
+
+test("healAccountLabel persists a real value, readable back through listPublishCredentials/describeCredential — never decrypting", async () => {
+  const deps = makeDeps();
+  const created = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "x", connection: { providerId: "github-pages", token: "t" } });
+  assert.equal(created.accountLabel, null);
+
+  await healAccountLabel(deps, { workspaceId: WORKSPACE, id: created.id, accountLabel: "leonaburime-ucla" });
+
+  const described = await describeCredential(deps, { workspaceId: WORKSPACE, id: created.id });
+  assert.equal(described?.accountLabel, "leonaburime-ucla");
+  const listed = await listPublishCredentials(deps, { workspaceId: WORKSPACE });
+  assert.equal(listed.find((c) => c.id === created.id)?.accountLabel, "leonaburime-ucla");
+});
+
+test("healAccountLabel never disturbs the sealed connection, isDefault, or updatedAt — a verify is not a credential change", async () => {
+  const deps = makeDeps();
+  const created = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "x", connection: { providerId: "github-pages", token: "t" } });
+  const before = await deps.repo.findById({ workspaceId: WORKSPACE, id: created.id });
+
+  await healAccountLabel(deps, { workspaceId: WORKSPACE, id: created.id, accountLabel: "leonaburime-ucla" });
+
+  const after = await deps.repo.findById({ workspaceId: WORKSPACE, id: created.id });
+  assert.deepEqual(after?.sealed, before?.sealed);
+  assert.equal(after?.isDefault, before?.isDefault);
+  assert.equal(after?.updatedAt, before?.updatedAt);
+  const resolved = await resolveForPublish(deps, { workspaceId: WORKSPACE, id: created.id });
+  assert.equal(resolved?.connection.token, "t", "the underlying token must be completely unaffected by healing the account label");
+});
+
+test("healAccountLabel on a non-existent id is a harmless no-op (matches this port's other idempotent-write contracts)", async () => {
+  const deps = makeDeps();
+  await healAccountLabel(deps, { workspaceId: WORKSPACE, id: "no-such-id", accountLabel: "someone" });
+});
+
+test("updatePublishCredential with connection OMITTED preserves a previously-healed accountLabel", async () => {
+  const deps = makeDeps();
+  const created = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "x", connection: { providerId: "github-pages", token: "t" } });
+  await healAccountLabel(deps, { workspaceId: WORKSPACE, id: created.id, accountLabel: "leonaburime-ucla" });
+
+  const updated = await updatePublishCredential(deps, { workspaceId: WORKSPACE, id: created.id, label: "renamed" });
+  assert.equal(updated.accountLabel, "leonaburime-ucla", "a label-only rename must not clear a healed account label");
+});
+
+test("updatePublishCredential with a NEW connection resets accountLabel back to null — a stale label naming the OLD token's account must not survive", async () => {
+  const deps = makeDeps();
+  const created = await createPublishCredential(deps, { workspaceId: WORKSPACE, label: "x", connection: { providerId: "github-pages", token: "old-token" } });
+  await healAccountLabel(deps, { workspaceId: WORKSPACE, id: created.id, accountLabel: "leonaburime-ucla" });
+
+  const updated = await updatePublishCredential(deps, {
+    workspaceId: WORKSPACE,
+    id: created.id,
+    connection: { providerId: "github-pages", token: "new-token" },
+  });
+  assert.equal(updated.accountLabel, null, "a new token replaces the credential — the old account label must not be carried over unverified");
 });

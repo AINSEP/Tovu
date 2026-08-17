@@ -15,6 +15,7 @@ import {
   PUBLISH_CREDENTIAL_ROW_LABEL,
   buildPublishConnectionInput,
   classifyPublishCredentialSubmitError,
+  credentialsForProvider,
   defaultCredentialForProvider,
   publishCredentialRowReadyToSave,
   type PublishCredentialFormFields,
@@ -99,6 +100,20 @@ export interface PublishCredentialsController {
    *  own Save button is disabled on, kept here too so a direct call — as this file's own tests make —
    *  cannot bypass it). Resolves either way — a failure is surfaced through that row's own `error`. */
   save: (providerId: AdminPublishCredentialProviderId) => Promise<void>;
+  /** Every saved connection for one provider, not just its default — `rows` above only ever carries
+   *  {@link defaultCredentialForProvider}'s pick, which is enough for the always-visible credential
+   *  row but not for the picker `StaticSiteTab.tsx`'s "which saved token publishes" dropdown needs
+   *  once a provider has more than one (the owner's own original ask: "GitHub pages... will have a
+   *  dropdown where you can choose which GitHub access tokens"). Added rather than widening `rows`
+   *  itself so every existing caller of `rows` keeps reading exactly the one row it always has. */
+  credentialsForProvider: (providerId: AdminPublishCredentialProviderId) => readonly AdminPublishCredentialSummary[];
+  /** Promotes one already-saved connection to this provider's default — the same `isDefault`
+   *  mechanic the Security page's own "Make default" already writes through
+   *  (`use-access-tokens.hooks.ts`'s `makeDefault`), reused here rather than reinvented. Re-fetches
+   *  this provider's own credential list afterward rather than splicing optimistically: promoting one
+   *  row un-defaults whichever OTHER row held it server-side, a sibling effect this hook has no local
+   *  copy of ahead of the write. A no-op if `credentialId` is already this provider's default. */
+  selectCredential: (providerId: AdminPublishCredentialProviderId, credentialId: string) => Promise<void>;
 
   t: Translate;
 }
@@ -208,7 +223,19 @@ export function usePublishCredentials(port: PublishCredentialsPort, t: Translate
           };
         });
 
-  return { rows, executionMode, loadError, setToken, setAccountId, save, t };
+  function credentialsForProviderId(providerId: AdminPublishCredentialProviderId): readonly AdminPublishCredentialSummary[] {
+    return credentialsForProvider(credentials ?? [], providerId);
+  }
+
+  async function selectCredential(providerId: AdminPublishCredentialProviderId, credentialId: string): Promise<void> {
+    const current = defaultCredentialForProvider(credentials ?? [], providerId);
+    if (current?.id === credentialId) return;
+    await port.updateCredential(credentialId, { isDefault: true });
+    const refreshed = await port.listCredentials();
+    setCredentials(refreshed.credentials);
+  }
+
+  return { rows, executionMode, loadError, setToken, setAccountId, save, credentialsForProvider: credentialsForProviderId, selectCredential, t };
 }
 
 /**

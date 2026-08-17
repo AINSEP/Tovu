@@ -46,6 +46,24 @@ import type {
  * `isDefault: true` on create/update always wins; omitted/`false` never removes the CURRENT default
  * without a replacement (this module never produces a "zero defaults while rows exist" state — see
  * `decideCreateDefault`/`decideUpdateDefault`'s own doc comments).
+ *
+ * `accountLabel` (migration `0044`, 2026-08-16): {@link createPublishCredential} always starts a new
+ * row at `accountLabel: null`, and {@link updatePublishCredential} resets it to `null` whenever a NEW
+ * `connection` is supplied (a label naming the OLD token's account is worse than none once the token
+ * itself has changed) — but NEITHER function ever populates a real value by probing a provider.
+ * Deliberately: `createPublishCredential`/`updatePublishCredential` are the ONE write path this table
+ * shares with an agent-facing caller (`publish-agent-tools.ts`'s `deployment_propose_custom_provider_
+ * credential`, scoped to `providerId: "s3-compatible"`), and `static-publish/verify.ts`'s own header
+ * is explicit that its provider probe must never run on an agent-reachable path. Putting a network
+ * call here would put one on that path too, even though s3-compatible has no reviewed identity field
+ * to read — the outbound request itself is the boundary violation, not just what it might return. The
+ * real value is written by {@link healAccountLabel} instead, called ONLY from the admin route
+ * (`server/routes/admin/system/publish-credentials.ts`) after its existing human-gated
+ * `verifyPublishCredentialById` call succeeds with an `accountLabel` — the identical "human-gated
+ * caller only" boundary `verify.ts` already documents for itself. This is a deliberate asymmetry with
+ * `features/source-control/store.ts`'s own sibling column, which DOES probe inline in `create`/
+ * `update` — that table has no agent-facing write path to protect (see its own header), so the same
+ * objection does not apply there.
  */
 
 const MAX_LABEL_LENGTH = 200;
@@ -75,6 +93,7 @@ function toSummary(record: PublishCredentialSetRecord): PublishCredentialSummary
     label: record.label,
     configured: true,
     isDefault: record.isDefault,
+    accountLabel: record.accountLabel,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
   };
@@ -293,6 +312,9 @@ export async function createPublishCredential(deps: PublishCredentialWriteDeps, 
     label,
     sealed,
     isDefault,
+    // Always starts unknown — see this file's own header for why create/update never probe a
+    // provider themselves. Healed later by `healAccountLabel`, via the admin route's post-save verify.
+    accountLabel: null,
     createdAt: now,
     updatedAt: now,
   };
@@ -354,10 +376,16 @@ export async function updatePublishCredential(deps: PublishCredentialWriteDeps, 
 
   let providerId = existing.providerId;
   let sealed = existing.sealed;
+  // Reset (never carried over) whenever a NEW connection is resealed — see this file's own header:
+  // an accountLabel naming the OLD token's account must not survive that token being replaced, even
+  // though this function itself never re-probes to learn the new one (that happens later, via
+  // healAccountLabel, after the admin route's post-save verify — see that function's own doc).
+  let accountLabel = existing.accountLabel;
   if (input.connection !== undefined) {
     const connection = validateConnection(input.connection);
     providerId = connection.providerId;
     sealed = await sealConnection(deps, { workspaceId: input.workspaceId, providerId, id: input.id, connection });
+    accountLabel = null;
   }
   const providerChanged = providerId !== existing.providerId;
 
@@ -390,6 +418,7 @@ export async function updatePublishCredential(deps: PublishCredentialWriteDeps, 
     label,
     sealed,
     isDefault,
+    accountLabel,
     createdAt: existing.createdAt,
     updatedAt: now,
   };
@@ -495,4 +524,26 @@ export async function resolveDefaultForPublish(
   if (!record) return null;
   const connection = await decryptRecord(deps.sealer, record);
   return { id: record.id, label: record.label, connection };
+}
+
+/**
+ * Persists a freshly-verified account label onto an existing row — see this file's own header for
+ * why {@link createPublishCredential}/{@link updatePublishCredential} never do this themselves. The
+ * ONE intended caller is the admin credential-CRUD route (`server/routes/admin/system/publish-
+ * credentials.ts`), immediately after its own `verifyPublishCredentialById` call returns a `"valid"`
+ * result carrying an `accountLabel` — the same human-gated boundary `static-publish/verify.ts`'s own
+ * header enforces for that call. Never call this with an EMPTY/absent label to "clear" one: a failed
+ * or inconclusive re-verify (`"invalid"`/`"unreachable"`, or `"valid"` for a provider with no
+ * reviewed field) carries no `accountLabel` at all and must leave a previously-healed value alone —
+ * the caller's own `result.accountLabel !== undefined` check is what enforces that, not this function.
+ *
+ * A targeted single-column write ({@link PublishCredentialSetRepoPort.updateAccountLabel}), not a
+ * full-row replace — never touches `sealed`, `isDefault`, or `updatedAt`.
+ *
+ * @complexity O(1) — one repo write, no read first (the repo's own `updateAccountLabel` is a no-op,
+ *   not an error, if the row vanished between the verify and this call).
+ * @overallScore 100
+ */
+export async function healAccountLabel(deps: PublishCredentialReadDeps, input: { workspaceId: UUID; id: UUID; accountLabel: string }): Promise<void> {
+  await deps.repo.updateAccountLabel(input);
 }

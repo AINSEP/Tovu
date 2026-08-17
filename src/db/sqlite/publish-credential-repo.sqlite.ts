@@ -37,6 +37,7 @@ function toRecord(row: Row): PublishCredentialSetRecord {
     label: row.label,
     sealed: { keyId: row.sealedKeyId, ciphertext: row.sealedCiphertext, nonce: row.sealedNonce, alg: row.sealedAlg },
     isDefault: row.isDefault,
+    accountLabel: row.accountLabel,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
   };
@@ -53,6 +54,7 @@ function toValues(record: PublishCredentialSetRecord) {
     sealedNonce: record.sealed.nonce,
     sealedAlg: record.sealed.alg,
     isDefault: record.isDefault,
+    accountLabel: record.accountLabel,
     createdAt: record.createdAt,
     updatedAt: record.updatedAt,
   };
@@ -153,6 +155,18 @@ export class SqlitePublishCredentialSetRepo implements PublishCredentialSetRepoP
         .where(and(eq(publishCredentialSets.workspaceId, promoted.workspaceId), eq(publishCredentialSets.id, promoted.id)))
         .run();
     });
+  }
+
+  /** A targeted single-column `UPDATE` — see `PublishCredentialSetRepoPort.updateAccountLabel`'s own
+   *  doc for why this must never be `update()`'s full-row replace. No-op (not an error) if the row
+   *  vanished — matches this same class's `delete()` idempotent posture; a raw `UPDATE ... WHERE`
+   *  simply affects zero rows in that case, so no existence check is needed first. */
+  async updateAccountLabel(input: { workspaceId: UUID; id: UUID; accountLabel: string }): Promise<void> {
+    this.db
+      .update(publishCredentialSets)
+      .set({ accountLabel: input.accountLabel })
+      .where(and(eq(publishCredentialSets.workspaceId, input.workspaceId), eq(publishCredentialSets.id, input.id)))
+      .run();
   }
 }
 

@@ -1508,6 +1508,30 @@ export const publishCredentialSets = sqliteTable(
      * chokepoint, same trust model this table's `sealed*` columns already rely on for the AAD
      * binding above. */
     isDefault: integer("is_default", { mode: "boolean" }).notNull().default(false),
+    /**
+     * The verified credential's own public account login/username (GitHub's `login`, Vercel's
+     * `username`) — same "held in the clear because a decrypt-on-read would put an AEAD open on a
+     * cheap path" reasoning `composioConnectorCredentials.accountLabel` documents for its own column
+     * (see that table's own doc comment above): this value already appears, unencrypted, in a PUBLIC
+     * URL a real publish prints (`https://<login>.github.io/<repo>/`), so sealing it here would
+     * protect nothing while forcing `deployment_get_static_publish_capabilities` to decrypt (or stay
+     * blind) just to answer "whose account is this."
+     *
+     * `NULL` until the first successful identity check — `publish-credentials/store.ts`'s create/
+     * update paths never populate this themselves (see that file's own header for why: this table's
+     * write path is shared with an agent-facing caller for the s3-compatible provider, and a network
+     * probe does not belong on that path); it is written ONLY by a human-gated verify
+     * (`static-publish/verify.ts`'s `verifyPublishCredentialById`, via the admin route's
+     * `healAccountLabel` call — 2026-08-16, the fix for "verification lived in
+     * `InMemoryPublishCredentialVerificationCache` only, so a routine server restart silently reverted
+     * a working, previously-verified credential back to no known account"). Reset to `NULL` whenever
+     * `updatePublishCredential` reseals a NEW connection (`store.ts`'s own reasoning: a label naming
+     * the OLD token's account is worse than no label once the token itself has changed) — never simply
+     * carried over, and never left stale by a failed re-verify (`verify.ts`'s `"invalid"`/
+     * `"unreachable"` results carry no `accountLabel` at all, so a failed check cannot overwrite a
+     * previously-healed value with nothing).
+     */
+    accountLabel: text("account_label"),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
   },
@@ -1645,6 +1669,25 @@ export const sourceControlCredentialSets = sqliteTable(
      *  `features/source-control/store.ts`'s write path — same invariant, same "no DB-level CHECK"
      *  reasoning `publishCredentialSets.isDefault` documents. */
     isDefault: integer("is_default", { mode: "boolean" }).notNull().default(false),
+    /**
+     * The verified account's public login (GitHub's `login` only, today) — same "held in the clear,
+     * not sealed" reasoning `composioConnectorCredentials.accountLabel` and this table's own sibling
+     * `publishCredentialSets.accountLabel` both document (see either doc comment for the full case).
+     *
+     * `NULL` until populated. Unlike `publishCredentialSets`, this table has no shared agent-facing
+     * write path to protect (nothing under `features/source-control/`'s own tool catalog ever calls
+     * `createSourceControlCredential`/`updateSourceControlCredential` — see `store.ts`'s own header)
+     * and no existing verify concept to piggyback on, so `store.ts`'s create/update paths populate this
+     * column directly, inline, at save time — a best-effort identity probe against the SAME plaintext
+     * token they are about to seal, reusing `static-publish/verify.ts`'s reviewed, single-field GitHub
+     * `/user` -> `login` extractor (`extractGitHubLogin`) rather than a second, independently-reviewed
+     * one. `gitlab`/`bitbucket` connections always leave this `NULL`: neither provider has a reviewed
+     * single-field identity extractor the way GitHub's `login` does (see `verify.ts`'s header on why
+     * s3-compatible gets the identical "no reviewed field" treatment on the publish side) — guessing at
+     * an unreviewed response shape here would violate this codebase's own "never email/plan/billing/org,
+     * one field only" discipline for account-identity reads.
+     */
+    accountLabel: text("account_label"),
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
   },
