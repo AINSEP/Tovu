@@ -1,10 +1,10 @@
 {
   "meta": {
-    "fileCount": 848,
+    "fileCount": 849,
     "moduleCount": 48
   },
-  "propagationCostPct": 11.33,
-  "propagationCostRuntimePct": 2.22,
+  "propagationCostPct": 11.3,
+  "propagationCostRuntimePct": 2.21,
   "backEdgesIntoServer": 11,
   "backEdgesIntoServerRuntimeOnly": 0,
   "moduleCycles": {
@@ -16,7 +16,7 @@
   "deepImportsBypassingIndex": 569,
   "coreSize": {
     "count": 146,
-    "total": 848,
-    "pct": 17.22
+    "total": 849,
+    "pct": 17.2
   }
 }
