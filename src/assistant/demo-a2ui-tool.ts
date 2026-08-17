@@ -14,7 +14,7 @@ import {
 } from "@jini-ai/cms/core";
 
 import { demoToolsEnabled } from "./demo-choices-tool";
-import type { AssistantSurfaceDeps } from "./surface-exchanges";
+import type { AssistantSurfaceDeps } from "../core/tool-surface-exchanges";
 
 /**
  * @file A development-only agent tool exercising the A2UI (a2ui-project/a2ui v1.0) inbound

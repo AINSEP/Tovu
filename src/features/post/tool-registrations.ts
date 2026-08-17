@@ -40,7 +40,7 @@ import {
 // Sourced from `assistant/` — an explicitly out-of-scope back-edge for this pass (see the dispatch
 // notes this file's narrowing was reported under), not a field this file could re-source from a
 // domain-owned port: the MCP-UI/exchange transport is genuinely assistant-owned.
-import { askOnce, type AssistantSurfaceDeps, type SurfaceExchange } from "../../assistant/surface-exchanges";
+import { askOnce, type AssistantSurfaceDeps, type SurfaceExchange } from "../../core/tool-surface-exchanges";
 import { executeCommand, type AuthorizeFn, type ChangeSetRepoPort } from "../../core/commands";
 import { processOutbox } from "../../core/events";
 import {
@@ -569,3 +569,18 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
     derivedRisk: postDerivedRisk,
   });
 }
+
+// 2026-08-17: Post was briefly converted to the tool-contribution registry (`contributePostTools`,
+// registered via `#src/assistant/index`'s `registerToolContributor`) alongside Comments/Newsletter,
+// then reverted the same night — `check:architecture --list` showed it opened a NEW, larger module
+// cycle: `assistant -> widgets` (still a static `DOMAIN_SLICES` import) + `widgets ->
+// features/post` (`widgets/resolver-service.ts` imports `findPublishedPostById`) +
+// `features/post -> assistant` (the reverted edge) closed a 3-cycle that pulled `export`,
+// `features/deployments`, `features/source-control`, and `features/vendor-credentials` into one
+// 7-module SCC — worse than the 4-module one this registry exists to remove. Unlike Comments/
+// Newsletter (which import nothing else and nothing else imports), Post is depended on by other
+// modules (`widgets`, `export`), so it cannot convert safely until either those edges are relocated
+// or the still-static `widgets`/`deployments`/`source-control`/`vendor-credentials` DOMAIN_SLICES
+// entries above convert too. Left as a normal `DOMAIN_SLICES` entry; see
+// `assistant/tool-registrations.ts`'s own header for the current authoritative list of what has and
+// hasn't converted.

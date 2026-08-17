@@ -3,7 +3,7 @@ import type { Express, Request, Response } from "express";
 import { parseRendererToAgentMessage, type RendererToAgentMessage } from "@jini-ai/agentic/a2ui";
 
 import { RUN_PRINCIPAL_HEADER } from "./run-ownership";
-import type { SurfaceExchangeStore } from "./surface-exchanges";
+import type { SurfaceExchangeStore } from "../core/tool-surface-exchanges";
 
 /**
  * @file The daemon-side inbound half of A2UI (a2ui-project/a2ui v1.0) — where a rendered surface's

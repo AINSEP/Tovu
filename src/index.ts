@@ -9,7 +9,8 @@ import { buildBootModules } from "./server/bootstrap";
 import { setReadinessSnapshot } from "./server/readiness-state";
 import { registerPluginSdkResolver } from "./server/boot/plugin-sdk-resolver";
 import { installUnhandledRejectionGuard } from "./server/boot/process-error-guards";
-import { ensureAgentDaemonToken, startAssistantDaemon } from "./assistant";
+import { startAssistantDaemon } from "./server/agent-daemon";
+import { ensureAgentDaemonToken } from "./assistant";
 
 /**
  * @file Process entrypoint.

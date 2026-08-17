@@ -14,7 +14,7 @@ import {
   SURFACE_EXCHANGE_ID_PARAM,
   askOnce,
   type AssistantSurfaceDeps,
-} from "./surface-exchanges";
+} from "../core/tool-surface-exchanges";
 
 /**
  * @file A development-only agent tool that renders a grouped-choice MCP-UI form, so the radio and

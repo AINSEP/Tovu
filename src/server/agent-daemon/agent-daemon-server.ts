@@ -79,33 +79,41 @@ import {
 } from "@jini-ai/http-kit";
 import type { AdapterContext, AttachmentStore, DelegatedToolExecuteRequest, RunStartHandler, StoredAttachment } from "@jini-ai/http-kit";
 
-import { registerSupabaseMcpPreset } from "../features/plugins/supabase-mcp/supabase-mcp-plugin";
-import { createInMemoryToolAttemptAuditSink } from "../features/tool-audit/repo.memory";
-import { SqliteToolAttemptAuditSink } from "../features/tool-audit/repo.sqlite";
-import { openContentDb } from "../db/sqlite/content-db";
-import { createRouteDeps } from "../server/app";
-import { installUnhandledRejectionGuard } from "../server/boot/process-error-guards";
-import { createSqliteRouteDepsForWorkspace, defaultContentDbPath } from "../server/deps";
+import { registerSupabaseMcpPreset } from "../../features/plugins/supabase-mcp/supabase-mcp-plugin";
+import { createInMemoryToolAttemptAuditSink } from "../../features/tool-audit/repo.memory";
+import { SqliteToolAttemptAuditSink } from "../../features/tool-audit/repo.sqlite";
+import { openContentDb } from "../../db/sqlite/content-db";
+import { createRouteDeps } from "../app";
+import { installUnhandledRejectionGuard } from "../boot/process-error-guards";
+import { createSqliteRouteDepsForWorkspace, defaultContentDbPath } from "../deps";
+import { installFirstPartyToolContributors } from "../tool-catalog-manifest";
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/core/rate-limit/rate-limit";
 import { resolveRuntimeMode } from "#src/core/runtime-mode";
-import { listAssistantAgents, rescanAssistantAgents } from "./agents";
-import { createCustomInstructionsCache } from "./custom-instructions";
-import { DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken } from "./daemon-auth";
-import { AGENT_DAEMON_EXIT_CODE } from "./daemon-exit-codes";
-import { FRONTEND_CONTROL_CAPABILITIES } from "./frontend-control-capabilities";
-import { attachFederatedMcpTools } from "./mcp-federation/bootstrap";
-import type { ResolvedFederatedConnection } from "./mcp-federation/config";
-import { readEnabledExternalMcpConfigs, toResolvedFederatedConnections } from "./external-mcp-store";
-import { registerA2uiActionsRoute } from "./a2ui-actions-route";
-import { registerMcpUiToolCallsRoute } from "./mcp-ui-tool-calls-route";
-import { resolveMcpJsonInjection } from "./mcp-injection";
-import { createOwnedRunListHandler, createRunOwnerRegistry, requireRunOwnership } from "./run-ownership";
-import { parseRunStartContextRef } from "./run-start-context";
-import { buildComponentCatalogQuery } from "./component-catalog-query";
-import { buildToolCatalogQuery } from "./tool-catalog-query";
-import { withToolAttemptAudit } from "./tool-executor-audit";
-import { buildAssistantToolRegistrations } from "./tool-registrations";
-import { createSurfaceExchangeStore } from "./surface-exchanges";
+import {
+  listAssistantAgents,
+  rescanAssistantAgents,
+  createCustomInstructionsCache,
+  DELEGATED_TOOL_CALLS_PATH,
+  requireAgentDaemonToken,
+  AGENT_DAEMON_EXIT_CODE,
+  FRONTEND_CONTROL_CAPABILITIES,
+  attachFederatedMcpTools,
+  type ResolvedFederatedConnection,
+  readEnabledExternalMcpConfigs,
+  toResolvedFederatedConnections,
+  registerA2uiActionsRoute,
+  registerMcpUiToolCallsRoute,
+  resolveMcpJsonInjection,
+  createOwnedRunListHandler,
+  createRunOwnerRegistry,
+  requireRunOwnership,
+  parseRunStartContextRef,
+  buildComponentCatalogQuery,
+  buildToolCatalogQuery,
+  withToolAttemptAudit,
+  buildAssistantToolRegistrations,
+} from "../../assistant/agent-daemon-port";
+import { createSurfaceExchangeStore } from "../../core/tool-surface-exchanges";
 
 const port = Number(process.env.JINI_AGENT_DAEMON_PORT ?? 4319);
 const daemonUrl = `http://127.0.0.1:${port}`;
@@ -309,6 +317,13 @@ const magicLinkPerEmailLimiter = createRateLimiter({ profile: MAGIC_LINK_PER_EMA
  * not fail loudly — every delivery would 409 while the agent sat blocked until its TTL expired.
  */
 const surfaceExchanges = createSurfaceExchangeStore();
+
+// Must run before `buildAssistantToolRegistrations` below: that function reads whatever the
+// registry currently holds, and the registry starts empty every process boot (it is ordinary
+// module-level state in `assistant/tool-contribution-registry.ts`, not populated as a side effect
+// of any import). See `tool-catalog-manifest.ts`'s own header for why this call lives here and in
+// `assistant-byok.ts`, and nowhere else.
+installFirstPartyToolContributors();
 
 const registry = createToolRegistry();
 for (const registration of buildAssistantToolRegistrations(

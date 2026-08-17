@@ -1,29 +1,22 @@
 {
   "meta": {
-    "fileCount": 843,
+    "fileCount": 934,
     "moduleCount": 48
   },
-  "propagationCostPct": 10.51,
-  "propagationCostRuntimePct": 2.31,
-  "backEdgesIntoServer": 15,
-  "backEdgesIntoServerRuntimeOnly": 4,
+  "propagationCostPct": 8.95,
+  "propagationCostRuntimePct": 1.95,
+  "backEdgesIntoServer": 11,
+  "backEdgesIntoServerRuntimeOnly": 0,
   "moduleCycles": {
-    "mutualCycleCount": 6,
-    "largestScc": 30,
-    "pairs": [
-      "assistant <-> features/deployments",
-      "assistant <-> features/plugins",
-      "assistant <-> features/post",
-      "assistant <-> features/source-control",
-      "assistant <-> server",
-      "db <-> features/deployments"
-    ]
+    "mutualCycleCount": 0,
+    "largestScc": 0,
+    "pairs": []
   },
-  "moduleApiSurfaceFiles": 208,
-  "deepImportsBypassingIndex": 541,
+  "moduleApiSurfaceFiles": 213,
+  "deepImportsBypassingIndex": 557,
   "coreSize": {
-    "count": 139,
-    "total": 843,
-    "pct": 16.49
+    "count": 152,
+    "total": 934,
+    "pct": 16.27
   }
 }

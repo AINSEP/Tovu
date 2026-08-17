@@ -45,7 +45,6 @@ import type { Express, NextFunction, Request, Response } from "express";
 import {
   A2UI_ACTIONS_PATH,
   AGENT_DAEMON_TOKEN_ENV_VAR,
-  ensureAssistantDaemonStarted,
   getLiveClaudeModels,
   unionModels,
   isMcpUiToolCallAllowed,
@@ -54,6 +53,7 @@ import {
   SURFACE_EXCHANGE_ID_PARAM,
   type SurfaceExchangeStore,
 } from "../../assistant";
+import { ensureAssistantDaemonStarted } from "../agent-daemon/daemon-supervisor";
 import { getAuthedPrincipal, requireAdminSession } from "../middleware/dev-auth";
 import { getAssistantDaemonFailureReasonCode, isAssistantDaemonKnownFailed } from "../readiness-state";
 import type { RouteDeps } from "../routes/types";

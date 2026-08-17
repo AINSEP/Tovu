@@ -3,11 +3,11 @@ import { and, desc, eq } from "drizzle-orm";
 import type { UUID } from "@jini-ai/cms/core";
 
 import {
-  resolvePublishHistoryListLimit,
   type PublishHistoryEntry,
   type PublishHistoryStore,
   type PublishTrigger,
 } from "../../features/deployments/static-publish/publish-history";
+import { resolvePublishHistoryListLimit } from "./publish-history-list-limit";
 import type { StaticPublishTargetId } from "../../features/deployments/static-publish/types";
 import { publishHistory } from "../schema";
 import type { ContentDb } from "./content-db";

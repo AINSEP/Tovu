@@ -1,6 +1,7 @@
 import type { UUID } from "@jini-ai/cms/core";
 
 import type { StaticPublishTargetId } from "./types";
+import { resolvePublishHistoryListLimit } from "../../../db/sqlite/publish-history-list-limit";
 
 /**
  * @file Durable, append-only publish-history ledger — the fix for Defect 2 (2026-08-16 live-publish
@@ -95,8 +96,8 @@ export interface PublishHistoryStore {
   getLast(input: { workspaceId: UUID; target: StaticPublishTargetId }): Promise<PublishHistoryEntry | null>;
   /** Every recorded publish for `workspaceId`, newest first, optionally narrowed to one `target` —
    *  what a future read-only history view would page through. `limit` defaults to
-   *  {@link DEFAULT_PUBLISH_HISTORY_LIST_LIMIT} and is clamped to
-   *  {@link MAX_PUBLISH_HISTORY_LIST_LIMIT} regardless of what a caller requests: this table is
+   *  `DEFAULT_PUBLISH_HISTORY_LIST_LIMIT` and is clamped to `MAX_PUBLISH_HISTORY_LIST_LIMIT`
+   *  (`db/sqlite/publish-history-list-limit.ts`) regardless of what a caller requests: this table is
    *  append-only and grows for the life of an install (`REVIEWED_INTEGER_ID_COLUMNS` in
    *  `db/migration/manifest.ts` reviews `publish_history.id` as `"unbounded"` for exactly this
    *  reason), so an unbounded `list` call is a real resource-exhaustion risk a workspace with years of
@@ -107,22 +108,6 @@ export interface PublishHistoryStore {
    *  passed to it at all (the caller, `publish-run.ts`'s `toHistoryEntry`, decides that, not this
    *  port), so `recordSuccess` never means "the publish failed." */
   recordSuccess(input: { workspaceId: UUID; entry: PublishHistoryEntry }): Promise<void>;
-}
-
-/** Default `limit` for {@link PublishHistoryStore.list} when a caller does not specify one. */
-export const DEFAULT_PUBLISH_HISTORY_LIST_LIMIT = 50;
-/** Hard ceiling on {@link PublishHistoryStore.list}'s `limit` — see that method's own doc for why an
- *  append-only, unbounded-growth table needs one regardless of what a caller requests. */
-export const MAX_PUBLISH_HISTORY_LIST_LIMIT = 200;
-
-/** Clamps a caller-requested `list` limit into `[1, MAX_PUBLISH_HISTORY_LIST_LIMIT]`, defaulting to
- *  {@link DEFAULT_PUBLISH_HISTORY_LIST_LIMIT} when omitted — the one place both {@link
- *  InMemoryPublishHistoryStore} and `SqlitePublishHistoryStore` apply the same bound, so the two
- *  implementations can never silently disagree on what "too many" means.
- *  @complexity O(1). */
-export function resolvePublishHistoryListLimit(requested: number | undefined): number {
-  if (requested === undefined) return DEFAULT_PUBLISH_HISTORY_LIST_LIMIT;
-  return Math.max(1, Math.min(Math.trunc(requested), MAX_PUBLISH_HISTORY_LIST_LIMIT));
 }
 
 /** Test double — append-only like the real table (a `Map<key, PublishHistoryEntry[]>`, not

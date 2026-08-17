@@ -18,7 +18,7 @@ import type { PublishCredentialSource } from "#src/features/deployments/static-p
 import { startTestServer } from "../../server/__tests__/helpers/http-test-server";
 import { RUN_PRINCIPAL_HEADER } from "../run-ownership";
 import { MCP_UI_TOOL_CALLS_PATH, registerMcpUiToolCallsRoute } from "../mcp-ui-tool-calls-route";
-import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "../surface-exchanges";
+import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "../../core/tool-surface-exchanges";
 
 /**
  * @file Real, non-mocked proof that A4's "approval gate" — the pre-existing MCP-UI

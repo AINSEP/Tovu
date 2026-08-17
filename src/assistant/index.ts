@@ -150,34 +150,24 @@ export type { ByokToolSurface } from "./byok-tool-surface";
 export { A2UI_ACTIONS_PATH } from "./a2ui-actions-route";
 export { AGENT_DAEMON_TOKEN_ENV_VAR, ensureAgentDaemonToken } from "./daemon-auth";
 export { AGENT_DAEMON_EXIT_CODE } from "./daemon-exit-codes";
-// `startAssistantDaemon` is `index.ts`'s own boot-time call (replaces the old inline
-// `spawnAgentDaemon`); `restartAssistantDaemon` is the manual restart seam a future admin
-// "Restart assistant" action calls; `ensureAssistantDaemonStarted` is the on-demand/lazy-start seam
-// intended for `server/modules/assistant.ts`'s daemon-proxy call site, once wired there — see
-// `daemon-supervisor.ts`'s own header for why the respawn/backoff/crash-loop logic lives in its
-// own module instead of inline in `index.ts`, and for the terminating-vs-crash-loop-tripped
-// distinction both `restartAssistantDaemon` and `ensureAssistantDaemonStarted` respect.
-export { startAssistantDaemon, restartAssistantDaemon, ensureAssistantDaemonStarted } from "./daemon-supervisor";
-export type { RestartAssistantDaemonResult, EnsureAssistantDaemonStartedResult } from "./daemon-supervisor";
+// `startAssistantDaemon`/`restartAssistantDaemon`/`ensureAssistantDaemonStarted` moved to
+// `server/agent-daemon/daemon-supervisor.ts` (2026-08-17) — that file is now part of the `server`
+// module itself, so its three real callers (`index.ts`, `server/modules/assistant.ts`,
+// `server/routes/admin/system/assistant-daemon.ts`) import it directly rather than through this
+// barrel; re-exporting it here would create an `assistant -> server` edge this barrel exists to
+// avoid.
 export { getLiveClaudeModels, unionModels } from "./live-model-cache";
 export { isMcpUiToolCallAllowed } from "./mcp-ui-tool-calls";
 export { MCP_UI_TOOL_CALLS_PATH } from "./mcp-ui-tool-calls-route";
 export { RUN_PRINCIPAL_HEADER } from "./run-ownership";
 
-// `surface-exchanges.ts` — INTERIM. The 2026-08-13 architecture audit (item 7) proposes physically
-// relocating this file's public contract to `core/`, because `features/post/{delete-confirmation-ui,
-// tool-registrations}.ts` also depend on it and a sideways `features/post -> assistant` edge is one
-// of the two known `assistant<->server`-adjacent module-cycle contributors. Only the ONE symbol pair
-// `server/modules/assistant.ts` actually needs is re-exported here; `askOnce`,
-// `createSurfaceExchangeStore`, and the `AssistantSurfaceDeps`/`SurfaceExchange` types stay
-// un-re-exported because their only external consumers are the two `features/post` files the audit
-// item is about to move, not this module's own barrel. Once item 7 lands, this line's source simply
-// changes (`export { SURFACE_EXCHANGE_ID_PARAM, type SurfaceExchangeStore } from "../core/
-// surface-exchanges"` or wherever it ends up) and `server/modules/assistant.ts`'s import stays
-// byte-identical (`from "#src/assistant/index"` or `"../../assistant"`). Whoever executes item 7
-// should update this comment.
-export { SURFACE_EXCHANGE_ID_PARAM } from "./surface-exchanges";
-export type { SurfaceExchangeStore } from "./surface-exchanges";
+// `tool-surface-exchanges.ts` now lives in `core/` (2026-08-13 architecture audit item 7, executed
+// 2026-08-17) — `features/post/{delete-confirmation-ui, tool-registrations}.ts` and the other
+// cross-module consumers import it directly from `#src/core/tool-surface-exchanges` now, not through
+// this barrel. Only the ONE symbol pair `server/modules/assistant.ts` actually needs stays
+// re-exported here, byte-identical for that caller (`from "#src/assistant/index"` or `"../../assistant"`).
+export { SURFACE_EXCHANGE_ID_PARAM } from "../core/tool-surface-exchanges";
+export type { SurfaceExchangeStore } from "../core/tool-surface-exchanges";
 
 // ---------------------------------------------------------------------------------------------
 // E — External MCP Federation (registry)
@@ -200,6 +190,21 @@ export { InMemoryExternalMcpServerRepo } from "./external-mcp-store.memory";
 export { FEDERATED_CONNECTION_DEFAULTS, isFederationEnabled, parseAllowedToolNames, positiveIntOrDefault } from "./mcp-federation/config";
 export type { ResolvedFederatedConnection } from "./mcp-federation/config";
 export { registerFederatedMcpPreset } from "./mcp-federation/presets";
+
+// ---------------------------------------------------------------------------------------------
+// E2 — AI-Tool Contribution Registry
+//
+// The boot-installed seam a feature's own `tool-registrations.ts` calls to contribute its AI tools
+// to the assistant's catalog, in place of `assistant/tool-registrations.ts` importing that feature
+// by name (see `tool-contribution-registry.ts`'s own header for the full rationale — same
+// registry shape as `registerFederatedMcpPreset` above, one section up). Re-exported here rather
+// than deep-imported so a converting feature (today: `comments`, `newsletter`) gets the same
+// "port, not a file path" seam every other cross-module consumer of this barrel does. `features/post`
+// tried this seam too and reverted the same night — see `features/post/tool-registrations.ts`'s
+// trailing comment for why (it opened a new module cycle through `widgets`/`export`).
+// ---------------------------------------------------------------------------------------------
+export { registerToolContributor } from "./tool-contribution-registry";
+export type { ToolContributor } from "./tool-contribution-registry";
 
 // ---------------------------------------------------------------------------------------------
 // F — Chat History Persistence (composition-root wiring)

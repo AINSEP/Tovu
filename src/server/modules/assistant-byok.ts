@@ -61,6 +61,7 @@ import {
 } from "../../assistant";
 import { getAuthedPrincipal, requireAdminSession } from "../middleware/dev-auth";
 import type { RouteDeps } from "../routes/types";
+import { installFirstPartyToolContributors } from "../tool-catalog-manifest";
 import type { ServerModuleHandle } from "./types";
 
 export const BYOK_TURN_PATH = "/api/admin/v1/assistant/byok-turn";
@@ -184,11 +185,24 @@ export interface AssistantByokModuleHandle extends ServerModuleHandle {
  * override the composed surface — e.g. injecting a short-TTL `surfaceExchangeStore` via
  * `createByokToolSurface`'s own override to prove the no-hang bound in milliseconds rather than the
  * production 5.5-minute ceiling — without which this module would have no seam to reach it through.
+ * Optional (rather than a plain default parameter) specifically so
+ * `installFirstPartyToolContributors()` below is guaranteed to run BEFORE the default
+ * `createByokToolSurface(routeDeps)` construction, not as part of evaluating this function's own
+ * argument list — a default-parameter expression evaluates before the function body starts, which
+ * would be too early for the install call to have any effect on the surface it composes.
  */
 export function createAssistantByokModule(
   routeDeps: RouteDeps,
-  toolSurface: ByokToolSurface = createByokToolSurface(routeDeps),
+  toolSurface?: ByokToolSurface,
 ): AssistantByokModuleHandle {
+  // Must run before `createByokToolSurface` (below, or the caller's own instance's earlier
+  // construction) calls `buildAssistantToolRegistrations`: that function reads whatever
+  // `assistant/tool-contribution-registry.ts` currently holds, and the registry starts empty every
+  // process boot. See `tool-catalog-manifest.ts`'s own header for why this call lives here and in
+  // `agent-daemon-server.ts`, and nowhere else. Idempotent, so a test supplying its own `toolSurface`
+  // (built from an already-installed registry) pays nothing extra for this still running.
+  installFirstPartyToolContributors();
+  const resolvedToolSurface = toolSurface ?? createByokToolSurface(routeDeps);
   const credentialPort = createStoredExecutionCredentialPort({
     repo: routeDeps.adminExecutionCredentialRepo,
     sealer: routeDeps.siteAssistantSecretSealer,
@@ -196,7 +210,7 @@ export function createAssistantByokModule(
 
   return {
     name: "assistant-byok",
-    toolSurface,
+    toolSurface: resolvedToolSurface,
     registerRoutes: (app: Express) => {
       app.use(BYOK_TURN_PATH, requireAdminSession(routeDeps));
       app.post(BYOK_TURN_PATH, (req: Request, res: Response, next: NextFunction) => {
@@ -262,7 +276,7 @@ export function createAssistantByokModule(
       const emitSurface: SurfaceEmitter = async (emission) => {
         sse(res, "agent", toWireSurfacePayload(emission, call.id));
       };
-      return toolSurface.executeMetaTool(principal, run, call, abort.signal, emitSurface);
+      return resolvedToolSurface.executeMetaTool(principal, run, call, abort.signal, emitSurface);
     };
 
     let result: ByokProviderTurnResult;
@@ -279,7 +293,7 @@ export function createAssistantByokModule(
         // 3 descriptors, not all 131. The full catalog is ~119 KB (~30 k tokens) of `inputSchema`
         // re-sent on EVERY message; the meta-set is under 1 KB and reaches the same tools through
         // `search_tools` → `describe_tool` → `execute_delegated_tool`. See `META_TOOL_DESCRIPTORS`.
-        tools: toolSurface.metaTools,
+        tools: resolvedToolSurface.metaTools,
         executeTool,
         signal: abort.signal,
         // `error`-typed events get their OWN SSE event name, not folded into `agent` — mirrors the
