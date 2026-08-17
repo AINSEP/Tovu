@@ -403,7 +403,21 @@ function TokenInputFields({
         <label className="field-label" htmlFor={`${idPrefix}-token`}>
           {translate("Access token")}
         </label>
-        <input id={`${idPrefix}-token`} type="password" autoComplete="off" value={token} onChange={(e) => onTokenChange(e.target.value)} />
+        {/* `autoComplete="new-password"`, NOT `"off"` — Chrome deliberately ignores `off` on
+            credential-shaped fields (a long-standing intentional decision, not a bug), and `off`
+            here is what let the reported autofill through. `new-password` is the documented signal
+            for "this field is not a saved-login field", which suppresses both the saved-credential
+            dropdown and the silent fill.
+
+            This input is why the SEARCH BOX at the top of the page was being filled with "admin":
+            `TokenRow`'s `<details>` renders `ExistingTokenFields` unconditionally, so every saved
+            token leaves a live password input in the DOM even while its row is collapsed. Chrome's
+            formless credential heuristic groups a page's text-like fields with any password field
+            by DOM proximity — no `<form>` required, and there is none in this feature — so the page
+            read as a login surface and the first text-like field (the search box) got the site's
+            saved username. Fixing the search box's own attribute could not work: the search box was
+            the symptom, these fields are the trigger. */}
+        <input id={`${idPrefix}-token`} type="password" autoComplete="new-password" value={token} onChange={(e) => onTokenChange(e.target.value)} />
         <p className="field-hint">
           {connected ? translate("Leave blank to keep the current token.") : translate("Stored encrypted on the server. Once saved, Tovu never displays it again.")}
         </p>

@@ -329,7 +329,9 @@ function SourceControlCredentialFields({
           <input
             id={`source-control-credentials-token-${row.providerId}`}
             type="password"
-            autoComplete="off"
+            // `new-password`, not `off` — Chrome ignores `off` on credential-shaped fields by
+            // design. See `security/AccessTokensTab.tsx`'s token input for the full reasoning.
+            autoComplete="new-password"
             value={row.token}
             onChange={(e) => controller.setToken(row.providerId, e.target.value)}
             {...agentHandle(`source-control-credentials-token-${row.providerId}`, {

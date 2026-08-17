@@ -225,7 +225,10 @@ function OtherCredentialReplaceableRow({ row, controller }: { row: OtherCredenti
           <input
             id={`security-other-credential-${rowHandleBase(row)}`}
             type="password"
-            autoComplete="off"
+            // `new-password`, not `off` — Chrome ignores `off` on credential-shaped fields by
+            // design. See `AccessTokensTab.tsx`'s token input for the full reasoning; this section
+            // renders on the SAME page, so its password fields feed the same autofill heuristic.
+            autoComplete="new-password"
             value={row.token}
             onChange={(e) => controller.setDraftToken(row.key, e.target.value)}
             {...safeAgentHandle(`security-other-credential-token-${rowHandleBase(row)}`, { role: "field", label: `${row.name}'s replacement access token` })}
