@@ -65,7 +65,7 @@ import {
 import { SqliteCommercePriceRepo, SqliteCommerceProductRepo } from "../features/commerce/repo.sqlite";
 import { rebuildNavLocationBindings } from "../navigation";
 import { SqliteMenuRepo, SqliteNavLocationBindingRepo } from "../navigation/repo.sqlite";
-import { SqliteWebhookDeliveryRepo, SqliteWebhookSubscriptionRepo } from "../integrations";
+import { SqliteWebhookDeliveryRepo, SqliteWebhookSubscriptionRepo } from "../db/sqlite/webhook-repo.sqlite";
 import { EnvOrFileKeyring } from "../integrations/keyring.env";
 import { createKeyringBackedSigner } from "../integrations/signing.keyring";
 import { AesGcmSecretSealer } from "../integrations/secret-sealer.aesgcm";
@@ -109,7 +109,7 @@ import {
 import { registerSlugChangeCapture } from "../routing";
 import { SqliteDbOpsAdapter } from "../db/sqlite/db-ops";
 import { SqliteRestorePointsRepo } from "../db/sqlite/database-journal-repo";
-import { SqliteDatabaseIntrospectionAdapter } from "../features/database/adapter.sqlite";
+import { SqliteDatabaseIntrospectionAdapter } from "../db/sqlite/database-introspection-adapter.sqlite";
 import { InMemorySiteStatusRepo } from "../features/database/repo.memory";
 import { NoopContentTypeIndexProvisioner } from "../features/content-types";
 import { SqliteContentTypeRepo } from "../features/content-types/repo.sqlite";
