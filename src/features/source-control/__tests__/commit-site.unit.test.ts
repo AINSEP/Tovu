@@ -7,6 +7,8 @@ import test from "node:test";
 import { createRouteDeps } from "#src/server/app";
 import type { RouteDeps } from "#src/server/routes/types";
 
+import { AesGcmSecretSealer } from "../../../integrations/secret-sealer.aesgcm";
+import { InMemoryKeyring } from "../../../integrations/keyring.memory";
 import { createSourceControlCredential } from "../store";
 import { commitSiteToSourceControl, toCommitFile, validateCommitTarget, type CommitFile, type GitHubCommitAdapter, type GitHubCommitAdapterResult } from "../commit-site";
 
@@ -94,6 +96,33 @@ test("commitSiteToSourceControl: no saved credential fails cleanly with NO_CREDE
   if (result.ok) throw new Error("unreachable");
   assert.equal(result.code, "NO_CREDENTIALS_CONFIGURED");
   assert.doesNotMatch(JSON.stringify(result), /ghp_|Bearer /i);
+});
+
+/**
+ * Live-found (2026-08-16), the daemon-side twin of `static-publish/adapter.ts`'s own
+ * `publishStaticSite` guard around `credentialSource.resolve()`: `commitSiteToSourceControl`'s own
+ * doc claims "Never throws: every failure... is returned as `{ok: false, code, message}`", but before
+ * this fix the call to `resolveDefaultForSourceControl` below had no try/catch at all, so a genuine
+ * decrypt failure (a process boot with no `TOVU_INTEGRATIONS_ROOT_KEY`, or any other sealer/keyring
+ * error) broke that contract silently. Worse than the publish-credentials sibling's own version of
+ * this bug: this function is reached from `tool-registrations.ts`'s `source_control_execute_commit`,
+ * which runs inside `agent-daemon-server.ts` — a SEPARATE OS process from Tovu's main server with no
+ * `installUnhandledRejectionGuard()` of its own and no restart supervisor (`index.ts`'s
+ * `spawnAgentDaemon()`: "there is no retry path today"), so the escaped rejection would have taken
+ * down the daemon process outright, not just answered one request with a 500.
+ */
+test("commitSiteToSourceControl: a genuine decrypt failure (e.g. a boot with no root key) returns {ok:false, NO_CREDENTIALS_CONFIGURED} — the SAME 'never throws' contract every other failure mode already gets, never an unhandled rejection", async () => {
+  const deps = await withGithubCredential(createRouteDeps());
+  // A sealer backed by a DIFFERENT keyring than the one the credential was actually sealed under —
+  // `sealer.open()` fails auth-tag verification, the same shape a missing root key produces live.
+  const brokenSealer = new AesGcmSecretSealer(new InMemoryKeyring());
+  const result = await commitSiteToSourceControl(
+    { credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: brokenSealer }, gitAdapter: neverCalledGitAdapter() },
+    { workspaceId: deps.workspaceId, routeDeps: deps, owner: "octo", repo: "demo", commitMessage: "content update" }
+  );
+  assert.equal(result.ok, false);
+  if (result.ok) throw new Error("unreachable");
+  assert.equal(result.code, "NO_CREDENTIALS_CONFIGURED");
 });
 
 test("commitSiteToSourceControl: a real export runs and its files reach the git adapter, deploy-relative and forward-slashed", async () => {

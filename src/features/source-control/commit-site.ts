@@ -32,10 +32,12 @@ import type { SourceControlCredentialSetRepoPort } from "./types";
  * target's own no-subdirectory assumption (owner decision, 2026-08-16 review — no `path`/subdirectory
  * field exists anywhere in this feature's schemas, and none should be added speculatively).
  *
- * Never throws for an expected outcome: every failure (no credential, invalid target shape, a failed
- * export, nothing changed, a diverged branch, an unreachable network, a rejected provider call) is
- * returned as `{ok: false, code, message}` — see {@link SourceControlCommitOutcome}'s own header for
- * why each code is its own, not folded into a generic failure.
+ * Never throws for an expected outcome: every failure (no credential, invalid target shape, a genuine
+ * credential decrypt failure, a failed export, nothing changed, a diverged branch, an unreachable
+ * network, a rejected provider call) is returned as `{ok: false, code, message}` — see
+ * {@link SourceControlCommitOutcome}'s own header for why each code is its own, not folded into a
+ * generic failure, and {@link commitSiteToSourceControl}'s own doc for why this is a real, enforced
+ * contract rather than an aspirational one.
  *
  * Architectural role:
  * `features/source-control` domain logic, this feature's one seam into `github-git-provider.ts`. No
@@ -211,6 +213,18 @@ function exportSiteLazily(options: ExportSiteOptions): Promise<ExportReport> {
  * Never throws: every failure is returned as `{ok: false, code, message}` — see
  * {@link SourceControlCommitOutcome}'s own header for the full per-code reasoning.
  *
+ * This is a REAL contract, not aspirational (live-found 2026-08-16, mirroring `static-publish/
+ * adapter.ts`'s own `publishStaticSite` fix for the identical shape): the call to
+ * `resolveDefaultForSourceControl` below used to run unguarded, so a genuine decrypt failure (a
+ * missing master secret, a tampered row) propagated as an UNCAUGHT exception, breaking this exact doc
+ * comment. `tool-registrations.ts`'s `source_control_execute_commit` handler is written assuming this
+ * function never throws, so that was a real crash risk, not just a documentation lie — worse than the
+ * publish-credentials sibling's version of this bug, since this call runs inside
+ * `agent-daemon-server.ts`, a separate OS process with no process-level `unhandledRejection` guard of
+ * its own at the time and no restart supervisor at all (`index.ts`'s `spawnAgentDaemon()` is called
+ * exactly once per boot) — an escaping rejection here would have taken the WHOLE daemon down, not
+ * just answered one tool call with an error.
+ *
  * @complexity One `exportSite` pass (O(routes + assets) HTTP requests against the in-process app) plus
  *   one `GitHubCommitAdapter.commit()` call (bounded by that adapter's own fixed request count — see
  *   `github-git-provider.ts`).
@@ -219,7 +233,24 @@ export async function commitSiteToSourceControl(deps: CommitSiteDeps, input: Com
   const configError = validateCommitTarget(input);
   if (configError) return { ok: false, code: "INVALID_CONFIG", message: configError };
 
-  const credential = await resolveDefaultForSourceControl(deps.credentialDeps, { workspaceId: input.workspaceId, providerId: "github" });
+  let credential: Awaited<ReturnType<typeof resolveDefaultForSourceControl>>;
+  try {
+    credential = await resolveDefaultForSourceControl(deps.credentialDeps, { workspaceId: input.workspaceId, providerId: "github" });
+  } catch (err) {
+    // `resolveDefaultForSourceControl`'s own doc documents this as a real, deliberate possibility
+    // (`store.ts`'s `decryptRecord`: a decrypt failure throws rather than degrading to `null`) — this
+    // function's own contract (this doc, right above) is that IT never throws regardless, so a
+    // genuine decrypt failure still needs to "surface", just through this function's own established
+    // `{ok:false, code, message}` channel instead of an uncaught exception. `NO_CREDENTIALS_CONFIGURED`
+    // is the closest existing code — this feature has no dedicated "credential exists but cannot be
+    // decrypted" code, and adding one is a wider API change than this fix, same bucket
+    // `static-publish/adapter.ts`'s own `credentialSource.resolve()` catch uses for the analogous case.
+    return {
+      ok: false,
+      code: "NO_CREDENTIALS_CONFIGURED",
+      message: `credential could not be resolved: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
   if (!credential) {
     return {
       ok: false,
