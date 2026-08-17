@@ -26,31 +26,39 @@ function hashClientIp(req: Request, salt: string): string {
 
 export function registerCommentsSubmitRoute(app: Express, deps: CommentsSubmitDeps): void {
   app.post("/api/site/comments", async (req, res) => {
-    const salt = process.env.COMMENTS_IP_SALT ?? "dev-only-insecure-salt";
-    const body = req.body as Record<string, unknown>;
+    try {
+      const salt = process.env.COMMENTS_IP_SALT ?? "dev-only-insecure-salt";
+      const body = req.body as Record<string, unknown>;
 
-    const result = await deps.ingressPolicy.submit({
-      workspaceId: deps.workspaceId,
-      entryId: String(body.entryId ?? ""),
-      parentId: body.parentId ? String(body.parentId) : null,
-      authorName: String(body.authorName ?? "").slice(0, 200),
-      authorEmail: body.authorEmail ? String(body.authorEmail).slice(0, 320) : null,
-      authorUrl: body.authorUrl ? String(body.authorUrl).slice(0, 2000) : null,
-      bodyRaw: String(body.body ?? ""),
-      authorPrincipalId: null, // v1: anonymous-only public route; member-attributed submission is a named deferral
-      ingressContext: {
-        authorIpHash: hashClientIp(req, salt),
-        honeypotValue: typeof body.website === "string" ? body.website : "", // conventional honeypot field name
-      },
-    });
+      const result = await deps.ingressPolicy.submit({
+        workspaceId: deps.workspaceId,
+        entryId: String(body.entryId ?? ""),
+        parentId: body.parentId ? String(body.parentId) : null,
+        authorName: String(body.authorName ?? "").slice(0, 200),
+        authorEmail: body.authorEmail ? String(body.authorEmail).slice(0, 320) : null,
+        authorUrl: body.authorUrl ? String(body.authorUrl).slice(0, 2000) : null,
+        bodyRaw: String(body.body ?? ""),
+        authorPrincipalId: null, // v1: anonymous-only public route; member-attributed submission is a named deferral
+        ingressContext: {
+          authorIpHash: hashClientIp(req, salt),
+          honeypotValue: typeof body.website === "string" ? body.website : "", // conventional honeypot field name
+        },
+      });
 
-    if (!result.ok) {
-      // No oracle: every rejection reason maps to the SAME generic 422, distinguishable only in
-      // the response body's `reason` for legitimate client-side form UX, never a status-code tell.
-      res.status(422).json({ error: "comment was not accepted", reason: result.reason });
-      return;
+      if (!result.ok) {
+        // No oracle: every rejection reason maps to the SAME generic 422, distinguishable only in
+        // the response body's `reason` for legitimate client-side form UX, never a status-code tell.
+        res.status(422).json({ error: "comment was not accepted", reason: result.reason });
+        return;
+      }
+
+      res.status(201).json({ id: result.comment.id, status: result.comment.status });
+    } catch (err) {
+      // Public, unauthenticated route (this file's own header) — any visitor's malformed or
+      // hostile submission must still get a fast, honest response, never a hang; an unguarded
+      // failure here is reachable by anyone, not just an authenticated admin.
+      console.error("[site/comments-submit] unexpected error", err);
+      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
     }
-
-    res.status(201).json({ id: result.comment.id, status: result.comment.status });
   });
 }

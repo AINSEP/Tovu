@@ -46,31 +46,36 @@ export function registerAdminDeploymentsListRoute(app: Express, deps: AdminDeplo
       return;
     }
 
-    const principal = getAuthedPrincipal(res);
-    const authResult = await deps.authorize({
-      principalId: principal.id,
-      permission: "deployments.read",
-      workspaceId: deps.workspaceId,
-      entityType: "deployment-target",
-    });
-    if (!authResult.allowed) {
-      res.status(403).json({
-        error: `principal '${principal.id}' is not authorized for 'deployments.read' (${authResult.reason})`,
-        code: "FORBIDDEN",
-        details: { permission: "deployments.read", reason: authResult.reason },
+    try {
+      const principal = getAuthedPrincipal(res);
+      const authResult = await deps.authorize({
+        principalId: principal.id,
+        permission: "deployments.read",
+        workspaceId: deps.workspaceId,
+        entityType: "deployment-target",
       });
-      return;
+      if (!authResult.allowed) {
+        res.status(403).json({
+          error: `principal '${principal.id}' is not authorized for 'deployments.read' (${authResult.reason})`,
+          code: "FORBIDDEN",
+          details: { permission: "deployments.read", reason: authResult.reason },
+        });
+        return;
+      }
+
+      const workspaceId = deps.workspaceId;
+      const [environments, targets, releases, runs] = await Promise.all([
+        deps.deploymentsReadRepo.listEnvironments({ workspaceId }),
+        deps.deploymentsReadRepo.listTargets({ workspaceId }),
+        deps.deploymentsReadRepo.listReleases({ workspaceId }),
+        deps.deploymentsReadRepo.listRuns({ workspaceId }),
+      ]);
+
+      const snapshot: AdminDeploymentsSnapshot = { environments, targets, releases, runs };
+      res.status(200).json(snapshot);
+    } catch (err) {
+      console.error("[deployments/list] unexpected error", err);
+      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
     }
-
-    const workspaceId = deps.workspaceId;
-    const [environments, targets, releases, runs] = await Promise.all([
-      deps.deploymentsReadRepo.listEnvironments({ workspaceId }),
-      deps.deploymentsReadRepo.listTargets({ workspaceId }),
-      deps.deploymentsReadRepo.listReleases({ workspaceId }),
-      deps.deploymentsReadRepo.listRuns({ workspaceId }),
-    ]);
-
-    const snapshot: AdminDeploymentsSnapshot = { environments, targets, releases, runs };
-    res.status(200).json(snapshot);
   });
 }
