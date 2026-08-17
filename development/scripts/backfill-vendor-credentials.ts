@@ -115,6 +115,13 @@ import { buildSourceControlCredentialAad } from "../../src/features/source-contr
 import type { SourceControlProviderId } from "../../src/features/source-control/types.js";
 import { buildVendorCredentialAad } from "../../src/features/vendor-credentials/aad.js";
 import { PUBLISH_PROVIDER_TO_VENDOR, SOURCE_CONTROL_PROVIDER_TO_VENDOR, type VendorId } from "../../src/features/vendor-credentials/types.js";
+import { resolveLabel, type GroupState, type Origin } from "./backfill-vendor-credentials-helpers.js";
+
+// Re-exported so every caller keeps importing from this one file — see
+// `backfill-vendor-credentials-helpers.ts`'s own header for why `resolveLabel`/`GroupState`/`Origin`
+// live in a separate, side-effect-free module in the first place (this script's own `main()` runs
+// unconditionally at import time, which a direct in-process unit test must never trigger).
+export { resolveLabel, type GroupState, type Origin };
 
 const REPO_ROOT = path.resolve(__dirname, "..", "..");
 
@@ -130,8 +137,6 @@ function parseArgs(argv: readonly string[]): Args {
     apply: argv.includes("--apply"),
   };
 }
-
-type Origin = "publish" | "source-control";
 
 /** One source-table row, normalized to the shape this script's merge logic needs — a origin tag,
  *  the mapped `VendorId`, and the OLD AAD already computed (each origin uses its own table's own
@@ -199,15 +204,6 @@ function loadSourceRows(db: ContentDb): SourceRow[] {
   return [...fromPublish, ...fromSourceControl];
 }
 
-/** Per-`(workspace_id, vendor_id)` group state this script tracks WHILE migrating, seeded from
- *  whatever already exists in `vendor_credential_sets` (a prior partial `--apply` run) — see this
- *  file's own header for why both `takenLabels` and `hasDefault` must be seeded from real target-
- *  table state, not just tracked fresh within one run, for idempotency to hold across runs. */
-interface GroupState {
-  readonly takenLabels: Set<string>;
-  hasDefault: boolean;
-}
-
 function groupKey(workspaceId: string, vendorId: VendorId): string {
   return `${workspaceId} ${vendorId}`;
 }
@@ -235,20 +231,6 @@ function loadTargetState(db: ContentDb): TargetState {
     groups.set(key, state);
   }
   return { migratedIds, groups };
-}
-
-/** Resolves a possibly-colliding candidate label against a group's already-taken set — see this
- *  file's own header ("label collisions") for why a collision is the expected common case, not an
- *  edge case, and why this exact two-step disambiguation (origin suffix, then id-prefix) is what
- *  keeps the result both unique and deterministic across repeated runs.
- *
- * @complexity O(1) — at most two `Set.has()` checks.
- */
-function resolveLabel(candidate: string, state: GroupState, origin: Origin, rowId: string): string {
-  if (!state.takenLabels.has(candidate)) return candidate;
-  const withOrigin = `${candidate} (${origin === "publish" ? "Publish" : "Source Control"})`;
-  if (!state.takenLabels.has(withOrigin)) return withOrigin;
-  return `${withOrigin} ${rowId.slice(0, 8)}`;
 }
 
 /** Extracts `token_tail` from the just-decrypted plaintext — `secretAccessKey` for `s3-compatible`
