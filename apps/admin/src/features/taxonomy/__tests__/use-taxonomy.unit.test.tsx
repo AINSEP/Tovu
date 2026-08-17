@@ -26,7 +26,7 @@ function jsonResponse(body: unknown, status = 200): Response {
 const TERM_A = { id: "a", taxonomyId: "tax1", parentId: null, name: "A", status: "active", updatedAt: "2026-08-01T00:00:00.000Z", version: 1 };
 const GROUP = { taxonomy: { id: "tax1", name: "Category", hierarchical: false, status: "active", updatedAt: "2026-08-01T00:00:00.000Z", version: 1 }, terms: [TERM_A] };
 
-let fetchMock: ReturnType<typeof vi.fn>;
+let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 
 beforeEach(() => {
   fetchMock = vi.fn();

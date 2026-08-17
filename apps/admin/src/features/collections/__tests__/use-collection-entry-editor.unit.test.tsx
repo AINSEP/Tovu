@@ -54,7 +54,7 @@ const ENTRY: AdminEntry = {
   version: 2,
 };
 
-let fetchMock: ReturnType<typeof vi.fn>;
+let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 
 beforeEach(() => {
   fetchMock = vi.fn();

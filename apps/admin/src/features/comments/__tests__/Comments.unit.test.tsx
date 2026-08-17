@@ -67,7 +67,7 @@ const PENDING_COMMENT = {
 
 const TRASHED_COMMENT = { ...PENDING_COMMENT, id: "c2", status: "trash" as const };
 
-let fetchMock: ReturnType<typeof vi.fn>;
+let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 
 beforeEach(() => {
   fetchMock = vi.fn();

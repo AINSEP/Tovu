@@ -28,7 +28,7 @@ const POINT: AdminRestorePoint = {
   createdAt: "2026-08-01T00:00:00.000Z",
 };
 
-let fetchMock: ReturnType<typeof vi.fn>;
+let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 
 beforeEach(() => {
   fetchMock = vi.fn();

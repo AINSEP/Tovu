@@ -71,7 +71,7 @@ async function rowFor(title: string): Promise<HTMLElement> {
   return row as HTMLElement;
 }
 
-let fetchMock: ReturnType<typeof vi.fn>;
+let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 
 beforeEach(() => {
   fetchMock = vi.fn();

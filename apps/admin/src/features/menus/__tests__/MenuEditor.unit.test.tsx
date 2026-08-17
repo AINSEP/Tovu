@@ -65,7 +65,7 @@ const MENU_WITH_NESTED_CHILD = {
   },
 };
 
-let fetchMock: ReturnType<typeof vi.fn>;
+let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 let confirmSpy: ReturnType<typeof vi.spyOn>;
 
 beforeEach(() => {

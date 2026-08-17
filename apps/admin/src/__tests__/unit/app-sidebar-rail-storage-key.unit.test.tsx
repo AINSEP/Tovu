@@ -23,7 +23,7 @@ import { App } from "../../App";
 
 const LEGACY_KEY = "tovu-admin-sidebar-rail-collapsed";
 
-let fetchMock: ReturnType<typeof vi.fn>;
+let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 
 beforeEach(() => {
   localStorage.clear();

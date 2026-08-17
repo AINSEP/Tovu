@@ -191,7 +191,7 @@ describe("usePostEditor — pending-content-preview debounce (2026-08-14, moved 
    *  because `previewFormRef.current` is `readonly` at the `RefObject` type level (by design — see
    *  `PostEditorController.previewFormRef`'s own doc); only a real DOM attach or a test double is
    *  meant to set it. */
-  function attachFakeForm(ref: PostEditorController["previewFormRef"]): { submit: ReturnType<typeof vi.fn> } {
+  function attachFakeForm(ref: PostEditorController["previewFormRef"]): { submit: ReturnType<typeof vi.fn<(...args: any[]) => any>> } {
     const fakeForm = { submit: vi.fn() };
     (ref as unknown as { current: typeof fakeForm | null }).current = fakeForm;
     return fakeForm;

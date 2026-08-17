@@ -26,7 +26,7 @@ const CONTENT_TYPES_RESPONSE = {
   items: [{ key: "recipe", label: "Recipe", status: "active", version: 1, fields: [] }],
 };
 
-let fetchMock: ReturnType<typeof vi.fn>;
+let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 
 beforeEach(() => {
   fetchMock = vi.fn();

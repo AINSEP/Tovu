@@ -22,7 +22,7 @@ function jsonResponse(body: unknown, status = 200, statusText = "OK"): Response 
   return new Response(JSON.stringify(body), { status, statusText, headers: { "content-type": "application/json" } });
 }
 
-let fetchMock: ReturnType<typeof vi.fn>;
+let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 
 afterEach(() => {
   vi.unstubAllGlobals();

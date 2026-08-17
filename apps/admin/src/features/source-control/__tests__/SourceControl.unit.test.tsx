@@ -123,7 +123,7 @@ describe("SourceControl — Providers tab: three flat provider rows, not sub-tab
     renderPage();
     const headings = screen.getAllByRole("heading", { level: 3 });
     const bitbucketHeading = headings.find((h) => h.textContent?.includes("Bitbucket"))!;
-    const bitbucketRow = bitbucketHeading.closest(".source-control-row")!;
+    const bitbucketRow = bitbucketHeading.closest<HTMLElement>(".source-control-row")!;
     // Bitbucket is not the first unconnected provider (GitHub is), so it starts collapsed — open it
     // by clicking its own summary before looking for its fields, same dance the connected-row tests
     // below already use for a collapsed row.
@@ -131,7 +131,7 @@ describe("SourceControl — Providers tab: three flat provider rows, not sub-tab
     expect(within(bitbucketRow).getByLabelText("Username")).toBeInTheDocument();
 
     // GitHub is the first unconnected provider, so it is open by default — no click needed.
-    const githubRow = headings.find((h) => h.textContent?.includes("GitHub"))!.closest(".source-control-row")!;
+    const githubRow = headings.find((h) => h.textContent?.includes("GitHub"))!.closest<HTMLElement>(".source-control-row")!;
     expect(within(githubRow).queryByLabelText("Username")).not.toBeInTheDocument();
   });
 
@@ -142,7 +142,7 @@ describe("SourceControl — Providers tab: three flat provider rows, not sub-tab
     renderPage({ save, setToken, rowOverrides: { github: { token: "ghp_abc" } } });
 
     const githubHeading = screen.getByRole("heading", { name: /Connect GitHub/ });
-    const githubRow = githubHeading.closest(".source-control-row")!;
+    const githubRow = githubHeading.closest<HTMLElement>(".source-control-row")!;
     const saveButton = within(githubRow).getByRole("button", { name: "Save" });
     expect(saveButton).toBeEnabled();
 
@@ -153,7 +153,7 @@ describe("SourceControl — Providers tab: three flat provider rows, not sub-tab
   it("disables Save for a not-ready row (blank token)", () => {
     renderPage();
     const githubHeading = screen.getByRole("heading", { name: /Connect GitHub/ });
-    const githubRow = githubHeading.closest(".source-control-row")!;
+    const githubRow = githubHeading.closest<HTMLElement>(".source-control-row")!;
     expect(within(githubRow).getByRole("button", { name: "Save" })).toBeDisabled();
   });
 });
@@ -208,7 +208,7 @@ describe("SourceControl — connected row: the two defects this page must NOT in
     const details = githubHeading.closest("details")!;
     expect(details).not.toBeNull();
     expect(details).toHaveAttribute("open");
-    const githubRow = githubHeading.closest(".source-control-row")!;
+    const githubRow = githubHeading.closest<HTMLElement>(".source-control-row")!;
     expect(within(githubRow).getByLabelText("Access token")).toBeInTheDocument();
   });
 });

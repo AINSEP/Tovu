@@ -32,7 +32,7 @@ const ACTIVE_MENU = {
 
 const TRASHED_MENU = { ...ACTIVE_MENU, id: "m2", title: "Old nav", status: "trash" as const };
 
-let fetchMock: ReturnType<typeof vi.fn>;
+let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 
 beforeEach(() => {
   fetchMock = vi.fn();

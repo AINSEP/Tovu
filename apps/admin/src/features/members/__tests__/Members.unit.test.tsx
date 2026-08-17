@@ -37,7 +37,7 @@ const ACTIVE_MEMBER = {
 
 const DISABLED_MEMBER = { ...ACTIVE_MEMBER, id: "m2", email: "bob@example.com", name: "Bob", status: "disabled" as const };
 
-let fetchMock: ReturnType<typeof vi.fn>;
+let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 
 /** Finds the `<dialog>` whose own heading matches `titleRe`. */
 function dialogFor(titleRe: RegExp): HTMLElement {

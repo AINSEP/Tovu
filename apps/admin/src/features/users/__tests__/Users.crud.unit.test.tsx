@@ -33,7 +33,7 @@ const ACTIVE_USER = {
 const ROLE = { id: "r1", name: "Editor", isBuiltin: false };
 const POLICY = { id: "p1", name: "Read-only", isBuiltin: false };
 
-let fetchMock: ReturnType<typeof vi.fn>;
+let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 
 beforeEach(() => {
   fetchMock = vi.fn();

@@ -12,7 +12,7 @@ import type { AdminWidget } from "../../../lib/api";
  * `Plugins.unit.test.tsx` established for this package.
  */
 
-let fetchMock: ReturnType<typeof vi.fn>;
+let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 
 beforeEach(() => {
   fetchMock = vi.fn();

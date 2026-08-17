@@ -24,7 +24,7 @@ import { ADMIN_AGENT_PAGE_PATHS } from "../../lib/agent-pages";
  * have moved when the two were split apart.
  */
 
-let fetchMock: ReturnType<typeof vi.fn>;
+let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 
 beforeEach(() => {
   fetchMock = vi.fn(async (url: string) => {

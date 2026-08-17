@@ -237,7 +237,7 @@ describe("consumeByokStream — the stream-consumer loop, extracted from startBy
   });
 });
 
-let fetchMock: ReturnType<typeof vi.fn>;
+let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 
 afterEach(() => {
   vi.unstubAllGlobals();

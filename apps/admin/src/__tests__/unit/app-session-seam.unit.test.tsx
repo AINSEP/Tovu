@@ -19,7 +19,7 @@ import type { UseAdminSession } from "../../App.hooks";
  * screen must never appear at all, and the assertion needs no `waitFor`.
  */
 
-let fetchMock: ReturnType<typeof vi.fn>;
+let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 
 beforeEach(() => {
   // Still stubbed — `useAdminLocale`'s `loadLanguage()` and other mounted screens still read
