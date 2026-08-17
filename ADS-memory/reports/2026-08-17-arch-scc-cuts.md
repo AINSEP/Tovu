@@ -254,6 +254,48 @@ reasons, making the marginal cost near-zero; or (b) core size is ever promoted f
 tier (`ENFORCE_HARD_CONSTRAINT_TIERS`/`RATCHET_METRICS` in `check-architecture.ts`) for a reason
 independent of this specific cycle. Absent either, the ~0.7pp is not worth the file-collision risk.
 
+## Second baseline move: absorbing organic propagation-cost drift (commit `dfde940b`)
+
+Between this dispatch's first baseline move (`2f73732b`) and `routedeps-vendor`'s cycle fix
+(`a751ed04`), `check:architecture` started failing on two hard-constraint metrics:
+
+| metric | baseline (`2f73732b`) | at HEAD after `a751ed04` | delta |
+|---|---|---|---|
+| propagation cost (all-import) | 10.50% | 10.51% | +0.01 pts |
+| propagation cost (runtime-only) | 2.25% | 2.31% | +0.06 pts |
+
+Everything else was unchanged: back-edges 15, module cycles 6 pairs / largest SCC 30, module API
+surface 208 (the regression already disclosed in the Task A section above — it did NOT move again
+here), core size 16.49%.
+
+**The cycle regression itself was FIXED, not absorbed into this move.** `routedeps-vendor`'s
+`features/deployments <-> features/vendor-credentials` cycle (reported to me, and to `team-lead`,
+earlier in this dispatch) is gone from the committed baseline's `moduleCycles.pairs` — verified at
+HEAD: still exactly 6 pairs, none of them the new one. `routedeps-vendor` closed it by injection
+(`publish-agent-tools.ts` now imports nothing — type or value — from `features/vendor-credentials`;
+the real functions are wired in from `assistant/tool-registrations.ts` instead, a one-directional
+`assistant -> vendor-credentials` edge that cannot cycle back), which also incidentally resolved the
+`PUBLISH_PROVIDER_TO_VENDOR` gap I'd flagged, since the fix removed the whole import rather than
+partially injecting it. This move touches ONLY the two propagation-cost numbers above.
+
+**Attribution for the propagation drift, verified two ways, neither pointing at the cutover:**
+1. My own check: `git diff --stat` between `2f73732b` and HEAD-at-the-time showed real, substantial
+   work landing from 3 different agents in the same window (the vendor-credentials injection wiring,
+   `assistant-selfheal`'s daemon-respawn/restart-UI wiring including a new `server/readiness-state.ts`,
+   and a new admin route `server/routes/admin/system/publish-credentials.ts`) — file count unchanged
+   (843 → 843), so this is new edges from real feature work, not node-count dilution.
+2. `routedeps-vendor`'s independent, stronger check: an isolated `git worktree` at `88e061c3` — the
+   true parent of their own first Task B commit, i.e. the tree exactly as it stood before their
+   vendor-credentials work touched anything — and `check:architecture` **already reported this exact
+   regression there**. They additionally ran a control test: re-adding the vendor-credentials edge and
+   then removing it again in isolation, and the all-import number did not move either way. Both checks
+   agree: the cutover is not the cause.
+
+**Conclusion:** ordinary organic growth — several legitimate new files/edges landing in the same
+window from unrelated feature work — not a specific defect. Moved forward in commit `dfde940b`
+(`development/scripts/check-architecture.baseline.json` only, 2 lines changed, verified via
+`git show --stat HEAD`), pushed. `check:architecture` is green at HEAD.
+
 ## Incident: accidental `git stash`
 
 Mid-session, while inspecting a dependency-cruiser rule, I ran `git stash` — forbidden per this
