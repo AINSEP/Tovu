@@ -2,7 +2,33 @@
 
 **Status: all 21 handlers fixed.** Dispatched to close the "unguarded async Express handler" bug
 class the routes coverage/complexity audit found (`2026-08-16-server-routes-coverage-complexity-
-audit.md`, §2). Four commits, in severity order.
+audit.md`, §2). Four fix commits, in severity order.
+
+## Headline finding: `sendStoreError` was decorative, not defensive
+
+The single most valuable thing in this pass wasn't one of the 21 listed handlers — it was a shared
+helper that made several of them only *look* fixed.
+
+`publish-credentials.ts` and `source-control-credentials.ts` each define a `sendStoreError(res,
+err)` helper: it maps 4 known typed errors to the right status code, and for anything else it used
+to `throw err`. That `throw` happens **from inside the caller's own `catch` block** —
+`catch (err) { sendStoreError(res, err); }` — so any error outside those 4 types re-escapes the
+handler it was supposed to be caught by. A `try`/`catch` that ends in a call like this is not a
+guard; it's a pass-through with extra steps.
+
+This means `POST`, `PUT`, and `POST .../:id/verify` in **both** files were structurally "guarded"
+(my AST scan's presence-of-`try` check correctly marked them as such — that check was never wrong,
+it just measures the wrong thing) but were **exactly as exposed to an unhandled-rejection hang as
+the unguarded `GET`/`DELETE` handlers next to them**, for the one error shape their 4 typed classes
+don't cover (e.g. the repo/DB itself failing). Proven directly: `publish-credentials: POST` in the
+regression suite reproduces this by making the store's `insert` throw a plain `Error` — before the
+fix, that request hangs for the full 3-second `AbortSignal.timeout` exactly like the unguarded `GET`
+does, despite `POST` having a `try`/`catch` on the page.
+
+Fixed once, in the helper (`sendStoreError` now responds `500 INTERNAL_ERROR` instead of
+re-throwing), rather than patching every call site — the fix covers `GET`/`DELETE` (genuinely
+unguarded) and `POST`/`PUT`/`verify` (falsely guarded) in both files simultaneously. See "Named
+follow-up" below for why this shape is worth sweeping for elsewhere.
 
 ## How the list was derived
 
@@ -26,15 +52,13 @@ position (any visitor can hit it, no auth gate to fail through first).
 
 ## What was fixed — all 21, four commits
 
-### Commit `62ca21c7` — credential CRUD (4 handlers + 1 shared-helper hardening)
+### Commit `62ca21c7` — credential CRUD (4 handlers + the `sendStoreError` fix)
 - `publish-credentials.ts`: `GET` (list, line 163), `DELETE` (line 231)
 - `source-control-credentials.ts`: `GET` (list, line 109), `DELETE` (line 148)
-- **Bonus, same commit:** `sendStoreError` (shared by both files) used to `throw err` for any error
-  outside its 4 typed classes — that re-throw happens *inside* the caller's own
-  `catch (err) { sendStoreError(res, err); }`, so it escapes that catch too. `POST`/`PUT`/
-  `POST .../:id/verify` in both files structurally had a `try`/`catch` (my AST scan's "guarded"
-  bucket) but leaked the exact same way for any untyped error. Fixed once, in the helper, instead
-  of patching every call site — now responds `500 INTERNAL_ERROR` for the untyped case.
+- **`sendStoreError` hardened** — see "Headline finding" above. This is the commit that also fixes
+  `POST`/`PUT`/`POST .../:id/verify` in both files, even though none of those three appear in the
+  21-handler list (they were never counted as "unguarded" by the presence-of-`try` scan — they just
+  weren't *effectively* guarded for one error shape).
 
 ### Commit `7cd9c200` — publish/export trigger+status (5 handlers)
 - `publish-site.ts`: `POST` trigger (171), `GET` status (235), `GET` preview (260)
@@ -54,7 +78,7 @@ the run it starts can't reach these catches by construction.
   batch: an unguarded failure here means an inbound payment-provider webhook hangs instead of
   getting a fast `500` that tells the provider to retry.
 
-### Commit (this session, uncommitted at time of writing — see below) — remaining 7 plain reads + 1 public route
+### Commit `0786e718` — remaining 7 plain reads + 1 public route
 - `analytics/recent-hits.ts`: `GET` (72)
 - `comments/moderation-queue.ts`: `GET` (28)
 - `commerce/status.ts`: `GET` (29)
@@ -71,12 +95,17 @@ line for the public route) in `try { ... } catch (err) { console.error(...); res
 error: "internal error", code: "INTERNAL_ERROR" }); }` — matching the `INTERNAL_ERROR` shape already
 used by ~30 other route files in this codebase (grepped before choosing it, not invented fresh).
 
-## Handlers that looked guarded but weren't
+## Handlers that looked guarded but weren't — the full list
 
-Exactly the trap the brief warned about, found in `publish-credentials.ts`/
-`source-control-credentials.ts`'s shared `sendStoreError` helper (see Commit `62ca21c7` above). No
-other file in scope had this shape — every other fix in this pass was a genuinely-missing
-`try`/`catch`, not a leaky one.
+Exactly the trap the brief warned about. Only these three, all from the "Headline finding" above,
+all in the two credential-CRUD files:
+
+- `publish-credentials.ts` — `POST` (line 169), `PUT .../:id` (190), `POST .../:id/verify` (211)
+- `source-control-credentials.ts` — `POST` (115), `PUT .../:id` (131)
+
+No other file in the 21-handler scope had this shape — every other fix in this pass was a
+genuinely-missing `try`/`catch`, not a leaky one. (`source-control-credentials.ts` has no `verify`
+route, so it's 2 falsely-guarded handlers to `publish-credentials.ts`'s 3.)
 
 ## Regression tests — `src/server/__tests__/route-async-guards.test.ts` (new file, 22 tests)
 
@@ -130,13 +159,27 @@ roster) — a repo-wide check measures the tree, not any one agent's HEAD.
 
 ## What's left
 
-Nothing from the original 21-handler list. If a future pass wants to go further:
-- The `sendStoreError`-shaped trap (typed-error mapper re-throwing on the untyped case) is worth a
-  quick grep across other route files with a similar typed-error-mapper pattern — this pass only
-  checked the two files it happened to touch.
-- The 3 pre-existing `publish-site-route.test.ts` failures noted above.
+Nothing from the original 21-handler list — all 21 fixed, all verified.
+
+**Named follow-up (not started, deliberately): sweep `src/` for the same "throws from inside its
+own catch" shape.** `sendStoreError` is a typed-error-mapper pattern — a helper that recognizes N
+known error classes and maps each to a status code, called from inside a route handler's own
+`catch`. That pattern almost certainly isn't unique to these two files; anywhere else it exists,
+the same bug exists: an untyped error re-thrown from inside a "guarded" catch block escapes exactly
+like it did here. This pass only found it because it happened to be sitting in two files already on
+the 21-handler list — it was not the result of a deliberate search for this shape. A grep for
+`) {\n.*throw err` inside `catch` blocks, or for other `sendXError`/`mapError`-style helpers across
+`src/server/routes/**`, is the natural next step. Not started this session because the owner asked
+to close out and verify this batch first, not widen the diff — flagged here so it isn't lost.
+Whoever picks it up: this is the same class of finding as the credential-CRUD fix above, and the
+regression-test pattern in `route-async-guards.test.ts` (throw an untyped error via a broken
+dependency, assert `500` under a bounded timeout) generalizes directly.
+
+Smaller items, lower priority:
+- The 3 pre-existing `publish-site-route.test.ts` failures noted above (unrelated to this work,
+  confirmed present with the fix fully reverted too).
 - Complexity debt (`parsePublishRequestBody`/`parsePreviewQuery`/`parseTriggerRequestBody`) is
-  tracked by the coverage/complexity audit already, not duplicated here.
+  already tracked by the coverage/complexity audit, not duplicated here.
 
 ## Git discipline notes for whoever reads this next
 
