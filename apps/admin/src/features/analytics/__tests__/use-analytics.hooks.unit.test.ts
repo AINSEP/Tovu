@@ -30,7 +30,7 @@ function jsonResponse(body: unknown, status = 200): Response {
 /** Identity translator for tests that don't care about `t`'s own behavior — see this file's header. */
 const fakeT = (key: string): string => key;
 
-let fetchMock: ReturnType<typeof vi.fn>;
+let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 
 afterEach(() => {
   vi.unstubAllGlobals();

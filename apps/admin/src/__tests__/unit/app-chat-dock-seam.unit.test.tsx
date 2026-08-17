@@ -21,7 +21,7 @@ import type { UseAdminSession, UseChatDockLayout } from "../../App.hooks";
  * `ResizeObserver` call, never runs at all.
  */
 
-let fetchMock: ReturnType<typeof vi.fn>;
+let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 
 beforeEach(() => {
   fetchMock = vi.fn(async () => new Response(JSON.stringify({}), { status: 200, headers: { "content-type": "application/json" } }));

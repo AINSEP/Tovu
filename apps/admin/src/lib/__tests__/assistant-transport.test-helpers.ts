@@ -76,6 +76,6 @@ export async function flushMicrotasks(): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
-export function stubFetchJsonOk(body: unknown, status = 200): ReturnType<typeof vi.fn> {
+export function stubFetchJsonOk(body: unknown, status = 200): ReturnType<typeof vi.fn<(...args: any[]) => any>> {
   return vi.fn(async () => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } }));
 }

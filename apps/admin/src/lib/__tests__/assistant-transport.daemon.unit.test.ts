@@ -37,7 +37,7 @@ function handlers(): RunHandlers & { events: AgentEvent[]; errors: Error[]; done
 
 const HISTORY: ChatMessage[] = [{ id: "1", role: "user", content: "list my posts" }];
 
-let fetchMock: ReturnType<typeof vi.fn>;
+let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 
 beforeEach(() => {
   resetFakeEventSource();

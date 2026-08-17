@@ -17,7 +17,7 @@ const ACTION_MESSAGE = {
   action: { name: "continue", surfaceId: "ex-1", sourceComponentId: "btn", timestamp: "2026-01-01T00:00:00Z", context: {} },
 };
 
-let fetchMock: ReturnType<typeof vi.fn>;
+let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
 
 beforeEach(() => {

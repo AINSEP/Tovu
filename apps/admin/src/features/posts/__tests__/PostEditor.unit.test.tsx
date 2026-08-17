@@ -33,7 +33,7 @@ const DRAFT_POST = {
 
 const DRAFT_PAGE = { ...DRAFT_POST, id: "pg1", kind: "page" as const, title: "About", slug: "about" };
 
-let fetchMock: ReturnType<typeof vi.fn>;
+let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 /** Per-test override for the active theme's `templates` list; `[]` disables the picker. */
 let activeThemeTemplates: string[];
 

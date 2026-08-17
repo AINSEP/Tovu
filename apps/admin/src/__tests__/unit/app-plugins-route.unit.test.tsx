@@ -19,7 +19,7 @@ import { App } from "../../App";
 
 const PLACEHOLDER_COPY = /Placeholder for future plugin and module administration/i;
 
-let fetchMock: ReturnType<typeof vi.fn>;
+let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 
 beforeEach(() => {
   fetchMock = vi.fn(async (url: string) => {

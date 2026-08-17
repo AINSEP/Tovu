@@ -29,7 +29,7 @@ const POINT: AdminRestorePoint = {
 };
 const POINT_2: AdminRestorePoint = { ...POINT, id: "rp2" };
 
-let fetchMock: ReturnType<typeof vi.fn>;
+let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 
 beforeEach(() => {
   fetchMock = vi.fn();

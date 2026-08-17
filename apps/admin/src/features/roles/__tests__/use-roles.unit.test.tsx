@@ -40,7 +40,7 @@ function jsonResponse(body: unknown, status = 200): Response {
 const ROLE = { id: "r1", workspaceId: "w1", name: "Editor", isBuiltin: false };
 const POLICY = { id: "p1", workspaceId: "w1", name: "Content", description: "d", isBuiltin: false, isFrozen: false };
 
-let fetchMock: ReturnType<typeof vi.fn>;
+let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 
 beforeEach(() => {
   fetchMock = vi.fn();

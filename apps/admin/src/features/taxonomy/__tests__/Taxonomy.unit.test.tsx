@@ -98,7 +98,7 @@ function renderTaxonomy(overrides: Partial<TaxonomyController> = {}) {
   return controller;
 }
 
-let fetchMock: ReturnType<typeof vi.fn>;
+let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 
 beforeEach(() => {
   fetchMock = vi.fn();

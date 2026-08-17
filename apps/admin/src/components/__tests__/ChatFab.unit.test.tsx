@@ -116,7 +116,7 @@ describe("ChatFab — interaction", () => {
   });
 
   it("a non-primary pointer button (e.g. right-click) does not start a drag capture", () => {
-    const setPointerCapture = HTMLElement.prototype.setPointerCapture as unknown as ReturnType<typeof vi.fn>;
+    const setPointerCapture = HTMLElement.prototype.setPointerCapture as unknown as ReturnType<typeof vi.fn<(...args: any[]) => any>>;
     render(<ChatFab open={false} onToggle={vi.fn()} avoidBottomPx={0} avoidRightPx={0} />);
     const button = screen.getByRole("button", { name: "Open assistant" });
 

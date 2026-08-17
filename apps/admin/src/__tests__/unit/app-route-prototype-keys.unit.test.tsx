@@ -30,7 +30,7 @@ import { App } from "../../App";
 
 const PROTOTYPE_KEYS = ["constructor", "valueOf", "__proto__", "toString", "hasOwnProperty"];
 
-let fetchMock: ReturnType<typeof vi.fn>;
+let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 
 beforeEach(() => {
   fetchMock = vi.fn(async (url: string) => {

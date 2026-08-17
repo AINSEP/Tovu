@@ -48,7 +48,7 @@ const ACTIVE_USER = {
 
 const DISABLED_USER = { ...ACTIVE_USER, principalId: "u2", username: "bob", status: "disabled" as const };
 
-let fetchMock: ReturnType<typeof vi.fn>;
+let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 
 /** Finds the `<dialog>` whose own heading matches `titleRe` — there are two `ConfirmDialog`s
  *  mounted on this screen (Disable, Reset password), both always in the DOM. */

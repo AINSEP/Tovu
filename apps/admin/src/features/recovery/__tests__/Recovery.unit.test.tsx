@@ -172,7 +172,7 @@ describe("restore points list", () => {
 
 // --- RestoreFlow, exercised through Recovery with `selected` set, real hook + mocked fetch ---
 
-let fetchMock: ReturnType<typeof vi.fn>;
+let fetchMock: ReturnType<typeof vi.fn<(...args: any[]) => any>>;
 
 beforeEach(() => {
   fetchMock = vi.fn();
