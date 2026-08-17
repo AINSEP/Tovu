@@ -33,6 +33,7 @@ import type { GatewayDeps } from "../../core/gated-mutations/gateway";
 import { plan as gatewayPlan } from "../../core/gated-mutations/gateway";
 import type { DbOpsPort } from "../../core/gated-mutations/ports";
 import { isOperationInFlight } from "../../core/operation-lock";
+import { registerToolContributor } from "#src/assistant/index";
 import { buildRestoreHooks, toRecoveryResult } from "./gated-hooks";
 import type {
   MigrationRunsRepoPort,
@@ -279,4 +280,19 @@ export function buildRecoveryRegistrations(routeDeps: RecoveryToolDeps): ToolReg
     derivedRisk: recoveryDerivedRisk,
     unwiredToolIds: UNWIRED_RECOVERY_TOOL_IDS,
   });
+}
+
+/**
+ * Contributes Recovery's AI tools to the assistant's catalog — called once by
+ * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
+ * module. `assistant/tool-registrations.ts` no longer imports `buildRecoveryRegistrations`/
+ * `recoveryDerivedRisk` by name; this is the seam that replaced it (2026-08-17, Stage 2 batch 2).
+ * Unlike `database` (tried and reverted earlier in this same batch — see
+ * `features/database/tool-registrations.ts`'s trailing comment), Recovery's only imports of
+ * `features/database` (`../database/boot/reconcile-interrupted-migration`, `../database/gated-hooks`)
+ * are both `import type` — erased from the runtime-only graph `check:architecture` uses for module
+ * cycles/SCC — so this domain does not carry `database`'s `db`-hub round-trip risk.
+ */
+export function contributeRecoveryTools(): void {
+  registerToolContributor({ domain: "recovery", build: buildRecoveryRegistrations, risk: recoveryDerivedRisk });
 }

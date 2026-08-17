@@ -242,3 +242,21 @@ export function buildDatabaseRegistrations(routeDeps: DatabaseToolDeps): ToolReg
     unwiredToolIds: UNWIRED_DATABASE_TOOL_IDS,
   });
 }
+
+// 2026-08-17: Database was briefly converted to the tool-contribution registry
+// (`contributeDatabaseTools`, registered via `#src/assistant/index`'s `registerToolContributor`)
+// in the same Stage 2 batch 2 that converted widgets/content-types/forms/menus, then reverted the
+// same night — `check:architecture --list` showed it opened a NEW, much larger module cycle than
+// the `themes`/`post` near-misses in the prior batch: adding `database -> assistant` closed a
+// 16-module SCC: `assistant, db, export, features/database, features/deployments, features/entries,
+// features/pages, features/plugin-runtime, features/post, features/presentation, features/recovery,
+// features/settings, features/source-control, features/vendor-credentials, features/workspace, seo`.
+// A plain relative-path/`#src/*` importer grep on `features/database` alone (server/* and
+// `db/sqlite/*` only) did not surface this — the cycle runs through the shared low-level `db`
+// module and the still-static `deployments`/`source-control`/`recovery`/`settings`/`workspace`/
+// `entries`/`post`/`pages`/`plugin-runtime`/`seo` `DOMAIN_SLICES` entries collectively, not through
+// any single direct importer. Database cannot convert safely until enough of that still-static
+// cluster converts (or the `db` hub's cross-domain imports are narrowed) to break every path back
+// from `assistant`'s remaining static domains through `db` into `features/database`. Left as a
+// normal `DOMAIN_SLICES` entry; see `assistant/tool-registrations.ts`'s own header for the current
+// authoritative list of what has and hasn't converted.

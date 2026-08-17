@@ -30,6 +30,18 @@ import {
   assertRiskMetadataIsWirable,
   buildAssistantToolRegistrations,
 } from "../tool-registrations";
+import { resetToolContributorsForTests } from "../tool-contribution-registry";
+import { contributeRecoveryTools } from "../../features/recovery/tool-registrations";
+
+// Recovery moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
+// tool-contribution registry (2026-08-17, Stage 2 batch 2 — see `tool-contribution-registry.ts`'s
+// header), so `buildAssistantToolRegistrations` below no longer wires it unless something explicitly
+// installs it first, mirroring what the real composition roots now do via
+// `installFirstPartyToolContributors()`. Database stays a normal `DOMAIN_SLICES` entry (tried and
+// reverted the same batch — see `features/database/tool-registrations.ts`'s trailing comment), so it
+// needs no such setup.
+resetToolContributorsForTests();
+contributeRecoveryTools();
 
 /**
  * @file The combined Database (SPEC-017, ADR-041) + Recovery (SPEC-019, ADR-045) tool-wiring test

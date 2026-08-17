@@ -1,5 +1,6 @@
 import { contributeCommentsTools } from "../comments/tool-registrations";
 import { contributeContentTypesTools } from "../features/content-types/tool-registrations";
+import { contributeRecoveryTools } from "../features/recovery/tool-registrations";
 import { contributeTaxonomyTools } from "../features/taxonomy/tool-registrations";
 import { contributeFormsTools } from "../forms/tool-registrations";
 import { contributeIdentityTools } from "../identity/tool-registrations";
@@ -27,13 +28,15 @@ import { contributeWidgetsTools } from "../widgets/tool-registrations";
  * throughout `server/deps.ts`/`server/app.ts` — this file adds no new module-level edge that did not
  * already exist, it just adds one more file-level reason for edges that were already there.
  *
- * 10 of the ~24 assistant-wired domains are listed here today (2026-08-17: `comments`/`newsletter`
+ * 11 of the ~24 assistant-wired domains are listed here today (2026-08-17: `comments`/`newsletter`
  * from Stage 1 of the registry rollout, `identity`/`members`/`taxonomy`/`redirects` added in Stage 2
  * batch 1 — `themes` was also tried in that batch and reverted, see `assistant/tool-registrations.ts`'s
- * header for why — and `widgets`/`content-types`/`forms`/`menus` added in Stage 2 batch 2, `widgets`
- * converted FIRST in that batch specifically to remove the `assistant -> widgets` static edge before
- * `content-types`/`forms` converted, since both of those are imported by `widgets`). The rest still
- * wire through
+ * header for why — and `widgets`/`content-types`/`forms`/`menus`/`recovery` added in Stage 2 batch 2,
+ * `widgets` converted FIRST in that batch specifically to remove the `assistant -> widgets` static
+ * edge before `content-types`/`forms` converted, since both of those are imported by `widgets`.
+ * `database` was ALSO tried in the same batch and reverted — see `assistant/tool-registrations.ts`'s own
+ * `DOMAIN_SLICES` entry comment for why: a much larger 16-module SCC than the `themes`/`post`
+ * near-misses in the prior batch). The rest still wire through
  * `assistant/tool-registrations.ts`'s own `DOMAIN_SLICES` array, unchanged — see that file's header
  * for why (its own array still names exactly which domains those are). `post` was also tried and
  * reverted the same night as Stage 1: converting it opened a NEW module cycle (`assistant -> widgets ->
@@ -71,6 +74,7 @@ export function installFirstPartyToolContributors(): void {
   contributeMembersTools();
   contributeMenusTools();
   contributeNewsletterTools();
+  contributeRecoveryTools();
   contributeRedirectsTools();
   contributeTaxonomyTools();
   contributeWidgetsTools();
