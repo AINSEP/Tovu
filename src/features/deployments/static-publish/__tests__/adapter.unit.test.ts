@@ -205,7 +205,7 @@ test("computeBasePath: netlify and cloudflare-pages never carry a base path, sam
 });
 
 test("publishStaticSite: does NOT inject .nojekyll for netlify or cloudflare-pages, and never sets a base path", async () => {
-  for (const config: StaticPublishConfig of [{ target: "netlify" }, { target: "cloudflare-pages" }] as const) {
+  for (const config of [{ target: "netlify" }, { target: "cloudflare-pages" }] as const) {
     const captured: { value: DeployFile[] | null } = { value: null };
     const deps: RouteDeps = { ...createRouteDeps() };
 
