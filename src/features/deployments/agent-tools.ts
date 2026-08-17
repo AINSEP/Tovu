@@ -50,7 +50,8 @@ const NO_INPUT_SCHEMA = {
 
 /** `deployment_trigger_export`'s input. Both fields optional — omitting either reproduces the HTTP
  *  route's own defaults (`clean:false`, no base-path rewrite). Neither field is a filesystem path;
- *  `outputDir` is never caller-controllable (see `export-run.ts`'s `resolveExportOutputDir`). */
+ *  `outputDir` is never caller-controllable (see `export-run.ts`'s `startExportRun`, which reads
+ *  `RouteDeps.exportOutputRootDir` rather than accepting one). */
 const TRIGGER_EXPORT_SCHEMA = {
   type: "object",
   additionalProperties: false,

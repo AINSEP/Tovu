@@ -16,9 +16,10 @@ import type { RouteDeps } from "../../routes/types";
  * trigger, `409` on a second trigger while one is running, and the final polled snapshot proving a
  * real export ran (not a fabricated "ok").
  *
- * `TOVU_EXPORT_DIR` is pointed at a throwaway temp directory for this whole file (module-level, not
- * per-test) rather than the real `infra/export` default — this suite actually runs `exportSite`
- * against the hermetic `createRouteDeps()` fixture and must not write into the checked-out repo.
+ * `RouteDeps.exportOutputRootDir` is pointed at a throwaway temp directory for this whole file (via
+ * {@link testRouteDeps} below, module-level, not per-test) rather than the real `infra/export`
+ * default — this suite actually runs `exportSite` against the hermetic `createRouteDeps()` fixture
+ * and must not write into the checked-out repo.
  *
  * `currentRun` (the route module's process-local run slot) is shared mutable state across every
  * test in this FILE, same as any singleton `node:test` exercises without a reset hook — tests below
@@ -28,9 +29,16 @@ import type { RouteDeps } from "../../routes/types";
  */
 
 const exportOutputDir = mkdtempSync(path.join(tmpdir(), "tovu-export-route-test-"));
-process.env.TOVU_EXPORT_DIR = exportOutputDir;
 
 const EXPORT_PATH = "system/export";
+
+/** The hermetic fixture, with `exportOutputRootDir` redirected to this file's own throwaway temp
+ *  dir — `startExportRun` reads this `RouteDeps` field instead of `process.env.TOVU_EXPORT_DIR`
+ *  (export-run.ts no longer reads env vars at all), so overriding it here is what keeps this
+ *  suite's real `exportSite` writes off the checked-out repo. */
+function testRouteDeps(): RouteDeps {
+  return { ...createRouteDeps(), exportOutputRootDir: exportOutputDir };
+}
 
 async function loginAsBarePrincipal(deps: RouteDeps, baseUrl: string): Promise<string> {
   await deps.identityReady;
@@ -60,7 +68,7 @@ async function loginAsBarePrincipal(deps: RouteDeps, baseUrl: string): Promise<s
 }
 
 test("export-site: an unauthorized principal (no grants) gets 403 on both the trigger and the status poll", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: RouteDeps = { ...testRouteDeps() };
   const app = createApp(deps);
   const { baseUrl } = await bootAuthenticated(app, t);
   const cookie = await loginAsBarePrincipal(deps, baseUrl);
@@ -76,7 +84,7 @@ test("export-site: an unauthorized principal (no grants) gets 403 on both the tr
 });
 
 test("export-site: a mismatched workspaceId in the URL 404s on both routes", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: RouteDeps = { ...testRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -91,7 +99,7 @@ test("export-site: a mismatched workspaceId in the URL 404s on both routes", asy
 });
 
 test("export-site: the status poll starts idle before any trigger has run in this process", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: RouteDeps = { ...testRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -102,7 +110,7 @@ test("export-site: the status poll starts idle before any trigger has run in thi
 });
 
 test("export-site: a malformed trigger body 400s and never starts a run", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: RouteDeps = { ...testRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -115,7 +123,7 @@ test("export-site: a malformed trigger body 400s and never starts a run", async 
 });
 
 test("export-site: trigger starts a real run (202), a concurrent second trigger gets 409, and the poll settles to an honest completed report", async (t) => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: RouteDeps = { ...testRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   t.after(() => rmSync(exportOutputDir, { recursive: true, force: true }));

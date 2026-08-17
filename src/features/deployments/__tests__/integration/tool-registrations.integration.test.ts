@@ -22,9 +22,10 @@ import { buildDeploymentsRegistrations, type DeploymentsToolDeps } from "../../t
  * `createRouteDeps()` hermetic fixture `server/app.ts`'s own route tests already use, overriding only
  * `authorize`/`deploymentsReadRepo` where a test needs to.
  *
- * `TOVU_EXPORT_DIR` is pointed at a throwaway temp directory for this whole file (module-level, not
- * per-test), mirroring `export-site-route.test.ts` exactly — this suite really runs `exportSite` and
- * must not write into the checked-out repo's own `infra/export`.
+ * `RouteDeps.exportOutputRootDir` is pointed at a throwaway temp directory for this whole file (via
+ * {@link grantingDeps}, module-level, not per-test), mirroring `export-site-route.test.ts` exactly
+ * — this suite really runs `exportSite` and must not write into the checked-out repo's own
+ * `infra/export`.
  *
  * The Dockerfile round-trip tests write to the SAME real repo-root `Dockerfile` the HTTP route tests
  * do (there is no path input to redirect them elsewhere, by design — see `dockerfile.ts`'s header).
@@ -46,7 +47,6 @@ import { buildDeploymentsRegistrations, type DeploymentsToolDeps } from "../../t
  */
 
 const exportOutputDir = mkdtempSync(path.join(tmpdir(), "tovu-deployments-tools-test-"));
-process.env.TOVU_EXPORT_DIR = exportOutputDir;
 
 function ctx(input: unknown) {
   return { principal: { id: "admin-1", kind: "user" as const }, signal: new AbortController().signal, input };
@@ -56,9 +56,11 @@ function ctx(input: unknown) {
  *  of labor `features/pages/__tests__/tool-registrations.test.ts`'s harness comment states: real
  *  authorize()/403 behavior is exercised by each wrapped route's own HTTP test
  *  (`export-site-route.test.ts`, `dockerfile-source-route.test.ts`, `deployments-list-route.test.ts`);
- *  these assertions are about the tools' own wrapping. */
+ *  these assertions are about the tools' own wrapping. `exportOutputRootDir` is redirected to this
+ *  file's own throwaway temp dir — `startExportRun` reads that `RouteDeps` field instead of
+ *  `process.env.TOVU_EXPORT_DIR` (export-run.ts no longer reads env vars at all). */
 function grantingDeps(): DeploymentsToolDeps {
-  return { ...createRouteDeps(), authorize: async () => ({ allowed: true }) };
+  return { ...createRouteDeps(), exportOutputRootDir: exportOutputDir, authorize: async () => ({ allowed: true }) };
 }
 
 test("all 5 deployments tools are registered with input schemas the model needs", () => {

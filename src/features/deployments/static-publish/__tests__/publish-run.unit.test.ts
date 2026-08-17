@@ -22,10 +22,17 @@ import type { PublishCredentialSource } from "../types";
  */
 
 const publishOutputDir = mkdtempSync(path.join(tmpdir(), "tovu-publish-run-test-"));
-process.env.TOVU_PUBLISH_DIR = publishOutputDir;
 test.after(() => rmSync(publishOutputDir, { recursive: true, force: true }));
 
 const clock = { nowIso: () => "2026-08-16T12:00:00.000Z" };
+
+/** The hermetic fixture, with `publishOutputRootDir` redirected to this file's own throwaway temp
+ *  dir — `publishStaticSite` reads this field instead of `process.env.TOVU_PUBLISH_DIR` (adapter.ts
+ *  no longer reads env vars at all), so overriding it here is what keeps this suite's real
+ *  `exportSite` writes off the checked-out repo. */
+function testRouteDeps(): ReturnType<typeof createRouteDeps> {
+  return { ...createRouteDeps(), publishOutputRootDir: publishOutputDir };
+}
 
 function fakeDeployTarget(url = "https://example.test/published", status = "ready", deploymentId?: string): DeployTarget {
   return {
@@ -84,7 +91,7 @@ function githubInput(routeDeps: ReturnType<typeof createRouteDeps>): StaticPubli
 }
 
 test("runPublishAndAwait: a full success records history with owner/repo/basePath/branch/commitSha, reachable:true, triggeredBy:agent_tool", async () => {
-  const routeDeps = createRouteDeps();
+  const routeDeps = testRouteDeps();
   const deps: StaticPublishDeps = { credentialSource: fakeCredentialSource(), buildTarget: () => fakeDeployTarget("https://example.test/published", "ready", "commit-sha-abc123") };
   const history = new InMemoryPublishHistoryStore();
   const input = githubInput(routeDeps);
@@ -112,7 +119,7 @@ test("runPublishAndAwait: a full success records history with owner/repo/basePat
 });
 
 test("runPublishAndAwait: a non-github-pages target never carries commitSha/branch, even though deploymentId is still recorded verbatim", async () => {
-  const routeDeps = createRouteDeps();
+  const routeDeps = testRouteDeps();
   const deps: StaticPublishDeps = { credentialSource: fakeCredentialSource(), buildTarget: () => fakeDeployTarget("https://demo.vercel.app", "ready", "dpl_not_a_commit") };
   const history = new InMemoryPublishHistoryStore();
   const input: StaticPublishInput = { workspaceId: routeDeps.workspaceId, routeDeps, config: { target: "vercel" }, projectName: "demo" };
@@ -129,7 +136,7 @@ test("runPublishAndAwait: a non-github-pages target never carries commitSha/bran
 });
 
 test("runPublishAndAwait: a partial (uploaded, not yet reachable) outcome is still recorded, with reachable:false", async () => {
-  const routeDeps = createRouteDeps();
+  const routeDeps = testRouteDeps();
   const deps: StaticPublishDeps = { credentialSource: fakeCredentialSource(), buildTarget: () => partialDeployTarget() };
   const history = new InMemoryPublishHistoryStore();
   const input: StaticPublishInput = { workspaceId: routeDeps.workspaceId, routeDeps, config: { target: "s3-compatible" }, projectName: "demo" };
@@ -144,7 +151,7 @@ test("runPublishAndAwait: a partial (uploaded, not yet reachable) outcome is sti
 });
 
 test("runPublishAndAwait: a failed outcome is never recorded — no history for a publish that did not happen", async () => {
-  const routeDeps = createRouteDeps();
+  const routeDeps = testRouteDeps();
   const deps: StaticPublishDeps = { credentialSource: fakeCredentialSource(), buildTarget: () => failingDeployTarget() };
   const history = new InMemoryPublishHistoryStore();
   const input = githubInput(routeDeps);
@@ -156,7 +163,7 @@ test("runPublishAndAwait: a failed outcome is never recorded — no history for 
 });
 
 test("runPublishAndAwait: a history-store failure never changes the reported outcome — best-effort only", async () => {
-  const routeDeps = createRouteDeps();
+  const routeDeps = testRouteDeps();
   const deps: StaticPublishDeps = { credentialSource: fakeCredentialSource(), buildTarget: () => fakeDeployTarget() };
   const brokenHistory = {
     async getLast() {
@@ -173,7 +180,7 @@ test("runPublishAndAwait: a history-store failure never changes the reported out
 });
 
 test("startPublishRun: the fire-and-forget path records history too, once the background publish settles", async () => {
-  const routeDeps = createRouteDeps();
+  const routeDeps = testRouteDeps();
   const deps: StaticPublishDeps = { credentialSource: fakeCredentialSource(), buildTarget: () => fakeDeployTarget("https://example.test/bg", "ready") };
   const history = new InMemoryPublishHistoryStore();
   const input = githubInput(routeDeps);

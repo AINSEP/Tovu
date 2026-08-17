@@ -176,14 +176,16 @@ export interface CommitSiteInput {
 /** Each source-control export gets its OWN directory under `infra/` (the Docker-volume-mounted
  *  directory every other export/publish artifact already lives under), separate from
  *  `static-publish/adapter.ts`'s own `infra/publish/<target>` so the two features never race over the
- *  same on-disk output. `TOVU_SOURCE_CONTROL_EXPORT_DIR` overrides the parent, mirroring
- *  `export-site.ts`'s `TOVU_EXPORT_DIR`/`adapter.ts`'s `TOVU_PUBLISH_DIR` — a real operational knob,
- *  and what lets this module's own tests redirect off the checked-out repo. */
-function commitExportDir(): string {
-  const parent =
-    process.env.TOVU_SOURCE_CONTROL_EXPORT_DIR !== undefined
-      ? path.resolve(process.env.TOVU_SOURCE_CONTROL_EXPORT_DIR)
-      : path.resolve(process.cwd(), "infra", "source-control-export");
+ *  same on-disk output.
+ *
+ * `parent` is `RouteDeps.sourceControlExportRootDir` (`TOVU_SOURCE_CONTROL_EXPORT_DIR` env, then
+ * `infra/source-control-export` — mirroring `export-site.ts`'s `TOVU_EXPORT_DIR`/`adapter.ts`'s
+ * `TOVU_PUBLISH_DIR`), resolved ONCE by the composition root (`server/app.ts`/`server/deps.ts`) and
+ * threaded through {@link commitSiteToSourceControl}'s `input.routeDeps` — never read from
+ * `process.env` in this file. A test overrides it the same way every other `RouteDeps` field is
+ * overridden: by setting `sourceControlExportRootDir` on the fake `RouteDeps` it constructs, not by
+ * mutating real process env vars. */
+function commitExportDir(parent: string): string {
   return path.join(parent, "github");
 }
 
@@ -270,7 +272,7 @@ export async function commitSiteToSourceControl(deps: CommitSiteDeps, input: Com
 
   let report: ExportReport;
   try {
-    report = await exportSiteLazily({ routeDeps: input.routeDeps, outputDir: commitExportDir(), clean: true });
+    report = await exportSiteLazily({ routeDeps: input.routeDeps, outputDir: commitExportDir(input.routeDeps.sourceControlExportRootDir), clean: true });
   } catch (err) {
     return { ok: false, code: "EXPORT_FAILED", message: `export failed before committing could start: ${err instanceof Error ? err.message : String(err)}` };
   }

@@ -1,5 +1,3 @@
-import path from "node:path";
-
 /**
  * @file The static-site export run's process-local single-flight state, extracted out of
  * `server/routes/admin/system/export-site.ts` (2026-08-15) so a SECOND caller — the
@@ -127,14 +125,6 @@ const IDLE_RUN: ExportRunSnapshot = { status: "idle", startedAtIso: null, finish
  *  instance of it and which do not. */
 let currentRun: ExportRunSnapshot = IDLE_RUN;
 
-/** `TOVU_EXPORT_DIR` env, then `<cwd>/infra/export` — moved verbatim from `export-site.ts`; see
- *  that file's own prior header for the full precedence rationale (`--out` is CLI-only, not a
- *  caller-supplied field here either, by either an HTTP body or a tool `input`). */
-function resolveExportOutputDir(): string {
-  if (process.env.TOVU_EXPORT_DIR !== undefined) return path.resolve(process.env.TOVU_EXPORT_DIR);
-  return path.resolve(process.cwd(), "infra", "export");
-}
-
 /** Slims a full export report down to `ExportRunSnapshot`'s "completed" fields — moved verbatim
  *  from `export-site.ts`. */
 function summarizeCompletedReport(report: ExportRunReportLike): Pick<
@@ -180,8 +170,12 @@ export function getExportRunSnapshot(): ExportRunSnapshot {
  * already in flight would silently start a second one; it is deliberately not the guard itself.
  *
  * @param routeDeps - The same full composition-root deps object the injected `runExportSite` needs
- * to boot an in-process copy of the app. Opaque to this function beyond `.clock.nowIso()` — passed
- * straight through to `runExportSite`.
+ * to boot an in-process copy of the app. Opaque to this function beyond `.clock.nowIso()` and
+ * `.exportOutputRootDir` — passed straight through to `runExportSite`. `exportOutputRootDir` is
+ * `RouteDeps.exportOutputRootDir` (`TOVU_EXPORT_DIR` env, then `<cwd>/infra/export`), resolved ONCE
+ * by the composition root (`server/app.ts`/`server/deps.ts`) — this function never reads
+ * `process.env` itself, and a test overrides the directory by setting this field on the fake
+ * `routeDeps` it constructs, not by mutating real process env vars.
  * @param runExportSite - The actual export engine, injected by the caller — see this file's header
  * for why it is never imported here directly. In production this is always `routeDeps.runExportSite`
  * (bound to the real `exportSite` by `server/app.ts`/`server/deps.ts`).
@@ -193,12 +187,12 @@ export function getExportRunSnapshot(): ExportRunSnapshot {
  * @complexity O(1) synchronously; the awaited export itself is O(routes + assets) over HTTP, per
  * `site-exporter.ts`'s own complexity note.
  */
-export function startExportRun<TRouteDeps extends { clock: { nowIso(): string } }>(
+export function startExportRun<TRouteDeps extends { clock: { nowIso(): string }; exportOutputRootDir: string }>(
   routeDeps: TRouteDeps,
   runExportSite: ExportEngine<TRouteDeps>,
   options: { clean: boolean; basePath?: string },
 ): ExportRunSnapshot {
-  const outputDir = resolveExportOutputDir();
+  const outputDir = routeDeps.exportOutputRootDir;
   const startedAtIso = routeDeps.clock.nowIso();
   currentRun = { status: "running", startedAtIso, finishedAtIso: null, outputDir };
 

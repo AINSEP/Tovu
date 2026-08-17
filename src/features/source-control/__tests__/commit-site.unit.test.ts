@@ -16,13 +16,22 @@ import { commitSiteToSourceControl, toCommitFile, validateCommitTarget, type Com
  * @file `commit-site.ts`'s business-logic proof — mirrors
  * `static-publish/__tests__/adapter.unit.test.ts`'s own shape: real `createRouteDeps()` (in-process,
  * no external network) runs a REAL export, with only the `GitHubCommitAdapter` seam faked, so this
- * file never touches `fetch`. Every test redirects `TOVU_SOURCE_CONTROL_EXPORT_DIR` to a throwaway
- * temp directory (module-level, matching `adapter.unit.test.ts`'s own `TOVU_PUBLISH_DIR` redirect).
+ * file never touches `fetch`. Every test redirects `RouteDeps.sourceControlExportRootDir` to a
+ * throwaway temp directory (via {@link testRouteDeps} below, matching `adapter.unit.test.ts`'s own
+ * `publishOutputRootDir` redirect).
  */
 
 const exportDir = mkdtempSync(path.join(tmpdir(), "tovu-source-control-commit-test-"));
-process.env.TOVU_SOURCE_CONTROL_EXPORT_DIR = exportDir;
 test.after(() => rmSync(exportDir, { recursive: true, force: true }));
+
+/** The hermetic fixture, with `sourceControlExportRootDir` redirected to this file's own throwaway
+ *  temp dir — `commitSiteToSourceControl` reads this field instead of
+ *  `process.env.TOVU_SOURCE_CONTROL_EXPORT_DIR` (commit-site.ts no longer reads env vars at all),
+ *  so overriding it here is what keeps this suite's real `exportSite` writes off the checked-out
+ *  repo. */
+function testRouteDeps(): RouteDeps {
+  return { ...createRouteDeps(), sourceControlExportRootDir: exportDir };
+}
 
 function neverCalledGitAdapter(): GitHubCommitAdapter {
   return {
@@ -75,7 +84,7 @@ test("toCommitFile normalizes to forward slashes and drops no field static-publi
 // ---------------------------------------------------------------------------
 
 test("commitSiteToSourceControl: an invalid target is rejected before credentials or the git adapter are ever touched", async () => {
-  const deps = createRouteDeps();
+  const deps = testRouteDeps();
   const result = await commitSiteToSourceControl(
     { credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: neverCalledGitAdapter() },
     { workspaceId: deps.workspaceId, routeDeps: deps, owner: "not valid owner!!", repo: "demo", commitMessage: "x" }
@@ -87,7 +96,7 @@ test("commitSiteToSourceControl: an invalid target is rejected before credential
 });
 
 test("commitSiteToSourceControl: no saved credential fails cleanly with NO_CREDENTIALS_CONFIGURED, before any export or commit attempt", async () => {
-  const deps = createRouteDeps();
+  const deps = testRouteDeps();
   const result = await commitSiteToSourceControl(
     { credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: neverCalledGitAdapter() },
     { workspaceId: deps.workspaceId, routeDeps: deps, owner: "octo", repo: "demo", commitMessage: "content update" }
@@ -112,7 +121,7 @@ test("commitSiteToSourceControl: no saved credential fails cleanly with NO_CREDE
  * down the daemon process outright, not just answered one request with a 500.
  */
 test("commitSiteToSourceControl: a genuine decrypt failure (e.g. a boot with no root key) returns {ok:false, NO_CREDENTIALS_CONFIGURED} — the SAME 'never throws' contract every other failure mode already gets, never an unhandled rejection", async () => {
-  const deps = await withGithubCredential(createRouteDeps());
+  const deps = await withGithubCredential(testRouteDeps());
   // A sealer backed by a DIFFERENT keyring than the one the credential was actually sealed under —
   // `sealer.open()` fails auth-tag verification, the same shape a missing root key produces live.
   const brokenSealer = new AesGcmSecretSealer(new InMemoryKeyring());
@@ -126,7 +135,7 @@ test("commitSiteToSourceControl: a genuine decrypt failure (e.g. a boot with no 
 });
 
 test("commitSiteToSourceControl: a real export runs and its files reach the git adapter, deploy-relative and forward-slashed", async () => {
-  const deps = await withGithubCredential(createRouteDeps());
+  const deps = await withGithubCredential(testRouteDeps());
   const captured: { files: readonly CommitFile[] | null; input: unknown } = { files: null, input: null };
   const result = await commitSiteToSourceControl(
     { credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: fakeGitAdapter({ ok: true, branch: "main", branchCreated: false, commitSha: "abc123", commitUrl: "https://github.com/octo/demo/commit/abc123", filesChanged: 1 }, captured) },
@@ -152,7 +161,7 @@ test("commitSiteToSourceControl: a real export runs and its files reach the git 
 });
 
 test("commitSiteToSourceControl: branch omitted is forwarded to the git adapter as omitted, not a guessed default", async () => {
-  const deps = await withGithubCredential(createRouteDeps());
+  const deps = await withGithubCredential(testRouteDeps());
   const captured: { files: readonly CommitFile[] | null; input: unknown } = { files: null, input: null };
   await commitSiteToSourceControl(
     { credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: fakeGitAdapter({ ok: true, branch: "main", branchCreated: false, commitSha: "abc123", commitUrl: "https://github.com/octo/demo/commit/abc123", filesChanged: 1 }, captured) },
@@ -172,7 +181,7 @@ const ADAPTER_FAILURE_CASES: { adapterCode: GitHubCommitAdapterResult extends { 
 
 for (const { adapterCode, expected } of ADAPTER_FAILURE_CASES) {
   test(`commitSiteToSourceControl: a '${adapterCode}' adapter result maps to '${expected}', distinct from every other failure code`, async () => {
-    const deps = await withGithubCredential(createRouteDeps());
+    const deps = await withGithubCredential(testRouteDeps());
     const captured: { files: readonly CommitFile[] | null; input: unknown } = { files: null, input: null };
     const result = await commitSiteToSourceControl(
       { credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: fakeGitAdapter({ ok: false, code: adapterCode, message: `fake ${adapterCode}` }, captured) },
