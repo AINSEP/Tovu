@@ -90,16 +90,21 @@ test("installFirstPartyToolContributors is idempotent — calling it twice leave
 test("installFirstPartyToolContributors installs exactly the converted domains — no more, no fewer", () => {
   installFirstPartyToolContributors();
   // Stage 1 (2026-08-17): comments, newsletter. Stage 2 batch 1 (same day): identity, members,
-  // redirects, taxonomy — see `server/tool-catalog-manifest.ts`'s own header for the running count.
-  // `themes` was also tried in the Stage 2 batch and reverted (new module cycle through `export`),
-  // so it is deliberately absent — covered by its own test below.
+  // redirects, taxonomy. Stage 2 batch 2 (same day): widgets, content-types, forms, menus — see
+  // `server/tool-catalog-manifest.ts`'s own header for the running count. `themes` was also tried in
+  // Stage 2 batch 1 and reverted (new module cycle through `export`), so it is deliberately absent —
+  // covered by its own test below.
   assert.deepEqual(listToolContributors().map((c) => c.domain), [
     "comments",
+    "content-types",
+    "forms",
     "identity",
     "members",
+    "menus",
     "newsletter",
     "redirects",
     "taxonomy",
+    "widgets",
   ]);
 });
 
@@ -199,4 +204,9 @@ test("two independent buildAssistantToolRegistrations calls after one installFir
   assert.ok(daemonIds.includes("members_list"));
   assert.ok(daemonIds.includes("redirects_list"));
   assert.ok(daemonIds.includes("taxonomy_list"));
+  // Stage 2 batch 2's converted domains.
+  assert.ok(daemonIds.includes("widgets_list_instances"));
+  assert.ok(daemonIds.includes("collections_content_type_list"));
+  assert.ok(daemonIds.some((id) => id.startsWith("forms_")));
+  assert.ok(daemonIds.includes("menus_list_menus"));
 });

@@ -1,9 +1,13 @@
 import { contributeCommentsTools } from "../comments/tool-registrations";
+import { contributeContentTypesTools } from "../features/content-types/tool-registrations";
 import { contributeTaxonomyTools } from "../features/taxonomy/tool-registrations";
+import { contributeFormsTools } from "../forms/tool-registrations";
 import { contributeIdentityTools } from "../identity/tool-registrations";
 import { contributeMembersTools } from "../members/tool-registrations";
+import { contributeMenusTools } from "../navigation/tool-registrations";
 import { contributeNewsletterTools } from "../newsletter/tool-registrations";
 import { contributeRedirectsTools } from "../redirects/tool-registrations";
+import { contributeWidgetsTools } from "../widgets/tool-registrations";
 
 /**
  * @file The server composition manifest for `assistant/tool-contribution-registry.ts`: the one file
@@ -23,18 +27,24 @@ import { contributeRedirectsTools } from "../redirects/tool-registrations";
  * throughout `server/deps.ts`/`server/app.ts` — this file adds no new module-level edge that did not
  * already exist, it just adds one more file-level reason for edges that were already there.
  *
- * 6 of the ~24 assistant-wired domains are listed here today (2026-08-17: `comments`/`newsletter`
+ * 10 of the ~24 assistant-wired domains are listed here today (2026-08-17: `comments`/`newsletter`
  * from Stage 1 of the registry rollout, `identity`/`members`/`taxonomy`/`redirects` added in Stage 2
  * batch 1 — `themes` was also tried in that batch and reverted, see `assistant/tool-registrations.ts`'s
- * header for why). The rest still wire through
+ * header for why — and `widgets`/`content-types`/`forms`/`menus` added in Stage 2 batch 2, `widgets`
+ * converted FIRST in that batch specifically to remove the `assistant -> widgets` static edge before
+ * `content-types`/`forms` converted, since both of those are imported by `widgets`). The rest still
+ * wire through
  * `assistant/tool-registrations.ts`'s own `DOMAIN_SLICES` array, unchanged — see that file's header
  * for why (its own array still names exactly which domains those are). `post` was also tried and
- * reverted the same night: converting it opened a NEW module cycle (`assistant -> widgets ->
+ * reverted the same night as Stage 1: converting it opened a NEW module cycle (`assistant -> widgets ->
  * features/post -> assistant`, since `widgets`/`export` both depend on `post` while `assistant`
  * still statically depends on `widgets`) — see `features/post/tool-registrations.ts`'s trailing
- * comment. A later pass converts the rest the same way, checking for this same "does anything else
- * depend on me" shape per domain first; nothing about this file's shape changes when it does, only
- * its import list and the body of `installFirstPartyToolContributors` grow.
+ * comment. `widgets`' own later conversion (Stage 2 batch 2) closes the `widgets` half of that risk,
+ * but `export` still depends on `post` and `assistant` still reaches `export` transitively through
+ * the still-static `deployments`/`source-control` entries, so `post` stays unconverted and out of
+ * scope regardless. A later pass converts the rest the same way, checking for this same "does
+ * anything else depend on me" shape per domain first; nothing about this file's shape changes when
+ * it does, only its import list and the body of `installFirstPartyToolContributors` grow.
  *
  * Idempotent: `registerToolContributor` (what each `contribute<Domain>Tools()` call ultimately
  * calls) replaces an existing entry by domain key rather than appending, so calling this function
@@ -55,9 +65,13 @@ import { contributeRedirectsTools } from "../redirects/tool-registrations";
  */
 export function installFirstPartyToolContributors(): void {
   contributeCommentsTools();
+  contributeContentTypesTools();
+  contributeFormsTools();
   contributeIdentityTools();
   contributeMembersTools();
+  contributeMenusTools();
   contributeNewsletterTools();
   contributeRedirectsTools();
   contributeTaxonomyTools();
+  contributeWidgetsTools();
 }
