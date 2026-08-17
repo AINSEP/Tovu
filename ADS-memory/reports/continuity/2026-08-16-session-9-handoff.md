@@ -388,8 +388,48 @@ save, and 8 agents were saving constantly. Diagnosed live: the server process wa
 
 ## 5. What's left — ranked
 
-1. **Fix CI** (§3). Two separate problems: it does not run on the working branch, and it cannot
-   resolve `@jini-ai/*`. Biggest un-started item. **IN FLIGHT at time of writing.**
+### ⭐ 1. FINISH CI — one line of YAML is all that is genuinely unknown
+
+**Status: paused deliberately, one concrete blocker identified, everything else already wired.**
+
+CI was enabled briefly and **ran for the first time in this repo's history on this branch**
+(`31995253883`). It failed in **37 seconds**, and that failure is the whole value of the exercise:
+
+    ##[error]Repository path '/home/runner/work/Tovu-AI-CMS/Jini' is not under
+             '/home/runner/work/Tovu-AI-CMS/Tovu-AI-CMS'
+
+**`actions/checkout` refuses to write outside `$GITHUB_WORKSPACE`.** So `path: ../Jini` is illegal
+and the sibling-directory checkout **cannot work as written**. This is the real blocker.
+
+**Neither predicted blocker was real.** The Coordinator predicted a private-repo token — Jini is
+public, no secret needed. A guard step built on that false claim hard-failed an earlier run in
+**0 seconds**; it has been removed, with the disproof recorded in `ci.yml` itself. And the
+`pnpm -r run build` Jini step — flagged for weeks as "sound reasoning, never empirically proven" —
+**was never even reached**, so it remains unproven.
+
+**The fix, in order of preference:**
+1. Replace the `actions/checkout` Jini step with a plain
+   `git clone --depth 1 --branch <ref> https://github.com/AINSEP/Jini.git ../Jini` in a `run:` step.
+   `run:` steps have no workspace-containment restriction and need no credentials for a public repo.
+2. Or check Tovu out into a named subdirectory and Jini into a sibling under the same workspace, then
+   set `working-directory` on every later step.
+3. **Do NOT rewrite the 13 `file:../Jini/packages/*` specifiers to dodge this.** The owner keeps them
+   as `file:` deliberately — it avoids publishing to npm/GitHub on every local change and is much
+   faster to iterate on. Deploy-time packaging is a separate, later decision.
+
+**Triggers are currently back to `branches: [main]`** so pushes stop firing runs. **Do not read that
+as "working"** — main-only is the original state that let this workflow sit dormant through 38+
+commits unnoticed. To re-enable: `push: branches: ["**"]`, `pull_request: branches: [main,
+general-work]`. Everything downstream — the Jini build step, all gates, the parallel `route-coverage`
+job with its floor/diff/failure-baseline checks — is wired and unchanged. **Only the checkout
+mechanism needs replacing.**
+
+**Jini's own CI has the identical never-ran bug and was not touched.** `AINSEP/Jini`'s `ci.yml`
+(added earlier this session, `e792f76b`) is also `push: branches: [main]` while all work is on
+`general-work` — so its guard/typecheck/complexity gates have **never executed either**. Separately,
+Jini's older `Publish` workflow has failed **every run since 2026-07-31** (5 consecutive, most recent
+failing in 16s — likely at setup, but nobody has read the log). An agent was dispatched for this and
+**never started** before being stopped; the task is untouched.
    **NO owner action is required — an earlier draft of this handoff said otherwise and was WRONG.**
    The Coordinator misread `gh api repos/AINSEP/Jini --jq '.private'` (it returned `false`, i.e. NOT
    private) and told both the owner and the implementing agent that a PAT secret was needed.
@@ -418,13 +458,90 @@ save, and 8 agents were saving constantly. Diagnosed live: the server process wa
    Its *"NEVER a token, ciphertext, or masked tail"* contract is **still true today** and must only
    change in the same commit that adds `tokenTail`. `deployment_propose_custom_provider_credential`
    is a second, separate, unscheduled cutover point.
-8. **Finish the Jini fetch migration** — ~26 of 40 sites remain (cloudflare-pages, netlify,
-   github-pages).
+8. ~~Finish the Jini fetch migration~~ — **DONE.** All 40 confirmed sites migrated (github-client 10,
+   vercel 2, netlify 5, github-pages 9, cloudflare-pages 15), plus 6 recovered = 47 carrying a real
+   `AbortSignal`. Still open: the **~30 browser-bundled UI / example sites**, which need a
+   `@jini-ai/platform` browser-bundle-safety check as their own first step (the barrel may pull
+   Node-only modules into a browser bundle). And `packages/memory/src/llm-provider.ts` is a
+   **deliberate non-migration** — already has an unconditional timeout, and migrating would silently
+   reverse its documented caller-signal-override contract. Do not "finish" either without a decision.
 9. **Boot/background account-label sweep** — assessed, deliberately deferred (§2).
-10. **Sweep for other `sendStoreError`-shaped helpers** — throw-from-inside-catch.
-11. **Hoist the marker-type literals** into `core/embeds/marker.ts`.
-12. **Complexity gate for `src/`** — 70 of 234 route files violate ≤9. Needs a debt list + ratchet.
-13. **Mutation testing** — `development/scripts/mutation-sweep.mjs` exists; recommended fourth signal.
+10. **Mutation testing** — `development/scripts/mutation-sweep.mjs` exists; recommended fourth signal.
+
+---
+
+### ⭐ ROUTES — the whole picture, since it spans four separate threads
+
+**a. The route coverage gates are built but have NEVER RUN.** Everything below is wired, committed,
+and locally verified — and none of it has executed in CI, because CI has never fired on this branch
+(§5.1). **The first real Actions run is the only proof any of it works.**
+   - `development/scripts/route-coverage-lib.ts` + `check-route-coverage-floor.ts` +
+     `check-route-coverage-diff.ts` (`d71eef2d`)
+   - Floor: `line>=88 / branch>=68 / funcs>=93`. Measured green at 92.00 / 73.70 / 97.60.
+   - Diff gate: `>=80%` branch on any new or changed route file. **This is the one that actually
+     prevents recurrence** — the floor only holds the line.
+   - `check-test-baseline.ts` (`9921e8d4`) and TAP emission from `test:cov:server` (`2acb12e3`) —
+     a test-failure ratchet, **written in the last minutes of the session and never exercised at
+     all.** Treat as unproven; read it before trusting it.
+   - Runs in a **parallel** `route-coverage` job (~7 min, `src/server`-scoped, skips the Postgres
+     container) rather than on the critical path — the full `test:cov` was measured at **18.5 min /
+     4,991 tests**, which would get these gates disabled within a month.
+
+**b. Why an aggregate gate alone is wrong, and it is measured not theoretical.** One route file sits
+at **42.9% branch** while the rollup reads 74%. A rollup gate would have PASSED the file that
+produced the process-killing bug — which shipped at **97.82% line coverage** because the untested
+part was a *branch* (71.93%). **Watch the line-vs-branch spread; it is the real signal.**
+
+**c. `--experimental-test-coverage` silently drops `test-*.ts` application files** from its report,
+even when explicitly included. `test-agent.ts` and `test-connection.ts` were invisible regardless of
+real coverage, and the prior audit's "zero coverage" finding was measuring that quirk, not missing
+tests. Fixed with a sentinel `--test-coverage-exclude`. **Every coverage number this repo produced
+before `d71eef2d` was under-measuring.**
+
+**d. Async-handler hardening is COMPLETE — 21 of 21** (`62ca21c7`, `7cd9c200`, `069ee2d9`,
+`fba9246f`, `0786e718`). ✅ Coordinator-verified 22/22 regression tests pass. Two follow-ups:
+   - **Sweep `src/` for other helpers shaped like `sendStoreError`** — which did `throw err` from
+     inside its own catch block, making 5 handlers *look* guarded while they leaked. It is unlikely
+     to be unique, and the regression-test pattern in `route-async-guards.test.ts` generalizes
+     directly. **Highest-value routes follow-up.**
+   - **Complexity gate for `src/`** — 70 of 234 route files (113 functions) violate ≤9; 18 files (30
+     functions) violate ≤15. Needs a debt list + ratchet, exactly like `apps/admin`'s existing
+     `check:admin-complexity-drift`. Not a config tweak.
+
+**e. The 28 pre-existing server-test failures.** ✅ Coordinator-verified byte-identical to session
+start via an isolated worktree — **zero caused by tonight's work**. Categories: BYOK-turn tests
+hitting live provider APIs, `publish-site` tests needing `GITHUB_TOKEN`, site-assistant chat,
+templateChoice/render. **They are load-sensitive** — one run under heavy concurrency reported 39
+instead of 28, same commit, same command. **Baseline test NAMES, never counts.** Decide deliberately
+whether CI blocks on them or ratchets them; `check-test-baseline.ts` was written for exactly that but
+is untested.
+
+**f. Two new routes exist that no CI has ever seen:**
+`src/server/routes/admin/system/vendor-credentials.ts` (8 HTTP tests, ✅ Coordinator-verified 8/8)
+and the account-label heal path inside `publish-credentials.ts`'s GET handler.
+
+---
+
+## 5b. Session end state — all 8 agents STOPPED, nothing at risk
+
+Both repos fully pushed. `git status` clean apart from one file: `src/themes/static/basic/pages/
+index.html`, the **owner's own** one-line hero edit ("from Leon," → "from Noel,"). Left uncommitted
+deliberately — it is theirs to decide on, and it is already live on the published site.
+
+Two agent reports were committed by the Coordinator immediately before stopping the agents
+(`cbb0db0e`), since neither had committed its own: `2026-08-16-jini-daemon-lifecycle.md` (untracked
+by instruction) and `2026-08-16-route-coverage-gates.md` (mid-edit).
+
+**`TaskStop` behaves exactly as this project's memory documents:** it reports success while leaving
+other teammates alive. Stopping the two working agents left **six idle ones still running**, revealed
+only by calling it again with a bogus ID — the error lists every live teammate. **Always call it once
+more after you think you are done.** All eight are confirmed stopped.
+
+**Also confirmed empirically this session, and it changes how to run agents:** subagents do **not**
+receive messages mid-flight. Watching file mtimes and `ps` showed one agent committing every ~2
+minutes while a second never began a task dispatched 20 minutes earlier. A "Jini is public"
+correction sent mid-task never landed — that agent built the secret-guard step on the wrong premise
+anyway, and it had to be undone by hand. **Put everything load-bearing in the spawn prompt.**
 
 ---
 
