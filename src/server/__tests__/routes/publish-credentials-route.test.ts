@@ -116,6 +116,89 @@ test("publish-credentials: an unauthorized principal (no grants) gets 403 on eve
 
   const del = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${CREDENTIALS_PATH}/some-id`, { method: "DELETE", headers: { cookie } });
   assert.equal(del.status, 403);
+
+  // `POST .../:id/verify` and `GET .../:id/repos` are separate routes from the four above (each with
+  // its OWN `rejectUnlessAuthorized` call site, not a shared middleware) — found missing here by
+  // `development/scripts/mutation-sweep.mjs`: neutralizing either call site's `if` still left every
+  // test in this file green, meaning nothing actually proved these two routes reject an unauthorized
+  // caller. `some-id` is enough — the auth check runs before any existence lookup on both routes.
+  const verify = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${CREDENTIALS_PATH}/some-id/verify`, {
+    method: "POST",
+    headers: { cookie },
+  });
+  assert.equal(verify.status, 403);
+
+  const repos = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${CREDENTIALS_PATH}/some-id/repos`, { headers: { cookie } });
+  assert.equal(repos.status, 403);
+});
+
+// -------------------------------------------------------------------------------------------------
+// The two tests below close real gaps `development/scripts/mutation-sweep.mjs` found (2026-08-17):
+// each is a mutant of a guard in `publish-credentials.ts` that SURVIVED the suite as it stood — the
+// guard's absence changed nothing any existing test asserted. See
+// `ADS-memory/reports/2026-08-17-mutation-sweep.md` for the full sweep output, including several
+// OTHER survivors deliberately left unclosed there (documented, not silently dropped) — notably the
+// sibling `(req.body ?? {})`/`(req.params.workspaceId ?? "")` fallbacks: empirically confirmed
+// (`express.json()` defaults `req.body` to `{}` even with no content-type at all, checked directly
+// against this repo's own Express version) to be dead code no real HTTP request can ever reach, not
+// missing coverage — a test cannot kill a mutant on a line the real code path never runs through.
+// -------------------------------------------------------------------------------------------------
+
+test("publish-credentials: POST with no body at all still 400s with VALIDATION (pins real behavior; does NOT kill the (req.body ?? {}) mutant — see note above)", async (t) => {
+  const deps: RouteDeps = { ...createRouteDeps() };
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  // No content-type, no body. `express.json()` (this repo's Express 4.21) defaults `req.body` to
+  // `{}` regardless — confirmed directly, not assumed — so this pins real, already-correct behavior
+  // (an empty POST is a validation error, not a crash) without being able to prove anything about
+  // `publish-credentials.ts`'s own `(req.body ?? {})` fallback, which no real request can bypass.
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${CREDENTIALS_PATH}`, {
+    method: "POST",
+    headers: { cookie },
+  });
+  assert.equal(res.status, 400);
+  const body = (await res.json()) as { error: string; detail: string };
+  assert.equal(body.error, "VALIDATION");
+  assert.match(body.detail, /label/);
+});
+
+test("publish-credentials: a successful verify (status 'valid' with an accountLabel) persists that label to the row, not just the response", async (t) => {
+  const deps: RouteDeps = { ...createRouteDeps() };
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const base = `${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${CREDENTIALS_PATH}`;
+
+  // A real GitHub `/user` 200 response, same field `extractGitHubLogin` (`static-publish/verify.ts`)
+  // reads. Distinct from `stubVerificationFetch` (that helper only ever fixes the STATUS, always
+  // failing the account-label branch this test targets) — this needs a genuine 200 + JSON body.
+  const original = globalThis.fetch;
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    if (String(input).startsWith(baseUrl)) return original(input, init);
+    return new Response(JSON.stringify({ login: "octocat" }), { status: 200, headers: { "content-type": "application/json" } });
+  }) as typeof fetch;
+  t.after(() => {
+    globalThis.fetch = original;
+  });
+
+  const created = await fetch(base, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ label: "gh", connection: { providerId: "github-pages", token: "github-secret-token" } }),
+  });
+  assert.equal(created.status, 201, await created.clone().text());
+  const { verification } = await created.json();
+  assert.equal(verification.status, "valid");
+  assert.equal(verification.accountLabel, "octocat");
+
+  // The response having the right `accountLabel` proves `computeVerificationResult`/
+  // `extractGitHubLogin` work — it does NOT prove `verifyAfterSave`'s `if (result?.accountLabel !==
+  // undefined)` guard actually called `healAccountLabel` to WRITE it. Read the row back through a
+  // completely separate request to prove the write really happened, not just that the in-memory
+  // response object carried the field.
+  const list = await (await fetch(base, { headers: { cookie } })).json();
+  assert.equal(list.credentials.length, 1);
+  assert.equal(list.credentials[0].accountLabel, "octocat");
 });
 
 test("publish-credentials: a mismatched workspaceId in the URL 404s on every verb", async (t) => {
