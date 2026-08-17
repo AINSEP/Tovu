@@ -2,7 +2,51 @@
 
 **Date:** 2026-08-16
 **Agent:** Programmer (Sonnet), dispatched by team-lead
-**Commit:** `04cf0747` on `general-work`
+**Commits:** `04cf0747` (route + dual-read + report), `d4d941d0` (composition-root wiring +
+HTTP tests) on `general-work`
+
+## UPDATE: composition-root wiring landed (`d4d941d0`)
+
+The gaps flagged below as "not this pass" are now closed. Team-lead cleared
+`server/deps.ts`/`server/routes/types.ts` (`arch-export-edge`'s second refactor had
+landed and committed); both files were re-read fresh before editing, per the corrected
+git protocol (scoped `git commit <paths> -F <msgfile>`, not stage-then-check-then-commit).
+
+- `server/routes/types.ts`: `RouteDeps` now carries `vendorCredentialSetRepo:
+  VendorCredentialSetRepoPort`, added right after the two legacy credential repos it will
+  eventually replace — additive, both legacy repos stay wired and live.
+- `server/deps.ts`: constructs the real `SqliteVendorCredentialSetRepo(db)`, sealed via
+  the same shared sealer/keyring every other credential repo here reuses.
+- `server/app.ts`: constructs the hermetic `InMemoryVendorCredentialSetRepo()` for
+  `createRouteDeps()`, and registers `registerAdminVendorCredentialsRoutes` right after
+  the two legacy credential routes.
+- `src/server/routes/admin/system/vendor-credentials.ts`: `AdminVendorCredentialsDeps`
+  collapsed from the temporary `RouteDeps & {vendorCredentialSetRepo}` intersection to
+  plain `RouteDeps`, now that the field is real.
+- **New:** `src/server/__tests__/routes/vendor-credentials-route.test.ts` — 8 HTTP-level
+  tests through the real composition root (`createApp`/`createRouteDeps`), closing the
+  test gap this report originally flagged. Covers auth gating (bare-principal 403,
+  workspace-id 404), empty-list GET, full CRUD round trip (asserts `tokenTail` is present
+  but the full token never reaches the wire), idempotent DELETE, `NOT_FOUND` on a bad PUT
+  id, `VALIDATION` on a bad connection shape (including bitbucket's username
+  requirement), and `DUPLICATE_LABEL` on a repeat `(vendorId, label)`. All 8 passed on
+  the first run once the wiring made the route reachable — that first-run green, on a
+  route that was unregistered and unreachable moments before, IS this slice's RED-to-GREEN
+  proof.
+
+Regression check after the wiring pass: 34/34 vendor-credentials feature tests, 12/12
+`publish-credentials-route` tests, 8/8 `source-control-credentials-route` tests, 22/22
+`route-async-guards` tests all still green. `tsc --noEmit` and `eslint` clean across
+every touched file (the `daemon-supervisor.ts` error flagged below has since cleared —
+that was the other agent's own in-flight WIP settling, not anything this pass did).
+
+Everything in the original "Next steps" list below is now done EXCEPT step 5 (agent-tool
+cutover) and step 6 (the `deployment_propose_custom_provider_credential` second cutover
+point) — both remain explicitly out of scope for this dispatch.
+
+---
+
+## Original report (route + dual-read resolver, pre-wiring)
 
 ## Scope delivered
 
