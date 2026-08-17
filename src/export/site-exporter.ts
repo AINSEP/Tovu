@@ -4,23 +4,28 @@ import type { AddressInfo } from "node:net";
 import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 
-// NOT a static import. This is the single shared back-edge that every export/publish import cycle
-// runs through, so breaking it here breaks all of them at once rather than one caller at a time.
-//
-// `server/app.ts` (and anything it registers — the export route, the publish route, the deployments
-// agent-tool domain) reaches `export/index.ts`, which reaches this file. A top-level
-// `import { createApp } from "../server/app"` therefore closes:
+// No import of `server/app.ts` here, static OR lazy (2026-08-16 rework). This used to be the single
+// shared back-edge that every export/publish import cycle ran through — `server/app.ts` (and
+// anything it registers — the export route, the publish route, the deployments agent-tool domain)
+// reaches `export/index.ts`, which reaches this file, so even the lazy `require("../server/app")`
+// this file used to carry closed:
 //
 //     server/app.ts -> ... -> export/index.ts -> export/site-exporter.ts -> server/app.ts
 //
-// `server/app.ts` runs its whole boot graph as a side effect of being loaded, so re-entering it
-// mid-initialisation yields half-built module exports. On 2026-08-15 that killed the agent daemon
-// on every boot — `TypeError: Cannot read properties of undefined (reading
-// 'createInMemoryChatStoreFactory')`, exit code 1 — while the API server stayed up, so the only
-// visible symptom was "the AI assistant no longer works".
+// (`server/app.ts` runs its whole boot graph as a side effect of being loaded, so re-entering it
+// mid-initialisation yields half-built module exports — on 2026-08-15 the EAGER version of this
+// import killed the agent daemon on every boot with `TypeError: Cannot read properties of undefined
+// (reading 'createInMemoryChatStoreFactory')`, exit code 1, while the API server stayed up, so the
+// only visible symptom was "the AI assistant no longer works"; the lazy `require` that replaced it
+// fixed load ORDER but left the dependency-cruiser-flagged `export <-> server` module cycle itself
+// in place.)
 //
-// Two separate callers reproduced it within one hour (the export route, then the publish adapter),
-// which is why the fix belongs here rather than in each of them.
+// The fix that removes the edge instead of merely deferring it: `exportSite` now boots the app via
+// `options.routeDeps.createSiteApp(routeDeps)` — the SAME `createApp` factory, injected through
+// `RouteDeps` (`server/routes/types.ts`'s `createSiteApp` field doc has the full rationale) exactly
+// the way `routeDeps.runExportSite` already injects THIS function the other direction. This file
+// still imports `RouteDeps` as a TYPE below — that import is erased at compile time (zero runtime
+// edge) and was never part of the cycle; only the runtime `require`/`import` of `createApp` was.
 import type { RouteDeps } from "../server/routes/types";
 import { buildRouteManifest } from "./route-manifest";
 import type { ManifestActiveTheme, ManifestRoute, ManifestRouteKind, ManifestSkip } from "./ports";
@@ -592,12 +597,10 @@ export async function exportSite(options: ExportSiteOptions): Promise<ExportRepo
   prepareOutputDir(outputDir, clean);
 
   const manifest = await buildRouteManifest(routeDeps);
-  // Resolved here, at call time, rather than at module load — see the note where the static import
-  // used to be. By this point `server/app.ts` is fully initialised, so there is no partial-module
-  // window left to fall into.
-  // eslint-disable-next-line @typescript-eslint/no-require-imports -- deliberate; see that note.
-  const { createApp } = require("../server/app") as typeof import("../server/app");
-  const server = createServer(createApp(routeDeps));
+  // Injected via `RouteDeps.createSiteApp` (see the file-header note and that field's own doc in
+  // `server/routes/types.ts`) rather than imported from `server/app.ts` — no `require` left here at
+  // all, lazy or otherwise.
+  const server = createServer(routeDeps.createSiteApp(routeDeps));
   server.listen(0);
   await once(server, "listening");
   const address = server.address() as AddressInfo;

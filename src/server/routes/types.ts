@@ -637,6 +637,19 @@ export interface RouteDeps {
    */
   runExportSite: ExportEngine<RouteDeps>;
   /**
+   * Boots a real `Express` app bound to the given `RouteDeps` — the SAME factory `server/app.ts`
+   * exports as `createApp`, injected here rather than imported directly by
+   * `src/export/site-exporter.ts` (`exportSite` needs to boot an in-process copy of the app to crawl
+   * it over real HTTP — see that file's own header). A direct `require("../server/app")` there was
+   * the one runtime edge closing `export -> server` (2026-08-16 architecture audit: dependency-cruiser
+   * flagged module cycle, propagation cost measured at 29.05% with the edge present vs 9.43% with
+   * only this one edge removed). Mirrors `runExportSite`'s injection precedent immediately above —
+   * always the real `createApp` in both `server/app.ts`'s `createRouteDeps()` (direct same-file
+   * reference) and `server/deps.ts`'s `createSqliteRouteDeps()` (lazily `require`d, for the identical
+   * reason `runExportSiteLazily` in both files is — see that field's doc for the full trace).
+   */
+  createSiteApp: (routeDeps: RouteDeps) => Express;
+  /**
    * 2026-08-15 (Contract v2) — the `publish_credential_sets` repo backing the admin's Static Site tab
    * "add a connection" form and the DB-backed half of `static-publish/credentials.ts`'s
    * `composePublishCredentialSource`. Real `SqlitePublishCredentialSetRepo` in `server/deps.ts`

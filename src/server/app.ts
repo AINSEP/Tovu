@@ -618,6 +618,11 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // `runExportSite` doc for why that indirection is required, not stylistic (a real circular-load
     // crash, not a style preference). Resolved lazily; see {@link runExportSiteLazily}.
     runExportSite: runExportSiteLazily,
+    // 2026-08-16 — see `routes/types.ts`'s `createSiteApp` doc: the direct reference this file can
+    // take (createApp is declared in this same module) closing `export -> server` for the in-memory
+    // composition root. `server/deps.ts`'s SQLite composition root needs the lazy-`require`d
+    // equivalent instead, since it cannot take a same-file reference.
+    createSiteApp: createApp,
     // 2026-08-15 (Contract v2) — hermetic double for `server/deps.ts`'s real
     // `SqlitePublishCredentialSetRepo`; see `routes/types.ts`'s `publishCredentialSetRepo`/
     // `publishExecutionMode` docs. `executionModeFromEnv()` (not a hardcoded `"self-hosted-cli"`) so
