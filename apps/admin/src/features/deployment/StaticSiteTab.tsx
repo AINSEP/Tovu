@@ -2,6 +2,7 @@ import { useState } from "react";
 import { agentHandle } from "@jini-ai/agentic";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
+import { navigate } from "../../lib/router";
 import { TabBar } from "../../components/TabBar";
 import { formatTimestamp } from "../../lib/format-timestamp";
 import type {
@@ -717,10 +718,49 @@ function GettingItOnlineCard({
         ) : null}
 
         <PublishCredentialsSection controller={credentialsController} selectedProviderId={selectedTarget.id} t={translate} />
+        <ManageAccessTokensLink t={translate} />
 
         <StaticPublishForm target={selectedTarget.id} controller={publishController} t={translate} />
       </div>
     </div>
+  );
+}
+
+/**
+ * Cross-link from this tab's single-token-per-provider credential row to the fuller Access Tokens
+ * tab on the Security page — the owner's own ask, verbatim: "a button 'create access token' that
+ * takes them back to the access token tab on the security page." This tab's own row above still
+ * handles the common case inline (one token per provider, paste-and-save) — {@link
+ * PublishCredentialsSection} is deliberately UNCHANGED by this link, per the standing "Static Site
+ * stays as-is for now" decision (`ADS-memory/reports/2026-08-17-source-control-ui.md`). This is the
+ * escape hatch to what Security's Access Tokens tab can do that this row cannot: save a SECOND named
+ * token for the same provider, rename one, or remove one — `AccessTokensTab.tsx`'s own header on
+ * why "Create" living there too is not a duplicate of what this tab does.
+ *
+ * One link per card, not one per provider — clicking it always lands on the same destination
+ * regardless of which of the four tabs is currently selected, so it renders once beneath the
+ * credential section rather than being threaded through {@link PublishCredentialFields} four times.
+ * Plain `navigate()`, not `{ replace: true }` — this is a real navigation to a different page (the
+ * reader may want the Back button to return here), unlike this tab's own `handleTabChange`-style
+ * calls, which only swap a `?tab=` query param on the SAME page.
+ * @complexity O(1) — no branches.
+ */
+function ManageAccessTokensLink({ t: translate }: { t: Translate }) {
+  return (
+    <p className="deployment-action-reason">
+      {translate("Need to save more than one token, rename one, or manage every saved credential in one place?")}{" "}
+      <button
+        type="button"
+        className="link-button"
+        onClick={() => navigate("/access-tokens?tab=access-tokens")}
+        {...agentHandle("deployment-static-site-manage-tokens-link", {
+          role: "button",
+          label: "Go to the Access Tokens tab on the Security page to create, rename, or manage saved tokens",
+        })}
+      >
+        {translate("Create access token")}
+      </button>
+    </p>
   );
 }
 

@@ -1,6 +1,6 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { StaticSiteTab } from "../StaticSiteTab";
 import type { StaticExportController } from "../hooks/use-static-export.hooks";
@@ -1216,5 +1216,39 @@ describe("StaticSiteTab — the 'which saved token publishes' picker (owner's or
     const picker = screen.getByLabelText(/which saved token publishes/i);
     await user.selectOptions(picker, "cred-2");
     expect(selectCredential).toHaveBeenCalledWith("github-pages", "cred-2");
+  });
+});
+
+// The owner's own words, verbatim: "a button 'create access token' that takes them back to the
+// access token tab on the security page." `ManageAccessTokensLink` in `StaticSiteTab.tsx` — one
+// real `navigate()` call (`lib/router.ts`), not a mock, matching how `Deployment.unit.test.tsx`
+// already proves `handleTabChange`'s own navigate calls: jsdom supports `history.pushState` for
+// real, so asserting the URL after a click is a stronger proof than asserting a spy was called.
+describe("StaticSiteTab — 'Create access token' cross-link to the Security page (owner's ask)", () => {
+  afterEach(() => {
+    // Same convention `Deployment.unit.test.tsx` documents for the identical reason: `navigate()`
+    // drives real `history.pushState`, so one test's click could otherwise leak into the next.
+    window.history.replaceState(null, "", "/");
+  });
+
+  it("renders once per card, regardless of which publish target is selected", () => {
+    renderTab();
+    expect(screen.getByRole("button", { name: "Create access token" })).toBeInTheDocument();
+  });
+
+  it("navigates to the Access Tokens tab on the Security page when clicked", async () => {
+    const user = userEvent.setup();
+    renderTab();
+    await user.click(screen.getByRole("button", { name: "Create access token" }));
+    expect(window.location.pathname).toBe("/admin/access-tokens");
+    expect(window.location.search).toBe("?tab=access-tokens");
+  });
+
+  it("navigates to the same destination no matter which provider tab is selected — vercel", async () => {
+    const user = userEvent.setup();
+    renderTab({ publishController: { target: "vercel" } });
+    await user.click(screen.getByRole("button", { name: "Create access token" }));
+    expect(window.location.pathname).toBe("/admin/access-tokens");
+    expect(window.location.search).toBe("?tab=access-tokens");
   });
 });
