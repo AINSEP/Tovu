@@ -105,6 +105,40 @@ Until that's authorized, the shipped fix hardcodes the same two literals in `res
 a comment naming the actual sibling that must stay in sync (`static-render.ts`'s `resolveSlots`/
 `injectMenuEmbeds`, not `isPageEmbedType()`) and pointing at this section for the upgrade path.
 
+**Decision: HOLD the hoist, per team-lead, 2026-08-16.** Not a disagreement with the diagnosis — three
+independent reasons: (1) `static-render.ts` is `arch-export-edge`'s active territory tonight, and a
+concurrent edit there is a collision risk not worth buying for a cleanup; (2) the owner asked to close
+out and review this batch, and every extra edit widens that diff; (3) the shipped interim version is
+correct, tested both directions, and already documents the exact upgrade path below — a safe resting
+state, not a stopgap that silently misleads.
+
+### Follow-up (HELD, not authorized tonight)
+
+**Blocked on:** `src/features/theme/static-render.ts` is `arch-export-edge`'s active territory
+tonight (mid-refactor moving `resolveActiveTheme`/`resolveActiveThemeId`/`resolveStorefrontProducts`
+into `src/features/theme/`, uncommitted tree already touches `src/features/theme/index.ts`) —
+team-lead's call, 2026-08-16, to avoid a collision for a cleanup-grade change. Re-check that
+agent/file's status before picking this up; it may be clear by the time this is read.
+
+**Exact change, so no re-derivation is needed:**
+
+1. In `src/core/embeds/marker.ts` (neutral — both consumer files below already import from it, so
+   this introduces no new dependency edge and no circularity), export:
+   ```ts
+   export const THEME_STRUCTURAL_MARKER_TYPES: ReadonlySet<string> = new Set(["partial", "menu"]);
+   ```
+2. In `src/features/theme/static-render.ts`, replace the two inline literal comparisons with reads
+   off that constant, behavior-preserving:
+   - `injectMenuEmbeds`: `if (marker.type !== "menu" || ...)` → `if (!THEME_STRUCTURAL_MARKER_TYPES.has("menu") || marker.type !== "menu" || ...)` is unnecessary ceremony for a 2-member set — simplest faithful change is importing the constant for documentation/drift-prevention purposes and keeping the direct `"menu"`/`"partial"` string comparisons as-is, OR (cleaner) exporting two named constants (`MENU_MARKER_TYPE = "menu"`, `PARTIAL_MARKER_TYPE = "partial"`) from `marker.ts` instead of a set, and having both `static-render.ts`'s two comparisons AND `resolver-service.ts`'s set literal reference those same two named exports. Whoever implements this should pick whichever of the two shapes reads more naturally at each of the three call sites (two in `static-render.ts`, one in `resolver-service.ts`) — the set-vs-named-constants choice is a style call, not a correctness one.
+   - `resolveSlots`: same treatment for the `"partial"` comparison.
+3. In `src/widgets/resolver-service.ts`, replace the local `THEME_OWNED_MARKER_TYPES` definition
+   (currently `new Set(["partial", "menu"])`, ~line 788) with an import of whatever `marker.ts` ends
+   up exporting from step 1, and drop the "kept in sync manually" language from its doc comment
+   (~lines 780-786) since it will no longer apply.
+4. Re-run this ticket's verification commands (bottom of this report) plus
+   `src/features/theme/__tests__/**/*.test.ts` (static-render.ts's own suite) to confirm no
+   regression on either side of the new shared constant.
+
 **Generic embed contract interaction: none.** The settled-but-unimplemented `data-embed-type`
 registry-keyed-resolver plan (`ADS-memory/reports/media-embeds/IMPLEMENTATION-PLAN-data-embed-type-2026-08-07.md`)
 is entirely about `HTML_EMBED_RESOLVERS`'s own shape (widget/media/post/form-successor types). Neither
