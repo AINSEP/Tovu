@@ -54,7 +54,7 @@ This is the path most real theme content takes today (all 7 live themes are `sta
 
 1. Strip a trailing `.html` from the slug; reject slugs that aren't `[a-z0-9-]+` or that collide with `admin`/`api` (`pages.ts:461-466`).
 2. Run the `pre_content` redirect phase (`pages.ts:471`).
-3. Resolve the active theme and pre-resolve every menu the theme's markup references via `data-embed-type="menu"` (`resolveStaticMenusForRender`, `pages.ts:489`, detailed in §6.2).
+3. Resolve the active theme and pre-resolve every menu the theme's markup references via a `data-embed-config` marker whose `type` is `"menu"` (`resolveStaticMenusForRender`, `pages.ts:489`, detailed in §6.2).
 4. **Marketing-page check, before any post lookup:** if the theme is `static`, the slug isn't `index`, and `theme.pages[slug]` exists, this is one of the theme's own shipped pages (pricing, docs, blog index, …). Render it via `renderStaticPage()` and return — *unless* a real published Post exists at that exact slug **and** has `overridesThemePage: true` set (§7.2), in which case the post wins instead (`pages.ts:497-521`).
 5. Otherwise, look up a published Post by slug. If found and it's a `bodyFormat: "doc"` post (not a `bodyFormat: "html"` Page) and the active theme declares a non-empty `postTemplate` array, render it through the post-template-picker path (§7.1, `pages.ts:527-535`).
 6. Otherwise, fall through to the generic post-rendering path — resolve widgets/embeds/media, call `renderSite()` with `route: "post"` (`pages.ts:537-558`).
@@ -134,7 +134,7 @@ Split deliberately into two tables, because this is a real (if now smaller) dive
 | `postTemplate` | string[] | `static` only | no | Ordered list of `pages/*.html` filenames a Post author can pick between (§7.1). First entry is the implicit default. |
 | `modes` | string[] (e.g. `["dark","light"]`) | `static` only | no | The color-mode names this theme ships token overrides for. A mode name is nothing more than the value written into `data-theme` on `<html>` — it has no other effect on its own. See §3.3. |
 | `defaultMode` | string | `static` only | no | Which of `modes` a freshly-served page starts in. Emitted as `data-theme="<defaultMode>"` on `<html>` (`injectColorMode`, `static-render.ts:231-234`). Declaring a `defaultMode` outside `modes` is a **hard manifest error** — the theme loads with `status: "invalid"` (`theme.ts:378-382`), not a silent fallback. Absent ⇒ no `data-theme` is emitted at all (the pre-2026-08-10 behavior, unchanged). See §3.3. |
-| `slots` | `Record<string, { source, activeAttr?, variants? }>` | `static` only | no (defaults to `DEFAULT_THEME_SLOTS`, the legacy hardcoded `nav`/`footer` pair) | Maps a `data-embed-type="partial" data-embed-id="<key>"` marker to the root partial file it renders, optionally naming the marker-side "current page" attribute for the deprecated spelling (`activeAttr`) and/or an explicit variant → filename map (`variants`) consulted via the marker's `data-embed-config`. See §6.1. |
+| `slots` | `Record<string, { source, activeAttr?, variants? }>` | `static` only | no (defaults to `DEFAULT_THEME_SLOTS`, the legacy hardcoded `nav`/`footer` pair) | Maps a `data-embed-config='{"type":"partial","id":"<key>"}'` marker to the root partial file it renders, optionally naming the marker-side "current page" attribute for the deprecated spelling (`activeAttr`) and/or an explicit variant → filename map (`variants`) consulted via the marker's `data-embed-config`. See §6.1. |
 
 ### 3.2 Fields written by every theme, read by nothing
 
@@ -252,12 +252,20 @@ The fallback is what renders if the token is ever absent; the real value comes f
 
 ## 6. Slots, partials, and embeds
 
-**Marker-spine unification (2026-08-10).** Slots and embeds used to be two genuinely different attribute vocabularies (`data-tovu-slot`/`data-nav-current`/`data-slot-variant` for partials vs. `data-embed-type`/`data-embed-id`/`data-embed-variant` for CMS-resolved content). They now share ONE marker vocabulary — `data-embed-type` / `data-embed-id` / `data-embed-config` — with `type="partial"` folded in as just another embed type. The real distinction was never the attribute names; it's what a `type` resolves against:
+**Marker-spine unification (2026-08-10), then fully collapsed onto ONE attribute (2026-08-11).** Slots and embeds used to be two genuinely different attribute vocabularies (`data-tovu-slot`/`data-nav-current`/`data-slot-variant` for partials vs. `data-embed-type`/`data-embed-id`/`data-embed-variant` for CMS-resolved content). The 2026-08-10 unification collapsed those into `data-embed-type`/`data-embed-id`/`data-embed-config` — still three separate attributes at that point. **Correction (2026-08-17): that three-attribute shape is itself now stale.** A further unification the next day (2026-08-11, the "unified `content` marker" change — `src/core/embeds/marker.ts`'s own file header) moved `type` and `id` OFF their own attributes and INTO the JSON blob, so the real, current mechanism is **one** attribute, `data-embed-config`, whose JSON object carries `type`/`id` as ordinary keys alongside everything else:
+
+```html
+<div data-embed-config='{"type":"partial","id":"nav","current":"index"}'></div>
+```
+
+Verified against the parser (`scanEmbedMarkers`, `src/core/embeds/marker.ts:133-163`, matching on `MARKER_PATTERN` at line 108, which locates exactly one `data-embed-config='...'` attribute per element) and against every live theme file (e.g. `src/themes/static/basic/pages/index.html:12`, `src/themes/static/basic/nav.html:7`). `type="partial"` is just another value of the `type` key, not a special attribute state — the real distinction was never the attribute names; it's what a `type` resolves against:
 
 - **`type="partial"`** — fills the marker with a *partial file* (`nav.html`, `footer.html`) that lives inside the same theme. Purely local to the theme; no repo/database lookup. Resolved by `resolveSlots()`.
 - **Every other `type`** (`menu`, `widget`, `form`, `media`, `post`, …) — fills the marker with *real content resolved from the CMS*. Requires a repo lookup by the route layer before rendering.
 
-`data-embed-config` is a single-quoted JSON object (single-quoted so an inner `"` needs no escaping) carrying whatever a marker used to need a bespoke attribute for — `{"current":"pricing"}`, `{"variant":"minimal"}`, or both. Malformed/absent JSON degrades to an empty config with a `console.warn`, never a thrown error (`static-render.ts`'s `parseEmbedConfig`) — the same "never fail the render" contract §6.4's generic embed pipeline already followed for an unknown `type`.
+The whole JSON object inside `data-embed-config` is single-quoted (so an inner `"` needs no escaping) and carries whatever a marker used to need a bespoke attribute for — `{"current":"pricing"}`, `{"variant":"minimal"}`, or both, alongside the now-inlined `type`/`id`. Malformed/absent JSON degrades to an empty config with a `console.warn`, never a thrown error (`static-render.ts`'s `parseEmbedConfig`) — the same "never fail the render" contract §6.4's generic embed pipeline already followed for an unknown `type`.
+
+For the settled TARGET manifest/folder redesign this attribute shape feeds into, see `theme-authoring-guide-v2.md §8` — not yet implemented, this section (§6) is what actually runs.
 
 **Deprecated spelling, still accepted.** `data-tovu-slot="<key>"` / `data-nav-current="<page>"` / `data-embed-variant="tree"` are retired from every theme in this repo (all 7 migrated 2026-08-10) but `resolveSlots()` still recognizes `data-tovu-slot`/`data-nav-current`/`data-slot-variant` on a marker — with a `console.warn` (once per page render, not once per marker) — so a site-authored theme outside this repo doesn't break the moment it upgrades. `data-embed-variant` (the menu tree/flat choice) has NO such fallback — it shipped and was retired the same day, so there was no real installed base to protect; author `data-embed-config='{"variant":"tree"}'` instead. Do not author new theme content against the deprecated spelling — it exists for compatibility, not as a second supported convention.
 
@@ -266,10 +274,10 @@ The fallback is what renders if the token is ever absent; the real value comes f
 A static page marks where a partial goes with an empty, self-closing-in-spirit div:
 
 ```html
-<div data-embed-type="partial" data-embed-id="nav" data-embed-config='{"current":"pricing"}'></div>
+<div data-embed-config='{"type":"partial","id":"nav","current":"pricing"}'></div>
 ...
-<div data-embed-type="partial" data-embed-id="footer"></div>
-<div data-embed-type="partial" data-embed-id="footer" data-embed-config='{"variant":"minimal"}'></div>
+<div data-embed-config='{"type":"partial","id":"footer"}'></div>
+<div data-embed-config='{"type":"partial","id":"footer","variant":"minimal"}'></div>
 ```
 
 `resolveSlots()` (`static-render.ts`) is driven by `theme.json`'s `slots` map (`theme.manifest.slots ?? DEFAULT_THEME_SLOTS`), not a hardcoded `nav`/`footer` pair. `DEFAULT_THEME_SLOTS` (`theme.ts`) reproduces that old hardcoded pair verbatim, so a theme that declares no `slots` renders byte-identically to before this wiring existed.
@@ -294,30 +302,30 @@ A theme declaring no `slots` at all gets exactly the legacy pair from `DEFAULT_T
 }
 ```
 
-`pages/signin.html` (`src/themes/static/basic/pages/signin.html`) uses both: `<div data-embed-type="partial" data-embed-id="nav" data-embed-config='{"current":"signin"}'></div>` and `<div data-embed-type="partial" data-embed-id="footer" data-embed-config='{"variant":"minimal"}'></div>`, the latter resolving via the explicit map to `footer-minimal.html`. **Worth being honest about:** `basic`'s explicit `minimal → footer-minimal.html` entry produces the exact same result the naming-convention fallback would have produced on its own — no live theme's `variants` map currently diverges from what the convention alone would resolve to, so this field's first real payload doesn't (yet) observably prove the explicit-map-over-convention precedence, even though that code path exists and is exercised.
+`pages/signin.html` (`src/themes/static/basic/pages/signin.html`) uses both: `<div data-embed-config='{"type":"partial","id":"nav","current":"signin"}'></div>` (line 12) and `<div data-embed-config='{"type":"partial","id":"footer","variant":"minimal"}'></div>` (line 36), the latter resolving via the explicit map to `footer-minimal.html`. **Worth being honest about:** `basic`'s explicit `minimal → footer-minimal.html` entry produces the exact same result the naming-convention fallback would have produced on its own — no live theme's `variants` map currently diverges from what the convention alone would resolve to, so this field's first real payload doesn't (yet) observably prove the explicit-map-over-convention precedence, even though that code path exists and is exercised.
 
-### 6.2 Menu embeds (`data-embed-type="menu"`, `static` tier)
+### 6.2 Menu embeds (`type="menu"`, `static` tier)
 
 A static theme's nav/footer partial can mark a real, CMS-managed menu instead of (or alongside) hand-written links:
 
 ```html
-<nav class="main-nav" data-embed-type="menu" data-embed-id="menu-header-nav">
+<nav class="main-nav" data-embed-config='{"type":"menu","id":"menu-header-nav"}'>
   <a href="pricing.html" data-nav-id="pricing">Pricing</a>
   ...
 </nav>
 ```
 
-The route layer scans every page/partial for `data-embed-type="menu"` markers (`scanMenuEmbedIds`, `static-render.ts`), fetches each referenced menu id, resolves it to real nav items (`resolveStaticMenusForRender`, `pages.ts`), and `injectMenuEmbed()` (`static-render.ts`) replaces the marker element's **entire inner content** with rendered `<a>` tags for each resolved item — but **only if** the menu resolves to at least one item; if the referenced menu id doesn't exist, or resolves to zero visible items, the marker's own authored fallback content (the hand-written `<a>` tags above) is left untouched. This "safe default" is deliberate: an active theme with no menu bound to a marker still looks exactly like it did before this feature existed.
+The route layer scans every page/partial for a `data-embed-config` marker whose parsed `type` is `"menu"` (`scanMenuEmbedIds`, `static-render.ts`), fetches each referenced menu id, resolves it to real nav items (`resolveStaticMenusForRender`, `pages.ts`), and `injectMenuEmbed()` (`static-render.ts`) replaces the marker element's **entire inner content** with rendered `<a>` tags for each resolved item — but **only if** the menu resolves to at least one item; if the referenced menu id doesn't exist, or resolves to zero visible items, the marker's own authored fallback content (the hand-written `<a>` tags above) is left untouched. This "safe default" is deliberate: an active theme with no menu bound to a marker still looks exactly like it did before this feature existed.
 
 **This is a marker-scoped, all-or-nothing replacement**, not a merge — the regex substitutes the whole `<tag ...>...</tag>` span between the marker's opening and its own closing tag, captured and backreferenced by the marker's own tag name.
 
-**Nested rendering** (`docs-sidebar`-shaped nav, `basic/pages/blog-sidebar-template.html`): a marker opts into nested `<ul>/<li>` output instead of the default flat `<a>` list via `data-embed-config='{"variant":"tree"}'` — e.g. `<nav data-embed-type="menu" data-embed-id="docs-themes-menu" data-embed-config='{"variant":"tree"}'>`. Opt-in per marker, not a theme-wide switch: every static theme's nav CSS today targets direct `<a>` children of a flex container, so unconditionally introducing a `<ul>` wrapper would collapse each of those navs to a single flex child.
+**Nested rendering** (`docs-sidebar`-shaped nav, `basic/pages/blog-sidebar-template.html`): a marker opts into nested `<ul>/<li>` output instead of the default flat `<a>` list via a `"variant":"tree"` key in the same `data-embed-config` object — e.g. `<nav data-embed-config='{"type":"menu","id":"docs-themes-menu","variant":"tree"}'>` (`src/themes/static/basic/pages/blog-sidebar-template.html:32`). Opt-in per marker, not a theme-wide switch: every static theme's nav CSS today targets direct `<a>` children of a flex container, so unconditionally introducing a `<ul>` wrapper would collapse each of those navs to a single flex child.
 
 ### 6.3 The nav-embed gap: not every theme wires this
 
 **Verified by inspecting every static theme's `nav.html` directly, not inferred from a comment:**
 
-| Theme (id / display name) | Nav uses `data-embed-type="menu"`? |
+| Theme (id / display name) | Nav uses a `{"type":"menu"}` `data-embed-config` marker? |
 |---|---|
 | `basic` / Basic | Yes |
 | `fuel` / Ember | **No — hardcoded `<a>` links, no embed marker at all** |
@@ -327,13 +335,13 @@ The route layer scans every page/partial for `data-embed-type="menu"` markers (`
 | `tailark-quartz-dark` / Onyx | Yes |
 | `tailark-quartz-libre` / Meridian | Yes |
 
-`fuel`'s `nav.html` (`src/themes/static/fuel/nav.html`) has a plain `<nav class="main-nav">` with four hand-written `<a>` tags and no `data-embed-type`/`data-embed-id` attributes anywhere in the file. **This means: on `fuel`, editing the CMS menu in the admin UI has zero visible effect on the public nav.** Every other one of the 6 remaining static themes does wire it, so the same CMS menu edit is visible there. This is a per-theme authoring gap, not a platform limitation — nothing stops `fuel`'s `nav.html` from being edited to add the marker; it just hasn't been.
+`fuel`'s `nav.html` (`src/themes/static/fuel/nav.html`) has a plain `<nav class="main-nav">` with four hand-written `<a>` tags and no `data-embed-config` attribute anywhere in the file. **This means: on `fuel`, editing the CMS menu in the admin UI has zero visible effect on the public nav.** Every other one of the 6 remaining static themes does wire it, so the same CMS menu edit is visible there. This is a per-theme authoring gap, not a platform limitation — nothing stops `fuel`'s `nav.html` from being edited to add the marker; it just hasn't been.
 
 *Correction to a starting assumption:* the task that produced this doc assumed `fuel`/Ember is *currently* the active theme. As of this session, the local dev database (`infra/content.db`, `presentation_settings` table) actually has `activeThemeId = "basic"` — not `fuel`. `basic` does wire the menu embed. The seed default (`src/server/seed.ts:255`, §8.1) now hardcodes `"basic"` directly, resolving without a fallback on a fresh workspace — it used to hardcode the undiscoverable `tovu-official` and rely on `resolveActiveTheme()`'s fallback (§1.2) landing on `basic` anyway. Whichever theme is active is admin-mutable at any time; don't treat "the active theme" as a fixed fact — check `presentation_settings` (or the admin UI) for ground truth. The `fuel`-hardcodes-its-nav fact itself is independent of which theme happens to be active and remains true regardless.
 
-### 6.4 Generic embeds (`data-embed-type="widget|form|media|post"`, any `bodyFormat: "html"` content)
+### 6.4 Generic embeds (`type="widget|form|media|post"`, any `bodyFormat: "html"` content)
 
-A separate, more general mechanism (`src/widgets/html-embeds.ts`) applies to any HTML-format Page/post body (not just static-theme partials): an empty, self-closing `<div data-embed-type="TYPE" data-embed-id="ID"></div>` anywhere in `body_html` gets substituted with resolved markup. Four types are registered today (`HTML_EMBED_RESOLVERS`, `src/widgets/resolver-service.ts:540-545`): `widget`, `form`, `media`, `post`. `type` is a free string, not a closed union — adding a fifth type is a new resolver registration, not a scanner change (`html-embeds.ts:18-22`). An unknown type, a dead id, or a reference beyond the 50-embeds-per-page cap (`MAX_HTML_EMBEDS_PER_PAGE`, `html-embeds.ts:78`) all degrade identically to a safe placeholder div — never a crash, never raw unresolved markup reaching a visitor.
+A separate, more general mechanism (`src/widgets/html-embeds.ts`) applies to any HTML-format Page/post body (not just static-theme partials): an empty, self-closing `<div data-embed-config='{"type":"TYPE","id":"ID"}'></div>` anywhere in `body_html` gets substituted with resolved markup. Four types are registered today (`HTML_EMBED_RESOLVERS`, `src/widgets/resolver-service.ts:540-545`): `widget`, `form`, `media`, `post`. `type` is a free string, not a closed union — adding a fifth type is a new resolver registration, not a scanner change (`html-embeds.ts:18-22`). An unknown type, a dead id, or a reference beyond the 50-embeds-per-page cap (`MAX_HTML_EMBEDS_PER_PAGE`, `html-embeds.ts:78`) all degrade identically to a safe placeholder div — never a crash, never raw unresolved markup reaching a visitor.
 
 This is the mechanism the post-template-picker path reuses for a post's `data-embed-id="{{post}}"` slot (§7.1) — `injectPostEmbedId()` swaps the literal `{{post}}` placeholder for a real post id, then the exact same `resolveHtmlPageEmbeds`/`renderHtmlPageBody` pipeline runs (`static-render.ts:48-61`, `pages.ts:301-309`).
 
@@ -471,7 +479,7 @@ body { background: var(--bg, #fff); color: var(--fg, #111); font-family: var(--f
 <header class="site-header">
   <div class="wrap">
     <a href="index.html">My Theme</a>
-    <nav data-embed-type="menu" data-embed-id="menu-header-nav">
+    <nav data-embed-config='{"type":"menu","id":"menu-header-nav"}'>
       <a href="index.html" data-nav-id="index">Home</a>
     </nav>
   </div>
