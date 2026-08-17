@@ -1,13 +1,13 @@
 {
   "meta": {
-    "fileCount": 832,
+    "fileCount": 839,
     "moduleCount": 48
   },
-  "propagationCostPct": 14.13,
-  "backEdgesIntoServer": 28,
+  "propagationCostPct": 10.32,
+  "backEdgesIntoServer": 27,
   "moduleCycles": {
     "mutualCycleCount": 13,
-    "largestScc": 36,
+    "largestScc": 37,
     "pairs": [
       "assistant <-> db",
       "assistant <-> features/deployments",
@@ -25,10 +25,10 @@
     ]
   },
   "moduleApiSurfaceFiles": 203,
-  "deepImportsBypassingIndex": 534,
+  "deepImportsBypassingIndex": 538,
   "coreSize": {
     "count": 138,
-    "total": 832,
-    "pct": 16.59
+    "total": 839,
+    "pct": 16.45
   }
 }
