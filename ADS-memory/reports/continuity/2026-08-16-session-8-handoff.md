@@ -416,21 +416,56 @@ recognizable, API surface and core size improved, and one export edge explains m
 A radical restructure would spend heavily rearranging healthy feature boundaries while leaving the
 decisive dependency-inversion work still to do.
 
-### 5c. Jini — the gates exist and are UNPLUGGED (owner explicitly wants this next)
+### 5c. Jini CI gates — ✅ DONE THIS SESSION (`e792f76b`, `8f976d82`)
 
-**Correction to an earlier claim: Jini is NOT ungated.** It has three scripts — `guard`,
-`complexity`, `complexity:strict`. `.github/workflows/` contains **only `publish.yml`**, a dormant
-Changesets publisher. **No CI runs any of them.**
+*(Superseding note: an earlier claim that "Jini has no architecture gates" was WRONG — the
+Coordinator's grep used `arch|check|lint|dep|boundar`, which `guard` does not match. Jini had
+`guard`, `complexity` and `complexity:strict` all along; what it lacked was CI. That is now fixed.)*
 
-`pnpm guard` (`scripts/guard.ts`, six self-tested rules: import boundaries, deep-path bans,
-product-neutrality strings, DOM/universal split purity, driver isolation) **currently exits 1 with
-25 violations**, accumulated since 2026-08-03 — 13 of them the literal string "Tovu" leaking into
-supposedly host-neutral engine packages. Two were introduced *during this session* by an agent that
-had no way to know the rule existed. That is the argument for wiring it up.
+`.github/workflows/ci.yml` now exists (previously only the dormant `publish.yml`) and runs, in
+order: `pnpm install --frozen-lockfile` → `pnpm -r run build` → **`pnpm guard:drift`** →
+**`pnpm typecheck`** → **`pnpm complexity`**. Verified present at lines 53/64/68/73/81.
 
-**Sequencing matters:** a CI workflow that is red on its first run gets disabled within days.
-Options: fix the 25 first; land non-blocking with a dated issue; or baseline-and-ratchet (Tovu's
-`development/scripts/check-admin-complexity-drift.ts` is a working precedent). Decide, then do.
+**One decision per gate, not one blanket answer:**
+
+- **`guard` → RATCHETED.** New `pnpm guard:drift` (`scripts/check-guard-drift.ts`) diffs live
+  results against `scripts/guard-baseline.json` (the 25 known violations, captured as JSON straight
+  from the check functions, not scraped from stdout). Fails only on a violation beyond what the
+  baseline permits for that exact `(rule, file, reason)`.
+  **Subtle and important: the diff is a MULTISET, not a set.** `useChatPane.hooks.ts` and `types.ts`
+  each carry the identical `R2-deep-path` violation *twice*; a plain Set diff would have silently
+  let a third through as "already known." 10 unit tests cover exactly these edge cases.
+  `guard`'s own `self-test` (its fail-closed check against known-bad fixtures) stays **hard-failing,
+  never baseline-exempt** — that is the specific "silently regresses to always saying ok" incident
+  `guard.ts`'s own header documents.
+  Ratchet was chosen over fix-first because 13 of the 25 are "Tovu" strings across admin/chat/cms/ui
+  — real app-code changes, and a different agent was already in that area.
+- **`typecheck` → FIXED, fully blocking, no baseline.** It turned out `pnpm typecheck` was **also red
+  at HEAD**, independently of guard: one genuine error in `examples/reference-web/src/AgentLab.tsx`
+  (`DomPageDriverPage` now requires `{label, navigate}`; the example still built a bare
+  `() => void`). Confirmed pre-existing via `git diff` before fixing. Repo-wide
+  `pnpm -r --if-present run typecheck` now exits 0 across **31 workspace projects**.
+- **`complexity` → VISIBILITY ONLY, not blocking, and this is a deliberate scope boundary.**
+  It reports **15,646 warnings, 0 errors, exit 0** — because `complexity`/`sonarjs/cognitive-complexity`
+  are configured `warn`, not `error`, repo-wide in `eslint.config.mjs`. So `pnpm complexity`
+  structurally cannot fail CI today regardless of content. `complexity:strict` was deliberately NOT
+  wired: at 15k+ warnings under the *loose* bar, a real gate is a repo-wide initiative far larger
+  than guard's 25 — the kind Tovu itself scoped down to just `apps/admin/src` rather than attempting
+  whole-codebase. **If you want `complexity:strict` ratcheted, that is a separate and much bigger
+  follow-up.**
+
+**⚠️ One thing inferred, NOT empirically proven — watch the first real GitHub Actions run.**
+A `pnpm -r run build` step was added before the gates because every workspace package resolves
+`@jini-ai/*` siblings through its own **gitignored `dist/`** (`package.json` `types`/`main` both
+point there; no tsconfig path-alias fallback to source exists). A fresh CI checkout has no `dist/`.
+This mirrors `publish.yml`'s own existing build step. It was NOT verified by deleting `dist/` and
+re-running, because other agents were live in the tree. The reasoning is sound but **the first CI
+run is the actual confirmation.** Also: no `actionlint` available locally, so `ci.yml` was validated
+by `js-yaml` parse + step-list inspection only.
+
+Jini's own architecture measured **healthy**: 26 packages, **0 cross-package cycles, 0 layering
+violations**, `core`/`protocol`/`platform` with heavy fan-in and zero fan-out. The opposite shape of
+Tovu's composition-root problem.
 
 Jini's own architecture measured **healthy**: 26 packages, **0 cross-package cycles, 0 layering
 violations**, `core`/`protocol`/`platform` with heavy fan-in and zero fan-out. The opposite shape of
