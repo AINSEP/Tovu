@@ -3,8 +3,8 @@
     "fileCount": 843,
     "moduleCount": 48
   },
-  "propagationCostPct": 10.5,
-  "propagationCostRuntimePct": 2.25,
+  "propagationCostPct": 10.51,
+  "propagationCostRuntimePct": 2.31,
   "backEdgesIntoServer": 15,
   "backEdgesIntoServerRuntimeOnly": 4,
   "moduleCycles": {
