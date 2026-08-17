@@ -1,6 +1,6 @@
 # Server Routes Coverage & Complexity Audit — 2026-08-16
 
-**Status: IN PROGRESS — coverage section still running, this is a partial commit per hard rule #2.**
+**Status: COMPLETE.**
 
 Scope: `src/server/routes/**` (234 route `.ts` files, excludes `__tests__` dirs).
 Audit only — no fixes applied, no tests added, no lint rules changed.
@@ -20,11 +20,12 @@ branch-% partner wherever one exists.
 | Complexity violations at ≤9 (cyclomatic + cognitive) | 70 files / 113 functions | Measured (own eslint run) |
 | Complexity violations at ≤15 (repo's current `warn` bar) | 18 files / 30 functions | Measured (own eslint run) |
 | Unguarded async Express handlers (`app.<verb>`, async, no try/catch, no `.catch`) | 21 occurrences across 15 files | Measured (own AST scan) |
-| Coverage baseline (line / branch / funcs) | **pending** | Run in progress at time of this commit |
-| Zero-coverage route modules | **pending** | Run in progress at time of this commit |
+| Coverage — line / branch / funcs (aggregate, 215/234 files exercised) | **92.20% / 74.05% / 97.54%** | Measured (own `node --test --experimental-test-coverage` run, parsed from lcov) |
+| Zero-coverage route modules | 19 total — **17 are type-only (`deps.ts`/`types.ts`, no runtime code) + 2 are real, complex, untested route handlers** (`admin/assistant/test-agent.ts`, `admin/assistant/test-connection.ts`) | Measured |
 
-This file will be updated in place once the coverage run completes; see the git log
-for this path for the incremental history if that matters.
+The 24-point line-vs-branch spread at the aggregate level (92.2% vs 74.0%) is the
+same shape as the bug that triggered this audit, just visible in the rollup instead
+of one file. Line % is not a usable gate metric here on its own — see §4.
 
 ## 1. Complexity — measured directly
 
@@ -123,36 +124,208 @@ in the same file already carry `try { ... } catch (err) { sendStoreError(res, er
 per an in-file comment — consistent with a partial, in-progress fix rather than an
 untouched file.
 
-Also observed, not yet verified as committed: an untracked
-`src/server/boot/process-error-guards.ts` in the working tree registers a
-process-wide `unhandledRejection` listener (log-and-continue, not fatal) — a
-process-level safety net for exactly this bug class. This is someone else's
-in-flight work; it is noted here as relevant context, not claimed as a fix. If it
-lands, it would make the missing-`unhandledRejection`-handler premise of the
-triggering bug (`Express 4.22.2` async errors becoming unhandled rejections with
-no process-level catch) no longer true repo-wide — the per-route findings above
-would remain a code-quality/error-shape issue (wrong-shaped error responses to the
-client) but would stop being crash risks. Flagging for the owner to confirm once
-that file is committed and reviewed on its own merits — this audit does not review
-or endorse its implementation.
+**Update, mid-audit:** `decrypt-crash-fix` committed `650b92f6` while this report
+was being written (`git log` shows it landed after §1/§2's data was captured but
+before this report's final commit). It adds `src/server/boot/process-error-guards.ts`
+(`installUnhandledRejectionGuard()`, wired into `index.ts`'s `main()`) — a
+process-wide `unhandledRejection` listener that logs and continues rather than
+crashing — and fixes `POST .../:id/verify` in `publish-credentials.ts`
+specifically. **Verified against current HEAD:** that commit did NOT touch the
+`GET`/`DELETE` handlers this report flags at lines 163/231 — both are confirmed
+still-unguarded at HEAD, not stale findings. With the process-level guard now
+committed, the missing-`unhandledRejection`-handler premise of the original crash
+(no process-level catch anywhere in `src/`) is no longer true repo-wide — the
+21 unguarded handlers in the table above would still send wrong-shaped/empty
+error responses to the client on failure, but per-route fixes are no longer the
+only thing standing between a decrypt error and a full process crash. This audit
+did not review or test that guard's correctness on its own merits (that is
+`decrypt-crash-fix`'s deliverable, not this one's) — noted here only because it
+changes the severity framing of every row in the table above.
 
-## 3. Coverage — IN PROGRESS
+## 3. Coverage — measured directly
 
-`node --import tsx --test --experimental-test-coverage` scoped to
-`"src/server/**/*.test.ts"` (121 test files: the 65 route-relevant ones above plus
-unit/integration/helper tests elsewhere in `src/server/__tests__/`) is running in
-the background as of this commit. Will update this section with:
-- Confirmed behavior of node:test's coverage table on a failing run (a specific
-  ask in the brief) — **preliminary answer, confirmed by direct observation**:
-  running only the known-failing `src/server/http/site/__tests__/render.test.ts`
-  file (3 assertion failures, process exit code 1) still printed the full
-  `start of coverage report` / `end of coverage report` table with real line/
-  branch/funcs numbers. **Node's coverage table is not gated on test outcome.**
-  This differs from vitest, which was reported to emit nothing on failure.
-- Aggregate line/branch/funcs % for `src/server/routes/**`.
-- Per-file ratios and the zero-coverage list.
-- The ranked risk table and the "where can a gate realistically start" answer.
+Command:
 
----
-*(this report will be replaced in place with the completed version; this partial
-commit exists so no work is lost if this session is interrupted mid-run)*
+```
+node --import tsx --test --experimental-test-coverage \
+  --test-reporter=lcov --test-reporter-destination=<scratch>/server.lcov.info \
+  --test-reporter=dot --test-reporter-destination=stdout \
+  "src/server/**/*.test.ts"
+```
+
+This runs all 121 test files under `src/server/__tests__/` and the 6 co-located
+under `src/server/routes/**/__tests__/` (127 files touching `src/server`, a
+superset of the 65 route-relevant ones — non-route `src/server` tests are in
+scope too since they can and do exercise route modules indirectly). The lcov
+output was parsed directly (not the human-readable dot-table) so per-file
+line/branch/func hit-and-found counts could be summed precisely; every route
+file appeared in at most one lcov record (no double-counting risk from parallel
+worker processes — verified: 0 of 215 loaded files had more than one record).
+
+**Does node:test still emit a coverage table on a failing run? Confirmed by direct
+observation, not assumption:** running only the known-failing
+`src/server/http/site/__tests__/render.test.ts` (3 assertion failures, process
+exit code 1) still printed the complete `start of coverage report` /
+`end of coverage report` table with real numbers. **Node's coverage reporting is
+not gated on test outcome.** This differs from vitest's silent-on-failure
+behavior referenced in the brief — confirming that assumption was correct to
+flag as unverified, because it does NOT hold for node:test.
+
+**Timing note:** this coverage run was captured before `decrypt-crash-fix`'s
+`650b92f6` landed (see §2's update), which added new tests to
+`publish-credentials-route.test.ts` (+123 lines) and `store.unit.test.ts` (+49
+lines). `publish-credentials.ts`'s branch % below (75.0%, 48/64) predates those
+new tests and is very likely stale-low now — re-run to get its current number
+before treating it as still-accurate; every other file's number is unaffected
+since that commit touched only this one route module and its store.
+
+### Aggregate (215 of 234 route files were loaded/exercised during this run)
+
+| | Hit / Found | % |
+|---|---|---|
+| Lines | 16,888 / 18,316 | **92.20%** |
+| Branches | 3,598 / 4,859 | **74.05%** |
+| Functions | 2,183 / 2,238 | **97.54%** |
+
+### Zero-coverage files (19 total) — separated by what they actually are
+
+A file with **no lcov record at all** means it was never loaded/imported by any
+`src/server` test — the strongest possible "zero coverage" signal, stronger than
+"0% of lines executed," since it means node's coverage instrumentation never even
+saw the module.
+
+- **17 are `deps.ts` (one is `execution-deps.ts`) files that export ONLY
+  TypeScript types** (`Pick<RouteDeps, ...>` slices + a registrar function
+  *type*, no runtime declarations) — verified by reading three of them
+  (`admin/assistant/deps.ts`, `admin/connectors/deps.ts`,
+  `admin/database-recovery/deps.ts`) and confirming every export is
+  `export type`. Type-only exports compile to nothing at runtime, so they
+  cannot appear in a coverage report regardless of test coverage — this is the
+  "helpers/barrel files that need no direct tests" category from the brief, not
+  a gap.
+- **1 is `src/server/routes/types.ts`** (698 lines) — same category, the
+  `RouteDeps` interface itself.
+- **2 are real, logic-bearing route handlers with genuinely zero test coverage:**
+  `admin/assistant/test-agent.ts` and `admin/assistant/test-connection.ts`
+  (115–116 lines each, both registered via `src/server/modules/
+  assistant-execution.ts`, both flagged by the complexity scan in §1, both DO
+  have `try`/`catch` so they're not in the §2 unguarded list). No test file
+  matching either name exists anywhere in `src/` (verified with `find -iname`).
+  `test-agent.ts` shells out to `@jini-ai/agent-runtime`'s `detectAgents()` to
+  probe a locally installed CLI's live auth status; `test-connection.ts` is its
+  API-key counterpart. These are the two real gaps in the "zero coverage" list —
+  everything else in it is a non-finding.
+
+### Worst branch coverage among files that DO have tests (top 15 of 40 measured)
+
+| File | Line % | Branch % | Funcs % |
+|---|---|---|---|
+| `admin/newsletter/update-campaign.ts` | 91.3 | **42.9** | 100.0 |
+| `admin/redirects/create.ts` | 74.5 | **47.6** | 100.0 |
+| `site/comments-submit.ts` | 92.9 | **50.0** | 100.0 |
+| `admin/widgets/agent-tools.ts` | 81.4 | **51.1** | 90.0 |
+| `admin/content-types/update-fields.ts` | 85.7 | **52.2** | 100.0 |
+| `admin/settings/events.ts` | 97.2 | **53.6** | 81.3 |
+| `admin/settings/register-definitions.ts` | 84.4 | **53.6** | 100.0 |
+| `admin/users/create.ts` | 94.3 | **54.5** | 100.0 |
+| `admin/users/write-policy-permission.ts` | 78.5 | **54.5** | 100.0 |
+| `admin/settings/clear.ts` | 81.6 | **55.0** | 100.0 |
+| `admin/entries/lifecycle.ts` | 67.5 | **55.6** | 90.0 |
+| `admin/seo/put-entry.ts` | 68.8 | **55.6** | 100.0 |
+| `admin/posts/update.ts` | 89.6 | **56.0** | 85.7 |
+| `admin/presentation/patch-active-theme.ts` | 89.9 | **57.1** | 75.0 |
+| `admin/redirects/update.ts` | 67.1 | **57.9** | 100.0 |
+
+Full 40-row list and the raw per-file JSON were produced by
+`.ads-scratch-audit/parse-lcov.mjs` (removed from the tree at the end of this
+audit — re-run against a fresh lcov file to regenerate; the command is above).
+
+## 4. Ranked risk table
+
+Risk heuristic per the brief: `(1 − branch%) × sensitivity-keyword-hits`, plus
+additive weight for complexity violations and unguarded-async-handler count.
+Sensitivity is a path/keyword heuristic (credential, secret, auth, payment,
+webhook, publish, deploy, database, restore, source-control, connector,
+workspace, users/, members/, policy) — **inferred from path, not from reading
+every file's logic**, flagged as such. The two `deps.ts`-style zero-coverage
+files that only matched a keyword and carried no complexity/unguarded findings
+were excluded manually — they are type-only, not risk.
+
+| File | Branch % | Complexity ≤9 | Complexity ≤15 | Unguarded | Why it's here |
+|---|---|---|---|---|---|
+| `admin/system/publish-site.ts` | 76.4 | 4 | 3 | **3** | Live publish trigger/status — highest combined score: complex, under-branch-tested, and has unguarded async handlers |
+| `admin/system/export-site.ts` | 75.0 | 1 | 0 | **2** | Full-site export — writes/reads bulk data, 2 unguarded handlers |
+| `admin/system/publish-credentials.ts` | 75.0 | 0 | 0 | **2** | The file that triggered this audit; GET list + DELETE still unguarded (see §2) |
+| `admin/system/source-control-credentials.ts` | 78.0 | 0 | 0 | **2** | Credential CRUD, same shape as publish-credentials.ts |
+| `admin/comments/moderate.ts` | 65.4 | 0 | 0 | **2** | Low branch coverage + 2 unguarded handlers |
+| `admin/system/dockerfile-source.ts` | 85.7 | 0 | 0 | **2** | 2 unguarded handlers (GET/PUT) |
+| `admin/system/deployment-overview.ts` | 71.9 | 2 | 0 | 1 | Complexity + coverage gap on a deployment-state read |
+| `admin/themes/explore.ts` | 66.9 | **6** | **2** | 0 | Worst complexity file in the whole scope (§1) |
+| `site/comments-submit.ts` | 50.0 | 1 | 0 | 1 | Lowest branch % among unguarded-handler files, public-facing endpoint |
+| `site/payments-webhook.ts` | 76.7 | 0 | 0 | 1 | Unguarded, handles inbound payment webhook payloads (inferred from path) |
+| `admin/assistant/test-agent.ts` | **never loaded** | 2 | 1 | 0 | Zero test coverage, real logic, shells to an external CLI (§3) |
+| `admin/assistant/test-connection.ts` | **never loaded** | 2 | 1 | 0 | Zero test coverage, real logic, API-key probe path (§3) |
+| `admin/users/write-policy-permission.ts` | 54.5 | 2 | 1 | 0 | Low branch % on a permissions-write path (inferred sensitivity from path) |
+| `admin/database/restore-points.ts` | 61.5 | 2 | 0 | 0 | Low branch % on a DB-recovery read path |
+| `admin/newsletter/update-campaign.ts` | **42.9** | 2 | 2 | 0 | Worst branch % of any file with tests |
+
+The top 6 rows are the ones I'd fix first if this were a fix pass: they combine
+low branch coverage with either high complexity or an unguarded async handler,
+on routes that touch credentials, publish/export actions, or moderation writes.
+
+## 5. Where could a coverage gate realistically be set today?
+
+**Not at 98% on any axis.** Measured aggregate is line 92.20% / branch 74.05% /
+funcs 97.54%. A 98% gate fails immediately on all three, and catastrophically on
+branch — a 24-point gap. Per the `apps/admin` precedent already in this repo
+(hard gate + grandfathered debt list + drift-check script,
+`development/scripts/admin-complexity-debt.json` /
+`check:admin-complexity-drift`), a gate that fails on day one gets disabled
+within a day, so the number matters more than the aspiration.
+
+Two concrete, realistic options — I'd go with the second:
+
+1. **Single repo-wide floor, set a few points under today's baseline for margin**
+   (e.g. line ≥88%, branch ≥68%, funcs ≥93%), ratcheted upward on a schedule.
+   Simple to wire, but per the coverage-integrity concern in this codebase's own
+   review skill, an aggregate floor absorbs new bad files — `update-campaign.ts`
+   sits at 42.9% branch today while the aggregate reads 74.05%; a floor gate at
+   68% would not have caught it and would not catch the next one either.
+
+2. **Floor gate at the same conservative numbers as (1), PLUS a changed-code /
+   diff branch-coverage gate on new or modified route files** (e.g. new/changed
+   lines in a route file must hit ≥80% branch coverage before merge). This is
+   the mechanism that actually would have caught the triggering bug — a single
+   file shipping at 71.93% branch would fail an 80% diff gate regardless of what
+   the aggregate does. The debt list from §4 becomes the grandfathered set the
+   floor gate tolerates today; the diff gate stops the list from growing.
+
+Either way, a straight jump to 98% is not realistic without first: (a) adding
+tests for the 2 real zero-coverage handlers in §3, and (b) pushing the ~15-20
+files in the branch-% tail (§3's worst-40, §4's risk table) up from the 42–65%
+range into the 90s. That is weeks of targeted test-writing, not a config change.
+
+## What was measured vs. inferred — summary
+
+**Measured directly (commands run, output parsed by me this session):** route/test
+file counts (§ all), complexity violation counts at both thresholds (§1), the
+async-handler AST scan (§2), the full coverage run and its lcov-derived
+line/branch/func numbers including the zero-coverage list (§3), and node:test's
+behavior on a failing run (§3).
+
+**Inferred, not measured:** the "sensitivity" keyword tags in §4 (path-based
+heuristic, not a read of every flagged file's actual secret/auth handling —
+`payments-webhook.ts` and `write-policy-permission.ts` specifically were tagged
+by path only, not verified by reading their bodies). The claim that
+`process-error-guards.ts` would neutralize the crash risk (§2) is inferred from
+reading its doc comments, not from running it against a real decrypt failure —
+noted there as unverified and not this audit's to endorse.
+
+**Could not measure:** whether any of the 21 unguarded handlers or the branch-%
+tail are exercised by Playwright/e2e tests instead of node:test — e2e runs in a
+separate process and node's coverage instrumentation cannot see it. A "zero
+node:test coverage" finding here is not a claim of "never executed by any test
+in this repo," only "never executed by a `src/server` unit/integration test."
+`publish-e2e` and `static-site-verify` are running concurrently in this session
+and may cover some of these paths at the e2e layer — this audit did not check
+Playwright spec contents for that overlap.
