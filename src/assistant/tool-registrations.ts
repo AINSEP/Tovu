@@ -131,11 +131,7 @@ import {
   pagesDerivedRisk,
   type PagesToolDeps,
 } from "../features/pages/tool-registrations";
-import {
-  buildRecoveryRegistrations,
-  recoveryDerivedRisk,
-  type RecoveryToolDeps,
-} from "../features/recovery/tool-registrations";
+import type { RecoveryToolDeps } from "../features/recovery/tool-registrations";
 import {
   buildSettingsRegistrations,
   settingsDerivedRisk,
@@ -274,7 +270,17 @@ const DOMAIN_SLICES: readonly DomainSlice[] = [
   // `contributeContentTypesTools()`/`contributeFormsTools()`/`contributeMenusTools()`, installed by
   // `server/tool-catalog-manifest.ts`.
   { domain: "database", build: buildDatabaseRegistrations, risk: databaseDerivedRisk },
-  { domain: "recovery", build: buildRecoveryRegistrations, risk: recoveryDerivedRisk },
+  // `database` was ALSO tried in the same Stage 2 batch 2 and reverted — see
+  // `features/database/tool-registrations.ts`'s trailing comment for why: adding
+  // `database -> assistant` closed a NEW 16-module SCC running through the shared low-level `db`
+  // module and the still-static `deployments`/`source-control`/`recovery`/`settings`/`workspace`/
+  // `entries`/`post`/`pages`/`plugin-runtime`/`seo`/`export`/`vendor-credentials` DOMAIN_SLICES
+  // entries collectively — much larger than the `themes`/`post` near-misses in the prior batch.
+  // `recovery` converted next (same batch) — see `features/recovery/tool-registrations.ts`'s own
+  // header. No longer an entry here; it arrives via `contributeRecoveryTools()`, installed by
+  // `server/tool-catalog-manifest.ts`. Safe despite sharing `database`'s `db/sqlite` importer:
+  // Recovery's own imports of `features/database` are both `import type`, erased from the
+  // runtime-only cycle graph, so `recovery -> assistant` does not carry `database`'s round-trip risk.
   // 2026-08-15 — the Deployment panel's three tabs (Static Site export, Full Site read, Dockerfile
   // read/write). See `features/deployments/agent-tools.ts`'s file header for why, unlike every
   // domain above, none of its 5 entries is excluded.
