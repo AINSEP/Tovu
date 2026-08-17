@@ -1,5 +1,36 @@
 # Source control / access-tokens UI — Phase 4 status (source-control-ui agent)
 
+## UPDATE — ownership correction + Source Control now covered
+
+The Coordinator corrected my brief mid-session: `apps/admin/src/features/source-control/**` is also
+mine (it was accidentally omitted from the original "files you own" list). Everything below the
+original report body was written before that correction and reflects the earlier, narrower scope
+(`deployment/**` + `security/**` only). Since the correction:
+
+- Added the identical "Create access token" cross-link to `ProvidersTab.tsx` (Source Control's own
+  Providers tab), commit `5e136004`. Live-verified the same way: real click, real `navigate()`, lands
+  on `/admin/access-tokens?tab=access-tokens`.
+- Confirmed via a fresh owner ruling (recorded 2026-08-17 in project memory
+  `project_admin_access_tokens_already_built.md`, written by the Coordinator during this same
+  session): **"Security → Access Tokens is the ONE credential home. Source Control keeps only real
+  source hosts; Static Site picks a saved credential."** This closes task 1 definitively — no
+  searchable-provider-dropdown rebuild is wanted anywhere, on either page. It also explicitly rejects
+  a 7-`VendorId` picker on Source Control specifically, since that would list Netlify/Vercel/
+  Cloudflare/S3 as places to keep source code, which they are not — Source Control's own 3-provider
+  scope (`AdminSourceControlProviderId`) is correct and stays.
+- **"Static Site picks a saved credential"** is new language I have not yet acted on beyond the
+  cross-link — it reads as more than just "add a link out," possibly a picker-first redesign of
+  `PublishCredentialsSection` itself (pick from Security-managed credentials rather than paste one
+  inline). Flagged to the Coordinator; not building further without confirming scope, since it's a
+  bigger change than anything in the original brief and the Coordinator is actively writing a plan
+  doc for the owner right now.
+- Full verified answers to the Coordinator's specific status questions (endpoint contract, task 5's
+  concrete "does the credential get stranded" answer, table/endpoint tracing) were sent via
+  SendMessage rather than duplicated here — see that thread for the byte-for-byte claims.
+
+---
+
+
 **Bootstrap:** loaded `AI-Dev-Shop/agents/web-design/skills.md` before starting, per its own Mandatory
 Startup section (this dispatch carried the `<<SUBAGENT_DISPATCH>>` marker, so `CLAUDE.md`/`AGENTS.md`
 were skipped as instructed).
@@ -188,4 +219,5 @@ nothing swept in from another agent. No `reset`/`rebase`/`amend`/`stash` used. D
    pick it up before the repo picker can be built.
 3. **Task 5**: migration-path analysis above is ready for whoever the Coordinator brings the "stop
    asking for a token on Static Site" decision to.
-4. Consider the same `ManageAccessTokensLink` treatment on `apps/admin/src/features/source-control/ProvidersTab.tsx` (GitHub/GitLab/Bitbucket) for symmetry — out of my scope this session.
+4. ~~Consider the same `ManageAccessTokensLink` treatment on `apps/admin/src/features/source-control/ProvidersTab.tsx`~~ — **DONE**, see the UPDATE section at the top (`5e136004`).
+5. "Static Site picks a saved credential" (fresh owner language, see UPDATE section) may imply more than the cross-link I've built — needs scope confirmation before I build further.
