@@ -467,11 +467,36 @@ export async function deletePublishCredential(deps: PublishCredentialReadDeps, i
 
 /** Shared decrypt step for {@link resolveForPublish}/{@link resolveDefaultForPublish} — the exact
  *  same AAD-derive-then-open-then-parse sequence, extracted so the two resolution paths (by id, by
- *  provider default) cannot drift onto two different decrypt procedures. */
+ *  provider default) cannot drift onto two different decrypt procedures.
+ *
+ *  Wraps ANY failure (bad AAD, tampered ciphertext, wrong key, or — the realistic one — a missing
+ *  `TOVU_INTEGRATIONS_ROOT_KEY` surfacing as a raw `KeyringPort` error) into the SAME typed
+ *  {@link PublishCredentialSecretStoreUnconfiguredError} {@link sealConnection} already throws for
+ *  the write side, rather than letting a raw `Error` escape — this does NOT weaken this module's own
+ *  "a decrypt failure must surface, never degrade to `null`" contract (documented on
+ *  {@link resolveForPublish}/{@link resolveDefaultForPublish} below): it still throws, still ends the
+ *  request, just as a type every caller's HTTP boundary already knows how to map (`publish-
+ *  credentials.ts`'s `sendStoreError` → `503 SECRET_STORE_UNCONFIGURED`) instead of an untyped
+ *  `Error` that boundary does not recognize.
+ *
+ *  Found live (2026-08-16): before this wrap existed, a raw `Error` from this exact call reached
+ *  `static-publish/verify.ts`'s `verifyPublishCredentialById` uncaught, and the admin route's
+ *  `POST .../:id/verify` handler had no try/catch of its own either — Express 4 does not catch an
+ *  async handler's own rejection, so the raw error became an unhandled rejection that took down the
+ *  WHOLE server process on Node's default behavior, not just that one request. The `POST`/`PUT`
+ *  handlers in that same file DID have a try/catch, but their shared `sendStoreError` helper only
+ *  recognizes four specific typed errors and rethrows anything else (`throw err` on its own fallback
+ *  branch) — so a raw `Error` from here escaped THOSE handlers too, just one layer further out. */
 async function decryptRecord(sealer: SecretSealerPort, record: PublishCredentialSetRecord): Promise<PublishConnectionInput> {
   const aad = buildPublishCredentialAad({ workspaceId: record.workspaceId, providerId: record.providerId, id: record.id });
-  const plaintext = await sealer.open({ sealed: record.sealed, aad });
-  return JSON.parse(plaintext) as PublishConnectionInput;
+  try {
+    const plaintext = await sealer.open({ sealed: record.sealed, aad });
+    return JSON.parse(plaintext) as PublishConnectionInput;
+  } catch (err) {
+    throw new PublishCredentialSecretStoreUnconfiguredError(
+      `publish credential could not be decrypted (secret store unconfigured, or the stored row is corrupted): ${err instanceof Error ? err.message : String(err)}`
+    );
+  }
 }
 
 /**
@@ -484,8 +509,9 @@ async function decryptRecord(sealer: SecretSealerPort, record: PublishCredential
  * a publish credential resolves for a human-triggered write with real external effect, so a decrypt
  * failure here should surface, not degrade).
  *
- * @throws Whatever `SecretSealerPort.open()` throws (bad AAD, tampered ciphertext, wrong key) or
- *   `KeyringPort` throws for a missing master secret.
+ * @throws {PublishCredentialSecretStoreUnconfiguredError} `decryptRecord` failed — a tampered/corrupt
+ *   row or (the realistic cause) a missing master secret. See that function's own doc for why this
+ *   is a typed error rather than whatever raw error `SecretSealerPort.open()`/`KeyringPort` produced.
  * @complexity O(1) — one repo read, one decrypt, one `JSON.parse`.
  * @overallScore 100
  */
@@ -511,8 +537,9 @@ export async function resolveForPublish(
  * Same "no such row" (`null`) vs. genuine decrypt failure (thrown) distinction as `resolveForPublish` —
  * see that function's own doc for the full reasoning.
  *
- * @throws Whatever `SecretSealerPort.open()` throws (bad AAD, tampered ciphertext, wrong key) or
- *   `KeyringPort` throws for a missing master secret.
+ * @throws {PublishCredentialSecretStoreUnconfiguredError} `decryptRecord` failed — a tampered/corrupt
+ *   row or (the realistic cause) a missing master secret. See `decryptRecord`'s own doc for why this
+ *   is a typed error rather than whatever raw error `SecretSealerPort.open()`/`KeyringPort` produced.
  * @complexity O(1) — one repo read, one decrypt, one `JSON.parse`.
  * @overallScore 100
  */

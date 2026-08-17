@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createApp, createRouteDeps } from "../../app";
-import { bootAuthenticated } from "../helpers/http-test-server";
+import { AesGcmSecretSealer } from "../../../integrations/secret-sealer.aesgcm";
+import type { KeyringPort } from "../../../integrations/ports";
+import { bootAuthenticated, loginAsOwner, startTestServer } from "../helpers/http-test-server";
 import type { RouteDeps } from "../../routes/types";
 
 /**
@@ -19,6 +21,21 @@ import type { RouteDeps } from "../../routes/types";
  */
 
 const CREDENTIALS_PATH = "system/publish/credentials";
+
+/** Always fails — simulates a missing `TOVU_INTEGRATIONS_ROOT_KEY` without touching real env state.
+ *  Same double `server/__tests__/admin-media-provider-routes.test.ts`'s own `BrokenKeyring` uses for
+ *  the identical class of problem on a sibling secret store. */
+class BrokenKeyring implements KeyringPort {
+  async activeKey(): Promise<{ readonly keyId: string }> {
+    throw new Error("no root key: TOVU_INTEGRATIONS_ROOT_KEY is not set and allowFileFallback is disabled");
+  }
+  async deriveSigningSecret(): Promise<Uint8Array> {
+    throw new Error("no root key");
+  }
+  async derive(): Promise<Uint8Array> {
+    throw new Error("no root key");
+  }
+}
 
 /**
  * Installs a fast, deterministic `globalThis.fetch` stub for the duration of one test — every
@@ -323,18 +340,112 @@ test("publish-credentials: a network failure during POST .../:id/verify reports 
   // Swap the stub for one that throws (DNS failure / connection reset) instead of answering, same
   // "pass local calls through, fake the outbound provider call" URL discrimination as
   // `stubVerificationFetch`, but this time the outbound call fails at the transport layer entirely.
-  const original = globalThis.fetch;
+  //
+  // Deliberately NO second `t.after` here (found live, 2026-08-17, while adding a later test in this
+  // same file): `globalThis.fetch` at this point is already `stubVerificationFetch`'s OWN stub, not
+  // the true native `fetch` — capturing it as `original` and restoring to it in a SECOND `t.after`
+  // would run AFTER `stubVerificationFetch`'s own `t.after` (`t.after` callbacks run in registration
+  // order — confirmed directly), re-stubbing `globalThis.fetch` right back to a stale, test-local
+  // function for every test that runs afterward in this same process. `stubVerificationFetch`'s own
+  // cleanup (registered above, at this test's own `stubVerificationFetch(t, baseUrl, 401)` call)
+  // already fully restores the true native `fetch` once THIS test ends — nothing else to undo here.
+  const passThroughFetch = globalThis.fetch;
   globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
-    if (String(input).startsWith(baseUrl)) return original(input, init);
+    if (String(input).startsWith(baseUrl)) return passThroughFetch(input, init);
     throw new TypeError("fetch failed");
   }) as typeof fetch;
-  t.after(() => {
-    globalThis.fetch = original;
-  });
 
   const verified = await fetch(`${base}/${credential.id}/verify`, { method: "POST", headers: { cookie } });
   assert.equal(verified.status, 200);
   const { verification } = await verified.json();
   assert.equal(verification.status, "unreachable");
   assert.notEqual(verification.status, "invalid");
+});
+
+/**
+ * Live-found (2026-08-16): a saved row from a HEALTHY prior boot (`TOVU_INTEGRATIONS_ROOT_KEY` set),
+ * hit by `POST .../:id/verify` on a NEW boot that never had the key — exactly the trigger an e2e run
+ * reproduced. Before this fix, that request killed the WHOLE server process, not just itself: this
+ * route had no try/catch at all, Express 4 does not catch an async handler's own rejection, and
+ * nothing in `src/` was catching it at the process level either.
+ *
+ * Two apps sharing ONE repo simulate "the row already exists, THIS process just has no root key" —
+ * app1 (a normal, working sealer) creates and saves the row; app2 (a `BrokenKeyring`) is a second,
+ * independent server instance pointed at the SAME `publishCredentialSetRepo`, standing in for a
+ * later, differently-configured boot. This is deliberately not "swap the sealer mid-request" — a
+ * single request cannot both succeed at sealing and fail at opening with the same key, so two
+ * separate app instances are the only way to reproduce the real shape of the bug.
+ *
+ * Asserting `503 SECRET_STORE_UNCONFIGURED` alone would still pass even if the SERVER PROCESS itself
+ * had died in a way this harness happened to mask (e.g. a crash the test's own `fetch` reported as a
+ * network error rather than distinguishing it from a real response). The load-bearing assertion is
+ * the one after: a second, unrelated request against the SAME live server, issued right after the
+ * failing one — a dead process cannot answer this; it would `ECONNREFUSED`/reject, not return 200.
+ */
+test("publish-credentials: a root key missing at verify time (present at save time) 503s with SECRET_STORE_UNCONFIGURED, and the server survives to answer the next request", async (t) => {
+  // App 1: a normal, working sealer — saves the credential the way a healthy prior boot would have.
+  const deps1 = createRouteDeps();
+  const app1 = createApp(deps1);
+  const { baseUrl: baseUrl1, cookie: cookie1 } = await bootAuthenticated(app1, t);
+  const base1 = `${baseUrl1}/api/admin/v1/workspaces/${deps1.workspaceId}/${CREDENTIALS_PATH}`;
+
+  // Two LIVE servers on two different ports in this one test — `stubVerificationFetch` only passes
+  // through requests to the ONE `baseUrl` it is given, which would silently swallow every request to
+  // app2 (a different port) too, including its own login, answering them with a fake status instead
+  // of ever reaching app2's real server. Inlined here instead: both base URLs pass through untouched
+  // (app2's own `baseUrl` is filled in below, once it exists — this override is only exercised by the
+  // OUTBOUND provider-verification call before that point, which is exactly what needs faking then);
+  // only the actual outbound provider-verification call gets faked.
+  let baseUrl2 = "";
+  const original = globalThis.fetch;
+  globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    if (url.startsWith(baseUrl1) || (baseUrl2 !== "" && url.startsWith(baseUrl2))) return original(input, init);
+    return new Response("", { status: 401 });
+  }) as typeof fetch;
+  t.after(() => {
+    globalThis.fetch = original;
+  });
+
+  const created = await fetch(base1, {
+    method: "POST",
+    headers: { cookie: cookie1, "content-type": "application/json" },
+    body: JSON.stringify({ label: "gh", connection: { providerId: "github-pages", token: "github-secret-token" } }),
+  });
+  assert.equal(created.status, 201);
+  const { credential } = await created.json();
+
+  // App 2: a SEPARATE server instance sharing the SAME repo (so it can see the row app1 just saved)
+  // but a keyring that always throws — the current process, not the one that saved the row.
+  const brokenKeyring = new BrokenKeyring();
+  const deps2: RouteDeps = {
+    ...createRouteDeps(),
+    publishCredentialSetRepo: deps1.publishCredentialSetRepo,
+    siteAssistantSecretKeyring: brokenKeyring,
+    siteAssistantSecretSealer: new AesGcmSecretSealer(brokenKeyring),
+  };
+  assert.equal(deps2.workspaceId, deps1.workspaceId, "sanity: both deps use the same seeded workspace id, so the shared row is reachable under the same URL");
+  const app2 = createApp(deps2);
+  // Not `bootAuthenticated` (it bundles server-start + login into one call, returning `baseUrl` only
+  // AFTER login already happened) — `baseUrl2` must be known and unblocking the fetch override above
+  // BEFORE app2's own login request goes out, or that request gets swallowed by the override too.
+  baseUrl2 = await startTestServer(app2, t);
+  const cookie2 = await loginAsOwner(baseUrl2);
+  const base2 = `${baseUrl2}/api/admin/v1/workspaces/${deps2.workspaceId}/${CREDENTIALS_PATH}`;
+
+  // Bounded, not a bare `fetch`: an unguarded decrypt failure does not necessarily produce a fast,
+  // clean crash — reproduced directly while writing this test, an unguarded async handler that
+  // rejects with nothing calling `res.json()`/`res.status()` leaves the client's request hanging with
+  // no response at all, not a quick error. A regression here must fail this test in seconds, never
+  // hang the whole suite indefinitely.
+  const verify = await fetch(`${base2}/${credential.id}/verify`, { method: "POST", headers: { cookie: cookie2 }, signal: AbortSignal.timeout(5000) });
+  assert.equal(verify.status, 503);
+  const verifyBody = await verify.json();
+  assert.equal(verifyBody.error, "SECRET_STORE_UNCONFIGURED");
+
+  // Proof of survival, not just a status code (see this test's own doc comment above).
+  const stillAlive = await fetch(base2, { headers: { cookie: cookie2 } });
+  assert.equal(stillAlive.status, 200, "the server must still be answering an unrelated GET on the SAME instance right after the failing verify call");
+  const list = await stillAlive.json();
+  assert.equal(list.credentials.length, 1, "and it must still see the row it had before the failing call — the failure must not have corrupted anything else");
 });
