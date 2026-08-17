@@ -104,16 +104,18 @@ import { listPublishCredentials, type PublishCredentialReadDeps } from "./publis
 import { S3_COMPATIBLE_FIELD_GUIDANCE, S3_COMPATIBLE_FORM_DESCRIPTION } from "./publish-credentials/s3-compatible-field-guidance";
 // Phase 3 cutover (this dispatch) — `vendor_credential_sets` is the eventual replacement for THIS
 // file's own `publish_credential_sets` reads/writes (see `vendor-credentials/index.ts`'s own header).
-// Both symbols below are read-model/validated-write only, exactly like this file's existing
-// `listPublishCredentials`/`createPublishCredential`/`updatePublishCredential` imports — neither
-// touches `sealer`/`keyring` for a read, and both go through the SAME validate-then-seal write
-// discipline `publish-credentials/store.ts` already documents. Creates a real
-// `features/deployments <-> features/vendor-credentials` module edge that does not exist at HEAD
-// today (`vendor-credentials/dual-read.ts` already imports back into `publish-credentials/store.ts`
-// for its own legacy-fallback), because dual-read is explicitly a TEMPORARY strategy — see that
-// file's header, "should be deleted... once every install is confirmed migrated." The cycle
-// disappears the day that fallback is deleted; it is not this cutover's own defect to fix.
-import { createVendorCredential, listVendorCredentials, PUBLISH_PROVIDER_TO_VENDOR, updateVendorCredential, type VendorCredentialWriteDeps } from "../vendor-credentials/index";
+// Deliberately NO import of any kind (type or value) from `../vendor-credentials/**` here — an
+// earlier revision imported `createVendorCredential`/`listVendorCredentials`/`updateVendorCredential`/
+// `PUBLISH_PROVIDER_TO_VENDOR` directly, which closed a real `features/deployments <->
+// features/vendor-credentials` module cycle (`vendor-credentials/dual-read.ts` already imports back
+// into `publish-credentials/store.ts` for its own temporary legacy-fallback — see that file's header).
+// `VendorCredentialPort` below is this domain's own narrow, LOCALLY-declared structural stand-in for
+// that store's read/write contract — same discipline this file's sibling `tool-registrations.ts`
+// documents for `RouteDeps` narrowing, extended to a cross-FEATURE edge instead of a cross-LAYER one.
+// The real implementations are wired in by `assistant/tool-registrations.ts`'s
+// `buildAssistantToolRegistrations` (the one file already documented as "the one place that
+// genuinely needs to see every domain at once") via `StaticPublishToolDeps.vendorCredentials` below —
+// never imported here.
 import {
   composePublishCredentialSource,
   computeBasePath,
@@ -371,6 +373,68 @@ export const staticPublishDerivedRisk: DerivedRiskByToolId = new Map<string, Age
 ]);
 
 /**
+ * This domain's own read model for one `vendor_credential_sets` row — a hand-written structural
+ * mirror of `vendor-credentials/store.ts`'s `VendorCredentialSetSummary`, loosened from that type's
+ * own 7-member `VendorId` union to plain `string` (this file only ever compares it against its OWN
+ * `StaticPublishTargetId`-derived vendor ids, never constructs one — narrowing costs nothing here and
+ * buys the zero-import property below). See the module-level comment above this file's now-absent
+ * `vendor-credentials` import for why this exists as a duplicate rather than an imported type.
+ */
+interface VendorCredentialSummaryLike {
+  readonly id: string;
+  readonly vendorId: string;
+  readonly label: string;
+  readonly isDefault: boolean;
+  readonly tokenTail: string;
+  readonly accountLabel: string | null;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+/** Structural stand-ins for `vendor-credentials/store.ts`'s own `VendorCredentialReadDeps`/
+ *  `VendorCredentialWriteDeps` — every field type is an indexed-access off `RouteDeps` (already
+ *  imported by this file, so referencing e.g. `RouteDeps["clock"]` introduces no new edge) rather
+ *  than a name imported from `vendor-credentials/types.ts`. */
+type VendorCredentialReadDepsLike = { repo: RouteDeps["vendorCredentialSetRepo"] };
+type VendorCredentialWriteDepsLike = {
+  repo: RouteDeps["vendorCredentialSetRepo"];
+  sealer: RouteDeps["siteAssistantSecretSealer"];
+  keyring?: RouteDeps["siteAssistantSecretKeyring"];
+  clock: RouteDeps["clock"];
+  idGen: RouteDeps["idGen"];
+};
+
+/**
+ * This domain's narrow, LOCALLY-typed port onto `vendor-credentials/store.ts`'s CRUD contract —
+ * carries no import from `features/vendor-credentials` (see the module-level comment above this
+ * file's import block). `label`/`connection`/`isDefault` stay `unknown` deliberately, mirroring the
+ * real functions' own deliberately-loose validate-at-the-boundary contract
+ * (`CreateVendorCredentialInput`/`UpdateVendorCredentialInput`'s own doc) — this port does not
+ * pre-validate, the real `createVendorCredential`/`updateVendorCredential` implementation wired in at
+ * the composition root does.
+ *
+ * Injected via `StaticPublishToolDeps.vendorCredentials`, wired to the real implementation ONLY by
+ * `assistant/tool-registrations.ts`'s `buildAssistantToolRegistrations` — never by this file. Unset
+ * (`undefined`) is a wiring bug, not a "fall back to legacy-only" case: {@link requireVendorCredentialPort}
+ * throws rather than silently degrading, matching `commit-site.ts`'s own "no adapter configured — this
+ * is a wiring bug" precedent for the identical shape of problem.
+ */
+export interface VendorCredentialPort {
+  list(deps: VendorCredentialReadDepsLike, input: { workspaceId: string }): Promise<VendorCredentialSummaryLike[]>;
+  create(deps: VendorCredentialWriteDepsLike, input: { workspaceId: string; label: unknown; connection: unknown; isDefault?: unknown }): Promise<VendorCredentialSummaryLike>;
+  update(deps: VendorCredentialWriteDepsLike, input: { workspaceId: string; id: string; label?: unknown; connection?: unknown; isDefault?: unknown }): Promise<VendorCredentialSummaryLike>;
+  /** `publish_credential_sets.provider_id` -> `VendorId` (loosened to `string`, same reasoning
+   *  {@link VendorCredentialSummaryLike} gives for its own `vendorId` field). Exhaustive over every
+   *  `StaticPublishTargetId` in production (`vendor-credentials/types.ts`'s own `PUBLISH_PROVIDER_TO_
+   *  VENDOR`, wired in at the composition root) — not enforced at this narrowed type's own level,
+   *  since doing so would require importing `StaticPublishTargetId`'s full union here, which this
+   *  file already does for other reasons (see below), so `Record<StaticPublishTargetId, string>` IS
+   *  exhaustive after all with no extra import cost.
+   */
+  providerToVendor: Readonly<Record<StaticPublishTargetId, string>>;
+}
+
+/**
  * The exact slice of the route-deps bag this domain's tool handlers read. Unlike this file's previous
  * revision (preview-only), this is now `RouteDeps` itself rather than a narrow structural stand-in —
  * `deployment_execute_static_publish`'s confirmed path calls `publishStaticSite`, which needs the
@@ -405,6 +469,31 @@ export interface StaticPublishToolDeps extends RouteDeps {
    *  `deps.publishHistoryStore`, so a real publish's history is visible to this tool with no wiring
    *  change outside this domain (see `publish-run.ts`'s header, "Publish history"). */
   historyStore?: PublishHistoryStore;
+  /** Injected implementation of `vendor-credentials/store.ts`'s CRUD contract — see
+   *  {@link VendorCredentialPort}'s own doc for why this is injected rather than imported, and why
+   *  `undefined` in production is a wiring bug caught by {@link requireVendorCredentialPort}, not a
+   *  silent legacy-only degrade. A test that does not exercise `deployment_get_static_publish_
+   *  capabilities`/`deployment_propose_custom_provider_credential` may safely omit this — every other
+   *  handler in this file never reads it. */
+  vendorCredentials?: VendorCredentialPort;
+}
+
+/** Resolves `deps.vendorCredentials`, or throws a named, actionable wiring-bug error — see
+ *  {@link VendorCredentialPort}'s own doc for why "unset" must never silently degrade to a
+ *  legacy-only read/write. Called once per handler that needs it, not eagerly at
+ *  `buildStaticPublishRegistrations`'s own top level, so every OTHER test/handler in this file that
+ *  never touches vendor credentials is unaffected by this dependency existing at all.
+ *
+ * @complexity O(1).
+ */
+function requireVendorCredentialPort(deps: StaticPublishToolDeps): VendorCredentialPort {
+  if (!deps.vendorCredentials) {
+    throw new Error(
+      "StaticPublishToolDeps.vendorCredentials was not injected — this is a wiring bug, not a credential or network problem. " +
+        "Production wiring lives in assistant/tool-registrations.ts's buildAssistantToolRegistrations; see VendorCredentialPort's own doc."
+    );
+  }
+  return deps.vendorCredentials;
 }
 
 function buildPreviewConfig(raw: Record<string, unknown>): StaticPublishConfig {
@@ -789,25 +878,30 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
      * legacy table has no such column, and deriving one would mean decrypting); `null` there is
      * honest, not a placeholder — see this tool's own catalog description for the model-facing
      * contract.
+     *
+     * `listVendorCredentials`/`providerToVendor` are read off `deps.vendorCredentials`
+     * ({@link VendorCredentialPort}, resolved by {@link requireVendorCredentialPort}), never imported
+     * directly — see this file's header for why.
      */
     deployment_get_static_publish_capabilities: async (ctx) => {
       requireNoInput(ctx.input);
       await requireToolPermission(deps, { principalId: ctx.principal.id, permission: "deployments.read", entityType: "site-publish" });
 
+      const vendorCredentials = requireVendorCredentialPort(deps);
       const saved = await listPublishCredentials({ repo: deps.publishCredentialSetRepo } satisfies PublishCredentialReadDeps, {
         workspaceId: deps.workspaceId,
       });
       // Phase 3 cutover — see this handler's own doc above for why this is a second, independent list
       // read (never a decrypting resolve) rather than a call into `vendor-credentials/dual-read.ts`.
-      const savedVendor = await listVendorCredentials({ repo: deps.vendorCredentialSetRepo }, { workspaceId: deps.workspaceId });
+      const savedVendor = await vendorCredentials.list({ repo: deps.vendorCredentialSetRepo }, { workspaceId: deps.workspaceId });
 
       const providers = await Promise.all(
         PROVIDER_IDS.map(async (providerId) => {
-          // `PUBLISH_PROVIDER_TO_VENDOR` is exhaustive over every `PublishProviderId` (`vendor-
-          // credentials/types.ts`'s own compile-time guarantee), so this is never undefined for any
+          // `providerToVendor` is exhaustive over every `StaticPublishTargetId` by this port's own
+          // type (`VendorCredentialPort.providerToVendor`'s doc), so this is never undefined for any
           // member of `PROVIDER_IDS` — asserted rather than defensively guarded, matching how the rest
           // of this handler already treats its own fixed, closed inputs.
-          const vendorId = PUBLISH_PROVIDER_TO_VENDOR[providerId];
+          const vendorId = vendorCredentials.providerToVendor[providerId];
           const savedForVendor = savedVendor.filter((credential) => credential.vendorId === vendorId);
           const savedForProvider = saved.filter((credential) => credential.providerId === providerId);
           // New table wins the moment it has ANY row for this vendor — same per-vendor precedence
@@ -1260,7 +1354,8 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
           if (typeof params[field] === "string") connectionInput[field] = params[field];
         }
 
-        const writeDeps: VendorCredentialWriteDeps = {
+        const vendorCredentials = requireVendorCredentialPort(deps);
+        const writeDeps: VendorCredentialWriteDepsLike = {
           repo: deps.vendorCredentialSetRepo,
           sealer: deps.siteAssistantSecretSealer,
           keyring: deps.siteAssistantSecretKeyring,
@@ -1284,9 +1379,9 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
           // header already accepts for the read side.
           const existing = await deps.vendorCredentialSetRepo.findDefaultByVendor({ workspaceId: deps.workspaceId, vendorId: "s3-compatible" });
           if (existing) {
-            await updateVendorCredential(writeDeps, { workspaceId: deps.workspaceId, id: existing.id, connection: connectionInput });
+            await vendorCredentials.update(writeDeps, { workspaceId: deps.workspaceId, id: existing.id, connection: connectionInput });
           } else {
-            await createVendorCredential(writeDeps, { workspaceId: deps.workspaceId, label: CUSTOM_PROVIDER_CREDENTIAL_ROW_LABEL, connection: connectionInput });
+            await vendorCredentials.create(writeDeps, { workspaceId: deps.workspaceId, label: CUSTOM_PROVIDER_CREDENTIAL_ROW_LABEL, connection: connectionInput });
           }
         } catch (err) {
           // `PublishCredentialValidationError`'s own messages never carry a field VALUE, only field

@@ -68,12 +68,28 @@ import {
   buildStaticPublishRegistrations,
   staticPublishDerivedRisk,
   type StaticPublishToolDeps,
+  type VendorCredentialPort,
 } from "../features/deployments/publish-agent-tools";
 import {
   buildEntriesRegistrations,
   entriesDerivedRisk,
   type EntriesToolDeps,
 } from "../features/entries/tool-registrations";
+// This file's own real wiring for `StaticPublishToolDeps.vendorCredentials` (`VendorCredentialPort`,
+// `publish-agent-tools.ts`) — that file deliberately carries NO import of any kind from
+// `features/vendor-credentials` (see its own header for why: doing so closed a real
+// `features/deployments <-> features/vendor-credentials` module cycle). This IS the one place
+// allowed to see both sides — the same reasoning {@link AssistantToolRegistryDeps}'s own doc gives
+// for being the sole place that sees every domain's narrow type at once. `assistant ->
+// features/vendor-credentials` is a new, one-directional edge: nothing `vendor-credentials` depends
+// on (`features/deployments/publish-credentials/store.ts`, `features/source-control/store.ts`)
+// reaches back into `assistant`, so this cannot itself become a cycle.
+import {
+  createVendorCredential,
+  listVendorCredentials,
+  PUBLISH_PROVIDER_TO_VENDOR,
+  updateVendorCredential,
+} from "../features/vendor-credentials/index";
 import {
   buildSourceControlRegistrations,
   sourceControlDerivedRisk,
@@ -351,6 +367,20 @@ export function assertRiskMetadataIsWirable(toolId: string, catalogEntry: Wirabl
  * @complexity O(t) in the total wired-tool count.
  * @overallScore 100
  */
+/**
+ * The real `VendorCredentialPort` implementation — `publish-agent-tools.ts`'s own narrow port,
+ * satisfied structurally by `vendor-credentials/store.ts`'s actual exports without either file
+ * naming the other's type. Declared once, module-scope (not per-call), since these are stateless
+ * functions and a plain `Record<PublishProviderId, VendorId>` — nothing here needs to be rebuilt per
+ * request. See the import block above for why this is the one file allowed to construct it.
+ */
+const REAL_VENDOR_CREDENTIAL_PORT: VendorCredentialPort = {
+  list: listVendorCredentials,
+  create: createVendorCredential,
+  update: updateVendorCredential,
+  providerToVendor: PUBLISH_PROVIDER_TO_VENDOR,
+};
+
 export function buildAssistantToolRegistrations(
   routeDeps: AssistantToolRegistryDeps,
   surfaces: AssistantSurfaceDeps = { surfaceExchanges: createSurfaceExchangeStore() },
@@ -358,8 +388,18 @@ export function buildAssistantToolRegistrations(
   const registrations: ToolRegistration[] = [];
   const ownerByToolId = new Map<string, string>();
 
+  // Enriches (never mutates) the caller's own `routeDeps` with the one field `static-publish`'s
+  // `StaticPublishToolDeps.vendorCredentials` needs and cannot import for itself (see the import
+  // block above). `routeDeps.vendorCredentials ??` preserves a test's own injected fake — same
+  // "caller's own override wins, real default otherwise" shape `buildStaticPublishRegistrations`'
+  // own `credentialSource`/`historyStore` already use one layer down.
+  const enrichedRouteDeps: AssistantToolRegistryDeps = {
+    ...routeDeps,
+    vendorCredentials: routeDeps.vendorCredentials ?? REAL_VENDOR_CREDENTIAL_PORT,
+  };
+
   for (const slice of DOMAIN_SLICES) {
-    for (const registration of slice.build(routeDeps, surfaces)) {
+    for (const registration of slice.build(enrichedRouteDeps, surfaces)) {
       const owner = ownerByToolId.get(registration.descriptor.id);
       if (owner) {
         // Unreachable while `DERIVED_RISK_BY_TOOL_ID`'s merge holds — a tool cannot be wired
