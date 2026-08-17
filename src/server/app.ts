@@ -26,7 +26,7 @@ import { InMemorySettingsRepo, ensureSettingsUiTabDefinitions } from "../feature
 import { discoverAllBuiltInThemes } from "../features/theme";
 import { InMemoryWorkspaceRepo } from "../features/workspace";
 import path from "node:path";
-import { builtInThemesDir } from "./deps";
+import { builtInThemesDir, resolveExportOutputRootDir, resolvePublishOutputRootDir, resolveSourceControlExportRootDir } from "./deps";
 import {
   seededPosts,
   seededPresentation,
@@ -621,6 +621,10 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // `runExportSite` doc for why that indirection is required, not stylistic (a real circular-load
     // crash, not a style preference). Resolved lazily; see {@link runExportSiteLazily}.
     runExportSite: runExportSiteLazily,
+    // Read ONCE here rather than deep in `export-run.ts`/`cli/commands/export.ts` — see
+    // `server/deps.ts`'s `resolveExportOutputRootDir` doc and `routes/types.ts`'s
+    // `exportOutputRootDir` doc.
+    exportOutputRootDir: resolveExportOutputRootDir(),
     // 2026-08-16 — see `routes/types.ts`'s `createSiteApp` doc: the direct reference this file can
     // take (createApp is declared in this same module) closing `export -> server` for the in-memory
     // composition root. `server/deps.ts`'s SQLite composition root needs the lazy-`require`d
@@ -640,6 +644,9 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // see `routes/types.ts`'s `publishHistoryStore` doc.
     publishHistoryStore: new InMemoryPublishHistoryStore(),
     publishExecutionMode: executionModeFromEnv(),
+    // Read ONCE here rather than deep in `static-publish/adapter.ts` — see `server/deps.ts`'s
+    // `resolvePublishOutputRootDir` doc and `routes/types.ts`'s `publishOutputRootDir` doc.
+    publishOutputRootDir: resolvePublishOutputRootDir(),
     // 2026-08-16 — hermetic double for `server/deps.ts`'s real (also in-memory — see
     // `routes/types.ts`'s `publishCredentialVerificationCache` doc for why this cache is
     // deliberately never DB-backed) instance.
@@ -648,6 +655,10 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // `SqliteSourceControlCredentialSetRepo`; see `routes/types.ts`'s
     // `sourceControlCredentialSetRepo` doc.
     sourceControlCredentialSetRepo: new InMemorySourceControlCredentialSetRepo(),
+    // Read ONCE here rather than deep in `source-control/commit-site.ts` — see `server/deps.ts`'s
+    // `resolveSourceControlExportRootDir` doc and `routes/types.ts`'s `sourceControlExportRootDir`
+    // doc.
+    sourceControlExportRootDir: resolveSourceControlExportRootDir(),
     // 2026-08-16 (Phase 3) — hermetic double for `server/deps.ts`'s real
     // `SqliteVendorCredentialSetRepo`; see `routes/types.ts`'s `vendorCredentialSetRepo` doc.
     vendorCredentialSetRepo: new InMemoryVendorCredentialSetRepo(),

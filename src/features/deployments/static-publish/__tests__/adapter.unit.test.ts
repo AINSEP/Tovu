@@ -19,16 +19,25 @@ import type { PublishCredentialSource, StaticPublishConfig } from "../types";
  * paths intact. Plus the base-path derivation this feature's whole "structurally hard to get wrong"
  * claim rests on.
  *
- * Every test redirects `TOVU_PUBLISH_DIR` to a throwaway temp directory (module-level, matching
- * `export-site-route.test.ts`'s own precedent) and injects a FAKE `DeployTarget` via
- * `StaticPublishDeps.buildTarget` — this suite runs a REAL `exportSite` pass against the hermetic
- * `createRouteDeps()` fixture (real, in-process, no external network), but NEVER constructs a real
+ * Every test redirects `RouteDeps.publishOutputRootDir` to a throwaway temp directory (via
+ * {@link testRouteDeps} below, matching `export-site-route.test.ts`'s own precedent for
+ * `exportOutputRootDir`) and injects a FAKE `DeployTarget` via `StaticPublishDeps.buildTarget` —
+ * this suite runs a REAL `exportSite` pass against the hermetic `testRouteDeps()` fixture (real,
+ * in-process, no external network), but NEVER constructs a real
  * `GitHubPagesDeployTarget`/`VercelDeployTarget` and NEVER touches `fetch`/GitHub/Vercel.
  */
 
 const publishOutputDir = mkdtempSync(path.join(tmpdir(), "tovu-publish-adapter-test-"));
-process.env.TOVU_PUBLISH_DIR = publishOutputDir;
 test.after(() => rmSync(publishOutputDir, { recursive: true, force: true }));
+
+/** The hermetic fixture, with `publishOutputRootDir` redirected to this file's own throwaway temp
+ *  dir — `publishStaticSite` reads this field instead of `process.env.TOVU_PUBLISH_DIR` (adapter.ts
+ *  no longer reads env vars at all), so overriding it here is what keeps this suite's real
+ *  `exportSite` writes off the checked-out repo, same as every other `RouteDeps` field a test
+ *  overrides. */
+function testRouteDeps(): RouteDeps {
+  return { ...createRouteDeps(), publishOutputRootDir: publishOutputDir };
+}
 
 /** Records every `publish()` call's file set and returns a canned success result — the "faked deploy
  *  target" the brief asks for. Never touches `fetch`. */
@@ -79,7 +88,7 @@ test("publishStaticSite: an invalid config is rejected before credentials or the
     { credentialSource: neverCalledCredentialSource() },
     {
       workspaceId: "does-not-matter",
-      routeDeps: createRouteDeps(),
+      routeDeps: testRouteDeps(),
       config: { target: "github-pages", owner: "not valid owner!!", repo: "demo" },
       projectName: "demo",
     }
@@ -92,7 +101,7 @@ test("publishStaticSite: an invalid config is rejected before credentials or the
 
 test("publishStaticSite: a missing token fails cleanly with NO_CREDENTIALS_CONFIGURED, before any export or publish attempt", async () => {
   let exportAttempted = false;
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: RouteDeps = { ...testRouteDeps() };
   // Wrapping workspaceRepo.findById (an arbitrary read exportSite touches early) would be fragile
   // to internal exportSite ordering; instead this test proves the STRONGER claim — the deploy
   // target is never even constructed — via `buildTarget` below never firing.
@@ -126,7 +135,7 @@ test("publishStaticSite: a missing token fails cleanly with NO_CREDENTIALS_CONFI
 
 test("publishStaticSite: injects .nojekyll for github-pages and maps real exported files to deploy-relative DeployFile[]", async () => {
   const captured: { value: DeployFile[] | null } = { value: null };
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: RouteDeps = { ...testRouteDeps() };
 
   const result = await publishStaticSite(
     {
@@ -162,7 +171,7 @@ test("publishStaticSite: injects .nojekyll for github-pages and maps real export
 
 test("publishStaticSite: does NOT inject .nojekyll for vercel, and never sets a base path", async () => {
   const captured: { value: DeployFile[] | null } = { value: null };
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: RouteDeps = { ...testRouteDeps() };
 
   const result = await publishStaticSite(
     {
@@ -207,7 +216,7 @@ test("computeBasePath: netlify and cloudflare-pages never carry a base path, sam
 test("publishStaticSite: does NOT inject .nojekyll for netlify or cloudflare-pages, and never sets a base path", async () => {
   for (const config of [{ target: "netlify" }, { target: "cloudflare-pages" }] as const) {
     const captured: { value: DeployFile[] | null } = { value: null };
-    const deps: RouteDeps = { ...createRouteDeps() };
+    const deps: RouteDeps = { ...testRouteDeps() };
 
     const result = await publishStaticSite(
       {
@@ -232,7 +241,7 @@ test("publishStaticSite: does NOT inject .nojekyll for netlify or cloudflare-pag
 });
 
 test("publishStaticSite: passes the resolved credential's accountId through to buildTarget for cloudflare-pages", async () => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: RouteDeps = { ...testRouteDeps() };
   let observedCredential: { token: string; accountId?: string } | null = null;
 
   const result = await publishStaticSite(
@@ -258,7 +267,7 @@ test("publishStaticSite: passes the resolved credential's accountId through to b
 });
 
 test("publishStaticSite: a resolved credential for vercel/github-pages/netlify never carries accountId through to buildTarget", async () => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: RouteDeps = { ...testRouteDeps() };
   let observedCredential: { token: string; accountId?: string } | null = null;
 
   await publishStaticSite(
@@ -332,7 +341,7 @@ test("computeBasePath: s3-compatible never carries a base path — a bucket serv
 });
 
 test("publishStaticSite: forwards all six s3-compatible credential fields through to buildTarget, with token carrying secretAccessKey's role", async () => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: RouteDeps = { ...testRouteDeps() };
   let observedCredential: Record<string, unknown> | null = null;
 
   const result = await publishStaticSite(
@@ -373,7 +382,7 @@ test("publishStaticSite: forwards all six s3-compatible credential fields throug
 });
 
 test("publishStaticSite: an omitted endpoint is never forwarded to buildTarget as an explicit undefined key", async () => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: RouteDeps = { ...testRouteDeps() };
   let observedCredential: Record<string, unknown> | null = null;
 
   await publishStaticSite(
@@ -398,7 +407,7 @@ test("publishStaticSite: an omitted endpoint is never forwarded to buildTarget a
 });
 
 test("publishStaticSite: a target's terminal status of 'ready' is a full ok:true success", async () => {
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: RouteDeps = { ...testRouteDeps() };
   const result = await publishStaticSite(
     {
       credentialSource: { async resolve() { return { ok: true, token: "t" }; }, async isConfigured() { return { configured: true }; } },
@@ -419,7 +428,7 @@ test("publishStaticSite: a target's terminal status of 'ready' is a full ok:true
 
 for (const notReadyStatus of ["link-delayed", "protected", "failed"] as const) {
   test(`publishStaticSite: a target's terminal status of '${notReadyStatus}' is a genuine "partial" outcome — never ok:true, never ok:false`, async () => {
-    const deps: RouteDeps = { ...createRouteDeps() };
+    const deps: RouteDeps = { ...testRouteDeps() };
     const result = await publishStaticSite(
       {
         credentialSource: { async resolve() { return { ok: true, token: "t" }; }, async isConfigured() { return { configured: true }; } },
@@ -460,7 +469,7 @@ test("publishStaticSite: a credentialSource.resolve() that THROWS (a genuine dec
   // on a real decrypt failure (bad AAD, tampered ciphertext, missing master key) rather than resolving
   // a silent `null` — this is the exact shape that failure takes once it reaches the composed
   // `PublishCredentialSource.resolve()` this function calls.
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: RouteDeps = { ...testRouteDeps() };
   const result = await publishStaticSite(
     {
       credentialSource: {
@@ -489,7 +498,7 @@ test("publishStaticSite: a buildTarget/buildJiniTarget that THROWS (credential m
   // required field" defense-in-depth behavior — this test uses a plain throw (not a real
   // `buildS3CompatibleTargetConfig` call) to isolate the claim under test to `publishStaticSite`'s own
   // catch, not that helper's specific validation logic (already covered by its own dedicated test).
-  const deps: RouteDeps = { ...createRouteDeps() };
+  const deps: RouteDeps = { ...testRouteDeps() };
   const result = await publishStaticSite(
     {
       credentialSource: { async resolve() { return { ok: true, token: "t" }; }, async isConfigured() { return { configured: true }; } },
