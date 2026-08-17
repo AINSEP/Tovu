@@ -1434,3 +1434,18 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
     derivedRisk: staticPublishDerivedRisk,
   });
 }
+
+// NOT converted to the tool-contribution registry — tried in Stage 2 batch 2 and reverted the same
+// session, for the IDENTICAL reason as this directory's sibling `tool-registrations.ts`
+// (`deployments`, also reverted this batch — see its own trailing comment for the full trace):
+// `check:architecture`'s module graph is per-directory, and `src/features/deployments` (this file's
+// own module) already sits downstream of a chain `assistant` reaches unconditionally —
+// `assistant -> features/vendor-credentials -> features/source-control -> features/deployments`
+// (the last hop via `source-control/store.ts`'s value import of THIS file's own
+// `static-publish/index.ts`'s `extractGitHubLogin`) — so adding a `static-publish -> assistant`
+// registry edge closed the same real 4-module cycle: `assistant, features/deployments,
+// features/source-control, features/vendor-credentials`. Confirmed via `check:architecture --list`
+// (largest strongly-connected component, runtime-only: 0 -> 4) — verified directly rather than
+// assumed from the sibling file's result, since they are different files even though the same
+// module. Fix options are the same as `features/source-control/tool-registrations.ts`'s own revert
+// comment.

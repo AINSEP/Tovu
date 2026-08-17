@@ -35,6 +35,7 @@ import {
   type ToolHandler,
   type ToolRegistration,
 } from "@jini-ai/cms/core";
+import { registerToolContributor } from "#src/assistant/index";
 import type { PostRepoPort } from "../features/post";
 import type { SettingsRepoPort } from "../features/settings";
 import type { PrincipalRepoPort } from "@jini-ai/cms/identity";
@@ -241,4 +242,19 @@ export function buildSeoRegistrations(routeDeps: SeoToolDeps): ToolRegistration[
     handlers,
     derivedRisk: seoDerivedRisk,
   });
+}
+
+/**
+ * Contributes SEO's AI tools to the assistant's catalog — called once by
+ * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
+ * module. `assistant/tool-registrations.ts` no longer imports `buildSeoRegistrations`/
+ * `seoDerivedRisk` by name; this is the seam that replaced it (Stage 2 batch 2). Safe: the only
+ * importer of `seo/tool-registrations` (relative or `#src/*` subpath) is
+ * `assistant/tool-registrations.ts` itself, every other importer of `src/seo` at large is `server/*`
+ * (never reachable from `assistant`), and this file's own cross-domain imports (`../features/post`,
+ * `../features/settings`, `../media`, `@jini-ai/cms/identity`) are all `import type` only — erased
+ * at compile time, so none creates a runtime edge back toward `assistant`.
+ */
+export function contributeSeoTools(): void {
+  registerToolContributor({ domain: "seo", build: buildSeoRegistrations, risk: seoDerivedRisk });
 }
