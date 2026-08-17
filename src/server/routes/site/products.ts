@@ -1,7 +1,7 @@
 import { getPresentationSettings } from "#src/features/presentation/index";
 import { isPublicAssistantEnabled } from "#src/assistant/index";
 import { toSiteProducts } from "#src/features/commerce/storefront";
-import { findTheme, type DiscoveredTheme } from "#src/features/theme/index";
+import { resolveActiveTheme } from "#src/features/theme/index";
 import { renderSite, type SiteProduct } from "../../http/site/render";
 import type { RouteDeps, RouteRegistrar } from "../types";
 
@@ -13,15 +13,6 @@ const SITE_TITLE = "Tovu Demo Site";
  *  every anonymous visitor requesting the same URL. Not shared as a cross-file export — two short,
  *  independently-readable copies over a new cross-file coupling for one string constant. */
 const CACHE_CONTROL_PUBLIC_PAGE = "public, max-age=60, stale-while-revalidate=300";
-
-/** Same fallback chain `pages.ts`'s `resolveActiveTheme` uses — kept as its own copy here rather
- * than exported/shared, since `pages.ts` is post/page-specific and this is products-specific; the
- * two call sites would otherwise need to agree on a shared module for one three-line function. */
-function resolveActiveTheme(deps: RouteDeps, activeThemeId: string): DiscoveredTheme | null {
-  const active = findTheme({ themes: deps.themes, id: activeThemeId });
-  if (active && active.status === "valid") return active;
-  return deps.themes.find((t) => t.status === "valid") ?? deps.themes[0] ?? null;
-}
 
 /**
  * 2026-08-12 (wiring products into template render data): Commerce's real catalog

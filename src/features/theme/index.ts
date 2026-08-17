@@ -47,6 +47,17 @@ export {
   type PostTemplateResolution,
 } from "./static-render";
 
+// 2026-08-16 (export<->server decoupling follow-up) — "which theme is active" queries, moved here
+// from `server/routes/site/pages.ts` so `export/route-manifest.ts` (and `server/routes/site/
+// products.ts`, which used to keep its own private duplicate) can reuse them without a runtime edge
+// into the composition-root module. See `active-theme.ts`'s own file header for the full rationale.
+export {
+  resolveActiveThemeId,
+  resolveActiveTheme,
+  type ActiveThemeIdResolutionDeps,
+  type ActiveThemeResolutionDeps,
+} from "./active-theme";
+
 // ADR-020 §3 (C6) Tier-2 guardrail: re-exported so `server/http/site/liquid-worker.ts`
 // can run the same lint defensively at render time that `loadTheme()` runs at publish time.
 export { lintLiquidTemplate, ALLOWED_LIQUID_TAGS, ALLOWED_LIQUID_FILTERS } from "./liquid-allowlist";

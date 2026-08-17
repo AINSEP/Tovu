@@ -14,10 +14,13 @@
  *
  * Architectural role:
  * Tier-2 library, mirroring `src/redirects`/`src/seo`'s own `ports.ts` + implementation-file split.
- * The concrete reader (`route-manifest.ts`) depends on `server/routes/site` only for the exact
- * selection logic real routes already use (`resolveActiveThemeId`, `resolveStorefrontProducts`) —
- * reused, not re-derived, so the manifest can never enumerate a route the live server would not
- * actually serve, or miss one it would.
+ * The concrete reader (`route-manifest.ts`) reuses the exact selection logic real routes use — never
+ * re-derives it — so the manifest can never enumerate a route the live server would not actually
+ * serve, or miss one it would. As of 2026-08-16 that reuse no longer runs through a `server/
+ * routes/site` import: `resolveActiveThemeId`/`resolveActiveTheme` are feature-owned
+ * (`#src/features/theme/index`), and `resolveStorefrontProducts` is reached via
+ * `RouteDeps.resolveStorefrontProducts` injection rather than a direct import — see
+ * `route-manifest.ts`'s own file header for why the two took different shapes.
  */
 
 /**

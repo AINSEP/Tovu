@@ -130,7 +130,7 @@ import { registerThemePagePreview } from "./middleware/theme-page-preview";
 import { registerSiteRoutes } from "./routes/site/pages";
 import { registerStoreRoutes } from "./routes/site/store";
 import { registerPaymentsWebhookRoute } from "./routes/site/payments-webhook";
-import { registerProductRoutes } from "./routes/site/products";
+import { registerProductRoutes, resolveStorefrontProducts } from "./routes/site/products";
 import { registerAnalyticsIngestRoute } from "./routes/site/analytics-ingest";
 import { registerContentPostGetRoute } from "./routes/content/posts/get-by-slug";
 import { createCommentsModerationModule } from "./modules/comments-moderation";
@@ -623,6 +623,11 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // composition root. `server/deps.ts`'s SQLite composition root needs the lazy-`require`d
     // equivalent instead, since it cannot take a same-file reference.
     createSiteApp: createApp,
+    // 2026-08-16 — see `routes/types.ts`'s `resolveStorefrontProducts` doc (edge 2 of the
+    // export<->server decoupling): a direct reference, same reasoning as `createSiteApp` above
+    // (`resolveStorefrontProducts` is declared in `./routes/site/products`, already imported by
+    // this file to register the real product routes).
+    resolveStorefrontProducts,
     // 2026-08-15 (Contract v2) — hermetic double for `server/deps.ts`'s real
     // `SqlitePublishCredentialSetRepo`; see `routes/types.ts`'s `publishCredentialSetRepo`/
     // `publishExecutionMode` docs. `executionModeFromEnv()` (not a hardcoded `"self-hosted-cli"`) so

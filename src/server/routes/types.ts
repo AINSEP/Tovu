@@ -1,4 +1,5 @@
 import type { Express } from "express";
+import type { SiteProduct } from "../http/site/render";
 
 import type { EventBusPort, OutboxPort, UUID } from "@jini-ai/cms/core";
 import type { AuthorizeFn, ChangeSetRepoPort, RevertRegistry } from "../../core/commands";
@@ -649,6 +650,19 @@ export interface RouteDeps {
    * reason `runExportSiteLazily` in both files is — see that field's doc for the full trace).
    */
   createSiteApp: (routeDeps: RouteDeps) => Express;
+  /**
+   * The SAME `resolveStorefrontProducts` (`server/routes/site/products.ts`) `/products` and
+   * `/products/:id` render with, injected here for `export/route-manifest.ts` to reuse (2026-08-16,
+   * export<->server decoupling edge 2 — see `ADS-memory/reports/2026-08-16-export-edge-decoupling.md`).
+   * NOT moved down into `features/commerce` the way `resolveActiveTheme`/`resolveActiveThemeId` were:
+   * its return type, `SiteProduct` (`server/http/site/render.ts`), is DELIBERATELY off-limits to
+   * `features/commerce` — see `features/commerce/storefront.ts`'s own file header ("`features/commerce`
+   * does not import `SiteProduct` or anything from `server/http/site`... `server/routes/site/
+   * products.ts` is what bridges the two"). Moving this function would violate that existing,
+   * documented boundary, so injection (mirroring `createSiteApp` immediately above) is the correct
+   * shape here, not a fallback taken for lack of trying — measured, not assumed.
+   */
+  resolveStorefrontProducts: (routeDeps: RouteDeps) => Promise<SiteProduct[]>;
   /**
    * 2026-08-15 (Contract v2) — the `publish_credential_sets` repo backing the admin's Static Site tab
    * "add a connection" form and the DB-backed half of `static-publish/credentials.ts`'s
