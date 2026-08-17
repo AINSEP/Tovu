@@ -48,6 +48,10 @@ jobs:
           --health-retries 5
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history, not the default shallow clone: check-route-coverage-diff.ts needs a real
+          # `git merge-base` against the PR's base branch to know which route files changed.
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -69,12 +73,33 @@ jobs:
         # falls back to the `/tmp` socket + role `la` used by local development when they're unset. Setting
         # them only on this step, pointed at the `postgres` service container above, is what turns BLOCKER 1
         # from "fails for the right reason with no way to pass" into an actual test run.
+        #
+        # `npm run test:cov` runs the exact same tests as `npm test` (same globs) plus
+        # `--experimental-test-coverage`, writing development/coverage/lcov.info for the two route
+        # coverage gates below. This step still fails the build on any test failure; per the
+        # 2026-08-16 coverage audit, node:test writes the lcov file even when a test fails, but that
+        # doesn't matter here since a non-zero exit on this step stops the workflow before either
+        # gate step runs.
         env:
           PGHOST: localhost
           PGPORT: 5432
           PGUSER: postgres
           PGPASSWORD: postgres
-        run: npm test
+        run: npm run test:cov
+
+      - name: Check route coverage floor
+        # src/server/routes/** aggregate must not backslide below the 2026-08-16 baseline (minus
+        # margin) — see development/scripts/check-route-coverage-floor.ts's header for the exact
+        # thresholds and where they came from.
+        run: npm run check:route-coverage-floor
+
+      - name: Check route coverage diff
+        # Every new/modified route file must individually hit >=80% branch coverage — the gate that
+        # would have caught the file that triggered the 2026-08-16 audit (see
+        # development/scripts/check-route-coverage-diff.ts's header). GITHUB_BASE_REF is set
+        # automatically on pull_request events; on a push to main there is effectively nothing to
+        # diff against itself, so this step is a no-op there.
+        run: npm run check:route-coverage-diff
 
       - name: Check architecture boundaries
         # .dependency-cruiser.cjs rules are deliberately severity:"warn" (see file header) —
