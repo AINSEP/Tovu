@@ -17,6 +17,31 @@
  * A company/protocol identity a saved credential authenticates to — as opposed to a PUBLISH
  * DESTINATION (`"github-pages"`), which is what a token is *used for*, not *who it is*. See
  * `../../db/schema.ts`'s `vendorCredentialSets` doc for the full reasoning.
+ *
+ * **`"s3-compatible"` is a KNOWN, DELIBERATE exception to "every member identifies one account"** —
+ * flagged 2026-08-16 during Phase 1 review, kept rather than removed on purpose. Every other member
+ * of this union names a single company you authenticate to; `s3-compatible` names a PROTOCOL that
+ * multiple unrelated companies speak (AWS S3 itself, Backblaze B2, MinIO, Wasabi, DigitalOcean
+ * Spaces, Cloudflare R2, ...). Two credentials for two entirely different companies can therefore
+ * land in the SAME vendor group under this id, with no second signal to tell them apart —
+ * `accountLabel` is always `null` for `s3-compatible` (no reviewed identity extractor exists for it,
+ * `static-publish/verify.ts`'s own reasoning), so the user-typed `label` on
+ * `vendor_credential_sets` is the ONLY thing distinguishing them. This was kept rather than split
+ * further because there is no reliable way to derive the real company from an S3-compatible
+ * endpoint URL — pattern-matching hostnames (`*.r2.cloudflarestorage.com`, `*.backblazeb2.com`, ...)
+ * would be fragile, easily wrong, and itself a second, unreviewed identity-inference surface.
+ *
+ * A related ambiguity this creates: **Cloudflare R2 is itself S3-compatible.** An R2 credential
+ * could legitimately be saved as EITHER `cloudflare` (Cloudflare Pages' own token, which is NOT
+ * S3-compatible — it is Cloudflare's own REST API) OR `s3-compatible` (an R2 bucket accessed via its
+ * S3-compatible endpoint) depending purely on which save path the user went through — two rows, the
+ * same real underlying account, two unrelated vendor groups. Nothing in this codebase reconciles
+ * that; a human choosing where to save an R2 credential must pick based on what they are actually
+ * using it for (Cloudflare Pages deploys vs. an S3-style bucket), not on "which one is more correct."
+ *
+ * Any UI that groups credentials by `VendorId` (e.g. "these are your GitHub tokens") MUST NOT apply
+ * the same "these all belong to one account" framing to the `s3-compatible` group — see whichever
+ * slice builds that grouping UI for the concrete copy rule.
  */
 export type VendorId = "github" | "gitlab" | "bitbucket" | "vercel" | "netlify" | "cloudflare" | "s3-compatible";
 
