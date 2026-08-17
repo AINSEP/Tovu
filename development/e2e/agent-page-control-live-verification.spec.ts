@@ -126,12 +126,21 @@ function buildPageEvaluateDriver(page: Page) {
     },
     async describeState(handle: string) {
       return page.evaluate((h) => {
-        const el = document.querySelector(`[data-agent-element="${h}"]`) as HTMLInputElement | null;
+        // `Element`, not `HTMLInputElement` — the handle can name ANY tagged element, and the
+        // over-specific cast this line used to carry is exactly what broke the `instanceof` check
+        // two lines down: once TypeScript "knows" `el` is an `HTMLInputElement`, the falsy branch of
+        // `el instanceof HTMLInputElement` narrows to `never` (the only type left once the sole
+        // possibility is excluded), and `never instanceof HTMLTextAreaElement` is TS2358 — the
+        // left-hand side of `instanceof` must be an object type, and `never` doesn't count. Every
+        // read below that needs an input/textarea-specific member (`.value`, `.type`, `.readOnly`,
+        // …) now re-casts explicitly at its own use site instead of relying on this one blanket cast
+        // to smuggle it in for the whole function.
+        const el = document.querySelector(`[data-agent-element="${h}"]`);
         if (!el) return null;
         const isField = el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement;
         return {
           text: (el.textContent ?? "").trim(),
-          ...(isField ? { value: el.value } : {}),
+          ...(isField ? { value: (el as HTMLInputElement | HTMLTextAreaElement).value } : {}),
           disabled: (el as HTMLInputElement).disabled === true,
           visible: el.checkVisibility ? el.checkVisibility() : undefined,
           ...(isField
