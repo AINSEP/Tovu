@@ -238,3 +238,39 @@ Both fixes proven with fresh `tsc --noEmit` (exit 0) and scoped test runs (51/51
 `assistant-proxy-routes.test.ts`, the new restart route test, `readiness-state.unit.test.ts`,
 `module-status-route.test.ts`, `deployment-overview-route.test.ts`, `readiness-routes.test.ts`).
 Pushed as `88e061c3` and `26011c9b`.
+
+## Addendum 2 — three more fixes from live browser verification (`source-control-ui`, report `7bc52270`)
+
+`source-control-ui` drove the actual admin UI in a real browser and found a genuine bug this
+report's own "no live browser pass" gap had left uncaught, plus confirmed the no-poll design
+judgment with one specific flaw. All three fixed, pushed as `b151219f`:
+
+1. **`apps/admin/vite.config.ts` did not proxy `/readyz`** — only `/api`, `/agent-icons`,
+   `/theme-assets` were. Under `npm run dev` every status check 404'd against Vite's own dev
+   server instead of reaching the backend. Fixed with the same shape as the existing
+   `/agent-icons` entry (a root-relative path that can't live under `/admin/`).
+2. **`getAssistantDaemonReadyz()` called `res.json()` unconditionally**, so that dev-proxy 404
+   (plain text) threw a raw `Unexpected token 'T', "The server"... is not valid JSON` straight
+   into the UI — live-verified by the owner. Now checks `content-type` before parsing and catches
+   a parse failure even when content-type claims JSON, both throwing a clean operator-facing
+   `Error` instead (`"Could not check the assistant's status (unexpected response, HTTP ${status}).")`.
+   Kept as a real guard, not just a workaround for #1 — the same non-JSON-response class is
+   possible in production from a reverse proxy or captive portal.
+3. **Design verdict confirmed, one flaw fixed:** `source-control-ui` read the hook directly and
+   endorsed the no-poll design — "keep it, don't invent a health signal." But the post-restart
+   auto-check fired with zero delay, so it almost always just re-reported the OLD state directly
+   under a line telling the operator to check the status below. Added `postRestartCheckDelayMs`
+   (`0` in the raw hook/tests, `2500`ms in the wired real hook via `REAL_POST_RESTART_CHECK_DELAY_MS`)
+   — still a single read, not a poll loop, exactly preserving the "never claim health" principle.
+   Only the post-restart auto-check is delayed; mount-time and manual "Check status" presses are
+   unaffected.
+
+Regression tests for all three, each proven RED first (`git apply -R` on the working-tree diff,
+confirmed failure, reapplied): a new `apps/admin/src/lib/__tests__/api-assistant-daemon-readyz.unit.test.ts`
+reproduces the EXACT text Vite answered live before asserting a clean message (and covers the 200/503
+"still resolves, doesn't throw" cases plus the malformed-JSON-despite-correct-content-type case); a
+new hook test uses `vi.useFakeTimers()`/`advanceTimersByTimeAsync` to prove the delay fires exactly
+once the configured window elapses, not before. `tsc --noEmit` clean (admin + root, confirmed the
+~41 `Mock<Procedure|Constructable>` errors across unrelated feature test files are pre-existing
+baseline noise — same count, same files, before and after). 92/92 across
+`apps/admin/src/features/ai-assistant/__tests__/` plus the new readyz test file.
