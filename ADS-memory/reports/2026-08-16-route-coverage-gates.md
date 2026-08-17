@@ -157,19 +157,40 @@ showed ~39 "failures," but that's an artifact of `general-work` being dozens of 
 concurrent agents' worth of unrelated WIP ahead of `origin/main` right now — not a gate defect. On
 an actual small PR diff it only evaluates what that PR actually touched.
 
-## 4. CI wiring (`.github/workflows/ci.yml`)
+## 4. CI wiring (`.github/workflows/ci.yml`) — revised after the first cut was too slow
 
-- `actions/checkout@v4` gets `fetch-depth: 0` (needed for #3's merge-base).
-- The existing "Test" step's `npm test` → `npm run test:cov` (same test globs, now also writes
-  `development/coverage/lcov.info`). Still fails the build on any test failure — a non-zero exit on
-  this step stops the workflow before either gate step runs, so neither gate needs its own
-  test-failure detection.
-- Two new steps after Test: `Check route coverage floor` (`npm run check:route-coverage-floor`) and
-  `Check route coverage diff` (`npm run check:route-coverage-diff`).
+**First cut (later reverted):** put `npm run test:cov` in `build-and-test`'s existing "Test" step
+and added the two gates as steps right after it. Team lead flagged this before it went further:
+a coverage step on the critical path of every push is a real, permanent cost, and slow CI is how
+gates end up disabled.
+
+**Measured the actual cost before redesigning, not just estimated it:** let the full
+`npm run test:cov` (`src/**` + `packages/*`, no scope limit) run to completion in the background —
+**4991 tests, 1,110,544 ms = 18.5 minutes**, exit 1 from 82 pre-existing failures unrelated to this
+task (seed-data drift from concurrent same-night work, not investigated further here). Confirms the
+concern was real, not hypothetical, and gives an exact number instead of a guess.
+
+**Final design — a separate parallel job, not a step:**
+
+- New `route-coverage` job, no `needs:`, so it runs alongside `build-and-test` rather than after
+  it — wall-clock becomes `max(build-and-test, route-coverage)`, not their sum.
+- Runs `npm run test:cov:server` (new script, `src/server/**/*.test.ts` only — the same scope the
+  §2/§3 numbers in this report were measured from) instead of the full `test:cov`. Every test that
+  can exercise `src/server/routes/**` already lives under `src/server/**`, so this loses no signal
+  the gates actually use.
+- Skips the Postgres service container `build-and-test` needs — verified no test under
+  `src/server/**` references `psql`/`pg-fixture`/`PGHOST`, so that setup would have bought this job
+  nothing.
+- `fetch-depth: 0` moved here (the only job that needs it, for `check-route-coverage-diff.ts`'s
+  `git merge-base`) and was removed from `build-and-test`, which never needed it.
+- `build-and-test`'s "Test" step reverted to plain `npm test` — unchanged from before this task.
+- `check:architecture` and everything else in `build-and-test` is untouched, per instruction — it
+  was already green and blocking; this task does not touch it.
 
 **Not independently verified in real GitHub Actions** — no way to run a GH Actions job from this
-session. Verified locally: valid YAML, and both underlying npm scripts run and exit correctly
-against a real lcov file.
+session. Verified locally: valid YAML with both jobs present, and the underlying npm scripts
+(`test:cov:server`, `check:route-coverage-floor`, `check:route-coverage-diff`) all run and exit
+correctly against a real lcov file (see Verification below for the exact numbers).
 
 ## An empty-lcov false-positive, found and fixed during verification
 
@@ -195,19 +216,19 @@ zero files *changed*, and every changed file with no coverage record already fai
   instead of the false-positive 100% described above.
 - `check:route-coverage-diff origin/main` — ran to completion, correct mechanics, expected FAIL
   given this branch's unrelated ahead-of-main state (see §3).
-- `npm run test:cov` (the full, canonical, now-fixed script): **started in the background during
-  this session and was still running at the time this report was committed** — it exercises the
-  entire `src/**` + `packages/*` suite (484 test files, several multi-minute CLI serve/boot
-  integration tests observed mid-run), materially longer than the `src/server`-scoped run used for
-  the numbers above. Everything reported here was verified against that smaller, real,
-  `--test-coverage-exclude`-fixed `src/server` run instead, which exercises the exact same route
-  test files and is not expected to differ meaningfully in the route-scoped numbers. Whoever picks
-  this up next should let that background run finish (or re-run `npm run test:cov` fresh) and
-  confirm `check:route-coverage-floor`/`check:route-coverage-diff` still pass against its output
-  before treating CI as proven end-to-end. Also observed, purely as an FYI and unrelated to this
-  task: 3 pre-existing CLI `serve` integration test failures mid-run (`BR-02/AC-11`, `BR-07`, `B1`
-  in `src/cli/__tests__/integration/serve-command.integration.test.ts`) — not touched by this
-  session's changes, not investigated further, out of scope here.
+- `npm run test:cov` (the full, now `--test-coverage-exclude`-fixed script, `src/**` + `packages/*`,
+  484 test files): **ran to completion** — 4991 tests, 4909 pass, 82 fail, 18.5 minutes wall time,
+  exit 1. The 82 failures are pre-existing and unrelated to this task (seed-data drift from
+  concurrent same-night work elsewhere in the repo — e.g.
+  `src/site-dir/__tests__/unit/read-template.unit.test.ts` expecting `page-*` ids where the fixture
+  now has `post-*` ids; not investigated further, out of scope here). This run is what produced the
+  18.5-minute number that drove the §4 CI redesign — it is intentionally NOT what CI runs for the
+  route gates now, `test:cov:server` is.
+- `npm run test:cov:server` (the new, `src/server`-scoped script `route-coverage` actually runs in
+  CI): **run twice, start to finish, via the actual npm script** (not just the equivalent manual
+  command). First run confirmed both `check:route-coverage-floor` and `check:route-coverage-diff`
+  pass against its real output (92.16% line / 73.74% branch / 97.43% funcs, 214 files). Second run
+  added the `--test-reporter=tap` output used to seed the test-failure baseline — see §5.
 
 ## Explicitly out of scope (per brief — not started)
 
