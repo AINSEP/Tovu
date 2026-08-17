@@ -37,4 +37,11 @@ export {
 
 export { executionModeFromEnv, type PublishExecutionMode } from "./execution-mode";
 
+export {
+  createAccountLabelHealScheduler,
+  idsNeedingAccountLabelHeal,
+  type AccountLabelHealScheduler,
+  type AccountLabelHealSchedulerDeps,
+} from "./account-label-heal-scheduler";
+
 export { InMemoryPublishCredentialSetRepo } from "./repo.memory";

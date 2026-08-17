@@ -128,6 +128,30 @@ function extractVercelUsername(body: unknown): string | undefined {
 }
 
 /**
+ * Providers whose success response carries a reviewed account-identity field this module knows how to
+ * extract — see {@link extractGitHubLogin}/`extractVercelUsername` above and this file's own header
+ * ("Two providers' checkers now read ONE named field…") for exactly which field, and why Netlify/
+ * Cloudflare Pages/S3-compatible do not. MUST be kept in sync with {@link checkProviderCredential}'s
+ * own per-provider extractor wiring below BY HAND — a provider belongs here iff its branch there
+ * actually passes an `extractAccountLabel` argument to {@link probe}. Not derived structurally from
+ * that dispatch chain on purpose: doing so would mean restructuring `checkProviderCredential` into a
+ * data-driven table, and this pass's own scope is additive-only (an export, not a change to the
+ * tested, reviewed verification path itself) — see this export's addition history for the "why not
+ * refactor" call.
+ *
+ * Exported (2026-08-16) so a caller deciding whether an unhealed row is even WORTH probing
+ * (`publish-credentials/account-label-heal-scheduler.ts`'s background backfill for pre-existing
+ * `account_label: null` rows) can skip a provider that can never produce a label, instead of
+ * re-deriving or duplicating this set.
+ */
+const PROVIDERS_WITH_ACCOUNT_LABEL: ReadonlySet<StaticPublishTargetId> = new Set<StaticPublishTargetId>(["github-pages", "vercel"]);
+
+/** @complexity O(1) — one Set membership check. */
+export function canYieldAccountLabel(target: StaticPublishTargetId): boolean {
+  return PROVIDERS_WITH_ACCOUNT_LABEL.has(target);
+}
+
+/**
  * Runs one bounded, injectable-`fetchFn` request and folds a network-layer failure (DNS, TLS,
  * timeout, connection reset) into the same `"unreachable"` bucket a bad-but-answered response
  * would produce — never throws, matching every checker's own "never throws" contract below.
