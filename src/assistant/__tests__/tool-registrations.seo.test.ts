@@ -27,11 +27,22 @@ import {
 } from "../../media";
 import { getSeoAgentToolCatalog, type AgentToolDefinition } from "../../seo/agent-tools";
 import { ensureSeoSettingDefinitions, getSeoSettings } from "../../seo/settings";
+import { contributeSeoTools } from "../../seo/tool-registrations";
 import type { RouteDeps } from "../../server/routes/types";
 import {
   assertRiskMetadataIsWirable,
   buildAssistantToolRegistrations,
 } from "../tool-registrations";
+import { resetToolContributorsForTests } from "../tool-contribution-registry";
+
+// SEO moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
+// tool-contribution registry (2026-08-17, Stage 2 batch 2 — see `tool-contribution-registry.ts`'s
+// header), so `buildAssistantToolRegistrations` below no longer wires it unless something explicitly
+// installs it first, mirroring what the real composition roots now do via
+// `installFirstPartyToolContributors()`. Reset first so this file's own registration is the only one
+// this process's registry holds while these tests run.
+resetToolContributorsForTests();
+contributeSeoTools();
 
 const WORKSPACE_ID = "ws-seo-tools";
 const PRINCIPAL_ID = "principal-under-test";

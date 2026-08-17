@@ -10,6 +10,8 @@ import {
   type ToolRegistration,
 } from "@jini-ai/cms/core";
 
+import { registerToolContributor } from "#src/assistant/index";
+
 import type { AuthorizeFn } from "../../core/commands";
 import type { PostRepoPort } from "../post";
 import { pagesAgentToolCatalog, type AgentToolDefinition as PagesAgentToolDefinition } from "./agent-tools";
@@ -149,3 +151,18 @@ export function buildPagesRegistrations(routeDeps: PagesToolDeps): ToolRegistrat
 }
 
 export { pagesDerivedRisk };
+
+/**
+ * Contributes Pages' AI tools to the assistant's catalog — called once by
+ * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
+ * module. `assistant/tool-registrations.ts` no longer imports `buildPagesRegistrations`/
+ * `pagesDerivedRisk` by name; this is the seam that replaced it (Stage 2 batch 2). Safe: the only
+ * importer of `features/pages/tool-registrations` (relative or `#src/*` subpath) is
+ * `assistant/tool-registrations.ts` itself, every other importer of `features/pages` at large is
+ * `server/*` (never reachable from `assistant`), and this file's own cross-domain imports
+ * (`../post`, `../../core/commands`) are both `import type` only — erased at compile time, so
+ * neither creates a runtime edge back toward `assistant`.
+ */
+export function contributePagesTools(): void {
+  registerToolContributor({ domain: "pages", build: buildPagesRegistrations, risk: pagesDerivedRisk });
+}

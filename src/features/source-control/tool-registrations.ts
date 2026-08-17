@@ -393,3 +393,23 @@ export function buildSourceControlRegistrations(deps: SourceControlToolDeps, sur
     derivedRisk: sourceControlDerivedRisk,
   });
 }
+
+// NOT converted to the tool-contribution registry, unlike Comments/Identity/Members/Redirects/
+// Taxonomy — tried in Stage 2 batch 2 and reverted the same session. A plain relative/`#src/*`
+// importer grep of `features/source-control` itself finds nothing risky (only `server/*`,
+// `db/sqlite/*`, and admin routes — none reachable from `assistant`), but that grep misses the real
+// path: `assistant/tool-registrations.ts` already value-imports `createVendorCredential`/
+// `listVendorCredentials`/`PUBLISH_PROVIDER_TO_VENDOR`/`updateVendorCredential` from
+// `features/vendor-credentials/index` (for `StaticPublishToolDeps.vendorCredentials`'s real
+// implementation), and `features/vendor-credentials/dual-read.ts` itself value-imports
+// `resolveDefaultForSourceControl` from `../source-control/store` for its legacy-fallback read. So
+// `assistant` already reaches INTO this domain transitively through `vendor-credentials`, even
+// though nothing reaches OUT of it that way. Adding `registerToolContributor` here (a
+// `source-control -> assistant` edge) closed a real 3-module cycle: `assistant,
+// features/source-control, features/vendor-credentials` (confirmed via `check:architecture --list`:
+// largest strongly-connected component, runtime-only, went 0 -> 3). Safe conversion needs either
+// `vendor-credentials/dual-read.ts`'s legacy-fallback read relocated off `source-control/store.ts`
+// directly, or `assistant`'s own `VendorCredentialPort` wiring moved somewhere that doesn't import
+// `vendor-credentials` by value — neither attempted here; reverted cleanly instead, mirroring
+// `features/theme/tool-registrations.ts`'s and `features/post/tool-registrations.ts`'s own revert
+// comments for the same shape of problem.
