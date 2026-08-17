@@ -396,8 +396,13 @@ jobs:
         # Every new/modified route file must individually hit >=80% branch coverage — the gate that
         # would have caught the file that triggered the 2026-08-16 audit (see
         # development/scripts/check-route-coverage-diff.ts's header). GITHUB_BASE_REF is set
-        # automatically on pull_request events; on a push to main there is effectively nothing to
-        # diff against itself, so this step is a no-op there.
+        # automatically on pull_request events. GITHUB_EVENT_BEFORE (2026-08-17 fix) covers push
+        # events on any branch, diffing against the SHA this push started from rather than a
+        # long-diverged `origin/main` — without it, the first real run on `general-work` (a branch
+        # weeks ahead of `main`) flagged dozens of longstanding files as "changed", not this push's
+        # own diff. See the script's own header for the full incident.
+        env:
+          GITHUB_EVENT_BEFORE: ${{ github.event.before }}
         run: npm run check:route-coverage-diff
 
       - name: Check route test-failure baseline
