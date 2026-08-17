@@ -11,6 +11,7 @@ import { runBootLifecycle } from "./server/boot-lifecycle";
 import { buildBootModules } from "./server/bootstrap";
 import { clearAssistantDaemonFailure, recordAssistantDaemonFailure, setReadinessSnapshot } from "./server/readiness-state";
 import { registerPluginSdkResolver } from "./server/boot/plugin-sdk-resolver";
+import { installUnhandledRejectionGuard } from "./server/boot/process-error-guards";
 import { ensureAgentDaemonToken, AGENT_DAEMON_EXIT_CODE } from "./assistant";
 
 /**
@@ -241,6 +242,13 @@ async function runBootGateOrExit(): Promise<void> {
 }
 
 async function main(): Promise<void> {
+  // Fixes a live-found crash (2026-08-16, `process-error-guards.ts`'s own header has the full
+  // account): an unhandled async rejection anywhere beneath an Express 4 route handler used to take
+  // down this ENTIRE process, not just the one request that triggered it. Placed first — before any
+  // boot step below has a chance to reject unguarded — so the guard covers boot itself, not only
+  // requests served after `app.listen()`.
+  installUnhandledRejectionGuard();
+
   // Mints `TOVU_AGENT_DAEMON_TOKEN` (unless the operator already set one) into this process's env
   // so `spawnAgentDaemon()` — called much later, from inside `app.listen()`'s callback — hands it
   // to the daemon child through the inherited env, and so `server/modules/assistant.ts`'s proxy

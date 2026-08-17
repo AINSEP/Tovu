@@ -91,12 +91,27 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
     clock: deps.clock,
     idGen: deps.idGen,
   };
-  /** Verifies ONE specific row (the one this route just touched) against its real provider, best-
-   *  effort — never throws (see `verifyPublishCredentialById`'s own "never throws" contract,
-   *  inherited from every per-provider checker), so a transient verification failure can never turn
-   *  a successful save into a 500. Returns `null` only if the row vanished between the write this
-   *  handler just performed and this call — treated the same as "nothing to report" by every caller
-   *  below, never surfaced as an error for what was otherwise a successful save.
+  /** Verifies ONE specific row (the one this route just touched) against its real provider. The
+   *  PROVIDER-PROBE layer never throws — `verify.ts`'s per-provider checkers fold every network
+   *  failure into `"unreachable"` rather than throwing (see that file's own header), so a transient
+   *  network blip can never turn a successful save into a 500. That guarantee does NOT extend to the
+   *  DECRYPT step underneath it: `verifyPublishCredentialById` calls `resolveForPublish`
+   *  (`publish-credentials/store.ts`), which throws `PublishCredentialSecretStoreUnconfiguredError`
+   *  when the stored secret cannot be decrypted (a missing master secret, or a tampered/corrupt row)
+   *  — the SAME "surface, don't swallow" contract that module documents for itself. Every caller of
+   *  this function below MUST run through a `try`/`catch` that maps the result via `sendStoreError`.
+   *
+   *  Found live (2026-08-16): this was NOT true for `POST .../:id/verify` below until this fix — it
+   *  had no try/catch at all, so a missing root key took down the WHOLE server process (Express 4
+   *  does not catch an async handler's own rejection, and nothing else in `src/` was catching it at
+   *  the process level either), not just that one request. An earlier version of THIS comment
+   *  claimed `verifyAfterSave` "never throws" without qualifying which layer that applied to — do
+   *  not repeat that mistake; the provider-probe layer's guarantee and the decrypt layer's contract
+   *  are two different things.
+   *
+   *  Returns `null` only if the row vanished between the write this handler just performed and this
+   *  call — treated the same as "nothing to report" by every caller below, never surfaced as an
+   *  error for what was otherwise a successful save.
    *
    *  Also heals `account_label` (`store.ts`'s `healAccountLabel`) whenever the result carries one —
    *  see this file's own header. Deliberately checked via `result.accountLabel !== undefined` rather
@@ -195,13 +210,22 @@ export function registerAdminPublishCredentialsRoutes(app: Express, deps: AdminP
 
   app.post(`${BASE_PATH}/:id/verify`, async (req, res) => {
     if (await rejectUnlessAuthorized(req, res)) return;
-    const existing = await describeCredential(readDeps, { workspaceId: deps.workspaceId, id: req.params.id });
-    if (!existing) {
-      res.status(404).json({ error: "NOT_FOUND", detail: `no publish credential '${req.params.id}' in this workspace` });
-      return;
+    try {
+      const existing = await describeCredential(readDeps, { workspaceId: deps.workspaceId, id: req.params.id });
+      if (!existing) {
+        res.status(404).json({ error: "NOT_FOUND", detail: `no publish credential '${req.params.id}' in this workspace` });
+        return;
+      }
+      const verification = await verifyAfterSave(existing.id);
+      res.status(200).json({ verification });
+    } catch (err) {
+      // `describeCredential` itself never decrypts (this file's own header) and cannot land here —
+      // this catch exists for `verifyAfterSave`'s decrypt step (see that function's own doc above:
+      // it is NOT covered by the provider-probe layer's "never throws" guarantee). Mirrors the
+      // `POST`/`PUT` handlers' identical `try { ... } catch (err) { sendStoreError(res, err); }`
+      // shape just below/above — this route was the one place that pattern was missing.
+      sendStoreError(res, err);
     }
-    const verification = await verifyAfterSave(existing.id);
-    res.status(200).json({ verification });
   });
 
   app.delete(`${BASE_PATH}/:id`, async (req, res) => {

@@ -3,6 +3,7 @@ import test from "node:test";
 
 import { AesGcmSecretSealer } from "../../../../integrations/secret-sealer.aesgcm";
 import { InMemoryKeyring } from "../../../../integrations/keyring.memory";
+import type { KeyringPort } from "../../../../integrations/ports";
 import { InMemoryPublishCredentialSetRepo } from "../repo.memory";
 import {
   createPublishCredential,
@@ -12,12 +13,28 @@ import {
   listPublishCredentials,
   PublishCredentialDuplicateLabelError,
   PublishCredentialNotFoundError,
+  PublishCredentialSecretStoreUnconfiguredError,
   PublishCredentialValidationError,
   resolveDefaultForPublish,
   resolveForPublish,
   updatePublishCredential,
   type PublishCredentialWriteDeps,
 } from "../store";
+
+/** Always fails — simulates a missing `TOVU_INTEGRATIONS_ROOT_KEY` without touching real env state.
+ *  Same double used by `server/__tests__/admin-media-provider-routes.test.ts`'s own `BrokenKeyring`
+ *  for the identical class of problem on a sibling secret store. */
+class BrokenKeyring implements KeyringPort {
+  async activeKey(): Promise<{ readonly keyId: string }> {
+    throw new Error("no root key: TOVU_INTEGRATIONS_ROOT_KEY is not set and allowFileFallback is disabled");
+  }
+  async deriveSigningSecret(): Promise<Uint8Array> {
+    throw new Error("no root key");
+  }
+  async derive(): Promise<Uint8Array> {
+    throw new Error("no root key");
+  }
+}
 
 /**
  * @file `store.ts` — the two-strictly-separated-operations contract this whole feature is built
@@ -96,6 +113,38 @@ test("resolveForPublish returns null for a non-existent id — not an error", as
   const deps = makeDeps();
   const resolved = await resolveForPublish(deps, { workspaceId: WORKSPACE, id: "no-such-id" });
   assert.equal(resolved, null);
+});
+
+/**
+ * Live-found (2026-08-16): a row saved with a working root key, then resolved by a process that
+ * never had one (a real, common shape — a server restart/reboot without `TOVU_INTEGRATIONS_ROOT_KEY`
+ * set, hitting a row an EARLIER, correctly-configured boot already saved). Before the fix,
+ * `resolveForPublish` let the keyring's raw `Error` escape untyped; every caller's HTTP boundary
+ * (`server/routes/admin/system/publish-credentials.ts`'s `sendStoreError`) only recognizes FOUR
+ * specific typed errors and rethrows anything else, so the raw error escaped uncaught all the way to
+ * an unhandled rejection — which, with Express 4 catching nothing and no process-level guard
+ * installed either, took down the whole server (see `server/boot/process-error-guards.ts`'s header
+ * for that half of the fix). This test proves the TYPE, not just that it throws — `resolveForPublish`
+ * already had a passing "throws on a bad AAD" test above; a raw `Error` would satisfy that just as
+ * well as this typed one does, which is exactly how this gap went unnoticed.
+ */
+test("resolveForPublish converts a decrypt failure (missing root key) into the typed PublishCredentialSecretStoreUnconfiguredError, never a raw Error the route layer's sendStoreError cannot map", async () => {
+  const workingDeps = makeDeps();
+  const created = await createPublishCredential(workingDeps, {
+    workspaceId: WORKSPACE,
+    label: "x",
+    connection: { providerId: "github-pages", token: "t" },
+  });
+
+  // Same repo (the same saved row), but a keyring that cannot derive the key to open it — simulates
+  // exactly the live scenario: the row already exists, the CURRENT process just has no root key.
+  const brokenKeyring = new BrokenKeyring();
+  const brokenDeps = { repo: workingDeps.repo, sealer: new AesGcmSecretSealer(brokenKeyring) };
+
+  await assert.rejects(
+    () => resolveForPublish(brokenDeps, { workspaceId: WORKSPACE, id: created.id }),
+    PublishCredentialSecretStoreUnconfiguredError
+  );
 });
 
 test("AAD binding: a credential set's ciphertext does not open under a DIFFERENT credential set's derived AAD (adversarial cross-row transplant)", async () => {
