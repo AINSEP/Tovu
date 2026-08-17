@@ -479,3 +479,181 @@ export async function verifyPublishCredentialById(
   }
   return result;
 }
+
+// ---------------------------------------------------------------------------
+// GitHub repo-list probe — the account-label probe's natural sibling: `extractGitHubLogin` answers
+// "who does this token belong to" against `GET /user`; this answers "what repos can this token see"
+// against `GET /user/repos`, for the SAME resolve-then-probe shape `verifyPublishCredentialById`
+// already uses (2026-08-16, added for `source-control-ui`'s GitHub owner/repo picker — see
+// `server/routes/admin/system/publish-credentials.ts`'s own `GET .../:id/repos` route, which this
+// function backs). Purpose: the picker replaces two free-text `GITHUB OWNER OR ORG`/`REPOSITORY`
+// inputs — the exact guess-prone shape `development/e2e/live-publish-e2e.spec.ts`'s assertion #2
+// exists to guard against (the original production bug was an invented account name) — with a
+// dropdown built from the credential's own real, reachable repos.
+// ---------------------------------------------------------------------------
+
+/** One repository this credential's token can see — the closed, minimal projection the picker needs.
+ *  Never any other field GitHub's response carries (no `html_url`, no `description`, no `topics`,
+ *  none of which the picker asked for and none of which this module has reviewed for safety to
+ *  surface to an agent-adjacent UI). */
+export interface GitHubRepoSummary {
+  readonly owner: string;
+  readonly name: string;
+  readonly fullName: string;
+  readonly private: boolean;
+  readonly defaultBranch: string;
+}
+
+/** Same three-way status this file's own `PublishCredentialVerificationResult` already enforces (see
+ *  that interface's own doc for why `"unreachable"` must never collapse into `"invalid"`) — this
+ *  probe reuses the identical `classifyProviderResponse` this file's other checkers already share,
+ *  so the two enums stay meaningfully the same thing, not merely the same shape. */
+export interface ListGitHubReposResult {
+  readonly status: "valid" | "invalid" | "unreachable";
+  /** Present only for `"invalid"`/`"unreachable"` — a `"valid"` result needs no explanation, matching
+   *  this field's own optionality (contrast `PublishCredentialVerificationResult.message`, always
+   *  present, since that type's caller always renders a status line regardless of outcome). */
+  readonly message?: string;
+  readonly repos: readonly GitHubRepoSummary[];
+  /** `true` iff there is real evidence this account has more repos than the one page fetched (a
+   *  `Link: rel="next"` header, or — defensively, in case a proxy/cache ever strips that header —
+   *  the page came back exactly full). Reporting this honestly is the whole point: a silently
+   *  truncated 100-repo page presented as complete is the same class of defect as the invented
+   *  account name this picker exists to replace (team brief, verbatim). */
+  readonly truncated: boolean;
+}
+
+/** One page, 100 repos, owner + org-member affiliation, most-recently-updated first — matches the
+ *  agreed contract with `route-quality`'s admin route adapter exactly. */
+const GITHUB_REPOS_PER_PAGE = 100;
+const GITHUB_REPOS_URL = `https://api.github.com/user/repos?affiliation=owner,organization_member&sort=updated&per_page=${GITHUB_REPOS_PER_PAGE}`;
+
+/** Best-effort per-entry extraction, matching this file's own "never trust an unreviewed response
+ *  shape blindly" discipline (see {@link probe}'s own `extractAccountLabel` doc): a malformed or
+ *  unexpectedly-shaped entry is DROPPED, never allowed to crash the whole listing or smuggle an
+ *  unreviewed field through. GitHub's REST API has documented `name`/`full_name`/`owner.login`/
+ *  `private`/`default_branch` fields on every repo object; this only reads those five.
+ *
+ * @complexity O(1) per entry.
+ */
+function extractGitHubRepoSummary(raw: unknown): GitHubRepoSummary | undefined {
+  if (typeof raw !== "object" || raw === null) return undefined;
+  const value = raw as Record<string, unknown>;
+  const name = value.name;
+  const fullName = value.full_name;
+  const owner = typeof value.owner === "object" && value.owner !== null ? (value.owner as Record<string, unknown>).login : undefined;
+  const isPrivate = value.private;
+  const defaultBranch = value.default_branch;
+  if (typeof name !== "string" || typeof fullName !== "string" || typeof owner !== "string" || typeof isPrivate !== "boolean" || typeof defaultBranch !== "string") {
+    return undefined;
+  }
+  return { owner, name, fullName, private: isPrivate, defaultBranch };
+}
+
+/** `true` iff GitHub's own pagination `Link` header names a `rel="next"` page — the authoritative
+ *  signal, checked first. Falls back to "the page came back exactly full" only when that header is
+ *  absent, so a stripped/rewritten header (a caching proxy, a test double) cannot silently downgrade
+ *  a truncated result to `truncated: false` — {@link ListGitHubReposResult.truncated}'s own doc
+ *  explains why under-reporting this is the worse failure mode.
+ *
+ * @complexity O(1) — one header read, one regex test.
+ */
+function hasMoreGitHubRepoPages(resp: Response, fetchedCount: number): boolean {
+  const link = resp.headers.get("link");
+  if (link !== null) return /rel="next"/.test(link);
+  return fetchedCount >= GITHUB_REPOS_PER_PAGE;
+}
+
+/** The bounded, injectable-`fetchFn` GitHub request itself — mirrors {@link probe}'s own
+ *  never-throws contract (a network failure folds into `"unreachable"`) but cannot reuse that
+ *  function directly: `probe` reads at most ONE named field out of a JSON *object*, and this needs
+ *  the whole repo *array* plus a response header, two things `probe`'s own signature has no seam
+ *  for.
+ *
+ * @complexity One bounded HTTP request, O(n) over the returned page mapping each entry through
+ *   {@link extractGitHubRepoSummary}.
+ */
+async function fetchGitHubRepos(fetchFn: typeof fetch, token: string): Promise<ListGitHubReposResult> {
+  let resp: Response;
+  try {
+    resp = await fetchFn(GITHUB_REPOS_URL, {
+      headers: { Authorization: `Bearer ${token}`, Accept: "application/vnd.github+json" },
+      signal: AbortSignal.timeout(VERIFY_TIMEOUT_MS),
+    });
+  } catch {
+    return { status: "unreachable", repos: [], truncated: false };
+  }
+
+  const classified = classifyProviderResponse(resp);
+  if (!classified.ok) {
+    return {
+      status: classified.reason === "rejected" ? "invalid" : "unreachable",
+      message: buildVerificationMessage("github-pages", classified),
+      repos: [],
+      truncated: false,
+    };
+  }
+
+  let body: unknown;
+  try {
+    body = await resp.json();
+  } catch {
+    // An authenticated 2xx with an unparseable body says nothing about the credential itself — same
+    // "this module's own contract to enforce stops at HTTP status" posture `probe`'s own doc states.
+    return { status: "unreachable", message: "GitHub's response could not be read.", repos: [], truncated: false };
+  }
+  const rawRepos = Array.isArray(body) ? body : [];
+  const repos = rawRepos.map(extractGitHubRepoSummary).filter((repo): repo is GitHubRepoSummary => repo !== undefined);
+
+  return { status: "valid", repos, truncated: hasMoreGitHubRepoPages(resp, rawRepos.length) };
+}
+
+export interface ListGitHubReposByCredentialIdDeps {
+  readonly repo: PublishCredentialSetRepoPort;
+  readonly sealer: SecretSealerPort;
+  /** Injected by tests; defaults to global `fetch`. */
+  readonly fetchFn?: typeof fetch;
+}
+
+/**
+ * Lists every repository (owner + org-member affiliation) reachable by ONE specific saved
+ * `github-pages` credential's token — what `server/routes/admin/system/publish-credentials.ts`'s
+ * `GET .../:id/repos` route actually means. Same resolve-then-probe shape
+ * {@link verifyPublishCredentialById} already uses, deliberately not reusing that function itself:
+ * this never writes to {@link PublishCredentialVerificationCache} (a repo listing is not a
+ * verification outcome — the two must not be conflated, and a route that only wants a repo list
+ * should not have a side effect on `ready`/`verified` state as an accident of implementation reuse).
+ *
+ * The caller (`route-quality`'s route) is expected to have already confirmed `providerId ===
+ * "github-pages"` via `describeCredential` before ever calling this — so `resolved.connection` here
+ * is always a `GitHubPagesConnectionInput`. Checked with a thrown error rather than a null/silent
+ * skip: a caller reaching this function with the wrong provider is a wiring bug in ITS OWN pre-check,
+ * not a "not found" or "not configured" outcome this function's own return type should have to
+ * express.
+ *
+ * @returns `null` if no row exists for `(workspaceId, id)` — matches `resolveForPublish`'s own "no
+ *   such row is `null`, not thrown" contract, same as {@link verifyPublishCredentialById}.
+ * @throws {@link PublishCredentialSecretStoreUnconfiguredError} A genuine decrypt failure — left to
+ *   throw uncaught, exactly like {@link resolveForPublish}'s own documented contract; the caller's
+ *   route-level `try`/`catch` maps this the same way it already does for every other credential read.
+ * @complexity O(1) repo reads/decrypt plus one bounded outbound HTTP request, O(n) over the returned
+ *   page.
+ */
+export async function listGitHubReposByCredentialId(
+  deps: ListGitHubReposByCredentialIdDeps,
+  input: { workspaceId: UUID; id: UUID }
+): Promise<ListGitHubReposResult | null> {
+  const fetchFn = deps.fetchFn ?? fetch;
+  const resolved = await resolveForPublish({ repo: deps.repo, sealer: deps.sealer }, input);
+  if (!resolved) return null;
+
+  // Narrows on `connection.providerId` (the discriminant `PublishConnectionInput`'s own variants key
+  // on), not the record's top-level `providerId` field above it — the two always agree by the write
+  // path's own invariant, but only the former is what TypeScript can actually narrow `resolved.
+  // connection` on to reach `.token` below.
+  if (resolved.connection.providerId !== "github-pages") {
+    throw new Error(`listGitHubReposByCredentialId: credential '${input.id}' is a '${resolved.connection.providerId}' connection, not 'github-pages' — the caller must check this first.`);
+  }
+
+  return fetchGitHubRepos(fetchFn, resolved.connection.token);
+}
