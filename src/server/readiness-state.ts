@@ -8,11 +8,12 @@ import type { BootModuleResult, BootResult } from "./boot-lifecycle";
  * `runBootLifecycle`) never sees a stale or undefined readiness state — REQ-07/AC-06.
  *
  * Also carries the agent daemon's own known-failure state (below), latched in from OUTSIDE
- * `runBootLifecycle` entirely — `index.ts`'s `spawnAgentDaemon()` starts the daemon deliberately
- * AFTER `app.listen()` (see that function's own doc), so it was never a `BootModule` and never
- * flows through `setReadinessSnapshot`. Appending its result into this same snapshot, rather than
- * inventing a second readiness surface, is what makes it show up on `/readyz` and the module-status
- * route for free.
+ * `runBootLifecycle` entirely — `index.ts`'s `startAssistantDaemon()` (`src/assistant/
+ * daemon-supervisor.ts`) starts the daemon deliberately AFTER `app.listen()` (see that call site's
+ * own doc), so it was never a `BootModule` and never flows through `setReadinessSnapshot`.
+ * Appending its result into this same snapshot, rather than inventing a second readiness surface,
+ * is what makes it show up on `/readyz` and the module-status route for free — including through
+ * every automatic respawn attempt `daemon-supervisor.ts` makes, not just the first one.
  */
 
 let snapshot: BootResult = { ok: true, modules: [] };
@@ -30,9 +31,11 @@ export function getReadinessSnapshot(): BootResult {
 const ASSISTANT_DAEMON_MODULE_NAME = "assistant-daemon";
 
 /**
- * Records that the locally-spawned agent daemon (`index.ts`'s `spawnAgentDaemon()`) is known to
- * have failed — either it crashed before ever confirming it was ready, or it exited without this
- * process having asked it to (see `spawnAgentDaemon`'s own `shuttingDownDeliberately` flag).
+ * Records that the locally-spawned agent daemon (`daemon-supervisor.ts`'s spawn loop) is known to
+ * have failed — either it crashed before ever confirming it was ready, or it exited without the
+ * supervisor having asked it to (see that module's own `shuttingDown` flag). Also used, with a
+ * distinct reasonCode, once `daemon-supervisor.ts`'s automatic respawn gives up after its
+ * crash-loop cap trips — see that file's own header.
  *
  * Recorded as `criticality: "optional"`, matching `runBootLifecycle`'s own convention: a daemon
  * failure must be visible in the snapshot, but must never flip the rest of the app's `ok` to
@@ -52,7 +55,9 @@ export function recordAssistantDaemonFailure(reasonCode: string): void {
     lifecycle: {
       status: "failed",
       reasonCode,
-      remediationHint: "check the agent daemon's own stderr for the underlying crash and restart the API process",
+      remediationHint:
+        "check the agent daemon's own stderr for the underlying crash — daemon-supervisor.ts retries automatically with backoff; " +
+        "if it has given up (see the reasonCode above), use the manual restart seam (restartAssistantDaemon) instead of restarting the whole API process",
     },
   };
   snapshot = {
@@ -67,11 +72,12 @@ export function isAssistantDaemonKnownFailed(): boolean {
 }
 
 /**
- * Clears a previously-latched daemon failure. There is no retry path today — `spawnAgentDaemon()`
- * is called exactly once per process boot — so this is a no-op on a fresh process (the snapshot
- * starts with no `assistant-daemon` entry at all). It exists so a FUTURE retry does not inherit a
- * stuck 503 from a previous attempt: called at the start of `spawnAgentDaemon()`, before the new
- * child is spawned, so every attempt starts from a clean slate.
+ * Clears a previously-latched daemon failure. Called at the start of every spawn attempt inside
+ * `daemon-supervisor.ts` — the very first boot, every automatic respawn, and the manual restart
+ * seam alike — so a later successful attempt is never stuck behind a stale 503 an earlier,
+ * unrelated attempt latched. On the very first boot this is a no-op (the snapshot starts with no
+ * `assistant-daemon` entry at all); the "future retry" this comment used to say didn't exist yet
+ * is exactly what `daemon-supervisor.ts` now is.
  */
 export function clearAssistantDaemonFailure(): void {
   if (!isAssistantDaemonKnownFailed()) return;
