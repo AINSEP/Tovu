@@ -210,6 +210,82 @@ export async function askOnce(exchange: SurfaceExchange, emission: SurfaceEmissi
   }
 }
 
+/**
+ * Like {@link askOnce}, but for a call whose answer triggers real work whose OUTCOME the human also
+ * needs to see — a publish, a delete, a credential save. `askOnce` alone cannot express this: it
+ * closes the exchange the instant an answer arrives, so a caller that awaited it and then tried to
+ * `exchange.send()` a result would find the exchange already dead (`send()` throws "already ended").
+ *
+ * ## The defect this exists to fix
+ *
+ * A confirmation surface's own script (`confirmation.ts`) sets its status text to "Done." the moment
+ * the confirming `tools/call` RESOLVES — and for a held-open exchange delivered through
+ * `mcp-ui-tool-calls-route.ts`'s Shape 1, that call resolves the instant the click is DELIVERED to
+ * the parked agent call (`{delivered: true}`, HTTP 202), which happens before the parked handler has
+ * done anything with the answer yet, let alone finished. "Done." therefore means "your click
+ * reached the server," never "the thing you asked for actually happened" — a 404, a rejected
+ * credential, and a genuine success all render the identical "Done." to the human. `handle` below is
+ * where a caller does the real work and decides what actually happened; the outcome emission this
+ * function sends afterward is what corrects the record.
+ *
+ * ## How the correction reaches the screen
+ *
+ * The outcome emission is expected to reuse the SAME `ui://` URI the confirmation was sent under.
+ * `McpUiSurfaceCard` (`@jini-ai/chat`) already collapses a stream to the newest resource per URI —
+ * "a stream may re-send an updated document for a surface already on screen (a confirmation that
+ * became a result), so the LAST event for each URI wins" (that component's own doc) — and
+ * `McpUiHost` keys its iframe by `` `${uri}:${documentText}` ``, so a new document forces a clean
+ * remount rather than leaving the confirmation's stale Confirm/Cancel buttons on screen. Neither of
+ * those needed a change for this to work; this function only needed to make the SECOND send possible.
+ *
+ * ## Why `handle` returns the outcome rather than the caller sending it separately
+ *
+ * Keeping the send here, not in the caller, is what makes the try/catch below unconditional: a
+ * caller could forget to wrap its own `exchange.send()`, but every caller of this function gets the
+ * protection for free. `outcome` is OPTIONAL in the return — a cancelled/expired/abandoned answer has
+ * nothing to correct (the confirmation's own script already reports "Dismissed." for a local cancel,
+ * and an exchange that ended via a timeout is already closed, so `send()` would throw anyway); a
+ * caller for that branch simply omits it.
+ *
+ * ## The one invariant this function protects
+ *
+ * `result` — what reaches the model — must NEVER depend on the outcome emission actually reaching a
+ * screen. A human who closed the tab, a `send()` racing a teardown, or any other failure in the
+ * human-visible half must be invisible to the tool's own JSON contract, which is why the outcome send
+ * is wrapped in its own `try`/`catch` rather than sharing `handle`'s.
+ *
+ * @param exchange - Opened the same way `askOnce` expects one.
+ * @param confirmationEmission - Sent once, exactly like `askOnce`'s own `emission` parameter.
+ * @param handle - Runs after the answer arrives (whatever it is — received, expired, abandoned).
+ *   Does the caller's real work and returns `result` (returned to THIS function's own caller,
+ *   ultimately the model) plus an optional `outcome` emission to report back to the human.
+ * @complexity O(1) plus whatever `handle` itself costs — this function adds one conditional send and
+ *   the same `close()` `askOnce` already pays.
+ */
+export async function askThenReport<T>(
+  exchange: SurfaceExchange,
+  confirmationEmission: SurfaceEmission,
+  handle: (answer: SurfaceMessage) => Promise<{ result: T; outcome?: SurfaceEmission }>
+): Promise<T> {
+  await exchange.send(confirmationEmission);
+  try {
+    const answer = await exchange.receive();
+    const { result, outcome } = await handle(answer);
+    if (outcome !== undefined) {
+      try {
+        await exchange.send(outcome);
+      } catch {
+        // Swallowed deliberately — see this function's own doc ("the one invariant"): a human-visible
+        // frame update failing must never turn into a model-visible tool failure for work that already
+        // genuinely succeeded or failed on its own terms.
+      }
+    }
+    return result;
+  } finally {
+    exchange.close();
+  }
+}
+
 interface Registered {
   binding: SurfaceExchangeBinding;
   /** Hands one inbound message to a waiting receiver, or queues it. */

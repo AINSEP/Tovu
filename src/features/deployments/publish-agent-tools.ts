@@ -89,7 +89,7 @@ import {
   type ToolHandler,
   type ToolRegistration,
 } from "@jini-ai/cms/core";
-import { buildConfirmationSurface, buildFormSurface, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
+import { buildConfirmationSurface, buildFormSurface, buildOutcomeSurface, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 
 // TYPE-ONLY — fully erased at compile time, so this creates no runtime require() and cannot recreate
 // the circular-load crash a VALUE import of `#src/export/index` caused inside `export-run.ts` and
@@ -99,7 +99,7 @@ import { buildConfirmationSurface, buildFormSurface, type UIResource, type UIRes
 // is not.
 import type { RouteDeps } from "#src/server/routes/types";
 
-import { askOnce, SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, type AssistantSurfaceDeps, type SurfaceExchange } from "../../assistant/surface-exchanges";
+import { askOnce, askThenReport, SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, type AssistantSurfaceDeps, type SurfaceExchange, type SurfaceMessage } from "../../assistant/surface-exchanges";
 import { createPublishCredential, listPublishCredentials, updatePublishCredential, type PublishCredentialReadDeps, type PublishCredentialWriteDeps } from "./publish-credentials/index";
 import { S3_COMPATIBLE_FIELD_GUIDANCE, S3_COMPATIBLE_FORM_DESCRIPTION } from "./publish-credentials/s3-compatible-field-guidance";
 import {
@@ -476,6 +476,52 @@ function buildPublishConfirmationResource(spec: {
       params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, decision: "cancel" },
     },
     app: { appName: "tovu-deployment-execute-static-publish", appVersion: "1" },
+    preferredFrameSize: ["100%", "360px"],
+  });
+}
+
+/**
+ * Renders the RESULT of a confirmed publish — what a human sees replacing the confirmation dialog
+ * they just answered, once `askThenReport`'s `handle` callback has actually run `publishStaticSite`
+ * (or refused to, e.g. `already-running`). See `assistant/surface-exchanges.ts`'s `askThenReport` doc
+ * for the mechanism this depends on: sent under the SAME `uri` the confirmation used
+ * (`publishConfirmationUri(exchangeId)`, deliberately reused rather than a fresh one), which is what
+ * makes `McpUiSurfaceCard` (`@jini-ai/chat`) replace the dialog in place instead of opening a second
+ * card, and what makes `McpUiHost` remount the frame cleanly (its `sessionKey` is
+ * `` `${uri}:${documentText}` ``, and this document's text always differs from the confirmation's).
+ *
+ * `state`/`message`/`url` map straight onto Jini's `SurfaceOutcomeSpec` (`@jini-ai/ui/mcp-ui/surfaces`'s
+ * `outcome.ts`) — this function's own job is only deciding the publish-specific title/details/labels,
+ * the same division of labor `buildPublishConfirmationResource` above already has with
+ * `buildConfirmationSurface`.
+ *
+ * @param spec.url - Present for `'success'` and `'partial'` only — renders one "Open site"/"Open when
+ *   ready" button wired to the bridge's existing `openLink`, no new bridge plumbing. Omitted for
+ *   `'failure'`: there is nothing live to open.
+ * @complexity O(1) — fixed-size field reads, no iteration.
+ */
+function buildPublishOutcomeResource(spec: {
+  exchangeId: string;
+  config: StaticPublishConfig;
+  projectName: string;
+  state: "success" | "partial" | "failure";
+  message: string;
+  url?: string;
+}): UIResource {
+  const { exchangeId, config, projectName, state, message, url } = spec;
+  const title = state === "success" ? "Published" : state === "partial" ? "Uploaded, not live yet" : "Publish failed";
+  return buildOutcomeSurface({
+    uri: publishConfirmationUri(exchangeId),
+    title,
+    details: [
+      { label: "Target", value: config.target },
+      { label: "Project name", value: projectName },
+      ...(config.target === "github-pages" ? [{ label: "Repository", value: `${config.owner}/${config.repo}` }] : []),
+    ],
+    state,
+    message,
+    ...(url !== undefined ? { openLinkUrl: url, openLinkLabel: state === "partial" ? "Open when ready" : "Open site" } : {}),
+    app: { appName: "tovu-deployment-execute-static-publish-outcome", appVersion: "1" },
     preferredFrameSize: ["100%", "360px"],
   });
 }
@@ -861,92 +907,163 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
       const closeOnAbort = () => exchange.close();
       ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
       try {
-        const answer = await askOnce(exchange, { channel: "mcp-ui", payload: { resource: ui } });
+        // `askThenReport`, not `askOnce` (`assistant/surface-exchanges.ts`) — a click resolving this
+        // tool's `tools/call` proves the click was DELIVERED, never that the publish it triggered
+        // actually succeeded (see that function's own doc for the full defect this closes: for a
+        // held-open exchange, the click's round trip resolves the instant
+        // `mcp-ui-tool-calls-route.ts` delivers it to this parked call — `202 {delivered:true}` —
+        // long before the code below has even started running). `askOnce` cannot be patched to fix
+        // this in place: it closes the exchange the moment `receive()` resolves, so a second
+        // `exchange.send()` after doing the real work below would already be talking to a dead
+        // exchange. `handle` below is exactly the body `askOnce` would have wrapped; the only new
+        // thing each `return` does is also hand back an `outcome` emission when there is a genuine
+        // publish result to correct the record with — `askThenReport` sends it AFTER the confirm
+        // dialog, on the SAME `ui://` URI (`publishConfirmationUri(exchange.id)`, reused by
+        // `buildPublishOutcomeResource` below), which is what makes the transcript replace the
+        // dialog with the truth in place rather than opening a second card.
+        // Declared separately rather than inlined as `askThenReport`'s third argument (see that call
+        // below, which also pins the type argument explicitly) — this function's several `return`
+        // statements are genuinely different shapes (a no-answer result looks nothing like a success
+        // result), the same union `askOnce`'s own removed call site implicitly returned before this
+        // change.
+        const handle = async (answer: SurfaceMessage) => {
+          // ADR-055 Decision 6: the no-answer path is a result, not an exception. Nothing was
+          // published either way, and the model is still alive to read this and say something
+          // sensible. No `outcome` to send either: the exchange itself already ended (expired/
+          // abandoned), so `askThenReport`'s own send would just be swallowed regardless.
+          if (answer.status !== "received") {
+            return {
+              result: {
+                published: false,
+                cancelled: false,
+                reason: answer.status,
+                note:
+                  answer.status === "expired"
+                    ? "The user did not respond to the publish confirmation dialog before it expired. Nothing was published."
+                    : "The confirmation dialog was closed because the run ended. Nothing was published.",
+              },
+            };
+          }
 
-        // ADR-055 Decision 6: the no-answer path is a result, not an exception. Nothing was published
-        // either way, and the model is still alive to read this and say something sensible.
-        if (answer.status !== "received") {
+          const decision = typeof answer.params.decision === "string" ? answer.params.decision : "confirm";
+          if (decision !== "confirm") {
+            // No outcome surface for a cancel: the confirmation's own script already reports
+            // "Dismissed."/"Done." locally the moment this tool call resolves, and that IS the truth
+            // for a cancel (unlike a publish, nothing async happens afterward that could still fail).
+            return { result: { published: false, cancelled: true, target, projectName } };
+          }
+
+          // No `await` between this check and `runPublishAndAwait` below — same single-synchronous-
+          // stretch contract `publish-site.ts`'s HTTP trigger route documents for the identical check,
+          // against the SAME shared slot (`static-publish/publish-run.ts`): this used to call
+          // `publishStaticSite` directly with nothing to check at all, so a human using the admin UI's
+          // Static Site tab and this tool in the same running server could both start a real publish at
+          // once and race each other's clean export into the same output directory (Terra audit
+          // finding #1). Checked here, immediately before the actual publish call, rather than earlier
+          // in this handler (e.g. before opening the confirmation dialog) — the dialog can sit open for
+          // an arbitrary time awaiting a human answer, during which another publish could start AND
+          // finish, so a check made before this point would not actually close the race; this is the
+          // last synchronous point before the real work starts.
+          if (getPublishRunSnapshot().status === "running") {
+            const message =
+              "A publish is already running in this server (started via the admin UI or another agent call). Wait for it to finish, or check deployment_get_static_publish_capabilities/the Static Site tab for its status, then retry. This will not resolve on retry while it is still running.";
+            return {
+              result: { published: false, cancelled: false, reason: "already-running", message },
+              // This IS a "Done." would-be-lie moment too: the human clicked Publish, the dialog is
+              // about to resolve, and nothing published. Corrected the same way a real publish
+              // failure is, not left to the confirmation script's generic "Done.".
+              outcome: {
+                channel: "mcp-ui",
+                payload: { resource: buildPublishOutcomeResource({ exchangeId: exchange.id, config, projectName, state: "failure", message }) },
+              },
+            };
+          }
+
+          const outcome = await runPublishAndAwait(
+            { credentialSource, ...(deps.buildTarget !== undefined ? { buildTarget: deps.buildTarget } : {}) },
+            { workspaceId: deps.workspaceId, routeDeps: deps, config, projectName },
+            deps.clock,
+            historyStore
+          );
+
+          if (outcome.ok === "partial") {
+            // "Uploaded, but not yet reachable" (spec `custom-publish-provider-contract.md` §3a) — the
+            // files DID upload (so `published: true`, never a hard failure), but the site is not
+            // confirmed live yet (so `reachable: false`, never a plain success either). Structurally a
+            // distinct branch from both — see `static-publish/types.ts`'s `StaticPublishOutcome` header
+            // for why `outcome.ok` itself is `true | false | "partial"`, not merely a boolean.
+            return {
+              result: {
+                published: true,
+                reachable: false,
+                target: outcome.targetId,
+                url: outcome.url,
+                status: outcome.status,
+                message: outcome.message,
+                ...(outcome.deploymentId !== undefined ? { deploymentId: outcome.deploymentId } : {}),
+                ...(outcome.basePath !== undefined ? { basePath: outcome.basePath } : {}),
+              },
+              outcome: {
+                channel: "mcp-ui",
+                payload: {
+                  resource: buildPublishOutcomeResource({ exchangeId: exchange.id, config, projectName, state: "partial", message: outcome.message, url: outcome.url }),
+                },
+              },
+            };
+          }
+
+          if (!outcome.ok) {
+            // Every branch of `publishStaticSite`'s own failure contract (`static-publish/types.ts`'s
+            // `StaticPublishOutcome` doc, `adapter.ts`'s own `catch`) is already an actionable,
+            // credential-free message: `NO_CREDENTIALS_CONFIGURED` names the provider via the resolved
+            // credential source's own reason text, a Cloudflare-Pages-credential-missing-its-account-id
+            // failure names the exact missing field (`buildJiniTarget`'s own `DeployError`), and
+            // `PROVIDER_ERROR` is `err.message` only — never a raw response body, never a credential.
+            // Passed straight through rather than re-wrapped, and straight into the outcome surface
+            // too — the same actionable text a human would need either way.
+            return {
+              result: { published: false, cancelled: false, code: outcome.code, message: outcome.message },
+              outcome: {
+                channel: "mcp-ui",
+                payload: { resource: buildPublishOutcomeResource({ exchangeId: exchange.id, config, projectName, state: "failure", message: outcome.message }) },
+              },
+            };
+          }
+
           return {
-            published: false,
-            cancelled: false,
-            reason: answer.status,
-            note:
-              answer.status === "expired"
-                ? "The user did not respond to the publish confirmation dialog before it expired. Nothing was published."
-                : "The confirmation dialog was closed because the run ended. Nothing was published.",
+            result: {
+              published: true,
+              reachable: true,
+              target: outcome.targetId,
+              url: outcome.url,
+              status: outcome.status,
+              ...(outcome.deploymentId !== undefined ? { deploymentId: outcome.deploymentId } : {}),
+              ...(outcome.basePath !== undefined ? { basePath: outcome.basePath } : {}),
+            },
+            outcome: {
+              channel: "mcp-ui",
+              payload: {
+                resource: buildPublishOutcomeResource({
+                  exchangeId: exchange.id,
+                  config,
+                  projectName,
+                  state: "success",
+                  message: `Published live at ${outcome.url}.`,
+                  url: outcome.url,
+                }),
+              },
+            },
           };
-        }
-
-        const decision = typeof answer.params.decision === "string" ? answer.params.decision : "confirm";
-        if (decision !== "confirm") {
-          return { published: false, cancelled: true, target, projectName };
-        }
-
-        // No `await` between this check and `runPublishAndAwait` below — same single-synchronous-
-        // stretch contract `publish-site.ts`'s HTTP trigger route documents for the identical check,
-        // against the SAME shared slot (`static-publish/publish-run.ts`): this used to call
-        // `publishStaticSite` directly with nothing to check at all, so a human using the admin UI's
-        // Static Site tab and this tool in the same running server could both start a real publish at
-        // once and race each other's clean export into the same output directory (Terra audit
-        // finding #1). Checked here, immediately before the actual publish call, rather than earlier
-        // in this handler (e.g. before opening the confirmation dialog) — the dialog can sit open for
-        // an arbitrary time awaiting a human answer, during which another publish could start AND
-        // finish, so a check made before `askOnce` would not actually close the race; this is the
-        // last synchronous point before the real work starts.
-        if (getPublishRunSnapshot().status === "running") {
-          return {
-            published: false,
-            cancelled: false,
-            reason: "already-running",
-            message: "A publish is already running in this server (started via the admin UI or another agent call). Wait for it to finish, or check deployment_get_static_publish_capabilities/the Static Site tab for its status, then retry. This will not resolve on retry while it is still running.",
-          };
-        }
-
-        const outcome = await runPublishAndAwait(
-          { credentialSource, ...(deps.buildTarget !== undefined ? { buildTarget: deps.buildTarget } : {}) },
-          { workspaceId: deps.workspaceId, routeDeps: deps, config, projectName },
-          deps.clock,
-          historyStore
-        );
-
-        if (outcome.ok === "partial") {
-          // "Uploaded, but not yet reachable" (spec `custom-publish-provider-contract.md` §3a) — the
-          // files DID upload (so `published: true`, never a hard failure), but the site is not
-          // confirmed live yet (so `reachable: false`, never a plain success either). Structurally a
-          // distinct branch from both — see `static-publish/types.ts`'s `StaticPublishOutcome` header
-          // for why `outcome.ok` itself is `true | false | "partial"`, not merely a boolean.
-          return {
-            published: true,
-            reachable: false,
-            target: outcome.targetId,
-            url: outcome.url,
-            status: outcome.status,
-            message: outcome.message,
-            ...(outcome.deploymentId !== undefined ? { deploymentId: outcome.deploymentId } : {}),
-            ...(outcome.basePath !== undefined ? { basePath: outcome.basePath } : {}),
-          };
-        }
-
-        if (!outcome.ok) {
-          // Every branch of `publishStaticSite`'s own failure contract (`static-publish/types.ts`'s
-          // `StaticPublishOutcome` doc, `adapter.ts`'s own `catch`) is already an actionable,
-          // credential-free message: `NO_CREDENTIALS_CONFIGURED` names the provider via the resolved
-          // credential source's own reason text, a Cloudflare-Pages-credential-missing-its-account-id
-          // failure names the exact missing field (`buildJiniTarget`'s own `DeployError`), and
-          // `PROVIDER_ERROR` is `err.message` only — never a raw response body, never a credential.
-          // Passed straight through rather than re-wrapped.
-          return { published: false, cancelled: false, code: outcome.code, message: outcome.message };
-        }
-
-        return {
-          published: true,
-          reachable: true,
-          target: outcome.targetId,
-          url: outcome.url,
-          status: outcome.status,
-          ...(outcome.deploymentId !== undefined ? { deploymentId: outcome.deploymentId } : {}),
-          ...(outcome.basePath !== undefined ? { basePath: outcome.basePath } : {}),
         };
+
+        // `<unknown>`, not left to infer: `handle`'s return type is a real union across its several
+        // `return` statements (a no-answer result looks nothing like a success result), and
+        // TypeScript's generic inference does not distribute a callback's union return type across
+        // `askThenReport`'s single type parameter — it narrows to one branch and then rejects the
+        // others. `unknown` is safe here specifically because `ToolHandler` (`@jini-ai/core`) already
+        // declares every handler's own return as `Promise<unknown>`, so nothing downstream of this
+        // call needed `result`'s precise shape anyway.
+        return await askThenReport<unknown>(exchange, { channel: "mcp-ui", payload: { resource: ui } }, handle);
       } finally {
         ctx.signal.removeEventListener("abort", closeOnAbort);
       }
