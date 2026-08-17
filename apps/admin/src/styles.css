@@ -3354,6 +3354,19 @@ a.btn-warning:hover, a.btn-primary:hover { text-decoration: none; }
    row. A label alone doesn't say WHERE the toggle is; a chevron alone (especially unstyled) repeats
    the "mystery glyph" problem the details-marker reset exists to avoid — paired, they read as one
    unambiguous "click here to expand" the way the step marker at the start does not compete with. */
+/* The "Verify" control on an already-connected row (2026-08-16 — see `CredentialStepDone`'s own doc
+   for the gap this closes) — sits BETWEEN `.deployment-step-summary-text` and
+   `.deployment-step-summary-action` so it never competes with either end of the row, and lives
+   inside `<summary>` itself (not the `<details>` content revealed on expand) precisely because it
+   has to stay reachable while the row is COLLAPSED, the row's normal resting state. `flex-shrink: 0`
+   matches `.deployment-step-summary-action`'s own reasoning: this is a fixed-purpose control, not
+   text that should be squeezed before the truncatable summary text gives way. `flex-wrap: wrap` lets
+   the button and its inline status (Verifying…/the result/an error) drop to a second line on a
+   narrow viewport instead of forcing the whole summary row wider than its card. */
+.deployment-step-verify {
+  display: flex; align-items: center; flex-wrap: wrap; gap: var(--space-2); flex-shrink: 0;
+  font-size: var(--text-xs);
+}
 .deployment-step-summary-action {
   display: flex; align-items: center; gap: var(--space-1); flex-shrink: 0;
   font-size: var(--text-xs); font-weight: 600; color: var(--muted);

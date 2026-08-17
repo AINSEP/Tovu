@@ -1021,10 +1021,29 @@ function CredentialStepTodo({
  * pushed to the row's far edge rather than trailing the timestamp mid-row.
  *
  * The timestamp reads "saved", never "updated": it is the moment this ROW was written, not a
- * liveness check — Tovu has not re-verified the token since, and a revoked token still shows this
- * same timestamp. "updated" implied a recency the UI cannot back up. Do not add a verification
- * indicator here to justify "updated" — token-liveness checking is a real feature, not a copy fix,
- * and is explicitly out of scope for this row.
+ * liveness check — a revoked token still shows this same timestamp, and re-verifying (below) never
+ * touches it. "updated" implied a recency the UI cannot back up from `saved` alone.
+ *
+ * ## Verify (2026-08-16 — closes a real gap, corrects this doc's own earlier "out of scope" call)
+ *
+ * An earlier pass of this doc said a verification indicator was "explicitly out of scope for this
+ * row" — that held only until the assistant's own capability tool (`deployment_get_static_publish_
+ * capabilities`) started telling a human to come HERE and "hit verify on the token" whenever its
+ * cached verification went cold (e.g. a server restart — `InMemoryPublishCredentialVerificationCache`
+ * has no persistence), and grepping this file for "verify" turned up nothing to click (see
+ * `development/e2e/deployment-static-site-verify-gap.spec.ts`'s header for the full live-reproduction
+ * chain). `POST .../credentials/:id/verify` (`publish-credentials.ts`) already existed and worked; the
+ * gap was UI wiring only. {@link CredentialVerifyAction} closes it — a real re-check button living
+ * inside `<summary>` itself (not the `<details>` content revealed on expand), because it has to stay
+ * reachable while this row is collapsed, its normal resting state; see that component's own doc for
+ * why a nested `<button>` there needs its click prevented from also toggling the details.
+ *
+ * A `"valid"` result carrying an `accountLabel` is durable — `usePublishCredentials`'s `verify` mirrors
+ * the server's own `healAccountLabel` write onto `row.saved.accountLabel` immediately, which is what
+ * lets the summary line below show "connected as X" even after a page reload, long after any single
+ * verify RESPONSE (transient, session-only) is gone. That durability is the whole point: an operator
+ * who verifies once should not have to re-verify again just to keep seeing which account this token
+ * belongs to.
  */
 function CredentialStepDone({
   row,
@@ -1051,14 +1070,130 @@ function CredentialStepDone({
         <span className="deployment-step-summary-text">
           <span translate="no">{info.label}</span> {translate("connected")} · {translate("token stored, encrypted")} ·{" "}
           {translate("saved")} {formatTimestamp(row.saved!.updatedAt)}
+          {row.saved!.accountLabel ? (
+            <>
+              {" "}
+              · {translate("connected as")} <span translate="no">{row.saved!.accountLabel}</span>
+            </>
+          ) : null}
         </span>
+        <CredentialVerifyAction row={row} controller={controller} t={translate} />
         <span className="deployment-step-summary-action">
           {translate("Replace token")}
           <DisclosureChevron />
         </span>
       </summary>
+      <CredentialTokenPicker row={row} controller={controller} t={translate} />
       <PublishCredentialFields row={row} controller={controller} t={translate} />
     </details>
+  );
+}
+
+/**
+ * The "Verify" control on an already-connected row — re-checks the saved token against its real
+ * provider right now (`PublishCredentialsController.verify`) and shows the outcome inline: the
+ * provider's own message on success (a normal `"valid"`/`"invalid"`/`"unreachable"` result — see
+ * `AdminPublishCredentialVerification.status`'s doc for why none of the three is treated as an
+ * error), or a translated transport-failure message if the request itself never reached the server.
+ *
+ * Lives inside `<summary>`, a descendant of the native disclosure toggle, which means its click would
+ * otherwise ALSO open/close the enclosing `<details>` (the browser runs `<summary>`'s toggle as the
+ * click event's default action regardless of which descendant was actually clicked, unless that
+ * default action is cancelled) — `preventDefault`/`stopPropagation` in the handler below is what
+ * keeps a Verify click from also expanding the row every time.
+ * @complexity O(1) — one button, one derived status line.
+ */
+function CredentialVerifyAction({
+  row,
+  controller,
+  t: translate,
+}: {
+  row: PublishCredentialRowState;
+  controller: PublishCredentialsController;
+  t: Translate;
+}) {
+  const info = publishCredentialProviderInfo(row.providerId);
+  const statusText = row.verifyError ?? row.verification?.message ?? null;
+  const statusIsError = Boolean(row.verifyError) || row.verification?.status === "invalid";
+  return (
+    <span className="deployment-step-verify">
+      <button
+        type="button"
+        className="btn-secondary"
+        disabled={row.verifying}
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          void controller.verify(row.providerId);
+        }}
+        {...agentHandle(`deployment-static-site-credentials-verify-${row.providerId}`, {
+          role: "button",
+          label: `Re-check the saved ${info.label} token against its real provider right now`,
+        })}
+      >
+        {row.verifying ? translate("Verifying…") : translate("Verify")}
+      </button>
+      {statusText ? (
+        <span aria-live="polite" className={statusIsError ? "save-error" : "save-ok"}>
+          {statusText}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+/**
+ * The "which saved token publishes" picker (the owner's own original ask, per
+ * `use-publish-credentials.hooks.ts`'s `credentialsForProvider` doc: "GitHub pages... will have a
+ * dropdown where you can choose which GitHub access tokens"). Renders nothing when this provider has
+ * at most one saved connection — the common case — since there is nothing to choose between; a lone
+ * credential is already what {@link CredentialStepDone}'s summary line describes, and a picker with
+ * one option would just repeat that fact as a control.
+ *
+ * Selecting an option promotes that credential to this provider's DEFAULT (`controller.selectCredential`),
+ * the exact row a real publish uses (`defaultCredentialForProvider`'s own doc) — there is no separate
+ * "which token does this publish use" setting anywhere else for this to drift from.
+ * @complexity O(n) in this provider's own (small) saved-credential count, same bound
+ *   {@link credentialsForProvider} documents.
+ */
+function CredentialTokenPicker({
+  row,
+  controller,
+  t: translate,
+}: {
+  row: PublishCredentialRowState;
+  controller: PublishCredentialsController;
+  t: Translate;
+}) {
+  const options = controller.credentialsForProvider(row.providerId);
+  if (options.length < 2) return null;
+  const info = publishCredentialProviderInfo(row.providerId);
+  const fieldId = `deployment-static-site-credentials-picker-${row.providerId}`;
+  return (
+    <div className="field">
+      <label className="field-label" htmlFor={fieldId}>
+        {translate("Which saved token publishes")}
+      </label>
+      <select
+        id={fieldId}
+        value={row.saved?.id ?? ""}
+        onChange={(e) => void controller.selectCredential(row.providerId, e.target.value)}
+        {...agentHandle(fieldId, {
+          role: "field",
+          label: `Choose which of this workspace's saved ${info.label} tokens is the one Tovu publishes with`,
+        })}
+      >
+        {options.map((credential) => (
+          <option key={credential.id} value={credential.id}>
+            {(credential.accountLabel ?? credential.label) + " — " + formatTimestamp(credential.updatedAt)}
+          </option>
+        ))}
+      </select>
+      <p className="field-hint">
+        {translate("This workspace has more than one saved")} <span translate="no">{info.label}</span>{" "}
+        {translate("token. Pick which one Tovu publishes with.")}
+      </p>
+    </div>
   );
 }
 
