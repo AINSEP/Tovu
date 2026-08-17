@@ -25,6 +25,7 @@ import {
   type OutboxPort,
 } from "@jini-ai/cms/core";
 import { executeCommand, type AuthorizeFn, type ChangeSetRepoPort } from "../../core/commands";
+import { registerToolContributor } from "#src/assistant/index";
 // Now sourced from this same module — `toAdminPluginResponse` moved to
 // `features/plugin-runtime/admin-response.ts` (this domain's own projection), closing the back-edge
 // into `server/http/admin` this file used to carry. `server/http/admin/plugins.ts` re-exports the
@@ -166,4 +167,19 @@ export function buildPluginsRegistrations(routeDeps: PluginsToolDeps): ToolRegis
     handlers,
     derivedRisk: pluginsDerivedRisk,
   });
+}
+
+/**
+ * Contributes Plugins' AI tools to the assistant's catalog — called once by
+ * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
+ * module. `assistant/tool-registrations.ts` no longer imports `buildPluginsRegistrations`/
+ * `pluginsDerivedRisk` by name; this is the seam that replaced it (2026-08-17, Stage 2 batch 2).
+ * Unlike `database` (tried and reverted earlier in this batch), this domain's own imports are all
+ * `core/commands` plus its own sibling files (`admin-response.ts`, `activation.ts`, `agent-tools.ts`,
+ * `discovery.ts`) — it does not reach `features/database`/`db` at all, so it does not carry that
+ * domain's round-trip risk. Every importer outside `server/*` is none — nothing else imports this
+ * domain by name.
+ */
+export function contributePluginsTools(): void {
+  registerToolContributor({ domain: "plugins", build: buildPluginsRegistrations, risk: pluginsDerivedRisk });
 }

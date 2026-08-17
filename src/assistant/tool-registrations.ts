@@ -91,11 +91,7 @@ import {
   type StaticPublishToolDeps,
   type VendorCredentialPort,
 } from "../features/deployments/publish-agent-tools";
-import {
-  buildEntriesRegistrations,
-  entriesDerivedRisk,
-  type EntriesToolDeps,
-} from "../features/entries/tool-registrations";
+import type { EntriesToolDeps } from "../features/entries/tool-registrations";
 // This file's own real wiring for `StaticPublishToolDeps.vendorCredentials` (`VendorCredentialPort`,
 // `publish-agent-tools.ts`) — that file deliberately carries NO import of any kind from
 // `features/vendor-credentials` (see its own header for why: doing so closed a real
@@ -116,11 +112,7 @@ import {
   sourceControlDerivedRisk,
   type SourceControlToolDeps,
 } from "../features/source-control/tool-registrations";
-import {
-  buildPluginsRegistrations,
-  pluginsDerivedRisk,
-  type PluginsToolDeps,
-} from "../features/plugin-runtime/tool-registrations";
+import type { PluginsToolDeps } from "../features/plugin-runtime/tool-registrations";
 import {
   buildPostRegistrations,
   postDerivedRisk,
@@ -308,10 +300,16 @@ const DOMAIN_SLICES: readonly DomainSlice[] = [
   // bitbucket credentials can be saved and are honestly reported by the capabilities tool, but
   // committing to either is not implemented yet.
   { domain: "source-control", build: buildSourceControlRegistrations, risk: sourceControlDerivedRisk },
-  { domain: "plugins", build: buildPluginsRegistrations, risk: pluginsDerivedRisk },
+  // `plugins` converted to the tool-contribution registry 2026-08-17 (Stage 2 batch 2) — see
+  // `features/plugin-runtime/tool-registrations.ts`'s own header. No longer an entry here; it
+  // arrives via `contributePluginsTools()`, installed by `server/tool-catalog-manifest.ts`.
   { domain: "workspace", build: buildWorkspaceRegistrations, risk: workspaceDerivedRisk },
   { domain: "settings", build: buildSettingsRegistrations, risk: settingsDerivedRisk },
-  { domain: "entries", build: buildEntriesRegistrations, risk: entriesDerivedRisk },
+  // `entries` converted to the tool-contribution registry 2026-08-17 (Stage 2 batch 2) — see
+  // `features/entries/tool-registrations.ts`'s own header. No longer an entry here; it arrives via
+  // `contributeEntriesTools()`, installed by `server/tool-catalog-manifest.ts`. Converted LAST in
+  // this batch: `widgets` (batch's own first conversion) imports `features/entries` internally, so
+  // this needed `widgets` off the static array first, same reasoning as `content-types`/`forms`.
   // `buildPostRegistrations`' second parameter now IS the slice contract's own `surfaces` shape
   // (ADR-055 Decision 2 — `content_post_delete` holds its call open through the same exchange store
   // every other surface-raising domain uses), so this forwards directly rather than wrapping.

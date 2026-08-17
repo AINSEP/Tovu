@@ -186,3 +186,209 @@ since there was no earlier commit to diff against.
 - 16 domains remain for future batches (17 minus `themes`, which needs the above precondition first,
   plus `post`, already excluded). Re-run the same selection heuristic each batch, extended to also
   grep for `#src/<domain>` subpath imports, not just relative-path ones.
+
+# Stage 2 registry rollout — batch 2 progress
+
+**Date:** 2026-08-17
+**Author:** Programmer(Direct), dispatched by team lead, running in a separate worktree in parallel
+with a sibling agent converting a disjoint domain set (deployments/source-control/static-publish/
+media/integrations/workspace/pages/seo).
+**Scope:** Convert 8 more not-yet-converted assistant tool domains: `content-types`, `forms`,
+`widgets`, `menus` (navigation), `database`, `recovery`, `plugins` (plugin-runtime), `entries`, in
+that assigned order.
+
+## Worktree/foundation setup issue (resolved before any domain work started)
+
+This worktree was branched from a STALE point in `general-work` — its initial HEAD was the exact
+merge-base with `general-work`, i.e. it predated `general-work`'s last 2 commits at dispatch time
+(`4d0593c5`, `016666d7` "Stage 2 registry rollout batch 1"). It had zero unique commits of its own,
+so `git merge --ff-only general-work` safely brought it current with no data loss (verified clean
+`git status` before/after).
+
+After that fast-forward, `general-work`'s own tip (`016666d7`, the batch-1 commit) turned out to
+itself be broken: it referenced `src/assistant/tool-contribution-registry.ts` (the core registry
+engine — `registerToolContributor`/`listToolContributors`/`resetToolContributorsForTests`),
+`src/core/tool-surface-exchanges.ts`, and `comments`/`newsletter`'s own Stage-1 `contribute*Tools()`
+additions — none of which had ever actually been committed to git, in this repo's ENTIRE history
+(confirmed with `git log --all -S "export function registerToolContributor"`, zero hits across every
+branch). `node --import tsx --test src/assistant/__tests__/tool-contribution-registry.test.ts` failed
+immediately with `Cannot find module '../core/tool-surface-exchanges'` — `general-work`'s committed
+tip did not actually execute. Flagged to the team lead via SendMessage rather than reconstructing the
+missing files from a stale, unrelated uncommitted checkout; the team lead landed a corrected commit
+(`1cdc054c fix(assistant): land Stage 1 architecture decoupling foundation`), verified with
+`git cat-file -e` plus a content grep (not just a file-count check) and a clean `check:architecture`
++ 248 scoped tests before handing back. A second `git merge --ff-only general-work` picked it up
+(again zero unique commits lost) and the registry's own 13 contract tests passed for real this time.
+
+## Ordering — team lead's applied correction
+
+The team lead reordered the assigned domain list based on the risk analysis done while blocked:
+**`widgets` first**, then `content-types`, `forms`, `menus`, `database`, `recovery`, `plugins`,
+`entries` (original relative order otherwise unchanged). Rationale: `widgets` internally imports
+`content-types`/`forms`/`entries` (`write-service.ts`, `embed-service.ts`, `region-area-service.ts`,
+`resolvers/{contact-form,create-core-resolvers,recent-entries}.ts`, `deps.ts`, `entry-payload.ts`,
+`read-service.ts`, `resolver-service.ts`), and `widgets` itself was still a legacy static
+`DOMAIN_SLICES` entry at the start of this batch. Converting any of those three domains BEFORE
+`widgets` would have closed `assistant -> widgets -> {content-types,forms,entries} -> assistant` —
+the exact shape that forced the `themes`/`post` reverts in batch 1. Converting `widgets` first
+removes the `assistant -> widgets` static edge before any of the three converts, so none of them
+closes a cycle through it. This was verified empirically at each step, not just assumed from the
+reordering.
+
+## Per-domain outcome
+
+| Domain | Order | Outcome | Why |
+|---|---|---|---|
+| `widgets` | 1st | **Converted, kept** | Every importer outside `server/*` is now off the static array by definition (it's the domain being converted); no OTHER still-legacy domain imports `widgets`. Removes the `assistant -> widgets` edge for the next two. |
+| `content-types` | 2nd | **Converted, kept** | Only remaining importer besides `server/*` is `widgets/*` — already converted (registry, one-directional), so no cycle. |
+| `forms` | 3rd | **Converted, kept** | Same shape as `content-types`: only remaining importer is `widgets/resolvers/{contact-form,create-core-resolvers}.ts`, already off the static array. |
+| `menus` (navigation) | 4th | **Converted, kept** | Only non-`server/*` importer is `features/theme/static-render.ts`, but `themes`' own `DOMAIN_SLICES` entry points at `features/theme/tool-registrations.ts`, whose real transitive import closure (`agent-tools.ts` -> `theme-files.ts` -> `theme.ts` -> `build-conformance.ts`/`handlebars-allowlist.ts`/`liquid-allowlist.ts`) never reaches `static-render.ts` or `index.ts` — traced every import in that closure directly, not assumed from same-directory proximity. Confirmed safe empirically (0 cycles/SCC after conversion). |
+| `database` | 5th | **Reverted** | Opened a NEW 16-module SCC: `assistant, db, export, features/database, features/deployments, features/entries, features/pages, features/plugin-runtime, features/post, features/presentation, features/recovery, features/settings, features/source-control, features/vendor-credentials, features/workspace, seo`. Mechanism: the shared low-level `db` module ties together most of the still-static `DOMAIN_SLICES` entries at once — the risk was invisible to a plain importer grep on `features/database` alone (which showed only `server/*` and `db/sqlite/*`), only surfacing via `check:architecture --list`'s SCC dump. Reverted all 3 edits; left an explanatory trailing comment on `features/database/tool-registrations.ts` and the restored `DOMAIN_SLICES` entry in `assistant/tool-registrations.ts`, mirroring `themes`'/`post`'s revert style, naming the actual 16-module SCC. |
+| `recovery` | 6th | **Converted, kept** | Shares `database`'s only outside-`server/*` importer (`db/sqlite/database-journal-repo.ts`), but Recovery's OWN imports of `features/database` (`../database/boot/reconcile-interrupted-migration`, `../database/gated-hooks`) are both `import type` — erased from the runtime-only graph `check:architecture` uses for cycles/SCC (per `tool-contribution-registry.ts`'s own header on type-only erasure). Verified empirically: 0 cycles/SCC after conversion, confirming the type-only-import reasoning held. |
+| `plugins` (plugin-runtime) | 7th | **Converted, kept** | This domain's own imports are `core/commands` plus its own sibling files only (`admin-response.ts`, `activation.ts`, `agent-tools.ts`, `discovery.ts`) — it does not reach `features/database`/`db` at all, despite appearing in `database`'s 16-module SCC list (that inclusion came from the `db` hub's OTHER paths, not from anything `plugins` itself does). Every importer outside `server/*` is none. |
+| `entries` | 8th (last) | **Converted, kept** | Imported by `comments/index.ts` (already registry-converted, safe) and heavily by `widgets/*` (8 files) — safe specifically because `widgets` (this batch's 1st conversion) was already off the static array by the time `entries` converted, same reasoning as `content-types`/`forms`. |
+
+Net: **7 of 8 converted and kept** (`widgets`, `content-types`, `forms`, `menus`, `recovery`,
+`plugins`, `entries`); **1 reverted** (`database`, with explanatory comment, safe to retry once
+enough of the still-static cluster it's entangled with — `deployments`/`source-control`/`settings`/
+`workspace`/`entries`/`post`/`pages`/`plugin-runtime`/`seo`/`export`/`vendor-credentials` — converts,
+or `db`'s cross-domain imports are narrowed).
+
+## check:architecture — before/after this batch
+
+Baseline compared against (the corrected foundation commit `1cdc054c`'s own state, before this
+batch's edits):
+
+| Metric | Before batch 2 | After batch 2 (7 converted, database reverted) |
+|---|---|---|
+| propagation cost (all-import) | ~8.95%* | 11.12% |
+| propagation cost (runtime-only) | ~1.95%* | 2.26% |
+| back-edges into composition root | 11 | 11 |
+| back-edges, runtime-only | 0 | 0 |
+| module cycles (mutual pairs, runtime-only) | 0 | 0 |
+| largest SCC (runtime-only) | 0 | 0 |
+| module API surface (files exposed) | 213 | 213 |
+| core size | ~16.27%* | 16.98% (144/848) |
+
+*Baseline file values (`check-architecture.baseline.json`), not re-measured fresh on `1cdc054c` before
+starting — the corrected-foundation commit's own landing already confirmed a clean check against this
+same baseline per the team lead's report. Did NOT run `--update` — baseline update is a team-lead
+decision, consistent with batch 1's own deferral.
+
+The `database` attempt showed the revert-trigger signal clearly and immediately: largest SCC
+(runtime-only) jumped 0 -> 16 the moment its 3 edits landed. After reverting database alone, it
+returned to 0 before `recovery` was attempted.
+
+## Tests run
+
+All commands run from repo root, node's native test runner. Final comprehensive sweep across every
+domain touched this batch plus every Stage 1 / batch 1 domain (regression check):
+
+```
+node --import tsx --test \
+  src/widgets/__tests__/repo.contract.test.ts src/widgets/__tests__/unit/*.test.ts \
+  src/widgets/__tests__/integration/*.test.ts src/forms/__tests__/*.test.ts \
+  src/features/content-types/__tests__/integration/*.test.ts \
+  src/features/entries/__tests__/integration/*.test.ts \
+  src/features/recovery/__tests__/unit/*.test.ts src/features/recovery/__tests__/integration/*.test.ts \
+  src/features/plugin-runtime/__tests__/unit/*.test.ts \
+  src/features/plugin-runtime/__tests__/integration/*.test.ts \
+  src/assistant/__tests__/tool-registrations.contracts.test.ts \
+  src/assistant/__tests__/tool-registrations.widgets-contracts.test.ts \
+  src/assistant/__tests__/tool-registrations.widgets-authorization.test.ts \
+  src/assistant/__tests__/tool-registrations.authorization.test.ts \
+  src/assistant/__tests__/tool-registrations.forms.test.ts \
+  src/assistant/__tests__/tool-registrations.menus.test.ts \
+  src/assistant/__tests__/tool-registrations.database-recovery.test.ts \
+  src/assistant/__tests__/tool-registrations.plugins.test.ts \
+  src/assistant/__tests__/tool-registrations.entries.test.ts \
+  src/assistant/__tests__/tool-contribution-registry.test.ts \
+  src/assistant/__tests__/tool-registrations.comments.test.ts \
+  src/assistant/__tests__/tool-registrations.newsletter.test.ts \
+  src/assistant/__tests__/tool-registrations.identity-authorization.test.ts \
+  src/assistant/__tests__/tool-registrations.identity-contracts.test.ts \
+  src/assistant/__tests__/tool-registrations.members.test.ts \
+  src/assistant/__tests__/tool-registrations.redirects.test.ts \
+  src/assistant/__tests__/tool-registrations.taxonomy.test.ts
+```
+Result: **846 tests, 838 pass, 8 fail** — all 8 failures are the two pre-existing clusters below,
+verified identical (same test names, same assertions, same error messages) on the clean pre-batch
+baseline via `git stash`. Zero new failures.
+
+```
+npx tsc -p tsconfig.json --noEmit
+```
+Result: **0 errors.**
+
+## Known pre-existing failures — verified via git stash, not assumed
+
+Per the brief's explicit instruction, both overlapping-name files were run on a clean, untouched copy
+(via `git stash`) BEFORE their domain's conversion, and again AFTER, to distinguish real regressions
+from pre-existing drift:
+
+- `tool-registrations.menus.test.ts`: 2 failures (`'published'` vs `'draft'` fixture mismatch in two
+  tests), present identically before and after the `menus` conversion. Unrelated to registry wiring —
+  a domain-logic/fixture issue.
+- `tool-registrations.database-recovery.test.ts`: 6 failures, all `INSTANCE_AUTHORIZATION_NOT_CONFIGURED`
+  auth-fixture errors plus one risk-classification message-format mismatch, present identically before
+  and after the `recovery` conversion (40 pass / 6 fail both times, same test names).
+
+Neither cluster was chased or touched; both are pre-existing per the brief and orthogonal to this
+batch's scope.
+
+## Files changed this batch
+
+- `src/widgets/tool-registrations.ts` — added `contributeWidgetsTools()`.
+- `src/features/content-types/tool-registrations.ts` — added `contributeContentTypesTools()`.
+- `src/forms/tool-registrations.ts` — added `contributeFormsTools()`.
+- `src/navigation/tool-registrations.ts` — added `contributeMenusTools()`.
+- `src/features/database/tool-registrations.ts` — tried, reverted; trailing comment added explaining
+  the 16-module SCC.
+- `src/features/recovery/tool-registrations.ts` — added `contributeRecoveryTools()`.
+- `src/features/plugin-runtime/tool-registrations.ts` — added `contributePluginsTools()`.
+- `src/features/entries/tool-registrations.ts` — added `contributeEntriesTools()`.
+- `src/assistant/tool-registrations.ts` — removed 7 domains' static imports/`DOMAIN_SLICES` entries;
+  restored `database`'s entry with an explanatory comment; updated the file header's converted-domain
+  list and the `post`/`themes` revert comments that referenced `widgets`' since-changed status.
+- `src/server/tool-catalog-manifest.ts` — added 7 new `contribute*Tools()` imports/calls; updated the
+  header's converted-domain count (6 -> 13) and running narrative.
+- `src/assistant/__tests__/tool-registrations.widgets-contracts.test.ts`,
+  `tool-registrations.widgets-authorization.test.ts`, `tool-registrations.authorization.test.ts`
+  (content-types), `tool-registrations.forms.test.ts`, `tool-registrations.menus.test.ts`,
+  `tool-registrations.database-recovery.test.ts` (recovery half), `tool-registrations.plugins.test.ts`,
+  `tool-registrations.entries.test.ts` — each gained the `resetToolContributorsForTests()` +
+  `contribute<Domain>Tools()` setup.
+- `src/assistant/__tests__/tool-contribution-registry.test.ts` — extended coverage: the "installs
+  exactly" list now includes all 13 converted domains; added a "database is deliberately NOT
+  installed" test mirroring `post`/`themes`; extended the daemon/BYOK parity test to assert
+  `widgets_list_instances`, `collections_content_type_list`, `forms_*`, `menus_list_menus`,
+  `backup_list_restore_points`, `plugins_list`, `collections_entry_list` are present.
+
+## Commits
+
+- `fc1f10bc` — widgets, content-types, forms, menus (part 1/2).
+- `970d7485` — recovery converted, database reverted (part 2/2).
+
+## Open items for the team lead
+
+- `features/database` remains unconverted; per its own revert comment, the 16-module SCC it opened
+  ran through `assistant, db, export, features/database, features/deployments, features/entries,
+  features/pages, features/plugin-runtime, features/post, features/presentation, features/recovery,
+  features/settings, features/source-control, features/vendor-credentials, features/workspace, seo`.
+  `entries`, `recovery`, and `plugin-runtime` have since converted off `DOMAIN_SLICES` in this same
+  batch, which may have already narrowed or fully closed the remaining path — worth re-attempting
+  `database` early in the next batch to check, rather than assuming the precondition is unchanged.
+  If it still fails, safe conversion likely needs `deployments`/`source-control`/`settings`/
+  `workspace`/`post`/`pages`/`seo`/`export`/`vendor-credentials` to convert too, or `db`'s own
+  cross-domain imports narrowed. Worth a dedicated investigation pass either way, since the plain
+  importer grep heuristic missed this one entirely — only `check:architecture --list`'s SCC dump
+  caught it.
+- 9 domains remain for future batches (`deployments`/`source-control`/`static-publish`/`media`/
+  `integrations`/`workspace`/`pages`/`seo` are the sibling agent's disjoint set this session;
+  `database`/`themes`/`post`/`settings` need their own preconditions first).
+- The worktree staleness + missing-foundation-file issue at the start of this batch is worth a
+  process note for future dispatches: verify a freshly-created worktree's `git merge-base` against
+  the intended parent branch actually equals the worktree's own HEAD (i.e. zero divergence) before
+  trusting "you'll see prior work as already done" in a dispatch brief, and verify a foundation
+  commit's referenced files actually resolve (`git cat-file -e`) rather than trusting a prior
+  session's own progress report.
