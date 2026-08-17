@@ -179,3 +179,40 @@ report describes, not a separate step)
 
 Nothing from Task A, B, or C. The one flagged-not-fixed item is `examples/nlweb-demo/src/server.ts`
 (see Task C section) — a deliberate scope judgment, not an oversight.
+
+---
+
+## Second independent re-verification of Task C, same day (fresh `jini-hardening` process)
+
+A separate `jini-hardening` dispatch, unaware this report already existed, re-ran the same
+investigation from scratch — grepped every non-dist, non-test `.ts` file repo-wide for
+`installGracefulShutdown` and for `.listen(`/`SIGTERM`/`SIGINT`/`process.on('exit'` — before
+reading this file. Independently reached the identical conclusion:
+
+- `examples/reference-web/src/daemon.ts` — wired (`installGracefulShutdown` wrapping
+  `a2uiActionRelay.close()` + `daemon.stop()`), confirmed by reading the code, not the comment above
+  it.
+- `packages/sidecar/src/json-ipc.ts`'s `createJsonIpcServer` — same "zero real callers" finding
+  (only `json-ipc.ts` itself, its own barrel re-export, and its own test import).
+- `packages/agent-runtime/src/providers/oauth-callback-server.ts` — same "self-closing by design,
+  not a candidate" finding.
+- `examples/nlweb-demo/src/server.ts` — same ambiguous case, same reasoning (no `@jini-ai/*` deps by
+  explicit design, private, no Dockerfile, no shutdown handling at all).
+- All `SIGTERM`/`SIGINT` hits in `packages/platform`, `packages/daemon`, `packages/http-kit`, and
+  `packages/agent-runtime/src/agent-protocol/{pi-rpc,acp}` were individually read and confirmed to be
+  the *daemon's own* child-process/PTY management (killing spawned agent CLIs and terminal sessions)
+  — a different, correctly-separate concern from the host process's own signal handling. None of them
+  register a competing `process.on('SIGTERM', ...)` at the host level.
+
+Two additional spots checked, not explicitly covered in the section above, both confirmed out of
+scope:
+
+- `examples/reference-desktop/src/main.ts` — Electron main process. No `.listen()`/TCP host; lifecycle
+  is `app.on('window-all-closed')`/`app.on('activate')`, Electron's own model, not the
+  Docker-SIGTERM concern this task is about.
+- `scripts/start-playground.ts` — a local dev orchestration script (spawns the daemon + renderer via
+  `pnpm`, not Docker-deployed). Already forwards `SIGINT`/`SIGTERM` to its spawned children on receipt
+  and its actual daemon child is `examples/reference-web/src/daemon.ts`, already wired. No gap.
+
+No new gaps found, nothing new to wire. This confirms the earlier finding rather than superseding it.
+**Task C, and the whole `jini-hardening` dispatch, is closed** — independently confirmed twice now.
