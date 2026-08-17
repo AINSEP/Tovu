@@ -1396,6 +1396,28 @@ async function fetchOrThrowUnreachable(url: string, init: RequestInit): Promise<
  * @complexity O(1) plus the request and body parse.
  * @overallScore 100
  */
+type UnauthenticatedListener = () => void;
+const unauthenticatedListeners = new Set<UnauthenticatedListener>();
+
+/**
+ * Subscribe to "the server just told us this tab's session is no longer valid" — a real 401 from
+ * `request()` below, not a client-side guess. Returns an unsubscribe function.
+ *
+ * Exists because `App.hooks.tsx`'s `useAdminSession` only ever checked auth ONCE, at boot
+ * (`api.me()` on mount) — a session that expires or is invalidated (server restart, admin revoke)
+ * mid-tab left `user` stuck non-null forever, so `App.tsx`'s `if (!user) return <Login .../>` gate
+ * never re-fired. Every OTHER screen's own `request()` call kept 401ing silently instead — the
+ * live bug (2026-08-17): source control, deployments, assistant, and recovery all "loading forever"
+ * with no indication of why, because none of those screens' own error handling was built to
+ * recognize "you're logged out" as distinct from "the network/server is having a problem."
+ * `useAdminSession` is the single subscriber (see that file) — it calls its own `setUser(null)` on
+ * notification, which re-triggers the EXISTING `<Login>` gate rather than adding a second one.
+ */
+export function onUnauthenticated(listener: UnauthenticatedListener): () => void {
+  unauthenticatedListeners.add(listener);
+  return () => unauthenticatedListeners.delete(listener);
+}
+
 async function request<T>(path: string, init: RequestInit = {}, onOk?: (res: Response) => void): Promise<T> {
   const res = await fetchOrThrowUnreachable(`${BASE}${path}`, {
     credentials: "same-origin",
@@ -1406,6 +1428,11 @@ async function request<T>(path: string, init: RequestInit = {}, onOk?: (res: Res
   const body = parsed === UNPARSEABLE_BODY ? {} : parsed;
   if (!res.ok) {
     const noAppEnvelope = parsed === UNPARSEABLE_BODY && res.status >= 500;
+    // 401 specifically, not 403: 401 means the SESSION itself is invalid (expired, revoked, server
+    // restarted) — the one case where every listener should treat this tab as logged out. 403 means
+    // an authenticated principal lacks a permission, a completely different, per-action condition
+    // that must not kick the operator back to the login screen.
+    if (res.status === 401) for (const listener of unauthenticatedListeners) listener();
     throw new ApiError(
       String(body?.error ?? (noAppEnvelope ? unreachableApiMessage(res.status) : `request failed (${res.status})`)),
       res.status,

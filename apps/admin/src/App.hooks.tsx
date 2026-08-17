@@ -4,7 +4,7 @@ import { createDomPageDriver } from "@jini-ai/agentic/dom";
 
 import { buildAdminAgentPages } from "./lib/agent-pages";
 import { installInternalLinkInterceptor } from "./lib/router";
-import { WORKSPACE_ID, api, type AdminUser } from "./lib/api";
+import { WORKSPACE_ID, api, onUnauthenticated, type AdminUser } from "./lib/api";
 import { subscribeToSettingsChanges } from "./lib/settings-events";
 import { publishSettingsRefresh } from "./lib/settings-refresh-bus";
 import { publishAssistantDockState, subscribeToAssistantDockRequests } from "./lib/assistant-dock-bus";
@@ -68,6 +68,17 @@ export function useAdminSession(): UseAdminSession {
       .catch(() => setUser(null))
       .finally(() => setChecking(false));
   }, []);
+
+  /**
+   * A 401 from ANY screen's own `request()` call (`lib/api.ts`) means this tab's session is no
+   * longer valid — expired, revoked, or the server restarted and dropped in-memory state. Clearing
+   * `user` here re-triggers `App.tsx`'s existing `if (!user) return <Login .../>` gate, the same
+   * screen the boot check above already shows for a not-yet-authenticated tab. No new UI: a
+   * mid-session 401 now degrades to the exact same place a fresh unauthenticated load already goes,
+   * instead of leaving whichever screen hit the 401 spinning with no explanation (the live bug this
+   * fixes, 2026-08-17 — see `onUnauthenticated`'s own doc comment in `lib/api.ts`).
+   */
+  useEffect(() => onUnauthenticated(() => setUser(null)), []);
 
   /**
    * The settings change feed, open for as long as an operator is signed in.
