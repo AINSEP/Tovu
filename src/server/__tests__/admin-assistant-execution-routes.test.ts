@@ -30,7 +30,10 @@ import type { RouteDeps } from "../routes/types";
  * directly, not through an injectable dep, and this repo's Node version needs an experimental flag
  * for `mock.module()` — see `database-migrate-forward-routes.test.ts`'s note on the same
  * constraint). Only the agent-id-not-found branch is exercised here, since it holds on every host
- * regardless of what's installed; the rest is a known, accepted coverage gap.
+ * regardless of what's installed. The other branches (installed/authenticated/model-mismatch/
+ * success) are covered instead at `../routes/admin/assistant/__tests__/resolve-test-agent-outcome.
+ * test.ts`, against `resolveTestAgentOutcome` — the pure decision function `test-agent.ts` was split
+ * into specifically so those branches don't need a real CLI or a module mock to test.
  */
 
 const WORKSPACE_ID = "workspace-local";
