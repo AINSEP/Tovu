@@ -12,39 +12,39 @@ name: CI
 # including everything else in this file. Fixed below: `push` now watches every branch (so no
 # future branch is silently unwatched the same way), and `pull_request` explicitly names both
 # long-lived integration branches this repo actually uses.
-# ⛔ PAUSED 2026-08-16 AT THE OWNER'S REQUEST — finish this next session.
+# 2026-08-17: the sibling-Jini checkout mechanism was RESOLVED. History, because the disproof is
+# worth more than the fix:
 #
-# `push: branches: ["**"]` was enabled briefly and produced the first CI run this branch has ever
-# had (`31995253883`). It failed in 37s, and the failure is the useful part:
+# `push: branches: ["**"]` was enabled briefly on 2026-08-16 and produced the first CI run this
+# branch has ever had (`31995253883`). It failed in 37s:
 #
 #     ##[error]Repository path '/home/runner/work/Tovu-AI-CMS/Jini' is not under
 #              '/home/runner/work/Tovu-AI-CMS/Tovu-AI-CMS'
 #
 # **`actions/checkout` refuses to write outside $GITHUB_WORKSPACE**, so `path: ../Jini` is illegal
-# and the sibling-directory approach below CANNOT work as written. This is the real blocker, and it
-# is not the one anyone predicted (the predicted one — a private-repo token — turned out not to
-# exist at all; AINSEP/Jini is public).
+# and that action can NEVER place Jini as a true sibling. Neither predicted blocker was real: the
+# predicted private-repo token does not exist (AINSEP/Jini is public), and the `pnpm -r run build`
+# Jini step was never even reached, so it remained unproven for weeks.
 #
-# Fix next session, in rough order of preference:
-#   1. Replace the `actions/checkout` Jini step with a plain `git clone --depth 1 --branch <ref>
-#      https://github.com/AINSEP/Jini.git ../Jini` inside a `run:` step. `run:` steps have no
-#      workspace-containment restriction, and no credentials are needed for a public repo.
-#   2. Or check Tovu out into a named subdirectory (`path: Tovu-AI-CMS`) and Jini into a sibling
-#      subdirectory under the same workspace, then set `working-directory` on every later step.
-#   3. Do NOT rewrite the 13 `file:../Jini/packages/*` specifiers in package.json to dodge this —
-#      that would diverge the repo from the owner's local setup, which is deliberate and fast.
+# Both jobs below now use a plain `git clone` in a `run:` step instead. `run:` steps have no
+# workspace-containment restriction and need no credentials for a public repo. Option 2 (check Tovu
+# into a named subdir + `working-directory:` on every later step) was rejected: it touches every
+# step instead of one, for the same result.
 #
-# To re-enable: restore `push: branches: ["**"]` and `pull_request: branches: [main, general-work]`.
-# Everything downstream of the checkout (Jini build, gates, the parallel route-coverage job) is
-# already wired and unchanged; only the checkout mechanism needs replacing.
+# The 13 `file:../Jini/packages/*` specifiers in package.json are deliberately NOT rewritten to dodge
+# this — the owner keeps them as `file:` on purpose (no npm publish per local change, much faster to
+# iterate), and rewriting them would diverge this repo from the working local setup. Deploy-time
+# packaging is a separate, later decision.
 #
-# Note the previous state was `branches: [main]` only, which is why this workflow had never fired
-# for `general-work` despite 38+ commits — do not read "back to main-only" as "back to working".
+# Triggers watch EVERY branch on push, not just `main`. That is the fix for the other half of the
+# 2026-08-16 finding: this workflow sat dormant through 38+ commits on `general-work` because it only
+# named `main`, so no future branch is silently unwatched the same way. `pull_request` explicitly
+# names both long-lived integration branches this repo actually uses.
 on:
   push:
-    branches: [main]
+    branches: ["**"]
   pull_request:
-    branches: [main]
+    branches: [main, general-work]
 
 # Cancel superseded runs on the same branch/PR so pushes don't queue up stale CI runs.
 concurrency:
@@ -121,22 +121,27 @@ jobs:
             echo "::notice::No Jini branch named '$BRANCH' -- falling back to Jini's main."
           fi
 
-      - name: Checkout Jini (sibling dependency)
+      - name: Clone Jini (sibling dependency)
         # Tovu's package.json has 13 "@jini-ai/*": "file:../Jini/packages/*" dependencies, resolved
         # via a literal sibling directory on disk -- not a registry, not a git submodule. A fresh CI
         # checkout has no such directory, so every @jini-ai/* import is unresolvable and typecheck
         # collapses (verified against a real run, 31558848242 on 2026-08-12: dies at
         # `error TS2307: Cannot find module '@jini-ai/cms/core'`, then a wall of downstream
         # implicit-any noise from the same root cause -- this has failed on `main` every run since
-        # 2026-08-04). `path: ../Jini` places it as a TRUE sibling of this checkout (both under
-        # $GITHUB_WORKSPACE's parent), matching the layout `file:../Jini/packages/*` expects --
-        # deliberately NOT rewriting those specifiers, which would diverge this repo from the owner's
-        # actual local working setup.
-        uses: actions/checkout@v4
-        with:
-          repository: AINSEP/Jini
-          ref: ${{ steps.jini-ref.outputs.ref }}
-          path: ../Jini
+        # 2026-08-04).
+        #
+        # `git clone` in a `run:` step, NOT actions/checkout: that action hard-refuses any `path:`
+        # outside $GITHUB_WORKSPACE and fails the run in ~37s with
+        #   Repository path '/home/runner/work/Tovu-AI-CMS/Jini' is not under
+        #   '/home/runner/work/Tovu-AI-CMS/Tovu-AI-CMS'
+        # (observed for real, run 31995253883). `run:` steps carry no such containment restriction.
+        # `$GITHUB_WORKSPACE/../Jini` is the TRUE sibling path `file:../Jini/packages/*` expects.
+        # No credentials: AINSEP/Jini is public (see the note above). --depth 1 because nothing here
+        # reads Jini's history; only its built dist/.
+        run: |
+          set -euo pipefail
+          git clone --depth 1 --branch "${{ steps.jini-ref.outputs.ref }}" \
+            https://github.com/AINSEP/Jini.git "$GITHUB_WORKSPACE/../Jini"
 
       - uses: actions/setup-node@v4
         with:
@@ -296,12 +301,13 @@ jobs:
             echo "::notice::No Jini branch named '$BRANCH' -- falling back to Jini's main."
           fi
 
-      - name: Checkout Jini (sibling dependency)
-        uses: actions/checkout@v4
-        with:
-          repository: AINSEP/Jini
-          ref: ${{ steps.jini-ref.outputs.ref }}
-          path: ../Jini
+      - name: Clone Jini (sibling dependency)
+        # `git clone`, not actions/checkout -- see build-and-test's identically-named step for why
+        # (actions/checkout refuses any path outside $GITHUB_WORKSPACE; verified, run 31995253883).
+        run: |
+          set -euo pipefail
+          git clone --depth 1 --branch "${{ steps.jini-ref.outputs.ref }}" \
+            https://github.com/AINSEP/Jini.git "$GITHUB_WORKSPACE/../Jini"
 
       - uses: actions/setup-node@v4
         with:
