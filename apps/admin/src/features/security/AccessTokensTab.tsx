@@ -583,10 +583,14 @@ const RemoveConfirmDialog = forwardRef<HTMLDialogElement, { row: AccessTokenRow;
     return (
       <dialog ref={ref} className="confirm-dialog">
         <h2>{removeDialogTitle(locale, row.name)}</h2>
-        <p className="confirm-dialog-body">{removeDialogBody(locale, info.label)}</p>
+        <p className="confirm-dialog-body">{removeDialogBody(locale, info.label, info.vendorLabel)}</p>
         <p>
+          {/* `info.vendorLabel`, NOT `info.label` — this line says WHERE to revoke, and "GitHub
+              Pages"/"Cloudflare Pages" are destinations with no revoke console of their own. See
+              `rules.ts`'s `AccessTokenProviderInfo.vendorLabel` doc for the full reasoning; every
+              other `info.label` on this page still names the destination on purpose. */}
           <a href={info.tokenPageUrl} target="_blank" rel="noreferrer">
-            {translate("Revoke it on")} <span translate="no">{info.label}</span> ↗
+            {translate("Revoke it on")} <span translate="no">{info.vendorLabel}</span> ↗
           </a>
         </p>
         {isLastForProvider ? <p className="confirm-dialog-body">{removeDialogLastRowNote(locale, info.label)}</p> : null}

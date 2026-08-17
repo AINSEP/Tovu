@@ -284,7 +284,12 @@ const OtherCredentialRemoveDialog = forwardRef<HTMLDialogElement, { row: OtherCr
     return (
       <dialog ref={ref} className="confirm-dialog">
         <h2>{removeDialogTitle(locale, row.name)}</h2>
-        <p className="confirm-dialog-body">{removeDialogBody(locale, row.store.purposeLabel)}</p>
+        {/* `removeDialogBody` now takes a separate vendor-label param (Tier 1's fix for the
+            "Revoke it on GitHub Pages" bug — see `rules.ts`'s `AccessTokenProviderInfo.vendorLabel`
+            doc). Tier 2 stores have no vendor/destination split at all — they're deep links to
+            Tovu's OWN other screens (`screenPath`), never a third-party token console — so passing
+            `purposeLabel` for both params reproduces this row's exact previous copy unchanged. */}
+        <p className="confirm-dialog-body">{removeDialogBody(locale, row.store.purposeLabel, row.store.purposeLabel)}</p>
         <div className="confirm-dialog-actions">
           <button type="button" onClick={close}>
             {translate("Cancel")}

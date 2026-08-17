@@ -128,6 +128,16 @@ export interface AccessTokenProviderInfo {
   /** Proper noun — rendered verbatim, never translated, same treatment every provider label in this
    *  app gets. */
   readonly label: string;
+  /** The company an operator actually authenticates to when creating or revoking this token —
+   *  deliberately a SEPARATE field from {@link label}. For most providers the two are the same
+   *  string, but `github-pages` and `cloudflare-pages` name a PLACE the credential publishes to, not
+   *  the company running the token console: there is no revoke page "at GitHub Pages" or "at
+   *  Cloudflare Pages", only at github.com / cloudflare.com. Copy that tells an operator where to
+   *  create or revoke a token must read this field; copy that says what a saved credential is FOR
+   *  (row/group headings, "Add another X token" affordances) keeps reading {@link label} — collapsing
+   *  the two into one field is exactly the bug this one exists to prevent. See
+   *  {@link PROVIDER_VENDOR_LABEL_OVERRIDES} for the two providers where they diverge. */
+  readonly vendorLabel: string;
   /** Set for every provider today: `github-pages`/`github` need it to disambiguate, and the other
    *  five get it anyway rather than making disambiguation conditional on which OTHER providers this
    *  workspace happens to have connected — a static fact per provider is simpler to reason about
@@ -158,12 +168,30 @@ export interface AccessTokenProviderInfo {
  * concatenated rather than interleaved so a reader scanning top-to-bottom sees "deploy targets, then
  * source identities" as two recognizable blocks.
  */
+/** Providers whose {@link AccessTokenProviderInfo.label} names a destination rather than the vendor
+ *  itself, keyed by provider id. Every provider NOT listed here already has vendor === label
+ *  (Vercel, Netlify, and all three source-control providers are already company names) — verified
+ *  against each provider's own `tokenPageUrl` host: `github-pages` and source-control's `github`
+ *  both resolve to `github.com`; `cloudflare-pages` resolves to `cloudflare.com`. */
+const PROVIDER_VENDOR_LABEL_OVERRIDES: Readonly<Record<string, string>> = {
+  "github-pages": "GitHub",
+  "cloudflare-pages": "Cloudflare",
+};
+
+/** Resolves {@link AccessTokenProviderInfo.vendorLabel} for one provider — the override table when
+ *  this provider's destination name differs from its vendor, `destinationLabel` unchanged otherwise.
+ *  @complexity O(1). */
+function vendorLabelFor(providerId: string, destinationLabel: string): string {
+  return PROVIDER_VENDOR_LABEL_OVERRIDES[providerId] ?? destinationLabel;
+}
+
 export const ACCESS_TOKEN_PROVIDERS: readonly AccessTokenProviderInfo[] = [
   ...PUBLISH_CREDENTIAL_PROVIDERS.map(
     (provider): AccessTokenProviderInfo => ({
       kind: "publish",
       providerId: provider.id,
       label: provider.label,
+      vendorLabel: vendorLabelFor(provider.id, provider.label),
       purposeLabel: "Publishing",
       category: "hosting",
       tokenPageUrl: provider.tokenPageUrl,
@@ -176,6 +204,7 @@ export const ACCESS_TOKEN_PROVIDERS: readonly AccessTokenProviderInfo[] = [
       kind: "source-control",
       providerId: provider.id,
       label: provider.label,
+      vendorLabel: vendorLabelFor(provider.id, provider.label),
       purposeLabel: "Source Control",
       category: "source-control",
       tokenPageUrl: provider.tokenPageUrl,

@@ -59,11 +59,16 @@ export function removeDialogTitle(locale: string, name: string): string {
   return interpolate(REMOVE_DIALOG_TITLE_TEMPLATE[locale] ?? REMOVE_DIALOG_TITLE_TEMPLATE.en!, { name });
 }
 
+/** Two placeholders, not one: `{credentialLabel}` (what the saved row is FOR — `AccessTokenProviderInfo.label`,
+ *  e.g. "GitHub Pages") and `{vendor}` (who actually issues/revokes it — `AccessTokenProviderInfo.vendorLabel`,
+ *  e.g. "GitHub"). Collapsing both into one `{provider}` placeholder was the owner-reported bug: this
+ *  sentence told an operator to revoke "on GitHub Pages", which has no revoke console of its own. See
+ *  `rules.ts`'s `AccessTokenProviderInfo.vendorLabel` doc for the full reasoning. */
 const REMOVE_DIALOG_BODY_TEMPLATE: Record<string, string> = {
-  en: "This deletes Tovu's saved copy of this {provider} token. It does NOT revoke the token on {provider} — it stays valid there until you revoke it yourself.",
+  en: "This deletes Tovu's saved copy of this {credentialLabel} token. It does NOT revoke the token on {vendor} — it stays valid there until you revoke it yourself.",
 };
-export function removeDialogBody(locale: string, provider: string): string {
-  return interpolate(REMOVE_DIALOG_BODY_TEMPLATE[locale] ?? REMOVE_DIALOG_BODY_TEMPLATE.en!, { provider });
+export function removeDialogBody(locale: string, credentialLabel: string, vendor: string): string {
+  return interpolate(REMOVE_DIALOG_BODY_TEMPLATE[locale] ?? REMOVE_DIALOG_BODY_TEMPLATE.en!, { credentialLabel, vendor });
 }
 
 const REMOVE_DIALOG_LAST_ROW_TEMPLATE: Record<string, string> = {
