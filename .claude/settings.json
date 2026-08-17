@@ -25,7 +25,8 @@
       "Bash(npm run typecheck)",
       "Bash(npm test)",
       "Bash(npx tsc)",
-      "Bash(git fetch *)"
+      "Bash(git fetch *)",
+      "Bash(npx playwright test *)"
     ]
   },
   "hooks": {
