@@ -21,6 +21,34 @@
  * loop, and know how to describe an exit in the same human-readable, specific-reason style
  * `index.ts`'s original code already established (`agent daemon could not bind ... address already
  * in use` instead of a bare "exited with code 1").
+ *
+ * Two more properties this file owns, added after the first pass shipped:
+ *
+ * - **`terminating` vs. the crash-loop cap having tripped are different states, and `restart()`
+ *   treats them differently on purpose.** A tripped cap means "this supervisor gave up retrying but
+ *   the process is still alive" — `restart()` MUST work, that is the whole point of a manual seam.
+ *   `terminating` means "this OS process itself is on its way down" (Docker sends SIGTERM to stop
+ *   a container; `SIGINT`/`SIGHUP` are the interactive/dev equivalents) — `restart()` MUST refuse,
+ *   or a request racing the container's own shutdown could resurrect a daemon the container is
+ *   actively trying to kill, leaking exactly the orphan class `killCurrentChild`'s own comment
+ *   describes for `tsx watch`. `terminating` is set once, by `shutdown()`, and never cleared —
+ *   there is no scenario where a supervisor whose process is terminating should ever run again.
+ * - **`ensureStarted()` is the on-demand/lazy-start layer**: automatic respawn only heals a daemon
+ *   that died while this supervisor was watching it. It does nothing for a daemon that never
+ *   started at all (a `child.on("error")` spawn failure — deliberately NOT retried, see
+ *   `attemptSpawn`'s own comment) or one whose crash-loop cap tripped long before anyone showed up.
+ *   `server/modules/assistant.ts`'s daemon-proxy call site is expected to call this when it
+ *   discovers the daemon is unreachable, rather than only ever surfacing a 503 that nothing will
+ *   ever clear on its own. Single-flight falls out of the existing state for free: `attemptSpawn`
+ *   sets `currentChild` synchronously, with no `await` between the "is anything already running"
+ *   check and that assignment, so two calls arriving in the same or adjacent event-loop turns
+ *   cannot both decide to spawn — Node's run-to-completion guarantee is what makes this true, not
+ *   an extra lock. What single-flight alone does NOT prevent is a request-volume-driven respawn
+ *   storm against a daemon that is durably broken (missing script, bad permissions): every
+ *   subsequent request would otherwise see "no child, nothing scheduled" and re-trigger. A cooldown
+ *   floor (`onDemandCooldownMs`, default matching the backoff ladder's own 30s ceiling) bounds that
+ *   to the same worst-case frequency the internal backoff already accepts as safe — traffic-driven
+ *   and time-driven retries end up governed by the same ceiling instead of two different ones.
  */
 import { spawn } from "node:child_process";
 import path from "node:path";
@@ -58,6 +86,20 @@ export interface DaemonSupervisorDeps {
    *  `JINI_AGENT_DAEMON_PORT ?? "4319"`, matching what the daemon itself resolves
    *  (`agent-daemon-server.ts`). */
   daemonPort?: string;
+  /** Injectable clock for `ensureStarted()`'s cooldown — real `Date.now` in production, a
+   *  controllable fake in tests. */
+  now?: () => number;
+  /** Minimum interval between two `ensureStarted()`-triggered re-arms when nothing is currently
+   *  running or scheduled (see this file's own header). Defaults to 30s, matching the backoff
+   *  ladder's own cap — traffic-driven and time-driven retries then share one worst-case ceiling. */
+  onDemandCooldownMs?: number;
+}
+
+/** Returned by both `restart()` and `ensureStarted()` — `reason` is present only when `ok` is
+ *  `false`. */
+export interface DaemonSupervisorActionResult {
+  ok: boolean;
+  reason?: string;
 }
 
 export interface DaemonSupervisor {
@@ -70,11 +112,24 @@ export interface DaemonSupervisor {
    * is still alive, it is killed first and the replacement is spawned only after it actually
    * exits — spawning immediately alongside a still-live daemon would just collide on the same
    * port and fail with the exact EADDRINUSE this supervisor otherwise guards against.
+   *
+   * Refuses with `{ ok: false, reason: "shutting down" }` once `shutdown()` has run — a manual
+   * restart racing the process's own SIGTERM-driven teardown must never resurrect a daemon the
+   * process is actively trying to kill. See this file's own header for the terminating-vs-tripped
+   * distinction.
    */
-  restart(): void;
-  /** Deliberate shutdown: stops any future automatic respawn, cancels a pending scheduled retry,
-   *  and kills the currently-running daemon (process-group kill, falling back to the direct
-   *  child). Safe to call even when no daemon is currently running. */
+  restart(): DaemonSupervisorActionResult;
+  /**
+   * The on-demand/lazy-start seam — see this file's own header for why automatic respawn alone
+   * does not cover every case this closes (a daemon that never started, or a cap that tripped long
+   * before anyone showed up). Single-flight and cooldown-guarded; safe to call from a hot request
+   * path. Refuses the same way `restart()` does once `shutdown()` has run.
+   */
+  ensureStarted(): DaemonSupervisorActionResult;
+  /** Deliberate shutdown: stops any future automatic respawn AND any future `restart()`/
+   *  `ensureStarted()` call, cancels a pending scheduled retry, and kills the currently-running
+   *  daemon (process-group kill, falling back to the direct child). Safe to call even when no
+   *  daemon is currently running. */
   shutdown(): void;
 }
 
@@ -111,6 +166,8 @@ function buildGiveUpReasonCode(decision: Extract<RespawnDecision, { action: "giv
 export function createDaemonSupervisor(deps: DaemonSupervisorDeps): DaemonSupervisor {
   const policy = deps.policy ?? createRespawnPolicy();
   const daemonPort = deps.daemonPort ?? process.env.JINI_AGENT_DAEMON_PORT ?? "4319";
+  const clock = deps.now ?? Date.now;
+  const onDemandCooldownMs = deps.onDemandCooldownMs ?? 30_000;
 
   let currentChild: SpawnedDaemonProcess | undefined;
   let childHasExited = false;
@@ -119,6 +176,11 @@ export function createDaemonSupervisor(deps: DaemonSupervisorDeps): DaemonSuperv
   // failure that feeds the respawn policy" — true both during a real process shutdown and, briefly,
   // while `restart()` is replacing a still-live child on purpose.
   let shuttingDown = false;
+  // Set once, by `shutdown()`, and never cleared — see this file's own header for why this is a
+  // different state than the crash-loop cap tripping, and why `restart()`/`ensureStarted()` must
+  // refuse once it is true rather than merely being suppressed like `shuttingDown` above.
+  let terminating = false;
+  let lastOnDemandAttemptAt: number | undefined;
 
   function cancelPendingRetry(): void {
     if (pendingRetryTimer === undefined) return;
@@ -155,14 +217,22 @@ export function createDaemonSupervisor(deps: DaemonSupervisorDeps): DaemonSuperv
     currentChild = child;
 
     child.on("error", (error) => {
+      // Verified directly (not assumed): for a spawn-level failure like ENOENT, Node fires ONLY
+      // `"error"` — `"exit"` never follows, and `pid` is `undefined` for the whole lifetime of this
+      // child. Without this line, `currentChild` would stay set with `childHasExited` stuck at
+      // `false` forever: `restart()`/`ensureStarted()` would then wait indefinitely for an exit
+      // event this child can never emit, instead of recognizing "nothing is actually running" and
+      // spawning a replacement. Marking it here converges the state to exactly what it already is.
+      childHasExited = true;
       const message = error instanceof Error ? error.message : String(error);
       const reasonCode = `failed to start the agent daemon — the assistant will be unavailable: ${message}`;
       console.error(`[daemon-supervisor] ${reasonCode}`);
       recordAssistantDaemonFailure(reasonCode);
-      // Deliberately NOT fed into the respawn policy: a spawn-level error (e.g. the daemon script
-      // itself is missing) is not transient. Retrying the same broken command on a backoff would
-      // just repeat the identical failure until the crash-loop cap trips anyway — the manual
-      // restart seam is still the correct recovery path once whatever is actually broken is fixed.
+      // Still deliberately NOT fed into the respawn policy: a spawn-level error (e.g. the daemon
+      // script itself is missing) is not transient. Retrying the same broken command on a backoff
+      // would just repeat the identical failure until the crash-loop cap trips anyway — the manual
+      // restart seam and `ensureStarted()` are still the correct recovery paths once whatever is
+      // actually broken is fixed (or once a request needs the daemon badly enough to try again).
     });
     child.on("exit", (code, signal) => {
       childHasExited = true;
@@ -189,32 +259,62 @@ export function createDaemonSupervisor(deps: DaemonSupervisorDeps): DaemonSuperv
     }
   }
 
+  /** Shared by `restart()` and `ensureStarted()`: replace whatever is currently running with a
+   *  fresh attempt, waiting out a still-live child's actual exit first (see `restart()`'s own doc
+   *  for why spawning alongside it would just collide on the port). */
+  function forceFreshSpawn(): void {
+    if (currentChild !== undefined && !childHasExited) {
+      const staleChild = currentChild;
+      shuttingDown = true;
+      staleChild.on("exit", () => {
+        shuttingDown = false;
+        attemptSpawn();
+      });
+      killCurrentChild();
+      return;
+    }
+
+    shuttingDown = false;
+    attemptSpawn();
+  }
+
   return {
     start() {
       attemptSpawn();
     },
     restart() {
+      if (terminating) return { ok: false, reason: "shutting down" };
       cancelPendingRetry();
       policy.reset();
+      forceFreshSpawn();
+      return { ok: true };
+    },
+    ensureStarted() {
+      if (terminating) return { ok: false, reason: "shutting down" };
 
-      if (currentChild !== undefined && !childHasExited) {
-        // Suppress the outgoing child's own exit handler (it would otherwise read this
-        // deliberate kill as a crash and feed it to the policy) and spawn the replacement only
-        // once it has actually released the port, not merely once we asked it to.
-        const staleChild = currentChild;
-        shuttingDown = true;
-        staleChild.on("exit", () => {
-          shuttingDown = false;
-          attemptSpawn();
-        });
-        killCurrentChild();
-        return;
+      // A daemon is already running, or an attempt is already in flight — single-flight by
+      // construction (see this file's own header): nothing more to do.
+      if (currentChild !== undefined && !childHasExited) return { ok: true };
+
+      // A retry is already scheduled on its own backoff — let it run rather than accelerating it;
+      // the request that called this will simply need to retry once it fires (see header).
+      if (pendingRetryTimer !== undefined) return { ok: true };
+
+      // Nothing running, nothing scheduled: either a spawn-level `error` (never retried
+      // automatically — see `attemptSpawn`) or the crash-loop/port-conflict cap already tripped.
+      // Cooldown-gate re-arming so sustained request volume against a durably broken daemon can't
+      // spawn more often than the backoff ladder's own ceiling would ever allow on its own.
+      const now = clock();
+      if (lastOnDemandAttemptAt !== undefined && now - lastOnDemandAttemptAt < onDemandCooldownMs) {
+        return { ok: false, reason: "an on-demand restart was already attempted recently — cooling down before trying again" };
       }
-
-      shuttingDown = false;
-      attemptSpawn();
+      lastOnDemandAttemptAt = now;
+      policy.reset();
+      forceFreshSpawn();
+      return { ok: true };
     },
     shutdown() {
+      terminating = true;
       shuttingDown = true;
       cancelPendingRetry();
       killCurrentChild();
@@ -268,9 +368,11 @@ function spawnRealDaemonProcessFor(workspaceId: string): SpawnedDaemonProcess {
 // Module-singleton wrapper — the ONLY place in this file that touches real `process.on`. `index.ts`
 // calls `startAssistantDaemon` exactly once, from inside `app.listen()`'s callback (same placement
 // as the old `spawnAgentDaemon` call — see that call site's own comment for why it must wait for
-// the boot-readiness promises first). A future admin "Restart assistant" action calls
-// `restartAssistantDaemon()` — re-exported through `src/assistant/index.ts`'s barrel — and reports
-// back whatever `{ ok, reason }` it returns; no other wiring is required on this side.
+// the boot-readiness promises first). Both `restartAssistantDaemon()` (a future admin "Restart
+// assistant" action) and `ensureAssistantDaemonStarted()` (the on-demand/lazy-start seam —
+// `server/modules/assistant.ts`'s daemon-proxy call site, once wired) are re-exported through
+// `src/assistant/index.ts`'s barrel and report back whatever `{ ok, reason }` they return; no other
+// wiring is required on this side.
 // ---------------------------------------------------------------------------------------------
 let singleton: DaemonSupervisor | undefined;
 
@@ -300,20 +402,34 @@ export function startAssistantDaemon(input: { workspaceId: string }): void {
   }
 }
 
-export interface RestartAssistantDaemonResult {
-  ok: boolean;
-  /** Present only when `ok` is `false` — e.g. the daemon was never started this boot at all. */
-  reason?: string;
-}
+export type RestartAssistantDaemonResult = DaemonSupervisorActionResult;
 
 /**
  * The manual restart seam an admin action calls. Returns a result rather than throwing so a route
- * handler can report it back to the caller directly (`{ ok: true }` or `{ ok: false, reason }`).
+ * handler can report it back to the caller directly (`{ ok: true }`, or `{ ok: false, reason }` —
+ * either because the daemon was never started this boot, or because the process is currently
+ * shutting down; see `DaemonSupervisor.restart()`'s own doc for why that second case must refuse).
  */
 export function restartAssistantDaemon(): RestartAssistantDaemonResult {
   if (singleton === undefined) {
     return { ok: false, reason: "the assistant daemon was never started this process boot" };
   }
-  singleton.restart();
-  return { ok: true };
+  return singleton.restart();
+}
+
+export type EnsureAssistantDaemonStartedResult = DaemonSupervisorActionResult;
+
+/**
+ * The on-demand/lazy-start seam — see this file's own header for the full rationale. Intended
+ * caller: `server/modules/assistant.ts`'s daemon-proxy code, at the point it discovers the daemon
+ * is unreachable, so a request that needs the assistant can trigger recovery itself instead of the
+ * assistant staying down until an operator notices and either restarts Tovu or presses the manual
+ * restart action. Single-flight and cooldown-guarded — safe to call on every such request, not
+ * just the first one.
+ */
+export function ensureAssistantDaemonStarted(): EnsureAssistantDaemonStartedResult {
+  if (singleton === undefined) {
+    return { ok: false, reason: "the assistant daemon was never started this process boot" };
+  }
+  return singleton.ensureStarted();
 }

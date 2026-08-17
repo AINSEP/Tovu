@@ -152,10 +152,13 @@ export { AGENT_DAEMON_TOKEN_ENV_VAR, ensureAgentDaemonToken } from "./daemon-aut
 export { AGENT_DAEMON_EXIT_CODE } from "./daemon-exit-codes";
 // `startAssistantDaemon` is `index.ts`'s own boot-time call (replaces the old inline
 // `spawnAgentDaemon`); `restartAssistantDaemon` is the manual restart seam a future admin
-// "Restart assistant" action calls — see `daemon-supervisor.ts`'s own header for why the
-// respawn/backoff/crash-loop logic lives in its own module instead of inline in `index.ts`.
-export { startAssistantDaemon, restartAssistantDaemon } from "./daemon-supervisor";
-export type { RestartAssistantDaemonResult } from "./daemon-supervisor";
+// "Restart assistant" action calls; `ensureAssistantDaemonStarted` is the on-demand/lazy-start seam
+// intended for `server/modules/assistant.ts`'s daemon-proxy call site, once wired there — see
+// `daemon-supervisor.ts`'s own header for why the respawn/backoff/crash-loop logic lives in its
+// own module instead of inline in `index.ts`, and for the terminating-vs-crash-loop-tripped
+// distinction both `restartAssistantDaemon` and `ensureAssistantDaemonStarted` respect.
+export { startAssistantDaemon, restartAssistantDaemon, ensureAssistantDaemonStarted } from "./daemon-supervisor";
+export type { RestartAssistantDaemonResult, EnsureAssistantDaemonStartedResult } from "./daemon-supervisor";
 export { getLiveClaudeModels, unionModels } from "./live-model-cache";
 export { isMcpUiToolCallAllowed } from "./mcp-ui-tool-calls";
 export { MCP_UI_TOOL_CALLS_PATH } from "./mcp-ui-tool-calls-route";
