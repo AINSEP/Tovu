@@ -11,7 +11,12 @@ import { createRouteDeps } from "#src/server/app";
 import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "#src/assistant/surface-exchanges";
 import type { PublishCredentialSetRecord, PublishCredentialSetRepoPort } from "../publish-credentials/index";
 import { InMemoryPublishCredentialVerificationCache, InMemoryPublishHistoryStore, type PublishCredentialSource } from "../static-publish/index";
-import { createVendorCredential } from "../../vendor-credentials/index";
+// Real implementation of `StaticPublishToolDeps.vendorCredentials` — production wiring for this lives
+// in `assistant/tool-registrations.ts`'s `buildAssistantToolRegistrations`, which this test file does
+// NOT go through (it calls `buildStaticPublishRegistrations` directly, same as every other test here).
+// Test files are excluded from `check:architecture`'s graph, so importing directly here carries none
+// of the cross-feature-edge cost `publish-agent-tools.ts` itself now avoids.
+import { createVendorCredential, listVendorCredentials, PUBLISH_PROVIDER_TO_VENDOR, updateVendorCredential } from "../../vendor-credentials/index";
 
 import { buildStaticPublishRegistrations, staticPublishAgentToolCatalog, staticPublishDerivedRisk, type StaticPublishToolDeps } from "../publish-agent-tools";
 
@@ -57,6 +62,11 @@ function fakeDeps(
       authorizeCalls.push(params);
       return allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" };
     },
+    // Real implementation by default — mirrors `assistant/tool-registrations.ts`'s own production
+    // wiring, which this test file bypasses by calling `buildStaticPublishRegistrations` directly.
+    // Every capabilities/propose-credential test relies on this being present; a test that wants to
+    // exercise the "not injected" wiring-bug throw itself overrides it back to `undefined` explicitly.
+    vendorCredentials: { list: listVendorCredentials, create: createVendorCredential, update: updateVendorCredential, providerToVendor: PUBLISH_PROVIDER_TO_VENDOR },
     ...(options.credentialSource ? { credentialSource: options.credentialSource } : {}),
     ...(options.buildTarget ? { buildTarget: options.buildTarget } : {}),
   };
@@ -177,6 +187,34 @@ function fakeCredentialRepo(records: readonly PublishCredentialSetRecord[]): Pub
     async delete() { throw new Error("not used by this test"); },
   };
 }
+
+// ---------------------------------------------------------------------------
+// 0. StaticPublishToolDeps.vendorCredentials — injected, not imported (this dispatch's architecture
+// fix: publish-agent-tools.ts carries no import, type or value, from features/vendor-credentials;
+// the real implementation is wired by assistant/tool-registrations.ts's
+// buildAssistantToolRegistrations, which this test file's fakeDeps() mirrors above).
+// ---------------------------------------------------------------------------
+
+test("deployment_get_static_publish_capabilities: an unwired vendorCredentials port fails LOUDLY with a named wiring-bug error, never a silent legacy-only degrade", async () => {
+  const { deps } = fakeDeps({
+    credentialSource: { async resolve() { throw new Error("must not be called"); }, async isConfigured() { return { configured: false, reason: "n/a" }; } },
+  });
+  deps.vendorCredentials = undefined;
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const capabilities = tool(buildRegistrations(deps, surfaceExchanges), "deployment_get_static_publish_capabilities");
+  await assert.rejects(() => call(capabilities), /vendorCredentials was not injected — this is a wiring bug/);
+});
+
+test("deployment_propose_custom_provider_credential: an unwired vendorCredentials port fails LOUDLY at the write step, after the human already confirmed — the form having been shown is not itself proof anything was saved", async () => {
+  const { deps } = fakeDeps();
+  deps.vendorCredentials = undefined;
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_propose_custom_provider_credential");
+
+  const { exchangeId, pending } = await raiseCredentialForm(proposeTool);
+  surfaceExchanges.deliver({ exchangeId, toolId: "deployment_propose_custom_provider_credential", principalId: PRINCIPAL_ID, params: VALID_FORM_SUBMISSION });
+  await assert.rejects(() => pending, /vendorCredentials was not injected — this is a wiring bug/);
+});
 
 // ---------------------------------------------------------------------------
 // 1. Wiring shape — all five tools
