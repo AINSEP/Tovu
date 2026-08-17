@@ -83,6 +83,7 @@ import { createInMemoryToolAttemptAuditSink } from "../features/tool-audit/repo.
 import { SqliteToolAttemptAuditSink } from "../features/tool-audit/repo.sqlite";
 import { openContentDb } from "../db/sqlite/content-db";
 import { createRouteDeps } from "../server/app";
+import { installUnhandledRejectionGuard } from "../server/boot/process-error-guards";
 import { createSqliteRouteDepsForWorkspace, defaultContentDbPath } from "../server/deps";
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/core/rate-limit/rate-limit";
 import { resolveRuntimeMode } from "#src/core/runtime-mode";
@@ -189,6 +190,28 @@ function startParentWatchdog(): void {
 // federation, `createDiskAttachmentStore`) — so a parent death during THIS process's own boot is
 // caught too, not only once it has reached steady state.
 startParentWatchdog();
+
+// Fixes a live-found crash (2026-08-16, source-control/commit-site.ts's own header has the full
+// account): an unhandled async rejection anywhere beneath a route/tool handler in THIS process used
+// to take the whole daemon down, not just the one call that triggered it — same Express-4-catches-
+// nothing shape `process-error-guards.ts`'s own header documents for `index.ts`'s main process,
+// just reached here via a tool handler instead of an HTTP route. Placed immediately after the
+// watchdog above, before any real I/O (opening this process's own SQLite connection, federating MCP
+// tools) — same "as early as possible" rationale, and the same placement `index.ts`'s `main()` uses
+// for its own call to this function.
+//
+// This process needs its OWN guard, not merely inherited coverage from `index.ts`'s: it is a
+// SEPARATE OS process (`spawnAgentDaemon()`'s `child_process.spawn`), and — unlike that main
+// process — has no restart path at all if it dies: `spawnAgentDaemon()` is called exactly once per
+// `index.ts` boot, and its `child.on("exit")` handler only logs and records the failure via
+// `recordAssistantDaemonFailure()`, it never respawns. A crash here is not a request that gets
+// retried; it is the assistant staying unavailable, for every workspace, until an operator notices
+// and restarts the whole Tovu process by hand. Closing today's one known unguarded path
+// (`commit-site.ts`'s `resolveDefaultForSourceControl` call) fixes today's incident; this guard is
+// the same "fleet-wide" backstop `process-error-guards.ts`'s header argues for on the main process,
+// applied here for the identical reason — this codebase has no lint rule or type check that would
+// catch the NEXT unguarded decrypt/async call in some future tool-registration handler.
+installUnhandledRejectionGuard();
 
 /**
  * Root directory the chat composer's staged image/file uploads land in before a run claims them
