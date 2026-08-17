@@ -39,10 +39,12 @@ steps (`build-and-test` and `route-coverage` jobs). Validated with `npx js-yaml
 **Commit:** `192e484a` — `ci: pnpm/action-setup was reading Tovu's package.json, not Jini's` —
 pushed to Tovu `general-work`.
 
-**Proof:** pushed and watched a real run. First run (`31996297431`) was cancelled mid-flight by a
-concurrent push from another agent working the same branch (`019e50f1`, assistant-selfheal) —
-expected behavior of this workflow's own `concurrency: cancel-in-progress: true` group, not a bug.
-Watched the superseding run instead: **`31996343442`**.
+**Proof:** pushed and watched a real run. The `general-work` branch had 8 agents pushing
+concurrently, so this workflow's own `concurrency: cancel-in-progress: true` group cancelled three
+runs in a row mid-flight as newer pushes landed (`31996297431`, `31996343442`, then a `wip:` report
+commit's own run) — each is an *expected* consequence of that setting under heavy concurrent
+push volume, not a pipeline bug. Followed the chain to whatever run is currently latest on the
+branch rather than a fixed run id.
 
 <!-- RESULT-TOVU-RUN -->
 
@@ -63,9 +65,26 @@ command not found`) — traced to Jini's local, gitignored `.npmrc` (carries a r
 leak) interfering with `npx`'s own package resolution. Validated from a neutral cwd
 (`/tmp`) instead, pointing at the file by absolute path: valid YAML.
 
-**Proof:** pushed and watched. First run (`31996449440`) was also cancelled mid-flight by a
-concurrent push from another agent (`1d361d89`, jini-hardening) — same expected
-cancel-in-progress behavior. Watched the superseding run: **`31996459339`**.
+**Proof:** pushed and watched. First run (`31996449440`) was cancelled mid-flight by a concurrent
+push from another agent (`1d361d89`, jini-hardening) — same expected cancel-in-progress behavior
+as Tovu's runs. The superseding run is **the first CI run in this repo's history to go green**:
+
+**`31996459339` — `quality-gates: success`** — https://github.com/AINSEP/Jini/actions/runs/31996459339
+
+`pnpm guard:drift`, `pnpm typecheck`, and `pnpm complexity` all actually executed against
+`general-work` for the first time ever and passed (guard/typecheck are blocking, complexity is
+report-only by design — see this file's own header).
+
+**Also directly verified the single most valuable open question from the brief** — whether
+`pnpm -r run build` for Jini (flagged for weeks as "sound reasoning, never empirically proven")
+actually works: built a fresh, isolated worktree at Jini `general-work` HEAD (`1d361d89`, matching
+what Tovu's CI clone step checks out) and ran the exact two commands Tovu's CI "Build Jini" step
+runs — `pnpm install --frozen-lockfile` then `pnpm -r run build`. **Both succeeded, clean.** All 25
+Jini packages built with no errors: `infra`, `plugins`, `protocol`, `vibecoding`, `platform`,
+`agentic`, `artifacts`, `agent-runtime`, `capability-providers`, `cms`, `desktop-host`,
+`integrations`, `registry`, `sidecar`, `daemon`, `cli`, `ui` (including its `@tailwindcss/cli`
+build sub-step), `admin`, `mcp`, `devops`, `chat`, `sqlite`, `http-kit`, `server`, and
+`reference-web` (a real `vite build`, two configs). This is now proven, not just reasoned about.
 
 <!-- RESULT-JINI-CI-RUN -->
 
