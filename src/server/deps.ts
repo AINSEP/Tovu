@@ -79,6 +79,7 @@ import { createSqliteIdentityRouteDeps } from "../identity/wiring";
 import { SqliteFormDefinitionRepo, SqliteFormSubmissionRepo } from "../forms/repo.sqlite";
 import { FORMS_SUBMIT_PROFILE } from "../forms/rate-limit-profile";
 import { createRateLimiter, SITE_ASSISTANT_PER_IP } from "#src/core/rate-limit/rate-limit";
+import type { Express } from "express";
 import type { RouteDeps } from "./routes/types";
 import type { NewsletterRouteDeps } from "./routes/admin/newsletter/deps";
 import { createVerifiedOrigin, OriginRegistry } from "../origin";
@@ -804,6 +805,7 @@ export function createSqliteRouteDeps(
     // `runExportSite` doc for why that indirection is required, not stylistic (a real circular-load
     // crash, not a style preference).
     runExportSite: runExportSiteLazily,
+    createSiteApp: createSiteAppLazily,
     // 2026-08-15 (Contract v2) — see `routes/types.ts`'s `publishCredentialSetRepo`/
     // `publishExecutionMode` docs. Sealed via the same shared sealer/keyring the two credential
     // repos above already reuse (no third `EnvOrFileKeyring` instance).
@@ -876,3 +878,21 @@ export function createSqliteRouteDepsForWorkspace(
 const runExportSiteLazily: ExportEngine<RouteDeps> = (options) =>
   // eslint-disable-next-line @typescript-eslint/no-require-imports -- deliberate; see doc above.
   (require("../export/index") as typeof import("../export/index")).exportSite(options);
+
+/**
+ * `createApp`, resolved at CALL time rather than at import time — see `routes/types.ts`'s
+ * `createSiteApp` doc for why this field exists at all (closing the `export -> server` cycle).
+ *
+ * Lazy, not a static `import { createApp } from "./app"`, even though nothing about `createApp`
+ * itself is slow to resolve: `server/app.ts` already imports `builtInThemesDir` FROM this file, so a
+ * static import here would make that existing one-directional edge mutual, and `server/app.ts`'s own
+ * module body ends with an eager `export const app = createApp();` that runs the whole app-boot
+ * graph (transitively reaching `assistant/tool-registrations.ts` via the BYOK execution mode) as a
+ * side effect of merely loading that file — the exact hazard `runExportSiteLazily` above already
+ * documents for the same file pair. `require`, not `await import`: this package is CommonJS, and by
+ * the time any caller invokes this (only ever from inside `createSiteApp`'s function body below,
+ * never at this module's own top level), `server/app.ts` is fully loaded.
+ */
+const createSiteAppLazily = (routeDeps: RouteDeps): Express =>
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- deliberate; see doc above.
+  (require("./app") as typeof import("./app")).createApp(routeDeps);
