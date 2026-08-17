@@ -1,12 +1,22 @@
 # Embed placeholder gap — `resolveHtmlPageEmbeds` "unknown embed type" warning for `menu`/`partial`
 
-Status: **FIXED** (log-only bug — the public site was never broken)
+**This is a diagnostics bug, not a rendering bug.** The public site never shipped a placeholder for
+`menu`/`partial` — the log line claiming it did was false. `resolveHtmlPageEmbeds` warns about types it
+does not own, because it has no knowledge of the two-stage marker-resolution split
+`renderViaTemplate`/`static-render.ts` implement.
+
+Status: **FIXED**
 Author: Programmer subagent (Claude Sonnet 5), dispatched by team-lead
 Trigger: a real GitHub Pages export (`gh-pages` commit `c0e52de2`,
 https://leonaburime-ucla.github.io/tovu-demo/) printed
 `[widgets] resolveHtmlPageEmbeds: unknown embed type, every occurrence degrades to the placeholder`
-~17 times for `type: 'partial'` and `type: 'menu'`, read as evidence the live site was shipping
-placeholders where nav/menu content should render.
+~17 times for `type: 'partial'` and `type: 'menu'`.
+
+**Correction on the trigger read:** the "the live site is shipping placeholders" reading came from
+team-lead reading this export log, not from the page itself — the dispatch brief that opened this
+investigation stated it as established fact. It wasn't: see "Verified against the live artifact"
+below. Recording this plainly because the log made a false claim look like a live content defect, and
+someone acted on it before this investigation checked the actual page.
 
 ## Root cause — none of the three hypotheses in the dispatch brief
 
@@ -44,17 +54,63 @@ the same pipeline a live request hits.
 
 ## The actual bug
 
-`resolveHtmlPageEmbeds`'s "unknown embed type" `console.warn` did not know about the ownership split
-`isPageEmbedType` already encodes. It logged the identical, alarming "every occurrence degrades to the
-placeholder" message for:
+`resolveHtmlPageEmbeds`'s "unknown embed type" `console.warn` fires whenever a marker type has no entry
+in `HTML_EMBED_RESOLVERS` — the same test `isPageEmbedType()` (`render.ts`) already performs for a
+different purpose (deciding whether to leave a marker untouched for substitution). But that single bit
+of information — "is this resolver-service's own type, yes/no" — cannot distinguish the two very
+different reasons a type can be absent from the registry:
 1. a genuine author typo / truly unregistered type (the case the warning exists for), and
-2. `partial`/`menu` — routine, expected, present-on-every-render theme-structural markers that get
-   resolved correctly one step later.
+2. `partial`/`menu` — routine, expected, present-on-every-render theme-structural markers, KNOWN and
+   owned by `static-render.ts`, just not by this module.
+
+`isPageEmbedType()` returns `false` for both, so it cannot be reused as-is to gate the warning: doing
+so would silence it for case 1 too, which is the one case it exists to catch (see "reuse decision"
+below for why `isPageEmbedType()` isn't the right sibling despite the superficial resemblance).
 
 The message is factually false for case 2: those markers do not degrade to a placeholder; they degrade
 to nothing at this stage and are filled in by `static-render.ts` moments later. Left as-is, this fires
 on every static-tier page render, which both cries wolf about a real outage and — the more durable cost
 — trains anyone reading the log to ignore this line, burying the one case it's actually for.
+
+This is the same failure class this codebase has been bitten by before: `verifyPublishCredentialById`'s
+doc comment asserted "never throws" and was false, and a caller trusted that claim and skipped a
+`try/catch`, which became a process-killing bug (see `feedback_verify_claims_in_code_comments` /
+`reference_symptom_reachable_by_many_routes` project history). A log line asserting an outcome the code
+does not actually guarantee is the cheap version of the same defect — the fix here is to make the
+message truthful, not to delete it.
+
+## Reuse decision: `isPageEmbedType()` is not the right single source of truth
+
+Team-lead's review correctly flagged the risk of a second, independent `partial`/`menu` list drifting
+from the real owner. The instinct to reuse `isPageEmbedType()` for that is reasonable on its face, but
+it doesn't hold up mechanically: `isPageEmbedType(type)` is defined as `Object.hasOwn(HTML_EMBED_RESOLVERS,
+type)` — it is already exactly what this loop's own `HTML_EMBED_RESOLVERS[type]` lookup tests. It
+encodes one fact ("is this resolver-service's own type"), which is `false` for `partial`/`menu` AND for
+a genuine typo alike. There is no second fact hiding inside it to distinguish "known, owned elsewhere"
+from "owned nowhere" — reusing it as the warning's skip condition would silence the warning for BOTH
+cases, which fails the explicit requirement (and the paired regression test) that a real typo type must
+keep warning.
+
+The fact this warning actually needs — "which types does `static-render.ts` itself treat as
+theme-structural" — exists today only as inline string-literal comparisons inside that file
+(`injectMenuEmbeds`'s `marker.type !== "menu"`, `resolveSlots`'s `marker.type !== "partial"`). The
+real single-source-of-truth fix is hoisting that fact into `core/embeds/marker.ts` — the shared,
+layer-neutral marker module both `resolver-service.ts` and `static-render.ts` already import from, so
+no new or circular dependency is introduced — as an exported constant, then having `static-render.ts`
+read its two checks off that constant instead of its own literals. That is a small, mechanical,
+behavior-preserving edit, but it lands inside `static-render.ts`, which this dispatch's file-ownership
+rules assign to a different agent (`arch-export-edge`) — asked before touching it rather than taking it.
+
+Until that's authorized, the shipped fix hardcodes the same two literals in `resolver-service.ts` with
+a comment naming the actual sibling that must stay in sync (`static-render.ts`'s `resolveSlots`/
+`injectMenuEmbeds`, not `isPageEmbedType()`) and pointing at this section for the upgrade path.
+
+**Generic embed contract interaction: none.** The settled-but-unimplemented `data-embed-type`
+registry-keyed-resolver plan (`ADS-memory/reports/media-embeds/IMPLEMENTATION-PLAN-data-embed-type-2026-08-07.md`)
+is entirely about `HTML_EMBED_RESOLVERS`'s own shape (widget/media/post/form-successor types). Neither
+this fix nor the proposed `core/embeds/marker.ts` hoist touches `HTML_EMBED_RESOLVERS` or its resolver
+signature — `partial`/`menu` are a separate vocabulary that plan explicitly does not cover (theme
+structure, not page-embeddable content), so there's nothing here that fits or fights that plan.
 
 ## Fix
 
