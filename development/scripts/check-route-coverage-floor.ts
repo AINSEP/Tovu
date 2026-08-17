@@ -27,6 +27,18 @@ const FLOOR = { line: 88, branch: 68, funcs: 93 };
 
 function main(): void {
   const files = loadRouteCoverage();
+  // Zero measurable files is never a legitimate pass: this repo has 200+ real route files, so an
+  // empty result means development/coverage/lcov.info exists but is empty or truncated (e.g. read
+  // mid-write, or `npm run test:cov` was killed before it finished) -- without this check `pct()`'s
+  // 0-found-is-100% convention (correct for a single file with no branches) would silently read as
+  // a full pass here instead of surfacing the real problem: no coverage data.
+  if (files.length === 0) {
+    console.error(
+      "check:route-coverage-floor — FAIL: 0 measurable src/server/routes/** files found in development/coverage/lcov.info. " +
+        "That file is missing, empty, or stale -- run `npm run test:cov` to completion first."
+    );
+    process.exit(1);
+  }
   let lf = 0,
     lh = 0,
     brf = 0,
