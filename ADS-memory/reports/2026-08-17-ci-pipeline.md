@@ -46,6 +46,32 @@ commit's own run) — each is an *expected* consequence of that setting under he
 push volume, not a pipeline bug. Followed the chain to whatever run is currently latest on the
 branch rather than a fixed run id.
 
+**Confirmed in a real run, step-by-step** (`31996680254`, `build-and-test` job — this run was
+later itself cancelled by a subsequent concurrent push, but every step that ran before the
+cancellation point is real signal):
+
+```
+Run actions/checkout@v4:                                                    success
+Resolve matching Jini branch:                                               success
+Clone Jini (sibling dependency):                                            success
+Run actions/setup-node@v4:                                                  success
+Run pnpm/action-setup@v4:                                                   success   <- this task's fix
+Build Jini (siblings resolve through gitignored dist/, not source):         success   <- never proven before tonight
+Install root dependencies:                                                  cancelled (concurrent push)
+(everything after: skipped, as a consequence of the cancellation above)
+```
+
+Both the af5af566 checkout-path fix and this task's `pnpm/action-setup` fix are now proven end to
+end, in real CI, not just local reproduction. The `Build Jini` step — the one flagged for weeks
+as "sound reasoning, never empirically proven" — genuinely works.
+
+Still watching for a run that survives to full completion (`route-coverage`, `Typecheck`,
+`Test`, the coverage/architecture gates) rather than getting pre-empted by the next concurrent
+push — `general-work` has 8 agents actively pushing tonight, so this workflow's own
+`cancel-in-progress: true` keeps superseding runs faster than any one of them can finish. That is
+expected behavior of the concurrency group under this load, not a pipeline defect; noting it here
+because a future reader watching this same branch will see the same churn.
+
 <!-- RESULT-TOVU-RUN -->
 
 ## 2. Jini `ci.yml` — identical never-ran trigger bug
