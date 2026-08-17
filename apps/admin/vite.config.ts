@@ -78,6 +78,14 @@ export default defineConfig({
       // backend that actually serves them, in production this is a non-issue since one server
       // serves both the built admin SPA and this mount.
       "/theme-assets": { target: process.env.TOVU_API_URL ?? "http://localhost:3000", changeOrigin: false },
+      // `server/routes/ops/health.ts`'s `/readyz` — deliberately root-level and unauthenticated
+      // (see that route's own doc), read by `lib/api.ts`'s `getAssistantDaemonReadyz` for the
+      // "Restart assistant" admin control's live status line. Same reason `/agent-icons` above
+      // needs its own proxy entry: a root-relative path that cannot live under `/admin/`, so
+      // without this Vite's own dev server 404s it (`The server is configured with a public base
+      // URL of /admin/ ...`) instead of reaching the backend that actually serves it. Production
+      // is unaffected — one server serves both the built admin SPA and this route there.
+      "/readyz": { target: process.env.TOVU_API_URL ?? "http://localhost:3000", changeOrigin: false },
     },
   },
 });
