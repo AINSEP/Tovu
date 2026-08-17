@@ -143,6 +143,38 @@ describe("preview src — pages, partials, and templates", () => {
   });
 
   /**
+   * 2026-08-17 owner ask (verbatim): "Can we get preview to just render everything, in a simple
+   * manner. If it's an image, it renders that. If it's a JavaScript, it just renders like HTML. If
+   * it's JSON same." Before this fix, `previewSrcFor` gated the raw-asset fallback on `!file.readable`
+   * — but `style`/`script`/`config` files ARE `readable: true`, so a CSS/JS/JSON selection returned
+   * `null` and Preview showed nothing but "Select a file to preview." Regression: these are readable
+   * files that must now still resolve to a real preview URL, not fall into the null branch.
+   */
+  it("points a readable STYLE (CSS) file's preview at the raw /theme-assets/ URL, not null", () => {
+    renderExplore({ selected: "css/styles.css" });
+    const iframe = screen.getByTitle("Theme preview") as HTMLIFrameElement;
+    expect(iframe.src).toContain("/theme-assets/novice/css/styles.css");
+    expect(screen.queryByText(/select a file to preview/i)).not.toBeInTheDocument();
+  });
+
+  it("points a readable SCRIPT (JS) file's preview at the raw /theme-assets/ URL, not null", () => {
+    renderExplore({ selected: "js/main.js" });
+    const iframe = screen.getByTitle("Theme preview") as HTMLIFrameElement;
+    expect(iframe.src).toContain("/theme-assets/novice/js/main.js");
+    expect(screen.queryByText(/select a file to preview/i)).not.toBeInTheDocument();
+  });
+
+  it("points a readable CONFIG (JSON) file's preview at the raw /theme-assets/ URL, not null", () => {
+    renderExplore({
+      files: [...FILES, { path: "theme.json", label: "theme.json", kind: "config", readable: true, editable: true, resettable: true }],
+      selected: "theme.json",
+    });
+    const iframe = screen.getByTitle("Theme preview") as HTMLIFrameElement;
+    expect(iframe.src).toContain("/theme-assets/novice/theme.json");
+    expect(screen.queryByText(/select a file to preview/i)).not.toBeInTheDocument();
+  });
+
+  /**
    * Owner-reported (2026-08-12): "I still don't see a preview of the liquid with the styles at
    * all." At the time, a `.liquid` template was `readable` (see the FILES fixture above) but not
    * `kind === "page"`/`"partial"`, so `previewSrcFor` returned `null` and the Preview tab fell
@@ -165,16 +197,17 @@ describe("preview src — pages, partials, and templates", () => {
 });
 
 /**
- * Every remaining `previewSrc === null` case shares one generic message: CSS/JS/JSON, an ordinary
- * `other`-group file like `NOTICE.md`, or nothing selected yet. `.liquid` templates used to land
- * here too — see the "preview src — pages, partials, and templates" describe block above for why
- * that's no longer true.
+ * 2026-08-17: `previewSrcFor` now returns a real raw-asset URL for every file kind — the only
+ * remaining `previewSrc === null` case is nothing selected at all. An ordinary `other`-group file
+ * like `NOTICE.md` used to fall into this generic message too; it now gets a real preview URL like
+ * everything else (see the "preview src — pages, partials, and templates" describe block above).
  */
 describe("preview notice — generic 'select a file' message", () => {
-  it("keeps the generic message for an ordinary readable other-group file (e.g. NOTICE.md) — the split is by file, not a blanket change", () => {
+  it("points an ordinary readable other-group file's (e.g. NOTICE.md) preview at the raw URL, not the generic notice", () => {
     renderExplore({ view: "preview", selected: "NOTICE.md" });
-    expect(screen.getByText(/^select a file to preview\.?$/i)).toBeInTheDocument();
-    expect(screen.queryByText(/rendered preview yet/i)).not.toBeInTheDocument();
+    const iframe = screen.getByTitle("Theme preview") as HTMLIFrameElement;
+    expect(iframe.src).toContain("/theme-assets/novice/NOTICE.md");
+    expect(screen.queryByText(/select a file to preview/i)).not.toBeInTheDocument();
   });
 
   it("keeps the generic message when nothing is selected", () => {
