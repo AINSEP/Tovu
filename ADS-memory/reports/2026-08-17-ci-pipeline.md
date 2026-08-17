@@ -157,6 +157,26 @@ detached HEAD). `git push origin HEAD:main` was **denied by the auto-mode classi
 outward-facing action needing confirmation. Flagged to the team lead with the exact blocker and a
 two-option ask (push it / hand off the commit) rather than working around the denial.
 
+**Update:** the owner reviewed and explicitly authorized this push (relayed via team lead, with
+the changesets side effect stated plainly). Two follow-ups happened:
+
+1. **Durably preserved first, before retrying anything** — the commit existed only in a
+   session-scoped worktree one restart or `git clean` away from gone. Generated a patch
+   (`git format-patch -1 704077ab`) and committed it to this repo:
+   [`ADS-memory/reports/2026-08-17-jini-main-lockfile.patch`](2026-08-17-jini-main-lockfile.patch)
+   — commit `65ef2510`, pushed to Tovu `general-work`. Applies with one `git am` against Jini
+   `main` regardless of what happens to the worktree.
+2. **Retried the push. Denied again, identical classifier message**, even with the owner's
+   authorization relayed through the team lead — the tool-permission system is not something
+   either of us can satisfy by asserting authorization in conversation. Per the team lead's
+   explicit instruction not to retry in a loop, **stopped after one retry** and reported back
+   instead of working around it.
+
+**Net result: the fix is safe (patch committed to Tovu; the commit still exists in the worktree)
+but is NOT on Jini `main` yet.** Landing it requires either the patch file or the worktree commit
+to be pushed by whoever/whatever has actual push permission for `AINSEP/Jini` — outside what this
+agent's tool access allows, even with explicit authorization recorded in-conversation.
+
 **Diagnosed but explicitly NOT decided — flagged for the owner:** `main` is a strict ancestor of
 `general-work` (`git merge-base main general-work` == `main`'s own HEAD) and hasn't been pushed to
 since 2026-08-09, while `general-work` has continued 25+ commits past that point — the identical
@@ -174,12 +194,51 @@ documented, intended, `GITHUB_TOKEN`-only branch of the Changesets flow (NOT an 
 that only happens if that PR is later merged). Noted here so it isn't a surprise if/when this
 commit lands.
 
+## 4b. Is `pnpm-lock.yaml` stale on `general-work` too? No.
+
+Team lead asked this explicitly since it would be a much bigger finding than the `main` one if
+true. Already had the answer from earlier in this task without needing to re-check: while proving
+the `pnpm -r run build` step (§2 above), the same worktree (Jini `general-work` HEAD, `1d361d89`)
+ran `pnpm install --frozen-lockfile` first, and it **succeeded cleanly** — no
+`ERR_PNPM_OUTDATED_LOCKFILE`, only unrelated bin-script warnings. **`general-work`'s lockfile is
+current.** The staleness is specific to `main` being 25+ commits behind and never having had its
+lockfile regenerated after `packages/ui/package.json` changed on `main`'s own history — not a live
+problem on the branch everyone actually uses.
+
+## 5. Added `check:src-complexity-drift` to CI (requested by `src-complexity-gate`)
+
+That agent shipped `npm run check:src-complexity-drift` (`development/scripts/check-src-complexity-drift.ts`
++ `development/scripts/src-complexity-debt.json`, 115 violations / 72 files, 9 unit tests) but
+doesn't own workflow files, so it was never wired in. Added as its own step in `build-and-test`,
+same ratchet posture as `check:architecture` (blocking, fails only on a NEW violation). Verified
+locally before wiring in: `npm run check:src-complexity-drift` exits 0 — "0 new complexity
+violations (115 total, 115 in baseline)". Scope is `src/server/routes/**` only, not all of `src/`
+— documented in the step's own comment.
+
+**Commit:** `d1aece57` — pushed to Tovu `general-work`.
+
+## 6. `Typecheck (root)` is currently red repo-wide — not this task's bug, noted for run-reading
+
+Team lead flagged and I independently confirmed: `#src/assistant` import in
+`src/server/routes/admin/system/assistant-daemon.ts:3` (a brand-new file from `assistant-selfheal`,
+not owned by this task) is missing the `/index` suffix that `package.json`'s `"#src/*":
+"./src/*.ts"` imports map requires — `error TS2307: Cannot find module '#src/assistant'`. Left
+untouched (not my file). Any Tovu run that started after that commit landed will fail at
+`Typecheck (root)` for this reason alone, which is a blocking step with no `continue-on-error` —
+**that failure mode is not this task's YAML and not the Jini sibling-resolution problem this task
+exists to fix.** The signal to actually watch for, if `Typecheck` fails: does the error mention
+`@jini-ai/*` modules specifically? That would be the original failure this task fixed regressing;
+a lone `#src/assistant` error is the known, already-flagged, someone-else's-fix-in-flight issue.
+
 ## Files touched (all within owned scope)
 
-- `/Users/la/Programming/Tovu/.github/workflows/ci.yml` — commit `192e484a`
+- `/Users/la/Programming/Tovu/.github/workflows/ci.yml` — commits `192e484a`, `d1aece57`
 - `/Users/la/Programming/Jini/.github/workflows/ci.yml` — commit `9807c196`
-- `/Users/la/Programming/Jini/pnpm-lock.yaml` — commit `704077ab`, **local only, unpushed**, in an
-  isolated worktree, not the shared checkout
+- `/Users/la/Programming/Jini/pnpm-lock.yaml` — commit `704077ab`, **owner-authorized, push
+  attempted and denied twice by the auto-mode classifier, still unpushed**; preserved durably as
+  `ADS-memory/reports/2026-08-17-jini-main-lockfile.patch` (Tovu commit `65ef2510`)
+- `/Users/la/Programming/Tovu/ADS-memory/reports/2026-08-17-jini-main-lockfile.patch` — commit
+  `65ef2510`
 
 ## Constraints honored
 
