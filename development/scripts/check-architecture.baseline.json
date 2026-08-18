@@ -3,8 +3,8 @@
     "fileCount": 849,
     "moduleCount": 48
   },
-  "propagationCostPct": 11.3,
-  "propagationCostRuntimePct": 2.21,
+  "propagationCostPct": 11.36,
+  "propagationCostRuntimePct": 2.15,
   "backEdgesIntoServer": 11,
   "backEdgesIntoServerRuntimeOnly": 0,
   "moduleCycles": {
@@ -12,8 +12,8 @@
     "largestScc": 0,
     "pairs": []
   },
-  "moduleApiSurfaceFiles": 213,
-  "deepImportsBypassingIndex": 569,
+  "moduleApiSurfaceFiles": 211,
+  "deepImportsBypassingIndex": 570,
   "coreSize": {
     "count": 146,
     "total": 849,
