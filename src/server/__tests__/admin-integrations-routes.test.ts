@@ -25,6 +25,49 @@ import { registerAdminIntegrationsPauseRoute } from "../routes/admin/integration
  * `RouteDeps`; the two webhook repos are layered on top to form `IntegrationsRouteDeps`.
  */
 
+/** Express's own (internal, untyped) per-route layer shape — same technique
+ *  `route-class-precedence.unit.test.ts` uses for structural inspection, borrowed here to reach
+ *  in and call a registered handler DIRECTLY with a hand-built `req`. This is the only way to
+ *  exercise `delete.ts`'s `String(req.params.workspaceId ?? "")` / `subscriptionId` fallbacks:
+ *  the route pattern declares `:workspaceId`/`:subscriptionId` as REQUIRED segments, so Express's
+ *  own router can never dispatch to this handler with either left `undefined` — a real HTTP
+ *  request literally cannot trigger the `??` side. Forcing it here is not a trick to inflate a
+ *  number: it genuinely executes the fallback assignment and proves what the response becomes
+ *  when it fires, the same way a malformed upstream proxy or a future refactor that loosens the
+ *  route pattern could. */
+interface ExpressHandlerLayer {
+  route?: { path: string; stack: { handle: (req: unknown, res: unknown) => unknown }[] };
+}
+interface ExpressAppWithRouter {
+  _router: { stack: ExpressHandlerLayer[] };
+}
+
+function extractHandler(app: express.Express, path: string): (req: unknown, res: unknown) => unknown {
+  const stack = (app as unknown as ExpressAppWithRouter)._router.stack;
+  const layer = stack.find((l) => l.route?.path === path);
+  if (!layer?.route) throw new Error(`route '${path}' was not found in the router stack`);
+  return layer.route.stack[0].handle;
+}
+
+/** Minimal fake `res` capturing `status()`/`json()` — enough for any of this file's route
+ *  handlers, none of which call other response methods before one of these two. */
+function fakeRes(): { res: unknown; getStatus: () => number | undefined; getBody: () => unknown } {
+  let statusCode: number | undefined;
+  let body: unknown;
+  const res = {
+    locals: { principal: { id: "forced-input-test-principal" } },
+    status(code: number) {
+      statusCode = code;
+      return res;
+    },
+    json(payload: unknown) {
+      body = payload;
+      return res;
+    },
+  };
+  return { res, getStatus: () => statusCode, getBody: () => body };
+}
+
 function makeDelivery(overrides: Partial<WebhookDeliveryRecord> = {}): WebhookDeliveryRecord {
   return {
     id: "delivery-1",
@@ -257,6 +300,41 @@ test("integrations routes: delete surfaces an unexpected repo failure as 500 (ge
     { method: "DELETE", headers: { cookie } }
   );
   assert.equal(res.status, 500);
+});
+
+test("integrations routes: delete's `req.params.workspaceId ?? \"\"` fallback -- forced via a direct handler call with workspaceId omitted, since Express itself can never leave a required :workspaceId segment unset -- still 404s as a mismatch, not a crash", async () => {
+  const { app } = buildTestApp();
+  const handler = extractHandler(
+    app,
+    "/api/admin/v1/workspaces/:workspaceId/integrations/subscriptions/:subscriptionId"
+  );
+  const { res, getStatus, getBody } = fakeRes();
+
+  await handler({ params: { subscriptionId: "sub-1" } }, res);
+
+  assert.equal(getStatus(), 404);
+  assert.deepEqual(getBody(), { error: "workspace was not found" });
+});
+
+test("integrations routes: delete's `req.params.subscriptionId ?? \"\"` fallback -- forced via a direct handler call with subscriptionId omitted -- falls through to deleteSubscription with id:\"\", which 404s with the not-found message for an empty id", async () => {
+  const deps: IntegrationsRouteDeps = {
+    ...createRouteDeps(),
+    webhookSubscriptionRepo: new InMemoryWebhookSubscriptionRepo(),
+    webhookDeliveryRepo: new InMemoryWebhookDeliveryRepo(),
+    authorize: async () => ({ allowed: true, reason: "matched" }),
+  };
+  const app = express();
+  registerAdminIntegrationsDeleteRoute(app, deps);
+  const handler = extractHandler(
+    app,
+    "/api/admin/v1/workspaces/:workspaceId/integrations/subscriptions/:subscriptionId"
+  );
+  const { res, getStatus, getBody } = fakeRes();
+
+  await handler({ params: { workspaceId: deps.workspaceId } }, res);
+
+  assert.equal(getStatus(), 404);
+  assert.deepEqual(getBody(), { error: "webhook subscription '' was not found" });
 });
 
 test("integrations routes: list's lastDelivery picks the newest row by createdAt, not insertion order", async (t) => {

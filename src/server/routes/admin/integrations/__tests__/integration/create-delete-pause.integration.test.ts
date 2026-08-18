@@ -30,6 +30,43 @@ function testDeps(overrides: Partial<RouteDeps> = {}): RouteDeps {
   return { ...createRouteDeps(), ...overrides };
 }
 
+/** Same technique as `admin-integrations-routes.test.ts`'s (unit-tier) identical helper — see its
+ *  comment for why: `delete.ts`'s `String(req.params.workspaceId ?? "")` / `subscriptionId`
+ *  fallbacks are unreachable through any real HTTP request (Express's own router guarantees both
+ *  route segments are populated whenever this handler is dispatched to at all), so the only way to
+ *  genuinely execute the `??` side is to reach into the REAL composed app's router stack and call
+ *  the registered handler directly with a hand-built `req`. */
+interface ExpressHandlerLayer {
+  route?: { path: string; stack: { handle: (req: unknown, res: unknown) => unknown }[] };
+}
+interface ExpressAppWithRouter {
+  _router: { stack: ExpressHandlerLayer[] };
+}
+
+function extractHandler(app: ReturnType<typeof createApp>, path: string): (req: unknown, res: unknown) => unknown {
+  const stack = (app as unknown as ExpressAppWithRouter)._router.stack;
+  const layer = stack.find((l) => l.route?.path === path);
+  if (!layer?.route) throw new Error(`route '${path}' was not found in the router stack`);
+  return layer.route.stack[0].handle;
+}
+
+function fakeRes(): { res: unknown; getStatus: () => number | undefined; getBody: () => unknown } {
+  let statusCode: number | undefined;
+  let body: unknown;
+  const res = {
+    locals: { principal: { id: "forced-input-test-principal" } },
+    status(code: number) {
+      statusCode = code;
+      return res;
+    },
+    json(payload: unknown) {
+      body = payload;
+      return res;
+    },
+  };
+  return { res, getStatus: () => statusCode, getBody: () => body };
+}
+
 test("create: mismatched workspaceId 404s", async (t) => {
   const app = createApp(testDeps());
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
@@ -178,6 +215,39 @@ test("delete: an unexpected repo failure 500s", async (t) => {
 
   const res = await fetch(`${baseUrl}${SUBS_PATH}/${subscription.id}`, { method: "DELETE", headers: { cookie } });
   assert.equal(res.status, 500);
+});
+
+test("delete: `req.params.workspaceId ?? \"\"` fallback, forced via a direct handler call on the REAL composed app (Express itself can never leave a required :workspaceId segment unset) -- still 404s as a mismatch", async () => {
+  const app = createApp(testDeps());
+  const handler = extractHandler(
+    app,
+    "/api/admin/v1/workspaces/:workspaceId/integrations/subscriptions/:subscriptionId"
+  );
+  const { res, getStatus, getBody } = fakeRes();
+
+  await handler({ params: { subscriptionId: "sub-1" } }, res);
+
+  assert.equal(getStatus(), 404);
+  assert.deepEqual(getBody(), { error: "workspace was not found" });
+});
+
+test("delete: `req.params.subscriptionId ?? \"\"` fallback, forced via a direct handler call on the REAL composed app -- falls through to deleteSubscription with id:\"\", 404s with the not-found message for an empty id", async () => {
+  // authorize stubbed to allow: the forced fake principal below is not a real logged-in identity,
+  // so the REAL RBAC authorize() would 403 it before ever reaching deleteSubscription -- this test
+  // is specifically about the subscriptionId fallback, not authorization, so it stubs that gate the
+  // same way admin-integrations-routes.test.ts's (unit-tier) identical test does.
+  const deps = testDeps({ authorize: async () => ({ allowed: true, reason: "matched" }) });
+  const app = createApp(deps);
+  const handler = extractHandler(
+    app,
+    "/api/admin/v1/workspaces/:workspaceId/integrations/subscriptions/:subscriptionId"
+  );
+  const { res, getStatus, getBody } = fakeRes();
+
+  await handler({ params: { workspaceId: deps.workspaceId } }, res);
+
+  assert.equal(getStatus(), 404);
+  assert.deepEqual(getBody(), { error: "webhook subscription '' was not found" });
 });
 
 test("pause: mismatched workspaceId 404s", async (t) => {
