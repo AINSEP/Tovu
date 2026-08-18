@@ -5,10 +5,13 @@
  * tier not yet supported here fails loudly (`planV2Migration` throws) rather than the orchestrator
  * silently doing nothing.
  *
- * Only `declarative` is implemented for the first migration slice (Milestone 3, `basic-declarative` —
- * the approved lowest-risk starting theme). `templated`/`static` planners are added as later slices
- * migrate real themes of those tiers, per the Programmer workflow's "implement by requirement slice"
- * rule — building untested move logic for a theme not yet reached would be speculative.
+ * `declarative`/`templated`/`handlebars` share one planner (`planNonStaticTierMigration`) — all three
+ * keep the identical v1 shape (an optional root `styles.css`, a `templates/` folder of one extension),
+ * verified directly against real themes in both tiers before generalizing (`basic-declarative`,
+ * `storefront`). `static` has a materially different v1 shape (`pages/`, root partials, `js/`, per-page
+ * asset-path references) and gets its own planner once a static-tier theme is migrated — building
+ * untested move logic for a theme not yet reached would be speculative, per the Programmer workflow's
+ * "implement by requirement slice" rule.
  */
 
 import { existsSync, readdirSync } from "node:fs";
@@ -35,17 +38,33 @@ const CARRY_OVER_UNCHANGED: ReadonlySet<string> = new Set(["tokens.json"]);
 
 const TOKENS_MODE_FILE_PATTERN = /^tokens\.[a-z0-9-]+\.json$/;
 
+/** The `templates/` file extension(s) each non-static tier ships, matching `loadTheme()`'s own
+ * per-extension dispatch (`theme.ts`'s inline templates-dir scan) — a file in `templates/` with any
+ * OTHER extension is a real authoring surprise this planner refuses to guess about. */
+const NON_STATIC_TIER_EXTENSIONS: Readonly<Record<"declarative" | "templated" | "handlebars", readonly string[]>> = {
+  declarative: [".json"],
+  templated: [".liquid"],
+  handlebars: [".hbs", ".handlebars"],
+};
+
 /**
- * `declarative` tier: theme root has a single `styles.css` (-> `css/theme.css`) and a `templates/`
- * folder of `*.json` block trees (-> `render/pages/`). No partials, no scripts, no per-page asset-path
- * rewriting — declarative content is JSON props (route hrefs like `/pricing`, never a relative asset
- * path), verified directly against `basic-declarative`'s real files before writing this planner.
+ * `declarative`/`templated`/`handlebars` tiers: theme root has an OPTIONAL single `styles.css`
+ * (-> `css/theme.css` — `storefront`, a real templated theme, ships none at all, relying entirely on
+ * core `render_block` component styling) and a `templates/` folder of the tier's own route-file
+ * extension (-> `render/pages/`). No partials, no scripts, no per-page asset-path rewriting — neither
+ * declarative JSON props nor a templated theme's `render_block`/product-data Liquid syntax carry a
+ * relative asset path the way static HTML's `../css/`/`../js/` does. Verified directly against
+ * `basic-declarative` and `storefront`'s real files before writing this planner.
  *
  * @complexity O(f) in the theme root's own (small) entry count.
  */
-function planDeclarativeMigration(themeDir: string): ThemeMigrationPlan {
+function planNonStaticTierMigration(
+  themeDir: string,
+  tier: "declarative" | "templated" | "handlebars"
+): ThemeMigrationPlan {
   const moves: MigrationFileMove[] = [];
   const unrecognized: string[] = [];
+  const extensions = NON_STATIC_TIER_EXTENSIONS[tier];
 
   if (existsSync(join(themeDir, "styles.css"))) {
     moves.push({ from: "styles.css", to: "css/theme.css" });
@@ -54,7 +73,7 @@ function planDeclarativeMigration(themeDir: string): ThemeMigrationPlan {
   const templatesDir = join(themeDir, "templates");
   if (existsSync(templatesDir)) {
     for (const file of readdirSync(templatesDir)) {
-      if (file.endsWith(".json")) {
+      if (extensions.some((ext) => file.endsWith(ext))) {
         moves.push({ from: `templates/${file}`, to: `render/pages/${file}` });
       } else {
         unrecognized.push(`templates/${file}`);
@@ -77,6 +96,8 @@ function planDeclarativeMigration(themeDir: string): ThemeMigrationPlan {
  */
 export function planV2Migration(required: { themeDir: string; tier: ThemeTier }): ThemeMigrationPlan {
   const { themeDir, tier } = required;
-  if (tier === "declarative") return planDeclarativeMigration(themeDir);
+  if (tier === "declarative" || tier === "templated" || tier === "handlebars") {
+    return planNonStaticTierMigration(themeDir, tier);
+  }
   throw new Error(`planV2Migration: no v2 migration plan implemented yet for tier '${tier}'`);
 }
