@@ -125,17 +125,8 @@ import { listToolContributors, type ToolContributor } from "./tool-contribution-
 export type { AssistantSurfaceDeps };
 import type { ContentTypesToolDeps } from "../features/content-types/tool-registrations";
 import type { DatabaseToolDeps } from "../features/database/tool-registrations";
-import {
-  buildDeploymentsRegistrations,
-  deploymentsDerivedRisk,
-  type DeploymentsToolDeps,
-} from "../features/deployments/tool-registrations";
-import {
-  buildStaticPublishRegistrations,
-  staticPublishDerivedRisk,
-  type StaticPublishToolDeps,
-  type VendorCredentialPort,
-} from "../features/deployments/publish-agent-tools";
+import type { DeploymentsToolDeps } from "../features/deployments/tool-registrations";
+import type { StaticPublishToolDeps, VendorCredentialPort } from "../features/deployments/publish-agent-tools";
 import type { EntriesToolDeps } from "../features/entries/tool-registrations";
 // This file's own real wiring for `StaticPublishToolDeps.vendorCredentials` (`VendorCredentialPort`,
 // `publish-agent-tools.ts`) — that file deliberately carries NO import of any kind from
@@ -304,37 +295,51 @@ const DOMAIN_SLICES: readonly DomainSlice[] = [
   // `server/tool-catalog-manifest.ts`. Safe despite sharing `database`'s `db/sqlite` importer:
   // Recovery's own imports of `features/database` are both `import type`, erased from the
   // runtime-only cycle graph, so `recovery -> assistant` does not carry `database`'s round-trip risk.
-  // 2026-08-15 — the Deployment panel's three tabs (Static Site export, Full Site read, Dockerfile
-  // read/write). See `features/deployments/agent-tools.ts`'s file header for why, unlike every
-  // domain above, none of its 5 entries is excluded.
+  // `deployments` converted to the tool-contribution registry 2026-08-17 (2026-08-15 originally wired
+  // the Deployment panel's three tabs — Static Site export, Full Site read, Dockerfile read/write —
+  // see `features/deployments/agent-tools.ts`'s file header for why, unlike every domain above, none
+  // of its 5 entries is excluded).
   //
   // Tried for the tool-contribution registry in Stage 2 batch 2 and reverted the same session: this
-  // module (`features/deployments`, per-directory graph granularity) already sits downstream of a
-  // chain `assistant` reaches unconditionally — `assistant -> features/vendor-credentials -> features/
+  // module (`features/deployments`, per-directory graph granularity) already sat downstream of a
+  // chain `assistant` reached unconditionally — `assistant -> features/vendor-credentials -> features/
   // source-control -> features/deployments` (the last hop via `source-control/store.ts`'s value
   // import of `extractGitHubLogin` from this directory's `static-publish/index.ts`) — so adding a
   // `deployments -> assistant` registry edge closed a real 4-module cycle: `assistant,
-  // features/deployments, features/source-control, features/vendor-credentials`. See
-  // `features/deployments/tool-registrations.ts`'s own trailing comment for the full trace. Blocks
-  // `static-publish` below for the identical reason (same module).
-  { domain: "deployments", build: buildDeploymentsRegistrations, risk: deploymentsDerivedRisk },
-  // Static publish is deliberately its OWN slice, not folded into `deployments` above — see
-  // `features/deployments/publish-agent-tools.ts`'s file header. All 3 entries are wired as of
-  // 2026-08-15: `deployment_preview_static_publish` and `deployment_get_static_publish_capabilities`
-  // are pure reads; `deployment_execute_static_publish` is genuinely destructive (publishes to the
-  // public internet with a write-scoped external credential) but is now reachable — gated behind a
-  // human confirmation dialog held open through the same MCP-UI surface-exchange mechanism
-  // `content_post_delete` uses (`assistant/surface-exchanges.ts`), not the
-  // `actorClassRule`/`ExecutionDelegate` mechanism `backup_execute_restore`/
-  // `database_execute_migrate_forward` still wait on. The only OTHER execute path remains the
-  // cookie-authed admin route (`server/routes/admin/system/publish-site.ts`); this tool now gives the
-  // assistant an equivalent, human-approved one.
+  // features/deployments, features/source-control, features/vendor-credentials`. Retried later the
+  // same session and blocked again on a second, previously-undocumented edge
+  // (`vendor-credentials/store.ts`'s own `extractGitHubLogin` import). See
+  // `features/deployments/tool-registrations.ts`'s own header for the full trace of both attempts.
+  //
+  // Retried and landed once `vendor-credentials/store.ts`'s `extractGitHubLogin` import was ALSO
+  // injected instead of value-imported (same Option-B-style technique already used for
+  // `dual-read.ts`) — that removed the last edge closing the cycle. No longer an entry here; it
+  // arrives via `contributeDeploymentsTools()`, installed by `server/tool-catalog-manifest.ts`. Was
+  // blocking `static-publish` below for the identical reason (same module) — see that entry's own
+  // comment for its own retry status.
+  // `static-publish` converted to the tool-contribution registry 2026-08-17 — deliberately its OWN
+  // domain, not folded into `deployments` above — see `features/deployments/publish-agent-tools.ts`'s
+  // file header. All 3 entries are wired as of 2026-08-15: `deployment_preview_static_publish` and
+  // `deployment_get_static_publish_capabilities` are pure reads; `deployment_execute_static_publish`
+  // is genuinely destructive (publishes to the public internet with a write-scoped external
+  // credential) but is now reachable — gated behind a human confirmation dialog held open through the
+  // same MCP-UI surface-exchange mechanism `content_post_delete` uses
+  // (`assistant/surface-exchanges.ts`), not the `actorClassRule`/`ExecutionDelegate` mechanism
+  // `backup_execute_restore`/`database_execute_migrate_forward` still wait on. The only OTHER execute
+  // path remains the cookie-authed admin route (`server/routes/admin/system/publish-site.ts`); this
+  // tool now gives the assistant an equivalent, human-approved one.
   //
   // Tried for the tool-contribution registry in Stage 2 batch 2 and reverted the same session — same
   // 4-module cycle as `deployments` above (`assistant, features/deployments, features/source-control,
-  // features/vendor-credentials`), since both live in the `features/deployments` module. See
-  // `features/deployments/publish-agent-tools.ts`'s own trailing comment for the full trace.
-  { domain: "static-publish", build: buildStaticPublishRegistrations, risk: staticPublishDerivedRisk },
+  // features/vendor-credentials`), since both live in the `features/deployments` module. Retried and
+  // blocked again on the same second edge (`vendor-credentials/store.ts`'s own `extractGitHubLogin`
+  // import) `deployments` above hit. Retried and landed together with `deployments` once that edge
+  // was ALSO injected instead of value-imported — the two convert in lockstep, not independently:
+  // `check:architecture`'s per-directory module graph means either one alone, with the other still
+  // value-imported from `assistant`, still closes a live 2-module `[assistant, features/deployments]`
+  // cycle. See `features/deployments/publish-agent-tools.ts`'s own header for the full trace. No
+  // longer an entry here; it arrives via `contributeStaticPublishTools()`, installed by
+  // `server/tool-catalog-manifest.ts`.
   // `source-control` converted to the tool-contribution registry 2026-08-17 — 2026-08-16, a separate
   // identity from `static-publish` above: connects a GitHub/GitLab/Bitbucket account for committing
   // the site's OWN exported content into a connected repo (git-backed CMS content), not for hosting

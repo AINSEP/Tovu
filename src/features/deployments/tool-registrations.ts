@@ -13,6 +13,7 @@ import {
   type ToolHandler,
   type ToolRegistration,
 } from "@jini-ai/cms/core";
+import { registerToolContributor } from "#src/assistant/index";
 import { deploymentsAgentToolCatalog } from "./agent-tools";
 import { readDockerfileSource, writeDockerfileSourceWithIfMatch } from "./dockerfile";
 import { getExportRunSnapshot, startExportRun } from "./export-run";
@@ -169,40 +170,54 @@ export function buildDeploymentsRegistrations(routeDeps: DeploymentsToolDeps): T
   });
 }
 
-// NOT converted to the tool-contribution registry — tried in Stage 2 batch 2 and reverted the same
-// session. This file's own imports look clean in isolation (`export-run.ts` imports nothing beyond
-// `node:path`; `DeploymentsToolDeps = RouteDeps` is type-only), and no sibling domain imports
-// `features/deployments/tool-registrations` itself. But `check:architecture`'s module graph is
-// PER-DIRECTORY, not per-file: `src/features/deployments` is one module, and this directory's sibling
-// `static-publish/index.ts` exports `extractGitHubLogin`, which `features/source-control/store.ts`
-// value-imports (`from "../deployments/static-publish/index"`). Chain that closes the cycle:
-// `assistant -> features/vendor-credentials` (`tool-registrations.ts`'s own
-// `REAL_VENDOR_CREDENTIAL_PORT` wiring, unconditional) -> `features/source-control`
-// (`vendor-credentials/dual-read.ts`'s `resolveDefaultForSourceControl` import) ->
-// `features/deployments` (via that `extractGitHubLogin` import) -> back to `assistant` (this file's
-// own attempted `registerToolContributor` call). Confirmed via `check:architecture --list`: largest
-// strongly-connected component (runtime-only) went 0 -> 4 —
-// `[assistant, features/deployments, features/source-control, features/vendor-credentials]`. Same
-// root cause as `features/source-control/tool-registrations.ts`'s own revert comment, reached from
-// the opposite end of the chain — see that file's trailing comment for the same fix options. Also
-// blocks `static-publish` (`publish-agent-tools.ts`, this directory's other domain) for the identical
-// reason, since both live in the same `features/deployments` module.
-//
-// RETRIED 2026-08-17 (same day, later pass) after `vendor-credentials/dual-read.ts`'s Option B fix
-// (`ADS-memory/reports/architecture/2026-08-17-vendor-credentials-cycle-design-options.md`) landed
-// and `source-control` converted cleanly on top of it (see that domain's own trailing comment) — the
-// design report's own chain trace named `dual-read.ts`'s imports as the root cause, and fixing those
-// alone WAS sufficient for `source-control`. It was NOT sufficient for `deployments`: reverted again,
-// this time on a DIFFERENT, previously-undocumented edge the design report never analyzed —
-// `features/vendor-credentials/store.ts:5` (not `dual-read.ts`) value-imports `extractGitHubLogin`
-// from `./static-publish/index` directly, for `createVendorCredential`'s own GitHub-login-probe
-// logic. That edge is untouched by the Option B fix (which only rewired `dual-read.ts`). Confirmed
-// via `check:architecture --list`: adding `registerToolContributor` here closed a NEW, smaller
-// 3-module cycle — `[assistant, features/deployments, features/vendor-credentials]` — via
-// `assistant -> features/vendor-credentials` (unconditional, `REAL_VENDOR_CREDENTIAL_PORT`) ->
-// `features/vendor-credentials/store.ts` (`extractGitHubLogin`) -> `features/deployments` -> back to
-// `assistant`. Fixing this would need the SAME Option-B-style injection technique applied to
-// `store.ts`'s `extractGitHubLogin` call (or the GitHub-login-probe logic relocated) — not attempted
-// here, since it is new design work beyond this dispatch's scope (execute the recommended fix,
-// don't re-litigate/extend the design). Reverted cleanly instead; `static-publish` (same module,
-// same edge) is expected to hit the identical blocker — see its own trailing comment.
+/**
+ * Contributes Deployments' AI tools to the assistant's catalog — called once by
+ * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
+ * module.
+ *
+ * 2026-08-17: Deployments was tried for the tool-contribution registry in Stage 2 batch 2 and
+ * reverted the same session. This file's own imports looked clean in isolation (`export-run.ts`
+ * imports nothing beyond `node:path`; `DeploymentsToolDeps = RouteDeps` is type-only), and no sibling
+ * domain imports `features/deployments/tool-registrations` itself. But `check:architecture`'s module
+ * graph is PER-DIRECTORY, not per-file: `src/features/deployments` is one module, and this
+ * directory's sibling `static-publish/index.ts` exports `extractGitHubLogin`, which
+ * `features/source-control/store.ts` value-imported (`from "../deployments/static-publish/index"`).
+ * Chain that closed the cycle: `assistant -> features/vendor-credentials`
+ * (`tool-registrations.ts`'s own `REAL_VENDOR_CREDENTIAL_PORT` wiring, unconditional) ->
+ * `features/source-control` (`vendor-credentials/dual-read.ts`'s `resolveDefaultForSourceControl`
+ * import) -> `features/deployments` (via that `extractGitHubLogin` import) -> back to `assistant`
+ * (this file's own attempted `registerToolContributor` call). Confirmed via `check:architecture
+ * --list`: largest strongly-connected component (runtime-only) went 0 -> 4 — `[assistant,
+ * features/deployments, features/source-control, features/vendor-credentials]`. Same root cause as
+ * `features/source-control/tool-registrations.ts`'s own former revert comment, reached from the
+ * opposite end of the chain. Also blocked `static-publish` (`publish-agent-tools.ts`, this
+ * directory's other domain) for the identical reason, since both live in the same
+ * `features/deployments` module.
+ *
+ * RETRIED 2026-08-17 (same day, later pass) after `vendor-credentials/dual-read.ts`'s Option B fix
+ * (`ADS-memory/reports/architecture/2026-08-17-vendor-credentials-cycle-design-options.md`) landed
+ * and `source-control` converted cleanly on top of it — the design report's own chain trace named
+ * `dual-read.ts`'s imports as the root cause, and fixing those alone WAS sufficient for
+ * `source-control`. It was NOT sufficient for `deployments`: reverted again, this time on a
+ * DIFFERENT, previously-undocumented edge the design report never analyzed —
+ * `features/vendor-credentials/store.ts:5` (not `dual-read.ts`) value-imported `extractGitHubLogin`
+ * from `./static-publish/index` directly, for `createVendorCredential`'s own GitHub-login-probe
+ * logic. That edge was untouched by the Option B fix (which only rewired `dual-read.ts`). Confirmed
+ * via `check:architecture --list`: adding `registerToolContributor` here closed a NEW, smaller
+ * 3-module cycle — `[assistant, features/deployments, features/vendor-credentials]` — via
+ * `assistant -> features/vendor-credentials` (unconditional, `REAL_VENDOR_CREDENTIAL_PORT`) ->
+ * `features/vendor-credentials/store.ts` (`extractGitHubLogin`) -> `features/deployments` -> back to
+ * `assistant`.
+ *
+ * RETRIED AND LANDED HERE (2026-08-17, same session) once `vendor-credentials/store.ts`'s own
+ * `extractGitHubLogin` value import was ALSO cut using the same Option-B-style injection technique —
+ * see that file's header ("Why `probeAccountLabel`'s GitHub-login extractor is INJECTED, not
+ * imported") for the full trace. With both `dual-read.ts` and `store.ts` no longer value-importing
+ * anything from `features/source-control`/`features/deployments`, `assistant -> features/vendor-
+ * credentials` no longer reaches back into this module at all, so this registry edge is now
+ * one-directional. `check:architecture` confirms 0 module cycles / largest SCC 0 with Deployments
+ * wired this way.
+ */
+export function contributeDeploymentsTools(): void {
+  registerToolContributor({ domain: "deployments", build: buildDeploymentsRegistrations, risk: deploymentsDerivedRisk });
+}
