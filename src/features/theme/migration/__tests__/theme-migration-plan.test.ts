@@ -80,3 +80,15 @@ test("planV2Migration (templated) flags a .json file inside templates/ as unreco
   const plan = planV2Migration({ themeDir: dir, tier: "templated" });
   assert.deepEqual(plan.unrecognized, ["templates/stray.json"]);
 });
+
+test("planV2Migration (templated) nests a flat root assets/ folder under assets/images/ and reports a rewrite rule (fashion-modern's real shape: one hero photo referenced by absolute /theme-assets/<id>/assets/... URL)", () => {
+  const dir = makeTemplatedThemeDir();
+  fs.mkdirSync(path.join(dir, "assets"), { recursive: true });
+  fs.writeFileSync(path.join(dir, "assets/hero.jpg"), "fake-jpg-bytes", "utf8");
+
+  const plan = planV2Migration({ themeDir: dir, tier: "templated" });
+  assert.deepEqual(plan.unrecognized, []);
+  const moveMap = Object.fromEntries(plan.moves.map((m) => [m.from, m.to]));
+  assert.equal(moveMap["assets/hero.jpg"], "assets/images/hero.jpg");
+  assert.deepEqual(plan.assetPathRewrites, [{ v1Prefix: "assets/", v2Prefix: "assets/images/" }]);
+});

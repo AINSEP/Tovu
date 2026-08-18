@@ -110,6 +110,32 @@ function copyCarryOverFiles(themeDir: string, stagingDir: string): void {
   if (existsSync(source)) cpSync(source, join(stagingDir, "tokens.json"));
 }
 
+/**
+ * Rewrite `plan.assetPathRewrites` (see that type's own header) into every moved page/partial file's
+ * own text content, in place in `stagingDir`. Scoped to files landing under `render/` — the only place
+ * a hardcoded absolute `/theme-assets/<id>/...` URL has been found on a real theme (`fuel`,
+ * `fashion-modern`); a moved page/partial's relative `../css/`/`../js/` references are a SEPARATE,
+ * already-fixed RUNTIME rewrite (`static-asset-contract.ts`, Blocker A), not this migration-time one —
+ * this function never touches those.
+ *
+ * @complexity O(f * r) in the theme's own `render/`-bound file count times its (small, fixed)
+ * rewrite-rule count.
+ */
+function applyAssetPathRewrites(stagingDir: string, id: string, plan: ThemeMigrationPlan): void {
+  const rules = plan.assetPathRewrites;
+  if (!rules || rules.length === 0) return;
+  for (const move of plan.moves) {
+    if (!move.to.startsWith("render/")) continue;
+    const filePath = join(stagingDir, move.to);
+    const original = readFileSync(filePath, "utf8");
+    const rewritten = rules.reduce(
+      (content, rule) => content.split(`/theme-assets/${id}/${rule.v1Prefix}`).join(`/theme-assets/${id}/${rule.v2Prefix}`),
+      original
+    );
+    if (rewritten !== original) writeFileSync(filePath, rewritten, "utf8");
+  }
+}
+
 /** Adds/overwrites exactly the fields a v2 migration touches — `$schema`, `apiVersion`, and (via
  * {@link convertEngineField}) a bare-number `engine` restructured into its v2 object shape. Every
  * other field carries forward unchanged (description, fonts, author, etc.) — see
@@ -132,8 +158,10 @@ function buildV2Manifest(raw: Record<string, unknown>, tier: ThemeTier): Record<
  * 2. Build the tier's move plan (`theme-migration-plan.ts`). Any root-level file the planner doesn't
  *    recognize -> refuse (`status: "failed"`, real theme untouched) rather than guess what to do
  *    with an author's file this migration slice wasn't told about.
- * 3. Stage into a fresh temp directory — copy every moved/carried-over file, write the rewritten
- *    `theme.json`. The real theme directory is not touched up to this point.
+ * 3. Stage into a fresh temp directory — copy every moved/carried-over file, rewrite any moved
+ *    page/partial's own hardcoded `/theme-assets/<id>/...` references (`applyAssetPathRewrites`, only
+ *    when the plan reports any), write the rewritten `theme.json`. The real theme directory is not
+ *    touched up to this point.
  * 4. Verify the staged output two ways: `validateThemePackage` (structural/schema check) AND a real
  *    `loadTheme()` call (catches a missing required template the structural check's v2-strict path
  *    does not independently verify — see this file's header). Both must pass.
@@ -178,6 +206,7 @@ export function migrateThemeToV2(
   const stagingDir = createStagingDir(themeDir, id);
   applyMoves(themeDir, stagingDir, plan);
   copyCarryOverFiles(themeDir, stagingDir);
+  applyAssetPathRewrites(stagingDir, id, plan);
   writeFileSync(join(stagingDir, "theme.json"), JSON.stringify(buildV2Manifest(raw, tier), null, 2) + "\n", "utf8");
 
   const validation = validateThemePackage({ themeDir: stagingDir, id, profile: "author" });

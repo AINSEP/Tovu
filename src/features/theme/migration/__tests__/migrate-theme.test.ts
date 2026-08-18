@@ -108,6 +108,25 @@ test("migrateThemeToV2 converts a v1 bare-number engine into v2's { name, versio
   assert.deepEqual(manifest.engine, { name: "liquid", version: "1" });
 });
 
+test("migrateThemeToV2 rewrites a moved page's own hardcoded /theme-assets/<id>/assets/... reference when the assets/ folder it points at moved (fashion-modern's real shape)", () => {
+  const dir = makeTemplatedThemeDir();
+  const id = "t"; // matches makeTemplatedThemeDir()'s own manifest id
+  fs.mkdirSync(path.join(dir, "assets"), { recursive: true });
+  fs.writeFileSync(path.join(dir, "assets", "hero.jpg"), "fake-jpg-bytes", "utf8");
+  fs.writeFileSync(
+    path.join(dir, "templates", "home.liquid"),
+    `<section style="background-image:url('/theme-assets/${id}/assets/hero.jpg')">{{ site.title }}</section>`,
+    "utf8"
+  );
+
+  const result = migrateThemeToV2({ themeDir: dir, id });
+
+  assert.equal(result.status, "migrated", `expected migrated, got ${result.status}: ${JSON.stringify(result.validation ?? result.reason)}`);
+  assert.ok(fs.existsSync(path.join(dir, "assets/images/hero.jpg")));
+  const rewritten = fs.readFileSync(path.join(dir, "render/pages/home.liquid"), "utf8");
+  assert.equal(rewritten, `<section style="background-image:url('/theme-assets/${id}/assets/images/hero.jpg')">{{ site.title }}</section>`);
+});
+
 test("migrateThemeToV2 fails verification (missing required entry.json) and leaves the real directory untouched", () => {
   const dir = makeDeclarativeThemeDir({ skipEntry: true });
   const result = migrateThemeToV2({ themeDir: dir, id: "t" });
