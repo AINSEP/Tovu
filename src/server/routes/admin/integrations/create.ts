@@ -1,7 +1,22 @@
+import type { Request } from "express";
+
 import { createSubscription, WebhookSubscriptionValidationError } from "#src/webhooks/index";
 import { toAdminSubscriptionResponse } from "#src/server/http/admin/integrations";
+import { authorizeOrRespond } from "#src/server/http/responses/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { IntegrationsRouteRegistrar } from "./deps";
+
+/** Pulls the create-subscription fields out of the request body, applying the same
+ *  string-coercion/defaulting `createSubscription`'s own validation expects (never throws —
+ *  malformed shapes just become empty/invalid values that `createSubscription` rejects). */
+function parseCreateSubscriptionInput(req: Request): { label: string; targetUrl: string; topics: string[] } {
+  const rawTopics = req.body?.topics;
+  return {
+    label: String(req.body?.label ?? ""),
+    targetUrl: String(req.body?.targetUrl ?? ""),
+    topics: Array.isArray(rawTopics) ? rawTopics.map(String) : [],
+  };
+}
 
 /**
  * POST create a webhook subscription.
@@ -19,22 +34,15 @@ export const registerAdminIntegrationsCreateRoute: IntegrationsRouteRegistrar = 
 
     try {
       const principal = getAuthedPrincipal(res);
-      const authResult = await deps.authorize({
+      const authorized = await authorizeOrRespond(res, deps.authorize, {
         principalId: principal.id,
         permission: "admin.integrations.manage",
         workspaceId: deps.workspaceId,
         entityType: "webhook_subscription",
       });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'admin.integrations.manage' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "admin.integrations.manage", reason: authResult.reason },
-        });
-        return;
-      }
+      if (!authorized) return;
 
-      const rawTopics = req.body?.topics;
+      const { label, targetUrl, topics } = parseCreateSubscriptionInput(req);
       const { subscription } = await createSubscription({
         deps: {
           clock: deps.clock,
@@ -51,9 +59,9 @@ export const registerAdminIntegrationsCreateRoute: IntegrationsRouteRegistrar = 
           // (`dev-auth.ts`'s fixed `"user-local"` session subject) — no permissions feature yet.
           ownerPrincipalId: "user-local",
           createdByPrincipalId: "user-local",
-          label: String(req.body?.label ?? ""),
-          targetUrl: String(req.body?.targetUrl ?? ""),
-          topics: Array.isArray(rawTopics) ? rawTopics.map(String) : [],
+          label,
+          targetUrl,
+          topics,
         },
       });
 
