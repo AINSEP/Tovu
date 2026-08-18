@@ -71,6 +71,7 @@ const V2_TOP_LEVEL_KEYS: ReadonlySet<string> = new Set([
   "defaultMode",
   "pages",
   "slots",
+  "templates",
 ]);
 
 const V2_TIERS: ReadonlySet<string> = new Set(["declarative", "templated", "handlebars", "static", "code"]);
