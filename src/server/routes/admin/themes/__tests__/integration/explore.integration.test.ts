@@ -4,10 +4,13 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
+import type { Response } from "express";
+
 import { discoverAllBuiltInThemes, THEME_CATALOG_DIR } from "#src/features/theme/index";
 import { createApp, createRouteDeps } from "#src/server/app";
 import { bootAuthenticated, loginAsBarePrincipal } from "#src/server/__tests__/helpers/http-test-server";
 import type { RouteDeps } from "#src/server/routes/types";
+import { nextAvailableFileName, renameThemeFileIfChanged } from "../../explore";
 
 /**
  * @file Integration-tier coverage for the theme Explore routes (`explore.ts`) — real composed app
@@ -540,4 +543,523 @@ test("explore: a compiled theme with no catalog original 409s NO_ORIGINAL on res
   });
   assert.equal(res.status, 409);
   assert.equal(((await res.json()) as { code?: string }).code, "NO_ORIGINAL");
+});
+
+/**
+ * Everything below closes real INTEGRATION-tier branch-coverage gaps found by an offset-level V8
+ * audit against ONLY this file's own tests (the unit-tier `explore-*-route-branches.test.ts` suite
+ * covers much of this same logic, but its coverage doesn't count for the integration tier, which is
+ * measured from a separate `node --test` run). Grouped by technique, not by route.
+ */
+
+// --- authorizeThemeAccess / findThemeOrRespond's own `??""` fallbacks -----------------------------
+// `String(req.params.workspaceId ?? "")` / `String(req.params.themeId ?? "")` can never see an
+// `undefined` param through a REAL request: Express's own router guarantees every `:workspaceId`/
+// `:themeId` segment is populated whenever this handler is dispatched to at all (a request that
+// doesn't match a `:themeId` segment 404s from the router itself, before this code runs). The only
+// way to genuinely execute the `??` side is to reach into the REAL composed app's router stack and
+// call the registered handler directly with a hand-built `req` -- same technique already established
+// by `create-delete-pause.integration.test.ts` for the identical shape of gap on a different route.
+
+interface ExpressHandlerLayer {
+  route?: { path: string; stack: { handle: (req: unknown, res: unknown) => unknown }[] };
+}
+interface ExpressAppWithRouter {
+  _router: { stack: ExpressHandlerLayer[] };
+}
+
+function extractHandler(app: ReturnType<typeof createApp>, routePath: string): (req: unknown, res: unknown) => unknown {
+  const stack = (app as unknown as ExpressAppWithRouter)._router.stack;
+  const layer = stack.find((l) => l.route?.path === routePath);
+  if (!layer?.route) throw new Error(`route '${routePath}' was not found in the router stack`);
+  return layer.route.stack[0].handle;
+}
+
+function fakeExpressRes(): { res: unknown; getStatus: () => number | undefined; getBody: () => unknown } {
+  let statusCode: number | undefined;
+  let body: unknown;
+  const res = {
+    locals: { principal: { id: "forced-input-test-principal" } },
+    status(code: number) {
+      statusCode = code;
+      return res;
+    },
+    json(payload: unknown) {
+      body = payload;
+      return res;
+    },
+  };
+  return { res, getStatus: () => statusCode, getBody: () => body };
+}
+
+const DETAIL_ROUTE_PATH = "/api/admin/v1/workspaces/:workspaceId/themes/:themeId";
+
+test("explore: authorizeThemeAccess's `req.params.workspaceId ?? \"\"` fallback, forced via a direct handler call on the REAL composed app (Express itself can never leave a required :workspaceId segment unset) -- still 404s as 'workspace was not found'", async () => {
+  const themesDir = makeThemesRoot();
+  const app = createApp(testDeps(themesDir));
+  const handler = extractHandler(app, DETAIL_ROUTE_PATH);
+  const { res, getStatus, getBody } = fakeExpressRes();
+
+  await handler({ params: {} }, res);
+
+  assert.equal(getStatus(), 404);
+  assert.deepEqual(getBody(), { error: "workspace was not found" });
+});
+
+test("explore: findThemeOrRespond's `req.params.themeId ?? \"\"` fallback, forced via a direct handler call with a correct workspaceId but an absent themeId param -- 404s 'theme \\'\\' was not found'", async () => {
+  const themesDir = makeThemesRoot();
+  const app = createApp(testDeps(themesDir, { authorize: async () => ({ allowed: true, reason: "forced" }) }));
+  const handler = extractHandler(app, DETAIL_ROUTE_PATH);
+  const { res, getStatus, getBody } = fakeExpressRes();
+
+  await handler({ params: { workspaceId: WORKSPACE_ID } }, res);
+
+  assert.equal(getStatus(), 404);
+  assert.deepEqual(getBody(), { error: "theme '' was not found" });
+});
+
+// --- each non-detail route's OWN early-return branches --------------------------------------------
+// `registerAdminThemeDetailRoute` already exercises both its own auth-failure and theme-not-found
+// early returns (top of this file). Each of the other five routes has its OWN, separately-compiled
+// copies of the same two `if (...) return;` checks -- covering them on the detail route does not
+// cover them on GET-file/PUT/RESET/COPY/RENAME.
+
+test("explore: GET file 404s on a mismatched workspaceId", async (t) => {
+  const themesDir = makeThemesRoot();
+  const app = createApp(testDeps(themesDir));
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/not-real/themes/${THEME_ID}/file?path=style.css`, { headers: { cookie } });
+  assert.equal(res.status, 404);
+});
+
+test("explore: GET file 404s on an unknown theme id", async (t) => {
+  const themesDir = makeThemesRoot();
+  const app = createApp(testDeps(themesDir));
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/themes/does-not-exist/file?path=style.css`, {
+    headers: { cookie },
+  });
+  assert.equal(res.status, 404);
+});
+
+test("explore: PUT file 404s on a mismatched workspaceId", async (t) => {
+  const themesDir = makeThemesRoot();
+  const app = createApp(testDeps(themesDir));
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/not-real/themes/${THEME_ID}/file`, {
+    method: "PUT",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ path: "style.css", content: "x" }),
+  });
+  assert.equal(res.status, 404);
+});
+
+test("explore: PUT file 404s on an unknown theme id", async (t) => {
+  const themesDir = makeThemesRoot();
+  const app = createApp(testDeps(themesDir));
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/themes/does-not-exist/file`, {
+    method: "PUT",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ path: "style.css", content: "x" }),
+  });
+  assert.equal(res.status, 404);
+});
+
+test("explore: reset 404s on a mismatched workspaceId", async (t) => {
+  const themesDir = makeThemesRoot();
+  const app = createApp(testDeps(themesDir));
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/not-real/themes/${THEME_ID}/file/reset`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ path: "style.css" }),
+  });
+  assert.equal(res.status, 404);
+});
+
+test("explore: reset 404s on an unknown theme id", async (t) => {
+  const themesDir = makeThemesRoot();
+  const app = createApp(testDeps(themesDir));
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/themes/does-not-exist/file/reset`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ path: "style.css" }),
+  });
+  assert.equal(res.status, 404);
+});
+
+test("explore: copy 404s on a mismatched workspaceId", async (t) => {
+  const themesDir = makeThemesRoot();
+  const app = createApp(testDeps(themesDir));
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/not-real/themes/${THEME_ID}/file/copy`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ path: "style.css" }),
+  });
+  assert.equal(res.status, 404);
+});
+
+test("explore: copy 404s on an unknown theme id", async (t) => {
+  const themesDir = makeThemesRoot();
+  const app = createApp(testDeps(themesDir));
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/themes/does-not-exist/file/copy`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ path: "style.css" }),
+  });
+  assert.equal(res.status, 404);
+});
+
+test("explore: rename 404s on a mismatched workspaceId", async (t) => {
+  const themesDir = makeThemesRoot();
+  const app = createApp(testDeps(themesDir));
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/not-real/themes/${THEME_ID}/file/rename`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ path: "style.css", name: "main.css" }),
+  });
+  assert.equal(res.status, 404);
+});
+
+test("explore: rename 404s on an unknown theme id", async (t) => {
+  const themesDir = makeThemesRoot();
+  const app = createApp(testDeps(themesDir));
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/themes/does-not-exist/file/rename`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ path: "style.css", name: "main.css" }),
+  });
+  assert.equal(res.status, 404);
+});
+
+// --- GET file's own `String(req.query.path ?? "")` fallback ---------------------------------------
+
+test("explore: GET file with no ?path= query at all 400s 'path is required' via the route's own query-param fallback", async (t) => {
+  const themesDir = makeThemesRoot();
+  const app = createApp(testDeps(themesDir));
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}${BASE}/file`, { headers: { cookie } });
+  assert.equal(res.status, 400);
+  const body = (await res.json()) as { error: string; code: string };
+  assert.equal(body.code, "INVALID_THEME_PATH");
+  assert.equal(body.error, "path is required");
+});
+
+// --- PUT with an entirely absent body (no content-type at all) -- bodyRecord's `??{}`, ------------
+// bodyStringField's `??""`, and parseThemeFilePutBody's `{ ok: false }` all fire together, since
+// `req.body` itself (not just one field) is `undefined` when express.json() never runs.
+
+test("explore: PUT with no body/content-type at all 400s INVALID_BODY -- bodyRecord's own `??{}` fallback fires because req.body itself is undefined, not just a missing field", async (t) => {
+  const themesDir = makeThemesRoot();
+  const app = createApp(testDeps(themesDir));
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}${BASE}/file`, { method: "PUT", headers: { cookie } });
+  assert.equal(res.status, 400);
+  const body = (await res.json()) as { error: string; code: string };
+  assert.equal(body.code, "INVALID_BODY");
+  assert.equal(body.error, "content must be a string");
+});
+
+// --- RESET / COPY refusing a `preview/` path on an ORDINARY (authored) theme -----------------------
+// via their OWN `isGeneratedThemePath` check, distinct from `resolveThemeFileWriteScope`'s
+// "generated-readonly" outcome (already covered above for a COMPILED theme). An authored theme's
+// `resolveThemeFileWriteScope` always resolves "editable", so THIS is the only check that can refuse
+// a `preview/...` path for it.
+
+test("explore: reset of a 'preview/...' path on an ordinary (authored) theme is refused 409 via isGeneratedThemePath, not resolveThemeFileWriteScope", async (t) => {
+  const themesDir = makeThemesRoot();
+  const app = createApp(testDeps(themesDir));
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}${BASE}/file/reset`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ path: "preview/x.css" }),
+  });
+  assert.equal(res.status, 409);
+  const body = (await res.json()) as { error: string; code: string };
+  assert.equal(body.code, "READ_ONLY_FILE");
+  assert.equal(body.error, "'preview/x.css' is generated output and cannot be reset here");
+});
+
+test("explore: copy of a 'preview/...' path on an ordinary (authored) theme is refused 409 via isGeneratedThemePath", async (t) => {
+  const themesDir = makeThemesRoot();
+  const app = createApp(testDeps(themesDir));
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}${BASE}/file/copy`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ path: "preview/x.css" }),
+  });
+  assert.equal(res.status, 409);
+  const body = (await res.json()) as { error: string; code: string };
+  assert.equal(body.code, "READ_ONLY_FILE");
+  assert.equal(body.error, "'preview/x.css' is generated output and cannot be copied");
+});
+
+// --- RESET's per-file "no stored original" 409, distinct from handleGeneratedTreeReset's own -------
+// ThemePathError of the same code: this is the AUTHORED-theme per-file path's own `!existsSync(catalogDir)`
+// check, reached only when the theme has NO catalog counterpart at all.
+
+test("explore: reset on an authored theme with no catalog counterpart at all 409s NO_ORIGINAL via the per-file existsSync(catalogDir) check", async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-explore-integration-no-catalog-"));
+  const id = "fixture-no-catalog";
+  const live = path.join(root, "static", id);
+  fs.mkdirSync(path.join(live, "pages"), { recursive: true });
+  fs.writeFileSync(
+    path.join(live, "theme.json"),
+    JSON.stringify({ id, name: "No Catalog", version: "1.0.0", tier: "static", engine: 1 }),
+    "utf8"
+  );
+  fs.writeFileSync(path.join(live, "tokens.json"), "{}", "utf8");
+  fs.writeFileSync(path.join(live, "pages", "index.html"), "<h1>Home</h1>", "utf8");
+  fs.writeFileSync(path.join(live, "style.css"), "body{}", "utf8");
+
+  const app = createApp(testDeps(root));
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${WORKSPACE_ID}/themes/${id}/file/reset`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ path: "style.css" }),
+  });
+  assert.equal(res.status, 409);
+  const body = (await res.json()) as { error: string; code: string };
+  assert.equal(body.code, "NO_ORIGINAL");
+  assert.equal(body.error, `theme '${id}' has no stored original, so nothing can be reset`);
+});
+
+// --- readOriginalForReset's own catch-and-rethrow, and RESET's outer catch -------------------------
+// A permission-denied READ of the CATALOG file (not the live one) throws a plain fs error, not a
+// ThemePathError -- readOriginalForReset's own `if (err instanceof ThemePathError)` is false, so it
+// re-throws, and that propagates to the route's own outer `catch (err) { sendThemeFileError(res, err) }`.
+
+test("explore: reset with an unreadable catalog file 500s via readOriginalForReset's own rethrow into the route's outer catch (not NOT_IN_ORIGINAL)", async (t) => {
+  const themesDir = makeThemesRoot();
+  const catalogFile = path.join(themesDir, THEME_CATALOG_DIR, "static", THEME_ID, "style.css");
+  fs.chmodSync(catalogFile, 0o000);
+  t.after(() => fs.chmodSync(catalogFile, 0o644));
+
+  const app = createApp(testDeps(themesDir));
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}${BASE}/file/reset`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ path: "style.css" }),
+  });
+  if (process.getuid && process.getuid() === 0) {
+    t.skip("running as root: chmod 000 does not deny root a read");
+    return;
+  }
+  assert.equal(res.status, 500);
+  const body = (await res.json()) as { error: string };
+  assert.equal(body.error, "internal error");
+});
+
+// --- handleGeneratedTreeReset's own catch-and-rethrow -----------------------------------------------
+// Same shape, on the BUILT-theme generated-tree restore path: an unreadable CATALOG generated file
+// makes `restoreBuiltThemeGeneratedTree`'s own `copyFileSync` throw a plain fs error, which
+// `handleGeneratedTreeReset`'s `if (err instanceof ThemePathError)` does not match, so it re-throws
+// into the same outer route catch.
+
+test("explore: reset of a built theme with an unreadable catalog generated file 500s via handleGeneratedTreeReset's own rethrow", async (t) => {
+  const themesDir = makeCompiledThemesRoot();
+  const catalogGeneratedFile = path.join(themesDir, THEME_CATALOG_DIR, "static", COMPILED_ID, "pages", "index.html");
+  fs.chmodSync(catalogGeneratedFile, 0o000);
+  t.after(() => fs.chmodSync(catalogGeneratedFile, 0o644));
+
+  const app = createApp(testDeps(themesDir));
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}${COMPILED_BASE}/file/reset`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ path: "pages/index.html" }),
+  });
+  if (process.getuid && process.getuid() === 0) {
+    t.skip("running as root: chmod 000 does not deny root a read");
+    return;
+  }
+  assert.equal(res.status, 500);
+  const body = (await res.json()) as { error: string };
+  assert.equal(body.error, "internal error");
+});
+
+// --- RENAME's remaining branches --------------------------------------------------------------------
+
+test("explore: renaming a script (.js) file on an ordinary theme is refused 409 READ_ONLY_FILE via validateRenameSource's isRenameSourceAllowed check", async (t) => {
+  const themesDir = makeThemesRoot();
+  fs.writeFileSync(path.join(themesDir, "static", THEME_ID, "app.js"), "console.log(1);", "utf8");
+  const app = createApp(testDeps(themesDir));
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}${BASE}/file/rename`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ path: "app.js", name: "app2.js" }),
+  });
+  assert.equal(res.status, 409);
+  const body = (await res.json()) as { error: string; code: string };
+  assert.equal(body.code, "READ_ONLY_FILE");
+  assert.equal(body.error, "'app.js' is read-only in Explore and cannot be renamed");
+});
+
+test("explore: renaming a file inside a built theme's sourceDir succeeds -- isRenameSourceAllowed's isSourceDirWritableExtension branch", async (t) => {
+  const themesDir = makeCompiledThemesRoot();
+  const app = createApp(testDeps(themesDir));
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}${COMPILED_BASE}/file/rename`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ path: "src/Header.tsx", name: "Header2.tsx" }),
+  });
+  assert.equal(res.status, 200, await res.text());
+  assert.ok(fs.existsSync(path.join(themesDir, "static", COMPILED_ID, "src", "Header2.tsx")));
+});
+
+test("explore: renaming to an empty name is refused 400 INVALID_NAME ('name is required')", async (t) => {
+  const themesDir = makeThemesRoot();
+  const app = createApp(testDeps(themesDir));
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}${BASE}/file/rename`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ path: "style.css", name: "" }),
+  });
+  assert.equal(res.status, 400);
+  const body = (await res.json()) as { error: string; code: string };
+  assert.equal(body.code, "INVALID_NAME");
+  assert.equal(body.error, "name is required");
+});
+
+test("explore: renaming to a name containing a path separator is refused 400 INVALID_NAME", async (t) => {
+  const themesDir = makeThemesRoot();
+  const app = createApp(testDeps(themesDir));
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}${BASE}/file/rename`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ path: "style.css", name: "sub/dir.css" }),
+  });
+  assert.equal(res.status, 400);
+  const body = (await res.json()) as { error: string; code: string };
+  assert.equal(body.code, "INVALID_NAME");
+  assert.equal(body.error, "name 'sub/dir.css' must be a plain filename in the same folder, not a path");
+});
+
+test("explore: renaming a file inside a subfolder keeps the same folder -- the path-join branch taken when sourcePath has a slash", async (t) => {
+  const themesDir = makeThemesRoot();
+  fs.writeFileSync(path.join(themesDir, "static", THEME_ID, "pages", "about.html"), "<h1>About</h1>", "utf8");
+  const app = createApp(testDeps(themesDir));
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}${BASE}/file/rename`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ path: "pages/about.html", name: "about2.html" }),
+  });
+  assert.equal(res.status, 200, await res.text());
+  assert.ok(fs.existsSync(path.join(themesDir, "static", THEME_ID, "pages", "about2.html")));
+});
+
+// --- fileExtension's no-extension branch, via a compiled theme's sourceDir extension gate ----------
+
+test("explore: PUT of an extensionless file inside a built theme's sourceDir is refused 403 -- fileExtension's no-extension branch feeding isSourceDirWritableExtension", async (t) => {
+  const themesDir = makeCompiledThemesRoot();
+  const app = createApp(testDeps(themesDir));
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}${COMPILED_BASE}/file`, {
+    method: "PUT",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ path: "src/README", content: "hello" }),
+  });
+  assert.equal(res.status, 403);
+  const body = (await res.json()) as { code: string };
+  assert.equal(body.code, "READ_ONLY_FILE");
+});
+
+// --- nextAvailableFileName's remaining branches, exercised via a direct call -----------------------
+// The COPY route ONLY ever calls this with `desiredPath: sourcePath`, and `sourcePath` is always
+// already validated to be IN `existingPaths` (the route 404s beforehand otherwise) -- so
+// `!existingPaths.has(desiredPath)` (the immediate no-collision return) can never be true through the
+// real route, and neither can the `hasExt === false` ternary branches unless the colliding file
+// itself has no extension, which the route's own fixtures never happen to exercise either. This
+// EXPORTED pure helper is the approved seam: a direct call with a non-colliding, extensionless
+// `desiredPath` covers all three; a second call with two pre-existing collisions covers the
+// while-loop's own retry body (`suffix += 1`), which the existing COPY test never forces because its
+// very first candidate is already free.
+
+test("nextAvailableFileName: a non-colliding, extensionless desired path returns unchanged -- immediate-return and hasExt===false branches, unreachable through the real COPY route", () => {
+  const result = nextAvailableFileName({ desiredPath: "newfile", existingPaths: new Set() });
+  assert.equal(result, "newfile");
+});
+
+test("nextAvailableFileName: two pre-existing collisions force a second suffix -- the while-loop's own retry body", () => {
+  const result = nextAvailableFileName({
+    desiredPath: "style.css",
+    existingPaths: new Set(["style.css", "style-1.css"]),
+  });
+  assert.equal(result, "style-2.css");
+});
+
+// --- renameThemeFileIfChanged's destWriteScope generated-readonly branch, exercised via a direct call
+// The route's own `name` validation (no `/`/`\\`) guarantees destPath always shares sourcePath's
+// folder, so destPath's write-scope is provably identical to sourcePath's already-checked one -- this
+// function's own doc calls the check "defense-in-depth, not currently reachable through THIS route".
+// Calling the EXPORTED function directly with a deliberately mismatched destPath (impossible to
+// construct through the real route) is the only way to exercise it.
+
+test("renameThemeFileIfChanged: a destPath resolving into a built theme's generated tree is refused 409 GENERATED_READONLY -- defense-in-depth, only reachable via a direct call", async () => {
+  const themesDir = makeCompiledThemesRoot();
+  const deps = testDeps(themesDir);
+  const theme = deps.themes.find((t) => t.manifest.id === COMPILED_ID);
+  assert.ok(theme);
+
+  let statusCode: number | undefined;
+  let jsonBody: unknown;
+  const res = {
+    status(code: number) {
+      statusCode = code;
+      return res;
+    },
+    json(payload: unknown) {
+      jsonBody = payload;
+      return res;
+    },
+  } as unknown as Response;
+
+  const changed = renameThemeFileIfChanged(
+    deps,
+    theme!,
+    { sourcePath: "src/Header.tsx", destPath: "preview/Header.tsx", name: "Header.tsx" },
+    new Set(["src/Header.tsx"]),
+    res
+  );
+
+  assert.equal(changed, false);
+  assert.equal(statusCode, 409);
+  assert.equal((jsonBody as { code: string }).code, "GENERATED_READONLY");
 });
