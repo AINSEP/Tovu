@@ -61,6 +61,28 @@ export {
   type MigrateThemeResult,
 } from "./migration/migrate-theme";
 
+// Milestone 5 (2026-08-18) — the generated root `index.html` portability snapshot for a `static`-tier
+// theme, same deep-import-avoidance reasoning as Milestones 2/3's exports just above.
+export {
+  buildStaticPortabilityIndex,
+  generateStaticPortabilityIndex,
+  STATIC_PORTABILITY_INDEX_FILENAME,
+  type GenerateStaticPortabilityIndexResult,
+} from "./static-portability-index";
+
+// Milestone 4 (2026-08-18) — the code-tier build-output normalizer's public entry point (Angular
+// `ng build` → Tovu static-asset-contract shape), same deep-import-avoidance reasoning as Milestones
+// 2/3/5's exports just above.
+export {
+  normalizeBuildOutputDirectory,
+  planAssetRelocation,
+  rewriteBundlerHtml,
+  rewriteCssRelativeUrls,
+  type AssetRelocation,
+  type AssetRelocationPlan,
+  type NormalizeBuildOutputResult,
+} from "./code-tier-asset-normalizer";
+
 export {
   renderStaticPage,
   renderStaticPartial,
