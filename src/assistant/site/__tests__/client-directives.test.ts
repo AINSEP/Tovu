@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { detectsExplicitNavigationIntent, resolvePublicTarget } from "../client-directives";
+import { listPublishedPosts } from "../../../features/post";
 
 /**
  * SPEC-046 REQ-6/REQ-8 (`resolvePublicTarget`) and D-1 (`detectsExplicitNavigationIntent`). The
@@ -49,32 +50,44 @@ function fakePort(rows: FakeRow[] = ROWS) {
   return { list: async () => rows as never };
 }
 
+/**
+ * Shared deps base for every `resolvePublicTarget` call below — its deps param now injects
+ * `listPublishedPosts` (see that function's own doc for why), so every call site needs it. Uses the
+ * REAL `features/post` export directly rather than a fake, for the same reason `tools.test.ts` does:
+ * test files are exempt from `check:architecture`'s module-cycle graph, and this file's whole point
+ * is proving the real predicate's behavior through this resolver.
+ */
+type ResolveDeps = Parameters<typeof resolvePublicTarget>[0];
+function makeDeps(overrides: Partial<ResolveDeps> & Pick<ResolveDeps, "postRepo">): ResolveDeps {
+  return { workspaceId: "ws", listPublishedPosts, ...overrides };
+}
+
 describe("resolvePublicTarget", () => {
   it("resolves a published slug to its slug/title/path", async () => {
-    const target = await resolvePublicTarget({ postRepo: fakePort(), workspaceId: "ws" }, "public-post");
+    const target = await resolvePublicTarget(makeDeps({ postRepo: fakePort() }), "public-post");
     assert.deepEqual(target, { slug: "public-post", title: "Public Post", path: "/public-post" });
   });
 
   it("path is always /<slug> — never a URL taken from anything upstream", async () => {
-    const target = await resolvePublicTarget({ postRepo: fakePort(), workspaceId: "ws" }, "public-post");
+    const target = await resolvePublicTarget(makeDeps({ postRepo: fakePort() }), "public-post");
     assert.equal(target?.path, "/public-post");
   });
 
   it("returns null for a draft slug", async () => {
-    assert.equal(await resolvePublicTarget({ postRepo: fakePort(), workspaceId: "ws" }, "secret-draft"), null);
+    assert.equal(await resolvePublicTarget(makeDeps({ postRepo: fakePort() }), "secret-draft"), null);
   });
 
   it("returns null for a trashed-but-status-published slug (deletedAt independent of status)", async () => {
-    assert.equal(await resolvePublicTarget({ postRepo: fakePort(), workspaceId: "ws" }, "taken-down"), null);
+    assert.equal(await resolvePublicTarget(makeDeps({ postRepo: fakePort() }), "taken-down"), null);
   });
 
   it("returns null for a slug that does not exist", async () => {
-    assert.equal(await resolvePublicTarget({ postRepo: fakePort(), workspaceId: "ws" }, "no-such-slug"), null);
+    assert.equal(await resolvePublicTarget(makeDeps({ postRepo: fakePort() }), "no-such-slug"), null);
   });
 
   it("returns null for a non-string or empty slug rather than throwing", async () => {
     for (const bad of [undefined, null, 42, {}, [], "", "   "]) {
-      assert.equal(await resolvePublicTarget({ postRepo: fakePort(), workspaceId: "ws" }, bad), null, `${JSON.stringify(bad)} must refuse`);
+      assert.equal(await resolvePublicTarget(makeDeps({ postRepo: fakePort() }), bad), null, `${JSON.stringify(bad)} must refuse`);
     }
   });
 
@@ -89,7 +102,7 @@ describe("resolvePublicTarget", () => {
       "../../etc/passwd",
     ];
     for (const slug of adversarial) {
-      assert.equal(await resolvePublicTarget({ postRepo: fakePort(), workspaceId: "ws" }, slug), null, `"${slug}" must refuse`);
+      assert.equal(await resolvePublicTarget(makeDeps({ postRepo: fakePort() }), slug), null, `"${slug}" must refuse`);
     }
   });
 
@@ -101,7 +114,7 @@ describe("resolvePublicTarget", () => {
         return ROWS as never;
       },
     };
-    await resolvePublicTarget({ postRepo: port as never, workspaceId: "ws-42" }, "public-post");
+    await resolvePublicTarget(makeDeps({ postRepo: port as never, workspaceId: "ws-42" }), "public-post");
     assert.deepEqual(calls[0], { workspaceId: "ws-42" });
   });
 });

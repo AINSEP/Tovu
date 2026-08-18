@@ -5,6 +5,7 @@ import { contributeDeploymentsTools } from "../features/deployments/tool-registr
 import { contributeEntriesTools } from "../features/entries/tool-registrations";
 import { contributePagesTools } from "../features/pages/tool-registrations";
 import { contributePluginsTools } from "../features/plugin-runtime/tool-registrations";
+import { contributePostTools } from "../features/post/tool-registrations";
 import { contributeRecoveryTools } from "../features/recovery/tool-registrations";
 import { contributeTaxonomyTools } from "../features/taxonomy/tool-registrations";
 import { contributeThemesTools } from "../features/theme/tool-registrations";
@@ -78,22 +79,18 @@ import { buildSettingsRegistrations, settingsDerivedRisk } from "../features/set
  * lockstep, not independently: `check:architecture`'s module graph is per-directory, and both live in
  * the same `features/deployments` module, so either one alone (with the other still value-imported
  * from `assistant`) still closes a live 2-module `[assistant, features/deployments]` cycle. `themes`
- * is the 24th and last of this pass, retried once `deployments`/`static-publish` left `assistant`
+ * is the 24th of this pass, retried once `deployments`/`static-publish` left `assistant`
  * without any transitive path into `export` (see `features/theme/tool-registrations.ts`'s own header
- * for the full trace, including the two prior reverts). `post` remains the sole holdout — see that
- * domain's own entry in `assistant/tool-registrations.ts`'s `DOMAIN_SLICES` array for its current
- * status; it is checked for the same conversion below only once its own blocker is confirmed clear,
- * not assumed clear just because `themes` shared part of the same chain. The rest still wire
- * through `assistant/tool-registrations.ts`'s own `DOMAIN_SLICES` array, unchanged — see that file's header
- * for why (its own array still names exactly which domains those are, with a comment on each
- * reverted one explaining the specific cycle it closed).
- * A later pass converts the rest the same way, checking for this same "does anything else depend on
- * me" shape per domain first — and, per Stage 2 batch 2's own finding, checking it precisely (value
- * vs. `import type`, since only value imports participate in the runtime-only cycle graph) rather
- * than by a plain importer grep alone, since a domain can look clean by a direct-importer check yet
- * still close a cycle through a VALUE-importing intermediate module that is itself still statically
- * wired here. Nothing about this file's shape changes when a later pass converts more domains, only
- * its import list and the body of `installFirstPartyToolContributors` grow.
+ * for the full trace, including the two prior reverts). `post` is the 25th and last domain of this
+ * entire rollout, retried a third time once `themes` cleared the `export`/`vendor-credentials`
+ * cluster and landing on a smaller, previously-undocumented `[assistant, features/post]` cycle caused
+ * by `assistant/site/tools.ts`/`assistant/site/client-directives.ts` value-importing
+ * `listPublishedPosts` directly — resolved by injecting that function into both files' deps instead
+ * (see `ADS-memory/reports/architecture/2026-08-17-post-listpublishedposts-design-options.md` and
+ * `features/post/tool-registrations.ts`'s own header for the full trace). `check:architecture`
+ * confirms 0 module cycles / largest SCC 0 with all 25 domains converted this way — no domain still
+ * wires through `assistant/tool-registrations.ts`'s own `DOMAIN_SLICES` array (that file's array is
+ * now empty of first-party domains save the two env-gated demo stubs; see its own header).
  *
  * Idempotent: `registerToolContributor` (what each `contribute<Domain>Tools()` call ultimately
  * calls) replaces an existing entry by domain key rather than appending, so calling this function
@@ -148,6 +145,7 @@ export function installFirstPartyToolContributors(): void {
   contributeNewsletterTools();
   contributePagesTools();
   contributePluginsTools();
+  contributePostTools();
   contributeRecoveryTools();
   contributeRedirectsTools();
   contributeSeoTools();
