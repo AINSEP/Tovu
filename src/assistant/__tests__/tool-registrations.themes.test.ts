@@ -10,6 +10,15 @@ import { getThemesAgentToolCatalog, type AgentToolDefinition } from "../../featu
 import { discoverAllBuiltInThemes } from "../../features/theme";
 import type { RouteDeps } from "../../server/routes/types";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations";
+import { resetToolContributorsForTests } from "../tool-contribution-registry";
+import { contributeThemesTools } from "../../features/theme/tool-registrations";
+
+// Themes moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
+// tool-contribution registry (2026-08-17 — see `features/theme/tool-registrations.ts`'s header), so
+// `buildAssistantToolRegistrations` below no longer wires it unless something explicitly installs it
+// first, mirroring what the real composition roots now do via `installFirstPartyToolContributors()`.
+resetToolContributorsForTests();
+contributeThemesTools();
 
 /**
  * @file Covers all 4 Themes catalog entries (all wired): catalog completeness, published contracts,

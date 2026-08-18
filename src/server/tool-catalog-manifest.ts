@@ -7,6 +7,7 @@ import { contributePagesTools } from "../features/pages/tool-registrations";
 import { contributePluginsTools } from "../features/plugin-runtime/tool-registrations";
 import { contributeRecoveryTools } from "../features/recovery/tool-registrations";
 import { contributeTaxonomyTools } from "../features/taxonomy/tool-registrations";
+import { contributeThemesTools } from "../features/theme/tool-registrations";
 import { contributeWorkspaceTools } from "../features/workspace/tool-registrations";
 import { contributeFormsTools } from "../forms/tool-registrations";
 import { contributeIdentityTools } from "../identity/tool-registrations";
@@ -41,7 +42,7 @@ import { buildSettingsRegistrations, settingsDerivedRisk } from "../features/set
  * throughout `server/deps.ts`/`server/app.ts` — this file adds no new module-level edge that did not
  * already exist, it just adds one more file-level reason for edges that were already there.
  *
- * 23 of the ~24 assistant-wired domains are listed here today (2026-08-17: `comments`/`newsletter`
+ * 24 of the ~24 assistant-wired domains are listed here today (2026-08-17: `comments`/`newsletter`
  * from Stage 1 of the registry rollout; `identity`/`members`/`taxonomy`/`redirects` added in Stage 2
  * batch 1 — `themes` was also tried in that batch and reverted, see
  * `assistant/tool-registrations.ts`'s header for why; Stage 2 batch 2 (run as two parallel worker
@@ -76,17 +77,16 @@ import { buildSettingsRegistrations, settingsDerivedRisk } from "../features/set
  * `features/deployments/tool-registrations.ts`'s own header for the full trace). The two convert in
  * lockstep, not independently: `check:architecture`'s module graph is per-directory, and both live in
  * the same `features/deployments` module, so either one alone (with the other still value-imported
- * from `assistant`) still closes a live 2-module `[assistant, features/deployments]` cycle. The rest
- * still wire
+ * from `assistant`) still closes a live 2-module `[assistant, features/deployments]` cycle. `themes`
+ * is the 24th and last of this pass, retried once `deployments`/`static-publish` left `assistant`
+ * without any transitive path into `export` (see `features/theme/tool-registrations.ts`'s own header
+ * for the full trace, including the two prior reverts). `post` remains the sole holdout — see that
+ * domain's own entry in `assistant/tool-registrations.ts`'s `DOMAIN_SLICES` array for its current
+ * status; it is checked for the same conversion below only once its own blocker is confirmed clear,
+ * not assumed clear just because `themes` shared part of the same chain. The rest still wire
  * through `assistant/tool-registrations.ts`'s own `DOMAIN_SLICES` array, unchanged — see that file's header
  * for why (its own array still names exactly which domains those are, with a comment on each
- * reverted one explaining the specific cycle it closed). `post` was also tried and reverted the same
- * night as Stage 1: converting it opened a NEW module cycle (`assistant -> widgets -> features/post
- * -> assistant`, since `widgets`/`export` both depend on `post` while `assistant` still statically
- * depended on `widgets`) — see `features/post/tool-registrations.ts`'s trailing comment. `widgets`'
- * own later conversion (Stage 2 batch 2) closes the `widgets` half of that risk, but `export` still
- * depends on `post` and `assistant` still reaches `export` transitively through the still-static
- * `deployments`/`source-control` entries, so `post` stays unconverted and out of scope regardless.
+ * reverted one explaining the specific cycle it closed).
  * A later pass converts the rest the same way, checking for this same "does anything else depend on
  * me" shape per domain first — and, per Stage 2 batch 2's own finding, checking it precisely (value
  * vs. `import type`, since only value imports participate in the runtime-only cycle graph) rather
@@ -155,6 +155,7 @@ export function installFirstPartyToolContributors(): void {
   contributeSourceControlTools();
   contributeStaticPublishTools();
   contributeTaxonomyTools();
+  contributeThemesTools();
   contributeWidgetsTools();
   contributeWorkspaceTools();
 }

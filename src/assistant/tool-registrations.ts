@@ -154,11 +154,7 @@ import type { PagesToolDeps } from "../features/pages/tool-registrations";
 import type { RecoveryToolDeps } from "../features/recovery/tool-registrations";
 import type { SettingsToolDeps } from "../features/settings/tool-registrations";
 import type { TaxonomyToolDeps } from "../features/taxonomy/tool-registrations";
-import {
-  buildThemesRegistrations,
-  themesDerivedRisk,
-  type ThemeToolDeps,
-} from "../features/theme/tool-registrations";
+import type { ThemeToolDeps } from "../features/theme/tool-registrations";
 import type { WorkspaceToolDeps } from "../features/workspace/tool-registrations";
 import type { FormsToolDeps } from "../forms/tool-registrations";
 import type { IdentityToolDeps } from "../identity/tool-registrations";
@@ -427,13 +423,17 @@ const DOMAIN_SLICES: readonly DomainSlice[] = [
   // `integrations/tool-registrations.ts`'s own header. No longer an entry here; it arrives via
   // `contributeIntegrationsTools()`, installed by `server/tool-catalog-manifest.ts`.
   // `themes` was ALSO tried in the same Stage 2 batch and reverted — see
-  // `features/theme/tool-registrations.ts`'s trailing comment for why: `export/route-manifest.ts`
+  // `features/theme/tool-registrations.ts`'s own header for the full trace: `export/route-manifest.ts`
   // imports `features/theme` via a `#src/*` subpath import (invisible to a relative-path importer
-  // grep), and `assistant` already reaches `export` transitively through the still-static
-  // `deployments`/`source-control` entries below, so a `themes -> assistant` registry edge closed a
-  // NEW 6-module cycle: `assistant, export, features/deployments, features/source-control,
-  // features/theme, features/vendor-credentials`.
-  { domain: "themes", build: buildThemesRegistrations, risk: themesDerivedRisk },
+  // grep), and `assistant` reached `export` transitively through the then-still-static
+  // `deployments`/`source-control` entries, so a `themes -> assistant` registry edge closed a NEW
+  // 6-module cycle: `assistant, export, features/deployments, features/source-control,
+  // features/theme, features/vendor-credentials`. Retried later the same session once
+  // `source-control` converted — SCC shrank to 5 modules but did not clear (`deployments` still
+  // static). Retried and landed once `deployments`/`static-publish` ALSO converted (see their own
+  // entries above): `check:architecture` confirms 0 module cycles / largest SCC 0 with Themes wired
+  // this way. No longer an entry here; it arrives via `contributeThemesTools()`, installed by
+  // `server/tool-catalog-manifest.ts`.
   // Last, and empty unless TOVU_ENABLE_DEMO_TOOLS is set — development-only surfaces for
   // exercising a transport in a real chat pane. See each one's own module doc for why it is a tool
   // rather than a test page, and why the gate is an env var.
