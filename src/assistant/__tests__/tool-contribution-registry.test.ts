@@ -29,6 +29,7 @@ import {
 } from "../tool-contribution-registry";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations";
 import { commentsAgentToolCatalog } from "../../comments/agent-tools";
+import { DEMO_CHOICES_TOOL_ID } from "../demo-choices-tool";
 
 /** A minimal, valid `ToolRegistration` — enough to satisfy `buildAssistantToolRegistrations`'s own
  *  bookkeeping (it only reads `descriptor.id`); no test here executes a handler. */
@@ -222,19 +223,33 @@ test("two registry contributors claiming the same tool id fail buildAssistantToo
 });
 
 test("a registry contributor colliding with a legacy DOMAIN_SLICES id fails the same way — the check does not care which seam registered which side", () => {
-  // `content_post_list` is one of the legacy, still-statically-wired `post` domain's ids
-  // (`features/post/tool-registrations.ts`) — colliding a fake contributor against it proves
-  // the duplicate check spans both seams, not just registry-vs-registry or slice-vs-slice. (Was
-  // `workspace_get`, then `database_get_health`, before Stage 2 batch 2 and this dispatch
-  // respectively converted `workspace` and `database` onto the registry — switched again to a
-  // domain that is still genuinely legacy, so this test keeps proving the cross-seam case rather
-  // than silently becoming a registry-vs-registry collision, which the earlier test above already
-  // covers. This test does NOT call `installFirstPartyToolContributors()`, so it does not depend on
-  // `post` staying unconverted forever — it just needs SOME id from a currently-legacy
-  // `DOMAIN_SLICES` entry; whichever domain that is next, update this comment and id together.)
-  registerToolContributor(fakeContributor("impersonator", ["content_post_list"]));
-
-  assert.throws(() => buildAssistantToolRegistrations(createRouteDeps()), /'content_post_list' is registered by both the post and impersonator domains/);
+  // This test needs SOME tool id from a domain still wired the LEGACY way (a `DOMAIN_SLICES` entry),
+  // so that colliding a fake registry contributor against it proves the duplicate check spans BOTH
+  // seams — not just registry-vs-registry, which the test above already covers.
+  //
+  // That id has had to move four times as the rollout advanced: `workspace_get` -> `database_get_health`
+  // -> `content_post_list` -> here. The 2026-08-17 rollout finished at 25/25, which retired the last
+  // real legacy domain (`post`) and left `DOMAIN_SLICES` holding ONLY the two env-gated demo slices.
+  // So `content_post_list` stopped colliding with anything and this test failed against correct code
+  // — a stale test, not a regression, and ours: completing our own rollout is what invalidated it.
+  //
+  // `demo-choices` is now the only non-demo-free option, and it is a genuine `DOMAIN_SLICES` entry,
+  // so the cross-seam property this test exists to prove is still really being proven. It is gated
+  // behind `TOVU_ENABLE_DEMO_TOOLS` (read at registration time, not per call — see
+  // `demo-choices-tool.ts`'s `demoToolsEnabled`), hence the env set/restore below.
+  //
+  // If the demo slices are ever removed too, `DOMAIN_SLICES` becomes empty and the legacy seam
+  // ceases to exist — at which point DELETE this test rather than contriving a fixture for it. A
+  // test that proves a seam still behaves correctly is worthless once there is no seam.
+  const previous = process.env.TOVU_ENABLE_DEMO_TOOLS;
+  process.env.TOVU_ENABLE_DEMO_TOOLS = "1";
+  try {
+    registerToolContributor(fakeContributor("impersonator", [DEMO_CHOICES_TOOL_ID]));
+    assert.throws(() => buildAssistantToolRegistrations(createRouteDeps()), /'assistant_demo_choices' is registered by both the demo-choices and impersonator domains/);
+  } finally {
+    if (previous === undefined) delete process.env.TOVU_ENABLE_DEMO_TOOLS;
+    else process.env.TOVU_ENABLE_DEMO_TOOLS = previous;
+  }
 });
 
 // ---------------------------------------------------------------------------
