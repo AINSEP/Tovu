@@ -1,8 +1,7 @@
 import { MEDIA_PROVIDERS } from "@jini-ai/integrations/media-providers/catalog";
 import type { ClockPort, ISODateTime, UUID } from "@jini-ai/cms/core";
 
-import type { KeyringPort, SecretSealerPort } from "../webhooks/ports";
-import type { SealedSecret } from "../webhooks/types";
+import type { KeyringPort, SealedSecret, SecretSealerPort } from "../webhooks/index";
 
 /**
  * @file Per-workspace media-generation vendor credentials — what the admin's Media → "Media

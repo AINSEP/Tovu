@@ -8,7 +8,7 @@ import { createRouteDeps } from "../app";
 import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth";
 import { createAssistantSettingsModule } from "../modules/assistant-settings";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm";
-import type { KeyringPort } from "../../webhooks/ports";
+import type { KeyringPort } from "../../webhooks/index";
 import type { RouteDeps } from "../routes/types";
 
 /**

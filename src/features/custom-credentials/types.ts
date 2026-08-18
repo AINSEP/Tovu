@@ -1,6 +1,6 @@
 import type { ISODateTime, UUID } from "@jini-ai/cms/core";
 
-import type { SealedSecret } from "../../webhooks/types";
+import type { SealedSecret } from "../../webhooks/index";
 
 /**
  * @file Domain types for `custom_credential_sets` — the admin Access Tokens page's "Add custom

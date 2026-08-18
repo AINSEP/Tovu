@@ -2,7 +2,7 @@ import { AwsClient } from "aws4fetch";
 
 import type { UUID } from "@jini-ai/cms/core";
 
-import type { SecretSealerPort } from "../../../webhooks/ports";
+import type { SecretSealerPort } from "../../../webhooks/index";
 import { resolveForPublish } from "../publish-credentials/store";
 import type { PublishConnectionInput, PublishCredentialSetRepoPort } from "../publish-credentials/types";
 import type { PublishCredentialSource, StaticPublishTargetId } from "./types";

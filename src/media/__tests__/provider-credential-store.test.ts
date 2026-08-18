@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryKeyring } from "../../webhooks/keyring.memory";
-import type { KeyringPort, SecretSealerPort } from "../../webhooks/ports";
+import type { KeyringPort, SecretSealerPort } from "../../webhooks/index";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm";
 import { InMemoryMediaProviderCredentialRepo } from "../provider-credential-store.memory";
 import {

@@ -4,7 +4,7 @@ import test from "node:test";
 import express from "express";
 
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm";
-import type { KeyringPort } from "../../webhooks/ports";
+import type { KeyringPort } from "../../webhooks/index";
 import { readEnabledExternalMcpConfigs } from "../../assistant/external-mcp-store";
 import { createRouteDeps } from "../app";
 import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth";
