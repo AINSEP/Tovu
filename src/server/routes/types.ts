@@ -199,16 +199,285 @@ export interface MediaDeps {
 }
 
 /**
+ * Slice 3 of the `RouteDeps` god-object decomposition (2026-08-18) — the site/admin credential-set
+ * repos and their two shared ADR-058 sealing capabilities, extracted verbatim (fields + doc comments
+ * unchanged) from where they lived inline in `RouteDeps` below.
+ *
+ * All ten fields are secret-adjacent (a sealed connection, a token, or the shared capability that
+ * seals/opens one), but no single consumer reads more than a handful at once: every credential-CRUD
+ * route (`routes/admin/system/{custom,source-control,vendor,publish}-credentials.ts`) reads its OWN
+ * repo plus the two shared sealer/keyring fields, never another route's repo. Narrowed call sites so
+ * far: the four `routes/admin/system/*-credentials.ts` files (each was a bare `RouteDeps` alias
+ * before this slice, now a `Pick<RouteDeps, ...>` naming its own repo + the two shared fields — see
+ * each file's own doc). `routes/admin/media/deps.ts`'s `MediaProviderRouteDeps` and `routes/admin/
+ * external-mcp/deps.ts`'s `ExternalMcpRouteDeps` are left alone: both already `Pick` this same
+ * shape (their own repo + the two shared fields) straight off `RouteDeps`, and composing this whole
+ * ten-field group into either would add the other 8 credential fields neither one reads — the exact
+ * "would widen, not narrow" case Slice 2's own doc already established for `ContentRouteDeps`/
+ * `SeoRouteDeps`.
+ */
+export interface CredentialsDeps {
+  /**
+   * The SITE's encrypted provider credential store (ADR-058) — one row per workspace, backing the
+   * "Visitor's AI Assistant" admin tab and `server/modules/site-assistant.ts`'s runtime key
+   * resolution. Unlike `assistantSettingsReady` above, this needs no boot-time definition
+   * registration (it is a plain table, not a `core.execution.*` ledger namespace), so there is no
+   * matching `*Ready` promise — the repo is usable as soon as migrations have run.
+   */
+  siteAssistantCredentialRepo: SiteAssistantCredentialRepoPort;
+  /** Seals/opens the SITE credential above. See `integrations/secret-sealer.aesgcm.ts`'s header for
+   *  why this is one shared sealing capability, not one per workspace. */
+  siteAssistantSecretSealer: SecretSealerPort;
+  /**
+   * The `KeyringPort` `siteAssistantSecretSealer` derives its AES key from — exposed separately
+   * (not just baked into the sealer) because `setSiteAssistantCredential` also needs
+   * `keyring.activeKey()` directly, to know which root-key generation to stamp into a freshly-sealed
+   * row. Deliberately its OWN `EnvOrFileKeyring` instance in the real composition root
+   * (`server/deps.ts`), constructed `{allowFileFallback:false}`, independent of the shared instance
+   * webhook signing/newsletter tokens use — see ADR-058 §2 for why that asymmetry is intentional.
+   */
+  siteAssistantSecretKeyring: KeyringPort;
+  /**
+   * The ADMIN's own encrypted BYOK credential store — one row per `(workspaceId, principalId)`,
+   * backing `modules/assistant-byok.ts`'s `createStoredExecutionCredentialPort` and the
+   * GET/PUT/DELETE `.../assistant/execution-credential` routes. NOT `siteAssistantCredentialRepo`
+   * above (that one is per-workspace and backs the public visitor assistant). Sealed via the SAME
+   * `siteAssistantSecretSealer`/`siteAssistantSecretKeyring` instances above — see
+   * `db/schema.ts`'s `adminExecutionCredentials` header for why one shared sealing capability is
+   * correct here rather than a third `KeyringPort` instance. No matching `*Ready` promise, for the
+   * same reason `siteAssistantCredentialRepo` has none: a plain table, usable as soon as migrations
+   * have run.
+   */
+  adminExecutionCredentialRepo: AdminExecutionCredentialRepoPort;
+  /**
+   * Per-workspace media-generation vendor credentials, backing the GET/PUT
+   * `.../media/providers` routes the admin's Media → "Media providers" tab talks to. Sealed via
+   * the same two capabilities above, for the same reason the BYOK store reuses them.
+   *
+   * Multi-row per workspace (one per vendor), unlike both credential repos above — see
+   * `media/provider-credential-store.ts` for why this one is workspace-scoped rather than
+   * per-principal. No matching `*Ready` promise: a plain table, usable as soon as migrations run.
+   */
+  mediaProviderCredentialRepo: MediaProviderCredentialRepoPort;
+  /**
+   * The workspace's roster of external MCP servers, backing the admin's Settings → External MCP tab
+   * and read by the agent daemon at boot to decide what to federate
+   * (`assistant/external-mcp-store.ts`).
+   *
+   * Multi-row per workspace like `mediaProviderCredentialRepo` above. Its sealed column holds a
+   * whole `KEY=VALUE` environment block rather than one key, sealed with the same shared ADR-058
+   * sealer/keyring as every other credential table here. No matching `*Ready` promise: a plain
+   * table, usable as soon as migrations run.
+   */
+  externalMcpServerRepo: ExternalMcpServerRepoPort;
+  /**
+   * 2026-08-15 (Contract v2) — the `publish_credential_sets` repo backing the admin's Static Site tab
+   * "add a connection" form and the DB-backed half of `static-publish/credentials.ts`'s
+   * `composePublishCredentialSource`. Real `SqlitePublishCredentialSetRepo` in `server/deps.ts`
+   * (migration `0041` already applied — see that repo's own doc); `InMemoryPublishCredentialSetRepo`
+   * in `server/app.ts`'s hermetic composition, same rule-of-two every other repo here follows. Sealed
+   * via the SAME shared `siteAssistantSecretSealer`/`siteAssistantSecretKeyring` instances above —
+   * one sealing capability app-wide, same reasoning `adminExecutionCredentialRepo`/
+   * `mediaProviderCredentialRepo` already establish.
+   */
+  publishCredentialSetRepo: PublishCredentialSetRepoPort;
+  /**
+   * 2026-08-15 — the `source_control_credential_sets` repo backing the admin Source Control page's
+   * connect/replace form (`routes/admin/system/source-control-credentials.ts`). Real
+   * `SqliteSourceControlCredentialSetRepo` in `server/deps.ts`; `InMemorySourceControlCredentialSetRepo`
+   * in `server/app.ts`'s hermetic composition, same rule-of-two every other repo here follows. Sealed
+   * via the SAME shared `siteAssistantSecretSealer`/`siteAssistantSecretKeyring` instances above — one
+   * sealing capability app-wide, same reasoning `publishCredentialSetRepo` already establishes. A
+   * deliberately SEPARATE table from `publishCredentialSetRepo` above, not a widened
+   * `PublishProviderId` union — see `src/db/schema.ts`'s `sourceControlCredentialSets` doc comment for
+   * why.
+   */
+  sourceControlCredentialSetRepo: SourceControlCredentialSetRepoPort;
+  /**
+   * 2026-08-16 (Phase 3) — the `vendor_credential_sets` repo backing the unified vendor-scoped
+   * credential redesign (`features/vendor-credentials/`; `db/schema.ts`'s `vendorCredentialSets`
+   * doc has the full "destination vs. vendor" reasoning). Real `SqliteVendorCredentialSetRepo`
+   * (`db/sqlite/vendor-credential-repo.sqlite.ts`) in `server/deps.ts`;
+   * `InMemoryVendorCredentialSetRepo` in `server/app.ts`'s hermetic composition, same rule-of-two
+   * every other repo here follows. Sealed via the SAME shared `siteAssistantSecretSealer`/
+   * `siteAssistantSecretKeyring` instances above — one sealing capability app-wide, same reasoning
+   * `publishCredentialSetRepo`/`sourceControlCredentialSetRepo` already establish.
+   *
+   * This table does NOT yet replace `publishCredentialSetRepo`/`sourceControlCredentialSetRepo`
+   * above — both stay wired and fully live. `features/vendor-credentials/dual-read.ts`'s
+   * `resolveDefaultForVendorDualRead` is the seam that lets a future caller read this table first
+   * and fall back to one of the two legacy repos above when a vendor's group here is still empty
+   * (an install whose data has not been backfilled by `development/scripts/backfill-vendor-
+   * credentials.ts` yet) — see that module's own header for the full design and why a straight
+   * cutover was rejected.
+   */
+  vendorCredentialSetRepo: VendorCredentialSetRepoPort;
+  /**
+   * 2026-08-17 — the `custom_credential_sets` repo backing the admin Access Tokens page's
+   * "Add custom provider" form (`routes/admin/system/custom-credentials.ts`). Real
+   * `SqliteCustomCredentialSetRepo` in `server/deps.ts`; `InMemoryCustomCredentialSetRepo` in
+   * `server/app.ts`'s hermetic composition, same rule-of-two every other repo here follows. Sealed
+   * via the SAME shared `siteAssistantSecretSealer`/`siteAssistantSecretKeyring` instances above —
+   * one sealing capability app-wide, same reasoning `publishCredentialSetRepo`/
+   * `sourceControlCredentialSetRepo` already establish. A deliberately separate table from both of
+   * those and from `vendorCredentialSetRepo` — see `src/db/schema.ts`'s `customCredentialSets` doc
+   * comment for why (no fixed provider-id catalog to join either union, or the vendor table's own
+   * vendor-keyed model).
+   */
+  customCredentialSetRepo: CustomCredentialSetRepoPort;
+}
+
+/**
+ * Slice 3 of the `RouteDeps` god-object decomposition (2026-08-18) — the ADR-022/ADR-043/ADR-044
+ * content-model repos (`content-types`/`entries`/`taxonomy`/`entry_refs`), extracted verbatim (fields
+ * + doc comments unchanged) from where they lived inline in `RouteDeps` below.
+ *
+ * The original "Admin-UI backend-gap closure" design-spec comment covering this cluster ALSO covers
+ * `stampWatermark`/`restorePointsRepo`/`dbOps`/`databaseIntrospection`/`siteStatusRepo`/
+ * `disclosureWatermarkSource`/`deepLinkRestorePointLookup` below — none of those are part of this
+ * group, so that comment stays put, still attached to `stampWatermark` (the first field of that
+ * original cluster still declared directly on `RouteDeps`).
+ *
+ * `entryRefsRepo` is included here even though it physically lived elsewhere in `RouteDeps` (next to
+ * `widgetBindingRepo`, ADR-022 §5/SPEC-043) — schema-owned by `core`, but its own repo port
+ * (`EntryRefsRepoPort`) is exactly this group's shape of thing (a content-model persistence seam), so
+ * it groups here per this slice's own field list rather than with `widgets`.
+ *
+ * No consumer narrowed to this group this slice: `routes/admin/content-types/deps.ts`'s
+ * `ContentTypesRouteDeps` and `routes/admin/taxonomy/deps.ts`'s `TaxonomyRouteDeps` each already
+ * `Pick` only 3-4 of these 8 fields alongside other, non-group fields (`outbox`/`postRepo`/
+ * `stampWatermark`) — composing the whole group into either would widen rather than narrow, the same
+ * "leave alone" case Slice 2 already established for `ContentRouteDeps`/`SeoRouteDeps`.
+ * `widgets/deps.ts`'s `WidgetsRouteDeps` (reads `entryRepo`/`contentTypeRepo`/`entryRefsRepo`, 3 of
+ * these 8) is declared fully structurally on purpose — its own header says it is "free of a back-edge
+ * into the composition root" — so it is left alone for a different, stronger reason: importing this
+ * named type would reopen exactly the edge it was written to avoid.
+ */
+export interface ContentTaxonomyDeps {
+  /** ADR-022/ADR-043 — the `content_types` registry's write chokepoint repo, widened with this
+   * dispatch's new `ContentTypeListPort` (`features/content-types/list.ts`). */
+  contentTypeRepo: ContentTypeRepoPort & ContentTypeListPort;
+  /** No-op this pass (`features/content-types/repo.memory.ts`'s `NoopContentTypeIndexProvisioner`)
+   * — real DDL index provisioning targets `content.db` tables this domain has no SQLite adapter
+   * for yet, same disclosed gap as `contentTypeRepo`. */
+  contentTypeIndexProvisioner: IndexProvisionerPort & TeardownIndexProvisionerPort;
+  /** ADR-022/ADR-043 — the `entries` write chokepoint repo, widened with this dispatch's new
+   * `EntryListPort` (`features/entries/list.ts`). Also satisfies entries' `ContentTypeLookupPort`
+   * structurally when `contentTypeRepo` is passed as its `contentTypeRepo` dep (a `ContentTypeRecord`
+   * is a structural superset of `OwningContentType`). */
+  entryRepo: EntryRepoPort & EntryListPort;
+  /** ADR-044 — the `taxonomies`/`terms`/`entry_terms`/`taxonomy_revisions` write chokepoint repos,
+   * `taxonomyRepo`/`termRepo` widened with this dispatch's new `TaxonomyListPort`/`TermListPort`
+   * (`features/taxonomy/list.ts`). `mergeTerm`'s plan/confirm/execute ceremony is NOT wired this
+   * pass (needs `core/gated-mutations`'s gateway, not composed into any composition root yet). */
+  /** Widened again for the `deleteTaxonomy`/`deleteTerm` guarded-delete routes with
+   * `DeletableTaxonomyRepoPort`/`DeletableTermRepoPort` (`@jini-ai/cms/taxonomy`'s additive
+   * delete capability — see that package's `write-service.ts` for why these are additive
+   * interfaces rather than folded into the certified `TaxonomyRepoPort`/`TermRepoPort`).
+   * `taxonomyRepo` widened once more with `TransactionalRepoPort` (coordinator review, hazards
+   * #1/#2): the same guard-and-cascade atomicity `deleteTerm`/`deleteTaxonomy` need, sourced from
+   * whichever one repo instance the route wires up as `deps.transaction` — `taxonomyRepo` is the
+   * one both delete flows always have, so it is the canonical source. */
+  taxonomyRepo: TaxonomyRepoPort & TaxonomyListPort & DeletableTaxonomyRepoPort & TransactionalRepoPort;
+  termRepo: TermRepoPort & TermListPort & DeletableTermRepoPort;
+  /** Widened this dispatch with `MergeableEntryTermRepoPort` (the `mergeTerm` gated-mutation
+   * ceremony's by-term enumeration need — see `features/taxonomy/gated-hooks.ts`). Widened again
+   * with `AssignmentCountEntryTermRepoPort` for the `deleteTaxonomy`/`deleteTerm` guard. */
+  entryTermRepo: EntryTermRepoPort & MergeableEntryTermRepoPort & AssignmentCountEntryTermRepoPort;
+  taxonomyRevisionRepo: TaxonomyRevisionRepoPort;
+  /**
+   * SPEC-043/ADR-022 §5 (`entry_refs`) — the reference-integrity index's persistence seam
+   * (`core/entry-refs/ports.ts`'s `EntryRefsRepoPort`). Schema-owned by `core`, first populated by
+   * `widgets` (the region-area/write-service chokepoint hooks) — consumed here by the admin
+   * `widgets` routes for the REQ-34 where-used disclosure and the REQ-42 safe-delete check.
+   */
+  entryRefsRepo: EntryRefsRepoPort;
+}
+
+/**
+ * Slice 3 of the `RouteDeps` god-object decomposition (2026-08-18) — the ADR-031/ADR-023 (SPEC-033)
+ * Comments bundled plugin's composed backend, extracted verbatim (fields + doc comments unchanged)
+ * from where they lived inline in `RouteDeps` below.
+ *
+ * No consumer narrowed to this group this slice: `routes/admin/comments/deps.ts`'s
+ * `CommentsModerationRouteDeps` already `Pick`s 3 of these 5 fields (`commentRepo`/
+ * `commentWriteService`/`commentsSettingsReady`) alongside non-group fields (`settingsRepo`/
+ * `principalRepo`) — composing the whole group would add `commentIngressPolicy`/`commentsReady`,
+ * which that file's own 4 registrars never read, the same "would widen" case Slice 2 already
+ * established for `ContentRouteDeps`/`SeoRouteDeps`. `comments/tool-registrations.ts`'s
+ * `CommentsToolDeps` (reads 4 of the 5: everything but `commentIngressPolicy`) and `server/routes/
+ * site/comments-submit.ts`'s `CommentsSubmitDeps` (reads only `commentIngressPolicy`) are both
+ * declared structurally, deliberately never importing `RouteDeps`, to keep those modules free of a
+ * back-edge into the composition root — importing this named type would reopen exactly the edge they
+ * were written to avoid.
+ */
+export interface CommentsDeps {
+  /** ADR-031/ADR-023 (SPEC-033) — the Comments bundled plugin's composed backend
+   * (`comments/index.ts#createCommentsModule`). */
+  commentRepo: CommentRepoPort;
+  commentIngressPolicy: CommentIngressPolicy;
+  commentWriteService: CommentWriteService;
+  /** Fire-and-forget at boot (mirrors `newsletterReady`) — await (or, for the real server, go
+   * through the ADR-046 Phase 2 boot lifecycle) before relying on the `p_comments__*` tables
+   * existing. `server/app.ts`'s hermetic composition resolves this immediately (no dataModule
+   * declare needed against an in-memory repo). */
+  commentsReady: Promise<void>;
+  /** SPEC-035 (ADR-028 Settings Layered Ledger wiring) — resolves once the 6 `comments.*` setting
+   * definitions are registered (mirrors `seoReady`'s identical shape/convention). Chained AFTER
+   * `seoReady` in both composition roots — the settings write chokepoint's `BEGIN IMMEDIATE`
+   * transaction cannot tolerate two independent boot-time definition-registration chains racing
+   * on the SAME SQLite connection (the same hazard `seoReady`'s own doc comment documents for
+   * `settingsReady`). The comments admin settings routes (`routes/admin/comments/*-settings.ts`)
+   * await this before reading/writing through the ledger. */
+  commentsSettingsReady: Promise<void>;
+}
+
+/**
+ * Slice 3 of the `RouteDeps` god-object decomposition (2026-08-18) — the `members` library's ports
+ * (ADR-030), extracted verbatim (fields + doc comments unchanged) from where they lived inline in
+ * `RouteDeps` below.
+ *
+ * Unlike the other three Slice-3 groups, this one had a real, exact, WHOLE-group consumer already:
+ * `routes/admin/members/deps.ts`'s `MembersRouteDeps` re-declared these same 6 fields (plus its own
+ * `magicLinkPerEmailLimiter`) via `extends RouteDeps` — a WIDENING pattern (the same historical shape
+ * `routes/admin/integrations/deps.ts`'s pre-SPEC-034 `IntegrationsRouteDeps` used to have) from back
+ * when these fields hadn't landed on `RouteDeps` directly yet. Its own header still claims "`src/
+ * server/routes/types.ts` does not yet declare the `members` library's repo ports" — stale, since
+ * ADR-030 wiring landed them directly on `RouteDeps` some time ago. That file now `extends RouteDeps,
+ * MembersDeps` instead of re-typing the 6 fields a second time, and its header is corrected — see its
+ * own doc.
+ *
+ * `routes/members/deps.ts`'s `MemberPublicRouteDeps` (the public sign-in route family) also reads all
+ * 6 fields, but is deliberately left alone: it is declared fully structurally on purpose (no
+ * `authorize`/session field at all, by ADR-030 §3 design — see its own header) and has never imported
+ * anything from `routes/types.ts`; doing so now would tie a route family whose entire point is
+ * staying decoupled from the admin composition root to this file, for a savings of six duplicated
+ * field types.
+ */
+export interface MembersDeps {
+  /** `members` library ports (ADR-030) — Members admin screen. */
+  memberRepo: MemberRepoPort;
+  memberTierRepo: MemberTierRepoPort;
+  memberSubscriptionRepo: MemberSubscriptionRepoPort;
+  memberSessionRepo: MemberSessionRepoPort;
+  magicLinkRepo: MagicLinkTokenRepoPort;
+  mailer: MailerPort;
+}
+
+/**
  * The full app-wide dependency bag every route handler and module-registration function historically
  * accepted whole, even when touching 1-2 fields (tracked architecture debt — "core size" / "propagation
- * cost" in `npm run check:architecture`). `ClockDeps`/`IdentityDeps`/`MediaDeps` above are Slices 1-2 of
- * an incremental decomposition: pulled out as their own named, cohesive interfaces and folded back in
+ * cost" in `npm run check:architecture`). `ClockDeps`/`IdentityDeps`/`MediaDeps` (Slices 1-2) and
+ * `CredentialsDeps`/`ContentTaxonomyDeps`/`CommentsDeps`/`MembersDeps` (Slice 3) above are an
+ * incremental decomposition: pulled out as their own named, cohesive interfaces and folded back in
  * here via intersection so this type stays 100% identical to every existing consumer. Narrowed call
  * sites so far: `middleware/dev-auth.ts`'s `requireAdminSession` and `assistant/byok-tool-surface.ts`'s
- * `createByokToolSurface` (Slice 1, to `ClockDeps`/`IdentityDeps`), and `routes/admin/media/deps.ts`'s
- * `MediaRouteDeps` (Slice 2, to `MediaDeps`) — see those files' own docs.
+ * `createByokToolSurface` (Slice 1, to `ClockDeps`/`IdentityDeps`); `routes/admin/media/deps.ts`'s
+ * `MediaRouteDeps` (Slice 2, to `MediaDeps`); and, this slice, the four `routes/admin/system/
+ * *-credentials.ts` files (to a `Pick` of `CredentialsDeps`' fields) plus `routes/admin/members/
+ * deps.ts`'s `MembersRouteDeps` (to `MembersDeps` directly) — see those files' own docs.
  */
-export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & {
+export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & {
   workspaceRepo: WorkspaceRepoPort;
   postRepo: PostRepoPort;
   /**
@@ -294,59 +563,6 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & {
    */
   assistantSettingsReady: Promise<void>;
   /**
-   * The SITE's encrypted provider credential store (ADR-058) — one row per workspace, backing the
-   * "Visitor's AI Assistant" admin tab and `server/modules/site-assistant.ts`'s runtime key
-   * resolution. Unlike `assistantSettingsReady` above, this needs no boot-time definition
-   * registration (it is a plain table, not a `core.execution.*` ledger namespace), so there is no
-   * matching `*Ready` promise — the repo is usable as soon as migrations have run.
-   */
-  siteAssistantCredentialRepo: SiteAssistantCredentialRepoPort;
-  /** Seals/opens the SITE credential above. See `integrations/secret-sealer.aesgcm.ts`'s header for
-   *  why this is one shared sealing capability, not one per workspace. */
-  siteAssistantSecretSealer: SecretSealerPort;
-  /**
-   * The `KeyringPort` `siteAssistantSecretSealer` derives its AES key from — exposed separately
-   * (not just baked into the sealer) because `setSiteAssistantCredential` also needs
-   * `keyring.activeKey()` directly, to know which root-key generation to stamp into a freshly-sealed
-   * row. Deliberately its OWN `EnvOrFileKeyring` instance in the real composition root
-   * (`server/deps.ts`), constructed `{allowFileFallback:false}`, independent of the shared instance
-   * webhook signing/newsletter tokens use — see ADR-058 §2 for why that asymmetry is intentional.
-   */
-  siteAssistantSecretKeyring: KeyringPort;
-  /**
-   * The ADMIN's own encrypted BYOK credential store — one row per `(workspaceId, principalId)`,
-   * backing `modules/assistant-byok.ts`'s `createStoredExecutionCredentialPort` and the
-   * GET/PUT/DELETE `.../assistant/execution-credential` routes. NOT `siteAssistantCredentialRepo`
-   * above (that one is per-workspace and backs the public visitor assistant). Sealed via the SAME
-   * `siteAssistantSecretSealer`/`siteAssistantSecretKeyring` instances above — see
-   * `db/schema.ts`'s `adminExecutionCredentials` header for why one shared sealing capability is
-   * correct here rather than a third `KeyringPort` instance. No matching `*Ready` promise, for the
-   * same reason `siteAssistantCredentialRepo` has none: a plain table, usable as soon as migrations
-   * have run.
-   */
-  adminExecutionCredentialRepo: AdminExecutionCredentialRepoPort;
-  /**
-   * Per-workspace media-generation vendor credentials, backing the GET/PUT
-   * `.../media/providers` routes the admin's Media → "Media providers" tab talks to. Sealed via
-   * the same two capabilities above, for the same reason the BYOK store reuses them.
-   *
-   * Multi-row per workspace (one per vendor), unlike both credential repos above — see
-   * `media/provider-credential-store.ts` for why this one is workspace-scoped rather than
-   * per-principal. No matching `*Ready` promise: a plain table, usable as soon as migrations run.
-   */
-  mediaProviderCredentialRepo: MediaProviderCredentialRepoPort;
-  /**
-   * The workspace's roster of external MCP servers, backing the admin's Settings → External MCP tab
-   * and read by the agent daemon at boot to decide what to federate
-   * (`assistant/external-mcp-store.ts`).
-   *
-   * Multi-row per workspace like `mediaProviderCredentialRepo` above. Its sealed column holds a
-   * whole `KEY=VALUE` environment block rather than one key, sealed with the same shared ADR-058
-   * sealer/keyring as every other credential table here. No matching `*Ready` promise: a plain
-   * table, usable as soon as migrations run.
-   */
-  externalMcpServerRepo: ExternalMcpServerRepoPort;
-  /**
    * The workspace's sealed Composio project key + provisioned auth-config ids, backing the admin's
    * Settings → Connectors tab (`connectors/composio-config-store.ts`).
    *
@@ -429,13 +645,6 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & {
    * single-SQLite-connection-transaction reason every registration above documents.
    */
   analyticsSettingsReady: Promise<void>;
-  /** `members` library ports (ADR-030) — Members admin screen. */
-  memberRepo: MemberRepoPort;
-  memberTierRepo: MemberTierRepoPort;
-  memberSubscriptionRepo: MemberSubscriptionRepoPort;
-  memberSessionRepo: MemberSessionRepoPort;
-  magicLinkRepo: MagicLinkTokenRepoPort;
-  mailer: MailerPort;
   /** Local, navigation-owned menu repo (ADR-029; not a frozen ADR port). */
   menuRepo: MenuRepoPort;
   /** The one real ADR-029 port: the derived nav_location_bindings index. */
@@ -501,38 +710,14 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & {
    * `restorePointsRepo`/`dbOps`, which get real `db/sqlite/database-journal-repo.ts`/`db-ops.ts`
    * adapters in `server/deps.ts` — see this dispatch's handoff for the full disclosure and the
    * follow-up SQLite-adapter work item it leaves open.
+   *
+   * (2026-08-18, Slice 3: the `content-types`/`entries`/`taxonomy` REPO fields this comment
+   * originally introduced — `contentTypeRepo`/`contentTypeIndexProvisioner`/`entryRepo`/
+   * `taxonomyRepo`/`termRepo`/`entryTermRepo`/`taxonomyRevisionRepo` — moved to the new
+   * `ContentTaxonomyDeps` interface above; this comment stays here because it also covers
+   * `stampWatermark`/`restorePointsRepo`/`dbOps`/`databaseIntrospection`/`siteStatusRepo`/
+   * `disclosureWatermarkSource`/`deepLinkRestorePointLookup` below, none of which moved.)
    */
-  /** ADR-022/ADR-043 — the `content_types` registry's write chokepoint repo, widened with this
-   * dispatch's new `ContentTypeListPort` (`features/content-types/list.ts`). */
-  contentTypeRepo: ContentTypeRepoPort & ContentTypeListPort;
-  /** No-op this pass (`features/content-types/repo.memory.ts`'s `NoopContentTypeIndexProvisioner`)
-   * — real DDL index provisioning targets `content.db` tables this domain has no SQLite adapter
-   * for yet, same disclosed gap as `contentTypeRepo`. */
-  contentTypeIndexProvisioner: IndexProvisionerPort & TeardownIndexProvisionerPort;
-  /** ADR-022/ADR-043 — the `entries` write chokepoint repo, widened with this dispatch's new
-   * `EntryListPort` (`features/entries/list.ts`). Also satisfies entries' `ContentTypeLookupPort`
-   * structurally when `contentTypeRepo` is passed as its `contentTypeRepo` dep (a `ContentTypeRecord`
-   * is a structural superset of `OwningContentType`). */
-  entryRepo: EntryRepoPort & EntryListPort;
-  /** ADR-044 — the `taxonomies`/`terms`/`entry_terms`/`taxonomy_revisions` write chokepoint repos,
-   * `taxonomyRepo`/`termRepo` widened with this dispatch's new `TaxonomyListPort`/`TermListPort`
-   * (`features/taxonomy/list.ts`). `mergeTerm`'s plan/confirm/execute ceremony is NOT wired this
-   * pass (needs `core/gated-mutations`'s gateway, not composed into any composition root yet). */
-  /** Widened again for the `deleteTaxonomy`/`deleteTerm` guarded-delete routes with
-   * `DeletableTaxonomyRepoPort`/`DeletableTermRepoPort` (`@jini-ai/cms/taxonomy`'s additive
-   * delete capability — see that package's `write-service.ts` for why these are additive
-   * interfaces rather than folded into the certified `TaxonomyRepoPort`/`TermRepoPort`).
-   * `taxonomyRepo` widened once more with `TransactionalRepoPort` (coordinator review, hazards
-   * #1/#2): the same guard-and-cascade atomicity `deleteTerm`/`deleteTaxonomy` need, sourced from
-   * whichever one repo instance the route wires up as `deps.transaction` — `taxonomyRepo` is the
-   * one both delete flows always have, so it is the canonical source. */
-  taxonomyRepo: TaxonomyRepoPort & TaxonomyListPort & DeletableTaxonomyRepoPort & TransactionalRepoPort;
-  termRepo: TermRepoPort & TermListPort & DeletableTermRepoPort;
-  /** Widened this dispatch with `MergeableEntryTermRepoPort` (the `mergeTerm` gated-mutation
-   * ceremony's by-term enumeration need — see `features/taxonomy/gated-hooks.ts`). Widened again
-   * with `AssignmentCountEntryTermRepoPort` for the `deleteTaxonomy`/`deleteTerm` guard. */
-  entryTermRepo: EntryTermRepoPort & MergeableEntryTermRepoPort & AssignmentCountEntryTermRepoPort;
-  taxonomyRevisionRepo: TaxonomyRevisionRepoPort;
   /** Bumps `database_write_watermark` for taxonomy writes (create/rename/assign/delete). Real
    * `sqliteStampWatermark(db)` in `server/deps.ts` (the certified `stampWatermarkTx`, see
    * `core/gated-mutations/watermark.ts`); `noopStampWatermark` in `server/app.ts`'s in-memory
@@ -623,24 +808,6 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & {
    * can be registered ahead of the blanket body parser while activation still happens later.
    */
   lipay?: LipayApi;
-  /** ADR-031/ADR-023 (SPEC-033) — the Comments bundled plugin's composed backend
-   * (`comments/index.ts#createCommentsModule`). */
-  commentRepo: CommentRepoPort;
-  commentIngressPolicy: CommentIngressPolicy;
-  commentWriteService: CommentWriteService;
-  /** Fire-and-forget at boot (mirrors `newsletterReady`) — await (or, for the real server, go
-   * through the ADR-046 Phase 2 boot lifecycle) before relying on the `p_comments__*` tables
-   * existing. `server/app.ts`'s hermetic composition resolves this immediately (no dataModule
-   * declare needed against an in-memory repo). */
-  commentsReady: Promise<void>;
-  /** SPEC-035 (ADR-028 Settings Layered Ledger wiring) — resolves once the 6 `comments.*` setting
-   * definitions are registered (mirrors `seoReady`'s identical shape/convention). Chained AFTER
-   * `seoReady` in both composition roots — the settings write chokepoint's `BEGIN IMMEDIATE`
-   * transaction cannot tolerate two independent boot-time definition-registration chains racing
-   * on the SAME SQLite connection (the same hazard `seoReady`'s own doc comment documents for
-   * `settingsReady`). The comments admin settings routes (`routes/admin/comments/*-settings.ts`)
-   * await this before reading/writing through the ledger. */
-  commentsSettingsReady: Promise<void>;
   /**
    * SPEC-043/ADR-047 (widgets) — the `widget_region_bindings` derived-projection repo
    * (`widgets/ports.ts`'s `WidgetRegionBindingRepoPort`, mirroring `NavLocationBindingRepoPort`
@@ -648,13 +815,6 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & {
    * path (`routes/site/pages.ts` → `resolvePageWidgets`, W-004).
    */
   widgetBindingRepo: WidgetRegionBindingRepoPort;
-  /**
-   * SPEC-043/ADR-022 §5 (`entry_refs`) — the reference-integrity index's persistence seam
-   * (`core/entry-refs/ports.ts`'s `EntryRefsRepoPort`). Schema-owned by `core`, first populated by
-   * `widgets` (the region-area/write-service chokepoint hooks) — consumed here by the admin
-   * `widgets` routes for the REQ-34 where-used disclosure and the REQ-42 safe-delete check.
-   */
-  entryRefsRepo: EntryRefsRepoPort;
   /**
    * SPEC-005 (ADR-005-ARCH) — the `plugin_activations` persistence port (mirrors
    * `PresentationSettingsRepoPort` exactly, rule-of-two). Consumed by the `plugins` admin routes
@@ -740,17 +900,6 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & {
    */
   resolveStorefrontProducts: (routeDeps: RouteDeps) => Promise<SiteProduct[]>;
   /**
-   * 2026-08-15 (Contract v2) — the `publish_credential_sets` repo backing the admin's Static Site tab
-   * "add a connection" form and the DB-backed half of `static-publish/credentials.ts`'s
-   * `composePublishCredentialSource`. Real `SqlitePublishCredentialSetRepo` in `server/deps.ts`
-   * (migration `0041` already applied — see that repo's own doc); `InMemoryPublishCredentialSetRepo`
-   * in `server/app.ts`'s hermetic composition, same rule-of-two every other repo here follows. Sealed
-   * via the SAME shared `siteAssistantSecretSealer`/`siteAssistantSecretKeyring` instances above —
-   * one sealing capability app-wide, same reasoning `adminExecutionCredentialRepo`/
-   * `mediaProviderCredentialRepo` already establish.
-   */
-  publishCredentialSetRepo: PublishCredentialSetRepoPort;
-  /**
    * 2026-08-16 rework of the original flat-JSON-file design (see `static-publish/publish-history.ts`'s
    * own header) — the append-only `publish_history` table backing `deployment_get_static_publish_capabilities`'s
    * `lastPublish` field. Real `SqlitePublishHistoryStore` (`db/sqlite/publish-history-repo.sqlite.ts`)
@@ -794,18 +943,6 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & {
    */
   publishCredentialVerificationCache: PublishCredentialVerificationCache;
   /**
-   * 2026-08-15 — the `source_control_credential_sets` repo backing the admin Source Control page's
-   * connect/replace form (`routes/admin/system/source-control-credentials.ts`). Real
-   * `SqliteSourceControlCredentialSetRepo` in `server/deps.ts`; `InMemorySourceControlCredentialSetRepo`
-   * in `server/app.ts`'s hermetic composition, same rule-of-two every other repo here follows. Sealed
-   * via the SAME shared `siteAssistantSecretSealer`/`siteAssistantSecretKeyring` instances above — one
-   * sealing capability app-wide, same reasoning `publishCredentialSetRepo` already establishes. A
-   * deliberately SEPARATE table from `publishCredentialSetRepo` above, not a widened
-   * `PublishProviderId` union — see `src/db/schema.ts`'s `sourceControlCredentialSets` doc comment for
-   * why.
-   */
-  sourceControlCredentialSetRepo: SourceControlCredentialSetRepoPort;
-  /**
    * `TOVU_SOURCE_CONTROL_EXPORT_DIR` env, then `<cwd>/infra/source-control-export` — the
    * `source-control` domain's own export scratch directory (deliberately separate from
    * `exportOutputRootDir`/`publishOutputRootDir` above so no two of these features ever race over
@@ -816,38 +953,6 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & {
    * `process.env` itself.
    */
   sourceControlExportRootDir: string;
-  /**
-   * 2026-08-16 (Phase 3) — the `vendor_credential_sets` repo backing the unified vendor-scoped
-   * credential redesign (`features/vendor-credentials/`; `db/schema.ts`'s `vendorCredentialSets`
-   * doc has the full "destination vs. vendor" reasoning). Real `SqliteVendorCredentialSetRepo`
-   * (`db/sqlite/vendor-credential-repo.sqlite.ts`) in `server/deps.ts`;
-   * `InMemoryVendorCredentialSetRepo` in `server/app.ts`'s hermetic composition, same rule-of-two
-   * every other repo here follows. Sealed via the SAME shared `siteAssistantSecretSealer`/
-   * `siteAssistantSecretKeyring` instances above — one sealing capability app-wide, same reasoning
-   * `publishCredentialSetRepo`/`sourceControlCredentialSetRepo` already establish.
-   *
-   * This table does NOT yet replace `publishCredentialSetRepo`/`sourceControlCredentialSetRepo`
-   * above — both stay wired and fully live. `features/vendor-credentials/dual-read.ts`'s
-   * `resolveDefaultForVendorDualRead` is the seam that lets a future caller read this table first
-   * and fall back to one of the two legacy repos above when a vendor's group here is still empty
-   * (an install whose data has not been backfilled by `development/scripts/backfill-vendor-
-   * credentials.ts` yet) — see that module's own header for the full design and why a straight
-   * cutover was rejected.
-   */
-  vendorCredentialSetRepo: VendorCredentialSetRepoPort;
-  /**
-   * 2026-08-17 — the `custom_credential_sets` repo backing the admin Access Tokens page's
-   * "Add custom provider" form (`routes/admin/system/custom-credentials.ts`). Real
-   * `SqliteCustomCredentialSetRepo` in `server/deps.ts`; `InMemoryCustomCredentialSetRepo` in
-   * `server/app.ts`'s hermetic composition, same rule-of-two every other repo here follows. Sealed
-   * via the SAME shared `siteAssistantSecretSealer`/`siteAssistantSecretKeyring` instances above —
-   * one sealing capability app-wide, same reasoning `publishCredentialSetRepo`/
-   * `sourceControlCredentialSetRepo` already establish. A deliberately separate table from both of
-   * those and from `vendorCredentialSetRepo` — see `src/db/schema.ts`'s `customCredentialSets` doc
-   * comment for why (no fixed provider-id catalog to join either union, or the vendor table's own
-   * vendor-keyed model).
-   */
-  customCredentialSetRepo: CustomCredentialSetRepoPort;
 };
 
 export type RouteRegistrar = (app: Express, deps: RouteDeps) => void;
