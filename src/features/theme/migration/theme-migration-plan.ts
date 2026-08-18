@@ -6,12 +6,12 @@
  * silently doing nothing.
  *
  * `declarative`/`templated`/`handlebars` share one planner (`planNonStaticTierMigration`) — all three
- * keep the identical v1 shape (an optional root `styles.css`, a `templates/` folder of one extension),
- * verified directly against real themes in both tiers before generalizing (`basic-declarative`,
- * `storefront`). `static` has a materially different v1 shape (`pages/`, root partials, `js/`, per-page
- * asset-path references) and gets its own planner once a static-tier theme is migrated — building
- * untested move logic for a theme not yet reached would be speculative, per the Programmer workflow's
- * "implement by requirement slice" rule.
+ * keep the identical v1 shape (an optional root `styles.css`, a `templates/` folder of one extension,
+ * an optional flat root `assets/` bag), verified directly against real themes in both tiers before
+ * generalizing (`basic-declarative`, `storefront`, `fashion-modern`). `static` has a materially
+ * different v1 shape (`pages/`, root partials, `js/`, a much larger `images/` set) and gets its own
+ * planner once a static-tier theme is migrated — building untested move logic for a theme not yet
+ * reached would be speculative, per the Programmer workflow's "implement by requirement slice" rule.
  */
 
 import { existsSync, readdirSync } from "node:fs";
@@ -25,11 +25,22 @@ export interface MigrationFileMove {
   readonly to: string;
 }
 
+/** A moved folder's old/new URL prefix under `/theme-assets/<id>/...` — a file move alone leaves any
+ * hardcoded absolute reference to the old location pointing at a 404 (`theme-static-assets.ts` serves
+ * a theme's folder with zero path remapping), so the orchestrator uses this to rewrite the moved
+ * page/partial files' own content, not just relocate bytes. */
+export interface AssetPathRewriteRule {
+  readonly v1Prefix: string;
+  readonly v2Prefix: string;
+}
+
 export interface ThemeMigrationPlan {
   readonly moves: readonly MigrationFileMove[];
   /** Root-level entries this plan found but has no move rule for — surfaced so the orchestrator can
    * refuse rather than silently drop an author's file the planner didn't anticipate. */
   readonly unrecognized: readonly string[];
+  /** Present only when a moved folder's absolute `/theme-assets/<id>/...` URL prefix changed. */
+  readonly assetPathRewrites?: readonly AssetPathRewriteRule[];
 }
 
 /** Root-level entries every tier's plan treats as already-correct (copied byte-identical, never
@@ -64,6 +75,7 @@ function planNonStaticTierMigration(
 ): ThemeMigrationPlan {
   const moves: MigrationFileMove[] = [];
   const unrecognized: string[] = [];
+  const assetPathRewrites: AssetPathRewriteRule[] = [];
   const extensions = NON_STATIC_TIER_EXTENSIONS[tier];
 
   if (existsSync(join(themeDir, "styles.css"))) {
@@ -81,13 +93,24 @@ function planNonStaticTierMigration(
     }
   }
 
+  // A flat root `assets/` bag (fashion-modern's real shape: one hero photo, no images/video/audio/
+  // fonts/files subfolders yet) nests under v2's `assets/images/` — any moved page's own absolute
+  // `/theme-assets/<id>/assets/...` reference has to move with it (see AssetPathRewriteRule's header).
+  const assetsDir = join(themeDir, "assets");
+  if (existsSync(assetsDir)) {
+    for (const file of readdirSync(assetsDir)) {
+      moves.push({ from: `assets/${file}`, to: `assets/images/${file}` });
+    }
+    assetPathRewrites.push({ v1Prefix: "assets/", v2Prefix: "assets/images/" });
+  }
+
   for (const name of readdirSync(themeDir)) {
-    if (name === "theme.json" || name === "styles.css" || name === "templates") continue;
+    if (name === "theme.json" || name === "styles.css" || name === "templates" || name === "assets") continue;
     if (CARRY_OVER_UNCHANGED.has(name) || TOKENS_MODE_FILE_PATTERN.test(name)) continue;
     unrecognized.push(name);
   }
 
-  return { moves, unrecognized };
+  return { moves, unrecognized, ...(assetPathRewrites.length > 0 ? { assetPathRewrites } : {}) };
 }
 
 /**
