@@ -17,15 +17,26 @@ Trap on this below before running mutation-sweep again near anyone's live dev se
 
 ## CI status — check this fresh, don't trust this document
 
-CI run `32174362065` on an older commit was still showing `in_progress` at **~2 hours** elapsed when
-this was written — that is almost certainly hung, not genuinely running (a normal run here takes
-minutes). Don't wait on it; check `gh run list --branch general-work --limit 5` fresh and, if it's
-still stuck, look at whether it needs cancelling/re-triggering rather than assuming it'll resolve.
+CI run `32174362065` was still `in_progress` at **2h13m+** elapsed at final check tonight — that is
+almost certainly hung, not genuinely running (a normal run here takes minutes). There's also a real
+`failure` earlier tonight (`32169975873`, an architecture-baseline commit, 18:15) and several
+`cancelled` runs (expected — normal on a fast-moving shared branch, a newer push supersedes an older
+run's check). **CI never went green tonight** — this blocked the session's original, still-unstarted
+goal (see next paragraph). Don't wait on the hung run; check `gh run list --branch general-work
+--limit 5` fresh, and if something's still stuck, look at whether it needs cancelling/re-triggering.
 
-**Nothing from tonight is pushed to remote yet.** Local `general-work` is 7 commits ahead of
-`origin/general-work` (all real, all described below). `origin/main` itself has not moved (0 commits
-of its own vs `general-work` — a future merge to `main` is a fast-forward, not a real merge, whenever
-that happens).
+**The session's ORIGINAL ask — push everything to `main` — never happened, and is still open.**
+The owner opened tonight wanting to catch `main` up (it hasn't moved all night: 0 commits of its own
+vs `general-work`, which is now **938 commits** ahead — this is a fast-forward whenever it happens,
+not a real merge). The agreed plan was: wait for CI green on the real tip, then push — never
+disable the coverage gate to force it through. CI never cooperated (stuck/failing all night), so this
+never got attempted. **This is arguably the single biggest unfinished item from tonight** — pick it
+up early next session: check CI fresh, and if it's healthy, do the fast-forward push.
+
+**Nothing from tonight is pushed to remote yet.** Local `general-work` is **23 commits** ahead of
+`origin/general-work` now (grew from 7 across the session — coverage work, the triage script, the
+RouteDeps merge, the architecture baseline update, this handoff itself). All real, all described
+below or in git log directly.
 
 ---
 
@@ -84,17 +95,24 @@ scoped-not-started):
    the raw-offset cross-check — the exact trap session 17's handoff already warned about, recurring).
    Final: **189/191 branches (98.95%)** — 191 total minus the 2 known permanent phantoms = 189
    achievable, and 189 is exactly what's hit. This file is genuinely, provably done.
-7. **RouteDeps decomposition — likely complete or very close.** 11 groups were done at session start
-   tonight (7 from session 17 + a partial mid-session addition); a redispatched agent (see "Dispatch
-   process lessons") landed **8 more commits covering 12 more groups** tonight:
-   `PostDeps`, `PresentationDeps`, `SettingsDeps`, `ChangeSetDeps`, `EventBusDeps`, `AnalyticsDeps`,
-   `NavigationDeps`, and a bundled commit with `DatabaseOpsDeps`/`RedirectsDeps`/`CommerceCatalogDeps`/
-   `WidgetsDeps`/`PluginRuntimeDeps`. **As of this document, it was mid-way through one final `tsc
-   --noEmit` verification pass on what looks like the last remaining fields — check
-   `git -C /Users/la/Programming/Tovu/.claude/worktrees/agent-accc86cafe0ce59e7 log` for whether that
-   landed.** This work lives on branch `worktree-agent-accc86cafe0ce59e7` in that worktree — **it has
-   NOT been merged back into `general-work` yet.** Do that first (it's real, tested, typechecked work
-   sitting isolated) before anything else RouteDeps-related.
+7. **RouteDeps decomposition — DONE and merged.** 11 groups were done at session start tonight (7
+   from session 17 + a partial mid-session addition); a redispatched agent (see "Dispatch process
+   lessons") landed 9 more commits covering the remaining ~57 fields: `PostDeps`, `PresentationDeps`,
+   `SettingsDeps`, `ChangeSetDeps`, `EventBusDeps`, `AnalyticsDeps`, `NavigationDeps`, a bundled commit
+   with `DatabaseOpsDeps`/`RedirectsDeps`/`CommerceCatalogDeps`/`WidgetsDeps`/`PluginRuntimeDeps`, and
+   a doc-comment update. `RouteDeps` now composes **23 named interfaces total**; every remaining flat
+   field is a deliberate, documented orphan or exclusion (true orphans with real narrow `Pick<>`
+   consumers; self-referential-to-`RouteDeps` fields — a third instance of the `runExportSite`
+   contravariance pattern was found: `resolveStorefrontProducts`; and deployments/source-control-
+   adjacent fields kept inside the existing hard-exclusion boundary) — all captured in `types.ts`'s
+   own comments. Verified: `tsc --noEmit` clean at every commit point, 59/60 scoped tests passing (the
+   1 failure confirmed pre-existing, reproduced identically against the pre-Slice-8 file). **Merged
+   into `general-work` this session** (merge commit, clean, no conflicts — the two branches never
+   touched overlapping files). The merge's `check:architecture` read was verified from the canonical
+   checkout (not the worktree, which reported a false "trade-off" — see the sibling-repo local-drift
+   issue, unchanged from prior sessions) and is a clean win on all 3 metrics: propagation cost
+   (all-import) 11.89% -> 11.57%, propagation cost (runtime-only) 1.79% -> 1.75%, core size 17.03% ->
+   16.84%. Baseline updated (`--update`) and committed. **Nothing left to do on RouteDeps.**
 
 ---
 
@@ -252,7 +270,29 @@ alongside unrelated work** (this session used `git add -p` to stage only its own
 `triage:coverage-gaps` script addition and leave those untouched — same discipline needed going
 forward on any `package.json` edit while that session is still live).
 
-## Open, unstarted follow-ups (not urgent, real)
+## Open, unstarted follow-ups — the owner asked to leave these for next session
+
+**Full mutation-sweep of `explore.ts` (all 46 guards, not just the 2 new ones) — completed tonight,
+real findings, not acted on yet, owner said leave for next session:**
+
+- **3 SURVIVED — a real decision each, write the test or delete the code:**
+  - `explore.ts:79` — the `workspaceId ?? ""` pattern. Same proven-benign case documented elsewhere in
+    this doc (`String(undefined ?? "")` and `String(undefined)` are both non-matches) — almost
+    certainly fine as-is, but not explicitly re-verified for this specific line.
+  - `explore.ts:228` — `if (/\.(m|c)?js$/.test(relativePath)) return "script";`. No test distinguishes
+    this classification from whatever it'd fall through to without it. Genuinely unproven, worth a
+    real look.
+  - `explore.ts:459` — `return String(bodyRecord(body)[field] ?? "");`. Same shape as the gap closed
+    earlier tonight at line 452, but this one wasn't caught by the peer cross-check. Real, open.
+- **2 INCONCLUSIVE (mutant timed out — proves nothing, needs a re-sweep, not a verdict):**
+  `explore.ts:95` (`if (!theme)`) and `explore.ts:1024`
+  (`if (!renameThemeFileIfChanged(...)) return;`).
+
+**Correction to something flagged mid-session and since resolved:** earlier tonight this document
+(and the live conversation) flagged a possible "4th stuck mutant" at `explore.ts:523` from a prior
+session's commit. That was a false alarm — the file was checked while this exact mutation-sweep run
+was still active in the background, mid-cycle on that very line. The sweep completed normally and
+restored the file correctly; confirmed byte-clean afterward. No action needed there.
 
 - Repo-wide audit for the wrong-handler-matching bug (method-blind `extractHandler(app, path)`
   helper) beyond the 3 files fixed tonight.
@@ -262,6 +302,7 @@ forward on any `package.json` edit while that session is still live).
 ## Handoff Contract
 
 Written by session 18's agent, reviewed against real command output at write time (coverage numbers,
-RouteDeps commit list, CI status, ahead/behind counts all re-verified in this same sitting). Two
-explicitly unconfirmed facts: whether the RouteDeps agent's final `tsc --noEmit` pass (running at
-write time) landed a clean final commit, and CI's real state (it read as hung, not confirmed why).
+RouteDeps final commit list post-merge, CI status, ahead/behind counts, and the full explore.ts
+mutation-sweep result all re-verified in this same sitting — nothing here is carried forward
+unconfirmed). One still-open unknown: CI's real health (it read as hung all night; never confirmed
+why, never went green, so the original "push to main" ask is still not done).
