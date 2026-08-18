@@ -532,17 +532,19 @@ export interface DatabaseRecoveryDeps {
  * accepted whole, even when touching 1-2 fields (tracked architecture debt — "core size" / "propagation
  * cost" in `npm run check:architecture`). `ClockDeps`/`IdentityDeps`/`MediaDeps` (Slices 1-2),
  * `CredentialsDeps`/`ContentTaxonomyDeps`/`CommentsDeps`/`MembersDeps` (Slice 3),
- * `DatabaseRecoveryDeps` (Slice 4), and `ComposioDeps` (Slice 5) above are an incremental
- * decomposition: pulled out as their own named, cohesive interfaces and folded back in here via
- * intersection so this type stays 100% identical to every existing consumer. Narrowed call sites so
- * far: `middleware/dev-auth.ts`'s `requireAdminSession` and `assistant/byok-tool-surface.ts`'s
- * `createByokToolSurface` (Slice 1, to `ClockDeps`/`IdentityDeps`); `routes/admin/media/deps.ts`'s
- * `MediaRouteDeps` (Slice 2, to `MediaDeps`); the four `routes/admin/system/*-credentials.ts` files
- * (to a `Pick` of `CredentialsDeps`' fields) plus `routes/admin/members/deps.ts`'s `MembersRouteDeps`
- * (Slice 3, to `MembersDeps` directly); `routes/admin/database-recovery/deps.ts`'s
- * `DatabaseRecoveryRouteDeps` (Slice 4, to `DatabaseRecoveryDeps` directly); and
- * `routes/admin/connectors/deps.ts`'s `ConnectorsRouteDeps`/`ConnectorsConfigRouteDeps` (Slice 5, to
- * `ComposioDeps`/a `Pick` of it) — see those files' own docs.
+ * `DatabaseRecoveryDeps` (Slice 4), `ComposioDeps` (Slice 5), and `WebhooksDeps` (Slice 6) above are
+ * an incremental decomposition: pulled out as their own named, cohesive interfaces and folded back
+ * in here via intersection so this type stays 100% identical to every existing consumer. Narrowed
+ * call sites so far: `middleware/dev-auth.ts`'s `requireAdminSession` and `assistant/
+ * byok-tool-surface.ts`'s `createByokToolSurface` (Slice 1, to `ClockDeps`/`IdentityDeps`);
+ * `routes/admin/media/deps.ts`'s `MediaRouteDeps` (Slice 2, to `MediaDeps`); the four
+ * `routes/admin/system/*-credentials.ts` files (to a `Pick` of `CredentialsDeps`' fields) plus
+ * `routes/admin/members/deps.ts`'s `MembersRouteDeps` (Slice 3, to `MembersDeps` directly);
+ * `routes/admin/database-recovery/deps.ts`'s `DatabaseRecoveryRouteDeps` (Slice 4, to
+ * `DatabaseRecoveryDeps` directly); `routes/admin/connectors/deps.ts`'s `ConnectorsRouteDeps`/
+ * `ConnectorsConfigRouteDeps` (Slice 5, to `ComposioDeps`/a `Pick` of it); and
+ * `routes/admin/integrations/deps.ts`'s `IntegrationsRouteDeps` (Slice 6, to `WebhooksDeps` directly)
+ * — see those files' own docs.
  */
 /**
  * Slice 5 of the `RouteDeps` god-object decomposition (2026-08-18) — the Composio connectors
@@ -577,7 +579,31 @@ export interface ComposioDeps {
   composioConnectors: ComposioConnectors;
 }
 
-export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & DatabaseRecoveryDeps & ComposioDeps & {
+/**
+ * Slice 6 of the `RouteDeps` god-object decomposition (2026-08-18) — the ADR-036 webhook
+ * subscription/delivery persistence pair, extracted verbatim (fields + doc comments unchanged)
+ * from where they lived inline in `RouteDeps` below.
+ *
+ * `webhookSigner` deliberately stays OUT of this group and flat on `RouteDeps` — its own doc
+ * comment already discloses "Not consumed by any route yet", and `routes/admin/integrations/
+ * deps.ts`'s real consumer (below) confirms it: `IntegrationsRouteDeps` never picks it.
+ *
+ * A real narrow consumer already existed before this extraction: `routes/admin/integrations/
+ * deps.ts`'s `IntegrationsRouteDeps` already `Pick`ed these same 2 keys off `RouteDeps` (plus
+ * `workspaceId`/`authorize`/`clock`/`idGen`/`originRegistry`) for the 5 admin integrations routes.
+ * That file now composes `WebhooksDeps` directly instead of re-listing the 2 keys a second time —
+ * see its own doc. `originRegistry` stays a separate `Pick<RouteDeps, "originRegistry">` there
+ * rather than joining this group: it is redirects/origin-domain infrastructure reused here, not a
+ * webhooks-owned field (see a later slice's `RedirectsDeps` for its home group).
+ */
+export interface WebhooksDeps {
+  /** ADR-036 `webhook_subscriptions` persistence. */
+  webhookSubscriptionRepo: WebhookSubscriptionRepoPort;
+  /** ADR-036 `webhook_deliveries` persistence. */
+  webhookDeliveryRepo: WebhookDeliveryRepoPort;
+}
+
+export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & DatabaseRecoveryDeps & ComposioDeps & WebhooksDeps & {
   workspaceRepo: WorkspaceRepoPort;
   postRepo: PostRepoPort;
   /**
@@ -731,10 +757,6 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
   menuRepo: MenuRepoPort;
   /** The one real ADR-029 port: the derived nav_location_bindings index. */
   navLocationBindingRepo: NavLocationBindingRepoPort;
-  /** ADR-036 `webhook_subscriptions` persistence. */
-  webhookSubscriptionRepo: WebhookSubscriptionRepoPort;
-  /** ADR-036 `webhook_deliveries` persistence. */
-  webhookDeliveryRepo: WebhookDeliveryRepoPort;
   /**
    * ADR-036 §5 outbound HMAC signer. ADR-PIPE-015 Phase 1: built via `createKeyringBackedSigner`
    * over a real `KeyringPort` (`server/deps.ts`'s composition uses `EnvOrFileKeyring`;
