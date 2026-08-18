@@ -83,6 +83,22 @@ async function authorizeThemeAccess(
   return authorizeThemeSetPermission(deps, res);
 }
 
+/** Resolves `:themeId` to a discovered theme, or writes the route's standard 404 and returns
+ *  `undefined` — every route below starts with this exact `:themeId` -> `DiscoveredTheme` lookup. */
+function findThemeOrRespond(
+  deps: ContentRouteDeps,
+  req: { params: Record<string, unknown> },
+  res: Response
+): DiscoveredTheme | undefined {
+  const themeId = String(req.params.themeId ?? "");
+  const theme = findTheme({ themes: deps.themes, id: themeId });
+  if (!theme) {
+    res.status(404).json({ error: `theme '${themeId}' was not found` });
+    return undefined;
+  }
+  return theme;
+}
+
 /**
  * Map a containment/size failure to 400 and everything else to 500.
  *
@@ -430,18 +446,27 @@ function nextAvailableFileName(
   return candidate;
 }
 
+/** A JSON request body coerced to a plain object — `{}` for a missing/`null`/non-object body,
+ *  matching every mutating route below's existing lenient handling of an absent body. */
+function bodyRecord(body: unknown): Record<string, unknown> {
+  return (body ?? {}) as Record<string, unknown>;
+}
+
+/** One string field off a JSON body, defaulting to `""` when the body itself or the field is
+ *  missing/non-string — the same coercion `path`/`name`/etc. already applied inline at each call
+ *  site below, pulled into one definition so it is applied identically everywhere. */
+function bodyStringField(body: unknown, field: string): string {
+  return String(bodyRecord(body)[field] ?? "");
+}
+
 /** GET one theme's detail — what the Explore screen lists and what its banner says. */
 export const registerAdminThemeDetailRoute: ContentRouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/themes/:themeId", async (req, res) => {
     try {
       if (!(await authorizeThemeAccess(deps, req, res))) return;
 
-      const themeId = String(req.params.themeId ?? "");
-      const theme = findTheme({ themes: deps.themes, id: themeId });
-      if (!theme) {
-        res.status(404).json({ error: `theme '${themeId}' was not found` });
-        return;
-      }
+      const theme = findThemeOrRespond(deps, req, res);
+      if (!theme) return;
 
       // `lineage` is written by the copy/download flows into its own install-local sidecar file
       // (`theme-lineage.ts`), never into `theme.json`/`ThemeManifest` — it is metadata about where a
@@ -492,12 +517,8 @@ export const registerAdminThemeFileGetRoute: ContentRouteRegistrar = (app, deps)
     try {
       if (!(await authorizeThemeAccess(deps, req, res))) return;
 
-      const themeId = String(req.params.themeId ?? "");
-      const theme = findTheme({ themes: deps.themes, id: themeId });
-      if (!theme) {
-        res.status(404).json({ error: `theme '${themeId}' was not found` });
-        return;
-      }
+      const theme = findThemeOrRespond(deps, req, res);
+      if (!theme) return;
 
       const path = String((req.query as Record<string, unknown>).path ?? "");
       const content = readThemeFile({ themeDir: theme.dir, themesRoot: deps.themesDir, relativePath: path });
@@ -507,6 +528,50 @@ export const registerAdminThemeFileGetRoute: ContentRouteRegistrar = (app, deps)
     }
   });
 };
+
+/** The PUT body's `path`/`content` fields, validated just enough to know `content` is writable
+ *  text — `ok: false` covers only the one shape check this route 400s on (`content` not a string);
+ *  every other validation (writability, generated-tree, …) happens once `path`/`content` exist. */
+function parseThemeFilePutBody(req: { body: unknown }): { ok: true; path: string; content: string } | { ok: false } {
+  const path = bodyStringField(req.body, "path");
+  const content = bodyRecord(req.body).content;
+  if (typeof content !== "string") return { ok: false };
+  return { ok: true, path, content };
+}
+
+/**
+ * Whether `path` can be saved (PUT) inside `theme`, given its already-resolved write scope.
+ *
+ * Enforced here, not only by the client hiding the Save button — a PUT built by hand (or by an
+ * older cached client) must be refused the same way. Two DISJOINT rules, not one gate OR'd with
+ * another: inside a compiled theme's sourceDir, ONLY `isSourceDirWritableExtension` decides — see
+ * `isInsideCompiledSourceDir`'s own doc for why falling back to the general `isThemeFileWritable`
+ * gate here would silently readmit extensions (`.svg`, classified `asset` — never read-only, with
+ * no notion of location) the sourceDir allowlist exists to exclude. Everywhere else,
+ * `isThemeFileWritable` is unchanged.
+ *
+ * 2026-08-13: `!isGeneratedThemePath` is applied to the sourceDir branch too, NOT folded into
+ * `isSourceDirWritableExtension` — the disjointness above is about WHICH EXTENSIONS are writable,
+ * and `preview/` is a location refusal that outranks both rules rather than a third opinion OR'd
+ * into either. It has to be checked here because the original security-pass fix put this refusal
+ * inside `isThemeFileWritable`, reasoning it was better there than "a second, easy-to-forget check
+ * at each call site" — but the sourceDir branch deliberately never calls that gate, so a compiled
+ * theme's PUT was left with an extension allowlist that knows nothing about `preview/`, and a
+ * `sourceDir: "preview"` manifest wrote straight into it (200, on disk). rename/copy/reset each
+ * already carry their own explicit refusal; this makes PUT match. The deeper fix — a conformance
+ * rule forbidding `build.sourceDir` from naming a GENERATED_THEME_DIRS entry at install time — now
+ * exists too: `isSourceDirGeneratedConflict` (`theme-files.ts`), enforced in `loadTheme()`
+ * (`theme.ts`, the `build.source === "compiled"` manifest check) so a conflicting manifest is
+ * refused at load, not only caught per-write here.
+ */
+function isPutWritable(theme: DiscoveredTheme, path: string, writeScope: ThemeFileWriteScope): boolean {
+  return (
+    !isGeneratedThemePath(path) &&
+    (isInsideCompiledSourceDir(theme, path, writeScope)
+      ? isSourceDirWritableExtension(path)
+      : isThemeFileWritable(path))
+  );
+}
 
 /**
  * PUT one file inside a theme.
@@ -522,20 +587,15 @@ export const registerAdminThemeFilePutRoute: ContentRouteRegistrar = (app, deps)
     try {
       if (!(await authorizeThemeAccess(deps, req, res))) return;
 
-      const themeId = String(req.params.themeId ?? "");
-      const theme = findTheme({ themes: deps.themes, id: themeId });
-      if (!theme) {
-        res.status(404).json({ error: `theme '${themeId}' was not found` });
-        return;
-      }
+      const theme = findThemeOrRespond(deps, req, res);
+      if (!theme) return;
 
-      const body = (req.body ?? {}) as Record<string, unknown>;
-      const path = String(body.path ?? "");
-      const content = body.content;
-      if (typeof content !== "string") {
+      const parsedBody = parseThemeFilePutBody(req);
+      if (!parsedBody.ok) {
         res.status(400).json({ error: "content must be a string", code: "INVALID_BODY" });
         return;
       }
+      const { path, content } = parsedBody;
 
       // ADR-020 §5: a built theme's generated tree is editor-read-only, checked BEFORE the
       // group-based `isThemeFileWritable` gate below — this is a lifecycle-class refusal (nothing
@@ -548,32 +608,7 @@ export const registerAdminThemeFilePutRoute: ContentRouteRegistrar = (app, deps)
         return;
       }
 
-      // Enforced here, not only by the client hiding the Save button — a PUT built by hand (or by an
-      // older cached client) must be refused the same way. Two DISJOINT rules, not one gate OR'd with
-      // another: inside a compiled theme's sourceDir, ONLY `isSourceDirWritableExtension` decides —
-      // see `isInsideCompiledSourceDir`'s own doc for why falling back to the general
-      // `isThemeFileWritable` gate here would silently readmit extensions (`.svg`, classified `asset`
-      // — never read-only, with no notion of location) the sourceDir allowlist exists to exclude.
-      // Everywhere else, `isThemeFileWritable` is unchanged.
-      // 2026-08-13: `!isGeneratedThemePath` is applied to the sourceDir branch too, NOT folded into
-      // `isSourceDirWritableExtension` — the disjointness above is about WHICH EXTENSIONS are
-      // writable, and `preview/` is a location refusal that outranks both rules rather than a third
-      // opinion OR'd into either. It has to be repeated here because the original security-pass fix
-      // put this refusal inside `isThemeFileWritable`, reasoning it was better there than "a second,
-      // easy-to-forget check at each call site" — but this branch deliberately never calls that gate,
-      // so a compiled theme's PUT was left with an extension allowlist that knows nothing about
-      // `preview/`, and a `sourceDir: "preview"` manifest wrote straight into it (200, on disk).
-      // rename/copy/reset each already carry their own explicit refusal; this makes PUT match.
-      // The deeper fix — a conformance rule forbidding `build.sourceDir` from naming a
-      // GENERATED_THEME_DIRS entry at install time — now exists too: `isSourceDirGeneratedConflict`
-      // (`theme-files.ts`), enforced in `loadTheme()` (`theme.ts`, the `build.source === "compiled"`
-      // manifest check) so a conflicting manifest is refused at load, not only caught per-write here.
-      const writable =
-        !isGeneratedThemePath(path) &&
-        (isInsideCompiledSourceDir(theme, path, writeScope)
-          ? isSourceDirWritableExtension(path)
-          : isThemeFileWritable(path));
-      if (!writable) {
+      if (!isPutWritable(theme, path, writeScope)) {
         res.status(403).json({
           error: `'${path}' is read-only in Explore and cannot be saved`,
           code: "READ_ONLY_FILE",
@@ -582,7 +617,6 @@ export const registerAdminThemeFilePutRoute: ContentRouteRegistrar = (app, deps)
       }
 
       writeThemeFile({ themeDir: theme.dir, themesRoot: deps.themesDir, relativePath: path, content });
-
 
       // Re-read from disk after writing, or the save is invisible. See `reloadTheme`.
       reloadTheme(deps, theme.manifest.id);
@@ -593,6 +627,60 @@ export const registerAdminThemeFilePutRoute: ContentRouteRegistrar = (app, deps)
     }
   });
 };
+
+/**
+ * Handles the reset route's ADR-020 §5 generated-tree branch: a BUILT theme's generated tree
+ * restores as ONE atomic operation via {@link restoreBuiltThemeGeneratedTree} rather than
+ * file-by-file — see that function's own doc for why a generated tree cannot be restored
+ * file-by-file without risking desync between files the same build produced together. Writes the
+ * route's full response itself (success or `NO_ORIGINAL`) since the two cases share nothing with
+ * the per-file reset path below.
+ */
+function handleGeneratedTreeReset(deps: ContentRouteDeps, theme: DiscoveredTheme, res: Response): void {
+  try {
+    const { restoredFiles } = restoreBuiltThemeGeneratedTree({
+      themeDir: theme.dir,
+      themesRoot: deps.themesDir,
+      manifest: theme.manifest,
+    });
+    reloadTheme(deps, theme.manifest.id);
+    res.json({ scope: "release", restoredFiles });
+  } catch (err) {
+    if (err instanceof ThemePathError) {
+      res.status(409).json({ error: err.message, code: "NO_ORIGINAL" });
+      return;
+    }
+    throw err;
+  }
+}
+
+/**
+ * Reads `path`'s pristine copy out of the originals catalog for the per-file reset path. Read
+ * through the containment helper against the CATALOG root rather than joining paths by hand:
+ * `path` is operator input, and this is the one place in the file that resolves it against a
+ * directory outside the theme's own folder. Writes the route's `NOT_IN_ORIGINAL` 409 itself on
+ * failure so the caller only has to check `ok`.
+ */
+function readOriginalForReset(
+  deps: ContentRouteDeps,
+  catalogDir: string,
+  path: string,
+  res: Response
+): { ok: true; original: string } | { ok: false } {
+  try {
+    const original = readThemeFile({ themeDir: catalogDir, themesRoot: join(deps.themesDir, THEME_CATALOG_DIR), relativePath: path });
+    return { ok: true, original };
+  } catch (err) {
+    if (err instanceof ThemePathError) {
+      res.status(409).json({
+        error: `'${path}' is not in this theme's original, so there is nothing to reset it to`,
+        code: "NOT_IN_ORIGINAL",
+      });
+      return { ok: false };
+    }
+    throw err;
+  }
+}
 
 /**
  * POST — restore file(s) to the pristine copy in the originals catalog.
@@ -625,32 +713,14 @@ export const registerAdminThemeFileResetRoute: ContentRouteRegistrar = (app, dep
     try {
       if (!(await authorizeThemeAccess(deps, req, res))) return;
 
-      const themeId = String(req.params.themeId ?? "");
-      const theme = findTheme({ themes: deps.themes, id: themeId });
-      if (!theme) {
-        res.status(404).json({ error: `theme '${themeId}' was not found` });
-        return;
-      }
+      const theme = findThemeOrRespond(deps, req, res);
+      if (!theme) return;
 
-      const path = String(((req.body ?? {}) as Record<string, unknown>).path ?? "");
+      const path = bodyStringField(req.body, "path");
 
       const writeScope = resolveThemeFileWriteScope({ manifest: theme.manifest, relativePath: path });
       if (writeScope.kind === "generated-readonly") {
-        try {
-          const { restoredFiles } = restoreBuiltThemeGeneratedTree({
-            themeDir: theme.dir,
-            themesRoot: deps.themesDir,
-            manifest: theme.manifest,
-          });
-          reloadTheme(deps, theme.manifest.id);
-          res.json({ scope: "release", restoredFiles });
-        } catch (err) {
-          if (err instanceof ThemePathError) {
-            res.status(409).json({ error: err.message, code: "NO_ORIGINAL" });
-            return;
-          }
-          throw err;
-        }
+        handleGeneratedTreeReset(deps, theme, res);
         return;
       }
       // 2026-08-13 (security pass Finding 1, defense in depth, continuation agent): `writeScope`
@@ -670,28 +740,15 @@ export const registerAdminThemeFileResetRoute: ContentRouteRegistrar = (app, dep
       const catalogDir = join(deps.themesDir, THEME_CATALOG_DIR, theme.manifest.tier, theme.manifest.id);
       if (!existsSync(catalogDir)) {
         res.status(409).json({
-          error: `theme '${themeId}' has no stored original, so nothing can be reset`,
+          error: `theme '${theme.manifest.id}' has no stored original, so nothing can be reset`,
           code: "NO_ORIGINAL",
         });
         return;
       }
 
-      // Read through the containment helper against the CATALOG root rather than joining paths by
-      // hand: `path` is operator input, and this is the one place in the file that resolves it
-      // against a directory outside the theme's own folder.
-      let original: string;
-      try {
-        original = readThemeFile({ themeDir: catalogDir, themesRoot: join(deps.themesDir, THEME_CATALOG_DIR), relativePath: path });
-      } catch (err) {
-        if (err instanceof ThemePathError) {
-          res.status(409).json({
-            error: `'${path}' is not in this theme's original, so there is nothing to reset it to`,
-            code: "NOT_IN_ORIGINAL",
-          });
-          return;
-        }
-        throw err;
-      }
+      const originalResult = readOriginalForReset(deps, catalogDir, path, res);
+      if (!originalResult.ok) return;
+      const { original } = originalResult;
 
       writeThemeFile({ themeDir: theme.dir, themesRoot: deps.themesDir, relativePath: path, content: original });
       reloadTheme(deps, theme.manifest.id);
@@ -722,14 +779,10 @@ export const registerAdminThemeFileCopyRoute: ContentRouteRegistrar = (app, deps
     try {
       if (!(await authorizeThemeAccess(deps, req, res))) return;
 
-      const themeId = String(req.params.themeId ?? "");
-      const theme = findTheme({ themes: deps.themes, id: themeId });
-      if (!theme) {
-        res.status(404).json({ error: `theme '${themeId}' was not found` });
-        return;
-      }
+      const theme = findThemeOrRespond(deps, req, res);
+      if (!theme) return;
 
-      const sourcePath = String(((req.body ?? {}) as Record<string, unknown>).path ?? "");
+      const sourcePath = bodyStringField(req.body, "path");
 
       // ADR-020 §5: duplicating a file INTO a built theme's generated tree would add an untracked
       // extra to a region `build.artifactHashes` is supposed to fully account for — a write, same as
@@ -779,6 +832,133 @@ export const registerAdminThemeFileCopyRoute: ContentRouteRegistrar = (app, deps
 };
 
 /**
+ * Whether `sourcePath` can be renamed at all, given its already-resolved write scope — the same
+ * disjoint-rules shape {@link isPutWritable} uses for PUT: inside a compiled theme's sourceDir,
+ * ONLY `isSourceDirWritableExtension` decides; everywhere else, {@link READ_ONLY_GROUPS} does.
+ *
+ * 2026-08-13 (security pass Finding 1, defense in depth): the same `isGeneratedThemePath` refusal
+ * `isThemeFileWritable` applies to PUT — a generated-output path (`preview/…`) has no meaningful
+ * "name" to change either, so rename is refused the same way, not left as a second spot this check
+ * could be forgotten.
+ */
+function isRenameSourceAllowed(theme: DiscoveredTheme, sourcePath: string, writeScope: ThemeFileWriteScope): boolean {
+  return (
+    !isGeneratedThemePath(sourcePath) &&
+    (isInsideCompiledSourceDir(theme, sourcePath, writeScope)
+      ? isSourceDirWritableExtension(sourcePath)
+      : !READ_ONLY_GROUPS.has(fileGroup(sourcePath)))
+  );
+}
+
+/**
+ * The three independent reasons a rename's SOURCE file might be blocked, checked in priority
+ * order and collapsed into one result so the route has a single branch to make rather than three:
+ *
+ * - {@link REQUIRED_THEME_FILES}: renaming `pages/index.html`, `theme.json`, or `tokens.json` away
+ *   reproduces the exact `loadTheme` failure that flips a theme's `status` to `"invalid"`.
+ * - ADR-020 §5: a built theme's generated tree has no per-file identity to rename — it restores or
+ *   stays exactly as shipped, atomically. Checked before {@link isRenameSourceAllowed} so a
+ *   compiled theme's sourceDir file is judged by `isSourceDirWritableExtension` alone.
+ * - {@link isRenameSourceAllowed} itself (the ordinary writability/`READ_ONLY_GROUPS` gate).
+ *
+ * `null` means the source is renamable.
+ */
+function validateRenameSource(
+  theme: DiscoveredTheme,
+  sourcePath: string,
+  writeScope: ThemeFileWriteScope
+): { status: number; error: string; code: string } | null {
+  if (REQUIRED_THEME_FILES.has(sourcePath)) {
+    return {
+      status: 409,
+      error: `'${sourcePath}' cannot be renamed — every theme requires it at this exact path`,
+      code: "REQUIRED_FILE_LOCKED",
+    };
+  }
+  if (writeScope.kind === "generated-readonly") {
+    return { status: 409, error: `'${sourcePath}' is read-only: ${writeScope.reason}`, code: "GENERATED_READONLY" };
+  }
+  if (!isRenameSourceAllowed(theme, sourcePath, writeScope)) {
+    return { status: 409, error: `'${sourcePath}' is read-only in Explore and cannot be renamed`, code: "READ_ONLY_FILE" };
+  }
+  return null;
+}
+
+/**
+ * `name` is a bare filename, not a path: it may not contain a `/` or `\`, which keeps rename from
+ * doubling as an undocumented move-between-folders operation and — combined with resolving the
+ * assembled destination through `renameThemeFile`'s own containment check — means the one piece of
+ * real operator-authored path input here is validated exactly as strictly as a write target, per
+ * the containment rule every route in this file follows. `null` means `name` is valid.
+ */
+function validateRenameTargetName(name: string): string | null {
+  if (name.length === 0) return "name is required";
+  if (name.includes("/") || name.includes("\\") || name === "." || name === "..") {
+    return `name '${name}' must be a plain filename in the same folder, not a path`;
+  }
+  return null;
+}
+
+/**
+ * Performs the actual rename when `destPath` differs from `sourcePath` — renaming to the name a
+ * file already has is a deliberate no-op, not a collision (without this it would fail NAME_TAKEN
+ * against itself, since `destPath === sourcePath` is still "already in `existingPaths`").
+ *
+ * Writes the route's own error response and returns `false` on any of three failures; `true` when
+ * the rename succeeded (or was validly skipped as a no-op) and the caller should build its normal
+ * response.
+ */
+function renameThemeFileIfChanged(
+  deps: ContentRouteDeps,
+  theme: DiscoveredTheme,
+  paths: { sourcePath: string; destPath: string; name: string },
+  existingPaths: ReadonlySet<string>,
+  res: Response
+): boolean {
+  const { sourcePath, destPath, name } = paths;
+  if (destPath === sourcePath) return true;
+
+  if (existingPaths.has(destPath)) {
+    res.status(409).json({ error: `'${destPath}' already exists in this theme`, code: "NAME_TAKEN" });
+    return false;
+  }
+
+  // Defense-in-depth, not currently reachable through THIS route: `destPath` is always built from
+  // `sourcePath`'s OWN directory (`name` may not contain `/`, checked by `validateRenameTargetName`),
+  // so its write-scope is provably identical to `sourcePath`'s already-checked one — a rename can
+  // never cross from a compiled theme's sourceDir into its generated tree today. Asserted directly
+  // anyway rather than left as an inference some future refactor could quietly invalidate (e.g. a
+  // cross-folder move added to this route later).
+  const destWriteScope = resolveThemeFileWriteScope({ manifest: theme.manifest, relativePath: destPath });
+  if (destWriteScope.kind === "generated-readonly") {
+    res.status(409).json({ error: `'${destPath}' is read-only: ${destWriteScope.reason}`, code: "GENERATED_READONLY" });
+    return false;
+  }
+
+  // A rename never changes BYTES, only the name — so the one thing it CAN change is how a browser
+  // INTERPRETS those bytes, since `express.static` decides content-type by extension. Requiring the
+  // extension to survive a rename means a file's interpretation can never change via this route: a
+  // name already vetted (as either an ordinary writable file, or — inside a compiled theme's
+  // sourceDir — a `SOURCE_DIR_WRITABLE_EXTENSIONS` member) cannot be relabeled into a DIFFERENT,
+  // more dangerous extension the same content was never vetted against. This is what actually
+  // closes "PUT a safe extension, then rename it to a dangerous one" — merely re-running PUT's own
+  // check against `destPath` would NOT have closed it, since `.html`/`.svg` are themselves
+  // ordinarily-writable extensions elsewhere in a theme; the bytes staying unvetted-as-that-extension
+  // is the real invariant, not the extension's mere presence on an allowlist.
+  if (fileExtension(sourcePath) !== fileExtension(destPath)) {
+    res.status(400).json({
+      error: `renaming '${sourcePath}' to '${name}' would change its extension, which Explore does not allow — a file's extension decides how it is served and must not change via rename`,
+      code: "EXTENSION_CHANGE_NOT_ALLOWED",
+    });
+    return false;
+  }
+
+  renameThemeFile({ themeDir: theme.dir, themesRoot: deps.themesDir, sourcePath, destPath });
+  reloadTheme(deps, theme.manifest.id);
+  return true;
+}
+
+/**
  * POST — rename (move within the same folder) one file inside a theme.
  *
  * `name` is a bare filename, not a path: it may not contain a `/` or `\`, which keeps rename from
@@ -813,59 +993,22 @@ export const registerAdminThemeFileRenameRoute: ContentRouteRegistrar = (app, de
     try {
       if (!(await authorizeThemeAccess(deps, req, res))) return;
 
-      const themeId = String(req.params.themeId ?? "");
-      const theme = findTheme({ themes: deps.themes, id: themeId });
-      if (!theme) {
-        res.status(404).json({ error: `theme '${themeId}' was not found` });
-        return;
-      }
+      const theme = findThemeOrRespond(deps, req, res);
+      if (!theme) return;
 
-      const body = (req.body ?? {}) as Record<string, unknown>;
-      const sourcePath = String(body.path ?? "");
-      const name = String(body.name ?? "");
+      const sourcePath = bodyStringField(req.body, "path");
+      const name = bodyStringField(req.body, "name");
 
-      if (REQUIRED_THEME_FILES.has(sourcePath)) {
-        res.status(409).json({
-          error: `'${sourcePath}' cannot be renamed — every theme requires it at this exact path`,
-          code: "REQUIRED_FILE_LOCKED",
-        });
-        return;
-      }
-      // ADR-020 §5: a built theme's generated tree has no per-file identity to rename — it restores
-      // or stays exactly as shipped, atomically. See `resolveThemeFileWriteScope`'s own doc. Computed
-      // before the writability check below so a compiled theme's sourceDir file is judged by
-      // `isSourceDirWritableExtension` alone, the same disjoint-rules shape the PUT route uses — see
-      // `isInsideCompiledSourceDir`'s own doc for why that must not fall back to the general gate.
       const writeScope = resolveThemeFileWriteScope({ manifest: theme.manifest, relativePath: sourcePath });
-      if (writeScope.kind === "generated-readonly") {
-        res.status(409).json({ error: `'${sourcePath}' is read-only: ${writeScope.reason}`, code: "GENERATED_READONLY" });
+      const sourceError = validateRenameSource(theme, sourcePath, writeScope);
+      if (sourceError) {
+        res.status(sourceError.status).json({ error: sourceError.error, code: sourceError.code });
         return;
       }
-      // 2026-08-13 (security pass Finding 1, defense in depth): same `isGeneratedThemePath` refusal
-      // `isThemeFileWritable` now applies to PUT — a generated-output path (`preview/…`) has no
-      // meaningful "name" to change either, so rename is refused the same way, not left as a second
-      // spot this check could be forgotten.
-      const sourceRenamable =
-        !isGeneratedThemePath(sourcePath) &&
-        (isInsideCompiledSourceDir(theme, sourcePath, writeScope)
-          ? isSourceDirWritableExtension(sourcePath)
-          : !READ_ONLY_GROUPS.has(fileGroup(sourcePath)));
-      if (!sourceRenamable) {
-        res.status(409).json({
-          error: `'${sourcePath}' is read-only in Explore and cannot be renamed`,
-          code: "READ_ONLY_FILE",
-        });
-        return;
-      }
-      if (name.length === 0) {
-        res.status(400).json({ error: "name is required", code: "INVALID_NAME" });
-        return;
-      }
-      if (name.includes("/") || name.includes("\\") || name === "." || name === "..") {
-        res.status(400).json({
-          error: `name '${name}' must be a plain filename in the same folder, not a path`,
-          code: "INVALID_NAME",
-        });
+
+      const nameError = validateRenameTargetName(name);
+      if (nameError) {
+        res.status(400).json({ error: nameError, code: "INVALID_NAME" });
         return;
       }
 
@@ -878,49 +1021,7 @@ export const registerAdminThemeFileRenameRoute: ContentRouteRegistrar = (app, de
       const slash = sourcePath.lastIndexOf("/");
       const destPath = slash === -1 ? name : `${sourcePath.slice(0, slash)}/${name}`;
 
-      // Renaming to the name it already has is a no-op, not a collision — without this check it
-      // would fail NAME_TAKEN against itself, since `destPath === sourcePath` is still "already in
-      // `existingPaths`".
-      if (destPath !== sourcePath) {
-        if (existingPaths.has(destPath)) {
-          res.status(409).json({ error: `'${destPath}' already exists in this theme`, code: "NAME_TAKEN" });
-          return;
-        }
-
-        // Defense-in-depth, not currently reachable through THIS route: `destPath` is always built
-        // from `sourcePath`'s OWN directory (`name` may not contain `/`, checked above), so its
-        // write-scope is provably identical to `sourcePath`'s already-checked one — a rename can
-        // never cross from a compiled theme's sourceDir into its generated tree today. Asserted
-        // directly anyway rather than left as an inference some future refactor could quietly
-        // invalidate (e.g. a cross-folder move added to this route later).
-        const destWriteScope = resolveThemeFileWriteScope({ manifest: theme.manifest, relativePath: destPath });
-        if (destWriteScope.kind === "generated-readonly") {
-          res.status(409).json({ error: `'${destPath}' is read-only: ${destWriteScope.reason}`, code: "GENERATED_READONLY" });
-          return;
-        }
-
-        // A rename never changes BYTES, only the name — so the one thing it CAN change is how a
-        // browser INTERPRETS those bytes, since `express.static` decides content-type by extension.
-        // Requiring the extension to survive a rename means a file's interpretation can never change
-        // via this route: a name already vetted (as either an ordinary writable file, or — inside a
-        // compiled theme's sourceDir — a `SOURCE_DIR_WRITABLE_EXTENSIONS` member) cannot be relabeled
-        // into a DIFFERENT, more dangerous extension the same content was never vetted against. This
-        // is what actually closes "PUT a safe extension, then rename it to a dangerous one" — merely
-        // re-running PUT's own check against `destPath` would NOT have closed it, since `.html`/`.svg`
-        // are themselves ordinarily-writable extensions elsewhere in a theme; the bytes staying
-        // unvetted-as-that-extension is the real invariant, not the extension's mere presence on an
-        // allowlist.
-        if (fileExtension(sourcePath) !== fileExtension(destPath)) {
-          res.status(400).json({
-            error: `renaming '${sourcePath}' to '${name}' would change its extension, which Explore does not allow — a file's extension decides how it is served and must not change via rename`,
-            code: "EXTENSION_CHANGE_NOT_ALLOWED",
-          });
-          return;
-        }
-
-        renameThemeFile({ themeDir: theme.dir, themesRoot: deps.themesDir, sourcePath, destPath });
-        reloadTheme(deps, theme.manifest.id);
-      }
+      if (!renameThemeFileIfChanged(deps, theme, { sourcePath, destPath, name }, existingPaths, res)) return;
 
       const catalogDir = join(deps.themesDir, THEME_CATALOG_DIR, theme.manifest.tier, theme.manifest.id);
       const hasOriginal = existsSync(catalogDir);
