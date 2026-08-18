@@ -35,6 +35,23 @@ function buildTestProgram(): Command {
   return program;
 }
 
+/** Separate from {@link buildTestProgram} deliberately — a nested command group added to that
+ * shared fixture would change every other test's command count/order in this file for no reason. */
+function buildTestProgramWithNestedGroup(): Command {
+  const program = new Command("tovu");
+  program.description("test program");
+
+  const themeProgram = program.command("theme").description("theme commands group");
+  themeProgram
+    .command("validate")
+    .description("validate description")
+    .argument("<dir>", "theme dir")
+    .option("--profile <profile>", "profile", "author")
+    .action(() => undefined);
+
+  return program;
+}
+
 test("introspectProgram: reads real commands/arguments/options off the live Command tree", () => {
   const manifest = introspectProgram(buildTestProgram());
 
@@ -75,6 +92,24 @@ test("toMcpTools: reshapes the manifest into MCP tool definitions, one per comma
     },
     required: ["dir"],
   });
+});
+
+test("introspectProgram: a nested subcommand group (theme -> validate) is flattened to its full invocation path, and the empty parent group itself is not listed", () => {
+  const manifest = introspectProgram(buildTestProgramWithNestedGroup());
+
+  assert.equal(manifest.commands.length, 1, "only the invocable leaf, not the non-actionable 'theme' group itself");
+  const [validate] = manifest.commands;
+  assert.equal(validate.name, "theme validate", "the manifest name must be the full space-separated invocation, not just the leaf's own name");
+  assert.equal(validate.description, "validate description");
+  assert.deepEqual(validate.arguments, [{ name: "dir", required: true, description: "theme dir" }]);
+});
+
+test("toMcpTools: a nested subcommand's tool name replaces spaces with underscores (tovu_theme_validate)", () => {
+  const manifest = introspectProgram(buildTestProgramWithNestedGroup());
+  const tools = toMcpTools(manifest);
+
+  assert.equal(tools.length, 1);
+  assert.equal(tools[0].name, "tovu_theme_validate");
 });
 
 test("toMcpTools: a boolean switch (--dry-run) is omitted from inputSchema properties — an agent has nothing to supply for it", () => {

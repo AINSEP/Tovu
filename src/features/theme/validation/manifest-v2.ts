@@ -1,0 +1,227 @@
+import type { JsonValue } from "@jini-ai/cms/core";
+
+import { isSourceDirGeneratedConflict } from "../theme-files";
+import type { ThemeValidationIssue } from "./profiles";
+
+/**
+ * @file Strict schema check for a `theme.json` declaring `apiVersion: 2` — the settled shape from
+ * `development/docs/themes/theme-authoring-guide-v2.md` §5, made `additionalProperties: false` at the
+ * top level (§16: "Unknown top-level manifest fields REJECTED (fail-closed)").
+ *
+ * ONLY invoked when `raw.apiVersion === 2` (see `validate-theme-package.ts`'s orchestrator) — every
+ * theme on disk today has no `apiVersion` field at all and is validated through `loadTheme()`'s own
+ * existing (loose, v1) parsing instead, unchanged. This module never runs against, and therefore can
+ * never break, an existing v1 theme.
+ *
+ * Deliberately does NOT re-implement `loadTheme()`'s own already-enforced rules (tier validity,
+ * `build.source: "compiled"`'s three conditional requirements, the `sourceDir`/generated-directory
+ * conflict) — those stay the single source of truth there; this module's checks are ADDITIVE:
+ * `apiVersion`/`$schema` shape, top-level field closure, and the v2-only restructured fields
+ * (`engine` as an object, `tokens` as a nested object, `authors`/`license`/`attributions`) nothing
+ * else validates yet.
+ *
+ * Deliberately LIGHT on fields whose target shape is not concretely pinned down enough to enforce
+ * strictly without inventing scope beyond what the design doc settled: `renderer`, `scripts.entries`,
+ * `assets.previewGallery`, and `ai` are accepted as loosely-typed optional objects (present-and-an-
+ * object, or absent) rather than deeply validated — the doc itself marks `ai` "NOT YET IMPLEMENTED
+ * anywhere" (§12) and the others "unread" (§15's field table). Tightening these is future work once
+ * their own shape is settled by an actual implementation, not a guess made here.
+ */
+
+/** Top-level keys schema v2 recognizes (`theme-authoring-guide-v2.md` §5). Anything else in a
+ * `apiVersion: 2` manifest is an unknown-field rejection. */
+const V2_TOP_LEVEL_KEYS: ReadonlySet<string> = new Set([
+  "$schema",
+  "apiVersion",
+  "id",
+  "name",
+  "version",
+  "tier",
+  "engine",
+  "compatibility",
+  "description",
+  "author",
+  "license",
+  "authors",
+  "attributions",
+  "category",
+  "tags",
+  "tokens",
+  "fonts",
+  "renderer",
+  "partials",
+  "regions",
+  "scripts",
+  "assets",
+  "ai",
+  "build",
+]);
+
+const V2_TIERS: ReadonlySet<string> = new Set(["declarative", "templated", "handlebars", "static", "code"]);
+const V2_BUILD_SOURCES: ReadonlySet<string> = new Set(["authored", "compiled"]);
+/** Widened from `loadTheme()`'s current closed 3-value union (`theme.ts`'s `parseThemeBuildInfo`) per
+ * the design doc §6's "TARGET-widened" framing — descriptive only, matching that field's own real
+ * behavior (nothing branches on it). Still fail-closed: an unrecognized string is REJECTED here,
+ * where the real v1 parser instead silently drops it — the whole point of the strict v2 schema. */
+const V2_BUILD_FRAMEWORKS: ReadonlySet<string> = new Set([
+  "react",
+  "vue",
+  "angular",
+  "svelte",
+  "astro",
+  "solid",
+  "qwik",
+  "web-components",
+]);
+/** The two real template engines this codebase has workers for (`liquid-worker.ts`,
+ * `handlebars-worker.ts`). Not stated explicitly as a closed list anywhere in the design doc's §5
+ * example — inferred from what the runtime can actually execute, and fail-closed on anything else
+ * rather than left open, matching this schema's own "fail-closed on unknown ... engine" requirement. */
+const V2_ENGINE_NAMES: ReadonlySet<string> = new Set(["liquid", "handlebars"]);
+
+const SEMVER_PATTERN = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
+
+function isObject(value: unknown): value is Record<string, JsonValue> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
+ * Strictly parse a raw `theme.json` object already known to declare `apiVersion: 2`.
+ *
+ * @param required.raw - The parsed `theme.json` content.
+ * @returns Every schema violation found; empty means the manifest is v2-schema-clean. Does not throw.
+ * @complexity O(k) in the manifest's own (small, fixed) key count.
+ */
+export function validateManifestV2(
+  required: { raw: Record<string, unknown> },
+  _optional: Record<string, never> = {}
+): ThemeValidationIssue[] {
+  const { raw } = required;
+  const issues: ThemeValidationIssue[] = [];
+  const err = (ruleId: string, message: string): void => {
+    issues.push({ ruleId, message });
+  };
+
+  for (const key of Object.keys(raw)) {
+    if (!V2_TOP_LEVEL_KEYS.has(key)) {
+      err("v2-unknown-field", `theme.json: unrecognized top-level field '${key}' (schema v2 is additionalProperties: false)`);
+    }
+  }
+
+  if (raw.apiVersion !== 2) {
+    err("v2-api-version", `theme.json: apiVersion must be exactly 2, got ${JSON.stringify(raw.apiVersion)}`);
+  }
+  if (typeof raw.id !== "string" || raw.id.length === 0) {
+    err("v2-id", "theme.json: id must be a non-empty string");
+  }
+  if (typeof raw.name !== "string" || raw.name.length === 0) {
+    err("v2-name", "theme.json: name must be a non-empty string");
+  }
+  if (typeof raw.version !== "string" || !SEMVER_PATTERN.test(raw.version)) {
+    err("v2-version-semver", `theme.json: version must be valid semver (X.Y.Z), got ${JSON.stringify(raw.version)}`);
+  }
+  if (raw.tier !== undefined && (typeof raw.tier !== "string" || !V2_TIERS.has(raw.tier))) {
+    err("v2-tier", `theme.json: unrecognized tier ${JSON.stringify(raw.tier)} — expected one of ${[...V2_TIERS].join(", ")}`);
+  }
+
+  if (raw.engine !== undefined) {
+    if (!isObject(raw.engine)) {
+      err("v2-engine-shape", "theme.json: engine must be an object ({ name, version }) in schema v2, not a bare number");
+    } else {
+      if (typeof raw.engine.name !== "string" || !V2_ENGINE_NAMES.has(raw.engine.name)) {
+        err(
+          "v2-engine-name",
+          `theme.json: unrecognized engine.name ${JSON.stringify(raw.engine.name)} — expected one of ${[...V2_ENGINE_NAMES].join(", ")}`
+        );
+      }
+      if (raw.engine.version !== undefined && typeof raw.engine.version !== "string") {
+        err("v2-engine-version", "theme.json: engine.version must be a string when present");
+      }
+    }
+  }
+
+  if (raw.tokens !== undefined) {
+    if (!isObject(raw.tokens)) {
+      err("v2-tokens-shape", "theme.json: tokens must be an object ({ defaultMode, modes }) in schema v2");
+    } else {
+      const modes = isObject(raw.tokens.modes) ? raw.tokens.modes : undefined;
+      if (!modes) {
+        err("v2-tokens-modes", "theme.json: tokens.modes must be an object mapping mode name -> file path");
+      } else if (
+        typeof raw.tokens.defaultMode === "string" &&
+        !Object.prototype.hasOwnProperty.call(modes, raw.tokens.defaultMode)
+      ) {
+        err(
+          "v2-tokens-default-mode",
+          `theme.json: tokens.defaultMode '${raw.tokens.defaultMode}' is not listed in tokens.modes`
+        );
+      }
+    }
+  }
+
+  if (raw.license !== undefined && !isObject(raw.license)) {
+    err("v2-license-shape", "theme.json: license must be an object ({ spdx, file }) in schema v2");
+  }
+  if (raw.authors !== undefined && !Array.isArray(raw.authors)) {
+    err("v2-authors-shape", "theme.json: authors must be an array of { name, url? } in schema v2");
+  }
+  if (raw.attributions !== undefined && !Array.isArray(raw.attributions)) {
+    err("v2-attributions-shape", "theme.json: attributions must be an array in schema v2");
+  }
+  if (raw.partials !== undefined && !isObject(raw.partials)) {
+    err("v2-partials-shape", "theme.json: partials must be an object keyed by partial id");
+  }
+  if (raw.regions !== undefined && !Array.isArray(raw.regions)) {
+    err("v2-regions-shape", "theme.json: regions must be an array of strings");
+  }
+
+  // `lineage`/`skipLiquidAllowlist` are the two 2026-08-18 schema decisions: neither is a v2 field at
+  // all (see `theme-lineage.ts` and `ThemeManifest.skipLiquidAllowlist`'s own doc comments) — the
+  // generic unknown-field loop above already rejects either if present; called out explicitly here so
+  // a future reader sees WHY, rather than assuming the omission from `V2_TOP_LEVEL_KEYS` is a gap.
+
+  if (raw.build !== undefined) {
+    issues.push(...validateBuildV2(raw.build));
+  }
+
+  return issues;
+}
+
+function validateBuildV2(build: unknown): ThemeValidationIssue[] {
+  const issues: ThemeValidationIssue[] = [];
+  const err = (ruleId: string, message: string): void => {
+    issues.push({ ruleId, message });
+  };
+
+  if (!isObject(build)) {
+    err("v2-build-shape", "theme.json: build must be an object when present");
+    return issues;
+  }
+  if (build.source !== undefined && (typeof build.source !== "string" || !V2_BUILD_SOURCES.has(build.source))) {
+    err("v2-build-source", `theme.json: unrecognized build.source ${JSON.stringify(build.source)} — expected 'authored' or 'compiled'`);
+  }
+  if (build.framework !== undefined && (typeof build.framework !== "string" || !V2_BUILD_FRAMEWORKS.has(build.framework))) {
+    err(
+      "v2-build-framework",
+      `theme.json: unrecognized build.framework ${JSON.stringify(build.framework)} — expected one of ${[...V2_BUILD_FRAMEWORKS].join(", ")}`
+    );
+  }
+  if (build.source === "compiled") {
+    if (typeof build.sourceDir !== "string" || build.sourceDir.length === 0) {
+      err("v2-build-sourcedir-required", "theme.json: build.sourceDir is required (non-empty) when build.source is 'compiled'");
+    } else if (isSourceDirGeneratedConflict(build.sourceDir)) {
+      err(
+        "v2-build-sourcedir-conflict",
+        `theme.json: build.sourceDir '${build.sourceDir}' must not name or contain a reserved generated directory`
+      );
+    }
+    if (
+      !isObject(build.artifactHashes) ||
+      Object.keys(build.artifactHashes as Record<string, unknown>).length === 0
+    ) {
+      err("v2-build-artifacthashes-required", "theme.json: build.artifactHashes (non-empty) is required when build.source is 'compiled'");
+    }
+  }
+
+  return issues;
+}
