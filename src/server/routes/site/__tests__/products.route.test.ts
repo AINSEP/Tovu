@@ -316,3 +316,48 @@ test("GET /products never leaks another workspace's Commerce catalog (workspace-
   assert.equal(res.status, 200);
   assert.doesNotMatch(await res.text(), /Should Never Appear/);
 });
+
+/** `/products/:id`'s `String(req.params.id ?? "")` is unreachable through any real HTTP request --
+ *  `:id` is a required route segment, so Express's own router can never dispatch to this handler
+ *  with it `undefined`. Reaching into the router stack and calling the registered handler directly
+ *  with a hand-built `req` genuinely executes the fallback (same technique used for the other 4
+ *  route files' identical `?? ""` param guards this session). */
+interface ExpressHandlerLayer {
+  route?: { path: string; stack: { handle: (req: unknown, res: unknown) => unknown }[] };
+}
+interface ExpressAppWithRouter {
+  _router: { stack: ExpressHandlerLayer[] };
+}
+
+function extractHandler(app: ReturnType<typeof createApp>, path: string): (req: unknown, res: unknown) => unknown {
+  const stack = (app as unknown as ExpressAppWithRouter)._router.stack;
+  const layer = stack.find((l) => l.route?.path === path);
+  if (!layer?.route) throw new Error(`route '${path}' was not found in the router stack`);
+  return layer.route.stack[0].handle;
+}
+
+test("GET /products/:id -- `req.params.id ?? \"\"` fallback, forced via a direct handler call with id omitted -- still 404s (no product has an empty-string id), not a crash", async () => {
+  const deps = { ...createRouteDeps(), commerceProductRepo: fakeProductRepo([]), commercePriceRepo: fakePriceRepo({}) };
+  const app = createApp(deps);
+  const handler = extractHandler(app, "/products/:id");
+  let statusCode: number | undefined;
+  let body = "";
+  const res = {
+    status(code: number) {
+      statusCode = code;
+      return res;
+    },
+    type() {
+      return res;
+    },
+    send(payload: string) {
+      body = payload;
+      return res;
+    },
+  };
+
+  await handler({ params: {} }, res);
+
+  assert.equal(statusCode, 404);
+  assert.match(body, /404/);
+});

@@ -19,6 +19,49 @@ function testDeps(overrides: Partial<RouteDeps> = {}): RouteDeps {
   return { ...createRouteDeps(), ...overrides };
 }
 
+/** Both routes share `String(req.params.workspaceId ?? "")` -- a required `:workspaceId` route
+ *  segment, so Express's own router can never dispatch to either handler with it `undefined`; a
+ *  real HTTP request literally cannot trigger the `??` side, on the REAL composed app either. Same
+ *  technique as `providers.test.ts`'s (unit-tier) identical helper -- see its comment. */
+interface ExpressHandlerLayer {
+  route?: {
+    path: string;
+    methods: Record<string, boolean>;
+    stack: { handle: (req: unknown, res: unknown) => unknown }[];
+  };
+}
+interface ExpressAppWithRouter {
+  _router: { stack: ExpressHandlerLayer[] };
+}
+
+function extractHandler(
+  app: ReturnType<typeof createApp>,
+  method: "get" | "put",
+  path: string
+): (req: unknown, res: unknown) => unknown {
+  const stack = (app as unknown as ExpressAppWithRouter)._router.stack;
+  const layer = stack.find((l) => l.route?.path === path && l.route.methods[method]);
+  if (!layer?.route) throw new Error(`${method.toUpperCase()} '${path}' was not found in the router stack`);
+  return layer.route.stack[0].handle;
+}
+
+function fakeRes(): { res: unknown; getStatus: () => number | undefined; getBody: () => unknown } {
+  let statusCode: number | undefined;
+  let body: unknown;
+  const res = {
+    locals: { principal: { id: "forced-input-test-principal" } },
+    status(code: number) {
+      statusCode = code;
+      return res;
+    },
+    json(payload: unknown) {
+      body = payload;
+      return res;
+    },
+  };
+  return { res, getStatus: () => statusCode, getBody: () => body };
+}
+
 test("get-providers: mismatched workspaceId 404s", async (t) => {
   const app = createApp(testDeps());
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
@@ -170,4 +213,26 @@ test("put-providers: an unconfigured secret store 503s", async (t) => {
   });
   assert.equal(res.status, 503);
   assert.equal(((await res.json()) as { code?: string }).code, "SECRET_STORE_UNCONFIGURED");
+});
+
+test("get-providers: `req.params.workspaceId ?? \"\"` fallback, forced via a direct handler call on the REAL composed app -- still 404s as a mismatch", async () => {
+  const app = createApp(testDeps());
+  const handler = extractHandler(app, "get", "/api/admin/v1/workspaces/:workspaceId/media/providers");
+  const { res, getStatus, getBody } = fakeRes();
+
+  await handler({ params: {} }, res);
+
+  assert.equal(getStatus(), 404);
+  assert.deepEqual(getBody(), { error: "workspace was not found" });
+});
+
+test("put-providers: `req.params.workspaceId ?? \"\"` fallback, forced via a direct handler call on the REAL composed app -- still 404s as a mismatch", async () => {
+  const app = createApp(testDeps());
+  const handler = extractHandler(app, "put", "/api/admin/v1/workspaces/:workspaceId/media/providers");
+  const { res, getStatus, getBody } = fakeRes();
+
+  await handler({ params: {}, body: { openai: { apiKey: "sk-1" } } }, res);
+
+  assert.equal(getStatus(), 404);
+  assert.deepEqual(getBody(), { error: "workspace was not found" });
 });
