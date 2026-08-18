@@ -111,6 +111,10 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  // `setActiveTab` drives real `history.replaceState` via `lib/router`'s `navigate()` — reset
+  // between tests so one test's tab click can't leak a `?tab=` into the next (same convention
+  // `Deployment.unit.test.tsx`/`SettingsUi.unit.test.tsx` document for the identical reason).
+  window.history.replaceState(null, "", "/");
 });
 
 function cardFor(container: HTMLElement, title: string): HTMLElement {
@@ -683,5 +687,33 @@ describe("tab bar — useMediaTabsHook injection seam", () => {
 
     expect(await screen.findByText(/Filtering by type isn't wired up yet\./)).toBeInTheDocument();
     expect(screen.queryByText("No media uploaded yet.")).not.toBeInTheDocument();
+  });
+});
+
+describe("?tab= deep linking", () => {
+  it("opens directly on the tab named by the tabId prop", async () => {
+    fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
+    renderScreen({ tabId: "videos" });
+
+    expect(await screen.findByText(/Filtering by type isn't wired up yet\./)).toBeInTheDocument();
+    expect(screen.queryByText("No media uploaded yet.")).not.toBeInTheDocument();
+  });
+
+  it("falls back to All for an id that names no real tab, instead of blanking the panel", async () => {
+    fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
+    renderScreen({ tabId: "not-a-real-tab" });
+
+    expect(await screen.findByText("Sunset Photo")).toBeInTheDocument();
+  });
+
+  it("switching tabs writes the new id into the URL's ?tab= so the shown tab is always the linkable one", async () => {
+    fetchMock.mockImplementation(routeFetch([{ match: "/media", handler: () => Promise.resolve(jsonResponse(MEDIA_RESPONSE)) }]));
+    const user = userEvent.setup();
+    renderScreen({ tabId: "all" });
+    await screen.findByText("Sunset Photo");
+
+    await user.click(screen.getByRole("tab", { name: "Videos" }));
+
+    expect(window.location.search).toBe("?tab=videos");
   });
 });

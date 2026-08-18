@@ -180,7 +180,10 @@ export const ADMIN_PANELS: readonly AdminPanel<PanelRenderer>[] = [
   },
   {
     id: "media",
-    render: () => <Media />,
+    // `?tab=<id>` picks the initially-active tab and stays in sync as the operator switches tabs
+    // (see `Media`'s `tabId` prop) — same `?tab=` deep-linking convention as `deployment`'s and
+    // `settings`'s own entries elsewhere in this file.
+    render: (ctx) => <Media tabId={ctx.query.get("tab")} />,
     nav: {
       label: "Media",
       group: "Content",
