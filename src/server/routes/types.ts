@@ -532,20 +532,39 @@ export interface DatabaseRecoveryDeps {
  * accepted whole, even when touching 1-2 fields (tracked architecture debt — "core size" / "propagation
  * cost" in `npm run check:architecture`). `ClockDeps`/`IdentityDeps`/`MediaDeps` (Slices 1-2),
  * `CredentialsDeps`/`ContentTaxonomyDeps`/`CommentsDeps`/`MembersDeps` (Slice 3),
- * `DatabaseRecoveryDeps` (Slice 4), `ComposioDeps` (Slice 5), `WebhooksDeps` (Slice 6), and
- * `FormsDeps` (Slice 7) above are an incremental decomposition: pulled out as their own named,
- * cohesive interfaces and folded back in here via intersection so this type stays 100% identical to
- * every existing consumer. Narrowed call sites so far: `middleware/dev-auth.ts`'s
- * `requireAdminSession` and `assistant/byok-tool-surface.ts`'s `createByokToolSurface` (Slice 1, to
- * `ClockDeps`/`IdentityDeps`); `routes/admin/media/deps.ts`'s `MediaRouteDeps` (Slice 2, to
- * `MediaDeps`); the four `routes/admin/system/*-credentials.ts` files (to a `Pick` of
- * `CredentialsDeps`' fields) plus `routes/admin/members/deps.ts`'s `MembersRouteDeps` (Slice 3, to
- * `MembersDeps` directly); `routes/admin/database-recovery/deps.ts`'s `DatabaseRecoveryRouteDeps`
- * (Slice 4, to `DatabaseRecoveryDeps` directly); `routes/admin/connectors/deps.ts`'s
- * `ConnectorsRouteDeps`/`ConnectorsConfigRouteDeps` (Slice 5, to `ComposioDeps`/a `Pick` of it);
- * `routes/admin/integrations/deps.ts`'s `IntegrationsRouteDeps` (Slice 6, to `WebhooksDeps`
- * directly); and `routes/admin/forms/deps.ts`'s `FormsRouteDeps` (Slice 7, to `FormsDeps` directly)
- * — see those files' own docs.
+ * `DatabaseRecoveryDeps` (Slice 4), `ComposioDeps` (Slice 5), `WebhooksDeps` (Slice 6),
+ * `FormsDeps` (Slice 7), and `PostDeps`/`PresentationDeps`/`SettingsDeps`/`ChangeSetDeps`/
+ * `EventBusDeps`/`AnalyticsDeps`/`NavigationDeps`/`DatabaseOpsDeps`/`RedirectsDeps`/
+ * `CommerceCatalogDeps`/`WidgetsDeps`/`PluginRuntimeDeps` (Slice 8) above are an incremental
+ * decomposition: pulled out as their own named, cohesive interfaces and folded back in here via
+ * intersection so this type stays 100% identical to every existing consumer. Narrowed call sites so
+ * far: `middleware/dev-auth.ts`'s `requireAdminSession` and `assistant/byok-tool-surface.ts`'s
+ * `createByokToolSurface` (Slice 1, to `ClockDeps`/`IdentityDeps`); `routes/admin/media/deps.ts`'s
+ * `MediaRouteDeps` (Slice 2, to `MediaDeps`); the four `routes/admin/system/*-credentials.ts` files
+ * (to a `Pick` of `CredentialsDeps`' fields) plus `routes/admin/members/deps.ts`'s
+ * `MembersRouteDeps` (Slice 3, to `MembersDeps` directly); `routes/admin/database-recovery/deps.ts`'s
+ * `DatabaseRecoveryRouteDeps` (Slice 4, to `DatabaseRecoveryDeps` directly);
+ * `routes/admin/connectors/deps.ts`'s `ConnectorsRouteDeps`/`ConnectorsConfigRouteDeps` (Slice 5, to
+ * `ComposioDeps`/a `Pick` of it); `routes/admin/integrations/deps.ts`'s `IntegrationsRouteDeps`
+ * (Slice 6, to `WebhooksDeps` directly); and `routes/admin/forms/deps.ts`'s `FormsRouteDeps`
+ * (Slice 7, to `FormsDeps` directly) — see those files' own docs.
+ *
+ * Slice 8 (2026-08-18) is the LAST slice: it groups every field that was still flat in the trailing
+ * intersection object below, closing out this decomposition. No Slice-8 group has a single real
+ * whole-group `Pick`/`extends` consumer yet — each group's own doc explains the domain-cohesion
+ * rationale used instead (the same rationale `ContentTaxonomyDeps`/`CommentsDeps` already
+ * established in Slice 3). A handful of fields deliberately stayed flat rather than join a group:
+ * `workspaceRepo`/`chatHistory`/`webhookSigner`/`formsRateLimiter`/`siteAssistantRateLimiter` are
+ * true singletons with no cohesive sibling (each already has a real narrow consumer via
+ * `Pick<RouteDeps, ...>`, so leaving them flat costs nothing). `runExportSite`/`createSiteApp`/
+ * `resolveStorefrontProducts` stay flat because their own types reference `RouteDeps` itself —
+ * moving any of them into a named sub-interface closes a real circular-type reference TypeScript
+ * rejects (a concrete `tsc` contravariance failure, confirmed before this slice started).
+ * `exportOutputRootDir`/`deploymentsReadRepo`/`publishHistoryStore`/`publishExecutionMode`/
+ * `publishOutputRootDir`/`publishCredentialVerificationCache`/`sourceControlExportRootDir` stay
+ * flat too — out of scope for this slice alongside `features/deployments/`/`features/
+ * source-control/`, which carry 7 already-diagnosed, unrelated violations this slice does not
+ * touch.
  */
 /**
  * Slice 5 of the `RouteDeps` god-object decomposition (2026-08-18) — the Composio connectors
