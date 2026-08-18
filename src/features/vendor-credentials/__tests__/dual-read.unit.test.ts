@@ -3,10 +3,16 @@ import test from "node:test";
 
 import { AesGcmSecretSealer } from "../../../integrations/secret-sealer.aesgcm";
 import { InMemoryKeyring } from "../../../integrations/keyring.memory";
-import { createPublishCredential, InMemoryPublishCredentialSetRepo, type PublishCredentialWriteDeps } from "../../deployments/publish-credentials/index";
+import {
+  createPublishCredential,
+  InMemoryPublishCredentialSetRepo,
+  resolveDefaultForPublish,
+  type PublishCredentialWriteDeps,
+} from "../../deployments/publish-credentials/index";
 import {
   createSourceControlCredential,
   InMemorySourceControlCredentialSetRepo,
+  resolveDefaultForSourceControl,
   type SourceControlCredentialWriteDeps,
 } from "../../source-control/index";
 import { resolveDefaultForVendorDualRead, type VendorCredentialDualReadDeps } from "../dual-read";
@@ -52,6 +58,11 @@ function makeDeps(): VendorCredentialDualReadDeps & {
     publishRepo,
     sourceControlRepo,
     sealer,
+    // Injected rather than a module-scope import, matching `dual-read.ts`'s own deps shape after the
+    // 2026-08-17 architecture SCC cut (see that file's header) — the real production functions,
+    // passed in exactly as a real caller eventually would, just from a test rather than `server/`.
+    resolveLegacyPublish: resolveDefaultForPublish,
+    resolveLegacySourceControl: resolveDefaultForSourceControl,
     vendorWriteDeps: { repo: vendorRepo, sealer, keyring, clock, idGen },
     publishWriteDeps: { repo: publishRepo, sealer, keyring, clock, idGen },
     sourceControlWriteDeps: { repo: sourceControlRepo, sealer, keyring, clock, idGen },
