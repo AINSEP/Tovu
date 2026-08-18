@@ -692,17 +692,22 @@ export interface PresentationDeps {
   themesDir: string;
 }
 
-export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & DatabaseRecoveryDeps & ComposioDeps & WebhooksDeps & FormsDeps & PostDeps & PresentationDeps & {
-  workspaceRepo: WorkspaceRepoPort;
-  /**
-   * Durable AI chat history, obtained per-principal.
-   *
-   * A factory rather than a store, because there is no such thing as "the" chat store — every
-   * query must be filtered by who is asking. Composition closes over the `content.db` handle so
-   * no route ever holds one, which is what makes an unscoped `WHERE id = ?` unwritable rather
-   * than merely against convention. See `assistant/persistence/tenant-scope.ts`.
-   */
-  chatHistory: ChatStoreFactory;
+/**
+ * Slice 8 of the `RouteDeps` god-object decomposition (2026-08-18) — the settings ledger's repo
+ * plus the `features/settings` function/constant bindings and the boot-registration `*Ready`
+ * promise chain, extracted verbatim (fields + doc comments unchanged) from where they lived inline
+ * in `RouteDeps` below.
+ *
+ * No single whole-group consumer — `routes/admin/settings/deps.ts`'s `SettingsRouteDeps` picks
+ * `settingsReady`/`settingsRepo` (not the rest); `routes/admin/seo/deps.ts`'s `SeoRouteDeps` picks
+ * `seoReady`/`settingsRepo`; `routes/admin/assistant/deps.ts`'s `AssistantSettingsRouteDeps` picks
+ * `settingsRepo`/`getEffective`/`set`/`assistantSettingsReady` — each a different narrow subset.
+ * Grouped here on domain cohesion instead (one ledger, one boot-registration chain — every `*Ready`
+ * field's own doc comment says it is chained after the previous one on the same SQLite connection),
+ * the same rationale `ContentTaxonomyDeps`/`CommentsDeps` already used for a shared-domain, no-single-
+ * consumer group.
+ */
+export interface SettingsDeps {
   /**
    * SPEC-007 — the settings ledger's repo port. `core.commands.appliers`
    * (via `revert.ts`) reads through this now instead of
@@ -774,6 +779,19 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * read/write through the generic settings routes.
    */
   settingsUiTabsReady: Promise<void>;
+}
+
+export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & DatabaseRecoveryDeps & ComposioDeps & WebhooksDeps & FormsDeps & PostDeps & PresentationDeps & SettingsDeps & {
+  workspaceRepo: WorkspaceRepoPort;
+  /**
+   * Durable AI chat history, obtained per-principal.
+   *
+   * A factory rather than a store, because there is no such thing as "the" chat store — every
+   * query must be filtered by who is asking. Composition closes over the `content.db` handle so
+   * no route ever holds one, which is what makes an unscoped `WHERE id = ?` unwritable rather
+   * than merely against convention. See `assistant/persistence/tenant-scope.ts`.
+   */
+  chatHistory: ChatStoreFactory;
   /** Change-set store for the command gateway (in-memory in v1, ADR-008/018). */
   changeSets: ChangeSetRepoPort;
   /**
