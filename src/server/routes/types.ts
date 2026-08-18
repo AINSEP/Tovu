@@ -20,7 +20,7 @@ import type { PostRepoPort, PostSearchPort, BeforeSaveHookPort } from "../../fea
 import type { PagesHtmlDocumentStoreFactory } from "../../features/pages";
 import type { ChatStoreFactory } from "../../assistant/persistence/tenant-scope";
 import type { PresentationSettingsRepoPort } from "../../features/presentation";
-import type { SettingsRepoPort } from "../../features/settings";
+import type { SettingsRepoPort, getEffective, set } from "../../features/settings";
 import type { DiscoveredTheme } from "../../features/theme";
 import type { WorkspaceRepoPort } from "../../features/workspace";
 import type { AnalyticsConfigPort, AnalyticsSinkPort } from "../../analytics/ports";
@@ -144,6 +144,25 @@ export interface RouteDeps {
    * admin `settings.*` routes (Phase 5, not yet wired) will consume it too.
    */
   settingsRepo: SettingsRepoPort;
+  /**
+   * The real `features/settings`'s own `getEffective` — threaded through `RouteDeps` (rather than
+   * each consumer importing it directly) so `assistant/public-assistant-settings.ts`'s
+   * `GetPublicAssistantSettingsDeps` and `assistant/custom-instructions.ts`'s
+   * `ResolveCustomInstructionsDeps` can receive it by injection instead of a static import — the
+   * technique that keeps `settings` convertible to the standard tool-contribution registry without
+   * closing an `[assistant, features/settings]` module cycle. `server/` already imports
+   * `features/settings` directly and safely elsewhere in this file (`settingsRepo` above); this is
+   * the same edge, just also threaded to the two `assistant/` files that need the FUNCTION.
+   */
+  getEffective: typeof getEffective;
+  /** The real `features/settings`'s own `set` — see `getEffective`'s doc immediately above for why
+   *  this is threaded through `RouteDeps` rather than imported directly by `assistant/
+   *  public-assistant-settings.ts`'s `PublicAssistantSettingsWriteDeps`. */
+  set: typeof set;
+  /** The real `features/settings`'s own `INSTRUCTIONS_NAMESPACE` constant (`"core.instructions"`) —
+   *  see `getEffective`'s doc above; threaded through so `assistant/custom-instructions.ts`'s
+   *  `ResolveCustomInstructionsDeps` can receive it by injection instead of a static import. */
+  instructionsNamespace: string;
   /**
    * Resolves once the one-time `migrateLegacyPresentationSettings()` boot
    * migration (SPEC-007 REQ-08) completes. Mirrors `identityReady`'s

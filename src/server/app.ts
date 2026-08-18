@@ -23,7 +23,17 @@ import {
   ensureExecutionSettingDefinitions,
 } from "../assistant";
 import { InMemoryPresentationSettingsRepo } from "../features/presentation";
-import { InMemorySettingsRepo, ensureSettingsUiTabDefinitions } from "../features/settings";
+import {
+  InMemorySettingsRepo,
+  ensureSettingsUiTabDefinitions,
+  getEffective,
+  set,
+  resolveDefinitionRaw,
+  registerDefinitions,
+  ensureSettingDefinitions,
+  SCOPE_BIT,
+  INSTRUCTIONS_NAMESPACE,
+} from "../features/settings";
 import { discoverAllBuiltInThemes } from "../features/theme";
 import { InMemoryWorkspaceRepo } from "../features/workspace";
 import path from "node:path";
@@ -275,7 +285,15 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // definition does NOT enable anything: its default is `false`.
   const assistantSettingsReady = commentsSettingsReady.then(() =>
     ensurePublicAssistantSettingDefinitions(
-      { settingsRepo, clock, ids: idGen, principals: identity.principalRepo },
+      {
+        settingsRepo,
+        clock,
+        ids: idGen,
+        principals: identity.principalRepo,
+        resolveDefinitionRaw,
+        registerDefinitions,
+        scopeBit: SCOPE_BIT,
+      },
       { workspaceId: seededWorkspace.id, systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
     ).then(() => undefined)
   );
@@ -288,7 +306,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // header for the namespace-fence reasoning.
   const executionSettingsReady = assistantSettingsReady.then(() =>
     ensureExecutionSettingDefinitions(
-      { settingsRepo, clock, ids: idGen, principals: identity.principalRepo },
+      { settingsRepo, clock, ids: idGen, principals: identity.principalRepo, ensureSettingDefinitions },
       { systemPrincipalId: SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID }
     ).then(() => undefined)
   );
@@ -458,6 +476,9 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     chatHistory: createInMemoryChatStoreFactory(),
     presentationRepo,
     settingsRepo,
+    getEffective,
+    set,
+    instructionsNamespace: INSTRUCTIONS_NAMESPACE,
     settingsReady,
     seoReady,
     assistantSettingsReady,

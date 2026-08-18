@@ -41,6 +41,8 @@ export const registerAdminAssistantPutSettingsRoute: AssistantSettingsRouteRegis
       const settings = await setPublicAssistantSettings(
         {
           settingsRepo: deps.settingsRepo,
+          getEffective: deps.getEffective,
+          set: deps.set,
           clock: deps.clock,
           ids: deps.idGen,
           authorize: deps.authorize,
