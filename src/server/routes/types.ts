@@ -781,17 +781,20 @@ export interface SettingsDeps {
   settingsUiTabsReady: Promise<void>;
 }
 
-export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & DatabaseRecoveryDeps & ComposioDeps & WebhooksDeps & FormsDeps & PostDeps & PresentationDeps & SettingsDeps & {
-  workspaceRepo: WorkspaceRepoPort;
-  /**
-   * Durable AI chat history, obtained per-principal.
-   *
-   * A factory rather than a store, because there is no such thing as "the" chat store — every
-   * query must be filtered by who is asking. Composition closes over the `content.db` handle so
-   * no route ever holds one, which is what makes an unscoped `WHERE id = ?` unwritable rather
-   * than merely against convention. See `assistant/persistence/tenant-scope.ts`.
-   */
-  chatHistory: ChatStoreFactory;
+/**
+ * Slice 8 of the `RouteDeps` god-object decomposition (2026-08-18) — the command-gateway change-set
+ * store and its inverse-applier registry, extracted verbatim (fields + doc comments unchanged)
+ * from where they lived inline in `RouteDeps` below.
+ *
+ * No single whole-group consumer: `routes/admin/content/deps.ts`'s `ContentRouteDeps` reads both
+ * (`changeSets` for posts/pages create/update, `revertRegistry` for `change-sets/revert.ts`)
+ * alongside many non-group fields. `routes/admin/plugins/deps.ts`'s `PluginsRouteDeps` also reads
+ * `changeSets` alone (as a hand-typed shape, not a `Pick<RouteDeps>`). Grouped here on the fields'
+ * own doc comments — `revertRegistry`'s says it is "closed over the SAME `postRepo`/`clock`/
+ * `outbox` instances the rest of this bag already carries" alongside `changeSets` — the same
+ * domain-cohesion rationale used where no narrow consumer exists.
+ */
+export interface ChangeSetDeps {
   /** Change-set store for the command gateway (in-memory in v1, ADR-008/018). */
   changeSets: ChangeSetRepoPort;
   /**
@@ -804,6 +807,19 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * Job 2).
    */
   revertRegistry: RevertRegistry;
+}
+
+export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & DatabaseRecoveryDeps & ComposioDeps & WebhooksDeps & FormsDeps & PostDeps & PresentationDeps & SettingsDeps & ChangeSetDeps & {
+  workspaceRepo: WorkspaceRepoPort;
+  /**
+   * Durable AI chat history, obtained per-principal.
+   *
+   * A factory rather than a store, because there is no such thing as "the" chat store — every
+   * query must be filtered by who is asking. Composition closes over the `content.db` handle so
+   * no route ever holds one, which is what makes an unscoped `WHERE id = ?` unwritable rather
+   * than merely against convention. See `assistant/persistence/tenant-scope.ts`.
+   */
+  chatHistory: ChatStoreFactory;
   outbox: OutboxPort;
   bus: EventBusPort;
   /** Analytics ingest buffer (ADR-035 ingest-only stage; no rollup yet). ADR-046 Phase 1: durable
