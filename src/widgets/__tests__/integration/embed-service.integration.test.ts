@@ -2,8 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryEntryRefsRepo } from "#src/core/entry-refs/repo.memory";
-import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "#src/features/content-types/repo.memory";
-import { registerContentType } from "#src/features/content-types/write-service";
+import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner, registerContentType } from "#src/features/content-types/index";
 import { InMemoryEntryRepo, createEntry } from "#src/features/entries/index";
 import { PRE_AUTHORIZED } from "../../authorize-helper";
 import {

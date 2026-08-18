@@ -29,7 +29,7 @@
 import type { ClockPort, OutboxPort, UUID } from "@jini-ai/cms/core";
 import type { EntryRefsRepoPort } from "../core/entry-refs/ports";
 import { extractEntryRefs } from "../core/entry-refs/extractor";
-import type { ContentTypeRepoPort } from "../features/content-types/write-service";
+import type { ContentTypeRepoPort } from "../features/content-types";
 import {
   VersionConflictError,
   toEntryOutbox,

@@ -33,7 +33,7 @@
  */
 import type { EntryRefsRepoPort } from "../core/entry-refs/ports";
 import type { AuthorizeFn, OutboxPort } from "@jini-ai/cms/core";
-import type { ContentTypeRepoPort } from "../features/content-types/write-service";
+import type { ContentTypeRepoPort } from "../features/content-types";
 import type { EntryListPort, EntryRepoPort } from "../features/entries";
 import type { WidgetRegionBindingRepoPort } from "./ports";
 

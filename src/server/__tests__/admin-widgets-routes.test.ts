@@ -266,8 +266,7 @@ test("admin widgets embeds: insert -> reorder -> remove against a real generic e
 
   // A host entry needs a registered content type first (mirrors the widgets domain-layer test
   // fixtures' own approach) — "article" avoids the "post"/"page" reserved-key collision.
-  const { registerContentType } = await import("../../features/content-types/write-service");
-  const { NoopContentTypeIndexProvisioner } = await import("../../features/content-types/repo.memory");
+  const { registerContentType, NoopContentTypeIndexProvisioner } = await import("../../features/content-types/index");
   const { createEntry } = await import("../../features/entries/index");
   const { PRE_AUTHORIZED } = await import("../../widgets/authorize-helper");
 

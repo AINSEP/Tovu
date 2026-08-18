@@ -11,9 +11,14 @@
  * There is no SQLite export on this barrel, deliberately: nothing outside the composition root can
  * accidentally depend on this host's persistence choice.
  *
- * `repo.memory.ts` and `write-service.ts` also survive as per-file re-export shims, only because
- * `src/widgets/` still deep-imports those two paths and is being ported by separate work in
- * flight. When that lands, the shims retire.
+ * `repo.memory.ts` and `write-service.ts` also survive as per-file re-export shims. `src/widgets/`'s
+ * deep imports were redirected here on 2026-08-17 (matching the `features/entries` shim
+ * retirement in c3c030a9); the one remaining direct importer is
+ * `src/assistant/__tests__/tool-registrations.widgets-authorization.test.ts` (dynamic
+ * `await import(...)`), which `.dependency-cruiser.cjs`'s `TOOL_REGISTRATION_TEST_FROM` pattern
+ * deliberately, permanently exempts as a tool-registration-seam contract test — not a pending
+ * migration. Retiring these shims depends on whether that file's own owner redirects it to
+ * `./index.ts`, which already exports everything it needs.
  */
 export type {
   ContentTypeFieldKind,
