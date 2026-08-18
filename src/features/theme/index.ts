@@ -40,6 +40,18 @@ export {
 // internals, matching every other cross-feature surface in this barrel.
 export { readThemeLineageFile, writeThemeLineageFile, THEME_LINEAGE_FILENAME } from "./theme-lineage";
 
+// Milestone 2 (2026-08-18) — the theme v2 package validator's public entry point, re-exported so
+// `cli/commands/theme/validate.ts` (and any future caller) reaches it through this barrel rather than
+// a deep import into `features/theme/validation/`'s internals.
+export {
+  validateThemePackage,
+  type ThemeValidationProfile,
+  type ThemeValidationIssue,
+  type ThemeValidationSeverity,
+  type ThemeValidationFinding,
+  type ValidateThemePackageResult,
+} from "./validation/validate-theme-package";
+
 export {
   renderStaticPage,
   renderStaticPartial,

@@ -132,6 +132,30 @@ test("marketplace download: an id collision installs the new theme at '<id>-1' o
   assert.ok(deps.themes.some((theme) => theme.manifest.id === "basic-1"));
 });
 
+test("marketplace download: a fixture that fails install-profile validation is refused BEFORE either copy, disk untouched (2026-08-18 validate-then-copy gate)", async (t) => {
+  const themesRoot = makeThemesRoot();
+  // A second, deliberately BROKEN fixture: its theme.json id ('mismatched') does not equal its own
+  // folder name ('broken') — a real `loadTheme()` failure, exactly the class of defect the
+  // validate-then-copy gate exists to catch before it becomes local files.
+  const brokenDir = path.join(themesRoot, MARKETPLACE_CATALOG_DIR, "static", "broken");
+  writeMinimalStaticTheme(brokenDir, "mismatched", "Broken");
+  const deps = testDeps(themesRoot);
+  const { baseUrl, cookie } = await bootAuthenticated(createApp(deps), t);
+
+  const response = await fetch(downloadUrl(baseUrl, deps.workspaceId, "broken"), {
+    method: "POST",
+    headers: { cookie },
+  });
+  const body = (await response.json()) as { code: string; error: string };
+
+  assert.equal(response.status, 400, `expected 400, got ${response.status}: ${JSON.stringify(body)}`);
+  assert.equal(body.code, "INVALID_PACKAGE");
+  assert.match(body.error, /must equal folder name/);
+
+  assert.ok(!fs.existsSync(path.join(themesRoot, THEME_CATALOG_DIR, "static", "broken")), "the catalog copy must never be written for a refused fixture");
+  assert.ok(!fs.existsSync(path.join(themesRoot, "static", "broken")), "the editable copy must never be written for a refused fixture");
+});
+
 test("marketplace list: the colliding fixture is flagged as already taken locally", async (t) => {
   const themesRoot = makeThemesRoot();
   const deps = testDeps(themesRoot);

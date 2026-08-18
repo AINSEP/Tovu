@@ -1,0 +1,133 @@
+# Progress Ledger
+
+- workstream: theme-v2-validator-build
+- scope_type: security fix + validator build + schema decisions + CLI/marketplace wiring
+- owner: Claude Sonnet 5 (Programmer, dispatched by team-lead) / Leona Burime
+- started_at: 2026-08-18T08:30:00-07:00
+- last_updated_at: 2026-08-18T09:15:00-07:00
+- related_state_file: `development/docs/themes/theme-authoring-guide-v2.md` (target design doc)
+- decisions_file: `ADS-memory/reports/swarm-consensus/runs/2026-08-17-tovu-theme-invariant-structure-consensus-report.md`
+- evaluator_mode: not-needed
+
+## Current Objective
+
+Build Tovu's theme v2 package validator (Milestone 2 of a 5-milestone dispatch), on top of a
+security parity fix (Milestone 1, DONE) and two schema-blocking decisions this milestone required
+resolving first. Milestones 3 (migration script) and 4 (asset normalizer wiring) NOT STARTED —
+Milestone 3 explicitly requires a go/no-ahead from Leona/team-lead before running any real migration
+(dry-run classification report first). Milestone 5 (generated root `index.html` for static-tier
+themes) was added mid-session by team-lead, deliberately sequenced AFTER Milestone 2 since it needs
+the schema v2 root-index-file entry and hooks into the same validate/build flow — NOT STARTED YET.
+
+## Read This First (next session boot packet)
+
+1. This ledger.
+2. The original dispatch message (in this session's transcript) — full Milestone 1-4 spec.
+3. Team-lead's Milestone 5 follow-up message (in this session's transcript) — root `index.html` spec.
+4. `development/docs/themes/theme-authoring-guide-v2.md` — target design, now with 4 stale claims
+   corrected this session (sourceDir gap, `form` embed type — see Decisions below).
+5. `src/features/theme/validation/validate-theme-package.ts` — the validator orchestrator, own file
+   header explains the v1-fallback/v2-strict branching and the one known limitation (v2 compiled-tree
+   hash coverage not wired — `build-conformance.ts` doesn't understand `render/` yet).
+
+## Decisions Made This Session
+
+- Security fix (Milestone 1): `theme_write_file` agent tool now refuses writes into `preview/`,
+  matching `explore.ts`'s PUT route (`isGeneratedThemePath`). Commit `c4540386`.
+- `lineage` moved out of `theme.json` into its own sidecar file (`.tovu-lineage.json`,
+  `theme-lineage.ts`) — was blocking `additionalProperties: false`. `marketplace.ts`'s
+  `rewriteThemeManifestId` no longer takes an `extra` merge param (dead after this).
+- `skipLiquidAllowlist` no longer read from a theme's own `theme.json` — resolves from
+  `TRUSTED_SKIP_LIQUID_ALLOWLIST_THEME_IDS` (empty `Set` in `theme.ts`, maintainer-controlled).
+  Zero themes on disk used this flag, so this was a clean behavior change, not a migration.
+- `theme-authoring-guide-v2.md` corrected: sourceDir/reserved-directory gap was already fixed
+  (`isSourceDirGeneratedConflict`, `theme.ts:653`, commit 45f5e219) — doc said "still open", was
+  stale. `form` embed type removed from the doc's vocabulary — confirmed removed from the real
+  runtime 2026-08-10 (`resolver-service.ts`'s own doc comment); real vocabulary is
+  `widget`/`media`/`post`/`content`/`menu`/`partial` (six, not seven).
+- Both schema commits landed BEFORE the validator was built, so the validator's `manifest-v2.ts` and
+  `markup.ts` were written against the corrected (real) state, not the stale one.
+- `validate-theme-package.ts`'s v1-fallback path defers entirely to `loadTheme()`'s own errors
+  (no re-derivation) — confirmed clean against all 11 real first-party themes in `src/themes/`
+  (schemaVersion 1, valid, 0 errors/warnings for every one, via a throwaway sanity script, not a
+  committed test).
+- `tovu theme validate <dir> --profile <p> --json` wired as a NESTED commander subcommand (`theme`
+  parent + `validate` child), not a flat command — `src/cli/introspect.ts` extended to flatten nested
+  subcommands into the manifest's flat `commands` array (`"theme validate"` full-path name), since
+  Milestones 3/4 are expected to add sibling subcommands (`theme migrate`, `theme package`) later.
+- `marketplace.ts`'s `downloadMarketplaceTheme` now validates the fixture (`profile: "install"`)
+  BEFORE either `cpSync` copy — stays pure validate-then-copy, never validate-and-fix (mutating
+  during download would invalidate a compiled theme's `artifactHashes`).
+- Known, disclosed limitation: a v2-declared COMPILED theme's generated-tree hash-coverage
+  exhaustiveness is NOT checked on the v2-strict validation path — `build-conformance.ts`'s own file
+  discovery still scans v1's flat `pages/`/`css/`/`js/` layout, not v2's `render/`-nested tree. No
+  real v2-declared compiled theme exists yet to test against either way. Flagged in
+  `validate-theme-package.ts`'s own file header, not silently skipped.
+
+## Code Changes (all tests green as of last-verified-good-state below)
+
+- `src/features/theme/tool-registrations.ts` — Milestone 1 fix (`isGeneratedThemePath` check).
+- `src/features/theme/theme-lineage.ts` (NEW) — lineage sidecar file read/write.
+- `src/features/theme/marketplace.ts` — lineage relocation, `rewriteThemeManifestId` simplified,
+  install-profile validate-then-copy gate (fixed a bug where `id: fixture.manifest.id` was passed
+  instead of `id: marketplaceId` — caught by the RED/GREEN discipline on the regression test).
+- `src/features/theme/theme.ts` — `skipLiquidAllowlist` trust-list change, doc comment updates.
+- `src/features/theme/index.ts` — barrel exports for `theme-lineage.ts` and
+  `validation/validate-theme-package.ts` (kept CLI/explore.ts off deep imports — caught by
+  `check:architecture`'s "module API surface" metric regressing when I first got this wrong).
+- `src/features/theme/validation/` (NEW dir) — `profiles.ts`, `manifest-v2.ts`, `structure.ts`,
+  `references.ts`, `markup.ts`, `validate-theme-package.ts`.
+- `src/server/routes/admin/themes/explore.ts` — lineage read via barrel, stale sourceDir comment fixed.
+- `src/cli/introspect.ts` — nested-subcommand flattening.
+- `src/cli/program.ts` — `theme validate` subcommand wired.
+- `src/cli/commands/theme/validate.ts` (NEW) — the CLI command itself.
+- `development/docs/themes/theme-authoring-guide-v2.md` — 4 stale-claim corrections (see Decisions).
+- Tests: `theme-lineage.test.ts` (NEW), `theme.test.ts` (+1), `marketplace-download-route.integration.test.ts`
+  (+1 test, 2 assertions changed), `validate-theme-package.test.ts` (NEW, 21 tests),
+  `introspect.unit.test.ts` (+2), `introspect-command.integration.test.ts` (2 assertions updated),
+  `theme-validate-command.integration.test.ts` (NEW, 4 tests).
+
+## Last Verified Good State
+
+- `npx tsc -p tsconfig.json --noEmit`: PASS (run repeatedly through the session).
+- `npm run check:architecture`: PASS, ahead of baseline (11.73→11.56 propagation cost, 16.84%→16.76%
+  core size) — NOT yet run with `--update` to lock in (deliberately left for team-lead/Leona's call).
+- `src/features/theme/**/*.test.ts` (339 tests): all PASS.
+- `src/server/routes/admin/themes/__tests__/*` + `src/server/__tests__/routes/*theme*`/`*marketplace*`
+  (47+6+1 tests across files): all PASS.
+- CLI suite (`src/cli/__tests__/**`, 15 tests incl. new `theme-validate-command.integration.test.ts`):
+  all PASS.
+- Sanity check (uncommitted, one-off): all 11 real first-party themes in `src/themes/` validate
+  `schemaVersion: 1, valid: true, 0 errors, 0 warnings` through the new orchestrator.
+
+## Commits This Session
+
+1. `c4540386` — Milestone 1: `theme_write_file` preview/ write gap fix.
+2. `d784b631` — schema decisions: lineage relocation + skipLiquidAllowlist trust-list + doc fixes.
+3. NOT YET COMMITTED as of this ledger write: the full `validation/` module set + CLI + marketplace
+   wiring (this is the next action — commit before continuing to Milestone 5).
+
+## Next Actions
+
+1. Commit the validator + CLI + marketplace-install wiring (everything since commit `d784b631`).
+2. Report Milestone 2 complete to team-lead (checkpoint, per the standing "report after every
+   milestone" instruction) — include the known v2-compiled-hash-coverage limitation.
+3. Start Milestone 5 (generated root `index.html`, static-tier only): needs (a) a schema v2 entry so
+   `structure.ts`'s `checkApprovedRoots` doesn't reject a generated `index.html` at the theme root —
+   mark it generated/optional the same way `preview/` is; (b) the actual splice logic — `partial`-type
+   embeds get real content spliced from the theme's own `render/partials/*` (or v1 `nav.html`/
+   `footer.html`), `menu`/`post`/`content` types get the literal placeholder
+   `<!-- live content when connected to Tovu -->`; (c) a regeneration hook — team-lead deferred the
+   exact hook point to "once you're in Milestone 2 code", candidate: `validateThemePackage`'s v1/v2
+   branches don't currently WRITE anything, so this likely needs its OWN small module (e.g.
+   `static-portability-index.ts`) invoked from wherever a static theme's save/build completes, not
+   folded into the validator itself (the validator's job is checking, not generating).
+4. Milestone 3 (migration script) — STILL BLOCKED on Leona/team-lead go-ahead after a dry-run
+   classification report. Do not start without it, per the original dispatch's explicit instruction.
+5. Milestone 4 (asset normalizer wiring) — not started, lowest priority per original dispatch ordering.
+
+## Loop Alerts
+
+None — no file has been edited 3+ times for the same failing cluster. One caught-and-fixed bug
+(marketplace.ts's `id` argument) took one wrong attempt + one fix, resolved via the RED/GREEN
+discipline before it reached a commit.

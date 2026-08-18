@@ -4,6 +4,7 @@ import { runExportCommand } from "./commands/export";
 import { runInitCommand } from "./commands/init";
 import { runIntrospectCommand } from "./commands/introspect";
 import { runServeCommand } from "./commands/serve";
+import { runThemeValidateCommand } from "./commands/theme/validate";
 import { introspectProgram } from "./introspect";
 
 /**
@@ -62,6 +63,22 @@ export function createProgram(): Command {
     .option("--base-path <path>", 'rewrite root-relative links/assets for a subpath deploy (e.g. "/my-repo" for a GitHub Pages project site) — omit for an apex-domain deploy')
     .action(async (dir: string, options: { out?: string; workspace?: string; clean?: boolean; basePath?: string }) => {
       await runExportCommand({ dir, out: options.out, workspaceId: options.workspace, clean: options.clean, basePath: options.basePath });
+    });
+
+  // Namespaced command group (2026-08-18, Milestone 2 of the theme v2 build) — a sibling `theme
+  // migrate`/`theme package` are expected from later milestones, hence a real subcommand group
+  // rather than a flat `theme-validate` command. `theme` itself has no `.action()`: invoked alone it
+  // prints commander's own default usage for a group with subcommands, which is the right behavior
+  // for a namespace that is not itself invocable.
+  const themeProgram = program.command("theme").description("theme package authoring/validation commands");
+  themeProgram
+    .command("validate")
+    .description("validate a theme package directory against the theme.json schema, package shape, and markup rules")
+    .argument("<dir>", "theme package directory to validate")
+    .option("--profile <profile>", "validation strictness: author (default), publish, or install", "author")
+    .option("--json", "print the full machine-readable result instead of a human-readable summary")
+    .action(async (dir: string, options: { profile?: string; json?: boolean }) => {
+      await runThemeValidateCommand({ dir, profile: options.profile, json: options.json });
     });
 
   program

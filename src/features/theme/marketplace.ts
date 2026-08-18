@@ -14,6 +14,7 @@ import {
 } from "./theme";
 import { isGeneratedThemePath } from "./theme-files";
 import { writeThemeLineageFile, type ThemeLineage } from "./theme-lineage";
+import { validateThemePackage } from "./validation/validate-theme-package";
 
 /**
  * @file The local theme marketplace — a FAKE marketplace (no network, no remote catalog, no search,
@@ -39,12 +40,16 @@ const SAFE_THEME_ID = /^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/;
 
 /**
  * Thrown by every function in this module that fails. `code` lets a caller (the download/list routes)
- * map the failure to the right HTTP status without re-parsing the message text.
+ * map the failure to the right HTTP status without re-parsing the message text. `INVALID_PACKAGE`
+ * (2026-08-18, Milestone 2) is `downloadMarketplaceTheme`'s own validate-then-copy gate — the fixture
+ * itself fails `validateThemePackage`'s `"install"` profile — and maps to the same 400 `INVALID_ID`
+ * already does at every existing call site (`download.ts`'s `err.code === "NOT_FOUND" ? 404 : 400`),
+ * so adding it needed no route-layer change.
  */
 export class MarketplaceThemeError extends Error {
-  readonly code: "INVALID_ID" | "NOT_FOUND";
+  readonly code: "INVALID_ID" | "NOT_FOUND" | "INVALID_PACKAGE";
 
-  constructor(code: "INVALID_ID" | "NOT_FOUND", message: string) {
+  constructor(code: "INVALID_ID" | "NOT_FOUND" | "INVALID_PACKAGE", message: string) {
     super(message);
     this.name = "MarketplaceThemeError";
     this.code = code;
@@ -235,9 +240,16 @@ export interface DownloadMarketplaceThemeResult {
  * @param required.themes - The live discovered-themes array to refresh via `rescanThemes` — mutated in
  * place, matching `rescanThemes`'s own contract.
  * @param required.marketplaceId - The marketplace fixture's folder id to download.
- * @throws {MarketplaceThemeError} `INVALID_ID` for a malformed id, `NOT_FOUND` if no fixture matches.
- * @complexity O(f) in the fixture's own file count (two recursive copies), plus `rescanThemes`'s O(t)
- * in the themes root's total theme count.
+ * Validate-then-copy (2026-08-18, Milestone 2): the fixture is run through `validateThemePackage`'s
+ * `"install"` profile BEFORE either `cpSync` — refusing a broken/malicious fixture before it becomes
+ * local files at all, rather than mutating it during the copy (mutating during download would
+ * invalidate the very provenance hashes a compiled theme's `build.artifactHashes` depends on; this
+ * module stays pure validate-then-copy, never validate-and-fix).
+ *
+ * @throws {MarketplaceThemeError} `INVALID_ID` for a malformed id, `NOT_FOUND` if no fixture matches,
+ * `INVALID_PACKAGE` if the fixture itself fails install-profile validation.
+ * @complexity O(f) in the fixture's own file count (one validation walk, two recursive copies), plus
+ * `rescanThemes`'s O(t) in the themes root's total theme count.
  */
 export function downloadMarketplaceTheme(
   required: { themesRoot: string; themes: DiscoveredTheme[]; marketplaceId: string },
@@ -245,6 +257,18 @@ export function downloadMarketplaceTheme(
 ): DownloadMarketplaceThemeResult {
   const { themesRoot, themes, marketplaceId } = required;
   const { theme: fixture, tier } = findMarketplaceTheme({ themesRoot, marketplaceId });
+
+  // `id: marketplaceId` — the fixture's OWN FOLDER name, not `fixture.manifest.id` (whatever the
+  // manifest merely CLAIMS its id is). Passing the manifest's own claim back to itself would make the
+  // id-must-equal-folder-name check compare the manifest against itself, never catching a mismatch —
+  // caught by this gate's own regression test before this line was corrected.
+  const validation = validateThemePackage({ themeDir: fixture.dir, id: marketplaceId, profile: "install" });
+  if (!validation.valid) {
+    throw new MarketplaceThemeError(
+      "INVALID_PACKAGE",
+      `marketplace theme '${marketplaceId}' failed install validation: ${validation.errors.map((e) => e.message).join("; ")}`
+    );
+  }
 
   const assignedId = nextAvailableThemeId({ desiredId: fixture.manifest.id, themesRoot, tier });
   const suffixed = assignedId !== fixture.manifest.id;

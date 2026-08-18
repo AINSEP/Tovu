@@ -53,8 +53,25 @@ export interface CliManifest {
 const META_COMMAND_NAMES = new Set(["introspect", "help"]);
 
 /**
+ * Flatten a command tree down to its INVOCABLE leaves — a command with its own nested subcommands
+ * (e.g. `theme`, grouping `validate` and future siblings) has no `.action()` of its own and merely
+ * printing usage is `theme` alone's real behavior, so it is not itself a capability an agent should
+ * be told it can call; only `theme validate` is. `path` accumulates ancestor command names so a
+ * nested leaf's manifest `name` becomes its full invocation (`"theme validate"`), not just its own
+ * last segment — the same string a caller would actually type after `tovu`.
+ */
+function flattenInvocableCommands(cmd: Command, path: readonly string[]): { command: Command; path: readonly string[] }[] {
+  if (cmd.commands.length === 0) return [{ command: cmd, path }];
+  return cmd.commands.flatMap((sub) => flattenInvocableCommands(sub, [...path, cmd.name()]));
+}
+
+/**
  * Read the live `commander` `Command` tree and return a plain, JSON-serializable description of
- * every real (non-meta) subcommand: its arguments, options, and defaults.
+ * every real (non-meta), INVOCABLE subcommand: its arguments, options, and defaults. Nested
+ * subcommands (`theme validate`) are flattened into the same flat `commands` array as top-level ones
+ * — `name` is the full space-separated invocation path, not just the leaf's own name — so this
+ * manifest's shape stays exactly what it always was for every existing top-level-only consumer
+ * (Tovu-Runner) while correctly describing a namespaced command group added later.
  *
  * @param program - the root `Command` returned by `createProgram()`.
  * @returns a `CliManifest` — safe to `JSON.stringify` directly.
@@ -63,28 +80,30 @@ const META_COMMAND_NAMES = new Set(["introspect", "help"]);
  * @overallScore 100
  */
 export function introspectProgram(program: Command): CliManifest {
+  const invocable = program.commands
+    .filter((cmd) => !META_COMMAND_NAMES.has(cmd.name()))
+    .flatMap((cmd) => flattenInvocableCommands(cmd, []));
+
   return {
     name: program.name(),
     description: program.description() ?? "",
-    commands: program.commands
-      .filter((cmd) => !META_COMMAND_NAMES.has(cmd.name()))
-      .map((cmd) => ({
-        name: cmd.name(),
-        description: cmd.description() ?? "",
-        arguments: cmd.registeredArguments.map((arg) => ({
-          name: arg.name(),
-          required: arg.required,
-          description: arg.description ?? "",
-        })),
-        options: cmd.options.map((opt) => ({
-          flags: opt.flags,
-          attributeName: opt.attributeName(),
-          description: opt.description ?? "",
-          required: opt.mandatory,
-          defaultValue: opt.defaultValue,
-          takesValue: opt.flags.includes("<") || opt.flags.includes("["),
-        })),
+    commands: invocable.map(({ command, path }) => ({
+      name: [...path, command.name()].join(" "),
+      description: command.description() ?? "",
+      arguments: command.registeredArguments.map((arg) => ({
+        name: arg.name(),
+        required: arg.required,
+        description: arg.description ?? "",
       })),
+      options: command.options.map((opt) => ({
+        flags: opt.flags,
+        attributeName: opt.attributeName(),
+        description: opt.description ?? "",
+        required: opt.mandatory,
+        defaultValue: opt.defaultValue,
+        takesValue: opt.flags.includes("<") || opt.flags.includes("["),
+      })),
+    })),
   };
 }
 
@@ -126,7 +145,10 @@ export function toMcpTools(manifest: CliManifest): McpToolDefinition[] {
     }
 
     return {
-      name: `tovu_${cmd.name}`,
+      // A nested subcommand's manifest name is space-separated ("theme validate") — sanitized to
+      // underscores here so every MCP tool name stays a single token, the shape MCP tool names
+      // require. `cmd.name` itself is untouched (still the exact CLI invocation an agent must type).
+      name: `tovu_${cmd.name.replace(/\s+/g, "_")}`,
       description: cmd.description,
       inputSchema: { type: "object", properties, required },
     };
