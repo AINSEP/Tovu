@@ -1,5 +1,6 @@
 import { contributeCommentsTools } from "../comments/tool-registrations";
 import { contributeContentTypesTools } from "../features/content-types/tool-registrations";
+import { contributeDatabaseTools } from "../features/database/tool-registrations";
 import { contributeEntriesTools } from "../features/entries/tool-registrations";
 import { contributePagesTools } from "../features/pages/tool-registrations";
 import { contributePluginsTools } from "../features/plugin-runtime/tool-registrations";
@@ -35,7 +36,7 @@ import { contributeWidgetsTools } from "../widgets/tool-registrations";
  * throughout `server/deps.ts`/`server/app.ts` — this file adds no new module-level edge that did not
  * already exist, it just adds one more file-level reason for edges that were already there.
  *
- * 18 of the ~24 assistant-wired domains are listed here today (2026-08-17: `comments`/`newsletter`
+ * 19 of the ~24 assistant-wired domains are listed here today (2026-08-17: `comments`/`newsletter`
  * from Stage 1 of the registry rollout; `identity`/`members`/`taxonomy`/`redirects` added in Stage 2
  * batch 1 — `themes` was also tried in that batch and reverted, see
  * `assistant/tool-registrations.ts`'s header for why; Stage 2 batch 2 (run as two parallel worker
@@ -51,7 +52,13 @@ import { contributeWidgetsTools } from "../widgets/tool-registrations";
  * retried in a later, separate pass this session, after `widgets`'s own conversion above had merged
  * and removed the static edge that caused its original revert — see
  * `assistant/tool-registrations.ts`'s header and `media/tool-registrations.ts`'s own header for the
- * full before/after trace; it is listed above alongside the other eighteen)). The rest still wire
+ * full before/after trace; it is listed above alongside the other seventeen). `database` was ALSO
+ * retried in a later pass, once the specific edge that closed its 16-module SCC (a single value
+ * import, `db/sqlite/database-introspection-adapter.sqlite.ts`'s `getDriftStatus` from
+ * `features/database/drift.ts`) was identified and removed by relocating `drift.ts` into `db/` — see
+ * `features/database/tool-registrations.ts`'s own header and
+ * `ADS-memory/reports/architecture/2026-08-17-database-cycle-investigation.md` for the full trace;
+ * it is listed above alongside the other eighteen. The rest still wire
  * through `assistant/tool-registrations.ts`'s own `DOMAIN_SLICES` array, unchanged — see that file's header
  * for why (its own array still names exactly which domains those are, with a comment on each
  * reverted one explaining the specific cycle it closed). `post` was also tried and reverted the same
@@ -89,6 +96,7 @@ import { contributeWidgetsTools } from "../widgets/tool-registrations";
 export function installFirstPartyToolContributors(): void {
   contributeCommentsTools();
   contributeContentTypesTools();
+  contributeDatabaseTools();
   contributeEntriesTools();
   contributeFormsTools();
   contributeIdentityTools();

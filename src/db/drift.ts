@@ -12,7 +12,16 @@
  * SERVE_SITE policy) read the two `SchemaSnapshot`s from their own adapters and pass them in.
  *
  * Architectural role:
- * `features/database` domain logic. Depends on nothing outside this module.
+ * RELOCATED FROM `features/database/drift.ts` (2026-08-17, architecture SCC cut — see the
+ * database-cycle-investigation report). `db/sqlite/database-introspection-adapter.sqlite.ts` was
+ * the only VALUE importer of this file outside `features/database` itself, and that one edge
+ * (`db -> features/database`) was what closed a cycle once `features/database` got its own
+ * `registerToolContributor` edge back into `assistant` (see `features/database/tool-registrations.ts`'s
+ * `contributeDatabaseTools()`). Moving this pure, dependency-free module into `db/` — where its one
+ * real value-importing caller already lives — removes that edge entirely rather than narrowing it.
+ * `features/database/adapter.sqlite.ts` (the port-owning file) still imports `DriftStatus`/
+ * `SchemaSnapshot` from here, but only as `import type`, which is erased from the runtime-only graph
+ * `check:architecture` gates on. Depends on nothing outside this module.
  */
 
 /** A schema's version index plus its migration-lineage tag (ADR-015 §5/RT-005). */

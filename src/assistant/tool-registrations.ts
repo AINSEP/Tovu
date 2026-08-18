@@ -93,6 +93,21 @@
  * `media/tool-registrations.ts`'s own header) and is likewise absent from {@link DOMAIN_SLICES}
  * below.
  *
+ * `database` (batch 2, group A) was ALSO retried in a later, separate pass the same day, for the
+ * same shape of reason `media` was: most of the 16-module SCC's OTHER members (`entries`, `pages`,
+ * `plugin-runtime`, `recovery`, `workspace`, `seo`) had themselves converted to the registry by the
+ * time of the retry, shrinking the SCC to 10 — and root-causing what remained found exactly one
+ * value import closing it: `db/sqlite/database-introspection-adapter.sqlite.ts`'s import of
+ * `getDriftStatus` from `features/database/drift.ts`. `drift.ts` is pure, dependency-free
+ * classification logic with only two real callers, both already `db`-side or type-only, so it
+ * relocated into `db/` (see `db/drift.ts`'s own header) rather than the import being narrowed.
+ * `check:architecture` confirmed 0 module cycles with `database` converted this way — see
+ * `ADS-memory/reports/architecture/2026-08-17-database-cycle-investigation.md` for the full
+ * empirical trace (stubbing just that one import collapsed the SCC from 10 to 0 before this
+ * conversion landed). `database` is now wired via `contributeDatabaseTools()` (see
+ * `features/database/tool-registrations.ts`'s own header) and is likewise absent from
+ * {@link DOMAIN_SLICES} below.
+ *
  * To wire a new domain: if it will stay a first-party, always-present domain and you are not
  * specifically migrating it to the registry, add its `build<Domain>Registrations` and its risk
  * slice to {@link DOMAIN_SLICES} below (the same edit as before) — that is still the only edit here
@@ -109,11 +124,7 @@ import { listToolContributors, type ToolContributor } from "./tool-contribution-
 
 export type { AssistantSurfaceDeps };
 import type { ContentTypesToolDeps } from "../features/content-types/tool-registrations";
-import {
-  buildDatabaseRegistrations,
-  databaseDerivedRisk,
-  type DatabaseToolDeps,
-} from "../features/database/tool-registrations";
+import type { DatabaseToolDeps } from "../features/database/tool-registrations";
 import {
   buildDeploymentsRegistrations,
   deploymentsDerivedRisk,
@@ -284,13 +295,18 @@ const DOMAIN_SLICES: readonly DomainSlice[] = [
   // `navigation/tool-registrations.ts`'s own headers. No longer entries here; they arrive via
   // `contributeContentTypesTools()`/`contributeFormsTools()`/`contributeMenusTools()`, installed by
   // `server/tool-catalog-manifest.ts`.
-  { domain: "database", build: buildDatabaseRegistrations, risk: databaseDerivedRisk },
-  // `database` was ALSO tried in the same Stage 2 batch 2 and reverted — see
-  // `features/database/tool-registrations.ts`'s trailing comment for why: adding
-  // `database -> assistant` closed a NEW 16-module SCC running through the shared low-level `db`
-  // module and the still-static `deployments`/`source-control`/`recovery`/`settings`/`workspace`/
-  // `entries`/`post`/`pages`/`plugin-runtime`/`seo`/`export`/`vendor-credentials` DOMAIN_SLICES
-  // entries collectively — much larger than the `themes`/`post` near-misses in the prior batch.
+  // `database` converted to the tool-contribution registry 2026-08-17 — tried once in Stage 2 batch 2
+  // and reverted (adding `database -> assistant` closed a 16-module SCC running through the shared
+  // low-level `db` module and the still-static `deployments`/`source-control`/`recovery`/`settings`/
+  // `workspace`/`entries`/`post`/`pages`/`plugin-runtime`/`seo`/`export`/`vendor-credentials`
+  // `DOMAIN_SLICES` entries collectively), then retried in a later, separate pass the same day after
+  // most of that SCC's members had themselves converted and the one remaining edge back into
+  // `features/database` (`db/sqlite/database-introspection-adapter.sqlite.ts`'s value import of
+  // `getDriftStatus`) was cut by relocating `drift.ts` into `db/`. See
+  // `features/database/tool-registrations.ts`'s own header and
+  // `ADS-memory/reports/architecture/2026-08-17-database-cycle-investigation.md` for the full
+  // before/after trace. No longer an entry here; it arrives via `contributeDatabaseTools()`,
+  // installed by `server/tool-catalog-manifest.ts`.
   // `recovery` converted next (same batch) — see `features/recovery/tool-registrations.ts`'s own
   // header. No longer an entry here; it arrives via `contributeRecoveryTools()`, installed by
   // `server/tool-catalog-manifest.ts`. Safe despite sharing `database`'s `db/sqlite` importer:
