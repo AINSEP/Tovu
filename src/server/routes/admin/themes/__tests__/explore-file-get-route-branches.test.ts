@@ -76,6 +76,20 @@ test("GET file for a path escaping the theme folder is also a ThemePathError -> 
   assert.equal(body.code, "INVALID_THEME_PATH");
 });
 
+test("GET file with the 'path' query string omitted entirely falls back to '' (a real, ordinary Express request -- req.query.path is genuinely undefined, unlike a route param) and still 400s as an invalid path, not a 500 crash", async (t) => {
+  const themesDir = makeThemesRoot();
+  const app = buildTestApp(themesDir);
+  const baseUrl = await startTestServer(app, t);
+
+  // No `?path=...` at all -- `req.query.path` is `undefined` (a query string param, unlike a named
+  // route `:param`, is never guaranteed present by Express routing), exercising `String(req.query
+  // .path ?? "")`'s nullish fallback for real, through a completely ordinary request.
+  const res = await fetch(`${baseUrl}${BASE("plain")}/file`);
+  assert.equal(res.status, 400);
+  const body = (await res.json()) as { code: string };
+  assert.equal(body.code, "INVALID_THEME_PATH");
+});
+
 test("GET file where the underlying read throws something OTHER than ThemePathError -> 500 'internal error', not 400", async (t) => {
   // `readThemeFile` only ever throws `ThemePathError`. To exercise `sendThemeFileError`'s OTHER
   // branch honestly (a real non-ThemePathError exception reaching the route's catch), deny read

@@ -8,7 +8,11 @@ import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
 import { discoverAllBuiltInThemes } from "#src/features/theme/index";
-import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
+import {
+  createCapturingResponse,
+  extractRouteHandler,
+  startTestServer,
+} from "#src/server/__tests__/helpers/http-test-server";
 import {
   registerAdminThemeDetailRoute,
   registerAdminThemeFileGetRoute,
@@ -25,6 +29,15 @@ import type { ContentRouteDeps } from "../../content/deps";
  * `findTheme(...)` → 404 check. The existing sibling test files all use an `authorize` stub that
  * always allows and always target a theme id that exists, so neither branch has been exercised on
  * any of the six routes until now.
+ *
+ * Correction (this session): the original version of this file only ever sent its
+ * workspace-mismatch/`theme.set`-denied requests to the DETAIL route (`BASE(id)` with no suffix) --
+ * despite this header's own claim, `authorizeThemeAccess`'s two branches were still completely
+ * untested on the other five routes (file get/put/reset/copy/rename), confirmed directly via this
+ * file's own raw per-branch V8 coverage: each of those five routes' `if (!(await
+ * authorizeThemeAccess(...))) return;` had zero hits. `REQUESTS` below is the fix -- one entry per
+ * route's own method/path/body shape, driven through both gate checks for every route, not just
+ * the first one.
  */
 
 const WORKSPACE_ID = "ws-access-gate";
@@ -97,6 +110,52 @@ test("a principal denied 'theme.set' gets 403 with the authorize() reason echoed
   assert.equal(body.details.reason, "no_grant");
 });
 
+/** One entry per route's own method/path/body shape -- `path`/`themeId` are substituted per test. */
+const ROUTES: { name: string; method: string; suffix: string; body?: Record<string, unknown> }[] = [
+  { name: "GET file", method: "GET", suffix: "/file?path=pages/index.html" },
+  { name: "PUT file", method: "PUT", suffix: "/file", body: { path: "pages/index.html", content: "x" } },
+  { name: "reset", method: "POST", suffix: "/file/reset", body: { path: "pages/index.html" } },
+  { name: "copy", method: "POST", suffix: "/file/copy", body: { path: "pages/index.html" } },
+  { name: "rename", method: "POST", suffix: "/file/rename", body: { path: "pages/index.html", name: "index2.html" } },
+];
+
+for (const route of ROUTES) {
+  test(`${route.name}: workspace-path-param mismatch 404s before any theme lookup happens`, async (t) => {
+    const themesDir = makeThemesRoot();
+    const app = buildTestApp(themesDir);
+    const baseUrl = await startTestServer(app, t);
+
+    const res = await fetch(
+      `${baseUrl}/api/admin/v1/workspaces/not-this-workspace/themes/plain${route.suffix}`,
+      {
+        method: route.method,
+        headers: route.body ? { "content-type": "application/json" } : {},
+        body: route.body ? JSON.stringify(route.body) : undefined,
+      }
+    );
+    assert.equal(res.status, 404);
+    const body = (await res.json()) as { error: string };
+    assert.equal(body.error, "workspace was not found");
+  });
+
+  test(`${route.name}: a principal denied 'theme.set' gets 403 with the authorize() reason echoed back`, async (t) => {
+    const themesDir = makeThemesRoot();
+    const app = buildTestApp(themesDir, async () => ({ allowed: false, reason: "no_grant" }));
+    const baseUrl = await startTestServer(app, t);
+
+    const res = await fetch(`${baseUrl}${BASE("plain")}${route.suffix}`, {
+      method: route.method,
+      headers: route.body ? { "content-type": "application/json" } : {},
+      body: route.body ? JSON.stringify(route.body) : undefined,
+    });
+    assert.equal(res.status, 403);
+    const body = (await res.json()) as { code: string; details: { permission: string; reason: string } };
+    assert.equal(body.code, "FORBIDDEN");
+    assert.equal(body.details.permission, "theme.set");
+    assert.equal(body.details.reason, "no_grant");
+  });
+}
+
 test("GET detail on a missing theme 404s", async (t) => {
   const themesDir = makeThemesRoot();
   const app = buildTestApp(themesDir);
@@ -160,4 +219,30 @@ test("rename on a missing theme 404s", async (t) => {
     body: JSON.stringify({ path: "pages/index.html", name: "index2.html" }),
   });
   assert.equal(res.status, 404);
+});
+
+test("workspaceId/themeId params can never actually be undefined through real routing (a matched `:param` segment is always a populated string) -- `authorizeThemeAccess`'s and `findThemeOrRespond`'s `?? \"\"` fallbacks are reached by calling the real (detail-route) handler directly, the same type-bypass technique a `default: throw` exhaustiveness guard would need; both are shared by all six routes, so this one route's handler exercises the fallback for every caller", async (t) => {
+  const themesDir = makeThemesRoot();
+  const app = buildTestApp(themesDir);
+  const handler = extractRouteHandler(app, "get", "/api/admin/v1/workspaces/:workspaceId/themes/:themeId");
+
+  // authorizeThemeAccess's `String(req.params.workspaceId ?? "") !== deps.workspaceId` fallback.
+  {
+    const { res, capture } = createCapturingResponse();
+    const req = { params: { workspaceId: undefined, themeId: "plain" } } as unknown as Parameters<typeof handler>[0];
+    await handler(req, res);
+    assert.equal(capture.statusCode, 404);
+    assert.deepEqual(capture.jsonBody, { error: "workspace was not found" });
+  }
+
+  // findThemeOrRespond's `String(req.params.themeId ?? "")` fallback -- resolves to "", which no
+  // real theme is ever discovered with as an id, so it 404s the same honest way an unknown id would.
+  {
+    const { res, capture } = createCapturingResponse();
+    res.locals.principal = { id: "test-principal" };
+    const req = { params: { workspaceId: WORKSPACE_ID, themeId: undefined } } as unknown as Parameters<typeof handler>[0];
+    await handler(req, res);
+    assert.equal(capture.statusCode, 404);
+    assert.deepEqual(capture.jsonBody, { error: "theme '' was not found" });
+  }
 });
