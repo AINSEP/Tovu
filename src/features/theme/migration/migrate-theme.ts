@@ -100,14 +100,19 @@ function applyMoves(themeDir: string, stagingDir: string, plan: ThemeMigrationPl
 }
 
 /**
- * `tokens.json` (and, once a fixture needs it, `tokens.<mode>.json`) sits at the same name and
- * location in both schema versions, so carrying it forward is a plain copy, not a relocation — never
- * listed in `plan.moves` (which only names FROM !== TO relocations) to keep that list's meaning
- * literal.
+ * `tokens.json` (and, once a fixture needs it, `tokens.<mode>.json`) and `screenshots/` sit at the
+ * same name and location in both schema versions, so carrying them forward is a plain copy, not a
+ * relocation — never listed in `plan.moves` (which only names FROM !== TO relocations) to keep that
+ * list's meaning literal. Matches `theme-migration-plan.ts`'s `CARRY_OVER_UNCHANGED` set — this is the
+ * physical-copy half of that same list, kept in sync by hand (the planner's job is naming what's
+ * already-correct, not performing disk IO).
  */
 function copyCarryOverFiles(themeDir: string, stagingDir: string): void {
-  const source = join(themeDir, "tokens.json");
-  if (existsSync(source)) cpSync(source, join(stagingDir, "tokens.json"));
+  const tokensSource = join(themeDir, "tokens.json");
+  if (existsSync(tokensSource)) cpSync(tokensSource, join(stagingDir, "tokens.json"));
+
+  const screenshotsSource = join(themeDir, "screenshots");
+  if (existsSync(screenshotsSource)) cpSync(screenshotsSource, join(stagingDir, "screenshots"), { recursive: true });
 }
 
 /**

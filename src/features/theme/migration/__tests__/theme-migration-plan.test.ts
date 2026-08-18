@@ -81,6 +81,15 @@ test("planV2Migration (templated) flags a .json file inside templates/ as unreco
   assert.deepEqual(plan.unrecognized, ["templates/stray.json"]);
 });
 
+test("planV2Migration (templated) treats a root screenshots/ folder as already-correct, not unrecognized (every real theme on disk ships one)", () => {
+  const dir = makeTemplatedThemeDir();
+  fs.mkdirSync(path.join(dir, "screenshots"), { recursive: true });
+  fs.writeFileSync(path.join(dir, "screenshots/index.jpg"), "fake-jpg-bytes", "utf8");
+
+  const plan = planV2Migration({ themeDir: dir, tier: "templated" });
+  assert.deepEqual(plan.unrecognized, []);
+});
+
 test("planV2Migration (templated) nests a flat root assets/ folder under assets/images/ and reports a rewrite rule (fashion-modern's real shape: one hero photo referenced by absolute /theme-assets/<id>/assets/... URL)", () => {
   const dir = makeTemplatedThemeDir();
   fs.mkdirSync(path.join(dir, "assets"), { recursive: true });
