@@ -574,6 +574,9 @@ export interface MediaProps {
    * own doc for why this pure-UI-state hook has no `useWiredX()` pair to default to instead).
    */
   useMediaTabsHook?: typeof useMediaTabs;
+  /** The `?tab=` query value from `panels.tsx`'s `media` route (`URLSearchParams.get` returns
+   *  `null` when the param is absent). See `use-media-tabs.hooks.ts`'s `resolveActiveTab`. */
+  tabId?: string | null;
 }
 
 /** "Images"/"Videos" tab body — see `Media()`'s own comment at the tab-bar mount site for why
@@ -593,7 +596,7 @@ function MediaTypeFilterPlaceholder({ kind, t }: { kind: "images" | "videos"; t:
   );
 }
 
-export function Media({ useMediaHook = useWiredMedia, useMediaTabsHook = useMediaTabs }: MediaProps = {}) {
+export function Media({ useMediaHook = useWiredMedia, useMediaTabsHook = useMediaTabs, tabId }: MediaProps = {}) {
   const {
     media,
     error,
@@ -617,7 +620,7 @@ export function Media({ useMediaHook = useWiredMedia, useMediaTabsHook = useMedi
     t,
     locale,
   } = useMediaHook();
-  const { activeTab, setActiveTab } = useMediaTabsHook();
+  const { activeTab, setActiveTab } = useMediaTabsHook(tabId);
 
   if (error && !media) return <div className="notice error">{error}</div>;
   if (!media) return <div className="notice">Loading media…</div>;
@@ -632,8 +635,8 @@ export function Media({ useMediaHook = useWiredMedia, useMediaTabsHook = useMedi
         </div>
       </div>
 
-      {/* OD-parity tab bar (owner instruction, 2026-08-08); see `use-media-tabs.hooks.ts` for why
-          this is still plain tab state rather than a URL-synced `?tab=`. "Media providers" mounts
+      {/* OD-parity tab bar (owner instruction, 2026-08-08), `?tab=` deep-linked — see
+          `use-media-tabs.hooks.ts` for the URL-sync convention. "Media providers" mounts
           `@jini-ai/ui`'s component against Tovu's own backend: credentials persist per workspace
           in `media_provider_credentials` and survive a reload. Both the port and the catalog are
           module-level constants, so neither needs a `useRef` to stay stable across renders. */}
