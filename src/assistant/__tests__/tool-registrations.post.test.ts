@@ -9,6 +9,17 @@ import { InMemoryPostRepo, InMemoryPostSearchIndex } from "../../features/post";
 import { postAgentToolCatalog, type AgentToolDefinition as PostAgentToolDefinition } from "../../features/post/agent-tools";
 import type { RouteDeps } from "../../server/routes/types";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations";
+import { resetToolContributorsForTests } from "../tool-contribution-registry";
+import { contributePostTools } from "../../features/post/tool-registrations";
+
+// Post moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
+// tool-contribution registry (2026-08-17, the last of this rollout's 25 domains — see
+// `features/post/tool-registrations.ts`'s own trailing comment for the full trace), so
+// `buildAssistantToolRegistrations` below no longer wires it unless something explicitly installs it
+// first, mirroring what the real composition roots now do via `installFirstPartyToolContributors()`
+// — same fix `tool-registrations.entries.test.ts`/`tool-registrations.themes.test.ts` already apply.
+resetToolContributorsForTests();
+contributePostTools();
 
 /**
  * @file The Posts + Pages tool-wiring test file — mirrors `tool-registrations.entries.test.ts`'s/

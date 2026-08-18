@@ -1,5 +1,17 @@
 import type { PostRecord, PostRepoPort } from "../../features/post";
-import { listPublishedPosts } from "../../features/post";
+
+/**
+ * Structural signature matching `features/post/post.ts`'s real `listPublishedPosts` function.
+ * Redeclared locally rather than shared from `tools.ts` — this repo redeclares small structural
+ * types per-file rather than sharing them across the module-cycle boundary (same precedent as
+ * `dual-read.ts`'s own two types). Importing the FUNCTION as a value here is exactly the edge that
+ * used to close the `[assistant, features/post]` module cycle `check:architecture` flags; see
+ * `resolvePublicTarget`'s `deps.listPublishedPosts` param doc for how the real function still reaches
+ * this file despite the type living here instead of being imported.
+ */
+type ListPublishedPosts = (
+  required: { deps: { repo: PostRepoPort }; input: { workspaceId: string } },
+) => Promise<{ posts: PostRecord[] }>;
 
 /**
  * @file SPEC-046 REQ-4/REQ-6/REQ-8 — the client-directive channel's shared shape and its one
@@ -58,13 +70,23 @@ export interface ResolvedPublicTarget {
  * @overallScore 100
  */
 export async function resolvePublicTarget(
-  deps: { readonly postRepo: PostRepoPort; readonly workspaceId: string },
+  deps: {
+    readonly postRepo: PostRepoPort;
+    readonly workspaceId: string;
+    /** Injected rather than statically imported — see the `ListPublishedPosts` type doc above.
+     *  Callers must pass the real `features/post`'s own `listPublishedPosts` (wired at the one
+     *  production composition root, `server/modules/site-assistant.ts`) so this resolves through the
+     *  exact same predicate `tools.ts`'s `readPublished()` and `routes/site/pages.ts` use — see this
+     *  file's header for why that equality is what makes REQ-8's injection-containment invariant
+     *  hold. */
+    readonly listPublishedPosts: ListPublishedPosts;
+  },
   slug: unknown,
 ): Promise<ResolvedPublicTarget | null> {
   if (typeof slug !== "string" || slug.trim().length === 0) return null;
   const trimmed = slug.trim();
 
-  const { posts } = await listPublishedPosts({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId } });
+  const { posts } = await deps.listPublishedPosts({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId } });
   const found = posts.find((p: PostRecord) => p.slug === trimmed);
   if (!found) return null;
 
