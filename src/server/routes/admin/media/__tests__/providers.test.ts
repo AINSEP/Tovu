@@ -176,3 +176,74 @@ test("put-providers: an unexpected repo failure 500s", async (t) => {
   const { status } = await put(t, app, { openai: { apiKey: "sk-1" } });
   assert.equal(status, 500);
 });
+
+/**
+ * Both routes share `String(req.params.workspaceId ?? "")` — a required `:workspaceId` route
+ * segment, so Express's own router can never dispatch to either handler with it `undefined`; a
+ * real HTTP request literally cannot trigger the `??` side. Reaching into the router stack and
+ * calling the registered handler directly with a hand-built `req` genuinely executes the fallback
+ * assignment (same technique as `admin-integrations-routes.test.ts`'s identical helper) rather than
+ * leaving it as untestable-by-construction.
+ */
+interface ExpressHandlerLayer {
+  route?: {
+    path: string;
+    methods: Record<string, boolean>;
+    stack: { handle: (req: unknown, res: unknown) => unknown }[];
+  };
+}
+interface ExpressAppWithRouter {
+  _router: { stack: ExpressHandlerLayer[] };
+}
+
+/** GET and PUT are both registered on the identical literal path, so matching by path alone would
+ *  always resolve to whichever was registered first (GET) -- method must be checked too. */
+function extractHandler(
+  app: express.Express,
+  method: "get" | "put",
+  path: string
+): (req: unknown, res: unknown) => unknown {
+  const stack = (app as unknown as ExpressAppWithRouter)._router.stack;
+  const layer = stack.find((l) => l.route?.path === path && l.route.methods[method]);
+  if (!layer?.route) throw new Error(`${method.toUpperCase()} '${path}' was not found in the router stack`);
+  return layer.route.stack[0].handle;
+}
+
+function fakeRes(): { res: unknown; getStatus: () => number | undefined; getBody: () => unknown } {
+  let statusCode: number | undefined;
+  let body: unknown;
+  const res = {
+    locals: { principal: { id: "forced-input-test-principal" } },
+    status(code: number) {
+      statusCode = code;
+      return res;
+    },
+    json(payload: unknown) {
+      body = payload;
+      return res;
+    },
+  };
+  return { res, getStatus: () => statusCode, getBody: () => body };
+}
+
+test("get-providers: `req.params.workspaceId ?? \"\"` fallback, forced via a direct handler call (Express itself can never leave a required :workspaceId segment unset) -- still 404s as a mismatch", async () => {
+  const app = buildApp();
+  const handler = extractHandler(app, "get", "/api/admin/v1/workspaces/:workspaceId/media/providers");
+  const { res, getStatus, getBody } = fakeRes();
+
+  await handler({ params: {} }, res);
+
+  assert.equal(getStatus(), 404);
+  assert.deepEqual(getBody(), { error: "workspace was not found" });
+});
+
+test("put-providers: `req.params.workspaceId ?? \"\"` fallback, forced via a direct handler call -- still 404s as a mismatch", async () => {
+  const app = buildApp();
+  const handler = extractHandler(app, "put", "/api/admin/v1/workspaces/:workspaceId/media/providers");
+  const { res, getStatus, getBody } = fakeRes();
+
+  await handler({ params: {}, body: { openai: { apiKey: "sk-1" } } }, res);
+
+  assert.equal(getStatus(), 404);
+  assert.deepEqual(getBody(), { error: "workspace was not found" });
+});

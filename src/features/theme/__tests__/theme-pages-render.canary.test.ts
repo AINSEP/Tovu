@@ -47,9 +47,9 @@ function readHtmlDir(dir: string): Record<string, string> {
   );
 }
 
-/** Mirrors `loadStaticTierAssets`'s own partial-selection rule (`theme.ts`) exactly — `nav.html` plus
- * any `footer*.html` at the theme root — so a canary failure here can only mean the render pipeline
- * changed, never a looser test-only convention picking up a file the real loader would not. */
+/** Mirrors `loadStaticTierAssets`'s own v1 partial-selection rule (`theme.ts`) exactly — `nav.html`
+ * plus any `footer*.html` at the theme root — so a canary failure here can only mean the render
+ * pipeline changed, never a looser test-only convention picking up a file the real loader would not. */
 function readRootPartials(dir: string): Record<string, string> {
   const partials: Record<string, string> = {};
   for (const file of fs.readdirSync(dir)) {
@@ -60,23 +60,39 @@ function readRootPartials(dir: string): Record<string, string> {
   return partials;
 }
 
+/** v2's `render/partials/` is dedicated to partials only (theme-authoring-guide-v2.md §3), unlike
+ * v1's theme root which mixes many things — every `.html` file there is a partial, no name filter
+ * needed. Mirrors `loadStaticTierAssets`'s v2 branch (`theme.ts`'s `partialsDir`/`loadSlotPartials`). */
+function readV2Partials(dir: string): Record<string, string> {
+  const partialsDir = path.join(dir, "render", "partials");
+  if (!fs.existsSync(partialsDir)) return {};
+  return readHtmlDir(partialsDir);
+}
+
 /** The real theme, assembled from its own files the way `loadTheme` assembles it (manifest straight
  * off `theme.json`, pages/partials keyed by filename stem) — built here rather than via `loadTheme`
  * so a canary failure can only ever mean the render pipeline changed, never the loader, matching
- * `post-template-render.canary.test.ts`'s own `basicTheme()`. */
+ * `post-template-render.canary.test.ts`'s own `basicTheme()`.
+ *
+ * apiVersion-branched (2026-08-18) the same way `loadTheme`'s own `pagesDirName`/`partialsDir` are
+ * (`theme.ts`): v1 keeps `pages/` and root-level `nav.html`/`footer*.html`; v2 nests both under
+ * `render/`. Every real v2-migrated static theme lost its `pages/` folder permanently once migrated
+ * — this isn't staging-directory debris, a hardcoded v1 path here breaks every one of them for good. */
 function readTheme(themeId: string): DiscoveredTheme {
   const dir = path.join(STATIC_THEMES_DIR, themeId);
   const tokensLightPath = path.join(dir, "tokens.light.json");
+  const manifest = JSON.parse(fs.readFileSync(path.join(dir, "theme.json"), "utf8"));
+  const isV2 = manifest.apiVersion === 2;
   return {
-    manifest: JSON.parse(fs.readFileSync(path.join(dir, "theme.json"), "utf8")),
+    manifest,
     dir,
     tokens: JSON.parse(fs.readFileSync(path.join(dir, "tokens.json"), "utf8")),
     tokensLight: fs.existsSync(tokensLightPath) ? JSON.parse(fs.readFileSync(tokensLightPath, "utf8")) : {},
     templates: {},
     liquidTemplates: {},
     handlebarsTemplates: {},
-    pages: readHtmlDir(path.join(dir, "pages")),
-    partials: readRootPartials(dir),
+    pages: readHtmlDir(path.join(dir, isV2 ? "render/pages" : "pages")),
+    partials: isV2 ? readV2Partials(dir) : readRootPartials(dir),
     css: "",
     source: "builtin",
     status: "valid",

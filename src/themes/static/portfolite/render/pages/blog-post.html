@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<!-- Known limitation, disclosed not silent: a static theme's <title> is one fixed string per
+     file — there is no per-post templating mechanism for it (data-embed-type only substitutes a
+     <div>'s content, never a page's own <head>). A real post's title still renders in the <h1>
+     below via the post-content embed; only the browser-tab/SEO title stays generic here. Same
+     documented limitation as basic/pages/blog-post.html. -->
+<title>Blog post — Folio</title>
+<link rel="stylesheet" href="../css/theme.css" />
+<script src="../scripts/theme-toggle.js"></script>
+</head>
+<body>
+
+<!-- This theme ships no nav.html/footer.html (index.html is its only page and never needed
+     shared partials), so this header/footer is a direct copy of index.html's own inline chrome
+     rather than a data-tovu-slot reference — there is no partial to slot in. Index.html's nav
+     links are same-page anchors (`#services`); from a separate page those need to resolve back
+     to the real home route first, so they're rewritten here to `/#services` etc. rather than
+     left as bare fragments, which would resolve against this page's own (nonexistent) anchors. -->
+<header class="site-header">
+  <div class="wrap nav-row">
+    <a href="/" class="brand">
+      <span class="mark"><svg viewBox="0 0 24 24" fill="none"><rect x="3" y="3" width="8" height="8" rx="2" fill="currentColor"/><rect x="13" y="3" width="8" height="8" rx="2" fill="currentColor" opacity="0.55"/><rect x="3" y="13" width="8" height="8" rx="2" fill="currentColor" opacity="0.55"/><rect x="13" y="13" width="8" height="8" rx="2" fill="currentColor"/></svg></span>
+      Folio
+    </a>
+    <nav class="main-nav" data-embed-config='{"type":"menu","id":"menu-header-nav"}'>
+      <a href="/#services">Services</a>
+      <a href="/#projects">Projects</a>
+      <a href="/#testimonials">Testimonials</a>
+      <a href="/#contact">Contact</a>
+    </nav>
+    <div class="nav-actions">
+      <button class="theme-toggle" type="button" aria-label="Switch to light mode" data-theme-toggle>
+        <span class="icon-stack">
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 3v2.2M12 18.8V21M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M3 12h2.2M18.8 12H21M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6"/></svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/></svg>
+        </span>
+      </button>
+      <a href="/#contact" class="btn btn-solid desktop-only">Book a Call</a>
+      <button class="nav-toggle btn btn-ghost" aria-expanded="false" aria-label="Toggle menu" data-nav-toggle>Menu</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <article class="post-detail wrap" data-reveal>
+    <a href="/#projects" class="post-detail-back">&larr; Back to Folio</a>
+    <div data-embed-config='{"type":"content"}'></div>
+  </article>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <nav class="footer-links" data-embed-config='{"type":"menu","id":"menu-footer-nav"}'></nav>
+    <div class="footer-row">
+      <span>© 2026 Folio. All rights reserved.</span>
+      <span>A Tovu theme, adapted from an Open Design export</span>
+    </div>
+  </div>
+</footer>
+
+<script src="../scripts/vendor/motion.js"></script>
+<script src="../scripts/reveal.js"></script>
+<script src="../scripts/nav-toggle.js"></script>
+</body>
+</html>

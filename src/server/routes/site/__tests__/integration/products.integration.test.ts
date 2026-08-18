@@ -134,6 +134,50 @@ test("products: an unknown product id 404s through the real composed app", async
   assert.equal(res.status, 404);
 });
 
+/** `/products/:id`'s `String(req.params.id ?? "")` is unreachable through any real HTTP request on
+ *  the REAL composed app either -- `:id` is a required route segment. Same technique as
+ *  `products.route.test.ts`'s (unit-tier) identical test -- see its comment. */
+interface ExpressHandlerLayer {
+  route?: { path: string; stack: { handle: (req: unknown, res: unknown) => unknown }[] };
+}
+interface ExpressAppWithRouter {
+  _router: { stack: ExpressHandlerLayer[] };
+}
+
+function extractHandler(app: ReturnType<typeof createApp>, path: string): (req: unknown, res: unknown) => unknown {
+  const stack = (app as unknown as ExpressAppWithRouter)._router.stack;
+  const layer = stack.find((l) => l.route?.path === path);
+  if (!layer?.route) throw new Error(`route '${path}' was not found in the router stack`);
+  return layer.route.stack[0].handle;
+}
+
+test("products: /products/:id's `req.params.id ?? \"\"` fallback, forced via a direct handler call on the REAL composed app with id omitted -- still 404s, not a crash", async () => {
+  const app = createApp(
+    testDeps({ commerceProductRepo: fakeProductRepo([]), commercePriceRepo: fakePriceRepo({}) })
+  );
+  const handler = extractHandler(app, "/products/:id");
+  let statusCode: number | undefined;
+  let body = "";
+  const res = {
+    status(code: number) {
+      statusCode = code;
+      return res;
+    },
+    type() {
+      return res;
+    },
+    send(payload: string) {
+      body = payload;
+      return res;
+    },
+  };
+
+  await handler({ params: {} }, res);
+
+  assert.equal(statusCode, 404);
+  assert.match(body, /404/);
+});
+
 test("products: 'No themes installed' 500s when no theme is discovered (both routes)", async (t) => {
   const product: CommerceProductRecord = {
     id: "prod-int-2",
