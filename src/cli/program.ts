@@ -4,6 +4,7 @@ import { runExportCommand } from "./commands/export";
 import { runInitCommand } from "./commands/init";
 import { runIntrospectCommand } from "./commands/introspect";
 import { runServeCommand } from "./commands/serve";
+import { runThemeMigrateCommand } from "./commands/theme/migrate";
 import { runThemeValidateCommand } from "./commands/theme/validate";
 import { introspectProgram } from "./introspect";
 
@@ -79,6 +80,15 @@ export function createProgram(): Command {
     .option("--json", "print the full machine-readable result instead of a human-readable summary")
     .action(async (dir: string, options: { profile?: string; json?: boolean }) => {
       await runThemeValidateCommand({ dir, profile: options.profile, json: options.json });
+    });
+  themeProgram
+    .command("migrate")
+    .description("migrate a v1 theme package directory to schema v2 in place (idempotent; keeps a v1 backup alongside on success)")
+    .argument("<dir>", "theme package directory to migrate")
+    .option("--dry-run", "stage the v2 output and verify it, but never touch the real theme directory")
+    .option("--json", "print the full machine-readable result instead of a human-readable summary")
+    .action(async (dir: string, options: { dryRun?: boolean; json?: boolean }) => {
+      await runThemeMigrateCommand({ dir, dryRun: options.dryRun, json: options.json });
     });
 
   program

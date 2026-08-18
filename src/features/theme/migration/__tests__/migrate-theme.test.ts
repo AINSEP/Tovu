@@ -1,0 +1,102 @@
+import assert from "node:assert/strict";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import test from "node:test";
+
+import { migrateThemeToV2 } from "../migrate-theme";
+
+function makeDeclarativeThemeDir(
+  options: { extraRootFile?: string; skipEntry?: boolean } = {}
+): string {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-migrate-declarative-"));
+  fs.writeFileSync(
+    path.join(dir, "theme.json"),
+    JSON.stringify({ id: "t", name: "T", version: "1.0.0", tier: "declarative", description: "test theme" }),
+    "utf8"
+  );
+  fs.writeFileSync(path.join(dir, "tokens.json"), '{"--bg":"#000"}', "utf8");
+  fs.writeFileSync(path.join(dir, "styles.css"), "body { margin: 0; }", "utf8");
+  fs.mkdirSync(path.join(dir, "templates"), { recursive: true });
+  fs.writeFileSync(path.join(dir, "templates/home.json"), '{"type":"doc","content":[]}', "utf8");
+  if (!options.skipEntry) {
+    fs.writeFileSync(path.join(dir, "templates/entry.json"), '{"type":"doc","content":[]}', "utf8");
+  }
+  if (options.extraRootFile) fs.writeFileSync(path.join(dir, options.extraRootFile), "unexpected", "utf8");
+  return dir;
+}
+
+test("migrateThemeToV2 migrates a v1 declarative theme in place, with a v1 backup kept alongside", () => {
+  const dir = makeDeclarativeThemeDir();
+  const result = migrateThemeToV2({ themeDir: dir, id: "t" });
+
+  assert.equal(result.status, "migrated");
+  assert.equal(result.validation?.valid, true);
+  assert.deepEqual(result.loadErrors, []);
+  assert.equal(result.outputDir, dir);
+  assert.ok(result.backupDir && fs.existsSync(result.backupDir));
+
+  // The real directory now has v2 shape.
+  assert.ok(fs.existsSync(path.join(dir, "css/theme.css")));
+  assert.ok(fs.existsSync(path.join(dir, "render/pages/home.json")));
+  assert.ok(fs.existsSync(path.join(dir, "render/pages/entry.json")));
+  assert.ok(!fs.existsSync(path.join(dir, "styles.css")));
+  assert.ok(!fs.existsSync(path.join(dir, "templates")));
+  const manifest = JSON.parse(fs.readFileSync(path.join(dir, "theme.json"), "utf8"));
+  assert.equal(manifest.apiVersion, 2);
+  assert.equal(manifest.id, "t"); // every other field carried forward unchanged
+  assert.equal(manifest.description, "test theme");
+
+  // The backup is the untouched v1 original.
+  assert.ok(fs.existsSync(path.join(result.backupDir!, "styles.css")));
+  assert.ok(fs.existsSync(path.join(result.backupDir!, "templates/home.json")));
+});
+
+test("migrateThemeToV2 is idempotent — running it again on an already-migrated theme is a no-op", () => {
+  const dir = makeDeclarativeThemeDir();
+  migrateThemeToV2({ themeDir: dir, id: "t" });
+  const second = migrateThemeToV2({ themeDir: dir, id: "t" });
+  assert.equal(second.status, "already-migrated");
+});
+
+test("migrateThemeToV2 dryRun stages the v2 output without touching the real theme directory", () => {
+  const dir = makeDeclarativeThemeDir();
+  const result = migrateThemeToV2({ themeDir: dir, id: "t" }, { dryRun: true });
+
+  assert.equal(result.status, "staged-dry-run");
+  assert.ok(result.outputDir && result.outputDir !== dir);
+  assert.ok(fs.existsSync(path.join(result.outputDir!, "css/theme.css")));
+
+  // The real directory is completely untouched — still v1-shaped.
+  assert.ok(fs.existsSync(path.join(dir, "styles.css")));
+  assert.ok(fs.existsSync(path.join(dir, "templates/home.json")));
+  assert.ok(!fs.existsSync(path.join(dir, "css")));
+});
+
+test("migrateThemeToV2 refuses (fails) rather than silently dropping an unrecognized root-level file, real dir untouched", () => {
+  const dir = makeDeclarativeThemeDir({ extraRootFile: "README.md" });
+  const result = migrateThemeToV2({ themeDir: dir, id: "t" });
+
+  assert.equal(result.status, "failed");
+  assert.match(result.reason ?? "", /README\.md/);
+  // Real directory untouched — still has its original file, no staging artifacts leaked into it.
+  assert.ok(fs.existsSync(path.join(dir, "README.md")));
+  assert.ok(fs.existsSync(path.join(dir, "styles.css")));
+  assert.ok(!fs.existsSync(path.join(dir, "css")));
+});
+
+test("migrateThemeToV2 fails verification (missing required entry.json) and leaves the real directory untouched", () => {
+  const dir = makeDeclarativeThemeDir({ skipEntry: true });
+  const result = migrateThemeToV2({ themeDir: dir, id: "t" });
+
+  assert.equal(result.status, "failed");
+  assert.ok(
+    result.loadErrors?.some((e) => e.includes("render/pages/entry.json is required")),
+    `expected a render/pages/entry.json error, got: ${JSON.stringify(result.loadErrors)}`
+  );
+  // Real directory untouched — migration never promoted a broken staged theme into place.
+  assert.ok(fs.existsSync(path.join(dir, "styles.css")));
+  assert.ok(!fs.existsSync(path.join(dir, "css")));
+  // The broken staged output is left behind for inspection, not silently deleted.
+  assert.ok(result.outputDir && fs.existsSync(result.outputDir));
+});

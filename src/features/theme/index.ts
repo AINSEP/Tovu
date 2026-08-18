@@ -52,6 +52,15 @@ export {
   type ValidateThemePackageResult,
 } from "./validation/validate-theme-package";
 
+// Milestone 3 (2026-08-18) — the theme v2 migration orchestrator's public entry point, same
+// deep-import-avoidance reasoning as Milestone 2's validator export just above.
+export {
+  migrateThemeToV2,
+  cleanupMigrationOutput,
+  type MigrationStatus,
+  type MigrateThemeResult,
+} from "./migration/migrate-theme";
+
 export {
   renderStaticPage,
   renderStaticPartial,
