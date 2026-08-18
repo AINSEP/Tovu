@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { MCP_UI_MIME_TYPE, type UIResource } from "#src/assistant/mcp-ui";
+import { MCP_UI_MIME_TYPE, type UIResource } from "#src/assistant/index";
 import {
   SURFACE_EXCHANGE_ID_PARAM,
   createSurfaceExchangeStore,
