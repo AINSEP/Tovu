@@ -30,6 +30,18 @@ import type {
   WidgetTypeRegistration,
 } from "../types";
 
+// `create-core-resolvers.ts` is the only production caller of the three factories below — they're
+// wired into `CORE_RESOLVERS` via `wireCoreResolvers`, never invoked directly outside this module.
+// Each also has its own dedicated unit/integration test exercising the resolver's own logic in
+// isolation (2026-08-18 widgets/resolvers deep-import triage), so each factory is re-exported here
+// narrowly, one line per consumer:
+// `createRecentEntriesResolver` — `widgets/__tests__/unit/resolvers-recent-entries.unit.test.ts`.
+export { createRecentEntriesResolver } from "./recent-entries";
+// `createMenuResolver` — `widgets/__tests__/unit/resolvers-menu.unit.test.ts`.
+export { createMenuResolver } from "./menu";
+// `createContactFormResolver` — `widgets/__tests__/integration/resolve-html-page-embeds.integration.test.ts`.
+export { createContactFormResolver } from "./contact-form";
+
 /**
  * The mutable backing store `CORE_RESOLVERS` (below) exposes only a readonly view over — see that
  * export's own doc for why the map itself must stay assignable at runtime despite its readonly TS

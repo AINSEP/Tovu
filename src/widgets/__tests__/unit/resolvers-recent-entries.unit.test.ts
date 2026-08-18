@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryEntryRepo, type EntryListPort } from "#src/features/entries/index";
-import { createRecentEntriesResolver } from "../../resolvers/recent-entries";
+import { createRecentEntriesResolver } from "../../resolvers";
 import type { WidgetInstanceView, WidgetResolveContext } from "../../types";
 
 /**
