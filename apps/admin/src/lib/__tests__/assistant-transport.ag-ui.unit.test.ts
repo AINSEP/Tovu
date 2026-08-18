@@ -1,14 +1,15 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 
+import { EventType } from "@ag-ui/core";
+
 import type { AgentEvent, ChatMessage } from "@jini-ai/chat/core";
 import type { RunHandlers } from "@jini-ai/chat/react";
 
 import {
   AG_UI_RUN_PATH,
-  consumeAgUiStream,
   createAgUiToAgentTranslationState,
   fetchAgUiRunStatus,
-  handleAgUiFrame,
+  handleAgUiEvent,
   isAgUiRunId,
   isAgUiTransportEnabled,
   reattachAgUiRun,
@@ -25,6 +26,15 @@ import { flushMicrotasks, streamFromChunks } from "./assistant-transport.test-he
  * `assistant-transport.byok.unit.test.ts`'s structure (pure dispatch/translate tests first, then
  * end-to-end `startRun` tests driving a real `ReadableStream`), since `startAgUiRun` is built on
  * the identical held-open-POST shape `startByokRun` established.
+ *
+ * ADR-059 Decision 3 (AMENDED): `assistant-transport-ag-ui.ts` now drives a real `@ag-ui/client`
+ * `HttpAgent` rather than hand-parsing SSE frames itself. Several of this file's assertions reflect
+ * real behavior found by reading that package's compiled source (not guessed): the request body is
+ * a real `RunAgentInput` (every message needs an `id`, `agentId` rides in `forwardedProps`, not a
+ * top-level field), HTTP error messages come from the package's own `runHttpRequest` in the format
+ * `HTTP <status>: <body>`, and a body-read failure while fetching error detail surfaces the RAW
+ * rejection unwrapped (no status prefix) — a real behavior difference from the old hand-rolled
+ * fallback, not preserved for compatibility.
  *
  * ADR-059 Decision 6 names one case as a required regression: the interruption sequence (text ->
  * tool_use -> text again) must round-trip through the real AG-UI wire frames without the second
@@ -52,8 +62,8 @@ function handlers(): RunHandlers & { events: AgentEvent[]; errors: Error[]; done
 
 const HISTORY: ChatMessage[] = [{ id: "1", role: "user", content: "find my posts" }];
 
-/** One AG-UI SSE frame, wire-formatted exactly as `assistant-ag-ui.ts` sends it: `data: <json>\n\n`,
- *  no `event:` field. */
+/** One AG-UI SSE frame, wire-formatted exactly as `assistant-ag-ui.ts` sends it (and exactly what
+ *  `@ag-ui/client`'s own `parseSSEStream` expects): `data: <json>\n\n`, no `event:` field. */
 function frame(event: AgUiEvent): string {
   return `data: ${JSON.stringify(event)}\n\n`;
 }
@@ -95,10 +105,10 @@ describe("isAgUiTransportEnabled", () => {
 describe("translateAgUiEventToAgentEvent — direct mappings", () => {
   test("TEXT_MESSAGE_CONTENT / REASONING_MESSAGE_CONTENT map to text/thinking deltas", () => {
     const state = createAgUiToAgentTranslationState();
-    expect(translateAgUiEventToAgentEvent({ type: "TEXT_MESSAGE_CONTENT", messageId: "m1", delta: "hi" }, state)).toEqual([
+    expect(translateAgUiEventToAgentEvent({ type: EventType.TEXT_MESSAGE_CONTENT, messageId: "m1", delta: "hi" }, state)).toEqual([
       { kind: "text", text: "hi" },
     ]);
-    expect(translateAgUiEventToAgentEvent({ type: "REASONING_MESSAGE_CONTENT", messageId: "r1", delta: "hmm" }, state)).toEqual([
+    expect(translateAgUiEventToAgentEvent({ type: EventType.REASONING_MESSAGE_CONTENT, messageId: "r1", delta: "hmm" }, state)).toEqual([
       { kind: "thinking", text: "hmm" },
     ]);
   });
@@ -106,12 +116,12 @@ describe("translateAgUiEventToAgentEvent — direct mappings", () => {
   test("message/reasoning boundary markers (START/END) produce no AgentEvent", () => {
     const state = createAgUiToAgentTranslationState();
     const boundaryEvents: AgUiEvent[] = [
-      { type: "TEXT_MESSAGE_START", messageId: "m1", role: "assistant" },
-      { type: "TEXT_MESSAGE_END", messageId: "m1" },
-      { type: "REASONING_START" },
-      { type: "REASONING_MESSAGE_START", messageId: "r1" },
-      { type: "REASONING_MESSAGE_END", messageId: "r1" },
-      { type: "REASONING_END" },
+      { type: EventType.TEXT_MESSAGE_START, messageId: "m1", role: "assistant" },
+      { type: EventType.TEXT_MESSAGE_END, messageId: "m1" },
+      { type: EventType.REASONING_START, messageId: "r1" },
+      { type: EventType.REASONING_MESSAGE_START, messageId: "r1", role: "reasoning" },
+      { type: EventType.REASONING_MESSAGE_END, messageId: "r1" },
+      { type: EventType.REASONING_END, messageId: "r1" },
     ];
     for (const event of boundaryEvents) {
       expect(translateAgUiEventToAgentEvent(event, state)).toEqual([]);
@@ -120,33 +130,37 @@ describe("translateAgUiEventToAgentEvent — direct mappings", () => {
 
   test("RAW maps to a raw AgentEvent", () => {
     const state = createAgUiToAgentTranslationState();
-    expect(translateAgUiEventToAgentEvent({ type: "RAW", event: "stdout line" }, state)).toEqual([{ kind: "raw", line: "stdout line" }]);
+    expect(translateAgUiEventToAgentEvent({ type: EventType.RAW, event: "stdout line" }, state)).toEqual([
+      { kind: "raw", line: "stdout line" },
+    ]);
   });
 
   test("RAW with a non-string event value is JSON-stringified, and a nullish one becomes an empty string", () => {
     const state = createAgUiToAgentTranslationState();
-    expect(translateAgUiEventToAgentEvent({ type: "RAW", event: { chunk: 1 } }, state)).toEqual([{ kind: "raw", line: '{"chunk":1}' }]);
-    expect(translateAgUiEventToAgentEvent({ type: "RAW", event: null }, state)).toEqual([{ kind: "raw", line: "" }]);
+    expect(translateAgUiEventToAgentEvent({ type: EventType.RAW, event: { chunk: 1 } }, state)).toEqual([
+      { kind: "raw", line: '{"chunk":1}' },
+    ]);
+    expect(translateAgUiEventToAgentEvent({ type: EventType.RAW, event: null }, state)).toEqual([{ kind: "raw", line: "" }]);
   });
 
   test("CUSTOM tovu.usage/tovu.status round-trip the original AgentEvent verbatim", () => {
     const state = createAgUiToAgentTranslationState();
     const usage: AgentEvent = { kind: "usage", inputTokens: 5 };
-    expect(translateAgUiEventToAgentEvent({ type: "CUSTOM", name: "tovu.usage", value: usage }, state)).toEqual([usage]);
+    expect(translateAgUiEventToAgentEvent({ type: EventType.CUSTOM, name: "tovu.usage", value: usage }, state)).toEqual([usage]);
     const status: AgentEvent = { kind: "status", label: "Thinking" };
-    expect(translateAgUiEventToAgentEvent({ type: "CUSTOM", name: "tovu.status", value: status }, state)).toEqual([status]);
+    expect(translateAgUiEventToAgentEvent({ type: EventType.CUSTOM, name: "tovu.status", value: status }, state)).toEqual([status]);
   });
 
   test("CUSTOM tovu.ext.<name> unwraps to an ext AgentEvent with the prefix stripped", () => {
     const state = createAgUiToAgentTranslationState();
-    expect(translateAgUiEventToAgentEvent({ type: "CUSTOM", name: "tovu.ext.mcp-ui", value: { uri: "x" } }, state)).toEqual([
+    expect(translateAgUiEventToAgentEvent({ type: EventType.CUSTOM, name: "tovu.ext.mcp-ui", value: { uri: "x" } }, state)).toEqual([
       { kind: "ext", name: "mcp-ui", data: { uri: "x" } },
     ]);
   });
 
   test("a CUSTOM event with an unrecognized name (neither tovu.usage/status nor tovu.ext.*) passes through as ext, name unprefixed", () => {
     const state = createAgUiToAgentTranslationState();
-    expect(translateAgUiEventToAgentEvent({ type: "CUSTOM", name: "some.other.event", value: { anything: true } }, state)).toEqual([
+    expect(translateAgUiEventToAgentEvent({ type: EventType.CUSTOM, name: "some.other.event", value: { anything: true } }, state)).toEqual([
       { kind: "ext", name: "some.other.event", data: { anything: true } },
     ]);
   });
@@ -154,7 +168,7 @@ describe("translateAgUiEventToAgentEvent — direct mappings", () => {
   test("tool_result loses isError across the round trip — AG-UI's ToolCallResultEvent has no such field", () => {
     const state = createAgUiToAgentTranslationState();
     expect(
-      translateAgUiEventToAgentEvent({ type: "TOOL_CALL_RESULT", messageId: "m1", toolCallId: "call-1", content: "3 posts" }, state),
+      translateAgUiEventToAgentEvent({ type: EventType.TOOL_CALL_RESULT, messageId: "m1", toolCallId: "call-1", content: "3 posts" }, state),
     ).toEqual([{ kind: "tool_result", toolUseId: "call-1", content: "3 posts", isError: false }]);
   });
 });
@@ -162,49 +176,53 @@ describe("translateAgUiEventToAgentEvent — direct mappings", () => {
 describe("translateAgUiEventToAgentEvent — tool-call argument accumulation", () => {
   test("START then ARGS deltas then END assembles one tool_use event with the parsed input", () => {
     const state = createAgUiToAgentTranslationState();
-    expect(translateAgUiEventToAgentEvent({ type: "TOOL_CALL_START", toolCallId: "call-1", toolCallName: "search" }, state)).toEqual([]);
-    expect(translateAgUiEventToAgentEvent({ type: "TOOL_CALL_ARGS", toolCallId: "call-1", delta: '{"q":' }, state)).toEqual([]);
-    expect(translateAgUiEventToAgentEvent({ type: "TOOL_CALL_ARGS", toolCallId: "call-1", delta: '"posts"}' }, state)).toEqual([]);
+    expect(
+      translateAgUiEventToAgentEvent({ type: EventType.TOOL_CALL_START, toolCallId: "call-1", toolCallName: "search" }, state),
+    ).toEqual([]);
+    expect(translateAgUiEventToAgentEvent({ type: EventType.TOOL_CALL_ARGS, toolCallId: "call-1", delta: '{"q":' }, state)).toEqual([]);
+    expect(translateAgUiEventToAgentEvent({ type: EventType.TOOL_CALL_ARGS, toolCallId: "call-1", delta: '"posts"}' }, state)).toEqual([]);
 
-    const result = translateAgUiEventToAgentEvent({ type: "TOOL_CALL_END", toolCallId: "call-1" }, state);
+    const result = translateAgUiEventToAgentEvent({ type: EventType.TOOL_CALL_END, toolCallId: "call-1" }, state);
     expect(result).toEqual([{ kind: "tool_use", id: "call-1", name: "search", input: { q: "posts" } }]);
   });
 
   test("a malformed/partial args buffer falls back to the raw string rather than throwing", () => {
     const state = createAgUiToAgentTranslationState();
-    translateAgUiEventToAgentEvent({ type: "TOOL_CALL_START", toolCallId: "call-1", toolCallName: "search" }, state);
-    translateAgUiEventToAgentEvent({ type: "TOOL_CALL_ARGS", toolCallId: "call-1", delta: "{not json" }, state);
+    translateAgUiEventToAgentEvent({ type: EventType.TOOL_CALL_START, toolCallId: "call-1", toolCallName: "search" }, state);
+    translateAgUiEventToAgentEvent({ type: EventType.TOOL_CALL_ARGS, toolCallId: "call-1", delta: "{not json" }, state);
 
-    const result = translateAgUiEventToAgentEvent({ type: "TOOL_CALL_END", toolCallId: "call-1" }, state);
+    const result = translateAgUiEventToAgentEvent({ type: EventType.TOOL_CALL_END, toolCallId: "call-1" }, state);
     expect(result).toEqual([{ kind: "tool_use", id: "call-1", name: "search", input: "{not json" }]);
   });
 
   test("TOOL_CALL_END for an unknown toolCallId (no matching START) is a silent no-op", () => {
     const state = createAgUiToAgentTranslationState();
-    expect(translateAgUiEventToAgentEvent({ type: "TOOL_CALL_END", toolCallId: "never-started" }, state)).toEqual([]);
+    expect(translateAgUiEventToAgentEvent({ type: EventType.TOOL_CALL_END, toolCallId: "never-started" }, state)).toEqual([]);
   });
 
   test("TOOL_CALL_ARGS for an unknown toolCallId (no matching START) is a silent no-op, not a throw", () => {
     const state = createAgUiToAgentTranslationState();
-    expect(translateAgUiEventToAgentEvent({ type: "TOOL_CALL_ARGS", toolCallId: "never-started", delta: "{}" }, state)).toEqual([]);
+    expect(translateAgUiEventToAgentEvent({ type: EventType.TOOL_CALL_ARGS, toolCallId: "never-started", delta: "{}" }, state)).toEqual(
+      [],
+    );
   });
 
   test("an empty args buffer (no ARGS deltas at all) resolves to an empty object input", () => {
     const state = createAgUiToAgentTranslationState();
-    translateAgUiEventToAgentEvent({ type: "TOOL_CALL_START", toolCallId: "call-1", toolCallName: "list" }, state);
-    const result = translateAgUiEventToAgentEvent({ type: "TOOL_CALL_END", toolCallId: "call-1" }, state);
+    translateAgUiEventToAgentEvent({ type: EventType.TOOL_CALL_START, toolCallId: "call-1", toolCallName: "list" }, state);
+    const result = translateAgUiEventToAgentEvent({ type: EventType.TOOL_CALL_END, toolCallId: "call-1" }, state);
     expect(result).toEqual([{ kind: "tool_use", id: "call-1", name: "list", input: {} }]);
   });
 });
 
-describe("handleAgUiFrame — frame dispatch", () => {
+describe("handleAgUiEvent — event dispatch", () => {
   test("a translatable event forwards onEvent and collects it", () => {
     const collected: AgentEvent[] = [];
     const h = handlers();
     const finish = vi.fn();
 
-    handleAgUiFrame(
-      { event: "message", data: JSON.stringify({ type: "TEXT_MESSAGE_CONTENT", messageId: "m1", delta: "hi" }) },
+    handleAgUiEvent(
+      { type: EventType.TEXT_MESSAGE_CONTENT, messageId: "m1", delta: "hi" },
       { collected, handlers: h, state: createAgUiToAgentTranslationState(), finish },
     );
 
@@ -217,8 +235,8 @@ describe("handleAgUiFrame — frame dispatch", () => {
     const h = handlers();
     const finish = vi.fn();
 
-    handleAgUiFrame(
-      { event: "message", data: JSON.stringify({ type: "RUN_ERROR", message: "provider overloaded" }) },
+    handleAgUiEvent(
+      { type: EventType.RUN_ERROR, message: "provider overloaded" },
       { collected: [], handlers: h, state: createAgUiToAgentTranslationState(), finish },
     );
 
@@ -228,11 +246,24 @@ describe("handleAgUiFrame — frame dispatch", () => {
 
   test("RUN_ERROR with no message falls back to a generic AG-UI failure message", () => {
     const h = handlers();
-    handleAgUiFrame(
-      { event: "message", data: JSON.stringify({ type: "RUN_ERROR" }) },
+    handleAgUiEvent(
+      { type: EventType.RUN_ERROR, message: "" },
       { collected: [], handlers: h, state: createAgUiToAgentTranslationState(), finish: vi.fn() },
     );
     expect(h.errors.map((e) => e.message)).toEqual(["AG-UI run failed"]);
+  });
+
+  test("RUN_ERROR with code 'abort' (the real package's own convention for a mid-stream abort) calls finish, not onError", () => {
+    const h = handlers();
+    const finish = vi.fn();
+
+    handleAgUiEvent(
+      { type: EventType.RUN_ERROR, message: "Request aborted", code: "abort" },
+      { collected: [], handlers: h, state: createAgUiToAgentTranslationState(), finish },
+    );
+
+    expect(finish).toHaveBeenCalledTimes(1);
+    expect(h.errors).toEqual([]);
   });
 
   test("RUN_FINISHED calls finish without pushing an AgentEvent", () => {
@@ -240,8 +271,8 @@ describe("handleAgUiFrame — frame dispatch", () => {
     const h = handlers();
     const finish = vi.fn();
 
-    handleAgUiFrame(
-      { event: "message", data: JSON.stringify({ type: "RUN_FINISHED", threadId: "t1", runId: "r1" }) },
+    handleAgUiEvent(
+      { type: EventType.RUN_FINISHED, threadId: "t1", runId: "r1" },
       { collected, handlers: h, state: createAgUiToAgentTranslationState(), finish },
     );
 
@@ -252,8 +283,8 @@ describe("handleAgUiFrame — frame dispatch", () => {
   test("RUN_STARTED is a silent no-op (no AgentEvent, no finish)", () => {
     const collected: AgentEvent[] = [];
     const finish = vi.fn();
-    handleAgUiFrame(
-      { event: "message", data: JSON.stringify({ type: "RUN_STARTED", threadId: "t1", runId: "r1" }) },
+    handleAgUiEvent(
+      { type: EventType.RUN_STARTED, threadId: "t1", runId: "r1" },
       { collected, handlers: handlers(), state: createAgUiToAgentTranslationState(), finish },
     );
     expect(collected).toEqual([]);
@@ -268,8 +299,8 @@ afterEach(() => {
 });
 
 describe("startAgUiRun — request shape", () => {
-  test("POSTs to AG_UI_RUN_PATH with client-minted threadId/runId and the trimmed message history", async () => {
-    const stream = streamFromChunks([frame({ type: "RUN_FINISHED", threadId: "t", runId: "r" })]);
+  test("POSTs to AG_UI_RUN_PATH with a real RunAgentInput body: client-minted threadId/runId, id-bearing messages", async () => {
+    const stream = streamFromChunks([frame({ type: EventType.RUN_FINISHED, threadId: "t", runId: "r" })]);
     fetchMock = vi.fn(async () => new Response(stream, { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
@@ -278,14 +309,26 @@ describe("startAgUiRun — request shape", () => {
     expect(result.runId).toMatch(/^agui:/);
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(url).toBe(AG_UI_RUN_PATH);
-    const body = JSON.parse(init.body as string) as { threadId: string; runId: string; messages: unknown[] };
+    const body = JSON.parse(init.body as string) as {
+      threadId: string;
+      runId: string;
+      state: unknown;
+      messages: unknown[];
+      tools: unknown[];
+      context: unknown[];
+      forwardedProps: unknown;
+    };
     expect(body.runId).toBe(result.runId);
     expect(typeof body.threadId).toBe("string");
-    expect(body.messages).toEqual([{ role: "user", content: "find my posts" }]);
+    expect(body.state).toBeNull();
+    expect(body.tools).toEqual([]);
+    expect(body.context).toEqual([]);
+    expect(body.forwardedProps).toEqual({});
+    expect(body.messages).toEqual([{ id: "1", role: "user", content: "find my posts" }]);
   });
 
   test("blank-content history entries are filtered before sending", async () => {
-    const stream = streamFromChunks([frame({ type: "RUN_FINISHED", threadId: "t", runId: "r" })]);
+    const stream = streamFromChunks([frame({ type: EventType.RUN_FINISHED, threadId: "t", runId: "r" })]);
     fetchMock = vi.fn(async () => new Response(stream, { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
     const history: ChatMessage[] = [
@@ -297,19 +340,32 @@ describe("startAgUiRun — request shape", () => {
 
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     const body = JSON.parse(init.body as string) as { messages: unknown[] };
-    expect(body.messages).toEqual([{ role: "user", content: "real question" }]);
+    expect(body.messages).toEqual([{ id: "2", role: "user", content: "real question" }]);
   });
 
-  test("a non-ok response throws with status and truncated body detail", async () => {
+  test("an explicit agentId rides in forwardedProps.agentId — RunAgentInput has no top-level agentId field", async () => {
+    const stream = streamFromChunks([frame({ type: EventType.RUN_FINISHED, threadId: "t", runId: "r" })]);
+    fetchMock = vi.fn(async () => new Response(stream, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await startAgUiRun({ history: HISTORY, agentId: "custom-agent", signal: new AbortController().signal }, handlers());
+
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string) as { agentId?: string; forwardedProps: { agentId?: string } };
+    expect(body.forwardedProps).toEqual({ agentId: "custom-agent" });
+    expect(body.agentId).toBeUndefined();
+  });
+
+  test("a non-ok response throws in @ag-ui/client's own 'HTTP <status>: <body>' format", async () => {
     fetchMock = vi.fn(async () => new Response("agent daemon rejected the run", { status: 502 }));
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(startAgUiRun({ history: HISTORY, signal: new AbortController().signal }, handlers())).rejects.toThrow(
-      /AG-UI run failed to start \(502\): agent daemon rejected the run/,
+      /^HTTP 502: agent daemon rejected the run$/,
     );
   });
 
-  test("a network-level fetch rejection is rethrown as an Error and the abort controller is not leaked", async () => {
+  test("a network-level fetch rejection is rethrown as an Error", async () => {
     fetchMock = vi.fn(async () => {
       throw new TypeError("Failed to fetch");
     });
@@ -327,16 +383,14 @@ describe("startAgUiRun — request shape", () => {
     await expect(startAgUiRun({ history: HISTORY, signal: new AbortController().signal }, handlers())).rejects.toThrow("connection reset");
   });
 
-  test("a non-ok response with an empty body has no ': <detail>' suffix", async () => {
+  test("a non-ok response with an empty body still carries the 'HTTP <status>: ' prefix with an empty detail", async () => {
     fetchMock = vi.fn(async () => new Response("", { status: 500 }));
     vi.stubGlobal("fetch", fetchMock);
 
-    await expect(startAgUiRun({ history: HISTORY, signal: new AbortController().signal }, handlers())).rejects.toThrow(
-      /^AG-UI run failed to start \(500\)$/,
-    );
+    await expect(startAgUiRun({ history: HISTORY, signal: new AbortController().signal }, handlers())).rejects.toThrow(/^HTTP 500: $/);
   });
 
-  test("a non-ok response whose body stream itself errors while reading detail still throws a status-only error", async () => {
+  test("a non-ok response whose body stream errors while reading detail surfaces the raw read error unwrapped — @ag-ui/client does not status-wrap it", async () => {
     const brokenBody = new ReadableStream<Uint8Array>({
       start(controller) {
         controller.error(new Error("body read failed"));
@@ -346,12 +400,12 @@ describe("startAgUiRun — request shape", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     await expect(startAgUiRun({ history: HISTORY, signal: new AbortController().signal }, handlers())).rejects.toThrow(
-      /^AG-UI run failed to start \(503\)$/,
+      /^body read failed$/,
     );
   });
 
   test("mints a timestamp-based fallback id when crypto.randomUUID is unavailable", async () => {
-    const stream = streamFromChunks([frame({ type: "RUN_FINISHED", threadId: "t", runId: "r" })]);
+    const stream = streamFromChunks([frame({ type: EventType.RUN_FINISHED, threadId: "t", runId: "r" })]);
     fetchMock = vi.fn(async () => new Response(stream, { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
     vi.stubGlobal("crypto", {});
@@ -361,17 +415,19 @@ describe("startAgUiRun — request shape", () => {
     expect(result.runId).toMatch(/^agui:\d+-[a-z0-9]+$/);
   });
 
-  test("aborting the caller's input signal aborts the underlying fetch request", async () => {
+  test("aborting the caller's input signal aborts the underlying fetch request", () => {
     const stream = new ReadableStream<Uint8Array>({
       pull() {
-        // never resolves on its own — only the abort propagates.
+        // never resolves on its own — only the abort propagates. Not awaiting `startAgUiRun`
+        // below: under the real-package contract it only resolves once the first event arrives,
+        // which this stream deliberately never sends — the fetch call itself is still synchronous.
       },
     });
     fetchMock = vi.fn(async () => new Response(stream, { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
     const inputController = new AbortController();
 
-    await startAgUiRun({ history: HISTORY, signal: inputController.signal }, handlers());
+    void startAgUiRun({ history: HISTORY, signal: inputController.signal }, handlers());
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     const requestSignal = init.signal as AbortSignal;
     expect(requestSignal.aborted).toBe(false);
@@ -385,11 +441,11 @@ describe("startAgUiRun — request shape", () => {
 describe("startAgUiRun — SSE frame streaming end to end", () => {
   test("a single text delta translates and forwards, then RUN_FINISHED settles onDone", async () => {
     const stream = streamFromChunks([
-      frame({ type: "RUN_STARTED", threadId: "t", runId: "r" }),
-      frame({ type: "TEXT_MESSAGE_START", messageId: "m1", role: "assistant" }),
-      frame({ type: "TEXT_MESSAGE_CONTENT", messageId: "m1", delta: "hi there" }),
-      frame({ type: "TEXT_MESSAGE_END", messageId: "m1" }),
-      frame({ type: "RUN_FINISHED", threadId: "t", runId: "r" }),
+      frame({ type: EventType.RUN_STARTED, threadId: "t", runId: "r" }),
+      frame({ type: EventType.TEXT_MESSAGE_START, messageId: "m1", role: "assistant" }),
+      frame({ type: EventType.TEXT_MESSAGE_CONTENT, messageId: "m1", delta: "hi there" }),
+      frame({ type: EventType.TEXT_MESSAGE_END, messageId: "m1" }),
+      frame({ type: EventType.RUN_FINISHED, threadId: "t", runId: "r" }),
     ]);
     fetchMock = vi.fn(async () => new Response(stream, { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
@@ -405,9 +461,9 @@ describe("startAgUiRun — SSE frame streaming end to end", () => {
 
   test("RUN_ERROR mid-stream reports via onError without ending the run early", async () => {
     const stream = streamFromChunks([
-      frame({ type: "RUN_ERROR", message: "model overloaded" }),
-      frame({ type: "TEXT_MESSAGE_CONTENT", messageId: "m1", delta: "still here" }),
-      frame({ type: "RUN_FINISHED", threadId: "t", runId: "r" }),
+      frame({ type: EventType.RUN_ERROR, message: "model overloaded" }),
+      frame({ type: EventType.TEXT_MESSAGE_CONTENT, messageId: "m1", delta: "still here" }),
+      frame({ type: EventType.RUN_FINISHED, threadId: "t", runId: "r" }),
     ]);
     fetchMock = vi.fn(async () => new Response(stream, { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
@@ -425,18 +481,18 @@ describe("startAgUiRun — SSE frame streaming end to end", () => {
 
   test("interruption sequence: text -> tool_use -> tool_result -> text again renders as two distinct text segments end to end", async () => {
     const stream = streamFromChunks([
-      frame({ type: "RUN_STARTED", threadId: "t", runId: "r" }),
-      frame({ type: "TEXT_MESSAGE_START", messageId: "msg_1", role: "assistant" }),
-      frame({ type: "TEXT_MESSAGE_CONTENT", messageId: "msg_1", delta: "Let me check that." }),
-      frame({ type: "TEXT_MESSAGE_END", messageId: "msg_1" }),
-      frame({ type: "TOOL_CALL_START", toolCallId: "call-1", toolCallName: "search" }),
-      frame({ type: "TOOL_CALL_ARGS", toolCallId: "call-1", delta: JSON.stringify({ q: "posts" }) }),
-      frame({ type: "TOOL_CALL_END", toolCallId: "call-1" }),
-      frame({ type: "TOOL_CALL_RESULT", messageId: "tool_result_msg_1", toolCallId: "call-1", content: "found 3" }),
-      frame({ type: "TEXT_MESSAGE_START", messageId: "msg_2", role: "assistant" }),
-      frame({ type: "TEXT_MESSAGE_CONTENT", messageId: "msg_2", delta: "Found 3 posts." }),
-      frame({ type: "TEXT_MESSAGE_END", messageId: "msg_2" }),
-      frame({ type: "RUN_FINISHED", threadId: "t", runId: "r", result: { reason: "stop" } }),
+      frame({ type: EventType.RUN_STARTED, threadId: "t", runId: "r" }),
+      frame({ type: EventType.TEXT_MESSAGE_START, messageId: "msg_1", role: "assistant" }),
+      frame({ type: EventType.TEXT_MESSAGE_CONTENT, messageId: "msg_1", delta: "Let me check that." }),
+      frame({ type: EventType.TEXT_MESSAGE_END, messageId: "msg_1" }),
+      frame({ type: EventType.TOOL_CALL_START, toolCallId: "call-1", toolCallName: "search" }),
+      frame({ type: EventType.TOOL_CALL_ARGS, toolCallId: "call-1", delta: JSON.stringify({ q: "posts" }) }),
+      frame({ type: EventType.TOOL_CALL_END, toolCallId: "call-1" }),
+      frame({ type: EventType.TOOL_CALL_RESULT, messageId: "tool_result_msg_1", toolCallId: "call-1", content: "found 3" }),
+      frame({ type: EventType.TEXT_MESSAGE_START, messageId: "msg_2", role: "assistant" }),
+      frame({ type: EventType.TEXT_MESSAGE_CONTENT, messageId: "msg_2", delta: "Found 3 posts." }),
+      frame({ type: EventType.TEXT_MESSAGE_END, messageId: "msg_2" }),
+      frame({ type: EventType.RUN_FINISHED, threadId: "t", runId: "r", result: { reason: "stop" } }),
     ]);
     fetchMock = vi.fn(async () => new Response(stream, { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
@@ -460,82 +516,6 @@ describe("startAgUiRun — SSE frame streaming end to end", () => {
   });
 });
 
-describe("consumeAgUiStream — read errors", () => {
-  /** A stream whose reader rejects on its first `read()` — simulates a network-level failure
-   *  mid-turn, the same shape `readSseFrames` sees when the underlying connection drops. */
-  function erroringStream(): ReadableStream<Uint8Array> {
-    return new ReadableStream<Uint8Array>({
-      pull(controller) {
-        controller.error(new Error("stream broke"));
-      },
-    });
-  }
-
-  test("a genuine read error (controller not aborted) reports via onError, not finish", async () => {
-    const h = handlers();
-    const controller = new AbortController();
-    const collected: AgentEvent[] = [];
-    let doneCalled = false;
-
-    await consumeAgUiStream(erroringStream(), {
-      runId: "agui:test-error",
-      collected,
-      handlers: h,
-      finish: () => {
-        doneCalled = true;
-      },
-      controller,
-      state: createAgUiToAgentTranslationState(),
-    });
-
-    expect(h.errors.map((e) => e.message)).toEqual(["stream broke"]);
-    expect(doneCalled).toBe(false);
-  });
-
-  test("a read rejection with a non-Error reason is wrapped in a real Error before reaching onError", async () => {
-    const h = handlers();
-    const controller = new AbortController();
-    const stream = new ReadableStream<Uint8Array>({
-      pull(c) {
-          c.error("connection reset");
-      },
-    });
-
-    await consumeAgUiStream(stream, {
-      runId: "agui:test-non-error",
-      collected: [],
-      handlers: h,
-      finish: () => undefined,
-      controller,
-      state: createAgUiToAgentTranslationState(),
-    });
-
-    expect(h.errors.map((e) => e.message)).toEqual(["connection reset"]);
-  });
-
-  test("a read error on an ALREADY-ABORTED controller calls finish instead of onError — the abort caused the error, not a real failure", async () => {
-    const h = handlers();
-    const controller = new AbortController();
-    controller.abort();
-    const collected: AgentEvent[] = [];
-    let doneCalled = false;
-
-    await consumeAgUiStream(erroringStream(), {
-      runId: "agui:test-aborted",
-      collected,
-      handlers: h,
-      finish: () => {
-        doneCalled = true;
-      },
-      controller,
-      state: createAgUiToAgentTranslationState(),
-    });
-
-    expect(doneCalled).toBe(true);
-    expect(h.errors).toEqual([]);
-  });
-});
-
 describe("reattachAgUiRun / fetchAgUiRunStatus / stopAgUiRun", () => {
   test("reattachAgUiRun reports the run as simply done, with no events — there is nothing to resume", async () => {
     const h = handlers();
@@ -549,9 +529,15 @@ describe("reattachAgUiRun / fetchAgUiRunStatus / stopAgUiRun", () => {
   });
 
   test("stopAgUiRun on an in-flight run aborts the controller instead of POSTing a cancel endpoint", async () => {
+    const encoder = new TextEncoder();
+    let delivered = false;
     const stream = new ReadableStream<Uint8Array>({
-      pull() {
-        // never resolves on its own — only abort() ends it.
+      pull(controller) {
+        if (!delivered) {
+          delivered = true;
+          controller.enqueue(encoder.encode(frame({ type: EventType.RUN_STARTED, threadId: "t", runId: "r" })));
+        }
+        // else: leave it open — an in-flight run with nothing new yet, only abort() ends it.
       },
     });
     fetchMock = vi.fn(async () => new Response(stream, { status: 200 }));
@@ -571,7 +557,7 @@ describe("reattachAgUiRun / fetchAgUiRunStatus / stopAgUiRun", () => {
 
 describe("createTovuAssistantTransport — AG-UI toggle dispatch", () => {
   test("getAgUiEnabled true routes startRun through the AG-UI path instead of Local CLI", async () => {
-    const stream = streamFromChunks([frame({ type: "RUN_FINISHED", threadId: "t", runId: "r" })]);
+    const stream = streamFromChunks([frame({ type: EventType.RUN_FINISHED, threadId: "t", runId: "r" })]);
     fetchMock = vi.fn(async () => new Response(stream, { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
     const transport = createTovuAssistantTransport({ getAgUiEnabled: () => true });
