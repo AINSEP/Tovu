@@ -156,9 +156,26 @@ export { AGENT_DAEMON_EXIT_CODE } from "./daemon-exit-codes";
 // `server/routes/admin/system/assistant-daemon.ts`) import it directly rather than through this
 // barrel; re-exporting it here would create an `assistant -> server` edge this barrel exists to
 // avoid.
+//
+// `createRespawnPolicy`/`RespawnDecision`/`RespawnPolicy`, unlike the daemon-supervisor functions
+// above, stay re-exported: `daemon-respawn-policy.ts` is a pure decision module (no `assistant ->
+// server` edge risk the same way daemon-supervisor.ts's own process-spawning code carries), and it
+// has a real external consumer of its own — `server/agent-daemon/daemon-supervisor.ts` (the file
+// described above) plus that file's own test — needing the SAME crash-loop/backoff decision logic
+// the daemon-supervisor code was split out to keep pure and unit-testable in isolation (2026-08-13
+// no-deep-imports:assistant triage).
+export { createRespawnPolicy } from "./daemon-respawn-policy";
+export type { RespawnDecision, RespawnPolicy } from "./daemon-respawn-policy";
 export { getLiveClaudeModels, unionModels } from "./live-model-cache";
 export { isMcpUiToolCallAllowed } from "./mcp-ui-tool-calls";
 export { MCP_UI_TOOL_CALLS_PATH } from "./mcp-ui-tool-calls-route";
+// `UIResource`/`MCP_UI_MIME_TYPE` are the MCP-UI wire-format contract `mcp-ui.ts` declares —
+// `features/post`'s own agent-tools tests build/assert against this exact shape to verify their
+// tool output conforms to it, the same "consumer needs the port's own type" reasoning as any other
+// cross-module port. The rest of `mcp-ui.ts` (`createUIResource`, `buildUIToolResult`, etc.) stays
+// un-re-exported — no external caller constructs a `UIResource` today, only reads/asserts on one.
+export { MCP_UI_MIME_TYPE } from "./mcp-ui";
+export type { UIResource } from "./mcp-ui";
 export { RUN_PRINCIPAL_HEADER } from "./run-ownership";
 
 // `tool-surface-exchanges.ts` now lives in `core/` (2026-08-13 architecture audit item 7, executed

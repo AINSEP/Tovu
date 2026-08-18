@@ -12,7 +12,7 @@ import {
   type JsonRpcRequest,
 } from "@jini-ai/ui/mcp-ui/surfaces";
 
-import type { UIResource } from "#src/assistant/mcp-ui";
+import type { UIResource } from "#src/assistant/index";
 
 /**
  * @file A fake MCP-UI Host — the client side of the confirmation protocol, standing in for a real

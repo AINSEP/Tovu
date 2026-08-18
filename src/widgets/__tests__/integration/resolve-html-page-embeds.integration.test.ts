@@ -5,7 +5,7 @@ import { InMemoryEntryRepo } from "#src/features/entries/index";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import type { PostRecord } from "#src/features/post/index";
 import { InMemoryFormDefinitionRepo } from "#src/forms/repo.memory";
-import type { FormDefinitionRecord } from "#src/forms/types";
+import type { FormDefinitionRecord } from "#src/forms/index";
 import { CORE_PUBLIC_TRANSFORM_NAME } from "#src/media/bootstrap";
 import { InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "#src/media/index";
 import type { MediaRecord, TransformDefinitionRecord } from "#src/media/index";

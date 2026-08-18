@@ -1,7 +1,7 @@
 import type { UUID } from "@jini-ai/cms/core";
 
 import type { SecretSealerPort } from "../../webhooks/index";
-import type { PublishConnectionInput, PublishCredentialSetRepoPort, PublishProviderId } from "../deployments/publish-credentials/types";
+import type { PublishConnectionInput, PublishCredentialSetRepoPort, PublishProviderId } from "../deployments/publish-credentials/index";
 import type { SourceControlConnectionInput, SourceControlCredentialSetRepoPort, SourceControlProviderId } from "../source-control/types";
 import { resolveDefaultForVendor } from "./store";
 import { PUBLISH_PROVIDER_TO_VENDOR, SOURCE_CONTROL_PROVIDER_TO_VENDOR } from "./types";

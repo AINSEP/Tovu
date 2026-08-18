@@ -11,7 +11,7 @@ import { enqueueDelivery } from "#src/webhooks/delivery";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "#src/forms/repo.memory";
 import { FORMS_SUBMIT_PROFILE } from "#src/forms/rate-limit-profile";
 import { submitForm } from "#src/forms/submit-service";
-import type { FormDefinitionRecord } from "#src/forms/types";
+import type { FormDefinitionRecord } from "#src/forms/index";
 import { createRateLimiter } from "#src/core/rate-limit/rate-limit";
 
 /**
