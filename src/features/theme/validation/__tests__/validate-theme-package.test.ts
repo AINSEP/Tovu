@@ -188,6 +188,16 @@ test("v2-strict: an unapproved root-level file/folder is rejected", () => {
   assert.equal(err!.path, "js");
 });
 
+test("v2-strict: a root-level screenshots/ folder is an approved root, not flagged (every real theme on disk ships one)", () => {
+  const dir = tmpDir("tovu-validate-v2-screenshots-");
+  writeMinimalV2Static(dir);
+  fs.mkdirSync(path.join(dir, "screenshots"), { recursive: true });
+  fs.writeFileSync(path.join(dir, "screenshots", "index.jpg"), "fake-jpg-bytes", "utf8");
+
+  const result = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "author" });
+  assert.equal(findError(result, "structure-unapproved-root"), undefined, JSON.stringify(result.errors));
+});
+
 // ---------------------------------------------------------------------------
 // v2-strict: references
 // ---------------------------------------------------------------------------

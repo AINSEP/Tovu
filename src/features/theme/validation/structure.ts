@@ -29,7 +29,11 @@ const MAX_PACKAGE_DEPTH = 16;
 const MAX_FILE_BYTES = 16 * 1024 * 1024;
 
 /** Roots `theme-authoring-guide-v2.md` §3 approves at an authored v2 theme's top level. Anything else
- * present in a v2-strict validation is an unrecognized root file/folder. */
+ * present in a v2-strict validation is an unrecognized root file/folder. `screenshots` is real
+ * author-owned marketing content, deliberately distinct from `assets/previews/`'s specific
+ * marketplace-card-thumbnail purpose — see `theme-files.ts`'s own `isGeneratedThemePath` doc comment
+ * for why it's already treated as first-class content elsewhere in this codebase; every real theme on
+ * disk ships one. */
 const V2_APPROVED_ROOTS: ReadonlySet<string> = new Set([
   "theme.json",
   "tokens.json",
@@ -37,6 +41,7 @@ const V2_APPROVED_ROOTS: ReadonlySet<string> = new Set([
   "LICENSE",
   "NOTICE.md",
   "assets",
+  "screenshots",
   "css",
   "render",
   "scripts",
