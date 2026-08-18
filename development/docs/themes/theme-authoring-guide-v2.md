@@ -84,6 +84,9 @@ root `AGENTS.md`, structured license fields, `apiVersion`) is carried forward un
 ├── assets/
 │   ├── previews/                  #   card.webp REQUIRED (marketplace thumbnail); gallery/ optional
 │   └── images/ video/ audio/ fonts/ files/   # all OPTIONAL
+├── screenshots/                   # OPTIONAL — real author-owned marketing images, distinct from
+│                                   #   assets/previews/'s specific marketplace-card-thumbnail purpose
+│                                   #   [REAL today, unchanged shape — every theme on disk ships one]
 ├── css/
 │   ├── theme.css                  # REQUIRED — the only file the host loads automatically
 │   └── vendor/                    #   OPTIONAL third-party CSS, one subfolder per library
