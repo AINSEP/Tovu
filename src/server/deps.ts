@@ -617,7 +617,7 @@ export function createSqliteRouteDeps(
   // hoisting comment explains: `newsletterSubscriberDirectory` must read the SAME member rows the
   // returned `memberRepo` field exposes, and `newsletterKeyring` is the ONE process-lifetime
   // `KeyringPort` instance also used to build `webhookSigner` below (one root key,
-  // purpose-namespaced — `integrations/ports.ts`'s `KeyringPort.derive()` contract — not two).
+  // purpose-namespaced — `webhooks/ports.ts`'s `KeyringPort.derive()` contract — not two).
   const memberRepo = new SqliteMemberRepo(db);
   const newsletterKeyring = new EnvOrFileKeyring();
   const newsletterSubscriberDirectory = new MembersSubscriberDirectory({ members: memberRepo });

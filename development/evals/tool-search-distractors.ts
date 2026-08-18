@@ -515,7 +515,7 @@ const NEW_DOMAINS: readonly DomainSpec[] = [
 // NEAR: deliberately share vocabulary with a specific existing real domain (see `nearOf`). Kept a
 // realistic minority (~22-25% of total, not over-weighted) per review.
 const NEAR_DOMAINS: readonly DomainSpec[] = [
-  { prefix: "notifications", s: "notification template", p: "notification templates", idField: "templateId", requiredField: "channel", mutableFields: "subject, body, and channel", rejectCond: "the channel is not one of 'email', 'sms', or 'push'", count: 7, nearOf: "newsletter_ / integrations_", nearNote: "Distinct from the newsletter subscriber list — these are in-app/push subscriptions, not mailing-list ones." },
+  { prefix: "notifications", s: "notification template", p: "notification templates", idField: "templateId", requiredField: "channel", mutableFields: "subject, body, and channel", rejectCond: "the channel is not one of 'email', 'sms', or 'push'", count: 7, nearOf: "newsletter_ / webhooks_", nearNote: "Distinct from the newsletter subscriber list — these are in-app/push subscriptions, not mailing-list ones." },
   { prefix: "push_notifications", s: "push notification", p: "push notifications", idField: "pushId", mutableFields: "title and deep link", count: 5, nearOf: "notifications_ / newsletter_" },
   { prefix: "sms_campaigns", s: "SMS campaign", p: "SMS campaigns", idField: "campaignId", requiredField: "listId", mutableFields: "message body and send time", states: "'draft', 'scheduled', or 'sent'", count: 5, nearOf: "newsletter_ (campaign language)" },
   { prefix: "email_templates", s: "email template", p: "email templates", idField: "templateId", mutableFields: "subject line and body", count: 5, nearOf: "newsletter_ (template/campaign language)" },
@@ -540,7 +540,7 @@ const NEAR_DOMAINS: readonly DomainSpec[] = [
   { prefix: "plugin_licenses", s: "plugin license", p: "plugin licenses", idField: "licenseId", requiredField: "pluginId", mutableFields: "seat count and renewal date", rejectCond: "the plugin is not installed in this workspace", count: 4, nearOf: "plugins_ (plugin/enable/disable language)" },
   { prefix: "extensions", s: "browser extension binding", p: "browser extension bindings", idField: "bindingId", count: 5, nearOf: "plugins_ (extension/installed language)" },
   { prefix: "plugin_settings_overrides", s: "plugin settings override", p: "plugin settings overrides", idField: "overrideId", requiredField: "pluginId", count: 4, nearOf: "plugins_ / settings_ (config language)" },
-  { prefix: "webhook_signing_keys", s: "webhook signing key", p: "webhook signing keys", idField: "keyId", count: 3, nearOf: "integrations_ (webhook language)" },
+  { prefix: "webhook_signing_keys", s: "webhook signing key", p: "webhook signing keys", idField: "keyId", count: 3, nearOf: "webhooks_ (webhook language)" },
   { prefix: "role_templates", s: "role template", p: "role templates", idField: "templateId", count: 4, nearOf: "identity_ (role language)" },
   { prefix: "session_management", s: "active session", p: "active sessions", idField: "sessionId", count: 4, nearOf: "identity_ / members_ (access/session language)" },
 ];

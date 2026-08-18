@@ -1,11 +1,12 @@
 /**
- * @file Covers the 5 Integrations tools: catalog completeness (every entry wired — subscription
- * update and signing-secret rotation/generation/reveal are absent from the catalog entirely, not
- * merely unwired — see `agent-tools.ts`'s own file header), published contracts, risk cross-check,
- * the ADR-021 authorization half (explicit-handler style — none of `createSubscription`/
- * `pauseSubscription`/`deleteSubscription` call `authorize()` themselves), and a multi-tool
- * workflow test chaining create -> list -> remove, asserting state stays consistent across the
- * whole sequence.
+ * @file Covers the 5 Webhooks tools (formerly published as `integrations_*`, renamed 2026-08-17 to
+ * match the `src/webhooks/` module rename — see that rename's own commit for why the tool IDs moved
+ * too): catalog completeness (every entry wired — subscription update and signing-secret rotation/
+ * generation/reveal are absent from the catalog entirely, not merely unwired — see `agent-tools.ts`'s
+ * own file header), published contracts, risk cross-check, the ADR-021 authorization half
+ * (explicit-handler style — none of `createSubscription`/`pauseSubscription`/`deleteSubscription`
+ * call `authorize()` themselves), and a multi-tool workflow test chaining create -> list -> remove,
+ * asserting state stays consistent across the whole sequence.
  *
  * Uses the REAL in-memory `WebhookSubscriptionRepoPort`/`WebhookDeliveryRepoPort` adapters and the
  * real `createSubscription`/`pauseSubscription`/`deleteSubscription` domain functions, so "the
@@ -16,23 +17,25 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { getIntegrationsAgentToolCatalog, type AgentToolDefinition } from "../../webhooks/agent-tools";
+import { getWebhooksAgentToolCatalog, type AgentToolDefinition } from "../../webhooks/agent-tools";
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../../webhooks/repo.memory";
-import { contributeIntegrationsTools } from "../../webhooks/tool-registrations";
+import { contributeWebhooksTools } from "../../webhooks/tool-registrations";
 import type { RouteDeps } from "../../server/routes/types";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations";
 import { resetToolContributorsForTests } from "../tool-contribution-registry";
 
-// Integrations moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
+// Webhooks (registered under the tool-contribution registry's "integrations" domain key — see
+// `webhooks/tool-registrations.ts`'s own header for why that key itself was NOT part of this rename)
+// moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
 // tool-contribution registry (2026-08-17, Stage 2 batch 2 — see `tool-contribution-registry.ts`'s
 // header), so `buildAssistantToolRegistrations` below no longer wires it unless something explicitly
 // installs it first, mirroring what the real composition roots (`agent-daemon-server.ts`,
 // `assistant-byok.ts`) now do via `installFirstPartyToolContributors()`. Reset first so this file's
 // own registration is the only one this process's registry holds while these tests run.
 resetToolContributorsForTests();
-contributeIntegrationsTools();
+contributeWebhooksTools();
 
-const WORKSPACE_ID = "ws-integrations-tools";
+const WORKSPACE_ID = "ws-webhooks-tools";
 const PRINCIPAL_ID = "principal-under-test";
 const NOW = "2026-07-29T00:00:00.000Z";
 
@@ -69,44 +72,44 @@ function executionContext(input: Record<string, unknown> | undefined): ToolExecu
   return { executionId: "exec-1", principal: { id: PRINCIPAL_ID }, run: { id: "run-1" }, input, signal: new AbortController().signal };
 }
 
-function integrationsRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
-  return new Map(buildAssistantToolRegistrations(deps).filter((r) => r.descriptor.id.startsWith("integrations_")).map((r) => [r.descriptor.id, r]));
+function webhooksRegistrations(deps: RouteDeps): Map<string, ToolRegistration> {
+  return new Map(buildAssistantToolRegistrations(deps).filter((r) => r.descriptor.id.startsWith("webhooks_")).map((r) => [r.descriptor.id, r]));
 }
 
 function wired(deps: RouteDeps, toolId: string): ToolRegistration {
-  const found = integrationsRegistrations(deps).get(toolId);
+  const found = webhooksRegistrations(deps).get(toolId);
   assert.ok(found, `expected '${toolId}' to be wired`);
   return found;
 }
 
 function catalogEntry(toolId: string): AgentToolDefinition {
-  const entry = getIntegrationsAgentToolCatalog().find((tool) => tool.name === toolId);
+  const entry = getWebhooksAgentToolCatalog().find((tool) => tool.name === toolId);
   assert.ok(entry, `catalog has no entry for '${toolId}'`);
   return entry;
 }
 
-const ALL_INTEGRATIONS_TOOL_IDS = [
-  "integrations_list_subscriptions",
-  "integrations_get_deliveries",
-  "integrations_create_subscription",
-  "integrations_pause_subscription",
-  "integrations_delete_subscription",
+const ALL_WEBHOOKS_TOOL_IDS = [
+  "webhooks_list_subscriptions",
+  "webhooks_get_deliveries",
+  "webhooks_create_subscription",
+  "webhooks_pause_subscription",
+  "webhooks_delete_subscription",
 ];
 
 // ---------------------------------------------------------------------------
 // 1. Catalog completeness — every entry wired, subscription-update and keyring ops absent entirely
 // ---------------------------------------------------------------------------
 
-test("exactly the 5 integrations catalog entries are registered — nothing withheld as a stub in this domain", () => {
+test("exactly the 5 webhooks catalog entries are registered — nothing withheld as a stub in this domain", () => {
   const { deps } = fakeRouteDeps();
-  assert.deepEqual([...integrationsRegistrations(deps).keys()].sort(), [...ALL_INTEGRATIONS_TOOL_IDS].sort());
-  assert.equal(getIntegrationsAgentToolCatalog().length, 5, "sanity: the full integrations catalog is still 5 entries");
+  assert.deepEqual([...webhooksRegistrations(deps).keys()].sort(), [...ALL_WEBHOOKS_TOOL_IDS].sort());
+  assert.equal(getWebhooksAgentToolCatalog().length, 5, "sanity: the full webhooks catalog is still 5 entries");
 });
 
 test("no tool id across the whole assistant tool set implies a subscription can be updated or a signing secret rotated/revealed by an agent", () => {
   const { deps } = fakeRouteDeps();
   const ids = buildAssistantToolRegistrations(deps).map((r) => r.descriptor.id);
-  assert.equal(ids.includes("integrations_update_subscription"), false);
+  assert.equal(ids.includes("webhooks_update_subscription"), false);
   assert.equal(ids.some((id) => id.includes("rotate") || id.includes("reveal") || id.includes("keyring")), false);
 });
 
@@ -114,17 +117,17 @@ test("no tool id across the whole assistant tool set implies a subscription can 
 // 2. Published contracts
 // ---------------------------------------------------------------------------
 
-test("every wired integrations registration publishes its catalog entry's inputSchema and description verbatim", () => {
+test("every wired webhooks registration publishes its catalog entry's inputSchema and description verbatim", () => {
   const { deps } = fakeRouteDeps();
-  for (const [id, registration] of integrationsRegistrations(deps)) {
+  for (const [id, registration] of webhooksRegistrations(deps)) {
     assert.deepEqual(registration.descriptor.inputSchema, catalogEntry(id).inputSchema, `${id}'s published schema must be its catalog entry's`);
     assert.equal(registration.descriptor.description, catalogEntry(id).description);
   }
 });
 
-test("requiresConfirmation is unset on every wired integrations tool", () => {
+test("requiresConfirmation is unset on every wired webhooks tool", () => {
   const { deps } = fakeRouteDeps();
-  for (const [, registration] of integrationsRegistrations(deps)) {
+  for (const [, registration] of webhooksRegistrations(deps)) {
     assert.equal(registration.descriptor.requiresConfirmation, undefined);
   }
 });
@@ -133,23 +136,23 @@ test("requiresConfirmation is unset on every wired integrations tool", () => {
 // 3. Risk metadata is cross-checked, not trusted
 // ---------------------------------------------------------------------------
 
-test("the independent risk classification agrees with the catalog for every wired integrations tool", () => {
+test("the independent risk classification agrees with the catalog for every wired webhooks tool", () => {
   const { deps } = fakeRouteDeps();
-  for (const id of integrationsRegistrations(deps).keys()) {
+  for (const id of webhooksRegistrations(deps).keys()) {
     assert.doesNotThrow(() => assertRiskMetadataIsWirable(id, catalogEntry(id)));
   }
 });
 
-test("an integrations catalog entry cannot downgrade its own risk — declaring sideEffects:'none' for integrations_create_subscription fails the build", () => {
+test("a webhooks catalog entry cannot downgrade its own risk — declaring sideEffects:'none' for webhooks_create_subscription fails the build", () => {
   assert.throws(
-    () => assertRiskMetadataIsWirable("integrations_create_subscription", { ...catalogEntry("integrations_create_subscription"), sideEffects: "none" }),
+    () => assertRiskMetadataIsWirable("webhooks_create_subscription", { ...catalogEntry("webhooks_create_subscription"), sideEffects: "none" }),
     /declares sideEffects 'none' but this layer derives 'mutates-durable-state'/,
   );
 });
 
-test("the ToolPolicy layer is a pass-through 'allow' for every wired integrations registration", () => {
+test("the ToolPolicy layer is a pass-through 'allow' for every wired webhooks registration", () => {
   const { deps } = fakeRouteDeps();
-  for (const [toolId, registration] of integrationsRegistrations(deps)) {
+  for (const [toolId, registration] of webhooksRegistrations(deps)) {
     const decision = registration.policy.authorize({ principal: { id: PRINCIPAL_ID }, run: { id: "run-1" }, tool: registration.descriptor, input: {} });
     assert.equal(decision, "allow", `${toolId}'s ToolPolicy is documented as a pass-through`);
   }
@@ -160,8 +163,8 @@ test("the ToolPolicy layer is a pass-through 'allow' for every wired integration
 // ---------------------------------------------------------------------------
 
 const TOOL_INPUTS: Record<string, Record<string, unknown>> = {
-  integrations_list_subscriptions: {},
-  integrations_create_subscription: { label: "My Endpoint", targetUrl: "https://example.test/hooks", topics: ["post.published"] },
+  webhooks_list_subscriptions: {},
+  webhooks_create_subscription: { label: "My Endpoint", targetUrl: "https://example.test/hooks", topics: ["post.published"] },
 };
 
 for (const toolId of Object.keys(TOOL_INPUTS)) {
@@ -195,24 +198,24 @@ for (const toolId of Object.keys(TOOL_INPUTS)) {
   });
 }
 
-test("integrations_create_subscription: rejects a non-https target the same way the domain function does", async () => {
+test("webhooks_create_subscription: rejects a non-https target the same way the domain function does", async () => {
   const { deps } = fakeRouteDeps();
   await assert.rejects(
-    () => wired(deps, "integrations_create_subscription").handler(executionContext({ label: "x", targetUrl: "http://example.test", topics: ["post.published"] })),
+    () => wired(deps, "webhooks_create_subscription").handler(executionContext({ label: "x", targetUrl: "http://example.test", topics: ["post.published"] })),
   );
 });
 
-test("integrations_create_subscription: rejects a target the egress allowlist disallows", async () => {
+test("webhooks_create_subscription: rejects a target the egress allowlist disallows", async () => {
   const { deps } = fakeRouteDeps({ allowedTarget: false });
   await assert.rejects(
-    () => wired(deps, "integrations_create_subscription").handler(executionContext({ label: "x", targetUrl: "https://example.test", topics: ["post.published"] })),
+    () => wired(deps, "webhooks_create_subscription").handler(executionContext({ label: "x", targetUrl: "https://example.test", topics: ["post.published"] })),
   );
 });
 
-test("integrations_get_deliveries: an unknown subscriptionId propagates WebhookSubscriptionNotFoundError unwrapped", async () => {
+test("webhooks_get_deliveries: an unknown subscriptionId propagates WebhookSubscriptionNotFoundError unwrapped", async () => {
   const { deps } = fakeRouteDeps();
   await assert.rejects(
-    () => wired(deps, "integrations_get_deliveries").handler(executionContext({ subscriptionId: "no-such-id" })),
+    () => wired(deps, "webhooks_get_deliveries").handler(executionContext({ subscriptionId: "no-such-id" })),
     /was not found/,
   );
 });
@@ -224,7 +227,7 @@ test("integrations_get_deliveries: an unknown subscriptionId propagates WebhookS
 test("workflow: create a subscription, list to confirm it appears, pause it, list again to confirm the status change, then remove it", async () => {
   const { deps } = fakeRouteDeps();
 
-  const created = (await wired(deps, "integrations_create_subscription").handler(
+  const created = (await wired(deps, "webhooks_create_subscription").handler(
     executionContext({ label: "  My Endpoint  ", targetUrl: "https://example.test/hooks", topics: ["post.published", "post.published"] }),
   )) as { subscription: { id: string; label: string; topics: string[]; status: string; secretVersion: number } };
   assert.equal(created.subscription.label, "My Endpoint");
@@ -232,7 +235,7 @@ test("workflow: create a subscription, list to confirm it appears, pause it, lis
   assert.equal(created.subscription.status, "active");
   assert.equal(created.subscription.secretVersion, 1);
 
-  const afterCreateList = (await wired(deps, "integrations_list_subscriptions").handler(executionContext({}))) as {
+  const afterCreateList = (await wired(deps, "webhooks_list_subscriptions").handler(executionContext({}))) as {
     subscriptions: Array<{ id: string; status: string; lastDelivery: unknown }>;
   };
   assert.equal(afterCreateList.subscriptions.length, 1);
@@ -240,33 +243,33 @@ test("workflow: create a subscription, list to confirm it appears, pause it, lis
   assert.equal(afterCreateList.subscriptions[0].status, "active");
   assert.equal(afterCreateList.subscriptions[0].lastDelivery, null, "no deliveries have fired yet");
 
-  const paused = (await wired(deps, "integrations_pause_subscription").handler(executionContext({ subscriptionId: created.subscription.id }))) as {
+  const paused = (await wired(deps, "webhooks_pause_subscription").handler(executionContext({ subscriptionId: created.subscription.id }))) as {
     subscription: { status: string };
   };
   assert.equal(paused.subscription.status, "paused");
 
-  const afterPauseList = (await wired(deps, "integrations_list_subscriptions").handler(executionContext({}))) as {
+  const afterPauseList = (await wired(deps, "webhooks_list_subscriptions").handler(executionContext({}))) as {
     subscriptions: Array<{ id: string; status: string }>;
   };
   assert.equal(afterPauseList.subscriptions[0].status, "paused", "list reflects the pause");
 
-  const deliveries = (await wired(deps, "integrations_get_deliveries").handler(executionContext({ subscriptionId: created.subscription.id }))) as {
+  const deliveries = (await wired(deps, "webhooks_get_deliveries").handler(executionContext({ subscriptionId: created.subscription.id }))) as {
     deliveries: unknown[];
   };
   assert.deepEqual(deliveries.deliveries, [], "no deliveries have fired yet");
 
-  const removed = (await wired(deps, "integrations_delete_subscription").handler(executionContext({ subscriptionId: created.subscription.id }))) as {
+  const removed = (await wired(deps, "webhooks_delete_subscription").handler(executionContext({ subscriptionId: created.subscription.id }))) as {
     subscription: { status: string; disabledAt: string | null };
   };
   assert.equal(removed.subscription.status, "disabled");
   assert.ok(removed.subscription.disabledAt);
 
-  const afterRemoveList = (await wired(deps, "integrations_list_subscriptions").handler(executionContext({}))) as {
+  const afterRemoveList = (await wired(deps, "webhooks_list_subscriptions").handler(executionContext({}))) as {
     subscriptions: Array<{ id: string; status: string }>;
   };
   assert.equal(afterRemoveList.subscriptions.length, 1, "soft-delete keeps the row, for audit durability");
   assert.equal(afterRemoveList.subscriptions[0].status, "disabled");
 
   // A disabled subscription is terminal — resuming it is refused, not silently accepted.
-  await assert.rejects(() => wired(deps, "integrations_pause_subscription").handler(executionContext({ subscriptionId: created.subscription.id, paused: false })));
+  await assert.rejects(() => wired(deps, "webhooks_pause_subscription").handler(executionContext({ subscriptionId: created.subscription.id, paused: false })));
 });

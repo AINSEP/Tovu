@@ -69,8 +69,8 @@ const CASES: readonly EvalCase[] = [
   { query: "tag this article", expect: "taxonomy_assign_terms" },
   { query: "edit the theme's stylesheet", expect: "theme_write_file", alsoAcceptable: ["theme_read_file", "theme_list_files"] },
   { query: "send a login link to a member", expect: "members_request_magic_link" },
-  { query: "what webhooks are set up", expect: "integrations_list_subscriptions" },
-  { query: "did that webhook actually fire", expect: "integrations_get_deliveries" },
+  { query: "what webhooks are set up", expect: "webhooks_list_subscriptions" },
+  { query: "did that webhook actually fire", expect: "webhooks_get_deliveries" },
 ];
 
 /**
@@ -97,7 +97,7 @@ const HELD_OUT_CASES: readonly EvalCase[] = [
   { query: "a contractor finished, take away their account", expect: "identity_user_disable", alsoAcceptable: ["members_disable"] },
   { query: "new hire needs to be able to edit posts", expect: "identity_role_assign", alsoAcceptable: ["identity_policy_attach", "identity_user_create"] },
   { query: "we moved the pricing page and old bookmarks 404", expect: "redirects_create" },
-  { query: "is the external system actually receiving our events", expect: "integrations_get_deliveries", alsoAcceptable: ["integrations_list_subscriptions"] },
+  { query: "is the external system actually receiving our events", expect: "webhooks_get_deliveries", alsoAcceptable: ["webhooks_list_subscriptions"] },
   { query: "this draft is ready to go live", expect: "collections_entry_publish", alsoAcceptable: ["content_post_update"] },
   { query: "google still shows the old title for this page", expect: "seo_get_entry_meta", alsoAcceptable: ["seo_set_entry_overrides", "seo_regenerate_sitemap", "seo_analyze_entry"] },
   { query: "group these articles under a topic", expect: "taxonomy_assign_terms", alsoAcceptable: ["taxonomy_create_term", "taxonomy_create_taxonomy"] },

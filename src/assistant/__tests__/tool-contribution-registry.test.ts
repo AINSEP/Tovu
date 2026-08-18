@@ -126,7 +126,8 @@ test("installFirstPartyToolContributors installs exactly the converted domains �
   // `themes` is ALSO present below — retried once `deployments`/`static-publish` above left
   // `assistant` without any transitive path into `export` (see
   // `features/theme/tool-registrations.ts`'s own header for the full trace, including its two prior
-  // reverts). `post` remains deliberately absent, covered by its own test below.
+  // reverts). `post` is ALSO present below — converted last of the 25 (`fc8ad2a6`), covered by its
+  // own test below, which was updated at the same time as this list.
   assert.deepEqual(listToolContributors().map((c) => c.domain), [
     "comments",
     "content-types",
@@ -142,6 +143,7 @@ test("installFirstPartyToolContributors installs exactly the converted domains �
     "newsletter",
     "pages",
     "plugins",
+    "post",
     "recovery",
     "redirects",
     "seo",
@@ -155,9 +157,19 @@ test("installFirstPartyToolContributors installs exactly the converted domains �
   ]);
 });
 
-test("post is deliberately NOT installed by installFirstPartyToolContributors — it was tried and reverted the same night (see features/post/tool-registrations.ts's trailing comment: converting it opened a new module cycle through widgets/export)", () => {
+// UPDATED 2026-08-17: this test previously asserted the OPPOSITE — that `post` is deliberately NOT
+// installed, because an early conversion attempt was reverted the same night (it opened a new module
+// cycle through `widgets`/`export`). That reverted attempt is history: `post` was converted for real
+// in `fc8ad2a6` as the LAST of the 25 domains, once `listPublishedPosts` was injected rather than
+// reimplemented (`PostRepoPort.list()` is status-blind, so that filter is the only thing keeping
+// draft/trashed posts away from anonymous visitors — see
+// `ADS-memory/reports/architecture/2026-08-17-post-listpublishedposts-design-options.md`). The
+// rollout is 25/25 with zero exceptions and `check:architecture` reports 0 cycles / 0 largest SCC
+// with `post` wired this way. The assertion was simply never flipped when that landed, so this test
+// failed against correct code for a day — a stale test, not a regression.
+test("post IS installed by installFirstPartyToolContributors — the final conversion of the 25/25 registry rollout, after an earlier attempt was reverted (see features/post/tool-registrations.ts's own header)", () => {
   installFirstPartyToolContributors();
-  assert.equal(listToolContributors().some((c) => c.domain === "post"), false);
+  assert.equal(listToolContributors().some((c) => c.domain === "post"), true);
 });
 
 test("database IS installed by installFirstPartyToolContributors — converted to the registry in a later pass than the test above's comment describes (see features/database/tool-registrations.ts's own header: the `getDriftStatus` edge that closed its 16-module SCC was cut by relocating drift.ts into db/, and check:architecture confirmed 0 cycles with database wired this way)", () => {
@@ -286,7 +298,7 @@ test("two independent buildAssistantToolRegistrations calls after one installFir
   assert.ok(daemonIds.includes("backup_list_restore_points"));
   assert.ok(daemonIds.includes("plugins_list"));
   assert.ok(daemonIds.includes("collections_entry_list"));
-  assert.ok(daemonIds.includes("integrations_list_subscriptions"));
+  assert.ok(daemonIds.includes("webhooks_list_subscriptions"));
   assert.ok(daemonIds.includes("workspace_get"));
   assert.ok(daemonIds.includes("pages_read_html"));
   assert.ok(daemonIds.includes("seo_get_entry_meta"));

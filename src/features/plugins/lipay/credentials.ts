@@ -19,7 +19,7 @@
  *
  * `KeyringPort` is deliberately NOT reused: it derives secrets via HKDF from a root key, which is
  * right for outbound signing secrets Tovu itself mints and wrong for externally-issued provider
- * credentials that must round-trip verbatim (`integrations/ports.ts`'s `SecretSealerPort` framing).
+ * credentials that must round-trip verbatim (`webhooks/ports.ts`'s `SecretSealerPort` framing).
  */
 import type { PaymentCredentialsPort, PaymentProviderId } from "./ports";
 

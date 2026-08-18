@@ -421,7 +421,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
   // the SAME member rows the returned `memberRepo` field exposes (mirrors `entryRepo`/
   // `widgetBindingRepo`'s identical hoisting rationale above), and so `newsletterKeyring` is the
   // ONE process-lifetime `KeyringPort` instance also used to build `webhookSigner` just below —
-  // one root key, purpose-namespaced (`integrations/ports.ts`'s `KeyringPort.derive()` contract),
+  // one root key, purpose-namespaced (`webhooks/ports.ts`'s `KeyringPort.derive()` contract),
   // not two independent keyrings.
   const memberRepo = new InMemoryMemberRepo([]);
   const newsletterKeyring = new InMemoryKeyring();

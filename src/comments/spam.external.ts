@@ -13,7 +13,7 @@
  * **Egress seam (ADR-031 §5's own instruction: "a network-backed adapter's egress is a
  * core-mediated capability, never a raw `fetch` from plugin code"):** this adapter's constructor
  * takes an `HttpClientPort` (`../http`, ADR-038's single guarded outbound-HTTP seam — the SAME
- * port `integrations/delivery.ts`'s webhook dispatch already uses) and calls `.send()` exclusively
+ * port `webhooks/delivery.ts`'s webhook dispatch already uses) and calls `.send()` exclusively
  * — no `fetch`/`http.request` anywhere in this file. `HttpClientPort` exists in this codebase and
  * is NOT a bigger-than-expected undertaking to depend on; what IS out of this slice's scope is
  * actually CONSTRUCTING a live `HttpClientPort` instance (`createHttpClient({ transport, policy })`)

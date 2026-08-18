@@ -30,7 +30,7 @@ import {
 } from "@jini-ai/cms/core";
 import { registerToolContributor } from "#src/assistant/index";
 import type { OriginRegistryPort } from "../origin";
-import { getIntegrationsAgentToolCatalog } from "./agent-tools";
+import { getWebhooksAgentToolCatalog } from "./agent-tools";
 import type { WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "./ports";
 import {
   createSubscription,
@@ -40,7 +40,7 @@ import {
 } from "./subscriptions";
 import type { WebhookDeliveryRecord, WebhookSubscriptionRecord } from "./types";
 
-const CATALOG_BY_ID = indexCatalogById(getIntegrationsAgentToolCatalog());
+const CATALOG_BY_ID = indexCatalogById(getWebhooksAgentToolCatalog());
 
 /**
  * The exact slice of the route-deps bag Integrations' tool handlers read. Declared structurally
@@ -60,7 +60,7 @@ export interface IntegrationsToolDeps {
 
 /**
  * Bound on how many of a subscription's most recent deliveries are read to compute the
- * "last delivery" summary shown per row in `integrations_list_subscriptions`. Duplicated from
+ * "last delivery" summary shown per row in `webhooks_list_subscriptions`. Duplicated from
  * `routes/admin/integrations/list.ts`'s own `LAST_DELIVERY_LOOKUP_LIMIT` (a literal, not logic —
  * importing from `server/routes` would invert this codebase's ports/adapters direction, the same
  * reasoning `features/settings/tool-registrations.ts`'s header gives for duplicating
@@ -68,7 +68,7 @@ export interface IntegrationsToolDeps {
  */
 const LAST_DELIVERY_LOOKUP_LIMIT = 50;
 
-/** Default/cap for `integrations_get_deliveries`' `limit` — duplicated from
+/** Default/cap for `webhooks_get_deliveries`' `limit` — duplicated from
  * `routes/admin/integrations/deliveries.ts`'s own constants, same reasoning as above. */
 const DEFAULT_DELIVERIES_LIMIT = 50;
 const MAX_DELIVERIES_LIMIT = 200;
@@ -133,28 +133,28 @@ function toDeliveryToolView(delivery: WebhookDeliveryRecord) {
  * calls. See `DerivedRiskByToolId` in the kit for why it is independent of the catalog's own
  * `sideEffects` declaration.
  */
-export const integrationsDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
+export const webhooksDerivedRisk: DerivedRiskByToolId = new Map<string, AgentToolSideEffect>([
   // -> webhookSubscriptionRepo.listByWorkspace() + webhookDeliveryRepo.listBySubscription() (bounded,
   //    per subscription): reads only.
-  ["integrations_list_subscriptions", "none"],
+  ["webhooks_list_subscriptions", "none"],
   // -> webhookSubscriptionRepo.findById() + webhookDeliveryRepo.listBySubscription(): reads only.
-  ["integrations_get_deliveries", "none"],
+  ["webhooks_get_deliveries", "none"],
   // -> createSubscription (subscriptions.ts): validates + repo.insert().
-  ["integrations_create_subscription", "mutates-durable-state"],
+  ["webhooks_create_subscription", "mutates-durable-state"],
   // -> pauseSubscription (subscriptions.ts): status flip + repo.save().
-  ["integrations_pause_subscription", "mutates-durable-state"],
+  ["webhooks_pause_subscription", "mutates-durable-state"],
   // -> deleteSubscription (subscriptions.ts): soft-delete status flip + repo.save(). Never
   //    row-deletes, but classified `deletes-durable-state` (not `mutates-durable-state`): no
   //    un-disable/reactivate path exists anywhere in this domain, so there is no agent-reachable
   //    undo — the same standard `content_post_delete` is classified under.
-  ["integrations_delete_subscription", "deletes-durable-state"],
+  ["webhooks_delete_subscription", "deletes-durable-state"],
 ]);
 
-export function buildIntegrationsRegistrations(routeDeps: IntegrationsToolDeps): ToolRegistration[] {
+export function buildWebhooksRegistrations(routeDeps: IntegrationsToolDeps): ToolRegistration[] {
   const isAllowedTarget = (url: string) => routeDeps.originRegistry.isAllowedEgressTarget({ workspaceId: routeDeps.workspaceId }, url);
 
   const handlers: Record<string, ToolHandler> = {
-    integrations_list_subscriptions: async (ctx) => {
+    webhooks_list_subscriptions: async (ctx) => {
       requireNoInput(ctx.input);
       await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "admin.integrations.manage", entityType: "webhook_subscription" });
 
@@ -172,7 +172,7 @@ export function buildIntegrationsRegistrations(routeDeps: IntegrationsToolDeps):
       return { subscriptions: views };
     },
 
-    integrations_get_deliveries: async (ctx) => {
+    webhooks_get_deliveries: async (ctx) => {
       const input = requireInputRecord(ctx.input);
       const subscriptionId = requireString(input, "subscriptionId");
       await requireToolPermission(routeDeps, {
@@ -194,7 +194,7 @@ export function buildIntegrationsRegistrations(routeDeps: IntegrationsToolDeps):
       return { deliveries: newestFirst.map(toDeliveryToolView) };
     },
 
-    integrations_create_subscription: async (ctx) => {
+    webhooks_create_subscription: async (ctx) => {
       const input = requireInputRecord(ctx.input);
       await requireToolPermission(routeDeps, { principalId: ctx.principal.id, permission: "admin.integrations.manage", entityType: "webhook_subscription" });
 
@@ -216,7 +216,7 @@ export function buildIntegrationsRegistrations(routeDeps: IntegrationsToolDeps):
       return { subscription: toSubscriptionToolView(subscription, null) };
     },
 
-    integrations_pause_subscription: async (ctx) => {
+    webhooks_pause_subscription: async (ctx) => {
       const input = requireInputRecord(ctx.input);
       const subscriptionId = requireString(input, "subscriptionId");
       await requireToolPermission(routeDeps, {
@@ -236,7 +236,7 @@ export function buildIntegrationsRegistrations(routeDeps: IntegrationsToolDeps):
       return { subscription: toSubscriptionToolView(subscription, null) };
     },
 
-    integrations_delete_subscription: async (ctx) => {
+    webhooks_delete_subscription: async (ctx) => {
       const subscriptionId = requireString(requireInputRecord(ctx.input), "subscriptionId");
       await requireToolPermission(routeDeps, {
         principalId: ctx.principal.id,
@@ -255,18 +255,18 @@ export function buildIntegrationsRegistrations(routeDeps: IntegrationsToolDeps):
 
   return buildDomainRegistrations({
     domain: "integrations",
-    catalogModule: "integrations/agent-tools.ts",
+    catalogModule: "webhooks/agent-tools.ts",
     catalog: CATALOG_BY_ID,
     handlers,
-    derivedRisk: integrationsDerivedRisk,
+    derivedRisk: webhooksDerivedRisk,
   });
 }
 
 /**
  * Contributes Integrations' AI tools to the assistant's catalog — called once by
  * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
- * module. `assistant/tool-registrations.ts` no longer imports `buildIntegrationsRegistrations`/
- * `integrationsDerivedRisk` by name; this is the seam that replaced it (Stage 2 batch 2).
+ * module. `assistant/tool-registrations.ts` no longer imports `buildWebhooksRegistrations`/
+ * `webhooksDerivedRisk` by name; this is the seam that replaced it (Stage 2 batch 2).
  *
  * The original ordering theory for this batch (convert `source-control`/`deployments`/`media`
  * first, since they were believed to import `integrations`, removing `assistant`'s indirect path
@@ -278,7 +278,13 @@ export function buildIntegrationsRegistrations(routeDeps: IntegrationsToolDeps):
  * and `server/modules/integrations.ts` (both server-layer, never reachable from `assistant`), so a
  * one-directional `integrations -> assistant` registry edge closes no cycle — confirmed via
  * `check:architecture` (cycles/SCC stayed at 0 after this edit).
+ *
+ * `domain: "integrations"` below is the tool-contribution-registry's own key for this module —
+ * deliberately NOT renamed to "webhooks" alongside the tool IDs above. That key is live subject
+ * matter for a concurrent session's in-flight registry rollout (see `tool-contribution-registry.
+ * test.ts`'s currently-failing DOMAIN_SLICES collision checks); changing it here risked colliding
+ * with work this task was told not to touch. Flagged for the coordinator, not decided here.
  */
-export function contributeIntegrationsTools(): void {
-  registerToolContributor({ domain: "integrations", build: buildIntegrationsRegistrations, risk: integrationsDerivedRisk });
+export function contributeWebhooksTools(): void {
+  registerToolContributor({ domain: "integrations", build: buildWebhooksRegistrations, risk: webhooksDerivedRisk });
 }

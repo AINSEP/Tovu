@@ -28,7 +28,7 @@ import type {
  * (no envelope re-hydration path) are the same underlying gap, per the ADR's own Rationale.
  *
  * How it relates to the project:
- * - `enqueueDelivery` (`../../integrations/delivery.ts`) calls `deliveryRepo.enqueue()` then
+ * - `enqueueDelivery` (`../../webhooks/delivery.ts`) calls `deliveryRepo.enqueue()` then
  *   `envelopeStore.save()` as two sequential calls (see that file) — both land on the same row
  *   here, `save()` updating the `payload_json` column `enqueue()` left `NULL`.
  * - The unique index on `(workspace_id, subscription_id, event_id)` (`schema.ts`) makes `enqueue`
@@ -36,11 +36,11 @@ import type {
  *   than throwing, closing the race `delivery.ts`'s scan-based pre-check alone can't (two
  *   concurrent enqueues could both pass the scan before either commits).
  *
- * Relocated from `integrations/repo.sqlite.ts` (2026-08-17, architecture SCC cut): this is the
+ * Relocated from `webhooks/repo.sqlite.ts` (2026-08-17, architecture SCC cut): this is the
  * concrete SQLite half of the ADR-006 rule-of-two, so it belongs in the outer persistence layer
  * alongside `vendor-credential-repo.sqlite.ts` and friends — the port stays domain-owned in
- * `integrations/ports.ts`; only the adapter moved. All remaining imports from `integrations/` below
- * are type-only, so this file cannot introduce a runtime edge back into `integrations/`.
+ * `webhooks/ports.ts`; only the adapter moved. All remaining imports from `webhooks/` below
+ * are type-only, so this file cannot introduce a runtime edge back into `webhooks/`.
  */
 
 function topicsToJson(topics: readonly WebhookTopic[]): string {

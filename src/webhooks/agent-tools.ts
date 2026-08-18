@@ -53,7 +53,7 @@
  * This domain's copy of the shared union (see `@jini-ai/cms/core`'s own `AgentToolSideEffect` for
  * why `deletes-durable-state` is a distinct member and not a flavor of `mutates-durable-state`, and
  * why each domain must widen its own narrower copy to opt in rather than inheriting it for free).
- * Widened to add `deletes-durable-state` for `integrations_delete_subscription`: once a subscription
+ * Widened to add `deletes-durable-state` for `webhooks_delete_subscription`: once a subscription
  * is disabled there is no un-disable/reactivate path anywhere in this domain, so — same standard as
  * `content_post_delete` (`features/post/agent-tools.ts`) — there is no agent-reachable undo, even
  * though the row itself is never physically deleted.
@@ -77,7 +77,7 @@ export interface AgentToolDefinition {
 const SUBSCRIPTION_ID_PROPERTY = {
   type: "string",
   minLength: 1,
-  description: "A webhook subscription's id, as returned by integrations_create_subscription or integrations_list_subscriptions.",
+  description: "A webhook subscription's id, as returned by webhooks_create_subscription or webhooks_list_subscriptions.",
 } as const;
 
 const SUBSCRIPTION_ID_SCHEMA = {
@@ -142,10 +142,10 @@ const GET_DELIVERIES_SCHEMA = {
  * @complexity O(1) — a fixed, statically-defined list.
  * @overallScore 100
  */
-export function getIntegrationsAgentToolCatalog(): AgentToolDefinition[] {
+export function getWebhooksAgentToolCatalog(): AgentToolDefinition[] {
   return [
     {
-      name: "integrations_list_subscriptions",
+      name: "webhooks_list_subscriptions",
       description: "Lists the workspace's webhook subscriptions, each annotated with its most recent delivery attempt (if any). Read-only.",
       sideEffects: "none",
       authorization: { permission: "admin.integrations.manage" },
@@ -157,14 +157,14 @@ export function getIntegrationsAgentToolCatalog(): AgentToolDefinition[] {
       },
     },
     {
-      name: "integrations_get_deliveries",
+      name: "webhooks_get_deliveries",
       description: "Fetches the delivery log (status, attempts, last response, timestamps) for one webhook subscription, newest first.",
       sideEffects: "none",
       authorization: { permission: "admin.integrations.manage" },
       inputSchema: GET_DELIVERIES_SCHEMA,
     },
     {
-      name: "integrations_create_subscription",
+      name: "webhooks_create_subscription",
       description:
         "Creates a new webhook subscription. Starts active at signing-secret generation 1 — the signing secret itself is never generated or exposed by this tool (it is derived at delivery time from the install root key, never stored).",
       sideEffects: "mutates-durable-state",
@@ -172,14 +172,14 @@ export function getIntegrationsAgentToolCatalog(): AgentToolDefinition[] {
       inputSchema: CREATE_SUBSCRIPTION_SCHEMA,
     },
     {
-      name: "integrations_pause_subscription",
+      name: "webhooks_pause_subscription",
       description: "Pauses or resumes a webhook subscription's deliveries. One tool, both directions (paused defaults to true). Refused if the subscription is already deleted (disabled).",
       sideEffects: "mutates-durable-state",
       authorization: { permission: "admin.integrations.manage" },
       inputSchema: PAUSE_SUBSCRIPTION_SCHEMA,
     },
     {
-      name: "integrations_delete_subscription",
+      name: "webhooks_delete_subscription",
       description:
         "Soft-deletes a webhook subscription (never row-deleted, for audit durability). Safe to call again on an already-deleted subscription — it does not error, though disabledAt/updatedAt are stamped again.",
       // Classified `deletes-durable-state`, not `mutates-durable-state`, despite being a soft

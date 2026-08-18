@@ -23,7 +23,7 @@ import { taxonomyAgentToolCatalog } from "../../features/taxonomy/agent-tools";
 import { getWorkspaceAgentToolCatalog } from "../../features/workspace";
 import { formsAgentToolCatalog } from "../../forms/agent-tools";
 import { identityAgentToolCatalog } from "@jini-ai/cms/identity";
-import { getIntegrationsAgentToolCatalog } from "../../webhooks/agent-tools";
+import { getWebhooksAgentToolCatalog } from "../../webhooks/agent-tools";
 import { getThemesAgentToolCatalog } from "../../features/theme/agent-tools";
 import { mediaAgentToolCatalog } from "../../media";
 import { membersAgentToolCatalog } from "../../members/agent-tools";
@@ -143,7 +143,7 @@ const WIRED_CATALOGS: AgentToolDefinition[] = [
   ...(taxonomyAgentToolCatalog as unknown as AgentToolDefinition[]),
   ...(getSeoAgentToolCatalog() as unknown as AgentToolDefinition[]),
   ...(getRedirectsAgentToolCatalog() as unknown as AgentToolDefinition[]),
-  ...(getIntegrationsAgentToolCatalog() as unknown as AgentToolDefinition[]),
+  ...(getWebhooksAgentToolCatalog() as unknown as AgentToolDefinition[]),
   ...(postAgentToolCatalog as unknown as AgentToolDefinition[]),
   ...(getThemesAgentToolCatalog() as unknown as AgentToolDefinition[]),
   ...(deploymentsAgentToolCatalog as unknown as AgentToolDefinition[]),

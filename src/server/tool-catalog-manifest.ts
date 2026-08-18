@@ -12,7 +12,7 @@ import { contributeThemesTools } from "../features/theme/tool-registrations";
 import { contributeWorkspaceTools } from "../features/workspace/tool-registrations";
 import { contributeFormsTools } from "../forms/tool-registrations";
 import { contributeIdentityTools } from "../identity/tool-registrations";
-import { contributeIntegrationsTools } from "../webhooks/tool-registrations";
+import { contributeWebhooksTools } from "../webhooks/tool-registrations";
 import { contributeMediaTools } from "../media/tool-registrations";
 import { contributeMembersTools } from "../members/tool-registrations";
 import { contributeMenusTools } from "../navigation/tool-registrations";
@@ -133,7 +133,7 @@ export function installFirstPartyToolContributors(): void {
   contributeEntriesTools();
   contributeFormsTools();
   contributeIdentityTools();
-  contributeIntegrationsTools();
+  contributeWebhooksTools();
   contributeMediaTools();
   contributeMembersTools();
   contributeMenusTools();
