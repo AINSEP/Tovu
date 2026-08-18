@@ -11,6 +11,9 @@
  * daemon must be listening, and `JINI_AGENT_DAEMON_URL`/`JINI_AGENT_DAEMON_PORT` must be set,
  * BEFORE this module is first imported).
  */
+import http from "node:http";
+import { Readable } from "node:stream";
+
 import type { Request, Response } from "express";
 
 import { AGENT_DAEMON_TOKEN_ENV_VAR, RUN_PRINCIPAL_HEADER } from "../../assistant";
@@ -219,4 +222,71 @@ export async function fetchAgentDaemon(
  *  this request arrived on, with an optional rewritten body. */
 export async function forwardToAgentDaemon(req: Request, res: Response, body?: unknown): Promise<globalThis.Response | null> {
   return fetchAgentDaemon(req, res, { body });
+}
+
+/** True for the "nothing is listening on that port yet" shape from a raw `node:http` request error
+ *  (`error.code` directly) — the `node:http` equivalent of {@link isConnectionRefused}, which reads
+ *  `error.cause.code` because `fetch`'s own errors wrap the underlying cause one level deeper. */
+function isNodeConnectionRefused(error: unknown): boolean {
+  const code = (error as { code?: unknown } | undefined)?.code;
+  return code === "ECONNREFUSED" || code === "ECONNRESET";
+}
+
+/** One `node:http` GET attempt against the daemon, settled instead of thrown so
+ *  {@link fetchAgentDaemonEventStream}'s retry loop can inspect a failed attempt without a
+ *  try/catch per iteration — the same shape `fetchAgentDaemon`'s own loop gets for free from
+ *  `fetch()`'s rejected promise, reproduced by hand here since `http.request` reports failure via an
+ *  `"error"` event instead. */
+function requestDaemonEventStream(
+  target: string,
+  headers: Record<string, string>,
+): Promise<{ statusCode: number; body: ReadableStream<Uint8Array> } | { error: unknown }> {
+  return new Promise((resolve) => {
+    const upstreamReq = http.request(target, { method: "GET", headers }, (upstreamRes) => {
+      resolve({ statusCode: upstreamRes.statusCode ?? 502, body: Readable.toWeb(upstreamRes) as ReadableStream<Uint8Array> });
+    });
+    upstreamReq.on("error", (error) => resolve({ error }));
+    upstreamReq.end();
+  });
+}
+
+/**
+ * {@link fetchAgentDaemon}'s events-stream-specific sibling — GET only, and deliberately built on
+ * `node:http` instead of the global `fetch`.
+ *
+ * Node's `fetch` (undici) applies a default ~300s IDLE-body timeout to every request, refreshed only
+ * by actual bytes received; the daemon's own SSE channel sends none while a tool call is parked
+ * waiting on a human (`tool-surface-exchanges.ts`'s `DEFAULT_SURFACE_IDLE_TTL_MS` alone is 5 minutes,
+ * right at that default, with no heartbeat/ping anywhere in the channel to reset it) — so a
+ * genuinely-still-open wait was being torn down by `fetch` as if the connection had stalled, well
+ * before the daemon ever produced the model's post-tool-call answer. `node:http`'s classic
+ * `ClientRequest` sets no such timeout by default, which is what a stream whose only real deadline is
+ * the daemon's own exchange TTL needs.
+ *
+ * Same boot-window connection-refused retry as `fetchAgentDaemon`, mirrored here rather than shared,
+ * because the underlying transport — and so its error shape (`error.code` vs `error.cause.code`) —
+ * differs.
+ */
+export async function fetchAgentDaemonEventStream(
+  req: Request,
+  res: Response,
+  path: string,
+): Promise<{ statusCode: number; body: ReadableStream<Uint8Array> } | null> {
+  if (respondIfDaemonKnownFailed(res)) return null;
+  const target = `${AGENT_DAEMON_URL}${path}`;
+  const headers = outboundHeaders(req, res);
+  const deadline = Date.now() + DAEMON_CONNECT_RETRY_MS;
+
+  for (;;) {
+    const attempt = await requestDaemonEventStream(target, headers);
+    if (!("error" in attempt)) {
+      markDaemonReachable();
+      return attempt;
+    }
+    if (!isNodeConnectionRefused(attempt.error) || Date.now() >= deadline) {
+      return respondDaemonUnreachable(res, attempt.error);
+    }
+    noteDaemonUnreachableWaiting();
+    await new Promise((r) => setTimeout(r, DAEMON_CONNECT_RETRY_INTERVAL_MS));
+  }
 }
