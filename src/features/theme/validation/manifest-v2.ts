@@ -26,6 +26,18 @@ import type { ThemeValidationIssue } from "./profiles";
  * object, or absent) rather than deeply validated — the doc itself marks `ai` "NOT YET IMPLEMENTED
  * anywhere" (§12) and the others "unread" (§15's field table). Tightening these is future work once
  * their own shape is settled by an actual implementation, not a guess made here.
+ *
+ * `modes`/`defaultMode`/`pages`/`slots` are accepted the same way, for the opposite reason: they are
+ * REAL, load-bearing v1 fields `loadTheme()` reads flat off the manifest root, completely
+ * apiVersion-agnostic (`theme.ts`'s manifest-parse block) — `slots` drives which root partial file
+ * satisfies which named slot, `modes`/`defaultMode` drive dark/light token switching. The design doc's
+ * own worked example nests `defaultMode`/`modes` under `tokens` instead — that shape is UNIMPLEMENTED
+ * (`readLightTokens` hardcodes the filename `tokens.light.json`, it never reads a `tokens.modes`
+ * mapping), so migrating a real theme to the doc's nested shape would silently stop `loadTheme()` from
+ * finding `modes`/`defaultMode` at all, breaking dark/light mode for every multi-mode theme. Keeping
+ * these flat here matches what the runtime actually does today; `pages` (an array of page ids) is
+ * carried the same way even though `loadTheme()` doesn't parse it into `ThemeManifest` either —
+ * confirmed dead, not read anywhere in `src/`, so there is nothing to preserve OR break either way.
  */
 
 /** Top-level keys schema v2 recognizes (`theme-authoring-guide-v2.md` §5). Anything else in a
@@ -55,6 +67,10 @@ const V2_TOP_LEVEL_KEYS: ReadonlySet<string> = new Set([
   "assets",
   "ai",
   "build",
+  "modes",
+  "defaultMode",
+  "pages",
+  "slots",
 ]);
 
 const V2_TIERS: ReadonlySet<string> = new Set(["declarative", "templated", "handlebars", "static", "code"]);
