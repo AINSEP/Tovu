@@ -2,7 +2,7 @@ import {
   MediaProviderCredentialSecretStoreUnconfiguredError,
   MediaProviderCredentialValidationError,
   saveMediaProviderCredentials,
-} from "#src/media/provider-credential-store";
+} from "#src/media/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { MediaProviderRouteRegistrar } from "./deps";
 

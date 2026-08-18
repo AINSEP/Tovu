@@ -5,7 +5,7 @@ import express from "express";
 
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import { registerTransform } from "#src/media/index";
-import { CORE_PUBLIC_TRANSFORM_NAME } from "#src/media/bootstrap";
+import { CORE_PUBLIC_TRANSFORM_NAME } from "#src/media/index";
 import { createRouteDeps } from "../../app";
 import { createContentModule } from "../../modules/content";
 import { createMediaModule } from "../../modules/media";
