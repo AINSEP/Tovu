@@ -79,10 +79,23 @@ const HAND_WRITTEN_RULES = [
       to: { path: "^src/db", dependencyTypesNot: ["type-only"] },
     },
     {
+      // `from.pathNot: ".*/__tests__/.*"` (2026-08-18, never-investigated-rule triage): the one
+      // remaining violation is `read-template.unit.test.ts` importing `server/seed.ts`'s
+      // `seededWorkspace`/`seededPosts`/`seededPresentation` — REQ-02's own binding rule is that
+      // `readTemplate("starter")`'s seed content is byte-equivalent to server/seed.ts's CURRENT
+      // live output, verified by direct deep-equality against the live export rather than a
+      // hand-copied fixture "so it can never silently drift" (see the test file's own header).
+      // That is a genuine cross-boundary anti-drift check, not a production dependency — INV-06
+      // (site-dir stays CLI/Express-agnostic so a future non-CLI host, ADR-011, can reuse it) is
+      // about PRODUCTION code; grep confirms this is the ONLY server/cli/express import anywhere
+      // under src/site-dir/, and it is confined to __tests__/. Same "contract/integration test
+      // needs the real concrete internals" reasoning `core-no-server-or-app-imports` and
+      // `only-composition-constructs-concrete-adapters` (both above) already accept via the
+      // identical `.*/__tests__/.*` pattern — reused verbatim, not a new exemption shape.
       name: "site-dir-no-server-express-or-cli-imports",
       severity: "warn",
       comment: "SPEC-003 (ADR-PIPE-003) — src/site-dir/** is the install-dir domain and must stay CLI/Express-agnostic (INV-06) so a future non-CLI caller (the desktop host, ADR-011) can reuse it directly.",
-      from: { path: "^src/site-dir" },
+      from: { path: "^src/site-dir", pathNot: ".*/__tests__/.*" },
       to: { path: "^(src/server|src/cli|node_modules/express)" },
     },
     {
@@ -169,11 +182,16 @@ const GUARDED_MODULES = [
 // {serve,init,introspect}.ts` are a second, independent composition root for the CLI process,
 // same role as `server`'s two files for the HTTP process (confirmed: `cli/commands/serve.ts`'s
 // own docblock names this explicitly; see plan doc §3 / trace-A's site-dir section).
+// `export.ts` joined 2026-08-18 (no-deep-imports:site-dir triage) — it is architecturally
+// identical to `serve.ts`: both call `createSqliteRouteDeps` (`server/deps.ts`) and reach
+// `site-dir/boot-site-dir.ts`'s `bootSiteDir` + `site-dir/resolve-install-dir-target.ts`'s
+// `resolveInstallDirTarget` directly to assemble the same boot composition, minus the
+// `app.listen` half (the exporter crawls the app instead of serving it).
 const COMPOSITION_ROOTS = [
   "^src/index\\.ts$",
   "^src/server/deps\\.ts$",
   "^src/server/app\\.ts$",
-  "^src/cli/commands/(serve|init|introspect)\\.ts$",
+  "^src/cli/commands/(serve|init|introspect|export)\\.ts$",
 ];
 
 // db/sqlite adapters implement other modules' port interfaces by definition (ports-and-adapters).
@@ -230,10 +248,16 @@ const TOOL_REGISTRATION_TEST_FROM = "^src/assistant/__tests__/tool-registrations
 // naming discipline for every future assistant test file, not just these three already-audited ones —
 // a name list that only blesses what was actually reviewed is more honest than a regex that would
 // quietly bless more than intended.
+// `tool-contribution-registry.test.ts` (2026-08-18 no-deep-imports:comments triage) is the same
+// shape again: it imports `commentsAgentToolCatalog` from `comments/agent-tools.ts` and dynamically
+// imports `contributeCommentsTools` from `comments/tool-registrations.ts` to verify one domain's
+// real registration output end-to-end (the rest of the file drives all 25 domains generically via
+// `installFirstPartyToolContributors()`, which is not itself a deep import of any one module).
 const TOOL_REGISTRATION_TEST_FROM_EXTRA = [
   "^src/assistant/__tests__/byok-provider-turn\\.test\\.ts$",
   "^src/assistant/__tests__/mcp-ui-tool-calls-route\\.integration\\.test\\.ts$",
   "^src/assistant/__tests__/mcp-ui-tool-calls-route\\.content-search\\.integration\\.test\\.ts$",
+  "^src/assistant/__tests__/tool-contribution-registry\\.test\\.ts$",
 ];
 
 // Per-module extra exceptions beyond the generic carve-outs above, each sourced directly from the
@@ -337,6 +361,25 @@ const PROMOTED_NO_DEEP_IMPORTS = new Set([
   "seo",
   "routing",
   "members",
+  // 2026-08-18 cheap-tail sweep (session 16 handoff's "Next Steps" item 1) — each driven to 0 and
+  // re-verified:
+  //  - widgets/resolvers: 3 wrong-door redirects, all onto a new barrel addition (the three real
+  //    v1 resolver factories — createRecentEntriesResolver/createMenuResolver/
+  //    createContactFormResolver — each reached only by its own dedicated unit/integration test).
+  //  - media: 2 wrong-door redirects (CORE_PUBLIC_TRANSFORM_NAME, already re-exported from
+  //    index.ts via bootstrap.ts).
+  //  - comments: 2 warnings resolved by adding tool-contribution-registry.test.ts to
+  //    TOOL_REGISTRATION_TEST_FROM_EXTRA (same shape as the three test files already there — a
+  //    contract test building fixtures against a domain's real tool-registrations.ts/agent-tools.ts
+  //    seam), not a barrel change.
+  //  - site-dir: 2 warnings resolved by adding cli/commands/export.ts to COMPOSITION_ROOTS — it is
+  //    architecturally identical to serve.ts (same bootSiteDir/resolveInstallDirTarget reach). Its
+  //    no-deep-value-imports-from-db-sqlite:site-dir companion warning (1, schema-guard.ts) is
+  //    untouched by this promotion — companion rules stay warn until their own triage.
+  "widgets/resolvers",
+  "media",
+  "comments",
+  "site-dir",
 ]);
 
 function noDeepImportRules(mod) {
@@ -363,20 +406,50 @@ function noDeepImportRules(mod) {
       to: { path: internals, pathNot: extraToExempt },
     },
     {
+      // `from.pathNot: ".*/__tests__/.*"` (2026-08-18, never-investigated-rule triage): the
+      // remaining 3 violations across all 30 modules were all `db/sqlite/__tests__/*.sqlite.
+      // {test,integration.test}.ts` files, not production adapters — `webhook-{subscription,
+      // delivery}-repo.sqlite.test.ts` each run one shared `runContractSuite` against BOTH the
+      // real `Sqlite*Repo` adapter under test AND `webhooks/repo.memory.ts`'s in-memory reference
+      // implementation, to prove both satisfy the same port contract identically (the value import
+      // is the reference fake, needed to construct it — not a port type);
+      // `database-introspection-adapter.sqlite.integration.test.ts` calls `site-dir/schema-guard.
+      // ts`'s real `runtimeSchemaVersion()` to cross-check the adapter's own introspection against
+      // an independently-computed runtime schema identity. Same "contract/integration test needs
+      // the real concrete internals" reasoning `core-no-server-or-app-imports` and
+      // `only-composition-constructs-concrete-adapters` (both above) already accept via the
+      // identical `.*/__tests__/.*` pattern — reused verbatim, not a new exemption shape. This
+      // rule's own comment ("db/sqlite ADAPTERS ... never a runtime value") was always about
+      // production adapter code; a test exercising two implementations against one contract suite
+      // was never the concern it was written to police.
       name: `no-deep-value-imports-from-db-sqlite:${mod}`,
       severity: "warn",
       comment: `db/sqlite adapters may deep-import ${mod}'s port TYPES (the contract they implement) but never a runtime value.`,
-      from: { path: DB_SQLITE },
+      from: { path: DB_SQLITE, pathNot: ".*/__tests__/.*" },
       to: { path: internals, pathNot: extraToExempt, dependencyTypesNot: ["type-only"] },
     },
     {
       // The tool-registration-seam caller is excluded from the main rule above (so it isn't
       // double-flagged), but that exclusion must not become a blanket pass into the rest of the
       // module — this rule re-polices it, allowing ONLY tool-registrations.ts/agent-tools.ts.
+      //
+      // `from.pathNot: modPath` (2026-08-18, never-investigated-rule triage): when mod is
+      // "assistant" itself, `TOOL_REGISTRATION_SEAM_FROM` matches `assistant/tool-registrations.ts`
+      // — a file that LIVES INSIDE the module this instantiation is policing. Without the
+      // exclusion, the rule flagged that file's own ordinary intra-module imports (its sibling
+      // `tool-contribution-registry.ts`'s `listToolContributors`, and the two env-gated
+      // `demo-{a2ui,choices}-tool.ts` stubs) as if they were an external seam-caller reaching in —
+      // there is no such caller/callee boundary when both files are the same module's own
+      // internals; every other generated rule already exempts a module's own path from checks
+      // against itself (see `noDeepImportRules`'s primary rule's `pathNot: [modPath, ...]` above),
+      // this one just missed it because its `from` is a fixed pattern instead of derived from
+      // `mod`. Verified: `assistant`'s `EXTRA_TO_EXEMPT` entry (mcp-federation) and every other
+      // guarded module are unaffected — `modPath` for any mod other than "assistant" cannot match
+      // `src/assistant/tool-registrations.ts` or `src/server/tool-catalog-manifest.ts`.
       name: `no-non-seam-deep-imports-from-tool-registration-caller:${mod}`,
       severity: "warn",
       comment: `assistant/tool-registrations.ts (and its own tests) may reach ${mod}'s tool-registrations.ts/agent-tools.ts seam, but nothing else in ${mod}.`,
-      from: { path: TOOL_REGISTRATION_SEAM_FROM },
+      from: { path: TOOL_REGISTRATION_SEAM_FROM, pathNot: modPath },
       to: { path: internals, pathNot: [TOOL_REGISTRATION_SEAM_TO, ...extraToExempt] },
     },
   ];
