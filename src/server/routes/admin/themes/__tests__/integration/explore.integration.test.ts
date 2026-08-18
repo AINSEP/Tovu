@@ -10,7 +10,7 @@ import { discoverAllBuiltInThemes, THEME_CATALOG_DIR } from "#src/features/theme
 import { createApp, createRouteDeps } from "#src/server/app";
 import { bootAuthenticated, loginAsBarePrincipal } from "#src/server/__tests__/helpers/http-test-server";
 import type { RouteDeps } from "#src/server/routes/types";
-import { nextAvailableFileName, renameThemeFileIfChanged } from "../../explore";
+import { nextAvailableFileName, reloadTheme, renameThemeFileIfChanged } from "../../explore";
 
 /**
  * @file Integration-tier coverage for the theme Explore routes (`explore.ts`) — real composed app
@@ -1062,4 +1062,22 @@ test("renameThemeFileIfChanged: a destPath resolving into a built theme's genera
   assert.equal(changed, false);
   assert.equal(statusCode, 409);
   assert.equal((jsonBody as { code: string }).code, "GENERATED_READONLY");
+});
+
+// --- reloadTheme's own early return, exercised via a direct call -----------------------------------
+// Every ROUTE call site invokes this with `theme.manifest.id`, an id `findThemeOrRespond` just proved
+// is present in `deps.themes` moments earlier -- so `deps.themes.findIndex(...) < 0` can never be true
+// through any real route. `reloadTheme` is exported specifically as a reusable behavior (its own doc
+// comment calls out matching the `theme_write_file` AGENT tool's identical reload step), so a direct
+// call with an id that genuinely isn't in `deps.themes` is a legitimate exercise of its own documented
+// no-op guard, not an invented scenario.
+
+test("reloadTheme: an id absent from deps.themes is a silent no-op -- the early return this exported function documents", () => {
+  const themesDir = makeThemesRoot();
+  const deps = testDeps(themesDir);
+  const before = [...deps.themes];
+
+  reloadTheme(deps, "does-not-exist-in-deps-themes");
+
+  assert.deepEqual(deps.themes, before);
 });
