@@ -37,16 +37,31 @@ function testDeps(overrides: Partial<RouteDeps> = {}): RouteDeps {
  *  genuinely execute the `??` side is to reach into the REAL composed app's router stack and call
  *  the registered handler directly with a hand-built `req`. */
 interface ExpressHandlerLayer {
-  route?: { path: string; stack: { handle: (req: unknown, res: unknown) => unknown }[] };
+  route?: {
+    path: string;
+    methods: Record<string, boolean>;
+    stack: { handle: (req: unknown, res: unknown) => unknown }[];
+  };
 }
 interface ExpressAppWithRouter {
   _router: { stack: ExpressHandlerLayer[] };
 }
 
-function extractHandler(app: ReturnType<typeof createApp>, path: string): (req: unknown, res: unknown) => unknown {
+/** The `create.ts` path (`.../integrations/subscriptions`) is ALSO matched by a sibling `GET`
+ *  "list subscriptions" route at the exact same path string (verified directly: `app._router.stack`
+ *  has 2 layers there, one `methods:{get:true}`, one `methods:{post:true}`) -- matching by path
+ *  alone silently grabbed whichever layer Express registered first (GET), not create's own POST
+ *  handler, so the method must be part of the lookup. `delete.ts`/`pause.ts`'s paths are unique, but
+ *  the method is required here regardless so a future added route at either path can't reintroduce
+ *  this same silent-wrong-handler trap. */
+function extractHandler(
+  app: ReturnType<typeof createApp>,
+  method: "get" | "post" | "delete",
+  path: string
+): (req: unknown, res: unknown) => unknown {
   const stack = (app as unknown as ExpressAppWithRouter)._router.stack;
-  const layer = stack.find((l) => l.route?.path === path);
-  if (!layer?.route) throw new Error(`route '${path}' was not found in the router stack`);
+  const layer = stack.find((l) => l.route?.path === path && l.route.methods[method]);
+  if (!layer?.route) throw new Error(`${method.toUpperCase()} route '${path}' was not found in the router stack`);
   return layer.route.stack[0].handle;
 }
 
@@ -145,6 +160,30 @@ test("create: an unexpected repo failure 500s", async (t) => {
   assert.equal(res.status, 500);
 });
 
+test("create: missing targetUrl 400s", async (t) => {
+  const app = createApp(testDeps());
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  const res = await fetch(`${baseUrl}${SUBS_PATH}`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ label: "x", topics: ["a"] }),
+  });
+  assert.equal(res.status, 400);
+  const body = (await res.json()) as { error: string };
+  assert.equal(body.error, "target_url '' is not a valid URL");
+});
+
+test("create: `req.params.workspaceId ?? \"\"` fallback, forced via a direct handler call on the REAL composed app (Express itself can never leave a required :workspaceId segment unset) -- still 404s as a mismatch", async () => {
+  const app = createApp(testDeps());
+  const handler = extractHandler(app, "post", "/api/admin/v1/workspaces/:workspaceId/integrations/subscriptions");
+  const { res, getStatus, getBody } = fakeRes();
+
+  await handler({ params: {}, body: { label: "x", targetUrl: "https://example.com/hook", topics: ["a"] } }, res);
+
+  assert.equal(getStatus(), 404);
+  assert.deepEqual(getBody(), { error: "workspace was not found" });
+});
+
 test("delete: mismatched workspaceId 404s", async (t) => {
   const app = createApp(testDeps());
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
@@ -221,6 +260,7 @@ test("delete: `req.params.workspaceId ?? \"\"` fallback, forced via a direct han
   const app = createApp(testDeps());
   const handler = extractHandler(
     app,
+    "delete",
     "/api/admin/v1/workspaces/:workspaceId/integrations/subscriptions/:subscriptionId"
   );
   const { res, getStatus, getBody } = fakeRes();
@@ -240,6 +280,7 @@ test("delete: `req.params.subscriptionId ?? \"\"` fallback, forced via a direct 
   const app = createApp(deps);
   const handler = extractHandler(
     app,
+    "delete",
     "/api/admin/v1/workspaces/:workspaceId/integrations/subscriptions/:subscriptionId"
   );
   const { res, getStatus, getBody } = fakeRes();
@@ -359,4 +400,39 @@ test("pause: an unexpected repo failure 500s", async (t) => {
     body: JSON.stringify({}),
   });
   assert.equal(res.status, 500);
+});
+
+test("pause: `req.params.workspaceId ?? \"\"` fallback, forced via a direct handler call on the REAL composed app (Express itself can never leave a required :workspaceId segment unset) -- still 404s as a mismatch", async () => {
+  const app = createApp(testDeps());
+  const handler = extractHandler(
+    app,
+    "post",
+    "/api/admin/v1/workspaces/:workspaceId/integrations/subscriptions/:subscriptionId/pause"
+  );
+  const { res, getStatus, getBody } = fakeRes();
+
+  await handler({ params: { subscriptionId: "sub-1" }, body: {} }, res);
+
+  assert.equal(getStatus(), 404);
+  assert.deepEqual(getBody(), { error: "workspace was not found" });
+});
+
+test("pause: `req.params.subscriptionId ?? \"\"` fallback, forced via a direct handler call on the REAL composed app -- falls through to pauseSubscription with id:\"\", 404s with the not-found message for an empty id", async () => {
+  // authorize stubbed to allow: the forced fake principal below is not a real logged-in identity,
+  // so the REAL RBAC authorize() would 403 it before ever reaching pauseSubscription -- this test
+  // is specifically about the subscriptionId fallback, not authorization, same technique as the
+  // equivalent delete.ts test above.
+  const deps = testDeps({ authorize: async () => ({ allowed: true, reason: "matched" }) });
+  const app = createApp(deps);
+  const handler = extractHandler(
+    app,
+    "post",
+    "/api/admin/v1/workspaces/:workspaceId/integrations/subscriptions/:subscriptionId/pause"
+  );
+  const { res, getStatus, getBody } = fakeRes();
+
+  await handler({ params: { workspaceId: deps.workspaceId }, body: {} }, res);
+
+  assert.equal(getStatus(), 404);
+  assert.deepEqual(getBody(), { error: "webhook subscription '' was not found" });
 });
