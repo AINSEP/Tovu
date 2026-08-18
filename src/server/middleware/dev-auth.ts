@@ -9,7 +9,7 @@ import {
   type IdentityRepos,
   type PrincipalRecord,
 } from "@jini-ai/cms/identity";
-import type { RouteDeps } from "../routes/types";
+import type { ClockDeps, IdentityDeps, RouteDeps } from "../routes/types";
 import { createRateLimiter, LOGIN_STRICT, resolveClientIp } from "#src/core/rate-limit/rate-limit";
 
 /**
@@ -37,15 +37,26 @@ import { createRateLimiter, LOGIN_STRICT, resolveClientIp } from "#src/core/rate
  *
  * Architectural role:
  * `requireAdminSession`/`registerAuthRoutes` are middleware/route factories
- * that close over `RouteDeps` (repos + hasher + the `identityReady` seed
- * promise) — the composition roots (`server/app.ts`) pass `routeDeps` in, the
- * same pattern every other admin route registrar already uses. Not a port
- * (ADR-006): one real session/credential implementation.
+ * that close over the identity repos + hasher + the `identityReady` seed
+ * promise (`registerAuthRoutes` still takes the full `RouteDeps` bag it's
+ * registered against; `requireAdminSession`/`currentPrincipal` take only
+ * `SessionAuthDeps` — see that type's own doc, the first slice of the
+ * `RouteDeps` decomposition, 2026-08-18) — the composition roots
+ * (`server/app.ts`) pass `routeDeps` in either way, since `RouteDeps` is a
+ * strict superset of `SessionAuthDeps`. Not a port (ADR-006): one real
+ * session/credential implementation.
  */
 const SESSION_COOKIE = "tovu_session";
 
+/**
+ * Deps `requireAdminSession`/`currentPrincipal` actually need: the identity repos (9 fields) plus
+ * clock/idGen for `identity/*`'s `login`/`logout`/`validateSession`. Narrower than full `RouteDeps` —
+ * see `routes/types.ts`'s `ClockDeps`/`IdentityDeps` doc for why this Slice-1 extraction exists.
+ */
+type SessionAuthDeps = IdentityDeps & ClockDeps;
+
 /** Assemble the `IdentityRepos` bag `identity/*` functions expect from `RouteDeps`'s flat fields. */
-function identityReposFrom(deps: RouteDeps): IdentityRepos {
+function identityReposFrom(deps: IdentityDeps): IdentityRepos {
   return {
     principals: deps.principalRepo,
     users: deps.userRepo,
@@ -90,7 +101,7 @@ function clearSessionCookie(res: Response): void {
  * @complexity O(1) — one cookie parse, one session/principal lookup.
  * @overallScore 100
  */
-export async function currentPrincipal(deps: RouteDeps, req: Request): Promise<PrincipalRecord | null> {
+export async function currentPrincipal(deps: SessionAuthDeps, req: Request): Promise<PrincipalRecord | null> {
   const rawToken = readSessionToken(req);
   if (!rawToken) return null;
 
@@ -119,7 +130,7 @@ export function getAuthedPrincipal(res: Response): PrincipalRecord {
 }
 
 /** Express middleware factory: reject unauthenticated /api/admin requests; attach the principal. */
-export function requireAdminSession(deps: RouteDeps) {
+export function requireAdminSession(deps: SessionAuthDeps) {
   return async function requireAdminSessionMiddleware(
     req: Request,
     res: Response,
