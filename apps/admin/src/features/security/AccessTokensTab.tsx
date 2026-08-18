@@ -1,4 +1,4 @@
-import { forwardRef, useRef, type RefObject } from "react";
+import { forwardRef, useRef, useState, type RefObject } from "react";
 import { agentHandle } from "@jini-ai/agentic";
 
 import { useAdminLocale } from "../../hooks/use-admin-locale.hooks";
@@ -8,15 +8,18 @@ import type { Translate } from "../../lib/dictionary-translator";
 import { removeDialogBody, removeDialogLastRowNote, removeDialogTitle } from "./security-i18n";
 import {
   ACCESS_TOKEN_CATEGORIES,
-  accessTokenProviderInfo,
   accessTokenProviderMatchesQuery,
   accessTokenReplaceReadyToSave,
+  accessTokenRowProviderInfo,
   accessTokenRowReadyToSave,
+  customCredentialReadyToSave,
+  isValidHttpUrl,
   type AccessTokenCategoryId,
   type AccessTokenFormFields,
   type AccessTokenProviderInfo,
   type AccessTokenProviderRef,
   type AccessTokenRow,
+  type AccessTokenRowCategoryId,
 } from "./rules";
 import { ConnectedMarkIcon, DisclosureChevronIcon, SearchIcon } from "./security-visuals";
 import { useWiredAccessTokens } from "./hooks/use-access-tokens.hooks";
@@ -133,26 +136,32 @@ function AccessTokensBody({ controller, otherController }: { controller: AccessT
   if (controller.groups === undefined || otherController.groups === undefined) {
     return <p className="access-tokens-loading">{controller.t("Loading access tokens…")}</p>;
   }
+  const addCustomDialogRef = useRef<HTMLDialogElement>(null);
   return (
     <>
       <AccessTokensSearch controller={controller} otherController={otherController} />
-      <AccessTokensCategoryFilter controller={controller} />
+      <AccessTokensCategoryFilter controller={controller} onAddCustomProvider={() => addCustomDialogRef.current?.showModal()} />
       <div className="access-tokens-tier">
         {controller.groups.map((group) => (
           <MaybeProviderGroup key={`${group.info.kind}:${group.info.providerId}`} group={group} controller={controller} query={controller.query} />
         ))}
         <OtherCredentialsSection controller={otherController} query={controller.query} />
       </div>
+      <AddCustomCredentialDialog ref={addCustomDialogRef} controller={controller} t={controller.t} />
     </>
   );
 }
 
-/** The `All / Source control / Hosting / Media / AI / Ops` filter row — see this file's header for
- *  why this borrows Settings' wrapped icon-tab-row LOOK rather than the component itself. Pulled out
- *  of {@link AccessTokensBody} for the complexity gate; its own branching is a single `.map()`, so
- *  this split is about readability/reuse rather than a budget this one function would otherwise
- *  exceed. */
-function AccessTokensCategoryFilter({ controller }: { controller: AccessTokensController }) {
+/** The `All / Source control / Hosting / Media / AI / Ops` filter row, PLUS the "Add custom
+ *  provider" button — see this file's header for why the filter row borrows Settings' wrapped
+ *  icon-tab-row LOOK rather than the component itself. The button is a deliberately SEPARATE
+ *  control after the mapped category pills (`margin-left: auto` in `access-tokens.css` pushes it to
+ *  the far right of the row), not a pill itself — it opens a create form, it does not filter
+ *  anything, so it must never read as an eighth category to a search/scan of this row. Pulled out
+ *  of {@link AccessTokensBody} for the complexity gate; its own branching is a single `.map()` plus
+ *  one static button, so this split is about readability/reuse rather than a budget this one
+ *  function would otherwise exceed. */
+function AccessTokensCategoryFilter({ controller, onAddCustomProvider }: { controller: AccessTokensController; onAddCustomProvider: () => void }) {
   const translate = controller.t;
   return (
     <div
@@ -174,6 +183,14 @@ function AccessTokensCategoryFilter({ controller }: { controller: AccessTokensCo
           {translate(c.label)}
         </button>
       ))}
+      <button
+        type="button"
+        className="access-tokens-add-custom-button"
+        onClick={onAddCustomProvider}
+        {...agentHandle("security-access-tokens-add-custom-provider", { role: "button", label: "Add a custom provider not in the built-in list" })}
+      >
+        {translate("+ Add custom provider")}
+      </button>
     </div>
   );
 }
@@ -253,7 +270,10 @@ function ProviderGroup({ group, controller }: { group: AccessTokenProviderGroupS
       ))}
       {!hasRows && !group.addForm.visible ? <NotConnectedRow ref={ref} label={group.info.label} onConnect={() => controller.openAddForm(ref)} t={controller.t} /> : null}
       {group.addForm.visible ? <AddTokenForm info={group.info} state={group.addForm} controller={controller} t={controller.t} /> : null}
-      {hasRows && !group.addForm.visible ? <AddAnotherButton ref={ref} label={group.info.label} controller={controller} t={controller.t} /> : null}
+      {/* No `[+ Add another]` for a `"custom"` group — it has no shared provider identity a second
+          saved row could join; a second custom credential is a wholly new one, created through the
+          standalone "Add custom provider" dialog, not this per-provider affordance. */}
+      {hasRows && !group.addForm.visible && group.info.kind !== "custom" ? <AddAnotherButton ref={ref} label={group.info.label} controller={controller} t={controller.t} /> : null}
     </section>
   );
 }
@@ -290,6 +310,7 @@ function NotConnectedRow({ ref, label, onConnect, t: translate }: { ref: AccessT
           {...agentHandle(`security-access-tokens-connect-${ref.kind}-${ref.providerId}`, { role: "button", label: `Connect ${label}` })}
         >
           {translate("Connect")}
+          <DisclosureChevronIcon />
         </button>
       </div>
     </div>
@@ -301,7 +322,7 @@ function tokenRowHandleLabel(name: string, providerLabel: string): string {
 }
 
 function TokenRow({ state, controller, groupRowCount, t: translate }: { state: AccessTokenExistingRowState; controller: AccessTokensController; groupRowCount: number; t: Translate }) {
-  const info = accessTokenProviderInfo(state.row);
+  const info = accessTokenRowProviderInfo(state.row);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const showDefaultUi = groupRowCount >= 2;
   return (
@@ -383,7 +404,10 @@ function TokenInputFields({
   t: Translate;
 }) {
   const needsAccountId = info.requiredFields.includes("accountId");
-  const needsUsername = info.requiredFields.includes("username");
+  // `optionalFields` (e.g. a custom row's Username — `rules.ts`'s `AccessTokenProviderInfo` doc)
+  // shows the field WITHOUT gating readiness on it — only `requiredFields` does that (see
+  // `accessTokenRowReadyToSave`/`accessTokenReplaceReadyToSave`, which never read this field).
+  const needsUsername = info.requiredFields.includes("username") || (info.optionalFields ?? []).includes("username");
   return (
     <div className="access-tokens-row-fields">
       <div className="field">
@@ -449,7 +473,11 @@ function TokenInputFields({
             {translate("Username")}
           </label>
           <input id={`${idPrefix}-username`} type="text" value={username} onChange={(e) => onUsernameChange(e.target.value)} />
-          <p className="field-hint">{translate("The Bitbucket username this API token belongs to.")}</p>
+          <p className="field-hint">
+            {info.kind === "custom"
+              ? translate("Optional — only needed if this provider authenticates a token against a username.")
+              : translate("The Bitbucket username this API token belongs to.")}
+          </p>
         </div>
       ) : null}
     </div>
@@ -600,6 +628,166 @@ const RemoveConfirmDialog = forwardRef<HTMLDialogElement, { row: AccessTokenRow;
           </button>
           <button type="button" className="btn-danger" onClick={confirm}>
             {translate("Remove from Tovu")}
+          </button>
+        </div>
+      </dialog>
+    );
+  }
+);
+
+/** The red-star marker on a required field's label — Name/API base URL/Access token in the form
+ *  below (Username stays unmarked, Category always carries a value so it's never actually blank).
+ *  `aria-label`, not `aria-hidden`, so a screen reader announces "required" — same convention
+ *  `Authentication.tsx`'s own `source-config-field-required` marker uses. */
+function RequiredFieldMarker() {
+  return (
+    <span className="access-tokens-field-required" aria-label="required">
+      {" "}
+      *
+    </span>
+  );
+}
+
+/**
+ * The "Add custom provider" form (`AccessTokensCategoryFilter`'s own button opens it) — a
+ * standalone native `<dialog>`, not a per-provider `AddTokenForm` (this file's own header on why a
+ * custom row has no shared provider group to attach an inline add-form to). Collects the four
+ * fields the brief specifies (API base URL, Access token with a show/hide toggle, optional
+ * Username, Category) plus a Name field every other row on this page already requires (the display
+ * name the list/search will show — `TokenInputFields`' own "Name" field doc gives the identical
+ * reasoning). Deliberately does NOT reuse `TokenInputFields`: that shared component's field set
+ * (Name/Token/AccountId/Username) has no Base URL or Category concept, and both of those are
+ * create-only here (see `rules.ts`'s `accessTokenRowProviderInfo` doc for why Replace on an
+ * existing custom row does not re-collect them) — bolting a fifth, create-only field onto a
+ * component shared with the seven catalog providers' Replace flow would risk it leaking there too.
+ */
+const AddCustomCredentialDialog = forwardRef<HTMLDialogElement, { controller: AccessTokensController; t: Translate }>(
+  function AddCustomCredentialDialog({ controller, t: translate }, ref) {
+    const [showToken, setShowToken] = useState(false);
+    const form = controller.customAddForm;
+    const readyToSave = customCredentialReadyToSave(form);
+    const baseUrlInvalid = form.baseUrl.trim() !== "" && !isValidHttpUrl(form.baseUrl.trim());
+
+    function close() {
+      (ref as RefObject<HTMLDialogElement>).current?.close();
+      controller.resetCustomAddForm();
+      setShowToken(false);
+    }
+    async function save() {
+      const ok = await controller.createCustomCredential();
+      if (ok) {
+        (ref as RefObject<HTMLDialogElement>).current?.close();
+        setShowToken(false);
+      }
+    }
+
+    return (
+      <dialog
+        ref={ref}
+        className="confirm-dialog access-tokens-add-custom-dialog"
+        {...agentHandle("security-access-tokens-add-custom-dialog", { role: "region", label: "Add a custom provider not in the built-in list" })}
+      >
+        <h2>{translate("Add custom provider")}</h2>
+        <div className="field">
+          <label className="field-label" htmlFor="security-add-custom-name">
+            {translate("Name")}
+            <RequiredFieldMarker />
+          </label>
+          <input
+            id="security-add-custom-name"
+            type="text"
+            value={form.name}
+            onChange={(e) => controller.setCustomAddField({ name: e.target.value })}
+            {...agentHandle("security-access-tokens-add-custom-name", { role: "field", label: "This custom provider's display name, e.g. name.com" })}
+          />
+          <p className="field-hint">{translate("A short label so you can tell this apart from your other saved credentials.")}</p>
+        </div>
+        <div className="field">
+          <label className="field-label" htmlFor="security-add-custom-base-url">
+            {translate("API base URL")}
+            <RequiredFieldMarker />
+          </label>
+          <input
+            id="security-add-custom-base-url"
+            type="url"
+            value={form.baseUrl}
+            placeholder="https://api.example.com"
+            onChange={(e) => controller.setCustomAddField({ baseUrl: e.target.value })}
+            {...agentHandle("security-access-tokens-add-custom-base-url", { role: "field", label: "This provider's API base URL" })}
+          />
+          {baseUrlInvalid ? <p className="field-error">{translate("Enter a valid http:// or https:// URL.")}</p> : null}
+        </div>
+        <div className="field">
+          <label className="field-label" htmlFor="security-add-custom-token">
+            {translate("Access token")}
+            <RequiredFieldMarker />
+          </label>
+          <div className="access-tokens-token-input-row">
+            <input
+              id="security-add-custom-token"
+              type={showToken ? "text" : "password"}
+              autoComplete="new-password"
+              value={form.token}
+              onChange={(e) => controller.setCustomAddField({ token: e.target.value })}
+              {...agentHandle("security-access-tokens-add-custom-token", { role: "field", label: "This provider's access token" })}
+            />
+            <button
+              type="button"
+              className="access-tokens-token-toggle"
+              onClick={() => setShowToken((prev) => !prev)}
+              {...agentHandle("security-access-tokens-add-custom-token-toggle", { role: "button", label: showToken ? "Hide the access token" : "Show the access token" })}
+            >
+              {showToken ? translate("Hide") : translate("Show")}
+            </button>
+          </div>
+          <p className="field-hint">{translate("This will not be shown again for security purposes.")}</p>
+        </div>
+        <div className="field">
+          <label className="field-label" htmlFor="security-add-custom-username">
+            {translate("Username")}
+          </label>
+          <input
+            id="security-add-custom-username"
+            type="text"
+            value={form.username}
+            onChange={(e) => controller.setCustomAddField({ username: e.target.value })}
+            {...agentHandle("security-access-tokens-add-custom-username", { role: "field", label: "This provider's username, if it authenticates a token against one" })}
+          />
+          <p className="field-hint">{translate("Optional — only needed if this provider authenticates a token against a username.")}</p>
+        </div>
+        <div className="field">
+          <label className="field-label" htmlFor="security-add-custom-category">
+            {translate("Category")}
+          </label>
+          <select
+            id="security-add-custom-category"
+            value={form.category}
+            onChange={(e) => controller.setCustomAddField({ category: e.target.value as AccessTokenRowCategoryId })}
+            {...agentHandle("security-access-tokens-add-custom-category", { role: "field", label: "Which category this credential is filed under" })}
+          >
+            {ACCESS_TOKEN_CATEGORIES.filter((c) => c.id !== "all").map((c) => (
+              <option key={c.id} value={c.id}>
+                {translate(c.label)}
+              </option>
+            ))}
+          </select>
+        </div>
+        {form.error ? (
+          <p className="save-error" role="alert">
+            {form.error}
+          </p>
+        ) : null}
+        <div className="confirm-dialog-actions">
+          <button type="button" onClick={close}>
+            {translate("Cancel")}
+          </button>
+          <button
+            type="button"
+            disabled={!readyToSave || form.saving}
+            onClick={() => void save()}
+            {...agentHandle("security-access-tokens-add-custom-save", { role: "button", label: "Save this custom provider credential" })}
+          >
+            {form.saving ? translate("Saving…") : translate("Save")}
           </button>
         </div>
       </dialog>

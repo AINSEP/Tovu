@@ -1698,6 +1698,67 @@ export const sourceControlCredentialSets = sqliteTable(
 );
 
 /**
+ * User-defined provider credentials for the admin Access Tokens page's "Add custom provider"
+ * capability (`apps/admin/src/features/security/`, 2026-08-17) — a workspace-typed name (e.g.
+ * "name.com", "GoDaddy") plus an API base URL, an access token, and an optional username, filed
+ * under one of the page's own category buckets. Deliberately a THIRD, separate table from
+ * `publishCredentialSets`/`sourceControlCredentialSets` above rather than a widened provider-id
+ * union on either: both of those are CLOSED discriminated unions over a small, reviewed set of
+ * named providers with their own per-provider semantics (a publish target, a source-control
+ * identity) — a custom row has no fixed provider identity at all (the operator types the name),
+ * so it has no closed union to join. Structurally closest to `sourceControlCredentialSets`
+ * (composite `(workspace_id, id)` PK, one sealed blob per row) but with no `provider_id`/
+ * `is_default`/`account_label` — none of those concepts apply when every row is already its own,
+ * independent, standalone credential rather than one of several named connections under a shared
+ * provider.
+ *
+ * `category`/`base_url` are held in the clear (not sealed), same "the read model must be able to
+ * group/filter/link without decrypting" reasoning `AccessTokenProviderInfo.category`/`tokenPageUrl`
+ * already rely on for the page's seven built-in providers — the admin list route never decrypts
+ * (mirrors `listSourceControlCredentials`'s own "never touches the sealer" contract), so anything
+ * the list/filter UI needs to read must already be plaintext on the row. `token`/`username` are
+ * the only two fields sealed together as one ciphertext blob (this table's own connection object),
+ * same one-ciphertext-per-row discipline every sibling credential table here documents.
+ */
+export const customCredentialSets = sqliteTable(
+  "custom_credential_sets",
+  {
+    id: text("id").notNull(),
+    workspaceId: text("workspace_id")
+      .notNull()
+      .references(() => workspaces.id, { onDelete: "cascade" }),
+    /** Operator-typed display name (e.g. "name.com") — unique per workspace, since a custom row has
+     *  no other provider identity to disambiguate by. */
+    label: text("label").notNull(),
+    /** One of the Access Tokens page's own category-filter ids (`"source-control" | "hosting" |
+     *  "media" | "ai" | "ops" | "general"`) — see `apps/admin/src/features/security/rules.ts`'s
+     *  `AccessTokenRowCategoryId`. Validated against that same closed set server-side
+     *  (`features/custom-credentials/store.ts`'s `validateCategory`), not DB-enforced (SQLite has no
+     *  portable enum CHECK across this repo's dialect-parity story — same reasoning every other
+     *  string-typed id column here already accepts). */
+    category: text("category").notNull(),
+    /** The vendor's API base URL (e.g. `https://api.vercel.com`) — plaintext, not a secret. */
+    baseUrl: text("base_url").notNull(),
+    /** `SealedSecret.keyId`. */
+    sealedKeyId: text("sealed_key_id").notNull(),
+    /** Base64 `AEAD ciphertext || 16-byte GCM auth tag` of the serialized `{token, username?}`
+     *  connection object. */
+    sealedCiphertext: text("sealed_ciphertext").notNull(),
+    /** Base64 12-byte AES-GCM IV. */
+    sealedNonce: text("sealed_nonce").notNull(),
+    /** Always `'aes-256-gcm'` today; stored rather than hardcoded for the same future-algorithm
+     *  reason every sibling credential table here gives. */
+    sealedAlg: text("sealed_alg").notNull(),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.workspaceId, table.id] }),
+    uniqueIndex("custom_credential_sets_workspace_label_unique").on(table.workspaceId, table.label),
+  ]
+);
+
+/**
  * Migration `0045` (2026-08-16, owner-decided redesign) — the vendor-scoped replacement for the two
  * tables directly above. `publishCredentialSets`/`sourceControlCredentialSets` each key a row on a
  * DESTINATION id (`"github-pages"`, `"github"`) even when the underlying secret authenticates the

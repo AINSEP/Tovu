@@ -1,5 +1,6 @@
 import {
   api,
+  type AdminCustomCredentialsSnapshot,
   type AdminPublishCredentialsSnapshot,
   type AdminSourceControlCredentialsSnapshot,
 } from "../../../lib/api";
@@ -21,6 +22,12 @@ export const defaultAccessTokensPort: AccessTokensPort = {
     create: (input) => api.createSourceControlCredential(input).then((res) => res.credential),
     update: (id, input) => api.updateSourceControlCredential(id, input).then((res) => res.credential),
     remove: (id) => api.deleteSourceControlCredential(id),
+  },
+  custom: {
+    list: () => api.listCustomCredentials(),
+    create: (input) => api.createCustomCredential(input).then((res) => res.credential),
+    update: (id, input) => api.updateCustomCredential(id, input).then((res) => res.credential),
+    remove: (id) => api.deleteCustomCredential(id),
   },
 };
 
@@ -50,12 +57,27 @@ function fakeSourceControlPort(overrides: Partial<AccessTokensPort["sourceContro
   };
 }
 
-/** An in-memory {@link AccessTokensPort} for tests. Each of the eight calls defaults to a neutral,
- *  overridable stub — matches `createFakePublishCredentialsPort`'s per-call override shape.
+/** {@link createFakeAccessTokensPort}'s `custom` half — see {@link fakePublishPort}'s own doc.
  *  @complexity O(1). */
-export function createFakeAccessTokensPort(overrides: Partial<{ publish: Partial<AccessTokensPort["publish"]>; sourceControl: Partial<AccessTokensPort["sourceControl"]> }> = {}): AccessTokensPort {
+function fakeCustomPort(overrides: Partial<AccessTokensPort["custom"]> | undefined): AccessTokensPort["custom"] {
+  const emptySnapshot: AdminCustomCredentialsSnapshot = { credentials: [] };
+  return {
+    list: overrides?.list ?? (() => Promise.resolve(emptySnapshot)),
+    create: overrides?.create ?? (() => Promise.reject(new Error("custom.create not stubbed for this test"))),
+    update: overrides?.update ?? (() => Promise.reject(new Error("custom.update not stubbed for this test"))),
+    remove: overrides?.remove ?? (() => Promise.resolve()),
+  };
+}
+
+/** An in-memory {@link AccessTokensPort} for tests. Each call defaults to a neutral, overridable
+ *  stub — matches `createFakePublishCredentialsPort`'s per-call override shape.
+ *  @complexity O(1). */
+export function createFakeAccessTokensPort(
+  overrides: Partial<{ publish: Partial<AccessTokensPort["publish"]>; sourceControl: Partial<AccessTokensPort["sourceControl"]>; custom: Partial<AccessTokensPort["custom"]> }> = {}
+): AccessTokensPort {
   return {
     publish: fakePublishPort(overrides.publish),
     sourceControl: fakeSourceControlPort(overrides.sourceControl),
+    custom: fakeCustomPort(overrides.custom),
   };
 }
