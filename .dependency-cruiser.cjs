@@ -169,11 +169,16 @@ const GUARDED_MODULES = [
 // {serve,init,introspect}.ts` are a second, independent composition root for the CLI process,
 // same role as `server`'s two files for the HTTP process (confirmed: `cli/commands/serve.ts`'s
 // own docblock names this explicitly; see plan doc §3 / trace-A's site-dir section).
+// `export.ts` joined 2026-08-18 (no-deep-imports:site-dir triage) — it is architecturally
+// identical to `serve.ts`: both call `createSqliteRouteDeps` (`server/deps.ts`) and reach
+// `site-dir/boot-site-dir.ts`'s `bootSiteDir` + `site-dir/resolve-install-dir-target.ts`'s
+// `resolveInstallDirTarget` directly to assemble the same boot composition, minus the
+// `app.listen` half (the exporter crawls the app instead of serving it).
 const COMPOSITION_ROOTS = [
   "^src/index\\.ts$",
   "^src/server/deps\\.ts$",
   "^src/server/app\\.ts$",
-  "^src/cli/commands/(serve|init|introspect)\\.ts$",
+  "^src/cli/commands/(serve|init|introspect|export)\\.ts$",
 ];
 
 // db/sqlite adapters implement other modules' port interfaces by definition (ports-and-adapters).
@@ -230,10 +235,16 @@ const TOOL_REGISTRATION_TEST_FROM = "^src/assistant/__tests__/tool-registrations
 // naming discipline for every future assistant test file, not just these three already-audited ones —
 // a name list that only blesses what was actually reviewed is more honest than a regex that would
 // quietly bless more than intended.
+// `tool-contribution-registry.test.ts` (2026-08-18 no-deep-imports:comments triage) is the same
+// shape again: it imports `commentsAgentToolCatalog` from `comments/agent-tools.ts` and dynamically
+// imports `contributeCommentsTools` from `comments/tool-registrations.ts` to verify one domain's
+// real registration output end-to-end (the rest of the file drives all 25 domains generically via
+// `installFirstPartyToolContributors()`, which is not itself a deep import of any one module).
 const TOOL_REGISTRATION_TEST_FROM_EXTRA = [
   "^src/assistant/__tests__/byok-provider-turn\\.test\\.ts$",
   "^src/assistant/__tests__/mcp-ui-tool-calls-route\\.integration\\.test\\.ts$",
   "^src/assistant/__tests__/mcp-ui-tool-calls-route\\.content-search\\.integration\\.test\\.ts$",
+  "^src/assistant/__tests__/tool-contribution-registry\\.test\\.ts$",
 ];
 
 // Per-module extra exceptions beyond the generic carve-outs above, each sourced directly from the
