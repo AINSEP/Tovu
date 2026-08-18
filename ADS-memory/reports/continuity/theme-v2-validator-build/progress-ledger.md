@@ -226,9 +226,7 @@ can now target.
 
 ### Next Actions (current)
 
-1. Build the migration script, starting with `declarative/basic-declarative` (per the approved
-   classification: lowest risk, reference-only, not wired into any site). Its quirks: `styles.css` at
-   theme root (not under `css/`) → `css/theme.css`; `templates/` (not `pages/`) → `render/pages/`.
+1. ~~Build the migration script, starting with `declarative/basic-declarative`~~ — **DONE.**
 2. Then the rest of the approved classification in order: `storefront` → clean-convert group
    (`fuel`/`gracious-timing`/`portfolite`/`fashion-modern`, path rewrites) → `tailark-*`
    (needs-human-review, still migrate structurally, flag the doc gap) → refuse `mui-marketing`
@@ -238,3 +236,35 @@ can now target.
 4. Milestones 4 (normalizer wiring) and 5 (generated root `index.html`) remain queued behind Milestone 3.
 5. Final report to team-lead must re-surface the tailark-* "checked but no record of it" finding as an
    explicit follow-up item, per Leona's instruction — do not let it get silently absorbed.
+
+## Session 2 continued — Milestone 3, first real theme migrated
+
+Built `src/features/theme/migration/` (`theme-migration-plan.ts` — pure, disk-free, tier-dispatched
+planner, only `declarative` implemented so far; `migrate-theme.ts` — `migrateThemeToV2` orchestrator:
+stage into a SIBLING directory (not `os.tmpdir()` — caught in my own zero-findings self-check that
+`renameSync` needs same-filesystem, which `/tmp` isn't guaranteed to share with the project dir),
+verify two ways (`validateThemePackage` AND a real `loadTheme()` call — the v2-strict validator path
+never calls `loadTheme()`, so it alone wouldn't catch a missing required template), atomic replace
+with a kept v1 backup on success, idempotent, `--dry-run` support). Wired `tovu theme migrate <dir>`
+CLI subcommand mirroring `theme validate`'s shape. 18 new tests (9 unit, 4 CLI integration, 5 already
+counted under the loader fix). Commit `26f19bf6`.
+
+**Ran it for real against `basic-declarative`** (the approved starting theme) — dry-run inspected
+first (byte-identical content diffs confirmed), then the real migration: `styles.css` → `css/theme.css`,
+`templates/*.json` → `render/pages/*.json`, manifest gets `apiVersion: 2` + `$schema`, every other
+field unchanged. Verified valid (schema v2, profile author) with only the two expected pre-existing
+warnings (missing license, missing preview thumbnail). Idempotency re-run confirmed
+(`status: "already-migrated"`). Full `src/features/theme` + `assistant/tool-registrations.themes`
+suite (383 tests) green after the real mutation. Commit `1b17abcb` — git shows pure renames, zero
+content diff on any moved file. The tool's own v1 backup was deleted after commit (git history is
+the real rollback; a stray uncommitted backup folder is just clutter).
+
+### Next Actions (current)
+
+1. Report this milestone to team-lead (SendMessage) before continuing to the rest of task #8's
+   themes — per the standing "report after every milestone" instruction, and because the next slice
+   (templated + static tier planners) is materially more complex than declarative's pure-JSON case.
+2. Task #8: `storefront` (templated, simplest — no chrome partials) next, to prove the templated-tier
+   planner before the static tier's asset-path-rewrite complexity (`fuel`/`gracious-timing`/
+   `portfolite`/`fashion-modern`'s `images/` → `assets/images/` rewrites, `basic`'s `preview/`
+   regeneration, `mui-marketing`'s refuse case).
