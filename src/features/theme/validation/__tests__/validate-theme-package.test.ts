@@ -188,6 +188,19 @@ test("v2-strict: an unapproved root-level file/folder is rejected", () => {
   assert.equal(err!.path, "js");
 });
 
+test("v2-strict: modes/defaultMode/pages/slots are accepted top-level fields, not flagged unknown (real v1 fields loadTheme() reads flat and unconditionally, apiVersion-agnostic -- theme.ts:673-676)", () => {
+  const dir = tmpDir("tovu-validate-v2-static-manifest-fields-");
+  writeMinimalV2Static(dir, {
+    modes: ["light"],
+    defaultMode: "light",
+    pages: ["index", "about"],
+    slots: { nav: { source: "render/partials/nav.html" } },
+  });
+
+  const result = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "author" });
+  assert.equal(findError(result, "v2-unknown-field"), undefined, JSON.stringify(result.errors));
+});
+
 test("v2-strict: a root-level screenshots/ folder is an approved root, not flagged (every real theme on disk ships one)", () => {
   const dir = tmpDir("tovu-validate-v2-screenshots-");
   writeMinimalV2Static(dir);
