@@ -348,6 +348,25 @@ const PROMOTED_NO_DEEP_IMPORTS = new Set([
   "seo",
   "routing",
   "members",
+  // 2026-08-18 cheap-tail sweep (session 16 handoff's "Next Steps" item 1) — each driven to 0 and
+  // re-verified:
+  //  - widgets/resolvers: 3 wrong-door redirects, all onto a new barrel addition (the three real
+  //    v1 resolver factories — createRecentEntriesResolver/createMenuResolver/
+  //    createContactFormResolver — each reached only by its own dedicated unit/integration test).
+  //  - media: 2 wrong-door redirects (CORE_PUBLIC_TRANSFORM_NAME, already re-exported from
+  //    index.ts via bootstrap.ts).
+  //  - comments: 2 warnings resolved by adding tool-contribution-registry.test.ts to
+  //    TOOL_REGISTRATION_TEST_FROM_EXTRA (same shape as the three test files already there — a
+  //    contract test building fixtures against a domain's real tool-registrations.ts/agent-tools.ts
+  //    seam), not a barrel change.
+  //  - site-dir: 2 warnings resolved by adding cli/commands/export.ts to COMPOSITION_ROOTS — it is
+  //    architecturally identical to serve.ts (same bootSiteDir/resolveInstallDirTarget reach). Its
+  //    no-deep-value-imports-from-db-sqlite:site-dir companion warning (1, schema-guard.ts) is
+  //    untouched by this promotion — companion rules stay warn until their own triage.
+  "widgets/resolvers",
+  "media",
+  "comments",
+  "site-dir",
 ]);
 
 function noDeepImportRules(mod) {
