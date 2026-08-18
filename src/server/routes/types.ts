@@ -532,18 +532,19 @@ export interface DatabaseRecoveryDeps {
  * accepted whole, even when touching 1-2 fields (tracked architecture debt — "core size" / "propagation
  * cost" in `npm run check:architecture`). `ClockDeps`/`IdentityDeps`/`MediaDeps` (Slices 1-2),
  * `CredentialsDeps`/`ContentTaxonomyDeps`/`CommentsDeps`/`MembersDeps` (Slice 3),
- * `DatabaseRecoveryDeps` (Slice 4), `ComposioDeps` (Slice 5), and `WebhooksDeps` (Slice 6) above are
- * an incremental decomposition: pulled out as their own named, cohesive interfaces and folded back
- * in here via intersection so this type stays 100% identical to every existing consumer. Narrowed
- * call sites so far: `middleware/dev-auth.ts`'s `requireAdminSession` and `assistant/
- * byok-tool-surface.ts`'s `createByokToolSurface` (Slice 1, to `ClockDeps`/`IdentityDeps`);
- * `routes/admin/media/deps.ts`'s `MediaRouteDeps` (Slice 2, to `MediaDeps`); the four
- * `routes/admin/system/*-credentials.ts` files (to a `Pick` of `CredentialsDeps`' fields) plus
- * `routes/admin/members/deps.ts`'s `MembersRouteDeps` (Slice 3, to `MembersDeps` directly);
- * `routes/admin/database-recovery/deps.ts`'s `DatabaseRecoveryRouteDeps` (Slice 4, to
- * `DatabaseRecoveryDeps` directly); `routes/admin/connectors/deps.ts`'s `ConnectorsRouteDeps`/
- * `ConnectorsConfigRouteDeps` (Slice 5, to `ComposioDeps`/a `Pick` of it); and
- * `routes/admin/integrations/deps.ts`'s `IntegrationsRouteDeps` (Slice 6, to `WebhooksDeps` directly)
+ * `DatabaseRecoveryDeps` (Slice 4), `ComposioDeps` (Slice 5), `WebhooksDeps` (Slice 6), and
+ * `FormsDeps` (Slice 7) above are an incremental decomposition: pulled out as their own named,
+ * cohesive interfaces and folded back in here via intersection so this type stays 100% identical to
+ * every existing consumer. Narrowed call sites so far: `middleware/dev-auth.ts`'s
+ * `requireAdminSession` and `assistant/byok-tool-surface.ts`'s `createByokToolSurface` (Slice 1, to
+ * `ClockDeps`/`IdentityDeps`); `routes/admin/media/deps.ts`'s `MediaRouteDeps` (Slice 2, to
+ * `MediaDeps`); the four `routes/admin/system/*-credentials.ts` files (to a `Pick` of
+ * `CredentialsDeps`' fields) plus `routes/admin/members/deps.ts`'s `MembersRouteDeps` (Slice 3, to
+ * `MembersDeps` directly); `routes/admin/database-recovery/deps.ts`'s `DatabaseRecoveryRouteDeps`
+ * (Slice 4, to `DatabaseRecoveryDeps` directly); `routes/admin/connectors/deps.ts`'s
+ * `ConnectorsRouteDeps`/`ConnectorsConfigRouteDeps` (Slice 5, to `ComposioDeps`/a `Pick` of it);
+ * `routes/admin/integrations/deps.ts`'s `IntegrationsRouteDeps` (Slice 6, to `WebhooksDeps`
+ * directly); and `routes/admin/forms/deps.ts`'s `FormsRouteDeps` (Slice 7, to `FormsDeps` directly)
  * — see those files' own docs.
  */
 /**
@@ -603,7 +604,30 @@ export interface WebhooksDeps {
   webhookDeliveryRepo: WebhookDeliveryRepoPort;
 }
 
-export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & DatabaseRecoveryDeps & ComposioDeps & WebhooksDeps & {
+/**
+ * Slice 7 of the `RouteDeps` god-object decomposition (2026-08-18) — the `forms` library's write
+ * chokepoint repo pair (SPEC-010, ADR-PIPE-010), extracted verbatim (fields + doc comments unchanged)
+ * from where they lived inline in `RouteDeps` below.
+ *
+ * `formsRateLimiter` deliberately stays OUT of this group and flat on `RouteDeps` — the original
+ * header comment (still attached to it below) introduced all three together, but
+ * `routes/admin/forms/deps.ts`'s real consumer (below) never reads it: the 7 admin forms routes this
+ * type serves are session-gated, not the public rate-limited submission endpoint that field backs
+ * (`routes/site/forms-submit.ts`, declared structurally, deliberately never importing `RouteDeps` —
+ * the same back-edge-avoidance pattern `CommentsDeps`'s own doc already establishes for
+ * `comments-submit.ts`).
+ *
+ * A real narrow consumer already existed before this extraction: `routes/admin/forms/deps.ts`'s
+ * `FormsRouteDeps` already `Pick`ed these same 2 keys off `RouteDeps` (plus `workspaceId`/
+ * `authorize`/`clock`/`idGen`/`changeSets`/`outbox`) for the 7 forms admin routes. That file now
+ * composes `FormsDeps` directly instead of re-listing the 2 keys a second time — see its own doc.
+ */
+export interface FormsDeps {
+  formDefinitionRepo: FormDefinitionRepoPort;
+  formSubmissionRepo: FormSubmissionRepoPort;
+}
+
+export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & DatabaseRecoveryDeps & ComposioDeps & WebhooksDeps & FormsDeps & {
   workspaceRepo: WorkspaceRepoPort;
   postRepo: PostRepoPort;
   /**
@@ -772,9 +796,11 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * `webhookSubscriptionRepo`/`webhookDeliveryRepo` field-addition precedent). `formsRateLimiter`
    * is a single, process-lifetime `createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock })`
    * instance (not constructed per-request) so its fixed-window counters persist across requests.
+   *
+   * (2026-08-18, Slice 7: `formDefinitionRepo`/`formSubmissionRepo` moved to the new `FormsDeps`
+   * interface above, matching `routes/admin/forms/deps.ts`'s real narrow consumer; this field stays
+   * here since that consumer never reads it — see `FormsDeps`'s own doc.)
    */
-  formDefinitionRepo: FormDefinitionRepoPort;
-  formSubmissionRepo: FormSubmissionRepoPort;
   formsRateLimiter: RateLimiter;
   /**
    * SPEC-046 REQ-7 — the public site assistant's own rate limiter, mirroring `formsRateLimiter`'s

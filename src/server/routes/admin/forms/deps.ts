@@ -1,6 +1,6 @@
 import type { Express } from "express";
 
-import type { RouteDeps } from "../../types";
+import type { FormsDeps, RouteDeps } from "../../types";
 
 /**
  * @file ADR-046 Phase 3 (SPEC-041) — narrow `RouteDeps` slice for the `forms-admin` server module.
@@ -17,10 +17,11 @@ import type { RouteDeps } from "../../types";
  * Distinct from `src/server/modules/forms.ts` (SPEC-031's Forms-to-notify-subscriber module,
  * unrelated non-HTTP concern) — see that file's own header and `modules/forms-admin.ts`'s header
  * for the full disclosure.
+ *
+ * 2026-08-18 (`RouteDeps` decomposition Slice 7): `formDefinitionRepo`/`formSubmissionRepo` are now
+ * their own named `FormsDeps` interface in `routes/types.ts`, so this composes it directly instead
+ * of listing the 2 keys via `Pick`.
  */
-export type FormsRouteDeps = Pick<
-  RouteDeps,
-  "workspaceId" | "authorize" | "clock" | "idGen" | "changeSets" | "outbox" | "formDefinitionRepo" | "formSubmissionRepo"
->;
+export type FormsRouteDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "clock" | "idGen" | "changeSets" | "outbox"> & FormsDeps;
 
 export type FormsRouteRegistrar = (app: Express, deps: FormsRouteDeps) => void;
