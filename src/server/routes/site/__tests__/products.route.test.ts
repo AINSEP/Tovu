@@ -7,8 +7,9 @@ import test from "node:test";
 import type {
   CommercePriceRepoPort,
   CommerceProductRepoPort,
+  CommercePriceRecord,
+  CommerceProductRecord,
 } from "#src/features/commerce";
-import type { CommercePriceRecord, CommerceProductRecord } from "#src/features/commerce/types";
 import { createApp, createRouteDeps } from "../../../app";
 
 /**
