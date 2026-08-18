@@ -166,8 +166,28 @@ const DB_SQLITE = "^src/db/sqlite";
 // the same "contract/integration test needs the real concrete internals" pattern the hand-written
 // rules above already accept, evidenced by `tool-registrations.comments.test.ts` reaching
 // `comments/{hooks,repo.memory,settings,types,write-service}.ts` to build realistic fixtures.
-const TOOL_REGISTRATION_SEAM_FROM = "^src/assistant/tool-registrations\\.ts$";
-const TOOL_REGISTRATION_SEAM_TO = "(^|/)(tool-registrations|agent-tools)\\.ts$";
+// 2026-08-17: the Stage 2 registry rollout MOVED this seam's caller. Domains no longer sit in
+// `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array (which is now empty save two
+// env-gated demo stubs); each domain instead calls `registerToolContributor` itself, and
+// `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()` imports all 25
+// `contribute<Domain>Tools` functions at boot. That made the production registrar a second seam
+// caller. It was not added here at the time, so all 25 conversions came through an UNREGISTERED
+// door: 19 violations (18 `warn`, plus 1 `error` for `features/post`, the one module promoted in
+// `PROMOTED_NO_DEEP_IMPORTS`). Registered narrowly here rather than by adding the file to
+// `COMPOSITION_ROOTS` — a composition-root entry grants blanket access to every module's
+// internals, whereas the seam entry is re-policed by
+// `no-non-seam-deep-imports-from-tool-registration-caller` below and so still allows ONLY the
+// seam files. Same reasoning as `TOOL_REGISTRATION_TEST_FROM_EXTRA`'s name list: bless what was
+// reviewed, not a broader shape that would quietly bless more.
+const TOOL_REGISTRATION_SEAM_FROM =
+  "^src/(assistant/tool-registrations|server/tool-catalog-manifest)\\.ts$";
+// `publish-agent-tools.ts` is `static-publish`'s tool-registration seam under a non-conforming
+// name — the `-` before `agent-tools` defeats the `(^|/)` anchor, so it needs naming explicitly.
+// Exempted by name for the same reason `search-index.*` is in
+// `only-composition-constructs-concrete-adapters` above: same category of file, different
+// filename convention. Not a loosening — everything else in the module stays fenced.
+const TOOL_REGISTRATION_SEAM_TO =
+  "(^|/)(tool-registrations|agent-tools|publish-agent-tools)\\.ts$";
 const TOOL_REGISTRATION_TEST_FROM = "^src/assistant/__tests__/tool-registrations\\..+\\.test\\.ts$";
 
 // Three more assistant test files do the identical job as the naming-convention match above (build
