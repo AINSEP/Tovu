@@ -825,17 +825,18 @@ export interface EventBusDeps {
   bus: EventBusPort;
 }
 
-export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & DatabaseRecoveryDeps & ComposioDeps & WebhooksDeps & FormsDeps & PostDeps & PresentationDeps & SettingsDeps & ChangeSetDeps & EventBusDeps & {
-  workspaceRepo: WorkspaceRepoPort;
-  /**
-   * Durable AI chat history, obtained per-principal.
-   *
-   * A factory rather than a store, because there is no such thing as "the" chat store — every
-   * query must be filtered by who is asking. Composition closes over the `content.db` handle so
-   * no route ever holds one, which is what makes an unscoped `WHERE id = ?` unwritable rather
-   * than merely against convention. See `assistant/persistence/tenant-scope.ts`.
-   */
-  chatHistory: ChatStoreFactory;
+/**
+ * Slice 8 of the `RouteDeps` god-object decomposition (2026-08-18) — the public analytics ingest
+ * buffer, its beacon config seam, and the matching boot-registration promise, extracted verbatim
+ * (fields + doc comments unchanged) from where they lived inline in `RouteDeps` below.
+ *
+ * No route module in this codebase yet declares its own narrow analytics deps type — the admin
+ * `analytics/recent-hits.ts` registrar and the public ingest route both take full `RouteDeps`
+ * today. Grouped here on domain cohesion (ADR-035 ingest stage, ADR-046 boot registration) ahead
+ * of a future narrow consumer, the same "candidate for a later group" precedent
+ * `DatabaseRecoveryDeps`'s own doc already used for `stampWatermark`/`databaseIntrospection`.
+ */
+export interface AnalyticsDeps {
   /** Analytics ingest buffer (ADR-035 ingest-only stage; no rollup yet). ADR-046 Phase 1: durable
    * in real composition (`SqliteBufferSink`), in-memory in hermetic composition (`LocalBufferSink`). */
   analyticsSink: AnalyticsSinkPort;
@@ -853,6 +854,19 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * single-SQLite-connection-transaction reason every registration above documents.
    */
   analyticsSettingsReady: Promise<void>;
+}
+
+export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & DatabaseRecoveryDeps & ComposioDeps & WebhooksDeps & FormsDeps & PostDeps & PresentationDeps & SettingsDeps & ChangeSetDeps & EventBusDeps & AnalyticsDeps & {
+  workspaceRepo: WorkspaceRepoPort;
+  /**
+   * Durable AI chat history, obtained per-principal.
+   *
+   * A factory rather than a store, because there is no such thing as "the" chat store — every
+   * query must be filtered by who is asking. Composition closes over the `content.db` handle so
+   * no route ever holds one, which is what makes an unscoped `WHERE id = ?` unwritable rather
+   * than merely against convention. See `assistant/persistence/tenant-scope.ts`.
+   */
+  chatHistory: ChatStoreFactory;
   /** Local, navigation-owned menu repo (ADR-029; not a frozen ADR port). */
   menuRepo: MenuRepoPort;
   /** The one real ADR-029 port: the derived nav_location_bindings index. */
