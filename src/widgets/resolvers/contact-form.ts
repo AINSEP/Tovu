@@ -1,5 +1,5 @@
 import type { JsonObject } from "@jini-ai/cms/core";
-import type { FormDefinitionRepoPort } from "../../forms/ports";
+import type { FormDefinitionRepoPort } from "../../forms";
 import type { WidgetResolveResult, WidgetResolver } from "../types";
 
 /**
@@ -7,11 +7,12 @@ import type { WidgetResolveResult, WidgetResolver } from "../types";
  *
  * Purpose:
  * A thin, READ-ONLY adapter over `src/forms/`'s definition read side. Imports ONLY the read-only
- * `forms/ports.ts` module (`FormDefinitionRepoPort`) — never the Forms library's own submission
- * write path or its outbox-driven mail-notification module — so this file can never persist a
- * submission, send mail, rate-limit, or duplicate any part of the Forms pipeline (INV-08, hard
- * invariant; verified by a code-review-level grep over this whole package for those two module
- * names, which must return nothing).
+ * `FormDefinitionRepoPort` type, through `forms/index.ts` (ADR-009 §1's barrel; the type is
+ * declared in `forms/ports.ts`) — never the Forms library's own submission write path or its
+ * outbox-driven mail-notification module — so this file can never persist a submission, send
+ * mail, rate-limit, or duplicate any part of the Forms pipeline (INV-08, hard invariant; verified
+ * by a code-review-level grep over this whole package for those two module names, which must
+ * return nothing).
  *
  * REQ-37 ("reads the referenced Forms definition's declared field vocabulary — never a hardcoded
  * field-type list") is honored here: `definition.fields` (Forms' own `FieldDescriptor[]`) is passed

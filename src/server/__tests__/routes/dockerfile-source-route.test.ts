@@ -4,7 +4,7 @@ import { join } from "node:path";
 import test from "node:test";
 
 import { createApp, createRouteDeps } from "../../app";
-import { readDockerfileSource, writeDockerfileSource } from "#src/features/deployments/dockerfile";
+import { readDockerfileSource, writeDockerfileSource } from "#src/features/deployments/index";
 import { bootAuthenticated } from "../helpers/http-test-server";
 import type { RouteDeps } from "../../routes/types";
 

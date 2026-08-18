@@ -15,7 +15,11 @@ import {
   updatePublishCredential,
   type PublishCredentialSummary,
 } from "#src/features/deployments/publish-credentials/index";
-import { canYieldAccountLabel, verifyPublishCredentialById, type PublishCredentialVerificationResult } from "#src/features/deployments/static-publish/index";
+import {
+  canYieldAccountLabel,
+  verifyPublishCredentialById,
+  type PublishCredentialVerificationResult,
+} from "#src/features/deployments/static-publish/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 

@@ -7,7 +7,7 @@ import { bootAuthenticated, startTestServer } from "./helpers/http-test-server";
 import { createRouteDeps } from "../app";
 import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth";
 import { createAssistantExecutionModule } from "../modules/assistant-execution";
-import { setSiteAssistantCredential } from "../../assistant/site-credential-store";
+import { setSiteAssistantCredential } from "../../assistant";
 import type { RouteDeps } from "../routes/types";
 
 /**

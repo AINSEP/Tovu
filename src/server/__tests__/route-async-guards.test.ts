@@ -5,7 +5,7 @@ import test from "node:test";
 import { createApp, createRouteDeps } from "../app";
 import { bootAuthenticated, startTestServer } from "./helpers/http-test-server";
 import type { RouteDeps } from "../routes/types";
-import type { PublishCredentialSetRepoPort } from "../../features/deployments/publish-credentials/types";
+import type { PublishCredentialSetRepoPort } from "../../features/deployments/publish-credentials/index";
 import type { SourceControlCredentialSetRepoPort } from "../../features/source-control/types";
 import type { CommentIngressPolicy, CommentWriteService } from "#src/comments/index";
 import { registerPaymentsWebhookRoute } from "../routes/site/payments-webhook";

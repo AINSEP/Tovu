@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { createApp, createRouteDeps } from "../app";
-import { setPublicAssistantSettings } from "../../assistant/public-assistant-settings";
+import { setPublicAssistantSettings } from "../../assistant";
 import { startTestServer } from "./helpers/http-test-server";
 
 /**

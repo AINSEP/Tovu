@@ -277,6 +277,33 @@ const EXTRA_TO_EXEMPT = {
     "^src/newsletter/subscriptions\\.ts$",
     "^src/newsletter/unsubscribe\\.ts$",
   ],
+  // 2026-08-17 no-deep-imports:features/deployments triage: `static-publish/` and
+  // `publish-credentials/` are genuine nested modules — each has its own directory, its own
+  // `index.ts`, and its own ADR-009 §1 "Public surface for the X sub-feature" header, one level
+  // below `features/deployments/index.ts`. The `noDeepImportRules` generator only special-cases
+  // the TOP-level `src/${mod}/index.ts` (no first-class concept of a nested guarded sub-module),
+  // so every external reach into either sub-barrel's `index.ts` was flagged as a deep import even
+  // though it is already going through that sub-feature's own curated door. Re-exporting both
+  // sub-barrels' content through the parent `index.ts` instead was tried and reverted — it moved
+  // propagation cost (all-import) 11.56% -> 15.36%, because every OTHER consumer of the parent
+  // barrel (e.g. anyone reaching only `DeploymentsReadRepoPort`) would have inherited both
+  // sub-features' entire transitive graph too. Only each sub-barrel's own `index.ts` is exempted —
+  // every other file inside `static-publish/`/`publish-credentials/` (types.ts, adapter.ts,
+  // store.ts, verify.ts, etc.) stays guarded; this does not loosen access to those.
+  //
+  // `publish-agent-tools.ts` is exempted too, for a related but distinct reason: it is this
+  // module's own tool-registration seam file (`TOOL_REGISTRATION_SEAM_TO` below already names it
+  // by pattern), and it imports `RouteDeps` from `server/routes/types.ts` — routing it through the
+  // top `index.ts` barrel measured propagation cost (all-import) at 15%+ (vs. an 11.56% baseline)
+  // because every barrel consumer would inherit that god-type's entire reachable set. Its two real
+  // external consumers today (`server/__tests__/routes/publish-site-route.test.ts`, `assistant/
+  // __tests__/mcp-ui-tool-calls-route.static-publish.integration.test.ts`) build the real
+  // registrations directly to verify route wiring end-to-end, the same shape every other domain's
+  // tool-registrations/agent-tools seam already gets reached by its own contract tests.
+  "features/deployments": [
+    "^src/features/deployments/(static-publish|publish-credentials)/index\\.ts$",
+    "^src/features/deployments/publish-agent-tools\\.ts$",
+  ],
 };
 
 // Modules whose `no-deep-imports:<mod>` rule has had its full per-file Category 1/2/3 triage done
@@ -289,6 +316,12 @@ const PROMOTED_NO_DEEP_IMPORTS = new Set([
   // 2026-08-13-features-post-deep-import-trace.md — 25 violations (20 wrong-door redirects, 2
   // barrel additions, 3 tool-registration-seam exemptions), re-verified at 0 after the fix.
   "features/post",
+  // 2026-08-17 no-deep-imports:features/deployments triage — 19 violations (2 EXTRA_TO_EXEMPT
+  // registrations covering 3 files — static-publish/index.ts, publish-credentials/index.ts,
+  // publish-agent-tools.ts, all pre-existing legitimate doors the rule generator had no way to
+  // recognize — plus 2 barrel additions to index.ts and 2 redirects up to the publish-credentials
+  // sub-barrel), re-verified at 0 after the fix.
+  "features/deployments",
 ]);
 
 function noDeepImportRules(mod) {

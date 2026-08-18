@@ -38,8 +38,8 @@ import type { KeyringPort, SecretSealerPort, WebhookDeliveryRepoPort, WebhookSub
 import type { WebhookSigner } from "../../webhooks/signing";
 import type { SiteAssistantCredentialRepoPort } from "../../assistant/site-credential-store";
 import type { AdminExecutionCredentialRepoPort } from "../../assistant/execution-credential-store";
-import type { PublishCredentialSetRepoPort, PublishExecutionMode } from "../../features/deployments/publish-credentials";
-import type { PublishCredentialVerificationCache, PublishHistoryStore } from "../../features/deployments/static-publish";
+import type { PublishCredentialSetRepoPort, PublishExecutionMode } from "../../features/deployments/publish-credentials/index";
+import type { PublishCredentialVerificationCache, PublishHistoryStore } from "../../features/deployments/static-publish/index";
 import type { CustomCredentialSetRepoPort } from "../../features/custom-credentials";
 import type { SourceControlCredentialSetRepoPort } from "../../features/source-control";
 import type { VendorCredentialSetRepoPort } from "../../features/vendor-credentials";
@@ -98,8 +98,7 @@ import type { WidgetRegionBindingRepoPort } from "../../widgets/ports";
 import type { EntryRefsRepoPort } from "../../core/entry-refs/ports";
 import type { PluginActivationRepoPort } from "../../features/plugin-runtime/activation";
 import type { PluginDiscoveryRecord } from "../../features/plugin-runtime/discovery";
-import type { DeploymentsReadRepoPort } from "../../features/deployments";
-import type { ExportEngine } from "../../features/deployments/export-run";
+import type { DeploymentsReadRepoPort, ExportEngine } from "../../features/deployments";
 
 export interface RouteDeps {
   workspaceId: UUID;

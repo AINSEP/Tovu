@@ -6,7 +6,7 @@ import {
   type ExportRunCounts,
   type ExportRunSnapshot,
   type ExportRunStatus,
-} from "#src/features/deployments/export-run";
+} from "#src/features/deployments/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 
