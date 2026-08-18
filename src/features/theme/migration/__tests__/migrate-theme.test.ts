@@ -85,6 +85,29 @@ test("migrateThemeToV2 refuses (fails) rather than silently dropping an unrecogn
   assert.ok(!fs.existsSync(path.join(dir, "css")));
 });
 
+function makeTemplatedThemeDir(): string {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-migrate-templated-"));
+  fs.writeFileSync(
+    path.join(dir, "theme.json"),
+    JSON.stringify({ id: "t", name: "T", version: "1.0.0", tier: "templated", engine: 1, description: "test theme" }),
+    "utf8"
+  );
+  fs.writeFileSync(path.join(dir, "tokens.json"), "{}", "utf8");
+  fs.mkdirSync(path.join(dir, "templates"), { recursive: true });
+  fs.writeFileSync(path.join(dir, "templates/home.liquid"), "{{ site.title }}", "utf8");
+  fs.writeFileSync(path.join(dir, "templates/entry.liquid"), "{{ post.title }}", "utf8");
+  return dir;
+}
+
+test("migrateThemeToV2 converts a v1 bare-number engine into v2's { name, version } object shape (real gap: storefront's theme.json ships engine: 1)", () => {
+  const dir = makeTemplatedThemeDir();
+  const result = migrateThemeToV2({ themeDir: dir, id: "t" });
+
+  assert.equal(result.status, "migrated", `expected migrated, got ${result.status}: ${JSON.stringify(result.validation ?? result.reason)}`);
+  const manifest = JSON.parse(fs.readFileSync(path.join(dir, "theme.json"), "utf8"));
+  assert.deepEqual(manifest.engine, { name: "liquid", version: "1" });
+});
+
 test("migrateThemeToV2 fails verification (missing required entry.json) and leaves the real directory untouched", () => {
   const dir = makeDeclarativeThemeDir({ skipEntry: true });
   const result = migrateThemeToV2({ themeDir: dir, id: "t" });
