@@ -4,7 +4,9 @@ import { runExportCommand } from "./commands/export";
 import { runInitCommand } from "./commands/init";
 import { runIntrospectCommand } from "./commands/introspect";
 import { runServeCommand } from "./commands/serve";
+import { runThemeGenerateIndexCommand } from "./commands/theme/generate-index";
 import { runThemeMigrateCommand } from "./commands/theme/migrate";
+import { runThemeNormalizeBuildCommand } from "./commands/theme/normalize-build";
 import { runThemeValidateCommand } from "./commands/theme/validate";
 import { introspectProgram } from "./introspect";
 
@@ -89,6 +91,24 @@ export function createProgram(): Command {
     .option("--json", "print the full machine-readable result instead of a human-readable summary")
     .action(async (dir: string, options: { dryRun?: boolean; json?: boolean }) => {
       await runThemeMigrateCommand({ dir, dryRun: options.dryRun, json: options.json });
+    });
+  themeProgram
+    .command("generate-index")
+    .description("(re)generate a static-tier theme's portability-backup root index.html — real nav/footer partials spliced in, dynamic menu/post/content markers placeholdered")
+    .argument("<dir>", "theme package directory to generate into")
+    .option("--json", "print the full machine-readable result instead of a human-readable summary")
+    .action(async (dir: string, options: { json?: boolean }) => {
+      await runThemeGenerateIndexCommand({ dir, json: options.json });
+    });
+  themeProgram
+    .command("normalize-build")
+    .description("normalize a code-tier framework's raw build output (e.g. `ng build`) in place into Tovu's static-asset-contract shape, ready for artifactHashes + publish")
+    .argument("<dir>", "the build's flat output directory (e.g. Angular's dist/<project>/browser/) — mutated in place")
+    .option("--primary-stylesheet <file>", "the build's global CSS entry point's output filename (e.g. \"styles.css\"), matching angular.json's styles entry point")
+    .option("--pages <files>", "comma-separated top-level HTML page files to rewrite", "index.html")
+    .option("--json", "print the full machine-readable result instead of a human-readable summary")
+    .action(async (dir: string, options: { primaryStylesheet?: string; pages?: string; json?: boolean }) => {
+      await runThemeNormalizeBuildCommand({ dir, primaryStylesheet: options.primaryStylesheet, pages: options.pages, json: options.json });
     });
 
   program

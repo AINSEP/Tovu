@@ -85,24 +85,22 @@
  *   unrelated to the 404 this fixes, a pre-existing property of every bundler's sourcemap output in every
  *   toolchain, and never something Tovu serves back to a browser regardless.
  *
- * ## Still open
+ * ## Wired (2026-08-18, Milestone 4) — still open beyond this
  *
- * **This module has ZERO callers as of 2026-08-12.** Nothing in this repository invokes
- * {@link normalizeBuildOutputDirectory} outside its own test file — there is no CLI entrypoint, no
- * `package.json` script, no reference from `theme.ts`'s manifest/loader path, no wiring into
- * `checkBuiltThemeConformance`'s install-time gate (which validates an ALREADY-normalized theme's output;
- * it has no opinion on how that output got normalized). This is deliberate scoping, not an oversight — the
- * task this module was built for was the gate and the transform's correctness, not deciding who runs it —
- * but it means this module is inert until wired up. Wiring it would mean: (1) deciding WHO invokes it —
- * most likely a standalone CLI/script an Angular theme author runs locally or in their own CI after
- * `ng build`, consistent with this codebase's "Tovu never runs the build" decision
- * (`build-conformance.ts`'s file header cites the same `worker_threads`-isn't-code-isolation reasoning);
- * running it server-side inside Tovu's own process would be a different, larger architectural decision,
- * not an extension of this module; (2) an entrypoint accepting (or deriving from `angular.json`/
- * `theme.json`) the `outputDir`/`pageFileNames`/`primaryStylesheetFile` this module's functions currently
- * require the caller to supply explicitly; (3) theme-authoring documentation describing the full
- * `ng build` → normalize → compute `artifactHashes` → publish workflow end to end, since no such workflow
- * is written down anywhere yet.
+ * `tovu theme normalize-build <dir> --primary-stylesheet <file> [--pages <a.html,b.html>] [--json]`
+ * (`cli/commands/theme/normalize-build.ts`, wired in `cli/program.ts`) is now this module's real
+ * entrypoint — a standalone CLI a theme author runs locally or in their own CI after `ng build`, per
+ * option (1) below, consistent with this codebase's "Tovu never runs the build" decision
+ * (`build-conformance.ts`'s file header cites the same `worker_threads`-isn't-code-isolation
+ * reasoning); running it server-side inside Tovu's own process remains a different, larger
+ * architectural decision this module does not make. `outputDir`/`pageFileNames`/
+ * `primaryStylesheetFile` are still supplied explicitly via `--pages`/`--primary-stylesheet` — option
+ * (2) below's "derive from `angular.json`/`theme.json`" alternative was not built; not yet needed
+ * with no real Angular theme shipping (see the frozen-fixture caveat in this module's own test file).
+ * Still genuinely open: (3) theme-authoring documentation describing the full `ng build` → normalize
+ * → compute `artifactHashes` → publish workflow end to end — no such workflow is written down
+ * anywhere yet, and nothing in this repository computes `artifactHashes` for a compiled theme today
+ * either (that remains a separate, unbuilt piece).
  */
 
 import { lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
