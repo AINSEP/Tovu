@@ -1,7 +1,6 @@
 import type { Express } from "express";
 
-import type { ComposioConnectors } from "#src/connectors/composio-service";
-import type { RouteDeps } from "../../types";
+import type { ComposioDeps, RouteDeps } from "../../types";
 
 /**
  * @file Narrow `RouteDeps` slice for the `connectors` server module — a genuine narrowing in the
@@ -15,18 +14,18 @@ import type { RouteDeps } from "../../types";
  *
  * The sealer and keyring are ADR-058's instances, reused rather than re-derived — the same call
  * `mediaProviderCredentialRepo`'s routes already make.
+ *
+ * 2026-08-18 (`RouteDeps` decomposition Slice 5): `composioConfigRepo`/`composioConnectors` are now
+ * their own named `ComposioDeps` interface in `routes/types.ts`, so both types below compose it (or
+ * a `Pick` of it) directly instead of re-declaring `composioConnectors`'s type inline.
  */
-export type ConnectorsRouteDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "clock"> & {
-  composioConnectors: ComposioConnectors;
-};
+export type ConnectorsRouteDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "clock"> & Pick<ComposioDeps, "composioConnectors">;
 
 export type ConnectorsRouteRegistrar = (app: Express, deps: ConnectorsRouteDeps) => void;
 
 export type ConnectorsConfigRouteDeps = Pick<
   RouteDeps,
-  "workspaceId" | "authorize" | "clock" | "composioConfigRepo" | "siteAssistantSecretSealer" | "siteAssistantSecretKeyring"
-> & {
-  composioConnectors: ComposioConnectors;
-};
+  "workspaceId" | "authorize" | "clock" | "siteAssistantSecretSealer" | "siteAssistantSecretKeyring"
+> & ComposioDeps;
 
 export type ConnectorsConfigRouteRegistrar = (app: Express, deps: ConnectorsConfigRouteDeps) => void;
