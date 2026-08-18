@@ -809,7 +809,23 @@ export interface ChangeSetDeps {
   revertRegistry: RevertRegistry;
 }
 
-export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & DatabaseRecoveryDeps & ComposioDeps & WebhooksDeps & FormsDeps & PostDeps & PresentationDeps & SettingsDeps & ChangeSetDeps & {
+/**
+ * Slice 8 of the `RouteDeps` god-object decomposition (2026-08-18) — the outbox/event-bus pair,
+ * extracted verbatim (fields + doc comments unchanged) from where they lived inline in `RouteDeps`
+ * below.
+ *
+ * No single whole-group consumer, but a real shared call site: `routes/admin/content/deps.ts`'s
+ * `ContentRouteDeps` reads both together (`posts/update.ts`'s `processOutbox({ outbox, bus, clock
+ * })` drain call, per that file's own doc), alongside `routes/admin/workspace/deps.ts`'s
+ * `WorkspaceRouteDeps` (`Pick<RouteDeps, ... | "outbox" | "bus">`) — the same outbox-drain pairing
+ * repeats verbatim in a second, unrelated domain, which is the cohesion this group is built on.
+ */
+export interface EventBusDeps {
+  outbox: OutboxPort;
+  bus: EventBusPort;
+}
+
+export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & DatabaseRecoveryDeps & ComposioDeps & WebhooksDeps & FormsDeps & PostDeps & PresentationDeps & SettingsDeps & ChangeSetDeps & EventBusDeps & {
   workspaceRepo: WorkspaceRepoPort;
   /**
    * Durable AI chat history, obtained per-principal.
@@ -820,8 +836,6 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * than merely against convention. See `assistant/persistence/tenant-scope.ts`.
    */
   chatHistory: ChatStoreFactory;
-  outbox: OutboxPort;
-  bus: EventBusPort;
   /** Analytics ingest buffer (ADR-035 ingest-only stage; no rollup yet). ADR-046 Phase 1: durable
    * in real composition (`SqliteBufferSink`), in-memory in hermetic composition (`LocalBufferSink`). */
   analyticsSink: AnalyticsSinkPort;
