@@ -1,7 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemorySettingsRepo } from "../../features/settings";
+import {
+  InMemorySettingsRepo,
+  getEffective,
+  resolveDefinitionRaw,
+  registerDefinitions,
+  set,
+  SCOPE_BIT,
+} from "../../features/settings";
 import { InMemoryPrincipalRepo } from "@jini-ai/cms/identity";
 import {
   ensurePublicAssistantSettingDefinitions,
@@ -29,10 +36,40 @@ let idCounter = 0;
 const ids = { newId: () => `assistant-settings-test-id-${++idCounter}` };
 const alwaysAllow = async () => ({ allowed: true, reason: "matched" });
 
+/**
+ * `settingsRepo`/`principals` plus a fully-wired `deps` bag covering every deps interface this file
+ * exercises (`EnsurePublicAssistantSettingDefinitionsDeps` and `PublicAssistantSettingsWriteDeps` —
+ * a superset of `GetPublicAssistantSettingsDeps`). `resolveDefinitionRaw`/`registerDefinitions`/
+ * `scopeBit`/`getEffective`/`set` are the real `features/settings` functions/constants, used
+ * directly rather than faked: test files are exempt from `check:architecture`'s module-cycle graph
+ * (the reason these are injected in production code at all — see `public-assistant-settings.ts`'s
+ * header), and this file's whole point is proving the real ledger's behavior through this surface.
+ */
 function makeDeps() {
   const settingsRepo = new InMemorySettingsRepo();
   const principals = new InMemoryPrincipalRepo([]);
-  return { settingsRepo, principals, deps: { settingsRepo, clock, ids, authorize: alwaysAllow, principals } };
+  return {
+    settingsRepo,
+    principals,
+    deps: {
+      settingsRepo,
+      clock,
+      ids,
+      authorize: alwaysAllow,
+      principals,
+      resolveDefinitionRaw,
+      registerDefinitions,
+      scopeBit: SCOPE_BIT,
+      getEffective,
+      set,
+    },
+  };
+}
+
+/** `GetPublicAssistantSettingsDeps` for the many read-only call sites below (`getPublicAssistantSettings`/
+ *  `isPublicAssistantEnabled`), which only ever need `settingsRepo` + the real `getEffective`. */
+function readOnlyDeps(settingsRepo: InMemorySettingsRepo) {
+  return { settingsRepo, getEffective };
 }
 
 async function withDefinitions() {
@@ -70,13 +107,13 @@ test("the definition is namespaced under 'site.' — the ledger's owner fence re
 
 test("a brand-new site is OFF before any definition exists at all", async () => {
   const { settingsRepo } = makeDeps();
-  assert.deepEqual(await getPublicAssistantSettings({ settingsRepo }, { workspaceId: WORKSPACE }), { publicEnabled: false });
-  assert.equal(await isPublicAssistantEnabled({ settingsRepo }, { workspaceId: WORKSPACE }), false);
+  assert.deepEqual(await getPublicAssistantSettings(readOnlyDeps(settingsRepo), { workspaceId: WORKSPACE }), { publicEnabled: false });
+  assert.equal(await isPublicAssistantEnabled(readOnlyDeps(settingsRepo), { workspaceId: WORKSPACE }), false);
 });
 
 test("registering the definition does not turn anything on — the registered default is false", async () => {
   const { settingsRepo } = await withDefinitions();
-  assert.deepEqual(await getPublicAssistantSettings({ settingsRepo }, { workspaceId: WORKSPACE }), { publicEnabled: false });
+  assert.deepEqual(await getPublicAssistantSettings(readOnlyDeps(settingsRepo), { workspaceId: WORKSPACE }), { publicEnabled: false });
 });
 
 test("the read fails CLOSED — anything that is not literally true reads as off", async () => {
@@ -102,7 +139,7 @@ test("the read fails CLOSED — anything that is not literally true reads as off
       updatedAt: clock.nowIso(),
     });
     assert.equal(
-      await isPublicAssistantEnabled({ settingsRepo }, { workspaceId: WORKSPACE }),
+      await isPublicAssistantEnabled(readOnlyDeps(settingsRepo), { workspaceId: WORKSPACE }),
       false,
       `a stored ${JSON.stringify(written)} must read as OFF, never as on`,
     );
@@ -110,7 +147,7 @@ test("the read fails CLOSED — anything that is not literally true reads as off
 
   // Sanity: the fail-closed rule is not simply "always false".
   await setPublicAssistantSettings(deps, { workspaceId: WORKSPACE, patch: { publicEnabled: true }, callerPrincipalId: "principal-1" });
-  assert.equal(await isPublicAssistantEnabled({ settingsRepo }, { workspaceId: WORKSPACE }), true);
+  assert.equal(await isPublicAssistantEnabled(readOnlyDeps(settingsRepo), { workspaceId: WORKSPACE }), true);
 });
 
 // ---------------------------------------------------------------------------
@@ -122,11 +159,11 @@ test("setPublicAssistantSettings turns the switch on and back off, and returns t
 
   const on = await setPublicAssistantSettings(deps, { workspaceId: WORKSPACE, patch: { publicEnabled: true }, callerPrincipalId: "principal-1" });
   assert.deepEqual(on, { publicEnabled: true });
-  assert.equal(await isPublicAssistantEnabled({ settingsRepo }, { workspaceId: WORKSPACE }), true);
+  assert.equal(await isPublicAssistantEnabled(readOnlyDeps(settingsRepo), { workspaceId: WORKSPACE }), true);
 
   const off = await setPublicAssistantSettings(deps, { workspaceId: WORKSPACE, patch: { publicEnabled: false }, callerPrincipalId: "principal-1" });
   assert.deepEqual(off, { publicEnabled: false });
-  assert.equal(await isPublicAssistantEnabled({ settingsRepo }, { workspaceId: WORKSPACE }), false);
+  assert.equal(await isPublicAssistantEnabled(readOnlyDeps(settingsRepo), { workspaceId: WORKSPACE }), false);
 });
 
 test("an empty patch is a no-op read, not an accidental reset", async () => {
@@ -146,7 +183,7 @@ test("a non-boolean publicEnabled is rejected before any write happens", async (
       PublicAssistantSettingsValidationError,
     );
   }
-  assert.equal(await isPublicAssistantEnabled({ settingsRepo }, { workspaceId: WORKSPACE }), false, "a rejected write must leave the switch untouched");
+  assert.equal(await isPublicAssistantEnabled(readOnlyDeps(settingsRepo), { workspaceId: WORKSPACE }), false, "a rejected write must leave the switch untouched");
 });
 
 test("a denied principal cannot flip the switch", async () => {
@@ -156,13 +193,15 @@ test("a denied principal cannot flip the switch", async () => {
     clock,
     ids,
     principals,
+    getEffective,
+    set,
     authorize: async () => ({ allowed: false, reason: "insufficient_permission" }),
   };
 
   await assert.rejects(() =>
     setPublicAssistantSettings(denyingDeps, { workspaceId: WORKSPACE, patch: { publicEnabled: true }, callerPrincipalId: "principal-1" }),
   );
-  assert.equal(await isPublicAssistantEnabled({ settingsRepo }, { workspaceId: WORKSPACE }), false);
+  assert.equal(await isPublicAssistantEnabled(readOnlyDeps(settingsRepo), { workspaceId: WORKSPACE }), false);
 });
 
 test("the switch is workspace-scoped — enabling one workspace does not enable another", async () => {
@@ -171,6 +210,6 @@ test("the switch is workspace-scoped — enabling one workspace does not enable 
 
   await setPublicAssistantSettings(deps, { workspaceId: WORKSPACE, patch: { publicEnabled: true }, callerPrincipalId: "principal-1" });
 
-  assert.equal(await isPublicAssistantEnabled({ settingsRepo }, { workspaceId: WORKSPACE }), true);
-  assert.equal(await isPublicAssistantEnabled({ settingsRepo }, { workspaceId: OTHER_WORKSPACE }), false);
+  assert.equal(await isPublicAssistantEnabled(readOnlyDeps(settingsRepo), { workspaceId: WORKSPACE }), true);
+  assert.equal(await isPublicAssistantEnabled(readOnlyDeps(settingsRepo), { workspaceId: OTHER_WORKSPACE }), false);
 });
