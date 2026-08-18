@@ -43,6 +43,7 @@ import {
 import { askOnce, type AssistantSurfaceDeps, type SurfaceExchange } from "../../core/tool-surface-exchanges";
 import { executeCommand, type AuthorizeFn, type ChangeSetRepoPort } from "../../core/commands";
 import { processOutbox } from "../../core/events";
+import { registerToolContributor } from "#src/assistant/index";
 import {
   postAgentToolCatalog,
   type AgentToolDefinition as PostAgentToolDefinition,
@@ -623,3 +624,26 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
 // `client-directives.ts` the same Option-B-style way `vendor-credentials/store.ts` now takes
 // `extractGitHubLogin` — not attempted here, new design work beyond this dispatch's scope (execute
 // the recommended fix, don't re-litigate/extend the design).
+//
+// RETRIED AND LANDED HERE (2026-08-17, same day, final pass) after a Software Architect investigation
+// (`ADS-memory/reports/architecture/2026-08-17-post-listpublishedposts-design-options.md`) confirmed
+// the exact edge the paragraph above named and recommended Option A: inject `listPublishedPosts` into
+// `assistant/site/tools.ts`'s `SiteAssistantToolDeps` and `assistant/site/client-directives.ts`'s
+// `resolvePublicTarget` deps, both typed with a locally-declared structural `ListPublishedPosts`
+// signature rather than an imported function type, and wire the real `features/post` function in
+// ONLY at the one production composition root, `server/modules/site-assistant.ts`. That removed both
+// value-import edges closing the cycle while leaving the actual function called at runtime
+// byte-identical — the same Option-B-style technique `vendor-credentials/store.ts`'s
+// `extractGitHubLogin` and `dual-read.ts`'s legacy-table imports already used. That report's Option B
+// (moving `listPublishedPosts` itself out of `features/post`) and Option C (pushing the filter into
+// `PostRepoPort`) were both considered and rejected — see its §4/§5. Rejecting Option C matters
+// specifically: this codebase already tried pushing the predicate into the port layer once (the old
+// `entries`/`EntryListPort` model `tools.ts` used before) and moved deliberately away from it, so
+// reopening that shape to solve a graph-shape problem would trade a solved correctness risk for
+// convenience — see `tools.ts`'s own header. `check:architecture --list` confirms 0 module cycles /
+// largest SCC 0 with `post` wired this way — the last of the 25-domain rollout to convert. No
+// production `assistant/site/*` file value-imports `features/post` anymore; both keep only their
+// `import type` lines.
+export function contributePostTools(): void {
+  registerToolContributor({ domain: "post", build: buildPostRegistrations, risk: postDerivedRisk });
+}

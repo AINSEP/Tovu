@@ -24,22 +24,41 @@
  * to lean on here.
  *
  * That predicate is not reimplemented in this file. `readPublished()` below calls
- * `features/post`'s own `listPublishedPosts` — the SAME function `routes/site/pages.ts` calls to
- * decide what a visitor's browser renders. "What is publicly visible" has exactly one definition in
- * this codebase; this file consumes it rather than keeping a second copy that happens to agree
- * today. A second copy is exactly how the assistant would end up MORE permissive than the site it
- * speaks for the first time someone adds a visibility condition — scheduled publishing, per-post
- * visibility, membership gating — to `listPublishedPosts` alone: the site would start honoring it
- * and a locally-reimplemented filter here would not, silently. Note what this file still deliberately
- * does NOT do: call `deps.postRepo.list()` directly and filter (or trust a caller to have filtered)
- * — every read goes through `readPublished()`, so there is exactly one call site in this file that
- * decides what "public" means, and it defers that decision to the one place in the codebase that
- * already owns it.
+ * `deps.listPublishedPosts` — INJECTED (see `SiteAssistantToolDeps.listPublishedPosts`'s own doc),
+ * not statically imported from `features/post` — but wired at the one production composition root
+ * (`server/modules/site-assistant.ts`) to the real `features/post`'s own `listPublishedPosts`, the
+ * SAME function `routes/site/pages.ts` calls to decide what a visitor's browser renders. "What is
+ * publicly visible" has exactly one definition in this codebase; this file consumes it rather than
+ * keeping a second copy that happens to agree today. A second copy is exactly how the assistant would
+ * end up MORE permissive than the site it speaks for the first time someone adds a visibility
+ * condition — scheduled publishing, per-post visibility, membership gating — to `listPublishedPosts`
+ * alone: the site would start honoring it and a locally-reimplemented filter here would not, silently.
+ * The injection exists ONLY to break a module cycle (`assistant/site/*` value-importing
+ * `features/post` while `features/post/tool-registrations.ts` registers into `assistant` — see
+ * `SiteAssistantToolDeps.listPublishedPosts`'s doc); it does not weaken this guarantee, because the
+ * composition root still passes the real function, never a reimplementation. Note what this file
+ * still deliberately does NOT do: call `deps.postRepo.list()` directly and filter (or trust a caller
+ * to have filtered) — every read goes through `readPublished()`, so there is exactly one call site in
+ * this file that decides what "public" means, and it defers that decision to the one place in the
+ * codebase that already owns it.
  */
 
 import type { PostRecord, PostRepoPort } from "../../features/post";
-import { listPublishedPosts } from "../../features/post";
 import { resolvePublicTarget, type ClientDirective } from "./client-directives";
+
+/**
+ * Structural signature matching `features/post/post.ts`'s real `listPublishedPosts` function.
+ * Declared locally (rather than importing `typeof listPublishedPosts`) so this module's only tie to
+ * `features/post` is the two `import type`s above (`PostRecord`/`PostRepoPort`, already erased at
+ * runtime) — importing the FUNCTION as a value here is exactly the edge that used to close the
+ * `[assistant, features/post]` module cycle `check:architecture` flags (`assistant/site/*` both
+ * value-importing `features/post` while `features/post/tool-registrations.ts` registers into
+ * `assistant`). See `SiteAssistantToolDeps.listPublishedPosts`'s doc for how the real function still
+ * reaches this file despite the type living here instead of being imported.
+ */
+type ListPublishedPosts = (
+  required: { deps: { repo: PostRepoPort }; input: { workspaceId: string } },
+) => Promise<{ posts: PostRecord[] }>;
 
 /** What a tool hands back to the model. Deliberately not `PostRecord` — that carries `workspaceId`,
  *  `version`, `ext`, and internal ids the model has no use for and that should not enter a prompt.
@@ -64,6 +83,16 @@ export interface PublicEntryDetail extends PublicEntrySummary {
 export interface SiteAssistantToolDeps {
   readonly postRepo: PostRepoPort;
   readonly workspaceId: string;
+  /**
+   * The real `features/post`'s own `listPublishedPosts` — injected rather than statically imported
+   * (see this file's header for the security reasoning behind calling that exact function, and the
+   * `ListPublishedPosts` type doc above for the module-cycle reason it is injected rather than
+   * imported). Wired to the real implementation at the one production composition root,
+   * `server/modules/site-assistant.ts`. Tests may pass the real `features/post` export directly (test
+   * files are exempt from `check:architecture`'s module-cycle graph) or a fake with the same shape —
+   * either way, this field is never reimplemented locally.
+   */
+  readonly listPublishedPosts: ListPublishedPosts;
   /** Hard ceiling on rows returned by `search_published_entries`, applied after the published/trash
    *  filter and after the query-string match. A visitor cannot raise it. Not applied to
    *  `get_published_entry` (a single addressed lookup already returns at most one row, so a list
@@ -138,7 +167,7 @@ export function createSiteAssistantTools(deps: SiteAssistantToolDeps) {
    * ones is still withheld here.
    */
   async function readPublished(): Promise<PostRecord[]> {
-    const { posts } = await listPublishedPosts({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId } });
+    const { posts } = await deps.listPublishedPosts({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId } });
     return posts;
   }
 
@@ -202,7 +231,7 @@ export function createSiteAssistantTools(deps: SiteAssistantToolDeps) {
      * auto-executes or renders a proposal.
      */
     async navigate_to_entry(input: { slug?: unknown }): Promise<{ result: unknown; directive?: ClientDirective }> {
-      const target = await resolvePublicTarget({ postRepo: deps.postRepo, workspaceId: deps.workspaceId }, input?.slug);
+      const target = await resolvePublicTarget({ postRepo: deps.postRepo, workspaceId: deps.workspaceId, listPublishedPosts: deps.listPublishedPosts }, input?.slug);
       if (!target) return { result: { error: "no published entry with that slug — it may be unpublished, trashed, or not exist" } };
 
       const auto = deps.autoNavigateAllowed === true;
@@ -218,7 +247,7 @@ export function createSiteAssistantTools(deps: SiteAssistantToolDeps) {
      * to weigh, so there is nothing D-1's gate needs to decide here).
      */
     async scroll_to_entry(input: { slug?: unknown }): Promise<{ result: unknown; directive?: ClientDirective }> {
-      const target = await resolvePublicTarget({ postRepo: deps.postRepo, workspaceId: deps.workspaceId }, input?.slug);
+      const target = await resolvePublicTarget({ postRepo: deps.postRepo, workspaceId: deps.workspaceId, listPublishedPosts: deps.listPublishedPosts }, input?.slug);
       if (!target) return { result: { error: "no published entry with that slug — it may be unpublished, trashed, or not exist" } };
 
       return {
@@ -233,7 +262,7 @@ export function createSiteAssistantTools(deps: SiteAssistantToolDeps) {
      * uses — see `apps/site-chat/src/highlight.ts`.
      */
     async highlight_entry(input: { slug?: unknown }): Promise<{ result: unknown; directive?: ClientDirective }> {
-      const target = await resolvePublicTarget({ postRepo: deps.postRepo, workspaceId: deps.workspaceId }, input?.slug);
+      const target = await resolvePublicTarget({ postRepo: deps.postRepo, workspaceId: deps.workspaceId, listPublishedPosts: deps.listPublishedPosts }, input?.slug);
       if (!target) return { result: { error: "no published entry with that slug — it may be unpublished, trashed, or not exist" } };
 
       return {
