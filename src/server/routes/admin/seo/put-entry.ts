@@ -5,7 +5,7 @@ import {
   SeoFieldValidationError,
   SeoInvalidCanonicalUrlError,
 } from "#src/seo/index";
-import { invalidateSitemapCache } from "#src/seo/sitemap";
+import { invalidateSitemapCache } from "#src/seo/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { SeoRouteRegistrar } from "./deps";
 

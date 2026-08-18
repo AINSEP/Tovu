@@ -2,7 +2,7 @@ import type { JsonValue } from "@jini-ai/cms/core";
 import type { PostKind, PostRecord, PostRepoPort } from "../features/post";
 import { getEffective, type SettingsRepoPort } from "../features/settings";
 import { urlFor } from "../routing";
-import type { RouteResolverDeps } from "../routing/ports";
+import type { RouteResolverDeps } from "../routing/index";
 import { SeoEntryNotFoundError } from "./errors";
 import { getSeoSettings, type GetSeoSettingsDeps } from "./settings";
 import { resolveSeoImageRef, type ResolveSeoImageRefDeps } from "./media";
