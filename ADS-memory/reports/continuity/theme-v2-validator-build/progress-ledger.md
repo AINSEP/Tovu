@@ -355,3 +355,237 @@ still needs to reach.
 6. Two catalog copies (`__original-themes__/static/basic`, `__marketplace__/static/basic`) — open
    design questions from the earlier checkpoint, still unresolved, still not this session's call alone.
 7. Milestones 4/5 remain queued behind task #8's completion.
+
+## Session 4 (parallel agent `theme-migrate-fuel-group`, dispatched by team-lead alongside two siblings
+each owning a disjoint theme set) — screenshots/ blocker resolved by a sibling before this session
+started (`c2fd0bea`/`139ce1f5`/`1aa438af`/`6dfd7f2b` already landed), static-tier planner already built.
+This session owned `fuel`, `gracious-timing`, `portfolite` only — never touched `validation/` or
+`migration/` shared engine files per explicit dispatch instruction, even after finding a real bug in
+them (see below).
+
+**`fuel` was already mid-migration on disk when this session started** (v1 files deleted, v2 shape
+staged, `theme.json` modified, uncommitted `.v1-backup-<ts>/` present) — the expected pre-commit state
+of a real `migrateThemeToV2` run per team-lead's framing. Did not assume it was fine — re-verified with
+the validator and a real `loadTheme()` call before touching anything, per the dispatch's explicit
+instruction.
+
+**Real bug found: `migrate-theme.ts`'s `copyCarryOverFiles()` silently drops files.** The planner
+(`theme-migration-plan.ts`'s `CARRY_OVER_UNCHANGED` set, and the `TOKENS_MODE_FILE_PATTERN` regex)
+correctly names `NOTICE.md` and `tokens.<mode>.json` as carry-forward-unchanged, but the orchestrator's
+physical-copy function only ever implemented `tokens.json` and `screenshots/` — never `NOTICE.md`,
+never the mode-token pattern. Neither the v2-strict validator nor a real `loadTheme()` call catches
+either omission (both are optional/lazily-loaded), so a migration can report `status: "migrated"` with
+`valid: true` while silently shipping a broken/incomplete theme. This is in `src/features/theme/
+migration/`, one of the two shared-engine paths this session was told to stop-and-report on rather than
+edit — reported to team-lead via SendMessage instead of fixed. NOT yet fixed as of this ledger entry
+(next agent/session should check `copyCarryOverFiles()` before assuming it's resolved).
+
+Impact found empirically:
+- `fuel`: lost `NOTICE.md` only (fuel has no `tokens.<mode>.json` — single-mode theme).
+- `gracious-timing`: lost BOTH `NOTICE.md` AND `tokens.light.json` (the theme's real light-mode color
+  values — the more serious half, since it's functional content, not documentation, and gracious-timing
+  ships `modes: ["dark","light"]`).
+- `portfolite`: same both-file loss pattern as `gracious-timing` (also ships `tokens.light.json`).
+
+**Workaround used, not a fix to the shared file:** after each real (non-dry-run) `migrateThemeToV2`
+call, manually `cp`'d the missing file(s) from that theme's own `.v1-backup-<ts>/` directory back into
+the migrated theme directory (plain file copy within the theme's own folder — not an edit to
+`migration/` or `validation/`), then re-ran the validator + `loadTheme()` + idempotency check to
+confirm the restore left a byte-identical, fully-valid v2 theme before committing. Confirmed via `git
+status` that every restored file matched HEAD exactly (showed as unchanged, not modified) after the
+copy, proving the original content was recovered verbatim.
+
+**All three committed, working tree clean for this session's scope:**
+- `65e242e4` — `fuel` (12/12 asset-path refs rewritten, NOTICE.md restored).
+- `79779456` — `gracious-timing` (10/10 render/ refs rewritten — the 11th of 11 raw occurrences was
+  NOTICE.md's own prose mention, correctly left untouched by the rewriter's `render/`-only scope;
+  NOTICE.md + tokens.light.json restored).
+- `6d708f78` — `portfolite` (13/13 asset-path refs rewritten, matching the original checkpoint's
+  estimate exactly; no nav/footer partials — ships `slots: {}`, single-page theme; NOTICE.md +
+  tokens.light.json restored).
+
+Each commit individually verified before being made: v2-strict validator clean (only the expected
+`license-missing`/`preview-thumbnail-missing` warnings, matching every prior migrated theme), real
+`loadTheme()` call returns `status: "valid"`, idempotent re-run returns `already-migrated`, asset-path
+rewrite completeness confirmed by grepping for leftover old-prefix references under `render/` (zero)
+and counting new-prefix occurrences against the pre-migration raw count.
+
+**Unrelated environment noise hit during this session, NOT this session's doing, NOT fixed by this
+session:**
+1. `theme-pages-render.canary.test.ts` failed once per full-suite run (335/336,
+   consistently) — caused by leftover `.tovu-migrate-staging-tailark-*` directories under
+   `src/themes/static/` from a sibling agent's concurrent, still-in-progress `tailark-*` migration
+   work (confirmed via `git status` that the real `tailark-*` theme directories are untouched — this is
+   purely staging-dir debris, self-resolving once that sibling commits/cleans up). Reported to
+   team-lead, not investigated further since it isn't this session's theme scope.
+2. The `tovu` CLI (`src/cli/main.ts` / `theme migrate` / `theme validate` subcommands) was broken for
+   part of this session by an unrelated syntax error in `src/server/modules/assistant-ag-ui.ts`
+   (`Unexpected "*"` at line 53, esbuild transform failure) — a sibling agent's concurrent AG-UI
+   rewrite work, not a theme-migration file, not touched by this session. Worked around by calling
+   `migrateThemeToV2`/`validateThemePackage`/`loadTheme` directly via a scratch `tsx` script instead of
+   through the CLI's full command-registration import graph (`src/features/theme/**` itself imports
+   cleanly, confirmed by the scratch script succeeding). Whoever picks up the CLI-invocation path next
+   should re-check `tovu theme migrate`/`tovu theme validate` actually run before relying on them again.
+
+### Next Actions (current)
+
+1. **`copyCarryOverFiles()` in `migrate-theme.ts` still needs the real fix** — add `NOTICE.md` (a plain
+   `existsSync`+`cpSync`, same pattern as `tokens.json`/`screenshots`) and the `tokens.<mode>.json`
+   glob (matching `TOKENS_MODE_FILE_PATTERN` from `theme-migration-plan.ts` — needs a `readdirSync` +
+   pattern-test loop, not a single hardcoded filename, since a theme could ship `tokens.dark.json` too)
+   to the physical-copy function. Until this lands, every future static-tier migration with a
+   `NOTICE.md` or a `tokens.<mode>.json` needs the same manual restore-and-reverify workaround this
+   session used. Owner: whoever owns `src/features/theme/migration/` next (not this session, per
+   explicit dispatch scope).
+2. This session's three themes (`fuel`, `gracious-timing`, `portfolite`) are DONE — migrated, verified,
+   committed, v1 backups deleted (git history is the rollback, same precedent as
+   `basic-declarative`/`storefront`).
+3. Remaining task #8 batch, per the shared checkpoint classification (unchanged by this session):
+   `fashion-modern` (templated-tier extension needed for its `assets/` folder — not built),
+   `tailark-dusk`/`tailark-quartz-dark`/`tailark-quartz-libre` (in progress by a sibling agent as of
+   this session, per the staging-dir evidence above), `basic` (static, has `preview/` regeneration to
+   handle), `mui-marketing` (refuse case, verify-only, also untracked in git — pre-existing, unrelated).
+4. Two catalog copies (`__original-themes__/static/basic`, `__marketplace__/static/basic`) — still an
+   open design question, still not any single session's call alone.
+5. Milestones 4/5 remain queued behind task #8's completion.
+
+## Session 4 (fresh agent `theme-v2-build-3`'s sibling, dispatched as Programmer, scope: `tailark-dusk`/
+`tailark-quartz-dark`/`tailark-quartz-libre` ONLY) — verified structurally clean, found a NEW
+cross-cutting schema gap, HARD STOP before any real migration
+
+Confirmed the static-tier planner (`1aa438af`), `screenshots/` approved-root fix (`c2fd0bea`), and
+`modes`/`defaultMode`/`pages`/`slots` flat-field fix (`592e1ca1`) are all already landed and current —
+did not re-derive, read `git log` first. `fuel` is mid-migration in the shared working tree right now
+(uncommitted deletes/adds under `src/themes/static/fuel/`) — that's `theme-migrate-fuel-group`'s WIP,
+not touched, not mine.
+
+**All three tailark themes verified structurally simple, matching the original classification**: no
+`images/`/hardcoded `/theme-assets/<id>/...` refs, no `assets/` folder, no v1 `engine` field (so no
+`convertEngineField` path needed), one `css/styles.css`, one `js/` dir (`main.js`, `reveal.js`,
+`theme-toggle.js`, `vendor/motion.js` + `vendor/LICENSE.md`) each. The known NOTICE.md/license
+documentation gap is confirmed real and unchanged (zero license docs on disk for any of the three,
+despite `fuel/NOTICE.md`'s same-repo claim the family was checked) — not resolved this session, per
+standing instruction; re-flagged below.
+
+**NEW blocker found via dry-run (`tovu theme migrate <dir> --dry-run --json`), all three themes,
+identical failure — NOT fixed, shared validation code, out of this session's scope to touch:**
+
+`manifest-v2.ts`'s top-level field allowlist does not include `templates`. All three tailark
+`theme.json` files declare `"templates": ["blog-post.html"]` (v1's mechanism for a shared blog-post
+route template a theme's `pages` array resolves `templateChoice` against — confirmed load-bearing at
+runtime, not vestigial: `theme.ts` has a whole validation function
+(`validateTemplateEntriesResolveToMarkedPages` area, ~line 522-568) plus `theme.ts:672`/`:730` carrying
+it into the loaded `Theme` object, and `static-render.ts` reads `theme.manifest.templates` in at least
+3 places, lines ~506-649, to resolve which page a template choice renders). Because v2 schema is
+`additionalProperties: false`, every dry-run fails with:
+
+```
+v2-unknown-field: theme.json: unrecognized top-level field 'templates' (schema v2 is
+additionalProperties: false)
+```
+
+**This is not unique to my three themes** — grepped every static theme's `theme.json`:
+`basic`, `gracious-timing`, `portfolite` ALSO declare a `templates` field and will hit the identical
+error whenever their migrations are attempted (none of the three are migrated yet as of this
+ledger write). `fuel` does NOT use `templates` (its blog posts are separate hardcoded `pages` entries,
+no shared template), which is presumably why this gap didn't surface during `theme-migrate-fuel-group`'s
+work. This looks like the same shape of issue as the earlier `screenshots/`-approved-roots gap
+(`c2fd0bea`) — a Milestone 2 schema-build oversight (the v1->v2 field-carry-forward in `manifest-v2.ts`
+missed one real field), not a design question — but per this session's explicit instruction ("if you
+think [a shared engine file] needs a change, STOP and report, don't edit it"), this session did NOT
+touch `src/features/theme/validation/manifest-v2.ts`.
+
+**No real migration run for any of the three tailark themes. No files under
+`src/themes/static/tailark-*` touched by this session.** Dry-run only (read-only against the real repo
+plus a throwaway staging dir the CLI itself creates/cleans up).
+
+### Recommendation sent to team-lead
+
+Add `templates` to `manifest-v2.ts`'s v2 top-level field allowlist (array of strings, matching v1's
+shape — this session did not design the exact v2 schema entry, just located the gap and its blast
+radius). Affects 6 static themes total once every theme reaches migration: my 3 (`tailark-dusk`,
+`tailark-quartz-dark`, `tailark-quartz-libre`) + `basic`/`gracious-timing`/`portfolite` (not my scope).
+
+### Next Actions (current)
+
+1. **Blocked on team-lead/shared-engine-owner's `templates` field fix** before any real migration of
+   the three tailark themes — holding here rather than migrating into a guaranteed-invalid v2 package.
+2. Once the schema gap is fixed: re-run dry-run for all three (expect clean diffs given the structural
+   simplicity confirmed above), then real migration one at a time, each with dry-run inspect -> real
+   migrate -> double-verify (validator + `loadTheme()`) -> idempotency re-run -> scoped
+   `src/features/theme` test run, per standing workflow.
+3. Re-flag in the final report to team-lead: tailark-* NOTICE.md/license documentation gap is STILL
+   open, STILL not this session's job to resolve (unchanged from Session 3's finding).
+
+## Session 5 (Programmer, dispatched directly by team-lead, scope: `mui-marketing` refusal
+verification + the two catalog copies ONLY) — both done, zero code/content changes
+
+Read `git log` first — confirmed static-tier planner (`1aa438af`), `screenshots/` fix (`c2fd0bea`),
+`modes`/`defaultMode`/`pages`/`slots` fix (`592e1ca1`) already landed. Observed two sibling agents
+live in the shared tree: `theme-migrate-fuel-group` (uncommitted `fuel/` migration, untouched) and
+`theme-migrate-tailark-group` (leftover `.tovu-migrate-staging-tailark-*` dirs from Session 4 above,
+untouched). Also noticed `src/themes/static/basic/pages/index.html` modified, unrelated to any theme
+migration seen in this session — not investigated, not mine, flagged here only so the next reader
+doesn't assume it's migration fallout.
+
+**Task 1 — `mui-marketing`: refusal CONFIRMED live**, not just read from code. Ran
+`npx tsx src/cli/main.ts theme migrate src/themes/static/mui-marketing --dry-run --json`:
+
+```json
+{
+  "themeId": "mui-marketing",
+  "status": "failed",
+  "plan": { "moves": [...], "unrecognized": ["authoring"] },
+  "reason": "refusing to migrate: 1 root-level file(s) with no known v2 destination: authoring"
+}
+```
+
+Exit code 1. The static-tier planner correctly treats `mui-marketing`'s `authoring/` folder (its
+hand-authored CSR source, distinct from the `js/`/`pages/` bypass output) as an unrecognized root
+entry and refuses before any staging directory is even created — real theme dir confirmed untouched
+(`git status --short` unchanged from before the run, no leftover `.tovu-migrate-staging-*` dir for
+this theme). No code changes needed; the existing "unrecognized root file -> refuse" path
+(`migrate-theme.ts:202-209`) already does the right thing for this theme's specific shape. Also
+confirmed (pre-existing, not this session's doing): `src/themes/static/mui-marketing/` is still fully
+untracked in git, matching Session 3's note.
+
+**Task 2 — catalog copies: both open questions surfaced, NEITHER decided, NEITHER folder's content
+touched (read-only inspection only).** Current state as of this session, for whoever decides:
+
+- `src/themes/__original-themes__/static/basic/` (not `src/themes/static/__original-themes__/` — the
+  original dispatch had the path one level off; corrected here) — still v1-shaped, no `apiVersion`
+  field. The REAL `src/themes/static/basic/theme.json` is ALSO still v1-shaped (not yet migrated as of
+  this session) — so **Question 1 is not yet time-pressured**: nothing has migrated ahead of its
+  mirror yet. Open question, unchanged: once `static/basic` migrates, does `__original-themes__`'s
+  copy (a "reset to original" mirror) get the identical v2 transform applied in lockstep, or does
+  "reset to original" mean something else post-v2 (restore v1 shape as a historical snapshot, or
+  restore v2 shape as the new baseline)? Not decided here.
+- `src/themes/__marketplace__/static/basic/` (same path correction) — `id: "basic"` (the colliding
+  fixture id, confirmed), still v1-shaped, and its real mirror `src/themes/static/portfolite/` is ALSO
+  still v1-shaped (not yet migrated) — so **Question 2 is also not yet time-pressured**. Open
+  question, unchanged: should this copy mirror `portfolite`'s eventual v2 migration, or deliberately
+  stay v1-shaped as regression coverage proving "a legacy-shape marketplace download still installs
+  correctly"? Not decided here.
+
+Both questions reported directly to team-lead via SendMessage in this session's checkpoint, per
+dispatch instruction, not left to the ledger alone.
+
+**Milestones 4/5 — deliberately NOT started.** Checked: `code-tier-asset-normalizer.ts` (Milestone 4's
+target) already exists as a source file but isn't wired into author/publish/CI packaging yet, and no
+`static-portability-index.ts` (Milestone 5's likely module, per Session 1's own speculation) exists
+yet either — both genuinely open. But with three sibling agents live in the same working tree right
+now (`theme-migrate-fuel-group`, `theme-migrate-tailark-group`, and an unexplained `static/basic/
+pages/index.html` edit from an unidentified fourth party), starting cross-cutting packaging-pipeline
+work here risked exactly the file-conflict the dispatch warned about. Reported instead of guessing,
+per the dispatch's own explicit fallback instruction.
+
+### Next Actions (current)
+
+1. Team-lead/Leona decide catalog-copy Questions 1 and 2 above — no urgency, both mirrors' real
+   counterparts are still unmigrated too.
+2. Milestones 4/5 remain unclaimed — safest to start once the fuel/tailark migrations currently
+   in-flight land, reducing shared-tree collision risk.
+3. The `templates` top-level-field schema gap (Session 4, `manifest-v2.ts`) still blocks `basic`,
+   `gracious-timing`, `portfolite`, and all three `tailark-*` themes' real migrations — unresolved,
+   not this session's scope, re-flagging since it also blocks `static/basic`'s migration referenced
+   in Question 1 above.

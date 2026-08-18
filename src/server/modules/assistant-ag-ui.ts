@@ -13,11 +13,12 @@
  * (`requireAdminSession`) happen before any of that, at route-registration time, not inside the
  * translator as an afterthought.
  *
- * Hand-rolled on purpose (ADR-059 Decision 3): no `@ag-ui/core`/`@ag-ui/client`/`@ag-ui/encoder`,
- * no `@copilotkit/*`. The wire format (`data: <json>\n\n`, `text/event-stream`) is simple enough to
- * type and encode directly — matching how `assistant-byok.ts` already hand-rolls its own SSE
- * framing — and every AG-UI event shape below was verified against `@ag-ui/core`'s real, current
- * schema (pulled via context7, 2026-08-18), not written from memory.
+ * ADR-059 Decision 3 (AMENDED 2026-08-18): built on the real `@ag-ui/core` (types/schema) and
+ * `@ag-ui/encoder` (`EventEncoder.encodeSSE`, the same `data: <json>\n\n` framing this route used
+ * by hand before) — no `@ag-ui/client` here (that package's `HttpAgent` is a client-side run
+ * driver; this file IS the server the client talks to) and no `@copilotkit/*`. Event shapes come
+ * straight from `@ag-ui/core`'s own exported `AGUIEvent` union, not a hand-rolled approximation kept
+ * in sync by hand.
  *
  * Translation is two composed pure steps, matching ADR-059 Decision 2's "translate `AgentEvent`,
  * not either backend's raw wire format" — one shared pivot, not two adapters that could drift:
@@ -38,6 +39,9 @@
 import { randomUUID } from "node:crypto";
 
 import type { Express, NextFunction, Request, Response } from "express";
+
+import { EventType, type AGUIEvent } from "@ag-ui/core";
+import { EventEncoder } from "@ag-ui/encoder";
 
 import type { AgentEvent } from "@jini-ai/chat/core";
 
@@ -189,31 +193,34 @@ export function terminalReasonNotice(reason: string): AgentEvent | null {
 // ---------------------------------------------------------------------------------------------
 
 /**
- * The subset of `@ag-ui/core`'s `EventType` vocabulary this adapter emits. Field shapes verified
- * against the real, current `@ag-ui/core` TypeScript schema (context7, 2026-08-18) for every
- * variant except `REASONING_MESSAGE_START`/`CONTENT`/`END`, whose exact fields were not present in
- * the concrete-schema dump returned and are inferred here by analogy to `TEXT_MESSAGE_*`'s
- * confirmed shape (`messageId`/`delta`) — same inference the independent 2026-08-18 sample
- * prototype made. Flagged, not silently presented as equally certain.
+ * The subset of `@ag-ui/core`'s real `AGUIEvent` union this adapter emits, narrowed with `Extract`
+ * so field shapes come straight from the package's own schema — including two shapes an earlier
+ * hand-rolled draft got wrong by inference: `REASONING_START`/`REASONING_END` both require a
+ * `messageId` (not bare), and `REASONING_MESSAGE_START` requires a literal `role: "reasoning"`.
  */
-export type AgUiEvent =
-  | { type: "RUN_STARTED"; threadId: string; runId: string }
-  | { type: "RUN_FINISHED"; threadId: string; runId: string; result?: unknown }
-  | { type: "RUN_ERROR"; message: string; code?: string }
-  | { type: "TEXT_MESSAGE_START"; messageId: string; role: "assistant" }
-  | { type: "TEXT_MESSAGE_CONTENT"; messageId: string; delta: string }
-  | { type: "TEXT_MESSAGE_END"; messageId: string }
-  | { type: "REASONING_START" }
-  | { type: "REASONING_MESSAGE_START"; messageId: string }
-  | { type: "REASONING_MESSAGE_CONTENT"; messageId: string; delta: string }
-  | { type: "REASONING_MESSAGE_END"; messageId: string }
-  | { type: "REASONING_END" }
-  | { type: "TOOL_CALL_START"; toolCallId: string; toolCallName: string; parentMessageId?: string }
-  | { type: "TOOL_CALL_ARGS"; toolCallId: string; delta: string }
-  | { type: "TOOL_CALL_END"; toolCallId: string }
-  | { type: "TOOL_CALL_RESULT"; messageId: string; toolCallId: string; content: string; role?: "tool" }
-  | { type: "RAW"; event: unknown }
-  | { type: "CUSTOM"; name: string; value: unknown };
+export type AgUiEvent = Extract<
+  AGUIEvent,
+  {
+    type:
+      | EventType.RUN_STARTED
+      | EventType.RUN_FINISHED
+      | EventType.RUN_ERROR
+      | EventType.TEXT_MESSAGE_START
+      | EventType.TEXT_MESSAGE_CONTENT
+      | EventType.TEXT_MESSAGE_END
+      | EventType.REASONING_START
+      | EventType.REASONING_MESSAGE_START
+      | EventType.REASONING_MESSAGE_CONTENT
+      | EventType.REASONING_MESSAGE_END
+      | EventType.REASONING_END
+      | EventType.TOOL_CALL_START
+      | EventType.TOOL_CALL_ARGS
+      | EventType.TOOL_CALL_END
+      | EventType.TOOL_CALL_RESULT
+      | EventType.RAW
+      | EventType.CUSTOM;
+  }
+>;
 
 /**
  * Mutable per-run state the translator needs to synthesize AG-UI's START/CONTENT/END message
@@ -250,12 +257,13 @@ function mintId(state: AgUiTranslationState, prefix: string): string {
 function closeOpenMessages(state: AgUiTranslationState): AgUiEvent[] {
   const events: AgUiEvent[] = [];
   if (state.openTextMessageId) {
-    events.push({ type: "TEXT_MESSAGE_END", messageId: state.openTextMessageId });
+    events.push({ type: EventType.TEXT_MESSAGE_END, messageId: state.openTextMessageId });
     state.openTextMessageId = null;
   }
   if (state.openReasoningMessageId) {
-    events.push({ type: "REASONING_MESSAGE_END", messageId: state.openReasoningMessageId });
-    events.push({ type: "REASONING_END" });
+    const messageId = state.openReasoningMessageId;
+    events.push({ type: EventType.REASONING_MESSAGE_END, messageId });
+    events.push({ type: EventType.REASONING_END, messageId });
     state.openReasoningMessageId = null;
   }
   return events;
@@ -270,9 +278,9 @@ function handleTextAgentEvent(event: Extract<AgentEvent, { kind: "text" }>, stat
   if (state.openReasoningMessageId) events.push(...closeOpenMessages(state));
   if (!state.openTextMessageId) {
     state.openTextMessageId = mintId(state, "msg");
-    events.push({ type: "TEXT_MESSAGE_START", messageId: state.openTextMessageId, role: "assistant" });
+    events.push({ type: EventType.TEXT_MESSAGE_START, messageId: state.openTextMessageId, role: "assistant" });
   }
-  events.push({ type: "TEXT_MESSAGE_CONTENT", messageId: state.openTextMessageId, delta: event.text });
+  events.push({ type: EventType.TEXT_MESSAGE_CONTENT, messageId: state.openTextMessageId, delta: event.text });
   return events;
 }
 
@@ -283,10 +291,10 @@ function handleThinkingAgentEvent(event: Extract<AgentEvent, { kind: "thinking" 
   if (state.openTextMessageId) events.push(...closeOpenMessages(state));
   if (!state.openReasoningMessageId) {
     state.openReasoningMessageId = mintId(state, "reasoning");
-    events.push({ type: "REASONING_START" });
-    events.push({ type: "REASONING_MESSAGE_START", messageId: state.openReasoningMessageId });
+    events.push({ type: EventType.REASONING_START, messageId: state.openReasoningMessageId });
+    events.push({ type: EventType.REASONING_MESSAGE_START, messageId: state.openReasoningMessageId, role: "reasoning" });
   }
-  events.push({ type: "REASONING_MESSAGE_CONTENT", messageId: state.openReasoningMessageId, delta: event.text });
+  events.push({ type: EventType.REASONING_MESSAGE_CONTENT, messageId: state.openReasoningMessageId, delta: event.text });
   return events;
 }
 
@@ -298,9 +306,9 @@ function handleToolUseAgentEvent(event: Extract<AgentEvent, { kind: "tool_use" }
   // argument deltas — so all three AG-UI tool-call events fire back-to-back for one Tovu event.
   // Also closes any open text/reasoning segment first: a tool call interrupts either lifecycle.
   if (state.openTextMessageId || state.openReasoningMessageId) events.push(...closeOpenMessages(state));
-  events.push({ type: "TOOL_CALL_START", toolCallId: event.id, toolCallName: event.name });
-  events.push({ type: "TOOL_CALL_ARGS", toolCallId: event.id, delta: JSON.stringify(event.input ?? {}) });
-  events.push({ type: "TOOL_CALL_END", toolCallId: event.id });
+  events.push({ type: EventType.TOOL_CALL_START, toolCallId: event.id, toolCallName: event.name });
+  events.push({ type: EventType.TOOL_CALL_ARGS, toolCallId: event.id, delta: JSON.stringify(event.input ?? {}) });
+  events.push({ type: EventType.TOOL_CALL_END, toolCallId: event.id });
   return events;
 }
 
@@ -334,7 +342,7 @@ export function translateAgentEventToAgUi(event: AgentEvent, state: AgUiTranslat
       // prototype flagged.
       return [
         {
-          type: "TOOL_CALL_RESULT",
+          type: EventType.TOOL_CALL_RESULT,
           messageId: mintId(state, "tool_result_msg"),
           toolCallId: event.toolUseId,
           content: event.content,
@@ -345,19 +353,19 @@ export function translateAgentEventToAgUi(event: AgentEvent, state: AgUiTranslat
     case "usage":
       // Usage can arrive mid-stream, before the run's real end — folding it into `RUN_FINISHED`
       // would mean buffering it and losing that mid-stream signal.
-      return [{ type: "CUSTOM", name: "tovu.usage", value: event }];
+      return [{ type: EventType.CUSTOM, name: "tovu.usage", value: event }];
 
     case "status":
       // NOT `STEP_STARTED`/`STEP_FINISHED` — those imply a matched pair Tovu's fire-and-forget
       // status labels have no way to reliably close.
-      return [{ type: "CUSTOM", name: "tovu.status", value: event }];
+      return [{ type: EventType.CUSTOM, name: "tovu.status", value: event }];
 
     case "raw":
-      return [{ type: "RAW", event: event.line }];
+      return [{ type: EventType.RAW, event: event.line }];
 
     case "ext":
       // `mcp-ui`/`a2ui`/unmodeled wire types — inert side-channel only, ADR-059 Decision 5.
-      return [{ type: "CUSTOM", name: `tovu.ext.${event.name}`, value: event.data }];
+      return [{ type: EventType.CUSTOM, name: `tovu.ext.${event.name}`, value: event.data }];
 
     default: {
       const neverEvent: never = event;
@@ -376,15 +384,22 @@ export function closeAgUiRun(state: AgUiTranslationState): AgUiEvent[] {
 // Route
 // ---------------------------------------------------------------------------------------------
 
-/** AG-UI's documented wire format: `data: <json>\n\n` (`@ag-ui/encoder`'s `encodeSSE`) — no
- *  `event:` field, unlike Tovu's own internal `sse()` helper in `assistant-byok.ts`. */
+/** No `accept` param — this route always answers plain SSE JSON, never protobuf, so
+ *  `acceptsProtobuf` stays `false` for the module's lifetime; sharing one instance across requests
+ *  is safe because `EventEncoder` holds no per-request state beyond that fixed flag. */
+const agUiEncoder = new EventEncoder();
+
+/** AG-UI's documented wire format: `data: <json>\n\n` — no `event:` field, unlike Tovu's own
+ *  internal `sse()` helper in `assistant-byok.ts`. Delegates the actual framing to
+ *  `@ag-ui/encoder`'s `EventEncoder.encodeSSE` rather than hand-formatting it, so this route's wire
+ *  output tracks the package's own encoding, not a manually-kept-in-sync copy of it. */
 function writeAgUiEvent(res: Response, event: AgUiEvent): void {
-  res.write(`data: ${JSON.stringify(event)}\n\n`);
+  res.write(agUiEncoder.encodeSSE(event));
 }
 
 function beginAgUiStream(res: Response, requestId: string): void {
   res.status(200).set({
-    "content-type": "text/event-stream",
+    "content-type": agUiEncoder.getContentType(),
     "cache-control": "no-cache, no-transform",
     connection: "keep-alive",
     "x-accel-buffering": "no",
@@ -496,7 +511,7 @@ function handleStdoutDaemonFrame(data: string, ctx: AgUiFrameContext): void {
 function handleErrorDaemonFrame(data: string, ctx: AgUiFrameContext): void {
   const message = asString((unwrapDaemonEnvelope(data) as { message?: unknown }).message);
   writeAllAgUiEvents(ctx.res, closeAgUiRun(ctx.state));
-  writeAgUiEvent(ctx.res, { type: "RUN_ERROR", message: message || "agent run failed" });
+  writeAgUiEvent(ctx.res, { type: EventType.RUN_ERROR, message: message || "agent run failed" });
 }
 
 /** The `"end"` case of {@link handleDaemonFrame} — a terminal frame: emits a terminal-reason notice
@@ -506,7 +521,7 @@ function handleEndDaemonFrame(data: string, ctx: AgUiFrameContext): void {
   const notice = terminalReasonNotice(reason);
   if (notice) writeAllAgUiEvents(ctx.res, translateAgentEventToAgUi(notice, ctx.state));
   writeAllAgUiEvents(ctx.res, closeAgUiRun(ctx.state));
-  writeAgUiEvent(ctx.res, { type: "RUN_FINISHED", threadId: ctx.threadId, runId: ctx.runId, result: { reason: reason || "stop" } });
+  writeAgUiEvent(ctx.res, { type: EventType.RUN_FINISHED, threadId: ctx.threadId, runId: ctx.runId, result: { reason: reason || "stop" } });
 }
 
 /**
@@ -624,11 +639,11 @@ async function drainAgUiStream(reader: ReadableStreamDefaultReader<Uint8Array>, 
       }
     }
     writeAllAgUiEvents(ctx.res, closeAgUiRun(ctx.state));
-    writeAgUiEvent(ctx.res, { type: "RUN_FINISHED", threadId: ctx.threadId, runId: ctx.runId, result: { reason: "stop" } });
+    writeAgUiEvent(ctx.res, { type: EventType.RUN_FINISHED, threadId: ctx.threadId, runId: ctx.runId, result: { reason: "stop" } });
     ctx.res.end();
   } catch (error) {
     writeAllAgUiEvents(ctx.res, closeAgUiRun(ctx.state));
-    writeAgUiEvent(ctx.res, { type: "RUN_ERROR", message: error instanceof Error ? error.message : String(error) });
+    writeAgUiEvent(ctx.res, { type: EventType.RUN_ERROR, message: error instanceof Error ? error.message : String(error) });
     ctx.res.end();
   }
 }
@@ -652,7 +667,7 @@ async function handleAgUiRun(req: Request, res: Response): Promise<void> {
   if (!reader) return;
 
   beginAgUiStream(res, run.requestId);
-  writeAgUiEvent(res, { type: "RUN_STARTED", threadId: run.threadId, runId: run.runId });
+  writeAgUiEvent(res, { type: EventType.RUN_STARTED, threadId: run.threadId, runId: run.runId });
 
   const state = createAgUiTranslationState();
   res.on("close", () => {
@@ -671,7 +686,7 @@ export function createAssistantAgUiModule(routeDeps: RouteDeps): ServerModuleHan
         void handleAgUiRun(req, res).catch((error: unknown) => {
           console.error("[assistant-ag-ui] unhandled error", error);
           if (res.headersSent) {
-            writeAgUiEvent(res, { type: "RUN_ERROR", message: "assistant failed" });
+            writeAgUiEvent(res, { type: EventType.RUN_ERROR, message: "assistant failed" });
             res.end();
           } else {
             next(error);

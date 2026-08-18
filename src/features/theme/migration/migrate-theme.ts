@@ -1,10 +1,10 @@
 import { randomBytes } from "node:crypto";
-import { cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 import { loadTheme, type ThemeTier } from "../theme";
 import { validateThemePackage, type ValidateThemePackageResult } from "../validation/validate-theme-package";
-import { planV2Migration, type ThemeMigrationPlan } from "./theme-migration-plan";
+import { planV2Migration, TOKENS_MODE_FILE_PATTERN, type ThemeMigrationPlan } from "./theme-migration-plan";
 
 /**
  * @file Milestone 3's `tovu theme migrate` orchestrator — stages a v1 theme's on-disk shape into
@@ -100,16 +100,32 @@ function applyMoves(themeDir: string, stagingDir: string, plan: ThemeMigrationPl
 }
 
 /**
- * `tokens.json` (and, once a fixture needs it, `tokens.<mode>.json`) and `screenshots/` sit at the
- * same name and location in both schema versions, so carrying them forward is a plain copy, not a
- * relocation — never listed in `plan.moves` (which only names FROM !== TO relocations) to keep that
- * list's meaning literal. Matches `theme-migration-plan.ts`'s `CARRY_OVER_UNCHANGED` set — this is the
- * physical-copy half of that same list, kept in sync by hand (the planner's job is naming what's
- * already-correct, not performing disk IO).
+ * `tokens.json`, every `tokens.<mode>.json`, `screenshots/`, and `NOTICE.md` sit at the same name
+ * and location in both schema versions, so carrying them forward is a plain copy, not a relocation —
+ * never listed in `plan.moves` (which only names FROM !== TO relocations) to keep that list's meaning
+ * literal. Matches `theme-migration-plan.ts`'s `CARRY_OVER_UNCHANGED` set (plus that module's
+ * `TOKENS_MODE_FILE_PATTERN`, reused here rather than re-declared) — this is the physical-copy half
+ * of that same list, kept in sync by hand (the planner's job is naming what's already-correct, not
+ * performing disk IO).
+ *
+ * Two real bugs fixed here (found live during the fuel/gracious-timing/portfolite migrations, 2026-08-18):
+ * `tokens.<mode>.json` (real light/dark-mode color values, not documentation) and `NOTICE.md`
+ * (license/attribution provenance — load-bearing for the owner's Blocker B decision to carry
+ * unconfirmed-license themes forward with their existing warnings intact) were both silently dropped.
+ * Neither the validator nor `loadTheme()` catches a missing one (both are optional, lazy-loaded), so
+ * the loss was invisible until someone diffed a migrated theme against its v1 backup by hand.
  */
 function copyCarryOverFiles(themeDir: string, stagingDir: string): void {
   const tokensSource = join(themeDir, "tokens.json");
   if (existsSync(tokensSource)) cpSync(tokensSource, join(stagingDir, "tokens.json"));
+
+  for (const name of readdirSync(themeDir)) {
+    if (!TOKENS_MODE_FILE_PATTERN.test(name)) continue;
+    cpSync(join(themeDir, name), join(stagingDir, name));
+  }
+
+  const noticeSource = join(themeDir, "NOTICE.md");
+  if (existsSync(noticeSource)) cpSync(noticeSource, join(stagingDir, "NOTICE.md"));
 
   const screenshotsSource = join(themeDir, "screenshots");
   if (existsSync(screenshotsSource)) cpSync(screenshotsSource, join(stagingDir, "screenshots"), { recursive: true });
@@ -119,9 +135,9 @@ function copyCarryOverFiles(themeDir: string, stagingDir: string): void {
  * Rewrite `plan.assetPathRewrites` (see that type's own header) into every moved page/partial file's
  * own text content, in place in `stagingDir`. Scoped to files landing under `render/` — the only place
  * a hardcoded absolute `/theme-assets/<id>/...` URL has been found on a real theme (`fuel`,
- * `fashion-modern`); a moved page/partial's relative `../css/`/`../js/` references are a SEPARATE,
- * already-fixed RUNTIME rewrite (`static-asset-contract.ts`, Blocker A), not this migration-time one —
- * this function never touches those.
+ * `fashion-modern`). A moved page/partial's own RELATIVE `../css/`/`../js/` references are a separate
+ * case with a different shape (a plain filename/folder rename, not a variable-content asset bag) —
+ * see {@link rewriteRelativeStaticAssetReferences} just below for that one.
  *
  * @complexity O(f * r) in the theme's own `render/`-bound file count times its (small, fixed)
  * rewrite-rule count.
@@ -137,6 +153,51 @@ function applyAssetPathRewrites(stagingDir: string, id: string, plan: ThemeMigra
       (content, rule) => content.split(`/theme-assets/${id}/${rule.v1Prefix}`).join(`/theme-assets/${id}/${rule.v2Prefix}`),
       original
     );
+    if (rewritten !== original) writeFileSync(filePath, rewritten, "utf8");
+  }
+}
+
+/**
+ * Pure text rewrite: a static-tier page/partial's own `<link href="../css/styles.css">` /
+ * `<script src="../js/...">` reference, rewritten to the v2 filename/folder (`../css/theme.css`,
+ * `../scripts/...`) the static-tier move plan (`planStaticTierMigration`) actually relocates the real
+ * file to. Matches both quote styles (`"`/`'`), mirroring `static-asset-contract.ts`'s own
+ * `rewriteAssetPaths` convention, and echoes the captured quote back verbatim.
+ *
+ * Exported so the same rule can be applied to already-migrated theme content on disk (a one-off data
+ * fix), not only to a fresh migration run.
+ *
+ * @complexity O(n) over `html`'s length — two regex passes.
+ */
+export function rewriteStaticAssetHtml(html: string): string {
+  return html
+    .replace(/href=(["'])\.\.\/css\/styles\.css\1/g, (_match, quote: string) => `href=${quote}../css/theme.css${quote}`)
+    .replace(/src=(["'])\.\.\/js\//g, (_match, quote: string) => `src=${quote}../scripts/`);
+}
+
+/**
+ * Applies {@link rewriteStaticAssetHtml} to every moved page/partial in `stagingDir`. A plain file
+ * MOVE (`applyMoves`) relocates bytes, it never touches a page's OWN authored HTML text — so
+ * `css/styles.css` -> `css/theme.css` and `js/` -> `scripts/` both left every migrated page still
+ * literally saying the v1 name. That silently broke two ways: the request-time rewrite in
+ * `static-asset-contract.ts` only remaps the URL PREFIX (`../css/` -> `/theme-assets/<id>/css/`),
+ * never the filename attached to it, so a page still saying `styles.css` resolved to a URL for a file
+ * that no longer existed (404, real bug found live on `fuel`/`gracious-timing`/`portfolite`/
+ * `tailark-*` — all six already-migrated static themes shipped this broken); and `../js/` has no v2
+ * prefix rule to rewrite into at all, so it stayed completely unrewritten. Scoped to `render/` the
+ * same way {@link applyAssetPathRewrites} is; kept as its own pass rather than folded into
+ * `plan.assetPathRewrites` because that rule shape targets absolute `/theme-assets/<id>/...` URLs, not
+ * a page's own relative `../css/`/`../js/` references — a differently-shaped bug needs a differently-
+ * shaped fix, not a forced reuse of the nearest existing mechanism.
+ *
+ * @complexity O(f) in the theme's own `render/`-bound file count — one read/replace/write pass.
+ */
+function rewriteRelativeStaticAssetReferences(stagingDir: string, plan: ThemeMigrationPlan): void {
+  for (const move of plan.moves) {
+    if (!move.to.startsWith("render/")) continue;
+    const filePath = join(stagingDir, move.to);
+    const original = readFileSync(filePath, "utf8");
+    const rewritten = rewriteStaticAssetHtml(original);
     if (rewritten !== original) writeFileSync(filePath, rewritten, "utf8");
   }
 }
@@ -165,8 +226,9 @@ function buildV2Manifest(raw: Record<string, unknown>, tier: ThemeTier): Record<
  *    with an author's file this migration slice wasn't told about.
  * 3. Stage into a fresh temp directory — copy every moved/carried-over file, rewrite any moved
  *    page/partial's own hardcoded `/theme-assets/<id>/...` references (`applyAssetPathRewrites`, only
- *    when the plan reports any), write the rewritten `theme.json`. The real theme directory is not
- *    touched up to this point.
+ *    when the plan reports any) AND its own relative `../css/`/`../js/` references
+ *    (`rewriteRelativeStaticAssetReferences`), write the rewritten `theme.json`. The real theme
+ *    directory is not touched up to this point.
  * 4. Verify the staged output two ways: `validateThemePackage` (structural/schema check) AND a real
  *    `loadTheme()` call (catches a missing required template the structural check's v2-strict path
  *    does not independently verify — see this file's header). Both must pass.
@@ -212,6 +274,7 @@ export function migrateThemeToV2(
   applyMoves(themeDir, stagingDir, plan);
   copyCarryOverFiles(themeDir, stagingDir);
   applyAssetPathRewrites(stagingDir, id, plan);
+  rewriteRelativeStaticAssetReferences(stagingDir, plan);
   writeFileSync(join(stagingDir, "theme.json"), JSON.stringify(buildV2Manifest(raw, tier), null, 2) + "\n", "utf8");
 
   const validation = validateThemePackage({ themeDir: stagingDir, id, profile: "author" });
