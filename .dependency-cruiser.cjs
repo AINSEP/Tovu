@@ -316,6 +316,12 @@ const PROMOTED_NO_DEEP_IMPORTS = new Set([
   // 2026-08-13-features-post-deep-import-trace.md — 25 violations (20 wrong-door redirects, 2
   // barrel additions, 3 tool-registration-seam exemptions), re-verified at 0 after the fix.
   "features/post",
+  // 2026-08-17 no-deep-imports:features/deployments triage — 19 violations (2 EXTRA_TO_EXEMPT
+  // registrations covering 3 files — static-publish/index.ts, publish-credentials/index.ts,
+  // publish-agent-tools.ts, all pre-existing legitimate doors the rule generator had no way to
+  // recognize — plus 2 barrel additions to index.ts and 2 redirects up to the publish-credentials
+  // sub-barrel), re-verified at 0 after the fix.
+  "features/deployments",
 ]);
 
 function noDeepImportRules(mod) {
