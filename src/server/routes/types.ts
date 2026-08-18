@@ -465,19 +465,84 @@ export interface MembersDeps {
 }
 
 /**
+ * Slice 4 of the `RouteDeps` god-object decomposition (2026-08-18) — the ADR-041/ADR-045 database
+ * recovery read surface: the Database Timeline's read port, the restore-points list/save side, the
+ * dialect-neutral db-ops capability, this site's serving status, and Recovery's two lookup ports,
+ * extracted verbatim (fields + doc comments unchanged) from where they lived inline in `RouteDeps`
+ * below.
+ *
+ * A real, exact, WHOLE-group consumer already existed before this extraction:
+ * `routes/admin/database-recovery/deps.ts`'s `DatabaseRecoveryRouteDeps` already `Pick`ed these same
+ * 6 keys off `RouteDeps` (plus `workspaceId`/`authorize`/`clock`) for the 7 plain database/recovery
+ * registrars. That file now composes `DatabaseRecoveryDeps` directly instead of re-listing the keys
+ * a second time — see its own doc.
+ *
+ * `migrationRunsRepo`/`stampWatermark`/`databaseIntrospection`/`gatedMutations` are deliberately NOT
+ * part of this group even though the original "Admin-UI backend-gap closure" header comment (still
+ * attached to `stampWatermark` below) covers them too — `database-recovery/deps.ts`'s real consumer
+ * never reads any of the four (its own header explicitly excludes the 2 gated-mutation ceremonies
+ * that need `gatedMutations`), so pulling them in here would widen rather than narrow the one real
+ * consumer this slice has. They remain candidates for a later, separate group.
+ */
+export interface DatabaseRecoveryDeps {
+  /**
+   * ADR-041 §1/§2 — the Database Timeline's read port, backed by the sidecar
+   * `ops/database-journal.db` (`db/sqlite/database-journal-repo.ts`'s `SqliteDatabaseLedgerRepo`
+   * in `server/deps.ts`'s real composition; `features/database/repo.memory.ts`'s
+   * `InMemoryDatabaseLedgerRepo` in `server/app.ts`'s hermetic composition). Only the read side is
+   * wired into `RouteDeps` this pass — see `routes/admin/database/timeline.ts`'s file header for
+   * what remains unwired.
+   */
+  /** Widened this dispatch with `LedgerAppendPort` — both `SqliteDatabaseLedgerRepo` and
+   * `InMemoryDatabaseLedgerRepo` already implement `.append()`; only the type declaration here was
+   * narrower than the concrete instances (see `features/database/gated-hooks.ts`'s
+   * `buildMigrateForwardHooks` and `features/recovery/gated-hooks.ts`'s `buildRestoreHooks`, which
+   * need to append real ledger rows).
+   * Widened again (2026-07-16, TM-adr041-043-044-045-audit-001, Finding 2 fix) with
+   * `BootLedgerPort` — both concrete adapters already implement `appendInterruptedRow` too; only
+   * this declaration was narrower. */
+  databaseLedgerRepo: LedgerReadPort & LedgerAppendPort & BootLedgerPort;
+  /** ADR-041 §2/§4 — the `restore_points` table's list + save side (`database/restore-points.ts`'s
+   * new `RestorePointListPort`/`RestorePointSavePort`). Real `SqliteRestorePointsRepo` in
+   * `server/deps.ts` (already built, previously unwired); in-memory in `server/app.ts`. */
+  restorePointsRepo: RestorePointListPort & RestorePointSavePort;
+  /** SPEC-016 C-007 — the dialect-neutral restore-point capability/capture surface. Real
+   * `SqliteDbOpsAdapter` in `server/deps.ts` (already built, previously unwired); a deterministic
+   * in-memory double in `server/app.ts` (`features/database/repo.memory.ts`'s
+   * `InMemoryDbOpsAdapter`). */
+  dbOps: DbOpsPort;
+  /** ADR-041 §3/§10 — this site's `SERVING`/`PENDING_MIGRATION`/`BLOCKED_PENDING_RECOVERY` status.
+   * In-memory in both compositions, defaulted to `SERVING` — no composition root invokes
+   * `features/database/boot/*`'s reconciliation functions at actual boot yet (disclosed gap, see
+   * handoff), so this only ever changes if a future caller calls `.set()`. */
+  siteStatusRepo: SiteStatusPort;
+  /** ADR-045 §2 — Recovery's discarded-write-window baseline source. Always reports the baseline
+   * as unavailable (`features/recovery/repo.memory.ts`'s `AlwaysUnavailableWatermarkSource`) — the
+   * safe default per `disclosure.ts`'s own "never fabricate a zero count" rule, not a corner cut;
+   * see that class's doc comment. */
+  disclosureWatermarkSource: DisclosureWatermarkSourcePort;
+  /** ADR-041 §7/ADR-045 §5 — re-resolves a `DatabaseContextEnvelope`'s carried `restorePointId`
+   * server-side (`features/recovery/repo.memory.ts`'s `RestorePointDeepLinkLookup`, backed by the
+   * same real `restorePointsRepo` list above). */
+  deepLinkRestorePointLookup: DeepLinkRestorePointLookupPort;
+}
+
+/**
  * The full app-wide dependency bag every route handler and module-registration function historically
  * accepted whole, even when touching 1-2 fields (tracked architecture debt — "core size" / "propagation
- * cost" in `npm run check:architecture`). `ClockDeps`/`IdentityDeps`/`MediaDeps` (Slices 1-2) and
- * `CredentialsDeps`/`ContentTaxonomyDeps`/`CommentsDeps`/`MembersDeps` (Slice 3) above are an
- * incremental decomposition: pulled out as their own named, cohesive interfaces and folded back in
- * here via intersection so this type stays 100% identical to every existing consumer. Narrowed call
- * sites so far: `middleware/dev-auth.ts`'s `requireAdminSession` and `assistant/byok-tool-surface.ts`'s
- * `createByokToolSurface` (Slice 1, to `ClockDeps`/`IdentityDeps`); `routes/admin/media/deps.ts`'s
- * `MediaRouteDeps` (Slice 2, to `MediaDeps`); and, this slice, the four `routes/admin/system/
- * *-credentials.ts` files (to a `Pick` of `CredentialsDeps`' fields) plus `routes/admin/members/
- * deps.ts`'s `MembersRouteDeps` (to `MembersDeps` directly) — see those files' own docs.
+ * cost" in `npm run check:architecture`). `ClockDeps`/`IdentityDeps`/`MediaDeps` (Slices 1-2),
+ * `CredentialsDeps`/`ContentTaxonomyDeps`/`CommentsDeps`/`MembersDeps` (Slice 3), and
+ * `DatabaseRecoveryDeps` (Slice 4) above are an incremental decomposition: pulled out as their own
+ * named, cohesive interfaces and folded back in here via intersection so this type stays 100%
+ * identical to every existing consumer. Narrowed call sites so far: `middleware/dev-auth.ts`'s
+ * `requireAdminSession` and `assistant/byok-tool-surface.ts`'s `createByokToolSurface` (Slice 1, to
+ * `ClockDeps`/`IdentityDeps`); `routes/admin/media/deps.ts`'s `MediaRouteDeps` (Slice 2, to
+ * `MediaDeps`); the four `routes/admin/system/*-credentials.ts` files (to a `Pick` of
+ * `CredentialsDeps`' fields) plus `routes/admin/members/deps.ts`'s `MembersRouteDeps` (Slice 3, to
+ * `MembersDeps` directly); and `routes/admin/database-recovery/deps.ts`'s `DatabaseRecoveryRouteDeps`
+ * (Slice 4, to `DatabaseRecoveryDeps` directly) — see those files' own docs.
  */
-export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & {
+export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & DatabaseRecoveryDeps & {
   workspaceRepo: WorkspaceRepoPort;
   postRepo: PostRepoPort;
   /**
@@ -679,23 +744,6 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * `modules/site-assistant.ts`.
    */
   siteAssistantRateLimiter: RateLimiter;
-  /**
-   * ADR-041 §1/§2 — the Database Timeline's read port, backed by the sidecar
-   * `ops/database-journal.db` (`db/sqlite/database-journal-repo.ts`'s `SqliteDatabaseLedgerRepo`
-   * in `server/deps.ts`'s real composition; `features/database/repo.memory.ts`'s
-   * `InMemoryDatabaseLedgerRepo` in `server/app.ts`'s hermetic composition). Only the read side is
-   * wired into `RouteDeps` this pass — see `routes/admin/database/timeline.ts`'s file header for
-   * what remains unwired.
-   */
-  /** Widened this dispatch with `LedgerAppendPort` — both `SqliteDatabaseLedgerRepo` and
-   * `InMemoryDatabaseLedgerRepo` already implement `.append()`; only the type declaration here was
-   * narrower than the concrete instances (see `features/database/gated-hooks.ts`'s
-   * `buildMigrateForwardHooks` and `features/recovery/gated-hooks.ts`'s `buildRestoreHooks`, which
-   * need to append real ledger rows).
-   * Widened again (2026-07-16, TM-adr041-043-044-045-audit-001, Finding 2 fix) with
-   * `BootLedgerPort` — both concrete adapters already implement `appendInterruptedRow` too; only
-   * this declaration was narrower. */
-  databaseLedgerRepo: LedgerReadPort & LedgerAppendPort & BootLedgerPort;
   /** ADR-041/043/044/045 re-audit (2026-07-16, TM-adr041-043-044-045-audit-001, Finding 2 fix) —
    * the `migration_runs` read side `reconcileInterruptedMigrationOnBoot` needs; previously
    * constructed nowhere (real SQLite adapter existed, unused; no in-memory double existed). */
@@ -716,22 +764,19 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * `taxonomyRepo`/`termRepo`/`entryTermRepo`/`taxonomyRevisionRepo` — moved to the new
    * `ContentTaxonomyDeps` interface above; this comment stays here because it also covers
    * `stampWatermark`/`restorePointsRepo`/`dbOps`/`databaseIntrospection`/`siteStatusRepo`/
-   * `disclosureWatermarkSource`/`deepLinkRestorePointLookup` below, none of which moved.)
+   * `disclosureWatermarkSource`/`deepLinkRestorePointLookup` below.
+   *
+   * 2026-08-18, Slice 4: `restorePointsRepo`/`dbOps`/`siteStatusRepo`/`disclosureWatermarkSource`/
+   * `deepLinkRestorePointLookup` moved to the new `DatabaseRecoveryDeps` interface above (they had a
+   * real, exact, whole-group consumer — see that interface's own doc); `stampWatermark`/
+   * `databaseIntrospection` stay here, alongside `migrationRunsRepo` above and `gatedMutations`
+   * below, as candidates for a later group with no single real narrow consumer yet.)
    */
   /** Bumps `database_write_watermark` for taxonomy writes (create/rename/assign/delete). Real
    * `sqliteStampWatermark(db)` in `server/deps.ts` (the certified `stampWatermarkTx`, see
    * `core/gated-mutations/watermark.ts`); `noopStampWatermark` in `server/app.ts`'s in-memory
    * composition, which has no watermark table to advance. */
   stampWatermark: () => void;
-  /** ADR-041 §2/§4 — the `restore_points` table's list + save side (`database/restore-points.ts`'s
-   * new `RestorePointListPort`/`RestorePointSavePort`). Real `SqliteRestorePointsRepo` in
-   * `server/deps.ts` (already built, previously unwired); in-memory in `server/app.ts`. */
-  restorePointsRepo: RestorePointListPort & RestorePointSavePort;
-  /** SPEC-016 C-007 — the dialect-neutral restore-point capability/capture surface. Real
-   * `SqliteDbOpsAdapter` in `server/deps.ts` (already built, previously unwired); a deterministic
-   * in-memory double in `server/app.ts` (`features/database/repo.memory.ts`'s
-   * `InMemoryDbOpsAdapter`). */
-  dbOps: DbOpsPort;
   /** ADR-041 §3 — the `database_get_health`/`database_get_schema_state`/`database_list_pending_migrations`
    * agent tools' backing read port (`features/database/adapter.sqlite.ts`, closing the gap that
    * file's own catalog header previously disclosed as "no backing adapter composed into RouteDeps
@@ -739,20 +784,6 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * `ContentDb` handle `restorePointsRepo`/`dbOps` already share); `InMemoryDatabaseIntrospectionAdapter`
    * in `server/app.ts`'s hermetic composition. */
   databaseIntrospection: DatabaseIntrospectionPort;
-  /** ADR-041 §3/§10 — this site's `SERVING`/`PENDING_MIGRATION`/`BLOCKED_PENDING_RECOVERY` status.
-   * In-memory in both compositions, defaulted to `SERVING` — no composition root invokes
-   * `features/database/boot/*`'s reconciliation functions at actual boot yet (disclosed gap, see
-   * handoff), so this only ever changes if a future caller calls `.set()`. */
-  siteStatusRepo: SiteStatusPort;
-  /** ADR-045 §2 — Recovery's discarded-write-window baseline source. Always reports the baseline
-   * as unavailable (`features/recovery/repo.memory.ts`'s `AlwaysUnavailableWatermarkSource`) — the
-   * safe default per `disclosure.ts`'s own "never fabricate a zero count" rule, not a corner cut;
-   * see that class's doc comment. */
-  disclosureWatermarkSource: DisclosureWatermarkSourcePort;
-  /** ADR-041 §7/ADR-045 §5 — re-resolves a `DatabaseContextEnvelope`'s carried `restorePointId`
-   * server-side (`features/recovery/repo.memory.ts`'s `RestorePointDeepLinkLookup`, backed by the
-   * same real `restorePointsRepo` list above). */
-  deepLinkRestorePointLookup: DeepLinkRestorePointLookupPort;
   /**
    * SPEC-016 (`core/gated-mutations`'s gateway, ADR-041 §5) — composed into a real composition
    * root for the first time this dispatch. One process-lifetime `GatewayDeps` (in-process
