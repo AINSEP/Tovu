@@ -1,9 +1,16 @@
 {
+  "$schema": "https://tovu.dev/schemas/theme/v2/theme.schema.json",
+  "apiVersion": 2,
   "id": "storefront",
   "name": "Storefront",
   "version": "1.0.0",
   "tier": "templated",
-  "engine": 1,
+  "engine": {
+    "name": "liquid",
+    "version": "1"
+  },
   "description": "A Shopify-style product storefront theme: a clean product grid, a single-product detail page with a working buy button, plus a journal for regular posts. Products come from the sample store plugin's real (seeded) data — not hardcoded into the theme.",
-  "fonts": ["Inter:wght@400;500;600;700"]
+  "fonts": [
+    "Inter:wght@400;500;600;700"
+  ]
 }
