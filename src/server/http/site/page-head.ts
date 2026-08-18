@@ -1,5 +1,5 @@
 import type { ISODateTime, JsonObject, UUID } from "@jini-ai/cms/core";
-import type { ThemeTier } from "#src/features/theme/theme";
+import type { ThemeTier } from "#src/features/theme/index";
 
 /**
  * @file The `page.head` render seam (ADR-PIPE-008 Decision §2).

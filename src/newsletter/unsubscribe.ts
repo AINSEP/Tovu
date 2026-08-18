@@ -15,8 +15,8 @@ import { timingSafeEqual } from "node:crypto";
 
 import type { UUID } from "@jini-ai/cms/core";
 import type { KeyringPort } from "../webhooks/index";
-import type { OriginRegistryPort } from "../origin/ports";
-import type { VerifiedOrigin } from "../origin/types";
+import type { OriginRegistryPort } from "../origin/index";
+import type { VerifiedOrigin } from "../origin/index";
 import { NewsletterUnsubscribeTokenInvalidError } from "./errors";
 import type { MembersConsentCapability, NewsletterSubscriptionRepoPort } from "./ports";
 import type { SubscriptionRow } from "./types";
