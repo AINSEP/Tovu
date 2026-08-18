@@ -15,6 +15,7 @@ import {
   resolveDefaultForSourceControl,
   type SourceControlCredentialWriteDeps,
 } from "../../source-control/index";
+import { extractGitHubLogin } from "../../deployments/static-publish/index";
 import { resolveDefaultForVendorDualRead, type VendorCredentialDualReadDeps } from "../dual-read";
 import { createVendorCredential, VendorCredentialSecretStoreUnconfiguredError, type VendorCredentialWriteDeps } from "../store";
 import { InMemoryVendorCredentialSetRepo } from "../repo.memory";
@@ -63,7 +64,7 @@ function makeDeps(): VendorCredentialDualReadDeps & {
     // passed in exactly as a real caller eventually would, just from a test rather than `server/`.
     resolveLegacyPublish: resolveDefaultForPublish,
     resolveLegacySourceControl: resolveDefaultForSourceControl,
-    vendorWriteDeps: { repo: vendorRepo, sealer, keyring, clock, idGen },
+    vendorWriteDeps: { repo: vendorRepo, sealer, keyring, clock, idGen, extractGitHubLogin },
     publishWriteDeps: { repo: publishRepo, sealer, keyring, clock, idGen },
     sourceControlWriteDeps: { repo: sourceControlRepo, sealer, keyring, clock, idGen },
   };

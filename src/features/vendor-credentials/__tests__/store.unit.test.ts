@@ -4,6 +4,7 @@ import test from "node:test";
 import { AesGcmSecretSealer } from "../../../integrations/secret-sealer.aesgcm";
 import { InMemoryKeyring } from "../../../integrations/keyring.memory";
 import type { KeyringPort } from "../../../integrations/ports";
+import { extractGitHubLogin } from "../../deployments/static-publish/index";
 import { InMemoryVendorCredentialSetRepo } from "../repo.memory";
 import {
   createVendorCredential,
@@ -60,6 +61,10 @@ function makeDeps(overrides: Partial<VendorCredentialWriteDeps> = {}): VendorCre
     fetchFn: (async () => {
       throw new Error("fetchFn should not be called for this vendor");
     }) as unknown as typeof fetch,
+    // Injected rather than a module-scope import, matching `store.ts`'s own deps shape after the
+    // 2026-08-17 architecture SCC cut (see that file's header) — the real production function, passed
+    // in exactly as `server/routes/admin/system/vendor-credentials.ts` does, just from a test.
+    extractGitHubLogin,
     ...overrides,
   };
 }
@@ -283,6 +288,27 @@ test("createVendorCredential probes and populates accountLabel for github; every
   const gitlabDeps = makeDeps({ fetchFn: neverCalledFetch });
   const gitlabSummary = await createVendorCredential(gitlabDeps, { workspaceId: WORKSPACE, label: "gl", connection: { vendorId: "gitlab", token: "t" } });
   assert.equal(gitlabSummary.accountLabel, null);
+});
+
+test("createVendorCredential/updateVendorCredential call deps.extractGitHubLogin — the injected function, not a hardcoded import", async () => {
+  // A stub whose output is deliberately DIFFERENT from the real `extractGitHubLogin` (which reads
+  // `body.login`) — it reads a field the real extractor never touches. If `probeAccountLabel` ever
+  // regressed back to a hardcoded module-scope import of the real function (the 2026-08-17 SCC-cut
+  // bug this test guards against — see `store.ts`'s header), this stub would never be consulted and
+  // `accountLabel` below would come back `null` (the real extractor finds no `login` field on this
+  // body shape) instead of the stub's own sentinel value.
+  const fetchFn = (async () => ({ ok: true, json: async () => ({ notLogin: "should-be-ignored-by-real-extractor" }) }) as unknown as Response) as unknown as typeof fetch;
+  const stubExtractGitHubLogin = (body: unknown): string | undefined => {
+    const value = (body as { notLogin?: unknown }).notLogin;
+    return typeof value === "string" ? `stub:${value}` : undefined;
+  };
+
+  const deps = makeDeps({ fetchFn, extractGitHubLogin: stubExtractGitHubLogin });
+  const created = await createVendorCredential(deps, { workspaceId: WORKSPACE, label: "gh", connection: { vendorId: "github", token: "t" } });
+  assert.equal(created.accountLabel, "stub:should-be-ignored-by-real-extractor", "createVendorCredential must call deps.extractGitHubLogin, not a hardcoded import");
+
+  const updated = await updateVendorCredential(deps, { workspaceId: WORKSPACE, id: created.id, connection: { vendorId: "github", token: "t2" } });
+  assert.equal(updated.accountLabel, "stub:should-be-ignored-by-real-extractor", "updateVendorCredential must call deps.extractGitHubLogin, not a hardcoded import");
 });
 
 test("createVendorCredential leaves accountLabel null when the github probe fails or times out — never fails the save", async () => {
