@@ -51,7 +51,7 @@ export interface ThemeMigrationPlan {
  * carry today. */
 const CARRY_OVER_UNCHANGED: ReadonlySet<string> = new Set(["tokens.json", "screenshots", "NOTICE.md"]);
 
-const TOKENS_MODE_FILE_PATTERN = /^tokens\.[a-z0-9-]+\.json$/;
+export const TOKENS_MODE_FILE_PATTERN = /^tokens\.[a-z0-9-]+\.json$/;
 
 /** The `templates/` file extension(s) each non-static tier ships, matching `loadTheme()`'s own
  * per-extension dispatch (`theme.ts`'s inline templates-dir scan) — a file in `templates/` with any
