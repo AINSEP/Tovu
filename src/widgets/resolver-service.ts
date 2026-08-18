@@ -21,8 +21,7 @@
  */
 import type { JsonObject, UUID } from "@jini-ai/cms/core";
 import type { EntryListPort, EntryRepoPort } from "../features/entries";
-import { CORE_PUBLIC_TRANSFORM_NAME } from "../media/bootstrap";
-import { getLatestTransformDefinition } from "../media/index";
+import { CORE_PUBLIC_TRANSFORM_NAME, getLatestTransformDefinition } from "../media/index";
 import type { MediaRepoPort, TransformDefinitionRepoPort } from "../media/index";
 import type { PostRepoPort } from "../features/post/index";
 import { findPublishedPostById } from "../features/post/index";
