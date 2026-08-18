@@ -6,8 +6,24 @@ import {
   SeoInvalidCanonicalUrlError,
 } from "#src/seo/index";
 import { invalidateSitemapCache } from "#src/seo/index";
+import { authorizeOrRespond } from "#src/server/http/responses/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { SeoRouteRegistrar } from "./deps";
+
+/** Maps `setEntrySeoOverrides`/`getEntryMeta`'s known thrown error types to this route's documented
+ *  4xx response shapes; any other error (including a real bug) falls through to a generic 500. */
+function seoPutEntryErrorResponse(err: unknown): { status: number; body: { error: string; code: string } } {
+  if (err instanceof SeoFieldValidationError) {
+    return { status: 400, body: { error: err.message, code: "SEO_FIELD_VALIDATION_ERROR" } };
+  }
+  if (err instanceof SeoInvalidCanonicalUrlError) {
+    return { status: 400, body: { error: err.message, code: "SEO_INVALID_CANONICAL_URL" } };
+  }
+  if (err instanceof SeoEntryNotFoundError) {
+    return { status: 404, body: { error: err.message, code: "SEO_ENTRY_NOT_FOUND" } };
+  }
+  return { status: 500, body: { error: "internal error", code: "INTERNAL_ERROR" } };
+}
 
 /**
  * PUT (partial) SEO overrides for an entry (SPEC-008 api.spec.md `SEO_PUT_ENTRY_META`, tasks.md T047).
@@ -26,21 +42,14 @@ export const registerAdminSeoPutEntryRoute: SeoRouteRegistrar = (app, deps) => {
       await deps.seoReady;
       const principal = getAuthedPrincipal(res);
       const entryId = String(req.params.entryId ?? "");
-      const authResult = await deps.authorize({
+      const authorized = await authorizeOrRespond(res, deps.authorize, {
         principalId: principal.id,
         permission: "admin.seo.manage",
         workspaceId: deps.workspaceId,
         entityType: "seo-entry",
         entityId: entryId,
       });
-      if (!authResult.allowed) {
-        res.status(403).json({
-          error: `principal '${principal.id}' is not authorized for 'admin.seo.manage' (${authResult.reason})`,
-          code: "FORBIDDEN",
-          details: { permission: "admin.seo.manage", reason: authResult.reason },
-        });
-        return;
-      }
+      if (!authorized) return;
 
       await setEntrySeoOverrides({
         deps: {
@@ -62,19 +71,8 @@ export const registerAdminSeoPutEntryRoute: SeoRouteRegistrar = (app, deps) => {
       );
       res.json({ data: meta });
     } catch (err) {
-      if (err instanceof SeoFieldValidationError) {
-        res.status(400).json({ error: err.message, code: "SEO_FIELD_VALIDATION_ERROR" });
-        return;
-      }
-      if (err instanceof SeoInvalidCanonicalUrlError) {
-        res.status(400).json({ error: err.message, code: "SEO_INVALID_CANONICAL_URL" });
-        return;
-      }
-      if (err instanceof SeoEntryNotFoundError) {
-        res.status(404).json({ error: err.message, code: "SEO_ENTRY_NOT_FOUND" });
-        return;
-      }
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+      const { status, body } = seoPutEntryErrorResponse(err);
+      res.status(status).json(body);
     }
   });
 };

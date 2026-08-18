@@ -1,11 +1,21 @@
+import type { Request } from "express";
+
 import {
   pauseSubscription,
   WebhookSubscriptionNotFoundError,
   WebhookSubscriptionValidationError,
 } from "#src/webhooks/index";
 import { toAdminSubscriptionResponse } from "#src/server/http/admin/integrations";
+import { authorizeOrRespond } from "#src/server/http/responses/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { IntegrationsRouteRegistrar } from "./deps";
+
+/** `{ paused?: boolean }` body — defaults to pausing (`true`) for any non-boolean value,
+ *  including absent, so `{ "paused": false }` is the only way to resume. */
+function resolvePausedFlag(req: Request): boolean {
+  const raw = req.body?.paused;
+  return typeof raw === "boolean" ? raw : true;
+}
 
 /**
  * POST pause/resume a webhook subscription. One route, both directions — mirrors
@@ -23,26 +33,19 @@ export const registerAdminIntegrationsPauseRoute: IntegrationsRouteRegistrar = (
         return;
       }
 
-      const paused = req.body?.paused;
+      const paused = resolvePausedFlag(req);
       const subscriptionId = String(req.params.subscriptionId ?? "");
 
       try {
         const principal = getAuthedPrincipal(res);
-        const authResult = await deps.authorize({
+        const authorized = await authorizeOrRespond(res, deps.authorize, {
           principalId: principal.id,
           permission: "admin.integrations.manage",
           workspaceId: deps.workspaceId,
           entityType: "webhook_subscription",
           entityId: subscriptionId,
         });
-        if (!authResult.allowed) {
-          res.status(403).json({
-            error: `principal '${principal.id}' is not authorized for 'admin.integrations.manage' (${authResult.reason})`,
-            code: "FORBIDDEN",
-            details: { permission: "admin.integrations.manage", reason: authResult.reason },
-          });
-          return;
-        }
+        if (!authorized) return;
 
         const { subscription } = await pauseSubscription(
           {
@@ -57,7 +60,7 @@ export const registerAdminIntegrationsPauseRoute: IntegrationsRouteRegistrar = (
               id: subscriptionId,
             },
           },
-          { paused: typeof paused === "boolean" ? paused : true }
+          { paused }
         );
 
         res.json({ subscription: toAdminSubscriptionResponse({ subscription, lastDelivery: null }) });
