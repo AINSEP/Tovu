@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Documentation — Basic</title>
+<link rel="stylesheet" href="../css/theme.css" />
+<script src="../scripts/theme-toggle.js"></script>
+</head>
+<body>
+
+<div data-embed-config='{"type":"partial","id":"nav","current":"docs"}'></div>
+
+<main class="wrap docs-layout">
+  <aside class="docs-side">
+    <div class="group">
+      <h4>Get started</h4>
+      <a href="#overview" aria-current="page">Overview</a>
+      <a href="#install">Installation</a>
+      <a href="#quickstart">Quickstart</a>
+      <a href="#config">Configuration file</a>
+    </div>
+    <div class="group">
+      <h4>Pages &amp; templates</h4>
+      <a href="#jobs">Sections &amp; blocks</a>
+      <a href="#parallel">Responsive layouts</a>
+      <a href="#caching">Image caching</a>
+      <a href="#secrets">Secrets &amp; env vars</a>
+      <a href="#matrix">Multi-device preview</a>
+    </div>
+    <div class="group">
+      <h4>Publishing</h4>
+      <a href="#environments">Environments</a>
+      <a href="#previews">Preview links</a>
+      <a href="#rollbacks">Version history</a>
+      <a href="#approvals">Publish approvals</a>
+    </div>
+    <div class="group">
+      <h4>Integrations</h4>
+      <a href="#git">Git providers</a>
+      <a href="#slack">Slack</a>
+      <a href="#webhooks">Webhooks</a>
+      <a href="#api">API reference</a>
+    </div>
+    <div class="group">
+      <h4>Account</h4>
+      <a href="#teams">Teams &amp; roles</a>
+      <a href="#billing">Billing</a>
+      <a href="#sso">SSO</a>
+    </div>
+  </aside>
+
+  <div class="docs-main" id="overview" data-reveal>
+    <h1>Documentation</h1>
+    <p class="lede">Basic picks up a site the moment you push. This page covers the shape of a project — install the CLI, add a config file, and watch your first page publish.</p>
+
+    <pre><code>npm install -g basic-cli
+basic init
+basic publish</code></pre>
+
+    <h2 id="install">Installation</h2>
+    <p>Basic ships as a single CLI binary with no runtime dependencies. Install it globally, then run <code>basic init</code> inside any project directory to generate a starting theme config.</p>
+
+    <h2 id="quickstart">Quickstart</h2>
+    <p>A default <code>basic.yml</code> detects your pages and asset folders automatically. Push a change and Basic opens a preview within seconds — no dashboard clicking required to see your first live page.</p>
+
+    <h2 id="config">Configuration file</h2>
+    <p>Every site is described in <code>basic.yml</code> at your project root. Pages render in the order they're declared unless you mark them for a custom route, and any page can reference shared sections from your theme.</p>
+  </div>
+</main>
+
+<div data-embed-config='{"type":"partial","id":"footer"}'></div>
+
+<script src="../scripts/main.js"></script>
+<script src="../scripts/vendor/motion.js"></script>
+<script src="../scripts/reveal.js"></script>
+</body>
+</html>

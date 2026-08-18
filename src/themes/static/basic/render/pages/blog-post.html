@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<!-- Fixed 2026-08-11 (was a disclosed limitation: every post through this template shared one
+     fixed tab/SEO title). The tag directly below now carries the same literal placeholder
+     `page-shell.html` already used — `injectPageTitle` (static-render.ts) substitutes it with the
+     current entity's own title before render, the same string-substitution idea
+     `injectPostEmbedId` applies to a marker's own id attribute. See that function's own doc for why
+     the match is scoped to the exact tag and must never be echoed as literal text elsewhere in this
+     file (doing so once shadowed the real tag and silently ate the substitution). -->
+<title>{{title}}</title>
+<link rel="stylesheet" href="../css/theme.css" />
+<script src="../scripts/theme-toggle.js"></script>
+</head>
+<body>
+
+<div data-embed-config='{"type":"partial","id":"nav","current":"blog"}'></div>
+
+<main>
+  <article class="post-detail wrap" data-reveal>
+    <div data-embed-config='{"type":"content"}'></div>
+  </article>
+</main>
+
+<div data-embed-config='{"type":"partial","id":"footer"}'></div>
+
+<script src="../scripts/main.js"></script>
+<script src="../scripts/vendor/motion.js"></script>
+<script src="../scripts/reveal.js"></script>
+</body>
+</html>
