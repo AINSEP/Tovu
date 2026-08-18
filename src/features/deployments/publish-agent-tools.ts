@@ -1439,7 +1439,7 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
 // session, for the IDENTICAL reason as this directory's sibling `tool-registrations.ts`
 // (`deployments`, also reverted this batch — see its own trailing comment for the full trace):
 // `check:architecture`'s module graph is per-directory, and `src/features/deployments` (this file's
-// own module) already sits downstream of a chain `assistant` reaches unconditionally —
+// own module) already sat downstream of a chain `assistant` reached unconditionally —
 // `assistant -> features/vendor-credentials -> features/source-control -> features/deployments`
 // (the last hop via `source-control/store.ts`'s value import of THIS file's own
 // `static-publish/index.ts`'s `extractGitHubLogin`) — so adding a `static-publish -> assistant`
@@ -1447,5 +1447,21 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
 // features/source-control, features/vendor-credentials`. Confirmed via `check:architecture --list`
 // (largest strongly-connected component, runtime-only: 0 -> 4) — verified directly rather than
 // assumed from the sibling file's result, since they are different files even though the same
-// module. Fix options are the same as `features/source-control/tool-registrations.ts`'s own revert
-// comment.
+// module.
+//
+// RETRIED 2026-08-17 (same day, later pass) after `vendor-credentials/dual-read.ts`'s Option B fix
+// landed and `source-control` converted cleanly on top of it — see
+// `ADS-memory/reports/architecture/2026-08-17-vendor-credentials-cycle-design-options.md`. Reverted
+// again: `features/deployments/tool-registrations.ts`'s own sibling attempt (this SAME module, tried
+// immediately before this one) found a DIFFERENT, previously-undocumented edge the design report
+// never analyzed — `features/vendor-credentials/store.ts:5` (not `dual-read.ts`) value-imports
+// `extractGitHubLogin` from THIS FILE's own `./static-publish/index` directly, for
+// `createVendorCredential`'s GitHub-login-probe logic. Confirmed here too, empirically, by actually
+// wiring `registerToolContributor({domain: "static-publish", ...})` and running
+// `check:architecture --list`: the identical NEW 3-module cycle — `[assistant, features/deployments,
+// features/vendor-credentials]` — via `assistant -> features/vendor-credentials` (unconditional,
+// `REAL_VENDOR_CREDENTIAL_PORT`) -> `features/vendor-credentials/store.ts` (`extractGitHubLogin`) ->
+// `features/deployments` (this module, either file) -> back to `assistant`. Same fix needed as
+// `tool-registrations.ts`'s own header describes (Option-B-style injection of `extractGitHubLogin`
+// into `store.ts`) — not attempted here, new design work beyond this dispatch's scope. Reverted
+// cleanly instead.

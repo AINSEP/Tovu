@@ -99,12 +99,29 @@ test("installFirstPartyToolContributors installs exactly the converted domains �
   // for its own cycle). `media` was retried in a later, separate pass this session — once
   // `widgets`'s own conversion above had merged and removed the static edge that caused the
   // original revert, `check:architecture` confirmed 0 module cycles with `media` converted too (see
-  // `media/tool-registrations.ts`'s own header) — so it is now present below. `themes`/`database`/
-  // `source-control`/`deployments`/`static-publish`/`post` remain deliberately absent, each covered
-  // by its own test below.
+  // `media/tool-registrations.ts`'s own header) — so it is now present below. `database` was ALSO
+  // retried in a later, separate pass — once the one edge that closed its 16-module SCC
+  // (`getDriftStatus`'s value import into `features/database`) was cut by relocating `drift.ts` into
+  // `db/`, `check:architecture` confirmed 0 module cycles with `database` converted too (see
+  // `features/database/tool-registrations.ts`'s own header) — so it is now present below as well.
+  // `settings` is ALSO present below, but unlike every domain above it does NOT have its own
+  // `contribute<Domain>Tools()` — `server/tool-catalog-manifest.ts`'s
+  // `installFirstPartyToolContributors()` registers it inline instead, a deliberate one-off
+  // exception (see that function's own DELIBERATE ONE-OFF EXCEPTION comment and
+  // `ADS-memory/reports/architecture/2026-08-17-settings-blocker-investigation.md`): the standard
+  // shape would reopen an `assistant <-> features/settings` cycle through 3 side-door files inside
+  // `assistant/` itself. `source-control` is ALSO present below — retried once
+  // `features/vendor-credentials/dual-read.ts`'s two legacy-table imports were injected instead of
+  // value-imported (Option B,
+  // `ADS-memory/reports/architecture/2026-08-17-vendor-credentials-cycle-design-options.md`), which
+  // removed the `features/vendor-credentials -> features/source-control` edge that closed its
+  // original 3-module cycle — see `features/source-control/tool-registrations.ts`'s own header.
+  // `themes`/`deployments`/`static-publish`/`post` remain deliberately absent, each covered by its
+  // own test below.
   assert.deepEqual(listToolContributors().map((c) => c.domain), [
     "comments",
     "content-types",
+    "database",
     "entries",
     "forms",
     "identity",
@@ -118,6 +135,8 @@ test("installFirstPartyToolContributors installs exactly the converted domains �
     "recovery",
     "redirects",
     "seo",
+    "settings",
+    "source-control",
     "taxonomy",
     "widgets",
     "workspace",
@@ -134,14 +153,14 @@ test("themes is deliberately NOT installed by installFirstPartyToolContributors 
   assert.equal(listToolContributors().some((c) => c.domain === "themes"), false);
 });
 
-test("database is deliberately NOT installed by installFirstPartyToolContributors — it was tried in Stage 2 batch 2 and reverted the same night (see features/database/tool-registrations.ts's trailing comment: converting it opened a new 16-module SCC through the shared db module and the still-static deployments/source-control/recovery/settings/workspace/entries/post/pages/plugin-runtime/seo/export/vendor-credentials DOMAIN_SLICES entries)", () => {
+test("database IS installed by installFirstPartyToolContributors — converted to the registry in a later pass than the test above's comment describes (see features/database/tool-registrations.ts's own header: the `getDriftStatus` edge that closed its 16-module SCC was cut by relocating drift.ts into db/, and check:architecture confirmed 0 cycles with database wired this way)", () => {
   installFirstPartyToolContributors();
-  assert.equal(listToolContributors().some((c) => c.domain === "database"), false);
+  assert.equal(listToolContributors().some((c) => c.domain === "database"), true);
 });
 
-test("source-control is deliberately NOT installed by installFirstPartyToolContributors — tried in Stage 2 batch 2 and reverted the same session (see features/source-control/tool-registrations.ts's trailing comment: converting it closed a 3-module cycle through features/vendor-credentials)", () => {
+test("source-control IS installed by installFirstPartyToolContributors — retried once dual-read.ts's legacy-table imports were injected instead of value-imported (see features/source-control/tool-registrations.ts's own header, and ADS-memory/reports/architecture/2026-08-17-vendor-credentials-cycle-design-options.md)", () => {
   installFirstPartyToolContributors();
-  assert.equal(listToolContributors().some((c) => c.domain === "source-control"), false);
+  assert.equal(listToolContributors().some((c) => c.domain === "source-control"), true);
 });
 
 test("deployments is deliberately NOT installed by installFirstPartyToolContributors — tried in Stage 2 batch 2 and reverted the same session (see features/deployments/tool-registrations.ts's trailing comment: converting it closed a 4-module cycle through features/source-control/features/vendor-credentials)", () => {
@@ -179,16 +198,19 @@ test("two registry contributors claiming the same tool id fail buildAssistantToo
 });
 
 test("a registry contributor colliding with a legacy DOMAIN_SLICES id fails the same way — the check does not care which seam registered which side", () => {
-  // `database_get_health` is one of the legacy, still-statically-wired `database` domain's ids
-  // (`features/database/tool-registrations.ts`) — colliding a fake contributor against it proves
+  // `content_post_list` is one of the legacy, still-statically-wired `post` domain's ids
+  // (`features/post/tool-registrations.ts`) — colliding a fake contributor against it proves
   // the duplicate check spans both seams, not just registry-vs-registry or slice-vs-slice. (Was
-  // `workspace_get` before Stage 2 batch 2 converted `workspace` itself onto the registry — switched
-  // to a domain that is still genuinely legacy, so this test keeps proving the cross-seam case
-  // rather than silently becoming a registry-vs-registry collision, which the earlier test above
-  // already covers.)
-  registerToolContributor(fakeContributor("impersonator", ["database_get_health"]));
+  // `workspace_get`, then `database_get_health`, before Stage 2 batch 2 and this dispatch
+  // respectively converted `workspace` and `database` onto the registry — switched again to a
+  // domain that is still genuinely legacy, so this test keeps proving the cross-seam case rather
+  // than silently becoming a registry-vs-registry collision, which the earlier test above already
+  // covers. This test does NOT call `installFirstPartyToolContributors()`, so it does not depend on
+  // `post` staying unconverted forever — it just needs SOME id from a currently-legacy
+  // `DOMAIN_SLICES` entry; whichever domain that is next, update this comment and id together.)
+  registerToolContributor(fakeContributor("impersonator", ["content_post_list"]));
 
-  assert.throws(() => buildAssistantToolRegistrations(createRouteDeps()), /'database_get_health' is registered by both the database and impersonator domains/);
+  assert.throws(() => buildAssistantToolRegistrations(createRouteDeps()), /'content_post_list' is registered by both the post and impersonator domains/);
 });
 
 // ---------------------------------------------------------------------------

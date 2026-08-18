@@ -39,6 +39,7 @@ import {
   type GatewayDeps,
 } from "../../core/gated-mutations/gateway";
 import type { DbOpsPort } from "../../core/gated-mutations/ports";
+import { registerToolContributor } from "#src/assistant/index";
 import { buildMigrateForwardHooks, type LedgerAppendPort } from "./gated-hooks";
 import { getDatabaseAgentToolCatalog } from "./agent-tools";
 import type { DatabaseIntrospectionPort } from "./adapter.sqlite";
@@ -243,20 +244,37 @@ export function buildDatabaseRegistrations(routeDeps: DatabaseToolDeps): ToolReg
   });
 }
 
-// 2026-08-17: Database was briefly converted to the tool-contribution registry
-// (`contributeDatabaseTools`, registered via `#src/assistant/index`'s `registerToolContributor`)
-// in the same Stage 2 batch 2 that converted widgets/content-types/forms/menus, then reverted the
-// same night — `check:architecture --list` showed it opened a NEW, much larger module cycle than
-// the `themes`/`post` near-misses in the prior batch: adding `database -> assistant` closed a
-// 16-module SCC: `assistant, db, export, features/database, features/deployments, features/entries,
-// features/pages, features/plugin-runtime, features/post, features/presentation, features/recovery,
-// features/settings, features/source-control, features/vendor-credentials, features/workspace, seo`.
-// A plain relative-path/`#src/*` importer grep on `features/database` alone (server/* and
-// `db/sqlite/*` only) did not surface this — the cycle runs through the shared low-level `db`
-// module and the still-static `deployments`/`source-control`/`recovery`/`settings`/`workspace`/
-// `entries`/`post`/`pages`/`plugin-runtime`/`seo` `DOMAIN_SLICES` entries collectively, not through
-// any single direct importer. Database cannot convert safely until enough of that still-static
-// cluster converts (or the `db` hub's cross-domain imports are narrowed) to break every path back
-// from `assistant`'s remaining static domains through `db` into `features/database`. Left as a
-// normal `DOMAIN_SLICES` entry; see `assistant/tool-registrations.ts`'s own header for the current
-// authoritative list of what has and hasn't converted.
+/**
+ * Contributes Database's AI tools to the assistant's catalog — called once by
+ * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
+ * module. `assistant/tool-registrations.ts` no longer imports `buildDatabaseRegistrations`/
+ * `databaseDerivedRisk` by name; this is the seam that replaced it.
+ *
+ * 2026-08-17: Database was briefly converted to the tool-contribution registry in the same Stage 2
+ * batch 2 that converted widgets/content-types/forms/menus, then reverted the same night —
+ * `check:architecture --list` showed it opened a NEW, much larger module cycle than the
+ * `themes`/`post` near-misses in the prior batch: adding `database -> assistant` closed a
+ * 16-module SCC: `assistant, db, export, features/database, features/deployments, features/entries,
+ * features/pages, features/plugin-runtime, features/post, features/presentation, features/recovery,
+ * features/settings, features/source-control, features/vendor-credentials, features/workspace, seo`.
+ * A plain relative-path/`#src/*` importer grep on `features/database` alone (server/* and
+ * `db/sqlite/*` only) did not surface this — the cycle ran through the shared low-level `db` module
+ * and the still-static `deployments`/`source-control`/`recovery`/`settings`/`workspace`/`entries`/
+ * `post`/`pages`/`plugin-runtime`/`seo` `DOMAIN_SLICES` entries collectively, not through any single
+ * direct importer.
+ *
+ * Retried and landed here (same day, later pass, per
+ * `ADS-memory/reports/architecture/2026-08-17-database-cycle-investigation.md`): six of that
+ * 16-module SCC's members (`entries`, `pages`, `plugin-runtime`, `recovery`, `workspace`, `seo`) had
+ * since converted to the registry themselves, shrinking the SCC to 10 — and the one remaining edge
+ * that actually closed it back into `features/database` was a single value import,
+ * `db/sqlite/database-introspection-adapter.sqlite.ts`'s `getDriftStatus` from
+ * `features/database/drift.ts`. That file relocated to `db/drift.ts` this same pass (see its own
+ * header), which removed the `db -> features/database` edge outright — confirmed empirically
+ * (stubbing the import collapsed the SCC to 0 before this registration was even added) before this
+ * conversion landed. `check:architecture` now reports 0 module cycles / largest SCC 0 with Database
+ * wired this way.
+ */
+export function contributeDatabaseTools(): void {
+  registerToolContributor({ domain: "database", build: buildDatabaseRegistrations, risk: databaseDerivedRisk });
+}

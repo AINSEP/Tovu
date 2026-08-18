@@ -1,9 +1,7 @@
 import type { UUID } from "@jini-ai/cms/core";
 
 import type { SecretSealerPort } from "../../integrations/ports";
-import { resolveDefaultForPublish } from "../deployments/publish-credentials/store";
 import type { PublishConnectionInput, PublishCredentialSetRepoPort, PublishProviderId } from "../deployments/publish-credentials/types";
-import { resolveDefaultForSourceControl } from "../source-control/store";
 import type { SourceControlConnectionInput, SourceControlCredentialSetRepoPort, SourceControlProviderId } from "../source-control/types";
 import { resolveDefaultForVendor } from "./store";
 import { PUBLISH_PROVIDER_TO_VENDOR, SOURCE_CONTROL_PROVIDER_TO_VENDOR } from "./types";
@@ -45,10 +43,34 @@ import type { VendorConnectionInput, VendorCredentialSetRepoPort, VendorId } fro
  * row's ciphertext auth tag only verifies against ITS OWN table's AAD lineage; opening it with the
  * new table's AAD (or vice versa) fails closed, not silently. This module NEVER attempts to build a
  * "generic" decrypt path parameterized by lineage — it always delegates to the ALREADY-CORRECT
- * `resolveDefaultForVendor`/`resolveDefaultForPublish`/`resolveDefaultForSourceControl`, each of which
- * derives its own table's AAD internally. The three legacy-vs-new read paths stay genuinely separate
- * all the way down to the decrypt call; this module's own job stops at "which one has a row" and
- * "reshape whichever connection came back into `VendorConnectionInput`".
+ * `resolveDefaultForVendor` (called directly) plus `deps.resolveLegacyPublish`/
+ * `deps.resolveLegacySourceControl` (injected — see below), each of which derives its own table's AAD
+ * internally. The three legacy-vs-new read paths stay genuinely separate all the way down to the
+ * decrypt call; this module's own job stops at "which one has a row" and "reshape whichever
+ * connection came back into `VendorConnectionInput`".
+ *
+ * ## Why the two legacy resolvers are INJECTED, not imported (2026-08-17 architecture SCC cut)
+ *
+ * This module used to value-import `resolveDefaultForPublish`
+ * (`../deployments/publish-credentials/store`) and `resolveDefaultForSourceControl`
+ * (`../source-control/store`) directly and call them by name. That closed a real cycle once
+ * `source-control`/`deployments` tried to convert to the tool-contribution registry: `assistant`'s
+ * own `REAL_VENDOR_CREDENTIAL_PORT` wiring reaches `features/vendor-credentials` (for
+ * `list`/`create`/`update`/`providerToVendor` — genuinely load-bearing), which re-exports this
+ * module, which reached back into `features/source-control`/`features/deployments` — see
+ * `ADS-memory/reports/architecture/2026-08-17-vendor-credentials-cycle-design-options.md` (Option B,
+ * the one implemented here) for the full trace. `resolveLegacyPublish`/`resolveLegacySourceControl`
+ * below are typed with LOCALLY-declared structural signatures ({@link ResolveLegacyPublish}/
+ * {@link ResolveLegacySourceControl}), not imported function types — the exact same technique
+ * `features/deployments/publish-agent-tools.ts` already uses for its own `VendorCredentialPort`, one
+ * hop further down this same chain. `resolveDefaultForVendorDualRead` has zero real callers today
+ * (per that report's own finding), so nothing currently constructs `VendorCredentialDualReadDeps`
+ * outside this file's own test — but whoever eventually wires the real functions in MUST do so from a
+ * module that does not sit downstream of `source-control`'s/`deployments`'s own
+ * `registerToolContributor` edge (i.e., NOT from `assistant` itself) — `server/` (the same composition
+ * root that owns `VendorCredentialPort`'s real wiring today) is the safe place. Reopening this by
+ * importing the two functions back into `assistant` would silently reintroduce the exact cycle this
+ * cut removes.
  *
  * ## `github` precedence: publish before source-control
  *
@@ -148,6 +170,23 @@ function sourceControlConnectionToVendorConnection(connection: SourceControlConn
   }
 }
 
+/** Locally-declared structural stand-in for `publish-credentials/store.ts`'s
+ *  `resolveDefaultForPublish` — same shape, deliberately NOT that function's own imported type (see
+ *  this file's header for why). `deps`/`input`/the return shape are copied field-for-field from the
+ *  real function's signature; a caller passing the real `resolveDefaultForPublish` satisfies this
+ *  structurally with no adapter needed. */
+type ResolveLegacyPublish = (
+  deps: { repo: PublishCredentialSetRepoPort; sealer: SecretSealerPort },
+  input: { workspaceId: UUID; providerId: PublishProviderId },
+) => Promise<{ id: UUID; label: string; connection: PublishConnectionInput } | null>;
+
+/** Locally-declared structural stand-in for `source-control/store.ts`'s
+ *  `resolveDefaultForSourceControl` — same shape, same reasoning as {@link ResolveLegacyPublish}. */
+type ResolveLegacySourceControl = (
+  deps: { repo: SourceControlCredentialSetRepoPort; sealer: SecretSealerPort },
+  input: { workspaceId: UUID; providerId: SourceControlProviderId },
+) => Promise<{ id: UUID; label: string; connection: SourceControlConnectionInput } | null>;
+
 export interface VendorCredentialDualReadDeps {
   readonly vendorRepo: VendorCredentialSetRepoPort;
   readonly publishRepo: PublishCredentialSetRepoPort;
@@ -156,6 +195,13 @@ export interface VendorCredentialDualReadDeps {
    *  function this module delegates to (this file's own header); nothing here needs a per-table
    *  sealer instance. */
   readonly sealer: SecretSealerPort;
+  /** Injected rather than imported — see this file's header ("Why the two legacy resolvers are
+   *  INJECTED, not imported"). A real caller passes `publish-credentials/store.ts`'s own
+   *  `resolveDefaultForPublish` unchanged; this module never imports it by name. */
+  readonly resolveLegacyPublish: ResolveLegacyPublish;
+  /** Injected rather than imported — same reasoning as {@link VendorCredentialDualReadDeps.resolveLegacyPublish}.
+   *  A real caller passes `source-control/store.ts`'s own `resolveDefaultForSourceControl` unchanged. */
+  readonly resolveLegacySourceControl: ResolveLegacySourceControl;
 }
 
 /** Which table a {@link VendorCredentialDualReadResult} was actually read from — surfaced so a caller
@@ -208,7 +254,7 @@ export async function resolveDefaultForVendorDualRead(
 
   const legacyPublishProviderId = VENDOR_TO_PUBLISH_PROVIDER[input.vendorId];
   if (legacyPublishProviderId !== undefined) {
-    const legacyPublish = await resolveDefaultForPublish(
+    const legacyPublish = await deps.resolveLegacyPublish(
       { repo: deps.publishRepo, sealer: deps.sealer },
       { workspaceId: input.workspaceId, providerId: legacyPublishProviderId }
     );
@@ -224,7 +270,7 @@ export async function resolveDefaultForVendorDualRead(
 
   const legacySourceControlProviderId = VENDOR_TO_SOURCE_CONTROL_PROVIDER[input.vendorId];
   if (legacySourceControlProviderId !== undefined) {
-    const legacySourceControl = await resolveDefaultForSourceControl(
+    const legacySourceControl = await deps.resolveLegacySourceControl(
       { repo: deps.sourceControlRepo, sealer: deps.sealer },
       { workspaceId: input.workspaceId, providerId: legacySourceControlProviderId }
     );

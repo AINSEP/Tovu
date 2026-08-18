@@ -1,4 +1,4 @@
-import type { DriftStatus, SchemaSnapshot } from "./drift";
+import type { DriftStatus, SchemaSnapshot } from "../../db/drift";
 
 /**
  * @file `DatabaseIntrospectionPort` and its summary types — the port
