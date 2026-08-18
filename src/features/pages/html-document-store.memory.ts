@@ -8,10 +8,10 @@ import {
   PageKindMismatchError,
   PageNotFoundError,
   type PagesHtmlDocumentStoreScope,
-} from "./html-document-store";
+} from "./html-document-store.sqlite";
 
 /**
- * @file The `PostRepoPort`-backed twin of `html-document-store.ts`, for `app.ts`'s hermetic
+ * @file The `PostRepoPort`-backed twin of `html-document-store.sqlite.ts`, for `app.ts`'s hermetic
  * in-memory composition root.
  *
  * ## Why a second implementation rather than the real one over `:memory:`
