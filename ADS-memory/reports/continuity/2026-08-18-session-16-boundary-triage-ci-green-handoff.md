@@ -1,4 +1,8 @@
-# Handoff: CI is green for the first time since 2026-07-21 — next is the architecture dials
+# Handoff: the two architecture gates are green — but a THIRD gate (`route-coverage`) is red
+
+> **CORRECTION, added after CI run `32103524932` finished its first job.** This document was written
+> while that run was still in flight and its original title claimed "CI is green". That is wrong at
+> the whole-CI level. Read "CI result" immediately below before anything else in this file.
 
 Generated: 2026-08-18 (end of session 16)
 Source: Claude Code (Opus 5), same repo as sessions 12-15
@@ -8,11 +12,83 @@ gitignored and one `git clean` from gone. Sessions 14 and 15 used this same loca
 
 ---
 
+## CI result (run `32103524932`, HEAD `50dd8e40`) — READ FIRST
+
+| Job | Result |
+|---|---|
+| `route-coverage` | **FAILURE** — step "Check route coverage diff" (`npm run check:route-coverage-diff`) |
+| `build-and-test` | still `in_progress` at the time this correction was written |
+
+The two gates this session actually fixed (`check:architecture`, `check:route-test-baseline`) are
+**not** the failing ones. `check:route-test-baseline` never ran — it is the step *after* the failing
+one in the same job, so it was skipped, and it therefore remains **unverified in CI**.
+
+### Why it failed — no behavior regressed
+
+`check:route-coverage-diff` requires every route file that is NEW or MODIFIED vs the push's base SHA
+to individually hit >= 80% branch coverage. The deep-import redirect commits (`3903af18`, `af8ed1ce`,
+`d97a8530`) edited **import statements only** in 16 route files. That flipped all 16 into the
+"changed file" set, where 10 of them were already under 80% and still are. Nothing regressed; a
+pure import-path refactor re-armed a gate against pre-existing coverage debt.
+
+Reproduced locally (base `193aa3ca`, the previous run's HEAD), using the existing
+`development/coverage/lcov.info`:
+
+```
+npx tsx development/scripts/check-route-coverage-diff.ts 193aa3ca9d25dc34164dc18149a108ce7c4fd70e
+```
+
+The 10 failures, with their current branch coverage:
+
+| File | Branch |
+|---|---|
+| `src/server/routes/admin/seo/put-entry.ts` | 55.56% |
+| `src/server/routes/admin/themes/explore.ts` | 66.88% |
+| `src/server/routes/admin/integrations/create.ts` | 69.23% |
+| `src/server/routes/admin/media/put-providers.ts` | 72.73% |
+| `src/server/routes/admin/integrations/pause.ts` | 72.73% |
+| `src/server/routes/site/products.ts` | 72.41% |
+| `src/server/routes/admin/integrations/delete.ts` | 73.68% |
+| `src/server/routes/admin/system/export-site.ts` | 75.00% |
+| `src/server/routes/site/analytics-ingest.ts` | 76.47% |
+| `src/server/routes/admin/media/get-providers.ts` | 77.78% |
+
+Passing, for contrast: `recent-hits.ts` 86.36%, `integrations/list.ts` 82.61%,
+`dockerfile-source.ts` 85.71%, `publish-credentials.ts` 81.33% (the 2026-08-16 audit file — it was
+raised this session and now clears the bar), `site/newsletter-deps.ts` 86.67%, `site/pages.ts` 83.96%.
+
+### Two ways forward — pick one
+
+**A. Write the tests.** Lift all 10 files to >= 80% branch. Genuinely reduces coverage debt on the
+route surface. Real work: 10 files, several with error-path branches that need fixture setup.
+
+**B. Ratchet-baseline the 10 files** (recommended). Record each file's current branch percentage in a
+baseline JSON; the gate then fails only when a file drops *below its recorded number*, or when a file
+with no baseline entry lands under 80%. This is not a new idea in this repo — it mirrors two gates
+that already exist and are documented as precedent in
+`development/scripts/check-test-baseline.ts`'s own header: `check:admin-complexity-drift` and
+`development/scripts/route-test-failure-baseline.json`. It keeps the gate's real purpose (catch
+*regressions*) while not demanding new tests as the price of an import-path rename.
+
+Do **not** reach for "make the gate ignore import-only diffs". Detecting an import-only change from a
+git diff is fragile (a re-export edit, a moved symbol, and a real logic change can all look alike),
+and it would silently disarm the gate for a class of change that *can* alter behavior.
+
+Note also that this session explicitly rejected "raise the baseline to force green" for a *different*
+gate (see Decisions, item about the test-failure baseline). That rejection is not in tension with
+option B: there, the baseline would have papered over tests that were genuinely failing; here, the
+files are not failing anything — they are at a coverage level that predates this push and that this
+push did not touch.
+
+---
+
 ## Next-Agent Prompt
 
 > Read `AI-Dev-Shop/AGENTS.md`, then
 > `ADS-memory/reports/continuity/2026-08-18-session-16-boundary-triage-ci-green-handoff.md`.
-> **Both CI gates went green this session for the first time since 2026-07-21** and 22 commits were
+> **Start with the "CI result" section — `route-coverage` is RED on `50dd8e40`** and needs a decision
+> (option A or B) before `main` moves. The two gates this session fixed (`check:architecture`,
+> `check:route-test-baseline`) are green/unverified respectively, not the cause. 22 commits were
 > pushed to `general-work` (HEAD `50dd8e40`). Boundary warnings went 235 -> 85 and **8 modules are
 > now enforced at `error`**, so they cannot silently regress. Do NOT re-run the deep-import triage on
 > `features/post`, `features/deployments`, `origin`, `features/theme`, `features/commerce`, `seo`,
@@ -43,8 +119,10 @@ gitignored and one `git clean` from gone. Sessions 14 and 15 used this same loca
 
 ### CI status — verify this FIRST
 
-At handoff time, CI run `32103524932` on `50dd8e40` was still `in_progress`. **Check it before
-anything else:** `gh run view 32103524932 --json status,conclusion,jobs`.
+At handoff time, CI run `32103524932` on `50dd8e40` was still `in_progress`. It has since reported
+`route-coverage: failure` — see "CI result" at the top of this file. Re-check with
+`gh run view 32103524932 --json status,conclusion,jobs`. The worker-OOM flake guess below was
+**wrong**; the failure is deterministic and reproduces locally.
 
 Both gates were verified locally in a **clean detached worktree** (`git worktree add --detach`, with
 `ln -s <main>/node_modules`), which is the only faithful local reproduction of CI — see "Verification
@@ -77,7 +155,8 @@ described under Risks, which is a re-run, not a fix.
    `resolvePublishHistoryListLimit` relocated out of `db/sqlite` into `src/core/` (it is a policy
    constant, not storage), and `html-document-store.ts` renamed to `.sqlite.ts` so the existing
    adapter-by-filename exemption covers it honestly rather than by a one-off literal.
-6. **Both CI gates fixed.** Gate 1 (`check:architecture`) went green as a side effect of the triage.
+6. **Both targeted CI gates fixed** (but note a third, untargeted gate is red — see "CI result").
+   Gate 1 (`check:architecture`) went green as a side effect of the triage.
    Gate 2 (`check:route-test-baseline`) was diagnosed and fixed in `0731977b` — see Decisions.
 7. **`tool-contribution-registry.test.ts` unstuck** (`b68e2b40`) — two stale assertions, both
    invalidated by *our own* completed 25/25 rollout, not another session's work.
