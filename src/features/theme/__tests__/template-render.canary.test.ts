@@ -37,12 +37,27 @@ function read(relative: string): string {
 
 /** The real `basic` theme, assembled from its own files the way `loadTheme` assembles it — pages and
  * partials keyed by filename stem, manifest straight off `theme.json`. Built here rather than via
- * `loadTheme` so a canary failure can only ever mean the render pipeline changed, never the loader. */
+ * `loadTheme` so a canary failure can only ever mean the render pipeline changed, never the loader.
+ *
+ * apiVersion-branched (2026-08-18, matching `theme-pages-render.canary.test.ts`'s own `readTheme()`
+ * fix, commit `7095d7de`) the same way `theme.ts`'s `pagesDirName`/`partialsDir` are: v1 keeps `pages/`
+ * and root-level `nav.html`/`footer*.html`; v2 nests both under `render/`. `basic` migrated to v2
+ * (`render/pages/`, `render/partials/`) after this helper was first written, so the hardcoded v1 paths
+ * broke for good rather than being staging-directory flakiness — the same trap, same fix shape. */
 function basicTheme(): DiscoveredTheme {
   const manifest = JSON.parse(read("theme.json")) as DiscoveredTheme["manifest"];
+  const isV2 = (manifest as { apiVersion?: number }).apiVersion === 2;
+  const pagesDirName = isV2 ? "render/pages" : "pages";
   const pages = Object.fromEntries(
-    fs.readdirSync(path.join(THEME_DIR, "pages")).map((file) => [file.replace(/\.html$/, ""), read(`pages/${file}`)])
+    fs.readdirSync(path.join(THEME_DIR, pagesDirName)).map((file) => [file.replace(/\.html$/, ""), read(`${pagesDirName}/${file}`)])
   );
+  const partials = isV2
+    ? {
+        nav: read("render/partials/nav.html"),
+        footer: read("render/partials/footer.html"),
+        "footer-minimal": read("render/partials/footer-minimal.html"),
+      }
+    : { nav: read("nav.html"), footer: read("footer.html"), "footer-minimal": read("footer-minimal.html") };
   return {
     manifest,
     dir: THEME_DIR,
@@ -52,7 +67,7 @@ function basicTheme(): DiscoveredTheme {
     liquidTemplates: {},
     handlebarsTemplates: {},
     pages,
-    partials: { nav: read("nav.html"), footer: read("footer.html"), "footer-minimal": read("footer-minimal.html") },
+    partials,
     css: "",
     source: "builtin",
     status: "valid",
