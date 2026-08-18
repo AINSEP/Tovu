@@ -122,6 +122,57 @@ test("export-site: a malformed trigger body 400s and never starts a run", async 
   assert.equal(res.status, 400);
 });
 
+test("export-site: a non-object (array) trigger body 400s -- 'request body must be a JSON object'", async (t) => {
+  const deps: RouteDeps = { ...testRouteDeps() };
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${EXPORT_PATH}`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify(["not", "an", "object"]),
+  });
+  assert.equal(res.status, 400);
+  const body = (await res.json()) as { error: string };
+  assert.match(body.error, /must be a JSON object/);
+});
+
+test("export-site: a 'basePath' of the wrong type 400s", async (t) => {
+  const deps: RouteDeps = { ...testRouteDeps() };
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${EXPORT_PATH}`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ basePath: 12345 }),
+  });
+  assert.equal(res.status, 400);
+  const body = (await res.json()) as { error: string };
+  assert.match(body.error, /'basePath' must be a string/);
+});
+
+test("export-site: authorize() throwing (not just denying) 500s on both the trigger and the status poll, and never touches the run state", async (t) => {
+  const deps: RouteDeps = {
+    ...testRouteDeps(),
+    authorize: async () => {
+      throw new Error("boom");
+    },
+  };
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const trigger = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${EXPORT_PATH}`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({}),
+  });
+  assert.equal(trigger.status, 500);
+
+  const status = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${EXPORT_PATH}`, { headers: { cookie } });
+  assert.equal(status.status, 500);
+});
+
 test("export-site: trigger starts a real run (202), a concurrent second trigger gets 409, and the poll settles to an honest completed report", async (t) => {
   const deps: RouteDeps = { ...testRouteDeps() };
   const app = createApp(deps);
