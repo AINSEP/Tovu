@@ -40,7 +40,7 @@ import {
 import { createToolExecutor, type ToolExecutor } from "@jini-ai/daemon";
 
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/core/rate-limit/rate-limit";
-import type { RouteDeps } from "../server/routes/types";
+import type { ClockDeps } from "../server/routes/types";
 import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "../core/tool-surface-exchanges";
 import { buildToolCatalogQuery } from "./tool-catalog-query";
 import { type AssistantToolRegistryDeps, buildAssistantToolRegistrations } from "./tool-registrations";
@@ -255,24 +255,27 @@ function resolveDelegatedInput(raw: unknown): { readonly ok: true; readonly inpu
  * @overallScore 100
  */
 export function createByokToolSurface(
-  routeDeps: RouteDeps,
+  routeDeps: ClockDeps,
   options: { readonly surfaceExchangeStore?: SurfaceExchangeStore } = {},
 ): ByokToolSurface {
   const magicLinkPerEmailLimiter = createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: routeDeps.clock });
-  // `RouteDeps` (this function's parameter type) is deliberately narrower than what `server/app.ts`'s
-  // `createApp` actually receives at runtime — the same gap that file's own `newsletterAdminDeps =
-  // routeDeps as NewsletterRouteDeps` cast documents: "createRouteDeps()'s actual return type already
-  // IS NewsletterRouteDeps, this parameter's own RouteDeps annotation is just narrower." A plain
+  // `routeDeps`'s declared type here is `ClockDeps` (narrowed 2026-08-18, first slice of the
+  // `RouteDeps` decomposition — see `server/routes/types.ts`'s `ClockDeps` doc) because `.clock` on
+  // the line above is the only field this function ever names directly. But the spread just below
+  // still needs the REAL, full `RouteDeps`-shaped object at runtime — the caller
+  // (`modules/assistant-byok.ts`'s `createAssistantByokModule`) always passes its own full
+  // `routeDeps: RouteDeps` value in, so the narrower static annotation here costs nothing at
+  // runtime: `{ ...routeDeps }` spreads whatever real properties the object actually carries,
+  // regardless of what TypeScript statically believes its type is (this is the exact same gap the
+  // `newsletterAdminDeps = routeDeps as NewsletterRouteDeps` cast in `server/app.ts` documents —
+  // "the real object is wider than its own annotation," just pushed one step further here). A plain
   // single `as AssistantToolRegistryDeps` fails here (`TS2352`, "neither type sufficiently
   // overlaps") because `AssistantToolRegistryDeps` is a 20-way intersection with no declared
-  // relationship to `RouteDeps`, unlike `NewsletterRouteDeps`'s direct `extends`. The `unknown`
-  // detour is TypeScript's own suggested escape for that case, not a weakening of the check: the
-  // real safety property is the same one `agent-daemon-server.ts:196-198` already relies on with NO
-  // cast at all (because its own `routeDeps` local is inferred from `createRouteDeps()`'s wide
-  // return type directly) — that whatever composed the real `routeDeps` object populated every
-  // domain's fields. This module is called from `server/app.ts`'s own composition, on the SAME
-  // `routeDeps` value `createAssistantModule`/`createAssistantExecutionModule` already trust for the
-  // identical reason.
+  // relationship to `ClockDeps`/`RouteDeps` either one. The `unknown` detour is TypeScript's own
+  // suggested escape for that case, not a weakening of the check: the real safety property is the
+  // same one `agent-daemon-server.ts:196-198` already relies on with NO cast at all (because its own
+  // `routeDeps` local is inferred from `createRouteDeps()`'s wide return type directly) — that
+  // whatever composed the real `routeDeps` object populated every domain's fields.
   const deps = { ...routeDeps, magicLinkPerEmailLimiter } as unknown as AssistantToolRegistryDeps;
   const surfaceExchanges = options.surfaceExchangeStore ?? createSurfaceExchangeStore();
 
