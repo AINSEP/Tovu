@@ -664,7 +664,35 @@ export interface PostDeps {
   pagesHtmlStore: PagesHtmlDocumentStoreFactory;
 }
 
-export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & DatabaseRecoveryDeps & ComposioDeps & WebhooksDeps & FormsDeps & PostDeps & {
+/**
+ * Slice 8 of the `RouteDeps` god-object decomposition (2026-08-18) — the presentation-settings
+ * repo and the boot-discovered theme roster, extracted verbatim (fields + doc comments unchanged)
+ * from where they lived inline in `RouteDeps` below.
+ *
+ * No single whole-group consumer, but real shared usage: `routes/admin/content/deps.ts`'s
+ * `ContentRouteDeps` reads all three (`presentationRepo`/`themes` for `presentation/get.ts` and
+ * `presentation/patch-active-theme.ts`; `themesDir` for `presentation/rescan-themes.ts`) alongside
+ * many non-group fields — grouped here on that file's own field-by-field rationale rather than a
+ * narrow Pick match.
+ */
+export interface PresentationDeps {
+  presentationRepo: PresentationSettingsRepoPort;
+  /** Themes discovered at boot (built-in + site themes/ dir), SPEC-004 spike. */
+  themes: DiscoveredTheme[];
+  /**
+   * The themes root those themes were discovered under (`server/deps.ts`'s `builtInThemesDir()`).
+   *
+   * Threaded through as a dependency rather than re-derived where it is needed, because it is the
+   * outer half of the `themes` agent-tool domain's containment check: `DiscoveredTheme.dir` says
+   * where one theme lives, and this says which folders are allowed to contain a theme at all
+   * (`features/theme/theme-files.ts`'s `isRecognizedThemeRoot`). Re-deriving it inside a feature
+   * module would both invert the dependency and let a test/composition root that overrides
+   * `TOVU_THEMES_DIR` disagree with the check enforcing it.
+   */
+  themesDir: string;
+}
+
+export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & DatabaseRecoveryDeps & ComposioDeps & WebhooksDeps & FormsDeps & PostDeps & PresentationDeps & {
   workspaceRepo: WorkspaceRepoPort;
   /**
    * Durable AI chat history, obtained per-principal.
@@ -675,7 +703,6 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * than merely against convention. See `assistant/persistence/tenant-scope.ts`.
    */
   chatHistory: ChatStoreFactory;
-  presentationRepo: PresentationSettingsRepoPort;
   /**
    * SPEC-007 — the settings ledger's repo port. `core.commands.appliers`
    * (via `revert.ts`) reads through this now instead of
@@ -759,19 +786,6 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * Job 2).
    */
   revertRegistry: RevertRegistry;
-  /** Themes discovered at boot (built-in + site themes/ dir), SPEC-004 spike. */
-  themes: DiscoveredTheme[];
-  /**
-   * The themes root those themes were discovered under (`server/deps.ts`'s `builtInThemesDir()`).
-   *
-   * Threaded through as a dependency rather than re-derived where it is needed, because it is the
-   * outer half of the `themes` agent-tool domain's containment check: `DiscoveredTheme.dir` says
-   * where one theme lives, and this says which folders are allowed to contain a theme at all
-   * (`features/theme/theme-files.ts`'s `isRecognizedThemeRoot`). Re-deriving it inside a feature
-   * module would both invert the dependency and let a test/composition root that overrides
-   * `TOVU_THEMES_DIR` disagree with the check enforcing it.
-   */
-  themesDir: string;
   outbox: OutboxPort;
   bus: EventBusPort;
   /** Analytics ingest buffer (ADR-035 ingest-only stage; no rollup yet). ADR-046 Phase 1: durable
