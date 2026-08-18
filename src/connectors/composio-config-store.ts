@@ -3,8 +3,8 @@ import { timingSafeEqual } from "node:crypto";
 import type { ClockPort, ISODateTime, UUID } from "@jini-ai/cms/core";
 import type { ComposioConfig, ComposioConfigStore } from "@jini-ai/integrations/composio";
 
-import type { KeyringPort, SecretSealerPort } from "../integrations/ports";
-import type { SealedSecret } from "../integrations/types";
+import type { KeyringPort, SecretSealerPort } from "../webhooks/ports";
+import type { SealedSecret } from "../webhooks/types";
 
 /**
  * @file The workspace's Composio project credentials — what the admin's Settings → Connectors tab

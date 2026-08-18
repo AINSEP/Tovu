@@ -5,10 +5,10 @@ import { join } from "node:path";
 import test from "node:test";
 
 import { openContentDb } from "../content-db";
-import { InMemoryWebhookSubscriptionRepo } from "../../../integrations/repo.memory";
+import { InMemoryWebhookSubscriptionRepo } from "../../../webhooks/repo.memory";
 import { SqliteWebhookSubscriptionRepo } from "../webhook-repo.sqlite";
-import type { WebhookSubscriptionRepoPort } from "../../../integrations/ports";
-import type { WebhookSubscriptionRecord } from "../../../integrations/types";
+import type { WebhookSubscriptionRepoPort } from "../../../webhooks/ports";
+import type { WebhookSubscriptionRecord } from "../../../webhooks/types";
 
 /**
  * @file Shared `WebhookSubscriptionRepoPort` contract-test suite (ADR-PIPE-015 Phase 2 T020),

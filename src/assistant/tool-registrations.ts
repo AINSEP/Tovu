@@ -167,7 +167,7 @@ import type { ThemeToolDeps } from "../features/theme/tool-registrations";
 import type { WorkspaceToolDeps } from "../features/workspace/tool-registrations";
 import type { FormsToolDeps } from "../forms/tool-registrations";
 import type { IdentityToolDeps } from "../identity/tool-registrations";
-import type { IntegrationsToolDeps } from "../integrations/tool-registrations";
+import type { IntegrationsToolDeps } from "../webhooks/tool-registrations";
 import type { MediaToolDeps } from "../media/tool-registrations";
 import type { MembersToolDeps } from "../members/tool-registrations";
 import type { MenusToolDeps } from "../navigation/tool-registrations";

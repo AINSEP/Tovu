@@ -34,8 +34,8 @@ import type {
 import type { CommercePriceRepoPort, CommerceProductRepoPort } from "../../features/commerce";
 import type { MailerPort } from "../../mail";
 import type { MenuRepoPort, NavLocationBindingRepoPort } from "../../navigation";
-import type { KeyringPort, SecretSealerPort, WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "../../integrations";
-import type { WebhookSigner } from "../../integrations/signing";
+import type { KeyringPort, SecretSealerPort, WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "../../webhooks";
+import type { WebhookSigner } from "../../webhooks/signing";
 import type { SiteAssistantCredentialRepoPort } from "../../assistant/site-credential-store";
 import type { AdminExecutionCredentialRepoPort } from "../../assistant/execution-credential-store";
 import type { PublishCredentialSetRepoPort, PublishExecutionMode } from "../../features/deployments/publish-credentials";

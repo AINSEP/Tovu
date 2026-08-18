@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { AesGcmSecretSealer } from "../../../../integrations/secret-sealer.aesgcm";
-import { InMemoryKeyring } from "../../../../integrations/keyring.memory";
+import { AesGcmSecretSealer } from "../../../../webhooks/secret-sealer.aesgcm";
+import { InMemoryKeyring } from "../../../../webhooks/keyring.memory";
 import { InMemoryPublishCredentialSetRepo } from "../repo.memory";
 import { S3_COMPATIBLE_FIELD_GUIDANCE, S3_COMPATIBLE_FORM_DESCRIPTION } from "../s3-compatible-field-guidance";
 import { createPublishCredential, PublishCredentialValidationError, type PublishCredentialWriteDeps } from "../store";

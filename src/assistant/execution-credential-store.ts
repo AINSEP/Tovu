@@ -1,7 +1,7 @@
 import type { ClockPort, ISODateTime, UUID } from "@jini-ai/cms/core";
 
-import type { KeyringPort, SecretSealerPort } from "../integrations/ports";
-import type { SealedSecret } from "../integrations/types";
+import type { KeyringPort, SecretSealerPort } from "../webhooks/ports";
+import type { SealedSecret } from "../webhooks/types";
 
 /**
  * @file The ADMIN's own BYOK credential — one encrypted key per `(workspace, principal)`, powering

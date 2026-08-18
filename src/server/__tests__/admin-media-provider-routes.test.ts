@@ -3,8 +3,8 @@ import test from "node:test";
 
 import express from "express";
 
-import type { KeyringPort } from "../../integrations/ports";
-import { AesGcmSecretSealer } from "../../integrations/secret-sealer.aesgcm";
+import type { KeyringPort } from "../../webhooks/ports";
+import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm";
 import { createRouteDeps } from "../app";
 import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth";
 import { createMediaModule } from "../modules/media";

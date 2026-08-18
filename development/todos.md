@@ -644,7 +644,7 @@ exists anywhere in `src/` yet, only a stub FAB.
 ### 13) Protocols and Integrations
 - [ ] Define MCP exposure model for tools/data — no MCP code exists in `src/`; related future planning lives in §22's "Agentic Web / Playground MCP Backlog" (also still open)
 - [ ] Define A2A support boundaries
-- [x] Define webhook/event subscription model for external systems — ADR-036 Integrations/webhooks (`src/integrations`)
+- [x] Define webhook/event subscription model for external systems — ADR-036 Integrations/webhooks (`src/webhooks`)
 - [ ] Define import/export contracts for interoperability
 - [ ] Define AI WordPress database ingestion agent: connect read-only to a WordPress MySQL/MariaDB database, extract posts/pages/custom post types, body content, metadata, taxonomies, authors, revisions, attachments, and image assets, map them into Tovu content/media schemas, and run dry-run validation, permalink/redirect mapping, resumable import jobs, audit logs, and rollback/compensation planning before writes.
 - [x] Define provider adapter lifecycle contracts — ADR-006 rule-of-two adapter pattern implemented pervasively (mail: ADR-037, http: ADR-038, blob-store: ADR-027, db-ops)

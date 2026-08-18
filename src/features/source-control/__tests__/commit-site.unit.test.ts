@@ -7,8 +7,8 @@ import test from "node:test";
 import { createRouteDeps } from "#src/server/app";
 import type { RouteDeps } from "#src/server/routes/types";
 
-import { AesGcmSecretSealer } from "../../../integrations/secret-sealer.aesgcm";
-import { InMemoryKeyring } from "../../../integrations/keyring.memory";
+import { AesGcmSecretSealer } from "../../../webhooks/secret-sealer.aesgcm";
+import { InMemoryKeyring } from "../../../webhooks/keyring.memory";
 import { createSourceControlCredential } from "../store";
 import { commitSiteToSourceControl, toCommitFile, validateCommitTarget, type CommitFile, type GitHubCommitAdapter, type GitHubCommitAdapterResult } from "../commit-site";
 

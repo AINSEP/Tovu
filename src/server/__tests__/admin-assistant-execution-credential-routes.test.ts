@@ -7,8 +7,8 @@ import { bootAuthenticated, startTestServer } from "./helpers/http-test-server";
 import { createRouteDeps } from "../app";
 import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth";
 import { createAssistantSettingsModule } from "../modules/assistant-settings";
-import { AesGcmSecretSealer } from "../../integrations/secret-sealer.aesgcm";
-import type { KeyringPort } from "../../integrations/ports";
+import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm";
+import type { KeyringPort } from "../../webhooks/ports";
 import type { RouteDeps } from "../routes/types";
 
 /**

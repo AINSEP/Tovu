@@ -19,7 +19,7 @@
 
 import type { ISODateTime, UUID } from "@jini-ai/cms/core";
 
-import type { SealedSecret } from "../../integrations/types";
+import type { SealedSecret } from "../../webhooks/types";
 
 /**
  * A company/protocol identity a saved credential authenticates to — as opposed to a PUBLISH

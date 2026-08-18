@@ -23,7 +23,7 @@ import { taxonomyAgentToolCatalog } from "../../features/taxonomy/agent-tools";
 import { getWorkspaceAgentToolCatalog } from "../../features/workspace";
 import { formsAgentToolCatalog } from "../../forms/agent-tools";
 import { identityAgentToolCatalog } from "@jini-ai/cms/identity";
-import { getIntegrationsAgentToolCatalog } from "../../integrations/agent-tools";
+import { getIntegrationsAgentToolCatalog } from "../../webhooks/agent-tools";
 import { getThemesAgentToolCatalog } from "../../features/theme/agent-tools";
 import { mediaAgentToolCatalog } from "../../media";
 import { membersAgentToolCatalog } from "../../members/agent-tools";

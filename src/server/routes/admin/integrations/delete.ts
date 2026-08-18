@@ -1,4 +1,4 @@
-import { deleteSubscription, WebhookSubscriptionNotFoundError } from "#src/integrations/index";
+import { deleteSubscription, WebhookSubscriptionNotFoundError } from "#src/webhooks/index";
 import { toAdminSubscriptionResponse } from "#src/server/http/admin/integrations";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { IntegrationsRouteRegistrar } from "./deps";

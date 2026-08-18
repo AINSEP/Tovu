@@ -16,9 +16,9 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { getIntegrationsAgentToolCatalog, type AgentToolDefinition } from "../../integrations/agent-tools";
-import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../../integrations/repo.memory";
-import { contributeIntegrationsTools } from "../../integrations/tool-registrations";
+import { getIntegrationsAgentToolCatalog, type AgentToolDefinition } from "../../webhooks/agent-tools";
+import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../../webhooks/repo.memory";
+import { contributeIntegrationsTools } from "../../webhooks/tool-registrations";
 import type { RouteDeps } from "../../server/routes/types";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations";
 import { resetToolContributorsForTests } from "../tool-contribution-registry";

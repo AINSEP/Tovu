@@ -3,8 +3,8 @@ import test from "node:test";
 
 import type { ComposioConfigStore, PublicComposioConfig } from "@jini-ai/integrations/composio";
 
-import { InMemoryKeyring } from "../../integrations/keyring.memory";
-import { AesGcmSecretSealer } from "../../integrations/secret-sealer.aesgcm";
+import { InMemoryKeyring } from "../../webhooks/keyring.memory";
+import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm";
 import { InMemoryComposioConfigRepo } from "../composio-config-store.memory";
 import {
   ComposioConfigSecretStoreUnconfiguredError,

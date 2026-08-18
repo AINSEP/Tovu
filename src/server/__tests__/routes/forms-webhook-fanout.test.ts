@@ -6,8 +6,8 @@ import {
   InMemoryDeliveryEnvelopeStore,
   InMemoryWebhookDeliveryRepo,
   InMemoryWebhookSubscriptionRepo,
-} from "#src/integrations/index";
-import { enqueueDelivery } from "#src/integrations/delivery";
+} from "#src/webhooks/index";
+import { enqueueDelivery } from "#src/webhooks/delivery";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "#src/forms/repo.memory";
 import { FORMS_SUBMIT_PROFILE } from "#src/forms/rate-limit-profile";
 import { submitForm } from "#src/forms/submit-service";

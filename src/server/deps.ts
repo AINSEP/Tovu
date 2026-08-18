@@ -67,9 +67,9 @@ import { SqliteCommercePriceRepo, SqliteCommerceProductRepo } from "../features/
 import { rebuildNavLocationBindings } from "../navigation";
 import { SqliteMenuRepo, SqliteNavLocationBindingRepo } from "../navigation/repo.sqlite";
 import { SqliteWebhookDeliveryRepo, SqliteWebhookSubscriptionRepo } from "../db/sqlite/webhook-repo.sqlite";
-import { EnvOrFileKeyring } from "../integrations/keyring.env";
-import { createKeyringBackedSigner } from "../integrations/signing.keyring";
-import { AesGcmSecretSealer } from "../integrations/secret-sealer.aesgcm";
+import { EnvOrFileKeyring } from "../webhooks/keyring.env";
+import { createKeyringBackedSigner } from "../webhooks/signing.keyring";
+import { AesGcmSecretSealer } from "../webhooks/secret-sealer.aesgcm";
 import { SqliteSiteAssistantCredentialRepo } from "../db/sqlite/site-credential-repo.sqlite";
 import { SqliteAdminExecutionCredentialRepo } from "../db/sqlite/execution-credential-repo.sqlite";
 import { SqliteComposioConfigRepo } from "../db/sqlite/composio-config-repo.sqlite";

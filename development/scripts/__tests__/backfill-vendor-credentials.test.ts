@@ -8,8 +8,8 @@ import test from "node:test";
 
 import { openContentDb } from "../../../src/db/sqlite/content-db";
 import { publishCredentialSets, sourceControlCredentialSets, vendorCredentialSets, workspaces } from "../../../src/db/schema";
-import { AesGcmSecretSealer } from "../../../src/integrations/secret-sealer.aesgcm";
-import { EnvOrFileKeyring } from "../../../src/integrations/keyring.env";
+import { AesGcmSecretSealer } from "../../../src/webhooks/secret-sealer.aesgcm";
+import { EnvOrFileKeyring } from "../../../src/webhooks/keyring.env";
 import { buildPublishCredentialAad } from "../../../src/features/deployments/publish-credentials/aad";
 import { buildSourceControlCredentialAad } from "../../../src/features/source-control/aad";
 import { buildVendorCredentialAad } from "../../../src/features/vendor-credentials/aad";

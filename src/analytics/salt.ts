@@ -11,7 +11,7 @@
  * - ADR-035's Round-3 fold pins the mechanism as `HKDF(rootKey, "analytics-salt:" + workspaceId +
  *   ":" + utcDate)` over a `KeyringPort` root key that lives outside the portable `content.db`
  *   (ADR-024 secret invariant).
- * - `KeyringPort` (`src/integrations/ports.ts`) is signing-specific today — `deriveSigningSecret`
+ * - `KeyringPort` (`src/webhooks/ports.ts`) is signing-specific today — `deriveSigningSecret`
  *   is scoped to webhook subscriptions and can't serve a generic salt derivation. That mismatch is
  *   an open Round-2 audit blocker on the integrations side, not something to force-fit here.
  * - So this module is deliberately self-contained: it takes a raw `rootKeySeed` string (e.g. from

@@ -2,7 +2,7 @@ import path from "node:path";
 
 import type { UUID } from "@jini-ai/cms/core";
 
-import type { KeyringPort, SecretSealerPort } from "../../integrations/ports";
+import type { KeyringPort, SecretSealerPort } from "../../webhooks/ports";
 import type { ExportReport, ExportSiteOptions } from "#src/export/index";
 import type { RouteDeps } from "#src/server/routes/types";
 
