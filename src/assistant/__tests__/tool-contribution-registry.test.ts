@@ -110,8 +110,14 @@ test("installFirstPartyToolContributors installs exactly the converted domains �
   // exception (see that function's own DELIBERATE ONE-OFF EXCEPTION comment and
   // `ADS-memory/reports/architecture/2026-08-17-settings-blocker-investigation.md`): the standard
   // shape would reopen an `assistant <-> features/settings` cycle through 3 side-door files inside
-  // `assistant/` itself. `themes`/`source-control`/`deployments`/`static-publish`/`post` remain
-  // deliberately absent, each covered by its own test below.
+  // `assistant/` itself. `source-control` is ALSO present below — retried once
+  // `features/vendor-credentials/dual-read.ts`'s two legacy-table imports were injected instead of
+  // value-imported (Option B,
+  // `ADS-memory/reports/architecture/2026-08-17-vendor-credentials-cycle-design-options.md`), which
+  // removed the `features/vendor-credentials -> features/source-control` edge that closed its
+  // original 3-module cycle — see `features/source-control/tool-registrations.ts`'s own header.
+  // `themes`/`deployments`/`static-publish`/`post` remain deliberately absent, each covered by its
+  // own test below.
   assert.deepEqual(listToolContributors().map((c) => c.domain), [
     "comments",
     "content-types",
@@ -130,6 +136,7 @@ test("installFirstPartyToolContributors installs exactly the converted domains �
     "redirects",
     "seo",
     "settings",
+    "source-control",
     "taxonomy",
     "widgets",
     "workspace",
@@ -151,9 +158,9 @@ test("database IS installed by installFirstPartyToolContributors — converted t
   assert.equal(listToolContributors().some((c) => c.domain === "database"), true);
 });
 
-test("source-control is deliberately NOT installed by installFirstPartyToolContributors — tried in Stage 2 batch 2 and reverted the same session (see features/source-control/tool-registrations.ts's trailing comment: converting it closed a 3-module cycle through features/vendor-credentials)", () => {
+test("source-control IS installed by installFirstPartyToolContributors — retried once dual-read.ts's legacy-table imports were injected instead of value-imported (see features/source-control/tool-registrations.ts's own header, and ADS-memory/reports/architecture/2026-08-17-vendor-credentials-cycle-design-options.md)", () => {
   installFirstPartyToolContributors();
-  assert.equal(listToolContributors().some((c) => c.domain === "source-control"), false);
+  assert.equal(listToolContributors().some((c) => c.domain === "source-control"), true);
 });
 
 test("deployments is deliberately NOT installed by installFirstPartyToolContributors — tried in Stage 2 batch 2 and reverted the same session (see features/deployments/tool-registrations.ts's trailing comment: converting it closed a 4-module cycle through features/source-control/features/vendor-credentials)", () => {

@@ -152,11 +152,7 @@ import {
   PUBLISH_PROVIDER_TO_VENDOR,
   updateVendorCredential,
 } from "../features/vendor-credentials/index";
-import {
-  buildSourceControlRegistrations,
-  sourceControlDerivedRisk,
-  type SourceControlToolDeps,
-} from "../features/source-control/tool-registrations";
+import type { SourceControlToolDeps } from "../features/source-control/tool-registrations";
 import type { PluginsToolDeps } from "../features/plugin-runtime/tool-registrations";
 import {
   buildPostRegistrations,
@@ -339,10 +335,11 @@ const DOMAIN_SLICES: readonly DomainSlice[] = [
   // features/vendor-credentials`), since both live in the `features/deployments` module. See
   // `features/deployments/publish-agent-tools.ts`'s own trailing comment for the full trace.
   { domain: "static-publish", build: buildStaticPublishRegistrations, risk: staticPublishDerivedRisk },
-  // 2026-08-16 — a separate identity from `static-publish` above: connects a GitHub/GitLab/Bitbucket
-  // account for committing the site's OWN exported content into a connected repo (git-backed CMS
-  // content), not for hosting the built site as a live URL — see `features/source-control/types.ts`'s
-  // own header for why this is deliberately its own table/union, not a widened `PublishProviderId`.
+  // `source-control` converted to the tool-contribution registry 2026-08-17 — 2026-08-16, a separate
+  // identity from `static-publish` above: connects a GitHub/GitLab/Bitbucket account for committing
+  // the site's OWN exported content into a connected repo (git-backed CMS content), not for hosting
+  // the built site as a live URL — see `features/source-control/types.ts`'s own header for why this
+  // is deliberately its own table/union, not a widened `PublishProviderId`.
   // `source_control_get_capabilities` is a pure read; `source_control_execute_commit` is genuinely
   // consequential (pushes a real commit using a write-scoped external credential) but reachable —
   // gated behind the SAME MCP-UI held-open confirmation exchange `deployment_execute_static_publish`
@@ -351,14 +348,19 @@ const DOMAIN_SLICES: readonly DomainSlice[] = [
   // committing to either is not implemented yet.
   //
   // Tried for the tool-contribution registry in Stage 2 batch 2 and reverted the same session: a
-  // plain importer grep of `features/source-control` finds nothing risky, but `assistant` already
-  // reaches INTO this domain transitively via `features/vendor-credentials/dual-read.ts`'s value
+  // plain importer grep of `features/source-control` found nothing risky, but `assistant` already
+  // reached INTO this domain transitively via `features/vendor-credentials/dual-read.ts`'s value
   // import of `resolveDefaultForSourceControl` from `../source-control/store` (this file's own
   // `vendorCredentials` wiring below already value-imports from `vendor-credentials/index`). Adding
   // a `source-control -> assistant` registry edge closed a real 3-module cycle: `assistant,
-  // features/source-control, features/vendor-credentials` — see
-  // `features/source-control/tool-registrations.ts`'s own trailing comment for the full trace.
-  { domain: "source-control", build: buildSourceControlRegistrations, risk: sourceControlDerivedRisk },
+  // features/source-control, features/vendor-credentials`.
+  //
+  // Retried and landed once `dual-read.ts`'s two legacy-table imports were injected as deps instead
+  // of value-imported (Option B, `ADS-memory/reports/architecture/2026-08-17-vendor-credentials-cycle-design-options.md`)
+  // — that removed the `features/vendor-credentials -> features/source-control` edge that closed the
+  // cycle. See `features/source-control/tool-registrations.ts`'s own header for the full trace. No
+  // longer an entry here; it arrives via `contributeSourceControlTools()`, installed by
+  // `server/tool-catalog-manifest.ts`.
   // `plugins` converted to the tool-contribution registry 2026-08-17 (Stage 2 batch 2) — see
   // `features/plugin-runtime/tool-registrations.ts`'s own header. No longer an entry here; it
   // arrives via `contributePluginsTools()`, installed by `server/tool-catalog-manifest.ts`.
