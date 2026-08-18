@@ -394,15 +394,23 @@ const DOMAIN_SLICES: readonly DomainSlice[] = [
   // `buildPostRegistrations`' second parameter now IS the slice contract's own `surfaces` shape
   // (ADR-055 Decision 2 — `content_post_delete` holds its call open through the same exchange store
   // every other surface-raising domain uses), so this forwards directly rather than wrapping.
-  // NOT converted to the tool-contribution registry, unlike Comments/Newsletter — see this file's
-  // header and `features/post/tool-registrations.ts`'s own trailing comment for why: `widgets` and
-  // `export` both depend on `features/post`. `widgets` converted to the registry in Stage 2 batch 2
-  // (see its own entry above), which closes the `widgets` half of this risk, but `export` still
-  // depends on `features/post` and `assistant` still reaches `export` transitively through the
-  // still-static `deployments`/`source-control` entries below — the same path that blocks `themes`
-  // (see its own entry's comment) — so a `post -> assistant` registry edge would still close a NEW
-  // module cycle through `export`. Out of scope for this batch regardless (explicitly excluded, see
-  // Stage 2 batch 2's own brief); left unconverted, not re-attempted.
+  //
+  // STILL NOT converted to the tool-contribution registry, unlike every other domain above — see
+  // `features/post/tool-registrations.ts`'s own trailing comment for the full three-attempt trace.
+  // Short version: attempts 1-2 (both same night) closed cycles through `widgets`/`export` and then
+  // through the `export`/`features/deployments`/`features/vendor-credentials` cluster, in each case
+  // via modules that were themselves still statically wired here. This session's later pass converted
+  // `deployments`/`static-publish`/`themes` (see their own former entries, now above this one, folded
+  // into the header note at the top of this array) specifically to clear that cluster, and it DID
+  // clear — but a 3rd attempt found a NEW, unrelated 2-module cycle: `[assistant, features/post]`, via
+  // `assistant/site/tools.ts` and `assistant/site/client-directives.ts` (the Site Assistant's own
+  // public/visitor-facing runtime) both value-importing `listPublishedPosts` from `features/post`
+  // directly — a real, load-bearing edge with nothing to do with `tool-registrations.ts` or the
+  // `export`/`vendor-credentials` cluster. `post` is the one domain in this rollout where `assistant`
+  // itself (not just this file) already reaches into the target domain by value, so it cannot convert
+  // until that edge is relocated or injected the same Option-B-style way
+  // `vendor-credentials/store.ts` now takes `extractGitHubLogin` — not attempted here, new design
+  // work. Left unconverted, not re-attempted further this session.
   { domain: "post", build: buildPostRegistrations, risk: postDerivedRisk },
   // Its own domain, not part of "post": a Page's body is bespoke HTML and a Post's is a Tiptap
   // document, and `content_post_update` cannot write the former. See `features/pages/agent-tools.ts`.
