@@ -155,15 +155,60 @@ export interface IdentityDeps {
 }
 
 /**
+ * Slice 2 of the `RouteDeps` god-object decomposition (2026-08-18) — the `media` library's
+ * asset/blob/transform ports (ADR-027), extracted verbatim (fields + doc comments unchanged) from
+ * where they lived inline in `RouteDeps` below.
+ *
+ * Unlike `ClockDeps`/`IdentityDeps` above, this group already had a real narrow consumer BEFORE
+ * this extraction: every media route (`routes/admin/media/*.ts`'s 5 admin routes + the public
+ * `routes/site/media-rendition.ts`) is typed against `routes/admin/media/deps.ts`'s
+ * `MediaRouteDeps`, which hand-picked these same 6 keys off `RouteDeps` via `Pick`. That file now
+ * composes `MediaDeps` directly instead of re-listing the keys a second time — see its own doc.
+ * The two mixed-domain slices that also touch a couple of these fields
+ * (`routes/admin/content/deps.ts`'s `ContentRouteDeps`, `routes/admin/seo/deps.ts`'s
+ * `SeoRouteDeps`) are deliberately left alone: each needs only 2-3 of the 6 fields alongside a
+ * larger, unrelated set (posts/pages/change-sets for the former, SEO settings for the latter), so
+ * pulling in the whole `MediaDeps` group there would widen rather than narrow their real surface.
+ */
+export interface MediaDeps {
+  /**
+   * `media` library ports (ADR-027 walking skeleton — see `src/media/INFO.md`
+   * for the disclosed scope: bespoke `MediaRecord` table instead of the
+   * not-yet-implemented generic entries model, no journaled GC, no transform
+   * pipeline, no origin-isolated serving). `mediaRepo` is the bespoke table's
+   * repo (not a frozen ADR port, same status as `menuRepo`); `assetBlobRepo`/
+   * `assetRenditionRepo` are the two core-owned sidecars ADR-027 §2 specifies;
+   * `blobStore` is the one real ADR-027 §1 `BlobStorePort`.
+   */
+  mediaRepo: MediaRepoPort;
+  assetBlobRepo: AssetBlobRepoPort;
+  assetRenditionRepo: AssetRenditionRepoPort;
+  blobStore: BlobStorePort;
+  /**
+   * ADR-027 §4 named transform registry + rendition generation — new in this
+   * task (see `src/media/rendition-service.ts` file header for the disclosed
+   * scope: core-declared transforms only, in-process lazy single-flight
+   * generation only). `transformDefinitionRepo` is the append-only
+   * `transform_registry` sidecar; `imageTransformer` is the seam that
+   * actually runs the pixel operation (`InMemoryImageTransformer` in the
+   * hermetic test/dev composition, `SharpImageTransformer` in the real
+   * running server — see `server/app.ts` / `server/deps.ts`).
+   */
+  transformDefinitionRepo: TransformDefinitionRepoPort;
+  imageTransformer: ImageTransformerPort;
+}
+
+/**
  * The full app-wide dependency bag every route handler and module-registration function historically
  * accepted whole, even when touching 1-2 fields (tracked architecture debt — "core size" / "propagation
- * cost" in `npm run check:architecture`). `ClockDeps`/`IdentityDeps` above are Slice 1 of an incremental
- * decomposition: pulled out as their own named, cohesive interfaces and folded back in here via
- * intersection so this type stays 100% identical to every existing consumer. Only two call sites
- * (`middleware/dev-auth.ts`'s `requireAdminSession`, `assistant/byok-tool-surface.ts`'s
- * `createByokToolSurface`) have been narrowed to the smaller types so far — see those files' own docs.
+ * cost" in `npm run check:architecture`). `ClockDeps`/`IdentityDeps`/`MediaDeps` above are Slices 1-2 of
+ * an incremental decomposition: pulled out as their own named, cohesive interfaces and folded back in
+ * here via intersection so this type stays 100% identical to every existing consumer. Narrowed call
+ * sites so far: `middleware/dev-auth.ts`'s `requireAdminSession` and `assistant/byok-tool-surface.ts`'s
+ * `createByokToolSurface` (Slice 1, to `ClockDeps`/`IdentityDeps`), and `routes/admin/media/deps.ts`'s
+ * `MediaRouteDeps` (Slice 2, to `MediaDeps`) — see those files' own docs.
  */
-export type RouteDeps = ClockDeps & IdentityDeps & {
+export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & {
   workspaceRepo: WorkspaceRepoPort;
   postRepo: PostRepoPort;
   /**
@@ -409,31 +454,6 @@ export type RouteDeps = ClockDeps & IdentityDeps & {
    * SQLite adapters are all merged and code-reviewed.
    */
   webhookSigner: WebhookSigner;
-  /**
-   * `media` library ports (ADR-027 walking skeleton — see `src/media/INFO.md`
-   * for the disclosed scope: bespoke `MediaRecord` table instead of the
-   * not-yet-implemented generic entries model, no journaled GC, no transform
-   * pipeline, no origin-isolated serving). `mediaRepo` is the bespoke table's
-   * repo (not a frozen ADR port, same status as `menuRepo`); `assetBlobRepo`/
-   * `assetRenditionRepo` are the two core-owned sidecars ADR-027 §2 specifies;
-   * `blobStore` is the one real ADR-027 §1 `BlobStorePort`.
-   */
-  mediaRepo: MediaRepoPort;
-  assetBlobRepo: AssetBlobRepoPort;
-  assetRenditionRepo: AssetRenditionRepoPort;
-  blobStore: BlobStorePort;
-  /**
-   * ADR-027 §4 named transform registry + rendition generation — new in this
-   * task (see `src/media/rendition-service.ts` file header for the disclosed
-   * scope: core-declared transforms only, in-process lazy single-flight
-   * generation only). `transformDefinitionRepo` is the append-only
-   * `transform_registry` sidecar; `imageTransformer` is the seam that
-   * actually runs the pixel operation (`InMemoryImageTransformer` in the
-   * hermetic test/dev composition, `SharpImageTransformer` in the real
-   * running server — see `server/app.ts` / `server/deps.ts`).
-   */
-  transformDefinitionRepo: TransformDefinitionRepoPort;
-  imageTransformer: ImageTransformerPort;
   /**
    * `forms` library ports (SPEC-010, ADR-PIPE-010 — mirrors the existing
    * `webhookSubscriptionRepo`/`webhookDeliveryRepo` field-addition precedent). `formsRateLimiter`

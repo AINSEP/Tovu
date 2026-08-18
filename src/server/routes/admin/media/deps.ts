@@ -1,6 +1,6 @@
 import type { Express } from "express";
 
-import type { RouteDeps } from "../../types";
+import type { ClockDeps, MediaDeps, RouteDeps } from "../../types";
 
 /**
  * @file ADR-046 Phase 3 (SPEC-034) — narrow `RouteDeps` slice for the `media` server module.
@@ -14,24 +14,19 @@ import type { RouteDeps } from "../../types";
  * routes (5 admin + 1 public rendition) actually read, matching `routes/ops/health.ts`'s
  * `NoDepsRouteRegistrar` precedent for what a module's real dependency surface should look like.
  *
+ * 2026-08-18 (`RouteDeps` decomposition Slice 2): those same 6 fields are now their own named
+ * `MediaDeps` interface in `routes/types.ts`, so this composes `MediaDeps` directly instead of
+ * re-listing the keys via a second `Pick`; `workspaceId`/`authorize` (from `IdentityDeps`, picked
+ * individually rather than pulling in the whole interface — none of the 14 other identity/auth-repo
+ * fields are read here) and `clock`/`idGen` (`ClockDeps`, pulled in whole since it is exactly these
+ * two fields) round out the same set as before, byte-for-byte.
+ *
  * How it relates to the project:
  * - `modules/media.ts` takes this same `MediaRouteDeps` shape as its factory parameter.
  * - Any `RouteDeps` object (both `server/app.ts`'s and `server/deps.ts`'s) structurally satisfies
  *   this type already — no composition-root change needed to adopt it.
  */
-export type MediaRouteDeps = Pick<
-  RouteDeps,
-  | "workspaceId"
-  | "authorize"
-  | "clock"
-  | "idGen"
-  | "mediaRepo"
-  | "assetBlobRepo"
-  | "assetRenditionRepo"
-  | "blobStore"
-  | "transformDefinitionRepo"
-  | "imageTransformer"
->;
+export type MediaRouteDeps = Pick<RouteDeps, "workspaceId" | "authorize"> & ClockDeps & MediaDeps;
 
 export type MediaRouteRegistrar = (app: Express, deps: MediaRouteDeps) => void;
 
