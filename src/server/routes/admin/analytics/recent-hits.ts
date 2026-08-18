@@ -1,7 +1,7 @@
 import type { Express } from "express";
 
-import type { AnalyticsSinkPort } from "#src/analytics/ports";
-import type { DeviceClass, HitKind, NormalizedHit } from "#src/analytics/types";
+import type { AnalyticsSinkPort } from "#src/analytics/index";
+import type { DeviceClass, HitKind, NormalizedHit } from "#src/analytics/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { RouteDeps } from "#src/server/routes/types";
 

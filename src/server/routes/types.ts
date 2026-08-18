@@ -23,7 +23,7 @@ import type { PresentationSettingsRepoPort } from "../../features/presentation";
 import type { SettingsRepoPort, getEffective, set } from "../../features/settings";
 import type { DiscoveredTheme } from "../../features/theme";
 import type { WorkspaceRepoPort } from "../../features/workspace";
-import type { AnalyticsConfigPort, AnalyticsSinkPort } from "../../analytics/ports";
+import type { AnalyticsConfigPort, AnalyticsSinkPort } from "../../analytics/index";
 import type {
   MagicLinkTokenRepoPort,
   MemberRepoPort,
@@ -45,7 +45,7 @@ import type { SourceControlCredentialSetRepoPort } from "../../features/source-c
 import type { VendorCredentialSetRepoPort } from "../../features/vendor-credentials";
 import type { ComposioConfigRepoPort } from "../../connectors/composio-config-store";
 import type { ComposioConnectors } from "../../connectors/composio-service";
-import type { MediaProviderCredentialRepoPort } from "../../media/provider-credential-store";
+import type { MediaProviderCredentialRepoPort } from "../../media/index";
 import type { ExternalMcpServerRepoPort } from "../../assistant/external-mcp-store";
 import type {
   AssetBlobRepoPort,

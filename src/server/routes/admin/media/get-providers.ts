@@ -1,4 +1,4 @@
-import { getMediaProviderCredentials } from "#src/media/provider-credential-store";
+import { getMediaProviderCredentials } from "#src/media/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { MediaProviderRouteRegistrar } from "./deps";
 
