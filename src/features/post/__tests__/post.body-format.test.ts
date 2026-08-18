@@ -13,7 +13,7 @@ import { InMemoryPostRepo } from "../repo.memory";
  * whole reason D-1/D-2 exist — Tiptap must never be offered HTML-shaped content), not a validation
  * nicety a caller could work around by supplying the field directly. `createPost`/`updatePost` are
  * the general Post/Page CRUD chokepoint every admin route and the `content_post_*` tools go through;
- * REQ-5's Pages-vibecoding write path (`PagesHtmlDocumentStore`, `features/pages/html-document-store.ts`)
+ * REQ-5's Pages-vibecoding write path (`PagesHtmlDocumentStore`, `features/pages/html-document-store.sqlite.ts`)
  * is a SEPARATE, narrower adapter that never calls through here at all — so this chokepoint's job in
  * v1 is exactly "this path can never be tricked into producing an html-format row," proven below by
  * smuggling a `bodyFormat`/`bodyHtml` past `CreatePostInput`/`UpdatePostInput`'s own type (a

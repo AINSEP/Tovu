@@ -11,9 +11,8 @@ import {
 } from "#src/core/tool-surface-exchanges";
 import { InMemoryChangeSetRepo } from "#src/core/commands/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/core/events/index";
-import type { RouteDeps } from "#src/server/routes/types";
 import { InMemoryPostRepo } from "../repo.memory";
-import { buildPostRegistrations } from "../tool-registrations";
+import { buildPostRegistrations, type PostToolDeps } from "../tool-registrations";
 
 /**
  * @file Certification of `content_post_delete`'s confirmation gate (ADR-055 Decision 2), which
@@ -67,7 +66,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
       authorizeCalls.push(params);
       return allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" };
     },
-  } as unknown as RouteDeps;
+  } as unknown as PostToolDeps;
 
   return {
     deps,
@@ -82,7 +81,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
   };
 }
 
-function buildRegistrations(deps: RouteDeps, surfaceExchanges: SurfaceExchangeStore): Map<string, ToolRegistration> {
+function buildRegistrations(deps: PostToolDeps, surfaceExchanges: SurfaceExchangeStore): Map<string, ToolRegistration> {
   return new Map(buildPostRegistrations(deps, { surfaceExchanges }).map((r) => [r.descriptor.id, r]));
 }
 

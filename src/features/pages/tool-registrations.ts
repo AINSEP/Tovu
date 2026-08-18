@@ -15,7 +15,7 @@ import { registerToolContributor } from "#src/assistant/index";
 import type { AuthorizeFn } from "../../core/commands";
 import type { PostRepoPort } from "../post";
 import { pagesAgentToolCatalog, type AgentToolDefinition as PagesAgentToolDefinition } from "./agent-tools";
-import { PageKindMismatchError, PageNotFoundError, type PagesHtmlDocumentStoreFactory } from "./html-document-store";
+import { PageKindMismatchError, PageNotFoundError, type PagesHtmlDocumentStoreFactory } from "./html-document-store.sqlite";
 
 /**
  * @file Maps the Pages catalog onto `PagesHtmlDocumentStore`, as `ToolRegistration`s.
