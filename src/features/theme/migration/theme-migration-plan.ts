@@ -44,8 +44,10 @@ export interface ThemeMigrationPlan {
 }
 
 /** Root-level entries every tier's plan treats as already-correct (copied byte-identical, never
- * moved) — `theme.json` gets its own manifest rewrite, not a raw copy. */
-const CARRY_OVER_UNCHANGED: ReadonlySet<string> = new Set(["tokens.json"]);
+ * moved) — `theme.json` gets its own manifest rewrite, not a raw copy. `screenshots` is real
+ * author-owned marketing content the v2 schema now approves at the same root location (see
+ * `structure.ts`'s `V2_APPROVED_ROOTS`) — every real theme on disk ships one. */
+const CARRY_OVER_UNCHANGED: ReadonlySet<string> = new Set(["tokens.json", "screenshots"]);
 
 const TOKENS_MODE_FILE_PATTERN = /^tokens\.[a-z0-9-]+\.json$/;
 

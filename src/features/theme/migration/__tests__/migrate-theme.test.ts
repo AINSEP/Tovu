@@ -108,6 +108,17 @@ test("migrateThemeToV2 converts a v1 bare-number engine into v2's { name, versio
   assert.deepEqual(manifest.engine, { name: "liquid", version: "1" });
 });
 
+test("migrateThemeToV2 carries a root screenshots/ folder forward unchanged (every real theme on disk ships one)", () => {
+  const dir = makeDeclarativeThemeDir();
+  fs.mkdirSync(path.join(dir, "screenshots"), { recursive: true });
+  fs.writeFileSync(path.join(dir, "screenshots", "index.jpg"), "fake-jpg-bytes", "utf8");
+
+  const result = migrateThemeToV2({ themeDir: dir, id: "t" });
+
+  assert.equal(result.status, "migrated", `expected migrated, got ${result.status}: ${JSON.stringify(result.validation ?? result.reason)}`);
+  assert.equal(fs.readFileSync(path.join(dir, "screenshots", "index.jpg"), "utf8"), "fake-jpg-bytes");
+});
+
 test("migrateThemeToV2 rewrites a moved page's own hardcoded /theme-assets/<id>/assets/... reference when the assets/ folder it points at moved (fashion-modern's real shape)", () => {
   const dir = makeTemplatedThemeDir();
   const id = "t"; // matches makeTemplatedThemeDir()'s own manifest id
