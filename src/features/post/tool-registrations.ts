@@ -599,3 +599,27 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
 // confirming the SCC membership above — out of scope for this dispatch. Reverted cleanly instead;
 // still needs `deployments`'s own blocker fixed first (Option-B-style injection of
 // `extractGitHubLogin` into `store.ts`) before a future retry has a chance.
+//
+// RETRIED 2026-08-17 (same session, later pass) after `deployments`/`static-publish` (the
+// `vendor-credentials/store.ts` `extractGitHubLogin` fix) AND `themes` all converted off
+// `DOMAIN_SLICES` — the exact fix the paragraph above called for, plus one more. That cleared the
+// 5-module `[assistant, export, features/deployments, features/post, features/vendor-credentials]`
+// cluster (confirmed: with `themes` converted the same way and its own SCC landing at 0, the shared
+// `export` path was genuinely gone). But `check:architecture --list` still found a NEW, SMALLER
+// cycle after wiring `registerToolContributor` here: `[assistant, features/post]` (2 modules; largest
+// strongly-connected component 0 -> 2) — a previously-undocumented edge unrelated to the
+// `export`/`vendor-credentials` cluster entirely. Root cause: `assistant/site/tools.ts` and
+// `assistant/site/client-directives.ts` (the Site Assistant's own public/visitor-facing runtime, see
+// `assistant/index.ts`'s "Section A" header) both value-import `listPublishedPosts` from
+// `../../features/post` — a genuine, load-bearing dependency (the same predicate
+// `routes/site/pages.ts` uses to resolve a slug into a live page), not a grep-visible import INTO
+// `tool-registrations.ts` itself. `check:architecture`'s module graph is per-directory: `assistant`
+// is ONE module spanning every file under `src/assistant/`, so this edge exists independent of
+// anything `tool-registrations.ts` does, and `features/post -> assistant` (this file's own
+// `registerToolContributor` call) closes the cycle directly against it — no chain through `export`
+// or `vendor-credentials` required this time. Reverted cleanly instead. Safe conversion needs
+// `listPublishedPosts` either relocated off `features/post`'s barrel into something `assistant/site/`
+// can depend on without closing this loop, or injected into `assistant/site/tools.ts`/
+// `client-directives.ts` the same Option-B-style way `vendor-credentials/store.ts` now takes
+// `extractGitHubLogin` — not attempted here, new design work beyond this dispatch's scope (execute
+// the recommended fix, don't re-litigate/extend the design).
