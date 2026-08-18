@@ -79,10 +79,23 @@ const HAND_WRITTEN_RULES = [
       to: { path: "^src/db", dependencyTypesNot: ["type-only"] },
     },
     {
+      // `from.pathNot: ".*/__tests__/.*"` (2026-08-18, never-investigated-rule triage): the one
+      // remaining violation is `read-template.unit.test.ts` importing `server/seed.ts`'s
+      // `seededWorkspace`/`seededPosts`/`seededPresentation` — REQ-02's own binding rule is that
+      // `readTemplate("starter")`'s seed content is byte-equivalent to server/seed.ts's CURRENT
+      // live output, verified by direct deep-equality against the live export rather than a
+      // hand-copied fixture "so it can never silently drift" (see the test file's own header).
+      // That is a genuine cross-boundary anti-drift check, not a production dependency — INV-06
+      // (site-dir stays CLI/Express-agnostic so a future non-CLI host, ADR-011, can reuse it) is
+      // about PRODUCTION code; grep confirms this is the ONLY server/cli/express import anywhere
+      // under src/site-dir/, and it is confined to __tests__/. Same "contract/integration test
+      // needs the real concrete internals" reasoning `core-no-server-or-app-imports` and
+      // `only-composition-constructs-concrete-adapters` (both above) already accept via the
+      // identical `.*/__tests__/.*` pattern — reused verbatim, not a new exemption shape.
       name: "site-dir-no-server-express-or-cli-imports",
       severity: "warn",
       comment: "SPEC-003 (ADR-PIPE-003) — src/site-dir/** is the install-dir domain and must stay CLI/Express-agnostic (INV-06) so a future non-CLI caller (the desktop host, ADR-011) can reuse it directly.",
-      from: { path: "^src/site-dir" },
+      from: { path: "^src/site-dir", pathNot: ".*/__tests__/.*" },
       to: { path: "^(src/server|src/cli|node_modules/express)" },
     },
     {
@@ -393,20 +406,50 @@ function noDeepImportRules(mod) {
       to: { path: internals, pathNot: extraToExempt },
     },
     {
+      // `from.pathNot: ".*/__tests__/.*"` (2026-08-18, never-investigated-rule triage): the
+      // remaining 3 violations across all 30 modules were all `db/sqlite/__tests__/*.sqlite.
+      // {test,integration.test}.ts` files, not production adapters — `webhook-{subscription,
+      // delivery}-repo.sqlite.test.ts` each run one shared `runContractSuite` against BOTH the
+      // real `Sqlite*Repo` adapter under test AND `webhooks/repo.memory.ts`'s in-memory reference
+      // implementation, to prove both satisfy the same port contract identically (the value import
+      // is the reference fake, needed to construct it — not a port type);
+      // `database-introspection-adapter.sqlite.integration.test.ts` calls `site-dir/schema-guard.
+      // ts`'s real `runtimeSchemaVersion()` to cross-check the adapter's own introspection against
+      // an independently-computed runtime schema identity. Same "contract/integration test needs
+      // the real concrete internals" reasoning `core-no-server-or-app-imports` and
+      // `only-composition-constructs-concrete-adapters` (both above) already accept via the
+      // identical `.*/__tests__/.*` pattern — reused verbatim, not a new exemption shape. This
+      // rule's own comment ("db/sqlite ADAPTERS ... never a runtime value") was always about
+      // production adapter code; a test exercising two implementations against one contract suite
+      // was never the concern it was written to police.
       name: `no-deep-value-imports-from-db-sqlite:${mod}`,
       severity: "warn",
       comment: `db/sqlite adapters may deep-import ${mod}'s port TYPES (the contract they implement) but never a runtime value.`,
-      from: { path: DB_SQLITE },
+      from: { path: DB_SQLITE, pathNot: ".*/__tests__/.*" },
       to: { path: internals, pathNot: extraToExempt, dependencyTypesNot: ["type-only"] },
     },
     {
       // The tool-registration-seam caller is excluded from the main rule above (so it isn't
       // double-flagged), but that exclusion must not become a blanket pass into the rest of the
       // module — this rule re-polices it, allowing ONLY tool-registrations.ts/agent-tools.ts.
+      //
+      // `from.pathNot: modPath` (2026-08-18, never-investigated-rule triage): when mod is
+      // "assistant" itself, `TOOL_REGISTRATION_SEAM_FROM` matches `assistant/tool-registrations.ts`
+      // — a file that LIVES INSIDE the module this instantiation is policing. Without the
+      // exclusion, the rule flagged that file's own ordinary intra-module imports (its sibling
+      // `tool-contribution-registry.ts`'s `listToolContributors`, and the two env-gated
+      // `demo-{a2ui,choices}-tool.ts` stubs) as if they were an external seam-caller reaching in —
+      // there is no such caller/callee boundary when both files are the same module's own
+      // internals; every other generated rule already exempts a module's own path from checks
+      // against itself (see `noDeepImportRules`'s primary rule's `pathNot: [modPath, ...]` above),
+      // this one just missed it because its `from` is a fixed pattern instead of derived from
+      // `mod`. Verified: `assistant`'s `EXTRA_TO_EXEMPT` entry (mcp-federation) and every other
+      // guarded module are unaffected — `modPath` for any mod other than "assistant" cannot match
+      // `src/assistant/tool-registrations.ts` or `src/server/tool-catalog-manifest.ts`.
       name: `no-non-seam-deep-imports-from-tool-registration-caller:${mod}`,
       severity: "warn",
       comment: `assistant/tool-registrations.ts (and its own tests) may reach ${mod}'s tool-registrations.ts/agent-tools.ts seam, but nothing else in ${mod}.`,
-      from: { path: TOOL_REGISTRATION_SEAM_FROM },
+      from: { path: TOOL_REGISTRATION_SEAM_FROM, pathNot: modPath },
       to: { path: internals, pathNot: [TOOL_REGISTRATION_SEAM_TO, ...extraToExempt] },
     },
   ];
