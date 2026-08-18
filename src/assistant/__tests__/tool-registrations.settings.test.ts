@@ -13,6 +13,8 @@ import {
 } from "../../features/settings";
 import type { RouteDeps } from "../../server/routes/types";
 import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations";
+import { resetToolContributorsForTests, registerToolContributor } from "../tool-contribution-registry";
+import { buildSettingsRegistrations, settingsDerivedRisk } from "../../features/settings/tool-registrations";
 
 /**
  * @file The Settings (SPEC-007) tool-wiring test file — mirrors
@@ -25,6 +27,17 @@ import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "..
  * structural rather than behavioral — so the tests there assert what is UNREACHABLE (an unlisted
  * key, another operator's layer, a non-user scope), not merely what the happy path returns.
  */
+
+// `settings` moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
+// tool-contribution registry (2026-08-17), so `buildAssistantToolRegistrations` below no longer
+// wires it unless something explicitly registers it first — mirroring every other converted
+// domain's test file. UNLIKE those, `settings` does not get its own `contribute<Domain>Tools()`
+// (see `server/tool-catalog-manifest.ts`'s DELIBERATE ONE-OFF EXCEPTION comment for why the
+// standard shape is unsafe for this domain: it would reopen an `assistant <-> features/settings`
+// cycle through 3 side-door files). This call mirrors exactly what
+// `installFirstPartyToolContributors()` does inline instead.
+resetToolContributorsForTests();
+registerToolContributor({ domain: "settings", build: buildSettingsRegistrations, risk: settingsDerivedRisk });
 
 const WORKSPACE_ID = "ws-tools";
 const PRINCIPAL_ID = "principal-under-test";

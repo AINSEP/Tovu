@@ -581,6 +581,21 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
 // Newsletter (which import nothing else and nothing else imports), Post is depended on by other
 // modules (`widgets`, `export`), so it cannot convert safely until either those edges are relocated
 // or the still-static `widgets`/`deployments`/`source-control`/`vendor-credentials` DOMAIN_SLICES
-// entries above convert too. Left as a normal `DOMAIN_SLICES` entry; see
-// `assistant/tool-registrations.ts`'s own header for the current authoritative list of what has and
-// hasn't converted.
+// entries above convert too.
+//
+// RETRIED 2026-08-17 (same day, later pass) after `widgets` (Stage 2 batch 2) and `source-control`
+// (this same later pass) both converted off `DOMAIN_SLICES`. Empirically wired
+// `registerToolContributor` here and ran `check:architecture --list`: the `widgets`/`source-control`
+// half of the original 7-module SCC is gone, but a NEW, smaller one remains — `[assistant, export,
+// features/deployments, features/post, features/vendor-credentials]` (5 modules; "module cycles
+// (mutual pairs)" read 1, "largest strongly-connected component" grew 0 -> 5, which
+// `check-architecture.ts`'s own gate treats as a regression on the combined "module cycles / SCC"
+// hard-constraint metric regardless of the mutual-pairs count). This is the SAME cluster that blocks
+// `deployments`/`static-publish` (a previously-undocumented `features/vendor-credentials/store.ts`
+// value import of `extractGitHubLogin` from `features/deployments/static-publish/index.ts` — see
+// `features/deployments/tool-registrations.ts`'s own header) and `themes` (same cluster, `export`
+// depends on both `features/theme` and, transitively via this domain, `features/post`). The exact
+// edge chain linking `export`/`features/post` into this cluster was not fully re-traced beyond
+// confirming the SCC membership above — out of scope for this dispatch. Reverted cleanly instead;
+// still needs `deployments`'s own blocker fixed first (Option-B-style injection of
+// `extractGitHubLogin` into `store.ts`) before a future retry has a chance.
