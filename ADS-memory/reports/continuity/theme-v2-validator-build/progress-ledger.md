@@ -196,3 +196,45 @@ single-theme quirk — full detail sent to team-lead via SendMessage, summarized
    path before touching a live static theme.
 4. Milestones 4 (normalizer wiring) and 5 (generated root `index.html`) remain queued behind
    Milestone 3 per the explicit dispatch order this session received.
+
+## Session 2 continued — go-ahead received, Blocker A fixed (2 commits), Blocker B decided
+
+Leona's answers (relayed by team-lead): Blocker A → fix it (apiVersion-branch, same pattern as the
+validator), with its own commit + regression tests, v1 byte-identical, BEFORE migration code. Blocker
+B → ship fuel/gracious-timing/portfolite as-is, `license` unset, `NOTICE.md` forward verbatim. Per-theme
+classification approved unchanged. tailark-* documentation gap noted, not resolved now — re-flag in the
+final report. Start migration with `basic-declarative`.
+
+**Blocker A turned out to be TWO fixes, not one** — found the second while scoping the migration script,
+reported it to team-lead as a heads-up (proceeding under the same approved pattern, not blocking):
+
+1. Commit `2f545002` — `static-asset-contract.ts`/`static-render.ts`/`build-conformance.ts` (the three
+   files team-lead named): request-time asset-path REWRITING inside already-loaded page HTML.
+2. Commit `f1f1b9ef` — `theme.ts`'s `loadTheme()`/`loadStaticTierAssets`/`loadSlotPartials` (NOT
+   originally named): file-discovery — WHERE on disk the loader looks for pages/templates/css/partials
+   in the first place. Without this, a v2-migrated theme fails to even LOAD (`status: "invalid"`),
+   before commit 1's fix could matter at all. Same `apiVersion === 2` branch pattern, same
+   byte-identical-v1 guarantee, own regression tests (5 new, `theme-load-api-version.test.ts`).
+
+Both confirmed against the full `src/features/theme` suite: 339 (Milestone 2 baseline) → 346 → 351,
+all passing, zero regressions. `npx tsc -p tsconfig.json --noEmit` clean after each commit.
+
+**apiVersion is now a real, load-bearing field**: `ThemeManifest.apiVersion?: 2` (`theme.ts`), parsed
+in `loadTheme()` from `raw.apiVersion === 2`. Every real theme on disk has no `apiVersion` field, so
+every one of them is unaffected — this is purely additive, opt-in infrastructure the migration script
+can now target.
+
+### Next Actions (current)
+
+1. Build the migration script, starting with `declarative/basic-declarative` (per the approved
+   classification: lowest risk, reference-only, not wired into any site). Its quirks: `styles.css` at
+   theme root (not under `css/`) → `css/theme.css`; `templates/` (not `pages/`) → `render/pages/`.
+2. Then the rest of the approved classification in order: `storefront` → clean-convert group
+   (`fuel`/`gracious-timing`/`portfolite`/`fashion-modern`, path rewrites) → `tailark-*`
+   (needs-human-review, still migrate structurally, flag the doc gap) → refuse `mui-marketing`
+   (detect + skip, don't touch).
+3. Decide `__original-themes__`/`__marketplace__` catalog-copy handling once the real themes they
+   mirror are done (see the checkpoint report's own note — this is a design question, not urgent).
+4. Milestones 4 (normalizer wiring) and 5 (generated root `index.html`) remain queued behind Milestone 3.
+5. Final report to team-lead must re-surface the tailark-* "checked but no record of it" finding as an
+   explicit follow-up item, per Leona's instruction — do not let it get silently absorbed.
