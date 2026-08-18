@@ -5,7 +5,11 @@ import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
 import { createRouteDeps } from "#src/server/app";
-import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
+import {
+  createCapturingResponse,
+  extractRouteHandler,
+  startTestServer,
+} from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminSeoPutEntryRoute } from "../put-entry";
 import type { SeoRouteDeps } from "../deps";
 
@@ -97,6 +101,66 @@ test("put-entry: a valid patch succeeds (200) and the meta reflects it", async (
   const body = json as { data: { title?: string; robots?: { noindex?: boolean } } };
   assert.equal(body.data.title, "New SEO Title");
   assert.equal(body.data.robots?.noindex, true);
+});
+
+test("put-entry: a request with no body at all still succeeds as a real empty patch (express.json() itself always defaults req.body to {}, confirmed by direct check -- see the type-bypass test below for the `req.body ?? {}` branch this does NOT reach)", async (t) => {
+  const app = buildApp();
+  const baseUrl = await startTestServer(app, t);
+  // No `content-type` header and no `body`. Verified directly (a throwaway probe app) that
+  // `express.json()` sets `req.body` to `{}` even for a request it doesn't parse as JSON -- it
+  // never leaves `req.body` as `undefined` -- so this exercises the same "value present" branch
+  // outcome as every other test here, just via an empty object instead of an empty JSON body.
+  const res = await fetch(`${baseUrl}${PATH}`, { method: "PUT" });
+  const json = (await res.json().catch(() => ({}))) as { data?: { title?: string } };
+  assert.equal(res.status, 200, JSON.stringify(json));
+  assert.ok(json.data, "an empty patch must still return the entry's current (unchanged) meta");
+});
+
+test("put-entry: workspaceId/entryId params, and req.body itself, can never actually be undefined through this app's real composition (a matched `:param` segment is always a populated string, and the global `express.json()` in app.ts always defaults req.body to `{}`) -- their `?? \"\"`/`?? {}` fallbacks are reached by calling the real handler directly, the same type-bypass technique a `default: throw` exhaustiveness guard would need", async (t) => {
+  const app = buildApp();
+  const handler = extractRouteHandler(app, "put", "/api/admin/v1/workspaces/:workspaceId/seo/entries/:entryId");
+
+  // workspaceId undefined -> `String(undefined ?? "") !== deps.workspaceId` -> the mismatch 404.
+  {
+    const { res, capture } = createCapturingResponse();
+    const req = { params: { workspaceId: undefined, entryId: ENTRY_ID }, body: { title: "x" } } as unknown as Parameters<
+      typeof handler
+    >[0];
+    await handler(req, res);
+    assert.equal(capture.statusCode, 404);
+    assert.deepEqual(capture.jsonBody, { error: "workspace was not found" });
+  }
+
+  // entryId undefined -> `String(undefined ?? "")` resolves to "", which no real post ever has as
+  // its id, surfacing `setEntrySeoOverrides`'s own real `SeoEntryNotFoundError` -> 404.
+  {
+    const { res, capture } = createCapturingResponse();
+    res.locals.principal = { id: "test-principal" };
+    const req = {
+      params: { workspaceId: WORKSPACE_ID, entryId: undefined },
+      body: { title: "x" },
+    } as unknown as Parameters<typeof handler>[0];
+    await handler(req, res);
+    assert.equal(capture.statusCode, 404);
+    assert.deepEqual(capture.jsonBody, { error: "entry '' was not found", code: "SEO_ENTRY_NOT_FOUND" });
+  }
+
+  // req.body itself undefined -> `req.body ?? {}` resolves to `{}`, an empty (no-op) patch that
+  // still 200s with the entry's unchanged current meta -- the same real behavior as the "no body
+  // at all" HTTP test above, but this is the only way to make `req.body` itself literally
+  // `undefined`, since `express.json()` always substitutes `{}` for any real request it sees.
+  {
+    const { res, capture } = createCapturingResponse();
+    res.locals.principal = { id: "test-principal" };
+    const req = {
+      params: { workspaceId: WORKSPACE_ID, entryId: ENTRY_ID },
+      body: undefined,
+    } as unknown as Parameters<typeof handler>[0];
+    await handler(req, res);
+    assert.equal(capture.statusCode, 200, JSON.stringify(capture.jsonBody));
+    const body = capture.jsonBody as { data: { title?: string } };
+    assert.ok(body.data, "an empty patch must still return the entry's current (unchanged) meta");
+  }
 });
 
 test("put-entry: an unexpected repo failure 500s", async (t) => {
