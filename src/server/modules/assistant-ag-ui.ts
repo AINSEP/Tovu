@@ -35,6 +35,11 @@
  * client-supplied `runId` is unrelated to the real daemon run id — no mapping between them is kept
  * beyond this one request's lifetime, since there is no reattach story for this path yet (mirrors
  * BYOK's own disclosed "no reattach" limitation).
+ *
+ * Tovu's agent-selector value arrives as `body.forwardedProps.agentId`, not a top-level
+ * `body.agentId` — a real `RunAgentInput` (what the client's `HttpAgent` actually sends) has no
+ * top-level `agentId` field; `forwardedProps` is that schema's own documented passthrough
+ * extension point. See {@link resolveForwardedAgentId}.
  */
 import { randomUUID } from "node:crypto";
 
@@ -568,17 +573,31 @@ function resolveNonEmptyString(value: unknown): string | undefined {
   return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
+/** `RunAgentInput.forwardedProps` has no declared shape of its own (`z.ZodAny` in `@ag-ui/core`) —
+ *  it's the schema's documented passthrough extension point, and Tovu's agent-selector value rides
+ *  there as `forwardedProps.agentId` (there is no top-level `agentId` field on a real
+ *  `RunAgentInput`; that's a separate, unrelated `AgentConfig`-level concept in `@ag-ui/client`). */
+function resolveForwardedAgentId(forwardedProps: unknown): string | undefined {
+  if (typeof forwardedProps !== "object" || forwardedProps === null) return undefined;
+  return resolveNonEmptyString((forwardedProps as { agentId?: unknown }).agentId);
+}
+
 /** Validates and normalizes one AG-UI run request body, or `null` when it fails the one hard
  *  requirement: a non-empty `messages` array ending in a user turn. Split out of `handleAgUiRun` so
  *  that function's own body is just the request's control flow, not this parsing. */
-function resolveAgUiRunRequest(body: { threadId?: unknown; runId?: unknown; messages?: unknown; agentId?: unknown }): AgUiRunRequest | null {
+function resolveAgUiRunRequest(body: {
+  threadId?: unknown;
+  runId?: unknown;
+  messages?: unknown;
+  forwardedProps?: unknown;
+}): AgUiRunRequest | null {
   const messages = resolveAgUiMessages(body.messages);
   if (messages.length === 0 || messages[messages.length - 1]?.role !== "user") return null;
   return {
     threadId: resolveNonEmptyString(body.threadId) ?? randomUUID(),
     runId: resolveNonEmptyString(body.runId) ?? randomUUID(),
     requestId: randomUUID(),
-    agentId: resolveNonEmptyString(body.agentId),
+    agentId: resolveForwardedAgentId(body.forwardedProps),
     messages,
   };
 }
@@ -649,7 +668,7 @@ async function drainAgUiStream(reader: ReadableStreamDefaultReader<Uint8Array>, 
 }
 
 async function handleAgUiRun(req: Request, res: Response): Promise<void> {
-  const body = (req.body ?? {}) as { threadId?: unknown; runId?: unknown; messages?: unknown; agentId?: unknown };
+  const body = (req.body ?? {}) as { threadId?: unknown; runId?: unknown; messages?: unknown; forwardedProps?: unknown };
   const run = resolveAgUiRunRequest(body);
   if (!run) {
     res.status(400).json({ error: "'messages' must end with a non-empty user message", code: "VALIDATION_ERROR" });

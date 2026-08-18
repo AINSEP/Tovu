@@ -382,13 +382,16 @@ test("history longer than 40 messages is truncated to the trailing 40 before rea
   assert.match(contextRef.prompt, /message-44/);
 });
 
-test("omitted threadId/runId are minted server-side; an explicit agentId is forwarded to the daemon", async (t) => {
+test("omitted threadId/runId are minted server-side; an explicit forwardedProps.agentId is forwarded to the daemon", async (t) => {
   const { baseUrl, cookie } = await bootAgUi(t);
 
+  // A real RunAgentInput (what @ag-ui/client's HttpAgent actually sends) has no top-level
+  // `agentId` field — Tovu's agent selector rides in `forwardedProps.agentId`, that schema's own
+  // documented passthrough extension point.
   const res = await fetch(`${baseUrl}/api/admin/v1/assistant/ag-ui-run`, {
     method: "POST",
     headers: { "content-type": "application/json", cookie },
-    body: JSON.stringify({ messages: [{ role: "user", content: "hi" }], agentId: "custom-agent" }),
+    body: JSON.stringify({ messages: [{ role: "user", content: "hi" }], forwardedProps: { agentId: "custom-agent" } }),
   });
 
   assert.equal(res.status, 200);
@@ -400,6 +403,23 @@ test("omitted threadId/runId are minted server-side; an explicit agentId is forw
   const startCall = recorded.find((r) => r.method === "POST" && r.url === "/api/runs");
   const startBody = JSON.parse(startCall?.body ?? "{}") as { agentId?: string };
   assert.equal(startBody.agentId, "custom-agent");
+});
+
+test("a missing or malformed forwardedProps does not crash — agentId is simply absent from the daemon call", async (t) => {
+  const { baseUrl, cookie } = await bootAgUi(t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/assistant/ag-ui-run`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    // No `forwardedProps` at all — the field is optional on the wire; a genuine RunAgentInput
+    // sender always includes it, but this route must not assume that.
+    body: JSON.stringify({ messages: [{ role: "user", content: "hi" }], forwardedProps: "not an object" }),
+  });
+
+  assert.equal(res.status, 200);
+  const startCall = recorded.find((r) => r.method === "POST" && r.url === "/api/runs");
+  const startBody = JSON.parse(startCall?.body ?? "{}") as { agentId?: string };
+  assert.equal(startBody.agentId, undefined);
 });
 
 test("an empty-string threadId/runId is treated the same as omitted — server mints real ids, not empty strings", async (t) => {
