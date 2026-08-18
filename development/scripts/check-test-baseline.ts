@@ -35,6 +35,38 @@
  * that happen to share an identical description would collide; this codebase's test names are long
  * and specific enough in practice that this is a low, accepted risk, not a solved one.
  *
+ * ## Known limitation: CI-runner file-level crashes always read as "new," never match anything
+ *
+ * Diagnosed 2026-08-17 against CI runs 32091498514 and 32093877745 (both `general-work`, both red
+ * on this check). In both, `newFailures` was a list of *bare file paths* — e.g.
+ * `src/server/__tests__/admin-integrations-routes.test.ts` — not test descriptions. Node's test
+ * runner normally flattens every file's tests into the top-level TAP stream (see above), but under
+ * GitHub Actions' constrained runner it can instead emit ONE top-level `not ok N - <file path>`
+ * entry for a file that dies before/during its own tests (confirmed cause in one of those two runs:
+ * `ERR_WORKER_OUT_OF_MEMORY`, a worker-thread heap limit hit under full-suite concurrent load). That
+ * regex-matches the same `not ok \d+ - (.+)$` pattern as a real test failure, so it becomes a
+ * `currentFailures` entry — and because the baseline is keyed on test-description strings (previous
+ * section), a bare file path can never match a baseline entry. Every such crash is therefore
+ * GUARANTEED to print as "new," regardless of whether any test inside that file actually regressed.
+ * Neither historical run reproduced this locally (single-file runs, and a full quiet `test:cov:server`
+ * run at each run's own commit) — it appears to be CI-resource-pressure-dependent, not a deterministic
+ * per-commit defect. If this recurs, check for file-path-shaped (not test-description-shaped) entries
+ * in the reported list before assuming a real regression, and look for `ERR_WORKER_OUT_OF_MEMORY` or
+ * similar in the same job's `test:cov:server` step output.
+ *
+ * A second, compounding bug (fixed 2026-08-17, same investigation): the `fixedFailures` block below
+ * used to print via `console.log` (stdout) while the `newFailures` block prints via `console.error`
+ * (stderr). On POSIX, Node writes to a *pipe* — not a TTY or plain file — asynchronously, and GitHub
+ * Actions captures step output through a pipe. When both blocks fired in the same run, their two
+ * independently-buffered async streams landed in the captured log in ARRIVAL order, not call order —
+ * confirmed in CI run 32091498514's raw log, where the final `console.error("Fix it...")` line (the
+ * last synchronous write before `process.exit(1)`) appeared BEFORE two straggling `console.log`
+ * bullets from the *earlier* fixedFailures loop. This made a real, boring "some files crashed under
+ * CI load" story misread as "test titles and file paths interleaved 1:1," which looked suspiciously
+ * like a key-derivation bug. It wasn't — both blocks' contents were individually correct, only their
+ * relative print order across streams was scrambled. Fixed by moving the fixedFailures block onto
+ * the same stream (`console.error`) as the newFailures block, so both share one FIFO write queue.
+ *
  * Usage: npx tsx development/scripts/check-test-baseline.ts <baselineJsonPath> [tapPath]
  *   baselineJsonPath - path to a JSON file shaped { knownFailures: string[], ... }
  *   tapPath          - defaults to development/coverage/test-results.tap
@@ -89,11 +121,20 @@ function main(): void {
   const newFailures = [...currentFailures].filter((name) => !knownFailures.has(name));
   const fixedFailures = [...knownFailures].filter((name) => !currentFailures.has(name));
 
+  // Deliberately console.error (not console.log) even though this block is advisory, not a
+  // failure: on POSIX, Node.js writes to a *pipe* (not a TTY or a plain file) are asynchronous,
+  // and GitHub Actions captures step output through a pipe. When this block and the NEW-failures
+  // block below both fire in the same run, two independently-buffered async streams (stdout for
+  // console.log, stderr for console.error) get interleaved by the log capturer in ARRIVAL order,
+  // not call order -- verified 2026-08-17 against two real CI runs where this list's bullets, and
+  // even the final "Fix it..." message, appeared shuffled together out of program order. Writing
+  // both blocks to the same stream keeps them in one FIFO queue, so relative order is guaranteed
+  // regardless of sync/async pipe behavior.
   if (fixedFailures.length > 0) {
-    console.log(
+    console.error(
       `check:route-test-baseline — ${fixedFailures.length} baseline entr${fixedFailures.length === 1 ? "y" : "ies"} no longer fail(s); delete from ${path.relative(REPO_ROOT, baselinePath)}:`
     );
-    for (const name of fixedFailures) console.log(`  - ${name}`);
+    for (const name of fixedFailures) console.error(`  - ${name}`);
   }
 
   if (newFailures.length === 0) {
