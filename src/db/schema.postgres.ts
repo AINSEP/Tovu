@@ -9,7 +9,7 @@
  * declarations, and PostgreSQL's tsvector/GIN equivalent is hand-authored. See the generator's
  * module doc.
  *
- * Tables: 78
+ * Tables: 79
  */
 import { sql } from "drizzle-orm";
 import { bigint, boolean, check, foreignKey, index, pgTable, primaryKey, text, uniqueIndex } from "drizzle-orm/pg-core";
@@ -314,6 +314,24 @@ export const contentTypes = pgTable("content_types", {
 }, (t) => [
     uniqueIndex("content_types_workspace_key_unique").on(t.workspaceId, t.key),
     index("idx_content_types_workspace").on(t.workspaceId),
+  ]);
+
+export const customCredentialSets = pgTable("custom_credential_sets", {
+  id: text("id").notNull(),
+  workspaceId: text("workspace_id").notNull(),
+  label: text("label").notNull(),
+  category: text("category").notNull(),
+  baseUrl: text("base_url").notNull(),
+  sealedKeyId: text("sealed_key_id").notNull(),
+  sealedCiphertext: text("sealed_ciphertext").notNull(),
+  sealedNonce: text("sealed_nonce").notNull(),
+  sealedAlg: text("sealed_alg").notNull(),
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+}, (t) => [
+    primaryKey({ columns: [t.workspaceId, t.id] }),
+    foreignKey({ columns: [t.workspaceId], foreignColumns: [workspaces.id] }).onDelete("cascade"),
+    uniqueIndex("custom_credential_sets_workspace_label_unique").on(t.workspaceId, t.label),
   ]);
 
 export const databaseWriteWatermark = pgTable("database_write_watermark", {

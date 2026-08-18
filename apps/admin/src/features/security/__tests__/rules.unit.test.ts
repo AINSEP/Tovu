@@ -5,27 +5,36 @@ import {
   ACCESS_TOKEN_CATEGORIES,
   ACCESS_TOKEN_PROVIDERS,
   OTHER_CREDENTIAL_STORES,
+  accessTokenCategoryLabel,
   accessTokenCategoryMatches,
   accessTokenNameTaken,
   accessTokenProviderInfo,
   accessTokenProviderMatchesQuery,
   accessTokenReplaceReadyToSave,
   accessTokenRowMatchesQuery,
+  accessTokenRowProviderInfo,
   accessTokenRowReadyToSave,
   accessTokenRowsForProvider,
   buildAccessTokenConnectionInput,
   buildAccessTokenRows,
   buildAccessTokenUpdatePatch,
+  buildCustomCredentialRows,
+  buildCustomProviderConnectionInput,
   classifyAccessTokenSubmitError,
   connectedAsFact,
+  customCredentialNameTaken,
+  customCredentialReadyToSave,
   envNamesFact,
+  isValidHttpUrl,
   maskedTailFact,
   mediaProviderLabel,
   otherCredentialMatchesQuery,
   otherCredentialStoreInfo,
   type AccessTokenFormFields,
   type AccessTokenRow,
+  type CustomCredentialFormFields,
   type RawCredentialSummary,
+  type RawCustomCredentialSummary,
 } from "../rules";
 
 /** A blank form for one provider — every test overrides only the fields it cares about, same
@@ -118,8 +127,8 @@ describe("buildAccessTokenRows", () => {
 });
 
 describe("category filter", () => {
-  it("ACCESS_TOKEN_CATEGORIES starts with All, then the five owner-specified buckets", () => {
-    expect(ACCESS_TOKEN_CATEGORIES.map((c) => c.id)).toEqual(["all", "source-control", "hosting", "media", "ai", "ops"]);
+  it("ACCESS_TOKEN_CATEGORIES starts with All, then the five owner-specified buckets, then General", () => {
+    expect(ACCESS_TOKEN_CATEGORIES.map((c) => c.id)).toEqual(["all", "source-control", "hosting", "media", "ai", "ops", "general"]);
   });
 
   it("every Tier 1 provider lands in exactly one non-'all' category", () => {
@@ -395,5 +404,166 @@ describe("classifyAccessTokenSubmitError", () => {
 
   it("falls back to generic for an ApiError whose code matches neither known marker", () => {
     expect(classifyAccessTokenSubmitError(new ApiError("internal error", 500, "SECRET_STORE_UNCONFIGURED"))).toEqual({ kind: "generic" });
+  });
+});
+
+/** A blank custom-provider form — every test overrides only the fields it cares about, same
+ *  convention {@link blankFields} follows for the catalog providers' own form shape. */
+function blankCustomFields(overrides: Partial<CustomCredentialFormFields> = {}): CustomCredentialFormFields {
+  return { name: "", category: "general", baseUrl: "", token: "", username: "", ...overrides };
+}
+
+function rawCustomSummary(overrides: Partial<RawCustomCredentialSummary> = {}): RawCustomCredentialSummary {
+  return {
+    id: "custom-1",
+    label: "name.com",
+    category: "general",
+    baseUrl: "https://api.name.com",
+    createdAt: "2026-08-17T10:00:00.000Z",
+    updatedAt: "2026-08-17T10:00:00.000Z",
+    ...overrides,
+  };
+}
+
+describe("isValidHttpUrl", () => {
+  it("accepts http and https URLs", () => {
+    expect(isValidHttpUrl("https://api.vercel.com")).toBe(true);
+    expect(isValidHttpUrl("http://localhost:4000")).toBe(true);
+  });
+
+  it("rejects a non-http(s) scheme", () => {
+    expect(isValidHttpUrl("ftp://files.example.com")).toBe(false);
+    expect(isValidHttpUrl("javascript:alert(1)")).toBe(false);
+  });
+
+  it("rejects a malformed string", () => {
+    expect(isValidHttpUrl("not a url")).toBe(false);
+    expect(isValidHttpUrl("")).toBe(false);
+  });
+});
+
+describe("accessTokenCategoryLabel", () => {
+  it("resolves every real category id to its own label", () => {
+    expect(accessTokenCategoryLabel("general")).toBe("General");
+    expect(accessTokenCategoryLabel("ai")).toBe("AI");
+  });
+});
+
+describe("buildCustomCredentialRows", () => {
+  it("maps a raw summary onto an AccessTokenRow with kind 'custom' and no default", () => {
+    const rows = buildCustomCredentialRows([rawCustomSummary()]);
+    expect(rows).toEqual([
+      {
+        kind: "custom",
+        providerId: "custom-1",
+        id: "custom-1",
+        name: "name.com",
+        rawLabel: "name.com",
+        isDefault: false,
+        category: "general",
+        baseUrl: "https://api.name.com",
+        createdAt: "2026-08-17T10:00:00.000Z",
+        updatedAt: "2026-08-17T10:00:00.000Z",
+      },
+    ]);
+  });
+
+  it("gives each row its OWN providerId (its own id) — no shared grouping key across two custom rows", () => {
+    const rows = buildCustomCredentialRows([rawCustomSummary({ id: "a", label: "name.com" }), rawCustomSummary({ id: "b", label: "GoDaddy" })]);
+    expect(rows.map((r) => r.providerId)).toEqual(["a", "b"]);
+  });
+});
+
+describe("accessTokenRowProviderInfo", () => {
+  it("delegates straight through for a catalog kind", () => {
+    const row: AccessTokenRow = {
+      kind: "publish",
+      providerId: "github-pages",
+      id: "row-1",
+      name: "Production",
+      rawLabel: "Production",
+      isDefault: true,
+      createdAt: "2026-08-17T10:00:00.000Z",
+      updatedAt: "2026-08-17T10:00:00.000Z",
+    };
+    expect(accessTokenRowProviderInfo(row)).toEqual(accessTokenProviderInfo(row));
+  });
+
+  it("builds a synthetic info for a 'custom' row from its own name/category/baseUrl", () => {
+    const [row] = buildCustomCredentialRows([rawCustomSummary({ label: "name.com", category: "hosting", baseUrl: "https://api.name.com" })]);
+    const info = accessTokenRowProviderInfo(row!);
+    expect(info.label).toBe("name.com");
+    expect(info.vendorLabel).toBe("name.com");
+    expect(info.category).toBe("hosting");
+    expect(info.purposeLabel).toBe("Hosting");
+    expect(info.tokenPageUrl).toBe("https://api.name.com");
+    expect(info.requiredFields).toEqual([]);
+    expect(info.optionalFields).toEqual(["username"]);
+  });
+});
+
+describe("customCredentialReadyToSave", () => {
+  it("is ready once name, a valid base URL, and a token are all present", () => {
+    expect(customCredentialReadyToSave(blankCustomFields({ name: "name.com", baseUrl: "https://api.name.com", token: "tok" }))).toBe(true);
+  });
+
+  it("is not ready with a blank name", () => {
+    expect(customCredentialReadyToSave(blankCustomFields({ baseUrl: "https://api.name.com", token: "tok" }))).toBe(false);
+  });
+
+  it("is not ready with a blank token", () => {
+    expect(customCredentialReadyToSave(blankCustomFields({ name: "name.com", baseUrl: "https://api.name.com" }))).toBe(false);
+  });
+
+  it("is not ready with an invalid base URL", () => {
+    expect(customCredentialReadyToSave(blankCustomFields({ name: "name.com", baseUrl: "not a url", token: "tok" }))).toBe(false);
+  });
+
+  it("never requires a username — it stays optional", () => {
+    expect(customCredentialReadyToSave(blankCustomFields({ name: "name.com", baseUrl: "https://api.name.com", token: "tok", username: "" }))).toBe(true);
+  });
+});
+
+describe("customCredentialNameTaken", () => {
+  it("is workspace-wide, unlike accessTokenNameTaken — two DIFFERENT custom rows (different providerId) still collide", () => {
+    const rows = buildCustomCredentialRows([rawCustomSummary({ id: "a", label: "name.com" }), rawCustomSummary({ id: "b", label: "GoDaddy" })]);
+    // A same-name accessTokenNameTaken check would miss this (each row's providerId is its own id) —
+    // this function's whole reason to exist is that gap.
+    expect(customCredentialNameTaken(rows, "GoDaddy")).toBe(true);
+  });
+
+  it("is case-insensitive and whitespace-trimmed, same as accessTokenNameTaken", () => {
+    const rows = buildCustomCredentialRows([rawCustomSummary({ id: "a", label: "name.com" })]);
+    expect(customCredentialNameTaken(rows, "  NAME.COM  ")).toBe(true);
+  });
+
+  it("excludes the row being renamed via excludeId", () => {
+    const rows = buildCustomCredentialRows([rawCustomSummary({ id: "a", label: "name.com" })]);
+    expect(customCredentialNameTaken(rows, "name.com", "a")).toBe(false);
+  });
+
+  it("never matches a catalog (non-'custom') row sharing the same name", () => {
+    const catalogRow: AccessTokenRow = {
+      kind: "publish",
+      providerId: "github-pages",
+      id: "row-1",
+      name: "GoDaddy",
+      rawLabel: "GoDaddy",
+      isDefault: true,
+      createdAt: "2026-08-17T10:00:00.000Z",
+      updatedAt: "2026-08-17T10:00:00.000Z",
+    };
+    expect(customCredentialNameTaken([catalogRow], "GoDaddy")).toBe(false);
+  });
+});
+
+describe("buildCustomProviderConnectionInput", () => {
+  it("includes a non-blank username", () => {
+    expect(buildCustomProviderConnectionInput({ token: "tok", username: "alice" })).toEqual({ token: "tok", username: "alice" });
+  });
+
+  it("omits a blank username entirely, never sends an empty string", () => {
+    expect(buildCustomProviderConnectionInput({ token: "tok", username: "" })).toEqual({ token: "tok" });
+    expect(buildCustomProviderConnectionInput({ token: "tok", username: "   " })).toEqual({ token: "tok" });
   });
 });

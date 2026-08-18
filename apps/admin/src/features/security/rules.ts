@@ -1,5 +1,6 @@
 import {
   ApiError,
+  type AdminCustomConnectionInput,
   type AdminPublishConnectionInput,
   type AdminPublishCredentialProviderId,
   type AdminSourceControlConnectionInput,
@@ -59,13 +60,17 @@ import { MEDIA_PROVIDER_CATALOG } from "../media/media-provider-catalog";
  * second Create), not as two separate surfaces — see `OTHER_CREDENTIAL_STORES`'s own doc below.
  */
 
-/** Which of the two credential stores a row belongs to. */
-export type AccessTokenKind = "publish" | "source-control";
+/** Which credential store a row belongs to. `"custom"` (2026-08-17) is the odd one out — see
+ *  {@link AccessTokenRow.category}'s own doc: it has no fixed provider catalog behind it at all, an
+ *  operator-typed row IS its own provider identity. */
+export type AccessTokenKind = "publish" | "source-control" | "custom";
 
 /** The category filter row's own ids — `"all"` plus one bucket per real category. Every provider
  *  and every {@link OtherCredentialStoreInfo} lands in exactly one of the non-`"all"` ids (the owner's
- *  own requirement, 2026-08-16 ruling). */
-export type AccessTokenCategoryId = "all" | "source-control" | "hosting" | "media" | "ai" | "ops";
+ *  own requirement, 2026-08-16 ruling). `"general"` (2026-08-17) is the sixth bucket, added
+ *  specifically for "Add custom provider" rows whose vendor doesn't fit the other five (that
+ *  capability is also the only thing that can ever set it — no built-in provider uses it). */
+export type AccessTokenCategoryId = "all" | "source-control" | "hosting" | "media" | "ai" | "ops" | "general";
 
 /** The category actually stored on a row — never `"all"`, which exists only as the filter's own
  *  "show everything" option and would be meaningless as a row's own classification. */
@@ -91,7 +96,18 @@ export const ACCESS_TOKEN_CATEGORIES: readonly AccessTokenCategoryInfo[] = [
   { id: "media", label: "Media" },
   { id: "ai", label: "AI" },
   { id: "ops", label: "Ops" },
+  { id: "general", label: "General" },
 ] as const;
+
+/** A category id's own display label — `"general"`'s row-heading counterpart to
+ *  {@link AccessTokenProviderInfo.purposeLabel} for a custom row, which has no static catalog entry
+ *  to read a `purposeLabel` from (see {@link accessTokenRowProviderInfo}). Falls back to the id
+ *  itself only if the category table is somehow missing an entry (defensive — every
+ *  {@link AccessTokenRowCategoryId} value has a matching row in {@link ACCESS_TOKEN_CATEGORIES} by
+ *  construction). @complexity O(1) — six-entry table. */
+export function accessTokenCategoryLabel(id: AccessTokenRowCategoryId): string {
+  return ACCESS_TOKEN_CATEGORIES.find((c) => c.id === id)?.label ?? id;
+}
 
 /** Whether `rowCategory` should show under the active category filter — `"all"` matches everything,
  *  every other id matches only its own bucket. @complexity O(1). */
@@ -152,6 +168,12 @@ export interface AccessTokenProviderInfo {
   readonly tokenPageUrl: string;
   readonly scopeGuidanceKey: string;
   readonly requiredFields: readonly AccessTokenExtraFieldKey[];
+  /** Fields `TokenInputFields` should render but NOT gate readiness on — unset (equivalent to
+   *  empty) for every one of the seven catalog providers, which have no optional-but-shown extra
+   *  field today. {@link accessTokenRowProviderInfo}'s synthetic custom-row info is this field's
+   *  one real user: a custom row's Username is always optional (brief's own requirement), so it
+   *  cannot live in {@link requiredFields} (which gates the Save button), yet still needs to render. */
+  readonly optionalFields?: readonly AccessTokenExtraFieldKey[];
 }
 
 /**
@@ -222,6 +244,36 @@ export function accessTokenProviderInfo(ref: AccessTokenProviderRef): AccessToke
   return ACCESS_TOKEN_PROVIDERS.find((p) => p.kind === ref.kind && p.providerId === ref.providerId) ?? ACCESS_TOKEN_PROVIDERS[0]!;
 }
 
+/** {@link accessTokenProviderInfo}'s row-aware counterpart — the one `AccessTokensTab.tsx` call
+ *  site (`TokenRow`) actually needs, since a `kind: "custom"` row has no catalog entry
+ *  {@link accessTokenProviderInfo} could look up (its `providerId` is the row's own id, never
+ *  reused by any other row). Every other kind delegates straight through, unchanged. Builds a
+ *  SYNTHETIC info from the row's own {@link AccessTokenRow.category}/{@link AccessTokenRow.baseUrl}/
+ *  `name` for `"custom"`: `label`/`vendorLabel` both read `row.name` (a custom row has no
+ *  destination-vs-vendor split — see {@link AccessTokenProviderInfo.vendorLabel}'s own doc, which
+ *  only applies to the two catalog providers it names), `purposeLabel` is the category's own
+ *  display label, `tokenPageUrl` is the operator's own base URL (the closest analog this row has to
+ *  "where would I go to get/revoke this token"), `requiredFields` is empty and `optionalFields` is
+ *  `["username"]` — a custom row's Replace form asks for Name + Token + an always-optional Username,
+ *  never re-collects the base URL (see this file's own header on why baseUrl is create-only).
+ *  @complexity O(1). */
+export function accessTokenRowProviderInfo(row: AccessTokenRow): AccessTokenProviderInfo {
+  if (row.kind !== "custom") return accessTokenProviderInfo(row);
+  const category = row.category ?? "general";
+  return {
+    kind: "custom",
+    providerId: row.providerId,
+    label: row.name,
+    vendorLabel: row.name,
+    purposeLabel: accessTokenCategoryLabel(category),
+    category,
+    tokenPageUrl: row.baseUrl ?? "",
+    scopeGuidanceKey: "Paste the access token this provider issued from its own dashboard.",
+    requiredFields: [],
+    optionalFields: ["username"],
+  };
+}
+
 /** The two stores' fixed sentinel label — every row Static Site/Source Control ever wrote before
  *  this page existed carries exactly this string (`PUBLISH_CREDENTIAL_ROW_LABEL`/
  *  `SOURCE_CONTROL_CREDENTIAL_ROW_LABEL`, both `"default"` today, kept as two separately-imported
@@ -267,6 +319,14 @@ export interface AccessTokenRow {
   readonly isDefault: boolean;
   readonly createdAt: string;
   readonly updatedAt: string;
+  /** Set only for `kind: "custom"` rows — a catalog provider's category lives on its
+   *  {@link AccessTokenProviderInfo} entry instead (`ACCESS_TOKEN_PROVIDERS`), since every one of
+   *  its rows shares the same provider. A custom row has no catalog entry to read one from (its
+   *  `providerId` IS its own row id — see {@link buildCustomCredentialRows}), so the category the
+   *  operator picked at creation is carried on the row itself. */
+  readonly category?: AccessTokenRowCategoryId;
+  /** Set only for `kind: "custom"` rows — the API base URL the operator typed at creation. */
+  readonly baseUrl?: string;
 }
 
 /**
@@ -290,6 +350,43 @@ export function buildAccessTokenRows(kind: AccessTokenKind, raws: readonly RawCr
     }
     return { kind, providerId: raw.providerId, id: raw.id, name, rawLabel: raw.label, isDefault: raw.isDefault, createdAt: raw.createdAt, updatedAt: raw.updatedAt };
   });
+}
+
+/** The wire shape `AdminCustomCredentialSummary` (`lib/api.ts`) carries — kept as a locally-declared
+ *  structural subset (like {@link RawCredentialSummary}) so this file's pure functions stay
+ *  independently testable without importing the API client's own type for its own sake. */
+export interface RawCustomCredentialSummary {
+  readonly id: string;
+  readonly label: string;
+  readonly category: AccessTokenRowCategoryId;
+  readonly baseUrl: string;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+/**
+ * {@link buildAccessTokenRows}'s counterpart for custom-provider rows — much simpler, since a
+ * custom row has no shared provider to group under (no legacy-sentinel numbering, no provider-id
+ * lookup): `providerId` is set to the row's OWN `id` (unique by construction — see
+ * {@link AccessTokenRow.providerId}'s doc on the `AccessTokenProviderRef` grouping-key contract this
+ * satisfies trivially, one row per "provider"), `isDefault` is always `false` (no default concept
+ * applies — see `types.ts`'s own header on this table's server side), and `category`/`baseUrl`
+ * carry straight through as the row's own plaintext fields.
+ * @complexity O(n) in this workspace's own (small) custom-credential count.
+ */
+export function buildCustomCredentialRows(raws: readonly RawCustomCredentialSummary[]): AccessTokenRow[] {
+  return raws.map((raw) => ({
+    kind: "custom",
+    providerId: raw.id,
+    id: raw.id,
+    name: raw.label,
+    rawLabel: raw.label,
+    isDefault: false,
+    category: raw.category,
+    baseUrl: raw.baseUrl,
+    createdAt: raw.createdAt,
+    updatedAt: raw.updatedAt,
+  }));
 }
 
 /** Whether `row` should show under an active search `query` — matches the provider's brand label
@@ -452,6 +549,65 @@ export function classifyAccessTokenSubmitError(e: unknown): AccessTokenSubmitFai
     return { kind: "validation", detail };
   }
   return { kind: "generic" };
+}
+
+/** One "Add custom provider" form's fields — the dedicated dialog's own shape, kept separate from
+ *  {@link AccessTokenFormFields} (used by the seven catalog providers' Create/Replace) rather than
+ *  widened onto it: a custom row collects `category`/`baseUrl`, which no catalog provider's form
+ *  ever asks for, and has no `ref`/`accountId` to carry. */
+export interface CustomCredentialFormFields {
+  readonly name: string;
+  readonly category: AccessTokenRowCategoryId;
+  readonly baseUrl: string;
+  readonly token: string;
+  readonly username: string;
+}
+
+/** Whether `value` parses as an absolute `http`/`https` URL — the client-side twin of
+ *  `features/custom-credentials/store.ts`'s own `validateBaseUrl` (same accept/reject rule,
+ *  duplicated rather than shared since server code never imports from the admin app). Checked
+ *  explicitly rather than trusting "`new URL()` did not throw" — that constructor accepts far more
+ *  schemes than this field should (`javascript:`, `mailto:`, a bare `file:`).
+ *  @complexity O(1). */
+export function isValidHttpUrl(value: string): boolean {
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "http:" || parsed.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+/** Whether the "Add custom provider" dialog has enough typed to save — Name, a valid `http(s)`
+ *  Base URL, and a non-blank Access token are all required; Category always has a value (the select
+ *  defaults to one, never blank); Username stays optional (this file's own header on why it can
+ *  never gate readiness the way {@link accessTokenRowReadyToSave}'s per-provider `requiredFields`
+ *  do). @complexity O(1). */
+export function customCredentialReadyToSave(fields: CustomCredentialFormFields): boolean {
+  if (fields.name.trim() === "") return false;
+  if (fields.token.trim() === "") return false;
+  return isValidHttpUrl(fields.baseUrl.trim());
+}
+
+/** Whether `name` collides with another saved custom credential — workspace-wide (unlike
+ *  {@link accessTokenNameTaken}, which scopes by `providerId`): the server's own
+ *  `(workspaceId, label)` UNIQUE constraint has no provider dimension for this table at all (every
+ *  custom row's `providerId` is already unique — see {@link buildCustomCredentialRows}'s doc — so
+ *  scoping by it the way {@link accessTokenNameTaken} does would never find a real collision). Same
+ *  client-side-pre-check-not-a-replacement-for-the-server's-409 posture as that function.
+ *  @complexity O(n) in this workspace's own (small) custom-credential count. */
+export function customCredentialNameTaken(rows: readonly AccessTokenRow[], name: string, excludeId?: string): boolean {
+  const trimmed = name.trim().toLowerCase();
+  return rows.some((row) => row.kind === "custom" && row.id !== excludeId && row.name.trim().toLowerCase() === trimmed);
+}
+
+/** Builds the wire connection input for a custom-provider create/update call — just
+ *  `{token, username?}`, no provider dispatch (this table has none — see `types.ts`'s own header on
+ *  the server side). `username` is omitted entirely when blank, never sent as `""` (mirrors every
+ *  other optional-field builder in this file). @complexity O(1). */
+export function buildCustomProviderConnectionInput(fields: Pick<CustomCredentialFormFields, "token" | "username">): AdminCustomConnectionInput {
+  const username = fields.username.trim();
+  return { token: fields.token, ...(username !== "" ? { username } : {}) };
 }
 
 /** A stable id for one of the six Tier-2 credential stores — `AccessTokenRow.id`'s counterpart for

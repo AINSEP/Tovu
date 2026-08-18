@@ -6,7 +6,6 @@ import { formatTimestamp } from "../../lib/format-timestamp";
 import type { Translate } from "../../lib/dictionary-translator";
 import { otherCredentialMatchesQuery, type OtherCredentialStoreInfo } from "./rules";
 import { removeDialogBody, removeDialogTitle } from "./security-i18n";
-import { DisclosureChevronIcon } from "./security-visuals";
 import type { OtherCredentialGroupState, OtherCredentialRowState, OtherCredentialsController } from "./hooks/use-other-credentials.hooks";
 
 /**
@@ -195,68 +194,65 @@ function OtherCredentialStaticRow({ row, controller }: { row: OtherCredentialRow
   );
 }
 
-/** Configured, and this store supports retyping the key — a `<details>` row, closed by default (the
- *  step is done, same "get out of the way" reasoning `StaticSiteTab.tsx`'s `CredentialStepDone`
- *  documents), expanding to a single Access token field. */
+/** Configured, and this store supports retyping the key on its own dedicated screen (`DeepLink`) —
+ *  always rendered open, no accordion: unlike Tier 1's `TokenRow`, there is no inline form here worth
+ *  hiding behind a click. The Access token field shown below is the same masked `row.valueFact` the
+ *  summary line already carries, rendered `disabled` — a natural, familiar "this is set, go elsewhere
+ *  to change it" cue, not an editable draft. Deliberately carries no `agentHandle()` — a disabled
+ *  field tagged as fillable would have an assistant try to type into it, find it inert, and get stuck;
+ *  the `DeepLink` below is the one actionable path to actually change this value, same as a person
+ *  reading this row would use. */
 function OtherCredentialReplaceableRow({ row, controller }: { row: OtherCredentialRowState; controller: OtherCredentialsController }) {
   const translate = controller.t;
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const readyToSave = row.token.trim() !== "";
   return (
-    <details className="access-tokens-row access-tokens-row-done">
-      <summary className="access-tokens-row-summary">
-        <span className="access-tokens-row-marker access-tokens-row-marker-done" aria-hidden="true" />
-        <span className="access-tokens-row-name">{row.valueFact}</span>
-        {row.updatedAt ? (
-          <span className="access-tokens-row-summary-meta">
-            {translate("saved")} {formatTimestamp(row.updatedAt)}
-          </span>
-        ) : null}
-        <span className="access-tokens-row-summary-expand">
-          {translate("Replace token")}
-          <DisclosureChevronIcon />
-        </span>
-      </summary>
-      <div className="access-tokens-row-fields">
-        <div className="field">
-          <label className="field-label" htmlFor={`security-other-credential-${rowHandleBase(row)}`}>
-            {translate("Access token")}
-          </label>
-          <input
-            id={`security-other-credential-${rowHandleBase(row)}`}
-            type="password"
-            // `new-password`, not `off` — Chrome ignores `off` on credential-shaped fields by
-            // design. See `AccessTokensTab.tsx`'s token input for the full reasoning; this section
-            // renders on the SAME page, so its password fields feed the same autofill heuristic.
-            autoComplete="new-password"
-            value={row.token}
-            onChange={(e) => controller.setDraftToken(row.key, e.target.value)}
-            {...safeAgentHandle(`security-other-credential-token-${rowHandleBase(row)}`, { role: "field", label: `${row.name}'s replacement access token` })}
-          />
-          <p className="field-hint">{translate("Stored encrypted on the server. Once saved, Tovu never displays it again.")}</p>
+    <div className="access-tokens-row">
+      {/* One shared block, not two independent rows — `align-items: stretch` in a column-direction
+          inline-flex makes the (naturally narrow) token field stretch to match the actions row's own
+          content width below it, so both edges line up instead of the field looking arbitrarily
+          short next to a wider button group. */}
+      <div className="access-tokens-row-block">
+        <div className="access-tokens-row-fields access-tokens-row-fields-top">
+          <div className="field">
+            <label className="field-label" htmlFor={`security-other-credential-${rowHandleBase(row)}`}>
+              {translate("Access token")}
+              {row.updatedAt ? (
+                <span className="access-tokens-row-summary-meta access-tokens-field-label-meta">
+                  {translate("saved")} {formatTimestamp(row.updatedAt)}
+                </span>
+              ) : null}
+            </label>
+            {/* `type="text"`, not `"password"` — `row.valueFact` is already a pre-masked display
+                string (leading dots + last 4 real characters); a password-type input would mask the
+                last 4 a second time, hiding the one part of this value that's meant to stay visible. */}
+            <input
+              id={`security-other-credential-${rowHandleBase(row)}`}
+              className="access-tokens-row-field-disabled"
+              type="text"
+              value={row.valueFact}
+              disabled
+            />
+          </div>
+        </div>
+        <div className="access-tokens-row-actions access-tokens-row-actions-top">
+          <DeepLink store={row.store} t={translate} />
+          <button
+            type="button"
+            className="btn-danger"
+            onClick={() => dialogRef.current?.showModal()}
+            {...safeAgentHandle(`security-other-credentials-remove-${rowHandleBase(row)}`, { role: "button", label: `Remove ${row.name} from Tovu` })}
+          >
+            {translate("Remove from Tovu")}
+          </button>
+          {row.error ? (
+            <p className="save-error" role="alert">
+              {row.error}
+            </p>
+          ) : null}
         </div>
       </div>
-      <div className="access-tokens-row-actions">
-        <DeepLink store={row.store} t={translate} />
-        <button
-          type="button"
-          disabled={!readyToSave || row.saving}
-          onClick={() => void controller.replace(row)}
-          {...safeAgentHandle(`security-other-credential-save-${rowHandleBase(row)}`, { role: "button", label: `Save this ${row.name} token` })}
-        >
-          {row.saving ? translate("Saving…") : translate("Save")}
-        </button>
-        <button type="button" className="btn-danger" onClick={() => dialogRef.current?.showModal()}>
-          {translate("Remove from Tovu")}
-        </button>
-        {row.error ? (
-          <p className="save-error" role="alert">
-            {row.error}
-          </p>
-        ) : null}
-      </div>
       <OtherCredentialRemoveDialog ref={dialogRef} row={row} controller={controller} t={translate} />
-    </details>
+    </div>
   );
 }
 

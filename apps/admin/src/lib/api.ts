@@ -395,6 +395,44 @@ export interface AdminSourceControlCredentialsSnapshot {
   credentials: AdminSourceControlCredentialSummary[];
 }
 
+/**
+ * The Access Tokens page's own category-filter ids, minus `"all"` — mirrors
+ * `apps/admin/src/features/security/rules.ts`'s `AccessTokenRowCategoryId` exactly, and
+ * `src/features/custom-credentials/types.ts`'s server-side `CustomCredentialCategoryId` (server
+ * code never imports from the admin app, so this is the client-side twin, not a re-export).
+ */
+export type AdminCustomCredentialCategoryId = "source-control" | "hosting" | "media" | "ai" | "ops" | "general";
+
+/**
+ * One saved custom-provider credential's non-secret summary (`src/server/routes/admin/system/
+ * custom-credentials.ts`) — never carries the token or username. Unlike
+ * {@link AdminSourceControlCredentialSummary}, `baseUrl`/`category` ARE part of this summary: both
+ * are stored in the clear server-side specifically so the Access Tokens list can group/filter a
+ * custom row without decrypting it (see `src/db/schema.ts`'s `customCredentialSets` doc).
+ */
+export interface AdminCustomCredentialSummary {
+  readonly id: string;
+  readonly label: string;
+  readonly category: AdminCustomCredentialCategoryId;
+  readonly baseUrl: string;
+  readonly configured: true;
+  readonly createdAt: string;
+  readonly updatedAt: string;
+}
+
+/** What a custom-provider create/update call sends for its secret half — no provider dispatch
+ *  (unlike {@link AdminSourceControlConnectionInput}): a custom row has no fixed provider identity,
+ *  the operator-typed `label` already names it. `username` is always optional, never required. */
+export interface AdminCustomConnectionInput {
+  readonly token: string;
+  readonly username?: string;
+}
+
+/** Mirrors `GET .../system/custom/credentials`'s response shape. */
+export interface AdminCustomCredentialsSnapshot {
+  credentials: AdminCustomCredentialSummary[];
+}
+
 /** Mirrors `features/deployments/types.ts`'s `EnvironmentRecord`. */
 export interface AdminDeploymentEnvironment {
   workspaceId: string;
@@ -2866,6 +2904,34 @@ export const api = {
    *  the publish-credentials block above. */
   deleteSourceControlCredential: (id: string) =>
     request<void>(`/workspaces/${WORKSPACE_ID}/system/source-control/credentials/${id}`, { method: "DELETE" }),
+
+  // Access Tokens page → "Add custom provider" (`src/server/routes/admin/system/
+  // custom-credentials.ts`) — a user-defined provider (name, base URL, token, optional username,
+  // category), stored encrypted server-side and never read back. Structurally mirrors the
+  // source-control-credentials block above. `custom-credentials.write`-gated on every verb
+  // server-side.
+  /** Every configured custom-provider credential for this workspace. */
+  listCustomCredentials: () => request<AdminCustomCredentialsSnapshot>(`/workspaces/${WORKSPACE_ID}/system/custom/credentials`),
+  /** Creates one custom-provider credential. `409 DUPLICATE_LABEL` (surfaced as a thrown `ApiError`
+   *  with that `code`) if this workspace already has one with the same `label`. */
+  createCustomCredential: (input: { label: string; category: AdminCustomCredentialCategoryId; baseUrl: string; connection: AdminCustomConnectionInput }) =>
+    request<{ credential: AdminCustomCredentialSummary }>(`/workspaces/${WORKSPACE_ID}/system/custom/credentials`, {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  /** Updates a credential's label, category, base URL, and/or connection. Omitting `connection`
+   *  entirely — never sending it as an empty object or blank fields — is what keeps the stored
+   *  secret untouched, same contract every sibling credential update call documents. */
+  updateCustomCredential: (
+    id: string,
+    input: { label?: string; category?: AdminCustomCredentialCategoryId; baseUrl?: string; connection?: AdminCustomConnectionInput }
+  ) =>
+    request<{ credential: AdminCustomCredentialSummary }>(`/workspaces/${WORKSPACE_ID}/system/custom/credentials/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(input),
+    }),
+  /** `204`, idempotent. */
+  deleteCustomCredential: (id: string) => request<void>(`/workspaces/${WORKSPACE_ID}/system/custom/credentials/${id}`, { method: "DELETE" }),
 
   /** Full Site tab (`src/server/routes/admin/deployments/list.ts`) — read-only snapshot of the
    *  `deployments` domain's environments/targets/releases/runs. `deployments.read`-gated. */

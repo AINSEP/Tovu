@@ -40,6 +40,7 @@ import type { SiteAssistantCredentialRepoPort } from "../../assistant/site-crede
 import type { AdminExecutionCredentialRepoPort } from "../../assistant/execution-credential-store";
 import type { PublishCredentialSetRepoPort, PublishExecutionMode } from "../../features/deployments/publish-credentials";
 import type { PublishCredentialVerificationCache, PublishHistoryStore } from "../../features/deployments/static-publish";
+import type { CustomCredentialSetRepoPort } from "../../features/custom-credentials";
 import type { SourceControlCredentialSetRepoPort } from "../../features/source-control";
 import type { VendorCredentialSetRepoPort } from "../../features/vendor-credentials";
 import type { ComposioConfigRepoPort } from "../../connectors/composio-config-store";
@@ -771,6 +772,19 @@ export interface RouteDeps {
    * cutover was rejected.
    */
   vendorCredentialSetRepo: VendorCredentialSetRepoPort;
+  /**
+   * 2026-08-17 — the `custom_credential_sets` repo backing the admin Access Tokens page's
+   * "Add custom provider" form (`routes/admin/system/custom-credentials.ts`). Real
+   * `SqliteCustomCredentialSetRepo` in `server/deps.ts`; `InMemoryCustomCredentialSetRepo` in
+   * `server/app.ts`'s hermetic composition, same rule-of-two every other repo here follows. Sealed
+   * via the SAME shared `siteAssistantSecretSealer`/`siteAssistantSecretKeyring` instances above —
+   * one sealing capability app-wide, same reasoning `publishCredentialSetRepo`/
+   * `sourceControlCredentialSetRepo` already establish. A deliberately separate table from both of
+   * those and from `vendorCredentialSetRepo` — see `src/db/schema.ts`'s `customCredentialSets` doc
+   * comment for why (no fixed provider-id catalog to join either union, or the vendor table's own
+   * vendor-keyed model).
+   */
+  customCredentialSetRepo: CustomCredentialSetRepoPort;
 }
 
 export type RouteRegistrar = (app: Express, deps: RouteDeps) => void;

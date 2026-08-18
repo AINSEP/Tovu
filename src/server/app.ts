@@ -9,6 +9,7 @@ import { InMemoryPostRepo, InMemoryPostSearchIndex, createPostRevertRegistry } f
 import { InMemoryDeploymentsReadRepo } from "../features/deployments";
 import { InMemoryPublishCredentialSetRepo, executionModeFromEnv } from "../features/deployments/publish-credentials";
 import { InMemoryPublishCredentialVerificationCache, InMemoryPublishHistoryStore } from "../features/deployments/static-publish";
+import { InMemoryCustomCredentialSetRepo } from "../features/custom-credentials";
 import { InMemorySourceControlCredentialSetRepo } from "../features/source-control";
 import { InMemoryVendorCredentialSetRepo } from "../features/vendor-credentials";
 // NOT a static import, and the reason is a measured crash — see `runExportSiteLazily` below.
@@ -166,6 +167,7 @@ import { registerAdminAssistantDaemonRoutes } from "./routes/admin/system/assist
 import { registerAdminDeploymentOverviewRoute } from "./routes/admin/system/deployment-overview";
 import { registerAdminDockerfileSourceRoute } from "./routes/admin/system/dockerfile-source";
 import { registerAdminExportSiteRoutes } from "./routes/admin/system/export-site";
+import { registerAdminCustomCredentialsRoutes } from "./routes/admin/system/custom-credentials";
 import { registerAdminPublishCredentialsRoutes } from "./routes/admin/system/publish-credentials";
 import { registerAdminSourceControlCredentialsRoutes } from "./routes/admin/system/source-control-credentials";
 import { registerAdminVendorCredentialsRoutes } from "./routes/admin/system/vendor-credentials";
@@ -662,6 +664,9 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // 2026-08-16 (Phase 3) — hermetic double for `server/deps.ts`'s real
     // `SqliteVendorCredentialSetRepo`; see `routes/types.ts`'s `vendorCredentialSetRepo` doc.
     vendorCredentialSetRepo: new InMemoryVendorCredentialSetRepo(),
+    // 2026-08-17 — hermetic double for `server/deps.ts`'s real `SqliteCustomCredentialSetRepo`; see
+    // `routes/types.ts`'s `customCredentialSetRepo` doc.
+    customCredentialSetRepo: new InMemoryCustomCredentialSetRepo(),
   };
 }
 
@@ -864,6 +869,9 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // (`source_control_credential_sets`). `source-control.credentials.write`-gated on every verb —
   // see that route file's own header for why this is NOT `system.publish`.
   registerAdminSourceControlCredentialsRoutes(app, routeDeps);
+  // Access Tokens page's "Add custom provider" form: CRUD over saved user-defined provider
+  // connections (`custom_credential_sets`). `custom-credentials.write`-gated on every verb.
+  registerAdminCustomCredentialsRoutes(app, routeDeps);
   // Phase 3: CRUD over the unified `vendor_credential_sets` table (`features/vendor-credentials/`) —
   // the eventual replacement for BOTH credential routes just above, once every install's data is
   // confirmed migrated. `vendor-credentials.write`-gated on every verb, deliberately its own

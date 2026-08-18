@@ -12,6 +12,7 @@ import { backfillPostSearchIndex, SqlitePostRepo, SqlitePostSearchIndex, createP
 import { SqliteDeploymentsReadRepo } from "../features/deployments";
 import { SqlitePublishCredentialSetRepo } from "../db/sqlite/publish-credential-repo.sqlite";
 import { SqlitePublishHistoryStore } from "../db/sqlite/publish-history-repo.sqlite";
+import { SqliteCustomCredentialSetRepo } from "../db/sqlite/custom-credential-repo.sqlite";
 import { SqliteSourceControlCredentialSetRepo } from "../db/sqlite/source-control-credential-repo.sqlite";
 import { SqliteVendorCredentialSetRepo } from "../db/sqlite/vendor-credential-repo.sqlite";
 import { executionModeFromEnv } from "../features/deployments/publish-credentials";
@@ -883,6 +884,10 @@ export function createSqliteRouteDeps(
     // same shared sealer/keyring the two legacy credential repos above already reuse (no third
     // `EnvOrFileKeyring` instance).
     vendorCredentialSetRepo: new SqliteVendorCredentialSetRepo(db),
+    // 2026-08-17 — see `routes/types.ts`'s `customCredentialSetRepo` doc. Sealed via the same
+    // shared sealer/keyring the credential repos above already reuse (no third `EnvOrFileKeyring`
+    // instance).
+    customCredentialSetRepo: new SqliteCustomCredentialSetRepo(db),
   };
 }
 

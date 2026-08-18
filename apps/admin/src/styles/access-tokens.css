@@ -42,6 +42,35 @@
   background: var(--accent); color: var(--accent-ink); border-color: transparent;
 }
 
+/* "Add custom provider" — a separate control after the category pills, `margin-left: auto` pushes
+   it to the far right of the (wrapping) filter row so it never reads as an eighth pill. Same
+   `--accent`/`--accent-ink` token the selected category pill above and the chat UI
+   (`assistant.css`) already use — no new hardcoded color. */
+.access-tokens-add-custom-button {
+  margin-left: auto;
+  background: var(--accent); color: var(--accent-ink); border: 1px solid transparent;
+  border-radius: var(--r-pill); padding: 0.35rem 0.85rem; cursor: pointer;
+  font-size: var(--text-xs); font-weight: 600; letter-spacing: 0.01em;
+  transition: opacity 0.14s;
+}
+.access-tokens-add-custom-button:hover { opacity: 0.88; }
+
+/* The custom-provider form's Access token field — the one field on this page with a show/hide
+   toggle (`AccessTokensTab.tsx`'s own header on why this stays scoped to the custom form instead
+   of every catalog provider's shared `TokenInputFields`). */
+.access-tokens-token-input-row { display: flex; gap: var(--space-2); }
+.access-tokens-token-input-row input { flex: 1; }
+.access-tokens-token-toggle {
+  background: var(--surface-2); color: var(--fg-2); border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm); padding: 0 0.75rem; cursor: pointer; font-size: var(--text-xs); font-weight: 600;
+}
+.access-tokens-token-toggle:hover { background: var(--surface-3, var(--surface-2)); }
+
+/* The "Add custom provider" dialog's required-field marker — Name/API base URL/Access token only
+   (Username stays unmarked; Category always carries a value). Same `--danger` token `assistant.css`
+   already uses for error/destructive states, with its own hardcoded fallback for parity. */
+.access-tokens-field-required { color: var(--danger, #b3261e); }
+
 .access-tokens-tier { display: flex; flex-direction: column; gap: var(--space-5); }
 
 .access-tokens-provider-group { display: flex; flex-direction: column; gap: var(--space-2); }
@@ -56,7 +85,7 @@
 /* Row shell — reuses the accordion idiom already proven on Source Control/Static Site (native
    `<details>`, one visible expand affordance). `.access-tokens-row-done` is the "connected" tone. */
 .access-tokens-row {
-  display: flex; flex-direction: column; gap: var(--space-3);
+  display: flex; flex-direction: column; gap: var(--space-3); max-width: 60%;
   padding: var(--space-4); background: var(--surface); border: 1px solid var(--border-strong); border-radius: var(--r-md);
 }
 .access-tokens-row-done { background: var(--surface-2); }
@@ -86,6 +115,24 @@ button.access-tokens-row-summary-expand:hover { color: var(--fg); }
 
 .access-tokens-row-fields { display: flex; flex-direction: column; gap: var(--space-4); padding-left: calc(1.75rem + var(--space-3)); }
 .access-tokens-row-actions { display: flex; align-items: center; gap: var(--space-3); padding-left: calc(1.75rem + var(--space-3)); flex-wrap: wrap; }
+.access-tokens-field-label-meta { margin-left: var(--space-2); text-transform: none; letter-spacing: normal; font-weight: 400; }
+
+/* Modifier for `OtherCredentialReplaceableRow` only — that row has no marker/summary line above it
+   (removed as redundant with the field itself), so the indent both base classes otherwise carry
+   to align under that marker has nothing left to align with. */
+.access-tokens-row-fields-top, .access-tokens-row-actions-top { padding-left: 0; }
+
+/* Wraps the token field + actions row together as one block — `inline-flex` column shrinks the
+   block to its widest child's content width (the actions row, since the masked token text alone is
+   short), and `align-items: stretch` then stretches the narrower field row to match that same width,
+   so the disabled input's right edge lines up with "Remove from Tovu" instead of looking arbitrarily
+   short next to it. */
+.access-tokens-row-block { display: inline-flex; flex-direction: column; align-items: stretch; align-self: flex-start; gap: var(--space-3); max-width: 100%; }
+
+/* Same muted/not-allowed language `.status-disabled`/`.tab-bar-item:disabled` already use elsewhere
+   in this app — the browser's own disabled-input default is too subtle here (this field sits right
+   next to fully-editable ones on the same screen) to read as "locked" on its own. */
+.access-tokens-row-field-disabled:disabled { background: var(--surface-2); color: var(--muted); cursor: not-allowed; }
 
 .access-tokens-scope-guidance { margin-top: 0.35rem; }
 .access-tokens-scope-guidance-summary {
