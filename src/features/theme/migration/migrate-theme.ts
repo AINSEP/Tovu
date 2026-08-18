@@ -1,10 +1,10 @@
 import { randomBytes } from "node:crypto";
-import { cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 import { loadTheme, type ThemeTier } from "../theme";
 import { validateThemePackage, type ValidateThemePackageResult } from "../validation/validate-theme-package";
-import { planV2Migration, type ThemeMigrationPlan } from "./theme-migration-plan";
+import { planV2Migration, TOKENS_MODE_FILE_PATTERN, type ThemeMigrationPlan } from "./theme-migration-plan";
 
 /**
  * @file Milestone 3's `tovu theme migrate` orchestrator — stages a v1 theme's on-disk shape into
@@ -100,16 +100,32 @@ function applyMoves(themeDir: string, stagingDir: string, plan: ThemeMigrationPl
 }
 
 /**
- * `tokens.json` (and, once a fixture needs it, `tokens.<mode>.json`) and `screenshots/` sit at the
- * same name and location in both schema versions, so carrying them forward is a plain copy, not a
- * relocation — never listed in `plan.moves` (which only names FROM !== TO relocations) to keep that
- * list's meaning literal. Matches `theme-migration-plan.ts`'s `CARRY_OVER_UNCHANGED` set — this is the
- * physical-copy half of that same list, kept in sync by hand (the planner's job is naming what's
- * already-correct, not performing disk IO).
+ * `tokens.json`, every `tokens.<mode>.json`, `screenshots/`, and `NOTICE.md` sit at the same name
+ * and location in both schema versions, so carrying them forward is a plain copy, not a relocation —
+ * never listed in `plan.moves` (which only names FROM !== TO relocations) to keep that list's meaning
+ * literal. Matches `theme-migration-plan.ts`'s `CARRY_OVER_UNCHANGED` set (plus that module's
+ * `TOKENS_MODE_FILE_PATTERN`, reused here rather than re-declared) — this is the physical-copy half
+ * of that same list, kept in sync by hand (the planner's job is naming what's already-correct, not
+ * performing disk IO).
+ *
+ * Two real bugs fixed here (found live during the fuel/gracious-timing/portfolite migrations, 2026-08-18):
+ * `tokens.<mode>.json` (real light/dark-mode color values, not documentation) and `NOTICE.md`
+ * (license/attribution provenance — load-bearing for the owner's Blocker B decision to carry
+ * unconfirmed-license themes forward with their existing warnings intact) were both silently dropped.
+ * Neither the validator nor `loadTheme()` catches a missing one (both are optional, lazy-loaded), so
+ * the loss was invisible until someone diffed a migrated theme against its v1 backup by hand.
  */
 function copyCarryOverFiles(themeDir: string, stagingDir: string): void {
   const tokensSource = join(themeDir, "tokens.json");
   if (existsSync(tokensSource)) cpSync(tokensSource, join(stagingDir, "tokens.json"));
+
+  for (const name of readdirSync(themeDir)) {
+    if (!TOKENS_MODE_FILE_PATTERN.test(name)) continue;
+    cpSync(join(themeDir, name), join(stagingDir, name));
+  }
+
+  const noticeSource = join(themeDir, "NOTICE.md");
+  if (existsSync(noticeSource)) cpSync(noticeSource, join(stagingDir, "NOTICE.md"));
 
   const screenshotsSource = join(themeDir, "screenshots");
   if (existsSync(screenshotsSource)) cpSync(screenshotsSource, join(stagingDir, "screenshots"), { recursive: true });
