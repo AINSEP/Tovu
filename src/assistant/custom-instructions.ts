@@ -1,5 +1,5 @@
 import type { UUID } from "@jini-ai/cms/core";
-import { type SettingsRepoPort, getEffective, INSTRUCTIONS_NAMESPACE } from "../features/settings";
+import { type SettingsRepoPort } from "../features/settings";
 
 /**
  * @file The read half of the admin Instructions tab's system-prompt seam: turns the stored
@@ -43,6 +43,24 @@ import { type SettingsRepoPort, getEffective, INSTRUCTIONS_NAMESPACE } from "../
 
 const CUSTOM_INSTRUCTIONS_KEY = "custom";
 
+/**
+ * Structural signature matching `features/settings`'s real `getEffective` export
+ * (`@jini-ai/cms/settings`, re-exported unchanged by `features/settings/index.ts`). Redeclared
+ * locally rather than shared from `public-assistant-settings.ts`'s own identical-shaped type — this
+ * repo redeclares small structural types per-file rather than sharing them across the module-cycle
+ * boundary (same precedent as `assistant/site/tools.ts`'s/`client-directives.ts`'s own two
+ * `ListPublishedPosts` types). Importing the FUNCTION as a value here is exactly the edge that would
+ * close an `[assistant, features/settings]` module cycle once `settings` converts to the standard
+ * `registerToolContributor` pattern; see `ResolveCustomInstructionsDeps.getEffective`'s own doc for
+ * how the real function still reaches this file despite the type living here instead of being
+ * imported. `.value` is typed `unknown` (not `JsonValue`) because this file only ever narrows it with
+ * `typeof ... === "string"` below — no caller here needs the full settings-value union.
+ */
+type GetEffective = (
+  deps: { repo: SettingsRepoPort },
+  input: { namespace: string; key: string; scopeContext: { workspaceId: UUID } },
+) => Promise<{ value: unknown } | null>;
+
 export interface ResolveCustomInstructionsDeps {
   settingsRepo: SettingsRepoPort;
   /**
@@ -55,6 +73,15 @@ export interface ResolveCustomInstructionsDeps {
    * @default Promise.resolve()
    */
   settingsReady?: Promise<void>;
+  /** The real `features/settings`'s own `getEffective` — injected rather than statically imported;
+   *  see the `GetEffective` type's own doc. Wired to the real implementation at the composition root
+   *  (`RouteDeps.getEffective`, populated once in both `server/app.ts`/`server/deps.ts`). */
+  getEffective: GetEffective;
+  /** The real `features/settings`'s own `INSTRUCTIONS_NAMESPACE` constant (`"core.instructions"`) —
+   *  injected for uniformity with `getEffective` above rather than relocated to a new shared module;
+   *  see `public-assistant-settings.ts`'s `ScopeBit` type doc for the identical reasoning applied to
+   *  its own injected constant, `SCOPE_BIT`. */
+  instructionsNamespace: string;
 }
 
 export interface ResolveCustomInstructionsInput {
@@ -80,10 +107,10 @@ export async function resolveCustomInstructions(
 ): Promise<string> {
   try {
     await (deps.settingsReady ?? Promise.resolve());
-    const resolved = await getEffective(
+    const resolved = await deps.getEffective(
       { repo: deps.settingsRepo },
       {
-        namespace: INSTRUCTIONS_NAMESPACE,
+        namespace: deps.instructionsNamespace,
         key: CUSTOM_INSTRUCTIONS_KEY,
         scopeContext: { workspaceId: input.workspaceId },
       },

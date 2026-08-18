@@ -175,7 +175,10 @@ export function createSiteAssistantModule(deps: RouteDeps, env: NodeJS.ProcessEn
         // conditionally, or has them 404 when off." Checked first, before parsing anything else in
         // the request, so a disabled workspace is indistinguishable from this route never having
         // been registered at all — never a 503/403 that would confirm the feature exists but is off.
-        const enabled = await isPublicAssistantEnabled({ settingsRepo: deps.settingsRepo }, { workspaceId: deps.workspaceId });
+        const enabled = await isPublicAssistantEnabled(
+          { settingsRepo: deps.settingsRepo, getEffective: deps.getEffective },
+          { workspaceId: deps.workspaceId }
+        );
         if (!enabled) {
           res.status(404).end();
           return;

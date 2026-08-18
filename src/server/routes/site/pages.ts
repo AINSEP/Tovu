@@ -664,7 +664,7 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
         // ADR-054 — the visitor-chat master switch. `render.ts` never reads settings itself; every
         // route that calls `renderSite` resolves this the same way (see `pages.ts`'s other handler
         // and `products.ts`'s two handlers).
-        isPublicAssistantEnabled({ settingsRepo: deps.settingsRepo }, { workspaceId: deps.workspaceId }),
+        isPublicAssistantEnabled({ settingsRepo: deps.settingsRepo, getEffective: deps.getEffective }, { workspaceId: deps.workspaceId }),
       ]);
 
       const theme = resolveActiveTheme(deps, activeThemeId);
@@ -716,7 +716,7 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
       const [activeThemeId, { posts }, siteAssistantEnabled] = await Promise.all([
         resolveActiveThemeId(deps),
         listPublishedPosts({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId } }),
-        isPublicAssistantEnabled({ settingsRepo: deps.settingsRepo }, { workspaceId: deps.workspaceId }),
+        isPublicAssistantEnabled({ settingsRepo: deps.settingsRepo, getEffective: deps.getEffective }, { workspaceId: deps.workspaceId }),
       ]);
 
       theme = resolveActiveTheme(deps, activeThemeId);

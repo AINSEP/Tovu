@@ -6,6 +6,7 @@ import {
   InMemorySettingsRepo,
   INSTRUCTIONS_NAMESPACE,
   ensureSettingsUiTabDefinitions,
+  getEffective,
 } from "../../features/settings";
 import {
   createCustomInstructionsCache,
@@ -39,6 +40,18 @@ async function withDefinitions() {
   return built;
 }
 
+/**
+ * `ResolveCustomInstructionsDeps` for every `resolveCustomInstructions`/`createCustomInstructionsCache`
+ * call below — real `getEffective` and the real `INSTRUCTIONS_NAMESPACE` constant, used directly
+ * rather than faked: test files are exempt from `check:architecture`'s module-cycle graph (the reason
+ * these are injected in production code at all — see `custom-instructions.ts`'s `GetEffective` type
+ * doc), and this file's whole point is proving the real ledger's behavior through this surface.
+ * `overrides` covers the 2 call sites that also supply their own `settingsReady`.
+ */
+function readDeps(settingsRepo: InMemorySettingsRepo, overrides: { settingsReady?: Promise<void> } = {}) {
+  return { settingsRepo, getEffective, instructionsNamespace: INSTRUCTIONS_NAMESPACE, ...overrides };
+}
+
 async function writeCustomInstructions(settingsRepo: InMemorySettingsRepo, workspaceId: string, text: string, seq = 1) {
   const definition = (await settingsRepo.listActiveDefinitions({ workspaceId: null })).find(
     (d) => d.namespace === INSTRUCTIONS_NAMESPACE && d.key === "custom",
@@ -64,19 +77,19 @@ async function writeCustomInstructions(settingsRepo: InMemorySettingsRepo, works
 
 test("resolveCustomInstructions reads '' when the definition has not been registered yet", async () => {
   const { settingsRepo } = makeDeps();
-  assert.equal(await resolveCustomInstructions({ settingsRepo }, { workspaceId: WORKSPACE }), "");
+  assert.equal(await resolveCustomInstructions(readDeps(settingsRepo), { workspaceId: WORKSPACE }), "");
 });
 
 test("resolveCustomInstructions reads the registered default ('') when no value has been set", async () => {
   const { settingsRepo } = await withDefinitions();
-  assert.equal(await resolveCustomInstructions({ settingsRepo }, { workspaceId: WORKSPACE }), "");
+  assert.equal(await resolveCustomInstructions(readDeps(settingsRepo), { workspaceId: WORKSPACE }), "");
 });
 
 test("resolveCustomInstructions sees a value written directly to the repo, bypassing write-service's own cache invalidation", async () => {
   const { settingsRepo } = await withDefinitions();
 
   // First read populates this process's `getEffective` cache for (WORKSPACE, core.instructions).
-  assert.equal(await resolveCustomInstructions({ settingsRepo }, { workspaceId: WORKSPACE }), "");
+  assert.equal(await resolveCustomInstructions(readDeps(settingsRepo), { workspaceId: WORKSPACE }), "");
 
   // Written straight at the repo — standing in for Tovu's MAIN process writing through its own,
   // different `SettingsRepoPort` instance, which cannot invalidate THIS process's cache. This is
@@ -85,7 +98,7 @@ test("resolveCustomInstructions sees a value written directly to the repo, bypas
   await writeCustomInstructions(settingsRepo, WORKSPACE, "Always respond in pirate slang.");
 
   assert.equal(
-    await resolveCustomInstructions({ settingsRepo }, { workspaceId: WORKSPACE }),
+    await resolveCustomInstructions(readDeps(settingsRepo), { workspaceId: WORKSPACE }),
     "Always respond in pirate slang.",
     "a naive cached getEffective would still return '' here — this is the bug this file exists to close",
   );
@@ -95,8 +108,8 @@ test("resolveCustomInstructions is workspace-scoped — one workspace's instruct
   const { settingsRepo } = await withDefinitions();
   await writeCustomInstructions(settingsRepo, WORKSPACE, "Only for workspace-1.");
 
-  assert.equal(await resolveCustomInstructions({ settingsRepo }, { workspaceId: WORKSPACE }), "Only for workspace-1.");
-  assert.equal(await resolveCustomInstructions({ settingsRepo }, { workspaceId: OTHER_WORKSPACE }), "");
+  assert.equal(await resolveCustomInstructions(readDeps(settingsRepo), { workspaceId: WORKSPACE }), "Only for workspace-1.");
+  assert.equal(await resolveCustomInstructions(readDeps(settingsRepo), { workspaceId: OTHER_WORKSPACE }), "");
 });
 
 test("resolveCustomInstructions fails open ('') when settingsReady rejects, rather than throwing", async () => {
@@ -104,7 +117,7 @@ test("resolveCustomInstructions fails open ('') when settingsReady rejects, rath
   await writeCustomInstructions(settingsRepo, WORKSPACE, "Should never be read.");
 
   const result = await resolveCustomInstructions(
-    { settingsRepo, settingsReady: Promise.reject(new Error("boot registration failed")) },
+    readDeps(settingsRepo, { settingsReady: Promise.reject(new Error("boot registration failed")) }),
     { workspaceId: WORKSPACE },
   );
   assert.equal(result, "");
@@ -133,13 +146,13 @@ test("formatCustomInstructionsOverlay wraps non-empty, trimmed text in the overl
 
 test("createCustomInstructionsCache.readOverlay() is null before the first refresh()", () => {
   const { settingsRepo } = makeDeps();
-  const cache = createCustomInstructionsCache({ settingsRepo }, { workspaceId: WORKSPACE });
+  const cache = createCustomInstructionsCache(readDeps(settingsRepo), { workspaceId: WORKSPACE });
   assert.equal(cache.readOverlay(), null);
 });
 
 test("createCustomInstructionsCache.refresh() makes the latest ledger value readable synchronously", async () => {
   const { settingsRepo } = await withDefinitions();
-  const cache = createCustomInstructionsCache({ settingsRepo }, { workspaceId: WORKSPACE });
+  const cache = createCustomInstructionsCache(readDeps(settingsRepo), { workspaceId: WORKSPACE });
 
   await cache.refresh();
   assert.equal(cache.readOverlay(), null, "no value set yet");
@@ -154,7 +167,7 @@ test("createCustomInstructionsCache.refresh() makes the latest ledger value read
 test("createCustomInstructionsCache.refresh() never rejects, even when the underlying read fails", async () => {
   const { settingsRepo } = makeDeps();
   const cache = createCustomInstructionsCache(
-    { settingsRepo, settingsReady: Promise.reject(new Error("boot registration failed")) },
+    readDeps(settingsRepo, { settingsReady: Promise.reject(new Error("boot registration failed")) }),
     { workspaceId: WORKSPACE },
   );
   await assert.doesNotReject(() => cache.refresh());

@@ -60,7 +60,7 @@ export const registerProductRoutes: RouteRegistrar = (app, deps) => {
       const products = await resolveStorefrontProducts(deps);
       const [settings, siteAssistantEnabled] = await Promise.all([
         getPresentationSettings({ deps: { repo: deps.presentationRepo }, input: { workspaceId: deps.workspaceId } }),
-        isPublicAssistantEnabled({ settingsRepo: deps.settingsRepo }, { workspaceId: deps.workspaceId }),
+        isPublicAssistantEnabled({ settingsRepo: deps.settingsRepo, getEffective: deps.getEffective }, { workspaceId: deps.workspaceId }),
       ]);
       const theme = resolveActiveTheme(deps, settings.settings.activeThemeId);
       if (!theme) {
@@ -86,7 +86,7 @@ export const registerProductRoutes: RouteRegistrar = (app, deps) => {
       }
       const [settings, siteAssistantEnabled] = await Promise.all([
         getPresentationSettings({ deps: { repo: deps.presentationRepo }, input: { workspaceId: deps.workspaceId } }),
-        isPublicAssistantEnabled({ settingsRepo: deps.settingsRepo }, { workspaceId: deps.workspaceId }),
+        isPublicAssistantEnabled({ settingsRepo: deps.settingsRepo, getEffective: deps.getEffective }, { workspaceId: deps.workspaceId }),
       ]);
       const theme = resolveActiveTheme(deps, settings.settings.activeThemeId);
       if (!theme) {
