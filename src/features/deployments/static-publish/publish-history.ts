@@ -1,7 +1,7 @@
 import type { UUID } from "@jini-ai/cms/core";
 
 import type { StaticPublishTargetId } from "./types";
-import { resolvePublishHistoryListLimit } from "../../../db/sqlite/publish-history-list-limit";
+import { resolvePublishHistoryListLimit } from "../../../core/publish-history-list-limit";
 
 /**
  * @file Durable, append-only publish-history ledger — the fix for Defect 2 (2026-08-16 live-publish
@@ -97,7 +97,7 @@ export interface PublishHistoryStore {
   /** Every recorded publish for `workspaceId`, newest first, optionally narrowed to one `target` —
    *  what a future read-only history view would page through. `limit` defaults to
    *  `DEFAULT_PUBLISH_HISTORY_LIST_LIMIT` and is clamped to `MAX_PUBLISH_HISTORY_LIST_LIMIT`
-   *  (`db/sqlite/publish-history-list-limit.ts`) regardless of what a caller requests: this table is
+   *  (`core/publish-history-list-limit.ts`) regardless of what a caller requests: this table is
    *  append-only and grows for the life of an install (`REVIEWED_INTEGER_ID_COLUMNS` in
    *  `db/migration/manifest.ts` reviews `publish_history.id` as `"unbounded"` for exactly this
    *  reason), so an unbounded `list` call is a real resource-exhaustion risk a workspace with years of

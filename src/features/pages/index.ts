@@ -22,6 +22,6 @@ export {
   type PagesHtmlDocumentStoreFactory,
   type PagesHtmlDocumentStorePort,
   type PagesHtmlDocumentStoreScope,
-} from "./html-document-store";
+} from "./html-document-store.sqlite";
 export { InMemoryPagesHtmlDocumentStore } from "./html-document-store.memory";
 export { DEFAULT_PAGE_SKELETON, PAGE_SKELETON_REGIONS, type PageSkeletonRegion } from "./skeleton";
