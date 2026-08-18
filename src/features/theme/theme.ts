@@ -493,22 +493,28 @@ function readLightTokens(
  * `footer-minimal.html`, and a new `sidebar` slot gets `sidebar-*.html` on the same terms rather than
  * a second, differently-shaped rule.
  */
+/**
+ * @param required.partialsDir - v1: the theme's own root (`themeDir`) — partials sit alongside
+ * `pages/`/`css/`/`js/`. v2: `render/partials/` — see `theme-authoring-guide-v2.md` §3. Passed in
+ * rather than derived here so this function stays agnostic to which schema version picked it.
+ */
 function loadSlotPartials(
-  required: { themeDir: string; slots: Record<string, ThemeSlotDescriptor> },
+  required: { partialsDir: string; slots: Record<string, ThemeSlotDescriptor> },
   _optional: Record<string, never> = {}
 ): Record<string, string> {
-  const { themeDir, slots } = required;
+  const { partialsDir, slots } = required;
+  if (!existsSync(partialsDir)) return {};
   const descriptors = Object.values(slots);
   const stems = descriptors.map((slot) => slot.source.replace(/\.html$/, ""));
   const explicitVariants = new Set(descriptors.flatMap((slot) => Object.values(slot.variants ?? {})));
 
   const partials: Record<string, string> = {};
-  for (const file of readdirSync(themeDir)) {
+  for (const file of readdirSync(partialsDir)) {
     if (!file.endsWith(".html")) continue;
     const named = explicitVariants.has(file);
     const conventional = stems.some((stem) => file === `${stem}.html` || file.startsWith(`${stem}-`));
     if (!named && !conventional) continue;
-    partials[file.slice(0, -".html".length)] = readFileSync(join(themeDir, file), "utf8");
+    partials[file.slice(0, -".html".length)] = readFileSync(join(partialsDir, file), "utf8");
   }
   return partials;
 }
@@ -542,10 +548,11 @@ function validateTemplateDeclarations(
   required: {
     templates: readonly string[] | undefined;
     pages: Readonly<Record<string, string>>;
+    pagesDirName?: string;
   },
   _optional: Record<string, never> = {}
 ): string[] {
-  const { templates, pages } = required;
+  const { templates, pages, pagesDirName = "pages" } = required;
   if (!templates) return [];
 
   const errors: string[] = [];
@@ -553,12 +560,12 @@ function validateTemplateDeclarations(
     const pageId = entry.replace(/\.html$/, "");
     const html = pages[pageId];
     if (html === undefined) {
-      errors.push(`theme.json templates entry '${entry}' has no matching pages/${pageId}.html file`);
+      errors.push(`theme.json templates entry '${entry}' has no matching ${pagesDirName}/${pageId}.html file`);
       continue;
     }
     if (markersOfType(html, TEMPLATE_SLOT_MARKER_TYPE).length === 0) {
       errors.push(
-        `pages/${pageId}.html is declared in theme.json templates but has no {"type":"${TEMPLATE_SLOT_MARKER_TYPE}"} marker`
+        `${pagesDirName}/${pageId}.html is declared in theme.json templates but has no {"type":"${TEMPLATE_SLOT_MARKER_TYPE}"} marker`
       );
     }
   }
@@ -587,19 +594,22 @@ function loadStaticTierAssets(
     tier: ThemeTier;
     slots?: Record<string, ThemeSlotDescriptor>;
     templates?: string[];
+    apiVersion?: 2;
   },
   _optional: Record<string, never> = {}
 ): StaticTierAssets {
-  const { themeDir, tier, slots, templates } = required;
+  const { themeDir, tier, slots, templates, apiVersion } = required;
   if (tier !== "static") return NO_STATIC_TIER_ASSETS;
 
   const errors: string[] = [];
   const tokensLight = readLightTokens({ themeDir, errors });
 
   // REQ-01's spirit, not its exact home+entry pair: a static theme's minimum is one page to
-  // actually show, not a route id a templating engine would fill in.
+  // actually show, not a route id a templating engine would fill in. v2 nests this one level
+  // deeper (`render/pages/`, theme-authoring-guide-v2.md §3) — v1 keeps `pages/` at the theme root.
+  const pagesDirName = apiVersion === 2 ? "render/pages" : "pages";
   const pages: Record<string, string> = {};
-  const pagesDir = join(themeDir, "pages");
+  const pagesDir = join(themeDir, pagesDirName);
   if (existsSync(pagesDir)) {
     for (const file of readdirSync(pagesDir)) {
       if (file.endsWith(".html")) {
@@ -607,15 +617,17 @@ function loadStaticTierAssets(
       }
     }
   }
-  if (!pages.index) errors.push("pages/index.html is required");
+  if (!pages.index) errors.push(`${pagesDirName}/index.html is required`);
 
-  errors.push(...validateTemplateDeclarations({ templates, pages }));
+  errors.push(...validateTemplateDeclarations({ templates, pages, pagesDirName }));
 
-  // Root partials (`nav`, `footer`, and anything else the manifest declares) live at the theme root,
+  // Partials (`nav`, `footer`, and anything else the manifest declares) live at the theme root in v1,
   // not under pages/, because a static page embeds them via a `{"type":"partial"}` marker the
-  // renderer resolves rather than a template-include directive baked in at author time. A theme with
-  // no `slots` block gets DEFAULT_THEME_SLOTS, which is the nav/footer pair this scan used to hardcode.
-  const partials = loadSlotPartials({ themeDir, slots: slots ?? DEFAULT_THEME_SLOTS });
+  // renderer resolves rather than a template-include directive baked in at author time. v2 moves this
+  // to `render/partials/`, alongside `render/pages/`. A theme with no `slots` block gets
+  // DEFAULT_THEME_SLOTS, which is the nav/footer pair this scan used to hardcode.
+  const partialsDir = apiVersion === 2 ? join(themeDir, "render/partials") : themeDir;
+  const partials = loadSlotPartials({ partialsDir, slots: slots ?? DEFAULT_THEME_SLOTS });
 
   return { tokensLight, pages, partials, errors };
 }
@@ -716,6 +728,7 @@ export function loadTheme(
     tier: manifest.tier,
     slots: manifest.slots,
     templates: manifest.templates,
+    apiVersion: manifest.apiVersion,
   });
   errors.push(...staticErrors);
 
@@ -740,7 +753,12 @@ export function loadTheme(
   const templates: Record<string, TemplateNode> = {};
   const liquidTemplates: Record<string, string> = {};
   const handlebarsTemplates: Record<string, string> = {};
-  const templatesDir = join(themeDir, "templates");
+  // v1: non-static tiers keep their route map at theme-root `templates/`. v2 unifies every tier's
+  // route map under `render/pages/` (theme-authoring-guide-v2.md §3), the same folder name static
+  // pages use — only the naming convention changes, the per-extension dispatch below (json/liquid/
+  // hbs) stays identical either way.
+  const templatesDirName = manifest.apiVersion === 2 ? "render/pages" : "templates";
+  const templatesDir = join(themeDir, templatesDirName);
   if (existsSync(templatesDir)) {
     for (const file of readdirSync(templatesDir)) {
       if (file.endsWith(".json")) {
@@ -748,7 +766,7 @@ export function loadTheme(
         try {
           templates[templateId] = readJson(join(templatesDir, file));
         } catch (err) {
-          errors.push(`templates/${file}: ${(err as Error).message}`);
+          errors.push(`${templatesDirName}/${file}: ${(err as Error).message}`);
         }
       } else if (file.endsWith(".liquid")) {
         // Templated tier (ADR-020): raw LiquidJS source, rendered by the engine
@@ -761,7 +779,7 @@ export function loadTheme(
         const source = readFileSync(join(templatesDir, file), "utf8");
         const violations = manifest.skipLiquidAllowlist ? [] : lintLiquidTemplate(source);
         if (violations.length > 0) {
-          errors.push(`templates/${file}: ${violations.join("; ")}`);
+          errors.push(`${templatesDirName}/${file}: ${violations.join("; ")}`);
         } else {
           liquidTemplates[templateId] = source;
         }
@@ -781,14 +799,14 @@ export function loadTheme(
         const source = readFileSync(join(templatesDir, file), "utf8");
         const violations = lintHandlebarsTemplate(source);
         if (violations.length > 0) {
-          errors.push(`templates/${file}: ${violations.join("; ")}`);
+          errors.push(`${templatesDirName}/${file}: ${violations.join("; ")}`);
         } else {
           handlebarsTemplates[templateId] = source;
         }
       }
     }
   }
-  // A static theme has no `templates/` route map at all, so its required-file check is
+  // A static theme has no separate route-map folder at all — its required-file check is
   // `loadStaticTierAssets`'s job, not this one's.
   if (manifest.tier !== "static") {
     // REQ-01: a theme's required template minimum is home + entry (the base). C3:
@@ -798,16 +816,20 @@ export function loadTheme(
     const ext = manifest.tier === "templated" ? "liquid" : manifest.tier === "handlebars" ? "hbs" : "json";
     const requiredTemplates =
       manifest.tier === "templated" ? liquidTemplates : manifest.tier === "handlebars" ? handlebarsTemplates : templates;
-    if (!requiredTemplates.home) errors.push(`templates/home.${ext} is required`);
-    if (!requiredTemplates.entry) errors.push(`templates/entry.${ext} is required`);
+    if (!requiredTemplates.home) errors.push(`${templatesDirName}/home.${ext} is required`);
+    if (!requiredTemplates.entry) errors.push(`${templatesDirName}/entry.${ext} is required`);
   }
 
   let css = "";
-  // Static themes keep CSS under css/styles.css (alongside sibling js/ and pages/
-  // folders) rather than a lone file at the theme root — the root-level convention
-  // fits every other tier's flat, single-stylesheet shape; static ships a whole
-  // small multi-file project instead.
-  const cssPath = join(themeDir, manifest.tier === "static" ? "css/styles.css" : "styles.css");
+  // v1: static keeps CSS under css/styles.css (alongside sibling js/ and pages/ folders); every
+  // other tier keeps a lone `styles.css` at the theme root, the flat single-stylesheet shape that
+  // fits a route-map-only theme. v2 unifies every tier onto `css/theme.css`
+  // (theme-authoring-guide-v2.md §3) — same folder name static already used, new filename, and now
+  // every tier gets the `css/` folder rather than just static.
+  const cssPath = join(
+    themeDir,
+    manifest.apiVersion === 2 ? "css/theme.css" : manifest.tier === "static" ? "css/styles.css" : "styles.css"
+  );
   if (existsSync(cssPath)) css = readFileSync(cssPath, "utf8");
 
   const loaded: DiscoveredTheme = {
