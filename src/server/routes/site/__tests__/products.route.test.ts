@@ -161,6 +161,22 @@ test("GET /products falls back to the sample store plugin when NEITHER Commerce 
   assert.match(await res.text(), /No Commerce Wired/);
 });
 
+test("GET /products renders an empty grid, not a crash, when NEITHER Commerce NOR a store plugin is wired at all (deps.store itself undefined)", async (t) => {
+  const { server, baseUrl } = await startServer({
+    commerceProductRepo: undefined,
+    commercePriceRepo: undefined,
+    store: undefined,
+  });
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+
+  // Exercises `resolveStorefrontProducts`'s `deps.store?.listProducts() ?? []` fallback on BOTH
+  // its optional-chaining short-circuit (`deps.store` itself undefined, not just an empty catalog)
+  // and the trailing `?? []` — every other test in this file that reaches this line supplies an
+  // explicit `store`, so this specific combination was otherwise untested.
+  const res = await fetch(`${baseUrl}/products`);
+  assert.equal(res.status, 200, await res.clone().text());
+});
+
 test("GET /products/:id returns 404 for an id that doesn't match any product", async (t) => {
   const { server, baseUrl } = await startServer({
     commerceProductRepo: fakeProductRepo([]),

@@ -215,6 +215,50 @@ test("integrations routes: pause/delete on an unknown subscription id returns 40
   assert.equal(del.status, 404);
 });
 
+test("integrations routes: delete rejects a workspaceId that doesn't match the seeded workspace", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(
+    `${baseUrl}/api/admin/v1/workspaces/some-other-workspace/integrations/subscriptions/whatever`,
+    { method: "DELETE", headers: { cookie } }
+  );
+  assert.equal(res.status, 404);
+});
+
+test("integrations routes: delete surfaces an unexpected repo failure as 500 (generic catch, not the not-found branch)", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const created = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/integrations/subscriptions`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ label: "Endpoint", targetUrl: "https://example.com/hooks", topics: ["*"] }),
+  });
+  const { subscription } = (await created.json()) as { subscription: { id: string } };
+
+  // Swap the repo AFTER creation so `findById` still sees the row (delegated through the SAME
+  // original instance, preserving its internal `this`-bound state) but `save` (the delete's write)
+  // fails with a plain Error — exercises delete.ts's generic `catch` -> 500 branch, distinct from the
+  // `WebhookSubscriptionNotFoundError` -> 404 branch already covered above. Same technique as the
+  // integration-tier `create-delete-pause.integration.test.ts`'s "delete: an unexpected repo failure
+  // 500s" test — see its comment for why arrow-delegation (not bare method references) is required.
+  const originalRepo = deps.webhookSubscriptionRepo;
+  deps.webhookSubscriptionRepo = {
+    findById: (input) => originalRepo.findById(input),
+    listByWorkspace: (input) => originalRepo.listByWorkspace(input),
+    save: async () => {
+      throw new Error("boom");
+    },
+  } as typeof deps.webhookSubscriptionRepo;
+
+  const res = await fetch(
+    `${baseUrl}/api/admin/v1/workspaces/workspace-local/integrations/subscriptions/${subscription.id}`,
+    { method: "DELETE", headers: { cookie } }
+  );
+  assert.equal(res.status, 500);
+});
+
 test("integrations routes: list's lastDelivery picks the newest row by createdAt, not insertion order", async (t) => {
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);

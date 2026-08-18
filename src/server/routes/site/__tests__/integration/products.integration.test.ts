@@ -95,6 +95,35 @@ test("products: with no Commerce repos wired, falls back to the sample store plu
   assert.match(await res.text(), /Sample Fallback Product/);
 });
 
+test("products: Commerce repos are wired but have zero active priced products, falls back to the sample store plugin (integration tier's own coverage of this branch, not just unit's)", async (t) => {
+  const app = createApp(
+    testDeps({
+      commerceProductRepo: fakeProductRepo([]),
+      commercePriceRepo: fakePriceRepo({}),
+      store: {
+        listProducts: () => [{ id: "int-fallback-1", title: "Integration Fallback Product", price: 500, stock: 2, version: 0 }],
+        checkout: () => ({ ok: false, reason: "not-found", retries: 0 }),
+      },
+    })
+  );
+  const baseUrl = await startTestServer(app, t);
+
+  const res = await fetch(`${baseUrl}/products`);
+  assert.equal(res.status, 200);
+  assert.match(await res.text(), /Integration Fallback Product/);
+});
+
+test("products: neither Commerce nor a store plugin is wired at all — resolveStorefrontProducts's `deps.store?.listProducts() ?? []` fallback yields an empty grid, not a crash", async (t) => {
+  const app = createApp(
+    testDeps({ commerceProductRepo: undefined, commercePriceRepo: undefined, store: undefined })
+  );
+  const baseUrl = await startTestServer(app, t);
+
+  const res = await fetch(`${baseUrl}/products`);
+  assert.equal(res.status, 200, await res.clone().text());
+  assert.doesNotMatch(await res.text(), /Sample Teacup|Integration Tee|No Commerce Wired/);
+});
+
 test("products: an unknown product id 404s through the real composed app", async (t) => {
   const app = createApp(
     testDeps({ commerceProductRepo: fakeProductRepo([]), commercePriceRepo: fakePriceRepo({}), store: { listProducts: () => [], checkout: () => ({ ok: false, reason: "not-found", retries: 0 }) } })

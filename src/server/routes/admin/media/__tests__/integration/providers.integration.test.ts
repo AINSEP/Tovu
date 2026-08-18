@@ -104,6 +104,17 @@ test("put-providers: valid save round-trips through GET (never leaking key mater
   assert.deepEqual(await cleared.json(), {});
 });
 
+test("put-providers: a request with no JSON content-type (req.body left undefined by express.json()) is treated as an empty map", async (t) => {
+  const app = createApp(testDeps());
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+  // Same real-caller path as the unit-tier test of the same name — no `content-type` header means
+  // `express.json()` never sets `req.body`, exercising the route's `(req.body ?? {})` fallback.
+  const res = await fetch(`${baseUrl}${PATH}`, { method: "PUT", headers: { cookie } });
+  const json = await res.json().catch(() => ({}));
+  assert.equal(res.status, 200, JSON.stringify(json));
+  assert.deepEqual(json, {});
+});
+
 test("get-providers: an unexpected repo failure 500s", async (t) => {
   const base = createRouteDeps();
   const deps = testDeps({
