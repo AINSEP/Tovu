@@ -465,20 +465,199 @@ export interface MembersDeps {
 }
 
 /**
+ * Slice 4 of the `RouteDeps` god-object decomposition (2026-08-18) — the ADR-041/ADR-045 database
+ * recovery read surface: the Database Timeline's read port, the restore-points list/save side, the
+ * dialect-neutral db-ops capability, this site's serving status, and Recovery's two lookup ports,
+ * extracted verbatim (fields + doc comments unchanged) from where they lived inline in `RouteDeps`
+ * below.
+ *
+ * A real, exact, WHOLE-group consumer already existed before this extraction:
+ * `routes/admin/database-recovery/deps.ts`'s `DatabaseRecoveryRouteDeps` already `Pick`ed these same
+ * 6 keys off `RouteDeps` (plus `workspaceId`/`authorize`/`clock`) for the 7 plain database/recovery
+ * registrars. That file now composes `DatabaseRecoveryDeps` directly instead of re-listing the keys
+ * a second time — see its own doc.
+ *
+ * `migrationRunsRepo`/`stampWatermark`/`databaseIntrospection`/`gatedMutations` are deliberately NOT
+ * part of this group even though the original "Admin-UI backend-gap closure" header comment (still
+ * attached to `stampWatermark` below) covers them too — `database-recovery/deps.ts`'s real consumer
+ * never reads any of the four (its own header explicitly excludes the 2 gated-mutation ceremonies
+ * that need `gatedMutations`), so pulling them in here would widen rather than narrow the one real
+ * consumer this slice has. They remain candidates for a later, separate group.
+ */
+export interface DatabaseRecoveryDeps {
+  /**
+   * ADR-041 §1/§2 — the Database Timeline's read port, backed by the sidecar
+   * `ops/database-journal.db` (`db/sqlite/database-journal-repo.ts`'s `SqliteDatabaseLedgerRepo`
+   * in `server/deps.ts`'s real composition; `features/database/repo.memory.ts`'s
+   * `InMemoryDatabaseLedgerRepo` in `server/app.ts`'s hermetic composition). Only the read side is
+   * wired into `RouteDeps` this pass — see `routes/admin/database/timeline.ts`'s file header for
+   * what remains unwired.
+   */
+  /** Widened this dispatch with `LedgerAppendPort` — both `SqliteDatabaseLedgerRepo` and
+   * `InMemoryDatabaseLedgerRepo` already implement `.append()`; only the type declaration here was
+   * narrower than the concrete instances (see `features/database/gated-hooks.ts`'s
+   * `buildMigrateForwardHooks` and `features/recovery/gated-hooks.ts`'s `buildRestoreHooks`, which
+   * need to append real ledger rows).
+   * Widened again (2026-07-16, TM-adr041-043-044-045-audit-001, Finding 2 fix) with
+   * `BootLedgerPort` — both concrete adapters already implement `appendInterruptedRow` too; only
+   * this declaration was narrower. */
+  databaseLedgerRepo: LedgerReadPort & LedgerAppendPort & BootLedgerPort;
+  /** ADR-041 §2/§4 — the `restore_points` table's list + save side (`database/restore-points.ts`'s
+   * new `RestorePointListPort`/`RestorePointSavePort`). Real `SqliteRestorePointsRepo` in
+   * `server/deps.ts` (already built, previously unwired); in-memory in `server/app.ts`. */
+  restorePointsRepo: RestorePointListPort & RestorePointSavePort;
+  /** SPEC-016 C-007 — the dialect-neutral restore-point capability/capture surface. Real
+   * `SqliteDbOpsAdapter` in `server/deps.ts` (already built, previously unwired); a deterministic
+   * in-memory double in `server/app.ts` (`features/database/repo.memory.ts`'s
+   * `InMemoryDbOpsAdapter`). */
+  dbOps: DbOpsPort;
+  /** ADR-041 §3/§10 — this site's `SERVING`/`PENDING_MIGRATION`/`BLOCKED_PENDING_RECOVERY` status.
+   * In-memory in both compositions, defaulted to `SERVING` — no composition root invokes
+   * `features/database/boot/*`'s reconciliation functions at actual boot yet (disclosed gap, see
+   * handoff), so this only ever changes if a future caller calls `.set()`. */
+  siteStatusRepo: SiteStatusPort;
+  /** ADR-045 §2 — Recovery's discarded-write-window baseline source. Always reports the baseline
+   * as unavailable (`features/recovery/repo.memory.ts`'s `AlwaysUnavailableWatermarkSource`) — the
+   * safe default per `disclosure.ts`'s own "never fabricate a zero count" rule, not a corner cut;
+   * see that class's doc comment. */
+  disclosureWatermarkSource: DisclosureWatermarkSourcePort;
+  /** ADR-041 §7/ADR-045 §5 — re-resolves a `DatabaseContextEnvelope`'s carried `restorePointId`
+   * server-side (`features/recovery/repo.memory.ts`'s `RestorePointDeepLinkLookup`, backed by the
+   * same real `restorePointsRepo` list above). */
+  deepLinkRestorePointLookup: DeepLinkRestorePointLookupPort;
+}
+
+/**
  * The full app-wide dependency bag every route handler and module-registration function historically
  * accepted whole, even when touching 1-2 fields (tracked architecture debt — "core size" / "propagation
- * cost" in `npm run check:architecture`). `ClockDeps`/`IdentityDeps`/`MediaDeps` (Slices 1-2) and
- * `CredentialsDeps`/`ContentTaxonomyDeps`/`CommentsDeps`/`MembersDeps` (Slice 3) above are an
- * incremental decomposition: pulled out as their own named, cohesive interfaces and folded back in
- * here via intersection so this type stays 100% identical to every existing consumer. Narrowed call
- * sites so far: `middleware/dev-auth.ts`'s `requireAdminSession` and `assistant/byok-tool-surface.ts`'s
+ * cost" in `npm run check:architecture`). `ClockDeps`/`IdentityDeps`/`MediaDeps` (Slices 1-2),
+ * `CredentialsDeps`/`ContentTaxonomyDeps`/`CommentsDeps`/`MembersDeps` (Slice 3),
+ * `DatabaseRecoveryDeps` (Slice 4), `ComposioDeps` (Slice 5), `WebhooksDeps` (Slice 6),
+ * `FormsDeps` (Slice 7), and `PostDeps`/`PresentationDeps`/`SettingsDeps`/`ChangeSetDeps`/
+ * `EventBusDeps`/`AnalyticsDeps`/`NavigationDeps`/`DatabaseOpsDeps`/`RedirectsDeps`/
+ * `CommerceCatalogDeps`/`WidgetsDeps`/`PluginRuntimeDeps` (Slice 8) above are an incremental
+ * decomposition: pulled out as their own named, cohesive interfaces and folded back in here via
+ * intersection so this type stays 100% identical to every existing consumer. Narrowed call sites so
+ * far: `middleware/dev-auth.ts`'s `requireAdminSession` and `assistant/byok-tool-surface.ts`'s
  * `createByokToolSurface` (Slice 1, to `ClockDeps`/`IdentityDeps`); `routes/admin/media/deps.ts`'s
- * `MediaRouteDeps` (Slice 2, to `MediaDeps`); and, this slice, the four `routes/admin/system/
- * *-credentials.ts` files (to a `Pick` of `CredentialsDeps`' fields) plus `routes/admin/members/
- * deps.ts`'s `MembersRouteDeps` (to `MembersDeps` directly) — see those files' own docs.
+ * `MediaRouteDeps` (Slice 2, to `MediaDeps`); the four `routes/admin/system/*-credentials.ts` files
+ * (to a `Pick` of `CredentialsDeps`' fields) plus `routes/admin/members/deps.ts`'s
+ * `MembersRouteDeps` (Slice 3, to `MembersDeps` directly); `routes/admin/database-recovery/deps.ts`'s
+ * `DatabaseRecoveryRouteDeps` (Slice 4, to `DatabaseRecoveryDeps` directly);
+ * `routes/admin/connectors/deps.ts`'s `ConnectorsRouteDeps`/`ConnectorsConfigRouteDeps` (Slice 5, to
+ * `ComposioDeps`/a `Pick` of it); `routes/admin/integrations/deps.ts`'s `IntegrationsRouteDeps`
+ * (Slice 6, to `WebhooksDeps` directly); and `routes/admin/forms/deps.ts`'s `FormsRouteDeps`
+ * (Slice 7, to `FormsDeps` directly) — see those files' own docs.
+ *
+ * Slice 8 (2026-08-18) is the LAST slice: it groups every field that was still flat in the trailing
+ * intersection object below, closing out this decomposition. No Slice-8 group has a single real
+ * whole-group `Pick`/`extends` consumer yet — each group's own doc explains the domain-cohesion
+ * rationale used instead (the same rationale `ContentTaxonomyDeps`/`CommentsDeps` already
+ * established in Slice 3). A handful of fields deliberately stayed flat rather than join a group:
+ * `workspaceRepo`/`chatHistory`/`webhookSigner`/`formsRateLimiter`/`siteAssistantRateLimiter` are
+ * true singletons with no cohesive sibling (each already has a real narrow consumer via
+ * `Pick<RouteDeps, ...>`, so leaving them flat costs nothing). `runExportSite`/`createSiteApp`/
+ * `resolveStorefrontProducts` stay flat because their own types reference `RouteDeps` itself —
+ * moving any of them into a named sub-interface closes a real circular-type reference TypeScript
+ * rejects (a concrete `tsc` contravariance failure, confirmed before this slice started).
+ * `exportOutputRootDir`/`deploymentsReadRepo`/`publishHistoryStore`/`publishExecutionMode`/
+ * `publishOutputRootDir`/`publishCredentialVerificationCache`/`sourceControlExportRootDir` stay
+ * flat too — out of scope for this slice alongside `features/deployments/`/`features/
+ * source-control/`, which carry 7 already-diagnosed, unrelated violations this slice does not
+ * touch.
  */
-export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & {
-  workspaceRepo: WorkspaceRepoPort;
+/**
+ * Slice 5 of the `RouteDeps` god-object decomposition (2026-08-18) — the Composio connectors
+ * domain (config repo + long-lived provider/service), extracted verbatim (fields + doc comments
+ * unchanged) from where they lived inline in `RouteDeps` below.
+ *
+ * A real narrow consumer already existed before this extraction: `routes/admin/connectors/deps.ts`
+ * declares TWO Composio-shaped types on the same axis media's `MediaRouteDeps` established —
+ * `ConnectorsRouteDeps` (catalog routes, `composioConnectors` alone) and `ConnectorsConfigRouteDeps`
+ * (the 2 config routes, both fields plus the shared ADR-058 sealer/keyring already in
+ * `CredentialsDeps`). Both are rewired to compose `ComposioDeps` (or a `Pick` of it) instead of
+ * re-declaring `composioConnectors`'s type inline.
+ */
+export interface ComposioDeps {
+  /**
+   * The workspace's sealed Composio project key + provisioned auth-config ids, backing the admin's
+   * Settings → Connectors tab (`connectors/composio-config-store.ts`).
+   *
+   * Single-row per workspace, unlike `mediaProviderCredentialRepo` above — a workspace has one
+   * Composio project, not a roster. Sealed with the same shared ADR-058 sealer/keyring as every
+   * other credential table here. No matching `*Ready` promise: a plain table, usable as soon as
+   * migrations run.
+   */
+  composioConfigRepo: ComposioConfigRepoPort;
+  /**
+   * The long-lived Composio provider + service the connectors routes read through.
+   *
+   * A live service rather than a repo because `ComposioConnectorProvider` owns in-process caches
+   * and (for OAuth) pending-authorization state that must survive across requests — see
+   * `connectors/composio-service.ts` for why it cannot be rebuilt per request.
+   */
+  composioConnectors: ComposioConnectors;
+}
+
+/**
+ * Slice 6 of the `RouteDeps` god-object decomposition (2026-08-18) — the ADR-036 webhook
+ * subscription/delivery persistence pair, extracted verbatim (fields + doc comments unchanged)
+ * from where they lived inline in `RouteDeps` below.
+ *
+ * `webhookSigner` deliberately stays OUT of this group and flat on `RouteDeps` — its own doc
+ * comment already discloses "Not consumed by any route yet", and `routes/admin/integrations/
+ * deps.ts`'s real consumer (below) confirms it: `IntegrationsRouteDeps` never picks it.
+ *
+ * A real narrow consumer already existed before this extraction: `routes/admin/integrations/
+ * deps.ts`'s `IntegrationsRouteDeps` already `Pick`ed these same 2 keys off `RouteDeps` (plus
+ * `workspaceId`/`authorize`/`clock`/`idGen`/`originRegistry`) for the 5 admin integrations routes.
+ * That file now composes `WebhooksDeps` directly instead of re-listing the 2 keys a second time —
+ * see its own doc. `originRegistry` stays a separate `Pick<RouteDeps, "originRegistry">` there
+ * rather than joining this group: it is redirects/origin-domain infrastructure reused here, not a
+ * webhooks-owned field (see a later slice's `RedirectsDeps` for its home group).
+ */
+export interface WebhooksDeps {
+  /** ADR-036 `webhook_subscriptions` persistence. */
+  webhookSubscriptionRepo: WebhookSubscriptionRepoPort;
+  /** ADR-036 `webhook_deliveries` persistence. */
+  webhookDeliveryRepo: WebhookDeliveryRepoPort;
+}
+
+/**
+ * Slice 7 of the `RouteDeps` god-object decomposition (2026-08-18) — the `forms` library's write
+ * chokepoint repo pair (SPEC-010, ADR-PIPE-010), extracted verbatim (fields + doc comments unchanged)
+ * from where they lived inline in `RouteDeps` below.
+ *
+ * `formsRateLimiter` deliberately stays OUT of this group and flat on `RouteDeps` — the original
+ * header comment (still attached to it below) introduced all three together, but
+ * `routes/admin/forms/deps.ts`'s real consumer (below) never reads it: the 7 admin forms routes this
+ * type serves are session-gated, not the public rate-limited submission endpoint that field backs
+ * (`routes/site/forms-submit.ts`, declared structurally, deliberately never importing `RouteDeps` —
+ * the same back-edge-avoidance pattern `CommentsDeps`'s own doc already establishes for
+ * `comments-submit.ts`).
+ *
+ * A real narrow consumer already existed before this extraction: `routes/admin/forms/deps.ts`'s
+ * `FormsRouteDeps` already `Pick`ed these same 2 keys off `RouteDeps` (plus `workspaceId`/
+ * `authorize`/`clock`/`idGen`/`changeSets`/`outbox`) for the 7 forms admin routes. That file now
+ * composes `FormsDeps` directly instead of re-listing the 2 keys a second time — see its own doc.
+ */
+export interface FormsDeps {
+  formDefinitionRepo: FormDefinitionRepoPort;
+  formSubmissionRepo: FormSubmissionRepoPort;
+}
+
+/**
+ * Slice 8 of the `RouteDeps` god-object decomposition (2026-08-18) — the `postRepo` write
+ * chokepoint and its two siblings, extracted verbatim (fields + doc comments unchanged) from
+ * where they lived inline in `RouteDeps` below.
+ *
+ * No single whole-group consumer: `routes/admin/content/deps.ts`'s `ContentRouteDeps` picks
+ * `postRepo`/`pagesHtmlStore` (not `postSearch`) alongside many non-group fields; the
+ * `content_post_search` agent tool (`features/post/tool-registrations.ts`) reads `postSearch`
+ * alone. Grouped here on the doc comments' own "sibling of `postRepo`" cohesion rather than a
+ * shared narrow consumer — the same rationale `ContentTaxonomyDeps`/`CommentsDeps` already used.
+ */
+export interface PostDeps {
   postRepo: PostRepoPort;
   /**
    * Ranked full-text search over posts/pages, backing the `content_post_search` agent tool.
@@ -502,16 +681,52 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * handle so no route holds it, and every instance is bound to one `(workspaceId, postId)` pair.
    */
   pagesHtmlStore: PagesHtmlDocumentStoreFactory;
-  /**
-   * Durable AI chat history, obtained per-principal.
-   *
-   * A factory rather than a store, because there is no such thing as "the" chat store — every
-   * query must be filtered by who is asking. Composition closes over the `content.db` handle so
-   * no route ever holds one, which is what makes an unscoped `WHERE id = ?` unwritable rather
-   * than merely against convention. See `assistant/persistence/tenant-scope.ts`.
-   */
-  chatHistory: ChatStoreFactory;
+}
+
+/**
+ * Slice 8 of the `RouteDeps` god-object decomposition (2026-08-18) — the presentation-settings
+ * repo and the boot-discovered theme roster, extracted verbatim (fields + doc comments unchanged)
+ * from where they lived inline in `RouteDeps` below.
+ *
+ * No single whole-group consumer, but real shared usage: `routes/admin/content/deps.ts`'s
+ * `ContentRouteDeps` reads all three (`presentationRepo`/`themes` for `presentation/get.ts` and
+ * `presentation/patch-active-theme.ts`; `themesDir` for `presentation/rescan-themes.ts`) alongside
+ * many non-group fields — grouped here on that file's own field-by-field rationale rather than a
+ * narrow Pick match.
+ */
+export interface PresentationDeps {
   presentationRepo: PresentationSettingsRepoPort;
+  /** Themes discovered at boot (built-in + site themes/ dir), SPEC-004 spike. */
+  themes: DiscoveredTheme[];
+  /**
+   * The themes root those themes were discovered under (`server/deps.ts`'s `builtInThemesDir()`).
+   *
+   * Threaded through as a dependency rather than re-derived where it is needed, because it is the
+   * outer half of the `themes` agent-tool domain's containment check: `DiscoveredTheme.dir` says
+   * where one theme lives, and this says which folders are allowed to contain a theme at all
+   * (`features/theme/theme-files.ts`'s `isRecognizedThemeRoot`). Re-deriving it inside a feature
+   * module would both invert the dependency and let a test/composition root that overrides
+   * `TOVU_THEMES_DIR` disagree with the check enforcing it.
+   */
+  themesDir: string;
+}
+
+/**
+ * Slice 8 of the `RouteDeps` god-object decomposition (2026-08-18) — the settings ledger's repo
+ * plus the `features/settings` function/constant bindings and the boot-registration `*Ready`
+ * promise chain, extracted verbatim (fields + doc comments unchanged) from where they lived inline
+ * in `RouteDeps` below.
+ *
+ * No single whole-group consumer — `routes/admin/settings/deps.ts`'s `SettingsRouteDeps` picks
+ * `settingsReady`/`settingsRepo` (not the rest); `routes/admin/seo/deps.ts`'s `SeoRouteDeps` picks
+ * `seoReady`/`settingsRepo`; `routes/admin/assistant/deps.ts`'s `AssistantSettingsRouteDeps` picks
+ * `settingsRepo`/`getEffective`/`set`/`assistantSettingsReady` — each a different narrow subset.
+ * Grouped here on domain cohesion instead (one ledger, one boot-registration chain — every `*Ready`
+ * field's own doc comment says it is chained after the previous one on the same SQLite connection),
+ * the same rationale `ContentTaxonomyDeps`/`CommentsDeps` already used for a shared-domain, no-single-
+ * consumer group.
+ */
+export interface SettingsDeps {
   /**
    * SPEC-007 — the settings ledger's repo port. `core.commands.appliers`
    * (via `revert.ts`) reads through this now instead of
@@ -563,24 +778,6 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    */
   assistantSettingsReady: Promise<void>;
   /**
-   * The workspace's sealed Composio project key + provisioned auth-config ids, backing the admin's
-   * Settings → Connectors tab (`connectors/composio-config-store.ts`).
-   *
-   * Single-row per workspace, unlike `mediaProviderCredentialRepo` above — a workspace has one
-   * Composio project, not a roster. Sealed with the same shared ADR-058 sealer/keyring as every
-   * other credential table here. No matching `*Ready` promise: a plain table, usable as soon as
-   * migrations run.
-   */
-  composioConfigRepo: ComposioConfigRepoPort;
-  /**
-   * The long-lived Composio provider + service the connectors routes read through.
-   *
-   * A live service rather than a repo because `ComposioConnectorProvider` owns in-process caches
-   * and (for OAuth) pending-authorization state that must survive across requests — see
-   * `connectors/composio-service.ts` for why it cannot be rebuilt per request.
-   */
-  composioConnectors: ComposioConnectors;
-  /**
    * Resolves once the one-time `ensureExecutionSettingDefinitions()` boot call registers the 8
    * `core.execution.*` setting definitions backing the admin "Execution mode" tab (`@jini-ai/ui`'s
    * `ExecutionTab`). Same shape/convention as `assistantSettingsReady`, chained after it in both
@@ -601,6 +798,22 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * read/write through the generic settings routes.
    */
   settingsUiTabsReady: Promise<void>;
+}
+
+/**
+ * Slice 8 of the `RouteDeps` god-object decomposition (2026-08-18) — the command-gateway change-set
+ * store and its inverse-applier registry, extracted verbatim (fields + doc comments unchanged)
+ * from where they lived inline in `RouteDeps` below.
+ *
+ * No single whole-group consumer: `routes/admin/content/deps.ts`'s `ContentRouteDeps` reads both
+ * (`changeSets` for posts/pages create/update, `revertRegistry` for `change-sets/revert.ts`)
+ * alongside many non-group fields. `routes/admin/plugins/deps.ts`'s `PluginsRouteDeps` also reads
+ * `changeSets` alone (as a hand-typed shape, not a `Pick<RouteDeps>`). Grouped here on the fields'
+ * own doc comments — `revertRegistry`'s says it is "closed over the SAME `postRepo`/`clock`/
+ * `outbox` instances the rest of this bag already carries" alongside `changeSets` — the same
+ * domain-cohesion rationale used where no narrow consumer exists.
+ */
+export interface ChangeSetDeps {
   /** Change-set store for the command gateway (in-memory in v1, ADR-008/018). */
   changeSets: ChangeSetRepoPort;
   /**
@@ -613,21 +826,36 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * Job 2).
    */
   revertRegistry: RevertRegistry;
-  /** Themes discovered at boot (built-in + site themes/ dir), SPEC-004 spike. */
-  themes: DiscoveredTheme[];
-  /**
-   * The themes root those themes were discovered under (`server/deps.ts`'s `builtInThemesDir()`).
-   *
-   * Threaded through as a dependency rather than re-derived where it is needed, because it is the
-   * outer half of the `themes` agent-tool domain's containment check: `DiscoveredTheme.dir` says
-   * where one theme lives, and this says which folders are allowed to contain a theme at all
-   * (`features/theme/theme-files.ts`'s `isRecognizedThemeRoot`). Re-deriving it inside a feature
-   * module would both invert the dependency and let a test/composition root that overrides
-   * `TOVU_THEMES_DIR` disagree with the check enforcing it.
-   */
-  themesDir: string;
+}
+
+/**
+ * Slice 8 of the `RouteDeps` god-object decomposition (2026-08-18) — the outbox/event-bus pair,
+ * extracted verbatim (fields + doc comments unchanged) from where they lived inline in `RouteDeps`
+ * below.
+ *
+ * No single whole-group consumer, but a real shared call site: `routes/admin/content/deps.ts`'s
+ * `ContentRouteDeps` reads both together (`posts/update.ts`'s `processOutbox({ outbox, bus, clock
+ * })` drain call, per that file's own doc), alongside `routes/admin/workspace/deps.ts`'s
+ * `WorkspaceRouteDeps` (`Pick<RouteDeps, ... | "outbox" | "bus">`) — the same outbox-drain pairing
+ * repeats verbatim in a second, unrelated domain, which is the cohesion this group is built on.
+ */
+export interface EventBusDeps {
   outbox: OutboxPort;
   bus: EventBusPort;
+}
+
+/**
+ * Slice 8 of the `RouteDeps` god-object decomposition (2026-08-18) — the public analytics ingest
+ * buffer, its beacon config seam, and the matching boot-registration promise, extracted verbatim
+ * (fields + doc comments unchanged) from where they lived inline in `RouteDeps` below.
+ *
+ * No route module in this codebase yet declares its own narrow analytics deps type — the admin
+ * `analytics/recent-hits.ts` registrar and the public ingest route both take full `RouteDeps`
+ * today. Grouped here on domain cohesion (ADR-035 ingest stage, ADR-046 boot registration) ahead
+ * of a future narrow consumer, the same "candidate for a later group" precedent
+ * `DatabaseRecoveryDeps`'s own doc already used for `stampWatermark`/`databaseIntrospection`.
+ */
+export interface AnalyticsDeps {
   /** Analytics ingest buffer (ADR-035 ingest-only stage; no rollup yet). ADR-046 Phase 1: durable
    * in real composition (`SqliteBufferSink`), in-memory in hermetic composition (`LocalBufferSink`). */
   analyticsSink: AnalyticsSinkPort;
@@ -645,93 +873,63 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * single-SQLite-connection-transaction reason every registration above documents.
    */
   analyticsSettingsReady: Promise<void>;
+}
+
+/**
+ * Slice 8 of the `RouteDeps` god-object decomposition (2026-08-18) — the navigation-owned menu
+ * repo and its one real ADR-029 derived-index port, extracted verbatim (fields + doc comments
+ * unchanged) from where they lived inline in `RouteDeps` below.
+ *
+ * No `routes/admin/menus/*.ts` file has its own narrow deps type today (all 6 registrars take full
+ * `RouteDeps`); `routes/admin/content/deps.ts`'s `ContentRouteDeps` reads `menuRepo` alone (not
+ * `navLocationBindingRepo`) for `template-preview.ts`'s theme-nav lookup. Grouped on the fields'
+ * own ADR-029 pairing ahead of a future narrow menus consumer.
+ */
+export interface NavigationDeps {
   /** Local, navigation-owned menu repo (ADR-029; not a frozen ADR port). */
   menuRepo: MenuRepoPort;
   /** The one real ADR-029 port: the derived nav_location_bindings index. */
   navLocationBindingRepo: NavLocationBindingRepoPort;
-  /** ADR-036 `webhook_subscriptions` persistence. */
-  webhookSubscriptionRepo: WebhookSubscriptionRepoPort;
-  /** ADR-036 `webhook_deliveries` persistence. */
-  webhookDeliveryRepo: WebhookDeliveryRepoPort;
-  /**
-   * ADR-036 §5 outbound HMAC signer. ADR-PIPE-015 Phase 1: built via `createKeyringBackedSigner`
-   * over a real `KeyringPort` (`server/deps.ts`'s composition uses `EnvOrFileKeyring`;
-   * `server/app.ts`'s hermetic test/dev composition uses the in-memory `InMemoryKeyring` test
-   * double instead, to avoid touching real files/env in tests). Not consumed by any route yet —
-   * the delivery worker is the first real consumer, and its activation stays gated behind
-   * ADR-PIPE-015's Phase 4 "point of no return" until the real signer, guarded transport, and
-   * SQLite adapters are all merged and code-reviewed.
-   */
-  webhookSigner: WebhookSigner;
-  /**
-   * `forms` library ports (SPEC-010, ADR-PIPE-010 — mirrors the existing
-   * `webhookSubscriptionRepo`/`webhookDeliveryRepo` field-addition precedent). `formsRateLimiter`
-   * is a single, process-lifetime `createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock })`
-   * instance (not constructed per-request) so its fixed-window counters persist across requests.
-   */
-  formDefinitionRepo: FormDefinitionRepoPort;
-  formSubmissionRepo: FormSubmissionRepoPort;
-  formsRateLimiter: RateLimiter;
-  /**
-   * SPEC-046 REQ-7 — the public site assistant's own rate limiter, mirroring `formsRateLimiter`'s
-   * shape exactly: a single, process-lifetime `createRateLimiter({ profile: SITE_ASSISTANT_PER_IP,
-   * clock })` instance (not constructed per-request), keyed by `resolveClientIp(req)` in
-   * `modules/site-assistant.ts`.
-   */
-  siteAssistantRateLimiter: RateLimiter;
-  /**
-   * ADR-041 §1/§2 — the Database Timeline's read port, backed by the sidecar
-   * `ops/database-journal.db` (`db/sqlite/database-journal-repo.ts`'s `SqliteDatabaseLedgerRepo`
-   * in `server/deps.ts`'s real composition; `features/database/repo.memory.ts`'s
-   * `InMemoryDatabaseLedgerRepo` in `server/app.ts`'s hermetic composition). Only the read side is
-   * wired into `RouteDeps` this pass — see `routes/admin/database/timeline.ts`'s file header for
-   * what remains unwired.
-   */
-  /** Widened this dispatch with `LedgerAppendPort` — both `SqliteDatabaseLedgerRepo` and
-   * `InMemoryDatabaseLedgerRepo` already implement `.append()`; only the type declaration here was
-   * narrower than the concrete instances (see `features/database/gated-hooks.ts`'s
-   * `buildMigrateForwardHooks` and `features/recovery/gated-hooks.ts`'s `buildRestoreHooks`, which
-   * need to append real ledger rows).
-   * Widened again (2026-07-16, TM-adr041-043-044-045-audit-001, Finding 2 fix) with
-   * `BootLedgerPort` — both concrete adapters already implement `appendInterruptedRow` too; only
-   * this declaration was narrower. */
-  databaseLedgerRepo: LedgerReadPort & LedgerAppendPort & BootLedgerPort;
+}
+
+/**
+ * Slice 8 of the `RouteDeps` god-object decomposition (2026-08-18) — the database/gated-mutations
+ * leftovers `DatabaseRecoveryDeps` (Slice 4) explicitly named as "candidates for a later group with
+ * no single real narrow consumer yet", extracted verbatim (fields + doc comments unchanged) from
+ * where they lived inline in `RouteDeps` below. This IS that later group.
+ *
+ * Admin-UI backend-gap closure (design-spec.md §0.4/§1.9/§2.8/§3.8/§4.8) — the read-side +
+ * route-layer wiring the Web Design pass found missing across `content-types`, `entries`,
+ * `taxonomy`, and (partially) `database`/`recovery`. Every field below is backed by an in-memory
+ * adapter in BOTH `server/app.ts` and `server/deps.ts` (no SQLite adapter exists yet for
+ * `content-types`/`entries`/`taxonomy` — the same disclosed "no adapter yet" precedent
+ * `mediaRepo`/`transformDefinitionRepo`/`memberRepo` already establish), EXCEPT
+ * `restorePointsRepo`/`dbOps` (moved to `DatabaseRecoveryDeps`, Slice 4), which get real
+ * `db/sqlite/database-journal-repo.ts`/`db-ops.ts` adapters in `server/deps.ts`.
+ *
+ * (2026-08-18, Slice 3: the `content-types`/`entries`/`taxonomy` REPO fields this comment
+ * originally introduced moved to `ContentTaxonomyDeps`. Slice 4: `restorePointsRepo`/`dbOps`/
+ * `siteStatusRepo`/`disclosureWatermarkSource`/`deepLinkRestorePointLookup` moved to
+ * `DatabaseRecoveryDeps`. Slice 8 (this pass): `migrationRunsRepo`/`stampWatermark`/
+ * `databaseIntrospection`/`gatedMutations` — the 4 fields Slice 4 explicitly left behind — move
+ * here. No single whole-group consumer exists yet: `routes/admin/taxonomy/deps.ts`'s
+ * `TaxonomyRouteDeps` picks `stampWatermark` alone; the `taxonomy/terms/:id/merge`,
+ * `database/migrate-forward`, and `recovery/restore` gated-mutation routes each read
+ * `gatedMutations` directly against full `RouteDeps` (no narrow deps file); `migrationRunsRepo`/
+ * `databaseIntrospection` back `features/database/boot/reconcile-interrupted-migration.ts` and
+ * `features/database/adapter.sqlite.ts` respectively, neither with a route-level narrow consumer
+ * today. Grouped on shared "database operations, no adapter/narrow-consumer yet" domain cohesion.)
+ */
+export interface DatabaseOpsDeps {
   /** ADR-041/043/044/045 re-audit (2026-07-16, TM-adr041-043-044-045-audit-001, Finding 2 fix) —
    * the `migration_runs` read side `reconcileInterruptedMigrationOnBoot` needs; previously
    * constructed nowhere (real SQLite adapter existed, unused; no in-memory double existed). */
   migrationRunsRepo: MigrationRunsRepoPort;
-  /**
-   * Admin-UI backend-gap closure (design-spec.md §0.4/§1.9/§2.8/§3.8/§4.8, this dispatch) — the
-   * read-side + route-layer wiring the Web Design pass found missing across `content-types`,
-   * `entries`, `taxonomy`, and (partially) `database`/`recovery`. Every field below is backed by an
-   * in-memory adapter in BOTH `server/app.ts` and `server/deps.ts` (no SQLite adapter exists yet
-   * for `content-types`/`entries`/`taxonomy` — the same disclosed "no adapter yet" precedent
-   * `mediaRepo`/`transformDefinitionRepo`/`memberRepo` already establish above), EXCEPT
-   * `restorePointsRepo`/`dbOps`, which get real `db/sqlite/database-journal-repo.ts`/`db-ops.ts`
-   * adapters in `server/deps.ts` — see this dispatch's handoff for the full disclosure and the
-   * follow-up SQLite-adapter work item it leaves open.
-   *
-   * (2026-08-18, Slice 3: the `content-types`/`entries`/`taxonomy` REPO fields this comment
-   * originally introduced — `contentTypeRepo`/`contentTypeIndexProvisioner`/`entryRepo`/
-   * `taxonomyRepo`/`termRepo`/`entryTermRepo`/`taxonomyRevisionRepo` — moved to the new
-   * `ContentTaxonomyDeps` interface above; this comment stays here because it also covers
-   * `stampWatermark`/`restorePointsRepo`/`dbOps`/`databaseIntrospection`/`siteStatusRepo`/
-   * `disclosureWatermarkSource`/`deepLinkRestorePointLookup` below, none of which moved.)
-   */
   /** Bumps `database_write_watermark` for taxonomy writes (create/rename/assign/delete). Real
    * `sqliteStampWatermark(db)` in `server/deps.ts` (the certified `stampWatermarkTx`, see
    * `core/gated-mutations/watermark.ts`); `noopStampWatermark` in `server/app.ts`'s in-memory
    * composition, which has no watermark table to advance. */
   stampWatermark: () => void;
-  /** ADR-041 §2/§4 — the `restore_points` table's list + save side (`database/restore-points.ts`'s
-   * new `RestorePointListPort`/`RestorePointSavePort`). Real `SqliteRestorePointsRepo` in
-   * `server/deps.ts` (already built, previously unwired); in-memory in `server/app.ts`. */
-  restorePointsRepo: RestorePointListPort & RestorePointSavePort;
-  /** SPEC-016 C-007 — the dialect-neutral restore-point capability/capture surface. Real
-   * `SqliteDbOpsAdapter` in `server/deps.ts` (already built, previously unwired); a deterministic
-   * in-memory double in `server/app.ts` (`features/database/repo.memory.ts`'s
-   * `InMemoryDbOpsAdapter`). */
-  dbOps: DbOpsPort;
   /** ADR-041 §3 — the `database_get_health`/`database_get_schema_state`/`database_list_pending_migrations`
    * agent tools' backing read port (`features/database/adapter.sqlite.ts`, closing the gap that
    * file's own catalog header previously disclosed as "no backing adapter composed into RouteDeps
@@ -739,20 +937,6 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * `ContentDb` handle `restorePointsRepo`/`dbOps` already share); `InMemoryDatabaseIntrospectionAdapter`
    * in `server/app.ts`'s hermetic composition. */
   databaseIntrospection: DatabaseIntrospectionPort;
-  /** ADR-041 §3/§10 — this site's `SERVING`/`PENDING_MIGRATION`/`BLOCKED_PENDING_RECOVERY` status.
-   * In-memory in both compositions, defaulted to `SERVING` — no composition root invokes
-   * `features/database/boot/*`'s reconciliation functions at actual boot yet (disclosed gap, see
-   * handoff), so this only ever changes if a future caller calls `.set()`. */
-  siteStatusRepo: SiteStatusPort;
-  /** ADR-045 §2 — Recovery's discarded-write-window baseline source. Always reports the baseline
-   * as unavailable (`features/recovery/repo.memory.ts`'s `AlwaysUnavailableWatermarkSource`) — the
-   * safe default per `disclosure.ts`'s own "never fabricate a zero count" rule, not a corner cut;
-   * see that class's doc comment. */
-  disclosureWatermarkSource: DisclosureWatermarkSourcePort;
-  /** ADR-041 §7/ADR-045 §5 — re-resolves a `DatabaseContextEnvelope`'s carried `restorePointId`
-   * server-side (`features/recovery/repo.memory.ts`'s `RestorePointDeepLinkLookup`, backed by the
-   * same real `restorePointsRepo` list above). */
-  deepLinkRestorePointLookup: DeepLinkRestorePointLookupPort;
   /**
    * SPEC-016 (`core/gated-mutations`'s gateway, ADR-041 §5) — composed into a real composition
    * root for the first time this dispatch. One process-lifetime `GatewayDeps` (in-process
@@ -761,6 +945,22 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * (`taxonomy/terms/:id/merge`, `database/migrate-forward`, `recovery/restore`).
    */
   gatedMutations: { gatewayDeps: GatewayDeps };
+}
+
+/**
+ * Slice 8 of the `RouteDeps` god-object decomposition (2026-08-18) — the `redirects` + `origin`
+ * composition-root wiring (SPEC-009/ADR-PIPE-009), extracted verbatim (fields + doc comments
+ * unchanged) from where they lived inline in `RouteDeps` below.
+ *
+ * No `routes/admin/redirects/*.ts` file has its own narrow deps type today (all 7 registrars take
+ * full `RouteDeps`). `routes/admin/integrations/deps.ts`'s `IntegrationsRouteDeps` picks
+ * `originRegistry` alone (deliberately kept a separate `Pick<RouteDeps, "originRegistry">` there —
+ * see `WebhooksDeps`'s own Slice 6 doc — rather than joining `WebhooksDeps`, since it is
+ * redirects/origin-domain infrastructure reused by that module, not webhooks-owned). Grouped here
+ * on the fields' own single doc comment, which already introduces all 4 together as one feature's
+ * composition-root wiring.
+ */
+export interface RedirectsDeps {
   /**
    * SPEC-009 / ADR-PIPE-009 — `redirects` + first-time `origin` composition-
    * root wiring. `redirectRepo`/`redirectHitSink` back the admin HTTP surface
@@ -779,6 +979,22 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
   redirectHitSink: RedirectHitSink;
   originRegistry: OriginRegistryPort;
   redirectsWriteDeps: RedirectsWriteDeps;
+}
+
+/**
+ * Slice 8 of the `RouteDeps` god-object decomposition (2026-08-18) — the optional,
+ * storefront-adjacent seams (the sample Tier-3 store plugin, the real commerce catalog read ports,
+ * and the lipay payments plugin), extracted verbatim (fields + doc comments unchanged) from where
+ * they lived inline in `RouteDeps` below.
+ *
+ * No route module has its own narrow deps type for any of these today (`routes/site/products.ts`/
+ * `routes/site/payments-webhook.ts` both take full `RouteDeps`). Grouped here on the fields' own
+ * cross-referencing doc comments — `commerceProductRepo`'s says "Optional, matching `store?:`
+ * above's precedent" and `lipay`'s says "wired only by a composition root that has a real SQLite
+ * handle, exactly like `store` above" — all four are optional, composition-root-gated,
+ * storefront-facing seams that fall back gracefully when unset.
+ */
+export interface CommerceCatalogDeps {
   /** SPIKE: seam for the sample Tier-3 store plugin (data lives in plugin-owned `p_store__*`
    * tables). Optional — only the SQLite runtime wires it (see `index.ts`). */
   store?: {
@@ -808,6 +1024,22 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * can be registered ahead of the blanket body parser while activation still happens later.
    */
   lipay?: LipayApi;
+}
+
+/**
+ * Slice 8 of the `RouteDeps` god-object decomposition (2026-08-18) — the widgets domain's derived
+ * projection repo, extracted verbatim (fields + doc comment unchanged) from where it lived inline
+ * in `RouteDeps` below.
+ *
+ * Deliberately its own single-field group, not folded into `ContentTaxonomyDeps`: that interface's
+ * own Slice 3 doc explicitly considered and rejected pulling `widgetBindingRepo` in alongside its
+ * sibling `entryRefsRepo` — "`entryRefsRepo`... groups here per this slice's own field list rather
+ * than with widgets" — leaving this exact field as the named candidate for its own group. No
+ * `routes/admin/widgets/*.ts` file has a narrow deps type today (all 14 registrars take full
+ * `RouteDeps`); the public site-render path (`routes/site/pages.ts` → `resolvePageWidgets`) does
+ * too.
+ */
+export interface WidgetsDeps {
   /**
    * SPEC-043/ADR-047 (widgets) — the `widget_region_bindings` derived-projection repo
    * (`widgets/ports.ts`'s `WidgetRegionBindingRepoPort`, mirroring `NavLocationBindingRepoPort`
@@ -815,6 +1047,25 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * path (`routes/site/pages.ts` → `resolvePageWidgets`, W-004).
    */
   widgetBindingRepo: WidgetRegionBindingRepoPort;
+}
+
+/**
+ * Slice 8 of the `RouteDeps` god-object decomposition (2026-08-18) — the SPEC-005 plugin-runtime
+ * activation port, its pre-bound discovery/enable/disable closures, and the same process-lifetime
+ * hook registry's content-facing port, extracted verbatim (fields + doc comments unchanged) from
+ * where they lived inline in `RouteDeps` below.
+ *
+ * A real, near-exact consumer already exists: `routes/admin/plugins/deps.ts`'s `PluginsRouteDeps`
+ * (a hand-typed shape, not a `Pick<RouteDeps>`, since that file predates this decomposition) already
+ * declares `pluginActivationRepo`/`discoverPlugins`/`onPluginEnabled`/`onPluginDisabled` verbatim
+ * alongside its own `workspaceId`/`authorize`/`clock`/`idGen`/`changeSets`/`outbox?`. Its own doc
+ * comment says `discoverPlugins`/`onEnabled`/`onDisabled` are "pre-bound closures... the composition
+ * root... builds these closures once and threads them through" — the same process-lifetime hook
+ * registry `pluginBeforeSaveHook`'s doc calls "the same... hook registry's content-facing port",
+ * which is why it joins this group rather than `ContentTaxonomyDeps`/`CommentsDeps` (it is a plugin
+ * lifecycle hook, not a content-model repo).
+ */
+export interface PluginRuntimeDeps {
   /**
    * SPEC-005 (ADR-005-ARCH) — the `plugin_activations` persistence port (mirrors
    * `PresentationSettingsRepoPort` exactly, rule-of-two). Consumed by the `plugins` admin routes
@@ -835,6 +1086,47 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
   onPluginDisabled: (pluginId: string) => void;
   /** The same process-lifetime hook registry's content-facing port. */
   pluginBeforeSaveHook: BeforeSaveHookPort;
+}
+
+export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & DatabaseRecoveryDeps & ComposioDeps & WebhooksDeps & FormsDeps & PostDeps & PresentationDeps & SettingsDeps & ChangeSetDeps & EventBusDeps & AnalyticsDeps & NavigationDeps & DatabaseOpsDeps & RedirectsDeps & CommerceCatalogDeps & WidgetsDeps & PluginRuntimeDeps & {
+  workspaceRepo: WorkspaceRepoPort;
+  /**
+   * Durable AI chat history, obtained per-principal.
+   *
+   * A factory rather than a store, because there is no such thing as "the" chat store — every
+   * query must be filtered by who is asking. Composition closes over the `content.db` handle so
+   * no route ever holds one, which is what makes an unscoped `WHERE id = ?` unwritable rather
+   * than merely against convention. See `assistant/persistence/tenant-scope.ts`.
+   */
+  chatHistory: ChatStoreFactory;
+  /**
+   * ADR-036 §5 outbound HMAC signer. ADR-PIPE-015 Phase 1: built via `createKeyringBackedSigner`
+   * over a real `KeyringPort` (`server/deps.ts`'s composition uses `EnvOrFileKeyring`;
+   * `server/app.ts`'s hermetic test/dev composition uses the in-memory `InMemoryKeyring` test
+   * double instead, to avoid touching real files/env in tests). Not consumed by any route yet —
+   * the delivery worker is the first real consumer, and its activation stays gated behind
+   * ADR-PIPE-015's Phase 4 "point of no return" until the real signer, guarded transport, and
+   * SQLite adapters are all merged and code-reviewed.
+   */
+  webhookSigner: WebhookSigner;
+  /**
+   * `forms` library ports (SPEC-010, ADR-PIPE-010 — mirrors the existing
+   * `webhookSubscriptionRepo`/`webhookDeliveryRepo` field-addition precedent). `formsRateLimiter`
+   * is a single, process-lifetime `createRateLimiter({ profile: FORMS_SUBMIT_PROFILE, clock })`
+   * instance (not constructed per-request) so its fixed-window counters persist across requests.
+   *
+   * (2026-08-18, Slice 7: `formDefinitionRepo`/`formSubmissionRepo` moved to the new `FormsDeps`
+   * interface above, matching `routes/admin/forms/deps.ts`'s real narrow consumer; this field stays
+   * here since that consumer never reads it — see `FormsDeps`'s own doc.)
+   */
+  formsRateLimiter: RateLimiter;
+  /**
+   * SPEC-046 REQ-7 — the public site assistant's own rate limiter, mirroring `formsRateLimiter`'s
+   * shape exactly: a single, process-lifetime `createRateLimiter({ profile: SITE_ASSISTANT_PER_IP,
+   * clock })` instance (not constructed per-request), keyed by `resolveClientIp(req)` in
+   * `modules/site-assistant.ts`.
+   */
+  siteAssistantRateLimiter: RateLimiter;
   /**
    * 2026-08-15 — the deployments feature's READ side (`features/deployments/read-repo.ts`),
    * backing the admin Full Site tab's `GET .../deployments` route

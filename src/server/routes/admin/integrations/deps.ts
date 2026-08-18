@@ -1,6 +1,6 @@
 import type { Express } from "express";
 
-import type { RouteDeps } from "../../types";
+import type { RouteDeps, WebhooksDeps } from "../../types";
 
 /**
  * @file Narrow `RouteDeps` slice for the integrations ADMIN routes (ADR-036 admin wiring;
@@ -22,16 +22,13 @@ import type { RouteDeps } from "../../types";
  * `modules/integrations.ts`, which owns the Forms-to-webhook fan-out SUBSCRIBER (a different
  * concern: internal event-driven delivery enqueue vs. admin CRUD over subscriptions). Not itself
  * a port (ADR-006) — a local type alias over the shared `RouteDeps`, same as `RouteRegistrar` is.
+ *
+ * 2026-08-18 (`RouteDeps` decomposition Slice 6): `webhookSubscriptionRepo`/`webhookDeliveryRepo` are
+ * now their own named `WebhooksDeps` interface in `routes/types.ts`, so this composes it directly
+ * instead of listing the 2 keys via `Pick`; `originRegistry` stays a separate `Pick<RouteDeps, ...>`
+ * key here rather than joining `WebhooksDeps` — it is redirects/origin-domain infrastructure reused
+ * by these routes, not a webhooks-owned field.
  */
-export type IntegrationsRouteDeps = Pick<
-  RouteDeps,
-  | "workspaceId"
-  | "authorize"
-  | "clock"
-  | "idGen"
-  | "webhookSubscriptionRepo"
-  | "webhookDeliveryRepo"
-  | "originRegistry"
->;
+export type IntegrationsRouteDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "clock" | "idGen" | "originRegistry"> & WebhooksDeps;
 
 export type IntegrationsRouteRegistrar = (app: Express, deps: IntegrationsRouteDeps) => void;
