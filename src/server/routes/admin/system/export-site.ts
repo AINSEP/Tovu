@@ -58,6 +58,30 @@ export type { ExportRunCounts, ExportRunSnapshot, ExportRunStatus };
  */
 export type AdminExportSiteDeps = RouteDeps;
 
+/** `'clean' must be a boolean` when present and not a boolean; `null` when the field is absent,
+ *  `undefined`, or already a boolean. */
+function validateCleanField(raw: Record<string, unknown>): string | null {
+  if ("clean" in raw && raw.clean !== undefined && typeof raw.clean !== "boolean") {
+    return "'clean' must be a boolean";
+  }
+  return null;
+}
+
+/** `'basePath' must be a string` when present and not a string; `null` when the field is absent,
+ *  `undefined`, or already a string. */
+function validateBasePathField(raw: Record<string, unknown>): string | null {
+  if ("basePath" in raw && raw.basePath !== undefined && typeof raw.basePath !== "string") {
+    return "'basePath' must be a string";
+  }
+  return null;
+}
+
+/** A non-blank string `basePath`, or `undefined` — blank/absent/non-string all collapse to
+ *  "omit the field" so `parseTriggerRequestBody`'s spread never adds a useless empty value. */
+function normalizeBasePath(raw: Record<string, unknown>): string | undefined {
+  return typeof raw.basePath === "string" && raw.basePath.trim() !== "" ? raw.basePath : undefined;
+}
+
 /** Validates the trigger request's optional JSON body. Never throws — every malformed shape maps
  *  to a `{ error }` result the route turns into a `400`, per secure-input-handling discipline for
  *  a request body this route hands straight into a filesystem-writing operation's options. */
@@ -66,18 +90,13 @@ function parseTriggerRequestBody(body: unknown): { ok: true; clean: boolean; bas
   if (typeof body !== "object" || Array.isArray(body)) return { ok: false, error: "request body must be a JSON object" };
 
   const raw = body as Record<string, unknown>;
-  if ("clean" in raw && raw.clean !== undefined && typeof raw.clean !== "boolean") {
-    return { ok: false, error: "'clean' must be a boolean" };
-  }
-  if ("basePath" in raw && raw.basePath !== undefined && typeof raw.basePath !== "string") {
-    return { ok: false, error: "'basePath' must be a string" };
-  }
+  const cleanError = validateCleanField(raw);
+  if (cleanError) return { ok: false, error: cleanError };
+  const basePathError = validateBasePathField(raw);
+  if (basePathError) return { ok: false, error: basePathError };
 
-  return {
-    ok: true,
-    clean: raw.clean === true,
-    ...(typeof raw.basePath === "string" && raw.basePath.trim() !== "" ? { basePath: raw.basePath } : {}),
-  };
+  const basePath = normalizeBasePath(raw);
+  return { ok: true, clean: raw.clean === true, ...(basePath !== undefined ? { basePath } : {}) };
 }
 
 export function registerAdminExportSiteRoutes(app: Express, deps: AdminExportSiteDeps): void {
