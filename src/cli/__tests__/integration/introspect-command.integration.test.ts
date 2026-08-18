@@ -27,7 +27,7 @@ test("tovu introspect: exits 0 and prints valid JSON describing init/serve/expor
   const names = manifest.commands.map((c: { name: string }) => c.name);
   assert.deepEqual(
     names,
-    ["init", "serve", "export", "theme validate"],
+    ["init", "serve", "export", "theme validate", "theme migrate"],
     "introspect must list the real registered commands (nested subcommands flattened to their full invocation path), and exclude itself/help"
   );
 
@@ -43,7 +43,7 @@ test("tovu introspect --format mcp: exits 0 and prints valid MCP tool definition
   const tools = JSON.parse(result.stdout);
   assert.ok(Array.isArray(tools));
   const names = tools.map((t: { name: string }) => t.name);
-  assert.deepEqual(names, ["tovu_init", "tovu_serve", "tovu_export", "tovu_theme_validate"]);
+  assert.deepEqual(names, ["tovu_init", "tovu_serve", "tovu_export", "tovu_theme_validate", "tovu_theme_migrate"]);
 
   const serveTool = tools.find((t: { name: string }) => t.name === "tovu_serve");
   assert.equal(serveTool.inputSchema.type, "object");

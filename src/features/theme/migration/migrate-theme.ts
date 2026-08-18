@@ -1,0 +1,207 @@
+import { randomBytes } from "node:crypto";
+import { cpSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+
+import { loadTheme, type ThemeTier } from "../theme";
+import { validateThemePackage, type ValidateThemePackageResult } from "../validation/validate-theme-package";
+import { planV2Migration, type ThemeMigrationPlan } from "./theme-migration-plan";
+
+/**
+ * @file Milestone 3's `tovu theme migrate` orchestrator — stages a v1 theme's on-disk shape into
+ * schema v2 (`theme-authoring-guide-v2.md` §3), verifies the result two ways (Milestone 2's
+ * structural validator, AND a real `loadTheme()` call — the validator's v2-strict path does not call
+ * `loadTheme()`, so it alone would not catch a theme that's structurally approved but missing a
+ * required template), and only replaces the real theme directory once both checks pass. Never
+ * mutates the real theme directory before that point — see {@link migrateThemeToV2}'s own doc for
+ * the exact sequencing.
+ *
+ * Scope: only the `declarative` tier has a migration plan (`theme-migration-plan.ts`) as of this
+ * slice — `basic-declarative`, the approved lowest-risk starting theme (Milestone 3 dry-run
+ * checkpoint). Other tiers are added incrementally as their own themes are migrated, matching the
+ * "implement by requirement slice" rule — see that module's own header.
+ */
+
+export type MigrationStatus = "already-migrated" | "migrated" | "staged-dry-run" | "failed";
+
+export interface MigrateThemeResult {
+  readonly themeId: string;
+  readonly status: MigrationStatus;
+  readonly plan?: ThemeMigrationPlan;
+  readonly validation?: ValidateThemePackageResult;
+  readonly loadErrors?: readonly string[];
+  /** Present only on success (`migrated`) or `staged-dry-run` — where the transformed output lives.
+   * On `migrated`, this IS the real theme directory (the atomic replace already happened). On
+   * `staged-dry-run` or `failed`, this is a scratch directory left behind for inspection — the real
+   * theme directory is untouched either way. */
+  readonly outputDir?: string;
+  /** Present only on `migrated` — the pre-migration v1 copy, kept rather than deleted so a migration
+   * can be manually reverted (`rmSync` the migrated dir, `renameSync` this back). */
+  readonly backupDir?: string;
+  readonly reason?: string;
+}
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/**
+ * A sibling of `themeDir` (same parent directory), never under `os.tmpdir()` — `renameSync` requires
+ * both paths to be on the same filesystem/mount, which a system temp directory is not guaranteed to
+ * share with the project directory (a real, non-hypothetical risk: this repo's own theme folders live
+ * under the project's own disk location, not `/tmp`). A sibling directory is guaranteed same-filesystem
+ * by construction, so the final atomic-replace rename below can never throw `EXDEV`.
+ */
+function createStagingDir(themeDir: string, id: string): string {
+  const stagingDir = join(dirname(themeDir), `.tovu-migrate-staging-${id}-${randomBytes(6).toString("hex")}`);
+  mkdirSync(stagingDir, { recursive: true });
+  return stagingDir;
+}
+
+function readRawManifest(themeDir: string): Record<string, unknown> {
+  const raw: unknown = JSON.parse(readFileSync(join(themeDir, "theme.json"), "utf8"));
+  if (!isObject(raw)) throw new Error(`${themeDir}/theme.json is not a JSON object`);
+  return raw;
+}
+
+/**
+ * Copy every file `plan.moves` names from `themeDir` into `stagingDir` at its new relative path, plus
+ * the tier-agnostic carry-over-unchanged files (`tokens.json`, `tokens.<mode>.json`) already verified
+ * to exist by the planner. Directories are created as needed — `cpSync` on a single file does not
+ * create missing parent directories on its own.
+ */
+function applyMoves(themeDir: string, stagingDir: string, plan: ThemeMigrationPlan): void {
+  for (const move of plan.moves) {
+    const destination = join(stagingDir, move.to);
+    mkdirSync(dirname(destination), { recursive: true });
+    cpSync(join(themeDir, move.from), destination);
+  }
+}
+
+/**
+ * `tokens.json` (and, once a fixture needs it, `tokens.<mode>.json`) sits at the same name and
+ * location in both schema versions, so carrying it forward is a plain copy, not a relocation — never
+ * listed in `plan.moves` (which only names FROM !== TO relocations) to keep that list's meaning
+ * literal.
+ */
+function copyCarryOverFiles(themeDir: string, stagingDir: string): void {
+  const source = join(themeDir, "tokens.json");
+  if (existsSync(source)) cpSync(source, join(stagingDir, "tokens.json"));
+}
+
+/** Adds/overwrites exactly the fields a v2 migration touches; every other field carries forward
+ * unchanged (description, fonts, author, etc.) — see `theme-authoring-guide-v2.md` §5 for the target
+ * shape. Never invents `license`/`LICENSE` (Blocker B's own decision: don't silently resolve a
+ * genuinely absent or unconfirmed license). */
+function buildV2Manifest(raw: Record<string, unknown>): Record<string, unknown> {
+  return {
+    $schema: "https://tovu.dev/schemas/theme/v2/theme.schema.json",
+    apiVersion: 2,
+    ...raw,
+  };
+}
+
+/**
+ * Migrate one theme directory to schema v2. Sequencing (never deviates, see file header for why each
+ * step exists):
+ *
+ * 1. Read the real `theme.json`. Already `apiVersion: 2` -> no-op, `status: "already-migrated"`
+ *    (idempotent — a second run is always safe).
+ * 2. Build the tier's move plan (`theme-migration-plan.ts`). Any root-level file the planner doesn't
+ *    recognize -> refuse (`status: "failed"`, real theme untouched) rather than guess what to do
+ *    with an author's file this migration slice wasn't told about.
+ * 3. Stage into a fresh temp directory — copy every moved/carried-over file, write the rewritten
+ *    `theme.json`. The real theme directory is not touched up to this point.
+ * 4. Verify the staged output two ways: `validateThemePackage` (structural/schema check) AND a real
+ *    `loadTheme()` call (catches a missing required template the structural check's v2-strict path
+ *    does not independently verify — see this file's header). Both must pass.
+ * 5. `dryRun: true` stops here regardless of outcome (`status: "staged-dry-run"` on structural
+ *    success, `"failed"` otherwise) — the staging directory is left on disk either way for
+ *    inspection, the real theme directory is never touched.
+ * 6. `dryRun: false` (default) and both checks passed: atomic replace — rename the real directory
+ *    aside as a timestamped backup, rename staging into its place. On any verification failure, the
+ *    real directory is left exactly as it was; the staging directory is kept for inspection.
+ *
+ * @complexity O(f) in the theme's own file count — one copy pass, one validator walk, one loadTheme
+ * discovery pass.
+ */
+export function migrateThemeToV2(
+  required: { themeDir: string; id: string },
+  optional: { dryRun?: boolean } = {}
+): MigrateThemeResult {
+  const { themeDir, id } = required;
+  const { dryRun = false } = optional;
+
+  const raw = readRawManifest(themeDir);
+  if (raw.apiVersion === 2) {
+    return { themeId: id, status: "already-migrated" };
+  }
+
+  const tier = typeof raw.tier === "string" ? (raw.tier as ThemeTier) : "declarative";
+  let plan: ThemeMigrationPlan;
+  try {
+    plan = planV2Migration({ themeDir, tier });
+  } catch (err) {
+    return { themeId: id, status: "failed", reason: (err as Error).message };
+  }
+  if (plan.unrecognized.length > 0) {
+    return {
+      themeId: id,
+      status: "failed",
+      plan,
+      reason: `refusing to migrate: ${plan.unrecognized.length} root-level file(s) with no known v2 destination: ${plan.unrecognized.join(", ")}`,
+    };
+  }
+
+  const stagingDir = createStagingDir(themeDir, id);
+  applyMoves(themeDir, stagingDir, plan);
+  copyCarryOverFiles(themeDir, stagingDir);
+  writeFileSync(join(stagingDir, "theme.json"), JSON.stringify(buildV2Manifest(raw), null, 2) + "\n", "utf8");
+
+  const validation = validateThemePackage({ themeDir: stagingDir, id, profile: "author" });
+  const loaded = loadTheme({ themeDir: stagingDir, id, source: "site" });
+  const loadValid = loaded.status === "valid";
+
+  if (dryRun) {
+    return {
+      themeId: id,
+      status: validation.valid && loadValid ? "staged-dry-run" : "failed",
+      plan,
+      validation,
+      loadErrors: loaded.errors,
+      outputDir: stagingDir,
+    };
+  }
+
+  if (!validation.valid || !loadValid) {
+    return {
+      themeId: id,
+      status: "failed",
+      plan,
+      validation,
+      loadErrors: loaded.errors,
+      outputDir: stagingDir,
+      reason: "staged output failed verification — real theme directory left untouched",
+    };
+  }
+
+  const backupDir = `${themeDir}.v1-backup-${Date.now()}`;
+  renameSync(themeDir, backupDir);
+  renameSync(stagingDir, themeDir);
+
+  return {
+    themeId: id,
+    status: "migrated",
+    plan,
+    validation,
+    loadErrors: loaded.errors,
+    outputDir: themeDir,
+    backupDir,
+  };
+}
+
+/** Test/CLI convenience — remove a `staged-dry-run`/`failed` run's leftover staging directory once a
+ * caller is done inspecting it. Never call this on a `migrated` result's `outputDir` (that's the real
+ * theme directory) or its `backupDir` (the v1 rollback copy). */
+export function cleanupMigrationOutput(outputDir: string): void {
+  rmSync(outputDir, { recursive: true, force: true });
+}
