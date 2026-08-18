@@ -271,10 +271,10 @@ export function buildIntegrationsRegistrations(routeDeps: IntegrationsToolDeps):
  * The original ordering theory for this batch (convert `source-control`/`deployments`/`media`
  * first, since they were believed to import `integrations`, removing `assistant`'s indirect path
  * into it) turned out not to be the operative risk: all three of those domains' imports of
- * `src/integrations` are `import type` only (erased from the runtime graph `check:architecture`'s
+ * `src/webhooks` are `import type` only (erased from the runtime graph `check:architecture`'s
  * cycle/SCC metric is computed on), and all three were reverted this batch anyway for an UNRELATED
  * cycle (through `features/vendor-credentials`/`widgets`, not `integrations`). Re-verified directly
- * instead: the only VALUE importers of `src/integrations` anywhere in the tree are `server/app.ts`
+ * instead: the only VALUE importers of `src/webhooks` anywhere in the tree are `server/app.ts`
  * and `server/modules/integrations.ts` (both server-layer, never reachable from `assistant`), so a
  * one-directional `integrations -> assistant` registry edge closes no cycle — confirmed via
  * `check:architecture` (cycles/SCC stayed at 0 after this edit).

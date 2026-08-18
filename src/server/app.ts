@@ -55,10 +55,10 @@ import {
   InMemoryMemberTierRepo,
 } from "../members";
 import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo } from "../navigation";
-import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../integrations";
-import { InMemoryKeyring } from "../integrations/keyring.memory";
-import { createKeyringBackedSigner } from "../integrations/signing.keyring";
-import { AesGcmSecretSealer } from "../integrations/secret-sealer.aesgcm";
+import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../webhooks";
+import { InMemoryKeyring } from "../webhooks/keyring.memory";
+import { createKeyringBackedSigner } from "../webhooks/signing.keyring";
+import { AesGcmSecretSealer } from "../webhooks/secret-sealer.aesgcm";
 import { InMemoryComposioConfigRepo } from "../connectors/composio-config-store.memory";
 import { createComposioConnectors } from "../connectors/composio-service";
 import { InMemoryConnectorCredentialRepo } from "../connectors/connector-credential-store.memory";

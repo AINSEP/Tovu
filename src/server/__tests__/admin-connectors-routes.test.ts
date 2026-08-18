@@ -3,7 +3,7 @@ import test from "node:test";
 
 import express from "express";
 
-import type { KeyringPort } from "../../integrations/ports";
+import type { KeyringPort } from "../../webhooks/ports";
 import { startFakeComposio } from "../../../development/e2e/fake-composio-server";
 import { composioUserIdFor, createComposioConnectors } from "../../connectors/composio-service";
 import { InMemoryConnectorCredentialRepo } from "../../connectors/connector-credential-store.memory";

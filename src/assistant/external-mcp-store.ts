@@ -1,7 +1,7 @@
 import type { ClockPort, ISODateTime, UUID } from "@jini-ai/cms/core";
 
-import type { KeyringPort, SecretSealerPort } from "../integrations/ports";
-import type { SealedSecret } from "../integrations/types";
+import type { KeyringPort, SecretSealerPort } from "../webhooks/ports";
+import type { SealedSecret } from "../webhooks/types";
 import { FEDERATED_CONNECTION_DEFAULTS, type ResolvedFederatedConnection } from "./mcp-federation/config";
 import { assertValidConnectionId } from "./mcp-federation/trust";
 
@@ -19,7 +19,7 @@ import { assertValidConnectionId } from "./mcp-federation/trust";
  *
  * An MCP server's `env` block routinely carries live credentials, so it is sealed through ADR-058's
  * `SecretSealerPort` using the same keyring instance the Composio/BYOK/media-provider stores share
- * — `src/integrations/ports.ts` states the rule this follows: keep secret material out of the
+ * — `src/webhooks/ports.ts` states the rule this follows: keep secret material out of the
  * portable `content.db`.
  *
  * The block is sealed WHOLE rather than per-variable. Every read path wants all of it at once (it

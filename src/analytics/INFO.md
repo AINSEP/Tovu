@@ -35,7 +35,7 @@ Round-2 fold) and are NOT implemented in this module yet.
 
 ## Known open items (carried from ADR-035)
 
-- **`KeyringPort` mismatch (Round-2 audit blocker).** `src/integrations/ports.ts`'s `KeyringPort`
+- **`KeyringPort` mismatch (Round-2 audit blocker).** `src/webhooks/ports.ts`'s `KeyringPort`
   is signing-specific (`deriveSigningSecret`) and cannot serve generic salt derivation yet.
   `salt.ts#deriveDailySalt` therefore takes a raw `rootKeySeed` string instead of calling
   `KeyringPort` — see the `TODO` in that file. Rewire once a corrected, generic

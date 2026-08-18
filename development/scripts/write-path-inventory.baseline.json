@@ -1610,7 +1610,7 @@
     "contractMethod": "WebhookDeliveryRepoPort.enqueue",
     "implementingClass": "InMemoryWebhookDeliveryRepo",
     "caller": "enqueueDelivery",
-    "file": "src/integrations/delivery.ts",
+    "file": "src/webhooks/delivery.ts",
     "line": 170,
     "coverageClass": "none"
   },
@@ -1619,7 +1619,7 @@
     "contractMethod": "WebhookDeliveryRepoPort.enqueue",
     "implementingClass": "SqliteWebhookDeliveryRepo",
     "caller": "enqueueDelivery",
-    "file": "src/integrations/delivery.ts",
+    "file": "src/webhooks/delivery.ts",
     "line": 170,
     "coverageClass": "none"
   },
@@ -1628,7 +1628,7 @@
     "contractMethod": "DeliveryEnvelopeStore.save",
     "implementingClass": "InMemoryDeliveryEnvelopeStore",
     "caller": "enqueueDelivery",
-    "file": "src/integrations/delivery.ts",
+    "file": "src/webhooks/delivery.ts",
     "line": 171,
     "coverageClass": "none"
   },
@@ -1637,7 +1637,7 @@
     "contractMethod": "DeliveryEnvelopeStore.save",
     "implementingClass": "SqliteWebhookDeliveryRepo",
     "caller": "enqueueDelivery",
-    "file": "src/integrations/delivery.ts",
+    "file": "src/webhooks/delivery.ts",
     "line": 171,
     "coverageClass": "none"
   },
@@ -1646,7 +1646,7 @@
     "contractMethod": "WebhookDeliveryRepoPort.claimPending",
     "implementingClass": "InMemoryWebhookDeliveryRepo",
     "caller": "processDueDeliveries",
-    "file": "src/integrations/delivery.ts",
+    "file": "src/webhooks/delivery.ts",
     "line": 257,
     "coverageClass": "none"
   },
@@ -1655,7 +1655,7 @@
     "contractMethod": "WebhookDeliveryRepoPort.claimPending",
     "implementingClass": "SqliteWebhookDeliveryRepo",
     "caller": "processDueDeliveries",
-    "file": "src/integrations/delivery.ts",
+    "file": "src/webhooks/delivery.ts",
     "line": 257,
     "coverageClass": "none"
   },
@@ -1664,7 +1664,7 @@
     "contractMethod": "WebhookDeliveryRepoPort.markDelivered",
     "implementingClass": "InMemoryWebhookDeliveryRepo",
     "caller": "processDueDeliveries",
-    "file": "src/integrations/delivery.ts",
+    "file": "src/webhooks/delivery.ts",
     "line": 272,
     "coverageClass": "none"
   },
@@ -1673,7 +1673,7 @@
     "contractMethod": "WebhookDeliveryRepoPort.markDelivered",
     "implementingClass": "SqliteWebhookDeliveryRepo",
     "caller": "processDueDeliveries",
-    "file": "src/integrations/delivery.ts",
+    "file": "src/webhooks/delivery.ts",
     "line": 272,
     "coverageClass": "none"
   },
@@ -1682,7 +1682,7 @@
     "contractMethod": "WebhookDeliveryRepoPort.markFailed",
     "implementingClass": "InMemoryWebhookDeliveryRepo",
     "caller": "processDueDeliveries",
-    "file": "src/integrations/delivery.ts",
+    "file": "src/webhooks/delivery.ts",
     "line": 289,
     "coverageClass": "none"
   },
@@ -1691,7 +1691,7 @@
     "contractMethod": "WebhookDeliveryRepoPort.markFailed",
     "implementingClass": "SqliteWebhookDeliveryRepo",
     "caller": "processDueDeliveries",
-    "file": "src/integrations/delivery.ts",
+    "file": "src/webhooks/delivery.ts",
     "line": 289,
     "coverageClass": "none"
   },
@@ -1700,7 +1700,7 @@
     "contractMethod": "HttpClientPort.send",
     "implementingClass": "RecordingHttpClient",
     "caller": "attemptOneDelivery",
-    "file": "src/integrations/delivery.ts",
+    "file": "src/webhooks/delivery.ts",
     "line": 360,
     "coverageClass": "none"
   },
@@ -1709,7 +1709,7 @@
     "contractMethod": "KeyringPort.activeKey",
     "implementingClass": "EnvOrFileKeyring",
     "caller": "(no caller found in project)",
-    "file": "src/integrations/keyring.env.ts",
+    "file": "src/webhooks/keyring.env.ts",
     "line": 70,
     "coverageClass": "unknown"
   },
@@ -1718,7 +1718,7 @@
     "contractMethod": "KeyringPort.activeKey",
     "implementingClass": "InMemoryKeyring",
     "caller": "(no caller found in project)",
-    "file": "src/integrations/keyring.memory.ts",
+    "file": "src/webhooks/keyring.memory.ts",
     "line": 25,
     "coverageClass": "unknown"
   },
@@ -1726,7 +1726,7 @@
     "source": "port",
     "contractMethod": "SecretSealerPort.seal",
     "caller": "(no implementation found in project)",
-    "file": "src/integrations/ports.ts",
+    "file": "src/webhooks/ports.ts",
     "line": 94,
     "coverageClass": "unknown"
   },
@@ -1734,7 +1734,7 @@
     "source": "port",
     "contractMethod": "SecretSealerPort.open",
     "caller": "(no implementation found in project)",
-    "file": "src/integrations/ports.ts",
+    "file": "src/webhooks/ports.ts",
     "line": 95,
     "coverageClass": "unknown"
   },
@@ -1742,7 +1742,7 @@
     "source": "port",
     "contractMethod": "IntegrationSecretRepoPort.insert",
     "caller": "(no implementation found in project)",
-    "file": "src/integrations/ports.ts",
+    "file": "src/webhooks/ports.ts",
     "line": 150,
     "coverageClass": "unknown"
   },
@@ -1750,7 +1750,7 @@
     "source": "port",
     "contractMethod": "IntegrationSecretRepoPort.delete",
     "caller": "(no implementation found in project)",
-    "file": "src/integrations/ports.ts",
+    "file": "src/webhooks/ports.ts",
     "line": 153,
     "coverageClass": "unknown"
   },
@@ -1758,7 +1758,7 @@
     "source": "table",
     "contractMethod": "webhookSubscriptions via this.db.insert",
     "caller": "SqliteWebhookSubscriptionRepo.insert",
-    "file": "src/integrations/repo.sqlite.ts",
+    "file": "src/webhooks/repo.sqlite.ts",
     "line": 115,
     "coverageClass": "none"
   },
@@ -1766,7 +1766,7 @@
     "source": "table",
     "contractMethod": "webhookSubscriptions via this.db\n      .insert",
     "caller": "SqliteWebhookSubscriptionRepo.save",
-    "file": "src/integrations/repo.sqlite.ts",
+    "file": "src/webhooks/repo.sqlite.ts",
     "line": 121,
     "coverageClass": "none"
   },
@@ -1774,7 +1774,7 @@
     "source": "table",
     "contractMethod": "webhookDeliveries via this.db\n        .insert",
     "caller": "SqliteWebhookDeliveryRepo.enqueue",
-    "file": "src/integrations/repo.sqlite.ts",
+    "file": "src/webhooks/repo.sqlite.ts",
     "line": 193,
     "coverageClass": "none"
   },
@@ -1782,7 +1782,7 @@
     "source": "table",
     "contractMethod": "webhookDeliveries via this.db\n        .update",
     "caller": "SqliteWebhookDeliveryRepo.claimPending",
-    "file": "src/integrations/repo.sqlite.ts",
+    "file": "src/webhooks/repo.sqlite.ts",
     "line": 235,
     "coverageClass": "none"
   },
@@ -1790,7 +1790,7 @@
     "source": "table",
     "contractMethod": "webhookDeliveries via this.db\n      .update",
     "caller": "SqliteWebhookDeliveryRepo.markDelivered",
-    "file": "src/integrations/repo.sqlite.ts",
+    "file": "src/webhooks/repo.sqlite.ts",
     "line": 251,
     "coverageClass": "none"
   },
@@ -1798,7 +1798,7 @@
     "source": "table",
     "contractMethod": "webhookDeliveries via this.db\n      .update",
     "caller": "SqliteWebhookDeliveryRepo.markFailed",
-    "file": "src/integrations/repo.sqlite.ts",
+    "file": "src/webhooks/repo.sqlite.ts",
     "line": 283,
     "coverageClass": "none"
   },
@@ -1806,7 +1806,7 @@
     "source": "table",
     "contractMethod": "webhookDeliveries via this.db\n      .update",
     "caller": "SqliteWebhookDeliveryRepo.save",
-    "file": "src/integrations/repo.sqlite.ts",
+    "file": "src/webhooks/repo.sqlite.ts",
     "line": 333,
     "coverageClass": "none"
   },
@@ -1815,7 +1815,7 @@
     "contractMethod": "KeyringPort.deriveSigningSecret",
     "implementingClass": "EnvOrFileKeyring",
     "caller": "(anon class).signForSubscription",
-    "file": "src/integrations/signing.keyring.ts",
+    "file": "src/webhooks/signing.keyring.ts",
     "line": 29,
     "coverageClass": "none"
   },
@@ -1824,7 +1824,7 @@
     "contractMethod": "KeyringPort.deriveSigningSecret",
     "implementingClass": "InMemoryKeyring",
     "caller": "(anon class).signForSubscription",
-    "file": "src/integrations/signing.keyring.ts",
+    "file": "src/webhooks/signing.keyring.ts",
     "line": 29,
     "coverageClass": "none"
   },
@@ -1833,7 +1833,7 @@
     "contractMethod": "WebhookSubscriptionRepoPort.insert",
     "implementingClass": "InMemoryWebhookSubscriptionRepo",
     "caller": "createSubscription",
-    "file": "src/integrations/subscriptions.ts",
+    "file": "src/webhooks/subscriptions.ts",
     "line": 107,
     "coverageClass": "none"
   },
@@ -1842,7 +1842,7 @@
     "contractMethod": "WebhookSubscriptionRepoPort.insert",
     "implementingClass": "SqliteWebhookSubscriptionRepo",
     "caller": "createSubscription",
-    "file": "src/integrations/subscriptions.ts",
+    "file": "src/webhooks/subscriptions.ts",
     "line": 107,
     "coverageClass": "none"
   },
@@ -1851,7 +1851,7 @@
     "contractMethod": "WebhookSubscriptionRepoPort.save",
     "implementingClass": "InMemoryWebhookSubscriptionRepo",
     "caller": "updateSubscription",
-    "file": "src/integrations/subscriptions.ts",
+    "file": "src/webhooks/subscriptions.ts",
     "line": 163,
     "coverageClass": "none"
   },
@@ -1860,7 +1860,7 @@
     "contractMethod": "WebhookSubscriptionRepoPort.save",
     "implementingClass": "SqliteWebhookSubscriptionRepo",
     "caller": "updateSubscription",
-    "file": "src/integrations/subscriptions.ts",
+    "file": "src/webhooks/subscriptions.ts",
     "line": 163,
     "coverageClass": "none"
   },
@@ -1869,7 +1869,7 @@
     "contractMethod": "WebhookSubscriptionRepoPort.save",
     "implementingClass": "InMemoryWebhookSubscriptionRepo",
     "caller": "pauseSubscription",
-    "file": "src/integrations/subscriptions.ts",
+    "file": "src/webhooks/subscriptions.ts",
     "line": 213,
     "coverageClass": "none"
   },
@@ -1878,7 +1878,7 @@
     "contractMethod": "WebhookSubscriptionRepoPort.save",
     "implementingClass": "SqliteWebhookSubscriptionRepo",
     "caller": "pauseSubscription",
-    "file": "src/integrations/subscriptions.ts",
+    "file": "src/webhooks/subscriptions.ts",
     "line": 213,
     "coverageClass": "none"
   },
@@ -1887,7 +1887,7 @@
     "contractMethod": "WebhookSubscriptionRepoPort.save",
     "implementingClass": "InMemoryWebhookSubscriptionRepo",
     "caller": "deleteSubscription",
-    "file": "src/integrations/subscriptions.ts",
+    "file": "src/webhooks/subscriptions.ts",
     "line": 254,
     "coverageClass": "none"
   },
@@ -1896,7 +1896,7 @@
     "contractMethod": "WebhookSubscriptionRepoPort.save",
     "implementingClass": "SqliteWebhookSubscriptionRepo",
     "caller": "deleteSubscription",
-    "file": "src/integrations/subscriptions.ts",
+    "file": "src/webhooks/subscriptions.ts",
     "line": 254,
     "coverageClass": "none"
   },

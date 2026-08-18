@@ -5,8 +5,8 @@ import type {
   ConnectorCredentialStore,
 } from "@jini-ai/integrations/composio";
 
-import type { KeyringPort, SecretSealerPort } from "../integrations/ports";
-import type { SealedSecret } from "../integrations/types";
+import type { KeyringPort, SecretSealerPort } from "../webhooks/ports";
+import type { SealedSecret } from "../webhooks/types";
 
 /**
  * @file Durable, sealed storage for connected third-party ACCOUNTS — what survives an OAuth

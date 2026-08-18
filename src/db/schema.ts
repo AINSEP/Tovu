@@ -1321,7 +1321,7 @@ export const agentToolAttempts = sqliteTable(
  * registration outright, and a non-secret registration would put a live provider key in the
  * append-only, exportable `setting_revisions` history with no redaction path. This table holds only
  * ciphertext — the `sealed*` columns are `AesGcmSecretSealer`'s output (`SecretSealerPort`,
- * `src/integrations/ports.ts`), never plaintext, and the write-only API (`site-credential.ts` routes)
+ * `src/webhooks/ports.ts`), never plaintext, and the write-only API (`site-credential.ts` routes)
  * never reads them back out to a client. `masked` is the one exception: computed once from the
  * plaintext at write time and stored as its own plain column, so a GET can answer "is a key set, and
  * what does it end in" as a pure DB read with zero decrypt/crypto involvement (ADR-058 §3).

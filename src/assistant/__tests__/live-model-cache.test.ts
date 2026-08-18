@@ -4,8 +4,8 @@ import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
 
-import { AesGcmSecretSealer } from "../../integrations/secret-sealer.aesgcm";
-import { InMemoryKeyring } from "../../integrations/keyring.memory";
+import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm";
+import { InMemoryKeyring } from "../../webhooks/keyring.memory";
 import { InMemoryAdminExecutionCredentialRepo } from "../execution-credential-store.memory";
 import { setExecutionCredential } from "../execution-credential-store";
 import { getLiveClaudeModels, resetLiveModelCacheForTesting, unionModels } from "../live-model-cache";

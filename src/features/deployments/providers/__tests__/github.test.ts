@@ -11,7 +11,7 @@ import { createGitHubDeploymentProvider, mapGitHubDeploymentStatus, sendPinned }
 /**
  * @file Regression tests for `../github.ts`.
  *
- * Mirrors `src/integrations/http.memory.ts`'s `RecordingHttpClient` shape (scripted responses in
+ * Mirrors `src/webhooks/http.memory.ts`'s `RecordingHttpClient` shape (scripted responses in
  * call order, every request recorded) rather than reusing it directly, so this feature's tests do
  * not reach across a feature boundary into `integrations/`'s test infrastructure.
  *

@@ -11,7 +11,7 @@
  * `toConfirmationDeps`/`toUnsubscribeDeps` helpers, over this narrower deps shape.
  */
 import type { UUID } from "@jini-ai/cms/core";
-import type { KeyringPort } from "#src/integrations/ports";
+import type { KeyringPort } from "#src/webhooks/ports";
 import type { MailerPort } from "#src/mail/index";
 import type { OriginRegistryPort } from "#src/origin/index";
 import type { ConfirmationDeps } from "#src/newsletter/confirmation";

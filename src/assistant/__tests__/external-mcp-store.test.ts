@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryKeyring } from "../../integrations/keyring.memory";
-import { AesGcmSecretSealer } from "../../integrations/secret-sealer.aesgcm";
-import type { KeyringPort } from "../../integrations/ports";
+import { InMemoryKeyring } from "../../webhooks/keyring.memory";
+import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm";
+import type { KeyringPort } from "../../webhooks/ports";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory";
 import {
   ExternalMcpSecretStoreUnconfiguredError,

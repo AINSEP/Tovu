@@ -2,7 +2,7 @@ import {
   pauseSubscription,
   WebhookSubscriptionNotFoundError,
   WebhookSubscriptionValidationError,
-} from "#src/integrations/index";
+} from "#src/webhooks/index";
 import { toAdminSubscriptionResponse } from "#src/server/http/admin/integrations";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { IntegrationsRouteRegistrar } from "./deps";

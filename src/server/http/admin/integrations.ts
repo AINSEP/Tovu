@@ -1,4 +1,4 @@
-import type { WebhookDeliveryRecord, WebhookSubscriptionRecord } from "#src/integrations/index";
+import type { WebhookDeliveryRecord, WebhookSubscriptionRecord } from "#src/webhooks/index";
 
 /**
  * @file Admin HTTP response DTOs for the `integrations` webhook subsystem (ADR-036).

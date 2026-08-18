@@ -1,4 +1,4 @@
-# integrations Overview
+# webhooks Overview
 
 Owns the outbound webhook subsystem (ADR-036): subscription CRUD, HMAC-signed delivery on the
 outbox pattern, and retry/backoff to a dead-letter state. The outbound-connector/secret-sealer

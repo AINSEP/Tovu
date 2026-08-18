@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { AesGcmSecretSealer } from "../../integrations/secret-sealer.aesgcm";
-import { InMemoryKeyring } from "../../integrations/keyring.memory";
-import type { KeyringPort } from "../../integrations/ports";
+import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm";
+import { InMemoryKeyring } from "../../webhooks/keyring.memory";
+import type { KeyringPort } from "../../webhooks/ports";
 import { InMemoryAdminExecutionCredentialRepo } from "../execution-credential-store.memory";
 import {
   ExecutionCredentialSecretStoreUnconfiguredError,

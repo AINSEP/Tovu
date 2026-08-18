@@ -121,7 +121,6 @@ const GUARDED_MODULES = [
   "forms",
   "headless",
   "http",
-  "integrations",
   "mail",
   "media",
   "members",
@@ -132,6 +131,10 @@ const GUARDED_MODULES = [
   "routing",
   "seo",
   "site-dir",
+  // Renamed from "integrations" (2026-08-17) — the folder is `src/webhooks/` now. The rule name
+  // is derived from this string, so leaving the old value here would have silently retired the
+  // module's ~88 no-deep-imports warnings without a single one being fixed.
+  "webhooks",
   "widgets/resolvers",
 ];
 

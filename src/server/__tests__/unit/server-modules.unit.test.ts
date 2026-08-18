@@ -9,7 +9,7 @@ import { createIntegrationsModule } from "../../modules/integrations";
 import { InMemoryEventBus } from "#src/core/events/index";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "#src/forms/repo.memory";
 import { ConsoleMailerAdapter } from "#src/members/mailer.console";
-import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "#src/integrations/index";
+import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "#src/webhooks/index";
 import { setReadinessSnapshot, getReadinessSnapshot } from "../../readiness-state";
 import { startTestServer } from "../helpers/http-test-server";
 import { createRouteDeps } from "../../app";
