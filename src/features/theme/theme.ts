@@ -115,6 +115,16 @@ export interface ThemeManifest {
   id: string;
   name: string;
   version: string;
+  /**
+   * Schema version this manifest declares (`theme-authoring-guide-v2.md` §5/§11). `2` means the
+   * theme's on-disk shape uses v2 paths (`css/theme.css`, `scripts/`, `render/pages/`) — read by
+   * `static-asset-contract.ts`'s `tokenStylesheetSentinel`/`rewriteAssetPaths`/
+   * `findUnrewrittenAssetPaths` (via `static-render.ts` and `build-conformance.ts`) to pick the
+   * matching sentinel/folder names at request/install time. Absent (every theme on disk today, and
+   * any value other than `2`) means v1's flat `css/styles.css`/`js/` shape — the only behavior this
+   * field had before the Milestone 3 migration work introduced it, preserved exactly.
+   */
+  apiVersion?: 2;
   /** ADR-020 capability tier (defaults to `declarative` when omitted). */
   tier: ThemeTier;
   /** Legacy pre-ADR-020 field; retained for back-compat, superseded by `tier`. */
@@ -632,6 +642,7 @@ export function loadTheme(
       id: resolvedId,
       name: String(raw.name ?? id),
       version: String(raw.version ?? "0.0.0"),
+      apiVersion: raw.apiVersion === 2 ? 2 : undefined,
       tier: parseTier(raw.tier),
       engine: typeof raw.engine === "number" ? raw.engine : 1,
       author: typeof raw.author === "string" ? raw.author : undefined,
@@ -721,6 +732,7 @@ export function loadTheme(
         pages,
         partials,
         artifactHashes: manifest.build.artifactHashes ?? {},
+        apiVersion: manifest.apiVersion,
       }).map((issue) => `build conformance (${issue.rule}) '${issue.page}': ${issue.message}`)
     );
   }

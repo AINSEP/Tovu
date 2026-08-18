@@ -4,7 +4,7 @@
 - scope_type: security fix + validator build + schema decisions + CLI/marketplace wiring
 - owner: Claude Sonnet 5 (Programmer, dispatched by team-lead) / Leona Burime
 - started_at: 2026-08-18T08:30:00-07:00
-- last_updated_at: 2026-08-18T09:15:00-07:00
+- last_updated_at: 2026-08-18T10:30:00-07:00
 - related_state_file: `development/docs/themes/theme-authoring-guide-v2.md` (target design doc)
 - decisions_file: `ADS-memory/reports/swarm-consensus/runs/2026-08-17-tovu-theme-invariant-structure-consensus-report.md`
 - evaluator_mode: not-needed
@@ -131,3 +131,68 @@ the schema v2 root-index-file entry and hooks into the same validate/build flow 
 None — no file has been edited 3+ times for the same failing cluster. One caught-and-fixed bug
 (marketplace.ts's `id` argument) took one wrong attempt + one fix, resolved via the RED/GREEN
 discipline before it reached a commit.
+
+## Session 2 (fresh agent, continued from this ledger) — Milestone 3 dry-run, HARD STOP
+
+Dispatched with an explicit order: Milestone 3 (migration script) before 4/5, with Milestone 3's
+dry-run classification report as a mandatory checkpoint before any real migration runs. Read the
+three prior commits (`c4540386`, `d784b631`, `a69632b5`) plus the consensus report and
+`theme-authoring-guide-v2.md` first — did not re-derive them.
+
+**No migration code written yet, by design — this is the checkpoint, not the implementation.**
+
+### Inventory: 11 real themes (matches Milestone 2's "all 11 first-party themes" count) + 2 catalog
+copies (`__original-themes__/static/basic`, `__marketplace__/static/basic` — mirrors, not
+independently authored, handled separately, see report to team-lead).
+
+### Two NEW cross-cutting blockers found, neither in the original dispatch brief, both bigger than a
+single-theme quirk — full detail sent to team-lead via SendMessage, summarized here:
+
+1. **Runtime asset-rewrite pipeline has zero apiVersion branching.**
+   `static-asset-contract.ts`'s `TOKEN_STYLESHEET_SENTINEL` (literal `<link rel="stylesheet"
+   href="../css/styles.css" />`) and `rewriteAssetPaths`/`findUnrewrittenAssetPaths` (hardcoded
+   `../css/`/`../js/` regex) are called unconditionally by `static-render.ts::renderStaticPage`
+   (every static page, every request) and `build-conformance.ts` (compiled-theme install gate) —
+   neither checks `theme.manifest.apiVersion`. Migrating a theme's on-disk shape to v2
+   (`css/theme.css`, `scripts/`) without also making this pipeline version-aware breaks token
+   injection (silent console-warn, ships with no design tokens) and 404s every css/js asset for
+   that theme, undetected by Milestone 2's validator (checks package shape, not this runtime
+   behavior). Recommendation sent to team-lead: branch this pipeline on `apiVersion` the same way
+   the validator already does, not a global rename.
+2. **3 of 8 static themes (fuel, gracious-timing, portfolite) carry pre-existing, already-flagged
+   UNCONFIRMED license status** (Framer Marketplace-derived; each theme's own `NOTICE.md` already
+   says, in its own words, "do not treat this theme as clear to resell/ship without independently
+   confirming license terms" — not a new finding, predates this session). v2's `license`/`LICENSE`
+   manifest fields cannot be honestly populated for these three. Recommendation: leave `license`
+   unset, carry `NOTICE.md` forward verbatim (v2 keeps it as an optional free-text file), do not
+   silently resolve or hide the uncertainty. Separately, the 3 `tailark-*` themes have ZERO
+   provenance documentation despite `fuel/NOTICE.md` claiming they were "checked against their own
+   marketplace license text" — that check isn't recorded anywhere retrievable.
+
+### Per-theme classification (full detail + reasoning in the SendMessage report to team-lead)
+
+- **CLEAN-CONVERT**: `basic`, `storefront`, `basic-declarative` (no hardcoded asset-path rewrites
+  needed beyond the standard folder moves; `basic` also needs its `build-preview.mjs`'s pre-existing
+  `docs-sidebar.js` drift fixed during migration, not carried forward).
+- **CLEAN-CONVERT with required path rewrites** (`images/` → `assets/images/` in hardcoded
+  `/theme-assets/<id>/images/...` refs, mechanical but must-not-skip): `fuel` (12 refs across
+  nav.html + pages), `gracious-timing` (10 refs), `portfolite` (13 refs), `fashion-modern` (1 ref,
+  plus its own `assets/` folder needs nesting under `assets/images/` since v2 reserves `assets/` as
+  the whole-media-folder name).
+- **NEEDS-HUMAN-REVIEW (documentation gap, not structural)**: `tailark-dusk`, `tailark-quartz-dark`,
+  `tailark-quartz-libre` — structurally clean, flat shape, no hardcoded refs, but zero NOTICE.md/
+  license documentation despite a same-repo claim they were vetted.
+- **REFUSE**: `mui-marketing` — deliberate CSR bypass-the-conformance-gate theme, explicitly
+  documented in its own `theme.json` description. Migration script must detect and skip.
+
+### Next Actions
+
+1. Send the full checkpoint report to team-lead (SendMessage) — done same turn as this ledger update.
+2. **STOP. Wait for go-ahead from Leona/team-lead before writing any migration script code**, per the
+   original dispatch's explicit instruction — this applies doubly now given the two new cross-cutting
+   blockers, which change what the migration script should even output.
+3. Once unblocked: build the migration script per the original brief's 9-step shape, starting with
+   `basic-declarative` (lowest risk, reference-only, not wired into any site) to prove the JSON-tier
+   path before touching a live static theme.
+4. Milestones 4 (normalizer wiring) and 5 (generated root `index.html`) remain queued behind
+   Milestone 3 per the explicit dispatch order this session received.

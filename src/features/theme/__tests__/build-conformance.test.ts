@@ -319,3 +319,46 @@ test("a generated file over the per-file hash-verification byte cap is flagged r
   assert.equal(issues[0].page, "js/huge.js");
   assert.match(issues[0].message, /per-file verification cap/);
 });
+
+/**
+ * Milestone 3 Blocker A regression: `apiVersion: 2` (v2-shaped compiled theme, `css/theme.css` +
+ * `scripts/`) must be checked against the v2 contract, not v1's — otherwise a real v2 compiled theme
+ * would fail this gate on every page (missing the v1 sentinel it was never supposed to carry) even
+ * though its own shape is entirely correct.
+ */
+test("a v2-shaped page (css/theme.css sentinel, ../scripts/ asset) passes the gate cleanly under apiVersion: 2", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-conformance-unit-"));
+  const html =
+    '<html><head><link rel="stylesheet" href="../css/theme.css" /></head>' +
+    '<body><script src="../scripts/main.js"></script></body></html>';
+
+  const issues = checkBuiltThemeConformance({
+    themeId: "t",
+    themeDir: root,
+    pages: { index: html },
+    partials: {},
+    artifactHashes: {},
+    apiVersion: 2,
+  });
+
+  assert.deepEqual(issues, []);
+});
+
+test("a v1-shaped page (css/styles.css, ../js/) fails the gate under apiVersion: 2 — no silent cross-version pass", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-conformance-unit-"));
+  const html =
+    '<html><head><link rel="stylesheet" href="../css/styles.css" /></head>' +
+    '<body><script src="../js/main.js"></script></body></html>';
+
+  const issues = checkBuiltThemeConformance({
+    themeId: "t",
+    themeDir: root,
+    pages: { index: html },
+    partials: {},
+    artifactHashes: {},
+    apiVersion: 2,
+  });
+
+  const rules = issues.map((i) => i.rule).sort();
+  assert.deepEqual(rules, ["asset-path", "stylesheet-sentinel"]);
+});

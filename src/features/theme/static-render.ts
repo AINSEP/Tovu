@@ -6,7 +6,7 @@ import {
   withAddedId,
   withInnerContent,
 } from "#src/core/embeds/marker";
-import { findUnrewrittenAssetPaths, rewriteAssetPaths, TOKEN_STYLESHEET_SENTINEL } from "./static-asset-contract";
+import { findUnrewrittenAssetPaths, rewriteAssetPaths, tokenStylesheetSentinel } from "./static-asset-contract";
 import { DEFAULT_THEME_SLOTS, type DiscoveredTheme, type ThemeSlotDescriptor, type ThemeTokens } from "./theme";
 
 /**
@@ -32,11 +32,14 @@ function tokensToRootCss(tokens: ThemeTokens, tokensLight: ThemeTokens): string 
 }
 
 /**
- * `TOKEN_STYLESHEET_SENTINEL`, `rewriteAssetPaths`, and `findUnrewrittenAssetPaths` moved to
- * `static-asset-contract.ts` (2026-08-12, ADR-020 §5) so `build-conformance.ts`'s install-time gate can
- * import the exact same sentinel/rewrite logic this file uses at request time, without creating an
- * import cycle back through `theme.ts` (see that file's own header for why). Nothing here changed
- * behaviorally — this file re-imports the same three names it always had.
+ * `tokenStylesheetSentinel` (formerly a bare `TOKEN_STYLESHEET_SENTINEL` import), `rewriteAssetPaths`,
+ * and `findUnrewrittenAssetPaths` live in `static-asset-contract.ts` (2026-08-12, ADR-020 §5) so
+ * `build-conformance.ts`'s install-time gate can import the exact same sentinel/rewrite logic this file
+ * uses at request time, without creating an import cycle back through `theme.ts` (see that file's own
+ * header for why). All three now take the theme's `apiVersion` to pick between the v1 (`css/styles.css`,
+ * `js/`) and v2 (`css/theme.css`, `scripts/`) asset-path shape — added for the Milestone 3 theme
+ * migration work; every call site already threading `theme.manifest.apiVersion` through (undefined for
+ * every theme on disk today) keeps this file's own behavior byte-for-byte unchanged from before.
  */
 
 /**
@@ -404,22 +407,26 @@ export function renderStaticPage(
   const source = htmlOverride ?? theme.pages[pageId];
   if (source === undefined) return null;
 
+  const apiVersion = theme.manifest.apiVersion;
+  const sentinel = tokenStylesheetSentinel(apiVersion);
+
   let html = source;
-  if (!source.includes(TOKEN_STYLESHEET_SENTINEL)) {
+  if (!source.includes(sentinel)) {
     console.warn(
       `[theme] static page '${theme.manifest.id}/${pageId}' is missing the exact token stylesheet sentinel; design tokens were not injected`
     );
   } else {
     html = source.replace(
-      TOKEN_STYLESHEET_SENTINEL,
-      () => `<style>\n${tokensToRootCss(theme.tokens, theme.tokensLight)}\n</style>\n${TOKEN_STYLESHEET_SENTINEL}`
+      sentinel,
+      () => `<style>\n${tokensToRootCss(theme.tokens, theme.tokensLight)}\n</style>\n${sentinel}`
     );
   }
-  html = rewriteAssetPaths(html, theme.manifest.id);
-  const unrewrittenAssetPaths = findUnrewrittenAssetPaths(html);
+  html = rewriteAssetPaths(html, theme.manifest.id, apiVersion);
+  const unrewrittenAssetPaths = findUnrewrittenAssetPaths(html, apiVersion);
   if (unrewrittenAssetPaths.length > 0) {
+    const assetFolders = apiVersion === 2 ? "../css//../scripts/" : "../css//../js/";
     console.warn(
-      `[theme] static page '${theme.manifest.id}/${pageId}' has ${unrewrittenAssetPaths.length} unrewritten ../css//../js/ asset reference(s) that will 404 in the browser: ${unrewrittenAssetPaths.join(", ")}`
+      `[theme] static page '${theme.manifest.id}/${pageId}' has ${unrewrittenAssetPaths.length} unrewritten ${assetFolders} asset reference(s) that will 404 in the browser: ${unrewrittenAssetPaths.join(", ")}`
     );
   }
   html = injectColorMode(html, theme.manifest.defaultMode);
@@ -430,19 +437,20 @@ export function renderStaticPage(
 }
 
 /**
- * The minimal host document a partial renders inside when previewed standalone. Carries the exact
- * literal `<link rel="stylesheet" href="../css/styles.css" />` {@link renderStaticPage}'s own
- * token-injection step matches against (see its call to {@link tokensToRootCss} above), so a partial
- * preview picks up the theme's design tokens and stylesheet through the SAME code path a real page
- * uses — no second "inject styles into a fragment" mechanism to keep in sync with the first.
+ * The minimal host document a partial renders inside when previewed standalone. Carries whichever
+ * sentinel {@link tokenStylesheetSentinel} picks for `apiVersion` — the exact one
+ * {@link renderStaticPage}'s own token-injection step matches against (see its call to
+ * {@link tokensToRootCss} above) — so a partial preview picks up the theme's design tokens and
+ * stylesheet through the SAME code path a real page uses, for either schema version, no second
+ * "inject styles into a fragment" mechanism to keep in sync with the first.
  */
-function wrapPartialInHostDocument(partialHtml: string): string {
+function wrapPartialInHostDocument(partialHtml: string, apiVersion?: 2): string {
   return `<!doctype html>
 <html>
 <head>
 <meta charset="utf-8" />
 <title>Partial preview</title>
-<link rel="stylesheet" href="../css/styles.css" />
+${tokenStylesheetSentinel(apiVersion)}
 </head>
 <body>
 ${partialHtml}
@@ -474,7 +482,11 @@ export function renderStaticPartial(
   const { theme, partialId } = required;
   const partial = theme.partials[partialId];
   if (partial === undefined) return null;
-  return renderStaticPage({ theme, pageId: partialId, htmlOverride: wrapPartialInHostDocument(partial) });
+  return renderStaticPage({
+    theme,
+    pageId: partialId,
+    htmlOverride: wrapPartialInHostDocument(partial, theme.manifest.apiVersion),
+  });
 }
 
 /**
