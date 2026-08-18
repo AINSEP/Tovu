@@ -1,6 +1,6 @@
 import type { Express } from "express";
 
-import type { RouteDeps } from "../../types";
+import type { DatabaseRecoveryDeps, RouteDeps } from "../../types";
 
 /**
  * @file ADR-046 Phase 3 (SPEC-042, final slice) — narrow `RouteDeps` slice for the
@@ -29,18 +29,13 @@ import type { RouteDeps } from "../../types";
  * `gatedMutations.gatewayDeps`, and stay entangled with the shared `core/gated-mutations` gateway
  * construction the taxonomy `mergeTerm` ceremony uses too. See `modules/database-recovery.ts`'s
  * file header for the full disclosure.
+ *
+ * 2026-08-18 (`RouteDeps` decomposition Slice 4): the 6 database/recovery-owned ports below are now
+ * their own named `DatabaseRecoveryDeps` interface in `routes/types.ts`, so this composes it
+ * directly instead of re-listing the keys via a second `Pick`; `workspaceId`/`authorize` (from
+ * `IdentityDeps`) and `clock` (from `ClockDeps`, picked individually since `idGen` is never read
+ * here) round out the same set as before, byte-for-byte.
  */
-export type DatabaseRecoveryRouteDeps = Pick<
-  RouteDeps,
-  | "workspaceId"
-  | "authorize"
-  | "clock"
-  | "databaseLedgerRepo"
-  | "restorePointsRepo"
-  | "dbOps"
-  | "siteStatusRepo"
-  | "disclosureWatermarkSource"
-  | "deepLinkRestorePointLookup"
->;
+export type DatabaseRecoveryRouteDeps = Pick<RouteDeps, "workspaceId" | "authorize" | "clock"> & DatabaseRecoveryDeps;
 
 export type DatabaseRecoveryRouteRegistrar = (app: Express, deps: DatabaseRecoveryRouteDeps) => void;
