@@ -123,7 +123,10 @@ test("installFirstPartyToolContributors installs exactly the converted domains �
   // not independently: `check:architecture`'s module graph is per-directory and both live in the
   // same `features/deployments` module, so either one alone (with the other still value-imported
   // from `assistant`) still closes a live 2-module `[assistant, features/deployments]` cycle.
-  // `themes`/`post` remain deliberately absent, each covered by its own test below.
+  // `themes` is ALSO present below — retried once `deployments`/`static-publish` above left
+  // `assistant` without any transitive path into `export` (see
+  // `features/theme/tool-registrations.ts`'s own header for the full trace, including its two prior
+  // reverts). `post` remains deliberately absent, covered by its own test below.
   assert.deepEqual(listToolContributors().map((c) => c.domain), [
     "comments",
     "content-types",
@@ -146,6 +149,7 @@ test("installFirstPartyToolContributors installs exactly the converted domains �
     "source-control",
     "static-publish",
     "taxonomy",
+    "themes",
     "widgets",
     "workspace",
   ]);
@@ -154,11 +158,6 @@ test("installFirstPartyToolContributors installs exactly the converted domains �
 test("post is deliberately NOT installed by installFirstPartyToolContributors — it was tried and reverted the same night (see features/post/tool-registrations.ts's trailing comment: converting it opened a new module cycle through widgets/export)", () => {
   installFirstPartyToolContributors();
   assert.equal(listToolContributors().some((c) => c.domain === "post"), false);
-});
-
-test("themes is deliberately NOT installed by installFirstPartyToolContributors — it was tried in the Stage 2 batch and reverted the same night (see features/theme/tool-registrations.ts's trailing comment: converting it opened a new module cycle through export/features/deployments/features/source-control/features/vendor-credentials)", () => {
-  installFirstPartyToolContributors();
-  assert.equal(listToolContributors().some((c) => c.domain === "themes"), false);
 });
 
 test("database IS installed by installFirstPartyToolContributors — converted to the registry in a later pass than the test above's comment describes (see features/database/tool-registrations.ts's own header: the `getDriftStatus` edge that closed its 16-module SCC was cut by relocating drift.ts into db/, and check:architecture confirmed 0 cycles with database wired this way)", () => {
@@ -179,6 +178,11 @@ test("deployments IS installed by installFirstPartyToolContributors — retried 
 test("static-publish IS installed by installFirstPartyToolContributors — retried and landed together with deployments above (see features/deployments/publish-agent-tools.ts's own header: the two share the same features/deployments module, so check:architecture required converting both together)", () => {
   installFirstPartyToolContributors();
   assert.equal(listToolContributors().some((c) => c.domain === "static-publish"), true);
+});
+
+test("themes IS installed by installFirstPartyToolContributors — retried once deployments/static-publish above left assistant without any transitive path into export (see features/theme/tool-registrations.ts's own header for the full trace, including its two prior reverts)", () => {
+  installFirstPartyToolContributors();
+  assert.equal(listToolContributors().some((c) => c.domain === "themes"), true);
 });
 
 test("registration order is deterministic across repeated installs, not just stable within one", () => {

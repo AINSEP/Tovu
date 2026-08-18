@@ -37,6 +37,7 @@ import {
   type ToolHandler,
   type ToolRegistration,
 } from "@jini-ai/cms/core";
+import { registerToolContributor } from "#src/assistant/index";
 import {
   getThemesAgentToolCatalog,
   THEME_READ_PERMISSION,
@@ -263,33 +264,39 @@ export function buildThemesRegistrations(routeDeps: ThemeToolDeps): ToolRegistra
   });
 }
 
-// 2026-08-17: Themes was briefly converted to the tool-contribution registry (`contributeThemesTools`,
-// registered via `#src/assistant/index`'s `registerToolContributor`) alongside identity/members/
-// taxonomy/redirects in the same Stage 2 batch, then reverted the same night — `check:architecture`
-// showed it opened a NEW module cycle: `export/route-manifest.ts` imports `#src/features/theme/index`
-// (a `#src/*` subpath import, not a relative one — the reason a plain relative-path grep for this
-// domain's importers missed it beforehand), and `assistant` already reaches `export` transitively
-// through its still-static `deployments`/`source-control` `DOMAIN_SLICES` entries. Adding
-// `themes -> assistant` closed a 6-module SCC: `assistant, export, features/deployments,
-// features/source-control, features/theme, features/vendor-credentials`. Unlike identity/members/
-// taxonomy/redirects (which nothing outside `server/*` imports), Themes cannot convert safely until
-// either `export`'s theme dependency is relocated or `deployments`/`source-control` (the still-static
-// domains giving `assistant` a path into `export`) convert too.
-//
-// RETRIED 2026-08-17 (same day, later pass) after `source-control` converted cleanly (see its own
-// trailing comment) — `deployments` did NOT convert (reverted again on a different edge; see its own
-// trailing comment). Empirically wired `registerToolContributor` here and ran `check:architecture
-// --list`: `source-control` leaving `DOMAIN_SLICES` alone was NOT enough — `deployments` staying
-// static (plus the SAME previously-undocumented `vendor-credentials/store.ts` `extractGitHubLogin`
-// edge that blocks `deployments`/`static-publish` themselves — see `features/deployments/
-// tool-registrations.ts`'s own header) still gives `assistant` a path into this cluster. The
-// "module cycles (mutual pairs)" count read 0, but "largest strongly-connected component" grew
-// 0 -> 5 — `[assistant, export, features/deployments, features/theme, features/vendor-credentials]`
-// — which `check-architecture.ts`'s own gate treats as a regression regardless of the mutual-pairs
-// count (`sccVerdict === "regressed"` alone fails the combined "module cycles / SCC" hard-constraint
-// metric). The exact edge chain linking `export`/`features/theme` to `features/deployments` within
-// this SCC was not fully re-traced beyond confirming the SCC membership above — out of scope for
-// this dispatch (execute the recommended fix, don't re-litigate/extend the design). Reverted
-// cleanly instead; still needs BOTH `deployments`'s own blocker fixed (Option-B-style injection of
-// `extractGitHubLogin` into `store.ts`) AND `export`'s theme dependency relocated (or reconfirmed
-// clear) before a future retry.
+/**
+ * Contributes Themes' AI tools to the assistant's catalog — called once by
+ * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
+ * module.
+ *
+ * 2026-08-17: Themes was briefly converted to the tool-contribution registry (`contributeThemesTools`,
+ * registered via `#src/assistant/index`'s `registerToolContributor`) alongside identity/members/
+ * taxonomy/redirects in the same Stage 2 batch, then reverted the same night — `check:architecture`
+ * showed it opened a NEW module cycle: `export/route-manifest.ts` imports `#src/features/theme/index`
+ * (a `#src/*` subpath import, not a relative one — the reason a plain relative-path grep for this
+ * domain's importers missed it beforehand), and `assistant` already reached `export` transitively
+ * through its still-static `deployments`/`source-control` `DOMAIN_SLICES` entries. Adding
+ * `themes -> assistant` closed a 6-module SCC: `assistant, export, features/deployments,
+ * features/source-control, features/theme, features/vendor-credentials`.
+ *
+ * RETRIED 2026-08-17 (same day, later pass) after `source-control` converted cleanly — `deployments`
+ * did NOT convert yet (reverted again on a different edge). Empirically wired `registerToolContributor`
+ * here and ran `check:architecture --list`: `source-control` leaving `DOMAIN_SLICES` alone was NOT
+ * enough — `deployments` staying static (plus the SAME previously-undocumented
+ * `vendor-credentials/store.ts` `extractGitHubLogin` edge that blocked `deployments`/`static-publish`
+ * themselves) still gave `assistant` a path into this cluster. Largest strongly-connected component
+ * grew 0 -> 5 — `[assistant, export, features/deployments, features/theme,
+ * features/vendor-credentials]`. Reverted cleanly instead.
+ *
+ * RETRIED AND LANDED HERE (2026-08-17, same session) after `deployments`/`static-publish` both
+ * converted (see `features/deployments/tool-registrations.ts`'s own header for the
+ * `vendor-credentials/store.ts` `extractGitHubLogin` fix that unblocked them). With `deployments`
+ * off `DOMAIN_SLICES` too, `assistant` no longer reaches `export` transitively through any
+ * still-static `DOMAIN_SLICES` entry — `check:architecture` confirms 0 module cycles / largest SCC
+ * 0 with Themes wired this way. `export/route-manifest.ts`'s own `#src/features/theme/index` import
+ * is untouched and still real; it simply no longer closes a cycle back to `assistant` now that
+ * nothing reachable from `assistant` reaches `export`.
+ */
+export function contributeThemesTools(): void {
+  registerToolContributor({ domain: "themes", build: buildThemesRegistrations, risk: themesDerivedRisk });
+}
