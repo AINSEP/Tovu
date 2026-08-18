@@ -28,7 +28,7 @@ import type { RouteTarget } from "#src/routing/index";
 import { resolveMenuDoc } from "#src/navigation/index";
 import type { NavTarget, ResolveTargetHrefFn } from "#src/navigation/index";
 import { getLatestTransformDefinition } from "#src/media/index";
-import { CORE_PUBLIC_TRANSFORM_NAME } from "#src/media/bootstrap";
+import { CORE_PUBLIC_TRANSFORM_NAME } from "#src/media/index";
 import { foldPageHead, serializeHeadElements, type PageHeadContext } from "../../http/site/page-head";
 import { renderSite, renderHtmlPageBody, type MediaAssetRenderMeta } from "../../http/site/render";
 import type { RouteDeps, RouteRegistrar } from "../types";
