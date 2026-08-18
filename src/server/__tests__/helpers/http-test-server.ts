@@ -110,3 +110,73 @@ export async function loginAsBarePrincipal(
   assert.equal(login.status, 200);
   return login.headers.get("set-cookie")?.split(";")[0] ?? "";
 }
+
+/** Express's actual (untyped) router-stack shape — same narrow slice `route-class-precedence.
+ *  unit.test.ts` already reaches into, extended with `route.stack[0].handle` to get at the real
+ *  registered per-route handler function itself. */
+interface ExpressAppWithRouter {
+  _router: {
+    stack: Array<{
+      route?: {
+        path: string;
+        methods: Record<string, boolean>;
+        stack: Array<{ handle: (req: unknown, res: unknown) => unknown }>;
+      };
+    }>;
+  };
+}
+
+/**
+ * Pulls a route's real, registered handler directly out of Express's router stack, bypassing real
+ * HTTP routing entirely. Exists for exactly one purpose: Express guarantees a matched `:param`
+ * route segment's `req.params.<name>` is always a populated string for any request that reaches
+ * the handler at all (a route with an unfilled named segment simply never matches, so the handler
+ * never runs) -- yet several routes defensively write `req.params.<name> ?? ""` anyway. That
+ * fallback is therefore unreachable through any real HTTP request, the same shape of "TypeScript
+ * (here, Express's own routing contract) proves this branch impossible for well-formed input" as a
+ * `default: throw` exhaustiveness guard. The fix is the same one used there: deliberately violate
+ * the contract by calling the handler directly with a hand-built `req` whose `params` object omits
+ * or nulls the field, so the branch actually executes for real instead of being left undertested.
+ * Only ever use this for that one narrow purpose -- every other branch in these route files is
+ * reachable through a normal request and should be tested that way instead.
+ */
+export function extractRouteHandler(
+  app: express.Express,
+  method: "get" | "post" | "put" | "delete",
+  path: string
+): (req: unknown, res: unknown) => unknown {
+  const stack = (app as unknown as ExpressAppWithRouter)._router.stack;
+  for (const layer of stack) {
+    if (layer.route && layer.route.path === path && layer.route.methods[method]) {
+      return layer.route.stack[0].handle;
+    }
+  }
+  throw new Error(`extractRouteHandler: no ${method.toUpperCase()} route registered for path "${path}"`);
+}
+
+/** What `createCapturingResponse` recorded from the handler's `res.status()`/`res.json()` calls. */
+export interface DirectInvokeCapture {
+  statusCode: number;
+  jsonBody: unknown;
+}
+
+/** A minimal `res` stand-in for {@link extractRouteHandler} callers -- only `status().json()` and
+ *  `locals` are ever used by this codebase's route handlers' synchronous response path, so this
+ *  intentionally does not implement the rest of Express's `Response` surface. `statusCode` starts
+ *  at 200 (real Express's own default when a handler calls `res.json()` without ever calling
+ *  `res.status()` first, e.g. every one of these routes' success paths). */
+export function createCapturingResponse(): { res: express.Response; capture: DirectInvokeCapture } {
+  const capture: DirectInvokeCapture = { statusCode: 200, jsonBody: undefined };
+  const res = {
+    locals: {} as Record<string, unknown>,
+    status(code: number) {
+      capture.statusCode = code;
+      return res;
+    },
+    json(body: unknown) {
+      capture.jsonBody = body;
+      return res;
+    },
+  } as unknown as express.Response;
+  return { res, capture };
+}

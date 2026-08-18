@@ -132,7 +132,7 @@ function sendThemeFileError(res: Response, err: unknown): void {
  * checked identically to one written by hand, and a theme edited into an invalid state reports
  * `status: "invalid"` rather than silently rendering stale-but-valid markup.
  */
-function reloadTheme(deps: ContentRouteDeps, themeId: string): void {
+export function reloadTheme(deps: ContentRouteDeps, themeId: string): void {
   const index = deps.themes.findIndex((t) => t.manifest.id === themeId);
   if (index < 0) return;
   const current = deps.themes[index];
@@ -380,7 +380,7 @@ const REQUIRED_THEME_FILES: ReadonlySet<string> = new Set(["pages/index.html", "
 
 /** A path's own extension, lowercased (`""` if none) — the dot must fall after the last slash to
  * count, matching {@link nextAvailableFileName}'s identical rule for the same reason. */
-function fileExtension(relativePath: string): string {
+export function fileExtension(relativePath: string): string {
   const dot = relativePath.lastIndexOf(".");
   const slash = relativePath.lastIndexOf("/");
   return dot > slash ? relativePath.slice(dot).toLowerCase() : "";
@@ -423,7 +423,7 @@ function describeThemeFile(
  * @complexity O(n) in the number of existing collisions with the desired name.
  * @overallScore 100/100
  */
-function nextAvailableFileName(
+export function nextAvailableFileName(
   required: { desiredPath: string; existingPaths: ReadonlySet<string> },
   _optional: Record<string, never> = {}
 ): string {
@@ -448,14 +448,14 @@ function nextAvailableFileName(
 
 /** A JSON request body coerced to a plain object — `{}` for a missing/`null`/non-object body,
  *  matching every mutating route below's existing lenient handling of an absent body. */
-function bodyRecord(body: unknown): Record<string, unknown> {
+export function bodyRecord(body: unknown): Record<string, unknown> {
   return (body ?? {}) as Record<string, unknown>;
 }
 
 /** One string field off a JSON body, defaulting to `""` when the body itself or the field is
  *  missing/non-string — the same coercion `path`/`name`/etc. already applied inline at each call
  *  site below, pulled into one definition so it is applied identically everywhere. */
-function bodyStringField(body: unknown, field: string): string {
+export function bodyStringField(body: unknown, field: string): string {
   return String(bodyRecord(body)[field] ?? "");
 }
 
@@ -908,7 +908,7 @@ function validateRenameTargetName(name: string): string | null {
  * the rename succeeded (or was validly skipped as a no-op) and the caller should build its normal
  * response.
  */
-function renameThemeFileIfChanged(
+export function renameThemeFileIfChanged(
   deps: ContentRouteDeps,
   theme: DiscoveredTheme,
   paths: { sourcePath: string; destPath: string; name: string },

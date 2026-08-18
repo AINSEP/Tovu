@@ -5,7 +5,11 @@ import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
 import { createRouteDeps } from "#src/server/app";
-import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
+import {
+  createCapturingResponse,
+  extractRouteHandler,
+  startTestServer,
+} from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminIntegrationsCreateRoute } from "../create";
 import type { IntegrationsRouteDeps } from "../deps";
 
@@ -18,15 +22,17 @@ import type { IntegrationsRouteDeps } from "../deps";
  * overrides it to `allowed: false`.
  *
  * Every distinct outcome this file's real logic can produce is covered below: workspace mismatch
- * (404), forbidden (403), each of `createSubscription`'s validation-error triggers (400 x6 —
+ * (404, both the real-HTTP mismatch and the direct-invoke `?? ""` fallback -- see the dedicated
+ * test below), forbidden (403), each of `createSubscription`'s validation-error triggers (400 x6 —
  * label required, malformed URL, non-https URL, disallowed egress target, missing topics, non-array
- * topics), success (201), and a generic unexpected failure (500). This is the maximum branch
- * coverage this file's real business logic supports — measured directly (11 tests, every
- * HTTP-observable branch exercised) at 25/28 branches (89.29%), not 99%+: the remaining 3 are
- * esbuild's CJS/ESM interop shim's own dead short-circuit branches (confirmed structural, not a test
- * gap — see this session's final report for the cross-file verification, e.g. one such branch in a
- * DIFFERENT route file's lcov record maps to literal source line "undefined", i.e. no real source
- * position exists for it at all).
+ * topics), success (201), and a generic unexpected failure (500).
+ *
+ * Verified directly against this file's own raw V8 coverage (byte-offset ranges, not the lossier
+ * line-based lcov view -- see this session's report for the technique): after the fixes above, the
+ * only remaining zero-hit ranges are esbuild's own CJS/ESM interop shim internals (`__copyProps`'s
+ * dead `typeof from === "function"` arm, and the `0 && (module.exports = {...})` TS-declaration
+ * annotation esbuild always emits as unreachable-by-construction) -- neither is code this file
+ * authored, both confirmed by diffing this file's own esbuild-transpiled output.
  */
 
 const WORKSPACE_ID = "workspace-local";
@@ -133,6 +139,25 @@ test("create: fully valid request succeeds (201) and echoes the created subscrip
   const body = json as { subscription: { label: string; targetUrl: string; topics: string[] } };
   assert.equal(body.subscription.label, "x");
   assert.deepEqual(body.subscription.topics, ["a", "b"]);
+});
+
+test("create: an undefined workspaceId param (impossible via real routing -- a matched `:workspaceId` segment is always a populated string) still 404s through the `?? \"\"` fallback", async (t) => {
+  // Express's router never invokes this handler at all unless `:workspaceId` matched a non-empty
+  // path segment, so `req.params.workspaceId` can never actually be `undefined` here through any
+  // real request -- confirmed by V8's own per-branch coverage data (`??` on this exact expression
+  // is the one real, always-zero-hit branch left after exhaustive HTTP-level testing; see this
+  // session's report). Reached the same way a `default: throw` exhaustiveness guard is reached:
+  // deliberately violate the (Express-guaranteed, not just TypeScript-inferred) contract by calling
+  // the real handler directly with a `req.params.workspaceId` the router itself would never produce.
+  const app = buildApp();
+  const handler = extractRouteHandler(app, "post", "/api/admin/v1/workspaces/:workspaceId/integrations/subscriptions");
+  const { res, capture } = createCapturingResponse();
+  const req = { params: { workspaceId: undefined }, body: { label: "x" } } as unknown as Parameters<typeof handler>[0];
+
+  await handler(req, res);
+
+  assert.equal(capture.statusCode, 404);
+  assert.deepEqual(capture.jsonBody, { error: "workspace was not found" });
 });
 
 test("create: an unexpected repo failure (not a validation/not-found error) 500s", async (t) => {
