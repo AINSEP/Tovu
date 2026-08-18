@@ -6,8 +6,11 @@ import test from "node:test";
 
 import express from "express";
 
-import { AGENT_DAEMON_TOKEN_ENV_VAR } from "../../assistant/daemon-auth";
-import { setExecutionCredential } from "../../assistant/execution-credential-store";
+import { AGENT_DAEMON_TOKEN_ENV_VAR, setExecutionCredential } from "../../assistant";
+// `resetLiveModelCacheForTesting` is a test-only reset for `live-model-cache.ts`'s module-level
+// cache — not barrel-exported (the barrel's other Section D symbols are all production surface;
+// see 2026-08-17 no-deep-imports:assistant triage notes for why this one was left as an open
+// violation rather than forced into the production barrel).
 import { resetLiveModelCacheForTesting } from "../../assistant/live-model-cache";
 import { startTestServer, loginAsOwner } from "./helpers/http-test-server";
 

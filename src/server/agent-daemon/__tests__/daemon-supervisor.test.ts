@@ -5,8 +5,7 @@ import test from "node:test";
 import { getReadinessSnapshot, clearAssistantDaemonFailure, setReadinessSnapshot } from "../../readiness-state";
 import { createDaemonSupervisor } from "../daemon-supervisor";
 import type { SpawnedDaemonProcess } from "../daemon-supervisor";
-import { createRespawnPolicy } from "../../../assistant/daemon-respawn-policy";
-import { AGENT_DAEMON_EXIT_CODE } from "../../../assistant/daemon-exit-codes";
+import { createRespawnPolicy, AGENT_DAEMON_EXIT_CODE } from "../../../assistant";
 
 /**
  * @file Proves the automatic-respawn wiring in `daemon-supervisor.ts` against a fake daemon
