@@ -1,9 +1,5 @@
 import type { UUID } from "@jini-ai/cms/core";
-import {
-  ensureSettingDefinitions,
-  type EnsureSettingDefinitionsDeps,
-  type SettingDefinitionSpec,
-} from "../features/settings";
+import { type EnsureSettingDefinitionsDeps, type SettingDefinitionSpec } from "../features/settings";
 
 /**
  * @file Boot-time `core.execution.*` setting-definition registration for the
@@ -143,7 +139,28 @@ const EXECUTION_DEFINITIONS: readonly ExecutionDefinitionSpec[] = [
   { key: "localCli.model", schema: { type: "string" }, defaultValue: "" },
 ];
 
-export type EnsureExecutionSettingDefinitionsDeps = EnsureSettingDefinitionsDeps;
+/**
+ * Structural signature matching `features/settings`'s real `ensureSettingDefinitions` export
+ * (`@jini-ai/cms/settings`, re-exported unchanged by `features/settings/index.ts`). Redeclared
+ * locally rather than imported as a value — importing it as a value here is exactly the edge that
+ * would close an `[assistant, features/settings]` module cycle once `settings` converts to the
+ * standard `registerToolContributor` pattern, since this file already sits inside `assistant/`. Same
+ * Option-B-style technique `public-assistant-settings.ts`'s own 4 injected functions use. Reuses
+ * `EnsureSettingDefinitionsDeps`/`SettingDefinitionSpec` directly (both stay `import type` — see this
+ * file's import line) rather than redeclaring their fields, since those two types carry no runtime
+ * edge of their own.
+ */
+type EnsureSettingDefinitions = (
+  deps: EnsureSettingDefinitionsDeps,
+  input: { namespace: string; definitions: readonly SettingDefinitionSpec[]; systemPrincipalId: UUID },
+) => Promise<void>;
+
+export interface EnsureExecutionSettingDefinitionsDeps extends EnsureSettingDefinitionsDeps {
+  /** The real `features/settings`'s own `ensureSettingDefinitions` — injected rather than statically
+   *  imported; see the `EnsureSettingDefinitions` type's own doc. Wired to the real implementation at
+   *  the composition root. */
+  ensureSettingDefinitions: EnsureSettingDefinitions;
+}
 
 export interface EnsureExecutionSettingDefinitionsInput {
   /** The trusted boot-time actor these writes are attributed to (mirrors
@@ -166,7 +183,7 @@ export async function ensureExecutionSettingDefinitions(
   deps: EnsureExecutionSettingDefinitionsDeps,
   input: EnsureExecutionSettingDefinitionsInput
 ): Promise<void> {
-  await ensureSettingDefinitions(deps, {
+  await deps.ensureSettingDefinitions(deps, {
     namespace: EXECUTION_NAMESPACE,
     definitions: EXECUTION_DEFINITIONS,
     systemPrincipalId: input.systemPrincipalId,

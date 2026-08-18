@@ -378,23 +378,35 @@ const DOMAIN_SLICES: readonly DomainSlice[] = [
   // `features/workspace/tool-registrations.ts`'s own header. No longer an entry here; it arrives via
   // `contributeWorkspaceTools()`, installed by `server/tool-catalog-manifest.ts`.
   //
-  // `settings` REMOVED from this array (2026-08-17), but NOT via the standard
-  // `contribute<Domain>Tools()` shape every other removed entry above uses — see
-  // `ADS-memory/reports/architecture/2026-08-17-settings-blocker-investigation.md` for the full
-  // analysis. `assistant/public-assistant-settings.ts`, `assistant/custom-instructions.ts`, and
-  // `assistant/execution-mode-settings.ts` already value-import `features/settings` directly (as a
-  // generic settings-ledger engine, unrelated to this array), a real pre-existing
-  // `assistant -> features/settings` edge. Giving `features/settings` its own
-  // `contributeSettingsTools()` (the standard shape) would add a `features/settings -> assistant`
-  // edge on top of that and close a NEW 2-node `assistant <-> features/settings` cycle — unlike every
-  // other converted domain above, `settings`'s reverse edge is real and unavoidable, not something
-  // ordering can dodge. Instead, `server/tool-catalog-manifest.ts`'s
-  // `installFirstPartyToolContributors()` calls `registerToolContributor({domain: "settings", ...})`
-  // directly — see the DELIBERATE ONE-OFF EXCEPTION comment on that function for why this is safe
-  // and deliberate. DO NOT "restore consistency" by giving `settings` a `contributeSettingsTools()`
-  // matching the others — that reintroduces the cycle this exception exists to avoid. No longer an
-  // entry here; it arrives via `listToolContributors()` like every other registry-converted domain,
-  // just installed from a different call site.
+  // `settings` converted to the tool-contribution registry 2026-08-17, the LAST domain of this
+  // rollout to convert the standard way — it went through two stages, not one. First (same day,
+  // earlier pass): removed from this array via a deliberate one-off exception, because
+  // `assistant/public-assistant-settings.ts`, `assistant/custom-instructions.ts`, and
+  // `assistant/execution-mode-settings.ts` already value-imported `features/settings` engine
+  // functions directly (`getEffective`/`resolveDefinitionRaw`/`registerDefinitions`/`set`/
+  // `ensureSettingDefinitions`), a real pre-existing `assistant -> features/settings` edge that would
+  // have closed a NEW 2-node `assistant <-> features/settings` cycle the moment `features/settings`
+  // gained its own `contributeSettingsTools()` — see
+  // `ADS-memory/reports/architecture/2026-08-17-settings-blocker-investigation.md` for that analysis
+  // (superseded below, kept for the mechanism detail, which is still accurate).
+  //
+  // Second (same day, later pass, after the owner reversed that exception's recommendation — see
+  // `ADS-memory/reports/architecture/2026-08-17-settings-exception-removal-scoping.md`): those same 3
+  // files' 5 functions (plus the `SCOPE_BIT`/`INSTRUCTIONS_NAMESPACE` constants, injected for
+  // uniformity with the rest of each file's deps surface) were switched from static imports to
+  // injected deps fields — the same Option-B-style technique `vendor-credentials/store.ts`'s
+  // `extractGitHubLogin`, `dual-read.ts`'s legacy-table imports, and `assistant/site/*`'s
+  // `listPublishedPosts` already use elsewhere in this rollout, wired to the real `features/settings`
+  // implementations at the composition root (`server/routes/types.ts`'s `RouteDeps.getEffective`/
+  // `.set`/`.instructionsNamespace`, populated once in both `server/app.ts`/`server/deps.ts`; the
+  // boot-time `ensure*` registrars' own remaining fields populated at each of their call sites in the
+  // same 2 files). That removed the real `assistant -> features/settings` edge entirely, so
+  // `features/settings` now has its own `contributeSettingsTools()` — the same standard shape every
+  // other converted domain above uses — and the one-off `registerToolContributor({domain:
+  // "settings", ...})` inline call that used to live in `server/tool-catalog-manifest.ts` is gone.
+  // `check:architecture` confirms 0 module cycles / largest SCC 0 with `settings` wired this way. No
+  // longer an entry here; it arrives via `contributeSettingsTools()`, installed by
+  // `server/tool-catalog-manifest.ts` — no longer "a different call site" than every other domain.
   // `entries` converted to the tool-contribution registry 2026-08-17 (Stage 2 batch 2) — see
   // `features/entries/tool-registrations.ts`'s own header. No longer an entry here; it arrives via
   // `contributeEntriesTools()`, installed by `server/tool-catalog-manifest.ts`. Converted LAST in

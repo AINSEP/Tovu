@@ -113,7 +113,15 @@ test("POST /api/site-assistant/chat passes the gate once the workspace turns the
   // intermittently throws "not reentrant" out of the write below.
   await deps.analyticsSettingsReady;
   await setPublicAssistantSettings(
-    { settingsRepo: deps.settingsRepo, clock: deps.clock, ids: deps.idGen, authorize: alwaysAllow, principals: deps.principalRepo },
+    {
+      settingsRepo: deps.settingsRepo,
+      getEffective: deps.getEffective,
+      set: deps.set,
+      clock: deps.clock,
+      ids: deps.idGen,
+      authorize: alwaysAllow,
+      principals: deps.principalRepo,
+    },
     { workspaceId: deps.workspaceId, patch: { publicEnabled: true }, callerPrincipalId: "test-caller" },
   );
   const app = createApp(deps);
@@ -139,7 +147,15 @@ test("POST /api/site-assistant/chat: the 11th request from one IP within the win
   const deps = createRouteDeps();
   await deps.analyticsSettingsReady;
   await setPublicAssistantSettings(
-    { settingsRepo: deps.settingsRepo, clock: deps.clock, ids: deps.idGen, authorize: alwaysAllow, principals: deps.principalRepo },
+    {
+      settingsRepo: deps.settingsRepo,
+      getEffective: deps.getEffective,
+      set: deps.set,
+      clock: deps.clock,
+      ids: deps.idGen,
+      authorize: alwaysAllow,
+      principals: deps.principalRepo,
+    },
     { workspaceId: deps.workspaceId, patch: { publicEnabled: true }, callerPrincipalId: "test-caller" },
   );
   const app = createApp(deps);
@@ -176,7 +192,15 @@ test("POST /api/site-assistant/chat accepts a well-formed history alongside mess
   const deps = createRouteDeps();
   await deps.analyticsSettingsReady;
   await setPublicAssistantSettings(
-    { settingsRepo: deps.settingsRepo, clock: deps.clock, ids: deps.idGen, authorize: alwaysAllow, principals: deps.principalRepo },
+    {
+      settingsRepo: deps.settingsRepo,
+      getEffective: deps.getEffective,
+      set: deps.set,
+      clock: deps.clock,
+      ids: deps.idGen,
+      authorize: alwaysAllow,
+      principals: deps.principalRepo,
+    },
     { workspaceId: deps.workspaceId, patch: { publicEnabled: true }, callerPrincipalId: "test-caller" },
   );
   const app = createApp(deps);
@@ -196,7 +220,15 @@ test("POST /api/site-assistant/chat degrades a hostile/malformed history to no c
   const deps = createRouteDeps();
   await deps.analyticsSettingsReady;
   await setPublicAssistantSettings(
-    { settingsRepo: deps.settingsRepo, clock: deps.clock, ids: deps.idGen, authorize: alwaysAllow, principals: deps.principalRepo },
+    {
+      settingsRepo: deps.settingsRepo,
+      getEffective: deps.getEffective,
+      set: deps.set,
+      clock: deps.clock,
+      ids: deps.idGen,
+      authorize: alwaysAllow,
+      principals: deps.principalRepo,
+    },
     { workspaceId: deps.workspaceId, patch: { publicEnabled: true }, callerPrincipalId: "test-caller" },
   );
   const app = createApp(deps);
@@ -242,7 +274,15 @@ test("POST /api/site-assistant/chat writes a well-formed client_directive SSE fr
   const deps = createRouteDeps();
   await deps.analyticsSettingsReady;
   await setPublicAssistantSettings(
-    { settingsRepo: deps.settingsRepo, clock: deps.clock, ids: deps.idGen, authorize: alwaysAllow, principals: deps.principalRepo },
+    {
+      settingsRepo: deps.settingsRepo,
+      getEffective: deps.getEffective,
+      set: deps.set,
+      clock: deps.clock,
+      ids: deps.idGen,
+      authorize: alwaysAllow,
+      principals: deps.principalRepo,
+    },
     { workspaceId: deps.workspaceId, patch: { publicEnabled: true }, callerPrincipalId: "test-caller" },
   );
   await deps.postRepo.save({
@@ -327,7 +367,15 @@ test("POST /api/site-assistant/chat never emits a client_directive for a trashed
   const deps = createRouteDeps();
   await deps.analyticsSettingsReady;
   await setPublicAssistantSettings(
-    { settingsRepo: deps.settingsRepo, clock: deps.clock, ids: deps.idGen, authorize: alwaysAllow, principals: deps.principalRepo },
+    {
+      settingsRepo: deps.settingsRepo,
+      getEffective: deps.getEffective,
+      set: deps.set,
+      clock: deps.clock,
+      ids: deps.idGen,
+      authorize: alwaysAllow,
+      principals: deps.principalRepo,
+    },
     { workspaceId: deps.workspaceId, patch: { publicEnabled: true }, callerPrincipalId: "test-caller" },
   );
   // The catching case: status stays "published" after trashing — `PostRepoPort.softDelete` (and this

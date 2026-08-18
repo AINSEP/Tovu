@@ -1,15 +1,6 @@
 import type { ClockPort, IdGeneratorPort, JsonValue, UUID } from "@jini-ai/cms/core";
 import type { PrincipalRepoPort } from "@jini-ai/cms/identity";
-import {
-  type SettingsRepoPort,
-  getEffective,
-  resolveDefinitionRaw,
-  SCOPE_BIT,
-  type SettingValueSchema,
-  registerDefinitions,
-  set,
-  type AuthorizeFn,
-} from "../features/settings";
+import { type SettingsRepoPort, type SettingValueSchema, type AuthorizeFn } from "../features/settings";
 
 /**
  * @file The master on/off switch for the VISITOR-FACING assistant, on the ADR-028 Settings Layered
@@ -48,6 +39,91 @@ import {
  */
 
 /**
+ * Structural signatures matching `features/settings`'s real settings-engine functions/constants
+ * (`@jini-ai/cms/settings`, re-exported unchanged by `features/settings/index.ts`). Redeclared
+ * locally and injected via the deps bags below, rather than imported as VALUES — importing them as
+ * values here is exactly the edge that would close an `[assistant, features/settings]` module cycle
+ * once `settings` converts to the standard `registerToolContributor` pattern (which adds a
+ * `features/settings -> assistant` edge), since this file already sits inside `assistant/`. Same
+ * Option-B-style technique `vendor-credentials/store.ts`'s `extractGitHubLogin`, `dual-read.ts`'s
+ * legacy-table imports, and `assistant/site/*`'s `listPublishedPosts` already use elsewhere in this
+ * rollout. Each type here mirrors only the slice of the real function's signature this file actually
+ * calls — see each deps field's own doc for how the real implementation reaches this file despite the
+ * type living here instead of being imported.
+ */
+type ResolveDefinitionRaw = (
+  deps: { repo: SettingsRepoPort },
+  input: { namespace: string; key: string; workspaceId: string | null },
+) => Promise<unknown>;
+
+type GetEffective = (
+  deps: { repo: SettingsRepoPort },
+  input: { namespace: string; key: string; scopeContext: { workspaceId: UUID } },
+) => Promise<{ value: JsonValue | null } | null>;
+
+type RegisterDefinitions = (required: {
+  deps: {
+    repo: SettingsRepoPort;
+    clock: ClockPort;
+    ids: IdGeneratorPort;
+    authorize: AuthorizeFn;
+    principals: PrincipalRepoPort;
+  };
+  input: {
+    // NOT `readonly` — the real `registerDefinitions`'s own `DefinitionInput[]` is mutable, and a
+    // `readonly` array type here is not assignable to a mutable one for the composition root's
+    // assignment of the real function into this deps slot (contravariant parameter check).
+    definitions: {
+      namespace: string;
+      key: string;
+      ownerKind: "site";
+      workspaceId: UUID;
+      schema: SettingValueSchema;
+      defaultValue: JsonValue;
+      scopes: number;
+      secret: boolean;
+    }[];
+    callerPrincipalId: UUID;
+    authWorkspaceId: UUID;
+  };
+}) => Promise<{ registered: string[] }>;
+
+type SetSettingValue = (required: {
+  deps: {
+    repo: SettingsRepoPort;
+    clock: ClockPort;
+    ids: IdGeneratorPort;
+    authorize: AuthorizeFn;
+    principals: PrincipalRepoPort;
+  };
+  input: {
+    namespace: string;
+    key: string;
+    scope: "workspace";
+    value: JsonValue;
+    workspaceId: UUID;
+    authWorkspaceId: UUID;
+    callerPrincipalId: UUID;
+    requiredPermissionOverride?: string;
+  };
+}) => Promise<{ value: JsonValue; revisionSeq: number }>;
+
+/**
+ * Structural signature matching `features/settings`'s real `SCOPE_BIT` export — a plain bitmask
+ * CONSTANT, not a function. Injected for uniformity with the 4 function types above rather than
+ * relocated to a new shared module: this file's deps bags already inject every other engine value it
+ * needs from `features/settings`, and `features/settings/index.ts`'s own header states this host
+ * deliberately funnels every consumer through its barrel rather than deep-importing
+ * `@jini-ai/cms/settings` submodules directly (mirrors `identity`'s/`media`'s identical shim
+ * pattern) — sourcing `SCOPE_BIT` straight from the package here to dodge the graph would reopen
+ * exactly that deep-import bypass for two call sites, trading one prose-guarded exception for
+ * another instead of removing it. A constant carries no reimplementation risk the way a function
+ * would, so injecting it is pure ceremony, not a safety measure — but the ceremony buys one pattern
+ * for this file's whole deps surface instead of two.
+ */
+type ScopeBit = { readonly global: number; readonly workspace: number; readonly user: number };
+
+/**
  * ADR-028's namespace owner fence (`features/settings/settings.ts`'s `NAMESPACE_FENCE`) requires
  * every `ownerKind: "site"` definition to live under `site.` — the same constraint `site.seo` and
  * `site.comments` carry, and the same one a bare `"assistant"` would fail at the write chokepoint.
@@ -75,6 +151,15 @@ export interface EnsurePublicAssistantSettingDefinitionsDeps {
   clock: ClockPort;
   ids: IdGeneratorPort;
   principals: PrincipalRepoPort;
+  /** The real `features/settings`'s own `resolveDefinitionRaw` — injected rather than statically
+   *  imported; see this file's header. Wired to the real implementation at the composition root. */
+  resolveDefinitionRaw: ResolveDefinitionRaw;
+  /** The real `features/settings`'s own `registerDefinitions` — injected rather than statically
+   *  imported; see this file's header. Wired to the real implementation at the composition root. */
+  registerDefinitions: RegisterDefinitions;
+  /** The real `features/settings`'s own `SCOPE_BIT` — injected rather than statically imported; see
+   *  the `ScopeBit` type's own doc for why a constant is injected here too. */
+  scopeBit: ScopeBit;
 }
 
 export interface EnsurePublicAssistantSettingDefinitionsInput {
@@ -105,13 +190,13 @@ export async function ensurePublicAssistantSettingDefinitions(
   input: EnsurePublicAssistantSettingDefinitionsInput
 ): Promise<void> {
   for (const def of ASSISTANT_DEFINITIONS) {
-    const existing = await resolveDefinitionRaw(
+    const existing = await deps.resolveDefinitionRaw(
       { repo: deps.settingsRepo },
       { namespace: ASSISTANT_NAMESPACE, key: def.key, workspaceId: input.workspaceId }
     );
     if (existing) continue;
 
-    await registerDefinitions({
+    await deps.registerDefinitions({
       deps: bootWriteServiceDeps(deps),
       input: {
         callerPrincipalId: input.systemPrincipalId,
@@ -124,7 +209,7 @@ export async function ensurePublicAssistantSettingDefinitions(
             workspaceId: input.workspaceId,
             schema: def.schema,
             defaultValue: def.defaultValue,
-            scopes: SCOPE_BIT.workspace,
+            scopes: deps.scopeBit.workspace,
             secret: false,
           },
         ],
@@ -135,6 +220,9 @@ export async function ensurePublicAssistantSettingDefinitions(
 
 export interface GetPublicAssistantSettingsDeps {
   settingsRepo: SettingsRepoPort;
+  /** The real `features/settings`'s own `getEffective` — injected rather than statically imported;
+   *  see this file's header. Wired to the real implementation at the composition root. */
+  getEffective: GetEffective;
 }
 
 /**
@@ -154,7 +242,7 @@ export async function getPublicAssistantSettings(
   deps: GetPublicAssistantSettingsDeps,
   input: { workspaceId: UUID }
 ): Promise<PublicAssistantSettings> {
-  const resolved = await getEffective(
+  const resolved = await deps.getEffective(
     { repo: deps.settingsRepo },
     { namespace: ASSISTANT_NAMESPACE, key: "public_enabled", scopeContext: { workspaceId: input.workspaceId } }
   );
@@ -188,6 +276,9 @@ export interface PublicAssistantSettingsWriteDeps extends GetPublicAssistantSett
   ids: IdGeneratorPort;
   authorize: AuthorizeFn;
   principals: PrincipalRepoPort;
+  /** The real `features/settings`'s own `set` — injected rather than statically imported; see this
+   *  file's header. Wired to the real implementation at the composition root. */
+  set: SetSettingValue;
 }
 
 export interface SetPublicAssistantSettingsInput {
@@ -227,7 +318,7 @@ export async function setPublicAssistantSettings(
   }
 
   if (input.patch.publicEnabled !== undefined) {
-    await set({
+    await deps.set({
       deps: {
         repo: deps.settingsRepo,
         clock: deps.clock,
@@ -248,5 +339,8 @@ export async function setPublicAssistantSettings(
     });
   }
 
-  return getPublicAssistantSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: input.workspaceId });
+  return getPublicAssistantSettings(
+    { settingsRepo: deps.settingsRepo, getEffective: deps.getEffective },
+    { workspaceId: input.workspaceId }
+  );
 }

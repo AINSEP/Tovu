@@ -19,11 +19,10 @@ import { contributeMenusTools } from "../navigation/tool-registrations";
 import { contributeNewsletterTools } from "../newsletter/tool-registrations";
 import { contributeRedirectsTools } from "../redirects/tool-registrations";
 import { contributeSeoTools } from "../seo/tool-registrations";
+import { contributeSettingsTools } from "../features/settings/tool-registrations";
 import { contributeSourceControlTools } from "../features/source-control/tool-registrations";
 import { contributeStaticPublishTools } from "../features/deployments/publish-agent-tools";
 import { contributeWidgetsTools } from "../widgets/tool-registrations";
-import { registerToolContributor } from "../assistant";
-import { buildSettingsRegistrations, settingsDerivedRisk } from "../features/settings/tool-registrations";
 
 /**
  * @file The server composition manifest for `assistant/tool-contribution-registry.ts`: the one file
@@ -43,7 +42,7 @@ import { buildSettingsRegistrations, settingsDerivedRisk } from "../features/set
  * throughout `server/deps.ts`/`server/app.ts` — this file adds no new module-level edge that did not
  * already exist, it just adds one more file-level reason for edges that were already there.
  *
- * 24 of the ~24 assistant-wired domains are listed here today (2026-08-17: `comments`/`newsletter`
+ * All 25 assistant-wired domains are listed here today (2026-08-17: `comments`/`newsletter`
  * from Stage 1 of the registry rollout; `identity`/`members`/`taxonomy`/`redirects` added in Stage 2
  * batch 1 — `themes` was also tried in that batch and reverted, see
  * `assistant/tool-registrations.ts`'s header for why; Stage 2 batch 2 (run as two parallel worker
@@ -65,10 +64,7 @@ import { buildSettingsRegistrations, settingsDerivedRisk } from "../features/set
  * `features/database/drift.ts`) was identified and removed by relocating `drift.ts` into `db/` — see
  * `features/database/tool-registrations.ts`'s own header and
  * `ADS-memory/reports/architecture/2026-08-17-database-cycle-investigation.md` for the full trace;
- * it is listed above alongside the other eighteen. `settings` is the 20th and is NOT wired via a
- * `contribute<Domain>Tools()` call like the other domains — see the DELIBERATE ONE-OFF EXCEPTION
- * comment directly on {@link installFirstPartyToolContributors} below for why the standard shape is
- * actively unsafe for this one domain. `source-control` is the 21st, retried once
+ * it is listed above alongside the other eighteen. `source-control` is the 21st, retried once
  * `features/vendor-credentials/dual-read.ts`'s two legacy-table imports were injected instead of
  * value-imported (see `ADS-memory/reports/architecture/2026-08-17-vendor-credentials-cycle-design-options.md`,
  * Option B, and `features/source-control/tool-registrations.ts`'s own header for the full trace).
@@ -81,16 +77,36 @@ import { buildSettingsRegistrations, settingsDerivedRisk } from "../features/set
  * from `assistant`) still closes a live 2-module `[assistant, features/deployments]` cycle. `themes`
  * is the 24th of this pass, retried once `deployments`/`static-publish` left `assistant`
  * without any transitive path into `export` (see `features/theme/tool-registrations.ts`'s own header
- * for the full trace, including the two prior reverts). `post` is the 25th and last domain of this
- * entire rollout, retried a third time once `themes` cleared the `export`/`vendor-credentials`
- * cluster and landing on a smaller, previously-undocumented `[assistant, features/post]` cycle caused
- * by `assistant/site/tools.ts`/`assistant/site/client-directives.ts` value-importing
- * `listPublishedPosts` directly — resolved by injecting that function into both files' deps instead
- * (see `ADS-memory/reports/architecture/2026-08-17-post-listpublishedposts-design-options.md` and
- * `features/post/tool-registrations.ts`'s own header for the full trace). `check:architecture`
- * confirms 0 module cycles / largest SCC 0 with all 25 domains converted this way — no domain still
- * wires through `assistant/tool-registrations.ts`'s own `DOMAIN_SLICES` array (that file's array is
- * now empty of first-party domains save the two env-gated demo stubs; see its own header).
+ * for the full trace, including the two prior reverts). `post` was the 25th and, at the time,
+ * believed to be the last domain of this entire rollout, retried a third time once `themes` cleared
+ * the `export`/`vendor-credentials` cluster and landing on a smaller, previously-undocumented
+ * `[assistant, features/post]` cycle caused by `assistant/site/tools.ts`/
+ * `assistant/site/client-directives.ts` value-importing `listPublishedPosts` directly — resolved by
+ * injecting that function into both files' deps instead (see
+ * `ADS-memory/reports/architecture/2026-08-17-post-listpublishedposts-design-options.md` and
+ * `features/post/tool-registrations.ts`'s own header for the full trace).
+ *
+ * `settings` is genuinely the last, converted in a follow-up pass the same day. It had been left
+ * wired via a one-off inline `registerToolContributor({domain: "settings", ...})` call right here
+ * (removed, see below) because 3 files inside `assistant/` (`public-assistant-settings.ts`,
+ * `custom-instructions.ts`, `execution-mode-settings.ts`) value-imported `features/settings`'s engine
+ * functions directly — a real `assistant -> features/settings` edge that giving `features/settings`
+ * its own `contributeSettingsTools()` would have closed into a NEW 2-node cycle (see
+ * `ADS-memory/reports/architecture/2026-08-17-settings-blocker-investigation.md` for that analysis).
+ * The owner reversed that "leave it as a permanent exception" recommendation the same day (see
+ * `ADS-memory/reports/architecture/2026-08-17-settings-exception-removal-scoping.md`): those 3 files'
+ * functions were switched to injected deps fields instead of static imports — the same technique
+ * `post` above and `deployments`/`source-control` before it used — wired to the real
+ * `features/settings` implementations at the composition root
+ * (`server/routes/types.ts`'s `RouteDeps.getEffective`/`.set`/`.instructionsNamespace`, populated in
+ * both `server/app.ts`/`server/deps.ts`). That removed the real edge entirely, so `settings` now has
+ * its own `contributeSettingsTools()` below like every other domain, and the inline
+ * `registerToolContributor` call plus its explanatory comment are gone.
+ *
+ * `check:architecture` confirms 0 module cycles / largest SCC 0 with all 25 domains converted this
+ * way — no domain still wires through `assistant/tool-registrations.ts`'s own `DOMAIN_SLICES` array
+ * (that file's array is now empty of first-party domains save the two env-gated demo stubs; see its
+ * own header).
  *
  * Idempotent: `registerToolContributor` (what each `contribute<Domain>Tools()` call ultimately
  * calls) replaces an existing entry by domain key rather than appending, so calling this function
@@ -108,27 +124,6 @@ import { buildSettingsRegistrations, settingsDerivedRisk } from "../features/set
  * policy checks, not auto-discovered from disk and installed unconditionally the way the calls below
  * are — plugin/data-module membership (`declareDataModule`) and AI-tool membership are deliberately
  * two different systems (see the 2026-08-17 architecture addendum this file implements).
- *
- * DELIBERATE ONE-OFF EXCEPTION — `settings`: every other domain above owns its own
- * `contribute<Domain>Tools()` function (feature module -> `registerToolContributor`, imported FROM
- * assistant), which is the uniform shape. `settings` does NOT get one, and the plain
- * `registerToolContributor({domain: "settings", ...})` call below is deliberately inline here
- * instead — see
- * `ADS-memory/reports/architecture/2026-08-17-settings-blocker-investigation.md` for the full
- * analysis. Short version: `assistant/public-assistant-settings.ts`, `assistant/custom-instructions.ts`,
- * and `assistant/execution-mode-settings.ts` already value-import `features/settings` directly (as a
- * generic settings-ledger engine, not as an AI-tool domain) — a real, pre-existing
- * `assistant -> features/settings` edge that has nothing to do with this file. Giving `features/settings`
- * the standard `contributeSettingsTools()` shape would add a `features/settings -> assistant` edge on
- * top of that, closing a NEW 2-node `assistant <-> features/settings` cycle. `server/` already
- * imports both `registerToolContributor` (via `assistant`) and `buildSettingsRegistrations`/
- * `settingsDerivedRisk` (via `features/settings/tool-registrations`) safely as the composition root,
- * so registering here adds no edge risk — this is the SAME reasoning every other call below relies
- * on, just applied one level up instead of inside the feature module. DO NOT "fix" this by giving
- * `settings` a `contributeSettingsTools()` matching the others — that reintroduces the cycle this
- * exception exists to avoid. The 3 side-door files above are intentionally left untouched too; see
- * the investigation report for why they are a different, lower-priority concern (no cycle risk
- * today).
  */
 export function installFirstPartyToolContributors(): void {
   contributeCommentsTools();
@@ -149,7 +144,7 @@ export function installFirstPartyToolContributors(): void {
   contributeRecoveryTools();
   contributeRedirectsTools();
   contributeSeoTools();
-  registerToolContributor({ domain: "settings", build: buildSettingsRegistrations, risk: settingsDerivedRisk });
+  contributeSettingsTools();
   contributeSourceControlTools();
   contributeStaticPublishTools();
   contributeTaxonomyTools();

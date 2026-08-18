@@ -6,10 +6,14 @@ import type { RouteDeps } from "../../types";
  * @file ADR-046 Phase 3 — narrow `RouteDeps` slice for the `assistant-settings` server module.
  *
  * Covers the 2 public-switch registrars in this directory (`get-settings.ts`, `put-settings.ts`),
- * which await `deps.assistantSettingsReady`, read `deps.workspaceId`/`deps.settingsRepo`, and call
- * `deps.authorize`; the PUT additionally needs `deps.clock`/`deps.idGen`/`deps.principalRepo` to
- * drive the settings write chokepoint. A genuine narrowing (mirrors `routes/admin/seo/deps.ts`'s
- * identical rationale for the same settings shape), not a `RouteDeps` widening.
+ * which await `deps.assistantSettingsReady`, read `deps.workspaceId`/`deps.settingsRepo`, call
+ * `deps.getEffective` (GET), and call `deps.authorize`; the PUT additionally needs
+ * `deps.clock`/`deps.idGen`/`deps.principalRepo`/`deps.set` to drive the settings write chokepoint.
+ * `getEffective`/`set` are here because `assistant/public-assistant-settings.ts`'s deps bags now take
+ * them by injection rather than static import (module-cycle avoidance, see that file's header) — this
+ * Pick is how the real functions reach these 2 routes without either route importing
+ * `features/settings` itself. A genuine narrowing (mirrors `routes/admin/seo/deps.ts`'s identical
+ * rationale for the same settings shape), not a `RouteDeps` widening.
  *
  * ADR-058 folded the 3 site-credential registrars (`get-site-credential.ts`,
  * `put-site-credential.ts`, `delete-site-credential.ts`) into this SAME deps slice and module rather
@@ -40,6 +44,8 @@ export type AssistantSettingsRouteDeps = Pick<
   | "clock"
   | "idGen"
   | "settingsRepo"
+  | "getEffective"
+  | "set"
   | "principalRepo"
   | "assistantSettingsReady"
   | "siteAssistantCredentialRepo"

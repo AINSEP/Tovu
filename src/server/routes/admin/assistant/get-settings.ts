@@ -33,7 +33,10 @@ export const registerAdminAssistantGetSettingsRoute: AssistantSettingsRouteRegis
         return;
       }
 
-      const settings = await getPublicAssistantSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: deps.workspaceId });
+      const settings = await getPublicAssistantSettings(
+        { settingsRepo: deps.settingsRepo, getEffective: deps.getEffective },
+        { workspaceId: deps.workspaceId }
+      );
       res.json({ data: settings });
     } catch {
       res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });

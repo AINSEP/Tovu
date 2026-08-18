@@ -415,7 +415,12 @@ const toolExecutor = withToolAttemptAudit(createToolExecutor({ registry }), audi
  * systemOverlay()` reads the result synchronously.
  */
 const customInstructionsCache = createCustomInstructionsCache(
-  { settingsRepo: routeDeps.settingsRepo, settingsReady: routeDeps.settingsUiTabsReady },
+  {
+    settingsRepo: routeDeps.settingsRepo,
+    settingsReady: routeDeps.settingsUiTabsReady,
+    getEffective: routeDeps.getEffective,
+    instructionsNamespace: routeDeps.instructionsNamespace,
+  },
   { workspaceId: routeDeps.workspaceId },
 );
 
