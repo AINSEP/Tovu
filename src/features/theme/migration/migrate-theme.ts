@@ -44,6 +44,28 @@ function isObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
+/** The template engine each non-static v1 tier's bare-number `engine` field actually named, matching
+ * `manifest-v2.ts`'s own closed `V2_ENGINE_NAMES` list — `declarative` never carries an `engine` field
+ * (no real theme on disk has one) so it has no entry here. */
+const TIER_ENGINE_NAME: Readonly<Partial<Record<ThemeTier, string>>> = {
+  templated: "liquid",
+  handlebars: "handlebars",
+};
+
+/** v1's `engine` is a bare number the runtime never branches on (`theme.ts`'s own doc comment: "nothing
+ * in the engine branches on it") — schema v2 restructures it into `{ name, version }` (real gap found
+ * migrating `storefront`, which ships `engine: 1`; `basic-declarative`, Milestone 3's first real
+ * migration, had no `engine` field at all so this path was untested until now). Leaves `raw.engine`
+ * untouched when it is already an object (idempotent re-run) or when the tier has no known engine name
+ * (nothing on disk today hits that case) — the v2-strict validator's own `v2-engine-shape`/`v2-engine-name`
+ * rules catch anything this doesn't resolve, rather than this function guessing. */
+function convertEngineField(raw: Record<string, unknown>, tier: ThemeTier): Record<string, unknown> {
+  if (typeof raw.engine !== "number") return raw;
+  const name = TIER_ENGINE_NAME[tier];
+  if (!name) return raw;
+  return { ...raw, engine: { name, version: String(raw.engine) } };
+}
+
 /**
  * A sibling of `themeDir` (same parent directory), never under `os.tmpdir()` — `renameSync` requires
  * both paths to be on the same filesystem/mount, which a system temp directory is not guaranteed to
@@ -88,15 +110,16 @@ function copyCarryOverFiles(themeDir: string, stagingDir: string): void {
   if (existsSync(source)) cpSync(source, join(stagingDir, "tokens.json"));
 }
 
-/** Adds/overwrites exactly the fields a v2 migration touches; every other field carries forward
- * unchanged (description, fonts, author, etc.) — see `theme-authoring-guide-v2.md` §5 for the target
- * shape. Never invents `license`/`LICENSE` (Blocker B's own decision: don't silently resolve a
- * genuinely absent or unconfirmed license). */
-function buildV2Manifest(raw: Record<string, unknown>): Record<string, unknown> {
+/** Adds/overwrites exactly the fields a v2 migration touches — `$schema`, `apiVersion`, and (via
+ * {@link convertEngineField}) a bare-number `engine` restructured into its v2 object shape. Every
+ * other field carries forward unchanged (description, fonts, author, etc.) — see
+ * `theme-authoring-guide-v2.md` §5 for the target shape. Never invents `license`/`LICENSE` (Blocker
+ * B's own decision: don't silently resolve a genuinely absent or unconfirmed license). */
+function buildV2Manifest(raw: Record<string, unknown>, tier: ThemeTier): Record<string, unknown> {
   return {
     $schema: "https://tovu.dev/schemas/theme/v2/theme.schema.json",
     apiVersion: 2,
-    ...raw,
+    ...convertEngineField(raw, tier),
   };
 }
 
@@ -155,7 +178,7 @@ export function migrateThemeToV2(
   const stagingDir = createStagingDir(themeDir, id);
   applyMoves(themeDir, stagingDir, plan);
   copyCarryOverFiles(themeDir, stagingDir);
-  writeFileSync(join(stagingDir, "theme.json"), JSON.stringify(buildV2Manifest(raw), null, 2) + "\n", "utf8");
+  writeFileSync(join(stagingDir, "theme.json"), JSON.stringify(buildV2Manifest(raw, tier), null, 2) + "\n", "utf8");
 
   const validation = validateThemePackage({ themeDir: stagingDir, id, profile: "author" });
   const loaded = loadTheme({ themeDir: stagingDir, id, source: "site" });
