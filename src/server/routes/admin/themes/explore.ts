@@ -3,8 +3,11 @@ import { join } from "node:path";
 
 import type { Response } from "express";
 
-import { findTheme, loadTheme, THEME_CATALOG_DIR, type DiscoveredTheme } from "#src/features/theme/index";
 import {
+  findTheme,
+  loadTheme,
+  THEME_CATALOG_DIR,
+  type DiscoveredTheme,
   copyThemeFile,
   isGeneratedThemePath,
   listThemeFiles,
@@ -15,7 +18,7 @@ import {
   writeThemeFile,
   ThemePathError,
   type ThemeFileWriteScope,
-} from "#src/features/theme/theme-files";
+} from "#src/features/theme/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { ContentRouteDeps } from "../content/deps";
 import type { ContentRouteRegistrar } from "../content/deps";

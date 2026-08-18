@@ -2,7 +2,7 @@ import type { Express, Request } from "express";
 
 import type { JsonObject } from "@jini-ai/cms/core";
 import { ingestHit, type IngestHitDeps } from "#src/analytics/ingest";
-import type { IngestBeacon, IngestContext } from "#src/analytics/types";
+import type { IngestBeacon, IngestContext } from "#src/analytics/index";
 
 /**
  * @file Public ingest beacon route for the `analytics` library (ADR-035 §5).

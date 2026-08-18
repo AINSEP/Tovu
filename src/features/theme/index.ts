@@ -70,3 +70,18 @@ export {
   ALLOWED_HANDLEBARS_RAW_PATHS,
   ALLOWED_HANDLEBARS_DATA_VARS,
 } from "./handlebars-allowlist";
+
+// The Explore screen's file read/write surface (`server/routes/admin/themes/explore.ts`) —
+// genuinely public, backing an admin route, no single-caller boot-sequence caveat like site-dir's.
+export {
+  copyThemeFile,
+  isGeneratedThemePath,
+  listThemeFiles,
+  readThemeFile,
+  renameThemeFile,
+  resolveThemeFileWriteScope,
+  restoreBuiltThemeGeneratedTree,
+  writeThemeFile,
+  ThemePathError,
+  type ThemeFileWriteScope,
+} from "./theme-files";

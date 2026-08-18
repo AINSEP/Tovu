@@ -322,6 +322,21 @@ const PROMOTED_NO_DEEP_IMPORTS = new Set([
   // recognize — plus 2 barrel additions to index.ts and 2 redirects up to the publish-credentials
   // sub-barrel), re-verified at 0 after the fix.
   "features/deployments",
+  // 2026-08-17 long-tail sweep (12-module dispatch) — each driven to 0 and re-verified:
+  //  - origin: 5 wrong-door redirects (newsletter/{unsubscribe,launch-gate,confirmation}.ts).
+  //  - features/theme: 1 wrong-door redirect + 1 barrel addition (theme-files.ts's Explore-screen
+  //    file read/write surface, no self-cycle risk, no exclusion note).
+  //  - features/commerce: 1 wrong-door redirect + 1 barrel addition (storefront.ts's read-model
+  //    mapper, matching the barrel's own `export *` pattern).
+  //  - seo: 1 wrong-door redirect (put-entry.ts's invalidateSitemapCache).
+  //  - routing: 1 wrong-door redirect (seo.ts's RouteResolverDeps type).
+  //  - members: 1 wrong-door redirect (server-modules.unit.test.ts's ConsoleMailerAdapter).
+  "origin",
+  "features/theme",
+  "features/commerce",
+  "seo",
+  "routing",
+  "members",
 ]);
 
 function noDeepImportRules(mod) {
