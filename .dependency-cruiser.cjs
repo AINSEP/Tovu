@@ -63,7 +63,19 @@ const HAND_WRITTEN_RULES = [
       // `posts` drizzle table) renamed to carry the `.sqlite.ts` marker rather than special-cased by
       // literal filename, so the exemption keeps meaning what it says: only a file whose OWN name
       // honestly discloses "concrete adapter" is exempt from this rule.
-      from: { path: "^src/features", pathNot: "^src/features/.*/(repo|search-index|html-document-store)\\.(sqlite|memory)\\.ts$" },
+      //
+      // `.*/__tests__/.*` (2026-08-17): the remaining 22 warnings this rule produced were all
+      // `__tests__/**` files spinning up a real `db/sqlite/content-db.ts`/`db/schema.ts` to exercise
+      // a genuine SQLite-backed integration/contract test — precisely what an integration test is
+      // for, and the same reasoning `core-no-server-or-app-imports` above already applies via the
+      // identical `.*/__tests__/.*` pattern (reused verbatim here rather than a new one, per that
+      // rule's own comment: "contract/integration test needs the real concrete internals"). Scoped to
+      // the `__tests__/` DIRECTORY segment specifically, not "any filename containing the word
+      // test" — a production file named e.g. `*.test-helpers.ts` outside a `__tests__/` directory is
+      // still fenced. This is a legitimacy fix, not a loosening: it stops this rule from double-
+      // counting known-legitimate integration tests so its remaining signal is real, which is also a
+      // precondition for ever promoting it past `warn`.
+      from: { path: "^src/features", pathNot: ["^src/features/.*/(repo|search-index|html-document-store)\\.(sqlite|memory)\\.ts$", ".*/__tests__/.*"] },
       to: { path: "^src/db", dependencyTypesNot: ["type-only"] },
     },
     {
