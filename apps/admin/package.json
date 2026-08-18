@@ -13,6 +13,8 @@
     "test:cov": "vitest run --coverage"
   },
   "dependencies": {
+    "@ag-ui/client": "^0.0.58",
+    "@ag-ui/core": "^0.0.58",
     "@jini-ai/admin": "file:../../../Jini/packages/admin",
     "@jini-ai/agent-runtime": "file:../../../Jini/packages/agent-runtime",
     "@jini-ai/agentic": "file:../../../Jini/packages/agentic",

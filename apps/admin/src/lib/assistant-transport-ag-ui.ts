@@ -3,25 +3,38 @@
  *
  * ADR-059 — the AG-UI canary transport path `assistant-transport.ts` delegates to when its
  * Tovu-local `getAgUiEnabled` toggle is on. A third path alongside that file's existing Local CLI
- * and BYOK branches, shaped like the BYOK path (one held-open POST, no separate `EventSource`/
- * reattach/cancel-by-runId — see `assistant-transport.ts`'s own module doc for why BYOK already
- * established that a `ChatTransport` implementation doesn't have to support reattach), but talking
- * to a genuinely different server surface: `src/server/modules/assistant-ag-ui.ts`'s
- * `AG_UI_RUN_PATH`, which streams real AG-UI wire events (not Tovu's own `payload.type` vocabulary)
+ * and BYOK branches, talking to a genuinely different server surface:
+ * `src/server/modules/assistant-ag-ui.ts`'s `AG_UI_RUN_PATH`, which streams real AG-UI wire events
  * — a translation layer in front of the SAME daemon-backed run lifecycle the Local CLI path uses.
  *
- * `AgUiEvent` below mirrors (does not import) `assistant-ag-ui.ts`'s own type of the same name —
- * `apps/admin/` and `src/server/` are separate deployable apps, so there is no shared module either
- * side can import the other's local types from. Keep the two in sync if the wire vocabulary changes
- * (each side also has its own regression suite over what is meant to be the same shape).
+ * ADR-059 Decision 3 (AMENDED 2026-08-18): built on the real `@ag-ui/client`'s `HttpAgent`, which
+ * owns the whole HTTP request + SSE parsing + per-event zod validation lifecycle — replacing this
+ * file's own hand-rolled `fetch`/SSE-frame-parsing loop entirely. `AgUiEvent` mirrors (does not
+ * import) `assistant-ag-ui.ts`'s own type of the same name, both now typed against the real
+ * `@ag-ui/core` `AGUIEvent` union — `apps/admin/` and `src/server/` are separate deployable apps, so
+ * there is no shared module either side can import the other's local types from.
  *
- * Hand-rolled per ADR-059 Decision 3: no `@ag-ui/core`/`@ag-ui/client`. `readSseFrames`/`parseFrame`
- * (`./sse-frames`) are reused rather than duplicated a third time.
+ * Two real-package behaviors that are NOT visible from its type signatures alone (found by reading
+ * its compiled source, not guessed):
+ *
+ * 1. `HttpAgent.run(input)` returns a COLD `Observable<BaseEvent>` — nothing happens until
+ *    subscribed, and it never resolves to a Promise. The existing `startRun` contract is "resolve
+ *    once the run has STARTED" (matching `startByokRun`'s contract), so {@link startAgUiRun} races
+ *    the Observable's first `next`/`error` notification against the returned Promise rather than
+ *    trying to `await` the Observable directly.
+ * 2. Aborting mid-stream (after headers arrive) does NOT error the Observable — it surfaces as a
+ *    synthetic `RUN_ERROR` event carrying `code: "abort"` (the package's own convention), delivered
+ *    through the NORMAL event path. {@link handleAgUiEvent} checks for that code and calls
+ *    `finish()` instead of `onError`, so an intentional stop never reads as a user-facing error.
+ *    Aborting BEFORE headers arrive still rejects the underlying `fetch()` itself, which DOES
+ *    surface as a genuine Observable `error()` — the top-level subscription in {@link startAgUiRun}
+ *    checks `agent.abortController.signal.aborted` for that earlier-timing case.
  */
+import { HttpAgent } from "@ag-ui/client";
+import { EventType, type AGUIEvent, type Message, type RunAgentInput } from "@ag-ui/core";
+
 import type { AgentEvent, ChatMessage } from "@jini-ai/chat/core";
 import type { RunHandlers, StartRunInput } from "@jini-ai/chat/react";
-
-import { readSseFrames } from "./sse-frames";
 
 /** Must match `src/server/modules/assistant-ag-ui.ts`'s `AG_UI_RUN_PATH` exactly. */
 export const AG_UI_RUN_PATH = "/api/admin/v1/assistant/ag-ui-run";
@@ -62,34 +75,44 @@ function mintAgUiId(): string {
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-/** In-flight AG-UI turns' abort controllers, keyed by the client-minted runId — the ONLY way
- *  `stopAgUiRun` can cancel a turn: like BYOK, there is no server-side run record on THIS path to
- *  `POST .../cancel` against (the real daemon run underneath is a Tovu-server-side implementation
- *  detail this transport never exposes an id for). */
-const agUiAbortControllers = new Map<string, AbortController>();
+/** In-flight AG-UI turns' driving `HttpAgent`, keyed by the client-minted runId — the ONLY way
+ *  {@link stopAgUiRun} can cancel a turn: like BYOK, there is no server-side run record on THIS
+ *  path to `POST .../cancel` against. Storing the agent (not a bare `AbortController`) lets
+ *  `stopAgUiRun` call its own `abortRun()`, which both aborts the fetch AND (per the package's own
+ *  convention) surfaces a clean `RUN_ERROR{code:"abort"}` through the normal event path rather than
+ *  a raw network error. */
+const agUiAgents = new Map<string, HttpAgent>();
 
 // ---------------------------------------------------------------------------------------------
 // AG-UI event vocabulary (mirrors `assistant-ag-ui.ts`'s server-side type — see module doc)
 // ---------------------------------------------------------------------------------------------
 
-export type AgUiEvent =
-  | { type: "RUN_STARTED"; threadId: string; runId: string }
-  | { type: "RUN_FINISHED"; threadId: string; runId: string; result?: unknown }
-  | { type: "RUN_ERROR"; message: string; code?: string }
-  | { type: "TEXT_MESSAGE_START"; messageId: string; role: "assistant" }
-  | { type: "TEXT_MESSAGE_CONTENT"; messageId: string; delta: string }
-  | { type: "TEXT_MESSAGE_END"; messageId: string }
-  | { type: "REASONING_START" }
-  | { type: "REASONING_MESSAGE_START"; messageId: string }
-  | { type: "REASONING_MESSAGE_CONTENT"; messageId: string; delta: string }
-  | { type: "REASONING_MESSAGE_END"; messageId: string }
-  | { type: "REASONING_END" }
-  | { type: "TOOL_CALL_START"; toolCallId: string; toolCallName: string; parentMessageId?: string }
-  | { type: "TOOL_CALL_ARGS"; toolCallId: string; delta: string }
-  | { type: "TOOL_CALL_END"; toolCallId: string }
-  | { type: "TOOL_CALL_RESULT"; messageId: string; toolCallId: string; content: string; role?: "tool" }
-  | { type: "RAW"; event: unknown }
-  | { type: "CUSTOM"; name: string; value: unknown };
+/** The subset of `@ag-ui/core`'s real `AGUIEvent` union this transport receives — the exact same
+ *  set `assistant-ag-ui.ts`'s server-side adapter emits (see that file's own `AgUiEvent` doc for
+ *  why each event needs the fields it needs). */
+export type AgUiEvent = Extract<
+  AGUIEvent,
+  {
+    type:
+      | EventType.RUN_STARTED
+      | EventType.RUN_FINISHED
+      | EventType.RUN_ERROR
+      | EventType.TEXT_MESSAGE_START
+      | EventType.TEXT_MESSAGE_CONTENT
+      | EventType.TEXT_MESSAGE_END
+      | EventType.REASONING_START
+      | EventType.REASONING_MESSAGE_START
+      | EventType.REASONING_MESSAGE_CONTENT
+      | EventType.REASONING_MESSAGE_END
+      | EventType.REASONING_END
+      | EventType.TOOL_CALL_START
+      | EventType.TOOL_CALL_ARGS
+      | EventType.TOOL_CALL_END
+      | EventType.TOOL_CALL_RESULT
+      | EventType.RAW
+      | EventType.CUSTOM;
+  }
+>;
 
 function asString(v: unknown): string {
   return typeof v === "string" ? v : v == null ? "" : JSON.stringify(v);
@@ -136,7 +159,7 @@ function finalizeToolCallAgentEvent(toolCallId: string, call: { name: string; ar
 }
 
 /** The `CUSTOM` case of {@link translateAgUiEventToAgentEvent}. */
-function translateAgUiCustomEvent(event: Extract<AgUiEvent, { type: "CUSTOM" }>): AgentEvent[] {
+function translateAgUiCustomEvent(event: Extract<AgUiEvent, { type: EventType.CUSTOM }>): AgentEvent[] {
   // `tovu.usage`/`tovu.status`: the server's own translator put the ORIGINAL `AgentEvent`
   // straight into `.value` (see `assistant-ag-ui.ts`'s `translateAgentEventToAgUi`), so this is
   // an exact round trip, not a re-derivation.
@@ -158,36 +181,36 @@ function translateAgUiCustomEvent(event: Extract<AgUiEvent, { type: "CUSTOM" }>)
  */
 export function translateAgUiEventToAgentEvent(event: AgUiEvent, state: AgUiToAgentTranslationState): AgentEvent[] {
   switch (event.type) {
-    case "TEXT_MESSAGE_CONTENT":
+    case EventType.TEXT_MESSAGE_CONTENT:
       return [{ kind: "text", text: event.delta }];
 
-    case "REASONING_MESSAGE_CONTENT":
+    case EventType.REASONING_MESSAGE_CONTENT:
       return [{ kind: "thinking", text: event.delta }];
 
-    case "TOOL_CALL_START":
+    case EventType.TOOL_CALL_START:
       state.toolCalls.set(event.toolCallId, { name: event.toolCallName, argsJson: "" });
       return [];
 
-    case "TOOL_CALL_ARGS":
+    case EventType.TOOL_CALL_ARGS:
       accumulateToolCallArgs(event.toolCallId, event.delta, state);
       return [];
 
-    case "TOOL_CALL_END": {
+    case EventType.TOOL_CALL_END: {
       const call = state.toolCalls.get(event.toolCallId);
       state.toolCalls.delete(event.toolCallId);
       return finalizeToolCallAgentEvent(event.toolCallId, call);
     }
 
-    case "TOOL_CALL_RESULT":
+    case EventType.TOOL_CALL_RESULT:
       // AG-UI's `ToolCallResultEvent` carries no `isError` field (verified against the real schema)
       // — a genuine protocol-level fidelity gap, not a translator bug: Tovu's `isError` flag cannot
       // survive the round trip through AG-UI's wire shape, so it always reconstructs as `false`.
       return [{ kind: "tool_result", toolUseId: event.toolCallId, content: event.content, isError: false }];
 
-    case "RAW":
+    case EventType.RAW:
       return [{ kind: "raw", line: asString(event.event) }];
 
-    case "CUSTOM":
+    case EventType.CUSTOM:
       return translateAgUiCustomEvent(event);
 
     default:
@@ -200,21 +223,27 @@ export function translateAgUiEventToAgentEvent(event: AgUiEvent, state: AgUiToAg
 // ---------------------------------------------------------------------------------------------
 
 /**
- * Dispatches one parsed AG-UI SSE frame — `RUN_ERROR`/`RUN_FINISHED` end the turn via `onError`/
- * `finish`; every other event type is reduced through {@link translateAgUiEventToAgentEvent} and
+ * Dispatches one already-parsed AG-UI event. Unlike the old hand-rolled `handleAgUiFrame`, this
+ * never sees a raw `{event, data}` string frame — `HttpAgent` owns SSE framing and per-event zod
+ * validation entirely, and hands us finished event objects. `RUN_ERROR` with `code: "abort"` is the
+ * real package's own convention for a mid-stream abort (see module doc) — routed to `finish()`, not
+ * `onError`. Every other event is reduced through {@link translateAgUiEventToAgentEvent} and
  * forwarded to both `collected` (the final transcript `onDone` receives) and `handlers.onEvent`
- * (live rendering), mirroring `handleByokFrame`'s exact shape.
+ * (live rendering).
  */
-export function handleAgUiFrame(
-  frame: { event: string; data: string },
+export function handleAgUiEvent(
+  event: AgUiEvent,
   ctx: { collected: AgentEvent[]; handlers: RunHandlers; state: AgUiToAgentTranslationState; finish: () => void },
 ): void {
-  const event = JSON.parse(frame.data) as AgUiEvent;
-  if (event.type === "RUN_ERROR") {
+  if (event.type === EventType.RUN_ERROR) {
+    if (event.code === "abort") {
+      ctx.finish();
+      return;
+    }
     ctx.handlers.onError(new Error(event.message || "AG-UI run failed"));
     return;
   }
-  if (event.type === "RUN_FINISHED") {
+  if (event.type === EventType.RUN_FINISHED) {
     ctx.finish();
     return;
   }
@@ -224,90 +253,93 @@ export function handleAgUiFrame(
   }
 }
 
-/**
- * Drains an AG-UI turn's SSE body to completion, dispatching each frame via {@link handleAgUiFrame}
- * — mirrors `consumeByokStream`'s exact structure and abort-vs-real-error distinction (see that
- * function's own doc for why an aborted controller's stream error must not surface as `onError`).
- */
-export async function consumeAgUiStream(
-  body: ReadableStream<Uint8Array>,
-  ctx: {
-    runId: string;
-    collected: AgentEvent[];
-    handlers: RunHandlers;
-    finish: () => void;
-    controller: AbortController;
-    state: AgUiToAgentTranslationState;
-  },
-): Promise<void> {
-  try {
-    for await (const frame of readSseFrames(body)) {
-      handleAgUiFrame(frame, { collected: ctx.collected, handlers: ctx.handlers, finish: ctx.finish, state: ctx.state });
-    }
-    ctx.finish();
-  } catch (error) {
-    agUiAbortControllers.delete(ctx.runId);
-    if (ctx.controller.signal.aborted) {
-      ctx.finish();
-      return;
-    }
-    ctx.handlers.onError(error instanceof Error ? error : new Error(String(error)));
-  }
+/** Converts one Tovu `ChatMessage` into a real AG-UI `Message` — every AG-UI message role requires
+ *  an `id`, which `ChatMessage.id` already covers (a field the old hand-rolled wire body never
+ *  sent). */
+function toAgUiMessage(message: ChatMessage): Message {
+  if (message.role === "user") return { id: message.id, role: "user", content: message.content };
+  return { id: message.id, role: "assistant", content: message.content };
 }
 
 /**
- * The AG-UI canary run path (ADR-059) — one held-open `POST` to `assistant-ag-ui.ts`, no separate
- * `EventSource`/reattach, same shape as `startByokRun`.
+ * The AG-UI canary run path (ADR-059) — drives a real `@ag-ui/client` `HttpAgent` against
+ * `assistant-ag-ui.ts`'s route, same one-turn-per-call shape as `startByokRun`. `credentials:
+ * "same-origin"` is explicit even though modern `fetch()` already defaults to it for same-origin
+ * requests, matching this transport's other paths' explicitness about the session cookie.
  */
 export async function startAgUiRun(input: StartRunInput, handlers: RunHandlers): Promise<{ runId: string }> {
   const runId = `${AG_UI_RUN_ID_PREFIX}${mintAgUiId()}`;
   // The conversation-level id, stable across turns — a genuine AG-UI `threadId`, distinct from the
   // per-turn `runId` minted fresh above. Falls back to minting one only for a conversation that has
   // none yet (e.g. the very first turn).
-  const threadId = (input.conversationId as string | null | undefined) ?? mintAgUiId();
+  const threadId = input.conversationId ?? mintAgUiId();
 
-  const controller = new AbortController();
-  agUiAbortControllers.set(runId, controller);
-  input.signal?.addEventListener("abort", () => controller.abort());
+  const agent = new HttpAgent({
+    url: AG_UI_RUN_PATH,
+    threadId,
+    fetch: (url, requestInit) => fetch(url, { ...requestInit, credentials: "same-origin" }),
+  });
+  agUiAgents.set(runId, agent);
+  input.signal?.addEventListener("abort", () => agent.abortRun());
 
-  const messages = (input.history as ChatMessage[])
-    .filter((message) => message.content.trim().length > 0)
-    .map((message) => ({ role: message.role, content: message.content }));
+  const messages: Message[] = input.history.filter((message) => message.content.trim().length > 0).map(toAgUiMessage);
 
-  let response: Response;
-  try {
-    response = await fetch(AG_UI_RUN_PATH, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "same-origin",
-      body: JSON.stringify({ threadId, runId, messages, agentId: input.agentId }),
-      signal: controller.signal,
-    });
-  } catch (error) {
-    agUiAbortControllers.delete(runId);
-    throw error instanceof Error ? error : new Error(String(error));
-  }
-
-  if (!response.ok || !response.body) {
-    agUiAbortControllers.delete(runId);
-    const detail = await response.text().catch(() => "");
-    throw new Error(`AG-UI run failed to start (${response.status})${detail ? `: ${detail.slice(0, 300)}` : ""}`);
-  }
+  const runAgentInput: RunAgentInput = {
+    threadId,
+    runId,
+    state: null,
+    messages,
+    tools: [],
+    context: [],
+    forwardedProps: input.agentId ? { agentId: input.agentId } : {},
+  };
 
   const collected: AgentEvent[] = [];
   let settled = false;
   const finish = () => {
     if (settled) return;
     settled = true;
-    agUiAbortControllers.delete(runId);
+    agUiAgents.delete(runId);
     handlers.onDone(collected);
   };
+  const state = createAgUiToAgentTranslationState();
 
-  // Deliberately not awaited — matches `startByokRun`'s contract: `startRun` resolves `{runId}`
-  // once the turn has STARTED, not once it has finished.
-  void consumeAgUiStream(response.body, { runId, collected, handlers, finish, controller, state: createAgUiToAgentTranslationState() });
-
-  return { runId };
+  // Deliberately racing the Observable's first `next`/`error` against this Promise rather than
+  // awaiting it directly — `HttpAgent.run()` returns a cold Observable, never a Promise (module
+  // doc). The subscription itself keeps running after this Promise settles, driving `handlers`
+  // through to `finish()` in the background — matching `startByokRun`'s "resolves once STARTED, not
+  // once finished" contract.
+  return new Promise<{ runId: string }>((resolve, reject) => {
+    let startSettled = false;
+    agent.run(runAgentInput).subscribe({
+      next: (event) => {
+        if (!startSettled) {
+          startSettled = true;
+          resolve({ runId });
+        }
+        handleAgUiEvent(event as AgUiEvent, { collected, handlers, state, finish });
+      },
+      error: (error: unknown) => {
+        agUiAgents.delete(runId);
+        const err = error instanceof Error ? error : new Error(String(error));
+        if (!startSettled) {
+          startSettled = true;
+          reject(err);
+          return;
+        }
+        // Aborting BEFORE headers arrive rejects the underlying fetch() itself, surfacing here
+        // rather than through `handleAgUiEvent`'s `code: "abort"` check (module doc).
+        if (agent.abortController.signal.aborted) {
+          finish();
+          return;
+        }
+        handlers.onError(err);
+      },
+      complete: () => {
+        finish();
+      },
+    });
+  });
 }
 
 /** No server-side run record exists on this path (module doc) — a reload has already discarded the
@@ -322,8 +354,8 @@ export async function fetchAgUiRunStatus(): Promise<null> {
   return null;
 }
 
-/** An AG-UI run's only cancellation handle is the abort controller {@link startAgUiRun} registered
- *  for this exact id — same shape as BYOK's `stopRun` branch. */
+/** An AG-UI run's only cancellation handle is the `HttpAgent` {@link startAgUiRun} registered for
+ *  this exact id — same shape as BYOK's `stopRun` branch. */
 export async function stopAgUiRun(runId: string): Promise<void> {
-  agUiAbortControllers.get(runId)?.abort();
+  agUiAgents.get(runId)?.abortRun();
 }
