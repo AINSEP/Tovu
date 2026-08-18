@@ -452,8 +452,8 @@ const DOMAIN_SLICES: readonly DomainSlice[] = [
   // `redirects/tool-registrations.ts`'s own header. No longer an entry here; it arrives via
   // `contributeRedirectsTools()`, installed by `server/tool-catalog-manifest.ts`.
   // `integrations` converted to the tool-contribution registry (Stage 2 batch 2) — see
-  // `integrations/tool-registrations.ts`'s own header. No longer an entry here; it arrives via
-  // `contributeIntegrationsTools()`, installed by `server/tool-catalog-manifest.ts`.
+  // `webhooks/tool-registrations.ts`'s own header. No longer an entry here; it arrives via
+  // `contributeWebhooksTools()`, installed by `server/tool-catalog-manifest.ts`.
   // `themes` was ALSO tried in the same Stage 2 batch and reverted — see
   // `features/theme/tool-registrations.ts`'s own header for the full trace: `export/route-manifest.ts`
   // imports `features/theme` via a `#src/*` subpath import (invisible to a relative-path importer

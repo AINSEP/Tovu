@@ -58,12 +58,12 @@ export const TOOL_SEARCH_KEYWORDS: Readonly<Record<string, string>> = {
   media_trash_asset: "image images photo delete remove trash file picture attachment",
   media_update_metadata: "image alt text caption description rename file photo metadata",
 
-  // --- integrations / webhooks -------------------------------------------------------------
-  integrations_list_subscriptions: "webhook webhooks endpoint endpoints callback callbacks integration integrations outgoing notification configured",
-  integrations_create_subscription: "webhook webhooks endpoint callback integration connect notify subscribe outgoing",
-  integrations_delete_subscription: "webhook webhooks endpoint remove delete disconnect integration",
-  integrations_pause_subscription: "webhook webhooks pause stop disable suspend integration",
-  integrations_get_deliveries: "webhook webhooks delivery deliveries fired sent failed failure retry retries attempts log history",
+  // --- webhooks (formerly integrations) -----------------------------------------------------
+  webhooks_list_subscriptions: "webhook webhooks endpoint endpoints callback callbacks integration integrations outgoing notification configured",
+  webhooks_create_subscription: "webhook webhooks endpoint callback integration connect notify subscribe outgoing",
+  webhooks_delete_subscription: "webhook webhooks endpoint remove delete disconnect integration",
+  webhooks_pause_subscription: "webhook webhooks pause stop disable suspend integration",
+  webhooks_get_deliveries: "webhook webhooks delivery deliveries fired sent failed failure retry retries attempts log history",
 
   // --- backup / recovery -------------------------------------------------------------------
   backup_create_restore_point: "snapshot snapshots backup backups checkpoint save point restore safety before break",

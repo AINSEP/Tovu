@@ -14,7 +14,7 @@
  * every failure mode (missing token, bad config, transport error, non-2xx provider response) is a
  * typed `DeployError`, never a thrown exception out of `deploy()`.
  *
- * `DeployTokenPort` deliberately does NOT reuse `integrations/ports.ts`'s `KeyringPort` — a Vercel
+ * `DeployTokenPort` deliberately does NOT reuse `webhooks/ports.ts`'s `KeyringPort` — a Vercel
  * token is an opaque, externally-issued credential that must round-trip verbatim (closer in spirit
  * to that file's `SecretSealerPort` framing: "unlike signing secrets, these must round-trip") than
  * something HKDF-derivable from a root key. What IS mirrored from `keyring.env.ts`/`keyring.memory.ts`

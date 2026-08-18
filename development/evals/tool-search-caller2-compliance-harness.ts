@@ -133,7 +133,7 @@ export const CASES: readonly { readonly id: string; readonly query: string; read
   { id: "forms-list", query: "what contact forms do we have set up on the site", expect: "forms_list_definitions" },
   { id: "identity-user-list", query: "who has admin access to this dashboard", expect: "identity_user_list" },
   { id: "identity-user-create", query: "set up a login for our new intern so she can get into the dashboard", expect: "identity_user_create" },
-  { id: "integrations-list", query: "what other systems are hooked up to notify when stuff happens on our site", expect: "integrations_list_subscriptions" },
+  { id: "integrations-list", query: "what other systems are hooked up to notify when stuff happens on our site", expect: "webhooks_list_subscriptions" },
   { id: "media-list", query: "how many images do we have uploaded to the site", expect: "media_list_assets" },
   { id: "members-list", query: "how many people have signed up as members on our site", expect: "members_list" },
   { id: "menus-list", query: "what navigation menus do we have on the site", expect: "menus_list_menus" },

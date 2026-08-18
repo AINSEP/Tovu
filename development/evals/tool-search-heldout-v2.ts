@@ -62,8 +62,8 @@
  *   `content_post_search` / `content_post_list` / `content_post_get`, `comments_mark_comment_spam` /
  *   `comments_trash_comment`, `collections_content_type_tombstone` /
  *   `collections_content_type_deprecate`, `database_get_schema_state` / `database_get_health`,
- *   `forms_get_submission` / `forms_list_submissions`, `integrations_delete_subscription` /
- *   `integrations_pause_subscription`, `members_get_by_id` / `members_list`, `redirects_get` /
+ *   `forms_get_submission` / `forms_list_submissions`, `webhooks_delete_subscription` /
+ *   `webhooks_pause_subscription`, `members_get_by_id` / `members_list`, `redirects_get` /
  *   `redirects_list`, `recovery_get_status` / `database_get_health`.
  *
  * ## Count vs. the ~100 target — flagged, not silently resolved
@@ -162,12 +162,12 @@ export const HELD_OUT_V2: readonly { query: string; expect: string; alsoAcceptab
   { query: "we don't need that permission bundle anymore and nobody's using it", expect: "identity_policy_delete" },
   { query: "give just this one person the newsletter permissions directly don't bother making a whole access level for it", expect: "identity_policy_attach" },
 
-  // integrations
-  { query: "what other systems are hooked up to notify when stuff happens on our site", expect: "integrations_list_subscriptions" },
-  { query: "did that zapier hookup actually go through the last few times or is it failing", expect: "integrations_get_deliveries" },
-  { query: "whenever someone submits the contact form i want it to ping our slack", expect: "integrations_create_subscription" },
-  { query: "stop sending that slack ping for now we're getting spammed", expect: "integrations_pause_subscription" },
-  { query: "we don't use that slack hookup anymore remove it", expect: "integrations_delete_subscription", alsoAcceptable: ["integrations_pause_subscription"] },
+  // webhooks (formerly integrations)
+  { query: "what other systems are hooked up to notify when stuff happens on our site", expect: "webhooks_list_subscriptions" },
+  { query: "did that zapier hookup actually go through the last few times or is it failing", expect: "webhooks_get_deliveries" },
+  { query: "whenever someone submits the contact form i want it to ping our slack", expect: "webhooks_create_subscription" },
+  { query: "stop sending that slack ping for now we're getting spammed", expect: "webhooks_pause_subscription" },
+  { query: "we don't use that slack hookup anymore remove it", expect: "webhooks_delete_subscription", alsoAcceptable: ["webhooks_pause_subscription"] },
 
   // media
   { query: "how many images do we have uploaded to the site", expect: "media_list_assets" },

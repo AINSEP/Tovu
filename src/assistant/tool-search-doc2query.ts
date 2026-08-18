@@ -368,35 +368,35 @@ export const DOC2QUERY: Readonly<Record<string, readonly string[]>> = {
     "Can I attach a policy that's more powerful than my own access?",
     "How do I grant a specific policy to one named user?",
   ],
-  integrations_list_subscriptions: [
+  webhooks_list_subscriptions: [
     "What webhooks do we have set up?",
     "Can you show me our integration subscriptions and their last delivery?",
     "I need to see which webhooks are active.",
     "List all our outbound webhook connections.",
     "What integrations are currently configured?",
   ],
-  integrations_get_deliveries: [
+  webhooks_get_deliveries: [
     "Did our webhook actually fire successfully?",
     "Can you show me the delivery log for this webhook?",
     "Why did this integration fail — what was the last response?",
     "I want to see all the delivery attempts for one webhook subscription.",
     "How many times has this webhook retried?",
   ],
-  integrations_create_subscription: [
+  webhooks_create_subscription: [
     "Can you set up a new webhook for us?",
     "How do I add an integration that starts active?",
     "I need a new webhook subscription — where do I get the signing secret?",
     "Can you create a new outbound webhook connection?",
     "How do I wire up a new integration endpoint?",
   ],
-  integrations_pause_subscription: [
+  webhooks_pause_subscription: [
     "Can you pause this webhook so it stops sending?",
     "How do I temporarily stop an integration from firing?",
     "Can you resume a webhook I paused earlier?",
     "I want to turn off deliveries for this subscription without deleting it.",
     "Can I pause and later resume the same webhook with one tool?",
   ],
-  integrations_delete_subscription: [
+  webhooks_delete_subscription: [
     "Can you remove this webhook subscription?",
     "How do I delete an integration we don't use anymore?",
     "I want to disable a webhook permanently.",

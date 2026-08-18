@@ -54,7 +54,7 @@ export interface NewsletterRouteDeps extends RouteDeps {
    * but no composition root had constructed yet:
    *  - `newsletterSubscriberDirectory`: Members' real `SubscriberDirectoryPort` implementation
    *    (`members/subscriber-directory.ts`'s `MembersSubscriberDirectory`), NOT a local stand-in.
-   *  - `newsletterKeyring`: the real `KeyringPort` (`integrations/ports.ts`) `unsubscribe.ts` needs
+   *  - `newsletterKeyring`: the real `KeyringPort` (`webhooks/ports.ts`) `unsubscribe.ts` needs
    *    for `derive()` — reuses the SAME process-lifetime keyring instance `webhookSigner` is built
    *    from in `server/app.ts`/`server/deps.ts` (one root key, purpose-namespaced, per that port's
    *    own contract), not a second independent instance.

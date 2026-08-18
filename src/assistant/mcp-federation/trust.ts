@@ -118,7 +118,7 @@ export const FEDERATED_TOOL_ID_PREFIX = "mcp__";
  * in `features/database/tool-registrations.ts`.
  *
  * `admin.integrations.manage` rather than a new string: it is the existing permission
- * `integrations/agent-tools.ts` already puts on every one of its entries, it is site-owner-level
+ * `webhooks/agent-tools.ts` already puts on every one of its entries, it is site-owner-level
  * rather than editor-level, and reusing it means a deployment that has already decided who may
  * administer external integrations does not have to decide again. Deliberately NOT the permission
  * of whatever the remote tool resembles — a federated `list_tables` is not `database.read`, because
