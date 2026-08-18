@@ -6,7 +6,7 @@ import test from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 
 import { createApp, createRouteDeps } from "../../app";
-import { bootAuthenticated } from "../helpers/http-test-server";
+import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from "../helpers/http-test-server";
 import type { RouteDeps } from "../../routes/types";
 
 /**
@@ -98,6 +98,30 @@ test("export-site: a mismatched workspaceId in the URL 404s on both routes", asy
   assert.equal(status.status, 404);
 });
 
+test("export-site: workspaceId can never actually be undefined through real routing on either route (a matched `:workspaceId` segment is always a populated string) -- their `?? \"\"` fallbacks are reached by calling the real handlers directly, the same type-bypass technique a `default: throw` exhaustiveness guard would need", async () => {
+  const deps: RouteDeps = { ...testRouteDeps() };
+  const app = createApp(deps);
+  const routePath = `/api/admin/v1/workspaces/:workspaceId/${EXPORT_PATH}`;
+
+  const postHandler = extractRouteHandler(app, "post", routePath);
+  {
+    const { res, capture } = createCapturingResponse();
+    const req = { params: { workspaceId: undefined }, body: {} } as unknown as Parameters<typeof postHandler>[0];
+    await postHandler(req, res);
+    assert.equal(capture.statusCode, 404);
+    assert.deepEqual(capture.jsonBody, { error: "workspace was not found" });
+  }
+
+  const getHandler = extractRouteHandler(app, "get", routePath);
+  {
+    const { res, capture } = createCapturingResponse();
+    const req = { params: { workspaceId: undefined } } as unknown as Parameters<typeof getHandler>[0];
+    await getHandler(req, res);
+    assert.equal(capture.statusCode, 404);
+    assert.deepEqual(capture.jsonBody, { error: "workspace was not found" });
+  }
+});
+
 test("export-site: the status poll starts idle before any trigger has run in this process", async (t) => {
   const deps: RouteDeps = { ...testRouteDeps() };
   const app = createApp(deps);
@@ -173,21 +197,29 @@ test("export-site: authorize() throwing (not just denying) 500s on both the trig
   assert.equal(status.status, 500);
 });
 
-test("export-site: trigger starts a real run (202), a concurrent second trigger gets 409, and the poll settles to an honest completed report", async (t) => {
+test("export-site: trigger starts a real run (202), honors a real 'basePath', a concurrent second trigger gets 409, and the poll settles to an honest completed report", async (t) => {
   const deps: RouteDeps = { ...testRouteDeps() };
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
   t.after(() => rmSync(exportOutputDir, { recursive: true, force: true }));
 
+  // A real, valid, non-blank `basePath` (the GitHub Pages PROJECT-site case, per this route's own
+  // file-header doc) -- exercises `normalizeBasePath`'s "keep it" branch and
+  // `parseTriggerRequestBody`'s matching `{ basePath }` spread, neither of which any other test in
+  // this file reaches (they only ever send no body, an invalid-type basePath, or omit it).
   const trigger = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${EXPORT_PATH}`, {
     method: "POST",
-    headers: { cookie },
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ basePath: "/preview" }),
   });
   assert.equal(trigger.status, 202);
   const triggerBody = await trigger.json();
   assert.equal(triggerBody.status, "running");
   assert.equal(triggerBody.outputDir, exportOutputDir);
   assert.equal(triggerBody.finishedAtIso, null);
+  // `basePath` is only ever present once `status` is `"completed"` (`ExportRunSnapshot`'s own
+  // doc) -- the immediate "running" snapshot never carries it, so it's checked below instead.
+  assert.equal(triggerBody.basePath, undefined);
 
   // Fired immediately, no delay — the real export is still mid-flight (it drives multiple real
   // HTTP round trips against its own in-process listener, see `site-exporter.ts`), so this must
@@ -209,10 +241,53 @@ test("export-site: trigger starts a real run (202), a concurrent second trigger 
   assert.equal(finalStatusBody.status, "completed", `export did not settle in time: ${JSON.stringify(finalStatusBody)}`);
   assert.equal(finalStatusBody.ok, true);
   assert.equal(finalStatusBody.outputDir, exportOutputDir);
+  assert.equal(finalStatusBody.basePath, "/preview", "the completed report must carry the basePath the trigger was given");
   assert.ok(finalStatusBody.finishedAtIso, "a completed run must carry a finish timestamp");
   const counts = finalStatusBody.counts as { routesSucceeded: number; routesFailed: number };
   assert.ok(counts.routesSucceeded > 0, "the hermetic fixture's own routes must have actually exported");
   assert.equal(counts.routesFailed, 0);
   assert.deepEqual(finalStatusBody.failedRoutes, []);
   assert.deepEqual(finalStatusBody.failedAssets, []);
+});
+
+test("export-site: req.body can never actually be undefined through this app's real composition (the global express.json() in app.ts always defaults it to {}) -- parseTriggerRequestBody's `body === undefined` branch is reached by calling the real handler directly with an explicitly undefined body, the same type-bypass technique a `default: throw` exhaustiveness guard would need; the trigger still starts a real, honest export", async (t) => {
+  const ownOutputDir = mkdtempSync(path.join(tmpdir(), "tovu-export-route-test-bypass-"));
+  t.after(() => rmSync(ownOutputDir, { recursive: true, force: true }));
+  const deps: RouteDeps = {
+    ...testRouteDeps(),
+    exportOutputRootDir: ownOutputDir,
+    // No `requireAdminSession` middleware runs on a directly-invoked handler, and the fake
+    // principal below isn't a real seeded identity the real `authorize()` would recognize -- stub
+    // it permissive, same technique the other route test files' isolated (non-createApp) suites use.
+    authorize: async () => ({ allowed: true, reason: "matched" }),
+  };
+  const app = createApp(deps);
+  const routePath = `/api/admin/v1/workspaces/:workspaceId/${EXPORT_PATH}`;
+  const postHandler = extractRouteHandler(app, "post", routePath);
+  const getHandler = extractRouteHandler(app, "get", routePath);
+
+  const { res: triggerRes, capture: triggerCapture } = createCapturingResponse();
+  triggerRes.locals.principal = { id: "test-principal" };
+  const triggerReq = {
+    params: { workspaceId: deps.workspaceId },
+    body: undefined,
+  } as unknown as Parameters<typeof postHandler>[0];
+  await postHandler(triggerReq, triggerRes);
+  assert.equal(triggerCapture.statusCode, 202, JSON.stringify(triggerCapture.jsonBody));
+  assert.equal((triggerCapture.jsonBody as { status: string }).status, "running");
+
+  let finalStatusBody: { status: string; [key: string]: unknown } = { status: "running" };
+  for (let attempt = 0; attempt < 100 && finalStatusBody.status === "running"; attempt++) {
+    await delay(50);
+    const { res: pollRes, capture: pollCapture } = createCapturingResponse();
+    pollRes.locals.principal = { id: "test-principal" };
+    const pollReq = { params: { workspaceId: deps.workspaceId } } as unknown as Parameters<typeof getHandler>[0];
+    await getHandler(pollReq, pollRes);
+    assert.equal(pollCapture.statusCode, 200);
+    finalStatusBody = pollCapture.jsonBody as typeof finalStatusBody;
+  }
+
+  assert.equal(finalStatusBody.status, "completed", `export did not settle in time: ${JSON.stringify(finalStatusBody)}`);
+  assert.equal(finalStatusBody.ok, true);
+  assert.equal(finalStatusBody.outputDir, ownOutputDir);
 });

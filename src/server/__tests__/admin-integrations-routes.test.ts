@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { bootAuthenticated } from "./helpers/http-test-server";
+import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from "./helpers/http-test-server";
 import express from "express";
 
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../../webhooks";
@@ -153,6 +153,94 @@ test("integrations routes: create rejects a private-IP target via the real Origi
     body: JSON.stringify({ label: "OK", targetUrl: "https://example.com/hooks", topics: ["post.published"] }),
   });
   assert.equal(allowed.status, 201);
+});
+
+test("integrations routes: pause rejects a workspaceId that doesn't match the seeded workspace", async (t) => {
+  const { app } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(
+    `${baseUrl}/api/admin/v1/workspaces/some-other-workspace/integrations/subscriptions/whatever/pause`,
+    { method: "POST", headers: { "content-type": "application/json", cookie }, body: JSON.stringify({}) }
+  );
+  assert.equal(res.status, 404);
+  assert.deepEqual(await res.json(), { error: "workspace was not found" });
+});
+
+test("integrations routes: pause surfaces an unexpected repo failure as 500 (generic catch, not the not-found/validation branches)", async (t) => {
+  const { app, deps } = buildTestApp();
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const created = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/integrations/subscriptions`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ label: "Endpoint", targetUrl: "https://example.com/hooks", topics: ["*"] }),
+  });
+  const { subscription } = (await created.json()) as { subscription: { id: string } };
+
+  // Same technique as the existing "delete surfaces an unexpected repo failure" test below: swap
+  // in a repo whose `save` throws a plain, untyped `Error` (not one of `pauseSubscription`'s own
+  // `WebhookSubscription{NotFound,Validation}Error` types) AFTER creation, so `findById` still sees
+  // the real row but the write fails -- exercises pause.ts's generic `catch` -> 500 fallthrough,
+  // distinct from both typed-error branches already covered elsewhere in this file.
+  const originalRepo = deps.webhookSubscriptionRepo;
+  deps.webhookSubscriptionRepo = {
+    findById: (input) => originalRepo.findById(input),
+    listByWorkspace: (input) => originalRepo.listByWorkspace(input),
+    save: async () => {
+      throw new Error("boom");
+    },
+  } as typeof deps.webhookSubscriptionRepo;
+
+  const res = await fetch(
+    `${baseUrl}/api/admin/v1/workspaces/workspace-local/integrations/subscriptions/${subscription.id}/pause`,
+    { method: "POST", headers: { "content-type": "application/json", cookie }, body: JSON.stringify({}) }
+  );
+  assert.equal(res.status, 500);
+  assert.deepEqual(await res.json(), { error: "internal error" });
+});
+
+test("integrations routes: pause's workspaceId/subscriptionId params can never actually be undefined through real routing (Express only invokes a matched `:param` handler with populated segments) -- their `?? \"\"` fallbacks are reached by calling the real handler directly, the same type-bypass technique a `default: throw` exhaustiveness guard would need", async (t) => {
+  const { app, deps } = buildTestApp();
+  const handler = extractRouteHandler(
+    app,
+    "post",
+    "/api/admin/v1/workspaces/:workspaceId/integrations/subscriptions/:subscriptionId/pause"
+  );
+
+  // workspaceId undefined -> `String(undefined ?? "") !== deps.workspaceId` -> the mismatch 404.
+  {
+    const { res, capture } = createCapturingResponse();
+    const req = { params: { workspaceId: undefined, subscriptionId: "sub-1" }, body: {} } as unknown as Parameters<
+      typeof handler
+    >[0];
+    await handler(req, res);
+    assert.equal(capture.statusCode, 404);
+    assert.deepEqual(capture.jsonBody, { error: "workspace was not found" });
+  }
+
+  // subscriptionId undefined -> `String(undefined ?? "")` resolves to "", which `findById` (real
+  // in-memory repo, no subscription ever has an empty-string id) genuinely can't find, surfacing
+  // `pauseSubscription`'s own real `WebhookSubscriptionNotFoundError` -> 404. `getAuthedPrincipal`
+  // and `authorize` both run before that (no `requireAdminSession` middleware here, since the
+  // handler is invoked directly), so both are stood up by hand exactly as this route needs them.
+  {
+    const originalAuthorize = deps.authorize;
+    deps.authorize = async () => ({ allowed: true, reason: "matched" });
+    t.after(() => {
+      deps.authorize = originalAuthorize;
+    });
+
+    const { res, capture } = createCapturingResponse();
+    res.locals.principal = { id: "test-principal" };
+    const req = {
+      params: { workspaceId: deps.workspaceId, subscriptionId: undefined },
+      body: {},
+    } as unknown as Parameters<typeof handler>[0];
+    await handler(req, res);
+    assert.equal(capture.statusCode, 404);
+    assert.deepEqual(capture.jsonBody, { error: "webhook subscription '' was not found" });
+  }
 });
 
 test("integrations routes: pause toggles active <-> paused, and a disabled subscription rejects pause", async (t) => {
