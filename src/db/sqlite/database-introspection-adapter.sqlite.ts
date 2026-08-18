@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { getDriftStatus } from "../../features/database/drift";
+import { getDriftStatus } from "../drift";
 import type {
   DatabaseHealthSummary,
   DatabaseIntrospectionPort,
@@ -9,7 +9,7 @@ import type {
   SchemaStateSummary,
 } from "../../features/database/adapter.sqlite";
 import type { ContentDb } from "./content-db";
-import type { SchemaSnapshot } from "../../features/database/drift";
+import type { SchemaSnapshot } from "../drift";
 
 /**
  * @file SPEC-017 C-102/C-110 / REQ-20–REQ-23 — the real backing adapter for
@@ -32,17 +32,27 @@ import type { SchemaSnapshot } from "../../features/database/drift";
  * `server/deps.ts` composes the real `SqliteDatabaseIntrospectionAdapter` against the SAME already-
  * open `ContentDb` handle `restorePointsRepo`/`dbOps` reuse (no second connection is ever opened);
  * `server/app.ts`'s hermetic composition uses `repo.memory.ts`'s `InMemoryDatabaseIntrospectionAdapter`
- * instead. `drift.ts`'s `getDriftStatus` stays untouched — this module is exactly the "adapter that
- * reads two real `SchemaSnapshot`s and passes them in" its own doc comment says callers must supply.
+ * instead. `drift.ts` — now colocated in this same `db/` directory (see below) — is exactly the
+ * "adapter that reads two real `SchemaSnapshot`s and passes them in" its own doc comment says
+ * callers must supply.
  *
  * Architectural role:
- * Relocated from `features/database/adapter.sqlite.ts` (2026-08-17, architecture SCC cut:
- * `features/database → db` concentrated in this concrete class's `ContentDb` import). The PORT
- * (`DatabaseIntrospectionPort` + its summary types) stays domain-owned at
+ * This concrete class relocated from `features/database/adapter.sqlite.ts` earlier the same day
+ * (architecture SCC cut: `features/database → db` concentrated in this concrete class's `ContentDb`
+ * import). The PORT (`DatabaseIntrospectionPort` + its summary types) stays domain-owned at
  * `features/database/adapter.sqlite.ts` — `tool-registrations.ts` and `repo.memory.ts` keep
  * importing it from that same path unchanged — mirroring `db/sqlite/vendor-credential-repo.sqlite.ts`'s
- * split (port in the feature, concrete adapter in the outer persistence layer). Only this concrete
- * class, which is the sole thing that ever needed a real `ContentDb`, moved.
+ * split (port in the feature, concrete adapter in the outer persistence layer).
+ *
+ * `drift.ts` itself relocated here (`db/drift.ts`) in a second, later SCC cut the same day: this
+ * file's own `getDriftStatus` value-import was the last edge reaching from `db` back into
+ * `features/database`, which became a real problem once `features/database` got its own
+ * `registerToolContributor` edge into `assistant` (`contributeDatabaseTools()`) — a
+ * `db -> features/database -> assistant` path plus `assistant`'s pre-existing static reach into `db`
+ * (via `settings`/`post`) would have closed a cycle. `drift.ts` is pure, dependency-free
+ * classification logic with exactly two real callers, both already `db`-side or type-only, so moving
+ * it here (rather than narrowing the import further) removes the edge outright. See
+ * `db/drift.ts`'s own header for the full trace.
  */
 
 /** One `db/drizzle/meta/_journal.json` entry — `idx`/`tag` identify the migration (RT-005);

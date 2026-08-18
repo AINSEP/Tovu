@@ -32,16 +32,20 @@ import {
 } from "../tool-registrations";
 import { resetToolContributorsForTests } from "../tool-contribution-registry";
 import { contributeRecoveryTools } from "../../features/recovery/tool-registrations";
+import { contributeDatabaseTools } from "../../features/database/tool-registrations";
 
 // Recovery moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
 // tool-contribution registry (2026-08-17, Stage 2 batch 2 — see `tool-contribution-registry.ts`'s
 // header), so `buildAssistantToolRegistrations` below no longer wires it unless something explicitly
 // installs it first, mirroring what the real composition roots now do via
-// `installFirstPartyToolContributors()`. Database stays a normal `DOMAIN_SLICES` entry (tried and
-// reverted the same batch — see `features/database/tool-registrations.ts`'s trailing comment), so it
-// needs no such setup.
+// `installFirstPartyToolContributors()`. Database was tried in the same batch and reverted, then
+// retried and landed in a later, separate pass the same day (once the one edge closing its 16-module
+// SCC — `getDriftStatus`'s value import — was cut by relocating `drift.ts` into `db/`; see
+// `features/database/tool-registrations.ts`'s own header) — so it now needs the identical explicit
+// install call Recovery does, rather than arriving via `DOMAIN_SLICES`.
 resetToolContributorsForTests();
 contributeRecoveryTools();
+contributeDatabaseTools();
 
 /**
  * @file The combined Database (SPEC-017, ADR-041) + Recovery (SPEC-019, ADR-045) tool-wiring test
