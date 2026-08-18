@@ -145,6 +145,125 @@ test("GET /products falls back to the sample store plugin when Commerce has no a
   assert.match(await res.text(), /Sample Teacup/);
 });
 
+test("GET /products falls back to the sample store plugin when NEITHER Commerce repo is wired at all (deps.commerceProductRepo/commercePriceRepo absent)", async (t) => {
+  const { server, baseUrl } = await startServer({
+    commerceProductRepo: undefined,
+    commercePriceRepo: undefined,
+    store: {
+      listProducts: () => [{ id: "store-prod-2", title: "No Commerce Wired", price: 1200, stock: 3, version: 0 }],
+      checkout: () => ({ ok: false, reason: "not-found", retries: 0 }),
+    },
+  });
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+
+  const res = await fetch(`${baseUrl}/products`);
+  assert.equal(res.status, 200);
+  assert.match(await res.text(), /No Commerce Wired/);
+});
+
+test("GET /products/:id returns 404 for an id that doesn't match any product", async (t) => {
+  const { server, baseUrl } = await startServer({
+    commerceProductRepo: fakeProductRepo([]),
+    commercePriceRepo: fakePriceRepo({}),
+    store: { listProducts: () => [], checkout: () => ({ ok: false, reason: "not-found", retries: 0 }) },
+  });
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+
+  const res = await fetch(`${baseUrl}/products/does-not-exist`);
+  assert.equal(res.status, 404);
+  assert.match(await res.text(), /404/);
+});
+
+test("GET /products 500s with 'No themes installed' when resolveActiveTheme finds none", async (t) => {
+  const { server, baseUrl } = await startServer({
+    commerceProductRepo: fakeProductRepo([]),
+    commercePriceRepo: fakePriceRepo({}),
+    store: { listProducts: () => [], checkout: () => ({ ok: false, reason: "not-found", retries: 0 }) },
+    themes: [],
+  });
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+
+  const res = await fetch(`${baseUrl}/products`);
+  assert.equal(res.status, 500);
+  assert.match(await res.text(), /No themes installed/);
+});
+
+test("GET /products/:id 500s with 'No themes installed' when resolveActiveTheme finds none", async (t) => {
+  const product: CommerceProductRecord = {
+    id: "prod-1",
+    workspaceId: WORKSPACE_ID,
+    name: "Classic Boxy Tee",
+    slug: "classic-boxy-tee",
+    kind: "one_time",
+    status: "active",
+    createdAt: NOW,
+    updatedAt: NOW,
+    version: 1,
+  };
+  const price: CommercePriceRecord = {
+    id: "price-1",
+    workspaceId: WORKSPACE_ID,
+    productId: "prod-1",
+    unitAmountCents: 3500,
+    currency: "usd",
+    status: "active",
+    createdAt: NOW,
+    version: 1,
+  };
+  const { server, baseUrl } = await startServer({
+    commerceProductRepo: fakeProductRepo([product]),
+    commercePriceRepo: fakePriceRepo({ "prod-1": [price] }),
+    themes: [],
+  });
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+
+  const res = await fetch(`${baseUrl}/products/prod-1`);
+  assert.equal(res.status, 500);
+  assert.match(await res.text(), /No themes installed/);
+});
+
+test("GET /products 500s with a generic 'Site error' when an unexpected exception is thrown", async (t) => {
+  const { server, baseUrl } = await startServer({
+    commerceProductRepo: {
+      listActive: async () => {
+        throw new Error("boom");
+      },
+      findById: async () => null,
+      findBySlug: async () => null,
+      save: async () => {
+        throw new Error("not implemented in this fake");
+      },
+    },
+    commercePriceRepo: fakePriceRepo({}),
+  });
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+
+  const res = await fetch(`${baseUrl}/products`);
+  assert.equal(res.status, 500);
+  assert.match(await res.text(), /Site error/);
+});
+
+test("GET /products/:id 500s with a generic 'Site error' when an unexpected exception is thrown", async (t) => {
+  const { server, baseUrl } = await startServer({
+    commerceProductRepo: {
+      listActive: async () => {
+        throw new Error("boom");
+      },
+      findById: async () => null,
+      findBySlug: async () => null,
+      save: async () => {
+        throw new Error("not implemented in this fake");
+      },
+    },
+    commercePriceRepo: fakePriceRepo({}),
+  });
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+
+  const res = await fetch(`${baseUrl}/products/anything`);
+  assert.equal(res.status, 500);
+  assert.match(await res.text(), /Site error/);
+});
+
 test("GET /products never leaks another workspace's Commerce catalog (workspace-scoped listActive)", async (t) => {
   const otherWorkspaceProduct: CommerceProductRecord = {
     id: "prod-other-ws",
