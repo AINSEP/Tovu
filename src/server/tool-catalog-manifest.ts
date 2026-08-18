@@ -17,6 +17,8 @@ import { contributeNewsletterTools } from "../newsletter/tool-registrations";
 import { contributeRedirectsTools } from "../redirects/tool-registrations";
 import { contributeSeoTools } from "../seo/tool-registrations";
 import { contributeWidgetsTools } from "../widgets/tool-registrations";
+import { registerToolContributor } from "../assistant";
+import { buildSettingsRegistrations, settingsDerivedRisk } from "../features/settings/tool-registrations";
 
 /**
  * @file The server composition manifest for `assistant/tool-contribution-registry.ts`: the one file
@@ -36,7 +38,7 @@ import { contributeWidgetsTools } from "../widgets/tool-registrations";
  * throughout `server/deps.ts`/`server/app.ts` — this file adds no new module-level edge that did not
  * already exist, it just adds one more file-level reason for edges that were already there.
  *
- * 19 of the ~24 assistant-wired domains are listed here today (2026-08-17: `comments`/`newsletter`
+ * 20 of the ~24 assistant-wired domains are listed here today (2026-08-17: `comments`/`newsletter`
  * from Stage 1 of the registry rollout; `identity`/`members`/`taxonomy`/`redirects` added in Stage 2
  * batch 1 — `themes` was also tried in that batch and reverted, see
  * `assistant/tool-registrations.ts`'s header for why; Stage 2 batch 2 (run as two parallel worker
@@ -58,7 +60,10 @@ import { contributeWidgetsTools } from "../widgets/tool-registrations";
  * `features/database/drift.ts`) was identified and removed by relocating `drift.ts` into `db/` — see
  * `features/database/tool-registrations.ts`'s own header and
  * `ADS-memory/reports/architecture/2026-08-17-database-cycle-investigation.md` for the full trace;
- * it is listed above alongside the other eighteen. The rest still wire
+ * it is listed above alongside the other eighteen. `settings` is the 20th and is NOT wired via a
+ * `contribute<Domain>Tools()` call like the other nineteen — see the DELIBERATE ONE-OFF EXCEPTION
+ * comment directly on {@link installFirstPartyToolContributors} below for why the standard shape is
+ * actively unsafe for this one domain. The rest still wire
  * through `assistant/tool-registrations.ts`'s own `DOMAIN_SLICES` array, unchanged — see that file's header
  * for why (its own array still names exactly which domains those are, with a comment on each
  * reverted one explaining the specific cycle it closed). `post` was also tried and reverted the same
@@ -92,6 +97,27 @@ import { contributeWidgetsTools } from "../widgets/tool-registrations";
  * policy checks, not auto-discovered from disk and installed unconditionally the way the calls below
  * are — plugin/data-module membership (`declareDataModule`) and AI-tool membership are deliberately
  * two different systems (see the 2026-08-17 architecture addendum this file implements).
+ *
+ * DELIBERATE ONE-OFF EXCEPTION — `settings`: every other domain above owns its own
+ * `contribute<Domain>Tools()` function (feature module -> `registerToolContributor`, imported FROM
+ * assistant), which is the uniform shape. `settings` does NOT get one, and the plain
+ * `registerToolContributor({domain: "settings", ...})` call below is deliberately inline here
+ * instead — see
+ * `ADS-memory/reports/architecture/2026-08-17-settings-blocker-investigation.md` for the full
+ * analysis. Short version: `assistant/public-assistant-settings.ts`, `assistant/custom-instructions.ts`,
+ * and `assistant/execution-mode-settings.ts` already value-import `features/settings` directly (as a
+ * generic settings-ledger engine, not as an AI-tool domain) — a real, pre-existing
+ * `assistant -> features/settings` edge that has nothing to do with this file. Giving `features/settings`
+ * the standard `contributeSettingsTools()` shape would add a `features/settings -> assistant` edge on
+ * top of that, closing a NEW 2-node `assistant <-> features/settings` cycle. `server/` already
+ * imports both `registerToolContributor` (via `assistant`) and `buildSettingsRegistrations`/
+ * `settingsDerivedRisk` (via `features/settings/tool-registrations`) safely as the composition root,
+ * so registering here adds no edge risk — this is the SAME reasoning every other call below relies
+ * on, just applied one level up instead of inside the feature module. DO NOT "fix" this by giving
+ * `settings` a `contributeSettingsTools()` matching the others — that reintroduces the cycle this
+ * exception exists to avoid. The 3 side-door files above are intentionally left untouched too; see
+ * the investigation report for why they are a different, lower-priority concern (no cycle risk
+ * today).
  */
 export function installFirstPartyToolContributors(): void {
   contributeCommentsTools();
@@ -110,6 +136,7 @@ export function installFirstPartyToolContributors(): void {
   contributeRecoveryTools();
   contributeRedirectsTools();
   contributeSeoTools();
+  registerToolContributor({ domain: "settings", build: buildSettingsRegistrations, risk: settingsDerivedRisk });
   contributeTaxonomyTools();
   contributeWidgetsTools();
   contributeWorkspaceTools();

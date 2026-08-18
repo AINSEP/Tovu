@@ -104,8 +104,14 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
   // (`getDriftStatus`'s value import into `features/database`) was cut by relocating `drift.ts` into
   // `db/`, `check:architecture` confirmed 0 module cycles with `database` converted too (see
   // `features/database/tool-registrations.ts`'s own header) â€” so it is now present below as well.
-  // `themes`/`source-control`/`deployments`/`static-publish`/`post` remain deliberately absent, each
-  // covered by its own test below.
+  // `settings` is ALSO present below, but unlike every domain above it does NOT have its own
+  // `contribute<Domain>Tools()` â€” `server/tool-catalog-manifest.ts`'s
+  // `installFirstPartyToolContributors()` registers it inline instead, a deliberate one-off
+  // exception (see that function's own DELIBERATE ONE-OFF EXCEPTION comment and
+  // `ADS-memory/reports/architecture/2026-08-17-settings-blocker-investigation.md`): the standard
+  // shape would reopen an `assistant <-> features/settings` cycle through 3 side-door files inside
+  // `assistant/` itself. `themes`/`source-control`/`deployments`/`static-publish`/`post` remain
+  // deliberately absent, each covered by its own test below.
   assert.deepEqual(listToolContributors().map((c) => c.domain), [
     "comments",
     "content-types",
@@ -123,6 +129,7 @@ test("installFirstPartyToolContributors installs exactly the converted domains â
     "recovery",
     "redirects",
     "seo",
+    "settings",
     "taxonomy",
     "widgets",
     "workspace",
