@@ -21,9 +21,12 @@ import type { ServerModuleHandle } from "./types";
  * explicitly rejected as higher blast radius for this one edge case.
  *
  * This is the one module in this repo's `ServerModuleHandle` convention that takes the full
- * `RouteDeps` bag rather than a narrow `Pick` — `requireAdminSession`/`registerAuthRoutes`
- * themselves are typed against full `RouteDeps` upstream in `middleware/dev-auth.ts`, and
- * narrowing that file's own signature is a separate, out-of-scope concern (SPEC-039 Non-Goals).
+ * `RouteDeps` bag rather than a narrow `Pick` — `registerAuthRoutes` is still typed against full
+ * `RouteDeps` upstream in `middleware/dev-auth.ts` (this module's own `deps` param has to stay a
+ * full `RouteDeps` on its account). `requireAdminSession` itself was narrowed to `SessionAuthDeps`
+ * (2026-08-18, first slice of the `RouteDeps` decomposition — see `routes/types.ts`'s
+ * `ClockDeps`/`IdentityDeps` doc); passing the full `deps` below into it still works unchanged
+ * because `RouteDeps` is a strict superset of `SessionAuthDeps`.
  */
 export function createCoreModule(deps: RouteDeps): ServerModuleHandle {
   return {
