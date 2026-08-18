@@ -627,8 +627,18 @@ export interface FormsDeps {
   formSubmissionRepo: FormSubmissionRepoPort;
 }
 
-export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & DatabaseRecoveryDeps & ComposioDeps & WebhooksDeps & FormsDeps & {
-  workspaceRepo: WorkspaceRepoPort;
+/**
+ * Slice 8 of the `RouteDeps` god-object decomposition (2026-08-18) — the `postRepo` write
+ * chokepoint and its two siblings, extracted verbatim (fields + doc comments unchanged) from
+ * where they lived inline in `RouteDeps` below.
+ *
+ * No single whole-group consumer: `routes/admin/content/deps.ts`'s `ContentRouteDeps` picks
+ * `postRepo`/`pagesHtmlStore` (not `postSearch`) alongside many non-group fields; the
+ * `content_post_search` agent tool (`features/post/tool-registrations.ts`) reads `postSearch`
+ * alone. Grouped here on the doc comments' own "sibling of `postRepo`" cohesion rather than a
+ * shared narrow consumer — the same rationale `ContentTaxonomyDeps`/`CommentsDeps` already used.
+ */
+export interface PostDeps {
   postRepo: PostRepoPort;
   /**
    * Ranked full-text search over posts/pages, backing the `content_post_search` agent tool.
@@ -652,6 +662,10 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * handle so no route holds it, and every instance is bound to one `(workspaceId, postId)` pair.
    */
   pagesHtmlStore: PagesHtmlDocumentStoreFactory;
+}
+
+export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & DatabaseRecoveryDeps & ComposioDeps & WebhooksDeps & FormsDeps & PostDeps & {
+  workspaceRepo: WorkspaceRepoPort;
   /**
    * Durable AI chat history, obtained per-principal.
    *
