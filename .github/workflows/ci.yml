@@ -308,6 +308,17 @@ jobs:
     # under src/server/**, so the two gates below lose no real signal from the narrower scope, and
     # none of those tests need the Postgres service container build-and-test uses (verified: no
     # src/server test references psql/pg-fixture/PGHOST) so this job skips that setup entirely.
+    #
+    # 2026-08-18: the "Route tests + coverage (tiered ...)" step below runs the same src/server
+    # suite two MORE times (split unit-only / integration-only, for the two-tier diff gate) on top
+    # of the combined run above (kept for the floor gate) -- accepted extra wall-clock cost for this
+    # job specifically, per this task's own scoping ("the floor gate is not the target of this
+    # redesign, use judgment, simplest is leaving it on the old combined lcov.info"); the
+    # integration-only run is small (12 files), the unit-only run is close to the combined run's own
+    # length since most tests are unit. If this job's wall-clock time becomes the bottleneck later,
+    # the fix is a real lcov merge (summing hit counts per line/branch across the two partial runs)
+    # so the floor gate can read `test:cov:server:tiered`'s output instead of a third full run --
+    # not attempted here since it needs the `lcov` CLI (or equivalent merge logic), not just Node.
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -386,21 +397,43 @@ jobs:
         continue-on-error: true
         run: npm run test:cov:server
 
+      - name: Route tests + coverage (tiered -- unit vs integration)
+        # 2026-08-18 two-tier redesign: `test:cov:server` above writes ONE combined lcov.info, which
+        # cannot tell a route file's unit branch coverage apart from its integration branch coverage
+        # -- exactly the gap that let a pure import-redirect push trip the old single-80%-number diff
+        # gate on pre-existing debt it couldn't see the shape of (see check-route-coverage-diff.ts's
+        # header, "Two-tier redesign"). This step runs the src/server test suite TWICE more, split by
+        # `route-coverage-lib.ts`'s `isIntegrationTestFile` convention, writing
+        # development/coverage/lcov.unit.info and lcov.integration.info -- inputs the diff gate below
+        # now reads instead of the combined file. Does NOT touch development/coverage/lcov.info or
+        # test-results.tap (the floor gate and test-failure-baseline step below still read those,
+        # produced by the step above) -- test:cov:server:unit/integration deliberately `rm -f` only
+        # their own output file, not the whole development/coverage/ directory.
+        #
+        # continue-on-error, same reasoning as the step above: the real gates are the explicit checks
+        # after this one, and this step exists only to produce their input files.
+        id: route-tests-tiered
+        continue-on-error: true
+        run: npm run test:cov:server:tiered
+
       - name: Check route coverage floor
         # src/server/routes/** aggregate must not backslide below the 2026-08-16 baseline (minus
         # margin) — see development/scripts/check-route-coverage-floor.ts's header for the exact
-        # thresholds and where they came from.
+        # thresholds and where they came from. Unchanged by the 2026-08-18 two-tier redesign below —
+        # still reads the combined development/coverage/lcov.info from the step above.
         run: npm run check:route-coverage-floor
 
       - name: Check route coverage diff
-        # Every new/modified route file must individually hit >=80% branch coverage — the gate that
-        # would have caught the file that triggered the 2026-08-16 audit (see
-        # development/scripts/check-route-coverage-diff.ts's header). GITHUB_BASE_REF is set
-        # automatically on pull_request events. GITHUB_EVENT_BEFORE (2026-08-17 fix) covers push
-        # events on any branch, diffing against the SHA this push started from rather than a
-        # long-diverged `origin/main` — without it, the first real run on `general-work` (a branch
-        # weeks ahead of `main`) flagged dozens of longstanding files as "changed", not this push's
-        # own diff. See the script's own header for the full incident.
+        # Every new/modified route file must individually clear BOTH: unit branch coverage >= 99%
+        # AND integration branch coverage >= 95% (2026-08-18 two-tier redesign, replacing the
+        # original single 80%-branch bar — see development/scripts/check-route-coverage-diff.ts's
+        # header, "Two-tier redesign", for why one combined number wasn't enough). Reads
+        # development/coverage/lcov.unit.info and lcov.integration.info, written by the tiered step
+        # above. GITHUB_BASE_REF is set automatically on pull_request events. GITHUB_EVENT_BEFORE
+        # (2026-08-17 fix) covers push events on any branch, diffing against the SHA this push
+        # started from rather than a long-diverged `origin/main` — without it, the first real run on
+        # `general-work` (a branch weeks ahead of `main`) flagged dozens of longstanding files as
+        # "changed", not this push's own diff. See the script's own header for the full incident.
         env:
           GITHUB_EVENT_BEFORE: ${{ github.event.before }}
         run: npm run check:route-coverage-diff

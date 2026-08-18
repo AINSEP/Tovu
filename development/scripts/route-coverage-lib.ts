@@ -31,6 +31,12 @@ import path from "node:path";
 
 export const REPO_ROOT = path.resolve(__dirname, "..", "..");
 export const LCOV_PATH = path.join(REPO_ROOT, "development/coverage/lcov.info");
+/** Produced by `npm run test:cov:server:unit` — every `*.test.ts` file EXCEPT the integration tier
+ *  below (see `isIntegrationTestFile`). Read by `check-route-coverage-diff.ts`'s unit tier. */
+export const LCOV_UNIT_PATH = path.join(REPO_ROOT, "development/coverage/lcov.unit.info");
+/** Produced by `npm run test:cov:server:integration` — only files matching `isIntegrationTestFile`.
+ *  Read by `check-route-coverage-diff.ts`'s integration tier. */
+export const LCOV_INTEGRATION_PATH = path.join(REPO_ROOT, "development/coverage/lcov.integration.info");
 
 export interface FileCoverage {
   /** repo-relative, forward-slash path, e.g. "src/server/routes/admin/assistant/test-agent.ts" */
@@ -55,6 +61,20 @@ export function pct(hit: number, found: number): number {
  *  this exact basename set). A future type-only file under a different name would not be recognized
  *  by this heuristic and would need adding here, or it will read as a false failure on the diff gate.
  */
+/** This repo's existing, established naming convention for the two test tiers (not invented here —
+ *  see e.g. `src/server/__tests__/integration/boot-lifecycle-real-deps.integration.test.ts`): a test
+ *  file is "integration" when its name ends `.integration.test.ts`, OR it lives under a
+ *  `__tests__/integration/` directory (some integration suites are grouped that way without the
+ *  filename suffix). Everything else ending `.test.ts` is "unit". Used both by the
+ *  `test:cov:server:unit`/`test:cov:server:integration` npm scripts (which file list to hand
+ *  `node --test`) and, implicitly, by which of `LCOV_UNIT_PATH`/`LCOV_INTEGRATION_PATH` a given
+ *  test's coverage ends up in. */
+export function isIntegrationTestFile(relPath: string): boolean {
+  const normalized = relPath.split(path.sep).join("/");
+  if (/\.integration\.test\.ts$/.test(normalized)) return true;
+  return normalized.includes("/__tests__/integration/");
+}
+
 export function isMeasurableRouteFile(relPath: string): boolean {
   const normalized = relPath.split(path.sep).join("/");
   if (!normalized.startsWith("src/server/routes/")) return false;
