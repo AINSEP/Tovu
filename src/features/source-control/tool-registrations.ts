@@ -15,6 +15,7 @@ import { buildConfirmationSurface, type UIResource, type UIResourceUri } from "@
 import type { RouteDeps } from "#src/server/routes/types";
 
 import { askOnce, SURFACE_EXCHANGE_ID_PARAM, type AssistantSurfaceDeps, type SurfaceExchange } from "../../core/tool-surface-exchanges";
+import { registerToolContributor } from "#src/assistant/index";
 import { commitSiteToSourceControl, validateCommitTarget, type GitHubCommitAdapter } from "./commit-site";
 import { listSourceControlCredentials } from "./store";
 import type { SourceControlProviderId } from "./types";
@@ -394,22 +395,35 @@ export function buildSourceControlRegistrations(deps: SourceControlToolDeps, sur
   });
 }
 
-// NOT converted to the tool-contribution registry, unlike Comments/Identity/Members/Redirects/
-// Taxonomy — tried in Stage 2 batch 2 and reverted the same session. A plain relative/`#src/*`
-// importer grep of `features/source-control` itself finds nothing risky (only `server/*`,
-// `db/sqlite/*`, and admin routes — none reachable from `assistant`), but that grep misses the real
-// path: `assistant/tool-registrations.ts` already value-imports `createVendorCredential`/
-// `listVendorCredentials`/`PUBLISH_PROVIDER_TO_VENDOR`/`updateVendorCredential` from
-// `features/vendor-credentials/index` (for `StaticPublishToolDeps.vendorCredentials`'s real
-// implementation), and `features/vendor-credentials/dual-read.ts` itself value-imports
-// `resolveDefaultForSourceControl` from `../source-control/store` for its legacy-fallback read. So
-// `assistant` already reaches INTO this domain transitively through `vendor-credentials`, even
-// though nothing reaches OUT of it that way. Adding `registerToolContributor` here (a
-// `source-control -> assistant` edge) closed a real 3-module cycle: `assistant,
-// features/source-control, features/vendor-credentials` (confirmed via `check:architecture --list`:
-// largest strongly-connected component, runtime-only, went 0 -> 3). Safe conversion needs either
-// `vendor-credentials/dual-read.ts`'s legacy-fallback read relocated off `source-control/store.ts`
-// directly, or `assistant`'s own `VendorCredentialPort` wiring moved somewhere that doesn't import
-// `vendor-credentials` by value — neither attempted here; reverted cleanly instead, mirroring
-// `features/theme/tool-registrations.ts`'s and `features/post/tool-registrations.ts`'s own revert
-// comments for the same shape of problem.
+/**
+ * Contributes Source Control's AI tools to the assistant's catalog — called once by
+ * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
+ * module.
+ *
+ * 2026-08-17: Source Control was tried for the tool-contribution registry in Stage 2 batch 2 and
+ * reverted the same session — a plain relative/`#src/*` importer grep of `features/source-control`
+ * itself found nothing risky (only `server/*`, `db/sqlite/*`, and admin routes — none reachable from
+ * `assistant`), but that grep missed the real path: `assistant/tool-registrations.ts` already
+ * value-imports `createVendorCredential`/`listVendorCredentials`/`PUBLISH_PROVIDER_TO_VENDOR`/
+ * `updateVendorCredential` from `features/vendor-credentials/index` (for
+ * `StaticPublishToolDeps.vendorCredentials`'s real implementation), and
+ * `features/vendor-credentials/dual-read.ts` itself value-imported `resolveDefaultForSourceControl`
+ * from `../source-control/store` for its legacy-fallback read. So `assistant` reached INTO this
+ * domain transitively through `vendor-credentials`, even though nothing reached OUT of it that way.
+ * Adding `registerToolContributor` here (a `source-control -> assistant` edge) closed a real
+ * 3-module cycle: `assistant, features/source-control, features/vendor-credentials` (confirmed via
+ * `check:architecture --list`: largest strongly-connected component, runtime-only, went 0 -> 3).
+ *
+ * Retried and landed here per
+ * `ADS-memory/reports/architecture/2026-08-17-vendor-credentials-cycle-design-options.md` (Option
+ * B): `dual-read.ts`'s two legacy-table value imports (`resolveDefaultForPublish`/
+ * `resolveDefaultForSourceControl`) are now injected via `VendorCredentialDualReadDeps`, typed with
+ * locally-declared structural signatures instead of imported function types — see that file's own
+ * header. That removes the `features/vendor-credentials -> features/source-control` edge outright
+ * (the `assistant -> vendor-credentials` edge for `list`/`create`/`update`/`providerToVendor` stays,
+ * but it no longer reaches this domain transitively). `check:architecture` now reports 0 module
+ * cycles / largest SCC 0 with Source Control wired this way.
+ */
+export function contributeSourceControlTools(): void {
+  registerToolContributor({ domain: "source-control", build: buildSourceControlRegistrations, risk: sourceControlDerivedRisk });
+}
