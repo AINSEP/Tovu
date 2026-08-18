@@ -52,7 +52,7 @@ import type { AgentEvent } from "@jini-ai/chat/core";
 
 import { getAuthedPrincipal, requireAdminSession } from "../middleware/dev-auth";
 import type { RouteDeps } from "../routes/types";
-import { fetchAgentDaemon } from "./assistant-daemon-client";
+import { fetchAgentDaemon, fetchAgentDaemonEventStream } from "./assistant-daemon-client";
 import type { ServerModuleHandle } from "./types";
 
 export const AG_UI_RUN_PATH = "/api/admin/v1/assistant/ag-ui-run";
@@ -632,11 +632,16 @@ async function startDaemonRun(
 
 /** Subscribes to one daemon run's native SSE stream, returning a reader ready for
  *  {@link readDaemonSseFrames}, or `null` once an error response has already been written (same
- *  contract as {@link startDaemonRun}). Split out of `handleAgUiRun` for the same reason. */
+ *  contract as {@link startDaemonRun}). Split out of `handleAgUiRun` for the same reason.
+ *
+ * Built on {@link fetchAgentDaemonEventStream} rather than `fetchAgentDaemon` — see that function's
+ * own doc for why this specific stream needs `node:http`'s no-default-timeout transport: a parked
+ * tool call can leave the daemon silent well past `fetch`'s default idle-body timeout, which is not a
+ * stall on this endpoint, it's the normal shape of a human-in-the-loop wait. */
 async function subscribeToDaemonEvents(req: Request, res: Response, daemonRunId: string): Promise<ReadableStreamDefaultReader<Uint8Array> | null> {
-  const eventsUpstream = await fetchAgentDaemon(req, res, { path: `/api/runs/${encodeURIComponent(daemonRunId)}/events`, method: "GET" });
-  if (!eventsUpstream) return null; // fetchAgentDaemon already wrote a 503/502.
-  if (!eventsUpstream.ok || !eventsUpstream.body) {
+  const eventsUpstream = await fetchAgentDaemonEventStream(req, res, `/api/runs/${encodeURIComponent(daemonRunId)}/events`);
+  if (!eventsUpstream) return null; // fetchAgentDaemonEventStream already wrote a 503/502.
+  if (eventsUpstream.statusCode < 200 || eventsUpstream.statusCode >= 300) {
     res.status(502).json({ error: "assistant is unavailable", code: "BAD_GATEWAY" });
     return null;
   }
