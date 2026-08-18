@@ -13,6 +13,7 @@ import {
   type ThemeTier,
 } from "./theme";
 import { isGeneratedThemePath } from "./theme-files";
+import { writeThemeLineageFile, type ThemeLineage } from "./theme-lineage";
 
 /**
  * @file The local theme marketplace — a FAKE marketplace (no network, no remote catalog, no search,
@@ -134,19 +135,24 @@ function findMarketplaceTheme(required: {
 }
 
 /**
- * Read `theme.json` in `themeDir`, then overwrite it with `id` replaced and `extra` merged in. Used to
- * stamp each copy {@link downloadMarketplaceTheme} makes with its own assigned id (and, for the
- * editable copy only, its `lineage`). Every other authored field — `name` above all — passes through
- * untouched: only the folder-identity field changes, never the human-facing one, per the product rule
- * that a collision suffix belongs on the id/folder and never on the displayed name.
+ * Read `theme.json` in `themeDir`, then overwrite it with `id` replaced. Used to stamp each copy
+ * {@link downloadMarketplaceTheme} makes with its own assigned id. Every other authored field —
+ * `name` above all — passes through untouched: only the folder-identity field changes, never the
+ * human-facing one, per the product rule that a collision suffix belongs on the id/folder and never
+ * on the displayed name.
+ *
+ * No longer takes an `extra` fields-to-merge parameter (2026-08-18): `lineage`, its one past use,
+ * moved to its own install-local sidecar file (`theme-lineage.ts`) rather than the manifest body —
+ * see that module's file header. A strict v2 schema validates `theme.json`'s own raw content, so
+ * nothing should merge an unplanned key into it here again without updating that schema first.
  *
  * @complexity O(s) in the manifest's own (small, bounded) size.
  */
-function rewriteThemeManifestId(required: { themeDir: string; id: string; extra?: Record<string, unknown> }): void {
-  const { themeDir, id, extra } = required;
+function rewriteThemeManifestId(required: { themeDir: string; id: string }): void {
+  const { themeDir, id } = required;
   const manifestPath = join(themeDir, "theme.json");
   const raw = JSON.parse(readFileSync(manifestPath, "utf8")) as Record<string, unknown>;
-  const updated = { ...raw, id, ...(extra ?? {}) };
+  const updated = { ...raw, id };
   writeFileSync(manifestPath, `${JSON.stringify(updated, null, 2)}\n`, "utf8");
 }
 
@@ -189,28 +195,17 @@ export function isGeneratedPreviewPath(fixtureDir: string, candidate: string): b
 }
 
 /**
- * Where a downloaded theme came from — written into the EDITABLE copy's `theme.json` only (never the
- * catalog copy, which stays byte-identical to what shipped). A local folder id (`assignedId`) is
- * meaningless on another machine, and meaningless again after a second, independent download of the
- * same upstream theme (each gets its own suffixed id) — so this carries the marketplace's OWN stable
- * identity alongside the locally-assigned one.
+ * Where a downloaded theme came from — written into the EDITABLE copy's own install-local sidecar
+ * file only (never the catalog copy, which stays byte-identical to what shipped, and never
+ * `theme.json` itself — see `theme-lineage.ts`'s file header for why, 2026-08-18 schema v2 decision).
+ * A local folder id (`assignedId`) is meaningless on another machine, and meaningless again after a
+ * second, independent download of the same upstream theme (each gets its own suffixed id) — so this
+ * carries the marketplace's OWN stable identity alongside the locally-assigned one.
+ *
+ * Re-exported here (moved to `theme-lineage.ts`, the single definition) so every existing import of
+ * `ThemeLineage` from this module keeps working unchanged.
  */
-export interface ThemeLineage {
-  /** Where this copy was installed from. Only one source exists today (the local fixture); a real
-   * backend would add more values here rather than replacing this one. */
-  from: "marketplace";
-  tier: ThemeTier;
-  /** The marketplace fixture's `theme.json` version at download time. */
-  version: string;
-  /** This copy's paired catalog original, as a `{@link THEME_CATALOG_DIR}/<tier>/<id>` path relative
-   * to the themes root — what "reset to original" would restore from. */
-  catalog: string;
-  /** The marketplace fixture's own folder id — stable across machines and across repeat downloads,
-   * unlike `assignedId`. */
-  marketplaceId: string;
-  /** The marketplace fixture's own display name at download time. */
-  name: string;
-}
+export type { ThemeLineage };
 
 /** What {@link downloadMarketplaceTheme} reports back to its caller. */
 export interface DownloadMarketplaceThemeResult {
@@ -271,7 +266,11 @@ export function downloadMarketplaceTheme(
     marketplaceId,
     name: fixture.manifest.name,
   };
-  rewriteThemeManifestId({ themeDir: installedDir, id: assignedId, extra: { lineage } });
+  rewriteThemeManifestId({ themeDir: installedDir, id: assignedId });
+  // Own sidecar file, never merged into theme.json — see `theme-lineage.ts`'s file header for why
+  // (2026-08-18 schema v2 decision: an unknown `lineage` key in the manifest itself would fail a
+  // strict v2 `additionalProperties: false` parse regardless of whether anything reads it).
+  writeThemeLineageFile({ themeDir: installedDir, lineage });
 
   const rescan = rescanThemes({ themes, dir: themesRoot });
 

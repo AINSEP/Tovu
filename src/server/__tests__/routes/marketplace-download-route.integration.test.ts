@@ -107,9 +107,18 @@ test("marketplace download: an id collision installs the new theme at '<id>-1' o
   const installedManifest = JSON.parse(fs.readFileSync(installedManifestPath, "utf8")) as Record<string, unknown>;
   assert.equal(catalogManifest.id, "basic-1", "the catalog copy's id must equal its own folder name");
   assert.equal(installedManifest.id, "basic-1", "the editable copy's id must equal its own folder name");
-  assert.ok(installedManifest.lineage, "the editable copy must carry a lineage object");
-  assert.equal((installedManifest.lineage as { marketplaceId: string }).marketplaceId, "basic");
+  // 2026-08-18 schema v2 decision: lineage lives in its own install-local sidecar file, never merged
+  // into theme.json — an unknown key there would fail a strict v2 manifest schema regardless of
+  // whether anything reads it. See `theme-lineage.ts`'s file header.
+  assert.equal(installedManifest.lineage, undefined, "the editable copy's theme.json must NOT carry lineage");
   assert.equal(catalogManifest.lineage, undefined, "the catalog copy must NOT carry lineage");
+
+  const installedLineagePath = path.join(installedDir, ".tovu-lineage.json");
+  const catalogLineagePath = path.join(catalogDir, ".tovu-lineage.json");
+  assert.ok(fs.existsSync(installedLineagePath), "the editable copy must carry a lineage sidecar file");
+  const installedLineage = JSON.parse(fs.readFileSync(installedLineagePath, "utf8")) as { marketplaceId: string };
+  assert.equal(installedLineage.marketplaceId, "basic");
+  assert.ok(!fs.existsSync(catalogLineagePath), "the catalog copy must NOT carry a lineage sidecar file");
 
   const reloaded = discoverAllBuiltInThemes({ dir: themesRoot, source: "built-in" }).find(
     (theme) => theme.manifest.id === "basic-1"

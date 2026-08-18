@@ -229,13 +229,15 @@ before assuming anything here is aspirational.
   `theme.ts` or the install-time gate. It is real, tested code for relocating a flat framework
   build's `.css`/`.js`/`.mjs` (and their `.map` siblings) into Tovu's `css/`/`js/` asset-path
   contract and rewriting references — but nothing in the live request or install path invokes it.
-- **A currently-open gap, not yet fixed:** `build.sourceDir` can be set to the same name as a
-  reserved generated directory (e.g. `"preview"`), which a write-time gate can miss, allowing a PUT
-  straight into what should be a protected generated path. Flagged directly in the code:
-  `src/server/routes/admin/themes/explore.ts:568-570` ("The deeper fix is a conformance rule
-  forbidding `build.sourceDir` from naming a [reserved directory]... not attempted here."). Still
-  open as of this writing (2026-08-17) — worth fixing before schema v2 ships, per the consensus
-  report's own punch list.
+- **The `build.sourceDir`-collides-with-a-reserved-directory gap is FIXED (2026-08-17), not open.**
+  `isSourceDirGeneratedConflict` (`src/features/theme/theme-files.ts`) is enforced in `loadTheme()`
+  (`src/features/theme/theme.ts:653`, inside the `build.source === "compiled"` manifest check): a
+  `sourceDir` that names, nests inside, or is an ancestor of a reserved generated directory (e.g.
+  `"preview"`) now fails the manifest at load, before any write-time gate is even reached. The
+  per-write `isGeneratedThemePath` refusal (`explore.ts`, `marketplace.ts`) stays as a second,
+  independent layer — see that function's own doc for why both exist. An earlier version of this
+  document (and `explore.ts`'s own comment, since corrected) described this as still open; it
+  was closed the same day, later in the session.
 - **`sourceDir` is served over public HTTP today, by design.** `express.static(themeDir)` in
   `src/server/middleware/theme-static-assets.ts` (mount at `:62-74`) is unscoped to any subpath —
   it serves a theme's ENTIRE folder, `sourceDir` included. The module's own header (lines 8-61)
@@ -282,11 +284,21 @@ Verified two ways:
    `<div data-embed-config='{"type":"partial","id":"nav","current":"index"}'></div>`).
 
 Six `type` values exist in the codebase today; only `partial` resolves against theme-supplied
-files. `menu`, `widget`, `form`, `media`, `post`, and the unified `content` type (v1 §6.4, §7.1)
+files. `menu`, `widget`, `media`, `post`, and the unified `content` type (v1 §6.4, §7.1)
 all resolve against CMS-managed data via a repo lookup, not theme files. `MENU_MARKER_TYPE` and
 `PARTIAL_MARKER_TYPE` are hoisted as named constants at `marker.ts:191-192` specifically because
 these two are the only types the theme layer itself (not the generic widget/embed pipeline) owns
 end to end.
+
+**`form` is not in this vocabulary — deliberately removed 2026-08-10, not an omission.**
+`resolver-service.ts`'s own doc comment on `HTML_EMBED_RESOLVERS` (`src/widgets/resolver-service.ts:747-754`)
+states it directly: `form` never named a distinct capability — its resolver built a synthetic,
+never-persisted `contact-form` widget view and routed it through the same path a real `contact-form`
+WIDGET instance already used. Embedding a form today is `{"type":"widget","id":"<contact-form widget
+entry id>"}`; `src/forms/` is untouched. An earlier version of this document listed `form` as live —
+verify the vocabulary against `HTML_EMBED_RESOLVERS` (`resolver-service.ts:756-761`, currently
+`widget`/`media`/`post`/`content`) plus `THEME_OWNED_MARKER_TYPES` (`menu`/`partial`) before relying
+on this list in a future session, in case it moves again.
 
 **`data-tovu-agent` (the theme-markup agent-handle attribute, distinct from admin's
 `data-agent-element`) is `[TARGET, NOT YET IMPLEMENTED]`.** Verified: zero hits for
@@ -424,7 +436,7 @@ except where noted "(already enforced)."
 | `build.source: "compiled"` REQUIRES `build.sourceDir` (non-empty) | **(already enforced)** — `theme.ts:647-648` |
 | `build.source: "compiled"` REQUIRES non-empty `build.artifactHashes` | **(already enforced)** — `theme.ts:650-651` |
 | Every generated-tree file has a matching, correct `artifactHashes` entry; every listed hash resolves to a real file; no symlinks | **(already enforced)** — `checkBuiltThemeConformance`, `build-conformance.ts:435-460` |
-| `build.sourceDir` MUST NOT equal or nest inside a reserved generated directory name (e.g. `preview`) | **NOT enforced — open gap**, `explore.ts:568-570` |
+| `build.sourceDir` MUST NOT equal or nest inside a reserved generated directory name (e.g. `preview`) | **(already enforced)** — `isSourceDirGeneratedConflict`, `theme.ts:653` |
 | A theme-markup element MUST NOT carry `data-agent-element` (admin-only attribute) | `scan(html, /data-agent-element/) .length > 0` → reject |
 | `id` in `theme.json` MUST equal the folder name | **(already enforced)** — `theme.ts:631` |
 | A `templates` entry MUST resolve to a real `pages/<id>.html` with at least one `{"type":"content"}` marker | **(already enforced)** — `validateTemplateDeclarations`, `theme.ts:511-536` |
@@ -554,9 +566,8 @@ for this tier at all (v1 §2.5). Do not build against it.
 
 ## 19. Open punch list — carried from the consensus report, not resolved by this document
 
-1. **Fix the `build.sourceDir`-collides-with-a-reserved-directory-name gap** —
-   `explore.ts:568-570`'s own flagged TODO. A conformance rule forbidding `build.sourceDir` from
-   naming any reserved/generated directory at install time. Still open.
+1. ~~Fix the `build.sourceDir`-collides-with-a-reserved-directory-name gap~~ — **DONE, 2026-08-17.**
+   `isSourceDirGeneratedConflict`, enforced in `loadTheme()` (`theme.ts:653`). See §6.
 2. **Write the validator.** §16 states rules; nothing enforces the unshipped ones yet. Without it,
    this document is documentation, not a contract.
 3. **Write `tovu theme migrate`** for the ~10 existing themes — mechanical (folder renames + one
