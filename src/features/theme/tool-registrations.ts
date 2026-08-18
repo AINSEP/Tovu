@@ -274,6 +274,22 @@ export function buildThemesRegistrations(routeDeps: ThemeToolDeps): ToolRegistra
 // features/source-control, features/theme, features/vendor-credentials`. Unlike identity/members/
 // taxonomy/redirects (which nothing outside `server/*` imports), Themes cannot convert safely until
 // either `export`'s theme dependency is relocated or `deployments`/`source-control` (the still-static
-// domains giving `assistant` a path into `export`) convert too. Left as a normal `DOMAIN_SLICES`
-// entry; see `assistant/tool-registrations.ts`'s own header for the current authoritative list of
-// what has and hasn't converted.
+// domains giving `assistant` a path into `export`) convert too.
+//
+// RETRIED 2026-08-17 (same day, later pass) after `source-control` converted cleanly (see its own
+// trailing comment) — `deployments` did NOT convert (reverted again on a different edge; see its own
+// trailing comment). Empirically wired `registerToolContributor` here and ran `check:architecture
+// --list`: `source-control` leaving `DOMAIN_SLICES` alone was NOT enough — `deployments` staying
+// static (plus the SAME previously-undocumented `vendor-credentials/store.ts` `extractGitHubLogin`
+// edge that blocks `deployments`/`static-publish` themselves — see `features/deployments/
+// tool-registrations.ts`'s own header) still gives `assistant` a path into this cluster. The
+// "module cycles (mutual pairs)" count read 0, but "largest strongly-connected component" grew
+// 0 -> 5 — `[assistant, export, features/deployments, features/theme, features/vendor-credentials]`
+// — which `check-architecture.ts`'s own gate treats as a regression regardless of the mutual-pairs
+// count (`sccVerdict === "regressed"` alone fails the combined "module cycles / SCC" hard-constraint
+// metric). The exact edge chain linking `export`/`features/theme` to `features/deployments` within
+// this SCC was not fully re-traced beyond confirming the SCC membership above — out of scope for
+// this dispatch (execute the recommended fix, don't re-litigate/extend the design). Reverted
+// cleanly instead; still needs BOTH `deployments`'s own blocker fixed (Option-B-style injection of
+// `extractGitHubLogin` into `store.ts`) AND `export`'s theme dependency relocated (or reconfirmed
+// clear) before a future retry.
