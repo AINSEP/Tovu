@@ -187,3 +187,22 @@ export function buildDeploymentsRegistrations(routeDeps: DeploymentsToolDeps): T
 // the opposite end of the chain — see that file's trailing comment for the same fix options. Also
 // blocks `static-publish` (`publish-agent-tools.ts`, this directory's other domain) for the identical
 // reason, since both live in the same `features/deployments` module.
+//
+// RETRIED 2026-08-17 (same day, later pass) after `vendor-credentials/dual-read.ts`'s Option B fix
+// (`ADS-memory/reports/architecture/2026-08-17-vendor-credentials-cycle-design-options.md`) landed
+// and `source-control` converted cleanly on top of it (see that domain's own trailing comment) — the
+// design report's own chain trace named `dual-read.ts`'s imports as the root cause, and fixing those
+// alone WAS sufficient for `source-control`. It was NOT sufficient for `deployments`: reverted again,
+// this time on a DIFFERENT, previously-undocumented edge the design report never analyzed —
+// `features/vendor-credentials/store.ts:5` (not `dual-read.ts`) value-imports `extractGitHubLogin`
+// from `./static-publish/index` directly, for `createVendorCredential`'s own GitHub-login-probe
+// logic. That edge is untouched by the Option B fix (which only rewired `dual-read.ts`). Confirmed
+// via `check:architecture --list`: adding `registerToolContributor` here closed a NEW, smaller
+// 3-module cycle — `[assistant, features/deployments, features/vendor-credentials]` — via
+// `assistant -> features/vendor-credentials` (unconditional, `REAL_VENDOR_CREDENTIAL_PORT`) ->
+// `features/vendor-credentials/store.ts` (`extractGitHubLogin`) -> `features/deployments` -> back to
+// `assistant`. Fixing this would need the SAME Option-B-style injection technique applied to
+// `store.ts`'s `extractGitHubLogin` call (or the GitHub-login-probe logic relocated) — not attempted
+// here, since it is new design work beyond this dispatch's scope (execute the recommended fix,
+// don't re-litigate/extend the design). Reverted cleanly instead; `static-publish` (same module,
+// same edge) is expected to hit the identical blocker — see its own trailing comment.
