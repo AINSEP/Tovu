@@ -15,7 +15,7 @@ export type PostKind = "post" | "page";
  * SPEC-047/ADR-056 Decision 3 — discriminates which body column a record actually carries.
  * `"doc"` (the only value this chokepoint ever writes in v1, see {@link resolveBodyFields}) is a
  * TipTap/ProseMirror document in `bodyJson`; `"html"` is a bespoke-HTML Page written only through
- * `PagesHtmlDocumentStore` (`features/pages/html-document-store.ts`), a separate adapter that never calls
+ * `PagesHtmlDocumentStore` (`features/pages/html-document-store.sqlite.ts`), a separate adapter that never calls
  * `createPost`/`updatePost` — this chokepoint can construct only `"doc"` records, by design (CIC-3).
  */
 export type PostBodyFormat = "doc" | "html";
@@ -462,7 +462,7 @@ interface ResolvedCreateFields {
  * forwarding untyped `req.body`) — this function never looks at `input` in the first place.
  *
  * `bodyFormat: "html"` is a real, valid `PostRecord` shape (a Page written by
- * `PagesHtmlDocumentStore`, `features/pages/html-document-store.ts`), but that adapter writes directly to
+ * `PagesHtmlDocumentStore`, `features/pages/html-document-store.sqlite.ts`), but that adapter writes directly to
  * the `posts` row and never calls `createPost`/`updatePost` — see `PostRecord.bodyFormat`'s doc.
  *
  * @complexity O(1).

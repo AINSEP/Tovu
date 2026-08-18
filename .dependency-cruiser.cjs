@@ -44,14 +44,39 @@ const HAND_WRITTEN_RULES = [
     {
       name: "only-composition-constructs-concrete-adapters",
       severity: "warn",
+      // This rule polices RUNTIME construction of a concrete `src/db` adapter from feature code, not
+      // type contracts — `dependencyTypesNot: ["type-only"]` below (same mechanism the
+      // `no-deep-value-imports-from-db-sqlite` rule family uses, for the identical reason) excludes
+      // `import type` edges, e.g. a feature importing `db/drift`'s `DriftStatus`/`SchemaSnapshot`
+      // types for its own port surface. A `type`-only import cannot construct a concrete adapter, so
+      // flagging it here was a false positive (`database/adapter.sqlite.ts`, 2026-08-17 — its own
+      // header documents that the concrete adapter itself already moved to `db/sqlite/`, leaving only
+      // the port + types behind under a name kept for import-path stability).
       comment: "Only bootstrap/composition modules (server/deps.ts, server/app.ts, index.ts) may select production implementations directly.",
       // `repo.*` was the only adapter filename convention when this rule was written. Posts' search
       // index (`features/post/search-index.{sqlite,memory}.ts`) is the same category of file — a
       // concrete storage adapter behind a port — under a different name, because it backs
       // `PostSearchPort` rather than `PostRepoPort`. Exempted by name for the same reason `repo.*`
       // is, not as a loosening: everything else under `src/features` still may not reach `src/db`.
-      from: { path: "^src/features", pathNot: "^src/features/.*/(repo|search-index)\\.(sqlite|memory)\\.ts$" },
-      to: { path: "^src/db" },
+      // `html-document-store.{sqlite,memory}.ts` (Pages' `HtmlDocumentStore` port, 2026-08-17) is the
+      // same category again — a real adapter (`html-document-store.sqlite.ts` value-imports the
+      // `posts` drizzle table) renamed to carry the `.sqlite.ts` marker rather than special-cased by
+      // literal filename, so the exemption keeps meaning what it says: only a file whose OWN name
+      // honestly discloses "concrete adapter" is exempt from this rule.
+      //
+      // `.*/__tests__/.*` (2026-08-17): the remaining 22 warnings this rule produced were all
+      // `__tests__/**` files spinning up a real `db/sqlite/content-db.ts`/`db/schema.ts` to exercise
+      // a genuine SQLite-backed integration/contract test — precisely what an integration test is
+      // for, and the same reasoning `core-no-server-or-app-imports` above already applies via the
+      // identical `.*/__tests__/.*` pattern (reused verbatim here rather than a new one, per that
+      // rule's own comment: "contract/integration test needs the real concrete internals"). Scoped to
+      // the `__tests__/` DIRECTORY segment specifically, not "any filename containing the word
+      // test" — a production file named e.g. `*.test-helpers.ts` outside a `__tests__/` directory is
+      // still fenced. This is a legitimacy fix, not a loosening: it stops this rule from double-
+      // counting known-legitimate integration tests so its remaining signal is real, which is also a
+      // precondition for ever promoting it past `warn`.
+      from: { path: "^src/features", pathNot: ["^src/features/.*/(repo|search-index|html-document-store)\\.(sqlite|memory)\\.ts$", ".*/__tests__/.*"] },
+      to: { path: "^src/db", dependencyTypesNot: ["type-only"] },
     },
     {
       name: "site-dir-no-server-express-or-cli-imports",

@@ -121,7 +121,7 @@ export interface RouteDeps {
    * A sibling of `postRepo`, never a method on it, and deliberately not reachable through the
    * ordinary Post/Page CRUD path: this is the ONLY writer of `body_format: "html"` rows anywhere
    * (CIC-3), and `createPost`/`updatePost` are structurally incapable of producing that shape. The
-   * separation is the invariant, not a layering preference — see `features/pages/html-document-store.ts`.
+   * separation is the invariant, not a layering preference — see `features/pages/html-document-store.sqlite.ts`.
    *
    * A factory for the same reason `chatHistory` is one: composition closes over the `content.db`
    * handle so no route holds it, and every instance is bound to one `(workspaceId, postId)` pair.

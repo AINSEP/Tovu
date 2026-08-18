@@ -26,7 +26,7 @@ import type { UUID } from "@jini-ai/cms/core";
  * `page-html-embed` (SPEC-047 Slice 3) — a `data-embed-type` placeholder
  * (`widgets/html-embeds.ts`'s convention) inside an `"html"`-format Page's `body_html`. A distinct
  * kind from `widget-embed` on purpose: the source location is a plain HTML string, not a `bodyJson`
- * TipTap node, and it is populated by `features/pages/html-document-store.ts`'s write path, not the
+ * TipTap node, and it is populated by `features/pages/html-document-store.sqlite.ts`'s write path, not the
  * `entries` chokepoint every other kind above comes from.
  */
 export type EntryRefSourceKind = "widget-area-placement" | "widget-embed" | "config-field" | "page-html-embed";

@@ -152,7 +152,7 @@ export function extractEntryRefs(input: ExtractEntryRefsInput): readonly EntryRe
 // ---------------------------------------------------------------------------
 // SPEC-047 Slice 3 — `"html"`-format Page bodies (`body_html`, a plain string, not a `bodyJson`
 // tree). A sibling entry point to `extractEntryRefs` above, not a mode of it: an html Page is
-// written through `features/pages/html-document-store.ts`'s `PagesHtmlDocumentStore`, a completely
+// written through `features/pages/html-document-store.sqlite.ts`'s `PagesHtmlDocumentStore`, a completely
 // separate write path from the `entries` chokepoint `extractEntryRefs` is called from (ADR-056
 // CIC-3 — Pages bypass that chokepoint entirely), so it needs its own call site, not a widened
 // `ExtractEntryRefsInput`.
