@@ -11,6 +11,14 @@ import {
   resolveSiteAssistantApiKey,
 } from "../../assistant";
 import { resolveClientIp } from "#src/core/rate-limit/rate-limit";
+// The one production wiring for `SiteAssistantToolDeps.listPublishedPosts` (`assistant/site/tools.ts`'s
+// own doc). `server/` already imports `features/post` directly and safely elsewhere in this codebase
+// (`server/routes/site/pages.ts`, `server/middleware/theme-page-preview.ts`) — this is the same edge,
+// added here so `assistant/site/*` can depend on the FUNCTION via injection instead of a static
+// import, which is what let `post` convert to the tool-contribution registry without closing a
+// `[assistant, features/post]` module cycle. See
+// `ADS-memory/reports/architecture/2026-08-17-post-listpublishedposts-design-options.md`.
+import { listPublishedPosts } from "../../features/post";
 import type { RouteDeps } from "../routes/types";
 import type { ServerModuleHandle } from "./types";
 
@@ -262,6 +270,7 @@ export function createSiteAssistantModule(deps: RouteDeps, env: NodeJS.ProcessEn
           postRepo: deps.postRepo,
           workspaceId: deps.workspaceId,
           autoNavigateAllowed,
+          listPublishedPosts,
         });
 
         /**

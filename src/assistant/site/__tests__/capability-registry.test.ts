@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { createSiteCapabilityRegistry, type SiteAssistantCallerClass } from "../capability-registry";
-import { SITE_ASSISTANT_TOOL_SCHEMAS } from "../tools";
+import { SITE_ASSISTANT_TOOL_SCHEMAS, type SiteAssistantToolDeps } from "../tools";
+import { listPublishedPosts } from "../../../features/post";
 
 /**
  * SPEC-046 REQ-0 — proves the registry preserves the closed switch's guarantees while making the
@@ -44,8 +45,17 @@ function fakePort(rows: FakeRow[]) {
   };
 }
 
+/**
+ * Shared deps base for every `createSiteCapabilityRegistry` call below — `SiteAssistantToolDeps` now
+ * injects `listPublishedPosts` (see `tools.ts`'s own doc for why), so every call site needs it. Uses
+ * the REAL `features/post` export directly rather than a fake, same reasoning as `tools.test.ts`.
+ */
+function makeDeps(overrides: Partial<SiteAssistantToolDeps> & Pick<SiteAssistantToolDeps, "postRepo">): SiteAssistantToolDeps {
+  return { workspaceId: "ws", listPublishedPosts, ...overrides };
+}
+
 function registryOver(rows: FakeRow[]) {
-  return createSiteCapabilityRegistry({ postRepo: fakePort(rows) as never, workspaceId: "ws" });
+  return createSiteCapabilityRegistry(makeDeps({ postRepo: fakePort(rows) as never }));
 }
 
 describe("site capability registry", () => {
@@ -116,14 +126,15 @@ describe("site capability registry", () => {
 
   describe("execution failure", () => {
     it("surfaces a thrown error as an error outcome instead of throwing", async () => {
-      const registry = createSiteCapabilityRegistry({
-        postRepo: {
-          list: async () => {
-            throw new Error("boom");
-          },
-        } as never,
-        workspaceId: "ws",
-      });
+      const registry = createSiteCapabilityRegistry(
+        makeDeps({
+          postRepo: {
+            list: async () => {
+              throw new Error("boom");
+            },
+          } as never,
+        }),
+      );
       const outcome = await registry.invoke({ name: "list_categories", input: undefined, caller: "anonymous-visitor" });
       assert.equal(outcome.kind, "error");
       assert.ok((outcome as { error: unknown }).error instanceof Error);
