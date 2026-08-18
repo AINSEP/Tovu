@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryEntryRefsRepo } from "#src/core/entry-refs/repo.memory";
-import { InMemoryContentTypeRepo } from "#src/features/content-types/repo.memory";
+import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
 import { InMemoryEntryRepo } from "#src/features/entries/index";
 import { bindWidgetArea, mutateWidgetAreaPlacements, type RegionAreaServiceDeps } from "../../region-area-service";
 import { InMemoryWidgetRegionBindingRepo } from "../../repo.memory";
