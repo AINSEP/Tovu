@@ -151,6 +151,18 @@ test("put-providers: an unconfigured secret store 503s", async (t) => {
   assert.equal((json as { code?: string }).code, "SECRET_STORE_UNCONFIGURED");
 });
 
+test("put-providers: a request with no JSON content-type (req.body left undefined by express.json()) is treated as an empty map, not a crash", async (t) => {
+  const app = buildApp();
+  const baseUrl = await startTestServer(app, t);
+  // Deliberately omit `content-type` so `express.json()` never parses a body and leaves
+  // `req.body` as `undefined` — exercises `put-providers.ts`'s `(req.body ?? {})` fallback, a real
+  // path any caller can hit by sending a PUT with no/non-JSON content-type, not just an artificial one.
+  const res = await fetch(`${baseUrl}${PATH}`, { method: "PUT" });
+  const json = await res.json().catch(() => ({}));
+  assert.equal(res.status, 200, JSON.stringify(json));
+  assert.deepEqual(json, {});
+});
+
 test("put-providers: an unexpected repo failure 500s", async (t) => {
   const base = createRouteDeps();
   const app = buildApp({
