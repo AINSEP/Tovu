@@ -873,7 +873,203 @@ export interface NavigationDeps {
   navLocationBindingRepo: NavLocationBindingRepoPort;
 }
 
-export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & DatabaseRecoveryDeps & ComposioDeps & WebhooksDeps & FormsDeps & PostDeps & PresentationDeps & SettingsDeps & ChangeSetDeps & EventBusDeps & AnalyticsDeps & NavigationDeps & {
+/**
+ * Slice 8 of the `RouteDeps` god-object decomposition (2026-08-18) — the database/gated-mutations
+ * leftovers `DatabaseRecoveryDeps` (Slice 4) explicitly named as "candidates for a later group with
+ * no single real narrow consumer yet", extracted verbatim (fields + doc comments unchanged) from
+ * where they lived inline in `RouteDeps` below. This IS that later group.
+ *
+ * Admin-UI backend-gap closure (design-spec.md §0.4/§1.9/§2.8/§3.8/§4.8) — the read-side +
+ * route-layer wiring the Web Design pass found missing across `content-types`, `entries`,
+ * `taxonomy`, and (partially) `database`/`recovery`. Every field below is backed by an in-memory
+ * adapter in BOTH `server/app.ts` and `server/deps.ts` (no SQLite adapter exists yet for
+ * `content-types`/`entries`/`taxonomy` — the same disclosed "no adapter yet" precedent
+ * `mediaRepo`/`transformDefinitionRepo`/`memberRepo` already establish), EXCEPT
+ * `restorePointsRepo`/`dbOps` (moved to `DatabaseRecoveryDeps`, Slice 4), which get real
+ * `db/sqlite/database-journal-repo.ts`/`db-ops.ts` adapters in `server/deps.ts`.
+ *
+ * (2026-08-18, Slice 3: the `content-types`/`entries`/`taxonomy` REPO fields this comment
+ * originally introduced moved to `ContentTaxonomyDeps`. Slice 4: `restorePointsRepo`/`dbOps`/
+ * `siteStatusRepo`/`disclosureWatermarkSource`/`deepLinkRestorePointLookup` moved to
+ * `DatabaseRecoveryDeps`. Slice 8 (this pass): `migrationRunsRepo`/`stampWatermark`/
+ * `databaseIntrospection`/`gatedMutations` — the 4 fields Slice 4 explicitly left behind — move
+ * here. No single whole-group consumer exists yet: `routes/admin/taxonomy/deps.ts`'s
+ * `TaxonomyRouteDeps` picks `stampWatermark` alone; the `taxonomy/terms/:id/merge`,
+ * `database/migrate-forward`, and `recovery/restore` gated-mutation routes each read
+ * `gatedMutations` directly against full `RouteDeps` (no narrow deps file); `migrationRunsRepo`/
+ * `databaseIntrospection` back `features/database/boot/reconcile-interrupted-migration.ts` and
+ * `features/database/adapter.sqlite.ts` respectively, neither with a route-level narrow consumer
+ * today. Grouped on shared "database operations, no adapter/narrow-consumer yet" domain cohesion.)
+ */
+export interface DatabaseOpsDeps {
+  /** ADR-041/043/044/045 re-audit (2026-07-16, TM-adr041-043-044-045-audit-001, Finding 2 fix) —
+   * the `migration_runs` read side `reconcileInterruptedMigrationOnBoot` needs; previously
+   * constructed nowhere (real SQLite adapter existed, unused; no in-memory double existed). */
+  migrationRunsRepo: MigrationRunsRepoPort;
+  /** Bumps `database_write_watermark` for taxonomy writes (create/rename/assign/delete). Real
+   * `sqliteStampWatermark(db)` in `server/deps.ts` (the certified `stampWatermarkTx`, see
+   * `core/gated-mutations/watermark.ts`); `noopStampWatermark` in `server/app.ts`'s in-memory
+   * composition, which has no watermark table to advance. */
+  stampWatermark: () => void;
+  /** ADR-041 §3 — the `database_get_health`/`database_get_schema_state`/`database_list_pending_migrations`
+   * agent tools' backing read port (`features/database/adapter.sqlite.ts`, closing the gap that
+   * file's own catalog header previously disclosed as "no backing adapter composed into RouteDeps
+   * yet"). Real `SqliteDatabaseIntrospectionAdapter` in `server/deps.ts` (reuses the same open
+   * `ContentDb` handle `restorePointsRepo`/`dbOps` already share); `InMemoryDatabaseIntrospectionAdapter`
+   * in `server/app.ts`'s hermetic composition. */
+  databaseIntrospection: DatabaseIntrospectionPort;
+  /**
+   * SPEC-016 (`core/gated-mutations`'s gateway, ADR-041 §5) — composed into a real composition
+   * root for the first time this dispatch. One process-lifetime `GatewayDeps` (in-process
+   * `InMemoryTokenStore`, see `core/gated-mutations/composition.ts`'s file header for the disclosed
+   * `TokenStorePort` decision) shared by every gated-mutation route this dispatch wires
+   * (`taxonomy/terms/:id/merge`, `database/migrate-forward`, `recovery/restore`).
+   */
+  gatedMutations: { gatewayDeps: GatewayDeps };
+}
+
+/**
+ * Slice 8 of the `RouteDeps` god-object decomposition (2026-08-18) — the `redirects` + `origin`
+ * composition-root wiring (SPEC-009/ADR-PIPE-009), extracted verbatim (fields + doc comments
+ * unchanged) from where they lived inline in `RouteDeps` below.
+ *
+ * No `routes/admin/redirects/*.ts` file has its own narrow deps type today (all 7 registrars take
+ * full `RouteDeps`). `routes/admin/integrations/deps.ts`'s `IntegrationsRouteDeps` picks
+ * `originRegistry` alone (deliberately kept a separate `Pick<RouteDeps, "originRegistry">` there —
+ * see `WebhooksDeps`'s own Slice 6 doc — rather than joining `WebhooksDeps`, since it is
+ * redirects/origin-domain infrastructure reused by that module, not webhooks-owned). Grouped here
+ * on the fields' own single doc comment, which already introduces all 4 together as one feature's
+ * composition-root wiring.
+ */
+export interface RedirectsDeps {
+  /**
+   * SPEC-009 / ADR-PIPE-009 — `redirects` + first-time `origin` composition-
+   * root wiring. `redirectRepo`/`redirectHitSink` back the admin HTTP surface
+   * (Phase 2) and the `phase-handler.ts` read path; `originRegistry` is the
+   * single open-redirect/canonical-origin oracle (ADR-040), wired into the
+   * composition root for the first time by this feature — no other library
+   * had a real consumer for it before now. `redirectsWriteDeps` bundles the
+   * write chokepoint's full dependency set (repo/db/transaction/matcher/
+   * originRegistry/clock/idGen/outbox) — a single pre-built object rather
+   * than exposing the package-private `RedirectDbHandle`/transaction-wrapper
+   * types on this shared file (INV-07's chokepoint boundary stays {
+   * `redirects.ts`, `capture.ts`, `ports.internal.ts` } — routes only ever
+   * see the already-composed `RedirectsWriteDeps`, never the raw db handle).
+   */
+  redirectRepo: RedirectRepoPort;
+  redirectHitSink: RedirectHitSink;
+  originRegistry: OriginRegistryPort;
+  redirectsWriteDeps: RedirectsWriteDeps;
+}
+
+/**
+ * Slice 8 of the `RouteDeps` god-object decomposition (2026-08-18) — the optional,
+ * storefront-adjacent seams (the sample Tier-3 store plugin, the real commerce catalog read ports,
+ * and the lipay payments plugin), extracted verbatim (fields + doc comments unchanged) from where
+ * they lived inline in `RouteDeps` below.
+ *
+ * No route module has its own narrow deps type for any of these today (`routes/site/products.ts`/
+ * `routes/site/payments-webhook.ts` both take full `RouteDeps`). Grouped here on the fields' own
+ * cross-referencing doc comments — `commerceProductRepo`'s says "Optional, matching `store?:`
+ * above's precedent" and `lipay`'s says "wired only by a composition root that has a real SQLite
+ * handle, exactly like `store` above" — all four are optional, composition-root-gated,
+ * storefront-facing seams that fall back gracefully when unset.
+ */
+export interface CommerceCatalogDeps {
+  /** SPIKE: seam for the sample Tier-3 store plugin (data lives in plugin-owned `p_store__*`
+   * tables). Optional — only the SQLite runtime wires it (see `index.ts`). */
+  store?: {
+    listProducts(): { id: string; title: string; price: number; stock: number; version: number }[];
+    checkout(
+      productId: string,
+      qty: number
+    ):
+      | { ok: true; orderId: string; remainingStock: number; retries: number }
+      | { ok: false; reason: "not-found" | "out-of-stock" | "conflict"; retries: number };
+  };
+  /**
+   * Commerce catalog read ports (2026-08-12: wiring products into template render data).
+   * Optional, matching `store?:` above's precedent — the real running server's composition root
+   * (`server/deps.ts`) wires both against the SAME `content.db` every other repo already uses (no
+   * `declareDataModule()`/plugin bootstrap needed, unlike `store`/`lipay`); the hermetic
+   * `server/app.ts` test composition leaves them unset, and `routes/site/products.ts` falls back
+   * to `store?.listProducts()` when absent — never a hard dependency a test has to fake.
+   */
+  commerceProductRepo?: CommerceProductRepoPort;
+  commercePriceRepo?: CommercePriceRepoPort;
+  /**
+   * The lipay payments framework plugin's composed API (`features/plugins/lipay`). Optional and
+   * wired only by a composition root that has a real SQLite handle, exactly like `store` above —
+   * lipay's tables come from `declareDataModule()`, which the in-memory composition has no
+   * counterpart for. `routes/site/payments-webhook.ts` reads this lazily per request, so its route
+   * can be registered ahead of the blanket body parser while activation still happens later.
+   */
+  lipay?: LipayApi;
+}
+
+/**
+ * Slice 8 of the `RouteDeps` god-object decomposition (2026-08-18) — the widgets domain's derived
+ * projection repo, extracted verbatim (fields + doc comment unchanged) from where it lived inline
+ * in `RouteDeps` below.
+ *
+ * Deliberately its own single-field group, not folded into `ContentTaxonomyDeps`: that interface's
+ * own Slice 3 doc explicitly considered and rejected pulling `widgetBindingRepo` in alongside its
+ * sibling `entryRefsRepo` — "`entryRefsRepo`... groups here per this slice's own field list rather
+ * than with widgets" — leaving this exact field as the named candidate for its own group. No
+ * `routes/admin/widgets/*.ts` file has a narrow deps type today (all 14 registrars take full
+ * `RouteDeps`); the public site-render path (`routes/site/pages.ts` → `resolvePageWidgets`) does
+ * too.
+ */
+export interface WidgetsDeps {
+  /**
+   * SPEC-043/ADR-047 (widgets) — the `widget_region_bindings` derived-projection repo
+   * (`widgets/ports.ts`'s `WidgetRegionBindingRepoPort`, mirroring `NavLocationBindingRepoPort`
+   * exactly). Consumed by both the admin `widgets` routes (region CRUD) and the public site-render
+   * path (`routes/site/pages.ts` → `resolvePageWidgets`, W-004).
+   */
+  widgetBindingRepo: WidgetRegionBindingRepoPort;
+}
+
+/**
+ * Slice 8 of the `RouteDeps` god-object decomposition (2026-08-18) — the SPEC-005 plugin-runtime
+ * activation port, its pre-bound discovery/enable/disable closures, and the same process-lifetime
+ * hook registry's content-facing port, extracted verbatim (fields + doc comments unchanged) from
+ * where they lived inline in `RouteDeps` below.
+ *
+ * A real, near-exact consumer already exists: `routes/admin/plugins/deps.ts`'s `PluginsRouteDeps`
+ * (a hand-typed shape, not a `Pick<RouteDeps>`, since that file predates this decomposition) already
+ * declares `pluginActivationRepo`/`discoverPlugins`/`onPluginEnabled`/`onPluginDisabled` verbatim
+ * alongside its own `workspaceId`/`authorize`/`clock`/`idGen`/`changeSets`/`outbox?`. Its own doc
+ * comment says `discoverPlugins`/`onEnabled`/`onDisabled` are "pre-bound closures... the composition
+ * root... builds these closures once and threads them through" — the same process-lifetime hook
+ * registry `pluginBeforeSaveHook`'s doc calls "the same... hook registry's content-facing port",
+ * which is why it joins this group rather than `ContentTaxonomyDeps`/`CommentsDeps` (it is a plugin
+ * lifecycle hook, not a content-model repo).
+ */
+export interface PluginRuntimeDeps {
+  /**
+   * SPEC-005 (ADR-005-ARCH) — the `plugin_activations` persistence port (mirrors
+   * `PresentationSettingsRepoPort` exactly, rule-of-two). Consumed by the `plugins` admin routes
+   * (`PLUGINS_LIST`/`PLUGIN_SET_ENABLED`, REQ-10).
+   */
+  pluginActivationRepo: PluginActivationRepoPort;
+  /**
+   * SPEC-005 (ADR-005-ARCH) — pre-bound `discoverPlugins()` closure (install dir / built-in
+   * registry already captured by the composition root). Phase 1 of this feature ships zero
+   * built-in plugins (the `word-count` dogfood plugin is a later, gated phase per this feature's
+   * own tasks.md), so this closure legitimately reports an empty built-in set today; the route
+   * surface itself does not know or care how many plugins exist.
+   */
+  discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]>;
+  /** BR-01/BR-05 lifecycle callbacks built once by the composition root and shared by the HTTP
+   * and agent-tool enable paths. Failures reject the enable operation. */
+  onPluginEnabled: (pluginId: string) => Promise<void>;
+  onPluginDisabled: (pluginId: string) => void;
+  /** The same process-lifetime hook registry's content-facing port. */
+  pluginBeforeSaveHook: BeforeSaveHookPort;
+}
+
+export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & DatabaseRecoveryDeps & ComposioDeps & WebhooksDeps & FormsDeps & PostDeps & PresentationDeps & SettingsDeps & ChangeSetDeps & EventBusDeps & AnalyticsDeps & NavigationDeps & DatabaseOpsDeps & RedirectsDeps & CommerceCatalogDeps & WidgetsDeps & PluginRuntimeDeps & {
   workspaceRepo: WorkspaceRepoPort;
   /**
    * Durable AI chat history, obtained per-principal.
@@ -912,128 +1108,6 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * `modules/site-assistant.ts`.
    */
   siteAssistantRateLimiter: RateLimiter;
-  /** ADR-041/043/044/045 re-audit (2026-07-16, TM-adr041-043-044-045-audit-001, Finding 2 fix) —
-   * the `migration_runs` read side `reconcileInterruptedMigrationOnBoot` needs; previously
-   * constructed nowhere (real SQLite adapter existed, unused; no in-memory double existed). */
-  migrationRunsRepo: MigrationRunsRepoPort;
-  /**
-   * Admin-UI backend-gap closure (design-spec.md §0.4/§1.9/§2.8/§3.8/§4.8, this dispatch) — the
-   * read-side + route-layer wiring the Web Design pass found missing across `content-types`,
-   * `entries`, `taxonomy`, and (partially) `database`/`recovery`. Every field below is backed by an
-   * in-memory adapter in BOTH `server/app.ts` and `server/deps.ts` (no SQLite adapter exists yet
-   * for `content-types`/`entries`/`taxonomy` — the same disclosed "no adapter yet" precedent
-   * `mediaRepo`/`transformDefinitionRepo`/`memberRepo` already establish above), EXCEPT
-   * `restorePointsRepo`/`dbOps`, which get real `db/sqlite/database-journal-repo.ts`/`db-ops.ts`
-   * adapters in `server/deps.ts` — see this dispatch's handoff for the full disclosure and the
-   * follow-up SQLite-adapter work item it leaves open.
-   *
-   * (2026-08-18, Slice 3: the `content-types`/`entries`/`taxonomy` REPO fields this comment
-   * originally introduced — `contentTypeRepo`/`contentTypeIndexProvisioner`/`entryRepo`/
-   * `taxonomyRepo`/`termRepo`/`entryTermRepo`/`taxonomyRevisionRepo` — moved to the new
-   * `ContentTaxonomyDeps` interface above; this comment stays here because it also covers
-   * `stampWatermark`/`restorePointsRepo`/`dbOps`/`databaseIntrospection`/`siteStatusRepo`/
-   * `disclosureWatermarkSource`/`deepLinkRestorePointLookup` below.
-   *
-   * 2026-08-18, Slice 4: `restorePointsRepo`/`dbOps`/`siteStatusRepo`/`disclosureWatermarkSource`/
-   * `deepLinkRestorePointLookup` moved to the new `DatabaseRecoveryDeps` interface above (they had a
-   * real, exact, whole-group consumer — see that interface's own doc); `stampWatermark`/
-   * `databaseIntrospection` stay here, alongside `migrationRunsRepo` above and `gatedMutations`
-   * below, as candidates for a later group with no single real narrow consumer yet.)
-   */
-  /** Bumps `database_write_watermark` for taxonomy writes (create/rename/assign/delete). Real
-   * `sqliteStampWatermark(db)` in `server/deps.ts` (the certified `stampWatermarkTx`, see
-   * `core/gated-mutations/watermark.ts`); `noopStampWatermark` in `server/app.ts`'s in-memory
-   * composition, which has no watermark table to advance. */
-  stampWatermark: () => void;
-  /** ADR-041 §3 — the `database_get_health`/`database_get_schema_state`/`database_list_pending_migrations`
-   * agent tools' backing read port (`features/database/adapter.sqlite.ts`, closing the gap that
-   * file's own catalog header previously disclosed as "no backing adapter composed into RouteDeps
-   * yet"). Real `SqliteDatabaseIntrospectionAdapter` in `server/deps.ts` (reuses the same open
-   * `ContentDb` handle `restorePointsRepo`/`dbOps` already share); `InMemoryDatabaseIntrospectionAdapter`
-   * in `server/app.ts`'s hermetic composition. */
-  databaseIntrospection: DatabaseIntrospectionPort;
-  /**
-   * SPEC-016 (`core/gated-mutations`'s gateway, ADR-041 §5) — composed into a real composition
-   * root for the first time this dispatch. One process-lifetime `GatewayDeps` (in-process
-   * `InMemoryTokenStore`, see `core/gated-mutations/composition.ts`'s file header for the disclosed
-   * `TokenStorePort` decision) shared by every gated-mutation route this dispatch wires
-   * (`taxonomy/terms/:id/merge`, `database/migrate-forward`, `recovery/restore`).
-   */
-  gatedMutations: { gatewayDeps: GatewayDeps };
-  /**
-   * SPEC-009 / ADR-PIPE-009 — `redirects` + first-time `origin` composition-
-   * root wiring. `redirectRepo`/`redirectHitSink` back the admin HTTP surface
-   * (Phase 2) and the `phase-handler.ts` read path; `originRegistry` is the
-   * single open-redirect/canonical-origin oracle (ADR-040), wired into the
-   * composition root for the first time by this feature — no other library
-   * had a real consumer for it before now. `redirectsWriteDeps` bundles the
-   * write chokepoint's full dependency set (repo/db/transaction/matcher/
-   * originRegistry/clock/idGen/outbox) — a single pre-built object rather
-   * than exposing the package-private `RedirectDbHandle`/transaction-wrapper
-   * types on this shared file (INV-07's chokepoint boundary stays {
-   * `redirects.ts`, `capture.ts`, `ports.internal.ts` } — routes only ever
-   * see the already-composed `RedirectsWriteDeps`, never the raw db handle).
-   */
-  redirectRepo: RedirectRepoPort;
-  redirectHitSink: RedirectHitSink;
-  originRegistry: OriginRegistryPort;
-  redirectsWriteDeps: RedirectsWriteDeps;
-  /** SPIKE: seam for the sample Tier-3 store plugin (data lives in plugin-owned `p_store__*`
-   * tables). Optional — only the SQLite runtime wires it (see `index.ts`). */
-  store?: {
-    listProducts(): { id: string; title: string; price: number; stock: number; version: number }[];
-    checkout(
-      productId: string,
-      qty: number
-    ):
-      | { ok: true; orderId: string; remainingStock: number; retries: number }
-      | { ok: false; reason: "not-found" | "out-of-stock" | "conflict"; retries: number };
-  };
-  /**
-   * Commerce catalog read ports (2026-08-12: wiring products into template render data).
-   * Optional, matching `store?:` above's precedent — the real running server's composition root
-   * (`server/deps.ts`) wires both against the SAME `content.db` every other repo already uses (no
-   * `declareDataModule()`/plugin bootstrap needed, unlike `store`/`lipay`); the hermetic
-   * `server/app.ts` test composition leaves them unset, and `routes/site/products.ts` falls back
-   * to `store?.listProducts()` when absent — never a hard dependency a test has to fake.
-   */
-  commerceProductRepo?: CommerceProductRepoPort;
-  commercePriceRepo?: CommercePriceRepoPort;
-  /**
-   * The lipay payments framework plugin's composed API (`features/plugins/lipay`). Optional and
-   * wired only by a composition root that has a real SQLite handle, exactly like `store` above —
-   * lipay's tables come from `declareDataModule()`, which the in-memory composition has no
-   * counterpart for. `routes/site/payments-webhook.ts` reads this lazily per request, so its route
-   * can be registered ahead of the blanket body parser while activation still happens later.
-   */
-  lipay?: LipayApi;
-  /**
-   * SPEC-043/ADR-047 (widgets) — the `widget_region_bindings` derived-projection repo
-   * (`widgets/ports.ts`'s `WidgetRegionBindingRepoPort`, mirroring `NavLocationBindingRepoPort`
-   * exactly). Consumed by both the admin `widgets` routes (region CRUD) and the public site-render
-   * path (`routes/site/pages.ts` → `resolvePageWidgets`, W-004).
-   */
-  widgetBindingRepo: WidgetRegionBindingRepoPort;
-  /**
-   * SPEC-005 (ADR-005-ARCH) — the `plugin_activations` persistence port (mirrors
-   * `PresentationSettingsRepoPort` exactly, rule-of-two). Consumed by the `plugins` admin routes
-   * (`PLUGINS_LIST`/`PLUGIN_SET_ENABLED`, REQ-10).
-   */
-  pluginActivationRepo: PluginActivationRepoPort;
-  /**
-   * SPEC-005 (ADR-005-ARCH) — pre-bound `discoverPlugins()` closure (install dir / built-in
-   * registry already captured by the composition root). Phase 1 of this feature ships zero
-   * built-in plugins (the `word-count` dogfood plugin is a later, gated phase per this feature's
-   * own tasks.md), so this closure legitimately reports an empty built-in set today; the route
-   * surface itself does not know or care how many plugins exist.
-   */
-  discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]>;
-  /** BR-01/BR-05 lifecycle callbacks built once by the composition root and shared by the HTTP
-   * and agent-tool enable paths. Failures reject the enable operation. */
-  onPluginEnabled: (pluginId: string) => Promise<void>;
-  onPluginDisabled: (pluginId: string) => void;
-  /** The same process-lifetime hook registry's content-facing port. */
-  pluginBeforeSaveHook: BeforeSaveHookPort;
   /**
    * 2026-08-15 — the deployments feature's READ side (`features/deployments/read-repo.ts`),
    * backing the admin Full Site tab's `GET .../deployments` route
