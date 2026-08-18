@@ -102,6 +102,22 @@ test("analytics-ingest: malformed/missing body never 500s and never leaks any er
   assert.equal(res.status, 204);
 });
 
+test("analytics-ingest: a literal null eventProps is dropped through the real app, not treated as a valid object", async (t) => {
+  const deps = testDeps();
+  const app = createApp(deps);
+  const baseUrl = await startTestServer(app, t);
+
+  const res = await fetch(`${baseUrl}/_analytics/e`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ host: "example.com", path: "/x", kind: "event", eventProps: null }),
+  });
+  assert.equal(res.status, 204);
+  const hits = deps.analyticsSink.all();
+  assert.equal(hits.length, 1);
+  assert.equal(hits[0].kind, "event");
+});
+
 test("analytics-ingest: a caller with no User-Agent/Accept-Language still 204s through the real app and classifies as unknown device", async (t) => {
   const deps = testDeps();
   const app = createApp(deps);
@@ -135,6 +151,54 @@ test("analytics-ingest: a caller with no User-Agent/Accept-Language still 204s t
   assert.ok(hit, "the beacon must still be accepted with no User-Agent/Accept-Language at all");
   assert.equal(hit.deviceClass, "unknown");
   assert.equal(hit.browserFamily, null);
+});
+
+/** Same technique as the unit-tier test of the same name -- see its comment: every REAL TCP
+ *  connection always has SOME socket, so Express always derives a non-empty `req.ip`, meaning
+ *  `buildContext`'s `req.ip ?? req.socket.remoteAddress ?? ""` double fallback is unreachable
+ *  through any real HTTP request, on the real composed app or otherwise. */
+interface ExpressHandlerLayer {
+  route?: { path: string; stack: { handle: (req: unknown, res: unknown) => unknown }[] };
+}
+interface ExpressAppWithRouter {
+  _router: { stack: ExpressHandlerLayer[] };
+}
+
+function extractHandler(app: ReturnType<typeof createApp>, path: string): (req: unknown, res: unknown) => unknown {
+  const stack = (app as unknown as ExpressAppWithRouter)._router.stack;
+  const layer = stack.find((l) => l.route?.path === path);
+  if (!layer?.route) throw new Error(`route '${path}' was not found in the router stack`);
+  return layer.route.stack[0].handle;
+}
+
+test("analytics-ingest: `req.ip ?? req.socket.remoteAddress ?? \"\"` double fallback, forced via a direct handler call on the REAL composed app with both left undefined -- still 204s and the hit still lands", async () => {
+  const deps = testDeps();
+  const app = createApp(deps);
+  const handler = extractHandler(app, "/_analytics/e");
+  let statusCode: number | undefined;
+  const res = {
+    status(code: number) {
+      statusCode = code;
+      return res;
+    },
+    end() {
+      return res;
+    },
+  };
+  const req = {
+    body: { host: "example.com", path: "/forced-ip-fallback-integration" },
+    ip: undefined,
+    socket: { remoteAddress: undefined },
+    hostname: "example.com",
+    get: () => undefined,
+  };
+
+  await handler(req, res);
+
+  assert.equal(statusCode, 204);
+  const hit = deps.analyticsSink.all()[0];
+  assert.ok(hit, "the beacon must still be accepted when both req.ip and req.socket.remoteAddress are undefined");
+  assert.equal(hit.path, "/forced-ip-fallback-integration");
 });
 
 test("analytics-ingest: a real DNT:true beacon is excluded end-to-end (never reaches the sink), still 204s", async (t) => {
