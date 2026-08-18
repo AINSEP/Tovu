@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { existsSync, lstatSync, readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
-import { findUnrewrittenAssetPaths, rewriteAssetPaths, TOKEN_STYLESHEET_SENTINEL } from "./static-asset-contract";
+import { findUnrewrittenAssetPaths, rewriteAssetPaths, tokenStylesheetSentinel } from "./static-asset-contract";
 
 /**
  * @file The install-time conformance gate a `build.source: "compiled"` theme (ADR-020 §5) must pass
@@ -76,12 +76,14 @@ function countOccurrences(haystack: string, needle: string): number {
 }
 
 /**
- * A built page must carry {@link TOKEN_STYLESHEET_SENTINEL} EXACTLY ONCE — zero means token injection
- * silently no-ops (`static-render.ts`'s own runtime warning for this same condition), more than one
- * means the runtime's single `.replace()` only tokens the first occurrence and leaves the rest bare.
+ * A built page must carry its `apiVersion`-matched sentinel ({@link tokenStylesheetSentinel})
+ * EXACTLY ONCE — zero means token injection silently no-ops (`static-render.ts`'s own runtime warning
+ * for this same condition), more than one means the runtime's single `.replace()` only tokens the
+ * first occurrence and leaves the rest bare.
  */
-function checkStylesheetSentinel(pageId: string, html: string): ConformanceIssue[] {
-  const count = countOccurrences(html, TOKEN_STYLESHEET_SENTINEL);
+function checkStylesheetSentinel(pageId: string, html: string, apiVersion?: 2): ConformanceIssue[] {
+  const sentinel = tokenStylesheetSentinel(apiVersion);
+  const count = countOccurrences(html, sentinel);
   if (count === 1) return [];
   return [
     {
@@ -89,7 +91,7 @@ function checkStylesheetSentinel(pageId: string, html: string): ConformanceIssue
       rule: "stylesheet-sentinel",
       message:
         count === 0
-          ? `missing the literal stylesheet tag ${JSON.stringify(TOKEN_STYLESHEET_SENTINEL)} — token injection would silently no-op and this page would ship with no design tokens`
+          ? `missing the literal stylesheet tag ${JSON.stringify(sentinel)} — token injection would silently no-op and this page would ship with no design tokens`
           : `the stylesheet tag appears ${count} times — token injection replaces only the first match, later duplicates get no tokens`,
     },
   ];
@@ -114,20 +116,20 @@ function checkStylesheetSentinel(pageId: string, html: string): ConformanceIssue
  * exists so a reader filtering issues down to just the `asset-path` rule still sees that this page's
  * assets were never actually verified, rather than reading silence as a clean bill of health.
  */
-function checkAssetPaths(pageId: string, html: string, themeId: string): ConformanceIssue[] {
-  const totalReferences = findUnrewrittenAssetPaths(html).length; // count BEFORE rewriting -- rewritable or not
-  const unrewritten = findUnrewrittenAssetPaths(rewriteAssetPaths(html, themeId));
+function checkAssetPaths(pageId: string, html: string, themeId: string, apiVersion?: 2): ConformanceIssue[] {
+  const totalReferences = findUnrewrittenAssetPaths(html, apiVersion).length; // count BEFORE rewriting -- rewritable or not
+  const unrewritten = findUnrewrittenAssetPaths(rewriteAssetPaths(html, themeId, apiVersion), apiVersion);
   const issues: ConformanceIssue[] = unrewritten.map((reference) => ({
     page: pageId,
     rule: "asset-path",
     message: `asset reference '${reference}' cannot be rewritten to the served theme-assets route and will 404 in the browser`,
   }));
   if (totalReferences === 0) {
+    const jsFolder = apiVersion === 2 ? "../scripts/" : "../js/";
     issues.push({
       page: pageId,
       rule: "asset-path",
-      message:
-        "page ships no '../css/' or '../js/' asset references at all — this check has nothing to verify, which is not the same as verifying the page's assets are correct",
+      message: `page ships no '../css/' or '${jsFolder}' asset references at all — this check has nothing to verify, which is not the same as verifying the page's assets are correct`,
     });
   }
   return issues;
@@ -429,6 +431,10 @@ function checkArtifactHashes(
  * wrapper), so sentinel/asset-path checks stay scoped to real pages.
  * @param required.artifactHashes - `manifest.build.artifactHashes`, or `{}` if the theme declares none
  * (a case `loadTheme`'s manifest-shape validation already flags `invalid` on its own).
+ * @param required.apiVersion - `manifest.apiVersion`, threaded to {@link checkStylesheetSentinel}/
+ * {@link checkAssetPaths} so a v2-shaped compiled theme (`css/theme.css`, `scripts/`) is checked
+ * against the v2 contract instead of v1's. `undefined` for every real theme today — no behavior change
+ * for any of them.
  * @complexity O(p · n) over pages' combined HTML length, p = page count, n = average page length; plus
  * {@link checkArtifactHashes}'s own O(f · s).
  */
@@ -440,15 +446,16 @@ export function checkBuiltThemeConformance(
     pages: Readonly<Record<string, string>>;
     partials: Readonly<Record<string, string>>;
     artifactHashes: Readonly<Record<string, string>>;
+    apiVersion?: 2;
   },
   _optional: Record<string, never> = {}
 ): ConformanceIssue[] {
-  const { themeId, themeDir, sourceDir, pages, partials, artifactHashes } = required;
+  const { themeId, themeDir, sourceDir, pages, partials, artifactHashes, apiVersion } = required;
   const issues: ConformanceIssue[] = [];
 
   for (const [pageId, html] of Object.entries(pages)) {
-    issues.push(...checkStylesheetSentinel(pageId, html));
-    issues.push(...checkAssetPaths(pageId, html, themeId));
+    issues.push(...checkStylesheetSentinel(pageId, html, apiVersion));
+    issues.push(...checkAssetPaths(pageId, html, themeId, apiVersion));
     issues.push(...checkIslandContent(pageId, html));
   }
   for (const [partialId, html] of Object.entries(partials)) {
