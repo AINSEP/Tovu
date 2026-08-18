@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import http from "node:http";
 import test from "node:test";
 
 import express from "express";
@@ -42,6 +43,36 @@ async function postBeacon(t: import("node:test").TestContext, app: express.Expre
     body: noBody ? undefined : JSON.stringify(body ?? {}),
   });
   return res;
+}
+
+/**
+ * Posts a beacon via a raw `node:http` request rather than `fetch()`. Necessary specifically to
+ * exercise `buildContext`'s `req.get("user-agent") ?? ""` / `req.get("accept-language") ?? null`
+ * fallbacks: undici's `fetch()` (used by `postBeacon` above) always injects its own default
+ * `User-Agent: node` and `Accept-Language: *` headers and provides no way to suppress them, so
+ * every `postBeacon`-based test always takes the "header present" side of both `??`s, regardless
+ * of what the test intends. A real caller is NOT bound by that — curl without `-A`, `sendBeacon`,
+ * and plenty of programmatic HTTP clients omit User-Agent/Accept-Language entirely — so the
+ * fallback side is genuinely reachable, just not through `fetch()`. `http.request` has no such
+ * built-in defaults, so omitting a header here means Express really never sees it.
+ */
+function postBeaconRaw(t: import("node:test").TestContext, app: express.Express, body: unknown): Promise<number> {
+  return new Promise((resolve, reject) => {
+    const server = app.listen(0, () => {
+      t.after(() => new Promise<void>((r) => server.close(() => r())));
+      const { port } = server.address() as import("node:net").AddressInfo;
+      const payload = JSON.stringify(body ?? {});
+      const req = http.request(
+        { host: "127.0.0.1", port, method: "POST", path: "/_analytics/e", headers: { "content-type": "application/json", "content-length": Buffer.byteLength(payload) } },
+        (res) => {
+          res.resume();
+          res.on("end", () => resolve(res.statusCode ?? 0));
+        }
+      );
+      req.on("error", reject);
+      req.end(payload);
+    });
+  });
 }
 
 test("analytics-ingest: no body at all still 204s and never throws", async (t) => {
@@ -139,6 +170,16 @@ test("analytics-ingest: an over-long host/path/referrer/eventName is truncated, 
   assert.ok(hit, "an over-long beacon must still be accepted (bounded, not rejected)");
   assert.ok(hit.path.length <= 2048, `path must be truncated to MAX_PATH_LENGTH, got ${hit.path.length}`);
   assert.ok((hit.eventName?.length ?? 0) <= 200, `eventName must be truncated to MAX_EVENT_NAME_LENGTH, got ${hit.eventName?.length}`);
+});
+
+test("analytics-ingest: a caller that sends no User-Agent/Accept-Language (real clients do this) still 204s and classifies as unknown device", async (t) => {
+  const { app, sink } = buildApp();
+  const status = await postBeaconRaw(t, app, { host: "example.com", path: "/x" });
+  assert.equal(status, 204);
+  const hit = sink.all()[0];
+  assert.ok(hit, "the beacon must still be accepted with no User-Agent/Accept-Language at all");
+  assert.equal(hit.deviceClass, "unknown", "an empty User-Agent must classify as unknown, not throw or default to desktop");
+  assert.equal(hit.browserFamily, null);
 });
 
 test("analytics-ingest: a sink failure is swallowed — still 204s, never leaks the error to the caller", async (t) => {
