@@ -100,8 +100,70 @@ import type { PluginActivationRepoPort } from "../../features/plugin-runtime/act
 import type { PluginDiscoveryRecord } from "../../features/plugin-runtime/discovery";
 import type { DeploymentsReadRepoPort, ExportEngine } from "../../features/deployments";
 
-export interface RouteDeps {
+/**
+ * Slice 1 of the `RouteDeps` god-object decomposition (2026-08-18) — the process-wide clock + id-gen
+ * seam. Split out first because it is the smallest, most stable pair in the bag (used by nearly every
+ * write chokepoint, but never grows past these two members) and has zero coupling to any other
+ * domain group here.
+ */
+export interface ClockDeps {
+  clock: { nowIso(): string };
+  idGen: { newId(): string };
+}
+
+/**
+ * Slice 1 of the `RouteDeps` god-object decomposition (2026-08-18) — the identity/auth-repo fields
+ * `requireAdminSession`/`registerAuthRoutes` (`middleware/dev-auth.ts`) actually consume, extracted
+ * verbatim (fields + doc comments unchanged) from where they lived inline in `RouteDeps` below.
+ *
+ * `identity` library repo ports (ADR-021 / SPEC-006) — principal-centric
+ * auth. In-memory only this pass (see `identity/INFO.md`); real login,
+ * sessions, and the RBAC seed run against these.
+ */
+export interface IdentityDeps {
+  principalRepo: PrincipalRepoPort;
+  userRepo: UserRepoPort;
+  sessionRepo: SessionRepoPort;
+  roleRepo: RoleRepoPort;
+  policyRepo: PolicyRepoPort;
+  policyPermissionRepo: PolicyPermissionRepoPort;
+  rolePolicyRepo: RolePolicyRepoPort;
+  principalRoleRepo: PrincipalRoleRepoPort;
+  principalPolicyRepo: PrincipalPolicyRepoPort;
+  /** argon2id hashing seam (INV-05) — see `identity/hasher.ts`. */
+  passwordHasher: PasswordHasherPort;
+  /**
+   * Resolves once first-boot identity seeding (`identity/seed.ts`) completes.
+   * Seeding hashes the owner's password (async, argon2id), so
+   * `createRouteDeps()`/`createSqliteRouteDeps()` stay synchronous by kicking
+   * the seed off immediately and handing back this promise; auth-adjacent
+   * middleware/routes `await` it before touching identity repos, so
+   * correctness never depends on request timing (no race).
+   */
+  identityReady: Promise<void>;
+  /** SPEC-006 0.6.0 (REQ-11/REQ-15) — resolves to the seeded owner's principal id; see
+   * `identity/wiring.ts`'s `IdentityRouteDepsSlice.ownerPrincipalId` doc for the full rationale. */
+  ownerPrincipalId: Promise<UUID>;
+  /**
+   * Bound closure over `identity.authorize()` + its repos (ADR-006/ADR-021 §2:
+   * `authorize()` itself is ordinary core code, not a port — this field exists
+   * so `core/commands` can call it without importing the `identity` library;
+   * see `AuthorizeFn`'s doc in `core/commands/command.ts`).
+   */
+  authorize: AuthorizeFn;
   workspaceId: UUID;
+}
+
+/**
+ * The full app-wide dependency bag every route handler and module-registration function historically
+ * accepted whole, even when touching 1-2 fields (tracked architecture debt — "core size" / "propagation
+ * cost" in `npm run check:architecture`). `ClockDeps`/`IdentityDeps` above are Slice 1 of an incremental
+ * decomposition: pulled out as their own named, cohesive interfaces and folded back in here via
+ * intersection so this type stays 100% identical to every existing consumer. Only two call sites
+ * (`middleware/dev-auth.ts`'s `requireAdminSession`, `assistant/byok-tool-surface.ts`'s
+ * `createByokToolSurface`) have been narrowed to the smaller types so far — see those files' own docs.
+ */
+export type RouteDeps = ClockDeps & IdentityDeps & {
   workspaceRepo: WorkspaceRepoPort;
   postRepo: PostRepoPort;
   /**
@@ -305,8 +367,6 @@ export interface RouteDeps {
   themesDir: string;
   outbox: OutboxPort;
   bus: EventBusPort;
-  clock: { nowIso(): string };
-  idGen: { newId(): string };
   /** Analytics ingest buffer (ADR-035 ingest-only stage; no rollup yet). ADR-046 Phase 1: durable
    * in real composition (`SqliteBufferSink`), in-memory in hermetic composition (`LocalBufferSink`). */
   analyticsSink: AnalyticsSinkPort;
@@ -374,41 +434,6 @@ export interface RouteDeps {
    */
   transformDefinitionRepo: TransformDefinitionRepoPort;
   imageTransformer: ImageTransformerPort;
-  /**
-   * `identity` library repo ports (ADR-021 / SPEC-006) — principal-centric
-   * auth. In-memory only this pass (see `identity/INFO.md`); real login,
-   * sessions, and the RBAC seed run against these.
-   */
-  principalRepo: PrincipalRepoPort;
-  userRepo: UserRepoPort;
-  sessionRepo: SessionRepoPort;
-  roleRepo: RoleRepoPort;
-  policyRepo: PolicyRepoPort;
-  policyPermissionRepo: PolicyPermissionRepoPort;
-  rolePolicyRepo: RolePolicyRepoPort;
-  principalRoleRepo: PrincipalRoleRepoPort;
-  principalPolicyRepo: PrincipalPolicyRepoPort;
-  /** argon2id hashing seam (INV-05) — see `identity/hasher.ts`. */
-  passwordHasher: PasswordHasherPort;
-  /**
-   * Resolves once first-boot identity seeding (`identity/seed.ts`) completes.
-   * Seeding hashes the owner's password (async, argon2id), so
-   * `createRouteDeps()`/`createSqliteRouteDeps()` stay synchronous by kicking
-   * the seed off immediately and handing back this promise; auth-adjacent
-   * middleware/routes `await` it before touching identity repos, so
-   * correctness never depends on request timing (no race).
-   */
-  identityReady: Promise<void>;
-  /** SPEC-006 0.6.0 (REQ-11/REQ-15) — resolves to the seeded owner's principal id; see
-   * `identity/wiring.ts`'s `IdentityRouteDepsSlice.ownerPrincipalId` doc for the full rationale. */
-  ownerPrincipalId: Promise<UUID>;
-  /**
-   * Bound closure over `identity.authorize()` + its repos (ADR-006/ADR-021 §2:
-   * `authorize()` itself is ordinary core code, not a port — this field exists
-   * so `core/commands` can call it without importing the `identity` library;
-   * see `AuthorizeFn`'s doc in `core/commands/command.ts`).
-   */
-  authorize: AuthorizeFn;
   /**
    * `forms` library ports (SPEC-010, ADR-PIPE-010 — mirrors the existing
    * `webhookSubscriptionRepo`/`webhookDeliveryRepo` field-addition precedent). `formsRateLimiter`
@@ -803,6 +828,6 @@ export interface RouteDeps {
    * vendor-keyed model).
    */
   customCredentialSetRepo: CustomCredentialSetRepoPort;
-}
+};
 
 export type RouteRegistrar = (app: Express, deps: RouteDeps) => void;
