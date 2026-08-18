@@ -153,3 +153,51 @@ test("migrateThemeToV2 fails verification (missing required entry.json) and leav
   // The broken staged output is left behind for inspection, not silently deleted.
   assert.ok(result.outputDir && fs.existsSync(result.outputDir));
 });
+
+function makeStaticThemeDirWithAssetRefs(): string {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-migrate-static-"));
+  fs.writeFileSync(
+    path.join(dir, "theme.json"),
+    JSON.stringify({ id: "s", name: "S", version: "1.0.0", tier: "static", description: "test theme" }),
+    "utf8"
+  );
+  fs.writeFileSync(path.join(dir, "tokens.json"), "{}", "utf8");
+  fs.mkdirSync(path.join(dir, "css"), { recursive: true });
+  fs.writeFileSync(path.join(dir, "css/styles.css"), "body{}", "utf8");
+  fs.mkdirSync(path.join(dir, "js/vendor"), { recursive: true });
+  fs.writeFileSync(path.join(dir, "js/nav-toggle.js"), "//js", "utf8");
+  fs.writeFileSync(path.join(dir, "js/vendor/motion.js"), "//vendor", "utf8");
+  fs.mkdirSync(path.join(dir, "pages"), { recursive: true });
+  fs.writeFileSync(
+    path.join(dir, "pages/index.html"),
+    '<html><head><link rel="stylesheet" href="../css/styles.css" /></head><body>' +
+      "<script src=\"../js/nav-toggle.js\"></script><script src='../js/vendor/motion.js'></script>" +
+      "</body></html>",
+    "utf8"
+  );
+  fs.writeFileSync(
+    path.join(dir, "nav.html"),
+    '<nav><link rel="stylesheet" href="../css/styles.css" /></nav>',
+    "utf8"
+  );
+  return dir;
+}
+
+test("migrateThemeToV2 (static) rewrites a moved page's/partial's own ../css/styles.css and ../js/ references to the v2 filename/folder (fuel's real bug: the file MOVED to css/theme.css and scripts/ but the page's own <link>/<script> text still said the v1 name, so the request-time rewrite in static-asset-contract.ts pointed at a file that no longer exists)", () => {
+  const dir = makeStaticThemeDirWithAssetRefs();
+  const result = migrateThemeToV2({ themeDir: dir, id: "s" }, { dryRun: true });
+
+  assert.ok(result.outputDir && fs.existsSync(result.outputDir), "staged output must exist for inspection");
+  const page = fs.readFileSync(path.join(result.outputDir!, "render/pages/index.html"), "utf8");
+  assert.equal(
+    page,
+    '<html><head><link rel="stylesheet" href="../css/theme.css" /></head><body>' +
+      "<script src=\"../scripts/nav-toggle.js\"></script><script src='../scripts/vendor/motion.js'></script>" +
+      "</body></html>"
+  );
+  assert.ok(!page.includes("../css/styles.css"), "old v1 stylesheet filename must not survive migration");
+  assert.ok(!page.includes("../js/"), "old v1 js folder reference must not survive migration");
+
+  const partial = fs.readFileSync(path.join(result.outputDir!, "render/partials/nav.html"), "utf8");
+  assert.equal(partial, '<nav><link rel="stylesheet" href="../css/theme.css" /></nav>');
+});
