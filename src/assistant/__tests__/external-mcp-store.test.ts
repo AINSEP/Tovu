@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { InMemoryKeyring } from "../../webhooks/keyring.memory";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm";
-import type { KeyringPort } from "../../webhooks/ports";
+import type { KeyringPort } from "../../webhooks/index";
 import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory";
 import {
   ExternalMcpSecretStoreUnconfiguredError,

@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { AesGcmSecretSealer } from "../../../../webhooks/secret-sealer.aesgcm";
 import { InMemoryKeyring } from "../../../../webhooks/keyring.memory";
-import type { KeyringPort } from "../../../../webhooks/ports";
+import type { KeyringPort } from "../../../../webhooks/index";
 import { InMemoryPublishCredentialSetRepo } from "../repo.memory";
 import {
   createPublishCredential,

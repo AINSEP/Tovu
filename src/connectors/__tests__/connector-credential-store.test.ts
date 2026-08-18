@@ -4,7 +4,7 @@ import test from "node:test";
 import type { ConnectorCredentialRecord } from "@jini-ai/integrations/composio";
 
 import { InMemoryKeyring } from "../../webhooks/keyring.memory";
-import type { KeyringPort } from "../../webhooks/ports";
+import type { KeyringPort } from "../../webhooks/index";
 import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm";
 import { InMemoryConnectorCredentialRepo } from "../connector-credential-store.memory";
 import {

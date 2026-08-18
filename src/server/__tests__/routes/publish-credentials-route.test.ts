@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { createApp, createRouteDeps } from "../../app";
 import { AesGcmSecretSealer } from "../../../webhooks/secret-sealer.aesgcm";
-import type { KeyringPort } from "../../../webhooks/ports";
+import type { KeyringPort } from "../../../webhooks/index";
 import { bootAuthenticated, loginAsOwner, startTestServer } from "../helpers/http-test-server";
 import type { RouteDeps } from "../../routes/types";
 

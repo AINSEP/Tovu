@@ -30,7 +30,7 @@ import type { ListsDeps } from "#src/newsletter/lists";
 import type { SendPipelineDeps } from "#src/newsletter/send-pipeline";
 import type { SubscriptionsDeps, UnsubscribeSubscriptionDeps } from "#src/newsletter/subscriptions";
 import type { UnsubscribeDeps } from "#src/newsletter/unsubscribe";
-import type { KeyringPort } from "#src/webhooks/ports";
+import type { KeyringPort } from "#src/webhooks/index";
 import type { RouteDeps } from "../../types";
 
 export interface NewsletterRouteDeps extends RouteDeps {
