@@ -268,3 +268,90 @@ the real rollback; a stray uncommitted backup folder is just clutter).
    planner before the static tier's asset-path-rewrite complexity (`fuel`/`gracious-timing`/
    `portfolite`/`fashion-modern`'s `images/` → `assets/images/` rewrites, `basic`'s `preview/`
    regeneration, `mui-marketing`'s refuse case).
+
+## Session 3 (fresh agent `theme-v2-build-3`, dispatched as a duplicate of `theme-v2-build-2` — see
+below) — storefront migrated, new cross-cutting blocker found before static tier
+
+**Dispatch collision, resolved:** this session was dispatched with the exact same task-#8 brief while
+`theme-v2-build-2` already owned it and had uncommitted WIP in the shared working tree. Flagged to
+team-lead before touching anything; team-lead confirmed `theme-v2-build-2` was already dead (killed
+before this session was dispatched — the "owner: theme-v2-build-2" on task #8 was stale bookkeeping),
+reassigned task #8 to this session. The orphaned WIP (`theme-migration-plan.ts` generalized to cover
+`templated`/`handlebars` tiers, not just `declarative`) was inspected, typechecked, scoped-tested
+(7/7 green, matched `storefront`'s real shape exactly), and kept rather than redone — commit `6ab2b6f9`.
+
+**Real bug found and fixed:** `buildV2Manifest` in `migrate-theme.ts` carried every v1 manifest field
+forward unchanged, but v1's `engine: 1` (a bare number — confirmed dead at runtime, `theme.ts`'s own
+doc comment: "nothing in the engine branches on it") must become v2's `{ name, version }` object
+(`manifest-v2.ts`'s `v2-engine-shape`/`v2-engine-name` rules). `basic-declarative` never had an
+`engine` field so this path was untested until `storefront` hit it. Fixed with a tier -> engine-name
+map (`templated` -> `"liquid"`, `handlebars` -> `"handlebars"`, matching
+`theme-authoring-guide-v2.md`'s own worked example) in a new `convertEngineField` helper. RED
+confirmed first, regression test added. Commit `f221b1c7`.
+
+**`storefront` migrated for real** (commit `2e01a20c`): dry-run byte-identical diff confirmed first,
+real migration, double-verify (validator + `loadTheme()`), idempotent re-run confirmed, full
+`src/features/theme` suite (364 tests) + `theme-migrate-command`/`theme-validate-command` CLI
+integration (8 tests) green. v1 backup deleted post-commit (git history is the rollback, same
+precedent as `basic-declarative`).
+
+**New cross-cutting blocker found, reported to team-lead, NOT YET RESOLVED — do not start the
+static-tier planner until this is settled:**
+
+Every one of the 8 remaining real themes — all 7 static themes (`basic`, `fuel`, `gracious-timing`,
+`portfolite`, `tailark-dusk`, `tailark-quartz-dark`, `tailark-quartz-libre`) AND `fashion-modern` — has
+a root-level `screenshots/` folder. `structure.ts`'s `V2_APPROVED_ROOTS` does not include
+`"screenshots"`, and `structure-unapproved-root` is a hard `error` in every profile (not in
+`PUBLISH_ONLY_RULES`, `profiles.ts`). So every one of these migrations will fail validation as soon as
+a static-tier planner exists, unless this is resolved first. Can't be silently folded into
+`assets/previews/` either — that rule checks the literal filename `assets/previews/card.webp`
+(`validate-theme-package.ts:144`), and these are real screenshot files (jpg/png), so satisfying it
+would mean an actual image re-encode + rename, not a file move. `theme-files.ts` already has its own
+explicit precedent that `screenshots/` is real author-owned marketing content, deliberately distinct
+from generated preview output (`isGeneratedThemePath`'s own doc comment) — it was just never added to
+the v2-strict schema's approved-roots list. Recommendation sent to team-lead: add `"screenshots"` to
+`V2_APPROVED_ROOTS` (no data movement needed) + update `theme-authoring-guide-v2.md` §3's tree diagram
+to match — looks like a Milestone 2 schema-build oversight, not a genuinely open product question, but
+flagged rather than unilaterally changed since it touches the schema/design doc, same as Blocker A.
+
+**Classification correction:** `fashion-modern`'s real `tier` is `"templated"` (folder
+`src/themes/templated/fashion-modern/` and its own `theme.json` both agree), NOT `"static"` as the
+original checkpoint classification grouped it. It needs the templated-tier planner (already built),
+not a static-tier path-rewrite pass. It DOES still need: (a) the same `engine: 1` conversion
+storefront needed, (b) an `assets/` -> `assets/images/` nesting fix for its one hardcoded ref
+(`/theme-assets/fashion-modern/assets/hero-outerwear.jpg` in `home.liquid`) — the templated planner
+doesn't move an `assets/` folder at all today (only `styles.css` + `templates/`), so it needs a small
+extension regardless of the screenshots/ question's outcome. Not yet built.
+
+**Unverified from this session** (inherited from the earlier checkpoint classification, not
+independently re-confirmed yet): the exact path-rewrite counts for `fuel`/`gracious-timing`/
+`portfolite` (12/10/13 refs respectively, per the original checkpoint), and the tailark-* themes'
+"structurally clean" claim beyond the screenshots/ finding above.
+
+**Pre-existing, unrelated to this session's work — noting for whoever looks next:**
+`src/themes/static/mui-marketing/` is entirely untracked in git (`git log --all` finds zero history
+for it, confirmed via `git ls-files` returning empty) — file mtimes are Aug 17, a day before this
+session started, so this predates this session and is not something this session created or touched.
+Not committing it as part of any of the above; flagging since it's the refuse-case theme this batch
+still needs to reach.
+
+### Next Actions (current)
+
+1. **Blocked on team-lead's screenshots/ decision** before building the static-tier planner at all —
+   holding here rather than building it on a schema gap that would fail 100% of the remaining batch.
+2. Once resolved: build the static-tier planner (`pages/`, `nav.html`/`footer.html`/
+   `footer-minimal.html` partials, `css/`, `js/`, hardcoded `images/` -> `assets/images/` path
+   rewrites), starting with whichever of `fuel`/`gracious-timing`/`portfolite` team-lead prefers, or
+   `basic` first since it's the reference/most-tested theme (has `preview/` regeneration to handle too
+   — `build-preview.mjs`'s own pre-existing `docs-sidebar.js` drift, per the original checkpoint, not
+   carried forward).
+3. Extend the templated-tier planner (or add a one-off step) for `fashion-modern`'s `assets/` folder,
+   then migrate it.
+4. `tailark-dusk`/`tailark-quartz-dark`/`tailark-quartz-libre` — migrate once the static planner
+   exists; re-flag the pre-existing NOTICE.md documentation-gap finding in the final report per
+   Leona's standing instruction (still not resolved, not this session's job to resolve).
+5. `mui-marketing` — verify the planner correctly refuses it (deliberate CSR bypass-conformance
+   theme). Note it's also untracked in git (see above) — that's a separate, pre-existing issue.
+6. Two catalog copies (`__original-themes__/static/basic`, `__marketplace__/static/basic`) — open
+   design questions from the earlier checkpoint, still unresolved, still not this session's call alone.
+7. Milestones 4/5 remain queued behind task #8's completion.
