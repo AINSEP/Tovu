@@ -98,6 +98,29 @@ test("explore: detail lists the fixture's own files, real login, real composed a
   assert.ok(body.files.some((f) => f.path === "style.css"));
 });
 
+test("explore: an unreadable theme directory 500s via the detail route's generic catch, not a 404/403", async (t) => {
+  const themesDir = makeThemesRoot();
+  const liveThemeDir = path.join(themesDir, "static", THEME_ID);
+  const app = createApp(testDeps(themesDir));
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  // Chmod AFTER app boot (the theme catalog is discovered once, up front, from `deps.themes` -- see
+  // `testDeps`/`discoverAllBuiltInThemes` above -- so `findThemeOrRespond`'s lookup is unaffected)
+  // and right before the request, so only `listThemeFiles`'s own live `readdirSync(themeDir)`
+  // inside the route's try block hits the permission error, not theme discovery/lookup.
+  fs.chmodSync(liveThemeDir, 0o000);
+  t.after(() => fs.chmodSync(liveThemeDir, 0o755));
+
+  const res = await fetch(`${baseUrl}${BASE}`, { headers: { cookie } });
+  if (process.getuid && process.getuid() === 0) {
+    t.skip("running as root: chmod 000 does not deny root a read");
+    return;
+  }
+  assert.equal(res.status, 500);
+  const body = (await res.json()) as { error: string };
+  assert.equal(body.error, "internal error");
+});
+
 test("explore: PUT a writable file, then GET reflects the reload (not stale)", async (t) => {
   const themesDir = makeThemesRoot();
   const app = createApp(testDeps(themesDir));
@@ -562,16 +585,31 @@ test("explore: a compiled theme with no catalog original 409s NO_ORIGINAL on res
 // by `create-delete-pause.integration.test.ts` for the identical shape of gap on a different route.
 
 interface ExpressHandlerLayer {
-  route?: { path: string; stack: { handle: (req: unknown, res: unknown) => unknown }[] };
+  route?: {
+    path: string;
+    methods: Record<string, boolean>;
+    stack: { handle: (req: unknown, res: unknown) => unknown }[];
+  };
 }
 interface ExpressAppWithRouter {
   _router: { stack: ExpressHandlerLayer[] };
 }
 
-function extractHandler(app: ReturnType<typeof createApp>, routePath: string): (req: unknown, res: unknown) => unknown {
+/** `.../themes/:themeId/file` is matched by BOTH `GET` (read) and `PUT` (write) at the exact same
+ *  path string (verified directly: `app._router.stack` has 2 layers there, `methods:{get:true}`
+ *  and `methods:{put:true}`) -- matching by path alone (as this helper originally did, and as
+ *  several sibling `create-delete-pause.integration.test.ts`/`export-site.integration.test.ts`
+ *  copies of this same helper also did before being fixed) silently returns whichever method
+ *  Express registered first, not necessarily the one the test means to call. Method is now part of
+ *  the lookup so that mistake can't happen here. */
+function extractHandler(
+  app: ReturnType<typeof createApp>,
+  method: "get" | "put",
+  routePath: string
+): (req: unknown, res: unknown) => unknown {
   const stack = (app as unknown as ExpressAppWithRouter)._router.stack;
-  const layer = stack.find((l) => l.route?.path === routePath);
-  if (!layer?.route) throw new Error(`route '${routePath}' was not found in the router stack`);
+  const layer = stack.find((l) => l.route?.path === routePath && l.route.methods[method]);
+  if (!layer?.route) throw new Error(`${method.toUpperCase()} route '${routePath}' was not found in the router stack`);
   return layer.route.stack[0].handle;
 }
 
@@ -593,11 +631,12 @@ function fakeExpressRes(): { res: unknown; getStatus: () => number | undefined; 
 }
 
 const DETAIL_ROUTE_PATH = "/api/admin/v1/workspaces/:workspaceId/themes/:themeId";
+const FILE_ROUTE_PATH = "/api/admin/v1/workspaces/:workspaceId/themes/:themeId/file";
 
 test("explore: authorizeThemeAccess's `req.params.workspaceId ?? \"\"` fallback, forced via a direct handler call on the REAL composed app (Express itself can never leave a required :workspaceId segment unset) -- still 404s as 'workspace was not found'", async () => {
   const themesDir = makeThemesRoot();
   const app = createApp(testDeps(themesDir));
-  const handler = extractHandler(app, DETAIL_ROUTE_PATH);
+  const handler = extractHandler(app, "get", DETAIL_ROUTE_PATH);
   const { res, getStatus, getBody } = fakeExpressRes();
 
   await handler({ params: {} }, res);
@@ -609,13 +648,37 @@ test("explore: authorizeThemeAccess's `req.params.workspaceId ?? \"\"` fallback,
 test("explore: findThemeOrRespond's `req.params.themeId ?? \"\"` fallback, forced via a direct handler call with a correct workspaceId but an absent themeId param -- 404s 'theme \\'\\' was not found'", async () => {
   const themesDir = makeThemesRoot();
   const app = createApp(testDeps(themesDir, { authorize: async () => ({ allowed: true, reason: "forced" }) }));
-  const handler = extractHandler(app, DETAIL_ROUTE_PATH);
+  const handler = extractHandler(app, "get", DETAIL_ROUTE_PATH);
   const { res, getStatus, getBody } = fakeExpressRes();
 
   await handler({ params: { workspaceId: WORKSPACE_ID } }, res);
 
   assert.equal(getStatus(), 404);
   assert.deepEqual(getBody(), { error: "theme '' was not found" });
+});
+
+// --- bodyRecord's own `?? {}` fallback ---------------------------------------------------------
+// The existing "PUT with no body/content-type at all" test below sends a real HTTP request with no
+// body -- but `body-parser`'s `express.json()` middleware unconditionally does `req.body = req.body
+// || {}` (verified directly in `node_modules/body-parser/lib/types/json.js`) BEFORE checking
+// content-type at all, so `req.body` is `{}`, never `undefined`, for ANY real request through this
+// app regardless of content-type. `bodyRecord({}).content` and `bodyRecord(undefined).content` both
+// evaluate to `undefined`, so that test reaches the same `{ ok: false }` outcome either way WITHOUT
+// ever exercising `bodyRecord`'s own `?? {}` branch -- same "provably unreachable via real HTTP,
+// reachable via a forced direct call" shape as the params `??""` fallbacks above. Proven distinct,
+// not just theoretically: drop the `?? {}` and `bodyRecord(undefined)` throws (`undefined.content`),
+// which this route's outer `catch` turns into a 500 -- a genuinely different outcome from the 400
+// this test asserts, so this specific scenario is what actually discriminates the fallback.
+test("explore: bodyRecord's own `?? {}` fallback, forced via a direct handler call with a genuinely undefined req.body (not `{}`, which is all a real HTTP request can ever produce) -- still 400s INVALID_BODY", async () => {
+  const themesDir = makeThemesRoot();
+  const app = createApp(testDeps(themesDir, { authorize: async () => ({ allowed: true, reason: "forced" }) }));
+  const handler = extractHandler(app, "put", FILE_ROUTE_PATH);
+  const { res, getStatus, getBody } = fakeExpressRes();
+
+  await handler({ params: { workspaceId: WORKSPACE_ID, themeId: THEME_ID }, body: undefined }, res);
+
+  assert.equal(getStatus(), 400);
+  assert.deepEqual(getBody(), { error: "content must be a string", code: "INVALID_BODY" });
 });
 
 // --- each non-detail route's OWN early-return branches --------------------------------------------
@@ -762,11 +825,18 @@ test("explore: GET file with no ?path= query at all 400s 'path is required' via 
   assert.equal(body.error, "path is required");
 });
 
-// --- PUT with an entirely absent body (no content-type at all) -- bodyRecord's `??{}`, ------------
-// bodyStringField's `??""`, and parseThemeFilePutBody's `{ ok: false }` all fire together, since
-// `req.body` itself (not just one field) is `undefined` when express.json() never runs.
+// --- PUT with an entirely absent body (no content-type at all) -----------------------------------
+// CORRECTION (2026-08-18): this test's original comment claimed `req.body` is `undefined` here
+// because "express.json() never runs" -- that is wrong. `body-parser`'s `express.json()` middleware
+// unconditionally does `req.body = req.body || {}` as its very first line, BEFORE checking
+// content-type at all (verified directly in `node_modules/body-parser/lib/types/json.js`), so
+// `req.body` is `{}` here, never `undefined`. `bodyRecord({}).content` and `bodyRecord(undefined)
+// .content` both evaluate to `undefined` though, so this test still correctly reaches `{ ok: false
+// }` / 400 INVALID_BODY -- it just does NOT exercise `bodyRecord`'s own `?? {}` branch, contrary to
+// the original claim. See the forced-direct-call test above (`bodyRecord's own`?? {}` fallback`) for
+// a test that genuinely passes `undefined` and does exercise that branch.
 
-test("explore: PUT with no body/content-type at all 400s INVALID_BODY -- bodyRecord's own `??{}` fallback fires because req.body itself is undefined, not just a missing field", async (t) => {
+test("explore: PUT with no body/content-type at all still 400s INVALID_BODY (req.body is `{}` here, not `undefined` -- see the forced-call test above for the genuinely-undefined case)", async (t) => {
   const themesDir = makeThemesRoot();
   const app = createApp(testDeps(themesDir));
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
