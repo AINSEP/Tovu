@@ -856,7 +856,24 @@ export interface AnalyticsDeps {
   analyticsSettingsReady: Promise<void>;
 }
 
-export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & DatabaseRecoveryDeps & ComposioDeps & WebhooksDeps & FormsDeps & PostDeps & PresentationDeps & SettingsDeps & ChangeSetDeps & EventBusDeps & AnalyticsDeps & {
+/**
+ * Slice 8 of the `RouteDeps` god-object decomposition (2026-08-18) — the navigation-owned menu
+ * repo and its one real ADR-029 derived-index port, extracted verbatim (fields + doc comments
+ * unchanged) from where they lived inline in `RouteDeps` below.
+ *
+ * No `routes/admin/menus/*.ts` file has its own narrow deps type today (all 6 registrars take full
+ * `RouteDeps`); `routes/admin/content/deps.ts`'s `ContentRouteDeps` reads `menuRepo` alone (not
+ * `navLocationBindingRepo`) for `template-preview.ts`'s theme-nav lookup. Grouped on the fields'
+ * own ADR-029 pairing ahead of a future narrow menus consumer.
+ */
+export interface NavigationDeps {
+  /** Local, navigation-owned menu repo (ADR-029; not a frozen ADR port). */
+  menuRepo: MenuRepoPort;
+  /** The one real ADR-029 port: the derived nav_location_bindings index. */
+  navLocationBindingRepo: NavLocationBindingRepoPort;
+}
+
+export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps & ContentTaxonomyDeps & CommentsDeps & MembersDeps & DatabaseRecoveryDeps & ComposioDeps & WebhooksDeps & FormsDeps & PostDeps & PresentationDeps & SettingsDeps & ChangeSetDeps & EventBusDeps & AnalyticsDeps & NavigationDeps & {
   workspaceRepo: WorkspaceRepoPort;
   /**
    * Durable AI chat history, obtained per-principal.
@@ -867,10 +884,6 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * than merely against convention. See `assistant/persistence/tenant-scope.ts`.
    */
   chatHistory: ChatStoreFactory;
-  /** Local, navigation-owned menu repo (ADR-029; not a frozen ADR port). */
-  menuRepo: MenuRepoPort;
-  /** The one real ADR-029 port: the derived nav_location_bindings index. */
-  navLocationBindingRepo: NavLocationBindingRepoPort;
   /**
    * ADR-036 §5 outbound HMAC signer. ADR-PIPE-015 Phase 1: built via `createKeyringBackedSigner`
    * over a real `KeyringPort` (`server/deps.ts`'s composition uses `EnvOrFileKeyring`;
