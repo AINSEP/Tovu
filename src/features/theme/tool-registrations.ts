@@ -43,7 +43,14 @@ import {
   THEME_READ_PERMISSION,
   THEME_WRITE_PERMISSION,
 } from "./agent-tools";
-import { listThemeFiles, readThemeFile, resolveThemeFileWriteScope, ThemePathError, writeThemeFile } from "./theme-files";
+import {
+  isGeneratedThemePath,
+  listThemeFiles,
+  readThemeFile,
+  resolveThemeFileWriteScope,
+  ThemePathError,
+  writeThemeFile,
+} from "./theme-files";
 import { loadTheme, type DiscoveredTheme } from "./theme";
 
 const CATALOG_BY_ID = indexCatalogById(getThemesAgentToolCatalog());
@@ -231,6 +238,17 @@ export function buildThemesRegistrations(routeDeps: ThemeToolDeps): ToolRegistra
         const writeScope = resolveThemeFileWriteScope({ manifest: theme.manifest, relativePath });
         if (writeScope.kind === "generated-readonly") {
           throw new ThemeFileReadOnlyError(`'${relativePath}' is read-only: ${writeScope.reason}`);
+        }
+
+        // Security parity fix (2026-08-18): `explore.ts`'s PUT route has always refused a write into
+        // `preview/` (`isGeneratedThemePath` — `build-preview.mjs`'s own output, a DIFFERENT question
+        // than the ADR-020 `writeScope` check above, see that function's own doc) but this tool never
+        // called it, so an agent could write straight into `preview/` where the next preview build
+        // silently overwrites the change. Matches the human-editor surface's refusal shape.
+        if (isGeneratedThemePath(relativePath)) {
+          throw new ThemeFileReadOnlyError(
+            `'${relativePath}' is read-only: this file is generated output (build-preview.mjs's own preview tree); it is not real theme source and is silently overwritten on the next preview build — edit the file it derives from instead`
+          );
         }
 
         writeThemeFile({ themeDir: theme.dir, themesRoot: routeDeps.themesDir, relativePath, content });
