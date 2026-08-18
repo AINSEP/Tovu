@@ -17,6 +17,7 @@ import {
   restoreBuiltThemeGeneratedTree,
   writeThemeFile,
   ThemePathError,
+  readThemeLineageFile,
   type ThemeFileWriteScope,
 } from "#src/features/theme/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
@@ -442,19 +443,12 @@ export const registerAdminThemeDetailRoute: ContentRouteRegistrar = (app, deps) 
         return;
       }
 
-      // `lineage` is written by the copy/download flows but deliberately NOT parsed into
-      // `ThemeManifest` — it is metadata about where a copy came from, never anything the renderer
-      // resolves, and putting it on the manifest would invite exactly the runtime-inheritance
-      // reading the copy model exists to remove. Read from the raw manifest here instead.
-      let lineage: unknown = null;
-      try {
-        const raw = JSON.parse(
-          readThemeFile({ themeDir: theme.dir, themesRoot: deps.themesDir, relativePath: "theme.json" })
-        ) as Record<string, unknown>;
-        lineage = raw.lineage ?? null;
-      } catch {
-        lineage = null;
-      }
+      // `lineage` is written by the copy/download flows into its own install-local sidecar file
+      // (`theme-lineage.ts`), never into `theme.json`/`ThemeManifest` — it is metadata about where a
+      // copy came from, never anything the renderer resolves, and putting it on the manifest would
+      // both invite exactly the runtime-inheritance reading the copy model exists to remove AND fail
+      // a strict v2 manifest schema's `additionalProperties: false` check (2026-08-18 schema decision).
+      const lineage = readThemeLineageFile({ themeDir: theme.dir });
 
       // An untouched original to reset back to. Checked on disk rather than inferred from `lineage`,
       // because a manifest can claim an origin whose folder was since deleted — and the banner's
@@ -570,8 +564,10 @@ export const registerAdminThemeFilePutRoute: ContentRouteRegistrar = (app, deps)
       // so a compiled theme's PUT was left with an extension allowlist that knows nothing about
       // `preview/`, and a `sourceDir: "preview"` manifest wrote straight into it (200, on disk).
       // rename/copy/reset each already carry their own explicit refusal; this makes PUT match.
-      // The deeper fix is a conformance rule forbidding `build.sourceDir` from naming a
-      // GENERATED_THEME_DIRS entry at install time — not attempted here, see the regression test.
+      // The deeper fix — a conformance rule forbidding `build.sourceDir` from naming a
+      // GENERATED_THEME_DIRS entry at install time — now exists too: `isSourceDirGeneratedConflict`
+      // (`theme-files.ts`), enforced in `loadTheme()` (`theme.ts`, the `build.source === "compiled"`
+      // manifest check) so a conflicting manifest is refused at load, not only caught per-write here.
       const writable =
         !isGeneratedThemePath(path) &&
         (isInsideCompiledSourceDir(theme, path, writeScope)

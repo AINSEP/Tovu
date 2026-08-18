@@ -35,6 +35,11 @@ export {
   type DownloadMarketplaceThemeResult,
 } from "./marketplace";
 
+// Install-local provenance metadata's own sidecar file (2026-08-18 schema v2 decision) — re-exported
+// so `explore.ts`'s GET route can read a copy's lineage without a deep import into this feature's
+// internals, matching every other cross-feature surface in this barrel.
+export { readThemeLineageFile, writeThemeLineageFile, THEME_LINEAGE_FILENAME } from "./theme-lineage";
+
 export {
   renderStaticPage,
   renderStaticPartial,

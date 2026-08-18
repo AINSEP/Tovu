@@ -148,6 +148,24 @@ test("a handlebars theme missing home/entry reports the .hbs extension in its re
   assert.ok(theme.errors.includes("templates/entry.hbs is required"));
 });
 
+test("skipLiquidAllowlist in a theme's OWN theme.json has no effect — it is trusted local policy, not publisher-controlled (schema v2, 2026-08-18)", () => {
+  const dir = makeThemeDir({
+    "theme.json": JSON.stringify({
+      id: "t",
+      name: "T",
+      version: "1.0.0",
+      tier: "templated",
+      engine: 1,
+      skipLiquidAllowlist: true,
+    }),
+    "home.liquid": '{% include "partial" %}',
+    "entry.liquid": "{{ post.title }}",
+  });
+  const theme = loadTheme({ themeDir: dir, id: "t", source: "site" });
+  assert.equal(theme.status, "invalid", "a manifest-authored skipLiquidAllowlist must not bypass the lint");
+  assert.ok(theme.errors.some((e) => /disallowed tag "include"/.test(e)), `expected the lint to still run: ${JSON.stringify(theme.errors)}`);
+});
+
 test("skipLiquidAllowlist does NOT relax the Handlebars lint — the handlebars tier has no opt-out", () => {
   const dir = makeThemeDir({
     "theme.json": JSON.stringify({ id: "h", name: "H", version: "1.0.0", tier: "handlebars", engine: 1, skipLiquidAllowlist: true }),
