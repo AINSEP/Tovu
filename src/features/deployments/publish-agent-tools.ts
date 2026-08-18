@@ -99,6 +99,8 @@ import { buildConfirmationSurface, buildFormSurface, buildOutcomeSurface, type U
 // is not.
 import type { RouteDeps } from "#src/server/routes/types";
 
+import { registerToolContributor } from "#src/assistant/index";
+
 import { askOnce, askThenReport, SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, type AssistantSurfaceDeps, type SurfaceExchange, type SurfaceMessage } from "../../core/tool-surface-exchanges";
 import { listPublishCredentials, type PublishCredentialReadDeps } from "./publish-credentials/index";
 import { S3_COMPATIBLE_FIELD_GUIDANCE, S3_COMPATIBLE_FORM_DESCRIPTION } from "./publish-credentials/s3-compatible-field-guidance";
@@ -1435,33 +1437,49 @@ export function buildStaticPublishRegistrations(deps: StaticPublishToolDeps, sur
   });
 }
 
-// NOT converted to the tool-contribution registry — tried in Stage 2 batch 2 and reverted the same
-// session, for the IDENTICAL reason as this directory's sibling `tool-registrations.ts`
-// (`deployments`, also reverted this batch — see its own trailing comment for the full trace):
-// `check:architecture`'s module graph is per-directory, and `src/features/deployments` (this file's
-// own module) already sat downstream of a chain `assistant` reached unconditionally —
-// `assistant -> features/vendor-credentials -> features/source-control -> features/deployments`
-// (the last hop via `source-control/store.ts`'s value import of THIS file's own
-// `static-publish/index.ts`'s `extractGitHubLogin`) — so adding a `static-publish -> assistant`
-// registry edge closed the same real 4-module cycle: `assistant, features/deployments,
-// features/source-control, features/vendor-credentials`. Confirmed via `check:architecture --list`
-// (largest strongly-connected component, runtime-only: 0 -> 4) — verified directly rather than
-// assumed from the sibling file's result, since they are different files even though the same
-// module.
-//
-// RETRIED 2026-08-17 (same day, later pass) after `vendor-credentials/dual-read.ts`'s Option B fix
-// landed and `source-control` converted cleanly on top of it — see
-// `ADS-memory/reports/architecture/2026-08-17-vendor-credentials-cycle-design-options.md`. Reverted
-// again: `features/deployments/tool-registrations.ts`'s own sibling attempt (this SAME module, tried
-// immediately before this one) found a DIFFERENT, previously-undocumented edge the design report
-// never analyzed — `features/vendor-credentials/store.ts:5` (not `dual-read.ts`) value-imports
-// `extractGitHubLogin` from THIS FILE's own `./static-publish/index` directly, for
-// `createVendorCredential`'s GitHub-login-probe logic. Confirmed here too, empirically, by actually
-// wiring `registerToolContributor({domain: "static-publish", ...})` and running
-// `check:architecture --list`: the identical NEW 3-module cycle — `[assistant, features/deployments,
-// features/vendor-credentials]` — via `assistant -> features/vendor-credentials` (unconditional,
-// `REAL_VENDOR_CREDENTIAL_PORT`) -> `features/vendor-credentials/store.ts` (`extractGitHubLogin`) ->
-// `features/deployments` (this module, either file) -> back to `assistant`. Same fix needed as
-// `tool-registrations.ts`'s own header describes (Option-B-style injection of `extractGitHubLogin`
-// into `store.ts`) — not attempted here, new design work beyond this dispatch's scope. Reverted
-// cleanly instead.
+/**
+ * Contributes Static Publish's AI tools to the assistant's catalog — called once by
+ * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()`, not by importing this
+ * module.
+ *
+ * 2026-08-17: Static Publish was tried for the tool-contribution registry in Stage 2 batch 2 and
+ * reverted the same session, for the IDENTICAL reason as this directory's sibling
+ * `tool-registrations.ts` (`deployments`, also reverted that batch): `check:architecture`'s module
+ * graph is per-directory, and `src/features/deployments` (this file's own module) already sat
+ * downstream of a chain `assistant` reached unconditionally — `assistant -> features/vendor-
+ * credentials -> features/source-control -> features/deployments` (the last hop via
+ * `source-control/store.ts`'s value import of THIS file's own `static-publish/index.ts`'s
+ * `extractGitHubLogin`) — so adding a `static-publish -> assistant` registry edge closed the same
+ * real 4-module cycle: `assistant, features/deployments, features/source-control, features/vendor-
+ * credentials`. Confirmed via `check:architecture --list` (largest strongly-connected component,
+ * runtime-only: 0 -> 4) — verified directly rather than assumed from the sibling file's result,
+ * since they are different files even though the same module.
+ *
+ * RETRIED 2026-08-17 (same day, later pass) after `vendor-credentials/dual-read.ts`'s Option B fix
+ * landed and `source-control` converted cleanly on top of it — see
+ * `ADS-memory/reports/architecture/2026-08-17-vendor-credentials-cycle-design-options.md`. Reverted
+ * again: `features/deployments/tool-registrations.ts`'s own sibling attempt (this SAME module, tried
+ * immediately before this one) found a DIFFERENT, previously-undocumented edge the design report
+ * never analyzed — `features/vendor-credentials/store.ts:5` (not `dual-read.ts`) value-imported
+ * `extractGitHubLogin` from THIS FILE's own `./static-publish/index` directly, for
+ * `createVendorCredential`'s GitHub-login-probe logic. Confirmed here too, empirically, by actually
+ * wiring `registerToolContributor({domain: "static-publish", ...})` and running `check:architecture
+ * --list`: the identical NEW 3-module cycle — `[assistant, features/deployments, features/vendor-
+ * credentials]` — via `assistant -> features/vendor-credentials` (unconditional,
+ * `REAL_VENDOR_CREDENTIAL_PORT`) -> `features/vendor-credentials/store.ts` (`extractGitHubLogin`) ->
+ * `features/deployments` (this module, either file) -> back to `assistant`.
+ *
+ * RETRIED AND LANDED HERE (2026-08-17, same session) once `vendor-credentials/store.ts`'s own
+ * `extractGitHubLogin` value import was ALSO cut using the same Option-B-style injection technique —
+ * see that file's header ("Why `probeAccountLabel`'s GitHub-login extractor is INJECTED, not
+ * imported") for the full trace. Landed in lockstep with this directory's sibling
+ * `tool-registrations.ts` (`deployments`) — the two share this one `features/deployments` module at
+ * `check:architecture`'s per-directory granularity, so a `check:architecture` run mid-way through
+ * converting only one of the two would (and empirically did, when tried in isolation) still report a
+ * live 2-module `[assistant, features/deployments]` cycle from whichever one is still wired via a
+ * value import. Both converted together, `check:architecture` confirms 0 module cycles / largest SCC
+ * 0.
+ */
+export function contributeStaticPublishTools(): void {
+  registerToolContributor({ domain: "static-publish", build: buildStaticPublishRegistrations, risk: staticPublishDerivedRisk });
+}

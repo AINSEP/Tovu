@@ -116,12 +116,19 @@ test("installFirstPartyToolContributors installs exactly the converted domains �
   // `ADS-memory/reports/architecture/2026-08-17-vendor-credentials-cycle-design-options.md`), which
   // removed the `features/vendor-credentials -> features/source-control` edge that closed its
   // original 3-module cycle — see `features/source-control/tool-registrations.ts`'s own header.
-  // `themes`/`deployments`/`static-publish`/`post` remain deliberately absent, each covered by its
-  // own test below.
+  // `deployments`/`static-publish` are ALSO present below — retried together once
+  // `features/vendor-credentials/store.ts`'s own `extractGitHubLogin` import was ALSO injected
+  // instead of value-imported (a second, previously-undocumented edge Option B alone did not cover)
+  // — see `features/deployments/tool-registrations.ts`'s own header. The two convert in lockstep,
+  // not independently: `check:architecture`'s module graph is per-directory and both live in the
+  // same `features/deployments` module, so either one alone (with the other still value-imported
+  // from `assistant`) still closes a live 2-module `[assistant, features/deployments]` cycle.
+  // `themes`/`post` remain deliberately absent, each covered by its own test below.
   assert.deepEqual(listToolContributors().map((c) => c.domain), [
     "comments",
     "content-types",
     "database",
+    "deployments",
     "entries",
     "forms",
     "identity",
@@ -137,6 +144,7 @@ test("installFirstPartyToolContributors installs exactly the converted domains �
     "seo",
     "settings",
     "source-control",
+    "static-publish",
     "taxonomy",
     "widgets",
     "workspace",
@@ -163,14 +171,14 @@ test("source-control IS installed by installFirstPartyToolContributors — retri
   assert.equal(listToolContributors().some((c) => c.domain === "source-control"), true);
 });
 
-test("deployments is deliberately NOT installed by installFirstPartyToolContributors — tried in Stage 2 batch 2 and reverted the same session (see features/deployments/tool-registrations.ts's trailing comment: converting it closed a 4-module cycle through features/source-control/features/vendor-credentials)", () => {
+test("deployments IS installed by installFirstPartyToolContributors — retried once vendor-credentials/store.ts's own extractGitHubLogin import was ALSO injected instead of value-imported (see features/deployments/tool-registrations.ts's own header)", () => {
   installFirstPartyToolContributors();
-  assert.equal(listToolContributors().some((c) => c.domain === "deployments"), false);
+  assert.equal(listToolContributors().some((c) => c.domain === "deployments"), true);
 });
 
-test("static-publish is deliberately NOT installed by installFirstPartyToolContributors — tried in Stage 2 batch 2 and reverted the same session for the identical reason as deployments above (see features/deployments/publish-agent-tools.ts's trailing comment: same features/deployments module)", () => {
+test("static-publish IS installed by installFirstPartyToolContributors — retried and landed together with deployments above (see features/deployments/publish-agent-tools.ts's own header: the two share the same features/deployments module, so check:architecture required converting both together)", () => {
   installFirstPartyToolContributors();
-  assert.equal(listToolContributors().some((c) => c.domain === "static-publish"), false);
+  assert.equal(listToolContributors().some((c) => c.domain === "static-publish"), true);
 });
 
 test("registration order is deterministic across repeated installs, not just stable within one", () => {

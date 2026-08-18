@@ -1,6 +1,7 @@
 import { contributeCommentsTools } from "../comments/tool-registrations";
 import { contributeContentTypesTools } from "../features/content-types/tool-registrations";
 import { contributeDatabaseTools } from "../features/database/tool-registrations";
+import { contributeDeploymentsTools } from "../features/deployments/tool-registrations";
 import { contributeEntriesTools } from "../features/entries/tool-registrations";
 import { contributePagesTools } from "../features/pages/tool-registrations";
 import { contributePluginsTools } from "../features/plugin-runtime/tool-registrations";
@@ -17,6 +18,7 @@ import { contributeNewsletterTools } from "../newsletter/tool-registrations";
 import { contributeRedirectsTools } from "../redirects/tool-registrations";
 import { contributeSeoTools } from "../seo/tool-registrations";
 import { contributeSourceControlTools } from "../features/source-control/tool-registrations";
+import { contributeStaticPublishTools } from "../features/deployments/publish-agent-tools";
 import { contributeWidgetsTools } from "../widgets/tool-registrations";
 import { registerToolContributor } from "../assistant";
 import { buildSettingsRegistrations, settingsDerivedRisk } from "../features/settings/tool-registrations";
@@ -39,7 +41,7 @@ import { buildSettingsRegistrations, settingsDerivedRisk } from "../features/set
  * throughout `server/deps.ts`/`server/app.ts` — this file adds no new module-level edge that did not
  * already exist, it just adds one more file-level reason for edges that were already there.
  *
- * 21 of the ~24 assistant-wired domains are listed here today (2026-08-17: `comments`/`newsletter`
+ * 23 of the ~24 assistant-wired domains are listed here today (2026-08-17: `comments`/`newsletter`
  * from Stage 1 of the registry rollout; `identity`/`members`/`taxonomy`/`redirects` added in Stage 2
  * batch 1 — `themes` was also tried in that batch and reverted, see
  * `assistant/tool-registrations.ts`'s header for why; Stage 2 batch 2 (run as two parallel worker
@@ -67,8 +69,15 @@ import { buildSettingsRegistrations, settingsDerivedRisk } from "../features/set
  * actively unsafe for this one domain. `source-control` is the 21st, retried once
  * `features/vendor-credentials/dual-read.ts`'s two legacy-table imports were injected instead of
  * value-imported (see `ADS-memory/reports/architecture/2026-08-17-vendor-credentials-cycle-design-options.md`,
- * Option B, and `features/source-control/tool-registrations.ts`'s own header for the full trace). The
- * rest still wire
+ * Option B, and `features/source-control/tool-registrations.ts`'s own header for the full trace).
+ * `deployments` is the 22nd and `static-publish` the 23rd, retried together once
+ * `features/vendor-credentials/store.ts`'s own `extractGitHubLogin` import was ALSO injected instead
+ * of value-imported (a second, previously-undocumented edge that Option B alone did not cover — see
+ * `features/deployments/tool-registrations.ts`'s own header for the full trace). The two convert in
+ * lockstep, not independently: `check:architecture`'s module graph is per-directory, and both live in
+ * the same `features/deployments` module, so either one alone (with the other still value-imported
+ * from `assistant`) still closes a live 2-module `[assistant, features/deployments]` cycle. The rest
+ * still wire
  * through `assistant/tool-registrations.ts`'s own `DOMAIN_SLICES` array, unchanged — see that file's header
  * for why (its own array still names exactly which domains those are, with a comment on each
  * reverted one explaining the specific cycle it closed). `post` was also tried and reverted the same
@@ -128,6 +137,7 @@ export function installFirstPartyToolContributors(): void {
   contributeCommentsTools();
   contributeContentTypesTools();
   contributeDatabaseTools();
+  contributeDeploymentsTools();
   contributeEntriesTools();
   contributeFormsTools();
   contributeIdentityTools();
@@ -143,6 +153,7 @@ export function installFirstPartyToolContributors(): void {
   contributeSeoTools();
   registerToolContributor({ domain: "settings", build: buildSettingsRegistrations, risk: settingsDerivedRisk });
   contributeSourceControlTools();
+  contributeStaticPublishTools();
   contributeTaxonomyTools();
   contributeWidgetsTools();
   contributeWorkspaceTools();
