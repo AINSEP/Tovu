@@ -28,9 +28,12 @@
  * a real per-run credential (minted per `runId`, checked only against that run's own delegated
  * routes) is the correct follow-up, not a drive-by here.
  */
+import { createRequire } from "node:module";
 import { dirname, join } from "node:path";
 import type { McpJsonInjectionOptions } from "@jini-ai/daemon";
 import { AGENT_DAEMON_TOKEN_ENV_VAR } from "./daemon-auth.js";
+
+const require = createRequire(import.meta.url);
 
 export function resolveMcpJsonInjection(daemonUrl: string): McpJsonInjectionOptions {
   const entryPoint = require.resolve("@jini-ai/mcp");
