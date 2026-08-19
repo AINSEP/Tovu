@@ -544,8 +544,9 @@ function listFilesRecursively(dir: string): string[] {
 /**
  * Diffs the active theme's own folder against everything this export actually wrote FROM it (a
  * rendered theme-page route, or a crawled/fetched asset), per {@link ExportReport.unreferencedThemeFiles}'s
- * own doc. `manifestRoutes` supplies the `pages/<id>.html` exclusions — `"index"`/`"404"` always
- * (home and the 404 probe render from them regardless of whether that render succeeded), plus every
+ * own doc. `manifestRoutes` supplies the `<pagesDir>/<id>.html` exclusions (`pagesDir` is
+ * `render/pages` for a schema-v2 theme, `pages` for v1) — `"index"`/`"404"` always (home and the
+ * 404 probe render from them regardless of whether that render succeeded), plus every
  * `kind: "theme-page"` route's own page id, so a page the export ATTEMPTED (even one that failed —
  * already reported, with more detail, in `routes.failed`) is never ALSO reported here as if no code
  * path had touched it at all.
@@ -554,9 +555,15 @@ function listFilesRecursively(dir: string): string[] {
  *   a theme folder is a handful of files/folders in practice, never a caller-controlled collection.
  */
 function findUnreferencedThemeFiles(activeTheme: ManifestActiveTheme, manifestRoutes: readonly ManifestRoute[], fetchedAssetUrls: readonly string[]): string[] {
-  const accountedFor = new Set<string>(["pages/index.html", "pages/404.html"]);
+  // Schema v2 (2026-08-18, `basic`'s own migration was the last static theme to convert) nests
+  // pages under `render/pages/` instead of a theme-root `pages/` — mirrors
+  // `theme-pages-render.canary.test.ts`'s own v1/v2 detection (presence of `render/pages`), since
+  // every real v2-migrated theme loses its root `pages/` folder permanently once migrated, so the
+  // two conventions never coexist within one theme.
+  const pagesDir = existsSync(path.join(activeTheme.dir, "render", "pages")) ? "render/pages" : "pages";
+  const accountedFor = new Set<string>([`${pagesDir}/index.html`, `${pagesDir}/404.html`]);
   for (const route of manifestRoutes) {
-    if (route.kind === "theme-page") accountedFor.add(`pages/${route.label}.html`);
+    if (route.kind === "theme-page") accountedFor.add(`${pagesDir}/${route.label}.html`);
   }
   const themeAssetPrefix = `/theme-assets/${activeTheme.id}/`;
   for (const url of fetchedAssetUrls) {

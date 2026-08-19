@@ -18,9 +18,11 @@ import { bootAuthenticated, startTestServer } from "../helpers/http-test-server.
  * real GET on the live-site boundary rather than in-domain resolution alone.
  *
  * Written after both shipped untested and one regressed in production: with a static-tier active
- * theme declaring `postTemplate`, every post whose `templateChoice` was `null` served a "Template
- * not configured" diagnostic page at HTTP 200 — 11 live published posts, silent because the status
- * code was a success and nothing alarmed. The `null` vs `""` pair below is the regression test.
+ * theme declaring `templates` (the 2026-08-11 unification's single Post/Page template list, see
+ * `theme.ts`'s own doc on that field), every post whose `templateChoice` was `null` served a
+ * "Template not configured" diagnostic page at HTTP 200 — 11 live published posts, silent because
+ * the status code was a success and nothing alarmed. The `null` vs `""` pair below is the
+ * regression test.
  */
 
 const WORKSPACE_ID = "workspace-local";
@@ -28,9 +30,13 @@ const DIAGNOSTIC_MARKER = "Not configured";
 const POST_BODY_TEXT = "Body text that proves the real post rendered";
 
 function staticThemeWithPostTemplate(
-  overrides: { postTemplate?: string[]; extraPages?: Record<string, string> } = {}
+  overrides: { templates?: string[]; extraPages?: Record<string, string> } = {}
 ): DiscoveredTheme {
-  const postSlot = '<div data-embed-type="post" data-embed-id="{{post}}"></div>';
+  // The unified `{"type":"content"}` marker (2026-08-11) — `injectCurrentEntityContentId` adds the
+  // current entity's real id into this marker at render time; the retired `data-embed-type="post"
+  // data-embed-id="{{post}}"` placeholder this used to be stopped resolving to anything the moment
+  // themes moved onto `data-embed-config` (2026-08-10, `static-render.ts`'s `resolveTemplate` doc).
+  const postSlot = `<div data-embed-config='{"type":"content"}'></div>`;
   return {
     manifest: {
       id: "static-test-theme",
@@ -38,7 +44,7 @@ function staticThemeWithPostTemplate(
       version: "1.0.0",
       tier: "static",
       engine: 1,
-      postTemplate: overrides.postTemplate ?? ["blog-post.html"],
+      templates: overrides.templates ?? ["blog-post.html"],
     },
     dir: "/nonexistent/test-theme",
     tokens: {},
@@ -126,7 +132,7 @@ test("REGRESSION: a post whose templateChoice was never set renders its real con
   assert.equal(status, 200);
   assert.ok(!html.includes(DIAGNOSTIC_MARKER), "must not serve the 'Template not configured' page");
   assert.ok(html.includes(POST_BODY_TEXT), "the post's own body must reach the page");
-  assert.ok(html.includes('data-tpl="blog-post"'), "must render through the theme's first postTemplate");
+  assert.ok(html.includes('data-tpl="blog-post"'), "must render through the theme's first-listed template");
 });
 
 test("a post explicitly opted out of templates still gets the diagnostic page", async (t) => {
@@ -156,7 +162,7 @@ test("null and \"\" produce different pages for otherwise identical posts", asyn
 });
 
 test("an explicit templateChoice renders through that template, not the first one", async (t) => {
-  const { app, deps } = buildTestApp(staticThemeWithPostTemplate({ postTemplate: ["blog-post.html", "long-form.html"] }));
+  const { app, deps } = buildTestApp(staticThemeWithPostTemplate({ templates: ["blog-post.html", "long-form.html"] }));
   await savePost(deps, { slug: "chosen", templateChoice: "long-form.html" });
   const baseUrl = await startTestServer(app, t);
 

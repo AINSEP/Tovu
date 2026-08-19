@@ -241,11 +241,11 @@ const morningsDoc = doc(
 
 export const seededPosts: PostRecord[] = [
   seededPost("post-home", "Welcome to Tovu", "welcome", welcomeDoc),
-  seededPost("page-about", "What Is Tovu?", "about", aboutDoc),
-  seededPost("page-themes", "How Themes Work", "how-themes-work", themesDoc),
-  seededPost("page-plugins", "How Plugins Work", "how-plugins-work", pluginsDoc),
-  seededPost("page-plugin-api", "The Plugin API", "plugin-api", pluginApiDoc),
-  seededPost("page-self-hosting", "Self-Hosting — Coming Soon", "self-hosting", selfHostingDoc),
+  seededPost("post-about", "What Is Tovu?", "about", aboutDoc),
+  seededPost("post-themes", "How Themes Work", "how-themes-work", themesDoc),
+  seededPost("post-plugins", "How Plugins Work", "how-plugins-work", pluginsDoc),
+  seededPost("post-plugin-api", "The Plugin API", "plugin-api", pluginApiDoc),
+  seededPost("post-self-hosting", "Self-Hosting — Coming Soon", "self-hosting", selfHostingDoc),
   seededPost("post-typography", "Field Notes: The Weight of Type", "the-weight-of-type", typographyDoc),
   seededPost("post-mornings", "Slow Mornings", "slow-mornings", morningsDoc),
 ];
