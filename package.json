@@ -53,7 +53,11 @@
     "admin:build": "npm --prefix apps/admin run build",
     "admin:dev": "npm --prefix apps/admin run dev",
     "setup": "npm install && npm run admin:install && npm run admin:build",
-    "theme": "tsx development/scripts/theme-tool.ts"
+    "theme": "tsx development/scripts/theme-tool.ts",
+    "ci:local": "bash development/scripts/ci-local.sh",
+    "ci:local:tests": "bash development/scripts/ci-local.sh --with-tests",
+    "ci:local:route-coverage": "bash development/scripts/ci-local.sh --route-coverage",
+    "test:rerun-failing": "bash development/scripts/rerun-failing-tests.sh"
   },
   "dependencies": {
     "@ag-ui/core": "0.0.58",
