@@ -30,23 +30,42 @@ import type { NavTarget, ResolveTargetHrefFn } from "#src/navigation/index";
 import { getLatestTransformDefinition } from "#src/media/index";
 import { CORE_PUBLIC_TRANSFORM_NAME } from "#src/media/index";
 import { foldPageHead, serializeHeadElements, type PageHeadContext } from "../../http/site/page-head.js";
-import { renderSite, renderHtmlPageBody, type MediaAssetRenderMeta } from "../../http/site/render.js";
+import {
+  renderSite,
+  renderHtmlPageBody,
+  injectExtraHeadIntoStaticPage,
+  type MediaAssetRenderMeta,
+} from "../../http/site/render.js";
 import type { RouteDeps, RouteRegistrar } from "../types.js";
 
 /**
- * SPEC-008 T049 — builds the `PageHeadContext` for one render (home has no
- * `entry`; the post route's `entry` is a serializable snapshot per
+ * SPEC-008 T049 — builds the `PageHeadContext` for one render (home/page have
+ * no `entry`; the post route's `entry` is a serializable snapshot per
  * `page-head.ts`'s own "by value, not a live PostRecord" contract) and folds
  * every registered `page.head` contributor's output into one escaped string
  * ready for `renderSite`'s `extraHead`. Never throws — `foldPageHead` itself
  * is fail-closed-per-contributor (a broken SEO lookup degrades to no extra
  * head tags, never a 500).
+ *
+ * `"page"` (2026-08-19, SPEC-008 T045 gap fix part 2) — a static theme's own
+ * marketing page (`theme.pages[slug]`) has no backing `PostRecord` at all, so
+ * it folds the same entry-less shape `"home"` always has (site-level title +
+ * canonical only, per `createSeoPageHeadHook`'s `!ctx.entry` branch — there is
+ * no per-page SEO metadata to resolve without an entry, a disclosed limit of
+ * today's SEO data model, not something this fix invents). The one thing that
+ * DOES differ from `"home"` is the canonical path: `"/"` is only correct for
+ * the home route itself, so `canonicalFallbackPath` lets a `"page"` caller
+ * supply its own (`/${slug}`) instead of silently reusing home's `"/"`.
+ * Ignored whenever `post` is provided (its own resolved/derived slug path
+ * always wins), so every pre-existing `"home"`/`"post"` call site is
+ * unaffected by this parameter's addition.
  */
 async function buildExtraHead(
   deps: RouteDeps,
-  route: "home" | "post",
+  route: "home" | "post" | "page",
   siteTitle: string,
-  post: PostRecord | undefined
+  post: PostRecord | undefined,
+  canonicalFallbackPath: string = "/"
 ): Promise<string> {
   const canonical = post
     ? (await urlFor({ deps: { postRepo: deps.postRepo }, target: { kind: "entryRef", entryId: post.id, contentType: post.kind }, ctx: { workspaceId: deps.workspaceId } }))?.canonicalUrl
@@ -56,7 +75,7 @@ async function buildExtraHead(
     workspaceId: deps.workspaceId,
     route,
     siteTitle,
-    canonicalUrl: canonical ?? (post ? `/${post.slug}` : "/"),
+    canonicalUrl: canonical ?? (post ? `/${post.slug}` : canonicalFallbackPath),
     entry: post
       ? {
           id: post.id,
@@ -512,13 +531,26 @@ export async function resolveHtmlFormatContentMarkers(
  * BODY only ever reaches the page through that separate marker-resolution round trip. `undefined`
  * (every pre-existing call site) is byte-identical to before this parameter existed — see the
  * override field's own doc for why this is scoped to one id and never ambient state.
+ *
+ * `extraHead` (2026-08-19, SPEC-008 T045 gap fix part 3) — this function's own `renderStaticPage`
+ * call bypasses `renderSite`/`pageShell` exactly like the marketing-page branch and static-tier home
+ * do, so it had the identical SEO-fold drop; spliced in via
+ * {@link injectExtraHeadIntoStaticPage} on the resolved-template return only. Deliberately NOT
+ * applied to the `"diagnostic"` ("template not configured") return above: that page is an
+ * operator-facing error state, not real indexable content — carrying the real entry's canonical/OG
+ * tags on it would tell a crawler the broken diagnostic page IS the entry, worse than the drop this
+ * fixes. Same reasoning `registerSiteRoutes`'s themed-404 branch is left out for (see that call
+ * site's own comment). Optional and omitted by both existing callers that don't render the live
+ * public page (`routes/admin/posts/template-preview.ts`'s pending-preview endpoint), matching every
+ * other optional parameter's "omit = unchanged prior behavior" contract in this file.
  */
 export async function renderViaTemplate(
   deps: TemplateRenderDeps,
   theme: DiscoveredTheme,
   post: PostRecord,
   staticMenus: Readonly<Record<string, readonly StaticMenuItem[]>> | undefined,
-  pendingBodyJson?: JsonObject
+  pendingBodyJson?: JsonObject,
+  extraHead?: string
 ): Promise<string> {
   const resolution = resolveTemplate({ theme, templateChoice: post.templateChoice });
   if (resolution.kind === "diagnostic") {
@@ -549,7 +581,8 @@ export async function renderViaTemplate(
     input: { workspaceId: deps.workspaceId, html: withNestedContent },
   });
   const bodyResolvedHtml = renderHtmlPageBody(withNestedContent, resolved);
-  return renderStaticPage({ theme, pageId, htmlOverride: bodyResolvedHtml, menus: staticMenus }) ?? "";
+  const rendered = renderStaticPage({ theme, pageId, htmlOverride: bodyResolvedHtml, menus: staticMenus }) ?? "";
+  return injectExtraHeadIntoStaticPage(rendered, extraHead);
 }
 
 /**
@@ -764,7 +797,17 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
         } else {
           const staticHtml = renderStaticPage({ theme, pageId: slug, menus: staticMenus });
           if (staticHtml) {
-            res.set("Cache-Control", CACHE_CONTROL_PUBLIC_PAGE).type("html").send(staticHtml);
+            // SPEC-008 T045 gap fix, part 2 (2026-08-19) — this branch renders a theme's own
+            // marketing page directly via `renderStaticPage`, the same `pageShell`-bypassing shape
+            // the static-tier home route already had `injectExtraHeadIntoStaticPage` wired for in
+            // `9e7786b9`; this call site was the one flagged there and left unfixed. No backing
+            // `post`, so `buildExtraHead`'s `"page"` mode (entry-less, same shape as `"home"`) with
+            // this page's own `/${slug}` as the canonical fallback — never home's `"/"`.
+            const extraHead = await buildExtraHead(deps, "page", SITE_TITLE, undefined, `/${slug}`);
+            res
+              .set("Cache-Control", CACHE_CONTROL_PUBLIC_PAGE)
+              .type("html")
+              .send(injectExtraHeadIntoStaticPage(staticHtml, extraHead));
             return;
           }
         }
@@ -787,7 +830,15 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
       // rendering under the theme's first template (`<title>Blog post — Basic</title>`) on the live
       // site — fixed by gating on `kind`, not just `bodyFormat`.
       if (isEligibleForTemplateBranch({ theme, post })) {
-        res.set("Cache-Control", CACHE_CONTROL_PUBLIC_PAGE).type("html").send(await renderViaTemplate(deps, theme, post, staticMenus));
+        // SPEC-008 T045 gap fix, part 3 (2026-08-19) — `renderViaTemplate` has the same
+        // pageShell-bypassing `renderStaticPage` shape as the two branches above; unlike the
+        // marketing-page branch this one DOES have a real backing `post`, so it folds through the
+        // same entry-bearing `"post"` shape the generic (non-template) render below already uses.
+        const extraHead = await buildExtraHead(deps, "post", SITE_TITLE, post);
+        res
+          .set("Cache-Control", CACHE_CONTROL_PUBLIC_PAGE)
+          .type("html")
+          .send(await renderViaTemplate(deps, theme, post, staticMenus, undefined, extraHead));
         return;
       }
 

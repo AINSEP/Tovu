@@ -1838,8 +1838,16 @@ function siteAssistantMarkup(enabled: boolean): { head: string; body: string } {
  * meta/link/script tags survive untouched. A no-op when `extraHead` is empty/absent, or when `html`
  * has no `</head>` to splice into (defensive — every real static page has one; this is the same
  * "never throw, degrade to what's already there" contract `renderStaticPage` itself follows).
+ *
+ * Exported (2026-08-19 follow-up) so `routes/site/pages.ts` can reuse this SAME splice for the two
+ * other static-tier `renderStaticPage` call sites that bypass `renderSite`/`pageShell` entirely and
+ * therefore had the identical drop: the marketing `/:slug` theme-page branch (no backing post, so
+ * there is no `renderSite` call in the mix at all) and `renderViaTemplate`'s template-picker render.
+ * One splice implementation, not a second parallel one — see those call sites' own docs for which
+ * static-tier renders were deliberately left OUT (the admin theme-preview iframe and the 404/
+ * diagnostic pages) and why.
  */
-function injectExtraHeadIntoStaticPage(html: string, extraHead: string | undefined): string {
+export function injectExtraHeadIntoStaticPage(html: string, extraHead: string | undefined): string {
   if (!extraHead) return html;
   const withoutOwnTitle = extraHead.includes("<title>") ? html.replace(/<title>[\s\S]*?<\/title>/i, "") : html;
   return /<\/head>/i.test(withoutOwnTitle) ? withoutOwnTitle.replace(/<\/head>/i, `${extraHead}</head>`) : withoutOwnTitle;
