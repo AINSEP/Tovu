@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { AdminPost } from "../contracts";
+import type { AdminPost } from "../contracts.js";
 
 /**
  * @file SPEC-047/ADR-056 REQ-3 — compile-time proof that `AdminPost`'s discriminated union makes

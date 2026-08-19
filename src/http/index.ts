@@ -7,5 +7,5 @@
  * root) or `CreateHttpClient` (composition-root-only) — a consumer imports `HttpClientPort` +
  * `EgressPolicy` and nothing that could construct an unguarded client.
  */
-export type { HttpRequest, HttpResponse, PinnedPeer } from "./types";
-export type { EgressPolicy, HttpClientPort } from "./ports";
+export type { HttpRequest, HttpResponse, PinnedPeer } from "./types.js";
+export type { EgressPolicy, HttpClientPort } from "./ports.js";

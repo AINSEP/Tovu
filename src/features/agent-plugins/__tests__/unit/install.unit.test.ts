@@ -5,15 +5,15 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { forceRemove } from "../fixtures/force-remove";
-import { resolveAgentPluginLayout, type AgentPluginLayout } from "../../layout";
+import { forceRemove } from "../fixtures/force-remove.js";
+import { resolveAgentPluginLayout, type AgentPluginLayout } from "../../layout.js";
 import {
   AgentPluginInstallError,
   installAgentPlugin,
   type AgentPluginArchiveEntry,
   type AgentPluginArchiveReaderPort,
   type InstallAgentPluginRequired,
-} from "../../install";
+} from "../../install.js";
 
 /**
  * @file `installAgentPlugin()` — content-addressed extraction of one Agent Plugin archive.

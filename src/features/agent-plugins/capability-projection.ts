@@ -44,8 +44,8 @@
  */
 import { readFile } from "node:fs/promises";
 
-import type { InstalledAgentPlugin } from "./install";
-import { assertContainedOnDisk } from "./package-paths";
+import type { InstalledAgentPlugin } from "./install.js";
+import { assertContainedOnDisk } from "./package-paths.js";
 
 export type AgentPluginCapabilityKind = "agent-plugin-skill" | "agent-plugin-mcp-server";
 

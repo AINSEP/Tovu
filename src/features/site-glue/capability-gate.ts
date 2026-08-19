@@ -25,7 +25,7 @@
  * Design-frozen contract for the extension-glue-tier work (ADR-057, Implementation Outline slice
  * 1). Depends only on `./manifest`'s `GlueCapability` type — no host-specific dependency.
  */
-import type { GlueCapability } from "./manifest";
+import type { GlueCapability } from "./manifest.js";
 
 /** Thrown synchronously when a glue module invokes a capability it did not declare (mirrors the
  * sibling mechanism's `CapabilityDeniedError` shape, generalized to `GlueCapability`). */

@@ -6,11 +6,11 @@ import path from "node:path";
 import test from "node:test";
 import * as yazl from "yazl";
 
-import { buildZipFixture } from "../fixtures/build-zip";
-import { forceRemove } from "../fixtures/force-remove";
-import { AgentPluginInstallError, installAgentPlugin } from "../../install";
-import { resolveAgentPluginLayout } from "../../layout";
-import { yauzlAgentPluginArchiveReader } from "../../yauzl-archive-reader";
+import { buildZipFixture } from "../fixtures/build-zip.js";
+import { forceRemove } from "../fixtures/force-remove.js";
+import { AgentPluginInstallError, installAgentPlugin } from "../../install.js";
+import { resolveAgentPluginLayout } from "../../layout.js";
+import { yauzlAgentPluginArchiveReader } from "../../yauzl-archive-reader.js";
 
 /**
  * @file Every adversarial case from `install.unit.test.ts` (the scripted-double suite) re-run

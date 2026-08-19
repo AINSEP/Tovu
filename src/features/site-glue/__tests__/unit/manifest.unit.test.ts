@@ -7,7 +7,7 @@ import {
   validateGlueManifest,
   type GlueCallSite,
   type GlueManifest,
-} from "../../manifest";
+} from "../../manifest.js";
 
 /**
  * @file `validateGlueManifest()` + `resolveCallSiteDispatch()` — SPEC-048 REQ-1/REQ-10/REQ-12;

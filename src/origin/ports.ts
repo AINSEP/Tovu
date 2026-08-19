@@ -12,7 +12,7 @@
  * decision (ADR-040 F2) — they call these ports instead.
  */
 import type { UUID } from "@jini-ai/cms/core";
-import type { VerifiedOrigin } from "./types";
+import type { VerifiedOrigin } from "./types.js";
 
 /** Context for resolving a workspace's canonical origin. */
 export interface OriginContext {

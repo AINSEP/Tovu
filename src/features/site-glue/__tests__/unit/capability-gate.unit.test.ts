@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildGlueCapabilityGate, GLUE_CAPABILITIES, GlueCapabilityDeniedError } from "../../capability-gate";
-import type { GlueCapability } from "../../manifest";
-import type { GlueCapabilityDelegate } from "../../capability-gate";
+import { buildGlueCapabilityGate, GLUE_CAPABILITIES, GlueCapabilityDeniedError } from "../../capability-gate.js";
+import type { GlueCapability } from "../../manifest.js";
+import type { GlueCapabilityDelegate } from "../../capability-gate.js";
 
 /**
  * @file `buildGlueCapabilityGate()` — SPEC-048 REQ-1/REQ-4; ADR-057 CIC-1 (ESCALATE_SECURITY).

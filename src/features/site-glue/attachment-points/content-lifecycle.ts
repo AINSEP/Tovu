@@ -21,7 +21,7 @@
  * Implementation Outline slice 2 (ADR-057, Implementation Outline). Depends on slice 1's frozen
  * `manifest.ts`/`ports.ts` contracts.
  */
-import type { GlueContentLifecycleFilter, GlueFieldDecl, GlueHostPort } from "../ports";
+import type { GlueContentLifecycleFilter, GlueFieldDecl, GlueHostPort } from "../ports.js";
 
 export interface AttachGlueContentLifecycleRequired {
   readonly moduleId: string;

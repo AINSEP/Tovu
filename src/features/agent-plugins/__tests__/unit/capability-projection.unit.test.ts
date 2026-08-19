@@ -4,9 +4,9 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { projectInstalledAgentPluginCapabilities, readInstalledSkillMarkdown } from "../../capability-projection";
-import type { InstalledAgentPlugin } from "../../install";
-import { PackagePathViolation } from "../../package-paths";
+import { projectInstalledAgentPluginCapabilities, readInstalledSkillMarkdown } from "../../capability-projection.js";
+import type { InstalledAgentPlugin } from "../../install.js";
+import { PackagePathViolation } from "../../package-paths.js";
 
 /**
  * @file `projectInstalledAgentPluginCapabilities()` — turns one `InstalledAgentPlugin` (from

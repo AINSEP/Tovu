@@ -8,7 +8,7 @@
     "packages/*"
   ],
   "engines": {
-    "node": ">=20.6.0"
+    "node": ">=24.0.0"
   },
   "bin": {
     "tovu": "dist/src/cli/main.js"
@@ -53,6 +53,8 @@
     "theme": "tsx development/scripts/theme-tool.ts"
   },
   "dependencies": {
+    "@ag-ui/core": "0.0.58",
+    "@ag-ui/encoder": "0.0.58",
     "@jini-ai/agent-runtime": "file:../Jini/packages/agent-runtime",
     "@jini-ai/agentic": "file:../Jini/packages/agentic",
     "@jini-ai/chat": "file:../Jini/packages/chat",

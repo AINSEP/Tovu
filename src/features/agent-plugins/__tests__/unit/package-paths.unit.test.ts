@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { assertContainedOnDisk, normalizePackageEntryPath, PackagePathViolation } from "../../package-paths";
+import { assertContainedOnDisk, normalizePackageEntryPath, PackagePathViolation } from "../../package-paths.js";
 
 /**
  * @file Path-safety primitive shared by extraction (`install.ts`) and any future preview read.

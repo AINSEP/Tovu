@@ -27,7 +27,7 @@
  * Design-frozen contract for the extension-glue-tier work (ADR-057, Implementation Outline slice
  * 1). No implementation is provided here — the one real adapter is later, out-of-slice work.
  */
-import type { GlueCallSite, GlueCapability } from "./manifest";
+import type { GlueCallSite, GlueCapability } from "./manifest.js";
 
 /** One glue-module-declared field, in the same four-JSON-primitive-type shape the sibling
  * mechanism's own field declarations use. Kept local (not imported) for the same

@@ -38,7 +38,7 @@
  */
 import yauzl from "yauzl";
 
-import type { AgentPluginArchiveEntry, AgentPluginArchiveReaderPort } from "./install";
+import type { AgentPluginArchiveEntry, AgentPluginArchiveReaderPort } from "./install.js";
 
 /** Unix `st_mode` file-type mask and the symlink bit pattern within it (`S_IFMT` / `S_IFLNK`). */
 const S_IFMT = 0xf000;

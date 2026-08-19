@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { parseAgentPluginManifest, parseAgentPluginMcpConfig } from "../../manifest";
+import { parseAgentPluginManifest, parseAgentPluginMcpConfig } from "../../manifest.js";
 
 /**
  * @file `parseAgentPluginManifest()` / `parseAgentPluginMcpConfig()` — the Agent Plugins v1.0.0

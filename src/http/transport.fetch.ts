@@ -2,8 +2,8 @@ import { request as httpRequest } from "node:http";
 import { request as httpsRequest, type RequestOptions } from "node:https";
 import { createBrotliDecompress, createGunzip, createInflate } from "node:zlib";
 
-import type { HttpRequest, HttpResponse, PinnedPeer } from "./types";
-import type { HttpTransportAdapter } from "./ports";
+import type { HttpRequest, HttpResponse, PinnedPeer } from "./types.js";
+import type { HttpTransportAdapter } from "./ports.js";
 
 /**
  * @file The raw, pinned-peer HTTP transport (ADR-038 amendment 3/4, ADR-PIPE-015 GAP-04).

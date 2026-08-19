@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { classifyAddress, createHttpClient } from "../client";
-import type { EgressPolicy, HttpRequest, HttpResponse, PinnedPeer } from "../ports";
-import type { HttpTransportAdapter } from "../ports";
+import { classifyAddress, createHttpClient } from "../client.js";
+import type { EgressPolicy, HttpRequest, HttpResponse, PinnedPeer } from "../ports.js";
+import type { HttpTransportAdapter } from "../ports.js";
 
 function makePolicy(overrides: Partial<EgressPolicy> = {}): EgressPolicy {
   return {

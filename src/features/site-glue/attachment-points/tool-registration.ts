@@ -27,7 +27,7 @@
  * Implementation Outline slice 3 (ADR-057, Implementation Outline). Depends on slice 1's frozen
  * `manifest.ts`/`ports.ts` contracts.
  */
-import type { GlueHostPort, GlueToolRegistration } from "../ports";
+import type { GlueHostPort, GlueToolRegistration } from "../ports.js";
 
 /** One glue module's own tool-registration contribution, not yet built. `build()` may throw —
  * CIC-3's fail-isolation wrapper is precisely what catches that throw below. */

@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { subscribeGlueEvent } from "../../attachment-points/events";
-import type { GlueHostPort } from "../../ports";
-import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "../../../../core/events";
+import { subscribeGlueEvent } from "../../attachment-points/events.js";
+import type { GlueHostPort } from "../../ports.js";
+import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "../../../../core/events/index.js";
 
 /**
  * @file Events attachment point, exercised against a REAL outbox + event bus — SPEC-048 REQ-5/

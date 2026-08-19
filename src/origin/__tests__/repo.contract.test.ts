@@ -6,9 +6,9 @@ import test from "node:test";
 
 import { openContentDb } from "../../db/sqlite/content-db";
 import { seedDevCapabilityOrigin, SqliteOriginSettingRepo } from "../../db/sqlite/origin-repo.sqlite";
-import { InMemoryOriginSettingRepo } from "../repo.memory";
-import { createVerifiedOrigin } from "../types";
-import type { OriginSettingRepoPort } from "../ports";
+import { InMemoryOriginSettingRepo } from "../repo.memory.js";
+import { createVerifiedOrigin } from "../types.js";
+import type { OriginSettingRepoPort } from "../ports.js";
 
 /**
  * @file ADR-046 Phase 1 — shared `OriginSettingRepoPort` read-contract suite, run against BOTH
