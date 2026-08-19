@@ -29,6 +29,9 @@ import type { AgentEvent, ChatMessage } from "@jini-ai/chat/core";
 import type { ChatTransport, ReattachRunOptions, RunHandlers, StartRunInput } from "@jini-ai/chat/react";
 import type { ExecutionConfig } from "@jini-ai/ui";
 
+import { fetchAgUiRunStatus, isAgUiRunId, reattachAgUiRun, startAgUiRun, stopAgUiRun } from "./assistant-transport-ag-ui";
+import { readSseFrames } from "./sse-frames";
+
 const RUNS_URL = "/api/runs";
 const BYOK_TURN_URL = "/api/admin/v1/assistant/byok-turn";
 /** Distinguishes a BYOK-run id (client-minted, no server-side run record) from a daemon-run id
@@ -328,59 +331,7 @@ function mintByokRunId(): string {
  *  stale id can never resurrect a finished controller. */
 const byokAbortControllers = new Map<string, AbortController>();
 
-/**
- * Parses one blank-line-delimited SSE frame's raw text into `{event, data}` — the field-by-field
- * half of `readSseFrames` below, split out (2026-08-06, complexity pass) as its own pure function
- * so it is directly testable with a plain string, no `ReadableStream`/reader involved, and so the
- * outer while-loop in `readSseFrames` reads as "find the next boundary, parse it, yield it" rather
- * than a parser nested three loops deep inside it.
- *
- * Returns `null` for a frame with no `data:` lines — `readSseFrames` skips yielding those, same as
- * it did before this split (a bare `event: ping` keepalive, for example, or a frame carrying only an
- * `id:` field `assistant-byok.ts` never sends).
- */
-export function parseFrame(rawFrame: string): { event: string; data: string } | null {
-  let event = "message";
-  const dataLines: string[] = [];
-  for (const line of rawFrame.split("\n")) {
-    if (line.startsWith("event:")) event = line.slice(6).trim();
-    else if (line.startsWith("data:")) dataLines.push(line.slice(5).trim());
-  }
-  return dataLines.length > 0 ? { event, data: dataLines.join("\n") } : null;
-}
-
-/**
- * Splits a `text/event-stream` response body into `{event, data}` frames.
- *
- * A hand-rolled reader rather than `EventSource`: `EventSource` only ever issues a GET with no
- * request body, and this path's whole point (see module doc's path-2 section) is one POST holding
- * the turn open on the SAME connection the browser used to send it — there is no separate URL an
- * `EventSource` could subscribe to. Frames are blank-line-delimited per the SSE spec; per-frame
- * field parsing (`event:`/`data:`, no `id:`/`retry:` support — that route sends neither) lives in
- * {@link parseFrame} above.
- *
- * @complexity O(n) in response body bytes; O(1) additional buffering per chunk beyond the
- * not-yet-terminated tail of the current frame.
- * @overallScore 100
- */
-async function* readSseFrames(body: ReadableStream<Uint8Array>): AsyncGenerator<{ event: string; data: string }> {
-  const reader = body.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-    let boundary = buffer.indexOf("\n\n");
-    while (boundary !== -1) {
-      const rawFrame = buffer.slice(0, boundary);
-      buffer = buffer.slice(boundary + 2);
-      const frame = parseFrame(rawFrame);
-      if (frame) yield frame;
-      boundary = buffer.indexOf("\n\n");
-    }
-  }
-}
+export { parseFrame } from "./sse-frames";
 
 /**
  * Dispatches one parsed BYOK SSE frame to the right `RunHandlers` call — the `"agent"`/`"error"`/
@@ -602,6 +553,15 @@ export interface CreateTovuAssistantTransportOptions {
    * rebuilding it would drop in-flight runs).
    */
   getExecutionConfig?: () => ExecutionConfig;
+  /**
+   * ADR-059's AG-UI canary toggle — deliberately NOT a value on {@link ExecutionConfig}: that type
+   * is `@jini-ai/ui`'s own closed `'local-cli' | 'byok'` union, a separate repo/package, and
+   * extending it would mean a cross-repo edit this ADR explicitly avoids (Decision 1: "a zero-touch
+   * addition to Jini"). Read fresh on every `startRun` call, same "never captured" convention
+   * {@link getExecutionConfig} already establishes, for the same reason: an operator can flip this
+   * mid-session without rebuilding the memoized transport.
+   */
+  getAgUiEnabled?: () => boolean;
 }
 
 export function createTovuAssistantTransport(options: CreateTovuAssistantTransportOptions = {}): ChatTransport {
@@ -627,6 +587,15 @@ export function createTovuAssistantTransport(options: CreateTovuAssistantTranspo
       // actionable answer instead of the mode picker silently refusing to try.
       if (executionConfig?.mode === "byok") {
         return startByokRun(input, handlers, executionConfig.byok);
+      }
+
+      // AG-UI canary path (ADR-059) — a Tovu-local toggle, independent of `executionConfig.mode`
+      // (Jini's own closed union, never extended for this). Checked AFTER the byok branch above:
+      // BYOK's single-request shape never touches the daemon at all, so there is nothing for this
+      // path (which wraps the daemon specifically) to intercept there — the toggle only ever
+      // diverts the Local CLI branch below.
+      if (options.getAgUiEnabled?.()) {
+        return startAgUiRun(input, handlers);
       }
 
       // Local CLI path (unchanged) below.
@@ -661,6 +630,11 @@ export function createTovuAssistantTransport(options: CreateTovuAssistantTranspo
         handlers.onDone([]);
         return;
       }
+      // Same "no server-side record to resume" reasoning as the BYOK branch above — see
+      // `assistant-transport-ag-ui.ts`'s own doc for why this path has no reattach story yet.
+      if (isAgUiRunId(runId)) {
+        return reattachAgUiRun(handlers);
+      }
       subscribeToRun(runId, handlers, options?.signal);
     },
 
@@ -669,6 +643,7 @@ export function createTovuAssistantTransport(options: CreateTovuAssistantTranspo
       // so there is no status to fetch. `null` is this port's existing "unknown/not trackable"
       // value (see the daemon branch below's own `!response.ok` case), not a new state.
       if (runId.startsWith(BYOK_RUN_ID_PREFIX)) return null;
+      if (isAgUiRunId(runId)) return fetchAgUiRunStatus();
       const response = await fetch(`${RUNS_URL}/${encodeURIComponent(runId)}`, { credentials: "same-origin" });
       if (!response.ok) return null;
       const { run } = (await response.json()) as { run: { state: string } };
@@ -681,6 +656,9 @@ export function createTovuAssistantTransport(options: CreateTovuAssistantTranspo
       if (runId.startsWith(BYOK_RUN_ID_PREFIX)) {
         byokAbortControllers.get(runId)?.abort();
         return;
+      }
+      if (isAgUiRunId(runId)) {
+        return stopAgUiRun(runId);
       }
       await fetch(`${RUNS_URL}/${encodeURIComponent(runId)}/cancel`, {
         method: "POST",

@@ -1,57 +1,16 @@
 /*
- * Studio → Playground (`PlaygroundTab.tsx`). A scoped partial self-imported by that component, the
+ * Studio → Playground (`Playground.tsx`). A scoped partial self-imported by that component, the
  * `styles/select.css` / `styles/see-more.css` / `styles/assistant.css` precedent, rather than an
- * addition to `styles.css` or a `main.tsx` import — this screen is mid-move out of Settings into
- * its own Studio route, and a self-import travels with the file instead of stranding a global
- * import behind it.
+ * addition to `styles.css` or a `main.tsx` import.
  *
- * The screen's own shell (`.page`/`.page-header`), frame (`.card`/`.card-flush`), controls
- * (`button`/`.btn-secondary`/`.btn-ghost`/`input`), and `.notice` all come from `styles.css`
- * unchanged. What is genuinely new and lives here: the component-library card list, and the stage
- * — a dot-grid canvas holding a white "paper" mount.
- *
- * Why the stage looks different from every other panel in this admin: it is the one surface where
- * the markup inside the frame is NOT ours. Registry components render their own DOM (the `native`
- * provider is a bare `<table>` with no classes at all; the `shadcn` one carries Tailwind classes
- * from `@jini-ai/ui/interactive-ui.css`, which this app does not import). Styling that content from
- * here would misrepresent what a provider actually ships, so the chrome does the talking and the
- * guest content is left exactly as it renders.
+ * The screen's own shell (`.page`/`.page-header`), frame (`.card`), and `.notice` all come from
+ * `styles.css` unchanged. There is no manual component-picker chrome anymore, and no rendered
+ * example output on this page at all — see `Playground.tsx`'s own module doc for why. What's left
+ * here is just the small bits `styles.css` doesn't already cover.
  */
 
-/* `minmax(0, 1fr)` on the stage column, not a bare `1fr`: a grid item's default `min-width: auto`
-   refuses to shrink below its content's intrinsic width, and this column holds arbitrary
-   agent-rendered content — a wide data table would push the whole page into horizontal scroll
-   rather than scrolling inside its own mount. Same class of gotcha as `.widget-picker-body`'s
-   `min-height: 0` in `styles.css`, on the other axis. */
-.playground-layout {
-  display: grid;
-  grid-template-columns: minmax(18rem, 22rem) minmax(0, 1fr);
-  gap: var(--space-5);
-  align-items: start;
-}
-
-/* ============================================================
-   Component library — the left column
-   ============================================================ */
-
-.playground-library {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
-}
-
-.playground-panel-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: var(--space-3);
-}
-
-/* Panel headings sit at the eyebrow tier, not the heading tier — they label a region of a screen
-   that already has a `.page-title`, so they use `.field-label`'s established uppercase/letterspaced/
-   muted idiom rather than competing with the title above them. */
 .playground-panel-title {
-  margin: 0;
+  margin: 0 0 var(--space-3);
   font-size: var(--text-2xs);
   font-weight: 600;
   letter-spacing: 0.08em;
@@ -59,272 +18,69 @@
   color: var(--muted);
 }
 
-/* The search box's only feedback — reads "2 components" unfiltered, "1 of 2" once a query narrows
-   the list. Mono + tabular so the number does not shift the baseline as it changes. */
-.playground-count {
-  font-family: var(--font-mono);
-  font-size: var(--text-2xs);
-  font-variant-numeric: tabular-nums;
-  color: var(--faint);
+/*
+ * The canvas card — `Playground.tsx`'s portal target for a2ui surfaces the assistant draws while
+ * this page is active (see that file's own doc, and `RoutedA2uiSurfaceCard.tsx` for the routing
+ * that lands them here instead of inline in the chat transcript).
+ */
+.playground-canvas {
+  margin-top: var(--space-5);
 }
 
-.playground-search {
-  width: 100%;
+.playground-canvas-body {
+  margin-top: var(--space-3);
 }
 
-.playground-component-list {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+/* Pure portal target — deliberately no JSX children of its own (see `Playground.tsx`'s doc for
+ * why), so stacking multiple drawn surfaces is just flex/gap in arrival order: oldest first,
+ * newest at the bottom, matching normal reading order. */
+.playground-render-target {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
+  gap: var(--space-4);
 }
 
-/* Recessed at rest (`--surface-2` inside the white `.card`), lifting to `--surface` on
-   hover/focus — a background/border change instead of `.theme-card`'s `translateY`, since these
-   are a dense vertical stack where a lifting card would nudge its neighbours' apparent spacing. */
-.playground-component {
+/* One drawn surface, plus its dismiss button — see `RoutedA2uiSurfaceCard.tsx` for why the button
+ * lives here and not on `A2uiSurfaceCard` itself. Sized/positioned after `styles.css`'s
+ * `.jini-toast-close`, the codebase's existing small icon-only dismiss control. */
+.playground-drawn-surface {
+  position: relative;
+}
+
+.playground-drawn-surface-dismiss {
+  position: absolute;
+  top: 6px;
+  right: 6px;
   display: flex;
-  flex-direction: column;
-  gap: var(--space-3);
-  padding: var(--space-4);
-  background: var(--surface-2);
-  border: 1px solid var(--border);
-  border-radius: var(--r-md);
-  transition: background 0.14s, border-color 0.14s, box-shadow 0.14s;
-}
-
-.playground-component:hover,
-.playground-component:focus-within {
-  background: var(--surface);
-  border-color: var(--primary);
-  box-shadow: var(--shadow-sm);
-}
-
-/* A registry id is an address, not a name — mono, the same face the surface id in the stage rail
-   uses, so everything machine-addressable on this screen reads as one kind of thing. */
-.playground-component-id {
-  font-family: var(--font-mono);
-  font-size: var(--text-sm);
-  font-weight: 500;
-  color: var(--fg);
-  overflow-wrap: anywhere;
-}
-
-.playground-component-desc {
-  margin: 0;
-  font-size: var(--text-sm);
-  line-height: 1.5;
-  color: var(--muted);
-}
-
-.playground-component-foot {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  flex-wrap: wrap;
-}
-
-.playground-caps {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-1);
-}
-
-/* Transparent fill, not `--surface`/`--surface-3`: the card underneath changes background on hover,
-   and any opaque chip fill would either match it (chips disappear) or fight it. Border + mono text
-   reads identically on both card states. Deliberately NOT the `.status`/`.tier` pill idiom from
-   `styles.css` — those are states; these are capability strings an agent can search by. */
-.playground-cap {
-  padding: 0.1rem 0.4rem;
-  background: transparent;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--r-sm);
-  font-family: var(--font-mono);
-  font-size: var(--text-2xs);
-  color: var(--muted);
-}
-
-/* Two classes deep on purpose. The shared shape rule in `styles.css` lists `.btn-secondary` at
-   (0,1,0) and sets both `padding` and `font-size` there; a bare `.playground-component-add` would
-   tie that specificity and depend on file order to win. */
-.playground-component .playground-component-add {
-  flex-shrink: 0;
-  padding: 0.4rem 0.8rem;
-  font-size: var(--text-sm);
-}
-
-/* The one place `--primary` appears on this screen, and only on the card you are actually pointing
-   at (or have tabbed into) — so the app's "one filled primary per screen" discipline survives a
-   picker that repeats the same action N times. (0,2,0) beats `.btn-secondary:hover`'s (0,1,1)
-   outright, so this does not rely on source order either. */
-.playground-component:hover .playground-component-add,
-.playground-component:focus-within .playground-component-add {
-  background: var(--primary);
-  color: var(--primary-ink);
-  border-color: transparent;
-}
-
-/* ============================================================
-   Stage — the right column. `.card .card-flush` supplies the frame and kills the padding so the
-   rail can run edge to edge above the canvas.
-   ============================================================ */
-
-.playground-stage {
-  display: flex;
-  flex-direction: column;
-}
-
-.playground-stage-rail {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-3);
-  flex-wrap: wrap;
-  padding: var(--space-3) var(--space-4);
-  background: var(--surface-2);
-  border-bottom: 1px solid var(--border);
-}
-
-.playground-stage-ident {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-3);
-  min-width: 0;
-}
-
-.playground-surface-id {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  color: var(--fg-2);
-  overflow-wrap: anywhere;
-}
-
-.playground-stage-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-3);
-}
-
-/* Dot + word. The dot is `currentColor`, so the `.is-live` rule below recolors both with one
-   declaration instead of a second rule for the marker. */
-.playground-state {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.4rem;
-  font-size: var(--text-2xs);
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--faint);
-}
-
-.playground-state::before {
-  content: "";
-  width: 6px;
-  height: 6px;
-  border-radius: var(--r-pill);
-  background: currentColor;
-}
-
-.playground-state.is-live {
-  color: var(--ok);
-}
-
-/* `styles.css`'s `button:disabled` composites a `--primary` tint as the disabled fill, which is
-   right for a filled button and wrong for a ghost one (it would paint a box where there was none).
-   (0,2,1) clears that rule's (0,1,1). */
-.playground-stage-rail button:disabled {
-  background: transparent;
-  color: var(--faint);
-}
-
-/* The canvas. A fine dot grid is the plainest available signal for "empty surface, not broken
-   panel" — it makes the empty state read as unused space rather than a failed render, which is the
-   specific defect this screen had. `color-mix` against `--muted` rather than a literal so it
-   survives the dark theme (where `--muted` inverts to a light grey) without a second rule.
-
-   The dots only ever show as a band around the sheet below, never behind type — measured at 30%
-   with the empty-state copy sitting directly on this ground, and the dots read straight through
-   the letterforms as if the text had failed to paint. The sheet is unconditional for that reason. */
-.playground-stage-body {
-  padding: var(--space-5);
-  background-color: var(--surface);
-  background-image: radial-gradient(circle at 1px 1px, color-mix(in oklch, var(--muted) 24%, transparent) 1px, transparent 0);
-  background-size: 18px 18px;
-}
-
-/* Paper on the canvas: registry components render their own unstyled DOM, and a bare `<table>`
-   floating on a dotted ground reads as a glitch. Framing it as a sheet makes the same untouched
-   markup read as "this is the component, exactly as it ships." `overflow-x` keeps a wide table
-   scrolling inside the sheet rather than widening the page. */
-.playground-stage-mount {
-  min-height: 18rem;
-  padding: var(--space-4);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--r-md);
-  box-shadow: var(--shadow-sm);
-  overflow-x: auto;
-}
-
-/* A2UI's `Column` is a bare `<div class="a2ui-column">` with no CSS of its own anywhere — the
-   package ships its layout primitives unstyled on purpose and leaves spacing to the host. Without
-   this, two added components butt together with zero gap: the two data tables render as one
-   six-row table with a header repeated in the middle of it. Scoped to this mount rather than
-   declared globally, because the same renderer is headed for the assistant's chat pane next, where
-   a chat bubble's rhythm is not this stage's. */
-.playground-stage-mount > .a2ui-column {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-5);
-}
-
-/* Fills the sheet so the invitation sits in the middle of a blank page rather than at its top
-   edge. `min-height: 100%` works here where it would not on the canvas above: the sheet has a
-   real `min-height`, and a flex child stretching to it is not the same as resolving a percentage
-   against an `auto` used height. */
-.playground-stage-empty {
-  display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: var(--space-2);
-  min-height: 16rem;
-  text-align: center;
-}
-
-.playground-empty-title {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: var(--text-lg);
-  font-weight: 600;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
   color: var(--fg-2);
+  font-size: var(--text-lg);
+  line-height: 1;
+  cursor: pointer;
 }
 
-.playground-empty-body {
+.playground-drawn-surface-dismiss:hover {
+  background: var(--surface-3, var(--surface-2));
+  border-color: var(--border-strong);
+  color: var(--fg-1);
+}
+
+.playground-empty-state {
+  display: none;
   margin: 0;
-  max-width: 34ch;
   font-size: var(--text-sm);
-  line-height: 1.5;
   color: var(--muted);
 }
 
-/* Below the two-column threshold the stage stacks under the library. It keeps its own min-height
-   so a phone still gets a canvas rather than a sliver. */
-@media (max-width: 900px) {
-  .playground-layout {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .playground-component {
-    transition: none;
-  }
+/* Shown only while the render target has no real children — the moment a surface portals in, this
+ * sibling combinator stops matching and the message disappears on its own, no JS required. */
+.playground-render-target:empty ~ .playground-empty-state {
+  display: block;
 }

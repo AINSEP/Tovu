@@ -38,6 +38,11 @@
  * run instead. A `binding-mismatch` is answered locally without forwarding: that reason means the
  * exchange WAS found here, just not for this caller, and forwarding an id the daemon has never seen
  * would only spend a wasted round trip discovering the same 409 the local store already knows.
+ *
+ * The daemon-talking plumbing below (`AGENT_DAEMON_URL`, `outboundHeaders`, the retry/known-failed
+ * `fetch` wrapper) moved to `assistant-daemon-client.ts` (2026-08-18, ADR-059) so
+ * `assistant-ag-ui.ts` can reach the same daemon process without duplicating it. Pure extraction —
+ * every function this file still calls has the exact body it had inline here before the split.
  */
 import type { AgentSummary } from "@jini-ai/http-kit";
 import type { Express, NextFunction, Request, Response } from "express";
@@ -49,18 +54,14 @@ import {
   unionModels,
   isMcpUiToolCallAllowed,
   MCP_UI_TOOL_CALLS_PATH,
-  RUN_PRINCIPAL_HEADER,
   SURFACE_EXCHANGE_ID_PARAM,
   type SurfaceExchangeStore,
 } from "../../assistant";
-import { ensureAssistantDaemonStarted } from "../agent-daemon/daemon-supervisor";
+import { registerMcpUiSandboxProxyRoute } from "../../assistant/mcp-ui-sandbox-proxy-route";
 import { getAuthedPrincipal, requireAdminSession } from "../middleware/dev-auth";
-import { getAssistantDaemonFailureReasonCode, isAssistantDaemonKnownFailed } from "../readiness-state";
 import type { RouteDeps } from "../routes/types";
+import { AGENT_DAEMON_URL, forwardToAgentDaemon, respondIfDaemonKnownFailed } from "./assistant-daemon-client";
 import type { ServerModuleHandle } from "./types";
-
-const AGENT_DAEMON_URL =
-  process.env.JINI_AGENT_DAEMON_URL ?? `http://127.0.0.1:${Number(process.env.JINI_AGENT_DAEMON_PORT ?? 4319)}`;
 
 /** Streams `upstream`'s response back onto `res` as it arrives — required for the SSE run-events
  * endpoint, where buffering the whole body first would defeat live streaming entirely.
@@ -103,175 +104,10 @@ async function relayResponse(upstream: globalThis.Response, req: Request, res: R
   }
 }
 
-/**
- * Builds the outbound header set for one proxied request. Every entry is resolved per-request, not
- * once at module load — see this file's header for why the token in particular must not be
- * captured at module scope.
- *
- * @complexity O(1).
- * @overallScore 100
- */
-function outboundHeaders(req: Request, res: Response): Record<string, string> {
-  const headers: Record<string, string> = { "Content-Type": "application/json" };
-
-  const token = process.env[AGENT_DAEMON_TOKEN_ENV_VAR];
-  if (token) headers.Authorization = `Bearer ${token}`;
-
-  // Who the daemon is being asked to act for. The bearer token above says "this is Tovu's proxy";
-  // this says "and it is speaking for this admin", which is what the daemon compares against the
-  // run's recorded owner (`src/assistant/run-ownership.ts`). Safe to assert here and nowhere else:
-  // `requireAdminSession` gates every route this function serves, so the value is always a
-  // server-verified session principal and never anything the browser chose.
-  headers[RUN_PRINCIPAL_HEADER] = getAuthedPrincipal(res).id;
-
-  // Reconnect cursor for the SSE run-events stream. The browser's `EventSource` sets this itself
-  // on every automatic reconnect; without it the daemon replays the run from event 0.
-  const lastEventId = req.get("last-event-id");
-  if (lastEventId) headers["Last-Event-ID"] = lastEventId;
-
-  return headers;
-}
-
-/**
- * How long a proxied request will keep retrying a refused connection before giving up.
- *
- * Sized for the boot window, not for an outage. `src/index.ts` spawns the daemon from INSIDE
- * `app.listen()`'s callback, so this server accepts requests several seconds before :4319 exists —
- * and the admin dock starts polling the moment the page loads. Every one of those polls used to
- * answer 502 and print a full `TypeError: fetch failed` stack, which read like a crash and was
- * really "not finished starting".
- *
- * Retrying makes those requests SUCCEED once the daemon arrives, rather than merely failing quietly.
- * Bounded so a genuinely dead daemon still fails fast enough to be visible.
- */
-const DAEMON_CONNECT_RETRY_MS = 8_000;
-const DAEMON_CONNECT_RETRY_INTERVAL_MS = 250;
-
 /** True for a JSON object body, false for an array/null/primitive — same guard
  *  `mcp-ui-tool-calls-route.ts` uses for the identical `body.params` shape on the daemon side. */
 function isPlainObject(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-/** True for the "nothing is listening on that port yet" shape specifically — NOT for a daemon that
- *  answered with an error, which is a real failure and must not be retried. */
-function isConnectionRefused(error: unknown): boolean {
-  const cause = (error as { cause?: { code?: unknown } } | undefined)?.cause;
-  return cause?.code === "ECONNREFUSED" || cause?.code === "ECONNRESET";
-}
-
-/** Set while a retry loop is in progress, so a page's worth of concurrent polls logs ONE line
- *  between them instead of one per request. Reset on the first success. */
-let daemonUnreachableSince: number | null = null;
-
-/**
- * Checked FIRST, before any `fetch` is attempted, by every function below that talks to the
- * daemon. `isAssistantDaemonKnownFailed()` is `true` once `daemon-supervisor.ts` knows the daemon
- * is not usable — either it never got a process running for this boot at all (a spawn-level
- * `error`), OR automatic respawn gave up after repeated crashes (the crash-loop or port-conflict
- * cap tripped, which can happen hours into a boot that started fine). Corrected 2026-08-17: this
- * comment and the response body below used to claim ONLY the first case, back when the flag could
- * only be set by `index.ts`'s single boot spawn — this file's own on-demand recovery call just
- * below, plus `daemon-supervisor.ts`'s give-up path, made the second case common too, and the old
- * wording pointed an operator at boot configuration for a failure that was actually a crash loop.
- * Either way this is a much stronger signal than "the request failed to connect", because
- * "something answered on the daemon's port" is not proof of health: a leaked port can still be
- * squatted by an orphaned daemon from a PREVIOUS run, which would otherwise go on answering
- * requests as if it were the daemon this boot just spawned. Once we know the daemon is not usable,
- * we stop trusting the port at all and fail immediately instead of racing a `fetch` against
- * whatever (if anything) is actually listening there.
- *
- * This is also the on-demand self-healing seam: every request short-circuited here calls
- * {@link ensureAssistantDaemonStarted}, not just the first one, because that function is
- * single-flight and cooldown-guarded on its own side (`daemon-supervisor.ts`'s `ensureStarted()`)
- * — a daemon that already has a spawn attempt running or scheduled treats the extra calls as
- * cheap no-ops, and a durably broken one is re-armed no more often than its own 30s cooldown
- * floor allows. Before this, a known-failed daemon stayed down until an operator noticed and
- * either restarted the whole Tovu process or pressed the manual "Restart assistant" action —
- * nothing on the request path ever triggered recovery.
- *
- * Deliberately NOT awaited and does not change THIS request's outcome: `ensureStarted()` is
- * synchronous and never waits for the daemon to become healthy (there is no such signal in this
- * codebase — see `daemon-supervisor.ts`'s own header), so recovery is purely a background side
- * effect for future requests. This request always answers 503 immediately either way; blocking it
- * on a daemon that may never come back up would just add a second way for it to hang.
- *
- * @returns `true` if a 503 was already sent (caller must return without proceeding).
- */
-function respondIfDaemonKnownFailed(res: Response): boolean {
-  if (!isAssistantDaemonKnownFailed()) return false;
-
-  const recovery = ensureAssistantDaemonStarted();
-  if (!recovery.ok) {
-    // ONE concise line, matching this file's own `daemonUnreachableSince` logging convention —
-    // worth an operator seeing (it names WHY on-demand recovery didn't fire this time: never
-    // started this boot, or cooling down after a recent attempt), not worth a stack trace.
-    console.error(`[assistant] on-demand daemon recovery did not start: ${recovery.reason}`);
-  }
-
-  // "unavailable", not "failed to start" — true for BOTH latch causes (never started this boot, or
-  // gave up after crash-looping), where the old wording named only the first. `reasonCode` is the
-  // exact string `daemon-supervisor.ts` latched (see `getAssistantDaemonFailureReasonCode`'s own
-  // doc) so a caller can tell those two situations apart instead of guessing from "unavailable"
-  // alone; `null` is defensive only — this branch is unreachable unless something is latched.
-  res.status(503).json({
-    error: "the agent daemon is currently unavailable",
-    code: "AGENT_DAEMON_KNOWN_FAILED",
-    reasonCode: getAssistantDaemonFailureReasonCode(),
-  });
-  return true;
-}
-
-/**
- * Fetches from the daemon with the boot-window retry described above, but does NOT relay the
- * response itself — every caller decides that: `proxyPassthrough`/`proxyRunStart` stream it
- * unmodified via {@link relayResponse}, while `respondWithEnrichedAgentList` needs the parsed body
- * to rewrite before it reaches the browser. Splitting the fetch from the relay is what makes that
- * second caller possible without duplicating the retry/known-failed/token-header logic below.
- *
- * @returns the upstream response, or `null` once this function has already written a response of
- *   its own (503 known-failed, or 502 genuinely unreachable) — the caller's contract is to return
- *   immediately on `null` without touching `res` again.
- */
-async function forwardToAgentDaemon(req: Request, res: Response, body?: unknown): Promise<globalThis.Response | null> {
-  if (respondIfDaemonKnownFailed(res)) return null;
-  const target = `${AGENT_DAEMON_URL}${req.originalUrl}`;
-  const deadline = Date.now() + DAEMON_CONNECT_RETRY_MS;
-
-  for (;;) {
-    try {
-      const upstream = await fetch(target, {
-        method: req.method,
-        headers: outboundHeaders(req, res),
-        body: body === undefined ? undefined : JSON.stringify(body),
-      });
-      if (daemonUnreachableSince !== null) {
-        console.log(
-          `[assistant] agent daemon reachable after ${Math.round((Date.now() - daemonUnreachableSince) / 100) / 10}s`
-        );
-        daemonUnreachableSince = null;
-      }
-      return upstream;
-    } catch (error) {
-      // Only "nothing is listening yet" is worth waiting out. Anything else — DNS, TLS, an abort, a
-      // daemon that answered badly — is a real failure and retrying would just delay the report.
-      if (isConnectionRefused(error) && Date.now() < deadline) {
-        if (daemonUnreachableSince === null) {
-          daemonUnreachableSince = Date.now();
-          // ONE concise line, not a stack. During boot this is expected, and a 10-line
-          // `TypeError: fetch failed` per poll buried the real startup output.
-          console.log(`[assistant] waiting for the agent daemon at ${AGENT_DAEMON_URL}…`);
-        }
-        await new Promise((r) => setTimeout(r, DAEMON_CONNECT_RETRY_INTERVAL_MS));
-        continue;
-      }
-      // Genuinely unreachable. The full error is kept here — this one IS a fault worth a stack.
-      console.error(`[assistant] agent daemon unreachable at ${AGENT_DAEMON_URL}`, error);
-      daemonUnreachableSince = null;
-      res.status(502).json({ error: "assistant is unavailable", code: "BAD_GATEWAY" });
-      return null;
-    }
-  }
 }
 
 /** The one route that needs its body rewritten before forwarding: stamps the session-authenticated
@@ -518,6 +354,8 @@ export function createAssistantModule(routeDeps: RouteDeps, byokSurfaceExchanges
   return {
     name: "assistant",
     registerRoutes: (app: Express) => {
+      registerMcpUiSandboxProxyRoute(app);
+
       app.use("/api/runs", requireAdminSession(routeDeps));
       app.post("/api/runs", (req: Request, res: Response, next: NextFunction) => {
         proxyRunStart(req, res).catch(next);

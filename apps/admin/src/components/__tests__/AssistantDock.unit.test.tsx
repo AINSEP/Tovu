@@ -94,7 +94,7 @@ import {
 } from "../../lib/execution-settings";
 import type { UseAssistantChats } from "../../hooks/use-assistant-chats.hooks";
 import { navigate } from "../../lib/router";
-import type { UseByokRuntime, UseExecutionConfig, UseLocalCliSelection } from "../AssistantDock/AssistantDock.hooks";
+import type { UseByokRuntime, UseExecutionConfig, UseLocalCliSelection } from "../AssistantDock/hooks/AssistantDock.hooks";
 
 const mockLoadExecutionConfig = vi.mocked(loadExecutionConfig);
 const mockSaveExecutionConfig = vi.mocked(saveExecutionConfig);
@@ -455,5 +455,58 @@ describe("AssistantDock useLocalCliSelection injection", () => {
     expect(chatPaneSpy).toHaveBeenCalledWith(
       expect.objectContaining({ selection: { agentId: "impossible-agent", model: "impossible-model" } }),
     );
+  });
+});
+
+/**
+ * The four blocks below cover the seams the 2026-08-18 inline-hook-extraction pass added
+ * (`useAssistantTransport`, `useAttachmentUploader`, `useRuntimeAccess`, `useAdminLocale`) — same
+ * "prove the real hook is not hardcoded" pattern as the four blocks above, extended to the newer
+ * seams rather than leaving them component-injection-proof-free just because they were introduced
+ * later.
+ */
+describe("AssistantDock useAssistantTransport injection", () => {
+  it("wires ChatPane's transport prop off the injected fake, not a freshly built real transport", () => {
+    const fakeTransport = { startRun: vi.fn() } as never;
+
+    render(<AssistantDock useChats={() => fakeChats()} useAssistantTransport={() => fakeTransport} />);
+
+    expect(chatPaneSpy).toHaveBeenCalledWith(expect.objectContaining({ transport: fakeTransport }));
+  });
+});
+
+describe("AssistantDock useAttachmentUploader injection", () => {
+  it("wires ChatPane's uploadAttachments prop off the injected fake, not the real daemon uploader", () => {
+    const fakeUploader = vi.fn();
+
+    render(<AssistantDock useChats={() => fakeChats()} useAttachmentUploader={() => fakeUploader} />);
+
+    expect(chatPaneSpy).toHaveBeenCalledWith(expect.objectContaining({ uploadAttachments: fakeUploader }));
+  });
+});
+
+describe("AssistantDock useRuntimeAccess injection", () => {
+  it("wires ChatPane's runtimeAccess prop off the injected fake, not the real fetch-backed one", () => {
+    const fakeRuntimeAccess = {
+      listAgents: vi.fn().mockResolvedValue([]),
+      rescanAgents: vi.fn().mockResolvedValue([]),
+      daemonOnline: vi.fn().mockResolvedValue(true),
+    };
+
+    render(<AssistantDock useChats={() => fakeChats()} useRuntimeAccess={() => fakeRuntimeAccess} />);
+
+    expect(chatPaneSpy).toHaveBeenCalledWith(expect.objectContaining({ runtimeAccess: fakeRuntimeAccess }));
+  });
+});
+
+describe("AssistantDock useAdminLocale injection", () => {
+  it("wires ChatPane's translated chrome off the injected fake's locale, not the real (unmocked) load", () => {
+    render(<AssistantDock useChats={() => fakeChats()} useAdminLocale={() => "es"} />);
+
+    // The real `useWiredAdminLocale` is NOT mocked in this file — it makes a genuine, unstubbed
+    // fetch attempt that fails in jsdom and swallows to `DEFAULT_LOCALE` ("en"), which leaves
+    // "Tovu assistant" unchanged (no "en" entry in `ASSISTANT_DOCK_DICT`). "Asistente de Tovu" is
+    // reachable ONLY through the injected "es" override.
+    expect(chatPaneSpy).toHaveBeenCalledWith(expect.objectContaining({ title: "Asistente de Tovu" }));
   });
 });
