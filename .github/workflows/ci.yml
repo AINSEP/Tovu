@@ -257,6 +257,8 @@ jobs:
         # .dependency-cruiser.cjs rules are deliberately severity:"warn" (see file header) —
         # this always exits 0 on ordinary violations by design, so no continue-on-error needed.
         # It only fails the step if the tool itself errors out.
+        id: gate-boundaries
+        continue-on-error: true
         run: npm run check:boundaries
 
       - name: Check architecture metrics
@@ -277,6 +279,8 @@ jobs:
       - name: Check capability-inventory staleness
         # Same report-only posture as check:boundaries (see development/scripts/check-capability-inventory.ts
         # header) — always exits 0 on findings, only fails on a genuine script error.
+        id: gate-inventory
+        continue-on-error: true
         run: npm run check:inventory
 
       - name: Check src/server/routes complexity drift
@@ -346,13 +350,26 @@ jobs:
         if: always()
         run: |
           fail=0
+          skipped=0
+          # SKIP is reported distinctly from FAIL on purpose. Both fail the job — a gate that never
+          # ran has NOT been shown to pass — but calling a skipped gate "FAIL" is a lie that costs
+          # real debugging time. Learned the hard way on run 32292815327: one non-gate step halted
+          # the job, five gates never executed, and the summary reported all five as FAIL. The
+          # fix for the halt itself is that every non-setup step is now continue-on-error, so this
+          # branch should be unreachable; it stays as the honest fallback if a step ever dies in a
+          # way continue-on-error cannot catch (runner OOM, cancellation, a `uses:` action fault).
           check () { # $1 = outcome, $2 = human label
-            if [ "$1" = "success" ]; then printf '  PASS  %s\n' "$2"
-            else printf '  FAIL  %s\n' "$2"; fail=1; fi
+            case "$1" in
+              success) printf '  PASS  %s\n' "$2" ;;
+              skipped) printf '  SKIP  %s  (did not run — an earlier step halted the job)\n' "$2"; skipped=1; fail=1 ;;
+              *)       printf '  FAIL  %s\n' "$2"; fail=1 ;;
+            esac
           }
           echo "--- build-and-test gates ---"
           check "${{ steps.gate-typecheck.outcome }}"          "typecheck (root)"
+          check "${{ steps.gate-boundaries.outcome }}"         "check:boundaries (dependency-cruiser)"
           check "${{ steps.gate-architecture.outcome }}"       "check:architecture"
+          check "${{ steps.gate-inventory.outcome }}"          "check:inventory"
           check "${{ steps.gate-src-complexity.outcome }}"     "check:src-complexity-drift"
           check "${{ steps.gate-eslint-boundaries.outcome }}"  "complexity (ESLint import boundaries)"
           check "${{ steps.gate-admin-typecheck.outcome }}"    "typecheck (admin)"
@@ -361,6 +378,10 @@ jobs:
           if [ "$fail" -ne 0 ]; then
             echo "One or more gates failed. Scroll up: EVERY failing gate above has its own full log," >&2
             echo "so this run reports all of them at once rather than only the first." >&2
+            if [ "$skipped" -ne 0 ]; then
+              echo "NOTE: gates marked SKIP never executed. Fix the halting step first, then re-read" >&2
+              echo "this summary — their real status is still unknown." >&2
+            fi
             exit 1
           fi
           echo "All build-and-test gates passed."
@@ -529,9 +550,13 @@ jobs:
         if: always()
         run: |
           fail=0
-          check () {
-            if [ "$1" = "success" ]; then printf '  PASS  %s\n' "$2"
-            else printf '  FAIL  %s\n' "$2"; fail=1; fi
+          skipped=0
+          check () { # SKIP vs FAIL distinction: see build-and-test's summary step for why.
+            case "$1" in
+              success) printf '  PASS  %s\n' "$2" ;;
+              skipped) printf '  SKIP  %s  (did not run — an earlier step halted the job)\n' "$2"; skipped=1; fail=1 ;;
+              *)       printf '  FAIL  %s\n' "$2"; fail=1 ;;
+            esac
           }
           echo "--- route-coverage gates ---"
           check "${{ steps.gate-coverage-floor.outcome }}"  "check:route-coverage-floor"

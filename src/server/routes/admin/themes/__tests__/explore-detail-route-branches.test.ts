@@ -7,8 +7,15 @@ import test from "node:test";
 import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
-import { discoverAllBuiltInThemes, THEME_CATALOG_DIR } from "#src/features/theme/index";
-import { THEME_LINEAGE_FILENAME, type ThemeLineage } from "#src/features/theme/theme-lineage";
+// Barrel, not `#src/features/theme/theme-lineage` — the `no-deep-imports:features/theme`
+// dependency-cruiser rule is severity `error` and a deep import fails `npm run check:boundaries`.
+// The barrel already re-exports both of these, so the deep path bought nothing.
+import {
+  discoverAllBuiltInThemes,
+  THEME_CATALOG_DIR,
+  THEME_LINEAGE_FILENAME,
+  type ThemeLineage,
+} from "#src/features/theme/index";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminThemeDetailRoute } from "../explore.js";
 import type { ContentRouteDeps } from "../../content/deps.js";
