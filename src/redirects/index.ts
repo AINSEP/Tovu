@@ -18,14 +18,14 @@ export type {
   RedirectStatusCode,
   CreateRedirectInput,
   UpdateRedirectInput,
-} from "./types";
+} from "./types.js";
 export {
   RedirectConflictError,
   RedirectLoopError,
   RedirectNotFoundError,
   RedirectTargetNotAllowedError,
   RedirectValidationError,
-} from "./types";
+} from "./types.js";
 
 export type {
   RedirectHitEvent,
@@ -38,31 +38,31 @@ export type {
   RedirectResolveHookContext,
   RedirectResolver,
   RedirectHitSink,
-} from "./ports";
+} from "./ports.js";
 
-export { redirectMatcher, match, validatePattern } from "./matcher";
+export { redirectMatcher, match, validatePattern } from "./matcher.js";
 
-export { InMemoryRedirectRepo } from "./repo.memory";
-export { SqliteRedirectRepo } from "./repo.sqlite";
+export { InMemoryRedirectRepo } from "./repo.memory.js";
+export { SqliteRedirectRepo } from "./repo.sqlite.js";
 
-export { RedirectSlugChangeCapture } from "./capture";
-export type { RedirectSlugChangeCaptureDeps, RedirectSlugChangeCaptureReadDeps } from "./capture";
+export { RedirectSlugChangeCapture } from "./capture.js";
+export type { RedirectSlugChangeCaptureDeps, RedirectSlugChangeCaptureReadDeps } from "./capture.js";
 
 export {
   RedirectPhaseHandlerResolver,
   registerRedirectsPhaseHandlers,
-} from "./phase-handler";
-export type { RedirectPhaseHandlerDeps, RegisterRedirectsPhaseHandlersDeps } from "./phase-handler";
+} from "./phase-handler.js";
+export type { RedirectPhaseHandlerDeps, RegisterRedirectsPhaseHandlersDeps } from "./phase-handler.js";
 
-export { RedirectHitSinkImpl, registerRedirectHitOutboxHandler } from "./hit-sink";
-export type { RegisterRedirectHitOutboxHandlerDeps } from "./hit-sink";
+export { RedirectHitSinkImpl, registerRedirectHitOutboxHandler } from "./hit-sink.js";
+export type { RegisterRedirectHitOutboxHandlerDeps } from "./hit-sink.js";
 
 export {
   createRedirect,
   importRedirects,
   tombstoneRedirect,
   updateRedirect,
-} from "./redirects";
+} from "./redirects.js";
 export type {
   CreateRedirectRequired,
   ImportRedirectsFailure,
@@ -70,4 +70,4 @@ export type {
   RedirectsWriteDeps,
   TombstoneRedirectRequired,
   UpdateRedirectRequired,
-} from "./redirects";
+} from "./redirects.js";

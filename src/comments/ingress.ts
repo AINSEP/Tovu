@@ -25,22 +25,22 @@
  */
 import type { ClockPort, IdGeneratorPort, OutboxPort, UUID } from "@jini-ai/cms/core";
 import type { RateLimiter } from "#src/core/rate-limit/rate-limit";
-import type { CommentHookRegistry } from "./hooks";
+import type { CommentHookRegistry } from "./hooks.js";
 import type {
   CommentIngressPolicy,
   CommentIngressResult,
   CommentRepoPort,
   SpamCheckPort,
-} from "./ports";
-import { countLinks, sanitizeCommentBody } from "./sanitize";
-import { COMMENTS_INGRESS_SYSTEM_PRINCIPAL_ID } from "./types";
+} from "./ports.js";
+import { countLinks, sanitizeCommentBody } from "./sanitize.js";
+import { COMMENTS_INGRESS_SYSTEM_PRINCIPAL_ID } from "./types.js";
 import type {
   CommentRecord,
   CommentStatus,
   CommentSubmission,
   CommentsSettings,
   ModerationLogEntry,
-} from "./types";
+} from "./types.js";
 
 const MAX_BODY_LENGTH = 10_000;
 const MAX_LINKS = 5;

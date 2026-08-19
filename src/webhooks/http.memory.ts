@@ -1,4 +1,4 @@
-import type { HttpClientPort, HttpRequest, HttpResponse } from "./ports";
+import type { HttpClientPort, HttpRequest, HttpResponse } from "./ports.js";
 
 /**
  * @file A recording, scriptable `HttpClientPort` test double for the delivery worker.

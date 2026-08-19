@@ -58,7 +58,7 @@
  * accepts.
  */
 
-import { WIDGET_TYPE_REGISTRATIONS } from "./registry";
+import { WIDGET_TYPE_REGISTRATIONS } from "./registry.js";
 
 export type AgentToolSideEffect = "none" | "mutates-durable-state" | "mints-token";
 

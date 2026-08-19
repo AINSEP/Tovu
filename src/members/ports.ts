@@ -22,8 +22,8 @@
  * Interfaces and types only — no feature logic.
  */
 import type { ClockPort, IdGeneratorPort, ISODateTime, UUID } from "@jini-ai/cms/core";
-import type { MailerPort } from "../mail";
-import type { OriginRegistryPort } from "../origin";
+import type { MailerPort } from "../mail/index.js";
+import type { OriginRegistryPort } from "../origin/index.js";
 import type {
   ConsentPurpose,
   MagicLinkTokenRecord,
@@ -37,7 +37,7 @@ import type {
   MemberSubscriptionRecord,
   MemberSubscriptionStatus,
   MemberTierRecord,
-} from "./types";
+} from "./types.js";
 
 /* -------------------------------------------------------------------------- */
 /* Repository ports (rule-of-two: in-memory + SQLite, mirroring PostRepoPort)  */

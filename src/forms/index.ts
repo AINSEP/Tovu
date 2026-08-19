@@ -7,7 +7,7 @@
  * `comments/index.ts`'s existing precedent. Only the port interfaces, shared record/field types,
  * and typed domain errors — the module's actual cross-feature contract — live behind this door.
  */
-export type { FormDefinitionRepoPort, FormSubmissionRepoPort } from "./ports";
+export type { FormDefinitionRepoPort, FormSubmissionRepoPort } from "./ports.js";
 export type {
   FieldDescriptor,
   FieldType,
@@ -16,7 +16,7 @@ export type {
   FormDefinitionRecord,
   FormSubmissionRecord,
   FormSubmissionPage,
-} from "./types";
+} from "./types.js";
 export {
   FormFieldValidationError,
   FormSlugConflictError,
@@ -24,4 +24,4 @@ export {
   FormSubmissionValidationError,
   FormSubmissionNotFoundError,
   FormRateLimitExceededError,
-} from "./errors";
+} from "./errors.js";

@@ -35,9 +35,9 @@
  * shortcut. Akismet's API tolerates missing optional fields (accuracy degrades, the call itself
  * does not fail).
  */
-import type { HttpClientPort } from "../http";
-import type { SpamCheckPort } from "./ports";
-import type { CommentRecord, CommentSubmission, SpamVerdict } from "./types";
+import type { HttpClientPort } from "../http/index.js";
+import type { SpamCheckPort } from "./ports.js";
+import type { CommentRecord, CommentSubmission, SpamVerdict } from "./types.js";
 
 export interface AkismetSpamCheckConfig {
   /** The Akismet API key — subdomains the request host (`https://{apiKey}.rest.akismet.com/...`),

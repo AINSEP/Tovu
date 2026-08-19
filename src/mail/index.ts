@@ -13,7 +13,7 @@ export type {
   MailerSendOptions,
   MailerSendResult,
   OutboundEmail,
-} from "./types";
+} from "./types.js";
 
 export type {
   ConsoleMailerAdapter,
@@ -23,4 +23,4 @@ export type {
   MailSendDedupRepoPort,
   MailSuppressionRepoPort,
   SmtpMailerAdapter,
-} from "./ports";
+} from "./ports.js";

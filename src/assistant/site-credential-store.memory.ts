@@ -1,6 +1,6 @@
 import type { ISODateTime, UUID } from "@jini-ai/cms/core";
 
-import type { SiteAssistantCredentialRecord, SiteAssistantCredentialRepoPort } from "./site-credential-store";
+import type { SiteAssistantCredentialRecord, SiteAssistantCredentialRepoPort } from "./site-credential-store.js";
 
 /**
  * @file `SiteAssistantCredentialRepoPort`'s in-memory adapter — the ADR-006 rule-of-two test double,

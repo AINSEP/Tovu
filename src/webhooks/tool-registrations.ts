@@ -29,16 +29,16 @@ import {
   type ToolRegistration,
 } from "@jini-ai/cms/core";
 import { registerToolContributor } from "#src/assistant/index";
-import type { OriginRegistryPort } from "../origin";
-import { getWebhooksAgentToolCatalog } from "./agent-tools";
-import type { WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "./ports";
+import type { OriginRegistryPort } from "../origin/index.js";
+import { getWebhooksAgentToolCatalog } from "./agent-tools.js";
+import type { WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "./ports.js";
 import {
   createSubscription,
   deleteSubscription,
   pauseSubscription,
   WebhookSubscriptionNotFoundError,
-} from "./subscriptions";
-import type { WebhookDeliveryRecord, WebhookSubscriptionRecord } from "./types";
+} from "./subscriptions.js";
+import type { WebhookDeliveryRecord, WebhookSubscriptionRecord } from "./types.js";
 
 const CATALOG_BY_ID = indexCatalogById(getWebhooksAgentToolCatalog());
 

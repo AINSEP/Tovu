@@ -1,8 +1,8 @@
 import { SqliteDbOpsAdapter as InfraSqliteDbOpsAdapter } from "@jini-ai/infra/db/sqlite";
 
-import type { DbOpsPort, RestoreCapability } from "../../core/gated-mutations/ports";
-import { getCurrentWatermark } from "./watermark";
-import type { ContentDb } from "./content-db";
+import type { DbOpsPort, RestoreCapability } from "../../core/gated-mutations/ports.js";
+import { getCurrentWatermark } from "./watermark.js";
+import type { ContentDb } from "./content-db.js";
 
 /**
  * @file SPEC-016 C-007 / REQ-19–REQ-21 — the SQLite `DbOpsPort` adapter.

@@ -1,7 +1,7 @@
-import { openContentDb, type ContentDb } from "../../db/sqlite/content-db";
-import type { PostRecord, PostRepoPort } from "./post";
-import { toPostSearchDocument, type PostSearchHit, type PostSearchPort, type PostSearchQuery } from "./search";
-import { indexPostSearchDocument, searchPostIndex } from "./search-index.sqlite";
+import { openContentDb, type ContentDb } from "../../db/sqlite/content-db.js";
+import type { PostRecord, PostRepoPort } from "./post.js";
+import { toPostSearchDocument, type PostSearchHit, type PostSearchPort, type PostSearchQuery } from "./search.js";
+import { indexPostSearchDocument, searchPostIndex } from "./search-index.sqlite.js";
 
 /**
  * @file The rule-of-two partner to `search-index.sqlite.ts`: the `PostSearchPort` the hermetic

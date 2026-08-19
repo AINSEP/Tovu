@@ -1,6 +1,6 @@
 import type { UUID } from "@jini-ai/cms/core";
 
-import type { VendorCredentialSetRecord, VendorCredentialSetRepoPort, VendorId } from "./types";
+import type { VendorCredentialSetRecord, VendorCredentialSetRepoPort, VendorId } from "./types.js";
 
 /**
  * @file `VendorCredentialSetRepoPort`'s in-memory adapter — the ADR-006 rule-of-two test double,

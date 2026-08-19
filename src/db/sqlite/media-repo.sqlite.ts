@@ -1,8 +1,8 @@
 import { and, eq } from "drizzle-orm";
 
-import { assetBlobs, assetRenditions, media, transformDefinitions } from "../schema";
-import type { ContentDb } from "./content-db";
-import { findOneBy } from "./repo-helpers";
+import { assetBlobs, assetRenditions, media, transformDefinitions } from "../schema.js";
+import type { ContentDb } from "./content-db.js";
+import { findOneBy } from "./repo-helpers.js";
 import type { UUID } from "@jini-ai/cms/core";
 import type {
   AssetBlobRepoPort,

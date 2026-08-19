@@ -1,6 +1,6 @@
 import type { ClockPort, IdGeneratorPort, JsonValue, UUID } from "@jini-ai/cms/core";
 import type { PrincipalRepoPort } from "@jini-ai/cms/identity";
-import { type SettingsRepoPort, type SettingValueSchema, type AuthorizeFn } from "../features/settings";
+import { type SettingsRepoPort, type SettingValueSchema, type AuthorizeFn } from "../features/settings.js";
 
 /**
  * @file The master on/off switch for the VISITOR-FACING assistant, on the ADR-028 Settings Layered

@@ -1,6 +1,6 @@
 import type { ClockPort, IdGeneratorPort, UUID } from "@jini-ai/cms/core";
 import type { PrincipalRepoPort } from "@jini-ai/cms/identity";
-import { ALLOWED_THEME_IDS, type PresentationSettingsRepoPort } from "../presentation";
+import { ALLOWED_THEME_IDS, type PresentationSettingsRepoPort } from "../presentation/index.js";
 import {
   type SettingsRepoPort,
   resolveDefinitionRaw,

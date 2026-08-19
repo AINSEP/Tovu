@@ -1,4 +1,4 @@
-import { PAGE_SKELETON_REGIONS } from "./skeleton";
+import { PAGE_SKELETON_REGIONS } from "./skeleton.js";
 
 /**
  * @file The Pages domain's agent-tool catalog — how the assistant authors a bespoke HTML Page.

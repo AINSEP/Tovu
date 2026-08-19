@@ -3,10 +3,10 @@ import test from "node:test";
 
 import { openContentDb, type ContentDb } from "#src/db/sqlite/content-db";
 import { members, workspaces } from "#src/db/schema";
-import { checkout, MAX_CHECKOUT_QUANTITY } from "../../checkout";
-import { CommerceCheckoutValidationError, CommercePriceNotFoundError, CommerceProductNotFoundError } from "../../errors";
-import { SqliteCommerceOrderRepo, SqliteCommercePriceRepo, SqliteCommerceProductRepo } from "../../repo.sqlite";
-import type { CommerceProductRecord, CommercePriceRecord } from "../../types";
+import { checkout, MAX_CHECKOUT_QUANTITY } from "../../checkout.js";
+import { CommerceCheckoutValidationError, CommercePriceNotFoundError, CommerceProductNotFoundError } from "../../errors.js";
+import { SqliteCommerceOrderRepo, SqliteCommercePriceRepo, SqliteCommerceProductRepo } from "../../repo.sqlite.js";
+import type { CommerceProductRecord, CommercePriceRecord } from "../../types.js";
 
 /**
  * @file Proves `checkout()` end to end against a real SQLite `content.db` — the vertical-slice

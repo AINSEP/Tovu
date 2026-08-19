@@ -1,9 +1,9 @@
 import { eq } from "drizzle-orm";
 
-import type { SiteAssistantCredentialRecord, SiteAssistantCredentialRepoPort } from "../../assistant";
+import type { SiteAssistantCredentialRecord, SiteAssistantCredentialRepoPort } from "../../assistant/index.js";
 import type { UUID, ISODateTime } from "@jini-ai/cms/core";
-import { siteAssistantCredentials } from "../schema";
-import type { ContentDb } from "./content-db";
+import { siteAssistantCredentials } from "../schema.js";
+import type { ContentDb } from "./content-db.js";
 
 /**
  * @file Real `SiteAssistantCredentialRepoPort` adapter (ADR-058) — the ADR-006 rule-of-two "second

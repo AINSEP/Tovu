@@ -1,9 +1,9 @@
 import { and, eq } from "drizzle-orm";
 
-import { pluginActivations } from "../../db/schema";
-import type { ContentDb } from "../../db/sqlite/content-db";
-import { findOneBy } from "../../db/sqlite/repo-helpers";
-import type { PluginActivationRecord, PluginActivationRepoPort } from "./activation";
+import { pluginActivations } from "../../db/schema.js";
+import type { ContentDb } from "../../db/sqlite/content-db.js";
+import { findOneBy } from "../../db/sqlite/repo-helpers.js";
+import type { PluginActivationRecord, PluginActivationRepoPort } from "./activation.js";
 
 /**
  * @file Drizzle/SQLite `PluginActivationRepoPort` adapter — mirrors

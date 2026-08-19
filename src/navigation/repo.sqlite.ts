@@ -1,8 +1,8 @@
 import { and, eq } from "drizzle-orm";
 
-import { menus, navLocationBindings } from "../db/schema";
-import type { ContentDb } from "../db/sqlite/content-db";
-import { findOneBy } from "../db/sqlite/repo-helpers";
+import { menus, navLocationBindings } from "../db/schema.js";
+import type { ContentDb } from "../db/sqlite/content-db.js";
+import { findOneBy } from "../db/sqlite/repo-helpers.js";
 import type {
   MenuRepoPort,
   MenuStatus,

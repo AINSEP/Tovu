@@ -38,11 +38,11 @@ import {
   plan as gatewayPlan,
   type GatedMutationHooks,
   type GatewayDeps,
-} from "../../core/gated-mutations/gateway";
+} from "../../core/gated-mutations/gateway.js";
 import { registerToolContributor } from "#src/assistant/index";
-import type { PostRepoPort } from "../post";
-import { buildMergeTermHooks, type MergeableEntryTermRepoPort } from "./gated-hooks";
-import { taxonomyAgentToolCatalog } from "./agent-tools";
+import type { PostRepoPort } from "../post/index.js";
+import { buildMergeTermHooks, type MergeableEntryTermRepoPort } from "./gated-hooks.js";
+import { taxonomyAgentToolCatalog } from "./agent-tools.js";
 import {
   createPostBackedContentLookup,
   listTaxonomiesWithTerms,
@@ -59,7 +59,7 @@ import {
   type TaxonomyRevisionRepoPort,
   type TermRepoPort,
   type WriteServiceDeps,
-} from "./index";
+} from "./index.js";
 
 const CATALOG_BY_ID = indexCatalogById(taxonomyAgentToolCatalog);
 

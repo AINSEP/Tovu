@@ -1,4 +1,4 @@
-import type { MigrationRunsRepoPort, SiteStatusPort } from "./reconcile-interrupted-migration";
+import type { MigrationRunsRepoPort, SiteStatusPort } from "./reconcile-interrupted-migration.js";
 
 /**
  * @file SPEC-017 C-107 / CIC U-004 / INV-08 / REQ-28 / REQ-29 — cost-gated `SERVE_SITE` auto-

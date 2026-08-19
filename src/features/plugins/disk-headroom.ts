@@ -13,7 +13,7 @@
 import { existsSync, statSync, statfsSync } from "node:fs";
 import path from "node:path";
 
-import { isInMemoryDbPath } from "./snapshot";
+import { isInMemoryDbPath } from "./snapshot.js";
 
 export interface HeadroomCheck {
   ok: boolean;

@@ -1,15 +1,16 @@
 import fs from "node:fs";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-import { getDriftStatus } from "../drift";
+import { getDriftStatus } from "../drift.js";
 import type {
   DatabaseHealthSummary,
   DatabaseIntrospectionPort,
   PendingMigration,
   SchemaStateSummary,
-} from "../../features/database/adapter.sqlite";
-import type { ContentDb } from "./content-db";
-import type { SchemaSnapshot } from "../drift";
+} from "../../features/database/adapter.sqlite.js";
+import type { ContentDb } from "./content-db.js";
+import type { SchemaSnapshot } from "../drift.js";
 
 /**
  * @file SPEC-017 C-102/C-110 / REQ-20–REQ-23 — the real backing adapter for
@@ -71,7 +72,7 @@ interface DrizzleJournal {
 /** Resolved from this file's own location: `src/db/drizzle/meta/_journal.json` — the SAME file
  * `site-dir/schema-guard.ts`'s `runtimeSchemaVersion()` reads, but this adapter needs every entry
  * (for pending-migration detection), not just the last one. */
-const DEFAULT_JOURNAL_PATH = path.resolve(__dirname, "../drizzle/meta/_journal.json");
+const DEFAULT_JOURNAL_PATH = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../drizzle/meta/_journal.json");
 
 /**
  * Real SQLite-backed `DatabaseIntrospectionPort`. Reuses the caller's already-open `ContentDb`

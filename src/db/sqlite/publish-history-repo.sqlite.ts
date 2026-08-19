@@ -6,11 +6,11 @@ import {
   type PublishHistoryEntry,
   type PublishHistoryStore,
   type PublishTrigger,
-} from "../../features/deployments/static-publish/publish-history";
-import { resolvePublishHistoryListLimit } from "../../core/publish-history-list-limit";
-import type { StaticPublishTargetId } from "../../features/deployments/static-publish/types";
-import { publishHistory } from "../schema";
-import type { ContentDb } from "./content-db";
+} from "../../features/deployments/static-publish/publish-history.js";
+import { resolvePublishHistoryListLimit } from "../../core/publish-history-list-limit.js";
+import type { StaticPublishTargetId } from "../../features/deployments/static-publish/types.js";
+import { publishHistory } from "../schema.js";
+import type { ContentDb } from "./content-db.js";
 
 /**
  * @file Real `PublishHistoryStore` adapter (2026-08-16 rework — see `static-publish/publish-history.ts`'s

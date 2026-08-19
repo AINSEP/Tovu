@@ -23,31 +23,31 @@
  * `bodyJson` capability which did not exist yet at that time.
  */
 import type { ClockPort, JsonValue, OutboxPort, UUID } from "@jini-ai/cms/core";
-import type { EntryRefsRepoPort } from "../core/entry-refs/ports";
-import { extractEntryRefs } from "../core/entry-refs/extractor";
-import type { ContentTypeRepoPort } from "../features/content-types";
+import type { EntryRefsRepoPort } from "../core/entry-refs/ports.js";
+import { extractEntryRefs } from "../core/entry-refs/extractor.js";
+import type { ContentTypeRepoPort } from "../features/content-types/index.js";
 import {
   VersionConflictError,
   toEntryOutbox,
   updateEntry,
   type EntryRecord,
   type EntryRepoPort,
-} from "../features/entries";
+} from "../features/entries/index.js";
 import {
   PRE_AUTHORIZED,
   requireWidgetPermission,
   type WidgetsAuthorizeFn,
-} from "./authorize-helper";
-import { withEntryLock } from "./concurrency";
-import { validateWidgetEmbedMutation } from "./embed-validation";
-import { parseWidgetInstancePayload } from "./entry-payload";
+} from "./authorize-helper.js";
+import { withEntryLock } from "./concurrency.js";
+import { validateWidgetEmbedMutation } from "./embed-validation.js";
+import { parseWidgetInstancePayload } from "./entry-payload.js";
 import {
   WidgetEmbedGuardrailError,
   WidgetInstanceNotFoundError,
   WidgetVersionConflictError,
-} from "./errors";
-import { WIDGET_CONTENT_TYPE } from "./types";
-import type { WidgetEmbedNode } from "./types";
+} from "./errors.js";
+import { WIDGET_CONTENT_TYPE } from "./types.js";
+import type { WidgetEmbedNode } from "./types.js";
 
 /** Matches the certified `embed-validation.unit.test.ts` suite's own value — no separate policy
  * config surface exists yet for this (OQ-level detail, same disclosure posture as OQ-01's resolver

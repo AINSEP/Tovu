@@ -2,9 +2,9 @@ import { and, eq } from "drizzle-orm";
 
 import type { ISODateTime, UUID } from "@jini-ai/cms/core";
 
-import type { ComposioConfigRecord, ComposioConfigRepoPort } from "../../connectors/composio-config-store";
-import { composioConfig } from "../schema";
-import type { ContentDb } from "./content-db";
+import type { ComposioConfigRecord, ComposioConfigRepoPort } from "../../connectors/composio-config-store.js";
+import { composioConfig } from "../schema.js";
+import type { ContentDb } from "./content-db.js";
 
 /**
  * @file Real `ComposioConfigRepoPort` adapter — the ADR-006 rule-of-two "second adapter" half;

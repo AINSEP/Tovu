@@ -21,9 +21,9 @@ import type {
   MailerSendOptions,
   MailerSendResult,
   OutboundEmail,
-} from "./types";
+} from "./types.js";
 
-export type { MailerCapabilities, MailerSendOptions, MailerSendResult, OutboundEmail } from "./types";
+export type { MailerCapabilities, MailerSendOptions, MailerSendResult, OutboundEmail } from "./types.js";
 
 /**
  * The mail port. `sendBatch` is non-optional (amendment 3): a mandatory core-lib façade loops

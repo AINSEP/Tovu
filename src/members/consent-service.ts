@@ -26,13 +26,13 @@
  * core-owned mutation in this repo already follows.
  */
 import type { ClockPort, IdGeneratorPort } from "@jini-ai/cms/core";
-import type { MemberConsentRepoPort, MemberRepoPort } from "./ports";
+import type { MemberConsentRepoPort, MemberRepoPort } from "./ports.js";
 import {
   MemberNotFoundError,
   type ConsentEvidence,
   type ConsentPurpose,
   type MemberConsentRecord,
-} from "./types";
+} from "./types.js";
 
 /** Deps `consent-service.ts` needs — a distinct bundle from `MembersWriteServiceDeps` (no mailer/sessions/tiers). */
 export interface ConsentServiceDeps {

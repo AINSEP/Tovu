@@ -1,11 +1,11 @@
-import { OG_TYPE_VALUES, STRING_FIELD_MAX_LENGTH, TWITTER_CARD_VALUES, URL_FIELD_MAX_LENGTH } from "./write-service";
+import { OG_TYPE_VALUES, STRING_FIELD_MAX_LENGTH, TWITTER_CARD_VALUES, URL_FIELD_MAX_LENGTH } from "./write-service.js";
 import {
   DEFAULT_DESCRIPTION_MAX_LENGTH,
   DEFAULT_OG_IMAGE_MAX_LENGTH,
   MAX_ROBOTS_RULES,
   MAX_RULE_PATH_ENTRIES,
   TITLE_TEMPLATE_MAX_LENGTH,
-} from "./settings";
+} from "./settings.js";
 
 /**
  * @file The SEO domain's agent-tool catalog, instantiating SPEC-016 REQ-22's naming/callability

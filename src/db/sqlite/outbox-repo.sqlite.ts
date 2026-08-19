@@ -1,7 +1,7 @@
 import { and, asc, eq, lte } from "drizzle-orm";
 
-import { outboxEvents } from "../schema";
-import type { ContentDb } from "./content-db";
+import { outboxEvents } from "../schema.js";
+import type { ContentDb } from "./content-db.js";
 import type { DomainEvent, ISODateTime, OutboxPort, OutboxRecord, UUID } from "@jini-ai/cms/core";
 
 /**

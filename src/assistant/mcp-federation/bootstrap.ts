@@ -1,10 +1,10 @@
 import type { ToolRegistry } from "@jini-ai/core";
 
-import { connectMcpStdioSession, spawnMcpStdioChannel } from "./adapter.stdio";
-import type { ResolvedFederatedConnection } from "./config";
-import type { McpSessionPort } from "./ports";
-import { listFederatedMcpPresets } from "./presets";
-import { federateSession, type FederationDeps } from "./registrations";
+import { connectMcpStdioSession, spawnMcpStdioChannel } from "./adapter.stdio.js";
+import type { ResolvedFederatedConnection } from "./config.js";
+import type { McpSessionPort } from "./ports.js";
+import { listFederatedMcpPresets } from "./presets.js";
+import { federateSession, type FederationDeps } from "./registrations.js";
 
 /**
  * @file The composition root for outbound MCP federation: the one function

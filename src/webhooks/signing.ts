@@ -1,6 +1,6 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-import type { WebhookSubscriptionRecord } from "./types";
+import type { WebhookSubscriptionRecord } from "./types.js";
 
 /**
  * @file HMAC request signing for outbound webhook deliveries (ADR-036 §5).

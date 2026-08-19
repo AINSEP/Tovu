@@ -36,21 +36,21 @@ import {
   type ToolRegistration,
 } from "@jini-ai/cms/core";
 import { registerToolContributor } from "#src/assistant/index";
-import type { PostRepoPort } from "../features/post";
-import type { SettingsRepoPort } from "../features/settings";
+import type { PostRepoPort } from "../features/post/index.js";
+import type { SettingsRepoPort } from "../features/settings/index.js";
 import type { PrincipalRepoPort } from "@jini-ai/cms/identity";
-import type { AssetRenditionRepoPort, MediaRepoPort, TransformDefinitionRepoPort } from "../media";
-import { getSeoAgentToolCatalog } from "./agent-tools";
+import type { AssetRenditionRepoPort, MediaRepoPort, TransformDefinitionRepoPort } from "../media/index.js";
+import { getSeoAgentToolCatalog } from "./agent-tools.js";
 import {
   SeoFieldValidationError,
   SeoInvalidCanonicalUrlError,
   SeoSettingsValidationError,
-} from "./errors";
-import { getEntryMeta, analyzeEntry } from "./seo";
-import { getSeoSettings, setSeoSettings } from "./settings";
-import { regenerateSitemapCache, invalidateSitemapCache } from "./sitemap";
-import type { SeoExtFields, SeoSettings } from "./types";
-import { setEntrySeoOverrides } from "./write-service";
+} from "./errors.js";
+import { getEntryMeta, analyzeEntry } from "./seo.js";
+import { getSeoSettings, setSeoSettings } from "./settings.js";
+import { regenerateSitemapCache, invalidateSitemapCache } from "./sitemap.js";
+import type { SeoExtFields, SeoSettings } from "./types.js";
+import { setEntrySeoOverrides } from "./write-service.js";
 
 const CATALOG_BY_ID = indexCatalogById(getSeoAgentToolCatalog());
 

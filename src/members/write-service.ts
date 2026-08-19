@@ -31,8 +31,8 @@
  */
 import { createHash, randomBytes } from "node:crypto";
 
-import type { MailerSendOptions, OutboundEmail } from "../mail";
-import { OriginNotVerifiedError } from "../origin";
+import type { MailerSendOptions, OutboundEmail } from "../mail/index.js";
+import { OriginNotVerifiedError } from "../origin/index.js";
 import {
   MemberAuthError,
   MemberConflictError,
@@ -42,8 +42,8 @@ import {
   type MemberSessionRecord,
   type MemberSubscriptionRecord,
   type MemberSubscriptionStatus,
-} from "./types";
-import type { MembersWriteService, MembersWriteServiceDeps } from "./ports";
+} from "./types.js";
+import type { MembersWriteService, MembersWriteServiceDeps } from "./ports.js";
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MAGIC_LINK_TTL_MS = 15 * 60 * 1000;

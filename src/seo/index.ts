@@ -5,8 +5,8 @@
  * future AI tools) must import from here (or the individual files re-exported
  * below), never reach `posts.seo_ext_json`/`site.seo.*` directly.
  */
-export { getEntryMeta, analyzeEntry, type GetEntryMetaDeps, type GetEntryMetaInput } from "./seo";
-export { setEntrySeoOverrides, type SetEntrySeoOverridesDeps, type SetEntrySeoOverridesInput } from "./write-service";
+export { getEntryMeta, analyzeEntry, type GetEntryMetaDeps, type GetEntryMetaInput } from "./seo.js";
+export { setEntrySeoOverrides, type SetEntrySeoOverridesDeps, type SetEntrySeoOverridesInput } from "./write-service.js";
 export {
   ensureSeoSettingDefinitions,
   getSeoSettings,
@@ -16,7 +16,7 @@ export {
   type GetSeoSettingsDeps,
   type SeoSettingsWriteDeps,
   type SetSeoSettingsInput,
-} from "./settings";
+} from "./settings.js";
 export {
   buildSitemap,
   buildRobots,
@@ -26,16 +26,16 @@ export {
   registerSitemapCollectHook,
   resetSitemapCollectHooksForTests,
   type SeoSitemapDeps,
-} from "./sitemap";
-export { resolveSeoImageRef, type ResolveSeoImageRefDeps, type ResolveSeoImageRefInput } from "./media";
-export { createSeoPageHeadHook } from "./page-head-contributor";
+} from "./sitemap.js";
+export { resolveSeoImageRef, type ResolveSeoImageRefDeps, type ResolveSeoImageRefInput } from "./media.js";
+export { createSeoPageHeadHook } from "./page-head-contributor.js";
 export {
   SeoEntryNotFoundError,
   SeoFieldValidationError,
   SeoInvalidCanonicalUrlError,
   SeoSettingsValidationError,
-} from "./errors";
-export type { SeoQueryPort, SeoEventSubscriptions, SitemapCollectHook } from "./ports";
+} from "./errors.js";
+export type { SeoQueryPort, SeoEventSubscriptions, SitemapCollectHook } from "./ports.js";
 export type {
   ChangeFreq,
   OpenGraph,
@@ -53,4 +53,4 @@ export type {
   SitemapEntry,
   TwitterCard,
   TwitterCardKind,
-} from "./types";
+} from "./types.js";

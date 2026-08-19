@@ -19,10 +19,10 @@ export type {
   VendorCredentialSetSummary,
   VendorId,
   VercelVendorConnectionInput,
-} from "./types";
-export { PUBLISH_PROVIDER_TO_VENDOR, SOURCE_CONTROL_PROVIDER_TO_VENDOR, VENDOR_IDS } from "./types";
+} from "./types.js";
+export { PUBLISH_PROVIDER_TO_VENDOR, SOURCE_CONTROL_PROVIDER_TO_VENDOR, VENDOR_IDS } from "./types.js";
 
-export { buildVendorCredentialAad } from "./aad";
+export { buildVendorCredentialAad } from "./aad.js";
 
 export {
   createVendorCredential,
@@ -42,13 +42,13 @@ export {
   type UpdateVendorCredentialInput,
   type VendorCredentialReadDeps,
   type VendorCredentialWriteDeps,
-} from "./store";
+} from "./store.js";
 
 export {
   resolveDefaultForVendorDualRead,
   type VendorCredentialDualReadDeps,
   type VendorCredentialDualReadResult,
   type VendorCredentialDualReadSource,
-} from "./dual-read";
+} from "./dual-read.js";
 
-export { InMemoryVendorCredentialSetRepo } from "./repo.memory";
+export { InMemoryVendorCredentialSetRepo } from "./repo.memory.js";

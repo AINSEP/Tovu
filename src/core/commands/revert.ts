@@ -7,7 +7,7 @@ import type {
   ChangeSetRecord,
   ChangeSetRepoPort,
 } from "@jini-ai/cms/core";
-import type { RevertRegistry } from "./appliers";
+import type { RevertRegistry } from "./appliers.js";
 
 /**
  * @file Revert executor (ADR-018 C-004).

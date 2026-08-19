@@ -10,16 +10,16 @@
 import { createHash, randomBytes } from "node:crypto";
 
 import type { UUID } from "@jini-ai/cms/core";
-import type { MailerPort } from "../mail";
-import type { OriginRegistryPort } from "../origin/index";
-import type { VerifiedOrigin } from "../origin/index";
-import { NewsletterConfirmTokenInvalidError } from "./errors";
+import type { MailerPort } from "../mail/index.js";
+import type { OriginRegistryPort } from "../origin/index.js";
+import type { VerifiedOrigin } from "../origin/index.js";
+import { NewsletterConfirmTokenInvalidError } from "./errors.js";
 import type {
   MembersConsentCapability,
   NewsletterConfirmationTokenRepoPort,
   NewsletterSubscriptionRepoPort,
-} from "./ports";
-import type { ConfirmationTokenRecord, SubscriptionRow } from "./types";
+} from "./ports.js";
+import type { ConfirmationTokenRecord, SubscriptionRow } from "./types.js";
 
 /** behavior.spec.md §3 — confirmation-token TTL, fixed at 72 hours. */
 export const CONFIRMATION_TOKEN_TTL_MS = 72 * 60 * 60 * 1000;

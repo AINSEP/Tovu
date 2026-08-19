@@ -22,7 +22,7 @@
  * INTERFACES ONLY. No feature logic lives here.
  */
 import type { ISODateTime, UUID } from "@jini-ai/cms/core";
-import type { WidgetRegionBindingRow, WidgetRegionDescriptor, WidgetRegionKey } from "./types";
+import type { WidgetRegionBindingRow, WidgetRegionDescriptor, WidgetRegionKey } from "./types.js";
 
 // ---------------------------------------------------------------------------
 // Port: the derived region-binding index (rule-of-two: in-memory + SQLite)

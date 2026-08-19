@@ -43,8 +43,8 @@
  * codebase that already owns it.
  */
 
-import type { PostRecord, PostRepoPort } from "../../features/post";
-import { resolvePublicTarget, type ClientDirective } from "./client-directives";
+import type { PostRecord, PostRepoPort } from "../../features/post.js";
+import { resolvePublicTarget, type ClientDirective } from "./client-directives.js";
 
 /**
  * Structural signature matching `features/post/post.ts`'s real `listPublishedPosts` function.

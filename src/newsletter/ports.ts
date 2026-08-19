@@ -30,9 +30,9 @@ import type {
   NewsletterListRow,
   SendRow,
   SubscriptionRow,
-} from "./types";
+} from "./types.js";
 
-export type { MailerPort } from "../mail";
+export type { MailerPort } from "../mail/index.js";
 
 /* ------------------------------------------------------------------------------------------------
  * SubscriberDirectoryPort — the Members seam (READ-only; Members owns the write side)

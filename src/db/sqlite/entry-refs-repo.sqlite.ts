@@ -1,10 +1,10 @@
 import { and, eq } from "drizzle-orm";
 
-import { entryRefs } from "../schema";
-import type { ContentDb } from "./content-db";
+import { entryRefs } from "../schema.js";
+import type { ContentDb } from "./content-db.js";
 import type { UUID } from "@jini-ai/cms/core";
-import type { EntryRefsRepoPort } from "../../core/entry-refs/ports";
-import type { EntryRefRow, EntryRefSourceKind, EntryRefTargetKind } from "../../core/entry-refs/types";
+import type { EntryRefsRepoPort } from "../../core/entry-refs/ports.js";
+import type { EntryRefRow, EntryRefSourceKind, EntryRefTargetKind } from "../../core/entry-refs/types.js";
 
 /**
  * @file Real SQLite `EntryRefsRepoPort` adapter (ADR-006 rule-of-two "second adapter" half —

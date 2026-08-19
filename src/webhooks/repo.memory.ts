@@ -1,14 +1,14 @@
 import type {
   WebhookDeliveryRepoPort,
   WebhookSubscriptionRepoPort,
-} from "./ports";
+} from "./ports.js";
 import type {
   IntegrationId,
   WebhookDeliveryRecord,
   WebhookEventEnvelope,
   WebhookSubscriptionRecord,
   WebhookTopic,
-} from "./types";
+} from "./types.js";
 
 /**
  * @file In-memory adapters for the `integrations` repo ports (ADR-036) + a small local

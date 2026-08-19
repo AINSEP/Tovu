@@ -21,7 +21,7 @@ import {
   type ToolRegistration,
 } from "@jini-ai/cms/core";
 import { registerToolContributor } from "#src/assistant/index";
-import { membersAgentToolCatalog } from "./agent-tools";
+import { membersAgentToolCatalog } from "./agent-tools.js";
 import type {
   MagicLinkTokenRepoPort,
   MemberRepoPort,
@@ -29,9 +29,9 @@ import type {
   MemberSubscriptionRepoPort,
   MemberTierRepoPort,
   MembersWriteServiceDeps,
-} from "./ports";
-import { MemberNotFoundError, type MemberRecord } from "./types";
-import { disableMember, requestSignInLink } from "./write-service";
+} from "./ports.js";
+import { MemberNotFoundError, type MemberRecord } from "./types.js";
+import { disableMember, requestSignInLink } from "./write-service.js";
 
 const CATALOG_BY_ID = indexCatalogById(membersAgentToolCatalog);
 

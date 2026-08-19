@@ -9,9 +9,9 @@ export {
   type CustomCredentialSetRepoPort,
   type CustomCredentialSummary,
   type CustomProviderConnectionInput,
-} from "./types";
+} from "./types.js";
 
-export { buildCustomCredentialAad } from "./aad";
+export { buildCustomCredentialAad } from "./aad.js";
 
 export {
   createCustomCredential,
@@ -28,6 +28,6 @@ export {
   type CustomCredentialReadDeps,
   type CustomCredentialWriteDeps,
   type UpdateCustomCredentialInput,
-} from "./store";
+} from "./store.js";
 
-export { InMemoryCustomCredentialSetRepo } from "./repo.memory";
+export { InMemoryCustomCredentialSetRepo } from "./repo.memory.js";

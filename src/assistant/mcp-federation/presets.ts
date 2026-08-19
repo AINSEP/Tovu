@@ -1,4 +1,4 @@
-import type { ResolvedFederatedConnection } from "./config";
+import type { ResolvedFederatedConnection } from "./config.js";
 
 /**
  * @file The core-owned, plugin-populated registry of federated MCP presets — the seam that lets a

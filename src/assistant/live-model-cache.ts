@@ -1,8 +1,8 @@
 import { listProviderModels, type ProviderModelOption } from "@jini-ai/agent-runtime";
 import type { AgentModelSummary } from "@jini-ai/http-kit";
 
-import type { SecretSealerPort } from "../webhooks/index";
-import { resolveExecutionCredential, type AdminExecutionCredentialRepoPort } from "./execution-credential-store";
+import type { SecretSealerPort } from "../webhooks/index.js";
+import { resolveExecutionCredential, type AdminExecutionCredentialRepoPort } from "./execution-credential-store.js";
 
 /**
  * @file Live model discovery for the Local CLI picker's `claude` entry — the enrichment step

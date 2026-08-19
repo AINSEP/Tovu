@@ -9,7 +9,7 @@
  * INTERFACES ONLY. No feature logic lives here.
  */
 import type { UUID } from "@jini-ai/cms/core";
-import type { EntryRefRow, EntryRefTargetKind } from "./types";
+import type { EntryRefRow, EntryRefTargetKind } from "./types.js";
 
 export interface EntryRefsRepoPort {
   /** Where-used: every reference pointing AT a given target (REQ-34's disclosure, REQ-42's safe-delete check). */

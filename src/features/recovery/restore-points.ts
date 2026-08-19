@@ -1,4 +1,4 @@
-import type { PrincipalKind, Result } from "./recovery-orchestrator";
+import type { PrincipalKind, Result } from "./recovery-orchestrator.js";
 
 /**
  * @file SPEC-019 C-304 / REQ-05 — `createRestorePoint`, an ordinary `authorize()`-gated mutation

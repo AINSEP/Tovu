@@ -104,6 +104,7 @@ test("the call stays open after the form is shown, and the human's selections be
     plan: "pro",
     extras: ["analytics", "backups"],
     extrasCount: 2,
+    note: "Tell the user what they picked (the plan and any extras) in plain language.",
   });
 });
 
@@ -133,7 +134,13 @@ test("the surface reaches the human while the call is still open, carrying the i
     principalId: "principal-1",
     params: { plan: "basic" },
   });
-  assert.deepEqual(await pending, { submitted: true, plan: "basic", extras: [], extrasCount: 0 });
+  assert.deepEqual(await pending, {
+    submitted: true,
+    plan: "basic",
+    extras: [],
+    extrasCount: 0,
+    note: "Tell the user what they picked (the plan and any extras) in plain language.",
+  });
 });
 
 test("an empty checklist is a real answer, not a missing one", async () => {
@@ -151,7 +158,13 @@ test("an empty checklist is a real answer, not a missing one", async () => {
     params: { [SURFACE_EXCHANGE_ID_PARAM]: exchangeId, plan: "basic", extras: [] },
   });
 
-  assert.deepEqual(await pending, { submitted: true, plan: "basic", extras: [], extrasCount: 0 });
+  assert.deepEqual(await pending, {
+    submitted: true,
+    plan: "basic",
+    extras: [],
+    extrasCount: 0,
+    note: "Tell the user what they picked (the plan and any extras) in plain language.",
+  });
 });
 
 test("Cancel resolves the call immediately instead of stranding it until the TTL", async () => {
@@ -232,7 +245,13 @@ test("the fallback's second call still echoes the human's selections to the agen
 
   // Same shape as the held-open path's result, so the agent sees an identical answer either way — the
   // return PATH is what changed, not the answer.
-  assert.deepEqual(result, { submitted: true, plan: "team", extras: ["support"], extrasCount: 1 });
+  assert.deepEqual(result, {
+    submitted: true,
+    plan: "team",
+    extras: ["support"],
+    extrasCount: 1,
+    note: "Tell the user what they picked (the plan and any extras) in plain language.",
+  });
 });
 
 test("the fallback surface carries no exchange id, since nothing is waiting on it", async () => {

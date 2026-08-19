@@ -22,7 +22,7 @@ export type {
   WebhookSubscriptionRecord,
   WebhookSubscriptionStatus,
   WebhookTopic,
-} from "./types";
+} from "./types.js";
 
 export type {
   IntegrationSecretRepoPort,
@@ -31,11 +31,11 @@ export type {
   SecretSealerPort,
   WebhookDeliveryRepoPort,
   WebhookSubscriptionRepoPort,
-} from "./ports";
+} from "./ports.js";
 
 // `HttpClientPort`/`EgressPolicy` are the shared `../http` core primitive (ADR-038) — re-exported
 // here (via `./ports`) so existing `integrations` consumers don't need to know the type moved.
-export type { EgressPolicy, HttpClientPort, HttpRequest, HttpResponse } from "./ports";
+export type { EgressPolicy, HttpClientPort, HttpRequest, HttpResponse } from "./ports.js";
 
 // Subscription CRUD write-service (ADR-036 §6) — the first landed consumer is the admin HTTP API
 // (`src/server/routes/admin/integrations`), so this barrel now carries the surface that file's own
@@ -48,7 +48,7 @@ export {
   updateSubscription,
   WebhookSubscriptionNotFoundError,
   WebhookSubscriptionValidationError,
-} from "./subscriptions";
+} from "./subscriptions.js";
 export type {
   CreateSubscriptionInput,
   CreateSubscriptionRequired,
@@ -61,7 +61,7 @@ export type {
   UpdateSubscriptionRequired,
   WebhookSubscriptionDeps,
   WebhookSubscriptionOptional,
-} from "./subscriptions";
+} from "./subscriptions.js";
 
 // In-memory repo adapters (the local-dev/test half of each ADR-006 rule-of-two) — same rationale
 // as the `./subscriptions` export above.
@@ -69,8 +69,8 @@ export {
   InMemoryDeliveryEnvelopeStore,
   InMemoryWebhookDeliveryRepo,
   InMemoryWebhookSubscriptionRepo,
-} from "./repo.memory";
-export type { DeliveryEnvelopeStore } from "./repo.memory";
+} from "./repo.memory.js";
+export type { DeliveryEnvelopeStore } from "./repo.memory.js";
 
 // ADR-046 Phase 1 (2026-07-16): the ADR-006 rule-of-two "second adapter" half — contract-tested at
 // `db/sqlite/__tests__/webhook-*-repo.sqlite.test.ts` and wired into the real composition root at

@@ -33,10 +33,10 @@
  * injected `RedirectDbHandle`; reads go through the injected `RedirectRepoPort`.
  */
 import type { ClockPort, IdGeneratorPort } from "@jini-ai/cms/core";
-import type { SlugChangeCapture, SlugChangeCaptureInput } from "../routing";
+import type { SlugChangeCapture, SlugChangeCaptureInput } from "../routing/index.js";
 
-import { insertRedirectAndRevision, type RedirectDbHandle } from "./ports.internal";
-import type { RedirectRecord, RedirectRevision } from "./types";
+import { insertRedirectAndRevision, type RedirectDbHandle } from "./ports.internal.js";
+import type { RedirectRecord, RedirectRevision } from "./types.js";
 
 /**
  * The narrow read this capture needs — `RedirectRepoPort.findByFromPattern`

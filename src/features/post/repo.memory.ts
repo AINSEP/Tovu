@@ -1,4 +1,4 @@
-import type { PostRecord, PostRepoPort } from "./post";
+import type { PostRecord, PostRepoPort } from "./post.js";
 
 /**
  * SPEC-005 (T021): `ext` needs no special handling here. Unlike `repo.sqlite.ts` — which has to

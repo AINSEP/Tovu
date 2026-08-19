@@ -51,8 +51,8 @@
  * calls `invoke()` with the right `caller` value — it requires no change to `CAPABILITIES` at all,
  * which is REQ-0's success test.
  */
-import type { ClientDirective } from "./client-directives";
-import { createSiteAssistantTools, SITE_ASSISTANT_TOOL_SCHEMAS, type SiteAssistantToolDeps } from "./tools";
+import type { ClientDirective } from "./client-directives.js";
+import { createSiteAssistantTools, SITE_ASSISTANT_TOOL_SCHEMAS, type SiteAssistantToolDeps } from "./tools.js";
 
 /**
  * Who is asking. A real parameter threaded through every `invoke()` call, not an ambient assumption

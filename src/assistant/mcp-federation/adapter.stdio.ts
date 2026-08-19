@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 
-import type { McpSessionPort, McpStdioChannel, McpStdioLaunchSpec, RemoteToolDescriptor, RemoteToolResult } from "./ports";
+import type { McpSessionPort, McpStdioChannel, McpStdioLaunchSpec, RemoteToolDescriptor, RemoteToolResult } from "./ports.js";
 
 /**
  * @file The real `McpSessionPort` adapter: a minimal MCP client speaking newline-delimited JSON-RPC

@@ -34,14 +34,14 @@ export type {
   ConsentRevisionOp,
   MemberConsentRecord,
   MemberConsentRevisionRecord,
-} from "./types";
+} from "./types.js";
 
 export {
   MemberAuthError,
   MemberValidationError,
   MemberConflictError,
   MemberNotFoundError,
-} from "./types";
+} from "./types.js";
 
 export type {
   MemberRepoPort,
@@ -53,11 +53,11 @@ export type {
   MemberAccessResolver,
   MembersWriteServiceDeps,
   MembersWriteService,
-} from "./ports";
+} from "./ports.js";
 
 // `MailerPort` is the shared `../mail` core primitive (ADR-037) — re-exported here so existing
 // `members` consumers don't need to know the type moved.
-export type { MailerPort, OutboundEmail } from "../mail";
+export type { MailerPort, OutboundEmail } from "../mail/index.js";
 
 export {
   InMemoryMagicLinkTokenRepo,
@@ -66,7 +66,7 @@ export {
   InMemoryMemberSessionRepo,
   InMemoryMemberSubscriptionRepo,
   InMemoryMemberTierRepo,
-} from "./repo.memory";
+} from "./repo.memory.js";
 
 // ADR-046 Phase 1 (2026-07-16): the ADR-006 rule-of-two "second adapter" half — already fully
 // built and contract-tested (`__tests__/repo.contract.test.ts`) but never wired into a real
@@ -78,14 +78,14 @@ export {
   SqliteMemberSessionRepo,
   SqliteMemberSubscriptionRepo,
   SqliteMemberTierRepo,
-} from "./repo.sqlite";
+} from "./repo.sqlite.js";
 
-export { ConsoleMailerAdapter, type ConsoleMailerAdapterDeps } from "./mailer.console";
+export { ConsoleMailerAdapter, type ConsoleMailerAdapterDeps } from "./mailer.console.js";
 
 export {
   DefaultMemberAccessResolver,
   type MemberAccessResolverDeps,
-} from "./access-resolver";
+} from "./access-resolver.js";
 
 export {
   compSubscription,
@@ -95,7 +95,7 @@ export {
   requestSignInLink,
   setSubscriptionStatus,
   updateProfile,
-} from "./write-service";
+} from "./write-service.js";
 
 // D1c consent chokepoint (ADR-PIPE-013 Decision §4) — kept separate from `write-service.ts`.
 export {
@@ -104,10 +104,10 @@ export {
   requestConsent,
   revokeConsent,
   type ConsentServiceDeps,
-} from "./consent-service";
+} from "./consent-service.js";
 
 // `SubscriberDirectoryPort` consumer-side seam Members implements (`../newsletter/ports`).
 export {
   MembersSubscriberDirectory,
   type MembersSubscriberDirectoryDeps,
-} from "./subscriber-directory";
+} from "./subscriber-directory.js";

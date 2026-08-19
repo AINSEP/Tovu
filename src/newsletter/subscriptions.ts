@@ -7,20 +7,20 @@
  * `SubscriberDirectoryPort`, read-only.
  */
 import type { UUID } from "@jini-ai/cms/core";
-import { issueConfirmationToken, type ConfirmationDeps } from "./confirmation";
+import { issueConfirmationToken, type ConfirmationDeps } from "./confirmation.js";
 import {
   NewsletterListNotFoundError,
   NewsletterSubscriberNotFoundError,
   NewsletterSubscriptionNotFoundError,
   NewsletterValidationError,
-} from "./errors";
+} from "./errors.js";
 import type {
   MembersConsentCapability,
   NewsletterListRepoPort,
   NewsletterSubscriptionRepoPort,
   SubscriberDirectoryPort,
-} from "./ports";
-import type { SubscriptionRow } from "./types";
+} from "./ports.js";
+import type { SubscriptionRow } from "./types.js";
 
 const IMPORT_BATCH_MAX = 500;
 

@@ -3,7 +3,7 @@ import type { ToolRegistry } from "@jini-ai/core";
 import type { ToolCatalogQuery } from "@jini-ai/http-kit";
 import { ensureToolCatalogTables, getToolCatalogEntry, reseedToolCatalog, searchToolCatalog } from "@jini-ai/sqlite";
 
-import { indexedDescriptionFor, stripSearchKeywords } from "./tool-search-keywords";
+import { indexedDescriptionFor, stripSearchKeywords } from "./tool-search-keywords.js";
 
 /**
  * @file Backs `@jini-ai/http-kit`'s `GET /api/tools/search` / `GET /api/tools/:id` with Tovu's own

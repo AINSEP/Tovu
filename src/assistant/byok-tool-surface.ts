@@ -40,10 +40,10 @@ import {
 import { createToolExecutor, type ToolExecutor } from "@jini-ai/daemon";
 
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/core/rate-limit/rate-limit";
-import type { ClockDeps } from "../server/routes/types";
-import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "../core/tool-surface-exchanges";
-import { buildToolCatalogQuery } from "./tool-catalog-query";
-import { type AssistantToolRegistryDeps, buildAssistantToolRegistrations } from "./tool-registrations";
+import type { ClockDeps } from "../server/routes/types.js";
+import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "../core/tool-surface-exchanges.js";
+import { buildToolCatalogQuery } from "./tool-catalog-query.js";
+import { type AssistantToolRegistryDeps, buildAssistantToolRegistrations } from "./tool-registrations/index.js";
 
 /** What one meta-tool call resolves to — deliberately the exact `{content, isError?}` shape
  *  `byok-provider-turn.ts`'s `ByokToolExecutor` contract returns, so the route hands this straight

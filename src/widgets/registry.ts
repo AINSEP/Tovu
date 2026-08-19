@@ -23,7 +23,7 @@
  * - Static/type-only until the registry itself is imported and iterated — no side effects at
  *   module load time.
  */
-import type { WidgetTypeKey, WidgetTypeRegistration } from "./types";
+import type { WidgetTypeKey, WidgetTypeRegistration } from "./types.js";
 
 /** `text` — static, no resolver (REQ-10). A single free-form rich-text field. */
 const TEXT_REGISTRATION: WidgetTypeRegistration = {

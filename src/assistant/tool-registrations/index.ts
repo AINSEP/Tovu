@@ -129,19 +129,19 @@
  * `server/tool-catalog-manifest.ts`'s `installFirstPartyToolContributors()` — nothing in THIS file
  * changes for that path, which is the property the registry exists to buy.
  */
-import type { CommentsToolDeps } from "../comments/tool-registrations";
-import { buildDemoA2uiRegistrations, demoA2uiDerivedRisk } from "./demo-a2ui-tool";
-import { buildDemoChoicesRegistrations, demoChoicesDerivedRisk } from "./demo-choices-tool";
-import { buildRenderUiRegistrations, renderUiDerivedRisk } from "./render-ui-tool";
-import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "../core/tool-surface-exchanges";
-import { listToolContributors, type ToolContributor } from "./tool-contribution-registry";
+import type { CommentsToolDeps } from "../../comments/tool-registrations.js";
+import { buildDemoA2uiRegistrations, demoA2uiDerivedRisk } from "../demo-a2ui-tool.js";
+import { buildDemoChoicesRegistrations, demoChoicesDerivedRisk } from "../demo-choices-tool.js";
+import { buildRenderUiRegistrations, renderUiDerivedRisk } from "../render-ui-tool.js";
+import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "../../core/tool-surface-exchanges.js";
+import { listToolContributors, type ToolContributor } from "../tool-contribution-registry.js";
 
 export type { AssistantSurfaceDeps };
-import type { ContentTypesToolDeps } from "../features/content-types/tool-registrations";
-import type { DatabaseToolDeps } from "../features/database/tool-registrations";
-import type { DeploymentsToolDeps } from "../features/deployments/tool-registrations";
-import type { StaticPublishToolDeps, VendorCredentialPort } from "../features/deployments/publish-agent-tools";
-import type { EntriesToolDeps } from "../features/entries/tool-registrations";
+import type { ContentTypesToolDeps } from "../../features/content-types/tool-registrations.js";
+import type { DatabaseToolDeps } from "../../features/database/tool-registrations.js";
+import type { DeploymentsToolDeps } from "../../features/deployments/tool-registrations.js";
+import type { StaticPublishToolDeps, VendorCredentialPort } from "../../features/deployments/publish-agent-tools.js";
+import type { EntriesToolDeps } from "../../features/entries/tool-registrations.js";
 // This file's own real wiring for `StaticPublishToolDeps.vendorCredentials` (`VendorCredentialPort`,
 // `publish-agent-tools.ts`) — that file deliberately carries NO import of any kind from
 // `features/vendor-credentials` (see its own header for why: doing so closed a real
@@ -156,26 +156,26 @@ import {
   listVendorCredentials,
   PUBLISH_PROVIDER_TO_VENDOR,
   updateVendorCredential,
-} from "../features/vendor-credentials/index";
-import type { SourceControlToolDeps } from "../features/source-control/tool-registrations";
-import type { PluginsToolDeps } from "../features/plugin-runtime/tool-registrations";
-import type { PostToolDeps } from "../features/post/tool-registrations";
-import type { PagesToolDeps } from "../features/pages/tool-registrations";
-import type { RecoveryToolDeps } from "../features/recovery/tool-registrations";
-import type { SettingsToolDeps } from "../features/settings/tool-registrations";
-import type { TaxonomyToolDeps } from "../features/taxonomy/tool-registrations";
-import type { ThemeToolDeps } from "../features/theme/tool-registrations";
-import type { WorkspaceToolDeps } from "../features/workspace/tool-registrations";
-import type { FormsToolDeps } from "../forms/tool-registrations";
-import type { IdentityToolDeps } from "../identity/tool-registrations";
-import type { IntegrationsToolDeps } from "../webhooks/tool-registrations";
-import type { MediaToolDeps } from "../media/tool-registrations";
-import type { MembersToolDeps } from "../members/tool-registrations";
-import type { MenusToolDeps } from "../navigation/tool-registrations";
-import type { NewsletterToolDeps } from "../newsletter/tool-registrations";
-import type { RedirectsToolDeps } from "../redirects/tool-registrations";
-import type { SeoToolDeps } from "../seo/tool-registrations";
-import type { WidgetsToolDeps } from "../widgets/tool-registrations";
+} from "../../features/vendor-credentials/index.js";
+import type { SourceControlToolDeps } from "../../features/source-control/tool-registrations.js";
+import type { PluginsToolDeps } from "../../features/plugin-runtime/tool-registrations.js";
+import type { PostToolDeps } from "../../features/post/tool-registrations.js";
+import type { PagesToolDeps } from "../../features/pages/tool-registrations.js";
+import type { RecoveryToolDeps } from "../../features/recovery/tool-registrations.js";
+import type { SettingsToolDeps } from "../../features/settings/tool-registrations.js";
+import type { TaxonomyToolDeps } from "../../features/taxonomy/tool-registrations.js";
+import type { ThemeToolDeps } from "../../features/theme/tool-registrations.js";
+import type { WorkspaceToolDeps } from "../../features/workspace/tool-registrations.js";
+import type { FormsToolDeps } from "../../forms/tool-registrations.js";
+import type { IdentityToolDeps } from "../../identity/tool-registrations.js";
+import type { IntegrationsToolDeps } from "../../webhooks/tool-registrations.js";
+import type { MediaToolDeps } from "../../media/tool-registrations.js";
+import type { MembersToolDeps } from "../../members/tool-registrations.js";
+import type { MenusToolDeps } from "../../navigation/tool-registrations.js";
+import type { NewsletterToolDeps } from "../../newsletter/tool-registrations.js";
+import type { RedirectsToolDeps } from "../../redirects/tool-registrations.js";
+import type { SeoToolDeps } from "../../seo/tool-registrations.js";
+import type { WidgetsToolDeps } from "../../widgets/tool-registrations.js";
 import {
   assertToolIsWirable,
   mergeDerivedRiskMaps,

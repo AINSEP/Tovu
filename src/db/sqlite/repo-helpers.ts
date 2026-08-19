@@ -1,7 +1,7 @@
 import { and, type SQL } from "drizzle-orm";
 import type { SQLiteTable } from "drizzle-orm/sqlite-core";
 
-import type { ContentDb } from "./content-db";
+import type { ContentDb } from "./content-db.js";
 
 /**
  * @file ADR-042 item 1: the workspace-scoped single-row lookup every `repo.sqlite.ts` adapter

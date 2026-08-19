@@ -9,9 +9,9 @@ import {
   registerDefinitions,
   set,
   type AuthorizeFn,
-} from "../features/settings";
-import { CommentsSettingsValidationError } from "./errors";
-import type { CommentsSettings } from "./types";
+} from "../features/settings/index.js";
+import { CommentsSettingsValidationError } from "./errors.js";
+import type { CommentsSettings } from "./types.js";
 
 /**
  * @file `getCommentsSettings`/`setCommentsSettings`/`ensureCommentsSettingDefinitions` — the

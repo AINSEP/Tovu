@@ -26,8 +26,8 @@
  * Architectural role: INTERNAL SEAM (not an ADR-006 port, see `ports.ts`'s
  * file header) — pure functions only, no I/O.
  */
-import type { RedirectMatcher } from "./ports";
-import type { RedirectMatchType, RedirectRecord, RedirectRequest, RedirectResolution } from "./types";
+import type { RedirectMatcher } from "./ports.js";
+import type { RedirectMatchType, RedirectRecord, RedirectRequest, RedirectResolution } from "./types.js";
 
 const MIN_PATTERN_LENGTH = 1;
 const MAX_PATTERN_LENGTH = 2048;

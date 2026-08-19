@@ -1,9 +1,9 @@
 import { and, eq } from "drizzle-orm";
 
-import type { AdminExecutionCredentialRecord, AdminExecutionCredentialRepoPort } from "../../assistant";
+import type { AdminExecutionCredentialRecord, AdminExecutionCredentialRepoPort } from "../../assistant/index.js";
 import type { UUID, ISODateTime } from "@jini-ai/cms/core";
-import { adminExecutionCredentials } from "../schema";
-import type { ContentDb } from "./content-db";
+import { adminExecutionCredentials } from "../schema.js";
+import type { ContentDb } from "./content-db.js";
 
 /**
  * @file Real `AdminExecutionCredentialRepoPort` adapter — the ADR-006 rule-of-two "second adapter"

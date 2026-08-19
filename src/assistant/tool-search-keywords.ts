@@ -1,4 +1,4 @@
-import { DOC2QUERY } from "./tool-search-doc2query";
+import { DOC2QUERY } from "./tool-search-doc2query.js";
 /**
  * @file Operator vocabulary for tool search — the words a human uses that a tool's own description
  * does not contain.

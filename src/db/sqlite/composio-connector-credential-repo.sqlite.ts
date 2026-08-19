@@ -5,9 +5,9 @@ import type { UUID } from "@jini-ai/cms/core";
 import type {
   ConnectorCredentialRepoPort,
   ConnectorCredentialRow,
-} from "../../connectors/connector-credential-store";
-import { composioConnectorCredentials } from "../schema";
-import type { ContentDb } from "./content-db";
+} from "../../connectors/connector-credential-store.js";
+import { composioConnectorCredentials } from "../schema.js";
+import type { ContentDb } from "./content-db.js";
 
 /**
  * @file Real `ConnectorCredentialRepoPort` adapter — the ADR-006 rule-of-two "second adapter" half;

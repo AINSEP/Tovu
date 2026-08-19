@@ -13,7 +13,7 @@ import type {
   NewsletterListRow,
   SendRow,
   SubscriptionRow,
-} from "./types";
+} from "./types.js";
 import type {
   NewsletterAudienceSnapshotRepoPort,
   NewsletterCampaignRepoPort,
@@ -21,7 +21,7 @@ import type {
   NewsletterListRepoPort,
   NewsletterSendRepoPort,
   NewsletterSubscriptionRepoPort,
-} from "./ports";
+} from "./ports.js";
 
 const DEFAULT_LIST_LIMIT = 100;
 

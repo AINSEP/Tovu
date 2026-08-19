@@ -1,5 +1,5 @@
 import type { UUID } from "@jini-ai/cms/core";
-import type { FormDefinitionRecord, FormSubmissionPage, FormSubmissionRecord } from "./types";
+import type { FormDefinitionRecord, FormSubmissionPage, FormSubmissionRecord } from "./types.js";
 
 /**
  * @file Port contracts for the `forms` library (SPEC-010, ADR-PIPE-010, C-012).

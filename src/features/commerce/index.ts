@@ -4,11 +4,11 @@
  * directly by its own path (e.g. `src/members/repo.sqlite.ts`), not through the feature's index,
  * so infra composition stays visible at each call site rather than hidden behind a barrel. */
 
-export * from "./contracts";
-export * from "./status";
-export * from "./types";
-export * from "./ports";
-export * from "./errors";
-export * from "./checkout";
-export * from "./webhook-inbox";
-export * from "./storefront";
+export * from "./contracts.js";
+export * from "./status.js";
+export * from "./types.js";
+export * from "./ports.js";
+export * from "./errors.js";
+export * from "./checkout.js";
+export * from "./webhook-inbox.js";
+export * from "./storefront.js";

@@ -10,9 +10,9 @@
 | Field | Value |
 |-------|-------|
 | spec_id | SPEC-049 |
-| version | 1.1.0 |
+| version | 1.3.0 |
 | status | APPROVED |
-| content_hash | sha256:af12b9f5cc28ea909a62730ed39d59d18897bc5d25de4822aa8dee7f44016fab |
+| content_hash | PENDING-RECOMPUTE-1.3.0 |
 | feature_name | FEAT-049-esm-migration |
 | last_edited | 2026-08-18T04:00:00Z |
 | owner | Leona Burime |
@@ -26,6 +26,8 @@
 > **Open Questions** — tracked questions that do not block Software Architect dispatch. Each must have an owner and a resolution target date.
 
 **Revision note (v1.0.0 → v1.1.0):** Both blocking `[NEEDS CLARIFICATION]` markers are resolved by human decision. REQ-08: deploy Node runtime bumps to 24 as Phase 0, before Wave 1 (Option A). REQ-10: `packages/*` is in scope; its sole member `packages/sdk` (`@tovu/sdk`) is already `"type": "module"` with zero outward `#src/`-internal dependencies, so it is treated as pre-migrated — a no-op for this migration's conversion work. `status` is now `APPROVED`. Per the Coordinator's explicit instruction, this spec is handoff-ready but pipeline dispatch (Red-Team / Software Architect) is intentionally held — see this run's report for details.
+
+**Revision note (v1.1.0 → v1.2.0):** Full wave topology beyond Wave 1 was computed (`core`, `commerce`, `server/boot`, `connectors`, `custom-credentials`, `vendor-credentials`, `mail`, `routing`, `assistant`, `db`, `themes` (non-static), and ~20 more modules — see the session's wave-discovery findings). This surfaced that REQ-01 as originally written would permanently block ~561 files (`server`, `cli`, `export`, `features/deployments`, `features/source-control`) because they have real value imports into `features/theme` (REQ-09 out-of-scope) — even though that import direction is the proven-safe one (ESM importing a directly-defined export from still-CommonJS code), not the risky one (ESM importing a re-exported name from a CommonJS barrel, the `delete.ts` failure mode). Added REQ-01a: a still-CommonJS import target qualifies for wave membership when the specific imported name is *directly defined* there, not merely re-exported — gated by REQ-05's existing verification (not self-certifying; a wave that turns out to hit a barrel indirection reverts per REQ-04, it does not force-merge). This is not a new risk being introduced — Wave 1's `features/site-glue` group already used exactly this exception once, verified via its full test suite, before this amendment existed to name it. Human decision (2026-08-19): amend now rather than leave the 561 files blocked indefinitely; `features/theme` itself remains out of scope (REQ-09 unchanged) and gets its own future migration pass, per the owner's explicit "fix themes afterwards."
 
 ---
 
@@ -87,7 +89,9 @@ This spec covers migrating the Tovu repository's module system from CommonJS (ro
 
 ## Requirements
 
-- REQ-01: A file may be included in a migration wave's member set only if every one of its `#src/`-internal import targets is either an external (npm) dependency or a file already migrated to ESM in a previously merged wave.
+- REQ-01: A file may be included in a migration wave's member set only if every one of its `#src/`-internal import targets is either an external (npm) dependency, a file already migrated to ESM in a previously merged wave, **or a still-CommonJS file where the specific imported name is directly defined by that file** (REQ-01a). A still-CommonJS target where the imported name is only re-exported (not defined) by that file does NOT qualify under REQ-01a — that is the proven-risky direction (`cjs-module-lexer` cannot statically resolve re-export indirection; see `MIGRATION-esm-2026-08-18.md` §2 and the `delete.ts` precedent).
+- REQ-01b: A **type-only** import (`import type { X } from "..."`) into a still-CommonJS target never blocks wave membership, regardless of whether the imported name is directly defined or re-exported there. Rationale: TypeScript erases `import type` entirely at compile time — it emits no `require()` and no runtime binding, so `cjs-module-lexer`'s static named-export resolution (the failure mode REQ-01/REQ-01a exist to prevent) is never invoked for such an import. This is not a new judgment call: this repo's own `check:architecture` already excludes type-only edges from its hard-constraint metrics (2026-08-17 refinement), and reports 0 module cycles on the resulting runtime-only graph. A value import (`import { X }`) of the same name from the same target is still governed by REQ-01/REQ-01a — the exemption is strictly about erasure, not about the target being safe.
+- REQ-01a: REQ-01's still-CommonJS-direct-define exception is not self-certifying — a wave relying on it is not exempt from REQ-05's verification gate. If the gate's test run reveals the exception doesn't hold for a specific import (the target turns out to be a re-export, not a direct definition), that file is removed from the wave and reverted per REQ-04, not force-merged. Confirmed empirically once already: Wave 1's `features/site-glue` group used this exact exception for two test-file imports into still-CommonJS `core/events` and `plugin-runtime` (direct function/class exports, not barrel re-exports), verified via its full test suite before merge.
 - REQ-02: Wave 1's member set consists exactly of the verified 24-file leaf set: `origin` (5 files), `http` (5 files), `headless` (2 files), `features/agent-plugins` (6 files), `features/site-glue` (6 files), per `MIGRATION-esm-2026-08-18.md` §1. No other files may be added to Wave 1.
 - REQ-03: The `core` module must not be included in any wave until the discrepancy between `check:architecture`'s reported Ce=0 for `core` and the real imports of `#src/db/*`, `#src/features/post/index`, and `#src/widgets/*` confirmed by direct grep (`MIGRATION-esm-2026-08-18.md` §1) is investigated, its root cause documented, and `core`'s true outward dependency set established.
 - REQ-04: Each wave must be merged and, if necessary, reverted as a single atomic unit. No wave may merge in a state where some of its member files are ESM and others are still CommonJS.

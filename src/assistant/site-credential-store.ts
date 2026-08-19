@@ -1,6 +1,6 @@
 import type { ClockPort, ISODateTime, UUID } from "@jini-ai/cms/core";
 
-import type { KeyringPort, SealedSecret, SecretSealerPort } from "../webhooks/index";
+import type { KeyringPort, SealedSecret, SecretSealerPort } from "../webhooks/index.js";
 
 /**
  * @file The SITE's provider credential (ADR-058) — one encrypted key per workspace, powering the

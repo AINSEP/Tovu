@@ -1,9 +1,9 @@
 import { and, desc, eq, ne } from "drizzle-orm";
 
 import type { UUID } from "@jini-ai/cms/core";
-import type { VendorCredentialSetRecord, VendorCredentialSetRepoPort, VendorId } from "../../features/vendor-credentials/types";
-import { vendorCredentialSets } from "../schema";
-import type { ContentDb } from "./content-db";
+import type { VendorCredentialSetRecord, VendorCredentialSetRepoPort, VendorId } from "../../features/vendor-credentials/types.js";
+import { vendorCredentialSets } from "../schema.js";
+import type { ContentDb } from "./content-db.js";
 
 /**
  * @file Real `VendorCredentialSetRepoPort` adapter — the ADR-006 rule-of-two "second adapter" half;

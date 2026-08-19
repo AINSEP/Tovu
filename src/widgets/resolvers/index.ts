@@ -19,8 +19,8 @@
  * Verified against `__tests__/integration/resolver-service.integration.test.ts`.
  */
 import type { UUID } from "@jini-ai/cms/core";
-import { getWidgetTypeRegistration } from "../registry";
-import { createCoreResolvers, type CoreResolverDeps } from "./create-core-resolvers";
+import { getWidgetTypeRegistration } from "../registry.js";
+import { createCoreResolvers, type CoreResolverDeps } from "./create-core-resolvers.js";
 import type {
   WidgetInstanceView,
   WidgetResolveContext,
@@ -28,7 +28,7 @@ import type {
   WidgetResolver,
   WidgetTypeKey,
   WidgetTypeRegistration,
-} from "../types";
+} from "../types.js";
 
 // `create-core-resolvers.ts` is the only production caller of the three factories below — they're
 // wired into `CORE_RESOLVERS` via `wireCoreResolvers`, never invoked directly outside this module.
@@ -36,11 +36,11 @@ import type {
 // isolation (2026-08-18 widgets/resolvers deep-import triage), so each factory is re-exported here
 // narrowly, one line per consumer:
 // `createRecentEntriesResolver` — `widgets/__tests__/unit/resolvers-recent-entries.unit.test.ts`.
-export { createRecentEntriesResolver } from "./recent-entries";
+export { createRecentEntriesResolver } from "./recent-entries.js";
 // `createMenuResolver` — `widgets/__tests__/unit/resolvers-menu.unit.test.ts`.
-export { createMenuResolver } from "./menu";
+export { createMenuResolver } from "./menu.js";
 // `createContactFormResolver` — `widgets/__tests__/integration/resolve-html-page-embeds.integration.test.ts`.
-export { createContactFormResolver } from "./contact-form";
+export { createContactFormResolver } from "./contact-form.js";
 
 /**
  * The mutable backing store `CORE_RESOLVERS` (below) exposes only a readonly view over — see that

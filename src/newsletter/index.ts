@@ -25,7 +25,7 @@ export {
   NewsletterConfirmTokenInvalidError,
   NewsletterUnsubscribeTokenInvalidError,
   NewsletterForbiddenError,
-} from "./errors";
+} from "./errors.js";
 export type {
   SubscriberContact,
   SubscriberDirectoryPort,
@@ -37,4 +37,4 @@ export type {
   NewsletterSendRepoPort,
   NewsletterConfirmationTokenRepoPort,
   MembersConsentCapability,
-} from "./ports";
+} from "./ports.js";

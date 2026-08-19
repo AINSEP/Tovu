@@ -4,7 +4,7 @@ import type {
   MediaRepoPort,
   TransformDefinitionRepoPort,
   TransformFormat,
-} from "../media";
+} from "../media/index.js";
 
 /**
  * @file `resolveSeoImageRef` (ADR-PIPE-008 Decision §6, C-013, EC-07) —

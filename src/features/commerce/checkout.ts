@@ -1,8 +1,8 @@
 import type { ClockPort, IdGeneratorPort, UUID } from "@jini-ai/cms/core";
 
-import { CommerceCheckoutValidationError, CommercePriceNotFoundError, CommerceProductNotFoundError } from "./errors";
-import type { CommerceOrderRepoPort, CommercePriceRepoPort, CommerceProductRepoPort } from "./ports";
-import type { CommerceOrderItemRecord, CommerceOrderRecord } from "./types";
+import { CommerceCheckoutValidationError, CommercePriceNotFoundError, CommerceProductNotFoundError } from "./errors.js";
+import type { CommerceOrderRepoPort, CommercePriceRepoPort, CommerceProductRepoPort } from "./ports.js";
+import type { CommerceOrderItemRecord, CommerceOrderRecord } from "./types.js";
 
 /**
  * @file `checkout.ts` — the first (and only, this slice) Commerce checkout path (2026-08-12

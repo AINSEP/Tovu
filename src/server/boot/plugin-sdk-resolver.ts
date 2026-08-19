@@ -64,7 +64,7 @@ let registered = false;
  * under `tsx` (running from `src/`) and the compiled `dist/` output (mirrors `packages/sdk`'s
  * sibling position to `src/` in both layouts). */
 function resolveDefaultSdkModulePath(): string {
-  return path.join(__dirname, "../../../packages/sdk/dist/index.js");
+  return path.join(import.meta.dirname, "../../../packages/sdk/dist/index.js");
 }
 
 /** Thrown by a second `registerPluginSdkResolver()` call in the same process — distinguishes the

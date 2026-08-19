@@ -6,9 +6,9 @@
  * the repo itself, one layer up.
  */
 import type { ClockPort, IdGeneratorPort, OutboxPort, UUID } from "@jini-ai/cms/core";
-import type { CommentHookRegistry } from "./hooks";
-import type { CommentEventName, CommentRepoPort } from "./ports";
-import type { CommentStatus, ModerationAction } from "./types";
+import type { CommentHookRegistry } from "./hooks.js";
+import type { CommentEventName, CommentRepoPort } from "./ports.js";
+import type { CommentStatus, ModerationAction } from "./types.js";
 
 export interface CommentWriteServiceDeps {
   repo: CommentRepoPort;

@@ -1,11 +1,11 @@
 import { ForbiddenError, type AuthorizeFn } from "@jini-ai/cms/core";
-import type { PostRepoPort } from "../features/post";
+import type { PostRepoPort } from "../features/post/index.js";
 import {
   SeoEntryNotFoundError,
   SeoFieldValidationError,
   SeoInvalidCanonicalUrlError,
-} from "./errors";
-import type { SeoExtFields } from "./types";
+} from "./errors.js";
+import type { SeoExtFields } from "./types.js";
 
 /**
  * @file `setEntrySeoOverrides` — THE per-entry SEO write chokepoint

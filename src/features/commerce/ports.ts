@@ -6,7 +6,7 @@ import type {
   CommerceProductImageRecord,
   CommerceProductRecord,
   CommerceWebhookEventRecord,
-} from "./types";
+} from "./types.js";
 
 /**
  * @file Port contracts for the Commerce first vertical slice (dependency-inversion seams, ADR-006

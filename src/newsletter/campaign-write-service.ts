@@ -10,16 +10,16 @@
  * same-tx revision row).
  */
 import type { UUID } from "@jini-ai/cms/core";
-import { transitionCampaignStatus, type CampaignActorTier } from "./campaign";
+import { transitionCampaignStatus, type CampaignActorTier } from "./campaign.js";
 import {
   NewsletterCampaignNotEditableError,
   NewsletterCampaignNotFoundError,
   NewsletterConflictError,
   NewsletterListNotFoundError,
   NewsletterValidationError,
-} from "./errors";
-import type { NewsletterCampaignRepoPort, NewsletterListRepoPort } from "./ports";
-import type { CampaignCounters, CampaignRecord } from "./types";
+} from "./errors.js";
+import type { NewsletterCampaignRepoPort, NewsletterListRepoPort } from "./ports.js";
+import type { CampaignCounters, CampaignRecord } from "./types.js";
 
 // Exported (not just module-local) so `agent-tools.ts`'s published `inputSchema` bounds import
 // these single sources rather than restating the numbers — the same discipline

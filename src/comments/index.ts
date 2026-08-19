@@ -18,19 +18,19 @@
  * back to before `ensureCommentsSettingDefinitions` has run in a real composition.
  */
 import type { ClockPort, IdGeneratorPort, OutboxPort, UUID } from "@jini-ai/cms/core";
-import type { EntryRepoPort } from "../features/entries";
-import type { SettingsRepoPort } from "../features/settings";
+import type { EntryRepoPort } from "../features/entries/index.js";
+import type { SettingsRepoPort } from "../features/settings/index.js";
 import { createRateLimiter } from "#src/core/rate-limit/rate-limit";
 import type { RateLimitProfile } from "#src/core/rate-limit/rate-limit";
-import { createCommentHookRegistry } from "./hooks";
-import { createCommentIngressPolicy } from "./ingress";
-import type { EntryLookupResult } from "./ingress";
-import type { CommentIngressPolicy, CommentRepoPort } from "./ports";
-import { getCommentsSettings } from "./settings";
-import { HeuristicSpamCheck } from "./spam.heuristic";
-import type { CommentsSettings } from "./types";
-import { createCommentWriteService } from "./write-service";
-import type { CommentWriteService } from "./write-service";
+import { createCommentHookRegistry } from "./hooks.js";
+import { createCommentIngressPolicy } from "./ingress.js";
+import type { EntryLookupResult } from "./ingress.js";
+import type { CommentIngressPolicy, CommentRepoPort } from "./ports.js";
+import { getCommentsSettings } from "./settings.js";
+import { HeuristicSpamCheck } from "./spam.heuristic.js";
+import type { CommentsSettings } from "./types.js";
+import { createCommentWriteService } from "./write-service.js";
+import type { CommentWriteService } from "./write-service.js";
 
 export const DEFAULT_COMMENTS_SETTINGS: CommentsSettings = {
   enabled: true,
@@ -128,9 +128,9 @@ export function createCommentsModule(deps: CommentsModuleDeps): CommentsModule {
   return { commentRepo: deps.commentRepo, ingressPolicy, writeService };
 }
 
-export type { CommentRepoPort, CommentIngressPolicy, SpamCheckPort } from "./ports";
-export type { CommentRecord, CommentStatus, CommentsSettings, CommentSubmission, ModerationAction, ModerationLogEntry } from "./types";
-export { COMMENTS_DATA_MODULE, COMMENTS_INGRESS_SYSTEM_PRINCIPAL_ID, COMMENTS_PLUGIN_ID } from "./types";
-export type { CommentWriteService } from "./write-service";
-export { ensureCommentsSettingDefinitions, getCommentsSettings, setCommentsSettings } from "./settings";
-export { CommentsSettingsValidationError } from "./errors";
+export type { CommentRepoPort, CommentIngressPolicy, SpamCheckPort } from "./ports.js";
+export type { CommentRecord, CommentStatus, CommentsSettings, CommentSubmission, ModerationAction, ModerationLogEntry } from "./types.js";
+export { COMMENTS_DATA_MODULE, COMMENTS_INGRESS_SYSTEM_PRINCIPAL_ID, COMMENTS_PLUGIN_ID } from "./types.js";
+export type { CommentWriteService } from "./write-service.js";
+export { ensureCommentsSettingDefinitions, getCommentsSettings, setCommentsSettings } from "./settings.js";
+export { CommentsSettingsValidationError } from "./errors.js";

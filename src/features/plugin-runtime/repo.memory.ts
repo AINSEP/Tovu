@@ -1,4 +1,4 @@
-import type { PluginActivationRecord, PluginActivationRepoPort } from "./activation";
+import type { PluginActivationRecord, PluginActivationRepoPort } from "./activation.js";
 
 /**
  * @file In-memory `PluginActivationRepoPort` adapter — mirrors

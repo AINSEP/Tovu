@@ -9,9 +9,9 @@ import {
   registerDefinitions,
   set,
   type AuthorizeFn,
-} from "../features/settings";
-import { SeoSettingsValidationError } from "./errors";
-import type { RobotsRule, SeoSettingKey, SeoSettings } from "./types";
+} from "../features/settings/index.js";
+import { SeoSettingsValidationError } from "./errors.js";
+import type { RobotsRule, SeoSettingKey, SeoSettings } from "./types.js";
 
 /**
  * @file `getSeoSettings`/`setSeoSettings`/`ensureSeoSettingDefinitions`

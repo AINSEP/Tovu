@@ -15,8 +15,8 @@
  * mutation that would place a `widgetEmbed` inside a widget's own body (REQ-19/INV-04) or exceed
  * `maxEmbedsPerDocument` (REQ-20). Verified against `__tests__/unit/embed-validation.unit.test.ts`.
  */
-import { WIDGET_CONTENT_TYPE } from "./types";
-import type { WidgetEmbedNode } from "./types";
+import { WIDGET_CONTENT_TYPE } from "./types.js";
+import type { WidgetEmbedNode } from "./types.js";
 
 export interface ValidateWidgetEmbedMutationInput {
   /** The content type of the entry the mutation would apply to (e.g. `page`, `post`, `widget`). */

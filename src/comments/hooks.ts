@@ -8,8 +8,8 @@
  * (fail-closed on veto, same as a throw). A THROWING handler is also fail-closed rejection, never
  * "keep by default" — the spam-check adapter is expected to attach here as one such handler.
  */
-import type { CommentHookPoints, CommentIngressRejection } from "./ports";
-import type { CommentSubmission } from "./types";
+import type { CommentHookPoints, CommentIngressRejection } from "./ports.js";
+import type { CommentSubmission } from "./types.js";
 
 export type BeforeSubmitHook = CommentHookPoints["comments.beforeSubmit"];
 export type StatusChangedHook = CommentHookPoints["comments.statusChanged"];

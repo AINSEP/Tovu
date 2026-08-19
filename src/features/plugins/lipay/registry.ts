@@ -14,7 +14,7 @@
  * is a runtime condition a caller must be able to handle, which is why it is a typed
  * `PaymentError` instead.
  */
-import type { PaymentProvider, PaymentProviderId, PaymentProviderRegistry } from "./ports";
+import type { PaymentProvider, PaymentProviderId, PaymentProviderRegistry } from "./ports.js";
 
 /**
  * ADR-026's plugin-identifier grammar: lowercase ASCII alphanumerics and internal hyphens, no

@@ -2,7 +2,7 @@ import type {
   CommercePaymentProvider,
   CommercePaymentRuntimePort,
   CommerceStatus,
-} from "./contracts";
+} from "./contracts.js";
 
 const CONFIGURATION_UNAVAILABLE = {
   status: "unavailable",

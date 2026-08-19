@@ -1,11 +1,12 @@
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import Database from "better-sqlite3";
 import { eq, sql } from "drizzle-orm";
 import { drizzle, type BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 
-import * as schema from "../schema";
+import * as schema from "../schema.js";
 
 /**
  * @file Per-site content.db bootstrap (Drizzle over better-sqlite3).
@@ -42,7 +43,7 @@ import * as schema from "../schema";
 export type ContentDb = BetterSQLite3Database<typeof schema> & { $client: Database.Database };
 
 /** Generated migrations live at `src/db/drizzle/` (resolved from this file). */
-const MIGRATIONS_DIR = path.resolve(__dirname, "../drizzle");
+const MIGRATIONS_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../drizzle");
 
 /** First-run demo content a caller may supply to `openContentDb`/`seedContentDb`. */
 export interface ContentDbSeedData {

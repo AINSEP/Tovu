@@ -7,9 +7,9 @@ import {
   commerceProductImages,
   commerceProducts,
   commerceWebhookEvents,
-} from "../../db/schema";
-import type { ContentDb } from "../../db/sqlite/content-db";
-import { findOneBy } from "../../db/sqlite/repo-helpers";
+} from "../../db/schema.js";
+import type { ContentDb } from "../../db/sqlite/content-db.js";
+import { findOneBy } from "../../db/sqlite/repo-helpers.js";
 import type {
   ApplyProviderEventResult,
   CommerceOrderRepoPort,
@@ -17,7 +17,7 @@ import type {
   CommerceProductImageRepoPort,
   CommerceProductRepoPort,
   CommerceWebhookEventRepoPort,
-} from "./ports";
+} from "./ports.js";
 import type {
   CommerceBillingInterval,
   CommerceOrderItemRecord,
@@ -30,7 +30,7 @@ import type {
   CommerceProductRecord,
   CommerceProductSpec,
   CommerceProductStatus,
-} from "./types";
+} from "./types.js";
 
 /**
  * @file Drizzle/SQLite adapter for the Commerce first vertical slice (2026-08-12 swarm-consensus

@@ -21,9 +21,9 @@
  */
 import { and, eq, lt, sql } from "drizzle-orm";
 
-import { agentToolAttempts } from "../../db/schema";
-import type { ContentDb } from "../../db/sqlite/content-db";
-import type { ToolAttemptAuditSink, ToolAttemptEvent } from "./types";
+import { agentToolAttempts } from "../../db/schema.js";
+import type { ContentDb } from "../../db/sqlite/content-db.js";
+import type { ToolAttemptAuditSink, ToolAttemptEvent } from "./types.js";
 
 /**
  * Per-workspace row cap.

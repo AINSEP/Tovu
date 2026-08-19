@@ -29,7 +29,7 @@ import type {
   RedirectRequest,
   RedirectResolution,
   RedirectRevision,
-} from "./types";
+} from "./types.js";
 
 /**
  * Persistence port for redirect rules + their revision ledger + tombstones.

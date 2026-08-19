@@ -21,9 +21,9 @@
 import { createHash } from "node:crypto";
 
 import type { ISODateTime, JsonObject, UUID } from "@jini-ai/cms/core";
-import type { IngestDeps } from "./ports";
-import { AnalyticsPiiRejectedError } from "./ports";
-import { deriveDailySalt } from "./salt";
+import type { IngestDeps } from "./ports.js";
+import { AnalyticsPiiRejectedError } from "./ports.js";
+import { deriveDailySalt } from "./salt.js";
 import type {
   AnalyticsSiteConfig,
   DeviceClass,
@@ -31,7 +31,7 @@ import type {
   IngestContext,
   NormalizedHit,
   UtmParams,
-} from "./types";
+} from "./types.js";
 
 /* -------------------------------------------------------------------------- */
 /* Property validation / PII rejection                                        */

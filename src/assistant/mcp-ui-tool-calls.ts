@@ -13,7 +13,7 @@
  * daemon-side execution route and Tovu's session-authenticated proxy in front of it — see
  * `mcp-ui-tool-calls-route.ts` and `server/modules/assistant.ts`) so the two cannot drift apart.
  */
-import { demoToolsEnabled } from "./demo-choices-tool";
+import { demoToolsEnabled } from "./demo-choices-tool.js";
 
 /**
  * Tool ids `mcp-ui-tool-calls-route.ts`'s callback endpoint is willing to reach at all — for either

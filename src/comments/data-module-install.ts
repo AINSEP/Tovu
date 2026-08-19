@@ -7,8 +7,8 @@
  */
 import type Database from "better-sqlite3";
 
-import { declareDataModule } from "../features/plugins/data-module";
-import { COMMENTS_DATA_MODULE } from "./types";
+import { declareDataModule } from "../features/plugins/data-module.js";
+import { COMMENTS_DATA_MODULE } from "./types.js";
 
 export async function installCommentsDataModule(
   required: { db: Database.Database; dbPath: string },

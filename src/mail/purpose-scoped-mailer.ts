@@ -12,7 +12,7 @@
  *
  * Decorator over the existing `MailerPort` (Article IV) — not a new port.
  */
-import type { MailerPort, MailerSendOptions, MailerSendResult, OutboundEmail } from "./ports";
+import type { MailerPort, MailerSendOptions, MailerSendResult, OutboundEmail } from "./ports.js";
 import type { RuntimeMode } from "#src/core/runtime-mode";
 
 export interface WrapMailerWithPurposeGateOptions {

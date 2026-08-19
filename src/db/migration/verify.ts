@@ -15,7 +15,7 @@
  * dialect's plain text column notices a malformed JSON payload or a timezone-naive timestamp — the
  * type system offers no protection at all here, which is precisely why this semantic layer has to.
  */
-import type { SemanticColumnClass } from "./manifest";
+import type { SemanticColumnClass } from "./manifest.js";
 
 export interface VerificationFailure {
   readonly code: string;

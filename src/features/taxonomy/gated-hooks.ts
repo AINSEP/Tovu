@@ -1,7 +1,7 @@
 import type { ClockPort } from "@jini-ai/cms/core";
-import type { GatedMutationHooks } from "../../core/gated-mutations/gateway";
-import { planHashOf, resolveActorClassIdentity } from "../../core/gated-mutations/composition";
-import type { MergeTermPlanDetails, TermRepoPort, TaxonomyRevisionRepoPort } from "./index";
+import type { GatedMutationHooks } from "../../core/gated-mutations/gateway.js";
+import { planHashOf, resolveActorClassIdentity } from "../../core/gated-mutations/composition.js";
+import type { MergeTermPlanDetails, TermRepoPort, TaxonomyRevisionRepoPort } from "./index.js";
 
 /**
  * @file Taxonomy's `GatedMutationHooks` factory for the `mergeTerm` ceremony (SPEC-018 C-207) —

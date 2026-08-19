@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { wrapMailerWithPurposeGate } from "../../purpose-scoped-mailer";
-import type { MailerPort, OutboundEmail, MailerSendOptions } from "../../ports";
+import { wrapMailerWithPurposeGate } from "../../purpose-scoped-mailer.js";
+import type { MailerPort, OutboundEmail, MailerSendOptions } from "../../ports.js";
 
 /**
  * @file SPEC-022 C-005 / CIC U-001 — the purpose-scoped mailer seam gate

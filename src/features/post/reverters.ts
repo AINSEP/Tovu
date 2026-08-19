@@ -1,6 +1,6 @@
 import type { ClockPort, JsonObject, OutboxPort } from "@jini-ai/cms/core";
-import { createRevertRegistry, type EntityReverter, type RevertRegistry } from "../../core/commands";
-import { classifyStatusTransition, type PostRecord, type PostRepoPort, type PostStatus } from "./post";
+import { createRevertRegistry, type EntityReverter, type RevertRegistry } from "../../core/commands/index.js";
+import { classifyStatusTransition, type PostRecord, type PostRepoPort, type PostStatus } from "./post.js";
 
 /**
  * @file Post-domain entity reverters (ADR-018 C-005/C-006).

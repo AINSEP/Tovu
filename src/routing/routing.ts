@@ -19,9 +19,9 @@
  * wiring live here (that is out of scope for this v0 build) — this file is
  * pure resolution logic over injected ports and in-module registries.
  */
-import type { PostRecord } from "../features/post";
+import type { PostRecord } from "../features/post/index.js";
 
-import type { RouteResolverDeps } from "./ports";
+import type { RouteResolverDeps } from "./ports.js";
 import type {
   EntryRefTarget,
   RouteRefTarget,
@@ -35,7 +35,7 @@ import type {
   SlugChangeCapture,
   TermRefTarget,
   UrlTarget,
-} from "./types";
+} from "./types.js";
 
 /** Raised when a `RouteTarget` carries a discriminant this library does not recognize. */
 export class RouteResolutionError extends Error {}

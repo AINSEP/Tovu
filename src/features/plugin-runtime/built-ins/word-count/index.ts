@@ -17,9 +17,9 @@
  * Implemented (tasks.md T019) against the certified suite in
  * `__tests__/unit/word-count.unit.test.ts`, which pins the tokenization algorithm exactly.
  */
-import type { BuiltInPluginSource } from "../../discovery";
-import type { PluginManifest } from "../../manifest";
-import { definePlugin, HOOK_CONTENT_ENTRY_BEFORE_SAVE } from "../../../../../packages/sdk/src/index";
+import type { BuiltInPluginSource } from "../../discovery.js";
+import type { PluginManifest } from "../../manifest.js";
+import { definePlugin, HOOK_CONTENT_ENTRY_BEFORE_SAVE } from "../../../../../packages/sdk/src/index.js";
 
 /** The built-in's in-code manifest-equivalent (ADR Decision item 4). */
 export const WORD_COUNT_MANIFEST: PluginManifest = {

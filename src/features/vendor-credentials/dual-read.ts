@@ -1,11 +1,11 @@
 import type { UUID } from "@jini-ai/cms/core";
 
-import type { SecretSealerPort } from "../../webhooks/index";
-import type { PublishConnectionInput, PublishCredentialSetRepoPort, PublishProviderId } from "../deployments/publish-credentials/index";
-import type { SourceControlConnectionInput, SourceControlCredentialSetRepoPort, SourceControlProviderId } from "../source-control/types";
-import { resolveDefaultForVendor } from "./store";
-import { PUBLISH_PROVIDER_TO_VENDOR, SOURCE_CONTROL_PROVIDER_TO_VENDOR } from "./types";
-import type { VendorConnectionInput, VendorCredentialSetRepoPort, VendorId } from "./types";
+import type { SecretSealerPort } from "../../webhooks/index.js";
+import type { PublishConnectionInput, PublishCredentialSetRepoPort, PublishProviderId } from "../deployments/publish-credentials/index.js";
+import type { SourceControlConnectionInput, SourceControlCredentialSetRepoPort, SourceControlProviderId } from "../source-control/types.js";
+import { resolveDefaultForVendor } from "./store.js";
+import { PUBLISH_PROVIDER_TO_VENDOR, SOURCE_CONTROL_PROVIDER_TO_VENDOR } from "./types.js";
+import type { VendorConnectionInput, VendorCredentialSetRepoPort, VendorId } from "./types.js";
 
 /**
  * @file The Phase 3 cutover seam: resolves the DEFAULT credential for a vendor by reading

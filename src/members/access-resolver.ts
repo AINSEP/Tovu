@@ -15,9 +15,9 @@
  */
 import { createHash } from "node:crypto";
 
-import type { MemberAccessResolver } from "./ports";
-import type { MemberSessionRepoPort, MemberSubscriptionRepoPort, MemberTierRepoPort } from "./ports";
-import type { MemberAccessDecision, MemberContentAccess, MemberContext } from "./types";
+import type { MemberAccessResolver } from "./ports.js";
+import type { MemberSessionRepoPort, MemberSubscriptionRepoPort, MemberTierRepoPort } from "./ports.js";
+import type { MemberAccessDecision, MemberContentAccess, MemberContext } from "./types.js";
 
 /** Anonymous/invalid-session context — the fail-closed default. */
 const ANONYMOUS_CONTEXT: MemberContext = { isAuthenticated: false, activeTierIds: [], isPaid: false };

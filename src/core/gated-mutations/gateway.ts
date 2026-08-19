@@ -1,5 +1,5 @@
 import type { ClockPort, IdGeneratorPort } from "@jini-ai/cms/core";
-import type { AuthorizeFn, InstanceAuthorizeFn, PrincipalKind } from "./ports";
+import type { AuthorizeFn, InstanceAuthorizeFn, PrincipalKind } from "./ports.js";
 import {
   type ConfirmationTokenRecord,
   type TokenStorePort,
@@ -7,7 +7,7 @@ import {
   TokenExpiredError,
   isRedeemable,
   mintToken,
-} from "./token";
+} from "./token.js";
 
 /**
  * @file SPEC-016 C-001/C-002/C-003 — the plan() -> confirm() -> execute() gated-mutation gateway
