@@ -6,6 +6,7 @@ import type { ToolDescriptor } from "@jini-ai/core";
 
 import { getRedirectsAgentToolCatalog } from "../../redirects/agent-tools.js";
 import { postAgentToolCatalog } from "../../features/post/agent-tools.js";
+import { startStubProviderServer } from "../../server/__tests__/helpers/stub-provider-server.js";
 import {
   coerceNumericEnumStringsToNumbers,
   findNumericEnumPaths,
@@ -373,40 +374,40 @@ const TOOL_WITH_NESTED_ADDITIONAL_PROPERTIES: ToolDescriptor = {
   },
 };
 
-/** Swaps `globalThis.fetch` for a mock that captures the outbound request body and immediately
- *  responds `ok: false` — the turn ends in an `'error'` event without needing real SSE framing,
- *  since this test only cares about what was SENT, not the (never-reached) response handling. */
-function captureOutboundFetch(t: import("node:test").TestContext): { body(): Record<string, unknown> } {
-  const originalFetch = globalThis.fetch;
-  t.after(() => {
-    globalThis.fetch = originalFetch;
-  });
-
+/**
+ * Boots a real loopback stub in place of the outbound provider call (see `stub-provider-server.ts`'s
+ * doc: `@jini-ai/agent-runtime`'s adapters now dial `pinnedFetch` — `node:https`/`node:http` directly
+ * — not `globalThis.fetch`, so stubbing the global no longer intercepts anything), captures the
+ * FIRST request's JSON body, and replies `400 {}` — enough to end the turn in an `'error'` event
+ * without needing real SSE framing, since this test only cares about what was SENT, not the
+ * (never-reached) response handling.
+ */
+async function captureOutboundRequest(t: import("node:test").TestContext): Promise<{ baseUrl: string; body(): Record<string, unknown> }> {
   let captured: Record<string, unknown> | undefined;
-  globalThis.fetch = (async (...args: Parameters<typeof fetch>) => {
-    const init = args[1] as RequestInit | undefined;
-    captured = init?.body ? (JSON.parse(init.body as string) as Record<string, unknown>) : {};
-    return { ok: false, status: 400, body: null, text: async () => "{}" } as unknown as ReturnType<typeof fetch>;
-  }) as typeof fetch;
-
+  const baseUrl = await startStubProviderServer(t, (_callCount, requestBody) => {
+    captured = requestBody;
+    return { status: 400, body: "{}" };
+  });
   return {
+    baseUrl,
     body() {
-      assert.ok(captured, "expected the mocked fetch to have been called");
+      assert.ok(captured, "expected the stub provider server to have received a request");
       return captured as Record<string, unknown>;
     },
   };
 }
 
-function baseInput(protocol: ByokProviderTurnInput["protocol"]): ByokProviderTurnInput {
+function baseInput(protocol: ByokProviderTurnInput["protocol"], baseUrl: string): ByokProviderTurnInput {
   return {
     protocol,
+    baseUrl,
     apiKey: "test-key-not-real",
     model: protocol === "google" ? "gemini-3.6-flash" : "claude-opus-4-8",
     system: "be terse",
     messages: [{ role: "user", content: "hi" }],
     tools: [TOOL_WITH_NESTED_ADDITIONAL_PROPERTIES],
     executeTool: async () => {
-      throw new Error("must not be called — the mocked fetch never returns a tool call");
+      throw new Error("must not be called — the stub server never returns a tool call");
     },
     onEvent: () => {},
     signal: undefined,
@@ -414,8 +415,8 @@ function baseInput(protocol: ByokProviderTurnInput["protocol"]): ByokProviderTur
 }
 
 test("runByokProviderTurn(google): the outbound Gemini request has additionalProperties/$schema stripped, top-level and nested", async (t) => {
-  const capture = captureOutboundFetch(t);
-  await runByokProviderTurn(baseInput("google"));
+  const capture = await captureOutboundRequest(t);
+  await runByokProviderTurn(baseInput("google", capture.baseUrl));
 
   const body = capture.body();
   const tools = body.tools as Array<{ functionDeclarations: Array<{ parameters: Record<string, unknown> }> }>;
@@ -435,8 +436,8 @@ test("runByokProviderTurn(google): the outbound Gemini request has additionalPro
 });
 
 test("runByokProviderTurn(anthropic): the SAME tool schema reaches the outbound request untouched — additionalProperties/$schema preserved", async (t) => {
-  const capture = captureOutboundFetch(t);
-  await runByokProviderTurn(baseInput("anthropic"));
+  const capture = await captureOutboundRequest(t);
+  await runByokProviderTurn(baseInput("anthropic", capture.baseUrl));
 
   const body = capture.body();
   const tools = body.tools as Array<{ input_schema: Record<string, unknown> }>;
@@ -459,33 +460,19 @@ function googleTextFrame(text: string, finishReason: string): string {
 }
 
 test("runByokProviderTurn(google): a numeric-enum tool (redirects_create) round-trips end to end — Gemini sends back statusCode as a STRING, and the tool executor still receives a NUMBER", async (t) => {
-  const originalFetch = globalThis.fetch;
-  t.after(() => {
-    globalThis.fetch = originalFetch;
-  });
-
-  let callCount = 0;
-  globalThis.fetch = (async () => {
-    callCount += 1;
+  // Real loopback stub, not `globalThis.fetch` — see `stub-provider-server.ts`'s doc: the Google
+  // adapter now dials `pinnedFetch` (`node:https`/`node:http` directly), which never reads the
+  // global. Scripted the same two calls as before: the tool-call turn, then the finishing reply.
+  const baseUrl = await startStubProviderServer(t, (callCount) => {
     if (callCount === 1) {
       // Simulates exactly the failure mode this test guards against: Gemini, having been told
       // `statusCode` is a string enum (this tool's sanitized schema), sends the tool call back with
       // `statusCode: "301"` — a string, not the `301` number the tool descriptor's real schema
       // declares and the tool handler expects.
-      return {
-        ok: true,
-        status: 200,
-        body: { async *[Symbol.asyncIterator]() { yield googleFunctionCallFrame("redirects_create", { statusCode: "301", fromPattern: "/old", toTarget: "/new", matchType: "exact" }, "call_1"); } },
-        text: async () => "",
-      } as unknown as ReturnType<typeof fetch>;
+      return { status: 200, body: googleFunctionCallFrame("redirects_create", { statusCode: "301", fromPattern: "/old", toTarget: "/new", matchType: "exact" }, "call_1") };
     }
-    return {
-      ok: true,
-      status: 200,
-      body: { async *[Symbol.asyncIterator]() { yield googleTextFrame("Created.", "STOP"); } },
-      text: async () => "",
-    } as unknown as ReturnType<typeof fetch>;
-  }) as typeof fetch;
+    return { status: 200, body: googleTextFrame("Created.", "STOP") };
+  });
 
   const statusCodeSchema = getRedirectsAgentToolCatalog().find((t2) => t2.name === "redirects_create")?.inputSchema;
   assert.ok(statusCodeSchema, "expected redirects_create to carry an inputSchema");
@@ -493,6 +480,7 @@ test("runByokProviderTurn(google): a numeric-enum tool (redirects_create) round-
   let receivedInput: unknown;
   await runByokProviderTurn({
     protocol: "google",
+    baseUrl,
     apiKey: "test-key-not-real",
     model: "gemini-3.6-flash",
     system: "be terse",
