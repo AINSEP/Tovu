@@ -17,12 +17,12 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { getWebhooksAgentToolCatalog, type AgentToolDefinition } from "../../webhooks/agent-tools";
-import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../../webhooks/repo.memory";
-import { contributeWebhooksTools } from "../../webhooks/tool-registrations";
-import type { RouteDeps } from "../../server/routes/types";
-import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations";
-import { resetToolContributorsForTests } from "../tool-contribution-registry";
+import { getWebhooksAgentToolCatalog, type AgentToolDefinition } from "../../webhooks/agent-tools.js";
+import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../../webhooks/repo.memory.js";
+import { contributeWebhooksTools } from "../../webhooks/tool-registrations.js";
+import type { RouteDeps } from "../../server/routes/types.js";
+import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations/index.js";
+import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
 
 // Webhooks (registered under the tool-contribution registry's "integrations" domain key — see
 // `webhooks/tool-registrations.ts`'s own header for why that key itself was NOT part of this rename)

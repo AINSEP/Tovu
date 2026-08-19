@@ -3,11 +3,11 @@ import test from "node:test";
 
 import express from "express";
 
-import { createRouteDeps } from "../app";
-import { createAssistantChatsModule } from "../modules/assistant-chats";
-import { registerAuthRoutes } from "../middleware/dev-auth";
-import { bootAuthenticated, startTestServer } from "./helpers/http-test-server";
-import type { RouteDeps } from "../routes/types";
+import { createRouteDeps } from "../app.js";
+import { createAssistantChatsModule } from "../modules/assistant-chats.js";
+import { registerAuthRoutes } from "../middleware/dev-auth.js";
+import { bootAuthenticated, startTestServer } from "./helpers/http-test-server.js";
+import type { RouteDeps } from "../routes/types.js";
 
 /**
  * @file HTTP-level coverage for `/api/assistant/chats`.

@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { evaluateBootMigrationPolicy } from "../../boot/evaluate-boot-migration-policy";
-import { reconcileInterruptedMigrationOnBoot } from "../../boot/reconcile-interrupted-migration";
+import { evaluateBootMigrationPolicy } from "../../boot/evaluate-boot-migration-policy.js";
+import { reconcileInterruptedMigrationOnBoot } from "../../boot/reconcile-interrupted-migration.js";
 
 /**
  * @file SPEC-017 C-106 / C-107 / CIC U-004 / INV-08 / REQ-15 / REQ-28 / REQ-29 — boot-sequence

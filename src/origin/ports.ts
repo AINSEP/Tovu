@@ -44,7 +44,7 @@ export interface EgressTargetContext {
 export interface OriginRegistryPort {
   /**
    * Resolve the verified canonical origin for a workspace.
-   * @throws {import("./types").OriginNotVerifiedError} if no verified origin
+   * @throws {import("./types.js").OriginNotVerifiedError} if no verified origin
    * is registered — this is a fail-closed precondition, never a guess.
    */
   canonicalOrigin(ctx: OriginContext): Promise<VerifiedOrigin>;

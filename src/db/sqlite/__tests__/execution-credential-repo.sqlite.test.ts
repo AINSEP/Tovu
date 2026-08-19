@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { openContentDb } from "../content-db";
-import { SqliteAdminExecutionCredentialRepo } from "../execution-credential-repo.sqlite";
-import { principals, workspaces } from "../../schema";
-import type { AdminExecutionCredentialRecord } from "../../../assistant/execution-credential-store";
+import { openContentDb } from "../content-db.js";
+import { SqliteAdminExecutionCredentialRepo } from "../execution-credential-repo.sqlite.js";
+import { principals, workspaces } from "../../schema.js";
+import type { AdminExecutionCredentialRecord } from "../../../assistant/execution-credential-store.js";
 
 /**
  * @file `SqliteAdminExecutionCredentialRepo` against a real, migrated `content.db` (`:memory:`) —

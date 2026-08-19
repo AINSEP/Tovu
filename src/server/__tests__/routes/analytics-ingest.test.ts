@@ -11,7 +11,7 @@ import type { AnalyticsConfigPort } from "#src/analytics/index";
 import type { AnalyticsSiteConfig } from "#src/analytics/index";
 import { LocalBufferSink } from "#src/analytics/repo.memory";
 import type { IngestHitDeps } from "#src/analytics/ingest";
-import { registerAnalyticsIngestRoute } from "../../routes/site/analytics-ingest";
+import { registerAnalyticsIngestRoute } from "../../routes/site/analytics-ingest.js";
 
 /**
  * @file Route-level tests for `POST /_analytics/e` (the public beacon endpoint).

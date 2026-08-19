@@ -4,13 +4,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { openContentDb } from "../../db/sqlite/content-db";
+import { openContentDb } from "../../db/sqlite/content-db.js";
 import {
   SqliteAssetBlobRepo,
   SqliteAssetRenditionRepo,
   SqliteMediaRepo,
   SqliteTransformDefinitionRepo,
-} from "../../db/sqlite/media-repo.sqlite";
+} from "../../db/sqlite/media-repo.sqlite.js";
 import {
   InMemoryAssetBlobRepo,
   InMemoryAssetRenditionRepo,

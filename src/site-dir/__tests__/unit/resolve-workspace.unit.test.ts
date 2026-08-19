@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { openContentDb } from "#src/db/sqlite/content-db";
 import { workspaces } from "#src/db/schema";
-import { resolveWorkspace } from "../../resolve-workspace";
+import { resolveWorkspace } from "../../resolve-workspace.js";
 
 /**
  * @file SPEC-003 C-005 (`resolveWorkspace`) — TDD certification, unit tier.

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { recoveryAgentToolCatalog } from "../../agent-tools";
+import { recoveryAgentToolCatalog } from "../../agent-tools.js";
 
 /**
  * @file REQ-23/24/25 (SPEC-019) — Recovery's agent-tool catalog contract (C-307; INV-06).

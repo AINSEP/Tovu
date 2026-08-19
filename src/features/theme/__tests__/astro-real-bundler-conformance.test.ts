@@ -6,7 +6,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import test from "node:test";
 
-import { checkBuiltThemeConformance } from "../build-conformance";
+import { checkBuiltThemeConformance } from "../build-conformance.js";
 
 /**
  * @file The real-bundler falsifying test (team-lead directive, 2026-08-12): every other test in this

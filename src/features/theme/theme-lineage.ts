@@ -1,7 +1,7 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-import type { ThemeTier } from "./theme";
+import type { ThemeTier } from "./theme.js";
 
 /**
  * @file Install-local provenance metadata for a downloaded theme — where a working copy came from,

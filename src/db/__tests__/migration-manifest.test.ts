@@ -17,7 +17,7 @@ import ts from "typescript";
 import { getTableConfig } from "drizzle-orm/sqlite-core";
 import { getTableConfig as getPgTableConfig } from "drizzle-orm/pg-core";
 
-import type { ColumnDecl } from "../../features/plugins/data-module";
+import type { ColumnDecl } from "../../features/plugins/data-module.js";
 import {
   assertIdentifierFits,
   classifyAllCoreColumns,
@@ -39,9 +39,9 @@ import {
   TIMESTAMP_ORDERING_REQUIRES_CANONICAL_Z,
   topologicalTableCopyOrder,
   WATERMARK_IS_NOT_A_MIGRATION_BOUNDARY,
-} from "../migration/manifest";
-import { verifyBooleanCopy, verifyClassifiedValue, verifyExactTextCopy, verifyJsonText, verifyUtcTimestampText } from "../migration/verify";
-import * as pgSchema from "../schema.postgres";
+} from "../migration/manifest.js";
+import { verifyBooleanCopy, verifyClassifiedValue, verifyExactTextCopy, verifyJsonText, verifyUtcTimestampText } from "../migration/verify.js";
+import * as pgSchema from "../schema.postgres.js";
 
 const SCHEMA_SOURCE = fs.readFileSync(path.resolve(__dirname, "../schema.ts"), "utf8");
 

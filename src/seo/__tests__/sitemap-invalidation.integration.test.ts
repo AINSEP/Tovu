@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "../../core/events";
-import { InMemoryPostRepo, updatePost, type PostRecord } from "../../features/post";
-import { InMemorySettingsRepo } from "../../features/settings";
-import { InMemoryAssetRenditionRepo, InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "../../media";
-import { ensureSeoSettingDefinitions } from "../settings";
-import { buildSitemap, createSeoEventSubscriptions, invalidateSitemapCache } from "../sitemap";
+import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "../../core/events/index.js";
+import { InMemoryPostRepo, updatePost, type PostRecord } from "../../features/post/index.js";
+import { InMemorySettingsRepo } from "../../features/settings/index.js";
+import { InMemoryAssetRenditionRepo, InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "../../media/index.js";
+import { ensureSeoSettingDefinitions } from "../settings.js";
+import { buildSitemap, createSeoEventSubscriptions, invalidateSitemapCache } from "../sitemap.js";
 
 /**
  * @file T036 — failing-first integration certification: publish ->

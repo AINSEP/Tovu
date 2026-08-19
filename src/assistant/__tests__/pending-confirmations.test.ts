@@ -5,7 +5,7 @@ import {
   createPendingConfirmationStore,
   DEFAULT_CONFIRMATION_TTL_MS,
   type ConfirmationBinding,
-} from "../pending-confirmations";
+} from "../pending-confirmations.js";
 
 /**
  * @file Certification of the pending-confirmation token store backing the MCP-UI two-step gate.

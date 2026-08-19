@@ -6,7 +6,7 @@ import test from "node:test";
 
 import Database from "better-sqlite3";
 
-import { declareDataModule } from "../data-module";
+import { declareDataModule } from "../data-module.js";
 
 /**
  * @file ADR-023 §2 / ADR-031 OQ-1 — the declared-index grammar (SPEC-033).

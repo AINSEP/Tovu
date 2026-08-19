@@ -21,6 +21,70 @@ before building the eventual agent tool catalog. See
 
 ---
 
+## ✅ RESOLVED (2026-08-18) — Retrofit the assistant transport onto AG-UI + CopilotKit
+
+**Superseding ADR written**: `ADS-memory/reports/architecture/ADR-059-assistant-transport-ag-ui-canary.md`.
+Scope narrowed from this entry's original sketch: this slice stays fully hand-rolled (no
+`@ag-ui/core`/`client`/`encoder`, no `@copilotkit/*`, no parallel rendering component —
+`AssistantDock`'s existing rendering is reused). The CopilotKit headless-mode rendering swap
+(step 4 below) is explicitly deferred pending a real licensing conversation — `useCopilotChatHeadless_c`
+turned out to be a paid Early Access Premium feature. See the ADR for the full decision and consequences.
+
+**Original entry, kept for context below.**
+
+**Owner call, overriding ADR-049's conclusion.** ADR-049 (Accepted, 2026-07-28) explicitly rejected
+CopilotKit + AG-UI (ADR-013's original 2026-07-05 choice) in favor of building on `@jini-ai/chat-react`
++ `@jini-ai/daemon`'s own hand-rolled event vocabulary, reasoning that AG-UI would be "duplicate work
+against a real, tested, versioned kit already one `npm install` away." **Owner has now decided the
+opposite, explicitly**: AG-UI is a rock-solid, stable **public** protocol with a real ecosystem
+(CopilotKit's React client, framework integrations, a growing tool list) — worth having over a
+hand-rolled one, even at the cost of some duplicate plumbing. This entry supersedes ADR-049's
+transport conclusion; ADR-013's original choice was directionally right, just too early.
+
+**What exists today that this retrofits:**
+- `apps/admin/src/lib/assistant-transport.ts` — Tovu's current hand-rolled SSE transport. Implements
+  `ChatTransport` (from `@jini-ai/chat-react`) over two paths (Local CLI via `@jini-ai/protocol`'s
+  `RunProtocolEvent`; BYOK via a raw held-open POST), translating both into `chat-core`'s `AgentEvent`
+  vocabulary (`text_delta`, `tool_use`, `tool_result`, `usage`, plus two custom generative-UI channels,
+  `mcp-ui` and `a2ui`).
+- **Correction already confirmed (2026-08-17)**: Tovu's `a2ui` channel is **not** AG-UI-related despite
+  the similar name — it's Jini's own unrelated generative-UI protocol (`@jini-ai/agentic`'s
+  `agentic/src/a2ui`). No accidental overlap to reconcile; `mcp-ui`/`a2ui` are a separate concern from
+  this retrofit and need their own explicit decision about whether they ride alongside AG-UI or stay
+  Jini-native.
+
+**Approach (owner's own framing, 2026-08-17): port-and-adapter, not a hard cutover.**
+1. Define a transport-neutral port (if `ChatTransport` from `@jini-ai/chat-react` isn't already narrow
+   enough, wrap it) so the wire protocol is swappable without touching `ChatPane`/UI code.
+2. Build an AG-UI adapter behind that port: translate Tovu's existing backend events
+   (`RunProtocolEvent`/`AgentEvent`) into `@ag-ui/core`'s event vocabulary (`RUN_STARTED`,
+   `TEXT_MESSAGE_CONTENT`, `TOOL_CALL_START`/`ARGS`/`END`, etc.), OR have the backend emit AG-UI
+   natively if that's cleaner once scoped.
+3. Stand it up as a **canary path** — selectable/flagged, running alongside the existing transport, not
+   replacing it outright.
+4. Once proven, the frontend can drop the hand-rolled `AssistantDock` rendering in favor of CopilotKit's
+   **headless mode** (`useCopilotChatHeadless_c` — full behavior reuse: streaming, generative UI,
+   tool-call rendering, human-in-the-loop interrupts; zero UI opinions, so Tovu keeps its own look).
+5. Keep the old transport intact until the canary is trusted — explicit fallback, not a one-way door.
+
+**Before real implementation work starts:** this reverses an Accepted ADR, which per this repo's own
+governance convention (see the "Canonical Architecture Decisions" section below) should get its own
+ADR superseding ADR-049's transport decision, not just a todo checkbox — even ADR-049 itself flagged
+that it skipped `/debate`/`/audit-work` and recommended running that before implementation proceeds
+past a first slice. That bar applies at least as much here.
+
+**Ecosystem reference** (found 2026-08-17): `@ag-ui/core` (protocol package), **CopilotKit**
+(flagship React client, built AG-UI), **AG-UI Dojo** (reference demo app), **create-ag-ui-app** (CLI
+scaffold). Framework-side integrations (LangGraph, CrewAI, Mastra, etc.) aren't relevant here — Tovu
+launches CLI agents directly, not one of those frameworks.
+
+**Stale cross-reference to fix when this lands**: Master Build Inventory §12 (below, line ~642) still
+says "ADR-013 names AG-UI as the protocol; no implementation yet" without noting ADR-049 superseded
+that choice, and without noting THIS entry now supersedes ADR-049 back toward AG-UI. Update both when
+the new ADR is written.
+
+---
+
 ## ✅ RESOLVED — Users/Roles/Policies + Plugins admin surface (was the 2026-07-17 overnight-run item)
 
 **Superseded 2026-07-28.** The original 2026-07-16 overnight-run ask (unaudited spec+build+test for

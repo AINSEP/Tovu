@@ -1,14 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryOutbox } from "../../core/events";
-import { createCommentHookRegistry } from "../hooks";
-import { createCommentIngressPolicy } from "../ingress";
-import type { EntryLookupResult } from "../ingress";
-import { InMemoryCommentRepo } from "../repo.memory";
-import { HeuristicSpamCheck } from "../spam.heuristic";
-import { COMMENTS_INGRESS_SYSTEM_PRINCIPAL_ID } from "../types";
-import type { CommentsSettings, CommentSubmission } from "../types";
+import { InMemoryOutbox } from "../../core/events/index.js";
+import { createCommentHookRegistry } from "../hooks.js";
+import { createCommentIngressPolicy } from "../ingress.js";
+import type { EntryLookupResult } from "../ingress.js";
+import { InMemoryCommentRepo } from "../repo.memory.js";
+import { HeuristicSpamCheck } from "../spam.heuristic.js";
+import { COMMENTS_INGRESS_SYSTEM_PRINCIPAL_ID } from "../types.js";
+import type { CommentsSettings, CommentSubmission } from "../types.js";
 import type { RateLimiter } from "#src/core/rate-limit/rate-limit";
 
 /** @file SPEC-033 — `CommentIngressPolicy`, one rejection reason at a time. */

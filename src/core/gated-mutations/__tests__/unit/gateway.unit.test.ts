@@ -8,9 +8,9 @@ import {
   confirm,
   execute,
   plan,
-} from "../../gateway";
-import { InMemoryTokenStore, TokenAlreadyRedeemedError, TokenExpiredError, mintToken } from "../../token";
-import type { AuthorizeFn, PrincipalKind } from "../../ports";
+} from "../../gateway.js";
+import { InMemoryTokenStore, TokenAlreadyRedeemedError, TokenExpiredError, mintToken } from "../../token.js";
+import type { AuthorizeFn, PrincipalKind } from "../../ports.js";
 
 /**
  * @file SPEC-016 C-001/C-002/C-003 — the plan() -> confirm() -> execute() gated-mutation gateway.
@@ -151,7 +151,7 @@ test("AC-09: plan() rejects when the caller lacks {domain}.read", async () => {
 });
 
 test("architectural guard (AC-09): gateway.ts exposes no direct single-call mutation entry point beyond plan/confirm/execute", async () => {
-  const gatewayModule = await import("../../gateway");
+  const gatewayModule = await import("../../gateway.js");
   const exportedNames = Object.keys(gatewayModule);
   const disallowed = exportedNames.filter(
     (name) => /mutate|migrate|run|apply/i.test(name) && !["plan", "confirm", "execute"].includes(name)

@@ -1,15 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { bootAuthenticated } from "../helpers/http-test-server";
+import { bootAuthenticated } from "../helpers/http-test-server.js";
 
 import express from "express";
 
-import { createSqliteRouteDeps } from "../../deps";
-import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth";
-import { createNewsletterModule } from "../../modules/newsletter";
-import type { NewsletterRouteDeps } from "../../routes/admin/newsletter/deps";
-import type { NewsletterPublicRouteDeps } from "../../routes/site/newsletter-deps";
+import { createSqliteRouteDeps } from "../../deps.js";
+import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth.js";
+import { createNewsletterModule } from "../../modules/newsletter.js";
+import type { NewsletterRouteDeps } from "../../routes/admin/newsletter/deps.js";
+import type { NewsletterPublicRouteDeps } from "../../routes/site/newsletter-deps.js";
 
 /**
  * @file SPEC-011 (Newsletter) Stage 5 — route-level happy-path integration tests for each route

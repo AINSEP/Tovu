@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm";
-import { InMemoryKeyring } from "../../webhooks/keyring.memory";
-import type { KeyringPort } from "../../webhooks/index";
-import { InMemorySiteAssistantCredentialRepo } from "../site-credential-store.memory";
+import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
+import type { KeyringPort } from "../../webhooks/index.js";
+import { InMemorySiteAssistantCredentialRepo } from "../site-credential-store.memory.js";
 import {
   SiteAssistantCredentialValidationError,
   SiteAssistantSecretStoreUnconfiguredError,
@@ -12,7 +12,7 @@ import {
   getSiteAssistantCredential,
   resolveSiteAssistantApiKey,
   setSiteAssistantCredential,
-} from "../site-credential-store";
+} from "../site-credential-store.js";
 
 /**
  * @file `site-credential-store.ts` — ADR-058's write-only credential contract and the runtime

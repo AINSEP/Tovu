@@ -1,9 +1,9 @@
-import { registerAdminCommentsGetSettingsRoute } from "../routes/admin/comments/get-settings";
-import { registerAdminCommentsModerateRoutes } from "../routes/admin/comments/moderate";
-import { registerAdminCommentsModerationQueueRoute } from "../routes/admin/comments/moderation-queue";
-import { registerAdminCommentsPutSettingsRoute } from "../routes/admin/comments/put-settings";
-import type { CommentsModerationRouteDeps } from "../routes/admin/comments/deps";
-import type { ServerModuleHandle } from "./types";
+import { registerAdminCommentsGetSettingsRoute } from "../routes/admin/comments/get-settings.js";
+import { registerAdminCommentsModerateRoutes } from "../routes/admin/comments/moderate.js";
+import { registerAdminCommentsModerationQueueRoute } from "../routes/admin/comments/moderation-queue.js";
+import { registerAdminCommentsPutSettingsRoute } from "../routes/admin/comments/put-settings.js";
+import type { CommentsModerationRouteDeps } from "../routes/admin/comments/deps.js";
+import type { ServerModuleHandle } from "./types.js";
 
 /**
  * @file ADR-046 Phase 3 (SPEC-040) — the `comments-moderation` server module (ADR-031 §6/§9

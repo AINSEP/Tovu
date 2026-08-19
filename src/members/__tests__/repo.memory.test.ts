@@ -5,7 +5,7 @@ import {
   InMemoryMagicLinkTokenRepo,
   InMemoryMemberRepo,
   InMemoryMemberSessionRepo,
-} from "../repo.memory";
+} from "../repo.memory.js";
 
 const WORKSPACE_ID = "ws-1";
 

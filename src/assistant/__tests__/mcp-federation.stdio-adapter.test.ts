@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { ScriptedMcpStdioChannel, type CapturedRpcMessage } from "../mcp-federation/adapter.memory";
-import { connectMcpStdioSession } from "../mcp-federation/adapter.stdio";
+import { ScriptedMcpStdioChannel, type CapturedRpcMessage } from "../mcp-federation/adapter.memory.js";
+import { connectMcpStdioSession } from "../mcp-federation/adapter.stdio.js";
 
 /**
  * @file Tests for the REAL MCP client in `mcp-federation/adapter.stdio.ts`, driven against

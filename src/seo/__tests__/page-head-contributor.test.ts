@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryPostRepo, type PostRecord } from "../../features/post";
-import { InMemorySettingsRepo } from "../../features/settings";
-import { InMemoryAssetRenditionRepo, InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "../../media";
-import type { HeadElement, PageHeadContext } from "../../server/http/site/page-head";
-import { ensureSeoSettingDefinitions } from "../settings";
-import { createSeoPageHeadHook } from "../page-head-contributor";
+import { InMemoryPostRepo, type PostRecord } from "../../features/post/index.js";
+import { InMemorySettingsRepo } from "../../features/settings/index.js";
+import { InMemoryAssetRenditionRepo, InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "../../media/index.js";
+import type { HeadElement, PageHeadContext } from "../../server/http/site/page-head.js";
+import { ensureSeoSettingDefinitions } from "../settings.js";
+import { createSeoPageHeadHook } from "../page-head-contributor.js";
 
 /**
  * @file T030 — failing-first unit certification of `seoPageHeadHook`

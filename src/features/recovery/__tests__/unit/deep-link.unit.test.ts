@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { resolveDeepLinkContext } from "../../deep-link";
+import { resolveDeepLinkContext } from "../../deep-link.js";
 
 /**
  * @file REQ-20/REQ-21 (SPEC-019) — `resolveDeepLinkContext` never trusts a deep-link envelope's

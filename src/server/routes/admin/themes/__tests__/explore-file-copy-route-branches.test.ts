@@ -9,8 +9,8 @@ import type { NextFunction, Request, Response } from "express";
 
 import { discoverAllBuiltInThemes } from "#src/features/theme/index";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminThemeFileCopyRoute } from "../explore";
-import type { ContentRouteDeps } from "../../content/deps";
+import { registerAdminThemeFileCopyRoute } from "../explore.js";
+import type { ContentRouteDeps } from "../../content/deps.js";
 
 /**
  * @file The copy-route branches `explore-built-theme-gate.test.ts` doesn't reach (it only covers the

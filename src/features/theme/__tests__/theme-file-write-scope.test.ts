@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { resolveThemeFileWriteScope } from "../theme-files";
+import { resolveThemeFileWriteScope } from "../theme-files.js";
 
 /**
  * @file ADR-020 §5 (2026-08-12) — `resolveThemeFileWriteScope`'s pure policy: an authored theme is

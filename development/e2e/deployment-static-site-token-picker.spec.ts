@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { loginAsAdmin } from "./auth-fixtures";
+import { loginAsAdmin } from "./auth-fixtures.js";
 
 /**
  * @file Coverage for the Static Site tab's "which saved token publishes" picker

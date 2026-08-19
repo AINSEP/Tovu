@@ -6,9 +6,9 @@ import test from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 
 import { createRouteDeps } from "#src/server/app";
-import { readDockerfileSource, writeDockerfileSource } from "../../dockerfile";
-import { InMemoryDeploymentsReadRepo } from "../../repo.memory";
-import { buildDeploymentsRegistrations, type DeploymentsToolDeps } from "../../tool-registrations";
+import { readDockerfileSource, writeDockerfileSource } from "../../dockerfile.js";
+import { InMemoryDeploymentsReadRepo } from "../../repo.memory.js";
+import { buildDeploymentsRegistrations, type DeploymentsToolDeps } from "../../tool-registrations.js";
 
 /**
  * @file The Deployments domain's agent tools — the assistant's own path to triggering/polling a

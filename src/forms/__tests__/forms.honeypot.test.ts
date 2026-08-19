@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { isHoneypotTripped } from "../forms";
+import { isHoneypotTripped } from "../forms.js";
 
 /**
  * @file Unit tests for `isHoneypotTripped` (C-004, REQ-08, AC-13, INV-04, behavior.spec.md §5.1).

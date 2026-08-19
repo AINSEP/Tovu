@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { injectCurrentEntityContentId } from "../static-render";
+import { injectCurrentEntityContentId } from "../static-render.js";
 
 /**
  * @file Certifies {@link injectCurrentEntityContentId} — the unified-marker (2026-08-11) replacement

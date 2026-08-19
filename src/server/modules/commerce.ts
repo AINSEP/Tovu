@@ -1,6 +1,6 @@
-import type { AdminCommerceStatusDeps } from "../routes/admin/commerce/status";
-import { registerAdminCommerceStatusRoute } from "../routes/admin/commerce/status";
-import type { ServerModuleHandle } from "./types";
+import type { AdminCommerceStatusDeps } from "../routes/admin/commerce/status.js";
+import { registerAdminCommerceStatusRoute } from "../routes/admin/commerce/status.js";
+import type { ServerModuleHandle } from "./types.js";
 
 /**
  * Creates the Commerce server module for provider-neutral operational reads.

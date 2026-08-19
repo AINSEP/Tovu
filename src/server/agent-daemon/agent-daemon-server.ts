@@ -79,14 +79,14 @@ import {
 } from "@jini-ai/http-kit";
 import type { AdapterContext, AttachmentStore, DelegatedToolExecuteRequest, RunStartHandler, StoredAttachment } from "@jini-ai/http-kit";
 
-import { registerSupabaseMcpPreset } from "../../features/plugins/supabase-mcp/supabase-mcp-plugin";
-import { createInMemoryToolAttemptAuditSink } from "../../features/tool-audit/repo.memory";
-import { SqliteToolAttemptAuditSink } from "../../features/tool-audit/repo.sqlite";
-import { openContentDb } from "../../db/sqlite/content-db";
-import { createRouteDeps } from "../app";
-import { installUnhandledRejectionGuard } from "../boot/process-error-guards";
-import { createSqliteRouteDepsForWorkspace, defaultContentDbPath } from "../deps";
-import { installFirstPartyToolContributors } from "../tool-catalog-manifest";
+import { registerSupabaseMcpPreset } from "../../features/plugins/supabase-mcp/supabase-mcp-plugin.js";
+import { createInMemoryToolAttemptAuditSink } from "../../features/tool-audit/repo.memory.js";
+import { SqliteToolAttemptAuditSink } from "../../features/tool-audit/repo.sqlite.js";
+import { openContentDb } from "../../db/sqlite/content-db.js";
+import { createRouteDeps } from "../app.js";
+import { installUnhandledRejectionGuard } from "../boot/process-error-guards.js";
+import { createSqliteRouteDepsForWorkspace, defaultContentDbPath } from "../deps.js";
+import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/core/rate-limit/rate-limit";
 import { resolveRuntimeMode } from "#src/core/runtime-mode";
 import {
@@ -112,8 +112,8 @@ import {
   buildToolCatalogQuery,
   withToolAttemptAudit,
   buildAssistantToolRegistrations,
-} from "../../assistant/agent-daemon-port";
-import { createSurfaceExchangeStore } from "../../core/tool-surface-exchanges";
+} from "../../assistant/agent-daemon-port.js";
+import { createSurfaceExchangeStore } from "../../core/tool-surface-exchanges.js";
 
 const port = Number(process.env.JINI_AGENT_DAEMON_PORT ?? 4319);
 const daemonUrl = `http://127.0.0.1:${port}`;

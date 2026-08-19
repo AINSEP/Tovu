@@ -83,12 +83,12 @@ import { createToolRegistry } from "@jini-ai/core";
 import type { Principal } from "@jini-ai/core";
 import type { PromptAugmenter } from "@jini-ai/agent-runtime";
 
-import { createRouteDeps } from "../../src/server/app";
+import { createRouteDeps } from "../../src/server/app.js";
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "../../src/server/middleware/rate-limit";
-import { createSurfaceExchangeStore } from "../../src/core/tool-surface-exchanges";
-import { buildAssistantToolRegistrations } from "../../src/assistant/tool-registrations";
-import { buildToolCatalogQuery } from "../../src/assistant/tool-catalog-query";
-import { resolveMcpJsonInjection } from "../../src/assistant/mcp-injection";
+import { createSurfaceExchangeStore } from "../../src/core/tool-surface-exchanges.js";
+import { buildAssistantToolRegistrations } from "../../src/assistant/tool-registrations/index.js";
+import { buildToolCatalogQuery } from "../../src/assistant/tool-catalog-query.js";
+import { resolveMcpJsonInjection } from "../../src/assistant/mcp-injection.js";
 
 /** CHANGE THIS before each run — confirm free first. See module doc's Safety section. */
 const PORT = 48731;

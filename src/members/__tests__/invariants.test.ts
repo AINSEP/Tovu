@@ -14,8 +14,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import * as membersModule from "../index";
-import type { MemberContext, MemberRecord } from "../types";
+import * as membersModule from "../index.js";
+import type { MemberContext, MemberRecord } from "../types.js";
 
 test("members barrel exports no RBAC role/permission symbol (ADR-030 §2, structural check)", () => {
   const exportedNames = Object.keys(membersModule);

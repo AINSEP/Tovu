@@ -1,12 +1,12 @@
 import path from "node:path";
 
-import { createApp } from "../../server/app";
-import { createSqliteRouteDeps } from "../../server/deps";
-import { ValidationError, type ConfigJson } from "../../site-dir";
-import { bootSiteDir } from "../../site-dir/boot-site-dir";
-import { resolveInstallDirTarget } from "../../site-dir/resolve-install-dir-target";
-import { runtimeSchemaVersion } from "../../site-dir/schema-guard";
-import { PortInUseError } from "../errors";
+import { createApp } from "../../server/app.js";
+import { createSqliteRouteDeps } from "../../server/deps.js";
+import { ValidationError, type ConfigJson } from "../../site-dir/index.js";
+import { bootSiteDir } from "../../site-dir/boot-site-dir.js";
+import { resolveInstallDirTarget } from "../../site-dir/resolve-install-dir-target.js";
+import { runtimeSchemaVersion } from "../../site-dir/schema-guard.js";
+import { PortInUseError } from "../errors.js";
 
 /**
  * @file SPEC-003 C-002 (`CLI_SERVE`) — wires a commander action's parsed arguments to

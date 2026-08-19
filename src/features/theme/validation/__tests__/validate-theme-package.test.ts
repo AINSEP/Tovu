@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { validateThemePackage } from "../validate-theme-package";
+import { validateThemePackage } from "../validate-theme-package.js";
 
 /**
  * @file Certifies `validateThemePackage`'s two branches (v1 fallback via `loadTheme()`, v2-strict via
@@ -206,6 +206,15 @@ test("v2-strict: a root-level screenshots/ folder is an approved root, not flagg
   writeMinimalV2Static(dir);
   fs.mkdirSync(path.join(dir, "screenshots"), { recursive: true });
   fs.writeFileSync(path.join(dir, "screenshots", "index.jpg"), "fake-jpg-bytes", "utf8");
+
+  const result = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "author" });
+  assert.equal(findError(result, "structure-unapproved-root"), undefined, JSON.stringify(result.errors));
+});
+
+test("v2-strict: a root-level index.html (Milestone 5's generated portability snapshot) is an approved root, not flagged", () => {
+  const dir = tmpDir("tovu-validate-v2-index-html-");
+  writeMinimalV2Static(dir);
+  fs.writeFileSync(path.join(dir, "index.html"), "<!doctype html><html><body></body></html>", "utf8");
 
   const result = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "author" });
   assert.equal(findError(result, "structure-unapproved-root"), undefined, JSON.stringify(result.errors));

@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { AesGcmSecretSealer } from "../../../../webhooks/secret-sealer.aesgcm";
-import { InMemoryKeyring } from "../../../../webhooks/keyring.memory";
-import { InMemoryPublishCredentialSetRepo } from "../repo.memory";
-import { S3_COMPATIBLE_FIELD_GUIDANCE, S3_COMPATIBLE_FORM_DESCRIPTION } from "../s3-compatible-field-guidance";
-import { createPublishCredential, PublishCredentialValidationError, type PublishCredentialWriteDeps } from "../store";
+import { AesGcmSecretSealer } from "../../../../webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../../../webhooks/keyring.memory.js";
+import { InMemoryPublishCredentialSetRepo } from "../repo.memory.js";
+import { S3_COMPATIBLE_FIELD_GUIDANCE, S3_COMPATIBLE_FORM_DESCRIPTION } from "../s3-compatible-field-guidance.js";
+import { createPublishCredential, PublishCredentialValidationError, type PublishCredentialWriteDeps } from "../store.js";
 
 /**
  * @file `S3_COMPATIBLE_FIELD_GUIDANCE` — the single canonical per-field table (spec §4c/§5). The most

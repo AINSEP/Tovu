@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { attemptLoginAsAdmin, DEFAULT_ADMIN_PASSWORD, DEFAULT_ADMIN_USERNAME, loginAsAdmin, logoutAsAdmin } from "./auth-fixtures";
+import { attemptLoginAsAdmin, DEFAULT_ADMIN_PASSWORD, DEFAULT_ADMIN_USERNAME, loginAsAdmin, logoutAsAdmin } from "./auth-fixtures.js";
 
 /**
  * @file MANDATE 1 ("does login even work?") — answered here, against a real browser hitting a real

@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { resolveTemplate } from "../static-render";
-import type { DiscoveredTheme } from "../theme";
+import { resolveTemplate } from "../static-render.js";
+import type { DiscoveredTheme } from "../theme.js";
 
 /**
  * @file Certifies the `templateChoice` tri-state in {@link resolveTemplate}.

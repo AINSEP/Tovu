@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createAccountLabelHealScheduler, idsNeedingAccountLabelHeal } from "../account-label-heal-scheduler";
-import type { PublishCredentialSummary } from "../types";
+import { createAccountLabelHealScheduler, idsNeedingAccountLabelHeal } from "../account-label-heal-scheduler.js";
+import type { PublishCredentialSummary } from "../types.js";
 
 /**
  * @file Regression coverage for the owner-reported bug: an existing `publish_credential_sets` row

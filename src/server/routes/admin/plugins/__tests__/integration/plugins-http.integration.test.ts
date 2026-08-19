@@ -7,9 +7,9 @@ import { createRouteDeps } from "#src/server/app";
 import { registerAuthRoutes, requireAdminSession } from "#src/server/middleware/dev-auth";
 import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-server";
 import { InMemoryPluginActivationRepo } from "#src/features/plugin-runtime/repo.memory";
-import { registerPluginsListRoute } from "../../list";
-import { registerPluginSetEnabledRoute } from "../../set-enabled";
-import type { PluginsRouteDeps } from "../../deps";
+import { registerPluginsListRoute } from "../../list.js";
+import { registerPluginSetEnabledRoute } from "../../set-enabled.js";
+import type { PluginsRouteDeps } from "../../deps.js";
 import type { PluginDiscoveryRecord } from "#src/features/plugin-runtime/discovery";
 
 /**

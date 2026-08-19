@@ -3,17 +3,17 @@ import test from "node:test";
 
 import express from "express";
 
-import { startFakeComposio, type FakeComposioServer } from "../../../development/e2e/fake-composio-server";
-import { InMemoryComposioConfigRepo } from "../../connectors/composio-config-store.memory";
-import { composioUserIdFor, createComposioConnectors } from "../../connectors/composio-service";
-import { InMemoryConnectorCredentialRepo } from "../../connectors/connector-credential-store.memory";
-import { InMemoryKeyring } from "../../webhooks/keyring.memory";
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm";
-import { createRouteDeps } from "../app";
-import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth";
-import { createConnectorsModule } from "../modules/connectors";
-import type { RouteDeps } from "../routes/types";
-import { bootAuthenticated } from "./helpers/http-test-server";
+import { startFakeComposio, type FakeComposioServer } from "../../../development/e2e/fake-composio-server.js";
+import { InMemoryComposioConfigRepo } from "../../connectors/composio-config-store.memory.js";
+import { composioUserIdFor, createComposioConnectors } from "../../connectors/composio-service.js";
+import { InMemoryConnectorCredentialRepo } from "../../connectors/connector-credential-store.memory.js";
+import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
+import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import { createRouteDeps } from "../app.js";
+import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth.js";
+import { createConnectorsModule } from "../modules/connectors.js";
+import type { RouteDeps } from "../routes/types.js";
+import { bootAuthenticated } from "./helpers/http-test-server.js";
 
 /**
  * @file The full Composio OAuth round trip, server-side: connect → redirect → public callback →

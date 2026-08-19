@@ -6,10 +6,10 @@ import test from "node:test";
 
 import express from "express";
 
-import { AGENT_DAEMON_TOKEN_ENV_VAR } from "../../assistant";
-import { clearAssistantDaemonFailure, recordAssistantDaemonFailure } from "../readiness-state";
-import type { RouteDeps } from "../routes/types";
-import { startTestServer, loginAsOwner } from "./helpers/http-test-server";
+import { AGENT_DAEMON_TOKEN_ENV_VAR } from "../../assistant/index.js";
+import { clearAssistantDaemonFailure, recordAssistantDaemonFailure } from "../readiness-state.js";
+import type { RouteDeps } from "../routes/types.js";
+import { startTestServer, loginAsOwner } from "./helpers/http-test-server.js";
 
 /**
  * @file Route-level round trip for `assistant-ag-ui.ts` (ADR-059): a real Express app, a stand-in
@@ -194,9 +194,9 @@ function harness() {
     process.env.JINI_AGENT_DAEMON_URL = origin;
     process.env[AGENT_DAEMON_TOKEN_ENV_VAR] = TOKEN;
 
-    const { createRouteDeps } = await import("../app");
-    const { createAssistantAgUiModule } = await import("../modules/assistant-ag-ui");
-    const { registerAuthRoutes } = await import("../middleware/dev-auth");
+    const { createRouteDeps } = await import("../app.js");
+    const { createAssistantAgUiModule } = await import("../modules/assistant-ag-ui.js");
+    const { registerAuthRoutes } = await import("../middleware/dev-auth.js");
 
     return {
       daemon: server,

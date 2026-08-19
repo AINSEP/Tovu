@@ -1,13 +1,13 @@
-import { registerAdminContentTypeListRoute } from "../routes/admin/content-types/list";
-import { registerAdminContentTypeRegisterRoute } from "../routes/admin/content-types/register";
-import { registerAdminContentTypeUpdateFieldsRoute } from "../routes/admin/content-types/update-fields";
-import { registerAdminContentTypeLifecycleRoute } from "../routes/admin/content-types/lifecycle";
-import type { ContentTypesRouteDeps } from "../routes/admin/content-types/deps";
-import { registerAdminEntryListRoute } from "../routes/admin/entries/list";
-import { registerAdminEntryCreateRoute } from "../routes/admin/entries/create";
-import { registerAdminEntryUpdateRoute } from "../routes/admin/entries/update";
-import { registerAdminEntryLifecycleRoute } from "../routes/admin/entries/lifecycle";
-import type { ServerModuleHandle } from "./types";
+import { registerAdminContentTypeListRoute } from "../routes/admin/content-types/list.js";
+import { registerAdminContentTypeRegisterRoute } from "../routes/admin/content-types/register.js";
+import { registerAdminContentTypeUpdateFieldsRoute } from "../routes/admin/content-types/update-fields.js";
+import { registerAdminContentTypeLifecycleRoute } from "../routes/admin/content-types/lifecycle.js";
+import type { ContentTypesRouteDeps } from "../routes/admin/content-types/deps.js";
+import { registerAdminEntryListRoute } from "../routes/admin/entries/list.js";
+import { registerAdminEntryCreateRoute } from "../routes/admin/entries/create.js";
+import { registerAdminEntryUpdateRoute } from "../routes/admin/entries/update.js";
+import { registerAdminEntryLifecycleRoute } from "../routes/admin/entries/lifecycle.js";
+import type { ServerModuleHandle } from "./types.js";
 
 /**
  * @file ADR-046 Phase 3 (SPEC-042, final slice) — the `content-types` server module (ADR-043

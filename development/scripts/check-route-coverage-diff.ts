@@ -78,7 +78,7 @@ import {
   loadRouteCoverage,
   pct,
   type FileCoverage,
-} from "./route-coverage-lib";
+} from "./route-coverage-lib.js";
 
 const UNIT_BRANCH_THRESHOLD = 99;
 const INTEGRATION_BRANCH_THRESHOLD = 95;

@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createApp, createRouteDeps } from "../../app";
-import { bootAuthenticated } from "../helpers/http-test-server";
-import { clearAssistantDaemonFailure, recordAssistantDaemonFailure } from "../../readiness-state";
-import { defaultContentDbPath, mediaUploadsDir } from "../../deps";
-import type { RouteDeps } from "../../routes/types";
+import { createApp, createRouteDeps } from "../../app.js";
+import { bootAuthenticated } from "../helpers/http-test-server.js";
+import { clearAssistantDaemonFailure, recordAssistantDaemonFailure } from "../../readiness-state.js";
+import { defaultContentDbPath, mediaUploadsDir } from "../../deps.js";
+import type { RouteDeps } from "../../routes/types.js";
 
 /**
  * @file Admin Deployment panel → Overview tab — `GET /api/admin/v1/workspaces/:workspaceId/

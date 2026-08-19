@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { PostValidationError } from "../post";
+import { PostValidationError } from "../post.js";
 import {
   extractPostPlainText,
   searchAdminPosts,
@@ -12,7 +12,7 @@ import {
   MAX_POST_SEARCH_LIMIT,
   type PostSearchPort,
   type PostSearchQuery,
-} from "../search";
+} from "../search.js";
 
 /**
  * @file Certification of the DOMAIN half of post search: the pure `bodyJson` -> text projection,

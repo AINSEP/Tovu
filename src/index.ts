@@ -1,16 +1,16 @@
-import { createApp, createRouteDeps } from "./server/app";
-import { createSqliteRouteDeps, defaultContentDbPath } from "./server/deps";
-import { CAPABILITY_INVENTORY } from "./server/capability-inventory";
-import { runProductionReadinessGate } from "./server/production-readiness-gate";
-import { DEFAULT_OWNER_PASSWORD } from "./identity/wiring";
+import { createApp, createRouteDeps } from "./server/app.js";
+import { createSqliteRouteDeps, defaultContentDbPath } from "./server/deps.js";
+import { CAPABILITY_INVENTORY } from "./server/capability-inventory.js";
+import { runProductionReadinessGate } from "./server/production-readiness-gate.js";
+import { DEFAULT_OWNER_PASSWORD } from "./identity/wiring.js";
 import { resolveRuntimeMode } from "#src/core/runtime-mode";
-import { runBootLifecycle } from "./server/boot-lifecycle";
-import { buildBootModules } from "./server/bootstrap";
-import { setReadinessSnapshot } from "./server/readiness-state";
-import { registerPluginSdkResolver } from "./server/boot/plugin-sdk-resolver";
-import { installUnhandledRejectionGuard } from "./server/boot/process-error-guards";
-import { startAssistantDaemon } from "./server/agent-daemon";
-import { ensureAgentDaemonToken } from "./assistant";
+import { runBootLifecycle } from "./server/boot-lifecycle.js";
+import { buildBootModules } from "./server/bootstrap.js";
+import { setReadinessSnapshot } from "./server/readiness-state.js";
+import { registerPluginSdkResolver } from "./server/boot/plugin-sdk-resolver.js";
+import { installUnhandledRejectionGuard } from "./server/boot/process-error-guards.js";
+import { startAssistantDaemon } from "./server/agent-daemon/index.js";
+import { ensureAgentDaemonToken } from "./assistant/index.js";
 
 /**
  * @file Process entrypoint.

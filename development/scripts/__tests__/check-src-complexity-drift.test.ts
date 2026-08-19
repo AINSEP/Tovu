@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { diffAgainstBaseline, violationKey, type Violation } from "../check-src-complexity-drift";
+import { diffAgainstBaseline, violationKey, type Violation } from "../check-src-complexity-drift.js";
 
 /**
  * @file Direct coverage for `diffAgainstBaseline`'s multiset behavior — the load-bearing part of

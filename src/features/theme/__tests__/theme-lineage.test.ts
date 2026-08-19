@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { readThemeLineageFile, writeThemeLineageFile, THEME_LINEAGE_FILENAME, type ThemeLineage } from "../theme-lineage";
+import { readThemeLineageFile, writeThemeLineageFile, THEME_LINEAGE_FILENAME, type ThemeLineage } from "../theme-lineage.js";
 
 /**
  * @file Schema v2 decision (2026-08-18): `lineage` lives in its own install-local sidecar file, never

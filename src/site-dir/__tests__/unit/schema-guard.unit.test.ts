@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
-import { runtimeSchemaVersion, compareSchemaVersion } from "../../schema-guard";
+import { runtimeSchemaVersion, compareSchemaVersion } from "../../schema-guard.js";
 
 /**
  * @file SPEC-003 C-006 (`runtimeSchemaVersion` + guard compare) — TDD certification, unit tier.

@@ -9,8 +9,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { openContentDb, type ContentDb } from "../../db/sqlite/content-db";
-import { installNewsletterDataModule } from "../data-module-manifest";
+import { openContentDb, type ContentDb } from "../../db/sqlite/content-db.js";
+import { installNewsletterDataModule } from "../data-module-manifest.js";
 import {
   InMemoryNewsletterAudienceSnapshotRepo,
   InMemoryNewsletterCampaignRepo,
@@ -18,7 +18,7 @@ import {
   InMemoryNewsletterListRepo,
   InMemoryNewsletterSendRepo,
   InMemoryNewsletterSubscriptionRepo,
-} from "../repo.memory";
+} from "../repo.memory.js";
 import {
   SqliteNewsletterAudienceSnapshotRepo,
   SqliteNewsletterCampaignRepo,
@@ -26,7 +26,7 @@ import {
   SqliteNewsletterListRepo,
   SqliteNewsletterSendRepo,
   SqliteNewsletterSubscriptionRepo,
-} from "../repo.sqlite";
+} from "../repo.sqlite.js";
 import type {
   NewsletterAudienceSnapshotRepoPort,
   NewsletterCampaignRepoPort,
@@ -34,7 +34,7 @@ import type {
   NewsletterListRepoPort,
   NewsletterSendRepoPort,
   NewsletterSubscriptionRepoPort,
-} from "../ports";
+} from "../ports.js";
 import type {
   AudienceSnapshotRow,
   CampaignRecord,
@@ -42,7 +42,7 @@ import type {
   NewsletterListRow,
   SendRow,
   SubscriptionRow,
-} from "../types";
+} from "../types.js";
 
 const WS = "ws-newsletter-contract";
 const NOW = "2026-07-13T00:00:00.000Z";

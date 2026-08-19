@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryEventBus } from "..";
+import { InMemoryEventBus } from "../index.js";
 
 test("subscribeAll delivers events of several different names to one handler", async () => {
   const bus = new InMemoryEventBus();

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildToolCatalogQuery } from "../tool-catalog-query";
+import { buildToolCatalogQuery } from "../tool-catalog-query.js";
 
 /**
  * @file Tests this module's OWN contract — seeding a `ToolCatalogQuery` from a `ToolRegistry`-shaped

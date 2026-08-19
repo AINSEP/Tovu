@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { loginAsAdmin } from "./auth-fixtures";
+import { loginAsAdmin } from "./auth-fixtures.js";
 
 /**
  * @file Regression coverage for an owner-reported bug (2026-08-17): "if the preview is small, it

@@ -4,9 +4,9 @@ import test from "node:test";
 import { InMemoryEntryRefsRepo } from "#src/core/entry-refs/repo.memory";
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
 import { InMemoryEntryRepo } from "#src/features/entries/index";
-import { getWidgetInstance, listWidgetInstances, type WidgetReadServiceDeps } from "../../read-service";
-import { WidgetForbiddenError, WidgetInstanceNotFoundError } from "../../errors";
-import { createWidgetInstance, trashWidgetInstance, type WidgetWriteServiceDeps } from "../../write-service";
+import { getWidgetInstance, listWidgetInstances, type WidgetReadServiceDeps } from "../../read-service.js";
+import { WidgetForbiddenError, WidgetInstanceNotFoundError } from "../../errors.js";
+import { createWidgetInstance, trashWidgetInstance, type WidgetWriteServiceDeps } from "../../write-service.js";
 
 /**
  * @file C-005-adjacent widget-instance READ accessors (SPEC-043 REQ-04). External /audit-work

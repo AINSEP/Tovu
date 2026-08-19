@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildOwnerOnlyInstanceAuthorize } from "../../composition";
+import { buildOwnerOnlyInstanceAuthorize } from "../../composition.js";
 
 /**
  * @file Direct/isolated unit coverage for `composition.ts`'s `buildOwnerOnlyInstanceAuthorize` —

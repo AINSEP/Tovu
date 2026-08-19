@@ -8,7 +8,7 @@ import Database from "better-sqlite3";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 
-import { openContentDb, type ContentDb } from "../sqlite/content-db";
+import { openContentDb, type ContentDb } from "../sqlite/content-db.js";
 
 /**
  * @file SPEC-047/ADR-056 REQ-2 — certification of the `0024_lethal_weapon_omega` migration that

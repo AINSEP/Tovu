@@ -4,8 +4,8 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { initSite } from "../../init-site";
-import { runtimeSchemaVersion } from "../../schema-guard";
+import { initSite } from "../../init-site.js";
+import { runtimeSchemaVersion } from "../../schema-guard.js";
 
 /**
  * @file SPEC-003 C-007 (`initSite`) — TDD certification, integration tier (happy path + input

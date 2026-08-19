@@ -1,10 +1,10 @@
-import { registerAdminWorkspaceCreateRoute } from "../routes/admin/workspace/create";
-import { registerAdminWorkspaceDeleteRoute } from "../routes/admin/workspace/delete";
-import type { WorkspaceRouteDeps } from "../routes/admin/workspace/deps";
-import { registerAdminWorkspaceGetRoute } from "../routes/admin/workspace/get";
-import { registerAdminWorkspaceListRoute } from "../routes/admin/workspace/list";
-import { registerAdminWorkspaceUpdateRoute } from "../routes/admin/workspace/update";
-import type { ServerModuleHandle } from "./types";
+import { registerAdminWorkspaceCreateRoute } from "../routes/admin/workspace/create.js";
+import { registerAdminWorkspaceDeleteRoute } from "../routes/admin/workspace/delete.js";
+import type { WorkspaceRouteDeps } from "../routes/admin/workspace/deps.js";
+import { registerAdminWorkspaceGetRoute } from "../routes/admin/workspace/get.js";
+import { registerAdminWorkspaceListRoute } from "../routes/admin/workspace/list.js";
+import { registerAdminWorkspaceUpdateRoute } from "../routes/admin/workspace/update.js";
+import type { ServerModuleHandle } from "./types.js";
 
 /**
  * @file SPEC-044 — the `workspace` server module (list/view/rename/delete a workspace, plus the

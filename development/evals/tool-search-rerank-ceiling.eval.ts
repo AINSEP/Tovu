@@ -16,9 +16,9 @@
  * number, per the brief's request to measure this BEFORE any reranker gets built.
  */
 import { createToolRegistry } from "@jini-ai/core";
-import { buildToolCatalogQuery } from "../../src/assistant/tool-catalog-query";
-import { buildAssistantToolRegistrations } from "../../src/assistant/tool-registrations";
-import type { RouteDeps } from "../../src/server/routes/types";
+import { buildToolCatalogQuery } from "../../src/assistant/tool-catalog-query.js";
+import { buildAssistantToolRegistrations } from "../../src/assistant/tool-registrations/index.js";
+import type { RouteDeps } from "../../src/server/routes/types.js";
 
 interface EvalCase {
   readonly query: string;

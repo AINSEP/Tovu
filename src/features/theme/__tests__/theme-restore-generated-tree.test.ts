@@ -4,9 +4,9 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { restoreBuiltThemeGeneratedTree } from "../theme-files";
-import { ThemePathError } from "../theme-files";
-import { THEME_CATALOG_DIR } from "../theme";
+import { restoreBuiltThemeGeneratedTree } from "../theme-files.js";
+import { ThemePathError } from "../theme-files.js";
+import { THEME_CATALOG_DIR } from "../theme.js";
 
 /**
  * @file ADR-020 §5's "restored atomically" half: `restoreBuiltThemeGeneratedTree` overwrites a built

@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { match, validatePattern } from "../matcher";
-import type { RedirectRecord, RedirectRequest } from "../types";
+import { match, validatePattern } from "../matcher.js";
+import type { RedirectRecord, RedirectRequest } from "../types.js";
 
 /**
  * @file T009 — `matcher.ts`: precedence (behavior.spec.md §1.1), tie-break

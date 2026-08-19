@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { join } from "node:path";
 import test from "node:test";
 
-import { isGeneratedPreviewPath } from "../marketplace";
+import { isGeneratedPreviewPath } from "../marketplace.js";
 
 /**
  * @file `isGeneratedPreviewPath` — the predicate `downloadMarketplaceTheme`'s `cpSync` filter uses to

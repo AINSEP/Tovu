@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { validateFieldDescriptors } from "../forms";
-import type { FieldDescriptor } from "../types";
+import { validateFieldDescriptors } from "../forms.js";
+import type { FieldDescriptor } from "../types.js";
 
 /**
  * @file Unit tests for `validateFieldDescriptors` (C-002, REQ-02, AC-03, INV-02).

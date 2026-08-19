@@ -1,8 +1,8 @@
-import { registerAdminExternalMcpDeleteRoute } from "../routes/admin/external-mcp/delete";
-import type { ExternalMcpRouteDeps } from "../routes/admin/external-mcp/deps";
-import { registerAdminExternalMcpListRoute } from "../routes/admin/external-mcp/list";
-import { registerAdminExternalMcpPutRoute } from "../routes/admin/external-mcp/put";
-import type { ServerModuleHandle } from "./types";
+import { registerAdminExternalMcpDeleteRoute } from "../routes/admin/external-mcp/delete.js";
+import type { ExternalMcpRouteDeps } from "../routes/admin/external-mcp/deps.js";
+import { registerAdminExternalMcpListRoute } from "../routes/admin/external-mcp/list.js";
+import { registerAdminExternalMcpPutRoute } from "../routes/admin/external-mcp/put.js";
+import type { ServerModuleHandle } from "./types.js";
 
 /**
  * @file The `external-mcp` server module — the operator's roster of third-party MCP servers,

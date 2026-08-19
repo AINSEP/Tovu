@@ -1,15 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { bootAuthenticated } from "../helpers/http-test-server";
+import { bootAuthenticated } from "../helpers/http-test-server.js";
 
 import express from "express";
 
 import type { NormalizedHit } from "#src/analytics/index";
-import { createRouteDeps } from "../../app";
-import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth";
-import { registerAdminAnalyticsRecentHitsRoute } from "../../routes/admin/analytics/recent-hits";
-import type { RouteDeps } from "../../routes/types";
+import { createRouteDeps } from "../../app.js";
+import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth.js";
+import { registerAdminAnalyticsRecentHitsRoute } from "../../routes/admin/analytics/recent-hits.js";
+import type { RouteDeps } from "../../routes/types.js";
 
 /**
  * @file Route-level tests for `GET /api/admin/v1/workspaces/:workspaceId/analytics/recent-hits`.

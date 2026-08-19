@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryPostRepo } from "../../features/post";
-import type { RouteResolveContext, RouteResolvePhaseHandler, RouteTarget } from "../types";
+import { InMemoryPostRepo } from "../../features/post/index.js";
+import type { RouteResolveContext, RouteResolvePhaseHandler, RouteTarget } from "../types.js";
 import {
   getNamedRoute,
   getSlugChangeCapture,
@@ -13,7 +13,7 @@ import {
   resetRoutingRegistrationsForTests,
   resolve,
   urlFor,
-} from "../routing";
+} from "../routing.js";
 
 const seedPost = {
   id: "post-1",

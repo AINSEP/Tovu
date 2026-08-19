@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { validateManifest, type PluginManifest } from "../../manifest";
+import { validateManifest, type PluginManifest } from "../../manifest.js";
 
 /**
  * @file C-006 `validateManifest()` — SPEC-005 REQ-01, BR-02/BR-03, AC-07/AC-08/AC-12, EC-01/EC-04/

@@ -14,8 +14,8 @@ import {
   registerAdminThemeFileCopyRoute,
   registerAdminThemeFilePutRoute,
   registerAdminThemeFileResetRoute,
-} from "../explore";
-import type { ContentRouteDeps } from "../../content/deps";
+} from "../explore.js";
+import type { ContentRouteDeps } from "../../content/deps.js";
 
 /**
  * @file FIX VERIFICATION, security pass 2026-08-13 (ADS-memory/reports/security/2026-08-13-post-session-security-pass.md,

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { getDatabaseAgentToolCatalog } from "../../agent-tools";
+import { getDatabaseAgentToolCatalog } from "../../agent-tools.js";
 
 /**
  * @file SPEC-017 C-110 / REQ-20–REQ-23 / AC-24 / AC-25 / AC-28 / AC-33 — the Database domain's

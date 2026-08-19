@@ -5,5 +5,5 @@
  * assistant.ts` and `server/routes/admin/system/assistant-daemon.ts` already live inside the
  * `server` module themselves, so they import `daemon-supervisor.ts` directly.
  */
-export { startAssistantDaemon, restartAssistantDaemon, ensureAssistantDaemonStarted } from "./daemon-supervisor";
-export type { RestartAssistantDaemonResult, EnsureAssistantDaemonStartedResult } from "./daemon-supervisor";
+export { startAssistantDaemon, restartAssistantDaemon, ensureAssistantDaemonStarted } from "./daemon-supervisor.js";
+export type { RestartAssistantDaemonResult, EnsureAssistantDaemonStartedResult } from "./daemon-supervisor.js";

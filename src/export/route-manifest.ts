@@ -4,8 +4,8 @@ import { listPublishedPosts } from "#src/features/post/index";
 import type { PostRecord } from "#src/features/post/index";
 import { resolveActiveTheme } from "#src/features/theme/index";
 import { resolveActiveThemeId } from "#src/features/presentation/index";
-import type { RouteDeps } from "../server/routes/types";
-import type { ManifestRoute, ManifestSkip, RouteManifest, RouteManifestPort } from "./ports";
+import type { RouteDeps } from "../server/routes/types.js";
+import type { ManifestRoute, ManifestSkip, RouteManifest, RouteManifestPort } from "./ports.js";
 
 /**
  * @file The one implementation of {@link RouteManifestPort} (`ports.ts`).

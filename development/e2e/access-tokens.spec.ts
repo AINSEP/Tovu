@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { loginAsAdmin } from "./auth-fixtures";
+import { loginAsAdmin } from "./auth-fixtures.js";
 
 /**
  * @file Regression/verification suite for the Security page's Access Tokens tab

@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { discoverThemes, loadTheme } from "../theme";
+import { discoverThemes, loadTheme } from "../theme.js";
 
 function writeDeclarativeTheme(root: string, id: string, tier?: unknown): string {
   const dir = path.join(root, id);

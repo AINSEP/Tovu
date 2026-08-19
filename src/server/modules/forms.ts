@@ -1,6 +1,6 @@
-import { registerFormNotifySubscriber } from "../../forms/notify-subscriber";
-import type { RegisterFormNotifySubscriberDeps } from "../../forms/notify-subscriber";
-import type { ServerModuleHandle } from "./types";
+import { registerFormNotifySubscriber } from "../../forms/notify-subscriber.js";
+import type { RegisterFormNotifySubscriberDeps } from "../../forms/notify-subscriber.js";
+import type { ServerModuleHandle } from "./types.js";
 
 /**
  * @file ADR-046 Phase 3 (SPEC-031) — the `forms` module: owns starting the C-009 notify

@@ -15,22 +15,22 @@ import test from "node:test";
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { ForbiddenError } from "@jini-ai/cms/core";
-import { membersAgentToolCatalog, type AgentToolDefinition } from "../../members/agent-tools";
+import { membersAgentToolCatalog, type AgentToolDefinition } from "../../members/agent-tools.js";
 import {
   InMemoryMagicLinkTokenRepo,
   InMemoryMemberRepo,
   InMemoryMemberSessionRepo,
   MemberNotFoundError,
   type MemberRecord,
-} from "../../members";
+} from "../../members/index.js";
 import { createRateLimiter } from "#src/core/rate-limit/rate-limit";
-import type { RouteDeps } from "../../server/routes/types";
+import type { RouteDeps } from "../../server/routes/types.js";
 import {
   assertRiskMetadataIsWirable,
   buildAssistantToolRegistrations,
-} from "../tool-registrations";
-import { resetToolContributorsForTests } from "../tool-contribution-registry";
-import { contributeMembersTools } from "../../members/tool-registrations";
+} from "../tool-registrations/index.js";
+import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
+import { contributeMembersTools } from "../../members/tool-registrations.js";
 
 // Members moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
 // tool-contribution registry (2026-08-17, Stage 2 — see `tool-contribution-registry.ts`'s header),

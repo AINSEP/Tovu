@@ -3,12 +3,12 @@ import test from "node:test";
 
 import express from "express";
 
-import { createApp, createRouteDeps } from "../../app";
-import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth";
-import { registerAdminSeoGetEntryRoute } from "../../routes/admin/seo/get-entry";
-import { registerAdminSeoPutEntryRoute } from "../../routes/admin/seo/put-entry";
-import type { RouteDeps } from "../../routes/types";
-import { startTestServer, loginAsOwner } from "../helpers/http-test-server";
+import { createApp, createRouteDeps } from "../../app.js";
+import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth.js";
+import { registerAdminSeoGetEntryRoute } from "../../routes/admin/seo/get-entry.js";
+import { registerAdminSeoPutEntryRoute } from "../../routes/admin/seo/put-entry.js";
+import type { RouteDeps } from "../../routes/types.js";
+import { startTestServer, loginAsOwner } from "../helpers/http-test-server.js";
 
 /**
  * @file Coordinator-authored (2026-07-13), post-session-limit resume. SPEC-008's

@@ -1,5 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
-import { loginAsAdmin } from "./auth-fixtures";
+import { loginAsAdmin } from "./auth-fixtures.js";
 
 /**
  * @file Regression cover for "I changed the admin language and nothing happened" — reported

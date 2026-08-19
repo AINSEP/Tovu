@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { Command } from "commander";
 
-import { introspectProgram, toMcpTools } from "../../introspect";
+import { introspectProgram, toMcpTools } from "../../introspect.js";
 
 /**
  * @file SPEC-003 (added 2026-07-29, `CLI_INTROSPECT`) — unit tier for the pure introspection

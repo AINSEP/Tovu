@@ -1,20 +1,20 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { bootAuthenticated } from "../helpers/http-test-server";
+import { bootAuthenticated } from "../helpers/http-test-server.js";
 
 import express from "express";
 
 import type { MemberRecord } from "#src/members/index";
-import { createRouteDeps } from "../../app";
-import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth";
+import { createRouteDeps } from "../../app.js";
+import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth.js";
 import { createRateLimiter, MAGIC_LINK_PER_EMAIL } from "#src/core/rate-limit/rate-limit";
-import type { MembersRouteDeps } from "../../routes/admin/members/deps";
-import { registerAdminMemberDisableRoute } from "../../routes/admin/members/disable";
-import { registerAdminMemberGetRoute } from "../../routes/admin/members/get-by-id";
-import { registerAdminMemberListRoute } from "../../routes/admin/members/list";
-import { registerAdminMemberRequestMagicLinkRoute } from "../../routes/admin/members/request-magic-link";
-import type { RouteDeps } from "../../routes/types";
+import type { MembersRouteDeps } from "../../routes/admin/members/deps.js";
+import { registerAdminMemberDisableRoute } from "../../routes/admin/members/disable.js";
+import { registerAdminMemberGetRoute } from "../../routes/admin/members/get-by-id.js";
+import { registerAdminMemberListRoute } from "../../routes/admin/members/list.js";
+import { registerAdminMemberRequestMagicLinkRoute } from "../../routes/admin/members/request-magic-link.js";
+import type { RouteDeps } from "../../routes/types.js";
 
 /**
  * @file FEAT-013 Phase 1 (ADR-PIPE-013 §1) — the live authorization gap.

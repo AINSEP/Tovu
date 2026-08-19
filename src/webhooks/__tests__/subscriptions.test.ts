@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryWebhookSubscriptionRepo } from "../repo.memory";
+import { InMemoryWebhookSubscriptionRepo } from "../repo.memory.js";
 import {
   createSubscription,
   deleteSubscription,
@@ -9,8 +9,8 @@ import {
   updateSubscription,
   WebhookSubscriptionNotFoundError,
   WebhookSubscriptionValidationError,
-} from "../subscriptions";
-import type { WebhookSubscriptionDeps } from "../subscriptions";
+} from "../subscriptions.js";
+import type { WebhookSubscriptionDeps } from "../subscriptions.js";
 
 function makeDeps(overrides: Partial<WebhookSubscriptionDeps> = {}): WebhookSubscriptionDeps {
   let counter = 0;

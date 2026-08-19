@@ -4,11 +4,11 @@ import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
 
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm";
-import { InMemoryKeyring } from "../../webhooks/keyring.memory";
-import { InMemoryAdminExecutionCredentialRepo } from "../execution-credential-store.memory";
-import { setExecutionCredential } from "../execution-credential-store";
-import { getLiveClaudeModels, resetLiveModelCacheForTesting, unionModels } from "../live-model-cache";
+import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
+import { InMemoryAdminExecutionCredentialRepo } from "../execution-credential-store.memory.js";
+import { setExecutionCredential } from "../execution-credential-store.js";
+import { getLiveClaudeModels, resetLiveModelCacheForTesting, unionModels } from "../live-model-cache.js";
 
 /**
  * @file `live-model-cache.ts` — the two properties the design doc's Local CLI live-discovery

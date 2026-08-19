@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm";
-import { InMemoryKeyring } from "../../webhooks/keyring.memory";
-import type { KeyringPort } from "../../webhooks/index";
-import { InMemoryAdminExecutionCredentialRepo } from "../execution-credential-store.memory";
+import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
+import type { KeyringPort } from "../../webhooks/index.js";
+import { InMemoryAdminExecutionCredentialRepo } from "../execution-credential-store.memory.js";
 import {
   ExecutionCredentialSecretStoreUnconfiguredError,
   ExecutionCredentialValidationError,
@@ -12,7 +12,7 @@ import {
   getExecutionCredential,
   resolveExecutionCredential,
   setExecutionCredential,
-} from "../execution-credential-store";
+} from "../execution-credential-store.js";
 
 /**
  * @file `execution-credential-store.ts` — the ADMIN's own BYOK credential, write-only contract and

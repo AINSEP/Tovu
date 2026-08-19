@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { loginAsAdmin } from "./auth-fixtures";
+import { loginAsAdmin } from "./auth-fixtures.js";
 
 /**
  * @file Deployment panel → Static Site tab, driven through the REAL admin SPA against the REAL Tovu

@@ -7,10 +7,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createPaymentProviderRegistry } from "../registry";
-import type { PaymentProvider } from "../ports";
-import { cleanup, makeLipay, WORKSPACE_ID } from "./support";
-import { InMemoryPaymentCredentials } from "../credentials";
+import { createPaymentProviderRegistry } from "../registry.js";
+import type { PaymentProvider } from "../ports.js";
+import { cleanup, makeLipay, WORKSPACE_ID } from "./support.js";
+import { InMemoryPaymentCredentials } from "../credentials.js";
 
 function stubProvider(overrides: Partial<PaymentProvider> = {}): PaymentProvider {
   return {

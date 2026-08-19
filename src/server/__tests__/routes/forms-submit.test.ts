@@ -11,7 +11,7 @@ import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "#src/for
 import { FORMS_SUBMIT_PROFILE } from "#src/forms/rate-limit-profile";
 import type { FormDefinitionRecord } from "#src/forms/index";
 import { createRateLimiter } from "#src/core/rate-limit/rate-limit";
-import { registerFormsSubmitRoute } from "../../routes/site/forms-submit";
+import { registerFormsSubmitRoute } from "../../routes/site/forms-submit.js";
 
 /**
  * @file Route-level tests for the public `POST /forms/:slug/submit` endpoint (SPEC-010 REQ-05/07,

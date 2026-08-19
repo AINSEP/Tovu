@@ -3,10 +3,10 @@ import test from "node:test";
 
 import type { ClockPort, JsonObject, OutboxPort } from "@jini-ai/cms/core";
 import { openContentDb, type ContentDb } from "#src/db/sqlite/content-db";
-import { createPost, deletePost, updatePost, type PostRecord } from "../post";
-import { SqlitePostRepo } from "../repo.sqlite";
-import { searchAdminPosts, type PostSearchHit } from "../search";
-import { backfillPostSearchIndex, SqlitePostSearchIndex } from "../search-index.sqlite";
+import { createPost, deletePost, updatePost, type PostRecord } from "../post.js";
+import { SqlitePostRepo } from "../repo.sqlite.js";
+import { searchAdminPosts, type PostSearchHit } from "../search.js";
+import { backfillPostSearchIndex, SqlitePostSearchIndex } from "../search-index.sqlite.js";
 
 /**
  * @file Certification of the DURABLE search adapter: the FTS5 index migration 0022 installs, the

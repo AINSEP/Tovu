@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { OutboxPort } from "@jini-ai/cms/core";
-import { createPost, updatePost, type CreatePostInput, type UpdatePostInput } from "../post";
-import { InMemoryPostRepo } from "../repo.memory";
+import { createPost, updatePost, type CreatePostInput, type UpdatePostInput } from "../post.js";
+import { InMemoryPostRepo } from "../repo.memory.js";
 
 /**
  * @file SPEC-047/ADR-056 Decision 3 / CIC-3 — the `kind` -> `bodyFormat` write-chokepoint gate in

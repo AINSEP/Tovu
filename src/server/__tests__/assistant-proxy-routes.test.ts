@@ -6,10 +6,10 @@ import test from "node:test";
 
 import express from "express";
 
-import { AGENT_DAEMON_TOKEN_ENV_VAR, MCP_UI_TOOL_CALLS_PATH, RUN_PRINCIPAL_HEADER } from "../../assistant";
-import { clearAssistantDaemonFailure, recordAssistantDaemonFailure } from "../readiness-state";
-import type { RouteDeps } from "../routes/types";
-import { startTestServer, loginAsOwner } from "./helpers/http-test-server";
+import { AGENT_DAEMON_TOKEN_ENV_VAR, MCP_UI_TOOL_CALLS_PATH, RUN_PRINCIPAL_HEADER } from "../../assistant/index.js";
+import { clearAssistantDaemonFailure, recordAssistantDaemonFailure } from "../readiness-state.js";
+import type { RouteDeps } from "../routes/types.js";
+import { startTestServer, loginAsOwner } from "./helpers/http-test-server.js";
 
 /**
  * @file Route-level tests for `server/modules/assistant.ts`, the session-gated reverse proxy in
@@ -139,10 +139,10 @@ function harness() {
     process.env.JINI_AGENT_DAEMON_URL = origin;
     process.env[AGENT_DAEMON_TOKEN_ENV_VAR] = TOKEN;
 
-    const { createRouteDeps } = await import("../app");
-    const { createAssistantModule } = await import("../modules/assistant");
-    const { registerAuthRoutes } = await import("../middleware/dev-auth");
-    const { createSurfaceExchangeStore } = await import("../../core/tool-surface-exchanges");
+    const { createRouteDeps } = await import("../app.js");
+    const { createAssistantModule } = await import("../modules/assistant.js");
+    const { registerAuthRoutes } = await import("../middleware/dev-auth.js");
+    const { createSurfaceExchangeStore } = await import("../../core/tool-surface-exchanges.js");
 
     return {
       daemon: server,

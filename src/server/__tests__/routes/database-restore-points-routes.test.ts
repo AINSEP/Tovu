@@ -3,11 +3,11 @@ import test from "node:test";
 
 import express from "express";
 
-import { bootAuthenticated } from "../helpers/http-test-server";
-import { createRouteDeps } from "../../app";
-import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth";
-import { registerAdminDatabaseRestorePointsCreateRoute, registerAdminDatabaseRestorePointsListRoute } from "../../routes/admin/database/restore-points";
-import type { RouteDeps } from "../../routes/types";
+import { bootAuthenticated } from "../helpers/http-test-server.js";
+import { createRouteDeps } from "../../app.js";
+import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth.js";
+import { registerAdminDatabaseRestorePointsCreateRoute, registerAdminDatabaseRestorePointsListRoute } from "../../routes/admin/database/restore-points.js";
+import type { RouteDeps } from "../../routes/types.js";
 
 /**
  * @file design-spec.md §3.8 backend-gap closure — route-level tests for Database's restore-points

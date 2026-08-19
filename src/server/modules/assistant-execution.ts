@@ -1,9 +1,9 @@
-import { registerAdminAssistantDetectAgentsRoute } from "../routes/admin/assistant/detect-agents";
-import { registerAdminAssistantTestConnectionRoute } from "../routes/admin/assistant/test-connection";
-import { registerAdminAssistantListModelsRoute } from "../routes/admin/assistant/list-models";
-import { registerAdminAssistantTestAgentRoute } from "../routes/admin/assistant/test-agent";
-import type { AssistantExecutionRouteDeps } from "../routes/admin/assistant/execution-deps";
-import type { ServerModuleHandle } from "./types";
+import { registerAdminAssistantDetectAgentsRoute } from "../routes/admin/assistant/detect-agents.js";
+import { registerAdminAssistantTestConnectionRoute } from "../routes/admin/assistant/test-connection.js";
+import { registerAdminAssistantListModelsRoute } from "../routes/admin/assistant/list-models.js";
+import { registerAdminAssistantTestAgentRoute } from "../routes/admin/assistant/test-agent.js";
+import type { AssistantExecutionRouteDeps } from "../routes/admin/assistant/execution-deps.js";
+import type { ServerModuleHandle } from "./types.js";
 
 /**
  * @file The `assistant-execution` server module: the 4 admin routes backing

@@ -1,5 +1,5 @@
 import { scanEmbedMarkers } from "#src/core/embeds/marker";
-import type { ThemeValidationIssue } from "./profiles";
+import type { ThemeValidationIssue } from "./profiles.js";
 
 /**
  * @file Theme markup checks: the admin-only `data-agent-element` attribute must never appear in

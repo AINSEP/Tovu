@@ -20,8 +20,8 @@ import {
   registerAdminThemeFileResetRoute,
   registerAdminThemeFileCopyRoute,
   registerAdminThemeFileRenameRoute,
-} from "../explore";
-import type { ContentRouteDeps } from "../../content/deps";
+} from "../explore.js";
+import type { ContentRouteDeps } from "../../content/deps.js";
 
 /**
  * @file Branch coverage for the two gates every one of the six routes runs BEFORE its own logic:

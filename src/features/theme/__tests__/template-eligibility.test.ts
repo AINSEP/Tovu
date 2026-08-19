@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { isEligibleForTemplateBranch } from "../static-render";
-import type { DiscoveredTheme } from "../theme";
+import { isEligibleForTemplateBranch } from "../static-render.js";
+import type { DiscoveredTheme } from "../theme.js";
 
 /**
  * @file Certifies {@link isEligibleForTemplateBranch} — the gate `pages.ts` runs BEFORE calling

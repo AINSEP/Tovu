@@ -1,7 +1,7 @@
-import { bootstrapStore } from "../features/plugins/store/store-plugin";
-import { reconcileInterruptedMigrationOnBoot } from "../features/database/boot/reconcile-interrupted-migration";
-import type { BootModule } from "./boot-lifecycle";
-import type { NewsletterRouteDeps } from "./routes/admin/newsletter/deps";
+import { bootstrapStore } from "../features/plugins/store/store-plugin.js";
+import { reconcileInterruptedMigrationOnBoot } from "../features/database/boot/reconcile-interrupted-migration.js";
+import type { BootModule } from "./boot-lifecycle.js";
+import type { NewsletterRouteDeps } from "./routes/admin/newsletter/deps.js";
 
 /**
  * @file ADR-046 Phase 3 (SPEC-031) — composes the boot modules `index.ts` runs through

@@ -23,7 +23,7 @@ import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/http/index"
 import { InMemoryPaymentCredentials } from "#src/features/plugins/lipay/credentials";
 import { activateLipay, type LipayApi } from "#src/features/plugins/lipay/lipay-plugin";
 import { createLipayGateway, signLipayWebhook } from "#src/features/plugins/lipay/providers/lipay-gateway";
-import { createApp, createRouteDeps } from "../../app";
+import { createApp, createRouteDeps } from "../../app.js";
 
 const WORKSPACE_ID = "workspace-1";
 const WEBHOOK_SECRET = "whsec_route_test";

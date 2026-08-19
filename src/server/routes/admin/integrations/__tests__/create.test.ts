@@ -10,8 +10,8 @@ import {
   extractRouteHandler,
   startTestServer,
 } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminIntegrationsCreateRoute } from "../create";
-import type { IntegrationsRouteDeps } from "../deps";
+import { registerAdminIntegrationsCreateRoute } from "../create.js";
+import type { IntegrationsRouteDeps } from "../deps.js";
 
 /**
  * @file Unit-tier coverage for `POST .../integrations/subscriptions` (`registerAdminIntegrationsCreateRoute`).

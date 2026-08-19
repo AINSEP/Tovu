@@ -6,9 +6,9 @@ import type { NextFunction, Request, Response } from "express";
 
 import { createRouteDeps } from "#src/server/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminMediaGetProvidersRoute } from "../get-providers";
-import { registerAdminMediaPutProvidersRoute } from "../put-providers";
-import type { MediaProviderRouteDeps } from "../deps";
+import { registerAdminMediaGetProvidersRoute } from "../get-providers.js";
+import { registerAdminMediaPutProvidersRoute } from "../put-providers.js";
+import type { MediaProviderRouteDeps } from "../deps.js";
 
 /**
  * @file Unit-tier coverage for `GET`/`PUT .../media/providers` (`registerAdminMediaGetProvidersRoute`/

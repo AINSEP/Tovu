@@ -1,4 +1,4 @@
-import { startFakeComposio } from "./fake-composio-server";
+import { startFakeComposio } from "./fake-composio-server.js";
 
 /**
  * @file Boots {@link startFakeComposio} on a fixed port so Playwright's `webServer` can manage it

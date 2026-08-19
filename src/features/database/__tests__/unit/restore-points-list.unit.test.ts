@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { listRestorePoints, type RestorePointRecord } from "../../restore-points";
+import { listRestorePoints, type RestorePointRecord } from "../../restore-points.js";
 
 /**
  * @file design-spec.md §3.8/§4.8 backend-gap closure — `listRestorePoints` (this dispatch). Added

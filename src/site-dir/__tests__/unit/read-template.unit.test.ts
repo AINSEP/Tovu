@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { readTemplate } from "../../read-template";
+import { readTemplate } from "../../read-template.js";
 import { seededWorkspace, seededPosts, seededPresentation } from "#src/server/seed";
 
 /**

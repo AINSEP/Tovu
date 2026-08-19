@@ -5,8 +5,8 @@ import path from "node:path";
 import test from "node:test";
 
 import { openContentDb } from "#src/db/sqlite/content-db";
-import { SqliteContentTypeRepo } from "../../repo.sqlite";
-import { deprecateContentType, registerContentType, updateContentTypeFields } from "../../index";
+import { SqliteContentTypeRepo } from "../../repo.sqlite.js";
+import { deprecateContentType, registerContentType, updateContentTypeFields } from "../../index.js";
 
 /**
  * @file Real SQLite persistence for `features/content-types` (this dispatch, closing the gap

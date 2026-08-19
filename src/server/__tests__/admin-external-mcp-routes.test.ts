@@ -3,14 +3,14 @@ import test from "node:test";
 
 import express from "express";
 
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm";
-import type { KeyringPort } from "../../webhooks/index";
-import { readEnabledExternalMcpConfigs } from "../../assistant/external-mcp-store";
-import { createRouteDeps } from "../app";
-import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth";
-import { createExternalMcpModule } from "../modules/external-mcp";
-import type { RouteDeps } from "../routes/types";
-import { bootAuthenticated, startTestServer } from "./helpers/http-test-server";
+import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import type { KeyringPort } from "../../webhooks/index.js";
+import { readEnabledExternalMcpConfigs } from "../../assistant/external-mcp-store.js";
+import { createRouteDeps } from "../app.js";
+import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth.js";
+import { createExternalMcpModule } from "../modules/external-mcp.js";
+import type { RouteDeps } from "../routes/types.js";
+import { bootAuthenticated, startTestServer } from "./helpers/http-test-server.js";
 
 /**
  * @file Route-level tests for the three external-MCP routes — real Express app, real session auth,

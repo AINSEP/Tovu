@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { OutboxPort } from "@jini-ai/cms/core";
-import { createPost, updatePost, InMemoryPostRepo } from "../../post";
-import { InMemoryPagesHtmlDocumentStore } from "../html-document-store.memory";
-import { DEFAULT_PAGE_SKELETON } from "../skeleton";
+import { createPost, updatePost, InMemoryPostRepo } from "../../post/index.js";
+import { InMemoryPagesHtmlDocumentStore } from "../html-document-store.memory.js";
+import { DEFAULT_PAGE_SKELETON } from "../skeleton.js";
 
 /**
  * @file Regression — editing a bespoke-HTML Page's METADATA must not destroy its BODY.

@@ -1,5 +1,5 @@
 import { test, expect, type APIRequestContext } from "@playwright/test";
-import { waitForAgentDaemon } from "./daemon-ready";
+import { waitForAgentDaemon } from "./daemon-ready.js";
 
 /**
  * @file Owner's own ask, run for real: "run an AI test to create a menu and then also put that in

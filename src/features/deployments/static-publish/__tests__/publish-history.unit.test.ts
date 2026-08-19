@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryPublishHistoryStore, type PublishHistoryEntry } from "../publish-history";
+import { InMemoryPublishHistoryStore, type PublishHistoryEntry } from "../publish-history.js";
 import {
   MAX_PUBLISH_HISTORY_LIST_LIMIT,
   resolvePublishHistoryListLimit,
-} from "../../../../core/publish-history-list-limit";
+} from "../../../../core/publish-history-list-limit.js";
 
 /**
  * @file `publish-history.ts`'s port and in-memory double, in isolation — the fix for Defect 2

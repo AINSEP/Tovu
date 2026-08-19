@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { evaluateFileTiers, resolveBaseRef, ZERO_SHA } from "../check-route-coverage-diff";
-import type { FileCoverage } from "../route-coverage-lib";
+import { evaluateFileTiers, resolveBaseRef, ZERO_SHA } from "../check-route-coverage-diff.js";
+import type { FileCoverage } from "../route-coverage-lib.js";
 
 /**
  * @file Direct coverage for `resolveBaseRef`'s push-event fallback — the fix for a real gap found

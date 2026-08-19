@@ -1,7 +1,7 @@
 import { test, expect, type Page } from "@playwright/test";
 
-import { loginAsAdmin } from "./auth-fixtures";
-import { REJECTED_KEY_MARKER } from "./fake-composio-server";
+import { loginAsAdmin } from "./auth-fixtures.js";
+import { REJECTED_KEY_MARKER } from "./fake-composio-server.js";
 
 /**
  * @file Settings → Connectors, driven through the REAL admin SPA against the REAL Tovu API

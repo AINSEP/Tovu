@@ -8,7 +8,7 @@ import {
   registerDefinitions,
   set,
   SCOPE_BIT,
-} from "../../features/settings";
+} from "../../features/settings/index.js";
 import { InMemoryPrincipalRepo } from "@jini-ai/cms/identity";
 import {
   ensurePublicAssistantSettingDefinitions,
@@ -16,7 +16,7 @@ import {
   isPublicAssistantEnabled,
   setPublicAssistantSettings,
   PublicAssistantSettingsValidationError,
-} from "../public-assistant-settings";
+} from "../public-assistant-settings.js";
 
 /**
  * @file `ensurePublicAssistantSettingDefinitions`/`getPublicAssistantSettings`/

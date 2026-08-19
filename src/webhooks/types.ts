@@ -162,7 +162,7 @@ export interface WebhookSignature {
  * Sealed outbound-integration credential (core-owned table `integration_secrets`) — e.g. a
  * third-party API token an operator pastes for an outbound connector. Unlike a signing secret
  * (derived, never stored) this MUST be recoverable to send, so it is stored **sealed** by the
- * install root key via {@link import("./ports").SecretSealerPort} and never as plaintext in the
+ * install root key via {@link import("./ports.js").SecretSealerPort} and never as plaintext in the
  * portable folder (ADR-024 secret invariant). v1 = seam only (ADR-036 §8); the connector runtime
  * that consumes it is deferred.
  */

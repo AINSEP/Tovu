@@ -2,8 +2,8 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { test, expect } from "@playwright/test";
 
-import { loginAsAdmin } from "./auth-fixtures";
-import { setByokModel } from "./byok-model-field";
+import { loginAsAdmin } from "./auth-fixtures.js";
+import { setByokModel } from "./byok-model-field.js";
 
 /**
  * @file The real thing, once: an actual chat turn against the real Google Gemini API through

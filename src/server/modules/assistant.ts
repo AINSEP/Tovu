@@ -56,12 +56,12 @@ import {
   MCP_UI_TOOL_CALLS_PATH,
   SURFACE_EXCHANGE_ID_PARAM,
   type SurfaceExchangeStore,
-} from "../../assistant";
-import { registerMcpUiSandboxProxyRoute } from "../../assistant/mcp-ui-sandbox-proxy-route";
-import { getAuthedPrincipal, requireAdminSession } from "../middleware/dev-auth";
-import type { RouteDeps } from "../routes/types";
-import { AGENT_DAEMON_URL, forwardToAgentDaemon, respondIfDaemonKnownFailed } from "./assistant-daemon-client";
-import type { ServerModuleHandle } from "./types";
+} from "../../assistant/index.js";
+import { registerMcpUiSandboxProxyRoute } from "../../assistant/mcp-ui-sandbox-proxy-route.js";
+import { getAuthedPrincipal, requireAdminSession } from "../middleware/dev-auth.js";
+import type { RouteDeps } from "../routes/types.js";
+import { AGENT_DAEMON_URL, forwardToAgentDaemon, respondIfDaemonKnownFailed } from "./assistant-daemon-client.js";
+import type { ServerModuleHandle } from "./types.js";
 
 /** Streams `upstream`'s response back onto `res` as it arrives — required for the SSE run-events
  * endpoint, where buffering the whole body first would defeat live streaming entirely.

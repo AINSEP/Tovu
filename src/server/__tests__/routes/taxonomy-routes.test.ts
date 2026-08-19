@@ -3,17 +3,17 @@ import test from "node:test";
 
 import express from "express";
 
-import { bootAuthenticated } from "../helpers/http-test-server";
-import { createRouteDeps } from "../../app";
-import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth";
-import { registerAdminTaxonomyListRoute } from "../../routes/admin/taxonomy/list";
-import { registerAdminTaxonomyCreateRoute } from "../../routes/admin/taxonomy/create-taxonomy";
-import { registerAdminTaxonomyCreateTermRoute } from "../../routes/admin/taxonomy/create-term";
-import { registerAdminTaxonomyDeleteRoute } from "../../routes/admin/taxonomy/delete-taxonomy";
-import { registerAdminTaxonomyDeleteTermRoute } from "../../routes/admin/taxonomy/delete-term";
-import { registerAdminTaxonomyRenameTermRoute } from "../../routes/admin/taxonomy/rename-term";
-import { registerAdminTaxonomyAssignTermsRoute } from "../../routes/admin/taxonomy/assign-terms";
-import type { RouteDeps } from "../../routes/types";
+import { bootAuthenticated } from "../helpers/http-test-server.js";
+import { createRouteDeps } from "../../app.js";
+import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth.js";
+import { registerAdminTaxonomyListRoute } from "../../routes/admin/taxonomy/list.js";
+import { registerAdminTaxonomyCreateRoute } from "../../routes/admin/taxonomy/create-taxonomy.js";
+import { registerAdminTaxonomyCreateTermRoute } from "../../routes/admin/taxonomy/create-term.js";
+import { registerAdminTaxonomyDeleteRoute } from "../../routes/admin/taxonomy/delete-taxonomy.js";
+import { registerAdminTaxonomyDeleteTermRoute } from "../../routes/admin/taxonomy/delete-term.js";
+import { registerAdminTaxonomyRenameTermRoute } from "../../routes/admin/taxonomy/rename-term.js";
+import { registerAdminTaxonomyAssignTermsRoute } from "../../routes/admin/taxonomy/assign-terms.js";
+import type { RouteDeps } from "../../routes/types.js";
 
 /**
  * @file design-spec.md §2.8 backend-gap closure — route-level tests for the Categories & Tags

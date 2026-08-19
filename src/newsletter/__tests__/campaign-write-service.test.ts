@@ -6,14 +6,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { openContentDb } from "../../db/sqlite/content-db";
-import { newsletterCampaignRevisions, newsletterCampaigns } from "../../db/schema";
-import { cancelCampaign, saveCampaign, scheduleCampaign, type CampaignWriteServiceDeps } from "../campaign-write-service";
-import { NewsletterCampaignNotEditableError, NewsletterConflictError, NewsletterListNotFoundError, NewsletterValidationError } from "../errors";
-import { InMemoryNewsletterCampaignRepo, InMemoryNewsletterListRepo } from "../repo.memory";
-import { SqliteNewsletterCampaignRepo, SqliteNewsletterListRepo } from "../repo.sqlite";
-import type { NewsletterCampaignRepoPort } from "../ports";
-import type { CampaignRecord, CampaignRevision, NewsletterListRow } from "../types";
+import { openContentDb } from "../../db/sqlite/content-db.js";
+import { newsletterCampaignRevisions, newsletterCampaigns } from "../../db/schema.js";
+import { cancelCampaign, saveCampaign, scheduleCampaign, type CampaignWriteServiceDeps } from "../campaign-write-service.js";
+import { NewsletterCampaignNotEditableError, NewsletterConflictError, NewsletterListNotFoundError, NewsletterValidationError } from "../errors.js";
+import { InMemoryNewsletterCampaignRepo, InMemoryNewsletterListRepo } from "../repo.memory.js";
+import { SqliteNewsletterCampaignRepo, SqliteNewsletterListRepo } from "../repo.sqlite.js";
+import type { NewsletterCampaignRepoPort } from "../ports.js";
+import type { CampaignRecord, CampaignRevision, NewsletterListRow } from "../types.js";
 
 const WS = "ws-1";
 let counter = 0;

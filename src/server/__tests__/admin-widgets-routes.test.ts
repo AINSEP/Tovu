@@ -1,15 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { bootAuthenticated } from "./helpers/http-test-server";
+import { bootAuthenticated } from "./helpers/http-test-server.js";
 
 import express from "express";
 
-import { createRouteDeps } from "../app";
-import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth";
-import { createWidgetsModule } from "../modules/widgets";
-import type { RouteDeps } from "../routes/types";
-import { WIDGET_CONTENT_TYPE } from "../../widgets/types";
+import { createRouteDeps } from "../app.js";
+import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth.js";
+import { createWidgetsModule } from "../modules/widgets.js";
+import type { RouteDeps } from "../routes/types.js";
+import { WIDGET_CONTENT_TYPE } from "../../widgets/types.js";
 
 /**
  * @file Route-level tests for the admin `widgets` HTTP surface (SPEC-043, ADR-047) — instance
@@ -266,9 +266,9 @@ test("admin widgets embeds: insert -> reorder -> remove against a real generic e
 
   // A host entry needs a registered content type first (mirrors the widgets domain-layer test
   // fixtures' own approach) — "article" avoids the "post"/"page" reserved-key collision.
-  const { registerContentType, NoopContentTypeIndexProvisioner } = await import("../../features/content-types/index");
-  const { createEntry } = await import("../../features/entries/index");
-  const { PRE_AUTHORIZED } = await import("../../widgets/authorize-helper");
+  const { registerContentType, NoopContentTypeIndexProvisioner } = await import("../../features/content-types/index.js");
+  const { createEntry } = await import("../../features/entries/index.js");
+  const { PRE_AUTHORIZED } = await import("../../widgets/authorize-helper.js");
 
   await deps.identityReady;
   await registerContentType({

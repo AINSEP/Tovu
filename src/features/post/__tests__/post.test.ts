@@ -13,8 +13,8 @@ import {
   PostNotFoundError,
   PostValidationError,
   updatePost,
-} from "../post";
-import { InMemoryPostRepo } from "../repo.memory";
+} from "../post.js";
+import { InMemoryPostRepo } from "../repo.memory.js";
 
 /**
  * `updatePost`'s `deps` gained a required `outbox` (ADR-PIPE-008 Decision §5,

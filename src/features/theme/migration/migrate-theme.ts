@@ -2,9 +2,9 @@ import { randomBytes } from "node:crypto";
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
-import { loadTheme, type ThemeTier } from "../theme";
-import { validateThemePackage, type ValidateThemePackageResult } from "../validation/validate-theme-package";
-import { planV2Migration, TOKENS_MODE_FILE_PATTERN, type ThemeMigrationPlan } from "./theme-migration-plan";
+import { loadTheme, type ThemeTier } from "../theme.js";
+import { validateThemePackage, type ValidateThemePackageResult } from "../validation/validate-theme-package.js";
+import { planV2Migration, TOKENS_MODE_FILE_PATTERN, type ThemeMigrationPlan } from "./theme-migration-plan.js";
 
 /**
  * @file Milestone 3's `tovu theme migrate` orchestrator — stages a v1 theme's on-disk shape into

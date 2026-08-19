@@ -3,11 +3,11 @@ import test from "node:test";
 
 import express from "express";
 
-import { createRouteDeps } from "../../app";
-import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth";
-import { registerAdminSettingsEventsRoute } from "../../routes/admin/settings/events";
-import type { RouteDeps } from "../../routes/types";
-import { bootAuthenticated } from "../helpers/http-test-server";
+import { createRouteDeps } from "../../app.js";
+import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth.js";
+import { registerAdminSettingsEventsRoute } from "../../routes/admin/settings/events.js";
+import type { RouteDeps } from "../../routes/types.js";
+import { bootAuthenticated } from "../helpers/http-test-server.js";
 
 /**
  * @file What a settings SSE frame's `id` may disclose.

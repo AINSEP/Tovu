@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildSourceControlCredentialAad } from "../aad";
+import { buildSourceControlCredentialAad } from "../aad.js";
 
 /** @file `buildSourceControlCredentialAad` — the ONE format this table's rows are ever sealed/opened
  *  under, mirroring `publish-credentials/__tests__/aad.unit.test.ts` exactly: locks the format's

@@ -35,7 +35,7 @@ import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-o
 import { getTableConfig as getPgTableConfig } from "drizzle-orm/pg-core";
 import * as pg from "drizzle-orm/pg-core";
 
-import { renderTable } from "../../../development/scripts/generate-postgres-schema";
+import { renderTable } from "../../../development/scripts/generate-postgres-schema.js";
 
 /**
  * Round-trips one generated `pgTable(...)` snippet through an actual `Function` constructor call so

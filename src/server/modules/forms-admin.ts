@@ -1,12 +1,12 @@
-import { registerAdminFormsCreateRoute } from "../routes/admin/forms/create";
-import { registerAdminFormsDeleteSubmissionRoute } from "../routes/admin/forms/delete-submission";
-import type { FormsRouteDeps } from "../routes/admin/forms/deps";
-import { registerAdminFormsGetRoute } from "../routes/admin/forms/get-by-id";
-import { registerAdminFormsGetSubmissionRoute } from "../routes/admin/forms/get-submission";
-import { registerAdminFormsListRoute } from "../routes/admin/forms/list";
-import { registerAdminFormsListSubmissionsRoute } from "../routes/admin/forms/list-submissions";
-import { registerAdminFormsUpdateRoute } from "../routes/admin/forms/update";
-import type { ServerModuleHandle } from "./types";
+import { registerAdminFormsCreateRoute } from "../routes/admin/forms/create.js";
+import { registerAdminFormsDeleteSubmissionRoute } from "../routes/admin/forms/delete-submission.js";
+import type { FormsRouteDeps } from "../routes/admin/forms/deps.js";
+import { registerAdminFormsGetRoute } from "../routes/admin/forms/get-by-id.js";
+import { registerAdminFormsGetSubmissionRoute } from "../routes/admin/forms/get-submission.js";
+import { registerAdminFormsListRoute } from "../routes/admin/forms/list.js";
+import { registerAdminFormsListSubmissionsRoute } from "../routes/admin/forms/list-submissions.js";
+import { registerAdminFormsUpdateRoute } from "../routes/admin/forms/update.js";
+import type { ServerModuleHandle } from "./types.js";
 
 /**
  * @file ADR-046 Phase 3 (SPEC-041) — the `forms-admin` server module (SPEC-010 Forms, Tier-1

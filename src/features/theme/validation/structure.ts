@@ -1,9 +1,9 @@
 import { readdirSync, realpathSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
 
-import { GENERATED_THEME_DIRS, isSourceDirGeneratedConflict } from "../theme-files";
-import type { ThemeBuildInfo } from "../theme";
-import type { ThemeValidationIssue } from "./profiles";
+import { GENERATED_THEME_DIRS, isSourceDirGeneratedConflict } from "../theme-files.js";
+import type { ThemeBuildInfo } from "../theme.js";
+import type { ThemeValidationIssue } from "./profiles.js";
 
 /**
  * @file Package-tree shape checks: file-count/depth/size/symlink ceilings (every schema version),
@@ -33,7 +33,13 @@ const MAX_FILE_BYTES = 16 * 1024 * 1024;
  * author-owned marketing content, deliberately distinct from `assets/previews/`'s specific
  * marketplace-card-thumbnail purpose — see `theme-files.ts`'s own `isGeneratedThemePath` doc comment
  * for why it's already treated as first-class content elsewhere in this codebase; every real theme on
- * disk ships one. */
+ * disk ships one. `index.html` (Milestone 5, 2026-08-18) is `static-portability-index.ts`'s generated
+ * root output for a `static`-tier theme — same "approved but generated, never hand-authored" framing
+ * as `preview/` (also in `theme-files.ts`'s `GENERATED_THEME_ROOT_FILES`, this list's own sibling
+ * concept for a single file rather than a whole directory), optional (a theme need not have one yet),
+ * and not itself tier-gated here — a non-`static` theme simply never produces one, matching
+ * `screenshots`/`templates`' own precedent of an approved root that's semantically tier-specific
+ * without a dedicated structural rule enforcing that. */
 const V2_APPROVED_ROOTS: ReadonlySet<string> = new Set([
   "theme.json",
   "tokens.json",
@@ -49,6 +55,7 @@ const V2_APPROVED_ROOTS: ReadonlySet<string> = new Set([
   "locales",
   "tests",
   "package.json",
+  "index.html",
 ]);
 
 /** Install-local metadata files a strict v2 structure check must NOT flag as unrecognized — they are

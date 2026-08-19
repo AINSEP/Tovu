@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { test, expect, type Page } from "@playwright/test";
-import { DEFAULT_ADMIN_USERNAME, DEFAULT_ADMIN_PASSWORD, loginAsAdmin } from "./auth-fixtures";
-import { waitForAgentDaemon } from "./daemon-ready";
+import { DEFAULT_ADMIN_USERNAME, DEFAULT_ADMIN_PASSWORD, loginAsAdmin } from "./auth-fixtures.js";
+import { waitForAgentDaemon } from "./daemon-ready.js";
 
 /**
  * @file The first fully automated, click-through proof that a real publish to GitHub Pages can

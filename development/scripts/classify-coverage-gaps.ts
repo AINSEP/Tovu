@@ -40,9 +40,9 @@ import {
   LCOV_UNIT_PATH,
   loadRouteCoverage,
   type FileCoverage,
-} from "./route-coverage-lib";
-import { evaluateFileTiers, type FileTierEvaluation } from "./check-route-coverage-diff";
-import { findViolations } from "./check-src-complexity-drift";
+} from "./route-coverage-lib.js";
+import { evaluateFileTiers, type FileTierEvaluation } from "./check-route-coverage-diff.js";
+import { findViolations } from "./check-src-complexity-drift.js";
 
 const PHANTOM_TAX_BRANCH_CEILING = 40;
 

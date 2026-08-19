@@ -3,12 +3,12 @@ import test from "node:test";
 
 import express from "express";
 
-import { bootAuthenticated } from "./helpers/http-test-server";
-import { InMemoryDatabaseLedgerRepo } from "../../features/database/repo.memory";
-import { createRouteDeps } from "../app";
-import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth";
-import { registerAdminDatabaseTimelineRoute } from "../routes/admin/database/timeline";
-import type { RouteDeps } from "../routes/types";
+import { bootAuthenticated } from "./helpers/http-test-server.js";
+import { InMemoryDatabaseLedgerRepo } from "../../features/database/repo.memory.js";
+import { createRouteDeps } from "../app.js";
+import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth.js";
+import { registerAdminDatabaseTimelineRoute } from "../routes/admin/database/timeline.js";
+import type { RouteDeps } from "../routes/types.js";
 
 /**
  * @file Route-level test for `GET /api/admin/v1/database/timeline` (ADR-041 §1, Slice 3 of this

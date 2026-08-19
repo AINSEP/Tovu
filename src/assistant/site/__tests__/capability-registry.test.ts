@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { createSiteCapabilityRegistry, type SiteAssistantCallerClass } from "../capability-registry";
-import { SITE_ASSISTANT_TOOL_SCHEMAS, type SiteAssistantToolDeps } from "../tools";
-import { listPublishedPosts } from "../../../features/post";
+import { createSiteCapabilityRegistry, type SiteAssistantCallerClass } from "../capability-registry.js";
+import { SITE_ASSISTANT_TOOL_SCHEMAS, type SiteAssistantToolDeps } from "../tools.js";
+import { listPublishedPosts } from "../../../features/post/index.js";
 
 /**
  * SPEC-046 REQ-0 — proves the registry preserves the closed switch's guarantees while making the

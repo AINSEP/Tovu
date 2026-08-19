@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryPrincipalRepo } from "@jini-ai/cms/identity";
-import { InMemorySettingsRepo, ForbiddenError } from "../../features/settings";
-import { ensureSeoSettingDefinitions, getSeoSettings, setSeoSettings } from "../settings";
-import { SeoSettingsValidationError } from "../errors";
+import { InMemorySettingsRepo, ForbiddenError } from "../../features/settings/index.js";
+import { ensureSeoSettingDefinitions, getSeoSettings, setSeoSettings } from "../settings.js";
+import { SeoSettingsValidationError } from "../errors.js";
 
 /**
  * @file T019 — failing-first unit certification of `getSeoSettings`/

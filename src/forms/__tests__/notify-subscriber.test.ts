@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryEventBus } from "../../core/events";
+import { InMemoryEventBus } from "../../core/events/index.js";
 import type { DomainEvent } from "@jini-ai/cms/core";
-import type { MailerPort, MailerSendOptions, MailerSendResult, OutboundEmail } from "../../mail";
-import { registerFormNotifySubscriber } from "../notify-subscriber";
-import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "../repo.memory";
-import type { FormDefinitionRecord, FormSubmissionRecord } from "../types";
+import type { MailerPort, MailerSendOptions, MailerSendResult, OutboundEmail } from "../../mail/index.js";
+import { registerFormNotifySubscriber } from "../notify-subscriber.js";
+import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "../repo.memory.js";
+import type { FormDefinitionRecord, FormSubmissionRecord } from "../types.js";
 
 /**
  * @file Unit tests for `registerFormNotifySubscriber` (C-009, REQ-12, AC-17/18, EC-06).

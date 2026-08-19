@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { HeuristicSpamCheck } from "../spam.heuristic";
-import type { CommentSubmission } from "../types";
+import { HeuristicSpamCheck } from "../spam.heuristic.js";
+import type { CommentSubmission } from "../types.js";
 
 function submission(overrides: Partial<CommentSubmission> = {}): CommentSubmission {
   return {

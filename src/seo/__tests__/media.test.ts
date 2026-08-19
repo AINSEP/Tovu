@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryAssetRenditionRepo, InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "../../media";
-import type { AssetRenditionRecord, MediaRecord, TransformDefinitionRecord } from "../../media";
-import { resolveSeoImageRef } from "../media";
+import { InMemoryAssetRenditionRepo, InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "../../media/index.js";
+import type { AssetRenditionRecord, MediaRecord, TransformDefinitionRecord } from "../../media/index.js";
+import { resolveSeoImageRef } from "../media.js";
 
 /**
  * @file T023 — failing-first unit certification of `resolveSeoImageRef`

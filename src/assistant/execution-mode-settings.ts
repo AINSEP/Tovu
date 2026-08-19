@@ -1,5 +1,5 @@
 import type { UUID } from "@jini-ai/cms/core";
-import { type EnsureSettingDefinitionsDeps, type SettingDefinitionSpec } from "../features/settings.js";
+import { type EnsureSettingDefinitionsDeps, type SettingDefinitionSpec } from "../features/settings/index.js";
 
 /**
  * @file Boot-time `core.execution.*` setting-definition registration for the

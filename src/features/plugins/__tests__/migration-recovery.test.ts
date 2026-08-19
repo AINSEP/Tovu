@@ -6,10 +6,10 @@ import test from "node:test";
 
 import Database from "better-sqlite3";
 
-import { declareDataModule } from "../data-module";
-import { beginJournalEntry, ensureMigrationJournal } from "../migration-journal";
-import { recoverIncompleteDataModuleMigrations } from "../migration-recovery";
-import { snapshotDb } from "../snapshot";
+import { declareDataModule } from "../data-module.js";
+import { beginJournalEntry, ensureMigrationJournal } from "../migration-journal.js";
+import { recoverIncompleteDataModuleMigrations } from "../migration-recovery.js";
+import { snapshotDb } from "../snapshot.js";
 
 /**
  * @file ADR-023 §2 — boot-time crash recovery. Simulates a process death mid-DDL (a journal entry
@@ -114,7 +114,7 @@ test("a COMMITTED entry is left alone — recovery is a no-op for a successful p
   ensureMigrationJournal(db);
   const id = beginJournalEntry({ db, pluginId: "done-plugin", snapshotPath: snapshotPath! }); // real tmpdir file — never null
   db.prepare(`CREATE TABLE "p_done_plugin__real" (id TEXT PRIMARY KEY)`).run();
-  const { advanceJournalPhase } = await import("../migration-journal");
+  const { advanceJournalPhase } = await import("../migration-journal.js");
   advanceJournalPhase({ db, id, phase: "COMMITTED" });
   db.close();
 

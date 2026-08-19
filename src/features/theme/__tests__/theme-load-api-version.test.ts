@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { loadTheme } from "../theme";
+import { loadTheme } from "../theme.js";
 
 /**
  * @file Regression coverage for the Milestone 3 loader fix (sibling to Blocker A's request-time

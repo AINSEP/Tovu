@@ -4,7 +4,7 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
 
-import { createApp } from "../app";
+import { createApp } from "../app.js";
 
 /**
  * @file Route-level proof of REQ-14/AC-18: the `LOGIN_STRICT` profile (10

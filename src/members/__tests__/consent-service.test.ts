@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { ClockPort, IdGeneratorPort } from "@jini-ai/cms/core";
-import { InMemoryMemberConsentRepo, InMemoryMemberRepo } from "../repo.memory";
-import { checkConsent, confirmConsent, requestConsent, revokeConsent } from "../consent-service";
-import { MemberNotFoundError } from "../types";
-import type { ConsentServiceDeps } from "../consent-service";
+import { InMemoryMemberConsentRepo, InMemoryMemberRepo } from "../repo.memory.js";
+import { checkConsent, confirmConsent, requestConsent, revokeConsent } from "../consent-service.js";
+import { MemberNotFoundError } from "../types.js";
+import type { ConsentServiceDeps } from "../consent-service.js";
 
 /**
  * @file FEAT-013 Phase 3 (ADR-PIPE-013 Decision §4, D1c) — the consent

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildComponentCatalogQuery } from "../component-catalog-query";
+import { buildComponentCatalogQuery } from "../component-catalog-query.js";
 
 /**
  * @file Tests this module's own wiring — scoring/ranking over `ALL_MANIFESTS` and converting a

@@ -2,7 +2,7 @@ import * as http from "node:http";
 import type { AddressInfo } from "node:net";
 import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
 
-import { byokModelTextInput } from "./byok-model-field";
+import { byokModelTextInput } from "./byok-model-field.js";
 
 /**
  * @file BYOK Azure "incompletely supported" path (2026-08-04 dispatch, item #9).

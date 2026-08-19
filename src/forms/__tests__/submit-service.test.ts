@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryEventBus, InMemoryOutbox } from "../../core/events";
+import { InMemoryEventBus, InMemoryOutbox } from "../../core/events/index.js";
 import { createRateLimiter } from "#src/core/rate-limit/rate-limit";
-import { FormDefinitionNotFoundError, FormRateLimitExceededError, FormSubmissionValidationError } from "../errors";
-import { FORMS_SUBMIT_PROFILE } from "../rate-limit-profile";
-import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "../repo.memory";
-import { submitForm } from "../submit-service";
-import type { FormDefinitionRecord } from "../types";
+import { FormDefinitionNotFoundError, FormRateLimitExceededError, FormSubmissionValidationError } from "../errors.js";
+import { FORMS_SUBMIT_PROFILE } from "../rate-limit-profile.js";
+import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "../repo.memory.js";
+import { submitForm } from "../submit-service.js";
+import type { FormDefinitionRecord } from "../types.js";
 
 /**
  * @file Integration-style tests for `submitForm` (C-008, REQ-05..09/16, AC-08/09/10/13/14/15/24,

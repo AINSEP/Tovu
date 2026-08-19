@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { executionModeFromEnv } from "../execution-mode";
+import { executionModeFromEnv } from "../execution-mode.js";
 
 /** @file `executionModeFromEnv` — the safe-default contract matters most: anything other than the
  *  exact literal `"hosted-api-only"` must resolve to `"self-hosted-cli"`, never the reverse. */

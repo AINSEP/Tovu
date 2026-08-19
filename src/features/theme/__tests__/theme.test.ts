@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { loadTheme } from "../theme";
+import { loadTheme } from "../theme.js";
 
 /**
  * @file ADR-020 §3 (C6) — certifies `loadTheme()`'s lint-before-publish wiring:

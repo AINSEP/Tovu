@@ -8,8 +8,8 @@ import Database from "better-sqlite3";
 
 import { openContentDb } from "#src/db/sqlite/content-db";
 import { workspaces } from "#src/db/schema";
-import { runtimeSchemaVersion } from "../../schema-guard";
-import { bootSiteDir } from "../../boot-site-dir";
+import { runtimeSchemaVersion } from "../../schema-guard.js";
+import { bootSiteDir } from "../../boot-site-dir.js";
 
 /**
  * @file SPEC-003 C-008 (`bootSiteDir`) — TDD certification, integration tier.

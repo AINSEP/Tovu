@@ -12,7 +12,7 @@
  */
 
 /**
- * The exact literal `<link>` tag {@link import("./static-render").renderStaticPage} string-matches to
+ * The exact literal `<link>` tag {@link import("./static-render.js").renderStaticPage} string-matches to
  * splice design tokens in front of, for a v1-shaped theme (absent `theme.json` `apiVersion`, every
  * theme on disk as of this writing). A build that reorders attributes, changes quoting, or hashes the
  * stylesheet filename makes token injection silently no-op — the page renders with no error and no

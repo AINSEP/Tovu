@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { createFrontendControl } from "@jini-ai/http-kit";
 
-import { FRONTEND_CONTROL_CAPABILITIES } from "../frontend-control-capabilities";
+import { FRONTEND_CONTROL_CAPABILITIES } from "../frontend-control-capabilities.js";
 
 /**
  * @file Pins the one invariant `agent-daemon-server.ts`'s `createFrontendControl` call depends on:

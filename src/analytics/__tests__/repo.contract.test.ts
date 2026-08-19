@@ -4,11 +4,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { openContentDb } from "../../db/sqlite/content-db";
-import { SqliteBufferSink } from "../../db/sqlite/analytics-sink.sqlite";
-import { LocalBufferSink } from "../repo.memory";
-import type { AnalyticsSinkPort } from "../ports";
-import type { NormalizedHit } from "../types";
+import { openContentDb } from "../../db/sqlite/content-db.js";
+import { SqliteBufferSink } from "../../db/sqlite/analytics-sink.sqlite.js";
+import { LocalBufferSink } from "../repo.memory.js";
+import type { AnalyticsSinkPort } from "../ports.js";
+import type { NormalizedHit } from "../types.js";
 
 /**
  * @file ADR-046 Phase 1 (final capability slice) — shared contract-test suite for

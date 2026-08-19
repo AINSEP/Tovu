@@ -3,13 +3,13 @@ import test from "node:test";
 
 import express from "express";
 
-import type { KeyringPort } from "../../webhooks/index";
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm";
-import { createRouteDeps } from "../app";
-import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth";
-import { createMediaModule } from "../modules/media";
-import type { RouteDeps } from "../routes/types";
-import { bootAuthenticated, startTestServer } from "./helpers/http-test-server";
+import type { KeyringPort } from "../../webhooks/index.js";
+import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import { createRouteDeps } from "../app.js";
+import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth.js";
+import { createMediaModule } from "../modules/media.js";
+import type { RouteDeps } from "../routes/types.js";
+import { bootAuthenticated, startTestServer } from "./helpers/http-test-server.js";
 
 /**
  * @file Route-level tests for the 2 media-provider-credential routes (GET/PUT

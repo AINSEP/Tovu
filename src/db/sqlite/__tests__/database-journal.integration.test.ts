@@ -4,8 +4,8 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { openDatabaseJournalDb } from "../database-journal-db";
-import { SqliteMigrationRunsRepo, SqliteRestorePointsRepo, SqliteDatabaseLedgerRepo } from "../database-journal-repo";
+import { openDatabaseJournalDb } from "../database-journal-db.js";
+import { SqliteMigrationRunsRepo, SqliteRestorePointsRepo, SqliteDatabaseLedgerRepo } from "../database-journal-repo.js";
 
 /**
  * @file ADR-041 §2/§4 — integration tests for the sidecar `ops/database-journal.db` schema +

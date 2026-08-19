@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { initSite } from "../../init-site";
+import { initSite } from "../../init-site.js";
 
 /**
  * @file SPEC-003 C-007 (`initSite`) — TDD certification, integration tier: fault injection.

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { resolveBoundedHistory } from "../history";
+import { resolveBoundedHistory } from "../history.js";
 
 /**
  * SPEC-046 REQ-3 — `history` is client-supplied and untrusted (forgeable), so this proves the fail-

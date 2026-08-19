@@ -4,13 +4,13 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { openContentDb } from "../../db/sqlite/content-db";
+import { openContentDb } from "../../db/sqlite/content-db.js";
 // Side-effect import: registers the real BASE_CATALOG + the real permission-migration pairs
 // (navigation.manage -> admin.menus.*, integration.manage -> admin.integrations.manage) before
 // the tests below run. Reaches the barrel rather than `permissions.ts` directly because the
 // package does not publish that module as its own subpath; loading the barrel loads it.
 import "@jini-ai/cms/identity";
-import { createInMemoryIdentityRouteDeps, createSqliteIdentityRouteDeps } from "../wiring";
+import { createInMemoryIdentityRouteDeps, createSqliteIdentityRouteDeps } from "../wiring.js";
 
 const WORKSPACE = "workspace-1";
 const fixedClock = { nowIso: () => "2026-07-14T00:00:00.000Z" };

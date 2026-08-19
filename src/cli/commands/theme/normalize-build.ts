@@ -1,7 +1,7 @@
 import path from "node:path";
 
-import { ValidationError } from "../../../site-dir";
-import { normalizeBuildOutputDirectory, type NormalizeBuildOutputResult } from "../../../features/theme/index";
+import { ValidationError } from "../../../site-dir/index.js";
+import { normalizeBuildOutputDirectory, type NormalizeBuildOutputResult } from "../../../features/theme/index.js";
 
 /**
  * @file `tovu theme normalize-build <dir> --primary-stylesheet <file> [--pages <a.html,b.html>] [--json]`

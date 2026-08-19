@@ -4,13 +4,13 @@ import test from "node:test";
 import type { SurfaceEmitter } from "@jini-ai/core";
 import type { ToolRegistration } from "@jini-ai/cms/core";
 
-import { DEMO_CHOICES_TOOL_ID, buildDemoChoicesRegistrations } from "../demo-choices-tool";
+import { DEMO_CHOICES_TOOL_ID, buildDemoChoicesRegistrations } from "../demo-choices-tool.js";
 import {
   SURFACE_DISMISSED_PARAM,
   SURFACE_EXCHANGE_ID_PARAM,
   createSurfaceExchangeStore,
   type SurfaceExchangeStore,
-} from "../../core/tool-surface-exchanges";
+} from "../../core/tool-surface-exchanges.js";
 
 /**
  * @file The single-call MCP-UI return path, end to end through a real tool handler (ADR-055

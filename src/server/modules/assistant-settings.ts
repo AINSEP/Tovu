@@ -1,13 +1,13 @@
-import { registerAdminAssistantGetSettingsRoute } from "../routes/admin/assistant/get-settings";
-import { registerAdminAssistantPutSettingsRoute } from "../routes/admin/assistant/put-settings";
-import { registerAdminAssistantGetSiteCredentialRoute } from "../routes/admin/assistant/get-site-credential";
-import { registerAdminAssistantPutSiteCredentialRoute } from "../routes/admin/assistant/put-site-credential";
-import { registerAdminAssistantDeleteSiteCredentialRoute } from "../routes/admin/assistant/delete-site-credential";
-import { registerAdminAssistantGetExecutionCredentialRoute } from "../routes/admin/assistant/get-execution-credential";
-import { registerAdminAssistantPutExecutionCredentialRoute } from "../routes/admin/assistant/put-execution-credential";
-import { registerAdminAssistantDeleteExecutionCredentialRoute } from "../routes/admin/assistant/delete-execution-credential";
-import type { AssistantSettingsRouteDeps } from "../routes/admin/assistant/deps";
-import type { ServerModuleHandle } from "./types";
+import { registerAdminAssistantGetSettingsRoute } from "../routes/admin/assistant/get-settings.js";
+import { registerAdminAssistantPutSettingsRoute } from "../routes/admin/assistant/put-settings.js";
+import { registerAdminAssistantGetSiteCredentialRoute } from "../routes/admin/assistant/get-site-credential.js";
+import { registerAdminAssistantPutSiteCredentialRoute } from "../routes/admin/assistant/put-site-credential.js";
+import { registerAdminAssistantDeleteSiteCredentialRoute } from "../routes/admin/assistant/delete-site-credential.js";
+import { registerAdminAssistantGetExecutionCredentialRoute } from "../routes/admin/assistant/get-execution-credential.js";
+import { registerAdminAssistantPutExecutionCredentialRoute } from "../routes/admin/assistant/put-execution-credential.js";
+import { registerAdminAssistantDeleteExecutionCredentialRoute } from "../routes/admin/assistant/delete-execution-credential.js";
+import type { AssistantSettingsRouteDeps } from "../routes/admin/assistant/deps.js";
+import type { ServerModuleHandle } from "./types.js";
 
 /**
  * @file ADR-046 Phase 3 / ADR-058 / admin-BYOK-keystore design — the `assistant-settings` server

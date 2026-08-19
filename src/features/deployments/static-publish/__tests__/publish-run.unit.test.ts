@@ -8,10 +8,10 @@ import type { DeployFile, DeployPublishInput, DeployPublishResult, DeployTarget 
 
 import { createRouteDeps } from "#src/server/app";
 
-import type { StaticPublishDeps, StaticPublishInput } from "../adapter";
-import { InMemoryPublishHistoryStore } from "../publish-history";
-import { getPublishRunSnapshot, runPublishAndAwait, startPublishRun } from "../publish-run";
-import type { PublishCredentialSource } from "../types";
+import type { StaticPublishDeps, StaticPublishInput } from "../adapter.js";
+import { InMemoryPublishHistoryStore } from "../publish-history.js";
+import { getPublishRunSnapshot, runPublishAndAwait, startPublishRun } from "../publish-run.js";
+import type { PublishCredentialSource } from "../types.js";
 
 /**
  * @file `publish-run.ts`'s publish-history wiring (Defect 2, 2026-08-16) — the single-flight guard

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { openContentDb } from "../../db/sqlite/content-db";
+import { openContentDb } from "../../db/sqlite/content-db.js";
 import {
   InMemoryMagicLinkTokenRepo,
   InMemoryMemberConsentRepo,
@@ -9,7 +9,7 @@ import {
   InMemoryMemberSessionRepo,
   InMemoryMemberSubscriptionRepo,
   InMemoryMemberTierRepo,
-} from "../repo.memory";
+} from "../repo.memory.js";
 import {
   SqliteMagicLinkTokenRepo,
   SqliteMemberConsentRepo,
@@ -17,7 +17,7 @@ import {
   SqliteMemberSessionRepo,
   SqliteMemberSubscriptionRepo,
   SqliteMemberTierRepo,
-} from "../repo.sqlite";
+} from "../repo.sqlite.js";
 import type {
   MagicLinkTokenRepoPort,
   MemberConsentRepoPort,
@@ -25,7 +25,7 @@ import type {
   MemberSessionRepoPort,
   MemberSubscriptionRepoPort,
   MemberTierRepoPort,
-} from "../ports";
+} from "../ports.js";
 
 /**
  * @file T036/C-002 (ADR-PIPE-013 Decision §5, Article IV rule-of-two) —

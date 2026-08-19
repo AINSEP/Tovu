@@ -1,7 +1,7 @@
 import path from "node:path";
 import { defineConfig, devices } from "@playwright/test";
 
-import { STORAGE_STATE_PATH } from "./e2e/adversarial.globalSetup";
+import { STORAGE_STATE_PATH } from "./e2e/adversarial.globalSetup.js";
 
 /**
  * @file Adversarial surface-abuse + resilience E2E config (2026-08-04 dispatch: "Surface abuse +

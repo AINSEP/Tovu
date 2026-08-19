@@ -11,7 +11,7 @@ import {
   statusForEventKind,
   TERMINAL_PAYMENT_STATUSES,
   type PaymentStatus,
-} from "../state-machine";
+} from "../state-machine.js";
 
 const ALL: readonly PaymentStatus[] = [
   "pending",

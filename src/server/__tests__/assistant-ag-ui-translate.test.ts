@@ -9,7 +9,7 @@ import {
   reduceAgentWirePayload,
   terminalReasonNotice,
   translateAgentEventToAgUi,
-} from "../modules/assistant-ag-ui";
+} from "../modules/assistant-ag-ui.js";
 
 /**
  * @file Pure-function coverage for `assistant-ag-ui.ts`'s two translation steps — no daemon, no

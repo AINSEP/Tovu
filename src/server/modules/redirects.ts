@@ -1,12 +1,12 @@
-import { registerAdminRedirectCreateRoute } from "../routes/admin/redirects/create";
-import { registerAdminRedirectGetRoute } from "../routes/admin/redirects/get-by-id";
-import { registerAdminRedirectHitsRoute } from "../routes/admin/redirects/hits";
-import { registerAdminRedirectImportRoute } from "../routes/admin/redirects/import";
-import { registerAdminRedirectListRoute } from "../routes/admin/redirects/list";
-import { registerAdminRedirectTombstoneRoute } from "../routes/admin/redirects/tombstone";
-import { registerAdminRedirectUpdateRoute } from "../routes/admin/redirects/update";
-import type { RedirectRouteDeps } from "../http/admin/redirects";
-import type { ServerModuleHandle } from "./types";
+import { registerAdminRedirectCreateRoute } from "../routes/admin/redirects/create.js";
+import { registerAdminRedirectGetRoute } from "../routes/admin/redirects/get-by-id.js";
+import { registerAdminRedirectHitsRoute } from "../routes/admin/redirects/hits.js";
+import { registerAdminRedirectImportRoute } from "../routes/admin/redirects/import.js";
+import { registerAdminRedirectListRoute } from "../routes/admin/redirects/list.js";
+import { registerAdminRedirectTombstoneRoute } from "../routes/admin/redirects/tombstone.js";
+import { registerAdminRedirectUpdateRoute } from "../routes/admin/redirects/update.js";
+import type { RedirectRouteDeps } from "../http/admin/redirects.js";
+import type { ServerModuleHandle } from "./types.js";
 
 /**
  * @file ADR-046 Phase 3 (SPEC-041) — the `redirects` server module (SPEC-009 Redirects admin

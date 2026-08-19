@@ -4,11 +4,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { consumeConfirmationToken, issueConfirmationToken, type ConfirmationDeps } from "../confirmation";
-import { NewsletterConfirmTokenInvalidError } from "../errors";
-import { InMemoryNewsletterConfirmationTokenRepo, InMemoryNewsletterSubscriptionRepo } from "../repo.memory";
-import type { MembersConsentCapability } from "../ports";
-import type { SubscriptionRow } from "../types";
+import { consumeConfirmationToken, issueConfirmationToken, type ConfirmationDeps } from "../confirmation.js";
+import { NewsletterConfirmTokenInvalidError } from "../errors.js";
+import { InMemoryNewsletterConfirmationTokenRepo, InMemoryNewsletterSubscriptionRepo } from "../repo.memory.js";
+import type { MembersConsentCapability } from "../ports.js";
+import type { SubscriptionRow } from "../types.js";
 
 const WS = "ws-1";
 let now = "2026-07-13T00:00:00.000Z";

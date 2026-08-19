@@ -3,8 +3,8 @@ import test from "node:test";
 
 import { DeployError } from "@jini-ai/devops/deploy";
 
-import { createGitHubCommitAdapter } from "../github-git-provider";
-import type { CommitFile } from "../commit-site";
+import { createGitHubCommitAdapter } from "../github-git-provider.js";
+import type { CommitFile } from "../commit-site.js";
 
 /**
  * @file `github-git-provider.ts`'s proof — EVERY call goes through a stubbed `global.fetch`. No real

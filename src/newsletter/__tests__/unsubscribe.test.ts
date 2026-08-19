@@ -5,11 +5,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildUnsubscribeLink, processUnsubscribe, type UnsubscribeDeps, type UnsubscribeTokenClaims } from "../unsubscribe";
-import { NewsletterUnsubscribeTokenInvalidError } from "../errors";
-import { InMemoryNewsletterSubscriptionRepo } from "../repo.memory";
-import type { MembersConsentCapability } from "../ports";
-import type { SubscriptionRow } from "../types";
+import { buildUnsubscribeLink, processUnsubscribe, type UnsubscribeDeps, type UnsubscribeTokenClaims } from "../unsubscribe.js";
+import { NewsletterUnsubscribeTokenInvalidError } from "../errors.js";
+import { InMemoryNewsletterSubscriptionRepo } from "../repo.memory.js";
+import type { MembersConsentCapability } from "../ports.js";
+import type { SubscriptionRow } from "../types.js";
 
 const WS = "ws-1";
 const NOW = "2026-07-13T00:00:00.000Z";

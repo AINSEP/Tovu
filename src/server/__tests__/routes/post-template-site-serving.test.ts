@@ -6,12 +6,12 @@ import express from "express";
 
 import type { PostRecord } from "#src/features/post/index";
 import type { DiscoveredTheme } from "#src/features/theme/index";
-import { createRouteDeps } from "../../app";
-import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth";
-import { createContentModule } from "../../modules/content";
-import { registerSiteRoutes } from "../../routes/site/pages";
-import type { RouteDeps } from "../../routes/types";
-import { bootAuthenticated, startTestServer } from "../helpers/http-test-server";
+import { createRouteDeps } from "../../app.js";
+import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth.js";
+import { createContentModule } from "../../modules/content.js";
+import { registerSiteRoutes } from "../../routes/site/pages.js";
+import type { RouteDeps } from "../../routes/types.js";
+import { bootAuthenticated, startTestServer } from "../helpers/http-test-server.js";
 
 /**
  * @file End-to-end coverage for the two post/theme-page routing decisions that had none, through a

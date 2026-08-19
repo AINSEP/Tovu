@@ -2,7 +2,7 @@ import * as http from "node:http";
 import type { AddressInfo } from "node:net";
 import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
 
-import { setByokModel } from "./byok-model-field";
+import { setByokModel } from "./byok-model-field.js";
 
 /**
  * @file BYOK key-handling edge cases + leakage battery (2026-08-04 dispatch, Item 6).

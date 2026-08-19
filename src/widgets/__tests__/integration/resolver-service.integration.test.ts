@@ -2,12 +2,12 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryEntryRepo } from "#src/features/entries/index";
-import { buildWidgetInstanceFieldsJson } from "../../entry-payload";
-import { CORE_RESOLVERS, resolveWidgetType } from "../../resolvers/index";
-import { resolvePageWidgets } from "../../resolver-service";
-import { InMemoryWidgetRegionBindingRepo } from "../../repo.memory";
-import { WIDGET_AREA_CONTENT_TYPE, WIDGET_CONTENT_TYPE } from "../../types";
-import type { WidgetInstanceView, WidgetResolveContext, WidgetResolveResult, WidgetResolver } from "../../types";
+import { buildWidgetInstanceFieldsJson } from "../../entry-payload.js";
+import { CORE_RESOLVERS, resolveWidgetType } from "../../resolvers/index.js";
+import { resolvePageWidgets } from "../../resolver-service.js";
+import { InMemoryWidgetRegionBindingRepo } from "../../repo.memory.js";
+import { WIDGET_AREA_CONTENT_TYPE, WIDGET_CONTENT_TYPE } from "../../types.js";
+import type { WidgetInstanceView, WidgetResolveContext, WidgetResolveResult, WidgetResolver } from "../../types.js";
 
 /**
  * @file C-003/C-004 the resolution pipeline — SPEC-043 REQ-23..28, AC-16..20, INV-05.

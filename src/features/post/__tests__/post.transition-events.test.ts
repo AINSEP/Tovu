@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { DomainEvent, OutboxPort } from "@jini-ai/cms/core";
-import { updatePost } from "../post";
-import { InMemoryPostRepo } from "../repo.memory";
+import { updatePost } from "../post.js";
+import { InMemoryPostRepo } from "../repo.memory.js";
 
 /**
  * @file T004 — failing-first certification of `updatePost`'s 4-row

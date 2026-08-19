@@ -5,7 +5,7 @@ import test from "node:test";
 import type { PostRecord } from "#src/features/post/index";
 import { loadTheme } from "#src/features/theme/index";
 import type { ResolvePageWidgetsResult } from "#src/widgets/resolver-service";
-import { renderSite } from "../render";
+import { renderSite } from "../render.js";
 
 /**
  * @file ADR-020 §3 (C6), Handlebars tier — end-to-end `renderSite` through the

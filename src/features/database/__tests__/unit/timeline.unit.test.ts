@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { getTimeline } from "../../timeline";
+import { getTimeline } from "../../timeline.js";
 
 /**
  * @file SPEC-017 C-101 / REQ-01 / REQ-04 / REQ-05 / AC-01 / AC-04 / AC-05 — the Timeline read model.
@@ -72,7 +72,7 @@ test("REQ-04 / AC-34-adjacent: getTimeline rejects a limit above 200 (no raw SQL
 });
 
 test("AC-05 / REQ-05: this module exposes no raw-row-edit, SQL-console, or DB-first-mode function — only getTimeline is exported", async () => {
-  const timelineModule = await import("../../timeline");
+  const timelineModule = await import("../../timeline.js");
   const exportedNames = Object.keys(timelineModule);
   const disallowed = exportedNames.filter((name) => /rawQuery|sqlConsole|editRow|runSql/i.test(name));
   assert.deepEqual(disallowed, [], "AC-05: no raw-SQL/edit/DB-first-mode surface may exist in this module");

@@ -11,7 +11,7 @@ import {
   DELEGATED_TOOL_CALLS_PATH,
   ensureAgentDaemonToken,
   requireAgentDaemonToken,
-} from "../daemon-auth";
+} from "../daemon-auth.js";
 
 /**
  * @file Real-HTTP coverage for the agent daemon's caller gate (`assistant/daemon-auth.ts`).

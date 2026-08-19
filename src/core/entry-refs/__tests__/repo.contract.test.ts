@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { openContentDb } from "#src/db/sqlite/content-db";
-import { InMemoryEntryRefsRepo } from "../repo.memory";
+import { InMemoryEntryRefsRepo } from "../repo.memory.js";
 import { SqliteEntryRefsRepo } from "#src/db/sqlite/entry-refs-repo.sqlite";
-import type { EntryRefsRepoPort } from "../ports";
-import type { EntryRefRow } from "../types";
+import type { EntryRefsRepoPort } from "../ports.js";
+import type { EntryRefRow } from "../types.js";
 
 /**
  * @file Shared contract-test suite for `EntryRefsRepoPort`, run against both `repo.memory.ts` and

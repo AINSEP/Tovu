@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { executeMigrateForward } from "../../migrate-forward/execute";
+import { executeMigrateForward } from "../../migrate-forward/execute.js";
 
 /**
  * @file SPEC-017 C-105 / CIC U-003 (binding reference to SPEC-019 CIC U-001) / REQ-08 / AC-09 /

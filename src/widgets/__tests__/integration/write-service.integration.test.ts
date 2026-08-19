@@ -4,15 +4,15 @@ import test from "node:test";
 import { InMemoryEntryRefsRepo } from "#src/core/entry-refs/repo.memory";
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
 import { InMemoryEntryRepo } from "#src/features/entries/index";
-import { bindWidgetArea, mutateWidgetAreaPlacements, type RegionAreaServiceDeps } from "../../region-area-service";
-import { InMemoryWidgetRegionBindingRepo } from "../../repo.memory";
+import { bindWidgetArea, mutateWidgetAreaPlacements, type RegionAreaServiceDeps } from "../../region-area-service.js";
+import { InMemoryWidgetRegionBindingRepo } from "../../repo.memory.js";
 import {
   createWidgetInstance,
   purgeWidgetInstance,
   trashWidgetInstance,
   updateWidgetInstance,
   type WidgetWriteServiceDeps,
-} from "../../write-service";
+} from "../../write-service.js";
 
 /**
  * @file C-005 widget-instance CRUD — SPEC-043 REQ-01..06/42/43, AC-01..04/29, INV-01/09.

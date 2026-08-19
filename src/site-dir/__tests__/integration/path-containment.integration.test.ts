@@ -6,9 +6,9 @@ import test from "node:test";
 
 import { openContentDb } from "#src/db/sqlite/content-db";
 import { workspaces } from "#src/db/schema";
-import { runtimeSchemaVersion } from "../../schema-guard";
-import { initSite } from "../../init-site";
-import { bootSiteDir } from "../../boot-site-dir";
+import { runtimeSchemaVersion } from "../../schema-guard.js";
+import { initSite } from "../../init-site.js";
+import { bootSiteDir } from "../../boot-site-dir.js";
 
 /**
  * @file SPEC-003 CIC U-004 (Install-dir path containment) — TDD certification, integration tier.

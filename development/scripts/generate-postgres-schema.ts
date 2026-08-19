@@ -49,7 +49,7 @@ import path from "node:path";
 import { Column, is, Param, SQL, StringChunk } from "drizzle-orm";
 import { getTableConfig, type SQLiteColumn } from "drizzle-orm/sqlite-core";
 
-import * as schema from "../../src/db/schema";
+import * as schema from "../../src/db/schema.js";
 
 const OUT_PATH = path.resolve(__dirname, "../../src/db/schema.postgres.ts");
 const DRIZZLE_IS_TABLE = Symbol.for("drizzle:IsDrizzleTable");

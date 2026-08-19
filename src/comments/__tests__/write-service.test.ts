@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryOutbox } from "../../core/events";
-import { createCommentHookRegistry } from "../hooks";
-import { InMemoryCommentRepo } from "../repo.memory";
-import { createCommentWriteService } from "../write-service";
-import type { CommentRecord } from "../types";
+import { InMemoryOutbox } from "../../core/events/index.js";
+import { createCommentHookRegistry } from "../hooks.js";
+import { InMemoryCommentRepo } from "../repo.memory.js";
+import { createCommentWriteService } from "../write-service.js";
+import type { CommentRecord } from "../types.js";
 
 /** @file SPEC-033 — the moderation write-service: outbox events + statusChanged hook firing. */
 

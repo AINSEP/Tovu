@@ -6,13 +6,13 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { openContentDb } from "../../../src/db/sqlite/content-db";
-import { publishCredentialSets, sourceControlCredentialSets, vendorCredentialSets, workspaces } from "../../../src/db/schema";
-import { AesGcmSecretSealer } from "../../../src/webhooks/secret-sealer.aesgcm";
-import { EnvOrFileKeyring } from "../../../src/webhooks/keyring.env";
-import { buildPublishCredentialAad } from "../../../src/features/deployments/publish-credentials/aad";
-import { buildSourceControlCredentialAad } from "../../../src/features/source-control/aad";
-import { buildVendorCredentialAad } from "../../../src/features/vendor-credentials/aad";
+import { openContentDb } from "../../../src/db/sqlite/content-db.js";
+import { publishCredentialSets, sourceControlCredentialSets, vendorCredentialSets, workspaces } from "../../../src/db/schema.js";
+import { AesGcmSecretSealer } from "../../../src/webhooks/secret-sealer.aesgcm.js";
+import { EnvOrFileKeyring } from "../../../src/webhooks/keyring.env.js";
+import { buildPublishCredentialAad } from "../../../src/features/deployments/publish-credentials/aad.js";
+import { buildSourceControlCredentialAad } from "../../../src/features/source-control/aad.js";
+import { buildVendorCredentialAad } from "../../../src/features/vendor-credentials/aad.js";
 
 /**
  * @file The mandatory proof for `backfill-vendor-credentials.ts` (this dispatch's own requirement,

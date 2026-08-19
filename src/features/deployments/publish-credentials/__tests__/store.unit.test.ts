@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { AesGcmSecretSealer } from "../../../../webhooks/secret-sealer.aesgcm";
-import { InMemoryKeyring } from "../../../../webhooks/keyring.memory";
-import type { KeyringPort } from "../../../../webhooks/index";
-import { InMemoryPublishCredentialSetRepo } from "../repo.memory";
+import { AesGcmSecretSealer } from "../../../../webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../../../webhooks/keyring.memory.js";
+import type { KeyringPort } from "../../../../webhooks/index.js";
+import { InMemoryPublishCredentialSetRepo } from "../repo.memory.js";
 import {
   createPublishCredential,
   deletePublishCredential,
@@ -19,7 +19,7 @@ import {
   resolveForPublish,
   updatePublishCredential,
   type PublishCredentialWriteDeps,
-} from "../store";
+} from "../store.js";
 
 /** Always fails — simulates a missing `TOVU_INTEGRATIONS_ROOT_KEY` without touching real env state.
  *  Same double used by `server/__tests__/admin-media-provider-routes.test.ts`'s own `BrokenKeyring`

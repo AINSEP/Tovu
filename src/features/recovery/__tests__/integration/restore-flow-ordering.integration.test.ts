@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { confirmRestore, executeRestore, planRestore } from "../../recovery-orchestrator";
+import { confirmRestore, executeRestore, planRestore } from "../../recovery-orchestrator.js";
 
 /**
  * @file REQ-26/behavior.spec.md §2.1 (SPEC-019) — the restore ceremony's uniform ordering:
@@ -55,7 +55,7 @@ test("AC-36: costClass='cheap' still requires the full plan -> confirm(with disc
 });
 
 test("AC-12: the RecoveryOrchestrator module exposes exactly plan/confirm/execute as separate functions — no combined single-call restore function exists", async () => {
-  const module = await import("../../recovery-orchestrator");
+  const module = await import("../../recovery-orchestrator.js");
   const exportedNames = Object.keys(module);
 
   assert.ok(exportedNames.includes("planRestore"));

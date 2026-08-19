@@ -3,10 +3,10 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
 
-import { createApp, createRouteDeps } from "../../app";
+import { createApp, createRouteDeps } from "../../app.js";
 import { readDockerfileSource, writeDockerfileSource } from "#src/features/deployments/index";
-import { bootAuthenticated } from "../helpers/http-test-server";
-import type { RouteDeps } from "../../routes/types";
+import { bootAuthenticated } from "../helpers/http-test-server.js";
+import type { RouteDeps } from "../../routes/types.js";
 
 /**
  * @file Admin Deployment panel → Dockerfile tab — `GET`/`PUT /api/admin/v1/workspaces/:workspaceId/

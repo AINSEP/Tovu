@@ -2,11 +2,11 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
 
-import { createRouteDeps } from "../../server/app";
-import { InMemoryPostRepo } from "../../features/post";
-import { InMemoryRedirectRepo } from "../../redirects";
-import type { RedirectRecord } from "../../redirects";
-import { buildRouteManifest, type RouteManifestDeps } from "../route-manifest";
+import { createRouteDeps } from "../../server/app.js";
+import { InMemoryPostRepo } from "../../features/post/index.js";
+import { InMemoryRedirectRepo } from "../../redirects/index.js";
+import type { RedirectRecord } from "../../redirects/index.js";
+import { buildRouteManifest, type RouteManifestDeps } from "../route-manifest.js";
 
 /**
  * @file Regression coverage for `buildRouteManifest` (SPEC — static site exporter, 2026-08-15).

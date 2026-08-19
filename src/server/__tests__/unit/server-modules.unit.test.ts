@@ -3,16 +3,16 @@ import test from "node:test";
 
 import express from "express";
 
-import { createCoreModule } from "../../modules/core";
-import { createFormsModule } from "../../modules/forms";
-import { createIntegrationsModule } from "../../modules/integrations";
+import { createCoreModule } from "../../modules/core.js";
+import { createFormsModule } from "../../modules/forms.js";
+import { createIntegrationsModule } from "../../modules/integrations.js";
 import { InMemoryEventBus } from "#src/core/events/index";
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "#src/forms/repo.memory";
 import { ConsoleMailerAdapter } from "#src/members/index";
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "#src/webhooks/index";
-import { setReadinessSnapshot, getReadinessSnapshot } from "../../readiness-state";
-import { startTestServer } from "../helpers/http-test-server";
-import { createRouteDeps } from "../../app";
+import { setReadinessSnapshot, getReadinessSnapshot } from "../../readiness-state.js";
+import { startTestServer } from "../helpers/http-test-server.js";
+import { createRouteDeps } from "../../app.js";
 
 /**
  * @file SPEC-031/SPEC-039 (ADR-046 Phase 3) — unit coverage for the `ServerModuleHandle`

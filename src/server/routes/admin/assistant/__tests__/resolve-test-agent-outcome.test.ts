@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { DetectedAgent } from "@jini-ai/agent-runtime";
 
-import { resolveTestAgentOutcome } from "../resolve-test-agent-outcome";
+import { resolveTestAgentOutcome } from "../resolve-test-agent-outcome.js";
 
 /**
  * @file `resolveTestAgentOutcome` is the branch logic `test-agent.ts`'s POST route delegates to

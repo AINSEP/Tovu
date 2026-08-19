@@ -6,7 +6,7 @@ import test from "node:test";
 
 import Database from "better-sqlite3";
 
-import { openContentDb } from "../content-db";
+import { openContentDb } from "../content-db.js";
 import { beginJournalEntry, ensureMigrationJournal } from "#src/features/plugins/migration-journal";
 import { recoverIncompleteDataModuleMigrations } from "#src/features/plugins/migration-recovery";
 import { snapshotDb } from "#src/features/plugins/snapshot";

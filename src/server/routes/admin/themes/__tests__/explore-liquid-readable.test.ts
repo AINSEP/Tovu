@@ -14,8 +14,8 @@ import {
   registerAdminThemeFileGetRoute,
   registerAdminThemeFilePutRoute,
   registerAdminThemeFileResetRoute,
-} from "../explore";
-import type { ContentRouteDeps } from "../../content/deps";
+} from "../explore.js";
+import type { ContentRouteDeps } from "../../content/deps.js";
 
 /**
  * @file FIX VERIFICATION (2026-08-12 follow-up to the owner-reported `.liquid` preview bug): `.liquid`

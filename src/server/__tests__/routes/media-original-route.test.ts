@@ -3,13 +3,13 @@ import test from "node:test";
 
 import express from "express";
 
-import { bootAuthenticated } from "../helpers/http-test-server";
-import { createRouteDeps } from "../../app";
-import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth";
-import { registerAdminMediaOriginalRoute } from "../../routes/admin/media/original";
-import { registerAdminMediaTrashRoute } from "../../routes/admin/media/trash";
-import { registerAdminMediaUploadRoute } from "../../routes/admin/media/upload";
-import type { RouteDeps } from "../../routes/types";
+import { bootAuthenticated } from "../helpers/http-test-server.js";
+import { createRouteDeps } from "../../app.js";
+import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth.js";
+import { registerAdminMediaOriginalRoute } from "../../routes/admin/media/original.js";
+import { registerAdminMediaTrashRoute } from "../../routes/admin/media/trash.js";
+import { registerAdminMediaUploadRoute } from "../../routes/admin/media/upload.js";
+import type { RouteDeps } from "../../routes/types.js";
 import { uploadMedia } from "#src/media/index";
 
 /**

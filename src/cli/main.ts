@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-import { mapErrorToCliOutcome } from "./errors";
-import { printBareUsageAndExit, printUsageToStderr } from "./help";
-import { createProgram } from "./program";
+import { mapErrorToCliOutcome } from "./errors.js";
+import { printBareUsageAndExit, printUsageToStderr } from "./help.js";
+import { createProgram } from "./program.js";
 
 /**
  * @file SPEC-003 — the `tovu` bin's process entrypoint (C-001/C-002/C-003).

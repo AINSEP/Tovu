@@ -4,14 +4,14 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { checkBuiltThemeConformance } from "../build-conformance";
+import { checkBuiltThemeConformance } from "../build-conformance.js";
 import {
   normalizeBuildOutputDirectory,
   planAssetRelocation,
   rewriteBundlerHtml,
   rewriteCssRelativeUrls,
-} from "../code-tier-asset-normalizer";
-import { TOKEN_STYLESHEET_SENTINEL } from "../static-asset-contract";
+} from "../code-tier-asset-normalizer.js";
+import { TOKEN_STYLESHEET_SENTINEL } from "../static-asset-contract.js";
 
 /**
  * @file Unit coverage for `code-tier-asset-normalizer.ts`'s pure planning/rewriting core, plus one

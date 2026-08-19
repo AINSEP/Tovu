@@ -230,11 +230,11 @@ export interface VendorCredentialDualReadResult {
  * or `"legacy-source-control"`); or no row anywhere (`null` — honestly "not configured", not a
  * fallback error).
  *
- * @throws {@link import("./store").VendorCredentialSecretStoreUnconfiguredError} the new table's row
+ * @throws {@link import("./store.js").VendorCredentialSecretStoreUnconfiguredError} the new table's row
  *   failed to decrypt.
- * @throws {@link import("../deployments/publish-credentials/store").PublishCredentialSecretStoreUnconfiguredError}
+ * @throws {@link import("../deployments/publish-credentials/store.js").PublishCredentialSecretStoreUnconfiguredError}
  *   a legacy publish-table row failed to decrypt.
- * @throws {@link import("../source-control/store").SourceControlCredentialSecretStoreUnconfiguredError}
+ * @throws {@link import("../source-control/store.js").SourceControlCredentialSecretStoreUnconfiguredError}
  *   a legacy source-control-table row failed to decrypt.
  *   These three error classes are deliberately NOT unified into one — see this file's own header on
  *   why the three read paths must stay genuinely separate all the way down; a caller that needs to

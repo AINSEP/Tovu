@@ -1,10 +1,10 @@
-import { registerAdminIntegrationsCreateRoute } from "../routes/admin/integrations/create";
-import { registerAdminIntegrationsDeleteRoute } from "../routes/admin/integrations/delete";
-import { registerAdminIntegrationsDeliveriesRoute } from "../routes/admin/integrations/deliveries";
-import type { IntegrationsRouteDeps } from "../routes/admin/integrations/deps";
-import { registerAdminIntegrationsListRoute } from "../routes/admin/integrations/list";
-import { registerAdminIntegrationsPauseRoute } from "../routes/admin/integrations/pause";
-import type { ServerModuleHandle } from "./types";
+import { registerAdminIntegrationsCreateRoute } from "../routes/admin/integrations/create.js";
+import { registerAdminIntegrationsDeleteRoute } from "../routes/admin/integrations/delete.js";
+import { registerAdminIntegrationsDeliveriesRoute } from "../routes/admin/integrations/deliveries.js";
+import type { IntegrationsRouteDeps } from "../routes/admin/integrations/deps.js";
+import { registerAdminIntegrationsListRoute } from "../routes/admin/integrations/list.js";
+import { registerAdminIntegrationsPauseRoute } from "../routes/admin/integrations/pause.js";
+import type { ServerModuleHandle } from "./types.js";
 
 /**
  * @file ADR-046 Phase 3 (SPEC-034) — the `integrations-admin` server module.

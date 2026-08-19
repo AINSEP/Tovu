@@ -3,14 +3,14 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { InMemoryChangeSetRepo } from "../../core/commands";
-import { InMemoryEventBus, InMemoryOutbox } from "../../core/events";
-import { InMemoryPostRepo, InMemoryPostSearchIndex } from "../../features/post";
-import { postAgentToolCatalog, type AgentToolDefinition as PostAgentToolDefinition } from "../../features/post/agent-tools";
-import type { RouteDeps } from "../../server/routes/types";
-import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations";
-import { resetToolContributorsForTests } from "../tool-contribution-registry";
-import { contributePostTools } from "../../features/post/tool-registrations";
+import { InMemoryChangeSetRepo } from "../../core/commands/index.js";
+import { InMemoryEventBus, InMemoryOutbox } from "../../core/events/index.js";
+import { InMemoryPostRepo, InMemoryPostSearchIndex } from "../../features/post/index.js";
+import { postAgentToolCatalog, type AgentToolDefinition as PostAgentToolDefinition } from "../../features/post/agent-tools.js";
+import type { RouteDeps } from "../../server/routes/types.js";
+import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations/index.js";
+import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
+import { contributePostTools } from "../../features/post/tool-registrations.js";
 
 // Post moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
 // tool-contribution registry (2026-08-17, the last of this rollout's 25 domains — see

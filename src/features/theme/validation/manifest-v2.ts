@@ -1,7 +1,7 @@
 import type { JsonValue } from "@jini-ai/cms/core";
 
-import { isSourceDirGeneratedConflict } from "../theme-files";
-import type { ThemeValidationIssue } from "./profiles";
+import { isSourceDirGeneratedConflict } from "../theme-files.js";
+import type { ThemeValidationIssue } from "./profiles.js";
 
 /**
  * @file Strict schema check for a `theme.json` declaring `apiVersion: 2` — the settled shape from

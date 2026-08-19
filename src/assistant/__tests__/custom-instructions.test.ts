@@ -7,12 +7,12 @@ import {
   INSTRUCTIONS_NAMESPACE,
   ensureSettingsUiTabDefinitions,
   getEffective,
-} from "../../features/settings";
+} from "../../features/settings/index.js";
 import {
   createCustomInstructionsCache,
   formatCustomInstructionsOverlay,
   resolveCustomInstructions,
-} from "../custom-instructions";
+} from "../custom-instructions.js";
 
 /**
  * @file `resolveCustomInstructions`/`formatCustomInstructionsOverlay`/`createCustomInstructionsCache`

@@ -1,10 +1,10 @@
 import path from "node:path";
 
-import { createSqliteRouteDeps } from "../../server/deps";
-import { exportSite, type ExportReport } from "../../export";
-import { bootSiteDir } from "../../site-dir/boot-site-dir";
-import { resolveInstallDirTarget } from "../../site-dir/resolve-install-dir-target";
-import { ExportIncompleteError } from "../errors";
+import { createSqliteRouteDeps } from "../../server/deps.js";
+import { exportSite, type ExportReport } from "../../export/index.js";
+import { bootSiteDir } from "../../site-dir/boot-site-dir.js";
+import { resolveInstallDirTarget } from "../../site-dir/resolve-install-dir-target.js";
+import { ExportIncompleteError } from "../errors.js";
 
 /**
  * @file `tovu export <dir>` — wires a commander action's parsed arguments to the exporter engine

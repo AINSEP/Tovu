@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 
-import { setByokModel } from "./byok-model-field";
+import { setByokModel } from "./byok-model-field.js";
 
 /**
  * @file BYOK credential-persistence / multi-tab / contamination battery (2026-08-04 dispatch,

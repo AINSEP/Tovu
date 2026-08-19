@@ -4,15 +4,15 @@ import test from "node:test";
 import { menusAgentToolCatalog } from "@jini-ai/cms/navigation";
 import type { ToolDescriptor } from "@jini-ai/core";
 
-import { getRedirectsAgentToolCatalog } from "../../redirects/agent-tools";
-import { postAgentToolCatalog } from "../../features/post/agent-tools";
+import { getRedirectsAgentToolCatalog } from "../../redirects/agent-tools.js";
+import { postAgentToolCatalog } from "../../features/post/agent-tools.js";
 import {
   coerceNumericEnumStringsToNumbers,
   findNumericEnumPaths,
   runByokProviderTurn,
   sanitizeGoogleSchema,
   type ByokProviderTurnInput,
-} from "../byok-provider-turn";
+} from "../byok-provider-turn.js";
 
 /**
  * @file Regression coverage for the Gemini BYOK failure reported 2026-08-04 from the admin dock's

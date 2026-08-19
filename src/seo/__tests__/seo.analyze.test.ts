@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryPostRepo, type PostRecord } from "../../features/post";
-import { InMemorySettingsRepo } from "../../features/settings";
-import { InMemoryAssetRenditionRepo, InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "../../media";
-import { ensureSeoSettingDefinitions } from "../settings";
-import { analyzeEntry } from "../seo";
+import { InMemoryPostRepo, type PostRecord } from "../../features/post/index.js";
+import { InMemorySettingsRepo } from "../../features/settings/index.js";
+import { InMemoryAssetRenditionRepo, InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "../../media/index.js";
+import { ensureSeoSettingDefinitions } from "../settings.js";
+import { analyzeEntry } from "../seo.js";
 
 /**
  * @file T025 — failing-first unit certification of `analyzeEntry`

@@ -1,16 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { AesGcmSecretSealer } from "../../../webhooks/secret-sealer.aesgcm";
-import { InMemoryKeyring } from "../../../webhooks/keyring.memory";
-import type { KeyringPort } from "../../../webhooks/index";
-import { InMemorySourceControlCredentialSetRepo } from "../repo.memory";
+import { AesGcmSecretSealer } from "../../../webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../../webhooks/keyring.memory.js";
+import type { KeyringPort } from "../../../webhooks/index.js";
+import { InMemorySourceControlCredentialSetRepo } from "../repo.memory.js";
 import {
   createSourceControlCredential,
   resolveDefaultForSourceControl,
   SourceControlCredentialSecretStoreUnconfiguredError,
   type SourceControlCredentialWriteDeps,
-} from "../store";
+} from "../store.js";
 
 /**
  * @file `resolveDefaultForSourceControl` — the first decrypting read this feature has ever had (see

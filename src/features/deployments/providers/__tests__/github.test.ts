@@ -4,9 +4,9 @@ import test from "node:test";
 
 import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/http/index";
 
-import type { DeploymentProviderContext } from "../../ports";
-import type { DeploymentTargetRecord, ReleaseRecord } from "../../types";
-import { createGitHubDeploymentProvider, mapGitHubDeploymentStatus, sendPinned } from "../github";
+import type { DeploymentProviderContext } from "../../ports.js";
+import type { DeploymentTargetRecord, ReleaseRecord } from "../../types.js";
+import { createGitHubDeploymentProvider, mapGitHubDeploymentStatus, sendPinned } from "../github.js";
 
 /**
  * @file Regression tests for `../github.ts`.

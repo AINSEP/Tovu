@@ -3,15 +3,15 @@ import test from "node:test";
 
 import express from "express";
 
-import { bootAuthenticated } from "../helpers/http-test-server";
-import { createRouteDeps } from "../../app";
-import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth";
-import { registerAdminDatabaseRestorePointsCreateRoute } from "../../routes/admin/database/restore-points";
-import { registerAdminRecoveryRestorePointsListRoute } from "../../routes/admin/recovery/restore-points";
-import { registerAdminRecoveryDisclosureRoute } from "../../routes/admin/recovery/disclosure";
-import { registerAdminRecoveryDeepLinkRoute } from "../../routes/admin/recovery/deep-link";
-import { registerAdminRecoveryStatusRoute } from "../../routes/admin/recovery/status";
-import type { RouteDeps } from "../../routes/types";
+import { bootAuthenticated } from "../helpers/http-test-server.js";
+import { createRouteDeps } from "../../app.js";
+import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth.js";
+import { registerAdminDatabaseRestorePointsCreateRoute } from "../../routes/admin/database/restore-points.js";
+import { registerAdminRecoveryRestorePointsListRoute } from "../../routes/admin/recovery/restore-points.js";
+import { registerAdminRecoveryDisclosureRoute } from "../../routes/admin/recovery/disclosure.js";
+import { registerAdminRecoveryDeepLinkRoute } from "../../routes/admin/recovery/deep-link.js";
+import { registerAdminRecoveryStatusRoute } from "../../routes/admin/recovery/status.js";
+import type { RouteDeps } from "../../routes/types.js";
 import { acquireOperationLock, releaseOperationLock } from "#src/core/operation-lock";
 
 /**

@@ -2,13 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryPrincipalRepo } from "@jini-ai/cms/identity";
-import { InMemorySettingsRepo } from "../../features/settings";
-import { CommentsSettingsValidationError } from "../errors";
+import { InMemorySettingsRepo } from "../../features/settings/index.js";
+import { CommentsSettingsValidationError } from "../errors.js";
 import {
   ensureCommentsSettingDefinitions,
   getCommentsSettings,
   setCommentsSettings,
-} from "../settings";
+} from "../settings.js";
 
 /**
  * @file SPEC-035 — `ensureCommentsSettingDefinitions`/`getCommentsSettings`/`setCommentsSettings`,

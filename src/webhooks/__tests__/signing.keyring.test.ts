@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createKeyringBackedSigner } from "../signing.keyring";
-import { createFixedSecretSigner, verifySignature } from "../signing";
-import type { KeyringPort } from "../ports";
-import type { WebhookSubscriptionRecord } from "../types";
+import { createKeyringBackedSigner } from "../signing.keyring.js";
+import { createFixedSecretSigner, verifySignature } from "../signing.js";
+import type { KeyringPort } from "../ports.js";
+import type { WebhookSubscriptionRecord } from "../types.js";
 
 function makeSubscription(overrides: Partial<WebhookSubscriptionRecord> = {}): WebhookSubscriptionRecord {
   return {

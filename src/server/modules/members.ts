@@ -1,12 +1,12 @@
-import { registerAdminMemberListRoute } from "../routes/admin/members/list";
-import { registerAdminMemberGetRoute } from "../routes/admin/members/get-by-id";
-import { registerAdminMemberDisableRoute } from "../routes/admin/members/disable";
-import { registerAdminMemberRequestMagicLinkRoute } from "../routes/admin/members/request-magic-link";
-import type { MembersRouteDeps } from "../routes/admin/members/deps";
-import { registerPublicMemberSignInRequestRoute } from "../routes/members/sign-in";
-import { registerPublicMemberCompleteSignInRoute } from "../routes/members/complete-sign-in";
-import type { MemberPublicRouteDeps } from "../routes/members/deps";
-import type { ServerModuleHandle } from "./types";
+import { registerAdminMemberListRoute } from "../routes/admin/members/list.js";
+import { registerAdminMemberGetRoute } from "../routes/admin/members/get-by-id.js";
+import { registerAdminMemberDisableRoute } from "../routes/admin/members/disable.js";
+import { registerAdminMemberRequestMagicLinkRoute } from "../routes/admin/members/request-magic-link.js";
+import type { MembersRouteDeps } from "../routes/admin/members/deps.js";
+import { registerPublicMemberSignInRequestRoute } from "../routes/members/sign-in.js";
+import { registerPublicMemberCompleteSignInRoute } from "../routes/members/complete-sign-in.js";
+import type { MemberPublicRouteDeps } from "../routes/members/deps.js";
+import type { ServerModuleHandle } from "./types.js";
 
 /**
  * @file ADR-046 Phase 3 (SPEC-038) — the `members` server module (ADR-030 Members admin CRUD +

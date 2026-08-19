@@ -3,14 +3,14 @@ import test from "node:test";
 
 import express from "express";
 
-import { InMemoryContentTypeRepo } from "../../features/content-types";
-import type { ContentTypeRevisionInput } from "../../features/content-types";
-import { buildAssistantToolRegistrations } from "../../assistant/tool-registrations";
-import { createRouteDeps } from "../app";
-import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth";
-import { createContentTypesModule } from "../modules/content-types";
-import type { RouteDeps } from "../routes/types";
-import { startTestServer } from "./helpers/http-test-server";
+import { InMemoryContentTypeRepo } from "../../features/content-types/index.js";
+import type { ContentTypeRevisionInput } from "../../features/content-types/index.js";
+import { buildAssistantToolRegistrations } from "../../assistant/tool-registrations/index.js";
+import { createRouteDeps } from "../app.js";
+import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth.js";
+import { createContentTypesModule } from "../modules/content-types.js";
+import type { RouteDeps } from "../routes/types.js";
+import { startTestServer } from "./helpers/http-test-server.js";
 
 /**
  * @file Audit-trail provenance on the `content_types` write chokepoint (ADR-022 §1/§4's

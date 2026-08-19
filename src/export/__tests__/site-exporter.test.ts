@@ -5,9 +5,9 @@ import path from "node:path";
 import test from "node:test";
 
 import type { UUID } from "@jini-ai/cms/core";
-import { createRouteDeps } from "../../server/app";
-import type { PostRepoPort, PostRecord } from "../../features/post";
-import { ExportOutputNotEmptyError, exportSite } from "../site-exporter";
+import { createRouteDeps } from "../../server/app.js";
+import type { PostRepoPort, PostRecord } from "../../features/post/index.js";
+import { ExportOutputNotEmptyError, exportSite } from "../site-exporter.js";
 
 /**
  * @file Regression coverage for `exportSite` (SPEC — static site exporter, 2026-08-15).

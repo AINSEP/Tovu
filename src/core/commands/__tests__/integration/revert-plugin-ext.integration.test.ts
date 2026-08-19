@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { revertChangeSet } from "../..";
-import { InMemoryChangeSetRepo } from "../../repo.memory";
+import { revertChangeSet } from "../../index.js";
+import { InMemoryChangeSetRepo } from "../../repo.memory.js";
 import { createPostRevertRegistry, InMemoryPostRepo } from "#src/features/post/index";
 import type { ChangeSetItemRecord, ChangeSetRecord } from "@jini-ai/cms/core";
 import type { PostRepoPort, PostReverterDeps } from "#src/features/post/index";

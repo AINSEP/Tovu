@@ -4,13 +4,13 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { createSqliteRouteDeps, defaultDatabaseJournalDbPath } from "../../deps";
-import { buildBootModules } from "../../bootstrap";
-import { runBootLifecycle } from "../../boot-lifecycle";
-import { createApp } from "../../app";
+import { createSqliteRouteDeps, defaultDatabaseJournalDbPath } from "../../deps.js";
+import { buildBootModules } from "../../bootstrap.js";
+import { runBootLifecycle } from "../../boot-lifecycle.js";
+import { createApp } from "../../app.js";
 import { openDatabaseJournalDb } from "#src/db/sqlite/database-journal-db";
 import { SqliteMigrationRunsRepo } from "#src/db/sqlite/database-journal-repo";
-import { loginAsOwner, startTestServer } from "../helpers/http-test-server";
+import { loginAsOwner, startTestServer } from "../helpers/http-test-server.js";
 
 /**
  * @file ADR-041/043/044/045 re-audit (2026-07-16, TM-adr041-043-044-045-audit-001, Finding 2 —

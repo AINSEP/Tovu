@@ -16,24 +16,24 @@ import test from "node:test";
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
 import { ForbiddenError } from "@jini-ai/cms/core";
-import { InMemoryPostRepo } from "../../features/post";
-import type { PostRecord } from "../../features/post/post";
-import { InMemorySettingsRepo } from "../../features/settings";
+import { InMemoryPostRepo } from "../../features/post/index.js";
+import type { PostRecord } from "../../features/post/post.js";
+import { InMemorySettingsRepo } from "../../features/settings/index.js";
 import { InMemoryPrincipalRepo } from "@jini-ai/cms/identity";
 import {
   InMemoryAssetRenditionRepo,
   InMemoryMediaRepo,
   InMemoryTransformDefinitionRepo,
-} from "../../media";
-import { getSeoAgentToolCatalog, type AgentToolDefinition } from "../../seo/agent-tools";
-import { ensureSeoSettingDefinitions, getSeoSettings } from "../../seo/settings";
-import { contributeSeoTools } from "../../seo/tool-registrations";
-import type { RouteDeps } from "../../server/routes/types";
+} from "../../media/index.js";
+import { getSeoAgentToolCatalog, type AgentToolDefinition } from "../../seo/agent-tools.js";
+import { ensureSeoSettingDefinitions, getSeoSettings } from "../../seo/settings.js";
+import { contributeSeoTools } from "../../seo/tool-registrations.js";
+import type { RouteDeps } from "../../server/routes/types.js";
 import {
   assertRiskMetadataIsWirable,
   buildAssistantToolRegistrations,
-} from "../tool-registrations";
-import { resetToolContributorsForTests } from "../tool-contribution-registry";
+} from "../tool-registrations/index.js";
+import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
 
 // SEO moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
 // tool-contribution registry (2026-08-17, Stage 2 batch 2 — see `tool-contribution-registry.ts`'s

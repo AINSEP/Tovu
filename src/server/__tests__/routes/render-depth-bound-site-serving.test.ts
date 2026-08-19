@@ -3,10 +3,10 @@ import test from "node:test";
 
 import express from "express";
 
-import { InMemoryPostRepo } from "../../../features/post";
-import { createRouteDeps } from "../../app";
-import { registerSiteRoutes } from "../../routes/site/pages";
-import { startTestServer } from "../helpers/http-test-server";
+import { InMemoryPostRepo } from "../../../features/post/index.js";
+import { createRouteDeps } from "../../app.js";
+import { registerSiteRoutes } from "../../routes/site/pages.js";
+import { startTestServer } from "../helpers/http-test-server.js";
 
 /**
  * @file Worklist #5 regression (TM-TOVU-2026-08-12-A request-cost audit) — end-to-end half.

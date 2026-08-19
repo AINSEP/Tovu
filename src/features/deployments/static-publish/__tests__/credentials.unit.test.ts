@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { AesGcmSecretSealer } from "../../../../webhooks/secret-sealer.aesgcm";
-import { InMemoryKeyring } from "../../../../webhooks/keyring.memory";
-import { createPublishCredential, type PublishCredentialWriteDeps } from "../../publish-credentials/store";
-import { InMemoryPublishCredentialSetRepo } from "../../publish-credentials/repo.memory";
-import { composePublishCredentialSource, createDbPublishCredentialSource, createEnvPublishCredentialSource } from "../credentials";
+import { AesGcmSecretSealer } from "../../../../webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../../../webhooks/keyring.memory.js";
+import { createPublishCredential, type PublishCredentialWriteDeps } from "../../publish-credentials/store.js";
+import { InMemoryPublishCredentialSetRepo } from "../../publish-credentials/repo.memory.js";
+import { composePublishCredentialSource, createDbPublishCredentialSource, createEnvPublishCredentialSource } from "../credentials.js";
 
 /**
  * @file `createEnvPublishCredentialSource` (bound to one workspace, refuses any other — Terra's

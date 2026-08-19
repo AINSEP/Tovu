@@ -8,7 +8,7 @@ import {
   type AuthorizeFn,
   type CommandMutation,
 } from "@jini-ai/cms/core";
-import { InMemoryChangeSetRepo } from "../repo.memory";
+import { InMemoryChangeSetRepo } from "../repo.memory.js";
 
 /**
  * @file SPEC-006 REQ-05/INV-04 — the gateway's `authorize()` gate.

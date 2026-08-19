@@ -10,9 +10,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryPaymentCredentials } from "../credentials";
-import type { PaymentProvider } from "../ports";
-import { chargeOk, cleanup, makeLipay, refundOk, SECRET_KEY, WORKSPACE_ID } from "./support";
+import { InMemoryPaymentCredentials } from "../credentials.js";
+import type { PaymentProvider } from "../ports.js";
+import { chargeOk, cleanup, makeLipay, refundOk, SECRET_KEY, WORKSPACE_ID } from "./support.js";
 
 const USD = (minorUnits: number) => ({ minorUnits, currency: "USD" });
 

@@ -1,17 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { bootAuthenticated } from "../helpers/http-test-server";
+import { bootAuthenticated } from "../helpers/http-test-server.js";
 
 import express from "express";
 
-import { createRouteDeps } from "../../app";
-import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth";
-import { registerAdminSettingsClearRoute } from "../../routes/admin/settings/clear";
-import { registerAdminSettingsRegisterDefinitionsRoute } from "../../routes/admin/settings/register-definitions";
-import { registerAdminSettingsResetRoute } from "../../routes/admin/settings/reset";
-import { registerAdminSettingsSetRoute } from "../../routes/admin/settings/set";
-import type { RouteDeps } from "../../routes/types";
+import { createRouteDeps } from "../../app.js";
+import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth.js";
+import { registerAdminSettingsClearRoute } from "../../routes/admin/settings/clear.js";
+import { registerAdminSettingsRegisterDefinitionsRoute } from "../../routes/admin/settings/register-definitions.js";
+import { registerAdminSettingsResetRoute } from "../../routes/admin/settings/reset.js";
+import { registerAdminSettingsSetRoute } from "../../routes/admin/settings/set.js";
+import type { RouteDeps } from "../../routes/types.js";
 
 /**
  * @file A body-supplied `workspaceId` must never redirect a settings write to another tenant.

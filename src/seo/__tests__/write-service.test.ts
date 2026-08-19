@@ -2,13 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { ForbiddenError } from "@jini-ai/cms/core";
-import { InMemoryPostRepo, type PostRecord } from "../../features/post";
+import { InMemoryPostRepo, type PostRecord } from "../../features/post/index.js";
 import {
   SeoEntryNotFoundError,
   SeoFieldValidationError,
   SeoInvalidCanonicalUrlError,
-} from "../errors";
-import { setEntrySeoOverrides } from "../write-service";
+} from "../errors.js";
+import { setEntrySeoOverrides } from "../write-service.js";
 
 /**
  * @file T014 — failing-first unit certification of `setEntrySeoOverrides`

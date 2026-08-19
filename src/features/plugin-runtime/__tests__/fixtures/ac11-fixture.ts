@@ -2,8 +2,8 @@ import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-import type { BuiltInPluginSource } from "../../discovery";
-import type { PluginManifest } from "../../manifest";
+import type { BuiltInPluginSource } from "../../discovery.js";
+import type { PluginManifest } from "../../manifest.js";
 
 /**
  * @file The shared "AC-11 fixture" — built-in `word-count` plus one valid and one invalid site

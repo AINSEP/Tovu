@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { openContentDb } from "../content-db";
-import { InMemoryDeliveryEnvelopeStore, InMemoryWebhookDeliveryRepo } from "../../../webhooks/repo.memory";
-import { SqliteWebhookDeliveryRepo } from "../webhook-repo.sqlite";
-import type { DeliveryEnvelopeStore } from "../../../webhooks/repo.memory";
-import type { WebhookDeliveryRepoPort } from "../../../webhooks/ports";
-import type { WebhookDeliveryRecord, WebhookEventEnvelope } from "../../../webhooks/types";
+import { openContentDb } from "../content-db.js";
+import { InMemoryDeliveryEnvelopeStore, InMemoryWebhookDeliveryRepo } from "../../../webhooks/repo.memory.js";
+import { SqliteWebhookDeliveryRepo } from "../webhook-repo.sqlite.js";
+import type { DeliveryEnvelopeStore } from "../../../webhooks/repo.memory.js";
+import type { WebhookDeliveryRepoPort } from "../../../webhooks/ports.js";
+import type { WebhookDeliveryRecord, WebhookEventEnvelope } from "../../../webhooks/types.js";
 
 /**
  * @file Shared `WebhookDeliveryRepoPort` contract-test suite (ADR-PIPE-015 Phase 2 T021), incl.

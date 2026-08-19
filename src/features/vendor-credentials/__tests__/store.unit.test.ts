@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { AesGcmSecretSealer } from "../../../webhooks/secret-sealer.aesgcm";
-import { InMemoryKeyring } from "../../../webhooks/keyring.memory";
-import type { KeyringPort } from "../../../webhooks/index";
-import { extractGitHubLogin } from "../../deployments/static-publish/index";
-import { InMemoryVendorCredentialSetRepo } from "../repo.memory";
+import { AesGcmSecretSealer } from "../../../webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../../webhooks/keyring.memory.js";
+import type { KeyringPort } from "../../../webhooks/index.js";
+import { extractGitHubLogin } from "../../deployments/static-publish/index.js";
+import { InMemoryVendorCredentialSetRepo } from "../repo.memory.js";
 import {
   createVendorCredential,
   deleteVendorCredential,
@@ -20,7 +20,7 @@ import {
   VendorCredentialSecretStoreUnconfiguredError,
   VendorCredentialValidationError,
   type VendorCredentialWriteDeps,
-} from "../store";
+} from "../store.js";
 
 /** Always fails — simulates a missing `TOVU_INTEGRATIONS_ROOT_KEY` without touching real env state.
  *  Same double `publish-credentials/__tests__/store.unit.test.ts` uses for the identical class of

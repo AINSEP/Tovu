@@ -76,6 +76,12 @@ root `AGENTS.md`, structured license fields, `apiVersion`) is carried forward un
 ```
 <theme-id>/                        # folder name MUST equal theme.json "id"
 ├── theme.json                     # REQUIRED — manifest, schema v2. build.source: "authored" (or build omitted)
+├── index.html                     # GENERATED, OPTIONAL, static-tier only — portability-backup snapshot
+│                                   #   of the home page (real nav/footer partials spliced in, dynamic
+│                                   #   menu/post/content markers placeholdered); never hand-authored,
+│                                   #   regenerated via `tovu theme generate-index <dir>` — same
+│                                   #   generated/read-only framing as `preview/` below, one file
+│                                   #   instead of a directory [REAL — static-portability-index.ts]
 ├── tokens.json                    # REQUIRED — default-mode design tokens
 ├── tokens.<mode>.json             # OPTIONAL — e.g. tokens.light.json
 ├── AGENTS.md                      # RECOMMENDED — dev-time coding-agent instructions [NOT YET IMPLEMENTED]

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { CAPABILITY_INVENTORY, findCapabilityEntry } from "../../capability-inventory";
+import { CAPABILITY_INVENTORY, findCapabilityEntry } from "../../capability-inventory.js";
 
 /**
  * @file SPEC-022 C-002 — the checked-in capability inventory (REQ-01, REQ-06, AC-01/02/11).

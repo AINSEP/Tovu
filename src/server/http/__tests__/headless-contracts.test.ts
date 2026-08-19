@@ -9,9 +9,9 @@ import type {
 } from "#src/headless/index";
 import type { PostRecord } from "#src/features/post/index";
 import type { PresentationSettingsRecord } from "#src/features/presentation/index";
-import { toAdminPostResponse } from "../admin/posts";
-import { toAdminPresentationResponse } from "../admin/presentation";
-import { toContentPostResponse } from "../content/posts";
+import { toAdminPostResponse } from "../admin/posts.js";
+import { toAdminPresentationResponse } from "../admin/presentation.js";
+import { toContentPostResponse } from "../content/posts.js";
 
 const seedPost: PostRecord = {
   id: "post-1",

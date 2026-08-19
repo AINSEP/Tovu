@@ -9,10 +9,10 @@ import path from "node:path";
 import Database from "better-sqlite3";
 
 import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/http/index";
-import { activateLipay, type LipayApi } from "../lipay-plugin";
-import { createLipayGateway } from "../providers/lipay-gateway";
-import { InMemoryPaymentCredentials } from "../credentials";
-import type { PaymentProvider } from "../ports";
+import { activateLipay, type LipayApi } from "../lipay-plugin.js";
+import { createLipayGateway } from "../providers/lipay-gateway.js";
+import { InMemoryPaymentCredentials } from "../credentials.js";
+import type { PaymentProvider } from "../ports.js";
 
 export const WORKSPACE_ID = "workspace-1";
 export const API_BASE = "https://lipay.test";

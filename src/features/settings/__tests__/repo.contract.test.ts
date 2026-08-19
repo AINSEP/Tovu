@@ -4,7 +4,7 @@ import test from "node:test";
 import { openContentDb } from "#src/db/sqlite/content-db";
 import { workspaces } from "#src/db/schema";
 import { InMemorySettingsRepo } from "@jini-ai/cms/settings";
-import { SqliteSettingsRepo } from "../repo.sqlite";
+import { SqliteSettingsRepo } from "../repo.sqlite.js";
 import type { SettingsRepoPort, SettingDefinitionRecord, SettingValueRecord } from "@jini-ai/cms/settings";
 
 /** Every workspace id any contract-suite test below references — seeded up front so the SQLite adapter's real FK doesn't reject them. */

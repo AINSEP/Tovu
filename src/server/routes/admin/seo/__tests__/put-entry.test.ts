@@ -10,8 +10,8 @@ import {
   extractRouteHandler,
   startTestServer,
 } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminSeoPutEntryRoute } from "../put-entry";
-import type { SeoRouteDeps } from "../deps";
+import { registerAdminSeoPutEntryRoute } from "../put-entry.js";
+import type { SeoRouteDeps } from "../deps.js";
 
 /**
  * @file Unit-tier coverage for `PUT .../seo/entries/:entryId` (`registerAdminSeoPutEntryRoute`).

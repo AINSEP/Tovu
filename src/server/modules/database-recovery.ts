@@ -1,11 +1,11 @@
-import { registerAdminDatabaseTimelineRoute } from "../routes/admin/database/timeline";
-import { registerAdminDatabaseRestorePointsCreateRoute, registerAdminDatabaseRestorePointsListRoute } from "../routes/admin/database/restore-points";
-import { registerAdminRecoveryRestorePointsListRoute } from "../routes/admin/recovery/restore-points";
-import { registerAdminRecoveryDisclosureRoute } from "../routes/admin/recovery/disclosure";
-import { registerAdminRecoveryDeepLinkRoute } from "../routes/admin/recovery/deep-link";
-import { registerAdminRecoveryStatusRoute } from "../routes/admin/recovery/status";
-import type { DatabaseRecoveryRouteDeps } from "../routes/admin/database-recovery/deps";
-import type { ServerModuleHandle } from "./types";
+import { registerAdminDatabaseTimelineRoute } from "../routes/admin/database/timeline.js";
+import { registerAdminDatabaseRestorePointsCreateRoute, registerAdminDatabaseRestorePointsListRoute } from "../routes/admin/database/restore-points.js";
+import { registerAdminRecoveryRestorePointsListRoute } from "../routes/admin/recovery/restore-points.js";
+import { registerAdminRecoveryDisclosureRoute } from "../routes/admin/recovery/disclosure.js";
+import { registerAdminRecoveryDeepLinkRoute } from "../routes/admin/recovery/deep-link.js";
+import { registerAdminRecoveryStatusRoute } from "../routes/admin/recovery/status.js";
+import type { DatabaseRecoveryRouteDeps } from "../routes/admin/database-recovery/deps.js";
+import type { ServerModuleHandle } from "./types.js";
 
 /**
  * @file ADR-046 Phase 3 (SPEC-042, final slice) — the `database-recovery` server module (ADR-041

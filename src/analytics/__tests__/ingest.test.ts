@@ -2,15 +2,15 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { ClockPort, IdGeneratorPort, JsonObject, UUID } from "@jini-ai/cms/core";
-import { AnalyticsPiiRejectedError, type AnalyticsConfigPort } from "../ports";
+import { AnalyticsPiiRejectedError, type AnalyticsConfigPort } from "../ports.js";
 import {
   ingestHit,
   normalizeIngestContext,
   validateEventProps,
   type IngestHitDeps,
-} from "../ingest";
-import { LocalBufferSink } from "../repo.memory";
-import type { AnalyticsSiteConfig, IngestBeacon, IngestContext } from "../types";
+} from "../ingest.js";
+import { LocalBufferSink } from "../repo.memory.js";
+import type { AnalyticsSiteConfig, IngestBeacon, IngestContext } from "../types.js";
 
 const ROOT_KEY_SEED = "test-root-key-seed-do-not-use-in-prod";
 

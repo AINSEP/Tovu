@@ -3,14 +3,14 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { InMemoryChangeSetRepo } from "../../core/commands";
-import type { PluginDiscoveryRecord } from "../../features/plugin-runtime/discovery";
-import { pluginAgentToolCatalog, type AgentToolDefinition as PluginsAgentToolDefinition } from "../../features/plugin-runtime/agent-tools";
-import { InMemoryPluginActivationRepo } from "../../features/plugin-runtime/repo.memory";
-import type { RouteDeps } from "../../server/routes/types";
-import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations";
-import { resetToolContributorsForTests } from "../tool-contribution-registry";
-import { contributePluginsTools } from "../../features/plugin-runtime/tool-registrations";
+import { InMemoryChangeSetRepo } from "../../core/commands/index.js";
+import type { PluginDiscoveryRecord } from "../../features/plugin-runtime/discovery.js";
+import { pluginAgentToolCatalog, type AgentToolDefinition as PluginsAgentToolDefinition } from "../../features/plugin-runtime/agent-tools.js";
+import { InMemoryPluginActivationRepo } from "../../features/plugin-runtime/repo.memory.js";
+import type { RouteDeps } from "../../server/routes/types.js";
+import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations/index.js";
+import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
+import { contributePluginsTools } from "../../features/plugin-runtime/tool-registrations.js";
 
 // Plugins moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
 // tool-contribution registry (2026-08-17, Stage 2 batch 2 — see `tool-contribution-registry.ts`'s

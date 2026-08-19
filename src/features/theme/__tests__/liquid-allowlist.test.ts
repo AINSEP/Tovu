@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import test from "node:test";
 
-import { ALLOWED_LIQUID_FILTERS, ALLOWED_LIQUID_TAGS, lintLiquidTemplate } from "../liquid-allowlist";
+import { ALLOWED_LIQUID_FILTERS, ALLOWED_LIQUID_TAGS, lintLiquidTemplate } from "../liquid-allowlist.js";
 
 /**
  * @file ADR-020 §3 (C6) — certifies the LiquidJS tag/filter allowlist walker

@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { openContentDb } from "../../db/sqlite/content-db";
-import { InMemoryRedirectRepo } from "../repo.memory";
-import { SqliteRedirectRepo } from "../repo.sqlite";
-import type { RedirectRepoPort } from "../ports";
-import type { RedirectRecord, RedirectRevision } from "../types";
+import { openContentDb } from "../../db/sqlite/content-db.js";
+import { InMemoryRedirectRepo } from "../repo.memory.js";
+import { SqliteRedirectRepo } from "../repo.sqlite.js";
+import type { RedirectRepoPort } from "../ports.js";
+import type { RedirectRecord, RedirectRevision } from "../types.js";
 
 /**
  * @file T007 — shared `RedirectRepoPort` contract-test suite, run against

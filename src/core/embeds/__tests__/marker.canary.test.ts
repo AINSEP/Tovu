@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
-import { describeRejection, markersOfType, scanEmbedMarkers, withAddedId } from "../marker";
+import { describeRejection, markersOfType, scanEmbedMarkers, withAddedId } from "../marker.js";
 
 /**
  * @file CANARIES for the unified `data-embed-config` marker spine (2026-08-10).

@@ -1,22 +1,22 @@
-import { registerAdminPolicyCreateRoute } from "../routes/admin/users/create-policy";
-import { registerAdminRoleCreateRoute } from "../routes/admin/users/create-role";
-import { registerAdminUserCreateRoute } from "../routes/admin/users/create";
-import { registerAdminUserAssignRoleRoute } from "../routes/admin/users/assign-role";
-import { registerAdminUserAttachPolicyRoute } from "../routes/admin/users/attach-policy";
-import { registerAdminPolicyListRoute } from "../routes/admin/users/list-policies";
-import { registerAdminRoleListRoute } from "../routes/admin/users/list-roles";
-import { registerAdminUserListRoute } from "../routes/admin/users/list";
-import { registerAdminUserDisableRoute } from "../routes/admin/users/disable";
-import { registerAdminUserEnableRoute } from "../routes/admin/users/enable";
-import { registerAdminUserUpdateRoute } from "../routes/admin/users/update";
-import { registerAdminUserResetPasswordRoute } from "../routes/admin/users/reset-password";
-import { registerAdminRoleUpdateRoute } from "../routes/admin/users/update-role";
-import { registerAdminRoleDeleteRoute } from "../routes/admin/users/delete-role";
-import { registerAdminPolicyUpdateRoute } from "../routes/admin/users/update-policy";
-import { registerAdminPolicyDeleteRoute } from "../routes/admin/users/delete-policy";
-import { registerAdminPolicyWritePermissionRoute } from "../routes/admin/users/write-policy-permission";
-import type { UsersRouteDeps } from "../routes/admin/users/deps";
-import type { ServerModuleHandle } from "./types";
+import { registerAdminPolicyCreateRoute } from "../routes/admin/users/create-policy.js";
+import { registerAdminRoleCreateRoute } from "../routes/admin/users/create-role.js";
+import { registerAdminUserCreateRoute } from "../routes/admin/users/create.js";
+import { registerAdminUserAssignRoleRoute } from "../routes/admin/users/assign-role.js";
+import { registerAdminUserAttachPolicyRoute } from "../routes/admin/users/attach-policy.js";
+import { registerAdminPolicyListRoute } from "../routes/admin/users/list-policies.js";
+import { registerAdminRoleListRoute } from "../routes/admin/users/list-roles.js";
+import { registerAdminUserListRoute } from "../routes/admin/users/list.js";
+import { registerAdminUserDisableRoute } from "../routes/admin/users/disable.js";
+import { registerAdminUserEnableRoute } from "../routes/admin/users/enable.js";
+import { registerAdminUserUpdateRoute } from "../routes/admin/users/update.js";
+import { registerAdminUserResetPasswordRoute } from "../routes/admin/users/reset-password.js";
+import { registerAdminRoleUpdateRoute } from "../routes/admin/users/update-role.js";
+import { registerAdminRoleDeleteRoute } from "../routes/admin/users/delete-role.js";
+import { registerAdminPolicyUpdateRoute } from "../routes/admin/users/update-policy.js";
+import { registerAdminPolicyDeleteRoute } from "../routes/admin/users/delete-policy.js";
+import { registerAdminPolicyWritePermissionRoute } from "../routes/admin/users/write-policy-permission.js";
+import type { UsersRouteDeps } from "../routes/admin/users/deps.js";
+import type { ServerModuleHandle } from "./types.js";
 
 /**
  * @file ADR-046 Phase 3 (SPEC-040) — the `users` server module (users/roles/policies admin

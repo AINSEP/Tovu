@@ -53,10 +53,10 @@ import { SQL, is } from "drizzle-orm";
 import { getTableConfig, type SQLiteColumn } from "drizzle-orm/sqlite-core";
 import { getTableConfig as getPgTableConfig } from "drizzle-orm/pg-core";
 
-import * as sqliteSchema from "../schema";
-import * as pgSchema from "../schema.postgres";
+import * as sqliteSchema from "../schema.js";
+import * as pgSchema from "../schema.postgres.js";
 
-import { tsPropertyNames } from "../../../development/scripts/generate-postgres-schema";
+import { tsPropertyNames } from "../../../development/scripts/generate-postgres-schema.js";
 
 const GENERATED = fs.readFileSync(path.resolve(__dirname, "../schema.postgres.ts"), "utf8");
 const DRIZZLE_IS_TABLE = Symbol.for("drizzle:IsDrizzleTable");

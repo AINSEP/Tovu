@@ -1,6 +1,6 @@
 import { test, expect, type Page } from "@playwright/test";
 
-import { readByokModelOptions, setByokModel } from "./byok-model-field";
+import { readByokModelOptions, setByokModel } from "./byok-model-field.js";
 
 /**
  * @file BYOK stale-state / cross-provider race battery (2026-08-04 dispatch, Item 5).

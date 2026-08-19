@@ -7,8 +7,8 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/cms/core";
 
-import { discoverAllBuiltInThemes } from "../theme";
-import { buildThemesRegistrations, type ThemeToolDeps } from "../tool-registrations";
+import { discoverAllBuiltInThemes } from "../theme.js";
+import { buildThemesRegistrations, type ThemeToolDeps } from "../tool-registrations.js";
 
 /**
  * @file ADR-020 §5 (2026-08-12): `theme_list` surfaces `author`/`build` so an agent can learn a theme

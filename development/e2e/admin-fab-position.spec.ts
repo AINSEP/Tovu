@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test, expect } from "@playwright/test";
-import { loginAsAdmin } from "./auth-fixtures";
+import { loginAsAdmin } from "./auth-fixtures.js";
 
 /**
  * @file Bug 5 — the desktop chat-FAB/composer-send-button overlap, browser-verified 2026-08-05.

@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { JsonObject } from "@jini-ai/cms/core";
 import type { WidgetRenderIR } from "#src/widgets/types";
-import { renderDocNode, renderWidgetIr } from "../render";
+import { renderDocNode, renderWidgetIr } from "../render.js";
 
 /**
  * @file Table-driven TipTap-JSON→HTML round-trip contract for the public renderer

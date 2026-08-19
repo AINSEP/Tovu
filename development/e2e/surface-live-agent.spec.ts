@@ -1,5 +1,5 @@
 import { test, expect, type APIRequestContext } from "@playwright/test";
-import { waitForAgentDaemon } from "./daemon-ready";
+import { waitForAgentDaemon } from "./daemon-ready.js";
 
 /**
  * @file The ONE live-agent test in this dispatch: `content_post_delete`'s real positive path, end to

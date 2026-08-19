@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createRestorePoint } from "../../restore-points";
+import { createRestorePoint } from "../../restore-points.js";
 
 /**
  * @file REQ-05 (SPEC-019) — `createRestorePoint` as an ordinary `authorize()`-gated mutation,

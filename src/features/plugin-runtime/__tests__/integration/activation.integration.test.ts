@@ -1,14 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { getActivation, setPluginEnabled, PluginIncompatibleError, PluginInvalidError, PluginNotFoundError } from "../../activation";
-import { InMemoryPluginActivationRepo } from "../../repo.memory";
-import type { PluginDiscoveryRecord } from "../../discovery";
+import { getActivation, setPluginEnabled, PluginIncompatibleError, PluginInvalidError, PluginNotFoundError } from "../../activation.js";
+import { InMemoryPluginActivationRepo } from "../../repo.memory.js";
+import type { PluginDiscoveryRecord } from "../../discovery.js";
 import { createApp, createRouteDeps } from "#src/server/app";
 import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-server";
 import { composePluginRuntime, type PluginRuntimeSource } from "#src/server/plugin-runtime";
-import { definePlugin, HOOK_CONTENT_ENTRY_BEFORE_SAVE } from "../../../../../packages/sdk/src/index";
-import { PluginHookFailedError } from "../../hook-registry";
+import { definePlugin, HOOK_CONTENT_ENTRY_BEFORE_SAVE } from "../../../../../packages/sdk/src/index.js";
+import { PluginHookFailedError } from "../../hook-registry.js";
 import { toAdminPluginResponse } from "#src/features/plugin-runtime/admin-response";
 
 /**

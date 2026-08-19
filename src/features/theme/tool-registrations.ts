@@ -42,7 +42,7 @@ import {
   getThemesAgentToolCatalog,
   THEME_READ_PERMISSION,
   THEME_WRITE_PERMISSION,
-} from "./agent-tools";
+} from "./agent-tools.js";
 import {
   isGeneratedThemePath,
   listThemeFiles,
@@ -50,8 +50,8 @@ import {
   resolveThemeFileWriteScope,
   ThemePathError,
   writeThemeFile,
-} from "./theme-files";
-import { loadTheme, type DiscoveredTheme } from "./theme";
+} from "./theme-files.js";
+import { loadTheme, type DiscoveredTheme } from "./theme.js";
 
 const CATALOG_BY_ID = indexCatalogById(getThemesAgentToolCatalog());
 

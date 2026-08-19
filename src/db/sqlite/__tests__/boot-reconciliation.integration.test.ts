@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { openContentDb } from "#src/db/sqlite/content-db";
-import { reconcileMirror, stampWatermarkTx } from "../watermark";
+import { reconcileMirror, stampWatermarkTx } from "../watermark.js";
 
 /**
  * @file SPEC-016 U-004 / REQ-03–REQ-05 / EC-05 — boot-time mirror reconciliation direction.

@@ -1,19 +1,20 @@
 import express from "express";
 import { randomUUID } from "node:crypto";
+import { createRequire } from "node:module";
 
-import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "../core/events";
-import { InMemoryChangeSetRepo } from "../core/commands";
-import { createSeoEventSubscriptions, createSeoPageHeadHook, ensureSeoSettingDefinitions } from "../seo";
-import { registerPageHeadContributor } from "./http/site/page-head";
-import { InMemoryPostRepo, InMemoryPostSearchIndex, createPostRevertRegistry } from "../features/post";
-import { InMemoryDeploymentsReadRepo } from "../features/deployments";
-import { InMemoryPublishCredentialSetRepo, executionModeFromEnv } from "../features/deployments/publish-credentials";
-import { InMemoryPublishCredentialVerificationCache, InMemoryPublishHistoryStore } from "../features/deployments/static-publish";
-import { InMemoryCustomCredentialSetRepo } from "../features/custom-credentials";
-import { InMemorySourceControlCredentialSetRepo } from "../features/source-control";
-import { InMemoryVendorCredentialSetRepo } from "../features/vendor-credentials";
+import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "../core/events/index.js";
+import { InMemoryChangeSetRepo } from "../core/commands/index.js";
+import { createSeoEventSubscriptions, createSeoPageHeadHook, ensureSeoSettingDefinitions } from "../seo/index.js";
+import { registerPageHeadContributor } from "./http/site/page-head.js";
+import { InMemoryPostRepo, InMemoryPostSearchIndex, createPostRevertRegistry } from "../features/post/index.js";
+import { InMemoryDeploymentsReadRepo } from "../features/deployments/index.js";
+import { InMemoryPublishCredentialSetRepo, executionModeFromEnv } from "../features/deployments/publish-credentials/index.js";
+import { InMemoryPublishCredentialVerificationCache, InMemoryPublishHistoryStore } from "../features/deployments/static-publish/index.js";
+import { InMemoryCustomCredentialSetRepo } from "../features/custom-credentials/index.js";
+import { InMemorySourceControlCredentialSetRepo } from "../features/source-control/index.js";
+import { InMemoryVendorCredentialSetRepo } from "../features/vendor-credentials/index.js";
 // NOT a static import, and the reason is a measured crash — see `runExportSiteLazily` below.
-import { InMemoryPagesHtmlDocumentStore } from "../features/pages";
+import { InMemoryPagesHtmlDocumentStore } from "../features/pages/index.js";
 import {
   createInMemoryChatStoreFactory,
   InMemorySiteAssistantCredentialRepo,
@@ -21,8 +22,8 @@ import {
   InMemoryExternalMcpServerRepo,
   ensurePublicAssistantSettingDefinitions,
   ensureExecutionSettingDefinitions,
-} from "../assistant";
-import { InMemoryPresentationSettingsRepo } from "../features/presentation";
+} from "../assistant/index.js";
+import { InMemoryPresentationSettingsRepo } from "../features/presentation/index.js";
 import {
   InMemorySettingsRepo,
   ensureSettingsUiTabDefinitions,
@@ -33,19 +34,19 @@ import {
   ensureSettingDefinitions,
   SCOPE_BIT,
   INSTRUCTIONS_NAMESPACE,
-} from "../features/settings";
-import { discoverAllBuiltInThemes } from "../features/theme";
-import { InMemoryWorkspaceRepo } from "../features/workspace";
+} from "../features/settings/index.js";
+import { discoverAllBuiltInThemes } from "../features/theme/index.js";
+import { InMemoryWorkspaceRepo } from "../features/workspace/index.js";
 import path from "node:path";
-import { builtInThemesDir, resolveExportOutputRootDir, resolvePublishOutputRootDir, resolveSourceControlExportRootDir } from "./deps";
+import { builtInThemesDir, resolveExportOutputRootDir, resolvePublishOutputRootDir, resolveSourceControlExportRootDir } from "./deps.js";
 import {
   seededPosts,
   seededPresentation,
   seededWorkspace,
   seedSettingsFromPresentation,
   SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
-} from "./seed";
-import { LocalBufferSink } from "../analytics/repo.memory";
+} from "./seed.js";
+import { LocalBufferSink } from "../analytics/repo.memory.js";
 import {
   ConsoleMailerAdapter,
   InMemoryMagicLinkTokenRepo,
@@ -53,16 +54,16 @@ import {
   InMemoryMemberSessionRepo,
   InMemoryMemberSubscriptionRepo,
   InMemoryMemberTierRepo,
-} from "../members";
-import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo } from "../navigation";
-import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../webhooks";
-import { InMemoryKeyring } from "../webhooks/keyring.memory";
-import { createKeyringBackedSigner } from "../webhooks/signing.keyring";
-import { AesGcmSecretSealer } from "../webhooks/secret-sealer.aesgcm";
-import { InMemoryComposioConfigRepo } from "../connectors/composio-config-store.memory";
-import { createComposioConnectors } from "../connectors/composio-service";
-import { InMemoryConnectorCredentialRepo } from "../connectors/connector-credential-store.memory";
-import { InMemoryMediaProviderCredentialRepo } from "../media/provider-credential-store.memory";
+} from "../members/index.js";
+import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo } from "../navigation/index.js";
+import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../webhooks/index.js";
+import { InMemoryKeyring } from "../webhooks/keyring.memory.js";
+import { createKeyringBackedSigner } from "../webhooks/signing.keyring.js";
+import { AesGcmSecretSealer } from "../webhooks/secret-sealer.aesgcm.js";
+import { InMemoryComposioConfigRepo } from "../connectors/composio-config-store.memory.js";
+import { createComposioConnectors } from "../connectors/composio-service.js";
+import { InMemoryConnectorCredentialRepo } from "../connectors/connector-credential-store.memory.js";
+import { InMemoryMediaProviderCredentialRepo } from "../media/provider-credential-store.memory.js";
 import {
   InMemoryAssetBlobRepo,
   InMemoryAssetRenditionRepo,
@@ -70,8 +71,8 @@ import {
   InMemoryImageTransformer,
   InMemoryMediaRepo,
   InMemoryTransformDefinitionRepo,
-} from "../media";
-import { createInMemoryIdentityRouteDeps } from "../identity/wiring";
+} from "../media/index.js";
+import { createInMemoryIdentityRouteDeps } from "../identity/wiring.js";
 import {
   InMemoryNewsletterAudienceSnapshotRepo,
   InMemoryNewsletterCampaignRepo,
@@ -79,18 +80,18 @@ import {
   InMemoryNewsletterListRepo,
   InMemoryNewsletterSendRepo,
   InMemoryNewsletterSubscriptionRepo,
-} from "../newsletter/repo.memory";
-import { ensureDefaultList } from "../newsletter/lists";
-import { createHookRegistry, handleSendBatchClaimed, SEND_BATCH_CLAIMED_EVENT } from "../newsletter/send-pipeline";
-import type { SendBatchJob } from "../newsletter";
-import { MembersSubscriberDirectory } from "../members";
-import type { NewsletterRouteDeps } from "./routes/admin/newsletter/deps";
-import { toSendPipelineDeps } from "./routes/admin/newsletter/deps";
-import { createNewsletterModule } from "./modules/newsletter";
-import type { NewsletterPublicRouteDeps } from "./routes/site/newsletter-deps";
-import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "../forms/repo.memory";
-import { FORMS_SUBMIT_PROFILE } from "../forms/rate-limit-profile";
-import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "../origin";
+} from "../newsletter/repo.memory.js";
+import { ensureDefaultList } from "../newsletter/lists.js";
+import { createHookRegistry, handleSendBatchClaimed, SEND_BATCH_CLAIMED_EVENT } from "../newsletter/send-pipeline.js";
+import type { SendBatchJob } from "../newsletter/index.js";
+import { MembersSubscriberDirectory } from "../members/index.js";
+import type { NewsletterRouteDeps } from "./routes/admin/newsletter/deps.js";
+import { toSendPipelineDeps } from "./routes/admin/newsletter/deps.js";
+import { createNewsletterModule } from "./modules/newsletter.js";
+import type { NewsletterPublicRouteDeps } from "./routes/site/newsletter-deps.js";
+import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "../forms/repo.memory.js";
+import { FORMS_SUBMIT_PROFILE } from "../forms/rate-limit-profile.js";
+import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "../origin/index.js";
 import {
   InMemoryRedirectRepo,
   RedirectHitSinkImpl,
@@ -100,69 +101,69 @@ import {
   registerRedirectHitOutboxHandler,
   registerRedirectsPhaseHandlers,
   type RedirectsWriteDeps,
-} from "../redirects";
-import { registerSlugChangeCapture } from "../routing";
-import { InMemoryDbOpsAdapter, InMemoryDatabaseIntrospectionAdapter, InMemoryMigrationRunsRepo, InMemoryRestorePointsRepo, InMemorySiteStatusRepo, InMemoryDatabaseLedgerRepo } from "../features/database/repo.memory";
-import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "../features/content-types";
-import { InMemoryEntryRepo } from "../features/entries";
-import { InMemoryWidgetRegionBindingRepo } from "../widgets/repo.memory";
-import { InMemoryEntryRefsRepo } from "../core/entry-refs/repo.memory";
-import { InMemoryPluginActivationRepo } from "../features/plugin-runtime/repo.memory";
-import { WORD_COUNT_RUNTIME_SOURCE } from "../features/plugin-runtime/built-ins/word-count";
-import { createPluginsModule } from "./modules/plugins";
-import { composePluginRuntime } from "./plugin-runtime";
-import { wireCoreResolvers } from "../widgets/resolvers/index";
-import { createNavMenuReadModel } from "../navigation";
-import { createCommentsModule, ensureCommentsSettingDefinitions } from "../comments";
-import { createSettingsAnalyticsConfig, ensureAnalyticsSettingDefinitions } from "../analytics/config.settings";
-import { InMemoryCommentRepo } from "../comments/repo.memory";
-import { registerCommentsSubmitRoute } from "./routes/site/comments-submit";
+} from "../redirects/index.js";
+import { registerSlugChangeCapture } from "../routing/index.js";
+import { InMemoryDbOpsAdapter, InMemoryDatabaseIntrospectionAdapter, InMemoryMigrationRunsRepo, InMemoryRestorePointsRepo, InMemorySiteStatusRepo, InMemoryDatabaseLedgerRepo } from "../features/database/repo.memory.js";
+import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "../features/content-types/index.js";
+import { InMemoryEntryRepo } from "../features/entries/index.js";
+import { InMemoryWidgetRegionBindingRepo } from "../widgets/repo.memory.js";
+import { InMemoryEntryRefsRepo } from "../core/entry-refs/repo.memory.js";
+import { InMemoryPluginActivationRepo } from "../features/plugin-runtime/repo.memory.js";
+import { WORD_COUNT_RUNTIME_SOURCE } from "../features/plugin-runtime/built-ins/word-count/index.js";
+import { createPluginsModule } from "./modules/plugins.js";
+import { composePluginRuntime } from "./plugin-runtime.js";
+import { wireCoreResolvers } from "../widgets/resolvers/index.js";
+import { createNavMenuReadModel } from "../navigation/index.js";
+import { createCommentsModule, ensureCommentsSettingDefinitions } from "../comments/index.js";
+import { createSettingsAnalyticsConfig, ensureAnalyticsSettingDefinitions } from "../analytics/config.settings.js";
+import { InMemoryCommentRepo } from "../comments/repo.memory.js";
+import { registerCommentsSubmitRoute } from "./routes/site/comments-submit.js";
 import {
   InMemoryEntryTermRepo,
   InMemoryTaxonomyRepo,
   InMemoryTaxonomyRevisionRepo,
   InMemoryTermRepo,
   noopStampWatermark,
-} from "../features/taxonomy";
-import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "../features/recovery/repo.memory";
-import { buildGatewayDeps, buildOwnerOnlyInstanceAuthorize } from "../core/gated-mutations/composition";
+} from "../features/taxonomy/index.js";
+import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "../features/recovery/repo.memory.js";
+import { buildGatewayDeps, buildOwnerOnlyInstanceAuthorize } from "../core/gated-mutations/composition.js";
 import { resolveRuntimeMode } from "#src/core/runtime-mode";
-import { wrapMailerWithPurposeGate } from "../mail/purpose-scoped-mailer";
-import { registerAdminTaxonomyMergeTermRoutes } from "./routes/admin/taxonomy/merge-term";
-import { registerAdminDatabaseMigrateForwardRoutes } from "./routes/admin/database/migrate-forward";
-import { registerAdminRecoveryRestoreRoutes } from "./routes/admin/recovery/restore";
+import { wrapMailerWithPurposeGate } from "../mail/purpose-scoped-mailer.js";
+import { registerAdminTaxonomyMergeTermRoutes } from "./routes/admin/taxonomy/merge-term.js";
+import { registerAdminDatabaseMigrateForwardRoutes } from "./routes/admin/database/migrate-forward.js";
+import { registerAdminRecoveryRestoreRoutes } from "./routes/admin/recovery/restore.js";
 
-import { applyDevCors } from "./middleware/dev-cors";
-import { applySiteServingGate } from "./middleware/site-serving-gate";
-import { registerAdminStatic } from "./middleware/admin-static";
-import { registerSiteChatStatic } from "./middleware/site-chat-static";
-import { registerThemePreviewStatic } from "./middleware/theme-preview-static";
-import { registerThemeStaticAssets } from "./middleware/theme-static-assets";
-import { registerThemePagePreview } from "./middleware/theme-page-preview";
-import { registerSiteRoutes } from "./routes/site/pages";
-import { registerStoreRoutes } from "./routes/site/store";
-import { registerPaymentsWebhookRoute } from "./routes/site/payments-webhook";
-import { registerProductRoutes, resolveStorefrontProducts } from "./routes/site/products";
-import { registerAnalyticsIngestRoute } from "./routes/site/analytics-ingest";
-import { registerContentPostGetRoute } from "./routes/content/posts/get-by-slug";
-import { createCommentsModerationModule } from "./modules/comments-moderation";
-import { createCoreModule } from "./modules/core";
-import { createFormsModule } from "./modules/forms";
-import { createMenusModule } from "./modules/menus";
-import { createWidgetsModule } from "./modules/widgets";
-import { createSettingsModule } from "./modules/settings";
-import { createUsersModule } from "./modules/users";
-import { createWorkspaceModule } from "./modules/workspace";
-import { createIntegrationsModule } from "./modules/integrations";
-import { createIntegrationsAdminModule } from "./modules/integrations-admin";
-import { createConnectorsModule } from "./modules/connectors";
-import { createExternalMcpModule } from "./modules/external-mcp";
-import { createMediaModule } from "./modules/media";
-import { createTaxonomyModule } from "./modules/taxonomy";
-import { createContentModule } from "./modules/content";
-import { createMembersModule } from "./modules/members";
-import type { MembersRouteDeps } from "./routes/admin/members/deps";
-import type { MemberPublicRouteDeps } from "./routes/members/deps";
+import { applyDevCors } from "./middleware/dev-cors.js";
+import { applySiteServingGate } from "./middleware/site-serving-gate.js";
+import { registerAdminStatic } from "./middleware/admin-static.js";
+import { registerSiteChatStatic } from "./middleware/site-chat-static.js";
+import { registerThemePreviewStatic } from "./middleware/theme-preview-static.js";
+import { registerThemeStaticAssets } from "./middleware/theme-static-assets.js";
+import { registerThemePagePreview } from "./middleware/theme-page-preview.js";
+import { registerSiteRoutes } from "./routes/site/pages.js";
+import { registerStoreRoutes } from "./routes/site/store.js";
+import { registerPaymentsWebhookRoute } from "./routes/site/payments-webhook.js";
+import { registerProductRoutes, resolveStorefrontProducts } from "./routes/site/products.js";
+import { registerAnalyticsIngestRoute } from "./routes/site/analytics-ingest.js";
+import { registerContentPostGetRoute } from "./routes/content/posts/get-by-slug.js";
+import { createCommentsModerationModule } from "./modules/comments-moderation.js";
+import { createCoreModule } from "./modules/core.js";
+import { createFormsModule } from "./modules/forms.js";
+import { createMenusModule } from "./modules/menus.js";
+import { createWidgetsModule } from "./modules/widgets.js";
+import { createSettingsModule } from "./modules/settings.js";
+import { createUsersModule } from "./modules/users.js";
+import { createWorkspaceModule } from "./modules/workspace.js";
+import { createIntegrationsModule } from "./modules/integrations.js";
+import { createIntegrationsAdminModule } from "./modules/integrations-admin.js";
+import { createConnectorsModule } from "./modules/connectors.js";
+import { createExternalMcpModule } from "./modules/external-mcp.js";
+import { createMediaModule } from "./modules/media.js";
+import { createTaxonomyModule } from "./modules/taxonomy.js";
+import { createContentModule } from "./modules/content.js";
+import { createMembersModule } from "./modules/members.js";
+import type { MembersRouteDeps } from "./routes/admin/members/deps.js";
+import type { MemberPublicRouteDeps } from "./routes/members/deps.js";
 import {
   createRateLimiter,
   MAGIC_LINK_COMPLETE_ATTEMPT,
@@ -170,35 +171,36 @@ import {
   MAGIC_LINK_PER_IP,
   SITE_ASSISTANT_PER_IP,
 } from "#src/core/rate-limit/rate-limit";
-import { createAnalyticsModule } from "./modules/analytics";
-import { createCommerceModule } from "./modules/commerce";
-import { registerAdminModuleStatusRoute } from "./routes/admin/system/module-status";
-import { registerAdminAssistantDaemonRoutes } from "./routes/admin/system/assistant-daemon";
-import { registerAdminDeploymentOverviewRoute } from "./routes/admin/system/deployment-overview";
-import { registerAdminDockerfileSourceRoute } from "./routes/admin/system/dockerfile-source";
-import { registerAdminExportSiteRoutes } from "./routes/admin/system/export-site";
-import { registerAdminCustomCredentialsRoutes } from "./routes/admin/system/custom-credentials";
-import { registerAdminPublishCredentialsRoutes } from "./routes/admin/system/publish-credentials";
-import { registerAdminSourceControlCredentialsRoutes } from "./routes/admin/system/source-control-credentials";
-import { registerAdminVendorCredentialsRoutes } from "./routes/admin/system/vendor-credentials";
-import { registerAdminPublishSiteRoutes } from "./routes/admin/system/publish-site";
-import { registerAdminDeploymentsListRoute } from "./routes/admin/deployments/list";
-import { createFormsAdminModule } from "./modules/forms-admin";
-import { registerFormsSubmitRoute } from "./routes/site/forms-submit";
-import { createRedirectsModule } from "./modules/redirects";
-import { createDatabaseRecoveryModule } from "./modules/database-recovery";
-import { createContentTypesModule } from "./modules/content-types";
-import { createSeoModule } from "./modules/seo";
-import { createAssistantModule } from "./modules/assistant";
-import { createSiteAssistantModule } from "./modules/site-assistant";
-import { createAssistantChatsModule } from "./modules/assistant-chats";
-import { createAssistantSettingsModule } from "./modules/assistant-settings";
-import { createAssistantExecutionModule } from "./modules/assistant-execution";
-import { createAssistantByokModule } from "./modules/assistant-byok";
-import type { RouteDeps } from "./routes/types";
+import { createAnalyticsModule } from "./modules/analytics.js";
+import { createCommerceModule } from "./modules/commerce.js";
+import { registerAdminModuleStatusRoute } from "./routes/admin/system/module-status.js";
+import { registerAdminAssistantDaemonRoutes } from "./routes/admin/system/assistant-daemon.js";
+import { registerAdminDeploymentOverviewRoute } from "./routes/admin/system/deployment-overview.js";
+import { registerAdminDockerfileSourceRoute } from "./routes/admin/system/dockerfile-source.js";
+import { registerAdminExportSiteRoutes } from "./routes/admin/system/export-site.js";
+import { registerAdminCustomCredentialsRoutes } from "./routes/admin/system/custom-credentials.js";
+import { registerAdminPublishCredentialsRoutes } from "./routes/admin/system/publish-credentials.js";
+import { registerAdminSourceControlCredentialsRoutes } from "./routes/admin/system/source-control-credentials.js";
+import { registerAdminVendorCredentialsRoutes } from "./routes/admin/system/vendor-credentials.js";
+import { registerAdminPublishSiteRoutes } from "./routes/admin/system/publish-site.js";
+import { registerAdminDeploymentsListRoute } from "./routes/admin/deployments/list.js";
+import { createFormsAdminModule } from "./modules/forms-admin.js";
+import { registerFormsSubmitRoute } from "./routes/site/forms-submit.js";
+import { createRedirectsModule } from "./modules/redirects.js";
+import { createDatabaseRecoveryModule } from "./modules/database-recovery.js";
+import { createContentTypesModule } from "./modules/content-types.js";
+import { createSeoModule } from "./modules/seo.js";
+import { createAssistantModule } from "./modules/assistant.js";
+import { createSiteAssistantModule } from "./modules/site-assistant.js";
+import { createAssistantChatsModule } from "./modules/assistant-chats.js";
+import { createAssistantSettingsModule } from "./modules/assistant-settings.js";
+import { createAssistantExecutionModule } from "./modules/assistant-execution.js";
+import { createAssistantByokModule } from "./modules/assistant-byok.js";
+import { createAssistantAgUiModule } from "./modules/assistant-ag-ui.js";
+import type { RouteDeps } from "./routes/types.js";
 // `type`-only, so it is erased and adds no runtime edge — the whole point of the lazy resolution
 // in {@link runExportSiteLazily} below.
-import type { ExportEngine } from "../features/deployments/export-run";
+import type { ExportEngine } from "../features/deployments/export-run.js";
 
 /**
  * @file HTTP composition root and route wiring.
@@ -696,7 +698,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
  *
  * WHY THIS IS NOT A TOP-LEVEL IMPORT. `src/export/site-exporter.ts` imports `createApp` from THIS
  * file — deliberately, because exporting drives the real app rather than re-implementing rendering.
- * A static `import { exportSite } from "../export/index"` here therefore closes a cycle:
+ * A static `import { exportSite } from "../export/index.js"` here therefore closes a cycle:
  *
  *     server/app.ts -> export/index.ts -> export/site-exporter.ts -> server/app.ts
  *
@@ -715,13 +717,18 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
  * daemon ran clean at `dcfdd89` and died at `a4bddce`, which changed module load ORDER rather than
  * adding the edge itself — the edge had been latent since the export route landed.
  *
- * `require` rather than `await import`: this package is CommonJS, and a synchronous resolution
- * keeps `ExportEngine`'s signature exactly as-is. By the time any caller invokes this, both modules
- * are fully loaded, so there is no partial-initialisation window left to fall into.
+ * `require` rather than `await import`: a synchronous resolution keeps `ExportEngine`'s signature
+ * exactly as-is. By the time any caller invokes this, both modules are fully loaded, so there is no
+ * partial-initialisation window left to fall into. FEAT-049 (ESM migration) moved this file off
+ * CommonJS, so the bare `require` this doc used to rely on no longer exists as a global; `require`
+ * below is `createRequire(import.meta.url)`, which preserves the exact same synchronous-resolution
+ * behavior this cycle-break depends on.
  */
+const require = createRequire(import.meta.url);
+
 const runExportSiteLazily: ExportEngine<RouteDeps> = (options) =>
   // eslint-disable-next-line @typescript-eslint/no-require-imports -- deliberate; see doc above.
-  (require("../export/index") as typeof import("../export/index")).exportSite(options);
+  (require("../export/index.js") as typeof import("../export/index.js")).exportSite(options);
 
 export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   const app = express();
@@ -1005,6 +1012,13 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // `createAssistantModule`'s redemption proxy shares the exact same confirmation store.
   byokAssistantModule.registerRoutes?.(app);
 
+  // ADR-059 (2026-08-18): the admin assistant's AG-UI canary transport — additive, flagged,
+  // deletable. Wraps the SAME daemon-backed run lifecycle `createAssistantModule` above proxies
+  // (via `assistant-daemon-client.ts`'s shared `fetchAgentDaemon`, extracted from that module this
+  // same dispatch), translating its wire frames into real AG-UI SSE events. Does not touch, and is
+  // not touched by, either existing execution path. See `modules/assistant-ag-ui.ts`'s header.
+  createAssistantAgUiModule(routeDeps).registerRoutes?.(app);
+
   // ADR-046 Phase 3 (SPEC-042, final slice): the `content-types` server module (ADR-043
   // Collections backend) — all 8 registrations (content-types' list/register/update-fields/
   // lifecycle, entries' list/create/update/lifecycle). Admin-UI backend-gap closure (design-
@@ -1058,7 +1072,7 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
 
   // Built admin SPA (apps/admin/dist) at /admin; helpful 503 when unbuilt.
   registerAdminStatic(app, {
-    distDir: process.env.TOVU_ADMIN_DIST ?? path.resolve(__dirname, "../../apps/admin/dist"),
+    distDir: process.env.TOVU_ADMIN_DIST ?? path.resolve(import.meta.dirname, "../../apps/admin/dist"),
   });
 
   // ADR-049 — `@jini-ai/chat-react`'s runtime picker requests agent icons from `/agent-icons/*`
@@ -1067,19 +1081,19 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // `/admin/*`-scoped static serving above. Served from Tovu's own root here (in both dev, via
   // `apps/admin/vite.config.ts`'s matching proxy entry, and prod) rather than duplicated inside
   // `apps/admin/dist` (which would only ever resolve under `/admin/`).
-  app.use("/agent-icons", express.static(path.resolve(__dirname, "../public/agent-icons")));
+  app.use("/agent-icons", express.static(path.resolve(import.meta.dirname, "../public/agent-icons")));
 
   // ADR-054 Task 2/3 — the built public site-chat bundle (apps/site-chat/dist) at /site-chat.
   // Distinct static mount from the admin SPA above: a single self-mounting script, not an app with
   // client-side routing, so `site-chat-static.ts` has no `index.html` SPA fallback to serve.
   registerSiteChatStatic(app, {
-    distDir: process.env.TOVU_SITE_CHAT_DIST ?? path.resolve(__dirname, "../../apps/site-chat/dist"),
+    distDir: process.env.TOVU_SITE_CHAT_DIST ?? path.resolve(import.meta.dirname, "../../apps/site-chat/dist"),
   });
 
   // SPIKE — `static`-tier theme preview builds at /theme-preview/<theme-id>/<dark|light>/...; see
   // theme-preview-static.ts's file header for exactly what this is (and isn't) wired up to.
   registerThemePreviewStatic(app, {
-    themesStaticDir: path.resolve(__dirname, "../themes/static"),
+    themesStaticDir: path.resolve(import.meta.dirname, "../themes/static"),
   });
 
   // Real (non-spike) asset serving for a theme's own files at /theme-assets/{id}/...: static-tier
@@ -1088,7 +1102,7 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // screenshots are reachable (see theme-static-assets.ts's own header for why declarative/handlebars
   // are not listed here yet, and why templates/*.liquid source being servable is deliberate).
   registerThemeStaticAssets(app, {
-    themeRoots: [path.resolve(__dirname, "../themes/static"), path.resolve(__dirname, "../themes/templated")],
+    themeRoots: [path.resolve(import.meta.dirname, "../themes/static"), path.resolve(import.meta.dirname, "../themes/templated")],
   });
 
   // Admin Explore screen's preview iframe: any static theme's page, fully rendered, at

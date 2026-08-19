@@ -4,14 +4,14 @@ import test from "node:test";
 import { InMemoryEntryRefsRepo } from "#src/core/entry-refs/repo.memory";
 import { InMemoryContentTypeRepo } from "#src/features/content-types/index";
 import { InMemoryEntryRepo } from "#src/features/entries/index";
-import { createWidgetInstance, type WidgetWriteServiceDeps } from "../../write-service";
-import { InMemoryWidgetRegionBindingRepo } from "../../repo.memory";
+import { createWidgetInstance, type WidgetWriteServiceDeps } from "../../write-service.js";
+import { InMemoryWidgetRegionBindingRepo } from "../../repo.memory.js";
 import {
   bindWidgetArea,
   mutateWidgetAreaPlacements,
   reconcileWidgetRegionBindings,
   type RegionAreaServiceDeps,
-} from "../../region-area-service";
+} from "../../region-area-service.js";
 
 /**
  * @file C-006 `widget_area` region composition — SPEC-043 REQ-11..17, AC-06..11, INV-02/03.

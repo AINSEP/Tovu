@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 
-import type { ThemeValidationIssue } from "./profiles";
+import type { ThemeValidationIssue } from "./profiles.js";
 
 /**
  * @file Manifest-to-file consistency: every file path a manifest DECLARES must resolve to a real file

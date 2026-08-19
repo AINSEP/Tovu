@@ -5,7 +5,7 @@ import { eq } from "drizzle-orm";
 
 import { openContentDb, type ContentDb } from "#src/db/sqlite/content-db";
 import { settingValuesUser, settingValuesWorkspace, workspaces } from "#src/db/schema";
-import { SqliteSettingsRepo } from "../repo.sqlite";
+import { SqliteSettingsRepo } from "../repo.sqlite.js";
 import { purgeTenantSettings } from "@jini-ai/cms/settings";
 
 /**

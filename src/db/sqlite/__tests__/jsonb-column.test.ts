@@ -6,7 +6,7 @@ import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { integer, sqliteTable } from "drizzle-orm/sqlite-core";
 
-import { decodeSqliteJsonb, sqliteJsonb } from "../jsonb-column";
+import { decodeSqliteJsonb, sqliteJsonb } from "../jsonb-column.js";
 
 /**
  * @file Direct coverage for `sqliteJsonb`/`decodeSqliteJsonb` (`jsonb-column.ts`) against a real

@@ -5,8 +5,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { credentialEnvVarName, EnvPaymentCredentials, InMemoryPaymentCredentials } from "../credentials";
-import { WORKSPACE_ID } from "./support";
+import { credentialEnvVarName, EnvPaymentCredentials, InMemoryPaymentCredentials } from "../credentials.js";
+import { WORKSPACE_ID } from "./support.js";
 
 test("credentials: env var names are DERIVED from the provider's declared keys, never mapped", () => {
   assert.equal(credentialEnvVarName("lipay", "secretKey"), "TOVU_PAYMENT_LIPAY_SECRET_KEY");

@@ -1,14 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { RouteResolveContext, RouteResolvePhaseHandler } from "../types";
+import type { RouteResolveContext, RouteResolvePhaseHandler } from "../types.js";
 import {
   registerResolvePhase,
   resetRoutingRegistrationsForTests,
   resolve,
   runPostContentPhase,
   runPreContentPhase,
-} from "../routing";
+} from "../routing.js";
 
 /**
  * @file T011 (C-012, C-013, ADR-PIPE-009 Decision B) — the additive

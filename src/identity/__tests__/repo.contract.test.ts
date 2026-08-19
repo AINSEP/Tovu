@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { openContentDb } from "../../db/sqlite/content-db";
+import { openContentDb } from "../../db/sqlite/content-db.js";
 import {
   InMemoryPolicyPermissionRepo,
   InMemoryPolicyRepo,
@@ -23,7 +23,7 @@ import {
   SqliteRoleRepo,
   SqliteSessionRepo,
   SqliteUserRepo,
-} from "../repo.sqlite";
+} from "../repo.sqlite.js";
 import type {
   PolicyPermissionRepoPort,
   PolicyRepoPort,

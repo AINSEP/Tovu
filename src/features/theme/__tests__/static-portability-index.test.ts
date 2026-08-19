@@ -4,8 +4,8 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { buildStaticPortabilityIndex, generateStaticPortabilityIndex } from "../static-portability-index";
-import { loadTheme, type DiscoveredTheme } from "../theme";
+import { buildStaticPortabilityIndex, generateStaticPortabilityIndex } from "../static-portability-index.js";
+import { loadTheme, type DiscoveredTheme } from "../theme.js";
 
 /**
  * @file Certifies Milestone 5's generated root `index.html`: the two embed-marker categories

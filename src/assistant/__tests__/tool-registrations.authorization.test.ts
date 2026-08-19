@@ -3,14 +3,14 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { contentTypesAgentToolCatalog } from "../../features/content-types";
-import { ForbiddenError } from "../../features/content-types";
-import type { ContentTypeRecord } from "../../features/content-types";
+import { contentTypesAgentToolCatalog } from "../../features/content-types/index.js";
+import { ForbiddenError } from "../../features/content-types/index.js";
+import type { ContentTypeRecord } from "../../features/content-types/index.js";
 import { ForbiddenError as CoreForbiddenError } from "@jini-ai/cms/core";
-import type { RouteDeps } from "../../server/routes/types";
-import { buildAssistantToolRegistrations } from "../tool-registrations";
-import { resetToolContributorsForTests } from "../tool-contribution-registry";
-import { contributeContentTypesTools } from "../../features/content-types/tool-registrations";
+import type { RouteDeps } from "../../server/routes/types.js";
+import { buildAssistantToolRegistrations } from "../tool-registrations/index.js";
+import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
+import { contributeContentTypesTools } from "../../features/content-types/tool-registrations.js";
 
 // Content-types moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
 // tool-contribution registry (2026-08-17, Stage 2 batch 2 — see `tool-contribution-registry.ts`'s

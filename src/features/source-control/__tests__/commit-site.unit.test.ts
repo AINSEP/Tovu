@@ -7,10 +7,10 @@ import test from "node:test";
 import { createRouteDeps } from "#src/server/app";
 import type { RouteDeps } from "#src/server/routes/types";
 
-import { AesGcmSecretSealer } from "../../../webhooks/secret-sealer.aesgcm";
-import { InMemoryKeyring } from "../../../webhooks/keyring.memory";
-import { createSourceControlCredential } from "../store";
-import { commitSiteToSourceControl, toCommitFile, validateCommitTarget, type CommitFile, type GitHubCommitAdapter, type GitHubCommitAdapterResult } from "../commit-site";
+import { AesGcmSecretSealer } from "../../../webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../../webhooks/keyring.memory.js";
+import { createSourceControlCredential } from "../store.js";
+import { commitSiteToSourceControl, toCommitFile, validateCommitTarget, type CommitFile, type GitHubCommitAdapter, type GitHubCommitAdapterResult } from "../commit-site.js";
 
 /**
  * @file `commit-site.ts`'s business-logic proof — mirrors

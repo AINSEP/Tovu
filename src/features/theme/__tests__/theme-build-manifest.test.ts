@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { loadTheme } from "../theme";
+import { loadTheme } from "../theme.js";
 
 /**
  * @file ADR-020 §5 (2026-08-12) — `theme.json`'s new `author` and `build` fields: parsing, and the

@@ -3,13 +3,13 @@ import test from "node:test";
 
 import express from "express";
 
-import { createRouteDeps } from "../../app";
-import { registerSiteRoutes } from "../../routes/site/pages";
-import { registerProductRoutes } from "../../routes/site/products";
-import { registerStoreRoutes } from "../../routes/site/store";
-import { createSeoModule } from "../../modules/seo";
-import type { RouteDeps } from "../../routes/types";
-import { startTestServer } from "../helpers/http-test-server";
+import { createRouteDeps } from "../../app.js";
+import { registerSiteRoutes } from "../../routes/site/pages.js";
+import { registerProductRoutes } from "../../routes/site/products.js";
+import { registerStoreRoutes } from "../../routes/site/store.js";
+import { createSeoModule } from "../../modules/seo.js";
+import type { RouteDeps } from "../../routes/types.js";
+import { startTestServer } from "../helpers/http-test-server.js";
 
 /**
  * @file Measurement instrument — deliverable A of the public-site request-cost audit
