@@ -28,7 +28,7 @@ import { PRE_AUTHORIZED } from "../../widgets/authorize-helper.js";
 import { widgetsAgentToolCatalog, type AgentToolDefinition } from "../../widgets/agent-tools.js";
 import { InMemoryWidgetRegionBindingRepo } from "../../widgets/repo.memory.js";
 import type { RouteDeps } from "../../server/routes/types.js";
-import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations/index.js";
+import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
 import { contributeWidgetsTools } from "../../widgets/tool-registrations.js";
 

@@ -72,7 +72,7 @@ import { SqliteDbOpsAdapter } from "../../src/db/sqlite/db-ops.js";
 import { builtInThemesDir } from "../../src/server/deps.js";
 import { discoverAllBuiltInThemes } from "../../src/features/theme/index.js";
 
-const REPO_ROOT = path.resolve(__dirname, "..", "..");
+const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..");
 
 interface Args {
   readonly dbPath: string;

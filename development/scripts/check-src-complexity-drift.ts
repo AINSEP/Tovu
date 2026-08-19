@@ -60,8 +60,8 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
-const REPO_ROOT = path.resolve(__dirname, "..", "..");
-const DEBT_PATH = path.join(__dirname, "src-complexity-debt.json");
+const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..");
+const DEBT_PATH = path.join(import.meta.dirname, "src-complexity-debt.json");
 const SCOPE = "src/server/routes";
 const THRESHOLD = 9;
 

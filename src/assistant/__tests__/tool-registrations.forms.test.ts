@@ -20,7 +20,7 @@ import { formsAgentToolCatalog, type AgentToolDefinition } from "../../forms/age
 import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "../../forms/repo.memory.js";
 import type { FormDefinitionRecord, FormSubmissionRecord } from "../../forms/types.js";
 import type { RouteDeps } from "../../server/routes/types.js";
-import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations/index.js";
+import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
 import { contributeFormsTools } from "../../forms/tool-registrations.js";
 

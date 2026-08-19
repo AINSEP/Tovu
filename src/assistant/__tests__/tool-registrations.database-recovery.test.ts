@@ -29,7 +29,7 @@ import type { RouteDeps } from "../../server/routes/types.js";
 import {
   assertRiskMetadataIsWirable,
   buildAssistantToolRegistrations,
-} from "../tool-registrations/index.js";
+} from "../tool-registrations.js";
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
 import { contributeRecoveryTools } from "../../features/recovery/tool-registrations.js";
 import { contributeDatabaseTools } from "../../features/database/tool-registrations.js";

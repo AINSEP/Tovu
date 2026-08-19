@@ -8,7 +8,7 @@ import { InMemoryEventBus, InMemoryOutbox } from "../../core/events/index.js";
 import { InMemoryPostRepo, InMemoryPostSearchIndex } from "../../features/post/index.js";
 import { postAgentToolCatalog, type AgentToolDefinition as PostAgentToolDefinition } from "../../features/post/agent-tools.js";
 import type { RouteDeps } from "../../server/routes/types.js";
-import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations/index.js";
+import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
 import { contributePostTools } from "../../features/post/tool-registrations.js";
 

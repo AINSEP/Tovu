@@ -24,7 +24,7 @@ const ADMIN_PORT = 7882;
 const DAEMON_PORT = 7883;
 const BASE_URL = `http://localhost:${ADMIN_PORT}`;
 const API_BASE_URL = `http://localhost:${API_PORT}`;
-const REPO_ROOT = path.resolve(__dirname, "..");
+const REPO_ROOT = path.resolve(import.meta.dirname, "..");
 const ADMIN_ROOT = path.resolve(REPO_ROOT, "apps/admin");
 
 export default defineConfig({

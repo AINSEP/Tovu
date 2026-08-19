@@ -36,7 +36,7 @@ import { buildVendorCredentialAad } from "../../../src/features/vendor-credentia
  * key-derivation path production uses, not a stand-in double.
  */
 
-const REPO_ROOT = path.resolve(__dirname, "../../..");
+const REPO_ROOT = path.resolve(import.meta.dirname, "../../..");
 const SCRIPT = path.join("development", "scripts", "backfill-vendor-credentials.ts");
 const NOW = "2026-08-16T00:00:00.000Z";
 const WORKSPACE = "workspace-1";

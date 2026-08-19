@@ -5,7 +5,7 @@ import express from "express";
 
 import { InMemoryContentTypeRepo } from "../../features/content-types/index.js";
 import type { ContentTypeRevisionInput } from "../../features/content-types/index.js";
-import { buildAssistantToolRegistrations } from "../../assistant/tool-registrations/index.js";
+import { buildAssistantToolRegistrations } from "../../assistant/tool-registrations.js";
 import { createRouteDeps } from "../app.js";
 import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth.js";
 import { createContentTypesModule } from "../modules/content-types.js";

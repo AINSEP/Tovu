@@ -30,7 +30,7 @@ const FAKE_COMPOSIO_PORT = PORT_BASE + 3;
 const BASE_URL = `http://localhost:${ADMIN_PORT}`;
 const API_BASE_URL = `http://localhost:${API_PORT}`;
 const FAKE_COMPOSIO_URL = `http://127.0.0.1:${FAKE_COMPOSIO_PORT}`;
-const REPO_ROOT = path.resolve(__dirname, "..");
+const REPO_ROOT = path.resolve(import.meta.dirname, "..");
 const ADMIN_ROOT = path.resolve(REPO_ROOT, "apps/admin");
 
 /** Must match `composioUserIdFor("workspace-local")` in `src/connectors/composio-service.ts`. */

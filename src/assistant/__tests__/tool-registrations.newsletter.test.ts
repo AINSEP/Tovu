@@ -34,7 +34,7 @@ import type { RouteDeps } from "../../server/routes/types.js";
 import {
   assertRiskMetadataIsWirable,
   buildAssistantToolRegistrations,
-} from "../tool-registrations/index.js";
+} from "../tool-registrations.js";
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
 import { contributeNewsletterTools } from "../../newsletter/tool-registrations.js";
 

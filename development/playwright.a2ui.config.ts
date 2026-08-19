@@ -28,7 +28,7 @@ import { defineConfig, devices } from "@playwright/test";
  */
 const PORT = 4999;
 const BASE_URL = `http://localhost:${PORT}`;
-const REPO_ROOT = path.resolve(__dirname, "..");
+const REPO_ROOT = path.resolve(import.meta.dirname, "..");
 
 export default defineConfig({
   testDir: "./e2e",

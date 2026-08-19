@@ -9,7 +9,7 @@ import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 import { getThemesAgentToolCatalog, type AgentToolDefinition } from "../../features/theme/agent-tools.js";
 import { discoverAllBuiltInThemes } from "../../features/theme/index.js";
 import type { RouteDeps } from "../../server/routes/types.js";
-import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations/index.js";
+import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
 import { contributeThemesTools } from "../../features/theme/tool-registrations.js";
 

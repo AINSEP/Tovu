@@ -33,9 +33,9 @@ import { Project, Node, SyntaxKind, type MethodDeclaration, type FunctionDeclara
 import * as path from "node:path";
 import * as fs from "node:fs";
 
-const ROOT = path.resolve(__dirname, "..");
+const ROOT = path.resolve(import.meta.dirname, "..");
 const SCHEMA_FILE = path.join(ROOT, "src/db/schema.ts");
-const BASELINE_FILE = path.join(__dirname, "write-path-inventory.baseline.json");
+const BASELINE_FILE = path.join(import.meta.dirname, "write-path-inventory.baseline.json");
 
 const READER_PREFIX = /^(find|get|list|count|exists|lookup)([A-Z]|$)/;
 const PORT_LIKE_INTERFACE = /(Port|Repo|Sink|Store)$/;

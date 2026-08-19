@@ -26,7 +26,7 @@ const ADMIN_PORT = 7912;
 const DAEMON_PORT = 7913;
 const BASE_URL = `http://localhost:${ADMIN_PORT}`;
 const API_BASE_URL = `http://localhost:${API_PORT}`;
-const REPO_ROOT = path.resolve(__dirname, "..");
+const REPO_ROOT = path.resolve(import.meta.dirname, "..");
 const ADMIN_ROOT = path.resolve(REPO_ROOT, "apps/admin");
 
 // Published so the spec's own daemon-readiness wait (mirroring `e2e/daemon-ready.ts`'s

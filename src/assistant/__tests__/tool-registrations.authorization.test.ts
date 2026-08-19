@@ -8,7 +8,7 @@ import { ForbiddenError } from "../../features/content-types/index.js";
 import type { ContentTypeRecord } from "../../features/content-types/index.js";
 import { ForbiddenError as CoreForbiddenError } from "@jini-ai/cms/core";
 import type { RouteDeps } from "../../server/routes/types.js";
-import { buildAssistantToolRegistrations } from "../tool-registrations/index.js";
+import { buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
 import { contributeContentTypesTools } from "../../features/content-types/tool-registrations.js";
 

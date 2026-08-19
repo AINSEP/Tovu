@@ -59,7 +59,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-const REPO_ROOT = path.resolve(__dirname, "..", "..");
+const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..");
 const dirFlagIndex = process.argv.indexOf("--dir");
 const SRC_DIR = dirFlagIndex === -1 ? path.join(REPO_ROOT, "src") : path.resolve(process.argv[dirFlagIndex + 1]);
 

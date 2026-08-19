@@ -51,7 +51,7 @@ import { getTableConfig, type SQLiteColumn } from "drizzle-orm/sqlite-core";
 
 import * as schema from "../../src/db/schema.js";
 
-const OUT_PATH = path.resolve(__dirname, "../../src/db/schema.postgres.ts");
+const OUT_PATH = path.resolve(import.meta.dirname, "../../src/db/schema.postgres.ts");
 const DRIZZLE_IS_TABLE = Symbol.for("drizzle:IsDrizzleTable");
 
 /** Every exported Drizzle table in `schema.ts`, paired with the export name it must keep. */

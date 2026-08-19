@@ -29,7 +29,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
-export const REPO_ROOT = path.resolve(__dirname, "..", "..");
+export const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..");
 export const LCOV_PATH = path.join(REPO_ROOT, "development/coverage/lcov.info");
 /** Produced by `npm run test:cov:server:unit` — every `*.test.ts` file EXCEPT the integration tier
  *  below (see `isIntegrationTestFile`). Read by `check-route-coverage-diff.ts`'s unit tier. */

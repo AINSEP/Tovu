@@ -24,7 +24,7 @@ import type { RedirectsWriteDeps } from "../../redirects/redirects.js";
 import type { RedirectHitStats } from "../../redirects/types.js";
 import type { RedirectHitSink } from "../../redirects/ports.js";
 import type { RouteDeps } from "../../server/routes/types.js";
-import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations/index.js";
+import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
 import { contributeRedirectsTools } from "../../redirects/tool-registrations.js";
 

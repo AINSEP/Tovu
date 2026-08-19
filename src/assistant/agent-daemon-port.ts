@@ -34,4 +34,4 @@ export { parseRunStartContextRef } from "./run-start-context.js";
 export { buildComponentCatalogQuery } from "./component-catalog-query.js";
 export { buildToolCatalogQuery } from "./tool-catalog-query.js";
 export { withToolAttemptAudit } from "./tool-executor-audit.js";
-export { buildAssistantToolRegistrations } from "./tool-registrations/index.js";
+export { buildAssistantToolRegistrations } from "./tool-registrations.js";

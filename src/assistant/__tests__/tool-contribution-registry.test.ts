@@ -27,7 +27,7 @@ import {
   resetToolContributorsForTests,
   type ToolContributor,
 } from "../tool-contribution-registry.js";
-import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations/index.js";
+import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { commentsAgentToolCatalog } from "../../comments/agent-tools.js";
 import { DEMO_CHOICES_TOOL_ID } from "../demo-choices-tool.js";
 

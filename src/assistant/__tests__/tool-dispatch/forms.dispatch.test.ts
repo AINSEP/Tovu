@@ -5,7 +5,7 @@ import { createToolRegistry } from "@jini-ai/core";
 import { createToolExecutor } from "@jini-ai/daemon";
 
 import { createRouteDeps } from "#src/server/app";
-import { buildAssistantToolRegistrations } from "../../tool-registrations/index.js";
+import { buildAssistantToolRegistrations } from "../../tool-registrations.js";
 
 /**
  * @file Canary: proves `forms_create_definition` -> `forms_set_definition_status` actually work

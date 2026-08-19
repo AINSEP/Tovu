@@ -65,7 +65,7 @@ const ADMIN_PORT = 7952;
 const DAEMON_PORT = 7953;
 const BASE_URL = `http://localhost:${ADMIN_PORT}`;
 const API_BASE_URL = `http://localhost:${API_PORT}`;
-const REPO_ROOT = path.resolve(__dirname, "..");
+const REPO_ROOT = path.resolve(import.meta.dirname, "..");
 const ADMIN_ROOT = path.resolve(REPO_ROOT, "apps/admin");
 
 const LIVE_CONTENT_DB = path.join(REPO_ROOT, "infra", "content.db");

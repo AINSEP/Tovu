@@ -45,7 +45,7 @@ import { defineConfig, devices } from "@playwright/test";
  */
 const PORT = 5972;
 const BASE_URL = `http://localhost:${PORT}`;
-const ADMIN_ROOT = path.resolve(__dirname, "../apps/admin");
+const ADMIN_ROOT = path.resolve(import.meta.dirname, "../apps/admin");
 // Deliberately unreachable: nothing binds this port anywhere in this repo's dev tooling (compare
 // the reserved-port list in `playwright.destructive.config.ts`'s own header). Vite's proxy target
 // needs SOME address to fail to connect to; a real never-used port makes the failure deterministic

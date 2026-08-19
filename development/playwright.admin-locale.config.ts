@@ -28,7 +28,7 @@ import { defineConfig, devices } from "@playwright/test";
 const PORT = 4980;
 const DAEMON_PORT = 4981;
 const BASE_URL = `http://localhost:${PORT}`;
-const REPO_ROOT = path.resolve(__dirname, "..");
+const REPO_ROOT = path.resolve(import.meta.dirname, "..");
 const CONTENT_DB_PATH = path.join(os.tmpdir(), `tovu-e2e-admin-locale-${Date.now()}-${process.pid}.db`);
 
 export default defineConfig({

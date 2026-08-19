@@ -51,7 +51,7 @@ import { scanEmbedMarkers, describeRejection } from "../../src/core/embeds/marke
 import { extractHtmlEntryRefs } from "../../src/core/entry-refs/extractor.js";
 import { SqliteEntryRefsRepo } from "../../src/core/entry-refs/repo.sqlite.js";
 
-const REPO_ROOT = path.resolve(__dirname, "..", "..");
+const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..");
 
 interface Args {
   readonly dbPath: string;

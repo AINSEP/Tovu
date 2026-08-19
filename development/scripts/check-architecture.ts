@@ -55,8 +55,8 @@ import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
-const REPO_ROOT = path.resolve(__dirname, "..", "..");
-const BASELINE_PATH = path.join(__dirname, "check-architecture.baseline.json");
+const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..");
+const BASELINE_PATH = path.join(import.meta.dirname, "check-architecture.baseline.json");
 
 const INCLUDE_TESTS = process.argv.includes("--include-tests");
 const UPDATE = process.argv.includes("--update");

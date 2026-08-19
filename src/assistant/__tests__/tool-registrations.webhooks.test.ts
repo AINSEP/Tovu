@@ -21,7 +21,7 @@ import { getWebhooksAgentToolCatalog, type AgentToolDefinition } from "../../web
 import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../../webhooks/repo.memory.js";
 import { contributeWebhooksTools } from "../../webhooks/tool-registrations.js";
 import type { RouteDeps } from "../../server/routes/types.js";
-import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations/index.js";
+import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
 
 // Webhooks (registered under the tool-contribution registry's "integrations" domain key — see
