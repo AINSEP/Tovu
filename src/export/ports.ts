@@ -68,6 +68,11 @@ export interface ManifestActiveTheme {
   id: string;
   /** Absolute path of the theme's own folder on disk (`DiscoveredTheme.dir`). */
   dir: string;
+  /** `DiscoveredTheme.manifest.apiVersion` — `2` nests a static theme's files under `render/`
+   *  (`theme-authoring-guide-v2.md` §3), `undefined` keeps the v1 theme-root layout. Threaded
+   *  through so a caller outside this port's own module (the exporter's unreferenced-file diff)
+   *  never has to re-derive schema version from disk layout — same reasoning as `dir` itself. */
+  apiVersion?: 2;
 }
 
 /** A publicly reachable URL the manifest could NOT enumerate, recorded so the export report names
