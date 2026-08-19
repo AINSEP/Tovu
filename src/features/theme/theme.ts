@@ -859,6 +859,12 @@ export function loadTheme(
  * {@link discoverAllBuiltInThemes} to keep the engine-specific subfolders
  * (`templated/`, `handlebars/`) from being scanned as (invalid) top-level theme
  * candidates when it also scans them directly as their own theme roots.
+ *
+ * Separately (and unconditionally, not via `exclude`), any child directory whose name starts with
+ * {@link MIGRATION_STAGING_DIR_PREFIX} is skipped too — `exclude` only expresses exact names known
+ * ahead of time (engine subfolders, the two catalog dirs), never a per-run-randomized prefix like
+ * migration scratch output, so that one case gets its own always-on check here instead of being
+ * threaded through every caller's `exclude` array.
  */
 export function discoverThemes(
   required: { dir: string; source: "built-in" | "site"; exclude?: readonly string[] },
@@ -869,6 +875,7 @@ export function discoverThemes(
   return readdirSync(dir)
     .filter((name) => {
       if (exclude?.includes(name)) return false;
+      if (name.startsWith(MIGRATION_STAGING_DIR_PREFIX)) return false;
       const full = join(dir, name);
       return statSync(full).isDirectory();
     })
@@ -919,6 +926,19 @@ export const THEME_CATALOG_DIR = "__original-themes__";
  * and a live tier folder under a freshly assigned id ({@link nextAvailableThemeId}).
  */
 export const MARKETPLACE_CATALOG_DIR = "__marketplace__";
+
+/**
+ * Prefix of the scratch directory `migrate-theme.ts`'s `createStagingDir` creates as a sibling of the
+ * real theme folder it's migrating (`.tovu-migrate-staging-<id>-<random-hex>`), and deliberately
+ * LEAVES ON DISK after a dry run or a failed migration for inspection (see that module's own header).
+ * Not a tier and not a theme — same status as {@link THEME_CATALOG_DIR}/{@link MARKETPLACE_CATALOG_DIR}
+ * — but unlike those two fixed names, discovery can't skip it by exact-name `exclude` because the
+ * random suffix makes every occurrence's name unique; {@link discoverThemes} matches on this prefix
+ * instead. ARCH-001 (2026-08-19): two such directories were swept into a commit by a broad `git add`
+ * and discovered as three "basic"-id themes (the real one plus both scratch copies, which retain the
+ * migrated manifest's `id`) before this constant existed to filter them out.
+ */
+export const MIGRATION_STAGING_DIR_PREFIX = ".tovu-migrate-staging-";
 
 /**
  * Discover every built-in theme across the top-level (declarative) folder plus every engine

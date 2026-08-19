@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { cpSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
-import { loadTheme, type ThemeTier } from "../theme.js";
+import { loadTheme, MIGRATION_STAGING_DIR_PREFIX, type ThemeTier } from "../theme.js";
 import { validateThemePackage, type ValidateThemePackageResult } from "../validation/validate-theme-package.js";
 import { planV2Migration, TOKENS_MODE_FILE_PATTERN, type ThemeMigrationPlan } from "./theme-migration-plan.js";
 
@@ -74,7 +74,7 @@ function convertEngineField(raw: Record<string, unknown>, tier: ThemeTier): Reco
  * by construction, so the final atomic-replace rename below can never throw `EXDEV`.
  */
 function createStagingDir(themeDir: string, id: string): string {
-  const stagingDir = join(dirname(themeDir), `.tovu-migrate-staging-${id}-${randomBytes(6).toString("hex")}`);
+  const stagingDir = join(dirname(themeDir), `${MIGRATION_STAGING_DIR_PREFIX}${id}-${randomBytes(6).toString("hex")}`);
   mkdirSync(stagingDir, { recursive: true });
   return stagingDir;
 }

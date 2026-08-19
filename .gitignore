@@ -7,6 +7,10 @@ development/coverage/
 # source. Added after an audit run left it untracked-but-not-ignored, where a wide `git add` would
 # have swept it into a commit.
 apps/admin/coverage/
+# mkcert-issued locally-trusted dev TLS cert + private key for the admin Vite dev server
+# (`server.https` in `apps/admin/vite.config.ts`). Machine-specific, never shared or committed —
+# each contributor runs `mkcert -install` once and regenerates their own.
+apps/admin/.certs/
 *.log
 .DS_Store
 .env
@@ -20,6 +24,14 @@ apps/admin/coverage/
 # infra/ fails boot with SQLITE_CANTOPEN.
 infra/*
 !infra/README.md
+
+# `tovu theme migrate`'s scratch output (migrate-theme.ts's createStagingDir) — deliberately left on
+# disk as a sibling of the real theme folder for dry-run/failure inspection, never meant to be
+# committed. ARCH-001 (2026-08-19): two of these were swept into a commit by a broad `git add` and
+# discovered as extra copies of the theme they were migrating (see MIGRATION_STAGING_DIR_PREFIX in
+# src/features/theme/theme.ts, which also excludes this pattern from theme discovery as a second,
+# independent layer — this entry only stops it from being committed again).
+src/themes/**/.tovu-migrate-staging-*
 
 # Vendored dev toolkit — cloned separately, has its own git history (not part of Tovu)
 AI-Dev-Shop/

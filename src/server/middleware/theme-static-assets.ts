@@ -3,6 +3,7 @@ import path from "node:path";
 import express from "express";
 import type { Express } from "express";
 
+import { MIGRATION_STAGING_DIR_PREFIX } from "../../features/theme/theme.js";
 import { themeAssetSecurityHeaders } from "./theme-content-security-headers.js";
 
 /**
@@ -83,17 +84,21 @@ export function registerThemeStaticAssets(app: Express, required: { themeRoots: 
  * for every theme id that already existed under `themes/static`. No such collision exists on disk
  * today (verified: `ls themes/static themes/templated` share no folder name).
  *
- * Three separate refusals per root, because a path segment now arrives from the request rather than
+ * Four separate refusals per root, because a path segment now arrives from the request rather than
  * from a `readdirSync` of trusted names:
  * - `..`/separators/absolute paths, rejected by re-resolving and requiring the result stay under
  *   that root — the standard containment check, kept even though Express decodes `:themeId` as a
  *   single segment, because that is a property of the routing layer rather than of this function.
  * - the `__original-themes__`/`__marketplace__` catalogs, whose whole purpose is to be a pristine
  *   copy nothing serves or runs; neither is a theme and must not be reachable as one.
+ * - `.tovu-migrate-staging-*` scratch output (ARCH-001, 2026-08-19) — `migrate-theme.ts` deliberately
+ *   leaves this on disk for dry-run/failure inspection (see {@link MIGRATION_STAGING_DIR_PREFIX}'s own
+ *   doc), and it lives as a direct sibling of real theme folders, so without this refusal it resolved
+ *   here exactly like a real theme id and its whole folder (css, tokens, screenshots) was servable.
  * - anything that simply is not there, which falls through to the next root, then to the normal 404.
  */
 function resolveThemeDir(roots: readonly string[], themeId: string): string | null {
-  if (themeId === "" || themeId.startsWith("__")) return null;
+  if (themeId === "" || themeId.startsWith("__") || themeId.startsWith(MIGRATION_STAGING_DIR_PREFIX)) return null;
   for (const root of roots) {
     const candidate = path.resolve(root, themeId);
     if (candidate !== path.join(root, themeId)) continue;
