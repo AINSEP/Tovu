@@ -175,7 +175,11 @@ test("a tool result is an explicit model-facing view: workspaceId/updatedAt drop
   assert.deepEqual(Object.keys(created.menu).sort(), ["id", "items", "locations", "slug", "status", "title", "version"]);
   assert.equal("workspaceId" in created.menu, false, "the agent is already scoped to one workspace it cannot change");
   assert.equal("updatedAt" in created.menu, false);
-  assert.equal(created.menu.status, "draft");
+  // `menu-service.ts`'s `createMenu` defaults new menus to 'published', not 'draft' (Jini
+  // cfd31024, 2026-08-09): menus have no separate review/approval workflow the way posts do, and
+  // `resolveForLocation` never branched on `status` in the first place — only trash/purge did — so
+  // 'draft' implied a workflow that never existed.
+  assert.equal(created.menu.status, "published");
 });
 
 test("the returned items tree is a deep copy — mutating a nested child cannot reach stored domain state", async () => {
@@ -226,11 +230,12 @@ test("no wired Menus tool carries a confirmation-requiring actor-class rule", ()
 test("workflow: create a menu, add items to it, then assign it to a location — reads reflect the whole chain under the SAME id", async () => {
   const { deps } = fakeRouteDeps();
 
-  // Step 1: create an empty draft menu.
+  // Step 1: create an empty menu, published by default (see the output-projection test above for
+  // why: menu-service.ts's createMenu, Jini cfd31024 2026-08-09).
   const created = (await wired("menus_create_menu", deps).handler(executionContext({ title: "Main Nav", slug: "main-nav" }))) as {
     menu: { id: string; status: string; version: number; items: unknown[] };
   };
-  assert.equal(created.menu.status, "draft");
+  assert.equal(created.menu.status, "published");
   assert.equal(created.menu.version, 1);
   assert.deepEqual(created.menu.items, []);
 

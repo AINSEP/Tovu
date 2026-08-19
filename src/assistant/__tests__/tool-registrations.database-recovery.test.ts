@@ -3,7 +3,7 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { ForbiddenError as CommandForbiddenError } from "@jini-ai/cms/core";
+import { ForbiddenError as CommandForbiddenError, assertToolIsWirable } from "@jini-ai/cms/core";
 import {
   getDatabaseAgentToolCatalog,
   type AgentToolDefinition as DatabaseAgentToolDefinition,
@@ -81,6 +81,18 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
     return allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" };
   };
 
+  // `database.migrate`/`backup.restore` are `scopeKind: "instance"` (69f9b52c, 2026-08-12) — their
+  // gateway `plan()`/`confirm()`/`execute()` calls route through `authorizeInstance`, never
+  // `authorize`, and fail closed (`INSTANCE_AUTHORIZATION_NOT_CONFIGURED`) if it is left unbound
+  // (`gateway.ts`'s `authorizeForHooks`). Recorded into the SAME `authorizeCalls` array as `authorize`
+  // (not a separate one) so the generic per-tool loop below can observe it via one shared list, the
+  // way it already does for every workspace-scoped tool.
+  const authorizeInstance = async (params: Record<string, unknown>) => {
+    authorizeCalls.push(params);
+    order.push("authorizeInstance");
+    return allow ? { allowed: true, reason: "matched" } : { allowed: false, reason: "insufficient_permission" };
+  };
+
   let counter = 0;
   const clock = { nowIso: () => NOW };
   const idGen = { newId: () => `id-${++counter}` };
@@ -115,7 +127,7 @@ function fakeRouteDeps(options: { allow?: boolean } = {}) {
     },
   };
 
-  const gatewayDeps = buildGatewayDeps({ clock, idGen, authorize });
+  const gatewayDeps = buildGatewayDeps({ clock, idGen, authorize, authorizeInstance });
 
   const deps = {
     workspaceId: WORKSPACE_ID,
@@ -263,14 +275,29 @@ test("the confirmation-transport guard itself also independently refuses both ex
   // `assertRiskMetadataIsWirable` checks DERIVED_RISK_BY_TOOL_ID before actorClassRule, so proving
   // the SECOND guard needs a derived-risk entry to exist. Neither excluded tool has one (by
   // design — see the two tests above), so this is exercised against a synthetic stand-in catalog
-  // entry carrying the same actorClassRule, using a tool id ("forms_create_definition") that DOES
-  // have a derived-risk entry, to isolate exactly the actor-class check in question.
+  // entry carrying the same actorClassRule.
+  //
+  // Was keyed off a real tool id borrowed from another domain ("forms_create_definition") that
+  // happened to have a derived-risk entry via `assertRiskMetadataIsWirable`'s ambient
+  // `derivedRiskByToolId()` (every domain this file has installed via `contributeXTools()`, PLUS
+  // whatever else `DOMAIN_SLICES` still wires statically). That broke when `forms` moved off the
+  // static `DOMAIN_SLICES` array onto the tool-contribution registry (2026-08-17, Stage 2 batch 2,
+  // `tool-contribution-registry.ts`'s header) and this file never installs `forms`' own contributor
+  // — installing it just for this one probe would pull `forms`' registrations into every OTHER test
+  // in this file via `buildAssistantToolRegistrations`'s eager per-contributor build loop, using a
+  // `deps` fake that carries none of forms' own fields. Calling the kit's `assertToolIsWirable`
+  // directly with a self-contained, single-entry `derivedRisk` map sidesteps ambient registry state
+  // entirely, so it can never drift again when some unrelated domain's wiring moves.
   assert.throws(
     () =>
-      assertRiskMetadataIsWirable("forms_create_definition", {
-        ...databaseCatalogEntry("database_execute_migrate_forward"),
-        name: "forms_create_definition",
-        sideEffects: "mutates-durable-state",
+      assertToolIsWirable({
+        toolId: "synthetic_confirmation_probe",
+        catalogEntry: {
+          ...databaseCatalogEntry("database_execute_migrate_forward"),
+          name: "synthetic_confirmation_probe",
+          sideEffects: "mutates-durable-state",
+        },
+        derivedRisk: new Map([["synthetic_confirmation_probe", "mutates-durable-state"]]),
       }),
     /requires a human-confirmation transport/,
   );
@@ -371,6 +398,19 @@ test("every wired database/recovery tool has a known input fixture — a newly w
   assert.deepEqual([...combinedRegistrations(deps).keys()].sort(), Object.keys(TOOL_INPUTS).sort());
 });
 
+// `database_plan_migrate_forward` is `scopeKind: "instance"` (69f9b52c, 2026-08-12) with no
+// defensive pre-check of its own (`features/database/tool-registrations.ts`: "No explicit
+// pre-check here: gateway.ts's plan() calls authorize() unconditionally") — its SOLE authorize
+// call is the gateway's internal `authorizeForHooks` routing to `authorizeInstance`
+// (`core/gated-mutations/ports.ts`'s `InstanceAuthorizeFn`), which carries no `workspaceId` at all
+// by design: an instance-wide ceremony has no single owning workspace to scope against, and
+// asserting one here would assert the exact authorization-bypass shape the scope fix closed.
+// `backup_plan_restore` is also `scopeKind: "instance"` but is NOT in this set — its handler runs
+// its own workspace-scoped `requireToolPermission` defensively BEFORE ever reaching the gateway
+// (see the dedicated "checked twice" test below), so `authorizeCalls[0]` for that tool is still the
+// workspace-scoped call this loop's default branch expects.
+const INSTANCE_SCOPED_FIRST_CALL_TOOL_IDS: ReadonlySet<string> = new Set(["database_plan_migrate_forward"]);
+
 for (const toolId of Object.keys(TOOL_INPUTS)) {
   test(`${toolId}: calls authorize() with its catalog's declared permission and the run's principal`, async () => {
     const { deps, authorizeCalls, repos } = fakeRouteDeps();
@@ -382,7 +422,15 @@ for (const toolId of Object.keys(TOOL_INPUTS)) {
     assert.ok(authorizeCalls.length >= 1, `${toolId} must call authorize() at least once`);
     assert.equal(authorizeCalls[0].principalId, PRINCIPAL_ID);
     assert.equal(authorizeCalls[0].permission, permissionOf(toolId));
-    assert.equal(authorizeCalls[0].workspaceId, WORKSPACE_ID);
+    if (INSTANCE_SCOPED_FIRST_CALL_TOOL_IDS.has(toolId)) {
+      assert.equal(
+        authorizeCalls[0].workspaceId,
+        undefined,
+        `${toolId} is scopeKind: "instance" — its authorize check must never carry a workspaceId (a workspace-scoped grant must never authorize an instance-wide mutation)`,
+      );
+    } else {
+      assert.equal(authorizeCalls[0].workspaceId, WORKSPACE_ID);
+    }
   });
 
   test(`${toolId}: a denied principal is rejected and nothing is written`, async () => {
