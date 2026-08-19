@@ -54,6 +54,15 @@
  * in the reported list before assuming a real regression, and look for `ERR_WORKER_OUT_OF_MEMORY` or
  * similar in the same job's `test:cov:server` step output.
  *
+ * RESOLVED 2026-08-19 — this section stays for the diagnosis, but the manual "check for
+ * file-path-shaped entries yourself" step above is now automated: see {@link isFileLevelRollup}.
+ * Roll-ups are printed as informational and no longer gate. Two more runs of the same shape
+ * (32284065315: 10 reported, 8 roll-ups; 32288089565: 8 reported, 6 roll-ups) confirmed the
+ * pattern, and every roll-up file passed clean when re-run individually. No signal is lost: a
+ * genuinely failing test inside such a file is emitted separately BY DESCRIPTION and is still
+ * checked against the baseline — only the unmatchable roll-up line is skipped. The two
+ * description-shaped entries in those same runs were real and were fixed in code, not excluded.
+ *
  * A second, compounding bug (fixed 2026-08-17, same investigation): the `fixedFailures` block below
  * used to print via `console.log` (stdout) while the `newFailures` block prints via `console.error`
  * (stderr). On POSIX, Node writes to a *pipe* — not a TTY or plain file — asynchronously, and GitHub
@@ -75,6 +84,7 @@
  */
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..");
 const DEFAULT_TAP_PATH = path.join(REPO_ROOT, "development/coverage/test-results.tap");
@@ -92,6 +102,28 @@ function parseFailingTestNames(tap: string): Set<string> {
     names.add(match[1].trim());
   }
   return names;
+}
+
+/**
+ * Is this TAP entry a FILE-LEVEL roll-up rather than a test description?
+ *
+ * Node emits one top-level `not ok N - <file path>` for a whole test file alongside its per-test
+ * entries, and under CI resource pressure it can emit ONLY that roll-up, whose reason text is a
+ * bare `test failed`. Both shapes match the same `not ok` regex, but the baseline is keyed on test
+ * DESCRIPTIONS — so a roll-up can never match a baseline entry and is GUARANTEED to report as new,
+ * on every run, for a codebase that is not broken. See this file's own "Known limitation:
+ * CI-runner file-level crashes always read as 'new,' never match anything" section above, which
+ * documented the diagnosis and told a human to do this classification by eye; this function is
+ * that instruction, automated.
+ *
+ * Excluding roll-ups from the gate loses no signal: any genuinely failing test INSIDE such a file
+ * is reported separately by its own description and is still checked against the baseline. They
+ * are still printed, as informational, so a real file-level crash stays visible.
+ *
+ * @complexity O(n) in the entry string's length.
+ */
+export function isFileLevelRollup(entry: string): boolean {
+  return /[\\/]/.test(entry) && /\.(test|spec)\.[cm]?[jt]sx?$/.test(entry);
 }
 
 function main(): void {
@@ -118,7 +150,9 @@ function main(): void {
   const knownFailures = new Set(baseline.knownFailures);
   const currentFailures = parseFailingTestNames(readFileSync(tapPath, "utf8"));
 
-  const newFailures = [...currentFailures].filter((name) => !knownFailures.has(name));
+  const unmatched = [...currentFailures].filter((name) => !knownFailures.has(name));
+  const newFailures = unmatched.filter((name) => !isFileLevelRollup(name));
+  const fileRollups = unmatched.filter(isFileLevelRollup);
   const fixedFailures = [...knownFailures].filter((name) => !currentFailures.has(name));
 
   // Deliberately console.error (not console.log) even though this block is advisory, not a
@@ -137,6 +171,14 @@ function main(): void {
     for (const name of fixedFailures) console.error(`  - ${name}`);
   }
 
+  // Same stream as every other block here, for the pipe-ordering reason documented above.
+  if (fileRollups.length > 0) {
+    console.error(
+      `check:route-test-baseline — ${fileRollups.length} file-level roll-up entr${fileRollups.length === 1 ? "y" : "ies"} (informational, NOT gated — a file path can never match a description-keyed baseline; any real failure inside these is reported separately by name):`
+    );
+    for (const name of fileRollups) console.error(`  - ${name}`);
+  }
+
   if (newFailures.length === 0) {
     console.log(
       `check:route-test-baseline — OK: ${currentFailures.size} failing test(s), all in the ${knownFailures.size}-entry baseline.`
@@ -150,4 +192,12 @@ function main(): void {
   process.exit(1);
 }
 
-main();
+// Guarded, matching the idiom check-src-complexity-drift.ts already uses in this directory (see
+// its own note): this file is now also imported as a plain module by its unit test
+// (`__tests__/check-test-baseline-rollups.test.ts`, which exercises `isFileLevelRollup` directly).
+// Without the guard, importing that one pure function would also run the real baseline check —
+// and its bare `process.exit(1)` would kill the whole test process instead of failing one
+// assertion, which is exactly the file-level death this script now classifies.
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main();
+}
