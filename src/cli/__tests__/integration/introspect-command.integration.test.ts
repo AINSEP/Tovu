@@ -11,7 +11,7 @@ import test from "node:test";
  * dev-mode transform directly, no prior `npm run build` required.
  */
 
-const CLI_MAIN = path.resolve(__dirname, "../../main.ts");
+const CLI_MAIN = path.resolve(import.meta.dirname, "../../main.ts");
 
 function runCli(args: string[]): { status: number | null; stdout: string; stderr: string } {
   const result = spawnSync(process.execPath, ["--import", "tsx", CLI_MAIN, ...args], { encoding: "utf8" });

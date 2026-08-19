@@ -162,7 +162,7 @@ test("createApp(): the real 'basic' static theme's real css/styles.css still ser
   if (address === null || typeof address === "string") throw new Error("expected a real listening address");
   const baseUrl = `http://127.0.0.1:${address.port}`;
 
-  const onDisk = readFileSync(path.resolve(__dirname, "../../../themes/static/basic/css/styles.css"), "utf8");
+  const onDisk = readFileSync(path.resolve(import.meta.dirname, "../../../themes/static/basic/css/styles.css"), "utf8");
   const res = await fetch(`${baseUrl}/theme-assets/basic/css/styles.css`);
   assert.equal(res.status, 200);
   assert.equal(await res.text(), onDisk);
@@ -178,7 +178,7 @@ test("createApp(): the new 'fashion-modern' templated theme's own assets now res
   const baseUrl = `http://127.0.0.1:${address.port}`;
 
   const stylesOnDisk = readFileSync(
-    path.resolve(__dirname, "../../../themes/templated/fashion-modern/styles.css"),
+    path.resolve(import.meta.dirname, "../../../themes/templated/fashion-modern/styles.css"),
     "utf8"
   );
   const stylesRes = await fetch(`${baseUrl}/theme-assets/fashion-modern/styles.css`);
@@ -212,7 +212,7 @@ test("createApp(): all 7 static themes' real screenshot files still serve byte-f
   ];
 
   for (const { id, file } of staticThemeScreenshots) {
-    const onDiskPath = path.resolve(__dirname, `../../../themes/static/${id}/screenshots/${file}`);
+    const onDiskPath = path.resolve(import.meta.dirname, `../../../themes/static/${id}/screenshots/${file}`);
     const onDisk = readFileSync(onDiskPath);
     const res = await fetch(`${baseUrl}/theme-assets/${id}/screenshots/${file}`);
     assert.equal(res.status, 200, `${id}/screenshots/${file} should still 200`);

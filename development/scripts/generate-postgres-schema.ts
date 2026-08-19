@@ -43,6 +43,7 @@
  * Run: `npx tsx development/scripts/generate-postgres-schema.ts`
  * Check (CI): `npx tsx development/scripts/generate-postgres-schema.ts --check`
  */
+import { pathToFileURL } from "node:url";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -644,7 +645,7 @@ function main(): void {
 // effect of import. The negative-fixture tests below import renderTable()/renderSqlText() etc. against
 // hand-built tables that are NOT part of schema.ts, specifically so a fixture proving the generator
 // rejects a bad shape can never itself write or drift-check the real src/db/schema.postgres.ts.
-if (require.main === module) {
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   main();
 }
 

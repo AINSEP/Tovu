@@ -37,7 +37,7 @@ import test from "node:test";
  * cycle, not a missing call).
  */
 
-const DAEMON_ENTRY_SOURCE = readFileSync(path.join(__dirname, "../agent-daemon-server.ts"), "utf8");
+const DAEMON_ENTRY_SOURCE = readFileSync(path.join(import.meta.dirname, "../agent-daemon-server.ts"), "utf8");
 
 test("agent-daemon-server.ts imports installUnhandledRejectionGuard from the shared process-error-guards module", () => {
   assert.match(

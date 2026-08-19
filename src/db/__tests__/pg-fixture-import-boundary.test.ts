@@ -27,8 +27,8 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
-const REPO_ROOT = path.resolve(__dirname, "../../..");
-const ALLOWED_DIRS = new Set([__dirname]);
+const REPO_ROOT = path.resolve(import.meta.dirname, "../../..");
+const ALLOWED_DIRS = new Set([import.meta.dirname]);
 
 // Only these hold product/test TypeScript source — the roots a relative import from anywhere in the
 // codebase could plausibly resolve through. Excludes gitignored toolkit/report trees (AI-Dev-Shop/,

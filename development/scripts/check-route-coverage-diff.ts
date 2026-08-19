@@ -69,6 +69,7 @@
  *             record on either tier, or either lcov file is missing/unreadable, or the base ref
  *             can't be resolved (e.g. not fetched).
  */
+import { pathToFileURL } from "node:url";
 import { execFileSync } from "node:child_process";
 import {
   LCOV_INTEGRATION_PATH,
@@ -198,6 +199,6 @@ function main(): void {
 // Guarded (see check-src-complexity-drift.ts's own comment on this idiom): this file is also
 // imported as a plain module by its own unit test, which exercises resolveBaseRef directly
 // without running the real git/coverage scan or risking a bare process.exit from this module.
-if (require.main === module) {
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   main();
 }

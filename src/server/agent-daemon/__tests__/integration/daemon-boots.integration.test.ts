@@ -35,7 +35,7 @@ import test from "node:test";
  * through `tsx`'s dev-mode transform, so no prior `npm run build` is required.
  */
 
-const DAEMON_ENTRY = path.resolve(__dirname, "../../agent-daemon-server.ts");
+const DAEMON_ENTRY = path.resolve(import.meta.dirname, "../../agent-daemon-server.ts");
 const TSX_LOADER = require.resolve("tsx");
 
 /** A port nothing else holds, so a bind failure here can never be mistaken for the cycle crash. */

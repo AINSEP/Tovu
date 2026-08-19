@@ -552,7 +552,7 @@ test("T034/C-010e: delete.ts — admin.menus.delete alone succeeds on trash + bl
 test("T041/INV-NEW-02: zero navigation.manage string literals remain in src/server/routes/admin/menus/*.ts after cutover", async () => {
   const { readFileSync, readdirSync } = await import("node:fs");
   const { join } = await import("node:path");
-  const dir = join(__dirname, "../routes/admin/menus");
+  const dir = join(import.meta.dirname, "../routes/admin/menus");
   for (const file of readdirSync(dir)) {
     if (!file.endsWith(".ts")) continue;
     const contents = readFileSync(join(dir, file), "utf8");

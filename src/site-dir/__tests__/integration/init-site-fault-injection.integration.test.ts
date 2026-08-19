@@ -118,7 +118,7 @@ test("AC-03/EC-10 (deep, real resource-exhaustion failure): a file-size-limited 
   const parent = mkTempParent();
   const target = path.join(parent, "deep-failure");
   const workerPath = path.join(parent, "worker.ts");
-  const initSitePath = path.resolve(__dirname, "../../init-site");
+  const initSitePath = path.resolve(import.meta.dirname, "../../init-site");
   fs.writeFileSync(
     workerPath,
     [
@@ -153,7 +153,7 @@ test("EC-10/RT-003/U-003-B3: when cleanup's own removal step hits a real EACCES 
   const target = path.join(grandparent, "target");
   fs.mkdirSync(target); // pre-existing, empty — EC-01 allows init to proceed using it
   const workerPath = path.join(parent, "worker.ts");
-  const initSitePath = path.resolve(__dirname, "../../init-site");
+  const initSitePath = path.resolve(import.meta.dirname, "../../init-site");
   fs.writeFileSync(
     workerPath,
     [

@@ -17,7 +17,7 @@ import { execFileSync } from "node:child_process";
 import path from "node:path";
 import test from "node:test";
 
-const REPO_ROOT = path.resolve(__dirname, "../../..");
+const REPO_ROOT = path.resolve(import.meta.dirname, "../../..");
 const GENERATOR = path.join("development", "scripts", "generate-postgres-schema.ts");
 
 test("schema.postgres.ts is up to date with schema.ts (run the generator and commit if this fails)", () => {

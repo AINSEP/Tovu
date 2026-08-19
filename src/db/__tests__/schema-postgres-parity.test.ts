@@ -58,7 +58,7 @@ import * as pgSchema from "../schema.postgres.js";
 
 import { tsPropertyNames } from "../../../development/scripts/generate-postgres-schema.js";
 
-const GENERATED = fs.readFileSync(path.resolve(__dirname, "../schema.postgres.ts"), "utf8");
+const GENERATED = fs.readFileSync(path.resolve(import.meta.dirname, "../schema.postgres.ts"), "utf8");
 const DRIZZLE_IS_TABLE = Symbol.for("drizzle:IsDrizzleTable");
 
 /** Escapes a literal string for use inside a `new RegExp(...)` pattern. */

@@ -44,7 +44,7 @@ import { runtimeSchemaVersion, compareSchemaVersion } from "../../schema-guard.j
  *   Given site.schemaVersion < runtime.index (any tag)                     -> returns "migrate"
  */
 
-const JOURNAL_PATH = path.resolve(__dirname, "../../../db/drizzle/meta/_journal.json");
+const JOURNAL_PATH = path.resolve(import.meta.dirname, "../../../db/drizzle/meta/_journal.json");
 
 function readRealJournalLatest(): { index: number; tag: string } {
   const journal = JSON.parse(fs.readFileSync(JOURNAL_PATH, "utf8")) as { entries: Array<{ idx: number; tag: string }> };
