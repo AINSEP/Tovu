@@ -86,8 +86,32 @@ function spawnServe(args: string[], env: NodeJS.ProcessEnv = {}, cwd?: string): 
   return spawn(process.execPath, ["--import", TSX_LOADER, CLI_MAIN, "serve", ...args], { env: { ...process.env, ...env }, cwd }) as ChildProcessWithoutNullStreams;
 }
 
+/**
+ * Scales a boot deadline by how oversubscribed this machine actually is.
+ *
+ * The 20s base below is generous on an idle box -- `tovu serve` answers in ~2s. But these are the
+ * only tests that spawn the REAL CLI as a real process, and on 2026-08-19 a 7-agent run drove this
+ * 8-core machine to load average 60-99; both spawn-based tests then blew the flat 20s deadline and
+ * reported as failures on a codebase that was not broken. The wrong fix is mocking the boot: the
+ * `CR-R04/CR-R01` test below exists precisely BECAUSE every other test spawned from the repo root,
+ * which "accidentally made the process.cwd()-relative bug invisible" -- mocking would re-hide that
+ * whole class of bug.
+ *
+ * So: stay fast on a quiet machine (multiplier 1 -> unchanged 20s, a genuinely dead server still
+ * fails in 20s, not minutes) and grow proportionally with real contention, capped so a wedged
+ * server can never turn a fast failure into a multi-minute hang. `loadavg()[0]` is the 1-minute
+ * average -- the responsive one; `availableParallelism()` is the core count the runner itself uses
+ * to size its worker pool. Ratio <= 1 means "not oversubscribed", so no extra grace.
+ */
+function loadFactor(): number {
+  const cores = os.availableParallelism?.() ?? os.cpus().length;
+  const ratio = os.loadavg()[0] / Math.max(cores, 1);
+  return Math.min(Math.max(ratio, 1), 6); // never shorter than base, never more than 6x
+}
+
 async function waitForHttpReady(port: number, child: ChildProcessWithoutNullStreams, timeoutMs = 20000): Promise<void> {
-  const deadline = Date.now() + timeoutMs;
+  const factor = loadFactor();
+  const deadline = Date.now() + timeoutMs * factor;
   let exited = false;
   let exitCode: number | null = null;
   child.on("exit", (code) => {
@@ -104,12 +128,29 @@ async function waitForHttpReady(port: number, child: ChildProcessWithoutNullStre
       await new Promise((r) => setTimeout(r, 150));
     }
   }
-  throw new Error(`timed out waiting for http://127.0.0.1:${port}/ to respond`);
+  // Report the load the wait actually ran under: without it, a starved-machine timeout and a
+  // genuinely-broken server produce byte-identical CI output, which cost real debugging time on
+  // 2026-08-19 before anyone thought to check `uptime`.
+  throw new Error(
+    `timed out waiting for http://127.0.0.1:${port}/ to respond after ${Math.round((timeoutMs * factor) / 1000)}s ` +
+      `(1-min load average ${os.loadavg()[0].toFixed(2)} across ${os.availableParallelism?.() ?? os.cpus().length} cores, ` +
+      `deadline scaled ${factor.toFixed(2)}x)`
+  );
 }
 
+/**
+ * SIGTERM shutdown is scaled by the same {@link loadFactor} as boot: a graceful stop has to drain
+ * in-flight work and close listeners, which is exactly as CPU-starvable as coming up. BR-07 asserts
+ * a graceful exit code, so a starved-machine timeout here would misreport as "SIGTERM handling is
+ * broken" -- the same false signal the boot wait produced on 2026-08-19.
+ */
 async function stopGracefully(child: ChildProcessWithoutNullStreams, timeoutMs = 10000): Promise<number | null> {
+  const scaled = timeoutMs * loadFactor();
   return new Promise((resolve, reject) => {
-    const timer = setTimeout(() => reject(new Error("server did not exit within timeout after SIGTERM")), timeoutMs);
+    const timer = setTimeout(
+      () => reject(new Error(`server did not exit within ${Math.round(scaled / 1000)}s after SIGTERM (1-min load average ${os.loadavg()[0].toFixed(2)})`)),
+      scaled
+    );
     child.on("exit", (code) => {
       clearTimeout(timer);
       resolve(code);
