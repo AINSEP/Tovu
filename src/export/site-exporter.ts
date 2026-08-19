@@ -556,11 +556,11 @@ function listFilesRecursively(dir: string): string[] {
  */
 function findUnreferencedThemeFiles(activeTheme: ManifestActiveTheme, manifestRoutes: readonly ManifestRoute[], fetchedAssetUrls: readonly string[]): string[] {
   // Schema v2 (2026-08-18, `basic`'s own migration was the last static theme to convert) nests
-  // pages under `render/pages/` instead of a theme-root `pages/` — mirrors
-  // `theme-pages-render.canary.test.ts`'s own v1/v2 detection (presence of `render/pages`), since
-  // every real v2-migrated theme loses its root `pages/` folder permanently once migrated, so the
-  // two conventions never coexist within one theme.
-  const pagesDir = existsSync(path.join(activeTheme.dir, "render", "pages")) ? "render/pages" : "pages";
+  // pages under `render/pages/` instead of a theme-root `pages/` — same `apiVersion === 2` branch
+  // `theme.ts`'s `loadStaticTierAssets` uses (`ManifestActiveTheme.apiVersion` is threaded from
+  // `theme.manifest.apiVersion` in `route-manifest.ts` for exactly this), rather than a second,
+  // independently-maintained disk-layout probe that could drift from the loader's own rule.
+  const pagesDir = activeTheme.apiVersion === 2 ? "render/pages" : "pages";
   const accountedFor = new Set<string>([`${pagesDir}/index.html`, `${pagesDir}/404.html`]);
   for (const route of manifestRoutes) {
     if (route.kind === "theme-page") accountedFor.add(`${pagesDir}/${route.label}.html`);

@@ -146,7 +146,7 @@ export async function buildRouteManifest(deps: RouteManifestDeps): Promise<Route
       detail: "no valid theme discovered for this workspace — only '/' and the 404 probe could be enumerated",
     });
   } else {
-    activeTheme = { id: theme.manifest.id, dir: theme.dir };
+    activeTheme = { id: theme.manifest.id, dir: theme.dir, apiVersion: theme.manifest.apiVersion };
     const postBySlug = new Map<string, PostRecord>(posts.map((post) => [post.slug, post]));
     // Slugs claimed by a theme-owned static page THIS pass, so the post loop below can skip a post
     // that is shadowed at its own slug (pages.ts:765-786: tri-state `overridesThemePage` — post wins
