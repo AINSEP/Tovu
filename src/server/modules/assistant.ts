@@ -57,7 +57,6 @@ import {
   SURFACE_EXCHANGE_ID_PARAM,
   type SurfaceExchangeStore,
 } from "../../assistant/index.js";
-import { registerMcpUiSandboxProxyRoute } from "../../assistant/mcp-ui-sandbox-proxy-route.js";
 import { getAuthedPrincipal, requireAdminSession } from "../middleware/dev-auth.js";
 import type { RouteDeps } from "../routes/types.js";
 import { AGENT_DAEMON_URL, forwardToAgentDaemon, respondIfDaemonKnownFailed } from "./assistant-daemon-client.js";
@@ -354,8 +353,6 @@ export function createAssistantModule(routeDeps: RouteDeps, byokSurfaceExchanges
   return {
     name: "assistant",
     registerRoutes: (app: Express) => {
-      registerMcpUiSandboxProxyRoute(app);
-
       app.use("/api/runs", requireAdminSession(routeDeps));
       app.post("/api/runs", (req: Request, res: Response, next: NextFunction) => {
         proxyRunStart(req, res).catch(next);
