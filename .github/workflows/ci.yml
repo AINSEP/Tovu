@@ -251,7 +251,41 @@ jobs:
         # passed clean when re-run individually. Set here rather than in the scripts so local
         # runs keep full parallelism -- the npm scripts add the flag only when this var is set.
           TEST_CONCURRENCY: 2
-        run: npm test
+        # `test:ci`, not `test`: identical suite and globs, but adds a TAP reporter writing
+        # development/coverage/test-results-all.tap alongside the usual stdout output. That file is
+        # what the report step below reads. `npm test` is left untouched for local use.
+        run: npm run test:ci
+
+      # VISIBILITY STEP, not a gate (2026-08-19). The step above has been `continue-on-error` since
+      # this workflow was written, on a measured 82 pre-existing repo-wide failures with no baseline
+      # to ratchet against -- so for weeks it burned ~13 minutes per run producing a number nobody
+      # read and nothing depended on. This step turns that into an actual artifact: the exact list
+      # of failing tests, in the precise JSON shape `development/scripts/repo-test-failure-baseline.json`
+      # expects, ready to be copied into that file.
+      #
+      # It is deliberately NOT blocking yet, and neither is the step above. The plan, in order:
+      #   1. (this commit) print the real list from a real CI run -- the environment that actually
+      #      matters, and the one place the full suite can run without eating a laptop's RAM.
+      #   2. commit that list as repo-test-failure-baseline.json.
+      #   3. add `npm run check:test-baseline` as a REAL gate alongside the others. From then on any
+      #      NEW repo-wide failure fails the build, while the known debt is tolerated AND visible.
+      # Step 3 is what makes this a gate; until the baseline exists there is nothing to ratchet
+      # against, and a gate with no baseline is just a red build.
+      - name: Repo-wide test failure report (informational)
+        if: always()
+        continue-on-error: true
+        run: |
+          if [ ! -f development/coverage/test-results-all.tap ]; then
+            echo "No TAP output — the Test step did not get far enough to produce one."
+            exit 0
+          fi
+          npx tsx development/scripts/check-test-baseline.ts \
+            --capture /tmp/repo-test-failure-baseline.json \
+            development/coverage/test-results-all.tap
+          echo ""
+          echo "===== COPY THE BLOCK BELOW INTO development/scripts/repo-test-failure-baseline.json ====="
+          cat /tmp/repo-test-failure-baseline.json
+          echo "===== END ====="
 
       - name: Check architecture boundaries
         # .dependency-cruiser.cjs rules are deliberately severity:"warn" (see file header) —
