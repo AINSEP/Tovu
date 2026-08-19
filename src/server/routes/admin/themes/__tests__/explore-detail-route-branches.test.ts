@@ -8,6 +8,7 @@ import express from "express";
 import type { NextFunction, Request, Response } from "express";
 
 import { discoverAllBuiltInThemes, THEME_CATALOG_DIR } from "#src/features/theme/index";
+import { THEME_LINEAGE_FILENAME, type ThemeLineage } from "#src/features/theme/theme-lineage";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { registerAdminThemeDetailRoute } from "../explore.js";
 import type { ContentRouteDeps } from "../../content/deps.js";
@@ -51,22 +52,36 @@ const BASE = (themeId: string) => `/api/admin/v1/workspaces/${WORKSPACE_ID}/them
  *  manifest, so the "present, non-nullish" side of `raw.lineage ?? null` is real. */
 function makeThemeWithLineageAndCatalog(): string {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-detail-lineage-"));
-  const manifestWithLineage = JSON.stringify({
+  const manifest = JSON.stringify({
     id: "lineaged",
     name: "Lineaged",
     version: "1.0.0",
     tier: "static",
     engine: 1,
-    lineage: { copiedFrom: "basic", copiedAt: "2026-08-17T00:00:00.000Z" },
   });
-  for (const base of [path.join(root, "static", "lineaged"), path.join(root, THEME_CATALOG_DIR, "static", "lineaged")]) {
+  // Lineage lives in its own install-local sidecar (THEME_LINEAGE_FILENAME), NOT on the manifest --
+  // 2026-08-18 schema decision, see registerAdminThemeDetailRoute's own comment and
+  // theme-lineage.ts. A v2 manifest is additionalProperties:false, so a `lineage` key on
+  // theme.json would not merely be ignored here, it would be schema-invalid.
+  const lineage: ThemeLineage = {
+    from: "marketplace",
+    tier: "static",
+    version: "1.0.0",
+    catalog: `${THEME_CATALOG_DIR}/static/lineaged`,
+    marketplaceId: "lineaged",
+    name: "Lineaged",
+  };
+  const installDir = path.join(root, "static", "lineaged");
+  for (const base of [installDir, path.join(root, THEME_CATALOG_DIR, "static", "lineaged")]) {
     fs.mkdirSync(path.join(base, "pages"), { recursive: true });
     fs.mkdirSync(path.join(base, "css"), { recursive: true });
     fs.writeFileSync(path.join(base, "pages", "index.html"), "<html><body>x</body></html>", "utf8");
     fs.writeFileSync(path.join(base, "css", "styles.css"), "body{}", "utf8");
     fs.writeFileSync(path.join(base, "tokens.json"), "{}", "utf8");
-    fs.writeFileSync(path.join(base, "theme.json"), manifestWithLineage, "utf8");
+    fs.writeFileSync(path.join(base, "theme.json"), manifest, "utf8");
   }
+  // Install-local only: the catalog original is the pristine copy and carries no lineage of its own.
+  fs.writeFileSync(path.join(installDir, THEME_LINEAGE_FILENAME), JSON.stringify(lineage), "utf8");
   return root;
 }
 
@@ -87,7 +102,7 @@ function makeThemeNoLineageNoCatalog(): string {
   return root;
 }
 
-test("lineage present and non-null: the manifest's own lineage object is echoed back verbatim", async (t) => {
+test("lineage sidecar present: the .tovu-lineage.json object is echoed back verbatim", async (t) => {
   const themesDir = makeThemeWithLineageAndCatalog();
   const app = buildTestApp(baseDeps(themesDir));
   const baseUrl = await startTestServer(app, t);
@@ -95,11 +110,18 @@ test("lineage present and non-null: the manifest's own lineage object is echoed 
   const res = await fetch(`${baseUrl}${BASE("lineaged")}`);
   assert.equal(res.status, 200);
   const body = (await res.json()) as { lineage: unknown; hasOriginal: boolean };
-  assert.deepEqual(body.lineage, { copiedFrom: "basic", copiedAt: "2026-08-17T00:00:00.000Z" });
+  assert.deepEqual(body.lineage, {
+    from: "marketplace",
+    tier: "static",
+    version: "1.0.0",
+    catalog: `${THEME_CATALOG_DIR}/static/lineaged`,
+    marketplaceId: "lineaged",
+    name: "Lineaged",
+  });
   assert.equal(body.hasOriginal, true, "a catalog original exists for this fixture");
 });
 
-test("lineage absent from the manifest: falls back to null via '?? null', and hasOriginal is false with no catalog", async (t) => {
+test("lineage sidecar absent: readThemeLineageFile returns null, and hasOriginal is false with no catalog", async (t) => {
   const themesDir = makeThemeNoLineageNoCatalog();
   const app = buildTestApp(baseDeps(themesDir));
   const baseUrl = await startTestServer(app, t);
@@ -111,7 +133,7 @@ test("lineage absent from the manifest: falls back to null via '?? null', and ha
   assert.equal(body.hasOriginal, false, "no catalog folder was created for this fixture");
 });
 
-test("malformed theme.json: the lineage re-read's bare catch swallows the JSON.parse failure, lineage reports null, response still 200", async (t) => {
+test("malformed theme.json: the route still 200s on a theme loadTheme marked invalid, and lineage reports null (no sidecar written)", async (t) => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-detail-malformed-"));
   const dir = path.join(root, "static", "broken");
   fs.mkdirSync(path.join(dir, "pages"), { recursive: true });

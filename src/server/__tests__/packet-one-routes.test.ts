@@ -680,6 +680,12 @@ test("GET themes lists discovered built-in themes, TB-01 ordered, exactly one ma
       "fashion-modern",
       "fuel",
       "gracious-timing",
+      // Added by 39096e15 (the ESM root flip) and never reflected here, which is what made this
+      // assertion fail. Its own manifest self-describes as a "Test theme ... experiment" that
+      // "bypasses the conformance gate rather than passing it" -- but this endpoint deliberately
+      // reports EVERY discovered theme regardless of validity (see the comment above), so it
+      // belongs in this list for as long as the folder is committed.
+      "mui-marketing",
       "portfolite",
       "storefront",
       "tailark-dusk",
