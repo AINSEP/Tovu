@@ -10,7 +10,7 @@ import { bootAuthenticated } from "../helpers/http-test-server.js";
 import type { RouteDeps } from "../../routes/types.js";
 import { buildStaticPublishRegistrations } from "../../../features/deployments/publish-agent-tools.js";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "../../../core/tool-surface-exchanges.js";
-import { CLOUDFLARE_ACCOUNT_ID_ENV_VAR, ENV_VAR_ALIASES_BY_TARGET } from "../../../features/deployments/static-publish/credentials.js";
+import { CLOUDFLARE_ACCOUNT_ID_ENV_VAR, ENV_VAR_ALIASES_BY_TARGET } from "../../../features/deployments/static-publish/index.js";
 
 /**
  * @file Admin Deployment panel → publish-to-GitHub-Pages/Vercel — `POST`/`GET /api/admin/v1/
