@@ -1,8 +1,0 @@
-{
-  "id": "mui-marketing",
-  "name": "MUI Marketing (experiment)",
-  "version": "0.1.0",
-  "tier": "static",
-  "engine": 1,
-  "description": "Test theme: MUI's marketing-page template, hand-built with Vite and dropped in as plain static output. No compiled-tier provenance (no build.source/sourceDir/artifactHashes) on purpose — this bypasses the conformance gate rather than passing it; see chat/handoff notes on the CSS-in-JS and CSR-shell gaps found while building it."
-}
