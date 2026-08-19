@@ -62,9 +62,9 @@ import { constants } from "node:fs";
 import { chmod, mkdir, mkdtemp, open, readdir, readFile, rename, rm, stat } from "node:fs/promises";
 import path from "node:path";
 
-import type { AgentPluginLayout } from "./layout";
-import { parseAgentPluginManifest } from "./manifest";
-import { assertContainedOnDisk, normalizePackageEntryPath, PackagePathViolation } from "./package-paths";
+import type { AgentPluginLayout } from "./layout.js";
+import { parseAgentPluginManifest } from "./manifest.js";
+import { assertContainedOnDisk, normalizePackageEntryPath, PackagePathViolation } from "./package-paths.js";
 
 /** One extraction/install failure reason. A caller (an admin route, a future marketplace installer)
  * branches on `code` rather than parsing `message` — this codebase's own convention

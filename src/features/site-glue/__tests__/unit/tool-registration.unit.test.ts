@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { mergeGlueToolRegistrations } from "../../attachment-points/tool-registration";
-import type { GlueToolModuleContribution } from "../../attachment-points/tool-registration";
-import type { GlueToolRegistration } from "../../ports";
+import { mergeGlueToolRegistrations } from "../../attachment-points/tool-registration.js";
+import type { GlueToolModuleContribution } from "../../attachment-points/tool-registration.js";
+import type { GlueToolRegistration } from "../../ports.js";
 
 /**
  * @file `mergeGlueToolRegistrations()` — SPEC-048 REQ-5/REQ-8/REQ-16; ADR-057 Decision 4, CIC-3

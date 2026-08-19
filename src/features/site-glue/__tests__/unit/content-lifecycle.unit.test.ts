@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { attachGlueContentLifecycle } from "../../attachment-points/content-lifecycle";
-import type { GlueFieldDecl } from "../../ports";
+import { attachGlueContentLifecycle } from "../../attachment-points/content-lifecycle.js";
+import type { GlueFieldDecl } from "../../ports.js";
 
 /**
  * @file `attachGlueContentLifecycle()` — SPEC-048 REQ-5; ADR-057 Decision 2/4.

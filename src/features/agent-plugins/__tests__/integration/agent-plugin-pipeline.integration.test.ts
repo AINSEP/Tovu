@@ -5,11 +5,11 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { forceRemove } from "../fixtures/force-remove";
-import { projectInstalledAgentPluginCapabilities, readInstalledSkillMarkdown } from "../../capability-projection";
-import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "../../install";
-import { resolveAgentPluginLayout } from "../../layout";
-import { parseAgentPluginMcpConfig } from "../../manifest";
+import { forceRemove } from "../fixtures/force-remove.js";
+import { projectInstalledAgentPluginCapabilities, readInstalledSkillMarkdown } from "../../capability-projection.js";
+import { installAgentPlugin, type AgentPluginArchiveEntry, type AgentPluginArchiveReaderPort } from "../../install.js";
+import { resolveAgentPluginLayout } from "../../layout.js";
+import { parseAgentPluginMcpConfig } from "../../manifest.js";
 
 /**
  * @file End-to-end proof that layout + install + manifest + capability-projection compose into one

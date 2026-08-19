@@ -1,10 +1,10 @@
 import { lookup } from "node:dns/promises";
 import { isIP } from "node:net";
 
-import { FetchHttpTransportAdapter } from "./transport.fetch";
-import type { EgressPolicy, HttpClientPort, HttpTransportAdapter } from "./ports";
-import type { CreateHttpClient } from "./ports";
-import type { HttpRequest, HttpResponse, PinnedPeer } from "./types";
+import { FetchHttpTransportAdapter } from "./transport.fetch.js";
+import type { EgressPolicy, HttpClientPort, HttpTransportAdapter } from "./ports.js";
+import type { CreateHttpClient } from "./ports.js";
+import type { HttpRequest, HttpResponse, PinnedPeer } from "./types.js";
 
 /**
  * @file The one production `HttpClientPort` constructor (ADR-038 §2, ADR-PIPE-015 GAP-04).

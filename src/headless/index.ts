@@ -8,4 +8,4 @@ export type {
   HeadlessThemeId,
   HeadlessThemeSummary,
   HeadlessThemeTier,
-} from "./contracts";
+} from "./contracts.js";

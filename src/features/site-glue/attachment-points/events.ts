@@ -19,7 +19,7 @@
  * Implementation Outline slice 4 (ADR-057, Implementation Outline). Depends on slice 1's frozen
  * `manifest.ts`/`ports.ts` contracts. Independent of slices 2 and 3.
  */
-import type { GlueHostPort } from "../ports";
+import type { GlueHostPort } from "../ports.js";
 
 export interface SubscribeGlueEventRequired {
   readonly moduleId: string;

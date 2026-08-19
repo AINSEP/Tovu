@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { mergeGlueToolRegistrations } from "../../attachment-points/tool-registration";
-import type { GlueToolModuleContribution } from "../../attachment-points/tool-registration";
-import type { GlueToolRegistration } from "../../ports";
+import { mergeGlueToolRegistrations } from "../../attachment-points/tool-registration.js";
+import type { GlueToolModuleContribution } from "../../attachment-points/tool-registration.js";
+import type { GlueToolRegistration } from "../../ports.js";
 
 /**
  * @file Tool-registration attachment point, exercised against a realistic stand-in for

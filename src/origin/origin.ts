@@ -18,8 +18,8 @@
  * normalization) and F4 (egress-target oracle) from the ADR's internal-
  * verification round.
  */
-import type { OriginContext, OriginRegistryPort, OriginSettingRepoPort, RedirectTargetContext, EgressTargetContext } from "./ports";
-import { OriginNotVerifiedError, type VerifiedOrigin } from "./types";
+import type { OriginContext, OriginRegistryPort, OriginSettingRepoPort, RedirectTargetContext, EgressTargetContext } from "./ports.js";
+import { OriginNotVerifiedError, type VerifiedOrigin } from "./types.js";
 
 export { OriginNotVerifiedError };
 

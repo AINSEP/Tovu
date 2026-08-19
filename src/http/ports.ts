@@ -12,7 +12,7 @@
  * Allowlists derive from `core/origin`'s `isAllowedEgressTarget` (ADR-040), never a
  * per-consumer host setting (ADR-038 amendment 6 / internal-verification F4).
  */
-import type { HttpRequest, HttpResponse, PinnedPeer } from "./types";
+import type { HttpRequest, HttpResponse, PinnedPeer } from "./types.js";
 
 /** The guarded port every consumer (Integrations, Newsletter, Analytics) imports and calls. */
 export interface HttpClientPort {

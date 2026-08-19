@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { subscribeGlueEvent } from "../../attachment-points/events";
+import { subscribeGlueEvent } from "../../attachment-points/events.js";
 
 /**
  * @file `subscribeGlueEvent()` — SPEC-048 REQ-5/REQ-8; ADR-057 Decision 2/4.

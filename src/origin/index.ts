@@ -5,13 +5,13 @@ export {
   InsecureOriginSourceError,
   OriginNotVerifiedError,
   createVerifiedOrigin,
-} from "./types";
+} from "./types.js";
 export type {
   OriginContext,
   RedirectTargetContext,
   EgressTargetContext,
   OriginRegistryPort,
   OriginSettingRepoPort,
-} from "./ports";
-export { OriginRegistry, normalizeOriginCandidate, type NormalizedTarget, type OriginRegistryDeps } from "./origin";
-export { InMemoryOriginSettingRepo, type OriginSettingSeed } from "./repo.memory";
+} from "./ports.js";
+export { OriginRegistry, normalizeOriginCandidate, type NormalizedTarget, type OriginRegistryDeps } from "./origin.js";
+export { InMemoryOriginSettingRepo, type OriginSettingSeed } from "./repo.memory.js";

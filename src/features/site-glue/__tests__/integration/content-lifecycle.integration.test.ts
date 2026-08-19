@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { attachGlueContentLifecycle } from "../../attachment-points/content-lifecycle";
-import type { GlueContentLifecycleFilter, GlueFieldDecl, GlueHostPort } from "../../ports";
-import { attachLoadedPlugin } from "../../../plugin-runtime/loader";
-import { createHookRegistry } from "../../../plugin-runtime/hook-registry";
-import type { ContentEntryDraft } from "../../../../../packages/sdk/src/index";
+import { attachGlueContentLifecycle } from "../../attachment-points/content-lifecycle.js";
+import type { GlueContentLifecycleFilter, GlueFieldDecl, GlueHostPort } from "../../ports.js";
+import { attachLoadedPlugin } from "../../../plugin-runtime/loader.js";
+import { createHookRegistry } from "../../../plugin-runtime/hook-registry.js";
+import type { ContentEntryDraft } from "../../../../../packages/sdk/src/index.js";
 
 /**
  * @file Content-lifecycle attachment point, exercised end to end against a REAL `hook-registry.ts`

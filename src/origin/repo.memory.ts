@@ -8,8 +8,8 @@
  * only implementation of `OriginSettingRepoPort` for now.
  */
 import type { UUID } from "@jini-ai/cms/core";
-import type { OriginSettingRepoPort } from "./ports";
-import { createVerifiedOrigin, type VerifiedOrigin } from "./types";
+import type { OriginSettingRepoPort } from "./ports.js";
+import { createVerifiedOrigin, type VerifiedOrigin } from "./types.js";
 
 /** One workspace's seed data for `InMemoryOriginSettingRepo`. */
 export interface OriginSettingSeed {

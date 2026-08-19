@@ -52,7 +52,7 @@
 # them. Copying Tovu's `node_modules` to an image without the Jini tree beside
 # it produces a container that builds cleanly and dies on its first `require`.
 
-ARG NODE_VERSION=22
+ARG NODE_VERSION=24
 
 # ---------------------------------------------------------------------------
 # Stage 1 — build the Jini workspace.

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import path from "node:path";
 import test from "node:test";
 
-import { resolveAgentPluginLayout } from "../../layout";
+import { resolveAgentPluginLayout } from "../../layout.js";
 
 /**
  * @file `resolveAgentPluginLayout()` — where installed Agent Plugin bytes live on disk.
