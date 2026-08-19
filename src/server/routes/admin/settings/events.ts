@@ -3,7 +3,7 @@ import {
   type ChangeFeedViewer,
 } from "#src/features/settings/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { SettingsRouteRegistrar } from "./deps";
+import type { SettingsRouteRegistrar } from "./deps.js";
 
 /**
  * @file `GET /api/admin/v1/workspaces/:workspaceId/settings/events` — a Server-Sent Events stream

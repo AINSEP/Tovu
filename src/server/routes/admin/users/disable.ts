@@ -7,7 +7,7 @@ import {
 } from "@jini-ai/cms/identity";
 import { toAdminUserResponse } from "#src/server/http/admin/users";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps";
+import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
 
 /**
  * POST users/:principalId/disable — `DISABLE_PRINCIPAL` (SPEC-006 0.6.0, REQ-11, first HTTP route

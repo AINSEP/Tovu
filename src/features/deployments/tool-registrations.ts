@@ -14,9 +14,9 @@ import {
   type ToolRegistration,
 } from "@jini-ai/cms/core";
 import { registerToolContributor } from "#src/assistant/index";
-import { deploymentsAgentToolCatalog } from "./agent-tools";
-import { readDockerfileSource, writeDockerfileSourceWithIfMatch } from "./dockerfile";
-import { getExportRunSnapshot, startExportRun } from "./export-run";
+import { deploymentsAgentToolCatalog } from "./agent-tools.js";
+import { readDockerfileSource, writeDockerfileSourceWithIfMatch } from "./dockerfile.js";
+import { getExportRunSnapshot, startExportRun } from "./export-run.js";
 // TYPE-ONLY — fully erased at compile time, so this creates NO runtime require() and cannot
 // recreate the circular-load crash a VALUE import of `#src/export/index` caused inside
 // `export-run.ts` (see that file's header for the full trace). See `DeploymentsToolDeps`'s own doc
@@ -181,7 +181,7 @@ export function buildDeploymentsRegistrations(routeDeps: DeploymentsToolDeps): T
  * domain imports `features/deployments/tool-registrations` itself. But `check:architecture`'s module
  * graph is PER-DIRECTORY, not per-file: `src/features/deployments` is one module, and this
  * directory's sibling `static-publish/index.ts` exports `extractGitHubLogin`, which
- * `features/source-control/store.ts` value-imported (`from "../deployments/static-publish/index"`).
+ * `features/source-control/store.ts` value-imported (`from "../deployments/static-publish/index.js"`).
  * Chain that closed the cycle: `assistant -> features/vendor-credentials`
  * (`tool-registrations.ts`'s own `REAL_VENDOR_CREDENTIAL_PORT` wiring, unconditional) ->
  * `features/source-control` (`vendor-credentials/dual-read.ts`'s `resolveDefaultForSourceControl`

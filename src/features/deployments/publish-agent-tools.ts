@@ -101,9 +101,9 @@ import type { RouteDeps } from "#src/server/routes/types";
 
 import { registerToolContributor } from "#src/assistant/index";
 
-import { askOnce, askThenReport, SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, type AssistantSurfaceDeps, type SurfaceExchange, type SurfaceMessage } from "../../core/tool-surface-exchanges";
-import { listPublishCredentials, type PublishCredentialReadDeps } from "./publish-credentials/index";
-import { S3_COMPATIBLE_FIELD_GUIDANCE, S3_COMPATIBLE_FORM_DESCRIPTION } from "./publish-credentials/s3-compatible-field-guidance";
+import { askOnce, askThenReport, SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, type AssistantSurfaceDeps, type SurfaceExchange, type SurfaceMessage } from "../../core/tool-surface-exchanges.js";
+import { listPublishCredentials, type PublishCredentialReadDeps } from "./publish-credentials/index.js";
+import { S3_COMPATIBLE_FIELD_GUIDANCE, S3_COMPATIBLE_FORM_DESCRIPTION } from "./publish-credentials/s3-compatible-field-guidance.js";
 // Phase 3 cutover (this dispatch) — `vendor_credential_sets` is the eventual replacement for THIS
 // file's own `publish_credential_sets` reads/writes (see `vendor-credentials/index.ts`'s own header).
 // Deliberately NO import of any kind (type or value) from `../vendor-credentials/**` here — an
@@ -129,7 +129,7 @@ import {
   type StaticPublishConfig,
   type StaticPublishDeps,
   type StaticPublishTargetId,
-} from "./static-publish/index";
+} from "./static-publish/index.js";
 
 export interface AgentToolDefinition {
   name: string;

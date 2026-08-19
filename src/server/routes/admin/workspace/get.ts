@@ -1,6 +1,6 @@
 import { toAdminWorkspaceResponse } from "#src/server/http/admin/workspace";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { WorkspaceRouteRegistrar } from "./deps";
+import type { WorkspaceRouteRegistrar } from "./deps.js";
 
 /**
  * GET workspaces/:workspaceId — SPEC-044 REQ-03. `:workspaceId` must equal the caller's own

@@ -1,8 +1,8 @@
 import type { JsonValue } from "@jini-ai/cms/core";
 import { resolveDefinition, type SettingValueRecord } from "#src/features/settings/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { SettingsRouteRegistrar } from "./deps";
-import { CROSS_PRINCIPAL_SETTINGS_READ_PERMISSION, resolveUserLayerReadTarget } from "./shared";
+import type { SettingsRouteRegistrar } from "./deps.js";
+import { CROSS_PRINCIPAL_SETTINGS_READ_PERMISSION, resolveUserLayerReadTarget } from "./shared.js";
 
 /** `state==="set"` yields the stored value; a `cleared` row (or an absent layer) reads as `null`. */
 function layerValueOf(record: SettingValueRecord | null): JsonValue | null {

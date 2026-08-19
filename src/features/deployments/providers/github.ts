@@ -11,8 +11,8 @@ import type {
   PollDeploymentRunResult,
   StartDeploymentRunInput,
   StartDeploymentRunResult,
-} from "../ports";
-import type { DeploymentTargetRecord } from "../types";
+} from "../ports.js";
+import type { DeploymentTargetRecord } from "../types.js";
 
 /**
  * @file The first-party `github` deployment provider — GitHub App installation auth over the

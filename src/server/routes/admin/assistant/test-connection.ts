@@ -1,8 +1,8 @@
 import { testProviderConnection, type ConnectionTestResponse } from "@jini-ai/agent-runtime";
 import { ADMIN_ASSISTANT_PERMISSION } from "#src/assistant/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { AssistantExecutionRouteRegistrar } from "./execution-deps";
-import { resolveProbeCredential } from "./stored-credential-probe";
+import type { AssistantExecutionRouteRegistrar } from "./execution-deps.js";
+import { resolveProbeCredential } from "./stored-credential-probe.js";
 
 const SUPPORTED_PROTOCOLS = ["anthropic", "openai", "azure", "google"] as const;
 

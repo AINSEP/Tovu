@@ -3,7 +3,7 @@ import type { Express } from "express";
 import { ForbiddenError } from "@jini-ai/cms/core";
 import { createPostBackedContentLookup, toTaxonomyOutbox, createTaxonomy } from "#src/features/taxonomy/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { TaxonomyRouteDeps } from "./deps";
+import type { TaxonomyRouteDeps } from "./deps.js";
 
 /**
  * @file design-spec.md §2.3/§2.8 — `POST /api/admin/v1/taxonomy` (creates a taxonomy, AC-01/

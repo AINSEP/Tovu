@@ -7,7 +7,7 @@ import {
 } from "#src/forms/index";
 import { setFormDefinitionStatus, updateFormDefinition } from "#src/forms/write-service";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { FormsRouteRegistrar } from "./deps";
+import type { FormsRouteRegistrar } from "./deps.js";
 
 const VALID_STATUSES: readonly FormDefinitionStatus[] = ["active", "disabled"];
 

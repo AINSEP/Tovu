@@ -1,6 +1,6 @@
 import type { UUID } from "@jini-ai/cms/core";
 
-import type { PublishProviderId } from "../publish-credentials/types";
+import type { PublishProviderId } from "../publish-credentials/types.js";
 
 /**
  * @file Domain types for one-shot static-site publishing to GitHub Pages / Vercel / Netlify /

@@ -2,7 +2,7 @@ import type { Express, Request, Response } from "express";
 
 import { processUnsubscribe } from "#src/newsletter/unsubscribe";
 import { NewsletterUnsubscribeTokenInvalidError } from "#src/newsletter/index";
-import { toPublicUnsubscribeDeps, type NewsletterPublicRouteDeps } from "./newsletter-deps";
+import { toPublicUnsubscribeDeps, type NewsletterPublicRouteDeps } from "./newsletter-deps.js";
 
 /**
  * @file `UNSUBSCRIBE` (api.spec.md §1a) — `GET|POST /newsletter/unsubscribe?token=...`. Public,

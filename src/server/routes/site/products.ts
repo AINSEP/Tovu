@@ -2,8 +2,8 @@ import { getPresentationSettings } from "#src/features/presentation/index";
 import { isPublicAssistantEnabled } from "#src/assistant/index";
 import { toSiteProducts } from "#src/features/commerce/index";
 import { resolveActiveTheme } from "#src/features/theme/index";
-import { renderSite, type SiteProduct } from "../../http/site/render";
-import type { RouteDeps, RouteRegistrar } from "../types";
+import { renderSite, type SiteProduct } from "../../http/site/render.js";
+import type { RouteDeps, RouteRegistrar } from "../types.js";
 
 const SITE_TITLE = "Tovu Demo Site";
 

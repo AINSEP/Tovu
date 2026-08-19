@@ -1,6 +1,6 @@
 import { toAdminPluginResponse } from "#src/server/http/admin/plugins";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { PluginsRouteRegistrar } from "./deps";
+import type { PluginsRouteRegistrar } from "./deps.js";
 
 /**
  * @file `PLUGINS_LIST` — `GET /api/admin/v1/workspaces/:workspaceId/plugins` (SPEC-005 REQ-10,

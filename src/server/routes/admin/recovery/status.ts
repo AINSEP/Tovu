@@ -3,7 +3,7 @@ import type { Express } from "express";
 import { isOperationInFlight } from "#src/core/operation-lock";
 import { resolveDegradedBanner } from "#src/features/recovery/ui/degraded-banners";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { DatabaseRecoveryRouteDeps } from "../database-recovery/deps";
+import type { DatabaseRecoveryRouteDeps } from "../database-recovery/deps.js";
 
 /**
  * @file design-spec.md §4.2/§4.4/§4.8 — `GET /api/admin/v1/recovery/status` (the capability/status

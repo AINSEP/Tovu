@@ -1,7 +1,7 @@
 import { listAdminPages } from "#src/features/post/index";
 import { toAdminPostResponse } from "#src/server/http/admin/posts";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { ContentRouteRegistrar } from "../content/deps";
+import type { ContentRouteRegistrar } from "../content/deps.js";
 
 /**
  * GET admin pages — same shape as `posts/list.ts`, filtered to `kind: "page"`

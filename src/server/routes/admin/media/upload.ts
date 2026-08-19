@@ -1,7 +1,7 @@
 import { MediaValidationError, uploadMedia } from "#src/media/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import { toAdminMediaResponse } from "#src/server/http/admin/media";
-import type { MediaRouteRegistrar } from "./deps";
+import type { MediaRouteRegistrar } from "./deps.js";
 
 /**
  * POST a new media upload. Gated by `media.upload` (SPEC-021 REQ-39/OQ-01, ADR-027 §7).

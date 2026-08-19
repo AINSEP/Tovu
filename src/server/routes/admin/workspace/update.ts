@@ -1,7 +1,7 @@
 import { updateWorkspace, WorkspaceConflictError, WorkspaceNotFoundError, WorkspaceValidationError } from "#src/features/workspace/index";
 import { toAdminWorkspaceResponse } from "#src/server/http/admin/workspace";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { WorkspaceRouteRegistrar } from "./deps";
+import type { WorkspaceRouteRegistrar } from "./deps.js";
 
 /**
  * PATCH workspaces/:workspaceId — `UPDATE_WORKSPACE` (SPEC-044 REQ-04, AC-05). `:workspaceId` must

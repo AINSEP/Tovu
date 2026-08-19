@@ -1,6 +1,6 @@
 import { ADMIN_ASSISTANT_PERMISSION, deleteSiteAssistantCredential } from "#src/assistant/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { AssistantSettingsRouteRegistrar } from "./deps";
+import type { AssistantSettingsRouteRegistrar } from "./deps.js";
 
 /**
  * DELETE the workspace's SITE assistant credential (ADR-058) — clears the stored key only.

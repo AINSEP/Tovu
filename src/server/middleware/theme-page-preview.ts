@@ -2,17 +2,17 @@ import type { Express, Request, Response } from "express";
 
 import { findTheme, renderStaticPage, renderStaticPartial, type DiscoveredTheme } from "#src/features/theme/index";
 import { listPublishedPosts } from "#src/features/post/index";
-import { authorizeThemeSetPermission } from "../routes/admin/themes/explore";
-import { requireAdminSession } from "./dev-auth";
-import type { RouteDeps } from "../routes/types";
-import { renderSite, type SiteProduct } from "../http/site/render";
+import { authorizeThemeSetPermission } from "../routes/admin/themes/explore.js";
+import { requireAdminSession } from "./dev-auth.js";
+import type { RouteDeps } from "../routes/types.js";
+import { renderSite, type SiteProduct } from "../http/site/render.js";
 import {
   resolveWidgetsForRender,
   resolveMediaTransformVersionsForRender,
   resolveMediaAssetMetadataForRender,
   resolveHtmlEmbedsForRender,
   SITE_TITLE,
-} from "../routes/site/pages";
+} from "../routes/site/pages.js";
 
 /**
  * @file Serves any static theme's page, fully rendered, at `/theme-explore/{themeId}/{pageId}` — the

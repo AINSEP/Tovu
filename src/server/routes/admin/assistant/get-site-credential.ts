@@ -1,6 +1,6 @@
 import { ADMIN_ASSISTANT_PERMISSION, getSiteAssistantCredential } from "#src/assistant/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { AssistantSettingsRouteRegistrar } from "./deps";
+import type { AssistantSettingsRouteRegistrar } from "./deps.js";
 
 /**
  * GET the workspace's SITE assistant credential (ADR-058) — never the key itself, only whether one

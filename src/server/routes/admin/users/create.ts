@@ -6,7 +6,7 @@ import {
 } from "@jini-ai/cms/identity";
 import { toAdminUserResponse } from "#src/server/http/admin/users";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps";
+import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
 
 /**
  * POST users — `CREATE_USER` (state.spec §3, REQ-01/MF-1). Gated by

@@ -1,15 +1,15 @@
 import type { ClockPort, ISODateTime, UUID } from "@jini-ai/cms/core";
 
-import { extractGitHubLogin } from "../deployments/static-publish/index";
-import type { KeyringPort, SecretSealerPort } from "../../webhooks/index";
-import { buildSourceControlCredentialAad } from "./aad";
+import { extractGitHubLogin } from "../deployments/static-publish/index.js";
+import type { KeyringPort, SecretSealerPort } from "../../webhooks/index.js";
+import { buildSourceControlCredentialAad } from "./aad.js";
 import type {
   SourceControlConnectionInput,
   SourceControlCredentialSetRecord,
   SourceControlCredentialSetRepoPort,
   SourceControlCredentialSummary,
   SourceControlProviderId,
-} from "./types";
+} from "./types.js";
 
 /**
  * @file Validate-then-seal-then-write CRUD over `source_control_credential_sets`, structurally

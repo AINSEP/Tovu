@@ -11,9 +11,9 @@ export type {
   SourceControlCredentialSetRepoPort,
   SourceControlCredentialSummary,
   SourceControlProviderId,
-} from "./types";
+} from "./types.js";
 
-export { buildSourceControlCredentialAad } from "./aad";
+export { buildSourceControlCredentialAad } from "./aad.js";
 
 export {
   createSourceControlCredential,
@@ -31,6 +31,6 @@ export {
   type SourceControlCredentialReadDeps,
   type SourceControlCredentialWriteDeps,
   type UpdateSourceControlCredentialInput,
-} from "./store";
+} from "./store.js";
 
-export { InMemorySourceControlCredentialSetRepo } from "./repo.memory";
+export { InMemorySourceControlCredentialSetRepo } from "./repo.memory.js";

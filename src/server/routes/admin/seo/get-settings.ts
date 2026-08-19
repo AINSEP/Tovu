@@ -1,6 +1,6 @@
 import { getSeoSettings } from "#src/seo/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { SeoRouteRegistrar } from "./deps";
+import type { SeoRouteRegistrar } from "./deps.js";
 
 /** GET workspace-level `seo.*` settings (SPEC-008 api.spec.md `SEO_GET_SETTINGS`, tasks.md T047). */
 export const registerAdminSeoGetSettingsRoute: SeoRouteRegistrar = (app, deps) => {

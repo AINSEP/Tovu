@@ -5,7 +5,7 @@ import {
   setSiteAssistantCredential,
 } from "#src/assistant/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { AssistantSettingsRouteRegistrar } from "./deps";
+import type { AssistantSettingsRouteRegistrar } from "./deps.js";
 
 /**
  * PUT (partial) the workspace's SITE assistant credential (ADR-058). Body:

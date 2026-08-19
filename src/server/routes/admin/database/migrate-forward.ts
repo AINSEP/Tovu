@@ -11,7 +11,7 @@ import {
 import { buildConfirmOnlyHooks } from "#src/core/gated-mutations/composition";
 import { buildMigrateForwardHooks } from "#src/features/database/gated-hooks";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { RouteDeps } from "../../types";
+import type { RouteDeps } from "../../types.js";
 
 /**
  * @file SPEC-017 C-103/C-105 — `POST /api/admin/v1/database/migrate-forward/{plan,confirm,execute}`

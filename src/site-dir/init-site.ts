@@ -2,13 +2,13 @@ import { randomUUID } from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
 
-import { openContentDb } from "../db/sqlite/content-db";
-import { writeJsonFileAtomic } from "./atomic-write";
-import { InitDirNotEmptyError, InternalError, ValidationError } from "./errors";
-import { readTemplate } from "./read-template";
-import { resolveInstallDirTarget } from "./resolve-install-dir-target";
-import { runtimeSchemaVersion } from "./schema-guard";
-import type { ConfigJson, SiteMetaJson } from "./types";
+import { openContentDb } from "../db/sqlite/content-db.js";
+import { writeJsonFileAtomic } from "./atomic-write.js";
+import { InitDirNotEmptyError, InternalError, ValidationError } from "./errors.js";
+import { readTemplate } from "./read-template.js";
+import { resolveInstallDirTarget } from "./resolve-install-dir-target.js";
+import { runtimeSchemaVersion } from "./schema-guard.js";
+import type { ConfigJson, SiteMetaJson } from "./types.js";
 
 /**
  * @file SPEC-003 C-007 — `initSite`, `tovu init`'s full orchestration.

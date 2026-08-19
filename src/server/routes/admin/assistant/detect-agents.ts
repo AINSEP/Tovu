@@ -1,7 +1,7 @@
 import { detectAgents, type DetectedAgent as RuntimeDetectedAgent } from "@jini-ai/agent-runtime";
 import { ADMIN_ASSISTANT_PERMISSION } from "#src/assistant/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { AssistantExecutionRouteRegistrar } from "./execution-deps";
+import type { AssistantExecutionRouteRegistrar } from "./execution-deps.js";
 
 /**
  * Maps `@jini-ai/agent-runtime`'s `DetectedAgent` onto the `@jini-ai/ui`

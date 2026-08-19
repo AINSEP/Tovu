@@ -8,7 +8,7 @@ import {
 import { toAdminSubscriptionResponse } from "#src/server/http/admin/integrations";
 import { authorizeOrRespond } from "#src/server/http/responses/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { IntegrationsRouteRegistrar } from "./deps";
+import type { IntegrationsRouteRegistrar } from "./deps.js";
 
 /** `{ paused?: boolean }` body — defaults to pausing (`true`) for any non-boolean value,
  *  including absent, so `{ "paused": false }` is the only way to resume. */

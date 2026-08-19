@@ -1,6 +1,6 @@
 import type { Express } from "express";
 
-import type { RouteDeps } from "../../types";
+import type { RouteDeps } from "../../types.js";
 
 /**
  * @file ADR-046 Phase 3 (SPEC-038) — narrow `RouteDeps` slice for the `content` server module

@@ -1,6 +1,6 @@
 import { toChangeSetHeaderResponse } from "#src/server/http/admin/change-sets";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { ContentRouteRegistrar } from "../content/deps";
+import type { ContentRouteRegistrar } from "../content/deps.js";
 
 /**
  * GET change sets, newest-first, workspace-scoped (SPEC-001 REQ-06).

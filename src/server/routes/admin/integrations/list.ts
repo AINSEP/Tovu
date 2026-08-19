@@ -1,7 +1,7 @@
 import type { WebhookDeliveryRecord } from "#src/webhooks/index";
 import { toAdminSubscriptionResponse } from "#src/server/http/admin/integrations";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { IntegrationsRouteRegistrar } from "./deps";
+import type { IntegrationsRouteRegistrar } from "./deps.js";
 
 /**
  * Bound on how many of a subscription's most recent deliveries are read to compute the

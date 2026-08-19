@@ -1,5 +1,5 @@
 import { ImageTransformUnavailableError, resolveMediaRendition } from "#src/media/index";
-import type { MediaRouteRegistrar } from "../admin/media/deps";
+import type { MediaRouteRegistrar } from "../admin/media/deps.js";
 
 /**
  * @file Public, unauthenticated media rendition serving route (ADR-027 §4

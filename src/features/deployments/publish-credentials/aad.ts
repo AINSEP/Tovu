@@ -1,6 +1,6 @@
 import type { UUID } from "@jini-ai/cms/core";
 
-import type { PublishProviderId } from "./types";
+import type { PublishProviderId } from "./types.js";
 
 /**
  * @file The ONE place `publish_credential_sets`' AES-GCM additional authenticated data (AAD) string

@@ -1,7 +1,7 @@
 import { listAdminPosts } from "#src/features/post/index";
 import { toAdminPostResponse } from "#src/server/http/admin/posts";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { ContentRouteRegistrar } from "../content/deps";
+import type { ContentRouteRegistrar } from "../content/deps.js";
 
 /** Gated by `content.read` (2026-07-16 authz sweep: previously had zero permission check
  * beyond session auth — `content.read` was defined in the catalog but never enforced anywhere). */

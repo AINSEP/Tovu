@@ -1,6 +1,6 @@
 import { downloadMarketplaceTheme, MarketplaceThemeError } from "#src/features/theme/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { ContentRouteRegistrar } from "../content/deps";
+import type { ContentRouteRegistrar } from "../content/deps.js";
 
 /**
  * POST — download one marketplace fixture theme, installing it under a freshly assigned id (see

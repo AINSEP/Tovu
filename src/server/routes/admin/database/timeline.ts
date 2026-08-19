@@ -2,7 +2,7 @@ import type { Express } from "express";
 
 import { getTimeline } from "#src/features/database/timeline";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { DatabaseRecoveryRouteDeps } from "../database-recovery/deps";
+import type { DatabaseRecoveryRouteDeps } from "../database-recovery/deps.js";
 
 /**
  * @file SPEC-017 C-101 / REQ-01 / REQ-04 — `GET /api/admin/v1/database/timeline` (ADR-041 §1's

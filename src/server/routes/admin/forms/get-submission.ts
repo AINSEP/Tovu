@@ -1,6 +1,6 @@
 import { toAdminFormSubmissionResponse } from "#src/server/http/admin/forms";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { FormsRouteRegistrar } from "./deps";
+import type { FormsRouteRegistrar } from "./deps.js";
 
 /** GET one submission's full field values (`FORMS_GET_SUBMISSION`, REQ-13). */
 export const registerAdminFormsGetSubmissionRoute: FormsRouteRegistrar = (app, deps) => {

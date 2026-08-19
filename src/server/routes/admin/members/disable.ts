@@ -2,7 +2,7 @@ import { disableMember, MemberNotFoundError, MemberValidationError } from "#src/
 import { toAdminMemberResponse } from "#src/server/http/admin/members";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { RouteRegistrar } from "#src/server/routes/types";
-import { toMembersWriteServiceDeps, type MembersRouteDeps } from "./deps";
+import { toMembersWriteServiceDeps, type MembersRouteDeps } from "./deps.js";
 
 /**
  * POST disable a member (ADR-021 §5 disable-only, never hard-delete — there

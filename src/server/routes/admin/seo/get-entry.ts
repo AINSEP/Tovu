@@ -1,6 +1,6 @@
 import { getEntryMeta, SeoEntryNotFoundError } from "#src/seo/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { SeoRouteRegistrar } from "./deps";
+import type { SeoRouteRegistrar } from "./deps.js";
 
 /**
  * GET an entry's effective SEO meta (SPEC-008 api.spec.md `SEO_GET_ENTRY_META`, tasks.md T047).

@@ -2,7 +2,7 @@ import type { Express } from "express";
 
 import { getCommentsSettings } from "#src/comments/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { CommentsModerationRouteDeps } from "./deps";
+import type { CommentsModerationRouteDeps } from "./deps.js";
 
 /** GET workspace-level `comments.*` settings (SPEC-035, ADR-028 Settings Layered Ledger wiring
  * for Comments). Mirrors `routes/admin/seo/get-settings.ts`'s exact shape.

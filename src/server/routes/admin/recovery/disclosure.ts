@@ -2,7 +2,7 @@ import type { Express } from "express";
 
 import { computeDisclosure } from "#src/features/recovery/disclosure";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { DatabaseRecoveryRouteDeps } from "../database-recovery/deps";
+import type { DatabaseRecoveryRouteDeps } from "../database-recovery/deps.js";
 
 /** ADR-045 §3 Step 2 / `disclosure.ts`'s own file header — the versioned, single, auditable list
  * of write-path categories this disclosure may ever claim to cover. A category is added here only

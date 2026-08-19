@@ -12,7 +12,7 @@ export type {
   StaticPublishOutcome,
   StaticPublishTargetId,
   VercelPublishConfig,
-} from "./types";
+} from "./types.js";
 
 export {
   composePublishCredentialSource,
@@ -20,9 +20,9 @@ export {
   createEnvPublishCredentialSource,
   type ComposePublishCredentialSourceInput,
   type DbPublishCredentialSourceDeps,
-} from "./credentials";
+} from "./credentials.js";
 
-export { computeBasePath, publishStaticSite, validateStaticPublishConfig, type StaticPublishDeps, type StaticPublishInput } from "./adapter";
+export { computeBasePath, publishStaticSite, validateStaticPublishConfig, type StaticPublishDeps, type StaticPublishInput } from "./adapter.js";
 
 export {
   getPublishRunSnapshot,
@@ -30,14 +30,14 @@ export {
   startPublishRun,
   type PublishRunSnapshot,
   type PublishRunStatus,
-} from "./publish-run";
+} from "./publish-run.js";
 
 export {
   InMemoryPublishHistoryStore,
   type PublishHistoryEntry,
   type PublishHistoryStore,
   type PublishTrigger,
-} from "./publish-history";
+} from "./publish-history.js";
 
 export {
   canYieldAccountLabel,
@@ -49,4 +49,4 @@ export {
   type PublishCredentialVerificationResult,
   type VerifyPublishCredentialByIdDeps,
   type VerifyPublishCredentialDeps,
-} from "./verify";
+} from "./verify.js";

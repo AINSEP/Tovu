@@ -3,8 +3,8 @@ import type { Express } from "express";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { RateLimiter } from "#src/core/rate-limit/rate-limit";
 import { resolveClientIp } from "#src/core/rate-limit/rate-limit";
-import type { ConnectorsRouteDeps } from "./deps";
-import { sendConnectorError } from "./errors";
+import type { ConnectorsRouteDeps } from "./deps.js";
+import { sendConnectorError } from "./errors.js";
 
 /**
  * GET the Composio connector catalog. Answers `ConnectorsPort.fetchConnectors` (and, with

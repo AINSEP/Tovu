@@ -1,7 +1,7 @@
 import { MemberValidationError, requestSignInLink } from "#src/members/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { RouteRegistrar } from "#src/server/routes/types";
-import { toMembersWriteServiceDeps, type MembersRouteDeps } from "./deps";
+import { toMembersWriteServiceDeps, type MembersRouteDeps } from "./deps.js";
 
 /**
  * POST request a passwordless sign-in link for a member email (operator-

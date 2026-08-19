@@ -2,7 +2,7 @@ import { mapFormsWriteError, toAdminFormDefinitionResponse } from "#src/server/h
 import { createFormDefinition } from "#src/forms/write-service";
 import type { FieldDescriptor, NotifyConfig } from "#src/forms/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { FormsRouteRegistrar } from "./deps";
+import type { FormsRouteRegistrar } from "./deps.js";
 
 /**
  * POST a new form definition (`FORMS_CREATE_DEFINITION`, REQ-01). Routed through

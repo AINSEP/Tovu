@@ -1,6 +1,6 @@
 import { listMarketplaceThemes } from "#src/features/theme/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { ContentRouteRegistrar } from "../content/deps";
+import type { ContentRouteRegistrar } from "../content/deps.js";
 
 /**
  * GET — list themes installable from the local marketplace fixture (`src/themes/__marketplace__/`;

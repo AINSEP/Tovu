@@ -1,8 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { SiteDirInvalidError } from "./errors";
-import type { ConfigJson, SiteMetaJson } from "./types";
+import { SiteDirInvalidError } from "./errors.js";
+import type { ConfigJson, SiteMetaJson } from "./types.js";
 
 /**
  * @file SPEC-003 C-004 — `readSiteDir`, `serve`'s first validation gate (BR-05 steps 1-2).

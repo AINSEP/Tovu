@@ -19,7 +19,7 @@ export type {
   EnvironmentRecord,
   ReleaseRecord,
   ReleaseSource,
-} from "./types";
+} from "./types.js";
 
 export type {
   DeploymentError,
@@ -31,13 +31,13 @@ export type {
   PollDeploymentRunResult,
   StartDeploymentRunInput,
   StartDeploymentRunResult,
-} from "./ports";
+} from "./ports.js";
 
-export { GITHUB_DEPLOYMENT_PROVIDER_ID, createGitHubDeploymentProvider, mapGitHubDeploymentStatus } from "./providers/github";
+export { GITHUB_DEPLOYMENT_PROVIDER_ID, createGitHubDeploymentProvider, mapGitHubDeploymentStatus } from "./providers/github.js";
 
-export { DEPLOYMENTS_READ_LIST_LIMIT, type DeploymentsReadRepoPort } from "./read-repo";
-export { SqliteDeploymentsReadRepo } from "./repo.sqlite";
-export { InMemoryDeploymentsReadRepo } from "./repo.memory";
+export { DEPLOYMENTS_READ_LIST_LIMIT, type DeploymentsReadRepoPort } from "./read-repo.js";
+export { SqliteDeploymentsReadRepo } from "./repo.sqlite.js";
+export { InMemoryDeploymentsReadRepo } from "./repo.memory.js";
 
 // `sendPinned` is intentionally NOT re-exported here — it is an internal chokepoint, exported from
 // `./providers/github.ts` only so its own test can call it directly (see that file's doc comment).
@@ -66,7 +66,7 @@ export {
   type ExportRunCounts,
   type ExportRunSnapshot,
   type ExportRunStatus,
-} from "./export-run";
+} from "./export-run.js";
 
 // `readDockerfileSource`/`writeDockerfileSource`/`writeDockerfileSourceWithIfMatch` back the admin
 // Dockerfile tab's read/write routes (`server/routes/admin/system/dockerfile-source.ts`) and their
@@ -78,7 +78,7 @@ export {
   writeDockerfileSource,
   writeDockerfileSourceWithIfMatch,
   type DockerfileSourceSnapshot,
-} from "./dockerfile";
+} from "./dockerfile.js";
 
 // `buildStaticPublishRegistrations`/`StaticPublishToolDeps` (`./publish-agent-tools.ts`) are NOT
 // re-exported here — that file itself imports `RouteDeps` from `server/routes/types.ts` (the

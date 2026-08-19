@@ -1,7 +1,7 @@
 import { saveList } from "#src/newsletter/lists";
 import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond, toDataResponse } from "#src/server/http/admin/newsletter";
-import type { RouteRegistrar } from "../../types";
-import { toListsDeps, type NewsletterRouteDeps } from "./deps";
+import type { RouteRegistrar } from "../../types.js";
+import { toListsDeps, type NewsletterRouteDeps } from "./deps.js";
 
 /** `CREATE_LIST` (api.spec.md §1/§4) — `POST .../newsletter/lists`. `admin.newsletter.list.manage`-gated. */
 export const registerAdminNewsletterCreateListRoute: RouteRegistrar = (app, routeDeps) => {

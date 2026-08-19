@@ -4,7 +4,7 @@ import {
   setPublicAssistantSettings,
 } from "#src/assistant/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { AssistantSettingsRouteRegistrar } from "./deps";
+import type { AssistantSettingsRouteRegistrar } from "./deps.js";
 
 /**
  * PUT (partial) the workspace's `site.assistant.*` settings — the route the admin's AI Assistant

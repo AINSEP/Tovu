@@ -1,6 +1,6 @@
 import { toAdminFormDefinitionListResponse } from "#src/server/http/admin/forms";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { FormsRouteRegistrar } from "./deps";
+import type { FormsRouteRegistrar } from "./deps.js";
 
 /** GET the workspace's form definitions (`FORMS_LIST_DEFINITIONS`, api.spec.md §1). */
 export const registerAdminFormsListRoute: FormsRouteRegistrar = (app, deps) => {

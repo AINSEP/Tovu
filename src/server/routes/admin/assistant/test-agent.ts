@@ -1,8 +1,8 @@
 import { detectAgents } from "@jini-ai/agent-runtime";
 import { ADMIN_ASSISTANT_PERMISSION } from "#src/assistant/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { AssistantExecutionRouteRegistrar } from "./execution-deps";
-import { resolveTestAgentOutcome } from "./resolve-test-agent-outcome";
+import type { AssistantExecutionRouteRegistrar } from "./execution-deps.js";
+import { resolveTestAgentOutcome } from "./resolve-test-agent-outcome.js";
 
 /**
  * POST re-probes ONE detected code-agent CLI and reports whether it is usable

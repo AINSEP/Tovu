@@ -1,6 +1,6 @@
 import { duplicateThemeIds, rescanThemes, validThemeIds } from "#src/features/theme/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { ContentRouteRegistrar } from "../content/deps";
+import type { ContentRouteRegistrar } from "../content/deps.js";
 
 /**
  * POST — re-run theme discovery against the themes directory.

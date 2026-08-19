@@ -1,5 +1,5 @@
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { SettingsRouteRegistrar } from "./deps";
+import type { SettingsRouteRegistrar } from "./deps.js";
 
 /**
  * GET active setting definitions, grouped by namespace (SPEC-007 api.spec.md

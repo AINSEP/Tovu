@@ -1,7 +1,7 @@
 import { sendTestCampaign } from "#src/newsletter/send-pipeline";
 import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond } from "#src/server/http/admin/newsletter";
-import type { RouteRegistrar } from "../../types";
-import { toSendPipelineDeps, type NewsletterRouteDeps } from "./deps";
+import type { RouteRegistrar } from "../../types.js";
+import { toSendPipelineDeps, type NewsletterRouteDeps } from "./deps.js";
 
 /**
  * `SEND_TEST_CAMPAIGN` (api.spec.md §1/§4/§5) — `POST .../campaigns/:id/send-test`. `admin.

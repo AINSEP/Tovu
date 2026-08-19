@@ -3,7 +3,7 @@ import { processOutbox } from "#src/core/events/index";
 import { PostNotFoundError, deletePost, type PostRecord } from "#src/features/post/index";
 import { toAdminPostResponse } from "#src/server/http/admin/posts";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { ContentRouteRegistrar } from "../content/deps";
+import type { ContentRouteRegistrar } from "../content/deps.js";
 
 /**
  * DELETE page — the pages half of the delete pair, a separate file from `posts/delete.ts` for the

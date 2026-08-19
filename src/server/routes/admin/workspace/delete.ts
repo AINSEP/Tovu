@@ -1,6 +1,6 @@
 import { deleteWorkspace, WorkspaceLastRemainingError, WorkspaceNotFoundError } from "#src/features/workspace/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { WorkspaceRouteRegistrar } from "./deps";
+import type { WorkspaceRouteRegistrar } from "./deps.js";
 
 /**
  * DELETE workspaces/:workspaceId — `DELETE_WORKSPACE` (SPEC-044 REQ-05/INV-03, AC-06).

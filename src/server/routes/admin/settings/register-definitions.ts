@@ -14,8 +14,8 @@ import {
   registerDefinitions,
 } from "#src/features/settings/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { SettingsRouteRegistrar } from "./deps";
-import { toWriteServiceDeps } from "./shared";
+import type { SettingsRouteRegistrar } from "./deps.js";
+import { toWriteServiceDeps } from "./shared.js";
 
 /**
  * POST register/rename/retype/deprecate/tombstone setting definitions

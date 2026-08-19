@@ -6,7 +6,7 @@ import {
   IdentityValidationError,
 } from "@jini-ai/cms/identity";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps";
+import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
 
 /**
  * DELETE policies/:policyId — `DELETE_POLICY` (SPEC-006 0.6.0, REQ-19/INV-09). Gated by

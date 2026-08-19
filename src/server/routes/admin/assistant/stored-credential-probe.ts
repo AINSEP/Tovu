@@ -1,5 +1,5 @@
 import { resolveSiteAssistantApiKey } from "#src/assistant/index";
-import type { AssistantExecutionRouteDeps } from "./execution-deps";
+import type { AssistantExecutionRouteDeps } from "./execution-deps.js";
 
 /**
  * @file The single chokepoint deciding WHICH key a BYOK probe sends and WHERE it sends it, shared by

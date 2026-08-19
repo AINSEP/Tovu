@@ -1,6 +1,6 @@
 import { deleteExternalMcpServer } from "#src/assistant/index";
-import type { ExternalMcpRouteRegistrar } from "./deps";
-import { guardExternalMcpRequest } from "./guard";
+import type { ExternalMcpRouteRegistrar } from "./deps.js";
+import { guardExternalMcpRequest } from "./guard.js";
 
 /**
  * DELETE one external MCP server from the workspace's roster.

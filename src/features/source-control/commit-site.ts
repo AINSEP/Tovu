@@ -2,12 +2,12 @@ import path from "node:path";
 
 import type { UUID } from "@jini-ai/cms/core";
 
-import type { KeyringPort, SecretSealerPort } from "../../webhooks/index";
+import type { KeyringPort, SecretSealerPort } from "../../webhooks/index.js";
 import type { ExportReport, ExportSiteOptions } from "#src/export/index";
 import type { RouteDeps } from "#src/server/routes/types";
 
-import { resolveDefaultForSourceControl } from "./store";
-import type { SourceControlCredentialSetRepoPort } from "./types";
+import { resolveDefaultForSourceControl } from "./store.js";
+import type { SourceControlCredentialSetRepoPort } from "./types.js";
 
 /**
  * @file The `source-control` domain's "business" layer — everything `source_control_execute_commit`

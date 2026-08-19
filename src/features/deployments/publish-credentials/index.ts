@@ -11,9 +11,9 @@ export type {
   PublishCredentialSummary,
   PublishProviderId,
   VercelConnectionInput,
-} from "./types";
+} from "./types.js";
 
-export { buildPublishCredentialAad } from "./aad";
+export { buildPublishCredentialAad } from "./aad.js";
 
 export {
   createPublishCredential,
@@ -33,15 +33,15 @@ export {
   type PublishCredentialReadDeps,
   type PublishCredentialWriteDeps,
   type UpdatePublishCredentialInput,
-} from "./store";
+} from "./store.js";
 
-export { executionModeFromEnv, type PublishExecutionMode } from "./execution-mode";
+export { executionModeFromEnv, type PublishExecutionMode } from "./execution-mode.js";
 
 export {
   createAccountLabelHealScheduler,
   idsNeedingAccountLabelHeal,
   type AccountLabelHealScheduler,
   type AccountLabelHealSchedulerDeps,
-} from "./account-label-heal-scheduler";
+} from "./account-label-heal-scheduler.js";
 
-export { InMemoryPublishCredentialSetRepo } from "./repo.memory";
+export { InMemoryPublishCredentialSetRepo } from "./repo.memory.js";

@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { SiteNewerThanRuntimeError } from "./errors";
+import { SiteNewerThanRuntimeError } from "./errors.js";
 
 /**
  * @file SPEC-003 C-006 — the runtime's bundled-migration identity, and the guard that compares a
@@ -23,7 +23,7 @@ import { SiteNewerThanRuntimeError } from "./errors";
  */
 
 /** Resolved from this file's own location: `src/db/drizzle/meta/_journal.json`. */
-const JOURNAL_PATH = path.resolve(__dirname, "../db/drizzle/meta/_journal.json");
+const JOURNAL_PATH = path.resolve(import.meta.dirname, "../db/drizzle/meta/_journal.json");
 
 interface DrizzleJournal {
   entries: Array<{ idx: number; tag: string }>;

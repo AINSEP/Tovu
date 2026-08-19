@@ -1,6 +1,6 @@
 import type { HttpClientPort } from "#src/http/index";
 
-import type { DeploymentProviderId, DeploymentRunStatus, DeploymentTargetRecord, ReleaseRecord } from "./types";
+import type { DeploymentProviderId, DeploymentRunStatus, DeploymentTargetRecord, ReleaseRecord } from "./types.js";
 
 /**
  * @file The provider-neutral deployment port — the seam every first-party adapter

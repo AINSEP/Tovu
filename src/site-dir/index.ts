@@ -15,5 +15,5 @@ export {
   InitDirNotEmptyError,
   ValidationError,
   InternalError,
-} from "./errors";
-export type { ConfigJson } from "./types";
+} from "./errors.js";
+export type { ConfigJson } from "./types.js";

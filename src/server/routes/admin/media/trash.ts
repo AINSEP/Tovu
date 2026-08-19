@@ -1,7 +1,7 @@
 import { MediaNotFoundError, trashMedia } from "#src/media/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import { toAdminMediaResponse } from "#src/server/http/admin/media";
-import type { MediaRouteRegistrar } from "./deps";
+import type { MediaRouteRegistrar } from "./deps.js";
 
 /**
  * POST soft-delete (trash) a media asset — first rung of the ADR-027 §5 deletion ladder. Gated by

@@ -11,8 +11,8 @@ import { isPageEmbedType, type ResolveHtmlPageEmbedsResult, type ResolvePageWidg
 import type { WidgetRenderIR } from "#src/widgets/types";
 import { substituteHtmlEmbeds } from "#src/widgets/html-embeds";
 import { ATTRIBUTE_NAME_PATTERN } from "#src/forms/forms";
-import { renderHandlebarsInSandbox } from "./handlebars-sandbox";
-import { renderLiquidInSandbox } from "./liquid-sandbox";
+import { renderHandlebarsInSandbox } from "./handlebars-sandbox.js";
+import { renderLiquidInSandbox } from "./liquid-sandbox.js";
 
 /**
  * @file Template-tree renderer for the public site (SPEC-004 spike slice).

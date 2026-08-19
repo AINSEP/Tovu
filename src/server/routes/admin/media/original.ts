@@ -1,7 +1,7 @@
 import { sniffContentType } from "#src/media/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import { parseRangeHeader } from "#src/server/http/range";
-import type { MediaRouteRegistrar } from "./deps";
+import type { MediaRouteRegistrar } from "./deps.js";
 
 /**
  * @file GET a media asset's ORIGINAL bytes for the admin UI's `<img>`/`<video>`

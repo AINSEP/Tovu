@@ -9,8 +9,8 @@ import {
   deriveRequiredPermission,
 } from "#src/features/settings/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { SettingsRouteRegistrar } from "./deps";
-import { resolveTargetWorkspaceId, toWriteServiceDeps } from "./shared";
+import type { SettingsRouteRegistrar } from "./deps.js";
+import { resolveTargetWorkspaceId, toWriteServiceDeps } from "./shared.js";
 
 const VALID_SCOPES: readonly SettingScope[] = ["global", "workspace", "user"];
 

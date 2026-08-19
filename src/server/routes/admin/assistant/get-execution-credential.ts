@@ -1,6 +1,6 @@
 import { getExecutionCredential } from "#src/assistant/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { AssistantSettingsRouteRegistrar } from "./deps";
+import type { AssistantSettingsRouteRegistrar } from "./deps.js";
 
 /**
  * GET the calling admin's OWN BYOK execution credential — never the key itself, only whether one is

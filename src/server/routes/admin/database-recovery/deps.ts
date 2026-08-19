@@ -1,6 +1,6 @@
 import type { Express } from "express";
 
-import type { DatabaseRecoveryDeps, RouteDeps } from "../../types";
+import type { DatabaseRecoveryDeps, RouteDeps } from "../../types.js";
 
 /**
  * @file ADR-046 Phase 3 (SPEC-042, final slice) — narrow `RouteDeps` slice for the

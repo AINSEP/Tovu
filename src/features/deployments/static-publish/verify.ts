@@ -2,10 +2,10 @@ import { AwsClient } from "aws4fetch";
 
 import type { UUID } from "@jini-ai/cms/core";
 
-import type { SecretSealerPort } from "../../../webhooks/index";
-import { resolveForPublish } from "../publish-credentials/store";
-import type { PublishConnectionInput, PublishCredentialSetRepoPort } from "../publish-credentials/types";
-import type { PublishCredentialSource, StaticPublishTargetId } from "./types";
+import type { SecretSealerPort } from "../../../webhooks/index.js";
+import { resolveForPublish } from "../publish-credentials/store.js";
+import type { PublishConnectionInput, PublishCredentialSetRepoPort } from "../publish-credentials/types.js";
+import type { PublishCredentialSource, StaticPublishTargetId } from "./types.js";
 
 /**
  * @file Verifies a static-publish credential against its REAL provider — the fix for "ready means a

@@ -1,7 +1,14 @@
+import { createRequire } from "node:module";
 import path from "node:path";
 import { Worker, type ResourceLimits } from "node:worker_threads";
 
-import type { SiteRenderContext } from "./render";
+import type { SiteRenderContext } from "./render.js";
+
+// ESM has no ambient `require`; this file's own worker-bootstrap string (below)
+// still needs `require.resolve` to locate `tsx/cjs/api` as a filesystem path
+// (not the `file://` URL `import.meta.resolve` would return), so a local
+// `require` is synthesized the standard Node way.
+const require = createRequire(import.meta.url);
 
 /**
  * @file ADR-020 Tier-2 guardrail, Handlebars edition: render isolation for
@@ -70,11 +77,11 @@ const DEFAULT_RESOURCE_LIMITS: ResourceLimits = {
  * `eval: true` bootstrap that `require()`s `tsx/cjs/api` first does.
  */
 function spawnHandlebarsWorker(workerData: HandlebarsWorkerInput, resourceLimits: ResourceLimits): Worker {
-  const isTsSource = __filename.endsWith(".ts");
+  const isTsSource = import.meta.filename.endsWith(".ts");
   if (!isTsSource) {
-    return new Worker(path.join(__dirname, "handlebars-worker.js"), { workerData, resourceLimits });
+    return new Worker(path.join(import.meta.dirname, "handlebars-worker.js"), { workerData, resourceLimits });
   }
-  const workerFile = path.join(__dirname, "handlebars-worker.ts");
+  const workerFile = path.join(import.meta.dirname, "handlebars-worker.ts");
   const tsxApiPath = require.resolve("tsx/cjs/api");
   const bootstrap = `require(${JSON.stringify(tsxApiPath)}).register();\nrequire(${JSON.stringify(workerFile)});\n`;
   return new Worker(bootstrap, { eval: true, workerData, resourceLimits });

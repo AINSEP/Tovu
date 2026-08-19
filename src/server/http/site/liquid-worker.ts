@@ -8,8 +8,8 @@ import {
   renderBlockSeam,
   RENDER_CTX_KEY,
   type SiteRenderContext,
-} from "./render";
-import type { LiquidWorkerInput, LiquidWorkerResult } from "./liquid-sandbox";
+} from "./render.js";
+import type { LiquidWorkerInput, LiquidWorkerResult } from "./liquid-sandbox.js";
 
 /**
  * @file `worker_threads` entry point that actually runs LiquidJS

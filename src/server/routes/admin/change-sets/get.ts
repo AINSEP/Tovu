@@ -3,7 +3,7 @@ import {
   toChangeSetItemResponse,
 } from "#src/server/http/admin/change-sets";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { ContentRouteRegistrar } from "../content/deps";
+import type { ContentRouteRegistrar } from "../content/deps.js";
 
 /**
  * GET one change set with its items (SPEC-001 REQ-06).

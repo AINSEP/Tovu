@@ -7,7 +7,7 @@ import type {
   NavLocationBindingRow,
   NavMenuEntry,
 } from "#src/navigation/index";
-import type { RouteDeps } from "../../routes/types";
+import type { RouteDeps } from "../../routes/types.js";
 
 /**
  * @file Response DTOs + route-dependency shape for the admin `menus` HTTP

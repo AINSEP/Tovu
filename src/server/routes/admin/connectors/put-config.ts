@@ -9,7 +9,7 @@ import {
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { RateLimiter } from "#src/core/rate-limit/rate-limit";
 import { resolveClientIp } from "#src/core/rate-limit/rate-limit";
-import type { ConnectorsConfigRouteDeps } from "./deps";
+import type { ConnectorsConfigRouteDeps } from "./deps.js";
 
 /**
  * PUT the workspace's Composio API key.

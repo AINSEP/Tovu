@@ -1,6 +1,6 @@
 import type { Express } from "express";
 
-import type { RouteDeps, WebhooksDeps } from "../../types";
+import type { RouteDeps, WebhooksDeps } from "../../types.js";
 
 /**
  * @file Narrow `RouteDeps` slice for the integrations ADMIN routes (ADR-036 admin wiring;

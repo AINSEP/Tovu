@@ -9,7 +9,7 @@ import {
   type IdentityRepos,
   type PrincipalRecord,
 } from "@jini-ai/cms/identity";
-import type { ClockDeps, IdentityDeps, RouteDeps } from "../routes/types";
+import type { ClockDeps, IdentityDeps, RouteDeps } from "../routes/types.js";
 import { createRateLimiter, LOGIN_STRICT, resolveClientIp } from "#src/core/rate-limit/rate-limit";
 
 /**

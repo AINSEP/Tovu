@@ -1,7 +1,7 @@
 import type { Response } from "express";
 
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { ExternalMcpRouteDeps } from "./deps";
+import type { ExternalMcpRouteDeps } from "./deps.js";
 
 /**
  * @file The shared workspace + authorization gate for the three external-MCP routes.
