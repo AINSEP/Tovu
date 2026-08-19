@@ -103,18 +103,55 @@ function roundPct(value: number): number {
  * unchanged, so turning tiers on is an explicit opt-in rather than a silent side effect of this
  * change.
  */
-const ENFORCE_HARD_CONSTRAINT_TIERS = false;
+/**
+ * TURNED ON 2026-08-19, and the two sets below were SWAPPED at the same time, because a day of
+ * real firings showed the original classification was inverted relative to which metrics actually
+ * carry signal:
+ *
+ * | metric                     | fired | real? |
+ * |----------------------------|-------|-------|
+ * | module API surface (count) | 1     | YES — caught `theme-static-assets.ts` importing a
+ * |                            |       | 1134-line module for one string constant (8f65d911),
+ * |                            |       | fixed in code, not baselined away.
+ * | propagation cost (pct) x2  | 2     | NO  — both pure denominator artifacts.
+ * | core size (pct)            | 2     | NO  — same artifacts; on the second one its PERCENTAGE
+ * |                            |       | regressed while its COUNT improved 149 -> 139.
+ *
+ * The percentage metrics are the noisy ones, and the reason is structural, not incidental: they
+ * are ratios over the file graph, so ANY change in file count moves them for reasons unrelated to
+ * coupling. Deleting dead files raises them — the gate penalizes cleanup, which is backwards. Both
+ * false alarms this session came from deletions (ARCH-001 scratch dirs, then the mui-marketing
+ * test theme), and each cost a `--update` that a reader six months from now would reasonably
+ * mistake for someone quietly widening the budget.
+ *
+ * So: count-based structural metrics BLOCK; ratio-based ones WARN. `core size` additionally now
+ * ratchets on `coreSize.count`, not `coreSize.pct` — the count is the number that means "how much
+ * of this repo is load-bearing", and it is immune to denominator drift.
+ *
+ * TO PUT PROPAGATION COST / CORE SIZE BACK ON THE BLOCKING PATH: move their labels from
+ * `RATCHET_METRICS` to `HARD_CONSTRAINT_METRICS` below. Nothing else needs to change — they are
+ * still computed, still printed, still compared, still `--update`d. The only difference is whether
+ * a regression exits non-zero. Do that once the ratio metrics stop moving on file-count churn (or
+ * once they are reworked to be denominator-stable).
+ */
+const ENFORCE_HARD_CONSTRAINT_TIERS = true;
 
 type MetricTier = "hard" | "ratchet";
 
 const HARD_CONSTRAINT_METRICS = new Set<string>([
-  "propagation cost (all-import)",
-  "propagation cost (runtime-only)",
+  // Count-based and denominator-stable: a regression here is a real new coupling edge, not graph
+  // arithmetic. `module API surface` is here on this session's evidence (see the table above).
+  "module API surface (files exposed)",
   "back-edges into composition root",
   "module cycles / SCC (runtime-only)",
 ]);
 
-const RATCHET_METRICS = new Set<string>(["module API surface (files exposed)", "core size"]);
+const RATCHET_METRICS = new Set<string>([
+  // Ratio-based: move whenever the file count moves. Warn-only until denominator-stable.
+  "propagation cost (all-import)",
+  "propagation cost (runtime-only)",
+  "core size",
+]);
 
 /** Fail-safe default: a metric absent from both sets above is treated as `"hard"` so a newly
  * added ratcheted metric can't silently stop blocking the build just because nobody classified
@@ -641,7 +678,14 @@ function main(): void {
     // not fail the build; exposing a file that was previously private must. `deepImportsBypassing-
     // Index` is recorded in the baseline and printed, but deliberately not checked here.
     { label: "module API surface (files exposed)", verdict: compare(apiSurfaceFiles, baseline.moduleApiSurfaceFiles), current: apiSurfaceFiles, baseline: baseline.moduleApiSurfaceFiles, unit: "count", tier: tierOf("module API surface (files exposed)") },
-    { label: "core size", verdict: compare(coreSize.pct, baseline.coreSize.pct), current: coreSize.pct, baseline: baseline.coreSize.pct, unit: "pct", tier: tierOf("core size") },
+    // Ratchets on COUNT, not PCT (changed 2026-08-19 — see the tier block at the top of this file).
+    // `coreSize.pct` is a ratio over the whole file graph, so deleting unrelated dead files raises
+    // it while the core itself shrinks: on the mui-marketing removal the pct "regressed"
+    // 17.05 -> 16.13 in the wrong direction of interest while the count genuinely improved
+    // 149 -> 139. The count is what "how much of this repo is load-bearing" actually means, and it
+    // does not move when the denominator does. `pct` is still computed, printed, and stored in the
+    // baseline — it is just no longer the ratcheted value.
+    { label: "core size", verdict: compare(coreSize.count, baseline.coreSize.count), current: coreSize.count, baseline: baseline.coreSize.count, unit: "count", tier: tierOf("core size") },
   ];
 
   const regressed = checks.filter((c) => c.verdict === "regressed");

@@ -194,7 +194,23 @@ jobs:
       - name: Install root dependencies
         run: npm ci
 
+      # ---------------------------------------------------------------------------------------
+      # GATES BELOW ARE `continue-on-error: true` + `id:` ON PURPOSE (2026-08-19). They are NOT
+      # non-blocking: the "Gate summary" step at the end of this job reads every outcome and fails
+      # the job if any of them failed. The change is WHEN you learn, not WHETHER it blocks.
+      #
+      # Why: GitHub halts a job at the first failed step, so a run reported exactly ONE problem
+      # even when several existed. With a full run costing ~25 minutes, a session spent most of
+      # its time discovering one fact at a time -- fix, push, wait, discover the next. Every gate
+      # now runs, and the summary prints the complete picture once.
+      #
+      # Install/setup steps deliberately do NOT get this treatment: they are prerequisites, not
+      # gates. A failed `npm ci` should stop the job immediately rather than running six gates
+      # against a broken tree and reporting six meaningless failures.
+      # ---------------------------------------------------------------------------------------
       - name: Typecheck (root)
+        id: gate-typecheck
+        continue-on-error: true
         run: npm run typecheck
 
       - name: Test
@@ -254,6 +270,8 @@ jobs:
         # decide the same thing. This step ratchets six such metrics against a committed baseline:
         # it fails only when one gets WORSE than the baseline, so it can be blocking from day one
         # while the existing violations are worked down. See development/scripts/check-architecture.ts.
+        id: gate-architecture
+        continue-on-error: true
         run: npm run check:architecture
 
       - name: Check capability-inventory staleness
@@ -272,6 +290,8 @@ jobs:
         # `src/`-wide measurement to ratchet against. Verified locally before wiring in: `npm run
         # check:src-complexity-drift` exits 0, "0 new complexity violations (115 total, 115 in
         # baseline)".
+        id: gate-src-complexity
+        continue-on-error: true
         run: npm run check:src-complexity-drift
 
       - name: Lint
@@ -301,16 +321,49 @@ jobs:
         # import boundary; `complexity`/`sonarjs` are `warn` and do not affect the
         # exit code. Verified: the command exits 0 against the tree as it stands,
         # so this step fails only on a genuine boundary violation.
+        id: gate-eslint-boundaries
+        continue-on-error: true
         run: npm run complexity
 
       - name: Install admin dependencies
         run: npm ci --prefix apps/admin
 
       - name: Typecheck (admin)
+        id: gate-admin-typecheck
+        continue-on-error: true
         run: npm --prefix apps/admin run typecheck
 
       - name: Build admin
+        id: gate-admin-build
+        continue-on-error: true
         run: npm run admin:build
+
+      # THIS is what makes this job blocking. Every gate above is `continue-on-error: true` so all
+      # of them get to run; this step reads their recorded outcomes and fails the job if any of
+      # them failed. `if: always()` so it still runs after a gate failure -- without it, this step
+      # would be skipped and a red job would report green.
+      - name: Gate summary (build-and-test)
+        if: always()
+        run: |
+          fail=0
+          check () { # $1 = outcome, $2 = human label
+            if [ "$1" = "success" ]; then printf '  PASS  %s\n' "$2"
+            else printf '  FAIL  %s\n' "$2"; fail=1; fi
+          }
+          echo "--- build-and-test gates ---"
+          check "${{ steps.gate-typecheck.outcome }}"          "typecheck (root)"
+          check "${{ steps.gate-architecture.outcome }}"       "check:architecture"
+          check "${{ steps.gate-src-complexity.outcome }}"     "check:src-complexity-drift"
+          check "${{ steps.gate-eslint-boundaries.outcome }}"  "complexity (ESLint import boundaries)"
+          check "${{ steps.gate-admin-typecheck.outcome }}"    "typecheck (admin)"
+          check "${{ steps.gate-admin-build.outcome }}"        "admin:build"
+          echo "---"
+          if [ "$fail" -ne 0 ]; then
+            echo "One or more gates failed. Scroll up: EVERY failing gate above has its own full log," >&2
+            echo "so this run reports all of them at once rather than only the first." >&2
+            exit 1
+          fi
+          echo "All build-and-test gates passed."
 
   route-coverage:
     # Deliberately a SEPARATE job, not a step tacked onto build-and-test above, so it runs in
@@ -439,6 +492,8 @@ jobs:
         # margin) — see development/scripts/check-route-coverage-floor.ts's header for the exact
         # thresholds and where they came from. Unchanged by the 2026-08-18 two-tier redesign below —
         # still reads the combined development/coverage/lcov.info from the step above.
+        id: gate-coverage-floor
+        continue-on-error: true
         run: npm run check:route-coverage-floor
 
       - name: Check route coverage diff
@@ -454,6 +509,8 @@ jobs:
         # "changed", not this push's own diff. See the script's own header for the full incident.
         env:
           GITHUB_EVENT_BEFORE: ${{ github.event.before }}
+        id: gate-coverage-diff
+        continue-on-error: true
         run: npm run check:route-coverage-diff
 
       - name: Check route test-failure baseline
@@ -463,4 +520,27 @@ jobs:
         # for the full reasoning, the ratchet precedent it mirrors (check:admin-complexity-drift,
         # Jini's guard:drift), and its one known limitation (test names, not fully-qualified
         # per-file identities).
+        id: gate-test-baseline
+        continue-on-error: true
         run: npm run check:route-test-baseline
+
+      # See the identically-purposed step at the end of `build-and-test` for why this exists.
+      - name: Gate summary (route-coverage)
+        if: always()
+        run: |
+          fail=0
+          check () {
+            if [ "$1" = "success" ]; then printf '  PASS  %s\n' "$2"
+            else printf '  FAIL  %s\n' "$2"; fail=1; fi
+          }
+          echo "--- route-coverage gates ---"
+          check "${{ steps.gate-coverage-floor.outcome }}"  "check:route-coverage-floor"
+          check "${{ steps.gate-coverage-diff.outcome }}"   "check:route-coverage-diff"
+          check "${{ steps.gate-test-baseline.outcome }}"   "check:route-test-baseline"
+          echo "---"
+          if [ "$fail" -ne 0 ]; then
+            echo "One or more gates failed. Scroll up: EVERY failing gate above has its own full log," >&2
+            echo "so this run reports all of them at once rather than only the first." >&2
+            exit 1
+          fi
+          echo "All route-coverage gates passed."
