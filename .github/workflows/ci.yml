@@ -221,6 +221,20 @@ jobs:
           PGPORT: 5432
           PGUSER: postgres
           PGPASSWORD: postgres
+        # TEST_CONCURRENCY (2026-08-19): caps node's test-runner worker fan-out on this
+        # runner. Default is os.availableParallelism()-1; each worker is a full process, and
+        # liquid-sandbox.test.ts additionally spawns its OWN heap-limited Worker on purpose (it
+        # proves the render sandbox's V8 resourceLimits actually fire). On a constrained
+        # GitHub runner the sum overshoots available RAM and the kernel kills a SIBLING worker
+        # with ERR_WORKER_OUT_OF_MEMORY. A file that dies that way is reported by node as one
+        # top-level `not ok N - <file path>`, which check:route-test-baseline can never match
+        # against its test-DESCRIPTION-keyed baseline -- so it always prints as a NEW failure and
+        # reds the gate for a codebase that is not broken. Diagnosed on runs 32091498514 /
+        # 32093877745 (see check-test-baseline.ts "Known limitation: CI-runner file-level
+        # crashes") and reproduced again on 32284065315, where all 8 file-path-shaped entries
+        # passed clean when re-run individually. Set here rather than in the scripts so local
+        # runs keep full parallelism -- the npm scripts add the flag only when this var is set.
+          TEST_CONCURRENCY: 2
         run: npm test
 
       - name: Check architecture boundaries
@@ -395,6 +409,8 @@ jobs:
         # existing only to produce their input files.
         id: route-tests
         continue-on-error: true
+        env:
+          TEST_CONCURRENCY: 2
         run: npm run test:cov:server
 
       - name: Route tests + coverage (tiered -- unit vs integration)
@@ -414,6 +430,8 @@ jobs:
         # after this one, and this step exists only to produce their input files.
         id: route-tests-tiered
         continue-on-error: true
+        env:
+          TEST_CONCURRENCY: 2
         run: npm run test:cov:server:tiered
 
       - name: Check route coverage floor

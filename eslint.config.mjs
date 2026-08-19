@@ -32,6 +32,15 @@ export default [
       // rule '...' was not found" for two disabled rules the minimal complexity-only config
       // doesn't load). CI never has this directory, so this is a local-machine-only fix.
       'apps/admin/dist-debug/**',
+      // Agent worktrees. `.claude/worktrees/<name>/` is a real git worktree of this same repo
+      // (gitignored via .git/info/exclude), so `eslint .` recurses into it and lints a SECOND,
+      // independent checkout -- usually another session's in-progress branch. Verified 2026-08-19:
+      // `npm run complexity` exited 1 solely on a stale copy of use-access-tokens.hooks.ts inside
+      // one, a file already fixed on this branch in 5a23e102. Every reported path was a worktree
+      // path; the same command with these excluded exits 0. CI never has this directory (it is a
+      // fresh checkout), so this is a local-machine-only fix, exactly like dist-debug above --
+      // without it a local complexity run reports failures that CI cannot reproduce.
+      '.claude/worktrees/**',
     ],
   },
   {

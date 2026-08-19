@@ -3,7 +3,6 @@ import path from "node:path";
 import express from "express";
 import type { Express } from "express";
 
-import { MIGRATION_STAGING_DIR_PREFIX } from "../../features/theme/theme.js";
 import { themeAssetSecurityHeaders } from "./theme-content-security-headers.js";
 
 /**
@@ -91,14 +90,22 @@ export function registerThemeStaticAssets(app: Express, required: { themeRoots: 
  *   single segment, because that is a property of the routing layer rather than of this function.
  * - the `__original-themes__`/`__marketplace__` catalogs, whose whole purpose is to be a pristine
  *   copy nothing serves or runs; neither is a theme and must not be reachable as one.
- * - `.tovu-migrate-staging-*` scratch output (ARCH-001, 2026-08-19) — `migrate-theme.ts` deliberately
- *   leaves this on disk for dry-run/failure inspection (see {@link MIGRATION_STAGING_DIR_PREFIX}'s own
- *   doc), and it lives as a direct sibling of real theme folders, so without this refusal it resolved
- *   here exactly like a real theme id and its whole folder (css, tokens, screenshots) was servable.
+ * - ANY dot-prefixed directory name. `.tovu-migrate-staging-*` scratch output (ARCH-001,
+ *   2026-08-19) is the case that forced this: `migrate-theme.ts` deliberately leaves that on disk
+ *   for dry-run/failure inspection as a direct sibling of real theme folders, and without a
+ *   refusal it resolved here exactly like a real theme id -- its whole folder (css, tokens,
+ *   screenshots) was servable over HTTP. Refusing the DOT rather than that one literal prefix is
+ *   deliberate: it is strictly broader (any hidden dir -- .git, .env.d, a future scratch prefix --
+ *   is refused for free), no legitimate theme id is dot-prefixed (verified against
+ *   src/themes/static and src/themes/templated), and it needs NO import. The earlier form
+ *   imported MIGRATION_STAGING_DIR_PREFIX from features/theme/theme.ts, which made this the only
+ *   file in src/server/ importing that 1134-line module and regressed four check:architecture
+ *   metrics (propagation cost all-import 11.57->11.87 and runtime-only 1.75->1.8, module API
+ *   surface 201->202, core size 16.84%->17.05%) for a single string constant.
  * - anything that simply is not there, which falls through to the next root, then to the normal 404.
  */
 function resolveThemeDir(roots: readonly string[], themeId: string): string | null {
-  if (themeId === "" || themeId.startsWith("__") || themeId.startsWith(MIGRATION_STAGING_DIR_PREFIX)) return null;
+  if (themeId === "" || themeId.startsWith("__") || themeId.startsWith(".")) return null;
   for (const root of roots) {
     const candidate = path.resolve(root, themeId);
     if (candidate !== path.join(root, themeId)) continue;
