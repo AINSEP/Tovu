@@ -82,7 +82,7 @@
  * Exit codes: 0 = no failing test outside the baseline (baseline may be over-generous; reported,
  *             not failed). 1 = at least one NEW failing test, or the TAP file is missing/unreadable.
  */
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -127,9 +127,18 @@ export function isFileLevelRollup(entry: string): boolean {
 }
 
 function main(): void {
-  const [, , baselineArg, tapArg] = process.argv;
+  const args = process.argv.slice(2);
+  // `--capture` seeds (or re-seeds) a baseline from a TAP file instead of checking against one.
+  // Mirrors check-architecture.ts's `--update`. Added 2026-08-19: the route baseline had to be
+  // hand-assembled, and a second scope (the repo-wide suite) needs the same treatment — doing that
+  // by hand twice is how a baseline ends up subtly wrong. File-level roll-ups are excluded from a
+  // captured baseline for the same reason they are excluded from the gate: they can never match.
+  const capture = args.includes("--capture");
+  const [baselineArg, tapArg] = args.filter((a) => !a.startsWith("--"));
   if (!baselineArg) {
-    console.error("check:route-test-baseline — usage: tsx check-test-baseline.ts <baselineJsonPath> [tapPath]");
+    console.error(
+      "check:route-test-baseline — usage: tsx check-test-baseline.ts [--capture] <baselineJsonPath> [tapPath]"
+    );
     process.exit(1);
   }
   const baselinePath = path.isAbsolute(baselineArg) ? baselineArg : path.join(REPO_ROOT, baselineArg);
@@ -141,6 +150,27 @@ function main(): void {
     );
     process.exit(1);
   }
+
+  if (capture) {
+    const all = [...parseFailingTestNames(readFileSync(tapPath, "utf8"))];
+    const rollups = all.filter(isFileLevelRollup);
+    const knownFailures = all.filter((n) => !isFileLevelRollup(n)).sort((a, b) => a.localeCompare(b));
+    const existing = existsSync(baselinePath)
+      ? (JSON.parse(readFileSync(baselinePath, "utf8")) as Baseline & { _comment?: string[] })
+      : undefined;
+    writeFileSync(
+      baselinePath,
+      `${JSON.stringify({ _comment: existing?._comment, knownFailures }, null, 2)}\n`,
+      "utf8"
+    );
+    console.log(
+      `check:route-test-baseline — CAPTURED ${knownFailures.length} failing test(s) into ${path.relative(REPO_ROOT, baselinePath)}` +
+        (rollups.length ? ` (excluded ${rollups.length} file-level roll-up(s) — they can never match)` : "")
+    );
+    console.log("Review this diff before committing: every entry is debt you are agreeing to tolerate.");
+    return;
+  }
+
   if (!existsSync(baselinePath)) {
     console.error(`check:route-test-baseline — FAIL: baseline file not found: ${baselinePath}`);
     process.exit(1);
