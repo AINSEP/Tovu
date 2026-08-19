@@ -1,5 +1,5 @@
-import { initSite } from "../../site-dir/init-site";
-import { readSiteDir } from "../../site-dir/read-site-dir";
+import { initSite } from "../../site-dir/init-site.js";
+import { readSiteDir } from "../../site-dir/read-site-dir.js";
 
 /**
  * @file SPEC-003 C-001 (`CLI_INIT`) — wires a commander action's parsed arguments to

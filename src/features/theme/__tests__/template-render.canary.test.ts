@@ -4,8 +4,8 @@ import path from "node:path";
 import test from "node:test";
 
 import { renderHtmlPageBody } from "#src/server/http/site/render";
-import { injectCurrentEntityContentId, injectPageTitle, renderStaticPage, resolveTemplate } from "../static-render";
-import type { DiscoveredTheme, StaticMenuItem } from "../index";
+import { injectCurrentEntityContentId, injectPageTitle, renderStaticPage, resolveTemplate } from "../static-render.js";
+import type { DiscoveredTheme, StaticMenuItem } from "../index.js";
 
 /**
  * @file Canaries for the unified template render pipeline, against the REAL `basic` theme on disk.

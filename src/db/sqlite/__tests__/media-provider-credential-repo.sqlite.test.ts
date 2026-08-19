@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { MediaProviderCredentialRecord } from "../../../media/provider-credential-store";
-import { workspaces } from "../../schema";
-import { openContentDb } from "../content-db";
-import { SqliteMediaProviderCredentialRepo } from "../media-provider-credential-repo.sqlite";
+import type { MediaProviderCredentialRecord } from "../../../media/provider-credential-store.js";
+import { workspaces } from "../../schema.js";
+import { openContentDb } from "../content-db.js";
+import { SqliteMediaProviderCredentialRepo } from "../media-provider-credential-repo.sqlite.js";
 
 /**
  * @file `SqliteMediaProviderCredentialRepo` against a real, migrated `content.db` (`:memory:`).

@@ -11,8 +11,8 @@ import {
 } from "#src/core/tool-surface-exchanges";
 import { InMemoryChangeSetRepo } from "#src/core/commands/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/core/events/index";
-import { InMemoryPostRepo } from "../repo.memory";
-import { buildPostRegistrations, type PostToolDeps } from "../tool-registrations";
+import { InMemoryPostRepo } from "../repo.memory.js";
+import { buildPostRegistrations, type PostToolDeps } from "../tool-registrations.js";
 
 /**
  * @file Certification of `content_post_delete`'s confirmation gate (ADR-055 Decision 2), which

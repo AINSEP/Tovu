@@ -40,7 +40,7 @@ const SKIP_DIR_NAMES = new Set(["node_modules", "dist", "build", "coverage", ".t
 const SOURCE_EXTENSIONS = new Set([".ts", ".tsx"]);
 
 // Matches `pg-fixture` as an import specifier's final path segment (quoted, with or without a `.ts`
-// extension) — e.g. `from "../migration/pg-fixture"` or `require("./pg-fixture.ts")` — without
+// extension) — e.g. `from "../migration/pg-fixture.js"` or `require("./pg-fixture.ts")` — without
 // requiring a specific import syntax, so it catches `import`, `import type`, and `require()` alike.
 const IMPORT_SPECIFIER_PATTERN = /pg-fixture(?:\.ts)?["']/;
 

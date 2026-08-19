@@ -1,6 +1,6 @@
-import { ValidationError } from "../../site-dir";
-import type { CliManifest } from "../introspect";
-import { toMcpTools } from "../introspect";
+import { ValidationError } from "../../site-dir/index.js";
+import type { CliManifest } from "../introspect.js";
+import { toMcpTools } from "../introspect.js";
 
 /**
  * @file SPEC-003 (added 2026-07-29, `CLI_INTROSPECT`) — formats `introspectProgram()`'s output

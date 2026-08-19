@@ -24,10 +24,10 @@ import {
   IdentityForbiddenError,
 } from "@jini-ai/cms/identity";
 import { Argon2PasswordHasher } from "@jini-ai/cms/identity/hasher";
-import type { RouteDeps } from "../../server/routes/types";
-import { buildAssistantToolRegistrations } from "../tool-registrations";
-import { resetToolContributorsForTests } from "../tool-contribution-registry";
-import { contributeIdentityTools } from "../../identity/tool-registrations";
+import type { RouteDeps } from "../../server/routes/types.js";
+import { buildAssistantToolRegistrations } from "../tool-registrations/index.js";
+import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
+import { contributeIdentityTools } from "../../identity/tool-registrations.js";
 
 // Identity moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
 // tool-contribution registry (2026-08-17, Stage 2 — see `tool-contribution-registry.ts`'s header),

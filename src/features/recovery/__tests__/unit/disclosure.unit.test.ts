@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { computeDisclosure } from "../../disclosure";
+import { computeDisclosure } from "../../disclosure.js";
 
 /**
  * @file REQ-09/REQ-10/REQ-11 (SPEC-019) — `computeDisclosure`'s covered-category restriction and

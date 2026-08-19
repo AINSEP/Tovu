@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createApp, createRouteDeps } from "../../app";
-import { bootAuthenticated } from "../helpers/http-test-server";
-import { InMemoryDeploymentsReadRepo } from "../../../features/deployments";
-import type { DeploymentRunRecord, DeploymentTargetRecord, EnvironmentRecord, ReleaseRecord } from "../../../features/deployments";
-import type { RouteDeps } from "../../routes/types";
+import { createApp, createRouteDeps } from "../../app.js";
+import { bootAuthenticated } from "../helpers/http-test-server.js";
+import { InMemoryDeploymentsReadRepo } from "../../../features/deployments/index.js";
+import type { DeploymentRunRecord, DeploymentTargetRecord, EnvironmentRecord, ReleaseRecord } from "../../../features/deployments/index.js";
+import type { RouteDeps } from "../../routes/types.js";
 
 /**
  * @file Admin Deployment panel → Full Site tab — `GET /api/admin/v1/workspaces/:workspaceId/

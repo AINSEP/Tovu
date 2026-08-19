@@ -9,7 +9,7 @@ import {
   askOnce,
   askThenReport,
   createSurfaceExchangeStore,
-} from "../tool-surface-exchanges";
+} from "../tool-surface-exchanges.js";
 
 /**
  * @file Tests for the surface exchange — a two-way, multi-message conversation with a human held

@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { planV2Migration } from "../theme-migration-plan";
+import { planV2Migration } from "../theme-migration-plan.js";
 
 function makeDeclarativeThemeDir(extraRootFile?: string): string {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-plan-declarative-"));

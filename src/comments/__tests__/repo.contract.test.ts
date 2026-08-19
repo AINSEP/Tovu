@@ -6,12 +6,12 @@ import test from "node:test";
 
 import Database from "better-sqlite3";
 
-import { declareDataModule } from "../../features/plugins/data-module";
-import { InMemoryCommentRepo } from "../repo.memory";
-import { SqliteCommentRepo } from "../repo.sqlite";
-import { COMMENTS_DATA_MODULE } from "../types";
-import type { CommentRepoPort } from "../ports";
-import type { CommentRecord } from "../types";
+import { declareDataModule } from "../../features/plugins/data-module.js";
+import { InMemoryCommentRepo } from "../repo.memory.js";
+import { SqliteCommentRepo } from "../repo.sqlite.js";
+import { COMMENTS_DATA_MODULE } from "../types.js";
+import type { CommentRepoPort } from "../ports.js";
+import type { CommentRecord } from "../types.js";
 
 /**
  * @file SPEC-033 — shared contract-test suite for `CommentRepoPort`, run against BOTH

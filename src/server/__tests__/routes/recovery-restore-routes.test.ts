@@ -3,12 +3,12 @@ import test from "node:test";
 
 import express from "express";
 
-import { bootAuthenticated } from "../helpers/http-test-server";
-import { createRouteDeps } from "../../app";
+import { bootAuthenticated } from "../helpers/http-test-server.js";
+import { createRouteDeps } from "../../app.js";
 import { acquireOperationLock, releaseOperationLock } from "#src/core/operation-lock";
-import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth";
-import { registerAdminRecoveryRestoreRoutes } from "../../routes/admin/recovery/restore";
-import type { RouteDeps } from "../../routes/types";
+import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth.js";
+import { registerAdminRecoveryRestoreRoutes } from "../../routes/admin/recovery/restore.js";
+import type { RouteDeps } from "../../routes/types.js";
 
 /**
  * Registers a principal with a login but no role/policy grants at all — mirrors

@@ -7,7 +7,7 @@ import express from "express";
 import { createRouteDeps } from "#src/server/app";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
 import { LocalBufferSink } from "#src/analytics/repo.memory";
-import { registerAnalyticsIngestRoute } from "../analytics-ingest";
+import { registerAnalyticsIngestRoute } from "../analytics-ingest.js";
 import type { IngestHitDeps } from "#src/analytics/ingest";
 
 /**

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { MAX_HTML_EMBEDS_PER_PAGE, scanHtmlEmbeds, substituteHtmlEmbeds } from "../../html-embeds";
+import { MAX_HTML_EMBEDS_PER_PAGE, scanHtmlEmbeds, substituteHtmlEmbeds } from "../../html-embeds.js";
 
 /**
  * @file SPEC-047 Slice 2 — `html-embeds.ts`'s scan/substitute pair, tested as the pure string

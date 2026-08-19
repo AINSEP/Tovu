@@ -1,4 +1,4 @@
-import type { BootModuleResult, BootResult } from "./boot-lifecycle";
+import type { BootModuleResult, BootResult } from "./boot-lifecycle.js";
 
 /**
  * @file ADR-046 Phase 2 (SPEC-030) — process-local holder for the latest `BootResult` snapshot.

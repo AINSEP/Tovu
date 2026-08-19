@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { PostRecord } from "#src/features/post/index";
-import { renderHandlebarsInSandbox } from "../handlebars-sandbox";
-import type { SiteRenderContext } from "../render";
+import { renderHandlebarsInSandbox } from "../handlebars-sandbox.js";
+import type { SiteRenderContext } from "../render.js";
 
 /**
  * @file ADR-020 §3 (C6), Handlebars tier — certifies `renderHandlebarsInSandbox`'s isolation

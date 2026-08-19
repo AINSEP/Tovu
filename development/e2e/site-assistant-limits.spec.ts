@@ -1,6 +1,6 @@
 import { test, expect } from "@playwright/test";
 
-import { openChatPanel, openSitePage, sendVisitorMessage } from "./site-assistant-fixtures";
+import { openChatPanel, openSitePage, sendVisitorMessage } from "./site-assistant-fixtures.js";
 
 /**
  * @file SPEC-046 AC6/REQ-7 — the 11th `POST /api/site-assistant/chat` request within 5 minutes from

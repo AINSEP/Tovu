@@ -10,7 +10,7 @@ import { discoverAllBuiltInThemes, THEME_CATALOG_DIR } from "#src/features/theme
 import { createApp, createRouteDeps } from "#src/server/app";
 import { bootAuthenticated, loginAsBarePrincipal } from "#src/server/__tests__/helpers/http-test-server";
 import type { RouteDeps } from "#src/server/routes/types";
-import { nextAvailableFileName, reloadTheme, renameThemeFileIfChanged } from "../../explore";
+import { nextAvailableFileName, reloadTheme, renameThemeFileIfChanged } from "../../explore.js";
 
 /**
  * @file Integration-tier coverage for the theme Explore routes (`explore.ts`) — real composed app

@@ -1,4 +1,4 @@
-import type { PostRecord, PostRepoPort } from "../../features/post.js";
+import type { PostRecord, PostRepoPort } from "../../features/post/index.js";
 
 /**
  * Structural signature matching `features/post/post.ts`'s real `listPublishedPosts` function.

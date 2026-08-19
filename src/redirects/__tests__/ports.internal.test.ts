@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { insertRedirectAndRevision, type RedirectDbHandle } from "../ports.internal";
-import type { RedirectRecord, RedirectRevision } from "../types";
+import { insertRedirectAndRevision, type RedirectDbHandle } from "../ports.internal.js";
+import type { RedirectRecord, RedirectRevision } from "../types.js";
 
 /**
  * @file T004 (INV-01) — `insertRedirectAndRevision` is the sole path INV-01

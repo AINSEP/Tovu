@@ -1,20 +1,20 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { bootAuthenticated } from "../helpers/http-test-server";
+import { bootAuthenticated } from "../helpers/http-test-server.js";
 
 import express from "express";
 
-import { createRouteDeps } from "../../app";
-import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth";
-import { registerAdminSettingsClearRoute } from "../../routes/admin/settings/clear";
-import { registerAdminSettingsGetEffectiveRoute } from "../../routes/admin/settings/get-effective";
-import { registerAdminSettingsGetRawRoute } from "../../routes/admin/settings/get-raw";
-import { registerAdminSettingsListDefinitionsRoute } from "../../routes/admin/settings/list-definitions";
-import { registerAdminSettingsRegisterDefinitionsRoute } from "../../routes/admin/settings/register-definitions";
-import { registerAdminSettingsResetRoute } from "../../routes/admin/settings/reset";
-import { registerAdminSettingsSetRoute } from "../../routes/admin/settings/set";
-import type { RouteDeps } from "../../routes/types";
+import { createRouteDeps } from "../../app.js";
+import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth.js";
+import { registerAdminSettingsClearRoute } from "../../routes/admin/settings/clear.js";
+import { registerAdminSettingsGetEffectiveRoute } from "../../routes/admin/settings/get-effective.js";
+import { registerAdminSettingsGetRawRoute } from "../../routes/admin/settings/get-raw.js";
+import { registerAdminSettingsListDefinitionsRoute } from "../../routes/admin/settings/list-definitions.js";
+import { registerAdminSettingsRegisterDefinitionsRoute } from "../../routes/admin/settings/register-definitions.js";
+import { registerAdminSettingsResetRoute } from "../../routes/admin/settings/reset.js";
+import { registerAdminSettingsSetRoute } from "../../routes/admin/settings/set.js";
+import type { RouteDeps } from "../../routes/types.js";
 
 /**
  * @file T036 (AC-16) — each of the 5 admin `settings.*` HTTP endpoints must

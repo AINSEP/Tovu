@@ -1,11 +1,11 @@
 import path from "node:path";
 
-import { ValidationError } from "../../../site-dir";
+import { ValidationError } from "../../../site-dir/index.js";
 import {
   validateThemePackage,
   type ThemeValidationFinding,
   type ThemeValidationProfile,
-} from "../../../features/theme/index";
+} from "../../../features/theme/index.js";
 
 /**
  * @file `tovu theme validate <dir> --profile <author|publish|install> [--json]` —

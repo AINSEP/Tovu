@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { FederatedMcpConnectionConfig, RemoteToolDescriptor } from "../mcp-federation/ports";
+import type { FederatedMcpConnectionConfig, RemoteToolDescriptor } from "../mcp-federation/ports.js";
 import {
   admitRemoteTools,
   assertNoNativeCollision,
@@ -10,7 +10,7 @@ import {
   FEDERATED_TOOL_ID_PREFIX,
   federatedToolId,
   wrapUntrustedResult,
-} from "../mcp-federation/trust";
+} from "../mcp-federation/trust.js";
 
 /**
  * @file The federated trust tier's own test file — one or more cases per numbered rule in

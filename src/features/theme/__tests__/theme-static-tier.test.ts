@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { loadTheme } from "../theme";
+import { loadTheme } from "../theme.js";
 
 /**
  * @file `loadTheme()`'s static tier — the one tier that ships complete `pages/*.html` documents plus

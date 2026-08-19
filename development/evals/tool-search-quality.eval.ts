@@ -27,9 +27,9 @@
  * first. "stop that email going out" is the real test; "newsletter_cancel_campaign" is not.
  */
 import { createToolRegistry } from "@jini-ai/core";
-import { buildToolCatalogQuery } from "../../src/assistant/tool-catalog-query";
-import { buildAssistantToolRegistrations } from "../../src/assistant/tool-registrations";
-import type { RouteDeps } from "../../src/server/routes/types";
+import { buildToolCatalogQuery } from "../../src/assistant/tool-catalog-query.js";
+import { buildAssistantToolRegistrations } from "../../src/assistant/tool-registrations/index.js";
+import type { RouteDeps } from "../../src/server/routes/types.js";
 
 interface EvalCase {
   /** How a human actually asks. */

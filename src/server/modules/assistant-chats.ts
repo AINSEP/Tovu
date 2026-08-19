@@ -24,9 +24,9 @@ import type { Express, Request, Response } from "express";
 import { deriveConversationTitle } from "@jini-ai/chat/core";
 import type { ChatMessage } from "@jini-ai/chat/core";
 
-import { getAuthedPrincipal, requireAdminSession } from "../middleware/dev-auth";
-import type { RouteDeps } from "../routes/types";
-import type { ServerModuleHandle } from "./types";
+import { getAuthedPrincipal, requireAdminSession } from "../middleware/dev-auth.js";
+import type { RouteDeps } from "../routes/types.js";
+import type { ServerModuleHandle } from "./types.js";
 
 /** Rejects a body that is not a plain object, so `req.body.title` can never be an array or null. */
 function bodyOf(req: Request): Record<string, unknown> {

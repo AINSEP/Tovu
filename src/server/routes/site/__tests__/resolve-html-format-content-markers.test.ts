@@ -10,7 +10,7 @@ import {
   MAX_CONTENT_EMBED_FETCHES,
   resolveHtmlFormatContentMarkers,
   type ContentMarkerResolutionDeps,
-} from "../pages";
+} from "../pages.js";
 
 /**
  * @file Guard 3 of the unified-content-marker design (`ADS-memory/reports/design/

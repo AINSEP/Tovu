@@ -10,7 +10,7 @@ import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 
 import { openContentDb, type ContentDb } from "#src/db/sqlite/content-db";
 import { runtimeSchemaVersion } from "#src/site-dir/schema-guard";
-import { SqliteDatabaseIntrospectionAdapter } from "../database-introspection-adapter.sqlite";
+import { SqliteDatabaseIntrospectionAdapter } from "../database-introspection-adapter.sqlite.js";
 
 /**
  * @file ADR-041 §3 — integration tests for `SqliteDatabaseIntrospectionAdapter`, the real backing

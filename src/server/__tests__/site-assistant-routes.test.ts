@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createApp, createRouteDeps } from "../app";
-import { setPublicAssistantSettings } from "../../assistant";
-import { startTestServer } from "./helpers/http-test-server";
+import { createApp, createRouteDeps } from "../app.js";
+import { setPublicAssistantSettings } from "../../assistant/index.js";
+import { startTestServer } from "./helpers/http-test-server.js";
 
 /**
  * @file `POST /api/site-assistant/chat` (ADR-054) — coverage for the master on/off switch

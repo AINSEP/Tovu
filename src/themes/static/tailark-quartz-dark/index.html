@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Onyx — Payments infrastructure built for SaaS that scales</title>
+<style>
+:root {
+  --bg: #080808;
+  --surface: #0a0a0b;
+  --surface-2: #101012;
+  --fg: #fcfcfc;
+  --muted: #a3a3ad;
+  --border: rgba(255,255,255,0.12);
+  --border-strong: rgba(255,255,255,0.20);
+  --accent: #10b981;
+  --accent-fg: #04140d;
+  --font-display: 'Geist', -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif;
+  --font-body: 'Geist', -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, 'JetBrains Mono', Menlo, monospace;
+  --container: 1120px;
+}
+:root[data-theme="light"] {
+  --bg: #fafafa;
+  --surface: #f5f5f6;
+  --surface-2: #ececee;
+  --fg: #0a0a0a;
+  --muted: #55555f;
+  --border: rgba(0,0,0,0.12);
+  --border-strong: rgba(0,0,0,0.20);
+  --accent: #047850;
+  --accent-fg: #f4fdf9;
+  --font-display: 'Geist', -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif;
+  --font-body: 'Geist', -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, 'JetBrains Mono', Menlo, monospace;
+  --container: 1120px;
+}
+</style>
+<link rel="stylesheet" href="css/theme.css" />
+<script src="scripts/theme-toggle.js"></script>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="wrap nav-row">
+    <a href="index.html" class="brand">
+      <span class="mark"><svg viewBox="0 0 24 24" fill="none"><path d="M12 2l7 5v10l-7 5-7-5V7l7-5z" stroke="var(--accent)" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 8l4 2.6v4.8L12 18l-4-2.6v-4.8L12 8z" fill="var(--accent)"/></svg></span>
+      Onyx
+    </a>
+    <nav class="main-nav" data-embed-config='{"type":"menu","id":"menu-header-nav"}'><!-- live content when connected to Tovu --></nav>
+    <div class="nav-actions">
+      <button class="theme-toggle" type="button" aria-label="Switch to light mode" data-theme-toggle>
+        <span class="icon-stack">
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 3v2.2M12 18.8V21M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M3 12h2.2M18.8 12H21M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6"/></svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/></svg>
+        </span>
+      </button>
+      <button class="nav-toggle btn btn-ghost" type="button" aria-expanded="false" aria-label="Toggle menu">Menu</button>
+      <a href="#" class="btn btn-solid">Sign In</a>
+    </div>
+  </div>
+</header>
+
+
+<main>
+  <section class="hero">
+    <div class="wrap">
+      <h1>Payments infrastructure <span>built</span> for SaaS that scales</h1>
+      <p class="lede">Streamline your team's meetings with our AI-driven assistant, open source and works.</p>
+      <div class="hero-actions">
+        <a href="#" class="btn btn-solid btn-lg">Get Started</a>
+        <a href="#" class="btn btn-ghost btn-lg">Watch Demo</a>
+      </div>
+      <div class="hero-shot" data-reveal>product illustration</div>
+    </div>
+  </section>
+
+  <section class="trusted-strip">
+    <div class="wrap">
+      <p>Onyx is trusted by leading teams from <span>Generative AI Companies,</span> <span>Hosting Providers,</span> <span>Payments Providers,</span> <span>Streaming Providers</span></p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="kicker">How it works</span>
+        <h2>Build your MRR in minutes</h2>
+        <p>Our platform combines cutting-edge AI models with intuitive interfaces to streamline your development workflow and boost productivity.</p>
+      </div>
+      <div class="feature-grid feature-grid-3">
+        <div class="card" data-reveal>
+          <h3>1. Add payment information</h3>
+          <p>Securely add your <b>payment details</b> to get started with our services.</p>
+          <div class="card-shot">card entry form</div>
+        </div>
+        <div class="card" data-reveal>
+          <h3>2. Sign documents</h3>
+          <p>Digitally sign and <b>authorize transactions</b> with ease.</p>
+          <div class="card-shot">invoice + signature</div>
+        </div>
+        <div class="card" data-reveal>
+          <h3>3. Receive confirmation</h3>
+          <p>Get instant <b>confirmation receipts</b> for all your completed transactions.</p>
+          <div class="card-shot">confirmation panel</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="kicker">Platform</span>
+        <h2>Cutting-Edge tools to build subscriptions</h2>
+        <p>Our platform combines cutting-edge AI models with intuitive interfaces to streamline your development workflow and boost productivity.</p>
+      </div>
+      <div class="feature-grid">
+        <div class="card" data-reveal>
+          <h3>Component Kits &amp; Campaigns</h3>
+          <p>Browse favorite kits, manage campaign timelines, and connect initiatives — all from a single organized view.</p>
+          <div class="card-shot">campaign timeline</div>
+        </div>
+        <div class="card" data-reveal>
+          <h3>Schedule &amp; Compose</h3>
+          <p>Plan with calendar shortcuts and write with rich text tools — bold, italics, underline, and more — without leaving your flow.</p>
+          <div class="card-shot">composer + calendar</div>
+        </div>
+        <div class="card" data-reveal>
+          <h3>Dashboards &amp; Usage</h3>
+          <p>Visualize key metrics with live cards and progress bars to monitor usage and spot trends at a glance.</p>
+          <div class="card-shot">usage: 56 GB / 128 GB</div>
+        </div>
+        <div class="card" data-reveal>
+          <h3>Mentions &amp; Files</h3>
+          <p>Keep conversations in context with @mentions and shared files.</p>
+          <div class="card-shot">shared invoices thread</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="kicker">What you get</span>
+        <h2>Payment flows that convert and scale</h2>
+        <p>Launch polished checkouts, one-tap verification, and flexible methods — built with developer-first blocks for speed and reliability.</p>
+      </div>
+      <div class="feature-grid">
+        <div class="card" data-reveal>
+          <h3>Complete payments securely</h3>
+          <p>Offer card or bank transfers with a polished checkout. Capture details, validate, and confirm — all in a compliant, branded flow.</p>
+          <div class="card-shot">card + bank transfer form</div>
+        </div>
+        <div class="card" data-reveal>
+          <h3>One-tap checkout with Link</h3>
+          <p>Recognize saved details and verify with a one-time code to finish purchases in seconds — no forms, no friction.</p>
+          <div class="card-shot">one-tap checkout panel</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="stats-row wrap">
+    <div data-reveal>
+      <div class="stat-value">99.9%</div>
+      <p class="stat-label">Uptime guarantee for all our services.</p>
+    </div>
+    <div data-reveal>
+      <div class="stat-value">24/7</div>
+      <p class="stat-label">Support available around the clock.</p>
+    </div>
+    <div data-reveal>
+      <div class="stat-value">12X</div>
+      <p class="stat-label">Faster processing than previous generation.</p>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="wrap testimonial" data-reveal>
+      <div class="avatar-row">
+        <div class="avatar">DW</div>
+      </div>
+      <blockquote>&ldquo;The component library from Onyx has been a game-changer for our development team. We can quickly build consistent interfaces across our payment platform with minimal effort. The documentation is excellent and the customization options are exactly what we needed.&rdquo;</blockquote>
+      <cite><b>Dana Whitfield</b> &mdash; CEO, Fintra</cite>
+      <div class="testimonial-stats">
+        <div>
+          <div class="stat-value">40%</div>
+          <div class="stat-label">Reduction in integration time for new merchants</div>
+        </div>
+        <div>
+          <div class="stat-value">50%</div>
+          <div class="stat-label">Faster onboarding for new clients and merchants</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="cta-band">
+    <div class="wrap" data-reveal>
+      <h2>Build, Sell and Scale <span>Your Business</span></h2>
+      <p>Join a community of over 1000+ companies and developers who have already discovered the power of Onyx.</p>
+      <div class="hero-actions">
+        <a href="#" class="btn btn-solid btn-lg">Get Started</a>
+        <a href="#" class="btn btn-ghost btn-lg">Contact Sales</a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="footer-grid">
+      <div class="footer-col footer-brand">
+        <a href="index.html" class="brand"><span class="mark"><svg viewBox="0 0 24 24" fill="none"><path d="M12 2l7 5v10l-7 5-7-5V7l7-5z" stroke="var(--accent)" stroke-width="1.6" stroke-linejoin="round"/><path d="M12 8l4 2.6v4.8L12 18l-4-2.6v-4.8L12 8z" fill="var(--accent)"/></svg></span>Onyx</a>
+        <p>Onyx is a platform for building AI-powered applications.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Product</h4>
+        <a href="#">Features</a>
+        <a href="#">Solution</a>
+        <a href="#">Partnerships</a>
+        <a href="#">Mobile App</a>
+      </div>
+      <div class="footer-col">
+        <h4>Company</h4>
+        <div data-embed-config='{"type":"menu","id":"menu-footer-nav"}'><!-- live content when connected to Tovu --></div>
+      </div>
+      <div class="footer-col">
+        <h4>Community</h4>
+        <div class="social-row">
+          <a href="#" aria-label="X (Twitter)"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M18.9 2H22l-7.6 8.7L23 22h-6.9l-5.4-6.6L4.5 22H1.4l8.1-9.3L1 2h7l4.9 6.1L18.9 2zm-1.2 18h1.9L7.4 4H5.4l12.3 16z"/></svg></a>
+          <a href="#" aria-label="LinkedIn"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M4.98 3.5a2.5 2.5 0 11.02 5 2.5 2.5 0 01-.02-5zM3 9h4v12H3V9zm7 0h3.8v1.7h.05c.53-1 1.83-2.05 3.77-2.05 4.03 0 4.78 2.65 4.78 6.1V21h-4v-5.6c0-1.34-.02-3.07-1.87-3.07-1.87 0-2.16 1.46-2.16 2.97V21h-4V9z"/></svg></a>
+        </div>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <span>&copy; 2026 Onyx, All rights reserved</span>
+      <span class="status-ok"><span class="status-dot"></span>All Systems Normal</span>
+    </div>
+  </div>
+</footer>
+
+
+<script src="scripts/vendor/motion.js"></script>
+<script src="scripts/reveal.js"></script>
+<script src="scripts/main.js"></script>
+</body>
+</html>

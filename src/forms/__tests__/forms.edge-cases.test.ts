@@ -1,15 +1,15 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryEventBus, InMemoryOutbox } from "../../core/events";
+import { InMemoryEventBus, InMemoryOutbox } from "../../core/events/index.js";
 import { createRateLimiter } from "#src/core/rate-limit/rate-limit";
-import { FormFieldValidationError } from "../errors";
-import { FORMS_SUBMIT_PROFILE } from "../rate-limit-profile";
-import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "../repo.memory";
-import { submitForm } from "../submit-service";
-import { createFormDefinition } from "../write-service";
-import { InMemoryChangeSetRepo } from "../../core/commands";
-import type { FormDefinitionRecord } from "../types";
+import { FormFieldValidationError } from "../errors.js";
+import { FORMS_SUBMIT_PROFILE } from "../rate-limit-profile.js";
+import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "../repo.memory.js";
+import { submitForm } from "../submit-service.js";
+import { createFormDefinition } from "../write-service.js";
+import { InMemoryChangeSetRepo } from "../../core/commands/index.js";
+import type { FormDefinitionRecord } from "../types.js";
 
 /**
  * @file Additional edge-case coverage (tasks.md T046): EC-01 (only-required-fields submission, at
@@ -128,7 +128,7 @@ test("EC-05: a definition disabled after submitForm's status check still accepts
   await realRepo.create(makeDefinition());
 
   let disabledMidFlight = false;
-  const interceptingRepo: import("../ports").FormDefinitionRepoPort = {
+  const interceptingRepo: import("../ports.js").FormDefinitionRepoPort = {
     findById: (input) => realRepo.findById(input),
     list: (input) => realRepo.list(input),
     create: (record) => realRepo.create(record),

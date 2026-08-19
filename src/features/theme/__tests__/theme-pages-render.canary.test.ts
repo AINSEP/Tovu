@@ -5,8 +5,8 @@ import test from "node:test";
 
 import { scanEmbedMarkers, type EmbedMarker } from "#src/core/embeds/marker";
 import { renderHtmlPageBody } from "#src/server/http/site/render";
-import { injectCurrentEntityContentId, renderStaticPage, resolveTemplate, scanMenuEmbedIds } from "../static-render";
-import type { DiscoveredTheme, StaticMenuItem } from "../index";
+import { injectCurrentEntityContentId, renderStaticPage, resolveTemplate, scanMenuEmbedIds } from "../static-render.js";
+import type { DiscoveredTheme, StaticMenuItem } from "../index.js";
 
 /**
  * @file Canaries for EVERY static theme's EVERY page on the `data-embed-config` marker spine — the

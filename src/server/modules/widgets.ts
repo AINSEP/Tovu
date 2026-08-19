@@ -1,19 +1,19 @@
-import { registerAdminWidgetAgentToolsRoutes } from "../routes/admin/widgets/agent-tools";
-import { registerAdminWidgetCreateRoute } from "../routes/admin/widgets/create";
-import { registerAdminWidgetEmbedInsertRoute } from "../routes/admin/widgets/embed-insert";
-import { registerAdminWidgetEmbedRemoveRoute } from "../routes/admin/widgets/embed-remove";
-import { registerAdminWidgetEmbedReorderRoute } from "../routes/admin/widgets/embed-reorder";
-import { registerAdminWidgetGetRoute } from "../routes/admin/widgets/get-by-id";
-import { registerAdminWidgetListRoute } from "../routes/admin/widgets/list";
-import { registerAdminWidgetPurgeRoute } from "../routes/admin/widgets/purge";
-import { registerAdminWidgetRegionBindRoute } from "../routes/admin/widgets/region-bind";
-import { registerAdminWidgetRegionGetRoute } from "../routes/admin/widgets/region-get";
-import { registerAdminWidgetRegionMutatePlacementsRoute } from "../routes/admin/widgets/region-mutate-placements";
-import { registerAdminWidgetRegionsListRoute } from "../routes/admin/widgets/regions-list";
-import { registerAdminWidgetTrashRoute } from "../routes/admin/widgets/trash";
-import { registerAdminWidgetUpdateRoute } from "../routes/admin/widgets/update";
-import type { RouteDeps } from "../routes/types";
-import type { ServerModuleHandle } from "./types";
+import { registerAdminWidgetAgentToolsRoutes } from "../routes/admin/widgets/agent-tools.js";
+import { registerAdminWidgetCreateRoute } from "../routes/admin/widgets/create.js";
+import { registerAdminWidgetEmbedInsertRoute } from "../routes/admin/widgets/embed-insert.js";
+import { registerAdminWidgetEmbedRemoveRoute } from "../routes/admin/widgets/embed-remove.js";
+import { registerAdminWidgetEmbedReorderRoute } from "../routes/admin/widgets/embed-reorder.js";
+import { registerAdminWidgetGetRoute } from "../routes/admin/widgets/get-by-id.js";
+import { registerAdminWidgetListRoute } from "../routes/admin/widgets/list.js";
+import { registerAdminWidgetPurgeRoute } from "../routes/admin/widgets/purge.js";
+import { registerAdminWidgetRegionBindRoute } from "../routes/admin/widgets/region-bind.js";
+import { registerAdminWidgetRegionGetRoute } from "../routes/admin/widgets/region-get.js";
+import { registerAdminWidgetRegionMutatePlacementsRoute } from "../routes/admin/widgets/region-mutate-placements.js";
+import { registerAdminWidgetRegionsListRoute } from "../routes/admin/widgets/regions-list.js";
+import { registerAdminWidgetTrashRoute } from "../routes/admin/widgets/trash.js";
+import { registerAdminWidgetUpdateRoute } from "../routes/admin/widgets/update.js";
+import type { RouteDeps } from "../routes/types.js";
+import type { ServerModuleHandle } from "./types.js";
 
 /**
  * @file The `widgets` server module (SPEC-043, ADR-047) — ADR-046 Phase 3 server-module

@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createHookRegistry, PluginHookFailedError } from "../../hook-registry";
-import type { ContentEntryDraft } from "../../../../../packages/sdk/src/index";
+import { createHookRegistry, PluginHookFailedError } from "../../hook-registry.js";
+import type { ContentEntryDraft } from "../../../../../packages/sdk/src/index.js";
 
 /**
  * @file C-010 `createHookRegistry()`/`runBeforeSave()` — SPEC-005 REQ-05/REQ-06, BR-04/BR-06/BR-07,

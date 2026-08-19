@@ -3,8 +3,8 @@ import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
 
-import { renderStaticPage } from "../static-render";
-import { loadTheme } from "../theme";
+import { renderStaticPage } from "../static-render.js";
+import { loadTheme } from "../theme.js";
 
 /**
  * @file Live-path regression coverage for the 2026-08-18 css/js migration-rewrite bug: every

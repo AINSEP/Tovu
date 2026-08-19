@@ -4,18 +4,18 @@ import test from "node:test";
 import { InMemoryEntryRefsRepo } from "#src/core/entry-refs/repo.memory";
 import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner, registerContentType } from "#src/features/content-types/index";
 import { InMemoryEntryRepo, createEntry } from "#src/features/entries/index";
-import { PRE_AUTHORIZED } from "../../authorize-helper";
+import { PRE_AUTHORIZED } from "../../authorize-helper.js";
 import {
   insertWidgetEmbed,
   removeWidgetEmbed,
   reorderWidgetEmbeds,
   WidgetEmbedReorderCountMismatchError,
   type EmbedServiceDeps,
-} from "../../embed-service";
-import { WidgetEmbedGuardrailError, WidgetInstanceNotFoundError, WidgetVersionConflictError } from "../../errors";
-import { createWidgetInstance, trashWidgetInstance, type WidgetWriteServiceDeps } from "../../write-service";
-import { buildWidgetAreaFieldsJson, ensureWidgetContentTypesRegistered, emptyWidgetAreaDoc } from "../../entry-payload";
-import { WIDGET_AREA_CONTENT_TYPE, WIDGET_AREA_FIELD_NAMESPACE } from "../../types";
+} from "../../embed-service.js";
+import { WidgetEmbedGuardrailError, WidgetInstanceNotFoundError, WidgetVersionConflictError } from "../../errors.js";
+import { createWidgetInstance, trashWidgetInstance, type WidgetWriteServiceDeps } from "../../write-service.js";
+import { buildWidgetAreaFieldsJson, ensureWidgetContentTypesRegistered, emptyWidgetAreaDoc } from "../../entry-payload.js";
+import { WIDGET_AREA_CONTENT_TYPE, WIDGET_AREA_FIELD_NAMESPACE } from "../../types.js";
 
 /**
  * @file C-007 `embed-service.ts` — SPEC-043 REQ-44/45, ADR-047 Debate Fold-In Amendment 6.

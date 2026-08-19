@@ -26,7 +26,7 @@ import test from "node:test";
 
 import Database from "better-sqlite3";
 
-import { declareDataModule } from "../data-module";
+import { declareDataModule } from "../data-module.js";
 
 function openDb(): { db: Database.Database; dbPath: string; dir: string } {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-dm-col-"));

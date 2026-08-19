@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Meridian — The financial OS powering businesses on your platform</title>
+<style>
+:root {
+  --bg: #0b0b0d;
+  --surface: #131316;
+  --surface-2: #1c1c20;
+  --fg: #f5f5f6;
+  --muted: #9a9aa3;
+  --border: rgba(255,255,255,0.10);
+  --border-strong: rgba(255,255,255,0.16);
+  --accent: #706eff;
+  --accent-strong: #8886ff;
+  --accent-soft: #1c1b3a;
+  --accent-fg: #ffffff;
+  --success: #0f9d70;
+  --font-display: 'Geist', -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif;
+  --font-body: 'Geist', -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, 'JetBrains Mono', Menlo, monospace;
+  --container: 1200px;
+}
+:root[data-theme="light"] {
+  --bg: #f4f4f5;
+  --surface: #ffffff;
+  --surface-2: #f8f8f8;
+  --fg: #09090b;
+  --muted: #52525c;
+  --border: #e4e4e7;
+  --border-strong: #d4d4d8;
+  --accent: #615fff;
+  --accent-strong: #5252d7;
+  --accent-soft: #f1f1fd;
+  --accent-fg: #ffffff;
+  --success: #0f9d70;
+  --font-display: 'Geist', -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif;
+  --font-body: 'Geist', -apple-system, BlinkMacSystemFont, 'Inter', system-ui, sans-serif;
+  --font-mono: 'Geist Mono', ui-monospace, 'JetBrains Mono', Menlo, monospace;
+  --container: 1200px;
+}
+</style>
+<link rel="stylesheet" href="css/theme.css" />
+<script src="scripts/theme-toggle.js"></script>
+</head>
+<body>
+
+<header class="site-header">
+  <div class="wrap nav-row">
+    <a href="index.html" class="brand">
+      <span class="mark"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="var(--accent)" stroke-width="1.6"/><path d="M3 12h18M12 3c2.8 2.4 4.2 5.6 4.2 9s-1.4 6.6-4.2 9c-2.8-2.4-4.2-5.6-4.2-9s1.4-6.6 4.2-9z" stroke="var(--accent)" stroke-width="1.6" stroke-linejoin="round"/></svg></span>
+      Meridian
+    </a>
+    <nav class="main-nav">
+      <span class="main-nav-links" data-embed-config='{"type":"menu","id":"menu-header-nav"}'><!-- live content when connected to Tovu --></span>
+      <a href="#" class="nav-auth-link">Sign in</a>
+      <a href="#" class="nav-auth-link">Get started</a>
+    </nav>
+    <div class="nav-actions">
+      <button class="theme-toggle" type="button" aria-label="Switch to light mode" data-theme-toggle>
+        <span class="icon-stack">
+          <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="12" r="4.2"/><path d="M12 3v2.2M12 18.8V21M4.6 4.6l1.6 1.6M17.8 17.8l1.6 1.6M3 12h2.2M18.8 12H21M4.6 19.4l1.6-1.6M17.8 6.2l1.6-1.6"/></svg>
+          <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5z"/></svg>
+        </span>
+      </button>
+      <button class="nav-toggle btn btn-ghost" aria-expanded="false" aria-label="Toggle menu">Menu</button>
+      <a href="#" class="btn btn-ghost">Sign in</a>
+      <a href="#" class="btn btn-solid">Get started</a>
+    </div>
+  </div>
+</header>
+
+
+<main>
+  <section class="hero wrap">
+    <div class="eyebrow-row">
+      <span class="status-pill"><span class="dot"></span>Payments online</span>
+    </div>
+    <h1>The financial OS powering businesses on your platform</h1>
+    <p class="lede">Experience seamless payments, real-time collaboration, and actionable insights. Set up in minutes.</p>
+    <div class="cta-row">
+      <a href="#" class="btn btn-solid btn-lg">Get started</a>
+      <a href="product.html" class="btn btn-ghost btn-lg">See how it works</a>
+    </div>
+    <div class="hero-frame">
+      <div class="ph-img">product screenshot — billing dashboard with live payment card and connected-app status</div>
+    </div>
+  </section>
+
+  <section class="band wrap" data-reveal>
+    <div class="section-head center">
+      <span class="kicker" style="display:block;">Trusted by fast-growing companies</span>
+      <p style="margin:0 auto;">Trusted by fast-growing companies around the world. <a href="customers.html" style="color:var(--accent);">Read case studies →</a></p>
+    </div>
+    <div class="logo-carousel">
+      <div class="logo-track">
+        <span class="logo-ph">NORTHFIELD</span>
+        <span class="logo-ph">COASTLINE</span>
+        <span class="logo-ph">OPALINE</span>
+        <span class="logo-ph">SILVERBROOK</span>
+        <span class="logo-ph">FERNBRIDGE</span>
+        <span class="logo-ph">GREYSTONE</span>
+        <span class="logo-ph" aria-hidden="true">NORTHFIELD</span>
+        <span class="logo-ph" aria-hidden="true">COASTLINE</span>
+        <span class="logo-ph" aria-hidden="true">OPALINE</span>
+        <span class="logo-ph" aria-hidden="true">SILVERBROOK</span>
+        <span class="logo-ph" aria-hidden="true">FERNBRIDGE</span>
+        <span class="logo-ph" aria-hidden="true">GREYSTONE</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="band wrap">
+    <div class="section-head">
+      <span class="kicker">Platform</span>
+      <h2>Powerful integrations with our API</h2>
+      <p>Generate payment links at scale, enabling seamless marketing campaigns, efficient sales processes, and faster payment.</p>
+    </div>
+    <div class="feature-grid">
+      <div class="feature-card">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <h3>Fast checkout</h3>
+        <p>One-click payment links that convert, tuned for mobile and desktop alike.</p>
+      </div>
+      <div class="feature-card">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M12 3v18M3 12h18" stroke-linecap="round"/></svg>
+        <h3>Global payouts</h3>
+        <p>Send funds to over 40 countries with transparent, real-time exchange rates.</p>
+      </div>
+      <div class="feature-card">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 12a9 9 0 1 0 3-6.7" stroke-linecap="round"/><path d="M3 4v5h5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <h3>Smart routing</h3>
+        <p>Payments automatically route through the cheapest, fastest available rail.</p>
+      </div>
+      <div class="feature-card">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 19V5a2 2 0 0 1 2-2h9l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" stroke-linejoin="round"/><path d="M8 13h8M8 17h5" stroke-linecap="round"/></svg>
+        <h3>Live reporting</h3>
+        <p>Revenue, refunds, and disputes in one dashboard that updates as it happens.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="band wrap">
+    <div class="section-head">
+      <span class="kicker">Platform</span>
+      <h2>Cutting-edge tools to build subscriptions</h2>
+      <p>Our platform combines cutting-edge AI models with intuitive interfaces to streamline your development workflow and boost productivity.</p>
+    </div>
+    <div class="bento-grid">
+      <div class="bento-card span-2">
+        <h3>Team collaboration</h3>
+        <p>Discuss in context, mention teammates, and resolve threads without leaving the flow of work.</p>
+        <div class="bento-visual">comment thread preview</div>
+      </div>
+      <div class="bento-card">
+        <h3>Workflow automation</h3>
+        <p>Trigger agents from events, chain tools with conditions.</p>
+        <div class="bento-visual">automation graph</div>
+      </div>
+      <div class="bento-card">
+        <h3>Collaborative analysis</h3>
+        <p>Turn scattered signals into shared understanding with live insights your whole team can explore.</p>
+        <div class="bento-visual">cohort chart preview</div>
+      </div>
+      <div class="bento-card span-2">
+        <h3>Omnichannel messaging</h3>
+        <p>Send campaigns across email, chat, and more — every reply lands in one unified inbox.</p>
+        <div class="bento-visual">unified inbox preview</div>
+      </div>
+      <div class="bento-card span-2">
+        <h3>Build in the cloud</h3>
+        <p>Plan launches, manage approvals, and keep assets aligned — from brief to rollout.</p>
+        <div class="bento-visual">launch board preview</div>
+      </div>
+      <div class="bento-card">
+        <h3>Resource insights</h3>
+        <p>Understand usage at a glance with live metrics, budgets, and alerts for spikes or drift.</p>
+        <div class="bento-visual">memory usage — 45%</div>
+      </div>
+    </div>
+  </section>
+
+  <section class="band wrap">
+    <div class="section-head">
+      <span class="kicker">Product direction</span>
+      <h2>Set the product direction</h2>
+      <p>Monitor your application's activity in real-time. Instantly identify and resolve issues.</p>
+    </div>
+    <div class="hero-frame" style="margin-top:0; margin-bottom:40px;">
+      <div class="ph-img">product screenshot — live activity monitor</div>
+    </div>
+    <div class="feature-grid">
+      <div class="feature-card">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+        <h3>Unified dashboard</h3>
+        <p>Every metric that matters, one screen, no context switching.</p>
+      </div>
+      <div class="feature-card">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 3h6l1 4H8l1-4z" stroke-linejoin="round"/><path d="M4 7h16l-1.4 13.1a2 2 0 0 1-2 1.9H7.4a2 2 0 0 1-2-1.9L4 7z" stroke-linejoin="round"/></svg>
+        <h3>Instant alerts</h3>
+        <p>Get paged the moment an anomaly crosses your threshold.</p>
+      </div>
+      <div class="feature-card">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="6" cy="6" r="2.5"/><circle cx="6" cy="18" r="2.5"/><circle cx="18" cy="12" r="2.5"/><path d="M6 8.5V18M8.3 5.2 15.7 10.8M8.3 18.8 15.7 13.2" stroke-linecap="round"/></svg>
+        <h3>Team visibility</h3>
+        <p>Share a live view of production health with anyone on the team.</p>
+      </div>
+      <div class="feature-card">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <h3>One-click resolve</h3>
+        <p>Roll back, retry, or escalate an incident without leaving the page.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="band wrap">
+    <div class="section-head">
+      <span class="kicker">What you get</span>
+      <h2>Build winning subscriptions with smarter blocks</h2>
+      <p>Everything you need to design, launch, and scale — crafted for speed, reliability, and a seamless developer experience.</p>
+    </div>
+    <div class="feature-grid">
+      <div class="feature-card">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 12a9 9 0 1 0 3-6.7" stroke-linecap="round"/></svg>
+        <h3>Consistent uptime</h3>
+        <p>You're always-on infrastructure with 99.9% uptime SLA and automatic failover.</p>
+      </div>
+      <div class="feature-card">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="6" width="18" height="12" rx="2"/></svg>
+        <h3>Keyboard shortcuts</h3>
+        <p>Focus on what matters with customizable keyboard shortcuts that speed up your workflow.</p>
+      </div>
+      <div class="feature-card">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="9"/><path d="M8 12h8M12 8v8" stroke-linecap="round"/></svg>
+        <h3>Currency converter</h3>
+        <p>Convert currencies with ease and accuracy, with real-time exchange rates and customizable settings.</p>
+      </div>
+      <div class="feature-card">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 19V5a2 2 0 0 1 2-2h9l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" stroke-linejoin="round"/></svg>
+        <h3>Enterprise-grade security</h3>
+        <p>Role-based access, audit trails, and fine-grained controls keep data locked down by default.</p>
+      </div>
+      <div class="feature-card">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 19V5a2 2 0 0 1 2-2h9l5 5v11a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2z" stroke-linejoin="round"/><path d="M8 13h8M8 17h5" stroke-linecap="round"/></svg>
+        <h3>Resource insights</h3>
+        <p>Understand usage at a glance with live metrics, budgets, and alerts for spikes or drift.</p>
+      </div>
+      <div class="feature-card">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M13 2 3 14h7l-1 8 10-12h-7l1-8z" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        <h3>Blazing performance</h3>
+        <p>Edge-ready by design: fast renders, tiny payloads, and hardware-accelerated animations.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="band wrap">
+    <div class="section-head center">
+      <span class="kicker" style="display:block;">Testimonials</span>
+      <h2>What our customers are saying about Meridian</h2>
+      <p style="margin:0 auto;">Join the increasing number of customers and advocates who rely on Meridian for seamless, effective growth.</p>
+    </div>
+    <div class="quote-grid">
+      <div class="quote-card">
+        <p>"Implementing Meridian's components helped us create a more engaging checkout experience. The responsive design system works flawlessly across devices, and we were able to maintain our brand identity while leveraging their robust component architecture."</p>
+        <div class="quote-author">
+          <span class="avatar">JR</span>
+          <div><div class="name">Jordan Reyes</div><div class="role">UI Engineer, Coastline</div></div>
+        </div>
+      </div>
+      <div class="quote-card">
+        <p>"The component library from Meridian has been a game-changer for our development team. We can quickly build consistent interfaces across our payment platform with minimal effort."</p>
+        <div class="quote-author">
+          <span class="avatar">GL</span>
+          <div><div class="name">Glenna Louk</div><div class="role">Frontend Engineer</div></div>
+        </div>
+      </div>
+      <div class="quote-card">
+        <p>"We needed a solution that could handle our complex UI requirements while maintaining performance. Meridian delivered exactly that — their component system integrated seamlessly with our existing architecture."</p>
+        <div class="quote-author">
+          <span class="avatar">EC</span>
+          <div><div class="name">Elena Cho</div><div class="role">CEO, Silverbrook</div></div>
+        </div>
+      </div>
+    </div>
+    <div class="stat-row" style="justify-content:center;">
+      <span class="stat"><strong>25%</strong> increase in total user engagement</span>
+      <span class="stat"><strong>30%</strong> higher retention rate for subscribers</span>
+    </div>
+    <p style="text-align:center; margin-top:24px;"><a href="customers.html" style="color:var(--accent); font-size:14px;">Read more customer stories →</a></p>
+  </section>
+
+  <section class="band wrap" data-reveal style="text-align:center;">
+    <h2 style="font-size: clamp(28px, 4vw, 42px); margin-bottom: 16px;">Create, sell and grow</h2>
+    <p style="max-width: 52ch; margin: 0 auto 32px; font-size: 16px;">Join a community of over 1,000+ companies and developers who have already discovered the power of Meridian.</p>
+    <div class="cta-row">
+      <a href="#" class="btn btn-solid btn-lg">Contact sales</a>
+    </div>
+  </section>
+</main>
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="footer-grid">
+      <div class="footer-col footer-col-brand">
+        <div class="brand" style="margin-bottom:16px;"><span class="mark"><svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="var(--accent)" stroke-width="1.6"/><path d="M3 12h18M12 3c2.8 2.4 4.2 5.6 4.2 9s-1.4 6.6-4.2 9c-2.8-2.4-4.2-5.6-4.2-9s1.4-6.6 4.2-9z" stroke="var(--accent)" stroke-width="1.6" stroke-linejoin="round"/></svg></span>Meridian</div>
+        <p style="font-size:13px; max-width:28ch;">Meridian is a platform for building and shipping financial products — billing, checkout, and payouts, without reinventing the marketing site.</p>
+      </div>
+      <div class="footer-col"><h4>Product</h4><a href="product.html">Product</a><a href="solution.html">Solutions</a><a href="pricing.html">Pricing</a></div>
+      <div class="footer-col"><h4>Company</h4><a href="index.html#about">About</a><a href="blog.html">Blog</a><a href="customers.html">Customers</a></div>
+      <div class="footer-col"><h4>Legal</h4><div data-embed-config='{"type":"menu","id":"menu-footer-nav"}'><!-- live content when connected to Tovu --></div></div>
+      <div class="footer-col"><h4>Community</h4><a href="#" aria-label="X (Twitter)">X / Twitter</a><a href="#" aria-label="LinkedIn">LinkedIn</a></div>
+    </div>
+    <div class="footer-bottom">
+      <span>© 2026 Meridian. All rights reserved.</span>
+      <span class="status-pill"><span class="dot"></span>All systems normal</span>
+    </div>
+  </div>
+</footer>
+
+
+<script src="scripts/main.js"></script>
+<script src="scripts/vendor/motion.js"></script>
+<script src="scripts/reveal.js"></script>
+</body>
+</html>

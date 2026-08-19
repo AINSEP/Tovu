@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { resolveSiteAssistantMode } from "../mode";
+import { resolveSiteAssistantMode } from "../mode.js";
 
 /**
  * These assert a security boundary, not a preference: `cli` mode spawns an OS process per anonymous

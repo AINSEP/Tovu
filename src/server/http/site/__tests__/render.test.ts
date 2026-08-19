@@ -7,7 +7,7 @@ import type { PostRecord } from "#src/features/post/index";
 import { loadTheme, type DiscoveredTheme } from "#src/features/theme/index";
 import type { ResolveHtmlPageEmbedsResult, ResolvePageWidgetsResult } from "#src/widgets/resolver-service";
 import type { WidgetRenderIR } from "#src/widgets/types";
-import { renderDocNode, renderSite, renderWidgetIr, type SiteProduct } from "../render";
+import { renderDocNode, renderSite, renderWidgetIr, type SiteProduct } from "../render.js";
 
 function textDoc(...content: JsonObject[]): JsonObject {
   return { type: "doc", content: [{ type: "paragraph", content }] };

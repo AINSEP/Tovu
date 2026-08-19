@@ -1,4 +1,4 @@
-import { MAX_THEME_FILE_BYTES } from "./theme-files";
+import { MAX_THEME_FILE_BYTES } from "./theme-files.js";
 
 /**
  * @file The Themes domain's agent-tool catalog, instantiating SPEC-016 REQ-22's naming/callability

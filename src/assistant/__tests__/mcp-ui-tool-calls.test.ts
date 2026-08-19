@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { MCP_UI_REDEEMABLE_TOOL_IDS, isMcpUiToolCallAllowed } from "../mcp-ui-tool-calls";
+import { MCP_UI_REDEEMABLE_TOOL_IDS, isMcpUiToolCallAllowed } from "../mcp-ui-tool-calls.js";
 
 test("content_post_delete is on the allowlist — the one tool this mechanism was built for (ADR-053)", () => {
   assert.equal(isMcpUiToolCallAllowed("content_post_delete"), true);

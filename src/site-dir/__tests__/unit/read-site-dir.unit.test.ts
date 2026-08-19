@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { readSiteDir } from "../../read-site-dir";
+import { readSiteDir } from "../../read-site-dir.js";
 
 /**
  * @file SPEC-003 C-004 (`readSiteDir`) — TDD certification, unit tier.

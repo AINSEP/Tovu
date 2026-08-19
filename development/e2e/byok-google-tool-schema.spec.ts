@@ -2,8 +2,8 @@ import * as http from "node:http";
 import type { AddressInfo } from "node:net";
 import { test, expect, type Page } from "@playwright/test";
 
-import { loginAsAdmin } from "./auth-fixtures";
-import { setByokModel } from "./byok-model-field";
+import { loginAsAdmin } from "./auth-fixtures.js";
+import { setByokModel } from "./byok-model-field.js";
 
 /**
  * @file Permanent regression guard for the Gemini BYOK tool-schema bug (2026-08-04 dispatch).

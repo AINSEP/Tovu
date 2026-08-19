@@ -15,10 +15,10 @@ import { createVendorCredential, listVendorCredentials, PUBLISH_PROVIDER_TO_VEND
 import type { DeployFile, DeployPublishInput, DeployPublishResult, DeployTarget } from "@jini-ai/devops/deploy";
 import type { PublishCredentialSource } from "#src/features/deployments/static-publish/index";
 
-import { startTestServer } from "../../server/__tests__/helpers/http-test-server";
-import { RUN_PRINCIPAL_HEADER } from "../run-ownership";
-import { MCP_UI_TOOL_CALLS_PATH, registerMcpUiToolCallsRoute } from "../mcp-ui-tool-calls-route";
-import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "../../core/tool-surface-exchanges";
+import { startTestServer } from "../../server/__tests__/helpers/http-test-server.js";
+import { RUN_PRINCIPAL_HEADER } from "../run-ownership.js";
+import { MCP_UI_TOOL_CALLS_PATH, registerMcpUiToolCallsRoute } from "../mcp-ui-tool-calls-route.js";
+import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "../../core/tool-surface-exchanges.js";
 
 /**
  * @file Real, non-mocked proof that A4's "approval gate" — the pre-existing MCP-UI

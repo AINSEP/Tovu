@@ -6,13 +6,13 @@ import test from "node:test";
 
 import express from "express";
 
-import { AGENT_DAEMON_TOKEN_ENV_VAR, setExecutionCredential } from "../../assistant";
+import { AGENT_DAEMON_TOKEN_ENV_VAR, setExecutionCredential } from "../../assistant/index.js";
 // `resetLiveModelCacheForTesting` is a test-only reset for `live-model-cache.ts`'s module-level
 // cache — not barrel-exported (the barrel's other Section D symbols are all production surface;
 // see 2026-08-17 no-deep-imports:assistant triage notes for why this one was left as an open
 // violation rather than forced into the production barrel).
-import { resetLiveModelCacheForTesting } from "../../assistant/live-model-cache";
-import { startTestServer, loginAsOwner } from "./helpers/http-test-server";
+import { resetLiveModelCacheForTesting } from "../../assistant/live-model-cache.js";
+import { startTestServer, loginAsOwner } from "./helpers/http-test-server.js";
 
 /**
  * @file Route-level coverage for `respondWithEnrichedAgentList` (`server/modules/assistant.ts`) —
@@ -92,7 +92,7 @@ async function startProviderServer(): Promise<{ baseUrl: string; server: Server 
 let harnessPromise: Promise<{
   buildApp: () => express.Express;
   daemon: Server;
-  deps: import("../routes/types").RouteDeps;
+  deps: import("../routes/types.js").RouteDeps;
 }> | null = null;
 function harness() {
   harnessPromise ??= (async () => {
@@ -100,10 +100,10 @@ function harness() {
     process.env.JINI_AGENT_DAEMON_URL = origin;
     process.env[AGENT_DAEMON_TOKEN_ENV_VAR] = "f".repeat(64);
 
-    const { createRouteDeps } = await import("../app");
-    const { createAssistantModule } = await import("../modules/assistant");
-    const { registerAuthRoutes } = await import("../middleware/dev-auth");
-    const { createSurfaceExchangeStore } = await import("../../core/tool-surface-exchanges");
+    const { createRouteDeps } = await import("../app.js");
+    const { createAssistantModule } = await import("../modules/assistant.js");
+    const { registerAuthRoutes } = await import("../middleware/dev-auth.js");
+    const { createSurfaceExchangeStore } = await import("../../core/tool-surface-exchanges.js");
 
     const deps = createRouteDeps();
     return {

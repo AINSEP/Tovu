@@ -3,9 +3,9 @@ import test from "node:test";
 
 import { eq } from "drizzle-orm";
 
-import { openContentDb } from "../content-db";
-import { findOneBy } from "../repo-helpers";
-import { workspaces } from "../../schema";
+import { openContentDb } from "../content-db.js";
+import { findOneBy } from "../repo-helpers.js";
+import { workspaces } from "../../schema.js";
 
 /**
  * @file Direct unit coverage for `findOneBy` itself (ADR-042 item 1 / `/debate` D1,

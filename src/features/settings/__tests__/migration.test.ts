@@ -6,8 +6,8 @@ import {
   ALLOWED_THEME_IDS,
   InMemoryPresentationSettingsRepo,
   type PresentationSettingsRecord,
-} from "../../presentation";
-import { migrateLegacyPresentationSettings } from "../migration";
+} from "../../presentation/index.js";
+import { migrateLegacyPresentationSettings } from "../migration.js";
 import { InMemorySettingsRepo, getEffective } from "@jini-ai/cms/settings";
 
 /**

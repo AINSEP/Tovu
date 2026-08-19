@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { attachLoadedPlugin } from "../../loader";
-import type { HookRegistry, HookRegistryFieldDecl } from "../../hook-registry";
+import { attachLoadedPlugin } from "../../loader.js";
+import type { HookRegistry, HookRegistryFieldDecl } from "../../hook-registry.js";
 
 /**
  * @file `attachLoadedPlugin()` — ADR-057 Decision 2.1's extraction of `loadPlugin()`'s previously

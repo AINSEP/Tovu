@@ -7,7 +7,7 @@ import {
   openSitePage,
   readPersistedState,
   sendVisitorMessage,
-} from "./site-assistant-fixtures";
+} from "./site-assistant-fixtures.js";
 
 /**
  * @file SPEC-046 REQ-1/REQ-2 and AC3 — what survives a page load, what must NOT survive it, and what

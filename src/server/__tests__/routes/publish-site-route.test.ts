@@ -5,11 +5,11 @@ import path from "node:path";
 import test from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 
-import { createApp, createRouteDeps } from "../../app";
-import { bootAuthenticated } from "../helpers/http-test-server";
-import type { RouteDeps } from "../../routes/types";
-import { buildStaticPublishRegistrations } from "../../../features/deployments/publish-agent-tools";
-import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "../../../core/tool-surface-exchanges";
+import { createApp, createRouteDeps } from "../../app.js";
+import { bootAuthenticated } from "../helpers/http-test-server.js";
+import type { RouteDeps } from "../../routes/types.js";
+import { buildStaticPublishRegistrations } from "../../../features/deployments/publish-agent-tools.js";
+import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "../../../core/tool-surface-exchanges.js";
 
 /**
  * @file Admin Deployment panel → publish-to-GitHub-Pages/Vercel — `POST`/`GET /api/admin/v1/

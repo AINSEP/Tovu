@@ -8,16 +8,16 @@ import type {
   MailerSendOptions,
   MailerSendResult,
   OutboundEmail,
-} from "../../mail";
+} from "../../mail/index.js";
 import type { ClockPort, IdGeneratorPort } from "@jini-ai/cms/core";
-import { OriginNotVerifiedError, type OriginRegistryPort, type VerifiedOrigin } from "../../origin";
+import { OriginNotVerifiedError, type OriginRegistryPort, type VerifiedOrigin } from "../../origin/index.js";
 import {
   InMemoryMagicLinkTokenRepo,
   InMemoryMemberRepo,
   InMemoryMemberSessionRepo,
   InMemoryMemberSubscriptionRepo,
   InMemoryMemberTierRepo,
-} from "../repo.memory";
+} from "../repo.memory.js";
 import {
   compSubscription,
   completeSignIn,
@@ -25,14 +25,14 @@ import {
   requestSignInLink,
   setSubscriptionStatus,
   updateProfile,
-} from "../write-service";
+} from "../write-service.js";
 import {
   MemberAuthError,
   MemberConflictError,
   MemberNotFoundError,
   MemberValidationError,
-} from "../types";
-import type { MembersWriteServiceDeps } from "../ports";
+} from "../types.js";
+import type { MembersWriteServiceDeps } from "../ports.js";
 
 const WORKSPACE_ID = "ws-1";
 

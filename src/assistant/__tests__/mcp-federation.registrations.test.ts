@@ -9,16 +9,16 @@ import type {
 } from "@jini-ai/core";
 
 import { ForbiddenError } from "@jini-ai/cms/core";
-import { InMemoryMcpSession } from "../mcp-federation/adapter.memory";
-import { attachFederatedMcpTools } from "../mcp-federation/bootstrap";
-import type { ResolvedFederatedConnection } from "../mcp-federation/config";
-import type { FederatedMcpConnectionConfig, RemoteToolDescriptor } from "../mcp-federation/ports";
+import { InMemoryMcpSession } from "../mcp-federation/adapter.memory.js";
+import { attachFederatedMcpTools } from "../mcp-federation/bootstrap.js";
+import type { ResolvedFederatedConnection } from "../mcp-federation/config.js";
+import type { FederatedMcpConnectionConfig, RemoteToolDescriptor } from "../mcp-federation/ports.js";
 import {
   registerFederatedMcpPreset,
   resetFederatedMcpPresetsForTests,
-} from "../mcp-federation/presets";
-import { buildFederatedMcpRegistrations, federateSession } from "../mcp-federation/registrations";
-import { FEDERATED_ENTITY_TYPE, FEDERATED_TOOL_PERMISSION } from "../mcp-federation/trust";
+} from "../mcp-federation/presets.js";
+import { buildFederatedMcpRegistrations, federateSession } from "../mcp-federation/registrations.js";
+import { FEDERATED_ENTITY_TYPE, FEDERATED_TOOL_PERMISSION } from "../mcp-federation/trust.js";
 
 /**
  * @file The federation wiring half: that an admitted remote tool becomes a real `ToolRegistration`,

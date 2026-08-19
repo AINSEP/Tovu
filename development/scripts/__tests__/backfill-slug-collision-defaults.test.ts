@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { openContentDb } from "../../../src/db/sqlite/content-db";
+import { openContentDb } from "../../../src/db/sqlite/content-db.js";
 
 /**
  * @file Adversarial coverage for `backfill-slug-collision-defaults.ts` — the cross-record

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { countWords, WORD_COUNT_MANIFEST } from "../../index";
+import { countWords, WORD_COUNT_MANIFEST } from "../../index.js";
 
 /**
  * @file `word-count` built-in — SPEC-005 REQ-09, AC-01, RT-005's pinned tokenization algorithm.

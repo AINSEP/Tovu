@@ -1,5 +1,5 @@
 import { test } from "@playwright/test";
-import { loginAsAdmin } from "./auth-fixtures";
+import { loginAsAdmin } from "./auth-fixtures.js";
 
 /**
  * @file Visual-parity audit — Settings/Posts (reference idiom, per the owner) vs Workspace/Taxonomy

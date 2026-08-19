@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { HttpClientPort, HttpRequest, HttpResponse } from "../../http";
-import { AkismetSpamCheck } from "../spam.external";
-import type { CommentRecord, CommentSubmission } from "../types";
+import type { HttpClientPort, HttpRequest, HttpResponse } from "../../http/index.js";
+import { AkismetSpamCheck } from "../spam.external.js";
+import type { CommentRecord, CommentSubmission } from "../types.js";
 
 /**
  * @file SPEC-035 — `AkismetSpamCheck`, the external `SpamCheckPort` adapter (ADR-006 rule-of-two

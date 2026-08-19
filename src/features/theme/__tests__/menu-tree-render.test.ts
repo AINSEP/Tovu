@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { renderStaticPage, type StaticMenuItem } from "../static-render";
-import type { DiscoveredTheme } from "../theme";
+import { renderStaticPage, type StaticMenuItem } from "../static-render.js";
+import type { DiscoveredTheme } from "../theme.js";
 
 /**
  * @file `renderMenuTree`'s tree-variant rendering, plus the malformed-config and label-escaping

@@ -1,25 +1,25 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryOutbox } from "../../core/events";
-import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "../../origin";
-import { redirectMatcher } from "../matcher";
-import type { RedirectDbHandle } from "../ports.internal";
-import { InMemoryRedirectRepo } from "../repo.memory";
+import { InMemoryOutbox } from "../../core/events/index.js";
+import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "../../origin/index.js";
+import { redirectMatcher } from "../matcher.js";
+import type { RedirectDbHandle } from "../ports.internal.js";
+import { InMemoryRedirectRepo } from "../repo.memory.js";
 import {
   createRedirect,
   importRedirects,
   tombstoneRedirect,
   updateRedirect,
   type RedirectsWriteDeps,
-} from "../redirects";
+} from "../redirects.js";
 import {
   RedirectConflictError,
   RedirectLoopError,
   RedirectNotFoundError,
   RedirectTargetNotAllowedError,
   RedirectValidationError,
-} from "../types";
+} from "../types.js";
 
 /**
  * @file T008 — the write chokepoint (`redirects.ts`): validate-before-write

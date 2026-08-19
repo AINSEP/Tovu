@@ -1,6 +1,6 @@
 import { test, expect, type Locator, type Page } from "@playwright/test";
 
-import { attemptLoginAsAdmin, loginAsAdmin, logoutAsAdmin } from "./auth-fixtures";
+import { attemptLoginAsAdmin, loginAsAdmin, logoutAsAdmin } from "./auth-fixtures.js";
 
 /**
  * @file Reset-password confirm+reveal, proved end to end (`../playwright.users-reset-password.config.ts`'s

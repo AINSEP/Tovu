@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createApp, createRouteDeps } from "../../app";
-import type { RouteDeps } from "../../routes/types";
-import { bootAuthenticated } from "../helpers/http-test-server";
+import { createApp, createRouteDeps } from "../../app.js";
+import type { RouteDeps } from "../../routes/types.js";
+import { bootAuthenticated } from "../helpers/http-test-server.js";
 
 /**
  * @file Admin credential CRUD over the unified `vendor_credential_sets` table — `GET`/`POST`

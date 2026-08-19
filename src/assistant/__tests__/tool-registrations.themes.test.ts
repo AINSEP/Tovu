@@ -6,12 +6,12 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { getThemesAgentToolCatalog, type AgentToolDefinition } from "../../features/theme/agent-tools";
-import { discoverAllBuiltInThemes } from "../../features/theme";
-import type { RouteDeps } from "../../server/routes/types";
-import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations";
-import { resetToolContributorsForTests } from "../tool-contribution-registry";
-import { contributeThemesTools } from "../../features/theme/tool-registrations";
+import { getThemesAgentToolCatalog, type AgentToolDefinition } from "../../features/theme/agent-tools.js";
+import { discoverAllBuiltInThemes } from "../../features/theme/index.js";
+import type { RouteDeps } from "../../server/routes/types.js";
+import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations/index.js";
+import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
+import { contributeThemesTools } from "../../features/theme/tool-registrations.js";
 
 // Themes moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
 // tool-contribution registry (2026-08-17 — see `features/theme/tool-registrations.ts`'s header), so

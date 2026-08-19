@@ -1,16 +1,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryKeyring } from "../../webhooks/keyring.memory";
-import type { KeyringPort, SecretSealerPort } from "../../webhooks/index";
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm";
-import { InMemoryMediaProviderCredentialRepo } from "../provider-credential-store.memory";
+import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
+import type { KeyringPort, SecretSealerPort } from "../../webhooks/index.js";
+import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import { InMemoryMediaProviderCredentialRepo } from "../provider-credential-store.memory.js";
 import {
   MediaProviderCredentialSecretStoreUnconfiguredError,
   MediaProviderCredentialValidationError,
   getMediaProviderCredentials,
   saveMediaProviderCredentials,
-} from "../provider-credential-store";
+} from "../provider-credential-store.js";
 
 /**
  * @file `provider-credential-store.ts` — the whole-map-replace credential contract behind the

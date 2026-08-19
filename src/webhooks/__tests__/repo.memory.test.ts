@@ -5,8 +5,8 @@ import {
   InMemoryDeliveryEnvelopeStore,
   InMemoryWebhookDeliveryRepo,
   InMemoryWebhookSubscriptionRepo,
-} from "../repo.memory";
-import type { WebhookDeliveryRecord, WebhookSubscriptionRecord } from "../types";
+} from "../repo.memory.js";
+import type { WebhookDeliveryRecord, WebhookSubscriptionRecord } from "../types.js";
 
 function makeSubscription(overrides: Partial<WebhookSubscriptionRecord> = {}): WebhookSubscriptionRecord {
   return {

@@ -15,8 +15,8 @@ import {
   registerAdminThemeFileRenameRoute,
   registerAdminThemeFileResetRoute,
   registerAdminThemeFilePutRoute,
-} from "../explore";
-import type { ContentRouteDeps } from "../../content/deps";
+} from "../explore.js";
+import type { ContentRouteDeps } from "../../content/deps.js";
 
 /**
  * @file ADR-020 §5, the "editor-read-only" half of the built-theme lifecycle split, verified through

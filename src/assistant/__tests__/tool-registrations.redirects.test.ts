@@ -14,19 +14,19 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { InMemoryOutbox } from "../../core/events";
-import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "../../origin";
-import { getRedirectsAgentToolCatalog, type AgentToolDefinition } from "../../redirects/agent-tools";
-import { redirectMatcher } from "../../redirects/matcher";
-import type { RedirectDbHandle } from "../../redirects/ports.internal";
-import { InMemoryRedirectRepo } from "../../redirects/repo.memory";
-import type { RedirectsWriteDeps } from "../../redirects/redirects";
-import type { RedirectHitStats } from "../../redirects/types";
-import type { RedirectHitSink } from "../../redirects/ports";
-import type { RouteDeps } from "../../server/routes/types";
-import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations";
-import { resetToolContributorsForTests } from "../tool-contribution-registry";
-import { contributeRedirectsTools } from "../../redirects/tool-registrations";
+import { InMemoryOutbox } from "../../core/events/index.js";
+import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "../../origin/index.js";
+import { getRedirectsAgentToolCatalog, type AgentToolDefinition } from "../../redirects/agent-tools.js";
+import { redirectMatcher } from "../../redirects/matcher.js";
+import type { RedirectDbHandle } from "../../redirects/ports.internal.js";
+import { InMemoryRedirectRepo } from "../../redirects/repo.memory.js";
+import type { RedirectsWriteDeps } from "../../redirects/redirects.js";
+import type { RedirectHitStats } from "../../redirects/types.js";
+import type { RedirectHitSink } from "../../redirects/ports.js";
+import type { RouteDeps } from "../../server/routes/types.js";
+import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations/index.js";
+import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
+import { contributeRedirectsTools } from "../../redirects/tool-registrations.js";
 
 // Redirects moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
 // tool-contribution registry (2026-08-17, Stage 2 — see `tool-contribution-registry.ts`'s header),

@@ -1,24 +1,24 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { AesGcmSecretSealer } from "../../../webhooks/secret-sealer.aesgcm";
-import { InMemoryKeyring } from "../../../webhooks/keyring.memory";
+import { AesGcmSecretSealer } from "../../../webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../../webhooks/keyring.memory.js";
 import {
   createPublishCredential,
   InMemoryPublishCredentialSetRepo,
   resolveDefaultForPublish,
   type PublishCredentialWriteDeps,
-} from "../../deployments/publish-credentials/index";
+} from "../../deployments/publish-credentials/index.js";
 import {
   createSourceControlCredential,
   InMemorySourceControlCredentialSetRepo,
   resolveDefaultForSourceControl,
   type SourceControlCredentialWriteDeps,
-} from "../../source-control/index";
-import { extractGitHubLogin } from "../../deployments/static-publish/index";
-import { resolveDefaultForVendorDualRead, type VendorCredentialDualReadDeps } from "../dual-read";
-import { createVendorCredential, VendorCredentialSecretStoreUnconfiguredError, type VendorCredentialWriteDeps } from "../store";
-import { InMemoryVendorCredentialSetRepo } from "../repo.memory";
+} from "../../source-control/index.js";
+import { extractGitHubLogin } from "../../deployments/static-publish/index.js";
+import { resolveDefaultForVendorDualRead, type VendorCredentialDualReadDeps } from "../dual-read.js";
+import { createVendorCredential, VendorCredentialSecretStoreUnconfiguredError, type VendorCredentialWriteDeps } from "../store.js";
+import { InMemoryVendorCredentialSetRepo } from "../repo.memory.js";
 
 /**
  * @file `dual-read.ts` — proves the three outcomes this feature's own acceptance criteria name

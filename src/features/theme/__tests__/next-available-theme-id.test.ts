@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { nextAvailableThemeId, THEME_CATALOG_DIR } from "../theme";
+import { nextAvailableThemeId, THEME_CATALOG_DIR } from "../theme.js";
 
 /**
  * @file `nextAvailableThemeId` — the collision-suffixing rule behind the marketplace download flow

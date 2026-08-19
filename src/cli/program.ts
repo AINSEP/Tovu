@@ -1,14 +1,14 @@
 import { Command } from "commander";
 
-import { runExportCommand } from "./commands/export";
-import { runInitCommand } from "./commands/init";
-import { runIntrospectCommand } from "./commands/introspect";
-import { runServeCommand } from "./commands/serve";
-import { runThemeGenerateIndexCommand } from "./commands/theme/generate-index";
-import { runThemeMigrateCommand } from "./commands/theme/migrate";
-import { runThemeNormalizeBuildCommand } from "./commands/theme/normalize-build";
-import { runThemeValidateCommand } from "./commands/theme/validate";
-import { introspectProgram } from "./introspect";
+import { runExportCommand } from "./commands/export.js";
+import { runInitCommand } from "./commands/init.js";
+import { runIntrospectCommand } from "./commands/introspect.js";
+import { runServeCommand } from "./commands/serve.js";
+import { runThemeGenerateIndexCommand } from "./commands/theme/generate-index.js";
+import { runThemeMigrateCommand } from "./commands/theme/migrate.js";
+import { runThemeNormalizeBuildCommand } from "./commands/theme/normalize-build.js";
+import { runThemeValidateCommand } from "./commands/theme/validate.js";
+import { introspectProgram } from "./introspect.js";
 
 /**
  * @file SPEC-003 — the single `commander` `Command` program: the one source of truth for the

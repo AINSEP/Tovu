@@ -19,10 +19,10 @@
  * a redo — it was built blind from the start, unlike canary 1.
  */
 import { createToolRegistry } from "@jini-ai/core";
-import { buildToolCatalogQuery } from "../../src/assistant/tool-catalog-query";
-import { buildAssistantToolRegistrations } from "../../src/assistant/tool-registrations";
-import type { RouteDeps } from "../../src/server/routes/types";
-import { HYDE_EXPANSIONS } from "./tool-search-hyde-blind-expansions";
+import { buildToolCatalogQuery } from "../../src/assistant/tool-catalog-query.js";
+import { buildAssistantToolRegistrations } from "../../src/assistant/tool-registrations/index.js";
+import type { RouteDeps } from "../../src/server/routes/types.js";
+import { HYDE_EXPANSIONS } from "./tool-search-hyde-blind-expansions.js";
 
 interface EvalCase {
   readonly query: string;

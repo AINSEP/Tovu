@@ -5,8 +5,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { transitionCampaignStatus, type CampaignActorTier } from "../campaign";
-import type { CampaignStatus } from "../types";
+import { transitionCampaignStatus, type CampaignActorTier } from "../campaign.js";
+import type { CampaignStatus } from "../types.js";
 
 const allow = (from: CampaignStatus, to: CampaignStatus, actorTier: CampaignActorTier) =>
   transitionCampaignStatus({ from, to, actorTier });

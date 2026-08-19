@@ -4,7 +4,7 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
 
-import { createApp, createRouteDeps } from "../app";
+import { createApp, createRouteDeps } from "../app.js";
 
 /**
  * @file Route-level proof of the SPEC-006 core path: real login, the gateway

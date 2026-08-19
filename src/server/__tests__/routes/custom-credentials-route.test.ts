@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createApp, createRouteDeps } from "../../app";
-import { bootAuthenticated } from "../helpers/http-test-server";
-import type { RouteDeps } from "../../routes/types";
+import { createApp, createRouteDeps } from "../../app.js";
+import { bootAuthenticated } from "../helpers/http-test-server.js";
+import type { RouteDeps } from "../../routes/types.js";
 
 /**
  * @file Admin Access Tokens page's "Add custom provider" CRUD — `GET`/`POST`

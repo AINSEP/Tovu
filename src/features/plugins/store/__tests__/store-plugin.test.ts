@@ -12,7 +12,7 @@ import test from "node:test";
 
 import Database from "better-sqlite3";
 
-import { activateStore, SEED_PRODUCTS } from "../store-plugin";
+import { activateStore, SEED_PRODUCTS } from "../store-plugin.js";
 
 function tempDb(): { db: Database.Database; dbPath: string; dir: string } {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-store-"));

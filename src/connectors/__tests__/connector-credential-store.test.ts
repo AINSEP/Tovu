@@ -3,15 +3,15 @@ import test from "node:test";
 
 import type { ConnectorCredentialRecord } from "@jini-ai/integrations/composio";
 
-import { InMemoryKeyring } from "../../webhooks/keyring.memory";
-import type { KeyringPort } from "../../webhooks/index";
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm";
-import { InMemoryConnectorCredentialRepo } from "../connector-credential-store.memory";
+import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
+import type { KeyringPort } from "../../webhooks/index.js";
+import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import { InMemoryConnectorCredentialRepo } from "../connector-credential-store.memory.js";
 import {
   createSnapshotConnectorCredentialStore,
   type ConnectorCredentialRepoPort,
   type ConnectorCredentialRow,
-} from "../connector-credential-store";
+} from "../connector-credential-store.js";
 
 /**
  * @file `connector-credential-store.ts` — the serialized write queue behind connected accounts.

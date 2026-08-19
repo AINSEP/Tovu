@@ -4,44 +4,44 @@ import test from "node:test";
 import { createToolRegistry, type ToolExecutionContext, type ToolRegistration } from "@jini-ai/core";
 import { createToolExecutor } from "@jini-ai/daemon";
 
-import { commentsAgentToolCatalog } from "../../comments/agent-tools";
+import { commentsAgentToolCatalog } from "../../comments/agent-tools.js";
 import {
   contentTypesAgentToolCatalog,
   type AgentToolDefinition,
-} from "../../features/content-types";
-import { getDatabaseAgentToolCatalog } from "../../features/database/agent-tools";
-import { deploymentsAgentToolCatalog } from "../../features/deployments/agent-tools";
-import { staticPublishAgentToolCatalog } from "../../features/deployments/publish-agent-tools";
-import { entriesAgentToolCatalog } from "../../features/entries";
-import { pagesAgentToolCatalog } from "../../features/pages/agent-tools";
-import { pluginAgentToolCatalog } from "../../features/plugin-runtime/agent-tools";
-import { postAgentToolCatalog } from "../../features/post/agent-tools";
-import { recoveryAgentToolCatalog } from "../../features/recovery/agent-tools";
-import { getSettingsAgentToolCatalog } from "../../features/settings";
-import { sourceControlAgentToolCatalog } from "../../features/source-control/tool-registrations";
-import { taxonomyAgentToolCatalog } from "../../features/taxonomy/agent-tools";
-import { getWorkspaceAgentToolCatalog } from "../../features/workspace";
-import { formsAgentToolCatalog } from "../../forms/agent-tools";
+} from "../../features/content-types/index.js";
+import { getDatabaseAgentToolCatalog } from "../../features/database/agent-tools.js";
+import { deploymentsAgentToolCatalog } from "../../features/deployments/agent-tools.js";
+import { staticPublishAgentToolCatalog } from "../../features/deployments/publish-agent-tools.js";
+import { entriesAgentToolCatalog } from "../../features/entries/index.js";
+import { pagesAgentToolCatalog } from "../../features/pages/agent-tools.js";
+import { pluginAgentToolCatalog } from "../../features/plugin-runtime/agent-tools.js";
+import { postAgentToolCatalog } from "../../features/post/agent-tools.js";
+import { recoveryAgentToolCatalog } from "../../features/recovery/agent-tools.js";
+import { getSettingsAgentToolCatalog } from "../../features/settings/index.js";
+import { sourceControlAgentToolCatalog } from "../../features/source-control/tool-registrations.js";
+import { taxonomyAgentToolCatalog } from "../../features/taxonomy/agent-tools.js";
+import { getWorkspaceAgentToolCatalog } from "../../features/workspace/index.js";
+import { formsAgentToolCatalog } from "../../forms/agent-tools.js";
 import { identityAgentToolCatalog } from "@jini-ai/cms/identity";
-import { getWebhooksAgentToolCatalog } from "../../webhooks/agent-tools";
-import { getThemesAgentToolCatalog } from "../../features/theme/agent-tools";
-import { mediaAgentToolCatalog } from "../../media";
-import { membersAgentToolCatalog } from "../../members/agent-tools";
-import { menusAgentToolCatalog } from "../../navigation";
-import { newsletterAgentToolCatalog } from "../../newsletter/agent-tools";
-import { getRedirectsAgentToolCatalog } from "../../redirects/agent-tools";
-import { getSeoAgentToolCatalog } from "../../seo/agent-tools";
-import { widgetsAgentToolCatalog } from "../../widgets/agent-tools";
-import type { ContentTypeRecord } from "../../features/content-types";
-import { createRouteDeps } from "../../server/app";
-import type { RouteDeps } from "../../server/routes/types";
-import { buildToolCatalogQuery } from "../tool-catalog-query";
+import { getWebhooksAgentToolCatalog } from "../../webhooks/agent-tools.js";
+import { getThemesAgentToolCatalog } from "../../features/theme/agent-tools.js";
+import { mediaAgentToolCatalog } from "../../media/index.js";
+import { membersAgentToolCatalog } from "../../members/agent-tools.js";
+import { menusAgentToolCatalog } from "../../navigation/index.js";
+import { newsletterAgentToolCatalog } from "../../newsletter/agent-tools.js";
+import { getRedirectsAgentToolCatalog } from "../../redirects/agent-tools.js";
+import { getSeoAgentToolCatalog } from "../../seo/agent-tools.js";
+import { widgetsAgentToolCatalog } from "../../widgets/agent-tools.js";
+import type { ContentTypeRecord } from "../../features/content-types/index.js";
+import { createRouteDeps } from "../../server/app.js";
+import type { RouteDeps } from "../../server/routes/types.js";
+import { buildToolCatalogQuery } from "../tool-catalog-query.js";
 import {
   assertRiskMetadataIsWirable,
   buildAssistantToolRegistrations,
-} from "../tool-registrations";
-import { resetToolContributorsForTests } from "../tool-contribution-registry";
-import { installFirstPartyToolContributors } from "../../server/tool-catalog-manifest";
+} from "../tool-registrations/index.js";
+import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
+import { installFirstPartyToolContributors } from "../../server/tool-catalog-manifest.js";
 
 // `comments`/`newsletter` moved off `assistant/tool-registrations.ts`'s static
 // `DOMAIN_SLICES` array onto the tool-contribution registry (2026-08-17 — see

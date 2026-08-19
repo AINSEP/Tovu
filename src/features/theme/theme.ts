@@ -3,13 +3,13 @@ import { join } from "node:path";
 
 import type { JsonObject, JsonValue } from "@jini-ai/cms/core";
 import { markersOfType } from "#src/core/embeds/marker";
-import { checkBuiltThemeConformance } from "./build-conformance";
-import { lintHandlebarsTemplate } from "./handlebars-allowlist";
-import { lintLiquidTemplate } from "./liquid-allowlist";
+import { checkBuiltThemeConformance } from "./build-conformance.js";
+import { lintHandlebarsTemplate } from "./handlebars-allowlist.js";
+import { lintLiquidTemplate } from "./liquid-allowlist.js";
 // `theme-files.ts` imports `ENGINE_SUBFOLDERS`/`THEME_CATALOG_DIR` from this module already, so this
 // is a pre-existing module pair, now cyclic in the other direction too — safe because both of these
 // are consumed only inside `loadTheme`'s function body below, never at module-evaluation time.
-import { GENERATED_THEME_DIRS, isSourceDirGeneratedConflict } from "./theme-files";
+import { GENERATED_THEME_DIRS, isSourceDirGeneratedConflict } from "./theme-files.js";
 
 /**
  * @file Declarative theme package format + discovery (SPEC-004, spike slice).
@@ -61,7 +61,7 @@ export const TRUSTED_SKIP_LIQUID_ALLOWLIST_THEME_IDS: ReadonlySet<string> = new 
  * publisher CI builds; Tovu never runs the build* — this field records provenance/contract for a build
  * that already happened elsewhere, it never triggers one. A built theme's SOURCE (`sourceDir`) keeps
  * everything an authored theme has today — per-file edit, reset, AI-authorability
- * ({@link import("./theme-files").resolveThemeFileWriteScope}). Only its GENERATED tree — everything
+ * ({@link import("./theme-files.js").resolveThemeFileWriteScope}). Only its GENERATED tree — everything
  * outside `sourceDir` plus `theme.json` — loses that per-file granularity: it is read-only from every
  * per-file surface, and is restored, when it is, only as one complete release, never file-by-file.
  *
@@ -87,7 +87,7 @@ export interface ThemeBuildInfo {
    * `compiled` only, REQUIRED — the authored source tree's root, relative to the theme folder (e.g.
    * `"src"`). Everything under this path, plus `theme.json` itself, stays per-file editable exactly
    * like an authored theme; everything outside it is this build's generated output and is read-only
-   * through every per-file surface (see {@link import("./theme-files").resolveThemeFileWriteScope}).
+   * through every per-file surface (see {@link import("./theme-files.js").resolveThemeFileWriteScope}).
    * An author-DECLARED path rather than an assumed `src/` convention: a hardcoded prefix would either
    * lock a real source tree named something else out of editing entirely, or (looser) let a generated
    * folder that merely starts with the same letters (`src-legacy/`) slip through as writable.

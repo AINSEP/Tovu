@@ -1,5 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
-import { loginAsAdmin } from "./auth-fixtures";
+import { loginAsAdmin } from "./auth-fixtures.js";
 
 /**
  * @file The Posts/Pages editor's TipTap formatting toolbar (`PostEditor.tsx`'s `Toolbar`), driven in

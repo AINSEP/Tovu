@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryPostRepo, createPost } from "../../post";
-import { InMemoryPagesHtmlDocumentStore } from "../html-document-store.memory";
-import { buildPagesRegistrations } from "../tool-registrations";
+import { InMemoryPostRepo, createPost } from "../../post/index.js";
+import { InMemoryPagesHtmlDocumentStore } from "../html-document-store.memory.js";
+import { buildPagesRegistrations } from "../tool-registrations.js";
 
 /**
  * @file The Pages agent tools — the surface the assistant actually authors pages through.

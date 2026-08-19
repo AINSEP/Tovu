@@ -1,13 +1,13 @@
-import { registerAdminSettingsClearRoute } from "../routes/admin/settings/clear";
-import { registerAdminSettingsEventsRoute } from "../routes/admin/settings/events";
-import { registerAdminSettingsGetEffectiveRoute } from "../routes/admin/settings/get-effective";
-import { registerAdminSettingsGetRawRoute } from "../routes/admin/settings/get-raw";
-import { registerAdminSettingsListDefinitionsRoute } from "../routes/admin/settings/list-definitions";
-import { registerAdminSettingsRegisterDefinitionsRoute } from "../routes/admin/settings/register-definitions";
-import { registerAdminSettingsResetRoute } from "../routes/admin/settings/reset";
-import { registerAdminSettingsSetRoute } from "../routes/admin/settings/set";
-import type { SettingsRouteDeps } from "../routes/admin/settings/deps";
-import type { ServerModuleHandle } from "./types";
+import { registerAdminSettingsClearRoute } from "../routes/admin/settings/clear.js";
+import { registerAdminSettingsEventsRoute } from "../routes/admin/settings/events.js";
+import { registerAdminSettingsGetEffectiveRoute } from "../routes/admin/settings/get-effective.js";
+import { registerAdminSettingsGetRawRoute } from "../routes/admin/settings/get-raw.js";
+import { registerAdminSettingsListDefinitionsRoute } from "../routes/admin/settings/list-definitions.js";
+import { registerAdminSettingsRegisterDefinitionsRoute } from "../routes/admin/settings/register-definitions.js";
+import { registerAdminSettingsResetRoute } from "../routes/admin/settings/reset.js";
+import { registerAdminSettingsSetRoute } from "../routes/admin/settings/set.js";
+import type { SettingsRouteDeps } from "../routes/admin/settings/deps.js";
+import type { ServerModuleHandle } from "./types.js";
 
 /**
  * @file ADR-046 Phase 3 (SPEC-040) — the `settings` server module (SPEC-007 Phase 5 admin

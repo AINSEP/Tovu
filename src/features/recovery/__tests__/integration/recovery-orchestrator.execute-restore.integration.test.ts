@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { acquireOperationLock, releaseOperationLock } from "#src/core/operation-lock";
-import { executeRestore } from "../../recovery-orchestrator";
+import { executeRestore } from "../../recovery-orchestrator.js";
 
 /**
  * @file CIC U-001-ORD1 (SPEC-019) — `executeRestore` consults the shared `core/operation-lock`

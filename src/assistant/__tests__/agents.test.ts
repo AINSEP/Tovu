@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { listAssistantAgents, rescanAssistantAgents } from "../agents";
+import { listAssistantAgents, rescanAssistantAgents } from "../agents.js";
 
 /**
  * @file Regression coverage for `listAssistantAgents()` projecting model/reasoning metadata.

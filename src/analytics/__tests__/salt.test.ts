@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { deriveDailySalt } from "../salt";
+import { deriveDailySalt } from "../salt.js";
 
 const ROOT_KEY_SEED = "test-root-key-seed-do-not-use-in-prod";
 

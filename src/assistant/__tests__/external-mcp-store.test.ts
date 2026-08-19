@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryKeyring } from "../../webhooks/keyring.memory";
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm";
-import type { KeyringPort } from "../../webhooks/index";
-import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory";
+import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
+import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import type { KeyringPort } from "../../webhooks/index.js";
+import { InMemoryExternalMcpServerRepo } from "../external-mcp-store.memory.js";
 import {
   ExternalMcpSecretStoreUnconfiguredError,
   ExternalMcpValidationError,
@@ -16,8 +16,8 @@ import {
   readEnabledExternalMcpConfigs,
   saveExternalMcpServer,
   toResolvedFederatedConnections,
-} from "../external-mcp-store";
-import { admitRemoteTools } from "../mcp-federation/trust";
+} from "../external-mcp-store.js";
+import { admitRemoteTools } from "../mcp-federation/trust.js";
 
 /**
  * @file `external-mcp-store.ts` — the operator-editable roster behind Settings → External MCP.

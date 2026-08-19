@@ -9,8 +9,8 @@ import {
   ALLOWED_HANDLEBARS_HELPERS,
   ALLOWED_HANDLEBARS_RAW_PATHS,
   lintHandlebarsTemplate,
-} from "../handlebars-allowlist";
-import { loadTheme } from "../theme";
+} from "../handlebars-allowlist.js";
+import { loadTheme } from "../theme.js";
 
 /**
  * @file ADR-020 §3 (C6), Handlebars tier — certifies the helper/expression

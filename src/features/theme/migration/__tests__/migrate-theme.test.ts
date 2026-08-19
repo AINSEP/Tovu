@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { migrateThemeToV2 } from "../migrate-theme";
+import { migrateThemeToV2 } from "../migrate-theme.js";
 
 function makeDeclarativeThemeDir(
   options: { extraRootFile?: string; skipEntry?: boolean } = {}

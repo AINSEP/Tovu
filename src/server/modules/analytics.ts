@@ -1,6 +1,6 @@
-import type { AdminAnalyticsRecentHitsDeps } from "../routes/admin/analytics/recent-hits";
-import { registerAdminAnalyticsRecentHitsRoute } from "../routes/admin/analytics/recent-hits";
-import type { ServerModuleHandle } from "./types";
+import type { AdminAnalyticsRecentHitsDeps } from "../routes/admin/analytics/recent-hits.js";
+import { registerAdminAnalyticsRecentHitsRoute } from "../routes/admin/analytics/recent-hits.js";
+import type { ServerModuleHandle } from "./types.js";
 
 /**
  * @file ADR-046 Phase 3 (SPEC-041) — the `analytics` server module (ADR-035/ADR-PIPE-014 admin

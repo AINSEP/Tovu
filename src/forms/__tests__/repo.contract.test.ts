@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { openContentDb } from "../../db/sqlite/content-db";
-import { FormSlugConflictError } from "../errors";
-import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "../repo.memory";
-import { SqliteFormDefinitionRepo, SqliteFormSubmissionRepo } from "../repo.sqlite";
-import type { FormDefinitionRepoPort, FormSubmissionRepoPort } from "../ports";
-import type { FormDefinitionRecord, FormSubmissionRecord } from "../types";
+import { openContentDb } from "../../db/sqlite/content-db.js";
+import { FormSlugConflictError } from "../errors.js";
+import { InMemoryFormDefinitionRepo, InMemoryFormSubmissionRepo } from "../repo.memory.js";
+import { SqliteFormDefinitionRepo, SqliteFormSubmissionRepo } from "../repo.sqlite.js";
+import type { FormDefinitionRepoPort, FormSubmissionRepoPort } from "../ports.js";
+import type { FormDefinitionRecord, FormSubmissionRecord } from "../types.js";
 
 /**
  * @file Shared contract-test suite for `FormDefinitionRepoPort`/`FormSubmissionRepoPort`

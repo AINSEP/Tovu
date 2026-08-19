@@ -5,8 +5,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { evaluateLaunchGate, type LaunchGateDeps } from "../launch-gate";
-import type { MailerCapabilities } from "../../mail";
+import { evaluateLaunchGate, type LaunchGateDeps } from "../launch-gate.js";
+import type { MailerCapabilities } from "../../mail/index.js";
 
 const WS = "ws-1";
 

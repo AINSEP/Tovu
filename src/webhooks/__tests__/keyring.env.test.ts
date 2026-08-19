@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { EnvOrFileKeyring } from "../keyring.env";
+import { EnvOrFileKeyring } from "../keyring.env.js";
 
 const ENV_VAR = "TOVU_TEST_INTEGRATIONS_ROOT_KEY";
 

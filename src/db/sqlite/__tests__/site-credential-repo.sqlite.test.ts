@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { openContentDb } from "../content-db";
-import { SqliteSiteAssistantCredentialRepo } from "../site-credential-repo.sqlite";
-import type { SiteAssistantCredentialRecord } from "../../../assistant/site-credential-store";
+import { openContentDb } from "../content-db.js";
+import { SqliteSiteAssistantCredentialRepo } from "../site-credential-repo.sqlite.js";
+import type { SiteAssistantCredentialRecord } from "../../../assistant/site-credential-store.js";
 
 /**
  * @file `SqliteSiteAssistantCredentialRepo` against a real, migrated `content.db` (`:memory:`) — the

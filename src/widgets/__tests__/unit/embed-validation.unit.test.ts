@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { validateWidgetEmbedMutation } from "../../embed-validation";
-import type { WidgetEmbedNode } from "../../types";
+import { validateWidgetEmbedMutation } from "../../embed-validation.js";
+import type { WidgetEmbedNode } from "../../types.js";
 
 /**
  * @file C-008 `validateWidgetEmbedMutation` — SPEC-043 REQ-19/20, INV-04.

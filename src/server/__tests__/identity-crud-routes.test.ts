@@ -4,7 +4,7 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
 
-import { createApp, createRouteDeps } from "../app";
+import { createApp, createRouteDeps } from "../app.js";
 
 /**
  * @file Route-level proof of SPEC-006 0.6.0 (the users/roles/policies CRUD-completion amendment) —

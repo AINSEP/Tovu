@@ -1,7 +1,7 @@
-import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth";
-import { registerHealthRoute, registerHealthzRoute, registerReadyzRoute } from "../routes/ops/health";
-import type { RouteDeps } from "../routes/types";
-import type { ServerModuleHandle } from "./types";
+import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth.js";
+import { registerHealthRoute, registerHealthzRoute, registerReadyzRoute } from "../routes/ops/health.js";
+import type { RouteDeps } from "../routes/types.js";
+import type { ServerModuleHandle } from "./types.js";
 
 /**
  * @file ADR-046 Phase 3 (SPEC-039) — the `core` module: health/readiness routes, login/logout/me,

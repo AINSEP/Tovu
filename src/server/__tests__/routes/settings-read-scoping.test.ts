@@ -1,17 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { bootAuthenticated } from "../helpers/http-test-server";
+import { bootAuthenticated } from "../helpers/http-test-server.js";
 
 import express from "express";
 
-import { createSqliteRouteDeps } from "../../deps";
-import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth";
-import { registerAdminSettingsGetEffectiveRoute } from "../../routes/admin/settings/get-effective";
-import { registerAdminSettingsGetRawRoute } from "../../routes/admin/settings/get-raw";
-import { registerAdminSettingsRegisterDefinitionsRoute } from "../../routes/admin/settings/register-definitions";
-import { registerAdminSettingsSetRoute } from "../../routes/admin/settings/set";
-import type { RouteDeps } from "../../routes/types";
+import { createSqliteRouteDeps } from "../../deps.js";
+import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth.js";
+import { registerAdminSettingsGetEffectiveRoute } from "../../routes/admin/settings/get-effective.js";
+import { registerAdminSettingsGetRawRoute } from "../../routes/admin/settings/get-raw.js";
+import { registerAdminSettingsRegisterDefinitionsRoute } from "../../routes/admin/settings/register-definitions.js";
+import { registerAdminSettingsSetRoute } from "../../routes/admin/settings/set.js";
+import type { RouteDeps } from "../../routes/types.js";
 
 /**
  * @file Regression suite for internal-audit finding F2 (report

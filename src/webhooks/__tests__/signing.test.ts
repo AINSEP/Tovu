@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { signPayload, verifySignature } from "../signing";
+import { signPayload, verifySignature } from "../signing.js";
 
 const secret = Buffer.from("test-signing-secret");
 const rawBody = JSON.stringify({ topic: "post.published", data: { id: "post-1" } });

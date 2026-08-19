@@ -10,11 +10,11 @@ import {
   InMemorySettingsRepo,
   type SettingDefinitionRecord,
   type SettingValueRecord,
-} from "../../features/settings";
-import type { RouteDeps } from "../../server/routes/types";
-import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations";
-import { resetToolContributorsForTests } from "../tool-contribution-registry";
-import { contributeSettingsTools } from "../../features/settings/tool-registrations";
+} from "../../features/settings/index.js";
+import type { RouteDeps } from "../../server/routes/types.js";
+import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations/index.js";
+import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
+import { contributeSettingsTools } from "../../features/settings/tool-registrations.js";
 
 /**
  * @file The Settings (SPEC-007) tool-wiring test file — mirrors

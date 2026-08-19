@@ -17,9 +17,9 @@ import {
   PostNotFoundError,
   type PostRecord,
   type PostRepoPort,
-} from "../post";
-import { InMemoryPostRepo } from "../repo.memory";
-import { SqlitePostRepo } from "../repo.sqlite";
+} from "../post.js";
+import { InMemoryPostRepo } from "../repo.memory.js";
+import { SqlitePostRepo } from "../repo.sqlite.js";
 
 /**
  * @file Certification of the soft delete: the `deletePost` domain function, the trash-awareness it

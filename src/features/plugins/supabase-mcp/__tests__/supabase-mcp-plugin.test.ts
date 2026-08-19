@@ -10,7 +10,7 @@ import {
   SUPABASE_DEFAULT_ALLOWED_TOOLS,
   SUPABASE_MCP_PACKAGE,
   SUPABASE_MCP_PRESET_ID,
-} from "../supabase-mcp-plugin";
+} from "../supabase-mcp-plugin.js";
 
 /**
  * @file The Supabase preset's own tests — the vendor-specific half of what used to be

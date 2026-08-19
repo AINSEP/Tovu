@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { AesGcmSecretSealer } from "../secret-sealer.aesgcm";
-import { InMemoryKeyring } from "../keyring.memory";
+import { AesGcmSecretSealer } from "../secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../keyring.memory.js";
 
 /**
  * @file `AesGcmSecretSealer` — ADR-058's first real `SecretSealerPort` implementation.

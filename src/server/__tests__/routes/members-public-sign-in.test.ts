@@ -1,14 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { startTestServer } from "../helpers/http-test-server";
+import { startTestServer } from "../helpers/http-test-server.js";
 
 import express from "express";
 
-import { createRouteDeps } from "../../app";
+import { createRouteDeps } from "../../app.js";
 import { createRateLimiter, MAGIC_LINK_COMPLETE_ATTEMPT, MAGIC_LINK_PER_EMAIL, MAGIC_LINK_PER_IP } from "#src/core/rate-limit/rate-limit";
-import type { MemberPublicRouteDeps } from "../../routes/members/deps";
-import { registerPublicMemberSignInRequestRoute } from "../../routes/members/sign-in";
+import type { MemberPublicRouteDeps } from "../../routes/members/deps.js";
+import { registerPublicMemberSignInRequestRoute } from "../../routes/members/sign-in.js";
 
 /**
  * @file FEAT-013 Phase 2 (ADR-PIPE-013 Decision §2-3, ADR-030 OQ-8) —

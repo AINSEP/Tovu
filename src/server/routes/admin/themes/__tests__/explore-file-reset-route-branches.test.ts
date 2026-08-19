@@ -9,8 +9,8 @@ import type { NextFunction, Request, Response } from "express";
 
 import { discoverAllBuiltInThemes, THEME_CATALOG_DIR } from "#src/features/theme/index";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminThemeFileResetRoute } from "../explore";
-import type { ContentRouteDeps } from "../../content/deps";
+import { registerAdminThemeFileResetRoute } from "../explore.js";
+import type { ContentRouteDeps } from "../../content/deps.js";
 
 /**
  * @file The two `NO_ORIGINAL`/`NOT_IN_ORIGINAL` reset-route branches not covered by

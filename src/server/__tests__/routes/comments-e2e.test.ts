@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createApp, createRouteDeps } from "../../app";
-import { bootAuthenticated } from "../helpers/http-test-server";
-import type { RouteDeps } from "../../routes/types";
+import { createApp, createRouteDeps } from "../../app.js";
+import { bootAuthenticated } from "../helpers/http-test-server.js";
+import type { RouteDeps } from "../../routes/types.js";
 
 /**
  * @file SPEC-033 AC-05 — an end-to-end route test: a public submission reaches `pending`, an

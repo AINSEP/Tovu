@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { checkBuiltThemeConformance } from "../build-conformance";
+import { checkBuiltThemeConformance } from "../build-conformance.js";
 
 /**
  * @file Direct unit coverage of `checkBuiltThemeConformance` itself — `theme-compiled-load-gate.test.ts`

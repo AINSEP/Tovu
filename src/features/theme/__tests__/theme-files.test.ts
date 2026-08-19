@@ -15,7 +15,7 @@ import {
   resolveThemeFilePath,
   ThemePathError,
   writeThemeFile,
-} from "../theme-files";
+} from "../theme-files.js";
 
 /**
  * @file Certifies the path containment that the `themes` agent-tool domain's whole safety argument
@@ -235,6 +235,24 @@ test("a backslash-separated (Windows-shaped) relative path is normalized before 
 
 test("an ordinary theme file is NOT matched", () => {
   assert.equal(isGeneratedThemePath("pages/about.html"), false);
+});
+
+/**
+ * `GENERATED_THEME_ROOT_FILES` (Milestone 5, 2026-08-18) — the single-file sibling of
+ * `GENERATED_THEME_DIRS`: `index.html`, `static-portability-index.ts`'s generated portability
+ * snapshot. Same exact-segment matching discipline as the directory case above, pinned separately
+ * since it is a NEW branch in `isGeneratedThemePath`, not a data-only addition to the existing one.
+ */
+test("the generated root file itself is matched", () => {
+  assert.equal(isGeneratedThemePath("index.html"), true);
+});
+
+test("a similarly-named sibling file is NOT matched", () => {
+  assert.equal(isGeneratedThemePath("index-notes.html"), false);
+});
+
+test("the authored source page the generated root file is derived from is NOT matched", () => {
+  assert.equal(isGeneratedThemePath("render/pages/index.html"), false);
 });
 
 /**

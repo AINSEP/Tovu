@@ -3,14 +3,14 @@ import test from "node:test";
 
 import express from "express";
 
-import { bootAuthenticated } from "../helpers/http-test-server";
-import { createRouteDeps } from "../../app";
-import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth";
-import { registerAdminContentTypeListRoute } from "../../routes/admin/content-types/list";
-import { registerAdminContentTypeRegisterRoute } from "../../routes/admin/content-types/register";
-import { registerAdminContentTypeUpdateFieldsRoute } from "../../routes/admin/content-types/update-fields";
-import { registerAdminContentTypeLifecycleRoute } from "../../routes/admin/content-types/lifecycle";
-import type { RouteDeps } from "../../routes/types";
+import { bootAuthenticated } from "../helpers/http-test-server.js";
+import { createRouteDeps } from "../../app.js";
+import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth.js";
+import { registerAdminContentTypeListRoute } from "../../routes/admin/content-types/list.js";
+import { registerAdminContentTypeRegisterRoute } from "../../routes/admin/content-types/register.js";
+import { registerAdminContentTypeUpdateFieldsRoute } from "../../routes/admin/content-types/update-fields.js";
+import { registerAdminContentTypeLifecycleRoute } from "../../routes/admin/content-types/lifecycle.js";
+import type { RouteDeps } from "../../routes/types.js";
 
 /**
  * @file design-spec.md §1.9 backend-gap closure — route-level tests for the Collections

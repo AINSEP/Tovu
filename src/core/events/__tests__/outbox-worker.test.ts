@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "..";
+import { InMemoryEventBus, InMemoryOutbox, processOutbox } from "../index.js";
 
 test("processOutbox publishes pending events and marks delivered", async () => {
   const outbox = new InMemoryOutbox();

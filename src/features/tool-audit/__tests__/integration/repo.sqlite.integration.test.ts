@@ -8,8 +8,8 @@ import { desc, eq } from "drizzle-orm";
 
 import { agentToolAttempts } from "#src/db/schema";
 import { openContentDb } from "#src/db/sqlite/content-db";
-import { MAX_ROWS_PER_WORKSPACE, SqliteToolAttemptAuditSink } from "../../repo.sqlite";
-import type { ToolAttemptEvent } from "../../types";
+import { MAX_ROWS_PER_WORKSPACE, SqliteToolAttemptAuditSink } from "../../repo.sqlite.js";
+import type { ToolAttemptEvent } from "../../types.js";
 
 /**
  * @file Real SQLite persistence for the agent tool-attempt audit trail. Uses a temp-file database

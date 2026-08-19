@@ -3,12 +3,12 @@ import test from "node:test";
 
 import express from "express";
 
-import { bootAuthenticated, startTestServer } from "./helpers/http-test-server";
-import { createRouteDeps } from "../app";
-import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth";
-import { createAssistantExecutionModule } from "../modules/assistant-execution";
-import { setSiteAssistantCredential } from "../../assistant";
-import type { RouteDeps } from "../routes/types";
+import { bootAuthenticated, startTestServer } from "./helpers/http-test-server.js";
+import { createRouteDeps } from "../app.js";
+import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth.js";
+import { createAssistantExecutionModule } from "../modules/assistant-execution.js";
+import { setSiteAssistantCredential } from "../../assistant/index.js";
+import type { RouteDeps } from "../routes/types.js";
 
 /**
  * @file Route-level tests for the admin "Execution mode" tab's 4 probe routes (Local CLI detect,

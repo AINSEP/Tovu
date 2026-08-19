@@ -21,9 +21,9 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import test from "node:test";
 
-import { IDENTITY_COLUMN_INSERT_OVERRIDE, reseedSequenceSql } from "../migration/manifest";
-import { dropDatabase, psql, recreateDatabase } from "../migration/pg-fixture";
-import { verifyJsonText, verifyUtcTimestampText } from "../migration/verify";
+import { IDENTITY_COLUMN_INSERT_OVERRIDE, reseedSequenceSql } from "../migration/manifest.js";
+import { dropDatabase, psql, recreateDatabase } from "../migration/pg-fixture.js";
+import { verifyJsonText, verifyUtcTimestampText } from "../migration/verify.js";
 
 /** Same admin-connection target `pg-fixture.ts` uses internally for `DROP`/`CREATE DATABASE` — not
  * exported from there (deliberately hardcoded, per that file's own doc, so no env var can redirect

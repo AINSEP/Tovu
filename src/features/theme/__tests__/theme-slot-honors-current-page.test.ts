@@ -4,8 +4,8 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { renderStaticPage } from "../static-render";
-import { loadTheme } from "../theme";
+import { renderStaticPage } from "../static-render.js";
+import { loadTheme } from "../theme.js";
 
 /**
  * @file `ThemeSlotDescriptor.honorsCurrentPage`'s additive legacy fallback (see `theme.ts`'s

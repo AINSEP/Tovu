@@ -1,6 +1,6 @@
 /**
  * Barrel exports for feature modules.
  */
-export * as workspace from "./workspace";
-export * as post from "./post";
-export * as presentation from "./presentation";
+export * as workspace from "./workspace/index.js";
+export * as post from "./post/index.js";
+export * as presentation from "./presentation/index.js";

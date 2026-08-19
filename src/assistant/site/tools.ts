@@ -43,7 +43,7 @@
  * codebase that already owns it.
  */
 
-import type { PostRecord, PostRepoPort } from "../../features/post.js";
+import type { PostRecord, PostRepoPort } from "../../features/post/index.js";
 import { resolvePublicTarget, type ClientDirective } from "./client-directives.js";
 
 /**

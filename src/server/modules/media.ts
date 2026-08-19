@@ -1,14 +1,14 @@
-import { registerAdminMediaDeleteRoute } from "../routes/admin/media/delete";
-import { registerAdminMediaGetProvidersRoute } from "../routes/admin/media/get-providers";
-import { registerAdminMediaListRoute } from "../routes/admin/media/list";
-import { registerAdminMediaOriginalRoute } from "../routes/admin/media/original";
-import { registerAdminMediaPutProvidersRoute } from "../routes/admin/media/put-providers";
-import { registerAdminMediaTrashRoute } from "../routes/admin/media/trash";
-import { registerAdminMediaUpdateRoute } from "../routes/admin/media/update";
-import { registerAdminMediaUploadRoute } from "../routes/admin/media/upload";
-import type { MediaProviderRouteDeps, MediaRouteDeps } from "../routes/admin/media/deps";
-import { registerMediaRenditionRoute } from "../routes/site/media-rendition";
-import type { ServerModuleHandle } from "./types";
+import { registerAdminMediaDeleteRoute } from "../routes/admin/media/delete.js";
+import { registerAdminMediaGetProvidersRoute } from "../routes/admin/media/get-providers.js";
+import { registerAdminMediaListRoute } from "../routes/admin/media/list.js";
+import { registerAdminMediaOriginalRoute } from "../routes/admin/media/original.js";
+import { registerAdminMediaPutProvidersRoute } from "../routes/admin/media/put-providers.js";
+import { registerAdminMediaTrashRoute } from "../routes/admin/media/trash.js";
+import { registerAdminMediaUpdateRoute } from "../routes/admin/media/update.js";
+import { registerAdminMediaUploadRoute } from "../routes/admin/media/upload.js";
+import type { MediaProviderRouteDeps, MediaRouteDeps } from "../routes/admin/media/deps.js";
+import { registerMediaRenditionRoute } from "../routes/site/media-rendition.js";
+import type { ServerModuleHandle } from "./types.js";
 
 /**
  * @file ADR-046 Phase 3 (SPEC-034) — the `media` server module.

@@ -6,16 +6,16 @@ import {
   enqueueDelivery,
   MAX_DELIVERY_ATTEMPTS,
   processDueDeliveries,
-} from "../delivery";
-import { RecordingHttpClient } from "../http.memory";
+} from "../delivery.js";
+import { RecordingHttpClient } from "../http.memory.js";
 import {
   InMemoryDeliveryEnvelopeStore,
   InMemoryWebhookDeliveryRepo,
   InMemoryWebhookSubscriptionRepo,
-} from "../repo.memory";
-import { createFixedSecretSigner } from "../signing";
-import { createSubscription, pauseSubscription } from "../subscriptions";
-import type { WebhookBeforeDispatchHook } from "../types";
+} from "../repo.memory.js";
+import { createFixedSecretSigner } from "../signing.js";
+import { createSubscription, pauseSubscription } from "../subscriptions.js";
+import type { WebhookBeforeDispatchHook } from "../types.js";
 
 /** Builds a full delivery-worker test rig: repos, envelope store, id/clock, signer, http double. */
 function makeRig(options: { nowIso?: string } = {}) {

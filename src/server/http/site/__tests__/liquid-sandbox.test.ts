@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { PostRecord } from "#src/features/post/index";
-import { renderLiquidInSandbox } from "../liquid-sandbox";
-import type { SiteRenderContext } from "../render";
+import { renderLiquidInSandbox } from "../liquid-sandbox.js";
+import type { SiteRenderContext } from "../render.js";
 
 /**
  * @file ADR-020 §3 (C6) — certifies `renderLiquidInSandbox`'s isolation

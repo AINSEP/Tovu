@@ -1,22 +1,22 @@
-import { registerAdminPostListRoute } from "../routes/admin/posts/list";
-import { registerAdminPostCreateRoute } from "../routes/admin/posts/create";
-import { registerAdminPostGetRoute } from "../routes/admin/posts/get-by-id";
-import { registerAdminPostTemplatePreviewRoute } from "../routes/admin/posts/template-preview";
-import { registerAdminPostUpdateRoute } from "../routes/admin/posts/update";
-import { registerAdminPostDeleteRoute } from "../routes/admin/posts/delete";
-import { registerAdminPageListRoute } from "../routes/admin/pages/list";
-import { registerAdminPageCreateRoute } from "../routes/admin/pages/create";
-import { registerAdminPageGetRoute } from "../routes/admin/pages/get-by-id";
-import { registerAdminPageUpdateRoute } from "../routes/admin/pages/update";
-import { registerAdminPageUpdateHtmlRoute } from "../routes/admin/pages/update-html";
-import { registerAdminPageDeleteRoute } from "../routes/admin/pages/delete";
-import { registerAdminChangeSetListRoute } from "../routes/admin/change-sets/list";
-import { registerAdminChangeSetGetRoute } from "../routes/admin/change-sets/get";
-import { registerAdminChangeSetRevertRoute } from "../routes/admin/change-sets/revert";
-import { registerAdminPresentationGetRoute } from "../routes/admin/presentation/get";
-import { registerAdminPresentationPatchRoute } from "../routes/admin/presentation/patch-active-theme";
-import { registerAdminThemeRescanRoute } from "../routes/admin/presentation/rescan-themes";
-import { registerAdminThemesListRoute } from "../routes/admin/themes/list";
+import { registerAdminPostListRoute } from "../routes/admin/posts/list.js";
+import { registerAdminPostCreateRoute } from "../routes/admin/posts/create.js";
+import { registerAdminPostGetRoute } from "../routes/admin/posts/get-by-id.js";
+import { registerAdminPostTemplatePreviewRoute } from "../routes/admin/posts/template-preview.js";
+import { registerAdminPostUpdateRoute } from "../routes/admin/posts/update.js";
+import { registerAdminPostDeleteRoute } from "../routes/admin/posts/delete.js";
+import { registerAdminPageListRoute } from "../routes/admin/pages/list.js";
+import { registerAdminPageCreateRoute } from "../routes/admin/pages/create.js";
+import { registerAdminPageGetRoute } from "../routes/admin/pages/get-by-id.js";
+import { registerAdminPageUpdateRoute } from "../routes/admin/pages/update.js";
+import { registerAdminPageUpdateHtmlRoute } from "../routes/admin/pages/update-html.js";
+import { registerAdminPageDeleteRoute } from "../routes/admin/pages/delete.js";
+import { registerAdminChangeSetListRoute } from "../routes/admin/change-sets/list.js";
+import { registerAdminChangeSetGetRoute } from "../routes/admin/change-sets/get.js";
+import { registerAdminChangeSetRevertRoute } from "../routes/admin/change-sets/revert.js";
+import { registerAdminPresentationGetRoute } from "../routes/admin/presentation/get.js";
+import { registerAdminPresentationPatchRoute } from "../routes/admin/presentation/patch-active-theme.js";
+import { registerAdminThemeRescanRoute } from "../routes/admin/presentation/rescan-themes.js";
+import { registerAdminThemesListRoute } from "../routes/admin/themes/list.js";
 import {
   registerAdminThemeDetailRoute,
   registerAdminThemeFileCopyRoute,
@@ -24,11 +24,11 @@ import {
   registerAdminThemeFilePutRoute,
   registerAdminThemeFileRenameRoute,
   registerAdminThemeFileResetRoute,
-} from "../routes/admin/themes/explore";
-import { registerAdminMarketplaceThemesListRoute } from "../routes/admin/marketplace/list";
-import { registerAdminMarketplaceThemeDownloadRoute } from "../routes/admin/marketplace/download";
-import type { ContentRouteDeps } from "../routes/admin/content/deps";
-import type { ServerModuleHandle } from "./types";
+} from "../routes/admin/themes/explore.js";
+import { registerAdminMarketplaceThemesListRoute } from "../routes/admin/marketplace/list.js";
+import { registerAdminMarketplaceThemeDownloadRoute } from "../routes/admin/marketplace/download.js";
+import type { ContentRouteDeps } from "../routes/admin/content/deps.js";
+import type { ServerModuleHandle } from "./types.js";
 
 /**
  * @file ADR-046 Phase 3 (SPEC-038) — the `content` server module (posts/pages/change-sets/

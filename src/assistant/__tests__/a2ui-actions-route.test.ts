@@ -3,10 +3,10 @@ import test from "node:test";
 
 import express from "express";
 
-import { startTestServer } from "../../server/__tests__/helpers/http-test-server";
-import { RUN_PRINCIPAL_HEADER } from "../run-ownership";
-import { A2UI_ACTIONS_PATH, registerA2uiActionsRoute } from "../a2ui-actions-route";
-import { createSurfaceExchangeStore } from "../../core/tool-surface-exchanges";
+import { startTestServer } from "../../server/__tests__/helpers/http-test-server.js";
+import { RUN_PRINCIPAL_HEADER } from "../run-ownership.js";
+import { A2UI_ACTIONS_PATH, registerA2uiActionsRoute } from "../a2ui-actions-route.js";
+import { createSurfaceExchangeStore } from "../../core/tool-surface-exchanges.js";
 
 /**
  * @file Route-level tests for the daemon-side inbound half of A2UI (`a2ui-actions-route.ts`,

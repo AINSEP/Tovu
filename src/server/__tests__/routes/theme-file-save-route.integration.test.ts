@@ -5,9 +5,9 @@ import path from "node:path";
 import test from "node:test";
 
 import { discoverAllBuiltInThemes } from "#src/features/theme/index";
-import { createApp, createRouteDeps } from "../../app";
-import { bootAuthenticated } from "../helpers/http-test-server";
-import type { RouteDeps } from "../../routes/types";
+import { createApp, createRouteDeps } from "../../app.js";
+import { bootAuthenticated } from "../helpers/http-test-server.js";
+import type { RouteDeps } from "../../routes/types.js";
 
 /**
  * @file The Explore screen's save → preview loop.

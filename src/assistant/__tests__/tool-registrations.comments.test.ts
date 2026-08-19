@@ -18,21 +18,21 @@ import { ForbiddenError } from "@jini-ai/cms/core";
 import {
   ForbiddenError as SettingsForbiddenError,
   InMemorySettingsRepo,
-} from "../../features/settings";
-import { commentsAgentToolCatalog, type AgentToolDefinition } from "../../comments/agent-tools";
-import { InMemoryCommentRepo } from "../../comments/repo.memory";
-import { createCommentHookRegistry } from "../../comments/hooks";
-import { createCommentWriteService } from "../../comments/write-service";
-import { ensureCommentsSettingDefinitions } from "../../comments/settings";
-import type { CommentRecord } from "../../comments/types";
+} from "../../features/settings/index.js";
+import { commentsAgentToolCatalog, type AgentToolDefinition } from "../../comments/agent-tools.js";
+import { InMemoryCommentRepo } from "../../comments/repo.memory.js";
+import { createCommentHookRegistry } from "../../comments/hooks.js";
+import { createCommentWriteService } from "../../comments/write-service.js";
+import { ensureCommentsSettingDefinitions } from "../../comments/settings.js";
+import type { CommentRecord } from "../../comments/types.js";
 import { InMemoryPrincipalRepo } from "@jini-ai/cms/identity";
-import type { RouteDeps } from "../../server/routes/types";
+import type { RouteDeps } from "../../server/routes/types.js";
 import {
   assertRiskMetadataIsWirable,
   buildAssistantToolRegistrations,
-} from "../tool-registrations";
-import { resetToolContributorsForTests } from "../tool-contribution-registry";
-import { contributeCommentsTools } from "../../comments/tool-registrations";
+} from "../tool-registrations/index.js";
+import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
+import { contributeCommentsTools } from "../../comments/tool-registrations.js";
 
 // Comments moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
 // tool-contribution registry (2026-08-17 — see `tool-contribution-registry.ts`'s header), so

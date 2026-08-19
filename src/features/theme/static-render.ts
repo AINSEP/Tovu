@@ -6,8 +6,8 @@ import {
   withAddedId,
   withInnerContent,
 } from "#src/core/embeds/marker";
-import { findUnrewrittenAssetPaths, rewriteAssetPaths, tokenStylesheetSentinel } from "./static-asset-contract";
-import { DEFAULT_THEME_SLOTS, type DiscoveredTheme, type ThemeSlotDescriptor, type ThemeTokens } from "./theme";
+import { findUnrewrittenAssetPaths, rewriteAssetPaths, tokenStylesheetSentinel } from "./static-asset-contract.js";
+import { DEFAULT_THEME_SLOTS, type DiscoveredTheme, type ThemeSlotDescriptor, type ThemeTokens } from "./theme.js";
 
 /**
  * @file Real (non-spike) request-time rendering for `static`-tier themes.

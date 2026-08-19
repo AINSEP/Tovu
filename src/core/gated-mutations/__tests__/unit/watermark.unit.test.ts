@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { WatermarkTransactionRequiredError, stampWatermark } from "../../watermark";
+import { WatermarkTransactionRequiredError, stampWatermark } from "../../watermark.js";
 
 /**
  * @file SPEC-016 C-004 / U-002-B1 / REQ-01 / AC-01 / AC-02 — watermark stamping's transaction guard.

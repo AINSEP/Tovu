@@ -1,43 +1,44 @@
 import { randomUUID } from "node:crypto";
 import { mkdirSync } from "node:fs";
+import { createRequire } from "node:module";
 import { dirname, join, resolve } from "node:path";
 
-import { InMemoryEventBus } from "../core/events";
+import { InMemoryEventBus } from "../core/events/index.js";
 // A plain static import, unlike `createApp`/`exportSite` below: `resolveStorefrontProducts` has no
 // eager top-level side effect (`routes/site/products.ts`'s module body only declares functions/a
 // route registrar), so there is no load-order hazard to defer — see `routes/types.ts`'s
 // `resolveStorefrontProducts` doc for why this field exists at all.
-import { resolveStorefrontProducts } from "./routes/site/products";
-import { backfillPostSearchIndex, SqlitePostRepo, SqlitePostSearchIndex, createPostRevertRegistry } from "../features/post";
-import { SqliteDeploymentsReadRepo } from "../features/deployments";
-import { SqlitePublishCredentialSetRepo } from "../db/sqlite/publish-credential-repo.sqlite";
-import { SqlitePublishHistoryStore } from "../db/sqlite/publish-history-repo.sqlite";
-import { SqliteCustomCredentialSetRepo } from "../db/sqlite/custom-credential-repo.sqlite";
-import { SqliteSourceControlCredentialSetRepo } from "../db/sqlite/source-control-credential-repo.sqlite";
-import { SqliteVendorCredentialSetRepo } from "../db/sqlite/vendor-credential-repo.sqlite";
-import { executionModeFromEnv } from "../features/deployments/publish-credentials";
-import { InMemoryPublishCredentialVerificationCache } from "../features/deployments/static-publish";
+import { resolveStorefrontProducts } from "./routes/site/products.js";
+import { backfillPostSearchIndex, SqlitePostRepo, SqlitePostSearchIndex, createPostRevertRegistry } from "../features/post/index.js";
+import { SqliteDeploymentsReadRepo } from "../features/deployments/index.js";
+import { SqlitePublishCredentialSetRepo } from "../db/sqlite/publish-credential-repo.sqlite.js";
+import { SqlitePublishHistoryStore } from "../db/sqlite/publish-history-repo.sqlite.js";
+import { SqliteCustomCredentialSetRepo } from "../db/sqlite/custom-credential-repo.sqlite.js";
+import { SqliteSourceControlCredentialSetRepo } from "../db/sqlite/source-control-credential-repo.sqlite.js";
+import { SqliteVendorCredentialSetRepo } from "../db/sqlite/vendor-credential-repo.sqlite.js";
+import { executionModeFromEnv } from "../features/deployments/publish-credentials/index.js";
+import { InMemoryPublishCredentialVerificationCache } from "../features/deployments/static-publish/index.js";
 // NOT a static import — `export/site-exporter.ts` imports `createApp` from `server/app.ts`, and a
 // top-level import here reaches that same cycle. See `server/app.ts`'s `runExportSiteLazily` for
 // the full trace and the crash it produced. Resolved at call time instead.
-import type { ExportEngine } from "../features/deployments/export-run";
-import { PagesHtmlDocumentStore } from "../features/pages";
-import { createChatStoreFactory, ensurePublicAssistantSettingDefinitions, ensureExecutionSettingDefinitions } from "../assistant";
-import { SqlitePresentationSettingsRepo } from "../features/presentation";
-import { SqliteSettingsRepo } from "../features/settings/repo.sqlite";
-import { discoverAllBuiltInThemes } from "../features/theme";
-import { SqliteWorkspaceRepo } from "../features/workspace";
-import { openContentDb, type ContentDb } from "../db/sqlite/content-db";
-import { resolveWorkspace } from "../site-dir/resolve-workspace";
-import { recoverIncompleteDataModuleMigrations } from "../features/plugins/migration-recovery";
-import { SqliteChangeSetRepo } from "../db/sqlite/change-set-repo.sqlite";
-import { SqliteOutboxAdapter } from "../db/sqlite/outbox-repo.sqlite";
-import { openDatabaseJournalDb } from "../db/sqlite/database-journal-db";
-import { SqliteMigrationRunsRepo, SqliteDatabaseLedgerRepo } from "../db/sqlite/database-journal-repo";
-import { ensureSeoSettingDefinitions } from "../seo";
-import { installNewsletterDataModule } from "../newsletter/data-module-manifest";
-import { ensureDefaultList } from "../newsletter/lists";
-import { createHookRegistry } from "../newsletter/hooks";
+import type { ExportEngine } from "../features/deployments/export-run.js";
+import { PagesHtmlDocumentStore } from "../features/pages/index.js";
+import { createChatStoreFactory, ensurePublicAssistantSettingDefinitions, ensureExecutionSettingDefinitions } from "../assistant/index.js";
+import { SqlitePresentationSettingsRepo } from "../features/presentation/index.js";
+import { SqliteSettingsRepo } from "../features/settings/repo.sqlite.js";
+import { discoverAllBuiltInThemes } from "../features/theme/index.js";
+import { SqliteWorkspaceRepo } from "../features/workspace/index.js";
+import { openContentDb, type ContentDb } from "../db/sqlite/content-db.js";
+import { resolveWorkspace } from "../site-dir/resolve-workspace.js";
+import { recoverIncompleteDataModuleMigrations } from "../features/plugins/migration-recovery.js";
+import { SqliteChangeSetRepo } from "../db/sqlite/change-set-repo.sqlite.js";
+import { SqliteOutboxAdapter } from "../db/sqlite/outbox-repo.sqlite.js";
+import { openDatabaseJournalDb } from "../db/sqlite/database-journal-db.js";
+import { SqliteMigrationRunsRepo, SqliteDatabaseLedgerRepo } from "../db/sqlite/database-journal-repo.js";
+import { ensureSeoSettingDefinitions } from "../seo/index.js";
+import { installNewsletterDataModule } from "../newsletter/data-module-manifest.js";
+import { ensureDefaultList } from "../newsletter/lists.js";
+import { createHookRegistry } from "../newsletter/hooks.js";
 import {
   SqliteNewsletterAudienceSnapshotRepo,
   SqliteNewsletterCampaignRepo,
@@ -45,16 +46,16 @@ import {
   SqliteNewsletterListRepo,
   SqliteNewsletterSendRepo,
   SqliteNewsletterSubscriptionRepo,
-} from "../newsletter/repo.sqlite";
-import { MembersSubscriberDirectory } from "../members";
+} from "../newsletter/repo.sqlite.js";
+import { MembersSubscriberDirectory } from "../members/index.js";
 import {
   seededPosts,
   seededPresentation,
   seededWorkspace,
   seedSettingsFromPresentation,
   SETTINGS_MIGRATION_SYSTEM_PRINCIPAL_ID,
-} from "./seed";
-import { SqliteBufferSink } from "../db/sqlite/analytics-sink.sqlite";
+} from "./seed.js";
+import { SqliteBufferSink } from "../db/sqlite/analytics-sink.sqlite.js";
 import {
   ConsoleMailerAdapter,
   SqliteMagicLinkTokenRepo,
@@ -62,41 +63,41 @@ import {
   SqliteMemberSessionRepo,
   SqliteMemberSubscriptionRepo,
   SqliteMemberTierRepo,
-} from "../members";
-import { SqliteCommercePriceRepo, SqliteCommerceProductRepo } from "../features/commerce/repo.sqlite";
-import { rebuildNavLocationBindings } from "../navigation";
-import { SqliteMenuRepo, SqliteNavLocationBindingRepo } from "../navigation/repo.sqlite";
-import { SqliteWebhookDeliveryRepo, SqliteWebhookSubscriptionRepo } from "../db/sqlite/webhook-repo.sqlite";
-import { EnvOrFileKeyring } from "../webhooks/keyring.env";
-import { createKeyringBackedSigner } from "../webhooks/signing.keyring";
-import { AesGcmSecretSealer } from "../webhooks/secret-sealer.aesgcm";
-import { SqliteSiteAssistantCredentialRepo } from "../db/sqlite/site-credential-repo.sqlite";
-import { SqliteAdminExecutionCredentialRepo } from "../db/sqlite/execution-credential-repo.sqlite";
-import { SqliteComposioConfigRepo } from "../db/sqlite/composio-config-repo.sqlite";
-import { SqliteConnectorCredentialRepo } from "../db/sqlite/composio-connector-credential-repo.sqlite";
-import { SqliteMediaProviderCredentialRepo } from "../db/sqlite/media-provider-credential-repo.sqlite";
-import { SqliteExternalMcpServerRepo } from "../db/sqlite/external-mcp-repo.sqlite";
-import { createComposioConnectors } from "../connectors/composio-service";
+} from "../members/index.js";
+import { SqliteCommercePriceRepo, SqliteCommerceProductRepo } from "../features/commerce/repo.sqlite.js";
+import { rebuildNavLocationBindings } from "../navigation/index.js";
+import { SqliteMenuRepo, SqliteNavLocationBindingRepo } from "../navigation/repo.sqlite.js";
+import { SqliteWebhookDeliveryRepo, SqliteWebhookSubscriptionRepo } from "../db/sqlite/webhook-repo.sqlite.js";
+import { EnvOrFileKeyring } from "../webhooks/keyring.env.js";
+import { createKeyringBackedSigner } from "../webhooks/signing.keyring.js";
+import { AesGcmSecretSealer } from "../webhooks/secret-sealer.aesgcm.js";
+import { SqliteSiteAssistantCredentialRepo } from "../db/sqlite/site-credential-repo.sqlite.js";
+import { SqliteAdminExecutionCredentialRepo } from "../db/sqlite/execution-credential-repo.sqlite.js";
+import { SqliteComposioConfigRepo } from "../db/sqlite/composio-config-repo.sqlite.js";
+import { SqliteConnectorCredentialRepo } from "../db/sqlite/composio-connector-credential-repo.sqlite.js";
+import { SqliteMediaProviderCredentialRepo } from "../db/sqlite/media-provider-credential-repo.sqlite.js";
+import { SqliteExternalMcpServerRepo } from "../db/sqlite/external-mcp-repo.sqlite.js";
+import { createComposioConnectors } from "../connectors/composio-service.js";
 import {
   LocalFsBlobStore,
   SharpImageTransformer,
-} from "../media";
-import { ensureCoreMediaTransform } from "../media/bootstrap";
-import { createSqliteIdentityRouteDeps } from "../identity/wiring";
-import { SqliteFormDefinitionRepo, SqliteFormSubmissionRepo } from "../forms/repo.sqlite";
-import { FORMS_SUBMIT_PROFILE } from "../forms/rate-limit-profile";
+} from "../media/index.js";
+import { ensureCoreMediaTransform } from "../media/bootstrap.js";
+import { createSqliteIdentityRouteDeps } from "../identity/wiring.js";
+import { SqliteFormDefinitionRepo, SqliteFormSubmissionRepo } from "../forms/repo.sqlite.js";
+import { FORMS_SUBMIT_PROFILE } from "../forms/rate-limit-profile.js";
 import { createRateLimiter, SITE_ASSISTANT_PER_IP } from "#src/core/rate-limit/rate-limit";
 import type { Express } from "express";
-import type { RouteDeps } from "./routes/types";
-import type { NewsletterRouteDeps } from "./routes/admin/newsletter/deps";
-import { createVerifiedOrigin, OriginRegistry } from "../origin";
-import { seedDevCapabilityOrigin, SqliteOriginSettingRepo } from "../db/sqlite/origin-repo.sqlite";
+import type { RouteDeps } from "./routes/types.js";
+import type { NewsletterRouteDeps } from "./routes/admin/newsletter/deps.js";
+import { createVerifiedOrigin, OriginRegistry } from "../origin/index.js";
+import { seedDevCapabilityOrigin, SqliteOriginSettingRepo } from "../db/sqlite/origin-repo.sqlite.js";
 import {
   SqliteAssetBlobRepo,
   SqliteAssetRenditionRepo,
   SqliteMediaRepo,
   SqliteTransformDefinitionRepo,
-} from "../db/sqlite/media-repo.sqlite";
+} from "../db/sqlite/media-repo.sqlite.js";
 import {
   RedirectHitSinkImpl,
   RedirectPhaseHandlerResolver,
@@ -106,23 +107,23 @@ import {
   registerRedirectsPhaseHandlers,
   SqliteRedirectRepo,
   type RedirectsWriteDeps,
-} from "../redirects";
-import { registerSlugChangeCapture } from "../routing";
-import { SqliteDbOpsAdapter } from "../db/sqlite/db-ops";
-import { SqliteRestorePointsRepo } from "../db/sqlite/database-journal-repo";
-import { SqliteDatabaseIntrospectionAdapter } from "../db/sqlite/database-introspection-adapter.sqlite";
-import { InMemorySiteStatusRepo } from "../features/database/repo.memory";
-import { NoopContentTypeIndexProvisioner } from "../features/content-types";
-import { SqliteContentTypeRepo } from "../features/content-types/repo.sqlite";
-import { SqliteEntryRepo } from "../features/entries/repo.sqlite";
-import { SqliteWidgetRegionBindingRepo } from "../widgets/repo.sqlite";
-import { SqliteEntryRefsRepo } from "../db/sqlite/entry-refs-repo.sqlite";
-import { SqlitePluginActivationRepo } from "../features/plugin-runtime/repo.sqlite";
-import { WORD_COUNT_RUNTIME_SOURCE } from "../features/plugin-runtime/built-ins/word-count";
-import { composePluginRuntime } from "./plugin-runtime";
-import { wireCoreResolvers } from "../widgets/resolvers/index";
-import { createNavMenuReadModel } from "../navigation";
-import { createCommentsModule, ensureCommentsSettingDefinitions } from "../comments";
+} from "../redirects/index.js";
+import { registerSlugChangeCapture } from "../routing/index.js";
+import { SqliteDbOpsAdapter } from "../db/sqlite/db-ops.js";
+import { SqliteRestorePointsRepo } from "../db/sqlite/database-journal-repo.js";
+import { SqliteDatabaseIntrospectionAdapter } from "../db/sqlite/database-introspection-adapter.sqlite.js";
+import { InMemorySiteStatusRepo } from "../features/database/repo.memory.js";
+import { NoopContentTypeIndexProvisioner } from "../features/content-types/index.js";
+import { SqliteContentTypeRepo } from "../features/content-types/repo.sqlite.js";
+import { SqliteEntryRepo } from "../features/entries/repo.sqlite.js";
+import { SqliteWidgetRegionBindingRepo } from "../widgets/repo.sqlite.js";
+import { SqliteEntryRefsRepo } from "../db/sqlite/entry-refs-repo.sqlite.js";
+import { SqlitePluginActivationRepo } from "../features/plugin-runtime/repo.sqlite.js";
+import { WORD_COUNT_RUNTIME_SOURCE } from "../features/plugin-runtime/built-ins/word-count/index.js";
+import { composePluginRuntime } from "./plugin-runtime.js";
+import { wireCoreResolvers } from "../widgets/resolvers/index.js";
+import { createNavMenuReadModel } from "../navigation/index.js";
+import { createCommentsModule, ensureCommentsSettingDefinitions } from "../comments/index.js";
 import {
   ensureSettingsUiTabDefinitions,
   getEffective,
@@ -132,21 +133,21 @@ import {
   ensureSettingDefinitions,
   SCOPE_BIT,
   INSTRUCTIONS_NAMESPACE,
-} from "../features/settings";
-import { createSettingsAnalyticsConfig, ensureAnalyticsSettingDefinitions } from "../analytics/config.settings";
-import { SqliteCommentRepo } from "../comments/repo.sqlite";
-import { installCommentsDataModule } from "../comments/data-module-install";
+} from "../features/settings/index.js";
+import { createSettingsAnalyticsConfig, ensureAnalyticsSettingDefinitions } from "../analytics/config.settings.js";
+import { SqliteCommentRepo } from "../comments/repo.sqlite.js";
+import { installCommentsDataModule } from "../comments/data-module-install.js";
 import {
   SqliteEntryTermRepo,
   SqliteTaxonomyRepo,
   SqliteTaxonomyRevisionRepo,
   SqliteTermRepo,
   sqliteStampWatermark,
-} from "../features/taxonomy/repo.sqlite";
-import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "../features/recovery/repo.memory";
-import { buildGatewayDeps, buildOwnerOnlyInstanceAuthorize } from "../core/gated-mutations/composition";
+} from "../features/taxonomy/repo.sqlite.js";
+import { AlwaysUnavailableWatermarkSource, RestorePointDeepLinkLookup } from "../features/recovery/repo.memory.js";
+import { buildGatewayDeps, buildOwnerOnlyInstanceAuthorize } from "../core/gated-mutations/composition.js";
 import { resolveRuntimeMode } from "#src/core/runtime-mode";
-import { wrapMailerWithPurposeGate } from "../mail/purpose-scoped-mailer";
+import { wrapMailerWithPurposeGate } from "../mail/purpose-scoped-mailer.js";
 
 /**
  * Root directory `LocalFsBlobStore` writes blob bytes under (ADR-012 `uploads/`
@@ -167,7 +168,7 @@ export function mediaUploadsDir(): string {
  * which is wrong whenever the CLI is invoked from outside the repo checkout).
  */
 export function builtInThemesDir(): string {
-  return process.env.TOVU_THEMES_DIR ?? resolve(__dirname, "../themes");
+  return process.env.TOVU_THEMES_DIR ?? resolve(import.meta.dirname, "../themes");
 }
 
 /**
@@ -951,6 +952,13 @@ export function createSqliteRouteDepsForWorkspace(
   return createSqliteRouteDeps(dbPath, { db, workspaceId: workspace.id });
 }
 
+// FEAT-049 (ESM migration) moved this file off CommonJS, so the bare `require` the two doc
+// comments below still describe no longer exists as a global; both `require` calls now resolve
+// through `createRequire(import.meta.url)`, which preserves the exact same synchronous-resolution
+// behavior their cycle-breaks depend on. See `server/app.ts`'s matching `runExportSiteLazily`
+// doc for the same substitution.
+const require = createRequire(import.meta.url);
+
 /**
  * `exportSite`, resolved at CALL time rather than at import time — the same fix, for the same
  * cycle, as `server/app.ts`'s `runExportSiteLazily`. See that function's doc comment for the full
@@ -962,22 +970,23 @@ export function createSqliteRouteDepsForWorkspace(
  */
 const runExportSiteLazily: ExportEngine<RouteDeps> = (options) =>
   // eslint-disable-next-line @typescript-eslint/no-require-imports -- deliberate; see doc above.
-  (require("../export/index") as typeof import("../export/index")).exportSite(options);
+  (require("../export/index.js") as typeof import("../export/index.js")).exportSite(options);
 
 /**
  * `createApp`, resolved at CALL time rather than at import time — see `routes/types.ts`'s
  * `createSiteApp` doc for why this field exists at all (closing the `export -> server` cycle).
  *
- * Lazy, not a static `import { createApp } from "./app"`, even though nothing about `createApp`
+ * Lazy, not a static `import { createApp } from "./app.js"`, even though nothing about `createApp`
  * itself is slow to resolve: `server/app.ts` already imports `builtInThemesDir` FROM this file, so a
  * static import here would make that existing one-directional edge mutual, and `server/app.ts`'s own
  * module body ends with an eager `export const app = createApp();` that runs the whole app-boot
  * graph (transitively reaching `assistant/tool-registrations.ts` via the BYOK execution mode) as a
  * side effect of merely loading that file — the exact hazard `runExportSiteLazily` above already
- * documents for the same file pair. `require`, not `await import`: this package is CommonJS, and by
- * the time any caller invokes this (only ever from inside `createSiteApp`'s function body below,
- * never at this module's own top level), `server/app.ts` is fully loaded.
+ * documents for the same file pair. `require`, not `await import`: a synchronous resolution avoids
+ * making this call site (and its `ExportEngine`/`createSiteApp` signatures) async, and by the time
+ * any caller invokes this (only ever from inside `createSiteApp`'s function body below, never at
+ * this module's own top level), `server/app.ts` is fully loaded.
  */
 const createSiteAppLazily = (routeDeps: RouteDeps): Express =>
   // eslint-disable-next-line @typescript-eslint/no-require-imports -- deliberate; see doc above.
-  (require("./app") as typeof import("./app")).createApp(routeDeps);
+  (require("./app.js") as typeof import("./app.js")).createApp(routeDeps);

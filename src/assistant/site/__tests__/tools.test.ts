@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { createSiteAssistantTools, type SiteAssistantToolDeps } from "../tools";
-import { listPublishedPosts } from "../../../features/post";
+import { createSiteAssistantTools, type SiteAssistantToolDeps } from "../tools.js";
+import { listPublishedPosts } from "../../../features/post/index.js";
 
 /**
  * The property under test is a security one: this surface is reachable by anonymous internet

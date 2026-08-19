@@ -5,11 +5,11 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { loadPlugin } from "../../loader";
-import type { CapabilityScopedSdkCoreDeps } from "../../capability-sdk";
-import type { PluginDiscoveryRecord } from "../../discovery";
-import type { PluginManifest } from "../../manifest";
-import type { PluginSdk } from "../../../../../packages/sdk/src/index";
+import { loadPlugin } from "../../loader.js";
+import type { CapabilityScopedSdkCoreDeps } from "../../capability-sdk.js";
+import type { PluginDiscoveryRecord } from "../../discovery.js";
+import type { PluginManifest } from "../../manifest.js";
+import type { PluginSdk } from "../../../../../packages/sdk/src/index.js";
 
 /**
  * @file C-008 `loadPlugin()` — SPEC-005 REQ-03, AC-03/AC-04, INV-04. **CIC U-001 (Binding,

@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import type { NavMenuEntry, NavMenuReadModel } from "#src/navigation/index";
-import { createMenuResolver } from "../../resolvers";
-import type { WidgetInstanceView, WidgetResolveContext } from "../../types";
+import { createMenuResolver } from "../../resolvers/index.js";
+import type { WidgetInstanceView, WidgetResolveContext } from "../../types.js";
 
 /**
  * @file `menu` widget resolver href resolution (SPEC-043 REQ-09) — real hrefs for `url`-kind nav

@@ -23,8 +23,8 @@ import test from "node:test";
 
 import Database from "better-sqlite3";
 
-import { declareDataModule, type DataModuleDecl } from "../../features/plugins/data-module";
-import { NEWSLETTER_DATA_MODULE, NEWSLETTER_TABLE_NAMES } from "../data-module-manifest";
+import { declareDataModule, type DataModuleDecl } from "../../features/plugins/data-module.js";
+import { NEWSLETTER_DATA_MODULE, NEWSLETTER_TABLE_NAMES } from "../data-module-manifest.js";
 
 function openWithCore(): { db: Database.Database; dbPath: string; dir: string } {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-newsletter-dm-"));

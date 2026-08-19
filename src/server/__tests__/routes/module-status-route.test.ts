@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createApp, createRouteDeps } from "../../app";
-import { bootAuthenticated } from "../helpers/http-test-server";
-import { setReadinessSnapshot } from "../../readiness-state";
-import type { RouteDeps } from "../../routes/types";
-import type { BootResult } from "../../boot-lifecycle";
+import { createApp, createRouteDeps } from "../../app.js";
+import { bootAuthenticated } from "../helpers/http-test-server.js";
+import { setReadinessSnapshot } from "../../readiness-state.js";
+import type { RouteDeps } from "../../routes/types.js";
+import type { BootResult } from "../../boot-lifecycle.js";
 
 /**
  * @file SPEC-030 (ADR-046 Phase 2 REQ-10) — `GET /api/admin/v1/workspaces/:workspaceId/system/module-status`.

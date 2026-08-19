@@ -3,20 +3,20 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { InMemoryTokenStore } from "../../core/gated-mutations/token";
-import { createPost, InMemoryPostRepo } from "../../features/post";
-import { taxonomyAgentToolCatalog, type AgentToolDefinition as TaxonomyAgentToolDefinition } from "../../features/taxonomy/agent-tools";
+import { InMemoryTokenStore } from "../../core/gated-mutations/token.js";
+import { createPost, InMemoryPostRepo } from "../../features/post/index.js";
+import { taxonomyAgentToolCatalog, type AgentToolDefinition as TaxonomyAgentToolDefinition } from "../../features/taxonomy/agent-tools.js";
 import {
   InMemoryEntryTermRepo,
   InMemoryTaxonomyRepo,
   InMemoryTaxonomyRevisionRepo,
   InMemoryTermRepo,
   noopStampWatermark,
-} from "../../features/taxonomy";
-import type { RouteDeps } from "../../server/routes/types";
-import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations";
-import { resetToolContributorsForTests } from "../tool-contribution-registry";
-import { contributeTaxonomyTools } from "../../features/taxonomy/tool-registrations";
+} from "../../features/taxonomy/index.js";
+import type { RouteDeps } from "../../server/routes/types.js";
+import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations/index.js";
+import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
+import { contributeTaxonomyTools } from "../../features/taxonomy/tool-registrations.js";
 
 /**
  * @file The Taxonomy (Categories & Tags) tool-wiring test file — mirrors

@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { AesGcmSecretSealer } from "../../../webhooks/secret-sealer.aesgcm";
-import { InMemoryKeyring } from "../../../webhooks/keyring.memory";
-import { InMemorySourceControlCredentialSetRepo } from "../repo.memory";
+import { AesGcmSecretSealer } from "../../../webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../../webhooks/keyring.memory.js";
+import { InMemorySourceControlCredentialSetRepo } from "../repo.memory.js";
 import {
   createSourceControlCredential,
   deleteSourceControlCredential,
@@ -14,7 +14,7 @@ import {
   SourceControlCredentialValidationError,
   updateSourceControlCredential,
   type SourceControlCredentialWriteDeps,
-} from "../store";
+} from "../store.js";
 
 /**
  * @file `store.ts` — mirrors `publish-credentials/__tests__/store.unit.test.ts`'s coverage shape:

@@ -1,20 +1,20 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { bootAuthenticated } from "../helpers/http-test-server";
+import { bootAuthenticated } from "../helpers/http-test-server.js";
 
 import express from "express";
 
-import { createRouteDeps } from "../../app";
-import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth";
-import { registerAdminRedirectCreateRoute } from "../../routes/admin/redirects/create";
-import { registerAdminRedirectGetRoute } from "../../routes/admin/redirects/get-by-id";
-import { registerAdminRedirectHitsRoute } from "../../routes/admin/redirects/hits";
-import { registerAdminRedirectImportRoute } from "../../routes/admin/redirects/import";
-import { registerAdminRedirectListRoute } from "../../routes/admin/redirects/list";
-import { registerAdminRedirectTombstoneRoute } from "../../routes/admin/redirects/tombstone";
-import { registerAdminRedirectUpdateRoute } from "../../routes/admin/redirects/update";
-import type { RouteDeps } from "../../routes/types";
+import { createRouteDeps } from "../../app.js";
+import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth.js";
+import { registerAdminRedirectCreateRoute } from "../../routes/admin/redirects/create.js";
+import { registerAdminRedirectGetRoute } from "../../routes/admin/redirects/get-by-id.js";
+import { registerAdminRedirectHitsRoute } from "../../routes/admin/redirects/hits.js";
+import { registerAdminRedirectImportRoute } from "../../routes/admin/redirects/import.js";
+import { registerAdminRedirectListRoute } from "../../routes/admin/redirects/list.js";
+import { registerAdminRedirectTombstoneRoute } from "../../routes/admin/redirects/tombstone.js";
+import { registerAdminRedirectUpdateRoute } from "../../routes/admin/redirects/update.js";
+import type { RouteDeps } from "../../routes/types.js";
 
 /**
  * @file T025 (REQ-12) — each of the 7 admin `redirects` endpoints, without

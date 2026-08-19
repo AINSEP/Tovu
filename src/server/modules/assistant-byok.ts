@@ -58,11 +58,11 @@ import {
   type RequestSuppliedByokConfig,
   createByokToolSurface,
   type ByokToolSurface,
-} from "../../assistant";
-import { getAuthedPrincipal, requireAdminSession } from "../middleware/dev-auth";
-import type { RouteDeps } from "../routes/types";
-import { installFirstPartyToolContributors } from "../tool-catalog-manifest";
-import type { ServerModuleHandle } from "./types";
+} from "../../assistant/index.js";
+import { getAuthedPrincipal, requireAdminSession } from "../middleware/dev-auth.js";
+import type { RouteDeps } from "../routes/types.js";
+import { installFirstPartyToolContributors } from "../tool-catalog-manifest.js";
+import type { ServerModuleHandle } from "./types.js";
 
 export const BYOK_TURN_PATH = "/api/admin/v1/assistant/byok-turn";
 

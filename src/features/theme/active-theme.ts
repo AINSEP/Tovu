@@ -1,4 +1,4 @@
-import { findTheme, type DiscoveredTheme } from "./theme";
+import { findTheme, type DiscoveredTheme } from "./theme.js";
 
 /**
  * @file "Given a list of discovered themes and a candidate active id, which theme actually

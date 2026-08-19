@@ -4,8 +4,8 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { discoverPlugins } from "../../discovery";
-import { buildAc11FixtureInstallDir, WORD_COUNT_BUILT_IN } from "../fixtures/ac11-fixture";
+import { discoverPlugins } from "../../discovery.js";
+import { buildAc11FixtureInstallDir, WORD_COUNT_BUILT_IN } from "../fixtures/ac11-fixture.js";
 
 /**
  * @file C-007 `discoverPlugins()` — SPEC-005 REQ-02/03, AC-09, AC-11, AC-16, EC-08/EC-09, TB-01,

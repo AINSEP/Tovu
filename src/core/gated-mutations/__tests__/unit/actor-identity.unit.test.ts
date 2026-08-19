@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { WorkspaceMismatchError, appendActorReference } from "../../actor-identity";
+import { WorkspaceMismatchError, appendActorReference } from "../../actor-identity.js";
 
 /**
  * @file SPEC-016 C-006 / REQ-16–REQ-18 / INV-06 / INV-07 — composite actor-identity population.

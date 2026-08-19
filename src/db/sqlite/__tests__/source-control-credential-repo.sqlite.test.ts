@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { eq } from "drizzle-orm";
 
-import { openContentDb } from "../content-db";
-import { SqliteSourceControlCredentialSetRepo } from "../source-control-credential-repo.sqlite";
-import { workspaces } from "../../schema";
-import type { SourceControlCredentialSetRecord } from "../../../features/source-control/types";
+import { openContentDb } from "../content-db.js";
+import { SqliteSourceControlCredentialSetRepo } from "../source-control-credential-repo.sqlite.js";
+import { workspaces } from "../../schema.js";
+import type { SourceControlCredentialSetRecord } from "../../../features/source-control/types.js";
 
 /**
  * @file `SqliteSourceControlCredentialSetRepo` against a real, migrated `content.db` (`:memory:`) —

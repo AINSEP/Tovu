@@ -8,10 +8,10 @@ import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@ji
 
 import { createRouteDeps } from "#src/server/app";
 import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "#src/core/tool-surface-exchanges";
-import type { GitHubCommitAdapter, GitHubCommitAdapterResult } from "../commit-site";
-import { createSourceControlCredential } from "../store";
+import type { GitHubCommitAdapter, GitHubCommitAdapterResult } from "../commit-site.js";
+import { createSourceControlCredential } from "../store.js";
 
-import { buildSourceControlRegistrations, sourceControlAgentToolCatalog, sourceControlDerivedRisk, type SourceControlToolDeps } from "../tool-registrations";
+import { buildSourceControlRegistrations, sourceControlAgentToolCatalog, sourceControlDerivedRisk, type SourceControlToolDeps } from "../tool-registrations.js";
 
 /**
  * @file `tool-registrations.ts` wiring proof — modelled on `deployments/__tests__/

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { planRestore } from "../../recovery-orchestrator";
+import { planRestore } from "../../recovery-orchestrator.js";
 
 /**
  * @file CIC U-003 (SPEC-019) — `planRestore`'s fresh `costClass` re-check before delegating to

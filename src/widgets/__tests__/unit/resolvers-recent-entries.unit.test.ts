@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryEntryRepo, type EntryListPort } from "#src/features/entries/index";
-import { createRecentEntriesResolver } from "../../resolvers";
-import type { WidgetInstanceView, WidgetResolveContext } from "../../types";
+import { createRecentEntriesResolver } from "../../resolvers/index.js";
+import type { WidgetInstanceView, WidgetResolveContext } from "../../types.js";
 
 /**
  * @file `recent-entries` resolver — SPEC-043 REQ-24/REQ-25's bounded-query contract. Confirms the

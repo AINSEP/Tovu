@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createRespawnPolicy } from "../daemon-respawn-policy";
+import { createRespawnPolicy } from "../daemon-respawn-policy.js";
 
 /**
  * @file Daemon-supervision respawn/backoff/crash-loop rules — see `daemon-respawn-policy.ts`'s own

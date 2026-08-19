@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { WIDGET_TYPE_REGISTRATIONS, getWidgetTypeRegistration } from "../../registry";
+import { WIDGET_TYPE_REGISTRATIONS, getWidgetTypeRegistration } from "../../registry.js";
 
 /**
  * @file C-002 the v1 widget-type registry — SPEC-043 REQ-07/08/09/10.

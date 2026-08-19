@@ -1,12 +1,12 @@
-import { registerAdminTaxonomyAssignTermsRoute } from "../routes/admin/taxonomy/assign-terms";
-import { registerAdminTaxonomyCreateRoute } from "../routes/admin/taxonomy/create-taxonomy";
-import { registerAdminTaxonomyCreateTermRoute } from "../routes/admin/taxonomy/create-term";
-import { registerAdminTaxonomyDeleteRoute } from "../routes/admin/taxonomy/delete-taxonomy";
-import { registerAdminTaxonomyDeleteTermRoute } from "../routes/admin/taxonomy/delete-term";
-import type { TaxonomyRouteDeps } from "../routes/admin/taxonomy/deps";
-import { registerAdminTaxonomyListRoute } from "../routes/admin/taxonomy/list";
-import { registerAdminTaxonomyRenameTermRoute } from "../routes/admin/taxonomy/rename-term";
-import type { ServerModuleHandle } from "./types";
+import { registerAdminTaxonomyAssignTermsRoute } from "../routes/admin/taxonomy/assign-terms.js";
+import { registerAdminTaxonomyCreateRoute } from "../routes/admin/taxonomy/create-taxonomy.js";
+import { registerAdminTaxonomyCreateTermRoute } from "../routes/admin/taxonomy/create-term.js";
+import { registerAdminTaxonomyDeleteRoute } from "../routes/admin/taxonomy/delete-taxonomy.js";
+import { registerAdminTaxonomyDeleteTermRoute } from "../routes/admin/taxonomy/delete-term.js";
+import type { TaxonomyRouteDeps } from "../routes/admin/taxonomy/deps.js";
+import { registerAdminTaxonomyListRoute } from "../routes/admin/taxonomy/list.js";
+import { registerAdminTaxonomyRenameTermRoute } from "../routes/admin/taxonomy/rename-term.js";
+import type { ServerModuleHandle } from "./types.js";
 
 /**
  * @file ADR-046 Phase 3 (SPEC-034) — the `taxonomy` server module (ADR-044 Categories & Tags).

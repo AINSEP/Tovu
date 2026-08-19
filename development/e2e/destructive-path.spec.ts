@@ -1,6 +1,6 @@
 import { test, expect, type Page, type APIResponse } from "@playwright/test";
-import { DEFAULT_ADMIN_USERNAME, DEFAULT_ADMIN_PASSWORD, loginAsAdmin } from "./auth-fixtures";
-import { waitForAgentDaemon } from "./daemon-ready";
+import { DEFAULT_ADMIN_USERNAME, DEFAULT_ADMIN_PASSWORD, loginAsAdmin } from "./auth-fixtures.js";
+import { waitForAgentDaemon } from "./daemon-ready.js";
 
 /**
  * @file MANDATE 2 — reproduces the false-transcript delete bug (ADR-055 Decision 2) end to end

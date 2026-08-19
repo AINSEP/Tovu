@@ -2,7 +2,7 @@ import * as http from "node:http";
 import type { AddressInfo } from "node:net";
 import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
 
-import { byokModelPicker, openByokModelMenu, readByokModelOptions, setByokModel } from "./byok-model-field";
+import { byokModelPicker, openByokModelMenu, readByokModelOptions, setByokModel } from "./byok-model-field.js";
 
 /**
  * @file BYOK hostile-provider adversarial battery (2026-08-04 dispatch, item #7).

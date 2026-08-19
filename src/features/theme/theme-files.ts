@@ -13,7 +13,7 @@ import {
 } from "node:fs";
 import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 
-import { ENGINE_SUBFOLDERS, THEME_CATALOG_DIR, type ThemeManifest } from "./theme";
+import { ENGINE_SUBFOLDERS, THEME_CATALOG_DIR, type ThemeManifest } from "./theme.js";
 
 /**
  * @file Path containment and file I/O for the `themes` agent-tool domain
@@ -101,9 +101,21 @@ const MAX_WALK_DEPTH = 12;
 export const GENERATED_THEME_DIRS: readonly string[] = ["preview"];
 
 /**
+ * Generated ROOT FILES (as opposed to {@link GENERATED_THEME_DIRS}' whole directories) — same
+ * "regenerate the whole thing, never patch it" contract as `preview/`, just a single file instead of a
+ * tree. `index.html` (Milestone 5, 2026-08-18) is `static-portability-index.ts`'s own output: a
+ * `static`-tier theme's generated portability snapshot, rebuilt from `render/pages/index.html` +
+ * `render/partials/*` + `tokens*.json` every time it regenerates, never hand-edited in place — editing
+ * it directly is exactly as pointless as editing `preview/`'s output, for the same reason (the next
+ * regeneration silently overwrites it).
+ */
+export const GENERATED_THEME_ROOT_FILES: readonly string[] = ["index.html"];
+
+/**
  * Whether a theme-relative path is inside one of {@link GENERATED_THEME_DIRS} — the bare directory
  * itself (`"preview"`, the shape `cpSync`'s filter callback sees for the directory entry before
- * recursing) or anything under it (`"preview/dark/index.html"`).
+ * recursing) or anything under it (`"preview/dark/index.html"`) — or is itself one of
+ * {@link GENERATED_THEME_ROOT_FILES} exactly.
  *
  * Deliberately NOT a prefix match on the raw string (`startsWith("preview")`): that would also exclude
  * a merely similarly-named sibling like `preview-notes/`, which is a real author asset with nothing to
@@ -124,17 +136,18 @@ export const GENERATED_THEME_DIRS: readonly string[] = ["preview"];
  * @param relativePath - A path relative to the theme's own root. Backslash-separated input (a raw
  * `path.relative` result on Windows) is normalized to `/` first, so callers on either platform can pass
  * their native separator through unchanged.
- * @returns `true` iff `relativePath`, once normalized, is `GENERATED_THEME_DIRS[i]` itself or under it.
+ * @returns `true` iff `relativePath`, once normalized, exactly matches a {@link GENERATED_THEME_ROOT_FILES}
+ * entry, or is a {@link GENERATED_THEME_DIRS} entry itself or under it.
  * @throws Never. Pure: no filesystem access, no side effects.
- * @complexity Time: O(d·k), d = `GENERATED_THEME_DIRS.length` (a fixed, tiny constant), k = path length.
+ * @complexity Time: O((d+r)·k), d = `GENERATED_THEME_DIRS.length`, r = `GENERATED_THEME_ROOT_FILES.length`
+ * (both fixed, tiny constants), k = path length.
  * @complexity Space: O(k) for the normalized copy.
  * @overallScore 100/100
  */
 export function isGeneratedThemePath(relativePath: string): boolean {
-  return GENERATED_THEME_DIRS.some((dir) => {
-    const normalized = normalizeThemeRelativePath(relativePath);
-    return normalized === dir || normalized.startsWith(`${dir}/`);
-  });
+  const normalized = normalizeThemeRelativePath(relativePath);
+  if (GENERATED_THEME_ROOT_FILES.includes(normalized)) return true;
+  return GENERATED_THEME_DIRS.some((dir) => normalized === dir || normalized.startsWith(`${dir}/`));
 }
 
 /**

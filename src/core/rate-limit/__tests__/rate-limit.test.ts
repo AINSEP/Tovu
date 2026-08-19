@@ -10,7 +10,7 @@ import {
   resolveClientIp,
   SITE_ASSISTANT_PER_IP,
   type RateLimitProfile,
-} from "../rate-limit";
+} from "../rate-limit.js";
 
 /**
  * @file Unit coverage for the REQ-14/AC-18 `LOGIN_STRICT` rate-limit

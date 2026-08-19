@@ -11,10 +11,10 @@ import {
   THEME_CATALOG_DIR,
   type DiscoveredTheme,
   type ThemeTier,
-} from "./theme";
-import { isGeneratedThemePath } from "./theme-files";
-import { writeThemeLineageFile, type ThemeLineage } from "./theme-lineage";
-import { validateThemePackage } from "./validation/validate-theme-package";
+} from "./theme.js";
+import { isGeneratedThemePath } from "./theme-files.js";
+import { writeThemeLineageFile, type ThemeLineage } from "./theme-lineage.js";
+import { validateThemePackage } from "./validation/validate-theme-package.js";
 
 /**
  * @file The local theme marketplace — a FAKE marketplace (no network, no remote catalog, no search,

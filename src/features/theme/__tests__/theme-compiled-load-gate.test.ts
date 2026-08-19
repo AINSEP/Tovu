@@ -5,7 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { loadTheme } from "../theme";
+import { loadTheme } from "../theme.js";
 
 /**
  * @file ADR-020 §5 (2026-08-12) — the install-time gate `loadTheme()` runs for a `build.source:

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { ValidationError, describeTables, readRows } from "../../tier3-browser";
+import { ValidationError, describeTables, readRows } from "../../tier3-browser.js";
 
 /**
  * @file SPEC-017 C-109 / INV-07 / REQ-25 / REQ-26 / AC-31–AC-35 — the Tier-3 read-only browser's

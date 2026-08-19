@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { listServerTestFiles } from "../list-server-test-files";
-import { isIntegrationTestFile } from "../route-coverage-lib";
+import { listServerTestFiles } from "../list-server-test-files.js";
+import { isIntegrationTestFile } from "../route-coverage-lib.js";
 
 /**
  * @file Sanity coverage for `listServerTestFiles` — the shared enumeration behind

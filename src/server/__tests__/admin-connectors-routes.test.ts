@@ -3,15 +3,15 @@ import test from "node:test";
 
 import express from "express";
 
-import type { KeyringPort } from "../../webhooks/index";
-import { startFakeComposio } from "../../../development/e2e/fake-composio-server";
-import { composioUserIdFor, createComposioConnectors } from "../../connectors/composio-service";
-import { InMemoryConnectorCredentialRepo } from "../../connectors/connector-credential-store.memory";
-import { createRouteDeps } from "../app";
-import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth";
-import { createConnectorsModule } from "../modules/connectors";
-import type { RouteDeps } from "../routes/types";
-import { bootAuthenticated, startTestServer } from "./helpers/http-test-server";
+import type { KeyringPort } from "../../webhooks/index.js";
+import { startFakeComposio } from "../../../development/e2e/fake-composio-server.js";
+import { composioUserIdFor, createComposioConnectors } from "../../connectors/composio-service.js";
+import { InMemoryConnectorCredentialRepo } from "../../connectors/connector-credential-store.memory.js";
+import { createRouteDeps } from "../app.js";
+import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth.js";
+import { createConnectorsModule } from "../modules/connectors.js";
+import type { RouteDeps } from "../routes/types.js";
+import { bootAuthenticated, startTestServer } from "./helpers/http-test-server.js";
 
 /**
  * @file Route-level tests for the 5 Composio connector routes — real Express app, real session

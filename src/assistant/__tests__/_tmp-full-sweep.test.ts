@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createRouteDeps } from "../../server/app";
-import { createByokToolSurface } from "../byok-tool-surface";
-import { sanitizeGoogleSchema } from "../byok-provider-turn";
-import { resetToolContributorsForTests } from "../tool-contribution-registry";
-import { installFirstPartyToolContributors } from "../../server/tool-catalog-manifest";
+import { createRouteDeps } from "../../server/app.js";
+import { createByokToolSurface } from "../byok-tool-surface.js";
+import { sanitizeGoogleSchema } from "../byok-provider-turn.js";
+import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
+import { installFirstPartyToolContributors } from "../../server/tool-catalog-manifest.js";
 
 // This file's whole point is "the FULL wired-tool catalog" — install the registry-contributed
 // domains (comments/newsletter, 2026-08-17) or "full" silently means ~21 tools short.

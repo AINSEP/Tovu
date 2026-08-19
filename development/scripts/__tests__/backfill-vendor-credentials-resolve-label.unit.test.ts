@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { resolveLabel, type GroupState } from "../backfill-vendor-credentials-helpers";
+import { resolveLabel, type GroupState } from "../backfill-vendor-credentials-helpers.js";
 
 /**
  * @file Direct coverage for `resolveLabel`'s three disambiguation tiers. The end-to-end subprocess

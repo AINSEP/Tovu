@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "../../origin";
-import { redirectMatcher } from "../matcher";
-import { RedirectPhaseHandlerResolver } from "../phase-handler";
-import { InMemoryRedirectRepo } from "../repo.memory";
-import type { RedirectRecord } from "../types";
+import { createVerifiedOrigin, InMemoryOriginSettingRepo, OriginRegistry } from "../../origin/index.js";
+import { redirectMatcher } from "../matcher.js";
+import { RedirectPhaseHandlerResolver } from "../phase-handler.js";
+import { InMemoryRedirectRepo } from "../repo.memory.js";
+import type { RedirectRecord } from "../types.js";
 
 /**
  * @file T006 (INV-03, AC-12/13/14, REQ-09/10) — DEDICATED, highest-aggregate-

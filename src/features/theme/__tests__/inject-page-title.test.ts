@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { injectPageTitle } from "../static-render";
+import { injectPageTitle } from "../static-render.js";
 
 /**
  * @file Certifies {@link injectPageTitle}, substituting a template's `<title>` placeholder with the

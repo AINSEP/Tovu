@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { resolveDegradedBanner } from "../../ui/degraded-banners";
+import { resolveDegradedBanner } from "../../ui/degraded-banners.js";
 
 /**
  * @file behavior.spec.md §1.1 (SPEC-019) — degraded-state banner precedence resolver (C-308).

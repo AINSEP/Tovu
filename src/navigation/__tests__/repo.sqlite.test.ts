@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { openContentDb } from "../../db/sqlite/content-db";
+import { openContentDb } from "../../db/sqlite/content-db.js";
 import {
   InMemoryMenuRepo,
   InMemoryNavLocationBindingRepo,
@@ -10,7 +10,7 @@ import {
   type NavMenuDoc,
   type NavMenuEntry,
 } from "@jini-ai/cms/navigation";
-import { SqliteMenuRepo, SqliteNavLocationBindingRepo } from "../repo.sqlite";
+import { SqliteMenuRepo, SqliteNavLocationBindingRepo } from "../repo.sqlite.js";
 
 /**
  * @file Shared contract-test suites for `MenuRepoPort` and

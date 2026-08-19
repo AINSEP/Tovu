@@ -9,8 +9,8 @@ import type { NextFunction, Request, Response } from "express";
 
 import { discoverAllBuiltInThemes } from "#src/features/theme/index";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminThemeDetailRoute } from "../explore";
-import type { ContentRouteDeps } from "../../content/deps";
+import { registerAdminThemeDetailRoute } from "../explore.js";
+import type { ContentRouteDeps } from "../../content/deps.js";
 
 /**
  * @file Two `fileGroup`/`isTextReadable`/`isAssetExtension`/`fileExtension` shapes no other test in

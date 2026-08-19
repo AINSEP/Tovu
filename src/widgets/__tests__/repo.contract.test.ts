@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { openContentDb } from "../../db/sqlite/content-db";
-import { InMemoryWidgetRegionBindingRepo } from "../repo.memory";
-import { SqliteWidgetRegionBindingRepo } from "../repo.sqlite";
-import type { WidgetRegionBindingRepoPort } from "../ports";
+import { openContentDb } from "../../db/sqlite/content-db.js";
+import { InMemoryWidgetRegionBindingRepo } from "../repo.memory.js";
+import { SqliteWidgetRegionBindingRepo } from "../repo.sqlite.js";
+import type { WidgetRegionBindingRepoPort } from "../ports.js";
 
 /**
  * @file Shared contract-test suite for `WidgetRegionBindingRepoPort`, run against both

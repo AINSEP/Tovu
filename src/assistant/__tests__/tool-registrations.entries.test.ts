@@ -3,14 +3,14 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "../../features/content-types";
-import { registerContentType } from "../../features/content-types";
-import { entriesAgentToolCatalog, type AgentToolDefinition as EntriesAgentToolDefinition } from "../../features/entries";
-import { InMemoryEntryRepo } from "../../features/entries";
-import type { RouteDeps } from "../../server/routes/types";
-import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations";
-import { resetToolContributorsForTests } from "../tool-contribution-registry";
-import { contributeEntriesTools } from "../../features/entries/tool-registrations";
+import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "../../features/content-types/index.js";
+import { registerContentType } from "../../features/content-types/index.js";
+import { entriesAgentToolCatalog, type AgentToolDefinition as EntriesAgentToolDefinition } from "../../features/entries/index.js";
+import { InMemoryEntryRepo } from "../../features/entries/index.js";
+import type { RouteDeps } from "../../server/routes/types.js";
+import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations/index.js";
+import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
+import { contributeEntriesTools } from "../../features/entries/tool-registrations.js";
 
 // Entries moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
 // tool-contribution registry (2026-08-17, Stage 2 batch 2 — see `tool-contribution-registry.ts`'s

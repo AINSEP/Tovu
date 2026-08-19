@@ -9,9 +9,9 @@ import assert from "node:assert/strict";
 import { createHmac } from "node:crypto";
 import test from "node:test";
 
-import { InMemoryPaymentCredentials } from "../credentials";
-import { signLipayWebhook } from "../providers/lipay-gateway";
-import { chargeOk, cleanup, makeLipay, WEBHOOK_SECRET, WORKSPACE_ID, type Harness } from "./support";
+import { InMemoryPaymentCredentials } from "../credentials.js";
+import { signLipayWebhook } from "../providers/lipay-gateway.js";
+import { chargeOk, cleanup, makeLipay, WEBHOOK_SECRET, WORKSPACE_ID, type Harness } from "./support.js";
 
 const USD = (minorUnits: number) => ({ minorUnits, currency: "USD" });
 

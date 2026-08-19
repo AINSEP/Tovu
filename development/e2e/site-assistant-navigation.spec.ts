@@ -8,7 +8,7 @@ import {
   openSitePage,
   readPersistedState,
   sendVisitorMessage,
-} from "./site-assistant-fixtures";
+} from "./site-assistant-fixtures.js";
 
 /**
  * @file SPEC-046 AC1 + D-1 + the infinite-navigation-loop regression, against the REAL built

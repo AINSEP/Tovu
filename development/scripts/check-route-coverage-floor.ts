@@ -21,7 +21,7 @@
  * Exit codes: 0 = at/above floor on all three axes. 1 = below floor on at least one, or lcov.info
  * is missing/unreadable.
  */
-import { loadRouteCoverage, pct } from "./route-coverage-lib";
+import { loadRouteCoverage, pct } from "./route-coverage-lib.js";
 
 const FLOOR = { line: 88, branch: 68, funcs: 93 };
 

@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "Tovu — the website product: CMS runtime (public site + per-site admin + content model).",
-  "type": "commonjs",
+  "type": "module",
   "workspaces": [
     "packages/*"
   ],

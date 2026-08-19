@@ -1,5 +1,5 @@
 import type { UUID } from "@jini-ai/cms/core";
-import { type SettingsRepoPort } from "../features/settings.js";
+import { type SettingsRepoPort } from "../features/settings/index.js";
 
 /**
  * @file The read half of the admin Instructions tab's system-prompt seam: turns the stored

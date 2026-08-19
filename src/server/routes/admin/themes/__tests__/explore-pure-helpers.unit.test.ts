@@ -8,8 +8,8 @@ import {
   nextAvailableFileName,
   reloadTheme,
   renameThemeFileIfChanged,
-} from "../explore";
-import type { ContentRouteDeps } from "../../content/deps";
+} from "../explore.js";
+import type { ContentRouteDeps } from "../../content/deps.js";
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import { createCapturingResponse } from "#src/server/__tests__/helpers/http-test-server";
 

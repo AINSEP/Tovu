@@ -106,7 +106,7 @@
 import { lstatSync, mkdirSync, readdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
-import { TOKEN_STYLESHEET_SENTINEL } from "./static-asset-contract";
+import { TOKEN_STYLESHEET_SENTINEL } from "./static-asset-contract.js";
 
 /** Framework-emitted output files this module deletes outright rather than relocating or leaving in
  * place — see this module's file header ("Resolved risks") for why each entry is here. A file only

@@ -5,12 +5,12 @@ import express from "express";
 
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import { createMenu } from "#src/navigation/index";
-import { createRouteDeps } from "../../app";
-import { createWidgetsModule } from "../../modules/widgets";
-import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth";
-import { registerSiteRoutes } from "../../routes/site/pages";
-import type { RouteDeps } from "../../routes/types";
-import { bootAuthenticated } from "../helpers/http-test-server";
+import { createRouteDeps } from "../../app.js";
+import { createWidgetsModule } from "../../modules/widgets.js";
+import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth.js";
+import { registerSiteRoutes } from "../../routes/site/pages.js";
+import type { RouteDeps } from "../../routes/types.js";
+import { bootAuthenticated } from "../helpers/http-test-server.js";
 
 /**
  * @file Fable adversarial-review fix (2026-07-21, Finding A): no test anywhere exercised a dynamic,

@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { HOOK_CONTENT_ENTRY_BEFORE_SAVE } from "../../../../../packages/sdk/src/index";
-import { buildCapabilityScopedSdk, CapabilityDeniedError, type CapabilityScopedSdkCoreDeps } from "../../capability-sdk";
-import type { PluginCapability } from "../../manifest";
+import { HOOK_CONTENT_ENTRY_BEFORE_SAVE } from "../../../../../packages/sdk/src/index.js";
+import { buildCapabilityScopedSdk, CapabilityDeniedError, type CapabilityScopedSdkCoreDeps } from "../../capability-sdk.js";
+import type { PluginCapability } from "../../manifest.js";
 
 /**
  * @file C-009 `buildCapabilityScopedSdk()` — SPEC-005 REQ-04, AC-05, EC-06, INV-02, BR-04-cap.

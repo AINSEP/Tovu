@@ -11,7 +11,7 @@ import {
   type CommandMutation,
   type DomainEvent,
 } from "@jini-ai/cms/core";
-import { InMemoryChangeSetRepo } from "../repo.memory";
+import { InMemoryChangeSetRepo } from "../repo.memory.js";
 
 /**
  * @file SPEC-001 REQ-01 / BR-04 / EC-08 / AC-17 — gateway atomicity.

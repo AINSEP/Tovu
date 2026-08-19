@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildVendorCredentialAad } from "../aad";
+import { buildVendorCredentialAad } from "../aad.js";
 
 /** @file `buildVendorCredentialAad` — the ONE format this table's rows are ever sealed/opened
  *  under, so this test locks the format's determinism and its sensitivity to each of its three

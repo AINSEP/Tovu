@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { createApp } from "../../app";
+import { createApp } from "../../app.js";
 
 /**
  * @file ADR-046 Phase 3 (SPEC-034) — structural route-class precedence check.

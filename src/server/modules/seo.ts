@@ -1,13 +1,13 @@
-import { registerAdminSeoGetEntryRoute } from "../routes/admin/seo/get-entry";
-import { registerAdminSeoPutEntryRoute } from "../routes/admin/seo/put-entry";
-import { registerAdminSeoGetEntryAnalyzeRoute } from "../routes/admin/seo/get-entry-analyze";
-import { registerAdminSeoGetSettingsRoute } from "../routes/admin/seo/get-settings";
-import { registerAdminSeoPutSettingsRoute } from "../routes/admin/seo/put-settings";
-import { registerAdminSeoPostSitemapRegenerateRoute } from "../routes/admin/seo/post-sitemap-regenerate";
-import { registerSeoSitemapRoute } from "../routes/site/sitemap";
-import { registerSeoRobotsRoute } from "../routes/site/robots";
-import type { SeoRouteDeps } from "../routes/admin/seo/deps";
-import type { ServerModuleHandle } from "./types";
+import { registerAdminSeoGetEntryRoute } from "../routes/admin/seo/get-entry.js";
+import { registerAdminSeoPutEntryRoute } from "../routes/admin/seo/put-entry.js";
+import { registerAdminSeoGetEntryAnalyzeRoute } from "../routes/admin/seo/get-entry-analyze.js";
+import { registerAdminSeoGetSettingsRoute } from "../routes/admin/seo/get-settings.js";
+import { registerAdminSeoPutSettingsRoute } from "../routes/admin/seo/put-settings.js";
+import { registerAdminSeoPostSitemapRegenerateRoute } from "../routes/admin/seo/post-sitemap-regenerate.js";
+import { registerSeoSitemapRoute } from "../routes/site/sitemap.js";
+import { registerSeoRobotsRoute } from "../routes/site/robots.js";
+import type { SeoRouteDeps } from "../routes/admin/seo/deps.js";
+import type { ServerModuleHandle } from "./types.js";
 
 /**
  * @file ADR-046 Phase 3 (SPEC-042, final slice) — the `seo` server module (SPEC-008 SEO).

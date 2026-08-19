@@ -9,8 +9,8 @@ import type { DeployFile, DeployPublishInput, DeployPublishResult, DeployTarget 
 import { createRouteDeps } from "#src/server/app";
 import type { RouteDeps } from "#src/server/routes/types";
 
-import { publishStaticSite, toDeployFile, computeBasePath, validateStaticPublishConfig, buildS3CompatibleTargetConfig } from "../adapter";
-import type { PublishCredentialSource, StaticPublishConfig } from "../types";
+import { publishStaticSite, toDeployFile, computeBasePath, validateStaticPublishConfig, buildS3CompatibleTargetConfig } from "../adapter.js";
+import type { PublishCredentialSource, StaticPublishConfig } from "../types.js";
 
 /**
  * @file `static-publish/adapter.ts` unit tests — the brief's three required coverage points:

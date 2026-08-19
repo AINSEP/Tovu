@@ -1,20 +1,20 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { bootAuthenticated } from "./helpers/http-test-server";
+import { bootAuthenticated } from "./helpers/http-test-server.js";
 
 import express from "express";
 
-import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo } from "../../navigation";
-import type { MenuRouteDeps } from "../http/admin/menus";
-import { createRouteDeps } from "../app";
-import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth";
-import { registerAdminMenuAssignLocationRoute } from "../routes/admin/menus/assign-location";
-import { registerAdminMenuCreateRoute } from "../routes/admin/menus/create";
-import { registerAdminMenuDeleteRoute } from "../routes/admin/menus/delete";
-import { registerAdminMenuGetRoute } from "../routes/admin/menus/get-by-id";
-import { registerAdminMenuListRoute } from "../routes/admin/menus/list";
-import { registerAdminMenuUpdateTreeRoute } from "../routes/admin/menus/update-tree";
+import { InMemoryMenuRepo, InMemoryNavLocationBindingRepo } from "../../navigation/index.js";
+import type { MenuRouteDeps } from "../http/admin/menus.js";
+import { createRouteDeps } from "../app.js";
+import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth.js";
+import { registerAdminMenuAssignLocationRoute } from "../routes/admin/menus/assign-location.js";
+import { registerAdminMenuCreateRoute } from "../routes/admin/menus/create.js";
+import { registerAdminMenuDeleteRoute } from "../routes/admin/menus/delete.js";
+import { registerAdminMenuGetRoute } from "../routes/admin/menus/get-by-id.js";
+import { registerAdminMenuListRoute } from "../routes/admin/menus/list.js";
+import { registerAdminMenuUpdateTreeRoute } from "../routes/admin/menus/update-tree.js";
 
 /**
  * @file Route-level tests for the admin `menus` HTTP surface (ADR-029).

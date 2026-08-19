@@ -18,7 +18,7 @@ import type {
  * Zero-infrastructure test/dev doubles for `WebhookSubscriptionRepoPort` and
  * `WebhookDeliveryRepoPort`, mirroring `src/core/events/memory-bus.ts`'s `InMemoryOutbox` shape
  * (claim-then-mark lifecycle, `attempts` incremented at claim time, "failed" re-enters "pending"
- * per {@link import("./types").WebhookDeliveryStatus}'s own doc comment).
+ * per {@link import("./types.js").WebhookDeliveryStatus}'s own doc comment).
  *
  * How it relates to the project:
  * - Implements the ports declared in `./ports.ts` — read those first; this file matches them

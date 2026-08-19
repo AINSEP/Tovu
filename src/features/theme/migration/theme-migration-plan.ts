@@ -17,7 +17,7 @@
 import { existsSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
-import type { ThemeTier } from "../theme";
+import type { ThemeTier } from "../theme.js";
 
 /** One file relocation, both paths relative to the theme's own root. */
 export interface MigrationFileMove {

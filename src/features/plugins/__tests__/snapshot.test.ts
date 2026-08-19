@@ -6,7 +6,7 @@ import test from "node:test";
 
 import Database from "better-sqlite3";
 
-import { isInMemoryDbPath, snapshotDb } from "../snapshot";
+import { isInMemoryDbPath, snapshotDb } from "../snapshot.js";
 
 /**
  * @file ADR-023 §4 — whole-file snapshot, isolated from the rest of the engine.

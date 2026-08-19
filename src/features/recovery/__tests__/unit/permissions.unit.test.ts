@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { confirmRestore } from "../../recovery-orchestrator";
-import { createRestorePoint } from "../../restore-points";
+import { confirmRestore } from "../../recovery-orchestrator.js";
+import { createRestorePoint } from "../../restore-points.js";
 
 /**
  * @file REQ-02 (SPEC-019) — permission gating: backup.read / backup.create / backup.restore.

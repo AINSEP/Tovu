@@ -17,7 +17,7 @@ import test from "node:test";
 
 import Database from "better-sqlite3";
 
-import { declareDataModule } from "../data-module";
+import { declareDataModule } from "../data-module.js";
 
 function openWithCore(): { db: Database.Database; dbPath: string; dir: string } {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "tovu-dm-"));
@@ -316,7 +316,7 @@ test("dataModule: DATA-LOSS REPRODUCTION — writes accepted after a post-commit
   // Some time later, a NON-crash restart happens (a deploy, a routine restart — not a crash). Real
   // boot calls `recoverIncompleteDataModuleMigrations(dbPath)` before opening its own long-lived
   // connection, exactly like this.
-  const { recoverIncompleteDataModuleMigrations } = await import("../migration-recovery");
+  const { recoverIncompleteDataModuleMigrations } = await import("../migration-recovery.js");
   recoverIncompleteDataModuleMigrations(dbPath);
 
   // Re-open the (possibly just-restored) file and check whether the write made after the failed

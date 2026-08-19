@@ -7,7 +7,7 @@ import { ForbiddenError as CommandForbiddenError } from "@jini-ai/cms/core";
 import {
   getDatabaseAgentToolCatalog,
   type AgentToolDefinition as DatabaseAgentToolDefinition,
-} from "../../features/database/agent-tools";
+} from "../../features/database/agent-tools.js";
 import {
   InMemoryDatabaseIntrospectionAdapter,
   InMemoryDatabaseLedgerRepo,
@@ -15,24 +15,24 @@ import {
   InMemoryMigrationRunsRepo,
   InMemoryRestorePointsRepo,
   InMemorySiteStatusRepo,
-} from "../../features/database/repo.memory";
+} from "../../features/database/repo.memory.js";
 import {
   recoveryAgentToolCatalog,
   type AgentToolDefinition as RecoveryAgentToolDefinition,
-} from "../../features/recovery/agent-tools";
+} from "../../features/recovery/agent-tools.js";
 import {
   AlwaysUnavailableWatermarkSource,
   RestorePointDeepLinkLookup,
-} from "../../features/recovery/repo.memory";
-import { buildGatewayDeps } from "../../core/gated-mutations/composition";
-import type { RouteDeps } from "../../server/routes/types";
+} from "../../features/recovery/repo.memory.js";
+import { buildGatewayDeps } from "../../core/gated-mutations/composition.js";
+import type { RouteDeps } from "../../server/routes/types.js";
 import {
   assertRiskMetadataIsWirable,
   buildAssistantToolRegistrations,
-} from "../tool-registrations";
-import { resetToolContributorsForTests } from "../tool-contribution-registry";
-import { contributeRecoveryTools } from "../../features/recovery/tool-registrations";
-import { contributeDatabaseTools } from "../../features/database/tool-registrations";
+} from "../tool-registrations/index.js";
+import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
+import { contributeRecoveryTools } from "../../features/recovery/tool-registrations.js";
+import { contributeDatabaseTools } from "../../features/database/tool-registrations.js";
 
 // Recovery moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
 // tool-contribution registry (2026-08-17, Stage 2 batch 2 — see `tool-contribution-registry.ts`'s

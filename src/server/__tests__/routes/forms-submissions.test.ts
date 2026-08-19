@@ -1,17 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { bootAuthenticated } from "../helpers/http-test-server";
+import { bootAuthenticated } from "../helpers/http-test-server.js";
 
 import express from "express";
 
-import { createRouteDeps } from "../../app";
-import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth";
-import { registerAdminFormsCreateRoute } from "../../routes/admin/forms/create";
-import { registerAdminFormsDeleteSubmissionRoute } from "../../routes/admin/forms/delete-submission";
-import { registerAdminFormsGetSubmissionRoute } from "../../routes/admin/forms/get-submission";
-import { registerAdminFormsListSubmissionsRoute } from "../../routes/admin/forms/list-submissions";
-import type { RouteDeps } from "../../routes/types";
+import { createRouteDeps } from "../../app.js";
+import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth.js";
+import { registerAdminFormsCreateRoute } from "../../routes/admin/forms/create.js";
+import { registerAdminFormsDeleteSubmissionRoute } from "../../routes/admin/forms/delete-submission.js";
+import { registerAdminFormsGetSubmissionRoute } from "../../routes/admin/forms/get-submission.js";
+import { registerAdminFormsListSubmissionsRoute } from "../../routes/admin/forms/list-submissions.js";
+import type { RouteDeps } from "../../routes/types.js";
 
 /**
  * @file Route-level tests for the admin `forms` submissions surface (SPEC-010 REQ-13/14, AC-19/20,

@@ -4,9 +4,9 @@ import test from "node:test";
 import type { Principal, RunRef } from "@jini-ai/core";
 import type { ToolExecutionResult, ToolExecutor } from "@jini-ai/daemon";
 
-import { createInMemoryToolAttemptAuditSink } from "../../features/tool-audit/repo.memory";
-import type { ToolAttemptAuditSink } from "../../features/tool-audit/types";
-import { describeInput, withToolAttemptAudit } from "../tool-executor-audit";
+import { createInMemoryToolAttemptAuditSink } from "../../features/tool-audit/repo.memory.js";
+import type { ToolAttemptAuditSink } from "../../features/tool-audit/types.js";
+import { describeInput, withToolAttemptAudit } from "../tool-executor-audit.js";
 
 /**
  * @file `tool-executor-audit.ts` — the durable tool-attempt trail.

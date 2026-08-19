@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryEventBus } from "../../core/events";
-import { RedirectHitSinkImpl, registerRedirectHitOutboxHandler } from "../hit-sink";
-import type { RedirectHitEvent } from "../ports";
+import { InMemoryEventBus } from "../../core/events/index.js";
+import { RedirectHitSinkImpl, registerRedirectHitOutboxHandler } from "../hit-sink.js";
+import type { RedirectHitEvent } from "../ports.js";
 
 /**
  * @file T010 (AC-26, REQ-21) — `hit-sink.ts`: `record`/`getStats`/`listStats`;

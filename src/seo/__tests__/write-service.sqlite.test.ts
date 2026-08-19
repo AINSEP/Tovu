@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { SqlitePostRepo } from "../../features/post";
-import { openContentDb } from "../../db/sqlite/content-db";
-import { SeoEntryNotFoundError } from "../errors";
-import { setEntrySeoOverrides } from "../write-service";
+import { SqlitePostRepo } from "../../features/post/index.js";
+import { openContentDb } from "../../db/sqlite/content-db.js";
+import { SeoEntryNotFoundError } from "../errors.js";
+import { setEntrySeoOverrides } from "../write-service.js";
 
 /**
  * @file T015 — failing-first integration certification of

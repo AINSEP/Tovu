@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import type { SlugChangeCaptureInput } from "../../routing";
-import { RedirectSlugChangeCapture } from "../capture";
-import type { RedirectDbHandle } from "../ports.internal";
-import type { RedirectRecord, RedirectRevision } from "../types";
+import type { SlugChangeCaptureInput } from "../../routing/index.js";
+import { RedirectSlugChangeCapture } from "../capture.js";
+import type { RedirectDbHandle } from "../ports.internal.js";
+import type { RedirectRecord, RedirectRevision } from "../types.js";
 
 /**
  * @file T005 (AC-18, AC-20, INV-01, INV-02, EC-05) — `capture.ts`'s

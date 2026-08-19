@@ -20,9 +20,9 @@
 import Database from "better-sqlite3";
 import { createToolRegistry } from "@jini-ai/core";
 import { ensureToolCatalogTables, reseedToolCatalog, searchToolCatalog } from "@jini-ai/sqlite";
-import { indexedDescriptionFor } from "../../src/assistant/tool-search-keywords";
-import { buildAssistantToolRegistrations } from "../../src/assistant/tool-registrations";
-import type { RouteDeps } from "../../src/server/routes/types";
+import { indexedDescriptionFor } from "../../src/assistant/tool-search-keywords.js";
+import { buildAssistantToolRegistrations } from "../../src/assistant/tool-registrations/index.js";
+import type { RouteDeps } from "../../src/server/routes/types.js";
 
 interface EvalCase {
   readonly query: string;

@@ -19,17 +19,17 @@ import test from "node:test";
 import type { AgentToolSideEffect, DerivedRiskByToolId } from "@jini-ai/cms/core";
 import type { ToolRegistration } from "@jini-ai/core";
 
-import { createRouteDeps } from "../../server/app";
-import { installFirstPartyToolContributors } from "../../server/tool-catalog-manifest";
+import { createRouteDeps } from "../../server/app.js";
+import { installFirstPartyToolContributors } from "../../server/tool-catalog-manifest.js";
 import {
   listToolContributors,
   registerToolContributor,
   resetToolContributorsForTests,
   type ToolContributor,
-} from "../tool-contribution-registry";
-import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations";
-import { commentsAgentToolCatalog } from "../../comments/agent-tools";
-import { DEMO_CHOICES_TOOL_ID } from "../demo-choices-tool";
+} from "../tool-contribution-registry.js";
+import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations/index.js";
+import { commentsAgentToolCatalog } from "../../comments/agent-tools.js";
+import { DEMO_CHOICES_TOOL_ID } from "../demo-choices-tool.js";
 
 /** A minimal, valid `ToolRegistration` — enough to satisfy `buildAssistantToolRegistrations`'s own
  *  bookkeeping (it only reads `descriptor.id`); no test here executes a handler. */
@@ -267,7 +267,7 @@ test("a real catalog entry from a NOT-installed contributor fails assertRiskMeta
 });
 
 test("installing the contributor afterward makes the same id wirable — proving the failure above was about installation state, not something else", async () => {
-  const { contributeCommentsTools } = await import("../../comments/tool-registrations");
+  const { contributeCommentsTools } = await import("../../comments/tool-registrations.js");
   const entry = commentsAgentToolCatalog.find((tool) => tool.name === "comments_approve_comment")!;
 
   assert.throws(() => assertRiskMetadataIsWirable("comments_approve_comment", entry));

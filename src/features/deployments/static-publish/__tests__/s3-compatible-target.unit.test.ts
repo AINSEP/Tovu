@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { DeployError, type DeployFile } from "@jini-ai/devops/deploy";
 
-import { S3CompatibleDeployTarget } from "../s3-compatible-target";
+import { S3CompatibleDeployTarget } from "../s3-compatible-target.js";
 
 /**
  * @file `S3CompatibleDeployTarget` — SigV4-signed PUT per file (spec §1/§2), path-style addressing,

@@ -6,7 +6,7 @@ import path from "node:path";
 import test from "node:test";
 import express from "express";
 
-import { registerThemePreviewStatic } from "../theme-preview-static";
+import { registerThemePreviewStatic } from "../theme-preview-static.js";
 
 /**
  * @file Previously untested. Found while enumerating every path that serves a theme's raw files for

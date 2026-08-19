@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { scanHtmlEmbeds } from "#src/widgets/html-embeds";
-import { extractHtmlEntryRefs } from "../extractor";
+import { extractHtmlEntryRefs } from "../extractor.js";
 
 /**
  * @file Canaries for `extractHtmlEntryRefs` on the shared marker parser (2026-08-10 unification).

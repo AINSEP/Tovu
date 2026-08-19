@@ -4,7 +4,7 @@ import test from "node:test";
 import { openContentDb, type ContentDb } from "#src/db/sqlite/content-db";
 import { workspaces } from "#src/db/schema";
 import { InMemoryPrincipalRepo } from "@jini-ai/cms/identity";
-import { SqliteSettingsRepo } from "../repo.sqlite";
+import { SqliteSettingsRepo } from "../repo.sqlite.js";
 import { set, type SettingDefinitionRecord } from "@jini-ai/cms/settings";
 
 /**

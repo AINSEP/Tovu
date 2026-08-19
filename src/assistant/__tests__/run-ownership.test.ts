@@ -14,7 +14,7 @@ import {
   createRunOwnerRegistry,
   requireRunOwnership,
   RUN_PRINCIPAL_HEADER,
-} from "../run-ownership";
+} from "../run-ownership.js";
 
 /**
  * @file Cross-principal authorization coverage for the agent daemon's `/api/runs` surface

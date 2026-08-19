@@ -7,8 +7,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { LIPAY_MANIFEST, LIPAY_PLUGIN_ID } from "../lipay-plugin";
-import { cleanup, makeLipay } from "./support";
+import { LIPAY_MANIFEST, LIPAY_PLUGIN_ID } from "../lipay-plugin.js";
+import { cleanup, makeLipay } from "./support.js";
 
 const objectNames = (db: import("better-sqlite3").Database, type: "table" | "index"): string[] =>
   (db.prepare(`SELECT name FROM sqlite_master WHERE type = ? ORDER BY name`).all(type) as { name: string }[]).map(
@@ -58,7 +58,7 @@ test("lipay: activation is idempotent — declaring twice creates nothing new an
   const { db, dir } = await makeLipay();
   const before = objectNames(db, "table").length;
 
-  const { declareDataModule } = await import("../../data-module");
+  const { declareDataModule } = await import("../../data-module.js");
   const again = await declareDataModule({ db, dbPath: ":memory:", decl: LIPAY_MANIFEST });
 
   assert.equal(again.ok, true);

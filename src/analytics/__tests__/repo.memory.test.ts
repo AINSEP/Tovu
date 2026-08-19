@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { LocalBufferSink } from "../repo.memory";
-import type { NormalizedHit } from "../types";
+import { LocalBufferSink } from "../repo.memory.js";
+import type { NormalizedHit } from "../types.js";
 
 /**
  * @file Unit tests for `LocalBufferSink.list()` — the admin "recent hits" read accessor.

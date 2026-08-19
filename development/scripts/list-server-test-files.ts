@@ -14,7 +14,7 @@
  * Usage: npx tsx development/scripts/list-server-test-files.ts <unit|integration>
  */
 import { execFileSync } from "node:child_process";
-import { REPO_ROOT, isIntegrationTestFile } from "./route-coverage-lib";
+import { REPO_ROOT, isIntegrationTestFile } from "./route-coverage-lib.js";
 
 export function listServerTestFiles(mode: "unit" | "integration"): string[] {
   const raw = execFileSync("find", ["src/server", "-type", "f", "-name", "*.test.ts"], {

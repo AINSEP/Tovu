@@ -4,7 +4,7 @@ import test from "node:test";
 import { InMemoryTransformDefinitionRepo, registerTransform } from "@jini-ai/cms/media";
 import type { TransformDefinitionRepoPort } from "@jini-ai/cms/media";
 
-import { CORE_PUBLIC_TRANSFORM_NAME, ensureCoreMediaTransform } from "../bootstrap";
+import { CORE_PUBLIC_TRANSFORM_NAME, ensureCoreMediaTransform } from "../bootstrap.js";
 
 /**
  * @file `ensureCoreMediaTransform` — the boot-time find-or-create guard `server/deps.ts` chains

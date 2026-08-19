@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { createSqliteRouteDeps } from "../../deps";
+import { createSqliteRouteDeps } from "../../deps.js";
 import { openContentDb } from "#src/db/sqlite/content-db";
 import { workspaces } from "#src/db/schema";
 

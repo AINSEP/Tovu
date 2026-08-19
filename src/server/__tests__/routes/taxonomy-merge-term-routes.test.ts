@@ -3,13 +3,13 @@ import test from "node:test";
 
 import express from "express";
 
-import { bootAuthenticated } from "../helpers/http-test-server";
-import { createRouteDeps } from "../../app";
-import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth";
-import { registerAdminTaxonomyCreateRoute } from "../../routes/admin/taxonomy/create-taxonomy";
-import { registerAdminTaxonomyCreateTermRoute } from "../../routes/admin/taxonomy/create-term";
-import { registerAdminTaxonomyMergeTermRoutes } from "../../routes/admin/taxonomy/merge-term";
-import type { RouteDeps } from "../../routes/types";
+import { bootAuthenticated } from "../helpers/http-test-server.js";
+import { createRouteDeps } from "../../app.js";
+import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth.js";
+import { registerAdminTaxonomyCreateRoute } from "../../routes/admin/taxonomy/create-taxonomy.js";
+import { registerAdminTaxonomyCreateTermRoute } from "../../routes/admin/taxonomy/create-term.js";
+import { registerAdminTaxonomyMergeTermRoutes } from "../../routes/admin/taxonomy/merge-term.js";
+import type { RouteDeps } from "../../routes/types.js";
 
 /**
  * @file SPEC-018 C-207 — real-HTTP integration tests for the taxonomy `mergeTerm` gated-mutation

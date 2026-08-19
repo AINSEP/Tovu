@@ -26,9 +26,9 @@ import path from "node:path";
 // the way `routeDeps.runExportSite` already injects THIS function the other direction. This file
 // still imports `RouteDeps` as a TYPE below — that import is erased at compile time (zero runtime
 // edge) and was never part of the cycle; only the runtime `require`/`import` of `createApp` was.
-import type { RouteDeps } from "../server/routes/types";
-import { buildRouteManifest } from "./route-manifest";
-import type { ManifestActiveTheme, ManifestRoute, ManifestRouteKind, ManifestSkip } from "./ports";
+import type { RouteDeps } from "../server/routes/types.js";
+import { buildRouteManifest } from "./route-manifest.js";
+import type { ManifestActiveTheme, ManifestRoute, ManifestRouteKind, ManifestSkip } from "./ports.js";
 
 /**
  * @file The static-site exporter engine: boots the REAL `createApp(routeDeps)` Express app

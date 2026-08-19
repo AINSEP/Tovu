@@ -17,10 +17,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { META_TOOL_DESCRIPTORS, createByokToolSurface } from "../byok-tool-surface";
-import { resetToolContributorsForTests } from "../tool-contribution-registry";
-import { installFirstPartyToolContributors } from "../../server/tool-catalog-manifest";
-import type { RouteDeps } from "../../server/routes/types";
+import { META_TOOL_DESCRIPTORS, createByokToolSurface } from "../byok-tool-surface.js";
+import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
+import { installFirstPartyToolContributors } from "../../server/tool-catalog-manifest.js";
+import type { RouteDeps } from "../../server/routes/types.js";
 
 // `surface()` below calls `createByokToolSurface` directly (not through `createAssistantByokModule`,
 // which installs first-party contributors itself) — so this file must, or the `comments`/

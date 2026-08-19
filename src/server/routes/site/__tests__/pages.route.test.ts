@@ -6,7 +6,7 @@ import test from "node:test";
 
 import { InMemoryPostRepo } from "#src/features/post/index";
 import { InMemoryPresentationSettingsRepo } from "#src/features/presentation/index";
-import { createApp, createRouteDeps } from "../../../app";
+import { createApp, createRouteDeps } from "../../../app.js";
 
 /**
  * @file Regression coverage for the "brand-new workspace, no seeded content" 500 on the public

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { resolveRuntimeMode } from "../../runtime-mode";
+import { resolveRuntimeMode } from "../../runtime-mode.js";
 
 /**
  * @file SPEC-022 C-001 — runtime-mode signal resolution (REQ-02, INV-02, INV-04, EC-02).

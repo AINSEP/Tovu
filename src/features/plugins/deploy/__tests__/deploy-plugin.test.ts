@@ -19,7 +19,7 @@ import test from "node:test";
 import Database from "better-sqlite3";
 
 import type { HttpClientPort, HttpRequest, HttpResponse } from "#src/http/index";
-import { activateDeploy, InMemoryDeployTokenKeyring } from "../deploy-plugin";
+import { activateDeploy, InMemoryDeployTokenKeyring } from "../deploy-plugin.js";
 
 type ScriptedResponse = HttpResponse | (() => HttpResponse);
 
@@ -190,7 +190,7 @@ test("deploy: an unimplemented target is rejected without calling HTTP", async (
 });
 
 test("deploy: EnvDeployTokenKeyring reads the per-target env var", async () => {
-  const { EnvDeployTokenKeyring } = await import("../deploy-plugin");
+  const { EnvDeployTokenKeyring } = await import("../deploy-plugin.js");
   const previous = process.env.TOVU_DEPLOY_TOKEN_VERCEL;
   process.env.TOVU_DEPLOY_TOKEN_VERCEL = "from-env";
   try {

@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { eq } from "drizzle-orm";
 
-import { openContentDb } from "../content-db";
-import { SqlitePublishCredentialSetRepo } from "../publish-credential-repo.sqlite";
-import { workspaces } from "../../schema";
-import type { PublishCredentialSetRecord } from "../../../features/deployments/publish-credentials/types";
+import { openContentDb } from "../content-db.js";
+import { SqlitePublishCredentialSetRepo } from "../publish-credential-repo.sqlite.js";
+import { workspaces } from "../../schema.js";
+import type { PublishCredentialSetRecord } from "../../../features/deployments/publish-credentials/types.js";
 
 /**
  * @file `SqlitePublishCredentialSetRepo` against a real, migrated `content.db` (`:memory:`) — the

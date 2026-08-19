@@ -4,12 +4,12 @@ import test from "node:test";
 import express from "express";
 
 import type { DiscoveredTheme } from "#src/features/theme/index";
-import { createRouteDeps } from "../../app";
-import { createWidgetsModule } from "../../modules/widgets";
-import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth";
-import { registerSiteRoutes } from "../../routes/site/pages";
-import type { RouteDeps } from "../../routes/types";
-import { bootAuthenticated } from "../helpers/http-test-server";
+import { createRouteDeps } from "../../app.js";
+import { createWidgetsModule } from "../../modules/widgets.js";
+import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth.js";
+import { registerSiteRoutes } from "../../routes/site/pages.js";
+import type { RouteDeps } from "../../routes/types.js";
+import { bootAuthenticated } from "../helpers/http-test-server.js";
 
 /**
  * @file W-004 end-to-end: a widget bound into a theme-declared region actually renders on a real

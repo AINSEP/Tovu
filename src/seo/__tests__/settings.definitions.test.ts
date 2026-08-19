@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { InMemoryPrincipalRepo } from "@jini-ai/cms/identity";
-import { InMemorySettingsRepo } from "../../features/settings";
-import { ensureSeoSettingDefinitions } from "../settings";
+import { InMemorySettingsRepo } from "../../features/settings/index.js";
+import { ensureSeoSettingDefinitions } from "../settings.js";
 
 /**
  * @file T020 — failing-first certification: `ensureSeoSettingDefinitions` is

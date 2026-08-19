@@ -9,16 +9,16 @@ import type { SurfaceEmitter, ToolExecutionContext, ToolRegistration } from "@ji
 
 import { createRouteDeps } from "#src/server/app";
 import { SURFACE_DISMISSED_PARAM, SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore, type SurfaceExchangeStore } from "#src/core/tool-surface-exchanges";
-import type { PublishCredentialSetRecord, PublishCredentialSetRepoPort } from "../publish-credentials/index";
-import { InMemoryPublishCredentialVerificationCache, InMemoryPublishHistoryStore, type PublishCredentialSource } from "../static-publish/index";
+import type { PublishCredentialSetRecord, PublishCredentialSetRepoPort } from "../publish-credentials/index.js";
+import { InMemoryPublishCredentialVerificationCache, InMemoryPublishHistoryStore, type PublishCredentialSource } from "../static-publish/index.js";
 // Real implementation of `StaticPublishToolDeps.vendorCredentials` — production wiring for this lives
 // in `assistant/tool-registrations.ts`'s `buildAssistantToolRegistrations`, which this test file does
 // NOT go through (it calls `buildStaticPublishRegistrations` directly, same as every other test here).
 // Test files are excluded from `check:architecture`'s graph, so importing directly here carries none
 // of the cross-feature-edge cost `publish-agent-tools.ts` itself now avoids.
-import { createVendorCredential, listVendorCredentials, PUBLISH_PROVIDER_TO_VENDOR, updateVendorCredential } from "../../vendor-credentials/index";
+import { createVendorCredential, listVendorCredentials, PUBLISH_PROVIDER_TO_VENDOR, updateVendorCredential } from "../../vendor-credentials/index.js";
 
-import { buildStaticPublishRegistrations, staticPublishAgentToolCatalog, staticPublishDerivedRisk, type StaticPublishToolDeps } from "../publish-agent-tools";
+import { buildStaticPublishRegistrations, staticPublishAgentToolCatalog, staticPublishDerivedRisk, type StaticPublishToolDeps } from "../publish-agent-tools.js";
 
 /**
  * @file `publish-agent-tools.ts` wiring proof, rewritten for the 2026-08-15 change that wired

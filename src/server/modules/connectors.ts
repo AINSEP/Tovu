@@ -4,22 +4,22 @@ import {
   CONNECTOR_CONNECT_PER_IP,
   CONNECTOR_OUTBOUND_PER_IP,
 } from "#src/core/rate-limit/rate-limit";
-import { registerAdminConnectorsConnectRoute } from "../routes/admin/connectors/connect";
+import { registerAdminConnectorsConnectRoute } from "../routes/admin/connectors/connect.js";
 import type {
   ConnectorsConfigRouteDeps,
   ConnectorsRouteDeps,
-} from "../routes/admin/connectors/deps";
+} from "../routes/admin/connectors/deps.js";
 import {
   registerAdminConnectorsCancelRoute,
   registerAdminConnectorsDisconnectRoute,
-} from "../routes/admin/connectors/disconnect";
-import { registerAdminConnectorsGetByIdRoute } from "../routes/admin/connectors/get-by-id";
-import { registerAdminConnectorsGetConfigRoute } from "../routes/admin/connectors/get-config";
-import { registerAdminConnectorsListRoute } from "../routes/admin/connectors/list";
-import { registerAdminConnectorsPutConfigRoute } from "../routes/admin/connectors/put-config";
-import { registerAdminConnectorsStatusesRoute } from "../routes/admin/connectors/statuses";
-import { registerComposioCallbackRoute } from "../routes/connectors/composio-callback";
-import type { ServerModuleHandle } from "./types";
+} from "../routes/admin/connectors/disconnect.js";
+import { registerAdminConnectorsGetByIdRoute } from "../routes/admin/connectors/get-by-id.js";
+import { registerAdminConnectorsGetConfigRoute } from "../routes/admin/connectors/get-config.js";
+import { registerAdminConnectorsListRoute } from "../routes/admin/connectors/list.js";
+import { registerAdminConnectorsPutConfigRoute } from "../routes/admin/connectors/put-config.js";
+import { registerAdminConnectorsStatusesRoute } from "../routes/admin/connectors/statuses.js";
+import { registerComposioCallbackRoute } from "../routes/connectors/composio-callback.js";
+import type { ServerModuleHandle } from "./types.js";
 
 /**
  * @file The `connectors` server module — Composio-backed third-party connectors, backing the

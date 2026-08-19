@@ -1,6 +1,6 @@
 import path from "node:path";
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { loginAsAdmin } from "./auth-fixtures";
+import { loginAsAdmin } from "./auth-fixtures.js";
 
 /** Absolute — `addStyleTag`'s `path` option resolves against `process.cwd()` at test-run time,
  *  which varies by how the suite is invoked; anchoring to `__dirname` (this file's own directory,

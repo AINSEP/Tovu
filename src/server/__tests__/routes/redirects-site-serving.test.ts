@@ -3,12 +3,12 @@ import test from "node:test";
 
 import express from "express";
 
-import { createRouteDeps } from "../../app";
-import { registerAdminRedirectCreateRoute } from "../../routes/admin/redirects/create";
-import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth";
-import { registerSiteRoutes } from "../../routes/site/pages";
-import type { RouteDeps } from "../../routes/types";
-import { startTestServer, loginAsOwner } from "../helpers/http-test-server";
+import { createRouteDeps } from "../../app.js";
+import { registerAdminRedirectCreateRoute } from "../../routes/admin/redirects/create.js";
+import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth.js";
+import { registerSiteRoutes } from "../../routes/site/pages.js";
+import type { RouteDeps } from "../../routes/types.js";
+import { startTestServer, loginAsOwner } from "../helpers/http-test-server.js";
 
 /**
  * @file Coordinator-authored (2026-07-13), post-session-limit resume. Proves

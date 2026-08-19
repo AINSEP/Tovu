@@ -2,13 +2,13 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
 
-import { DefaultMemberAccessResolver } from "../access-resolver";
+import { DefaultMemberAccessResolver } from "../access-resolver.js";
 import {
   InMemoryMemberSessionRepo,
   InMemoryMemberSubscriptionRepo,
   InMemoryMemberTierRepo,
-} from "../repo.memory";
-import type { MemberContentAccess, MemberContext } from "../types";
+} from "../repo.memory.js";
+import type { MemberContentAccess, MemberContext } from "../types.js";
 
 const WORKSPACE_ID = "ws-1";
 const NOW = "2026-07-10T00:00:00.000Z";

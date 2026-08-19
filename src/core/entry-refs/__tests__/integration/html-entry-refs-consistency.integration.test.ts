@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { scanHtmlEmbeds } from "#src/widgets/html-embeds";
-import { extractHtmlEntryRefs } from "../../extractor";
+import { extractHtmlEntryRefs } from "../../extractor.js";
 
 /**
  * @file SPEC-047 Slice 3 — keeps `core/entry-refs/extractor.ts`'s `extractHtmlEntryRefs` and

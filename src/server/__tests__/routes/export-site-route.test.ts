@@ -5,9 +5,9 @@ import path from "node:path";
 import test from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 
-import { createApp, createRouteDeps } from "../../app";
-import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from "../helpers/http-test-server";
-import type { RouteDeps } from "../../routes/types";
+import { createApp, createRouteDeps } from "../../app.js";
+import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from "../helpers/http-test-server.js";
+import type { RouteDeps } from "../../routes/types.js";
 
 /**
  * @file Admin Deployment panel → Static Site tab — `POST`/`GET /api/admin/v1/workspaces/:workspaceId/

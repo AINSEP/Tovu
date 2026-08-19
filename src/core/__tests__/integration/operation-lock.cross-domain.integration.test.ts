@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { acquireOperationLock, releaseOperationLock } from "../../operation-lock";
+import { acquireOperationLock, releaseOperationLock } from "../../operation-lock.js";
 
 /**
  * @file CIC U-001 (SPEC-019) — cross-domain concurrent-acquire property test.

@@ -1,6 +1,6 @@
 import { test, expect, type Locator, type Page } from "@playwright/test";
 
-import { ABOUT_TARGET, mockAssistantTurn, openChatPanel, openSitePage, sendVisitorMessage } from "./site-assistant-fixtures";
+import { ABOUT_TARGET, mockAssistantTurn, openChatPanel, openSitePage, sendVisitorMessage } from "./site-assistant-fixtures.js";
 
 /**
  * @file SPEC-046 §4 AC2/AC4/AC7 — the highlight visual treatment, against the REAL `widget.css`

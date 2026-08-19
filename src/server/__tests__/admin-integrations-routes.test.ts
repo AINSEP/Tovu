@@ -1,19 +1,19 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from "./helpers/http-test-server";
+import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from "./helpers/http-test-server.js";
 import express from "express";
 
-import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../../webhooks";
-import type { WebhookDeliveryRecord } from "../../webhooks";
-import { createRouteDeps } from "../app";
-import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth";
-import { registerAdminIntegrationsCreateRoute } from "../routes/admin/integrations/create";
-import { registerAdminIntegrationsDeleteRoute } from "../routes/admin/integrations/delete";
-import { registerAdminIntegrationsDeliveriesRoute } from "../routes/admin/integrations/deliveries";
-import type { IntegrationsRouteDeps } from "../routes/admin/integrations/deps";
-import { registerAdminIntegrationsListRoute } from "../routes/admin/integrations/list";
-import { registerAdminIntegrationsPauseRoute } from "../routes/admin/integrations/pause";
+import { InMemoryWebhookDeliveryRepo, InMemoryWebhookSubscriptionRepo } from "../../webhooks/index.js";
+import type { WebhookDeliveryRecord } from "../../webhooks/index.js";
+import { createRouteDeps } from "../app.js";
+import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth.js";
+import { registerAdminIntegrationsCreateRoute } from "../routes/admin/integrations/create.js";
+import { registerAdminIntegrationsDeleteRoute } from "../routes/admin/integrations/delete.js";
+import { registerAdminIntegrationsDeliveriesRoute } from "../routes/admin/integrations/deliveries.js";
+import type { IntegrationsRouteDeps } from "../routes/admin/integrations/deps.js";
+import { registerAdminIntegrationsListRoute } from "../routes/admin/integrations/list.js";
+import { registerAdminIntegrationsPauseRoute } from "../routes/admin/integrations/pause.js";
 
 /**
  * @file Route-level tests for the integrations admin HTTP API (ADR-036 admin wiring).

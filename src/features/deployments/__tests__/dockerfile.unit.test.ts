@@ -5,7 +5,7 @@ import {
   readDockerfileSource,
   writeDockerfileSource,
   writeDockerfileSourceWithIfMatch,
-} from "../dockerfile";
+} from "../dockerfile.js";
 
 /**
  * @file `dockerfile.ts`'s own etag/optimistic-concurrency logic, isolated from the HTTP route and

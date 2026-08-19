@@ -4,7 +4,7 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
 
-import { createApp } from "../app";
+import { createApp } from "../app.js";
 
 /**
  * @file The human-facing half of the delete feature: `DELETE /posts/:postId` and

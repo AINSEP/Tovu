@@ -4,11 +4,11 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { openContentDb } from "../content-db";
-import { InMemoryWebhookSubscriptionRepo } from "../../../webhooks/repo.memory";
-import { SqliteWebhookSubscriptionRepo } from "../webhook-repo.sqlite";
-import type { WebhookSubscriptionRepoPort } from "../../../webhooks/ports";
-import type { WebhookSubscriptionRecord } from "../../../webhooks/types";
+import { openContentDb } from "../content-db.js";
+import { InMemoryWebhookSubscriptionRepo } from "../../../webhooks/repo.memory.js";
+import { SqliteWebhookSubscriptionRepo } from "../webhook-repo.sqlite.js";
+import type { WebhookSubscriptionRepoPort } from "../../../webhooks/ports.js";
+import type { WebhookSubscriptionRecord } from "../../../webhooks/types.js";
 
 /**
  * @file Shared `WebhookSubscriptionRepoPort` contract-test suite (ADR-PIPE-015 Phase 2 T020),

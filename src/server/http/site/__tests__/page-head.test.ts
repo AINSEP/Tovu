@@ -9,7 +9,7 @@ import {
   type HeadElement,
   type PageHeadContext,
   type PageHeadHook,
-} from "../page-head";
+} from "../page-head.js";
 
 /**
  * @file T005 — failing-first certification of `page-head.ts`'s

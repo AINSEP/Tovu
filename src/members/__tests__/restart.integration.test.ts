@@ -4,8 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import test from "node:test";
 
-import { openContentDb } from "../../db/sqlite/content-db";
-import { SqliteMemberRepo, SqliteMemberSessionRepo } from "../repo.sqlite";
+import { openContentDb } from "../../db/sqlite/content-db.js";
+import { SqliteMemberRepo, SqliteMemberSessionRepo } from "../repo.sqlite.js";
 
 /**
  * @file ADR-046 Phase 1's own required production gate for the Members row: "Restart +

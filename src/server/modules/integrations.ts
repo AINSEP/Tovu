@@ -1,12 +1,12 @@
-import { InMemoryDeliveryEnvelopeStore } from "../../webhooks";
+import { InMemoryDeliveryEnvelopeStore } from "../../webhooks/index.js";
 import type {
   WebhookDeliveryRepoPort,
   WebhookSubscriptionRepoPort,
   WebhookTopic,
-} from "../../webhooks";
-import { enqueueDelivery } from "../../webhooks/delivery";
+} from "../../webhooks/index.js";
+import { enqueueDelivery } from "../../webhooks/delivery.js";
 import type { ClockPort, EventBusPort, IdGeneratorPort, JsonObject } from "@jini-ai/cms/core";
-import type { ServerModuleHandle } from "./types";
+import type { ServerModuleHandle } from "./types.js";
 
 /**
  * @file ADR-046 Phase 3 (SPEC-031) — the `integrations` module.

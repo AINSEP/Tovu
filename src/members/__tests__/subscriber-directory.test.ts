@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryMemberRepo } from "../repo.memory";
-import { MembersSubscriberDirectory } from "../subscriber-directory";
-import type { MemberRecord } from "../types";
+import { InMemoryMemberRepo } from "../repo.memory.js";
+import { MembersSubscriberDirectory } from "../subscriber-directory.js";
+import type { MemberRecord } from "../types.js";
 
 const WORKSPACE_ID = "ws-1";
 const OTHER_WORKSPACE_ID = "ws-2";

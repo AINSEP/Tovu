@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { toAdminPluginResponse } from "../../plugins";
+import { toAdminPluginResponse } from "../../plugins.js";
 import type { PluginDiscoveryRecord } from "#src/features/plugin-runtime/discovery";
 
 /**

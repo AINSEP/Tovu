@@ -2,21 +2,21 @@ import { AsyncLocalStorage } from "node:async_hooks";
 
 import type { ClockPort } from "@jini-ai/cms/core";
 
-import type { PluginActivationRepoPort } from "../features/plugin-runtime/activation";
-import type { BuiltInPluginSource, PluginDiscoveryRecord } from "../features/plugin-runtime/discovery";
-import { discoverPlugins as discoverPluginRuntimePlugins } from "../features/plugin-runtime/discovery";
-import { createHookRegistry, type HookRegistry } from "../features/plugin-runtime/hook-registry";
-import { quarantinePlugin } from "../features/plugin-runtime/quarantine";
+import type { PluginActivationRepoPort } from "../features/plugin-runtime/activation.js";
+import type { BuiltInPluginSource, PluginDiscoveryRecord } from "../features/plugin-runtime/discovery.js";
+import { discoverPlugins as discoverPluginRuntimePlugins } from "../features/plugin-runtime/discovery.js";
+import { createHookRegistry, type HookRegistry } from "../features/plugin-runtime/hook-registry.js";
+import { quarantinePlugin } from "../features/plugin-runtime/quarantine.js";
 import {
   attachLoadedPlugin,
   loadPlugin,
   PluginLoadError,
-} from "../features/plugin-runtime/loader";
+} from "../features/plugin-runtime/loader.js";
 import {
   HOOK_CONTENT_ENTRY_BEFORE_SAVE,
   type BeforeSaveFilter,
   type ContentEntryDraft,
-} from "../../packages/sdk/src/index";
+} from "../../packages/sdk/src/index.js";
 
 /** Executable metadata for one compiled-in plugin. Discovery consumes only `manifest`; the enable
  * callback consumes the import seam after integrity/sdkRange checks. Site-artifact sources can use

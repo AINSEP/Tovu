@@ -19,18 +19,18 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/core";
 
-import { InMemoryEntryRefsRepo } from "../../core/entry-refs/repo.memory";
-import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "../../features/content-types";
-import { registerContentType } from "../../features/content-types";
-import { InMemoryEntryRepo } from "../../features/entries";
-import { createEntry } from "../../features/entries";
-import { PRE_AUTHORIZED } from "../../widgets/authorize-helper";
-import { widgetsAgentToolCatalog, type AgentToolDefinition } from "../../widgets/agent-tools";
-import { InMemoryWidgetRegionBindingRepo } from "../../widgets/repo.memory";
-import type { RouteDeps } from "../../server/routes/types";
-import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations";
-import { resetToolContributorsForTests } from "../tool-contribution-registry";
-import { contributeWidgetsTools } from "../../widgets/tool-registrations";
+import { InMemoryEntryRefsRepo } from "../../core/entry-refs/repo.memory.js";
+import { InMemoryContentTypeRepo, NoopContentTypeIndexProvisioner } from "../../features/content-types/index.js";
+import { registerContentType } from "../../features/content-types/index.js";
+import { InMemoryEntryRepo } from "../../features/entries/index.js";
+import { createEntry } from "../../features/entries/index.js";
+import { PRE_AUTHORIZED } from "../../widgets/authorize-helper.js";
+import { widgetsAgentToolCatalog, type AgentToolDefinition } from "../../widgets/agent-tools.js";
+import { InMemoryWidgetRegionBindingRepo } from "../../widgets/repo.memory.js";
+import type { RouteDeps } from "../../server/routes/types.js";
+import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations/index.js";
+import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
+import { contributeWidgetsTools } from "../../widgets/tool-registrations.js";
 
 // Widgets moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
 // tool-contribution registry (2026-08-17, Stage 2 batch 2 — see `tool-contribution-registry.ts`'s

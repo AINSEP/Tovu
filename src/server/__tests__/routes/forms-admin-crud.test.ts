@@ -1,17 +1,17 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { bootAuthenticated } from "../helpers/http-test-server";
+import { bootAuthenticated } from "../helpers/http-test-server.js";
 
 import express from "express";
 
-import { createRouteDeps } from "../../app";
-import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth";
-import { registerAdminFormsCreateRoute } from "../../routes/admin/forms/create";
-import { registerAdminFormsGetRoute } from "../../routes/admin/forms/get-by-id";
-import { registerAdminFormsListRoute } from "../../routes/admin/forms/list";
-import { registerAdminFormsUpdateRoute } from "../../routes/admin/forms/update";
-import type { RouteDeps } from "../../routes/types";
+import { createRouteDeps } from "../../app.js";
+import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth.js";
+import { registerAdminFormsCreateRoute } from "../../routes/admin/forms/create.js";
+import { registerAdminFormsGetRoute } from "../../routes/admin/forms/get-by-id.js";
+import { registerAdminFormsListRoute } from "../../routes/admin/forms/list.js";
+import { registerAdminFormsUpdateRoute } from "../../routes/admin/forms/update.js";
+import type { RouteDeps } from "../../routes/types.js";
 
 /**
  * @file Route-level tests for the admin `forms` definition-CRUD HTTP surface (SPEC-010 REQ-01..04,

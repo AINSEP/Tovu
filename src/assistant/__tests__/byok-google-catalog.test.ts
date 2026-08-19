@@ -25,12 +25,12 @@ import test from "node:test";
 
 import type { ToolDescriptor } from "@jini-ai/core";
 
-import { META_TOOL_DESCRIPTORS } from "../byok-tool-surface";
-import { googleParametersOf } from "../byok-provider-turn";
-import { buildAssistantToolRegistrations } from "../tool-registrations";
-import { resetToolContributorsForTests } from "../tool-contribution-registry";
-import { installFirstPartyToolContributors } from "../../server/tool-catalog-manifest";
-import type { RouteDeps } from "../../server/routes/types";
+import { META_TOOL_DESCRIPTORS } from "../byok-tool-surface.js";
+import { googleParametersOf } from "../byok-provider-turn.js";
+import { buildAssistantToolRegistrations } from "../tool-registrations/index.js";
+import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
+import { installFirstPartyToolContributors } from "../../server/tool-catalog-manifest.js";
+import type { RouteDeps } from "../../server/routes/types.js";
 
 // `comments`/`newsletter` are contributed through the tool-contribution registry now, not
 // `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array (2026-08-17) — installed here so

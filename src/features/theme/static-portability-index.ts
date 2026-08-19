@@ -2,7 +2,7 @@ import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { PARTIAL_MARKER_TYPE, substituteMarkers, withInnerContentFinal, type EmbedMarker } from "#src/core/embeds/marker";
-import { DEFAULT_THEME_SLOTS, loadTheme, type DiscoveredTheme } from "./theme";
+import { DEFAULT_THEME_SLOTS, loadTheme, type DiscoveredTheme } from "./theme.js";
 
 /**
  * @file Milestone 5 — a generated root `index.html` for a `static`-tier theme, so the folder is a

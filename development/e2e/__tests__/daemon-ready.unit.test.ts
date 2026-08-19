@@ -4,7 +4,7 @@ import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
 
-import { isDaemonKnownFailed } from "../daemon-ready";
+import { isDaemonKnownFailed } from "../daemon-ready.js";
 
 /**
  * @file Degraded-boot defect fix, e2e half — unit coverage for `daemon-ready.ts`'s new

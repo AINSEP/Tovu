@@ -3,9 +3,9 @@ import test from "node:test";
 
 import type { ComposioConfigStore, PublicComposioConfig } from "@jini-ai/integrations/composio";
 
-import { InMemoryKeyring } from "../../webhooks/keyring.memory";
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm";
-import { InMemoryComposioConfigRepo } from "../composio-config-store.memory";
+import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
+import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import { InMemoryComposioConfigRepo } from "../composio-config-store.memory.js";
 import {
   ComposioConfigSecretStoreUnconfiguredError,
   ComposioConfigValidationError,
@@ -16,7 +16,7 @@ import {
   saveComposioApiKey,
   saveComposioAuthConfigIds,
   type ComposioConfigView,
-} from "../composio-config-store";
+} from "../composio-config-store.js";
 
 /**
  * @file `composio-config-store.ts` — the sealed Composio project key behind the admin's

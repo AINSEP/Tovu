@@ -9,8 +9,8 @@ import type { NextFunction, Request, Response } from "express";
 
 import { discoverAllBuiltInThemes } from "#src/features/theme/index";
 import { startTestServer } from "#src/server/__tests__/helpers/http-test-server";
-import { registerAdminThemeFileGetRoute } from "../explore";
-import type { ContentRouteDeps } from "../../content/deps";
+import { registerAdminThemeFileGetRoute } from "../explore.js";
+import type { ContentRouteDeps } from "../../content/deps.js";
 
 /**
  * @file `sendThemeFileError`'s two branches, exercised through the GET-file route: a `ThemePathError`

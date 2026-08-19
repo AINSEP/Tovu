@@ -10,7 +10,7 @@ import {
   isRedeemable,
   mintToken,
   redeemToken,
-} from "../../token";
+} from "../../token.js";
 
 /**
  * @file SPEC-016 C-005 / U-003 / INV-03 / INV-04 — the confirmation-token lifecycle.

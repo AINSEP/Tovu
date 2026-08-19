@@ -4,11 +4,11 @@ import test from "node:test";
 
 import express from "express";
 
-import { InMemoryPostRepo } from "../../../features/post";
-import { renderDocNode } from "../../http/site/render";
-import { createRouteDeps } from "../../app";
-import { registerSiteRoutes } from "../../routes/site/pages";
-import { startTestServer } from "../helpers/http-test-server";
+import { InMemoryPostRepo } from "../../../features/post/index.js";
+import { renderDocNode } from "../../http/site/render.js";
+import { createRouteDeps } from "../../app.js";
+import { registerSiteRoutes } from "../../routes/site/pages.js";
+import { startTestServer } from "../helpers/http-test-server.js";
 
 /**
  * @file Measurement instrument — deliverable C of the public-site request-cost audit: the

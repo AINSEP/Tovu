@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { InMemoryPostRepo, type PostRecord } from "../../features/post";
-import { InMemorySettingsRepo } from "../../features/settings";
-import { InMemoryAssetRenditionRepo, InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "../../media";
-import { SeoEntryNotFoundError } from "../errors";
-import { ensureSeoSettingDefinitions, setSeoSettings } from "../settings";
-import { getEntryMeta } from "../seo";
+import { InMemoryPostRepo, type PostRecord } from "../../features/post/index.js";
+import { InMemorySettingsRepo } from "../../features/settings/index.js";
+import { InMemoryAssetRenditionRepo, InMemoryMediaRepo, InMemoryTransformDefinitionRepo } from "../../media/index.js";
+import { SeoEntryNotFoundError } from "../errors.js";
+import { ensureSeoSettingDefinitions, setSeoSettings } from "../settings.js";
+import { getEntryMeta } from "../seo.js";
 
 /**
  * @file T024 — failing-first unit certification of `getEntryMeta`

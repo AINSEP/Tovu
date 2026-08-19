@@ -3,14 +3,14 @@ import test from "node:test";
 
 import express from "express";
 
-import { createApp, createRouteDeps } from "../app";
-import { createAssistantByokModule } from "../modules/assistant-byok";
-import { registerAuthRoutes } from "../middleware/dev-auth";
-import { MCP_UI_TOOL_CALLS_PATH, createByokToolSurface } from "../../assistant";
-import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore } from "../../core/tool-surface-exchanges";
-import { CONTENT_POST_DELETE_TOOL_ID } from "../../features/post";
-import { bootAuthenticated, startTestServer } from "./helpers/http-test-server";
-import type { RouteDeps } from "../routes/types";
+import { createApp, createRouteDeps } from "../app.js";
+import { createAssistantByokModule } from "../modules/assistant-byok.js";
+import { registerAuthRoutes } from "../middleware/dev-auth.js";
+import { MCP_UI_TOOL_CALLS_PATH, createByokToolSurface } from "../../assistant/index.js";
+import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore } from "../../core/tool-surface-exchanges.js";
+import { CONTENT_POST_DELETE_TOOL_ID } from "../../features/post/index.js";
+import { bootAuthenticated, startTestServer } from "./helpers/http-test-server.js";
+import type { RouteDeps } from "../routes/types.js";
 
 /**
  * @file Route-level coverage for `POST /api/admin/v1/assistant/byok-turn` (`modules/assistant-byok.ts`)

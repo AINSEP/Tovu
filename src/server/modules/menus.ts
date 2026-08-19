@@ -1,11 +1,11 @@
-import { registerAdminMenuAssignLocationRoute } from "../routes/admin/menus/assign-location";
-import { registerAdminMenuCreateRoute } from "../routes/admin/menus/create";
-import { registerAdminMenuDeleteRoute } from "../routes/admin/menus/delete";
-import { registerAdminMenuGetRoute } from "../routes/admin/menus/get-by-id";
-import { registerAdminMenuListRoute } from "../routes/admin/menus/list";
-import { registerAdminMenuUpdateTreeRoute } from "../routes/admin/menus/update-tree";
-import type { MenuRouteDeps } from "../http/admin/menus";
-import type { ServerModuleHandle } from "./types";
+import { registerAdminMenuAssignLocationRoute } from "../routes/admin/menus/assign-location.js";
+import { registerAdminMenuCreateRoute } from "../routes/admin/menus/create.js";
+import { registerAdminMenuDeleteRoute } from "../routes/admin/menus/delete.js";
+import { registerAdminMenuGetRoute } from "../routes/admin/menus/get-by-id.js";
+import { registerAdminMenuListRoute } from "../routes/admin/menus/list.js";
+import { registerAdminMenuUpdateTreeRoute } from "../routes/admin/menus/update-tree.js";
+import type { MenuRouteDeps } from "../http/admin/menus.js";
+import type { ServerModuleHandle } from "./types.js";
 
 /**
  * @file ADR-046 Phase 3 (SPEC-040) — the `menus` server module (ADR-029 navigation menus admin

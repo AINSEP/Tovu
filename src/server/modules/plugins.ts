@@ -1,7 +1,7 @@
-import { registerPluginsListRoute } from "../routes/admin/plugins/list";
-import { registerPluginSetEnabledRoute } from "../routes/admin/plugins/set-enabled";
-import type { RouteDeps } from "../routes/types";
-import type { ServerModuleHandle } from "./types";
+import { registerPluginsListRoute } from "../routes/admin/plugins/list.js";
+import { registerPluginSetEnabledRoute } from "../routes/admin/plugins/set-enabled.js";
+import type { RouteDeps } from "../routes/types.js";
+import type { ServerModuleHandle } from "./types.js";
 
 /**
  * @file The `plugins` server module (SPEC-005, ADR-005-ARCH) — ADR-046 Phase 3 server-module

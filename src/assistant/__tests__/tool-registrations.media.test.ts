@@ -23,14 +23,14 @@ import {
   InMemoryAssetRenditionRepo,
   InMemoryMediaRepo,
   InMemoryBlobStore,
-} from "../../media";
-import type { RouteDeps } from "../../server/routes/types";
+} from "../../media/index.js";
+import type { RouteDeps } from "../../server/routes/types.js";
 import {
   assertRiskMetadataIsWirable,
   buildAssistantToolRegistrations,
-} from "../tool-registrations";
-import { resetToolContributorsForTests } from "../tool-contribution-registry";
-import { contributeMediaTools } from "../../media/tool-registrations";
+} from "../tool-registrations/index.js";
+import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
+import { contributeMediaTools } from "../../media/tool-registrations.js";
 
 // Media moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the
 // tool-contribution registry (2026-08-17, retried after `widgets`'s own conversion had merged — see

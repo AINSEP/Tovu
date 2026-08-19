@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
-import { checkDiskHeadroom } from "../disk-headroom";
+import { checkDiskHeadroom } from "../disk-headroom.js";
 
 /** @file ADR-023 §3 (T4 fix) — disk-headroom preflight, isolated from the rest of the engine. */
 

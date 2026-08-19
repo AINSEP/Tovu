@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { buildFormsRateLimitKey, FORMS_SUBMIT_PROFILE } from "../rate-limit-profile";
+import { buildFormsRateLimitKey, FORMS_SUBMIT_PROFILE } from "../rate-limit-profile.js";
 import { createRateLimiter } from "#src/core/rate-limit/rate-limit";
 
 /**

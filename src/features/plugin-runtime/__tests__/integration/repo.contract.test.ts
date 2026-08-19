@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import { openContentDb } from "#src/db/sqlite/content-db";
-import { InMemoryPluginActivationRepo } from "../../repo.memory";
-import { SqlitePluginActivationRepo } from "../../repo.sqlite";
-import type { PluginActivationRecord, PluginActivationRepoPort } from "../../activation";
+import { InMemoryPluginActivationRepo } from "../../repo.memory.js";
+import { SqlitePluginActivationRepo } from "../../repo.sqlite.js";
+import type { PluginActivationRecord, PluginActivationRepoPort } from "../../activation.js";
 
 /**
  * @file C-013 shared contract-test suite for `PluginActivationRepoPort`, run against both

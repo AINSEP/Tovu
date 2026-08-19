@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { renderStaticPage } from "../static-render";
-import type { DiscoveredTheme } from "../theme";
+import { renderStaticPage } from "../static-render.js";
+import type { DiscoveredTheme } from "../theme.js";
 
 /**
  * @file Regression coverage for the Milestone 3 Blocker A fix: `static-asset-contract.ts`'s

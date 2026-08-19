@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { IllegalTransitionError, advance } from "../../migrate-forward/state-machine";
-import type { MigrationRunState } from "../../migrate-forward/state-machine";
+import { IllegalTransitionError, advance } from "../../migrate-forward/state-machine.js";
+import type { MigrationRunState } from "../../migrate-forward/state-machine.js";
 
 /**
  * @file SPEC-017 C-103 / CIC U-001 / INV-01 / INV-05 / INV-06 — the dialect-conditional

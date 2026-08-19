@@ -1,14 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm";
-import { InMemoryKeyring } from "../../webhooks/keyring.memory";
-import { InMemoryAdminExecutionCredentialRepo } from "../execution-credential-store.memory";
-import { setExecutionCredential } from "../execution-credential-store";
+import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import { InMemoryKeyring } from "../../webhooks/keyring.memory.js";
+import { InMemoryAdminExecutionCredentialRepo } from "../execution-credential-store.memory.js";
+import { setExecutionCredential } from "../execution-credential-store.js";
 import {
   createRequestSuppliedExecutionCredentialPort,
   createStoredExecutionCredentialPort,
-} from "../byok-credential";
+} from "../byok-credential.js";
 
 /**
  * @file `byok-credential.ts`'s two `ExecutionCredentialPort` implementations.

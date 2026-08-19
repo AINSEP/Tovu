@@ -6,7 +6,7 @@ import test from "node:test";
 
 import Database from "better-sqlite3";
 
-import { advanceJournalPhase, beginJournalEntry, ensureMigrationJournal, findIncompleteJournalEntries } from "../migration-journal";
+import { advanceJournalPhase, beginJournalEntry, ensureMigrationJournal, findIncompleteJournalEntries } from "../migration-journal.js";
 
 /** @file ADR-023 §2 (T3 fix) — the phase-marker journal, isolated from the rest of the engine. */
 

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { extractEntryRefs, extractHtmlEntryRefs } from "../../extractor";
+import { extractEntryRefs, extractHtmlEntryRefs } from "../../extractor.js";
 
 /**
  * @file C-009 `extractEntryRefs` — SPEC-043 REQ-29..32, AC-21/22, INV-06.

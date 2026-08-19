@@ -3,15 +3,15 @@ import test from "node:test";
 
 import express from "express";
 
-import { bootAuthenticated } from "./helpers/http-test-server";
-import { createRouteDeps } from "../app";
-import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth";
-import { registerAdminMediaDeleteRoute } from "../routes/admin/media/delete";
-import { registerAdminMediaListRoute } from "../routes/admin/media/list";
-import { registerAdminMediaTrashRoute } from "../routes/admin/media/trash";
-import { registerAdminMediaUpdateRoute } from "../routes/admin/media/update";
-import { registerAdminMediaUploadRoute } from "../routes/admin/media/upload";
-import type { RouteDeps } from "../routes/types";
+import { bootAuthenticated } from "./helpers/http-test-server.js";
+import { createRouteDeps } from "../app.js";
+import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth.js";
+import { registerAdminMediaDeleteRoute } from "../routes/admin/media/delete.js";
+import { registerAdminMediaListRoute } from "../routes/admin/media/list.js";
+import { registerAdminMediaTrashRoute } from "../routes/admin/media/trash.js";
+import { registerAdminMediaUpdateRoute } from "../routes/admin/media/update.js";
+import { registerAdminMediaUploadRoute } from "../routes/admin/media/upload.js";
+import type { RouteDeps } from "../routes/types.js";
 
 /**
  * @file Route-level tests for the admin `media` HTTP surface (ADR-027 walking skeleton).

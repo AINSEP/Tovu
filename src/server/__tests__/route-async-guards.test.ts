@@ -2,13 +2,13 @@ import assert from "node:assert/strict";
 import express from "express";
 import test from "node:test";
 
-import { createApp, createRouteDeps } from "../app";
-import { bootAuthenticated, startTestServer } from "./helpers/http-test-server";
-import type { RouteDeps } from "../routes/types";
-import type { PublishCredentialSetRepoPort } from "../../features/deployments/publish-credentials/index";
-import type { SourceControlCredentialSetRepoPort } from "../../features/source-control/types";
+import { createApp, createRouteDeps } from "../app.js";
+import { bootAuthenticated, startTestServer } from "./helpers/http-test-server.js";
+import type { RouteDeps } from "../routes/types.js";
+import type { PublishCredentialSetRepoPort } from "../../features/deployments/publish-credentials/index.js";
+import type { SourceControlCredentialSetRepoPort } from "../../features/source-control/types.js";
 import type { CommentIngressPolicy, CommentWriteService } from "#src/comments/index";
-import { registerPaymentsWebhookRoute } from "../routes/site/payments-webhook";
+import { registerPaymentsWebhookRoute } from "../routes/site/payments-webhook.js";
 import type { LipayApi } from "#src/features/plugins/lipay/lipay-plugin";
 
 /**

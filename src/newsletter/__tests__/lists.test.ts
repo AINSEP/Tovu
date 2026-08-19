@@ -4,9 +4,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { archiveList, ensureDefaultList, saveList, type ListsDeps } from "../lists";
-import { NewsletterConflictError, NewsletterDefaultListProtectedError, NewsletterListNotFoundError } from "../errors";
-import { InMemoryNewsletterListRepo } from "../repo.memory";
+import { archiveList, ensureDefaultList, saveList, type ListsDeps } from "../lists.js";
+import { NewsletterConflictError, NewsletterDefaultListProtectedError, NewsletterListNotFoundError } from "../errors.js";
+import { InMemoryNewsletterListRepo } from "../repo.memory.js";
 
 const WS = "ws-1";
 let counter = 0;

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { getDriftStatus } from "../drift";
+import { getDriftStatus } from "../drift.js";
 
 /**
  * @file SPEC-017 C-102 / CIC U-002 / REQ-03 / AC-03 — drift classification, tag-identity-decisive.

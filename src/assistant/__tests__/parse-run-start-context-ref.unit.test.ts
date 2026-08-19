@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { parseRunStartContextRef } from "../run-start-context";
+import { parseRunStartContextRef } from "../run-start-context.js";
 
 /**
  * @file `parseRunStartContextRef` — the decode/validate step `agent-daemon-server.ts`'s `onStarted`

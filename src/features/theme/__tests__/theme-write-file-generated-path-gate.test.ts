@@ -6,8 +6,8 @@ import test from "node:test";
 
 import type { ToolExecutionContext, ToolRegistration } from "@jini-ai/cms/core";
 
-import { discoverAllBuiltInThemes } from "../theme";
-import { buildThemesRegistrations, type ThemeToolDeps } from "../tool-registrations";
+import { discoverAllBuiltInThemes } from "../theme.js";
+import { buildThemesRegistrations, type ThemeToolDeps } from "../tool-registrations.js";
 
 /**
  * @file Security parity fix (2026-08-18): `src/server/routes/admin/themes/explore.ts`'s PUT route has

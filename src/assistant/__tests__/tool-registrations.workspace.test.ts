@@ -7,11 +7,11 @@ import {
   getWorkspaceAgentToolCatalog,
   InMemoryWorkspaceRepo,
   type WorkspaceAgentToolDefinition,
-} from "../../features/workspace";
-import { contributeWorkspaceTools } from "../../features/workspace/tool-registrations";
-import type { RouteDeps } from "../../server/routes/types";
-import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations";
-import { resetToolContributorsForTests } from "../tool-contribution-registry";
+} from "../../features/workspace/index.js";
+import { contributeWorkspaceTools } from "../../features/workspace/tool-registrations.js";
+import type { RouteDeps } from "../../server/routes/types.js";
+import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations/index.js";
+import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
 
 /**
  * @file The Workspace (SPEC-044) tool-wiring test file — mirrors

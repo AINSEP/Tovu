@@ -1,19 +1,19 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import { loadTheme } from "../theme";
-import { checkApprovedRoots, checkSourceDirContainment, walkThemePackage } from "./structure";
-import { checkDeclaredReferences } from "./references";
-import { checkMarkupFile, checkTovuAgentAttributePresence } from "./markup";
-import { validateManifestV2 } from "./manifest-v2";
+import { loadTheme } from "../theme.js";
+import { checkApprovedRoots, checkSourceDirContainment, walkThemePackage } from "./structure.js";
+import { checkDeclaredReferences } from "./references.js";
+import { checkMarkupFile, checkTovuAgentAttributePresence } from "./markup.js";
+import { validateManifestV2 } from "./manifest-v2.js";
 import {
   resolveSeverity,
   type ThemeValidationIssue,
   type ThemeValidationProfile,
   type ThemeValidationSeverity,
-} from "./profiles";
+} from "./profiles.js";
 
-export type { ThemeValidationProfile, ThemeValidationIssue, ThemeValidationSeverity } from "./profiles";
+export type { ThemeValidationProfile, ThemeValidationIssue, ThemeValidationSeverity } from "./profiles.js";
 
 /**
  * @file The one public entry point for theme package validation — orchestrates the sibling check

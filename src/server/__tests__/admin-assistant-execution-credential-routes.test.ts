@@ -3,13 +3,13 @@ import test from "node:test";
 
 import express from "express";
 
-import { bootAuthenticated, startTestServer } from "./helpers/http-test-server";
-import { createRouteDeps } from "../app";
-import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth";
-import { createAssistantSettingsModule } from "../modules/assistant-settings";
-import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm";
-import type { KeyringPort } from "../../webhooks/index";
-import type { RouteDeps } from "../routes/types";
+import { bootAuthenticated, startTestServer } from "./helpers/http-test-server.js";
+import { createRouteDeps } from "../app.js";
+import { registerAuthRoutes, requireAdminSession } from "../middleware/dev-auth.js";
+import { createAssistantSettingsModule } from "../modules/assistant-settings.js";
+import { AesGcmSecretSealer } from "../../webhooks/secret-sealer.aesgcm.js";
+import type { KeyringPort } from "../../webhooks/index.js";
+import type { RouteDeps } from "../routes/types.js";
 
 /**
  * @file Route-level tests for the ADMIN's own BYOK execution-credential routes (GET/PUT/DELETE

@@ -4,16 +4,16 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { importSubscriptions, saveSubscription, unsubscribeSubscription, type SubscriptionsDeps, type UnsubscribeSubscriptionDeps } from "../subscriptions";
+import { importSubscriptions, saveSubscription, unsubscribeSubscription, type SubscriptionsDeps, type UnsubscribeSubscriptionDeps } from "../subscriptions.js";
 import {
   NewsletterListNotFoundError,
   NewsletterSubscriberNotFoundError,
   NewsletterSubscriptionNotFoundError,
   NewsletterValidationError,
-} from "../errors";
-import { InMemoryNewsletterConfirmationTokenRepo, InMemoryNewsletterListRepo, InMemoryNewsletterSubscriptionRepo } from "../repo.memory";
-import type { MembersConsentCapability, SubscriberContact, SubscriberDirectoryPort } from "../ports";
-import type { ConfirmationDeps } from "../confirmation";
+} from "../errors.js";
+import { InMemoryNewsletterConfirmationTokenRepo, InMemoryNewsletterListRepo, InMemoryNewsletterSubscriptionRepo } from "../repo.memory.js";
+import type { MembersConsentCapability, SubscriberContact, SubscriberDirectoryPort } from "../ports.js";
+import type { ConfirmationDeps } from "../confirmation.js";
 
 const WS = "ws-1";
 const NOW = "2026-07-13T00:00:00.000Z";

@@ -6,13 +6,13 @@ import express from "express";
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import { registerTransform } from "#src/media/index";
 import { CORE_PUBLIC_TRANSFORM_NAME } from "#src/media/index";
-import { createRouteDeps } from "../../app";
-import { createContentModule } from "../../modules/content";
-import { createMediaModule } from "../../modules/media";
-import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth";
-import { registerSiteRoutes } from "../../routes/site/pages";
-import type { RouteDeps } from "../../routes/types";
-import { bootAuthenticated } from "../helpers/http-test-server";
+import { createRouteDeps } from "../../app.js";
+import { createContentModule } from "../../modules/content.js";
+import { createMediaModule } from "../../modules/media.js";
+import { registerAuthRoutes, requireAdminSession } from "../../middleware/dev-auth.js";
+import { registerSiteRoutes } from "../../routes/site/pages.js";
+import type { RouteDeps } from "../../routes/types.js";
+import { bootAuthenticated } from "../helpers/http-test-server.js";
 
 /**
  * @file ADR-027 §4 end-to-end: a Post authored through the real admin API with a ref-based

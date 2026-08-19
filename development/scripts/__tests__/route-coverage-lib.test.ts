@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { isIntegrationTestFile } from "../route-coverage-lib";
+import { isIntegrationTestFile } from "../route-coverage-lib.js";
 
 /**
  * @file Direct coverage for `isIntegrationTestFile` — the canonical unit/integration test-tier
