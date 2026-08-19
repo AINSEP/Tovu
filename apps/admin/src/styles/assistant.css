@@ -853,3 +853,24 @@
   font-size: 12px;
   color: var(--faint);
 }
+
+/*
+ * `@jini-ai/chat`'s `A2uiSurfaceCard` ships these class names unstyled on purpose (same posture as
+ * every other A2UI primitive — see `playground.css`'s own note on `.a2ui-column`). Left unstyled,
+ * a catalog-validation refusal reads as plain body text, indistinguishable from a normal reply —
+ * exactly what makes a broken render easy to miss. Matches `styles.css`'s existing `.notice.error`
+ * shape/colors so a refusal reads as the same kind of thing everywhere else in this app says
+ * "something went wrong.".
+ */
+.a2ui-surface-refused,
+.a2ui-surface-notice-refused,
+.a2ui-surface-notice-delivery-failed {
+  display: block;
+  border: 1px solid var(--danger);
+  border-left: 3px solid var(--danger);
+  background: var(--danger-bg);
+  color: var(--danger);
+  padding: 0.85rem 1rem;
+  border-radius: var(--r-md);
+  font-size: var(--text-sm);
+}

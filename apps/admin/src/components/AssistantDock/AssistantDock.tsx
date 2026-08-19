@@ -1,32 +1,18 @@
-import { useCallback, useMemo, useRef } from "react";
 import {
-  A2uiSurfaceCard,
   ChatPane,
   ConversationList,
   JiniChatProvider,
-  createDaemonAttachmentUploader,
   createMcpUiToolCaller,
   registerExtEventRenderer,
   registerMcpUiSurfaceRenderer,
-  type ChatPaneAgent,
-  type ComposerDiscoveryOutcome,
-  type ComposerDiscoverySelection,
   type FrontendSessionBridge,
 } from "@jini-ai/chat/react";
 import type { ChatMessage } from "@jini-ai/chat/core";
 
 import { createA2uiActionPoster } from "../../lib/a2ui-action-poster";
-import { createTovuAssistantTransport } from "../../lib/assistant-transport";
-import { publishSettingsRefresh } from "../../lib/settings-refresh-bus";
-import { navigate } from "../../lib/router";
+import { RoutedA2uiSurfaceCard } from "./RoutedA2uiSurfaceCard";
 import { hasUsableAdminKey } from "../../lib/execution-settings";
-import { useWiredAssistantChats, type UseAssistantChats } from "../../hooks/use-assistant-chats.hooks";
-import { useWiredAdminLocale } from "../../hooks/use-admin-locale.hooks";
-import { ASSISTANT_DOCK_DICT, createChatI18nAdapter } from "./assistant-dock-i18n";
-import {
-  resolveTovuComposerDiscoveryRoute,
-  type ComposerCapabilityProjection,
-} from "../../features/plugins/composer-capabilities";
+import type { UseAssistantChats } from "../../hooks/use-assistant-chats.hooks";
 import "../../styles/assistant.css";
 // The runtime picker's BYOK model row renders `@jini-ai/ui`'s `SearchableModelSelect`, whose
 // styles (including the body-portaled `.jini-select-menu`) live in this sheet. The settings
@@ -34,13 +20,37 @@ import "../../styles/assistant.css";
 // operator may never open would leave the dropdown unstyled exactly when it is used most.
 import "@jini-ai/ui/settings-dialog.css";
 import {
-  resolveRunContext,
-  shouldPublishOnMessagesChange,
+  // The bare hook names below are imported for their TYPE only (`typeof useX` on
+  // `AssistantDockProps`) — every actual call in this component goes through the matching
+  // `useXSeam` wrapper instead; see `AssistantDock.hooks.tsx`'s "Seam layer" doc for why.
+  useAssistantDockChrome,
+  useAssistantTransport,
+  useAssistantTransportSeam,
+  useAttachmentUploader,
+  useAttachmentUploaderSeam,
   useByokRuntime,
+  useByokRuntimeSeam,
+  useChatsSeam,
   useComposerCapabilities,
+  useComposerCapabilitiesSeam,
+  useComposerDiscoverySelect,
   useExecutionConfig,
+  useExecutionConfigSeam,
   useLocalCliSelection,
-} from "./AssistantDock.hooks";
+  useLocalCliSelectionSeam,
+  useMessagesChangeHandler,
+  useRunContext,
+  useRuntimeAccess,
+  useRuntimeAccessSeam,
+} from "./hooks/AssistantDock.hooks";
+
+// `resolveComposerDiscoveryOutcome` lives in `AssistantDock.hooks.tsx` now (2026-08-18, alongside
+// `shouldPublishOnMessagesChange`/`resolveRunContext` as a third pure decision helper), but has an
+// external consumer outside this folder
+// (`features/plugins/__tests__/agent-plugin-capability-adapter.unit.test.ts`) — per `INFO.md`'s
+// Components rule 2 ("a hook with an external consumer gets re-exported by name from the component
+// file"), it stays reachable at this same import path.
+export { resolveComposerDiscoveryOutcome, type ResolveComposerDiscoveryOutcomeDeps } from "./hooks/AssistantDock.hooks";
 
 /**
  * Renders the MCP-UI surfaces the daemon withholds from tool results, and wires the dialog's
@@ -102,7 +112,13 @@ const mcpUiToolCaller = createMcpUiToolCaller("", { path: "/api/admin/v1/mcp-ui/
  * still pass `maxHeight` — the prop stays tested and supported — but should do so only once
  * `document.ts` gives a capped surface its own internal scrollbar to overflow into.
  */
-registerMcpUiSurfaceRenderer({ onToolCall: mcpUiToolCaller });
+registerMcpUiSurfaceRenderer({
+  onToolCall: mcpUiToolCaller,
+  // Must match `src/assistant/mcp-ui-sandbox-proxy-route.ts`'s `MCP_UI_SANDBOX_PROXY_PATH` exactly
+  // — `src/server/` and `apps/admin/` are separate deployable apps, so there is no shared module
+  // either side can import this literal from (same reasoning `AG_UI_RUN_PATH` duplication uses).
+  sandboxProxyUrl: new URL("/mcp-ui/sandbox-proxy.html", globalThis.location.origin),
+});
 
 /**
  * A2UI's counterpart to the MCP-UI wiring above — same module-scope-once posture, same "one line
@@ -118,9 +134,17 @@ registerMcpUiSurfaceRenderer({ onToolCall: mcpUiToolCaller });
  * "this host has not wired up a live agent-action relay yet" notice on every agent-directed click
  * (see that component's own module doc) — exactly the gap `examples/reference-web/src/A2uiLab.tsx`
  * leaves open deliberately, because a demo fixture has no real backend to relay to. Tovu does now.
+ *
+ * Registered against `RoutedA2uiSurfaceCard` (this file's sibling `RoutedA2uiSurfaceCard.tsx`), not
+ * `A2uiSurfaceCard` directly — the Studio Playground "whiteboard" feature: when
+ * `/admin/playground` is the active page, that wrapper portals the exact same card onto the
+ * Playground canvas instead of rendering it inline in the transcript. Every other page is
+ * unaffected — no target registered there, so the wrapper falls straight through to
+ * `A2uiSurfaceCard` unchanged. See `RoutedA2uiSurfaceCard.tsx`'s own doc for the full routing
+ * decision and `lib/playground-render-target-bus.ts` for the seam it reads.
  */
 const postA2uiAction = createA2uiActionPoster("", { path: "/api/admin/v1/a2ui/actions" });
-registerExtEventRenderer("a2ui", (props) => <A2uiSurfaceCard {...props} onAgentAction={postA2uiAction} />);
+registerExtEventRenderer("a2ui", (props) => <RoutedA2uiSurfaceCard {...props} onAgentAction={postA2uiAction} />);
 
 declare global {
   interface Window {
@@ -162,117 +186,17 @@ declare global {
  * `--jini-chat-*` custom-property seam or a descendant selector — a flat `.jini-*` rule in
  * `assistant.css` loses even at equal specificity. See that file's header for the full account.
  *
- * The runtime-picker state (`useExecutionConfig`, `useByokRuntime`, `useLocalCliSelection`), the
- * composer-discovery projection (`useComposerCapabilities`, 2026-08-14), and the two pure decision
- * helpers this component calls (`shouldPublishOnMessagesChange`, `resolveRunContext`) live in
- * `AssistantDock.hooks.tsx` — see that file's own header for why they are split out. This file
- * stays the render layer: it wires their return values onto `<ChatPane>`'s props and owns only the
- * JSX-adjacent state (`transport`, `uploadAttachments`, `runtimeAccess`, `handleMessagesChange`,
- * `runContext`) that has no independent failure path worth testing in isolation.
+ * Every hook this component's render depends on — the runtime-picker state (`useExecutionConfig`,
+ * `useByokRuntime`, `useLocalCliSelection`), the composer-discovery projection
+ * (`useComposerCapabilities`, 2026-08-14), the JSX-adjacent state that used to live inline here
+ * (`useChatI18n`, `useAssistantTransport`, `useAttachmentUploader`, `useRuntimeAccess`,
+ * `useComposerDiscoverySelect`, `useMessagesChangeHandler`, `useRunContext` — extracted 2026-08-18),
+ * and the pure decision helpers those hooks call (`shouldPublishOnMessagesChange`,
+ * `resolveRunContext`, `resolveComposerDiscoveryOutcome`) — live in `AssistantDock.hooks.tsx`; see
+ * that file's own header for why they are split out and which of them carry an `INFO.md` rule-3
+ * injectable seam. This file stays the render layer: props/JSX only, wiring each hook's return
+ * value onto `<ChatPane>`'s props.
  */
-
-const AGENTS_URL = "/api/agents";
-
-/**
- * Mirrors `lib/api.ts`'s `DEFAULT_REQUEST_TIMEOUT_MS` (60s). These three fetches bypass that
- * shared `request()` seam entirely — `/api/agents` is not under `request()`'s `/api/admin/v1` base
- * path — so without their own bound they can hang forever under the same per-origin
- * connection-pool exhaustion `api.ts`'s own `REQUEST_TIMEOUT_CODE` doc describes (every open admin
- * tab keeps one `EventSource` connection open forever; see `lib/settings-events.ts`).
- */
-const AGENTS_FETCH_TIMEOUT_MS = 60_000;
-
-async function fetchAgents(): Promise<ChatPaneAgent[]> {
-  const response = await fetch(AGENTS_URL, {
-    credentials: "same-origin",
-    signal: AbortSignal.timeout(AGENTS_FETCH_TIMEOUT_MS),
-  });
-  if (!response.ok) return [];
-  const { agents } = (await response.json()) as { agents: ChatPaneAgent[] };
-  return agents;
-}
-
-/**
- * In-flight `daemonOnline()` call, shared module-wide so overlapping callers reuse it instead of
- * each starting their own fetch.
- *
- * `@jini-ai/chat/react`'s `useChatPaneRuntimeInventory` polls `daemonOnline` on a bare
- * `window.setInterval` every 5s for as long as a dock is mounted (effectively a whole tab's
- * lifetime), and its own de-dup (`useLatestOperation`) only ignores a STALE RESULT — it never
- * aborts the underlying fetch. Under connection-pool exhaustion, a `fetch` that queues forever
- * previously meant a brand new permanently-stuck request was added on every single tick, an
- * unbounded leak for as long as the tab stayed open (see
- * `ADS-memory/reports/2026-08-17-vite-proxy-pool-saturation-investigation.md`). Reusing one
- * in-flight promise caps that cost at one connection, the same fixed cost the settings-events SSE
- * already holds, instead of growing without bound.
- */
-let daemonOnlineInFlight: Promise<boolean> | null = null;
-
-async function daemonOnline(): Promise<boolean> {
-  if (daemonOnlineInFlight) return daemonOnlineInFlight;
-  const attempt = (async () => {
-    const response = await fetch(AGENTS_URL, {
-      credentials: "same-origin",
-      signal: AbortSignal.timeout(AGENTS_FETCH_TIMEOUT_MS),
-    });
-    return response.ok;
-  })();
-  daemonOnlineInFlight = attempt;
-  try {
-    return await attempt;
-  } finally {
-    if (daemonOnlineInFlight === attempt) daemonOnlineInFlight = null;
-  }
-}
-
-export interface ResolveComposerDiscoveryOutcomeDeps {
-  readonly capabilities: ComposerCapabilityProjection;
-  readonly navigate: (path: string) => void;
-  /** Structurally `@jini-ai/chat/react`'s `McpUiToolCallHandler` — the same instance registered
-   * for MCP-UI surface rendering above (`mcpUiToolCaller`), reused rather than re-instantiated. */
-  readonly callAllowlistedTool: (call: { name: string; arguments: Record<string, unknown> }) => Promise<unknown> | unknown;
-}
-
-/**
- * Resolves one composer selection into its effect — the host half of debate 2's projection
- * ("Composer slash commands"). Checks the existing client-local route first (`/mcp`'s settings
- * navigation, unchanged since before this projection existed), then falls through to a projected
- * capability's own {@link ComposerHostBinding} (see `composer-capabilities.ts`'s module doc for
- * what each binding kind means and why there are only two). Returns the `ComposerDiscoveryOutcome`
- * Jini's `Composer` applies to the draft, or `undefined` when nothing should change it — e.g. `/mcp`
- * navigating away, or an unresolvable item id (never true for a live selection, but not assumed).
- *
- * A free function rather than inline in the component: every dependency is explicit and injected,
- * so the resolution logic (including the `'allowlisted-tool-call'` branch, unreachable through any
- * bundled capability today) is provable without rendering `AssistantDock` at all.
- *
- * @complexity O(1) plus the cost of `callAllowlistedTool` when a tool-call binding is resolved.
- * @overallScore 100
- */
-export async function resolveComposerDiscoveryOutcome(
-  selection: ComposerDiscoverySelection,
-  deps: ResolveComposerDiscoveryOutcomeDeps,
-): Promise<ComposerDiscoveryOutcome | void> {
-  const route = resolveTovuComposerDiscoveryRoute(selection.item.id);
-  if (route) {
-    deps.navigate(route);
-    return;
-  }
-
-  const capability = deps.capabilities.byItemId.get(selection.item.id);
-  if (!capability?.resolve) return;
-
-  const binding = capability.resolve(selection.argument);
-  if (binding.kind === "compose-text") return { draft: binding.text };
-
-  // 'allowlisted-tool-call': POSTs through the same session-authenticated, allowlist-gated route
-  // MCP-UI surface confirmations already use. Rejects with `TOOL_NOT_ALLOWLISTED` (403) for any
-  // tool id not on `MCP_UI_REDEEMABLE_TOOL_IDS` — true for every binding in the bundled catalog
-  // today, since none is wired to this kind yet. The rejection propagates to the caller, where
-  // Jini's `runComposerHostEffect` reports it and leaves the draft untouched.
-  await Promise.resolve(deps.callAllowlistedTool({ name: binding.toolName, arguments: binding.params }));
-  return { draft: "" };
-}
 
 export interface AssistantDockProps {
   /**
@@ -289,6 +213,15 @@ export interface AssistantDockProps {
    * know a port exists, only that something supplies it conversation state.
    */
   useChats?: () => UseAssistantChats;
+  /**
+   * Injectable seam for the locale {@link useAssistantDockChrome} resolves `locale`/`t`/`chatI18n`
+   * from. Defaults to the real `useWiredAdminLocale` (2026-08-18, added after live review flagged
+   * that this was the one IO hook in the component still called bare): the real hook calls
+   * `port.loadLanguage()`, a real `fetch`, which a fake bypasses entirely — a test can now drive
+   * `locale`/`t`/`chatI18n` for any locale without stubbing `lib/settings-tabs` or the
+   * settings-refresh bus.
+   */
+  useAdminLocale?: () => string;
   /**
    * Injectable seam for the runtime-picker's Local CLI / API · BYOK config state — see
    * {@link useExecutionConfig}. Defaults to the real hook (MSG-01, 2026-08-06, owner directive:
@@ -317,41 +250,42 @@ export interface AssistantDockProps {
    * above: the real hook calls `projectComposerCapabilities`, which a fake bypasses entirely.
    */
   useComposerCapabilities?: typeof useComposerCapabilities;
+  /**
+   * Injectable seam for the chat transport — see {@link useAssistantTransport}. Defaults to the
+   * real hook (2026-08-18 inline-hook-extraction pass, same `INFO.md` rule-3 rationale as the four
+   * above): the real hook calls `createTovuAssistantTransport`, whose `startRun` makes the actual
+   * daemon network call, which a fake bypasses entirely.
+   */
+  useAssistantTransport?: typeof useAssistantTransport;
+  /**
+   * Injectable seam for the composer's attachment uploader — see {@link useAttachmentUploader}.
+   * Defaults to the real hook, same 2026-08-18 rationale as `useAssistantTransport` above: the real
+   * hook calls `createDaemonAttachmentUploader`, whose uploads are real `fetch`es to
+   * `/api/attachments`, which a fake bypasses entirely.
+   */
+  useAttachmentUploader?: typeof useAttachmentUploader;
+  /**
+   * Injectable seam for the Local CLI picker's agent list/rescan/daemon-online poll — see
+   * {@link useRuntimeAccess}. Defaults to the real hook, same 2026-08-18 rationale as the two
+   * above: the real hook's `listAgents`/`rescanAgents`/`daemonOnline` are all `fetch`-backed, which
+   * a fake bypasses entirely.
+   */
+  useRuntimeAccess?: typeof useRuntimeAccess;
 }
 
 /**
- * Resolves each of `AssistantDock`'s six injectable-seam props to its real implementation when a
- * caller passes none. The same `??`-avoidance idiom `MenuEditor.tsx`'s `orEmpty`,
- * `CollectionEntryEditor.tsx`'s `resolveCollectionEntryEditorHook`, and `Comments.tsx`'s
- * `resolveCommentSettingsHook` use (2026-08-14, tried on `AssistantDock` per the DI migration
- * sweep's own audit): ESLint's cyclomatic-complexity rule counts a default parameter value inside a
- * function's OWN body as one of that function's own branches — a call out to a separately-scoped
- * resolver does not. `AssistantDock` is the first MULTI-seam use of this idiom in the codebase (the
- * three precedents above each resolve exactly one prop); one resolver per seam, rather than a
- * single generic `resolveHook<T>`, so each stays independently named and grep-able the same way its
- * precedents are.
+ * `agentBridge` is the one prop above not hook-shaped — a plain caller-supplied value, never a
+ * resolve-then-call-a-hook seam — so it keeps its own tiny resolver here rather than moving to
+ * `AssistantDock.hooks.tsx`'s seam layer. The other eight props' resolve-or-default logic lives in
+ * that seam layer instead (`useChatsSeam`, `useExecutionConfigSeam`, `useByokRuntimeSeam`,
+ * `useLocalCliSelectionSeam`, `useComposerCapabilitiesSeam`, `useAssistantTransportSeam`,
+ * `useAttachmentUploaderSeam`, `useRuntimeAccessSeam` — see that file's own "Seam layer" doc for why
+ * and for the ESLint cyclomatic-complexity reasoning this resolver still relies on: a `??` inside a
+ * separately-scoped function does not count against `AssistantDock`'s own body, unlike the inline
+ * `{ useClamp = useSeeMoreClamp }` idiom a single-seam component can afford.
  */
 function resolveAgentBridge(override: FrontendSessionBridge | null | undefined): FrontendSessionBridge | null {
   return override ?? null;
-}
-function resolveChatsHook(override: (() => UseAssistantChats) | undefined): () => UseAssistantChats {
-  return override ?? useWiredAssistantChats;
-}
-function resolveExecutionConfigHook(override: typeof useExecutionConfig | undefined): typeof useExecutionConfig {
-  return override ?? useExecutionConfig;
-}
-function resolveByokRuntimeHook(override: typeof useByokRuntime | undefined): typeof useByokRuntime {
-  return override ?? useByokRuntime;
-}
-function resolveLocalCliSelectionHook(
-  override: typeof useLocalCliSelection | undefined
-): typeof useLocalCliSelection {
-  return override ?? useLocalCliSelection;
-}
-function resolveComposerCapabilitiesHook(
-  override: typeof useComposerCapabilities | undefined
-): typeof useComposerCapabilities {
-  return override ?? useComposerCapabilities;
 }
 
 /**
@@ -366,142 +300,59 @@ function resolveComposerCapabilitiesHook(
  * spread's own ternary, 1 for `?.` + 1 for `??` on the title fallback) — none of which wrap
  * another, which is why cognitive stays at 2.
  */
-export function AssistantDock(props: AssistantDockProps) {
-  const agentBridge = resolveAgentBridge(props.agentBridge);
-  const useChats = resolveChatsHook(props.useChats);
-  const useExecutionConfigState = resolveExecutionConfigHook(props.useExecutionConfig);
-  const useByokRuntimeState = resolveByokRuntimeHook(props.useByokRuntime);
-  const useLocalCliSelectionState = resolveLocalCliSelectionHook(props.useLocalCliSelection);
-  const useComposerCapabilitiesState = resolveComposerCapabilitiesHook(props.useComposerCapabilities);
-  /**
-   * Translates this component's own pane chrome (eyebrow, title fallback, composer placeholder)
-   * and — via `createChatI18nAdapter` — the `ConversationList` switcher mounted in `header` below.
-   * `useWiredAdminLocale()` is the same shared hook every other translated admin screen uses; see
-   * its own doc comment for the live-refresh behavior.
-   */
-  const locale = useWiredAdminLocale();
-  const t = (key: string): string => ASSISTANT_DOCK_DICT[locale]?.[key] ?? key;
-  const chatI18n = useMemo(() => createChatI18nAdapter(locale), [locale]);
+/**
+ * Destructured rather than read as `props.x` throughout the body — every seam below is passed
+ * straight to its matching `useXSeam` (or, for `agentBridge`, to {@link resolveAgentBridge}), so
+ * there is nothing left to gain from keeping a `props` object around. Renamed to `...Override`
+ * where the prop name would otherwise collide with the imported real hook it defaults to (same
+ * "rename the local binding, not the prop" rule `INFO.md`'s Components section states) — `useChats`
+ * needs no rename since only its `Seam` counterpart, not the bare hook, is imported here.
+ */
+export function AssistantDock({
+  agentBridge: agentBridgeProp,
+  useChats,
+  useAdminLocale,
+  useExecutionConfig: useExecutionConfigOverride,
+  useByokRuntime: useByokRuntimeOverride,
+  useLocalCliSelection: useLocalCliSelectionOverride,
+  useComposerCapabilities: useComposerCapabilitiesOverride,
+  useAssistantTransport: useAssistantTransportOverride,
+  useAttachmentUploader: useAttachmentUploaderOverride,
+  useRuntimeAccess: useRuntimeAccessOverride,
+}: AssistantDockProps) {
+  const agentBridge = resolveAgentBridge(agentBridgeProp);
+  // Translates this component's own pane chrome (eyebrow, title fallback, composer placeholder)
+  // and — via `chatI18n` — the `ConversationList` switcher mounted in `header` below. See
+  // {@link useAssistantDockChrome}'s own doc for why `locale`/`t`/`chatI18n` are one hook rather
+  // than three separate calls.
+  const { t, chatI18n } = useAssistantDockChrome(useAdminLocale);
 
-  const { executionConfig, executionConfigRef, setExecutionConfig, handleExecutionModeChange, hasStoredAdminKey, configLoaded } = useExecutionConfigState();
-  const { byokRuntime, handleByokModelChange } = useByokRuntimeState({ executionConfig, setExecutionConfig });
-  const { localCliSelection, handleLocalCliSelectionChange } = useLocalCliSelectionState({
+  const { executionConfig, executionConfigRef, setExecutionConfig, handleExecutionModeChange, hasStoredAdminKey, configLoaded } = useExecutionConfigSeam(useExecutionConfigOverride);
+  const { byokRuntime, handleByokModelChange } = useByokRuntimeSeam(useByokRuntimeOverride, { executionConfig, setExecutionConfig });
+  const { localCliSelection, handleLocalCliSelectionChange } = useLocalCliSelectionSeam(useLocalCliSelectionOverride, {
     executionConfig,
     setExecutionConfig,
     configLoaded,
   });
 
-  // The transport holds no per-render state; rebuilding it each render would drop in-flight runs.
-  const transport = useMemo(
-    () => createTovuAssistantTransport({ getExecutionConfig: () => executionConfigRef.current }),
-    [],
-  );
-  /**
-   * `''` baseUrl: `createDaemonAttachmentUploader` builds `${baseUrl}/api/attachments`, so an
-   * empty string resolves to the same bare `/api/attachments` relative path `AGENTS_URL`/`RUNS_URL`
-   * already use — same-origin, proxied by `src/server/modules/assistant.ts` to the agent daemon,
-   * matching every other request this dock makes. Memoized for the same reason `transport` is: it
-   * owns internal per-uploader batch-quota state (`create-daemon-attachment-uploader.ts`'s
-   * `batchUsage` map), so rebuilding it on every render would silently reset a turn's running quota
-   * mid-upload.
-   */
-  const uploadAttachments = useMemo(() => createDaemonAttachmentUploader(""), []);
-  const runtimeAccess = useMemo(
-    () => ({
-      listAgents: fetchAgents,
-      rescanAgents: async () => {
-        const response = await fetch(`${AGENTS_URL}/rescan`, {
-          method: "POST",
-          credentials: "same-origin",
-          signal: AbortSignal.timeout(AGENTS_FETCH_TIMEOUT_MS),
-        });
-        if (!response.ok) return fetchAgents();
-        const { agents } = (await response.json()) as { agents: ChatPaneAgent[] };
-        return agents;
-      },
-      daemonOnline,
-    }),
-    [],
-  );
-  const chats = useChats();
+  const transport = useAssistantTransportSeam(useAssistantTransportOverride, { executionConfigRef });
+  const uploadAttachments = useAttachmentUploaderSeam(useAttachmentUploaderOverride);
+  const runtimeAccess = useRuntimeAccessSeam(useRuntimeAccessOverride);
+  const chats = useChatsSeam(useChats);
   /**
    * The composer's discovery catalog, projected asynchronously (debate 2, "Composer slash
    * commands") — replaces the pre-2026-08-12 static `TOVU_COMPOSER_DISCOVERY_GROUPS` import. See
    * `useComposerCapabilities`'s own doc (`AssistantDock.hooks.tsx`) for why it starts empty and how
    * a failed projection degrades.
    */
-  const { composerCapabilities } = useComposerCapabilitiesState();
-  const handleComposerDiscoverySelect = useCallback(
-    (selection: ComposerDiscoverySelection) =>
-      resolveComposerDiscoveryOutcome(selection, {
-        capabilities: composerCapabilities,
-        navigate,
-        callAllowlistedTool: mcpUiToolCaller,
-      }),
-    [composerCapabilities],
-  );
+  const { composerCapabilities } = useComposerCapabilitiesSeam(useComposerCapabilitiesOverride);
+  const handleComposerDiscoverySelect = useComposerDiscoverySelect({
+    composerCapabilities,
+    callAllowlistedTool: mcpUiToolCaller,
+  });
 
-  /**
-   * Last assistant message id seen in a terminal state, so a run's completion fires the settings
-   * refresh below exactly once. `onMessagesChange` runs on every delta of a streaming reply, and
-   * the terminal message keeps arriving in later calls after it settles.
-   */
-  const settledRunMessageId = useRef<string | null>(null);
-
-  const handleMessagesChange = useCallback(
-    (messages: ChatMessage[]) => {
-      window.__tovuAssistantMessages = messages;
-      // Persistence is selective, not per-delta — see `lib/assistant-chats.ts`'s
-      // `persistableMessages` for why a streaming reply is written once rather than per token.
-      chats.onMessagesChange(messages);
-
-      /**
-       * A finished run may have written a setting — `settings_set_ui_preference` is agent-callable
-       * — so the mounted settings tabs re-read. Without this the write lands in `content.db` and
-       * the open tab keeps rendering the value it fetched at mount, which reads as the tool having
-       * silently done nothing.
-       *
-       * Deliberately triggered by RUN COMPLETION rather than by inspecting the transcript for a
-       * settings tool call. Matching tool names here would put a list of them in the admin shell,
-       * where it would fall out of date the first time the catalog grows — and the whole cost of
-       * being wrong is a few sub-millisecond SQLite reads per run. Ignorance is cheaper than
-       * coupling.
-       *
-       * `undefined` scope (rather than a namespace list) for the same reason: this publisher does
-       * not know what changed, and saying so is more honest than guessing.
-       */
-      const { publish, nextSettledRunMessageId } = shouldPublishOnMessagesChange({
-        messages,
-        settledRunMessageId: settledRunMessageId.current,
-      });
-      settledRunMessageId.current = nextSettledRunMessageId;
-      if (publish) publishSettingsRefresh();
-    },
-    [chats],
-  );
-
-  /**
-   * Tells the daemon which tab this run is allowed to drive, so `page.navigate` and friends have
-   * an addressee. `assistant-transport.ts` reads `frontendBindToken` out of this and puts it in
-   * the run's `contextRef`.
-   *
-   * A function, and the token read *inside* it, because `EventSource` reconnects on its own — a
-   * daemon restart, a sleeping laptop, an ordinary blip — and every reattach mints a new session
-   * and a new token. Capturing the value once would keep sending a dead one, and the only symptom
-   * would be the agent being told "no frontend is bound to this run" on every page call, long
-   * after the reconnect that caused it.
-   *
-   * Depends on `agentBridge` identity rather than reading a ref: the bridge object is stable for
-   * the tab's lifetime, so this rebuilds only when page control genuinely appears or goes away.
-   * Also depends on `localCliSelection.model` (not the whole `localCliSelection` object, which
-   * would rebuild on every keystroke-equivalent picker interaction that leaves the model alone)
-   * so a run started right after a model pick carries it — `useLocalCliSelection` owns the
-   * picker's live value, and this is the one place that value needs to leave React state.
-   */
-  const runContext = useMemo(
-    () => () => resolveRunContext({ bindToken: agentBridge?.bindToken(), model: localCliSelection.model }),
-    [agentBridge, localCliSelection.model],
-  );
+  const handleMessagesChange = useMessagesChangeHandler({ chats });
+  const runContext = useRunContext({ agentBridge, model: localCliSelection.model });
 
   return (
     <JiniChatProvider transport={transport} i18n={chatI18n}>

@@ -132,6 +132,7 @@
 import type { CommentsToolDeps } from "../comments/tool-registrations";
 import { buildDemoA2uiRegistrations, demoA2uiDerivedRisk } from "./demo-a2ui-tool";
 import { buildDemoChoicesRegistrations, demoChoicesDerivedRisk } from "./demo-choices-tool";
+import { buildRenderUiRegistrations, renderUiDerivedRisk } from "./render-ui-tool";
 import { createSurfaceExchangeStore, type AssistantSurfaceDeps } from "../core/tool-surface-exchanges";
 import { listToolContributors, type ToolContributor } from "./tool-contribution-registry";
 
@@ -473,6 +474,9 @@ const DOMAIN_SLICES: readonly DomainSlice[] = [
   // A2UI's multi-turn counterpart — `demo-choices` above proves the one-shot MCP-UI return path;
   // this proves the shape A2UI exists for (`createSurface -> action -> updateComponents -> action`).
   { domain: "demo-a2ui", build: buildDemoA2uiRegistrations, risk: demoA2uiDerivedRisk },
+  // General-purpose: lets the model draw ANY component the catalog knows about (basic primitives
+  // plus every shadcn/recharts registry component), not a scripted fixed shape.
+  { domain: "render-ui", build: buildRenderUiRegistrations, risk: renderUiDerivedRisk },
 ];
 
 /**

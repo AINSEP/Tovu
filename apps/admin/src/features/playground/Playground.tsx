@@ -1,38 +1,45 @@
-/**
- * @file The Studio "Playground" screen — a live, manually-driven A2UI surface for trying out
- * `interactive-ui` registry components (the real shadcn table, the dependency-free native one)
- * composed alongside A2UI's basic layout primitives (`Column`/`Text`/`Button`).
- *
- * Client-side only, deliberately: `DEFAULT_INTERACTIVE_UI_REGISTRY` is static data already bundled
- * into this app via `@jini-ai/ui` — there is nothing to fetch to browse it, so this searches it
- * directly rather than round-tripping through the daemon's `/api/components/search` (that route
- * exists for an AGENT calling `search_components` over MCP, a different caller with no access to
- * this bundle).
- *
- * What this does NOT do yet: let a chat conversation place a component here. That needs a real
- * agent tool — something in the shape of `demo-a2ui-tool.ts` but built on the merged catalog and
- * driven by actual agent reasoning about what to add, not a scripted two-step demo — which doesn't
- * exist yet. This tab only proves the rendering half: registry resolution, recursive tree-walking,
- * a real shadcn component, all working in the actual admin app.
- *
- * The search/surface/interpreter state lives in `hooks/use-playground.hooks.ts`, split out the
- * same way `SeeMore`/`SeeMore.hooks.tsx` does — this file stays props-and-JSX only, and the
- * `usePlaygroundHook` prop below lets a test render this JSX against a fake hook.
- */
-import { A2uiSurfaceRenderer } from "@jini-ai/ui/a2ui";
 import "../../styles/playground.css";
+import { usePlaygroundCanvas } from "./hooks/use-playground-canvas.hooks";
 
-import { usePlayground, SURFACE_ID } from "./hooks/use-playground.hooks";
-
+/**
+ * @file The Studio "Playground" screen — a whiteboard for the assistant.
+ *
+ * No manual component picker: the assistant already discovers every component itself
+ * (`search_components`/`describe_component` against `DEFAULT_INTERACTIVE_UI_REGISTRY`, real
+ * shadcn/recharts components alongside A2UI's basic primitives) and renders whatever it decides
+ * to build via the `assistant_render_ui` tool. The workspace chat dock (open it from the "+"
+ * button, top right of any admin page) is what you talk to; while THIS page is the active one,
+ * whatever it draws lands below, on the canvas, instead of inline in the chat transcript — on any
+ * other admin page the exact same ask still renders inline in the chat, unchanged.
+ *
+ * The routing itself lives entirely on the `AssistantDock` side
+ * (`components/AssistantDock/RoutedA2uiSurfaceCard.tsx`) — this component's only job is to publish
+ * its own canvas container to `lib/playground-render-target-bus.ts` while it is mounted, and
+ * unpublish it on unmount so navigating away reverts every later ask to inline rendering. That
+ * register/unregister ref callback lives in `hooks/use-playground-canvas.hooks.ts`, split out the
+ * same way `RoutedA2uiSurfaceCard.tsx` splits its own reading half of this same bus into
+ * `hooks/use-routed-a2ui-surface-card.hooks.ts` — this file stays props-and-JSX only and calls
+ * {@link usePlaygroundCanvas} through the injectable `usePlaygroundCanvasHook` prop below, the same
+ * seam shape this page's now-deleted `usePlaygroundHook` prop used to have.
+ *
+ * Deliberately no example output rendered here: anything shown on the canvas must come from a real
+ * assistant turn, not from JSX written into this file — a static/hardcoded example was tried and
+ * explicitly rejected (it defeats the entire point of dynamic, agent-driven rendering). The
+ * "nothing drawn yet" placeholder below is CSS only (`playground.css`'s
+ * `.playground-render-target:empty ~ .playground-empty-state`) for the same reason: the canvas div
+ * itself must stay a pure portal target with no JSX children of its own, or a real surface
+ * appended into it by `RoutedA2uiSurfaceCard`'s portal would be commingled with content this
+ * component thinks it owns.
+ */
 export interface PlaygroundProps {
-  /** Injectable seam for the tab's search/surface state. Defaults to the real
-   *  {@link usePlayground}; a test can pass a fake here to exercise `Playground`'s rendering with a
-   *  fixed registry/surface state instead of driving the real A2UI interpreter. */
-  usePlaygroundHook?: typeof usePlayground;
+  /** Injectable seam for the canvas render-target-bus registration hook. Defaults to the real
+   *  {@link usePlaygroundCanvas}; a test can pass a fake here to exercise `Playground`'s rendering
+   *  without driving the real `playground-render-target-bus` module state. */
+  usePlaygroundCanvasHook?: typeof usePlaygroundCanvas;
 }
 
-export function Playground({ usePlaygroundHook = usePlayground }: PlaygroundProps = {}) {
-  const { registry, matches, query, setQuery, total, surfaceOpen, interpreter, addToSurface, reset } = usePlaygroundHook();
+export function Playground({ usePlaygroundCanvasHook = usePlaygroundCanvas }: PlaygroundProps = {}) {
+  const { registerCanvas } = usePlaygroundCanvasHook();
 
   return (
     <div className="page">
@@ -41,123 +48,18 @@ export function Playground({ usePlaygroundHook = usePlayground }: PlaygroundProp
           <p className="page-kicker">Studio</p>
           <h1 className="page-title">Playground</h1>
           <p className="page-description">
-            Browse the components the assistant can render, and drop them onto a live surface.
+            Ask the assistant to build anything — try &ldquo;Show a pie chart of my posts vs pages.&rdquo; Every real
+            component is already available to it.
           </p>
         </div>
       </div>
 
-      <p className="notice">
-        Not wired to chat yet — you add components here by hand, not by asking the assistant.
-      </p>
-
-      <div className="playground-layout">
-        <section className="card playground-library" aria-labelledby="playground-library-heading">
-          <div className="playground-panel-head">
-            <h2 className="playground-panel-title" id="playground-library-heading">
-              Component library
-            </h2>
-            {/* The search box's only feedback, so it states the whole picture rather than just the
-                match count: "2 components" when nothing is filtered, "1 of 2" once a query narrows it. */}
-            <span className="playground-count">
-              {matches.length === total ? `${total} components` : `${matches.length} of ${total}`}
-            </span>
-          </div>
-
-          <label className="visually-hidden" htmlFor="playground-search">
-            Search components
-          </label>
-          <input
-            id="playground-search"
-            className="playground-search"
-            type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search by id, provider, or capability"
-          />
-
-          {matches.length === 0 ? (
-            <div className="empty-state">
-              <p className="playground-empty-title">No component matches &ldquo;{query}&rdquo;</p>
-              {/* Names the three fields `matches` actually searches, so the recovery advice is the
-                  real filter surface rather than a guess. */}
-              <p className="playground-empty-body">
-                Search runs over a component&rsquo;s id, provider, and capabilities — try
-                &ldquo;table&rdquo;.
-              </p>
-            </div>
-          ) : (
-            <ul className="playground-component-list">
-              {matches.map((entry) => (
-                <li key={entry.id} className="playground-component">
-                  <span className="playground-component-id">{entry.id}</span>
-                  {entry.description ? (
-                    <p className="playground-component-desc">{entry.description}</p>
-                  ) : null}
-                  <div className="playground-component-foot">
-                    <ul className="playground-caps">
-                      {entry.capabilities.map((capability) => (
-                        <li key={capability} className="playground-cap">
-                          {capability}
-                        </li>
-                      ))}
-                    </ul>
-                    <button
-                      type="button"
-                      className="btn-secondary playground-component-add"
-                      onClick={() => addToSurface(entry)}
-                    >
-                      Add to surface
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-
-        <section className="card card-flush playground-stage" aria-labelledby="playground-stage-heading">
-          <div className="playground-stage-rail">
-            <div className="playground-stage-ident">
-              <h2 className="playground-panel-title" id="playground-stage-heading">
-                Surface
-              </h2>
-              <code className="playground-surface-id">{SURFACE_ID}</code>
-            </div>
-            <div className="playground-stage-actions">
-              <span className={`playground-state${surfaceOpen ? " is-live" : ""}`}>
-                {surfaceOpen ? "Live" : "Empty"}
-              </span>
-              {/* Disabled with no surface open: `reset` is already a no-op in that state, so this
-                  only stops the click, and the enabled/disabled flip is the rail's confirmation
-                  that something is actually mounted. */}
-              <button type="button" className="btn-ghost" onClick={reset} disabled={!surfaceOpen}>
-                Clear surface
-              </button>
-            </div>
-          </div>
-          {/* The sheet is always here, empty or not — an invitation printed on a blank page, rather
-              than a message floating on the dotted ground where the dots read straight through the
-              type. It also keeps the stage the same shape before and after the first Add. */}
-          <div className="playground-stage-body">
-            <div className="playground-stage-mount">
-              {surfaceOpen ? (
-                <A2uiSurfaceRenderer
-                  interpreter={interpreter}
-                  surfaceId={SURFACE_ID}
-                  registry={registry}
-                  fallback={<p className="playground-empty-body">The surface has no root component yet.</p>}
-                />
-              ) : (
-                <div className="playground-stage-empty">
-                  <p className="playground-empty-title">Nothing on the surface yet</p>
-                  <p className="playground-empty-body">
-                    Add a component from the library to open a surface and see it render here.
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-        </section>
+      <div className="card playground-canvas">
+        <h2 className="playground-panel-title">Canvas</h2>
+        <div className="playground-canvas-body">
+          <div className="playground-render-target" ref={registerCanvas} />
+          <p className="playground-empty-state">Nothing drawn yet — ask the assistant.</p>
+        </div>
       </div>
     </div>
   );

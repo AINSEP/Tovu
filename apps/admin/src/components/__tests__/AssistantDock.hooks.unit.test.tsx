@@ -2,6 +2,7 @@ import { act, renderHook, waitFor } from "@testing-library/react";
 import type { SetStateAction } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ChatMessage } from "@jini-ai/chat/core";
+import type { FrontendSessionBridge } from "@jini-ai/chat/react";
 import type { ExecutionConfig } from "@jini-ai/ui";
 
 /**
@@ -47,13 +48,48 @@ vi.mock("../../lib/settings-refresh-bus", () => ({
   }),
 }));
 
+// `useAssistantTransport`'s own concern is wiring — that it defers to `createTovuAssistantTransport`
+// with fresh-read execution config and the AG-UI canary, and that the result is memoized. Mocked
+// (rather than driven for real) so the exact call args are directly assertable, the same reason
+// `execution-settings.ts` is mocked above.
+const mockCreateTovuAssistantTransport = vi.hoisted(() => vi.fn((_options?: unknown) => ({ startRun: vi.fn() })));
+vi.mock("../../lib/assistant-transport", () => ({
+  createTovuAssistantTransport: mockCreateTovuAssistantTransport,
+}));
+const mockIsAgUiTransportEnabled = vi.hoisted(() => vi.fn(() => false));
+vi.mock("../../lib/assistant-transport-ag-ui", () => ({
+  isAgUiTransportEnabled: mockIsAgUiTransportEnabled,
+}));
+
+// `useComposerDiscoverySelect` forwards to the real (unmocked) `resolveComposerDiscoveryOutcome`,
+// which resolves the existing client-local `/mcp` route through `navigate` — mocked here so that
+// branch is assertable without a real `router.ts`/history dependency.
+const mockNavigate = vi.hoisted(() => vi.fn());
+vi.mock("../../lib/router", () => ({ navigate: mockNavigate }));
+
+// `useAssistantDockChrome`'s default falls back to `useWiredAdminLocale`, whose real binding calls
+// `port.loadLanguage()` — a real `fetch` to the settings-effective endpoint. Mocked so its own
+// describe block below can assert the "default to the real hook" path without that network call.
+const mockUseWiredAdminLocale = vi.hoisted(() => vi.fn(() => "en"));
+vi.mock("../../hooks/use-admin-locale.hooks", () => ({
+  useWiredAdminLocale: mockUseWiredAdminLocale,
+}));
+
 import {
   resolveRunContext,
   shouldPublishOnMessagesChange,
+  useAssistantDockChrome,
+  useAssistantTransport,
+  useAttachmentUploader,
   useByokRuntime,
+  useChatI18n,
+  useComposerDiscoverySelect,
   useExecutionConfig,
   useLocalCliSelection,
-} from "../AssistantDock/AssistantDock.hooks";
+  useMessagesChangeHandler,
+  useRunContext,
+  useRuntimeAccess,
+} from "../AssistantDock/hooks/AssistantDock.hooks";
 import {
   DEFAULT_EXECUTION_CONFIG,
   createExecutionPort,
@@ -62,6 +98,9 @@ import {
   saveExecutionConfig,
 } from "../../lib/execution-settings";
 import { publishSettingsRefresh } from "../../lib/settings-refresh-bus";
+import { projectComposerCapabilities } from "../../features/plugins/composer-capabilities";
+import type { TovuComposerCapability } from "../../features/plugins/composer-capabilities";
+import type { UseAssistantChats } from "../../hooks/use-assistant-chats.hooks";
 
 const mockLoadExecutionConfig = vi.mocked(loadExecutionConfig);
 const mockSaveExecutionConfig = vi.mocked(saveExecutionConfig);
@@ -119,12 +158,17 @@ beforeEach(() => {
   mockCreateExecutionPort.mockReset().mockReturnValue({ listModels: vi.fn().mockResolvedValue([]) } as never);
   mockPublishSettingsRefresh.mockReset();
   mockLoadAdminExecutionCredential.mockReset().mockResolvedValue(storedCredential(false));
+  mockCreateTovuAssistantTransport.mockClear().mockReturnValue({ startRun: vi.fn() } as never);
+  mockIsAgUiTransportEnabled.mockClear().mockReturnValue(false);
+  mockNavigate.mockClear();
+  mockUseWiredAdminLocale.mockClear().mockReturnValue("en");
   consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
   settingsRefreshListeners.length = 0;
 });
 
 afterEach(() => {
   consoleErrorSpy.mockRestore();
+  vi.unstubAllGlobals();
 });
 
 describe("useExecutionConfig", () => {
@@ -670,5 +714,390 @@ describe("resolveRunContext", () => {
       frontendBindToken: "tok-123",
       model: "opus",
     });
+  });
+});
+
+/**
+ * The seven hooks below were extracted out of `AssistantDock.tsx`'s component body (2026-08-18
+ * inline-hook-extraction pass) — see that file's own header and `AssistantDock.hooks.tsx`'s header
+ * for which of these carry an `INFO.md` rule-3 injectable seam and why.
+ */
+
+describe("useChatI18n", () => {
+  it("builds an adapter matching createChatI18nAdapter's own contract for the given locale", () => {
+    const { result } = renderHook(() => useChatI18n("es"));
+
+    expect(result.current.locale).toBe("es");
+    expect(result.current.t("Conversations")).toBe("Conversaciones");
+    // Falls through an unmapped key unchanged — the same passthrough `createChatI18nAdapter` documents.
+    expect(result.current.t("Some unmapped key")).toBe("Some unmapped key");
+  });
+
+  it("memoizes the adapter across re-renders while locale is unchanged", () => {
+    const { result, rerender } = renderHook(({ locale }) => useChatI18n(locale), {
+      initialProps: { locale: "es" },
+    });
+    const first = result.current;
+
+    rerender({ locale: "es" });
+
+    expect(result.current).toBe(first);
+  });
+
+  it("rebuilds the adapter when locale changes", () => {
+    const { result, rerender } = renderHook(({ locale }) => useChatI18n(locale), {
+      initialProps: { locale: "es" },
+    });
+    const first = result.current;
+
+    rerender({ locale: "fr" });
+
+    expect(result.current).not.toBe(first);
+    expect(result.current.locale).toBe("fr");
+  });
+});
+
+describe("useAssistantDockChrome", () => {
+  it("defaults to the real useWiredAdminLocale when no override is passed", () => {
+    mockUseWiredAdminLocale.mockReturnValue("fr");
+
+    const { result } = renderHook(() => useAssistantDockChrome(undefined));
+
+    expect(mockUseWiredAdminLocale).toHaveBeenCalled();
+    expect(result.current.locale).toBe("fr");
+  });
+
+  it("uses the injected override instead of the real hook when one is passed", () => {
+    const override = vi.fn(() => "xx-TEST"); // not a real locale any dictionary or fetch could produce
+    const { result } = renderHook(() => useAssistantDockChrome(override));
+
+    expect(override).toHaveBeenCalled();
+    expect(mockUseWiredAdminLocale).not.toHaveBeenCalled();
+    expect(result.current.locale).toBe("xx-TEST");
+  });
+
+  it("t() translates a dictionary-covered key for the resolved locale", () => {
+    const { result } = renderHook(() => useAssistantDockChrome(() => "es"));
+
+    expect(result.current.t("Tovu assistant")).toBe("Asistente de Tovu");
+  });
+
+  it("t() falls back to the raw key for a locale/key combination the dictionary does not cover", () => {
+    const { result } = renderHook(() => useAssistantDockChrome(() => "es"));
+
+    expect(result.current.t("Some unmapped key")).toBe("Some unmapped key");
+  });
+
+  it("t() falls back to the raw key entirely for a locale with no dictionary entry at all", () => {
+    const { result } = renderHook(() => useAssistantDockChrome(() => "xx-TEST"));
+
+    expect(result.current.t("Tovu assistant")).toBe("Tovu assistant");
+  });
+
+  it("chatI18n is the same adapter useChatI18n(locale) would build — composed, not reimplemented", () => {
+    const { result } = renderHook(() => useAssistantDockChrome(() => "es"));
+
+    expect(result.current.chatI18n.locale).toBe("es");
+    expect(result.current.chatI18n.t("Conversations")).toBe("Conversaciones");
+  });
+});
+
+describe("useAssistantTransport", () => {
+  it("builds the transport via createTovuAssistantTransport, reading execution config fresh through the ref", () => {
+    const executionConfigRef = { current: DEFAULT_EXECUTION_CONFIG };
+    renderHook(() => useAssistantTransport({ executionConfigRef }));
+
+    expect(mockCreateTovuAssistantTransport).toHaveBeenCalledTimes(1);
+    const options = mockCreateTovuAssistantTransport.mock.calls[0]?.[0] as {
+      getExecutionConfig: () => unknown;
+      getAgUiEnabled: () => boolean;
+    };
+
+    // Read fresh, not captured by value — mutating the ref after the hook renders must be visible
+    // to the NEXT `getExecutionConfig()` call, proving the closure reads `.current` live.
+    executionConfigRef.current = { ...DEFAULT_EXECUTION_CONFIG, mode: "byok" };
+    expect(options.getExecutionConfig()).toEqual(expect.objectContaining({ mode: "byok" }));
+    expect(options.getAgUiEnabled).toBe(mockIsAgUiTransportEnabled);
+  });
+
+  it("memoizes the transport across re-renders while the ref identity is stable — rebuilding it would drop in-flight runs", () => {
+    const executionConfigRef = { current: DEFAULT_EXECUTION_CONFIG };
+    const { result, rerender } = renderHook(() => useAssistantTransport({ executionConfigRef }));
+    const first = result.current;
+
+    rerender();
+
+    expect(result.current).toBe(first);
+    expect(mockCreateTovuAssistantTransport).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("useAttachmentUploader", () => {
+  it("returns a callable uploader — the real createDaemonAttachmentUploader output", () => {
+    const { result } = renderHook(() => useAttachmentUploader());
+
+    expect(typeof result.current).toBe("function");
+  });
+
+  it("memoizes the uploader across re-renders — rebuilding it would reset a turn's running batch quota", () => {
+    const { result, rerender } = renderHook(() => useAttachmentUploader());
+    const first = result.current;
+
+    rerender();
+
+    expect(result.current).toBe(first);
+  });
+});
+
+describe("useRuntimeAccess", () => {
+  it("listAgents fetches /api/agents and returns the agents array", async () => {
+    const fetchSpy = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ agents: [{ id: "claude" }] }), { status: 200 }),
+    );
+    vi.stubGlobal("fetch", fetchSpy);
+
+    const { result } = renderHook(() => useRuntimeAccess());
+
+    await expect(result.current.listAgents()).resolves.toEqual([{ id: "claude" }]);
+    expect(fetchSpy).toHaveBeenCalledWith("/api/agents", expect.objectContaining({ credentials: "same-origin" }));
+  });
+
+  it("listAgents returns an empty array, without throwing, when the GET is not ok", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 503 })));
+
+    const { result } = renderHook(() => useRuntimeAccess());
+
+    await expect(result.current.listAgents()).resolves.toEqual([]);
+  });
+
+  it("rescanAgents returns the freshly rescanned agents when the POST succeeds", async () => {
+    const fetchSpy = vi.fn().mockResolvedValue(
+      new Response(JSON.stringify({ agents: [{ id: "codex" }] }), { status: 200 }),
+    );
+    vi.stubGlobal("fetch", fetchSpy);
+
+    const { result } = renderHook(() => useRuntimeAccess());
+
+    await expect(result.current.rescanAgents()).resolves.toEqual([{ id: "codex" }]);
+    expect(fetchSpy).toHaveBeenCalledWith("/api/agents/rescan", expect.objectContaining({ method: "POST" }));
+  });
+
+  /**
+   * The one branch neither this file nor `AssistantDock.runtime-access.unit.test.tsx` (which covers
+   * `daemonOnline`'s in-flight-reuse/abort-signal behavior against the mounted component) previously
+   * exercised: a rescan POST that does not report success must not surface an error into the
+   * picker — it falls back to a plain `listAgents()` re-fetch instead.
+   */
+  it("rescanAgents falls back to a plain listAgents() re-fetch when the rescan POST is not ok", async () => {
+    const fetchSpy = vi.fn((url: string) => {
+      if (url === "/api/agents/rescan") return Promise.resolve(new Response(null, { status: 500 }));
+      return Promise.resolve(new Response(JSON.stringify({ agents: [{ id: "gemini" }] }), { status: 200 }));
+    });
+    vi.stubGlobal("fetch", fetchSpy);
+
+    const { result } = renderHook(() => useRuntimeAccess());
+
+    await expect(result.current.rescanAgents()).resolves.toEqual([{ id: "gemini" }]);
+    // Two real fetches: the failed rescan POST, then the listAgents() fallback GET.
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(fetchSpy.mock.calls[1]?.[0]).toBe("/api/agents");
+  });
+
+  it("memoizes the returned object across re-renders", () => {
+    vi.stubGlobal("fetch", vi.fn());
+    const { result, rerender } = renderHook(() => useRuntimeAccess());
+    const first = result.current;
+
+    rerender();
+
+    expect(result.current).toBe(first);
+  });
+});
+
+describe("useComposerDiscoverySelect", () => {
+  async function projectionWith(capabilities: readonly TovuComposerCapability[]) {
+    return projectComposerCapabilities([{ id: "test", list: async () => capabilities }]);
+  }
+
+  it("navigates for the existing client-local /mcp route via the injected navigate", async () => {
+    const capabilities = await projectionWith([]);
+    const { result } = renderHook(() =>
+      useComposerDiscoverySelect({ composerCapabilities: capabilities, callAllowlistedTool: vi.fn() }),
+    );
+
+    const outcome = await result.current({ item: { id: "mcp:settings", label: "mcp" }, source: "slash" });
+
+    expect(mockNavigate).toHaveBeenCalledWith("/settings?tab=external-mcp");
+    expect(outcome).toBeUndefined();
+  });
+
+  it("resolves a compose-text binding through the projected capability", async () => {
+    const resolve = () => ({ kind: "compose-text" as const, text: "hello" });
+    const capabilities = await projectionWith([
+      { groupId: "g", groupLabel: "G", item: { id: "search:web", label: "/search" }, resolve },
+    ]);
+    const { result } = renderHook(() =>
+      useComposerDiscoverySelect({ composerCapabilities: capabilities, callAllowlistedTool: vi.fn() }),
+    );
+
+    const outcome = await result.current({ item: { id: "search:web", label: "/search" }, source: "slash" });
+
+    expect(outcome).toEqual({ draft: "hello" });
+  });
+
+  it("forwards an allowlisted-tool-call binding to the injected callAllowlistedTool", async () => {
+    const resolve = () => ({
+      kind: "allowlisted-tool-call" as const,
+      toolName: "content_post_delete",
+      params: { postId: "1" },
+    });
+    const capabilities = await projectionWith([
+      { groupId: "g", groupLabel: "G", item: { id: "danger:delete", label: "/delete" }, resolve },
+    ]);
+    const callAllowlistedTool = vi.fn().mockResolvedValue({ ok: true });
+    const { result } = renderHook(() =>
+      useComposerDiscoverySelect({ composerCapabilities: capabilities, callAllowlistedTool }),
+    );
+
+    await result.current({ item: { id: "danger:delete", label: "/delete" }, source: "slash" });
+
+    expect(callAllowlistedTool).toHaveBeenCalledWith({ name: "content_post_delete", arguments: { postId: "1" } });
+  });
+
+  it("memoizes the callback across re-renders while composerCapabilities/callAllowlistedTool are unchanged", async () => {
+    const capabilities = await projectionWith([]);
+    const callAllowlistedTool = vi.fn();
+    const { result, rerender } = renderHook(() =>
+      useComposerDiscoverySelect({ composerCapabilities: capabilities, callAllowlistedTool }),
+    );
+    const first = result.current;
+
+    rerender();
+
+    expect(result.current).toBe(first);
+  });
+
+  it("rebuilds the callback when composerCapabilities changes", async () => {
+    const capabilities = await projectionWith([]);
+    const { result, rerender } = renderHook(
+      ({ capabilities: c }) =>
+        useComposerDiscoverySelect({ composerCapabilities: c, callAllowlistedTool: vi.fn() }),
+      { initialProps: { capabilities } },
+    );
+    const first = result.current;
+    const nextCapabilities = await projectionWith([]);
+
+    rerender({ capabilities: nextCapabilities });
+
+    expect(result.current).not.toBe(first);
+  });
+});
+
+describe("useMessagesChangeHandler", () => {
+  function fakeChats(): Pick<UseAssistantChats, "onMessagesChange"> {
+    return { onMessagesChange: vi.fn() };
+  }
+
+  afterEach(() => {
+    delete window.__tovuAssistantMessages;
+  });
+
+  it("mirrors every messages-change delta onto window.__tovuAssistantMessages", () => {
+    const chats = fakeChats();
+    const { result } = renderHook(() => useMessagesChangeHandler({ chats }));
+    const messages = [{ id: "m1", role: "user", content: [] }] as unknown as ChatMessage[];
+
+    act(() => result.current(messages));
+
+    expect(window.__tovuAssistantMessages).toBe(messages);
+  });
+
+  it("forwards every delta to chats.onMessagesChange", () => {
+    const chats = fakeChats();
+    const { result } = renderHook(() => useMessagesChangeHandler({ chats }));
+    const messages = [{ id: "m1", role: "user", content: [] }] as unknown as ChatMessage[];
+
+    act(() => result.current(messages));
+
+    expect(chats.onMessagesChange).toHaveBeenCalledWith(messages);
+  });
+
+  it("publishes a settings refresh once a run reaches a terminal status", () => {
+    const chats = fakeChats();
+    const { result } = renderHook(() => useMessagesChangeHandler({ chats }));
+    const messages = [
+      { id: "run-1", role: "assistant", runStatus: "succeeded", content: [] },
+    ] as unknown as ChatMessage[];
+
+    act(() => result.current(messages));
+
+    expect(mockPublishSettingsRefresh).toHaveBeenCalledWith();
+  });
+
+  it("does not publish while a run is still streaming (non-terminal status)", () => {
+    const chats = fakeChats();
+    const { result } = renderHook(() => useMessagesChangeHandler({ chats }));
+    const messages = [
+      { id: "run-1", role: "assistant", runStatus: "running", content: [] },
+    ] as unknown as ChatMessage[];
+
+    act(() => result.current(messages));
+
+    expect(mockPublishSettingsRefresh).not.toHaveBeenCalled();
+  });
+
+  it("does not re-publish for the same settled run across repeated deltas", () => {
+    const chats = fakeChats();
+    const { result } = renderHook(() => useMessagesChangeHandler({ chats }));
+    const messages = [
+      { id: "run-1", role: "assistant", runStatus: "succeeded", content: [] },
+    ] as unknown as ChatMessage[];
+
+    act(() => result.current(messages));
+    act(() => result.current(messages));
+
+    expect(mockPublishSettingsRefresh).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("useRunContext", () => {
+  it("builds context by reading the bind token fresh at call time, not captured at build time", () => {
+    let token = "tok-1";
+    const agentBridge = { bindToken: () => token } as unknown as FrontendSessionBridge;
+    const { result } = renderHook(() => useRunContext({ agentBridge, model: "sonnet" }));
+
+    expect(result.current()).toEqual({ frontendBindToken: "tok-1", model: "sonnet" });
+
+    token = "tok-2"; // simulates an EventSource reconnect minting a new bind token
+    expect(result.current()).toEqual({ frontendBindToken: "tok-2", model: "sonnet" });
+  });
+
+  it("omits frontendBindToken when there is no agentBridge", () => {
+    const { result } = renderHook(() => useRunContext({ agentBridge: null, model: "sonnet" }));
+
+    expect(result.current()).toEqual({ model: "sonnet" });
+  });
+
+  it("memoizes the callback while agentBridge and model are unchanged", () => {
+    const agentBridge = { bindToken: () => "tok" } as unknown as FrontendSessionBridge;
+    const { result, rerender } = renderHook(() => useRunContext({ agentBridge, model: "sonnet" }));
+    const first = result.current;
+
+    rerender();
+
+    expect(result.current).toBe(first);
+  });
+
+  it("rebuilds the callback when model changes", () => {
+    const agentBridge = { bindToken: () => "tok" } as unknown as FrontendSessionBridge;
+    const { result, rerender } = renderHook(
+      ({ model }: { model: string | undefined }) => useRunContext({ agentBridge, model }),
+      { initialProps: { model: "sonnet" as string | undefined } },
+    );
+    const first = result.current;
+
+    rerender({ model: "opus" });
+
+    expect(result.current).not.toBe(first);
   });
 });
