@@ -157,19 +157,21 @@ test("exportSite: reports theme files present on disk but never rendered or craw
   const report = await exportSite({ routeDeps: createRouteDeps(), outputDir });
 
   // A content-embedding template shell (route-manifest.ts's own file header): never its own route,
-  // never linked from any rendered page — genuinely unreferenced, not a false positive.
+  // never linked from any rendered page — genuinely unreferenced, not a false positive. `basic` is
+  // schema v2 (2026-08-18 migration), so its pages live under `render/pages/`, not a theme-root
+  // `pages/` — see `findUnreferencedThemeFiles`'s own v1/v2 detection.
   assert.ok(
-    report.unreferencedThemeFiles.includes("pages/page-shell.html"),
+    report.unreferencedThemeFiles.includes("render/pages/page-shell.html"),
     "a template shell is neither a rendered route nor a crawled asset — must be named, not silently absent"
   );
   assert.ok(report.unreferencedThemeFiles.includes("theme.json"), "the manifest file itself is never independently fetched");
 
   // The seeded "about" post shares the theme's "about" slug, and since the slug-collision tri-state
   // default flipped to "post wins" (`route-manifest.ts:154`, `pages.ts:780`), the theme's own
-  // `pages/about.html` is never rendered as a route for this fixture — it is genuinely unreferenced,
-  // not a false positive, and must be named here rather than silently absent.
+  // `render/pages/about.html` is never rendered as a route for this fixture — it is genuinely
+  // unreferenced, not a false positive, and must be named here rather than silently absent.
   assert.ok(
-    report.unreferencedThemeFiles.includes("pages/about.html"),
+    report.unreferencedThemeFiles.includes("render/pages/about.html"),
     "the theme's shadowed 'about' page is never rendered while the colliding post wins by default — must be reported unreferenced"
   );
 
@@ -177,7 +179,13 @@ test("exportSite: reports theme files present on disk but never rendered or craw
   // list, or the warning would be noise instead of signal. "pricing" has no colliding post in this
   // fixture (see route-manifest.test.ts's own use of it as the canonical un-shadowed theme page), so
   // it is the one still genuinely rendered from the theme.
-  for (const shouldNotAppear of ["pages/pricing.html", "pages/index.html", "pages/404.html", "css/styles.css", "js/main.js"]) {
+  for (const shouldNotAppear of [
+    "render/pages/pricing.html",
+    "render/pages/index.html",
+    "render/pages/404.html",
+    "css/theme.css",
+    "scripts/main.js",
+  ]) {
     assert.equal(
       report.unreferencedThemeFiles.includes(shouldNotAppear),
       false,

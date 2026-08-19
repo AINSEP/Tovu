@@ -24,19 +24,19 @@ test("canary: every marker in every migrated theme file parses, with zero reject
   // The whole point of the sweep. One unparseable marker anywhere means a broken page in production
   // AND a reference silently missing from the entry_refs index that safe-delete trusts.
   const files = [
-    "basic/pages/index.html",
-    "basic/pages/signin.html",
-    "basic/pages/blog-sidebar-template.html",
-    "basic/pages/blog-post.html",
-    "basic/nav.html",
-    "basic/footer.html",
-    "fuel/pages/index.html",
-    "tailark-quartz-libre/pages/index.html",
-    "tailark-quartz-libre/pages/blog-post.html",
-    "gracious-timing/pages/index.html",
-    "portfolite/pages/index.html",
-    "tailark-dusk/pages/index.html",
-    "tailark-quartz-dark/pages/index.html",
+    "basic/render/pages/index.html",
+    "basic/render/pages/signin.html",
+    "basic/render/pages/blog-sidebar-template.html",
+    "basic/render/pages/blog-post.html",
+    "basic/render/partials/nav.html",
+    "basic/render/partials/footer.html",
+    "fuel/render/pages/index.html",
+    "tailark-quartz-libre/render/pages/index.html",
+    "tailark-quartz-libre/render/pages/blog-post.html",
+    "gracious-timing/render/pages/index.html",
+    "portfolite/render/pages/index.html",
+    "tailark-dusk/render/pages/index.html",
+    "tailark-quartz-dark/render/pages/index.html",
   ];
   const problems: string[] = [];
   let total = 0;
@@ -60,7 +60,12 @@ test("canary: no theme still carries an attribute from the retired vocabularies"
     "data-slot-variant=",
     "data-nav-current=",
   ];
-  const files = ["basic/pages/index.html", "basic/nav.html", "basic/pages/signin.html", "fuel/pages/index.html"];
+  const files = [
+    "basic/render/pages/index.html",
+    "basic/render/partials/nav.html",
+    "basic/render/pages/signin.html",
+    "fuel/render/pages/index.html",
+  ];
   for (const file of files) {
     // Comments legitimately mention the old names; only live markup matters, so strip comments first.
     const live = read(file).replace(/<!--[\s\S]*?-->/g, "");
@@ -71,21 +76,21 @@ test("canary: no theme still carries an attribute from the retired vocabularies"
 });
 
 test("canary: the nav partial marker carries type, id, and its current-page key", () => {
-  const { markers } = scanEmbedMarkers(read("basic/pages/index.html"));
+  const { markers } = scanEmbedMarkers(read("basic/render/pages/index.html"));
   const nav = markers.find((m) => m.type === "partial" && m.id === "nav");
   assert.ok(nav, "basic/index.html must reference the nav partial");
   assert.equal(nav.config.current, "index", "the current-page hint must survive the migration into config");
 });
 
 test("canary: the footer variant survived as a config key, not a lost attribute", () => {
-  const { markers } = scanEmbedMarkers(read("basic/pages/signin.html"));
+  const { markers } = scanEmbedMarkers(read("basic/render/pages/signin.html"));
   const footer = markers.find((m) => m.type === "partial" && m.id === "footer");
   assert.ok(footer, "signin.html must reference the footer partial");
   assert.equal(footer.config.variant, "minimal", "signin uses the minimal footer — losing this is a silent visual regression");
 });
 
 test("canary: the docs sidebar keeps its tree variant AND its authored fallback content", () => {
-  const html = read("basic/pages/blog-sidebar-template.html");
+  const html = read("basic/render/pages/blog-sidebar-template.html");
   const menu = markersOfType(html, "menu")[0];
   assert.ok(menu, "the docs template must reference a menu");
   assert.equal(menu.config.id, "docs-themes-menu");
@@ -102,7 +107,7 @@ test("canary: the real theme's content-slot marker carries no id, and a real id 
   // time by `injectCurrentEntityContentId`/`withAddedId` rather than a pre-authored placeholder
   // string. The property worth canary-testing against the real file is now the ADD-an-id path itself:
   // it must produce legal, re-parseable JSON for the theme's own real (not synthetic) marker shape.
-  const html = read("basic/pages/blog-post.html");
+  const html = read("basic/render/pages/blog-post.html");
   const { markers, rejected } = scanEmbedMarkers(html);
   assert.deepEqual(rejected, []);
   const content = markers.find((m) => m.type === "content");
@@ -119,7 +124,7 @@ test("canary: the real theme's content-slot marker carries no id, and a real id 
 test("canary: other authored attributes on a marker element are preserved verbatim", () => {
   // The docs nav carries class and aria-label. A substitution that rebuilds the tag from config
   // alone would drop them — losing styling and the accessible name with no test failing elsewhere.
-  const html = read("basic/pages/blog-sidebar-template.html");
+  const html = read("basic/render/pages/blog-sidebar-template.html");
   const menu = markersOfType(html, "menu")[0];
   assert.ok(menu.attrs.includes('class="docs-nav"'), menu.attrs);
   assert.ok(menu.attrs.includes('aria-label="Documentation"'), menu.attrs);
