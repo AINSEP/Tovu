@@ -14,6 +14,14 @@ import { SITE_TITLE } from "../../routes/site/pages.js";
 import type { RouteDeps } from "../../routes/types.js";
 import { startTestServer, loginAsOwner } from "../helpers/http-test-server.js";
 
+// A saturated machine, not a slow template, is what makes these fire. On 2026-08-19 a 7-agent run
+// drove this 8-core box to load average 135 and the sandboxed renders below failed with
+// "render exceeded 5000ms timeout" on templates that render in ~50ms idle; the same file passed
+// 9/9 when run alone. Raising the PRODUCT default would weaken a real guard (a visitor must never
+// wait 30s for a runaway theme) to fix a test-environment problem, so this raises it only here.
+// The sandbox's own termination tests pin explicit budgets (500ms) and are unaffected by this.
+process.env.TOVU_THEME_RENDER_TIMEOUT_MS ??= "60000";
+
 /**
  * @file Coordinator-authored (2026-07-13), post-session-limit resume. SPEC-008's
  * tasks.md (T040-T045) called for 5 integration test files that were never
