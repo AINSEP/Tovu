@@ -45,11 +45,11 @@ import path from "node:path";
 
 import * as semver from "semver";
 
-import { buildCapabilityScopedSdk, type CapabilityScopedSdkCoreDeps } from "./capability-sdk";
-import type { PluginDiscoveryRecord } from "./discovery";
-import type { AttachmentSource, HookRegistry, HookRegistryFieldDecl } from "./hook-registry";
-import type { PluginManifest } from "./manifest";
-import type { BeforeSaveFilter, Plugin } from "../../../packages/sdk/src/index";
+import { buildCapabilityScopedSdk, type CapabilityScopedSdkCoreDeps } from "./capability-sdk.js";
+import type { PluginDiscoveryRecord } from "./discovery.js";
+import type { AttachmentSource, HookRegistry, HookRegistryFieldDecl } from "./hook-registry.js";
+import type { PluginManifest } from "./manifest.js";
+import type { BeforeSaveFilter, Plugin } from "../../../packages/sdk/src/index.js";
 
 /**
  * The runtime's own installed `@tovu/sdk` version, used for the sdkRange check (step 2) when a
@@ -197,7 +197,7 @@ export async function loadPlugin(
 
   const sdk = buildCapabilityScopedSdk({
     pluginId: record.id,
-    capabilities: manifest.capabilities as readonly import("./manifest").PluginCapability[],
+    capabilities: manifest.capabilities as readonly import("./manifest.js").PluginCapability[],
     coreDeps,
   });
   try {

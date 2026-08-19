@@ -1,4 +1,4 @@
-import type { McpSessionPort, McpStdioChannel, RemoteToolDescriptor, RemoteToolResult } from "./ports";
+import type { McpSessionPort, McpStdioChannel, RemoteToolDescriptor, RemoteToolResult } from "./ports.js";
 
 /**
  * @file The in-memory doubles for both federation seams — ADR-006 rule-of-two's partner to

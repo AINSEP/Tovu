@@ -1,5 +1,5 @@
-import { stampWatermarkTx, type ContentDbTransaction } from "./watermark";
-import type { ContentDb } from "./content-db";
+import { stampWatermarkTx, type ContentDbTransaction } from "./watermark.js";
+import type { ContentDb } from "./content-db.js";
 
 /**
  * @file Adapts `db/sqlite/watermark.ts`'s certified `stampWatermarkTx` to the narrower

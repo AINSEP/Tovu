@@ -1,4 +1,4 @@
-import type { FederatedMcpConnectionConfig, McpStdioLaunchSpec } from "./ports";
+import type { FederatedMcpConnectionConfig, McpStdioLaunchSpec } from "./ports.js";
 
 /**
  * @file GENERIC configuration-resolution scaffolding for federated MCP connections — the parts every

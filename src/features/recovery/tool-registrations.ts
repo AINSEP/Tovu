@@ -29,31 +29,31 @@ import {
   type ToolHandler,
   type ToolRegistration,
 } from "@jini-ai/cms/core";
-import type { GatewayDeps } from "../../core/gated-mutations/gateway";
-import { plan as gatewayPlan } from "../../core/gated-mutations/gateway";
-import type { DbOpsPort } from "../../core/gated-mutations/ports";
-import { isOperationInFlight } from "../../core/operation-lock";
+import type { GatewayDeps } from "../../core/gated-mutations/gateway.js";
+import { plan as gatewayPlan } from "../../core/gated-mutations/gateway.js";
+import type { DbOpsPort } from "../../core/gated-mutations/ports.js";
+import { isOperationInFlight } from "../../core/operation-lock.js";
 import { registerToolContributor } from "#src/assistant/index";
-import { buildRestoreHooks, toRecoveryResult } from "./gated-hooks";
+import { buildRestoreHooks, toRecoveryResult } from "./gated-hooks.js";
 import type {
   MigrationRunsRepoPort,
   SiteStatusPort,
-} from "../database/boot/reconcile-interrupted-migration";
+} from "../database/boot/reconcile-interrupted-migration.js";
 // `LedgerAppendPort` is Database-owned — Recovery already imports several other Database ports
 // this same way (`RestorePointListPort` below, `MigrationRunsRepoPort`/`SiteStatusPort` above), so
 // sourcing this one type from `features/database/gated-hooks.ts` too is the established "Recovery
 // depends on Database, never the reverse" direction, not a new cross-domain edge.
-import type { LedgerAppendPort } from "../database/gated-hooks";
-import { listRestorePoints, type RestorePointListPort } from "../database/restore-points";
-import { recoveryAgentToolCatalog } from "./agent-tools";
+import type { LedgerAppendPort } from "../database/gated-hooks.js";
+import { listRestorePoints, type RestorePointListPort } from "../database/restore-points.js";
+import { recoveryAgentToolCatalog } from "./agent-tools.js";
 import {
   resolveDeepLinkContext,
   type DatabaseContextEnvelope,
   type DeepLinkRestorePointLookupPort,
-} from "./deep-link";
-import { computeDisclosure, type DisclosureWatermarkSourcePort } from "./disclosure";
-import { planRestore } from "./recovery-orchestrator";
-import { resolveDegradedBanner } from "./ui/degraded-banners";
+} from "./deep-link.js";
+import { computeDisclosure, type DisclosureWatermarkSourcePort } from "./disclosure.js";
+import { planRestore } from "./recovery-orchestrator.js";
+import { resolveDegradedBanner } from "./ui/degraded-banners.js";
 
 const CATALOG_BY_ID = indexCatalogById(recoveryAgentToolCatalog);
 

@@ -24,20 +24,20 @@ import {
   type ToolRegistration,
   type OutboxPort,
 } from "@jini-ai/cms/core";
-import { executeCommand, type AuthorizeFn, type ChangeSetRepoPort } from "../../core/commands";
+import { executeCommand, type AuthorizeFn, type ChangeSetRepoPort } from "../../core/commands/index.js";
 import { registerToolContributor } from "#src/assistant/index";
 // Now sourced from this same module — `toAdminPluginResponse` moved to
 // `features/plugin-runtime/admin-response.ts` (this domain's own projection), closing the back-edge
 // into `server/http/admin` this file used to carry. `server/http/admin/plugins.ts` re-exports the
 // same symbol so its own HTTP-route consumers are unaffected.
-import { toAdminPluginResponse } from "./admin-response";
+import { toAdminPluginResponse } from "./admin-response.js";
 import {
   setPluginEnabled,
   type PluginActivationRecord,
   type PluginActivationRepoPort,
-} from "./activation";
-import { pluginAgentToolCatalog } from "./agent-tools";
-import type { PluginDiscoveryRecord } from "./discovery";
+} from "./activation.js";
+import { pluginAgentToolCatalog } from "./agent-tools.js";
+import type { PluginDiscoveryRecord } from "./discovery.js";
 
 const CATALOG_BY_ID = indexCatalogById(pluginAgentToolCatalog);
 

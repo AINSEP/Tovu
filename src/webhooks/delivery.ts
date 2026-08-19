@@ -1,7 +1,7 @@
 import type { ClockPort, IdGeneratorPort, ISODateTime, JsonObject, UUID } from "@jini-ai/cms/core";
-import type { DeliveryEnvelopeStore } from "./repo.memory";
-import type { HttpClientPort, WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "./ports";
-import type { WebhookSigner } from "./signing";
+import type { DeliveryEnvelopeStore } from "./repo.memory.js";
+import type { HttpClientPort, WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "./ports.js";
+import type { WebhookSigner } from "./signing.js";
 import type {
   IntegrationId,
   WebhookBeforeDispatchHook,
@@ -9,7 +9,7 @@ import type {
   WebhookEventEnvelope,
   WebhookSubscriptionRecord,
   WebhookTopic,
-} from "./types";
+} from "./types.js";
 
 /**
  * @file The two-stage webhook delivery worker (ADR-036 §4): fan-out enqueue + the

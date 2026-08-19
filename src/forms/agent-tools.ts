@@ -54,8 +54,8 @@ import {
   MAX_LABEL_LENGTH,
   MAX_MAX_LENGTH,
   MIN_MAX_LENGTH,
-} from "./forms";
-import { MAX_NAME_LENGTH, MAX_NOTIFY_RECIPIENTS, SLUG_PATTERN } from "./write-service";
+} from "./forms.js";
+import { MAX_NAME_LENGTH, MAX_NOTIFY_RECIPIENTS, SLUG_PATTERN } from "./write-service.js";
 
 export type AgentToolSideEffect = "none" | "mutates-durable-state" | "mints-token";
 

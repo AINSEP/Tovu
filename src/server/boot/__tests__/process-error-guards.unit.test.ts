@@ -20,7 +20,7 @@ import { promisify } from "node:util";
  */
 
 const execFileAsync = promisify(execFile);
-const FIXTURE_PATH = path.join(__dirname, "fixtures", "unhandled-rejection-child.ts");
+const FIXTURE_PATH = path.join(import.meta.dirname, "fixtures", "unhandled-rejection-child.ts");
 
 async function runFixture(mode: "--with-guard" | "--without-guard"): Promise<{ code: number; stdout: string }> {
   try {

@@ -10,7 +10,7 @@ export {
   runPreContentPhase,
   RouteResolutionError,
   urlFor,
-} from "./routing";
+} from "./routing.js";
 export type {
   IsActiveOptional,
   IsActiveRequired,
@@ -20,8 +20,8 @@ export type {
   ResolveRequired,
   UrlForOptional,
   UrlForRequired,
-} from "./routing";
-export type { RouteResolverDeps } from "./ports";
+} from "./routing.js";
+export type { RouteResolverDeps } from "./ports.js";
 export type {
   EntryRefTarget,
   RouteRefTarget,
@@ -37,4 +37,4 @@ export type {
   SlugChangeCaptureInput,
   TermRefTarget,
   UrlTarget,
-} from "./types";
+} from "./types.js";

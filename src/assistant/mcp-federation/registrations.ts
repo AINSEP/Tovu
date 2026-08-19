@@ -4,7 +4,7 @@ import {
   type ToolHandler,
   type ToolRegistration,
 } from "@jini-ai/cms/core";
-import type { FederatedMcpConnectionConfig, McpSessionPort } from "./ports";
+import type { FederatedMcpConnectionConfig, McpSessionPort } from "./ports.js";
 import {
   admitRemoteTools,
   assertNoNativeCollision,
@@ -12,7 +12,7 @@ import {
   FEDERATED_TOOL_PERMISSION,
   wrapUntrustedResult,
   type FederatedAdmissionReport,
-} from "./trust";
+} from "./trust.js";
 
 /**
  * @file Turns one connected external MCP server into `ToolRegistration`s — the federated

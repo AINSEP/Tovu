@@ -1,6 +1,6 @@
 import type { JsonObject } from "@jini-ai/cms/core";
-import type { FormDefinitionRepoPort } from "../../forms";
-import type { WidgetResolveResult, WidgetResolver } from "../types";
+import type { FormDefinitionRepoPort } from "../../forms/index.js";
+import type { WidgetResolveResult, WidgetResolver } from "../types.js";
 
 /**
  * @file `contact-form` widget resolver (SPEC-043 REQ-36..39, ADR-047 Debate Fold-In Amendment 4).

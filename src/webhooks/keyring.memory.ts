@@ -1,6 +1,6 @@
 import { hkdfSync, randomBytes } from "node:crypto";
 
-import type { KeyringPort } from "./ports";
+import type { KeyringPort } from "./ports.js";
 
 /**
  * @file An in-memory `KeyringPort` test/dev double (ADR-PIPE-015 Phase 1 T017).

@@ -1,4 +1,4 @@
-import type { CommercePriceRecord, CommerceProductRecord, CommerceProductSpec } from "./types";
+import type { CommercePriceRecord, CommerceProductRecord, CommerceProductSpec } from "./types.js";
 
 /**
  * @file `storefront.ts` — maps Commerce catalog records into the public site render pipeline's

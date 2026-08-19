@@ -1,6 +1,6 @@
 import type { UUID } from "@jini-ai/cms/core";
-import type { EntryRefsRepoPort } from "./ports";
-import type { EntryRefRow, EntryRefTargetKind } from "./types";
+import type { EntryRefsRepoPort } from "./ports.js";
+import type { EntryRefRow, EntryRefTargetKind } from "./types.js";
 
 /**
  * @file In-memory `EntryRefsRepoPort` adapter (ADR-006 rule-of-two "one being built now" half —

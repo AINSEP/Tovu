@@ -1,9 +1,9 @@
 import { createHash } from "node:crypto";
 
 import type { AuthorizeFn, ClockPort, IdGeneratorPort } from "@jini-ai/cms/core";
-import type { GatedMutationHooks, GatewayDeps } from "./gateway";
-import { InMemoryTokenStore } from "./token";
-import type { InstanceAuthorizeFn, PrincipalKind } from "./ports";
+import type { GatedMutationHooks, GatewayDeps } from "./gateway.js";
+import { InMemoryTokenStore } from "./token.js";
+import type { InstanceAuthorizeFn, PrincipalKind } from "./ports.js";
 
 /**
  * @file Composes `core/gated-mutations`'s `plan()`/`confirm()`/`execute()` primitive into this

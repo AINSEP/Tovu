@@ -1,8 +1,8 @@
 import { eq } from "drizzle-orm";
 
-import { workspaces } from "../../db/schema";
-import type { ContentDb } from "../../db/sqlite/content-db";
-import { findOneBy } from "../../db/sqlite/repo-helpers";
+import { workspaces } from "../../db/schema.js";
+import type { ContentDb } from "../../db/sqlite/content-db.js";
+import { findOneBy } from "../../db/sqlite/repo-helpers.js";
 import type { WorkspaceRecord, WorkspaceRepoPort } from "@jini-ai/cms/workspace";
 
 /**

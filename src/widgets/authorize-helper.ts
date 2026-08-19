@@ -1,4 +1,4 @@
-import { WidgetForbiddenError } from "./errors";
+import { WidgetForbiddenError } from "./errors.js";
 
 /**
  * @file Shared `authorize()` plumbing for `write-service.ts`/`region-area-service.ts` (SPEC-043

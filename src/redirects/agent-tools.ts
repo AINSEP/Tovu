@@ -1,4 +1,4 @@
-import { MAX_PRIORITY, MAX_TARGET_LENGTH, MIN_PRIORITY, MIN_TARGET_LENGTH, VALID_STATUS_CODES } from "./redirects";
+import { MAX_PRIORITY, MAX_TARGET_LENGTH, MIN_PRIORITY, MIN_TARGET_LENGTH, VALID_STATUS_CODES } from "./redirects.js";
 
 /**
  * @file The Redirects domain's agent-tool catalog, instantiating SPEC-016 REQ-22's

@@ -39,7 +39,7 @@ import { randomUUID } from "node:crypto";
 import type { Principal, RunRef, SurfaceEmitter } from "@jini-ai/core";
 import type { ToolExecutionResult, ToolExecutor } from "@jini-ai/daemon";
 
-import type { ToolAttemptAuditSink, ToolAttemptPhase } from "../features/tool-audit/types";
+import type { ToolAttemptAuditSink, ToolAttemptPhase } from "../features/tool-audit/types.js";
 
 export interface ToolAttemptAuditOptions {
   /** The workspace every attempt is attributed to — the daemon serves exactly one. */

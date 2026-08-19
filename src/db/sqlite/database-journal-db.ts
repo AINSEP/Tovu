@@ -1,10 +1,11 @@
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 import Database from "better-sqlite3";
 import { drizzle, type BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 
-import * as schema from "./database-journal-schema";
+import * as schema from "./database-journal-schema.js";
 
 /**
  * @file Sidecar `ops/database-journal.db` bootstrap (ADR-041 §2, mirrors `content-db.ts`'s
@@ -33,7 +34,7 @@ export type DatabaseJournalDb = BetterSQLite3Database<typeof schema>;
  * That directory carries forward the original shipped `0000_pale_weapon_omega.sql` migration (a
  * plain directory rename, not a content edit) plus a new migration that renames `storage_ledger`
  * to `database_ledger` — see that directory's own migrations for the full history. */
-const MIGRATIONS_DIR = path.resolve(__dirname, "../drizzle-database-journal");
+const MIGRATIONS_DIR = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../drizzle-database-journal");
 
 /** Open (or create) `ops/database-journal.db`, apply pragmas, and migrate to the latest schema. */
 export function openDatabaseJournalDb(filePath: string): DatabaseJournalDb {

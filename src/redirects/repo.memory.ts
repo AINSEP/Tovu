@@ -9,10 +9,10 @@
  * semantics without this file importing `ports.internal.ts`'s function value
  * (only its `RedirectDbHandle` type, structurally satisfied here).
  */
-import type { RedirectDbHandle } from "./ports.internal";
-import type { RedirectRepoPort } from "./ports";
-import { RedirectNotFoundError } from "./types";
-import type { ListRedirectsFilter, RedirectRecord, RedirectRevision } from "./types";
+import type { RedirectDbHandle } from "./ports.internal.js";
+import type { RedirectRepoPort } from "./ports.js";
+import { RedirectNotFoundError } from "./types.js";
+import type { ListRedirectsFilter, RedirectRecord, RedirectRevision } from "./types.js";
 
 function compareTieBreak(a: RedirectRecord, b: RedirectRecord): number {
   if (a.priority !== b.priority) return b.priority - a.priority;

@@ -25,19 +25,19 @@ import {
   type ToolHandler,
   type ToolRegistration,
 } from "@jini-ai/cms/core";
-import type { MailerPort } from "../mail";
-import type { OriginRegistryPort } from "../origin";
+import type { MailerPort } from "../mail/index.js";
+import type { OriginRegistryPort } from "../origin/index.js";
 import { registerToolContributor } from "#src/assistant/index";
-import { newsletterAgentToolCatalog } from "./agent-tools";
+import { newsletterAgentToolCatalog } from "./agent-tools.js";
 import {
   cancelCampaign,
   saveCampaign,
   type CampaignWriteServiceDeps,
-} from "./campaign-write-service";
-import { issueConfirmationToken, type ConfirmationDeps } from "./confirmation";
-import { NewsletterCampaignNotFoundError, NewsletterSubscriptionNotFoundError } from "./errors";
-import type { HookRegistry } from "./hooks";
-import { archiveList, saveList, type ListsDeps } from "./lists";
+} from "./campaign-write-service.js";
+import { issueConfirmationToken, type ConfirmationDeps } from "./confirmation.js";
+import { NewsletterCampaignNotFoundError, NewsletterSubscriptionNotFoundError } from "./errors.js";
+import type { HookRegistry } from "./hooks.js";
+import { archiveList, saveList, type ListsDeps } from "./lists.js";
 import type {
   MembersConsentCapability,
   NewsletterAudienceSnapshotRepoPort,
@@ -47,15 +47,15 @@ import type {
   NewsletterSendRepoPort,
   NewsletterSubscriptionRepoPort,
   SubscriberDirectoryPort,
-} from "./ports";
-import { pauseCampaign, type SendPipelineDeps } from "./send-pipeline";
+} from "./ports.js";
+import { pauseCampaign, type SendPipelineDeps } from "./send-pipeline.js";
 import {
   saveSubscription,
   unsubscribeSubscription,
   type SubscriptionsDeps,
   type UnsubscribeSubscriptionDeps,
-} from "./subscriptions";
-import type { CampaignRecord, NewsletterListRow, SendRow, SubscriptionRow } from "./types";
+} from "./subscriptions.js";
+import type { CampaignRecord, NewsletterListRow, SendRow, SubscriptionRow } from "./types.js";
 
 const CATALOG_BY_ID = indexCatalogById(newsletterAgentToolCatalog);
 

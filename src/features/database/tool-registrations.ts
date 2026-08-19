@@ -37,19 +37,19 @@ import {
   plan as gatewayPlan,
   type GatedMutationHooks,
   type GatewayDeps,
-} from "../../core/gated-mutations/gateway";
-import type { DbOpsPort } from "../../core/gated-mutations/ports";
+} from "../../core/gated-mutations/gateway.js";
+import type { DbOpsPort } from "../../core/gated-mutations/ports.js";
 import { registerToolContributor } from "#src/assistant/index";
-import { buildMigrateForwardHooks, type LedgerAppendPort } from "./gated-hooks";
-import { getDatabaseAgentToolCatalog } from "./agent-tools";
-import type { DatabaseIntrospectionPort } from "./adapter.sqlite";
+import { buildMigrateForwardHooks, type LedgerAppendPort } from "./gated-hooks.js";
+import { getDatabaseAgentToolCatalog } from "./agent-tools.js";
+import type { DatabaseIntrospectionPort } from "./adapter.sqlite.js";
 import {
   createRestorePoint as createDatabaseRestorePoint,
   listRestorePoints,
   type RestorePointListPort,
   type RestorePointSavePort,
-} from "./restore-points";
-import { getTimeline, type LedgerReadPort } from "./timeline";
+} from "./restore-points.js";
+import { getTimeline, type LedgerReadPort } from "./timeline.js";
 
 /**
  * The exact slice of the route-deps bag Database's tool handlers read. Declared structurally

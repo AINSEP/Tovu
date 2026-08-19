@@ -20,17 +20,17 @@
  * `widgets` domain logic (implementation outline C-004).
  */
 import type { JsonObject, UUID } from "@jini-ai/cms/core";
-import type { EntryListPort, EntryRepoPort } from "../features/entries";
-import { CORE_PUBLIC_TRANSFORM_NAME, getLatestTransformDefinition } from "../media/index";
-import type { MediaRepoPort, TransformDefinitionRepoPort } from "../media/index";
-import type { PostRepoPort } from "../features/post/index";
-import { findPublishedPostById } from "../features/post/index";
-import { parseWidgetAreaPayload, parseWidgetInstancePayload } from "./entry-payload";
-import { scanHtmlEmbeds } from "./html-embeds";
-import type { PageHtmlEmbedRef } from "./html-embeds";
-import type { WidgetRegionBindingRepoPort } from "./ports";
-import { resolveWidgetType } from "./resolvers/index";
-import { WIDGET_AREA_CONTENT_TYPE, WIDGET_CONTENT_TYPE } from "./types";
+import type { EntryListPort, EntryRepoPort } from "../features/entries/index.js";
+import { CORE_PUBLIC_TRANSFORM_NAME, getLatestTransformDefinition } from "../media/index.js";
+import type { MediaRepoPort, TransformDefinitionRepoPort } from "../media/index.js";
+import type { PostRepoPort } from "../features/post/index.js";
+import { findPublishedPostById } from "../features/post/index.js";
+import { parseWidgetAreaPayload, parseWidgetInstancePayload } from "./entry-payload.js";
+import { scanHtmlEmbeds } from "./html-embeds.js";
+import type { PageHtmlEmbedRef } from "./html-embeds.js";
+import type { WidgetRegionBindingRepoPort } from "./ports.js";
+import { resolveWidgetType } from "./resolvers/index.js";
+import { WIDGET_AREA_CONTENT_TYPE, WIDGET_CONTENT_TYPE } from "./types.js";
 import type {
   WidgetInstanceView,
   WidgetPlacementNode,
@@ -39,7 +39,7 @@ import type {
   WidgetResolveContext,
   WidgetResolveResult,
   WidgetTypeKey,
-} from "./types";
+} from "./types.js";
 
 export interface ResolvePageWidgetsDeps {
   bindingRepo: WidgetRegionBindingRepoPort;

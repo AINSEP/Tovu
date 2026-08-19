@@ -1,14 +1,14 @@
 import type { ClockPort, ISODateTime, UUID } from "@jini-ai/cms/core";
 
-import type { KeyringPort, SecretSealerPort } from "../../webhooks/index";
-import { buildVendorCredentialAad } from "./aad";
+import type { KeyringPort, SecretSealerPort } from "../../webhooks/index.js";
+import { buildVendorCredentialAad } from "./aad.js";
 import type {
   VendorConnectionInput,
   VendorCredentialSetRecord,
   VendorCredentialSetRepoPort,
   VendorCredentialSetSummary,
   VendorId,
-} from "./types";
+} from "./types.js";
 
 /**
  * @file Validate-then-seal-then-write CRUD over `vendor_credential_sets`, structurally mirroring

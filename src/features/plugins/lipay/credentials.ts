@@ -21,7 +21,7 @@
  * right for outbound signing secrets Tovu itself mints and wrong for externally-issued provider
  * credentials that must round-trip verbatim (`webhooks/ports.ts`'s `SecretSealerPort` framing).
  */
-import type { PaymentCredentialsPort, PaymentProviderId } from "./ports";
+import type { PaymentCredentialsPort, PaymentProviderId } from "./ports.js";
 
 export const CREDENTIAL_ENV_PREFIX = "TOVU_PAYMENT";
 

@@ -25,7 +25,7 @@
  * `__tests__/integration/activation.integration.test.ts`.
  */
 import type { ClockPort, UUID } from "@jini-ai/cms/core";
-import type { PluginDiscoveryRecord } from "./discovery";
+import type { PluginDiscoveryRecord } from "./discovery.js";
 
 /** `plugin_activations` row (durable, behind the gateway) — state.spec.md §2. */
 export interface PluginActivationRecord {

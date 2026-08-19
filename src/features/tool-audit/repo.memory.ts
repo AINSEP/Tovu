@@ -5,7 +5,7 @@
  * Architectural role:
  * `features/tool-audit` adapter. Depends only on this package's own `types.ts`.
  */
-import type { ToolAttemptAuditSink, ToolAttemptEvent } from "./types";
+import type { ToolAttemptAuditSink, ToolAttemptEvent } from "./types.js";
 
 export interface InMemoryToolAttemptAuditSink extends ToolAttemptAuditSink {
   /** Every appended event, in append order. Test-only read surface. */

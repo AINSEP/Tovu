@@ -31,33 +31,33 @@ import {
   type ToolRegistration,
 } from "@jini-ai/cms/core";
 import { registerToolContributor } from "#src/assistant/index";
-import { toWhereUsedResponse } from "./where-used";
-import { widgetsAgentToolCatalog } from "./agent-tools";
-import { requireWidgetPermission } from "./authorize-helper";
-import { buildWidgetsDeps, buildWidgetsRegionDeps, type WidgetsRouteDeps } from "./deps";
+import { toWhereUsedResponse } from "./where-used.js";
+import { widgetsAgentToolCatalog } from "./agent-tools.js";
+import { requireWidgetPermission } from "./authorize-helper.js";
+import { buildWidgetsDeps, buildWidgetsRegionDeps, type WidgetsRouteDeps } from "./deps.js";
 import {
   insertWidgetEmbed,
   removeWidgetEmbed,
   reorderWidgetEmbeds,
   WidgetEmbedReorderCountMismatchError,
-} from "./embed-service";
-import { parseWidgetAreaPayload, parseWidgetInstancePayload } from "./entry-payload";
+} from "./embed-service.js";
+import { parseWidgetAreaPayload, parseWidgetInstancePayload } from "./entry-payload.js";
 import {
   WidgetAreaNotFoundError,
   WidgetConfigValidationError,
   WidgetEmbedGuardrailError,
   WidgetTypeUnregisteredError,
-} from "./errors";
-import { getWidgetInstance, listWidgetInstances } from "./read-service";
-import { bindWidgetArea, mutateWidgetAreaPlacements } from "./region-area-service";
-import { WIDGET_AREA_CONTENT_TYPE, WIDGET_CONTENT_TYPE } from "./types";
+} from "./errors.js";
+import { getWidgetInstance, listWidgetInstances } from "./read-service.js";
+import { bindWidgetArea, mutateWidgetAreaPlacements } from "./region-area-service.js";
+import { WIDGET_AREA_CONTENT_TYPE, WIDGET_CONTENT_TYPE } from "./types.js";
 import type {
   WidgetAreaEntry,
   WidgetInstanceEntry,
   WidgetPlacementNode,
   WidgetTypeKey,
-} from "./types";
-import { createWidgetInstance, trashWidgetInstance, updateWidgetInstance } from "./write-service";
+} from "./types.js";
+import { createWidgetInstance, trashWidgetInstance, updateWidgetInstance } from "./write-service.js";
 
 const CATALOG_BY_ID = indexCatalogById(widgetsAgentToolCatalog);
 

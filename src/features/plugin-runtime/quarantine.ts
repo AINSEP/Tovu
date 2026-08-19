@@ -1,7 +1,7 @@
 import type { ClockPort } from "@jini-ai/cms/core";
 
-import type { PluginActivationRecord, PluginActivationRepoPort } from "./activation";
-import type { PluginQuarantineEvent } from "./hook-registry";
+import type { PluginActivationRecord, PluginActivationRepoPort } from "./activation.js";
+import type { PluginQuarantineEvent } from "./hook-registry.js";
 
 export interface QuarantinePluginRequired {
   readonly deps: {

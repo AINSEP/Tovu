@@ -28,7 +28,7 @@
  * Package-private. NOT exported from `index.ts` (ADR-PIPE-009 Migration
  * Safety / File Map).
  */
-import type { RedirectRecord, RedirectRevision } from "./types";
+import type { RedirectRecord, RedirectRevision } from "./types.js";
 
 /**
  * The minimal storage seam `insertRedirectAndRevision` writes through.

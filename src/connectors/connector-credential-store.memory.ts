@@ -1,6 +1,6 @@
 import type { UUID } from "@jini-ai/cms/core";
 
-import type { ConnectorCredentialRepoPort, ConnectorCredentialRow } from "./connector-credential-store";
+import type { ConnectorCredentialRepoPort, ConnectorCredentialRow } from "./connector-credential-store.js";
 
 /**
  * @file `ConnectorCredentialRepoPort`'s in-memory adapter — the ADR-006 rule-of-two test double,

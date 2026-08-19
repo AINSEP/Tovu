@@ -1,15 +1,15 @@
 import type { Database as SqliteDatabase } from "better-sqlite3";
 
 import type { UUID } from "@jini-ai/cms/core";
-import type { ContentDb } from "../../db/sqlite/content-db";
-import type { PostKind, PostStatus } from "./post";
+import type { ContentDb } from "../../db/sqlite/content-db.js";
+import type { PostKind, PostStatus } from "./post.js";
 import {
   toPostSearchDocument,
   type PostSearchDocument,
   type PostSearchHit,
   type PostSearchPort,
   type PostSearchQuery,
-} from "./search";
+} from "./search.js";
 
 /**
  * @file The durable FTS5 + BM25 adapter behind `PostSearchPort` — Tovu's posts equivalent of

@@ -1,11 +1,11 @@
 import { and, desc, eq, lt, or } from "drizzle-orm";
 
 import type { UUID } from "@jini-ai/cms/core";
-import { formDefinitions, formSubmissions } from "../db/schema";
-import type { ContentDb } from "../db/sqlite/content-db";
-import { findOneBy } from "../db/sqlite/repo-helpers";
-import { FormSlugConflictError } from "./errors";
-import type { FormDefinitionRepoPort, FormSubmissionRepoPort } from "./ports";
+import { formDefinitions, formSubmissions } from "../db/schema.js";
+import type { ContentDb } from "../db/sqlite/content-db.js";
+import { findOneBy } from "../db/sqlite/repo-helpers.js";
+import { FormSlugConflictError } from "./errors.js";
+import type { FormDefinitionRepoPort, FormSubmissionRepoPort } from "./ports.js";
 import type {
   FieldDescriptor,
   FormDefinitionRecord,
@@ -13,7 +13,7 @@ import type {
   FormSubmissionPage,
   FormSubmissionRecord,
   NotifyConfig,
-} from "./types";
+} from "./types.js";
 
 /**
  * @file Drizzle/SQLite adapters for `forms` (rule-of-two half #2, ADR-006, C-012).

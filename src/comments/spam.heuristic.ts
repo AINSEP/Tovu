@@ -9,9 +9,9 @@
  * - an implausibly long body (wall-of-text link farms);
  * - an implausibly short body with a link (drive-by link drops).
  */
-import { countLinks } from "./sanitize";
-import type { SpamCheckPort } from "./ports";
-import type { CommentSubmission, SpamVerdict } from "./types";
+import { countLinks } from "./sanitize.js";
+import type { SpamCheckPort } from "./ports.js";
+import type { CommentSubmission, SpamVerdict } from "./types.js";
 
 const SPAM_KEYWORDS = [
   "viagra",

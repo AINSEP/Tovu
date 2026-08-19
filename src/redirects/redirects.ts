@@ -18,24 +18,24 @@
  * errors.spec.md.
  */
 import type { ClockPort, DomainEvent, IdGeneratorPort, OutboxPort } from "@jini-ai/cms/core";
-import type { OriginRegistryPort, RedirectTargetContext } from "../origin";
+import type { OriginRegistryPort, RedirectTargetContext } from "../origin/index.js";
 
-import { insertRedirectAndRevision, type RedirectDbHandle } from "./ports.internal";
-import type { RedirectMatcher, RedirectMutatedEvent, RedirectRepoPort } from "./ports";
+import { insertRedirectAndRevision, type RedirectDbHandle } from "./ports.internal.js";
+import type { RedirectMatcher, RedirectMutatedEvent, RedirectRepoPort } from "./ports.js";
 import {
   RedirectConflictError,
   RedirectLoopError,
   RedirectNotFoundError,
   RedirectTargetNotAllowedError,
   RedirectValidationError,
-} from "./types";
+} from "./types.js";
 import type {
   CreateRedirectInput,
   RedirectRecord,
   RedirectRevision,
   RedirectStatusCode,
   UpdateRedirectInput,
-} from "./types";
+} from "./types.js";
 
 // Exported (unchanged values) so `agent-tools.ts`'s published JSON Schema can reuse the exact
 // bounds this chokepoint validates against, rather than restating them — same discipline as

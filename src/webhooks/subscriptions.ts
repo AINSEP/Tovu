@@ -1,6 +1,6 @@
 import type { ClockPort, IdGeneratorPort, UUID } from "@jini-ai/cms/core";
-import type { WebhookSubscriptionRepoPort } from "./ports";
-import type { WebhookSubscriptionRecord, WebhookTopic } from "./types";
+import type { WebhookSubscriptionRepoPort } from "./ports.js";
+import type { WebhookSubscriptionRecord, WebhookTopic } from "./types.js";
 
 /**
  * @file Webhook subscription CRUD (ADR-036 §2/§6) — the write-service behind the admin/AI

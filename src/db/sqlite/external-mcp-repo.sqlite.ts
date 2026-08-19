@@ -2,9 +2,9 @@ import { and, eq } from "drizzle-orm";
 
 import type { UUID } from "@jini-ai/cms/core";
 
-import type { ExternalMcpServerRecord, ExternalMcpServerRepoPort } from "../../assistant";
-import { externalMcpServers } from "../schema";
-import type { ContentDb } from "./content-db";
+import type { ExternalMcpServerRecord, ExternalMcpServerRepoPort } from "../../assistant/index.js";
+import { externalMcpServers } from "../schema.js";
+import type { ContentDb } from "./content-db.js";
 
 /**
  * @file Real `ExternalMcpServerRepoPort` adapter — the ADR-006 rule-of-two "second adapter" half;

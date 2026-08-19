@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import type { FederatedMcpConnectionConfig, RemoteToolDescriptor } from "./ports";
+import type { FederatedMcpConnectionConfig, RemoteToolDescriptor } from "./ports.js";
 
 /**
  * @file The federated trust tier: the separate, deliberately more restricted posture that tools

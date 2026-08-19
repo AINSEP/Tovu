@@ -1,11 +1,11 @@
 import { and, eq } from "drizzle-orm";
 
-import { webhookDeliveries, webhookSubscriptions } from "../schema";
-import type { ContentDb } from "./content-db";
-import { findOneBy } from "./repo-helpers";
+import { webhookDeliveries, webhookSubscriptions } from "../schema.js";
+import type { ContentDb } from "./content-db.js";
+import { findOneBy } from "./repo-helpers.js";
 
-import type { DeliveryEnvelopeStore } from "../../webhooks/repo.memory";
-import type { WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "../../webhooks/ports";
+import type { DeliveryEnvelopeStore } from "../../webhooks/repo.memory.js";
+import type { WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "../../webhooks/ports.js";
 import type {
   IntegrationId,
   WebhookDeliveryRecord,
@@ -14,7 +14,7 @@ import type {
   WebhookSubscriptionRecord,
   WebhookSubscriptionStatus,
   WebhookTopic,
-} from "../../webhooks/types";
+} from "../../webhooks/types.js";
 
 /**
  * @file Drizzle/SQLite adapters for the `integrations` repo ports (ADR-036 §2,

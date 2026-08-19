@@ -36,17 +36,17 @@
  * `RouteResolvePhaseHandler` shape. No Express/route code.
  */
 import type { ClockPort, DomainEvent, IdGeneratorPort, OutboxPort } from "@jini-ai/cms/core";
-import type { OriginRegistryPort, RedirectTargetContext, VerifiedOrigin } from "../origin";
-import { registerResolvePhase } from "../routing";
-import type { RouteResolveContext, RouteResolvePhaseOutcome } from "../routing";
+import type { OriginRegistryPort, RedirectTargetContext, VerifiedOrigin } from "../origin/index.js";
+import { registerResolvePhase } from "../routing/index.js";
+import type { RouteResolveContext, RouteResolvePhaseOutcome } from "../routing/index.js";
 
 import type {
   RedirectHitEvent,
   RedirectMatcher,
   RedirectRepoPort,
   RedirectResolver,
-} from "./ports";
-import type { RedirectRecord, RedirectRequest, RedirectResolution } from "./types";
+} from "./ports.js";
+import type { RedirectRecord, RedirectRequest, RedirectResolution } from "./types.js";
 
 /** The bounded dynamic (wildcard) set cap (behavior.spec.md §3/§4, OQ-01). */
 const DYNAMIC_SET_LIMIT = 500;

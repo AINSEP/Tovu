@@ -23,8 +23,8 @@
  */
 import type { EventBusPort } from "@jini-ai/cms/core";
 
-import type { RedirectHitEventPayload, RedirectHitSink } from "./ports";
-import type { RedirectHitStats } from "./types";
+import type { RedirectHitEventPayload, RedirectHitSink } from "./ports.js";
+import type { RedirectHitStats } from "./types.js";
 
 export class RedirectHitSinkImpl implements RedirectHitSink {
   private readonly stats = new Map<string, RedirectHitStats>();

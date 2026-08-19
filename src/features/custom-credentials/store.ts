@@ -1,7 +1,7 @@
 import type { ClockPort, ISODateTime, UUID } from "@jini-ai/cms/core";
 
-import type { KeyringPort, SecretSealerPort } from "../../webhooks/index";
-import { buildCustomCredentialAad } from "./aad";
+import type { KeyringPort, SecretSealerPort } from "../../webhooks/index.js";
+import { buildCustomCredentialAad } from "./aad.js";
 import {
   CUSTOM_CREDENTIAL_CATEGORIES,
   type CustomCredentialCategoryId,
@@ -9,7 +9,7 @@ import {
   type CustomCredentialSetRepoPort,
   type CustomCredentialSummary,
   type CustomProviderConnectionInput,
-} from "./types";
+} from "./types.js";
 
 /**
  * @file Validate-then-seal-then-write CRUD over `custom_credential_sets`, structurally mirroring

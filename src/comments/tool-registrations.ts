@@ -25,19 +25,19 @@ import {
   type ToolHandler,
   type ToolRegistration,
 } from "@jini-ai/cms/core";
-import type { SettingsRepoPort } from "../features/settings";
+import type { SettingsRepoPort } from "../features/settings/index.js";
 import type { PrincipalRepoPort } from "@jini-ai/cms/identity";
 import { registerToolContributor } from "#src/assistant/index";
-import { commentsAgentToolCatalog } from "./agent-tools";
-import type { CommentRepoPort } from "./ports";
-import { getCommentsSettings, setCommentsSettings } from "./settings";
+import { commentsAgentToolCatalog } from "./agent-tools.js";
+import type { CommentRepoPort } from "./ports.js";
+import { getCommentsSettings, setCommentsSettings } from "./settings.js";
 import type {
   CommentsSettings,
   CommentStatus,
   ModerationAction,
   ModerationQueuePage,
-} from "./types";
-import type { CommentWriteService } from "./write-service";
+} from "./types.js";
+import type { CommentWriteService } from "./write-service.js";
 
 const CATALOG_BY_ID = indexCatalogById(commentsAgentToolCatalog);
 

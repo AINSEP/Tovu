@@ -1,9 +1,9 @@
 import type Database from "better-sqlite3";
 import { eq } from "drizzle-orm";
 
-import { contentTypeRevisions, contentTypes } from "../../db/schema";
-import type { ContentDb } from "../../db/sqlite/content-db";
-import { findOneBy } from "../../db/sqlite/repo-helpers";
+import { contentTypeRevisions, contentTypes } from "../../db/schema.js";
+import type { ContentDb } from "../../db/sqlite/content-db.js";
+import { findOneBy } from "../../db/sqlite/repo-helpers.js";
 import type {
   ContentTypeFieldDef,
   ContentTypeListPort,
@@ -11,7 +11,7 @@ import type {
   ContentTypeRepoPort,
   ContentTypeRevisionInput,
   ContentTypeStatus,
-} from "./index";
+} from "./index.js";
 
 /**
  * @file Real SQLite `ContentTypeRepoPort` + `ContentTypeListPort` adapter (ADR-006 rule-of-two

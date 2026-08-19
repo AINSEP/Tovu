@@ -18,20 +18,20 @@
  * This file is a narrow, single-purpose door: no other module should import it, and it must not
  * `export *` — every line here exists because `agent-daemon-server.ts` uses it today.
  */
-export { listAssistantAgents, rescanAssistantAgents } from "./agents";
-export { createCustomInstructionsCache } from "./custom-instructions";
-export { DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken } from "./daemon-auth";
-export { AGENT_DAEMON_EXIT_CODE } from "./daemon-exit-codes";
-export { FRONTEND_CONTROL_CAPABILITIES } from "./frontend-control-capabilities";
-export { attachFederatedMcpTools } from "./mcp-federation/bootstrap";
-export type { ResolvedFederatedConnection } from "./mcp-federation/config";
-export { readEnabledExternalMcpConfigs, toResolvedFederatedConnections } from "./external-mcp-store";
-export { registerA2uiActionsRoute } from "./a2ui-actions-route";
-export { registerMcpUiToolCallsRoute } from "./mcp-ui-tool-calls-route";
-export { resolveMcpJsonInjection } from "./mcp-injection";
-export { createOwnedRunListHandler, createRunOwnerRegistry, requireRunOwnership } from "./run-ownership";
-export { parseRunStartContextRef } from "./run-start-context";
-export { buildComponentCatalogQuery } from "./component-catalog-query";
-export { buildToolCatalogQuery } from "./tool-catalog-query";
-export { withToolAttemptAudit } from "./tool-executor-audit";
-export { buildAssistantToolRegistrations } from "./tool-registrations";
+export { listAssistantAgents, rescanAssistantAgents } from "./agents.js";
+export { createCustomInstructionsCache } from "./custom-instructions.js";
+export { DELEGATED_TOOL_CALLS_PATH, requireAgentDaemonToken } from "./daemon-auth.js";
+export { AGENT_DAEMON_EXIT_CODE } from "./daemon-exit-codes.js";
+export { FRONTEND_CONTROL_CAPABILITIES } from "./frontend-control-capabilities.js";
+export { attachFederatedMcpTools } from "./mcp-federation/bootstrap.js";
+export type { ResolvedFederatedConnection } from "./mcp-federation/config.js";
+export { readEnabledExternalMcpConfigs, toResolvedFederatedConnections } from "./external-mcp-store.js";
+export { registerA2uiActionsRoute } from "./a2ui-actions-route.js";
+export { registerMcpUiToolCallsRoute } from "./mcp-ui-tool-calls-route.js";
+export { resolveMcpJsonInjection } from "./mcp-injection.js";
+export { createOwnedRunListHandler, createRunOwnerRegistry, requireRunOwnership } from "./run-ownership.js";
+export { parseRunStartContextRef } from "./run-start-context.js";
+export { buildComponentCatalogQuery } from "./component-catalog-query.js";
+export { buildToolCatalogQuery } from "./tool-catalog-query.js";
+export { withToolAttemptAudit } from "./tool-executor-audit.js";
+export { buildAssistantToolRegistrations } from "./tool-registrations/index.js";

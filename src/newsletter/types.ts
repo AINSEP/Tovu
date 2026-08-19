@@ -16,7 +16,7 @@
  * - `../features/plugins/data-module` — the ADR-023 declared-schema shape core executes.
  */
 import type { DomainEvent, ISODateTime, JsonObject, UUID } from "@jini-ai/cms/core";
-import type { DataModuleDecl } from "../features/plugins/data-module";
+import type { DataModuleDecl } from "../features/plugins/data-module.js";
 
 /* ------------------------------------------------------------------------------------------------
  * 1. Campaign editorial state — reuses ADR-022 `entries` (content-type `newsletter_campaign`)

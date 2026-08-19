@@ -1,10 +1,10 @@
 import { and, desc, eq, gte, lte, or, lt, type SQL } from "drizzle-orm";
 
-import type { LedgerReadPort, LedgerRow } from "../../features/database/timeline";
-import type { BootLedgerPort, MigrationRunsRepoPort } from "../../features/database/boot/reconcile-interrupted-migration";
-import type { CreateRestorePointRepoPort } from "../../features/recovery/restore-points";
-import * as schema from "./database-journal-schema";
-import type { DatabaseJournalDb } from "./database-journal-db";
+import type { LedgerReadPort, LedgerRow } from "../../features/database/timeline.js";
+import type { BootLedgerPort, MigrationRunsRepoPort } from "../../features/database/boot/reconcile-interrupted-migration.js";
+import type { CreateRestorePointRepoPort } from "../../features/recovery/restore-points.js";
+import * as schema from "./database-journal-schema.js";
+import type { DatabaseJournalDb } from "./database-journal-db.js";
 
 /**
  * @file ADR-041 §2/§4 — real SQLite adapters over the sidecar `ops/database-journal.db`, closing

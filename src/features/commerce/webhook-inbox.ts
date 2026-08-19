@@ -1,7 +1,7 @@
 import type { ClockPort, IdGeneratorPort, UUID } from "@jini-ai/cms/core";
 
-import type { ApplyProviderEventResult, CommerceWebhookEventRepoPort } from "./ports";
-import type { CommerceOrderStatus } from "./types";
+import type { ApplyProviderEventResult, CommerceWebhookEventRepoPort } from "./ports.js";
+import type { CommerceOrderStatus } from "./types.js";
 
 /**
  * @file `webhook-inbox.ts` — provider webhook ingestion (2026-08-12 swarm-consensus debate,

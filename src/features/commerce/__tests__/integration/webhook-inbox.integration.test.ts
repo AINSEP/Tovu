@@ -3,8 +3,8 @@ import test from "node:test";
 
 import { openContentDb, type ContentDb } from "#src/db/sqlite/content-db";
 import { commerceOrders, commerceWebhookEvents, members, workspaces } from "#src/db/schema";
-import { SqliteCommerceWebhookEventRepo } from "../../repo.sqlite";
-import { ingestProviderEvent } from "../../webhook-inbox";
+import { SqliteCommerceWebhookEventRepo } from "../../repo.sqlite.js";
+import { ingestProviderEvent } from "../../webhook-inbox.js";
 
 /**
  * @file The debate's centerpiece deliverable (2026-08-12 swarm-consensus debate, section 5):

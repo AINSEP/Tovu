@@ -4,16 +4,16 @@ import {
   type AuthorizeFn,
   type CommandActor,
   type ChangeSetRepoPort,
-} from "../core/commands";
-import { FormDefinitionNotFoundError, FormFieldValidationError } from "./errors";
-import { validateFieldDescriptors } from "./forms";
-import type { FormDefinitionRepoPort } from "./ports";
+} from "../core/commands/index.js";
+import { FormDefinitionNotFoundError, FormFieldValidationError } from "./errors.js";
+import { validateFieldDescriptors } from "./forms.js";
+import type { FormDefinitionRepoPort } from "./ports.js";
 import type {
   FieldDescriptor,
   FormDefinitionRecord,
   FormDefinitionStatus,
   NotifyConfig,
-} from "./types";
+} from "./types.js";
 
 /**
  * @file `write-service.ts` — the admin-CRUD write chokepoint (SPEC-010 REQ-01..04, ADR-PIPE-010).

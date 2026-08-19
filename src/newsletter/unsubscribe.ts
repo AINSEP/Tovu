@@ -14,12 +14,12 @@
 import { timingSafeEqual } from "node:crypto";
 
 import type { UUID } from "@jini-ai/cms/core";
-import type { KeyringPort } from "../webhooks/index";
-import type { OriginRegistryPort } from "../origin/index";
-import type { VerifiedOrigin } from "../origin/index";
-import { NewsletterUnsubscribeTokenInvalidError } from "./errors";
-import type { MembersConsentCapability, NewsletterSubscriptionRepoPort } from "./ports";
-import type { SubscriptionRow } from "./types";
+import type { KeyringPort } from "../webhooks/index.js";
+import type { OriginRegistryPort } from "../origin/index.js";
+import type { VerifiedOrigin } from "../origin/index.js";
+import { NewsletterUnsubscribeTokenInvalidError } from "./errors.js";
+import type { MembersConsentCapability, NewsletterSubscriptionRepoPort } from "./ports.js";
+import type { SubscriptionRow } from "./types.js";
 
 export interface UnsubscribeTokenClaims {
   workspaceId: UUID;

@@ -1,5 +1,5 @@
-import type { HeadElement, PageHeadContext, PageHeadHook } from "../server/http/site/page-head";
-import { getEntryMeta, type GetEntryMetaDeps } from "./seo";
+import type { HeadElement, PageHeadContext, PageHeadHook } from "../server/http/site/page-head.js";
+import { getEntryMeta, type GetEntryMetaDeps } from "./seo.js";
 
 /**
  * @file `seoPageHeadHook` (ADR-PIPE-008 Decision, C-003) — SEO's own

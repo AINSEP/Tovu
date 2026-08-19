@@ -10,9 +10,9 @@ import {
   NewsletterDefaultListProtectedError,
   NewsletterListNotFoundError,
   NewsletterValidationError,
-} from "./errors";
-import type { NewsletterListRepoPort } from "./ports";
-import type { NewsletterListRow } from "./types";
+} from "./errors.js";
+import type { NewsletterListRepoPort } from "./ports.js";
+import type { NewsletterListRow } from "./types.js";
 
 export interface ListsDeps {
   listRepo: NewsletterListRepoPort;

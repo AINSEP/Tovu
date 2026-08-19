@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { pickDisplayPrice, toSiteProduct, toSiteProducts } from "../../storefront";
-import type { CommercePriceRecord, CommerceProductRecord } from "../../types";
+import { pickDisplayPrice, toSiteProduct, toSiteProducts } from "../../storefront.js";
+import type { CommercePriceRecord, CommerceProductRecord } from "../../types.js";
 
 const NOW = "2026-08-12T00:00:00.000Z";
 

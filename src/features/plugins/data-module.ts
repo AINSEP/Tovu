@@ -245,12 +245,12 @@
  */
 import type Database from "better-sqlite3";
 
-import { checkDiskHeadroom } from "./disk-headroom";
-import { advanceJournalPhase, beginJournalEntry, ensureMigrationJournal, stageJournalPhase } from "./migration-journal";
-import type { JournalPhase } from "./migration-journal";
-import { checkNamespaceAdoption } from "./plugin-identity";
-import type { PluginProvenance } from "./plugin-identity";
-import { discardCommittedSnapshot, snapshotDb } from "./snapshot";
+import { checkDiskHeadroom } from "./disk-headroom.js";
+import { advanceJournalPhase, beginJournalEntry, ensureMigrationJournal, stageJournalPhase } from "./migration-journal.js";
+import type { JournalPhase } from "./migration-journal.js";
+import { checkNamespaceAdoption } from "./plugin-identity.js";
+import type { PluginProvenance } from "./plugin-identity.js";
+import { discardCommittedSnapshot, snapshotDb } from "./snapshot.js";
 
 export type ColumnType = "TEXT" | "INTEGER" | "REAL" | "BLOB";
 export type PluginTier = "tier-1" | "tier-2" | "tier-3";

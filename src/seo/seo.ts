@@ -1,12 +1,12 @@
 import type { JsonValue } from "@jini-ai/cms/core";
-import type { PostKind, PostRecord, PostRepoPort } from "../features/post";
-import { getEffective, type SettingsRepoPort } from "../features/settings";
-import { urlFor } from "../routing";
-import type { RouteResolverDeps } from "../routing/index";
-import { SeoEntryNotFoundError } from "./errors";
-import { getSeoSettings, type GetSeoSettingsDeps } from "./settings";
-import { resolveSeoImageRef, type ResolveSeoImageRefDeps } from "./media";
-import type { SeoAnalysis, SeoExtFields, SeoIssue, SeoMeta } from "./types";
+import type { PostKind, PostRecord, PostRepoPort } from "../features/post/index.js";
+import { getEffective, type SettingsRepoPort } from "../features/settings/index.js";
+import { urlFor } from "../routing/index.js";
+import type { RouteResolverDeps } from "../routing/index.js";
+import { SeoEntryNotFoundError } from "./errors.js";
+import { getSeoSettings, type GetSeoSettingsDeps } from "./settings.js";
+import { resolveSeoImageRef, type ResolveSeoImageRefDeps } from "./media.js";
+import type { SeoAnalysis, SeoExtFields, SeoIssue, SeoMeta } from "./types.js";
 
 /**
  * @file `getEntryMeta`/`analyzeEntry` (ADR-PIPE-008 Decision, C-001/C-002) —

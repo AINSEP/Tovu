@@ -11,8 +11,8 @@
  */
 import Database from "better-sqlite3";
 
-import { ensureMigrationJournal, findIncompleteJournalEntries } from "./migration-journal";
-import { restoreFromSnapshot } from "./restore";
+import { ensureMigrationJournal, findIncompleteJournalEntries } from "./migration-journal.js";
+import { restoreFromSnapshot } from "./restore.js";
 
 export interface RecoveryResult {
   recovered: number;

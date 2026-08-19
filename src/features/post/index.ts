@@ -24,7 +24,7 @@ export {
   type PostKind,
   type PostStatus,
   type BeforeSaveHookPort,
-} from "./post";
+} from "./post.js";
 // Pages live in `features/pages`, not here. A Page is a bespoke HTML document and a Post is a
 // Tiptap one; they are separate features that happen to share a table. Nothing Pages-specific
 // should be re-exported from this barrel.
@@ -40,10 +40,10 @@ export {
   type PostSearchHit,
   type PostSearchPort,
   type PostSearchQuery,
-} from "./search";
-export { InMemoryPostRepo } from "./repo.memory";
-export { SqlitePostRepo } from "./repo.sqlite";
-export { InMemoryPostSearchIndex } from "./search-index.memory";
-export { backfillPostSearchIndex, SqlitePostSearchIndex } from "./search-index.sqlite";
-export { CONTENT_POST_DELETE_TOOL_ID } from "./delete-confirmation-ui";
-export { createPostReverters, createPostRevertRegistry, type PostReverterDeps } from "./reverters";
+} from "./search.js";
+export { InMemoryPostRepo } from "./repo.memory.js";
+export { SqlitePostRepo } from "./repo.sqlite.js";
+export { InMemoryPostSearchIndex } from "./search-index.memory.js";
+export { backfillPostSearchIndex, SqlitePostSearchIndex } from "./search-index.sqlite.js";
+export { CONTENT_POST_DELETE_TOOL_ID } from "./delete-confirmation-ui.js";
+export { createPostReverters, createPostRevertRegistry, type PostReverterDeps } from "./reverters.js";

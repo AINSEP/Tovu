@@ -19,10 +19,10 @@
 import type Database from "better-sqlite3";
 import { asc, eq, gt, and } from "drizzle-orm";
 
-import { newsletterCampaignRevisions, newsletterCampaigns } from "../db/schema";
-import type { ContentDb } from "../db/sqlite/content-db";
-import { findOneBy } from "../db/sqlite/repo-helpers";
-import { NEWSLETTER_TABLE_NAMES } from "./data-module-manifest";
+import { newsletterCampaignRevisions, newsletterCampaigns } from "../db/schema.js";
+import type { ContentDb } from "../db/sqlite/content-db.js";
+import { findOneBy } from "../db/sqlite/repo-helpers.js";
+import { NEWSLETTER_TABLE_NAMES } from "./data-module-manifest.js";
 import type {
   NewsletterAudienceSnapshotRepoPort,
   NewsletterCampaignRepoPort,
@@ -30,7 +30,7 @@ import type {
   NewsletterListRepoPort,
   NewsletterSendRepoPort,
   NewsletterSubscriptionRepoPort,
-} from "./ports";
+} from "./ports.js";
 import type {
   AudienceSnapshotRow,
   CampaignCounters,
@@ -40,7 +40,7 @@ import type {
   NewsletterListRow,
   SendRow,
   SubscriptionRow,
-} from "./types";
+} from "./types.js";
 
 const DEFAULT_LIST_LIMIT = 100;
 

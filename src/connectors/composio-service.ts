@@ -1,19 +1,19 @@
 import type { ClockPort, UUID } from "@jini-ai/cms/core";
 import { ComposioConnectorProvider, ComposioConnectorService } from "@jini-ai/integrations/composio";
 
-import type { KeyringPort, SecretSealerPort } from "../webhooks/index";
+import type { KeyringPort, SecretSealerPort } from "../webhooks/index.js";
 import {
   createSnapshotComposioConfigStore,
   readComposioConfig,
   saveComposioAuthConfigIds,
   type ComposioConfigRepoPort,
   type MutableComposioConfigStore,
-} from "./composio-config-store";
-import { probeComposioApiKey, type ComposioKeyProbeResult } from "./composio-key-probe";
+} from "./composio-config-store.js";
+import { probeComposioApiKey, type ComposioKeyProbeResult } from "./composio-key-probe.js";
 import {
   createSnapshotConnectorCredentialStore,
   type ConnectorCredentialRepoPort,
-} from "./connector-credential-store";
+} from "./connector-credential-store.js";
 
 /**
  * @file Builds the one long-lived `ComposioConnectorService` the admin's Connectors routes talk to.

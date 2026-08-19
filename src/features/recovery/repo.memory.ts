@@ -1,6 +1,6 @@
-import type { DeepLinkRestorePointLookupPort } from "./deep-link";
-import type { DisclosureWatermarkSourcePort, WatermarkBaseline } from "./disclosure";
-import type { RestorePointListPort } from "../database/restore-points";
+import type { DeepLinkRestorePointLookupPort } from "./deep-link.js";
+import type { DisclosureWatermarkSourcePort, WatermarkBaseline } from "./disclosure.js";
+import type { RestorePointListPort } from "../database/restore-points.js";
 
 /**
  * @file Admin-UI backend-gap closure (design-spec.md §4.8) — honest, disclosed stand-ins for two

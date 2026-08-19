@@ -1,7 +1,7 @@
 import type { JsonObject } from "@jini-ai/cms/core";
-import type { NavMenuReadModel, ResolvedNavItem, ResolveTargetHrefFn } from "../../navigation";
-import { resolveMenuDoc } from "../../navigation";
-import type { WidgetResolveResult, WidgetResolver } from "../types";
+import type { NavMenuReadModel, ResolvedNavItem, ResolveTargetHrefFn } from "../../navigation/index.js";
+import { resolveMenuDoc } from "../../navigation/index.js";
+import type { WidgetResolveResult, WidgetResolver } from "../types.js";
 
 /**
  * @file `menu` (menu-as-widget) resolver (SPEC-043 REQ-09, ADR-047 §1/§9 — "the primary menu as a

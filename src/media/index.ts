@@ -119,12 +119,12 @@ export {
   type MediaAgentToolDefinition as AgentToolDefinition,
 } from "@jini-ai/cms/media";
 
-export type { MediaProviderCredentialRepoPort } from "./provider-credential-store";
+export type { MediaProviderCredentialRepoPort } from "./provider-credential-store.js";
 export {
   MediaProviderCredentialSecretStoreUnconfiguredError,
   MediaProviderCredentialValidationError,
   getMediaProviderCredentials,
   saveMediaProviderCredentials,
-} from "./provider-credential-store";
+} from "./provider-credential-store.js";
 
-export { CORE_PUBLIC_TRANSFORM_NAME } from "./bootstrap";
+export { CORE_PUBLIC_TRANSFORM_NAME } from "./bootstrap.js";

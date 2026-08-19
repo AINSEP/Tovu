@@ -10,9 +10,9 @@ import {
   memberSessions,
   memberSubscriptions,
   memberTiers,
-} from "../db/schema";
-import type { ContentDb } from "../db/sqlite/content-db";
-import { findOneBy } from "../db/sqlite/repo-helpers";
+} from "../db/schema.js";
+import type { ContentDb } from "../db/sqlite/content-db.js";
+import { findOneBy } from "../db/sqlite/repo-helpers.js";
 import type {
   MagicLinkTokenRepoPort,
   MemberConsentRepoPort,
@@ -20,7 +20,7 @@ import type {
   MemberSessionRepoPort,
   MemberSubscriptionRepoPort,
   MemberTierRepoPort,
-} from "./ports";
+} from "./ports.js";
 import type {
   ConsentEvidence,
   ConsentPurpose,
@@ -37,7 +37,7 @@ import type {
   MemberTierRecord,
   MemberTierStatus,
   MemberTierType,
-} from "./types";
+} from "./types.js";
 
 /**
  * @file Drizzle/SQLite adapter for all 6 `members` repo ports (ADR-PIPE-013

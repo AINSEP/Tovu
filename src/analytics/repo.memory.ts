@@ -12,8 +12,8 @@
  * - Mirrors the `InMemoryPostRepo` shape/convention (`src/features/post/repo.memory.ts`).
  * - Used directly by ingest tests as the `AnalyticsSinkPort` dependency for `ingestHit`.
  */
-import type { AnalyticsSinkCapabilities, AnalyticsSinkPort } from "./ports";
-import type { NormalizedHit } from "./types";
+import type { AnalyticsSinkCapabilities, AnalyticsSinkPort } from "./ports.js";
+import type { NormalizedHit } from "./types.js";
 
 /** Default number of rows `list()` returns when the caller does not request a specific count. */
 const DEFAULT_LIST_LIMIT = 50;

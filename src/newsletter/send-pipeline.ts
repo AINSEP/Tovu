@@ -12,17 +12,17 @@
  * `bus.subscribe("workspace.created", ...)` demonstration.
  */
 import type { DomainEvent, EventBusPort, OutboxPort } from "@jini-ai/cms/core";
-import { processOutbox } from "../core/events";
-import type { MailerPort } from "../mail";
-import { transitionCampaignStatus } from "./campaign";
+import { processOutbox } from "../core/events/index.js";
+import type { MailerPort } from "../mail/index.js";
+import { transitionCampaignStatus } from "./campaign.js";
 import {
   NewsletterCampaignNotEditableError,
   NewsletterCampaignNotFoundError,
   NewsletterLaunchGateBlockedError,
   NewsletterValidationError,
-} from "./errors";
-import { createHookRegistry, type HookRegistry } from "./hooks";
-import { evaluateLaunchGate, type LaunchGateDeps } from "./launch-gate";
+} from "./errors.js";
+import { createHookRegistry, type HookRegistry } from "./hooks.js";
+import { evaluateLaunchGate, type LaunchGateDeps } from "./launch-gate.js";
 import type {
   NewsletterAudienceSnapshotRepoPort,
   NewsletterCampaignRepoPort,
@@ -30,8 +30,8 @@ import type {
   NewsletterSubscriptionRepoPort,
   SendBatchJob,
   SubscriberDirectoryPort,
-} from "./ports";
-import type { AudienceSnapshotRow, CampaignRecord, SendRow } from "./types";
+} from "./ports.js";
+import type { AudienceSnapshotRow, CampaignRecord, SendRow } from "./types.js";
 
 const TEST_SEND_MIN = 1;
 const TEST_SEND_MAX = 10;

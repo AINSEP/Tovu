@@ -1,11 +1,11 @@
 import type { UUID } from "@jini-ai/cms/core";
-import type { PostRepoPort } from "../features/post";
-import type { SettingsRepoPort } from "../features/settings";
-import type { ResolveSeoImageRefDeps } from "./media";
-import { getEntryMeta } from "./seo";
-import { getSeoSettings } from "./settings";
-import type { RobotsPolicy, SitemapEntry } from "./types";
-import type { SeoEventSubscriptions, SitemapCollectHook } from "./ports";
+import type { PostRepoPort } from "../features/post/index.js";
+import type { SettingsRepoPort } from "../features/settings/index.js";
+import type { ResolveSeoImageRefDeps } from "./media.js";
+import { getEntryMeta } from "./seo.js";
+import { getSeoSettings } from "./settings.js";
+import type { RobotsPolicy, SitemapEntry } from "./types.js";
+import type { SeoEventSubscriptions, SitemapCollectHook } from "./ports.js";
 
 /**
  * @file `buildSitemap`/`buildRobots`/`regenerateSitemapCache`/

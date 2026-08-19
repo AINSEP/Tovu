@@ -13,7 +13,7 @@
  * three self-enforcing tools would be a duplicate evaluator, and a `ToolPolicy`-only check would be
  * bypassable by any future non-tool caller of the same domain function.
  */
-import type { AuthorizeFn, ChangeSetRepoPort } from "../core/commands";
+import type { AuthorizeFn, ChangeSetRepoPort } from "../core/commands/index.js";
 import {
   type OutboxPort,
   AGENT_TOOL_PRINCIPAL_KIND,
@@ -29,21 +29,21 @@ import {
   type ToolRegistration,
 } from "@jini-ai/cms/core";
 import { registerToolContributor } from "#src/assistant/index";
-import { formsAgentToolCatalog } from "./agent-tools";
-import { FormFieldValidationError } from "./errors";
-import type { FormDefinitionRepoPort, FormSubmissionRepoPort } from "./ports";
+import { formsAgentToolCatalog } from "./agent-tools.js";
+import { FormFieldValidationError } from "./errors.js";
+import type { FormDefinitionRepoPort, FormSubmissionRepoPort } from "./ports.js";
 import type {
   FieldDescriptor,
   FormDefinitionRecord,
   FormDefinitionStatus,
   FormSubmissionRecord,
   NotifyConfig,
-} from "./types";
+} from "./types.js";
 import {
   createFormDefinition,
   setFormDefinitionStatus,
   updateFormDefinition,
-} from "./write-service";
+} from "./write-service.js";
 
 const SUBMISSIONS_DEFAULT_LIMIT = 50;
 const SUBMISSIONS_MIN_LIMIT = 1;

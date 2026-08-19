@@ -1,4 +1,4 @@
-import type { PrincipalKind } from "./recovery-orchestrator";
+import type { PrincipalKind } from "./recovery-orchestrator.js";
 
 /**
  * @file SPEC-019 C-306 / REQ-20 / REQ-21 / INV-04 — deep-link envelope resolution (ADR-045 §5,

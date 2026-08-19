@@ -1,6 +1,6 @@
 import { buildConfirmationSurface, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 
-import { SURFACE_EXCHANGE_ID_PARAM } from "../../core/tool-surface-exchanges";
+import { SURFACE_EXCHANGE_ID_PARAM } from "../../core/tool-surface-exchanges.js";
 
 /**
  * @file The Posts/Pages half of the MCP-UI confirmation gate: the dialog `content_post_delete`

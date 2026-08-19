@@ -23,12 +23,12 @@
  * `widgets` domain logic, read side.
  */
 import type { UUID } from "@jini-ai/cms/core";
-import type { EntryListPort, EntryRepoPort } from "../features/entries";
-import { requireWidgetPermission, type WidgetsAuthorizeFn } from "./authorize-helper";
-import { WidgetInstanceNotFoundError } from "./errors";
-import { toWidgetInstanceEntry } from "./entry-payload";
-import { WIDGET_CONTENT_TYPE } from "./types";
-import type { WidgetInstanceEntry } from "./types";
+import type { EntryListPort, EntryRepoPort } from "../features/entries/index.js";
+import { requireWidgetPermission, type WidgetsAuthorizeFn } from "./authorize-helper.js";
+import { WidgetInstanceNotFoundError } from "./errors.js";
+import { toWidgetInstanceEntry } from "./entry-payload.js";
+import { WIDGET_CONTENT_TYPE } from "./types.js";
+import type { WidgetInstanceEntry } from "./types.js";
 
 export interface WidgetReadServiceDeps {
   entryRepo: EntryRepoPort & EntryListPort;

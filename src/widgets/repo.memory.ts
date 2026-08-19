@@ -1,6 +1,6 @@
 import type { UUID } from "@jini-ai/cms/core";
-import type { WidgetRegionBindingRepoPort } from "./ports";
-import type { WidgetRegionBindingRow, WidgetRegionKey } from "./types";
+import type { WidgetRegionBindingRepoPort } from "./ports.js";
+import type { WidgetRegionBindingRow, WidgetRegionKey } from "./types.js";
 
 /**
  * @file In-memory `WidgetRegionBindingRepoPort` adapter (ADR-006 rule-of-two "one being built now"

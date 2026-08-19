@@ -3,14 +3,14 @@ import {
   ForbiddenError,
   PlanStaleError,
   type GatedMutationHooks,
-} from "../../core/gated-mutations/gateway";
-import { TokenAlreadyRedeemedError, TokenExpiredError } from "../../core/gated-mutations/token";
-import { planHashOf, resolveActorClassIdentity } from "../../core/gated-mutations/composition";
+} from "../../core/gated-mutations/gateway.js";
+import { TokenAlreadyRedeemedError, TokenExpiredError } from "../../core/gated-mutations/token.js";
+import { planHashOf, resolveActorClassIdentity } from "../../core/gated-mutations/composition.js";
 import type {
   MigrationRunsRepoPort,
   SiteStatusPort,
-} from "../database/boot/reconcile-interrupted-migration";
-import type { LedgerAppendPort } from "../database/gated-hooks";
+} from "../database/boot/reconcile-interrupted-migration.js";
+import type { LedgerAppendPort } from "../database/gated-hooks.js";
 
 /**
  * @file Recovery's `GatedMutationHooks` factory for the `restore` ceremony (SPEC-019 C-301/C-303),

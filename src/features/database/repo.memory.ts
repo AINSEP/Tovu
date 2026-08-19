@@ -1,9 +1,9 @@
-import type { LedgerReadPort, LedgerRow } from "./timeline";
-import type { CreateRestorePointRepoPort } from "../recovery/restore-points";
-import type { RestorePointListPort, RestorePointRecord } from "./restore-points";
-import type { BootLedgerPort, MigrationRunsRepoPort, SiteServeStatus, SiteStatusPort } from "./boot/reconcile-interrupted-migration";
-import type { DbOpsPort } from "../../core/gated-mutations/ports";
-import type { DatabaseHealthSummary, DatabaseIntrospectionPort, PendingMigration, SchemaStateSummary } from "./adapter.sqlite";
+import type { LedgerReadPort, LedgerRow } from "./timeline.js";
+import type { CreateRestorePointRepoPort } from "../recovery/restore-points.js";
+import type { RestorePointListPort, RestorePointRecord } from "./restore-points.js";
+import type { BootLedgerPort, MigrationRunsRepoPort, SiteServeStatus, SiteStatusPort } from "./boot/reconcile-interrupted-migration.js";
+import type { DbOpsPort } from "../../core/gated-mutations/ports.js";
+import type { DatabaseHealthSummary, DatabaseIntrospectionPort, PendingMigration, SchemaStateSummary } from "./adapter.sqlite.js";
 
 /**
  * @file In-memory `LedgerReadPort` double (ADR-006 rule-of-two's "one being built now" partner

@@ -5,9 +5,9 @@ import {
   type SettingDefinitionSpec,
   getEffective,
   type SettingsRepoPort,
-} from "../features/settings";
-import type { AnalyticsConfigPort } from "./ports";
-import type { AnalyticsSiteConfig } from "./types";
+} from "../features/settings/index.js";
+import type { AnalyticsConfigPort } from "./ports.js";
+import type { AnalyticsSiteConfig } from "./types.js";
 
 /**
  * @file Boot-time `core.analytics.*` setting-definition registration plus the

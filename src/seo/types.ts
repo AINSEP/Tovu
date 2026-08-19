@@ -20,7 +20,7 @@
  *    convenience so `seo` callers don't need two import paths.
  */
 import type { JsonObject } from "@jini-ai/cms/core";
-import type { PostRecord } from "../features/post";
+import type { PostRecord } from "../features/post/index.js";
 
 export type {
   HeadElement,
@@ -29,7 +29,7 @@ export type {
   PageHeadContext,
   PageHeadEntryRef,
   PageHeadHook,
-} from "../server/http/site/page-head";
+} from "../server/http/site/page-head.js";
 
 // ---------------------------------------------------------------------------
 // 1. Stored per-entry meta — the validated `posts.seo_ext_json` bag

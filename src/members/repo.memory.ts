@@ -22,7 +22,7 @@ import type {
   MemberSessionRecord,
   MemberSubscriptionRecord,
   MemberTierRecord,
-} from "./types";
+} from "./types.js";
 import type {
   MagicLinkTokenRepoPort,
   MemberConsentRepoPort,
@@ -30,7 +30,7 @@ import type {
   MemberSessionRepoPort,
   MemberSubscriptionRepoPort,
   MemberTierRepoPort,
-} from "./ports";
+} from "./ports.js";
 
 /**
  * Resource-bounds pre-check (backend-implementation 5a4): an unbounded `list()`

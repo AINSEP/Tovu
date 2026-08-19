@@ -36,7 +36,7 @@ import type {
   ProviderRefundResult,
   ProviderWebhookInput,
   ProviderWebhookResult,
-} from "../ports";
+} from "../ports.js";
 
 export const LIPAY_GATEWAY_ID = "lipay";
 

@@ -18,9 +18,9 @@
  * `widgets` domain logic (implementation outline C-006).
  */
 import type { ClockPort, OutboxPort, UUID } from "@jini-ai/cms/core";
-import type { EntryRefsRepoPort } from "../core/entry-refs/ports";
-import { extractEntryRefs } from "../core/entry-refs/extractor";
-import type { ContentTypeRepoPort } from "../features/content-types";
+import type { EntryRefsRepoPort } from "../core/entry-refs/ports.js";
+import { extractEntryRefs } from "../core/entry-refs/extractor.js";
+import type { ContentTypeRepoPort } from "../features/content-types/index.js";
 import {
   VersionConflictError,
   toEntryOutbox,
@@ -29,14 +29,14 @@ import {
   type EntryListPort,
   type EntryRecord,
   type EntryRepoPort,
-} from "../features/entries";
+} from "../features/entries/index.js";
 import {
   PRE_AUTHORIZED,
   requireWidgetPermission,
   WIDGETS_SYSTEM_ACTOR_ID,
   type WidgetsAuthorizeFn,
-} from "./authorize-helper";
-import { withEntryLock } from "./concurrency";
+} from "./authorize-helper.js";
+import { withEntryLock } from "./concurrency.js";
 import {
   areaDocWithPlacements,
   buildWidgetAreaFieldsJson,
@@ -46,24 +46,24 @@ import {
   parseWidgetInstancePayload,
   toWidgetAreaEntry,
   widgetAreaSlug,
-} from "./entry-payload";
+} from "./entry-payload.js";
 import {
   WidgetAreaConflictError,
   WidgetAreaNotFoundError,
   WidgetInstanceNotFoundError,
-} from "./errors";
-import type { WidgetRegionBindingRepoPort } from "./ports";
+} from "./errors.js";
+import type { WidgetRegionBindingRepoPort } from "./ports.js";
 import {
   WIDGET_AREA_CONTENT_TYPE,
   WIDGET_AREA_FIELD_NAMESPACE,
   WIDGET_CONTENT_TYPE,
-} from "./types";
+} from "./types.js";
 import type {
   WidgetAreaEntry,
   WidgetPlacementNode,
   WidgetRegionBindingRow,
   WidgetRegionKey,
-} from "./types";
+} from "./types.js";
 
 export interface RegionAreaServiceDeps {
   entryRepo: EntryRepoPort & EntryListPort;

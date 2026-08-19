@@ -1,6 +1,6 @@
 import type { DomainEvent, EventBusPort } from "@jini-ai/cms/core";
-import type { MailerPort } from "../mail";
-import type { FormDefinitionRepoPort, FormSubmissionRepoPort } from "./ports";
+import type { MailerPort } from "../mail/index.js";
+import type { FormDefinitionRepoPort, FormSubmissionRepoPort } from "./ports.js";
 
 /**
  * @file `registerFormNotifySubscriber` — the Forms-owned outbox subscriber (SPEC-010 REQ-12,

@@ -20,7 +20,7 @@
  */
 import type Database from "better-sqlite3";
 
-import { declareDataModule, type DataModuleDecl } from "../features/plugins/data-module";
+import { declareDataModule, type DataModuleDecl } from "../features/plugins/data-module.js";
 
 export const NEWSLETTER_PLUGIN_ID = "newsletter";
 

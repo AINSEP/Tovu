@@ -1,12 +1,12 @@
 import { and, eq } from "drizzle-orm";
 
 import type { JsonObject } from "@jini-ai/cms/core";
-import { posts } from "../../db/schema";
-import type { ContentDb } from "../../db/sqlite/content-db";
-import { findOneBy } from "../../db/sqlite/repo-helpers";
-import { DEFAULT_BODY_JSON, type PostBodyFormat, type PostKind, type PostRecord, type PostRepoPort, type PostStatus } from "./post";
-import { toPostSearchDocument } from "./search";
-import { indexPostSearchDocument } from "./search-index.sqlite";
+import { posts } from "../../db/schema.js";
+import type { ContentDb } from "../../db/sqlite/content-db.js";
+import { findOneBy } from "../../db/sqlite/repo-helpers.js";
+import { DEFAULT_BODY_JSON, type PostBodyFormat, type PostKind, type PostRecord, type PostRepoPort, type PostStatus } from "./post.js";
+import { toPostSearchDocument } from "./search.js";
+import { indexPostSearchDocument } from "./search-index.sqlite.js";
 
 /**
  * @file Drizzle/SQLite post repository adapter.

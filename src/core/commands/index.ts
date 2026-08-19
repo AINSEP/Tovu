@@ -6,6 +6,6 @@
  * registry. Adapters implement `ChangeSetRepoPort`.
  */
 export * from "@jini-ai/cms/core";
-export * from "./appliers";
-export * from "./revert";
-export { InMemoryChangeSetRepo } from "./repo.memory";
+export * from "./appliers.js";
+export * from "./revert.js";
+export { InMemoryChangeSetRepo } from "./repo.memory.js";

@@ -1,8 +1,8 @@
 import type { ClockPort, ISODateTime, UUID } from "@jini-ai/cms/core";
 
-import type { KeyringPort, SealedSecret, SecretSealerPort } from "../webhooks/index";
-import { FEDERATED_CONNECTION_DEFAULTS, type ResolvedFederatedConnection } from "./mcp-federation/config";
-import { assertValidConnectionId } from "./mcp-federation/trust";
+import type { KeyringPort, SealedSecret, SecretSealerPort } from "../webhooks/index.js";
+import { FEDERATED_CONNECTION_DEFAULTS, type ResolvedFederatedConnection } from "./mcp-federation/config.js";
+import { assertValidConnectionId } from "./mcp-federation/trust.js";
 
 /**
  * @file The operator-editable roster of external MCP servers — what Settings → External MCP writes,

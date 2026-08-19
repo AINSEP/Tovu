@@ -10,9 +10,9 @@
  */
 import type Database from "better-sqlite3";
 
-import { COMMENTS_PLUGIN_ID } from "./types";
-import type { CommentRepoPort } from "./ports";
-import type { CommentRecord, CommentStatus, CommentThreadNode, ModerationAction, ModerationLogEntry, ModerationQueuePage } from "./types";
+import { COMMENTS_PLUGIN_ID } from "./types.js";
+import type { CommentRepoPort } from "./ports.js";
+import type { CommentRecord, CommentStatus, CommentThreadNode, ModerationAction, ModerationLogEntry, ModerationQueuePage } from "./types.js";
 
 const COMMENTS_TABLE = `p_${COMMENTS_PLUGIN_ID}__comments`;
 const MODERATION_LOG_TABLE = `p_${COMMENTS_PLUGIN_ID}__moderation_log`;

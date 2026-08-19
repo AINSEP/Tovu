@@ -1,6 +1,6 @@
-import type { EntryListPort } from "../../features/entries";
-import { getWidgetTypeRegistration } from "../registry";
-import type { WidgetResolveResult, WidgetResolver } from "../types";
+import type { EntryListPort } from "../../features/entries/index.js";
+import { getWidgetTypeRegistration } from "../registry.js";
+import type { WidgetResolveResult, WidgetResolver } from "../types.js";
 
 /**
  * @file `recent-entries` widget resolver (SPEC-043 REQ-25, ADR-047 §9).

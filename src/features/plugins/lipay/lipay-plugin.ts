@@ -35,9 +35,9 @@
 import Database from "better-sqlite3";
 
 import type { HttpClientPort } from "#src/http/index";
-import { declareDataModule, type DataModuleDecl } from "../data-module";
-import { createPaymentProviderRegistry } from "./registry";
-import { canTransition, isTerminalPaymentStatus, statusForEventKind, type PaymentStatus } from "./state-machine";
+import { declareDataModule, type DataModuleDecl } from "../data-module.js";
+import { createPaymentProviderRegistry } from "./registry.js";
+import { canTransition, isTerminalPaymentStatus, statusForEventKind, type PaymentStatus } from "./state-machine.js";
 import type {
   ChargeNextAction,
   Money,
@@ -48,7 +48,7 @@ import type {
   PaymentProviderCapabilities,
   PaymentProviderId,
   ProviderContext,
-} from "./ports";
+} from "./ports.js";
 
 export const LIPAY_PLUGIN_ID = "lipay";
 

@@ -1,6 +1,6 @@
 import type { AuthorizeFn } from "@jini-ai/cms/core";
 import type { ClockPort, IdGeneratorPort, UUID } from "@jini-ai/cms/core";
-import type { ContentDb } from "../db/sqlite/content-db";
+import type { ContentDb } from "../db/sqlite/content-db.js";
 import { authorize as authorizeCore } from "@jini-ai/cms/identity";
 import { Argon2PasswordHasher } from "@jini-ai/cms/identity/hasher";
 import { migrateDeprecatedPermissionGrants } from "@jini-ai/cms/identity";
@@ -26,7 +26,7 @@ import {
   SqliteRoleRepo,
   SqliteSessionRepo,
   SqliteUserRepo,
-} from "./repo.sqlite";
+} from "./repo.sqlite.js";
 import { seedIdentity } from "@jini-ai/cms/identity";
 
 /**

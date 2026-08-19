@@ -5,7 +5,7 @@ import path from "node:path";
 import test from "node:test";
 import { pathToFileURL } from "node:url";
 
-import { PluginSdkResolverAlreadyRegisteredError, registerPluginSdkResolver } from "../../plugin-sdk-resolver";
+import { PluginSdkResolverAlreadyRegisteredError, registerPluginSdkResolver } from "../../plugin-sdk-resolver.js";
 
 /**
  * @file C-015 `registerPluginSdkResolver()` — SPEC-005 ADR "SDK Resolution Mechanism". **CIC U-002

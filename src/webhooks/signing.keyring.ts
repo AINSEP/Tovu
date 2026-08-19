@@ -1,5 +1,5 @@
-import { signPayload, type WebhookSigner } from "./signing";
-import type { KeyringPort } from "./ports";
+import { signPayload, type WebhookSigner } from "./signing.js";
+import type { KeyringPort } from "./ports.js";
 
 /**
  * @file `WebhookSigner` backed by a real `KeyringPort` (ADR-PIPE-015 Phase 1, GAP-02).

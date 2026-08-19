@@ -45,26 +45,26 @@
 // The anonymous-visitor chat's server-side surface (ADR-054, SPEC-046). Consumed almost entirely by
 // `server/modules/site-assistant.ts`'s SSE route composition.
 // ---------------------------------------------------------------------------------------------
-export { createSiteCapabilityRegistry } from "./site/capability-registry";
+export { createSiteCapabilityRegistry } from "./site/capability-registry.js";
 export type {
   SiteCapabilityRegistry,
   SiteCapabilityInvocation,
   SiteCapabilityOutcome,
   SiteAssistantCallerClass,
-} from "./site/capability-registry";
+} from "./site/capability-registry.js";
 
-export { detectsExplicitNavigationIntent } from "./site/client-directives";
+export { detectsExplicitNavigationIntent } from "./site/client-directives.js";
 // `ClientDirective`/`PageAction`/`ResolvedPublicTarget` are reachable from `SiteCapabilityOutcome`'s
 // `directive` field above, not imported directly anywhere today — kept public because a registry
 // consumer that reads `outcome.directive` needs these names to type it. `resolvePublicTarget` itself
 // (the function) has no external caller — `site/tools.ts` is the only user, inside this module —
 // so it stays un-re-exported.
-export type { ClientDirective, PageAction, ResolvedPublicTarget } from "./site/client-directives";
+export type { ClientDirective, PageAction, ResolvedPublicTarget } from "./site/client-directives.js";
 
-export { resolveBoundedHistory } from "./site/history";
+export { resolveBoundedHistory } from "./site/history.js";
 
-export { resolveSiteAssistantMode } from "./site/mode";
-export type { SiteAssistantMode, SiteAssistantModeResolution } from "./site/mode";
+export { resolveSiteAssistantMode } from "./site/mode.js";
+export type { SiteAssistantMode, SiteAssistantModeResolution } from "./site/mode.js";
 
 // ---------------------------------------------------------------------------------------------
 // B — Assistant Settings & Credentials (admin CRUD + shared public-runtime read)
@@ -80,8 +80,8 @@ export {
   isPublicAssistantEnabled,
   ADMIN_ASSISTANT_PERMISSION,
   PublicAssistantSettingsValidationError,
-} from "./public-assistant-settings";
-export type { PublicAssistantSettings, PublicAssistantSettingKey } from "./public-assistant-settings";
+} from "./public-assistant-settings.js";
+export type { PublicAssistantSettings, PublicAssistantSettingKey } from "./public-assistant-settings.js";
 
 export {
   getSiteAssistantCredential,
@@ -90,15 +90,15 @@ export {
   resolveSiteAssistantApiKey,
   SiteAssistantCredentialValidationError,
   SiteAssistantSecretStoreUnconfiguredError,
-} from "./site-credential-store";
+} from "./site-credential-store.js";
 export type {
   SiteAssistantCredentialRepoPort,
   SiteAssistantCredentialRecord,
   SiteAssistantCredentialView,
   ResolvedSiteAssistantCredential,
-} from "./site-credential-store";
+} from "./site-credential-store.js";
 // ADR-006 rule-of-two in-memory adapter — `server/app.ts`'s hermetic composition root.
-export { InMemorySiteAssistantCredentialRepo } from "./site-credential-store.memory";
+export { InMemorySiteAssistantCredentialRepo } from "./site-credential-store.memory.js";
 
 // `db/sqlite/site-credential-repo.sqlite.ts` picks up `SiteAssistantCredentialRepoPort`/
 // `SiteAssistantCredentialRecord` from here too — the port type genuinely belongs to this domain
@@ -118,27 +118,27 @@ export {
   deleteExecutionCredential,
   ExecutionCredentialValidationError,
   ExecutionCredentialSecretStoreUnconfiguredError,
-} from "./execution-credential-store";
+} from "./execution-credential-store.js";
 export type {
   AdminExecutionCredentialRepoPort,
   AdminExecutionCredentialRecord,
   AdminExecutionCredentialView,
-} from "./execution-credential-store";
-export { InMemoryAdminExecutionCredentialRepo } from "./execution-credential-store.memory";
+} from "./execution-credential-store.js";
+export { InMemoryAdminExecutionCredentialRepo } from "./execution-credential-store.memory.js";
 
-export { ensureExecutionSettingDefinitions } from "./execution-mode-settings";
+export { ensureExecutionSettingDefinitions } from "./execution-mode-settings.js";
 
 // `createRequestSuppliedExecutionCredentialPort` (the request-only port variant) has no external
 // caller today — kept internal. `createStoredExecutionCredentialPort` is the one
 // `assistant-byok.ts` actually constructs.
-export { createStoredExecutionCredentialPort } from "./byok-credential";
-export type { ExecutionCredentialPort, ResolvedByokCredential, RequestSuppliedByokConfig } from "./byok-credential";
+export { createStoredExecutionCredentialPort } from "./byok-credential.js";
+export type { ExecutionCredentialPort, ResolvedByokCredential, RequestSuppliedByokConfig } from "./byok-credential.js";
 
-export { runByokProviderTurn } from "./byok-provider-turn";
-export type { ByokChatMessage, ByokProviderTurnResult, ByokTurnEvent } from "./byok-provider-turn";
+export { runByokProviderTurn } from "./byok-provider-turn.js";
+export type { ByokChatMessage, ByokProviderTurnResult, ByokTurnEvent } from "./byok-provider-turn.js";
 
-export { createByokToolSurface } from "./byok-tool-surface";
-export type { ByokToolSurface } from "./byok-tool-surface";
+export { createByokToolSurface } from "./byok-tool-surface.js";
+export type { ByokToolSurface } from "./byok-tool-surface.js";
 
 // ---------------------------------------------------------------------------------------------
 // D — Admin Daemon Proxy / Process Composition
@@ -147,9 +147,9 @@ export type { ByokToolSurface } from "./byok-tool-surface";
 // files have exactly one external importer, this module) plus `src/index.ts` (the process entry
 // point, for daemon-lifecycle concerns).
 // ---------------------------------------------------------------------------------------------
-export { A2UI_ACTIONS_PATH } from "./a2ui-actions-route";
-export { AGENT_DAEMON_TOKEN_ENV_VAR, ensureAgentDaemonToken } from "./daemon-auth";
-export { AGENT_DAEMON_EXIT_CODE } from "./daemon-exit-codes";
+export { A2UI_ACTIONS_PATH } from "./a2ui-actions-route.js";
+export { AGENT_DAEMON_TOKEN_ENV_VAR, ensureAgentDaemonToken } from "./daemon-auth.js";
+export { AGENT_DAEMON_EXIT_CODE } from "./daemon-exit-codes.js";
 // `startAssistantDaemon`/`restartAssistantDaemon`/`ensureAssistantDaemonStarted` moved to
 // `server/agent-daemon/daemon-supervisor.ts` (2026-08-17) — that file is now part of the `server`
 // module itself, so its three real callers (`index.ts`, `server/modules/assistant.ts`,
@@ -164,27 +164,27 @@ export { AGENT_DAEMON_EXIT_CODE } from "./daemon-exit-codes";
 // described above) plus that file's own test — needing the SAME crash-loop/backoff decision logic
 // the daemon-supervisor code was split out to keep pure and unit-testable in isolation (2026-08-13
 // no-deep-imports:assistant triage).
-export { createRespawnPolicy } from "./daemon-respawn-policy";
-export type { RespawnDecision, RespawnPolicy } from "./daemon-respawn-policy";
-export { getLiveClaudeModels, unionModels } from "./live-model-cache";
-export { isMcpUiToolCallAllowed } from "./mcp-ui-tool-calls";
-export { MCP_UI_TOOL_CALLS_PATH } from "./mcp-ui-tool-calls-route";
+export { createRespawnPolicy } from "./daemon-respawn-policy.js";
+export type { RespawnDecision, RespawnPolicy } from "./daemon-respawn-policy.js";
+export { getLiveClaudeModels, unionModels } from "./live-model-cache.js";
+export { isMcpUiToolCallAllowed } from "./mcp-ui-tool-calls.js";
+export { MCP_UI_TOOL_CALLS_PATH } from "./mcp-ui-tool-calls-route.js";
 // `UIResource`/`MCP_UI_MIME_TYPE` are the MCP-UI wire-format contract `mcp-ui.ts` declares —
 // `features/post`'s own agent-tools tests build/assert against this exact shape to verify their
 // tool output conforms to it, the same "consumer needs the port's own type" reasoning as any other
 // cross-module port. The rest of `mcp-ui.ts` (`createUIResource`, `buildUIToolResult`, etc.) stays
 // un-re-exported — no external caller constructs a `UIResource` today, only reads/asserts on one.
-export { MCP_UI_MIME_TYPE } from "./mcp-ui";
-export type { UIResource } from "./mcp-ui";
-export { RUN_PRINCIPAL_HEADER } from "./run-ownership";
+export { MCP_UI_MIME_TYPE } from "./mcp-ui.js";
+export type { UIResource } from "./mcp-ui.js";
+export { RUN_PRINCIPAL_HEADER } from "./run-ownership.js";
 
 // `tool-surface-exchanges.ts` now lives in `core/` (2026-08-13 architecture audit item 7, executed
 // 2026-08-17) — `features/post/{delete-confirmation-ui, tool-registrations}.ts` and the other
 // cross-module consumers import it directly from `#src/core/tool-surface-exchanges` now, not through
 // this barrel. Only the ONE symbol pair `server/modules/assistant.ts` actually needs stays
 // re-exported here, byte-identical for that caller (`from "#src/assistant/index"` or `"../../assistant"`).
-export { SURFACE_EXCHANGE_ID_PARAM } from "../core/tool-surface-exchanges";
-export type { SurfaceExchangeStore } from "../core/tool-surface-exchanges";
+export { SURFACE_EXCHANGE_ID_PARAM } from "../core/tool-surface-exchanges.js";
+export type { SurfaceExchangeStore } from "../core/tool-surface-exchanges.js";
 
 // ---------------------------------------------------------------------------------------------
 // E — External MCP Federation (registry)
@@ -200,13 +200,13 @@ export {
   deleteExternalMcpServer,
   ExternalMcpValidationError,
   ExternalMcpSecretStoreUnconfiguredError,
-} from "./external-mcp-store";
-export type { ExternalMcpServerRepoPort, ExternalMcpServerRecord, ExternalMcpServerView } from "./external-mcp-store";
-export { InMemoryExternalMcpServerRepo } from "./external-mcp-store.memory";
+} from "./external-mcp-store.js";
+export type { ExternalMcpServerRepoPort, ExternalMcpServerRecord, ExternalMcpServerView } from "./external-mcp-store.js";
+export { InMemoryExternalMcpServerRepo } from "./external-mcp-store.memory.js";
 
-export { FEDERATED_CONNECTION_DEFAULTS, isFederationEnabled, parseAllowedToolNames, positiveIntOrDefault } from "./mcp-federation/config";
-export type { ResolvedFederatedConnection } from "./mcp-federation/config";
-export { registerFederatedMcpPreset } from "./mcp-federation/presets";
+export { FEDERATED_CONNECTION_DEFAULTS, isFederationEnabled, parseAllowedToolNames, positiveIntOrDefault } from "./mcp-federation/config.js";
+export type { ResolvedFederatedConnection } from "./mcp-federation/config.js";
+export { registerFederatedMcpPreset } from "./mcp-federation/presets.js";
 
 // ---------------------------------------------------------------------------------------------
 // E2 — AI-Tool Contribution Registry
@@ -220,8 +220,8 @@ export { registerFederatedMcpPreset } from "./mcp-federation/presets";
 // tried this seam too and reverted the same night — see `features/post/tool-registrations.ts`'s
 // trailing comment for why (it opened a new module cycle through `widgets`/`export`).
 // ---------------------------------------------------------------------------------------------
-export { registerToolContributor } from "./tool-contribution-registry";
-export type { ToolContributor } from "./tool-contribution-registry";
+export { registerToolContributor } from "./tool-contribution-registry.js";
+export type { ToolContributor } from "./tool-contribution-registry.js";
 
 // ---------------------------------------------------------------------------------------------
 // F — Chat History Persistence (composition-root wiring)
@@ -230,5 +230,5 @@ export type { ToolContributor } from "./tool-contribution-registry";
 // Category 3, an ADR-006 composition root selecting an adapter, not a leak. Consumed by
 // `server/app.ts` and `server/deps.ts`.
 // ---------------------------------------------------------------------------------------------
-export { createChatStoreFactory, createInMemoryChatStoreFactory } from "./persistence/store-factory";
-export type { ChatStoreFactory } from "./persistence/tenant-scope";
+export { createChatStoreFactory, createInMemoryChatStoreFactory } from "./persistence/store-factory.js";
+export type { ChatStoreFactory } from "./persistence/tenant-scope.js";

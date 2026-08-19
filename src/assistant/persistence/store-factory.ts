@@ -2,7 +2,7 @@ import Database from "better-sqlite3";
 import { ensureChatHistoryTables } from "@jini-ai/sqlite";
 import type { Database as SqliteDatabase } from "better-sqlite3";
 
-import { createTenantScopedChatStore, type ChatStoreFactory } from "./tenant-scope";
+import { createTenantScopedChatStore, type ChatStoreFactory } from "./tenant-scope.js";
 
 /**
  * @file The two ways a composition root supplies chat history, kept together so the difference

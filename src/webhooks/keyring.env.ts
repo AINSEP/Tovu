@@ -3,7 +3,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 
-import type { KeyringPort } from "./ports";
+import type { KeyringPort } from "./ports.js";
 
 /**
  * @file `KeyringPort` implementation backed by an env var, with a generated-file fallback

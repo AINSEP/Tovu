@@ -8,7 +8,7 @@ import {
   type ToolRegistration,
 } from "@jini-ai/cms/core";
 
-import type { AssistantSurfaceDeps, SurfaceExchange, SurfaceMessage } from "../core/tool-surface-exchanges";
+import type { AssistantSurfaceDeps, SurfaceExchange, SurfaceMessage } from "../core/tool-surface-exchanges.js";
 
 /**
  * @file A general-purpose "draw whatever you want" tool. Unlike `demo-a2ui-tool.ts` (a scripted,

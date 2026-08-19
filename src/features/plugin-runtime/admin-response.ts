@@ -23,8 +23,8 @@
  * `tier`/`status`/`errors` with activation's `enabled`/quarantine fields into the wire envelope.
  * Verified against `server/http/admin/__tests__/unit/plugins-dto.unit.test.ts`.
  */
-import type { PluginActivationRecord } from "./activation";
-import type { PluginDiscoveryRecord } from "./discovery";
+import type { PluginActivationRecord } from "./activation.js";
+import type { PluginDiscoveryRecord } from "./discovery.js";
 
 /** api.spec.md §5 `PLUGINS_LIST`/`PLUGIN_SET_ENABLED` per-plugin wire shape. */
 export interface AdminPluginEnvelope {

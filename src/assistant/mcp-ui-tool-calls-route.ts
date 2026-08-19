@@ -5,9 +5,9 @@ import type { Express, Request, Response } from "express";
 import type { Principal } from "@jini-ai/core";
 import type { ToolExecutionResult, ToolExecutor } from "@jini-ai/daemon";
 
-import { RUN_PRINCIPAL_HEADER } from "./run-ownership";
-import { isMcpUiToolCallAllowed } from "./mcp-ui-tool-calls";
-import { SURFACE_EXCHANGE_ID_PARAM, type SurfaceExchangeStore } from "../core/tool-surface-exchanges";
+import { RUN_PRINCIPAL_HEADER } from "./run-ownership.js";
+import { isMcpUiToolCallAllowed } from "./mcp-ui-tool-calls.js";
+import { SURFACE_EXCHANGE_ID_PARAM, type SurfaceExchangeStore } from "../core/tool-surface-exchanges.js";
 
 /**
  * @file The daemon-side half of the MCP-UI callback endpoint — where a rendered surface's answer

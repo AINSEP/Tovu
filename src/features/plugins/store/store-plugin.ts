@@ -12,7 +12,7 @@
  */
 import Database from "better-sqlite3";
 
-import { declareDataModule, type DataModuleDecl } from "../data-module";
+import { declareDataModule, type DataModuleDecl } from "../data-module.js";
 
 export interface Product {
   id: string;

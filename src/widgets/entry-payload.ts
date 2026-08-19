@@ -3,16 +3,16 @@ import {
   NoopContentTypeIndexProvisioner,
   toContentTypeOutbox,
   type ContentTypeRepoPort,
-} from "../features/content-types";
+} from "../features/content-types/index.js";
 import type { ClockPort, JsonObject, OutboxPort } from "@jini-ai/cms/core";
-import type { EntryRecord } from "../features/entries";
-import { PRE_AUTHORIZED, WIDGETS_SYSTEM_ACTOR_ID } from "./authorize-helper";
+import type { EntryRecord } from "../features/entries/index.js";
+import { PRE_AUTHORIZED, WIDGETS_SYSTEM_ACTOR_ID } from "./authorize-helper.js";
 import {
   WIDGET_AREA_CONTENT_TYPE,
   WIDGET_AREA_FIELD_NAMESPACE,
   WIDGET_CONTENT_TYPE,
   WIDGET_FIELD_NAMESPACE,
-} from "./types";
+} from "./types.js";
 import type {
   WidgetAreaDoc,
   WidgetAreaEntry,
@@ -21,7 +21,7 @@ import type {
   WidgetPlacementNode,
   WidgetRegionKey,
   WidgetTypeKey,
-} from "./types";
+} from "./types.js";
 
 /**
  * @file Storage-shape plumbing shared by `write-service.ts`/`region-area-service.ts` — how a

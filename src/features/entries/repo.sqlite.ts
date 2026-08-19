@@ -1,16 +1,16 @@
 import type Database from "better-sqlite3";
 import { and, asc, desc, eq } from "drizzle-orm";
 
-import { entries, entryRevisions } from "../../db/schema";
-import type { ContentDb } from "../../db/sqlite/content-db";
-import { findOneBy } from "../../db/sqlite/repo-helpers";
+import { entries, entryRevisions } from "../../db/schema.js";
+import type { ContentDb } from "../../db/sqlite/content-db.js";
+import { findOneBy } from "../../db/sqlite/repo-helpers.js";
 import type {
   EntryListPort,
   EntryRecord,
   EntryRepoPort,
   EntryRevisionInput,
   EntryStatus,
-} from "./index";
+} from "./index.js";
 
 /**
  * @file Real SQLite `EntryRepoPort` + `EntryListPort` adapter (ADR-006 rule-of-two "second

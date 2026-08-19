@@ -1,5 +1,5 @@
 import type { UUID } from "@jini-ai/cms/core";
-import { PostValidationError, type PostKind, type PostStatus } from "./post";
+import { PostValidationError, type PostKind, type PostStatus } from "./post.js";
 
 /**
  * @file Ranked full-text search over Posts + Pages — the domain half (contract, input rules, and

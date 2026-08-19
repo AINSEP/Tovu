@@ -1,6 +1,6 @@
 import type { ISODateTime, UUID } from "@jini-ai/cms/core";
 
-import type { ComposioConfigRecord, ComposioConfigRepoPort } from "./composio-config-store";
+import type { ComposioConfigRecord, ComposioConfigRepoPort } from "./composio-config-store.js";
 
 /**
  * @file `ComposioConfigRepoPort`'s in-memory adapter — the ADR-006 rule-of-two test double,

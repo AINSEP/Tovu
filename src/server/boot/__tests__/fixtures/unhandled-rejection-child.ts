@@ -1,4 +1,4 @@
-import { installUnhandledRejectionGuard } from "../../process-error-guards";
+import { installUnhandledRejectionGuard } from "../../process-error-guards.js";
 
 /**
  * @file Standalone child-process fixture for `process-error-guards.unit.test.ts` — deliberately NOT

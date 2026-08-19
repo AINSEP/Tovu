@@ -30,7 +30,7 @@
  */
 import { dirname, join } from "node:path";
 import type { McpJsonInjectionOptions } from "@jini-ai/daemon";
-import { AGENT_DAEMON_TOKEN_ENV_VAR } from "./daemon-auth";
+import { AGENT_DAEMON_TOKEN_ENV_VAR } from "./daemon-auth.js";
 
 export function resolveMcpJsonInjection(daemonUrl: string): McpJsonInjectionOptions {
   const entryPoint = require.resolve("@jini-ai/mcp");

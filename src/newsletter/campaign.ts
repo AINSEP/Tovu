@@ -26,7 +26,7 @@
  * tier (there is no endpoint that would call it). If a future endpoint needs that transition, add it
  * here explicitly rather than widening `compose`'s existing grant.
  */
-import type { CampaignStatus } from "./types";
+import type { CampaignStatus } from "./types.js";
 
 export type CampaignActorTier = "pipeline" | "send" | "schedule" | "compose";
 

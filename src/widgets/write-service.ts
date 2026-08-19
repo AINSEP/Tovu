@@ -27,9 +27,9 @@
  * `widgets` domain logic (implementation outline C-005).
  */
 import type { ClockPort, OutboxPort, UUID } from "@jini-ai/cms/core";
-import type { EntryRefsRepoPort } from "../core/entry-refs/ports";
-import { extractEntryRefs } from "../core/entry-refs/extractor";
-import type { ContentTypeRepoPort } from "../features/content-types";
+import type { EntryRefsRepoPort } from "../core/entry-refs/ports.js";
+import { extractEntryRefs } from "../core/entry-refs/extractor.js";
+import type { ContentTypeRepoPort } from "../features/content-types/index.js";
 import {
   VersionConflictError,
   toEntryOutbox,
@@ -38,30 +38,30 @@ import {
   type EntryListPort,
   type EntryRecord,
   type EntryRepoPort,
-} from "../features/entries";
+} from "../features/entries/index.js";
 import {
   PRE_AUTHORIZED,
   requireWidgetPermission,
   type WidgetsAuthorizeFn,
-} from "./authorize-helper";
-import { withEntryLock } from "./concurrency";
-import { validateWidgetConfig } from "./config-validation";
+} from "./authorize-helper.js";
+import { withEntryLock } from "./concurrency.js";
+import { validateWidgetConfig } from "./config-validation.js";
 import {
   buildWidgetInstanceFieldsJson,
   ensureWidgetContentTypesRegistered,
   parseWidgetInstancePayload,
   toWidgetInstanceEntry,
-} from "./entry-payload";
+} from "./entry-payload.js";
 import {
   WidgetConfigValidationError,
   WidgetInstanceNotFoundError,
   WidgetReferencedError,
   WidgetTypeUnregisteredError,
   WidgetVersionConflictError,
-} from "./errors";
-import { getWidgetTypeRegistration } from "./registry";
-import { WIDGET_CONTENT_TYPE, WIDGET_FIELD_NAMESPACE } from "./types";
-import type { WidgetInstanceEntry, WidgetTypeKey } from "./types";
+} from "./errors.js";
+import { getWidgetTypeRegistration } from "./registry.js";
+import { WIDGET_CONTENT_TYPE, WIDGET_FIELD_NAMESPACE } from "./types.js";
+import type { WidgetInstanceEntry, WidgetTypeKey } from "./types.js";
 
 export interface WidgetWriteServiceDeps {
   entryRepo: EntryRepoPort & EntryListPort;

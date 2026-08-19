@@ -2,8 +2,8 @@
  * @file In-memory `CommentRepoPort` adapter (ADR-006 rule-of-two "test/dev" half;
  * `repo.sqlite.ts` is the durable half).
  */
-import type { CommentRepoPort } from "./ports";
-import type { CommentRecord, CommentStatus, CommentThreadNode, ModerationLogEntry, ModerationQueuePage } from "./types";
+import type { CommentRepoPort } from "./ports.js";
+import type { CommentRecord, CommentStatus, CommentThreadNode, ModerationLogEntry, ModerationQueuePage } from "./types.js";
 
 function buildThread(comments: readonly CommentRecord[], parentId: string | null): CommentThreadNode[] {
   return comments

@@ -11,8 +11,8 @@
  * the ADR's Contract Map (C-018) names.
  */
 import type { UUID } from "@jini-ai/cms/core";
-import type { OutboundEmail } from "../mail";
-import type { SubscriptionStatus } from "./types";
+import type { OutboundEmail } from "../mail/index.js";
+import type { SubscriptionStatus } from "./types.js";
 
 export interface RecipientFilterContext {
   workspaceId: UUID;

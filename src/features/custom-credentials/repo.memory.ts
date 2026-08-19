@@ -1,6 +1,6 @@
 import type { UUID } from "@jini-ai/cms/core";
 
-import type { CustomCredentialSetRecord, CustomCredentialSetRepoPort } from "./types";
+import type { CustomCredentialSetRecord, CustomCredentialSetRepoPort } from "./types.js";
 
 /**
  * @file `CustomCredentialSetRepoPort`'s in-memory adapter — the ADR-006 rule-of-two test double,

@@ -6,9 +6,9 @@ import type {
   MediaProviderCredentialRecord,
   MediaProviderCredentialReplacePlanner,
   MediaProviderCredentialRepoPort,
-} from "../../media/provider-credential-store";
-import { mediaProviderCredentials } from "../schema";
-import type { ContentDb } from "./content-db";
+} from "../../media/provider-credential-store.js";
+import { mediaProviderCredentials } from "../schema.js";
+import type { ContentDb } from "./content-db.js";
 
 /**
  * @file Real `MediaProviderCredentialRepoPort` adapter — the ADR-006 rule-of-two "second adapter"

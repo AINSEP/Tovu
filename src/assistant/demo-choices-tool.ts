@@ -8,13 +8,13 @@ import {
   type ToolRegistration,
 } from "@jini-ai/cms/core";
 
-import { buildUIToolResult } from "./mcp-ui";
+import { buildUIToolResult } from "./mcp-ui.js";
 import {
   SURFACE_DISMISSED_PARAM,
   SURFACE_EXCHANGE_ID_PARAM,
   askOnce,
   type AssistantSurfaceDeps,
-} from "../core/tool-surface-exchanges";
+} from "../core/tool-surface-exchanges.js";
 
 /**
  * @file A development-only agent tool that renders a grouped-choice MCP-UI form, so the radio and
@@ -133,6 +133,9 @@ function describeSelections(params: Record<string, unknown>): Record<string, unk
     // Read back in the Playwright check: proves the array survived the DOM -> params ->
     // JSON-RPC -> HTTP round trip as an array, not as a comma-joined string.
     extrasCount: extras.length,
+    // Matches the note on the two branches below: without an explicit instruction the model tends
+    // to reply with a bare acknowledgement ("Done.") instead of confirming what was actually picked.
+    note: "Tell the user what they picked (the plan and any extras) in plain language.",
   };
 }
 

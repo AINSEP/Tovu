@@ -27,9 +27,9 @@
  * design-frozen; `buildCapabilityScopedSdk()` returns fresh per-plugin delegates for granted
  * capabilities and present, typed-denial stubs for every ungranted surface.
  */
-import type { BeforeSaveFilter, ContentEntryDraft, PluginSdk } from "../../../packages/sdk/src/index";
-import type { HOOK_CONTENT_ENTRY_BEFORE_SAVE } from "../../../packages/sdk/src/index";
-import type { PluginCapability } from "./manifest";
+import type { BeforeSaveFilter, ContentEntryDraft, PluginSdk } from "../../../packages/sdk/src/index.js";
+import type { HOOK_CONTENT_ENTRY_BEFORE_SAVE } from "../../../packages/sdk/src/index.js";
+import type { PluginCapability } from "./manifest.js";
 
 /** Thrown synchronously when a plugin invokes an SDK surface it did not declare a capability for
  * (REQ-04, INV-02). Classified so `hook-registry.ts` can catch it specifically and map the

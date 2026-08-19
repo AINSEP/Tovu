@@ -48,4 +48,4 @@ export {
   type WorkspaceAgentToolActorClassRule,
 } from "@jini-ai/cms/workspace";
 
-export { SqliteWorkspaceRepo } from "./repo.sqlite";
+export { SqliteWorkspaceRepo } from "./repo.sqlite.js";

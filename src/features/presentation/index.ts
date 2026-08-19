@@ -40,6 +40,6 @@ export {
   InMemoryPresentationSettingsRepo,
 } from "@jini-ai/cms/presentation";
 
-export { SqlitePresentationSettingsRepo } from "./repo.sqlite";
+export { SqlitePresentationSettingsRepo } from "./repo.sqlite.js";
 
-export { resolveActiveThemeId, type ActiveThemeIdResolutionDeps } from "./active-theme-id";
+export { resolveActiveThemeId, type ActiveThemeIdResolutionDeps } from "./active-theme-id.js";

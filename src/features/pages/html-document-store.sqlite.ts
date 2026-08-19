@@ -1,10 +1,10 @@
 import type { ClockPort } from "@jini-ai/cms/core";
 import { and, eq } from "drizzle-orm";
 
-import { posts } from "../../db/schema";
-import type { ContentDb } from "../../db/sqlite/content-db";
-import { extractHtmlEntryRefs } from "../../core/entry-refs/extractor";
-import type { EntryRefsRepoPort } from "../../core/entry-refs/ports";
+import { posts } from "../../db/schema.js";
+import type { ContentDb } from "../../db/sqlite/content-db.js";
+import { extractHtmlEntryRefs } from "../../core/entry-refs/extractor.js";
+import type { EntryRefsRepoPort } from "../../core/entry-refs/ports.js";
 
 /**
  * @file SPEC-047/ADR-056 REQ-4 — Tovu's implementation of `@jini-ai/vibecoding/html`'s

@@ -1,9 +1,9 @@
 import { and, desc, eq, ne } from "drizzle-orm";
 
 import type { UUID } from "@jini-ai/cms/core";
-import type { PublishCredentialSetRecord, PublishCredentialSetRepoPort, PublishProviderId } from "../../features/deployments/publish-credentials/types";
-import { publishCredentialSets } from "../schema";
-import type { ContentDb } from "./content-db";
+import type { PublishCredentialSetRecord, PublishCredentialSetRepoPort, PublishProviderId } from "../../features/deployments/publish-credentials/types.js";
+import { publishCredentialSets } from "../schema.js";
+import type { ContentDb } from "./content-db.js";
 
 /**
  * @file Real `PublishCredentialSetRepoPort` adapter (2026-08-15) — the ADR-006 rule-of-two "second

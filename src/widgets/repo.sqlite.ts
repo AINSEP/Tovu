@@ -1,11 +1,11 @@
 import { and, eq } from "drizzle-orm";
 
-import { widgetRegionBindings } from "../db/schema";
-import type { ContentDb } from "../db/sqlite/content-db";
-import { findOneBy } from "../db/sqlite/repo-helpers";
+import { widgetRegionBindings } from "../db/schema.js";
+import type { ContentDb } from "../db/sqlite/content-db.js";
+import { findOneBy } from "../db/sqlite/repo-helpers.js";
 import type { UUID } from "@jini-ai/cms/core";
-import type { WidgetRegionBindingRepoPort } from "./ports";
-import type { WidgetRegionBindingRow, WidgetRegionKey } from "./types";
+import type { WidgetRegionBindingRepoPort } from "./ports.js";
+import type { WidgetRegionBindingRow, WidgetRegionKey } from "./types.js";
 
 /**
  * @file Real SQLite `WidgetRegionBindingRepoPort` adapter (ADR-006 rule-of-two "second adapter"

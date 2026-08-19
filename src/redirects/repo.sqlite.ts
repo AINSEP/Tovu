@@ -1,13 +1,13 @@
 import type Database from "better-sqlite3";
 import { desc, eq } from "drizzle-orm";
 
-import { redirectRevisions, redirects as redirectsTable } from "../db/schema";
-import type { ContentDb } from "../db/sqlite/content-db";
-import { findOneBy } from "../db/sqlite/repo-helpers";
+import { redirectRevisions, redirects as redirectsTable } from "../db/schema.js";
+import type { ContentDb } from "../db/sqlite/content-db.js";
+import { findOneBy } from "../db/sqlite/repo-helpers.js";
 
-import type { RedirectDbHandle } from "./ports.internal";
-import type { RedirectRepoPort } from "./ports";
-import { RedirectNotFoundError } from "./types";
+import type { RedirectDbHandle } from "./ports.internal.js";
+import type { RedirectRepoPort } from "./ports.js";
+import { RedirectNotFoundError } from "./types.js";
 import type {
   ListRedirectsFilter,
   RedirectMatchType,
@@ -16,7 +16,7 @@ import type {
   RedirectSource,
   RedirectStatus,
   RedirectStatusCode,
-} from "./types";
+} from "./types.js";
 
 /**
  * @file Drizzle/SQLite `RedirectRepoPort` adapter (rule-of-two adapter #2,

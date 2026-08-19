@@ -15,7 +15,7 @@
  * Architectural role:
  * INTERFACES ONLY — no feature logic lives here.
  */
-import type { PostRepoPort } from "../features/post";
+import type { PostRepoPort } from "../features/post/index.js";
 
 /**
  * Dependencies `urlFor`/`isActive` need to resolve `entryRef` targets. Kept as

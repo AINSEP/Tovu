@@ -1,6 +1,6 @@
 import type { UUID } from "@jini-ai/cms/core";
 
-import type { VendorId } from "./types";
+import type { VendorId } from "./types.js";
 
 /**
  * @file The ONE place `vendor_credential_sets`' AES-GCM additional authenticated data (AAD) string

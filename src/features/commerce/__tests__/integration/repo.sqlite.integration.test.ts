@@ -8,8 +8,8 @@ import {
   SqliteCommercePriceRepo,
   SqliteCommerceProductImageRepo,
   SqliteCommerceProductRepo,
-} from "../../repo.sqlite";
-import type { CommerceOrderItemRecord, CommerceOrderRecord, CommercePriceRecord, CommerceProductRecord } from "../../types";
+} from "../../repo.sqlite.js";
+import type { CommerceOrderItemRecord, CommerceOrderRecord, CommercePriceRecord, CommerceProductRecord } from "../../types.js";
 
 /**
  * @file Integration tests against a real SQLite `content.db` (Article V — DB-level invariants get

@@ -26,7 +26,7 @@ import type {
   ModerationQueuePage,
   CommentThreadNode,
   SpamVerdict,
-} from "./types";
+} from "./types.js";
 
 /** Every read/write is workspace-scoped (ADR-007); all methods async (ADR-024 §3). */
 export interface CommentRepoPort {

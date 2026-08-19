@@ -67,7 +67,7 @@
  * drift from the validators. Performs no I/O and no enforcement itself.
  */
 
-import { PREHEADER_MAX, SUBJECT_MAX, SUBJECT_MIN } from "./campaign-write-service";
+import { PREHEADER_MAX, SUBJECT_MAX, SUBJECT_MIN } from "./campaign-write-service.js";
 
 export type AgentToolSideEffect = "none" | "mutates-durable-state" | "mints-token";
 

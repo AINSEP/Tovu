@@ -1,4 +1,4 @@
-import type { DriftStatus, SchemaSnapshot } from "../../db/drift";
+import type { DriftStatus, SchemaSnapshot } from "../../db/drift.js";
 
 /**
  * @file `DatabaseIntrospectionPort` and its summary types — the port
@@ -11,7 +11,7 @@ import type { DriftStatus, SchemaSnapshot } from "../../db/drift";
  * — it was the only thing in this file that needed a real `ContentDb`, and that import was the
  * entire `features/database → db` edge in the module graph. This file is left at its original path,
  * holding only the port + types, so `tool-registrations.ts` and `repo.memory.ts` (both outside this
- * dispatch's file ownership) keep resolving `from "./adapter.sqlite"` unchanged. A future rename to
+ * dispatch's file ownership) keep resolving `from "./adapter.sqlite.js"` unchanged. A future rename to
  * `ports.ts` is safe but out of scope here — see the relocated adapter's own file header for the
  * split rationale.
  */

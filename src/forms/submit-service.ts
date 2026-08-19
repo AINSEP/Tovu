@@ -1,15 +1,15 @@
-import { processOutbox } from "../core/events";
+import { processOutbox } from "../core/events/index.js";
 import type { ClockPort, EventBusPort, IdGeneratorPort, OutboxPort, UUID } from "@jini-ai/cms/core";
-import { buildFormsRateLimitKey } from "./rate-limit-profile";
+import { buildFormsRateLimitKey } from "./rate-limit-profile.js";
 import type { RateLimiter } from "#src/core/rate-limit/rate-limit";
 import {
   FormDefinitionNotFoundError,
   FormRateLimitExceededError,
   FormSubmissionValidationError,
-} from "./errors";
-import { isHoneypotTripped, validateSubmissionPayload } from "./forms";
-import type { FormDefinitionRepoPort, FormSubmissionRepoPort } from "./ports";
-import type { FormSubmissionRecord } from "./types";
+} from "./errors.js";
+import { isHoneypotTripped, validateSubmissionPayload } from "./forms.js";
+import type { FormDefinitionRepoPort, FormSubmissionRepoPort } from "./ports.js";
+import type { FormSubmissionRecord } from "./types.js";
 
 /**
  * @file `submit-service.ts` — the sole public submission write path (SPEC-010 REQ-05..09/16,

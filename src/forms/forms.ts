@@ -1,4 +1,4 @@
-import type { FieldDescriptor, FormDefinitionRecord } from "./types";
+import type { FieldDescriptor, FormDefinitionRecord } from "./types.js";
 
 /**
  * @file Pure validation core for `forms` (SPEC-010, ADR-PIPE-010 C-002/C-003/C-004).

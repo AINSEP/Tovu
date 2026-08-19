@@ -1,14 +1,14 @@
 import type { ClockPort } from "@jini-ai/cms/core";
 
-import type { PostRecord, PostRepoPort } from "../post";
-import { extractHtmlEntryRefs } from "../../core/entry-refs/extractor";
-import type { EntryRefsRepoPort } from "../../core/entry-refs/ports";
+import type { PostRecord, PostRepoPort } from "../post/index.js";
+import { extractHtmlEntryRefs } from "../../core/entry-refs/extractor.js";
+import type { EntryRefsRepoPort } from "../../core/entry-refs/ports.js";
 import {
   PageConcurrentEditError,
   PageKindMismatchError,
   PageNotFoundError,
   type PagesHtmlDocumentStoreScope,
-} from "./html-document-store.sqlite";
+} from "./html-document-store.sqlite.js";
 
 /**
  * @file The `PostRepoPort`-backed twin of `html-document-store.sqlite.ts`, for `app.ts`'s hermetic

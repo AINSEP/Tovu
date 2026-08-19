@@ -34,7 +34,7 @@ export type {
   TimeSeriesPoint,
   UtmParams,
   VisitorSketch,
-} from "./types";
+} from "./types.js";
 
 export type {
   AggregateDelta,
@@ -52,11 +52,11 @@ export type {
   RollupInput,
   RollupRequired,
   RollupResult,
-} from "./ports";
+} from "./ports.js";
 
 export {
   AnalyticsDisabledError,
   AnalyticsPiiRejectedError,
   AnalyticsValidationError,
   AnalyticsWorkspaceUnresolvedError,
-} from "./ports";
+} from "./ports.js";

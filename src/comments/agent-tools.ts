@@ -48,7 +48,7 @@
  * validators. Performs no I/O and no enforcement itself.
  */
 
-import { MAX_DEPTH_CEILING, MAX_PER_IP_PER_HOUR_CEILING } from "./settings";
+import { MAX_DEPTH_CEILING, MAX_PER_IP_PER_HOUR_CEILING } from "./settings.js";
 
 export type AgentToolSideEffect = "none" | "mutates-durable-state" | "mints-token";
 

@@ -1,10 +1,10 @@
-import type { EntryListPort } from "../../features/entries";
-import type { FormDefinitionRepoPort } from "../../forms";
-import type { NavMenuReadModel } from "../../navigation";
-import type { WidgetResolver, WidgetTypeKey } from "../types";
-import { createContactFormResolver } from "./contact-form";
-import { createMenuResolver } from "./menu";
-import { createRecentEntriesResolver } from "./recent-entries";
+import type { EntryListPort } from "../../features/entries/index.js";
+import type { FormDefinitionRepoPort } from "../../forms/index.js";
+import type { NavMenuReadModel } from "../../navigation/index.js";
+import type { WidgetResolver, WidgetTypeKey } from "../types.js";
+import { createContactFormResolver } from "./contact-form.js";
+import { createMenuResolver } from "./menu.js";
+import { createRecentEntriesResolver } from "./recent-entries.js";
 
 /**
  * @file Assembles the real, DI'd v1 dynamic resolvers against real infrastructure deps.

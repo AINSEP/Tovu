@@ -28,22 +28,22 @@ import {
   type ToolRegistration,
 } from "@jini-ai/cms/core";
 import { registerToolContributor } from "#src/assistant/index";
-import { getRedirectsAgentToolCatalog } from "./agent-tools";
-import type { RedirectHitSink, RedirectRepoPort } from "./ports";
+import { getRedirectsAgentToolCatalog } from "./agent-tools.js";
+import type { RedirectHitSink, RedirectRepoPort } from "./ports.js";
 import {
   createRedirect,
   tombstoneRedirect,
   updateRedirect,
   type RedirectsWriteDeps,
-} from "./redirects";
-import { RedirectNotFoundError } from "./types";
+} from "./redirects.js";
+import { RedirectNotFoundError } from "./types.js";
 import type {
   RedirectMatchType,
   RedirectRecord,
   RedirectSource,
   RedirectStatus,
   RedirectStatusCode,
-} from "./types";
+} from "./types.js";
 
 const CATALOG_BY_ID = indexCatalogById(getRedirectsAgentToolCatalog());
 

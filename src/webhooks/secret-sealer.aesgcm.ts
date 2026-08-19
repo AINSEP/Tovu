@@ -1,7 +1,7 @@
 import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
 
-import type { KeyringPort, RootKeyHandle, SecretSealerPort } from "./ports";
-import type { SealedSecret } from "./types";
+import type { KeyringPort, RootKeyHandle, SecretSealerPort } from "./ports.js";
+import type { SealedSecret } from "./types.js";
 
 /**
  * @file `SecretSealerPort`'s first real implementation (ADR-058) — the seam ADR-036 §8 named and
