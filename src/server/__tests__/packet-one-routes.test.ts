@@ -34,16 +34,19 @@ test("packet-one admin and content routes expose the seeded post loop", async (t
   assert.equal(postPayload.post.id, "post-home");
   assert.equal(postPayload.post.slug, "welcome");
 
+  // "column" was archived (commit 4f6ce567, "6 new static themes... archive old ones") and is no
+  // longer a discoverable built-in theme, so `validThemeIds` rejects it with a 400. "basic" is a
+  // live theme under `src/themes/static/` this seeded workspace can actually switch to.
   const themeUpdate = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/presentation`, {
     method: "PATCH",
     headers: { "content-type": "application/json", cookie },
-    body: JSON.stringify({ activeThemeId: "column" }),
+    body: JSON.stringify({ activeThemeId: "basic" }),
   });
   assert.equal(themeUpdate.status, 200);
   const themePayload = (await themeUpdate.json()) as {
     settings: { activeThemeId: string };
   };
-  assert.equal(themePayload.settings.activeThemeId, "column");
+  assert.equal(themePayload.settings.activeThemeId, "basic");
 
   const saveResponse = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/posts/post-home`, {
     method: "PUT",
@@ -75,7 +78,7 @@ test("packet-one admin and content routes expose the seeded post loop", async (t
   assert.equal(contentPayload.post.workspaceId, undefined);
   assert.equal(contentPayload.post.version, undefined);
   assert.equal(contentPayload.post.status, undefined);
-  assert.equal(contentPayload.presentation.activeThemeId, "column");
+  assert.equal(contentPayload.presentation.activeThemeId, "basic");
 });
 
 test("POST posts creates a blank draft and it's immediately listed", async (t) => {

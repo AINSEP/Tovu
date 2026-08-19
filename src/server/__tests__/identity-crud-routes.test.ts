@@ -34,11 +34,20 @@ async function loginAs(baseUrl: string, username: string, password: string) {
   return { res, cookie: res.headers.get("set-cookie")?.split(";")[0] ?? "" };
 }
 
+/**
+ * `-p4ssw0rd!` (not `-pw`) is load-bearing, not stylistic: `@jini-ai/cms/identity`'s
+ * `password-policy.ts` enforces `MIN_PASSWORD_LENGTH = 12` (ported into Tovu 2026-08-03, commit
+ * 7e86dc8b in the Jini repo — this test file predates that port, written 2026-07-21). A `-pw`
+ * suffix only clears 12 chars for a username of 9+ letters, which silently passed for "disableme"
+ * (9) by coincidence while "enableme"/"updateme" (8) and "resetme" (7) fell short and 400'd before
+ * ever returning a `user` body. This suffix is long enough to clear the policy for any short test
+ * username used in this file.
+ */
 async function createTestUser(baseUrl: string, cookie: string, username: string) {
   const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/users`, {
     method: "POST",
     headers: { "content-type": "application/json", cookie },
-    body: JSON.stringify({ username, password: `${username}-pw` }),
+    body: JSON.stringify({ username, password: `${username}-p4ssw0rd!` }),
   });
   const body = (await res.json()) as { user: { principalId: string } };
   return body.user.principalId;
@@ -130,7 +139,7 @@ test("AC-29: RESET_USER_PASSWORD route returns 204 and the new password authenti
   const { res: freshLogin } = await loginAs(baseUrl, "resetme", "brand-new-password");
   assert.equal(freshLogin.status, 200);
 
-  const { res: staleLogin } = await loginAs(baseUrl, "resetme", "resetme-pw");
+  const { res: staleLogin } = await loginAs(baseUrl, "resetme", "resetme-p4ssw0rd!");
   assert.equal(staleLogin.status, 401);
 });
 
