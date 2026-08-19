@@ -1,7 +1,11 @@
+import { createRequire } from "node:module";
 import { test, expect } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import { loginAsAdmin } from "./auth-fixtures.js";
 import { waitForAgentDaemon } from "./daemon-ready.js";
+
+const require = createRequire(import.meta.url);
+
 // The REAL installed package Tovu's own daemon runs (`require.resolve` from this repo's root
 // resolves it to `node_modules/@jini-ai/agentic`, not a copy) — used unmodified in LEVEL 3 so the
 // schema validation, handle checks and the credential-withholding guard are the actual production

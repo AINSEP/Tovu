@@ -1,3 +1,4 @@
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { defineConfig } from "@playwright/test";
 
@@ -25,7 +26,7 @@ const DAEMON_PORT = 4997;
 const BASE_URL = `http://localhost:${PORT}`;
 const REPO_ROOT = path.resolve(import.meta.dirname, "..");
 const CONTENT_DB_PATH = path.join(
-  require("node:os").tmpdir(),
+  tmpdir(),
   `tovu-live-agent-content-${process.pid}.db`,
 );
 

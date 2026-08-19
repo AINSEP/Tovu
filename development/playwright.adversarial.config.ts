@@ -1,7 +1,11 @@
+import { createRequire } from "node:module";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { defineConfig, devices } from "@playwright/test";
 
 import { STORAGE_STATE_PATH } from "./e2e/adversarial.globalSetup.js";
+
+const require = createRequire(import.meta.url);
 
 /**
  * @file Adversarial surface-abuse + resilience E2E config (2026-08-04 dispatch: "Surface abuse +
@@ -46,7 +50,7 @@ const PORT = 4992;
 const BASE_URL = `http://localhost:${PORT}`;
 const REPO_ROOT = path.resolve(import.meta.dirname, "..");
 const CONTENT_DB_PATH = path.join(
-  require("node:os").tmpdir(),
+  tmpdir(),
   `tovu-adversarial-content-${process.pid}.db`,
 );
 
