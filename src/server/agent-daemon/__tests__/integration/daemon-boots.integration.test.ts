@@ -1,8 +1,11 @@
 import { spawn } from "node:child_process";
+import { createRequire } from "node:module";
 import { createServer } from "node:net";
 import * as path from "node:path";
 import assert from "node:assert/strict";
 import test from "node:test";
+
+const require = createRequire(import.meta.url);
 
 /**
  * @file The agent daemon actually boots — integration (process-spawn) tier.

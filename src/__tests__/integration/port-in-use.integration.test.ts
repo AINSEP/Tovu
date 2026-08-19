@@ -1,8 +1,11 @@
 import { spawnSync } from "node:child_process";
 import { createServer } from "node:net";
+import { createRequire } from "node:module";
 import * as path from "node:path";
 import assert from "node:assert/strict";
 import test from "node:test";
+
+const require = createRequire(import.meta.url);
 
 /**
  * @file Boot behaviour when the listen port is already taken — integration (process-spawn) tier.

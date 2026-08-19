@@ -1,12 +1,15 @@
 import assert from "node:assert/strict";
 import { spawn, spawnSync, type ChildProcessWithoutNullStreams } from "node:child_process";
 import fs from "node:fs";
+import { createRequire } from "node:module";
 import net from "node:net";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 
 import Database from "better-sqlite3";
+
+const require = createRequire(import.meta.url);
 
 /**
  * @file SPEC-003 C-002 (`CLI_SERVE`) — TDD certification, integration (process-spawn) tier.

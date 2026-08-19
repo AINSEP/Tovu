@@ -42,7 +42,7 @@ const DAEMON_ENTRY_SOURCE = readFileSync(path.join(import.meta.dirname, "../agen
 test("agent-daemon-server.ts imports installUnhandledRejectionGuard from the shared process-error-guards module", () => {
   assert.match(
     DAEMON_ENTRY_SOURCE,
-    /import\s*\{[^}]*installUnhandledRejectionGuard[^}]*\}\s*from\s*["'][^"']*process-error-guards["']/,
+    /import\s*\{[^}]*installUnhandledRejectionGuard[^}]*\}\s*from\s*["'][^"']*process-error-guards(\.js)?["']/,
     "agent-daemon-server.ts must import installUnhandledRejectionGuard from process-error-guards.ts, mirroring index.ts's own main()"
   );
 });

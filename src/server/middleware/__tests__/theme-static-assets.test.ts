@@ -153,7 +153,7 @@ test("registerThemeStaticAssets: a .liquid template source file serves, but NOT 
 // proves the static tier is unregressed and the templated tier now works.
 // ---------------------------------------------------------------------------
 
-test("createApp(): the real 'basic' static theme's real css/styles.css still serves byte-for-byte identically (static tier not regressed)", async (t) => {
+test("createApp(): the real 'basic' static theme's real css/theme.css still serves byte-for-byte identically (static tier not regressed)", async (t) => {
   const server = createServer(createApp());
   server.listen(0);
   t.after(() => server.close());
@@ -162,8 +162,8 @@ test("createApp(): the real 'basic' static theme's real css/styles.css still ser
   if (address === null || typeof address === "string") throw new Error("expected a real listening address");
   const baseUrl = `http://127.0.0.1:${address.port}`;
 
-  const onDisk = readFileSync(path.resolve(import.meta.dirname, "../../../themes/static/basic/css/styles.css"), "utf8");
-  const res = await fetch(`${baseUrl}/theme-assets/basic/css/styles.css`);
+  const onDisk = readFileSync(path.resolve(import.meta.dirname, "../../../themes/static/basic/css/theme.css"), "utf8");
+  const res = await fetch(`${baseUrl}/theme-assets/basic/css/theme.css`);
   assert.equal(res.status, 200);
   assert.equal(await res.text(), onDisk);
 });
@@ -178,10 +178,10 @@ test("createApp(): the new 'fashion-modern' templated theme's own assets now res
   const baseUrl = `http://127.0.0.1:${address.port}`;
 
   const stylesOnDisk = readFileSync(
-    path.resolve(import.meta.dirname, "../../../themes/templated/fashion-modern/styles.css"),
+    path.resolve(import.meta.dirname, "../../../themes/templated/fashion-modern/css/theme.css"),
     "utf8"
   );
-  const stylesRes = await fetch(`${baseUrl}/theme-assets/fashion-modern/styles.css`);
+  const stylesRes = await fetch(`${baseUrl}/theme-assets/fashion-modern/css/theme.css`);
   assert.equal(stylesRes.status, 200);
   assert.equal(await stylesRes.text(), stylesOnDisk);
 

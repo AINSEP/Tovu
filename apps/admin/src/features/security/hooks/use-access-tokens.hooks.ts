@@ -253,6 +253,22 @@ function accessTokenSubmitErrorMessage(err: unknown, t: Translate, locale: strin
   return accessTokenSaveErrorMessage(locale, describeApiError(err, t("unknown error")));
 }
 
+/** Combines the three independent list-fetch failures (publish, source-control, custom) into one
+ *  user-facing message, publish taking priority — pulled out of the hook body for the same
+ *  complexity-budget reason {@link accessTokenSubmitErrorMessage} documents. */
+function accessTokensLoadError(
+  publishError: unknown,
+  sourceControlError: unknown,
+  customError: unknown,
+  t: Translate,
+  locale: string
+): string | null {
+  if (publishError) return accessTokensLoadErrorMessage(locale, describeApiError(publishError, t("unknown error")));
+  if (sourceControlError) return accessTokensLoadErrorMessage(locale, describeApiError(sourceControlError, t("unknown error")));
+  if (customError) return accessTokensLoadErrorMessage(locale, describeApiError(customError, t("unknown error")));
+  return null;
+}
+
 /** Normalizes one store's update payload into the exact `{label?, connection?, isDefault?}` shape
  *  each port method wants, dispatching on `kind` — the one place a `connection`'s union type is cast
  *  down to the specific store's own type (see `rules.ts`'s `buildAccessTokenConnectionInput` doc for
@@ -305,11 +321,7 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
     setCustomCredentials(customQuery.data.credentials);
   }, [customQuery.status, customQuery.data]);
 
-  const loadError =
-    (publishQuery.error && accessTokensLoadErrorMessage(locale, describeApiError(publishQuery.error, t("unknown error")))) ||
-    (sourceControlQuery.error && accessTokensLoadErrorMessage(locale, describeApiError(sourceControlQuery.error, t("unknown error")))) ||
-    (customQuery.error && accessTokensLoadErrorMessage(locale, describeApiError(customQuery.error, t("unknown error")))) ||
-    null;
+  const loadError = accessTokensLoadError(publishQuery.error, sourceControlQuery.error, customQuery.error, t, locale);
 
   const rows = useMemo<AccessTokenRow[] | undefined>(() => {
     if (publishCredentials === undefined || sourceControlCredentials === undefined || customCredentials === undefined) return undefined;
