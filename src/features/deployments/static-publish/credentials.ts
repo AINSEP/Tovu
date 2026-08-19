@@ -61,7 +61,14 @@ import type { PublishCredentialSource, StaticPublishTargetId } from "./types.js"
  *  the key entirely (rather than defining it with an empty alias list) means `readToken` below can never
  *  even be CALLED for `s3-compatible` without a compile error — `readCredential` special-cases it
  *  before ever reaching `readToken`, so this exclusion is enforced structurally, not by convention. */
-const ENV_VAR_ALIASES_BY_TARGET: Readonly<Record<Exclude<StaticPublishTargetId, "s3-compatible">, readonly string[]>> = {
+/** Exported so tests that go through an HTTP route (which never gets an `env` override — see
+ *  `composePublishCredentialSource`'s own doc for why the route always reads real `process.env`)
+ *  can enumerate every alias to clear for a hermetic "no credential configured" fixture instead of
+ *  hardcoding a second, driftable copy of this list — exactly the gap that let a real
+ *  `GITHUB_ACCESS_TOKEN`/`VERCEL_ACCESS_TOKEN`/etc. left set in a dev shell silently flip
+ *  `publish-site-route.test.ts`'s "no credentials" fixtures to "configured" after this alias list
+ *  grew past its original single-name-per-target shape. */
+export const ENV_VAR_ALIASES_BY_TARGET: Readonly<Record<Exclude<StaticPublishTargetId, "s3-compatible">, readonly string[]>> = {
   "github-pages": ["GITHUB_TOKEN", "GH_TOKEN", "GITHUB_ACCESS_TOKEN"],
   vercel: ["VERCEL_TOKEN", "VERCEL_ACCESS_TOKEN"],
   netlify: ["NETLIFY_TOKEN", "NETLIFY_ACCESS_TOKEN", "NETLIFY_AUTH_TOKEN"],
@@ -77,7 +84,7 @@ const S3_COMPATIBLE_NO_ENV_FALLBACK_REASON =
 /** `cloudflare-pages` is the one target whose credential needs a SECOND env var — see
  *  `static-publish/types.ts`'s `CloudflarePagesPublishConfig` doc for why `accountId` lives on the
  *  credential, not the publish config, for the DB-backed source too. */
-const CLOUDFLARE_ACCOUNT_ID_ENV_VAR = "CLOUDFLARE_ACCOUNT_ID";
+export const CLOUDFLARE_ACCOUNT_ID_ENV_VAR = "CLOUDFLARE_ACCOUNT_ID";
 
 type EnvCredentialResult = { readonly token: string; readonly accountId?: string } | { readonly reason: string };
 

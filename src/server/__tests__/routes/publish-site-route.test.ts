@@ -10,6 +10,7 @@ import { bootAuthenticated } from "../helpers/http-test-server.js";
 import type { RouteDeps } from "../../routes/types.js";
 import { buildStaticPublishRegistrations } from "../../../features/deployments/publish-agent-tools.js";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "../../../core/tool-surface-exchanges.js";
+import { CLOUDFLARE_ACCOUNT_ID_ENV_VAR, ENV_VAR_ALIASES_BY_TARGET } from "../../../features/deployments/static-publish/credentials.js";
 
 /**
  * @file Admin Deployment panel → publish-to-GitHub-Pages/Vercel — `POST`/`GET /api/admin/v1/
@@ -19,12 +20,25 @@ import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "../../../
  * `RouteDeps.publishOutputRootDir` is pointed at a throwaway temp directory for this whole file
  * (via {@link testRouteDeps} below — the adapter's own knob, `static-publish/adapter.ts`'s
  * `publishOutputDir`) so the underlying export never writes into the checked-out repo. This suite
- * deliberately never sets `GITHUB_TOKEN`/`VERCEL_TOKEN` — per the brief, these tests must not hit
- * real GitHub or Vercel, and an absent token is exactly what makes that true structurally:
- * `publishStaticSite` returns `NO_CREDENTIALS_CONFIGURED` before ever constructing a real
- * `DeployTarget`, so the "success" trigger+poll test below reaches a genuine, fully-exercised
- * terminal state (auth, body validation, the run slot, a REAL export against the hermetic fixture)
- * without any external network call.
+ * deliberately never sets any of `ENV_VAR_ALIASES_BY_TARGET`'s vars (nor
+ * `CLOUDFLARE_ACCOUNT_ID_ENV_VAR`) — per the brief, these tests must not hit real GitHub or Vercel,
+ * and an absent credential is exactly what makes that true structurally: `publishStaticSite`
+ * returns `NO_CREDENTIALS_CONFIGURED` before ever constructing a real `DeployTarget`, so the
+ * "success" trigger+poll test below reaches a genuine, fully-exercised terminal state (auth, body
+ * validation, the run slot, a REAL export against the hermetic fixture) without any external
+ * network call.
+ *
+ * The route (`publish-site.ts`) always composes its credential source over real `process.env` — it
+ * has no `env` override to inject the way the lower-level `credentials.unit.test.ts` does for
+ * `createEnvPublishCredentialSource` directly — so hermeticity here can only come from clearing every
+ * alias in real `process.env`. This file used to hardcode that as `delete process.env.GITHUB_TOKEN`/
+ * `VERCEL_TOKEN` alone; once `credentials.ts` grew alias lists (`GH_TOKEN`/`GITHUB_ACCESS_TOKEN`,
+ * `VERCEL_ACCESS_TOKEN`, `NETLIFY_ACCESS_TOKEN`/`NETLIFY_AUTH_TOKEN`, `CLOUDFLARE_API_TOKEN`,
+ * commit 5b035a93 and its predecessor 76b0705d) that hardcoded pair silently stopped covering the
+ * real alias set — a `GITHUB_ACCESS_TOKEN`/`NETLIFY_ACCESS_TOKEN`/`CLOUDFLARE_API_TOKEN` left set in
+ * the host shell then reads as "configured" here even though this suite never set it. Iterating
+ * `ENV_VAR_ALIASES_BY_TARGET` (the same table `credentials.ts` uses to resolve a token) keeps this
+ * file's isolation from ever drifting behind that list again.
  *
  * `currentRun` (the route module's own process-local run slot, independent of `export-site.ts`'s)
  * is shared mutable state across every test in this FILE — tests are ordered so each one's
@@ -33,8 +47,10 @@ import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "../../../
  */
 
 const publishOutputDir = mkdtempSync(path.join(tmpdir(), "tovu-publish-route-test-"));
-delete process.env.GITHUB_TOKEN;
-delete process.env.VERCEL_TOKEN;
+for (const aliases of Object.values(ENV_VAR_ALIASES_BY_TARGET)) {
+  for (const envVar of aliases) delete process.env[envVar];
+}
+delete process.env[CLOUDFLARE_ACCOUNT_ID_ENV_VAR];
 
 const PUBLISH_PATH = "system/publish";
 
@@ -458,7 +474,11 @@ test("publish-site preview: github-pages reports the derived base path and, with
     validationError: null,
     basePath: "/demo-repo",
     credentialsConfigured: false,
-    credentialGuidance: "GITHUB_TOKEN is not set — publishing to github-pages requires a token with write access configured in the server environment",
+    // github-pages now has THREE aliases (`GITHUB_TOKEN`, `GH_TOKEN`, `GITHUB_ACCESS_TOKEN` —
+    // commit 5b035a93), so `readToken`'s reason message uses its multi-alias "none of ..." form,
+    // not the single-name form this assertion asserted back when github-pages had only one alias.
+    credentialGuidance:
+      "none of GITHUB_TOKEN, GH_TOKEN, GITHUB_ACCESS_TOKEN is set — publishing to github-pages requires a token with write access configured in the server environment (any one of these env vars)",
     willInjectNojekyll: true,
   });
 
