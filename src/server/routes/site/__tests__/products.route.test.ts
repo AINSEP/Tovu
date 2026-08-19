@@ -9,7 +9,7 @@ import type {
   CommerceProductRepoPort,
   CommercePriceRecord,
   CommerceProductRecord,
-} from "#src/features/commerce";
+} from "#src/features/commerce/index";
 import { createApp, createRouteDeps } from "../../../app.js";
 
 /**

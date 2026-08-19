@@ -25,7 +25,7 @@ import test from "node:test";
  * that would make a wording improvement a test failure — only the facts a reader needs.
  */
 
-const ENTRYPOINT = path.resolve(__dirname, "../../index.ts");
+const ENTRYPOINT = path.resolve(import.meta.dirname, "../../index.ts");
 const TSX_LOADER = require.resolve("tsx");
 
 /** Bind an ephemeral port and hand back both the port and a closer, so the test owns the conflict. */

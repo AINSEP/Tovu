@@ -8,7 +8,7 @@ import { createToolExecutor } from "@jini-ai/daemon";
 
 import { InMemoryChangeSetRepo } from "#src/core/commands/index";
 import { InMemoryEventBus, InMemoryOutbox } from "#src/core/events/index";
-import { InMemoryPostRepo, InMemoryPostSearchIndex } from "#src/features/post";
+import { InMemoryPostRepo, InMemoryPostSearchIndex } from "#src/features/post/index";
 import { buildPostRegistrations } from "#src/features/post/tool-registrations";
 import type { RouteDeps } from "#src/server/routes/types";
 

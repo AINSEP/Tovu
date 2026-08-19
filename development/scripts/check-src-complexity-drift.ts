@@ -56,6 +56,7 @@
  * Exit codes: 0 = no src/server/routes file outside the debt list violates 9/9 complexity.
  *             1 = at least one does.
  */
+import { pathToFileURL } from "node:url";
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
@@ -232,6 +233,6 @@ function main(): void {
 // run (slow) and risk a bare `process.exit(1)` killing the whole test process the moment a real
 // new violation exists, rather than failing one assertion normally. Same idiom
 // `generate-postgres-schema.ts` already uses in this repo.
-if (require.main === module) {
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   main();
 }

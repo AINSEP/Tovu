@@ -22,7 +22,7 @@ import test from "node:test";
  */
 
 const ORIGIN_REPO_SOURCE = fs.readFileSync(
-  path.join(__dirname, "..", "origin-repo.sqlite.ts"),
+  path.join(import.meta.dirname, "..", "origin-repo.sqlite.ts"),
   "utf8"
 );
 

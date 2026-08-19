@@ -13,6 +13,7 @@
  *
  * Usage: npx tsx development/scripts/list-server-test-files.ts <unit|integration>
  */
+import { pathToFileURL } from "node:url";
 import { execFileSync } from "node:child_process";
 import { REPO_ROOT, isIntegrationTestFile } from "./route-coverage-lib.js";
 
@@ -39,6 +40,6 @@ function main(): void {
 
 // Guarded (see check-route-coverage-diff.ts's identical idiom): importable by a unit test without
 // triggering the `find` shell-out / process.exit from a bad argv.
-if (require.main === module) {
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   main();
 }

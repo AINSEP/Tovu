@@ -21,7 +21,7 @@ import { resolveRuntimeMode } from "#src/core/runtime-mode";
  * the gate closes the actual gap ADR-046 exists to fix, not a synthetic stand-in for it.
  */
 
-const SERVER_DIR = path.join(__dirname, "..", "..");
+const SERVER_DIR = path.join(import.meta.dirname, "..", "..");
 const DEPS_SOURCE = fs.readFileSync(path.join(SERVER_DIR, "deps.ts"), "utf8");
 const APP_SOURCE = fs.readFileSync(path.join(SERVER_DIR, "app.ts"), "utf8");
 

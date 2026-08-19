@@ -21,7 +21,7 @@ import test from "node:test";
  * prior `npm run build`, so this suite stays fast and does not depend on build output.
  */
 
-const CLI_MAIN = path.resolve(__dirname, "../../main.ts");
+const CLI_MAIN = path.resolve(import.meta.dirname, "../../main.ts");
 
 function runCli(args: string[]): { status: number | null; stdout: string; stderr: string } {
   const result = spawnSync(process.execPath, ["--import", "tsx", CLI_MAIN, ...args], { encoding: "utf8" });

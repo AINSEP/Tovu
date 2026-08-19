@@ -15,7 +15,7 @@ import test from "node:test";
  * contract), which `export/__tests__/site-exporter.test.ts`'s direct-function tests cannot.
  */
 
-const CLI_MAIN = path.resolve(__dirname, "../../main.ts");
+const CLI_MAIN = path.resolve(import.meta.dirname, "../../main.ts");
 const TSX_LOADER = require.resolve("tsx");
 
 function runCli(args: string[], timeoutMs = 30000): { status: number | null; stdout: string; stderr: string } {

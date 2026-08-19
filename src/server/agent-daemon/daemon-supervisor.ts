@@ -329,8 +329,8 @@ export function createDaemonSupervisor(deps: DaemonSupervisorDeps): DaemonSuperv
  * one directory up), the join no longer needs an `"assistant"` path segment.
  */
 function resolveDaemonScriptPath(): string {
-  const isCompiled = __filename.endsWith(".js");
-  return path.join(__dirname, isCompiled ? "agent-daemon-server.js" : "agent-daemon-server.ts");
+  const isCompiled = import.meta.filename.endsWith(".js");
+  return path.join(import.meta.dirname, isCompiled ? "agent-daemon-server.js" : "agent-daemon-server.ts");
 }
 
 /**

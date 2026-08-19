@@ -43,7 +43,7 @@ import {
 import { verifyBooleanCopy, verifyClassifiedValue, verifyExactTextCopy, verifyJsonText, verifyUtcTimestampText } from "../migration/verify.js";
 import * as pgSchema from "../schema.postgres.js";
 
-const SCHEMA_SOURCE = fs.readFileSync(path.resolve(__dirname, "../schema.ts"), "utf8");
+const SCHEMA_SOURCE = fs.readFileSync(path.resolve(import.meta.dirname, "../schema.ts"), "utf8");
 
 test("classifying every column of every core table does not throw — the real schema has no case this manifest hasn't reviewed", () => {
   const all = classifyAllCoreColumns();

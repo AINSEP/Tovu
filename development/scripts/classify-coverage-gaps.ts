@@ -35,6 +35,7 @@
  * `development/coverage/` files another process may be writing):
  *   CLASSIFY_UNIT_LCOV, CLASSIFY_INTEGRATION_LCOV
  */
+import { pathToFileURL } from "node:url";
 import {
   LCOV_INTEGRATION_PATH,
   LCOV_UNIT_PATH,
@@ -138,6 +139,6 @@ function main(): void {
   }
 }
 
-if (require.main === module) {
+if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   main();
 }

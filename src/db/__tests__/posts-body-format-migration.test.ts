@@ -35,7 +35,7 @@ import { openContentDb, type ContentDb } from "../sqlite/content-db.js";
  * populated exactly the way `content-db.ts` populates it in production.
  */
 
-const REAL_MIGRATIONS_DIR = path.resolve(__dirname, "../drizzle");
+const REAL_MIGRATIONS_DIR = path.resolve(import.meta.dirname, "../drizzle");
 const REAL_JOURNAL = JSON.parse(
   fs.readFileSync(path.join(REAL_MIGRATIONS_DIR, "meta", "_journal.json"), "utf-8")
 ) as { version: string; dialect: string; entries: Array<{ idx: number; version: string; when: number; tag: string; breakpoints: boolean }> };

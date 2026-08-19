@@ -38,7 +38,7 @@ import Database from "better-sqlite3";
  * disclosed, low-risk gap (see certification record).
  */
 
-const CLI_MAIN = path.resolve(__dirname, "../../main.ts");
+const CLI_MAIN = path.resolve(import.meta.dirname, "../../main.ts");
 
 /**
  * Resolved to an absolute path (not the bare specifier "tsx") so every spawn below still finds
