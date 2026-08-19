@@ -1827,6 +1827,25 @@ function siteAssistantMarkup(enabled: boolean): { head: string; body: string } {
 }
 
 /**
+ * Splices `page-head.ts`'s `serializeHeadElements()` output into an already-complete static-tier
+ * document's `<head>` (SPEC-008 T045 gap fix). `renderStaticPage`'s output bypasses `pageShell`
+ * entirely — a static theme's page is already a full `<!doctype html>` document, not a body
+ * fragment — which meant `extraHead` (the SEO fold's title/canonical/meta/OG/JSON-LD) was silently
+ * dropped for every static-tier home page even though the route layer always computed it. Mirrors
+ * {@link pageShell}'s own "fold's `<title>` wins" rule: when `extraHead` carries a `<title>`, the
+ * theme's own hardcoded one is removed so the page never ships two competing tags. `extraHead`'s
+ * elements are inserted immediately before `</head>` (append, not replace) so the theme's own
+ * meta/link/script tags survive untouched. A no-op when `extraHead` is empty/absent, or when `html`
+ * has no `</head>` to splice into (defensive — every real static page has one; this is the same
+ * "never throw, degrade to what's already there" contract `renderStaticPage` itself follows).
+ */
+function injectExtraHeadIntoStaticPage(html: string, extraHead: string | undefined): string {
+  if (!extraHead) return html;
+  const withoutOwnTitle = extraHead.includes("<title>") ? html.replace(/<title>[\s\S]*?<\/title>/i, "") : html;
+  return /<\/head>/i.test(withoutOwnTitle) ? withoutOwnTitle.replace(/<\/head>/i, `${extraHead}</head>`) : withoutOwnTitle;
+}
+
+/**
  * `extraHead` is `page-head.ts`'s `serializeHeadElements()` output (SPEC-008
  * ADR-PIPE-008 T048) — already-escaped markup, inserted verbatim. When it
  * contains its own `<title>` (SEO's fold always emits one, per
@@ -2004,10 +2023,11 @@ export async function renderSite(required: {
   // `pageShell()` still needs to wrap. Returned directly, bypassing pageShell, when the theme has
   // one for this route. Home only for now — anything else (including a missing pages/index.html)
   // falls through to the existing fallbackBody()/pageShell() path below, same as any other
-  // unresolved route on any other tier.
+  // unresolved route on any other tier. `extraHead` still gets spliced in (SPEC-008 T045) via
+  // {@link injectExtraHeadIntoStaticPage} — bypassing pageShell must not mean bypassing the SEO fold.
   if (theme.manifest.tier === "static" && route === "home") {
     const staticHtml = renderStaticPage({ theme, pageId: "index", menus: required.staticMenus });
-    if (staticHtml) return staticHtml;
+    if (staticHtml) return injectExtraHeadIntoStaticPage(staticHtml, required.extraHead);
   }
 
   let body: string;

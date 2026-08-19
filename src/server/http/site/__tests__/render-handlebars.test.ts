@@ -9,7 +9,7 @@ import { renderSite } from "../render.js";
 
 /**
  * @file ADR-020 §3 (C6), Handlebars tier — end-to-end `renderSite` through the
- * real `themes/handlebars/ledger` demonstrator, exercising the full path:
+ * real `theme-archive/ledger` demonstrator, exercising the full path:
  * `loadTheme`'s lint, `renderHandlebarsInSandbox`'s worker isolation, the
  * `render_block` seam into the shared component registry, autoescaping, and the
  * one sanctioned `{{{post.content}}}` raw seam.
@@ -21,7 +21,7 @@ import { renderSite } from "../render.js";
 
 function ledgerTheme() {
   const theme = loadTheme({
-    themeDir: path.join(process.cwd(), "src", "themes", "handlebars", "ledger"),
+    themeDir: path.join(process.cwd(), "src", "theme-archive", "ledger"),
     id: "ledger",
     source: "built-in",
   });
@@ -160,7 +160,7 @@ test("both logic tiers see the identical render-data contract — the same field
   hbs.handlebarsTemplates.home = "@@{{site.title}}|{{route}}|{{#each posts}}{{title}}:{{slug}}:{{dateShort}}{{/each}}@@";
   const hbsHtml = await renderSite({ theme: hbs, route: "home", siteTitle: "Shared", posts });
 
-  const liquid = loadTheme({ themeDir: path.join(process.cwd(), "src", "themes", "templated", "dispatch"), id: "dispatch", source: "built-in" });
+  const liquid = loadTheme({ themeDir: path.join(process.cwd(), "src", "theme-archive", "dispatch"), id: "dispatch", source: "built-in" });
   assert.equal(liquid.status, "valid");
   liquid.liquidTemplates.home = "@@{{ site.title }}|{{ route }}|{% for p in posts %}{{ p.title }}:{{ p.slug }}:{{ p.dateShort }}{% endfor %}@@";
   const liquidHtml = await renderSite({ theme: liquid, route: "home", siteTitle: "Shared", posts });

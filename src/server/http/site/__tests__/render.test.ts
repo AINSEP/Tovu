@@ -573,17 +573,27 @@ test("renderDocNode: a widgetEmbed node with no matching entry in inlineResolved
 // `<img src>`: today's editor writes `data:` URLs, arbitrary external URLs,
 // or the authenticated admin media-preview URL into `attrs.src` — none of
 // which are safe/correct to embed unescaped on the public site (see D7 recon
-// note). `src`/`title` are never read at all, so there is nothing to escape
-// or reject there; only `alt` reaches the output, and it is escaped by the
-// existing `mediaPlaceholder` helper.
+// note). `title` is never read at all, so there is nothing to escape or
+// reject there.
+//
+// UPDATE (2026-08-12, `ed727041`): `src` is no longer refused unconditionally.
+// The owner reversed the blanket ban — "why is that even bad to refuse an
+// attribute source? If the user is saying they want it, why bar it?" — and
+// render.ts grew `safeImageSrc`, an http(s)-only ALLOWLIST (not a denylist):
+// a plain https URL now renders a real `<img src>`; only a rejected scheme
+// (`javascript:`/`data:`/`blob:`/`file:`) or the authenticated admin media
+// URL still degrades to the placeholder below. See
+// `tiptap-render-contract.test.ts`'s "LEGACY src-only node" rows for the full
+// allow/reject matrix; this block only needs one rejected-src case to keep
+// proving the placeholder/alt-label contract D7 established.
 // ---------------------------------------------------------------------------
 
-test("renderDocNode: an image node no longer vanishes — it degrades to the media placeholder using alt text as the label, and never emits src/title (D7)", () => {
+test("renderDocNode: an image node no longer vanishes — a hostile-scheme src degrades to the media placeholder using alt text as the label, and never emits src/title (D7, updated for the 2026-08-12 safeImageSrc allowlist)", () => {
   const doc: JsonObject = {
     type: "doc",
     content: [
       { type: "paragraph", content: [{ type: "text", text: "before" }] },
-      { type: "image", attrs: { src: "https://evil.example/x.png", alt: '<A> cat & "friend"', title: "ignored" } },
+      { type: "image", attrs: { src: "javascript:alert(1)", alt: '<A> cat & "friend"', title: "ignored" } },
       { type: "paragraph", content: [{ type: "text", text: "after" }] },
     ],
   };
@@ -592,13 +602,16 @@ test("renderDocNode: an image node no longer vanishes — it degrades to the med
   assert.match(html, /<p>after<\/p>/);
   assert.match(html, /media-ph/);
   assert.match(html, /&lt;A&gt; cat &amp; &quot;friend&quot;/);
-  assert.doesNotMatch(html, /evil\.example/);
+  assert.doesNotMatch(html, /javascript:/);
   assert.doesNotMatch(html, /ignored/);
   assert.doesNotMatch(html, /<img/);
 });
 
 test("renderDocNode: an image node with no/non-string alt falls back to a generic 'Image' label, never crashes", () => {
-  const noAlt = renderDocNode({ type: "doc", content: [{ type: "image", attrs: { src: "https://x/y.png" } }] });
+  // No `src` at all (as opposed to a rejected one) — still the placeholder path this test exercises,
+  // per safeImageSrc's 2026-08-12 allowlist (see the D7 block's own update note above): a valid https
+  // URL now renders a real <img>, which would take this case off the placeholder path entirely.
+  const noAlt = renderDocNode({ type: "doc", content: [{ type: "image", attrs: {} }] });
   assert.match(noAlt, /media-ph__label">Image</);
 
   const nonStringAlt = renderDocNode({ type: "doc", content: [{ type: "image", attrs: { src: "x", alt: 42 } as never }] });
@@ -607,14 +620,22 @@ test("renderDocNode: an image node with no/non-string alt falls back to a generi
 
 // ---------------------------------------------------------------------------
 // ADR-027 §4 — ref-based `{assetId, transformName}` image nodes. Extends D7's
-// placeholder default with the ONE case that now emits a real `<img src>`:
+// placeholder default with a SECOND case that emits a real `<img src>`:
 // a node whose `transformName` has a resolved entry in `mediaTransformVersions`
 // (the caller-supplied map straight off `transform_registry`, per `render.ts`'s
-// own `EMPTY_MEDIA_TRANSFORM_VERSIONS` doc). Every OTHER shape — legacy
-// `src`-only, an unregistered/unresolved `transformName`, or a malformed id —
-// must still degrade to the exact same D7 placeholder; that backward-compat
-// guarantee is asserted here as directly as the happy path, not assumed from
-// the happy-path test alone.
+// own `EMPTY_MEDIA_TRANSFORM_VERSIONS` doc). An unregistered/unresolved
+// `transformName`, or a malformed id, must still degrade to the exact same D7
+// placeholder; that backward-compat guarantee is asserted here as directly as
+// the happy path, not assumed from the happy-path test alone.
+//
+// A legacy `src`-only node is NOT in that "still degrades" set as of
+// 2026-08-12 (see the D7 block's own update note above) — a `src` that passes
+// `safeImageSrc`'s allowlist now renders too, via a DIFFERENT branch than the
+// ref path. What this section still needs to prove is narrower than the
+// original comment claimed: that a non-empty `mediaTransformVersions` map
+// does not accidentally activate the ref path for a plain `src`-only node
+// (no `assetId`/`transformName` attrs at all) — the ref path is gated on
+// those two attrs being present, never inferred from the map alone.
 // ---------------------------------------------------------------------------
 
 test("renderDocNode: a ref-based image node with a resolved transformName renders a real <img> against the public /m/ URL, never a placeholder", () => {
@@ -720,15 +741,15 @@ test("renderDocNode: a malformed assetId/transformName (embedded '/', empty, or 
   }
 });
 
-test("renderDocNode: a legacy src-only node still degrades to the placeholder even when mediaTransformVersions is non-empty — the ref path only activates on assetId+transformName, never on src", () => {
+test("renderDocNode: a legacy src-only node with a hostile-scheme src still degrades to the placeholder even when mediaTransformVersions is non-empty — the ref path only activates on assetId+transformName, never on src", () => {
   const doc: JsonObject = {
     type: "doc",
-    content: [{ type: "image", attrs: { src: "https://evil.example/x.png", alt: "legacy" } }],
+    content: [{ type: "image", attrs: { src: "javascript:alert(1)", alt: "legacy" } }],
   };
   const html = renderDocNode(doc, undefined, new Map([["public", 1]]));
   assert.match(html, /media-ph/);
   assert.doesNotMatch(html, /<img/);
-  assert.doesNotMatch(html, /evil\.example/);
+  assert.doesNotMatch(html, /javascript:/);
 });
 
 test("renderSite: a ref-based image node embedded in a real post body renders a real <img> end-to-end through the declarative slot path, when the caller resolves mediaTransformVersions", async () => {
@@ -955,13 +976,13 @@ test("renderSite (Slice 1, declarative tier): the 'content' slot renders an html
   assert.match(html, /<div class="prose"><p>Slice 1 via slot<\/p><\/div>/);
 });
 
-test("renderSite (Slice 2): a data-embed-type=\"widget\" embed substitutes to its resolved widget IR; an id with no matching entry in the resolved map degrades to the REQ-28 placeholder", async () => {
+test("renderSite (Slice 2): a data-embed-config type=\"widget\" embed substitutes to its resolved widget IR; an id with no matching entry in the resolved map degrades to the REQ-28 placeholder", async () => {
   const theme = declarativeTheme({ type: "doc", content: [] });
   theme.templates.entry = { type: "doc", content: [{ type: "slot", name: "content" }] };
   const post = htmlPage({
     bodyHtml:
-      '<div data-embed-type="widget" data-embed-id="widget-1"></div>' +
-      '<div data-embed-type="widget" data-embed-id="widget-missing"></div>',
+      `<div data-embed-config='{"type":"widget","id":"widget-1"}'></div>` +
+      `<div data-embed-config='{"type":"widget","id":"widget-missing"}'></div>`,
   });
 
   const html = await renderSite({
@@ -1001,37 +1022,37 @@ test("renderSite (Slice 2): a contact-form WIDGET embed substitutes to its resol
   assert.match(html, /action="\/forms\/contact-us\/submit"/);
 });
 
-test("renderSite (Slice 2): an html Page's embed placeholders degrade safely when pageHtmlEmbeds is omitted entirely — never leaks the raw data-embed-type markup", async () => {
+test("renderSite (Slice 2): an html Page's embed placeholders degrade safely when pageHtmlEmbeds is omitted entirely — never leaks the raw data-embed-config markup", async () => {
   const theme = declarativeTheme({ type: "doc", content: [] });
   theme.templates.entry = { type: "doc", content: [{ type: "slot", name: "content" }] };
-  const post = htmlPage({ bodyHtml: '<div data-embed-type="widget" data-embed-id="widget-1"></div>' });
+  const post = htmlPage({ bodyHtml: `<div data-embed-config='{"type":"widget","id":"widget-1"}'></div>` });
 
   const html = await renderSite({ theme, route: "post", siteTitle: "T", posts: [post], post });
 
-  assert.doesNotMatch(html, /data-embed-type/);
+  assert.doesNotMatch(html, /data-embed-config/);
   assert.match(html, /widget-placeholder/);
 });
 
 test("renderSite (Slice 2): an unknown embed type degrades to the REQ-28 placeholder exactly like a known-type resolution failure — render.ts never distinguishes the two externally", async () => {
   const theme = declarativeTheme({ type: "doc", content: [] });
   theme.templates.entry = { type: "doc", content: [{ type: "slot", name: "content" }] };
-  const post = htmlPage({ bodyHtml: '<div data-embed-type="media" data-embed-id="asset-1"></div>' });
+  const post = htmlPage({ bodyHtml: `<div data-embed-config='{"type":"media","id":"asset-1"}'></div>` });
 
   const html = await renderSite({ theme, route: "post", siteTitle: "T", posts: [post], post, pageHtmlEmbeds: htmlEmbeds() });
 
-  assert.doesNotMatch(html, /data-embed-type/);
+  assert.doesNotMatch(html, /data-embed-config/);
   assert.match(html, /widget-placeholder/);
 });
 
 // ---------------------------------------------------------------------------
 // SPEC-047 Slice 3 (2026-08-07) — "media-image" widget IR: the render side of a
-// data-embed-type="media" Page embed, resolved by resolver-service.ts's resolveMediaTypeEmbeds.
+// data-embed-config type="media" Page embed, resolved by resolver-service.ts's resolveMediaTypeEmbeds.
 // ---------------------------------------------------------------------------
 
-test("renderSite (Slice 2, media): a resolved data-embed-type=\"media\" embed renders a real <img> through the same /m/ URL contract the TipTap ref-image case uses", async () => {
+test("renderSite (Slice 2, media): a resolved data-embed-config type=\"media\" embed renders a real <img> through the same /m/ URL contract the TipTap ref-image case uses", async () => {
   const theme = declarativeTheme({ type: "doc", content: [] });
   theme.templates.entry = { type: "doc", content: [{ type: "slot", name: "content" }] };
-  const post = htmlPage({ bodyHtml: '<div data-embed-type="media" data-embed-id="asset-1" data-embed-variant="public"></div>' });
+  const post = htmlPage({ bodyHtml: `<div data-embed-config='{"type":"media","id":"asset-1","variant":"public"}'></div>` });
 
   const html = await renderSite({
     theme,
@@ -1055,7 +1076,7 @@ test("renderSite (Slice 2, media): a resolved data-embed-type=\"media\" embed re
 test("renderSite (Slice 2, media): width/height/class are each omitted independently when null, never a zeroed/empty attribute", async () => {
   const theme = declarativeTheme({ type: "doc", content: [] });
   theme.templates.entry = { type: "doc", content: [{ type: "slot", name: "content" }] };
-  const post = htmlPage({ bodyHtml: '<div data-embed-type="media" data-embed-id="asset-1"></div>' });
+  const post = htmlPage({ bodyHtml: `<div data-embed-config='{"type":"media","id":"asset-1"}'></div>` });
 
   const html = await renderSite({
     theme,
@@ -1078,7 +1099,7 @@ test("renderSite (Slice 2, media): width/height/class are each omitted independe
 test("renderSite (Slice 2, media): a malformed media-image IR (missing assetId — should never happen from this codebase's own resolver, defense-in-depth only) degrades to the ordinary widget placeholder rather than a malformed <img>", async () => {
   const theme = declarativeTheme({ type: "doc", content: [] });
   theme.templates.entry = { type: "doc", content: [{ type: "slot", name: "content" }] };
-  const post = htmlPage({ bodyHtml: '<div data-embed-type="media" data-embed-id="asset-1"></div>' });
+  const post = htmlPage({ bodyHtml: `<div data-embed-config='{"type":"media","id":"asset-1"}'></div>` });
 
   const html = await renderSite({
     theme,

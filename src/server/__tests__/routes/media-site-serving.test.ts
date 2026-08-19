@@ -179,7 +179,7 @@ test("owner-directed quick-and-dirty sizing fix: a real uploaded asset with widt
   );
 });
 
-test("ADR-027 §4: a published post with a legacy src-only image node still renders the placeholder on a real GET /:slug — no backward-compat regression through the real HTTP path", async (t) => {
+test("ADR-027 §4: a published post with a legacy hostile-scheme-src image node still renders the placeholder on a real GET /:slug — no backward-compat regression through the real HTTP path", async (t) => {
   const { app, deps } = buildTestApp();
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
@@ -197,6 +197,11 @@ test("ADR-027 §4: a published post with a legacy src-only image node still rend
   });
   const { post } = (await createRes.json()) as { post: { id: string } };
 
+  // `src` is a rejected scheme, not an arbitrary https URL — since 2026-08-12 (`ed727041`)
+  // render.ts's `safeImageSrc` allowlists plain http(s) URLs and renders them for real (the owner's
+  // "restore Img by URL" decision; see render.ts's `case "image"` doc). This row proves the OTHER
+  // half of that contract: a scheme the allowlist rejects still degrades to the placeholder,
+  // end-to-end through the real HTTP path.
   await fetch(`${baseUrl}${BASE}/posts/${post.id}`, {
     method: "PUT",
     headers: { "content-type": "application/json", cookie },
@@ -207,7 +212,7 @@ test("ADR-027 §4: a published post with a legacy src-only image node still rend
       version: 1,
       bodyJson: {
         type: "doc",
-        content: [{ type: "image", attrs: { src: "https://evil.example/x.png", alt: "legacy" } }],
+        content: [{ type: "image", attrs: { src: "javascript:alert(1)", alt: "legacy" } }],
       },
     }),
   });
@@ -216,5 +221,5 @@ test("ADR-027 §4: a published post with a legacy src-only image node still rend
   const html = await siteRes.text();
   assert.match(html, /media-ph/);
   assert.doesNotMatch(html, /<img/);
-  assert.doesNotMatch(html, /evil\.example/);
+  assert.doesNotMatch(html, /javascript:/);
 });

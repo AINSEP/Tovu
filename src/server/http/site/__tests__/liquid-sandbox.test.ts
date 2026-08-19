@@ -114,7 +114,17 @@ test("a memory-blowup template (range within the lint cap, accumulating retained
           '{% assign s = "" %}{% for i in (1..200000) %}{% assign s = s | append: "0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF" %}{% endfor %}{{ s }}',
         ctx: baseCtx(),
       },
-      { timeoutMs: 15000, resourceLimits: { maxOldGenerationSizeMb: 16, maxYoungGenerationSizeMb: 8 } }
+      // maxOldGenerationSizeMb: 32, not 16 — empirically, a worker this codebase's current module
+      // graph spins up (render.ts + the theme feature + LiquidJS itself) already needs ~20-24MB of
+      // old-gen heap just to BOOT, before any template runs at all; verified live by rendering the
+      // trivial template "hello {{ site.title }}" through this same sandbox at maxOldGenerationSizeMb
+      // 16/20 (ERR_WORKER_OUT_OF_MEMORY on both) vs. 24/28/32 (renders fine). 16MB made this test
+      // assert on the wrong guard — V8's OWN ceiling was tripping on baseline boot cost, before the
+      // adversarial template ever got a chance to run, let alone before LiquidJS's cheaper
+      // `memoryLimit` guard could catch it. 32MB leaves real headroom above that boot floor while
+      // staying well under `DEFAULT_RESOURCE_LIMITS`'s 64MB — confirmed the memory-blowup template
+      // below still throws `memory alloc limit exceeded` (LiquidJS's own guard, not V8's) at 32/40/48MB.
+      { timeoutMs: 15000, resourceLimits: { maxOldGenerationSizeMb: 32, maxYoungGenerationSizeMb: 8 } }
     ),
     /memory alloc limit exceeded/
   );
