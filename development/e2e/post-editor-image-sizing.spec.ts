@@ -3,10 +3,10 @@ import { expect, test, type Locator, type Page } from "@playwright/test";
 import { loginAsAdmin } from "./auth-fixtures.js";
 
 /** Absolute — `addStyleTag`'s `path` option resolves against `process.cwd()` at test-run time,
- *  which varies by how the suite is invoked; anchoring to `__dirname` (this file's own directory,
+ *  which varies by how the suite is invoked; anchoring to `import.meta.dirname` (this file's own directory,
  *  matching `byok-google-live-smoke.spec.ts`/`placeholder-tabs-card-parity.spec.ts`'s own
  *  precedent in this directory) makes the fixture path invocation-independent. */
-const BASIC_THEME_CSS_PATH = path.resolve(__dirname, "../../src/themes/static/basic/css/styles.css");
+const BASIC_THEME_CSS_PATH = path.resolve(import.meta.dirname, "../../src/themes/static/basic/css/styles.css");
 
 /**
  * @file Regression coverage for the owner-reported bug (2026-08-12): "embed an image [in the

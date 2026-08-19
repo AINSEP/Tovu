@@ -22,7 +22,7 @@ import { defineConfig } from "@playwright/test";
 const PORT = 4994;
 const DAEMON_PORT = 4995;
 const BASE_URL = `http://localhost:${PORT}`;
-const REPO_ROOT = path.resolve(__dirname, "..");
+const REPO_ROOT = path.resolve(import.meta.dirname, "..");
 const CONTENT_DB_PATH = path.join(
   require("node:os").tmpdir(),
   `tovu-ai-menu-widget-embeds-content-${process.pid}.db`,

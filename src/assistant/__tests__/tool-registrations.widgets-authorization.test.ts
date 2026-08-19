@@ -27,7 +27,7 @@ import { widgetsAgentToolCatalog, type AgentToolDefinition } from "../../widgets
 import { WidgetForbiddenError } from "../../widgets/errors.js";
 import { InMemoryWidgetRegionBindingRepo } from "../../widgets/repo.memory.js";
 import type { RouteDeps } from "../../server/routes/types.js";
-import { buildAssistantToolRegistrations } from "../tool-registrations/index.js";
+import { buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
 import { contributeWidgetsTools } from "../../widgets/tool-registrations.js";
 

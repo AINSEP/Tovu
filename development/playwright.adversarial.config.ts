@@ -44,7 +44,7 @@ import { STORAGE_STATE_PATH } from "./e2e/adversarial.globalSetup.js";
  */
 const PORT = 4992;
 const BASE_URL = `http://localhost:${PORT}`;
-const REPO_ROOT = path.resolve(__dirname, "..");
+const REPO_ROOT = path.resolve(import.meta.dirname, "..");
 const CONTENT_DB_PATH = path.join(
   require("node:os").tmpdir(),
   `tovu-adversarial-content-${process.pid}.db`,

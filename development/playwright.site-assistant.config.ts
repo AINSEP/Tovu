@@ -46,7 +46,7 @@ import { defineConfig, devices } from "@playwright/test";
 const PORT = Number(process.env.TOVU_SITE_ASSISTANT_E2E_PORT ?? 4997);
 const DAEMON_PORT = PORT - 1;
 const BASE_URL = `http://localhost:${PORT}`;
-const REPO_ROOT = path.resolve(__dirname, "..");
+const REPO_ROOT = path.resolve(import.meta.dirname, "..");
 
 export default defineConfig({
   testDir: "./e2e",
@@ -77,7 +77,7 @@ export default defineConfig({
     viewport: { width: 1280, height: 800 },
     headless: true,
   },
-  globalSetup: path.resolve(__dirname, "e2e/site-assistant.globalSetup.ts"),
+  globalSetup: path.resolve(import.meta.dirname, "e2e/site-assistant.globalSetup.ts"),
   projects: [
     {
       name: "chromium",

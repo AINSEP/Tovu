@@ -76,7 +76,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 
-const REPO_ROOT = path.resolve(__dirname, "..", "..");
+const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..");
 const DEFAULT_TAP_PATH = path.join(REPO_ROOT, "development/coverage/test-results.tap");
 
 interface Baseline {

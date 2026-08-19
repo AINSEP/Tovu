@@ -3,7 +3,7 @@ import { test, expect, type Page } from "@playwright/test";
 
 /** Absolute so the screenshot destination doesn't depend on whatever directory Playwright happens
  *  to be invoked from — a relative path here resolves against `process.cwd()`, not `testDir`. */
-const SCREENSHOT_DIR = path.resolve(__dirname, "../../ADS-memory/reports/placeholder-tabs-card-parity");
+const SCREENSHOT_DIR = path.resolve(import.meta.dirname, "../../ADS-memory/reports/placeholder-tabs-card-parity");
 
 /**
  * @file Pins the fix for the "Payments/Deployment/Authentication don't match Settings" bug

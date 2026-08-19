@@ -78,7 +78,7 @@ import Database from "better-sqlite3";
 
 import { scanEmbedMarkers, describeRejection } from "../../src/core/embeds/marker.js";
 
-const REPO_ROOT = path.resolve(__dirname, "..", "..");
+const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..");
 const dirFlagIndex = process.argv.indexOf("--dir");
 const THEMES_DIR = dirFlagIndex === -1 ? path.join(REPO_ROOT, "src", "themes") : path.resolve(process.argv[dirFlagIndex + 1]);
 const dbFlagIndex = process.argv.indexOf("--db");

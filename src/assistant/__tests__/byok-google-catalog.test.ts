@@ -27,7 +27,7 @@ import type { ToolDescriptor } from "@jini-ai/core";
 
 import { META_TOOL_DESCRIPTORS } from "../byok-tool-surface.js";
 import { googleParametersOf } from "../byok-provider-turn.js";
-import { buildAssistantToolRegistrations } from "../tool-registrations/index.js";
+import { buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
 import { installFirstPartyToolContributors } from "../../server/tool-catalog-manifest.js";
 import type { RouteDeps } from "../../server/routes/types.js";

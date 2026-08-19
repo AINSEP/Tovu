@@ -123,7 +123,7 @@ import { resolveLabel, type GroupState, type Origin } from "./backfill-vendor-cr
 // unconditionally at import time, which a direct in-process unit test must never trigger).
 export { resolveLabel, type GroupState, type Origin };
 
-const REPO_ROOT = path.resolve(__dirname, "..", "..");
+const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..");
 
 interface Args {
   readonly dbPath: string;

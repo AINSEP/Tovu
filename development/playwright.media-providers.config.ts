@@ -26,7 +26,7 @@ const ADMIN_PORT = PORT_BASE + 1;
 const DAEMON_PORT = PORT_BASE + 2;
 const BASE_URL = `http://localhost:${ADMIN_PORT}`;
 const API_BASE_URL = `http://localhost:${API_PORT}`;
-const REPO_ROOT = path.resolve(__dirname, "..");
+const REPO_ROOT = path.resolve(import.meta.dirname, "..");
 const ADMIN_ROOT = path.resolve(REPO_ROOT, "apps/admin");
 
 /** Throwaway sealing key — 32 bytes of `a` as hex. Hermetic run only; never a real secret. */

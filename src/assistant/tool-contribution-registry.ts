@@ -1,7 +1,7 @@
 import type { DerivedRiskByToolId, ToolRegistration } from "@jini-ai/cms/core";
 
 import type { AssistantSurfaceDeps } from "../core/tool-surface-exchanges.js";
-import type { AssistantToolRegistryDeps } from "./tool-registrations/index.js";
+import type { AssistantToolRegistryDeps } from "./tool-registrations.js";
 
 /**
  * @file The boot-installed registry a first-party (or, eventually, policy-checked third-party)

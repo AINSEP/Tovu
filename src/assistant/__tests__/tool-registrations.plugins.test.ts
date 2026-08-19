@@ -8,7 +8,7 @@ import type { PluginDiscoveryRecord } from "../../features/plugin-runtime/discov
 import { pluginAgentToolCatalog, type AgentToolDefinition as PluginsAgentToolDefinition } from "../../features/plugin-runtime/agent-tools.js";
 import { InMemoryPluginActivationRepo } from "../../features/plugin-runtime/repo.memory.js";
 import type { RouteDeps } from "../../server/routes/types.js";
-import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations/index.js";
+import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
 import { contributePluginsTools } from "../../features/plugin-runtime/tool-registrations.js";
 

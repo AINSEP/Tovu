@@ -32,7 +32,7 @@ import type { RouteDeps } from "../../server/routes/types.js";
 import {
   assertRiskMetadataIsWirable,
   buildAssistantToolRegistrations,
-} from "../tool-registrations/index.js";
+} from "../tool-registrations.js";
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
 
 // SEO moved off `assistant/tool-registrations.ts`'s static `DOMAIN_SLICES` array onto the

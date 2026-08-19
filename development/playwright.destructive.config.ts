@@ -66,7 +66,7 @@ import { defineConfig, devices } from "@playwright/test";
 const PORT = 4991;
 const DAEMON_PORT = 4990;
 const BASE_URL = `http://localhost:${PORT}`;
-const REPO_ROOT = path.resolve(__dirname, "..");
+const REPO_ROOT = path.resolve(import.meta.dirname, "..");
 const CONTENT_DB_PATH = path.join(os.tmpdir(), `tovu-e2e-destructive-content-${Date.now()}-${process.pid}.db`);
 
 /**

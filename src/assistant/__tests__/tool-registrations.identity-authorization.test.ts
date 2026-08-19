@@ -25,7 +25,7 @@ import {
 } from "@jini-ai/cms/identity";
 import { Argon2PasswordHasher } from "@jini-ai/cms/identity/hasher";
 import type { RouteDeps } from "../../server/routes/types.js";
-import { buildAssistantToolRegistrations } from "../tool-registrations/index.js";
+import { buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
 import { contributeIdentityTools } from "../../identity/tool-registrations.js";
 

@@ -34,7 +34,7 @@ import { setByokModel } from "./byok-model-field.js";
 
 function ensureGeminiKeyLoaded(): void {
   if (process.env.GEMINI_API_KEY) return;
-  const envPath = path.resolve(__dirname, "../../.env");
+  const envPath = path.resolve(import.meta.dirname, "../../.env");
   if (!fs.existsSync(envPath)) return;
   let contents: string;
   try {

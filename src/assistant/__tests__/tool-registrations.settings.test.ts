@@ -12,7 +12,7 @@ import {
   type SettingValueRecord,
 } from "../../features/settings/index.js";
 import type { RouteDeps } from "../../server/routes/types.js";
-import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations/index.js";
+import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
 import { contributeSettingsTools } from "../../features/settings/tool-registrations.js";
 

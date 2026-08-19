@@ -10,7 +10,7 @@ import {
 } from "../../features/workspace/index.js";
 import { contributeWorkspaceTools } from "../../features/workspace/tool-registrations.js";
 import type { RouteDeps } from "../../server/routes/types.js";
-import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations/index.js";
+import { assertRiskMetadataIsWirable, buildAssistantToolRegistrations } from "../tool-registrations.js";
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
 
 /**

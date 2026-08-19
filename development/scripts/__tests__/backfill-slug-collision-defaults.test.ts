@@ -30,7 +30,7 @@ import { openContentDb } from "../../../src/db/sqlite/content-db.js";
  * also inheriting this test runner's own real argv/cwd.
  */
 
-const REPO_ROOT = path.resolve(__dirname, "../../..");
+const REPO_ROOT = path.resolve(import.meta.dirname, "../../..");
 const SCRIPT = path.join("development", "scripts", "backfill-slug-collision-defaults.ts");
 
 function tmpDir(prefix: string): string {
