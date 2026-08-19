@@ -402,7 +402,11 @@ test("admin menus routes: ADR-PIPE-012 D-1/D-2/D-9 — a principal with no grant
   assert.equal(stillThere.status, 200);
   const stillThereBody = (await stillThere.json()) as { menu: { version: number; status: string } };
   assert.equal(stillThereBody.menu.version, 1, "the denied update must not have applied");
-  assert.equal(stillThereBody.menu.status, "draft");
+  // menu-service.ts's createMenu defaults new menus to 'published', not 'draft' (Jini cfd31024,
+  // 2026-08-09) — see tool-registrations.menus.test.ts's own output-projection test for the full
+  // rationale. Incidental to this test's actual point (the menu is untouched by the denied calls
+  // above), but the status value itself must still match reality.
+  assert.equal(stillThereBody.menu.status, "published");
 });
 
 // ---------------------------------------------------------------------------
