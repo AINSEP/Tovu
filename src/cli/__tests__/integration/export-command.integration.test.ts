@@ -21,7 +21,18 @@ const require = createRequire(import.meta.url);
 const CLI_MAIN = path.resolve(import.meta.dirname, "../../main.ts");
 const TSX_LOADER = require.resolve("tsx");
 
-function runCli(args: string[], timeoutMs = 30000): { status: number | null; stdout: string; stderr: string } {
+/**
+ * `timeoutMs` is a safety net, not an expectation (same convention as `serve-command.integration
+ * .test.ts`'s own `runCliSync` doc) — it exists so a regression that hangs the CLI cannot wedge this
+ * synchronous spawn, and with it the whole file, indefinitely. 30000ms measured too tight for a real
+ * `export` call: a cold `tsx`-transformed `tovu export` alone took 23.2s wall-clock under this
+ * session's concurrent-agent CPU contention (load average 30+ on an 8-core host), and a test that
+ * chains two or three CLI invocations (`init` + one or two `export`s) can exceed 30s in total even
+ * though each individual command completes and exits correctly — `spawnSync` returns `status: null`
+ * on a timeout kill, which reads exactly like a crash but is the harness's own budget being too
+ * tight, not a CLI defect.
+ */
+function runCli(args: string[], timeoutMs = 120000): { status: number | null; stdout: string; stderr: string } {
   const result = spawnSync(process.execPath, ["--import", TSX_LOADER, CLI_MAIN, ...args], { encoding: "utf8", timeout: timeoutMs });
   return { status: result.status, stdout: result.stdout, stderr: result.stderr };
 }
@@ -97,7 +108,7 @@ test("tovu export: TOVU_EXPORT_DIR env var sets the default output directory whe
 
   const result = spawnSync(process.execPath, ["--import", TSX_LOADER, CLI_MAIN, "export", installDir], {
     encoding: "utf8",
-    timeout: 30000,
+    timeout: 120000, // see runCli's own doc above: safety net, not an expectation
     env: { ...process.env, TOVU_EXPORT_DIR: envOutDir },
   });
   assert.equal(result.status, 0, `stderr: ${result.stderr}`);

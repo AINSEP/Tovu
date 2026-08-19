@@ -39,9 +39,21 @@ test("store: activation declares p_store__products (via the never-brick seam) an
   );
   assert.ok(products.every((p) => typeof p.price === "number"));
 
-  // A pre-DDL snapshot was written (never-brick anchor from B).
-  assert.ok(
-    fs.readdirSync(dir).some((f) => f.includes("snapshot-store")),
+  // A pre-DDL snapshot was written (never-brick anchor from B). The snapshot FILE itself is gone by
+  // now -- `discardCommittedSnapshot` deletes it right after a successful commit (ADR-023 §4
+  // amendment, 2026-08-02, `snapshot.ts`), since a committed migration's recovery window has
+  // already closed and nothing reads it after that. The durable, intended record that the
+  // never-brick seam actually ran BEFORE the DDL is `_plugin_migrations.snapshot_path` -- written
+  // from the same `snapshotPath` value that `declareDataModule` computed prior to opening the DDL
+  // transaction, on the very row that records the `CREATE TABLE` for `p_store__products` (see
+  // `data-module.ts`'s `applyTableCreate` -> `recordMigration`).
+  const migrationRow = db
+    .prepare(`SELECT snapshot_path FROM _plugin_migrations WHERE table_name = 'p_store__products' ORDER BY id ASC LIMIT 1`)
+    .get() as { snapshot_path: string | null } | undefined;
+  assert.ok(migrationRow, "expected a _plugin_migrations row for the store's CREATE TABLE");
+  assert.match(
+    migrationRow!.snapshot_path ?? "",
+    /content\.db\.snapshot-store-\d+$/,
     "core snapshotted before creating the store's table"
   );
 
