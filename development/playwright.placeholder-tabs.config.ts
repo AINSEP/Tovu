@@ -1,7 +1,10 @@
+import { createRequire } from "node:module";
 import path from "node:path";
 import { defineConfig, devices } from "@playwright/test";
 
 import { STORAGE_STATE_PATH } from "./e2e/placeholder-tabs.globalSetup.js";
+
+const require = createRequire(import.meta.url);
 
 /**
  * @file Placeholder-tabs card-parity config (web-design pass, 2026-08-05 — Payments/Deployment/

@@ -1,3 +1,4 @@
+import { createRequire } from "node:module";
 import path from "node:path";
 
 import type { UUID } from "@jini-ai/cms/core";
@@ -8,6 +9,8 @@ import type { RouteDeps } from "#src/server/routes/types";
 
 import { resolveDefaultForSourceControl } from "./store.js";
 import type { SourceControlCredentialSetRepoPort } from "./types.js";
+
+const require = createRequire(import.meta.url);
 
 /**
  * @file The `source-control` domain's "business" layer — everything `source_control_execute_commit`

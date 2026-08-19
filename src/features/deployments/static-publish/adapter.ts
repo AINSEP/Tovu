@@ -1,3 +1,4 @@
+import { createRequire } from "node:module";
 import path from "node:path";
 
 import {
@@ -12,6 +13,8 @@ import {
 
 import type { ExportReport, ExportSiteOptions } from "#src/export/index";
 import type { RouteDeps } from "#src/server/routes/types";
+
+const require = createRequire(import.meta.url);
 
 import { S3CompatibleDeployTarget, type S3CompatibleTargetConfig } from "./s3-compatible-target.js";
 import type { GitHubPagesPublishConfig, PublishCredentialSource, StaticPublishConfig, StaticPublishOutcome, StaticPublishTargetId } from "./types.js";
@@ -274,10 +277,10 @@ export interface StaticPublishInput {
  * looped back). The preview tool never calls this at all — only {@link publishStaticSite} does, and
  * only a real publish (never agent-reachable; see `publish-agent-tools.ts`'s header) reaches it.
  *
- * `require` rather than `await import`: this package is CommonJS, and a synchronous resolution
- * keeps this function's signature a plain `(options) => Promise<ExportReport>` rather than forcing
- * every caller to await an extra layer. By the time anything calls this, both modules are fully
- * loaded, so there is no partial-initialisation window left to fall into.
+ * `require` (via `createRequire`) rather than `await import`: a synchronous resolution keeps this
+ * function's signature a plain `(options) => Promise<ExportReport>` rather than forcing every
+ * caller to await an extra layer. By the time anything calls this, both modules are fully loaded,
+ * so there is no partial-initialisation window left to fall into.
  */
 function exportSiteLazily(options: ExportSiteOptions): Promise<ExportReport> {
   // eslint-disable-next-line @typescript-eslint/no-require-imports -- deliberate; see doc above.
