@@ -420,7 +420,9 @@ export const BOOLEAN_COPY_TRANSFORM = {
   transform: "sqlite 1 -> postgres true; sqlite 0 -> postgres false; any other stored value is a data-integrity bug",
   note:
     "This applies ONLY to columns Drizzle declares SQLiteBoolean (integer(..., {mode:\"boolean\"})) — today " +
-    "posts.overrides_theme_page, plugin_activations.enabled, external_mcp_servers.enabled. Several other " +
+    "posts.overrides_theme_page, plugin_activations.enabled, external_mcp_servers.enabled, " +
+    "publish_credential_sets.is_default, source_control_credential_sets.is_default, " +
+    "vendor_credential_sets.is_default, publish_history.reachable. Several other " +
     "integer columns are conceptually 0/1 flags too (tombstoned, hierarchical, is_builtin, is_frozen, " +
     "visible_in_portal) but are declared plain `integer`, not `{mode:\"boolean\"}` — those get NO transform " +
     "(correct passthrough as a numeric 0/1 on both dialects, whatever integer width each side uses) precisely " +

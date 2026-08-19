@@ -194,9 +194,12 @@ test("entry_revisions.seq's rationale correctly scopes to entries, not posts —
 test("boolean-flag classification matches exactly the SQLiteBoolean columns in schema.ts, not the many plain-integer 0/1 flags", () => {
   const all = classifyAllCoreColumns();
   const booleans = all.filter((c) => c.columnClass.kind === "boolean-flag").map((c) => `${c.sqlTableName}.${c.sqlColumnName}`);
-  // `publish_credential_sets.is_default`/`source_control_credential_sets.is_default` (2026-08-15) and
-  // `publish_history.reachable` (2026-08-16) post-date this test's original hardcoded set — added
-  // here rather than left stale, since this assertion's whole point is to track real schema.ts state.
+  // `publish_credential_sets.is_default`/`source_control_credential_sets.is_default` (2026-08-15),
+  // `publish_history.reachable` (2026-08-16), and `vendor_credential_sets.is_default` (its own doc
+  // comment in schema.ts: "same invariant... the two predecessor tables' own isDefault columns
+  // document" — a third sibling of the two credential-set columns above) post-date this test's
+  // original hardcoded set — added here rather than left stale, since this assertion's whole point
+  // is to track real schema.ts state.
   assert.deepEqual(
     new Set(booleans),
     new Set([
@@ -206,6 +209,7 @@ test("boolean-flag classification matches exactly the SQLiteBoolean columns in s
       "publish_credential_sets.is_default",
       "source_control_credential_sets.is_default",
       "publish_history.reachable",
+      "vendor_credential_sets.is_default",
     ])
   );
 
