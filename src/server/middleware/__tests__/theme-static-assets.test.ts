@@ -109,6 +109,28 @@ test("registerThemeStaticAssets: __-prefixed catalog ids are refused across ever
   }, [rootA, rootB]);
 });
 
+test("registerThemeStaticAssets: .tovu-migrate-staging-* scratch directories are refused, not served as a theme's own folder (ARCH-001, 2026-08-19)", async (t) => {
+  // Mirrors the real on-disk shape: migrate-theme.ts's createStagingDir leaves this dir as a SIBLING
+  // of the real theme it staged, both containing whatever files the migration copied (css/theme.css
+  // here stands in for that). Before the fix, resolveThemeDir only refused "" and "__"-prefixed
+  // names, so this resolved and served exactly like a real theme id.
+  const rootA = makeThemeFixture("staging-a", {
+    "basic/css/theme.css": "body{color:orange}",
+    ".tovu-migrate-staging-basic-14cece79e115/css/theme.css": "body{color:orange}",
+  });
+  t.after(() => rmSync(rootA, { recursive: true, force: true }));
+
+  await withTempApp(async (baseUrl) => {
+    const res = await fetch(`${baseUrl}/theme-assets/.tovu-migrate-staging-basic-14cece79e115/css/theme.css`);
+    assert.equal(res.status, 404);
+
+    // The real theme with the un-prefixed name must still serve, proving this isn't a blanket refusal.
+    const realRes = await fetch(`${baseUrl}/theme-assets/basic/css/theme.css`);
+    assert.equal(realRes.status, 200);
+    assert.equal(await realRes.text(), "body{color:orange}");
+  }, [rootA]);
+});
+
 test("registerThemeStaticAssets: path traversal in the themeId segment cannot escape either root", async (t) => {
   const rootA = makeThemeFixture("trav-a", { "real-theme/ok.txt": "fine" });
   t.after(() => rmSync(rootA, { recursive: true, force: true }));
