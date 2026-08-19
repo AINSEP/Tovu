@@ -14,6 +14,14 @@ import { registerSiteRoutes } from "../../routes/site/pages.js";
 import type { RouteDeps } from "../../routes/types.js";
 import { bootAuthenticated } from "../helpers/http-test-server.js";
 
+// A saturated machine, not a slow template, is what makes these fire. On 2026-08-19 a 7-agent run
+// drove this 8-core box to load average 135 and the sandboxed renders below failed with
+// "render exceeded 5000ms timeout" on templates that render in ~50ms idle; the same file passed
+// 9/9 when run alone. Raising the PRODUCT default would weaken a real guard (a visitor must never
+// wait 30s for a runaway theme) to fix a test-environment problem, so this raises it only here.
+// The sandbox's own termination tests pin explicit budgets (500ms) and are unaffected by this.
+process.env.TOVU_THEME_RENDER_TIMEOUT_MS ??= "60000";
+
 /**
  * @file ADR-027 §4 end-to-end: a Post authored through the real admin API with a ref-based
  * `{assetId, transformName}` image node actually serves a real `<img>` on a real GET request to

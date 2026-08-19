@@ -60,7 +60,35 @@ export interface HandlebarsSandboxOptions {
   resourceLimits?: ResourceLimits;
 }
 
-const DEFAULT_TIMEOUT_MS = 5000;
+/**
+ * Wall-clock budget for one sandboxed Handlebars render before the worker is force-terminated.
+ *
+ * 5s is the product default and stays the product default: a real visitor must never wait longer
+ * than that for a runaway theme template, and this guard is what stops one from wedging a request.
+ * It is deliberately NOT scaled by machine load for that reason — a busy server is exactly when a
+ * visitor least wants a 30s wait.
+ *
+ * `TOVU_THEME_RENDER_TIMEOUT_MS` exists for the two cases where 5s is the wrong number and the
+ * alternative is worse:
+ *   - an operator on a slow/oversubscribed VPS whose legitimate themes genuinely need longer;
+ *   - test runs, where a saturated CI box made this fire spuriously. On 2026-08-19 a 7-agent run
+ *     drove an 8-core machine to load average 135 and `render-handlebars.test.ts` failed with
+ *     "Handlebars render exceeded 5000ms timeout" on a template that renders in ~50ms idle. The
+ *     same file passed 9/9 alone. Raising the DEFAULT would have weakened a real production guard
+ *     to fix a test-environment problem; an explicit opt-in does not.
+ *
+ * Callers that pass `options.timeoutMs` are unaffected either way — the sandbox tests below pin
+ * their own budgets (500ms to prove termination, 15000ms for the memory-blowup case) precisely so
+ * they never depend on this default.
+ */
+function resolveDefaultTimeoutMs(): number {
+  const raw = process.env.TOVU_THEME_RENDER_TIMEOUT_MS;
+  if (!raw) return 5000;
+  const parsed = Number.parseInt(raw, 10);
+  // A malformed value falls back to the safe default rather than NaN (which would make every
+  // `Date.now() < deadline` comparison false and terminate every render instantly).
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 5000;
+}
 const DEFAULT_RESOURCE_LIMITS: ResourceLimits = {
   maxOldGenerationSizeMb: 64,
   maxYoungGenerationSizeMb: 16,
@@ -112,7 +140,10 @@ export function renderHandlebarsInSandbox(
   input: HandlebarsWorkerInput,
   options: HandlebarsSandboxOptions = {}
 ): Promise<string> {
-  const timeoutMs = options.timeoutMs ?? DEFAULT_TIMEOUT_MS;
+  // Resolved per call, not once at module load: a module-level const would freeze whatever
+  // TOVU_THEME_RENDER_TIMEOUT_MS happened to be set at import time, so a test (or an operator
+  // reloading config) setting it later would be silently ignored.
+  const timeoutMs = options.timeoutMs ?? resolveDefaultTimeoutMs();
   const resourceLimits = options.resourceLimits ?? DEFAULT_RESOURCE_LIMITS;
 
   return new Promise<string>((resolve, reject) => {
