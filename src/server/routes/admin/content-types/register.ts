@@ -13,7 +13,7 @@ import {
 import { parseContentTypeFieldDefs } from "#src/features/content-types/index";
 import { registerContentType } from "#src/features/content-types/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { ContentTypesRouteDeps } from "./deps";
+import type { ContentTypesRouteDeps } from "./deps.js";
 
 /** Maps a `registerContentType` rejection to an HTTP status/code pair (design-spec.md §1.9). */
 function statusFor(error: Error): { status: number; code: string } {

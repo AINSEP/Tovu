@@ -4,7 +4,7 @@ import {
   saveMediaProviderCredentials,
 } from "#src/media/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { MediaProviderRouteRegistrar } from "./deps";
+import type { MediaProviderRouteRegistrar } from "./deps.js";
 
 /**
  * PUT the workspace's media-generation vendor credentials as a WHOLE SET. Answers

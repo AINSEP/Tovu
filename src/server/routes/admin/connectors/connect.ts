@@ -3,9 +3,9 @@ import type { Express } from "express";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { RateLimiter } from "#src/core/rate-limit/rate-limit";
 import { resolveClientIp } from "#src/core/rate-limit/rate-limit";
-import { composioCallbackUrl } from "./callback-url";
-import type { ConnectorsRouteDeps } from "./deps";
-import { sendConnectorError } from "./errors";
+import { composioCallbackUrl } from "./callback-url.js";
+import type { ConnectorsRouteDeps } from "./deps.js";
+import { sendConnectorError } from "./errors.js";
 
 /**
  * POST to begin authorizing a connector. Answers `ConnectorsPort.connectConnector`.

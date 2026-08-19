@@ -1,7 +1,7 @@
 import { authorizeSend, claimBatch, freezeAudience } from "#src/newsletter/send-pipeline";
 import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond, toDataResponse } from "#src/server/http/admin/newsletter";
-import type { RouteRegistrar } from "../../types";
-import { toSendPipelineDeps, type NewsletterRouteDeps } from "./deps";
+import type { RouteRegistrar } from "../../types.js";
+import { toSendPipelineDeps, type NewsletterRouteDeps } from "./deps.js";
 
 /**
  * `SEND_CAMPAIGN` (api.spec.md §1/§5) — `POST .../campaigns/:id/send`. `admin.newsletter.

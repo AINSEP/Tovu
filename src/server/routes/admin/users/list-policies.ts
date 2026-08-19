@@ -1,6 +1,6 @@
 import { toAdminPolicyResponse } from "#src/server/http/admin/users";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { UsersRouteRegistrar } from "./deps";
+import type { UsersRouteRegistrar } from "./deps.js";
 
 /**
  * GET policies — list a workspace's policies (built-in + custom) for the Users admin screen's

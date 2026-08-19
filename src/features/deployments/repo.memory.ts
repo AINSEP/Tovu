@@ -1,5 +1,5 @@
-import type { DeploymentsReadRepoPort } from "./read-repo";
-import type { DeploymentRunRecord, DeploymentTargetRecord, EnvironmentRecord, ReleaseRecord } from "./types";
+import type { DeploymentsReadRepoPort } from "./read-repo.js";
+import type { DeploymentRunRecord, DeploymentTargetRecord, EnvironmentRecord, ReleaseRecord } from "./types.js";
 
 /**
  * @file In-memory `DeploymentsReadRepoPort` double for `server/app.ts`'s hermetic composition —

@@ -1,4 +1,4 @@
-import type { RouteDeps } from "../../types";
+import type { RouteDeps } from "../../types.js";
 
 /**
  * @file ADR-046 Phase 3 (SPEC-040) — narrow `RouteDeps` slice for the `comments-moderation`

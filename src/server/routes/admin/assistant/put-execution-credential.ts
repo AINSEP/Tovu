@@ -4,7 +4,7 @@ import {
   setExecutionCredential,
 } from "#src/assistant/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { AssistantSettingsRouteRegistrar } from "./deps";
+import type { AssistantSettingsRouteRegistrar } from "./deps.js";
 
 /**
  * PUT (partial) the calling admin's OWN BYOK execution credential. Body:

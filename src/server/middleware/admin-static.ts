@@ -1,7 +1,14 @@
 import { existsSync } from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 import express from "express";
 import type { Express, Response } from "express";
+
+// ESM has no ambient `require`; `node:sea` is loaded conditionally below (it
+// throws outside a single-executable build) and `seaApi()` must stay
+// synchronous, so a local `require` is synthesized rather than switching to
+// dynamic `import()`.
+const require = createRequire(import.meta.url);
 
 const MIME: Record<string, string> = {
   ".html": "text/html; charset=utf-8",

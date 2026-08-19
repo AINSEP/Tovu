@@ -1,8 +1,8 @@
 import { unsubscribeSubscription } from "#src/newsletter/subscriptions";
 import { NewsletterSubscriptionNotFoundError } from "#src/newsletter/index";
 import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond, toDataResponse } from "#src/server/http/admin/newsletter";
-import type { RouteRegistrar } from "../../types";
-import { toUnsubscribeSubscriptionDeps, type NewsletterRouteDeps } from "./deps";
+import type { RouteRegistrar } from "../../types.js";
+import { toUnsubscribeSubscriptionDeps, type NewsletterRouteDeps } from "./deps.js";
 
 /**
  * `REMOVE_SUBSCRIPTION` (api.spec.md §1/§5) — `DELETE .../newsletter/lists/:listId/

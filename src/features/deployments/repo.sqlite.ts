@@ -1,9 +1,9 @@
 import { desc, eq } from "drizzle-orm";
 
-import { deploymentEnvironments, deploymentRuns, deploymentTargets, releases } from "../../db/schema";
-import type { ContentDb } from "../../db/sqlite/content-db";
-import { DEPLOYMENTS_READ_LIST_LIMIT, type DeploymentsReadRepoPort } from "./read-repo";
-import type { DeploymentRunRecord, DeploymentTargetRecord, EnvironmentRecord, ReleaseRecord, ReleaseSource } from "./types";
+import { deploymentEnvironments, deploymentRuns, deploymentTargets, releases } from "../../db/schema.js";
+import type { ContentDb } from "../../db/sqlite/content-db.js";
+import { DEPLOYMENTS_READ_LIST_LIMIT, type DeploymentsReadRepoPort } from "./read-repo.js";
+import type { DeploymentRunRecord, DeploymentTargetRecord, EnvironmentRecord, ReleaseRecord, ReleaseSource } from "./types.js";
 
 /**
  * @file Drizzle/SQLite adapter for `DeploymentsReadRepoPort` — the real implementation

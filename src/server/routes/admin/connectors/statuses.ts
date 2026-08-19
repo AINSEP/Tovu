@@ -1,6 +1,6 @@
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { ConnectorsRouteRegistrar } from "./deps";
-import { sendConnectorError } from "./errors";
+import type { ConnectorsRouteRegistrar } from "./deps.js";
+import { sendConnectorError } from "./errors.js";
 
 /**
  * GET every connector's connection status. Answers `ConnectorsPort.fetchConnectorStatuses`.

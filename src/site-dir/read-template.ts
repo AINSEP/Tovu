@@ -1,9 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import type { ContentDbSeedData } from "../db/sqlite/content-db";
-import { InternalError } from "./errors";
-import type { TemplateJson, TemplateSeedContent } from "./types";
+import type { ContentDbSeedData } from "../db/sqlite/content-db.js";
+import { InternalError } from "./errors.js";
+import type { TemplateJson, TemplateSeedContent } from "./types.js";
 
 /**
  * @file SPEC-003 C-009 — `readTemplate`, the one reader of `templates/<id>/*.json`.
@@ -25,7 +25,7 @@ import type { TemplateJson, TemplateSeedContent } from "./types";
  */
 
 /** `src/templates/` dir, resolved from this file's own location. */
-const TEMPLATES_ROOT = path.resolve(__dirname, "../templates");
+const TEMPLATES_ROOT = path.resolve(import.meta.dirname, "../templates");
 
 export interface ReadTemplateRequired {
   templateId: string;

@@ -1,6 +1,6 @@
 import { toAdminUserResponse } from "#src/server/http/admin/users";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { UsersRouteRegistrar } from "./deps";
+import type { UsersRouteRegistrar } from "./deps.js";
 
 /**
  * GET users — list a workspace's human (`kind='user'`) principals for the

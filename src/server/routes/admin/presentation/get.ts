@@ -5,7 +5,7 @@ import {
 import { validThemeIds } from "#src/features/theme/index";
 import { toAdminPresentationResponse } from "#src/server/http/admin/presentation";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { ContentRouteRegistrar } from "../content/deps";
+import type { ContentRouteRegistrar } from "../content/deps.js";
 
 /**
  * GET presentation settings (active theme + available themes).

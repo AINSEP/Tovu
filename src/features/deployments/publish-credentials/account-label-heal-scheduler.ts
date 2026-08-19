@@ -1,4 +1,4 @@
-import type { PublishCredentialSummary, PublishProviderId } from "./types";
+import type { PublishCredentialSummary, PublishProviderId } from "./types.js";
 
 /**
  * @file A tiny fire-and-forget scheduler for "heal this row's account label in the background,

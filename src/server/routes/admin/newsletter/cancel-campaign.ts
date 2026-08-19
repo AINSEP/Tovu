@@ -1,8 +1,8 @@
 import { cancelCampaign } from "#src/newsletter/campaign-write-service";
 import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond, toDataResponse } from "#src/server/http/admin/newsletter";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { RouteRegistrar } from "../../types";
-import { toCampaignWriteServiceDeps, type NewsletterRouteDeps } from "./deps";
+import type { RouteRegistrar } from "../../types.js";
+import { toCampaignWriteServiceDeps, type NewsletterRouteDeps } from "./deps.js";
 
 /**
  * `CANCEL_CAMPAIGN` (api.spec.md §1/§5) — `POST .../campaigns/:id/cancel`. `admin.newsletter.

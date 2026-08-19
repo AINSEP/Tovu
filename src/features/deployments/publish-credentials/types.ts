@@ -1,6 +1,6 @@
 import type { ISODateTime, UUID } from "@jini-ai/cms/core";
 
-import type { SealedSecret } from "../../../webhooks/index";
+import type { SealedSecret } from "../../../webhooks/index.js";
 
 /**
  * @file Domain types for named, workspace-scoped provider connections used to publish a static

@@ -1,6 +1,6 @@
 import { parseWidgetAreaPayload } from "#src/widgets/entry-payload";
 import { mapWidgetErrorToResponse, requireWidgetsPermissionOrRespond } from "#src/server/http/admin/widgets";
-import type { RouteRegistrar } from "../../types";
+import type { RouteRegistrar } from "../../types.js";
 
 /**
  * GET every currently-bound widget region (SPEC-043 REQ-11/12), `widgets.read`-gated — backs

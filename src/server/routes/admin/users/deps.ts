@@ -1,7 +1,7 @@
 import type { Express } from "express";
 
 import type { AuthServiceDeps, IdentityRepos } from "@jini-ai/cms/identity";
-import type { RouteDeps } from "../../types";
+import type { RouteDeps } from "../../types.js";
 
 /**
  * @file `RouteDeps` -> `identity` service-deps mapping for the users/roles/policies admin routes,

@@ -33,7 +33,7 @@
  */
 import type { MembersWriteServiceDeps } from "#src/members/index";
 import type { RateLimiter } from "#src/core/rate-limit/rate-limit";
-import type { MembersDeps, RouteDeps } from "../../types";
+import type { MembersDeps, RouteDeps } from "../../types.js";
 
 /**
  * `RouteDeps` extended with the `members` library's ports. `MembersDeps`

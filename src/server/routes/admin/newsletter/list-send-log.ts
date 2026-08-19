@@ -1,7 +1,7 @@
 import { NewsletterCampaignNotFoundError } from "#src/newsletter/index";
 import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond, toDataResponse } from "#src/server/http/admin/newsletter";
-import type { RouteRegistrar } from "../../types";
-import type { NewsletterRouteDeps } from "./deps";
+import type { RouteRegistrar } from "../../types.js";
+import type { NewsletterRouteDeps } from "./deps.js";
 
 /** `LIST_SEND_LOG` (api.spec.md §1) — `GET .../newsletter/campaigns/:id/sends`. `admin.newsletter.subscriber.read`-gated (PII-adjacent). */
 export const registerAdminNewsletterListSendLogRoute: RouteRegistrar = (app, routeDeps) => {

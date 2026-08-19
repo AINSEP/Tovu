@@ -1,6 +1,6 @@
 import { toAdminFormDefinitionResponse } from "#src/server/http/admin/forms";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { FormsRouteRegistrar } from "./deps";
+import type { FormsRouteRegistrar } from "./deps.js";
 
 /** GET one form definition by id (`FORMS_GET_DEFINITION`, REQ-04). */
 export const registerAdminFormsGetRoute: FormsRouteRegistrar = (app, deps) => {

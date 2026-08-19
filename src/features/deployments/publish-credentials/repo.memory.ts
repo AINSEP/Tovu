@@ -1,6 +1,6 @@
 import type { UUID } from "@jini-ai/cms/core";
 
-import type { PublishCredentialSetRecord, PublishCredentialSetRepoPort, PublishProviderId } from "./types";
+import type { PublishCredentialSetRecord, PublishCredentialSetRepoPort, PublishProviderId } from "./types.js";
 
 /**
  * @file `PublishCredentialSetRepoPort`'s in-memory adapter — the ADR-006 rule-of-two test double,

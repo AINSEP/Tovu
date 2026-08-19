@@ -2,7 +2,7 @@ import type { Express } from "express";
 
 import { MemberValidationError, requestSignInLink } from "#src/members/index";
 import { resolveClientIp } from "#src/core/rate-limit/rate-limit";
-import { toPublicMembersWriteServiceDeps, type MemberPublicRouteDeps } from "./deps";
+import { toPublicMembersWriteServiceDeps, type MemberPublicRouteDeps } from "./deps.js";
 
 /**
  * @file `POST /api/members/v1/workspaces/:workspaceId/sign-in` — the new

@@ -1,6 +1,6 @@
 import type { Express } from "express";
 
-import type { RouteDeps } from "../../types";
+import type { RouteDeps } from "../../types.js";
 
 /**
  * @file Narrow `RouteDeps` slice for the `external-mcp` server module, in the shape

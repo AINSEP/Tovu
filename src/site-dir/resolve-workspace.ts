@@ -1,7 +1,7 @@
-import type { ContentDb } from "../db/sqlite/content-db";
-import { workspaces } from "../db/schema";
-import type { WorkspaceRecord } from "../features/workspace";
-import { SiteCorruptError, ValidationError } from "./errors";
+import type { ContentDb } from "../db/sqlite/content-db.js";
+import { workspaces } from "../db/schema.js";
+import type { WorkspaceRecord } from "../features/workspace/index.js";
+import { SiteCorruptError, ValidationError } from "./errors.js";
 
 /**
  * @file SPEC-003 C-005 — `resolveWorkspace`, the single source of truth for resolving which

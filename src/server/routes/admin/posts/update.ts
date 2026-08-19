@@ -14,7 +14,7 @@ import {
   rejectOversizedJsonBody,
 } from "#src/server/middleware/body-size-limit";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { ContentRouteRegistrar } from "../content/deps";
+import type { ContentRouteRegistrar } from "../content/deps.js";
 
 /**
  * PUT post — routed through the command gateway (SPEC-001 REQ-04).

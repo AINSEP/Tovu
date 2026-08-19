@@ -1,5 +1,5 @@
 import type { SettingScope, SettingsWriteServiceDeps } from "#src/features/settings/index";
-import type { SettingsRouteDeps } from "./deps";
+import type { SettingsRouteDeps } from "./deps.js";
 
 /**
  * @file Shared plumbing for the `settings` admin route registrars

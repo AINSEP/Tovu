@@ -1,6 +1,6 @@
 import { toAdminFormSubmissionListResponse } from "#src/server/http/admin/forms";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { FormsRouteRegistrar } from "./deps";
+import type { FormsRouteRegistrar } from "./deps.js";
 
 const DEFAULT_LIMIT = 50;
 const MIN_LIMIT = 1;

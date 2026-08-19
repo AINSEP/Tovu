@@ -1,6 +1,6 @@
 import { toAdminDeliveryResponse } from "#src/server/http/admin/integrations";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { IntegrationsRouteRegistrar } from "./deps";
+import type { IntegrationsRouteRegistrar } from "./deps.js";
 
 /** Default page size when the caller doesn't pass `?limit=`. */
 const DEFAULT_DELIVERIES_PAGE_SIZE = 50;

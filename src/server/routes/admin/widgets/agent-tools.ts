@@ -16,7 +16,7 @@ import {
   widgetErrorToResponse,
 } from "#src/server/http/admin/widgets";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { RouteDeps, RouteRegistrar } from "../../types";
+import type { RouteDeps, RouteRegistrar } from "../../types.js";
 
 /**
  * @file The `widgets.place` / `widgets.create` / `widgets.remove` / `widgets.diagnose` AI tool

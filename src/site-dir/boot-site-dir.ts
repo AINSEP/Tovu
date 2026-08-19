@@ -1,14 +1,14 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { openContentDb, type ContentDb } from "../db/sqlite/content-db";
-import { writeJsonFileAtomic } from "./atomic-write";
-import { SiteCorruptError, SiteDirInvalidError } from "./errors";
-import { readSiteDir } from "./read-site-dir";
-import { resolveInstallDirTarget } from "./resolve-install-dir-target";
-import { resolveWorkspace } from "./resolve-workspace";
-import { compareSchemaVersion, runtimeSchemaVersion } from "./schema-guard";
-import type { ConfigJson, SiteMetaJson } from "./types";
+import { openContentDb, type ContentDb } from "../db/sqlite/content-db.js";
+import { writeJsonFileAtomic } from "./atomic-write.js";
+import { SiteCorruptError, SiteDirInvalidError } from "./errors.js";
+import { readSiteDir } from "./read-site-dir.js";
+import { resolveInstallDirTarget } from "./resolve-install-dir-target.js";
+import { resolveWorkspace } from "./resolve-workspace.js";
+import { compareSchemaVersion, runtimeSchemaVersion } from "./schema-guard.js";
+import type { ConfigJson, SiteMetaJson } from "./types.js";
 
 /**
  * @file SPEC-003 C-008 — `bootSiteDir`, `tovu serve`'s validate -> guard -> migrate+stamp ->

@@ -2,7 +2,7 @@ import type { Express } from "express";
 
 import { resolveDeepLinkContext, type DatabaseContextEnvelope } from "#src/features/recovery/deep-link";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { DatabaseRecoveryRouteDeps } from "../database-recovery/deps";
+import type { DatabaseRecoveryRouteDeps } from "../database-recovery/deps.js";
 
 /**
  * @file design-spec.md §4.5/§4.8 — `POST /api/admin/v1/recovery/deep-link` (re-resolves a

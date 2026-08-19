@@ -2,7 +2,7 @@ import type { Express } from "express";
 
 import { listContentTypes } from "#src/features/content-types/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { ContentTypesRouteDeps } from "./deps";
+import type { ContentTypesRouteDeps } from "./deps.js";
 
 /**
  * @file design-spec.md §1.9 — `GET /api/admin/v1/content-types` (Collections' content-type

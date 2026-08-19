@@ -3,8 +3,8 @@ import type { Express } from "express";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { RateLimiter } from "#src/core/rate-limit/rate-limit";
 import { resolveClientIp } from "#src/core/rate-limit/rate-limit";
-import type { ConnectorsRouteDeps, ConnectorsRouteRegistrar } from "./deps";
-import { sendConnectorError } from "./errors";
+import type { ConnectorsRouteDeps, ConnectorsRouteRegistrar } from "./deps.js";
+import { sendConnectorError } from "./errors.js";
 
 /**
  * POST to disconnect a connector, and POST to cancel an in-flight authorization.

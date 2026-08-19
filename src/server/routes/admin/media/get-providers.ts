@@ -1,6 +1,6 @@
 import { getMediaProviderCredentials } from "#src/media/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { MediaProviderRouteRegistrar } from "./deps";
+import type { MediaProviderRouteRegistrar } from "./deps.js";
 
 /**
  * GET the workspace's media-generation vendor credentials, as markers only — never key material.

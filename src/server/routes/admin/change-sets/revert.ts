@@ -7,7 +7,7 @@ import {
 } from "#src/core/commands/index";
 import { toChangeSetHeaderResponse } from "#src/server/http/admin/change-sets";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { ContentRouteRegistrar } from "../content/deps";
+import type { ContentRouteRegistrar } from "../content/deps.js";
 
 /**
  * POST revert an applied change set (SPEC-001 REQ-07/08/10).

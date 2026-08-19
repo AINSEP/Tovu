@@ -1,7 +1,7 @@
 import { MediaNotFoundError, MediaValidationError, updateMediaMetadata } from "#src/media/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import { toAdminMediaResponse } from "#src/server/http/admin/media";
-import type { MediaRouteRegistrar } from "./deps";
+import type { MediaRouteRegistrar } from "./deps.js";
 
 /**
  * PATCH media metadata (title/alt/caption/credit only — `source.sha256` is

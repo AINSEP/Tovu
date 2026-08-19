@@ -1,6 +1,6 @@
 import type { UUID } from "@jini-ai/cms/core";
 
-import type { SourceControlCredentialSetRecord, SourceControlCredentialSetRepoPort, SourceControlProviderId } from "./types";
+import type { SourceControlCredentialSetRecord, SourceControlCredentialSetRepoPort, SourceControlProviderId } from "./types.js";
 
 /**
  * @file `SourceControlCredentialSetRepoPort`'s in-memory adapter — the ADR-006 rule-of-two test

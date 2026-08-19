@@ -13,8 +13,8 @@ import {
 import type { ExportReport, ExportSiteOptions } from "#src/export/index";
 import type { RouteDeps } from "#src/server/routes/types";
 
-import { S3CompatibleDeployTarget, type S3CompatibleTargetConfig } from "./s3-compatible-target";
-import type { GitHubPagesPublishConfig, PublishCredentialSource, StaticPublishConfig, StaticPublishOutcome, StaticPublishTargetId } from "./types";
+import { S3CompatibleDeployTarget, type S3CompatibleTargetConfig } from "./s3-compatible-target.js";
+import type { GitHubPagesPublishConfig, PublishCredentialSource, StaticPublishConfig, StaticPublishOutcome, StaticPublishTargetId } from "./types.js";
 
 /**
  * @file Wraps `@jini-ai/devops/deploy`'s `GitHubPagesDeployTarget`/`VercelDeployTarget` to publish

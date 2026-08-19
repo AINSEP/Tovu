@@ -1,7 +1,7 @@
 import { saveSubscription } from "#src/newsletter/subscriptions";
 import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond, toDataResponse } from "#src/server/http/admin/newsletter";
-import type { RouteRegistrar } from "../../types";
-import { toSubscriptionsDeps, type NewsletterRouteDeps } from "./deps";
+import type { RouteRegistrar } from "../../types.js";
+import { toSubscriptionsDeps, type NewsletterRouteDeps } from "./deps.js";
 
 const VALID_SOURCES = new Set(["admin", "import", "api"]);
 

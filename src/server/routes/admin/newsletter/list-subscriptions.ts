@@ -1,6 +1,6 @@
 import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond, toDataResponse } from "#src/server/http/admin/newsletter";
-import type { RouteRegistrar } from "../../types";
-import type { NewsletterRouteDeps } from "./deps";
+import type { RouteRegistrar } from "../../types.js";
+import type { NewsletterRouteDeps } from "./deps.js";
 
 /** `LIST_SUBSCRIPTIONS` (api.spec.md §1) — `GET .../newsletter/lists/:listId/subscriptions`. `admin.newsletter.subscriber.read`-gated. */
 export const registerAdminNewsletterListSubscriptionsRoute: RouteRegistrar = (app, routeDeps) => {

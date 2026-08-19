@@ -14,11 +14,11 @@ import { buildConfirmationSurface, type UIResource, type UIResourceUri } from "@
 
 import type { RouteDeps } from "#src/server/routes/types";
 
-import { askOnce, SURFACE_EXCHANGE_ID_PARAM, type AssistantSurfaceDeps, type SurfaceExchange } from "../../core/tool-surface-exchanges";
+import { askOnce, SURFACE_EXCHANGE_ID_PARAM, type AssistantSurfaceDeps, type SurfaceExchange } from "../../core/tool-surface-exchanges.js";
 import { registerToolContributor } from "#src/assistant/index";
-import { commitSiteToSourceControl, validateCommitTarget, type GitHubCommitAdapter } from "./commit-site";
-import { listSourceControlCredentials } from "./store";
-import type { SourceControlProviderId } from "./types";
+import { commitSiteToSourceControl, validateCommitTarget, type GitHubCommitAdapter } from "./commit-site.js";
+import { listSourceControlCredentials } from "./store.js";
+import type { SourceControlProviderId } from "./types.js";
 
 /**
  * @file This domain's agent-tool catalog + wiring — mirrors `features/deployments/

@@ -1,8 +1,8 @@
 import type { Express } from "express";
-import type { SiteProduct } from "../http/site/render";
+import type { SiteProduct } from "../http/site/render.js";
 
 import type { EventBusPort, OutboxPort, UUID } from "@jini-ai/cms/core";
-import type { AuthorizeFn, ChangeSetRepoPort, RevertRegistry } from "../../core/commands";
+import type { AuthorizeFn, ChangeSetRepoPort, RevertRegistry } from "../../core/commands/index.js";
 import type {
   PasswordHasherPort,
   PolicyPermissionRepoPort,
@@ -15,38 +15,38 @@ import type {
   SessionRepoPort,
   UserRepoPort,
 } from "@jini-ai/cms/identity";
-import type { LipayApi } from "../../features/plugins/lipay/lipay-plugin";
-import type { PostRepoPort, PostSearchPort, BeforeSaveHookPort } from "../../features/post";
-import type { PagesHtmlDocumentStoreFactory } from "../../features/pages";
-import type { ChatStoreFactory } from "../../assistant/persistence/tenant-scope";
-import type { PresentationSettingsRepoPort } from "../../features/presentation";
-import type { SettingsRepoPort, getEffective, set } from "../../features/settings";
-import type { DiscoveredTheme } from "../../features/theme";
-import type { WorkspaceRepoPort } from "../../features/workspace";
-import type { AnalyticsConfigPort, AnalyticsSinkPort } from "../../analytics/index";
+import type { LipayApi } from "../../features/plugins/lipay/lipay-plugin.js";
+import type { PostRepoPort, PostSearchPort, BeforeSaveHookPort } from "../../features/post/index.js";
+import type { PagesHtmlDocumentStoreFactory } from "../../features/pages/index.js";
+import type { ChatStoreFactory } from "../../assistant/persistence/tenant-scope.js";
+import type { PresentationSettingsRepoPort } from "../../features/presentation/index.js";
+import type { SettingsRepoPort, getEffective, set } from "../../features/settings/index.js";
+import type { DiscoveredTheme } from "../../features/theme/index.js";
+import type { WorkspaceRepoPort } from "../../features/workspace/index.js";
+import type { AnalyticsConfigPort, AnalyticsSinkPort } from "../../analytics/index.js";
 import type {
   MagicLinkTokenRepoPort,
   MemberRepoPort,
   MemberSessionRepoPort,
   MemberSubscriptionRepoPort,
   MemberTierRepoPort,
-} from "../../members";
-import type { CommercePriceRepoPort, CommerceProductRepoPort } from "../../features/commerce";
-import type { MailerPort } from "../../mail";
-import type { MenuRepoPort, NavLocationBindingRepoPort } from "../../navigation";
-import type { KeyringPort, SecretSealerPort, WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "../../webhooks";
-import type { WebhookSigner } from "../../webhooks/signing";
-import type { SiteAssistantCredentialRepoPort } from "../../assistant/site-credential-store";
-import type { AdminExecutionCredentialRepoPort } from "../../assistant/execution-credential-store";
-import type { PublishCredentialSetRepoPort, PublishExecutionMode } from "../../features/deployments/publish-credentials/index";
-import type { PublishCredentialVerificationCache, PublishHistoryStore } from "../../features/deployments/static-publish/index";
-import type { CustomCredentialSetRepoPort } from "../../features/custom-credentials";
-import type { SourceControlCredentialSetRepoPort } from "../../features/source-control";
-import type { VendorCredentialSetRepoPort } from "../../features/vendor-credentials";
-import type { ComposioConfigRepoPort } from "../../connectors/composio-config-store";
-import type { ComposioConnectors } from "../../connectors/composio-service";
-import type { MediaProviderCredentialRepoPort } from "../../media/index";
-import type { ExternalMcpServerRepoPort } from "../../assistant/external-mcp-store";
+} from "../../members/index.js";
+import type { CommercePriceRepoPort, CommerceProductRepoPort } from "../../features/commerce/index.js";
+import type { MailerPort } from "../../mail/index.js";
+import type { MenuRepoPort, NavLocationBindingRepoPort } from "../../navigation/index.js";
+import type { KeyringPort, SecretSealerPort, WebhookDeliveryRepoPort, WebhookSubscriptionRepoPort } from "../../webhooks/index.js";
+import type { WebhookSigner } from "../../webhooks/signing.js";
+import type { SiteAssistantCredentialRepoPort } from "../../assistant/site-credential-store.js";
+import type { AdminExecutionCredentialRepoPort } from "../../assistant/execution-credential-store.js";
+import type { PublishCredentialSetRepoPort, PublishExecutionMode } from "../../features/deployments/publish-credentials/index.js";
+import type { PublishCredentialVerificationCache, PublishHistoryStore } from "../../features/deployments/static-publish/index.js";
+import type { CustomCredentialSetRepoPort } from "../../features/custom-credentials/index.js";
+import type { SourceControlCredentialSetRepoPort } from "../../features/source-control/index.js";
+import type { VendorCredentialSetRepoPort } from "../../features/vendor-credentials/index.js";
+import type { ComposioConfigRepoPort } from "../../connectors/composio-config-store.js";
+import type { ComposioConnectors } from "../../connectors/composio-service.js";
+import type { MediaProviderCredentialRepoPort } from "../../media/index.js";
+import type { ExternalMcpServerRepoPort } from "../../assistant/external-mcp-store.js";
 import type {
   AssetBlobRepoPort,
   AssetRenditionRepoPort,
@@ -54,29 +54,29 @@ import type {
   ImageTransformerPort,
   MediaRepoPort,
   TransformDefinitionRepoPort,
-} from "../../media";
-import type { OriginRegistryPort } from "../../origin";
-import type { RedirectHitSink, RedirectRepoPort, RedirectsWriteDeps } from "../../redirects";
-import type { FormDefinitionRepoPort, FormSubmissionRepoPort } from "../../forms";
-import type { CommentIngressPolicy, CommentRepoPort, CommentWriteService } from "../../comments";
+} from "../../media/index.js";
+import type { OriginRegistryPort } from "../../origin/index.js";
+import type { RedirectHitSink, RedirectRepoPort, RedirectsWriteDeps } from "../../redirects/index.js";
+import type { FormDefinitionRepoPort, FormSubmissionRepoPort } from "../../forms/index.js";
+import type { CommentIngressPolicy, CommentRepoPort, CommentWriteService } from "../../comments/index.js";
 import type { RateLimiter } from "#src/core/rate-limit/rate-limit";
-import type { LedgerReadPort } from "../../features/database/timeline";
+import type { LedgerReadPort } from "../../features/database/timeline.js";
 import type {
   RestorePointListPort,
   RestorePointSavePort,
-} from "../../features/database/restore-points";
-import type { DatabaseIntrospectionPort } from "../../features/database/adapter.sqlite";
+} from "../../features/database/restore-points.js";
+import type { DatabaseIntrospectionPort } from "../../features/database/adapter.sqlite.js";
 import type {
   BootLedgerPort,
   MigrationRunsRepoPort,
   SiteStatusPort,
-} from "../../features/database/boot/reconcile-interrupted-migration";
-import type { DbOpsPort } from "../../core/gated-mutations/ports";
-import type { ContentTypeRepoPort, IndexProvisionerPort } from "../../features/content-types";
-import type { TeardownIndexProvisionerPort } from "../../features/content-types";
-import type { ContentTypeListPort } from "../../features/content-types";
-import type { EntryRepoPort } from "../../features/entries";
-import type { EntryListPort } from "../../features/entries";
+} from "../../features/database/boot/reconcile-interrupted-migration.js";
+import type { DbOpsPort } from "../../core/gated-mutations/ports.js";
+import type { ContentTypeRepoPort, IndexProvisionerPort } from "../../features/content-types/index.js";
+import type { TeardownIndexProvisionerPort } from "../../features/content-types/index.js";
+import type { ContentTypeListPort } from "../../features/content-types/index.js";
+import type { EntryRepoPort } from "../../features/entries/index.js";
+import type { EntryListPort } from "../../features/entries/index.js";
 import type {
   AssignmentCountEntryTermRepoPort,
   DeletableTaxonomyRepoPort,
@@ -88,17 +88,17 @@ import type {
   TermListPort,
   TermRepoPort,
   TransactionalRepoPort,
-} from "../../features/taxonomy";
-import type { DisclosureWatermarkSourcePort } from "../../features/recovery/disclosure";
-import type { DeepLinkRestorePointLookupPort } from "../../features/recovery/deep-link";
-import type { GatewayDeps } from "../../core/gated-mutations/gateway";
-import type { LedgerAppendPort } from "../../features/database/gated-hooks";
-import type { MergeableEntryTermRepoPort } from "../../features/taxonomy/gated-hooks";
-import type { WidgetRegionBindingRepoPort } from "../../widgets/ports";
-import type { EntryRefsRepoPort } from "../../core/entry-refs/ports";
-import type { PluginActivationRepoPort } from "../../features/plugin-runtime/activation";
-import type { PluginDiscoveryRecord } from "../../features/plugin-runtime/discovery";
-import type { DeploymentsReadRepoPort, ExportEngine } from "../../features/deployments";
+} from "../../features/taxonomy/index.js";
+import type { DisclosureWatermarkSourcePort } from "../../features/recovery/disclosure.js";
+import type { DeepLinkRestorePointLookupPort } from "../../features/recovery/deep-link.js";
+import type { GatewayDeps } from "../../core/gated-mutations/gateway.js";
+import type { LedgerAppendPort } from "../../features/database/gated-hooks.js";
+import type { MergeableEntryTermRepoPort } from "../../features/taxonomy/gated-hooks.js";
+import type { WidgetRegionBindingRepoPort } from "../../widgets/ports.js";
+import type { EntryRefsRepoPort } from "../../core/entry-refs/ports.js";
+import type { PluginActivationRepoPort } from "../../features/plugin-runtime/activation.js";
+import type { PluginDiscoveryRecord } from "../../features/plugin-runtime/discovery.js";
+import type { DeploymentsReadRepoPort, ExportEngine } from "../../features/deployments/index.js";
 
 /**
  * Slice 1 of the `RouteDeps` god-object decomposition (2026-08-18) — the process-wide clock + id-gen

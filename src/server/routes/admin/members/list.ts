@@ -2,7 +2,7 @@ import type { MemberRecord } from "#src/members/index";
 import { toAdminMemberResponse } from "#src/server/http/admin/members";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { RouteRegistrar } from "#src/server/routes/types";
-import type { MembersRouteDeps } from "./deps";
+import type { MembersRouteDeps } from "./deps.js";
 
 /**
  * GET members — list a workspace's members for the admin UI (all statuses,

@@ -1,14 +1,14 @@
 import type { ClockPort, ISODateTime, UUID } from "@jini-ai/cms/core";
 
-import type { KeyringPort, SecretSealerPort } from "../../../webhooks/index";
-import { buildPublishCredentialAad } from "./aad";
+import type { KeyringPort, SecretSealerPort } from "../../../webhooks/index.js";
+import { buildPublishCredentialAad } from "./aad.js";
 import type {
   PublishConnectionInput,
   PublishCredentialSetRecord,
   PublishCredentialSetRepoPort,
   PublishCredentialSummary,
   PublishProviderId,
-} from "./types";
+} from "./types.js";
 
 /**
  * @file Two strictly separated operations on `publish_credential_sets`, per this dispatch's brief and

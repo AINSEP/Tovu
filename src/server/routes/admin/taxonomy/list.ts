@@ -2,7 +2,7 @@ import type { Express } from "express";
 
 import { listTaxonomiesWithTerms } from "#src/features/taxonomy/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { TaxonomyRouteDeps } from "./deps";
+import type { TaxonomyRouteDeps } from "./deps.js";
 
 /**
  * @file design-spec.md §2.2/§2.8 — `GET /api/admin/v1/taxonomy` (Categories & Tags' two-pane

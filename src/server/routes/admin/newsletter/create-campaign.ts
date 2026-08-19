@@ -1,8 +1,8 @@
 import { saveCampaign } from "#src/newsletter/campaign-write-service";
 import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond, toDataResponse } from "#src/server/http/admin/newsletter";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { RouteRegistrar } from "../../types";
-import { toCampaignWriteServiceDeps, type NewsletterRouteDeps } from "./deps";
+import type { RouteRegistrar } from "../../types.js";
+import { toCampaignWriteServiceDeps, type NewsletterRouteDeps } from "./deps.js";
 
 /**
  * `CREATE_CAMPAIGN` (api.spec.md §1/§4) — `POST .../newsletter/campaigns`, creates a `draft`

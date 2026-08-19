@@ -12,7 +12,7 @@ import {
   rejectOversizedJsonBody,
 } from "#src/server/middleware/body-size-limit";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { ContentRouteDeps, ContentRouteRegistrar } from "../content/deps";
+import type { ContentRouteDeps, ContentRouteRegistrar } from "../content/deps.js";
 
 /**
  * The permission this route checks. Named once so the gate, the 403 body, and the test that asserts

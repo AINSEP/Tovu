@@ -1,6 +1,6 @@
 import type { UUID } from "@jini-ai/cms/core";
 
-import type { DeploymentRunRecord, DeploymentTargetRecord, EnvironmentRecord, ReleaseRecord } from "./types";
+import type { DeploymentRunRecord, DeploymentTargetRecord, EnvironmentRecord, ReleaseRecord } from "./types.js";
 
 /**
  * @file The deployments feature's READ-ONLY persistence port (2026-08-15 — closes the "zero

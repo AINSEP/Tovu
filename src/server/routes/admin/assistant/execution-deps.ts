@@ -1,6 +1,6 @@
 import type { Express } from "express";
 
-import type { RouteDeps } from "../../types";
+import type { RouteDeps } from "../../types.js";
 
 /**
  * @file Narrow `RouteDeps` slice for the 3 "Execution mode" probe routes

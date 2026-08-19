@@ -3,8 +3,8 @@ import Handlebars from "handlebars";
 
 import type { JsonObject } from "@jini-ai/cms/core";
 import { lintHandlebarsTemplate } from "#src/features/theme/index";
-import { buildTemplateRenderData, renderBlockSeam, type SiteRenderContext } from "./render";
-import type { HandlebarsWorkerInput, HandlebarsWorkerResult } from "./handlebars-sandbox";
+import { buildTemplateRenderData, renderBlockSeam, type SiteRenderContext } from "./render.js";
+import type { HandlebarsWorkerInput, HandlebarsWorkerResult } from "./handlebars-sandbox.js";
 
 /**
  * @file `worker_threads` entry point that actually compiles and runs Handlebars

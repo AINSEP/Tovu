@@ -1,7 +1,7 @@
 import type { Express } from "express";
 
 import type { ComposioConnectors } from "#src/connectors/composio-service";
-import { COMPOSIO_CALLBACK_PATH } from "../admin/connectors/callback-url";
+import { COMPOSIO_CALLBACK_PATH } from "../admin/connectors/callback-url.js";
 import type { RateLimiter } from "#src/core/rate-limit/rate-limit";
 import { resolveClientIp } from "#src/core/rate-limit/rate-limit";
 

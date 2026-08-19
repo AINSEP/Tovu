@@ -1,7 +1,7 @@
 import { resumeCampaign } from "#src/newsletter/send-pipeline";
 import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond, toDataResponse } from "#src/server/http/admin/newsletter";
-import type { RouteRegistrar } from "../../types";
-import { toSendPipelineDeps, type NewsletterRouteDeps } from "./deps";
+import type { RouteRegistrar } from "../../types.js";
+import { toSendPipelineDeps, type NewsletterRouteDeps } from "./deps.js";
 
 /** `RESUME_CAMPAIGN` (api.spec.md §1) — `POST .../campaigns/:id/resume`, `paused` -> `sending`. `admin.newsletter.campaign.send`-gated. */
 export const registerAdminNewsletterResumeCampaignRoute: RouteRegistrar = (app, routeDeps) => {

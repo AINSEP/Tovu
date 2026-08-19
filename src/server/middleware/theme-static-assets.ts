@@ -3,7 +3,7 @@ import path from "node:path";
 import express from "express";
 import type { Express } from "express";
 
-import { themeAssetSecurityHeaders } from "./theme-content-security-headers";
+import { themeAssetSecurityHeaders } from "./theme-content-security-headers.js";
 
 /**
  * @file Serves a theme's own files at `/theme-assets/{themeId}/...` — originally `static`-tier only

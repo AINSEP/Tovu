@@ -1,7 +1,7 @@
 import type { UUID } from "@jini-ai/cms/core";
 
-import type { StaticPublishTargetId } from "./types";
-import { resolvePublishHistoryListLimit } from "../../../core/publish-history-list-limit";
+import type { StaticPublishTargetId } from "./types.js";
+import { resolvePublishHistoryListLimit } from "../../../core/publish-history-list-limit.js";
 
 /**
  * @file Durable, append-only publish-history ledger — the fix for Defect 2 (2026-08-16 live-publish

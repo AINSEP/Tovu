@@ -1,6 +1,6 @@
-import { publishStaticSite, type StaticPublishDeps, type StaticPublishInput } from "./adapter";
-import type { PublishHistoryEntry, PublishHistoryStore, PublishTrigger } from "./publish-history";
-import type { StaticPublishOutcome, StaticPublishTargetId } from "./types";
+import { publishStaticSite, type StaticPublishDeps, type StaticPublishInput } from "./adapter.js";
+import type { PublishHistoryEntry, PublishHistoryStore, PublishTrigger } from "./publish-history.js";
+import type { StaticPublishOutcome, StaticPublishTargetId } from "./types.js";
 
 /**
  * @file This sub-feature's process-local single-flight state for a real publish, extracted out of

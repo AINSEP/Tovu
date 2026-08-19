@@ -9,7 +9,7 @@ import {
 import { PluginLoadError } from "#src/features/plugin-runtime/loader";
 import { toAdminPluginResponse } from "#src/server/http/admin/plugins";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { PluginsRouteRegistrar } from "./deps";
+import type { PluginsRouteRegistrar } from "./deps.js";
 
 /**
  * @file `PLUGIN_SET_ENABLED` — `PATCH /api/admin/v1/workspaces/:workspaceId/plugins/:pluginId`

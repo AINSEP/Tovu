@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 
 import { assertNotRedirected, DeployError, redirectGuardInit } from "@jini-ai/devops/deploy";
 
-import type { CommitFile, GitHubCommitAdapter, GitHubCommitAdapterResult } from "./commit-site";
+import type { CommitFile, GitHubCommitAdapter, GitHubCommitAdapterResult } from "./commit-site.js";
 
 /**
  * @file The real GitHub Git Data API adapter — the ONLY file in this feature that calls GitHub's

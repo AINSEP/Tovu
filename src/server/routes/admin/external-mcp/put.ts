@@ -3,8 +3,8 @@ import {
   ExternalMcpValidationError,
   saveExternalMcpServer,
 } from "#src/assistant/index";
-import type { ExternalMcpRouteRegistrar } from "./deps";
-import { guardExternalMcpRequest } from "./guard";
+import type { ExternalMcpRouteRegistrar } from "./deps.js";
+import { guardExternalMcpRequest } from "./guard.js";
 
 /**
  * PUT one external MCP server — creates it, or replaces the stored row for an existing id.

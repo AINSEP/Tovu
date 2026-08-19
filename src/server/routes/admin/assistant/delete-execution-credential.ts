@@ -1,6 +1,6 @@
 import { deleteExecutionCredential } from "#src/assistant/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { AssistantSettingsRouteRegistrar } from "./deps";
+import type { AssistantSettingsRouteRegistrar } from "./deps.js";
 
 /**
  * DELETE the calling admin's OWN BYOK execution credential — clears the stored key only.

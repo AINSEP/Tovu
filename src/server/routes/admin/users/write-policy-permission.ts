@@ -7,7 +7,7 @@ import {
   writePolicyPermission,
 } from "@jini-ai/cms/identity";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps";
+import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
 
 /**
  * POST policies/:policyId/permissions — `WRITE_POLICY_PERMISSION` (SPEC-006 0.6.0, INV-07 — first

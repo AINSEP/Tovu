@@ -12,7 +12,7 @@ import {
   TermRecordNotFoundError,
 } from "#src/features/taxonomy/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { TaxonomyRouteDeps } from "./deps";
+import type { TaxonomyRouteDeps } from "./deps.js";
 
 function statusFor(err: unknown): { status: number; code: string; message: string } {
   if (err instanceof ForbiddenError) return { status: 403, code: "FORBIDDEN", message: err.message };

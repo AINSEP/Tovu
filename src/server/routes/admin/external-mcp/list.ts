@@ -1,6 +1,6 @@
 import { listExternalMcpServerViews } from "#src/assistant/index";
-import type { ExternalMcpRouteRegistrar } from "./deps";
-import { guardExternalMcpRequest } from "./guard";
+import type { ExternalMcpRouteRegistrar } from "./deps.js";
+import { guardExternalMcpRequest } from "./guard.js";
 
 /**
  * GET the workspace's configured external MCP servers, for Settings → External MCP.

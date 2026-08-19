@@ -2,7 +2,7 @@ import type { Express } from "express";
 
 import { consumeConfirmationToken } from "#src/newsletter/confirmation";
 import { NewsletterConfirmTokenInvalidError } from "#src/newsletter/index";
-import { toPublicConfirmationDeps, type NewsletterPublicRouteDeps } from "./newsletter-deps";
+import { toPublicConfirmationDeps, type NewsletterPublicRouteDeps } from "./newsletter-deps.js";
 
 /**
  * @file `CONFIRM_SUBSCRIPTION` (api.spec.md §1a) — `GET /newsletter/confirm?token=...`. Public,

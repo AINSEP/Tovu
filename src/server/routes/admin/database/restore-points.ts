@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 
 import { listRestorePoints, createRestorePoint, RestorePointUnavailableError, ValidationError } from "#src/features/database/restore-points";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { DatabaseRecoveryRouteDeps } from "../database-recovery/deps";
+import type { DatabaseRecoveryRouteDeps } from "../database-recovery/deps.js";
 
 /**
  * @file design-spec.md §3.2/§3.8 — `GET /api/admin/v1/database/restore-points` (newest-first

@@ -6,7 +6,7 @@ import {
 } from "@jini-ai/cms/identity";
 import { toAdminPolicyResponse } from "#src/server/http/admin/users";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps";
+import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
 
 /**
  * PATCH policies/:policyId — `UPDATE_POLICY` (SPEC-006 0.6.0, REQ-18) — rename/re-describe a

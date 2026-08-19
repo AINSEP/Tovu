@@ -5,7 +5,7 @@ import {
 } from "@jini-ai/cms/identity";
 import { toAdminPolicyResponse } from "#src/server/http/admin/users";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps";
+import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
 
 /**
  * POST policies — `CREATE_POLICY` (state.spec §3). Gated by `role.manage`;

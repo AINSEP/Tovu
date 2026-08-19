@@ -1,6 +1,6 @@
 import { toAdminRoleResponse } from "#src/server/http/admin/users";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { UsersRouteRegistrar } from "./deps";
+import type { UsersRouteRegistrar } from "./deps.js";
 
 /**
  * GET roles — list a workspace's roles (built-in + custom) for the Users admin screen's role

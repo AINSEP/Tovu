@@ -1,7 +1,7 @@
 import { pauseCampaign } from "#src/newsletter/send-pipeline";
 import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond, toDataResponse } from "#src/server/http/admin/newsletter";
-import type { RouteRegistrar } from "../../types";
-import { toSendPipelineDeps, type NewsletterRouteDeps } from "./deps";
+import type { RouteRegistrar } from "../../types.js";
+import { toSendPipelineDeps, type NewsletterRouteDeps } from "./deps.js";
 
 /** `PAUSE_CAMPAIGN` (api.spec.md §1) — `POST .../campaigns/:id/pause`, `sending` -> `paused`. `admin.newsletter.campaign.send`-gated. */
 export const registerAdminNewsletterPauseCampaignRoute: RouteRegistrar = (app, routeDeps) => {

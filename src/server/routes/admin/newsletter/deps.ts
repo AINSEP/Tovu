@@ -31,7 +31,7 @@ import type { SendPipelineDeps } from "#src/newsletter/send-pipeline";
 import type { SubscriptionsDeps, UnsubscribeSubscriptionDeps } from "#src/newsletter/subscriptions";
 import type { UnsubscribeDeps } from "#src/newsletter/unsubscribe";
 import type { KeyringPort } from "#src/webhooks/index";
-import type { RouteDeps } from "../../types";
+import type { RouteDeps } from "../../types.js";
 
 export interface NewsletterRouteDeps extends RouteDeps {
   /** Fire-and-forget at boot (mirrors `settingsReady`/`menuBindingsReady`) — await before relying on the `p_newsletter__*` tables existing. */

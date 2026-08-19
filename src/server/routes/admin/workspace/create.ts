@@ -1,7 +1,7 @@
 import { processOutbox } from "#src/core/events/index";
 import { createWorkspace, WorkspaceConflictError, WorkspaceValidationError } from "#src/features/workspace/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { WorkspaceRouteRegistrar } from "./deps";
+import type { WorkspaceRouteRegistrar } from "./deps.js";
 
 /**
  * POST workspaces — `CREATE_WORKSPACE` (SPEC-044 REQ-01). Moved from the original unauthenticated

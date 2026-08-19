@@ -1,7 +1,7 @@
 import { deleteSubscription, WebhookSubscriptionNotFoundError } from "#src/webhooks/index";
 import { toAdminSubscriptionResponse } from "#src/server/http/admin/integrations";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { IntegrationsRouteRegistrar } from "./deps";
+import type { IntegrationsRouteRegistrar } from "./deps.js";
 
 /**
  * DELETE a webhook subscription. Soft-deletes (never row-deletes) — `deleteSubscription` sets

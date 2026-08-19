@@ -1,6 +1,6 @@
 import type { Express } from "express";
 
-import type { RouteDeps } from "../../types";
+import type { RouteDeps } from "../../types.js";
 
 /**
  * @file `RouteDeps` narrowing for the `workspace` admin routes (SPEC-044).

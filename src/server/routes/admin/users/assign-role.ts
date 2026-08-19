@@ -6,7 +6,7 @@ import {
   IdentityValidationError,
 } from "@jini-ai/cms/identity";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps";
+import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
 
 /**
  * POST users/:principalId/roles — `ASSIGN_ROLE` (state.spec §3, AC-24/AC-25).

@@ -8,7 +8,7 @@ import {
 import { invalidateSitemapCache } from "#src/seo/index";
 import { authorizeOrRespond } from "#src/server/http/responses/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { SeoRouteRegistrar } from "./deps";
+import type { SeoRouteRegistrar } from "./deps.js";
 
 /** Maps `setEntrySeoOverrides`/`getEntryMeta`'s known thrown error types to this route's documented
  *  4xx response shapes; any other error (including a real bug) falls through to a generic 500. */

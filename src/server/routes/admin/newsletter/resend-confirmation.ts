@@ -1,8 +1,8 @@
 import { issueConfirmationToken } from "#src/newsletter/confirmation";
 import { NewsletterSubscriptionNotFoundError } from "#src/newsletter/index";
 import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond } from "#src/server/http/admin/newsletter";
-import type { RouteRegistrar } from "../../types";
-import { toConfirmationDeps, type NewsletterRouteDeps } from "./deps";
+import type { RouteRegistrar } from "../../types.js";
+import { toConfirmationDeps, type NewsletterRouteDeps } from "./deps.js";
 
 /**
  * `RESEND_CONFIRMATION` (api.spec.md §1/§5) — `POST .../newsletter/subscriptions/:id/

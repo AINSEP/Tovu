@@ -1,7 +1,14 @@
+import { createRequire } from "node:module";
 import path from "node:path";
 import { Worker, type ResourceLimits } from "node:worker_threads";
 
-import type { SiteRenderContext } from "./render";
+import type { SiteRenderContext } from "./render.js";
+
+// ESM has no ambient `require`; this file's own worker-bootstrap string (below)
+// still needs `require.resolve` to locate `tsx/cjs/api` as a filesystem path
+// (not the `file://` URL `import.meta.resolve` would return), so a local
+// `require` is synthesized the standard Node way.
+const require = createRequire(import.meta.url);
 
 /**
  * @file ADR-020 Tier-2 guardrail: render isolation for LiquidJS templates.
@@ -58,11 +65,11 @@ const DEFAULT_RESOURCE_LIMITS: ResourceLimits = {
  * Construct the isolated `Worker` for one render, matching whichever runtime
  * is currently active.
  *
- * Under a `tsc` build (`npm run build` → `node dist/...`) `__filename` ends
- * in `.js`; the compiled `liquid-worker.js` sibling is a plain file `Worker`
+ * Under a `tsc` build (`npm run build` → `node dist/...`) `import.meta.filename`
+ * ends in `.js`; the compiled `liquid-worker.js` sibling is a plain file `Worker`
  * needs no special handling.
  *
- * Under `tsx` (dev / `npm test`) `__filename` ends in `.ts`. Passing the
+ * Under `tsx` (dev / `npm test`) `import.meta.filename` ends in `.ts`. Passing the
  * `.ts` sibling as the `Worker`'s *entry* file with `execArgv: ["--import",
  * "tsx"]` looks like the documented tsx pattern, but does not work here:
  * verified empirically that Node's ESM loader routes a CommonJS-typed `.ts`
@@ -80,11 +87,11 @@ const DEFAULT_RESOURCE_LIMITS: ResourceLimits = {
  * successfully under `--import tsx`.
  */
 function spawnLiquidWorker(workerData: LiquidWorkerInput, resourceLimits: ResourceLimits): Worker {
-  const isTsSource = __filename.endsWith(".ts");
+  const isTsSource = import.meta.filename.endsWith(".ts");
   if (!isTsSource) {
-    return new Worker(path.join(__dirname, "liquid-worker.js"), { workerData, resourceLimits });
+    return new Worker(path.join(import.meta.dirname, "liquid-worker.js"), { workerData, resourceLimits });
   }
-  const workerFile = path.join(__dirname, "liquid-worker.ts");
+  const workerFile = path.join(import.meta.dirname, "liquid-worker.ts");
   const tsxApiPath = require.resolve("tsx/cjs/api");
   const bootstrap = `require(${JSON.stringify(tsxApiPath)}).register();\nrequire(${JSON.stringify(workerFile)});\n`;
   return new Worker(bootstrap, { eval: true, workerData, resourceLimits });

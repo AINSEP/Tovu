@@ -1,9 +1,9 @@
 import type { Express, Response } from "express";
 
 import { completeSignIn, MemberAuthError, MemberNotFoundError } from "#src/members/index";
-import { toPublicMemberResponse } from "../../http/members";
+import { toPublicMemberResponse } from "../../http/members.js";
 import { resolveClientIp } from "#src/core/rate-limit/rate-limit";
-import { toPublicMembersWriteServiceDeps, type MemberPublicRouteDeps } from "./deps";
+import { toPublicMembersWriteServiceDeps, type MemberPublicRouteDeps } from "./deps.js";
 
 /**
  * ADR-030 §3: a DISTINCT cookie name from the admin `tovu_session` (which

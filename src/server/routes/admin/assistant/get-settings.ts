@@ -1,6 +1,6 @@
 import { ADMIN_ASSISTANT_PERMISSION, getPublicAssistantSettings } from "#src/assistant/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { AssistantSettingsRouteRegistrar } from "./deps";
+import type { AssistantSettingsRouteRegistrar } from "./deps.js";
 
 /**
  * GET the workspace's `site.assistant.*` settings — today, the public assistant's master on/off

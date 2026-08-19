@@ -5,7 +5,7 @@ import {
   resetUserPassword,
 } from "@jini-ai/cms/identity";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps";
+import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
 
 /**
  * POST users/:principalId/reset-password — `RESET_USER_PASSWORD` (SPEC-006 0.6.0, REQ-17). Gated

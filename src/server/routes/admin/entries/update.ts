@@ -4,7 +4,7 @@ import { ContentTypeNotActiveError, EntryFieldValidationError, EntryNotFoundErro
 import { toEntryOutbox } from "#src/features/entries/index";
 import { updateEntry } from "#src/features/entries/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { ContentTypesRouteDeps } from "../content-types/deps";
+import type { ContentTypesRouteDeps } from "../content-types/deps.js";
 
 function statusFor(error: Error): { status: number; code: string } {
   if (error instanceof ForbiddenError) return { status: 403, code: "FORBIDDEN" };

@@ -1,6 +1,6 @@
 import { MediaNotFoundError, MediaStillReferencedError, purgeMedia } from "#src/media/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { MediaRouteRegistrar } from "./deps";
+import type { MediaRouteRegistrar } from "./deps.js";
 
 /**
  * DELETE hard-purges a media asset — second rung of the ADR-027 §5 deletion

@@ -1,6 +1,6 @@
 import type { UUID } from "@jini-ai/cms/core";
 
-import type { SourceControlProviderId } from "./types";
+import type { SourceControlProviderId } from "./types.js";
 
 /**
  * @file The ONE place `source_control_credential_sets`' AES-GCM additional authenticated data

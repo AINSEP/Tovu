@@ -4,7 +4,7 @@ import { createSubscription, WebhookSubscriptionValidationError } from "#src/web
 import { toAdminSubscriptionResponse } from "#src/server/http/admin/integrations";
 import { authorizeOrRespond } from "#src/server/http/responses/authorize-guard";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { IntegrationsRouteRegistrar } from "./deps";
+import type { IntegrationsRouteRegistrar } from "./deps.js";
 
 /** Pulls the create-subscription fields out of the request body, applying the same
  *  string-coercion/defaulting `createSubscription`'s own validation expects (never throws —

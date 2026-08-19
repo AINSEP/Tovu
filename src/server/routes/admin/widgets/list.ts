@@ -1,7 +1,7 @@
 import { listWidgetInstances } from "#src/widgets/read-service";
 import { mapWidgetErrorToResponse } from "#src/server/http/admin/widgets";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { RouteRegistrar } from "../../types";
+import type { RouteRegistrar } from "../../types.js";
 
 /**
  * GET the widget instance library (SPEC-043 REQ-04), `widgets.read`-gated. Defaults to

@@ -2,7 +2,7 @@ import type { Express } from "express";
 
 import { listEntries } from "#src/features/entries/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { ContentTypesRouteDeps } from "../content-types/deps";
+import type { ContentTypesRouteDeps } from "../content-types/deps.js";
 
 /**
  * @file design-spec.md §1.4/§1.9 — `GET /api/admin/v1/entries?type=` (a Collection's entry list,
