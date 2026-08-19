@@ -680,12 +680,13 @@ test("GET themes lists discovered built-in themes, TB-01 ordered, exactly one ma
       "fashion-modern",
       "fuel",
       "gracious-timing",
-      // Added by 39096e15 (the ESM root flip) and never reflected here, which is what made this
-      // assertion fail. Its own manifest self-describes as a "Test theme ... experiment" that
-      // "bypasses the conformance gate rather than passing it" -- but this endpoint deliberately
-      // reports EVERY discovered theme regardless of validity (see the comment above), so it
-      // belongs in this list for as long as the folder is committed.
-      "mui-marketing",
+      // No `mui-marketing` here on purpose. That folder was swept in by 39096e15 (the ESM root
+      // flip) alongside the ARCH-001 scratch dirs, and its own manifest called it a "Test theme
+      // ... experiment" that "bypasses the conformance gate rather than passing it" — so it was
+      // removed from the product rather than blessed into this list. Restore with
+      // `git checkout 39096e15 -- src/themes/static/mui-marketing`, and if you do, add it back
+      // here: this endpoint reports EVERY discovered theme regardless of validity (see the
+      // comment above), so a restored folder WILL appear and fail this exact-match assertion.
       "portfolite",
       "storefront",
       "tailark-dusk",
