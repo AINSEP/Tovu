@@ -10,6 +10,7 @@ import { MCP_UI_TOOL_CALLS_PATH, createByokToolSurface } from "../../assistant/i
 import { SURFACE_EXCHANGE_ID_PARAM, createSurfaceExchangeStore } from "../../core/tool-surface-exchanges.js";
 import { CONTENT_POST_DELETE_TOOL_ID } from "../../features/post/index.js";
 import { bootAuthenticated, startTestServer } from "./helpers/http-test-server.js";
+import { startStubProviderServer, type StubProviderReply } from "./helpers/stub-provider-server.js";
 import type { RouteDeps } from "../routes/types.js";
 
 /**
@@ -113,32 +114,24 @@ function messageDelta(stopReason: string): string {
 function messageStop(): string {
   return sseFrame("message_stop", { type: "message_stop" });
 }
-function sseBody(...lines: string[]): { ok: true; status: 200; body: AsyncIterable<string>; text: () => Promise<string> } {
-  return { ok: true, status: 200, body: { async *[Symbol.asyncIterator]() { for (const line of lines) yield line; } }, text: async () => "" };
+function sseBody(...lines: string[]): StubProviderReply {
+  return { status: 200, body: lines.join("") };
 }
 
-/** Swaps `globalThis.fetch` for a mock that only intercepts calls to Anthropic's endpoint — the
- *  test's own request against `startTestServer` reaches the real local HTTP stack unchanged.
- *  Mirrors `site-assistant-routes.test.ts`'s `stubGeminiFetch` shape exactly, adapted to Anthropic's
- *  wire format and message-array request body (rather than Google's `contents`). */
-function stubAnthropicFetch(
+/** Boots a real loopback stub standing in for the provider host and returns its URL for the caller
+ *  to embed in the request body's `byok.baseUrl` field — the substitution point that still works
+ *  now that `@jini-ai/agent-runtime`'s adapters dial `pinnedFetch` (`node:https`/`node:http`
+ *  directly), not `globalThis.fetch` (see `stub-provider-server.ts`'s own doc for the full history:
+ *  stubbing the global stopped intercepting anything once the provider adapters moved to a DNS-
+ *  pinned transport for the SSRF/DNS-rebinding fix). Replaces the old `stubAnthropicFetch`/
+ *  `stubHostFetch` host-substring-matching pair — with an explicit `baseUrl` override there is no
+ *  longer a real host to match against. Thin re-export of `startStubProviderServer` under this
+ *  file's own established name. */
+async function stubProvider(
   t: import("node:test").TestContext,
-  respond: (callCount: number, requestBody: Record<string, unknown>) => ReturnType<typeof sseBody>,
-): void {
-  const originalFetch = globalThis.fetch;
-  t.after(() => {
-    globalThis.fetch = originalFetch;
-  });
-
-  let callCount = 0;
-  globalThis.fetch = (async (...args: Parameters<typeof fetch>) => {
-    const url = typeof args[0] === "string" ? args[0] : args[0] instanceof URL ? args[0].href : (args[0] as Request).url;
-    if (!url.includes("api.anthropic.com")) return originalFetch(...args);
-    callCount += 1;
-    const init = args[1] as RequestInit | undefined;
-    const requestBody = init?.body ? (JSON.parse(init.body as string) as Record<string, unknown>) : {};
-    return respond(callCount, requestBody) as unknown as ReturnType<typeof fetch>;
-  }) as typeof fetch;
+  respond: (callCount: number, requestBody: Record<string, unknown>) => StubProviderReply,
+): Promise<string> {
+  return startStubProviderServer(t, respond);
 }
 
 function postByokTurn(baseUrl: string, cookie: string, body: unknown): Promise<Response> {
@@ -280,10 +273,9 @@ test(`${BYOK_TURN_PATH} rejects a request with no usable BYOK credential before 
   const app = createApp(deps);
   const { baseUrl, cookie } = await bootAuthenticated(app, t);
 
-  stubAnthropicFetch(t, () => {
-    throw new Error("must not be called — validation happens before any outbound request");
-  });
-
+  // No provider stub needed: credential validation fails before `runByokProviderTurn` is ever
+  // reached, so there is nothing to intercept — see `stub-provider-server.ts`'s doc for why a
+  // `globalThis.fetch` mock would not have intercepted a real outbound call here anyway.
   const res = await postByokTurn(baseUrl, cookie, { messages: BYOK_BODY.messages, byok: { protocol: "anthropic" } });
   assert.equal(res.status, 400);
 });
@@ -294,7 +286,7 @@ test(`${BYOK_TURN_PATH} runs a REAL admin tool through a BYOK provider turn and 
   const { baseUrl } = await bootAuthenticated(app, t);
   const cookie = await loginWithPermissions(deps, baseUrl, ["workspace.manage"]);
 
-  stubAnthropicFetch(t, (callCount) => {
+  const providerUrl = await stubProvider(t, (callCount) => {
     if (callCount === 1) {
       // First turn: the model reaches `workspace_get` the only way a BYOK turn now offers — through
       // the meta-tool set (`byok-tool-surface.ts`'s `META_TOOL_DESCRIPTORS`), which is what the
@@ -308,7 +300,7 @@ test(`${BYOK_TURN_PATH} runs a REAL admin tool through a BYOK provider turn and 
     return sseBody(messageStart("msg_2"), textBlock(0, "This workspace is named Tovu Dev."), messageDelta("end_turn"), messageStop());
   });
 
-  const res = await postByokTurn(baseUrl, cookie, BYOK_BODY);
+  const res = await postByokTurn(baseUrl, cookie, { ...BYOK_BODY, byok: { ...BYOK_BODY.byok, baseUrl: providerUrl } });
   assert.equal(res.status, 200);
   assert.ok(res.headers.get("content-type")?.startsWith("text/event-stream"));
 
@@ -342,17 +334,9 @@ test(`${BYOK_TURN_PATH} reports a provider error on its own SSE event name, not 
   const { baseUrl } = await bootAuthenticated(app, t);
   const cookie = await loginWithPermissions(deps, baseUrl, ["workspace.manage"]);
 
-  const originalFetch = globalThis.fetch;
-  globalThis.fetch = (async (...args: Parameters<typeof fetch>) => {
-    const url = typeof args[0] === "string" ? args[0] : args[0] instanceof URL ? args[0].href : (args[0] as Request).url;
-    if (!url.includes("api.anthropic.com")) return originalFetch(...args);
-    return { ok: false, status: 401, text: async () => JSON.stringify({ error: { message: "invalid x-api-key" } }) } as unknown as Response;
-  }) as typeof fetch;
-  t.after(() => {
-    globalThis.fetch = originalFetch;
-  });
+  const providerUrl = await stubProvider(t, () => ({ status: 401, body: JSON.stringify({ error: { message: "invalid x-api-key" } }) }));
 
-  const res = await postByokTurn(baseUrl, cookie, BYOK_BODY);
+  const res = await postByokTurn(baseUrl, cookie, { ...BYOK_BODY, byok: { ...BYOK_BODY.byok, baseUrl: providerUrl } });
   assert.equal(res.status, 200); // headers already flushed before the provider call fails
   const frames = parseSseFrames(await res.text());
   const errorFrame = frames.find((f) => f.event === "error");
@@ -388,28 +372,6 @@ function openAiFinishChunk(reason: string): string {
   return chunk({ id: "c1", choices: [{ index: 0, delta: {}, finish_reason: reason }] });
 }
 
-/** Same shape as `stubAnthropicFetch`, matched against a caller-supplied host substring instead of
- *  a hardcoded one — OpenAI and Azure hit different hosts. */
-function stubHostFetch(
-  t: import("node:test").TestContext,
-  hostSubstring: string,
-  respond: (callCount: number, requestBody: Record<string, unknown>) => ReturnType<typeof sseBody>,
-): void {
-  const originalFetch = globalThis.fetch;
-  t.after(() => {
-    globalThis.fetch = originalFetch;
-  });
-  let callCount = 0;
-  globalThis.fetch = (async (...args: Parameters<typeof fetch>) => {
-    const url = typeof args[0] === "string" ? args[0] : args[0] instanceof URL ? args[0].href : (args[0] as Request).url;
-    if (!url.includes(hostSubstring)) return originalFetch(...args);
-    callCount += 1;
-    const init = args[1] as RequestInit | undefined;
-    const requestBody = init?.body ? (JSON.parse(init.body as string) as Record<string, unknown>) : {};
-    return respond(callCount, requestBody) as unknown as ReturnType<typeof fetch>;
-  }) as typeof fetch;
-}
-
 test(`${BYOK_TURN_PATH} (openai protocol): a FAILED tool call folds isError into the content string, not a discarded field`, async (t) => {
   const deps = createRouteDeps();
   const app = createApp(deps);
@@ -417,7 +379,7 @@ test(`${BYOK_TURN_PATH} (openai protocol): a FAILED tool call folds isError into
   const cookie = await loginWithPermissions(deps, baseUrl, ["workspace.manage"]);
 
   let secondRequestBody: Record<string, unknown> | undefined;
-  stubHostFetch(t, "api.openai.com", (callCount, requestBody) => {
+  const providerUrl = await stubProvider(t, (callCount, requestBody) => {
     if (callCount === 1) {
       // `workspace_update` with an EMPTY input — `updateWorkspace` itself throws
       // `WorkspaceValidationError` on an empty update (its own catalog entry's documented
@@ -441,7 +403,7 @@ test(`${BYOK_TURN_PATH} (openai protocol): a FAILED tool call folds isError into
     return sseBody(openAiTextChunk("I could not update that."), openAiFinishChunk("stop"), openAiDone());
   });
 
-  const res = await postByokTurn(baseUrl, cookie, { messages: BYOK_BODY.messages, byok: { protocol: "openai", apiKey: "sk-test-fake", model: "gpt-4o" } });
+  const res = await postByokTurn(baseUrl, cookie, { messages: BYOK_BODY.messages, byok: { protocol: "openai", apiKey: "sk-test-fake", model: "gpt-4o", baseUrl: providerUrl } });
   assert.equal(res.status, 200);
   const frames = parseSseFrames(await res.text());
 
@@ -475,7 +437,7 @@ test(`${BYOK_TURN_PATH} (azure protocol): a real tool round-trips through the Op
   const { baseUrl } = await bootAuthenticated(app, t);
   const cookie = await loginWithPermissions(deps, baseUrl, ["workspace.manage"]);
 
-  stubHostFetch(t, "my-resource.openai.azure.com", (callCount) => {
+  const providerUrl = await stubProvider(t, (callCount) => {
     if (callCount === 1) {
       // Through the meta-tool set — see the Anthropic round-trip test's own note. Sent as two
       // argument fragments, which also keeps this test's coverage of the adapter's incremental
@@ -493,7 +455,7 @@ test(`${BYOK_TURN_PATH} (azure protocol): a real tool round-trips through the Op
 
   const res = await postByokTurn(baseUrl, cookie, {
     messages: BYOK_BODY.messages,
-    byok: { protocol: "azure", apiKey: "azure-test-fake", model: "gpt-4o-deployment", baseUrl: "https://my-resource.openai.azure.com" },
+    byok: { protocol: "azure", apiKey: "azure-test-fake", model: "gpt-4o-deployment", baseUrl: providerUrl },
   });
   assert.equal(res.status, 200);
   const frames = parseSseFrames(await res.text());
@@ -513,10 +475,8 @@ test(`${BYOK_TURN_PATH} (azure protocol): rejects with a clear error when no bas
   const { baseUrl } = await bootAuthenticated(app, t);
   const cookie = await loginWithPermissions(deps, baseUrl, ["workspace.manage"]);
 
-  stubHostFetch(t, "openai.azure.com", () => {
-    throw new Error("must not be called — azure requires baseUrl, checked before any request");
-  });
-
+  // No provider stub needed: azure requires baseUrl, checked before any outbound request — see the
+  // sibling "rejects a request with no usable BYOK credential" test's own identical note.
   const res = await postByokTurn(baseUrl, cookie, {
     messages: BYOK_BODY.messages,
     byok: { protocol: "azure", apiKey: "azure-test-fake", model: "gpt-4o-deployment" },
@@ -543,7 +503,7 @@ test(`${BYOK_TURN_PATH} (google protocol): a real tool round-trips through Gemin
     return chunk({ candidates: [{ content: { role: "model", parts: [{ text }] }, finishReason, index: 0 }] });
   }
 
-  stubHostFetch(t, "generativelanguage.googleapis.com", (callCount) => {
+  const providerUrl = await stubProvider(t, (callCount) => {
     if (callCount === 1) {
       return sseBody(functionCallCandidate("execute_delegated_tool", { toolId: "workspace_get", input: {} }, "call_1"), textCandidate("", "STOP"));
     }
@@ -552,7 +512,7 @@ test(`${BYOK_TURN_PATH} (google protocol): a real tool round-trips through Gemin
 
   const res = await postByokTurn(baseUrl, cookie, {
     messages: BYOK_BODY.messages,
-    byok: { protocol: "google", apiKey: "google-test-fake", model: "gemini-flash-latest" },
+    byok: { protocol: "google", apiKey: "google-test-fake", model: "gemini-flash-latest", baseUrl: providerUrl },
   });
   assert.equal(res.status, 200);
   const frames = parseSseFrames(await res.text());
@@ -569,8 +529,9 @@ test(`${BYOK_TURN_PATH} (google protocol): a real tool round-trips through Gemin
 /** Seeds one draft post and stubs the Anthropic turn that asks `content_post_delete` to delete it —
  *  the shared setup for every test below in this section. Turn 2's stub is generic ("Done.") because
  *  each test's own assertions are about the tool_result/redemption plumbing, not the model's final
- *  wording. */
-async function seedPostAndStubDeleteTurn(t: import("node:test").TestContext, deps: RouteDeps, postId: string): Promise<void> {
+ *  wording. Returns the stub server's URL, which the caller must thread into the request body's
+ *  `byok.baseUrl` field. */
+async function seedPostAndStubDeleteTurn(t: import("node:test").TestContext, deps: RouteDeps, postId: string): Promise<string> {
   await deps.postRepo.save({
     id: postId,
     workspaceId: deps.workspaceId,
@@ -583,7 +544,7 @@ async function seedPostAndStubDeleteTurn(t: import("node:test").TestContext, dep
     version: 1,
   });
 
-  stubHostFetch(t, "api.anthropic.com", (callCount) => {
+  return stubProvider(t, (callCount) => {
     if (callCount === 1) {
       return sseBody(
         messageStart(),
@@ -614,9 +575,9 @@ test(`${BYOK_TURN_PATH}: content_post_delete PARKS via a real emitSurface, and r
   const cookie = await loginWithPermissions(deps, baseUrl, ["content.read", "content.write"]);
 
   const postId = `byok-park-redeem-confirm-${Date.now()}`;
-  await seedPostAndStubDeleteTurn(t, deps, postId);
+  const providerUrl = await seedPostAndStubDeleteTurn(t, deps, postId);
 
-  const res = await postByokTurn(baseUrl, cookie, { messages: [{ role: "user", content: "Delete that draft post." }], byok: BYOK_BODY.byok });
+  const res = await postByokTurn(baseUrl, cookie, { messages: [{ role: "user", content: "Delete that draft post." }], byok: { ...BYOK_BODY.byok, baseUrl: providerUrl } });
   assert.equal(res.status, 200);
   assert.ok(res.body, "expected a readable stream body");
   const reader = res.body!.getReader();
@@ -680,9 +641,9 @@ test(`${BYOK_TURN_PATH}: cancelling the same confirmation dialog leaves the post
   const cookie = await loginWithPermissions(deps, baseUrl, ["content.read", "content.write"]);
 
   const postId = `byok-park-redeem-cancel-${Date.now()}`;
-  await seedPostAndStubDeleteTurn(t, deps, postId);
+  const providerUrl = await seedPostAndStubDeleteTurn(t, deps, postId);
 
-  const res = await postByokTurn(baseUrl, cookie, { messages: [{ role: "user", content: "Delete that draft post." }], byok: BYOK_BODY.byok });
+  const res = await postByokTurn(baseUrl, cookie, { messages: [{ role: "user", content: "Delete that draft post." }], byok: { ...BYOK_BODY.byok, baseUrl: providerUrl } });
   const reader = res.body!.getReader();
 
   // See the sibling "confirm" test above for why cleanup is explicit here rather than left to
@@ -741,10 +702,10 @@ test(`${BYOK_TURN_PATH}: an UNREDEEMED confirmation resolves via its own bounded
   const cookie = await loginWithPermissions(deps, baseUrl, ["content.read", "content.write"]);
 
   const postId = `byok-no-hang-probe-${Date.now()}`;
-  await seedPostAndStubDeleteTurn(t, deps, postId);
+  const providerUrl = await seedPostAndStubDeleteTurn(t, deps, postId);
 
   const startedAt = Date.now();
-  const res = await postByokTurn(baseUrl, cookie, { messages: [{ role: "user", content: "Delete that draft post." }], byok: BYOK_BODY.byok });
+  const res = await postByokTurn(baseUrl, cookie, { messages: [{ role: "user", content: "Delete that draft post." }], byok: { ...BYOK_BODY.byok, baseUrl: providerUrl } });
   assert.equal(res.status, 200);
   const frames = parseSseFrames(await res.text()); // safe to buffer here — nobody redeems, so the short TTL is what ends the wait
   const elapsedMs = Date.now() - startedAt;

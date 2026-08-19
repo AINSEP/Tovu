@@ -1,9 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
+import express from "express";
+
 import { createApp, createRouteDeps } from "../app.js";
+import { createSiteAssistantModule } from "../modules/site-assistant.js";
 import { setPublicAssistantSettings } from "../../assistant/index.js";
 import { startTestServer } from "./helpers/http-test-server.js";
+import { startStubProviderServer, type StubProviderReply } from "./helpers/stub-provider-server.js";
+import type { RouteDeps } from "../routes/types.js";
 
 /**
  * @file `POST /api/site-assistant/chat` (ADR-054) — coverage for the master on/off switch
@@ -29,13 +34,8 @@ const alwaysAllow = async () => ({ allowed: true, reason: "test" });
  * understanding of that shape fails these tests rather than passing vacuously against a shape
  * nothing real produces.
  */
-function sseBody(...lines: string[]): { ok: true; status: 200; body: AsyncIterable<string>; text: () => Promise<string> } {
-  return {
-    ok: true,
-    status: 200,
-    body: { async *[Symbol.asyncIterator]() { for (const line of lines) yield line; } },
-    text: async () => "",
-  };
+function sseBody(...lines: string[]): StubProviderReply {
+  return { status: 200, body: lines.join("") };
 }
 function chunk(payload: Record<string, unknown>): string {
   return `data: ${JSON.stringify(payload)}\n\n`;
@@ -47,35 +47,53 @@ function textCandidate(text: string, finishReason: string): string {
   return chunk({ candidates: [{ content: { role: "model", parts: [{ text }] }, finishReason, index: 0 }] });
 }
 
-/** Swaps `globalThis.fetch` for a mock that only intercepts calls to Google's endpoint — everything
- *  else (the test's own request against the local `startTestServer` instance) reaches the real HTTP
- *  stack. Registers its own `t.after` restoration of both the fetch override and `GEMINI_API_KEY`.
- *  `respond` also receives the parsed outbound request body, so a caller can inspect what THIS
- *  route sent back to "Google" on a continuation request — e.g. the `functionResponse.response`
- *  content a refused tool call produces, which never reaches the client SSE stream at all (REQ-4's
- *  privacy property) and so can only be observed here, not in the HTTP response text. */
-function stubGeminiFetch(
-  t: import("node:test").TestContext,
-  respond: (callCount: number, requestBody: Record<string, unknown>) => ReturnType<typeof sseBody>,
-): void {
-  const originalApiKey = process.env.GEMINI_API_KEY;
-  const originalFetch = globalThis.fetch;
-  process.env.GEMINI_API_KEY = "test-fake-key-not-real";
+/**
+ * Temporarily clears `GEMINI_API_KEY` from the process environment for tests that need
+ * `site-assistant.ts`'s own `NOT_CONFIGURED` 503 branch specifically. Every test below that does NOT
+ * call {@link bootGeminiStub} relies on that branch, on the assumption (true when this file was
+ * written) that the test environment does not define the key — that assumption stopped holding once
+ * a real `GEMINI_API_KEY` was added to `.env` for other work, and these tests then started issuing
+ * REAL requests to Google's live endpoint with no indication that would happen. Restored via
+ * `t.after`, mirroring the identical save/restore `bootGeminiStub` does for its own tests' key.
+ */
+function withoutGeminiApiKey(t: import("node:test").TestContext): void {
+  const original = process.env.GEMINI_API_KEY;
+  delete process.env.GEMINI_API_KEY;
   t.after(() => {
-    if (originalApiKey === undefined) delete process.env.GEMINI_API_KEY;
-    else process.env.GEMINI_API_KEY = originalApiKey;
-    globalThis.fetch = originalFetch;
+    if (original === undefined) delete process.env.GEMINI_API_KEY;
+    else process.env.GEMINI_API_KEY = original;
   });
+}
 
-  let callCount = 0;
-  globalThis.fetch = (async (...args: Parameters<typeof fetch>) => {
-    const url = typeof args[0] === "string" ? args[0] : args[0] instanceof URL ? args[0].href : (args[0] as Request).url;
-    if (!url.includes("generativelanguage.googleapis.com")) return originalFetch(...args);
-    callCount += 1;
-    const init = args[1] as RequestInit | undefined;
-    const requestBody = init?.body ? (JSON.parse(init.body as string) as Record<string, unknown>) : {};
-    return respond(callCount, requestBody) as unknown as ReturnType<typeof fetch>;
-  }) as typeof fetch;
+/**
+ * Boots a hand-assembled site-assistant app (not `createApp`, which always wires
+ * `createSiteAssistantModule` against the real `process.env`) against a REAL loopback stub standing
+ * in for Google's endpoint. `runGoogleToolTurn` (`@jini-ai/agent-runtime`) dials its upstream via
+ * that package's own `pinnedFetch` — `node:https`/`node:http` directly, not `globalThis.fetch` (see
+ * `stub-provider-server.ts`'s doc for the full history) — so stubbing the global, this file's
+ * previous approach, no longer intercepts anything; the only working substitution left is to point
+ * the turn's own endpoint at a real local listener, via the `TOVU_SITE_ASSISTANT_BASE_URL` override
+ * added to `site-assistant.ts` for exactly this. Neither the fake key nor the stub `baseUrl` ever
+ * touch the REAL `process.env` — both are threaded through `createSiteAssistantModule`'s own
+ * injectable `env` parameter instead, so no global mutation/restoration is needed at all.
+ *
+ * `respond` receives the parsed outbound request body, so a caller can inspect what THIS route sent
+ * back to "Google" on a continuation request — e.g. the `functionResponse.response` content a
+ * refused tool call produces, which never reaches the client SSE stream at all (REQ-4's privacy
+ * property) and so can only be observed here, not in the HTTP response text.
+ */
+async function bootGeminiStub(
+  t: import("node:test").TestContext,
+  deps: RouteDeps,
+  respond: (callCount: number, requestBody: Record<string, unknown>) => StubProviderReply,
+): Promise<string> {
+  const providerUrl = await startStubProviderServer(t, respond);
+  const testEnv: NodeJS.ProcessEnv = { ...process.env, GEMINI_API_KEY: "test-fake-key-not-real", TOVU_SITE_ASSISTANT_BASE_URL: providerUrl };
+
+  const app = express();
+  app.use(express.json());
+  createSiteAssistantModule(deps, testEnv).registerRoutes(app);
+  return startTestServer(app, t);
 }
 
 async function postChat(baseUrl: string): Promise<Response> {
@@ -104,6 +122,7 @@ test("POST /api/site-assistant/chat 404s when the public assistant is disabled (
 });
 
 test("POST /api/site-assistant/chat passes the gate once the workspace turns the switch on", async (t) => {
+  withoutGeminiApiKey(t);
   const deps = createRouteDeps();
   // Await the LAST settings-registration promise in `createRouteDeps()`'s chain
   // (`assistantSettingsReady` -> `executionSettingsReady` -> `settingsUiTabsReady` ->
@@ -144,6 +163,7 @@ test("POST /api/site-assistant/chat passes the gate once the workspace turns the
  * socket IP, and turns a rejection into the 429 shape the widget's transport can read.
  */
 test("POST /api/site-assistant/chat: the 11th request from one IP within the window is rejected with 429 before touching the provider", async (t) => {
+  withoutGeminiApiKey(t);
   const deps = createRouteDeps();
   await deps.analyticsSettingsReady;
   await setPublicAssistantSettings(
@@ -189,6 +209,7 @@ test("POST /api/site-assistant/chat: the 11th request from one IP within the win
  * parsing rather than only against the isolated function.
  */
 test("POST /api/site-assistant/chat accepts a well-formed history alongside message", async (t) => {
+  withoutGeminiApiKey(t);
   const deps = createRouteDeps();
   await deps.analyticsSettingsReady;
   await setPublicAssistantSettings(
@@ -217,6 +238,7 @@ test("POST /api/site-assistant/chat accepts a well-formed history alongside mess
 });
 
 test("POST /api/site-assistant/chat degrades a hostile/malformed history to no context, never a 4xx or 500", async (t) => {
+  withoutGeminiApiKey(t);
   const deps = createRouteDeps();
   await deps.analyticsSettingsReady;
   await setPublicAssistantSettings(
@@ -298,7 +320,7 @@ test("POST /api/site-assistant/chat writes a well-formed client_directive SSE fr
   });
 
   let fetchCallCount = 0;
-  stubGeminiFetch(t, (callCount, _requestBody) => {
+  const baseUrl = await bootGeminiStub(t, deps, (callCount, _requestBody) => {
     fetchCallCount = callCount;
     if (callCount === 1) {
       // First request: the model "calls" navigate_to_entry for the seeded slug. `message` below is
@@ -311,9 +333,6 @@ test("POST /api/site-assistant/chat writes a well-formed client_directive SSE fr
     // Continuation request, after `executeTool` ran: end the turn cleanly with no further tool calls.
     return sseBody(textCandidate("Here's the page.", "STOP"));
   });
-
-  const app = createApp(deps);
-  const baseUrl = await startTestServer(app, t);
 
   const res = await postChatWithBody(baseUrl, { message: "take me there" });
   assert.equal(res.status, 200);
@@ -407,7 +426,7 @@ test("POST /api/site-assistant/chat never emits a client_directive for a trashed
   // "nonexistent-slug-xyz" is never saved at all — the third refusal case (slug simply not found).
 
   let continuationRequestBody: Record<string, unknown> | null = null;
-  stubGeminiFetch(t, (callCount, requestBody) => {
+  const baseUrl = await bootGeminiStub(t, deps, (callCount, requestBody) => {
     if (callCount === 1) {
       // One model turn, three simultaneous tool calls — Gemini's function-calling API legally
       // returns multiple `functionCall` parts in one candidate's `content.parts`.
@@ -434,9 +453,6 @@ test("POST /api/site-assistant/chat never emits a client_directive for a trashed
     continuationRequestBody = requestBody;
     return sseBody(textCandidate("None of those are available.", "STOP"));
   });
-
-  const app = createApp(deps);
-  const baseUrl = await startTestServer(app, t);
 
   const res = await postChatWithBody(baseUrl, { message: "highlight those three entries for me" });
   assert.equal(res.status, 200);

@@ -94,6 +94,21 @@ function resolveModel(env: NodeJS.ProcessEnv): string {
   return env.TOVU_SITE_ASSISTANT_MODEL?.trim() || DEFAULT_MODEL;
 }
 
+/**
+ * Overrides `runGoogleToolTurn`'s upstream endpoint, mirroring `resolveModel`'s identical
+ * "overridable via env, never a code change" posture above. `undefined` (the default) leaves
+ * `@jini-ai/agent-runtime`'s own `DEFAULT_GOOGLE_BASE_URL` (Google's public
+ * `generativelanguage.googleapis.com`) in effect — this only matters for an operator routing through
+ * Vertex AI, a regional endpoint, or an enterprise proxy, and for `site-assistant-routes.test.ts`'s
+ * own scoped tests, which point it at a loopback stub server instead of a real Google endpoint (see
+ * `stub-provider-server.ts`'s doc for why: `runGoogleToolTurn` dials its upstream via
+ * `pinnedFetch` — `node:https`/`node:http` directly — not `globalThis.fetch`, so a test has no way to
+ * intercept the real default endpoint short of actually redirecting where the turn dials).
+ */
+function resolveBaseUrl(env: NodeJS.ProcessEnv): string | undefined {
+  return env.TOVU_SITE_ASSISTANT_BASE_URL?.trim() || undefined;
+}
+
 const SYSTEM_PREAMBLE = [
   "You are a helpful assistant embedded on a website, talking to a visitor.",
   "Answer using the site's published content, which you can look up with your tools.",
@@ -327,6 +342,7 @@ export function createSiteAssistantModule(deps: RouteDeps, env: NodeJS.ProcessEn
 
         await runGoogleToolTurn({
           apiKey,
+          ...(resolveBaseUrl(env) ? { baseUrl: resolveBaseUrl(env) } : {}),
           model: resolveModel(env),
           system: SYSTEM_PREAMBLE,
           // SPEC-046 REQ-3: bounded prior turns (if any) precede the live message as real multi-turn
