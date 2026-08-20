@@ -255,6 +255,57 @@ interface GeneratedTreeInventory {
  * {@link MAX_INVENTORY_WALK_DEPTH} — an untrusted publisher's build is never walked unbounded.
  * @complexity O(n) in the generated tree's own file+directory count, bounded by the two ceilings above.
  */
+/** What one directory entry turns out to be, once `isInGeneratedTree` and `lstatSync` have looked
+ * at it — everything `walk`'s loop body needs to decide what to do next, without itself running
+ * the `lstatSync` call (kept pure w.r.t. the walk's own mutable `files`/`rejected` maps). "Anything
+ * else" (a FIFO, a socket, a device node) reports as `"skip"`, matching `theme-files.ts`'s own
+ * `listThemeFiles` posture — none of those are a "file" this gate has any business hashing, and
+ * none can be used to escape containment the way a symlink can. */
+type GeneratedTreeEntryKind = "skip" | "symlink" | "directory" | "file";
+
+function classifyGeneratedTreeEntry(relativePath: string, absolute: string, sourceDir: string | undefined): GeneratedTreeEntryKind {
+  if (!isInGeneratedTree(relativePath, sourceDir)) return "skip";
+  const linkStat = lstatSync(absolute);
+  if (linkStat.isSymbolicLink()) return "symlink";
+  if (linkStat.isDirectory()) return "directory";
+  if (linkStat.isFile()) return "file";
+  return "skip";
+}
+
+/** One directory entry's full disposition: classifies it, records a symlink rejection or a found
+ * file directly into the walk's own maps, and returns where to recurse for a directory (`undefined`
+ * otherwise). Pulled the ENTIRE loop body out of `walk` — not just the classification — because
+ * cognitive complexity penalizes nesting depth, not branch count: four sequential ifs one level
+ * inside `walk`'s own `for` loop cost roughly double what the same four ifs cost sitting at a
+ * function's own top level. */
+function visitGeneratedTreeEntry(
+  dir: string,
+  relPrefix: string,
+  name: string,
+  sourceDir: string | undefined,
+  files: Map<string, string>,
+  rejected: Map<string, ConformanceIssue>
+): { absolute: string; relativePath: string } | undefined {
+  const absolute = join(dir, name);
+  const relativePath = relPrefix ? `${relPrefix}/${name}` : name;
+  const kind = classifyGeneratedTreeEntry(relativePath, absolute, sourceDir);
+
+  if (kind === "skip") return undefined;
+  if (kind === "symlink") {
+    rejected.set(relativePath, {
+      page: relativePath,
+      rule: "artifact-hash",
+      message: `'${relativePath}' is a symbolic link inside the built theme's generated tree — symlinks are never permitted there, matching this repo's Agent Plugins package-extraction rule for the identical "content from someone other than the operator" threat model; the entry is refused outright, not followed`,
+    });
+    return undefined;
+  }
+  if (kind === "file") {
+    files.set(relativePath, absolute);
+    return undefined;
+  }
+  return { absolute, relativePath }; // kind === "directory" — caller recurses
+}
+
 function walkGeneratedTree(themeDir: string, sourceDir: string | undefined): GeneratedTreeInventory {
   const files = new Map<string, string>();
   const rejected = new Map<string, ConformanceIssue>();
@@ -270,28 +321,8 @@ function walkGeneratedTree(themeDir: string, sourceDir: string | undefined): Gen
       if (files.size >= MAX_INVENTORY_FILES) {
         throw new GeneratedTreeInventoryLimitExceeded(`generated tree exceeds the ${MAX_INVENTORY_FILES}-file inventory cap`);
       }
-      const absolute = join(dir, name);
-      const relativePath = relPrefix ? `${relPrefix}/${name}` : name;
-      if (!isInGeneratedTree(relativePath, sourceDir)) continue;
-
-      const linkStat = lstatSync(absolute);
-      if (linkStat.isSymbolicLink()) {
-        rejected.set(relativePath, {
-          page: relativePath,
-          rule: "artifact-hash",
-          message: `'${relativePath}' is a symbolic link inside the built theme's generated tree — symlinks are never permitted there, matching this repo's Agent Plugins package-extraction rule for the identical "content from someone other than the operator" threat model; the entry is refused outright, not followed`,
-        });
-        continue;
-      }
-
-      if (linkStat.isDirectory()) {
-        walk(absolute, relativePath, depth + 1);
-      } else if (linkStat.isFile()) {
-        files.set(relativePath, absolute);
-      }
-      // Anything else (a FIFO, a socket, a device node) is silently skipped, matching
-      // `theme-files.ts`'s own `listThemeFiles` posture — none of those are a "file" this gate has any
-      // business hashing, and none can be used to escape containment the way a symlink can.
+      const toRecurse = visitGeneratedTreeEntry(dir, relPrefix, name, sourceDir, files, rejected);
+      if (toRecurse) walk(toRecurse.absolute, toRecurse.relativePath, depth + 1);
     }
   };
 
@@ -331,73 +362,113 @@ function walkGeneratedTree(themeDir: string, sourceDir: string | undefined): Gen
  * s = each file's size (bounded by {@link MAX_HASHED_FILE_BYTES} per file and
  * {@link MAX_TOTAL_HASHED_BYTES} cumulatively).
  */
-function checkArtifactHashes(
-  themeDir: string,
-  sourceDir: string | undefined,
-  artifactHashes: Readonly<Record<string, string>>
-): ConformanceIssue[] {
-  const issues: ConformanceIssue[] = [];
+/** One `artifactHashes` entry's own verification result: `issue` when something is wrong with it
+ * (absent from `undefined` otherwise carries no meaning of "ok" vs "not yet checked" —  callers
+ * only ever branch on `issue`/`stop`), the running total-hashed-bytes count so far (unconditionally
+ * returned so the caller's accumulator stays a straight assignment), and whether the cumulative cap
+ * was just tripped — the one condition that stops the WHOLE loop, not just this entry. */
+interface ArtifactHashEntryResult {
+  readonly issue?: ConformanceIssue;
+  readonly bytesHashed: number;
+  readonly stop: boolean;
+}
 
-  let inventory: GeneratedTreeInventory;
-  try {
-    inventory = walkGeneratedTree(themeDir, sourceDir);
-  } catch (error) {
-    if (error instanceof GeneratedTreeInventoryLimitExceeded) {
-      issues.push({ page: themeDir, rule: "artifact-hash", message: error.message });
-      return issues; // an unfinished walk cannot safely back a "here is everything" claim either way
-    }
-    throw error;
-  }
-  const { files: discovered, rejected } = inventory;
-  issues.push(...rejected.values());
+function checkOneArtifactHashEntry(
+  relativePath: string,
+  expected: string,
+  discovered: ReadonlyMap<string, string>,
+  rejected: ReadonlyMap<string, ConformanceIssue>,
+  totalHashedBytesSoFar: number
+): ArtifactHashEntryResult {
+  if (rejected.has(relativePath)) return { bytesHashed: totalHashedBytesSoFar, stop: false }; // already reported, as a symlink, not "missing"
 
-  let totalHashedBytes = 0;
-  for (const [relativePath, expected] of Object.entries(artifactHashes)) {
-    if (rejected.has(relativePath)) continue; // already reported above, as a symlink, not "missing"
-
-    const absolutePath = discovered.get(relativePath);
-    if (absolutePath === undefined) {
-      issues.push({
+  const absolutePath = discovered.get(relativePath);
+  if (absolutePath === undefined) {
+    return {
+      issue: {
         page: relativePath,
         rule: "artifact-hash",
         message: `build.artifactHashes references '${relativePath}', which does not exist on disk (or is outside the generated tree)`,
-      });
-      continue;
-    }
+      },
+      bytesHashed: totalHashedBytesSoFar,
+      stop: false,
+    };
+  }
 
-    const size = statSync(absolutePath).size;
-    if (size > MAX_HASHED_FILE_BYTES) {
-      issues.push({
+  const size = statSync(absolutePath).size;
+  if (size > MAX_HASHED_FILE_BYTES) {
+    return {
+      issue: {
         page: relativePath,
         rule: "artifact-hash",
         message: `'${relativePath}' is ${size} bytes, over the ${MAX_HASHED_FILE_BYTES}-byte per-file verification cap`,
-      });
-      continue;
-    }
-    totalHashedBytes += size;
-    if (totalHashedBytes > MAX_TOTAL_HASHED_BYTES) {
-      issues.push({
+      },
+      bytesHashed: totalHashedBytesSoFar,
+      stop: false,
+    };
+  }
+
+  const bytesHashed = totalHashedBytesSoFar + size;
+  if (bytesHashed > MAX_TOTAL_HASHED_BYTES) {
+    return {
+      issue: {
         page: relativePath,
         rule: "artifact-hash",
         message: `the generated tree's total verified size exceeds the ${MAX_TOTAL_HASHED_BYTES}-byte cap at '${relativePath}'`,
-      });
-      break; // stop hashing further -- matches agent-plugins' own fail-fast on TOTAL_SIZE_EXCEEDED
-    }
+      },
+      bytesHashed,
+      stop: true, // matches agent-plugins' own fail-fast on TOTAL_SIZE_EXCEEDED
+    };
+  }
 
-    const actual = createHash("sha256").update(readFileSync(absolutePath)).digest("hex");
-    // Accept both a bare hex digest and a "sha256:"/"sha256-"-prefixed one — theme.json authors and
-    // build tooling both write either convention; the digest itself is the only thing being verified.
-    const normalizedExpected = expected.replace(/^sha256[:-]/, "").toLowerCase();
-    if (actual !== normalizedExpected) {
-      issues.push({
+  const actual = createHash("sha256").update(readFileSync(absolutePath)).digest("hex");
+  // Accept both a bare hex digest and a "sha256:"/"sha256-"-prefixed one — theme.json authors and
+  // build tooling both write either convention; the digest itself is the only thing being verified.
+  const normalizedExpected = expected.replace(/^sha256[:-]/, "").toLowerCase();
+  if (actual !== normalizedExpected) {
+    return {
+      issue: {
         page: relativePath,
         rule: "artifact-hash",
         message: `'${relativePath}' does not match its recorded build.artifactHashes digest — the file changed after the build produced it`,
-      });
-    }
+      },
+      bytesHashed,
+      stop: false,
+    };
   }
 
+  return { bytesHashed, stop: false };
+}
+
+/** Phase 2 of {@link checkArtifactHashes}: every `artifactHashes` entry against the inventory
+ * `walkGeneratedTree` already found — existence, the per-file and cumulative size caps, and the
+ * digest itself. Stops hashing further entries (but not the whole function — phase 3 below still
+ * runs against every declared key) once the cumulative cap trips. */
+function verifyArtifactHashEntries(
+  artifactHashes: Readonly<Record<string, string>>,
+  discovered: ReadonlyMap<string, string>,
+  rejected: ReadonlyMap<string, ConformanceIssue>
+): ConformanceIssue[] {
+  const issues: ConformanceIssue[] = [];
+  let totalHashedBytes = 0;
+  for (const [relativePath, expected] of Object.entries(artifactHashes)) {
+    const result = checkOneArtifactHashEntry(relativePath, expected, discovered, rejected, totalHashedBytes);
+    totalHashedBytes = result.bytesHashed;
+    if (result.issue) issues.push(result.issue);
+    if (result.stop) break;
+  }
+  return issues;
+}
+
+/** Phase 3 of {@link checkArtifactHashes}: every real generated file with no `artifactHashes`
+ * entry at all — promoted from "listed-file-only" hashing to full-tree inventory (see this
+ * function's own file header for the promotion trigger). */
+function findUndeclaredGeneratedFiles(
+  discovered: ReadonlyMap<string, string>,
+  artifactHashes: Readonly<Record<string, string>>
+): ConformanceIssue[] {
   const declared = new Set(Object.keys(artifactHashes));
+  const issues: ConformanceIssue[] = [];
   for (const relativePath of discovered.keys()) {
     if (!declared.has(relativePath)) {
       issues.push({
@@ -407,8 +478,31 @@ function checkArtifactHashes(
       });
     }
   }
-
   return issues;
+}
+
+function checkArtifactHashes(
+  themeDir: string,
+  sourceDir: string | undefined,
+  artifactHashes: Readonly<Record<string, string>>
+): ConformanceIssue[] {
+  let inventory: GeneratedTreeInventory;
+  try {
+    inventory = walkGeneratedTree(themeDir, sourceDir);
+  } catch (error) {
+    if (error instanceof GeneratedTreeInventoryLimitExceeded) {
+      // an unfinished walk cannot safely back a "here is everything" claim either way
+      return [{ page: themeDir, rule: "artifact-hash", message: error.message }];
+    }
+    throw error;
+  }
+  const { files: discovered, rejected } = inventory;
+
+  return [
+    ...rejected.values(),
+    ...verifyArtifactHashEntries(artifactHashes, discovered, rejected),
+    ...findUndeclaredGeneratedFiles(discovered, artifactHashes),
+  ];
 }
 
 /**
