@@ -1,4 +1,4 @@
-import type { Response } from "express";
+import type { NextFunction, Request, Response } from "express";
 import type { JsonObject } from "@jini-ai/cms/core";
 
 import type { PostRecord } from "#src/features/post/index";
@@ -691,6 +691,214 @@ export async function resolveMediaAssetMetadataForRender(
   return new Map(entries.filter((entry): entry is readonly [string, MediaAssetRenderMeta] => entry !== undefined));
 }
 
+/** Local alias for the per-menu-id resolved link map {@link resolveStaticMenusForRender} returns —
+ *  used by the `GET /:slug` handler's own extracted helpers below to avoid repeating the full
+ *  `Readonly<Record<string, readonly StaticMenuItem[]>>` shape at each call site. */
+type StaticMenuMap = Readonly<Record<string, readonly StaticMenuItem[]>>;
+
+/** Sends the shared "no themes installed" 500 both site routes fall back to when
+ * `resolveActiveTheme` finds nothing — a workspace with zero discovered themes at all (a fresh
+ * boot before the default theme seed, or every theme dir failing to parse). Not a per-request
+ * condition either route can recover from, so both `GET /` and `GET /:slug` short-circuit here
+ * identically. */
+function sendNoThemesInstalled(res: Response): void {
+  res.status(500).type("html").send("<h1>No themes installed</h1>");
+}
+
+/**
+ * `GET /:slug`'s own slug-shaped-request gate: strips an accepted trailing `.html`, then rejects
+ * anything that isn't a clean single-segment site slug — calling `next()` and returning
+ * `undefined` so the caller falls through to API/static/404 handling exactly as Express's own
+ * routing would if this middleware weren't here. Returns the cleaned slug string otherwise.
+ */
+function resolveRequestedSlug(req: Request, next: NextFunction): string | undefined {
+  // A trailing .html is accepted and stripped so /blog.html resolves identically to /blog — a
+  // static theme's own page files are still named foo.html on disk, and someone can always type
+  // or bookmark the literal filename even though rewritePageLinks() only ever emits clean routes.
+  const slug = String(req.params.slug ?? "").replace(/\.html$/, "");
+  // Not a site page — let API/static/404 handling continue.
+  if (!slug.match(/^[a-z0-9-]+$/) || slug === "admin" || slug === "api") {
+    next();
+    return undefined;
+  }
+  return slug;
+}
+
+// Fixed routes for a static theme's own marketing pages (pricing/docs/blog/…), checked before
+// the post lookup in `resolvePostAfterMarketingCheck` below — a static theme page is never
+// expected to also be a Post row, so this must resolve before `getPublishedPostBySlug` gets a
+// chance to throw `PostNotFoundError` for a slug that was never meant to be a post in the first
+// place (it used to run inside the same `Promise.all` as the post lookup, so that throw
+// short-circuited straight past this check).
+function isMarketingPageSlug(theme: DiscoveredTheme, slug: string): boolean {
+  return theme.manifest.tier === "static" && slug !== "index" && theme.pages[slug] !== undefined;
+}
+
+/** {@link resolveMarketingPageOrOverride}'s outcome — `"responded"` means the caller must send
+ *  nothing further (the themed marketing page already went out), `"overridingPost"` means a real
+ *  Post row at this slug won the slug collision and should render as a normal post, and
+ *  `"fallthrough"` means neither applies and the caller should resolve `post` the ordinary way. */
+type MarketingPageResolution =
+  | { kind: "responded"; html: string }
+  | { kind: "overridingPost"; post: PostRecord }
+  | { kind: "fallthrough" };
+
+/**
+ * Resolves a `GET /:slug` request against a static theme's own fixed marketing pages, handling
+ * the slug-collision policy between a theme page and a real Post row at the same slug.
+ *
+ * Slug-collision override (2026-08-10, default flipped to post-wins 2026-08-15) — one of the
+ * two resources at this slug must win. `overridesThemePage` is tri-state (see
+ * `PostRecord.overridesThemePage`'s own doc, `features/post/post.ts`): `null`/absent means the
+ * author never had an opinion, in which case THIS is the one place the current default policy
+ * is allowed to live — post wins. `false` is a permanent explicit choice (made via the admin
+ * UI's collision warning) that keeps the theme page winning regardless of the default; `true`
+ * is the same explicit choice in the post's favor, which was already the pre-2026-08-15
+ * behavior and needs no special case here. Flipping the default again later is this one
+ * comparison changing, never a migration — that is the entire reason the column is nullable
+ * instead of `NOT NULL DEFAULT`. Checked with its own lookup here, swallowing
+ * `PostNotFoundError` locally rather than letting it reach the outer catch — "no post at this
+ * slug" is the overwhelmingly common case for a marketing-page route and must NOT 404 the theme
+ * page that's about to render fine.
+ */
+export async function resolveMarketingPageOrOverride(
+  deps: RouteDeps,
+  theme: DiscoveredTheme,
+  slug: string,
+  staticMenus: StaticMenuMap | undefined
+): Promise<MarketingPageResolution> {
+  if (!isMarketingPageSlug(theme, slug)) return { kind: "fallthrough" };
+
+  const candidate = await getPublishedPostBySlug({
+    deps: { repo: deps.postRepo },
+    input: { workspaceId: deps.workspaceId, slug },
+  }).catch((err) => {
+    if (err instanceof PostNotFoundError) return null;
+    throw err;
+  });
+  if (candidate && candidate.post.overridesThemePage !== false) {
+    return { kind: "overridingPost", post: candidate.post };
+  }
+
+  const staticHtml = renderStaticPage({ theme, pageId: slug, menus: staticMenus });
+  if (!staticHtml) return { kind: "fallthrough" };
+
+  // SPEC-008 T045 gap fix, part 2 (2026-08-19) — this branch renders a theme's own marketing
+  // page directly via `renderStaticPage`, the same `pageShell`-bypassing shape the static-tier
+  // home route already had `injectExtraHeadIntoStaticPage` wired for in `9e7786b9`; this call
+  // site was the one flagged there and left unfixed. No backing `post`, so `buildExtraHead`'s
+  // `"page"` mode (entry-less, same shape as `"home"`) with this page's own `/${slug}` as the
+  // canonical fallback — never home's `"/"`.
+  const extraHead = await buildExtraHead(deps, "page", SITE_TITLE, undefined, `/${slug}`);
+  return { kind: "responded", html: injectExtraHeadIntoStaticPage(staticHtml, extraHead) };
+}
+
+/** Resolves the `post` a `GET /:slug` request renders: the slug-collision winner from
+ *  {@link resolveMarketingPageOrOverride} when there is one, otherwise the ordinary published-post
+ *  lookup at this slug (which throws `PostNotFoundError`, caught by the route's own outer catch,
+ *  when nothing exists there either). Never called with a `"responded"` resolution — that case
+ *  already sent its own response and returns from the route handler before this would run. */
+export async function resolvePostAfterMarketingCheck(
+  deps: RouteDeps,
+  slug: string,
+  marketingResolution: Exclude<MarketingPageResolution, { kind: "responded" }>
+): Promise<PostRecord> {
+  if (marketingResolution.kind === "overridingPost") return marketingResolution.post;
+  const { post } = await getPublishedPostBySlug({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId, slug } });
+  return post;
+}
+
+/**
+ * Template-picker feature (2026-08-10, unified 2026-08-11) — a `bodyFormat: "doc"` post
+ * ("formulaic" content, the owner's own term) or an `"html"`-format Page with an explicit
+ * choice renders through its chosen theme template instead of the generic rendering path,
+ * whenever the active theme actually supports templates. Returns the rendered HTML, or
+ * `undefined` when `post` isn't eligible — the caller falls through to the generic dynamic
+ * post render in that case.
+ *
+ * `kind: "page"` rows DO also flow through this branch, but only on an explicit
+ * `templateChoice` (see `isEligibleForTemplateBranch`'s doc) — NOT on the "never chosen, fall
+ * back to the theme's first template" arm that Posts rely on. That arm is safe for Posts (an
+ * author genuinely had no opinion) but was firing for legacy Pages that never had any admin
+ * surface to set `template_choice` at all, which is how `terms-of-service` et al. were
+ * rendering under the theme's first template (`<title>Blog post — Basic</title>`) on the live
+ * site — fixed by gating on `kind`, not just `bodyFormat`.
+ */
+export async function renderTemplateBranchIfEligible(
+  deps: RouteDeps,
+  theme: DiscoveredTheme,
+  post: PostRecord,
+  staticMenus: StaticMenuMap | undefined
+): Promise<string | undefined> {
+  if (!isEligibleForTemplateBranch({ theme, post })) return undefined;
+  // SPEC-008 T045 gap fix, part 3 (2026-08-19) — `renderViaTemplate` has the same
+  // pageShell-bypassing `renderStaticPage` shape as the marketing-page branch above; unlike
+  // that branch this one DOES have a real backing `post`, so it folds through the same
+  // entry-bearing `"post"` shape the generic (non-template) render below already uses.
+  const extraHead = await buildExtraHead(deps, "post", SITE_TITLE, post);
+  return renderViaTemplate(deps, theme, post, staticMenus, undefined, extraHead);
+}
+
+/** The generic (non-template) dynamic post render: resolves every widget/embed/media input
+ *  `renderSite`'s `"post"` route needs and renders through it. This is the fallback path for any
+ *  post that isn't eligible for {@link renderTemplateBranchIfEligible}'s template branch. */
+export async function renderGenericPostPage(
+  deps: RouteDeps,
+  theme: DiscoveredTheme,
+  post: PostRecord,
+  posts: PostRecord[],
+  siteAssistantEnabled: boolean
+): Promise<string> {
+  const [widgets, pageHtmlEmbeds, mediaTransformVersions, mediaAssetMetadata, extraHead] = await Promise.all([
+    resolveWidgetsForRender(deps, theme, post),
+    resolveHtmlEmbedsForRender(deps, post),
+    resolveMediaTransformVersionsForRender(deps),
+    resolveMediaAssetMetadataForRender(deps, post),
+    buildExtraHead(deps, "post", SITE_TITLE, post),
+  ]);
+  return renderSite({
+    theme,
+    route: "post",
+    siteTitle: SITE_TITLE,
+    posts,
+    post,
+    widgets,
+    pageHtmlEmbeds,
+    mediaTransformVersions,
+    mediaAssetMetadata,
+    extraHead,
+    siteAssistantEnabled,
+  });
+}
+
+/**
+ * `GET /:slug`'s `PostNotFoundError` handling — always fully handles the response (a redirect, a
+ * themed 404, or the bare fallback 404), never falls through. Split out of the route's own catch
+ * block so that block's `err instanceof PostNotFoundError` discriminant is the only branch left
+ * inline at the call site.
+ */
+export async function handlePostNotFoundOnSlugRoute(
+  req: Request,
+  res: Response,
+  deps: RouteDeps,
+  theme: DiscoveredTheme | null,
+  staticMenus: StaticMenuMap | undefined
+): Promise<void> {
+  if (await tryRedirectPhase("post_content", req.path, deps.workspaceId, res)) return;
+
+  // A static theme that ships its own pages/404.html gets a themed not-found page instead of
+  // the bare fallback below — same renderStaticPage path the marketing-page routes above use.
+  if (theme && theme.manifest.tier === "static" && theme.pages["404"] !== undefined) {
+    const staticHtml = renderStaticPage({ theme, pageId: "404", menus: staticMenus });
+    if (staticHtml) {
+      res.status(404).type("html").send(staticHtml);
+      return;
+    }
+  }
+
+  res.status(404).type("html").send("<h1>404 — page not found</h1><p><a href='/'>Home</a></p>");
+}
+
 /**
  * Public site: server-rendered home and post pages through the active
  * declarative theme. Registered LAST — GET /:slug is a catch-all for
@@ -712,7 +920,7 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
 
       const theme = resolveActiveTheme(deps, activeThemeId);
       if (!theme) {
-        res.status(500).type("html").send("<h1>No themes installed</h1>");
+        sendNoThemesInstalled(res);
         return;
       }
 
@@ -741,18 +949,11 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
   });
 
   app.get("/:slug", async (req, res, next) => {
-    // A trailing .html is accepted and stripped so /blog.html resolves identically to /blog — a
-    // static theme's own page files are still named foo.html on disk, and someone can always type
-    // or bookmark the literal filename even though rewritePageLinks() only ever emits clean routes.
-    const slug = String(req.params.slug ?? "").replace(/\.html$/, "");
-    // Not a site page — let API/static/404 handling continue.
-    if (!slug.match(/^[a-z0-9-]+$/) || slug === "admin" || slug === "api") {
-      next();
-      return;
-    }
+    const slug = resolveRequestedSlug(req, next);
+    if (slug === undefined) return;
 
     let theme: DiscoveredTheme | null = null;
-    let staticMenus: Readonly<Record<string, readonly StaticMenuItem[]>> | undefined;
+    let staticMenus: StaticMenuMap | undefined;
     try {
       if (await tryRedirectPhase("pre_content", req.path, deps.workspaceId, res)) return;
 
@@ -764,7 +965,7 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
 
       theme = resolveActiveTheme(deps, activeThemeId);
       if (!theme) {
-        res.status(500).type("html").send("<h1>No themes installed</h1>");
+        sendNoThemesInstalled(res);
         return;
       }
 
@@ -774,121 +975,27 @@ export const registerSiteRoutes: RouteRegistrar = (app, deps) => {
       // this one resolve rather than re-querying the same two locations per branch.
       staticMenus = await resolveStaticMenusForRender(deps, theme, req.path);
 
-      // Fixed routes for a static theme's own marketing pages (pricing/docs/blog/…), checked before
-      // the post lookup below — a static theme page is never expected to also be a Post row, so this
-      // must resolve before `getPublishedPostBySlug` gets a chance to throw `PostNotFoundError` for a
-      // slug that was never meant to be a post in the first place (it used to run inside the same
-      // `Promise.all` as the post lookup, so that throw short-circuited straight past this check).
-      //
-      // Slug-collision override (2026-08-10, default flipped to post-wins 2026-08-15) — one of the
-      // two resources at this slug must win. `overridesThemePage` is tri-state (see
-      // `PostRecord.overridesThemePage`'s own doc, `features/post/post.ts`): `null`/absent means the
-      // author never had an opinion, in which case THIS is the one place the current default policy
-      // is allowed to live — post wins. `false` is a permanent explicit choice (made via the admin
-      // UI's collision warning) that keeps the theme page winning regardless of the default; `true`
-      // is the same explicit choice in the post's favor, which was already the pre-2026-08-15
-      // behavior and needs no special case here. Flipping the default again later is this one
-      // comparison changing, never a migration — that is the entire reason the column is nullable
-      // instead of `NOT NULL DEFAULT`. Checked with its own lookup here, swallowing
-      // `PostNotFoundError` locally rather than letting it reach the outer catch — "no post at this
-      // slug" is the overwhelmingly common case for a marketing-page route and must NOT 404 the theme
-      // page that's about to render fine.
-      let overridingPost: PostRecord | undefined;
-      if (theme.manifest.tier === "static" && slug !== "index" && theme.pages[slug] !== undefined) {
-        const candidate = await getPublishedPostBySlug({
-          deps: { repo: deps.postRepo },
-          input: { workspaceId: deps.workspaceId, slug },
-        }).catch((err) => {
-          if (err instanceof PostNotFoundError) return null;
-          throw err;
-        });
-        if (candidate && candidate.post.overridesThemePage !== false) {
-          overridingPost = candidate.post;
-        } else {
-          const staticHtml = renderStaticPage({ theme, pageId: slug, menus: staticMenus });
-          if (staticHtml) {
-            // SPEC-008 T045 gap fix, part 2 (2026-08-19) — this branch renders a theme's own
-            // marketing page directly via `renderStaticPage`, the same `pageShell`-bypassing shape
-            // the static-tier home route already had `injectExtraHeadIntoStaticPage` wired for in
-            // `9e7786b9`; this call site was the one flagged there and left unfixed. No backing
-            // `post`, so `buildExtraHead`'s `"page"` mode (entry-less, same shape as `"home"`) with
-            // this page's own `/${slug}` as the canonical fallback — never home's `"/"`.
-            const extraHead = await buildExtraHead(deps, "page", SITE_TITLE, undefined, `/${slug}`);
-            res
-              .set("Cache-Control", CACHE_CONTROL_PUBLIC_PAGE)
-              .type("html")
-              .send(injectExtraHeadIntoStaticPage(staticHtml, extraHead));
-            return;
-          }
-        }
-      }
-
-      const { post } = overridingPost
-        ? { post: overridingPost }
-        : await getPublishedPostBySlug({ deps: { repo: deps.postRepo }, input: { workspaceId: deps.workspaceId, slug } });
-
-      // Template-picker feature (2026-08-10, unified 2026-08-11) — a `bodyFormat: "doc"` post
-      // ("formulaic" content, the owner's own term) or an `"html"`-format Page with an explicit
-      // choice renders through its chosen theme template instead of the generic rendering path
-      // below, whenever the active theme actually supports templates.
-      //
-      // `kind: "page"` rows DO also flow through this branch, but only on an explicit
-      // `templateChoice` (see `isEligibleForTemplateBranch`'s doc) — NOT on the "never chosen, fall
-      // back to the theme's first template" arm that Posts rely on. That arm is safe for Posts (an
-      // author genuinely had no opinion) but was firing for legacy Pages that never had any admin
-      // surface to set `template_choice` at all, which is how `terms-of-service` et al. were
-      // rendering under the theme's first template (`<title>Blog post — Basic</title>`) on the live
-      // site — fixed by gating on `kind`, not just `bodyFormat`.
-      if (isEligibleForTemplateBranch({ theme, post })) {
-        // SPEC-008 T045 gap fix, part 3 (2026-08-19) — `renderViaTemplate` has the same
-        // pageShell-bypassing `renderStaticPage` shape as the two branches above; unlike the
-        // marketing-page branch this one DOES have a real backing `post`, so it folds through the
-        // same entry-bearing `"post"` shape the generic (non-template) render below already uses.
-        const extraHead = await buildExtraHead(deps, "post", SITE_TITLE, post);
-        res
-          .set("Cache-Control", CACHE_CONTROL_PUBLIC_PAGE)
-          .type("html")
-          .send(await renderViaTemplate(deps, theme, post, staticMenus, undefined, extraHead));
+      const marketingResolution = await resolveMarketingPageOrOverride(deps, theme, slug, staticMenus);
+      if (marketingResolution.kind === "responded") {
+        res.set("Cache-Control", CACHE_CONTROL_PUBLIC_PAGE).type("html").send(marketingResolution.html);
         return;
       }
 
-      const [widgets, pageHtmlEmbeds, mediaTransformVersions, mediaAssetMetadata, extraHead] = await Promise.all([
-        resolveWidgetsForRender(deps, theme, post),
-        resolveHtmlEmbedsForRender(deps, post),
-        resolveMediaTransformVersionsForRender(deps),
-        resolveMediaAssetMetadataForRender(deps, post),
-        buildExtraHead(deps, "post", SITE_TITLE, post),
-      ]);
-      res.set("Cache-Control", CACHE_CONTROL_PUBLIC_PAGE).type("html").send(
-        await renderSite({
-          theme,
-          route: "post",
-          siteTitle: SITE_TITLE,
-          posts,
-          post,
-          widgets,
-          pageHtmlEmbeds,
-          mediaTransformVersions,
-          mediaAssetMetadata,
-          extraHead,
-          siteAssistantEnabled,
-        }),
-      );
+      const post = await resolvePostAfterMarketingCheck(deps, slug, marketingResolution);
+
+      const templateHtml = await renderTemplateBranchIfEligible(deps, theme, post, staticMenus);
+      if (templateHtml !== undefined) {
+        res.set("Cache-Control", CACHE_CONTROL_PUBLIC_PAGE).type("html").send(templateHtml);
+        return;
+      }
+
+      res
+        .set("Cache-Control", CACHE_CONTROL_PUBLIC_PAGE)
+        .type("html")
+        .send(await renderGenericPostPage(deps, theme, post, posts, siteAssistantEnabled));
     } catch (err) {
       if (err instanceof PostNotFoundError) {
-        if (await tryRedirectPhase("post_content", req.path, deps.workspaceId, res)) return;
-
-        // A static theme that ships its own pages/404.html gets a themed not-found page instead of
-        // the bare fallback below — same renderStaticPage path the marketing-page routes above use.
-        if (theme && theme.manifest.tier === "static" && theme.pages["404"] !== undefined) {
-          const staticHtml = renderStaticPage({ theme, pageId: "404", menus: staticMenus });
-          if (staticHtml) {
-            res.status(404).type("html").send(staticHtml);
-            return;
-          }
-        }
-
-        res.status(404).type("html").send("<h1>404 — page not found</h1><p><a href='/'>Home</a></p>");
+        await handlePostNotFoundOnSlugRoute(req, res, deps, theme, staticMenus);
         return;
       }
       res.status(500).type("html").send("<h1>Site error</h1>");
