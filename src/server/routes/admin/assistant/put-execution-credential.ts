@@ -6,6 +6,35 @@ import {
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { AssistantSettingsRouteRegistrar } from "./deps.js";
 
+/** `maxTokens` and `providerId` each accept their own shape; every other field defaults to
+ *  string-or-omitted (looked up via the `undefined` key below). */
+const EXECUTION_CREDENTIAL_FIELD_VALIDATORS: Readonly<
+  Record<string, { readonly ok: (value: unknown) => boolean; readonly message: string }>
+> = {
+  maxTokens: { ok: (value) => value === undefined || typeof value === "number", message: "maxTokens must be a number" },
+  providerId: {
+    ok: (value) => value === undefined || value === null || typeof value === "string",
+    message: "providerId must be a string or null",
+  },
+};
+
+/**
+ * Validates one `PUT` body field's shape. Present-but-wrong-type is a REJECTION, same posture as
+ * `put-site-credential.ts`'s identical check — an `undefined` field is "leave alone," but a present
+ * malformed field must not be silently reinterpreted as "the caller sent nothing."
+ *
+ * @throws {ExecutionCredentialValidationError} if `value` doesn't match `field`'s accepted shape.
+ * @complexity O(1).
+ */
+function validateExecutionCredentialField(field: string, value: unknown): void {
+  const specific = EXECUTION_CREDENTIAL_FIELD_VALIDATORS[field];
+  const ok = specific ? specific.ok(value) : value === undefined || typeof value === "string";
+  if (ok) {
+    return;
+  }
+  throw new ExecutionCredentialValidationError(specific ? specific.message : `${field} must be a string`);
+}
+
 /**
  * PUT (partial) the calling admin's OWN BYOK execution credential. Body:
  * `{ apiKey?, protocol?, providerId?, baseUrl?, model?, maxTokens? }` — omitted `apiKey` leaves the
@@ -35,25 +64,8 @@ export const registerAdminAssistantPutExecutionCredentialRoute: AssistantSetting
         model?: unknown;
         maxTokens?: unknown;
       };
-      // Present-but-wrong-type is a REJECTION, same posture as `put-site-credential.ts`'s identical
-      // check — an `undefined` field is "leave alone," but a present malformed field must not be
-      // silently reinterpreted as "the caller sent nothing."
       for (const [field, value] of Object.entries(body)) {
-        if (field === "maxTokens") {
-          if (value !== undefined && typeof value !== "number") {
-            throw new ExecutionCredentialValidationError("maxTokens must be a number");
-          }
-          continue;
-        }
-        if (field === "providerId") {
-          if (value !== undefined && value !== null && typeof value !== "string") {
-            throw new ExecutionCredentialValidationError("providerId must be a string or null");
-          }
-          continue;
-        }
-        if (value !== undefined && typeof value !== "string") {
-          throw new ExecutionCredentialValidationError(`${field} must be a string`);
-        }
+        validateExecutionCredentialField(field, value);
       }
 
       const view = await setExecutionCredential(
