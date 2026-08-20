@@ -102,6 +102,46 @@ function liquidTemplateContextRoute(templateId: string): "home" | "post" | "prod
   return null;
 }
 
+/**
+ * The lookup + tier + template-existence + route-shape checks the TEMPLATED-tier route needs
+ * before it can render anything: find the theme, 404 if missing, 422 if not `templated` tier, 404
+ * if `templateId` names no real `.liquid` file, 422 if that file's name maps to no recognized
+ * `SiteRenderContext` shape. Returns the resolved `{theme, route}` on success, or `null` after
+ * already writing the error response — same "caller just returns" contract as
+ * {@link resolveStaticTheme}.
+ */
+function resolveTemplatedPreviewTarget(
+  res: Response,
+  required: { themes: DiscoveredTheme[]; themeId: string; templateId: string }
+): { theme: DiscoveredTheme; route: "home" | "post" | "products" | "product" } | null {
+  const { themes, themeId, templateId } = required;
+  const theme = findTheme({ themes, id: themeId });
+  if (!theme) {
+    res.status(404).type("text/plain").send(`theme '${themeId}' was not found`);
+    return null;
+  }
+  if (theme.manifest.tier !== "templated") {
+    res
+      .status(422)
+      .type("text/plain")
+      .send(`theme '${themeId}' is a '${theme.manifest.tier}' theme; only templated themes preview this way`);
+    return null;
+  }
+  if (theme.liquidTemplates[templateId] === undefined) {
+    res.status(404).type("text/plain").send(`template '${templateId}' was not found in theme '${themeId}'`);
+    return null;
+  }
+  const route = liquidTemplateContextRoute(templateId);
+  if (!route) {
+    res
+      .status(422)
+      .type("text/plain")
+      .send(`template '${templateId}' has no recognized route shape and cannot be previewed here`);
+    return null;
+  }
+  return { theme, route };
+}
+
 export function registerThemePagePreview(app: Express, deps: RouteDeps): void {
   app.get("/theme-explore/:themeId/:pageId", (req: Request, res: Response) => {
     const themeId = String(req.params.themeId ?? "");
@@ -153,30 +193,9 @@ export function registerThemePagePreview(app: Express, deps: RouteDeps): void {
         const themeId = String(req.params.themeId ?? "");
         const templateId = String(req.params.templateId ?? "");
 
-        const theme = findTheme({ themes: deps.themes, id: themeId });
-        if (!theme) {
-          res.status(404).type("text/plain").send(`theme '${themeId}' was not found`);
-          return;
-        }
-        if (theme.manifest.tier !== "templated") {
-          res
-            .status(422)
-            .type("text/plain")
-            .send(`theme '${themeId}' is a '${theme.manifest.tier}' theme; only templated themes preview this way`);
-          return;
-        }
-        if (theme.liquidTemplates[templateId] === undefined) {
-          res.status(404).type("text/plain").send(`template '${templateId}' was not found in theme '${themeId}'`);
-          return;
-        }
-        const route = liquidTemplateContextRoute(templateId);
-        if (!route) {
-          res
-            .status(422)
-            .type("text/plain")
-            .send(`template '${templateId}' has no recognized route shape and cannot be previewed here`);
-          return;
-        }
+        const target = resolveTemplatedPreviewTarget(res, { themes: deps.themes, themeId, templateId });
+        if (!target) return;
+        const { theme, route } = target;
 
         // Real content, no fixtures: the same `listPublishedPosts` the live site itself renders from
         // (`routes/site/pages.ts`) — never a draft, matching the visibility bar the ungated static
