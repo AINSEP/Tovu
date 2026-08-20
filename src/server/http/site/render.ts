@@ -164,16 +164,54 @@ function shortDate(iso: string): string {
 // ---------------------------------------------------------------------------
 
 /**
+ * Fixed placeholder origin {@link safeHref} resolves a claimed same-origin-relative href against.
+ * This is a pure string function with no real request/origin available to it — any two-part fixed
+ * origin works equally well as the resolution anchor, since only the RELATIONSHIP between the
+ * resolved URL's origin and this one is ever inspected below, never the placeholder value itself.
+ */
+const SAFE_HREF_RESOLUTION_BASE = "http://tovu-safehref.invalid/";
+const SAFE_HREF_RESOLUTION_ORIGIN = new URL(SAFE_HREF_RESOLUTION_BASE).origin;
+
+/**
  * Sanitize a content `link` href (C7). Content is data, so an inline link is an
  * untrusted string: allow only in-page (`#…`), same-origin relative (`/…`),
  * `http(s)://`, and `mailto:` targets. Everything else — notably `javascript:`
  * and `data:` — collapses to `"#"` so a doc can never smuggle script into a page.
+ *
+ * A `#…` target can never carry a scheme/host of its own — the WHATWG URL parser always resolves a
+ * fragment-only reference against the CURRENT page's own origin, no matter what precedes or follows
+ * the `#` (probed directly against Node's real `URL`, same discipline {@link safeImageSrc}'s own
+ * header states for itself) — so that branch needs no further check.
+ *
+ * The `/…` branch is NOT a plain prefix check (2026-08-20 fix — audit finding "safeHref accepts
+ * protocol-relative URLs"). A value can start with a single leading `/` and still resolve OFF
+ * origin once a real browser parses it: `"//evil.example"` (protocol-relative — a browser resolves
+ * it against the CURRENT PAGE's own scheme, landing on an attacker host), `"/\evil.example"` (a
+ * browser folds a backslash to a forward slash for `http(s)` during parsing — the exact fold
+ * {@link safeImageSrc}'s own header documents for its admin-media-path check), and even a
+ * TAB/NEWLINE/CR planted between the leading `/` and the rest of the string (the WHATWG URL parser
+ * strips those three characters from ANYWHERE in the input before parsing, per spec — not just the
+ * string's ends, which is all `.trim()` above ever covers — so `"/\t/evil.example"` reconstitutes
+ * the same `"//evil.example"` shape a browser would see). Resolving the trimmed value against a
+ * FIXED placeholder origin and comparing origins closes all of the above in one check, the same way
+ * {@link safeImageSrc}'s own `new URL(src).pathname` check replaced a shape-by-shape regex — and
+ * stays correct against whatever equivalent shape is discovered next, rather than needing a new
+ * `startsWith` exception bolted on per attack form.
  */
 function safeHref(value: JsonValue | undefined): string {
   if (typeof value !== "string") return "#";
   const href = value.trim();
-  if (href.startsWith("/") || href.startsWith("#")) return href;
+  if (href.startsWith("#")) return href;
   if (/^https?:\/\//i.test(href) || /^mailto:/i.test(href)) return href;
+  if (href.startsWith("/")) {
+    let resolved: URL;
+    try {
+      resolved = new URL(href, SAFE_HREF_RESOLUTION_BASE);
+    } catch {
+      return "#";
+    }
+    return resolved.origin === SAFE_HREF_RESOLUTION_ORIGIN ? href : "#";
+  }
   return "#";
 }
 
@@ -1411,10 +1449,27 @@ function renderWidgetSocialLinks(props: JsonObject): string {
   return `<ul class="widget widget-social-links">${items}</ul>`;
 }
 
+/**
+ * `entry-summary` builds its own `href="/${slug}"` rather than calling {@link safeHref} — `slug` is
+ * never a full URL, so the allowlist scheme/relative checks {@link safeHref} runs don't apply here.
+ * That made it a SECOND, independent open-redirect path (2026-08-20 audit finding, alongside
+ * `safeHref`'s own protocol-relative bypass fixed above): a `props.slug` of `"/evil.example"` (a
+ * leading slash smuggled inside the widget prop) reconstructs the exact same `"//evil.example"`
+ * protocol-relative shape once concatenated behind the hardcoded `/` prefix — `escapeHtml` does not
+ * touch `/`, so nothing upstream of this function was stopping it. Fixed the same way
+ * {@link renderDocMention} already validates a mentioned post's `id` before trusting it into an
+ * `href`: re-validate against the real slug format (`SLUG_FORMAT_PATTERN`/`MAX_SLUG_LENGTH`, the
+ * SAME rule the post feature enforces at write time) rather than assuming this prop was ever
+ * produced by that write path — `render.contribute`'s IR is attacker-shaped JSON at this boundary,
+ * not necessarily a real `PostRecord.slug`. An invalid slug degrades the link target to `"#"`
+ * (never a malformed/unsafe href) while the title still renders — same "degrade, don't disappear"
+ * convention every other renderer in this file follows.
+ */
 function renderWidgetEntrySummary(props: JsonObject): string {
   const slug = str(props.slug);
   const title = str(props.title);
-  return `<li class="widget-entry-summary"><a href="/${escapeHtml(slug)}">${escapeHtml(title)}</a></li>`;
+  const href = slug.length > 0 && slug.length <= MAX_SLUG_LENGTH && SLUG_FORMAT_PATTERN.test(slug) ? `/${escapeHtml(slug)}` : "#";
+  return `<li class="widget-entry-summary"><a href="${href}">${escapeHtml(title)}</a></li>`;
 }
 
 function renderWidgetRecentEntries(children: readonly WidgetRenderIR[] | undefined): string {

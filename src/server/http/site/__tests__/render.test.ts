@@ -77,6 +77,28 @@ test("C7: javascript:, data: and non-string hrefs collapse to '#' (no script smu
   }
 });
 
+test("C7: protocol-relative and same-origin-lookalike hrefs collapse to '#' (open-redirect fix, 2026-08-20 — 'safeHref accepts protocol-relative URLs' audit finding)", () => {
+  // Every one of these starts with a single leading "/" (the same check the OLD safeHref used to
+  // decide "same-origin relative, allow unchanged") but resolves off-origin once a real browser (or
+  // the WHATWG URL parser) gets to it. `renderDocNode(textDoc(...))` drives the exact same
+  // `renderLinkMark` -> `safeHref` path the C7 tests above already use for ordinary post content.
+  const hostile = [
+    "//evil.example", // bare protocol-relative — inherits the page's own scheme
+    "//evil.example/phish", // same, with a path
+    "/\\evil.example", // backslash right after the leading slash — a browser folds \ to / for http(s)
+    " //evil.example", // leading whitespace in front of the protocol-relative form
+    "/\t/evil.example", // a TAB planted between the leading "/" and the rest: the WHATWG URL parser
+    // strips tab/newline/CR from ANYWHERE in the string before parsing, so this
+    // reconstitutes "//evil.example" the same way a browser would see it
+  ];
+  for (const href of hostile) {
+    const html = renderDocNode(
+      textDoc({ type: "text", text: "x", marks: [{ type: "link", attrs: { href } }] })
+    );
+    assert.equal(html, '<p><a href="#">x</a></p>', `expected ${JSON.stringify(href)} to collapse to "#", got: ${html}`);
+  }
+});
+
 test("C7: link composes with an emphasis mark on the same text", () => {
   const html = renderDocNode(
     textDoc({ type: "text", text: "here", marks: [{ type: "bold" }, { type: "link", attrs: { href: "/x" } }] })
@@ -846,6 +868,30 @@ test("renderSite: every v1 widget componentId renders correctly and escapes untr
   // unknown componentId -> the same public-safe placeholder, no secret leaked
   assert.match(html, /widget-placeholder/);
   assert.doesNotMatch(html, /leak-me/);
+});
+
+test("widgets: protocol-relative hrefs never reach public HTML through any widget href surface (open-redirect fix, 2026-08-20)", () => {
+  // social-links and menu both go THROUGH safeHref (render.ts:1408/1436) — fixed by the same
+  // safeHref change the C7 test above proves.
+  const social = renderWidgetIr({ componentId: "social-links", props: { links: [{ platform: "X", url: "//evil.example" }] } });
+  assert.match(social, /href="#"/, `social-links did not neutralize the href, got: ${social}`);
+  assert.doesNotMatch(social, /evil\.example/);
+
+  const menu = renderWidgetIr({
+    componentId: "menu",
+    props: { title: "Main", items: [{ label: "Evil", href: "//evil.example", available: true }] },
+  });
+  assert.match(menu, /href="#"/, `menu did not neutralize the href, got: ${menu}`);
+  assert.doesNotMatch(menu, /evil\.example/);
+
+  // entry-summary is a SECOND, INDEPENDENT bypass (render.ts:1417, pre-fix): it built
+  // `href="/${slug}"` itself and never called safeHref at all. A `props.slug` of "/evil.example"
+  // (a leading slash inside the widget prop) reconstructs the identical "//evil.example"
+  // protocol-relative shape once concatenated behind the hardcoded "/" — same attack, different
+  // route, so it needs its own fix (slug format validation), not a safeHref call.
+  const entry = renderWidgetIr({ componentId: "entry-summary", props: { slug: "/evil.example", title: "Evil" } });
+  assert.doesNotMatch(entry, /href="\/\/evil\.example"/, `entry-summary reconstructed a protocol-relative href, got: ${entry}`);
+  assert.doesNotMatch(entry, /evil\.example/);
 });
 
 // ---------------------------------------------------------------------------
