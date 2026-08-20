@@ -637,6 +637,19 @@ export function resolveTemplate(
  *
  * @complexity O(1) — field comparisons only, no I/O or iteration.
  */
+/**
+ * The `kind: "page"` half of {@link isEligibleForTemplateBranch} — split out purely to keep that
+ * function's own branch count proportional to "which gate applies", not also the doc/html
+ * divergence within the Page gate. See the caller's own doc for the full reasoning behind the
+ * doc-vs-html `""` divergence this preserves verbatim.
+ */
+function isPageTemplateChoiceEligible(post: { bodyFormat: "doc" | "html"; templateChoice?: string | null }): boolean {
+  if (post.bodyFormat === "html") {
+    return post.templateChoice !== null && post.templateChoice !== undefined && post.templateChoice !== "";
+  }
+  return post.bodyFormat === "doc" && post.templateChoice !== null && post.templateChoice !== undefined;
+}
+
 export function isEligibleForTemplateBranch(
   required: {
     theme: DiscoveredTheme;
@@ -646,13 +659,12 @@ export function isEligibleForTemplateBranch(
 ): boolean {
   const { theme, post } = required;
   if (theme.manifest.tier !== "static") return false;
-  if ((theme.manifest.templates?.length ?? 0) === 0) return false;
+
+  const templateCount = theme.manifest.templates?.length ?? 0;
+  if (templateCount === 0) return false;
 
   if (post.kind === "post") return true;
 
   // kind === "page" — no "never chosen" fallback arm, ever (see this function's own doc for why).
-  if (post.bodyFormat === "html") {
-    return post.templateChoice !== null && post.templateChoice !== undefined && post.templateChoice !== "";
-  }
-  return post.bodyFormat === "doc" && post.templateChoice !== null && post.templateChoice !== undefined;
+  return isPageTemplateChoiceEligible(post);
 }
