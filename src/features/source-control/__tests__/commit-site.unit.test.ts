@@ -38,9 +38,20 @@ test.after(() => rmSync(exportDir, { recursive: true, force: true }));
  *  temp dir — `commitSiteToSourceControl` reads this field instead of
  *  `process.env.TOVU_SOURCE_CONTROL_EXPORT_DIR` (commit-site.ts no longer reads env vars at all),
  *  so overriding it here is what keeps this suite's real `exportSite` writes off the checked-out
- *  repo. */
+ *  repo.
+ *
+ *  MUTATES the object `createRouteDeps()` returns rather than spreading a copy
+ *  (`{ ...createRouteDeps(), sourceControlExportRootDir: exportDir }`) — deliberately, since
+ *  2026-08-20 (RouteDeps-narrowing fix): `RouteDeps.exportSiteBound` is a closure bound to ONE
+ *  object identity, at construction time, inside `createRouteDeps()` itself. A spread here would
+ *  produce a logically-overridden but DIFFERENT object that closure never sees, so ANY later
+ *  override of a field the real `exportSite` reads internally (e.g. `createSiteApp`, see the
+ *  "an asset that fails to export" test below) would silently never apply. See
+ *  `routes/types.ts`'s `exportSiteBound` doc for this same gotcha, generalized. */
 function testRouteDeps(): RouteDeps {
-  return { ...createRouteDeps(), sourceControlExportRootDir: exportDir };
+  const deps = createRouteDeps();
+  deps.sourceControlExportRootDir = exportDir;
+  return deps;
 }
 
 /** Wraps the real `createApp` so ONE exact asset path always 500s, while every other route/asset
@@ -114,7 +125,7 @@ test("commitSiteToSourceControl: an invalid target is rejected before credential
   const deps = testRouteDeps();
   const result = await commitSiteToSourceControl(
     { credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: neverCalledGitAdapter() },
-    { workspaceId: deps.workspaceId, routeDeps: deps, owner: "not valid owner!!", repo: "demo", commitMessage: "x" }
+    { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "not valid owner!!", repo: "demo", commitMessage: "x" }
   );
   assert.equal(result.ok, false);
   if (result.ok) throw new Error("unreachable");
@@ -126,7 +137,7 @@ test("commitSiteToSourceControl: no saved credential fails cleanly with NO_CREDE
   const deps = testRouteDeps();
   const result = await commitSiteToSourceControl(
     { credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: neverCalledGitAdapter() },
-    { workspaceId: deps.workspaceId, routeDeps: deps, owner: "octo", repo: "demo", commitMessage: "content update" }
+    { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
   );
   assert.equal(result.ok, false);
   if (result.ok) throw new Error("unreachable");
@@ -154,7 +165,7 @@ test("commitSiteToSourceControl: a genuine decrypt failure (e.g. a boot with no 
   const brokenSealer = new AesGcmSecretSealer(new InMemoryKeyring());
   const result = await commitSiteToSourceControl(
     { credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: brokenSealer }, gitAdapter: neverCalledGitAdapter() },
-    { workspaceId: deps.workspaceId, routeDeps: deps, owner: "octo", repo: "demo", commitMessage: "content update" }
+    { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
   );
   assert.equal(result.ok, false);
   if (result.ok) throw new Error("unreachable");
@@ -166,7 +177,7 @@ test("commitSiteToSourceControl: a real export runs and its files reach the git 
   const captured: { files: readonly CommitFile[] | null; input: unknown } = { files: null, input: null };
   const result = await commitSiteToSourceControl(
     { credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: fakeGitAdapter({ ok: true, branch: "main", branchCreated: false, commitSha: "abc123", commitUrl: "https://github.com/octo/demo/commit/abc123", filesChanged: 1, filesDeleted: 0 }, captured) },
-    { workspaceId: deps.workspaceId, routeDeps: deps, owner: "octo", repo: "demo", branch: "main", commitMessage: "content update" }
+    { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", branch: "main", commitMessage: "content update" }
   );
 
   assert.equal(result.ok, true);
@@ -192,7 +203,7 @@ test("commitSiteToSourceControl: branch omitted is forwarded to the git adapter 
   const captured: { files: readonly CommitFile[] | null; input: unknown } = { files: null, input: null };
   await commitSiteToSourceControl(
     { credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: fakeGitAdapter({ ok: true, branch: "main", branchCreated: false, commitSha: "abc123", commitUrl: "https://github.com/octo/demo/commit/abc123", filesChanged: 1, filesDeleted: 0 }, captured) },
-    { workspaceId: deps.workspaceId, routeDeps: deps, owner: "octo", repo: "demo", commitMessage: "content update" }
+    { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
   );
   const passedInput = captured.input as { branch?: string };
   assert.equal("branch" in passedInput, false, "commitSiteToSourceControl must not invent a branch — that decision belongs to the git adapter");
@@ -212,7 +223,7 @@ for (const { adapterCode, expected } of ADAPTER_FAILURE_CASES) {
     const captured: { files: readonly CommitFile[] | null; input: unknown } = { files: null, input: null };
     const result = await commitSiteToSourceControl(
       { credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: fakeGitAdapter({ ok: false, code: adapterCode, message: `fake ${adapterCode}` }, captured) },
-      { workspaceId: deps.workspaceId, routeDeps: deps, owner: "octo", repo: "demo", commitMessage: "content update" }
+      { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
     );
     assert.equal(result.ok, false);
     if (result.ok) throw new Error("unreachable");
@@ -240,12 +251,20 @@ test("commitSiteToSourceControl: a network-unreachable result is NEVER conflated
  * git adapter must never fire.
  */
 test("commitSiteToSourceControl: an asset that fails to export blocks the commit, the same as a failed route", async () => {
-  const base = await withGithubCredential(testRouteDeps());
-  const deps: RouteDeps = { ...base, createSiteApp: createSiteAppWithFailingAsset("/theme-assets/basic/css/theme.css") };
+  const deps = await withGithubCredential(testRouteDeps());
+  // MUTATED in place, not spread into a copy (`{...deps, createSiteApp: X}`) — `deps.exportSiteBound`
+  // (2026-08-20 RouteDeps-narrowing fix) is a closure bound ONCE, over this exact object, inside
+  // `createRouteDeps()` itself. A spread produces a logically-overridden but DIFFERENT object
+  // identity that closure never sees, so `createSiteApp`'s override would silently not apply and
+  // this test would exercise the real, non-failing app instead of the forced-failure one. Mutating
+  // the SAME object `exportSiteBound` already closed over is what makes the override visible —
+  // property reads happen at call time, not at closure-creation time. See `routes/types.ts`'s
+  // `exportSiteBound` doc for this same gotcha, generalized.
+  deps.createSiteApp = createSiteAppWithFailingAsset("/theme-assets/basic/css/theme.css");
 
   const result = await commitSiteToSourceControl(
     { credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: neverCalledGitAdapter() },
-    { workspaceId: deps.workspaceId, routeDeps: deps, owner: "octo", repo: "demo", commitMessage: "content update" }
+    { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "content update" }
   );
 
   assert.equal(result.ok, false);
@@ -288,11 +307,11 @@ test("commitSiteToSourceControl: two concurrent commits both still succeed with 
   const [resultA, resultB] = await Promise.all([
     commitSiteToSourceControl(
       { credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: fakeGitAdapter({ ok: true, branch: "main", branchCreated: false, commitSha: "sha-a", commitUrl: "https://github.com/octo/demo/commit/sha-a", filesChanged: 1 }, capturedA) },
-      { workspaceId: deps.workspaceId, routeDeps: deps, owner: "octo", repo: "demo", commitMessage: "run a" }
+      { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "run a" }
     ),
     commitSiteToSourceControl(
       { credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: fakeGitAdapter({ ok: true, branch: "main", branchCreated: false, commitSha: "sha-b", commitUrl: "https://github.com/octo/demo/commit/sha-b", filesChanged: 1 }, capturedB) },
-      { workspaceId: deps.workspaceId, routeDeps: deps, owner: "octo", repo: "demo", commitMessage: "run b" }
+      { workspaceId: deps.workspaceId, sourceControlExportRootDir: deps.sourceControlExportRootDir, idGen: deps.idGen, exportSiteBound: deps.exportSiteBound, owner: "octo", repo: "demo", commitMessage: "run b" }
     ),
   ]);
 

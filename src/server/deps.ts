@@ -665,7 +665,7 @@ export function createSqliteRouteDeps(
   // `outbox`/`settingsRepo` above).
   const postRepo = new SqlitePostRepo(db);
 
-  return {
+  const routeDeps: NewsletterRouteDeps = {
     workspaceId: workspaceId,
     workspaceRepo: new SqliteWorkspaceRepo(db),
     postRepo,
@@ -909,7 +909,14 @@ export function createSqliteRouteDeps(
     // shared sealer/keyring the credential repos above already reuse (no third `EnvOrFileKeyring`
     // instance).
     customCredentialSetRepo: new SqliteCustomCredentialSetRepo(db),
+    // 2026-08-20 (RouteDeps-narrowing fix) — see `routes/types.ts`'s `exportSiteBound` doc and
+    // `server/app.ts`'s matching field for the identical closure-ordering reasoning (`routeDeps`
+    // spread LAST, so it always wins over anything a caller's `opts` might also carry).
+    exportSiteBound: (opts) =>
+      // eslint-disable-next-line @typescript-eslint/no-require-imports -- deliberate; see runExportSiteLazily's doc above.
+      (require("../export/index.js") as typeof import("../export/index.js")).exportSite({ ...opts, routeDeps }),
   };
+  return routeDeps;
 }
 
 /**

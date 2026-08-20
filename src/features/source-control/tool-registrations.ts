@@ -12,13 +12,14 @@ import {
 } from "@jini-ai/cms/core";
 import { buildConfirmationSurface, type UIResource, type UIResourceUri } from "@jini-ai/ui/mcp-ui/surfaces";
 
-import type { RouteDeps } from "#src/server/routes/types";
+import type { AuthorizeFn } from "../../core/commands/index.js";
+import type { SecretSealerPort } from "../../webhooks/index.js";
 
 import { askOnce, SURFACE_EXCHANGE_ID_PARAM, type AssistantSurfaceDeps, type SurfaceExchange } from "../../core/tool-surface-exchanges.js";
 import { registerToolContributor } from "#src/assistant/index";
-import { commitSiteToSourceControl, validateCommitTarget, type GitHubCommitAdapter } from "./commit-site.js";
+import { commitSiteToSourceControl, validateCommitTarget, type ExportSiteBoundFn, type GitHubCommitAdapter } from "./commit-site.js";
 import { listSourceControlCredentials } from "./store.js";
-import type { SourceControlProviderId } from "./types.js";
+import type { SourceControlCredentialSetRepoPort, SourceControlProviderId } from "./types.js";
 
 /**
  * @file This domain's agent-tool catalog + wiring — mirrors `features/deployments/
@@ -164,7 +165,32 @@ export const sourceControlDerivedRisk: DerivedRiskByToolId = new Map<string, Age
   ["source_control_execute_commit", "mutates-durable-state"],
 ]);
 
-export interface SourceControlToolDeps extends RouteDeps {
+/**
+ * The exact slice of the route-deps bag this domain's tool handlers read. Declared structurally
+ * (rather than importing `server/routes/types`'s `RouteDeps`) so this module carries no back-edge
+ * into the composition root — same discipline `comments/tool-registrations.ts`'s `CommentsToolDeps`
+ * documents for its own narrowing.
+ *
+ * 2026-08-20 RouteDeps-narrowing fix (supersedes `b6144774`'s config-only attempt, which the owner
+ * rejected — see `ADS-memory/reports/2026-08-20-architecture-step2-routedeps-narrowing.md`): this
+ * interface used to `extends RouteDeps` outright, on the grounds that `commitSiteToSourceControl`
+ * needs the full composition-root bag to run a real `exportSite` pass. That reasoning about
+ * `exportSite`'s own requirement was correct — but it does not follow that THIS interface has to name
+ * `RouteDeps` to satisfy it. `exportSiteBound` below is the fix: a pre-bound export call, closed over
+ * the full `RouteDeps` at the composition root (`server/app.ts`/`server/deps.ts`), threaded down as
+ * one narrow field instead of the whole bag. `server/routes/*` satisfies this structurally by passing
+ * its existing `RouteDeps` object (which now also carries `exportSiteBound`); nothing there changes.
+ */
+export interface SourceControlToolDeps {
+  readonly authorize: AuthorizeFn;
+  readonly workspaceId: string;
+  readonly sourceControlCredentialSetRepo: SourceControlCredentialSetRepoPort;
+  readonly siteAssistantSecretSealer: SecretSealerPort;
+  readonly sourceControlExportRootDir: string;
+  readonly idGen: { newId(): string };
+  /** See `commit-site.ts`'s `ExportSiteBoundFn` doc for what this is and why it replaces the
+   *  `routeDeps: RouteDeps` field `commitSiteToSourceControl`'s input used to carry. */
+  readonly exportSiteBound: ExportSiteBoundFn;
   /** The real GitHub Git Data API adapter when set (`github-git-provider.ts`, wired in a follow-up
    *  commit — see this file's header). Tests inject a fake here; production has no default yet. */
   readonly gitAdapter?: GitHubCommitAdapter;
@@ -241,7 +267,8 @@ function buildCapabilityGuidance(providerId: SourceControlProviderId, configured
  * Builds this domain's `ToolRegistration[]` — same shape every other domain's
  * `build<Domain>Registrations` produces.
  *
- * @param deps - `RouteDeps` plus this file's own test-only `gitAdapter` override.
+ * @param deps - `SourceControlToolDeps` (the narrow slice of `RouteDeps` this domain reads, plus
+ *   this file's own test-only `gitAdapter` override).
  * @param surfaces - The held-open confirmation exchange store `source_control_execute_commit` parks
  *   on — required, matching `buildStaticPublishRegistrations`' own shape.
  * @complexity O(1) registration-time cost; each wired handler's own cost is documented at its call
@@ -361,7 +388,16 @@ export function buildSourceControlRegistrations(deps: SourceControlToolDeps, sur
 
         const outcome = await commitSiteToSourceControl(
           { credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, ...(deps.gitAdapter ? { gitAdapter: deps.gitAdapter } : {}) },
-          { workspaceId: deps.workspaceId, routeDeps: deps, owner, repo, ...(branch !== undefined ? { branch } : {}), commitMessage }
+          {
+            workspaceId: deps.workspaceId,
+            sourceControlExportRootDir: deps.sourceControlExportRootDir,
+            idGen: deps.idGen,
+            exportSiteBound: deps.exportSiteBound,
+            owner,
+            repo,
+            ...(branch !== undefined ? { branch } : {}),
+            commitMessage,
+          }
         );
 
         if (!outcome.ok) {

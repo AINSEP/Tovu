@@ -1,6 +1,7 @@
 import type { Express } from "express";
 import type { SiteProduct } from "../http/site/render.js";
 
+import type { ExportReport } from "#src/export/index";
 import type { EventBusPort, OutboxPort, UUID } from "@jini-ai/cms/core";
 import type { AuthorizeFn, ChangeSetRepoPort, RevertRegistry } from "../../core/commands/index.js";
 import type {
@@ -1245,6 +1246,53 @@ export type RouteDeps = ClockDeps & IdentityDeps & MediaDeps & CredentialsDeps &
    * `process.env` itself.
    */
   sourceControlExportRootDir: string;
+  /**
+   * A pre-bound `exportSite` call — the SAME real export engine `runExportSite` above wraps, closed
+   * over this exact `RouteDeps` object at construction time (`server/app.ts`'s `createRouteDeps()`/
+   * `server/deps.ts`'s `createSqliteRouteDeps()`), so a caller supplies only `{outputDir; clean?;
+   * basePath?}` — never a `routeDeps` argument.
+   *
+   * 2026-08-20 RouteDeps-narrowing fix, added specifically for `features/source-control/commit-site.ts`'s
+   * `commitSiteToSourceControl` and `features/deployments/static-publish/adapter.ts`'s
+   * `publishStaticSite`: both used to take `routeDeps: RouteDeps` directly (needing the full
+   * composition-root bag to run a real `exportSite` pass immediately before committing/publishing),
+   * which forced every caller up their own chain — `SourceControlToolDeps`, `StaticPublishToolDeps` —
+   * to name `RouteDeps` too, the exact "god type" back-edge
+   * `development/scripts/check-architecture.ts`'s `feature-no-express-or-admin-imports` rule exists to
+   * catch. This field lets those two callers take a small, locally-typed function instead (each
+   * declares its own structural copy — see `commit-site.ts`'s `ExportSiteBoundFn` — never importing
+   * `RouteDeps` to describe it).
+   *
+   * DELIBERATELY NOT the same field as `runExportSite` above, and not merely renamed — the two have
+   * genuinely different call shapes and mixing them up is a real, `tsc`-invisible bug (a `routeDeps`
+   * field silently ignored, or a required one silently missing), not a style choice. `runExportSite`
+   * stays `ExportEngine<RouteDeps>` (takes `routeDeps` per call) because `export-site.ts`'s POST route
+   * and `features/deployments/export-run.ts`'s `startExportRun` are already generic over it and have
+   * no reason to change; this field exists for the two callers that need the OPPOSITE shape — no
+   * `routeDeps` parameter at all, because it is already closed over here.
+   *
+   * Bound as `(opts) => exportSite({ ...opts, routeDeps })` in both composition roots — `routeDeps`
+   * spread LAST, deliberately, so a caller who forwards an unrelated `routeDeps` field through `opts`
+   * (e.g. by naively passing an `ExportEngine`-shaped options object straight through, which DOES carry
+   * one) can never overwrite the real, closed-over `RouteDeps` this binding exists to guarantee. See
+   * `features/deployments/tool-registrations.ts`'s own `deployment_trigger_export` handler and its
+   * regression test for the exact failure this ordering (and that handler's own explicit destructuring)
+   * closes.
+   *
+   * TEST GOTCHA (live-found, `source-control/__tests__/commit-site.unit.test.ts`): this closure is
+   * bound to ONE object identity, at construction time, inside `createRouteDeps()`/
+   * `createSqliteRouteDeps()`. A test that overrides another field the real `exportSite` reads
+   * internally (e.g. `createSiteApp`, to force one route/asset to fail) by SPREADING a copy —
+   * `{ ...createRouteDeps(), createSiteApp: fake }` — produces a logically-overridden but DIFFERENT
+   * object; this closure still points at the ORIGINAL, so the override silently never applies. The
+   * fix is to MUTATE the same object in place — `const deps = createRouteDeps(); deps.createSiteApp =
+   * fake;` — since a closure's field reads happen at CALL time against whatever object identity it
+   * captured, not a snapshot of that object's properties at capture time. `sourceControlExportRootDir`/
+   * `idGen`/every other field `SourceControlToolDeps`/`StaticPublishToolDeps` read directly (not
+   * through this closure) has no such gotcha — only fields the real `exportSite` reads INSIDE this
+   * closure's own call are affected.
+   */
+  exportSiteBound: (options: { outputDir: string; clean?: boolean; basePath?: string }) => Promise<ExportReport>;
 };
 
 export type RouteRegistrar = (app: Express, deps: RouteDeps) => void;
