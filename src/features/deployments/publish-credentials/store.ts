@@ -1,6 +1,6 @@
 import type { ClockPort, ISODateTime, UUID } from "@jini-ai/cms/core";
 
-import type { KeyringPort, SecretSealerPort } from "../../../webhooks/index.js";
+import type { KeyringPort, SealedSecret, SecretSealerPort } from "../../../webhooks/index.js";
 import { buildPublishCredentialAad } from "./aad.js";
 import type {
   PublishConnectionInput,
@@ -186,6 +186,44 @@ function optionalBoolean(raw: unknown, field: string): boolean | undefined {
  * @complexity O(1) — fixed-shape field reads, no iteration.
  * @overallScore 100
  */
+/** s3-compatible has NO `token` field at all (spec `custom-publish-provider-contract.md` §4a/§4b —
+ *  it authenticates with an access-key/secret-key PAIR, not a single bearer token), so it is built
+ *  entirely separately from the four token-bearing providers below. */
+function buildS3CompatibleConnection(value: Record<string, unknown>, providerId: "s3-compatible"): PublishConnectionInput {
+  const region = requireNonEmptyString(value.region, "region", providerId);
+  const bucket = requireNonEmptyString(value.bucket, "bucket", providerId);
+  const accessKeyId = requireNonEmptyString(value.accessKeyId, "accessKeyId", providerId);
+  const secretAccessKey = requireNonEmptyString(value.secretAccessKey, "secretAccessKey", providerId);
+  const publicUrl = requireNonEmptyString(value.publicUrl, "publicUrl", providerId);
+  const endpoint = optionalString(value.endpoint, "endpoint");
+  return { providerId, region, bucket, accessKeyId, secretAccessKey, publicUrl, ...(endpoint !== undefined ? { endpoint } : {}) };
+}
+
+/** One builder per token-bearing provider — each already has `token` (the field every one of these
+ *  four shares) resolved by the caller, so it only needs to add its own provider-specific fields. */
+const TOKEN_PROVIDER_CONNECTION_BUILDERS: {
+  readonly [K in Exclude<PublishProviderId, "s3-compatible">]: (value: Record<string, unknown>, token: string) => PublishConnectionInput;
+} = {
+  // No owner/repo here — see `types.ts`'s `GitHubPagesConnectionInput` doc for why those are
+  // publish-TARGET fields, never credential fields.
+  "github-pages": (_value, token) => ({ providerId: "github-pages", token }),
+  vercel: (value, token) => {
+    const teamId = optionalString(value.teamId, "teamId");
+    return { providerId: "vercel", token, ...(teamId !== undefined ? { teamId } : {}) };
+  },
+  netlify: (value, token) => {
+    const siteId = optionalString(value.siteId, "siteId");
+    return { providerId: "netlify", token, ...(siteId !== undefined ? { siteId } : {}) };
+  },
+  // accountId is HARD required, never publishable without it (Cloudflare Pages has no
+  // account-scope-free API surface — see `types.ts`'s own doc comment).
+  "cloudflare-pages": (value, token) => {
+    const accountId = requireNonEmptyString(value.accountId, "accountId", "cloudflare-pages");
+    const projectName = optionalString(value.projectName, "projectName");
+    return { providerId: "cloudflare-pages", token, accountId, ...(projectName !== undefined ? { projectName } : {}) };
+  },
+};
+
 function validateConnection(raw: unknown): PublishConnectionInput {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
     throw new PublishCredentialValidationError("connection must be an object");
@@ -196,39 +234,11 @@ function validateConnection(raw: unknown): PublishConnectionInput {
     throw new PublishCredentialValidationError(`connection.providerId must be one of: ${[...PROVIDER_IDS].join(", ")}`);
   }
 
-  // s3-compatible has NO `token` field at all (spec `custom-publish-provider-contract.md` §4a/§4b —
-  // it authenticates with an access-key/secret-key PAIR, not a single bearer token), so it branches
-  // BEFORE the generic `token` requirement below, which every other provider in this union shares.
-  if (providerId === "s3-compatible") {
-    const region = requireNonEmptyString(value.region, "region", providerId);
-    const bucket = requireNonEmptyString(value.bucket, "bucket", providerId);
-    const accessKeyId = requireNonEmptyString(value.accessKeyId, "accessKeyId", providerId);
-    const secretAccessKey = requireNonEmptyString(value.secretAccessKey, "secretAccessKey", providerId);
-    const publicUrl = requireNonEmptyString(value.publicUrl, "publicUrl", providerId);
-    const endpoint = optionalString(value.endpoint, "endpoint");
-    return { providerId, region, bucket, accessKeyId, secretAccessKey, publicUrl, ...(endpoint !== undefined ? { endpoint } : {}) };
-  }
+  if (providerId === "s3-compatible") return buildS3CompatibleConnection(value, providerId);
 
+  // Every other provider in this union shares this one generic requirement.
   const token = requireNonEmptyString(value.token, "token", providerId);
-
-  if (providerId === "github-pages") {
-    // No owner/repo here — see `types.ts`'s `GitHubPagesConnectionInput` doc for why those are
-    // publish-TARGET fields, never credential fields.
-    return { providerId, token };
-  }
-  if (providerId === "vercel") {
-    const teamId = optionalString(value.teamId, "teamId");
-    return { providerId, token, ...(teamId !== undefined ? { teamId } : {}) };
-  }
-  if (providerId === "netlify") {
-    const siteId = optionalString(value.siteId, "siteId");
-    return { providerId, token, ...(siteId !== undefined ? { siteId } : {}) };
-  }
-  // providerId === "cloudflare-pages" — accountId is HARD required, never publishable without it
-  // (Cloudflare Pages has no account-scope-free API surface — see `types.ts`'s own doc comment).
-  const accountId = requireNonEmptyString(value.accountId, "accountId", providerId);
-  const projectName = optionalString(value.projectName, "projectName");
-  return { providerId, token, accountId, ...(projectName !== undefined ? { projectName } : {}) };
+  return TOKEN_PROVIDER_CONNECTION_BUILDERS[providerId](value, token);
 }
 
 /** Wraps `sealer.seal()`/`keyring.activeKey()` failure into the fail-closed
@@ -364,6 +374,73 @@ export interface UpdatePublishCredentialInput {
  * @complexity O(1) — one read, at most one seal, one update.
  * @overallScore 100
  */
+/** The (possibly new) `providerId`/`sealed`/`accountLabel` triple `updatePublishCredential` writes.
+ *  `accountLabel` is reset (never carried over) whenever a NEW connection is resealed — see this
+ *  file's own header: an accountLabel naming the OLD token's account must not survive that token
+ *  being replaced, even though this function itself never re-probes to learn the new one (that
+ *  happens later, via `healAccountLabel`, after the admin route's post-save verify). */
+async function resolveUpdatedConnectionSecrets(
+  deps: PublishCredentialWriteDeps,
+  input: { workspaceId: UUID; id: UUID; connection?: unknown },
+  existing: PublishCredentialSetRecord
+): Promise<{ providerId: PublishProviderId; sealed: SealedSecret; accountLabel: string | null }> {
+  if (input.connection === undefined) {
+    return { providerId: existing.providerId, sealed: existing.sealed, accountLabel: existing.accountLabel };
+  }
+  const connection = validateConnection(input.connection);
+  const providerId = connection.providerId;
+  const sealed = await sealConnection(deps, { workspaceId: input.workspaceId, providerId, id: input.id, connection });
+  return { providerId, sealed, accountLabel: null };
+}
+
+/**
+ * `requestedDefault === true` always wins (see `UpdatePublishCredentialInput.isDefault`'s own doc).
+ * Otherwise: if the provider did NOT change, default status is left exactly as it already was for
+ * this row (never a false "un-default with no replacement").
+ *
+ * If the provider DID change, `existingIsDefault` must NOT simply carry over — it answered "was I
+ * the default for the OLD provider," which says nothing about the NEW one, and blindly copying it
+ * silently clobbered whatever the new provider's real default already was (Terra audit finding #4,
+ * 2026-08-16 fix — confirmed by direct probe against this exact function, worse than reported: not
+ * only did the OLD provider group end up with rows but no default, an UNREQUESTED `isDefault: true`
+ * on the new provider also silently stole default status away from an unrelated, working credential
+ * the human never touched). A provider change is treated the same way a brand-new row is —
+ * {@link decideCreateDefault}'s own "first in the (new) group, or explicitly requested" rule reused
+ * verbatim, so a solo credential moved onto a provider with nothing else configured still becomes its
+ * default (matching `createPublishCredential`'s own behavior for a first row), but never displaces an
+ * existing one without an explicit `isDefault: true`.
+ */
+async function resolveUpdatedIsDefault(
+  deps: PublishCredentialWriteDeps,
+  args: { workspaceId: UUID; providerId: PublishProviderId; requestedDefault: boolean | undefined; providerChanged: boolean; existingIsDefault: boolean }
+): Promise<boolean> {
+  if (args.requestedDefault === true) return true;
+  if (!args.providerChanged) return args.existingIsDefault;
+  return decideCreateDefault(await deps.repo.listByProvider({ workspaceId: args.workspaceId, providerId: args.providerId }), undefined);
+}
+
+/**
+ * The OTHER half of the Terra finding {@link resolveUpdatedIsDefault} documents: if this row WAS the
+ * OLD provider's default and just left that group, the old group may now have rows but no default at
+ * all — the same "a provider group with any rows always has exactly one default" invariant
+ * `PublishCredentialSetRepoPort.delete`'s own promotion step already maintains for a REMOVED row. A
+ * provider change is, from the old group's point of view, exactly that: this row just left it. Reuses
+ * `delete()`'s own tie-break rule (most-recently-updated wins) rather than inventing a second one —
+ * this is the one case `updatePublishCredential` must promote a DIFFERENT row than the one it just
+ * wrote, so it cannot be folded into that single `deps.repo.update()` call. A no-op unless BOTH the
+ * provider changed AND this row actually was the old provider's default.
+ */
+async function promoteReplacementDefaultInOldGroup(
+  deps: PublishCredentialWriteDeps,
+  args: { workspaceId: UUID; providerChanged: boolean; wasDefault: boolean; oldProviderId: PublishProviderId }
+): Promise<void> {
+  if (!(args.providerChanged && args.wasDefault)) return;
+  const remainingInOldGroup = await deps.repo.listByProvider({ workspaceId: args.workspaceId, providerId: args.oldProviderId });
+  if (remainingInOldGroup.length === 0) return;
+  const promoted = remainingInOldGroup.reduce((latest, row) => (row.updatedAt > latest.updatedAt ? row : latest));
+  await deps.repo.update({ ...promoted, isDefault: true });
+}
+
 export async function updatePublishCredential(deps: PublishCredentialWriteDeps, input: UpdatePublishCredentialInput): Promise<PublishCredentialSummary> {
   const existing = await deps.repo.findById({ workspaceId: input.workspaceId, id: input.id });
   if (!existing) {
@@ -374,42 +451,15 @@ export async function updatePublishCredential(deps: PublishCredentialWriteDeps, 
   const requestedDefault = optionalBoolean(input.isDefault, "isDefault");
   const now: ISODateTime = deps.clock.nowIso();
 
-  let providerId = existing.providerId;
-  let sealed = existing.sealed;
-  // Reset (never carried over) whenever a NEW connection is resealed — see this file's own header:
-  // an accountLabel naming the OLD token's account must not survive that token being replaced, even
-  // though this function itself never re-probes to learn the new one (that happens later, via
-  // healAccountLabel, after the admin route's post-save verify — see that function's own doc).
-  let accountLabel = existing.accountLabel;
-  if (input.connection !== undefined) {
-    const connection = validateConnection(input.connection);
-    providerId = connection.providerId;
-    sealed = await sealConnection(deps, { workspaceId: input.workspaceId, providerId, id: input.id, connection });
-    accountLabel = null;
-  }
+  const { providerId, sealed, accountLabel } = await resolveUpdatedConnectionSecrets(deps, input, existing);
   const providerChanged = providerId !== existing.providerId;
-
-  // `requestedDefault === true` always wins (see this function's own doc). Otherwise: if the provider
-  // did NOT change, default status is left exactly as it already was for this row (never a false
-  // "un-default with no replacement" — see `UpdatePublishCredentialInput.isDefault`'s own doc for why).
-  //
-  // If the provider DID change, `existing.isDefault` must NOT simply carry over — it answered "was I
-  // the default for the OLD provider," which says nothing about the NEW one, and blindly copying it
-  // silently clobbered whatever the new provider's real default already was (Terra audit finding #4,
-  // 2026-08-16 fix — confirmed by direct probe against this exact function, worse than reported: not
-  // only did the OLD provider group end up with rows but no default, an UNREQUESTED `isDefault: true`
-  // on the new provider also silently stole default status away from an unrelated, working credential
-  // the human never touched). A provider change is treated the same way a brand-new row is —
-  // {@link decideCreateDefault}'s own "first in the (new) group, or explicitly requested" rule reused
-  // verbatim, so a solo credential moved onto a provider with nothing else configured still becomes its
-  // default (matching `createPublishCredential`'s own behavior for a first row), but never displaces an
-  // existing one without an explicit `isDefault: true`.
-  const isDefault =
-    requestedDefault === true
-      ? true
-      : providerChanged
-        ? decideCreateDefault(await deps.repo.listByProvider({ workspaceId: input.workspaceId, providerId }), undefined)
-        : existing.isDefault;
+  const isDefault = await resolveUpdatedIsDefault(deps, {
+    workspaceId: input.workspaceId,
+    providerId,
+    requestedDefault,
+    providerChanged,
+    existingIsDefault: existing.isDefault,
+  });
 
   const record: PublishCredentialSetRecord = {
     workspaceId: input.workspaceId,
@@ -432,21 +482,12 @@ export async function updatePublishCredential(deps: PublishCredentialWriteDeps, 
     throw err;
   }
 
-  // The OTHER half of the same finding: if this row WAS the OLD provider's default and just left that
-  // group, the old group may now have rows but no default at all — the same "a provider group with any
-  // rows always has exactly one default" invariant `PublishCredentialSetRepoPort.delete`'s own promotion
-  // step already maintains for a REMOVED row. A provider change is, from the old group's point of view,
-  // exactly that: this row just left it. Reuses `delete()`'s own tie-break rule (most-recently-updated
-  // wins) rather than inventing a second one — this is the one case `updatePublishCredential` must
-  // promote a DIFFERENT row than the one it just wrote, so it cannot be folded into the single
-  // `deps.repo.update(record)` call above.
-  if (providerChanged && existing.isDefault) {
-    const remainingInOldGroup = await deps.repo.listByProvider({ workspaceId: input.workspaceId, providerId: existing.providerId });
-    if (remainingInOldGroup.length > 0) {
-      const promoted = remainingInOldGroup.reduce((latest, row) => (row.updatedAt > latest.updatedAt ? row : latest));
-      await deps.repo.update({ ...promoted, isDefault: true });
-    }
-  }
+  await promoteReplacementDefaultInOldGroup(deps, {
+    workspaceId: input.workspaceId,
+    providerChanged,
+    wasDefault: existing.isDefault,
+    oldProviderId: existing.providerId,
+  });
 
   return toSummary(record);
 }
