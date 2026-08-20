@@ -1085,6 +1085,11 @@ export interface PluginRuntimeDeps {
    * and agent-tool enable paths. Failures reject the enable operation. */
   onPluginEnabled: (pluginId: string) => Promise<void>;
   onPluginDisabled: (pluginId: string) => void;
+  /** Milestone 2 (2026-08-20) — removes a site plugin's on-disk artifact. Mechanism only, same
+   * pre-bound-closure convention as `onPluginEnabled`/`onPluginDisabled` above; the business-rule
+   * gating (not-found / built-in / still-enabled-somewhere) lives in
+   * `features/plugin-runtime/uninstall.ts`'s `uninstallPlugin()`, the route's actual entry point. */
+  onPluginUninstalled: (pluginId: string) => Promise<void>;
   /** The same process-lifetime hook registry's content-facing port. */
   pluginBeforeSaveHook: BeforeSaveHookPort;
 }

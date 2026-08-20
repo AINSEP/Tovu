@@ -85,6 +85,67 @@ export interface WidgetErrorResponse {
 }
 
 /**
+ * `WidgetForbiddenError` (thrown by `requireWidgetPermission` inside the domain functions
+ * themselves — REQ-40's "same gate for human and AI-originated calls") carries only a message, not
+ * a structured permission field; extracted here so this 403's body shape matches every other admin
+ * route's `{ error, code, details: { permission, reason } }` convention
+ * (`routes/admin/menus/create.ts`) rather than diverging just because the check happened one layer
+ * down. Falls back to an empty string if the message shape ever changes upstream — still a valid
+ * 403, just without the extracted detail.
+ */
+function widgetForbiddenToResponse(err: WidgetForbiddenError): WidgetErrorResponse {
+  const match = /lacks permission '([^']+)' \(([^)]+)\)/.exec(err.message);
+  return {
+    status: 403,
+    body: { error: err.message, code: "FORBIDDEN", details: { permission: match?.[1] ?? "", reason: match?.[2] ?? "" } },
+  };
+}
+
+/**
+ * Ordered `errorClass -> mapper` table backing `widgetErrorToResponse`. Order matters only in that
+ * every listed class must be checked before the unconditional 500 fallback — the classes themselves
+ * are disjoint (none is a subclass of another here), so relative order among them is not significant.
+ */
+const WIDGET_ERROR_MAPPERS: ReadonlyArray<
+  readonly [abstract new (...args: never[]) => Error, (err: never) => WidgetErrorResponse]
+> = [
+  [
+    WidgetConfigValidationError,
+    (err: WidgetConfigValidationError) => ({ status: 400, body: { error: err.message, code: "WIDGETS_CONFIG_VALIDATION_ERROR", details: { fieldErrors: err.fieldErrors } } }),
+  ],
+  [
+    WidgetTypeUnregisteredError,
+    (err: WidgetTypeUnregisteredError) => ({ status: 400, body: { error: err.message, code: "WIDGETS_TYPE_UNREGISTERED", details: { widgetType: err.widgetType } } }),
+  ],
+  [
+    WidgetEmbedReorderCountMismatchError,
+    (err: WidgetEmbedReorderCountMismatchError) => ({
+      status: 400,
+      body: { error: err.message, code: "WIDGETS_EMBED_REORDER_COUNT_MISMATCH", details: { expectedCount: err.expectedCount, actualCount: err.actualCount } },
+    }),
+  ],
+  [
+    WidgetEmbedGuardrailError,
+    (err: WidgetEmbedGuardrailError) => ({ status: 400, body: { error: err.message, code: "WIDGETS_EMBED_GUARDRAIL_VIOLATION", details: { reason: err.reason } } }),
+  ],
+  [
+    WidgetVersionConflictError,
+    (err: WidgetVersionConflictError) => ({ status: 409, body: { error: err.message, code: "WIDGETS_VERSION_CONFLICT", details: { currentVersion: err.currentVersion } } }),
+  ],
+  [
+    WidgetAreaConflictError,
+    (err: WidgetAreaConflictError) => ({ status: 409, body: { error: err.message, code: "WIDGETS_AREA_CONFLICT", details: { currentVersion: err.currentVersion } } }),
+  ],
+  [
+    WidgetReferencedError,
+    (err: WidgetReferencedError) => ({ status: 409, body: { error: err.message, code: "WIDGETS_REFERENCED", details: { referencingLocations: err.referencingLocations } } }),
+  ],
+  [WidgetInstanceNotFoundError, (err: WidgetInstanceNotFoundError) => ({ status: 404, body: { error: err.message, code: "WIDGETS_INSTANCE_NOT_FOUND" } })],
+  [WidgetAreaNotFoundError, (err: WidgetAreaNotFoundError) => ({ status: 404, body: { error: err.message, code: "WIDGETS_AREA_NOT_FOUND" } })],
+  [WidgetForbiddenError, widgetForbiddenToResponse],
+];
+
+/**
  * Pure typed-error -> `{status, body}` mapping, mirroring the `{error, code, ...}` envelope shape
  * `routes/admin/menus/create.ts` and every other admin route in this codebase already establish.
  * `mapWidgetErrorToResponse` below is the usual way to consume this (send it straight to `res`);
@@ -93,49 +154,8 @@ export interface WidgetErrorResponse {
  * since a `Response` can only be finalized once.
  */
 export function widgetErrorToResponse(err: unknown): WidgetErrorResponse {
-  if (err instanceof WidgetConfigValidationError) {
-    return { status: 400, body: { error: err.message, code: "WIDGETS_CONFIG_VALIDATION_ERROR", details: { fieldErrors: err.fieldErrors } } };
-  }
-  if (err instanceof WidgetTypeUnregisteredError) {
-    return { status: 400, body: { error: err.message, code: "WIDGETS_TYPE_UNREGISTERED", details: { widgetType: err.widgetType } } };
-  }
-  if (err instanceof WidgetEmbedReorderCountMismatchError) {
-    return {
-      status: 400,
-      body: { error: err.message, code: "WIDGETS_EMBED_REORDER_COUNT_MISMATCH", details: { expectedCount: err.expectedCount, actualCount: err.actualCount } },
-    };
-  }
-  if (err instanceof WidgetEmbedGuardrailError) {
-    return { status: 400, body: { error: err.message, code: "WIDGETS_EMBED_GUARDRAIL_VIOLATION", details: { reason: err.reason } } };
-  }
-  if (err instanceof WidgetVersionConflictError) {
-    return { status: 409, body: { error: err.message, code: "WIDGETS_VERSION_CONFLICT", details: { currentVersion: err.currentVersion } } };
-  }
-  if (err instanceof WidgetAreaConflictError) {
-    return { status: 409, body: { error: err.message, code: "WIDGETS_AREA_CONFLICT", details: { currentVersion: err.currentVersion } } };
-  }
-  if (err instanceof WidgetReferencedError) {
-    return { status: 409, body: { error: err.message, code: "WIDGETS_REFERENCED", details: { referencingLocations: err.referencingLocations } } };
-  }
-  if (err instanceof WidgetInstanceNotFoundError) {
-    return { status: 404, body: { error: err.message, code: "WIDGETS_INSTANCE_NOT_FOUND" } };
-  }
-  if (err instanceof WidgetAreaNotFoundError) {
-    return { status: 404, body: { error: err.message, code: "WIDGETS_AREA_NOT_FOUND" } };
-  }
-  if (err instanceof WidgetForbiddenError) {
-    // `WidgetForbiddenError` (thrown by `requireWidgetPermission` inside the domain functions
-    // themselves — REQ-40's "same gate for human and AI-originated calls") carries only a message,
-    // not a structured permission field; extracted here so this 403's body shape matches every
-    // other admin route's `{ error, code, details: { permission, reason } }` convention
-    // (`routes/admin/menus/create.ts`) rather than diverging just because the check happened one
-    // layer down. Falls back to an empty string if the message shape ever changes upstream —
-    // still a valid 403, just without the extracted detail.
-    const match = /lacks permission '([^']+)' \(([^)]+)\)/.exec(err.message);
-    return {
-      status: 403,
-      body: { error: err.message, code: "FORBIDDEN", details: { permission: match?.[1] ?? "", reason: match?.[2] ?? "" } },
-    };
+  for (const [ErrorClass, mapper] of WIDGET_ERROR_MAPPERS) {
+    if (err instanceof ErrorClass) return mapper(err as never);
   }
   return { status: 500, body: { error: "internal error" } };
 }
