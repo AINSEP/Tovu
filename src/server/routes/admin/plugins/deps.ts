@@ -32,6 +32,9 @@ export interface PluginsRouteDeps {
   discoverPlugins: () => Promise<readonly PluginDiscoveryRecord[]>;
   onPluginEnabled: (pluginId: string) => Promise<void>;
   onPluginDisabled: (pluginId: string) => void;
+  /** Milestone 2 — pre-bound on-disk removal mechanism (`installDir` already captured). See
+   * `routes/types.ts`'s `PluginRuntimeDeps.onPluginUninstalled` doc for the full convention. */
+  onPluginUninstalled: (pluginId: string) => Promise<void>;
 }
 
 export type PluginsRouteRegistrar = (app: Express, deps: PluginsRouteDeps) => void;

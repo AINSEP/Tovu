@@ -69,6 +69,7 @@ function buildTestApp(): { app: express.Express; pluginDeps: PluginsRouteDeps } 
     discoverPlugins: async () => AC11_DISCOVERY,
     onPluginEnabled: async () => {},
     onPluginDisabled: () => {},
+    onPluginUninstalled: async () => {},
   };
 
   const app = express();
