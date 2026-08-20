@@ -14,6 +14,8 @@ import {
   SURFACE_EXCHANGE_ID_PARAM,
   askOnce,
   type AssistantSurfaceDeps,
+  type SurfaceExchange,
+  type SurfaceMessage,
 } from "../core/tool-surface-exchanges.js";
 
 /**
@@ -139,6 +141,118 @@ function describeSelections(params: Record<string, unknown>): Record<string, unk
   };
 }
 
+/** The two {@link SurfaceMessage} statuses that mean "the human never answered" — everything except
+ *  `"received"`. Maps onto the tool's "nothing was submitted" result shape (ADR-055 Decision 6: the
+ *  no-answer path is a result, not an exception). Split out of the demo-choices handler purely to
+ *  keep it under the shop complexity ceiling; behavior is unchanged. */
+function describeUnansweredForm(status: Exclude<SurfaceMessage["status"], "received">): Record<string, unknown> {
+  return {
+    submitted: false,
+    reason: status,
+    note:
+      status === "expired"
+        ? "The user did not respond to the form before it expired. Do not assume any selection."
+        : "The form was dismissed because the run ended. Do not assume any selection.",
+  };
+}
+
+/** Builds the demo-choices MCP-UI form resource. Split out of the demo-choices handler purely to
+ *  keep it under the shop complexity ceiling; behavior (including the exchange-id-carrying
+ *  `baseParams`/`cancel` params, present only when there is a live exchange to answer into) is
+ *  unchanged. */
+function buildDemoChoicesFormSurface(input: { principalId: string; exchange: SurfaceExchange | undefined }): ReturnType<typeof buildFormSurface> {
+  const { principalId, exchange } = input;
+  return buildFormSurface({
+    uri: `ui://tovu/demo-choices/${principalId}` as UIResourceUri,
+    title: "Which choice(s) do you want?",
+    description: "A development sample exercising both grouped-choice controls.",
+    submitLabel: "Submit choices",
+    toolName: DEMO_CHOICES_TOOL_ID,
+    // The correlation handle that makes the submission reach THIS call rather than start a new
+    // one. Not a secret — see `surface-exchanges.ts` for why that distinction is the point
+    // rather than an oversight.
+    ...(exchange ? { baseParams: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id } } : {}),
+    fields: [
+      {
+        kind: "enum",
+        name: "plan",
+        label: "Pick one",
+        presentation: "radio",
+        required: true,
+        options: [
+          { value: "basic", label: "Basic" },
+          { value: "pro", label: "Pro" },
+          { value: "team", label: "Team" },
+        ],
+      },
+      {
+        kind: "multi-enum",
+        name: "extras",
+        label: "Which choice(s) do you want?",
+        hint: "Pick any number, including none.",
+        options: [
+          { value: "analytics", label: "Analytics" },
+          { value: "backups", label: "Backups" },
+          { value: "support", label: "Priority support" },
+        ],
+      },
+    ],
+    // Cancel posts back rather than just closing the dialog. With the call parked, a silent
+    // close would strand the agent for the full TTL staring at a form the human has already
+    // walked away from. `baseParams` is not merged into the cancel action's params by the
+    // surface builder, so the park id is repeated here deliberately.
+    cancel: exchange
+      ? {
+          label: "Cancel",
+          toolName: DEMO_CHOICES_TOOL_ID,
+          params: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id, [SURFACE_DISMISSED_PARAM]: true },
+        }
+      : { label: "Cancel" },
+    app: { appName: "tovu-demo-choices", appVersion: "1" },
+    preferredFrameSize: ["100%", "420px"],
+  });
+}
+
+/**
+ * Waits for the human's answer to a parked demo-choices form and maps it onto the tool's result.
+ * Split out of the demo-choices handler purely to keep it under the shop complexity ceiling;
+ * behavior (the abort-triggered close, and the exact "not received" -> "dismissed" -> submitted
+ * check order) is unchanged.
+ */
+async function awaitDemoChoicesSubmission(input: {
+  exchange: SurfaceExchange;
+  ui: ReturnType<typeof buildFormSurface>;
+  signal: AbortSignal;
+}): Promise<Record<string, unknown>> {
+  const { exchange, ui, signal } = input;
+  // A cancelled run must not leave a dialog holding a call nobody is listening to, nor hold this
+  // handler open until the deadline.
+  const closeOnAbort = () => exchange.close();
+  signal.addEventListener("abort", closeOnAbort, { once: true });
+  try {
+    // One send and one receive, so `askOnce` says exactly that. A tool needing a follow-up turn
+    // (a validation error, an A2UI `updateComponents`) stops calling this and drives `send`/
+    // `receive` in a loop — same exchange, same store, same route, no transport change.
+    const answer = await askOnce(exchange, { channel: "mcp-ui", payload: { resource: ui } });
+
+    // ADR-055 Decision 6: the no-answer path is a result, not an exception. The model is still
+    // alive to read this and say something sensible, which is the entire point of blocking.
+    if (answer.status !== "received") {
+      return describeUnansweredForm(answer.status);
+    }
+    if (answer.params[SURFACE_DISMISSED_PARAM] === true) {
+      return {
+        submitted: false,
+        reason: "cancelled",
+        note: "The user cancelled the form without choosing. Do not assume any selection.",
+      };
+    }
+    return describeSelections(answer.params);
+  } finally {
+    signal.removeEventListener("abort", closeOnAbort);
+  }
+}
+
 /**
  * Builds the demo registration, or none at all when the env gate is unset.
  *
@@ -174,55 +288,7 @@ export function buildDemoChoicesRegistrations(
         ? surfaces.surfaceExchanges.open({ toolId: DEMO_CHOICES_TOOL_ID, principalId: ctx.principal.id }, ctx.emitSurface)
         : undefined;
 
-      const ui = buildFormSurface({
-        uri: `ui://tovu/demo-choices/${ctx.principal.id}` as UIResourceUri,
-        title: "Which choice(s) do you want?",
-        description: "A development sample exercising both grouped-choice controls.",
-        submitLabel: "Submit choices",
-        toolName: DEMO_CHOICES_TOOL_ID,
-        // The correlation handle that makes the submission reach THIS call rather than start a new
-        // one. Not a secret — see `surface-exchanges.ts` for why that distinction is the point
-        // rather than an oversight.
-        ...(exchange ? { baseParams: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id } } : {}),
-        fields: [
-          {
-            kind: "enum",
-            name: "plan",
-            label: "Pick one",
-            presentation: "radio",
-            required: true,
-            options: [
-              { value: "basic", label: "Basic" },
-              { value: "pro", label: "Pro" },
-              { value: "team", label: "Team" },
-            ],
-          },
-          {
-            kind: "multi-enum",
-            name: "extras",
-            label: "Which choice(s) do you want?",
-            hint: "Pick any number, including none.",
-            options: [
-              { value: "analytics", label: "Analytics" },
-              { value: "backups", label: "Backups" },
-              { value: "support", label: "Priority support" },
-            ],
-          },
-        ],
-        // Cancel posts back rather than just closing the dialog. With the call parked, a silent
-        // close would strand the agent for the full TTL staring at a form the human has already
-        // walked away from. `baseParams` is not merged into the cancel action's params by the
-        // surface builder, so the park id is repeated here deliberately.
-        cancel: exchange
-          ? {
-              label: "Cancel",
-              toolName: DEMO_CHOICES_TOOL_ID,
-              params: { [SURFACE_EXCHANGE_ID_PARAM]: exchange.id, [SURFACE_DISMISSED_PARAM]: true },
-            }
-          : { label: "Cancel" },
-        app: { appName: "tovu-demo-choices", appVersion: "1" },
-        preferredFrameSize: ["100%", "420px"],
-      });
+      const ui = buildDemoChoicesFormSurface({ principalId: ctx.principal.id, exchange });
 
       // ---- Fallback: no emit seam, so this call cannot wait for anybody. Return the surface the
       // old way; the human's submission arrives as a second call and lands in the branch at the
@@ -238,40 +304,7 @@ export function buildDemoChoicesRegistrations(
       }
 
       // ---- The real path: send it, then wait for the answer. ----
-      // One send and one receive, so `askOnce` says exactly that. A tool needing a follow-up turn
-      // (a validation error, an A2UI `updateComponents`) stops calling this and drives `send`/
-      // `receive` in a loop — same exchange, same store, same route, no transport change.
-      //
-      // A cancelled run must not leave a dialog holding a call nobody is listening to, nor hold this
-      // handler open until the deadline.
-      const closeOnAbort = () => exchange.close();
-      ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
-      try {
-        const answer = await askOnce(exchange, { channel: "mcp-ui", payload: { resource: ui } });
-
-        // ADR-055 Decision 6: the no-answer path is a result, not an exception. The model is still
-        // alive to read this and say something sensible, which is the entire point of blocking.
-        if (answer.status !== "received") {
-          return {
-            submitted: false,
-            reason: answer.status,
-            note:
-              answer.status === "expired"
-                ? "The user did not respond to the form before it expired. Do not assume any selection."
-                : "The form was dismissed because the run ended. Do not assume any selection.",
-          };
-        }
-        if (answer.params[SURFACE_DISMISSED_PARAM] === true) {
-          return {
-            submitted: false,
-            reason: "cancelled",
-            note: "The user cancelled the form without choosing. Do not assume any selection.",
-          };
-        }
-        return describeSelections(answer.params);
-      } finally {
-        ctx.signal.removeEventListener("abort", closeOnAbort);
-      }
+      return awaitDemoChoicesSubmission({ exchange, ui, signal: ctx.signal });
     },
   };
 
