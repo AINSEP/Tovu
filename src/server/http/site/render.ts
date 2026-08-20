@@ -1060,7 +1060,13 @@ export function renderDocNode(
 
 // ---------------------------------------------------------------------------
 // Core component registry (v1) — the safe building blocks a theme references.
-// A theme can arrange these by id; it cannot define new ones (that is a plugin).
+// A theme can arrange these by id; it cannot define new ones. This table has no schema,
+// capability tier, or isolation boundary (each `Component` runs synchronously, in-render, with
+// no timeout), so it stays closed to plugins. A future plugin-contributed component goes through
+// the widget-type registry instead (`WidgetTypeKey`/`CORE_RESOLVERS`, `src/widgets/registry.ts`),
+// which already has schema validation, tier gating, and a try/catch+timeout isolation boundary —
+// see the Widget IR rendering block below for that seam's own dispatch (ADR-047; ratified by
+// `ADS-memory/reports/architecture/2026-08-20-component-catalog-split-proposal.md`).
 // ---------------------------------------------------------------------------
 
 type Component = (ctx: SiteRenderContext, props: JsonObject) => string;
