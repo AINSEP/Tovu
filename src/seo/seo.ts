@@ -6,7 +6,7 @@ import type { RouteResolverDeps } from "../routing/index.js";
 import { SeoEntryNotFoundError } from "./errors.js";
 import { getSeoSettings, type GetSeoSettingsDeps } from "./settings.js";
 import { resolveSeoImageRef, type ResolveSeoImageRefDeps } from "./media.js";
-import type { SeoAnalysis, SeoExtFields, SeoIssue, SeoMeta } from "./types.js";
+import type { OpenGraphType, SeoAnalysis, SeoExtFields, SeoIssue, SeoMeta } from "./types.js";
 
 /**
  * @file `getEntryMeta`/`analyzeEntry` (ADR-PIPE-008 Decision, C-001/C-002) —
@@ -151,7 +151,10 @@ function resolveTitleAndDescription(
 }
 
 /** ogType/schemaType (REQ-07): override, else derived from the entry's content kind. */
-function resolveContentTypeFields(post: PostRecord, overrides: SeoExtFields): { ogType: string; schemaType: string } {
+function resolveContentTypeFields(
+  post: PostRecord,
+  overrides: SeoExtFields
+): { ogType: OpenGraphType; schemaType: string } {
   const ogType = overrides.ogType ?? (post.kind === "page" ? "website" : "article");
   const schemaType = overrides.schemaType ?? CONTENT_TYPE_SCHEMA_MAP[post.kind];
   return { ogType, schemaType };
@@ -161,7 +164,7 @@ function buildOpenGraph(
   overrides: SeoExtFields,
   title: string,
   description: string | undefined,
-  ogType: string,
+  ogType: OpenGraphType,
   canonical: string,
   ogImage: string | undefined
 ): SeoMeta["openGraph"] {

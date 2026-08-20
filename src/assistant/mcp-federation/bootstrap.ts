@@ -4,7 +4,10 @@ import { connectMcpStdioSession, spawnMcpStdioChannel } from "./adapter.stdio.js
 import type { ResolvedFederatedConnection } from "./config.js";
 import type { McpSessionPort } from "./ports.js";
 import { listFederatedMcpPresets } from "./presets.js";
-import { federateSession, type FederatedAdmissionReport, type FederationDeps } from "./registrations.js";
+import { federateSession, type FederationDeps } from "./registrations.js";
+// `registrations.ts` imports this type from `trust.ts` for its own use but does not re-export it,
+// so it has to come from the module that declares it.
+import type { FederatedAdmissionReport } from "./trust.js";
 
 /**
  * @file The composition root for outbound MCP federation: the one function
