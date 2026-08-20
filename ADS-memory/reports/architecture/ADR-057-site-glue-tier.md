@@ -1,6 +1,7 @@
 # ADR-057: Site Glue — the Call-Site Contract, the Authorship-Trust Axis, and the Agent-Author Control Loop
 
 - Status: **DRAFT — not accepted.** Written for owner review; not self-approved. Do not add to `ADR-INDEX.md` until a human accepts it.
+- Amended: 2026-08-20 (2-round multi-model swarm consensus, `ADS-memory/reports/swarm-consensus/runs/2026-08-20-tovu-extension-surface/SYNTHESIS.md`) — **Decisions 2 and 6's premise (Site Glue is a second, composed-onto mechanism) is superseded, unanimous 4/4**: no `site-glue/loader.ts` exists, `GlueHostPort` has zero non-test implementations, and `attachment-points/*` has zero production callers. Decision 1's authorship-trust axis **survives** as a policy constraint on the merged system. See Amendment below.
 - Date: 2026-08-04
 - Spec: `ADS-memory/specs/048-extension-glue-tier/spec.md` (SPEC-048, DRAFT — 2 of 4 `[NEEDS CLARIFICATION]` markers unresolved; see Open below)
 - Author: Claude Opus 5 (1M context), Software Architect (dispatched slice)
@@ -379,3 +380,146 @@ Both were left open by the spec deliberately and are owner calls, not evidence g
 - **Concerns:** the quarantine-threshold gap is a real, currently-open hole in the no-brick invariant's completeness (not its design); Site Glue will be the first production exerciser of `hook-registry.ts`'s previously-untested-in-production `runBeforeSave` path, via agent-authored rather than human-reviewed code.
 - **Could not verify:** whether `DOMAIN_SLICES`'s existing boot-failure throw is process-fatal (inherited uncertainty from the spec, not resolved here); the real filesystem location `installDir` will resolve to, since no composition-root wiring exists yet to inspect; whether SPEC-005's own eventual fix will actually reuse `attachLoadedPlugin` as designed here.
 - **Suggested next assignee:** owner, for the two remaining `[NEEDS CLARIFICATION]` markers (auto-quarantine threshold, raw-source visibility) and for DRAFT→ACCEPTED sign-off on this ADR itself; then Implementation Outline consumers (TDD/Programmer) for the five designated CIC units and the parallelizable slice plan above.
+
+---
+
+## Amendment — 2026-08-20 (2-round multi-model swarm consensus: Tovu extension surface)
+
+A 2-round multi-model architecture debate (Primary Claude Opus 5; peers `gpt-5.6-sol` at xhigh,
+Gemini 3.1 Pro and Gemini 3.7 Flash, both owner-downweighted; non-voting adversarial review by
+Claude Sonnet 5) re-examined the whole extension surface, not just this ADR. Full record:
+`ADS-memory/reports/swarm-consensus/runs/2026-08-20-tovu-extension-surface/SYNTHESIS.md`. Round 1
+was 3–1 on the question below; round 2, after a correction preamble, was **unanimous, including
+the peer that had argued to keep two mechanisms.** This amendment does not itself move this ADR's
+Status out of DRAFT — the finding below is written for the same owner sign-off Decisions 1–6
+already require, exactly as the rest of this document already is.
+
+### 1. SUPERSEDED — Decision 2 and Decision 6's premise that Site Glue is a real, composed-onto second mechanism
+
+Decision 2 and Decision 6 were written against an assumption this amendment's own source-verification
+disproves: that Site Glue is a working adapter layer sitting beside `plugin-runtime`, connected
+through a real `GlueHostPort` adapter. It is not. Verified directly against the current tree, not
+inferred:
+
+- **No runtime exists.** `src/features/site-glue/` has no `loader.ts` — the directory holds
+  `manifest.ts`, `capability-gate.ts`, `ports.ts`, and three `attachment-points/*.ts` files, all of
+  which are schema/type/delegation code with no discovery, activation, or dispatch mechanism behind
+  them.
+- **`GlueHostPort` has zero non-test implementations anywhere in `src`.** `ports.ts:23-24` states
+  this in its own header comment — *"this interface is pure delegation with no internal logic — no
+  implementation lives in this file, only the contract shape"* — and `ports.ts:27-28` — *"No
+  implementation is provided here — the one real adapter is later, out-of-slice work."* A repo-wide
+  search for `implements GlueHostPort`, `: GlueHostPort =`, and `satisfies GlueHostPort` returns
+  nothing. The "one real adapter" the ADR's own text anticipated was never built.
+- **Zero production callers of `attachment-points/*`.** `attachGlueContentLifecycle` in
+  `attachment-points/content-lifecycle.ts`, and the equivalent functions in
+  `attachment-points/tool-registration.ts` and `attachment-points/events.ts`, each take an injected
+  `hostPort: Pick<GlueHostPort, ...>` parameter (e.g. `content-lifecycle.ts:34`, `events.ts:31`,
+  `tool-registration.ts:49`) that is never supplied outside `__tests__/`. A repo-wide search for
+  `attachment-points` imports outside `site-glue/__tests__/` returns nothing.
+- **`plugin-runtime` is the one working substrate.** `src/features/plugin-runtime/` has real
+  `loader.ts`, `activation.ts`, `quarantine.ts`, `discovery.ts`, and `hook-registry.ts`, and is
+  composed into the server: `src/server/plugin-runtime.ts`,
+  `src/server/routes/admin/plugins/set-enabled.ts`, and `src/server/boot/plugin-sdk-resolver.ts` all
+  call into it in production. This is the system that actually loads, activates, and quarantines
+  code today.
+
+**Conclusion:** Site Glue is *one working substrate (`plugin-runtime`) plus an unfinished design*,
+not two systems. Decision 2's category-adapter pattern and Decision 6's `GlueHostPort` seam are not
+wrong as designs — they are simply unbuilt, and the premise that they already compose onto a working
+mechanism (stated throughout the Decision 2/6 prose and in the Module Boundaries listing) does not
+hold. Continuing to build a second loader/discovery/activation path under `site-glue/` would
+duplicate `plugin-runtime`'s existing, production-composed mechanism for no reason this ADR
+identified — Article I (Library-First) and the spec's own §2 constraint ("nothing here invents a
+second artifact format, a second loader, or a second capability-checking mechanism," quoted in this
+ADR's own Context) argue against it as strongly as they argued against a fork in the first place.
+The merge target is `plugin-runtime`: extend its manifest/loader/activation vocabulary to carry
+glue's call-site and authorship concerns, rather than finishing `site-glue/` as a parallel path.
+
+### 2. SURVIVES — Decision 1's authorship-trust axis, recast as metadata on one extension record
+
+Decision 1's diagnosis was not wrong, only its packaging. ADR-024's tier ladder answers "how much of
+the machine, from whom" (execution/distribution trust); Decision 1 correctly identified a second,
+orthogonal question ADR-024 never had to answer: "has a human who understands the change looked at
+it" (authorship/reviewability trust). That axis is real and does not disappear because the two
+mechanisms merge — it becomes a constraint the merged system enforces, not a justification for a
+second runtime.
+
+Concretely: `origin` and `authorship` become **installer-recorded fields on one extension record**,
+alongside `tier` (ADR-024's existing execution ladder) and the `kind`/`capabilities` split the same
+debate converged on independently (RESULT 3 of the synthesis — not restated in full here, out of
+this amendment's scope):
+
+```
+origin:       "built-in" | "marketplace" | "upload" | "local-agent"
+authorship:   "publisher" | "operator" | "agent"
+tier:         tier-1 | tier-2 | tier-3        (how code runs — ADR-024's ladder, unchanged)
+kind:         render.component | http.route | …  (where it attaches)
+capabilities: [...]                             (what authority the handler gets)
+```
+
+"Never distributed" (Decision 1's fixed answer for glue-authored code) stays true regardless of what
+runtime executes it. What changes is that this is now expressed as one closed `origin` value on a
+shared record type, not as a separate tier-ladder leaf carved out for a separate mechanism.
+
+### 3. Binding invariant — `origin` must be installer-assigned and un-promotable
+
+**No migration and no admin action may promote a `local-agent`-origin extension to
+marketplace-eligible.** Doing so would let code with no publisher acquire a publisher's distribution
+rights — precisely the failure this ADR's trust axis exists to prevent (Decision 1's own framing:
+"Site Glue's code is never distributed... Tier-3 execution semantics, forever local").
+
+This is not merely a policy assertion — it is mechanically supported by code already in this
+codebase. `src/features/plugins/plugin-identity.ts` permanently retires a `pluginId`'s provenance the
+moment it is first minted:
+
+- `mintPluginIdentity()` is documented "First-write-wins. Never called again for a `pluginId` once
+  minted" (`plugin-identity.ts:69`).
+- `checkNamespaceAdoption()` "Does NOT mutate the identity record on anything but first mint — a
+  provenance mismatch never silently overwrites the record on record (permanent retirement)"
+  (`plugin-identity.ts:84-87`). A provenance change on an already-minted id (e.g. `local-agent` →
+  `marketplace`) without a matching signature returns `{ allowed: false, track: "consent-required" }`
+  (`plugin-identity.ts:106-110`) — it is refused, not silently accepted, and even with operator
+  consent the mechanism as written does not overwrite the stored provenance.
+
+This mechanically supports treating "a glue-authored module becomes a marketplace plugin" as **a new
+extension with a new id and a fresh `origin: "marketplace"` record**, never a promotion of the
+existing `local-agent` record. No new enforcement code is required to uphold the invariant for
+identity/provenance — it already exists; it needs to be carried into whatever manifest/loader
+extension the merge in §1 produces, so the invariant is checked at the same chokepoint for every
+`origin`, not re-implemented per call site.
+
+### 4. Integrity hashing stays installer-scoped — this does not reopen §1
+
+Integrity hashing (this ADR's Decision 2.1 discussion of `loadPlugin()`'s `integrity: {}` map)
+applies in the distributed-artifact installer only. Local, co-deployed glue code has no artifact
+distinct from itself to verify — hashing it against itself is a no-op, not a weaker security
+posture. This policy difference between distributed and local-origin code is real and should be
+preserved in the merged manifest shape (§2's `origin` field is exactly the discriminator it needs),
+but it is a difference in *what one field's value implies*, not a reason to keep two loaders. §1's
+conclusion stands regardless of this difference.
+
+### 5. Flagged, not resolved here — ADR-024 §2's Tier-3 marketplace-listing reversal
+
+During the same debate, the owner decided that **Tier-3 code is now marketplace-listable**,
+reversing ADR-024 §2's *"Tier-3 plugins are never listable in the public marketplace... the catalog
+physically cannot offer executable third-party code until Tier-2 isolation exists."* This is recorded
+here as context, per the dispatch instruction, not re-litigated by this amendment.
+
+**This ADR's own Decision 1 text is directly touched by that reversal** — it states Site Glue is
+"forever excluded from ADR-024 §2's marketplace-eligibility question," which was true because ADR-024
+§2 categorically excluded all Tier-3 code from the marketplace. With that categorical exclusion gone,
+the sentence needs to be read as: Site-Glue-authored code specifically stays excluded, not because
+Tier-3 code in general can never be listed, but because of §3 above's `origin: "local-agent"`
+invariant — a narrower, identity-based exclusion rather than a tier-based one. The two mechanisms
+(tier-based exclusion, now removed; origin-based exclusion, this amendment's §3) happened to produce
+the same practical answer for Site Glue, which is why the merge doesn't collapse under the reversal —
+but they are no longer the same rule, and future readers of Decision 1 should not assume ADR-024 §2
+still forbids Tier-3 listing in general.
+
+**Recommendation: this reversal wants its own ADR-024 amendment, not a paragraph here.** The rule it
+changes — §2's marketplace forcing function — is ADR-024's own textual home, is load-bearing for
+ADR-024's Consequences section (the "shipping the marketplace is shipping the sandbox" argument) and
+its Open/Debate-record sections, and affects the whole plugin trust model, not just glue-authored
+code. Folding it into this ADR would bury an ADR-024-scoped decision inside an ADR-057-scoped
+amendment, and a future reader auditing ADR-024's marketplace-gating logic would not find it here.
