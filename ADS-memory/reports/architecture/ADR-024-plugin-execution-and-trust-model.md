@@ -1,6 +1,7 @@
 # ADR-024: Plugin Execution & Trust Model — Tiered Capabilities, Marketplace-Gated Isolation, Transport-Agnostic ABI
 
 - Status: ACCEPTED 2026-07-08 (from a 2-round swarm *planning* debate; the ACCEPTED gate — the plugin-catalog demand audit — was delivered and cleared, see Open: Tier-1 covers ~60–73% of real demand vs the ~50% vindication bar)
+- Amended: 2026-08-20 (explicit owner decision, recorded during a 2-round multi-model swarm consensus on the Tovu extension surface, `ADS-memory/reports/swarm-consensus/runs/2026-08-20-tovu-extension-surface/SYNTHESIS.md`) — **§2's blanket "Tier-3 is never listable in the public marketplace" rule is reversed: Tier-3 IS now marketplace-listable.** §2's marketplace forcing function is gone; the install-consent screen becomes the primary user protection in its place; two hard dependencies for that protection are currently unmet in this codebase. See Amendment below. Status is unchanged by this amendment — still ACCEPTED, owner sign-off on the amendment itself not yet separately recorded.
 - Author: Leon Aburime / Coordinator (Opus 4.8 Primary) with peers Codex `gpt-5.5`, Gemini 3.1 (`agy`), Fable
 - Extends: **ADR-020** (generalizes the theme capability tiers to plugins), **ADR-004** (artifact + signed manifest), **ADR-005** (SDK — this ADR **amends its ABI rule**, §3)
 - Relates: ADR-003 / ADR-023 (plugin data), ADR-021 (capabilities are a separate axis), ADR-022 (write chokepoint — attribution amendment), ADR-011 (Electron multi-site topology), ADR-019 (theme→plugin dependency plane), SPEC-005 (plugin walking skeleton), TODO §6
@@ -168,3 +169,129 @@ only honest near-term path," each independently adding the marketplace-gate forc
 surfaced the blast-radius fact, the two-ladder spine, and the per-site-isolation rung, and corrected
 "pause ADR-023" → "split-finalize it." R2 confidences: agy 0.90, Codex 0.82, Fable 0.85, Primary ~0.85.
 Full trace + all peer positions: `.local-artifacts/swarm-consensus/runs/20260708T195959Z-plugin-system-roadmap/consensus-report.md`.
+
+---
+
+## Amendment — 2026-08-20 (owner decision: §2's Tier-3 marketplace prohibition reversed)
+
+Recorded during a 2-round multi-model swarm consensus on the Tovu extension surface (Primary Claude
+Opus 5; peers `gpt-5.6-sol` @ xhigh, Gemini 3.1 Pro and Gemini 3.7 Flash, both owner-downweighted;
+non-voting adversarial review by Claude Sonnet 5). Full record:
+`ADS-memory/reports/swarm-consensus/runs/2026-08-20-tovu-extension-surface/SYNTHESIS.md`, "Owner
+decisions recorded during the debate": *"Tier-3 is marketplace-listable (reverses ADR-024 §2).
+Install-consent becomes the primary user protection."* Stated directly by the owner and reaffirmed —
+recorded here as a decision, not re-litigated. This amendment does not change this ADR's Status
+(remains ACCEPTED) and does not touch `ADR-INDEX.md`.
+
+### 1. REVERSED — §2's blanket Tier-3 marketplace prohibition
+
+§2 currently reads (verbatim, unedited above): *"'Install from anyone' means Tier-1 now, Tier-2
+later, and NEVER Tier-3"* and *"Tier-3 plugins are never listable in the public marketplace. The
+catalog physically cannot offer executable third-party code until Tier-2 isolation exists — so
+shipping the marketplace is shipping the sandbox."*
+
+**Both clauses are reversed.** Tier-3 (today's in-process ESM reality — full access to the machine
+and every site on it) may now be listed in the public marketplace. The original §2 text above is left
+unedited so the reasoning that produced it stays legible; this amendment is the record of what
+changed and why the change is safe to make (or isn't yet — see §3/§4 below).
+
+### 2. What §2 loses: the marketplace forcing function, and what replaces it
+
+§2's actual load-bearing idea was never "Tier-3 is bad" — it was a **mechanical coupling**: because
+the catalog *could not* offer executable third-party code without Tier-2 isolation, shipping the
+marketplace was *definitionally* shipping the sandbox. This was not a policy the team had to keep
+choosing to honor; it was a structural impossibility that did the enforcing for free. That is what
+made "install from anyone" honest at every stage (Consequences section above: *"the marketplace gate
+makes it true for code only once isolation ships"*) without anyone having to police it.
+
+**That mechanism is gone, and nothing mechanically replaces it.** With Tier-3 listable, a marketplace
+can ship today, listing full-machine-access plugins, with zero Tier-2 work done. There is no longer
+any structural fact that forces isolation to exist before or alongside distribution.
+
+**What replaces it is the install-consent screen — a categorically weaker kind of protection.** The
+old mechanism was a physical impossibility; the new one is a procedural, human-judgment gate: an
+operator reads a disclosure and clicks "install." This is not a like-for-like substitute — it trades
+an enforcement mechanism that cannot be skipped for one that depends on the disclosure being honest,
+legible, and actually read. Per Decision 1's own existing discipline (*"honestly labeled at install
+... never marketed as safe"*), the consent screen was always part of the design; what changed is that
+it now carries the **entire** weight §2's structural gate used to share with it. It has to be treated
+as a primary safety control from this point forward, not a courtesy disclosure — and a primary safety
+control has to rest on the two things below actually being true, which today they are not.
+
+### 3. Blocking precondition A — signing is a string comparison, not cryptography
+
+`src/features/plugins/plugin-identity.ts:17-21` states this in its own header, about itself:
+*"Signature verification here is a same-string comparison, not real cryptographic verification —
+ADR-004 leaves `signature` optional and no signing/verification infrastructure exists anywhere in
+this codebase yet ... this is the intended, honest degraded behavior, not an unfinished shortcut."*
+Concretely: any manifest can declare `publisher: "Microsoft"` and nothing in this codebase checks
+whether the string is true.
+
+This was survivable while §2 forbade Tier-3 marketplace listing, because the only way to run
+unsandboxed third-party code was a deliberate local sideload — a user who typed a filesystem path,
+not a user who clicked "Install" on a catalog card next to a trusted-looking publisher name. The
+reversal puts the identity claim on the critical path: the install-consent screen (§2 above) is only
+as honest as the publisher string it displays, and that string is currently unverified. **This is a
+hard, currently-unmet dependency for Tier-3 marketplace listing being safe to ship**, not a
+nice-to-have — it is the exact gap ADR-024's own Open section already named (*"signing/provenance +
+advisory revocation"*) and deferred, written when deferring it was safe because §2 made it moot for
+distributed code. It is no longer moot.
+
+### 4. Blocking precondition B — no install, update, or uninstall route exists
+
+`src/server/routes/admin/plugins/` contains exactly two route handlers: `list.ts` (`GET
+.../plugins`, a read) and `set-enabled.ts` (`PATCH .../plugins/:pluginId`, toggles an already-present
+plugin's activation on/off). Verified directly, not inferred: the third file in that directory,
+`deps.ts`, is type-only wiring with no runtime route body — its own header says so explicitly,
+`deps.ts:19-21`: *"Not itself a throwing stub (a type-only file has no runtime body to stub) —
+`list.ts`/`set-enabled.ts`'s handler bodies are what carry the 'not implemented' stub behavior."*
+There is no route that installs a new plugin, updates one, or removes one.
+
+**There is currently no way to revoke a bad install.** `set-enabled.ts` can disable a plugin that is
+already on disk, but nothing in this codebase can remove a plugin's code once it has landed. A
+marketplace that can install Tier-3 code — full access to the machine and every site on it — but
+cannot uninstall it is not a deployable configuration: an operator who approves a malicious or
+compromised Tier-3 install via the consent screen (§2) has no recovery path in this codebase today
+short of manual filesystem intervention outside the product. This is a second hard, currently-unmet
+precondition, independent of §3.
+
+**Both preconditions are blocking on the same claim**: that the install-consent screen is a real
+safety control. A consent screen that (a) may display an unverifiable publisher claim and (b) cannot
+be acted on later if the claim was false is not the protection §2's reversal now depends on it being.
+
+### 5. Knock-on to ADR-057 — the exclusion for Site Glue no longer rests on §2
+
+ADR-057 Decision 1 states Site Glue is *"forever excluded from ADR-024 §2's marketplace-eligibility
+question"* — written when that exclusion was a special case of §2's categorical ban on all Tier-3
+code. ADR-057's own 2026-08-20 amendment (§5, *"Flagged, not resolved here"*) already caught this and
+recommended exactly this document: *"this reversal wants its own ADR-024 amendment, not a paragraph
+here ... a future reader auditing ADR-024's marketplace-gating logic would not find it here."*
+
+With §2's categorical ban reversed (§1 above), Site Glue's exclusion from the marketplace no longer
+has a tier-based mechanism to lean on. It now rests entirely on ADR-057 Amendment §3's **`origin`
+un-promotability invariant**: an `origin: "local-agent"` extension record can never be promoted to
+`origin: "marketplace"` by migration or admin action, mechanically backed by
+`plugin-identity.ts`'s first-write-wins minting (`mintPluginIdentity()`, `checkNamespaceAdoption()` —
+cited in full in ADR-057's amendment §3, not re-quoted here). That invariant is identity-based, not
+tier-based: it is what still keeps Site-Glue-authored code out of the marketplace, and it would keep
+doing so even if every tier were listable. Cross-reference is bidirectional: ADR-057's amendment
+already points here; this amendment points back at ADR-057 Amendment §3 as the mechanism that now
+carries the exclusion alone.
+
+### 6. Also touched by this reversal, not rewritten here — flagged for owner attention
+
+- **Consequences** (above): *"the marketplace gate makes it true for code only once isolation
+  ships"* — this sentence describes the now-reversed coupling as if it still holds. It doesn't;
+  §2 above is the record of that.
+- **Open** section, WooCommerce/demand-audit paragraph (above): *"this vindicates the sequencing
+  (Tier-1 on-ramp, marketplace = Tier-2), not 'Tier-1 is enough'"* — "marketplace = Tier-2" was true
+  only under the reversed rule. The demand-audit's Tier-1/Tier-2 split percentages are unaffected
+  (they measure declarative-vs-code demand, not marketplace eligibility), but the sequencing claim
+  built on top of them is not.
+- **Open** section's deferred signing/provenance line is elevated by §3 above from "designed later"
+  to "blocking, currently unmet" for any Tier-3 marketplace listing specifically — the item itself
+  was already tracked; only its urgency changes.
+
+None of these are edited in place, per the same "leave original reasoning legible" discipline as §1
+above; this list exists so a future reader scanning the original text does not mistake a
+now-superseded sentence for current fact.
