@@ -2,6 +2,14 @@ import { assignLocation, MenuNotFoundError } from "#src/navigation/index";
 import { toAdminAssignLocationResponse, type MenuRouteRegistrar } from "#src/server/http/admin/menus";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 
+/** Reads+trims `locationKey` off the body in one place; `null` means missing or blank.
+ *  @complexity O(1). */
+function parseLocationKey(rawBody: unknown): string | null {
+  const body = (rawBody ?? {}) as Record<string, unknown>;
+  const locationKey = String(body.locationKey ?? "").trim();
+  return locationKey || null;
+}
+
 /**
  * POST assign a menu to a theme location (ADR-029 `assignLocation`).
  *
@@ -19,7 +27,7 @@ export const registerAdminMenuAssignLocationRoute: MenuRouteRegistrar = (app, de
       return;
     }
 
-    const locationKey = String(req.body?.locationKey ?? "").trim();
+    const locationKey = parseLocationKey(req.body);
     if (!locationKey) {
       res.status(400).json({ error: "locationKey is required" });
       return;
