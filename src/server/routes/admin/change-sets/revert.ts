@@ -1,3 +1,5 @@
+import type { Response } from "express";
+
 import {
   ChangeSetInvalidStatusError,
   ChangeSetNotFoundError,
@@ -8,6 +10,27 @@ import {
 import { toChangeSetHeaderResponse } from "#src/server/http/admin/change-sets";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps.js";
+
+/** Maps this route's thrown error types onto the admin error envelope. @complexity O(1). */
+function sendChangeSetRevertError(res: Response, err: unknown): void {
+  if (err instanceof ChangeSetNotFoundError) {
+    res.status(404).json({ error: err.message, code: "CHANGE_SET_NOT_FOUND" });
+    return;
+  }
+  if (err instanceof ChangeSetInvalidStatusError) {
+    res.status(409).json({ error: err.message, code: "CHANGE_SET_INVALID_STATUS" });
+    return;
+  }
+  if (err instanceof RevertConflictError) {
+    res.status(409).json({ error: err.message, code: "REVERT_CONFLICT" });
+    return;
+  }
+  if (err instanceof RevertNotPossibleError) {
+    res.status(422).json({ error: err.message, code: "REVERT_NOT_POSSIBLE" });
+    return;
+  }
+  res.status(500).json({ error: "internal error" });
+}
 
 /**
  * POST revert an applied change set (SPEC-001 REQ-07/08/10).
@@ -60,23 +83,7 @@ export const registerAdminChangeSetRevertRoute: ContentRouteRegistrar = (app, de
 
       res.json({ changeSet: toChangeSetHeaderResponse(reverted) });
     } catch (err) {
-      if (err instanceof ChangeSetNotFoundError) {
-        res.status(404).json({ error: err.message, code: "CHANGE_SET_NOT_FOUND" });
-        return;
-      }
-      if (err instanceof ChangeSetInvalidStatusError) {
-        res.status(409).json({ error: err.message, code: "CHANGE_SET_INVALID_STATUS" });
-        return;
-      }
-      if (err instanceof RevertConflictError) {
-        res.status(409).json({ error: err.message, code: "REVERT_CONFLICT" });
-        return;
-      }
-      if (err instanceof RevertNotPossibleError) {
-        res.status(422).json({ error: err.message, code: "REVERT_NOT_POSSIBLE" });
-        return;
-      }
-      res.status(500).json({ error: "internal error" });
+      sendChangeSetRevertError(res, err);
     }
   });
 };
