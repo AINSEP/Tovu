@@ -21,8 +21,10 @@ than one commit. Verified against the commit log, not the working tree:
 git log --oneline f4cc0aa6..HEAD --name-only
 ```
 
-reproduces exactly the three commits above (plus one unrelated commit from a concurrent
-session, `87ad4f8c`, sandwiched between mine — not this dispatch's work). Working tree is
+reproduces exactly the three commits above (plus `87ad4f8c`, sandwiched between mine — not
+this dispatch's work, and not a concurrent session either: it was landed by the dispatching
+Coordinator, and is the false-comment register at
+`ADS-memory/reports/2026-08-20-false-code-comments-register.md`). Working tree is
 clean of every file this dispatch touched (`git status --porcelain` on the full list returns
 nothing).
 
