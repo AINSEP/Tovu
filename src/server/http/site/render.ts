@@ -681,6 +681,343 @@ function renderNodes(
     .join("");
 }
 
+/** Threaded-through render state every {@link renderDocNode} case handler needs — bundled into one
+ *  object so each extracted handler (see {@link DOC_NODE_HANDLERS}) takes one params object instead
+ *  of the same three maps plus `depth` repeated at every call site, the way the old single-`switch`
+ *  body used to spell them out inline for every case. */
+interface DocNodeRenderDeps {
+  readonly inlineResolved: ReadonlyMap<string, WidgetRenderIR>;
+  readonly mediaTransformVersions: ReadonlyMap<string, number>;
+  readonly mediaAssetMetadata: ReadonlyMap<string, MediaAssetRenderMeta>;
+  readonly depth: number;
+}
+
+/** Renders `content` one level deeper than the current node — every handler's own recursion entry
+ *  point, replacing the `renderNodes(content, inlineResolved, mediaTransformVersions,
+ *  mediaAssetMetadata, depth + 1)` call every case used to spell out individually. */
+function renderChildNodes(content: JsonValue[] | undefined, deps: DocNodeRenderDeps): string {
+  return renderNodes(content, deps.inlineResolved, deps.mediaTransformVersions, deps.mediaAssetMetadata, deps.depth + 1);
+}
+
+/** One handler per doc-node `type`, dispatched by {@link renderDocNode} through
+ *  {@link DOC_NODE_HANDLERS} — see that table's own doc for why this file moved off a single large
+ *  `switch`. */
+type DocNodeHandler = (node: JsonObject, content: JsonValue[] | undefined, deps: DocNodeRenderDeps) => string;
+
+function renderDocDocNode(node: JsonObject, content: JsonValue[] | undefined, deps: DocNodeRenderDeps): string {
+  // Dedupe at the doc boundary — see `dedupeHeadingIds` for why this is a pass over the finished
+  // string rather than state threaded through the recursion.
+  return dedupeHeadingIds(renderChildNodes(content, deps));
+}
+
+function renderDocParagraph(node: JsonObject, content: JsonValue[] | undefined, deps: DocNodeRenderDeps): string {
+  return `<p${alignStyleAttr(node)}>${renderChildNodes(content, deps)}</p>`;
+}
+
+function renderDocHeading(node: JsonObject, content: JsonValue[] | undefined, deps: DocNodeRenderDeps): string {
+  const level = isObject(node.attrs) && typeof node.attrs.level === "number" ? node.attrs.level : 2;
+  const h = Math.min(Math.max(level, 1), 6);
+  // Additive: an `id` changes nothing visually, and every heading rendered before this existed
+  // simply had no anchor to link to. Emitted as the FIRST attribute, which `dedupeHeadingIds`
+  // relies on. Omitted entirely when the text slugifies to nothing.
+  const anchor = headingAnchorId(node);
+  const idAttr = anchor === "" ? "" : ` id="${escapeHtml(anchor)}"`;
+  return `<h${h}${idAttr}${alignStyleAttr(node)}>${renderChildNodes(content, deps)}</h${h}>`;
+}
+
+/**
+ * Post-title-in-document feature (2026-08-11) — a dedicated first `doc` node an author can
+ * center/style per post (`apps/admin/src/lib/post-title-extension.ts`). Renders empty in every
+ * GENERIC doc walk: `entryContent`, `renderSlot("title")`, and `buildTemplateRenderData`'s
+ * `post.content` already each print `post.title`/`ctx.post.title` (kept in sync with this
+ * node — see `withTitleNode`/`titleNodeText`, `apps/admin/.../features/posts/rules.ts`) as
+ * their OWN separate heading; letting this node ALSO emit its text here would duplicate the
+ * title on every one of those render paths. `renderWidgetPostContent` is the one caller that
+ * needs this node directly (for its alignment) and reads it via its own `extractTitleNode`,
+ * bypassing this generic walk entirely for that one field.
+ */
+function renderDocTitle(): string {
+  return "";
+}
+
+function renderDocText(node: JsonObject): string {
+  return renderMarks(typeof node.text === "string" ? node.text : "", Array.isArray(node.marks) ? node.marks : undefined);
+}
+
+function renderDocBulletList(_node: JsonObject, content: JsonValue[] | undefined, deps: DocNodeRenderDeps): string {
+  return `<ul>${renderChildNodes(content, deps)}</ul>`;
+}
+function renderDocOrderedList(_node: JsonObject, content: JsonValue[] | undefined, deps: DocNodeRenderDeps): string {
+  return `<ol>${renderChildNodes(content, deps)}</ol>`;
+}
+function renderDocListItem(_node: JsonObject, content: JsonValue[] | undefined, deps: DocNodeRenderDeps): string {
+  return `<li>${renderChildNodes(content, deps)}</li>`;
+}
+
+// Task list (`@tiptap/extension-list`'s `./task-list`/`./task-item` subpaths, 2026-08-11) — DOM
+// shape confirmed against each installed extension's own `renderHTML`, not assumed:
+// `<ul data-type="taskList">` wrapping `<li data-type="taskItem"><label><input
+// type="checkbox">...</label><div>CONTENT</div></li>` (the `<label>`/`<span>` pair is the
+// extension's own click-target styling hook, not something this renderer invents). `disabled`
+// added here (the editor's own DOM has no such attribute — its checkbox is live, backed by a
+// ProseMirror node-view click handler) because there is no equivalent handler on the public
+// site: an unwired, clickable-looking checkbox would visually toggle on click and then silently
+// do nothing, which is worse than a checkbox that's honestly inert. The editor's default
+// `nested: false` (confirmed against the installed dist) means `content` here is a single
+// paragraph, not a nested list — sub-tasks are out of scope until that option is turned on.
+function renderDocTaskList(_node: JsonObject, content: JsonValue[] | undefined, deps: DocNodeRenderDeps): string {
+  return `<ul data-type="taskList">${renderChildNodes(content, deps)}</ul>`;
+}
+function renderDocTaskItem(node: JsonObject, content: JsonValue[] | undefined, deps: DocNodeRenderDeps): string {
+  const attrs = isObject(node.attrs) ? node.attrs : {};
+  const checked = attrs.checked === true;
+  return `<li data-type="taskItem"><label><input type="checkbox"${checked ? " checked" : ""} disabled/><span></span></label><div>${renderChildNodes(content, deps)}</div></li>`;
+}
+
+// Table (`@tiptap/extension-table`, 2026-08-11) — four node types confirmed against the
+// installed dist: `table` (content `"tableRow+"`), `tableRow` (`<tr>`), `tableCell` (`<td>`),
+// `tableHeader` (`<th>`). No `<colgroup>`/column-resize markup: the editor mounts `Table` with
+// `resizable: false` (the extension's own default), so there is no column-width state to
+// reproduce here — `.post-detail-body table` (styles.css) sizes columns with plain
+// `table-layout: auto`, same as an ordinary unstyled HTML table. Disclosed scope limit, not an
+// oversight: widening this to resizable columns would need `colwidth` threaded through both the
+// editor config and this renderer's own `<colgroup>` emission, and nothing in this task asked
+// for resizable tables specifically.
+function renderDocTable(_node: JsonObject, content: JsonValue[] | undefined, deps: DocNodeRenderDeps): string {
+  return `<table>${renderChildNodes(content, deps)}</table>`;
+}
+function renderDocTableRow(_node: JsonObject, content: JsonValue[] | undefined, deps: DocNodeRenderDeps): string {
+  return `<tr>${renderChildNodes(content, deps)}</tr>`;
+}
+function renderDocTableCell(node: JsonObject, content: JsonValue[] | undefined, deps: DocNodeRenderDeps): string {
+  const attrs = isObject(node.attrs) ? node.attrs : {};
+  return `<td${tableSpanAttrs(attrs)}${tableCellAlignAttr(node)}>${renderChildNodes(content, deps)}</td>`;
+}
+function renderDocTableHeader(node: JsonObject, content: JsonValue[] | undefined, deps: DocNodeRenderDeps): string {
+  const attrs = isObject(node.attrs) ? node.attrs : {};
+  return `<th${tableSpanAttrs(attrs)}${tableCellAlignAttr(node)}>${renderChildNodes(content, deps)}</th>`;
+}
+
+function renderDocBlockquote(_node: JsonObject, content: JsonValue[] | undefined, deps: DocNodeRenderDeps): string {
+  return `<blockquote>${renderChildNodes(content, deps)}</blockquote>`;
+}
+
+function renderDocCodeBlock(node: JsonObject, content: JsonValue[] | undefined, deps: DocNodeRenderDeps): string {
+  // `attrs.language` (`@tiptap/extension-code-block-lowlight`, 2026-08-11) — see
+  // `safeLanguageClass`'s own doc for why this stays a class token with no server-side
+  // highlighting: the editor gets real in-browser highlighting (lowlight), this renderer stays
+  // dependency-free, and a theme can opt into a client-side highlighter later without any change
+  // here. Omitted entirely (bare `<code>`, exactly the prior behavior) when absent or unsafe.
+  const attrs = isObject(node.attrs) ? node.attrs : {};
+  const language = safeLanguageClass(attrs.language);
+  const classAttr = language ? ` class="language-${escapeHtml(language)}"` : "";
+  return `<pre><code${classAttr}>${renderChildNodes(content, deps)}</code></pre>`;
+}
+
+function renderDocHorizontalRule(): string {
+  return "<hr/>";
+}
+
+// Leaf/atom node, `@tiptap/extension-hard-break` (Shift-Enter / Mod-Enter) — bundled by
+// StarterKit v3.27, no toolbar button needed to reach it. Its own `renderHTML` emits a bare
+// `["br", ...attrs]` with no content hole (verified against the installed dist), same
+// childless-leaf shape `horizontalRule` above already renders self-closed. Before this case
+// existed, an unrecognized `hardBreak` fell through to `default`'s `renderNodes(content, ...)`
+// — since a leaf node's `content` is always `undefined`, that resolved to `""`: the line break
+// silently vanished on the public site with no error and no visible difference in the editor.
+function renderDocHardBreak(): string {
+  return "<br/>";
+}
+
+/** The `assetId`/`transformName` pair a ref-shaped image node's `attrs` must carry, or `null` when
+ *  either is absent or fails {@link isPlausibleMediaRefId}'s shape check — split out of
+ *  {@link tryRenderRefImage} purely to keep that function's own branch count down; no behavior of
+ *  its own beyond the two field reads plus the shape check. */
+function resolveRefImageIds(attrs: JsonObject): { assetId: string; transformName: string } | null {
+  const assetId = typeof attrs.assetId === "string" ? attrs.assetId : undefined;
+  const transformName = typeof attrs.transformName === "string" ? attrs.transformName : undefined;
+  if (!assetId || !transformName || !isPlausibleMediaRefId(assetId) || !isPlausibleMediaRefId(transformName)) return null;
+  return { assetId, transformName };
+}
+
+/** `mediaAssetMetadata`'s per-asset overrides, normalized to {@link renderImageTag}'s `null`-means-
+ *  "not set" contract — same reasoning as {@link resolveRefImageIds}: pulled out only to keep
+ *  {@link tryRenderRefImage}'s own branch count (three `??` fallbacks plus three `?.` reads all
+ *  count as separate branches under this repo's complexity gate) from being counted against it. */
+function resolveMediaAssetOverrides(meta: MediaAssetRenderMeta | undefined): Pick<
+  Parameters<typeof renderImageTag>[0],
+  "width" | "height" | "cssClass"
+> {
+  return {
+    width: meta?.width ?? null,
+    height: meta?.height ?? null,
+    cssClass: meta?.cssClass ?? null,
+  };
+}
+
+/**
+ * Attempts the REF-node image path — `attrs.assetId`/`attrs.transformName` resolved against
+ * `mediaTransformVersions`/`mediaAssetMetadata` (ADR-027 §4's frozen URL contract). Returns `null`
+ * when the ref shape isn't present/plausible, or the transform name isn't yet resolvable, in which
+ * case {@link renderDocImage} falls through to the LEGACY `src` path exactly as before this helper
+ * was split out — see that function's own doc for the full two-shape contract this implements one
+ * half of, and for why an unresolved ref degrades to a placeholder rather than a malformed URL.
+ */
+function tryRenderRefImage(attrs: JsonObject, alt: string, deps: DocNodeRenderDeps): string | null {
+  const ids = resolveRefImageIds(attrs);
+  if (!ids) return null;
+  const version = deps.mediaTransformVersions.get(ids.transformName);
+  if (version === undefined) return null;
+  const overrides = resolveMediaAssetOverrides(deps.mediaAssetMetadata.get(ids.assetId));
+  return renderImageTag({ assetId: ids.assetId, transformName: ids.transformName, version, alt, ...overrides });
+}
+
+/**
+ * D7 (original), extended under ADR-027 §4 and this task's quick-and-dirty sizing fix: a
+ * TipTap image node reaches this renderer in one of two shapes. LEGACY nodes carry only
+ * `attrs.src`/`attrs.title` — some combination of an inlined `data:` blob, an arbitrary
+ * external URL, or the *authenticated* admin media-preview URL, none of which are safe or
+ * correct to embed unescaped on public, unauthenticated HTML. Those keep degrading to the
+ * same aspect-ratio placeholder (`mediaPlaceholder`) exactly as before this task —
+ * `src`/`title` are still never read here at all, which is precisely the property that made
+ * the original D7 fix safe and must not regress: a real running server was verified live (see
+ * `media/bootstrap.ts`'s file header) to have posts whose only image `src` values are exactly
+ * these unsafe kinds, so silently starting to trust `src` would be a public security
+ * regression, not a fix.
+ *
+ * REF nodes (new, ADR-027 §4's own stated `bodyJson` contract: "stores refs
+ * `{assetId, transformName}`, never URLs") carry `attrs.assetId`/`attrs.transformName`
+ * instead, resolved by {@link tryRenderRefImage} — only THIS shape ever produces a real
+ * `<img src>`. width/height/class (this task): looked up from `mediaAssetMetadata` by
+ * `assetId` ALONE (never gated on whether the src itself resolved to a placeholder-vs-real
+ * image — an unresolved ref already returns `null` from {@link tryRenderRefImage}, so this
+ * lookup only ever runs once a real `<img src>` is about to be emitted). Each attribute is
+ * emitted independently and only when its value is non-null — an asset with only `width` set
+ * gets `width="…"` alone, never a `height="0"` or empty `class=""`. Owner's explicit
+ * instruction: width/height are BOTH optional; leaving either (or both) unset renders at
+ * native size, never a computed/defaulted value.
+ */
+function renderDocImage(node: JsonObject, _content: JsonValue[] | undefined, deps: DocNodeRenderDeps): string {
+  const attrs = isObject(node.attrs) ? node.attrs : {};
+  const alt = typeof attrs.alt === "string" ? attrs.alt : "";
+  const refImage = tryRenderRefImage(attrs, alt, deps);
+  if (refImage) return refImage;
+  // LEGACY `src`-only node (the toolbar's "Img by URL", and anything authored before refs
+  // existed). Historically this fell straight through to the placeholder — `src` was never read
+  // at all. The owner reversed that on 2026-08-12: refusing every `src` is a blunt instrument,
+  // and this file already had the right shape for the problem in {@link safeHref}, which does
+  // not refuse link hrefs but validates their scheme. {@link safeImageSrc} is that same
+  // discipline for an image URL: an allowlist, not a ban. Anything it rejects still degrades to
+  // the identical placeholder below, so invariant I2 (never silently empty) is unchanged.
+  const legacySrc = safeImageSrc(attrs.src);
+  if (legacySrc) return `<img src="${escapeHtml(legacySrc)}" alt="${escapeHtml(alt)}" loading="lazy" />`;
+  return mediaPlaceholder({ label: alt || "Image" });
+}
+
+function renderDocYoutube(node: JsonObject): string {
+  // See `extractYoutubeVideoId`'s own doc for why `attrs.src` is re-derived rather than
+  // trusted. `start` (seconds into the video) is the only other attr this renders — `width`/
+  // `height` are deliberately ignored: `.post-detail-body .youtube-embed` (styles.css) makes
+  // every embed a responsive 16:9 box instead, which is both simpler than validating two more
+  // numeric attrs and better UX than reproducing the editor's fixed-pixel default on a public
+  // page that also has to work on a phone. `youtube-nocookie.com` (privacy-enhanced mode) is
+  // used unconditionally rather than reading `nocookie` off attrs — a deliberate simplification,
+  // not something the toolbar's own plain "paste a URL" control offers a way to opt out of.
+  const attrs = isObject(node.attrs) ? node.attrs : {};
+  const videoId = extractYoutubeVideoId(attrs.src);
+  if (!videoId) return mediaPlaceholder({ label: "Video unavailable", ratio: "16 / 9" });
+  const start = typeof attrs.start === "number" && Number.isInteger(attrs.start) && attrs.start > 0 && attrs.start <= 999999 ? attrs.start : 0;
+  const embedSrc = `https://www.youtube-nocookie.com/embed/${videoId}${start > 0 ? `?start=${start}` : ""}`;
+  return `<div class="youtube-embed"><iframe src="${escapeHtml(embedSrc)}" title="YouTube video" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe></div>`;
+}
+
+function renderDocMention(node: JsonObject): string {
+  // Mention (`@tiptap/extension-mention`, toolbar-polish pass 2026-08-11) — the toolbar's
+  // "Mention a post" picker (`PostEditor.tsx`) inserts `{ id: <mentioned post's slug>, label:
+  // <its title> }` (see `rules.ts`'s own comment, which already documents this case's contract
+  // before this case existed). Before this case existed, the node fell through to `default`'s
+  // `renderNodes(content, ...)`: `mention` is an atom/leaf node (`atom: true`, no content hole
+  // — confirmed against the installed `@tiptap/extension-mention` dist), so `content` is always
+  // `undefined` and that resolved to `""` — the whole mention silently vanished on the public
+  // site with no error, same shape as the historical `textAlign`/`underline`/`strike`/
+  // `hardBreak` bugs this file's own header warns about.
+  //
+  // `id` is re-validated against the SAME `SLUG_FORMAT_PATTERN`/`MAX_SLUG_LENGTH` the post
+  // feature itself enforces at write time (`#src/features/post/index`) before it is trusted
+  // into an `href` — defense-in-depth against `bodyJson` written some OTHER way (a direct API
+  // call, pasted content), the same reasoning `safeCssColor`/`safeCssFontFamily`/
+  // `safeCssLength` already state for their own allowlists above. Anything that fails
+  // validation, or has no `label`, renders nothing rather than a dead or malformed link — never
+  // a raw, unescaped attribute dump.
+  //
+  // Link text is `"@" + label`, matching the editor's own default `renderText`
+  // (`${suggestion?.char ?? '@'}${node.attrs.label ?? node.attrs.id}`) so the public page shows
+  // the identical text an author saw while writing, not a divergent public-only presentation.
+  const attrs = isObject(node.attrs) ? node.attrs : {};
+  const id = typeof attrs.id === "string" ? attrs.id : "";
+  const label = typeof attrs.label === "string" ? attrs.label : "";
+  if (id.length === 0 || id.length > MAX_SLUG_LENGTH || !SLUG_FORMAT_PATTERN.test(id) || label.length === 0) {
+    return "";
+  }
+  return `<a class="post-mention" href="/${escapeHtml(id)}">@${escapeHtml(label)}</a>`;
+}
+
+function renderDocWidgetEmbed(node: JsonObject, _content: JsonValue[] | undefined, deps: DocNodeRenderDeps): string {
+  // REQ-18/REQ-21: a block-level atom node carrying a single widget-instance reference,
+  // resolved server-side (by `resolvePageWidgets`, threaded in via `inlineResolved`) before this
+  // content ever reaches a theme — the theme (declarative tier here, Liquid tier via
+  // `liquid-worker.ts`'s `buildLiquidData` pre-computing `post.content`) never resolves a
+  // `widgetEmbed` reference itself.
+  const attrs = isObject(node.attrs) ? node.attrs : {};
+  const placementId = typeof attrs.placementId === "string" ? attrs.placementId : undefined;
+  const ir = placementId ? deps.inlineResolved.get(placementId) : undefined;
+  return renderWidgetIr(ir ?? WIDGET_PLACEHOLDER_IR);
+}
+
+/** {@link renderDocNode}'s own `content` extraction, pulled out so the ternary is counted once here
+ *  instead of against the dispatcher's own already-tight budget (four optional params already cost
+ *  one point each under this repo's complexity gate). */
+function docNodeContent(node: JsonObject): JsonValue[] | undefined {
+  return Array.isArray(node.content) ? node.content : undefined;
+}
+
+/** {@link renderDocNode}'s own handler lookup, pulled out for the same reason as
+ *  {@link docNodeContent} just above. */
+function resolveDocNodeHandler(node: JsonObject): DocNodeHandler | undefined {
+  return typeof node.type === "string" ? DOC_NODE_HANDLERS[node.type] : undefined;
+}
+
+/** One handler per doc-node `type` — a lookup instead of the large `switch` this file used to
+ *  dispatch on, so the number of node kinds stops being what drives {@link renderDocNode}'s own
+ *  complexity (every `case` in a `switch` counts as a branch; an entry in this table does not,
+ *  since it's data, not control flow). A `type` with no entry (any node kind this renderer doesn't
+ *  recognize) falls through to `renderDocNode`'s own default: render children, exactly the old
+ *  `switch`'s `default` case. */
+const DOC_NODE_HANDLERS: Record<string, DocNodeHandler> = {
+  doc: renderDocDocNode,
+  paragraph: renderDocParagraph,
+  heading: renderDocHeading,
+  title: renderDocTitle,
+  text: renderDocText,
+  bulletList: renderDocBulletList,
+  orderedList: renderDocOrderedList,
+  listItem: renderDocListItem,
+  taskList: renderDocTaskList,
+  taskItem: renderDocTaskItem,
+  table: renderDocTable,
+  tableRow: renderDocTableRow,
+  tableCell: renderDocTableCell,
+  tableHeader: renderDocTableHeader,
+  blockquote: renderDocBlockquote,
+  codeBlock: renderDocCodeBlock,
+  horizontalRule: renderDocHorizontalRule,
+  hardBreak: renderDocHardBreak,
+  image: renderDocImage,
+  youtube: renderDocYoutube,
+  mention: renderDocMention,
+  widgetEmbed: renderDocWidgetEmbed,
+};
+
 /**
  * Renders a TipTap/ProseMirror-style doc node to HTML. Unknown nodes render children.
  *
@@ -715,231 +1052,10 @@ export function renderDocNode(
   // Checked before anything else — an over-deep node does no further work at all, which is what
   // actually stops the recursion (a `depthLimitPlaceholder()` return has no `content` to walk).
   if (depth > MAX_RENDER_DEPTH) return depthLimitPlaceholder();
-  const content = Array.isArray(node.content) ? node.content : undefined;
-
-  switch (node.type) {
-    case "doc":
-      // Dedupe at the doc boundary — see `dedupeHeadingIds` for why this is a pass over the finished
-      // string rather than state threaded through the recursion.
-      return dedupeHeadingIds(renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata, depth + 1));
-    case "paragraph":
-      return `<p${alignStyleAttr(node)}>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata, depth + 1)}</p>`;
-    case "heading": {
-      const level = isObject(node.attrs) && typeof node.attrs.level === "number" ? node.attrs.level : 2;
-      const h = Math.min(Math.max(level, 1), 6);
-      // Additive: an `id` changes nothing visually, and every heading rendered before this existed
-      // simply had no anchor to link to. Emitted as the FIRST attribute, which `dedupeHeadingIds`
-      // relies on. Omitted entirely when the text slugifies to nothing.
-      const anchor = headingAnchorId(node);
-      const idAttr = anchor === "" ? "" : ` id="${escapeHtml(anchor)}"`;
-      return `<h${h}${idAttr}${alignStyleAttr(node)}>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata, depth + 1)}</h${h}>`;
-    }
-    case "title":
-      // Post-title-in-document feature (2026-08-11) — a dedicated first `doc` node an author can
-      // center/style per post (`apps/admin/src/lib/post-title-extension.ts`). Renders empty in every
-      // GENERIC doc walk: `entryContent`, `renderSlot("title")`, and `buildTemplateRenderData`'s
-      // `post.content` already each print `post.title`/`ctx.post.title` (kept in sync with this
-      // node — see `withTitleNode`/`titleNodeText`, `apps/admin/.../features/posts/rules.ts`) as
-      // their OWN separate heading; letting this node ALSO emit its text here would duplicate the
-      // title on every one of those render paths. `renderWidgetPostContent` is the one caller that
-      // needs this node directly (for its alignment) and reads it via its own `extractTitleNode`,
-      // bypassing this generic walk entirely for that one field.
-      return "";
-    case "text":
-      return renderMarks(
-        typeof node.text === "string" ? node.text : "",
-        Array.isArray(node.marks) ? node.marks : undefined
-      );
-    case "bulletList":
-      return `<ul>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata, depth + 1)}</ul>`;
-    case "orderedList":
-      return `<ol>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata, depth + 1)}</ol>`;
-    case "listItem":
-      return `<li>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata, depth + 1)}</li>`;
-    // Task list (`@tiptap/extension-list`'s `./task-list`/`./task-item` subpaths, 2026-08-11) — DOM
-    // shape confirmed against each installed extension's own `renderHTML`, not assumed:
-    // `<ul data-type="taskList">` wrapping `<li data-type="taskItem"><label><input
-    // type="checkbox">...</label><div>CONTENT</div></li>` (the `<label>`/`<span>` pair is the
-    // extension's own click-target styling hook, not something this renderer invents). `disabled`
-    // added here (the editor's own DOM has no such attribute — its checkbox is live, backed by a
-    // ProseMirror node-view click handler) because there is no equivalent handler on the public
-    // site: an unwired, clickable-looking checkbox would visually toggle on click and then silently
-    // do nothing, which is worse than a checkbox that's honestly inert. The editor's default
-    // `nested: false` (confirmed against the installed dist) means `content` here is a single
-    // paragraph, not a nested list — sub-tasks are out of scope until that option is turned on.
-    case "taskList":
-      return `<ul data-type="taskList">${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata, depth + 1)}</ul>`;
-    case "taskItem": {
-      const attrs = isObject(node.attrs) ? node.attrs : {};
-      const checked = attrs.checked === true;
-      return `<li data-type="taskItem"><label><input type="checkbox"${checked ? " checked" : ""} disabled/><span></span></label><div>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata, depth + 1)}</div></li>`;
-    }
-    // Table (`@tiptap/extension-table`, 2026-08-11) — four node types confirmed against the
-    // installed dist: `table` (content `"tableRow+"`), `tableRow` (`<tr>`), `tableCell` (`<td>`),
-    // `tableHeader` (`<th>`). No `<colgroup>`/column-resize markup: the editor mounts `Table` with
-    // `resizable: false` (the extension's own default), so there is no column-width state to
-    // reproduce here — `.post-detail-body table` (styles.css) sizes columns with plain
-    // `table-layout: auto`, same as an ordinary unstyled HTML table. Disclosed scope limit, not an
-    // oversight: widening this to resizable columns would need `colwidth` threaded through both the
-    // editor config and this renderer's own `<colgroup>` emission, and nothing in this task asked
-    // for resizable tables specifically.
-    case "table":
-      return `<table>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata, depth + 1)}</table>`;
-    case "tableRow":
-      return `<tr>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata, depth + 1)}</tr>`;
-    case "tableCell": {
-      const attrs = isObject(node.attrs) ? node.attrs : {};
-      return `<td${tableSpanAttrs(attrs)}${tableCellAlignAttr(node)}>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata, depth + 1)}</td>`;
-    }
-    case "tableHeader": {
-      const attrs = isObject(node.attrs) ? node.attrs : {};
-      return `<th${tableSpanAttrs(attrs)}${tableCellAlignAttr(node)}>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata, depth + 1)}</th>`;
-    }
-    case "blockquote":
-      return `<blockquote>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata, depth + 1)}</blockquote>`;
-    case "codeBlock": {
-      // `attrs.language` (`@tiptap/extension-code-block-lowlight`, 2026-08-11) — see
-      // `safeLanguageClass`'s own doc for why this stays a class token with no server-side
-      // highlighting: the editor gets real in-browser highlighting (lowlight), this renderer stays
-      // dependency-free, and a theme can opt into a client-side highlighter later without any change
-      // here. Omitted entirely (bare `<code>`, exactly the prior behavior) when absent or unsafe.
-      const attrs = isObject(node.attrs) ? node.attrs : {};
-      const language = safeLanguageClass(attrs.language);
-      const classAttr = language ? ` class="language-${escapeHtml(language)}"` : "";
-      return `<pre><code${classAttr}>${renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata, depth + 1)}</code></pre>`;
-    }
-    case "horizontalRule":
-      return "<hr/>";
-    // Leaf/atom node, `@tiptap/extension-hard-break` (Shift-Enter / Mod-Enter) — bundled by
-    // StarterKit v3.27, no toolbar button needed to reach it. Its own `renderHTML` emits a bare
-    // `["br", ...attrs]` with no content hole (verified against the installed dist), same
-    // childless-leaf shape `horizontalRule` above already renders self-closed. Before this case
-    // existed, an unrecognized `hardBreak` fell through to `default`'s `renderNodes(content, ...)`
-    // — since a leaf node's `content` is always `undefined`, that resolved to `""`: the line break
-    // silently vanished on the public site with no error and no visible difference in the editor.
-    case "hardBreak":
-      return "<br/>";
-    case "image": {
-      // D7 (original), extended under ADR-027 §4 and this task's quick-and-dirty sizing fix: a
-      // TipTap image node reaches this renderer in one of two shapes. LEGACY nodes carry only
-      // `attrs.src`/`attrs.title` — some combination of an inlined `data:` blob, an arbitrary
-      // external URL, or the *authenticated* admin media-preview URL, none of which are safe or
-      // correct to embed unescaped on public, unauthenticated HTML. Those keep degrading to the
-      // same aspect-ratio placeholder (`mediaPlaceholder`) exactly as before this task —
-      // `src`/`title` are still never read here at all, which is precisely the property that made
-      // the original D7 fix safe and must not regress: a real running server was verified live (see
-      // `media/bootstrap.ts`'s file header) to have posts whose only image `src` values are exactly
-      // these unsafe kinds, so silently starting to trust `src` would be a public security
-      // regression, not a fix.
-      //
-      // REF nodes (new, ADR-027 §4's own stated `bodyJson` contract: "stores refs
-      // `{assetId, transformName}`, never URLs") carry `attrs.assetId`/`attrs.transformName`
-      // instead. Only THIS shape ever produces a real `<img src>`: the version is resolved against
-      // `mediaTransformVersions` (populated by the route caller from the SAME `transform_registry`
-      // row `/m/` itself reads — see `renderSite`'s doc), which is exactly the value the public
-      // `/m/{assetId}/{transformName}.v{version}/...` URL needs. An id that fails
-      // {@link isPlausibleMediaRefId}'s shape check, or a `transformName` with no entry in the map
-      // (never registered, or not yet resolved), degrades to the identical placeholder a legacy
-      // node gets — a ref node can be "wrong" but can never emit a malformed or unsafe URL.
-      //
-      // width/height/class (this task): looked up from `mediaAssetMetadata` by `assetId` ALONE
-      // (never gated on whether the src itself resolved to a placeholder-vs-real image — an
-      // unresolved ref already returns early via `mediaPlaceholder` below, so this lookup only ever
-      // runs once a real `<img src>` is about to be emitted). Each attribute is emitted
-      // independently and only when its value is non-null — an asset with only `width` set gets
-      // `width="…"` alone, never a `height="0"` or empty `class=""`. Owner's explicit instruction:
-      // width/height are BOTH optional; leaving either (or both) unset renders at native size, never
-      // a computed/defaulted value.
-      const attrs = isObject(node.attrs) ? node.attrs : {};
-      const alt = typeof attrs.alt === "string" ? attrs.alt : "";
-      const assetId = typeof attrs.assetId === "string" ? attrs.assetId : undefined;
-      const transformName = typeof attrs.transformName === "string" ? attrs.transformName : undefined;
-      if (assetId && transformName && isPlausibleMediaRefId(assetId) && isPlausibleMediaRefId(transformName)) {
-        const version = mediaTransformVersions.get(transformName);
-        if (version !== undefined) {
-          const meta = mediaAssetMetadata.get(assetId);
-          return renderImageTag({
-            assetId,
-            transformName,
-            version,
-            alt,
-            width: meta?.width ?? null,
-            height: meta?.height ?? null,
-            cssClass: meta?.cssClass ?? null,
-          });
-        }
-      }
-      // LEGACY `src`-only node (the toolbar's "Img by URL", and anything authored before refs
-      // existed). Historically this fell straight through to the placeholder — `src` was never read
-      // at all. The owner reversed that on 2026-08-12: refusing every `src` is a blunt instrument,
-      // and this file already had the right shape for the problem in {@link safeHref}, which does
-      // not refuse link hrefs but validates their scheme. {@link safeImageSrc} is that same
-      // discipline for an image URL: an allowlist, not a ban. Anything it rejects still degrades to
-      // the identical placeholder below, so invariant I2 (never silently empty) is unchanged.
-      const legacySrc = safeImageSrc(attrs.src);
-      if (legacySrc) return `<img src="${escapeHtml(legacySrc)}" alt="${escapeHtml(alt)}" loading="lazy" />`;
-      return mediaPlaceholder({ label: alt || "Image" });
-    }
-    case "youtube": {
-      // See `extractYoutubeVideoId`'s own doc for why `attrs.src` is re-derived rather than
-      // trusted. `start` (seconds into the video) is the only other attr this renders — `width`/
-      // `height` are deliberately ignored: `.post-detail-body .youtube-embed` (styles.css) makes
-      // every embed a responsive 16:9 box instead, which is both simpler than validating two more
-      // numeric attrs and better UX than reproducing the editor's fixed-pixel default on a public
-      // page that also has to work on a phone. `youtube-nocookie.com` (privacy-enhanced mode) is
-      // used unconditionally rather than reading `nocookie` off attrs — a deliberate simplification,
-      // not something the toolbar's own plain "paste a URL" control offers a way to opt out of.
-      const attrs = isObject(node.attrs) ? node.attrs : {};
-      const videoId = extractYoutubeVideoId(attrs.src);
-      if (!videoId) return mediaPlaceholder({ label: "Video unavailable", ratio: "16 / 9" });
-      const start = typeof attrs.start === "number" && Number.isInteger(attrs.start) && attrs.start > 0 && attrs.start <= 999999 ? attrs.start : 0;
-      const embedSrc = `https://www.youtube-nocookie.com/embed/${videoId}${start > 0 ? `?start=${start}` : ""}`;
-      return `<div class="youtube-embed"><iframe src="${escapeHtml(embedSrc)}" title="YouTube video" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen loading="lazy"></iframe></div>`;
-    }
-    case "mention": {
-      // Mention (`@tiptap/extension-mention`, toolbar-polish pass 2026-08-11) — the toolbar's
-      // "Mention a post" picker (`PostEditor.tsx`) inserts `{ id: <mentioned post's slug>, label:
-      // <its title> }` (see `rules.ts`'s own comment, which already documents this case's contract
-      // before this case existed). Before this case existed, the node fell through to `default`'s
-      // `renderNodes(content, ...)`: `mention` is an atom/leaf node (`atom: true`, no content hole
-      // — confirmed against the installed `@tiptap/extension-mention` dist), so `content` is always
-      // `undefined` and that resolved to `""` — the whole mention silently vanished on the public
-      // site with no error, same shape as the historical `textAlign`/`underline`/`strike`/
-      // `hardBreak` bugs this file's own header warns about.
-      //
-      // `id` is re-validated against the SAME `SLUG_FORMAT_PATTERN`/`MAX_SLUG_LENGTH` the post
-      // feature itself enforces at write time (`#src/features/post/index`) before it is trusted
-      // into an `href` — defense-in-depth against `bodyJson` written some OTHER way (a direct API
-      // call, pasted content), the same reasoning `safeCssColor`/`safeCssFontFamily`/
-      // `safeCssLength` already state for their own allowlists above. Anything that fails
-      // validation, or has no `label`, renders nothing rather than a dead or malformed link — never
-      // a raw, unescaped attribute dump.
-      //
-      // Link text is `"@" + label`, matching the editor's own default `renderText`
-      // (`${suggestion?.char ?? '@'}${node.attrs.label ?? node.attrs.id}`) so the public page shows
-      // the identical text an author saw while writing, not a divergent public-only presentation.
-      const attrs = isObject(node.attrs) ? node.attrs : {};
-      const id = typeof attrs.id === "string" ? attrs.id : "";
-      const label = typeof attrs.label === "string" ? attrs.label : "";
-      if (id.length === 0 || id.length > MAX_SLUG_LENGTH || !SLUG_FORMAT_PATTERN.test(id) || label.length === 0) {
-        return "";
-      }
-      return `<a class="post-mention" href="/${escapeHtml(id)}">@${escapeHtml(label)}</a>`;
-    }
-    case "widgetEmbed": {
-      // REQ-18/REQ-21: a block-level atom node carrying a single widget-instance reference,
-      // resolved server-side (by `resolvePageWidgets`, threaded in via `inlineResolved`) before this
-      // content ever reaches a theme — the theme (declarative tier here, Liquid tier via
-      // `liquid-worker.ts`'s `buildLiquidData` pre-computing `post.content`) never resolves a
-      // `widgetEmbed` reference itself.
-      const attrs = isObject(node.attrs) ? node.attrs : {};
-      const placementId = typeof attrs.placementId === "string" ? attrs.placementId : undefined;
-      const ir = placementId ? inlineResolved.get(placementId) : undefined;
-      return renderWidgetIr(ir ?? WIDGET_PLACEHOLDER_IR);
-    }
-    default:
-      return renderNodes(content, inlineResolved, mediaTransformVersions, mediaAssetMetadata, depth + 1);
-  }
+  const content = docNodeContent(node);
+  const deps: DocNodeRenderDeps = { inlineResolved, mediaTransformVersions, mediaAssetMetadata, depth };
+  const handler = resolveDocNodeHandler(node);
+  return handler ? handler(node, content, deps) : renderChildNodes(content, deps);
 }
 
 // ---------------------------------------------------------------------------
