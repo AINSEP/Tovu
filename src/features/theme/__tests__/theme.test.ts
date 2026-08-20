@@ -242,3 +242,28 @@ test("the live themes/dispatch demonstrator theme (no regions declared yet) stil
   assert.equal(theme.status, "valid");
   assert.equal(theme.manifest.regions, undefined);
 });
+
+// ---------------------------------------------------------------------------
+// Declarative tier: malformed `templates/*.json` (characterization test written for the
+// loadTheme complexity-reduction refactor, 2026-08-20 — this catch branch, now inside
+// loadJsonTemplateFile, had no direct test anywhere in this suite before, confirmed by c8 line
+// coverage on theme.ts).
+// ---------------------------------------------------------------------------
+
+const declarativeManifest = JSON.stringify({ id: "d", name: "D", version: "1.0.0", tier: "declarative", engine: 1 });
+
+test("a templates/*.json file that fails to parse is reported per-file, not thrown", () => {
+  const dir = makeThemeDir({
+    "theme.json": declarativeManifest,
+    "home.json": "{ not valid json",
+    "entry.json": JSON.stringify({ type: "doc", content: [] }),
+  });
+  const theme = loadTheme({ themeDir: dir, id: "d", source: "site" });
+
+  assert.equal(theme.status, "invalid");
+  const homeError = theme.errors.find((e) => e.startsWith("templates/home.json:"));
+  assert.ok(homeError, `expected a templates/home.json error, got: ${JSON.stringify(theme.errors)}`);
+  // Fault isolation (REQ-10): the one bad file doesn't stop entry.json from loading.
+  assert.ok(theme.templates.entry);
+  assert.equal(theme.templates.home, undefined);
+});

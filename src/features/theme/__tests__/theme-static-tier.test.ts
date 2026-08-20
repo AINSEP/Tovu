@@ -210,3 +210,32 @@ test("a theme declaring no templates at all is unaffected by the guard", () => {
   assert.deepEqual(theme.errors, []);
   assert.equal(theme.status, "valid");
 });
+
+test("a defaultMode not listed in modes fails the theme loudly instead of silently rendering the base :root block", () => {
+  // Characterization test written for the loadTheme complexity-reduction refactor (2026-08-20) —
+  // this cross-field check (now validateManifestCrossFields/validateCompiledBuildManifest) had no
+  // direct test anywhere in this suite before, confirmed by c8 line coverage on theme.ts.
+  const dir = makeStaticThemeDir({ "pages/index.html": "<html></html>" }, "static", {
+    modes: ["dark"],
+    defaultMode: "light",
+  });
+  const theme = loadTheme({ themeDir: dir, id: "t", source: "site" });
+
+  assert.equal(theme.status, "invalid");
+  assert.ok(
+    theme.errors.includes("theme.json defaultMode 'light' is not listed in modes [dark]"),
+    `expected the defaultMode error, got: ${JSON.stringify(theme.errors)}`
+  );
+});
+
+test("a defaultMode listed in modes loads valid — the positive side of the same check", () => {
+  const dir = makeStaticThemeDir({ "pages/index.html": "<html></html>" }, "static", {
+    modes: ["dark", "light"],
+    defaultMode: "light",
+  });
+  const theme = loadTheme({ themeDir: dir, id: "t", source: "site" });
+
+  assert.deepEqual(theme.errors, []);
+  assert.equal(theme.status, "valid");
+  assert.equal(theme.manifest.defaultMode, "light");
+});
