@@ -87,6 +87,38 @@ interface ChatFrameEnd {
  *  actually narrows it before anything acts on it (see `SiteAssistantWidget.tsx`). */
 const CLIENT_DIRECTIVE_EXT_NAME = "client_directive";
 
+/** Parses one complete SSE frame's `event:`/`data:` lines (defaulting `event` to `"message"`). */
+function parseSseFrame(frame: string): { event: string; data: string | null } {
+  let event = "message";
+  let data: string | null = null;
+  for (const line of frame.split("\n")) {
+    if (line.startsWith("event:")) event = line.slice("event:".length).trim();
+    else if (line.startsWith("data:")) data = line.slice("data:".length).trim();
+  }
+  return { event, data };
+}
+
+/**
+ * Extracts and dispatches every complete `\n\n`-delimited frame currently in `buffer` via `onFrame`,
+ * returning the remaining not-yet-terminated tail for the next read.
+ */
+function drainCompleteFrames(buffer: string, onFrame: (event: string, data: unknown) => void): string {
+  let remaining = buffer;
+  let boundary = remaining.indexOf("\n\n");
+  while (boundary !== -1) {
+    const frame = remaining.slice(0, boundary);
+    remaining = remaining.slice(boundary + 2);
+
+    const { event, data } = parseSseFrame(frame);
+    // `sse()` always writes both lines together; a frame with no `data:` line is not one of ours
+    // (a proxy keep-alive comment, e.g.) and is skipped rather than handed to `JSON.parse(null)`.
+    if (data !== null) onFrame(event, JSON.parse(data));
+
+    boundary = remaining.indexOf("\n\n");
+  }
+  return remaining;
+}
+
 /**
  * Parses one `fetch` response body as the `event:`/`data:` SSE framing `sse()` writes
  * (`src/server/modules/site-assistant.ts`), invoking `onFrame` once per complete frame.
@@ -113,24 +145,7 @@ async function pumpServerSentEvents(
     const { done, value } = await reader.read();
     if (done) break;
     buffer += decoder.decode(value, { stream: true });
-
-    let boundary = buffer.indexOf("\n\n");
-    while (boundary !== -1) {
-      const frame = buffer.slice(0, boundary);
-      buffer = buffer.slice(boundary + 2);
-
-      let event = "message";
-      let data: string | null = null;
-      for (const line of frame.split("\n")) {
-        if (line.startsWith("event:")) event = line.slice("event:".length).trim();
-        else if (line.startsWith("data:")) data = line.slice("data:".length).trim();
-      }
-      // `sse()` always writes both lines together; a frame with no `data:` line is not one of ours
-      // (a proxy keep-alive comment, e.g.) and is skipped rather than handed to `JSON.parse(null)`.
-      if (data !== null) onFrame(event, JSON.parse(data));
-
-      boundary = buffer.indexOf("\n\n");
-    }
+    buffer = drainCompleteFrames(buffer, onFrame);
   }
 }
 
