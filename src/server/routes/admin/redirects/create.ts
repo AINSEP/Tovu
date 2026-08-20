@@ -1,15 +1,45 @@
-import { createRedirect } from "#src/redirects/index";
-import {
-  RedirectConflictError,
-  RedirectLoopError,
-  RedirectTargetNotAllowedError,
-  RedirectValidationError,
-} from "#src/redirects/index";
+import { createRedirect, type RedirectMatchType, type RedirectStatusCode } from "#src/redirects/index";
 import { toAdminRedirectResponse, type RedirectRouteRegistrar } from "#src/server/http/admin/redirects";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import { REDIRECT_WRITE_ERROR_MAPPINGS, respondToRedirectError } from "./shared.js";
 
 const VALID_MATCH_TYPES = new Set(["exact", "prefix", "wildcard", "regex"]);
 const VALID_STATUS_CODES = new Set([301, 302, 307, 308]);
+
+/** This route's five body fields, validated and read off an untyped body in one place, or the 400
+ *  message for the first violation.
+ *  @complexity O(1). */
+function parseRedirectCreateBody(rawBody: unknown):
+  | {
+      ok: true;
+      matchType: RedirectMatchType;
+      fromPattern: string;
+      toTarget: string;
+      statusCode: RedirectStatusCode;
+      override: boolean | undefined;
+      priority: number | undefined;
+    }
+  | { ok: false; error: string } {
+  const body = (rawBody ?? {}) as Record<string, unknown>;
+  if (!VALID_MATCH_TYPES.has(body.matchType as string)) {
+    return { ok: false, error: "matchType must be one of exact/prefix/wildcard/regex" };
+  }
+  if (typeof body.fromPattern !== "string" || typeof body.toTarget !== "string") {
+    return { ok: false, error: "fromPattern and toTarget are required strings" };
+  }
+  if (!VALID_STATUS_CODES.has(body.statusCode as number)) {
+    return { ok: false, error: "statusCode must be one of 301/302/307/308" };
+  }
+  return {
+    ok: true,
+    matchType: body.matchType as RedirectMatchType,
+    fromPattern: body.fromPattern,
+    toTarget: body.toTarget,
+    statusCode: body.statusCode as RedirectStatusCode,
+    override: typeof body.override === "boolean" ? body.override : undefined,
+    priority: typeof body.priority === "number" ? body.priority : undefined,
+  };
+}
 
 /**
  * POST a new manual redirect rule (api.spec.md `CREATE_REDIRECT`). Gated by
@@ -25,17 +55,9 @@ export const registerAdminRedirectCreateRoute: RedirectRouteRegistrar = (app, de
       return;
     }
 
-    const body = req.body ?? {};
-    if (!VALID_MATCH_TYPES.has(body.matchType)) {
-      res.status(400).json({ error: "matchType must be one of exact/prefix/wildcard/regex", code: "VALIDATION_ERROR" });
-      return;
-    }
-    if (typeof body.fromPattern !== "string" || typeof body.toTarget !== "string") {
-      res.status(400).json({ error: "fromPattern and toTarget are required strings", code: "VALIDATION_ERROR" });
-      return;
-    }
-    if (!VALID_STATUS_CODES.has(body.statusCode)) {
-      res.status(400).json({ error: "statusCode must be one of 301/302/307/308", code: "VALIDATION_ERROR" });
+    const parsedBody = parseRedirectCreateBody(req.body);
+    if (!parsedBody.ok) {
+      res.status(400).json({ error: parsedBody.error, code: "VALIDATION_ERROR" });
       return;
     }
 
@@ -60,35 +82,19 @@ export const registerAdminRedirectCreateRoute: RedirectRouteRegistrar = (app, de
         deps: deps.redirectsWriteDeps,
         input: {
           workspaceId: deps.workspaceId,
-          matchType: body.matchType,
-          fromPattern: body.fromPattern,
-          toTarget: body.toTarget,
-          statusCode: body.statusCode,
-          override: typeof body.override === "boolean" ? body.override : undefined,
-          priority: typeof body.priority === "number" ? body.priority : undefined,
+          matchType: parsedBody.matchType,
+          fromPattern: parsedBody.fromPattern,
+          toTarget: parsedBody.toTarget,
+          statusCode: parsedBody.statusCode,
+          override: parsedBody.override,
+          priority: parsedBody.priority,
           actorId: principal.id,
         },
       });
 
       res.status(201).json(toAdminRedirectResponse(record));
     } catch (err) {
-      if (err instanceof RedirectValidationError) {
-        res.status(400).json({ error: err.message, code: "REDIRECT_VALIDATION_ERROR" });
-        return;
-      }
-      if (err instanceof RedirectTargetNotAllowedError) {
-        res.status(400).json({ error: err.message, code: "REDIRECT_TARGET_NOT_ALLOWED" });
-        return;
-      }
-      if (err instanceof RedirectConflictError) {
-        res.status(409).json({ error: err.message, code: "REDIRECT_CONFLICT" });
-        return;
-      }
-      if (err instanceof RedirectLoopError) {
-        res.status(409).json({ error: err.message, code: "REDIRECT_LOOP_DETECTED" });
-        return;
-      }
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+      respondToRedirectError(res, err, REDIRECT_WRITE_ERROR_MAPPINGS);
     }
   });
 };

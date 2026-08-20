@@ -1,3 +1,5 @@
+import type { Response } from "express";
+
 import { DuplicateCommandError, executeCommand, ForbiddenError } from "@jini-ai/cms/core";
 import {
   PluginIncompatibleError,
@@ -9,7 +11,64 @@ import {
 import { PluginLoadError } from "#src/features/plugin-runtime/loader";
 import { toAdminPluginResponse } from "#src/server/http/admin/plugins";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import type { PluginsRouteRegistrar } from "./deps.js";
+import type { PluginsRouteDeps, PluginsRouteRegistrar } from "./deps.js";
+
+/**
+ * `executeCommand`'s `rollback` for this route: restores the captured prior activation row (or
+ * deletes it, for a first-time enable/disable), then re-invokes the matching `onPluginEnabled`/
+ * `onPluginDisabled` side effect so hook attachment stays consistent with the restored row.
+ *
+ * Declared as its own top-level function, not inline in the `mutation` object, so its two-branch
+ * shape doesn't nest inside the route handler.
+ *
+ * @complexity O(1).
+ */
+async function rollbackPluginActivation(
+  deps: Pick<PluginsRouteDeps, "pluginActivationRepo" | "onPluginEnabled" | "onPluginDisabled">,
+  params: { workspaceId: string; pluginId: string; priorActivation: PluginActivationRecord | null }
+): Promise<void> {
+  const { workspaceId, pluginId, priorActivation } = params;
+  if (priorActivation) {
+    await deps.pluginActivationRepo.save(priorActivation);
+  } else {
+    await deps.pluginActivationRepo.deleteActivation({ workspaceId, pluginId });
+  }
+  if (priorActivation?.enabled) {
+    await deps.onPluginEnabled(pluginId);
+  } else {
+    deps.onPluginDisabled(pluginId);
+  }
+}
+
+/** Maps this route's thrown error types onto the admin error envelope.
+ *  @complexity O(1). */
+function sendSetPluginEnabledError(res: Response, err: unknown): void {
+  if (err instanceof ForbiddenError) {
+    res.status(403).json({ error: err.message, code: "FORBIDDEN", details: { permission: err.permission, reason: err.reason } });
+    return;
+  }
+  if (err instanceof DuplicateCommandError) {
+    res.status(409).json({ error: err.message, code: "DUPLICATE_COMMAND", changeSetId: err.changeSetId });
+    return;
+  }
+  if (err instanceof PluginNotFoundError) {
+    res.status(404).json({ error: err.message, code: "PLUGIN_NOT_FOUND" });
+    return;
+  }
+  if (err instanceof PluginIncompatibleError) {
+    res.status(422).json({ error: err.message, code: "PLUGIN_INCOMPATIBLE" });
+    return;
+  }
+  if (err instanceof PluginInvalidError) {
+    res.status(422).json({ error: err.message, code: "PLUGIN_INVALID" });
+    return;
+  }
+  if (err instanceof PluginLoadError) {
+    res.status(500).json({ error: err.message, code: "PLUGIN_LOAD_FAILED", details: { pluginId: err.pluginId, reason: err.reason } });
+    return;
+  }
+  res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+}
 
 /**
  * @file `PLUGIN_SET_ENABLED` — `PATCH /api/admin/v1/workspaces/:workspaceId/plugins/:pluginId`
@@ -89,18 +148,7 @@ export const registerPluginSetEnabledRoute: PluginsRouteRegistrar = (app, deps) 
               },
               input: { workspaceId: deps.workspaceId, pluginId, enabled },
             }),
-          rollback: async () => {
-            if (priorActivation) {
-              await deps.pluginActivationRepo.save(priorActivation);
-            } else {
-              await deps.pluginActivationRepo.deleteActivation({ workspaceId: deps.workspaceId, pluginId });
-            }
-            if (priorActivation?.enabled) {
-              await deps.onPluginEnabled(pluginId);
-            } else {
-              deps.onPluginDisabled(pluginId);
-            }
-          },
+          rollback: () => rollbackPluginActivation(deps, { workspaceId: deps.workspaceId, pluginId, priorActivation }),
         },
       });
 
@@ -110,45 +158,7 @@ export const registerPluginSetEnabledRoute: PluginsRouteRegistrar = (app, deps) 
         changeSetId,
       });
     } catch (err) {
-      if (err instanceof ForbiddenError) {
-        res.status(403).json({
-          error: err.message,
-          code: "FORBIDDEN",
-          details: { permission: err.permission, reason: err.reason },
-        });
-        return;
-      }
-
-      if (err instanceof DuplicateCommandError) {
-        res.status(409).json({ error: err.message, code: "DUPLICATE_COMMAND", changeSetId: err.changeSetId });
-        return;
-      }
-
-      if (err instanceof PluginNotFoundError) {
-        res.status(404).json({ error: err.message, code: "PLUGIN_NOT_FOUND" });
-        return;
-      }
-
-      if (err instanceof PluginIncompatibleError) {
-        res.status(422).json({ error: err.message, code: "PLUGIN_INCOMPATIBLE" });
-        return;
-      }
-
-      if (err instanceof PluginInvalidError) {
-        res.status(422).json({ error: err.message, code: "PLUGIN_INVALID" });
-        return;
-      }
-
-      if (err instanceof PluginLoadError) {
-        res.status(500).json({
-          error: err.message,
-          code: "PLUGIN_LOAD_FAILED",
-          details: { pluginId: err.pluginId, reason: err.reason },
-        });
-        return;
-      }
-
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+      sendSetPluginEnabledError(res, err);
     }
   });
 };
