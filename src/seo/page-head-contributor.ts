@@ -1,4 +1,4 @@
-import type { HeadElement, PageHeadContext, PageHeadHook } from "../server/http/site/page-head.js";
+import type { HeadElement, PageHeadContext, PageHeadHook } from "./types.js";
 import { getEntryMeta, type GetEntryMetaDeps } from "./seo.js";
 
 /**
