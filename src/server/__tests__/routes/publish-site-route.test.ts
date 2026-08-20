@@ -6,7 +6,7 @@ import test from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 
 import { createApp, createRouteDeps } from "../../app.js";
-import { bootAuthenticated } from "../helpers/http-test-server.js";
+import { bootAuthenticated, createCapturingResponse, extractRouteHandler } from "../helpers/http-test-server.js";
 import type { RouteDeps } from "../../routes/types.js";
 import { buildStaticPublishRegistrations } from "../../../features/deployments/publish-agent-tools.js";
 import { createSurfaceExchangeStore, SURFACE_EXCHANGE_ID_PARAM } from "../../../core/tool-surface-exchanges.js";
@@ -524,4 +524,222 @@ test("publish-site preview: with a token configured, credentialsConfigured is tr
   assert.equal(body.credentialsConfigured, true);
   assert.equal(body.credentialGuidance, null);
   assert.doesNotMatch(JSON.stringify(body), /ghp_fake-token-for-preview-test-only/, "the resolved token must never appear in a preview response");
+});
+
+/**
+ * The tests below close out `check:route-coverage-diff`'s remaining unit-branch gaps in
+ * `publish-site.ts`, on top of the extensive behavioral coverage already above:
+ *
+ * - The four target-specific parse branches (`parsePublishRequestBody`/`parsePreviewQuery`, now the
+ *   `TRIGGER_TARGET_PARSERS`/`PREVIEW_TARGET_PARSERS` lookup tables) that the tests above never
+ *   individually reached: an array-shaped trigger body, a missing owner / invalid branch / invalid
+ *   teamId on the TRIGGER route specifically (the preview route's equivalents are covered above, but
+ *   trigger and preview are two separate parse functions), and a netlify/cloudflare-pages TRIGGER
+ *   (only their preview counterparts were exercised above), plus a valid branch/teamId value on both
+ *   routes.
+ * - All three routes' generic `catch` blocks (never reached above — every existing test's failure
+ *   path is a domain 400/403/404/409, not an unexpected thrown error).
+ * - All three routes' `req.params.workspaceId ?? ""` fallback, which — like every other route in
+ *   this codebase (see `admin/seo/__tests__/put-entry.test.ts`'s own equivalent test) — Express's
+ *   routing guarantees can never actually be `undefined` for a matched `:workspaceId` segment
+ *   through any real HTTP request, so it's reached the same way: a direct handler invocation.
+ */
+
+test("publish-site: an array-shaped trigger body 400s (the same 'must be a JSON object' rejection as a non-object body)", async (t) => {
+  const deps: RouteDeps = { ...testRouteDeps() };
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify(["not", "an", "object"]),
+  });
+  assert.equal(res.status, 400);
+  assert.deepEqual(await res.json(), { error: "request body must be a JSON object" });
+});
+
+test("publish-site: a trigger body missing 'owner' for github-pages, and an invalid (non-string) 'branch'/'teamId', all 400 -- the TRIGGER route's own copy of the shape checks the preview route already exercises above", async (t) => {
+  const deps: RouteDeps = { ...testRouteDeps() };
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const missingOwner = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ target: "github-pages", repo: "demo-repo", projectName: "demo" }),
+  });
+  assert.equal(missingOwner.status, 400);
+  assert.equal((await missingOwner.json()).error, "'owner' (non-empty string) is required for target 'github-pages'");
+
+  const invalidBranch = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ target: "github-pages", owner: "octo", repo: "demo-repo", branch: 42, projectName: "demo" }),
+  });
+  assert.equal(invalidBranch.status, 400);
+  assert.equal((await invalidBranch.json()).error, "'branch' must be a string");
+
+  const invalidTeamId = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ target: "vercel", teamId: 42, projectName: "demo" }),
+  });
+  assert.equal(invalidTeamId.status, 400);
+  assert.equal((await invalidTeamId.json()).error, "'teamId' must be a string");
+
+  // `target` entirely absent (not just an unrecognized string, which `badTarget` above already
+  // covers) -- `typeof raw.target === "string"` is false here, the other arm of that ternary.
+  const missingTarget = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ projectName: "demo" }),
+  });
+  assert.equal(missingTarget.status, 400);
+  assert.equal((await missingTarget.json()).error, "'target' must be one of: github-pages, vercel, netlify, cloudflare-pages");
+});
+
+test("publish-site: a github-pages trigger WITH a valid 'branch', and a vercel trigger WITH a valid 'teamId', both parse and start a real run (202) -- same hermetic NO_CREDENTIALS_CONFIGURED settle as every other trigger test in this file", async (t) => {
+  const deps: RouteDeps = { ...testRouteDeps() };
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const branchTrigger = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ target: "github-pages", owner: "octo", repo: "demo-repo", branch: "gh-pages", projectName: "demo" }),
+  });
+  assert.equal(branchTrigger.status, 202);
+  assert.equal((await branchTrigger.json()).target, "github-pages");
+
+  let afterBranch: { status: string } = { status: "running" };
+  for (let attempt = 0; attempt < 200 && afterBranch.status === "running"; attempt++) {
+    await delay(20);
+    afterBranch = await (await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}`, { headers: { cookie } })).json();
+  }
+  assert.equal(afterBranch.status, "errored", `branch trigger did not settle in time: ${JSON.stringify(afterBranch)}`);
+
+  const teamIdTrigger = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ target: "vercel", teamId: "team-123", projectName: "demo" }),
+  });
+  assert.equal(teamIdTrigger.status, 202);
+  assert.equal((await teamIdTrigger.json()).target, "vercel");
+
+  let afterTeamId: { status: string } = { status: "running" };
+  for (let attempt = 0; attempt < 200 && afterTeamId.status === "running"; attempt++) {
+    await delay(20);
+    afterTeamId = await (await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}`, { headers: { cookie } })).json();
+  }
+  assert.equal(afterTeamId.status, "errored", `teamId trigger did not settle in time: ${JSON.stringify(afterTeamId)}`);
+});
+
+test("publish-site: netlify and cloudflare-pages TRIGGER requests (not just their preview counterparts above) parse and start a real run (202)", async (t) => {
+  const deps: RouteDeps = { ...testRouteDeps() };
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  for (const target of ["netlify", "cloudflare-pages"]) {
+    const trigger = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}`, {
+      method: "POST",
+      headers: { cookie, "content-type": "application/json" },
+      body: JSON.stringify({ target, projectName: "demo" }),
+    });
+    assert.equal(trigger.status, 202, `${target} trigger must not 400`);
+    assert.equal((await trigger.json()).target, target);
+
+    let after: { status: string } = { status: "running" };
+    for (let attempt = 0; attempt < 200 && after.status === "running"; attempt++) {
+      await delay(20);
+      after = await (await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}`, { headers: { cookie } })).json();
+    }
+    assert.equal(after.status, "errored", `${target} trigger did not settle in time: ${JSON.stringify(after)}`);
+  }
+});
+
+test("publish-site preview: a missing owner entirely (not just blank) for github-pages 400s the same as a blank one", async (t) => {
+  const deps: RouteDeps = { ...testRouteDeps() };
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const res = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}/preview?target=github-pages`, { headers: { cookie } });
+  assert.equal(res.status, 400);
+  assert.equal((await res.json()).error, "'owner' (non-empty string) is required for target 'github-pages'");
+});
+
+test("publish-site preview: a github-pages preview WITH a 'branch' query param, and a vercel preview WITH a 'teamId' query param, both still 200 -- proving the parse succeeds even though neither value is itself echoed in the response (basePath is owner/repo-derived only, per computeBasePath)", async (t) => {
+  const deps: RouteDeps = { ...testRouteDeps() };
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const withBranch = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}/preview?target=github-pages&owner=octo&repo=demo-repo&branch=gh-pages`, { headers: { cookie } });
+  assert.equal(withBranch.status, 200);
+  const withBranchBody = await withBranch.json();
+  assert.equal(withBranchBody.valid, true);
+  assert.equal(withBranchBody.basePath, "/demo-repo");
+
+  const withTeamId = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}/preview?target=vercel&teamId=team-123`, { headers: { cookie } });
+  assert.equal(withTeamId.status, 200);
+  const withTeamIdBody = await withTeamId.json();
+  assert.equal(withTeamIdBody.valid, true);
+  assert.equal(withTeamIdBody.basePath, null);
+});
+
+test("publish-site: an authorize() failure surfaces as a 500 on all three routes (trigger, status poll, preview) -- the one awaited call every route's own try wraps before any target-specific logic", async (t) => {
+  const deps: RouteDeps = { ...testRouteDeps(), authorize: async () => { throw new Error("boom"); } };
+  const app = createApp(deps);
+  const { baseUrl, cookie } = await bootAuthenticated(app, t);
+
+  const trigger = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}`, {
+    method: "POST",
+    headers: { cookie, "content-type": "application/json" },
+    body: JSON.stringify({ target: "vercel", projectName: "demo" }),
+  });
+  assert.equal(trigger.status, 500);
+  assert.deepEqual(await trigger.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+
+  const status = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}`, { headers: { cookie } });
+  assert.equal(status.status, 500);
+  assert.deepEqual(await status.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+
+  const preview = await fetch(`${baseUrl}/api/admin/v1/workspaces/${deps.workspaceId}/${PUBLISH_PATH}/preview?target=vercel`, { headers: { cookie } });
+  assert.equal(preview.status, 500);
+  assert.deepEqual(await preview.json(), { error: "internal error", code: "INTERNAL_ERROR" });
+});
+
+test("publish-site: workspaceId can never actually be undefined through this app's real composition on any of the three routes (a matched `:param` segment is always a populated string) -- reached by calling each real handler directly, the same type-bypass technique put-entry.test.ts's own equivalent test uses", async (t) => {
+  const deps: RouteDeps = { ...testRouteDeps() };
+  const app = createApp(deps);
+
+  const triggerHandler = extractRouteHandler(app, "post", "/api/admin/v1/workspaces/:workspaceId/system/publish");
+  {
+    const { res, capture } = createCapturingResponse();
+    const req = { params: { workspaceId: undefined }, body: { target: "vercel", projectName: "demo" } } as unknown as Parameters<
+      typeof triggerHandler
+    >[0];
+    await triggerHandler(req, res);
+    assert.equal(capture.statusCode, 404);
+    assert.deepEqual(capture.jsonBody, { error: "workspace was not found" });
+  }
+
+  const statusHandler = extractRouteHandler(app, "get", "/api/admin/v1/workspaces/:workspaceId/system/publish");
+  {
+    const { res, capture } = createCapturingResponse();
+    const req = { params: { workspaceId: undefined } } as unknown as Parameters<typeof statusHandler>[0];
+    await statusHandler(req, res);
+    assert.equal(capture.statusCode, 404);
+    assert.deepEqual(capture.jsonBody, { error: "workspace was not found" });
+  }
+
+  const previewHandler = extractRouteHandler(app, "get", "/api/admin/v1/workspaces/:workspaceId/system/publish/preview");
+  {
+    const { res, capture } = createCapturingResponse();
+    const req = { params: { workspaceId: undefined }, query: { target: "vercel" } } as unknown as Parameters<
+      typeof previewHandler
+    >[0];
+    await previewHandler(req, res);
+    assert.equal(capture.statusCode, 404);
+    assert.deepEqual(capture.jsonBody, { error: "workspace was not found" });
+  }
 });
