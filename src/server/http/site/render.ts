@@ -371,62 +371,80 @@ function extractYoutubeVideoId(value: JsonValue | undefined): string | null {
   return id && YOUTUBE_ID_PATTERN.test(id) ? id : null;
 }
 
+/**
+ * `textStyle` mark renderer — `@tiptap/extension-text-style` (2026-08-11) — `Color`/`BackgroundColor`
+ * are both `Extension`s that attach a global attribute to this ONE shared mark rather than marks of
+ * their own (confirmed against the installed dist, not assumed: both literally call
+ * `chain().setMark("textStyle", { color/backgroundColor })`), so a run of text with both picked
+ * carries a SINGLE `textStyle` mark with both attrs, not two nested marks — the combined style string
+ * below mirrors that, one `<span style="...">`, not two nested spans. Each value is independently
+ * allowlisted ({@link safeCssColor}) before it reaches public HTML; an unsafe/malformed value for
+ * either drops just that declaration rather than the whole style attribute (an author who picked a
+ * valid text color but somehow got a corrupted background value keeps the text color). No attrs
+ * surviving the allowlist (including the common case: a `textStyle` mark with neither attr set, e.g.
+ * from `toggleTextStyle()` or some other extension using this same mark) renders no `<span>` at all —
+ * an empty `style=""` wrapper would be pure noise.
+ */
+function renderTextStyleMark(html: string, attrs: JsonObject): string {
+  const styleParts: string[] = [];
+  const color = safeCssColor(attrs.color);
+  if (color) styleParts.push(`color:${color}`);
+  const backgroundColor = safeCssColor(attrs.backgroundColor);
+  if (backgroundColor) styleParts.push(`background-color:${backgroundColor}`);
+  // Font family/size, line height (2026-08-11) — same shared `textStyle` mark, same
+  // `chain().setMark("textStyle", {...})` shape confirmed against each extension's own
+  // installed source (`FontFamily`/`FontSize`/`LineHeight`, `@tiptap/extension-text-style`).
+  const fontFamily = safeCssFontFamily(attrs.fontFamily);
+  if (fontFamily) styleParts.push(`font-family:${fontFamily}`);
+  const fontSize = safeCssLength(attrs.fontSize);
+  if (fontSize) styleParts.push(`font-size:${fontSize}`);
+  const lineHeight = safeCssLength(attrs.lineHeight);
+  if (lineHeight) styleParts.push(`line-height:${lineHeight}`);
+  return styleParts.length > 0 ? `<span style="${escapeHtml(styleParts.join(";"))}">${html}</span>` : html;
+}
+
+/**
+ * `highlight` mark renderer — `@tiptap/extension-highlight`, `multicolor: true` (2026-08-11) — the
+ * admin toolbar button is a plain toggle (no color picker), so `attrs.color` is normally absent and
+ * this renders a bare `<mark>`, styled by `.post-detail-body mark` (styles.css). A `color` attr from
+ * anywhere else (pasted content, a future picker) still round-trips as an inline `background-color`
+ * as long as it passes {@link safeCssColor}'s allowlist — an unsafe/malformed value degrades to the
+ * bare `<mark>` rather than a malformed or unsafe style attribute.
+ */
+function renderHighlightMark(html: string, attrs: JsonObject): string {
+  const color = safeCssColor(attrs.color);
+  return color ? `<mark style="background-color:${escapeHtml(color)}">${html}</mark>` : `<mark>${html}</mark>`;
+}
+
+function renderLinkMark(html: string, attrs: JsonObject): string {
+  return `<a href="${escapeHtml(safeHref(attrs.href))}">${html}</a>`;
+}
+
+/** One renderer per mark `type`, keyed the same way {@link renderMarks} used to switch on the value
+ *  inline — a lookup instead of an if/else-if chain so the chain's own length stops being the thing
+ *  driving this function's complexity (see `renderMarks`'s own doc). Each entry receives the
+ *  already-escaped/nested `html` so far and the mark's own `attrs` (defaulted to `{}` by the caller),
+ *  same contract every branch of the old chain relied on. */
+const MARK_RENDERERS: Record<string, (html: string, attrs: JsonObject) => string> = {
+  bold: (html) => `<strong>${html}</strong>`,
+  italic: (html) => `<em>${html}</em>`,
+  code: (html) => `<code>${html}</code>`,
+  underline: (html) => `<u>${html}</u>`,
+  strike: (html) => `<s>${html}</s>`,
+  subscript: (html) => `<sub>${html}</sub>`,
+  superscript: (html) => `<sup>${html}</sup>`,
+  textStyle: renderTextStyleMark,
+  highlight: renderHighlightMark,
+  link: renderLinkMark,
+};
+
 function renderMarks(text: string, marks: JsonValue[] | undefined): string {
   let html = escapeHtml(text);
   for (const mark of marks ?? []) {
     if (!isObject(mark)) continue;
-    const type = mark.type;
-    if (type === "bold") html = `<strong>${html}</strong>`;
-    else if (type === "italic") html = `<em>${html}</em>`;
-    else if (type === "code") html = `<code>${html}</code>`;
-    else if (type === "underline") html = `<u>${html}</u>`;
-    else if (type === "strike") html = `<s>${html}</s>`;
-    else if (type === "subscript") html = `<sub>${html}</sub>`;
-    else if (type === "superscript") html = `<sup>${html}</sup>`;
-    else if (type === "textStyle") {
-      // `@tiptap/extension-text-style` (2026-08-11) — `Color`/`BackgroundColor` are both
-      // `Extension`s that attach a global attribute to this ONE shared mark rather than marks of
-      // their own (confirmed against the installed dist, not assumed: both literally call
-      // `chain().setMark("textStyle", { color/backgroundColor })`), so a run of text with both
-      // picked carries a SINGLE `textStyle` mark with both attrs, not two nested marks — the
-      // combined style string below mirrors that, one `<span style="...">`, not two nested spans.
-      // Each value is independently allowlisted ({@link safeCssColor}) before it reaches public
-      // HTML; an unsafe/malformed value for either drops just that declaration rather than the
-      // whole style attribute (an author who picked a valid text color but somehow got a corrupted
-      // background value keeps the text color). No attrs surviving the allowlist (including the
-      // common case: a `textStyle` mark with neither attr set, e.g. from `toggleTextStyle()` or
-      // some other extension using this same mark) renders no `<span>` at all — an empty
-      // `style=""` wrapper would be pure noise.
-      const attrs = isObject(mark.attrs) ? mark.attrs : {};
-      const styleParts: string[] = [];
-      const color = safeCssColor(attrs.color);
-      if (color) styleParts.push(`color:${color}`);
-      const backgroundColor = safeCssColor(attrs.backgroundColor);
-      if (backgroundColor) styleParts.push(`background-color:${backgroundColor}`);
-      // Font family/size, line height (2026-08-11) — same shared `textStyle` mark, same
-      // `chain().setMark("textStyle", {...})` shape confirmed against each extension's own
-      // installed source (`FontFamily`/`FontSize`/`LineHeight`, `@tiptap/extension-text-style`).
-      const fontFamily = safeCssFontFamily(attrs.fontFamily);
-      if (fontFamily) styleParts.push(`font-family:${fontFamily}`);
-      const fontSize = safeCssLength(attrs.fontSize);
-      if (fontSize) styleParts.push(`font-size:${fontSize}`);
-      const lineHeight = safeCssLength(attrs.lineHeight);
-      if (lineHeight) styleParts.push(`line-height:${lineHeight}`);
-      if (styleParts.length > 0) html = `<span style="${escapeHtml(styleParts.join(";"))}">${html}</span>`;
-    } else if (type === "highlight") {
-      // `@tiptap/extension-highlight`, `multicolor: true` (2026-08-11) — the admin toolbar button is
-      // a plain toggle (no color picker), so `attrs.color` is normally absent and this renders a bare
-      // `<mark>`, styled by `.post-detail-body mark` (styles.css). A `color` attr from anywhere else
-      // (pasted content, a future picker) still round-trips as an inline `background-color` as long
-      // as it passes {@link safeCssColor}'s allowlist — an unsafe/malformed value degrades to the
-      // bare `<mark>` rather than a malformed or unsafe style attribute.
-      const attrs = isObject(mark.attrs) ? mark.attrs : {};
-      const color = safeCssColor(attrs.color);
-      html = color ? `<mark style="background-color:${escapeHtml(color)}">${html}</mark>` : `<mark>${html}</mark>`;
-    } else if (type === "link") {
-      const attrs = isObject(mark.attrs) ? mark.attrs : {};
-      html = `<a href="${escapeHtml(safeHref(attrs.href))}">${html}</a>`;
-    }
+    const renderer = typeof mark.type === "string" ? MARK_RENDERERS[mark.type] : undefined;
+    if (!renderer) continue;
+    html = renderer(html, isObject(mark.attrs) ? mark.attrs : {});
   }
   return html;
 }
@@ -595,13 +613,15 @@ function tableCellAlignAttr(node: JsonObject): string {
  * direct API call as easily as by the editor, and an unbounded `colspan` is a cheap way to force a
  * huge rendered table.
  */
+/** Shared bounds check {@link tableSpanAttrs} applies independently to `colspan`/`rowspan` — pulled
+ *  out so the compound condition is written (and complexity-counted) once instead of twice. */
+function parseSpanAttr(value: JsonValue | undefined): number {
+  return typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 1000 ? value : 1;
+}
+
 function tableSpanAttrs(attrs: JsonObject): string {
-  const colspan = typeof attrs.colspan === "number" && Number.isInteger(attrs.colspan) && attrs.colspan >= 1 && attrs.colspan <= 1000
-    ? attrs.colspan
-    : 1;
-  const rowspan = typeof attrs.rowspan === "number" && Number.isInteger(attrs.rowspan) && attrs.rowspan >= 1 && attrs.rowspan <= 1000
-    ? attrs.rowspan
-    : 1;
+  const colspan = parseSpanAttr(attrs.colspan);
+  const rowspan = parseSpanAttr(attrs.rowspan);
   return `${colspan !== 1 ? ` colspan="${colspan}"` : ""}${rowspan !== 1 ? ` rowspan="${rowspan}"` : ""}`;
 }
 
