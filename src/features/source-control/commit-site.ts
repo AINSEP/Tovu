@@ -118,7 +118,22 @@ export interface ResolvedSourceControlCredential {
  *  that came back non-2xx are never conflated into one code) and `"diverged"` (a non-fast-forward
  *  branch update is refused, never force-overwritten — see that file's header for why). */
 export type GitHubCommitAdapterResult =
-  | { ok: true; branch: string; branchCreated: boolean; commitSha: string; commitUrl: string; filesChanged: number; filesDeleted: number }
+  | {
+      ok: true;
+      branch: string;
+      branchCreated: boolean;
+      commitSha: string;
+      commitUrl: string;
+      filesChanged: number;
+      filesDeleted: number;
+      /** Paths this adapter previously recorded owning that the CURRENT export no longer produces, but
+       *  did NOT delete — either their live content diverged from what this adapter itself last wrote
+       *  (a human, or something else, touched them since), or the previous manifest recorded no
+       *  provenance for them at all (a pre-provenance `v1` manifest). Optional so an older/fake adapter
+       *  (e.g. a test double) that omits it is still a valid result — see `github-git-provider.ts`'s
+       *  header, SECOND-ROUND CRITICAL FIX note, finding 1, for the full reasoning. */
+      divergedPaths?: readonly string[];
+    }
   | { ok: false; code: "repository-not-found" | "no-changes" | "diverged" | "network-unreachable" | "provider-error"; message: string };
 
 /** The one seam between this file and real GitHub HTTP — `commitSiteToSourceControl` calls exactly
@@ -156,7 +171,21 @@ export type SourceControlCommitOutcome =
   | { ok: false; code: "DIVERGED_BRANCH"; message: string }
   | { ok: false; code: "NETWORK_UNREACHABLE"; message: string }
   | { ok: false; code: "PROVIDER_ERROR"; message: string }
-  | { ok: true; owner: string; repo: string; branch: string; branchCreated: boolean; commitSha: string; commitUrl: string; filesChanged: number; filesDeleted: number };
+  | {
+      ok: true;
+      owner: string;
+      repo: string;
+      branch: string;
+      branchCreated: boolean;
+      commitSha: string;
+      commitUrl: string;
+      filesChanged: number;
+      filesDeleted: number;
+      /** See {@link GitHubCommitAdapterResult}'s own doc — passed through verbatim, always present
+       *  (defaults to `[]`) for the real adapter, so a caller can tell a human exactly what survived a
+       *  shrinking publish because it could not be verified as still Tovu's own. */
+      divergedPaths: readonly string[];
+    };
 
 export interface CommitSiteDeps {
   readonly credentialDeps: { repo: SourceControlCredentialSetRepoPort; sealer: SecretSealerPort; keyring?: KeyringPort };
@@ -378,5 +407,6 @@ export async function commitSiteToSourceControl(deps: CommitSiteDeps, input: Com
     commitUrl: result.commitUrl,
     filesChanged: result.filesChanged,
     filesDeleted: result.filesDeleted,
+    divergedPaths: result.divergedPaths ?? [],
   };
 }

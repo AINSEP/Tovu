@@ -96,6 +96,58 @@ import type { CommitFile, GitHubCommitAdapter, GitHubCommitAdapterResult } from 
  *     path this adapter has never recorded (no manifest yet, or the manifest could not be read) is
  *     never deleted — the same "unknown means untouched" default that keeps a branch's non-Tovu content
  *     safe even before this adapter ever committed to it.
+ *
+ * SECOND-ROUND CRITICAL FIX (2026-08-19, three independent auditors — Claude Sonnet 5, Codex 5.6-sol,
+ * Codex 5.6-terra, all three converging on overlapping findings with no communication between them): the
+ * manifest layer above closed the "content silently never cleaned up" gap, but introduced three of its
+ * own, all now fixed together:
+ *
+ *  1. OWNERSHIP WAS TRUSTED BLINDLY. The first version of this fix deleted any path the manifest LISTED,
+ *     with no check that the path's LIVE content still matched what this adapter itself last wrote. A
+ *     human editing a Tovu-published page directly on the branch, then a later export simply no longer
+ *     producing that page, meant the human's edit got silently deleted on the very next publish — the
+ *     manifest never distinguished "Tovu's own stale output" from "content that happens to share a path
+ *     Tovu once used." Fixed by giving the manifest real provenance: it is now `{version: 2, files:
+ *     [{path, sha}]}`, recording the exact git blob sha this adapter wrote for each path, not just the
+ *     path string. {@link buildTree} now verifies, via {@link fetchLiveBlobSha}, that a candidate
+ *     deletion's CURRENT live blob sha still equals the recorded one before ever adding `sha: null` for
+ *     it — a path is deleted only when this adapter can prove nothing touched it since. A path with no
+ *     recorded sha (a pre-this-fix `{version: 1, paths: [...]}` manifest, or a malformed entry) and a
+ *     path whose live sha has DIVERGED from the recorded one are treated identically: never deleted,
+ *     reported in the result's `divergedPaths` so a human/caller can see exactly what survived and why
+ *     (`commit-site.ts`'s `SourceControlCommitOutcome` and `tool-registrations.ts`'s tool result both
+ *     surface it — see their own docs). This is a disclosed, bounded limitation, not a silently-accepted
+ *     one: content tracked only by a pre-provenance v1 manifest can never be auto-deleted again by this
+ *     adapter — reclaiming it requires a human to remove it directly, or a future export to re-publish
+ *     that exact path (which re-enters `files` this pass and gets a fresh, verifiable v2 entry the
+ *     normal way). Building an automatic "adopt it this cycle, verify next cycle" migration path was
+ *     considered and rejected as unnecessary added surface area for a case with a cheap, honest,
+ *     manual-recovery fallback.
+ *
+ *  2. A TRANSIENT MANIFEST READ FAILURE PERMANENTLY FORGOT STALE CONTENT. {@link fetchManagedManifest}
+ *     used to return `undefined` on ANY failure — network, a non-404 HTTP error, or a body that failed
+ *     to parse — and the caller treated `undefined` exactly like "verified: nothing was ever managed."
+ *     The OLD doc comment on this file claimed a failure here "self-heals in one extra publish cycle" —
+ *     that claim was FALSE: the very next successful commit wrote a brand-new manifest reflecting only
+ *     the current export, permanently overwriting the only record of what a prior pass had tracked, with
+ *     no way for ANY future pass to recover it. A page removed from the export during exactly the same
+ *     window as a manifest-read blip would then survive on the branch forever, publicly reachable,
+ *     invisible to every subsequent manifest — never "healed," never even noticed again. Fixed:
+ *     {@link fetchManagedManifest} now returns a real `StepFailure` for every unreadable case, and only a
+ *     VERIFIED 404 (GitHub confirming no such file exists) is treated as "zero prior paths." Every other
+ *     failure now fails the WHOLE commit — the identical, already-established tolerance
+ *     {@link fetchParentTree} gets, not the soft-degrade {@link fetchLiveBlobSha} still gets (see finding
+ *     1): unlike a single candidate deletion's verification, a failure to read the manifest AT ALL means
+ *     this adapter cannot safely compute ANY deletion for this pass, and proceeding anyway risks writing
+ *     a new manifest that forgets everything the unreadable one recorded.
+ *
+ *  3. CONCURRENT S3-TARGET PUBLISHERS COULD LOSE DATA (this adapter's own sibling finding, not this
+ *     file's own bug) — see `static-publish/s3-compatible-target.ts`'s header for the S3-specific fix.
+ *     This adapter's own concurrency story is UNCHANGED and re-verified sound by this same round: the
+ *     non-force ref update (divergence #1, far above) already gives real optimistic concurrency — two
+ *     commits racing on the same branch tip can never both land; the loser is refused with 422
+ *     (`"diverged"`), never silently overwritten. Re-confirmed against a genuine interleaving (not
+ *     merely a canned single response) in this file's own test suite.
  */
 
 const GITHUB_API = "https://api.github.com";
@@ -264,32 +316,121 @@ async function fetchParentTree(token: string, owner: string, repo: string, commi
   return { ok: true, treeSha: sha };
 }
 
+/** A plausible git blob sha — SHA-1 (40 hex chars, every repo today) or SHA-256 (64 hex chars, GitHub's
+ *  documented future repo format) — used only to decide whether a manifest entry's `sha` field is
+ *  well-formed enough to trust as a comparison value, never to validate it against real content (that
+ *  happens by comparing two of these against each other, see {@link fetchLiveBlobSha}'s call site). */
+const GIT_SHA_PATTERN = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/i;
+
+/** One path this adapter recorded owning in a previous manifest, together with the git blob sha it had
+ *  at write time — or `sha: undefined` when no such provenance exists for this path (this file's header
+ *  SECOND-ROUND CRITICAL FIX note, finding 1): either a pre-this-fix `{version: 1, paths: [...]}`
+ *  manifest (a real, historical shape this adapter itself used to write, not corruption), or a `v2`
+ *  entry whose own `sha` field failed to parse as a plausible git blob sha. `sha: undefined` is
+ *  deliberately NOT "safe to delete" — {@link buildTree} treats it exactly like a verified mismatch:
+ *  never auto-deleted, always reported. */
+interface PreviouslyManagedFile {
+  readonly path: string;
+  readonly sha: string | undefined;
+}
+
+/** Recognizes both manifest shapes this adapter has ever written: the CURRENT one
+ *  (`{version: 2, files: [{path, sha}]}`, real per-path provenance) and the shape it wrote before this
+ *  file's second-round fix (`{version: 1, paths: [...]}`, no per-path hash at all — a real historical
+ *  format, not corruption). Anything else — an unrecognized `version`, a `files`/`paths` entry of the
+ *  wrong shape, a hand-edited file that merely resembles one of these — is treated as UNRECOGNIZED, not
+ *  as "zero prior paths": {@link fetchManagedManifest}'s own caller-visible contract is that a shape it
+ *  cannot recognize is exactly as unreadable as a parse failure or a network error (this file's header
+ *  SECOND-ROUND CRITICAL FIX note, finding 2) — never silently treated as an empty manifest.
+ * @returns `undefined` when `parsed` matches neither recognized shape.
+ * @complexity O(n) in the manifest's own entry count.
+ */
+function parseManagedManifestShape(parsed: unknown): PreviouslyManagedFile[] | undefined {
+  if (typeof parsed !== "object" || parsed === null) return undefined;
+  const obj = parsed as Record<string, unknown>;
+  if (obj.version === 2 && Array.isArray(obj.files)) {
+    const files: PreviouslyManagedFile[] = [];
+    for (const entry of obj.files) {
+      if (typeof entry !== "object" || entry === null) return undefined;
+      const e = entry as Record<string, unknown>;
+      if (typeof e.path !== "string") return undefined;
+      const sha = typeof e.sha === "string" && GIT_SHA_PATTERN.test(e.sha) ? e.sha : undefined;
+      files.push({ path: e.path, sha });
+    }
+    return files;
+  }
+  if (obj.version === 1 && Array.isArray(obj.paths) && obj.paths.every((path) => typeof path === "string")) {
+    // Legacy, pre-provenance shape — every listed path is KNOWN but UNVERIFIABLE. See this file's
+    // header, SECOND-ROUND CRITICAL FIX note, finding 1.
+    return (obj.paths as string[]).map((path) => ({ path, sha: undefined }));
+  }
+  return undefined;
+}
+
 /** Reads the PREVIOUS commit's copy of {@link MANAGED_MANIFEST_PATH} via the Contents API — the record
- *  of exactly which paths this adapter itself wrote last time (this file's header CRITICAL fix note).
- *  Best-effort ONLY, mirroring this file's established "a non-essential read degrades gracefully"
- *  pattern: `undefined` on ANY failure (a 404 — no manifest yet, e.g. the first commit this adapter
- *  ever makes onto a branch that already had other content — a network hiccup, or a body that does not
- *  parse as the expected shape). The caller treats `undefined` exactly like "nothing is known to be
- *  Tovu-managed yet," which is always the SAFE direction to fail in: it can only ever mean fewer
- *  deletions get computed this pass, never more. Unlike {@link fetchParentTree}, this read must never
- *  block the commit itself.
+ *  of exactly which paths this adapter itself wrote last time, and (from `v2` onward) the blob sha it
+ *  wrote for each (this file's header CRITICAL fix note, and its SECOND-ROUND CRITICAL FIX note, finding
+ *  2, for why this read is no longer best-effort).
+ *
+ *  A VERIFIED 404 — GitHub confirming no such file exists — is the ONLY case treated as "zero prior
+ *  paths"; it is a genuinely different fact than "this file could not be read," and is exactly what a
+ *  brand-new-to-this-adapter branch (or the branch this adapter is about to create) looks like. Every
+ *  OTHER failure (network, a non-404 HTTP error, a body that fails to parse, or a body that parses but
+ *  matches neither manifest shape {@link parseManagedManifestShape} recognizes) now returns a real
+ *  {@link StepFailure} — the caller fails the WHOLE commit rather than risk writing a new manifest that
+ *  silently forgets what an unreadable one recorded. This is the OPPOSITE tolerance from
+ *  {@link fetchLiveBlobSha} below, which stays best-effort per-path — see that function's own doc for
+ *  why the two reads get different treatment.
  *
  * @complexity One `fetch()`.
  */
-async function fetchManagedManifest(token: string, owner: string, repo: string, branch: string): Promise<string[] | undefined> {
+async function fetchManagedManifest(token: string, owner: string, repo: string, branch: string): Promise<{ ok: true; files: readonly PreviouslyManagedFile[] } | StepFailure> {
   const result = await githubFetch(`${GITHUB_API}/repos/${enc(owner)}/${enc(repo)}/contents/${encPath(MANAGED_MANIFEST_PATH)}?ref=${enc(branch)}`, { headers: githubHeaders(token) });
+  if (result.kind !== "response") return nonResponseFailure(result);
+  const { response } = result;
+  if (response.status === 404) return { ok: true, files: [] }; // verified: no manifest yet — safe, not "unreadable"
+  if (!response.ok) return { ok: false, code: "provider-error", message: await providerErrorMessage(response, "GitHub managed-manifest lookup failed") };
+
+  const body = await readJsonBody(response);
+  if (!body.ok) return { ok: false, code: "provider-error", message: "GitHub managed-manifest response did not parse as JSON — cannot confirm which paths this adapter previously owned." };
+  const content = typeof body.json.content === "string" ? body.json.content : undefined;
+  if (content === undefined) {
+    return { ok: false, code: "provider-error", message: "GitHub managed-manifest response did not include file content — cannot confirm which paths this adapter previously owned." };
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(Buffer.from(content, "base64").toString("utf8"));
+  } catch {
+    return { ok: false, code: "provider-error", message: "GitHub managed-manifest content is not valid JSON — cannot confirm which paths this adapter previously owned." };
+  }
+  const files = parseManagedManifestShape(parsed);
+  if (files === undefined) {
+    return { ok: false, code: "provider-error", message: "GitHub managed-manifest content did not match a recognized shape — cannot confirm which paths this adapter previously owned." };
+  }
+  return { ok: true, files };
+}
+
+/** Reads the CURRENT blob sha GitHub has for `path` on `branch` right now — used ONLY to verify a
+ *  single candidate deletion still matches what this adapter itself last recorded writing (this file's
+ *  header SECOND-ROUND CRITICAL FIX note, finding 1). Best-effort, mirroring the tolerance
+ *  {@link fetchManagedManifest} itself used to have before this same fix made THAT read load-bearing:
+ *  `undefined` on ANY failure (network, non-2xx, unparseable body) or when the path is genuinely absent
+ *  (404, e.g. already deleted by a previous pass or a human). Every one of those outcomes means the same
+ *  thing to {@link buildTree}'s caller — "cannot confirm this ONE deletion is safe" — which always
+ *  resolves to skipping just that one path, never to failing the whole commit. That narrower blast
+ *  radius is exactly why this read gets the opposite tolerance from the manifest read itself: a failure
+ *  here can only ever cost one candidate's cleanup this pass, never the ownership record as a whole.
+ *
+ * @complexity One `fetch()` per call — bounded by the (typically small) number of candidate deletions,
+ *   never by the size of the whole repository.
+ */
+async function fetchLiveBlobSha(token: string, owner: string, repo: string, branch: string, path: string): Promise<string | undefined> {
+  const result = await githubFetch(`${GITHUB_API}/repos/${enc(owner)}/${enc(repo)}/contents/${encPath(path)}?ref=${enc(branch)}`, { headers: githubHeaders(token) });
   if (result.kind !== "response" || !result.response.ok) return undefined;
   const body = await readJsonBody(result.response);
   if (!body.ok) return undefined;
-  const content = typeof body.json.content === "string" ? body.json.content : undefined;
-  if (content === undefined) return undefined;
-  try {
-    const decoded = Buffer.from(content, "base64").toString("utf8");
-    const parsed = JSON.parse(decoded) as { paths?: unknown };
-    return Array.isArray(parsed.paths) && parsed.paths.every((path) => typeof path === "string") ? (parsed.paths as string[]) : undefined;
-  } catch {
-    return undefined;
-  }
+  return typeof body.json.sha === "string" ? body.json.sha : undefined;
 }
 
 /** Creates one blob object, returning its sha.
@@ -320,28 +461,38 @@ async function createBlob(token: string, owner: string, repo: string, data: stri
  * only accepts text, and a static export's asset set is not reliably valid UTF-8.
  *
  * `baseTreeSha` (present for every commit onto an EXISTING branch, absent only for a brand-new one —
- * see this file's header CRITICAL fix note) is sent as `base_tree`, so the new tree is built ON TOP OF
- * the branch's current content: every path this call does not mention is inherited unchanged. A path
- * in `previousManagedPaths` (this adapter's OWN record of what it wrote last time) that the current
- * `files` set no longer produces is added to the tree with `sha: null` — GitHub's documented shape for
- * "remove this path" when `base_tree` is present — an explicit, targeted delete of a path this adapter
- * is certain it owns, never a path with no such record. {@link MANAGED_MANIFEST_PATH} itself is always
- * written alongside the export, so the NEXT commit can compute its own deletions the same way.
+ * see this file's header CRITICAL fix note) is sent as `base_tree`, so the new tree is built ON TOP of
+ * the branch's current content: every path this call does not mention is inherited unchanged.
  *
- * @complexity O(files) `fetch()` calls for blobs (deduped), plus one more for the manifest blob, plus
- *   one for the tree.
+ * A path in `previousManagedFiles` (this adapter's OWN record of what it wrote last time, now WITH a
+ * per-path blob sha — this file's header SECOND-ROUND CRITICAL FIX note, finding 1) that the current
+ * `files` set no longer produces is a CANDIDATE deletion, never an automatic one: {@link
+ * fetchLiveBlobSha} confirms the path's CURRENT live content still has exactly the recorded sha before
+ * this function ever adds `sha: null` for it. A candidate with no recorded sha (a legacy manifest entry)
+ * or whose live sha has diverged is left alone and reported in `divergedPaths` instead — ownership
+ * membership alone is never enough to authorize a delete. `MANAGED_MANIFEST_PATH` is excluded from
+ * candidacy defensively (it is never part of `previousManagedFiles`' own meaning — see its own doc — but
+ * a manifest written by some future/other version should not be able to delete itself via this path).
+ * {@link MANAGED_MANIFEST_PATH} itself is always (re)written alongside the export, now carrying each
+ * current path's own blob sha, so the NEXT commit can verify its own deletions the same way.
+ *
+ * @complexity O(files) `fetch()` calls for blobs (deduped), plus O(candidate deletions) `fetch()` calls
+ *   to verify live content (bounded by how many previously-managed paths this export just dropped, never
+ *   by the size of the whole repository), plus one more for the manifest blob, plus one for the tree.
  */
 async function buildTree(
   token: string,
   owner: string,
   repo: string,
+  branch: string,
   files: readonly CommitFile[],
   baseTreeSha: string | undefined,
-  previousManagedPaths: readonly string[] | undefined
-): Promise<{ ok: true; sha: string; deletedPaths: string[] } | StepFailure> {
+  previousManagedFiles: readonly PreviouslyManagedFile[] | undefined
+): Promise<{ ok: true; sha: string; deletedPaths: string[]; divergedPaths: string[] } | StepFailure> {
   const blobShaByHash = new Map<string, string>();
   const tree: Record<string, unknown>[] = [];
   const currentPaths = new Set<string>();
+  const currentFileShas: { path: string; sha: string }[] = [];
   for (const file of files) {
     currentPaths.add(file.path);
     const hash = sha256Hex(file.data);
@@ -353,18 +504,47 @@ async function buildTree(
       blobShaByHash.set(hash, blobSha);
     }
     tree.push({ path: file.path, mode: "100644", type: "blob", sha: blobSha });
+    currentFileShas.push({ path: file.path, sha: blobSha });
   }
 
-  // Only paths THIS adapter previously recorded owning, and that the current export no longer
-  // produces, are ever deleted — never a path with no such record. `MANAGED_MANIFEST_PATH` is excluded
-  // defensively (it is never part of `previousManagedPaths`' own meaning — see its own doc — but a
-  // manifest written by some future/other version should not be able to delete itself via this path).
-  const deletedPaths = (previousManagedPaths ?? []).filter((path) => !currentPaths.has(path) && path !== MANAGED_MANIFEST_PATH);
-  for (const deletedPath of deletedPaths) {
-    tree.push({ path: deletedPath, mode: "100644", type: "blob", sha: null });
+  // Candidates: paths this adapter previously recorded owning that the CURRENT export no longer
+  // produces. Never assumed safe to delete from list membership alone (this file's header SECOND-ROUND
+  // CRITICAL FIX note, finding 1) — each one is verified against LIVE content before being deleted.
+  const candidates = (previousManagedFiles ?? []).filter((f) => !currentPaths.has(f.path) && f.path !== MANAGED_MANIFEST_PATH);
+  const deletedPaths: string[] = [];
+  const divergedPaths: string[] = [];
+  for (const candidate of candidates) {
+    if (candidate.sha === undefined) {
+      // No recorded provenance for this path (a pre-provenance v1 manifest entry, or a malformed v2
+      // one) — nothing to verify against, so it is never auto-deleted. Reported, not silently dropped.
+      divergedPaths.push(candidate.path);
+      continue;
+    }
+    const liveSha = await fetchLiveBlobSha(token, owner, repo, branch, candidate.path);
+    if (liveSha === undefined) {
+      // Already gone, or this ONE path's verification read failed — either way there is nothing this
+      // pass can safely delete now. Not reported as a divergence: an absent/unverifiable path in
+      // isolation is not evidence of tampering, just nothing this pass could act on.
+      continue;
+    }
+    if (liveSha === candidate.sha) {
+      // Verified: the live content is EXACTLY what this adapter itself last wrote. Safe to delete.
+      deletedPaths.push(candidate.path);
+      tree.push({ path: candidate.path, mode: "100644", type: "blob", sha: null });
+    } else {
+      // Content changed since this adapter wrote it — never delete unverified content. It naturally
+      // drops out of the NEW manifest below (it is not part of `currentFileShas` either, since it was
+      // never part of this export), so this adapter simply stops claiming ownership of it going forward.
+      divergedPaths.push(candidate.path);
+    }
   }
 
-  const manifestBlob = await createBlob(token, owner, repo, JSON.stringify({ version: 1, paths: [...currentPaths].sort() }));
+  const manifestBlob = await createBlob(
+    token,
+    owner,
+    repo,
+    JSON.stringify({ version: 2, files: currentFileShas.slice().sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0)) })
+  );
   if (!manifestBlob.ok) return manifestBlob;
   tree.push({ path: MANAGED_MANIFEST_PATH, mode: "100644", type: "blob", sha: manifestBlob.sha });
 
@@ -380,7 +560,7 @@ async function buildTree(
   if (!body.ok) return { ok: false, code: "provider-error", message: body.message };
   const sha = typeof body.json.sha === "string" ? body.json.sha : "";
   if (!sha) return { ok: false, code: "provider-error", message: "GitHub tree creation response did not include a sha" };
-  return { ok: true, sha, deletedPaths };
+  return { ok: true, sha, deletedPaths, divergedPaths };
 }
 
 /** Creates the commit object (not yet reachable from any branch — see this file's header on why this
@@ -460,10 +640,14 @@ async function writeRef(token: string, owner: string, repo: string, branch: stri
  *  2. {@link fetchBranchTip} — the branch's current tip sha, or `undefined` for a brand-new branch.
  *  3. {@link fetchParentTree} — REQUIRED whenever step 2 found a parent (this file's header CRITICAL
  *     fix note); its `treeSha` becomes `base_tree` and also still powers the no-changes check.
- *  4. {@link fetchManagedManifest} — best-effort only; the previous commit's record of which paths THIS
- *     adapter itself wrote, used to compute targeted deletions.
- *  5. {@link buildTree} — blobs (deduped) + one manifest blob + one tree, built ON TOP OF step 3's tree
- *     (`base_tree`) whenever a parent exists, with step 4's stale paths explicitly removed.
+ *  4. {@link fetchManagedManifest} — REQUIRED whenever step 2 found a parent (this file's header
+ *     SECOND-ROUND CRITICAL FIX note, finding 2): the previous commit's record of which paths THIS
+ *     adapter itself wrote (and their blob shas, from `v2` onward), used to compute targeted, VERIFIED
+ *     deletions. A verified 404 is the one exception that still degrades to "zero prior paths."
+ *  5. {@link buildTree} — blobs (deduped) + per-candidate live-content verification + one manifest blob
+ *     + one tree, built ON TOP OF step 3's tree (`base_tree`) whenever a parent exists, with step 4's
+ *     stale paths deleted ONLY once their live content is confirmed unchanged since this adapter wrote
+ *     it (this file's header SECOND-ROUND CRITICAL FIX note, finding 1).
  *  6. No-changes short-circuit: if the new tree sha equals step 3's, stop here — no commit, no ref
  *     write, `{ok: false, code: "no-changes"}`.
  *  7. {@link createCommitObject}.
@@ -496,10 +680,17 @@ export function createGitHubCommitAdapter(): GitHubCommitAdapter {
         baseTreeSha = parentTreeResult.treeSha;
       }
 
-      // Best-effort — a brand-new branch cannot have a prior Tovu commit to read one from either.
-      const previousManagedPaths = branchCreated ? undefined : await fetchManagedManifest(token, owner, repo, branch);
+      // REQUIRED whenever a parent exists, EXCEPT a verified 404 (this file's header SECOND-ROUND
+      // CRITICAL FIX note, finding 2) — a brand-new branch cannot have a prior Tovu commit to read one
+      // from either, so the read is skipped entirely rather than attempted and discarded.
+      let previousManagedFiles: readonly PreviouslyManagedFile[] | undefined;
+      if (!branchCreated) {
+        const manifestResult = await fetchManagedManifest(token, owner, repo, branch);
+        if (!manifestResult.ok) return manifestResult;
+        previousManagedFiles = manifestResult.files;
+      }
 
-      const treeResult = await buildTree(token, owner, repo, files, baseTreeSha, previousManagedPaths);
+      const treeResult = await buildTree(token, owner, repo, branch, files, baseTreeSha, previousManagedFiles);
       if (!treeResult.ok) return treeResult;
 
       if (baseTreeSha !== undefined && baseTreeSha === treeResult.sha) {
@@ -520,6 +711,7 @@ export function createGitHubCommitAdapter(): GitHubCommitAdapter {
         commitUrl: `https://github.com/${owner}/${repo}/commit/${commitResult.sha}`,
         filesChanged: files.length,
         filesDeleted: treeResult.deletedPaths.length,
+        divergedPaths: treeResult.divergedPaths,
       };
     },
   };
