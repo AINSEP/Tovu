@@ -1,9 +1,51 @@
-import type { Express } from "express";
+import type { Express, Response } from "express";
 import { randomUUID } from "node:crypto";
 
 import { listRestorePoints, createRestorePoint, RestorePointUnavailableError, ValidationError } from "#src/features/database/restore-points";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { DatabaseRecoveryRouteDeps } from "../database-recovery/deps.js";
+
+/** This route's three writable POST body fields, read off an untyped body in one place.
+ *  @complexity O(1). */
+function parseRestorePointCreateBody(rawBody: unknown): { trigger: string; costAck: boolean; idempotencyKey: string } {
+  const body = (rawBody ?? {}) as Record<string, unknown>;
+  return {
+    trigger: typeof body.trigger === "string" ? body.trigger : "manual",
+    costAck: body.costAck === true,
+    idempotencyKey: typeof body.idempotencyKey === "string" ? body.idempotencyKey : randomUUID(),
+  };
+}
+
+/**
+ * Resolves the two fields the `capture` closure fills in, into the shape `restorePointsRepo.save`
+ * persists — `watermarkAtCapture` defaults to `null` (never captured), `artifactRef` stays
+ * `undefined` the same way the inline version did (see the 2026-07-16 note this route carries).
+ *
+ * @complexity O(1).
+ */
+function toCapturedRow(captured: { artifactRef: string; watermarkAtCapture: number } | undefined): {
+  watermarkAtCapture: number | null;
+  artifactRef: string | undefined;
+} {
+  return {
+    watermarkAtCapture: captured?.watermarkAtCapture ?? null,
+    artifactRef: captured?.artifactRef,
+  };
+}
+
+/** Maps this route's thrown error types onto the admin error envelope. @complexity O(1). */
+function sendRestorePointCreateError(res: Response, err: unknown): void {
+  if (err instanceof RestorePointUnavailableError) {
+    res.status(409).json({ error: err.message, code: "RESTORE_POINT_UNAVAILABLE" });
+    return;
+  }
+  if (err instanceof ValidationError) {
+    res.status(400).json({ error: err.message, code: "VALIDATION_ERROR" });
+    return;
+  }
+  const message = err instanceof Error ? err.message : "internal error";
+  res.status(500).json({ error: message, code: "INTERNAL_ERROR" });
+}
 
 /**
  * @file design-spec.md §3.2/§3.8 — `GET /api/admin/v1/database/restore-points` (newest-first
@@ -69,9 +111,7 @@ export function registerAdminDatabaseRestorePointsCreateRoute(app: Express, deps
         return;
       }
 
-      const body = req.body ?? {};
-      const trigger = typeof body.trigger === "string" ? body.trigger : "manual";
-      const costAck = body.costAck === true;
+      const { trigger, costAck, idempotencyKey } = parseRestorePointCreateBody(req.body);
 
       const capabilities = await deps.dbOps.getCapabilities();
       let captured: { artifactRef: string; watermarkAtCapture: number } | undefined;
@@ -87,31 +127,21 @@ export function registerAdminDatabaseRestorePointsCreateRoute(app: Express, deps
 
       await deps.restorePointsRepo.save({
         restorePointId: summary.id,
-        idempotencyKey: typeof body.idempotencyKey === "string" ? body.idempotencyKey : randomUUID(),
+        idempotencyKey,
         trigger,
         createdAt: deps.clock.nowIso(),
         createdBy: principal.id,
         costClass: summary.costClass,
         kind: summary.kind,
-        watermarkAtCapture: captured?.watermarkAtCapture ?? null,
         // 2026-07-16: was captured above but previously never persisted — the root cause of why
         // Recovery's restore ceremony could only write a "ledger-only" note (no way to know which
         // file to restore from). See `features/recovery/gated-hooks.ts`'s `buildRestoreHooks`.
-        artifactRef: captured?.artifactRef,
+        ...toCapturedRow(captured),
       });
 
       res.status(201).json({ restorePoint: summary });
     } catch (err) {
-      if (err instanceof RestorePointUnavailableError) {
-        res.status(409).json({ error: err.message, code: "RESTORE_POINT_UNAVAILABLE" });
-        return;
-      }
-      if (err instanceof ValidationError) {
-        res.status(400).json({ error: err.message, code: "VALIDATION_ERROR" });
-        return;
-      }
-      const message = err instanceof Error ? err.message : "internal error";
-      res.status(500).json({ error: message, code: "INTERNAL_ERROR" });
+      sendRestorePointCreateError(res, err);
     }
   });
 }
