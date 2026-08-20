@@ -84,14 +84,15 @@ function finalize(modules: readonly BootModule[], results: Map<string, BootModul
 }
 
 /**
- * Runs every module's `prepare()` in array order, then every successfully-prepared module's
- * `start()` in array order. A CRITICAL module's failure aborts the lifecycle: every OTHER module
- * that already fully completed a stage is `stop()`-ped, in REVERSE array order — never the
- * currently-failing module itself. An OPTIONAL module's failure is recorded and the lifecycle
- * continues (that module is simply excluded from the `start` stage if `prepare` failed).
+ * Runs every module's `prepare()` in array order. A CRITICAL module's failure aborts the stage:
+ * every OTHER module that already completed `prepare()` is `stop()`-ped, in REVERSE array order —
+ * never the currently-failing module itself. An OPTIONAL module's `prepare()` failure is recorded
+ * and the loop continues (that module is simply excluded from `prepared`, so `start()` never sees it).
  */
-export async function runBootLifecycle(modules: readonly BootModule[]): Promise<BootResult> {
-  const results = new Map<string, BootModuleResult>();
+async function runPrepareStage(
+  modules: readonly BootModule[],
+  results: Map<string, BootModuleResult>
+): Promise<{ prepared: BootModule[]; aborted: boolean }> {
   const prepared: BootModule[] = [];
 
   for (const module of modules) {
@@ -102,12 +103,24 @@ export async function runBootLifecycle(modules: readonly BootModule[]): Promise<
       results.set(module.name, toFailed(module, err));
       if (module.criticality === "critical") {
         await stopInReverse(prepared);
-        return finalize(modules, results);
+        return { prepared, aborted: true };
       }
     }
   }
 
+  return { prepared, aborted: false };
+}
+
+/**
+ * Runs `start()` for every module that finished `prepare()`, in array order. Same critical/optional
+ * abort behavior as {@link runPrepareStage}, scoped to modules that have actually `start()`-ed.
+ */
+async function runStartStage(
+  prepared: readonly BootModule[],
+  results: Map<string, BootModuleResult>
+): Promise<{ aborted: boolean }> {
   const ready: BootModule[] = [];
+
   for (const module of prepared) {
     try {
       await module.start();
@@ -117,10 +130,29 @@ export async function runBootLifecycle(modules: readonly BootModule[]): Promise<
       results.set(module.name, toFailed(module, err));
       if (module.criticality === "critical") {
         await stopInReverse(ready);
-        return finalize(modules, results);
+        return { aborted: true };
       }
     }
   }
+
+  return { aborted: false };
+}
+
+/**
+ * Runs every module's `prepare()` in array order, then every successfully-prepared module's
+ * `start()` in array order. A CRITICAL module's failure aborts the lifecycle: every OTHER module
+ * that already fully completed a stage is `stop()`-ped, in REVERSE array order — never the
+ * currently-failing module itself. An OPTIONAL module's failure is recorded and the lifecycle
+ * continues (that module is simply excluded from the `start` stage if `prepare` failed).
+ */
+export async function runBootLifecycle(modules: readonly BootModule[]): Promise<BootResult> {
+  const results = new Map<string, BootModuleResult>();
+
+  const prepareOutcome = await runPrepareStage(modules, results);
+  if (prepareOutcome.aborted) return finalize(modules, results);
+
+  const startOutcome = await runStartStage(prepareOutcome.prepared, results);
+  if (startOutcome.aborted) return finalize(modules, results);
 
   return finalize(modules, results);
 }
