@@ -1,3 +1,5 @@
+import type { Response } from "express";
+
 import {
   IdentityForbiddenError,
   IdentityNotFoundError,
@@ -7,6 +9,33 @@ import {
 import { toAdminPolicyResponse } from "#src/server/http/admin/users";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
+
+/** This route's two writable PATCH fields — `undefined` means "leave unchanged" — read off an
+ *  untyped body in one place. @complexity O(1). */
+function parsePolicyUpdateBody(rawBody: unknown): { name: string | undefined; description: string | undefined } {
+  const body = (rawBody ?? {}) as Record<string, unknown>;
+  return {
+    name: body.name !== undefined ? String(body.name) : undefined,
+    description: body.description !== undefined ? String(body.description) : undefined,
+  };
+}
+
+/** Maps this route's thrown error types onto the admin error envelope. @complexity O(1). */
+function sendPolicyUpdateError(res: Response, err: unknown): void {
+  if (err instanceof IdentityForbiddenError) {
+    res.status(403).json({ error: err.message, code: "FORBIDDEN", details: { permission: err.permission, reason: err.reason } });
+    return;
+  }
+  if (err instanceof IdentityValidationError) {
+    res.status(400).json({ error: err.message, code: "VALIDATION_ERROR" });
+    return;
+  }
+  if (err instanceof IdentityNotFoundError) {
+    res.status(404).json({ error: err.message, code: "RESOURCE_NOT_FOUND" });
+    return;
+  }
+  res.status(500).json({ error: "internal error" });
+}
 
 /**
  * PATCH policies/:policyId — `UPDATE_POLICY` (SPEC-006 0.6.0, REQ-18) — rename/re-describe a
@@ -29,33 +58,13 @@ export const registerAdminPolicyUpdateRoute: UsersRouteRegistrar = (app, deps) =
           workspaceId: deps.workspaceId,
           callerPrincipalId: caller.id,
           policyId: String(req.params.policyId ?? ""),
-          name: req.body?.name !== undefined ? String(req.body.name) : undefined,
-          description: req.body?.description !== undefined ? String(req.body.description) : undefined,
+          ...parsePolicyUpdateBody(req.body),
         },
       });
 
       res.json({ policy: toAdminPolicyResponse(policy) });
     } catch (err) {
-      if (err instanceof IdentityForbiddenError) {
-        res.status(403).json({
-          error: err.message,
-          code: "FORBIDDEN",
-          details: { permission: err.permission, reason: err.reason },
-        });
-        return;
-      }
-
-      if (err instanceof IdentityValidationError) {
-        res.status(400).json({ error: err.message, code: "VALIDATION_ERROR" });
-        return;
-      }
-
-      if (err instanceof IdentityNotFoundError) {
-        res.status(404).json({ error: err.message, code: "RESOURCE_NOT_FOUND" });
-        return;
-      }
-
-      res.status(500).json({ error: "internal error" });
+      sendPolicyUpdateError(res, err);
     }
   });
 };
