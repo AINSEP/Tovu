@@ -253,6 +253,28 @@ function isWithin(base: string, target: string): boolean {
 }
 
 /**
+ * Walks up from `path` to the deepest existing ancestor, `realpath`s it, and confirms that ancestor
+ * is still inside `base` — catches a symlinked directory anywhere along the chain even though the
+ * lexical path is clean. `path` need not exist (a write creating a new file).
+ *
+ * Split out of {@link resolveThemeFilePath} as one unit — the walk-up loop and its containment
+ * re-check are one symlink-escape probe, not two independent decisions.
+ */
+function assertNoSymlinkEscape(base: string, path: string, relativePathForError: string): void {
+  let probe = path;
+  for (let i = 0; i < MAX_WALK_DEPTH * 4 && !existsSync(probe); i += 1) {
+    const parent = dirname(probe);
+    if (parent === probe) break;
+    probe = parent;
+  }
+  if (!existsSync(probe)) return;
+  const realProbe = realpathSync(probe);
+  if (!isWithin(base, realProbe)) {
+    throw new ThemePathError(`path '${relativePathForError}' resolves outside the theme folder through a symbolic link`);
+  }
+}
+
+/**
  * Resolve one caller-supplied relative path against a theme's own folder,
  * refusing anything that escapes it.
  *
@@ -301,24 +323,43 @@ export function resolveThemeFilePath(
     throw new ThemePathError(`path '${relativePath}' resolves outside the theme folder`);
   }
 
-  // Symlink-aware re-check. The target may not exist (a write creating a new
-  // file), so walk up to the deepest ancestor that does, canonicalize THAT, and
-  // require it to still be inside the theme folder. A symlinked directory
-  // anywhere along the chain is caught here even though it is lexically clean.
-  let probe = target;
-  for (let i = 0; i < MAX_WALK_DEPTH * 4 && !existsSync(probe); i += 1) {
-    const parent = dirname(probe);
-    if (parent === probe) break;
-    probe = parent;
-  }
-  if (existsSync(probe)) {
-    const realProbe = realpathSync(probe);
-    if (!isWithin(base, realProbe)) {
-      throw new ThemePathError(`path '${relativePath}' resolves outside the theme folder through a symbolic link`);
-    }
-  }
+  // Symlink-aware re-check — the target may not exist (a write creating a new file). See
+  // `assertNoSymlinkEscape`'s own doc for what it walks and why.
+  assertNoSymlinkEscape(base, target, relativePath);
 
   return target;
+}
+
+/**
+ * One directory entry's contribution to {@link walkThemeDir}'s file listing: skip symlinks entirely
+ * (neither descended nor reported — see the caller's own header on why a link out of the folder can
+ * neither enumerate nor leak anything beyond it), recurse into real subdirectories, and record real
+ * files (`found` is mutated in place, the shared accumulator for one `listThemeFiles` call).
+ */
+function visitThemeDirEntry(dir: string, name: string, depth: number, base: string, found: string[]): void {
+  const full = join(dir, name);
+  // `lstat` semantics via `statSync(..., {throwIfNoEntry})` would follow the
+  // link; read the link status explicitly instead so a symlink is neither
+  // descended nor reported as a file.
+  const stat = statSync(full, { throwIfNoEntry: false });
+  if (!stat) return;
+  const isLink = realpathSync(full) !== full;
+  if (isLink) return;
+  if (stat.isDirectory()) walkThemeDir(full, depth + 1, base, found);
+  else if (stat.isFile()) found.push(relative(base, full).split(sep).join("/"));
+}
+
+/**
+ * Descends real directories under `base` only, collecting relative file paths into `found`
+ * (mutated in place), bounded by {@link MAX_WALK_DEPTH} and {@link MAX_LISTED_FILES}. Split from
+ * {@link visitThemeDirEntry} so the loop itself carries none of the per-entry branching.
+ */
+function walkThemeDir(dir: string, depth: number, base: string, found: string[]): void {
+  if (depth > MAX_WALK_DEPTH || found.length >= MAX_LISTED_FILES) return;
+  for (const name of readdirSync(dir)) {
+    if (found.length >= MAX_LISTED_FILES) return;
+    visitThemeDirEntry(dir, name, depth, base, found);
+  }
 }
 
 /**
@@ -347,24 +388,7 @@ export function listThemeFiles(
 
   const base = realpathSync(themeDir);
   const found: string[] = [];
-
-  const walk = (dir: string, depth: number): void => {
-    if (depth > MAX_WALK_DEPTH || found.length >= MAX_LISTED_FILES) return;
-    for (const name of readdirSync(dir)) {
-      if (found.length >= MAX_LISTED_FILES) return;
-      const full = join(dir, name);
-      // `lstat` semantics via `statSync(..., {throwIfNoEntry})` would follow the
-      // link; read the link status explicitly instead so a symlink is neither
-      // descended nor reported as a file.
-      const stat = statSync(full, { throwIfNoEntry: false });
-      if (!stat) continue;
-      const isLink = realpathSync(full) !== full;
-      if (isLink) continue;
-      if (stat.isDirectory()) walk(full, depth + 1);
-      else if (stat.isFile()) found.push(relative(base, full).split(sep).join("/"));
-    }
-  };
-  walk(base, 0);
+  walkThemeDir(base, 0, base, found);
 
   return found.sort();
 }
