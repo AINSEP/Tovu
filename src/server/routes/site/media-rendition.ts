@@ -17,23 +17,44 @@ import type { MediaRouteRegistrar } from "../admin/media/deps.js";
 
 const TRANSFORM_SPEC_PATTERN = /^(.+)\.v(\d+)$/;
 
+/**
+ * Parses and validates the `{transformName}.v{version}` path segment against `assetId`,
+ * returning either the resolved fields or the one-of-two malformed-URL error messages the route
+ * has always distinguished. Isolated from the handler so both validation branches (pattern match,
+ * version range) live in one place instead of the caller's own complexity budget.
+ *
+ * @complexity O(1) — one regex match plus two range/shape checks.
+ */
+function resolveTransformSpec(
+  assetId: string,
+  transformSpec: string,
+): { transformName: string; version: number } | { errorMessage: string } {
+  const match = TRANSFORM_SPEC_PATTERN.exec(transformSpec);
+  if (!assetId || !match) {
+    return { errorMessage: "malformed media rendition URL" };
+  }
+
+  const [, transformName, versionText] = match;
+  const version = Number(versionText);
+  if (!Number.isInteger(version) || version < 1) {
+    return { errorMessage: "malformed transform version" };
+  }
+
+  return { transformName, version };
+}
+
 export const registerMediaRenditionRoute: MediaRouteRegistrar = (app, deps) => {
   app.get("/m/:assetId/:transformSpec/:filename", async (req, res) => {
     const assetId = String(req.params.assetId ?? "");
     const transformSpec = String(req.params.transformSpec ?? "");
-    const match = TRANSFORM_SPEC_PATTERN.exec(transformSpec);
+    const parsed = resolveTransformSpec(assetId, transformSpec);
 
-    if (!assetId || !match) {
-      res.status(400).json({ error: "malformed media rendition URL" });
+    if ("errorMessage" in parsed) {
+      res.status(400).json({ error: parsed.errorMessage });
       return;
     }
 
-    const [, transformName, versionText] = match;
-    const version = Number(versionText);
-    if (!Number.isInteger(version) || version < 1) {
-      res.status(400).json({ error: "malformed transform version" });
-      return;
-    }
+    const { transformName, version } = parsed;
 
     try {
       const result = await resolveMediaRendition({
