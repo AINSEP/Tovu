@@ -142,6 +142,47 @@ Fixed in `99494a66`; the comment now names `members/tool-registrations.ts` expli
 
 ---
 
+## 7 — `classify-coverage-gaps.ts:23-28` — invented citation, and a false ceiling
+
+**Claim:** "The 2026-08-18 coverage audit found the esbuild CJS-interop shim injects exactly 2
+permanently-zero-hit branches into every file — on a small file that alone can cost 5-10 points,
+making literal 100% unreachable regardless of test quality," citing `route-coverage-lib.ts`'s header
+and "this repo's own coverage audit."
+
+**Why it is false — three independent checks, 2026-08-20:**
+
+1. `route-coverage-lib.ts`'s header says nothing of the kind. It documents an unrelated trap: node
+   silently excluding `test-*`-named application files from its coverage report.
+2. No 2026-08-18 coverage audit exists. `ls ADS-memory/reports/ | grep 2026-08-18` returns only
+   `connection-pool-architecture-recommendation.md` and `mcpui-client-recheck-and-a2ui-investigation.md`.
+3. Measured against `development/coverage/lcov.info`: of 1265 files with branch data, **567 have
+   ZERO unhit branches**. A universal 2-branch tax would make that count 0. The distribution
+   (0 -> 567, 1 -> 147, 2 -> 136, 3 -> 72) shows 2 is an ordinary point, not a floor.
+
+   ```bash
+   node -e 'const t=require("fs").readFileSync("development/coverage/lcov.info","utf8");
+   let f=0,z=0;for(const r of t.split("end_of_record")){if(!/SF:/.test(r))continue;
+   const b=[...r.matchAll(/BRDA:\d+,\d+,\d+,(\d+|-)/g)];if(!b.length)continue;f++;
+   if(!b.filter(x=>x[1]==="0"||x[1]==="-").length)z++;}console.log(f,z)'
+   ```
+
+**Root cause:** the repo is ESM (`"type": "module"`, `module: "nodenext"`), so esbuild emits no
+CJS-interop shim to inject those branches. The owner identified this directly — the claim may have
+been true under a pre-ESM configuration and was never revisited after the migration.
+
+**Why it mattered:** this was the single load-bearing argument that 100% branch coverage is
+unreachable in this repo. It is reachable, and 45% of measured files already reach it.
+
+**Fixed:** header block rewritten in place with the measurement and the ESM root cause; the
+`phantomTaxPlausible` flag itself is kept but re-justified on the real, documented reason (a zero-hit
+branch on a line with no visible conditional is usually a misattributed REAL branch — check `DA:`
+hits). Found by the Coordinator, 2026-08-20, prompted by the owner questioning the ceiling.
+
+**Third failure shape confirmed:** "true premise, stale conclusion" — a claim that may have been
+correct before an architectural migration and was never re-checked afterward.
+
+---
+
 ## Related, not a code comment
 
 `ADS-memory/reports/.../theme-authoring-guide.md` §6's "3-attribute markers" claim is recorded
