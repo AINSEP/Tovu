@@ -1,9 +1,55 @@
 import { saveCampaign } from "#src/newsletter/campaign-write-service";
-import { NewsletterCampaignNotFoundError } from "#src/newsletter/index";
+import { NewsletterCampaignNotFoundError, type NewsletterCampaignRepoPort } from "#src/newsletter/index";
 import { mapNewsletterErrorToResponse, requireNewsletterPermissionOrRespond, toDataResponse } from "#src/server/http/admin/newsletter";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { RouteRegistrar } from "../../types.js";
 import { toCampaignWriteServiceDeps, type NewsletterRouteDeps } from "./deps.js";
+
+type ExistingCampaign = NonNullable<Awaited<ReturnType<NewsletterCampaignRepoPort["findById"]>>>;
+
+/** This route's six patchable string fields, in the one order used for both validation and merge. */
+const CAMPAIGN_STRING_FIELD_NAMES = ["subject", "preheader", "fromName", "fromEmail", "replyTo", "listId"] as const;
+
+/**
+ * Validates the PATCH body: each of `CAMPAIGN_STRING_FIELD_NAMES` must be a string when present,
+ * and `bodyJson` (see the module doc's disclosed gap) must be a non-null object when present. Every
+ * field is optional — this is a partial update. Returns the first violation's message, or `null`.
+ *
+ * @complexity O(1) — iterates a fixed 6-entry field list.
+ */
+function validateCampaignPatchBody(body: Record<string, unknown>): string | null {
+  for (const name of CAMPAIGN_STRING_FIELD_NAMES) {
+    const value = body[name];
+    if (value !== undefined && typeof value !== "string") {
+      return `${name} must be a string when provided`;
+    }
+  }
+  if (body.bodyJson !== undefined && (typeof body.bodyJson !== "object" || body.bodyJson === null)) {
+    return "bodyJson must be an object when provided";
+  }
+  return null;
+}
+
+/**
+ * Merges the body's provided string fields over the existing campaign's current values.
+ * `saveCampaign` (Stage 2) has no partial-update mode of its own — see the module doc — so this
+ * route-layer merge is what makes an omitted field a no-op instead of an overwrite with `undefined`.
+ *
+ * @complexity O(1).
+ */
+function mergeCampaignPatchFields(
+  body: Record<string, unknown>,
+  existing: ExistingCampaign
+): Pick<ExistingCampaign, (typeof CAMPAIGN_STRING_FIELD_NAMES)[number]> {
+  return {
+    subject: typeof body.subject === "string" ? body.subject : existing.subject,
+    preheader: typeof body.preheader === "string" ? body.preheader : existing.preheader,
+    fromName: typeof body.fromName === "string" ? body.fromName : existing.fromName,
+    fromEmail: typeof body.fromEmail === "string" ? body.fromEmail : existing.fromEmail,
+    replyTo: typeof body.replyTo === "string" ? body.replyTo : existing.replyTo,
+    listId: typeof body.listId === "string" ? body.listId : existing.listId,
+  };
+}
 
 /**
  * `UPDATE_CAMPAIGN` (api.spec.md §1/§4) — `PATCH .../newsletter/campaigns/:id`. Every body field is
@@ -33,23 +79,10 @@ export const registerAdminNewsletterUpdateCampaignRoute: RouteRegistrar = (app, 
       return;
     }
 
-    const body = req.body ?? {};
-    const stringFields: Array<[string, unknown]> = [
-      ["subject", body.subject],
-      ["preheader", body.preheader],
-      ["fromName", body.fromName],
-      ["fromEmail", body.fromEmail],
-      ["replyTo", body.replyTo],
-      ["listId", body.listId],
-    ];
-    for (const [name, value] of stringFields) {
-      if (value !== undefined && typeof value !== "string") {
-        res.status(400).json({ error: `${name} must be a string when provided`, code: "VALIDATION_ERROR" });
-        return;
-      }
-    }
-    if (body.bodyJson !== undefined && (typeof body.bodyJson !== "object" || body.bodyJson === null)) {
-      res.status(400).json({ error: "bodyJson must be an object when provided", code: "VALIDATION_ERROR" });
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const validationError = validateCampaignPatchBody(body);
+    if (validationError) {
+      res.status(400).json({ error: validationError, code: "VALIDATION_ERROR" });
       return;
     }
 
@@ -74,14 +107,7 @@ export const registerAdminNewsletterUpdateCampaignRoute: RouteRegistrar = (app, 
           workspaceId: deps.workspaceId,
           id,
           actorId: getAuthedPrincipal(res).id,
-          fields: {
-            subject: typeof body.subject === "string" ? body.subject : existing.subject,
-            preheader: typeof body.preheader === "string" ? body.preheader : existing.preheader,
-            fromName: typeof body.fromName === "string" ? body.fromName : existing.fromName,
-            fromEmail: typeof body.fromEmail === "string" ? body.fromEmail : existing.fromEmail,
-            replyTo: typeof body.replyTo === "string" ? body.replyTo : existing.replyTo,
-            listId: typeof body.listId === "string" ? body.listId : existing.listId,
-          },
+          fields: mergeCampaignPatchFields(body, existing),
         },
       });
       res.status(200).json(toDataResponse(campaign));
