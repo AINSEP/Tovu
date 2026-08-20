@@ -56,6 +56,36 @@ test("v1 fallback: loadTheme()'s own errors (e.g. id/folder mismatch) surface as
 });
 
 // ---------------------------------------------------------------------------
+// manifest loading — theme.json missing, not an object, or not valid JSON at all
+// ---------------------------------------------------------------------------
+
+test("a theme directory with no theme.json is reported (manifest-missing), and falls back to schemaVersion 1", () => {
+  const dir = tmpDir("tovu-validate-manifest-missing-");
+
+  const result = validateThemePackage({ themeDir: dir, id: "t", profile: "author" });
+  assert.equal(result.schemaVersion, 1);
+  assert.ok(findError(result, "manifest-missing"), JSON.stringify(result.errors));
+});
+
+test("a theme.json that parses to a non-object (e.g. a JSON array) is reported (manifest-not-object)", () => {
+  const dir = tmpDir("tovu-validate-manifest-not-object-");
+  fs.writeFileSync(path.join(dir, "theme.json"), "[1, 2, 3]", "utf8");
+
+  const result = validateThemePackage({ themeDir: dir, id: "t", profile: "author" });
+  assert.ok(findError(result, "manifest-not-object"), JSON.stringify(result.errors));
+});
+
+test("a theme.json that is not valid JSON at all is reported (manifest-invalid-json)", () => {
+  const dir = tmpDir("tovu-validate-manifest-invalid-json-");
+  fs.writeFileSync(path.join(dir, "theme.json"), "{ this is not json", "utf8");
+
+  const result = validateThemePackage({ themeDir: dir, id: "t", profile: "author" });
+  const err = findError(result, "manifest-invalid-json");
+  assert.ok(err, JSON.stringify(result.errors));
+  assert.match(err!.message, /theme\.json is not valid JSON/);
+});
+
+// ---------------------------------------------------------------------------
 // v2-strict: manifest schema
 // ---------------------------------------------------------------------------
 
@@ -425,6 +455,37 @@ test("markup: a data-embed-config attribute written with double quotes is flagge
   assert.ok(findError(result, "markup-embed-config-not-single-quoted"), JSON.stringify(result.errors));
 });
 
+test("markup: an extension-less file (a root LICENSE, an approved v2 root) is walked but skipped by the markup scan, not misread as markup", () => {
+  const dir = tmpDir("tovu-validate-markup-extensionless-");
+  writeMinimalV2Static(dir);
+  fs.writeFileSync(path.join(dir, "LICENSE"), "MIT License\n\nCopyright (c) ...", "utf8");
+
+  const result = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "author" });
+  assert.equal(result.valid, true, JSON.stringify(result.errors));
+  assert.equal(findError(result, "structure-unapproved-root"), undefined, JSON.stringify(result.errors));
+});
+
+test("markup: a markup file that becomes unreadable after the walk is skipped rather than thrown", () => {
+  const dir = tmpDir("tovu-validate-markup-unreadable-");
+  writeMinimalV2Static(dir);
+  const unreadable = path.join(dir, "render", "pages", "broken.html");
+  fs.writeFileSync(unreadable, "<html><body>content</body></html>", "utf8");
+  fs.chmodSync(unreadable, 0o000);
+
+  try {
+    if (process.getuid && process.getuid() === 0) {
+      // Running as root (some CI containers): permission bits don't block reads, so this environment
+      // cannot exercise the branch this test targets. Skip rather than assert a false negative.
+      return;
+    }
+    const result = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "author" });
+    // No throw, and no finding attributable to a file the scan could never actually read.
+    assert.equal(result.schemaVersion, 2);
+  } finally {
+    fs.chmodSync(unreadable, 0o644);
+  }
+});
+
 // ---------------------------------------------------------------------------
 // profiles — same package, different strictness
 // ---------------------------------------------------------------------------
@@ -441,6 +502,31 @@ test("profiles: a missing license is a WARNING under author but an ERROR under p
   const publishResult = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "publish" });
   assert.ok(findError(publishResult, "license-missing"), JSON.stringify(publishResult.errors));
   assert.equal(publishResult.valid, false);
+});
+
+test("profiles: an empty/missing description is a WARNING under author but an ERROR under publish", () => {
+  const dir = tmpDir("tovu-validate-profile-description-");
+  writeMinimalV2Static(dir, { description: "" });
+
+  const authorResult = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "author" });
+  assert.ok(findWarning(authorResult, "description-missing"), JSON.stringify(authorResult.warnings));
+  assert.equal(findError(authorResult, "description-missing"), undefined);
+
+  const publishResult = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "publish" });
+  assert.ok(findError(publishResult, "description-missing"), JSON.stringify(publishResult.errors));
+});
+
+test("profiles: a missing marketplace preview thumbnail is a WARNING under author but an ERROR under publish", () => {
+  const dir = tmpDir("tovu-validate-profile-preview-thumbnail-");
+  writeMinimalV2Static(dir);
+  fs.rmSync(path.join(dir, "assets", "previews", "card.webp"));
+
+  const authorResult = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "author" });
+  assert.ok(findWarning(authorResult, "preview-thumbnail-missing"), JSON.stringify(authorResult.warnings));
+  assert.equal(findError(authorResult, "preview-thumbnail-missing"), undefined);
+
+  const publishResult = validateThemePackage({ themeDir: dir, id: "my-theme", profile: "publish" });
+  assert.ok(findError(publishResult, "preview-thumbnail-missing"), JSON.stringify(publishResult.errors));
 });
 
 test("profiles: install is at least as strict as author — a containment violation still fails install", () => {
