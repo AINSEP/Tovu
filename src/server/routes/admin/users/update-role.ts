@@ -1,3 +1,5 @@
+import type { Response } from "express";
+
 import {
   IdentityForbiddenError,
   IdentityNotFoundError,
@@ -7,6 +9,23 @@ import {
 import { toAdminRoleResponse } from "#src/server/http/admin/users";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
+
+/** Maps this route's thrown error types onto the admin error envelope. @complexity O(1). */
+function sendRoleUpdateError(res: Response, err: unknown): void {
+  if (err instanceof IdentityForbiddenError) {
+    res.status(403).json({ error: err.message, code: "FORBIDDEN", details: { permission: err.permission, reason: err.reason } });
+    return;
+  }
+  if (err instanceof IdentityValidationError) {
+    res.status(400).json({ error: err.message, code: "VALIDATION_ERROR" });
+    return;
+  }
+  if (err instanceof IdentityNotFoundError) {
+    res.status(404).json({ error: err.message, code: "RESOURCE_NOT_FOUND" });
+    return;
+  }
+  res.status(500).json({ error: "internal error" });
+}
 
 /**
  * PATCH roles/:roleId — `UPDATE_ROLE` (SPEC-006 0.6.0, REQ-18) — rename a non-built-in role. Gated
@@ -22,38 +41,20 @@ export const registerAdminRoleUpdateRoute: UsersRouteRegistrar = (app, deps) => 
     try {
       const caller = getAuthedPrincipal(res);
 
+      const body = (req.body ?? {}) as Record<string, unknown>;
       const { role } = await updateRole({
         deps: identityServiceDepsFrom(deps),
         input: {
           workspaceId: deps.workspaceId,
           callerPrincipalId: caller.id,
           roleId: String(req.params.roleId ?? ""),
-          name: String(req.body?.name ?? ""),
+          name: String(body.name ?? ""),
         },
       });
 
       res.json({ role: toAdminRoleResponse(role) });
     } catch (err) {
-      if (err instanceof IdentityForbiddenError) {
-        res.status(403).json({
-          error: err.message,
-          code: "FORBIDDEN",
-          details: { permission: err.permission, reason: err.reason },
-        });
-        return;
-      }
-
-      if (err instanceof IdentityValidationError) {
-        res.status(400).json({ error: err.message, code: "VALIDATION_ERROR" });
-        return;
-      }
-
-      if (err instanceof IdentityNotFoundError) {
-        res.status(404).json({ error: err.message, code: "RESOURCE_NOT_FOUND" });
-        return;
-      }
-
-      res.status(500).json({ error: "internal error" });
+      sendRoleUpdateError(res, err);
     }
   });
 };
