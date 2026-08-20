@@ -142,32 +142,17 @@ function malformed(message: string): PluginValidationError {
   return { code: "MANIFEST_MALFORMED", file: null, message };
 }
 
-/**
- * Validates one already-parsed manifest against BR-02 steps (2)-(6), collecting every applicable
- * error rather than stopping at the first (BR-02: "collect ALL statically-determinable errors").
- * Pure — no I/O, no mutation of `manifest`.
- *
- * @throws Nothing — validation failures are reported via the returned `errors` array, never a
- * thrown error (this function itself cannot fail; a malformed top-level shape, e.g. `manifest`
- * being `null` or an array, is itself a `MANIFEST_MALFORMED` entry in the result, not a throw).
- * @complexity O(fields.length + capabilities.length + hooks.length) — bounded by one manifest's
- * own declared arrays, never by external/unbounded input.
- * @overallScore 100/100
- */
-export function validateManifest(
-  required: ValidateManifestRequired,
-  _optional: ValidateManifestOptional = {}
-): ValidateManifestResult {
-  const { manifest, folderName, builtInIds } = required;
+/** Result of {@link validateId}: the id-related errors plus the resolved string id (`undefined`
+ * when `raw.id` was absent or not a string), so callers needing the id (field-path namespacing)
+ * don't have to re-derive it. */
+interface IdValidationResult {
+  readonly errors: readonly PluginValidationError[];
+  readonly id: string | undefined;
+}
+
+/** Unknown-key and missing-required-key checks (BR-02 step 1's manifest-shape half). */
+function validateKeys(raw: Readonly<Record<string, unknown>>): PluginValidationError[] {
   const errors: PluginValidationError[] = [];
-
-  if (typeof manifest !== "object" || manifest === null || Array.isArray(manifest)) {
-    return { errors: [malformed("tovu.plugin.json must be a JSON object")] };
-  }
-
-  // Treat the input as a read-only bag of unknown values — never assigned back into.
-  const raw = manifest as Readonly<Record<string, unknown>>;
-
   for (const key of Object.keys(raw)) {
     if (!ALLOWED_KEYS.has(key)) {
       errors.push(malformed(`unknown manifest key '${key}'`));
@@ -178,51 +163,87 @@ export function validateManifest(
       errors.push(malformed(`missing required manifest field '${key}'`));
     }
   }
+  return errors;
+}
 
-  // --- id: format, folder match, built-in shadowing (BR-02 step 2/3) ---
+/** id shape only: pattern + length (BR-02 step 2 half of id validation). */
+function validateIdFormat(id: string): PluginValidationError[] {
+  if (!ID_PATTERN.test(id) || id.length < 1 || id.length > MAX_ID_LENGTH) {
+    return [malformed(`id '${id}' must match ${ID_PATTERN} and be 1-${MAX_ID_LENGTH} characters`)];
+  }
+  return [];
+}
+
+/** id identity: folder match + built-in shadowing (BR-02 step 3, DUP-01). */
+function validateIdIdentity(id: string, folderName: string, builtInIds: readonly string[]): PluginValidationError[] {
+  const errors: PluginValidationError[] = [];
+  if (id !== folderName) {
+    errors.push({
+      code: "ID_FOLDER_MISMATCH",
+      file: null,
+      message: `manifest id '${id}' does not match its install folder name '${folderName}'`,
+    });
+  }
+  if (builtInIds.some((builtInId) => builtInId.toLowerCase() === id.toLowerCase())) {
+    errors.push({
+      code: "SHADOWS_BUILT_IN",
+      file: null,
+      message: `id '${id}' shadows an existing built-in plugin id`,
+    });
+  }
+  return errors;
+}
+
+/** id: presence/type gate, then format + folder match + built-in shadowing (BR-02 step 2/3). */
+function validateId(
+  raw: Readonly<Record<string, unknown>>,
+  folderName: string,
+  builtInIds: readonly string[]
+): IdValidationResult {
   const id = typeof raw.id === "string" ? raw.id : undefined;
   if (raw.id !== undefined && id === undefined) {
-    errors.push(malformed("'id' must be a string"));
+    return { errors: [malformed("'id' must be a string")], id };
   }
-  if (id !== undefined) {
-    if (!ID_PATTERN.test(id) || id.length < 1 || id.length > MAX_ID_LENGTH) {
-      errors.push(malformed(`id '${id}' must match ${ID_PATTERN} and be 1-${MAX_ID_LENGTH} characters`));
-    }
-    if (id !== folderName) {
-      errors.push({
-        code: "ID_FOLDER_MISMATCH",
-        file: null,
-        message: `manifest id '${id}' does not match its install folder name '${folderName}'`,
-      });
-    }
-    if (builtInIds.some((builtInId) => builtInId.toLowerCase() === id.toLowerCase())) {
-      errors.push({
-        code: "SHADOWS_BUILT_IN",
-        file: null,
-        message: `id '${id}' shadows an existing built-in plugin id`,
-      });
-    }
+  if (id === undefined) {
+    return { errors: [], id };
   }
+  return { errors: [...validateIdFormat(id), ...validateIdIdentity(id, folderName, builtInIds)], id };
+}
 
-  // --- engine (BR-02 step 2) ---
-  if (raw.engine !== undefined) {
-    if (typeof raw.engine !== "number" || !Number.isInteger(raw.engine) || raw.engine < 1) {
-      errors.push(malformed("'engine' must be a positive integer"));
-    } else if (raw.engine !== SUPPORTED_ENGINE_VERSION) {
-      errors.push({
+/** engine (BR-02 step 2). */
+function validateEngine(raw: Readonly<Record<string, unknown>>): PluginValidationError[] {
+  if (raw.engine === undefined) {
+    return [];
+  }
+  if (typeof raw.engine !== "number" || !Number.isInteger(raw.engine) || raw.engine < 1) {
+    return [malformed("'engine' must be a positive integer")];
+  }
+  if (raw.engine !== SUPPORTED_ENGINE_VERSION) {
+    return [
+      {
         code: "ENGINE_UNSUPPORTED",
         file: null,
         message: `engine ${raw.engine} is not supported by this runtime (supports ${SUPPORTED_ENGINE_VERSION})`,
-      });
-    }
+      },
+    ];
   }
+  return [];
+}
 
-  // --- tier (BR-02 step 2, ADR-024 §1 / 1.1.1 fix) ---
-  if (raw.tier !== undefined && (typeof raw.tier !== "string" || !VALID_TIERS.has(raw.tier as PluginTier))) {
-    errors.push(malformed(`tier '${String(raw.tier)}' must be one of tier-1 | tier-2 | tier-3`));
+/** tier (BR-02 step 2, ADR-024 §1 / 1.1.1 fix). */
+function validateTier(raw: Readonly<Record<string, unknown>>): PluginValidationError[] {
+  if (raw.tier === undefined) {
+    return [];
   }
+  if (typeof raw.tier !== "string" || !VALID_TIERS.has(raw.tier as PluginTier)) {
+    return [malformed(`tier '${String(raw.tier)}' must be one of tier-1 | tier-2 | tier-3`)];
+  }
+  return [];
+}
 
-  // --- capabilities (BR-02 step 4, REQ-04) ---
+/** capabilities (BR-02 step 4, REQ-04). */
+function validateCapabilities(raw: Readonly<Record<string, unknown>>): PluginValidationError[] {
+  const errors: PluginValidationError[] = [];
   const capabilities = Array.isArray(raw.capabilities) ? raw.capabilities : [];
   if (raw.capabilities !== undefined && !Array.isArray(raw.capabilities)) {
     errors.push(malformed("'capabilities' must be an array"));
@@ -236,8 +257,12 @@ export function validateManifest(
       });
     }
   }
+  return errors;
+}
 
-  // --- hooks (BR-02 step 5, REQ-05, INV-06 anti-hook-soup) ---
+/** hooks (BR-02 step 5, REQ-05, INV-06 anti-hook-soup). */
+function validateHooks(raw: Readonly<Record<string, unknown>>): PluginValidationError[] {
+  const errors: PluginValidationError[] = [];
   const hooks = Array.isArray(raw.hooks) ? raw.hooks : [];
   if (raw.hooks !== undefined && !Array.isArray(raw.hooks)) {
     errors.push(malformed("'hooks' must be an array"));
@@ -247,37 +272,86 @@ export function validateManifest(
       errors.push({ code: "HOOK_UNKNOWN", file: null, message: `hook point '${String(hook)}' is not declared by core` });
     }
   }
+  return errors;
+}
 
-  // --- fields (BR-02 step 6, REQ-06) ---
+/** One `fields[]` entry (BR-02 step 6, REQ-06): path namespacing, declared type, `queryable`. */
+function validateField(field: unknown, expectedPrefix: string): PluginValidationError[] {
+  if (typeof field !== "object" || field === null) {
+    return [malformed("each 'fields' entry must be an object")];
+  }
+  const decl = field as Readonly<Record<string, unknown>>;
+  const errors: PluginValidationError[] = [];
+  if (typeof decl.path !== "string" || !decl.path.startsWith(expectedPrefix) || decl.path.length <= expectedPrefix.length) {
+    errors.push({
+      code: "FIELD_PATH_INVALID",
+      file: null,
+      message: `field path '${String(decl.path)}' must be namespaced to this plugin's own id ('${expectedPrefix}*')`,
+    });
+  }
+  if (typeof decl.type !== "string" || !VALID_FIELD_TYPES.has(decl.type)) {
+    errors.push(malformed(`field '${String(decl.path)}' has an unrecognized type '${String(decl.type)}'`));
+  }
+  if (decl.queryable === true) {
+    errors.push({
+      code: "QUERYABLE_UNSUPPORTED_V1",
+      file: null,
+      message: `field '${String(decl.path)}' declares queryable:true, unsupported in v1 (OQ-04)`,
+    });
+  }
+  return errors;
+}
+
+/** fields (BR-02 step 6, REQ-06) — `expectedPrefix` is constant across the array (it depends only
+ * on the manifest's own `id`, not on the field being checked), so it's computed once here rather
+ * than per-iteration. */
+function validateFields(raw: Readonly<Record<string, unknown>>, id: string | undefined): PluginValidationError[] {
+  const errors: PluginValidationError[] = [];
   const fields = Array.isArray(raw.fields) ? raw.fields : [];
   if (raw.fields !== undefined && !Array.isArray(raw.fields)) {
     errors.push(malformed("'fields' must be an array"));
   }
+  const expectedPrefix = `ext.${id ?? ""}.`;
   for (const field of fields) {
-    if (typeof field !== "object" || field === null) {
-      errors.push(malformed("each 'fields' entry must be an object"));
-      continue;
-    }
-    const decl = field as Readonly<Record<string, unknown>>;
-    const expectedPrefix = `ext.${id ?? ""}.`;
-    if (typeof decl.path !== "string" || !decl.path.startsWith(expectedPrefix) || decl.path.length <= expectedPrefix.length) {
-      errors.push({
-        code: "FIELD_PATH_INVALID",
-        file: null,
-        message: `field path '${String(decl.path)}' must be namespaced to this plugin's own id ('${expectedPrefix}*')`,
-      });
-    }
-    if (typeof decl.type !== "string" || !VALID_FIELD_TYPES.has(decl.type)) {
-      errors.push(malformed(`field '${String(decl.path)}' has an unrecognized type '${String(decl.type)}'`));
-    }
-    if (decl.queryable === true) {
-      errors.push({
-        code: "QUERYABLE_UNSUPPORTED_V1",
-        file: null,
-        message: `field '${String(decl.path)}' declares queryable:true, unsupported in v1 (OQ-04)`,
-      });
-    }
+    errors.push(...validateField(field, expectedPrefix));
   }
+  return errors;
+}
+
+/**
+ * Validates one already-parsed manifest against BR-02 steps (2)-(6), collecting every applicable
+ * error rather than stopping at the first (BR-02: "collect ALL statically-determinable errors").
+ * Pure — no I/O, no mutation of `manifest`.
+ *
+ * @throws Nothing — validation failures are reported via the returned `errors` array, never a
+ * thrown error (this function itself cannot fail; a malformed top-level shape, e.g. `manifest`
+ * being `null` or an array, is itself a `MANIFEST_MALFORMED` entry in the result, not a throw).
+ * @complexity O(fields.length + capabilities.length + hooks.length) — bounded by one manifest's
+ * own declared arrays, never by external/unbounded input.
+ */
+export function validateManifest(
+  required: ValidateManifestRequired,
+  _optional: ValidateManifestOptional = {}
+): ValidateManifestResult {
+  const { manifest, folderName, builtInIds } = required;
+
+  if (typeof manifest !== "object" || manifest === null || Array.isArray(manifest)) {
+    return { errors: [malformed("tovu.plugin.json must be a JSON object")] };
+  }
+
+  // Treat the input as a read-only bag of unknown values — never assigned back into.
+  const raw = manifest as Readonly<Record<string, unknown>>;
+  const { errors: idErrors, id } = validateId(raw, folderName, builtInIds);
+
+  const errors: PluginValidationError[] = [
+    ...validateKeys(raw),
+    ...idErrors,
+    ...validateEngine(raw),
+    ...validateTier(raw),
+    ...validateCapabilities(raw),
+    ...validateHooks(raw),
+    ...validateFields(raw, id),
+  ];
 
   return { errors };
 }
