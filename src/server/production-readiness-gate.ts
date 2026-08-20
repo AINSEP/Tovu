@@ -73,6 +73,60 @@ function resolveDurability(entry: CapabilityInventoryEntry): boolean {
   }
 }
 
+// §2.1 step 2: dev-only unsafe defaults.
+function collectUnsafeDefaultFailures(envSnapshot: EnvSnapshot): BootRefusalFailure[] {
+  const failures: BootRefusalFailure[] = [];
+  if (envSnapshot.hasDevSecretPlaceholder) failures.push(unsafeDefaultFailure("dev-secret-placeholder"));
+  if (envSnapshot.hasLocalhostEgressAllowance) failures.push(unsafeDefaultFailure("localhost-egress-allowance"));
+  if (envSnapshot.hasAlwaysOnAnalyticsStub) failures.push(unsafeDefaultFailure("always-enabled-analytics-stub"));
+  if (envSnapshot.hasDefaultOwnerPassword) failures.push(unsafeDefaultFailure("default-owner-password"));
+  return failures;
+}
+
+// §2.1 step 3: every production-classified capability must be durable.
+function collectDurabilityFailures(inventory: readonly CapabilityInventoryEntry[]): BootRefusalFailure[] {
+  const failures: BootRefusalFailure[] = [];
+  for (const capability of inventory) {
+    if (capability.classification !== "production") continue;
+    if (resolveDurability(capability)) continue;
+    failures.push({
+      code: "PRODUCTION_CAPABILITY_NOT_DURABLE",
+      message: `Refusing to boot in production mode: capability "${capability.name}" is classified production but has no durable adapter configured.`,
+      occurredAt: nowIso(),
+      correlationId: null,
+      details: { capabilityName: capability.name, missingRequirement: "durable-adapter" },
+    });
+  }
+  return failures;
+}
+
+/**
+ * REQ-08: sharp readiness gates media-transform route registration specifically, not the whole
+ * boot — but an unready sharp still contributes to the aggregated failure report. Absent
+ * `sharpReadiness` means "not checked", not "ready".
+ */
+async function checkSharpReadiness(
+  sharpReadiness: (() => Promise<boolean>) | undefined
+): Promise<BootRefusalFailure | null> {
+  if (!sharpReadiness) return null;
+
+  let ready: boolean;
+  try {
+    ready = await sharpReadiness();
+  } catch {
+    ready = false;
+  }
+  if (ready) return null;
+
+  return {
+    code: "SHARP_READINESS_FAILED",
+    message: "Media transform routes disabled: sharp readiness check failed (native-binary-load).",
+    occurredAt: nowIso(),
+    correlationId: null,
+    details: { checkName: "native-binary-load" },
+  };
+}
+
 export async function runProductionReadinessGate(
   options: RunProductionReadinessGateOptions
 ): Promise<ProductionReadinessGateResult> {
@@ -81,47 +135,13 @@ export async function runProductionReadinessGate(
     return { ok: true };
   }
 
-  const failures: BootRefusalFailure[] = [];
+  const failures: BootRefusalFailure[] = [
+    ...collectUnsafeDefaultFailures(options.envSnapshot),
+    ...collectDurabilityFailures(options.inventory),
+  ];
 
-  // §2.1 step 2: dev-only unsafe defaults.
-  if (options.envSnapshot.hasDevSecretPlaceholder) failures.push(unsafeDefaultFailure("dev-secret-placeholder"));
-  if (options.envSnapshot.hasLocalhostEgressAllowance) failures.push(unsafeDefaultFailure("localhost-egress-allowance"));
-  if (options.envSnapshot.hasAlwaysOnAnalyticsStub) failures.push(unsafeDefaultFailure("always-enabled-analytics-stub"));
-  if (options.envSnapshot.hasDefaultOwnerPassword) failures.push(unsafeDefaultFailure("default-owner-password"));
-
-  // §2.1 step 3: every production-classified capability must be durable.
-  for (const capability of options.inventory) {
-    if (capability.classification !== "production") continue;
-    if (!resolveDurability(capability)) {
-      failures.push({
-        code: "PRODUCTION_CAPABILITY_NOT_DURABLE",
-        message: `Refusing to boot in production mode: capability "${capability.name}" is classified production but has no durable adapter configured.`,
-        occurredAt: nowIso(),
-        correlationId: null,
-        details: { capabilityName: capability.name, missingRequirement: "durable-adapter" },
-      });
-    }
-  }
-
-  // REQ-08: sharp readiness gates media-transform route registration specifically, not the
-  // whole boot — but an unready sharp still contributes to the aggregated failure report.
-  if (options.sharpReadiness) {
-    let ready: boolean;
-    try {
-      ready = await options.sharpReadiness();
-    } catch {
-      ready = false;
-    }
-    if (!ready) {
-      failures.push({
-        code: "SHARP_READINESS_FAILED",
-        message: "Media transform routes disabled: sharp readiness check failed (native-binary-load).",
-        occurredAt: nowIso(),
-        correlationId: null,
-        details: { checkName: "native-binary-load" },
-      });
-    }
-  }
+  const sharpFailure = await checkSharpReadiness(options.sharpReadiness);
+  if (sharpFailure) failures.push(sharpFailure);
 
   return failures.length === 0 ? { ok: true } : { ok: false, failures };
 }
