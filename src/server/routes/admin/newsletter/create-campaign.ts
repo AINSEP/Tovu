@@ -4,6 +4,39 @@ import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { RouteRegistrar } from "../../types.js";
 import { toCampaignWriteServiceDeps, type NewsletterRouteDeps } from "./deps.js";
 
+/** This route's five required string fields, in the one order used for validation. */
+const REQUIRED_CAMPAIGN_STRING_FIELDS = ["subject", "fromName", "fromEmail", "replyTo", "listId"] as const;
+
+/** This route's six body fields, validated and read off an untyped body in one place, or `null` if
+ *  a required field is missing or the wrong shape.
+ *  @complexity O(1) — iterates a fixed 5-entry field list. */
+function parseCreateCampaignBody(rawBody: unknown): {
+  subject: string;
+  preheader: string | null;
+  fromName: string;
+  fromEmail: string;
+  replyTo: string;
+  listId: string;
+} | null {
+  const body = (rawBody ?? {}) as Record<string, unknown>;
+  for (const name of REQUIRED_CAMPAIGN_STRING_FIELDS) {
+    if (typeof body[name] !== "string") {
+      return null;
+    }
+  }
+  if (typeof body.bodyJson !== "object" || body.bodyJson === null) {
+    return null;
+  }
+  return {
+    subject: body.subject as string,
+    preheader: typeof body.preheader === "string" ? body.preheader : null,
+    fromName: body.fromName as string,
+    fromEmail: body.fromEmail as string,
+    replyTo: body.replyTo as string,
+    listId: body.listId as string,
+  };
+}
+
 /**
  * `CREATE_CAMPAIGN` (api.spec.md §1/§4) — `POST .../newsletter/campaigns`, creates a `draft`
  * campaign. `admin.newsletter.campaign.compose`-gated.
@@ -28,16 +61,8 @@ export const registerAdminNewsletterCreateCampaignRoute: RouteRegistrar = (app, 
       return;
     }
 
-    const body = req.body ?? {};
-    if (
-      typeof body.subject !== "string" ||
-      typeof body.fromName !== "string" ||
-      typeof body.fromEmail !== "string" ||
-      typeof body.replyTo !== "string" ||
-      typeof body.listId !== "string" ||
-      typeof body.bodyJson !== "object" ||
-      body.bodyJson === null
-    ) {
+    const parsedBody = parseCreateCampaignBody(req.body);
+    if (!parsedBody) {
       res.status(400).json({
         error: "subject, fromName, fromEmail, replyTo, listId (strings) and bodyJson (object) are required",
         code: "VALIDATION_ERROR",
@@ -61,14 +86,7 @@ export const registerAdminNewsletterCreateCampaignRoute: RouteRegistrar = (app, 
         input: {
           workspaceId: deps.workspaceId,
           actorId: getAuthedPrincipal(res).id,
-          fields: {
-            subject: body.subject,
-            preheader: typeof body.preheader === "string" ? body.preheader : null,
-            fromName: body.fromName,
-            fromEmail: body.fromEmail,
-            replyTo: body.replyTo,
-            listId: body.listId,
-          },
+          fields: parsedBody,
         },
       });
       res.status(201).json(toDataResponse(campaign));

@@ -1,7 +1,9 @@
-import { sniffContentType } from "#src/media/index";
+import type { Response } from "express";
+
+import { sniffContentType, type MediaRecord } from "#src/media/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import { parseRangeHeader } from "#src/server/http/range";
-import type { MediaRouteRegistrar } from "./deps.js";
+import { parseRangeHeader, type ParsedRange } from "#src/server/http/range";
+import type { MediaRouteDeps, MediaRouteRegistrar } from "./deps.js";
 
 /**
  * @file GET a media asset's ORIGINAL bytes for the admin UI's `<img>`/`<video>`
@@ -72,6 +74,78 @@ const DISALLOWED_INLINE_CONTENT_TYPES: ReadonlySet<string> = new Set([
   "image/svg+xml",
 ]);
 
+/**
+ * Looks up the media row and its source blob, or writes the appropriate early response and returns
+ * `null` — 404 for an unknown media id, 410 for a trashed one. Isolated so these three sequential
+ * guards don't add to the handler's own branch count.
+ *
+ * @throws {Error} the same data-integrity-gap error the pre-extraction route threw, if the media row
+ * exists but its source blob does not (see the inline comment at the throw site).
+ * @complexity O(1) — two point lookups.
+ */
+async function resolveMediaOriginalBlob(
+  deps: Pick<MediaRouteDeps, "mediaRepo" | "assetBlobRepo">,
+  res: Response,
+  params: { workspaceId: string; mediaId: string }
+): Promise<{ media: MediaRecord; blob: NonNullable<Awaited<ReturnType<MediaRouteDeps["assetBlobRepo"]["findByHash"]>>> } | null> {
+  const media = await deps.mediaRepo.findById({ workspaceId: params.workspaceId, id: params.mediaId });
+  if (!media) {
+    res.status(404).json({ error: `media '${params.mediaId}' was not found` });
+    return null;
+  }
+  if (media.status === "trashed") {
+    res.status(410).set("Cache-Control", "no-store").end();
+    return null;
+  }
+
+  const blob = await deps.assetBlobRepo.findByHash({ workspaceId: params.workspaceId, sha256: media.source.sha256 });
+  if (!blob) {
+    // Data-integrity gap, not a routine 404 — `uploadMedia`'s invariant (bytes written before
+    // the media row) means this should be unreachable. Mirrors `resolveMediaRendition`'s
+    // identical branch in `rendition-service.ts`: thrown, not silently treated as not-found.
+    throw new Error(`media '${media.id}': source blob for sha256 '${media.source.sha256}' was not found`);
+  }
+  return { media, blob };
+}
+
+/**
+ * Writes the security headers documented in this file's header, then the (possibly range-sliced)
+ * body. Isolated so the range-decision branching doesn't add to the handler's own branching — the
+ * security reasoning for each header stays in the module doc above, not duplicated here.
+ *
+ * @complexity O(1) aside from the byte copy for a partial range.
+ */
+function sendMediaOriginalResponse(
+  res: Response,
+  bytes: Uint8Array,
+  range: ParsedRange,
+  contentType: { safe: string; forceDownload: boolean }
+): void {
+  const totalLength = bytes.byteLength;
+  res.set("X-Content-Type-Options", "nosniff");
+  res.set("Content-Security-Policy", "default-src 'none'; sandbox");
+  res.set("Cross-Origin-Resource-Policy", "same-origin");
+  res.set("Cache-Control", "private, no-store");
+  res.set("Content-Type", contentType.safe);
+  res.set("Accept-Ranges", "bytes");
+  if (contentType.forceDownload) {
+    res.set("Content-Disposition", "attachment");
+  }
+
+  if (range.kind === "unsatisfiable") {
+    res.status(416).set("Content-Range", `bytes */${totalLength}`).end();
+    return;
+  }
+  if (range.kind === "range") {
+    res
+      .status(206)
+      .set("Content-Range", `bytes ${range.start}-${range.end}/${totalLength}`)
+      .send(Buffer.from(bytes.subarray(range.start, range.end + 1)));
+    return;
+  }
+  res.status(200).send(Buffer.from(bytes));
+}
+
 export const registerAdminMediaOriginalRoute: MediaRouteRegistrar = (app, deps) => {
   app.get("/api/admin/v1/workspaces/:workspaceId/media/:mediaId/original", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
@@ -98,59 +172,27 @@ export const registerAdminMediaOriginalRoute: MediaRouteRegistrar = (app, deps) 
         return;
       }
 
-      const media = await deps.mediaRepo.findById({ workspaceId: deps.workspaceId, id: mediaId });
-      if (!media) {
-        res.status(404).json({ error: `media '${mediaId}' was not found` });
+      const resolved = await resolveMediaOriginalBlob(deps, res, { workspaceId: deps.workspaceId, mediaId });
+      if (!resolved) {
         return;
       }
-      if (media.status === "trashed") {
-        res.status(410).set("Cache-Control", "no-store").end();
-        return;
-      }
-
-      const blob = await deps.assetBlobRepo.findByHash({ workspaceId: deps.workspaceId, sha256: media.source.sha256 });
-      if (!blob) {
-        // Data-integrity gap, not a routine 404 — `uploadMedia`'s invariant (bytes written before
-        // the media row) means this should be unreachable. Mirrors `resolveMediaRendition`'s
-        // identical branch in `rendition-service.ts`: thrown, not silently treated as not-found.
-        throw new Error(`media '${media.id}': source blob for sha256 '${media.source.sha256}' was not found`);
-      }
+      const { blob } = resolved;
 
       const bytes = await deps.blobStore.get({ storageKey: blob.storageKey });
       const totalLength = bytes.byteLength;
 
       const sniffed = sniffContentType(bytes);
       const forceDownload = DISALLOWED_INLINE_CONTENT_TYPES.has(sniffed);
-      const safeContentType = forceDownload ? "application/octet-stream" : sniffed;
-
-      res.set("X-Content-Type-Options", "nosniff");
-      res.set("Content-Security-Policy", "default-src 'none'; sandbox");
-      res.set("Cross-Origin-Resource-Policy", "same-origin");
       // Every response here reflects this principal's authorization at request time and may name
       // whether a specific asset is trashed — never shared-cached (mirrors the public rendition
       // route's `no-store` on its own non-ok outcomes; this route applies it to every outcome
-      // since none of its bytes are safe to cache across principals/permission changes).
-      res.set("Cache-Control", "private, no-store");
-      res.set("Content-Type", safeContentType);
-      res.set("Accept-Ranges", "bytes");
-      if (forceDownload) {
-        res.set("Content-Disposition", "attachment");
-      }
-
+      // since none of its bytes are safe to cache across principals/permission changes). See
+      // `sendMediaOriginalResponse` for the rest of the security headers.
       const range = parseRangeHeader({ header: req.get("range"), totalLength });
-      if (range.kind === "unsatisfiable") {
-        res.status(416).set("Content-Range", `bytes */${totalLength}`).end();
-        return;
-      }
-      if (range.kind === "range") {
-        res
-          .status(206)
-          .set("Content-Range", `bytes ${range.start}-${range.end}/${totalLength}`)
-          .send(Buffer.from(bytes.subarray(range.start, range.end + 1)));
-        return;
-      }
-
-      res.status(200).send(Buffer.from(bytes));
+      sendMediaOriginalResponse(res, bytes, range, {
+        safe: forceDownload ? "application/octet-stream" : sniffed,
+        forceDownload,
+      });
     } catch {
       // No typed domain error is thrown on this route's own read path — `media`/`assetBlobRepo`
       // not-found is handled explicitly above via the `null` checks, not by catching an error type
