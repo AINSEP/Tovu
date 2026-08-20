@@ -17,7 +17,7 @@ import type { SecretSealerPort } from "../../webhooks/index.js";
 
 import { askOnce, SURFACE_EXCHANGE_ID_PARAM, type AssistantSurfaceDeps, type SurfaceExchange } from "../../core/tool-surface-exchanges.js";
 import { registerToolContributor } from "#src/assistant/index";
-import { commitSiteToSourceControl, validateCommitTarget, type ExportSiteBoundFn, type GitHubCommitAdapter } from "./commit-site.js";
+import { commitSiteToSourceControl, validateCommitTarget, type ExportSiteBoundFn, type GitHubCommitAdapter, type SourceControlCommitOutcome } from "./commit-site.js";
 import { listSourceControlCredentials } from "./store.js";
 import type { SourceControlCredentialSetRepoPort, SourceControlProviderId } from "./types.js";
 
@@ -243,6 +243,104 @@ function buildCommitConfirmationResource(spec: { owner: string; repo: string; br
   });
 }
 
+/** The validated, typed shape of `source_control_execute_commit`'s input, once parsed. */
+interface ParsedCommitCommand {
+  owner: string;
+  repo: string;
+  commitMessage: string;
+  branch: string | undefined;
+}
+
+/**
+ * Reads and validates `source_control_execute_commit`'s raw input — provider enum, then
+ * owner/repo/branch/commitMessage shape via `validateCommitTarget`. Throws on any invalid field,
+ * same as the inline checks this replaces; extracted so the handler itself reads as "parse, then
+ * gate, then commit" instead of one long guard-clause chain.
+ */
+function parseCommitCommand(raw: Record<string, unknown>): ParsedCommitCommand {
+  const provider = requireString(raw, "provider");
+  if (provider !== "github") {
+    throw new Error(
+      "source_control_execute_commit: 'provider' must be 'github' — gitlab/bitbucket commits are not supported yet (see source_control_get_capabilities)."
+    );
+  }
+  const owner = requireString(raw, "owner");
+  const repo = requireString(raw, "repo");
+  const commitMessage = requireString(raw, "commitMessage");
+  const branch = typeof raw.branch === "string" ? raw.branch : undefined;
+
+  const configError = validateCommitTarget({ owner, repo, ...(branch !== undefined ? { branch } : {}), commitMessage });
+  if (configError !== null) {
+    throw new Error(`source_control_execute_commit: ${configError}`);
+  }
+
+  return { owner, repo, commitMessage, branch };
+}
+
+/**
+ * Waits for the human's answer to the commit confirmation dialog and turns it into either
+ * "go ahead" or the exact not-confirmed result the tool call should return — a `SurfaceMessage`
+ * status (expired/closed) or an explicit cancel are different facts, so each keeps its own
+ * `reason`/`note` rather than collapsing to one generic "cancelled" shape.
+ */
+async function resolveCommitDecision(
+  exchange: SurfaceExchange,
+  ui: UIResource,
+  owner: string,
+  repo: string
+): Promise<{ confirmed: true } | { confirmed: false; result: unknown }> {
+  const answer = await askOnce(exchange, { channel: "mcp-ui", payload: { resource: ui } });
+
+  if (answer.status !== "received") {
+    return {
+      confirmed: false,
+      result: {
+        committed: false,
+        cancelled: false,
+        reason: answer.status,
+        note:
+          answer.status === "expired"
+            ? "The user did not respond to the commit confirmation dialog before it expired. Nothing was committed."
+            : "The confirmation dialog was closed because the run ended. Nothing was committed.",
+      },
+    };
+  }
+
+  const decision = typeof answer.params.decision === "string" ? answer.params.decision : "confirm";
+  if (decision !== "confirm") {
+    return { confirmed: false, result: { committed: false, cancelled: true, owner, repo } };
+  }
+
+  return { confirmed: true };
+}
+
+/**
+ * Maps `commitSiteToSourceControl`'s outcome to the tool's result shape — the failure branch stays
+ * a typed `{code, message}` pass-through, the success branch reports every field a human or a
+ * follow-up call might need, including `divergedPaths` (see the field's own doc at the call site).
+ */
+function buildCommitOutcomeResult(outcome: SourceControlCommitOutcome): unknown {
+  if (!outcome.ok) {
+    return { committed: false, cancelled: false, code: outcome.code, message: outcome.message };
+  }
+  return {
+    committed: true,
+    owner: outcome.owner,
+    repo: outcome.repo,
+    branch: outcome.branch,
+    branchCreated: outcome.branchCreated,
+    commitSha: outcome.commitSha,
+    commitUrl: outcome.commitUrl,
+    filesChanged: outcome.filesChanged,
+    filesDeleted: outcome.filesDeleted,
+    // Paths this tool previously committed that the current export dropped, but did NOT delete —
+    // their live content no longer matches what this tool itself last wrote (or pre-dates this
+    // tool's ability to verify that at all). See `commit-site.ts`'s `SourceControlCommitOutcome`
+    // doc. Surfaced so the human is told exactly what survived and why, not just a bare count.
+    divergedPaths: outcome.divergedPaths,
+  };
+}
+
 /**
  * Builds this domain's `guidance` string for `source_control_get_capabilities` — extracted purely for
  * readability, same reasoning `publish-agent-tools.ts`'s own `buildCapabilityGuidance` gives.
@@ -323,21 +421,9 @@ export function buildSourceControlRegistrations(deps: SourceControlToolDeps, sur
      */
     source_control_execute_commit: async (ctx) => {
       const raw = requireInputRecord(ctx.input);
-      const provider = requireString(raw, "provider");
-      if (provider !== "github") {
-        throw new Error("source_control_execute_commit: 'provider' must be 'github' — gitlab/bitbucket commits are not supported yet (see source_control_get_capabilities).");
-      }
-      const owner = requireString(raw, "owner");
-      const repo = requireString(raw, "repo");
-      const commitMessage = requireString(raw, "commitMessage");
-      const branch = typeof raw.branch === "string" ? raw.branch : undefined;
+      const command = parseCommitCommand(raw);
 
       await requireToolPermission(deps, { principalId: ctx.principal.id, permission: "source-control.commit", entityType: "source-control" });
-
-      const configError = validateCommitTarget({ owner, repo, ...(branch !== undefined ? { branch } : {}), commitMessage });
-      if (configError !== null) {
-        throw new Error(`source_control_execute_commit: ${configError}`);
-      }
 
       // Fail closed rather than degrade — same posture `deployment_execute_static_publish` takes.
       if (!ctx.emitSurface) {
@@ -360,31 +446,15 @@ export function buildSourceControlRegistrations(deps: SourceControlToolDeps, sur
       }
 
       const exchange: SurfaceExchange = surfaces.surfaceExchanges.open({ toolId: EXECUTE_COMMIT_TOOL_ID, principalId: ctx.principal.id }, ctx.emitSurface);
-      const ui = buildCommitConfirmationResource({ owner, repo, branch, commitMessage, exchangeId: exchange.id });
+      const ui = buildCommitConfirmationResource({ ...command, exchangeId: exchange.id });
 
       // A cancelled run must not leave a dialog holding a call nobody is listening to — mirrors
       // `deployment_execute_static_publish`'s identical guard.
       const closeOnAbort = () => exchange.close();
       ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
       try {
-        const answer = await askOnce(exchange, { channel: "mcp-ui", payload: { resource: ui } });
-
-        if (answer.status !== "received") {
-          return {
-            committed: false,
-            cancelled: false,
-            reason: answer.status,
-            note:
-              answer.status === "expired"
-                ? "The user did not respond to the commit confirmation dialog before it expired. Nothing was committed."
-                : "The confirmation dialog was closed because the run ended. Nothing was committed.",
-          };
-        }
-
-        const decision = typeof answer.params.decision === "string" ? answer.params.decision : "confirm";
-        if (decision !== "confirm") {
-          return { committed: false, cancelled: true, owner, repo };
-        }
+        const decision = await resolveCommitDecision(exchange, ui, command.owner, command.repo);
+        if (!decision.confirmed) return decision.result;
 
         const outcome = await commitSiteToSourceControl(
           { credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, ...(deps.gitAdapter ? { gitAdapter: deps.gitAdapter } : {}) },
@@ -393,33 +463,14 @@ export function buildSourceControlRegistrations(deps: SourceControlToolDeps, sur
             sourceControlExportRootDir: deps.sourceControlExportRootDir,
             idGen: deps.idGen,
             exportSiteBound: deps.exportSiteBound,
-            owner,
-            repo,
-            ...(branch !== undefined ? { branch } : {}),
-            commitMessage,
+            owner: command.owner,
+            repo: command.repo,
+            ...(command.branch !== undefined ? { branch: command.branch } : {}),
+            commitMessage: command.commitMessage,
           }
         );
 
-        if (!outcome.ok) {
-          return { committed: false, cancelled: false, code: outcome.code, message: outcome.message };
-        }
-
-        return {
-          committed: true,
-          owner: outcome.owner,
-          repo: outcome.repo,
-          branch: outcome.branch,
-          branchCreated: outcome.branchCreated,
-          commitSha: outcome.commitSha,
-          commitUrl: outcome.commitUrl,
-          filesChanged: outcome.filesChanged,
-          filesDeleted: outcome.filesDeleted,
-          // Paths this tool previously committed that the current export dropped, but did NOT delete —
-          // their live content no longer matches what this tool itself last wrote (or pre-dates this
-          // tool's ability to verify that at all). See `commit-site.ts`'s `SourceControlCommitOutcome`
-          // doc. Surfaced so the human is told exactly what survived and why, not just a bare count.
-          divergedPaths: outcome.divergedPaths,
-        };
+        return buildCommitOutcomeResult(outcome);
       } finally {
         ctx.signal.removeEventListener("abort", closeOnAbort);
       }
