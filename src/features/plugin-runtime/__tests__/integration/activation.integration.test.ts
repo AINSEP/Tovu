@@ -536,17 +536,20 @@ test("REACHABILITY: composePluginRuntime threads installDir through to discoverP
 });
 
 /**
- * KNOWN GAP (disclosed, not silently patched over): `onPluginEnabled()` resolves its load source
- * via `sources.find(candidate => candidate.manifest.id === pluginId)` — `sources` is the composition
- * root's static, compiled-in list. A site-installed plugin (discovered above) is never a member of
- * that list, so today it is rejected as `PLUGIN_EXPORT_INVALID` BEFORE `loadPlugin()` (and therefore
- * BEFORE any `import()`) ever runs — for a tampered site plugin AND for a perfectly valid one alike.
- * This test proves the fail-closed half of that (a tampered site plugin's code can never be
- * imported through this path); it deliberately does NOT claim a valid site plugin can be enabled
- * end-to-end yet — dynamically resolving a `PluginRuntimeSource` (entry path + real `import()`) for
- * a "site" discovery record is unbuilt and out of THIS slice's scope (see handoff).
+ * GAP CLOSED (Milestone 1b, 2026-08-20 — was "KNOWN GAP" under Milestone 1): `onPluginEnabled()`
+ * used to resolve its load source ONLY via `sources.find(c => c.manifest.id === pluginId)` — the
+ * composition root's static, compiled-in list — so a site-installed plugin was rejected as
+ * `PLUGIN_EXPORT_INVALID` before `loadPlugin()` ever ran, tampered or not, and a valid one could
+ * never actually be enabled. `resolveLoadTarget()` (`server/plugin-runtime.ts`) now derives a site
+ * plugin's load target from its OWN discovery record (`record.manifest` + `siteEntryPath()`), so
+ * this attempt genuinely reaches `loadPlugin()`'s real BR-01 pipeline. The distinguishing proof
+ * this test now makes — the reason the team lead specifically asked to isolate — is that the
+ * rejection is `INTEGRITY_FAILED` (step 1 of `loadPlugin()`), NOT `PLUGIN_EXPORT_INVALID` (which
+ * would mean it never got past source resolution) and NOT `CODE_ENTRY_MISSING` (which would mean
+ * step 3, `import()`, ran and only then failed). Only `INTEGRITY_FAILED` proves the tamper was
+ * caught at the correct step, before any `import()` of this plugin's code.
  */
-test("REACHABILITY + CIC U-001: a tampered site-installed plugin discovered via installDir can never be enabled — rejected before loadPlugin/import() would run", async () => {
+test("REACHABILITY + CIC U-001: a tampered site-installed plugin discovered via installDir reaches the real load pipeline and fails at the INTEGRITY step, not at source resolution", async () => {
   const root = await mkdtemp(path.join(tmpdir(), "tovu-plugin-reachability-tampered-"));
   const installDir = path.join(root, "plugins");
   try {
@@ -591,9 +594,136 @@ test("REACHABILITY + CIC U-001: a tampered site-installed plugin discovered via 
 
     await assert.rejects(
       () => runtime.onPluginEnabled("tampered-plugin"),
-      (error: unknown) => error instanceof PluginLoadError && error.reason === "PLUGIN_EXPORT_INVALID"
+      (error: unknown) => {
+        assert.ok(error instanceof PluginLoadError, "must be a PluginLoadError, not some other thrown value");
+        assert.equal(
+          (error as PluginLoadError).reason,
+          "INTEGRITY_FAILED",
+          `expected INTEGRITY_FAILED (loadPlugin's step 1) — got '${(error as PluginLoadError).reason}'. ` +
+            "PLUGIN_EXPORT_INVALID would mean this was rejected before reaching loadPlugin() at all; " +
+            "CODE_ENTRY_MISSING/anything else would mean import() already ran. Only INTEGRITY_FAILED " +
+            "proves the tamper was caught at the right step, before any import()."
+        );
+        return true;
+      }
     );
   } finally {
     await rm(root, { recursive: true, force: true });
+  }
+});
+
+/**
+ * Milestone 1b's headline capability: a VALID site-installed plugin — not just a tampered one —
+ * can now actually be enabled end to end through `onPluginEnabled()`, using a real `import()` of
+ * its on-disk `server/index.mjs` (no test-injected `importModule`; this is the plugin's manifest
+ * exactly as `discoverPlugins()` parsed it, and the real dynamic-import default `loadPlugin()`
+ * falls back to when its `importModule` option is omitted — see `resolveLoadTarget()`'s own doc for
+ * why a site target never supplies one). Proves setup() actually ran (its filter is reachable via
+ * `beforeSaveHook`), not merely that `loaded: true` was returned.
+ */
+test("Milestone 1b: a VALID site-installed plugin discovered via installDir can be enabled end to end — real import(), setup() runs, filter attaches", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "tovu-plugin-reachability-valid-"));
+  const installDir = path.join(root, "plugins");
+  try {
+    const versionDir = path.join(installDir, "greeter-plugin", "1.0.0");
+    await mkdir(path.join(versionDir, "server"), { recursive: true });
+    // A real ESM module, actually `import()`-ed by this test (no injected importModule) — proves
+    // this is the genuine dynamic-import path, not a simulated one.
+    const entryContents = [
+      "export default {",
+      "  definition: {",
+      "    setup(sdk) {",
+      "      sdk.addFilter('content.entry.beforeSave', async () => ({ greeting: 'hello from disk' }));",
+      "    },",
+      "  },",
+      "};",
+      "",
+    ].join("\n");
+    await writeFile(path.join(versionDir, "server", "index.mjs"), entryContents, "utf8");
+    const correctHash = `sha256-${createHash("sha256").update(entryContents, "utf8").digest("hex")}`;
+    await writeFile(
+      path.join(versionDir, "tovu.plugin.json"),
+      JSON.stringify({
+        id: "greeter-plugin",
+        name: "Greeter Plugin",
+        version: "1.0.0",
+        sdkRange: "^0.1.0",
+        engine: 1,
+        tier: "tier-3",
+        capabilities: ["hooks.attach"],
+        hooks: [HOOK_CONTENT_ENTRY_BEFORE_SAVE],
+        fields: [{ path: "ext.greeter-plugin.greeting", type: "string", queryable: false }],
+        integrity: { "server/index.mjs": correctHash },
+      }),
+      "utf8"
+    );
+
+    const runtime = composePluginRuntime({
+      workspaceId: WORKSPACE,
+      clock: clock(),
+      activationRepo: new InMemoryPluginActivationRepo(),
+      sources: [],
+      installDir,
+    });
+
+    const discovery = await runtime.discoverPlugins();
+    const record = discovery.find((r) => r.id === "greeter-plugin");
+    assert.equal(record?.status, "valid");
+    assert.equal(record?.source, "site");
+
+    // The point of this test: this must NOT throw. Before Milestone 1b it always threw
+    // PluginLoadError("PLUGIN_EXPORT_INVALID") for every site plugin, valid or not.
+    await runtime.onPluginEnabled("greeter-plugin");
+
+    const entry = {
+      id: "entry-1",
+      workspaceId: WORKSPACE,
+      title: "Entry",
+      slug: "entry",
+      status: "draft" as const,
+      bodyJson: {},
+      ext: {},
+    };
+    assert.deepEqual(
+      await runtime.beforeSaveHook(entry),
+      { "greeter-plugin": { greeting: "hello from disk" } },
+      "setup()'s addFilter callback must actually have run through the real import() — not a no-op enable"
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+/**
+ * Defense-in-depth branch (`resolveLoadTarget()`'s final `return null`): in the real HTTP flow,
+ * `onPluginEnabled` is only ever reached after `setPluginEnabled`'s BR-05 step 2 already confirmed
+ * `discovered.status === "valid"` — so a "site" record with no `manifest` should never reach here
+ * through that path. This test calls `onPluginEnabled` DIRECTLY (as `set-enabled.ts`'s own rollback
+ * path can, restoring a plugin that was invalid at the time of a later re-discovery) for a site
+ * plugin discovery already marks `invalid`, proving the fallback stays fail-closed rather than
+ * throwing an unrelated error (e.g. a raw `TypeError` from reading fields off `undefined`).
+ */
+test("resolveLoadTarget defense in depth: onPluginEnabled called directly for a discovered-but-INVALID site plugin fails closed with PLUGIN_EXPORT_INVALID, never reaches loadPlugin", async () => {
+  const { installDir } = await buildAc11FixtureInstallDir();
+  try {
+    const runtime = composePluginRuntime({
+      workspaceId: WORKSPACE,
+      clock: clock(),
+      activationRepo: new InMemoryPluginActivationRepo(),
+      sources: [],
+      installDir,
+    });
+
+    const discovery = await runtime.discoverPlugins();
+    const record = discovery.find((r) => r.id === "invalid-site-plugin");
+    assert.equal(record?.status, "invalid", "fixture precondition: invalid-site-plugin must actually be invalid");
+    assert.equal(record?.manifest, undefined, "an invalid record must never carry a manifest (see the field's own doc)");
+
+    await assert.rejects(
+      () => runtime.onPluginEnabled("invalid-site-plugin"),
+      (error: unknown) => error instanceof PluginLoadError && error.reason === "PLUGIN_EXPORT_INVALID"
+    );
+  } finally {
+    await rm(installDir, { recursive: true, force: true });
   }
 });
