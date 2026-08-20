@@ -107,18 +107,10 @@ class McpStdioSession implements McpSessionPort {
 
     for (let page = 0; page < MAX_LIST_TOOLS_PAGES; page += 1) {
       const result = await this.request("tools/list", cursor === undefined ? {} : { cursor });
-      const record = asRecord(result);
-      const tools = record && Array.isArray(record.tools) ? record.tools : [];
-      for (const tool of tools) {
-        const descriptor = asRemoteToolDescriptor(tool);
-        // A malformed entry is dropped here rather than thrown on: one bad descriptor must not cost
-        // the operator every other tool on the same server. `trust.ts` refuses anything that
-        // survives this and still fails its own checks.
-        if (descriptor) collected.push(descriptor);
-      }
-      const next = record?.nextCursor;
-      if (typeof next !== "string" || next.length === 0) return collected;
-      cursor = next;
+      const { tools, nextCursor } = parseToolsListPage(result);
+      collected.push(...tools);
+      if (nextCursor === undefined) return collected;
+      cursor = nextCursor;
     }
 
     throw new McpProtocolError(
@@ -217,15 +209,10 @@ class McpStdioSession implements McpSessionPort {
 
   private handleMessage(line: string): void {
     if (line.length > MAX_INBOUND_MESSAGE_BYTES) return;
-
-    let message: JsonRpcResponse;
-    try {
-      message = JSON.parse(line) as JsonRpcResponse;
-    } catch {
-      // Servers routinely emit non-JSON banner noise on the same stream. Dropping it is correct;
-      // throwing would let a stray log line kill an otherwise healthy session.
-      return;
-    }
+    const message = parseJsonRpcLine(line);
+    // Servers routinely emit non-JSON banner noise on the same stream. Dropping it is correct;
+    // throwing would let a stray log line kill an otherwise healthy session.
+    if (!message) return;
 
     // An inbound message carrying a `method` is the server calling US. Tovu advertises no
     // capabilities in `initialize`, so there is nothing it may legitimately ask for — notably
@@ -233,14 +220,26 @@ class McpStdioSession implements McpSessionPort {
     // Requests get a well-formed refusal; notifications (`tools/list_changed` included, see
     // `trust.ts` R5) are ignored.
     if (typeof message.method === "string") {
-      if (message.id !== undefined && message.id !== null) {
-        this.channel.send(
-          JSON.stringify({ jsonrpc: "2.0", id: message.id, error: { code: -32601, message: `method '${message.method}' is not supported by this client` } }),
-        );
-      }
+      this.refuseUnsupportedServerRequest(message);
       return;
     }
 
+    this.resolvePendingRequest(message);
+  }
+
+  /** The "server called a method on us" half of {@link handleMessage} — split out purely to keep
+   *  that function's complexity under the shop ceiling. A notification (no `id`) is silently
+   *  ignored; a request gets a well-formed JSON-RPC refusal. */
+  private refuseUnsupportedServerRequest(message: JsonRpcResponse): void {
+    if (message.id === undefined || message.id === null) return;
+    this.channel.send(
+      JSON.stringify({ jsonrpc: "2.0", id: message.id, error: { code: -32601, message: `method '${message.method}' is not supported by this client` } }),
+    );
+  }
+
+  /** The "this is a reply to one of our own requests" half of {@link handleMessage} — split out
+   *  purely to keep that function's complexity under the shop ceiling. */
+  private resolvePendingRequest(message: JsonRpcResponse): void {
     if (typeof message.id !== "number") return;
     const entry = this.pending.get(message.id);
     if (!entry) return;
@@ -399,24 +398,58 @@ function asRecord(value: unknown): Record<string, unknown> | null {
   return value as Record<string, unknown>;
 }
 
+/** Best-effort JSON-RPC parse of one inbound line, or `null` for anything that does not parse.
+ *  Split out of {@link McpStdioSession.handleMessage} purely to keep that method's complexity under
+ *  the shop ceiling. */
+function parseJsonRpcLine(line: string): JsonRpcResponse | null {
+  try {
+    return JSON.parse(line) as JsonRpcResponse;
+  } catch {
+    return null;
+  }
+}
+
+/** Narrows one `tools/list` response's `annotations` block. Shape only — the trust decisions all
+ *  live in `trust.ts`. Split out of {@link asRemoteToolDescriptor} purely to keep that function's
+ *  complexity under the shop ceiling. */
+function asRemoteToolAnnotations(record: Record<string, unknown> | null): RemoteToolDescriptor["annotations"] {
+  if (!record) return undefined;
+  return {
+    title: typeof record.title === "string" ? record.title : undefined,
+    readOnlyHint: typeof record.readOnlyHint === "boolean" ? record.readOnlyHint : undefined,
+    destructiveHint: typeof record.destructiveHint === "boolean" ? record.destructiveHint : undefined,
+    idempotentHint: typeof record.idempotentHint === "boolean" ? record.idempotentHint : undefined,
+    openWorldHint: typeof record.openWorldHint === "boolean" ? record.openWorldHint : undefined,
+  };
+}
+
 /** Narrows one `tools/list` entry, discarding anything without a usable `name`. Shape only — the
  * trust decisions all live in `trust.ts`. */
 function asRemoteToolDescriptor(value: unknown): RemoteToolDescriptor | null {
   const record = asRecord(value);
   if (!record || typeof record.name !== "string" || record.name.length === 0) return null;
-  const annotations = asRecord(record.annotations);
   return {
     name: record.name,
     description: typeof record.description === "string" ? record.description : undefined,
     inputSchema: record.inputSchema,
-    annotations: annotations
-      ? {
-          title: typeof annotations.title === "string" ? annotations.title : undefined,
-          readOnlyHint: typeof annotations.readOnlyHint === "boolean" ? annotations.readOnlyHint : undefined,
-          destructiveHint: typeof annotations.destructiveHint === "boolean" ? annotations.destructiveHint : undefined,
-          idempotentHint: typeof annotations.idempotentHint === "boolean" ? annotations.idempotentHint : undefined,
-          openWorldHint: typeof annotations.openWorldHint === "boolean" ? annotations.openWorldHint : undefined,
-        }
-      : undefined,
+    annotations: asRemoteToolAnnotations(asRecord(record.annotations)),
   };
+}
+
+/** Narrows one `tools/list` response page into its usable descriptors plus the cursor for the next
+ *  page (`undefined` when there is none). A malformed entry is dropped rather than thrown on — one
+ *  bad descriptor must not cost the operator every other tool on the same server; `trust.ts`
+ *  refuses anything that survives this and still fails its own checks. Split out of
+ *  {@link McpStdioSession.listTools} purely to keep that method's complexity under the shop
+ *  ceiling. */
+function parseToolsListPage(result: unknown): { readonly tools: RemoteToolDescriptor[]; readonly nextCursor: string | undefined } {
+  const record = asRecord(result);
+  const rawTools = record && Array.isArray(record.tools) ? record.tools : [];
+  const tools: RemoteToolDescriptor[] = [];
+  for (const tool of rawTools) {
+    const descriptor = asRemoteToolDescriptor(tool);
+    if (descriptor) tools.push(descriptor);
+  }
+  const next = record?.nextCursor;
+  return { tools, nextCursor: typeof next === "string" && next.length > 0 ? next : undefined };
 }
