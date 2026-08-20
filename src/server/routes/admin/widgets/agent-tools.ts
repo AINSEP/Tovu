@@ -7,7 +7,7 @@ import { mutateWidgetAreaPlacements } from "#src/widgets/region-area-service";
 import { createWidgetInstance } from "#src/widgets/write-service";
 import { WidgetAreaNotFoundError } from "#src/widgets/errors";
 import { WIDGET_CONTENT_TYPE } from "#src/widgets/types";
-import type { WidgetPlacementNode } from "#src/widgets/types";
+import type { WidgetPlacementNode, WidgetTypeKey } from "#src/widgets/types";
 import {
   mapWidgetErrorToResponse,
   requireWidgetsPermissionOrRespond,
@@ -87,6 +87,101 @@ function respondBadTarget(res: Response): void {
   });
 }
 
+/** This tool's validated body shape: a resolved `target` plus the new instance's fields.
+ *  `widgetType` is cast, not validated, against the real `WidgetTypeKey` union here — same as the
+ *  inline code this replaces, `createWidgetInstance` (`getWidgetTypeRegistration`) is what rejects
+ *  an unregistered type at runtime, with its own `WidgetTypeUnregisteredError`. */
+type CreateToolInput = { target: PlaceTarget; widgetType: WidgetTypeKey; title: string; config: Record<string, unknown> };
+
+/**
+ * Parses+validates `widgets.create`'s body in one place — target resolution (via `readTarget`),
+ * `widgetType`/`title` presence, and the `config` object-or-default normalization all collapse into
+ * one null-means-invalid result instead of three separate inline checks.
+ *
+ * @complexity O(1).
+ */
+function parseCreateToolInput(body: Record<string, unknown>): CreateToolInput | null {
+  const target = readTarget(body);
+  if (!target || typeof body.widgetType !== "string" || typeof body.title !== "string") return null;
+  return {
+    target,
+    widgetType: body.widgetType as WidgetTypeKey,
+    title: body.title,
+    config: typeof body.config === "object" && body.config !== null ? (body.config as Record<string, unknown>) : {},
+  };
+}
+
+/** Removes an embed-hosted placement — thin pass-through to `removeWidgetEmbed`, kept symmetric
+ *  with `removeRegionPlacement` below. @complexity O(1). */
+async function removeEmbedPlacement(
+  deps: RouteDeps,
+  workspaceId: string,
+  actor: { principalId: string },
+  target: Extract<PlaceTarget, { kind: "embed" }>,
+  placementId: string
+) {
+  return removeWidgetEmbed({
+    deps: buildWidgetsDeps(deps),
+    input: { workspaceId, actor, hostEntryId: target.hostEntryId, baseVersion: target.baseVersion, placementId },
+  });
+}
+
+/** Removes a region-bound placement by loading the CURRENT placement list and writing it back
+ *  without `placementId`, matching `placeIntoRegion`'s whole-document discipline (REQ-15).
+ *  @complexity O(placements in the region). */
+async function removeRegionPlacement(
+  deps: RouteDeps,
+  workspaceId: string,
+  actor: { principalId: string },
+  target: Extract<PlaceTarget, { kind: "region" }>,
+  placementId: string
+) {
+  const binding = await deps.widgetBindingRepo.findByRegion({ workspaceId, regionKey: target.regionKey });
+  if (!binding) throw new WidgetAreaNotFoundError(`region '${target.regionKey}' is not bound`);
+  const areaEntry = await deps.entryRepo.findById({ workspaceId, id: binding.areaEntryId });
+  if (!areaEntry) throw new WidgetAreaNotFoundError(`region area entry for '${target.regionKey}' was not found`);
+  const nextPlacements = parseWidgetAreaPayload(areaEntry.fieldsJson).doc.placements.filter((p) => p.placementId !== placementId);
+  return mutateWidgetAreaPlacements({
+    deps: buildWidgetsRegionDeps(deps),
+    input: { workspaceId, actor, areaEntryId: binding.areaEntryId, baseVersion: target.baseVersion, placements: nextPlacements },
+  });
+}
+
+/** Dispatches to the embed or region removal path — mirrors `placeTarget`'s own dispatch shape.
+ *  @complexity O(1) plus whichever branch's own cost. */
+async function removePlacement(
+  deps: RouteDeps,
+  workspaceId: string,
+  actor: { principalId: string },
+  target: PlaceTarget,
+  placementId: string
+) {
+  if (target.kind === "embed") {
+    return removeEmbedPlacement(deps, workspaceId, actor, target, placementId);
+  }
+  return removeRegionPlacement(deps, workspaceId, actor, target, placementId);
+}
+
+/** Resolves `widgets.diagnose`'s exists/status pair for an already-fetched entry — a bare
+ *  `Awaited<ReturnType<...findById>>` type keeps this tied to the repo port's own return shape
+ *  rather than a hand-rolled interface. @complexity O(1). */
+function resolveWidgetStatus(entry: Awaited<ReturnType<RouteDeps["entryRepo"]["findById"]>>): {
+  exists: boolean;
+  status: string | null;
+} {
+  const isWidget = Boolean(entry) && entry?.type === WIDGET_CONTENT_TYPE;
+  if (!isWidget || !entry) return { exists: isWidget, status: null };
+  // Fable adversarial-review fix (2026-07-21, Finding B): diagnosing a real entry id that is NOT a
+  // widget instance (wrong content type, or a widget row with a malformed payload) used to 500 via
+  // an uncaught `parseWidgetInstancePayload` throw — `getWidgetInstance` already guards the same
+  // case with an `entry.type` check; this mirrors it instead of parsing blind.
+  try {
+    return { exists: true, status: parseWidgetInstancePayload(entry.fieldsJson).status };
+  } catch {
+    return { exists: true, status: null };
+  }
+}
+
 /** `widgets.place` — reference an EXISTING widget instance into a target. Distinct from
  * `widgets.create` (REQ-35, AC-25): this call never creates a new instance. */
 const registerPlaceTool: RouteRegistrar = (app, deps) => {
@@ -121,8 +216,8 @@ const registerCreateTool: RouteRegistrar = (app, deps) => {
       return;
     }
     const body = req.body ?? {};
-    const target = readTarget(body);
-    if (!target || typeof body.widgetType !== "string" || typeof body.title !== "string") {
+    const parsed = parseCreateToolInput(body);
+    if (!parsed) {
       respondBadTarget(res);
       return;
     }
@@ -135,14 +230,14 @@ const registerCreateTool: RouteRegistrar = (app, deps) => {
         input: {
           workspaceId: deps.workspaceId,
           actor,
-          widgetType: body.widgetType,
-          title: body.title,
-          config: typeof body.config === "object" && body.config !== null ? body.config : {},
+          widgetType: parsed.widgetType,
+          title: parsed.title,
+          config: parsed.config,
         },
       });
 
       try {
-        const placeResult = await placeTarget(deps, deps.workspaceId, actor, target, instance.id);
+        const placeResult = await placeTarget(deps, deps.workspaceId, actor, parsed.target, instance.id);
         res.status(201).json({ tool: "widgets.create", widget: toAdminWidgetResponse(instance).widget, result: placeResult });
       } catch (placeErr) {
         // Finding D (Fable adversarial-review fix, 2026-07-21): placement failing AFTER the
@@ -178,25 +273,7 @@ const registerRemoveTool: RouteRegistrar = (app, deps) => {
     try {
       const principal = getAuthedPrincipal(res);
       const actor = { principalId: principal.id };
-
-      if (target.kind === "embed") {
-        const result = await removeWidgetEmbed({
-          deps: buildWidgetsDeps(deps),
-          input: { workspaceId: deps.workspaceId, actor, hostEntryId: target.hostEntryId, baseVersion: target.baseVersion, placementId: body.placementId },
-        });
-        res.status(200).json({ tool: "widgets.remove", result });
-        return;
-      }
-
-      const binding = await deps.widgetBindingRepo.findByRegion({ workspaceId: deps.workspaceId, regionKey: target.regionKey });
-      if (!binding) throw new WidgetAreaNotFoundError(`region '${target.regionKey}' is not bound`);
-      const areaEntry = await deps.entryRepo.findById({ workspaceId: deps.workspaceId, id: binding.areaEntryId });
-      if (!areaEntry) throw new WidgetAreaNotFoundError(`region area entry for '${target.regionKey}' was not found`);
-      const nextPlacements = parseWidgetAreaPayload(areaEntry.fieldsJson).doc.placements.filter((p) => p.placementId !== body.placementId);
-      const result = await mutateWidgetAreaPlacements({
-        deps: buildWidgetsRegionDeps(deps),
-        input: { workspaceId: deps.workspaceId, actor, areaEntryId: binding.areaEntryId, baseVersion: target.baseVersion, placements: nextPlacements },
-      });
+      const result = await removePlacement(deps, deps.workspaceId, actor, target, body.placementId);
       res.status(200).json({ tool: "widgets.remove", result });
     } catch (err) {
       mapWidgetErrorToResponse(err, res);
@@ -219,23 +296,11 @@ const registerDiagnoseTool: RouteRegistrar = (app, deps) => {
 
       const widgetInstanceId = String(req.params.widgetInstanceId);
       const entry = await deps.entryRepo.findById({ workspaceId: deps.workspaceId, id: widgetInstanceId });
-      // Fable adversarial-review fix (2026-07-21, Finding B): diagnosing a real entry id that is
-      // NOT a widget instance (wrong content type, or a widget row with a malformed payload) used
-      // to 500 via an uncaught `parseWidgetInstancePayload` throw — `getWidgetInstance` already
-      // guards the same case with an `entry.type` check; this mirrors it instead of parsing blind.
-      const isWidget = Boolean(entry) && entry?.type === WIDGET_CONTENT_TYPE;
-      let status: string | null = null;
-      if (isWidget && entry) {
-        try {
-          status = parseWidgetInstancePayload(entry.fieldsJson).status;
-        } catch {
-          status = null;
-        }
-      }
+      const { exists, status } = resolveWidgetStatus(entry);
       const refs = await deps.entryRefsRepo.findByTarget({ workspaceId: deps.workspaceId, targetKind: "entry", targetId: widgetInstanceId });
       res.status(200).json({
         tool: "widgets.diagnose",
-        exists: isWidget,
+        exists,
         status,
         whereUsed: toWhereUsedResponse(refs),
       });
