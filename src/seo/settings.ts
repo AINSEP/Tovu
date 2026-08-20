@@ -284,33 +284,63 @@ function validateSeoSettingsPatch(patch: Partial<SeoSettings>): void {
   validateRobotsRules(patch.robotsRules);
 }
 
+type SeoSettingWrite = { key: SeoSettingKey; value: JsonValue };
+
+/**
+ * `title_template`/`default_description`/`default_og_image`/`twitter_site` each decompose 1:1
+ * into a single ledger write; the latter three ride the `""`-means-absent sentinel on write
+ * (see `SEO_DEFINITIONS`' doc comment) via `normalize`, `titleTemplate` does not need it.
+ */
+const SCALAR_FIELD_WRITERS: ReadonlyArray<{
+  patchKey: "titleTemplate" | "defaultDescription" | "defaultOgImage" | "twitterSite";
+  settingKey: SeoSettingKey;
+  normalize?: (value: string | undefined) => JsonValue;
+}> = [
+  { patchKey: "titleTemplate", settingKey: "title_template" },
+  { patchKey: "defaultDescription", settingKey: "default_description", normalize: (value) => value ?? "" },
+  { patchKey: "defaultOgImage", settingKey: "default_og_image", normalize: (value) => value ?? "" },
+  { patchKey: "twitterSite", settingKey: "twitter_site", normalize: (value) => value ?? "" },
+];
+
+function buildScalarWrites(patch: Partial<SeoSettings>): SeoSettingWrite[] {
+  const writes: SeoSettingWrite[] = [];
+  for (const field of SCALAR_FIELD_WRITERS) {
+    const raw = patch[field.patchKey];
+    if (raw === undefined) continue;
+    writes.push({ key: field.settingKey, value: field.normalize ? field.normalize(raw) : raw });
+  }
+  return writes;
+}
+
+/** `defaultRobots` decomposes into 2 ledger writes (Decision §3's mapping table). */
+function buildDefaultRobotsWrites(defaultRobots: RobotsDirective | undefined): SeoSettingWrite[] {
+  if (defaultRobots === undefined) return [];
+  return [
+    { key: "default_robots_noindex", value: defaultRobots.noindex },
+    { key: "default_robots_nofollow", value: defaultRobots.nofollow },
+  ];
+}
+
+function buildSitemapEnabledWrites(sitemapEnabled: boolean | undefined): SeoSettingWrite[] {
+  return sitemapEnabled === undefined ? [] : [{ key: "sitemap_enabled", value: sitemapEnabled }];
+}
+
+function buildRobotsRulesWrites(robotsRules: RobotsRule[] | undefined): SeoSettingWrite[] {
+  return robotsRules === undefined ? [] : [{ key: "robots_rules", value: robotsRules as unknown as JsonValue }];
+}
+
 /** REQ-11/15 chokepoint write: validate ALL fields (all-or-nothing) -> decompose -> N ledger `set()` calls. */
 export async function setSeoSettings(deps: SeoSettingsWriteDeps, input: SetSeoSettingsInput): Promise<SeoSettings> {
   validateSeoSettingsPatch(input.patch);
 
-  const writes: Array<{ key: SeoSettingKey; value: JsonValue }> = [];
-  if (input.patch.titleTemplate !== undefined) {
-    writes.push({ key: "title_template", value: input.patch.titleTemplate });
-  }
-  if (input.patch.defaultDescription !== undefined) {
-    writes.push({ key: "default_description", value: input.patch.defaultDescription ?? "" });
-  }
-  if (input.patch.defaultOgImage !== undefined) {
-    writes.push({ key: "default_og_image", value: input.patch.defaultOgImage ?? "" });
-  }
-  if (input.patch.twitterSite !== undefined) {
-    writes.push({ key: "twitter_site", value: input.patch.twitterSite ?? "" });
-  }
-  if (input.patch.defaultRobots !== undefined) {
-    writes.push({ key: "default_robots_noindex", value: input.patch.defaultRobots.noindex });
-    writes.push({ key: "default_robots_nofollow", value: input.patch.defaultRobots.nofollow });
-  }
-  if (input.patch.sitemapEnabled !== undefined) {
-    writes.push({ key: "sitemap_enabled", value: input.patch.sitemapEnabled });
-  }
-  if (input.patch.robotsRules !== undefined) {
-    writes.push({ key: "robots_rules", value: input.patch.robotsRules as unknown as JsonValue });
-  }
+  // Order matches the original field-by-field pushes exactly (scalars, then defaultRobots'
+  // 2 writes, then sitemapEnabled, then robotsRules) — write order is preserved on purpose.
+  const writes: SeoSettingWrite[] = [
+    ...buildScalarWrites(input.patch),
+    ...buildDefaultRobotsWrites(input.patch.defaultRobots),
+    ...buildSitemapEnabledWrites(input.patch.sitemapEnabled),
+    ...buildRobotsRulesWrites(input.patch.robotsRules),
+  ];
 
   for (const write of writes) {
     await set({
