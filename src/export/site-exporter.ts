@@ -38,7 +38,7 @@ import { resolveThemeLayout } from "#src/features/theme/index";
 // that field's doc in `server/routes/types.ts`), so `ExportSiteRouteDeps` below only needs to name
 // the fields this file and `route-manifest.ts` actually read, never the god type itself.
 import { buildRouteManifest, type RouteManifestDeps } from "./route-manifest.js";
-import type { ManifestActiveTheme, ManifestRoute, ManifestRouteKind, ManifestSkip } from "./ports.js";
+import type { ManifestActiveTheme, ManifestRoute, ManifestRouteKind, ManifestSkip, RouteManifest } from "./ports.js";
 
 /**
  * @file The static-site exporter engine: boots the REAL `createApp(routeDeps)` Express app
@@ -557,6 +557,35 @@ async function writeNotFoundRoute(route: ManifestRoute, baseUrl: string, outputD
  *   a CSS file's own referenced fonts/images are never themselves re-scanned for further `url(...)`
  *   references).
  */
+/**
+ * Fetches and writes one asset URL to disk. Never throws — every failure mode (path escapes the
+ * output dir, non-OK response) comes back as a typed `failure` for the caller to record. `cssRefs`
+ * is the one-hop `url(...)` harvest from a `.css` asset's own body (empty for every other kind).
+ */
+async function fetchOneAsset(
+  url: string,
+  baseUrl: string,
+  outputDir: string
+): Promise<{ ok: true; asset: ExportedAsset; cssRefs: string[] } | { ok: false; failure: FailedAsset }> {
+  const outFile = assetOutputFile(url, outputDir);
+  if (!outFile) {
+    return { ok: false, failure: { url, reason: "asset URL resolved outside the output directory — refused" } };
+  }
+
+  const res = await fetch(`${baseUrl}${url}`);
+  if (!res.ok) {
+    return { ok: false, failure: { url, reason: `GET ${url} -> ${res.status}` } };
+  }
+
+  const buffer = Buffer.from(await res.arrayBuffer());
+  const contentType = res.headers.get("content-type") ?? undefined;
+  mkdirSync(path.dirname(outFile), { recursive: true });
+  writeFileSync(outFile, buffer);
+  const asset: ExportedAsset = { url, outputFile: path.relative(outputDir, outFile), data: buffer, contentType };
+  const cssRefs = url.endsWith(".css") ? extractCssUrls(buffer.toString("utf8"), url) : [];
+  return { ok: true, asset, cssRefs };
+}
+
 async function fetchAssets(initialUrls: readonly string[], baseUrl: string, outputDir: string): Promise<{ succeeded: ExportedAsset[]; failed: FailedAsset[] }> {
   const succeeded: ExportedAsset[] = [];
   const failed: FailedAsset[] = [];
@@ -568,29 +597,14 @@ async function fetchAssets(initialUrls: readonly string[], baseUrl: string, outp
     if (seen.has(url)) continue;
     seen.add(url);
 
-    const outFile = assetOutputFile(url, outputDir);
-    if (!outFile) {
-      failed.push({ url, reason: "asset URL resolved outside the output directory — refused" });
+    const outcome = await fetchOneAsset(url, baseUrl, outputDir);
+    if (!outcome.ok) {
+      failed.push(outcome.failure);
       continue;
     }
 
-    const res = await fetch(`${baseUrl}${url}`);
-    if (!res.ok) {
-      failed.push({ url, reason: `GET ${url} -> ${res.status}` });
-      continue;
-    }
-
-    const buffer = Buffer.from(await res.arrayBuffer());
-    const contentType = res.headers.get("content-type") ?? undefined;
-    mkdirSync(path.dirname(outFile), { recursive: true });
-    writeFileSync(outFile, buffer);
-    succeeded.push({ url, outputFile: path.relative(outputDir, outFile), data: buffer, contentType });
-
-    if (url.endsWith(".css")) {
-      for (const ref of extractCssUrls(buffer.toString("utf8"), url)) {
-        if (!seen.has(ref)) queue.push(ref);
-      }
-    }
+    succeeded.push(outcome.asset);
+    queue.push(...outcome.cssRefs.filter((ref) => !seen.has(ref)));
   }
 
   return { succeeded, failed };
@@ -673,6 +687,44 @@ function findUnreferencedThemeFiles(activeTheme: ManifestActiveTheme, manifestRo
 const BASE_PATH_REWRITE_WARNING =
   "base-path rewriting is a best-effort TEXT rewrite over already-rendered responses — it cannot rewrite a path a theme's own JavaScript constructs at runtime from a string (same category of gap as the unreferenced-theme-file warning, just invisible to this rewrite instead of to the asset crawl).";
 
+/** Dispatches one manifest route to the writer matching its kind. */
+async function writeRoute(route: ManifestRoute, baseUrl: string, outputDir: string, basePath: string): Promise<RouteWriteOutcome> {
+  if (route.kind === "redirect") return writeRedirectRoute(route, baseUrl, outputDir, basePath);
+  if (route.kind === "not-found") return writeNotFoundRoute(route, baseUrl, outputDir, basePath);
+  return writeContentRoute(route, baseUrl, outputDir, basePath);
+}
+
+/** Writes every manifest route to disk, collecting succeeded/failed routes plus every asset URL discovered in their HTML. */
+async function writeAllRoutes(
+  routes: readonly ManifestRoute[],
+  baseUrl: string,
+  outputDir: string,
+  basePath: string
+): Promise<{ succeeded: ExportedRoute[]; failed: FailedRoute[]; assetUrls: Set<string> }> {
+  const succeeded: ExportedRoute[] = [];
+  const failed: FailedRoute[] = [];
+  const assetUrls = new Set<string>();
+
+  for (const route of routes) {
+    const outcome = await writeRoute(route, baseUrl, outputDir, basePath);
+    if (outcome.succeeded) succeeded.push(outcome.succeeded);
+    if (outcome.failed) failed.push(outcome.failed);
+    if (outcome.html) extractAssetUrls(outcome.html).forEach((url) => assetUrls.add(url));
+  }
+
+  return { succeeded, failed, assetUrls };
+}
+
+/** `unreferencedThemeFiles` needs a theme to diff against — no theme discovered means nothing to report. */
+function resolveUnreferencedThemeFiles(manifest: RouteManifest, assetsSucceeded: readonly ExportedAsset[]): string[] {
+  if (!manifest.activeTheme) return [];
+  return findUnreferencedThemeFiles(
+    manifest.activeTheme,
+    manifest.routes,
+    assetsSucceeded.map((a) => a.url)
+  );
+}
+
 export async function exportSite(options: ExportSiteOptions): Promise<ExportReport> {
   const { routeDeps, outputDir, clean = false } = options;
   const basePath = normalizeBasePath(options.basePath ?? "");
@@ -689,37 +741,13 @@ export async function exportSite(options: ExportSiteOptions): Promise<ExportRepo
   const address = server.address() as AddressInfo;
   const baseUrl = `http://127.0.0.1:${address.port}`;
 
-  const routesSucceeded: ExportedRoute[] = [];
-  const routesFailed: FailedRoute[] = [];
-  const assetUrls = new Set<string>();
-
   try {
-    for (const route of manifest.routes) {
-      const outcome: RouteWriteOutcome =
-        route.kind === "redirect"
-          ? await writeRedirectRoute(route, baseUrl, outputDir, basePath)
-          : route.kind === "not-found"
-            ? await writeNotFoundRoute(route, baseUrl, outputDir, basePath)
-            : await writeContentRoute(route, baseUrl, outputDir, basePath);
-
-      if (outcome.succeeded) routesSucceeded.push(outcome.succeeded);
-      if (outcome.failed) routesFailed.push(outcome.failed);
-      if (outcome.html) {
-        for (const url of extractAssetUrls(outcome.html)) assetUrls.add(url);
-      }
-    }
+    const { succeeded: routesSucceeded, failed: routesFailed, assetUrls } = await writeAllRoutes(manifest.routes, baseUrl, outputDir, basePath);
 
     // Asset discovery/fetch/output-layout is entirely basePath-agnostic (see writeContentRoute's own
     // comment) — no rewrite is applied here, by design, not by omission.
     const { succeeded: assetsSucceeded, failed: assetsFailed } = await fetchAssets([...assetUrls], baseUrl, outputDir);
-
-    const unreferencedThemeFiles = manifest.activeTheme
-      ? findUnreferencedThemeFiles(
-          manifest.activeTheme,
-          manifest.routes,
-          assetsSucceeded.map((a) => a.url)
-        )
-      : [];
+    const unreferencedThemeFiles = resolveUnreferencedThemeFiles(manifest, assetsSucceeded);
 
     return {
       outputDir,
