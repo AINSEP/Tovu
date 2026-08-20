@@ -15,6 +15,37 @@ import type { ContentRouteRegistrar } from "../content/deps.js";
  * `members/disable.ts`'s pattern since `setActiveTheme` is a direct feature call, not routed
  * through the SPEC-001 command gateway.
  */
+
+/**
+ * Reads the PATCH body's `activeThemeId`, defaulting to `""` for a missing/non-object body or a
+ * missing field. `setActiveTheme`'s own `allowed.includes("")` check then turns that into a
+ * `PresentationSettingsValidationError` naming the empty string, so a malformed body reads as "no
+ * theme id" rather than a raw parse failure.
+ *
+ * Pulled out of the route handler purely to bring its cyclomatic complexity back under this repo's
+ * gate — the `?.`/`??` here are two decision points genuinely independent of the handler's own
+ * control flow (no nesting relationship), not a behavior change.
+ */
+function readActiveThemeId(body: unknown): string {
+  return String((body as { activeThemeId?: unknown } | null)?.activeThemeId ?? "");
+}
+
+/**
+ * Maps a caught error from `setActiveTheme` to its status/body. Pulled out of the route handler for
+ * the same reason as {@link readActiveThemeId}: the two `instanceof` checks are independent decision
+ * points that add to cyclomatic complexity without adding nesting, so moving them here is a pure
+ * complexity-gate fix — still the same 400/404/500 statuses and bodies as before.
+ */
+function presentationPatchErrorResponse(err: unknown): { status: number; body: { error: string } } {
+  if (err instanceof PresentationSettingsValidationError) {
+    return { status: 400, body: { error: err.message } };
+  }
+  if (err instanceof PresentationSettingsNotFoundError) {
+    return { status: 404, body: { error: err.message } };
+  }
+  return { status: 500, body: { error: "internal error" } };
+}
+
 export const registerAdminPresentationPatchRoute: ContentRouteRegistrar = (app, deps) => {
   app.patch("/api/admin/v1/workspaces/:workspaceId/presentation", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
@@ -47,7 +78,7 @@ export const registerAdminPresentationPatchRoute: ContentRouteRegistrar = (app, 
         },
         input: {
           workspaceId: deps.workspaceId,
-          activeThemeId: String(req.body?.activeThemeId ?? ""),
+          activeThemeId: readActiveThemeId(req.body),
         },
       });
 
@@ -73,17 +104,8 @@ export const registerAdminPresentationPatchRoute: ContentRouteRegistrar = (app, 
         })
       );
     } catch (err) {
-      if (err instanceof PresentationSettingsValidationError) {
-        res.status(400).json({ error: err.message });
-        return;
-      }
-
-      if (err instanceof PresentationSettingsNotFoundError) {
-        res.status(404).json({ error: err.message });
-        return;
-      }
-
-      res.status(500).json({ error: "internal error" });
+      const { status, body } = presentationPatchErrorResponse(err);
+      res.status(status).json(body);
     }
   });
 };
