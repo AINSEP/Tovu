@@ -1,4 +1,4 @@
-import type { Express } from "express";
+import type { Express, Request, Response } from "express";
 
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { RateLimiter } from "#src/core/rate-limit/rate-limit";
@@ -44,6 +44,50 @@ function parseToolsLimit(raw: unknown): number {
   return Math.min(parsed, MAX_TOOLS_LIMIT);
 }
 
+/** Reads the `?hydrateTools=1|true` query flag off the request. @complexity O(1). */
+function wantsHydratedTools(req: Request): boolean {
+  return req.query.hydrateTools === "1" || req.query.hydrateTools === "true";
+}
+
+/**
+ * Enforces `CONNECTOR_OUTBOUND_PER_IP` on hydrated (Composio-calling) reads. Writes the 429 itself
+ * and returns `false` when the caller must stop; `true` means proceed.
+ *
+ * @complexity O(1).
+ */
+function checkHydrateRateLimit(outboundLimiter: RateLimiter, clientIp: string, res: Response): boolean {
+  const rateLimitResult = outboundLimiter.check(clientIp);
+  if (rateLimitResult.allowed) return true;
+  res.setHeader("Retry-After", String(rateLimitResult.retryAfterSeconds));
+  res.status(429).json({
+    error: "too many tool-preview requests",
+    code: "RATE_LIMIT_EXCEEDED",
+    details: { retryAfterSeconds: rateLimitResult.retryAfterSeconds },
+  });
+  return false;
+}
+
+/**
+ * Fetches the connector — the bounded preview path with a tools page when `hydrateTools` is set,
+ * the cheap plain read otherwise. Collapses the two request-shape branches (which path, and whether
+ * a cursor was supplied) that otherwise live inline in the route handler.
+ *
+ * @complexity O(1) plus one outbound call to Composio when `hydrateTools` is set.
+ */
+async function fetchRequestedConnector(
+  service: ConnectorsRouteDeps["composioConnectors"]["service"],
+  connectorId: string,
+  query: Request["query"],
+  hydrateTools: boolean
+) {
+  if (!hydrateTools) return service.getConnector(connectorId);
+  const toolsCursor = typeof query.toolsCursor === "string" ? query.toolsCursor : undefined;
+  return service.getPreviewConnector(connectorId, {
+    toolsLimit: parseToolsLimit(query.toolsLimit),
+    ...(toolsCursor === undefined ? {} : { toolsCursor }),
+  });
+}
+
 export function registerAdminConnectorsGetByIdRoute(
   app: Express,
   deps: ConnectorsRouteDeps,
@@ -73,29 +117,18 @@ export function registerAdminConnectorsGetByIdRoute(
       }
 
       const connectorId = String(req.params.connectorId ?? "");
-      const hydrateTools = req.query.hydrateTools === "1" || req.query.hydrateTools === "true";
+      const hydrateTools = wantsHydratedTools(req);
 
-      if (hydrateTools) {
-        const rateLimitResult = outboundLimiter.check(resolveClientIp(req));
-        if (!rateLimitResult.allowed) {
-          res.setHeader("Retry-After", String(rateLimitResult.retryAfterSeconds));
-          res.status(429).json({
-            error: "too many tool-preview requests",
-            code: "RATE_LIMIT_EXCEEDED",
-            details: { retryAfterSeconds: rateLimitResult.retryAfterSeconds },
-          });
-          return;
-        }
+      if (hydrateTools && !checkHydrateRateLimit(outboundLimiter, resolveClientIp(req), res)) {
+        return;
       }
 
-      const toolsCursor = typeof req.query.toolsCursor === "string" ? req.query.toolsCursor : undefined;
-
-      const connector = hydrateTools
-        ? await deps.composioConnectors.service.getPreviewConnector(connectorId, {
-            toolsLimit: parseToolsLimit(req.query.toolsLimit),
-            ...(toolsCursor === undefined ? {} : { toolsCursor }),
-          })
-        : await deps.composioConnectors.service.getConnector(connectorId);
+      const connector = await fetchRequestedConnector(
+        deps.composioConnectors.service,
+        connectorId,
+        req.query,
+        hydrateTools
+      );
 
       res.json(connector);
     } catch (error) {
