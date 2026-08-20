@@ -473,3 +473,129 @@ test("a remote whose id would collide with a native tool loses the whole connect
   assert.equal(registry.registered.length, 0);
   assert.ok(messages.some((message) => message.includes("must never be able to shadow")));
 });
+
+// ---------------------------------------------------------------------------
+// Bootstrap defaults — the production `logger`/`connect` a caller gets when it omits both
+// ---------------------------------------------------------------------------
+
+test("omitting `logger` uses the real console logger — info and warn both reach console.log/console.warn", async (t) => {
+  const logLines: string[] = [];
+  const warnLines: string[] = [];
+  t.mock.method(console, "log", (...args: unknown[]) => {
+    logLines.push(args.map(String).join(" "));
+  });
+  t.mock.method(console, "warn", (...args: unknown[]) => {
+    warnLines.push(args.map(String).join(" "));
+  });
+
+  const registry = fakeRegistry(["database_get_health"]);
+  const result = await attachFederatedMcpTools({
+    registry,
+    deps: fakeDeps().deps,
+    // No `logger` — forces the production `consoleLogger` default.
+    connections: [{ config: CONFIG, launch: { command: "unused", args: [], env: {} } }],
+    connect: async () => sessionFor(),
+  });
+
+  assert.deepEqual(result.registeredToolIds, ["mcp__supabase__list_tables", "mcp__supabase__get_advisors"]);
+  assert.ok(
+    logLines.some((line) => line.includes("[agent-daemon]") && line.includes("registered 2 federated tool(s)")),
+    `expected an info line through console.log; got: ${JSON.stringify(logLines)}`,
+  );
+  assert.ok(
+    warnLines.some((line) => line.includes("[agent-daemon]") && line.includes("refused remote tool 'execute_sql'")),
+    `expected a warn line through console.warn; got: ${JSON.stringify(warnLines)}`,
+  );
+});
+
+// ---------------------------------------------------------------------------
+// defaultConnect — the real production session factory: a genuine spawn + handshake, not a double.
+// Exercises `spawnMcpStdioChannel`'s real child-process path too, not just the scripted channel
+// seam every other test in this file (and adapter.stdio.ts's own tests) use.
+// ---------------------------------------------------------------------------
+
+/** A minimal, real MCP stdio server: answers `initialize` and `tools/list` (with zero tools),
+ *  ignores everything else including the `notifications/initialized` notification. Just enough for
+ *  `connectMcpStdioSession`'s handshake to complete against a REAL child process. */
+const MINIMAL_MCP_SERVER_SCRIPT = `
+process.stdin.setEncoding("utf8");
+let buffer = "";
+process.stdin.on("data", (chunk) => {
+  buffer += chunk;
+  let newline;
+  while ((newline = buffer.indexOf("\\n")) !== -1) {
+    const line = buffer.slice(0, newline).trim();
+    buffer = buffer.slice(newline + 1);
+    if (!line) continue;
+    let message;
+    try { message = JSON.parse(line); } catch { continue; }
+    if (message.id === undefined) continue;
+    if (message.method === "initialize") {
+      process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id: message.id, result: { protocolVersion: "2025-06-18", serverInfo: { name: "fixture", version: "1" } } }) + "\\n");
+    } else if (message.method === "tools/list") {
+      process.stdout.write(JSON.stringify({ jsonrpc: "2.0", id: message.id, result: { tools: [] } }) + "\\n");
+    }
+  }
+});
+`;
+
+/** A real child process that never answers anything — for exercising `defaultConnect`'s own
+ *  connect-timeout race, as opposed to the adapter's per-request timeout. */
+const NEVER_RESPONDS_SCRIPT = `setInterval(() => {}, 1000);`;
+
+test("omitting `connect` uses the real defaultConnect — a genuine spawn + handshake against a real child process", async () => {
+  const registry = fakeRegistry();
+  const { messages, logger } = collectingLogger();
+
+  const result = await attachFederatedMcpTools({
+    registry,
+    deps: fakeDeps().deps,
+    logger,
+    connections: [
+      {
+        config: { ...CONFIG, allowedToolNames: [] },
+        launch: { command: process.execPath, args: ["-e", MINIMAL_MCP_SERVER_SCRIPT], env: {} },
+      },
+    ],
+    // No `connect` — forces the production `defaultConnect`.
+  });
+
+  try {
+    // The fixture advertises zero tools, so nothing is registered — the point of this test is that
+    // the real spawn + JSON-RPC handshake completed at all, not the admission outcome.
+    assert.deepEqual(result.registeredToolIds, []);
+    assert.equal(
+      messages.some((message) => message.includes("failed")),
+      false,
+      `a real handshake against a well-behaved server must not be reported as a failure; got: ${JSON.stringify(messages)}`,
+    );
+  } finally {
+    // `attachFederatedMcpTools` hands live sessions back for the CALLER to close at shutdown (see
+    // its own doc) — it never closes them itself. Leaving this open would leak the real child
+    // process and its stdio pipes, which keeps the test runner's event loop alive indefinitely.
+    await Promise.all(result.sessions.map((session) => session.close()));
+  }
+});
+
+test("defaultConnect's own connect-timeout fires when the child never completes the handshake, and the child is killed", async () => {
+  const registry = fakeRegistry();
+  const { messages, logger } = collectingLogger();
+
+  const result = await attachFederatedMcpTools({
+    registry,
+    deps: fakeDeps().deps,
+    logger,
+    connections: [
+      {
+        config: { ...CONFIG, connectTimeoutMs: 50 },
+        launch: { command: process.execPath, args: ["-e", NEVER_RESPONDS_SCRIPT], env: {} },
+      },
+    ],
+  });
+
+  assert.deepEqual(result.registeredToolIds, []);
+  assert.ok(
+    messages.some((message) => message.includes("failed, continuing without its tools") && message.includes("connect timed out after 50ms")),
+    `expected defaultConnect's own timeout message; got: ${JSON.stringify(messages)}`,
+  );
+});
