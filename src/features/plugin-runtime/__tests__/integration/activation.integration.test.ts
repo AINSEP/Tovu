@@ -1,9 +1,15 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import test from "node:test";
 
 import { getActivation, setPluginEnabled, PluginIncompatibleError, PluginInvalidError, PluginNotFoundError } from "../../activation.js";
 import { InMemoryPluginActivationRepo } from "../../repo.memory.js";
 import type { PluginDiscoveryRecord } from "../../discovery.js";
+import { PluginLoadError } from "../../loader.js";
+import { buildAc11FixtureInstallDir } from "../fixtures/ac11-fixture.js";
 import { createApp, createRouteDeps } from "#src/server/app";
 import { bootAuthenticated } from "#src/server/__tests__/helpers/http-test-server";
 import { composePluginRuntime, type PluginRuntimeSource } from "#src/server/plugin-runtime";
@@ -490,4 +496,104 @@ test("auto-quarantine end to end: repeated hook failures persist disabled metada
   assert.equal(reEnabled.quarantinedAt ?? null, null);
   assert.equal(toAdminPluginResponse(discovery[0]!, reEnabled).quarantine, null);
   assert.deepEqual(await runtime.beforeSaveHook(entry), { "throwing-plugin": { ok: true } });
+});
+
+/**
+ * REACHABILITY (Milestone 1 dispatch, 2026-08-20): before this slice, `composePluginRuntime` never
+ * forwarded `installDir` to `discoverPluginRuntimePlugins()` — every real composition root
+ * (`server/deps.ts`, `server/app.ts`) called it with `sources: [WORD_COUNT_RUNTIME_SOURCE]` and
+ * nothing else, so a plugin placed on disk at the REQ-02 install layout was invisible no matter how
+ * it got there. `discoverPlugins()` itself already fully implements and tests the install-dir scan
+ * (`discovery.integration.test.ts`'s AC-11 fixture) — the gap was purely in this composition seam.
+ */
+test("REACHABILITY: composePluginRuntime threads installDir through to discoverPlugins — a site-installed plugin on disk is discovered, not just built-ins", async () => {
+  const { installDir, builtIns } = await buildAc11FixtureInstallDir();
+  try {
+    const wordCountSource: PluginRuntimeSource = {
+      source: "built-in",
+      manifest: builtIns[0]!.manifest,
+      entryPath: "built-in:word-count",
+      importModule: async () => ({ default: definePlugin({ setup() {} }) }),
+    };
+    const runtime = composePluginRuntime({
+      workspaceId: WORKSPACE,
+      clock: clock(),
+      activationRepo: new InMemoryPluginActivationRepo(),
+      sources: [wordCountSource],
+      installDir,
+    });
+
+    const discovered = await runtime.discoverPlugins();
+    const ids = discovered.map((r) => `${r.source}:${r.id}`).sort();
+    assert.deepEqual(
+      ids,
+      ["built-in:word-count", "site:invalid-site-plugin", "site:valid-site-plugin"],
+      "both site-installed plugins (valid and invalid) must be reachable through the SAME bound discoverPlugins() a real composition root hands to the routes, not just the built-in"
+    );
+  } finally {
+    await rm(installDir, { recursive: true, force: true });
+  }
+});
+
+/**
+ * KNOWN GAP (disclosed, not silently patched over): `onPluginEnabled()` resolves its load source
+ * via `sources.find(candidate => candidate.manifest.id === pluginId)` — `sources` is the composition
+ * root's static, compiled-in list. A site-installed plugin (discovered above) is never a member of
+ * that list, so today it is rejected as `PLUGIN_EXPORT_INVALID` BEFORE `loadPlugin()` (and therefore
+ * BEFORE any `import()`) ever runs — for a tampered site plugin AND for a perfectly valid one alike.
+ * This test proves the fail-closed half of that (a tampered site plugin's code can never be
+ * imported through this path); it deliberately does NOT claim a valid site plugin can be enabled
+ * end-to-end yet — dynamically resolving a `PluginRuntimeSource` (entry path + real `import()`) for
+ * a "site" discovery record is unbuilt and out of THIS slice's scope (see handoff).
+ */
+test("REACHABILITY + CIC U-001: a tampered site-installed plugin discovered via installDir can never be enabled — rejected before loadPlugin/import() would run", async () => {
+  const root = await mkdtemp(path.join(tmpdir(), "tovu-plugin-reachability-tampered-"));
+  const installDir = path.join(root, "plugins");
+  try {
+    const versionDir = path.join(installDir, "tampered-plugin", "1.0.0");
+    await mkdir(path.join(versionDir, "server"), { recursive: true });
+    const entryContents = "export default { setup() {} };\n";
+    await writeFile(path.join(versionDir, "server", "index.mjs"), entryContents, "utf8");
+    // The manifest's recorded hash deliberately does NOT match the bytes just written — a tamper,
+    // by construction (mirrors `loader.integration.test.ts`'s own tampered-fixture pattern).
+    const wrongHash = `sha256-${createHash("sha256").update("not what is on disk", "utf8").digest("hex")}`;
+    await writeFile(
+      path.join(versionDir, "tovu.plugin.json"),
+      JSON.stringify({
+        id: "tampered-plugin",
+        name: "Tampered Plugin",
+        version: "1.0.0",
+        sdkRange: "^1.0.0",
+        engine: 1,
+        tier: "tier-3",
+        capabilities: [],
+        hooks: [],
+        fields: [],
+        integrity: { "server/index.mjs": wrongHash },
+      }),
+      "utf8"
+    );
+
+    const runtime = composePluginRuntime({
+      workspaceId: WORKSPACE,
+      clock: clock(),
+      activationRepo: new InMemoryPluginActivationRepo(),
+      sources: [],
+      installDir,
+    });
+
+    const discovered = await runtime.discoverPlugins();
+    assert.equal(
+      discovered.find((r) => r.id === "tampered-plugin")?.status,
+      "valid",
+      "discovery does not read file bytes (manifest.ts's own doc) — a tamper is invisible until load time, by design"
+    );
+
+    await assert.rejects(
+      () => runtime.onPluginEnabled("tampered-plugin"),
+      (error: unknown) => error instanceof PluginLoadError && error.reason === "PLUGIN_EXPORT_INVALID"
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
 });

@@ -225,6 +225,12 @@ import type { ExportEngine } from "../features/deployments/export-run.js";
 
 export interface CreateRouteDepsOptions {
   readonly pluginFailureThreshold?: number;
+  /** Site-installed plugin scan root, threaded to `composePluginRuntime`'s `discoverPlugins()`
+   * call (REQ-02). Omitted by default — this composition root is documented "hermetic, no
+   * filesystem" (see file header) and every existing caller relies on that; passing a real
+   * directory here is opt-in, for a caller that specifically wants to exercise site-plugin
+   * discovery through this in-memory root instead of `server/deps.ts`'s SQLite one. */
+  readonly installDir?: string;
 }
 
 /** In-memory route deps seeded from `./seed`. Default for tests/dev. */
@@ -241,6 +247,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     clock,
     activationRepo: pluginActivationRepo,
     sources: [WORD_COUNT_RUNTIME_SOURCE],
+    ...(options.installDir === undefined ? {} : { installDir: options.installDir }),
     ...(options.pluginFailureThreshold === undefined
       ? {}
       : { failureThreshold: options.pluginFailureThreshold }),
