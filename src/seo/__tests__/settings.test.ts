@@ -187,3 +187,249 @@ test("setSeoSettings: unauthorized write is rejected FORBIDDEN with zero writes"
   const after = await getSeoSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: WORKSPACE });
   assert.equal(after.sitemapEnabled, true);
 });
+
+// --- Characterization tests below pin pre-refactor behavior of
+// `validateSeoSettingsPatch`/`setSeoSettings` field-by-field. Added before
+// restructuring `src/seo/settings.ts` because branch coverage on these paths
+// was 0% (every `defaultDescription`/`defaultOgImage`/`defaultRobots`/
+// `sitemapEnabled`/`robotsRules` validation-error branch, and the
+// `defaultDescription`/`defaultOgImage`/`twitterSite` write-dispatch
+// branches, were never exercised by the tests above).
+
+function assertRejectsValidation(promise: Promise<unknown>, message: string) {
+  return assert.rejects(promise, (err: unknown) => {
+    assert.ok(err instanceof SeoSettingsValidationError, `expected SeoSettingsValidationError, got ${String(err)}`);
+    assert.equal((err as Error).message, message);
+    return true;
+  });
+}
+
+test("setSeoSettings: defaultDescription is validated, written, and round-trips", async () => {
+  const deps = await seeded();
+  const result = await setSeoSettings(deps, {
+    workspaceId: WORKSPACE,
+    callerPrincipalId: CALLER,
+    patch: { defaultDescription: "A site about testing." },
+  });
+  assert.equal(result.defaultDescription, "A site about testing.");
+
+  const reread = await getSeoSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: WORKSPACE });
+  assert.equal(reread.defaultDescription, "A site about testing.");
+});
+
+test("setSeoSettings: non-string defaultDescription is rejected", async () => {
+  const deps = await seeded();
+  await assertRejectsValidation(
+    setSeoSettings(deps, {
+      workspaceId: WORKSPACE,
+      callerPrincipalId: CALLER,
+      patch: { defaultDescription: 123 } as unknown as { defaultDescription: string },
+    }),
+    "defaultDescription must be a string"
+  );
+});
+
+test("setSeoSettings: a 501-char defaultDescription is rejected", async () => {
+  const deps = await seeded();
+  await assertRejectsValidation(
+    setSeoSettings(deps, {
+      workspaceId: WORKSPACE,
+      callerPrincipalId: CALLER,
+      patch: { defaultDescription: "a".repeat(501) },
+    }),
+    "defaultDescription must be at most 500 characters"
+  );
+});
+
+test("setSeoSettings: a null defaultDescription bypasses validation and reads back as undefined (the '' sentinel)", async () => {
+  const deps = await seeded();
+  const result = await setSeoSettings(deps, {
+    workspaceId: WORKSPACE,
+    callerPrincipalId: CALLER,
+    patch: { defaultDescription: null },
+  });
+  assert.equal(result.defaultDescription, undefined);
+});
+
+test("setSeoSettings: defaultOgImage is validated, written, and round-trips", async () => {
+  const deps = await seeded();
+  const result = await setSeoSettings(deps, {
+    workspaceId: WORKSPACE,
+    callerPrincipalId: CALLER,
+    patch: { defaultOgImage: "https://example.com/og.png" },
+  });
+  assert.equal(result.defaultOgImage, "https://example.com/og.png");
+
+  const reread = await getSeoSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: WORKSPACE });
+  assert.equal(reread.defaultOgImage, "https://example.com/og.png");
+});
+
+test("setSeoSettings: non-string defaultOgImage is rejected", async () => {
+  const deps = await seeded();
+  await assertRejectsValidation(
+    setSeoSettings(deps, {
+      workspaceId: WORKSPACE,
+      callerPrincipalId: CALLER,
+      patch: { defaultOgImage: 123 } as unknown as { defaultOgImage: string },
+    }),
+    "defaultOgImage must be a string"
+  );
+});
+
+test("setSeoSettings: a 2049-char defaultOgImage is rejected", async () => {
+  const deps = await seeded();
+  await assertRejectsValidation(
+    setSeoSettings(deps, {
+      workspaceId: WORKSPACE,
+      callerPrincipalId: CALLER,
+      patch: { defaultOgImage: "a".repeat(2049) },
+    }),
+    "defaultOgImage must be at most 2048 characters"
+  );
+});
+
+test("setSeoSettings: a null defaultOgImage bypasses validation and reads back as undefined", async () => {
+  const deps = await seeded();
+  const result = await setSeoSettings(deps, {
+    workspaceId: WORKSPACE,
+    callerPrincipalId: CALLER,
+    patch: { defaultOgImage: null },
+  });
+  assert.equal(result.defaultOgImage, undefined);
+});
+
+test("setSeoSettings: twitterSite is written and round-trips (no validation rule applies to it)", async () => {
+  const deps = await seeded();
+  const result = await setSeoSettings(deps, {
+    workspaceId: WORKSPACE,
+    callerPrincipalId: CALLER,
+    patch: { twitterSite: "@example" },
+  });
+  assert.equal(result.twitterSite, "@example");
+
+  const reread = await getSeoSettings({ settingsRepo: deps.settingsRepo }, { workspaceId: WORKSPACE });
+  assert.equal(reread.twitterSite, "@example");
+});
+
+test("setSeoSettings: a null twitterSite is written as the '' sentinel and reads back as undefined", async () => {
+  const deps = await seeded();
+  const result = await setSeoSettings(deps, {
+    workspaceId: WORKSPACE,
+    callerPrincipalId: CALLER,
+    patch: { twitterSite: null },
+  });
+  assert.equal(result.twitterSite, undefined);
+});
+
+test("setSeoSettings: a defaultRobots patch missing the 'nofollow' boolean is rejected", async () => {
+  const deps = await seeded();
+  await assertRejectsValidation(
+    setSeoSettings(deps, {
+      workspaceId: WORKSPACE,
+      callerPrincipalId: CALLER,
+      patch: { defaultRobots: { noindex: true } as unknown as { noindex: boolean; nofollow: boolean } },
+    }),
+    "defaultRobots requires boolean noindex/nofollow"
+  );
+});
+
+test("setSeoSettings: a non-boolean sitemapEnabled is rejected", async () => {
+  const deps = await seeded();
+  await assertRejectsValidation(
+    setSeoSettings(deps, {
+      workspaceId: WORKSPACE,
+      callerPrincipalId: CALLER,
+      patch: { sitemapEnabled: "yes" } as unknown as { sitemapEnabled: boolean },
+    }),
+    "sitemapEnabled must be a boolean"
+  );
+});
+
+test("setSeoSettings: a non-array robotsRules is rejected", async () => {
+  const deps = await seeded();
+  await assertRejectsValidation(
+    setSeoSettings(deps, {
+      workspaceId: WORKSPACE,
+      callerPrincipalId: CALLER,
+      patch: { robotsRules: "not-an-array" } as unknown as { robotsRules: unknown[] },
+    }),
+    "robotsRules must be an array"
+  );
+});
+
+test("setSeoSettings: a robots rule missing userAgent is rejected", async () => {
+  const deps = await seeded();
+  await assertRejectsValidation(
+    setSeoSettings(deps, {
+      workspaceId: WORKSPACE,
+      callerPrincipalId: CALLER,
+      patch: { robotsRules: [{}] as unknown as { userAgent: string }[] },
+    }),
+    "each robots rule requires a non-empty userAgent"
+  );
+});
+
+test("setSeoSettings: a robots rule with a blank userAgent is rejected", async () => {
+  const deps = await seeded();
+  await assertRejectsValidation(
+    setSeoSettings(deps, {
+      workspaceId: WORKSPACE,
+      callerPrincipalId: CALLER,
+      patch: { robotsRules: [{ userAgent: "   " }] },
+    }),
+    "each robots rule requires a non-empty userAgent"
+  );
+});
+
+test("setSeoSettings: a robots rule with a non-array 'allow' is rejected", async () => {
+  const deps = await seeded();
+  await assertRejectsValidation(
+    setSeoSettings(deps, {
+      workspaceId: WORKSPACE,
+      callerPrincipalId: CALLER,
+      patch: { robotsRules: [{ userAgent: "agent-1", allow: "not-an-array" }] as unknown as { userAgent: string; allow: string[] }[] },
+    }),
+    "robots rule 'allow' must be an array"
+  );
+});
+
+test("setSeoSettings: a robots rule with a non-array 'disallow' is rejected", async () => {
+  const deps = await seeded();
+  await assertRejectsValidation(
+    setSeoSettings(deps, {
+      workspaceId: WORKSPACE,
+      callerPrincipalId: CALLER,
+      patch: {
+        robotsRules: [{ userAgent: "agent-1", disallow: "not-an-array" }] as unknown as {
+          userAgent: string;
+          disallow: string[];
+        }[],
+      },
+    }),
+    "robots rule 'disallow' must be an array"
+  );
+});
+
+test("setSeoSettings: a robots rule 'allow' with 101 entries is rejected", async () => {
+  const deps = await seeded();
+  const allow = Array.from({ length: 101 }, (_, i) => `/path-${i}`);
+  await assertRejectsValidation(
+    setSeoSettings(deps, {
+      workspaceId: WORKSPACE,
+      callerPrincipalId: CALLER,
+      patch: { robotsRules: [{ userAgent: "agent-1", allow }] },
+    }),
+    "robots rule 'allow' may contain at most 100 entries"
+  );
+});
+
+test("setSeoSettings: a robots rule 'allow' with exactly 100 entries is accepted", async () => {
+  const deps = await seeded();
+  const allow = Array.from({ length: 100 }, (_, i) => `/path-${i}`);
+  const result = await setSeoSettings(deps, {
+    workspaceId: WORKSPACE,
+    callerPrincipalId: CALLER,
+    patch: { robotsRules: [{ userAgent: "agent-1", allow }] },
+  });
+  assert.equal(result.robotsRules[0]?.allow?.length, 100);
+});
