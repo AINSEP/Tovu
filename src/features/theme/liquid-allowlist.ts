@@ -197,6 +197,45 @@ interface WalkableNode {
   collection?: { lhs?: { content?: unknown }; rhs?: { content?: unknown } };
 }
 
+/** Records `node`'s own tag name, if it has one. */
+function collectNodeTag(node: WalkableNode, tags: Set<string>): void {
+  if (typeof node.name === "string") tags.add(node.name);
+}
+
+/** Records the filters applied directly to `node.value` (an `Output` node's own `{{ x | filter }}` chain). */
+function collectNodeValueFilters(node: WalkableNode, filters: Set<string>): void {
+  for (const filter of node.value?.filters ?? []) filters.add(filter.name);
+}
+
+/** Records filters used inside `node`'s own tag arguments (e.g. an `assign`/`if` expression's filters). */
+function collectNodeArgumentFilters(node: WalkableNode, filters: Set<string>): void {
+  if (typeof node.arguments !== "function") return;
+  for (const arg of node.arguments()) {
+    for (const filter of arg?.filters ?? []) filters.add(filter.name);
+  }
+}
+
+/** Flags an oversized literal `for` range into `rangeViolations` — see `MAX_FOR_RANGE_SPAN`'s own doc. */
+function collectForRangeViolation(node: WalkableNode, rangeViolations: string[]): void {
+  if (node.name !== "for" || !node.collection) return;
+  const lhs = node.collection.lhs?.content;
+  const rhs = node.collection.rhs?.content;
+  if (typeof lhs === "number" && typeof rhs === "number" && Math.abs(rhs - lhs) > MAX_FOR_RANGE_SPAN) {
+    rangeViolations.push(`for-loop range (${lhs}..${rhs}) exceeds the maximum allowed span of ${MAX_FOR_RANGE_SPAN}`);
+  }
+}
+
+/** Drains `node.children()`'s generator to its final `.value` — LiquidJS's `children()` seam
+ * returns a generator even in the sync (`partials=false, sync=true`) mode this walker always
+ * calls it in, so this is just the "give me the array" adapter over that shape. */
+function drainChildren(node: WalkableNode): WalkableNode[] | undefined {
+  if (typeof node.children !== "function") return undefined;
+  const gen = node.children(false, true);
+  let step = gen.next();
+  while (!step.done) step = gen.next();
+  return step.value;
+}
+
 /**
  * Recursively walk a parsed template's AST — using LiquidJS's public
  * `Template.children()` seam, the same mechanism the engine's own
@@ -211,7 +250,6 @@ interface WalkableNode {
  *
  * @complexity O(n) in AST node count — one pass, no backtracking, no
  * re-visiting of a node.
- * @overallScore 100/100
  */
 function collectLiquidUsage(
   nodes: WalkableNode[],
@@ -220,26 +258,12 @@ function collectLiquidUsage(
   rangeViolations: string[]
 ): void {
   for (const node of nodes) {
-    if (typeof node.name === "string") tags.add(node.name);
-    for (const filter of node.value?.filters ?? []) filters.add(filter.name);
-    if (typeof node.arguments === "function") {
-      for (const arg of node.arguments()) {
-        for (const filter of arg?.filters ?? []) filters.add(filter.name);
-      }
-    }
-    if (node.name === "for" && node.collection) {
-      const lhs = node.collection.lhs?.content;
-      const rhs = node.collection.rhs?.content;
-      if (typeof lhs === "number" && typeof rhs === "number" && Math.abs(rhs - lhs) > MAX_FOR_RANGE_SPAN) {
-        rangeViolations.push(`for-loop range (${lhs}..${rhs}) exceeds the maximum allowed span of ${MAX_FOR_RANGE_SPAN}`);
-      }
-    }
-    if (typeof node.children === "function") {
-      const gen = node.children(false, true);
-      let step = gen.next();
-      while (!step.done) step = gen.next();
-      if (step.value) collectLiquidUsage(step.value, tags, filters, rangeViolations);
-    }
+    collectNodeTag(node, tags);
+    collectNodeValueFilters(node, filters);
+    collectNodeArgumentFilters(node, filters);
+    collectForRangeViolation(node, rangeViolations);
+    const children = drainChildren(node);
+    if (children) collectLiquidUsage(children, tags, filters, rangeViolations);
   }
 }
 
