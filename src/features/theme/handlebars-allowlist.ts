@@ -227,17 +227,97 @@ function checkPath(path: HbsPath | undefined, violations: string[]): void {
   }
 }
 
+/** Walk a node's `params[]` and `hash.pairs[].value` as expressions — the argument-checking half
+ * shared by `BlockStatement`, `MustacheStatement`, and `SubExpression` handling below. */
+function walkParamsAndHash(node: HbsNode, depth: number, violations: string[]): void {
+  for (const param of node.params ?? []) walkExpression(param, depth, violations);
+  for (const pair of node.hash?.pairs ?? []) {
+    if (pair.value) walkExpression(pair.value, depth, violations);
+  }
+}
+
+/** `BlockStatement` (`{{#helper}}…{{/helper}}`): allowlist the helper name, walk its arguments,
+ * then recurse into both branches one nesting level deeper. */
+function handleBlockStatement(node: HbsNode, depth: number, violations: string[]): void {
+  const name = pathText(node.path);
+  if (!ALLOWED_HANDLEBARS_BLOCK_HELPERS.has(name)) {
+    violations.push(`disallowed block helper "${name}"`);
+  }
+  walkParamsAndHash(node, depth, violations);
+  walkHandlebarsNodes(node.program?.body ?? [], depth + 1, violations);
+  walkHandlebarsNodes(node.inverse?.body ?? [], depth + 1, violations);
+}
+
+/** `MustacheStatement` (`{{expr}}`/`{{{expr}}}`): refuse raw output outside the allowlisted
+ * paths, then classify the expression as a helper invocation (allowlisted by name) or a plain
+ * data path (allowlisted by {@link checkPath}), and walk its arguments either way. */
+function handleMustacheStatement(node: HbsNode, depth: number, violations: string[]): void {
+  const name = pathText(node.path);
+
+  if (node.escaped === false && !ALLOWED_HANDLEBARS_RAW_PATHS.has(name)) {
+    // `{{{x}}}` and `{{&x}}` both parse to `escaped: false`, so this one check covers the whole
+    // raw-output surface.
+    violations.push(
+      `disallowed raw output "{{{${name}}}}" — use "{{${name}}}" (escaped); raw output is permitted only for ${[...ALLOWED_HANDLEBARS_RAW_PATHS].map((p) => `{{{${p}}}}`).join(", ")}`
+    );
+  }
+
+  if (isInvocation(node) || ALLOWED_HANDLEBARS_HELPERS.has(name)) {
+    if (!ALLOWED_HANDLEBARS_HELPERS.has(name)) violations.push(`disallowed helper "${name}"`);
+  } else {
+    checkPath(node.path, violations);
+  }
+
+  walkParamsAndHash(node, depth, violations);
+}
+
+// Literal HTML / `{{! … }}` — no expression, nothing to check.
+function handleNoopStatement(): void {}
+
+// Handlebars' analogue of Liquid's `include`/`render`: resolves a name against the environment's
+// partial registry, which in a filesystem-backed setup (the normal way Handlebars is deployed) is
+// a file read, and in ANY setup is a jump to source this template did not contain. Tovu registers
+// no partials at all and exposes no `registerPartial` to a theme, so there is nothing legitimate
+// to resolve — refused as syntax rather than left to fail at render.
+function handlePartialStatement(node: HbsNode, _depth: number, violations: string[]): void {
+  violations.push(`disallowed partial "${pathText(node.name)}" (partials are not available to themes)`);
+}
+
+// `{{#*inline}}`/`{{*decorator}}` mutate the runtime's own program and partial resolution from
+// inside template text. No theme need, and the single most direct route from "template author" to
+// "compiler internals" the language offers.
+function handleDecoratorStatement(node: HbsNode, _depth: number, violations: string[]): void {
+  violations.push(`disallowed decorator "${pathText(node.path)}"`);
+}
+
+// Unknown statement kind: contribute no usage, but never let a nested body escape review because
+// the wrapper was unrecognized.
+function handleUnknownStatement(node: HbsNode, depth: number, violations: string[]): void {
+  walkHandlebarsNodes(node.program?.body ?? [], depth + 1, violations);
+  walkHandlebarsNodes(node.inverse?.body ?? [], depth + 1, violations);
+}
+
+/** Every node kind is dispatched explicitly here, and {@link handleUnknownStatement} (the
+ * fallback for any type absent from this table) descends into `program`/`inverse` rather than
+ * ignoring the node — so a construct this walker does not recognize can still never hide an
+ * unreviewed block body beneath it. A lookup table rather than a `switch` because the branch
+ * count (9 statement kinds) is the thing driving complexity here, not nesting. */
+const STATEMENT_HANDLERS: Readonly<Record<string, (node: HbsNode, depth: number, violations: string[]) => void>> = {
+  ContentStatement: handleNoopStatement,
+  CommentStatement: handleNoopStatement,
+  PartialStatement: handlePartialStatement,
+  PartialBlockStatement: handlePartialStatement,
+  Decorator: handleDecoratorStatement,
+  DecoratorBlock: handleDecoratorStatement,
+  BlockStatement: handleBlockStatement,
+  MustacheStatement: handleMustacheStatement,
+};
+
 /**
  * Recursively walk a parsed template's statement list, collecting violations.
  *
- * Every node kind is classified explicitly and the default branch descends
- * into `program`/`inverse` rather than ignoring the node, so a construct this
- * walker does not recognize can still never hide an unreviewed block body
- * beneath it.
- *
  * @complexity O(n) in AST node count — one pass, no backtracking, no
  * re-visiting of a node.
- * @overallScore 100/100
  */
 function walkHandlebarsNodes(nodes: HbsNode[], depth: number, violations: string[]): void {
   if (depth > MAX_BLOCK_NESTING_DEPTH) {
@@ -246,78 +326,8 @@ function walkHandlebarsNodes(nodes: HbsNode[], depth: number, violations: string
   }
 
   for (const node of nodes) {
-    switch (node.type) {
-      case "ContentStatement":
-      case "CommentStatement":
-        // Literal HTML / `{{! … }}` — no expression, nothing to check.
-        break;
-
-      case "PartialStatement":
-      case "PartialBlockStatement":
-        // Handlebars' analogue of Liquid's `include`/`render`: resolves a name
-        // against the environment's partial registry, which in a filesystem-
-        // backed setup (the normal way Handlebars is deployed) is a file read,
-        // and in ANY setup is a jump to source this template did not contain.
-        // Tovu registers no partials at all and exposes no `registerPartial`
-        // to a theme, so there is nothing legitimate to resolve — refused as
-        // syntax rather than left to fail at render.
-        violations.push(`disallowed partial "${pathText(node.name)}" (partials are not available to themes)`);
-        break;
-
-      case "Decorator":
-      case "DecoratorBlock":
-        // `{{#*inline}}`/`{{*decorator}}` mutate the runtime's own program and
-        // partial resolution from inside template text. No theme need, and the
-        // single most direct route from "template author" to "compiler
-        // internals" the language offers.
-        violations.push(`disallowed decorator "${pathText(node.path)}"`);
-        break;
-
-      case "BlockStatement": {
-        const name = pathText(node.path);
-        if (!ALLOWED_HANDLEBARS_BLOCK_HELPERS.has(name)) {
-          violations.push(`disallowed block helper "${name}"`);
-        }
-        for (const param of node.params ?? []) walkExpression(param, depth, violations);
-        for (const pair of node.hash?.pairs ?? []) {
-          if (pair.value) walkExpression(pair.value, depth, violations);
-        }
-        walkHandlebarsNodes(node.program?.body ?? [], depth + 1, violations);
-        walkHandlebarsNodes(node.inverse?.body ?? [], depth + 1, violations);
-        break;
-      }
-
-      case "MustacheStatement": {
-        const name = pathText(node.path);
-
-        if (node.escaped === false && !ALLOWED_HANDLEBARS_RAW_PATHS.has(name)) {
-          // `{{{x}}}` and `{{&x}}` both parse to `escaped: false`, so this one
-          // check covers the whole raw-output surface.
-          violations.push(
-            `disallowed raw output "{{{${name}}}}" — use "{{${name}}}" (escaped); raw output is permitted only for ${[...ALLOWED_HANDLEBARS_RAW_PATHS].map((p) => `{{{${p}}}}`).join(", ")}`
-          );
-        }
-
-        if (isInvocation(node) || ALLOWED_HANDLEBARS_HELPERS.has(name)) {
-          if (!ALLOWED_HANDLEBARS_HELPERS.has(name)) violations.push(`disallowed helper "${name}"`);
-        } else {
-          checkPath(node.path, violations);
-        }
-
-        for (const param of node.params ?? []) walkExpression(param, depth, violations);
-        for (const pair of node.hash?.pairs ?? []) {
-          if (pair.value) walkExpression(pair.value, depth, violations);
-        }
-        break;
-      }
-
-      default:
-        // Unknown statement kind: contribute no usage, but never let a nested
-        // body escape review because the wrapper was unrecognized.
-        walkHandlebarsNodes(node.program?.body ?? [], depth + 1, violations);
-        walkHandlebarsNodes(node.inverse?.body ?? [], depth + 1, violations);
-        break;
-    }
+    const handler = node.type !== undefined ? STATEMENT_HANDLERS[node.type] : undefined;
+    (handler ?? handleUnknownStatement)(node, depth, violations);
   }
 }
 
@@ -332,10 +342,7 @@ function walkExpression(node: HbsNode, depth: number, violations: string[]): voi
   if (node.type === "SubExpression") {
     const name = pathText(node.path);
     if (!ALLOWED_HANDLEBARS_HELPERS.has(name)) violations.push(`disallowed helper "${name}"`);
-    for (const param of node.params ?? []) walkExpression(param, depth, violations);
-    for (const pair of node.hash?.pairs ?? []) {
-      if (pair.value) walkExpression(pair.value, depth, violations);
-    }
+    walkParamsAndHash(node, depth, violations);
     return;
   }
   if (node.type === "PathExpression") checkPath(node as HbsPath, violations);
