@@ -325,17 +325,7 @@ export async function deletePost(
 
   const post: PostRecord = { ...existing, deletedAt: now, updatedAt: now, version };
 
-  const transitionEventName = classifyStatusTransition(existing.status, "draft");
-  if (transitionEventName) {
-    await deps.outbox.enqueue({
-      id: `${post.id}-${transitionEventName}-${post.version}`,
-      name: transitionEventName,
-      occurredAt: post.updatedAt,
-      aggregateId: post.id,
-      workspaceId: post.workspaceId,
-      payload: { entryId: post.id, contentType: post.kind },
-    });
-  }
+  await emitStatusTransitionEvent(deps.outbox, existing.status, "draft", post);
 
   return { post };
 }
@@ -517,55 +507,79 @@ function resolveUpdateBodyFields(
 }
 
 /**
- * Validates and normalizes `createPost`'s caller-supplied fields, in behavior.spec.md BR-03's
- * documented order (first failure wins): title bound, then slug format/length/reserved-word
- * (skipped when `slug` is omitted), then `bodyJson` shape, then `status` enum. Every field
- * except `slug` falls back to its BR-03/default-value-table default when the caller omits it;
- * `slug`'s absence is signaled by `explicitSlug: undefined` so `createPost` knows to derive one.
- *
- * Split out from `createPost` (Code Review, 2026-07-28) so the repo-touching orchestration
- * (uniqueness check / derivation loop / save) reads as one job and this pure validation reads as
- * another — each independently testable without a repo double.
- *
- * @complexity O(1) — a fixed sequence of length/format/set-membership checks, no loops.
- * @overallScore 100
+ * Validates and normalizes `createPost`'s title. api.spec.md `title` maxLength bound
+ * ({@link MAX_TITLE_LENGTH}); an empty/whitespace-only title is NOT a hard failure on create
+ * (unlike `updatePost`) — it defaults to "Untitled", certified by "createPost defaults an empty
+ * title to 'Untitled'" in post.test.ts.
  */
-function resolveCreateFields(input: CreatePostInput): ResolvedCreateFields {
+function resolveTitle(input: CreatePostInput): string {
   const trimmedTitle = input.title.trim();
   if (trimmedTitle.length > MAX_TITLE_LENGTH) {
     throw new PostValidationError(`title must be ${MAX_TITLE_LENGTH} characters or fewer`);
   }
-  // Pre-existing behavior (unchanged): an empty/whitespace-only title is NOT a hard failure on
-  // create (unlike `updatePost`) — it defaults to "Untitled", certified by
-  // "createPost defaults an empty title to 'Untitled'" in post.test.ts.
-  const title = trimmedTitle || "Untitled";
+  return trimmedTitle || "Untitled";
+}
 
-  const explicitSlug = input.slug !== undefined ? input.slug.trim().toLowerCase() : undefined;
-  if (explicitSlug !== undefined) {
-    if (!isValidSlugFormat(explicitSlug)) {
-      throw new PostValidationError("slug must use lowercase letters, numbers, and dashes");
-    }
-    if (explicitSlug.length > MAX_SLUG_LENGTH) {
-      throw new PostValidationError(`slug must be ${MAX_SLUG_LENGTH} characters or fewer`);
-    }
-    // SPEC-002 REQ-04/AC-04 — a PROVIDED slug equal to a reserved word is a hard failure (BR-03
-    // step 3); a DERIVED slug landing on a reserved word is a different, not-yet-implemented rule
-    // (BR-02 suffixing) — see `RESERVED_SLUGS`'s doc.
-    if (isReservedSlug(explicitSlug)) {
-      throw new PostValidationError(`slug '${explicitSlug}' is reserved`);
-    }
+/**
+ * Validates and normalizes `createPost`'s caller-supplied `slug`, in behavior.spec.md BR-03's
+ * documented order (format, then length, then reserved-word). Returns `undefined` — not a
+ * derived slug — when the caller omitted `slug`, so `createPost` knows to derive one itself.
+ */
+function resolveExplicitSlug(input: CreatePostInput): string | undefined {
+  if (input.slug === undefined) return undefined;
+  const explicitSlug = input.slug.trim().toLowerCase();
+  if (!isValidSlugFormat(explicitSlug)) {
+    throw new PostValidationError("slug must use lowercase letters, numbers, and dashes");
   }
+  if (explicitSlug.length > MAX_SLUG_LENGTH) {
+    throw new PostValidationError(`slug must be ${MAX_SLUG_LENGTH} characters or fewer`);
+  }
+  // SPEC-002 REQ-04/AC-04 — a PROVIDED slug equal to a reserved word is a hard failure (BR-03
+  // step 3); a DERIVED slug landing on a reserved word is a different, not-yet-implemented rule
+  // (BR-02 suffixing) — see `RESERVED_SLUGS`'s doc.
+  if (isReservedSlug(explicitSlug)) {
+    throw new PostValidationError(`slug '${explicitSlug}' is reserved`);
+  }
+  return explicitSlug;
+}
 
+/** Validates and normalizes `createPost`'s caller-supplied `bodyJson`, defaulting to
+ * {@link DEFAULT_BODY_JSON} when the caller omits it. */
+function resolveCreateBodyJson(input: CreatePostInput): JsonObject {
   if (input.bodyJson !== undefined && !isJsonObject(input.bodyJson)) {
     throw new PostValidationError("bodyJson must be a JSON object");
   }
-  const bodyJson = input.bodyJson !== undefined ? input.bodyJson : DEFAULT_BODY_JSON;
+  return input.bodyJson !== undefined ? input.bodyJson : DEFAULT_BODY_JSON;
+}
 
+/** Validates and normalizes `createPost`'s caller-supplied `status`, defaulting to `"draft"`
+ * when the caller omits it. */
+function resolveCreateStatus(input: CreatePostInput): PostStatus {
   if (input.status !== undefined && !isValidPostStatus(input.status)) {
     throw new PostValidationError("status must be 'draft' or 'published'");
   }
-  const status = input.status !== undefined ? input.status : "draft";
+  return input.status !== undefined ? input.status : "draft";
+}
 
+/**
+ * Validates and normalizes all of `createPost`'s caller-supplied fields, in behavior.spec.md
+ * BR-03's documented order (first failure wins): title bound, then slug format/length/
+ * reserved-word (skipped when `slug` is omitted), then `bodyJson` shape, then `status` enum —
+ * each delegated to its own single-field validator above so every rule stays independently
+ * testable without a repo double. `slug`'s absence is signaled by `explicitSlug: undefined` so
+ * `createPost` knows to derive one.
+ *
+ * Split out from `createPost` (Code Review, 2026-07-28; further split into per-field validators
+ * 2026-08-20) so the repo-touching orchestration (uniqueness check / derivation loop / save)
+ * reads as one job and this pure validation reads as another.
+ *
+ * @complexity O(1) — a fixed sequence of length/format/set-membership checks, no loops.
+ */
+function resolveCreateFields(input: CreatePostInput): ResolvedCreateFields {
+  const title = resolveTitle(input);
+  const explicitSlug = resolveExplicitSlug(input);
+  const bodyJson = resolveCreateBodyJson(input);
+  const status = resolveCreateStatus(input);
   return { title, explicitSlug, bodyJson, status, ...resolveBodyFields() };
 }
 
@@ -654,17 +668,16 @@ function slugify(title: string): string {
     .replace(/^-+|-+$/g, "");
 }
 
-export async function updatePost(
-  required: UpdatePostRequired,
-  _optional: UpdatePostOptional = {}
-): Promise<{ post: PostRecord }> {
-  const { deps, input } = required;
-  const existing = await deps.repo.findById({ workspaceId: input.workspaceId, id: input.id });
-  // A trashed row is not-found for editing purposes — indistinguishable from a missing id, the same
-  // way `pages/update.ts` treats a kind mismatch. Restore it (revert the delete change set) before
-  // editing it; there is no edit-through-the-trash path.
-  if (!existing || isTrashed(existing)) throw new PostNotFoundError(`post '${input.id}' was not found`);
-
+/**
+ * Validates and normalizes `updatePost`'s caller-supplied `title`/`slug`, and validates
+ * `bodyJson`/`status` in place, in behavior.spec.md's documented order (first failure wins):
+ * title, then slug format, then `bodyJson` shape, then `status` enum — the same ordering
+ * discipline `resolveCreateFields`'s per-field validators follow for `createPost`.
+ */
+function validateUpdatePostInput(
+  input: UpdatePostInput,
+  existing: PostRecord
+): { title: string; slug: string } {
   const title = input.title.trim();
   const slug = input.slug.trim().toLowerCase();
 
@@ -685,10 +698,71 @@ export async function updatePost(
     throw new PostValidationError("status must be 'draft' or 'published'");
   }
 
-  const duplicate = await deps.repo.findBySlug({ workspaceId: input.workspaceId, slug });
-  if (duplicate && duplicate.id !== input.id) {
+  return { title, slug };
+}
+
+/** Enforces the same slug-uniqueness rule `createPost`'s explicit-slug path applies — a slug
+ * already claimed by a DIFFERENT record is a conflict; claiming your own current slug is not. */
+async function assertSlugAvailableForUpdate(
+  repo: PostRepoPort,
+  workspaceId: UUID,
+  slug: string,
+  id: UUID
+): Promise<void> {
+  const duplicate = await repo.findBySlug({ workspaceId, slug });
+  if (duplicate && duplicate.id !== id) {
     throw new PostConflictError(`slug '${slug}' already exists`);
   }
+}
+
+/**
+ * Assembles the `PostRecord` `updatePost` will persist, once validation, the uniqueness check,
+ * and the before-save hook have all already run.
+ *
+ * `ext` is destructured off `existing` so the conditional spread below is the single source of
+ * truth for whether the saved record carries one at all (a stale `ext: {}` surviving the spread
+ * would violate AC-14).
+ */
+function buildUpdatedPost(
+  existing: PostRecord,
+  input: UpdatePostInput,
+  fields: { title: string; slug: string },
+  ext: JsonObject | undefined,
+  now: string
+): PostRecord {
+  const { ext: _priorExt, ...carriedOver } = existing;
+  return {
+    ...carriedOver,
+    title: fields.title,
+    slug: fields.slug,
+    // SPEC-047/ADR-056 CIC-3 — forced explicitly rather than left to `...carriedOver`, for the same
+    // reason `createPost` forces it: `UpdatePostInput` has no `bodyFormat`/`bodyHtml` field to even
+    // read, so no caller can convert a row's format through this path. What it does NOT do any more
+    // is flatten an html Page back to `doc` on a title edit — see `resolveUpdateBodyFields`'s doc
+    // for the data-loss bug that behavior caused once html Pages became reachable.
+    ...resolveUpdateBodyFields(existing, input.bodyJson),
+    status: input.status,
+    updatedAt: now,
+    version: existing.version + 1,
+    ...(input.templateChoice !== undefined ? { templateChoice: input.templateChoice } : {}),
+    ...(input.overridesThemePage !== undefined ? { overridesThemePage: input.overridesThemePage } : {}),
+    ...(ext !== undefined ? { ext } : {}),
+  };
+}
+
+export async function updatePost(
+  required: UpdatePostRequired,
+  _optional: UpdatePostOptional = {}
+): Promise<{ post: PostRecord }> {
+  const { deps, input } = required;
+  const existing = await deps.repo.findById({ workspaceId: input.workspaceId, id: input.id });
+  // A trashed row is not-found for editing purposes — indistinguishable from a missing id, the same
+  // way `pages/update.ts` treats a kind mismatch. Restore it (revert the delete change set) before
+  // editing it; there is no edit-through-the-trash path.
+  if (!existing || isTrashed(existing)) throw new PostNotFoundError(`post '${input.id}' was not found`);
+
+  const { title, slug } = validateUpdatePostInput(input, existing);
+  await assertSlugAvailableForUpdate(deps.repo, input.workspaceId, slug, input.id);
 
   // CIC U-004: the hook resolves (or throws) BEFORE the record is built and BEFORE the single
   // repo.save() below. The draft the filters see carries the entry's already-written ext (every
@@ -707,41 +781,10 @@ export async function updatePost(
   });
   const ext = mergeExt(existing.ext, extPatch);
 
-  // `ext` is destructured off `existing` so the conditional spread below is the single source of
-  // truth for whether the saved record carries one at all (a stale `ext: {}` surviving the spread
-  // would violate AC-14).
-  const { ext: _priorExt, ...carriedOver } = existing;
-  const post: PostRecord = {
-    ...carriedOver,
-    title,
-    slug,
-    // SPEC-047/ADR-056 CIC-3 — forced explicitly rather than left to `...carriedOver`, for the same
-    // reason `createPost` forces it: `UpdatePostInput` has no `bodyFormat`/`bodyHtml` field to even
-    // read, so no caller can convert a row's format through this path. What it does NOT do any more
-    // is flatten an html Page back to `doc` on a title edit — see `resolveUpdateBodyFields`'s doc
-    // for the data-loss bug that behavior caused once html Pages became reachable.
-    ...resolveUpdateBodyFields(existing, input.bodyJson),
-    status: input.status,
-    updatedAt: deps.clock.nowIso(),
-    version: existing.version + 1,
-    ...(input.templateChoice !== undefined ? { templateChoice: input.templateChoice } : {}),
-    ...(input.overridesThemePage !== undefined ? { overridesThemePage: input.overridesThemePage } : {}),
-    ...(ext !== undefined ? { ext } : {}),
-  };
+  const post = buildUpdatedPost(existing, input, { title, slug }, ext, deps.clock.nowIso());
 
   await deps.repo.save(post);
-
-  const transitionEventName = classifyStatusTransition(existing.status, post.status);
-  if (transitionEventName) {
-    await deps.outbox.enqueue({
-      id: `${post.id}-${transitionEventName}-${post.version}`,
-      name: transitionEventName,
-      occurredAt: post.updatedAt,
-      aggregateId: post.id,
-      workspaceId: post.workspaceId,
-      payload: { entryId: post.id, contentType: post.kind },
-    });
-  }
+  await emitStatusTransitionEvent(deps.outbox, existing.status, post.status, post);
 
   return { post };
 }
@@ -772,6 +815,31 @@ export function classifyStatusTransition(
   if (wasPublished && isPublished) return "entry.updated";
   if (wasPublished && !isPublished) return "entry.unpublished";
   return null;
+}
+
+/**
+ * Shared status-transition-event emitter for `deletePost` and `updatePost` — computes the event
+ * name via {@link classifyStatusTransition} and enqueues it only when one applies (the "no event"
+ * row returns `null`, and this is then a no-op). `nextStatus` is a separate parameter from
+ * `post.status` because `deletePost` needs to classify the transition as "moved to non-public"
+ * (`"draft"`) without actually changing the trashed row's own stored `status` field.
+ */
+async function emitStatusTransitionEvent(
+  outbox: OutboxPort,
+  previousStatus: PostStatus,
+  nextStatus: PostStatus,
+  post: PostRecord
+): Promise<void> {
+  const transitionEventName = classifyStatusTransition(previousStatus, nextStatus);
+  if (!transitionEventName) return;
+  await outbox.enqueue({
+    id: `${post.id}-${transitionEventName}-${post.version}`,
+    name: transitionEventName,
+    occurredAt: post.updatedAt,
+    aggregateId: post.id,
+    workspaceId: post.workspaceId,
+    payload: { entryId: post.id, contentType: post.kind },
+  });
 }
 
 export interface ListPostsRequired {
