@@ -25,6 +25,8 @@
  * `errors[]` — it never throws. Verified against `__tests__/unit/manifest.unit.test.ts`.
  */
 
+import { SHARED_EXTENSION_CAPABILITIES, type SharedExtensionCapability } from "../../core/extension-capability-vocabulary.js";
+
 /** ADR-024 §1 trust-tier vocabulary (1.1.1 REQ-01 fix). Literal encoding reused verbatim from the
  * existing, approved SPEC-032/ADR-023 precedent (`DataModuleDecl.pluginTier`). */
 export type PluginTier = "tier-1" | "tier-2" | "tier-3";
@@ -32,8 +34,12 @@ export type PluginTier = "tier-1" | "tier-2" | "tier-3";
 /** REQ-04's exactly-three v1 capability vocabulary, as manifest-declared strings (validated
  * against this set by `validateManifest`; `@tovu/sdk`'s `CONTENT_READ`/`CONTENT_EXTEND`/
  * `HOOKS_ATTACH` constants are the same literal values, kept independent here so this module has
- * no dependency on the SDK package per the Module Map). */
-export type PluginCapability = "content.read" | "content.extend" | "hooks.attach";
+ * no dependency on the SDK package per the Module Map). Sourced from `core/`'s
+ * `SharedExtensionCapability` — the sibling `site-glue` mechanism's own capability vocabulary
+ * declares this same three-member set as its first three members; both import the one shared
+ * declaration rather than each retyping the literals (2026-08-20 swarm-consensus synthesis,
+ * Result 1). */
+export type PluginCapability = SharedExtensionCapability;
 
 /** REQ-06 field declaration — `ext.{pluginId}.{field}` (BR-06). `queryable` MUST be `false` in
  * v1 (EC-04); a `true` value is a validation error (`QUERYABLE_UNSUPPORTED_V1`), not silently
@@ -121,7 +127,7 @@ const REQUIRED_KEYS = [
 const OPTIONAL_KEYS = ["adminSurfaces", "contentTypes", "provenance", "dependencies"] as const;
 
 const ALLOWED_KEYS = new Set<string>([...REQUIRED_KEYS, ...OPTIONAL_KEYS]);
-const VALID_CAPABILITIES = new Set<PluginCapability>(["content.read", "content.extend", "hooks.attach"]);
+const VALID_CAPABILITIES = new Set<PluginCapability>(SHARED_EXTENSION_CAPABILITIES);
 const VALID_HOOKS = new Set(["content.entry.beforeSave"]);
 const VALID_TIERS = new Set<PluginTier>(["tier-1", "tier-2", "tier-3"]);
 const VALID_FIELD_TYPES = new Set(["string", "integer", "number", "boolean"]);

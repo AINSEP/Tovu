@@ -24,8 +24,13 @@
  *
  * Architectural role:
  * Design-frozen contract for the extension-glue-tier work (ADR-057, Implementation Outline slice
- * 1). No dependencies; blocks every other slice.
+ * 1). No host-specific dependencies; blocks every other slice. Depends on `core/`'s
+ * `SharedExtensionCapability` for the three-member overlap with the sibling plugin mechanism's own
+ * vocabulary (below both features, not a sibling-to-sibling import — 2026-08-20 swarm-consensus
+ * synthesis, Result 1).
  */
+
+import { SHARED_EXTENSION_CAPABILITIES, type SharedExtensionCapability } from "../../core/extension-capability-vocabulary.js";
 
 /**
  * The closed, six-member call-site vocabulary (ADR-057 Decision 2). All six are valid at schema
@@ -41,16 +46,14 @@ export type GlueCallSite =
   | "http.routes";
 
 /**
- * The eight-member capability vocabulary (ADR-057 Decision 2). The first three string values are
- * shared, by value, with the sibling plugin mechanism's own capability vocabulary — re-declared
- * independently here rather than imported, so this module carries no dependency on that mechanism
- * (see file header). The remaining five are glue-only vocabulary that never crosses into that
- * mechanism's own public surface.
+ * The eight-member capability vocabulary (ADR-057 Decision 2). The first three members are
+ * {@link SharedExtensionCapability} — the same declaration the sibling plugin mechanism's own
+ * capability vocabulary uses, imported from `core/` rather than the two mechanisms importing each
+ * other (see file header). The remaining five are glue-only vocabulary that never crosses into
+ * that mechanism's own public surface.
  */
 export type GlueCapability =
-  | "content.read"
-  | "content.extend"
-  | "hooks.attach"
+  | SharedExtensionCapability
   | "tools.register"
   | "events.subscribe"
   | "admin.nav.register"
@@ -106,9 +109,7 @@ const REQUIRED_KEYS = ["id", "version", "sdkRange", "capabilities", "attachments
 const ALLOWED_KEYS = new Set<string>(REQUIRED_KEYS);
 
 const VALID_CAPABILITIES = new Set<GlueCapability>([
-  "content.read",
-  "content.extend",
-  "hooks.attach",
+  ...SHARED_EXTENSION_CAPABILITIES,
   "tools.register",
   "events.subscribe",
   "admin.nav.register",
