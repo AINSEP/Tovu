@@ -241,6 +241,77 @@ export function assertNoNativeCollision(federatedToolIds: readonly string[], nat
  * @complexity O(t) in the advertised tool count.
  * @overallScore 100
  */
+type RemoteToolClassification =
+  | { readonly ok: true; readonly tool: AdmittedFederatedTool }
+  | { readonly ok: false; readonly remoteName: string; readonly reason: ToolRefusalReason };
+
+/**
+ * Runs R2 + R3 + R4 + R6's gate against ONE remote tool — one iteration of
+ * {@link admitRemoteTools}'s original inline loop body, extracted purely to keep that function's
+ * complexity under the shop ceiling. This is a direct extraction, not a behavior change: the check
+ * order (name validity, duplicate, allowlist, hints, schema, cap) and the exact point `seen` is
+ * mutated (right after the duplicate check passes, BEFORE the allowlist check) are both preserved,
+ * since {@link admitRemoteTools}'s own doc calls that order deliberate.
+ *
+ * @complexity O(1).
+ * @overallScore 100
+ */
+/** R1-adjacent name gate: the shape check plus per-connection dedup. Split out of
+ *  {@link classifyRemoteTool} purely to keep that function's complexity under the shop ceiling.
+ *  Mutates `seen` at the exact point the original inline code did — right after the duplicate
+ *  check passes, before the allowlist check — since {@link classifyRemoteTool}'s own doc calls
+ *  that ordering deliberate. */
+function admitRemoteToolName(remoteName: string, seen: Set<string>): ToolRefusalReason | null {
+  if (!REMOTE_TOOL_NAME_PATTERN.test(remoteName)) return "invalid-remote-tool-name";
+  // A remote advertising the same name twice is either broken or probing for a last-write-wins
+  // bug. Refuse the repeat rather than letting a second descriptor overwrite a vetted first one.
+  if (seen.has(remoteName)) return "duplicate-remote-tool-name";
+  seen.add(remoteName);
+  return null;
+}
+
+/** R3's gate: the ONLY direction a self-declared hint may move a tool. Split out of
+ *  {@link classifyRemoteTool} purely to keep that function's complexity under the shop ceiling. */
+function refusalForRemoteToolHints(annotations: RemoteToolDescriptorAnnotations): ToolRefusalReason | null {
+  if (annotations?.destructiveHint === true) return "remote-declares-destructive";
+  if (annotations?.readOnlyHint === false) return "remote-declares-not-read-only";
+  return null;
+}
+
+function classifyRemoteTool(
+  tool: RemoteToolDescriptor,
+  config: FederatedMcpConnectionConfig,
+  allowed: ReadonlySet<string>,
+  seen: Set<string>,
+  admittedCount: number,
+): RemoteToolClassification {
+  const remoteName = typeof tool?.name === "string" ? tool.name : "";
+
+  const nameRefusal = admitRemoteToolName(remoteName, seen);
+  if (nameRefusal) return { ok: false, remoteName, reason: nameRefusal };
+
+  if (!allowed.has(remoteName)) return { ok: false, remoteName, reason: "not-in-operator-allowlist" };
+
+  const hintRefusal = refusalForRemoteToolHints(tool.annotations);
+  if (hintRefusal) return { ok: false, remoteName, reason: hintRefusal };
+
+  const inputSchema = asJsonSchemaObject(tool.inputSchema);
+  if (!inputSchema) return { ok: false, remoteName, reason: "missing-or-invalid-input-schema" };
+
+  if (admittedCount >= config.maxTools) return { ok: false, remoteName, reason: "connection-tool-cap-reached" };
+
+  return {
+    ok: true,
+    tool: {
+      toolId: federatedToolId(config.connectionId, remoteName),
+      remoteName,
+      description: describeFederatedTool({ label: config.label, remoteName, remoteDescription: tool.description }),
+      inputSchema,
+      declaredAnnotations: tool.annotations,
+    },
+  };
+}
+
 export function admitRemoteTools(params: {
   tools: readonly RemoteToolDescriptor[];
   config: FederatedMcpConnectionConfig;
@@ -254,53 +325,9 @@ export function admitRemoteTools(params: {
   const seen = new Set<string>();
 
   for (const tool of tools) {
-    const remoteName = typeof tool?.name === "string" ? tool.name : "";
-
-    if (!REMOTE_TOOL_NAME_PATTERN.test(remoteName)) {
-      refused.push({ remoteName, reason: "invalid-remote-tool-name" });
-      continue;
-    }
-    // A remote advertising the same name twice is either broken or probing for a last-write-wins
-    // bug. Refuse the repeat rather than letting a second descriptor overwrite a vetted first one.
-    if (seen.has(remoteName)) {
-      refused.push({ remoteName, reason: "duplicate-remote-tool-name" });
-      continue;
-    }
-    seen.add(remoteName);
-
-    if (!allowed.has(remoteName)) {
-      refused.push({ remoteName, reason: "not-in-operator-allowlist" });
-      continue;
-    }
-
-    // R3. The ONLY direction a self-declared hint may move a tool.
-    if (tool.annotations?.destructiveHint === true) {
-      refused.push({ remoteName, reason: "remote-declares-destructive" });
-      continue;
-    }
-    if (tool.annotations?.readOnlyHint === false) {
-      refused.push({ remoteName, reason: "remote-declares-not-read-only" });
-      continue;
-    }
-
-    const inputSchema = asJsonSchemaObject(tool.inputSchema);
-    if (!inputSchema) {
-      refused.push({ remoteName, reason: "missing-or-invalid-input-schema" });
-      continue;
-    }
-
-    if (admitted.length >= config.maxTools) {
-      refused.push({ remoteName, reason: "connection-tool-cap-reached" });
-      continue;
-    }
-
-    admitted.push({
-      toolId: federatedToolId(config.connectionId, remoteName),
-      remoteName,
-      description: describeFederatedTool({ label: config.label, remoteName, remoteDescription: tool.description }),
-      inputSchema,
-      declaredAnnotations: tool.annotations,
-    });
+    const classification = classifyRemoteTool(tool, config, allowed, seen, admitted.length);
+    if (classification.ok) admitted.push(classification.tool);
+    else refused.push({ remoteName: classification.remoteName, reason: classification.reason });
   }
 
   const advertised = new Set(tools.map((tool) => tool?.name).filter((name): name is string => typeof name === "string"));
