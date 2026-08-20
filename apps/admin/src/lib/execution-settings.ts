@@ -166,6 +166,41 @@ export function clearLegacyLocalCredential(): void {
 }
 
 /**
+ * Unwraps `{ data }` off an `api.*` response, or throws a named error identifying which call
+ * produced the malformed body.
+ *
+ * `request()` (`lib/api.ts`) validates shape on the FAILURE path only — a non-2xx always becomes
+ * an `ApiError` — but a 2xx body is returned as `body as T` with no runtime check that it actually
+ * has the shape `T` claims. Every caller in this file that read `.data` straight off that promise
+ * used to let a malformed 200 (body present, `data` missing/`null`) fall through to whatever the
+ * FIRST thing touching the result happened to be: `loadExecutionConfig`'s own `rows.map(...)`
+ * threw `Cannot read properties of undefined (reading 'map')`, while `loadAdminExecutionCredential`
+ * had no local dereference at all, so it silently RESOLVED to `undefined` and the crash only
+ * surfaced later, at whichever caller first read a field off it (live case: `AssistantDock.hooks
+ * .tsx`'s `view.isSet`, `Cannot read properties of undefined (reading 'isSet')`). Both are the same
+ * underlying defect wearing different symptoms depending on what the caller happened to do next.
+ * Centralizing the check here means every one of those call sites fails at its own source, with a
+ * message naming the actual `api.*` method — not a raw property-access trace an on-call engineer
+ * has to work backward from.
+ *
+ * Every existing caller's own failure contract is unchanged by this: `loadExecutionConfig`/
+ * `loadAdminExecutionCredential` still get caught by `AssistantDock`'s `.catch()`-and-log-and-
+ * fall-back-to-defaults; `saveAdminExecutionCredential` still surfaces as a failed save; the local
+ * agent-detection port's methods still reject, per this file's own error-reporting contract (see
+ * `requestAgentDetection`'s doc). This function only makes the THROWN message legible — it never
+ * suppresses a malformed response into a silent default (an earlier draft's `?? []` would have hidden
+ * the same failure behind "shows up as empty settings, no explanation" instead of fixing it).
+ *
+ * @complexity O(1) — one shape check, no iteration.
+ */
+function requireData<T>(response: { data?: T | null } | null | undefined, callSite: string): T {
+  if (response === null || response === undefined || response.data === undefined || response.data === null) {
+    throw new Error(`${callSite} response missing data`);
+  }
+  return response.data;
+}
+
+/**
  * Reads the calling admin's OWN stored BYOK credential view — `isSet`/`masked`/the non-secret
  * fields, never the key. Thin wrapper so callers do not reach into `api.ts` directly; mirrors
  * `loadExecutionConfig`'s role for the ledger half.
@@ -181,7 +216,7 @@ export function clearLegacyLocalCredential(): void {
  * @overallScore 100
  */
 export async function loadAdminExecutionCredential(): Promise<AdminExecutionCredential> {
-  return (await api.getAdminExecutionCredential()).data;
+  return requireData(await api.getAdminExecutionCredential(), "getAdminExecutionCredential");
 }
 
 /**
@@ -199,7 +234,7 @@ export async function loadAdminExecutionCredential(): Promise<AdminExecutionCred
 export async function saveAdminExecutionCredential(
   patch: AdminExecutionCredentialPatch,
 ): Promise<AdminExecutionCredential> {
-  return (await api.setAdminExecutionCredential(patch)).data;
+  return requireData(await api.setAdminExecutionCredential(patch), "setAdminExecutionCredential");
 }
 
 /** A key exists — either just typed in this form, or already stored on the server. Both make the
@@ -308,7 +343,7 @@ export function buildLocalCliConfigFromLedger(byKey: Map<string, unknown>): Exec
 export async function loadExecutionConfig(): Promise<ExecutionConfig> {
   let rows: SettingResolvedValue[];
   try {
-    rows = (await api.getSettingsEffective({ namespace: EXECUTION_NAMESPACE })).data;
+    rows = requireData(await api.getSettingsEffective({ namespace: EXECUTION_NAMESPACE }), "getSettingsEffective");
   } catch (error) {
     // A namespace with no registered definitions is the expected cold-start
     // state, not an error worth surfacing — fall back to defaults.
@@ -453,7 +488,7 @@ export function reconcileExecutionConfigRefresh(current: ExecutionConfig, loaded
  *   route 500ing) — a case with no provider-side answer to report as a value.
  */
 async function requestAgentDetection() {
-  return (await api.detectExecutionAgents()).data;
+  return requireData(await api.detectExecutionAgents(), "detectExecutionAgents");
 }
 
 /**
