@@ -24,8 +24,9 @@
  * literally constructing one object with these five methods.
  */
 import type { UUID } from "@jini-ai/cms/core";
-import type { HeadElement, PageHeadContext } from "../server/http/site/page-head.js";
 import type {
+  HeadElement,
+  PageHeadContext,
   RobotsPolicy,
   SeoAnalysis,
   SeoMeta,

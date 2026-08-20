@@ -14,22 +14,115 @@
  *    registration vocabulary) are dropped — this feature stores overrides on
  *    the bespoke `posts.seo_ext_json` column (state.spec.md §0), not a
  *    generic ext-bag with a content-type field registry.
- *  - `HeadElement`/`HeadElementKey`/`PageHeadContext`/`PageHeadEntryRef` move
- *    to `src/server/http/site/page-head.ts` (ADR-PIPE-008 Decision §2 — the
- *    render seam is core-owned, not SEO-owned); re-exported here for
- *    convenience so `seo` callers don't need two import paths.
+ *  - `HeadElement`/`HeadElementKey`/`PageHeadContext`/`PageHeadEntryRef` live
+ *    canonically in `src/server/http/site/page-head.ts` (ADR-PIPE-008
+ *    Decision §2 — the render seam is core-owned, not SEO-owned); as of
+ *    2026-08-20 (RouteDeps-narrowing pass 3) this file holds a structural
+ *    DUPLICATE of them, not a re-export — see the block comment just above
+ *    their declarations below for why.
  */
-import type { JsonObject } from "@jini-ai/cms/core";
+import type { ISODateTime, JsonObject, UUID } from "@jini-ai/cms/core";
 import type { PostRecord } from "../features/post/index.js";
+import type { ThemeTier } from "../features/theme/index.js";
 
-export type {
-  HeadElement,
-  HeadElementKey,
-  JsonLd,
-  PageHeadContext,
-  PageHeadEntryRef,
-  PageHeadHook,
-} from "../server/http/site/page-head.js";
+/**
+ * Structural duplicate of `server/http/site/page-head.ts`'s `HeadElement`/`HeadElementKey`/
+ * `JsonLd`/`PageHeadContext`/`PageHeadEntryRef`/`PageHeadHook` — NOT a re-export, as of the
+ * 2026-08-20 RouteDeps-narrowing pass 3 (`check:architecture`'s `backEdgesIntoServer` metric counts
+ * a type-only `export type {...} from ".../server/..."` re-export as a real graph edge, same as any
+ * other import — the `--ts-pre-compilation-deps` resolution `route-manifest.ts`'s own header already
+ * documents for this exact shape of edge).
+ *
+ * OWNERSHIP IS UNCHANGED: `page-head.ts` still owns these types canonically. That is a settled,
+ * deliberate decision — ADR-PIPE-008 Decision §2 explicitly considered and REJECTED keeping this
+ * seam inside `src/seo/` ("Wrong ownership — a future non-SEO contributor [the feeds plugin, ADR-032
+ * §4] would have to import the SEO module... couples the render layer to a feature module. Not
+ * selected — ADR-032 itself frames this as the theme layer's seam, not SEO's."). Do not "fix" this
+ * duplicate by turning it back into an import, and do not move these types into this file's own
+ * canonical ownership — both would reopen that rejected alternative.
+ *
+ * `seo/page-head-contributor.ts` never calls `registerPageHeadContributor` itself (only
+ * `server/app.ts` does, at boot) — it only builds a `PageHeadHook`-shaped VALUE, so nothing here
+ * needs the nominal identity of the real types, only their structure.
+ *
+ * Drift safety net — verified empirically with two DIFFERENT perturbations, not asserted from one
+ * (a claim this shape has been wrong before in this codebase). Both were applied to this file, typo
+ * checked with `npx tsc -p tsconfig.json --noEmit`, and reverted:
+ *
+ * 1. Dropped `canonicalUrl` from this file's `PageHeadContext` (a field `page-head-contributor.ts`'s
+ *    `handle` body actually reads). Failed immediately, INSIDE `seo/`, before ever reaching the
+ *    wiring call: `page-head-contributor.ts(34,55): error TS2339: Property 'canonicalUrl' does not
+ *    exist on type 'PageHeadContext'.` — an even earlier tripwire than the wiring call, for any
+ *    drift that touches a field this file's own contributor actually uses.
+ * 2. Changed `PageHeadEntryRef.ext`'s type here from `Record<string, unknown>` to `string` — a field
+ *    NOTHING in `page-head-contributor.ts` reads, chosen specifically to test whether the wiring call
+ *    is a genuinely independent backstop rather than redundant with case 1. It fired exactly there:
+ *    `server/app.ts(796,5): error TS2345: Argument of type '...PageHeadHook' [seo/types.ts] is not
+ *    assignable to parameter of type '...PageHeadHook' [server/http/site/page-head.ts]... Types of
+ *    property 'ext' are incompatible. Type 'Record<string, unknown>' is not assignable to type
+ *    'string'.` — at `registerPageHeadContributor(createSeoPageHeadHook(...))`, line 796.
+ *
+ * So the real guarantee is TWO-LAYERED: a drift in a field this contributor reads fails fast, inside
+ * `seo/`, at the point of use; a drift in a field it does NOT read still fails, loudly, at the
+ * `server/app.ts` wiring call — there is no incompatible-drift shape that both layers miss silently.
+ */
+
+/** JSON-LD is a plain JSON object graph (schema.org) — duplicate of `page-head.ts`'s `JsonLd`. */
+export type JsonLd = JsonObject;
+
+interface HeadElementBase {
+  /** behavior.spec.md §2.1's fixed priority bands and dedup comparator — see `page-head.ts`'s own
+   *  `HeadElementBase` doc for the full rule; unchanged here. */
+  readonly priority: number;
+}
+
+/** Duplicate of `page-head.ts`'s `HeadElement` — see this file's own header for why. */
+export type HeadElement =
+  | (HeadElementBase & { readonly kind: "title"; readonly text: string })
+  | (HeadElementBase & { readonly kind: "meta"; readonly name: string; readonly content: string })
+  | (HeadElementBase & { readonly kind: "og"; readonly property: string; readonly content: string })
+  | (HeadElementBase & {
+      readonly kind: "link";
+      readonly rel: string;
+      readonly href: string;
+      readonly hreflang?: string;
+    })
+  | (HeadElementBase & { readonly kind: "jsonld"; readonly data: JsonLd });
+
+/** Stable dedup key for a HeadElement — duplicate of `page-head.ts`'s `HeadElementKey`. */
+export type HeadElementKey = string;
+
+/** Duplicate of `page-head.ts`'s `PageHeadEntryRef` — see this file's own header for why. */
+export interface PageHeadEntryRef {
+  id: UUID;
+  type: string;
+  slug: string;
+  title: string;
+  status: string;
+  publishedAt?: ISODateTime;
+  updatedAt: ISODateTime;
+  ext: Record<string, unknown>;
+  excerpt?: string;
+  ancestors?: ReadonlyArray<{ title: string; url: string }>;
+}
+
+/** Duplicate of `page-head.ts`'s `PageHeadContext` — see this file's own header for why. */
+export interface PageHeadContext {
+  workspaceId: UUID;
+  route: string;
+  contentType?: string;
+  entry?: PageHeadEntryRef;
+  canonicalUrl: string;
+  siteTitle: string;
+  locale?: string;
+  themeTier?: ThemeTier;
+}
+
+/** Duplicate of `page-head.ts`'s `PageHeadHook` — see this file's own header for why. */
+export interface PageHeadHook {
+  readonly priority: number;
+  handle(ctx: PageHeadContext): Promise<HeadElement[]>;
+}
 
 // ---------------------------------------------------------------------------
 // 1. Stored per-entry meta — the validated `posts.seo_ext_json` bag
