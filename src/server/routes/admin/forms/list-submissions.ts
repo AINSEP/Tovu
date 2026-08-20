@@ -1,3 +1,5 @@
+import type { Request } from "express";
+
 import { toAdminFormSubmissionListResponse } from "#src/server/http/admin/forms";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { FormsRouteRegistrar } from "./deps.js";
@@ -5,6 +7,25 @@ import type { FormsRouteRegistrar } from "./deps.js";
 const DEFAULT_LIMIT = 50;
 const MIN_LIMIT = 1;
 const MAX_LIMIT = 100;
+
+/** Parsed+validated `?limit=`/`?cursor=` pair, or the reason the limit failed validation. */
+type ParsedSubmissionsQuery =
+  | { readonly ok: true; readonly limit: number; readonly cursor: string | undefined }
+  | { readonly ok: false };
+
+/**
+ * Parses and validates `?limit=`/`?cursor=` in one place — `limit` must be an integer in
+ * `[MIN_LIMIT, MAX_LIMIT]`, defaulting to `DEFAULT_LIMIT` when omitted.
+ *
+ * @complexity O(1).
+ */
+function parseSubmissionsQuery(query: Request["query"]): ParsedSubmissionsQuery {
+  const rawLimit = query.limit !== undefined ? Number(query.limit) : DEFAULT_LIMIT;
+  if (!Number.isInteger(rawLimit) || rawLimit < MIN_LIMIT || rawLimit > MAX_LIMIT) {
+    return { ok: false };
+  }
+  return { ok: true, limit: rawLimit, cursor: typeof query.cursor === "string" ? query.cursor : undefined };
+}
 
 /** GET submissions for a form definition, newest-first (`FORMS_LIST_SUBMISSIONS`, REQ-13). */
 export const registerAdminFormsListSubmissionsRoute: FormsRouteRegistrar = (app, deps) => {
@@ -39,8 +60,8 @@ export const registerAdminFormsListSubmissionsRoute: FormsRouteRegistrar = (app,
         return;
       }
 
-      const rawLimit = req.query.limit !== undefined ? Number(req.query.limit) : DEFAULT_LIMIT;
-      if (!Number.isInteger(rawLimit) || rawLimit < MIN_LIMIT || rawLimit > MAX_LIMIT) {
+      const parsedQuery = parseSubmissionsQuery(req.query);
+      if (!parsedQuery.ok) {
         res.status(400).json({
           error: `limit must be an integer between ${MIN_LIMIT} and ${MAX_LIMIT}`,
           code: "FORMS_FIELD_VALIDATION_ERROR",
@@ -48,13 +69,12 @@ export const registerAdminFormsListSubmissionsRoute: FormsRouteRegistrar = (app,
         });
         return;
       }
-      const cursor = typeof req.query.cursor === "string" ? req.query.cursor : undefined;
 
       const page = await deps.formSubmissionRepo.listByDefinition({
         workspaceId: deps.workspaceId,
         formDefinitionId: formId,
-        limit: rawLimit,
-        cursor,
+        limit: parsedQuery.limit,
+        cursor: parsedQuery.cursor,
       });
       res.json(toAdminFormSubmissionListResponse(page));
     } catch {
