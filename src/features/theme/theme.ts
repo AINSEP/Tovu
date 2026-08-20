@@ -363,6 +363,50 @@ function parseTier(value: JsonValue | undefined): ThemeTier {
   throw new Error(`unrecognized theme tier '${String(value)}'`);
 }
 
+/** `typeof value === "string" ? value : undefined` — the shape every plain optional-string
+ * `theme.json` field shares (`author`, `description`, `defaultMode`, `build.builderVersion`,
+ * `build.lockfileHash`, …); factored out once rather than repeated at each call site. */
+function parseOptionalString(value: JsonValue | undefined): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
+/** `Array.isArray(value) ? value.map(String) : undefined` — the shape every plain optional
+ * string-array `theme.json` field shares (`fonts`, `regions`, `templates`, `modes`). */
+function parseOptionalStringArray(value: JsonValue | undefined): string[] | undefined {
+  return Array.isArray(value) ? value.map(String) : undefined;
+}
+
+/**
+ * `{ ...obj }` minus every key whose value is falsy. Centralizes the "include this optional field
+ * only when it has a real value" rule {@link parseThemeBuildInfo}'s return object used to apply as
+ * five separate `...(x ? {x} : {})` spreads — one per optional {@link ThemeBuildInfo} field.
+ */
+function pickTruthy<T extends Record<string, unknown>>(obj: T): Partial<T> {
+  return Object.fromEntries(Object.entries(obj).filter(([, v]) => Boolean(v))) as Partial<T>;
+}
+
+/** `build.framework` — one of the three known values, or `undefined` for anything else
+ * (including an unrecognized framework string, e.g. a theme built with a tool this doesn't
+ * name yet — dropped rather than failing the parse, matching every other optional field here). */
+function parseBuildFramework(value: JsonValue | undefined): ThemeBuildInfo["framework"] {
+  return value === "react" || value === "vue" || value === "angular" ? value : undefined;
+}
+
+/** `build.sourceDir` — a non-empty string, or `undefined` (absent, wrong type, or `""`). Presence
+ * is enforced separately, at {@link loadTheme}'s call site, once {@link ThemeBuildInfo.source} is
+ * known to be `"compiled"` — see this field's own doc for why that check lives there. */
+function parseBuildSourceDir(value: JsonValue | undefined): string | undefined {
+  return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+/** `build.artifactHashes` — every entry whose value isn't a string is dropped rather than failing
+ * the parse (a build tool emitting one malformed hash shouldn't sink the whole manifest); emptiness
+ * after filtering is a {@link loadTheme} call-site concern, matching `sourceDir`'s split above. */
+function parseBuildArtifactHashes(value: JsonValue | undefined): Record<string, string> | undefined {
+  if (!isObject(value)) return undefined;
+  return Object.fromEntries(Object.entries(value).filter((entry): entry is [string, string] => typeof entry[1] === "string"));
+}
+
 /**
  * Parse `theme.json.build` into {@link ThemeBuildInfo}. Absent or non-object ⇒ `undefined` (this theme
  * is `authored`, unchanged from before this field existed). Malformed or missing OPTIONAL fields
@@ -376,26 +420,15 @@ function parseTier(value: JsonValue | undefined): ThemeTier {
 function parseThemeBuildInfo(value: JsonValue | undefined): ThemeBuildInfo | undefined {
   if (!isObject(value)) return undefined;
   const source = value.source === "compiled" ? "compiled" : "authored";
-  const framework =
-    value.framework === "react" || value.framework === "vue" || value.framework === "angular"
-      ? value.framework
-      : undefined;
-  const sourceDir = typeof value.sourceDir === "string" && value.sourceDir.length > 0 ? value.sourceDir : undefined;
-  const builderVersion = typeof value.builderVersion === "string" ? value.builderVersion : undefined;
-  const lockfileHash = typeof value.lockfileHash === "string" ? value.lockfileHash : undefined;
-  const artifactHashes = isObject(value.artifactHashes)
-    ? Object.fromEntries(
-        Object.entries(value.artifactHashes).filter((entry): entry is [string, string] => typeof entry[1] === "string")
-      )
-    : undefined;
+  const framework = parseBuildFramework(value.framework);
+  const sourceDir = parseBuildSourceDir(value.sourceDir);
+  const builderVersion = parseOptionalString(value.builderVersion);
+  const lockfileHash = parseOptionalString(value.lockfileHash);
+  const artifactHashes = parseBuildArtifactHashes(value.artifactHashes);
 
   return {
     source,
-    ...(framework ? { framework } : {}),
-    ...(sourceDir ? { sourceDir } : {}),
-    ...(builderVersion ? { builderVersion } : {}),
-    ...(lockfileHash ? { lockfileHash } : {}),
-    ...(artifactHashes ? { artifactHashes } : {}),
+    ...pickTruthy({ framework, sourceDir, builderVersion, lockfileHash, artifactHashes }),
   };
 }
 
@@ -642,6 +675,329 @@ function loadStaticTierAssets(
 }
 
 /**
+ * Build a {@link ThemeManifest} from `theme.json`'s already-parsed, already-object-checked
+ * contents — pure field-by-field shaping, no validation (see {@link validateManifestCrossFields}
+ * for the checks that read more than one field at a time, and {@link parseThemeManifest} for the
+ * try/catch this sits inside).
+ */
+function parseRawManifestFields(raw: Readonly<JsonObject>, id: string): ThemeManifest {
+  const resolvedId = String(raw.id ?? id);
+  return {
+    id: resolvedId,
+    name: String(raw.name ?? id),
+    version: String(raw.version ?? "0.0.0"),
+    apiVersion: raw.apiVersion === 2 ? 2 : undefined,
+    tier: parseTier(raw.tier),
+    engine: typeof raw.engine === "number" ? raw.engine : 1,
+    author: parseOptionalString(raw.author),
+    build: parseThemeBuildInfo(raw.build),
+    description: parseOptionalString(raw.description),
+    fonts: parseOptionalStringArray(raw.fonts),
+    regions: parseOptionalStringArray(raw.regions),
+    // NOT `raw.skipLiquidAllowlist` — see this field's own doc comment on `ThemeManifest` for the
+    // 2026-08-18 schema v2 decision. Sourced from the trusted local list, never the package's own JSON.
+    skipLiquidAllowlist: TRUSTED_SKIP_LIQUID_ALLOWLIST_THEME_IDS.has(resolvedId),
+    // No `postTemplate`/`pageTemplate` back-compat aliases (2026-08-11 unification, owner's
+    // standing rule on this contract: strictness over compat code). A manifest still carrying the
+    // retired spelling simply loads with no templates, same as one that never declared any —
+    // `check:embed-marker-drift` is what catches a manifest that needed converting, not this parse.
+    templates: parseOptionalStringArray(raw.templates),
+    modes: parseOptionalStringArray(raw.modes),
+    defaultMode: parseOptionalString(raw.defaultMode),
+    slots: parseSlots(raw.slots),
+  };
+}
+
+/**
+ * The `build.source: "compiled"` cross-field checks — a compiled theme is, at runtime, an
+ * ordinary `static` theme, so there is no server-executing tier it maps onto (see
+ * {@link ThemeBuildInfo}'s own doc), and its `sourceDir`/`artifactHashes` are REQUIRED once
+ * `source` says `compiled` even though {@link parseThemeBuildInfo} treats them as optional shape.
+ * Split out of {@link validateManifestCrossFields} so that function's own three top-level checks
+ * (id match, `defaultMode`, and "is this a compiled build") stay a flat sequence.
+ */
+function validateCompiledBuildManifest(build: ThemeBuildInfo, tier: ThemeTier): string[] {
+  const errors: string[] = [];
+  if (tier !== "static") {
+    errors.push("theme.json build.source 'compiled' requires tier 'static'");
+  }
+  if (!build.sourceDir) {
+    errors.push("theme.json build.sourceDir is required when build.source is 'compiled'");
+  } else if (isSourceDirGeneratedConflict(build.sourceDir)) {
+    // The deeper fix promised in `explore.ts`'s PUT handler comment (2026-08-13): a manifest is
+    // refused HERE, at install time, rather than relying only on each write route's own
+    // `isGeneratedThemePath` call-site refusal. That refusal (explore.ts, marketplace.ts) stays —
+    // this is an earlier, independent layer, not a replacement for it. See
+    // `isSourceDirGeneratedConflict`'s own doc for the three conflicting shapes (exact, nested
+    // inside, or ancestor-of a generated dir) and why `"preview-notes"` is not one of them.
+    errors.push(
+      `theme.json build.sourceDir '${build.sourceDir}' must not name or contain a generated theme directory (${GENERATED_THEME_DIRS.join(", ")})`
+    );
+  }
+  if (!build.artifactHashes || Object.keys(build.artifactHashes).length === 0) {
+    errors.push("theme.json build.artifactHashes is required when build.source is 'compiled'");
+  }
+  return errors;
+}
+
+/**
+ * Cross-field manifest checks — each reads more than one field, which is why none of these live
+ * inside {@link parseRawManifestFields} or a single field's own parser (matching how
+ * {@link parseThemeBuildInfo}'s own doc already draws this line for `build`).
+ */
+function validateManifestCrossFields(manifest: ThemeManifest, id: string): string[] {
+  const errors: string[] = [];
+  if (manifest.id !== id) errors.push(`theme.json id '${manifest.id}' must equal folder name '${id}'`);
+  // A `defaultMode` the theme ships no tokens for would silently render the base `:root` block
+  // while the manifest claims otherwise — the exact "declared but unreachable" failure wiring
+  // these fields was meant to end, so it fails the theme loudly instead of falling back.
+  if (manifest.defaultMode !== undefined && !(manifest.modes ?? []).includes(manifest.defaultMode)) {
+    errors.push(
+      `theme.json defaultMode '${manifest.defaultMode}' is not listed in modes [${(manifest.modes ?? []).join(", ")}]`
+    );
+  }
+  if (manifest.build?.source === "compiled") {
+    errors.push(...validateCompiledBuildManifest(manifest.build, manifest.tier));
+  }
+  return errors;
+}
+
+/** A manifest that never parsed at all — {@link parseThemeManifest}'s fallback when `theme.json`
+ * is missing, unreadable, or not an object. Every field falls back to what `loadTheme` used
+ * before any of these fields existed. */
+function emptyThemeManifest(id: string): ThemeManifest {
+  return { id, name: id, version: "0.0.0", tier: "declarative", engine: 1 };
+}
+
+/**
+ * Read and validate `theme.json`. Never throws — a read/parse failure degrades to
+ * {@link emptyThemeManifest} plus one error, matching {@link loadTheme}'s "one bad theme never
+ * breaks discovery" contract (SPEC-004 REQ-10 spirit).
+ */
+function parseThemeManifest(themeDir: string, id: string): { manifest: ThemeManifest; errors: string[] } {
+  try {
+    const raw = readJson(join(themeDir, "theme.json"));
+    if (!isObject(raw)) throw new Error("theme.json is not an object");
+    const manifest = parseRawManifestFields(raw, id);
+    return { manifest, errors: validateManifestCrossFields(manifest, id) };
+  } catch (err) {
+    return { manifest: emptyThemeManifest(id), errors: [`theme.json: ${(err as Error).message}`] };
+  }
+}
+
+/** Read `tokens.json`. Never throws — a read/parse failure degrades to an empty token map plus
+ * one error, the same REQ-10 contract {@link parseThemeManifest} follows for `theme.json`. */
+function loadThemeTokens(themeDir: string): { tokens: ThemeTokens; errors: string[] } {
+  try {
+    const raw = readJson(join(themeDir, "tokens.json"));
+    if (!isObject(raw)) throw new Error("tokens.json is not an object");
+    return { tokens: Object.fromEntries(Object.entries(raw).map(([k, v]) => [k, String(v)])), errors: [] };
+  } catch (err) {
+    return { tokens: {}, errors: [`tokens.json: ${(err as Error).message}`] };
+  }
+}
+
+/**
+ * The install-time gate for a built release (ADR-020 §5) — only runs for `build.source:
+ * "compiled"` (a no-op otherwise, so every theme on disk today is unaffected). Needs
+ * `pages`/`partials`, so {@link loadTheme} cannot call this any earlier than after
+ * {@link loadStaticTierAssets} — see `build-conformance.ts`'s own header for what it checks and
+ * why a hard failure here, not a runtime warning, is the point.
+ */
+function checkCompiledBuildConformance(
+  manifest: ThemeManifest,
+  themeDir: string,
+  pages: Readonly<Record<string, string>>,
+  partials: Readonly<Record<string, string>>
+): string[] {
+  if (manifest.build?.source !== "compiled") return [];
+  return checkBuiltThemeConformance({
+    themeId: manifest.id,
+    themeDir,
+    sourceDir: manifest.build.sourceDir,
+    pages,
+    partials,
+    artifactHashes: manifest.build.artifactHashes ?? {},
+    apiVersion: manifest.apiVersion,
+  }).map((issue) => `build conformance (${issue.rule}) '${issue.page}': ${issue.message}`);
+}
+
+/** Which of the three template source families a `templates/` (or v2 `render/pages/`) directory
+ * entry belongs to, by extension — `"unknown"` for anything {@link loadTemplateSources} ignores
+ * (same as the original silent no-op for a non-matching file). */
+function classifyTemplateFile(file: string): "json" | "liquid" | "handlebars" | "unknown" {
+  if (file.endsWith(".json")) return "json";
+  if (file.endsWith(".liquid")) return "liquid";
+  if (file.endsWith(".hbs") || file.endsWith(".handlebars")) return "handlebars";
+  return "unknown";
+}
+
+/** Declarative tier: one block-tree template per `.json` file. */
+function loadJsonTemplateFile(
+  templatesDir: string,
+  templatesDirName: string,
+  file: string,
+  target: { templates: Record<string, TemplateNode>; errors: string[] }
+): void {
+  const templateId = file.slice(0, -".json".length);
+  try {
+    target.templates[templateId] = readJson(join(templatesDir, file));
+  } catch (err) {
+    target.errors.push(`${templatesDirName}/${file}: ${(err as Error).message}`);
+  }
+}
+
+/**
+ * Templated tier (ADR-020): raw LiquidJS source, rendered by the engine in render.ts. C6/REQ-06
+ * lint-before-publish: reject any tag/filter outside the ADR-020 §3 allowlist before the theme
+ * can load as valid — unless this theme is on the trusted `skipLiquidAllowlist` list (see
+ * `ThemeManifest` doc comment: the runtime's other Tier-2 guardrails — worker isolation,
+ * filesystem lockdown, memory/render/parse limits — still apply either way).
+ */
+function loadLiquidTemplateFile(
+  templatesDir: string,
+  templatesDirName: string,
+  file: string,
+  skipLiquidAllowlist: boolean,
+  target: { liquidTemplates: Record<string, string>; errors: string[] }
+): void {
+  const templateId = file.slice(0, -".liquid".length);
+  const source = readFileSync(join(templatesDir, file), "utf8");
+  const violations = skipLiquidAllowlist ? [] : lintLiquidTemplate(source);
+  if (violations.length > 0) {
+    target.errors.push(`${templatesDirName}/${file}: ${violations.join("; ")}`);
+  } else {
+    target.liquidTemplates[templateId] = source;
+  }
+}
+
+/**
+ * Handlebars tier (ADR-020): raw Handlebars source, rendered by the isolated worker in
+ * `server/http/site/handlebars-worker.ts`. Exactly the same lint-before-publish contract
+ * {@link loadLiquidTemplateFile} applies, against the Handlebars-specific allowlist — a
+ * disallowed helper, a partial, a decorator, or a `{{{raw}}}` output outside the one sanctioned
+ * path fails the theme rather than reaching the compiler. Both extensions are accepted
+ * (Handlebars' ecosystem uses them interchangeably) and map to the same template-id namespace, so
+ * `home.hbs` and `home.handlebars` are the same template id — the last one `readdirSync` yields
+ * wins, which is why a theme should ship one or the other, not both.
+ */
+function loadHandlebarsTemplateFile(
+  templatesDir: string,
+  templatesDirName: string,
+  file: string,
+  target: { handlebarsTemplates: Record<string, string>; errors: string[] }
+): void {
+  const ext = file.endsWith(".hbs") ? ".hbs" : ".handlebars";
+  const templateId = file.slice(0, -ext.length);
+  const source = readFileSync(join(templatesDir, file), "utf8");
+  const violations = lintHandlebarsTemplate(source);
+  if (violations.length > 0) {
+    target.errors.push(`${templatesDirName}/${file}: ${violations.join("; ")}`);
+  } else {
+    target.handlebarsTemplates[templateId] = source;
+  }
+}
+
+/**
+ * Scan the theme's route-map directory (v1: theme-root `templates/`; v2: `render/pages/` —
+ * theme-authoring-guide-v2.md §3, same folder name static pages use, only the naming convention
+ * changes) and dispatch each file to its extension's loader. A missing directory is not an error
+ * here — the required-template check ({@link validateRequiredTemplates}) is what turns "no home/
+ * entry template" into one, the same REQ-10 fault-isolation split {@link loadStaticTierAssets}
+ * already draws between "nothing found" and "what's required".
+ */
+function loadTemplateSources(
+  themeDir: string,
+  manifest: ThemeManifest
+): {
+  templatesDirName: string;
+  templates: Record<string, TemplateNode>;
+  liquidTemplates: Record<string, string>;
+  handlebarsTemplates: Record<string, string>;
+  errors: string[];
+} {
+  // v1: non-static tiers keep their route map at theme-root `templates/`. v2 unifies every tier's
+  // route map under `render/pages/` — only the naming convention changes, the per-extension
+  // dispatch below (json/liquid/hbs) stays identical either way.
+  const templatesDirName = manifest.apiVersion === 2 ? "render/pages" : "templates";
+  const templatesDir = join(themeDir, templatesDirName);
+  const templates: Record<string, TemplateNode> = {};
+  const liquidTemplates: Record<string, string> = {};
+  const handlebarsTemplates: Record<string, string> = {};
+  const errors: string[] = [];
+
+  if (!existsSync(templatesDir)) {
+    return { templatesDirName, templates, liquidTemplates, handlebarsTemplates, errors };
+  }
+
+  for (const file of readdirSync(templatesDir)) {
+    const kind = classifyTemplateFile(file);
+    if (kind === "json") {
+      loadJsonTemplateFile(templatesDir, templatesDirName, file, { templates, errors });
+    } else if (kind === "liquid") {
+      loadLiquidTemplateFile(templatesDir, templatesDirName, file, manifest.skipLiquidAllowlist ?? false, {
+        liquidTemplates,
+        errors,
+      });
+    } else if (kind === "handlebars") {
+      loadHandlebarsTemplateFile(templatesDir, templatesDirName, file, { handlebarsTemplates, errors });
+    }
+  }
+
+  return { templatesDirName, templates, liquidTemplates, handlebarsTemplates, errors };
+}
+
+/** Which template-id map is authoritative for a tier's required home/entry check, and the file
+ * extension its error messages should name — templated themes ship `.liquid`, handlebars themes
+ * ship `.hbs`, every other (non-static) tier ships plain `.json`. */
+function requiredTemplatesForTier(
+  tier: ThemeTier,
+  templates: Readonly<Record<string, TemplateNode>>,
+  liquidTemplates: Readonly<Record<string, string>>,
+  handlebarsTemplates: Readonly<Record<string, string>>
+): { ext: string; required: Readonly<Record<string, unknown>> } {
+  if (tier === "templated") return { ext: "liquid", required: liquidTemplates };
+  if (tier === "handlebars") return { ext: "hbs", required: handlebarsTemplates };
+  return { ext: "json", required: templates };
+}
+
+/**
+ * REQ-01: a theme's required template minimum is home + entry (the base). C3: post/page are
+ * optional specializations that fall through to entry (REQ-03). A static theme has no separate
+ * route-map folder at all — its required-file check is {@link loadStaticTierAssets}'s job, not
+ * this one's.
+ */
+function validateRequiredTemplates(
+  manifest: ThemeManifest,
+  templatesDirName: string,
+  templates: Readonly<Record<string, TemplateNode>>,
+  liquidTemplates: Readonly<Record<string, string>>,
+  handlebarsTemplates: Readonly<Record<string, string>>
+): string[] {
+  if (manifest.tier === "static") return [];
+  const { ext, required } = requiredTemplatesForTier(manifest.tier, templates, liquidTemplates, handlebarsTemplates);
+  const errors: string[] = [];
+  if (!required.home) errors.push(`${templatesDirName}/home.${ext} is required`);
+  if (!required.entry) errors.push(`${templatesDirName}/entry.${ext} is required`);
+  return errors;
+}
+
+/**
+ * v1: static keeps CSS under `css/styles.css` (alongside sibling `js/` and `pages/` folders);
+ * every other tier keeps a lone `styles.css` at the theme root, the flat single-stylesheet shape
+ * that fits a route-map-only theme. v2 unifies every tier onto `css/theme.css`
+ * (theme-authoring-guide-v2.md §3) — same folder name static already used, new filename, and now
+ * every tier gets the `css/` folder rather than just static.
+ */
+function loadThemeCss(themeDir: string, manifest: ThemeManifest): string {
+  const cssPath = join(
+    themeDir,
+    manifest.apiVersion === 2 ? "css/theme.css" : manifest.tier === "static" ? "css/styles.css" : "styles.css"
+  );
+  return existsSync(cssPath) ? readFileSync(cssPath, "utf8") : "";
+}
+
+/**
  * Load one theme folder. Returns a DiscoveredTheme with `status: "invalid"` and
  * a populated `errors` list instead of throwing, so one bad theme never breaks
  * discovery (SPEC-004 REQ-10 spirit).
@@ -652,82 +1008,12 @@ export function loadTheme(
 ): DiscoveredTheme {
   const { themeDir, id, source } = required;
   const errors: string[] = [];
-  const empty: ThemeManifest = { id, name: id, version: "0.0.0", tier: "declarative", engine: 1 };
 
-  let manifest = empty;
-  try {
-    const raw = readJson(join(themeDir, "theme.json"));
-    if (!isObject(raw)) throw new Error("theme.json is not an object");
-    const resolvedId = String(raw.id ?? id);
-    manifest = {
-      id: resolvedId,
-      name: String(raw.name ?? id),
-      version: String(raw.version ?? "0.0.0"),
-      apiVersion: raw.apiVersion === 2 ? 2 : undefined,
-      tier: parseTier(raw.tier),
-      engine: typeof raw.engine === "number" ? raw.engine : 1,
-      author: typeof raw.author === "string" ? raw.author : undefined,
-      build: parseThemeBuildInfo(raw.build),
-      description: typeof raw.description === "string" ? raw.description : undefined,
-      fonts: Array.isArray(raw.fonts) ? raw.fonts.map(String) : undefined,
-      regions: Array.isArray(raw.regions) ? raw.regions.map(String) : undefined,
-      // NOT `raw.skipLiquidAllowlist` — see this field's own doc comment on `ThemeManifest` for the
-      // 2026-08-18 schema v2 decision. Sourced from the trusted local list, never the package's own JSON.
-      skipLiquidAllowlist: TRUSTED_SKIP_LIQUID_ALLOWLIST_THEME_IDS.has(resolvedId),
-      // No `postTemplate`/`pageTemplate` back-compat aliases (2026-08-11 unification, owner's
-      // standing rule on this contract: strictness over compat code). A manifest still carrying the
-      // retired spelling simply loads with no templates, same as one that never declared any —
-      // `check:embed-marker-drift` is what catches a manifest that needed converting, not this parse.
-      templates: Array.isArray(raw.templates) ? raw.templates.map(String) : undefined,
-      modes: Array.isArray(raw.modes) ? raw.modes.map(String) : undefined,
-      defaultMode: typeof raw.defaultMode === "string" ? raw.defaultMode : undefined,
-      slots: parseSlots(raw.slots),
-    };
-    if (manifest.id !== id) errors.push(`theme.json id '${manifest.id}' must equal folder name '${id}'`);
-    // A `defaultMode` the theme ships no tokens for would silently render the base `:root` block
-    // while the manifest claims otherwise — the exact "declared but unreachable" failure wiring
-    // these fields was meant to end, so it fails the theme loudly instead of falling back.
-    if (manifest.defaultMode !== undefined && !(manifest.modes ?? []).includes(manifest.defaultMode)) {
-      errors.push(
-        `theme.json defaultMode '${manifest.defaultMode}' is not listed in modes [${(manifest.modes ?? []).join(", ")}]`
-      );
-    }
-    // A `build.source: "compiled"` theme is, at runtime, an ordinary `static` theme — there is no
-    // server-executing tier it maps onto (see ThemeBuildInfo's own doc). Cross-field, so it lives at
-    // this call site rather than inside parseThemeBuildInfo, matching defaultMode's check just above.
-    if (manifest.build?.source === "compiled") {
-      if (manifest.tier !== "static") {
-        errors.push("theme.json build.source 'compiled' requires tier 'static'");
-      }
-      if (!manifest.build.sourceDir) {
-        errors.push("theme.json build.sourceDir is required when build.source is 'compiled'");
-      } else if (isSourceDirGeneratedConflict(manifest.build.sourceDir)) {
-        // The deeper fix promised in `explore.ts`'s PUT handler comment (2026-08-13): a manifest is
-        // refused HERE, at install time, rather than relying only on each write route's own
-        // `isGeneratedThemePath` call-site refusal. That refusal (explore.ts, marketplace.ts) stays —
-        // this is an earlier, independent layer, not a replacement for it. See
-        // `isSourceDirGeneratedConflict`'s own doc for the three conflicting shapes (exact, nested
-        // inside, or ancestor-of a generated dir) and why `"preview-notes"` is not one of them.
-        errors.push(
-          `theme.json build.sourceDir '${manifest.build.sourceDir}' must not name or contain a generated theme directory (${GENERATED_THEME_DIRS.join(", ")})`
-        );
-      }
-      if (!manifest.build.artifactHashes || Object.keys(manifest.build.artifactHashes).length === 0) {
-        errors.push("theme.json build.artifactHashes is required when build.source is 'compiled'");
-      }
-    }
-  } catch (err) {
-    errors.push(`theme.json: ${(err as Error).message}`);
-  }
+  const { manifest, errors: manifestErrors } = parseThemeManifest(themeDir, id);
+  errors.push(...manifestErrors);
 
-  let tokens: ThemeTokens = {};
-  try {
-    const raw = readJson(join(themeDir, "tokens.json"));
-    if (!isObject(raw)) throw new Error("tokens.json is not an object");
-    tokens = Object.fromEntries(Object.entries(raw).map(([k, v]) => [k, String(v)]));
-  } catch (err) {
-    errors.push(`tokens.json: ${(err as Error).message}`);
-  }
+  const { tokens, errors: tokenErrors } = loadThemeTokens(themeDir);
+  errors.push(...tokenErrors);
 
   // The static tier's whole on-disk layout — light tokens, pages/, root partials — loaded in one
   // call rather than as branches threaded through the tier-agnostic loading below. Empty for every
@@ -741,107 +1027,18 @@ export function loadTheme(
   });
   errors.push(...staticErrors);
 
-  // The install-time gate for a built release (ADR-020 §5) — only runs for `build.source: "compiled"`
-  // (a no-op otherwise, so every theme on disk today is unaffected). Needs `pages`/`partials`, so it
-  // cannot run any earlier than this — see `build-conformance.ts`'s own header for what it checks and
-  // why a hard failure here, not a runtime warning, is the point.
-  if (manifest.build?.source === "compiled") {
-    errors.push(
-      ...checkBuiltThemeConformance({
-        themeId: manifest.id,
-        themeDir,
-        sourceDir: manifest.build.sourceDir,
-        pages,
-        partials,
-        artifactHashes: manifest.build.artifactHashes ?? {},
-        apiVersion: manifest.apiVersion,
-      }).map((issue) => `build conformance (${issue.rule}) '${issue.page}': ${issue.message}`)
-    );
-  }
+  errors.push(...checkCompiledBuildConformance(manifest, themeDir, pages, partials));
 
-  const templates: Record<string, TemplateNode> = {};
-  const liquidTemplates: Record<string, string> = {};
-  const handlebarsTemplates: Record<string, string> = {};
-  // v1: non-static tiers keep their route map at theme-root `templates/`. v2 unifies every tier's
-  // route map under `render/pages/` (theme-authoring-guide-v2.md §3), the same folder name static
-  // pages use — only the naming convention changes, the per-extension dispatch below (json/liquid/
-  // hbs) stays identical either way.
-  const templatesDirName = manifest.apiVersion === 2 ? "render/pages" : "templates";
-  const templatesDir = join(themeDir, templatesDirName);
-  if (existsSync(templatesDir)) {
-    for (const file of readdirSync(templatesDir)) {
-      if (file.endsWith(".json")) {
-        const templateId = file.slice(0, -".json".length);
-        try {
-          templates[templateId] = readJson(join(templatesDir, file));
-        } catch (err) {
-          errors.push(`${templatesDirName}/${file}: ${(err as Error).message}`);
-        }
-      } else if (file.endsWith(".liquid")) {
-        // Templated tier (ADR-020): raw LiquidJS source, rendered by the engine
-        // in render.ts. C6/REQ-06 lint-before-publish: reject any tag/filter
-        // outside the ADR-020 §3 allowlist before the theme can load as valid —
-        // unless this theme is on the trusted `skipLiquidAllowlist` list (see
-        // ThemeManifest doc comment: the runtime's other Tier-2 guardrails — worker
-        // isolation, filesystem lockdown, memory/render/parse limits — still apply either way).
-        const templateId = file.slice(0, -".liquid".length);
-        const source = readFileSync(join(templatesDir, file), "utf8");
-        const violations = manifest.skipLiquidAllowlist ? [] : lintLiquidTemplate(source);
-        if (violations.length > 0) {
-          errors.push(`${templatesDirName}/${file}: ${violations.join("; ")}`);
-        } else {
-          liquidTemplates[templateId] = source;
-        }
-      } else if (file.endsWith(".hbs") || file.endsWith(".handlebars")) {
-        // Handlebars tier (ADR-020): raw Handlebars source, rendered by the
-        // isolated worker in `server/http/site/handlebars-worker.ts`. Exactly the
-        // same lint-before-publish contract the `.liquid` branch above applies,
-        // against the Handlebars-specific allowlist — a disallowed helper, a
-        // partial, a decorator, or a `{{{raw}}}` output outside the one sanctioned
-        // path fails the theme rather than reaching the compiler. Both extensions
-        // are accepted (Handlebars' ecosystem uses them interchangeably) and map to
-        // the same template-id namespace, so `home.hbs` and `home.handlebars` are
-        // the same template id — the last one `readdirSync` yields wins, which is
-        // why a theme should ship one or the other, not both.
-        const ext = file.endsWith(".hbs") ? ".hbs" : ".handlebars";
-        const templateId = file.slice(0, -ext.length);
-        const source = readFileSync(join(templatesDir, file), "utf8");
-        const violations = lintHandlebarsTemplate(source);
-        if (violations.length > 0) {
-          errors.push(`${templatesDirName}/${file}: ${violations.join("; ")}`);
-        } else {
-          handlebarsTemplates[templateId] = source;
-        }
-      }
-    }
-  }
-  // A static theme has no separate route-map folder at all — its required-file check is
-  // `loadStaticTierAssets`'s job, not this one's.
-  if (manifest.tier !== "static") {
-    // REQ-01: a theme's required template minimum is home + entry (the base). C3:
-    // post/page are optional specializations that fall through to entry (REQ-03).
-    // The required set is tier-aware: templated themes ship `.liquid`, handlebars
-    // themes ship `.hbs`, others JSON.
-    const ext = manifest.tier === "templated" ? "liquid" : manifest.tier === "handlebars" ? "hbs" : "json";
-    const requiredTemplates =
-      manifest.tier === "templated" ? liquidTemplates : manifest.tier === "handlebars" ? handlebarsTemplates : templates;
-    if (!requiredTemplates.home) errors.push(`${templatesDirName}/home.${ext} is required`);
-    if (!requiredTemplates.entry) errors.push(`${templatesDirName}/entry.${ext} is required`);
-  }
-
-  let css = "";
-  // v1: static keeps CSS under css/styles.css (alongside sibling js/ and pages/ folders); every
-  // other tier keeps a lone `styles.css` at the theme root, the flat single-stylesheet shape that
-  // fits a route-map-only theme. v2 unifies every tier onto `css/theme.css`
-  // (theme-authoring-guide-v2.md §3) — same folder name static already used, new filename, and now
-  // every tier gets the `css/` folder rather than just static.
-  const cssPath = join(
-    themeDir,
-    manifest.apiVersion === 2 ? "css/theme.css" : manifest.tier === "static" ? "css/styles.css" : "styles.css"
+  const { templatesDirName, templates, liquidTemplates, handlebarsTemplates, errors: templateErrors } =
+    loadTemplateSources(themeDir, manifest);
+  errors.push(...templateErrors);
+  errors.push(
+    ...validateRequiredTemplates(manifest, templatesDirName, templates, liquidTemplates, handlebarsTemplates)
   );
-  if (existsSync(cssPath)) css = readFileSync(cssPath, "utf8");
 
-  const loaded: DiscoveredTheme = {
+  const css = loadThemeCss(themeDir, manifest);
+
+  return {
     manifest,
     dir: themeDir,
     tokens,
@@ -856,8 +1053,6 @@ export function loadTheme(
     status: errors.length === 0 ? "valid" : "invalid",
     errors,
   };
-
-  return loaded;
 }
 
 /**
