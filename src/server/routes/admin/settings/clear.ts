@@ -10,9 +10,43 @@ import {
 } from "#src/features/settings/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { SettingsRouteRegistrar } from "./deps.js";
-import { resolveTargetWorkspaceId, toWriteServiceDeps } from "./shared.js";
+import { resolveTargetWorkspaceId, respondToSettingsError, toWriteServiceDeps, type SettingsErrorMapping } from "./shared.js";
 
 const VALID_SCOPES: readonly SettingScope[] = ["global", "workspace", "user"];
+
+const CLEAR_ERROR_MAPPINGS: readonly SettingsErrorMapping[] = [
+  { matches: (e) => e instanceof PrincipalNotFoundError, status: 404, code: "PRINCIPAL_NOT_FOUND" },
+  { matches: (e) => e instanceof DefinitionNotFoundError, status: 404, code: "DEFINITION_NOT_FOUND" },
+  { matches: (e) => e instanceof DefinitionTombstonedError, status: 409, code: "DEFINITION_TOMBSTONED" },
+  { matches: (e) => e instanceof ScopeNotAllowedError, status: 400, code: "SCOPE_NOT_ALLOWED" },
+  { matches: (e) => e instanceof ForbiddenError, status: 403, code: "FORBIDDEN" },
+];
+
+/** This route's required fields, off an untyped body: `namespace`, `key`, and a `VALID_SCOPES`
+ *  member. `null` means the body failed that check.
+ *  @complexity O(1). */
+function parseClearRequestFields(rawBody: unknown): {
+  namespace: string;
+  key: string;
+  scope: SettingScope;
+  bodyWorkspaceId: unknown;
+  principalId: string | undefined;
+} | null {
+  const body = (rawBody ?? {}) as Record<string, unknown>;
+  const namespace = String(body.namespace ?? "");
+  const key = String(body.key ?? "");
+  const scope = body.scope as SettingScope;
+  if (!namespace || !key || !VALID_SCOPES.includes(scope)) {
+    return null;
+  }
+  return {
+    namespace,
+    key,
+    scope,
+    bodyWorkspaceId: body.workspaceId,
+    principalId: body.principalId ? String(body.principalId) : undefined,
+  };
+}
 
 /**
  * DELETE clear a setting's value at a scope (SPEC-007 api.spec.md
@@ -35,28 +69,25 @@ export const registerAdminSettingsClearRoute: SettingsRouteRegistrar = (app, dep
       await deps.settingsReady;
       const principal = getAuthedPrincipal(res);
 
-      const body = (req.body ?? {}) as Record<string, unknown>;
-      const namespace = String(body.namespace ?? "");
-      const key = String(body.key ?? "");
-      const scope = body.scope as SettingScope;
-      if (!namespace || !key || !VALID_SCOPES.includes(scope)) {
+      const parsed = parseClearRequestFields(req.body);
+      if (!parsed) {
         res.status(400).json({
           error: "namespace, key, and scope (global|workspace|user) are required",
           code: "VALIDATION_ERROR",
         });
         return;
       }
+      const { namespace, key, scope, bodyWorkspaceId, principalId } = parsed;
       // See `resolveTargetWorkspaceId` in `shared.ts`. This route previously took the write target
       // straight from the body while authorizing against `deps.workspaceId` below — a cross-tenant
       // clear. It also never defaulted for non-global scopes, the same masked-500 gap `set.ts` was
       // fixed for on 2026-07-31 and that its comment flagged here as an unfixed follow-up.
-      const targetWorkspace = resolveTargetWorkspaceId(deps, { bodyWorkspaceId: body.workspaceId, scope });
+      const targetWorkspace = resolveTargetWorkspaceId(deps, { bodyWorkspaceId, scope });
       if (!targetWorkspace.ok) {
         res.status(400).json({ error: targetWorkspace.error, code: "VALIDATION_ERROR" });
         return;
       }
       const workspaceId = targetWorkspace.workspaceId;
-      const principalId = body.principalId ? String(body.principalId) : undefined;
 
       const permission = deriveRequiredPermission({
         scope,
@@ -88,27 +119,7 @@ export const registerAdminSettingsClearRoute: SettingsRouteRegistrar = (app, dep
 
       res.json({ key: `${namespace}.${key}`, scope, value: null, revisionSeq: result.revisionSeq });
     } catch (err) {
-      if (err instanceof PrincipalNotFoundError) {
-        res.status(404).json({ error: err.message, code: "PRINCIPAL_NOT_FOUND" });
-        return;
-      }
-      if (err instanceof DefinitionNotFoundError) {
-        res.status(404).json({ error: err.message, code: "DEFINITION_NOT_FOUND" });
-        return;
-      }
-      if (err instanceof DefinitionTombstonedError) {
-        res.status(409).json({ error: err.message, code: "DEFINITION_TOMBSTONED" });
-        return;
-      }
-      if (err instanceof ScopeNotAllowedError) {
-        res.status(400).json({ error: err.message, code: "SCOPE_NOT_ALLOWED" });
-        return;
-      }
-      if (err instanceof ForbiddenError) {
-        res.status(403).json({ error: err.message, code: "FORBIDDEN" });
-        return;
-      }
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+      respondToSettingsError(res, err, CLEAR_ERROR_MAPPINGS);
     }
   });
 };
