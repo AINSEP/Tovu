@@ -20,7 +20,7 @@
  * `widgets` domain logic (implementation outline C-004).
  */
 import type { JsonObject, UUID } from "@jini-ai/cms/core";
-import type { EntryListPort, EntryRepoPort } from "../features/entries/index.js";
+import type { EntryListPort, EntryRecord, EntryRepoPort } from "../features/entries/index.js";
 import { CORE_PUBLIC_TRANSFORM_NAME, getLatestTransformDefinition } from "../media/index.js";
 import type { MediaRepoPort, TransformDefinitionRepoPort } from "../media/index.js";
 import type { PostRepoPort } from "../features/post/index.js";
@@ -127,6 +127,40 @@ function collectWidgetEmbeds(node: unknown, out: InlineEmbedRef[]): void {
  * call per distinct widget type present among `referencedIds` (REQ-24).
  * @overallScore 100
  */
+/** Parses one entries row into a {@link WidgetInstanceView}, or `null` when it should be skipped
+ *  (REQ-27: a malformed payload, or an instance already trashed/purged). */
+function parseWidgetInstanceRow(row: EntryRecord): WidgetInstanceView | null {
+  let payload: ReturnType<typeof parseWidgetInstancePayload>;
+  try {
+    payload = parseWidgetInstancePayload(row.fieldsJson);
+  } catch {
+    // REQ-27: a malformed widget-instance payload is skipped, not thrown — the reference that
+    // pointed at it simply has no resolved result, so the caller degrades it to the REQ-28
+    // placeholder like any other unresolved reference.
+    return null;
+  }
+  if (payload.status === "trash" || payload.status === "purged") return null;
+  return { id: row.id, widgetType: payload.widgetType, config: payload.config as JsonObject };
+}
+
+/** Groups every referenced, resolvable widget row by its widget type (REQ-24's "one `resolveWidgetType`
+ *  call per type" grouping step). */
+function groupWidgetInstancesByType(
+  widgetRows: readonly EntryRecord[],
+  referencedIds: ReadonlySet<UUID>
+): Map<WidgetTypeKey, WidgetInstanceView[]> {
+  const byType = new Map<WidgetTypeKey, WidgetInstanceView[]>();
+  for (const row of widgetRows) {
+    if (!referencedIds.has(row.id)) continue;
+    const instance = parseWidgetInstanceRow(row);
+    if (!instance) continue;
+    const list = byType.get(instance.widgetType) ?? [];
+    list.push(instance);
+    byType.set(instance.widgetType, list);
+  }
+  return byType;
+}
+
 async function resolveWidgetInstances(
   deps: WidgetInstanceResolutionDeps,
   workspaceId: UUID,
@@ -135,24 +169,7 @@ async function resolveWidgetInstances(
 ): Promise<ReadonlyMap<UUID, WidgetResolveResult>> {
   const widgetRows =
     referencedIds.size > 0 ? await deps.entryRepo.listByWorkspace({ workspaceId, type: WIDGET_CONTENT_TYPE }) : [];
-
-  const byType = new Map<WidgetTypeKey, WidgetInstanceView[]>();
-  for (const row of widgetRows) {
-    if (!referencedIds.has(row.id)) continue;
-    let payload: ReturnType<typeof parseWidgetInstancePayload>;
-    try {
-      payload = parseWidgetInstancePayload(row.fieldsJson);
-    } catch {
-      // REQ-27: a malformed widget-instance payload is skipped, not thrown — the reference that
-      // pointed at it simply has no resolved result, so the caller degrades it to the REQ-28
-      // placeholder like any other unresolved reference.
-      continue;
-    }
-    if (payload.status === "trash" || payload.status === "purged") continue;
-    const list = byType.get(payload.widgetType) ?? [];
-    list.push({ id: row.id, widgetType: payload.widgetType, config: payload.config as JsonObject });
-    byType.set(payload.widgetType, list);
-  }
+  const byType = groupWidgetInstancesByType(widgetRows, referencedIds);
 
   const resolvedById = new Map<UUID, WidgetResolveResult>();
   for (const [typeKey, instances] of byType) {
@@ -170,17 +187,20 @@ async function resolveWidgetInstances(
  * `resolveWidgetType` call per distinct widget type present on the page (REQ-24).
  * @overallScore 100
  */
-export async function resolvePageWidgets(required: ResolvePageWidgetsRequired): Promise<ResolvePageWidgetsResult> {
-  const { deps, input } = required;
-  const context: WidgetResolveContext = { workspaceId: input.workspaceId, preview: false };
-
-  // 1. Region -> widget_area -> ordered, enabled placement list.
+/** Step 1: region -> widget_area -> ordered, enabled placement list. A malformed widget_area
+ *  payload or an unresolvable binding/area degrades that one region to "no widgets" (REQ-27) rather
+ *  than throwing. */
+async function resolveRegionPlacements(
+  deps: ResolvePageWidgetsDeps,
+  workspaceId: UUID,
+  resolvedRegions: readonly WidgetRegionKey[]
+): Promise<Map<WidgetRegionKey, WidgetPlacementNode[]>> {
   const regionPlacements = new Map<WidgetRegionKey, WidgetPlacementNode[]>();
-  for (const regionKey of input.resolvedRegions) {
+  for (const regionKey of resolvedRegions) {
     regionPlacements.set(regionKey, []);
-    const binding = await deps.bindingRepo.findByRegion({ workspaceId: input.workspaceId, regionKey });
+    const binding = await deps.bindingRepo.findByRegion({ workspaceId, regionKey });
     if (!binding) continue;
-    const areaEntry = await deps.entryRepo.findById({ workspaceId: input.workspaceId, id: binding.areaEntryId });
+    const areaEntry = await deps.entryRepo.findById({ workspaceId, id: binding.areaEntryId });
     if (!areaEntry || areaEntry.type !== WIDGET_AREA_CONTENT_TYPE) continue;
     try {
       const payload = parseWidgetAreaPayload(areaEntry.fieldsJson);
@@ -195,6 +215,28 @@ export async function resolvePageWidgets(required: ResolvePageWidgetsRequired): 
       // violating (Fable adversarial-review fix, 2026-07-21, Finding B).
     }
   }
+  return regionPlacements;
+}
+
+/** Step 3: every distinct widget id referenced on the page, from BOTH region placements and inline
+ *  embeds — the set `resolveWidgetInstances` batch-loads against (REQ-24). */
+function collectReferencedWidgetIds(
+  regionPlacements: ReadonlyMap<WidgetRegionKey, WidgetPlacementNode[]>,
+  inlineEmbeds: readonly InlineEmbedRef[]
+): Set<UUID> {
+  const referencedIds = new Set<UUID>();
+  for (const placements of regionPlacements.values()) {
+    for (const placement of placements) referencedIds.add(placement.widgetEntryId);
+  }
+  for (const embed of inlineEmbeds) referencedIds.add(embed.widgetEntryId);
+  return referencedIds;
+}
+
+export async function resolvePageWidgets(required: ResolvePageWidgetsRequired): Promise<ResolvePageWidgetsResult> {
+  const { deps, input } = required;
+  const context: WidgetResolveContext = { workspaceId: input.workspaceId, preview: false };
+
+  const regionPlacements = await resolveRegionPlacements(deps, input.workspaceId, input.resolvedRegions);
 
   // 2. Inline embeds from the host document's bodyJson (REQ-21/23).
   const inlineEmbeds: InlineEmbedRef[] = [];
@@ -202,11 +244,7 @@ export async function resolvePageWidgets(required: ResolvePageWidgetsRequired): 
 
   // 3. One batched widget-instance load for every distinct widget referenced on the page (REQ-24 —
   // see this file's header for why `listByWorkspace` stands in for a literal `WHERE id IN (...)`).
-  const referencedIds = new Set<UUID>();
-  for (const placements of regionPlacements.values()) {
-    for (const placement of placements) referencedIds.add(placement.widgetEntryId);
-  }
-  for (const embed of inlineEmbeds) referencedIds.add(embed.widgetEntryId);
+  const referencedIds = collectReferencedWidgetIds(regionPlacements, inlineEmbeds);
 
   // 4/5. Batch-load + resolve (skipping missing/trashed/purged targets — REQ-27's failure taxonomy
   // handles them as "unresolved", not a crash), at most one `resolveWidgetType` call per distinct
@@ -459,15 +497,21 @@ async function resolveMediaTypeEmbeds(
  *  `resolver-service.ts`'s per-id scan pattern for the same reason. A legacy `image` node (only
  *  `attrs.src`, no `assetId`) is never added — nothing here needs a sizing/version override for
  *  that shape. */
+/** A TipTap `image` node carrying the `{assetId, transformName}` ref shape (vs. a legacy `attrs.src`-only node). */
+function isRefBasedImageNode(obj: Record<string, unknown>): obj is Record<string, unknown> & { attrs: Record<string, unknown> } {
+  return obj.type === "image" && typeof obj.attrs === "object" && obj.attrs !== null;
+}
+
 function collectImageAssetIds(node: unknown, out: Set<string>): void {
   if (Array.isArray(node)) {
     for (const child of node) collectImageAssetIds(child, out);
     return;
   }
   if (typeof node !== "object" || node === null) return;
+
   const obj = node as Record<string, unknown>;
-  if (obj.type === "image" && typeof obj.attrs === "object" && obj.attrs !== null) {
-    const assetId = (obj.attrs as Record<string, unknown>).assetId;
+  if (isRefBasedImageNode(obj)) {
+    const assetId = obj.attrs.assetId;
     if (typeof assetId === "string") out.add(assetId);
   }
   if (Array.isArray(obj.content)) collectImageAssetIds(obj.content, out);
