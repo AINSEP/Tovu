@@ -345,26 +345,46 @@ interface PreviouslyManagedFile {
  * @returns `undefined` when `parsed` matches neither recognized shape.
  * @complexity O(n) in the manifest's own entry count.
  */
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null;
+}
+
+/** One `v2` `files[]` entry, or `undefined` if it doesn't match `{path: string, sha?: string}`. */
+function parseManifestV2Entry(entry: unknown): PreviouslyManagedFile | undefined {
+  if (!isPlainObject(entry)) return undefined;
+  if (typeof entry.path !== "string") return undefined;
+  const sha = typeof entry.sha === "string" && GIT_SHA_PATTERN.test(entry.sha) ? entry.sha : undefined;
+  return { path: entry.path, sha };
+}
+
+/** The CURRENT manifest shape: `{version: 2, files: [{path, sha}]}`. `undefined` when `obj` isn't
+ * this shape at all, OR when it is but any one entry fails validation — a partially-valid `v2`
+ * manifest is exactly as unrecognized as a wrong-shaped one (see this function's own header). */
+function parseManagedManifestV2(obj: Record<string, unknown>): PreviouslyManagedFile[] | undefined {
+  if (!(obj.version === 2 && Array.isArray(obj.files))) return undefined;
+  const files: PreviouslyManagedFile[] = [];
+  for (const entry of obj.files) {
+    const parsed = parseManifestV2Entry(entry);
+    if (!parsed) return undefined;
+    files.push(parsed);
+  }
+  return files;
+}
+
+/** The legacy, pre-provenance shape: `{version: 1, paths: [...]}` — every listed path is KNOWN but
+ * UNVERIFIABLE. See this file's header, SECOND-ROUND CRITICAL FIX note, finding 1. */
+function parseManagedManifestV1(obj: Record<string, unknown>): PreviouslyManagedFile[] | undefined {
+  if (!(obj.version === 1 && Array.isArray(obj.paths) && obj.paths.every((path) => typeof path === "string"))) {
+    return undefined;
+  }
+  return (obj.paths as string[]).map((path) => ({ path, sha: undefined }));
+}
+
 function parseManagedManifestShape(parsed: unknown): PreviouslyManagedFile[] | undefined {
-  if (typeof parsed !== "object" || parsed === null) return undefined;
-  const obj = parsed as Record<string, unknown>;
-  if (obj.version === 2 && Array.isArray(obj.files)) {
-    const files: PreviouslyManagedFile[] = [];
-    for (const entry of obj.files) {
-      if (typeof entry !== "object" || entry === null) return undefined;
-      const e = entry as Record<string, unknown>;
-      if (typeof e.path !== "string") return undefined;
-      const sha = typeof e.sha === "string" && GIT_SHA_PATTERN.test(e.sha) ? e.sha : undefined;
-      files.push({ path: e.path, sha });
-    }
-    return files;
-  }
-  if (obj.version === 1 && Array.isArray(obj.paths) && obj.paths.every((path) => typeof path === "string")) {
-    // Legacy, pre-provenance shape — every listed path is KNOWN but UNVERIFIABLE. See this file's
-    // header, SECOND-ROUND CRITICAL FIX note, finding 1.
-    return (obj.paths as string[]).map((path) => ({ path, sha: undefined }));
-  }
-  return undefined;
+  if (!isPlainObject(parsed)) return undefined;
+  // `v1` only matches when `version` isn't 2, so falling through on a v2-shape validation FAILURE
+  // still correctly returns `undefined` rather than misreading it as a v1 document.
+  return parseManagedManifestV2(parsed) ?? parseManagedManifestV1(parsed);
 }
 
 /** Reads the PREVIOUS commit's copy of {@link MANAGED_MANIFEST_PATH} via the Contents API — the record
@@ -480,15 +500,18 @@ async function createBlob(token: string, owner: string, repo: string, data: stri
  *   to verify live content (bounded by how many previously-managed paths this export just dropped, never
  *   by the size of the whole repository), plus one more for the manifest blob, plus one for the tree.
  */
-async function buildTree(
+/** Phase 1: one blob per distinct file content (deduped by hash), and the tree entries + per-path
+ * shas that come out of it. Split out of `buildTree` because this loop's own `if (!blobSha)` /
+ * `if (!blobResult.ok)` pair is unrelated to phase 2's deletion-candidate verification below. */
+async function buildFileTreeEntries(
   token: string,
   owner: string,
   repo: string,
-  branch: string,
-  files: readonly CommitFile[],
-  baseTreeSha: string | undefined,
-  previousManagedFiles: readonly PreviouslyManagedFile[] | undefined
-): Promise<{ ok: true; sha: string; deletedPaths: string[]; divergedPaths: string[] } | StepFailure> {
+  files: readonly CommitFile[]
+): Promise<
+  | { ok: true; tree: Record<string, unknown>[]; currentPaths: Set<string>; currentFileShas: { path: string; sha: string }[] }
+  | StepFailure
+> {
   const blobShaByHash = new Map<string, string>();
   const tree: Record<string, unknown>[] = [];
   const currentPaths = new Set<string>();
@@ -506,11 +529,21 @@ async function buildTree(
     tree.push({ path: file.path, mode: "100644", type: "blob", sha: blobSha });
     currentFileShas.push({ path: file.path, sha: blobSha });
   }
+  return { ok: true, tree, currentPaths, currentFileShas };
+}
 
-  // Candidates: paths this adapter previously recorded owning that the CURRENT export no longer
-  // produces. Never assumed safe to delete from list membership alone (this file's header SECOND-ROUND
-  // CRITICAL FIX note, finding 1) — each one is verified against LIVE content before being deleted.
-  const candidates = (previousManagedFiles ?? []).filter((f) => !currentPaths.has(f.path) && f.path !== MANAGED_MANIFEST_PATH);
+/** Phase 2: verifies each deletion CANDIDATE (a path this adapter previously recorded owning that
+ * the current export no longer produces) against its LIVE content before treating it as safe to
+ * delete — never from list membership alone (this file's header SECOND-ROUND CRITICAL FIX note,
+ * finding 1). */
+async function resolveDeletionCandidates(
+  token: string,
+  owner: string,
+  repo: string,
+  branch: string,
+  candidates: readonly PreviouslyManagedFile[]
+): Promise<{ deletions: Record<string, unknown>[]; deletedPaths: string[]; divergedPaths: string[] }> {
+  const deletions: Record<string, unknown>[] = [];
   const deletedPaths: string[] = [];
   const divergedPaths: string[] = [];
   for (const candidate of candidates) {
@@ -530,7 +563,7 @@ async function buildTree(
     if (liveSha === candidate.sha) {
       // Verified: the live content is EXACTLY what this adapter itself last wrote. Safe to delete.
       deletedPaths.push(candidate.path);
-      tree.push({ path: candidate.path, mode: "100644", type: "blob", sha: null });
+      deletions.push({ path: candidate.path, mode: "100644", type: "blob", sha: null });
     } else {
       // Content changed since this adapter wrote it — never delete unverified content. It naturally
       // drops out of the NEW manifest below (it is not part of `currentFileShas` either, since it was
@@ -538,16 +571,17 @@ async function buildTree(
       divergedPaths.push(candidate.path);
     }
   }
+  return { deletions, deletedPaths, divergedPaths };
+}
 
-  const manifestBlob = await createBlob(
-    token,
-    owner,
-    repo,
-    JSON.stringify({ version: 2, files: currentFileShas.slice().sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0)) })
-  );
-  if (!manifestBlob.ok) return manifestBlob;
-  tree.push({ path: MANAGED_MANIFEST_PATH, mode: "100644", type: "blob", sha: manifestBlob.sha });
-
+/** Phase 3: creates the tree object itself from the assembled entries. */
+async function createTreeObject(
+  token: string,
+  owner: string,
+  repo: string,
+  tree: readonly Record<string, unknown>[],
+  baseTreeSha: string | undefined
+): Promise<{ ok: true; sha: string } | StepFailure> {
   const result = await githubFetch(`${GITHUB_API}/repos/${enc(owner)}/${enc(repo)}/git/trees`, {
     method: "POST",
     headers: githubHeaders(token, { "Content-Type": "application/json" }),
@@ -560,7 +594,39 @@ async function buildTree(
   if (!body.ok) return { ok: false, code: "provider-error", message: body.message };
   const sha = typeof body.json.sha === "string" ? body.json.sha : "";
   if (!sha) return { ok: false, code: "provider-error", message: "GitHub tree creation response did not include a sha" };
-  return { ok: true, sha, deletedPaths, divergedPaths };
+  return { ok: true, sha };
+}
+
+async function buildTree(
+  token: string,
+  owner: string,
+  repo: string,
+  branch: string,
+  files: readonly CommitFile[],
+  baseTreeSha: string | undefined,
+  previousManagedFiles: readonly PreviouslyManagedFile[] | undefined
+): Promise<{ ok: true; sha: string; deletedPaths: string[]; divergedPaths: string[] } | StepFailure> {
+  const fileTree = await buildFileTreeEntries(token, owner, repo, files);
+  if (!fileTree.ok) return fileTree;
+
+  const candidates = (previousManagedFiles ?? []).filter(
+    (f) => !fileTree.currentPaths.has(f.path) && f.path !== MANAGED_MANIFEST_PATH
+  );
+  const { deletions, deletedPaths, divergedPaths } = await resolveDeletionCandidates(token, owner, repo, branch, candidates);
+
+  const manifestBlob = await createBlob(
+    token,
+    owner,
+    repo,
+    JSON.stringify({ version: 2, files: fileTree.currentFileShas.slice().sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0)) })
+  );
+  if (!manifestBlob.ok) return manifestBlob;
+
+  const tree = [...fileTree.tree, ...deletions, { path: MANAGED_MANIFEST_PATH, mode: "100644", type: "blob", sha: manifestBlob.sha }];
+  const treeResult = await createTreeObject(token, owner, repo, tree, baseTreeSha);
+  if (!treeResult.ok) return treeResult;
+
+  return { ok: true, sha: treeResult.sha, deletedPaths, divergedPaths };
 }
 
 /** Creates the commit object (not yet reachable from any branch — see this file's header on why this
@@ -656,6 +722,51 @@ async function writeRef(token: string, owner: string, repo: string, branch: stri
  * @complexity O(files) `fetch()` calls (blob creation, deduped) plus a small fixed number of
  *   additional calls (repo, ref lookup, parent-tree read, manifest read, tree, commit, ref write).
  */
+/** `input.branch`, or the repo's own default when the caller didn't pin one. */
+function resolveCommitBranch(inputBranch: string | undefined, defaultBranch: string): string {
+  return inputBranch ?? defaultBranch;
+}
+
+/**
+ * Everything a brand-new branch skips entirely and an existing one REQUIRES (this file's header
+ * CRITICAL fix note, and SECOND-ROUND CRITICAL FIX note finding 2): the parent tree to build on top
+ * of, and the previous-commit manifest of paths this adapter itself owns. Both gate on the exact
+ * same fact — whether a parent commit exists — so one `if` here replaces what were two identical
+ * conditions (`parentSha !== undefined` and `!branchCreated`) written out separately in `commit()`.
+ */
+async function resolveCommitPrerequisites(
+  token: string,
+  owner: string,
+  repo: string,
+  branch: string,
+  parentSha: string | undefined
+): Promise<
+  | { ok: true; baseTreeSha: string | undefined; previousManagedFiles: readonly PreviouslyManagedFile[] | undefined; parents: readonly string[] }
+  | StepFailure
+> {
+  if (parentSha === undefined) {
+    return { ok: true, baseTreeSha: undefined, previousManagedFiles: undefined, parents: [] };
+  }
+
+  const parentTreeResult = await fetchParentTree(token, owner, repo, parentSha);
+  if (!parentTreeResult.ok) return parentTreeResult;
+
+  const manifestResult = await fetchManagedManifest(token, owner, repo, branch);
+  if (!manifestResult.ok) return manifestResult;
+
+  return { ok: true, baseTreeSha: parentTreeResult.treeSha, previousManagedFiles: manifestResult.files, parents: [parentSha] };
+}
+
+/** True when `buildTree` produced the SAME tree the branch already has — nothing to commit. */
+function treeUnchanged(baseTreeSha: string | undefined, newTreeSha: string): boolean {
+  return baseTreeSha !== undefined && baseTreeSha === newTreeSha;
+}
+
+/** `writeRef`'s `mode` parameter, derived from whether this commit is creating the branch. */
+function refModeFor(branchCreated: boolean): "create" | "update" {
+  return branchCreated ? "create" : "update";
+}
+
 export function createGitHubCommitAdapter(): GitHubCommitAdapter {
   return {
     async commit(input): Promise<GitHubCommitAdapterResult> {
@@ -663,44 +774,27 @@ export function createGitHubCommitAdapter(): GitHubCommitAdapter {
 
       const repoResult = await fetchRepo(token, owner, repo);
       if (!repoResult.ok) return repoResult;
-      const branch = input.branch ?? repoResult.defaultBranch;
+      const branch = resolveCommitBranch(input.branch, repoResult.defaultBranch);
 
       const tipResult = await fetchBranchTip(token, owner, repo, branch);
       if (!tipResult.ok) return tipResult;
       const parentSha = tipResult.tipSha;
       const branchCreated = parentSha === undefined;
 
-      // REQUIRED whenever a parent exists — see this file's header CRITICAL fix note. A brand-new
-      // branch has no parent tree to build on top of, so `baseTreeSha` is correctly `undefined` only in
-      // that one case.
-      let baseTreeSha: string | undefined;
-      if (parentSha !== undefined) {
-        const parentTreeResult = await fetchParentTree(token, owner, repo, parentSha);
-        if (!parentTreeResult.ok) return parentTreeResult;
-        baseTreeSha = parentTreeResult.treeSha;
-      }
+      const prereqs = await resolveCommitPrerequisites(token, owner, repo, branch, parentSha);
+      if (!prereqs.ok) return prereqs;
 
-      // REQUIRED whenever a parent exists, EXCEPT a verified 404 (this file's header SECOND-ROUND
-      // CRITICAL FIX note, finding 2) — a brand-new branch cannot have a prior Tovu commit to read one
-      // from either, so the read is skipped entirely rather than attempted and discarded.
-      let previousManagedFiles: readonly PreviouslyManagedFile[] | undefined;
-      if (!branchCreated) {
-        const manifestResult = await fetchManagedManifest(token, owner, repo, branch);
-        if (!manifestResult.ok) return manifestResult;
-        previousManagedFiles = manifestResult.files;
-      }
-
-      const treeResult = await buildTree(token, owner, repo, branch, files, baseTreeSha, previousManagedFiles);
+      const treeResult = await buildTree(token, owner, repo, branch, files, prereqs.baseTreeSha, prereqs.previousManagedFiles);
       if (!treeResult.ok) return treeResult;
 
-      if (baseTreeSha !== undefined && baseTreeSha === treeResult.sha) {
+      if (treeUnchanged(prereqs.baseTreeSha, treeResult.sha)) {
         return { ok: false, code: "no-changes", message: "nothing changed since the branch's last commit" };
       }
 
-      const commitResult = await createCommitObject(token, owner, repo, commitMessage, treeResult.sha, parentSha !== undefined ? [parentSha] : []);
+      const commitResult = await createCommitObject(token, owner, repo, commitMessage, treeResult.sha, prereqs.parents);
       if (!commitResult.ok) return commitResult;
 
-      const refResult = await writeRef(token, owner, repo, branch, commitResult.sha, branchCreated ? "create" : "update");
+      const refResult = await writeRef(token, owner, repo, branch, commitResult.sha, refModeFor(branchCreated));
       if (!refResult.ok) return refResult;
 
       return {
