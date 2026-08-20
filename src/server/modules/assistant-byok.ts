@@ -55,7 +55,9 @@ import {
   type ByokTurnEvent,
   runByokProviderTurn,
   createStoredExecutionCredentialPort,
+  type ExecutionCredentialPort,
   type RequestSuppliedByokConfig,
+  type ResolvedByokCredential,
   createByokToolSurface,
   type ByokToolSurface,
   type ByokToolSurfaceDeps,
@@ -142,6 +144,16 @@ function toWireSurfacePayload(emission: SurfaceEmission, toolUseId: string): Rec
   };
 }
 
+/** One raw history entry -> a valid {@link ByokChatMessage}, or `null` if it isn't one — the single
+ *  per-entry validation `resolveMessages` below loops over. */
+function toByokChatMessage(entry: unknown): ByokChatMessage | null {
+  if (!isPlainMessage(entry)) return null;
+  const role = entry.role === "user" || entry.role === "assistant" ? entry.role : null;
+  const content = typeof entry.content === "string" ? entry.content : null;
+  if (role === null || content === null || content.length === 0) return null;
+  return { role, content };
+}
+
 /** Validates and bounds the client-supplied history. Fail-soft on individual malformed entries
  *  (dropped, not rejected) — mirrors `site-assistant.ts`'s own `resolveBoundedHistory` posture for
  *  the sibling visitor-assistant route: history is passive background context the caller did not
@@ -151,11 +163,8 @@ function resolveMessages(raw: unknown): ByokChatMessage[] {
   if (!Array.isArray(raw)) return [];
   const messages: ByokChatMessage[] = [];
   for (const entry of raw) {
-    if (!isPlainMessage(entry)) continue;
-    const role = entry.role === "user" || entry.role === "assistant" ? entry.role : null;
-    const content = typeof entry.content === "string" ? entry.content : null;
-    if (role === null || content === null || content.length === 0) continue;
-    messages.push({ role, content });
+    const message = toByokChatMessage(entry);
+    if (message) messages.push(message);
   }
   return messages.slice(-MAX_HISTORY_MESSAGES);
 }
@@ -192,6 +201,45 @@ export interface AssistantByokModuleHandle extends ServerModuleHandle {
  * argument list — a default-parameter expression evaluates before the function body starts, which
  * would be too early for the install call to have any effect on the surface it composes.
  */
+type ByokTurnInputs = { messages: ByokChatMessage[]; principal: Principal; credential: ResolvedByokCredential };
+
+/**
+ * The two gates `handleTurn` must clear before it opens a stream: the client-supplied history must
+ * resolve to a non-empty, user-ending message list, and a usable BYOK credential (request-supplied
+ * or the admin's own stored row) must resolve. Both can end the request on their own; consolidated
+ * here so `handleTurn` itself is a single `if (!inputs) return;` rather than two separate guards.
+ */
+async function resolveTurnInputsOrRespond(
+  req: Request,
+  res: Response,
+  credentialPort: ExecutionCredentialPort,
+  routeDeps: RouteDeps,
+): Promise<ByokTurnInputs | null> {
+  const body = (req.body ?? {}) as { messages?: unknown; byok?: RequestSuppliedByokConfig };
+  const messages = resolveMessages(body.messages);
+  if (messages.length === 0 || messages[messages.length - 1]?.role !== "user") {
+    res.status(400).json({ error: "'messages' must end with a non-empty user message", code: "VALIDATION_ERROR" });
+    return null;
+  }
+
+  const authed = getAuthedPrincipal(res);
+  const credential = await credentialPort.resolve({
+    requestBody: body.byok ?? {},
+    workspaceId: routeDeps.workspaceId,
+    principalId: authed.id,
+  });
+  if (!credential) {
+    res.status(400).json({
+      error:
+        "no usable BYOK credential — supply 'byok' with a supported protocol, a non-empty apiKey, and a model, or save one first in Settings",
+      code: "VALIDATION_ERROR",
+    });
+    return null;
+  }
+
+  return { messages, principal: { id: authed.id }, credential };
+}
+
 export function createAssistantByokModule(
   routeDeps: RouteDeps,
   toolSurface?: ByokToolSurface,
@@ -255,29 +303,10 @@ export function createAssistantByokModule(
   };
 
   async function handleTurn(req: Request, res: Response): Promise<void> {
-    const body = (req.body ?? {}) as { messages?: unknown; byok?: RequestSuppliedByokConfig };
-    const messages = resolveMessages(body.messages);
-    if (messages.length === 0 || messages[messages.length - 1]?.role !== "user") {
-      res.status(400).json({ error: "'messages' must end with a non-empty user message", code: "VALIDATION_ERROR" });
-      return;
-    }
+    const inputs = await resolveTurnInputsOrRespond(req, res, credentialPort, routeDeps);
+    if (!inputs) return;
+    const { messages, principal, credential } = inputs;
 
-    const authed = getAuthedPrincipal(res);
-    const credential = await credentialPort.resolve({
-      requestBody: body.byok ?? {},
-      workspaceId: routeDeps.workspaceId,
-      principalId: authed.id,
-    });
-    if (!credential) {
-      res.status(400).json({
-        error:
-          "no usable BYOK credential — supply 'byok' with a supported protocol, a non-empty apiKey, and a model, or save one first in Settings",
-        code: "VALIDATION_ERROR",
-      });
-      return;
-    }
-
-    const principal: Principal = { id: authed.id };
     const run = { id: randomUUID() };
 
     beginStream(res);
