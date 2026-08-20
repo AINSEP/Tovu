@@ -65,6 +65,29 @@ export interface PluginDiscoveryRecord {
   readonly tier?: "tier-1" | "tier-2" | "tier-3";
   readonly status: "valid" | "invalid" | "incompatible";
   readonly errors: readonly PluginValidationError[];
+  /**
+   * (Milestone 1b, 2026-08-20) The already-parsed, already-`validateManifest()`-checked manifest
+   * this record was built from — present if and only if `status === "valid"` (`undefined`
+   * otherwise: an invalid/incompatible candidate's raw JSON may not conform to `PluginManifest`'s
+   * shape at all, so this field never claims a validated type for a record that failed validation).
+   *
+   * Exists so a composition root's enable path (`server/plugin-runtime.ts`'s `onPluginEnabled()`)
+   * can hand `loadPlugin()` the SAME manifest object this discovery pass already parsed, instead of
+   * re-reading `tovu.plugin.json` a second time. This matters beyond avoiding duplicate I/O: every
+   * real caller of `onPluginEnabled` (`activation.ts`'s `setPluginEnabled`, BR-05 step 1) already
+   * calls `discoverPlugins()` fresh, in the SAME request, immediately before invoking it (see
+   * `routes/admin/plugins/set-enabled.ts`) — so reusing that record's manifest is not a staleness
+   * risk, it is the one-and-only read for this attempt. A second, independent load-time re-read
+   * would instead open a narrow TOCTOU window: an attacker who can write to `installDir` between
+   * the discovery read and a second load-time read could swap in a self-consistent tampered
+   * manifest+entry pair that the discovery pass never actually validated. Reusing this field closes
+   * that window by construction — there is only one read to race against, not two.
+   *
+   * Built-in records also carry it (trivially, from `BuiltInPluginSource.manifest`) for type
+   * uniformity, but `onPluginEnabled`'s built-in branch does not need it — it already has the
+   * composition root's own static `PluginRuntimeSource.manifest`, unchanged from before this slice.
+   */
+  readonly manifest?: PluginManifest;
 }
 
 /**
@@ -118,15 +141,33 @@ function toDiscoveryRecord(params: {
   manifestValue: unknown;
   errors: readonly PluginValidationError[];
 }): PluginDiscoveryRecord {
+  const isValid = params.errors.length === 0;
   return {
     id: params.id,
     name: params.name,
     version: params.version,
     source: params.source,
     tier: readTierField(params.manifestValue),
-    status: params.errors.length === 0 ? "valid" : "invalid",
+    status: isValid ? "valid" : "invalid",
     errors: params.errors,
+    // Safe only because `isValid` means `validateManifest()` already reported zero errors against
+    // this exact value — an invalid candidate's `manifestValue` is never cast (see the field's own
+    // doc on `PluginDiscoveryRecord`).
+    manifest: isValid ? (params.manifestValue as PluginManifest) : undefined,
   };
+}
+
+/**
+ * The absolute entry-file path for a discovered SITE plugin (REQ-02's fixed `server/index.mjs`
+ * package layout, ADR-004) — the exact path `loadPlugin()`'s `entryPath` param expects, and the
+ * same join `discoverOneSiteCandidate()` below already performs internally for its manifest read.
+ * Exported so a composition root resolving a dynamic site-sourced load target (`plugin-runtime.ts`)
+ * does not re-derive this convention independently and risk it drifting from discovery's own.
+ *
+ * @complexity O(1) — pure path join, no I/O.
+ */
+export function siteEntryPath(installDir: string, id: string, version: string): string {
+  return path.join(installDir, id, version, "server", "index.mjs");
 }
 
 /** One directory entry directly under `installDir` — a candidate plugin "id slot" that may contain
