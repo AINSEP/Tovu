@@ -91,6 +91,39 @@ export interface PackageWalkResult {
  *
  * @complexity O(n) in the package's own file count, bounded by {@link MAX_PACKAGE_FILES}.
  */
+/** One directory entry's full disposition during `walkThemePackage`'s walk: records a symlink
+ * rejection or a found file directly (mutating `files`/`issues`), and reports where to recurse for
+ * a directory. Pulled the WHOLE loop body out of `walk` — not just its most-nested branch — because
+ * cognitive complexity charges a nesting bonus per structure: the same ifs sitting one (or two, for
+ * the file-size check) levels inside `walk`'s own `for` loop cost far more there than they do at a
+ * function's own top level (the same lesson `build-conformance.ts`'s `walk` needed today). */
+function visitPackageEntry(
+  dir: string,
+  name: string,
+  base: string,
+  files: PackageWalkEntry[],
+  issues: ThemeValidationIssue[]
+): { recurseInto: string } | undefined {
+  const full = join(dir, name);
+  const stat = statSync(full, { throwIfNoEntry: false });
+  if (!stat) return undefined;
+
+  const isLink = realpathSync(full) !== full;
+  const relPath = relative(base, full).split(sep).join("/");
+  if (isLink) {
+    issues.push({ ruleId: "structure-symlink-forbidden", message: `'${relPath}' is a symlink, which a theme package must not contain`, path: relPath });
+    return undefined;
+  }
+  if (stat.isDirectory()) return { recurseInto: full };
+  if (stat.isFile()) {
+    if (stat.size > MAX_FILE_BYTES) {
+      issues.push({ ruleId: "structure-max-file-size", message: `'${relPath}' is ${stat.size} bytes, exceeding the ${MAX_FILE_BYTES}-byte per-file ceiling`, path: relPath });
+    }
+    files.push({ relativePath: relPath, absolutePath: full, sizeBytes: stat.size });
+  }
+  return undefined;
+}
+
 export function walkThemePackage(
   required: { themeDir: string },
   _optional: Record<string, never> = {}
@@ -127,23 +160,8 @@ export function walkThemePackage(
         issues.push({ ruleId: "structure-max-files", message: `package exceeds the ${MAX_PACKAGE_FILES}-file ceiling` });
         return;
       }
-      const full = join(dir, name);
-      const stat = statSync(full, { throwIfNoEntry: false });
-      if (!stat) continue;
-      const isLink = realpathSync(full) !== full;
-      const relPath = relative(base, full).split(sep).join("/");
-      if (isLink) {
-        issues.push({ ruleId: "structure-symlink-forbidden", message: `'${relPath}' is a symlink, which a theme package must not contain`, path: relPath });
-        continue;
-      }
-      if (stat.isDirectory()) {
-        walk(full, depth + 1);
-      } else if (stat.isFile()) {
-        if (stat.size > MAX_FILE_BYTES) {
-          issues.push({ ruleId: "structure-max-file-size", message: `'${relPath}' is ${stat.size} bytes, exceeding the ${MAX_FILE_BYTES}-byte per-file ceiling`, path: relPath });
-        }
-        files.push({ relativePath: relPath, absolutePath: full, sizeBytes: stat.size });
-      }
+      const next = visitPackageEntry(dir, name, base, files, issues);
+      if (next) walk(next.recurseInto, depth + 1);
     }
   };
   walk(base, 0);
@@ -197,23 +215,46 @@ export function checkApprovedRoots(
  * (`GENERATED_THEME_DIRS` only); widening what an EXISTING v1 compiled theme's `sourceDir` may name
  * is a live-behavior change this validator does not make on its own.
  */
+/** The escapes-check and the root-check together: both reject `build.sourceDir` outright (the
+ * caller reports just that one issue and stops), so both live in one function returning either the
+ * normalized path or the single issue to report — one `if` at the call site instead of two. */
+function normalizeSourceDirOrIssue(sourceDir: string): { normalized: string } | { issue: ThemeValidationIssue } {
+  if (sourceDir.startsWith("/") || sourceDir.includes("..")) {
+    return {
+      issue: { ruleId: "structure-sourcedir-escapes", message: `build.sourceDir '${sourceDir}' must be a relative, contained path (no leading '/', no '..')` },
+    };
+  }
+  const normalized = sourceDir.replace(/^\.\/+/, "").replace(/\/+$/, "");
+  if (normalized === "" || normalized === ".") {
+    return { issue: { ruleId: "structure-sourcedir-root", message: "build.sourceDir must not be the theme root itself" } };
+  }
+  return { normalized };
+}
+
+/** v2-strict only: does `normalized`'s first path segment collide with one of §3's OTHER invariant
+ * roots (not `package.json`, and not a dotted `tokens.<mode>.json`-style pattern entry)? */
+function checkSourceDirRootConflict(sourceDir: string, normalized: string): ThemeValidationIssue | undefined {
+  const firstSegment = normalized.split("/")[0];
+  const otherReservedRoots = [...V2_APPROVED_ROOTS].filter((root) => root !== "package.json" && !root.includes("."));
+  if (!otherReservedRoots.includes(firstSegment)) return undefined;
+  return {
+    ruleId: "structure-sourcedir-root-conflict",
+    message: `build.sourceDir '${sourceDir}' collides with the approved invariant root '${firstSegment}' — a schema v2 package's generated tree and its sourceDir must be fully disjoint`,
+  };
+}
+
 export function checkSourceDirContainment(
   required: { build: Pick<ThemeBuildInfo, "source" | "sourceDir">; schemaVersion: 1 | 2 },
   _optional: Record<string, never> = {}
 ): ThemeValidationIssue[] {
   const { build, schemaVersion } = required;
   if (build.source !== "compiled" || !build.sourceDir) return [];
-  const issues: ThemeValidationIssue[] = [];
 
-  if (build.sourceDir.startsWith("/") || build.sourceDir.includes("..")) {
-    issues.push({ ruleId: "structure-sourcedir-escapes", message: `build.sourceDir '${build.sourceDir}' must be a relative, contained path (no leading '/', no '..')` });
-    return issues;
-  }
-  const normalized = build.sourceDir.replace(/^\.\/+/, "").replace(/\/+$/, "");
-  if (normalized === "" || normalized === ".") {
-    issues.push({ ruleId: "structure-sourcedir-root", message: "build.sourceDir must not be the theme root itself" });
-    return issues;
-  }
+  const resolved = normalizeSourceDirOrIssue(build.sourceDir);
+  if ("issue" in resolved) return [resolved.issue];
+  const { normalized } = resolved;
+
+  const issues: ThemeValidationIssue[] = [];
   if (isSourceDirGeneratedConflict(normalized)) {
     issues.push({
       ruleId: "structure-sourcedir-generated-conflict",
@@ -221,14 +262,8 @@ export function checkSourceDirContainment(
     });
   }
   if (schemaVersion === 2) {
-    const firstSegment = normalized.split("/")[0];
-    const otherReservedRoots = [...V2_APPROVED_ROOTS].filter((root) => root !== "package.json" && !root.includes("."));
-    if (otherReservedRoots.includes(firstSegment)) {
-      issues.push({
-        ruleId: "structure-sourcedir-root-conflict",
-        message: `build.sourceDir '${build.sourceDir}' collides with the approved invariant root '${firstSegment}' — a schema v2 package's generated tree and its sourceDir must be fully disjoint`,
-      });
-    }
+    const rootConflict = checkSourceDirRootConflict(build.sourceDir, normalized);
+    if (rootConflict) issues.push(rootConflict);
   }
   return issues;
 }
