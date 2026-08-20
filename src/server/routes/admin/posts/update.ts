@@ -7,7 +7,10 @@ import {
   PostValidationError,
   updatePost,
   type PostRecord,
+  type UpdatePostInput,
 } from "#src/features/post/index";
+import type { Response } from "express";
+
 import { toAdminPostResponse } from "#src/server/http/admin/posts";
 import {
   CONTENT_ENTRY_MAX_BODY_BYTES,
@@ -15,6 +18,52 @@ import {
 } from "#src/server/middleware/body-size-limit";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { ContentRouteRegistrar } from "../content/deps.js";
+
+/** This route's six writable PUT fields, read off an untyped body in one place.
+ *  Return type is pinned to `UpdatePostInput` itself (minus the id fields the
+ *  route supplies separately) rather than left inferred, so a field this route
+ *  stops forwarding — or a shape change in `UpdatePostInput` — fails to compile
+ *  here instead of surfacing downstream in `updatePost`.
+ *  @complexity O(1). */
+function parsePostUpdateBody(
+  rawBody: unknown
+): Pick<UpdatePostInput, "title" | "slug" | "bodyJson" | "status" | "templateChoice" | "overridesThemePage"> {
+  const body = (rawBody ?? {}) as Record<string, unknown>;
+  return {
+    title: String(body.title ?? ""),
+    slug: String(body.slug ?? ""),
+    bodyJson: body.bodyJson as UpdatePostInput["bodyJson"],
+    status: body.status as UpdatePostInput["status"],
+    templateChoice: body.templateChoice as UpdatePostInput["templateChoice"],
+    overridesThemePage: body.overridesThemePage as UpdatePostInput["overridesThemePage"],
+  };
+}
+
+/** Maps this route's thrown error types onto the admin error envelope.
+ *  @complexity O(1). */
+function sendPostUpdateError(res: Response, err: unknown): void {
+  if (err instanceof ForbiddenError) {
+    res.status(403).json({ error: err.message, code: "FORBIDDEN", details: { permission: err.permission, reason: err.reason } });
+    return;
+  }
+  if (err instanceof DuplicateCommandError) {
+    res.status(409).json({ error: err.message, code: "DUPLICATE_COMMAND", changeSetId: err.changeSetId });
+    return;
+  }
+  if (err instanceof PostValidationError) {
+    res.status(400).json({ error: err.message });
+    return;
+  }
+  if (err instanceof PostConflictError) {
+    res.status(409).json({ error: err.message });
+    return;
+  }
+  if (err instanceof PostNotFoundError) {
+    res.status(404).json({ error: err.message });
+    return;
+  }
+  res.status(500).json({ error: "internal error" });
+}
 
 /**
  * PUT post — routed through the command gateway (SPEC-001 REQ-04).
@@ -119,12 +168,7 @@ export const registerAdminPostUpdateRoute: ContentRouteRegistrar = (app, deps) =
                 input: {
                   workspaceId: deps.workspaceId,
                   id: postId,
-                  title: String(req.body?.title ?? ""),
-                  slug: String(req.body?.slug ?? ""),
-                  bodyJson: req.body?.bodyJson,
-                  status: req.body?.status,
-                  templateChoice: req.body?.templateChoice,
-                  overridesThemePage: req.body?.overridesThemePage,
+                  ...parsePostUpdateBody(req.body),
                 },
               }),
             captureEntityVersion: (r) => r.post.version,
@@ -143,40 +187,7 @@ export const registerAdminPostUpdateRoute: ContentRouteRegistrar = (app, deps) =
 
         res.json(toAdminPostResponse(result.post));
       } catch (err) {
-        if (err instanceof ForbiddenError) {
-          res.status(403).json({
-            error: err.message,
-            code: "FORBIDDEN",
-            details: { permission: err.permission, reason: err.reason },
-          });
-          return;
-        }
-
-        if (err instanceof DuplicateCommandError) {
-          res.status(409).json({
-            error: err.message,
-            code: "DUPLICATE_COMMAND",
-            changeSetId: err.changeSetId,
-          });
-          return;
-        }
-
-        if (err instanceof PostValidationError) {
-          res.status(400).json({ error: err.message });
-          return;
-        }
-
-        if (err instanceof PostConflictError) {
-          res.status(409).json({ error: err.message });
-          return;
-        }
-
-        if (err instanceof PostNotFoundError) {
-          res.status(404).json({ error: err.message });
-          return;
-        }
-
-        res.status(500).json({ error: "internal error" });
+        sendPostUpdateError(res, err);
       }
     }
   );
