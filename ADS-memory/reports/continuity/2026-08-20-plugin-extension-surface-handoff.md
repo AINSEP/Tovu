@@ -168,3 +168,78 @@ error is now inside a committed ADR amendment.
 
 Errors 1, 3 and 4 corrupted a debate packet and changed what four peer models argued. See
 `feedback_read_the_governing_doc_not_its_neighbors`.
+
+---
+
+## DOCUMENT INDEX — every path, verified to exist at HEAD
+
+**Read in this order if you are picking this up cold:**
+
+1. **This file.**
+2. `ADS-memory/reports/swarm-consensus/runs/2026-08-20-tovu-extension-surface/SYNTHESIS.md`
+   — the debate outcome and the reasoning behind every settled decision. Start here for *why*.
+3. `ADS-memory/reports/architecture/2026-08-20-extension-surface-gap-inventory.md`
+   — the verified map of what Tovu has vs WordPress/Directus. **Note: its §3 recommendation is the
+   primary's own pre-debate opinion and was superseded by the debate — read the SYNTHESIS as
+   authoritative, not this.**
+
+### Architecture reports (all `ADS-memory/reports/architecture/`)
+
+| File | What it settles |
+|---|---|
+| `2026-08-20-extension-surface-gap-inventory.md` | The 12-gap map vs WordPress/Directus. §3 superseded. |
+| `2026-08-20-agent-plugins-scope-ruling.md` | `agent-plugins/` stays separate; is unreachable dead code. |
+| `2026-08-20-component-catalog-split-proposal.md` | `COMPONENTS` vs Widget-IR: **ratify the split**. Plugins attach to the widget registry only. |
+| `2026-08-20-call-site-payload-schemas.md` | Payload shape + JSON Schema for `admin.nav`, `render.contribute`, `http.routes`. |
+| `2026-08-20-plugin-module-export-contract.md` | How a plugin hands over a real function. Solves the worker structured-clone problem. |
+| `2026-08-20-plugin-safe-component-ids-audit.md` | Security audit of all 8 widget renderers. Only 3 graded safe. |
+| `2026-08-20-worker-sandbox-extraction-proposal.md` | The sandbox dedup proposal (already applied). |
+| `ADR-024-plugin-execution-and-trust-model.md` | **See its `## Amendment — 2026-08-20`** — Tier-3 marketplace reversal. |
+| `ADR-057-site-glue-tier.md` | **See its `## Amendment — 2026-08-20`** — merge supersedes Decisions 2/6. Still `DRAFT`. Contains the citation error noted above. |
+
+### Debate artifacts (`ADS-memory/reports/swarm-consensus/`)
+
+- `runs/2026-08-20-tovu-extension-surface/SYNTHESIS.md` — **the authoritative outcome**
+- `runs/2026-08-20-tovu-extension-surface/` also holds each peer's raw round-1 and round-2 answers:
+  `codex-sol-r1.md` / `-r2.md`, `sonnet-5-r1.md` / `-r2.md`, `agy-gemini-31-pro-r1.md` / `-r2.md`,
+  `agy-gemini-37-flash-r1.md` / `-r2.md`
+- `context/CTX-tovu-extension-surface-2026-08-20.md` — the round-1 packet. **Contains four known
+  errors**, listed in the round-2 packet's Part 1. Do not cite it as fact.
+- `context/CTX-tovu-extension-surface-ROUND2-2026-08-20.md` — the round-2 packet, whose Part 1 is
+  the correction list.
+
+### This session's other reports — CAREFUL
+
+`ADS-memory/reports/2026-08-20-*` contains **14 files, and only these two are from this session**:
+
+- `2026-08-20-quality-metrics-agent-work.md` — complexity + coverage on this session's commits
+- `2026-08-20-liquid-sandbox-memory-guard-race.md` — the two-guard race diagnosis
+
+**Every other `2026-08-20-*` file in that directory belongs to the concurrent complexity-campaign
+session** (`architecture-*`, `routes-complexity-*`, `features-complexity-*`,
+`repo-wide-*`, `untested-paths-*`, `false-code-comments-register`, `cloud-dispatch-root-cause`,
+`route-body-type-safety-finding`, `server-assistant-coverage-*`,
+`liquid-sandbox-preexisting-failures`). They are unrelated to the plugin work. Do not read them as
+context for this handoff, and do not attribute them here.
+
+### Source files this session created
+
+- `src/core/extension-capability-vocabulary.ts` + `src/core/__tests__/unit/extension-capability-vocabulary.unit.test.ts`
+- `src/server/http/site/worker-sandbox.ts` + `src/server/http/site/__tests__/worker-sandbox.test.ts`
+  + `__tests__/fixtures/exit-worker.ts`
+- `src/features/plugin-runtime/uninstall.ts`
+- `src/server/routes/admin/plugins/uninstall.ts`
+  + `__tests__/integration/uninstall.integration.test.ts`
+- `development/e2e/post-editor-open-redirect-link.spec.ts`
+
+### Key existing files to read before changing anything here
+
+- `src/features/plugin-runtime/loader.ts` — **read its header first.** Holds the binding
+  integrity-before-`import()` ordering (CIC U-001, `ESCALATE_SECURITY`).
+- `src/features/plugin-runtime/manifest.ts` / `src/features/site-glue/manifest.ts` — the two
+  capability vocabularies now sharing one source.
+- `src/widgets/registry.ts` (see `:11`) + `src/widgets/resolvers/index.ts` — the seam plugins
+  attach to.
+- `src/server/http/site/render.ts` — `safeHref`, `COMPONENTS`, `WIDGET_IR_RENDERERS`. **Large and
+  edited concurrently; always re-derive line numbers.**
+- `src/server/__specs__/80-platform/tenancy-and-jobs.spec.md` — the already-written job envelope.
