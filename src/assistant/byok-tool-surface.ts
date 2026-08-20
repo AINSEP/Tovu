@@ -38,6 +38,7 @@ import {
   type ToolRegistry,
 } from "@jini-ai/core";
 import { createToolExecutor, type ToolExecutor } from "@jini-ai/daemon";
+import type { ToolCatalogQuery } from "@jini-ai/http-kit";
 
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/core/rate-limit/rate-limit";
 import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "../core/tool-surface-exchanges.js";
@@ -210,21 +211,105 @@ function ok(output: unknown): ByokMetaToolResult {
  * non-object, is refused with a message naming the problem rather than passed down to fail inside a
  * handler's own type check where the model would see a far less actionable error.
  */
-function resolveDelegatedInput(raw: unknown): { readonly ok: true; readonly input: unknown } | { readonly ok: false; readonly message: string } {
+type DelegatedInputResolution =
+  | { readonly ok: true; readonly input: unknown }
+  | { readonly ok: false; readonly message: string };
+
+/** The string-input branch of {@link resolveDelegatedInput}, split out purely to keep that function's
+ *  cognitive complexity under the shop ceiling — see this file's `@file` doc for why a JSON-encoded
+ *  string has to be accepted here at all. */
+function resolveDelegatedInputFromString(trimmed: string): DelegatedInputResolution {
+  if (trimmed.length === 0) return { ok: true, input: undefined };
+  try {
+    const parsed: unknown = JSON.parse(trimmed);
+    if (isRecord(parsed)) return { ok: true, input: parsed };
+    return { ok: false, message: "'input' parsed as JSON but is not an object — send a JSON object of the tool's input fields." };
+  } catch {
+    return { ok: false, message: "'input' must be a JSON object of the tool's input fields, not a plain string." };
+  }
+}
+
+function resolveDelegatedInput(raw: unknown): DelegatedInputResolution {
   if (raw === undefined || raw === null) return { ok: true, input: undefined };
   if (isRecord(raw)) return { ok: true, input: raw };
-  if (typeof raw === "string") {
-    const trimmed = raw.trim();
-    if (trimmed.length === 0) return { ok: true, input: undefined };
-    try {
-      const parsed: unknown = JSON.parse(trimmed);
-      if (isRecord(parsed)) return { ok: true, input: parsed };
-      return { ok: false, message: "'input' parsed as JSON but is not an object — send a JSON object of the tool's input fields." };
-    } catch {
-      return { ok: false, message: "'input' must be a JSON object of the tool's input fields, not a plain string." };
-    }
-  }
+  if (typeof raw === "string") return resolveDelegatedInputFromString(raw.trim());
   return { ok: false, message: `'input' must be a JSON object of the tool's input fields, not ${Array.isArray(raw) ? "an array" : typeof raw}.` };
+}
+
+/** `search_tools` branch of {@link createByokToolSurface}'s `executeMetaTool` dispatcher — split out
+ *  purely to keep that function's complexity under the shop ceiling; behavior is unchanged. */
+function runSearchTools(catalog: ToolCatalogQuery, registry: Pick<ToolRegistry, "list">, args: Record<string, unknown>): ByokMetaToolResult {
+  const query = typeof args.query === "string" ? args.query.trim() : "";
+  if (query.length === 0) return err("'query' is required and must be a non-empty string.");
+  const rawLimit = args.limit;
+  // Clamp rather than reject: `limit` is an optimization hint, not part of what the caller is
+  // asking for, so an out-of-range one should not cost a whole turn to correct.
+  const limit =
+    typeof rawLimit === "number" && Number.isFinite(rawLimit)
+      ? Math.min(Math.max(Math.trunc(rawLimit), 1), SEARCH_LIMIT_MAX)
+      : SEARCH_LIMIT_DEFAULT;
+  const hits = catalog.search(query, limit);
+  if (hits.length === 0) {
+    return ok({ hits: [], note: `No tool matched "${query}". Try broader or different keywords — this catalog has ${registry.list().length} tools.` });
+  }
+  return ok({ hits });
+}
+
+/** `describe_tool` branch — see {@link runSearchTools}'s doc for why this is split out. */
+function runDescribeTool(catalog: ToolCatalogQuery, args: Record<string, unknown>): ByokMetaToolResult {
+  const id = typeof args.id === "string" ? args.id.trim() : "";
+  if (id.length === 0) return err("'id' is required and must be a non-empty string.");
+  const entry = catalog.describe(id);
+  if (!entry) return err(`No tool with id "${id}". Use search_tools to find a valid id.`);
+  return ok(entry);
+}
+
+/** Maps one `ToolExecutor.execute` outcome onto the meta-tool result shape — split out of
+ *  {@link runExecuteDelegatedTool} so its per-case branching does not also count against that
+ *  function's own complexity. */
+function mapToolExecutionResult(result: Awaited<ReturnType<ToolExecutor["execute"]>>, toolId: string): ByokMetaToolResult {
+  switch (result.status) {
+    case "completed":
+      return ok(result.output);
+    case "denied":
+      return err(`tool "${toolId}" was denied for this caller`);
+    case "confirmation-denied":
+      return err(`tool "${toolId}" requires human confirmation, which BYOK mode cannot supply yet`);
+    case "timed-out":
+      return err(`tool "${toolId}" timed out`);
+    case "cancelled":
+      return err(`tool "${toolId}" was cancelled`);
+    case "failed":
+      return err(result.error ?? `tool "${toolId}" failed`);
+  }
+}
+
+/** `execute_delegated_tool` branch — see {@link runSearchTools}'s doc for why this is split out. */
+async function runExecuteDelegatedTool(
+  executor: ToolExecutor,
+  principal: Principal,
+  run: RunRef,
+  args: Record<string, unknown>,
+  signal: AbortSignal | undefined,
+  emitSurface: SurfaceEmitter | undefined,
+): Promise<ByokMetaToolResult> {
+  const toolId = typeof args.toolId === "string" ? args.toolId.trim() : "";
+  if (toolId.length === 0) return err("'toolId' is required and must be a non-empty string.");
+  const resolvedInput = resolveDelegatedInput(args.input);
+  if (!resolvedInput.ok) return err(resolvedInput.message);
+
+  try {
+    const result = await executor.execute(principal, run, toolId, resolvedInput.input, signal, emitSurface);
+    return mapToolExecutionResult(result, toolId);
+  } catch (error) {
+    // `ToolExecutor.execute` THROWS on an id it does not know (`unknown tool "<id>"`) rather than
+    // returning a status for it. That was unreachable while the model could only name tools from
+    // a list it was handed; with a meta-tool set the id is free-form model output, so a
+    // hallucinated or misremembered id is now an ordinary, expected event — and an uncaught throw
+    // here would abort the entire turn's stream instead of costing one recoverable tool call.
+    const message = error instanceof Error ? error.message : String(error);
+    return err(`${message}. Use search_tools to find a valid tool id.`);
+  }
 }
 
 /**
@@ -319,64 +404,10 @@ export function createByokToolSurface(
       );
     }
 
-    if (call.name === "search_tools") {
-      const query = typeof args.query === "string" ? args.query.trim() : "";
-      if (query.length === 0) return err("'query' is required and must be a non-empty string.");
-      const rawLimit = args.limit;
-      // Clamp rather than reject: `limit` is an optimization hint, not part of what the caller is
-      // asking for, so an out-of-range one should not cost a whole turn to correct.
-      const limit =
-        typeof rawLimit === "number" && Number.isFinite(rawLimit)
-          ? Math.min(Math.max(Math.trunc(rawLimit), 1), SEARCH_LIMIT_MAX)
-          : SEARCH_LIMIT_DEFAULT;
-      const hits = catalog.search(query, limit);
-      if (hits.length === 0) {
-        return ok({ hits: [], note: `No tool matched "${query}". Try broader or different keywords — this catalog has ${registry.list().length} tools.` });
-      }
-      return ok({ hits });
-    }
-
-    if (call.name === "describe_tool") {
-      const id = typeof args.id === "string" ? args.id.trim() : "";
-      if (id.length === 0) return err("'id' is required and must be a non-empty string.");
-      const entry = catalog.describe(id);
-      if (!entry) return err(`No tool with id "${id}". Use search_tools to find a valid id.`);
-      return ok(entry);
-    }
-
+    if (call.name === "search_tools") return runSearchTools(catalog, registry, args);
+    if (call.name === "describe_tool") return runDescribeTool(catalog, args);
     // execute_delegated_tool
-    const toolId = typeof args.toolId === "string" ? args.toolId.trim() : "";
-    if (toolId.length === 0) return err("'toolId' is required and must be a non-empty string.");
-    const resolvedInput = resolveDelegatedInput(args.input);
-    if (!resolvedInput.ok) return err(resolvedInput.message);
-
-    let result: Awaited<ReturnType<ToolExecutor["execute"]>>;
-    try {
-      result = await executor.execute(principal, run, toolId, resolvedInput.input, signal, emitSurface);
-    } catch (error) {
-      // `ToolExecutor.execute` THROWS on an id it does not know (`unknown tool "<id>"`) rather than
-      // returning a status for it. That was unreachable while the model could only name tools from
-      // a list it was handed; with a meta-tool set the id is free-form model output, so a
-      // hallucinated or misremembered id is now an ordinary, expected event — and an uncaught throw
-      // here would abort the entire turn's stream instead of costing one recoverable tool call.
-      const message = error instanceof Error ? error.message : String(error);
-      return err(`${message}. Use search_tools to find a valid tool id.`);
-    }
-
-    switch (result.status) {
-      case "completed":
-        return ok(result.output);
-      case "denied":
-        return err(`tool "${toolId}" was denied for this caller`);
-      case "confirmation-denied":
-        return err(`tool "${toolId}" requires human confirmation, which BYOK mode cannot supply yet`);
-      case "timed-out":
-        return err(`tool "${toolId}" timed out`);
-      case "cancelled":
-        return err(`tool "${toolId}" was cancelled`);
-      case "failed":
-        return err(result.error ?? `tool "${toolId}" failed`);
-    }
+    return runExecuteDelegatedTool(executor, principal, run, args, signal, emitSurface);
   }
 
   return { registry, executor, metaTools: META_TOOL_DESCRIPTORS, surfaceExchanges, executeMetaTool };
