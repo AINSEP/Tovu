@@ -163,6 +163,43 @@ function isVercelConfig(config: DeployConfig): config is VercelDeployConfig {
   );
 }
 
+/**
+ * Sends the Vercel deployment create request and interprets the response — split out of
+ * `deployVercel` so the HTTP round-trip carries only its own branches; `deployVercel` itself keeps
+ * the pre-checks (config shape, token presence) and the single `recordHistory` call derived from
+ * this result. Never throws — a transport failure folds into a typed `TRANSPORT_ERROR`.
+ */
+async function sendVercelDeployRequest(httpClient: HttpClientPort, config: VercelDeployConfig, token: string): Promise<DeployResult> {
+  try {
+    const response = await httpClient.send({
+      method: "POST",
+      url: vercelDeploymentsUrl(config),
+      headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
+      body: JSON.stringify({ name: config.projectId, project: config.projectId, gitSource: { ref: config.ref } }),
+      timeoutMs: DEFAULT_TIMEOUT_MS,
+    });
+
+    if (response.status < 200 || response.status >= 300) {
+      const error: DeployError = {
+        code: "PROVIDER_ERROR",
+        message: `Vercel API returned ${response.status}: ${response.bodyText.slice(0, 300)}`,
+        providerStatus: response.status,
+      };
+      return { ok: false, target: "vercel", error };
+    }
+
+    const body = JSON.parse(response.bodyText || "{}") as { id?: string; url?: string };
+    const deploymentId = body.id ?? "unknown";
+    const deploymentUrl = body.url ? `https://${body.url}` : "unknown";
+    return { ok: true, target: "vercel", deploymentId, deploymentUrl };
+  } catch (err) {
+    // Transport failure, timeout, or an EgressPolicy refusal — never thrown out of deploy().
+    const message = err instanceof Error ? err.message : String(err);
+    const error: DeployError = { code: "TRANSPORT_ERROR", message };
+    return { ok: false, target: "vercel", error };
+  }
+}
+
 interface DeployRow {
   id: string;
   target: string;
@@ -206,37 +243,13 @@ export async function activateDeploy(
       return { ok: false, target: "vercel", error };
     }
 
-    try {
-      const response = await httpClient.send({
-        method: "POST",
-        url: vercelDeploymentsUrl(config),
-        headers: { authorization: `Bearer ${token}`, "content-type": "application/json" },
-        body: JSON.stringify({ name: config.projectId, project: config.projectId, gitSource: { ref: config.ref } }),
-        timeoutMs: DEFAULT_TIMEOUT_MS,
-      });
-
-      if (response.status < 200 || response.status >= 300) {
-        const error: DeployError = {
-          code: "PROVIDER_ERROR",
-          message: `Vercel API returned ${response.status}: ${response.bodyText.slice(0, 300)}`,
-          providerStatus: response.status,
-        };
-        recordHistory({ target: "vercel", status: "failed", resultSummary: error.message });
-        return { ok: false, target: "vercel", error };
-      }
-
-      const body = JSON.parse(response.bodyText || "{}") as { id?: string; url?: string };
-      const deploymentId = body.id ?? "unknown";
-      const deploymentUrl = body.url ? `https://${body.url}` : "unknown";
-      recordHistory({ target: "vercel", status: "triggered", resultSummary: `deployment ${deploymentId} triggered` });
-      return { ok: true, target: "vercel", deploymentId, deploymentUrl };
-    } catch (err) {
-      // Transport failure, timeout, or an EgressPolicy refusal — never thrown out of deploy().
-      const message = err instanceof Error ? err.message : String(err);
-      const error: DeployError = { code: "TRANSPORT_ERROR", message };
-      recordHistory({ target: "vercel", status: "failed", resultSummary: error.message });
-      return { ok: false, target: "vercel", error };
-    }
+    const result = await sendVercelDeployRequest(httpClient, config, token);
+    recordHistory({
+      target: "vercel",
+      status: result.ok ? "triggered" : "failed",
+      resultSummary: result.ok ? `deployment ${result.deploymentId} triggered` : result.error.message,
+    });
+    return result;
   }
 
   return {
