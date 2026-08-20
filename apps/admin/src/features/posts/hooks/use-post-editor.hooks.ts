@@ -29,6 +29,7 @@ import { handleImageDrop, readFileAsDataUrl, titleNodeText, withTitleNode } from
 import { POSTS_DICT } from "../posts-i18n";
 import { defaultPostEditorPort } from "./post-editor-dependencies.hooks";
 import type { PostEditorPort } from "./post-editor-port.hooks";
+import { usePostEditorUi, type PostEditorUiController } from "./use-post-editor-ui.hooks";
 
 /**
  * @file Everything the post/page EDITOR does, so `PostEditor.tsx` is only markup.
@@ -84,7 +85,13 @@ export interface PostFormState {
  *  the HTML/Interactive tabs a `bodyJson`-based post has no equivalent of. */
 export type PostEditorView = "edit" | "preview";
 
-export interface PostEditorController {
+/**
+ * The data/state controller `PostEditor.tsx` mounts, extended with {@link PostEditorUiController}'s
+ * bound interaction handlers (2026-08-20, UI-subhook pass — see `use-post-editor-ui.hooks.ts`'s file
+ * header) — one controller object, same DI-seam shape every field on it already follows, rather than
+ * a second hook call `PostEditor.tsx` would have to compose itself.
+ */
+export interface PostEditorController extends PostEditorUiController {
   /** `null` until the post loads — the caller renders a loading state. */
   post: AdminPost | null;
   /** `null` until TipTap has mounted; the toolbar and `EditorContent` both gate on it. */
@@ -761,7 +768,13 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
     editor?.commands.setPostTitleText(next);
   }
 
+  // UI-subhook pass (2026-08-20) — the interaction layer, composed here so `PostEditor.tsx` reads
+  // one controller instead of calling a second hook itself. See `use-post-editor-ui.hooks.ts`'s file
+  // header for which handlers deliberately stayed OUT of this hook (and why).
+  const ui = usePostEditorUi({ save, setConfirmingDelete, setShowTemplateModal });
+
   return {
+    ...ui,
     post,
     editor,
     title,
