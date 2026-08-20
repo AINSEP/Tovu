@@ -372,6 +372,181 @@ function enforceGoogleSchemaShape(node: Record<string, unknown>): Record<string,
  * depth cap, rather than O(n) for an acyclic schema (no `$ref` in this catalog costs more than one
  * hop in practice, since only the two recursive schemas named above use `$ref` at all).
  */
+/** True for the 3 keys {@link applyGoogleSchemaEntry} drops outright: `$defs`/`$ref` are consumed by
+ *  {@link sanitizeGoogleSchema} before the entries loop runs, and `oneOf` is handled after it by
+ *  {@link mergeGoogleOneOf}. Split out purely to keep the dispatcher's own condition count under the
+ *  shop complexity ceiling. */
+function isGoogleIgnoredSchemaKey(key: string): boolean {
+  return key === "$defs" || key === "$ref" || key === "oneOf";
+}
+
+/** True for the JSON-Schema nullable idiom (`type: ["string","null"]`) — see
+ *  {@link applyGoogleSchemaTypeArray}'s doc for why it gets special handling. */
+function isGoogleTypeArrayKey(key: string, value: unknown): boolean {
+  return key === "type" && Array.isArray(value);
+}
+
+/** True for the one key ({@link applyGoogleSchemaEntry}'s `properties`) whose VALUE is a map keyed
+ *  by arbitrary, tool-author-chosen property names rather than schema keywords. */
+function isGooglePropertiesKey(key: string, value: unknown): boolean {
+  return key === "properties" && isRecord(value);
+}
+
+/** True for the two keys ({@link applyGoogleSchemaEntry}'s `items`/`anyOf`) that hold a nested
+ *  SCHEMA position, where {@link enforceGoogleSchemaShape}'s structural invariants must be
+ *  enforced — `items` is the one that mattered in production: a truncated recursive def left an
+ *  array with no `items` at all. */
+function isGoogleSchemaPositionKey(key: string): boolean {
+  return key === "items" || key === "anyOf";
+}
+
+/** Collapses a `type` array entry into Gemini's single-`type`-plus-`nullable` shape and writes it
+ *  onto `result`. Split out of {@link applyGoogleSchemaEntry} purely to keep that function's
+ *  complexity under the shop ceiling. */
+function applyGoogleSchemaTypeArray(result: Record<string, unknown>, value: readonly unknown[]): GoogleSchemaEntryEffect {
+  const collapsed = collapseGoogleTypeArray(value);
+  result.type = collapsed.type;
+  return collapsed.nullable ? { inferredNullable: true } : {};
+}
+
+/** Sanitizes an `items`/`anyOf` schema position, which may be a single schema or (for `anyOf`) an
+ *  array of them. Split out of {@link applyGoogleSchemaEntry} purely to keep that function's
+ *  complexity under the shop ceiling. */
+function sanitizeGoogleSchemaPositionValue(value: unknown, defs: Readonly<Record<string, unknown>>, remainingRefDepth: number): unknown {
+  return Array.isArray(value)
+    ? value.map((member) => sanitizeGoogleSubschema(member, defs, remainingRefDepth))
+    : sanitizeGoogleSubschema(value, defs, remainingRefDepth);
+}
+
+/** What one entry can hand back to {@link buildGoogleSchemaResult}'s loop besides the write it
+ *  already made directly onto `result` — the loop-scoped `const`/nullable state a single entry
+ *  cannot carry any other way. */
+interface GoogleSchemaEntryEffect {
+  readonly constValue?: unknown;
+  readonly hasConst?: boolean;
+  readonly inferredNullable?: boolean;
+}
+
+/**
+ * Applies one `[key, value]` entry of a JSON-Schema object onto `result`, mirroring one iteration
+ * of {@link sanitizeGoogleSchema}'s original inline loop body. Split out purely to keep that
+ * function's complexity under the shop ceiling — this is a direct extraction, not a behavior
+ * change; see {@link sanitizeGoogleSchema}'s own doc for the "Five kinds of change" this
+ * implements.
+ */
+function applyGoogleSchemaEntry(
+  result: Record<string, unknown>,
+  key: string,
+  value: unknown,
+  localDefs: Readonly<Record<string, unknown>>,
+  remainingRefDepth: number,
+): GoogleSchemaEntryEffect {
+  if (isGoogleIgnoredSchemaKey(key)) return {};
+  if (key === "const") {
+    result.enum = [value];
+    return { hasConst: true, constValue: value };
+  }
+  if (isGoogleTypeArrayKey(key, value)) return applyGoogleSchemaTypeArray(result, value as readonly unknown[]);
+  if (!GOOGLE_SUPPORTED_SCHEMA_KEYS.has(key)) return {};
+  if (isGooglePropertiesKey(key, value)) {
+    // Each property name is preserved verbatim; only its own subschema value is recursively
+    // sanitized — see `isGooglePropertiesKey`'s doc for why this key skips the generic path below.
+    result.properties = Object.fromEntries(
+      Object.entries(value as Record<string, unknown>).map(([name, propSchema]) => [name, sanitizeGoogleSubschema(propSchema, localDefs, remainingRefDepth)]),
+    );
+    return {};
+  }
+  if (isGoogleSchemaPositionKey(key)) {
+    result[key] = sanitizeGoogleSchemaPositionValue(value, localDefs, remainingRefDepth);
+    return {};
+  }
+  result[key] = sanitizeGoogleSchema(value, localDefs, remainingRefDepth);
+  return {};
+}
+
+/** Merges `schema.oneOf` (if present) into `result.anyOf`, per {@link sanitizeGoogleSchema}'s
+ *  "Convert, not drop" doc point. Returns `undefined` when `schema` has no `oneOf` at all, so the
+ *  caller can tell "nothing to merge" apart from "merged to an empty array". Split out purely to
+ *  keep {@link buildGoogleSchemaResult}'s complexity under the shop ceiling. */
+function mergeGoogleOneOf(
+  schema: Record<string, unknown>,
+  result: Record<string, unknown>,
+  defs: Readonly<Record<string, unknown>>,
+  remainingRefDepth: number,
+): unknown[] | undefined {
+  if (!Array.isArray(schema.oneOf)) return undefined;
+  const merged = [...(Array.isArray(result.anyOf) ? result.anyOf : []), ...schema.oneOf];
+  return merged.map((member) => sanitizeGoogleSubschema(member, defs, remainingRefDepth));
+}
+
+interface GoogleSchemaBuildResult {
+  readonly result: Record<string, unknown>;
+  readonly hasConst: boolean;
+  readonly constValue: unknown;
+  readonly inferredNullable: boolean;
+}
+
+/** The entries-loop-plus-`oneOf`-merge core of {@link sanitizeGoogleSchema}, for every schema that
+ *  is neither an array nor a `$ref`. Split out purely to keep that function's complexity under the
+ *  shop ceiling. */
+function buildGoogleSchemaResult(
+  schema: Record<string, unknown>,
+  localDefs: Readonly<Record<string, unknown>>,
+  remainingRefDepth: number,
+): GoogleSchemaBuildResult {
+  const result: Record<string, unknown> = {};
+  let constValue: unknown;
+  let hasConst = false;
+  let inferredNullable = false;
+  for (const [key, value] of Object.entries(schema)) {
+    const effect = applyGoogleSchemaEntry(result, key, value, localDefs, remainingRefDepth);
+    if (effect.hasConst) {
+      hasConst = true;
+      constValue = effect.constValue;
+    }
+    if (effect.inferredNullable) inferredNullable = true;
+  }
+  const mergedOneOf = mergeGoogleOneOf(schema, result, localDefs, remainingRefDepth);
+  if (mergedOneOf) result.anyOf = mergedOneOf;
+  return { result, hasConst, constValue, inferredNullable };
+}
+
+/** The `$ref` branch of {@link sanitizeGoogleSchema} — split out purely to keep that function's
+ *  complexity under the shop ceiling. */
+function sanitizeGoogleSchemaRef(ref: string, localDefs: Readonly<Record<string, unknown>>, remainingRefDepth: number): unknown {
+  const resolved = resolveGoogleRef(ref, localDefs);
+  if (remainingRefDepth <= 0) return enforceGoogleSchemaShape(terminalGoogleRefStub(resolved));
+  return sanitizeGoogleSchema(resolved, localDefs, remainingRefDepth - 1);
+}
+
+/** True when every member of `schema.enum` is a JS `number` — the shape
+ *  {@link applyGoogleNumericEnumStringification} stringifies for Gemini's wire format, and the
+ *  shape {@link findNumericEnumPaths} (over the UNSANITIZED schema, with an added `type` check —
+ *  see that function's own doc for why the two checks differ) finds so the matching tool-call
+ *  argument can be coerced back to a number. Split out purely to keep both callers' complexity
+ *  under the shop ceiling. */
+function hasGoogleNumericEnumValues(schema: Record<string, unknown>): boolean {
+  return Array.isArray(schema.enum) && schema.enum.length > 0 && schema.enum.every((member) => typeof member === "number");
+}
+
+/** The numeric-`enum`-to-string conversion documented on {@link sanitizeGoogleSchema}'s "Stringify
+ *  a numeric `enum`" point — split out purely to keep that function's complexity under the shop
+ *  ceiling. Mutates `result` in place, mirroring the original inline assignment. */
+function applyGoogleNumericEnumStringification(schema: Record<string, unknown>, result: Record<string, unknown>): void {
+  if (!hasGoogleNumericEnumValues(schema)) return;
+  result.enum = (schema.enum as unknown[]).map((member) => String(member));
+  result.type = "string";
+}
+
+/** The `const`-without-a-sibling-`type` inference documented on {@link sanitizeGoogleSchema}'s doc
+ *  (see its "A plain JSON-Schema `const`..." comment) — split out purely to keep that function's
+ *  complexity under the shop ceiling. Mutates `result` in place, mirroring the original inline
+ *  assignment. */
+function applyGoogleConstTypeInference(result: Record<string, unknown>, hasConst: boolean, constValue: unknown): void {
+  if (!hasConst || result.type !== undefined) return;
+  result.type = inferGoogleTypeFromLiteral(constValue);
+}
+
 export function sanitizeGoogleSchema(
   schema: unknown,
   defs: Readonly<Record<string, unknown>> = {},
@@ -381,57 +556,9 @@ export function sanitizeGoogleSchema(
   if (!isRecord(schema)) return schema;
 
   const localDefs = isRecord(schema.$defs) ? { ...defs, ...schema.$defs } : defs;
+  if (typeof schema.$ref === "string") return sanitizeGoogleSchemaRef(schema.$ref, localDefs, remainingRefDepth);
 
-  if (typeof schema.$ref === "string") {
-    const resolved = resolveGoogleRef(schema.$ref, localDefs);
-    if (remainingRefDepth <= 0) return enforceGoogleSchemaShape(terminalGoogleRefStub(resolved));
-    return sanitizeGoogleSchema(resolved, localDefs, remainingRefDepth - 1);
-  }
-
-  const result: Record<string, unknown> = {};
-  let constValue: unknown;
-  let hasConst = false;
-  let inferredNullable = false;
-  for (const [key, value] of Object.entries(schema)) {
-    if (key === "$defs" || key === "$ref" || key === "oneOf") continue; // $defs/$ref consumed above; oneOf handled below
-    if (key === "const") {
-      hasConst = true;
-      constValue = value;
-      result.enum = [value];
-      continue;
-    }
-    if (key === "type" && Array.isArray(value)) {
-      // The JSON-Schema nullable idiom (`type: ["string","null"]`) — Gemini's `type` is a single
-      // enum value, not a repeating list (live evidence: `collapseGoogleTypeArray`'s doc).
-      const collapsed = collapseGoogleTypeArray(value);
-      result.type = collapsed.type;
-      if (collapsed.nullable) inferredNullable = true;
-      continue;
-    }
-    if (!GOOGLE_SUPPORTED_SCHEMA_KEYS.has(key)) continue;
-    if (key === "properties" && isRecord(value)) {
-      // `properties`'s VALUE is a map keyed by arbitrary, tool-author-chosen property names — not
-      // schema keywords — so it must NOT go through the same key-whitelist filter as every other
-      // key here (that would strip every property name that doesn't happen to collide with a
-      // Schema keyword, which is most of them). Each property name is preserved verbatim; only its
-      // own subschema value is recursively sanitized.
-      result.properties = Object.fromEntries(Object.entries(value).map(([name, propSchema]) => [name, sanitizeGoogleSubschema(propSchema, localDefs, remainingRefDepth)]));
-      continue;
-    }
-    if (key === "items" || key === "anyOf") {
-      // Schema positions — enforce the structural invariants on what lands here. `items` is the one
-      // that mattered in production: a truncated recursive def left an array with no `items` at all.
-      result[key] = Array.isArray(value)
-        ? value.map((member) => sanitizeGoogleSubschema(member, localDefs, remainingRefDepth))
-        : sanitizeGoogleSubschema(value, localDefs, remainingRefDepth);
-      continue;
-    }
-    result[key] = sanitizeGoogleSchema(value, localDefs, remainingRefDepth);
-  }
-  if (Array.isArray(schema.oneOf)) {
-    const merged = [...(Array.isArray(result.anyOf) ? result.anyOf : []), ...schema.oneOf];
-    result.anyOf = merged.map((member) => sanitizeGoogleSubschema(member, localDefs, remainingRefDepth));
-  }
+  const { result, hasConst, constValue, inferredNullable } = buildGoogleSchemaResult(schema, localDefs, remainingRefDepth);
   if (inferredNullable) result.nullable = true;
   // A plain JSON-Schema `const: "entryRef"` (this catalog's real usage — e.g.
   // `NAV_TARGET_SCHEMA`'s `kind: { const: "entryRef" }`) carries no separate `type` field of its
@@ -440,9 +567,7 @@ export function sanitizeGoogleSchema(
   // REAL catalog and asserting every node has a `type` caught this exact gap before it could
   // reproduce the live bug a third time) — so a bare `type`-less `const` needs one synthesized here.
   // A schema that already declares its own `type` alongside `const` keeps that declared type as-is.
-  if (hasConst && result.type === undefined) {
-    result.type = inferGoogleTypeFromLiteral(constValue);
-  }
+  applyGoogleConstTypeInference(result, hasConst, constValue);
   // Gemini's `enum` is `repeated string` ONLY (confirmed live: a numeric `enum` value fails with
   // "Invalid value ... (TYPE_STRING)") — this catalog's one real site (`redirects`'s `statusCode`,
   // `type: "integer"`, `enum: [301,302,307,308]`; a full catalog sweep found no other numeric
@@ -454,10 +579,7 @@ export function sanitizeGoogleSchema(
   // requires `typeof value === "number"`, e.g. `@jini-ai/cms/core`'s `requireNumber`) ever sees it —
   // without that reverse step, every Gemini-driven call to a tool using this shape would fail at the
   // handler's own type check even though the Gemini API call itself succeeded.
-  if (Array.isArray(schema.enum) && schema.enum.length > 0 && schema.enum.every((member) => typeof member === "number")) {
-    result.enum = schema.enum.map((member) => String(member));
-    result.type = "string";
-  }
+  applyGoogleNumericEnumStringification(schema, result);
   // NOT `enforceGoogleSchemaShape(result)` here, deliberately. This function also recurses into
   // values that are NOT schemas — `default` and `example` are both supported Gemini keys whose
   // values are arbitrary user data — and blanket-enforcing here injected `type: "object"` into
@@ -504,11 +626,20 @@ export function googleParametersOf(descriptor: ToolDescriptor): Record<string, u
  * catalog; this function does not resolve `$ref` at all, so such a schema's numeric `enum` past a
  * `$ref` would not be found — flag this if one is ever added).
  */
+/** The extra `type` check {@link findNumericEnumPaths} needs on top of
+ *  {@link hasGoogleNumericEnumValues}: a numeric `enum` only means "coerce the tool-call argument
+ *  back to a number" when the ORIGINAL schema also declared a numeric `type` — see
+ *  `hasGoogleNumericEnumValues`'s own doc for why `sanitizeGoogleSchema`'s stringification check
+ *  does not need this same `type` guard. Split out purely to keep `findNumericEnumPaths`'s
+ *  complexity under the shop ceiling. */
+function isGoogleNumericEnumSchema(schema: Record<string, unknown>): boolean {
+  return (schema.type === "integer" || schema.type === "number") && hasGoogleNumericEnumValues(schema);
+}
+
 export function findNumericEnumPaths(schema: unknown, prefix: readonly string[] = []): string[] {
   if (!isRecord(schema)) return [];
   const paths: string[] = [];
-  const isNumericEnum = (schema.type === "integer" || schema.type === "number") && Array.isArray(schema.enum) && schema.enum.length > 0 && schema.enum.every((member) => typeof member === "number");
-  if (isNumericEnum) paths.push(prefix.join("."));
+  if (isGoogleNumericEnumSchema(schema)) paths.push(prefix.join("."));
   if (isRecord(schema.properties)) {
     for (const [name, propSchema] of Object.entries(schema.properties)) {
       paths.push(...findNumericEnumPaths(propSchema, [...prefix, name]));
