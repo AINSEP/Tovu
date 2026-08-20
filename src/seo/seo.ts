@@ -87,6 +87,121 @@ export interface GetEntryMetaInput {
   entryId: string;
 }
 
+type ResolvedSeoSettings = Awaited<ReturnType<typeof getSeoSettings>>;
+
+/** canonical: override (accepted cross-domain as-is, EC-10) > routing-resolved. Never invents a
+ *  local origin (INV-07) — a draft falls back to the bare relative path rather than fabricating an
+ *  absolute URL. */
+async function resolveCanonical(deps: GetEntryMetaDeps, post: PostRecord, overrides: SeoExtFields, workspaceId: string): Promise<string> {
+  const routingResolverDeps: RouteResolverDeps = { postRepo: deps.postRepo };
+  const routed = await urlFor({
+    deps: routingResolverDeps,
+    target: { kind: "entryRef", entryId: post.id, contentType: post.kind },
+    ctx: { workspaceId },
+  });
+  return overrides.canonical ?? routed?.canonicalUrl ?? `/${post.slug}`;
+}
+
+/** robots: override > site default > derived (draft-safety fallback for noindex, EC-11). */
+async function resolveRobots(
+  deps: GetEntryMetaDeps,
+  post: PostRecord,
+  overrides: SeoExtFields,
+  settings: ResolvedSeoSettings,
+  workspaceId: string
+): Promise<{ noindex: boolean; nofollow: boolean }> {
+  let noindex: boolean;
+  if (overrides.noindex !== undefined) {
+    noindex = overrides.noindex;
+  } else if (await isDefaultRobotsNoindexExplicitlySet(deps.settingsRepo, workspaceId)) {
+    noindex = settings.defaultRobots.noindex;
+  } else {
+    noindex = post.status !== "published";
+  }
+  const nofollow = overrides.nofollow ?? settings.defaultRobots.nofollow ?? false;
+  return { noindex, nofollow };
+}
+
+/** openGraph/twitter image refs resolve through media (fail-soft, EC-07). */
+async function resolveShareImages(
+  deps: GetEntryMetaDeps,
+  overrides: SeoExtFields,
+  settings: ResolvedSeoSettings,
+  workspaceId: string
+): Promise<{ ogImage: string | undefined; twitterImage: string | undefined }> {
+  const ogImageRef = overrides.ogImage ?? settings.defaultOgImage;
+  const ogImage = ogImageRef ? await resolveSeoImageRef(deps.media, { workspaceId, ref: ogImageRef }) : undefined;
+  const twitterImageRef = overrides.twitterImage ?? settings.defaultOgImage;
+  const twitterImage = twitterImageRef ? await resolveSeoImageRef(deps.media, { workspaceId, ref: twitterImageRef }) : undefined;
+  return { ogImage, twitterImage };
+}
+
+/** title: override, else titleTemplate applied to entry.title. description: override > site default >
+ *  derived excerpt > omitted. */
+function resolveTitleAndDescription(
+  post: PostRecord,
+  overrides: SeoExtFields,
+  settings: ResolvedSeoSettings
+): { title: string; description: string | undefined } {
+  // title is never empty — entry.title is itself validated non-empty at the post write
+  // chokepoint, and %s substitution never drops it.
+  const title = overrides.title ?? settings.titleTemplate.replaceAll("%s", post.title);
+  const description = overrides.description ?? settings.defaultDescription ?? deriveExcerpt(post);
+  return { title, description };
+}
+
+/** ogType/schemaType (REQ-07): override, else derived from the entry's content kind. */
+function resolveContentTypeFields(post: PostRecord, overrides: SeoExtFields): { ogType: string; schemaType: string } {
+  const ogType = overrides.ogType ?? (post.kind === "page" ? "website" : "article");
+  const schemaType = overrides.schemaType ?? CONTENT_TYPE_SCHEMA_MAP[post.kind];
+  return { ogType, schemaType };
+}
+
+function buildOpenGraph(
+  overrides: SeoExtFields,
+  title: string,
+  description: string | undefined,
+  ogType: string,
+  canonical: string,
+  ogImage: string | undefined
+): SeoMeta["openGraph"] {
+  return {
+    title: overrides.ogTitle ?? title,
+    description: overrides.ogDescription ?? description,
+    type: ogType,
+    url: canonical,
+    image: ogImage,
+    siteName: undefined,
+  };
+}
+
+function buildTwitter(
+  overrides: SeoExtFields,
+  title: string,
+  description: string | undefined,
+  twitterImage: string | undefined,
+  settings: ResolvedSeoSettings
+): SeoMeta["twitter"] {
+  return {
+    card: overrides.twitterCard ?? "summary_large_image",
+    title: overrides.twitterTitle ?? title,
+    description: overrides.twitterDescription ?? description,
+    image: twitterImage,
+    site: settings.twitterSite,
+  };
+}
+
+/** JSON-LD `@type` (REQ-07) plus the headline/name field, which differs by content kind. */
+function buildJsonLdEntry(post: PostRecord, schemaType: string, title: string, description: string | undefined): Record<string, JsonValue> {
+  const jsonLdEntry: Record<string, JsonValue> = {
+    "@context": "https://schema.org",
+    "@type": schemaType,
+    ...(post.kind === "post" ? { headline: title } : { name: title }),
+  };
+  if (description) jsonLdEntry.description = description;
+  return jsonLdEntry;
+}
+
 /**
  * Resolves the effective `SeoMeta` for one entry (override ▸ site default ▸
  * derived, per field — behavior.spec.md §1.1). Never partial.
@@ -103,74 +218,20 @@ export async function getEntryMeta(deps: GetEntryMetaDeps, input: GetEntryMetaIn
     workspaceId: input.workspaceId,
   });
 
-  // --- title: override, else titleTemplate applied to entry.title (never empty — entry.title is
-  // itself validated non-empty at the post write chokepoint, and %s substitution never drops it). ---
-  const title = overrides.title ?? settings.titleTemplate.replaceAll("%s", post.title);
-
-  // --- description: override > site default > derived excerpt > omitted. ---
-  const description = overrides.description ?? settings.defaultDescription ?? deriveExcerpt(post);
-
-  // --- canonical: override (accepted cross-domain as-is, EC-10) > routing-resolved. Never invents
-  // a local origin (INV-07) — a draft (routing.urlFor returns null for non-published entries) falls
-  // back to the bare relative path rather than fabricating an absolute URL. ---
-  const routingResolverDeps: RouteResolverDeps = { postRepo: deps.postRepo };
-  const routed = await urlFor({
-    deps: routingResolverDeps,
-    target: { kind: "entryRef", entryId: post.id, contentType: post.kind },
-    ctx: { workspaceId: input.workspaceId },
-  });
-  const canonical = overrides.canonical ?? routed?.canonicalUrl ?? `/${post.slug}`;
-
-  // --- robots: override > site default > derived (draft-safety fallback for noindex, EC-11). ---
-  let noindex: boolean;
-  if (overrides.noindex !== undefined) {
-    noindex = overrides.noindex;
-  } else if (await isDefaultRobotsNoindexExplicitlySet(deps.settingsRepo, input.workspaceId)) {
-    noindex = settings.defaultRobots.noindex;
-  } else {
-    noindex = post.status !== "published";
-  }
-  const nofollow = overrides.nofollow ?? settings.defaultRobots.nofollow ?? false;
-
-  // --- openGraph/twitter image refs resolve through media (fail-soft, EC-07). ---
-  const ogImageRef = overrides.ogImage ?? settings.defaultOgImage;
-  const ogImage = ogImageRef ? await resolveSeoImageRef(deps.media, { workspaceId: input.workspaceId, ref: ogImageRef }) : undefined;
-  const twitterImageRef = overrides.twitterImage ?? settings.defaultOgImage;
-  const twitterImage = twitterImageRef
-    ? await resolveSeoImageRef(deps.media, { workspaceId: input.workspaceId, ref: twitterImageRef })
-    : undefined;
-
-  const ogType = overrides.ogType ?? (post.kind === "page" ? "website" : "article");
-  const schemaType = overrides.schemaType ?? CONTENT_TYPE_SCHEMA_MAP[post.kind];
-
-  const jsonLdEntry: Record<string, JsonValue> = {
-    "@context": "https://schema.org",
-    "@type": schemaType,
-    ...(post.kind === "post" ? { headline: title } : { name: title }),
-  };
-  if (description) jsonLdEntry.description = description;
+  const { title, description } = resolveTitleAndDescription(post, overrides, settings);
+  const canonical = await resolveCanonical(deps, post, overrides, input.workspaceId);
+  const { noindex, nofollow } = await resolveRobots(deps, post, overrides, settings, input.workspaceId);
+  const { ogImage, twitterImage } = await resolveShareImages(deps, overrides, settings, input.workspaceId);
+  const { ogType, schemaType } = resolveContentTypeFields(post, overrides);
 
   return {
     title,
     description,
     canonical,
     robots: { noindex, nofollow },
-    openGraph: {
-      title: overrides.ogTitle ?? title,
-      description: overrides.ogDescription ?? description,
-      type: ogType,
-      url: canonical,
-      image: ogImage,
-      siteName: undefined,
-    },
-    twitter: {
-      card: overrides.twitterCard ?? "summary_large_image",
-      title: overrides.twitterTitle ?? title,
-      description: overrides.twitterDescription ?? description,
-      image: twitterImage,
-      site: settings.twitterSite,
-    },
-    jsonLd: [jsonLdEntry],
+    openGraph: buildOpenGraph(overrides, title, description, ogType, canonical, ogImage),
+    twitter: buildTwitter(overrides, title, description, twitterImage, settings),
+    jsonLd: [buildJsonLdEntry(post, schemaType, title, description)],
   };
 }
 
