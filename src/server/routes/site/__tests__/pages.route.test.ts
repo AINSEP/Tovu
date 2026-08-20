@@ -306,3 +306,76 @@ test("GET /:slug: a PostNotFoundError thrown before theme resolution completes s
   const html = await res.text();
   assert.ok(html.includes("404 — page not found"), "with theme null, handlePostNotFoundOnSlugRoute must fall straight to the bare fallback, never dereference theme.manifest");
 });
+
+/** `resolveMarketingPageOrOverride`'s `if (!staticHtml)` (pages.ts) checks FALSY, not merely
+ *  `=== null` — so it is NOT provably dead the way the two `renderStaticPage(...) ?? ""` fallbacks
+ *  in `renderViaTemplate` are (those only ever guard against `null`, per that function's own
+ *  `?? ""` operator). `theme.pages[slug]` being a literal empty string is a real, if unusual,
+ *  authoring state (an empty `.html` file on disk) that `isMarketingPageSlug`'s own
+ *  `theme.pages[slug] !== undefined` guarantee does NOT rule out — `"" !== undefined` is true. This
+ *  is the one real way to force `renderStaticPage({ theme, pageId: slug, menus })` (called with no
+ *  `htmlOverride`, so `source = theme.pages[slug]`) to return a falsy, non-null string. */
+function staticThemeWithEmptyPage(): DiscoveredTheme {
+  return {
+    manifest: {
+      id: "static-empty-page-test-theme",
+      name: "Static Empty Page Test Theme",
+      version: "1.0.0",
+      tier: "static",
+      engine: 1,
+      templates: [],
+    },
+    dir: "/nonexistent/empty-page-test-theme",
+    tokens: {},
+    tokensLight: {},
+    templates: {},
+    liquidTemplates: {},
+    handlebarsTemplates: {},
+    pages: {
+      index: "<html><body><main>home</main></body></html>",
+      "empty-page": "",
+    },
+    partials: {},
+    css: "",
+    source: "site",
+    status: "valid",
+    errors: [],
+  } as unknown as DiscoveredTheme;
+}
+
+test("GET /empty-page: a static theme page whose own file is a literal empty string falls through to the ordinary post lookup (and 404s), rather than rendering as an empty 200", async (t) => {
+  const { server, baseUrl } = await startServer({
+    themes: [staticThemeWithEmptyPage()],
+    postRepo: new InMemoryPostRepo([]),
+  });
+  t.after(() => closeServer(server));
+
+  const res = await fetch(`${baseUrl}/empty-page`);
+  assert.equal(
+    res.status,
+    404,
+    "renderStaticPage's falsy (empty-string) return must be treated as `{ kind: \"fallthrough\" }`, same as a genuinely missing page -- not silently sent as a 200"
+  );
+});
+
+/** A post repo whose `list` throws a genuine, unexpected `Error` (not `PostNotFoundError`) --
+ *  models the `GET /` route's own bare `catch {}` (no binding, no discrimination -- every
+ *  exception funnels to the same generic 500), the one branch of that handler no test in this
+ *  file has ever forced. Mirrors `products.route.test.ts`'s identical "GET /products 500s with a
+ *  generic 'Site error'" test for its own route. */
+class ThrowsUnexpectedErrorOnListPostRepo extends InMemoryPostRepo {
+  async list(): Promise<PostRecord[]> {
+    throw new Error("boom");
+  }
+}
+
+test("GET / 500s with a generic 'Site error' when an unexpected exception is thrown", async (t) => {
+  const { server, baseUrl } = await startServer({
+    postRepo: new ThrowsUnexpectedErrorOnListPostRepo([]),
+  });
+  t.after(() => closeServer(server));
+
+  const res = await fetch(baseUrl);
+  assert.equal(res.status, 500);
+  assert.equal(await res.text(), "<h1>Site error</h1>", "the exact bare fallback body, not merely a 500 status");
+});

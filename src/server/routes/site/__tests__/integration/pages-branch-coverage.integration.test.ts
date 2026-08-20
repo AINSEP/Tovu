@@ -284,3 +284,62 @@ test("integration: GET /:slug (post route) buildExtraHead's canonical falls back
   const res = await fetch(`${baseUrl}/broken-canonical-int`);
   assert.equal(res.status, 200);
 });
+
+/** Mirrors `pages.route.test.ts`'s unit-tier `ThrowsUnexpectedErrorOnListPostRepo` -- the `GET /`
+ *  route's own bare `catch {}` (generic 500), forced via a postRepo whose `list` throws a plain
+ *  `Error`. */
+class ThrowsUnexpectedErrorOnListPostRepo extends InMemoryPostRepo {
+  async list(): Promise<PostRecord[]> {
+    throw new Error("boom (integration)");
+  }
+}
+
+test("integration: GET / 500s with a generic 'Site error' when an unexpected exception is thrown", async (t) => {
+  const app = createApp(testDeps({ postRepo: new ThrowsUnexpectedErrorOnListPostRepo([]) }));
+  const baseUrl = await startTestServer(app, t);
+
+  const res = await fetch(baseUrl);
+  assert.equal(res.status, 500);
+  assert.equal(await res.text(), "<h1>Site error</h1>");
+});
+
+/** Mirrors `pages.route.test.ts`'s unit-tier `staticThemeWithEmptyPage`/empty-page test -- see that
+ *  test's own comment for why `resolveMarketingPageOrOverride`'s `if (!staticHtml)` is NOT provably
+ *  dead (unlike the two `renderStaticPage(...) ?? ""` null-guards): it checks falsy, and a literal
+ *  empty-string theme page file satisfies `theme.pages[slug] !== undefined` while still being
+ *  falsy. */
+function staticThemeWithEmptyPage(): DiscoveredTheme {
+  return {
+    manifest: {
+      id: "static-empty-page-integration-theme",
+      name: "Static Empty Page Integration Theme",
+      version: "1.0.0",
+      tier: "static",
+      engine: 1,
+      templates: [],
+    },
+    dir: "/nonexistent/empty-page-integration-theme",
+    tokens: {},
+    tokensLight: {},
+    templates: {},
+    liquidTemplates: {},
+    handlebarsTemplates: {},
+    pages: {
+      index: "<html><body><main>home</main></body></html>",
+      "empty-page-int": "",
+    },
+    partials: {},
+    css: "",
+    source: "site",
+    status: "valid",
+    errors: [],
+  } as unknown as DiscoveredTheme;
+}
+
+test("integration: GET /empty-page-int falls through to the ordinary post lookup (404s) instead of rendering an empty 200", async (t) => {
+  const app = createApp(testDeps({ themes: [staticThemeWithEmptyPage()], postRepo: new InMemoryPostRepo([]) }));
+  const baseUrl = await startTestServer(app, t);
+
+  const res = await fetch(`${baseUrl}/empty-page-int`);
+  assert.equal(res.status, 404);
+});
