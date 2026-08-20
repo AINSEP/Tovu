@@ -2,6 +2,7 @@ import type { Express } from "express";
 
 import { MemberValidationError, requestSignInLink } from "#src/members/index";
 import { resolveClientIp } from "#src/core/rate-limit/rate-limit";
+import type { RateLimitResult } from "#src/core/rate-limit/rate-limit";
 import { toPublicMembersWriteServiceDeps, type MemberPublicRouteDeps } from "./deps.js";
 
 /**
@@ -28,6 +29,27 @@ import { toPublicMembersWriteServiceDeps, type MemberPublicRouteDeps } from "./d
  * `429` here is a volume signal (this email/IP was queried too often), never
  * an existence signal.
  */
+
+/**
+ * Finds the first exceeded check among a set of named rate-limit results, or `null` if every
+ * check passed. Isolated from `RateLimitResult`'s own discriminated union so the caller gets a
+ * flat, always-present `retryAfterSeconds` on the exceeded case (an `Array.find` predicate does
+ * NOT narrow the element type it returns, so this has to be a plain loop to keep that field
+ * type-checked instead of hand-waved).
+ *
+ * @complexity O(n) over `checks`; n is fixed at 2 call sites today (email, IP).
+ */
+function findExceededRateLimit(
+  checks: ReadonlyArray<{ result: RateLimitResult; message: string }>,
+): { message: string; retryAfterSeconds: number } | null {
+  for (const check of checks) {
+    if (!check.result.allowed) {
+      return { message: check.message, retryAfterSeconds: check.result.retryAfterSeconds };
+    }
+  }
+  return null;
+}
+
 export function registerPublicMemberSignInRequestRoute(app: Express, deps: MemberPublicRouteDeps): void {
   app.post("/api/members/v1/workspaces/:workspaceId/sign-in", async (req, res) => {
     if (String(req.params.workspaceId ?? "") !== deps.workspaceId) {
@@ -35,31 +57,24 @@ export function registerPublicMemberSignInRequestRoute(app: Express, deps: Membe
       return;
     }
 
-    const email = String(req.body?.email ?? "");
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const email = String(body.email ?? "");
     const emailKey = email.trim().toLowerCase();
     const clientIp = resolveClientIp(req);
 
     // Both checks must pass before `requestSignInLink` runs (W-002/W-003) —
     // neither check is skipped, and both consult a shared, app-boot-scoped
     // limiter instance (C-015), not a per-request one.
-    const emailLimitResult = deps.magicLinkPerEmailLimiter.check(emailKey);
-    if (!emailLimitResult.allowed) {
-      res.setHeader("Retry-After", String(emailLimitResult.retryAfterSeconds));
+    const exceeded = findExceededRateLimit([
+      { result: deps.magicLinkPerEmailLimiter.check(emailKey), message: "too many sign-in requests for this email" },
+      { result: deps.magicLinkPerIpLimiter.check(clientIp), message: "too many sign-in requests from this address" },
+    ]);
+    if (exceeded) {
+      res.setHeader("Retry-After", String(exceeded.retryAfterSeconds));
       res.status(429).json({
-        error: "too many sign-in requests for this email",
+        error: exceeded.message,
         code: "RATE_LIMIT_EXCEEDED",
-        details: { retryAfterSeconds: emailLimitResult.retryAfterSeconds },
-      });
-      return;
-    }
-
-    const ipLimitResult = deps.magicLinkPerIpLimiter.check(clientIp);
-    if (!ipLimitResult.allowed) {
-      res.setHeader("Retry-After", String(ipLimitResult.retryAfterSeconds));
-      res.status(429).json({
-        error: "too many sign-in requests from this address",
-        code: "RATE_LIMIT_EXCEEDED",
-        details: { retryAfterSeconds: ipLimitResult.retryAfterSeconds },
+        details: { retryAfterSeconds: exceeded.retryAfterSeconds },
       });
       return;
     }
@@ -70,7 +85,7 @@ export function registerPublicMemberSignInRequestRoute(app: Express, deps: Membe
         input: {
           workspaceId: deps.workspaceId,
           email,
-          redirectPath: req.body?.redirectPath ? String(req.body.redirectPath) : undefined,
+          redirectPath: body.redirectPath ? String(body.redirectPath) : undefined,
         },
       });
 
