@@ -2,7 +2,28 @@ import { buildWidgetsDeps } from "#src/widgets/deps";
 import { createWidgetInstance } from "#src/widgets/write-service";
 import { mapWidgetErrorToResponse, toAdminWidgetResponse } from "#src/server/http/admin/widgets";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
+import type { WidgetTypeKey } from "#src/widgets/types";
 import type { RouteRegistrar } from "../../types.js";
+
+/** This route's validated POST body shape, or `null` when `widgetType`/`title` failed validation.
+ *  `widgetType` is cast, not validated, against the real `WidgetTypeKey` union here —
+ *  `createWidgetInstance` (`getWidgetTypeRegistration`) is what rejects an unregistered type at
+ *  runtime. @complexity O(1). */
+function parseWidgetCreateBody(rawBody: unknown): {
+  widgetType: WidgetTypeKey;
+  title: string;
+  config: Record<string, unknown>;
+  slug: string | undefined;
+} | null {
+  const body = (rawBody ?? {}) as Record<string, unknown>;
+  if (typeof body.widgetType !== "string" || typeof body.title !== "string") return null;
+  return {
+    widgetType: body.widgetType as WidgetTypeKey,
+    title: body.title,
+    config: typeof body.config === "object" && body.config !== null ? (body.config as Record<string, unknown>) : {},
+    slug: typeof body.slug === "string" ? body.slug : undefined,
+  };
+}
 
 /**
  * POST a new widget instance (SPEC-043 REQ-01/02/03), `widgets.create`-gated (enforced inside
@@ -18,8 +39,8 @@ export const registerAdminWidgetCreateRoute: RouteRegistrar = (app, deps) => {
       return;
     }
 
-    const body = req.body ?? {};
-    if (typeof body.widgetType !== "string" || typeof body.title !== "string") {
+    const parsedBody = parseWidgetCreateBody(req.body);
+    if (!parsedBody) {
       res.status(400).json({ error: "widgetType and title are required strings", code: "VALIDATION_ERROR" });
       return;
     }
@@ -31,10 +52,7 @@ export const registerAdminWidgetCreateRoute: RouteRegistrar = (app, deps) => {
         input: {
           workspaceId: deps.workspaceId,
           actor: { principalId: principal.id },
-          widgetType: body.widgetType,
-          title: body.title,
-          config: typeof body.config === "object" && body.config !== null ? body.config : {},
-          slug: typeof body.slug === "string" ? body.slug : undefined,
+          ...parsedBody,
         },
       });
       res.status(201).json(toAdminWidgetResponse(instance));
