@@ -1,3 +1,5 @@
+import type { Request, Response } from "express";
+
 import {
   GrantExceedsIssuerError,
   IdentityForbiddenError,
@@ -8,6 +10,41 @@ import {
 } from "@jini-ai/cms/identity";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
+
+/** Maps `writePolicyPermission`'s thrown error types onto the admin error envelope. `req` is needed
+ *  only for `PermissionUnknownError`'s `details.permission` echo.
+ *  @complexity O(1). */
+function sendWritePolicyPermissionError(res: Response, req: Request, err: unknown): void {
+  if (err instanceof IdentityForbiddenError) {
+    res.status(403).json({
+      error: err.message,
+      code: "FORBIDDEN",
+      details: { permission: err.permission, reason: err.reason },
+    });
+    return;
+  }
+  if (err instanceof GrantExceedsIssuerError) {
+    res.status(403).json({
+      error: err.message,
+      code: "GRANT_EXCEEDS_ISSUER",
+      details: { offendingPermissions: err.offendingPermissions },
+    });
+    return;
+  }
+  if (err instanceof PermissionUnknownError) {
+    res.status(400).json({ error: err.message, code: "PERMISSION_UNKNOWN", details: { permission: req.body?.permission } });
+    return;
+  }
+  if (err instanceof IdentityValidationError) {
+    res.status(400).json({ error: err.message, code: "VALIDATION_ERROR" });
+    return;
+  }
+  if (err instanceof IdentityNotFoundError) {
+    res.status(404).json({ error: err.message, code: "RESOURCE_NOT_FOUND" });
+    return;
+  }
+  res.status(500).json({ error: "internal error" });
+}
 
 /**
  * POST policies/:policyId/permissions — `WRITE_POLICY_PERMISSION` (SPEC-006 0.6.0, INV-07 — first
@@ -25,6 +62,7 @@ export const registerAdminPolicyWritePermissionRoute: UsersRouteRegistrar = (app
 
     try {
       const caller = getAuthedPrincipal(res);
+      const body = (req.body ?? {}) as Record<string, unknown>;
 
       const { policyPermission } = await writePolicyPermission({
         deps: identityServiceDepsFrom(deps),
@@ -32,48 +70,15 @@ export const registerAdminPolicyWritePermissionRoute: UsersRouteRegistrar = (app
           workspaceId: deps.workspaceId,
           callerPrincipalId: caller.id,
           policyId: String(req.params.policyId ?? ""),
-          permission: String(req.body?.permission ?? ""),
-          resourceType: req.body?.resourceType !== undefined ? String(req.body.resourceType) : undefined,
-          constraintJson: req.body?.constraintJson !== undefined ? String(req.body.constraintJson) : undefined,
+          permission: String(body.permission ?? ""),
+          resourceType: body.resourceType !== undefined ? String(body.resourceType) : undefined,
+          constraintJson: body.constraintJson !== undefined ? String(body.constraintJson) : undefined,
         },
       });
 
       res.status(201).json({ policyPermission });
     } catch (err) {
-      if (err instanceof IdentityForbiddenError) {
-        res.status(403).json({
-          error: err.message,
-          code: "FORBIDDEN",
-          details: { permission: err.permission, reason: err.reason },
-        });
-        return;
-      }
-
-      if (err instanceof GrantExceedsIssuerError) {
-        res.status(403).json({
-          error: err.message,
-          code: "GRANT_EXCEEDS_ISSUER",
-          details: { offendingPermissions: err.offendingPermissions },
-        });
-        return;
-      }
-
-      if (err instanceof PermissionUnknownError) {
-        res.status(400).json({ error: err.message, code: "PERMISSION_UNKNOWN", details: { permission: req.body?.permission } });
-        return;
-      }
-
-      if (err instanceof IdentityValidationError) {
-        res.status(400).json({ error: err.message, code: "VALIDATION_ERROR" });
-        return;
-      }
-
-      if (err instanceof IdentityNotFoundError) {
-        res.status(404).json({ error: err.message, code: "RESOURCE_NOT_FOUND" });
-        return;
-      }
-
-      res.status(500).json({ error: "internal error" });
+      sendWritePolicyPermissionError(res, req, err);
     }
   });
 };
