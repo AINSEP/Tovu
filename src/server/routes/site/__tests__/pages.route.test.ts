@@ -4,6 +4,7 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import test from "node:test";
 
+import type { PostRecord } from "#src/features/post/index";
 import { InMemoryPostRepo } from "#src/features/post/index";
 import { InMemoryPresentationSettingsRepo } from "#src/features/presentation/index";
 import type { DiscoveredTheme } from "#src/features/theme/index";
@@ -188,4 +189,41 @@ test("GET /:slug: a static theme's own pages/404.html renders instead of the bar
   assert.equal(res.status, 404);
   const html = await res.text();
   assert.ok(html.includes("Themed not found"), "the theme's own 404 page content must render, not the bare <h1>404</h1> fallback");
+});
+
+/** A post repo whose `findById` always misses regardless of what `findBySlug`/`list` return —
+ *  models the only way `buildExtraHead`'s own `urlFor({ target: { kind: "entryRef", ... } })`
+ *  call can fail for a post that was JUST resolved successfully by `getPublishedPostBySlug`:
+ *  `resolveEntryRefTarget` (`routing.ts`) re-fetches by id rather than reusing the already-loaded
+ *  record, so a repo that disagrees with itself between the two lookups is the only real trigger
+ *  for this fallback outside of an actual data race. */
+class UnresolvableCanonicalPostRepo extends InMemoryPostRepo {
+  async findById(): Promise<PostRecord | null> {
+    return null;
+  }
+}
+
+test("GET /:slug (post route): buildExtraHead's canonical falls back to /<slug> when urlFor can't resolve the post's own entryRef", async (t) => {
+  const deps = createRouteDeps();
+  const post: PostRecord = {
+    id: "post-broken-canonical",
+    workspaceId: deps.workspaceId,
+    title: "Broken canonical post",
+    slug: "broken-canonical",
+    bodyJson: { type: "doc", content: [] },
+    bodyFormat: "doc",
+    bodyHtml: null,
+    status: "published",
+    kind: "post",
+    updatedAt: "2026-08-17T00:00:00.000Z",
+    version: 1,
+  } as unknown as PostRecord;
+
+  const { server, baseUrl } = await startServer({
+    postRepo: new UnresolvableCanonicalPostRepo([post]),
+  });
+  t.after(() => closeServer(server));
+
+  const res = await fetch(`${baseUrl}/broken-canonical`);
+  assert.equal(res.status, 200, "the page must still render even though its own canonical URL couldn't be resolved");
 });
