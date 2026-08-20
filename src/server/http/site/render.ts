@@ -2063,17 +2063,11 @@ ${siteAssistant.body}
 // Public entry
 // ---------------------------------------------------------------------------
 
-/**
- * Render a page through a declarative theme. Resolves the route to a template
- * and walks its block tree. If the theme lacks the needed template, falls back
- * to a minimal built-in body so a partial theme never 500s (SPEC-004 REQ-10).
- *
- * `async` because the "templated" (LiquidJS) tier renders inside an isolated
- * `worker_threads` worker (ADR-020 §3 render isolation, C6) — the declarative
- * tier's own `renderBlock` walk stays fully synchronous, so most calls still
- * resolve on the same tick the returned promise is awaited.
- */
-export async function renderSite(required: {
+/** {@link renderSite}'s `required` parameter, named so the tier-render helpers below can each take
+ *  just the slice of it they need rather than repeating this whole shape — split out purely for
+ *  {@link renderSite}'s own complexity, no change to the accepted call shape (an inline object type
+ *  and a structurally-identical named interface are the same type to every existing caller). */
+export interface RenderSiteRequired {
   theme: DiscoveredTheme;
   route: "home" | "post" | "products" | "product";
   siteTitle: string;
@@ -2154,92 +2148,152 @@ export async function renderSite(required: {
    * always has) — this is purely additive.
    */
   liquidTemplateIdOverride?: string;
-}): Promise<string> {
-  const { theme, route } = required;
-  const ctx: SiteRenderContext = {
+}
+
+/** {@link renderSite}'s own `ctx` construction, pulled out so the four `??`/`?.` defaulting
+ *  expressions are counted once here instead of against the top-level dispatcher's budget. */
+function buildSiteRenderContext(required: RenderSiteRequired): SiteRenderContext {
+  return {
     siteTitle: required.siteTitle,
-    route,
+    route: required.route,
     posts: required.posts,
     post: required.post,
     products: required.products ?? [],
     product: required.product,
-    themeName: theme.manifest.name,
+    themeName: required.theme.manifest.name,
     widgetRegions: required.widgets?.regions ?? {},
     widgetInlineResolved: required.widgets?.inlineResolved ?? EMPTY_INLINE_RESOLVED,
     mediaTransformVersions: required.mediaTransformVersions ?? EMPTY_MEDIA_TRANSFORM_VERSIONS,
     mediaAssetMetadata: required.mediaAssetMetadata ?? EMPTY_MEDIA_ASSET_METADATA,
     pageHtmlEmbeds: required.pageHtmlEmbeds,
   };
+}
 
-  // A theme with no dedicated `products`/`product` template (declarative tier's own
-  // `resolveTemplateId`, or a static/templated theme that never declared one — the seeded default
-  // `"basic"` among them) still needs to render *something* instead of relying on a component that
-  // doesn't exist (REQ-10 spirit: never a raw crash). `productEntryList`/`productEntryContent`
-  // mirror `entryList`/`entryContent`'s own markup shape but read `ctx.products`/`ctx.product`
-  // rather than `ctx.posts`/`ctx.post` — see those two functions' own doc for the 2026-08-12 bug
-  // this replaced (both product routes used to silently fall through to the POST-shaped fallback,
-  // which never reads product data at all).
-  const fallbackBody = (): string => {
-    const main =
-      route === "post"
-        ? entryContent(ctx)
-        : route === "product"
-          ? productEntryContent(ctx)
-          : route === "products"
-            ? productEntryList(ctx)
-            : entryList(ctx, {});
-    return `${siteHeader(ctx, {})}${main}${siteFooter(ctx)}`;
-  };
+/**
+ * A theme with no dedicated `products`/`product` template (declarative tier's own
+ * `resolveTemplateId`, or a static/templated theme that never declared one — the seeded default
+ * `"basic"` among them) still needs to render *something* instead of relying on a component that
+ * doesn't exist (REQ-10 spirit: never a raw crash). `productEntryList`/`productEntryContent`
+ * mirror `entryList`/`entryContent`'s own markup shape but read `ctx.products`/`ctx.product`
+ * rather than `ctx.posts`/`ctx.post` — see those two functions' own doc for the 2026-08-12 bug
+ * this replaced (both product routes used to silently fall through to the POST-shaped fallback,
+ * which never reads product data at all).
+ *
+ * Pulled out of {@link renderSite} as a top-level function rather than a closure over `ctx`/`route`
+ * (an inline closure would still be measured separately by this repo's complexity gate and so
+ * wasn't the source of `renderSite`'s own violation, but keeping every extracted tier-body helper at
+ * the same top-level shape — see {@link renderTemplatedTierBody} etc. — keeps this file's own
+ * "extract to top-level functions, not closures" convention consistent). Deterministic and
+ * side-effect-free, so calling it eagerly from each tier-render helper below (rather than only when
+ * actually needed, the way the original closure was invoked lazily) produces identical output.
+ */
+function fallbackSiteBody(ctx: SiteRenderContext, route: SiteRenderContext["route"]): string {
+  const main =
+    route === "post"
+      ? entryContent(ctx)
+      : route === "product"
+        ? productEntryContent(ctx)
+        : route === "products"
+          ? productEntryList(ctx)
+          : entryList(ctx, {});
+  return `${siteHeader(ctx, {})}${main}${siteFooter(ctx)}`;
+}
 
-  // Static tier: unlike every other branch below, a static theme's page is already a complete
-  // `<!doctype html>` document (tokens, nav, footer, scripts — all of it), not a body fragment
-  // `pageShell()` still needs to wrap. Returned directly, bypassing pageShell, when the theme has
-  // one for this route. Home only for now — anything else (including a missing pages/index.html)
-  // falls through to the existing fallbackBody()/pageShell() path below, same as any other
-  // unresolved route on any other tier. `extraHead` still gets spliced in (SPEC-008 T045) via
-  // {@link injectExtraHeadIntoStaticPage} — bypassing pageShell must not mean bypassing the SEO fold.
-  if (theme.manifest.tier === "static" && route === "home") {
-    const staticHtml = renderStaticPage({ theme, pageId: "index", menus: required.staticMenus });
-    if (staticHtml) return injectExtraHeadIntoStaticPage(staticHtml, required.extraHead);
+/**
+ * Static tier: unlike every other tier, a static theme's page is already a complete
+ * `<!doctype html>` document (tokens, nav, footer, scripts — all of it), not a body fragment
+ * `pageShell()` still needs to wrap. Returns the full page directly, bypassing `pageShell`, when the
+ * theme has one for this route; `undefined` for every other case (non-static tier, non-home route, or
+ * a static theme with no `pages/index.html`), which is {@link renderSite}'s own signal to fall
+ * through to the ordinary fallback-body/`pageShell` path below, same as any other unresolved route on
+ * any other tier. `extraHead` still gets spliced in (SPEC-008 T045) via
+ * {@link injectExtraHeadIntoStaticPage} — bypassing `pageShell` must not mean bypassing the SEO fold.
+ */
+function renderStaticTierHomePage(
+  theme: DiscoveredTheme,
+  route: SiteRenderContext["route"],
+  staticMenus: RenderSiteRequired["staticMenus"],
+  extraHead: string | undefined
+): string | undefined {
+  if (theme.manifest.tier !== "static" || route !== "home") return undefined;
+  const staticHtml = renderStaticPage({ theme, pageId: "index", menus: staticMenus });
+  return staticHtml ? injectExtraHeadIntoStaticPage(staticHtml, extraHead) : undefined;
+}
+
+/** Templated (LiquidJS) tier body — resolves the route to a `.liquid` template, renders it inside its
+ *  own `worker_threads` sandbox, and degrades to {@link fallbackSiteBody} on ANY failure: a syntax
+ *  error, a disallowed tag/filter the worker's defensive re-lint caught, or a sandbox timeout/OOM.
+ *  Never a 500 (SPEC-004 REQ-10 spirit). */
+async function renderTemplatedTierBody(
+  theme: DiscoveredTheme,
+  route: SiteRenderContext["route"],
+  liquidTemplateIdOverride: string | undefined,
+  ctx: SiteRenderContext
+): Promise<string> {
+  const liquidId = liquidTemplateIdOverride ?? resolveLiquidTemplateId({ route, liquidTemplates: theme.liquidTemplates });
+  const source = liquidId ? theme.liquidTemplates[liquidId] : undefined;
+  try {
+    return source
+      ? await renderLiquidInSandbox({ source, ctx, skipLiquidAllowlist: theme.manifest.skipLiquidAllowlist })
+      : fallbackSiteBody(ctx, route);
+  } catch (err) {
+    return `<!-- theme render error: ${escapeHtml((err as Error).message)} -->${fallbackSiteBody(ctx, route)}`;
   }
+}
+
+/** Handlebars tier body — same contract as {@link renderTemplatedTierBody}, engine swapped: resolve
+ *  the route to a `.hbs` template, render it inside its own `worker_threads` sandbox, and degrade to
+ *  {@link fallbackSiteBody} on ANY failure. Never a 500. */
+async function renderHandlebarsTierBody(theme: DiscoveredTheme, route: SiteRenderContext["route"], ctx: SiteRenderContext): Promise<string> {
+  const hbsId = resolveHandlebarsTemplateId({ route, handlebarsTemplates: theme.handlebarsTemplates });
+  const source = hbsId ? theme.handlebarsTemplates[hbsId] : undefined;
+  try {
+    return source ? await renderHandlebarsInSandbox({ source, ctx }) : fallbackSiteBody(ctx, route);
+  } catch (err) {
+    return `<!-- theme render error: ${escapeHtml((err as Error).message)} -->${fallbackSiteBody(ctx, route)}`;
+  }
+}
+
+/** Declarative (JSON block-tree) tier body — the default tier, synchronous unlike its two siblings
+ *  above since `renderBlock`'s own walk never crosses a `worker_threads` boundary. */
+function renderDeclarativeTierBody(theme: DiscoveredTheme, route: SiteRenderContext["route"], ctx: SiteRenderContext): string {
+  const templateId = resolveTemplateId({ route, templates: theme.templates });
+  const tree = templateId ? theme.templates[templateId] : undefined;
+  return tree ? renderBlock(tree, ctx) : fallbackSiteBody(ctx, route);
+}
+
+/** The `<title>` `pageShell` renders — the viewed post's own title on the `post` route, the site
+ *  title everywhere else (including a `post` route whose post somehow isn't set). */
+function resolvePageTitle(route: SiteRenderContext["route"], post: PostRecord | undefined, siteTitle: string): string {
+  return route === "post" && post ? `${post.title} — ${siteTitle}` : siteTitle;
+}
+
+/**
+ * Render a page through a declarative theme. Resolves the route to a template
+ * and walks its block tree. If the theme lacks the needed template, falls back
+ * to a minimal built-in body so a partial theme never 500s (SPEC-004 REQ-10).
+ *
+ * `async` because the "templated" (LiquidJS) tier renders inside an isolated
+ * `worker_threads` worker (ADR-020 §3 render isolation, C6) — the declarative
+ * tier's own `renderBlock` walk stays fully synchronous, so most calls still
+ * resolve on the same tick the returned promise is awaited.
+ */
+export async function renderSite(required: RenderSiteRequired): Promise<string> {
+  const { theme, route } = required;
+  const ctx = buildSiteRenderContext(required);
+
+  const staticHomePage = renderStaticTierHomePage(theme, route, required.staticMenus, required.extraHead);
+  if (staticHomePage !== undefined) return staticHomePage;
 
   let body: string;
   if (theme.manifest.tier === "templated") {
-    const liquidId =
-      required.liquidTemplateIdOverride ?? resolveLiquidTemplateId({ route, liquidTemplates: theme.liquidTemplates });
-    const source = liquidId ? theme.liquidTemplates[liquidId] : undefined;
-    try {
-      body = source
-        ? await renderLiquidInSandbox({ source, ctx, skipLiquidAllowlist: theme.manifest.skipLiquidAllowlist })
-        : fallbackBody();
-    } catch (err) {
-      // A broken/hostile Liquid template must not 500 the site (SPEC-004
-      // REQ-10 spirit) — covers a syntax error, a disallowed tag/filter the
-      // worker's defensive re-lint caught, or a sandbox timeout/OOM.
-      body = `<!-- theme render error: ${escapeHtml((err as Error).message)} -->${fallbackBody()}`;
-    }
+    body = await renderTemplatedTierBody(theme, route, required.liquidTemplateIdOverride, ctx);
   } else if (theme.manifest.tier === "handlebars") {
-    // Same contract as the Liquid branch above, engine swapped: resolve the
-    // route to a `.hbs` template, render it inside its own `worker_threads`
-    // sandbox, and degrade to the built-in fallback body on ANY failure — a
-    // syntax error, a disallowed helper/partial/raw-output the worker's
-    // defensive re-lint caught, or a sandbox timeout/OOM. Never a 500.
-    const hbsId = resolveHandlebarsTemplateId({ route, handlebarsTemplates: theme.handlebarsTemplates });
-    const source = hbsId ? theme.handlebarsTemplates[hbsId] : undefined;
-    try {
-      body = source ? await renderHandlebarsInSandbox({ source, ctx }) : fallbackBody();
-    } catch (err) {
-      body = `<!-- theme render error: ${escapeHtml((err as Error).message)} -->${fallbackBody()}`;
-    }
+    body = await renderHandlebarsTierBody(theme, route, ctx);
   } else {
-    const templateId = resolveTemplateId({ route, templates: theme.templates });
-    const tree = templateId ? theme.templates[templateId] : undefined;
-    body = tree ? renderBlock(tree, ctx) : fallbackBody();
+    body = renderDeclarativeTierBody(theme, route, ctx);
   }
 
-  const title = route === "post" && required.post
-    ? `${required.post.title} — ${required.siteTitle}`
-    : required.siteTitle;
-
+  const title = resolvePageTitle(route, required.post, required.siteTitle);
   return pageShell({ title, theme, body, extraHead: required.extraHead, siteAssistantEnabled: required.siteAssistantEnabled });
 }
