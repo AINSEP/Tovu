@@ -9,6 +9,17 @@ function layerValueOf(record: SettingValueRecord | null): JsonValue | null {
   return record && record.state === "set" ? record.valueJson : null;
 }
 
+/** This route's two required query params, or `null` if either is missing.
+ *  @complexity O(1). */
+function parseGetRawQuery(query: Record<string, unknown>): { namespace: string; key: string; principalId: string | undefined } | null {
+  const namespace = String(query.namespace ?? "");
+  const key = String(query.key ?? "");
+  if (!namespace || !key) {
+    return null;
+  }
+  return { namespace, key, principalId: query.principalId ? String(query.principalId) : undefined };
+}
+
 /**
  * GET the per-layer raw values of one setting key (SPEC-007 api.spec.md
  * `SETTINGS_GET_RAW`, spec.md line ~20).
@@ -58,22 +69,22 @@ export const registerAdminSettingsGetRawRoute: SettingsRouteRegistrar = (app, de
         return;
       }
 
-      const namespace = String(req.query.namespace ?? "");
-      const key = String(req.query.key ?? "");
-      if (!namespace || !key) {
+      const parsedQuery = parseGetRawQuery(req.query as Record<string, unknown>);
+      if (!parsedQuery) {
         res.status(400).json({
           error: "'namespace' and 'key' query params are required",
           code: "VALIDATION_ERROR",
         });
         return;
       }
+      const { namespace, key } = parsedQuery;
       // `authorize()` above was checked against `deps.workspaceId` and `principal.id` — never let
       // the actual read target a different workspace or principal than what was authorized.
       // The `:workspaceId` path param is already pinned to `deps.workspaceId` above; a
       // `workspaceId` query param is ignored rather than trusted (ADR-007).
       const workspaceId = deps.workspaceId;
       const readTarget = await resolveUserLayerReadTarget(deps, {
-        requestedPrincipalId: req.query.principalId ? String(req.query.principalId) : undefined,
+        requestedPrincipalId: parsedQuery.principalId,
         callerPrincipalId: principal.id,
       });
       if (!readTarget.allowed) {

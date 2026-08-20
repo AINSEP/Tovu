@@ -5,6 +5,28 @@ import { resolveTargetWorkspaceId, toWriteServiceDeps } from "./shared.js";
 
 const VALID_SCOPES: readonly SettingScope[] = ["global", "workspace", "user"];
 
+/** This route's required fields, off an untyped body: `namespace` and a `VALID_SCOPES` member.
+ *  `null` means the body failed that check.
+ *  @complexity O(1). */
+function parseResetRequestFields(rawBody: unknown): { namespace: string; scope: SettingScope; bodyWorkspaceId: unknown } | null {
+  const body = (rawBody ?? {}) as Record<string, unknown>;
+  const namespace = String(body.namespace ?? "");
+  const scope = body.scope as SettingScope;
+  if (!namespace || !VALID_SCOPES.includes(scope)) {
+    return null;
+  }
+  return { namespace, scope, bodyWorkspaceId: body.workspaceId };
+}
+
+/** The workspace partition a namespace's definitions live in for this scope — `null` (platform) for
+ *  `global`, else this workspace's own partition, falling back to the ambient workspace when the
+ *  resolved target workspace itself was `undefined` (the `scope: "global"` case `resolveTargetWorkspaceId`
+ *  itself returns, which never reaches here since `scope !== "global"` on this path).
+ *  @complexity O(1). */
+function resolveDefinitionWorkspaceId(scope: SettingScope, workspaceId: string | undefined, ambientWorkspaceId: string): string | null {
+  return scope === "global" ? null : (workspaceId ?? ambientWorkspaceId);
+}
+
 /**
  * POST reset every setting in a namespace to defaults at a scope
  * (SPEC-007 api.spec.md `SETTINGS_RESET`, tasks.md T042).
@@ -33,20 +55,19 @@ export const registerAdminSettingsResetRoute: SettingsRouteRegistrar = (app, dep
       await deps.settingsReady;
       const principal = getAuthedPrincipal(res);
 
-      const body = (req.body ?? {}) as Record<string, unknown>;
-      const namespace = String(body.namespace ?? "");
-      const scope = body.scope as SettingScope;
-      if (!namespace || !VALID_SCOPES.includes(scope)) {
+      const parsedBody = parseResetRequestFields(req.body);
+      if (!parsedBody) {
         res.status(400).json({
           error: "namespace and scope (global|workspace|user) are required",
           code: "VALIDATION_ERROR",
         });
         return;
       }
+      const { namespace, scope, bodyWorkspaceId } = parsedBody;
       // See `resolveTargetWorkspaceId` in `shared.ts`. This was the worst of the three: it took the
       // target workspace from the body while authorizing against `deps.workspaceId` below, so one
       // request could wipe an entire namespace in another tenant.
-      const targetWorkspace = resolveTargetWorkspaceId(deps, { bodyWorkspaceId: body.workspaceId, scope });
+      const targetWorkspace = resolveTargetWorkspaceId(deps, { bodyWorkspaceId, scope });
       if (!targetWorkspace.ok) {
         res.status(400).json({ error: targetWorkspace.error, code: "VALIDATION_ERROR" });
         return;
@@ -72,7 +93,7 @@ export const registerAdminSettingsResetRoute: SettingsRouteRegistrar = (app, dep
         return;
       }
 
-      const definitionWorkspaceId = scope === "global" ? null : (workspaceId ?? deps.workspaceId);
+      const definitionWorkspaceId = resolveDefinitionWorkspaceId(scope, workspaceId, deps.workspaceId);
       const definitions = await deps.settingsRepo.listActiveDefinitions({ workspaceId: definitionWorkspaceId });
       const keysInNamespace = definitions.filter((d) => d.namespace === namespace).map((d) => d.key);
 
