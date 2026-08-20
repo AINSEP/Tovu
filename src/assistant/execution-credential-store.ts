@@ -170,13 +170,17 @@ function maskOf(apiKey: string): string {
  * @complexity O(1) — one keyring derivation (only when `apiKey` is provided) plus one upsert.
  * @overallScore 100
  */
-export async function setExecutionCredential(
-  deps: ExecutionCredentialWriteDeps,
-  input: SetExecutionCredentialInput
-): Promise<AdminExecutionCredentialView> {
-  if (input.apiKey !== undefined && input.apiKey.trim().length === 0) {
+/** {@link setExecutionCredential}'s `apiKey` check, split out purely to keep that function's
+ *  validation under the shop complexity ceiling. */
+function assertValidExecutionCredentialApiKey(apiKey: string | undefined): void {
+  if (apiKey !== undefined && apiKey.trim().length === 0) {
     throw new ExecutionCredentialValidationError("apiKey must not be empty — use DELETE to clear it");
   }
+}
+
+/** {@link setExecutionCredential}'s `protocol`/`baseUrl`/`model` string checks, split out purely to
+ *  keep that function's validation under the shop complexity ceiling. */
+function assertValidExecutionCredentialStringFields(input: Pick<SetExecutionCredentialInput, "protocol" | "baseUrl" | "model">): void {
   for (const [field, value] of [
     ["protocol", input.protocol],
     ["baseUrl", input.baseUrl],
@@ -186,46 +190,119 @@ export async function setExecutionCredential(
       throw new ExecutionCredentialValidationError(`${field} must be a string`);
     }
   }
-  if (input.providerId !== undefined && input.providerId !== null && typeof input.providerId !== "string") {
+}
+
+/** {@link setExecutionCredential}'s `providerId` check, split out purely to keep that function's
+ *  validation under the shop complexity ceiling. */
+function assertValidExecutionCredentialProviderId(providerId: string | null | undefined): void {
+  if (providerId !== undefined && providerId !== null && typeof providerId !== "string") {
     throw new ExecutionCredentialValidationError("providerId must be a string or null");
   }
-  if (input.maxTokens !== undefined && !(typeof input.maxTokens === "number" && input.maxTokens > 0)) {
+}
+
+/** {@link setExecutionCredential}'s `maxTokens` check, split out purely to keep that function's
+ *  validation under the shop complexity ceiling. */
+function assertValidExecutionCredentialMaxTokens(maxTokens: number | undefined): void {
+  if (maxTokens !== undefined && !(typeof maxTokens === "number" && maxTokens > 0)) {
     throw new ExecutionCredentialValidationError("maxTokens must be a positive number");
   }
+}
 
-  const existing = await deps.repo.findByWorkspaceAndPrincipal(input);
-  const now = deps.clock.nowIso();
+/** Runs every {@link SetExecutionCredentialInput} validation, in the same order as the original
+ *  inline checks, before any write. Split out of {@link setExecutionCredential} purely to keep
+ *  that function's complexity under the shop ceiling — behavior (including message text and
+ *  ordering) is unchanged. */
+function assertValidSetExecutionCredentialInput(input: SetExecutionCredentialInput): void {
+  assertValidExecutionCredentialApiKey(input.apiKey);
+  assertValidExecutionCredentialStringFields(input);
+  assertValidExecutionCredentialProviderId(input.providerId);
+  assertValidExecutionCredentialMaxTokens(input.maxTokens);
+}
 
-  let sealed: SealedSecret | null = existing?.sealed ?? null;
-  let masked: string | null = existing?.masked ?? null;
-  if (input.apiKey !== undefined) {
-    try {
-      const activeKey = await deps.keyring.activeKey();
-      sealed = await deps.sealer.seal({ plaintext: input.apiKey, key: activeKey });
-    } catch (err) {
-      // Any failure deriving/sealing under the current root key is treated as "the secret store is
-      // unconfigured" — the realistic failure mode is a missing `TOVU_INTEGRATIONS_ROOT_KEY`, and
-      // this must never fall through to a plaintext write.
-      throw new ExecutionCredentialSecretStoreUnconfiguredError(
-        `admin execution credential secret store is unconfigured: ${err instanceof Error ? err.message : String(err)}`
-      );
-    }
-    masked = maskOf(input.apiKey);
+/** Resolves the sealed key and its masked label for one save: a fresh seal when `apiKey` is
+ *  provided (never a re-wrap of the old ciphertext, so rotation is a plain overwrite), or the
+ *  existing sealed value carried forward unchanged when it is omitted. Split out of
+ *  {@link setExecutionCredential} purely to keep that function's complexity under the shop
+ *  ceiling.
+ *  @throws {ExecutionCredentialSecretStoreUnconfiguredError} `apiKey` was provided but the master
+ *  secret is unavailable. */
+async function resolveExecutionCredentialSeal(
+  deps: Pick<ExecutionCredentialWriteDeps, "sealer" | "keyring">,
+  apiKey: string | undefined,
+  existing: AdminExecutionCredentialRecord | null,
+): Promise<{ readonly sealed: SealedSecret | null; readonly masked: string | null }> {
+  if (apiKey === undefined) return { sealed: existing?.sealed ?? null, masked: existing?.masked ?? null };
+  try {
+    const activeKey = await deps.keyring.activeKey();
+    const sealed = await deps.sealer.seal({ plaintext: apiKey, key: activeKey });
+    return { sealed, masked: maskOf(apiKey) };
+  } catch (err) {
+    // Any failure deriving/sealing under the current root key is treated as "the secret store is
+    // unconfigured" — the realistic failure mode is a missing `TOVU_INTEGRATIONS_ROOT_KEY`, and
+    // this must never fall through to a plaintext write.
+    throw new ExecutionCredentialSecretStoreUnconfiguredError(
+      `admin execution credential secret store is unconfigured: ${err instanceof Error ? err.message : String(err)}`
+    );
   }
+}
 
-  const record: AdminExecutionCredentialRecord = {
+/** `explicit ?? existing ?? fallback`, named for {@link buildExecutionCredentialRecord}'s
+ *  `protocol` field — split out purely to keep that function's complexity under the shop ceiling. */
+function mergeExecutionCredentialField<T>(explicit: T | undefined, existingValue: T | null | undefined, fallback: T): T {
+  return explicit ?? existingValue ?? fallback;
+}
+
+/** `(explicit ?? existing) ?? null`, named for {@link buildExecutionCredentialRecord}'s
+ *  `baseUrl`/`model`/`maxTokens` fields — split out purely to keep that function's complexity
+ *  under the shop ceiling. */
+function mergeExecutionCredentialOptionalField<T>(explicit: T | undefined, existingValue: T | null | undefined): T | null {
+  return (explicit ?? existingValue) ?? null;
+}
+
+/** `providerId`'s own merge rule, distinct from {@link mergeExecutionCredentialOptionalField}: an
+ *  EXPLICIT `null` clears the field, while an OMITTED one carries the existing value forward — the
+ *  same unset-vs-null distinction this store's sibling stores draw. Split out of
+ *  {@link buildExecutionCredentialRecord} purely to keep that function's complexity under the shop
+ *  ceiling. */
+function mergeExecutionCredentialProviderId(explicit: string | null | undefined, existingValue: string | null | undefined): string | null {
+  return explicit !== undefined ? explicit : (existingValue ?? null);
+}
+
+/** Merges `input`'s explicit fields over `existing`'s stored values (omitted = keep existing) plus
+ *  the resolved seal, into the record {@link setExecutionCredential} persists. Split out purely to
+ *  keep that function's complexity under the shop ceiling — behavior is unchanged. */
+function buildExecutionCredentialRecord(
+  input: SetExecutionCredentialInput,
+  existing: AdminExecutionCredentialRecord | null,
+  seal: { readonly sealed: SealedSecret | null; readonly masked: string | null },
+  now: ISODateTime,
+): AdminExecutionCredentialRecord {
+  return {
     workspaceId: input.workspaceId,
     principalId: input.principalId,
-    protocol: input.protocol ?? existing?.protocol ?? DEFAULT_PROTOCOL,
-    providerId: input.providerId !== undefined ? input.providerId : (existing?.providerId ?? null),
-    baseUrl: (input.baseUrl ?? existing?.baseUrl) ?? null,
-    model: (input.model ?? existing?.model) ?? null,
-    maxTokens: (input.maxTokens ?? existing?.maxTokens) ?? null,
-    sealed,
-    masked,
+    protocol: mergeExecutionCredentialField(input.protocol, existing?.protocol, DEFAULT_PROTOCOL),
+    providerId: mergeExecutionCredentialProviderId(input.providerId, existing?.providerId),
+    baseUrl: mergeExecutionCredentialOptionalField(input.baseUrl, existing?.baseUrl),
+    model: mergeExecutionCredentialOptionalField(input.model, existing?.model),
+    maxTokens: mergeExecutionCredentialOptionalField(input.maxTokens, existing?.maxTokens),
+    sealed: seal.sealed,
+    masked: seal.masked,
     createdAt: existing?.createdAt ?? now,
     updatedAt: now,
   };
+}
+
+export async function setExecutionCredential(
+  deps: ExecutionCredentialWriteDeps,
+  input: SetExecutionCredentialInput
+): Promise<AdminExecutionCredentialView> {
+  assertValidSetExecutionCredentialInput(input);
+
+  const existing = await deps.repo.findByWorkspaceAndPrincipal(input);
+  const now = deps.clock.nowIso();
+  const seal = await resolveExecutionCredentialSeal(deps, input.apiKey, existing);
+  const record = buildExecutionCredentialRecord(input, existing, seal, now);
+
   await deps.repo.upsert(record);
   return toView(record);
 }
