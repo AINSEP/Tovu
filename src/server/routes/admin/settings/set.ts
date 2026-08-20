@@ -12,9 +12,48 @@ import {
 } from "#src/features/settings/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { SettingsRouteRegistrar } from "./deps.js";
-import { resolveTargetWorkspaceId, toWriteServiceDeps } from "./shared.js";
+import { resolveTargetWorkspaceId, respondToSettingsError, toWriteServiceDeps, type SettingsErrorMapping } from "./shared.js";
 
 const VALID_SCOPES: readonly SettingScope[] = ["global", "workspace", "user"];
+
+const SET_ERROR_MAPPINGS: readonly SettingsErrorMapping[] = [
+  { matches: (e) => e instanceof PrincipalNotFoundError, status: 404, code: "PRINCIPAL_NOT_FOUND" },
+  { matches: (e) => e instanceof DefinitionNotFoundError, status: 404, code: "DEFINITION_NOT_FOUND" },
+  { matches: (e) => e instanceof DefinitionTombstonedError, status: 409, code: "DEFINITION_TOMBSTONED" },
+  { matches: (e) => e instanceof ScopeNotAllowedError, status: 400, code: "SCOPE_NOT_ALLOWED" },
+  { matches: (e) => e instanceof ValueValidationFailedError, status: 400, code: "VALUE_VALIDATION_FAILED" },
+  { matches: (e) => e instanceof ForbiddenError, status: 403, code: "FORBIDDEN" },
+];
+
+/** This route's required fields, off an untyped body: `namespace`, `key`, a `VALID_SCOPES` member,
+ *  and a `valueJson` property (its presence, not its truthiness — `null`/`0`/`""` are legal values,
+ *  which is why this checks `"valueJson" in body` rather than `body.valueJson !== undefined`).
+ *  `null` means the body failed that check.
+ *  @complexity O(1). */
+function parseSetRequestFields(rawBody: unknown): {
+  namespace: string;
+  key: string;
+  scope: SettingScope;
+  valueJson: JsonValue;
+  bodyWorkspaceId: unknown;
+  principalId: string | undefined;
+} | null {
+  const body = (rawBody ?? {}) as Record<string, unknown>;
+  const namespace = String(body.namespace ?? "");
+  const key = String(body.key ?? "");
+  const scope = body.scope as SettingScope;
+  if (!namespace || !key || !VALID_SCOPES.includes(scope) || !("valueJson" in body)) {
+    return null;
+  }
+  return {
+    namespace,
+    key,
+    scope,
+    valueJson: body.valueJson as JsonValue,
+    bodyWorkspaceId: body.workspaceId,
+    principalId: body.principalId ? String(body.principalId) : undefined,
+  };
+}
 
 /**
  * PUT set a setting's value at a scope (SPEC-007 api.spec.md `SETTINGS_SET`,
@@ -44,17 +83,15 @@ export const registerAdminSettingsSetRoute: SettingsRouteRegistrar = (app, deps)
       await deps.settingsReady;
       const principal = getAuthedPrincipal(res);
 
-      const body = (req.body ?? {}) as Record<string, unknown>;
-      const namespace = String(body.namespace ?? "");
-      const key = String(body.key ?? "");
-      const scope = body.scope as SettingScope;
-      if (!namespace || !key || !VALID_SCOPES.includes(scope) || !("valueJson" in body)) {
+      const parsed = parseSetRequestFields(req.body);
+      if (!parsed) {
         res.status(400).json({
           error: "namespace, key, scope (global|workspace|user), and valueJson are required",
           code: "VALIDATION_ERROR",
         });
         return;
       }
+      const { namespace, key, scope, valueJson, bodyWorkspaceId, principalId } = parsed;
       // The write target is the ambient workspace, never the body's. See
       // `resolveTargetWorkspaceId`'s doc in `shared.ts` for why a body-named
       // workspace is REJECTED rather than honored: accepting it authorized
@@ -70,13 +107,12 @@ export const registerAdminSettingsSetRoute: SettingsRouteRegistrar = (app, deps)
       // other settings route already does (`get-effective.ts`,
       // `list-definitions.ts`), because the `:workspaceId` path param is
       // 404-checked against `deps.workspaceId` above (ADR-007).
-      const targetWorkspace = resolveTargetWorkspaceId(deps, { bodyWorkspaceId: body.workspaceId, scope });
+      const targetWorkspace = resolveTargetWorkspaceId(deps, { bodyWorkspaceId, scope });
       if (!targetWorkspace.ok) {
         res.status(400).json({ error: targetWorkspace.error, code: "VALIDATION_ERROR" });
         return;
       }
       const workspaceId = targetWorkspace.workspaceId;
-      const principalId = body.principalId ? String(body.principalId) : undefined;
 
       const permission = deriveRequiredPermission({
         scope,
@@ -113,7 +149,7 @@ export const registerAdminSettingsSetRoute: SettingsRouteRegistrar = (app, deps)
           namespace,
           key,
           scope,
-          value: body.valueJson as JsonValue,
+          value: valueJson,
           workspaceId,
           principalId,
           callerPrincipalId: principal.id,
@@ -123,31 +159,7 @@ export const registerAdminSettingsSetRoute: SettingsRouteRegistrar = (app, deps)
 
       res.json({ key: `${namespace}.${key}`, scope, value: result.value, revisionSeq: result.revisionSeq });
     } catch (err) {
-      if (err instanceof PrincipalNotFoundError) {
-        res.status(404).json({ error: err.message, code: "PRINCIPAL_NOT_FOUND" });
-        return;
-      }
-      if (err instanceof DefinitionNotFoundError) {
-        res.status(404).json({ error: err.message, code: "DEFINITION_NOT_FOUND" });
-        return;
-      }
-      if (err instanceof DefinitionTombstonedError) {
-        res.status(409).json({ error: err.message, code: "DEFINITION_TOMBSTONED" });
-        return;
-      }
-      if (err instanceof ScopeNotAllowedError) {
-        res.status(400).json({ error: err.message, code: "SCOPE_NOT_ALLOWED" });
-        return;
-      }
-      if (err instanceof ValueValidationFailedError) {
-        res.status(400).json({ error: err.message, code: "VALUE_VALIDATION_FAILED" });
-        return;
-      }
-      if (err instanceof ForbiddenError) {
-        res.status(403).json({ error: err.message, code: "FORBIDDEN" });
-        return;
-      }
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+      respondToSettingsError(res, err, SET_ERROR_MAPPINGS);
     }
   });
 };
