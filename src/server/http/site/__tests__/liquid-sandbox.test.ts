@@ -75,7 +75,15 @@ test("a runaway CPU-bound template (nested for-loops, each range within the lint
       { source: "{% for i in (1..999999) %}{% for j in (1..999999) %}{{ i | plus: j }}{% endfor %}{% endfor %}", ctx: baseCtx() },
       { timeoutMs: 500 }
     ),
-    /exceeded 500ms timeout/
+    // Exact text, not just a substring match: the message is built from a shared template
+    // (`worker-sandbox.ts`'s `renderInWorkerSandbox`) parameterized by an `errorLabel` string this
+    // wrapper passes in — a future swap of that literal between the Liquid/Handlebars wrappers would
+    // still produce a message matching a looser `/exceeded 500ms timeout/` regex, so it must be
+    // checked exactly to catch that class of bug.
+    (err: Error) => {
+      assert.equal(err.message, "Liquid render exceeded 500ms timeout");
+      return true;
+    }
   );
   const elapsed = Date.now() - start;
   // Generous upper bound: proves the call actually returned promptly instead
