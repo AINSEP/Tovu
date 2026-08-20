@@ -1,8 +1,20 @@
+import type { Request } from "express";
+
 import type { MemberRecord } from "#src/members/index";
 import { toAdminMemberResponse } from "#src/server/http/admin/members";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { RouteRegistrar } from "#src/server/routes/types";
 import type { MembersRouteDeps } from "./deps.js";
+
+/** Reads and validates the `?afterId=`/`?limit=` keyset-pagination pair in one place — an invalid
+ *  or missing `limit` falls through to the repo port's own `DEFAULT_LIST_LIMIT` (`undefined`, not
+ *  an error; this list has no required pagination params). @complexity O(1). */
+function parseMembersListQuery(query: Request["query"]): { afterId: string | undefined; limit: number | undefined } {
+  const afterId = typeof query.afterId === "string" ? query.afterId : undefined;
+  const rawLimit = typeof query.limit === "string" ? Number(query.limit) : undefined;
+  const limit = rawLimit !== undefined && Number.isFinite(rawLimit) && rawLimit > 0 ? rawLimit : undefined;
+  return { afterId, limit };
+}
 
 /**
  * GET members — list a workspace's members for the admin UI (all statuses,
@@ -48,14 +60,9 @@ export const registerAdminMemberListRoute: RouteRegistrar = (app, routeDeps) => 
         return;
       }
 
-      const afterId = typeof req.query.afterId === "string" ? req.query.afterId : undefined;
-      const rawLimit = typeof req.query.limit === "string" ? Number(req.query.limit) : undefined;
-      const limit = rawLimit !== undefined && Number.isFinite(rawLimit) && rawLimit > 0 ? rawLimit : undefined;
-
       const members: MemberRecord[] = await deps.memberRepo.list({
         workspaceId: deps.workspaceId,
-        afterId,
-        limit,
+        ...parseMembersListQuery(req.query),
       });
       res.json({ members: members.map(toAdminMemberResponse) });
     } catch {
