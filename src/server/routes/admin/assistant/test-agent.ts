@@ -4,6 +4,16 @@ import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { AssistantExecutionRouteRegistrar } from "./execution-deps.js";
 import { resolveTestAgentOutcome } from "./resolve-test-agent-outcome.js";
 
+/** This route's two body fields, trimmed, read off an untyped body in one place.
+ *  @complexity O(1). */
+function parseTestAgentBody(rawBody: unknown): { agentId: string; model: string } {
+  const body = (rawBody ?? {}) as Record<string, unknown>;
+  return {
+    agentId: String(body.agentId ?? "").trim(),
+    model: String(body.model ?? "").trim(),
+  };
+}
+
 /**
  * POST re-probes ONE detected code-agent CLI and reports whether it is usable
  * — the Local CLI counterpart of `test-connection.ts`, backing
@@ -54,13 +64,11 @@ export const registerAdminAssistantTestAgentRoute: AssistantExecutionRouteRegist
         return;
       }
 
-      const body = req.body as { agentId?: unknown; model?: unknown } | undefined;
-      const agentId = String(body?.agentId ?? "").trim();
+      const { agentId, model } = parseTestAgentBody(req.body);
       if (!agentId) {
         res.status(400).json({ error: "'agentId' is required", code: "BAD_REQUEST" });
         return;
       }
-      const model = String(body?.model ?? "").trim();
 
       const agents = await detectAgents();
       const agent = agents.find((candidate) => candidate.id === agentId);

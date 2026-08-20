@@ -1,3 +1,5 @@
+import type { Response } from "express";
+
 import {
   createUser,
   IdentityConflictError,
@@ -7,6 +9,35 @@ import {
 import { toAdminUserResponse } from "#src/server/http/admin/users";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
+
+/** This route's three body fields, read off an untyped body in one place.
+ *  @complexity O(1). */
+function parseUserCreateBody(rawBody: unknown): { username: string; email: string | undefined; password: string } {
+  const body = (rawBody ?? {}) as Record<string, unknown>;
+  return {
+    username: String(body.username ?? ""),
+    email: body.email !== undefined ? String(body.email) : undefined,
+    password: String(body.password ?? ""),
+  };
+}
+
+/** Maps this route's thrown error types onto the admin error envelope.
+ *  @complexity O(1). */
+function sendUserCreateError(res: Response, err: unknown): void {
+  if (err instanceof IdentityForbiddenError) {
+    res.status(403).json({ error: err.message, code: "FORBIDDEN", details: { permission: err.permission, reason: err.reason } });
+    return;
+  }
+  if (err instanceof IdentityConflictError) {
+    res.status(409).json({ error: err.message, code: "RESOURCE_CONFLICT", details: { field: "username" } });
+    return;
+  }
+  if (err instanceof IdentityValidationError) {
+    res.status(400).json({ error: err.message, code: "VALIDATION_ERROR" });
+    return;
+  }
+  res.status(500).json({ error: "internal error" });
+}
 
 /**
  * POST users — `CREATE_USER` (state.spec §3, REQ-01/MF-1). Gated by
@@ -37,34 +68,13 @@ export const registerAdminUserCreateRoute: UsersRouteRegistrar = (app, deps) => 
         input: {
           workspaceId: deps.workspaceId,
           callerPrincipalId: caller.id,
-          username: String(req.body?.username ?? ""),
-          email: req.body?.email !== undefined ? String(req.body.email) : undefined,
-          password: String(req.body?.password ?? ""),
+          ...parseUserCreateBody(req.body),
         },
       });
 
       res.status(201).json({ user: toAdminUserResponse({ principal, user, roleIds: [], policyIds: [] }) });
     } catch (err) {
-      if (err instanceof IdentityForbiddenError) {
-        res.status(403).json({
-          error: err.message,
-          code: "FORBIDDEN",
-          details: { permission: err.permission, reason: err.reason },
-        });
-        return;
-      }
-
-      if (err instanceof IdentityConflictError) {
-        res.status(409).json({ error: err.message, code: "RESOURCE_CONFLICT", details: { field: "username" } });
-        return;
-      }
-
-      if (err instanceof IdentityValidationError) {
-        res.status(400).json({ error: err.message, code: "VALIDATION_ERROR" });
-        return;
-      }
-
-      res.status(500).json({ error: "internal error" });
+      sendUserCreateError(res, err);
     }
   });
 };
