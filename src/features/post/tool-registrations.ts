@@ -41,6 +41,7 @@ import {
 // notes this file's narrowing was reported under), not a field this file could re-source from a
 // domain-owned port: the MCP-UI/exchange transport is genuinely assistant-owned.
 import { askOnce, type AssistantSurfaceDeps, type SurfaceExchange } from "../../core/tool-surface-exchanges.js";
+import type { UIResource } from "@jini-ai/ui/mcp-ui/surfaces";
 import { executeCommand, type AuthorizeFn, type ChangeSetRepoPort } from "../../core/commands/index.js";
 import { processOutbox } from "../../core/events/index.js";
 import { registerToolContributor } from "#src/assistant/index";
@@ -204,6 +205,73 @@ function toPostToolView(post: PostRecord): PostToolView {
     updatedAt: post.updatedAt,
     version: post.version,
   };
+}
+
+/**
+ * Reads the row `content_post_delete` is about to gate on, applying the same not-found rules
+ * `content_post_get` uses (kind mismatch and trashed rows both read as not-found — a second delete
+ * cannot "succeed"). Throws `PostNotFoundError` rather than returning `null` because there is no
+ * valid "keep going" path once this fails.
+ */
+async function loadDeletablePost(routeDeps: PostToolDeps, id: string, kind: PostKind): Promise<PostRecord> {
+  const existing = await routeDeps.postRepo.findById({ workspaceId: routeDeps.workspaceId, id });
+  if (!existing || isTrashed(existing) || (kind === "page" && existing.kind !== "page")) {
+    throw new PostNotFoundError(`${kind} '${id}' was not found`);
+  }
+  return existing;
+}
+
+/**
+ * Waits for the human's answer to `content_post_delete`'s confirmation dialog and turns it into
+ * either "go ahead" or the exact not-confirmed result the tool call should return (ADR-055
+ * Decision 6: no-answer is a result, not a thrown error).
+ */
+async function resolveDeleteDecision(
+  exchange: SurfaceExchange,
+  ui: UIResource,
+  existing: PostRecord
+): Promise<{ confirmed: true } | { confirmed: false; result: unknown }> {
+  const answer = await askOnce(exchange, { channel: "mcp-ui", payload: { resource: ui } });
+
+  if (answer.status !== "received") {
+    return {
+      confirmed: false,
+      result: {
+        deleted: false,
+        cancelled: false,
+        reason: answer.status,
+        note:
+          answer.status === "expired"
+            ? "The user did not respond to the confirmation dialog before it expired. Nothing was deleted."
+            : "The confirmation dialog was closed because the run ended. Nothing was deleted.",
+      },
+    };
+  }
+
+  const decision = typeof answer.params["decision"] === "string" ? answer.params["decision"] : "confirm";
+  if (decision !== "confirm") {
+    return { confirmed: false, result: { deleted: false, cancelled: true, post: toPostToolView(existing) } };
+  }
+
+  return { confirmed: true };
+}
+
+/**
+ * Refuses to write if the row moved since the confirmation dialog was shown. See the caller's own
+ * inline history: this replaces `pending-confirmations.ts`'s old token-bound version check (ADR-055
+ * Decision 3 removed the token, not the need for the check).
+ */
+function assertFreshVersion(current: PostRecord | null, existing: PostRecord, kind: PostKind): void {
+  if (current && !isTrashed(current) && current.version !== existing.version) {
+    throw new Error(
+      `content_post_delete: the confirmation could not be honored (stale-entity-version). The ${kind} was edited ` +
+        `after the confirmation dialog was shown. Nothing was deleted. Call content_post_delete again with ` +
+        `{ id, kind } to raise a fresh dialog against the current version.`
+    );
+  }
+  // A missing or already-trashed `current` is not handled specially here: `deletePost` performs its
+  // own fresh existence/trashed check and throws `PostNotFoundError`, the same outcome this handler
+  // already produces for that case above.
 }
 
 /**
@@ -432,14 +500,11 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
         entityId: id,
       });
 
-      const existing = await routeDeps.postRepo.findById({ workspaceId: routeDeps.workspaceId, id });
-      // Kind guard placed here rather than in `deletePost`, mirroring `pages/delete.ts`/
+      // Kind guard applied inside the loader rather than in `deletePost`, mirroring `pages/delete.ts`/
       // `pages/update.ts` — and carrying the same disclosed asymmetry the rest of this catalog has:
       // kind:'page' rejects an actual 'post' row, kind:'post' is not guarded the other way.
       // A trashed row is not-found too (post.ts's own rule), so a second delete cannot "succeed".
-      if (!existing || isTrashed(existing) || (kind === "page" && existing.kind !== "page")) {
-        throw new PostNotFoundError(`${kind} '${id}' was not found`);
-      }
+      const existing = await loadDeletablePost(routeDeps, id, kind);
 
       // Fail closed rather than degrade — see this handler's own doc comment above.
       if (!ctx.emitSurface) {
@@ -471,26 +536,10 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
       const closeOnAbort = () => exchange.close();
       ctx.signal.addEventListener("abort", closeOnAbort, { once: true });
       try {
-        const answer = await askOnce(exchange, { channel: "mcp-ui", payload: { resource: ui } });
-
         // ADR-055 Decision 6: the no-answer path is a result, not an exception. Nothing was deleted
         // either way, and the model is still alive to read this and say something sensible.
-        if (answer.status !== "received") {
-          return {
-            deleted: false,
-            cancelled: false,
-            reason: answer.status,
-            note:
-              answer.status === "expired"
-                ? "The user did not respond to the confirmation dialog before it expired. Nothing was deleted."
-                : "The confirmation dialog was closed because the run ended. Nothing was deleted.",
-          };
-        }
-
-        const decision = typeof answer.params["decision"] === "string" ? answer.params["decision"] : "confirm";
-        if (decision !== "confirm") {
-          return { deleted: false, cancelled: true, post: toPostToolView(existing) };
-        }
+        const decision = await resolveDeleteDecision(exchange, ui, existing);
+        if (!decision.confirmed) return decision.result;
 
         // Stale-version guard. This used to be `pending-confirmations.ts`'s job — a token bound to
         // `existing.version` at mint time and refused at redeem time if the row had moved. Removing
@@ -502,16 +551,7 @@ export function buildPostRegistrations(routeDeps: PostToolDeps, surfaces: Assist
         // optimistic-concurrency check of its own (confirmed by reading it in full), so without this
         // an edit made while the dialog was open would go unnoticed.
         const current = await routeDeps.postRepo.findById({ workspaceId: routeDeps.workspaceId, id });
-        if (current && !isTrashed(current) && current.version !== existing.version) {
-          throw new Error(
-            `content_post_delete: the confirmation could not be honored (stale-entity-version). The ${kind} was edited ` +
-              `after the confirmation dialog was shown. Nothing was deleted. Call content_post_delete again with ` +
-              `{ id, kind } to raise a fresh dialog against the current version.`
-          );
-        }
-        // A missing or already-trashed `current` is not handled specially here: `deletePost` below
-        // performs its own fresh existence/trashed check and throws `PostNotFoundError`, the same
-        // outcome this handler already produces for that case above.
+        assertFreshVersion(current, existing, kind);
 
         let priorPost: PostRecord | null = null;
 
