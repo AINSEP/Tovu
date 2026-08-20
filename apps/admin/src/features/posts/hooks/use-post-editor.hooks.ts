@@ -117,6 +117,13 @@ export interface PostEditorController {
    *  mounts one `express.static` root per discovered STATIC-tier theme dir, nothing else) — the
    *  caller uses this to decide whether "View Template" can fetch anything at all. */
   activeThemeTier: ThemeTier | null;
+  /** The active theme's manifest `apiVersion` (`AdminThemeSummary.apiVersion`, looked up the same way
+   *  as `activeThemeTier` just above) — `undefined` for a v1 theme (including "not loaded yet" or
+   *  "absent from `availableThemes`", same as `activeThemeTier`'s `null`, since a v2-only fetch URL
+   *  and a v1 one both need a concrete value rather than a third "unknown" state to carry through
+   *  `useTemplateSource`). 2026-08-19 architecture audit finding 1 — feeds `PostTemplateModal`'s
+   *  "View Template" fetch, which 404ed on every v2 built-in theme without this. */
+  activeThemeApiVersion: 2 | undefined;
   /**
    * Tri-state (2026-08-15) — `null` means this post has never had an explicit opinion on the
    * slug-collision override (the server resolver's current default applies, post-wins as of this
@@ -353,6 +360,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
   // between posts, only when the workspace's presentation settings themselves change.
   const [activeThemeId, setActiveThemeId] = useState<string | null>(null);
   const [activeThemeTier, setActiveThemeTier] = useState<ThemeTier | null>(null);
+  const [activeThemeApiVersion, setActiveThemeApiVersion] = useState<2 | undefined>(undefined);
   // Tri-state (2026-08-15) — `null` (not `false`) is the correct "nothing loaded yet"/"never
   // decided" initial value; see `PostEditorController.overridesThemePage`'s own doc.
   const [overridesThemePage, setOverridesThemePage] = useState<boolean | null>(null);
@@ -555,7 +563,9 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
         setAvailableTemplates(activeThemeTemplates);
         setStaticPageIds(activeThemeStaticPageIds);
         setActiveThemeId(settings.activeThemeId);
-        setActiveThemeTier(availableThemes.find((theme) => theme.id === settings.activeThemeId)?.tier ?? null);
+        const matchedTheme = availableThemes.find((theme) => theme.id === settings.activeThemeId);
+        setActiveThemeTier(matchedTheme?.tier ?? null);
+        setActiveThemeApiVersion(matchedTheme?.apiVersion);
         setPost(post);
         setTitle(post.title);
         setSlug(post.slug);
@@ -765,6 +775,7 @@ export function usePostEditor(postId: string, deps: PostEditorDependencies): Pos
     mentionablePosts,
     activeThemeId,
     activeThemeTier,
+    activeThemeApiVersion,
     overridesThemePage,
     setOverridesThemePage,
     hasSlugCollision,

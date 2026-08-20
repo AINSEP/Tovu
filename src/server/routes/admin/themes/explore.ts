@@ -10,10 +10,13 @@ import {
   type DiscoveredTheme,
   copyThemeFile,
   isGeneratedThemePath,
+  isPageFilePath,
+  isPartialFilePath,
   listThemeFiles,
   readThemeFile,
   renameThemeFile,
   resolveThemeFileWriteScope,
+  resolveThemeLayout,
   restoreBuiltThemeGeneratedTree,
   writeThemeFile,
   ThemePathError,
@@ -210,7 +213,8 @@ function isAssetExtension(relativePath: string): boolean {
 export type ThemeExploreFileGroup = "page" | "partial" | "style" | "script" | "config" | "asset" | "other";
 
 /**
- * Coarse grouping for the Explore file list, derived from path/extension alone.
+ * Coarse grouping for the Explore file list, derived from path/extension (plus the theme's own
+ * `apiVersion`, for the page/partial cases) alone.
  *
  * Presentation-only: the server does not care what a file is FOR, but a flat 60-entry list of every
  * screenshot and vendor script buries the four files an author actually edits. Kept here rather than
@@ -221,13 +225,20 @@ export type ThemeExploreFileGroup = "page" | "partial" | "style" | "script" | "c
  * `other` is the catch-all this group set used to lack: anything that isn't a page, partial, style,
  * script, config, or recognized media extension — `.md`, `.txt`, `.webmanifest`, and any stray data
  * file an author or a downloaded theme happens to ship.
+ *
+ * 2026-08-19 architecture audit finding 2: the page/partial checks used to hardcode v1's flat
+ * `pages/`/root-`.html` shape unconditionally, so a `render/pages/*.html`/`render/partials/*.html`
+ * file (every real static theme on disk today — `apiVersion: 2`) fell all the way through to `other`
+ * — unclassified, read-only, raw-content preview. `isPageFilePath`/`isPartialFilePath`
+ * (`@tovu/theme-layout`'s server-side twin, `theme-layout.ts`) are the one apiVersion-aware source of
+ * truth for both checks now, shared with the admin SPA's own rename-lock check.
  */
-function fileGroup(relativePath: string): ThemeExploreFileGroup {
-  if (relativePath.startsWith("pages/")) return "page";
+function fileGroup(relativePath: string, apiVersion: 2 | undefined): ThemeExploreFileGroup {
+  if (isPageFilePath(relativePath, apiVersion)) return "page";
   if (relativePath.endsWith(".css")) return "style";
   if (/\.(m|c)?js$/.test(relativePath)) return "script";
   if (/^(theme|tokens|tokens\.light)\.json$/.test(relativePath)) return "config";
-  if (!relativePath.includes("/") && relativePath.endsWith(".html")) return "partial";
+  if (isPartialFilePath(relativePath, apiVersion)) return "partial";
   if (isAssetExtension(relativePath)) return "asset";
   return "other";
 }
@@ -264,10 +275,10 @@ const READ_ONLY_GROUPS: ReadonlySet<ThemeExploreFileGroup> = new Set(["script", 
  * three call sites, matching the "one definition, not two that can disagree" reasoning
  * {@link isGeneratedThemePath}'s own doc already gives for existing.
  */
-function isThemeFileWritable(relativePath: string): boolean {
+function isThemeFileWritable(relativePath: string, apiVersion: 2 | undefined): boolean {
   return (
     isTextReadable(relativePath) &&
-    !READ_ONLY_GROUPS.has(fileGroup(relativePath)) &&
+    !READ_ONLY_GROUPS.has(fileGroup(relativePath, apiVersion)) &&
     !isGeneratedThemePath(relativePath)
   );
 }
@@ -375,8 +386,17 @@ function isSourceDirWritableExtension(relativePath: string): boolean {
  * unlike tokens.json: absent is not an error, it just means the theme ships no light variant"`), so
  * renaming it degrades a theme rather than breaking it — closer to the "renaming a page changes its
  * URL" warning-not-block case than to this hard block.
+ *
+ * 2026-08-19 architecture audit finding 2: this used to be a fixed v1-only set (`pages/index.html`),
+ * so a v2 theme's `render/pages/index.html` was never actually protected — it fell into the `other`
+ * group and was refused as `READ_ONLY_FILE` (an accident of the classifier, not a real lock) rather
+ * than the honest `REQUIRED_FILE_LOCKED` this route means to give it. Derived from
+ * `resolveThemeLayout` (`@tovu/theme-layout`'s server-side twin) so it stays in lockstep with
+ * `pagesDir`/`indexPagePath` instead of re-spelling the same path a second time.
  */
-const REQUIRED_THEME_FILES: ReadonlySet<string> = new Set(["pages/index.html", "theme.json", "tokens.json"]);
+function requiredThemeFiles(apiVersion: 2 | undefined): readonly string[] {
+  return resolveThemeLayout(apiVersion).requiredFiles;
+}
 
 /** A path's own extension, lowercased (`""` if none) — the dot must fall after the last slash to
  * count, matching {@link nextAvailableFileName}'s identical rule for the same reason. */
@@ -398,13 +418,13 @@ export function fileExtension(relativePath: string): string {
  */
 function describeThemeFile(
   relativePath: string,
-  options: { catalogDir: string; hasOriginal: boolean }
+  options: { catalogDir: string; hasOriginal: boolean; apiVersion: 2 | undefined }
 ): { path: string; group: ThemeExploreFileGroup; readable: boolean; editable: boolean; resettable: boolean } {
   return {
     path: relativePath,
-    group: fileGroup(relativePath),
+    group: fileGroup(relativePath, options.apiVersion),
     readable: isTextReadable(relativePath),
-    editable: isThemeFileWritable(relativePath),
+    editable: isThemeFileWritable(relativePath, options.apiVersion),
     // Whether THIS file can be reset — a file the author added themselves (including a fresh copy)
     // has no original to go back to, and offering a Reset that would fail is worse than not
     // offering one.
@@ -491,12 +511,16 @@ export const registerAdminThemeDetailRoute: ContentRouteRegistrar = (app, deps) 
       // `build-preview.mjs` output, not real theme source"; see its own doc comment for why.
       const files = listThemeFiles({ themeDir: theme.dir, themesRoot: deps.themesDir })
         .filter((path) => !isGeneratedThemePath(path))
-        .map((path) => describeThemeFile(path, { catalogDir, hasOriginal }));
+        .map((path) => describeThemeFile(path, { catalogDir, hasOriginal, apiVersion: theme.manifest.apiVersion }));
 
       res.json({
         id: theme.manifest.id,
         name: theme.manifest.name,
         tier: theme.manifest.tier,
+        // 2026-08-19 architecture audit findings 1 & 2 — the admin SPA's own rename-lock check
+        // (`use-theme-explore.hooks.ts`) needs this to resolve the SAME apiVersion-aware layout the
+        // server just used to build `files` above, via the shared `@tovu/theme-layout` resolver.
+        apiVersion: theme.manifest.apiVersion,
         status: theme.status,
         errors: theme.errors,
         pages: Object.keys(theme.pages).sort(),
@@ -569,7 +593,7 @@ function isPutWritable(theme: DiscoveredTheme, path: string, writeScope: ThemeFi
     !isGeneratedThemePath(path) &&
     (isInsideCompiledSourceDir(theme, path, writeScope)
       ? isSourceDirWritableExtension(path)
-      : isThemeFileWritable(path))
+      : isThemeFileWritable(path, theme.manifest.apiVersion))
   );
 }
 
@@ -824,7 +848,10 @@ export const registerAdminThemeFileCopyRoute: ContentRouteRegistrar = (app, deps
 
       const catalogDir = join(deps.themesDir, THEME_CATALOG_DIR, theme.manifest.tier, theme.manifest.id);
       const hasOriginal = existsSync(catalogDir);
-      res.json({ ...describeThemeFile(destPath, { catalogDir, hasOriginal }), copiedFrom: sourcePath });
+      res.json({
+        ...describeThemeFile(destPath, { catalogDir, hasOriginal, apiVersion: theme.manifest.apiVersion }),
+        copiedFrom: sourcePath,
+      });
     } catch (err) {
       sendThemeFileError(res, err);
     }
@@ -846,7 +873,7 @@ function isRenameSourceAllowed(theme: DiscoveredTheme, sourcePath: string, write
     !isGeneratedThemePath(sourcePath) &&
     (isInsideCompiledSourceDir(theme, sourcePath, writeScope)
       ? isSourceDirWritableExtension(sourcePath)
-      : !READ_ONLY_GROUPS.has(fileGroup(sourcePath)))
+      : !READ_ONLY_GROUPS.has(fileGroup(sourcePath, theme.manifest.apiVersion)))
   );
 }
 
@@ -854,8 +881,8 @@ function isRenameSourceAllowed(theme: DiscoveredTheme, sourcePath: string, write
  * The three independent reasons a rename's SOURCE file might be blocked, checked in priority
  * order and collapsed into one result so the route has a single branch to make rather than three:
  *
- * - {@link REQUIRED_THEME_FILES}: renaming `pages/index.html`, `theme.json`, or `tokens.json` away
- *   reproduces the exact `loadTheme` failure that flips a theme's `status` to `"invalid"`.
+ * - {@link requiredThemeFiles}: renaming a theme's own index page, `theme.json`, or `tokens.json`
+ *   away reproduces the exact `loadTheme` failure that flips a theme's `status` to `"invalid"`.
  * - ADR-020 §5: a built theme's generated tree has no per-file identity to rename — it restores or
  *   stays exactly as shipped, atomically. Checked before {@link isRenameSourceAllowed} so a
  *   compiled theme's sourceDir file is judged by `isSourceDirWritableExtension` alone.
@@ -868,7 +895,7 @@ function validateRenameSource(
   sourcePath: string,
   writeScope: ThemeFileWriteScope
 ): { status: number; error: string; code: string } | null {
-  if (REQUIRED_THEME_FILES.has(sourcePath)) {
+  if (requiredThemeFiles(theme.manifest.apiVersion).includes(sourcePath)) {
     return {
       status: 409,
       error: `'${sourcePath}' cannot be renamed — every theme requires it at this exact path`,
@@ -967,9 +994,9 @@ export function renameThemeFileIfChanged(
  * real operator-authored path input here is validated exactly as strictly as a write target, per the
  * containment rule every route in this file follows.
  *
- * Hard-blocks {@link REQUIRED_THEME_FILES}: renaming `pages/index.html`, `theme.json`, or
+ * Hard-blocks {@link requiredThemeFiles}: renaming a theme's own index page, `theme.json`, or
  * `tokens.json` away reproduces the exact `loadTheme` failure that makes a theme's `status` flip to
- * `"invalid"` (see that constant's doc comment for the three matching checks in `theme.ts`). This
+ * `"invalid"` (see that function's doc comment for the three matching checks in `theme.ts`). This
  * does NOT block renaming an ordinary page — that only changes its public URL, which is a warning
  * the UI shows before confirming, not a server-side refusal; the operator may have a real reason to
  * do it.
@@ -1025,7 +1052,10 @@ export const registerAdminThemeFileRenameRoute: ContentRouteRegistrar = (app, de
 
       const catalogDir = join(deps.themesDir, THEME_CATALOG_DIR, theme.manifest.tier, theme.manifest.id);
       const hasOriginal = existsSync(catalogDir);
-      res.json({ ...describeThemeFile(destPath, { catalogDir, hasOriginal }), renamedFrom: sourcePath });
+      res.json({
+        ...describeThemeFile(destPath, { catalogDir, hasOriginal, apiVersion: theme.manifest.apiVersion }),
+        renamedFrom: sourcePath,
+      });
     } catch (err) {
       sendThemeFileError(res, err);
     }

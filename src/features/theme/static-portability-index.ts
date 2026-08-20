@@ -3,6 +3,7 @@ import { join } from "node:path";
 
 import { PARTIAL_MARKER_TYPE, substituteMarkers, withInnerContentFinal, type EmbedMarker } from "#src/core/embeds/marker";
 import { DEFAULT_THEME_SLOTS, loadTheme, type DiscoveredTheme } from "./theme.js";
+import { resolveThemeLayout } from "./theme-layout.js";
 
 /**
  * @file Milestone 5 — a generated root `index.html` for a `static`-tier theme, so the folder is a
@@ -12,9 +13,12 @@ import { DEFAULT_THEME_SLOTS, loadTheme, type DiscoveredTheme } from "./theme.js
  * Not a live-render path. `static-render.ts`'s `renderStaticPage` serves the real site (Tovu-relative
  * asset URLs, real menu/content data resolved server-side); this module produces one static snapshot
  * that stands on its own — root-relative asset paths (the file sits at the theme's OWN root, one
- * level up from where `render/pages/index.html` normally resolves `../css/`/`../scripts/` from),
- * design tokens inlined as real CSS (`css/theme.css` deliberately defines none of its own — see that
- * file's own header on every migrated theme), and no dependency on a live Tovu instance to look right.
+ * level up from where a v2 theme's `render/pages/index.html` normally resolves `../css/`/`../scripts/`
+ * from, or a v1 theme's `pages/index.html` resolves `../css/`/`../js/` from — see {@link
+ * import("./theme-layout.js").resolveThemeLayout}, this module's own apiVersion-aware source of truth
+ * for both shapes, 2026-08-19 architecture audit finding 5), design tokens inlined as real CSS (a
+ * theme's own required stylesheet deliberately defines none of its own — see that file's own header on
+ * every migrated theme), and no dependency on a live Tovu instance to look right.
  *
  * Two embed-marker categories, per the owner's decision (2026-08-18):
  * - `partial` (nav, footer): resolves to the theme's own `render/partials/*.html` — spliced in as
@@ -60,21 +64,40 @@ function partialIdFromSource(source: string): string {
 }
 
 /**
- * `render/pages/index.html`'s own `../css/`/`../js/`/`../scripts/` references are correct only from
- * inside `render/pages/` — one directory level shallower than the generated file's own location (the
- * theme root). Rewritten to root-relative `css/theme.css` (v2's one required stylesheet, by name,
- * regardless of what the raw source currently spells — see this module's own file header on why a
- * migrated page's raw content cannot be trusted to already say the right filename) and
- * `scripts/<path>` (folder renamed, filename/subpath under it preserved).
+ * A theme's own page's `../css/`/`../js/`/`../scripts/` references are correct only from inside its
+ * pages folder (`render/pages/` for v2, `pages/` for v1) — one directory level shallower than the
+ * generated file's own location (the theme root). Rewritten to root-relative `{cssDir}/
+ * {stylesheetFilename}` (this theme's own one required stylesheet, by name — v2 gets `css/theme.css`,
+ * v1 gets `css/styles.css` — regardless of what the raw source currently spells; see this module's
+ * own file header on why a migrated page's raw content cannot be trusted to already say the right
+ * filename) and `{scriptsDir}/<path>` (folder possibly renamed, filename/subpath under it preserved).
+ *
+ * 2026-08-19 architecture audit finding 5: this used to hardcode v2's `css/theme.css`/`scripts/`
+ * unconditionally, so running it against a real v1 theme (whose real files are `css/styles.css`/
+ * `js/*.js`) produced a "valid"-looking portability page whose stylesheet and script URLs both
+ * pointed at files that do not exist. The SOURCE pattern still matches either folder spelling
+ * (`js` or `scripts`) — a genuinely migrated-but-unclean v2 theme's raw page may still literally say
+ * `../js/...` — only the OUTPUT folder/filename is now `apiVersion`-aware, via `resolveThemeLayout`.
  *
  * @complexity O(n) over `html`'s length — two regex passes.
  */
-function rewriteRootRelativeAssetPaths(html: string): string {
-  const cssRewritten = html.replace(/href=(["'])\.\.\/css\/[^"']*\1/g, (_match, quote: string) => `href=${quote}css/theme.css${quote}`);
+function rewriteRootRelativeAssetPaths(html: string, apiVersion: 2 | undefined): string {
+  const { cssDir, stylesheetFilename, scriptsDir } = resolveThemeLayout(apiVersion);
+  const cssRewritten = html.replace(
+    /href=(["'])\.\.\/css\/[^"']*\1/g,
+    (_match, quote: string) => `href=${quote}${cssDir}/${stylesheetFilename}${quote}`
+  );
   return cssRewritten.replace(
     /src=(["'])\.\.\/(?:js|scripts)\/([^"']*)\1/g,
-    (_match, quote: string, rest: string) => `src=${quote}scripts/${rest}${quote}`
+    (_match, quote: string, rest: string) => `src=${quote}${scriptsDir}/${rest}${quote}`
   );
+}
+
+/** Escapes a string for literal use inside a `RegExp` — `resolveThemeLayout`'s two possible
+ *  `stylesheetPath` values (`css/theme.css`, `css/styles.css`) both contain a `.`, which is
+ *  otherwise a "match any character" wildcard rather than a literal dot. */
+function escapeForRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 /** The same `:root`/`:root[data-theme="light"]` CSS custom-property block `static-render.ts`'s own
@@ -97,12 +120,19 @@ function injectDefaultColorMode(html: string, defaultMode: string | undefined): 
 }
 
 /** Inlines {@link tokensToRootCss}'s `<style>` block immediately before the (already root-relative)
- * stylesheet `<link>` — `css/theme.css` itself defines no custom properties, so without this the page
- * renders with every `var(--*)` reference undefined. No-ops (returns `html` unchanged) if the
- * stylesheet link is missing, matching the live render path's own warn-and-continue posture for a page
- * that does not carry the expected sentinel, rather than throwing. */
+ * stylesheet `<link>` — this theme's own stylesheet itself defines no custom properties, so without
+ * this the page renders with every `var(--*)` reference undefined. No-ops (returns `html` unchanged)
+ * if the stylesheet link is missing, matching the live render path's own warn-and-continue posture for
+ * a page that does not carry the expected sentinel, rather than throwing.
+ *
+ * 2026-08-19 architecture audit finding 5: the link pattern used to hardcode v2's `css/theme.css`
+ * unconditionally, so this silently no-op'd for a v1 theme even after {@link rewriteRootRelativeAssetPaths}
+ * correctly rewrote its link to `css/styles.css` — the theme would render with every design-token CSS
+ * variable undefined. Now built from `resolveThemeLayout(theme.manifest.apiVersion)`'s own
+ * `stylesheetPath`, the same source of truth the asset-path rewrite just used. */
 function injectTokenStyleBlock(html: string, theme: DiscoveredTheme): string {
-  const linkPattern = /<link rel="stylesheet" href="css\/theme\.css" \/>/;
+  const { stylesheetPath } = resolveThemeLayout(theme.manifest.apiVersion);
+  const linkPattern = new RegExp(`<link rel="stylesheet" href="${escapeForRegExp(stylesheetPath)}" />`);
   if (!linkPattern.test(html)) return html;
   return html.replace(linkPattern, (match) => `<style>\n${tokensToRootCss(theme)}\n</style>\n${match}`);
 }
@@ -163,7 +193,7 @@ export function buildStaticPortabilityIndex(theme: DiscoveredTheme): string | un
   const source = theme.pages.index;
   if (source === undefined) return undefined;
 
-  let html = rewriteRootRelativeAssetPaths(source);
+  let html = rewriteRootRelativeAssetPaths(source, theme.manifest.apiVersion);
   html = injectDefaultColorMode(html, theme.manifest.defaultMode);
   html = injectTokenStyleBlock(html, theme);
   html = spliceRootPartials(html, theme);

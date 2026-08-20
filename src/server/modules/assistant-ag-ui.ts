@@ -52,7 +52,7 @@ import type { AgentEvent } from "@jini-ai/chat/core";
 
 import { getAuthedPrincipal, requireAdminSession } from "../middleware/dev-auth.js";
 import type { RouteDeps } from "../routes/types.js";
-import { fetchAgentDaemon, fetchAgentDaemonEventStream } from "./assistant-daemon-client.js";
+import { cancelDaemonRunBestEffort, fetchAgentDaemon, fetchAgentDaemonEventStream } from "./assistant-daemon-client.js";
 import type { ServerModuleHandle } from "./types.js";
 
 export const AG_UI_RUN_PATH = "/api/admin/v1/assistant/ag-ui-run";
@@ -694,8 +694,25 @@ async function handleAgUiRun(req: Request, res: Response): Promise<void> {
   writeAgUiEvent(res, { type: EventType.RUN_STARTED, threadId: run.threadId, runId: run.runId });
 
   const state = createAgUiTranslationState();
+  // Cancels the DAEMON run, not just this response's own SSE subscription (MEDIUM audit finding,
+  // 2026-08-19 Codex sol bug/architecture audit): before this fix, Stop tore down only the local
+  // `reader` here, leaving the daemon's run — including any in-flight tool call — executing to
+  // completion unobserved, unlike the non-AG-UI (Local CLI) path's own `/api/runs/:runId/cancel`
+  // button, which already reaches the daemon. `cancelDaemonRunBestEffort`'s own doc covers why this
+  // is safe to fire from here (after `res` has already closed) and why every daemon-side outcome is
+  // safe to not await/ignore.
+  //
+  // `res.writableEnded` gates this to a genuine PREMATURE close: Node fires `"close"` after every
+  // response, including a normal `drainAgUiStream`-driven finish (`res.end()` below), not only on a
+  // client abort. Without this guard, every ordinary successful run would ALSO fire a redundant
+  // cancel call after it had already finished — caught by this fix's own regression test, which
+  // failed for OTHER, unrelated tests once background cancel calls from earlier completed runs
+  // started landing on the shared stand-in daemon's request log after those tests had already reset
+  // it. `writableEnded` is `true` the instant `res.end()` is called (synchronous), well before the
+  // async `"close"` event this handler runs in ever fires, so the two can never race.
   res.on("close", () => {
     reader.cancel().catch(() => undefined);
+    if (!res.writableEnded) cancelDaemonRunBestEffort(req, res, started.daemonRunId);
   });
 
   await drainAgUiStream(reader, { res, threadId: run.threadId, runId: run.runId, state });

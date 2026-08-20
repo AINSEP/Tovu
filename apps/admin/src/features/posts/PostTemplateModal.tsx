@@ -39,6 +39,10 @@ export interface PostTemplateModalProps {
    *  `activeThemeTier`), which this treats as its own honest case rather than guessing a specific
    *  tier that might be wrong. */
   readonly themeTier: ThemeTier | null;
+  /** The active theme's manifest `apiVersion` (`2`, or `undefined` for v1) — see
+   *  `use-post-template-source.hooks.ts`'s `useTemplateSource` for why the fetch URL needs it
+   *  (`render/pages/` vs `pages/`, 2026-08-19 architecture audit finding 1). */
+  readonly themeApiVersion: 2 | undefined;
   /** The selected template's filename (`theme.json`'s `templates` entry, e.g.
    *  `"blog-post.html"`) — never `""`/`null`; `PostEditor.tsx` only renders the button that opens
    *  this modal once a real template is chosen. */
@@ -53,11 +57,12 @@ export interface PostTemplateModalProps {
 export function PostTemplateModal({
   themeId,
   themeTier,
+  themeApiVersion,
   templateFilename,
   onClose,
   useTemplateSourceHook = useWiredTemplateSource,
 }: PostTemplateModalProps) {
-  const fetchState = useTemplateSourceHook(themeId, themeTier, templateFilename);
+  const fetchState = useTemplateSourceHook(themeId, themeTier, themeApiVersion, templateFilename);
 
   let stageContent;
   if (themeTier === null) {

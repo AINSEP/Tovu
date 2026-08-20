@@ -671,6 +671,7 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
     mentionablePosts,
     activeThemeId,
     activeThemeTier,
+    activeThemeApiVersion,
     overridesThemePage,
     setOverridesThemePage,
     hasSlugCollision,
@@ -1008,6 +1009,7 @@ export function PostEditor({ postId, usePostEditorHook = useWiredPostEditor }: P
         <PostTemplateModal
           themeId={activeThemeId}
           themeTier={activeThemeTier}
+          themeApiVersion={activeThemeApiVersion}
           templateFilename={templateChoice}
           onClose={() => setShowTemplateModal(false)}
         />

@@ -15,6 +15,8 @@ import type { Translate } from "../../../lib/dictionary-translator";
 import {
   t as defaultT,
   accessTokenDuplicateNameMessage,
+  accessTokenMakeDefaultErrorMessage,
+  accessTokenRemoveErrorMessage,
   accessTokenSaveErrorMessage,
   accessTokensLoadErrorMessage,
 } from "../security-i18n";
@@ -253,6 +255,17 @@ function accessTokenSubmitErrorMessage(err: unknown, t: Translate, locale: strin
   return accessTokenSaveErrorMessage(locale, describeApiError(err, t("unknown error")));
 }
 
+/** Translates a rejected remove/make-default into a row-ready string via `template` — the
+ *  Remove/Make-default counterpart of {@link accessTokenSubmitErrorMessage}, kept separate rather
+ *  than widened onto it: neither action has a "duplicate name"/"validation" failure mode to
+ *  classify (`classifyAccessTokenSubmitError`'s two special cases are Create/Replace-only), so this
+ *  is the plain `describeApiError` extraction alone, worded per-action by the caller's own template
+ *  (Terra audit MEDIUM finding, 2026-08-19: neither action surfaced a rejected call at all before
+ *  this fix). @complexity O(1). */
+function accessTokenActionErrorMessage(err: unknown, t: Translate, locale: string, template: (locale: string, error: string) => string): string {
+  return template(locale, describeApiError(err, t("unknown error")));
+}
+
 /** Combines the three independent list-fetch failures (publish, source-control, custom) into one
  *  user-facing message, publish taking priority — pulled out of the hook body for the same
  *  complexity-budget reason {@link accessTokenSubmitErrorMessage} documents. */
@@ -355,8 +368,19 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
     else setSourceControlCredentials((await port.sourceControl.list()).credentials);
   }
 
+  /** Seeds a row's FIRST draft update from the persisted row (name included), not a blank draft —
+   *  fixes a HIGH audit finding (2026-08-19 Codex sol bug/architecture audit): the previous
+   *  `prev[rowId] ?? blankDraft()` fallback seeded `name: ""` whenever Token/Account/Username was
+   *  the first field touched, so the very next render displayed a cleared Name field and disabled
+   *  Save until the user retyped it — see {@link existingRowState}'s own analogous, already-correct
+   *  fallback (`row.name`), which this now matches. @complexity O(1). */
   function setExistingField(rowId: string, patch: Partial<DraftFields>): void {
-    setExistingDrafts((prev) => ({ ...prev, [rowId]: { ...(prev[rowId] ?? blankDraft()), ...patch } }));
+    setExistingDrafts((prev) => {
+      const existing = prev[rowId];
+      if (existing) return { ...prev, [rowId]: { ...existing, ...patch } };
+      const persistedName = rows?.find((r) => r.id === rowId)?.name ?? "";
+      return { ...prev, [rowId]: { ...blankDraft(), name: persistedName, ...patch } };
+    });
   }
 
   /** {@link replaceToken}'s `kind: "custom"` branch — a custom row has no `AccessTokenFormFields`
@@ -414,21 +438,41 @@ export function useAccessTokens(port: AccessTokensPort, t: Translate, locale: st
     }
   }
 
+  /** Removes a saved row, now with real error handling (Terra audit MEDIUM finding, 2026-08-19):
+   *  this used to await the API call with no `try`/`catch`, per-row busy/error state, or caught
+   *  rejection at all — a normal failure (auth, network, server error) produced an unhandled
+   *  rejection and left the operator staring at a row that looked untouched, with no way to tell
+   *  the remove had not applied. A rejection now lands in {@link existingBusy}, the SAME per-row
+   *  state {@link replaceToken} already renders through `state.error` — no new UI surface needed.
+   *  @complexity O(1) plus one network round trip. */
   async function removeToken(row: AccessTokenRow): Promise<void> {
-    if (row.kind === "custom") {
-      await port.custom.remove(row.id);
-      setCustomCredentials((await port.custom.list()).credentials);
-      return;
+    setExistingBusy((prev) => ({ ...prev, [row.id]: { saving: true, error: null } }));
+    try {
+      if (row.kind === "custom") {
+        await port.custom.remove(row.id);
+        setCustomCredentials((await port.custom.list()).credentials);
+      } else {
+        if (row.kind === "publish") await port.publish.remove(row.id);
+        else await port.sourceControl.remove(row.id);
+        await refetchStore(row.kind);
+      }
+      setExistingBusy((prev) => ({ ...prev, [row.id]: IDLE }));
+    } catch (err) {
+      setExistingBusy((prev) => ({ ...prev, [row.id]: { saving: false, error: accessTokenActionErrorMessage(err, t, locale, accessTokenRemoveErrorMessage) } }));
     }
-    if (row.kind === "publish") await port.publish.remove(row.id);
-    else await port.sourceControl.remove(row.id);
-    await refetchStore(row.kind);
   }
 
+  /** Same error-handling fix as {@link removeToken}'s own doc, for the "Make default" action. */
   async function makeDefault(row: AccessTokenRow): Promise<void> {
     if (row.isDefault) return;
-    await writeCredential(port, row.kind, { type: "update", id: row.id }, { isDefault: true });
-    await refetchStore(row.kind);
+    setExistingBusy((prev) => ({ ...prev, [row.id]: { saving: true, error: null } }));
+    try {
+      await writeCredential(port, row.kind, { type: "update", id: row.id }, { isDefault: true });
+      await refetchStore(row.kind);
+      setExistingBusy((prev) => ({ ...prev, [row.id]: IDLE }));
+    } catch (err) {
+      setExistingBusy((prev) => ({ ...prev, [row.id]: { saving: false, error: accessTokenActionErrorMessage(err, t, locale, accessTokenMakeDefaultErrorMessage) } }));
+    }
   }
 
   function openAddForm(ref: AccessTokenProviderRef): void {

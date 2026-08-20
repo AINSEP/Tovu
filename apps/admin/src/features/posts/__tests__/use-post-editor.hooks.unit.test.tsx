@@ -79,7 +79,7 @@ describe("usePostEditor — load", () => {
       post: POST,
       presentation: {
         settings: { activeThemeId: "basic" },
-        availableThemes: [{ id: "basic", tier: "static" }],
+        availableThemes: [{ id: "basic", tier: "static", apiVersion: 2 }],
         activeThemeTemplates: ["blog-post.html"],
         activeThemeStaticPageIds: ["pricing"],
       },
@@ -94,6 +94,7 @@ describe("usePostEditor — load", () => {
     expect(result.current.status).toBe("draft");
     expect(result.current.activeThemeId).toBe("basic");
     expect(result.current.activeThemeTier).toBe("static");
+    expect(result.current.activeThemeApiVersion).toBe(2);
     expect(result.current.availableTemplates).toEqual(["blog-post.html"]);
     // "hello-world" is not in the theme's own static page ids ("pricing") — no collision.
     expect(result.current.hasSlugCollision).toBe(false);

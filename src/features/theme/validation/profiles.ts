@@ -47,6 +47,26 @@ const PUBLISH_ONLY_RULES: ReadonlySet<string> = new Set([
 ]);
 
 /**
+ * Rule IDs for v2 manifest fields the runtime loader does not implement yet — `partials`, `renderer`,
+ * nested `tokens`, an object-valued `engine` (`theme-authoring-guide-v2.md`'s own `[TARGET]` fields;
+ * `manifest-v2.ts`'s own header names the exact loader gap for each). A `warning` under `author` (a
+ * theme author may draft ahead of the loader catching up — the design doc's own stated intent for
+ * `[TARGET]` fields, not a defect to block on mid-authoring); a hard `error` under `install`/`publish`
+ * — a package that declares a field the loader will silently ignore must never actually be installed
+ * or listed, matching `install`'s own doc ("the last chance to reject a broken package before it
+ * becomes local files"). A THIRD severity shape from {@link PUBLISH_ONLY_RULES} (which stays a
+ * warning under `install`): that set is about POLISH a WIP package has no reason to carry yet; this
+ * one is about a manifest claim the runtime will actively get wrong, which install must not admit
+ * regardless of publish-readiness. 2026-08-19 architecture audit finding 3.
+ */
+const UNIMPLEMENTED_V2_FIELD_RULES: ReadonlySet<string> = new Set([
+  "v2-partials-unimplemented",
+  "v2-renderer-unimplemented",
+  "v2-tokens-unimplemented",
+  "v2-engine-object-unimplemented",
+]);
+
+/**
  * Resolve one rule id's severity for one profile. Pure lookup — see this module's own header for why
  * profile-specific judgment stays centralized here rather than scattered across check modules.
  *
@@ -59,6 +79,9 @@ export function resolveSeverity(
   const { ruleId, profile } = required;
   if (PUBLISH_ONLY_RULES.has(ruleId)) {
     return profile === "publish" ? "error" : "warning";
+  }
+  if (UNIMPLEMENTED_V2_FIELD_RULES.has(ruleId)) {
+    return profile === "author" ? "warning" : "error";
   }
   return "error";
 }

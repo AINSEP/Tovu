@@ -38,6 +38,25 @@ export function accessTokenSaveErrorMessage(locale: string, error: string): stri
   return interpolate(ACCESS_TOKEN_SAVE_ERROR_TEMPLATE[locale] ?? ACCESS_TOKEN_SAVE_ERROR_TEMPLATE.en!, { error });
 }
 
+/** A failed Remove — its own action-specific wording, distinct from
+ *  {@link accessTokenSaveErrorMessage}'s "save" copy, so a failed removal never reads as a failed
+ *  save (Terra audit MEDIUM finding, 2026-08-19: `removeToken` used to await its API call with no
+ *  error handling at all, so a rejected call produced no visible change). */
+const ACCESS_TOKEN_REMOVE_ERROR_TEMPLATE: Record<string, string> = {
+  en: "Couldn't remove this token: {error}",
+};
+export function accessTokenRemoveErrorMessage(locale: string, error: string): string {
+  return interpolate(ACCESS_TOKEN_REMOVE_ERROR_TEMPLATE[locale] ?? ACCESS_TOKEN_REMOVE_ERROR_TEMPLATE.en!, { error });
+}
+
+/** A failed "Make default" — same action-specific reasoning as {@link accessTokenRemoveErrorMessage}. */
+const ACCESS_TOKEN_MAKE_DEFAULT_ERROR_TEMPLATE: Record<string, string> = {
+  en: "Couldn't make this token the default: {error}",
+};
+export function accessTokenMakeDefaultErrorMessage(locale: string, error: string): string {
+  return interpolate(ACCESS_TOKEN_MAKE_DEFAULT_ERROR_TEMPLATE[locale] ?? ACCESS_TOKEN_MAKE_DEFAULT_ERROR_TEMPLATE.en!, { error });
+}
+
 /** A duplicate-name rejection — this page's own case, since neither origin store's dictionary has a
  *  template naming a PROVIDER + a NAME the way this page's uniqueness check does (`rules.ts`'s
  *  `accessTokenNameTaken`). */

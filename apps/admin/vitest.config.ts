@@ -46,6 +46,8 @@ export default defineConfig({
     dedupe: ["react", "react-dom"],
     alias: {
       "@tovu/headless": path.resolve(__dirname, "../../src/headless"),
+      // Mirrors `vite.config.ts`'s identical alias — see that file's own comment.
+      "@tovu/theme-layout": path.resolve(__dirname, "../../src/features/theme/theme-layout.ts"),
     },
   },
   server: {
@@ -56,7 +58,7 @@ export default defineConfig({
     // — `agent-plugin-source-catalog.ts`'s 44 `?raw` imports of the `ui-ux-design` plugin are the
     // first case that does, and without this Vitest denies the read with "Denied ID" rather than
     // a normal resolution error. Those imports are RELATIVE paths into the sibling Jini checkout
-    // (`../../../../../../Jini/packages/plugins/ui-ux-design/...`), not `@jini-ai/plugins`
+    // (`../../../../../../Jini/packages/agent-plugins/ui-ux-design/...`), not `@jini-ai/agent-plugins`
     // specifiers — which is exactly why `fs.allow` is what governs them and not Vite's resolver.
     fs: { allow: [path.resolve(__dirname, "../.."), path.resolve(__dirname, "../../../Jini")] },
   },

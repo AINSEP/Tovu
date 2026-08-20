@@ -13,6 +13,7 @@ import {
   isEligibleForTemplateBranch,
   scanMenuEmbedIds,
   resolveActiveTheme,
+  tokenStylesheetSentinel,
   type DiscoveredTheme,
   type StaticMenuItem,
 } from "#src/features/theme/index";
@@ -321,8 +322,17 @@ export async function resolveStaticMenusForRender(
  * separate only because Posts and Pages used to resolve against separate template arrays) — the copy
  * below is worded kind-neutrally ("this content") rather than naming either editor, since the SAME
  * diagnostic page is now reachable from either.
+ *
+ * `apiVersion` (2026-08-19 architecture audit finding 4): this used to hardcode `../css/styles.css` —
+ * v1's stylesheet filename — regardless of the active theme's schema version. `renderStaticPage`
+ * itself already picks the matching sentinel per `apiVersion` via {@link tokenStylesheetSentinel}
+ * (`static-asset-contract.ts`) before splicing in the token `<style>` block; this diagnostic page
+ * renders through that SAME `renderStaticPage` call (see `renderViaTemplate` below), so its own
+ * `<link>` must spell the identical sentinel `renderStaticPage` will string-match against, or design
+ * tokens silently fail to inject and `rewriteAssetPaths` rewrites the folder prefix onto a filename
+ * that does not exist for a v2 theme (an extra 404 on top of the unstyled page).
  */
-function buildMissingTemplateHtml(): string {
+function buildMissingTemplateHtml(apiVersion: 2 | undefined): string {
   return [
     "<!doctype html>",
     '<html lang="en">',
@@ -330,7 +340,7 @@ function buildMissingTemplateHtml(): string {
     '<meta charset="utf-8" />',
     '<meta name="viewport" content="width=device-width, initial-scale=1" />',
     "<title>Template not configured</title>",
-    '<link rel="stylesheet" href="../css/styles.css" />',
+    tokenStylesheetSentinel(apiVersion),
     "</head>",
     "<body>",
     // Authored in the same marker vocabulary a theme file uses, because `renderStaticPage` resolves
@@ -558,7 +568,7 @@ export async function renderViaTemplate(
       renderStaticPage({
         theme,
         pageId: "template-missing",
-        htmlOverride: buildMissingTemplateHtml(),
+        htmlOverride: buildMissingTemplateHtml(theme.manifest.apiVersion),
         menus: staticMenus,
       }) ?? ""
     );

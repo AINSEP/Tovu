@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 
+import { resolveThemeLayout } from "@tovu/theme-layout";
+
 import type { ThemeTier } from "../../../lib/api";
 import { defaultPostTemplatePort } from "./post-template-dependencies.hooks";
 import type { PostTemplatePort } from "./post-template-port.hooks";
@@ -9,6 +11,13 @@ import type { PostTemplatePort } from "./post-template-port.hooks";
  * convention. `port` is injected (see `post-template-port.hooks.ts`) rather than calling global
  * `fetch` directly, so a test can describe "this template loaded/failed" against
  * `createFakePostTemplatePort` instead of stubbing `fetch`.
+ *
+ * 2026-08-19 architecture audit finding 1: this used to build `/theme-assets/{theme}/pages/{file}`
+ * unconditionally — the v1 layout. Every current static theme (`src/themes/static/basic` and its six
+ * siblings) is `apiVersion: 2`, whose page templates live under `render/pages/`, so "View Template"
+ * 404ed for every real built-in theme. `templateAssetUrl` now takes the active theme's `apiVersion`
+ * and resolves the folder through `@tovu/theme-layout` — the same resolver `explore.ts`'s server route
+ * uses — instead of a second, independently-spelled `pages`/`render/pages` literal.
  */
 
 export type PostTemplateFetchState =
@@ -16,13 +25,17 @@ export type PostTemplateFetchState =
   | { status: "loaded"; html: string }
   | { status: "error"; message: string };
 
-/** `/theme-assets/{themeId}/pages/{templateFilename}` — the exact route
- *  `theme-static-assets.ts` serves a static-tier theme's `pages/*.html` under (verified live,
- *  2026-08-10: `GET /theme-assets/basic/pages/blog-sidebar-template.html` → 200 with the raw
- *  HTML). `encodeURIComponent` on both segments: a theme id or filename with a space/`#`/`?`
- *  would otherwise either 404 against the exact static path or get parsed as a query string. */
-export function templateAssetUrl(themeId: string, templateFilename: string): string {
-  return `/theme-assets/${encodeURIComponent(themeId)}/pages/${encodeURIComponent(templateFilename)}`;
+/** `/theme-assets/{themeId}/{pagesDir}/{templateFilename}` — the exact route
+ *  `theme-static-assets.ts` serves a static-tier theme's page templates under (verified live,
+ *  2026-08-10: `GET /theme-assets/basic/render/pages/blog-sidebar-template.html` → 200 with the raw
+ *  HTML). `pagesDir` comes from `resolveThemeLayout(apiVersion)` — `pages` for a v1 theme,
+ *  `render/pages` for `apiVersion: 2`. `encodeURIComponent` on the theme id and filename segments: a
+ *  theme id or filename with a space/`#`/`?` would otherwise either 404 against the exact static path
+ *  or get parsed as a query string; `pagesDir`'s own `/` is intentionally left unencoded, matching a
+ *  real static path segment. */
+export function templateAssetUrl(themeId: string, templateFilename: string, apiVersion: 2 | undefined): string {
+  const { pagesDir } = resolveThemeLayout(apiVersion);
+  return `/theme-assets/${encodeURIComponent(themeId)}/${pagesDir}/${encodeURIComponent(templateFilename)}`;
 }
 
 /**
@@ -37,6 +50,10 @@ export function templateAssetUrl(themeId: string, templateFilename: string): str
  *   anything else (including `null`, meaning the tier itself could not be determined) leaves this
  *   in its initial `loading` state forever, since the caller renders its own explanation instead
  *   of ever showing that state.
+ * @param themeApiVersion - The active theme's manifest `apiVersion` — `2` or `undefined` (v1) — used
+ *   to pick the right `pages`/`render/pages` folder via `templateAssetUrl`. Unknown-but-tier-known
+ *   (e.g. presentation settings loaded but the theme's own `apiVersion` field wasn't in that
+ *   response) is treated the same as `undefined` (v1), matching `resolveThemeLayout`'s own default.
  * @param templateFilename - The selected template's filename.
  * @param port - Injected {@link PostTemplatePort} — see `post-template-port.hooks.ts`.
  * @returns The current {@link PostTemplateFetchState}.
@@ -45,6 +62,7 @@ export function templateAssetUrl(themeId: string, templateFilename: string): str
 export function useTemplateSource(
   themeId: string,
   themeTier: ThemeTier | null,
+  themeApiVersion: 2 | undefined,
   templateFilename: string,
   port: PostTemplatePort,
 ): PostTemplateFetchState {
@@ -58,7 +76,7 @@ export function useTemplateSource(
     let cancelled = false;
     setState({ status: "loading" });
     port
-      .fetchTemplateSource(templateAssetUrl(themeId, templateFilename))
+      .fetchTemplateSource(templateAssetUrl(themeId, templateFilename, themeApiVersion))
       .then((html) => {
         if (!cancelled) setState({ status: "loaded", html });
       })
@@ -70,7 +88,7 @@ export function useTemplateSource(
     return () => {
       cancelled = true;
     };
-  }, [themeId, themeTier, templateFilename, port]);
+  }, [themeId, themeTier, themeApiVersion, templateFilename, port]);
 
   return state;
 }
@@ -84,13 +102,15 @@ export function useTemplateSource(
  *
  * @param themeId - See {@link useTemplateSource}.
  * @param themeTier - See {@link useTemplateSource}.
+ * @param themeApiVersion - See {@link useTemplateSource}.
  * @param templateFilename - See {@link useTemplateSource}.
  * @returns The current {@link PostTemplateFetchState}.
  */
 export function useWiredTemplateSource(
   themeId: string,
   themeTier: ThemeTier | null,
+  themeApiVersion: 2 | undefined,
   templateFilename: string,
 ): PostTemplateFetchState {
-  return useTemplateSource(themeId, themeTier, templateFilename, defaultPostTemplatePort);
+  return useTemplateSource(themeId, themeTier, themeApiVersion, templateFilename, defaultPostTemplatePort);
 }

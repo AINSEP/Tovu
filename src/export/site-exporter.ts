@@ -180,6 +180,47 @@ export interface ExportReport {
   basePathRewriteWarning?: string;
 }
 
+/**
+ * Named-field summary of the FIRST failure across BOTH `report.routes.failed` and
+ * `report.assets.failed`, in that order. `identifier` normalizes the two collections' disagreeing
+ * field name (`FailedRoute.path` vs `FailedAsset.url`) to one name callers can interpolate without
+ * a branch. See {@link firstExportFailure}'s own doc for why a caller must check both collections.
+ */
+export interface ExportFailureSummary {
+  /** Which collection the first failure came from. */
+  kind: "route" | "asset";
+  /** `FailedRoute.path` for a route, `FailedAsset.url` for an asset. */
+  identifier: string;
+  reason: string;
+  /** Total failures in `kind`'s own collection — NOT combined with the other collection's count —
+   *  enough for a caller's "N failed" message without re-deriving it from the report. */
+  count: number;
+}
+
+/**
+ * Returns the first failure in `report` (routes checked before assets), or `undefined` when
+ * neither collection has one. The one shared "does this export block publishing" check, so every
+ * caller of `exportSite` treats a failed asset exactly like a failed route — both are missing
+ * bytes a published/committed site would otherwise silently ship without (HIGH audit finding,
+ * 2026-08-19 Codex sol bug/architecture audit: `static-publish/adapter.ts`'s `publishStaticSite`
+ * and `source-control/commit-site.ts`'s `commitSiteToSourceControl` used to check only
+ * `routes.failed`, so a page could export fine while its own stylesheet or hero image 404s, and
+ * publishing/committing would still report success).
+ *
+ * @complexity O(1) — reads only `.length` and the first array element of each collection.
+ */
+export function firstExportFailure(report: ExportReport): ExportFailureSummary | undefined {
+  if (report.routes.failed.length > 0) {
+    const first = report.routes.failed[0]!;
+    return { kind: "route", identifier: first.path, reason: first.reason, count: report.routes.failed.length };
+  }
+  if (report.assets.failed.length > 0) {
+    const first = report.assets.failed[0]!;
+    return { kind: "asset", identifier: first.url, reason: first.reason, count: report.assets.failed.length };
+  }
+  return undefined;
+}
+
 export interface ExportSiteOptions {
   /** The same composition-root object `createApp`/`server/deps.ts` already build — the exporter
    *  boots the real app with this, exactly like `cli/commands/serve.ts` does. */

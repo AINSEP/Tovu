@@ -1,3 +1,4 @@
+import { rmSync } from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 
@@ -11,7 +12,7 @@ import {
   type DeployTarget,
 } from "@jini-ai/devops/deploy";
 
-import type { ExportReport, ExportSiteOptions } from "#src/export/index";
+import type { ExportFailureSummary, ExportReport, ExportSiteOptions } from "#src/export/index";
 import type { RouteDeps } from "#src/server/routes/types";
 
 const require = createRequire(import.meta.url);
@@ -122,20 +123,50 @@ export function computeBasePath(config: StaticPublishConfig): string | undefined
   return config.target === "github-pages" ? `/${config.repo}` : undefined;
 }
 
-/** Each publish target gets its OWN directory under `infra/` (the Docker-volume-mounted directory
- *  every other export/publish artifact already lives under) so a GitHub Pages publish and a Vercel
- *  publish never race over the same on-disk output — relevant even though {@link publishStaticSite}
- *  is one-at-a-time per the admin route's own concurrency guard, since this function has no such
- *  guard of its own and may gain a second caller later.
+/**
+ * Each publish RUN gets its OWN directory under `infra/` (the Docker-volume-mounted directory every
+ * other export/publish artifact already lives under) — `<parent>/<target>/<runId>`, not merely
+ * `<parent>/<target>`. Exported (not merely internal) specifically so this per-run isolation is
+ * directly testable.
+ *
+ * MEDIUM audit finding (2026-08-19, Codex sol bug/architecture audit): a fixed `<parent>/<target>`
+ * directory meant two publishes overlapping for the SAME target — the admin UI and a confirmed
+ * agent tool call, or two OS processes (`publish-run.ts`'s own header discloses its single-flight
+ * guard is process-local only, a DELIBERATE, disclosed gap this fix closes as a side effect) — could
+ * `clean:true` and rewrite the same directory out from under each other. `runId` (always a fresh
+ * `RouteDeps.idGen.newId()` value, minted once per {@link publishStaticSite} call) makes that
+ * collision structurally impossible: no lock is needed because there is no longer anything shared to
+ * lock. The directory is disposable once `exportSiteLazily` returns — see
+ * {@link cleanupPublishRunDir}'s own doc for why nothing downstream re-reads it from disk.
  *
  * `parent` is `RouteDeps.publishOutputRootDir` (`TOVU_PUBLISH_DIR` env, then `infra/publish` —
  * mirroring `export-site.ts`'s own `TOVU_EXPORT_DIR` knob), resolved ONCE by the composition root
  * (`server/app.ts`/`server/deps.ts`) and threaded through {@link publishStaticSite}'s
  * `input.routeDeps` — never read from `process.env` in this file. A test overrides it the same way
  * every other `RouteDeps` field is overridden: by setting `publishOutputRootDir` on the fake
- * `RouteDeps` it constructs, not by mutating real process env vars. */
-function publishOutputDir(parent: string, target: StaticPublishTargetId): string {
-  return path.join(parent, target);
+ * `RouteDeps` it constructs, not by mutating real process env vars.
+ * @complexity O(1) — fixed-shape path join, no I/O.
+ */
+export function publishOutputDir(parent: string, target: StaticPublishTargetId, runId: string): string {
+  return path.join(parent, target, runId);
+}
+
+/** Best-effort cleanup of one run's isolated export directory (see {@link publishOutputDir}'s own
+ *  doc). Safe to call once `exportSiteLazily` has returned or thrown: every byte `publishStaticSite`
+ *  still needs travels through `report.routes.succeeded`/`report.assets.succeeded`'s own `data`
+ *  fields (captured in memory at write time — `site-exporter.ts`'s own "reachable as DATA" header),
+ *  never by re-reading this directory, so removing it here cannot affect anything downstream. Never
+ *  throws: a cleanup failure (a stray permission error, a file another process still holds open)
+ *  must not turn an otherwise-successful publish into a reported failure — the same best-effort,
+ *  disclosed-rather-than-silent posture `publish-run.ts`'s `recordHistoryIfPublished` already
+ *  documents for an analogous non-essential side effect.
+ * @complexity O(n) in the (typically small) exported file count — a recursive directory removal. */
+function cleanupPublishRunDir(outputDir: string): void {
+  try {
+    rmSync(outputDir, { recursive: true, force: true });
+  } catch {
+    // Swallowed deliberately — see this function's own doc.
+  }
 }
 
 /** Normalizes an `ExportedRoute`/`ExportedAsset`'s `outputFile` (already deploy-relative, per that
@@ -288,6 +319,16 @@ function exportSiteLazily(options: ExportSiteOptions): Promise<ExportReport> {
 }
 
 /**
+ * `firstExportFailure`, resolved the same lazy way as {@link exportSiteLazily} immediately above —
+ * NOT a second static import of `#src/export/index` (which would reopen the exact cycle that
+ * function's own doc traces), just a second call through the already-lazily-required module.
+ */
+function firstExportFailureLazily(report: ExportReport): ExportFailureSummary | undefined {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports -- deliberate; see exportSiteLazily's doc above.
+  return (require("#src/export/index") as typeof import("#src/export/index")).firstExportFailure(report);
+}
+
+/**
  * Publishes Tovu's current site content to `input.config.target`. Always runs a fresh, `clean`
  * export with the target-correct base path immediately before publishing (see this file's header)
  * — never reuses a previously-produced export directory.
@@ -341,25 +382,32 @@ export async function publishStaticSite(deps: StaticPublishDeps, input: StaticPu
   }
 
   const basePath = computeBasePath(input.config);
-  const outputDir = publishOutputDir(input.routeDeps.publishOutputRootDir, input.config.target);
+  const outputDir = publishOutputDir(input.routeDeps.publishOutputRootDir, input.config.target, input.routeDeps.idGen.newId());
 
   let report: ExportReport;
   try {
     report = await exportSiteLazily({ routeDeps: input.routeDeps, outputDir, clean: true, ...(basePath !== undefined ? { basePath } : {}) });
   } catch (err) {
+    cleanupPublishRunDir(outputDir);
     return {
       ok: false,
       code: "EXPORT_FAILED",
       message: `export failed before publishing could start: ${err instanceof Error ? err.message : String(err)}`,
     };
   }
+  cleanupPublishRunDir(outputDir);
 
-  if (report.routes.failed.length > 0) {
-    const first = report.routes.failed[0]!;
+  // Checks BOTH `routes.failed` and `assets.failed` (HIGH audit finding, 2026-08-19 Codex sol bug/
+  // architecture audit) — this used to check only `routes.failed`, so a page could export fine
+  // while its own stylesheet or hero image 404s and publishing would still report success. See
+  // `firstExportFailure`'s own doc (`#src/export/index`) for the shared check both this function
+  // and `commit-site.ts`'s `commitSiteToSourceControl` now use.
+  const failure = firstExportFailureLazily(report);
+  if (failure) {
     return {
       ok: false,
       code: "EXPORT_FAILED",
-      message: `refused to publish: ${report.routes.failed.length} route(s) failed to export (first: '${first.path}' — ${first.reason})`,
+      message: `refused to publish: ${failure.count} ${failure.kind}(s) failed to export (first: '${failure.identifier}' — ${failure.reason})`,
     };
   }
 

@@ -42,6 +42,11 @@ export interface ThemeExplorePort {
     id: string;
     name: string;
     tier: string;
+    /** Manifest schema version (`2`, or `undefined` for v1) — 2026-08-19 architecture audit
+     *  findings 1 & 2: `use-theme-explore.hooks.ts`'s own rename-lock pre-check needs this to
+     *  resolve the same apiVersion-aware layout the server route used to classify `files` below,
+     *  via the shared `@tovu/theme-layout` resolver. */
+    apiVersion?: 2;
     status: string;
     errors: string[];
     lineage: { from?: string; tier?: string; version?: string; catalog?: string } | null;

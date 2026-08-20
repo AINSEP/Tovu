@@ -293,14 +293,21 @@ describe("Template picker", () => {
       "fetch",
       vi.fn((input: RequestInfo | URL) => {
         const url = typeof input === "string" ? input : input.toString();
-        if (url.includes("/theme-assets/")) return Promise.resolve(new Response("<p>hi</p>", { status: 200 }));
+        // 2026-08-19 architecture audit finding 1: every real static theme (`basic` included) is
+        // `apiVersion: 2`, whose page templates live under `render/pages/`, not `pages/` — pinned
+        // exactly here (not just `includes("/theme-assets/")`) so this end-to-end test would have
+        // caught the original bug (a v1-only fetch URL that 404s for every v2 theme).
+        if (url === "/theme-assets/basic/render/pages/blog-post.html") {
+          return Promise.resolve(new Response("<p>hi</p>", { status: 200 }));
+        }
+        if (url.includes("/theme-assets/")) return Promise.resolve(new Response("not found", { status: 404 }));
         if (url.includes("/settings/effective")) return Promise.resolve(jsonResponse({ data: [] }));
         if (url.includes("/presentation")) {
           return Promise.resolve(
             jsonResponse({
               settings: { activeThemeId: "basic" },
               availableThemeIds: [],
-              availableThemes: [{ id: "basic", tier: "static" }],
+              availableThemes: [{ id: "basic", tier: "static", apiVersion: 2 }],
               activeThemeTemplates,
               activeThemeStaticPageIds: [],
             }),
@@ -368,6 +375,7 @@ function postController(overrides: Partial<PostEditorController> = {}): PostEdit
     mentionablePosts: [],
     activeThemeId: null,
     activeThemeTier: null,
+    activeThemeApiVersion: undefined,
     overridesThemePage: false,
     setOverridesThemePage: vi.fn(),
     hasSlugCollision: false,
