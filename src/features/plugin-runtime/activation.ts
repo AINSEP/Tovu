@@ -82,6 +82,48 @@ export class PluginNotFoundError extends Error {}
 export class PluginInvalidError extends Error {}
 export class PluginIncompatibleError extends Error {}
 
+/** BR-05 step 2: enabling requires a `"valid"` discovered status — `"incompatible"` gets its own
+ *  typed error (a fixable-only-by-an-SDK-upgrade condition) distinct from any other non-`"valid"`
+ *  status. Never called for a disable — BR-05 has no validity precondition on that direction. */
+function assertPluginEnableAllowed(pluginId: string, status: PluginDiscoveryRecord["status"]): void {
+  if (status === "incompatible") {
+    throw new PluginIncompatibleError(`plugin '${pluginId}' is incompatible with this runtime's SDK version`);
+  }
+  if (status !== "valid") {
+    throw new PluginInvalidError(`plugin '${pluginId}' failed validation and cannot be enabled`);
+  }
+}
+
+/** The active-version pointer only ever advances on a genuine enable (REQ-02's "active pointer");
+ *  disabling must not silently re-point it to whatever discovery currently reports as latest — it
+ *  preserves whichever version was actually active (AC-13: disable's version is unchanged from the
+ *  enable it inverts). */
+function resolveActivationVersion(enabled: boolean, discoveredVersion: string, existingVersion: string | undefined): string {
+  if (enabled) return discoveredVersion;
+  return existingVersion ?? discoveredVersion;
+}
+
+/** Invokes the enable/disable side effect and, on failure, compensates and rethrows the ORIGINAL
+ *  error unmasked — one `try`/`catch` instead of the identical pair an enable/disable if/else used
+ *  to each carry, since both directions need exactly the same failure handling. */
+async function applyActivationSideEffect(
+  deps: SetPluginEnabledDeps,
+  input: SetPluginEnabledInput,
+  existing: PluginActivationRecord | null,
+  target: { workspaceId: UUID; pluginId: string }
+): Promise<void> {
+  try {
+    if (input.enabled) {
+      await deps.onEnabled?.(input.pluginId);
+    } else {
+      deps.onDisabled?.(input.pluginId);
+    }
+  } catch (error) {
+    await restoreOnSideEffectFailure(deps.repo, existing, target);
+    throw error;
+  }
+}
+
 export interface SetPluginEnabledDeps {
   clock: ClockPort;
   repo: PluginActivationRepoPort;
@@ -133,22 +175,10 @@ export async function setPluginEnabled(
   if (!discovered) {
     throw new PluginNotFoundError(`plugin '${input.pluginId}' was not found in the current discovery snapshot`);
   }
+  if (input.enabled) assertPluginEnableAllowed(input.pluginId, discovered.status);
 
-  if (input.enabled) {
-    if (discovered.status === "incompatible") {
-      throw new PluginIncompatibleError(`plugin '${input.pluginId}' is incompatible with this runtime's SDK version`);
-    }
-    if (discovered.status !== "valid") {
-      throw new PluginInvalidError(`plugin '${input.pluginId}' failed validation and cannot be enabled`);
-    }
-  }
-
-  // The active-version pointer only ever advances on a genuine enable (REQ-02's "active pointer");
-  // disabling must not silently re-point it to whatever discovery currently reports as latest —
-  // it preserves whichever version was actually active (AC-13: disable's version is unchanged
-  // from the enable it inverts).
   const existing = await deps.repo.getActivation({ workspaceId: input.workspaceId, pluginId: input.pluginId });
-  const version = input.enabled ? discovered.version : (existing?.version ?? discovered.version);
+  const version = resolveActivationVersion(input.enabled, discovered.version, existing?.version);
 
   const activation: PluginActivationRecord = {
     pluginId: input.pluginId,
@@ -159,24 +189,7 @@ export async function setPluginEnabled(
   };
 
   await deps.repo.save(activation);
-
-  const target = { workspaceId: input.workspaceId, pluginId: input.pluginId };
-
-  if (input.enabled) {
-    try {
-      await deps.onEnabled?.(input.pluginId);
-    } catch (error) {
-      await restoreOnSideEffectFailure(deps.repo, existing, target);
-      throw error;
-    }
-  } else {
-    try {
-      deps.onDisabled?.(input.pluginId);
-    } catch (error) {
-      await restoreOnSideEffectFailure(deps.repo, existing, target);
-      throw error;
-    }
-  }
+  await applyActivationSideEffect(deps, input, existing, { workspaceId: input.workspaceId, pluginId: input.pluginId });
 
   return { activation };
 }
