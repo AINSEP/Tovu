@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { loadTheme } from "../theme.js";
-import { checkApprovedRoots, checkSourceDirContainment, walkThemePackage } from "./structure.js";
+import { checkApprovedRoots, checkSourceDirContainment, walkThemePackage, type PackageWalkEntry } from "./structure.js";
 import { checkDeclaredReferences } from "./references.js";
 import { checkMarkupFile, checkTovuAgentAttributePresence } from "./markup.js";
 import { validateManifestV2 } from "./manifest-v2.js";
@@ -74,6 +74,143 @@ function isObject(value: unknown): value is Record<string, unknown> {
 }
 
 /**
+ * Read and parse `theme.json`. Never throws — a missing file, non-object JSON, or invalid JSON are
+ * all reported as issues, matching every other check module's contract. `raw` defaults to `{}` on any
+ * failure so every downstream check can keep treating it as a plain (if empty) manifest object.
+ */
+function loadRawManifest(themeDir: string): { raw: Record<string, unknown>; issues: ThemeValidationIssue[] } {
+  const issues: ThemeValidationIssue[] = [];
+  const manifestPath = join(themeDir, "theme.json");
+  let raw: Record<string, unknown> = {};
+  if (!existsSync(manifestPath)) {
+    issues.push({ ruleId: "manifest-missing", message: "theme.json is missing" });
+    return { raw, issues };
+  }
+  try {
+    const parsed: unknown = JSON.parse(readFileSync(manifestPath, "utf8"));
+    if (!isObject(parsed)) {
+      issues.push({ ruleId: "manifest-not-object", message: "theme.json is not a JSON object" });
+    } else {
+      raw = parsed;
+    }
+  } catch (err) {
+    issues.push({ ruleId: "manifest-invalid-json", message: `theme.json is not valid JSON: ${(err as Error).message}` });
+  }
+  return { raw, issues };
+}
+
+function checkV2ManifestIdMatch(raw: Record<string, unknown>, id: string): ThemeValidationIssue[] {
+  if (typeof raw.id !== "string" || raw.id === id) return [];
+  return [{ ruleId: "manifest-id-mismatch", message: `theme.json id '${raw.id}' must equal folder name '${id}'` }];
+}
+
+/** `build.source: "compiled"`'s `sourceDir` containment rule (`structure.ts`'s
+ * `checkSourceDirContainment`) — a no-op when `build` isn't declared at all. `schemaVersion` is
+ * hardcoded to `2` here rather than threaded through: this function is only ever called from the
+ * v2-strict path, where it can never be anything else. */
+function checkV2BuildContainment(raw: Record<string, unknown>): ThemeValidationIssue[] {
+  if (!isObject(raw.build)) return [];
+  return checkSourceDirContainment({
+    build: {
+      source: raw.build.source === "compiled" ? "compiled" : "authored",
+      sourceDir: typeof raw.build.sourceDir === "string" ? raw.build.sourceDir : undefined,
+    },
+    schemaVersion: 2,
+  });
+}
+
+function checkV2References(raw: Record<string, unknown>, themeDir: string): ThemeValidationIssue[] {
+  const issues: ThemeValidationIssue[] = [...checkDeclaredReferences({ themeDir, fieldName: "partials", entries: raw.partials })];
+  if (isObject(raw.renderer)) {
+    issues.push(...checkDeclaredReferences({ themeDir, fieldName: "renderer.pages", entries: raw.renderer.pages }));
+  }
+  return issues;
+}
+
+/**
+ * Publish-readiness checks — §3's REQUIRED-for-marketplace fields (LICENSE, a preview thumbnail) plus
+ * a non-empty description. Always evaluated; `profiles.ts`'s `resolveSeverity` is what makes these
+ * advisory outside the `publish` profile — an in-progress `author`-profile theme should not fail
+ * validation merely for not having picked a license yet.
+ */
+function checkV2PublishReadiness(raw: Record<string, unknown>, themeDir: string): ThemeValidationIssue[] {
+  const issues: ThemeValidationIssue[] = [];
+  if (raw.license === undefined) {
+    issues.push({ ruleId: "license-missing", message: "theme.json has no license field — required before this theme can be published" });
+  }
+  if (typeof raw.description !== "string" || raw.description.length === 0) {
+    issues.push({ ruleId: "description-missing", message: "theme.json has no description — required before this theme can be published" });
+  }
+  if (!existsSync(join(themeDir, "assets", "previews", "card.webp"))) {
+    issues.push({
+      ruleId: "preview-thumbnail-missing",
+      message: "assets/previews/card.webp is missing — required marketplace thumbnail before this theme can be published",
+    });
+  }
+  return issues;
+}
+
+/**
+ * The v2-strict path: `validateManifestV2` (schema closure + restructured fields),
+ * `checkApprovedRoots`/`checkSourceDirContainment` (v2's `render/`-nested package shape),
+ * `checkDeclaredReferences` against `partials`/`renderer.pages` — see this file's own header for the
+ * full rationale.
+ */
+function runV2StrictChecks(raw: Record<string, unknown>, id: string, themeDir: string): ThemeValidationIssue[] {
+  return [
+    ...checkApprovedRoots({ themeDir }),
+    ...validateManifestV2({ raw }),
+    ...checkV2ManifestIdMatch(raw, id),
+    ...checkV2BuildContainment(raw),
+    ...checkV2References(raw, themeDir),
+    ...checkV2PublishReadiness(raw, themeDir),
+  ];
+}
+
+/** v1 fallback — see this file's own header for why this defers to `loadTheme()` rather than
+ * re-deriving its rules. */
+function runV1FallbackCheck(themeDir: string, id: string): ThemeValidationIssue[] {
+  const discovered = loadTheme({ themeDir, id, source: "site" });
+  return discovered.errors.map((message) => ({ ruleId: "loadtheme-error", message }));
+}
+
+/** Markup checks run over every real markup file the walk found, for both schema versions — see this
+ * file's own header on why these rules are schema-version-agnostic. A file that disappears (or turns
+ * unreadable) between the walk and this read is skipped rather than thrown — the walk and this loop
+ * are not atomic against concurrent filesystem changes. */
+function checkMarkupFiles(files: readonly PackageWalkEntry[]): ThemeValidationIssue[] {
+  const issues: ThemeValidationIssue[] = [];
+  for (const file of files) {
+    const dot = file.relativePath.lastIndexOf(".");
+    const ext = dot === -1 ? "" : file.relativePath.slice(dot).toLowerCase();
+    if (!MARKUP_EXTENSIONS.has(ext)) continue;
+    let content: string;
+    try {
+      content = readFileSync(file.absolutePath, "utf8");
+    } catch {
+      continue;
+    }
+    issues.push(...checkMarkupFile({ relativePath: file.relativePath, content }));
+    issues.push(...checkTovuAgentAttributePresence({ relativePath: file.relativePath, content }));
+  }
+  return issues;
+}
+
+function resolveFindings(
+  rawIssues: readonly ThemeValidationIssue[],
+  profile: ThemeValidationProfile
+): { errors: ThemeValidationFinding[]; warnings: ThemeValidationFinding[] } {
+  const findings: ThemeValidationFinding[] = rawIssues.map((issue) => ({
+    ...issue,
+    severity: resolveSeverity({ ruleId: issue.ruleId, profile }),
+  }));
+  return {
+    errors: findings.filter((finding) => finding.severity === "error"),
+    warnings: findings.filter((finding) => finding.severity === "warning"),
+  };
+}
+
+/**
  * Validate one theme package directory. Never throws — every failure mode (missing/malformed
  * manifest, containment violation, unresolved reference) is reported as a finding, matching every
  * sibling check module's contract.
@@ -92,97 +229,18 @@ export function validateThemePackage(
   const { themeDir, id, profile } = required;
   const rawIssues: ThemeValidationIssue[] = [];
 
-  const manifestPath = join(themeDir, "theme.json");
-  let raw: Record<string, unknown> = {};
-  if (!existsSync(manifestPath)) {
-    rawIssues.push({ ruleId: "manifest-missing", message: "theme.json is missing" });
-  } else {
-    try {
-      const parsed: unknown = JSON.parse(readFileSync(manifestPath, "utf8"));
-      if (!isObject(parsed)) {
-        rawIssues.push({ ruleId: "manifest-not-object", message: "theme.json is not a JSON object" });
-      } else {
-        raw = parsed;
-      }
-    } catch (err) {
-      rawIssues.push({ ruleId: "manifest-invalid-json", message: `theme.json is not valid JSON: ${(err as Error).message}` });
-    }
-  }
+  const { raw, issues: manifestIssues } = loadRawManifest(themeDir);
+  rawIssues.push(...manifestIssues);
 
   const schemaVersion: 1 | 2 = raw.apiVersion === 2 ? 2 : 1;
 
   const { issues: walkIssues, files } = walkThemePackage({ themeDir });
   rawIssues.push(...walkIssues);
 
-  if (schemaVersion === 2) {
-    rawIssues.push(...checkApprovedRoots({ themeDir }));
-    rawIssues.push(...validateManifestV2({ raw }));
-    if (typeof raw.id === "string" && raw.id !== id) {
-      rawIssues.push({ ruleId: "manifest-id-mismatch", message: `theme.json id '${raw.id}' must equal folder name '${id}'` });
-    }
-    if (isObject(raw.build)) {
-      rawIssues.push(
-        ...checkSourceDirContainment({
-          build: {
-            source: raw.build.source === "compiled" ? "compiled" : "authored",
-            sourceDir: typeof raw.build.sourceDir === "string" ? raw.build.sourceDir : undefined,
-          },
-          schemaVersion,
-        })
-      );
-    }
-    rawIssues.push(...checkDeclaredReferences({ themeDir, fieldName: "partials", entries: raw.partials }));
-    if (isObject(raw.renderer)) {
-      rawIssues.push(...checkDeclaredReferences({ themeDir, fieldName: "renderer.pages", entries: raw.renderer.pages }));
-    }
+  rawIssues.push(...(schemaVersion === 2 ? runV2StrictChecks(raw, id, themeDir) : runV1FallbackCheck(themeDir, id)));
 
-    // Publish-readiness checks — §3's REQUIRED-for-marketplace fields (LICENSE, a preview thumbnail)
-    // plus a non-empty description. Always evaluated; `profiles.ts`'s `resolveSeverity` is what makes
-    // these advisory outside the `publish` profile — an in-progress `author`-profile theme should not
-    // fail validation merely for not having picked a license yet.
-    if (raw.license === undefined) {
-      rawIssues.push({ ruleId: "license-missing", message: "theme.json has no license field — required before this theme can be published" });
-    }
-    if (typeof raw.description !== "string" || raw.description.length === 0) {
-      rawIssues.push({ ruleId: "description-missing", message: "theme.json has no description — required before this theme can be published" });
-    }
-    if (!existsSync(join(themeDir, "assets", "previews", "card.webp"))) {
-      rawIssues.push({
-        ruleId: "preview-thumbnail-missing",
-        message: "assets/previews/card.webp is missing — required marketplace thumbnail before this theme can be published",
-      });
-    }
-  } else {
-    // v1 fallback — see this file's own header for why this defers to `loadTheme()` rather than
-    // re-deriving its rules.
-    const discovered = loadTheme({ themeDir, id, source: "site" });
-    for (const message of discovered.errors) {
-      rawIssues.push({ ruleId: "loadtheme-error", message });
-    }
-  }
+  rawIssues.push(...checkMarkupFiles(files));
 
-  // Markup checks run over every real markup file the walk found, for both schema versions — see
-  // this file's own header on why these rules are schema-version-agnostic.
-  for (const file of files) {
-    const dot = file.relativePath.lastIndexOf(".");
-    const ext = dot === -1 ? "" : file.relativePath.slice(dot).toLowerCase();
-    if (!MARKUP_EXTENSIONS.has(ext)) continue;
-    let content: string;
-    try {
-      content = readFileSync(file.absolutePath, "utf8");
-    } catch {
-      continue;
-    }
-    rawIssues.push(...checkMarkupFile({ relativePath: file.relativePath, content }));
-    rawIssues.push(...checkTovuAgentAttributePresence({ relativePath: file.relativePath, content }));
-  }
-
-  const findings: ThemeValidationFinding[] = rawIssues.map((issue) => ({
-    ...issue,
-    severity: resolveSeverity({ ruleId: issue.ruleId, profile }),
-  }));
-  const errors = findings.filter((finding) => finding.severity === "error");
-  const warnings = findings.filter((finding) => finding.severity === "warning");
-
+  const { errors, warnings } = resolveFindings(rawIssues, profile);
   return { valid: errors.length === 0, schemaVersion, errors, warnings };
 }
