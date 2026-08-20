@@ -127,6 +127,26 @@ const UNWIRED_RECOVERY_TOOL_IDS = new Set([
   "backup_create_restore_point",
 ]);
 
+/** One field's "must be typeof number" check for {@link requireDeepLinkEnvelope} — same rejection
+ *  style as the kit's own `requireNumber`, just scoped to a nested envelope field path. */
+function requireEnvelopeNumber(value: unknown, fieldPath: string): number {
+  if (typeof value !== "number") throw new Error(`'${fieldPath}' (number) is required`);
+  return value;
+}
+
+/** One field's "must be typeof string" check for {@link requireDeepLinkEnvelope}. */
+function requireEnvelopeString(value: unknown, fieldPath: string): string {
+  if (typeof value !== "string") throw new Error(`'${fieldPath}' (string) is required`);
+  return value;
+}
+
+/** One field's "must be a string, or explicitly null" check — `ledgerEventId`/`restorePointId`
+ *  are the only two nullable fields on the envelope. */
+function requireEnvelopeStringOrNull(value: unknown, fieldPath: string): string | null {
+  if (value !== null && typeof value !== "string") throw new Error(`'${fieldPath}' must be a string or null`);
+  return value;
+}
+
 /**
  * Validates a raw `envelope` value against `recovery_resolve_deep_link`'s published schema and
  * returns it narrowed to `DatabaseContextEnvelope`.
@@ -143,25 +163,16 @@ const UNWIRED_RECOVERY_TOOL_IDS = new Set([
 function requireDeepLinkEnvelope(value: unknown): DatabaseContextEnvelope {
   if (!isRecord(value)) throw new Error("'envelope' (object) is required");
 
-  const v = value.v;
-  const correlationId = value.correlationId;
-  const siteId = value.siteId;
-  const ledgerEventId = value.ledgerEventId;
-  const restorePointId = value.restorePointId;
-  const drift = value.drift;
-  const intent = value.intent;
-  const issuedAt = value.issuedAt;
-
-  if (typeof v !== "number") throw new Error("'envelope.v' (number) is required");
-  if (typeof correlationId !== "string") throw new Error("'envelope.correlationId' (string) is required");
-  if (typeof siteId !== "string") throw new Error("'envelope.siteId' (string) is required");
-  if (ledgerEventId !== null && typeof ledgerEventId !== "string") throw new Error("'envelope.ledgerEventId' must be a string or null");
-  if (restorePointId !== null && typeof restorePointId !== "string") throw new Error("'envelope.restorePointId' must be a string or null");
-  if (typeof drift !== "string") throw new Error("'envelope.drift' (string) is required");
-  if (typeof intent !== "string") throw new Error("'envelope.intent' (string) is required");
-  if (typeof issuedAt !== "string") throw new Error("'envelope.issuedAt' (string) is required");
-
-  return { v, correlationId, siteId, ledgerEventId, restorePointId, drift, intent, issuedAt };
+  return {
+    v: requireEnvelopeNumber(value.v, "envelope.v"),
+    correlationId: requireEnvelopeString(value.correlationId, "envelope.correlationId"),
+    siteId: requireEnvelopeString(value.siteId, "envelope.siteId"),
+    ledgerEventId: requireEnvelopeStringOrNull(value.ledgerEventId, "envelope.ledgerEventId"),
+    restorePointId: requireEnvelopeStringOrNull(value.restorePointId, "envelope.restorePointId"),
+    drift: requireEnvelopeString(value.drift, "envelope.drift"),
+    intent: requireEnvelopeString(value.intent, "envelope.intent"),
+    issuedAt: requireEnvelopeString(value.issuedAt, "envelope.issuedAt"),
+  };
 }
 
 export function buildRecoveryRegistrations(routeDeps: RecoveryToolDeps): ToolRegistration[] {
