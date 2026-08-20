@@ -82,6 +82,19 @@ export function droppedUri(dataTransfer: DataTransfer | null): string {
   return (dataTransfer?.getData("text/uri-list") || dataTransfer?.getData("text/plain") || "").trim();
 }
 
+/**
+ * Maps the slug-collision override `<select>`'s string value to the tri-state `overridesThemePage`
+ * it represents — see `PostEditorController.overridesThemePage`'s own doc for the full tri-state
+ * contract this mirrors. Split out as a pure function (2026-08-20, UI-subhook pass, `PostEditor.tsx`
+ * complexity-ceiling work) so this mapping has exactly ONE implementation, shared by
+ * `usePostEditorUi` (`hooks/use-post-editor-ui.hooks.ts`) and that hook's own test fixture, rather
+ * than being hand-typed a second time wherever a test needs to drive the same control.
+ */
+export function overridesThemePageFromSelectValue(value: string): boolean | null {
+  if (value === "default") return null;
+  return value === "post";
+}
+
 /** A toolbar button's className for its active/inactive state — the one thing repeated across every
  *  formatting button in `PostEditor.tsx`'s `Toolbar`. Extracted so the eleven
  *  `${active ? " on" : ""}` ternaries that used to live inline in `Toolbar`'s JSX (its entire branch
