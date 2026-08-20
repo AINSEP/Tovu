@@ -35,33 +35,46 @@ const HAND_WRITTEN_RULES = [
       to: { path: "^(src/server|apps|src/features|src/db)" },
     },
     {
-      // Widened `from` (2026-08-19, architecture step 2) from `^src/features` to also cover
-      // `assistant`/`widgets`/`export` — the rule's own name says "feature/domain code" but its
-      // `from` only ever matched `src/features`, so `src/assistant`, `src/widgets`, and
-      // `src/export` (equally domain/feature-shaped code, equally not the composition root) were
-      // invisible to it. Widening surfaced 41 previously-unseen edges (9 -> 50) — every single one
-      // of them, in both the original 9 and the newly-surfaced 41, turned out to be a TYPE-ONLY
-      // edge except 9 (all in `__tests__/`, all a real `import express from "express"` to build a
-      // throwaway app/route double for an integration test). `dependencyTypesNot: ["type-only"]`
-      // below is the exact fix, and an already-established one: `only-composition-constructs-
-      // concrete-adapters` above uses the identical mechanism for the identical reason — a
-      // `import type { RouteDeps }`/`import type { Request, Response }` edge cannot construct a
-      // concrete Express app or mount a route; it is a dependency-injection PARAMETER TYPE, not the
-      // runtime coupling this rule exists to catch (verified per-edge via `depcruise --output-type
-      // json`'s own `dependencyTypes` field before adding this, not assumed). The remaining 9
-      // `__tests__/`-only value imports get the same `pathNot: ".*/__tests__/.*"` exemption
-      // `core-no-server-or-app-imports`/`only-composition-constructs-concrete-adapters`/
-      // `site-dir-no-server-express-or-cli-imports` above already use for "a contract/integration
-      // test needs the real concrete internals" — each of the 9 is exactly that shape (constructs a
-      // real `createRouteDeps()` + a throwaway `express()` stub to exercise real route/tool wiring
-      // end-to-end, never shipped). With both exemptions applied, production violations verified at
-      // 0 across the widened `from` — promoted to `error` accordingly (2026-08-19 architecture plan
-      // step 2 of 3; see `ADS-memory/reports/2026-08-19-architecture-step2-boundary-closure.md`).
+      // Investigated widening `from` to also cover `assistant`/`widgets`/`export` (2026-08-19,
+      // architecture step 2) — REJECTED after review. `src/assistant/a2ui-actions-route.ts` and
+      // `mcp-ui-tool-calls-route.ts` are genuine Express ROUTE files (assistant owns its own
+      // daemon-server HTTP surface); widening this rule there would flag legitimate route-layer
+      // code as a feature/domain violation, not close a real one. Left scoped to `^src/features`;
+      // do not retry the widening without a design for carving assistant's own route files out
+      // first. See `ADS-memory/reports/2026-08-19-architecture-step2-boundary-closure.md` for the
+      // full 50-violation count this widening surfaced when tried, for context if revisited.
+      //
+      // Also investigated and REJECTED (2026-08-19, same pass): `dependencyTypesNot: ["type-only"]`
+      // on `to`, to exempt `import type { RouteDeps }` edges the way `only-composition-constructs-
+      // concrete-adapters` exempts type-only `src/db` edges below. That precedent does not transfer:
+      // the adapters rule polices RUNTIME CONSTRUCTION (a type-only edge cannot construct anything),
+      // but this rule is a "knows-about" boundary — `features/source-control`/`features/deployments`
+      // cannot be lifted, tested, or reasoned about independently while they NAME `RouteDeps` by
+      // type, even via `import type`. This was tried anyway for one session (widened `from` +
+      // `dependencyTypesNot`, landing at 0 violations by definition rather than by closing the
+      // coupling) and reverted — the owner rejected it as hiding the problem, not fixing it.
+      //
+      // Closed for real 2026-08-20 (architecture step 2, continued): narrowed the 6 production files
+      // that named `RouteDeps` (`features/source-control/{commit-site.ts,tool-registrations.ts}`,
+      // `features/deployments/{tool-registrations.ts,publish-agent-tools.ts,
+      // static-publish/adapter.ts}`, plus `StaticPublishToolDeps`'s own `extends RouteDeps`) to
+      // domain-owned port types, none of them naming `RouteDeps` any longer. The one real blocker —
+      // `commitSiteToSourceControl`/`publishStaticSite` need the FULL `RouteDeps` bag to run a real
+      // `exportSite` pass, and `RouteDeps.runExportSite`'s contravariant parameter makes a narrower
+      // `ExportEngine<T>` declaration impossible on its own (verified, not assumed) — is solved by a
+      // NEW `RouteDeps.exportSiteBound` field (`server/routes/types.ts`): a pre-bound export call,
+      // closed over the full `RouteDeps` once at the composition root (`server/app.ts`'s
+      // `createRouteDeps()`/`server/deps.ts`'s `createSqliteRouteDeps()`), so each narrow domain type
+      // only ever has to describe `{outputDir; clean?; basePath?}` — never `routeDeps` itself.
+      // `features/deployments/export-run.ts` needed NO changes: its own `ExportEngine<TRouteDeps>`
+      // was already generic and never named `RouteDeps` — it was already the target shape this whole
+      // fix aims every other call site at. Production violations verified at 0 under the reverted,
+      // un-widened `from`/`to` below — promoted to `error` on that basis, not by exempting a category.
       name: "feature-no-express-or-admin-imports",
       severity: "error",
-      comment: "Feature/domain code (features/assistant/widgets/export) may not import Express as a runtime VALUE, route handlers, or admin-app code. A type-only edge (DI parameter types like RouteDeps/Request/Response) is exempted, same as only-composition-constructs-concrete-adapters' identical exemption for src/db. __tests__/ integration tests that construct a real Express app to exercise route wiring end-to-end are exempted too, same pattern as the other hand-written rules above.",
-      from: { path: "^src/(features|assistant|widgets|export)", pathNot: ".*/__tests__/.*" },
-      to: { path: "^(node_modules/express|src/server/routes|apps/admin)", dependencyTypesNot: ["type-only"] },
+      comment: "Feature/domain code may not import Express, route handlers, or admin-app code — including a type-only `RouteDeps`/route-handler-type edge, which is still a real \"knows-about\" coupling for this rule's purpose (contrast only-composition-constructs-concrete-adapters below, which polices runtime construction and so DOES exempt type-only edges). __tests__/ integration tests that construct a real Express app/RouteDeps fixture to exercise route or tool wiring end-to-end are exempted.",
+      from: { path: "^src/features", pathNot: ".*/__tests__/.*" },
+      to: { path: "^(node_modules/express|src/server/routes|apps/admin)" },
     },
     {
       name: "only-composition-constructs-concrete-adapters",
