@@ -378,17 +378,24 @@ function validateColumns(table: TableDecl): Set<string> {
   return declaredColumns;
 }
 
+/** Validates one index's declared columns against the table's actual columns — declared at TOP
+ *  LEVEL (not a closure inside `validateIndexes`' loop) so it does not inherit that loop's own
+ *  nesting; see `validate()`'s own doc above for why a nested closure would change nothing. */
+function validateIndexColumns(idx: IndexDecl, table: TableDecl, declaredColumns: Set<string>): void {
+  if (idx.columns.length === 0) throw new DeclError("EMPTY_INDEX", `index ${idx.name} on table ${table.name} declares no columns`);
+  for (const col of idx.columns) {
+    if (!declaredColumns.has(col)) {
+      throw new DeclError("INDEX_UNKNOWN_COLUMN", `index ${idx.name} on table ${table.name} references undeclared column: ${col}`);
+    }
+  }
+}
+
 /** Validates one table's index declarations against the columns that table actually declared. */
 function validateIndexes(pluginId: string, table: TableDecl, declaredColumns: Set<string>): void {
   for (const idx of table.indexes ?? []) {
     if (!IDENT.test(idx.name)) throw new DeclError("BAD_INDEX_NAME", `invalid index name: ${idx.name}`);
     assertIdentifierFits(`idx_${fqName(pluginId, table.name)}__${idx.name}`, `index ${idx.name} on table ${table.name}`);
-    if (idx.columns.length === 0) throw new DeclError("EMPTY_INDEX", `index ${idx.name} on table ${table.name} declares no columns`);
-    for (const col of idx.columns) {
-      if (!declaredColumns.has(col)) {
-        throw new DeclError("INDEX_UNKNOWN_COLUMN", `index ${idx.name} on table ${table.name} references undeclared column: ${col}`);
-      }
-    }
+    validateIndexColumns(idx, table, declaredColumns);
   }
 }
 
