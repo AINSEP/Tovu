@@ -39,6 +39,11 @@ export interface ComposePluginRuntimeRequired {
   readonly sources: readonly PluginRuntimeSource[];
   /** Consecutive hook failures before quarantine. Omitted uses the registry default. */
   readonly failureThreshold?: number;
+  /** Site-installed plugin scan root, forwarded verbatim to `discoverPlugins({ installDir })`
+   * (REQ-02). Omitted ⇒ legacy mode: built-ins only, identical to today's behavior (discovery.ts's
+   * own EC-09/AC-16 contract) — this parameter only ADDS reachability for site-installed plugins,
+   * it never changes what a caller who omits it observes. */
+  readonly installDir?: string;
 }
 
 export interface PluginRuntimeBindings {
@@ -56,14 +61,18 @@ export interface PluginRuntimeBindings {
  * has completed successfully.
  */
 export function composePluginRuntime(required: ComposePluginRuntimeRequired): PluginRuntimeBindings {
-  const { activationRepo, clock, sources } = required;
+  const { activationRepo, clock, sources, installDir } = required;
   const hookRegistry = createHookRegistry({
     ...(required.failureThreshold === undefined ? {} : { failureThreshold: required.failureThreshold }),
     onQuarantine: async (input) => {
       await quarantinePlugin({ deps: { clock, repo: activationRepo }, input });
     },
   });
-  const discoverPlugins = () => discoverPluginRuntimePlugins({ builtIns: sources });
+  // Reachability fix (previously always omitted `installDir`, so a plugin placed on disk was
+  // never scanned no matter how the composition root itself was configured — see this function's
+  // required-params doc).
+  const discoverPlugins = () =>
+    discoverPluginRuntimePlugins({ builtIns: sources, ...(installDir === undefined ? {} : { installDir }) });
 
   async function onPluginEnabled(pluginId: string): Promise<void> {
     const source = sources.find((candidate) => candidate.manifest.id === pluginId);

@@ -209,6 +209,24 @@ export function resolvePublishOutputRootDir(): string {
 }
 
 /**
+ * `TOVU_PLUGINS_DIR` env, then `<cwd>/infra/plugins` — the instance-wide root `discoverPlugins()`
+ * scans for site-installed plugins (SPEC-005 REQ-02's `<install-dir>/plugins/<id>/<version>/`
+ * layout; this function resolves the `<install-dir>/plugins` segment itself, matching what
+ * `discoverPlugins({ installDir })`'s own fixtures pass — see `discovery.ts`'s
+ * `listInstalledPluginIdFolders`, which lists `<installDir>/<id>/` directly).
+ *
+ * Deliberately instance-wide, not per-workspace (unlike `src/features/agent-plugins/layout.ts`'s
+ * `ws/<workspaceId>/` tenant isolation, a DIFFERENT feature with its own later, separate tenancy
+ * decision): SPEC-005's `plugin_activations` table is already the per-workspace boundary (REQ-07,
+ * `workspaceId`+`pluginId` primary key) — an installed plugin ARTIFACT is shared across every
+ * workspace on this instance, same as `builtInThemesDir()`'s themes; only its enabled/disabled
+ * state is workspace-scoped. Read ONCE here, same reasoning as {@link resolveExportOutputRootDir}.
+ */
+export function pluginsInstallDir(): string {
+  return process.env.TOVU_PLUGINS_DIR !== undefined ? resolve(process.env.TOVU_PLUGINS_DIR) : resolve(process.cwd(), "infra", "plugins");
+}
+
+/**
  * @file SQLite-backed composition of route dependencies.
  *
  * Purpose:
@@ -320,6 +338,10 @@ export function createSqliteRouteDeps(
     clock,
     activationRepo: pluginActivationRepo,
     sources: [WORD_COUNT_RUNTIME_SOURCE],
+    // Reachability fix: previously omitted entirely, so `discoverPlugins()` only ever scanned the
+    // compiled-in built-in registry — a plugin placed on disk (REQ-02's install layout) was
+    // invisible to every real boot of this composition root, no matter how it got there.
+    installDir: pluginsInstallDir(),
     ...(overrides?.pluginFailureThreshold === undefined
       ? {}
       : { failureThreshold: overrides.pluginFailureThreshold }),
