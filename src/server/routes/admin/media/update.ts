@@ -2,18 +2,7 @@ import { MediaNotFoundError, MediaValidationError, updateMediaMetadata } from "#
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import { toAdminMediaResponse } from "#src/server/http/admin/media";
 import type { MediaRouteRegistrar } from "./deps.js";
-
-/**
- * `undefined` means "field omitted, leave it alone"; only a genuinely-provided value gets
- * `String(...)`'d. Unlike `parseOptionalNullableField` below, there is no `null`-clear case here —
- * `updateMediaMetadata` gives title/alt/caption/credit no clear semantics, so a literal `null` is
- * stringified to `"null"` same as any other value, matching the route's pre-extraction behavior.
- *
- * @complexity O(1).
- */
-function parseOptionalStringField(raw: unknown): string | undefined {
-  return raw === undefined ? undefined : String(raw);
-}
+import { parseOptionalStringField } from "./parse.js";
 
 /**
  * `undefined` (omitted) survives as `undefined`, `null` (explicit clear) survives as `null` rather
