@@ -6,6 +6,7 @@ import test from "node:test";
 
 import { InMemoryPostRepo } from "#src/features/post/index";
 import { InMemoryPresentationSettingsRepo } from "#src/features/presentation/index";
+import type { DiscoveredTheme } from "#src/features/theme/index";
 import { createApp, createRouteDeps } from "../../../app.js";
 
 /**
@@ -86,4 +87,105 @@ test("GET /: a brand-new workspace with no presentation-settings row renders the
 
   const res = await fetch(baseUrl);
   assert.equal(res.status, 200, "home route must render the default-theme empty state, not 500, when settings aren't seeded yet");
+});
+
+test("GET / 500s with 'No themes installed' when resolveActiveTheme finds none", async (t) => {
+  const { server, baseUrl } = await startServer({ themes: [] });
+  t.after(() => closeServer(server));
+
+  const res = await fetch(baseUrl);
+  assert.equal(res.status, 500);
+  assert.match(await res.text(), /No themes installed/);
+});
+
+test("GET /:slug 500s with 'No themes installed' when resolveActiveTheme finds none", async (t) => {
+  const { server, baseUrl } = await startServer({ themes: [] });
+  t.after(() => closeServer(server));
+
+  const res = await fetch(`${baseUrl}/anything`);
+  assert.equal(res.status, 500);
+  assert.match(await res.text(), /No themes installed/);
+});
+
+/** `/:slug`'s `String(req.params.slug ?? "")` is unreachable through any real HTTP request —
+ *  `:slug` is a required route segment, so Express's own router can never dispatch to this
+ *  handler with it `undefined`. Reaching into the router stack and calling the registered
+ *  handler directly with a hand-built `req` genuinely executes the fallback (same technique
+ *  `products.route.test.ts` uses for its own identical `?? ""` param guard). */
+interface ExpressHandlerLayer {
+  route?: { path: string; stack: { handle: (req: unknown, res: unknown, next: unknown) => unknown }[] };
+}
+interface ExpressAppWithRouter {
+  _router: { stack: ExpressHandlerLayer[] };
+}
+
+function extractSlugHandler(app: ReturnType<typeof createApp>): (req: unknown, res: unknown, next: unknown) => unknown {
+  const stack = (app as unknown as ExpressAppWithRouter)._router.stack;
+  const layer = stack.find((l) => l.route?.path === "/:slug");
+  if (!layer?.route) throw new Error(`route '/:slug' was not found in the router stack`);
+  return layer.route.stack[0].handle;
+}
+
+test("GET /:slug -- `req.params.slug ?? \"\"` fallback, forced via a direct handler call with slug omitted -- falls through to next(), not a crash", async () => {
+  const app = createApp(createRouteDeps());
+  const handler = extractSlugHandler(app);
+  let nextCalled = false;
+  const res = {
+    status() {
+      return res;
+    },
+    type() {
+      return res;
+    },
+    send() {
+      return res;
+    },
+  };
+
+  await handler({ params: {} }, res, () => {
+    nextCalled = true;
+  });
+
+  assert.equal(nextCalled, true, "an empty-string slug fails the `[a-z0-9-]+` match, so this must fall through via next(), never respond itself");
+});
+
+function staticThemeWithThemed404(): DiscoveredTheme {
+  return {
+    manifest: {
+      id: "static-404-test-theme",
+      name: "Static 404 Test Theme",
+      version: "1.0.0",
+      tier: "static",
+      engine: 1,
+      templates: [],
+    },
+    dir: "/nonexistent/404-test-theme",
+    tokens: {},
+    tokensLight: {},
+    templates: {},
+    liquidTemplates: {},
+    handlebarsTemplates: {},
+    pages: {
+      index: "<html><body><main>home</main></body></html>",
+      "404": "<html><body><main>Themed not found</main></body></html>",
+    },
+    partials: {},
+    css: "",
+    source: "site",
+    status: "valid",
+    errors: [],
+  } as unknown as DiscoveredTheme;
+}
+
+test("GET /:slug: a static theme's own pages/404.html renders instead of the bare fallback 404", async (t) => {
+  const { server, baseUrl } = await startServer({
+    themes: [staticThemeWithThemed404()],
+    postRepo: new InMemoryPostRepo([]),
+  });
+  t.after(() => closeServer(server));
+
+  const res = await fetch(`${baseUrl}/does-not-exist-anywhere`);
+  assert.equal(res.status, 404);
+  const html = await res.text();
+  assert.ok(html.includes("Themed not found"), "the theme's own 404 page content must render, not the bare <h1>404</h1> fallback");
 });
