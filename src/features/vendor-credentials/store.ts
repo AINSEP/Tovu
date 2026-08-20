@@ -241,6 +241,20 @@ function validateS3CompatibleConnection(value: Record<string, unknown>): VendorC
   return { vendorId: "s3-compatible", region, bucket, accessKeyId, secretAccessKey, publicUrl, ...(endpoint !== undefined ? { endpoint } : {}) };
 }
 
+/** One small validator per vendor, keyed by `vendorId` — turns `validateConnection`'s dispatch into
+ *  a lookup instead of a 7-case switch, so its own cyclomatic complexity stays proportional to "is
+ *  this a well-formed object with a known vendorId" rather than also carrying the branch count of
+ *  "which vendor" on top. */
+const CONNECTION_VALIDATORS: Readonly<Record<VendorId, (value: Record<string, unknown>) => VendorConnectionInput>> = {
+  github: (value) => validateBareTokenConnection("github", value),
+  gitlab: (value) => validateBareTokenConnection("gitlab", value),
+  bitbucket: validateBitbucketConnection,
+  vercel: validateVercelConnection,
+  netlify: validateNetlifyConnection,
+  cloudflare: validateCloudflareConnection,
+  "s3-compatible": validateS3CompatibleConnection,
+};
+
 /**
  * Validates a caller-supplied `connection` against its own vendor's required/optional shape — see
  * `types.ts`'s per-variant doc comments. Mirrors `publish-credentials/store.ts`'s
@@ -248,7 +262,7 @@ function validateS3CompatibleConnection(value: Record<string, unknown>): VendorC
  * per vendor (above) so this dispatcher's own cyclomatic complexity stays proportional to "which
  * vendor" rather than also carrying each vendor's own field-shape logic inline.
  *
- * @complexity O(1) — one vendor-id switch, then a fixed-shape field read per branch, no iteration.
+ * @complexity O(1) — one vendor-id lookup, then a fixed-shape field read per branch, no iteration.
  */
 function validateConnection(raw: unknown): VendorConnectionInput {
   if (typeof raw !== "object" || raw === null || Array.isArray(raw)) {
@@ -260,21 +274,7 @@ function validateConnection(raw: unknown): VendorConnectionInput {
     throw new VendorCredentialValidationError(`connection.vendorId must be one of: ${[...VENDOR_IDS].join(", ")}`);
   }
 
-  switch (vendorId) {
-    case "github":
-    case "gitlab":
-      return validateBareTokenConnection(vendorId, value);
-    case "bitbucket":
-      return validateBitbucketConnection(value);
-    case "vercel":
-      return validateVercelConnection(value);
-    case "netlify":
-      return validateNetlifyConnection(value);
-    case "cloudflare":
-      return validateCloudflareConnection(value);
-    case "s3-compatible":
-      return validateS3CompatibleConnection(value);
-  }
+  return CONNECTION_VALIDATORS[vendorId](value);
 }
 
 /** Extracts the last 4 characters of `connection`'s primary secret — `secretAccessKey` for
@@ -424,6 +424,77 @@ export interface UpdateVendorCredentialInput {
 }
 
 /**
+ * Resolves the up-to-4 connection-derived fields for an update. When `input.connection` was
+ * supplied, `vendorId` may change, so every downstream field (seal, tail, probed label) is
+ * re-derived together rather than patched piecemeal against a vendor the new secret doesn't belong
+ * to. Returns `existing`'s own values unchanged when no connection was given.
+ */
+async function resolveConnectionUpdate(
+  deps: VendorCredentialWriteDeps,
+  input: UpdateVendorCredentialInput,
+  existing: VendorCredentialSetRecord
+): Promise<Pick<VendorCredentialSetRecord, "vendorId" | "sealed" | "tokenTail" | "accountLabel">> {
+  if (input.connection === undefined) {
+    return { vendorId: existing.vendorId, sealed: existing.sealed, tokenTail: existing.tokenTail, accountLabel: existing.accountLabel };
+  }
+  const connection = validateConnection(input.connection);
+  const vendorId = connection.vendorId;
+  const sealed = await sealConnection(deps, { workspaceId: input.workspaceId, vendorId, id: input.id, connection });
+  const tokenTail = deriveTokenTail(connection);
+  const accountLabel = await probeAccountLabel(connection, deps.fetchFn ?? fetch, deps.extractGitHubLogin);
+  return { vendorId, sealed, tokenTail, accountLabel };
+}
+
+/**
+ * Decides the updated row's `isDefault`: an explicit `true` always wins; an unchanged vendor keeps
+ * whatever `existing` already had; a vendor CHANGE re-runs the same first-connection-in-group
+ * auto-default rule `createVendorCredential` uses, against the new vendor's own group.
+ */
+async function resolveIsDefaultOnUpdate(
+  deps: VendorCredentialWriteDeps,
+  input: UpdateVendorCredentialInput,
+  existing: VendorCredentialSetRecord,
+  vendorId: VendorId,
+  requestedDefault: boolean | undefined,
+  vendorChanged: boolean
+): Promise<boolean> {
+  if (requestedDefault === true) return true;
+  if (!vendorChanged) return existing.isDefault;
+  return decideCreateDefault(await deps.repo.listByVendor({ workspaceId: input.workspaceId, vendorId }), undefined);
+}
+
+/** Writes the updated record, translating a unique-label collision into the typed error — same
+ *  catch/translate shape {@link createVendorCredential} uses for its own insert. */
+async function applyVendorCredentialUpdate(
+  deps: VendorCredentialWriteDeps,
+  record: VendorCredentialSetRecord,
+  vendorId: VendorId,
+  label: string
+): Promise<void> {
+  try {
+    await deps.repo.update(record);
+  } catch (err) {
+    if (isUniqueLabelViolation(err)) {
+      throw new VendorCredentialDuplicateLabelError(`a '${vendorId}' credential labeled '${label}' already exists in this workspace`);
+    }
+    throw err;
+  }
+}
+
+/**
+ * After a vendor change strips default status from `existing`'s OLD group, promotes the most
+ * recently updated remaining row in that group to default — the "other half" of the same finding
+ * `publish-credentials/store.ts`'s own `updatePublishCredential` documents (a vendor change must not
+ * leave the old group defaultless). No-op if nothing remains in the old group.
+ */
+async function promoteRemainingDefault(deps: VendorCredentialWriteDeps, workspaceId: UUID, oldVendorId: VendorId): Promise<void> {
+  const remainingInOldGroup = await deps.repo.listByVendor({ workspaceId, vendorId: oldVendorId });
+  if (remainingInOldGroup.length === 0) return;
+  const promoted = remainingInOldGroup.reduce((latest, row) => (row.updatedAt > latest.updatedAt ? row : latest));
+  await deps.repo.update({ ...promoted, isDefault: true });
+}
+
+/**
  * Validate-then-write for an existing credential set. Mirrors `publish-credentials/store.ts`'s
  * `updatePublishCredential` exactly, including its vendor-change default-promotion fix — see that
  * function's own doc for the full reasoning (a vendor change must not silently steal default status
@@ -449,25 +520,9 @@ export async function updateVendorCredential(deps: VendorCredentialWriteDeps, in
   const requestedDefault = optionalBoolean(input.isDefault, "isDefault");
   const now: ISODateTime = deps.clock.nowIso();
 
-  let vendorId = existing.vendorId;
-  let sealed = existing.sealed;
-  let tokenTail = existing.tokenTail;
-  let accountLabel = existing.accountLabel;
-  if (input.connection !== undefined) {
-    const connection = validateConnection(input.connection);
-    vendorId = connection.vendorId;
-    sealed = await sealConnection(deps, { workspaceId: input.workspaceId, vendorId, id: input.id, connection });
-    tokenTail = deriveTokenTail(connection);
-    accountLabel = await probeAccountLabel(connection, deps.fetchFn ?? fetch, deps.extractGitHubLogin);
-  }
+  const { vendorId, sealed, tokenTail, accountLabel } = await resolveConnectionUpdate(deps, input, existing);
   const vendorChanged = vendorId !== existing.vendorId;
-
-  const isDefault =
-    requestedDefault === true
-      ? true
-      : vendorChanged
-        ? decideCreateDefault(await deps.repo.listByVendor({ workspaceId: input.workspaceId, vendorId }), undefined)
-        : existing.isDefault;
+  const isDefault = await resolveIsDefaultOnUpdate(deps, input, existing, vendorId, requestedDefault, vendorChanged);
 
   const record: VendorCredentialSetRecord = {
     workspaceId: input.workspaceId,
@@ -482,23 +537,13 @@ export async function updateVendorCredential(deps: VendorCredentialWriteDeps, in
     updatedAt: now,
   };
 
-  try {
-    await deps.repo.update(record);
-  } catch (err) {
-    if (isUniqueLabelViolation(err)) {
-      throw new VendorCredentialDuplicateLabelError(`a '${vendorId}' credential labeled '${label}' already exists in this workspace`);
-    }
-    throw err;
-  }
+  await applyVendorCredentialUpdate(deps, record, vendorId, label);
 
   // Same "the OTHER half of the same finding" promotion `publish-credentials/store.ts`'s own
-  // `updatePublishCredential` performs — see that function's own doc for the full reasoning.
+  // `updatePublishCredential` performs — see `promoteRemainingDefault`'s own doc for the full
+  // reasoning.
   if (vendorChanged && existing.isDefault) {
-    const remainingInOldGroup = await deps.repo.listByVendor({ workspaceId: input.workspaceId, vendorId: existing.vendorId });
-    if (remainingInOldGroup.length > 0) {
-      const promoted = remainingInOldGroup.reduce((latest, row) => (row.updatedAt > latest.updatedAt ? row : latest));
-      await deps.repo.update({ ...promoted, isDefault: true });
-    }
+    await promoteRemainingDefault(deps, input.workspaceId, existing.vendorId);
   }
 
   return toSummary(record);
