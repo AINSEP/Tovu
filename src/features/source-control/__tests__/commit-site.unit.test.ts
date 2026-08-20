@@ -59,9 +59,15 @@ function testRouteDeps(): RouteDeps {
  *  `static-publish/adapter.unit.test.ts`'s identical helper (same "no dependency on
  *  `features/deployments/**`" reason `commit-site.ts` itself gives for its own duplicated
  *  `exportSiteLazily`), injected via `RouteDeps.createSiteApp` since neither `/theme-assets/*` nor
- *  `/agent-icons/*` is backed by an injectable Port. */
-function createSiteAppWithFailingAsset(failingPath: string): (routeDeps: RouteDeps) => ReturnType<typeof createApp> {
-  return (routeDeps) => {
+ *  `/agent-icons/*` is backed by an injectable Port.
+ *
+ *  Takes `routeDeps` as an explicit argument (not a parameter of the returned function) since
+ *  2026-08-20 (RouteDeps-narrowing pass 2): `RouteDeps.createSiteApp` itself is now NULLARY (`() =>
+ *  Express`, closed over its own `routeDeps` at composition-root construction time — see that
+ *  field's doc in `server/routes/types.ts`), so the fake assigned to `deps.createSiteApp` below must
+ *  match that same nullary shape. */
+function createSiteAppWithFailingAsset(failingPath: string, routeDeps: RouteDeps): () => ReturnType<typeof createApp> {
+  return () => {
     const wrapper = express();
     wrapper.get(failingPath, (_req, res) => {
       res.status(500).json({ error: "forced failure for export-engine asset regression test" });
@@ -259,8 +265,10 @@ test("commitSiteToSourceControl: an asset that fails to export blocks the commit
   // this test would exercise the real, non-failing app instead of the forced-failure one. Mutating
   // the SAME object `exportSiteBound` already closed over is what makes the override visible —
   // property reads happen at call time, not at closure-creation time. See `routes/types.ts`'s
-  // `exportSiteBound` doc for this same gotcha, generalized.
-  deps.createSiteApp = createSiteAppWithFailingAsset("/theme-assets/basic/css/theme.css");
+  // `exportSiteBound` doc for this same gotcha, generalized (as of 2026-08-20 pass 2, `createSiteApp`
+  // ITSELF is now one of the closure-bound fields the generalized rule covers, not just
+  // `exportSiteBound` — one more reason this must stay a mutation, not a spread).
+  deps.createSiteApp = createSiteAppWithFailingAsset("/theme-assets/basic/css/theme.css", deps);
 
   const result = await commitSiteToSourceControl(
     { credentialDeps: { repo: deps.sourceControlCredentialSetRepo, sealer: deps.siteAssistantSecretSealer }, gitAdapter: neverCalledGitAdapter() },

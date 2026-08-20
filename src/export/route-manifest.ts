@@ -1,10 +1,14 @@
 import { randomUUID } from "node:crypto";
 
+import type { UUID } from "@jini-ai/cms/core";
+
 import { listPublishedPosts } from "#src/features/post/index";
-import type { PostRecord } from "#src/features/post/index";
+import type { PostRecord, PostRepoPort } from "#src/features/post/index";
 import { resolveActiveTheme } from "#src/features/theme/index";
+import type { DiscoveredTheme } from "#src/features/theme/index";
 import { resolveActiveThemeId } from "#src/features/presentation/index";
-import type { RouteDeps } from "../server/routes/types.js";
+import type { PresentationSettingsRepoPort } from "#src/features/presentation/index";
+import type { RedirectRepoPort } from "#src/redirects/index";
 import type { ManifestRoute, ManifestSkip, RouteManifest, RouteManifestPort } from "./ports.js";
 
 /**
@@ -46,16 +50,54 @@ import type { ManifestRoute, ManifestSkip, RouteManifest, RouteManifestPort } fr
  */
 
 /**
- * The full `RouteDeps` composition-root object, not a narrow `Pick`. `resolveActiveThemeId`
- * (`#src/features/presentation/index`) and `resolveActiveTheme` (`#src/features/theme/index`) each
- * only need their own narrow `ActiveThemeIdResolutionDeps`/`ActiveThemeResolutionDeps` —
- * `RouteDeps` is a structural superset of both, so passing it through works with no cast — but
- * `deps.resolveStorefrontProducts(deps)` below needs the injected field itself, which only exists
- * on the real `RouteDeps` shape. A real `RouteDeps` object (what `createApp`/`serve.ts` already
- * build) always satisfies this trivially; only a test needs to assemble one, and every route test
- * in this repo already does via `createRouteDeps()`.
+ * The minimal structural slice {@link buildRouteManifest} actually reads, declared locally rather
+ * than importing `server/routes/types.ts`'s `RouteDeps` (2026-08-20 RouteDeps-narrowing fix,
+ * mirroring `features/theme/active-theme.ts`'s own `ActiveThemeResolutionDeps` — see that file's own
+ * header for why a type-only import of the god type still counts as a real graph edge under
+ * `check:architecture`'s `--ts-pre-compilation-deps` resolution, not just a runtime one).
+ *
+ * `resolveActiveThemeId` (`#src/features/presentation/index`) and `resolveActiveTheme`
+ * (`#src/features/theme/index`) each only need their own narrow
+ * `ActiveThemeIdResolutionDeps`/`ActiveThemeResolutionDeps` — this interface is a structural
+ * superset of both (the same `presentationRepo`/`workspaceId`/`themes` fields, same types), so
+ * passing `deps` through to either call works with no cast, exactly as it did against the real
+ * `RouteDeps` object before this change.
+ *
+ * `resolveStorefrontProducts` is now NULLARY (`() => Promise<RouteManifestProduct[]>`), not
+ * `(routeDeps: RouteDeps) => ...` — the matching 2026-08-20 field-contract change on `RouteDeps`
+ * itself (see that field's own doc in `server/routes/types.ts`) that is what lets this file drop
+ * `RouteDeps` entirely: the real implementation (`server/routes/site/products.ts`) is now bound to
+ * its own `routeDeps` ONCE, at composition-root construction time, the same way
+ * `RouteDeps.exportSiteBound` already binds `exportSite` itself. See {@link RouteManifestProduct}'s
+ * own doc for why its return type is a local minimal shape rather than an import of the real
+ * `SiteProduct`.
+ *
+ * A real `RouteDeps` object (what `createApp`/`serve.ts` already build) always satisfies this
+ * trivially; only a test needs to assemble one, and every route test in this repo already does via
+ * `createRouteDeps()`.
  */
-export type RouteManifestDeps = RouteDeps;
+export interface RouteManifestDeps {
+  readonly workspaceId: UUID;
+  readonly postRepo: PostRepoPort;
+  readonly presentationRepo: PresentationSettingsRepoPort;
+  readonly themes: DiscoveredTheme[];
+  readonly redirectRepo: RedirectRepoPort;
+  readonly resolveStorefrontProducts: () => Promise<RouteManifestProduct[]>;
+}
+
+/**
+ * The exact 2 fields {@link buildRouteManifest} reads off each resolved storefront product — a
+ * minimal structural slice of the real `SiteProduct` (`server/http/site/render.ts`), not an import
+ * of it: importing `SiteProduct` here would relocate this file's `RouteDeps` back-edge rather than
+ * remove it (`SiteProduct` itself lives under `src/server/**`, same as `RouteDeps`). Return-type
+ * covariance means the real `resolveStorefrontProducts` (which returns full `SiteProduct[]`, a
+ * strict superset of these 2 fields) satisfies {@link RouteManifestDeps}'s narrower field with no
+ * cast anywhere — every `SiteProduct` already has both `id` and `title`.
+ */
+export interface RouteManifestProduct {
+  readonly id: string;
+  readonly title: string;
+}
 
 /** Base slug for the synthetic 404-probe route (`ports.ts`'s `ManifestRoute.kind: "not-found"`
  *  doc) — a real-looking, `[a-z0-9-]+`-shaped slug chosen specifically to miss every real post,
@@ -180,7 +222,7 @@ export async function buildRouteManifest(deps: RouteManifestDeps): Promise<Route
     }
   }
 
-  const products = await deps.resolveStorefrontProducts(deps);
+  const products = await deps.resolveStorefrontProducts();
   if (products.length > 0) {
     routes.push({ path: "/products", kind: "product-list", label: "products" });
     for (const product of products) {

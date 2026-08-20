@@ -79,9 +79,15 @@ function fakeDeployTarget(capturedFiles: { value: DeployFile[] | null }): Deploy
  *  `site-exporter.test.ts`'s own `FailingSlugPostRepo` (routes), injected via
  *  `RouteDeps.createSiteApp` since neither `/theme-assets/*` nor `/agent-icons/*` is backed by an
  *  injectable Port (only `/m/...` media renditions are, and the seeded demo workspace never
- *  references one — confirmed by discovery pass before writing this test). */
-function createSiteAppWithFailingAsset(failingPath: string): (routeDeps: RouteDeps) => ReturnType<typeof createApp> {
-  return (routeDeps) => {
+ *  references one — confirmed by discovery pass before writing this test).
+ *
+ *  Takes `routeDeps` as an explicit argument (not a parameter of the returned function) since
+ *  2026-08-20 (RouteDeps-narrowing pass 2): `RouteDeps.createSiteApp` itself is now NULLARY (`() =>
+ *  Express`, closed over its own `routeDeps` at composition-root construction time — see that
+ *  field's doc in `server/routes/types.ts`), so the fake assigned to `deps.createSiteApp` below must
+ *  match that same nullary shape. */
+function createSiteAppWithFailingAsset(failingPath: string, routeDeps: RouteDeps): () => ReturnType<typeof createApp> {
+  return () => {
     const wrapper = express();
     wrapper.get(failingPath, (_req, res) => {
       res.status(500).json({ error: "forced failure for export-engine asset regression test" });
@@ -250,8 +256,10 @@ test("publishStaticSite: an asset that fails to export blocks publishing, the sa
   const deps = testRouteDeps();
   // MUTATED in place, not spread into a copy — `deps.exportSiteBound` is a closure bound to THIS
   // exact object identity (see `testRouteDeps`'s own doc above). A spread here would silently lose
-  // the override, the same gotcha `commit-site.unit.test.ts`'s identical fixture documents.
-  deps.createSiteApp = createSiteAppWithFailingAsset("/theme-assets/basic/css/theme.css");
+  // the override, the same gotcha `commit-site.unit.test.ts`'s identical fixture documents. As of
+  // 2026-08-20 pass 2, `createSiteApp` ITSELF is also closure-bound (not just `exportSiteBound`) —
+  // one more reason this must stay a mutation.
+  deps.createSiteApp = createSiteAppWithFailingAsset("/theme-assets/basic/css/theme.css", deps);
 
   const result = await publishStaticSite(
     {
