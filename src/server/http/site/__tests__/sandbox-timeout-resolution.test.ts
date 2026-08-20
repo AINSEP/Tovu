@@ -3,21 +3,49 @@ import test from "node:test";
 
 import { resolveDefaultTimeoutMs as resolveHandlebars } from "../handlebars-sandbox.js";
 import { resolveDefaultTimeoutMs as resolveLiquid } from "../liquid-sandbox.js";
+import { resolveDefaultTimeoutMs } from "../worker-sandbox.js";
 
 /**
- * @file Regression cover for `TOVU_THEME_RENDER_TIMEOUT_MS` parsing.
+ * @file Regression cover for `TOVU_THEME_RENDER_TIMEOUT_MS` parsing, plus the invariant that keeps
+ * it a regression cover at all.
  *
- * The first version of this override used `Number.parseInt`, which stops at the first non-digit and
- * silently accepts a malformed PREFIX. An adversarial audit on 2026-08-19 found the consequences:
- * `"5e3"` parsed to **5** — a five-MILLISECOND render budget, so every page render on the site would
- * fail — and `"1e10"` parsed to 1. `"60000ms"` parsed to 60000, quietly bypassing the fallback the
- * code's own comment claimed to provide. There was also no upper bound, so `"999999999"` (~11.5 days)
- * was accepted, defeating the runaway-template guard this budget exists to enforce.
+ * Until 2026-08-20, `liquid-sandbox.ts` and `handlebars-sandbox.ts` each carried their OWN copy of
+ * `resolveDefaultTimeoutMs` — identical logic, but two independently-editable functions. That is
+ * exactly what let their doc comments drift: one copy's incident writeup ended up citing the OTHER
+ * engine's test file (`render-handlebars.test.ts`, inside the Liquid file) — see the 2026-08-20
+ * worker-sandbox extraction report in `ADS-memory/reports/architecture/`. After the extraction there
+ * is exactly one implementation, in `worker-sandbox.ts`; `liquid-sandbox.ts`/`handlebars-sandbox.ts`
+ * each `export { resolveDefaultTimeoutMs } from "./worker-sandbox.js"` rather than redefine it.
  *
- * These tests exist so a future "simplification" back to `parseInt` fails loudly. Both sandboxes carry
- * an independent copy of the resolver, so both are asserted — a fix applied to only one would pass a
- * single-engine test.
+ * The identity assertion below is the regression guard for THAT: if either sandbox is ever given its
+ * own private `resolveDefaultTimeoutMs` again — even a byte-identical copy-paste — `resolveLiquid`/
+ * `resolveHandlebars` stop being the same function object as the shared export, and this test fails
+ * before the two copies get any chance to drift apart the way they did before.
+ *
+ * The parsing behavior itself is asserted once below, against the canonical export (proven identical
+ * to what each wrapper re-exports by the assertion above, so testing it three times would add no
+ * coverage). Unchanged from the pre-extraction version: the first version of this override used
+ * `Number.parseInt`, which stops at the first non-digit and silently accepts a malformed PREFIX. An
+ * adversarial audit on 2026-08-19 found the consequences: `"5e3"` parsed to **5** — a five-MILLISECOND
+ * render budget, so every page render on the site would fail — and `"1e10"` parsed to 1. `"60000ms"`
+ * parsed to 60000, quietly bypassing the fallback the code's own comment claimed to provide. There
+ * was also no upper bound, so `"999999999"` (~11.5 days) was accepted, defeating the runaway-template
+ * guard this budget exists to enforce. These tests exist so a future "simplification" back to
+ * `parseInt`, or a widened bound, fails loudly.
  */
+
+test("both sandbox wrappers resolve TOVU_THEME_RENDER_TIMEOUT_MS through the SAME shared implementation, not a private copy", () => {
+  assert.equal(
+    resolveLiquid,
+    resolveDefaultTimeoutMs,
+    "liquid-sandbox.ts's resolveDefaultTimeoutMs must be a re-export of worker-sandbox.ts's, not its own copy"
+  );
+  assert.equal(
+    resolveHandlebars,
+    resolveDefaultTimeoutMs,
+    "handlebars-sandbox.ts's resolveDefaultTimeoutMs must be a re-export of worker-sandbox.ts's, not its own copy"
+  );
+});
 
 const CASES: ReadonlyArray<readonly [string | undefined, number, string]> = [
   [undefined, 5000, "unset falls back to the product default"],
@@ -35,18 +63,16 @@ const CASES: ReadonlyArray<readonly [string | undefined, number, string]> = [
   ["300001", 5000, "one past the ceiling falls back"],
 ];
 
-for (const [engine, resolve] of [["handlebars", resolveHandlebars], ["liquid", resolveLiquid]] as const) {
-  test(`${engine} sandbox: TOVU_THEME_RENDER_TIMEOUT_MS is parsed strictly, never by parseInt's prefix rule`, (t) => {
-    const original = process.env.TOVU_THEME_RENDER_TIMEOUT_MS;
-    t.after(() => {
-      if (original === undefined) delete process.env.TOVU_THEME_RENDER_TIMEOUT_MS;
-      else process.env.TOVU_THEME_RENDER_TIMEOUT_MS = original;
-    });
-
-    for (const [raw, expected, why] of CASES) {
-      if (raw === undefined) delete process.env.TOVU_THEME_RENDER_TIMEOUT_MS;
-      else process.env.TOVU_THEME_RENDER_TIMEOUT_MS = raw;
-      assert.equal(resolve(), expected, `${JSON.stringify(raw)} -> ${expected}: ${why}`);
-    }
+test("TOVU_THEME_RENDER_TIMEOUT_MS is parsed strictly, never by parseInt's prefix rule", (t) => {
+  const original = process.env.TOVU_THEME_RENDER_TIMEOUT_MS;
+  t.after(() => {
+    if (original === undefined) delete process.env.TOVU_THEME_RENDER_TIMEOUT_MS;
+    else process.env.TOVU_THEME_RENDER_TIMEOUT_MS = original;
   });
-}
+
+  for (const [raw, expected, why] of CASES) {
+    if (raw === undefined) delete process.env.TOVU_THEME_RENDER_TIMEOUT_MS;
+    else process.env.TOVU_THEME_RENDER_TIMEOUT_MS = raw;
+    assert.equal(resolveDefaultTimeoutMs(), expected, `${JSON.stringify(raw)} -> ${expected}: ${why}`);
+  }
+});
