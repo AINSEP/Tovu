@@ -220,6 +220,68 @@ function assertValidEntry(providerId: string, entry: MediaProviderCredentialInpu
   }
 }
 
+/** Seals every entry's NEW `apiKey` (skips a blank/absent one — an operator editing only `baseUrl`
+ *  never has to re-paste a key they cannot see). Runs before any write opens — see
+ *  {@link saveMediaProviderCredentials}'s own doc for why the ordering matters. */
+async function sealNewProviderKeys(
+  deps: MediaProviderCredentialWriteDeps,
+  entries: ReadonlyArray<[string, MediaProviderCredentialInput]>
+): Promise<Map<string, { sealed: SealedSecret; keyTail: string }>> {
+  const sealedByProviderId = new Map<string, { sealed: SealedSecret; keyTail: string }>();
+  for (const [providerId, entry] of entries) {
+    const apiKey = entry.apiKey?.trim();
+    if (!apiKey) continue;
+    try {
+      const activeKey = await deps.keyring.activeKey();
+      sealedByProviderId.set(providerId, {
+        sealed: await deps.sealer.seal({ plaintext: apiKey, key: activeKey }),
+        keyTail: apiKey.slice(-KEY_TAIL_LENGTH),
+      });
+    } catch (err) {
+      throw new MediaProviderCredentialSecretStoreUnconfiguredError(
+        `media provider credential secret store is unconfigured: ${err instanceof Error ? err.message : String(err)}`
+      );
+    }
+  }
+  return sealedByProviderId;
+}
+
+/** The `sealed`/`keyTail` pair is always both-null or both-set (the table's own CHECK) — resolved as
+ *  ONE unit rather than field-by-field so neither can drift out of sync: a fresh seal wins, else the
+ *  existing pair is kept whole, else there is none. */
+function resolveSealedKeyPair(
+  existing: MediaProviderCredentialRecord | undefined,
+  freshlySealed: { sealed: SealedSecret; keyTail: string } | undefined
+): { sealed: SealedSecret | null; keyTail: string | null } {
+  if (freshlySealed) return freshlySealed;
+  if (existing) return { sealed: existing.sealed, keyTail: existing.keyTail };
+  return { sealed: null, keyTail: null };
+}
+
+/** Merges one submitted entry against its existing row (if any) into the row to write — an
+ *  absent/blank `apiKey` never clears an existing sealed key (see
+ *  {@link saveMediaProviderCredentials}'s own doc). */
+function buildProviderUpsertRow(
+  workspaceId: UUID,
+  providerId: string,
+  entry: MediaProviderCredentialInput,
+  existing: MediaProviderCredentialRecord | undefined,
+  freshlySealed: { sealed: SealedSecret; keyTail: string } | undefined,
+  now: ISODateTime
+): MediaProviderCredentialRecord {
+  const { sealed, keyTail } = resolveSealedKeyPair(existing, freshlySealed);
+  return {
+    workspaceId,
+    providerId,
+    baseUrl: trimmedOrNull(entry.baseUrl),
+    model: trimmedOrNull(entry.model),
+    sealed,
+    keyTail,
+    createdAt: existing?.createdAt ?? now,
+    updatedAt: now,
+  };
+}
+
 /**
  * Replaces the workspace's ENTIRE provider set and resolves the authoritative copy afterward.
  *
@@ -265,22 +327,7 @@ export async function saveMediaProviderCredentials(
 
   // Seal every new key BEFORE any write — see this function's doc for why the order matters, and
   // why this is the ONLY async step left before the transaction opens.
-  const sealedByProviderId = new Map<string, { sealed: SealedSecret; keyTail: string }>();
-  for (const [providerId, entry] of entries) {
-    const apiKey = entry.apiKey?.trim();
-    if (!apiKey) continue;
-    try {
-      const activeKey = await deps.keyring.activeKey();
-      sealedByProviderId.set(providerId, {
-        sealed: await deps.sealer.seal({ plaintext: apiKey, key: activeKey }),
-        keyTail: apiKey.slice(-KEY_TAIL_LENGTH),
-      });
-    } catch (err) {
-      throw new MediaProviderCredentialSecretStoreUnconfiguredError(
-        `media provider credential secret store is unconfigured: ${err instanceof Error ? err.message : String(err)}`
-      );
-    }
-  }
+  const sealedByProviderId = await sealNewProviderKeys(deps, entries);
 
   const submittedIds = new Set(entries.map(([providerId]) => providerId));
 
@@ -288,20 +335,16 @@ export async function saveMediaProviderCredentials(
    *  pure by contract — it runs inside the open transaction. */
   const plan: MediaProviderCredentialReplacePlanner = (existingRows) => {
     const existingByProviderId = new Map(existingRows.map((row) => [row.providerId, row]));
-    const upserts = entries.map(([providerId, entry]) => {
-      const existing = existingByProviderId.get(providerId);
-      const freshlySealed = sealedByProviderId.get(providerId);
-      return {
-        workspaceId: input.workspaceId,
+    const upserts = entries.map(([providerId, entry]) =>
+      buildProviderUpsertRow(
+        input.workspaceId,
         providerId,
-        baseUrl: trimmedOrNull(entry.baseUrl),
-        model: trimmedOrNull(entry.model),
-        sealed: freshlySealed?.sealed ?? existing?.sealed ?? null,
-        keyTail: freshlySealed?.keyTail ?? existing?.keyTail ?? null,
-        createdAt: existing?.createdAt ?? now,
-        updatedAt: now,
-      } satisfies MediaProviderCredentialRecord;
-    });
+        entry,
+        existingByProviderId.get(providerId),
+        sealedByProviderId.get(providerId),
+        now
+      )
+    );
     return {
       upserts,
       tombstoneProviderIds: existingRows
