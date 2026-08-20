@@ -171,14 +171,21 @@ export interface RecoveryErrorPayload {
  * progress-ledger entry named as still-owed future work. Maps each of `gateway.ts`'s typed thrown
  * errors to a stable `code` string; every other error collapses to `INTERNAL_ERROR`.
  */
+/** Maps one caught error to its stable `code` string — split out of {@link toRecoveryResult}'s
+ *  `catch` block as a whole unit, not just its branchiest arm, since every arm here pays the same
+ *  nesting cost inside a `catch`. */
+function classifyRecoveryError(err: unknown): RecoveryErrorPayload {
+  if (err instanceof ForbiddenError) return { code: err.reasonCode, message: err.message };
+  if (err instanceof PlanStaleError) return { code: "PLAN_STALE", message: err.message };
+  if (err instanceof TokenExpiredError) return { code: "TOKEN_EXPIRED", message: err.message };
+  if (err instanceof TokenAlreadyRedeemedError) return { code: "TOKEN_ALREADY_REDEEMED", message: err.message };
+  return { code: "INTERNAL_ERROR", message: err instanceof Error ? err.message : "internal error" };
+}
+
 export async function toRecoveryResult<T>(fn: () => Promise<T>): Promise<{ ok: true; value: T } | { ok: false; error: RecoveryErrorPayload }> {
   try {
     return { ok: true, value: await fn() };
   } catch (err) {
-    if (err instanceof ForbiddenError) return { ok: false, error: { code: err.reasonCode, message: err.message } };
-    if (err instanceof PlanStaleError) return { ok: false, error: { code: "PLAN_STALE", message: err.message } };
-    if (err instanceof TokenExpiredError) return { ok: false, error: { code: "TOKEN_EXPIRED", message: err.message } };
-    if (err instanceof TokenAlreadyRedeemedError) return { ok: false, error: { code: "TOKEN_ALREADY_REDEEMED", message: err.message } };
-    return { ok: false, error: { code: "INTERNAL_ERROR", message: err instanceof Error ? err.message : "internal error" } };
+    return { ok: false, error: classifyRecoveryError(err) };
   }
 }
