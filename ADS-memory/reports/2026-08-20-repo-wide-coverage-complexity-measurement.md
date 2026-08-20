@@ -365,3 +365,97 @@ git incident (§ see `reference_shared_git_index_across_agents`). Budget similar
 6. `apps/site-chat` has no test runner wired at all — 10 source files, 3 test files.
 
 **Excluded by owner instruction:** `src/themes`, `src/theme-archive`.
+
+---
+
+## 9. Wave 2 results (2026-08-20, in progress)
+
+| File | Complexity before → after | Coverage | Tests |
+|---|---|---|---|
+| `src/seo/settings.ts` | 31/47 → **0 violations** | 72.88% → 94.8% branch | 96/96, +20 |
+| `src/features/theme/validation/manifest-v2.ts` | 43/52 → **0** | 75% → **100%** | 383/383, +15 |
+| `src/features/theme/validation/validate-theme-package.ts` | 22/38 → **0** | → **100%** | 58/58, +11 |
+| `src/features/deployments/static-publish/adapter.ts` | 31/31 → **0** | 86.25% → 92.98% | 129/129, +12 |
+| `src/server/routes/site/pages.ts` | 22/28 → **0** | in progress | 35/35 |
+| `src/features/deployments/publish-agent-tools.ts` | 14/18 → in progress | — | — |
+| `apps/admin/src/features/posts/PostEditor.tsx` | 62/26 → in progress | — | — |
+| `src/features/post/post.ts` | 17/15 → dispatched | — | — |
+
+**First literal 100%s achieved** — `manifest-v2.ts` and `validate-theme-package.ts` at 100%
+statement/branch/function/line. This settles that the target is reachable, not aspirational.
+
+### What the refactor pass found that complexity metrics never would
+
+Three files turned out to have production code with no test coverage at all — these are the real
+return on the effort, not the complexity numbers:
+
+1. **`src/seo/settings.ts`** — every error-throwing validation path was untested (72.88% branch).
+   Bad description, oversized OG image, malformed robots rules: none had a test.
+2. **`static-publish/adapter.ts`** — `buildJiniTarget`'s real dispatch had **never** been exercised.
+   Every existing test injected a fake `buildTarget`.
+3. **`routes/site/pages.ts`** — `resolveStaticMenusForRender`'s menu-embed path
+   (`navTargetToRouteTarget` + its `resolveTargetHref` closure) has **zero test hits anywhere in the
+   repo**. No test authors a static theme with an actual menu marker.
+
+### The dead-branch policy, and why zero branches were deleted
+
+Owner's thesis: the usual blocker to 100% is a branch that cannot fire, not a missing test. Policy
+adopted 2026-08-20 — a branch may be deleted ONLY with proof, either type-level (the parameter type
+makes the input impossible, with no upstream `as`/`any`) or caller-side (every caller enumerated
+repo-wide and each shown to guarantee the condition). **"No test hits it" is not proof.**
+
+**Refinement contributed by `refactor-manifest-v2`, now precedent:** the module's own *exported
+surface* counts as a caller. It found `checkApiVersion`'s `v2-api-version` branch mechanically
+guaranteed by its single internal call site — then observed that `validateManifestV2` is itself
+`export`ed with a `Record<string, unknown>` parameter, so a future caller or test can reach it with
+no type-level barrier. It wrote a direct-call test rather than deleting. Zero branches were deleted
+across the whole wave; every gap found was real and reachable.
+
+### The `?.`/`??` counting quirk
+
+Under this repo's ESLint config each `?.` and each `??` is a decision point. Two consequences:
+
+- A function full of optional chaining can be over the ceiling with no visible `if`.
+- **Extracting can create a NEW violation in the extracted function.** Wave 1 hit this: pulling the
+  image case out of `renderDocNode` produced a fresh cyc-14 helper. Re-measure the whole file after
+  every extraction, never just the targeted function.
+
+### FLAT_WIRING is not automatically "leave it alone" — corrected
+
+§6 introduced `FLAT_WIRING` (cognitive 0 with a cyclomatic violation) as operator counting where a
+flat sequence is the correct shape. That holds for composition roots (`src/server/app.ts` 38/0,
+`src/server/deps.ts` 14/0 — both correct as-is, and `app.ts`'s churn of 81 makes touching it high
+blast radius).
+
+It does NOT hold generally. `apps/admin/src/features/posts/PostEditor.tsx`'s toolbar selector
+measures cyclomatic 62 / cognitive under 9 — textbook flat wiring — and its own comment claims
+"There is nothing to extract." Both the comment and the inference are wrong: the selector repeats
+`editor?.… ?? default` roughly 40 times, and **hoisting that single null check out of 40 repetitions
+into one early return** collapses nearly all of it. A probe-descriptor table (`Record<string, (e:
+Editor) => unknown>` plus a defaults object) takes it to ~3 while preserving `useEditorState`'s
+single-selector re-render batching, and makes adding a toolbar button one table line. That comment
+is register entry 7's sibling and is being corrected as part of the PostEditor work.
+
+**Revised rule:** a FLAT_WIRING file is worth refactoring when a real improvement exists (a lookup
+table, a shared parse helper — something that makes the next edit easier). It is not worth
+refactoring when the only effect is moving lines to change a number. 54 of the 56 qualify for
+assessment; `app.ts` and `deps.ts` do not.
+
+### Coverage snapshot, Tovu-wide
+
+From `development/coverage/lcov.info` (produced by `test:cov:server` — a PARTIAL measurement, since
+only `src/server/**` test files ran; other areas were measured only where server tests loaded them):
+
+```
+scope                 files     line    branch    funcs
+TOVU (src/)             689    91.1%     77.6%    66.5%
+Jini (sibling repo)     419    57.2%     69.8%    40.7%
+```
+
+Three caveats: (a) partial, as above; (b) `apps/admin` is absent entirely — it runs vitest, with
+separate coverage; (c) the sibling Jini repo is linked via `file:` deps and lands in Tovu's own lcov.
+
+**Function coverage of 66.5% is the weak number**, not line coverage. A third of Tovu's functions are
+never invoked by any test. Line coverage reads healthy at 91% because tests walk through a great deal
+of code without exercising it. A true repo-wide figure requires `npm run test:cov` plus
+`cd apps/admin && npx vitest run --coverage`; neither has been run this session.
