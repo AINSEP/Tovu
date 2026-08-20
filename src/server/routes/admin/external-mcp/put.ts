@@ -6,6 +6,35 @@ import {
 import type { ExternalMcpRouteRegistrar } from "./deps.js";
 import { guardExternalMcpRequest } from "./guard.js";
 
+/** `undefined`/non-string collapses to `""` — the ordinary (non tri-state) field default this
+ *  route uses for `command`/`args`/`allowedToolNames`. @complexity O(1). */
+function asStringField(value: unknown): string {
+  return typeof value === "string" ? value : "";
+}
+
+/**
+ * This route's writable PUT fields, read off an untyped body in one place. `label` and `env` stay
+ * spreadable-optional (an absent key vs. an explicit value are different things — see this route's
+ * own doc comment on `env`'s three-way meaning); everything else gets its default here.
+ *
+ * @complexity O(1).
+ */
+function parseExternalMcpPutBody(rawBody: unknown) {
+  const body = (rawBody ?? {}) as Record<string, unknown>;
+  return {
+    ...(typeof body.label === "string" ? { label: body.label } : {}),
+    // Defaulted rather than required so a caller that omits it gets the only transport that
+    // exists, instead of a validation error naming a choice it was never offered.
+    transport: typeof body.transport === "string" ? body.transport : "stdio",
+    enabled: body.enabled !== false,
+    command: asStringField(body.command),
+    args: asStringField(body.args),
+    allowedToolNames: asStringField(body.allowedToolNames),
+    // Deliberately NOT `asStringField` — see this route's doc comment. `undefined` must survive.
+    ...(typeof body.env === "string" ? { env: body.env } : {}),
+  };
+}
+
 /**
  * PUT one external MCP server — creates it, or replaces the stored row for an existing id.
  *
@@ -28,9 +57,6 @@ export const registerAdminExternalMcpPutRoute: ExternalMcpRouteRegistrar = (app,
     try {
       if (!(await guardExternalMcpRequest(deps, req.params.workspaceId, res))) return;
 
-      const body = (req.body ?? {}) as Record<string, unknown>;
-      const asString = (value: unknown): string => (typeof value === "string" ? value : "");
-
       const server = await saveExternalMcpServer(
         {
           repo: deps.externalMcpServerRepo,
@@ -41,16 +67,7 @@ export const registerAdminExternalMcpPutRoute: ExternalMcpRouteRegistrar = (app,
         {
           workspaceId: deps.workspaceId,
           serverId: String(req.params.serverId ?? ""),
-          ...(typeof body.label === "string" ? { label: body.label } : {}),
-          // Defaulted rather than required so a caller that omits it gets the only transport that
-          // exists, instead of a validation error naming a choice it was never offered.
-          transport: typeof body.transport === "string" ? body.transport : "stdio",
-          enabled: body.enabled !== false,
-          command: asString(body.command),
-          args: asString(body.args),
-          allowedToolNames: asString(body.allowedToolNames),
-          // Deliberately NOT `asString` — see this route's doc comment. `undefined` must survive.
-          ...(typeof body.env === "string" ? { env: body.env } : {}),
+          ...parseExternalMcpPutBody(req.body),
         },
       );
 
