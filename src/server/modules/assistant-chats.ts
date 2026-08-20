@@ -22,7 +22,7 @@
 import type { Express, Request, Response } from "express";
 
 import { deriveConversationTitle } from "@jini-ai/chat/core";
-import type { ChatMessage } from "@jini-ai/chat/core";
+import type { ChatHistoryStore, ChatMessage } from "@jini-ai/chat/core";
 
 import { getAuthedPrincipal, requireAdminSession } from "../middleware/dev-auth.js";
 import type { RouteDeps } from "../routes/types.js";
@@ -34,6 +34,40 @@ function bodyOf(req: Request): Record<string, unknown> {
   return body !== null && typeof body === "object" && !Array.isArray(body)
     ? (body as Record<string, unknown>)
     : {};
+}
+
+/**
+ * Naming happens on append, not only at create time, because the admin dock creates the
+ * conversation when "New" is clicked — before any prompt has been typed — so the create route's
+ * `firstMessage` seed is never populated on that path and every admin chat stayed permanently
+ * "Untitled". Deriving on append is what actually names them.
+ *
+ * Guarded on the title still being empty rather than on `title_source`: the store's no-clobber
+ * guard only applies to `generated`, and a `fallback` rename would happily overwrite a manual one.
+ * "Only name a chat that has no name" cannot do that, and it also self-limits — once a title
+ * lands, this stops firing. A first prompt that yields no usable title (a bare URL, only
+ * punctuation) leaves the chat unnamed and lets the next message name it, which is better than
+ * locking in a blank.
+ *
+ * Deliberately swallows its own errors: a naming failure must never turn a successfully persisted
+ * message into an error response. Only fires for a `user` message — an assistant reply is never
+ * the source of a conversation's title.
+ */
+async function maybeNameFromFirstUserMessage(
+  store: ChatHistoryStore,
+  id: string,
+  message: ChatMessage,
+  body: Record<string, unknown>,
+): Promise<void> {
+  if (message.role !== "user") return;
+  try {
+    const conversation = await store.get(id);
+    if (!conversation || conversation.title) return;
+    const derived = deriveConversationTitle(typeof body.content === "string" ? body.content : "");
+    if (derived) await store.rename(id, derived, "fallback");
+  } catch {
+    // Leave it untitled; the next user message gets another chance.
+  }
 }
 
 export function createAssistantChatsModule(deps: RouteDeps): ServerModuleHandle {
@@ -132,33 +166,7 @@ export function createAssistantChatsModule(deps: RouteDeps): ServerModuleHandle 
               res.status(404).json({ error: "not found" });
               return;
             }
-            // Naming happens here, not only at create time, because the admin dock creates the
-            // conversation when "New" is clicked — before any prompt has been typed — so the
-            // create route's `firstMessage` seed is never populated on that path and every admin
-            // chat stayed permanently "Untitled". Deriving on append is what actually names them.
-            //
-            // Guarded on the title still being empty rather than on `title_source`: the store's
-            // no-clobber guard only applies to `generated`, and a `fallback` rename would happily
-            // overwrite a manual one. "Only name a chat that has no name" cannot do that, and it
-            // also self-limits — once a title lands, this stops firing. A first prompt that yields
-            // no usable title (a bare URL, only punctuation) leaves the chat unnamed and lets the
-            // next message name it, which is better than locking in a blank.
-            //
-            // Deliberately after the append and in its own catch: a naming failure must never turn
-            // a successfully persisted message into an error response.
-            if (message.role === "user") {
-              try {
-                const conversation = await store.get(id);
-                if (conversation && !conversation.title) {
-                  const derived = deriveConversationTitle(
-                    typeof body.content === "string" ? body.content : "",
-                  );
-                  if (derived) await store.rename(id, derived, "fallback");
-                }
-              } catch {
-                // Leave it untitled; the next user message gets another chance.
-              }
-            }
+            await maybeNameFromFirstUserMessage(store, id, message, body);
             res.json({ message: saved });
           })
           .catch(next);
