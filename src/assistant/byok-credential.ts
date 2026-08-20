@@ -74,17 +74,43 @@ const VALID_PROTOCOLS = new Set(["anthropic", "openai", "azure", "google"]);
  * `createRequestSuppliedExecutionCredentialPort` calls it directly, and
  * `createStoredExecutionCredentialPort` tries it first before falling back to the stored row.
  */
+/** `requestBody.protocol`'s own field parse, split out of {@link parseRequestSuppliedCredential}
+ *  purely to keep that function's complexity under the shop ceiling — behavior is unchanged. */
+function parseByokProtocol(value: unknown): ResolvedByokCredential["protocol"] | null {
+  return typeof value === "string" && VALID_PROTOCOLS.has(value) ? (value as ResolvedByokCredential["protocol"]) : null;
+}
+
+/** A required, non-blank string field (`apiKey`/`model`) — split out of
+ *  {@link parseRequestSuppliedCredential} purely to keep that function's complexity under the shop
+ *  ceiling. */
+function parseByokRequiredString(value: unknown): string | null {
+  return typeof value === "string" && value.trim().length > 0 ? value : null;
+}
+
+/** An optional, non-blank string field (`baseUrl`) — split out of
+ *  {@link parseRequestSuppliedCredential} purely to keep that function's complexity under the shop
+ *  ceiling. */
+function parseByokOptionalString(value: unknown): string | undefined {
+  return typeof value === "string" && value.trim().length > 0 ? value : undefined;
+}
+
+/** `requestBody.maxTokens`'s own field parse — split out of {@link parseRequestSuppliedCredential}
+ *  purely to keep that function's complexity under the shop ceiling. */
+function parseByokMaxTokens(value: unknown): number | undefined {
+  return typeof value === "number" && value > 0 ? value : undefined;
+}
+
 function parseRequestSuppliedCredential(requestBody: RequestSuppliedByokConfig): ResolvedByokCredential | null {
-  const protocol = requestBody.protocol;
-  const apiKey = requestBody.apiKey;
-  const model = requestBody.model;
-  if (typeof protocol !== "string" || !VALID_PROTOCOLS.has(protocol)) return null;
-  if (typeof apiKey !== "string" || apiKey.trim().length === 0) return null;
-  if (typeof model !== "string" || model.trim().length === 0) return null;
-  const baseUrl = typeof requestBody.baseUrl === "string" && requestBody.baseUrl.trim().length > 0 ? requestBody.baseUrl : undefined;
-  const maxTokens = typeof requestBody.maxTokens === "number" && requestBody.maxTokens > 0 ? requestBody.maxTokens : undefined;
+  const protocol = parseByokProtocol(requestBody.protocol);
+  if (!protocol) return null;
+  const apiKey = parseByokRequiredString(requestBody.apiKey);
+  if (!apiKey) return null;
+  const model = parseByokRequiredString(requestBody.model);
+  if (!model) return null;
+  const baseUrl = parseByokOptionalString(requestBody.baseUrl);
+  const maxTokens = parseByokMaxTokens(requestBody.maxTokens);
   return {
-    protocol: protocol as ResolvedByokCredential["protocol"],
+    protocol,
     apiKey,
     model,
     ...(baseUrl ? { baseUrl } : {}),
