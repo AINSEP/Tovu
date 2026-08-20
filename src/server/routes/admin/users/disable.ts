@@ -1,3 +1,5 @@
+import type { Response } from "express";
+
 import {
   disablePrincipal,
   IdentityForbiddenError,
@@ -7,7 +9,54 @@ import {
 } from "@jini-ai/cms/identity";
 import { toAdminUserResponse } from "#src/server/http/admin/users";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
-import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
+import { identityServiceDepsFrom, type UsersRouteDeps, type UsersRouteRegistrar } from "./deps.js";
+
+/**
+ * Loads the paired `UserRecord` and role/policy links for `principal` and builds the admin
+ * response shape. `disablePrincipal` returns only the updated `PrincipalRecord` — every
+ * `kind='user'` principal has a paired `UserRecord` by construction (CREATE_USER's atomicity
+ * guarantee), so the missing-user throw here is defensive, not an expected runtime path.
+ *
+ * @complexity O(1) plus two repo reads.
+ */
+async function assembleDisabledUserResponse(
+  deps: UsersRouteDeps,
+  principal: Parameters<typeof toAdminUserResponse>[0]["principal"]
+) {
+  const user = await deps.userRepo.findByPrincipalId({ workspaceId: deps.workspaceId, principalId: principal.id });
+  if (!user) throw new IdentityNotFoundError(`user '${principal.id}' was not found`);
+  const [roleLinks, policyLinks] = await Promise.all([
+    deps.principalRoleRepo.listByPrincipalId({ workspaceId: deps.workspaceId, principalId: principal.id }),
+    deps.principalPolicyRepo.listByPrincipalId({ workspaceId: deps.workspaceId, principalId: principal.id }),
+  ]);
+  return toAdminUserResponse({
+    principal,
+    user,
+    roleIds: roleLinks.map((link) => link.roleId),
+    policyIds: policyLinks.map((link) => link.policyId),
+  });
+}
+
+/** Maps this route's thrown error types onto the admin error envelope. @complexity O(1). */
+function sendUserDisableError(res: Response, err: unknown): void {
+  if (err instanceof IdentityForbiddenError) {
+    res.status(403).json({ error: err.message, code: "FORBIDDEN", details: { permission: err.permission, reason: err.reason } });
+    return;
+  }
+  if (err instanceof OwnerRequiredError) {
+    res.status(409).json({ error: err.message, code: "OWNER_REQUIRED" });
+    return;
+  }
+  if (err instanceof IdentityValidationError) {
+    res.status(400).json({ error: err.message, code: "VALIDATION_ERROR" });
+    return;
+  }
+  if (err instanceof IdentityNotFoundError) {
+    res.status(404).json({ error: err.message, code: "RESOURCE_NOT_FOUND" });
+    return;
+  }
+  res.status(500).json({ error: "internal error" });
+}
 
 /**
  * POST users/:principalId/disable — `DISABLE_PRINCIPAL` (SPEC-006 0.6.0, REQ-11, first HTTP route
@@ -40,47 +89,9 @@ export const registerAdminUserDisableRoute: UsersRouteRegistrar = (app, deps) =>
         },
       });
 
-      const user = await deps.userRepo.findByPrincipalId({ workspaceId: deps.workspaceId, principalId: principal.id });
-      if (!user) throw new IdentityNotFoundError(`user '${principal.id}' was not found`);
-      const [roleLinks, policyLinks] = await Promise.all([
-        deps.principalRoleRepo.listByPrincipalId({ workspaceId: deps.workspaceId, principalId: principal.id }),
-        deps.principalPolicyRepo.listByPrincipalId({ workspaceId: deps.workspaceId, principalId: principal.id }),
-      ]);
-
-      res.json({
-        user: toAdminUserResponse({
-          principal,
-          user,
-          roleIds: roleLinks.map((link) => link.roleId),
-          policyIds: policyLinks.map((link) => link.policyId),
-        }),
-      });
+      res.json({ user: await assembleDisabledUserResponse(deps, principal) });
     } catch (err) {
-      if (err instanceof IdentityForbiddenError) {
-        res.status(403).json({
-          error: err.message,
-          code: "FORBIDDEN",
-          details: { permission: err.permission, reason: err.reason },
-        });
-        return;
-      }
-
-      if (err instanceof OwnerRequiredError) {
-        res.status(409).json({ error: err.message, code: "OWNER_REQUIRED" });
-        return;
-      }
-
-      if (err instanceof IdentityValidationError) {
-        res.status(400).json({ error: err.message, code: "VALIDATION_ERROR" });
-        return;
-      }
-
-      if (err instanceof IdentityNotFoundError) {
-        res.status(404).json({ error: err.message, code: "RESOURCE_NOT_FOUND" });
-        return;
-      }
-
-      res.status(500).json({ error: "internal error" });
+      sendUserDisableError(res, err);
     }
   });
 };
