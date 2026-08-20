@@ -4,6 +4,23 @@ import type { FieldDescriptor, NotifyConfig } from "#src/forms/index";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { FormsRouteRegistrar } from "./deps.js";
 
+/** This route's four writable POST fields, read off an untyped body in one place.
+ *  @complexity O(1). */
+function parseFormCreateBody(rawBody: unknown): {
+  name: string;
+  slug: string;
+  fields: FieldDescriptor[];
+  notify: NotifyConfig | undefined;
+} {
+  const body = (rawBody ?? {}) as Record<string, unknown>;
+  return {
+    name: String(body.name ?? ""),
+    slug: String(body.slug ?? ""),
+    fields: Array.isArray(body.fields) ? (body.fields as FieldDescriptor[]) : [],
+    notify: body.notify as NotifyConfig | undefined,
+  };
+}
+
 /**
  * POST a new form definition (`FORMS_CREATE_DEFINITION`, REQ-01). Routed through
  * `write-service.ts`'s `createFormDefinition`, which wraps `executeCommand` (authorizes
@@ -19,7 +36,6 @@ export const registerAdminFormsCreateRoute: FormsRouteRegistrar = (app, deps) =>
     try {
       const principal = getAuthedPrincipal(res);
       const idempotencyKey = req.get("Idempotency-Key") || undefined;
-      const body = (req.body ?? {}) as Record<string, unknown>;
 
       const { definition } = await createFormDefinition({
         deps: {
@@ -33,10 +49,7 @@ export const registerAdminFormsCreateRoute: FormsRouteRegistrar = (app, deps) =>
         input: {
           workspaceId: deps.workspaceId,
           actor: { id: principal.id, kind: "user" },
-          name: String(body.name ?? ""),
-          slug: String(body.slug ?? ""),
-          fields: Array.isArray(body.fields) ? (body.fields as FieldDescriptor[]) : [],
-          notify: body.notify as NotifyConfig | undefined,
+          ...parseFormCreateBody(req.body),
           idempotencyKey,
         },
       });
