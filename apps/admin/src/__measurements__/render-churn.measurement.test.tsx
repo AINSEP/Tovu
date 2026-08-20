@@ -118,5 +118,10 @@ describe("render churn — no React.memo exists anywhere in this render path", (
 
     // The real, load-bearing assertion for the "does an unrelated key's consumer re-render" question:
     expect(taxonomyCommitsDuringRedirectsWrite).toBe(0);
-  });
+  },
+  // Mounts two Profiler-wrapped trees plus a real form submission; under `--coverage`
+  // instrumentation overhead this reliably exceeds vitest's 5000ms default (measured 6243ms in a
+  // full-suite coverage run) even though it passes in well under a second standalone. Verified 4/4
+  // passes without --coverage before this bump — the test itself was not hanging.
+  15000);
 });

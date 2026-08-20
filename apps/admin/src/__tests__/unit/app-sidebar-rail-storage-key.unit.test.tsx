@@ -55,29 +55,37 @@ afterEach(() => {
   window.history.replaceState(null, "", "/");
 });
 
-it("persists the desktop rail collapse under Tovu's pre-existing localStorage key", async () => {
-  const user = userEvent.setup();
-  const { container } = render(<App />);
+it(
+  "persists the desktop rail collapse under Tovu's pre-existing localStorage key",
+  async () => {
+    const user = userEvent.setup();
+    const { container } = render(<App />);
 
-  await waitFor(() => expect(container.querySelector(".boot-screen")).toBeNull(), { timeout: 3000 });
+    await waitFor(() => expect(container.querySelector(".boot-screen")).toBeNull(), { timeout: 3000 });
 
-  expect(localStorage.getItem(LEGACY_KEY)).toBeNull();
-  // `App.tsx` passes `railDefaultCollapsed`, so a first-time operator starts on the rail and the
-  // control offers to EXPAND. Asserting the starting label explicitly means a future change to that
-  // default fails here with a readable message rather than as a confusing "button not found".
-  expect(container.querySelector(".cms-nav")).toHaveClass("is-rail");
+    expect(localStorage.getItem(LEGACY_KEY)).toBeNull();
+    // `App.tsx` passes `railDefaultCollapsed`, so a first-time operator starts on the rail and the
+    // control offers to EXPAND. Asserting the starting label explicitly means a future change to that
+    // default fails here with a readable message rather than as a confusing "button not found".
+    expect(container.querySelector(".cms-nav")).toHaveClass("is-rail");
 
-  // Both directions are exercised, because the key wiring is what this file exists to pin and a
-  // write in only one direction would leave half of it unproven.
-  await user.click(screen.getByRole("button", { name: "Expand sidebar" }));
-  expect(localStorage.getItem(LEGACY_KEY)).toBe("0");
+    // Both directions are exercised, because the key wiring is what this file exists to pin and a
+    // write in only one direction would leave half of it unproven.
+    await user.click(screen.getByRole("button", { name: "Expand sidebar" }));
+    expect(localStorage.getItem(LEGACY_KEY)).toBe("0");
 
-  await user.click(screen.getByRole("button", { name: "Collapse sidebar" }));
-  expect(localStorage.getItem(LEGACY_KEY)).toBe("1");
+    await user.click(screen.getByRole("button", { name: "Collapse sidebar" }));
+    expect(localStorage.getItem(LEGACY_KEY)).toBe("1");
 
-  // Never written under the package's own default key.
-  expect(localStorage.getItem("jini-admin-sidebar-rail-collapsed")).toBeNull();
-});
+    // Never written under the package's own default key.
+    expect(localStorage.getItem("jini-admin-sidebar-rail-collapsed")).toBeNull();
+  },
+  // Mounts the full `<App />` and drives two click cycles; under `--coverage` instrumentation
+  // overhead this reliably exceeds vitest's 5000ms default (measured 5259ms in a full-suite
+  // coverage run) even though it passes in well under a second standalone. Verified 3/3 passes
+  // without --coverage before this bump — the test itself was not hanging.
+  15000,
+);
 
 it("lets an operator's saved EXPANDED choice beat the collapsed-by-default wiring", async () => {
   // The regression `railDefaultCollapsed` could easily have introduced. `useSidebarRail` used to
