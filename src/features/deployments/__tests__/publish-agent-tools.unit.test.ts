@@ -1399,3 +1399,202 @@ test("a DigitalOcean Spaces endpoint infers digitalocean-spaces and warns about 
   assert.match(result.warning, /different/i);
   assert.match(result.warning, /DigitalOcean/);
 });
+
+// ---------------------------------------------------------------------------
+// Characterization tests, added ahead of the 2026-08-20 complexity-reduction refactor of
+// buildPreviewConfig/requireStaticPublishTarget/deployment_get_static_publish_capabilities/
+// deployment_execute_static_publish's confirmation handling/deployment_propose_custom_provider_credential
+// — pinning branches the existing suite above never exercised (confirmed via `c8` branch coverage,
+// combined with `server/__tests__/routes/publish-site-route.test.ts` which also drives this file).
+// ---------------------------------------------------------------------------
+
+test("deployment_preview_static_publish: a github-pages preview with an explicit branch is accepted and does not throw", async () => {
+  const { deps } = fakeDeps({ credentialSource: { async resolve() { return { ok: true, token: "x" }; }, async isConfigured() { return { configured: true }; } } });
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const preview = tool(buildRegistrations(deps, surfaceExchanges), "deployment_preview_static_publish");
+
+  const result = (await call(preview, { input: { target: "github-pages", owner: "octo", repo: "demo", branch: "release" } })) as Record<string, unknown>;
+  assert.equal(result.valid, true);
+});
+
+test("deployment_preview_static_publish: a vercel preview with a teamId is accepted and does not throw", async () => {
+  const { deps } = fakeDeps({ credentialSource: { async resolve() { return { ok: true, token: "x" }; }, async isConfigured() { return { configured: true }; } } });
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const preview = tool(buildRegistrations(deps, surfaceExchanges), "deployment_preview_static_publish");
+
+  const result = (await call(preview, { input: { target: "vercel", teamId: "team_1" } })) as Record<string, unknown>;
+  assert.equal(result.valid, true);
+  assert.equal(result.basePath, null);
+});
+
+test("deployment_preview_static_publish: a github-pages preview with owner/repo omitted falls back to empty strings and reports invalid, never throws", async () => {
+  const { deps } = fakeDeps({
+    credentialSource: { async resolve() { return { ok: false, reason: "n/a" }; }, async isConfigured() { return { configured: false, reason: "n/a" }; } },
+  });
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const preview = tool(buildRegistrations(deps, surfaceExchanges), "deployment_preview_static_publish");
+
+  const result = (await call(preview, { input: { target: "github-pages" } })) as Record<string, unknown>;
+  assert.equal(result.valid, false);
+  assert.match(result.validationError as string, /invalid GitHub owner/);
+});
+
+test("deployment_preview_static_publish: an unrecognized target throws before any permission check or credential read", async () => {
+  const { deps } = fakeDeps({
+    credentialSource: { async resolve() { throw new Error("must not be called"); }, async isConfigured() { throw new Error("must not be called"); } },
+  });
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const preview = tool(buildRegistrations(deps, surfaceExchanges), "deployment_preview_static_publish");
+
+  await assert.rejects(() => call(preview, { input: { target: "bogus-provider" } }), /'target' must be one of/);
+});
+
+test("confirm: a partial outcome's deploymentId and basePath are both forwarded through to the tool result when the target reports them", async () => {
+  const { deps } = fakeDeps({
+    credentialSource: { async resolve() { return { ok: true, token: "fake-token-never-real" }; }, async isConfigured() { return { configured: true }; } },
+    buildTarget: () => ({
+      id: "fake",
+      async publish() {
+        return { targetId: "fake", url: "https://example.test/site", status: "link-delayed" as const, statusMessage: "not reachable yet", deploymentId: "dpl_123" };
+      },
+      async checkReachability() {
+        return { reachable: false };
+      },
+    }),
+  });
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_execute_static_publish");
+
+  const { exchangeId, pending } = await raiseDialog(executeTool, { target: "github-pages", owner: "octo", repo: "demo-repo", projectName: "demo-site" });
+  surfaceExchanges.deliver({ exchangeId, toolId: "deployment_execute_static_publish", principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
+
+  const result = (await pending) as { deploymentId?: string; basePath?: string };
+  assert.equal(result.deploymentId, "dpl_123");
+  assert.equal(result.basePath, "/demo-repo");
+});
+
+test("confirm: a full success's deploymentId is forwarded through to the tool result when the target reports one", async () => {
+  const { deps } = fakeDeps({
+    credentialSource: { async resolve() { return { ok: true, token: "fake-token-never-real" }; }, async isConfigured() { return { configured: true }; } },
+    buildTarget: () => ({
+      id: "fake",
+      async publish() {
+        return { targetId: "fake", url: "https://example.test/published", status: "ready" as const, deploymentId: "dpl_456" };
+      },
+      async checkReachability() {
+        return { reachable: true, status: "ready" as const };
+      },
+    }),
+  });
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_execute_static_publish");
+
+  const { exchangeId, pending } = await raiseDialog(executeTool, { target: "vercel", projectName: "demo-site" });
+  surfaceExchanges.deliver({ exchangeId, toolId: "deployment_execute_static_publish", principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
+
+  const result = (await pending) as { deploymentId?: string };
+  assert.equal(result.deploymentId, "dpl_456");
+});
+
+test("confirm: an answer with no explicit decision field still defaults to confirm — the handler's own fallback, not merely what the real form always sends", async () => {
+  const captured: { value: DeployFile[] | null } = { value: null };
+  const { deps } = fakeDeps({
+    credentialSource: { async resolve() { return { ok: true, token: "fake-token-never-real" }; }, async isConfigured() { return { configured: true }; } },
+    buildTarget: () => fakeDeployTarget(captured),
+  });
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_execute_static_publish");
+
+  const { exchangeId, pending } = await raiseDialog(executeTool, { target: "vercel", projectName: "demo-site" });
+  surfaceExchanges.deliver({ exchangeId, toolId: "deployment_execute_static_publish", principalId: PRINCIPAL_ID, params: {} });
+
+  const result = (await pending) as { published: boolean; reachable: boolean };
+  assert.equal(result.published, true);
+  assert.equal(result.reachable, true);
+});
+
+test("confirm: with no buildTarget override injected, the REAL default buildJiniTarget dispatch runs and a credential missing a required s3-compatible field is still refused cleanly — no real network ever touched", async () => {
+  const { deps } = fakeDeps({
+    // No `buildTarget` — deliberately, to exercise `handlePublishConfirmationAnswer`'s own
+    // `ctx.deps.buildTarget !== undefined` branch on its FALSE side (every other confirm test in
+    // this file injects one). `buildS3CompatibleTargetConfig` throws before `S3CompatibleDeployTarget`'s
+    // constructor (which never touches the network in its own constructor either) is even reached, so
+    // this stays hermetic despite going through the real `buildJiniTarget` dispatch.
+    credentialSource: {
+      async resolve() {
+        return { ok: true, token: "s3cr3t", accessKeyId: "AKIAEXAMPLE", region: "us-east-1" };
+      },
+      async isConfigured() {
+        return { configured: true };
+      },
+    },
+  });
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const executeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_execute_static_publish");
+
+  const { exchangeId, pending } = await raiseDialog(executeTool, { target: "s3-compatible", projectName: "demo-site" });
+  surfaceExchanges.deliver({ exchangeId, toolId: "deployment_execute_static_publish", principalId: PRINCIPAL_ID, params: { decision: "confirm" } });
+
+  const result = (await pending) as { published: boolean; code: string; message: string };
+  assert.equal(result.published, false);
+  assert.equal(result.code, "NO_CREDENTIALS_CONFIGURED");
+  assert.match(result.message, /bucket/);
+  assert.doesNotMatch(result.message, /s3cr3t/);
+});
+
+test("propose-credential form: an unanswered form expires and reports 'expired', not a hang or a throw", async () => {
+  const { deps } = fakeDeps();
+  const surfaceExchanges = createSurfaceExchangeStore({ idleTtlMs: 1 });
+  const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_propose_custom_provider_credential");
+
+  const result = (await call(proposeTool, { input: { protocol: "s3-compatible" }, emitSurface: async () => undefined })) as {
+    saved: boolean;
+    cancelled: boolean;
+    reason: string;
+    note: string;
+  };
+
+  assert.equal(result.saved, false);
+  assert.equal(result.cancelled, false);
+  assert.equal(result.reason, "expired");
+  assert.match(result.note, /did not respond/);
+});
+
+test("propose-credential form: a cancelled run abandons the form and reports 'abandoned', not a hang or a throw", async () => {
+  const { deps } = fakeDeps();
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_propose_custom_provider_credential");
+  const controller = new AbortController();
+
+  const pending = call(proposeTool, { input: { protocol: "s3-compatible" }, emitSurface: async () => undefined, signal: controller.signal });
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.equal(surfaceExchanges.size(), 1);
+
+  controller.abort();
+
+  const result = (await pending) as { saved: boolean; cancelled: boolean; reason: string; note: string };
+  assert.equal(result.saved, false);
+  assert.equal(result.cancelled, false);
+  assert.equal(result.reason, "abandoned");
+  assert.match(result.note, /closed because the run ended/);
+});
+
+test("submit: a non-Error thrown by the credential write step still returns a safe string message, never the raw thrown value", async () => {
+  const { deps } = fakeDeps();
+  deps.vendorCredentials = {
+    ...deps.vendorCredentials!,
+    create: async () => {
+      throw "boom — not an Error instance";
+    },
+  };
+  const surfaceExchanges = createSurfaceExchangeStore();
+  const proposeTool = tool(buildRegistrations(deps, surfaceExchanges), "deployment_propose_custom_provider_credential");
+
+  const { exchangeId, pending } = await raiseCredentialForm(proposeTool);
+  surfaceExchanges.deliver({ exchangeId, toolId: "deployment_propose_custom_provider_credential", principalId: PRINCIPAL_ID, params: VALID_FORM_SUBMISSION });
+
+  const result = (await pending) as { saved: boolean; reason: string; message: string };
+  assert.equal(result.saved, false);
+  assert.equal(result.reason, "invalid");
+  assert.equal(result.message, "boom — not an Error instance");
+});
