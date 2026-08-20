@@ -117,7 +117,7 @@ export interface ResolvedSourceControlCredential {
  *  that came back non-2xx are never conflated into one code) and `"diverged"` (a non-fast-forward
  *  branch update is refused, never force-overwritten — see that file's header for why). */
 export type GitHubCommitAdapterResult =
-  | { ok: true; branch: string; branchCreated: boolean; commitSha: string; commitUrl: string; filesChanged: number }
+  | { ok: true; branch: string; branchCreated: boolean; commitSha: string; commitUrl: string; filesChanged: number; filesDeleted: number }
   | { ok: false; code: "repository-not-found" | "no-changes" | "diverged" | "network-unreachable" | "provider-error"; message: string };
 
 /** The one seam between this file and real GitHub HTTP — `commitSiteToSourceControl` calls exactly
@@ -155,7 +155,7 @@ export type SourceControlCommitOutcome =
   | { ok: false; code: "DIVERGED_BRANCH"; message: string }
   | { ok: false; code: "NETWORK_UNREACHABLE"; message: string }
   | { ok: false; code: "PROVIDER_ERROR"; message: string }
-  | { ok: true; owner: string; repo: string; branch: string; branchCreated: boolean; commitSha: string; commitUrl: string; filesChanged: number };
+  | { ok: true; owner: string; repo: string; branch: string; branchCreated: boolean; commitSha: string; commitUrl: string; filesChanged: number; filesDeleted: number };
 
 export interface CommitSiteDeps {
   readonly credentialDeps: { repo: SourceControlCredentialSetRepoPort; sealer: SecretSealerPort; keyring?: KeyringPort };
@@ -328,5 +328,6 @@ export async function commitSiteToSourceControl(deps: CommitSiteDeps, input: Com
     commitSha: result.commitSha,
     commitUrl: result.commitUrl,
     filesChanged: result.filesChanged,
+    filesDeleted: result.filesDeleted,
   };
 }

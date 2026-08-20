@@ -51,14 +51,51 @@ import type { CommitFile, GitHubCommitAdapter, GitHubCommitAdapterResult } from 
  *    an object GitHub never confirms creating is safe to treat as failed, because nothing became
  *    reachable from any branch yet.
  *
- * One further deliberate resilience choice, not present in `github-pages.ts` at all: the "nothing
- * changed since the last commit" check ({@link fetchParentTreeSha}) is a pure optimization — if the
- * read it depends on fails for ANY reason (network or provider), this file does NOT fail the whole
- * commit over it. It silently skips the optimization and proceeds to create a real commit instead.
- * Failing a human's confirmed, wanted commit because of a transient hiccup on a "was there anything to
- * commit" pre-check would be a worse outcome than occasionally creating a no-op commit — the same
- * anti-false-negative principle behind divergence #2 above, applied to a non-essential read instead of
- * the irreversible write.
+ * One further deliberate resilience choice, not present in `github-pages.ts` at all: the previous-
+ * manifest read ({@link fetchManagedManifest}, see CRITICAL fix note below) is a pure optimization — if
+ * it fails for ANY reason (network or provider), this file does NOT fail the whole commit over it. It
+ * silently skips computing which of Tovu's own previously-written paths should now be deleted and
+ * proceeds to create a real commit instead (with no stale-path cleanup this one pass). Failing a
+ * human's confirmed, wanted commit because of a transient hiccup on a "what did Tovu delete last time"
+ * pre-check would be a worse outcome than occasionally leaving one already-removed page around for one
+ * extra publish cycle — the same anti-false-negative principle behind divergence #2 above, applied to a
+ * non-essential read instead of the irreversible write. The PARENT TREE read ({@link fetchParentTree})
+ * does NOT get this same tolerance — see the CRITICAL fix note immediately below for why that one read
+ * is now load-bearing rather than best-effort.
+ *
+ * CRITICAL FIX (2026-08-19, Codex 5.6-sol audit — data-loss class): `buildTree` used to POST to
+ * `git/trees` with only the exported site's own entries and no `base_tree` at all. A commit's parent
+ * supplies ANCESTRY, not inherited tree contents, so that tree was a COMPLETE REPLACEMENT of the
+ * branch's file listing — publishing into a branch that also held a README, `.github/workflows/`,
+ * source code, or any hand-maintained asset deleted all of it, silently, while still reporting success.
+ * The non-force ref update (divergence #1 above) did not protect anything, because the replacement
+ * commit was still a valid fast-forward. This file's own OLD doc comment on `buildTree` rationalized
+ * the omission ("deletions are handled for free, not as a special case") — that reasoning is only sound
+ * if the branch contains nothing but Tovu's own export, which is not a fact this file ever verified;
+ * treat that as the bug's own justification, not as evidence it was safe.
+ *
+ * The fix has two parts, both required, neither optional:
+ *  1. {@link fetchParentTree} reads the parent commit's own tree sha and {@link buildTree} sends it as
+ *     `base_tree` on every commit onto an EXISTING branch (never on a brand-new one — see below).
+ *     GitHub then builds the new tree ON TOP of that one: entries this file lists are added or updated,
+ *     entries it lists with `sha: null` are removed, and every OTHER path already on the branch is
+ *     inherited unchanged. This read is therefore load-bearing, not an optimization — a failure here
+ *     means this file cannot safely build a tree AT ALL (the one alternative, omitting `base_tree`, is
+ *     the exact defect this note describes), so {@link fetchParentTree} fails the whole commit rather
+ *     than degrading, the opposite tolerance from {@link fetchManagedManifest} just above. A brand-new
+ *     branch has no parent tree to build on top of, so `base_tree` is correctly omitted only in that
+ *     one case (there is nothing pre-existing that could be destroyed).
+ *  2. Because `base_tree` now means "not present in this call's `tree` list" = "keep unchanged," a page
+ *     Tovu itself previously published and then stopped exporting would otherwise persist forever
+ *     (matching a real class of the same audit's S3-target finding: content silently never cleaned up).
+ *     {@link MANAGED_MANIFEST_PATH} is a small JSON file this adapter commits alongside every export,
+ *     listing exactly the paths THIS adapter wrote. Before building the new tree, {@link
+ *     fetchManagedManifest} reads the PREVIOUS commit's copy of that file; any path it lists that the
+ *     CURRENT export no longer produces is added to the new tree with `sha: null` — an explicit,
+ *     targeted delete of a path Tovu is certain it owns, never a path it has no record of writing. A
+ *     path this adapter has never recorded (no manifest yet, or the manifest could not be read) is
+ *     never deleted — the same "unknown means untouched" default that keeps a branch's non-Tovu content
+ *     safe even before this adapter ever committed to it.
  */
 
 const GITHUB_API = "https://api.github.com";
@@ -66,8 +103,23 @@ const GITHUB_API = "https://api.github.com";
  *  independently chosen value, so the two Tovu-owned callers see identical behavior. */
 const GITHUB_API_VERSION = "2026-03-10";
 
+/** Where this adapter records exactly which paths IT wrote — see this file's header CRITICAL fix note.
+ *  A hidden, Tovu-namespaced path deliberately: real static exports do not write dotfile directories,
+ *  so collision with genuine site content is not a practical concern the way a plain `manifest.json`
+ *  at the repo root would be. */
+const MANAGED_MANIFEST_PATH = ".tovu/managed-files.json";
+
 function enc(value: string): string {
   return encodeURIComponent(value);
+}
+
+/** Percent-encodes a repo-relative PATH one segment at a time, preserving `/` as a real path separator
+ *  — {@link enc} alone would turn `/` into `%2F`, which breaks GitHub's Contents API path routing (it
+ *  splits on literal `/` before decoding each segment). Mirrors `static-publish/s3-compatible-target.ts`
+ *  `objectUrl`'s identical per-segment encoding for the same reason, one path shape lower (a Contents
+ *  API path here, not a full object URL there). */
+function encPath(path: string): string {
+  return path.split("/").map(enc).join("/");
 }
 
 function githubHeaders(token: string, extra: Record<string, string> = {}): Record<string, string> {
@@ -190,19 +242,54 @@ async function fetchBranchTip(token: string, owner: string, repo: string, branch
   return { ok: true, tipSha: sha };
 }
 
-/** Reads one commit object's own tree sha — used only for the "nothing changed" optimization (this
- *  file's header). `undefined` on ANY failure here (never a hard stop) — the caller treats that
- *  exactly like "could not determine, proceed without the optimization."
+/** Reads one commit object's own tree sha — REQUIRED (not best-effort) whenever the branch already has
+ *  a parent commit: {@link buildTree} needs this value as `base_tree` to build the new tree ON TOP OF
+ *  the branch's existing content instead of replacing it (this file's header CRITICAL fix note). Also
+ *  still powers the "nothing changed" check (the new tree's sha equals this one when nothing changed),
+ *  same as before. Unlike {@link fetchManagedManifest} below, a failure here fails the WHOLE commit —
+ *  see this file's header for why the two reads get opposite tolerance.
  *
  * @complexity One `fetch()`.
  */
-async function fetchParentTreeSha(token: string, owner: string, repo: string, commitSha: string): Promise<string | undefined> {
+async function fetchParentTree(token: string, owner: string, repo: string, commitSha: string): Promise<{ ok: true; treeSha: string } | StepFailure> {
   const result = await githubFetch(`${GITHUB_API}/repos/${enc(owner)}/${enc(repo)}/git/commits/${enc(commitSha)}`, { headers: githubHeaders(token) });
+  if (result.kind !== "response") return nonResponseFailure(result);
+  const { response } = result;
+  if (!response.ok) return { ok: false, code: "provider-error", message: await providerErrorMessage(response, "GitHub parent-commit lookup failed") };
+  const body = await readJsonBody(response);
+  if (!body.ok) return { ok: false, code: "provider-error", message: body.message };
+  const tree = body.json.tree as Record<string, unknown> | undefined;
+  const sha = typeof tree?.sha === "string" ? tree.sha : "";
+  if (!sha) return { ok: false, code: "provider-error", message: "GitHub parent-commit response did not include a tree sha" };
+  return { ok: true, treeSha: sha };
+}
+
+/** Reads the PREVIOUS commit's copy of {@link MANAGED_MANIFEST_PATH} via the Contents API — the record
+ *  of exactly which paths this adapter itself wrote last time (this file's header CRITICAL fix note).
+ *  Best-effort ONLY, mirroring this file's established "a non-essential read degrades gracefully"
+ *  pattern: `undefined` on ANY failure (a 404 — no manifest yet, e.g. the first commit this adapter
+ *  ever makes onto a branch that already had other content — a network hiccup, or a body that does not
+ *  parse as the expected shape). The caller treats `undefined` exactly like "nothing is known to be
+ *  Tovu-managed yet," which is always the SAFE direction to fail in: it can only ever mean fewer
+ *  deletions get computed this pass, never more. Unlike {@link fetchParentTree}, this read must never
+ *  block the commit itself.
+ *
+ * @complexity One `fetch()`.
+ */
+async function fetchManagedManifest(token: string, owner: string, repo: string, branch: string): Promise<string[] | undefined> {
+  const result = await githubFetch(`${GITHUB_API}/repos/${enc(owner)}/${enc(repo)}/contents/${encPath(MANAGED_MANIFEST_PATH)}?ref=${enc(branch)}`, { headers: githubHeaders(token) });
   if (result.kind !== "response" || !result.response.ok) return undefined;
   const body = await readJsonBody(result.response);
   if (!body.ok) return undefined;
-  const tree = body.json.tree as Record<string, unknown> | undefined;
-  return typeof tree?.sha === "string" ? tree.sha : undefined;
+  const content = typeof body.json.content === "string" ? body.json.content : undefined;
+  if (content === undefined) return undefined;
+  try {
+    const decoded = Buffer.from(content, "base64").toString("utf8");
+    const parsed = JSON.parse(decoded) as { paths?: unknown };
+    return Array.isArray(parsed.paths) && parsed.paths.every((path) => typeof path === "string") ? (parsed.paths as string[]) : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /** Creates one blob object, returning its sha.
@@ -232,16 +319,31 @@ async function createBlob(token: string, owner: string, repo: string, data: stri
  * Always creates real blobs rather than the tree endpoint's inline `content` shortcut — that shortcut
  * only accepts text, and a static export's asset set is not reliably valid UTF-8.
  *
- * No `base_tree`: the new tree fully REPLACES the file listing (`commit-site.ts`'s own doc on this —
- * a file the export no longer produces silently drops out of the new tree, i.e. deletions are handled
- * for free, not as a special case).
+ * `baseTreeSha` (present for every commit onto an EXISTING branch, absent only for a brand-new one —
+ * see this file's header CRITICAL fix note) is sent as `base_tree`, so the new tree is built ON TOP OF
+ * the branch's current content: every path this call does not mention is inherited unchanged. A path
+ * in `previousManagedPaths` (this adapter's OWN record of what it wrote last time) that the current
+ * `files` set no longer produces is added to the tree with `sha: null` — GitHub's documented shape for
+ * "remove this path" when `base_tree` is present — an explicit, targeted delete of a path this adapter
+ * is certain it owns, never a path with no such record. {@link MANAGED_MANIFEST_PATH} itself is always
+ * written alongside the export, so the NEXT commit can compute its own deletions the same way.
  *
- * @complexity O(files) `fetch()` calls for blobs (deduped), plus one for the tree.
+ * @complexity O(files) `fetch()` calls for blobs (deduped), plus one more for the manifest blob, plus
+ *   one for the tree.
  */
-async function buildTree(token: string, owner: string, repo: string, files: readonly CommitFile[]): Promise<{ ok: true; sha: string } | StepFailure> {
+async function buildTree(
+  token: string,
+  owner: string,
+  repo: string,
+  files: readonly CommitFile[],
+  baseTreeSha: string | undefined,
+  previousManagedPaths: readonly string[] | undefined
+): Promise<{ ok: true; sha: string; deletedPaths: string[] } | StepFailure> {
   const blobShaByHash = new Map<string, string>();
   const tree: Record<string, unknown>[] = [];
+  const currentPaths = new Set<string>();
   for (const file of files) {
+    currentPaths.add(file.path);
     const hash = sha256Hex(file.data);
     let blobSha = blobShaByHash.get(hash);
     if (!blobSha) {
@@ -253,10 +355,23 @@ async function buildTree(token: string, owner: string, repo: string, files: read
     tree.push({ path: file.path, mode: "100644", type: "blob", sha: blobSha });
   }
 
+  // Only paths THIS adapter previously recorded owning, and that the current export no longer
+  // produces, are ever deleted — never a path with no such record. `MANAGED_MANIFEST_PATH` is excluded
+  // defensively (it is never part of `previousManagedPaths`' own meaning — see its own doc — but a
+  // manifest written by some future/other version should not be able to delete itself via this path).
+  const deletedPaths = (previousManagedPaths ?? []).filter((path) => !currentPaths.has(path) && path !== MANAGED_MANIFEST_PATH);
+  for (const deletedPath of deletedPaths) {
+    tree.push({ path: deletedPath, mode: "100644", type: "blob", sha: null });
+  }
+
+  const manifestBlob = await createBlob(token, owner, repo, JSON.stringify({ version: 1, paths: [...currentPaths].sort() }));
+  if (!manifestBlob.ok) return manifestBlob;
+  tree.push({ path: MANAGED_MANIFEST_PATH, mode: "100644", type: "blob", sha: manifestBlob.sha });
+
   const result = await githubFetch(`${GITHUB_API}/repos/${enc(owner)}/${enc(repo)}/git/trees`, {
     method: "POST",
     headers: githubHeaders(token, { "Content-Type": "application/json" }),
-    body: JSON.stringify({ tree }),
+    body: JSON.stringify({ tree, ...(baseTreeSha !== undefined ? { base_tree: baseTreeSha } : {}) }),
   });
   if (result.kind !== "response") return nonResponseFailure(result);
   const { response } = result;
@@ -265,7 +380,7 @@ async function buildTree(token: string, owner: string, repo: string, files: read
   if (!body.ok) return { ok: false, code: "provider-error", message: body.message };
   const sha = typeof body.json.sha === "string" ? body.json.sha : "";
   if (!sha) return { ok: false, code: "provider-error", message: "GitHub tree creation response did not include a sha" };
-  return { ok: true, sha };
+  return { ok: true, sha, deletedPaths };
 }
 
 /** Creates the commit object (not yet reachable from any branch — see this file's header on why this
@@ -343,15 +458,19 @@ async function writeRef(token: string, owner: string, repo: string, branch: stri
  * Pages-only step:
  *  1. {@link fetchRepo} — confirms the repo exists / resolves the default branch when none was given.
  *  2. {@link fetchBranchTip} — the branch's current tip sha, or `undefined` for a brand-new branch.
- *  3. {@link fetchParentTreeSha} — best-effort only (this file's header); powers the no-changes check.
- *  4. {@link buildTree} — blobs (deduped) + one tree, from the FULL file set (no `base_tree`).
- *  5. No-changes short-circuit: if step 3 succeeded and the new tree sha equals the parent's, stop
- *     here — no commit, no ref write, `{ok: false, code: "no-changes"}`.
- *  6. {@link createCommitObject}.
- *  7. {@link writeRef} — the one irreversible step.
+ *  3. {@link fetchParentTree} — REQUIRED whenever step 2 found a parent (this file's header CRITICAL
+ *     fix note); its `treeSha` becomes `base_tree` and also still powers the no-changes check.
+ *  4. {@link fetchManagedManifest} — best-effort only; the previous commit's record of which paths THIS
+ *     adapter itself wrote, used to compute targeted deletions.
+ *  5. {@link buildTree} — blobs (deduped) + one manifest blob + one tree, built ON TOP OF step 3's tree
+ *     (`base_tree`) whenever a parent exists, with step 4's stale paths explicitly removed.
+ *  6. No-changes short-circuit: if the new tree sha equals step 3's, stop here — no commit, no ref
+ *     write, `{ok: false, code: "no-changes"}`.
+ *  7. {@link createCommitObject}.
+ *  8. {@link writeRef} — the one irreversible step.
  *
  * @complexity O(files) `fetch()` calls (blob creation, deduped) plus a small fixed number of
- *   additional calls (repo, ref lookup, optional parent-commit read, tree, commit, ref write).
+ *   additional calls (repo, ref lookup, parent-tree read, manifest read, tree, commit, ref write).
  */
 export function createGitHubCommitAdapter(): GitHubCommitAdapter {
   return {
@@ -367,12 +486,23 @@ export function createGitHubCommitAdapter(): GitHubCommitAdapter {
       const parentSha = tipResult.tipSha;
       const branchCreated = parentSha === undefined;
 
-      const parentTreeSha = parentSha !== undefined ? await fetchParentTreeSha(token, owner, repo, parentSha) : undefined;
+      // REQUIRED whenever a parent exists — see this file's header CRITICAL fix note. A brand-new
+      // branch has no parent tree to build on top of, so `baseTreeSha` is correctly `undefined` only in
+      // that one case.
+      let baseTreeSha: string | undefined;
+      if (parentSha !== undefined) {
+        const parentTreeResult = await fetchParentTree(token, owner, repo, parentSha);
+        if (!parentTreeResult.ok) return parentTreeResult;
+        baseTreeSha = parentTreeResult.treeSha;
+      }
 
-      const treeResult = await buildTree(token, owner, repo, files);
+      // Best-effort — a brand-new branch cannot have a prior Tovu commit to read one from either.
+      const previousManagedPaths = branchCreated ? undefined : await fetchManagedManifest(token, owner, repo, branch);
+
+      const treeResult = await buildTree(token, owner, repo, files, baseTreeSha, previousManagedPaths);
       if (!treeResult.ok) return treeResult;
 
-      if (parentTreeSha !== undefined && parentTreeSha === treeResult.sha) {
+      if (baseTreeSha !== undefined && baseTreeSha === treeResult.sha) {
         return { ok: false, code: "no-changes", message: "nothing changed since the branch's last commit" };
       }
 
@@ -389,6 +519,7 @@ export function createGitHubCommitAdapter(): GitHubCommitAdapter {
         commitSha: commitResult.sha,
         commitUrl: `https://github.com/${owner}/${repo}/commit/${commitResult.sha}`,
         filesChanged: files.length,
+        filesDeleted: treeResult.deletedPaths.length,
       };
     },
   };
