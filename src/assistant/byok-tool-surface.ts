@@ -40,7 +40,6 @@ import {
 import { createToolExecutor, type ToolExecutor } from "@jini-ai/daemon";
 
 import { MAGIC_LINK_PER_EMAIL, createRateLimiter } from "#src/core/rate-limit/rate-limit";
-import type { ClockDeps } from "../server/routes/types.js";
 import { createSurfaceExchangeStore, type SurfaceExchangeStore } from "../core/tool-surface-exchanges.js";
 import { buildToolCatalogQuery } from "./tool-catalog-query.js";
 import { type AssistantToolRegistryDeps, buildAssistantToolRegistrations } from "./tool-registrations.js";
@@ -232,8 +231,10 @@ function resolveDelegatedInput(raw: unknown): { readonly ok: true; readonly inpu
  * Builds one fresh registry+executor pair over the full admin tool catalog.
  *
  * `magicLinkPerEmailLimiter` is built here rather than accepted as a parameter: it is the one field
- * `AssistantToolRegistryDeps` needs beyond plain `RouteDeps` (`IdentityToolDeps`'s own requirement —
- * see `agent-daemon-server.ts:172-183`'s identical note on why this is computed, not stored on
+ * `AssistantToolRegistryDeps` needs beyond plain `RouteDeps` (`MembersToolDeps`'s own requirement,
+ * verified against `members/tool-registrations.ts` — not `IdentityToolDeps`, which declares no such
+ * field, contrary to what an earlier version of this comment claimed) — see
+ * `agent-daemon-server.ts:172-183`'s identical note on why this is computed, not stored on
  * `routeDeps`), and building a second, independent limiter instance here is correct: it is a
  * per-process request-rate counter, not shared state that would need to be the SAME instance as
  * `server/app.ts`'s own `membersDeps` limiter to behave correctly — two admins hitting
@@ -254,29 +255,38 @@ function resolveDelegatedInput(raw: unknown): { readonly ok: true; readonly inpu
  * `createToolExecutor` doc).
  * @overallScore 100
  */
+/** Everything {@link createByokToolSurface} needs from its caller — every `AssistantToolRegistryDeps`
+ *  field except `magicLinkPerEmailLimiter`, which this function builds itself (see the doc above).
+ *  Exported so a caller that must cast into this shape (today: `modules/assistant-byok.ts`, whose own
+ *  `routeDeps: RouteDeps` parameter is narrower than what it actually always receives at runtime —
+ *  see that module's own comment) can cast to a named type instead of repeating this `Omit`. */
+export type ByokToolSurfaceDeps = Omit<AssistantToolRegistryDeps, "magicLinkPerEmailLimiter">;
+
 export function createByokToolSurface(
-  routeDeps: ClockDeps,
+  routeDeps: ByokToolSurfaceDeps,
   options: { readonly surfaceExchangeStore?: SurfaceExchangeStore } = {},
 ): ByokToolSurface {
   const magicLinkPerEmailLimiter = createRateLimiter({ profile: MAGIC_LINK_PER_EMAIL, clock: routeDeps.clock });
-  // `routeDeps`'s declared type here is `ClockDeps` (narrowed 2026-08-18, first slice of the
-  // `RouteDeps` decomposition — see `server/routes/types.ts`'s `ClockDeps` doc) because `.clock` on
-  // the line above is the only field this function ever names directly. But the spread just below
-  // still needs the REAL, full `RouteDeps`-shaped object at runtime — the caller
-  // (`modules/assistant-byok.ts`'s `createAssistantByokModule`) always passes its own full
-  // `routeDeps: RouteDeps` value in, so the narrower static annotation here costs nothing at
-  // runtime: `{ ...routeDeps }` spreads whatever real properties the object actually carries,
-  // regardless of what TypeScript statically believes its type is (this is the exact same gap the
-  // `newsletterAdminDeps = routeDeps as NewsletterRouteDeps` cast in `server/app.ts` documents —
-  // "the real object is wider than its own annotation," just pushed one step further here). A plain
-  // single `as AssistantToolRegistryDeps` fails here (`TS2352`, "neither type sufficiently
-  // overlaps") because `AssistantToolRegistryDeps` is a 20-way intersection with no declared
-  // relationship to `ClockDeps`/`RouteDeps` either one. The `unknown` detour is TypeScript's own
-  // suggested escape for that case, not a weakening of the check: the real safety property is the
-  // same one `agent-daemon-server.ts:196-198` already relies on with NO cast at all (because its own
-  // `routeDeps` local is inferred from `createRouteDeps()`'s wide return type directly) — that
-  // whatever composed the real `routeDeps` object populated every domain's fields.
-  const deps = { ...routeDeps, magicLinkPerEmailLimiter } as unknown as AssistantToolRegistryDeps;
+  // `routeDeps`'s declared type (`ByokToolSurfaceDeps`, above) is every field `AssistantToolRegistryDeps`
+  // needs EXCEPT `magicLinkPerEmailLimiter` — the one field this function builds itself rather than
+  // accepting. `.clock` on the line above resolves against this type because several of the domain
+  // slices composing `AssistantToolRegistryDeps` (e.g. `MembersToolDeps`, `PostToolDeps`) already
+  // declare `clock: { nowIso(): string }` themselves, so it is a real member of this parameter's
+  // type, not assumed. No `as` of any kind is needed HERE: the object literal below adds exactly the
+  // one field the parameter type omits, so it is a real, checked `AssistantToolRegistryDeps` rather
+  // than an assertion that one exists — verified empirically (`npx tsc -p tsconfig.json --noEmit`
+  // reports zero errors on this file). The double cast this file used to hold (`as unknown as
+  // AssistantToolRegistryDeps`) is gone, not relocated to a different line in this file — it moved to
+  // the one place a cast is still genuinely required: `modules/assistant-byok.ts`'s call into this
+  // function, where the caller's own `routeDeps: RouteDeps` parameter is honestly narrower than what
+  // it always receives at runtime (verified empirically too — removing the cast there produces
+  // TS2345, "missing ... newsletterReady, newsletterCampaignRepo, newsletterListRepo,
+  // newsletterSubscriptionRepo, and 6 more", i.e. exactly `NewsletterToolDeps`'s domain-specific
+  // fields). A single `as` is not available at that call site either (also verified, not assumed —
+  // `RouteDeps` declares no relationship to `ByokToolSurfaceDeps`, unlike the `NewsletterRouteDeps
+  // extends RouteDeps` precedent it otherwise mirrors), so it keeps the same `unknown` detour — see
+  // that call site's own comment for the full trace of why.
+  const deps: AssistantToolRegistryDeps = { ...routeDeps, magicLinkPerEmailLimiter };
   const surfaceExchanges = options.surfaceExchangeStore ?? createSurfaceExchangeStore();
 
   const registry = createToolRegistry();

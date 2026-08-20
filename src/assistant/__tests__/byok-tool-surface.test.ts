@@ -17,10 +17,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { META_TOOL_DESCRIPTORS, createByokToolSurface } from "../byok-tool-surface.js";
+import { META_TOOL_DESCRIPTORS, createByokToolSurface, type ByokToolSurfaceDeps } from "../byok-tool-surface.js";
 import { resetToolContributorsForTests } from "../tool-contribution-registry.js";
 import { installFirstPartyToolContributors } from "../../server/tool-catalog-manifest.js";
-import type { RouteDeps } from "../../server/routes/types.js";
 
 // `surface()` below calls `createByokToolSurface` directly (not through `createAssistantByokModule`,
 // which installs first-party contributors itself) — so this file must, or the `comments`/
@@ -35,8 +34,10 @@ const PRINCIPAL = { id: "principal-meta-tool" };
 const RUN = { id: "run-meta-tool" };
 
 /** Wide enough to BUILD every domain's registrations; no handler is invoked by these tests. Mirrors
- *  `tool-registrations.contracts.test.ts`'s own `fakeRouteDeps`. */
-function fakeRouteDeps(): RouteDeps {
+ *  `tool-registrations.contracts.test.ts`'s own `fakeRouteDeps`. Typed `ByokToolSurfaceDeps` (not
+ *  `RouteDeps`) because that is what `createByokToolSurface` actually declares it needs as of the
+ *  double-cast removal — see that function's own doc. */
+function fakeRouteDeps(): ByokToolSurfaceDeps {
   const deps = {
     workspaceId: "ws-meta-tool",
     clock: { nowIso: () => "2026-08-05T00:00:00.000Z" },
@@ -56,7 +57,7 @@ function fakeRouteDeps(): RouteDeps {
     },
     outbox: { enqueue: async () => {} },
   };
-  return deps as unknown as RouteDeps;
+  return deps as unknown as ByokToolSurfaceDeps;
 }
 
 function surface() {
