@@ -63,6 +63,42 @@ export type ParseAgentPluginManifestResult =
 
 const KNOWN_MANIFEST_KEYS = new Set(["$schema", "name", "version", "description", "author", "license", "keywords"]);
 
+/** True for a non-null, non-array plain object — the "is this actually a JSON object" gate both
+ * `parseAgentPluginManifest` and `parseAgentPluginMcpConfig` need before touching any field. */
+function isJsonObject(value: unknown): value is Readonly<Record<string, unknown>> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** `value` narrowed to a `string`, or `undefined` — every optional string field below coerces
+ * through this one check instead of repeating its own `typeof ... === "string" ? ... : undefined`
+ * ternary. */
+function coerceOptionalString(value: unknown): string | undefined {
+  return typeof value === "string" ? value : undefined;
+}
+
+/** `value` narrowed to a `string[]` (non-string entries dropped), or `undefined` when `value`
+ * itself isn't an array — `keywords`'s own coercion. */
+function coerceStringArray(value: unknown): readonly string[] | undefined {
+  return Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === "string") : undefined;
+}
+
+/**
+ * Validates `plugin.json`'s `name` field per §5.5's grammar (see `NAME_PATTERN`'s own header for
+ * what the one regex encodes). Returns the valid name, or the one error message to report — never
+ * both, so the caller needs exactly one branch to consume this instead of the original's
+ * required-then-format else-if chain.
+ */
+function resolveManifestName(raw: Readonly<Record<string, unknown>>): { name: string; error?: undefined } | { name?: undefined; error: string } {
+  const name = coerceOptionalString(raw.name);
+  if (name === undefined) return { error: "plugin.json 'name' is required and must be a string" };
+  if (name.length === 0 || name.length > MAX_NAME_LENGTH || !NAME_PATTERN.test(name)) {
+    return {
+      error: `plugin.json 'name' ('${name}') must be 1-${MAX_NAME_LENGTH} lowercase alphanumeric/hyphen/period characters, start and end alphanumeric, with no consecutive delimiters`,
+    };
+  }
+  return { name };
+}
+
 /**
  * Validates an already-`JSON.parse`d `plugin.json` value against the v1.0.0 grammar.
  *
@@ -72,11 +108,9 @@ const KNOWN_MANIFEST_KEYS = new Set(["$schema", "name", "version", "description"
  * @complexity O(1) — a fixed, small number of field checks.
  */
 export function parseAgentPluginManifest(value: unknown): ParseAgentPluginManifestResult {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    return { ok: false, errors: ["plugin.json must be a JSON object"] };
-  }
+  if (!isJsonObject(value)) return { ok: false, errors: ["plugin.json must be a JSON object"] };
 
-  const raw = value as Readonly<Record<string, unknown>>;
+  const raw = value;
   const errors: string[] = [];
   const warnings: string[] = [];
 
@@ -84,15 +118,8 @@ export function parseAgentPluginManifest(value: unknown): ParseAgentPluginManife
     errors.push(`plugin.json '$schema' must be '${PLUGIN_SCHEMA_1_0_0}', got '${String(raw.$schema)}'`);
   }
 
-  const name = typeof raw.name === "string" ? raw.name : undefined;
-  if (name === undefined) {
-    errors.push("plugin.json 'name' is required and must be a string");
-  } else if (name.length === 0 || name.length > MAX_NAME_LENGTH || !NAME_PATTERN.test(name)) {
-    errors.push(
-      `plugin.json 'name' ('${name}') must be 1-${MAX_NAME_LENGTH} lowercase alphanumeric/hyphen/period characters, ` +
-        "start and end alphanumeric, with no consecutive delimiters",
-    );
-  }
+  const nameResult = resolveManifestName(raw);
+  if (nameResult.error) errors.push(nameResult.error);
 
   for (const key of Object.keys(raw)) {
     if (!KNOWN_MANIFEST_KEYS.has(key)) warnings.push(`unrecognized plugin.json field '${key}' (ignored per spec)`);
@@ -101,12 +128,12 @@ export function parseAgentPluginManifest(value: unknown): ParseAgentPluginManife
   if (errors.length > 0) return { ok: false, errors };
 
   const manifest: AgentPluginManifest = {
-    name: name as string,
-    version: typeof raw.version === "string" ? raw.version : undefined,
-    description: typeof raw.description === "string" ? raw.description : undefined,
-    author: typeof raw.author === "string" ? raw.author : undefined,
-    license: typeof raw.license === "string" ? raw.license : undefined,
-    keywords: Array.isArray(raw.keywords) ? raw.keywords.filter((k): k is string => typeof k === "string") : undefined,
+    name: nameResult.name as string,
+    version: coerceOptionalString(raw.version),
+    description: coerceOptionalString(raw.description),
+    author: coerceOptionalString(raw.author),
+    license: coerceOptionalString(raw.license),
+    keywords: coerceStringArray(raw.keywords),
   };
   return { ok: true, manifest, warnings };
 }
@@ -130,11 +157,9 @@ export type ParseAgentPluginMcpConfigResult =
  * @complexity O(s) in the number of declared servers.
  */
 export function parseAgentPluginMcpConfig(value: unknown): ParseAgentPluginMcpConfigResult {
-  if (typeof value !== "object" || value === null || Array.isArray(value)) {
-    return { ok: false, errors: ["mcp.json must be a JSON object"] };
-  }
+  if (!isJsonObject(value)) return { ok: false, errors: ["mcp.json must be a JSON object"] };
 
-  const raw = value as Readonly<Record<string, unknown>>;
+  const raw = value;
   const errors: string[] = [];
 
   if (raw.$schema !== MCP_SCHEMA_1_0_0) {
