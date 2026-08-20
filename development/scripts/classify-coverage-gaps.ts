@@ -21,11 +21,34 @@
  *     doesn't exist yet for that path. Route straight to test-writing.
  *
  * A third, softer note: small files (branch count under 40) that land in TEST_GAP get a
- * `phantomTaxPlausible` flag. The 2026-08-18 coverage audit found the esbuild CJS-interop shim
- * injects exactly 2 permanently-zero-hit branches into every file — on a small file that alone can
- * cost 5-10 points, making literal 100% unreachable regardless of test quality. This is a hint to
- * check `DA:` hit counts before writing more tests chasing an unreachable number, not a verdict —
- * see `route-coverage-lib.ts`'s header and this repo's own coverage audit for the full finding.
+ * `phantomTaxPlausible` flag — a prompt to check `DA:` hit counts before writing more tests, NOT a
+ * claim that the remaining branches are unreachable.
+ *
+ * ## CORRECTED 2026-08-20 — the "2 injected phantom branches" claim this flag used to cite was FALSE
+ *
+ * This paragraph previously asserted that "the 2026-08-18 coverage audit found the esbuild
+ * CJS-interop shim injects exactly 2 permanently-zero-hit branches into every file — making literal
+ * 100% unreachable regardless of test quality," citing `route-coverage-lib.ts`'s header and a
+ * 2026-08-18 coverage audit. Three independent checks on 2026-08-20:
+ *
+ *   1. `route-coverage-lib.ts`'s header says nothing of the kind. It documents an unrelated trap
+ *      (node silently excluding `test-*` -named application files from its coverage report).
+ *   2. No 2026-08-18 coverage audit exists in `ADS-memory/reports/`. The only two reports from that
+ *      date are about connection-pool architecture and an mcp-ui client recheck.
+ *   3. Measured directly against `development/coverage/lcov.info`: of 1265 files carrying branch
+ *      data, **567 have ZERO unhit branches** — literal 100% branch coverage. If every file carried
+ *      a 2-branch tax that number would be 0. Only 136 files have exactly 2 unhit branches, which is
+ *      an ordinary point in the distribution (0 -> 567, 1 -> 147, 2 -> 136, 3 -> 72, ...), not a floor.
+ *
+ * Root cause of the false claim: this repo is ESM (`"type": "module"`, `module: "nodenext"`), so
+ * esbuild emits no CJS-interop shim to inject those branches in the first place.
+ *
+ * **100% branch coverage is achievable here and is already achieved in 45% of measured files.** Do
+ * not cite an unreachable ceiling as a reason to stop below it. The `DA:`-hit-count check the flag
+ * still prompts for remains worthwhile for a different, documented reason: a zero-hit branch
+ * reported on a line with no visible conditional is usually a REAL branch whose line number is
+ * misattributed, not a tooling phantom — check whether the containing function has non-zero `DA:`
+ * hits, and if it does, go find the actual conditional nearby and test it.
  *
  * This is a diagnostic report, not a gate — it always exits 0. `check-route-coverage-diff.ts`
  * already blocks CI on the raw numbers; this script only helps decide what to do about a failure.
