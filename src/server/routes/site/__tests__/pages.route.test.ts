@@ -5,7 +5,7 @@ import type { AddressInfo } from "node:net";
 import test from "node:test";
 
 import type { PostRecord } from "#src/features/post/index";
-import { InMemoryPostRepo } from "#src/features/post/index";
+import { InMemoryPostRepo, PostNotFoundError } from "#src/features/post/index";
 import { InMemoryPresentationSettingsRepo } from "#src/features/presentation/index";
 import type { DiscoveredTheme } from "#src/features/theme/index";
 import { createApp, createRouteDeps } from "../../../app.js";
@@ -150,6 +150,60 @@ test("GET /:slug -- `req.params.slug ?? \"\"` fallback, forced via a direct hand
   assert.equal(nextCalled, true, "an empty-string slug fails the `[a-z0-9-]+` match, so this must fall through via next(), never respond itself");
 });
 
+test("GET /:slug -- slug === \"admin\", forced via a direct handler call -- falls through to next(), not a crash", async () => {
+  // A real GET /admin never reaches this handler at all in the composed app (an earlier-mounted
+  // admin route already claims it) -- this direct-handler-call technique is the only way to
+  // exercise `slug === "admin"` specifically, the same reasoning the params-omitted test above
+  // already established for this same OR-chain's first arm.
+  const app = createApp(createRouteDeps());
+  const handler = extractSlugHandler(app);
+  let nextCalled = false;
+  const res = {
+    status() {
+      return res;
+    },
+    type() {
+      return res;
+    },
+    send() {
+      return res;
+    },
+  };
+
+  await handler({ params: { slug: "admin" } }, res, () => {
+    nextCalled = true;
+  });
+
+  assert.equal(nextCalled, true, "the literal slug \"admin\" must fall through via next(), never render as a site page");
+});
+
+test("GET /api -- a real request, not a direct handler call -- reaches Express's own default 404 (no handler ever responds), proving next() really was called for slug === \"api\"", async (t) => {
+  const { server, baseUrl } = await startServer({});
+  t.after(() => closeServer(server));
+
+  const res = await fetch(`${baseUrl}/api`);
+  assert.equal(res.status, 404);
+  const body = await res.text();
+  assert.match(body, /Cannot GET \/api/, "Express's own bare 404 (not pages.ts's themed/bare 404) proves no handler, including pages.ts's own catch-all, ever claimed this request");
+});
+
+test("GET /index: a static theme's own index page is never treated as a marketing page at the /index URL -- it falls through to the ordinary (and here, missing) post lookup", async (t) => {
+  const theme = staticThemeWithThemed404();
+  const { server, baseUrl } = await startServer({
+    themes: [theme],
+    postRepo: new InMemoryPostRepo([]),
+  });
+  t.after(() => closeServer(server));
+
+  const res = await fetch(`${baseUrl}/index`);
+  assert.equal(res.status, 404);
+  const html = await res.text();
+  assert.ok(
+    html.includes("Themed not found"),
+    "must fall through to the ordinary 404 path (themed, since this fixture has one) -- NOT theme.pages.index's own 'home' content, which isMarketingPageSlug's `slug !== \"index\"` check exists specifically to prevent"
+  );
+});
+
 function staticThemeWithThemed404(): DiscoveredTheme {
   return {
     manifest: {
@@ -226,4 +280,29 @@ test("GET /:slug (post route): buildExtraHead's canonical falls back to /<slug> 
 
   const res = await fetch(`${baseUrl}/broken-canonical`);
   assert.equal(res.status, 200, "the page must still render even though its own canonical URL couldn't be resolved");
+});
+
+/** A post repo whose `list` throws `PostNotFoundError` outright — not a realistic failure for a
+ *  real adapter, but the only way to make the route's own `Promise.all([resolveActiveThemeId,
+ *  listPublishedPosts, isPublicAssistantEnabled])` reject with exactly that error type BEFORE
+ *  `theme = resolveActiveTheme(...)` ever runs, so `handlePostNotFoundOnSlugRoute`'s own `theme &&
+ *  theme.manifest.tier === "static" ...` guard receives `theme === null` — every other test in this
+ *  file that reaches that guard does so only after a successful theme resolution, so this is the
+ *  only way to exercise the guard's own null-theme short-circuit specifically. */
+class ThrowsPostNotFoundOnListPostRepo extends InMemoryPostRepo {
+  async list(): Promise<PostRecord[]> {
+    throw new PostNotFoundError("simulated: listPublishedPosts failed before theme resolution");
+  }
+}
+
+test("GET /:slug: a PostNotFoundError thrown before theme resolution completes still 404s through the bare fallback (theme is null in the catch block)", async (t) => {
+  const { server, baseUrl } = await startServer({
+    postRepo: new ThrowsPostNotFoundOnListPostRepo([]),
+  });
+  t.after(() => closeServer(server));
+
+  const res = await fetch(`${baseUrl}/anything`);
+  assert.equal(res.status, 404);
+  const html = await res.text();
+  assert.ok(html.includes("404 — page not found"), "with theme null, handlePostNotFoundOnSlugRoute must fall straight to the bare fallback, never dereference theme.manifest");
 });

@@ -72,3 +72,19 @@ test("resolveMediaAssetMetadataForRender: a malformed bodyJson tree (a bare prim
   const result = await resolveMediaAssetMetadataForRender(deps, post);
   assert.equal(result.size, 0, "no real image node exists anywhere in this malformed tree, so nothing should resolve");
 });
+
+test("resolveMediaAssetMetadataForRender: an image node whose attrs is itself an array (not a plain object) is skipped, not crashed on", async () => {
+  const deps = createRouteDeps();
+  const post = postRecord({
+    bodyJson: {
+      type: "doc",
+      // isPlainObject's own `!Array.isArray(value)` arm is only exercised when something that IS
+      // an array is handed to it as a value that isn't the top-level walked `node` itself (that
+      // case is already handled by collectImageAssetIds's own `Array.isArray(node)` branch one
+      // level up) -- `attrs` being an array is the other call site (`isPlainObject(node.attrs)`).
+      content: [{ type: "image", attrs: ["not", "a", "real", "attrs", "object"] }],
+    },
+  });
+  const result = await resolveMediaAssetMetadataForRender(deps, post);
+  assert.equal(result.size, 0, "an array-shaped attrs must be rejected by isPlainObject, not read as a real attrs object");
+});
