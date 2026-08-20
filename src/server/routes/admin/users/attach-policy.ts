@@ -1,3 +1,5 @@
+import type { Response } from "express";
+
 import {
   attachPolicy,
   GrantExceedsIssuerError,
@@ -7,6 +9,27 @@ import {
 } from "@jini-ai/cms/identity";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import { identityServiceDepsFrom, type UsersRouteRegistrar } from "./deps.js";
+
+/** Maps this route's thrown error types onto the admin error envelope. @complexity O(1). */
+function sendAttachPolicyError(res: Response, err: unknown): void {
+  if (err instanceof IdentityForbiddenError) {
+    res.status(403).json({ error: err.message, code: "FORBIDDEN", details: { permission: err.permission, reason: err.reason } });
+    return;
+  }
+  if (err instanceof GrantExceedsIssuerError) {
+    res.status(403).json({ error: err.message, code: "GRANT_EXCEEDS_ISSUER", details: { offendingPermissions: err.offendingPermissions } });
+    return;
+  }
+  if (err instanceof IdentityValidationError) {
+    res.status(400).json({ error: err.message, code: "VALIDATION_ERROR" });
+    return;
+  }
+  if (err instanceof IdentityNotFoundError) {
+    res.status(404).json({ error: err.message });
+    return;
+  }
+  res.status(500).json({ error: "internal error" });
+}
 
 /**
  * POST users/:principalId/policies — `ATTACH_POLICY` (state.spec §3,
@@ -37,35 +60,7 @@ export const registerAdminUserAttachPolicyRoute: UsersRouteRegistrar = (app, dep
 
       res.status(201).json({ attachment });
     } catch (err) {
-      if (err instanceof IdentityForbiddenError) {
-        res.status(403).json({
-          error: err.message,
-          code: "FORBIDDEN",
-          details: { permission: err.permission, reason: err.reason },
-        });
-        return;
-      }
-
-      if (err instanceof GrantExceedsIssuerError) {
-        res.status(403).json({
-          error: err.message,
-          code: "GRANT_EXCEEDS_ISSUER",
-          details: { offendingPermissions: err.offendingPermissions },
-        });
-        return;
-      }
-
-      if (err instanceof IdentityValidationError) {
-        res.status(400).json({ error: err.message, code: "VALIDATION_ERROR" });
-        return;
-      }
-
-      if (err instanceof IdentityNotFoundError) {
-        res.status(404).json({ error: err.message });
-        return;
-      }
-
-      res.status(500).json({ error: "internal error" });
+      sendAttachPolicyError(res, err);
     }
   });
 };
