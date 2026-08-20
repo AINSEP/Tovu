@@ -160,6 +160,46 @@ async function proxyPassthrough(req: Request, res: Response): Promise<void> {
  * `{agents: [...]}` shape this handler expects (non-2xx, a parse failure, or simply no `agents`
  * key) — this handler must never turn a daemon-side error into a worse one by discarding it.
  */
+/**
+ * Parses `rawText` into the `{agents: AgentSummary[]}` shape enrichment needs, or `null` when this
+ * response should instead be relayed unmodified (a parse failure, a non-2xx status, an empty body,
+ * or a 2xx body that isn't the expected shape — see {@link respondWithEnrichedAgentList}'s own doc
+ * for why the last case still gets a warning while the others stay quiet).
+ */
+function parseEnrichableAgentList(
+  rawText: string,
+  upstream: globalThis.Response,
+  req: Request,
+): { payload: { agents?: unknown }; agents: AgentSummary[] } | null {
+  let payload: { agents?: unknown } | undefined;
+  try {
+    payload = rawText ? (JSON.parse(rawText) as { agents?: unknown }) : undefined;
+  } catch {
+    return null;
+  }
+  if (!upstream.ok || !payload) return null;
+  if (!Array.isArray(payload.agents)) {
+    console.warn(
+      `[assistant] ${req.method} ${req.originalUrl} — daemon responded 2xx without an 'agents' array; relaying unmodified, live model enrichment skipped for this response`,
+    );
+    return null;
+  }
+  return { payload, agents: payload.agents as AgentSummary[] };
+}
+
+/** Enriches one agent's `models`/`modelsSource` with a live discovery call — the `claude` entry
+ *  only, unioned into its static fallback list. See {@link respondWithEnrichedAgentList}'s own doc
+ *  for the full union/never-replace/never-hard-fail contract this implements. */
+async function enrichAgentWithLiveModels(agent: AgentSummary, routeDeps: RouteDeps, principalId: string): Promise<AgentSummary> {
+  if (agent.id !== "claude") return agent;
+  const live = await getLiveClaudeModels(
+    { repo: routeDeps.adminExecutionCredentialRepo, sealer: routeDeps.siteAssistantSecretSealer },
+    { workspaceId: routeDeps.workspaceId, principalId }
+  );
+  if (!live || live.length === 0) return agent;
+  return { ...agent, models: unionModels(agent.models ?? [], live), modelsSource: "live" };
+}
+
 async function respondWithEnrichedAgentList(req: Request, res: Response, routeDeps: RouteDeps): Promise<void> {
   const upstream = await forwardToAgentDaemon(req, res, req.method === "GET" || req.method === "HEAD" ? undefined : req.body);
   if (!upstream) return;
@@ -169,47 +209,19 @@ async function respondWithEnrichedAgentList(req: Request, res: Response, routeDe
   const contentType = upstream.headers.get("content-type");
   if (contentType) res.setHeader("Content-Type", contentType);
 
-  let payload: { agents?: unknown } | undefined;
-  try {
-    payload = rawText ? (JSON.parse(rawText) as { agents?: unknown }) : undefined;
-  } catch {
-    res.send(rawText);
-    return;
-  }
-  if (!upstream.ok || !payload) {
-    // A non-2xx status or an empty body is an ordinary daemon-side error — the daemon itself is
-    // the right place for that to be logged (or not), not this proxy hop.
-    res.send(rawText);
-    return;
-  }
-  if (!Array.isArray(payload.agents)) {
-    // A 2xx response that isn't the `{agents: [...]}` shape this handler expects is NOT an
-    // ordinary error — it means enrichment silently stops happening (indistinguishable from "the
-    // admin has no API key" from the browser's side) with no other signal anywhere. Worth an
-    // operator seeing; everything else in this function is deliberately quiet by design (see the
-    // header on `getLiveClaudeModels` for the same reasoning applied to the credential branch).
-    console.warn(
-      `[assistant] ${req.method} ${req.originalUrl} — daemon responded 2xx without an 'agents' array; relaying unmodified, live model enrichment skipped for this response`,
-    );
+  const parsed = parseEnrichableAgentList(rawText, upstream, req);
+  if (!parsed) {
+    // A non-2xx status, an empty/unparseable body, or an unexpected shape — the daemon (or the
+    // warning `parseEnrichableAgentList` already logged) is the right place for that to be
+    // attributed, not this proxy hop. Relay exactly what the daemon sent.
     res.send(rawText);
     return;
   }
 
-  const agents = payload.agents as AgentSummary[];
   const principal = getAuthedPrincipal(res);
-  const enriched = await Promise.all(
-    agents.map(async (agent): Promise<AgentSummary> => {
-      if (agent.id !== "claude") return agent;
-      const live = await getLiveClaudeModels(
-        { repo: routeDeps.adminExecutionCredentialRepo, sealer: routeDeps.siteAssistantSecretSealer },
-        { workspaceId: routeDeps.workspaceId, principalId: principal.id }
-      );
-      if (!live || live.length === 0) return agent;
-      return { ...agent, models: unionModels(agent.models ?? [], live), modelsSource: "live" };
-    })
-  );
+  const enriched = await Promise.all(parsed.agents.map((agent) => enrichAgentWithLiveModels(agent, routeDeps, principal.id)));
 
-  res.json({ ...payload, agents: enriched });
+  res.json({ ...parsed.payload, agents: enriched });
 }
 
 /**
@@ -238,6 +250,44 @@ async function respondWithEnrichedAgentList(req: Request, res: Response, routeDe
  *    {@link RUN_PRINCIPAL_HEADER} exactly like every other route in this module, and the daemon-side
  *    route trusts both the same way `run-ownership.ts`'s routes do.
  */
+/**
+ * Tries LOCAL delivery against `byokSurfaceExchanges` for a redeemable `exchangeId`. Returns
+ * `true` once it has already fully answered `res` (a genuine 202 success or a definitive 409
+ * rejection) — `false` means the caller must fall through to the daemon, either because there was
+ * no usable `exchangeId` at all or because the local store reported `unknown-or-closed` (this
+ * exchange may belong to the DAEMON's own store, a Local CLI run this process cannot see).
+ */
+function tryLocalMcpUiDelivery(
+  res: Response,
+  byokSurfaceExchanges: SurfaceExchangeStore,
+  exchangeId: unknown,
+  params: Record<string, unknown>,
+  toolName: string,
+): boolean {
+  if (typeof exchangeId !== "string" || exchangeId.length === 0) return false;
+
+  const principalId = getAuthedPrincipal(res).id;
+  const delivered = byokSurfaceExchanges.deliver({ exchangeId, params, toolId: toolName, principalId });
+  if (delivered.ok) {
+    // Deliberately not the tool's result — same reasoning as the daemon-side route's identical
+    // 202: the agent's own held-open call is what returns that, to the model, where it belongs.
+    res.status(202).json({ delivered: true });
+    return true;
+  }
+  if (delivered.reason === "binding-mismatch") {
+    // Found locally, just not for this caller/tool — a real rejection, not "try elsewhere". Same
+    // 409 shape `mcp-ui-tool-calls-route.ts` uses for its own version of this same check.
+    res.status(409).json({
+      error: "that dialog is no longer waiting for an answer",
+      code: "SURFACE_NOT_PENDING",
+      reason: delivered.reason,
+    });
+    return true;
+  }
+  // `delivered.reason === "unknown-or-closed"`: fall through, let the daemon answer authoritatively.
+  return false;
+}
+
 async function proxyMcpUiToolCall(req: Request, res: Response, byokSurfaceExchanges: SurfaceExchangeStore): Promise<void> {
   const body = (req.body ?? {}) as { toolName?: unknown; params?: unknown; exchangeId?: unknown };
   const toolName = body.toolName;
@@ -256,29 +306,7 @@ async function proxyMcpUiToolCall(req: Request, res: Response, byokSurfaceExchan
   // that call's own params — see `surface-exchanges.ts`'s doc on `SURFACE_EXCHANGE_ID_PARAM`).
   const params = isPlainObject(body.params) ? body.params : {};
   const exchangeId = typeof body.exchangeId === "string" ? body.exchangeId : params[SURFACE_EXCHANGE_ID_PARAM];
-  if (typeof exchangeId === "string" && exchangeId.length > 0) {
-    const principalId = getAuthedPrincipal(res).id;
-    const delivered = byokSurfaceExchanges.deliver({ exchangeId, params, toolId: toolName, principalId });
-    if (delivered.ok) {
-      // Deliberately not the tool's result — same reasoning as the daemon-side route's identical
-      // 202: the agent's own held-open call is what returns that, to the model, where it belongs.
-      res.status(202).json({ delivered: true });
-      return;
-    }
-    if (delivered.reason === "binding-mismatch") {
-      // Found locally, just not for this caller/tool — a real rejection, not "try elsewhere". Same
-      // 409 shape `mcp-ui-tool-calls-route.ts` uses for its own version of this same check.
-      res.status(409).json({
-        error: "that dialog is no longer waiting for an answer",
-        code: "SURFACE_NOT_PENDING",
-        reason: delivered.reason,
-      });
-      return;
-    }
-    // `delivered.reason === "unknown-or-closed"`: not necessarily wrong here — this exchange id may
-    // belong to the DAEMON's own store (a Local CLI run), which this process cannot see. Fall
-    // through and let the daemon answer authoritatively for its own exchanges.
-  }
+  if (tryLocalMcpUiDelivery(res, byokSurfaceExchanges, exchangeId, params, toolName)) return;
 
   // `forwardToAgentDaemon` deliberately does NOT relay (see its doc comment) — each caller relays
   // for itself. Without the two lines below this route fetches the daemon's answer and then never
