@@ -221,46 +221,27 @@ function requireCredentials(
 }
 
 /**
- * Creates a GitHub Deployment for an existing commit. Does NOT wait for (or fabricate) evidence
- * that a build or deploy has started — GitHub's own docs state it does not access or deploy to the
- * target servers itself; creating a deployment only dispatches a `deployment` event to whatever is
- * listening.
- *
- * @complexity Two outbound HTTP requests (mint token, create deployment), each hard-bounded by
- * `DEFAULT_TIMEOUT_MS`.
+ * Sends the `POST .../deployments` call and validates its response — split out of `startRun` so
+ * the pre-checks (target config, release shape, credentials) and the HTTP round-trip each carry
+ * only their own branches. `release` is the two fields already narrowed out of
+ * `input.release` by `startRun`'s own `kind !== "git-revision"` guard.
  */
-async function startRun(input: StartDeploymentRunInput, ctx: DeploymentProviderContext): Promise<StartDeploymentRunResult> {
-  const config = readGitHubTargetConfig(input.target);
-  if (!config) {
-    return { ok: false, error: fail("INVALID_TARGET_CONFIG", "github target is missing owner/repo/environmentName") };
-  }
-  if (input.release.source.kind !== "git-revision") {
-    // The honesty constraint, enforced at the one place it can be: this adapter promotes an
-    // EXISTING commit. It cannot manufacture one from an "external-artifact" release — Tovu's CLI
-    // has no build or export command.
-    return {
-      ok: false,
-      error: fail("INVALID_RELEASE", "github deployment target requires a git-revision release (commit sha), not an external artifact"),
-    };
-  }
-  const credentials = requireCredentials(ctx.credentials);
-  if (!credentials) {
-    return { ok: false, error: fail("NO_CREDENTIALS_CONFIGURED", "github deployment target is missing appId/installationId/privateKeyPem") };
-  }
-
-  const token = await mintInstallationToken(ctx.httpClient, credentials, ctx.now);
-  if (!token.ok) return { ok: false, error: token.error };
-
+async function createGitHubDeployment(
+  ctx: DeploymentProviderContext,
+  token: string,
+  config: GitHubTargetConfig,
+  release: { commitSha: string; releaseId: string }
+): Promise<StartDeploymentRunResult> {
   let response: HttpResponse;
   try {
     response = await sendPinned(ctx.httpClient, {
       method: "POST",
       url: githubApiUrl(`/repos/${encodeURIComponent(config.owner)}/${encodeURIComponent(config.repo)}/deployments`),
-      headers: { ...githubHeaders(token.token), "content-type": "application/json" },
+      headers: { ...githubHeaders(token), "content-type": "application/json" },
       body: JSON.stringify({
-        ref: input.release.source.commitSha,
+        ref: release.commitSha,
         environment: config.environmentName,
-        description: `Tovu deployment of release ${input.release.id}`,
+        description: `Tovu deployment of release ${release.releaseId}`,
         auto_merge: false,
         required_contexts: [],
         transient_environment: false,
@@ -293,6 +274,43 @@ async function startRun(input: StartDeploymentRunInput, ctx: DeploymentProviderC
   }
 
   return { ok: true, providerRunRef: String(body.id), reconciliation: "callback" };
+}
+
+/**
+ * Creates a GitHub Deployment for an existing commit. Does NOT wait for (or fabricate) evidence
+ * that a build or deploy has started — GitHub's own docs state it does not access or deploy to the
+ * target servers itself; creating a deployment only dispatches a `deployment` event to whatever is
+ * listening.
+ *
+ * @complexity Two outbound HTTP requests (mint token, create deployment), each hard-bounded by
+ * `DEFAULT_TIMEOUT_MS`.
+ */
+async function startRun(input: StartDeploymentRunInput, ctx: DeploymentProviderContext): Promise<StartDeploymentRunResult> {
+  const config = readGitHubTargetConfig(input.target);
+  if (!config) {
+    return { ok: false, error: fail("INVALID_TARGET_CONFIG", "github target is missing owner/repo/environmentName") };
+  }
+  if (input.release.source.kind !== "git-revision") {
+    // The honesty constraint, enforced at the one place it can be: this adapter promotes an
+    // EXISTING commit. It cannot manufacture one from an "external-artifact" release — Tovu's CLI
+    // has no build or export command.
+    return {
+      ok: false,
+      error: fail("INVALID_RELEASE", "github deployment target requires a git-revision release (commit sha), not an external artifact"),
+    };
+  }
+  const credentials = requireCredentials(ctx.credentials);
+  if (!credentials) {
+    return { ok: false, error: fail("NO_CREDENTIALS_CONFIGURED", "github deployment target is missing appId/installationId/privateKeyPem") };
+  }
+
+  const token = await mintInstallationToken(ctx.httpClient, credentials, ctx.now);
+  if (!token.ok) return { ok: false, error: token.error };
+
+  return createGitHubDeployment(ctx, token.token, config, {
+    commitSha: input.release.source.commitSha,
+    releaseId: input.release.id,
+  });
 }
 
 interface GitHubDeploymentStatus {
@@ -336,39 +354,28 @@ export function mapGitHubDeploymentStatus(status: GitHubDeploymentStatus): Deplo
 }
 
 /**
- * Polls the latest deployment status. Does NOT assume `GET .../statuses` returns newest-first —
- * GitHub's docs describe pagination for this endpoint but state no response order (verified against
- * docs.github.com/en/rest/deployments/statuses). Status ids are assigned monotonically, so the
- * correct status is the one with the greatest `id`, independent of array position.
- *
- * @complexity One outbound HTTP request (plus the token mint) and a single linear scan over the
- * returned statuses (bounded by `per_page=100`), each hard-bounded by `DEFAULT_TIMEOUT_MS`.
+ * Sends the `GET .../statuses` call and resolves the latest status from it — split out of
+ * `pollRun` for the same "pre-checks vs. HTTP round-trip" reason as `createGitHubDeployment`. Does
+ * NOT assume the response is newest-first — GitHub's docs describe pagination for this endpoint but
+ * state no response order (verified against docs.github.com/en/rest/deployments/statuses). Status
+ * ids are assigned monotonically, so the correct status is the one with the greatest `id`,
+ * independent of array position.
  */
-async function pollRun(input: PollDeploymentRunInput, ctx: DeploymentProviderContext): Promise<PollDeploymentRunResult> {
-  const config = readGitHubTargetConfig(input.target);
-  if (!config) {
-    return { ok: false, error: fail("INVALID_TARGET_CONFIG", "github target is missing owner/repo/environmentName") };
-  }
-  if (!/^[1-9][0-9]*$/.test(input.providerRunRef)) {
-    return { ok: false, error: fail("INVALID_TARGET_CONFIG", "providerRunRef is not a github deployment id") };
-  }
-  const credentials = requireCredentials(ctx.credentials);
-  if (!credentials) {
-    return { ok: false, error: fail("NO_CREDENTIALS_CONFIGURED", "github deployment target is missing appId/installationId/privateKeyPem") };
-  }
-
-  const token = await mintInstallationToken(ctx.httpClient, credentials, ctx.now);
-  if (!token.ok) return { ok: false, error: token.error };
-
+async function pollGitHubDeploymentStatuses(
+  ctx: DeploymentProviderContext,
+  token: string,
+  config: GitHubTargetConfig,
+  providerRunRef: string
+): Promise<PollDeploymentRunResult> {
   let response: HttpResponse;
   try {
     response = await sendPinned(ctx.httpClient, {
       method: "GET",
       url: githubApiUrl(
         `/repos/${encodeURIComponent(config.owner)}/${encodeURIComponent(config.repo)}/deployments/` +
-          `${encodeURIComponent(input.providerRunRef)}/statuses?per_page=100`
+          `${encodeURIComponent(providerRunRef)}/statuses?per_page=100`
       ),
-      headers: githubHeaders(token.token),
+      headers: githubHeaders(token),
       timeoutMs: DEFAULT_TIMEOUT_MS,
     });
   } catch (err) {
@@ -400,6 +407,31 @@ async function pollRun(input: PollDeploymentRunInput, ctx: DeploymentProviderCon
 
   const latest = statuses.reduce((best, candidate) => (candidate.id > best.id ? candidate : best));
   return { ok: true, update: mapGitHubDeploymentStatus(latest) };
+}
+
+/**
+ * Polls the latest deployment status.
+ *
+ * @complexity One outbound HTTP request (plus the token mint) and a single linear scan over the
+ * returned statuses (bounded by `per_page=100`), each hard-bounded by `DEFAULT_TIMEOUT_MS`.
+ */
+async function pollRun(input: PollDeploymentRunInput, ctx: DeploymentProviderContext): Promise<PollDeploymentRunResult> {
+  const config = readGitHubTargetConfig(input.target);
+  if (!config) {
+    return { ok: false, error: fail("INVALID_TARGET_CONFIG", "github target is missing owner/repo/environmentName") };
+  }
+  if (!/^[1-9][0-9]*$/.test(input.providerRunRef)) {
+    return { ok: false, error: fail("INVALID_TARGET_CONFIG", "providerRunRef is not a github deployment id") };
+  }
+  const credentials = requireCredentials(ctx.credentials);
+  if (!credentials) {
+    return { ok: false, error: fail("NO_CREDENTIALS_CONFIGURED", "github deployment target is missing appId/installationId/privateKeyPem") };
+  }
+
+  const token = await mintInstallationToken(ctx.httpClient, credentials, ctx.now);
+  if (!token.ok) return { ok: false, error: token.error };
+
+  return pollGitHubDeploymentStatuses(ctx, token.token, config, input.providerRunRef);
 }
 
 /**
