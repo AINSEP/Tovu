@@ -39,7 +39,7 @@
  * validates each declared-field patch, and returns the merged per-plugin `ext` object fail-closed.
  */
 import type { JsonObject } from "@jini-ai/cms/core";
-import type { BeforeSaveFilter, ContentEntryDraft } from "../../../packages/sdk/src/index.js";
+import type { BeforeSaveFilter, ContentEntryDraft, HookContext } from "../../../packages/sdk/src/index.js";
 
 /** Who attached a given filter — extended by ADR-057 Decision 3 with `"glue"`, ranked after
  * `"site"` in {@link compareTb01}. Exported so `loader.ts`'s `attachLoadedPlugin()` and any other
@@ -146,6 +146,80 @@ function fieldNameOf(declaredPath: string): string {
   return segments[segments.length - 1] ?? declaredPath;
 }
 
+/** Calls one plugin's filter, re-shaping a thrown error into the module's own
+ * `PluginHookFailedError` vocabulary — the ONE place `runBeforeSave`'s per-plugin work touches the
+ * plugin's own code directly. */
+async function callPluginFilter(
+  pluginId: string,
+  filter: BeforeSaveFilter,
+  snapshot: Readonly<ContentEntryDraft>,
+  ctx: HookContext
+): Promise<unknown> {
+  try {
+    return await filter(snapshot, ctx);
+  } catch (error) {
+    throw new PluginHookFailedError(
+      pluginId,
+      `plugin '${pluginId}' content.entry.beforeSave filter failed: ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error }
+    );
+  }
+}
+
+/** BR-07/EC-10: a filter's return value must be a plain object, never an array or a primitive. */
+function assertPatchShape(pluginId: string, patch: unknown): asserts patch is Record<string, unknown> {
+  if (typeof patch !== "object" || patch === null || Array.isArray(patch)) {
+    throw new PluginHookFailedError(pluginId, `plugin '${pluginId}' returned a non-object ext patch from its beforeSave filter`);
+  }
+}
+
+/** BR-06: every key in a validated patch must match a field the plugin's own manifest declared,
+ * with a value matching that field's declared type — anything else is fail-closed, not dropped. */
+function buildDeclaredPatch(
+  pluginId: string,
+  patch: Readonly<Record<string, unknown>>,
+  declaredFields: readonly HookRegistryFieldDecl[]
+): Record<string, JsonObject[string]> {
+  const declaredByField = new Map(declaredFields.map((f) => [fieldNameOf(f.path), f]));
+  const pluginPatch: Record<string, JsonObject[string]> = {};
+
+  for (const [field, value] of Object.entries(patch)) {
+    const decl = declaredByField.get(field);
+    if (!decl) {
+      throw new PluginHookFailedError(pluginId, `plugin '${pluginId}' returned undeclared ext field '${field}' (FIELD_PATH_INVALID)`);
+    }
+    if (!matchesDeclaredType(value, decl.type)) {
+      throw new PluginHookFailedError(
+        pluginId,
+        `plugin '${pluginId}' returned ext field '${field}' with a value not matching its declared type '${decl.type}' (FIELD_TYPE_MISMATCH)`
+      );
+    }
+    pluginPatch[field] = value as JsonObject[string];
+  }
+  return pluginPatch;
+}
+
+/**
+ * One plugin's full contribution: builds its isolated entry snapshot (this plugin's own `ext`
+ * namespace overlaid with every earlier plugin's already-merged result, per TB-01's composition
+ * order), calls its filter, and validates the returned patch. Pulled out of `runBeforeSave`'s loop
+ * body because that loop's own job — ordering, failure bookkeeping, quarantine — is a different
+ * concern from what happens to any ONE plugin's filter call.
+ */
+async function applyPluginFilter(
+  pluginId: string,
+  attachment: Attachment,
+  entry: Readonly<ContentEntryDraft>,
+  mergedSoFar: Readonly<Record<string, JsonObject>>
+): Promise<Record<string, JsonObject[string]>> {
+  const snapshot: ContentEntryDraft = structuredClone({ ...entry, ext: { ...entry.ext, ...mergedSoFar } });
+  const ctx: HookContext = { pluginId, workspaceId: entry.workspaceId };
+
+  const patch = await callPluginFilter(pluginId, attachment.filter, snapshot, ctx);
+  assertPatchShape(pluginId, patch);
+  return buildDeclaredPatch(pluginId, patch, attachment.declaredFields);
+}
+
 /**
  * Creates a fresh, empty hook registry (no plugins attached). Each process has exactly one
  * long-lived instance, constructed once at composition-root time and shared between `loader.ts`
@@ -233,54 +307,8 @@ export function createHookRegistry(options: CreateHookRegistryOptions = {}): Hoo
     const merged: Record<string, JsonObject> = {};
 
     for (const [pluginId, attachment] of ordered) {
-      const snapshot: ContentEntryDraft = structuredClone({
-        ...entry,
-        ext: { ...entry.ext, ...merged },
-      });
-      const ctx = { pluginId, workspaceId: entry.workspaceId };
-
       try {
-        let patch: unknown;
-        try {
-          patch = await attachment.filter(snapshot, ctx);
-        } catch (error) {
-          throw new PluginHookFailedError(
-            pluginId,
-            `plugin '${pluginId}' content.entry.beforeSave filter failed: ${
-              error instanceof Error ? error.message : String(error)
-            }`,
-            { cause: error }
-          );
-        }
-
-        if (typeof patch !== "object" || patch === null || Array.isArray(patch)) {
-          throw new PluginHookFailedError(
-            pluginId,
-            `plugin '${pluginId}' returned a non-object ext patch from its beforeSave filter`
-          );
-        }
-
-        const declaredByField = new Map(attachment.declaredFields.map((f) => [fieldNameOf(f.path), f]));
-        const pluginPatch: Record<string, JsonObject[string]> = {};
-
-        for (const [field, value] of Object.entries(patch as Record<string, unknown>)) {
-          const decl = declaredByField.get(field);
-          if (!decl) {
-            throw new PluginHookFailedError(
-              pluginId,
-              `plugin '${pluginId}' returned undeclared ext field '${field}' (FIELD_PATH_INVALID)`
-            );
-          }
-          if (!matchesDeclaredType(value, decl.type)) {
-            throw new PluginHookFailedError(
-              pluginId,
-              `plugin '${pluginId}' returned ext field '${field}' with a value not matching its declared type '${decl.type}' (FIELD_TYPE_MISMATCH)`
-            );
-          }
-          pluginPatch[field] = value as JsonObject[string];
-        }
-
-        merged[pluginId] = pluginPatch;
+        merged[pluginId] = await applyPluginFilter(pluginId, attachment, entry, merged);
         clearFailures(pluginId, entry.workspaceId);
       } catch (error) {
         const failure =
