@@ -128,8 +128,26 @@ function toSummary(post: PostRecord): PublicEntrySummary {
  * Anything unrecognized contributes nothing rather than throwing — a malformed body must degrade to
  * a thinner answer, never to a failed request.
  */
+/** True once there is no more `extractText` budget, or `node` is not a walkable object at all
+ *  (`null`, a primitive). Split out purely to keep that function's complexity under the shop
+ *  ceiling. */
+function isExtractTextBudgetExhausted(node: unknown, budget: { left: number }): boolean {
+  return budget.left <= 0 || node === null || typeof node !== "object";
+}
+
+/** Pushes one node's own `text` field onto `out`, capped by the remaining budget — a no-op for a
+ *  node with no usable `text`. Split out of {@link extractText} purely to keep that function's
+ *  complexity under the shop ceiling; behavior (including the in-place `budget.left` decrement) is
+ *  unchanged. */
+function pushExtractedText(record: Record<string, unknown>, out: string[], budget: { left: number }): void {
+  if (typeof record.text !== "string" || record.text.length === 0) return;
+  const slice = record.text.slice(0, budget.left);
+  budget.left -= slice.length;
+  out.push(slice);
+}
+
 function extractText(node: unknown, out: string[] = [], budget = { left: MAX_TEXT_CHARS }): string[] {
-  if (budget.left <= 0 || node === null || typeof node !== "object") return out;
+  if (isExtractTextBudgetExhausted(node, budget)) return out;
 
   if (Array.isArray(node)) {
     for (const child of node) extractText(child, out, budget);
@@ -137,11 +155,7 @@ function extractText(node: unknown, out: string[] = [], budget = { left: MAX_TEX
   }
 
   const record = node as Record<string, unknown>;
-  if (typeof record.text === "string" && record.text.length > 0) {
-    const slice = record.text.slice(0, budget.left);
-    budget.left -= slice.length;
-    out.push(slice);
-  }
+  pushExtractedText(record, out, budget);
   if (Array.isArray(record.content)) extractText(record.content, out, budget);
   return out;
 }
