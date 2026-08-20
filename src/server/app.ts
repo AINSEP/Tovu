@@ -201,6 +201,8 @@ import type { RouteDeps } from "./routes/types.js";
 // `type`-only, so it is erased and adds no runtime edge — the whole point of the lazy resolution
 // in {@link runExportSiteLazily} below.
 import type { ExportEngine } from "../features/deployments/export-run.js";
+import type { Express } from "express";
+import type { ServerModuleHandle } from "./modules/types.js";
 
 /**
  * @file HTTP composition root and route wiring.
@@ -758,6 +760,25 @@ const runExportSiteLazily: ExportEngine<RouteDeps> = (options) =>
   // eslint-disable-next-line @typescript-eslint/no-require-imports -- deliberate; see doc above.
   (require("../export/index.js") as typeof import("../export/index.js")).exportSite(options);
 
+/**
+ * 2026-08-20 (complexity pass) — `createApp` mounts ~30 `ServerModuleHandle`s below, each via the
+ * identical `mod.registerRoutes?.(app)` guard (`registerRoutes` is optional per
+ * `modules/types.ts`'s `ServerModuleHandle` doc: a module may own only subscriptions, only routes,
+ * or both). ESLint's `complexity` rule counts every `?.` as its own branch, so 30 inlined copies of
+ * the SAME guard cost `createApp` 30 points of complexity for zero actual decision-making — the
+ * guard never varies. Hoisting it here means the branch is counted once, in this 2-line function,
+ * instead of once per call site.
+ */
+function mountRoutes(app: Express, mod: ServerModuleHandle): void {
+  mod.registerRoutes?.(app);
+}
+
+/** Same hoisted-guard rationale as {@link mountRoutes}, for the `start?.()` half of
+ * `ServerModuleHandle` (a module's optional subscriptions/workers, started once at boot). */
+function startModule(mod: ServerModuleHandle): void {
+  mod.start?.();
+}
+
 export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   const app = express();
   applyDevCors(app);
@@ -809,12 +830,12 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // registered together in that order so login is never caught by its own
   // gate. Real argon2id + principal/session model (ADR-021/SPEC-006) — see
   // middleware/dev-auth.ts.
-  createCoreModule(routeDeps).registerRoutes?.(app);
+  mountRoutes(app, createCoreModule(routeDeps));
 
   // ADR-046 Phase 3 (SPEC-038): the `content` server module — 11 posts/pages/change-sets/
   // presentation admin routes. `registerContentPostGetRoute` (public site content serving) stays
   // inline immediately below — it was never one of this module's 11 registrations.
-  createContentModule(routeDeps).registerRoutes?.(app);
+  mountRoutes(app, createContentModule(routeDeps));
   registerContentPostGetRoute(app, routeDeps);
 
   // ADR-PIPE-013 Decision §2-3 (FEAT-013 Phase 2) — one shared
@@ -848,7 +869,7 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   };
   // ADR-046 Phase 3 (SPEC-038): the `members` server module — 4 admin CRUD/list routes + 2 public
   // sign-in routes, genuinely two deps objects (see `modules/members.ts`'s file header).
-  createMembersModule({ admin: membersDeps, public: memberPublicDeps }).registerRoutes?.(app);
+  mountRoutes(app, createMembersModule({ admin: membersDeps, public: memberPublicDeps }));
 
   // SPEC-011 (Newsletter, ADR-PIPE-011) Stage 5 — the `newsletter` server module: 19 admin routes
   // (inside the `/api/admin` gate mounted by `createCoreModule` above) + 2 public, cookie-less,
@@ -871,7 +892,7 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
     clock: newsletterAdminDeps.clock,
     idGen: newsletterAdminDeps.idGen,
   };
-  createNewsletterModule({ admin: newsletterAdminDeps, public: newsletterPublicDeps }).registerRoutes?.(app);
+  mountRoutes(app, createNewsletterModule({ admin: newsletterAdminDeps, public: newsletterPublicDeps }));
 
   // T040 (tasks.md Phase 4) — the `newsletter.send.batch.claimed` bus subscriber `send-pipeline.ts`'s
   // own file header names as the one piece of Stage 4 wiring no composition root had done yet
@@ -888,17 +909,17 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
 
   // ADR-046 Phase 3 (SPEC-041): the `analytics` server module — the single admin "recent hits"
   // read route (ADR-035/ADR-PIPE-014).
-  createAnalyticsModule(routeDeps).registerRoutes?.(app);
+  mountRoutes(app, createAnalyticsModule(routeDeps));
   // ADR-001 bounded operational read: provider discovery reflects only the optional composed
   // payment runtime; configuration and downstream Commerce capabilities remain explicitly absent.
-  createCommerceModule(routeDeps).registerRoutes?.(app);
+  mountRoutes(app, createCommerceModule(routeDeps));
   // ADR-054: the PUBLIC visitor assistant. Deliberately NOT behind `requireAdminSession` — it is
   // the one assistant surface anonymous traffic may reach, which is why it runs on its own
   // in-process provider relay with a read-only published-content tool surface rather than the
   // admin's process-spawning agent daemon. `start()` logs the demo-gate state at boot.
   const siteAssistantModule = createSiteAssistantModule(routeDeps);
-  siteAssistantModule.start?.();
-  siteAssistantModule.registerRoutes?.(app);
+  startModule(siteAssistantModule);
+  mountRoutes(app, siteAssistantModule);
   registerAdminModuleStatusRoute(app, routeDeps);
   // Admin "Restart assistant" action (`system.write`-gated) — the manual recovery seam for the
   // locally-spawned agent daemon, sibling to the on-demand recovery `server/modules/assistant.ts`'s
@@ -942,53 +963,53 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // moderation-queue/moderate/settings routes. Distinct from `createCommentsModule` above
   // (the ADR-031 backend composition) and from `registerCommentsSubmitRoute` below (the public,
   // unauthenticated submission route, which stays inline near the site catch-all).
-  createCommentsModerationModule(routeDeps).registerRoutes?.(app);
+  mountRoutes(app, createCommentsModerationModule(routeDeps));
   // ADR-046 Phase 3 (SPEC-040): the `menus` server module — 6 admin CRUD/location-assignment
   // routes (ADR-029). `MenuRouteDeps` reused as-is from its existing location in
   // `http/admin/menus.ts` (see `modules/menus.ts`'s file header for why it lives there).
-  createMenusModule(routeDeps).registerRoutes?.(app);
+  mountRoutes(app, createMenusModule(routeDeps));
   // SPEC-043 (widgets, ADR-047) — 13 admin routes (instance CRUD, region binding/placement,
   // server-side embed mutation) + the widgets.place/create/remove/diagnose AI tool surface.
   // `RouteDeps` already carries every dependency this module needs (`widgetBindingRepo`/
   // `entryRefsRepo`, added by this same dispatch) — no widened deps type, unlike menus.
-  createWidgetsModule(routeDeps).registerRoutes?.(app);
+  mountRoutes(app, createWidgetsModule(routeDeps));
   // SPEC-005 (ADR-005-ARCH) — the `plugins` server module: PLUGINS_LIST/PLUGIN_SET_ENABLED (REQ-10).
-  createPluginsModule(routeDeps).registerRoutes?.(app);
+  mountRoutes(app, createPluginsModule(routeDeps));
   // ADR-046 Phase 3 (SPEC-034): the `integrations-admin` server module — 5 admin CRUD/read routes
   // over webhook subscriptions/deliveries (ADR-036). Distinct from `createIntegrationsModule`
   // below, which owns the Forms-to-webhook fan-out subscriber, not an HTTP surface.
-  createIntegrationsAdminModule(routeDeps).registerRoutes?.(app);
+  mountRoutes(app, createIntegrationsAdminModule(routeDeps));
   // ADR-046 Phase 3 (SPEC-034): the `media` server module — 5 admin routes + the public rendition
   // route (previously registered much later, see below near the old catch-all-precedence group;
   // moved up here since its only real constraint, "before `/:slug`", still holds — see
   // `modules/media.ts`'s file header for the full disclosure).
-  createMediaModule(routeDeps).registerRoutes?.(app);
+  mountRoutes(app, createMediaModule(routeDeps));
   // The `connectors` server module — Composio-backed third-party accounts behind the admin's
   // Settings → Connectors tab. Registered next to `integrations-admin` above because the two share
   // the `admin.integrations.manage` permission, but they own different subsystems (outbound
   // webhooks there, inbound third-party accounts here) — see `modules/connectors.ts`.
-  createConnectorsModule(routeDeps).registerRoutes?.(app);
-  createExternalMcpModule(routeDeps).registerRoutes?.(app);
+  mountRoutes(app, createConnectorsModule(routeDeps));
+  mountRoutes(app, createExternalMcpModule(routeDeps));
   // ADR-046 Phase 3 (SPEC-040): the `users` server module — 8 admin CRUD/list routes over
   // users/roles/policies (ADR-021/SPEC-006 identity RBAC).
-  createUsersModule(routeDeps).registerRoutes?.(app);
+  mountRoutes(app, createUsersModule(routeDeps));
   // SPEC-044: the `workspace` server module — 5 admin routes (list/create/get/update/delete), the
   // real successor to the original unauthenticated inline `POST /workspaces` route this file used
   // to own directly (see the file header note).
-  createWorkspaceModule(routeDeps).registerRoutes?.(app);
+  mountRoutes(app, createWorkspaceModule(routeDeps));
   // ADR-046 Phase 3 (SPEC-040): the `settings` server module — 5 admin settings HTTP routes
   // (SPEC-007 Phase 5, T043).
-  createSettingsModule(routeDeps).registerRoutes?.(app);
+  mountRoutes(app, createSettingsModule(routeDeps));
 
   // ADR-046 Phase 3 (SPEC-041): the `forms-admin` server module — 7 admin routes (definitions
   // CRUD + submissions list/get/delete), gated per api.spec.md §2's `admin.forms.*` profiles.
   // Distinct from `createFormsModule` below, which owns the Forms-to-notify-subscriber
   // subscription, not an HTTP surface.
-  createFormsAdminModule(routeDeps).registerRoutes?.(app);
+  mountRoutes(app, createFormsAdminModule(routeDeps));
 
   // ADR-046 Phase 3 (SPEC-041): the `redirects` server module — 7 admin routes (list/get/create/
   // update/tombstone/import/hits), each gated by `admin.redirects.manage` (api.spec.md §1/§2).
-  createRedirectsModule(routeDeps).registerRoutes?.(app);
+  mountRoutes(app, createRedirectsModule(routeDeps));
 
   // ADR-046 Phase 3 (SPEC-042, final slice): the `database-recovery` server module — all 7
   // Database/Recovery plain registrations (Timeline + restore-points list/create, Recovery's own
@@ -998,7 +1019,7 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // disclosure of why that consolidation is safe (no path overlap with content-types/entries/
   // taxonomy). `registerAdminDatabaseMigrateForwardRoutes`/`registerAdminRecoveryRestoreRoutes`
   // (the 2 gated-mutation ceremonies) stay inline below, unchanged non-goal since SPEC-031.
-  createDatabaseRecoveryModule(routeDeps).registerRoutes?.(app);
+  mountRoutes(app, createDatabaseRecoveryModule(routeDeps));
 
   // Built ONCE, by calling `createAssistantByokModule` here (rather than at its original position
   // below) so its returned `.toolSurface` can be handed to `createAssistantModule` immediately after
@@ -1014,23 +1035,23 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
 
   // ADR-049: the admin assistant's tool-execution/run surface, composed from the published
   // `@jini-ai/core` + `@jini-ai/daemon` + `@jini-ai/node-host` kernel — see `src/assistant/`.
-  createAssistantModule(routeDeps, byokAssistantModule.toolSurface.surfaceExchanges).registerRoutes?.(app);
+  mountRoutes(app, createAssistantModule(routeDeps, byokAssistantModule.toolSurface.surfaceExchanges));
 
   // Durable transcripts for that same assistant, in `content.db` rather than the daemon. Separate
   // module because nothing here is proxied: run execution belongs to the daemon (that is where run
   // state lives), while history belongs to Tovu's own database, where backups, snapshots, and
   // workspace scoping already work. The daemon can restart or be replaced without touching it.
-  createAssistantChatsModule(routeDeps).registerRoutes?.(app);
+  mountRoutes(app, createAssistantChatsModule(routeDeps));
 
   // The AI Assistant admin section's 2 settings routes (GET/PUT the public assistant's master
   // switch). Registered next to `createAssistantModule` for readability only — the two modules share
   // no dependencies and no path prefix (see `modules/assistant-settings.ts`'s header), and both sit
   // inside the `/api/admin` session gate, so this position is not load-bearing.
-  createAssistantSettingsModule(routeDeps).registerRoutes?.(app);
+  mountRoutes(app, createAssistantSettingsModule(routeDeps));
   // The same admin section's "Execution mode" tab — Local CLI detection + BYOK connection
   // test/model discovery. Separate module from the settings pair above for the reason
   // `modules/assistant-execution.ts`'s header gives (stateless egress probes, not settings CRUD).
-  createAssistantExecutionModule(routeDeps).registerRoutes?.(app);
+  mountRoutes(app, createAssistantExecutionModule(routeDeps));
   // 2026-08-04: the admin dock's "API · BYOK" execution mode — a second, provider-direct run path
   // alongside `createAssistantModule`'s daemon proxy above. Composes its own registry/executor over
   // the SAME `buildAssistantToolRegistrations` catalog the daemon uses (see `modules/assistant-byok.ts`'s
@@ -1038,14 +1059,14 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // this can be a second, independent composition rather than a daemon-process change. Routes only —
   // the module itself (and its `toolSurface`) was already built above, so
   // `createAssistantModule`'s redemption proxy shares the exact same confirmation store.
-  byokAssistantModule.registerRoutes?.(app);
+  mountRoutes(app, byokAssistantModule);
 
   // ADR-059 (2026-08-18): the admin assistant's AG-UI canary transport — additive, flagged,
   // deletable. Wraps the SAME daemon-backed run lifecycle `createAssistantModule` above proxies
   // (via `assistant-daemon-client.ts`'s shared `fetchAgentDaemon`, extracted from that module this
   // same dispatch), translating its wire frames into real AG-UI SSE events. Does not touch, and is
   // not touched by, either existing execution path. See `modules/assistant-ag-ui.ts`'s header.
-  createAssistantAgUiModule(routeDeps).registerRoutes?.(app);
+  mountRoutes(app, createAssistantAgUiModule(routeDeps));
 
   // ADR-046 Phase 3 (SPEC-042, final slice): the `content-types` server module (ADR-043
   // Collections backend) — all 8 registrations (content-types' list/register/update-fields/
@@ -1055,11 +1076,11 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // `mergeTerm`'s plan/confirm/execute ceremony and the migrate-forward/restore-ceremony routes
   // were deferred at the time this block was first written; see the gated-mutation route
   // registrations below for where they now live.
-  createContentTypesModule(routeDeps).registerRoutes?.(app);
+  mountRoutes(app, createContentTypesModule(routeDeps));
   // ADR-046 Phase 3 (SPEC-034): the `taxonomy` server module — the 5 plain CRUD/list routes.
   // `registerAdminTaxonomyMergeTermRoutes` (the gated-mutation ceremony) stays inline below,
   // alongside the unrelated database/recovery ceremonies it shares a gateway pattern with.
-  createTaxonomyModule(routeDeps).registerRoutes?.(app);
+  mountRoutes(app, createTaxonomyModule(routeDeps));
 
   // SPEC-016 (`core/gated-mutations`'s gateway composed into a real composition root, this
   // dispatch) — the 3 deferred gated-mutation ceremonies: taxonomy `mergeTerm`, database
@@ -1075,7 +1096,7 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
   // sits at the exact same position the 8 inline registrations previously occupied — well before
   // `registerSiteRoutes` — so that ordering constraint is unchanged. See `modules/seo.ts`'s file
   // header for the full disclosure and the re-run `route-class-precedence.unit.test.ts` evidence.
-  createSeoModule(routeDeps).registerRoutes?.(app);
+  mountRoutes(app, createSeoModule(routeDeps));
 
   /**
    * ADR-046 Phase 3 (SPEC-031) — SPEC-010 (Forms) outbox wiring, now split across two
@@ -1084,19 +1105,23 @@ export function createApp(routeDeps: RouteDeps = createRouteDeps()) {
    * the SAME `form.submission.received` topic (cross-feature integration owned by the
    * consumer, per the ADR's explicit Phase 3 rule — see `modules/integrations.ts`'s header).
    */
-  createFormsModule({
-    bus: routeDeps.bus,
-    mailer: routeDeps.mailer,
-    formDefinitionRepo: routeDeps.formDefinitionRepo,
-    formSubmissionRepo: routeDeps.formSubmissionRepo,
-  }).start?.();
-  createIntegrationsModule({
-    bus: routeDeps.bus,
-    webhookSubscriptionRepo: routeDeps.webhookSubscriptionRepo,
-    webhookDeliveryRepo: routeDeps.webhookDeliveryRepo,
-    idGen: routeDeps.idGen,
-    clock: routeDeps.clock,
-  }).start?.();
+  startModule(
+    createFormsModule({
+      bus: routeDeps.bus,
+      mailer: routeDeps.mailer,
+      formDefinitionRepo: routeDeps.formDefinitionRepo,
+      formSubmissionRepo: routeDeps.formSubmissionRepo,
+    })
+  );
+  startModule(
+    createIntegrationsModule({
+      bus: routeDeps.bus,
+      webhookSubscriptionRepo: routeDeps.webhookSubscriptionRepo,
+      webhookDeliveryRepo: routeDeps.webhookDeliveryRepo,
+      idGen: routeDeps.idGen,
+      clock: routeDeps.clock,
+    })
+  );
 
   // Built admin SPA (apps/admin/dist) at /admin; helpful 503 when unbuilt.
   registerAdminStatic(app, {
