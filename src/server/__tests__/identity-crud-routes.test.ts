@@ -233,6 +233,37 @@ test("AC-31: DELETE_ROLE and DELETE_POLICY routes delete unused rows and refuse 
   assert.equal(policyDeletedBody.code, "RESOURCE_CONFLICT");
 });
 
+/**
+ * ASSIGN_ROLE (`POST /users/:principalId/roles`, state.spec §3 AC-24/AC-25) had no direct
+ * route-level test in this file — every other CRUD route added by SPEC-006 0.6.0 does. Added
+ * while cutting `assign-role.ts`'s cyclomatic complexity (98-violation routes sweep,
+ * 2026-08-20) so that refactor had a real before/after regression check instead of relying on
+ * code review alone.
+ */
+test("ASSIGN_ROLE route grants a role to a principal and returns the new assignment", async (t) => {
+  const deps = createRouteDeps();
+  const { server, baseUrl } = await bootServer(deps);
+  t.after(() => new Promise<void>((resolve) => server.close(() => resolve())));
+
+  const { cookie } = await loginAs(baseUrl, "admin", "tovu-dev");
+
+  const targetId = await createTestUser(baseUrl, cookie, "roleassignee");
+  const rolesList = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/roles`, { headers: { cookie } });
+  const rolesListBody = (await rolesList.json()) as { roles: Array<{ id: string; name: string }> };
+  const viewerRole = rolesListBody.roles.find((r) => r.name === "viewer");
+  assert.ok(viewerRole, "seed created a built-in viewer role");
+
+  const assigned = await fetch(`${baseUrl}/api/admin/v1/workspaces/workspace-local/users/${targetId}/roles`, {
+    method: "POST",
+    headers: { "content-type": "application/json", cookie },
+    body: JSON.stringify({ roleId: viewerRole!.id }),
+  });
+  assert.equal(assigned.status, 201);
+  const assignedBody = (await assigned.json()) as { assignment: { principalId: string; roleId: string } };
+  assert.equal(assignedBody.assignment.principalId, targetId);
+  assert.equal(assignedBody.assignment.roleId, viewerRole!.id);
+});
+
 test("AC-32: WRITE_POLICY_PERMISSION route adds a permission, rejects an unknown one (400 PERMISSION_UNKNOWN)", async (t) => {
   const deps = createRouteDeps();
   const { server, baseUrl } = await bootServer(deps);
