@@ -20,23 +20,22 @@ import type { RouteDeps } from "../../types.js";
  * boundary: the ceremony's token/authorize/lock plumbing is fully real, the final physical
  * `content.db` file replacement is not).
  */
+/** HTTP status per gateway error code — a lookup table rather than a switch so a new code (a
+ *  sixth 409, say) is one more row, not one more branch. */
+const STATUS_BY_RECOVERY_ERROR_CODE: Readonly<Record<string, number>> = {
+  NOT_AUTHORIZED: 403,
+  AGENT_CANNOT_CONFIRM: 403,
+  ACTOR_CLASS_MISMATCH: 403,
+  VALIDATION_ERROR: 400,
+  COST_CLASS_UNAVAILABLE: 409,
+  PLAN_STALE: 409,
+  TOKEN_EXPIRED: 409,
+  TOKEN_ALREADY_REDEEMED: 409,
+  RESTORE_OPERATION_IN_FLIGHT: 409,
+};
+
 function statusForCode(code: string): number {
-  switch (code) {
-    case "NOT_AUTHORIZED":
-    case "AGENT_CANNOT_CONFIRM":
-    case "ACTOR_CLASS_MISMATCH":
-      return 403;
-    case "VALIDATION_ERROR":
-      return 400;
-    case "COST_CLASS_UNAVAILABLE":
-    case "PLAN_STALE":
-    case "TOKEN_EXPIRED":
-    case "TOKEN_ALREADY_REDEEMED":
-    case "RESTORE_OPERATION_IN_FLIGHT":
-      return 409;
-    default:
-      return 500;
-  }
+  return STATUS_BY_RECOVERY_ERROR_CODE[code] ?? 500;
 }
 
 function sendRecoveryError(res: import("express").Response, error: RecoveryErrorPayload): void {
