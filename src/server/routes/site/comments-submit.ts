@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 
 import type { Express, Request } from "express";
 
-import type { CommentIngressPolicy } from "#src/comments/index";
+import type { CommentIngressPolicy, CommentSubmission } from "#src/comments/index";
 
 /**
  * @file ADR-031 §4 (SPEC-033) — the public, unauthenticated comment submission route. The ONLY
@@ -24,26 +24,43 @@ function hashClientIp(req: Request, salt: string): string {
   return createHash("sha256").update(`${ip}:${salt}`).digest("hex");
 }
 
+/** The per-request signal bag (honeypot value, IP hash) — split out of `buildCommentSubmission` so
+ * that function's own field count stays clear of the complexity ceiling. @complexity O(1). */
+function buildIngressContext(req: Request, salt: string, body: Record<string, unknown>) {
+  return {
+    authorIpHash: hashClientIp(req, salt),
+    honeypotValue: typeof body.website === "string" ? body.website : "", // conventional honeypot field name
+  };
+}
+
+/**
+ * Normalizes the untyped request body into a `CommentSubmission`. Every field below defaults or
+ * clamps independently (undefined-means-empty for required strings, falsy-means-null for optional
+ * ones) — same behavior as before this was a named function, just no longer inline in the handler.
+ *
+ * @complexity O(1).
+ */
+function buildCommentSubmission(req: Request, body: Record<string, unknown>, deps: CommentsSubmitDeps): CommentSubmission {
+  const salt = process.env.COMMENTS_IP_SALT ?? "dev-only-insecure-salt";
+
+  return {
+    workspaceId: deps.workspaceId,
+    entryId: String(body.entryId ?? ""),
+    parentId: body.parentId ? String(body.parentId) : null,
+    authorName: String(body.authorName ?? "").slice(0, 200),
+    authorEmail: body.authorEmail ? String(body.authorEmail).slice(0, 320) : null,
+    authorUrl: body.authorUrl ? String(body.authorUrl).slice(0, 2000) : null,
+    bodyRaw: String(body.body ?? ""),
+    authorPrincipalId: null, // v1: anonymous-only public route; member-attributed submission is a named deferral
+    ingressContext: buildIngressContext(req, salt, body),
+  };
+}
+
 export function registerCommentsSubmitRoute(app: Express, deps: CommentsSubmitDeps): void {
   app.post("/api/site/comments", async (req, res) => {
     try {
-      const salt = process.env.COMMENTS_IP_SALT ?? "dev-only-insecure-salt";
       const body = req.body as Record<string, unknown>;
-
-      const result = await deps.ingressPolicy.submit({
-        workspaceId: deps.workspaceId,
-        entryId: String(body.entryId ?? ""),
-        parentId: body.parentId ? String(body.parentId) : null,
-        authorName: String(body.authorName ?? "").slice(0, 200),
-        authorEmail: body.authorEmail ? String(body.authorEmail).slice(0, 320) : null,
-        authorUrl: body.authorUrl ? String(body.authorUrl).slice(0, 2000) : null,
-        bodyRaw: String(body.body ?? ""),
-        authorPrincipalId: null, // v1: anonymous-only public route; member-attributed submission is a named deferral
-        ingressContext: {
-          authorIpHash: hashClientIp(req, salt),
-          honeypotValue: typeof body.website === "string" ? body.website : "", // conventional honeypot field name
-        },
-      });
+      const result = await deps.ingressPolicy.submit(buildCommentSubmission(req, body, deps));
 
       if (!result.ok) {
         // No oracle: every rejection reason maps to the SAME generic 422, distinguishable only in
