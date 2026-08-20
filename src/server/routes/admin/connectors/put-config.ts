@@ -1,15 +1,143 @@
-import type { Express } from "express";
+import type { Express, Response } from "express";
 
 import {
   clearComposioApiKey,
   ComposioConfigSecretStoreUnconfiguredError,
   ComposioConfigValidationError,
   saveComposioApiKey,
+  type ComposioConfigWriteDeps,
 } from "#src/connectors/composio-config-store";
 import { getAuthedPrincipal } from "#src/server/middleware/dev-auth";
 import type { RateLimiter } from "#src/core/rate-limit/rate-limit";
 import { resolveClientIp } from "#src/core/rate-limit/rate-limit";
 import type { ConnectorsConfigRouteDeps } from "./deps.js";
+
+/** Result of validating the `{ apiKey }` request body against the "store or clear, never guess" rule. */
+type ParsedApiKeyBody =
+  | { readonly ok: false }
+  | { readonly ok: true; readonly clearing: true }
+  | { readonly ok: true; readonly clearing: false; readonly apiKey: string };
+
+/**
+ * Requires an explicit `apiKey` property: `null` clears, anything else is a candidate to store. A
+ * missing property is rejected rather than defaulted, matching the module doc above the route.
+ *
+ * @complexity O(1).
+ */
+function parseApiKeyBody(body: unknown): ParsedApiKeyBody {
+  if (body === null || typeof body !== "object" || !Object.hasOwn(body, "apiKey")) {
+    return { ok: false };
+  }
+  const raw = (body as { apiKey?: unknown }).apiKey;
+  if (raw === null) {
+    return { ok: true, clearing: true };
+  }
+  return { ok: true, clearing: false, apiKey: String(raw) };
+}
+
+/** Outcome of verifying a candidate key against Composio before it is ever persisted. */
+type VerifyOutcome =
+  | { readonly kind: "ok" }
+  | { readonly kind: "rate_limited"; readonly retryAfterSeconds: number }
+  | { readonly kind: "rejected" }
+  | { readonly kind: "unreachable" };
+
+/**
+ * Verifies a non-blank candidate key against Composio, rate-limited the same way
+ * `connect`/`disconnect`/list-refresh/preview-hydration are (see the module doc). A blank candidate
+ * short-circuits to `"ok"` untouched — `saveComposioApiKey` is what rejects it, at persist time.
+ *
+ * @complexity O(1) plus one outbound call to Composio.
+ */
+async function verifyApiKeyCandidate(
+  deps: ConnectorsConfigRouteDeps,
+  outboundLimiter: RateLimiter,
+  clientIp: string,
+  candidate: string
+): Promise<VerifyOutcome> {
+  if (!candidate) {
+    return { kind: "ok" };
+  }
+  const rateLimitResult = outboundLimiter.check(clientIp);
+  if (!rateLimitResult.allowed) {
+    return { kind: "rate_limited", retryAfterSeconds: rateLimitResult.retryAfterSeconds };
+  }
+  const probe = await deps.composioConnectors.probeApiKey(candidate);
+  if (!probe.ok) {
+    return { kind: probe.reason === "rejected" ? "rejected" : "unreachable" };
+  }
+  return { kind: "ok" };
+}
+
+/**
+ * Writes the 429/400/502 response for a non-`"ok"` verify outcome. Returns whether it did, so the
+ * caller can `return` without re-branching on `outcome.kind` itself.
+ *
+ * @complexity O(1).
+ */
+function respondToVerifyFailure(res: Response, outcome: VerifyOutcome): boolean {
+  if (outcome.kind === "ok") {
+    return false;
+  }
+  if (outcome.kind === "rate_limited") {
+    res.setHeader("Retry-After", String(outcome.retryAfterSeconds));
+    res.status(429).json({
+      error: "too many key-verification attempts",
+      code: "RATE_LIMIT_EXCEEDED",
+      details: { retryAfterSeconds: outcome.retryAfterSeconds },
+    });
+    return true;
+  }
+  const rejected = outcome.kind === "rejected";
+  res.status(rejected ? 400 : 502).json({
+    error: rejected
+      ? "Composio rejected that API key. Check it and try again."
+      : "Couldn't reach Composio to verify that API key. It was not saved.",
+    code: rejected ? "COMPOSIO_KEY_REJECTED" : "COMPOSIO_UNREACHABLE",
+  });
+  return true;
+}
+
+/**
+ * Persists the parsed body (store or clear) and runs the side effects that keep the long-lived
+ * Composio provider in sync — see the module doc for why `refresh()` and, on clear, dropping
+ * credentials by provider are both required rather than incidental cleanup.
+ *
+ * @complexity O(1) plus the repo write and the provider refresh.
+ */
+async function writeComposioConfig(
+  writeDeps: ComposioConfigWriteDeps,
+  deps: ConnectorsConfigRouteDeps,
+  parsed: Extract<ParsedApiKeyBody, { ok: true }>
+) {
+  const view = parsed.clearing
+    ? await clearComposioApiKey(writeDeps, { workspaceId: deps.workspaceId })
+    : await saveComposioApiKey(writeDeps, { workspaceId: deps.workspaceId, apiKey: parsed.apiKey });
+
+  if (parsed.clearing) {
+    // See the module doc: connected accounts belong to the Composio PROJECT the removed key
+    // addressed, so they must not survive it.
+    deps.composioConnectors.service.deleteCredentialsByProvider("composio");
+    await deps.composioConnectors.flushCredentials();
+  }
+
+  await deps.composioConnectors.refresh();
+  return view;
+}
+
+/** Maps this route's own thrown error types onto the admin error envelope. */
+function sendPutConfigError(res: Response, error: unknown): void {
+  if (error instanceof ComposioConfigValidationError) {
+    res.status(400).json({ error: error.message, code: "VALIDATION_ERROR" });
+    return;
+  }
+  if (error instanceof ComposioConfigSecretStoreUnconfiguredError) {
+    res.status(503).json({ error: error.message, code: "SECRET_STORE_UNCONFIGURED" });
+    return;
+  }
+  console.error(`connectors config write failed: ${error instanceof Error ? error.message : String(error)}`);
+  res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+}
 
 /**
  * PUT the workspace's Composio API key.
@@ -66,84 +194,33 @@ export function registerAdminConnectorsPutConfigRoute(
         return;
       }
 
-      const body = req.body as { apiKey?: unknown } | null;
-      if (body === null || typeof body !== "object" || !Object.hasOwn(body, "apiKey")) {
+      const parsed = parseApiKeyBody(req.body);
+      if (!parsed.ok) {
         res.status(400).json({ error: "apiKey is required (send null to clear)", code: "VALIDATION_ERROR" });
         return;
       }
-
-      const writeDeps = {
-        repo: deps.composioConfigRepo,
-        sealer: deps.siteAssistantSecretSealer,
-        keyring: deps.siteAssistantSecretKeyring,
-        clock: deps.clock,
-      };
-
-      const clearing = body.apiKey === null;
 
       // Verify BEFORE persisting. Without this the workspace reports `configured: true` for a key
       // Composio would refuse, the grid unlocks, and the operator only finds out when a detail
       // drawer 401s — because the provider swallows a failed catalog refresh and falls back to its
       // static catalog. See `connectors/composio-key-probe.ts` for why this is a persist-time gate
       // here while the BYOK equivalent is a standalone route.
-      if (!clearing) {
-        const candidate = String(body.apiKey).trim();
-        if (candidate) {
-          const rateLimitResult = outboundLimiter.check(resolveClientIp(req));
-          if (!rateLimitResult.allowed) {
-            res.setHeader("Retry-After", String(rateLimitResult.retryAfterSeconds));
-            res.status(429).json({
-              error: "too many key-verification attempts",
-              code: "RATE_LIMIT_EXCEEDED",
-              details: { retryAfterSeconds: rateLimitResult.retryAfterSeconds },
-            });
-            return;
-          }
-
-          const probe = await deps.composioConnectors.probeApiKey(candidate);
-          if (!probe.ok) {
-            const rejected = probe.reason === "rejected";
-            res.status(rejected ? 400 : 502).json({
-              error: rejected
-                ? "Composio rejected that API key. Check it and try again."
-                : "Couldn't reach Composio to verify that API key. It was not saved.",
-              code: rejected ? "COMPOSIO_KEY_REJECTED" : "COMPOSIO_UNREACHABLE",
-            });
-            return;
-          }
+      if (!parsed.clearing) {
+        const outcome = await verifyApiKeyCandidate(deps, outboundLimiter, resolveClientIp(req), parsed.apiKey.trim());
+        if (respondToVerifyFailure(res, outcome)) {
+          return;
         }
       }
 
-      const view = clearing
-        ? await clearComposioApiKey(writeDeps, { workspaceId: deps.workspaceId })
-        : await saveComposioApiKey(writeDeps, {
-            workspaceId: deps.workspaceId,
-            apiKey: String(body.apiKey),
-          });
-
-      if (clearing) {
-        // Connected accounts belong to the Composio PROJECT the removed key addressed, so leaving
-        // them behind would keep sealed credentials for a project this install can no longer reach
-        // — and the connectors would keep rendering as connected while every call failed. Dropping
-        // them is the same reasoning that makes `saveComposioApiKey` discard `authConfigIds` on a
-        // key change, applied to the credentials those ids provisioned.
-        deps.composioConnectors.service.deleteCredentialsByProvider("composio");
-        await deps.composioConnectors.flushCredentials();
-      }
-
-      await deps.composioConnectors.refresh();
-      res.json(view);
+      const writeDeps: ComposioConfigWriteDeps = {
+        repo: deps.composioConfigRepo,
+        sealer: deps.siteAssistantSecretSealer,
+        keyring: deps.siteAssistantSecretKeyring,
+        clock: deps.clock,
+      };
+      res.json(await writeComposioConfig(writeDeps, deps, parsed));
     } catch (error) {
-      if (error instanceof ComposioConfigValidationError) {
-        res.status(400).json({ error: error.message, code: "VALIDATION_ERROR" });
-        return;
-      }
-      if (error instanceof ComposioConfigSecretStoreUnconfiguredError) {
-        res.status(503).json({ error: error.message, code: "SECRET_STORE_UNCONFIGURED" });
-        return;
-      }
-      console.error(`connectors config write failed: ${error instanceof Error ? error.message : String(error)}`);
-      res.status(500).json({ error: "internal error", code: "INTERNAL_ERROR" });
+      sendPutConfigError(res, error);
     }
   });
 }
