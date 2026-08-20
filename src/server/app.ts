@@ -453,7 +453,7 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     ...(process.env.TOVU_COMPOSIO_BASE_URL ? { baseUrl: process.env.TOVU_COMPOSIO_BASE_URL } : {}),
   });
 
-  return {
+  const routeDeps: NewsletterRouteDeps = {
     workspaceId: seededWorkspace.id,
     workspaceRepo,
     postRepo,
@@ -690,7 +690,17 @@ export function createRouteDeps(options: CreateRouteDepsOptions = {}): Newslette
     // 2026-08-17 — hermetic double for `server/deps.ts`'s real `SqliteCustomCredentialSetRepo`; see
     // `routes/types.ts`'s `customCredentialSetRepo` doc.
     customCredentialSetRepo: new InMemoryCustomCredentialSetRepo(),
+    // 2026-08-20 (RouteDeps-narrowing fix) — see `routes/types.ts`'s `exportSiteBound` doc. `routeDeps`
+    // spread LAST: this self-referencing closure captures the `const routeDeps` binding below (safe —
+    // the arrow body only runs after `createRouteDeps()` has returned, by which point `routeDeps` is
+    // fully constructed), and it must always win over whatever `opts` a caller passes, even if that
+    // `opts` happens to carry its own `routeDeps` key (see `routes/types.ts`'s own doc on this field
+    // for the exact bug this ordering closes).
+    exportSiteBound: (opts) =>
+      // eslint-disable-next-line @typescript-eslint/no-require-imports -- deliberate; see runExportSiteLazily's doc above.
+      (require("../export/index.js") as typeof import("../export/index.js")).exportSite({ ...opts, routeDeps }),
   };
+  return routeDeps;
 }
 
 /**

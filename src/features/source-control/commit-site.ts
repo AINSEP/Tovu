@@ -5,8 +5,7 @@ import path from "node:path";
 import type { UUID } from "@jini-ai/cms/core";
 
 import type { KeyringPort, SecretSealerPort } from "../../webhooks/index.js";
-import type { ExportFailureSummary, ExportReport, ExportSiteOptions } from "#src/export/index";
-import type { RouteDeps } from "#src/server/routes/types";
+import type { ExportFailureSummary, ExportReport } from "#src/export/index";
 
 import { resolveDefaultForSourceControl } from "./store.js";
 import type { SourceControlCredentialSetRepoPort } from "./types.js";
@@ -195,11 +194,34 @@ export interface CommitSiteDeps {
   readonly gitAdapter?: GitHubCommitAdapter;
 }
 
+/**
+ * The composition-root-bound export call this domain takes instead of `RouteDeps` itself
+ * (2026-08-20 RouteDeps-narrowing fix, superseding `b6144774`'s config-only attempt — see
+ * `tool-registrations.ts`'s own `SourceControlToolDeps` doc for the fuller design rationale).
+ * Deliberately NOT named anything close to `RouteDeps.runExportSite`
+ * (`server/routes/types.ts`) — that field is `ExportEngine<RouteDeps>`, which takes a `routeDeps`
+ * parameter the caller must supply on every call; THIS function takes none, because `RouteDeps` is
+ * already closed over at the composition root (`server/app.ts`'s `createRouteDeps()`/
+ * `server/deps.ts`'s `createSqliteRouteDeps()`, bound as `RouteDeps.exportSiteBound`). Naming the two
+ * similarly was reviewed and rejected specifically because a caller mixing them up (passing a
+ * `routeDeps` field this function does not want, or omitting one `runExportSite` requires) would
+ * still type-check — see this domain's own `tool-registrations.ts` for where that exact class of bug
+ * was caught during this fix. Declared locally, never imported from `RouteDeps` or from
+ * `features/deployments/static-publish/adapter.ts`'s identical copy — same "duplicate the tiny type,
+ * never share across features" convention this file already follows for `OWNER_PATTERN`/
+ * `exportSiteLazily`'s own former copy.
+ */
+export type ExportSiteBoundFn = (options: { outputDir: string; clean?: boolean; basePath?: string }) => Promise<ExportReport>;
+
 export interface CommitSiteInput {
   readonly workspaceId: UUID;
-  /** The same composition-root object `exportSite` itself needs — this function boots and fetches
-   *  the real app exactly like a plain export does, immediately before committing. */
-  readonly routeDeps: RouteDeps;
+  /** `RouteDeps.sourceControlExportRootDir`, threaded down rather than the whole `RouteDeps` bag —
+   *  see `exportSiteBound`'s own doc immediately below for why. */
+  readonly sourceControlExportRootDir: string;
+  readonly idGen: { newId(): string };
+  /** The pre-bound export call — see {@link ExportSiteBoundFn}'s own doc for what it is and why it
+   *  replaces the `routeDeps: RouteDeps` field this input used to carry. */
+  readonly exportSiteBound: ExportSiteBoundFn;
   readonly owner: string;
   readonly repo: string;
   readonly branch?: string;
@@ -218,18 +240,20 @@ export interface CommitSiteInput {
  * single-flight `publish-run.ts` gives `static-publish/adapter.ts` — so two commits (the assistant's
  * confirmed `source_control_execute_commit` tool call firing twice, or overlapping with a future
  * second trigger) could `clean:true` and rewrite the same directory out from under each other.
- * `runId` (always a fresh `RouteDeps.idGen.newId()` value, minted once per
+ * `runId` (always a fresh `input.idGen.newId()` value, minted once per
  * {@link commitSiteToSourceControl} call) makes that collision structurally impossible. The
- * directory is disposable once `exportSiteLazily` returns — see {@link cleanupCommitRunDir}'s own
+ * directory is disposable once `exportSiteBound` returns — see {@link cleanupCommitRunDir}'s own
  * doc for why nothing downstream re-reads it from disk.
  *
  * `parent` is `RouteDeps.sourceControlExportRootDir` (`TOVU_SOURCE_CONTROL_EXPORT_DIR` env, then
  * `infra/source-control-export` — mirroring `export-site.ts`'s `TOVU_EXPORT_DIR`/`adapter.ts`'s
  * `TOVU_PUBLISH_DIR`), resolved ONCE by the composition root (`server/app.ts`/`server/deps.ts`) and
- * threaded through {@link commitSiteToSourceControl}'s `input.routeDeps` — never read from
- * `process.env` in this file. A test overrides it the same way every other `RouteDeps` field is
- * overridden: by setting `sourceControlExportRootDir` on the fake `RouteDeps` it constructs, not by
- * mutating real process env vars.
+ * threaded through as {@link CommitSiteInput.sourceControlExportRootDir} (2026-08-20
+ * RouteDeps-narrowing fix — this used to be `input.routeDeps.sourceControlExportRootDir`; the field
+ * moved, the value and its single-resolution-point discipline did not) — never read from
+ * `process.env` in this file. A test overrides it the same way it always did: by setting
+ * `sourceControlExportRootDir` on the fake `CommitSiteInput` it constructs, not by mutating real
+ * process env vars.
  * @complexity O(1) — fixed-shape path join, no I/O.
  */
 export function commitExportDir(parent: string, runId: string): string {
@@ -252,27 +276,20 @@ function cleanupCommitRunDir(outputDir: string): void {
 }
 
 /**
- * `exportSite`, resolved at CALL time instead of at import time — this file's own copy of
- * `static-publish/adapter.ts`'s identical `exportSiteLazily` pattern, for the identical reason: a
- * static `import { exportSite } from "#src/export/index"` at this file's top would close a circular
- * import the moment anything reachable from `src/assistant` imports THIS module
- * (`assistant/tool-registrations.ts -> features/source-control/tool-registrations.ts ->
- * commit-site.ts -> #src/export/index -> ... -> server/app.ts -> ... assistant`), the same class of
- * `ReferenceError: Cannot access '...' before initialization` `adapter.ts`'s own header documents
- * having actually observed for the sibling domain. Deliberately this file's own copy, not an import
- * of `static-publish/adapter.ts`'s private (unexported) function of the same name — see this file's
- * header for why this feature has no dependency on `features/deployments/**` at all.
- */
-function exportSiteLazily(options: ExportSiteOptions): Promise<ExportReport> {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports -- deliberate; see doc above.
-  return (require("#src/export/index") as typeof import("#src/export/index")).exportSite(options);
-}
-
-/**
- * `firstExportFailure`, resolved the same lazy way as {@link exportSiteLazily} immediately above —
- * this file's own copy of `static-publish/adapter.ts`'s identical helper, NOT a second static
- * import of `#src/export/index` (which would reopen the exact cycle `exportSiteLazily`'s own doc
- * traces), just a second call through the already-lazily-required module.
+ * `firstExportFailure`, resolved at CALL time instead of at import time — this file's own copy of
+ * `static-publish/adapter.ts`'s identical helper. A static `import { firstExportFailure } from
+ * "#src/export/index"` at this file's top would close a circular import the moment anything
+ * reachable from `src/assistant` imports THIS module (`assistant/tool-registrations.ts ->
+ * features/source-control/tool-registrations.ts -> commit-site.ts -> #src/export/index -> ... ->
+ * server/app.ts -> ... assistant`), the same class of `ReferenceError: Cannot access '...' before
+ * initialization` `adapter.ts`'s own header documents having actually observed for the sibling
+ * domain. `exportSite` itself no longer needs this treatment here (2026-08-20 RouteDeps-narrowing
+ * fix): this file never calls it directly anymore — {@link CommitSiteInput.exportSiteBound} is
+ * already the composition root's own lazily-resolved binding (`server/app.ts`/`server/deps.ts`), so
+ * threading a second lazy `require` for the same function here would be redundant, not merely
+ * stylistic. `firstExportFailure` still needs its own lazy resolution, since it is a SEPARATE named
+ * export of the same `#src/export/index` module and importing it eagerly would reopen the identical
+ * cycle regardless of `exportSite`'s own fix.
  */
 function firstExportFailureLazily(report: ExportReport): ExportFailureSummary | undefined {
   // eslint-disable-next-line @typescript-eslint/no-require-imports -- deliberate; see exportSiteLazily's doc above.
@@ -343,10 +360,10 @@ export async function commitSiteToSourceControl(deps: CommitSiteDeps, input: Com
   }
   const resolvedCredential: ResolvedSourceControlCredential = { token: credential.connection.token };
 
-  const outputDir = commitExportDir(input.routeDeps.sourceControlExportRootDir, input.routeDeps.idGen.newId());
+  const outputDir = commitExportDir(input.sourceControlExportRootDir, input.idGen.newId());
   let report: ExportReport;
   try {
-    report = await exportSiteLazily({ routeDeps: input.routeDeps, outputDir, clean: true });
+    report = await input.exportSiteBound({ outputDir, clean: true });
   } catch (err) {
     cleanupCommitRunDir(outputDir);
     return { ok: false, code: "EXPORT_FAILED", message: `export failed before committing could start: ${err instanceof Error ? err.message : String(err)}` };
